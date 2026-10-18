@@ -24,6 +24,8 @@ lib-cov
 
 # Coverage directory used by tools like istanbul
 coverage
+# ... but not the geometry-nodes coverage fixture (Blender 5.2.2's node inventory, read by registry.test.ts)
+!plugins/procedural/tests/parity/geonodes-kit/coverage/
 
 # nyc test coverage
 .nyc_output
@@ -42,6 +44,8 @@ build/Release
 
 # Dependency directories
 node_modules/
+# Also when it is a symlink (worktrees share an install), which the trailing-slash pattern does not match.
+node_modules
 jspm_packages/
 
 # TypeScript v1 declaration files
@@ -91,3 +95,7 @@ compose.dev.yaml
 tests/snapshots/
 tests/download-file-hashes.json.lock
 
+
+# crash dumps (eslint OOMs on this repo and drops a multi-GB core here)
+core
+core.*

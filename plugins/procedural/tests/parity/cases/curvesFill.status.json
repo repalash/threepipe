@@ -1,0 +1,11 @@
+{
+ "fill-triangles-even-odd": "exact",
+ "fill-triangles-non-zero": "exact",
+ "fill-n-gons-even-odd": "exact",
+ "fill-n-gons-non-zero": "exact",
+ "fill-groups": "exact",
+ "fill-evaluated": "exact",
+ "fill-degenerate": "exact",
+ "fill-dense-circles": "exact",
+ "fill-no-curves": "exact"
+}

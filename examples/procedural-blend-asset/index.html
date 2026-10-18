@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Blender geometry nodes asset (procedural)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+
+    <script type="importmap">
+    {
+        "imports": {
+          "threepipe": "./../../dist/index.mjs",
+          "@threepipe/mesh-kernel": "./../../plugins/mesh-kernel/dist/index.mjs",
+          "@threepipe/modelling-parts": "./../../plugins/modelling-parts/dist/index.mjs",
+          "@threepipe/plugin-modelling": "./../../plugins/modelling/dist/index.mjs",
+          "@threepipe/plugin-procedural": "./../../plugins/procedural/dist/index.mjs",
+          "@threepipe/plugin-procedural/plugin": "./../../plugins/procedural/dist/plugin.mjs"
+        }
+    }
+    </script>
+    <style id="example-style">
+        html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+        body {
+            font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+            color: #e6e6ea; background: #101014;
+            display: grid; grid-template-columns: 1fr 300px;
+        }
+        #canvas-container { position: relative; min-width: 0; min-height: 0; }
+        #mcanvas { width: 100%; height: 100%; display: block; }
+        #side { border-left: 1px solid #2a2a32; background: #17171c; overflow: auto; padding: 10px 12px; }
+        h4 { margin: 12px 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: #8b8b98; }
+        .row { display: grid; grid-template-columns: 96px 1fr 52px; gap: 6px; align-items: center; margin: 4px 0; }
+        .row input[type=range] { width: 100%; }
+        .row output { text-align: right; color: #b9b9c6; }
+        #stats div { color: #b9b9c6; }
+        button { font: inherit; color: #e6e6ea; background: #26262e; border: 1px solid #34343e; border-radius: 3px; padding: 3px 8px; cursor: pointer; }
+        button:hover { background: #30303a; }
+        .row input[type=number] { width: 100%; font: inherit; color: inherit; background: #0d0d11; border: 1px solid #26262e; }
+        .row .ref { grid-column: 2 / 4; color: #8b8b98; overflow: hidden; text-overflow: ellipsis; }
+        #source { color: #8b8b98; word-break: break-all; }
+        #error { color: #ff8a80; white-space: pre-wrap; }
+    </style>
+    <script type="module" src="../examples-utils/global-loading.mjs"></script>
+    <script type="module" src="../examples-utils/simple-code-preview.mjs"></script>
+    <script id="example-script" type="module" src="./script.js" data-scripts="./script.ts;./script.js"></script>
+</head>
+<body>
+<div id="canvas-container">
+    <canvas id="mcanvas"></canvas>
+</div>
+<div id="side">
+    <h4>Asset</h4>
+    <div id="source"></div>
+    <h4>Modifier inputs</h4>
+    <div id="inputs"></div>
+    <h4>Result</h4>
+    <div id="stats"></div>
+    <div id="error"></div>
+</div>
+</body>
+</html>

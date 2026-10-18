@@ -1,0 +1,329 @@
+{
+ "title": "30 edits, one mesh",
+ "kicker": "threepipe modelling demo · edit chain",
+ "accent": "#e8a33d",
+ "blurb": "A cylinder edited into a chess rook with Blender's edit-mode operators, every step scored.",
+ "intro": "An EditHero-style chain for the modelling command API: a 16-sided cylinder becomes a chess rook in 30 edit-mode steps - inset, extrude, subdivide, bevel, bisect, connect, dissolve, grid fill, mirror, limited dissolve, make face - and every step is scored on five checks: <b>did</b> it do what it claims, <b>locality</b> (everything it did not claim is bit-identical), <b>manifold</b>, exact <b>undo</b>/redo, and <b>determinism</b> across two fresh pages. Side chains cover the rest of the command set, hazards (bad input) and controls (steps built to fail, which the harness must catch).",
+ "recordCommand": "node demos/edit-chain/record.mjs",
+ "hero": {
+  "file": "hero",
+  "caption": "The rook after step 30"
+ },
+ "stills": [
+  {
+   "file": "step-06",
+   "caption": "Step 6: the new ring moved up - the crown band"
+  },
+  {
+   "file": "step-12",
+   "caption": "Step 12: the bottom rim bevelled, 3 segments"
+  },
+  {
+   "file": "step-17",
+   "caption": "Step 17: four merlons extruded"
+  },
+  {
+   "file": "step-21",
+   "caption": "Step 21: the arrow slit extruded inward"
+  },
+  {
+   "file": "step-24",
+   "caption": "Step 24: the live mirror applied"
+  }
+ ],
+ "metricsFirst": [
+  [
+   "harness",
+   "30 / 30",
+   "main chain all PASS; all chains 117 PASS, 3 FAIL, 1 UNVERIFIED of 121"
+  ],
+  [
+   "locality · manifold",
+   "121 · 121",
+   "of 121 steps"
+  ],
+  [
+   "undo / redo exact",
+   "97",
+   "24 N/A (read-only steps)"
+  ],
+  [
+   "determinism",
+   "120 / 121",
+   "two passes in fresh pages, document hash per step"
+  ],
+  [
+   "controls caught",
+   "3 / 3",
+   "steps built to fail locality or manifold"
+  ],
+  [
+   "harness wall time",
+   "38 s",
+   "59 commands incl. the scoring (inspect, undo, redo) - SwiftShader, local"
+  ]
+ ],
+ "metrics": [
+  [
+   "agent (original demo)",
+   "155 min",
+   "claude-opus-5-5 · 173 tool calls · 201k output / 98M input tokens"
+  ]
+ ],
+ "commandsNote": "the 30 main-chain steps as filmed",
+ "checks": [
+  [
+   "step",
+   "did",
+   "locality",
+   "manifold",
+   "undo",
+   "determinism"
+  ],
+  [
+   "1. primitive: 16-sided cylinder",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS"
+  ],
+  [
+   "2. rename body -> rook",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS"
+  ],
+  [
+   "3. inset the top cap by 0.1",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS"
+  ],
+  [
+   "4. extrude the inner cap down 0.3: the cup",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS"
+  ],
+  [
+   "5. subdivide the 16 side edges",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS"
+  ],
+  [
+   "6. move the new ring up to y = 0.45",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS"
+  ],
+  [
+   "7. flare the crown band x1.12",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS"
+  ],
+  [
+   "8. subdivide the lower side edges",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS"
+  ],
+  [
+   "9. pinch the waist x0.8",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS"
+  ],
+  [
+   "10. bisect at y = -0.55 (no fill, nothing cleared)",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS"
+  ],
+  [
+   "11. swell the foot ring x1.15",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS"
+  ],
+  [
+   "12. bevel the bottom rim: 3 segments, 0.04",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS"
+  ],
+  [
+   "13. connectVertices across the bottom 16-gon",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS"
+  ],
+  [
+   "14. dissolveElements that edge again",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS"
+  ],
+  [
+   "15. deleteElements ONLY_FACE: open the bottom",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS"
+  ],
+  [
+   "16. gridFill the bottom hole",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS"
+  ],
+  [
+   "17. extrude 4 merlons up 0.22",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS"
+  ],
+  [
+   "18. inset each merlon top, recessed 0.015",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS"
+  ],
+  [
+   "19. bisect at x = 0, clear the +x half",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS"
+  ],
+  [
+   "20. inset a slit panel on the crown",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS"
+  ],
+  [
+   "21. extrude the slit panel 0.05 inward",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS"
+  ],
+  [
+   "22. vertices: drop the slit floor's lower edge 0.03",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS"
+  ],
+  [
+   "23. modifier: live mirror on x",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS"
+  ],
+  [
+   "24. modifier: apply the mirror",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS"
+  ],
+  [
+   "25. material: dark stone",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS"
+  ],
+  [
+   "26. transform the object: stand it on the ground",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS"
+  ],
+  [
+   "27. applyTransform",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS"
+  ],
+  [
+   "28. dissolveLimited the bottom grid",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS"
+  ],
+  [
+   "29. deleteElements ONLY_FACE: one merlon recess",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS"
+  ],
+  [
+   "30. makeEdgeFace: fill it again (F)",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS",
+   "PASS"
+  ]
+ ],
+ "how": "<p><code>chain.mjs</code> is the chain as data: each step a command (selections written as geometry queries, resolved per run), a claim of what it may touch, and expectations, with the Blender behaviour cited where it is not obvious. <code>run.mjs</code> runs every chain through a modelling session and scores it (<code>topology.mjs</code> diffs meshes bit for bit); <code>results.json</code> is its output, re-run on the current editor on 2026-10-18. <code>record.mjs</code> films the main chain from the resolved commands in <code>results.json</code> on the GPU VM: a clay surface with the master mesh's edges drawn over it (hidden ones faint, as Blender's edit-mode overlay), each step's scores beside it.</p><p>Re-run: <code>npm run modelling:session -- demos/edit-chain/run.mjs --port 9479 --out tmp/edit-chain-session</code>, <code>node demos/edit-chain/record.mjs</code>, <code>node demos/edit-chain/make-report.mjs</code>.</p><p>Not PASS outside the main chain (7): <code>bevel-03</code> bevel an interior edge, 3 segments; <code>export-02</code> export glb {objects: [gem]}, re-import, compare; <code>scene-06</code> display material: the red stays; <code>hazard-06</code> transform verts {from, to}; <code>control-02</code> CONTROL: move two vertices, claim one; <code>control-04</code> CONTROL: flat shading, claimed as nothing; <code>control-08</code> CONTROL: weld the touching faces together. The controls fail on purpose; the others are open issues: <code>chain-display-material-overwrites-colour.md</code> (scene-06), <code>chain-export-not-deterministic.md</code> and <code>command-export-objects-ignored.md</code> (export-02), <code>chain-transform-range-schema.md</code> (hazard-06); bevel-03 has no Blender fixture for its case.</p>",
+ "weak": [
+  "The rook is a test object, not a showpiece: low-poly, flat-shaded, one material.",
+  "The film shows each step's result; the harness's own undo/redo and determinism passes are scored, not shown."
+ ]
+}

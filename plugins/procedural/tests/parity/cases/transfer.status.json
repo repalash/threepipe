@@ -1,0 +1,6 @@
+{
+ "transfer-by-index": "exact",
+ "transfer-by-id": "exact",
+ "transfer-exclude": "exact",
+ "transfer-instance-attribute-order": "exact"
+}

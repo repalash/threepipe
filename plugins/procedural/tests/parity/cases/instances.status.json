@@ -1,0 +1,6 @@
+{
+ "iop-pick-mesh-only": "exact",
+ "iop-basic": "exact",
+ "iop-selection-realize": "exact",
+ "translate-scale-instances": "exact"
+}

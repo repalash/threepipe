@@ -1,0 +1,89 @@
+{
+ "blender": "5.2.2 LTS",
+ "case": {
+  "id": "extrude-vertices-loose-origin",
+  "description": "Vertices mode on one loose point at the origin: default normal offset is zero",
+  "tree": {
+   "nodes": [
+    {
+     "name": "points",
+     "type": "GeometryNodePoints"
+    },
+    {
+     "name": "verts",
+     "type": "GeometryNodePointsToVertices"
+    },
+    {
+     "name": "extrude",
+     "type": "GeometryNodeExtrudeMesh",
+     "properties": {
+      "mode": "VERTICES"
+     }
+    }
+   ],
+   "links": [
+    {
+     "from": [
+      "points",
+      "Geometry"
+     ],
+     "to": [
+      "verts",
+      "Points"
+     ]
+    },
+    {
+     "from": [
+      "verts",
+      "Mesh"
+     ],
+     "to": [
+      "extrude",
+      "Mesh"
+     ]
+    }
+   ],
+   "output": [
+    "extrude",
+    "Mesh"
+   ]
+  },
+  "spec": "docs/spec/nodes/mesh/GeometryNodeExtrudeMesh.md"
+ },
+ "geometry": {
+  "mesh": {
+   "vertices": 2,
+   "edges": [
+    0,
+    1
+   ],
+   "faceStarts": [],
+   "faceSizes": [],
+   "cornerVertices": [],
+   "attributes": [
+    {
+     "name": "position",
+     "domain": "POINT",
+     "type": "FLOAT_VECTOR",
+     "values": [
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+     ]
+    },
+    {
+     "name": ".edge_verts",
+     "domain": "EDGE",
+     "type": "INT32_2D",
+     "values": [
+      0,
+      1
+     ]
+    }
+   ]
+  }
+ }
+}

@@ -1,0 +1,7 @@
+# Never committed: the film and renders of the third-party assets (Buildify, flower_scattering; see
+# plugins/procedural/tests/fixtures/ASSETS.md). The terrain is ours, so its stills are kept.
+video.mp4
+*.webm
+film/
+shots/buildify-*
+shots/flowers-*

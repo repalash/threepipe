@@ -14,6 +14,9 @@ const {main, module, browser} = packageJson
 const globals = {
     'three': 'threepipe', // just incase someone uses three
     'threepipe': 'threepipe',
+    // External, not bundled: a second copy of the kernel would mean a second `MeshData` class, and
+    // the mesh the importer attaches would not be the one `MeshEditPlugin` recognises.
+    '@threepipe/mesh-kernel': '@threepipe/mesh-kernel',
 }
 
 export default defineConfig({

@@ -1,0 +1,274 @@
+/**
+ * Mouse input for the modal transform, ported from `editors/transform/transform_input.cc`.
+ *
+ * Each mode turns the cursor position into the value a transform mode consumes:
+ * - `vector`: the screen delta from the start as a world-space vector (translate);
+ * - `spring` / `springFlip`: the ratio of the cursor's distance to the pivot against the distance
+ *   at the start (scale), flipped when the cursor crosses the pivot;
+ * - `angle`: the angle swept about the pivot's screen position, accumulated per move so it is
+ *   continuous past 180 degrees (rotate);
+ * - `customRatio` / `customRatioFlip`: the cursor's progress along a screen segment the mode sets with
+ *   {@link setCustomPoints} (edge slide, vertex slide).
+ *
+ * Precision (Shift) works through a "virtual" cursor that advances at a tenth of the real one
+ * (`applyMouseInput`), so letting go of Shift never jumps.
+ */
+
+import {angleNormalizedV2V2, crossV2, normalizeV2, Vec2, Vec3} from './math'
+
+export type MouseInputMode = 'none' | 'vector' | 'spring' | 'springFlip' | 'springDelta' | 'angle' | 'customRatio' | 'customRatioFlip' | 'verticalAbsolute'
+
+/** What the input needs from the transform: Blender's `convertViewVec`. */
+export interface MouseInputContext {
+    convertViewVec(dx: number, dy: number): Vec3
+    /** `t->viewinv[1]`: the view's up direction in world space (`verticalAbsolute`). */
+    viewUp?(): Vec3
+}
+
+/** The `MouseInput` struct (`transform.hh`). */
+export class MouseInput {
+    /** Initial mouse position. */
+    imval: Vec2 = [0, 0]
+    /** The pivot on screen, for `spring` and `angle`. */
+    center: Vec2 = [0, 0]
+    factor = 0
+    precision = false
+    precisionFactor = 1 / 10
+    useVirtualMval = true
+    virtualPrev: Vec2 = [0, 0]
+    virtualAccum: Vec2 = [0, 0]
+    mode: MouseInputMode = 'none'
+    /** `InputAngle_Data`. */
+    angle = 0
+    mvalPrev: Vec2 = [0, 0]
+    /** `mi->data` of the custom-ratio modes: integer start and end points, `[x0, y0, x1, y1]`. */
+    custom: [number, number, number, number] | null = null
+    post: ((values: Vec3) => void) | null = null
+}
+
+/** `InputVector` (`transform_input.cc:39`). */
+function inputVector(ctx: MouseInputContext, mi: MouseInput, mval: Vec2): Vec3 {
+    return ctx.convertViewVec(mval[0] - mi.imval[0], mval[1] - mi.imval[1])
+}
+
+/**
+ * `InputVerticalAbsolute` (`transform_input.cc:125`): the cursor's travel along the view's up axis, in
+ * world units, doubled. "Dragging up increases (matching viewport zoom)."
+ */
+function inputVerticalAbsolute(ctx: MouseInputContext, mi: MouseInput, mval: Vec2): Vec3 {
+    const vec = inputVector(ctx, mi, mval)
+    const up = ctx.viewUp ? ctx.viewUp() : [0, 1, 0]
+    // `project_v3_v3v3(vec, vec, viewinv[1])`, then `dot(viewinv[1], vec) * 2`.
+    const len2 = up[0] * up[0] + up[1] * up[1] + up[2] * up[2]
+    const d = len2 ? (vec[0] * up[0] + vec[1] * up[1] + vec[2] * up[2]) / len2 : 0
+    const proj: Vec3 = [up[0] * d, up[1] * d, up[2] * d]
+    return [(up[0] * proj[0] + up[1] * proj[1] + up[2] * proj[2]) * 2, 0, 0]
+}
+
+/** `InputSpring` (`transform_input.cc:45`). */
+function inputSpring(mi: MouseInput, mval: Vec2): Vec3 {
+    const dx = mi.center[0] - mval[0]
+    const dy = mi.center[1] - mval[1]
+    const ratio = Math.hypot(dx, dy) / mi.factor
+    return [ratio, 0, 0]
+}
+
+/** `InputSpringFlip` (`transform_input.cc:58`): negative past the pivot. */
+function inputSpringFlip(mi: MouseInput, mval: Vec2): Vec3 {
+    const out = inputSpring(mi, mval)
+    const cx = Math.trunc(mi.center[0]), cy = Math.trunc(mi.center[1])
+    if ((cx - mval[0]) * (cx - mi.imval[0]) + (cy - mval[1]) * (cy - mi.imval[1]) < 0) {
+        out[0] *= -1
+    }
+    return out
+}
+
+/** `InputSpringDelta` (`transform_input.cc:72`). */
+function inputSpringDelta(mi: MouseInput, mval: Vec2): Vec3 {
+    const out = inputSpring(mi, mval)
+    out[0] -= 1
+    return out
+}
+
+/** `InputAngle` (`transform_input.cc:179`): accumulate the signed angle swept since the previous move. */
+function inputAngle(mi: MouseInput, mval: Vec2): Vec3 {
+    const dirPrev: Vec2 = [mi.mvalPrev[0] - mi.center[0], mi.mvalPrev[1] - mi.center[1]]
+    const dirCurr: Vec2 = [mval[0] - mi.center[0], mval[1] - mi.center[1]]
+
+    if (normalizeV2(dirPrev) && normalizeV2(dirCurr)) {
+        let dphi = angleNormalizedV2V2(dirPrev, dirCurr)
+        if (crossV2(dirPrev, dirCurr) > 0) dphi = -dphi
+
+        mi.angle += dphi * (mi.precision ? mi.precisionFactor : 1)
+        mi.mvalPrev = [mval[0], mval[1]]
+    }
+    return [mi.angle, 0, 0]
+}
+
+/**
+ * `InputCustomRatioFlip` (`transform_input.cc:140`): the cursor's offset from the end point, projected
+ * on the segment and divided by its length. Blender keeps the points and the offset as `int`s.
+ */
+function inputCustomRatioFlip(mi: MouseInput, mval: Vec2): Vec3 {
+    const data = mi.custom
+    const out: Vec3 = [0, 0, 0]
+    if (data) {
+        const dx = data[2] - data[0]
+        const dy = data[3] - data[1]
+        const length = Math.hypot(dx, dy)
+        const mdx = Math.trunc(mval[0] - data[2])
+        const mdy = Math.trunc(mval[1] - data[3])
+        const distance = length !== 0 ? (mdx * dx + mdy * dy) / length : 0
+        out[0] = length !== 0 ? distance / length : 0
+    }
+    return out
+}
+
+/** `InputCustomRatio` (`transform_input.cc:167`). */
+function inputCustomRatio(mi: MouseInput, mval: Vec2): Vec3 {
+    const out = inputCustomRatioFlip(mi, mval)
+    out[0] = -out[0]
+    return out
+}
+
+/** `setCustomPoints` (`transform_input.cc:223`): the segment the custom-ratio modes measure along. */
+export function setCustomPoints(mi: MouseInput, mvalStart: Vec2, mvalEnd: Vec2): void {
+    mi.custom = [Math.trunc(mvalStart[0]), Math.trunc(mvalStart[1]), Math.trunc(mvalEnd[0]), Math.trunc(mvalEnd[1])]
+}
+
+/** `transform_input_reset` (`transform_input.cc:257`). */
+export function transformInputReset(mi: MouseInput, mval: Vec2): void {
+    mi.imval = [mval[0], mval[1]]
+    if (mi.mode === 'angle') {
+        mi.mvalPrev = [mi.imval[0], mi.imval[1]]
+        mi.angle = 0
+    }
+}
+
+/** `initMouseInput` (`transform_input.cc:271`). */
+export function initMouseInput(mi: MouseInput, center: Vec2, mval: Vec2, precision: boolean): void {
+    mi.factor = 0
+    mi.precision = precision
+    mi.center = [center[0], center[1]]
+    mi.post = null
+    transformInputReset(mi, mval)
+}
+
+/** `calcSpringFactor` (`transform_input.cc:284`): the start distance to the pivot, never zero. */
+function calcSpringFactor(mi: MouseInput): void {
+    mi.factor = Math.hypot(mi.center[1] - mi.imval[1], mi.center[0] - mi.imval[0])
+    if (mi.factor === 0) mi.factor = 1
+}
+
+/** `initMouseInputMode` (`transform_input.cc:341`). */
+export function initMouseInputMode(mi: MouseInput, mode: MouseInputMode): void {
+    mi.useVirtualMval = true
+    mi.precisionFactor = 1 / 10
+    mi.mode = mode
+    switch (mode) {
+    case 'vector':
+        break
+    case 'spring':
+    case 'springFlip':
+    case 'springDelta':
+        calcSpringFactor(mi)
+        break
+    case 'angle':
+        mi.useVirtualMval = false
+        mi.precisionFactor = 1 / 30
+        mi.mvalPrev = [mi.imval[0], mi.imval[1]]
+        mi.angle = 0
+        break
+    case 'customRatio':
+    case 'customRatioFlip':
+        // The points come from the mode, set before (`setCustomPoints`).
+        break
+    default:
+        break
+    }
+}
+
+/** `applyMouseInput` (`transform_input.cc:489`). */
+export function applyMouseInput(ctx: MouseInputContext, mi: MouseInput, mval: Vec2): Vec3 {
+    let mvalDb: Vec2
+    if (mi.useVirtualMval) {
+        // Update the accumulator.
+        const dx = mval[0] - mi.imval[0] - mi.virtualPrev[0]
+        const dy = mval[1] - mi.imval[1] - mi.virtualPrev[1]
+        mi.virtualPrev[0] += dx
+        mi.virtualPrev[1] += dy
+        const f = mi.precision ? mi.precisionFactor : 1
+        mi.virtualAccum[0] += dx * f
+        mi.virtualAccum[1] += dy * f
+        mvalDb = [mi.imval[0] + mi.virtualAccum[0], mi.imval[1] + mi.virtualAccum[1]]
+    } else {
+        mvalDb = [mval[0], mval[1]]
+    }
+
+    let output: Vec3 = [0, 0, 0]
+    switch (mi.mode) {
+    case 'vector':
+        output = inputVector(ctx, mi, mvalDb)
+        break
+    case 'spring':
+        output = inputSpring(mi, mvalDb)
+        break
+    case 'springFlip':
+        output = inputSpringFlip(mi, mvalDb)
+        break
+    case 'springDelta':
+        output = inputSpringDelta(mi, mvalDb)
+        break
+    case 'angle':
+        output = inputAngle(mi, mvalDb)
+        break
+    case 'customRatio':
+        output = inputCustomRatio(mi, mvalDb)
+        break
+    case 'customRatioFlip':
+        output = inputCustomRatioFlip(mi, mvalDb)
+        break
+    case 'verticalAbsolute':
+        output = inputVerticalAbsolute(ctx, mi, mvalDb)
+        break
+    default:
+        break
+    }
+    if (mi.post) mi.post(output)
+    return output
+}
+
+/** `transform_input_virtual_mval_reset` (`transform_input.cc:565`). */
+export function transformInputVirtualMvalReset(mi: MouseInput): void {
+    if (mi.mode === 'angle') {
+        mi.angle = 0
+        mi.mvalPrev = [mi.imval[0], mi.imval[1]]
+    } else {
+        mi.virtualPrev = [0, 0]
+        mi.virtualAccum = [0, 0]
+    }
+}
+
+/**
+ * `transform_input_update` (`transform_input.cc:528`): keep the input continuous when the view
+ * changes mid-transform (zoom `fac` and a new pivot position on screen).
+ */
+export function transformInputUpdate(mi: MouseInput, fac: number, center2d: Vec2): void {
+    const offset: Vec2 = [fac * (mi.imval[0] - mi.center[0]), fac * (mi.imval[1] - mi.center[1])]
+    mi.imval = [center2d[0] + offset[0], center2d[1] + offset[1]]
+    mi.factor *= fac
+
+    const centerOld: Vec2 = [mi.center[0], mi.center[1]]
+    mi.center = [center2d[0], center2d[1]]
+
+    if (mi.useVirtualMval) {
+        const dx = (mi.virtualAccum[0] - mi.virtualPrev[0]) * fac
+        const dy = (mi.virtualAccum[1] - mi.virtualPrev[1]) * fac
+        mi.virtualAccum = [mi.virtualPrev[0] + dx, mi.virtualPrev[1] + dy]
+    }
+
+    if (mi.mode === 'angle') {
+        mi.mvalPrev[0] += mi.center[0] - centerOld[0]
+        mi.mvalPrev[1] += mi.center[1] - centerOld[1]
+    }
+}

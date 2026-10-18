@@ -1,0 +1,7 @@
+{
+ "foreach-points-main": "exact",
+ "foreach-faces-generate": "exact",
+ "foreach-element-mesh": "exact",
+ "foreach-curves-instances": "exact",
+ "foreach-anonymous": "exact"
+}

@@ -1,0 +1,11 @@
+{
+ "input-face-area": "exact",
+ "input-edge-neighbors": "exact",
+ "input-mesh-island": "exact",
+ "input-vertex-neighbors": "exact",
+ "input-face-neighbors": "exact",
+ "input-face-is-planar": "exact",
+ "input-edge-vertices": "exact",
+ "input-face-is-planar-field-threshold": "blender-bug: PlanarFieldInput reads a destroyed FieldEvaluator (issues/open/modelling-tools/procedural-blender-bug-face-is-planar-threshold.md)",
+ "inputs-on-points": "exact"
+}

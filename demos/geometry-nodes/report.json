@@ -1,0 +1,94 @@
+{
+ "title": "Geometry nodes, edited live",
+ "kicker": "threepipe modelling demo · geometry nodes",
+ "accent": "#4f8cff",
+ "blurb": "Buildify, a flower field and a DSL terrain as geometry-nodes modifiers, edited live in the editor.",
+ "line": "Buildify 21 ms · flowers 496 ms · terrain 396 ms per input change (mean of 4, GPU VM)",
+ "intro": "Blender 5.2.2 geometry-nodes groups evaluated in TypeScript on the mesh kernel, as modifiers in the threepipe modelling editor. Buildify 1.0's building generator and Blender Studio's flower field come from their .blend files through the <code>blendAsset</code> command (node groups, inputs and the objects they read - nothing Blender evaluated); the terrain is a group written in the TypeScript DSL. Each is edited twice: in Properties > Modifiers with the mouse and keyboard, and through the <code>modifier update</code> command an agent sends - every edit one undo step, re-running only what it reaches.",
+ "recordCommand": "node demos/geometry-nodes/record.mjs",
+ "hero": {
+  "file": "terrain-edited",
+  "caption": "The DSL terrain after its Height was typed into the modifier panel"
+ },
+ "stills": [
+  {
+   "file": "terrain-loaded",
+   "caption": "Terrain: the DSL group on a plane, as loaded"
+  },
+  {
+   "file": "terrain-final",
+   "caption": "Terrain after four more input changes (resolution, seed)"
+  }
+ ],
+ "commandsNote": "the input changes the film timed",
+ "metricsFirst": [
+  [
+   "Buildify update",
+   "21 ms / update",
+   "load 542 ms · panel edit 30 ms · updates 27 / 19 / 17 / 21 ms · 10 verts"
+  ],
+  [
+   "flower field update",
+   "496 ms / update",
+   "load 1398 ms · panel edit 603 ms · updates 581 / 511 / 374 / 518 ms · 4,225 verts"
+  ],
+  [
+   "terrain update",
+   "396 ms / update",
+   "load 348 ms · panel edit 328 ms · updates 646 / 320 / 315 / 305 ms · 9,216 verts"
+  ]
+ ],
+ "metrics": [
+  [
+   "parity (Blender 5.2.2)",
+   "14 / 15",
+   "buildify_1.0 objects bit-exact; flower field: pass (within 1e-5, > 256 ulp)"
+  ],
+  [
+   "agent (track 2, the port)",
+   "712 min",
+   "claude-opus-5-5 · 2,742 tool calls · 2.34M output / 2.5G input tokens (mostly cache reads)"
+  ]
+ ],
+ "checks": [
+  [
+   "asset",
+   "load ms",
+   "panel edit",
+   "updates (ms)",
+   "evaluated",
+   "drawn"
+  ],
+  [
+   "buildify",
+   542,
+   "Max number of floors = 12: 30 ms",
+   "Input_6=8,Input_7=12: 27; Input_6=4,Input_7=6: 19; Input_3=4: 17; Input_3=3: 21",
+   "10 verts, 4 faces",
+   "234 draws, 20 instanced"
+  ],
+  [
+   "flowers",
+   1398,
+   "Flower Density = 0.4: 603 ms",
+   "Input_17=3: 581; Input_17=0: 511; Input_5=2: 374; Input_5=3: 518",
+   "4,225 verts, 4,096 faces",
+   "122816 draws, 92 instanced"
+  ],
+  [
+   "terrain",
+   348,
+   "Height = 8: 328 ms",
+   "Resolution=140: 646; Resolution=96: 320; Seed=12: 315; Seed=0: 305",
+   "9,216 verts, 9,025 faces",
+   "mesh"
+  ]
+ ],
+ "how": "<p><code>record.mjs</code> opens <code>examples/procedural-editor-assets</code> once per asset on the GPU VM, clicks the Modifiers tab, types the new value into the field and presses Enter (real Playwright input), waits for the object's evaluated mesh to change and records that time, then sends four timed <code>modifier update</code> commands. <code>demos/shared/film.mjs</code> renders and captures every frame, so an evaluation that takes seconds shows as its number on screen rather than a frozen picture. Times are wall time in the page on the VM (6 cores, Apple Paravirtual GPU).</p><p>Re-run: put the bundles in <code>tmp/bundles/</code> (<code>plugins/procedural/tests/fixtures/ASSETS.md</code>), <code>node demos/geometry-nodes/record.mjs</code>, pull <code>tmp/demo/geometry-nodes/film/</code> to <code>demos/geometry-nodes/film/</code>, <code>node demos/geometry-nodes/make-report.mjs</code>. The track-2 acceptance record (<code>scripts/procedural-acceptance-video.mjs</code>) is the same run in real time.</p>",
+ "weak": [
+  "Buildify and the flower field are third-party assets: their renders and this film cannot be committed or published until their use in launch material is decided.",
+  "The editor viewport lighting is the editor default; the flower field's grass reads as flat colour at 1080p.",
+  "The editor frames each asset with its own frame-all, so the terrain sits small in the viewport, and the selection box (red) stays on throughout, because the modifier panel needs the object selected."
+ ],
+ "credits": "Buildify 1.0 by Pavel Oliva (free for commercial use, not for resale of the graph). flower_scattering.blend by Simon Thommes and Andy Goralczyk, Blender Studio (CC0). See plugins/procedural/tests/fixtures/ASSETS.md."
+}

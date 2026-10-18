@@ -1,0 +1,873 @@
+/**
+ * `EditorEnginePlugin` - the {@link EditorEngine}.
+ *
+ * One object per viewer that owns what the plugins underneath it each used to own a piece of: the
+ * operator and tool registries, the keymap (presets, one input router), the one undo history with a
+ * label per step, redo-last, status hints, and the events a UI renders from. `MeshEditPlugin`,
+ * `ModellingPlugin`, `PickingPlugin`, `TransformControlsPlugin` and `UndoManagerPlugin` do the work;
+ * their own key handlers are switched off by flag while this plugin is present, so one key means one
+ * thing.
+ *
+ * Blender is the model throughout: `wmOperatorType` for operators (`poll`/`exec`/flags),
+ * `ED_undo_operator_repeat` for the redo panel, `WM_menu_invoke` for keys that open a menu, the
+ * default and Industry Compatible keymaps for the presets.
+ */
+
+import {
+    AViewerPluginEventMap,
+    AViewerPluginSync,
+    IObject3D,
+    PickingPlugin,
+    ThreeViewer,
+    TransformControlsPlugin,
+    UndoManagerPlugin,
+} from 'threepipe'
+import {MeshEditPlugin} from '@threepipe/plugin-mesh-edit'
+import {evaluatedStats, ModellingPlugin} from '@threepipe/plugin-modelling'
+import {SelectMode} from '@threepipe/mesh-kernel'
+import {
+    EditorContext,
+    EditorEngine,
+    EditorEngineEventMap,
+    EditorMode,
+    InputApi,
+    KeyBinding,
+    KeymapApi,
+    KeymapPreset,
+    LabelledUndoCommand,
+    LastLook,
+    LastOperation,
+    MenuDescriptor,
+    MenuRequestItem,
+    OperatorDescriptor,
+    OperatorResult,
+    ResolvedMenu,
+    SceneStats,
+    SelectModeName,
+    SimpleRegistry,
+    StatusHints,
+    ToolDescriptor,
+} from './registry'
+import {EditorHistory} from './history/EditorHistory'
+import {EditorFile} from './files/EditorFile'
+import {Keymap} from './keymap/Keymap'
+import {blenderPreset} from './keymap/presets/blender'
+import {designPreset} from './keymap/presets/design'
+import {InputRouter} from './input/InputRouter'
+import {Navigation} from './input/Navigation'
+import {registerEditOperators} from './ops/editOps'
+import {registerFileOperators} from './ops/fileOps'
+import {registerObjectOperators} from './ops/objectOps'
+import {registerMeshOperators} from './ops/meshOps'
+import {registerFillOperators} from './ops/fillOps'
+import {registerEditmeshToolOperators} from './ops/editmeshToolOps'
+import {registerLoopOperators} from './ops/loopOps'
+import {registerModellingOperators} from './ops/modellingOps'
+import {registerTools} from './tools/tools'
+import {registerCutOperators} from './ops/cutOps'
+import {registerCutTools} from './tools/cutTools'
+import type {PropDragModal} from './tools/PropDragModal'
+import {registerMenus, HEADER_MENUS, HEADER_LABELS, CONTEXT_MENUS} from './menus/menus'
+import {resolveMenu} from './menus/resolveMenu'
+
+const SELECT_MASKS: Record<SelectModeName, number> = {
+    vertex: SelectMode.Vertex,
+    edge: SelectMode.Edge,
+    face: SelectMode.Face,
+}
+
+export interface EditorEngineOptions {
+    /** Keymap preset to start with. Default: the stored preference, else `blender`. */
+    keymap?: string
+    /**
+     * `localStorage` key for the keymap preference; the recent-files list and the chosen pointing
+     * device use it with a `-recent` and a `-device` suffix. `null` turns persistence off.
+     */
+    storageKey?: string | null
+    /** Register the built-in operator packs and tools. Default true. */
+    builtins?: boolean
+}
+
+type EngineEvents = EditorEngineEventMap & AViewerPluginEventMap
+
+/** Tools that stay active (gizmo tools) rather than running once. */
+const STICKY_TOOLS = new Set(['mesh.move', 'mesh.rotate', 'mesh.scale', 'mesh.transform', 'mesh.loop_cut', 'mesh.knife', 'mesh.bisect'])
+
+export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implements EditorEngine {
+    public static readonly PluginType = 'EditorEnginePlugin'
+    enabled = true
+    dependencies = []
+    /** Not serialised: the engine is interaction state, not scene configuration. */
+    toJSON: any = undefined
+
+    readonly operators = new SimpleRegistry<OperatorDescriptor>(item => this._registryChanged(item))
+    readonly tools = new SimpleRegistry<ToolDescriptor>(item => this._registryChanged(item))
+    readonly menus = new SimpleRegistry<MenuDescriptor>(() => this._registryChanged())
+
+    picking!: PickingPlugin
+    undoPlugin!: UndoManagerPlugin
+    meshEdit!: MeshEditPlugin
+    modelling: ModellingPlugin | undefined
+    transformControls: TransformControlsPlugin | undefined
+
+    history!: EditorHistory
+    input!: InputRouter
+    navigation!: Navigation
+    file!: EditorFile
+
+    private _options: EditorEngineOptions
+    private _presets: KeymapPreset[] = [blenderPreset, designPreset]
+    private _keymap = new Keymap(blenderPreset)
+    private _activeTool: ToolDescriptor | null = null
+    private _lastOperation: LastOperation | null = null
+    private _lastLook: LastLook | null = null
+
+    /** The most recent `look` render in this page, from any caller. See {@link LastLook}. */
+    get lastLook(): LastLook | null {
+        return this._lastLook
+    }
+    private _lastStep: unknown = null
+    private _pendingModal: {operator: OperatorDescriptor, props: Record<string, unknown>} | null = null
+    private _redoing = false
+    private _preferredSelectMode: SelectModeName = 'vertex'
+    private _disposers: (() => void)[] = []
+    private _disposed = false
+    /** A running engine-side modal (interactive inset/bevel), if any. Owns keys and the pointer. */
+    propDrag: PropDragModal | null = null
+
+    constructor(options: EditorEngineOptions = {}) {
+        super()
+        this._options = options
+    }
+
+    get viewer(): ThreeViewer {
+        if (!this._viewer) throw new Error('EditorEnginePlugin: not added to a viewer yet')
+        return this._viewer
+    }
+
+    // region lifecycle
+
+    onAdded(viewer: ThreeViewer): void {
+        super.onAdded(viewer)
+        this._disposed = false
+        this.picking = viewer.getOrAddPluginSync(PickingPlugin)
+        this.undoPlugin = viewer.getOrAddPluginSync(UndoManagerPlugin)
+        this.meshEdit = viewer.getOrAddPluginSync(MeshEditPlugin)
+        this.modelling = viewer.getPlugin(ModellingPlugin)
+        this.transformControls = viewer.getPlugin(TransformControlsPlugin)
+
+        // One key, one owner: the plugins' own handlers stand down while the engine routes keys.
+        this.picking.keyboardShortcuts = false
+        this.meshEdit.keyHandling = false
+        this._disposers.push(() => {
+            this.picking.keyboardShortcuts = true
+            this.meshEdit.keyHandling = true
+        })
+        // Clicking the selected object keeps it selected (cycling through objects behind it), as in
+        // Blender, instead of clearing the selection.
+        if (this.picking.picker) this.picking.picker.cycleWrap = true
+
+        this.history = new EditorHistory(this.undoPlugin, () => this._historyChanged())
+        this._disposers.push(() => this.history.dispose())
+
+        const storageKey = this._storageKey()
+        this.file = new EditorFile(this.history, storageKey ? storageKey + '-recent' : null, () => this._fileChanged())
+
+        this.navigation = new Navigation(viewer, () => this.meshEdit)
+        // A device the user chose is remembered; a detected one is detected again next time.
+        const deviceKey = storageKey ? storageKey + '-device' : null
+        const storedDevice = deviceKey ? readStorage(deviceKey) : null
+        if (storedDevice === 'mouse' || storedDevice === 'trackpad') this.navigation.setDevice(storedDevice)
+        this.navigation.onDeviceChange = (device, source) => {
+            if (deviceKey) writeStorage(deviceKey, source === 'chosen' ? device : null)
+            this.dispatchEvent({type: 'navigationChanged', device, source})
+            this._statusChanged()
+        }
+        this._disposers.push(() => this.navigation.dispose())
+
+        this.input = new InputRouter({
+            canvas: viewer.canvas,
+            mode: () => this.mode,
+            keymap: () => this._keymap,
+            handleModalKey: e => this._handleModalKey(e),
+            dispatch: (b, e) => this._dispatch(b, e),
+            onSpace: down => this.navigation.setSpace(down),
+        })
+        this._disposers.push(() => this.input.dispose())
+
+        this._listen()
+
+        if (this._options.builtins !== false) {
+            registerEditOperators(this)
+            registerFileOperators(this)
+            registerObjectOperators(this)
+            registerMeshOperators(this)
+            registerFillOperators(this)
+            registerEditmeshToolOperators(this)
+            registerLoopOperators(this)
+            registerModellingOperators(this)
+            registerTools(this)
+            registerCutTools(this, registerCutOperators(this))
+            registerMenus(this)
+        }
+
+        const stored = this._storedPreset()
+        this.keymap.setPreset(this._options.keymap ?? stored ?? blenderPreset.id)
+        if (this.tools.get('select')) this.setActiveTool('select')
+    }
+
+    onRemove(viewer: ThreeViewer): void {
+        this.dispose()
+        super.onRemove(viewer)
+    }
+
+    dispose(): void {
+        if (this._disposed) return
+        this._disposed = true
+        this.propDrag?.cancel()
+        this._activeTool?.deactivate(this.context())
+        this._activeTool = null
+        for (const d of this._disposers.splice(0).reverse()) d()
+        super.dispose()
+    }
+
+    private _on<T extends {addEventListener: any, removeEventListener: any}>(target: T, type: string, listener: (e: any) => void): void {
+        target.addEventListener(type as never, listener as never)
+        this._disposers.push(() => target.removeEventListener(type as never, listener as never))
+    }
+
+    private _listen(): void {
+        const viewer = this.viewer
+        this._on(this.meshEdit, 'editModeChanged', (e: {object: IObject3D | null}) => {
+            if (e.object && this.meshEdit.state) {
+                // Enter in the select mode the user last chose from the header.
+                this.meshEdit.setSelectMode(SELECT_MASKS[this._preferredSelectMode])
+                this._adoptIntoDocument(e.object)
+            }
+            // A sticky edit-mode tool makes no sense across a mode switch.
+            if (this._activeTool && this._activeTool.modes && !this._activeTool.modes.includes(this.mode)) {
+                this.setActiveTool('select')
+            }
+            this.navigation.apply(this._keymap.preset.navigation, this.mode)
+            this._applyShortcuts()
+            this.dispatchEvent({type: 'modeChanged', mode: this.mode})
+            this.dispatchEvent({type: 'selectModeChanged', selectMode: this.selectMode})
+            this.dispatchEvent({type: 'selectionChanged'})
+            this.dispatchEvent({type: 'sceneChanged'})
+            this._statusChanged()
+        })
+        this._on(this.meshEdit, 'elementSelectionChanged', () => {
+            const m = this.selectMode
+            if (m !== this._preferredSelectMode) {
+                this._preferredSelectMode = m
+                this.dispatchEvent({type: 'selectModeChanged', selectMode: m})
+            }
+            this.dispatchEvent({type: 'selectionChanged'})
+        })
+        this._on(this.meshEdit, 'transformChanged', (e: {transform: unknown}) => {
+            this._statusChanged()
+            // A one-shot edit-mode tool (move/rotate/scale/extrude) hands the toolbar back when its modal ends.
+            // Gizmo tools stay active across drags, as Blender's do.
+            if (!e.transform && this._activeTool?.id.startsWith('mesh.') && !STICKY_TOOLS.has(this._activeTool.id)) this.setActiveTool('select')
+        })
+        this._on(this.meshEdit, 'loopCutChanged', () => this._statusChanged())
+        this._on(this.meshEdit, 'meshChanged', () => this.dispatchEvent({type: 'sceneChanged'}))
+        this._on(this.meshEdit, 'knifeChanged', () => this._statusChanged())
+        // Edit mode reports what it could not do; show it rather than leave it in the console.
+        this._on(this.meshEdit, 'notice', (e: {message: string, level: 'info' | 'warning'}) => this.message(e.level, e.message))
+        this._on(this.picking, 'selectedObjectChanged', (e: {object?: IObject3D | IObject3D[] | null}) => {
+            // The picker records a selection step (Blender's object-mode selection is an undo step too)
+            // right after this event; name it after the object, since the picker does not.
+            const obj = Array.isArray(e.object) ? e.object[e.object.length - 1] : e.object
+            const label = obj ? `Select ${obj.name || 'object'}` : 'Deselect'
+            this.history.noteEvent(label)
+            this.history.labelLastRecorded(label)
+            this.dispatchEvent({type: 'selectionChanged'})
+        })
+        this._on(viewer.scene, 'sceneUpdate', (e: {hierarchyChanged?: boolean}) => {
+            if (e.hierarchyChanged) this.dispatchEvent({type: 'sceneChanged'})
+        })
+        this._on(viewer.scene, 'addSceneObject', () => this.dispatchEvent({type: 'sceneChanged'}))
+        this._on(viewer.scene, 'objectUpdate', (e: {change?: string, key?: string}) => {
+            const k = e.change ?? e.key
+            if (k === 'name' || k === 'visible' || k === 'indexInParent' || k === 'addedToParent' || k === 'removedFromParent') {
+                this.dispatchEvent({type: 'sceneChanged'})
+            }
+        })
+        if (this.modelling) {
+            this._on(this.modelling, 'commandRun', (e: {command: Record<string, unknown>, result: {ok: boolean, op: string, index: number, data?: unknown}}) => {
+                if (e.result.op !== 'look' || !e.result.ok || !e.result.data) return
+                this._lastLook = {command: e.command, data: e.result.data as Record<string, unknown>, index: e.result.index, time: Date.now()}
+                this.dispatchEvent({type: 'lookChanged', look: this._lastLook})
+            })
+            this._on(this.modelling, 'documentChanged', (e: {source?: string}) => {
+                // A command, or an undo of one, changed the document underneath a live edit session:
+                // the session is a view of the document, so it reloads. A sink change came *from* the
+                // session and needs nothing.
+                if (e.source !== 'sink' && this.meshEdit.isEditing && this.meshEdit.editObject) {
+                    const entry = this.modelling!.document.find(this.meshEdit.editObject.uuid)
+                    if (entry) this.meshEdit.reload()
+                }
+                this.dispatchEvent({type: 'sceneChanged'})
+            })
+        }
+        const tc = this.transformControls?.transformControls
+        if (tc) {
+            this._on(tc as any, 'mode-changed', () => this.dispatchEvent({type: 'toolChanged', tool: this._activeTool}))
+            // `TransformControlsPlugin` records the drag as an unlabelled step on its `mouseUp`; its
+            // listener was added before this one, so a label noted on `mouseDown` names that step
+            // ("Move cube") and is cleared once the release has been handled.
+            const verb = () => ({translate: 'Move', rotate: 'Rotate', scale: 'Scale'} as Record<string, string>)[tc.getMode()] ?? 'Transform'
+            this._on(tc as any, 'mouseDown', () => {
+                const name = (tc.object as IObject3D | undefined)?.name || 'object'
+                this.history.pendingLabel = `${verb()} ${name}`
+            })
+            this._on(tc as any, 'mouseUp', () => { this.history.pendingLabel = null })
+        }
+    }
+
+    private _fileChanged(): void {
+        if (this._disposed) return
+        this.dispatchEvent({type: 'fileChanged', name: this.file.name, dirty: this.file.dirty})
+    }
+
+    /**
+     * An object entering edit mode joins the modelling document if it is not in it already, so an
+     * imported mesh gets the same commands (inset, bevel, delete menu, ...), redo-last and agent API as
+     * a primitive made here. The session's welded topology becomes the document's master mesh - the
+     * same bake the session would write back on its first commit.
+     */
+    private _adoptIntoDocument(object: IObject3D): void {
+        const modelling = this.modelling
+        const state = this.meshEdit.state
+        if (!modelling || !state || modelling.document.find(object.uuid)) return
+        modelling.document.adopt(object, state.mesh.clone())
+        modelling.dispatchEvent({type: 'documentChanged', document: modelling.document, source: 'sink'})
+    }
+
+    private _statusChanged(): void {
+        this.dispatchEvent({type: 'statusChanged', hints: this.status})
+    }
+
+    private _registryChanged(item?: {id: string, shortcut?: string}): void {
+        if (item) item.shortcut = this._keymap.shortcutFor(item.id, this.mode)
+        this.dispatchEvent({type: 'registryChanged'})
+    }
+
+    private _historyChanged(): void {
+        if (this._disposed) return
+        // Blender drops the redo panel once its step is no longer the top of the stack (an undo, or any
+        // other undoable action after it). Not while redo-last itself is popping and re-pushing.
+        if (this._lastStep && !this._redoing && this.history.peek() !== this._lastStep) this.setLastOperation(null)
+        queueMicrotask(() => {
+            if (this._disposed) return
+            this.dispatchEvent({type: 'historyChanged'})
+            // The dirty flag is a function of the history; tell the shell when it may have flipped.
+            this._fileChanged()
+        })
+    }
+
+    // endregion
+
+    // region keymap and input
+
+    readonly keymap: KeymapApi = {
+        presets: [] as KeymapPreset[],
+        activePreset: blenderPreset,
+        setPreset: (id: string) => this._setPreset(id),
+        shortcutFor: (id: string, mode?: EditorMode, props?: Record<string, unknown>) => this._keymap.shortcutFor(id, mode ?? this.mode, props),
+        bindingsFor: (id: string) => this._keymap.bindingsFor(id),
+    }
+
+    /** Add a preset of your own (an app's house keymap). Replaces one with the same id. */
+    registerPreset(preset: KeymapPreset): void {
+        const i = this._presets.findIndex(p => p.id === preset.id)
+        if (i >= 0) this._presets[i] = preset
+        else this._presets.push(preset)
+        if (this._keymap.preset.id === preset.id) this._setPreset(preset.id)
+        ;(this.keymap as {presets: KeymapPreset[]}).presets = [...this._presets]
+    }
+
+    private _setPreset(id: string): void {
+        const preset = this._presets.find(p => p.id === id) ?? this._presets[0]
+        this._keymap = new Keymap(preset)
+        ;(this.keymap as {presets: KeymapPreset[], activePreset: KeymapPreset}).presets = [...this._presets]
+        ;(this.keymap as {activePreset: KeymapPreset}).activePreset = preset
+        this.navigation.apply(preset.navigation, this.mode)
+        this._applyShortcuts()
+        const key = this._storageKey()
+        if (key) writeStorage(key, preset.id)
+        this.dispatchEvent({type: 'keymapChanged', preset: preset.id})
+        this.dispatchEvent({type: 'registryChanged'})
+        this._statusChanged()
+    }
+
+    private _storageKey(): string | null {
+        return this._options.storageKey === undefined ? 'threepipe-editor-keymap' : this._options.storageKey
+    }
+
+    private _storedPreset(): string | undefined {
+        const key = this._storageKey()
+        return key ? readStorage(key) ?? undefined : undefined
+    }
+
+    keyHint(id: string, mode?: EditorMode): string {
+        const key = this._keymap.shortcutFor(id, mode ?? this.mode)
+        return key ? ` (${key})` : ''
+    }
+
+    /** Every operator and tool shows the key the active preset gives it in the current mode. */
+    private _applyShortcuts(): void {
+        for (const op of this.operators.list()) op.shortcut = this._keymap.shortcutFor(op.id, this.mode)
+        for (const t of this.tools.list()) t.shortcut = this._keymap.shortcutFor(t.id, this.mode)
+    }
+
+    private _handleModalKey(event: KeyboardEvent): boolean {
+        if (this.propDrag) return this.propDrag.handleKey(event)
+        if (this.meshEdit.activeTransform || this.meshEdit.activeLoopCut || this.meshEdit.activeKnife || this.meshEdit.isLineGesture) return this.meshEdit.handleModalKey(event)
+        return false
+    }
+
+    private _dispatch(binding: KeyBinding, _event: KeyboardEvent): void {
+        if (binding.tool) this.setActiveTool(binding.id)
+        else void this.run(binding.id, binding.props)
+    }
+
+    /** Ask the shell to open a one-off list as a popup menu at the cursor (the keymap picker). */
+    requestMenu(title: string, items: MenuRequestItem[]): void {
+        const {clientX, clientY} = this.input.pointer
+        this.dispatchEvent({type: 'uiRequest', request: 'menu', title, items, clientX, clientY})
+    }
+
+    // endregion
+
+    // region menus
+
+    /**
+     * Open a registered menu at the pointer: Blender's `wm.call_menu` (`WM_menu_name_call`,
+     * `wm_operators.cc:2189`), which the keymap binds to Ctrl+V/E/F, X, M, Shift+A.
+     */
+    callMenu(id: string, at?: {clientX: number, clientY: number}): void {
+        const menu = this.menus.get(id)
+        if (!menu) {
+            this.message('error', `Unknown menu "${id}"`)
+            return
+        }
+        const {clientX, clientY} = at ?? this.input.pointer
+        this.dispatchEvent({type: 'uiRequest', request: 'menu', menu: id, title: menu.label, clientX, clientY})
+    }
+
+    resolveMenu(id: string, ctx = this.context()): ResolvedMenu | undefined {
+        return resolveMenu(this, id, ctx)
+    }
+
+    headerMenus(): ResolvedMenu[] {
+        const ctx = this.context()
+        return HEADER_MENUS(ctx).map(id => this.resolveMenu(id, ctx)).filter((m): m is ResolvedMenu => !!m)
+            .map(m => HEADER_LABELS[m.id] ? {...m, label: HEADER_LABELS[m.id]} : m)
+    }
+
+    get contextMenuId(): string {
+        return CONTEXT_MENUS[this.mode]
+    }
+
+    // endregion
+
+    // region mode
+
+    get mode(): EditorMode {
+        return this.meshEdit.isEditing ? 'edit' : 'object'
+    }
+
+    setMode(mode: EditorMode): boolean {
+        if (mode === this.mode) return true
+        if (mode === 'edit') {
+            const selected = this.picking.getSelectedObject<IObject3D>()
+            if (!selected?.isObject3D || !selected.geometry) {
+                this.message('warning', selected?.isObject3D
+                    ? `${selected.name || 'This object'} has no mesh to edit. Select a mesh (click one), then switch to Edit mode${this.keyHint('object.enter_edit', 'object')}.`
+                    : `Click a mesh to select it first, then switch to Edit mode${this.keyHint('object.enter_edit', 'object')} or double-click it.`)
+                return false
+            }
+            const ok = this.meshEdit.enter(selected)
+            if (!ok) this.message('error', `Could not enter edit mode on ${selected.name || 'the selected object'}: its geometry could not be read. Try another object, or File > Open a .glb.`)
+            return ok
+        }
+        this.propDrag?.cancel()
+        if (this.meshEdit.activeTransform) this.meshEdit.cancelTransform()
+        // exit() also ends a loop cut, knife or line gesture that is still running.
+        this.meshEdit.exit(true)
+        return true
+    }
+
+    get selectMode(): SelectModeName {
+        if (this.meshEdit.isEditing) {
+            const m = this.meshEdit.selectMode
+            if (m & SelectMode.Face) return 'face'
+            if (m & SelectMode.Edge) return 'edge'
+            return 'vertex'
+        }
+        return this._preferredSelectMode
+    }
+
+    setSelectMode(mode: SelectModeName): void {
+        this._preferredSelectMode = mode
+        if (this.meshEdit.isEditing) this.meshEdit.setSelectMode(SELECT_MASKS[mode])
+        this.dispatchEvent({type: 'selectModeChanged', selectMode: mode})
+        this.dispatchEvent({type: 'selectionChanged'})
+    }
+
+    // endregion
+
+    // region tools
+
+    get activeTool(): ToolDescriptor | null {
+        return this._activeTool
+    }
+
+    setActiveTool(id: string | null): void {
+        const next = id ? this.tools.get(id) ?? null : null
+        const ctx = this.context()
+        if (next === this._activeTool) {
+            // Re-activating a one-shot tool (extrude, inset, bevel) runs it again; sticky ones stay as they are.
+            if (next && next.id.startsWith('mesh.') && !STICKY_TOOLS.has(next.id)) next.activate(ctx)
+            return
+        }
+        if (next?.poll) {
+            const p = next.poll(ctx)
+            if (p !== true && p !== undefined) {
+                if (typeof p === 'string') this.message('info', p)
+                return
+            }
+        }
+        this._activeTool?.deactivate(ctx)
+        this._activeTool = next
+        next?.activate(ctx)
+        this.dispatchEvent({type: 'toolChanged', tool: next})
+        this._statusChanged()
+    }
+
+    // endregion
+
+    // region operators
+
+    get lastOperation(): LastOperation | null {
+        return this._lastOperation
+    }
+
+    /**
+     * Set the redo-last panel's operation. `step` is the undo step the operation pushed; with it the
+     * operation can be re-run (pop that step, exec with new props, push again). Without it the panel
+     * shows the values read-only.
+     */
+    setLastOperation(op: {operator: OperatorDescriptor, props: Record<string, unknown>, step?: unknown} | null): void {
+        this._lastStep = op?.step ?? null
+        this._lastOperation = op ? {
+            operator: op.operator,
+            props: op.props,
+            redo: op.step ? (newProps: Record<string, unknown>) => this._redoLast(op.operator, op.step, newProps) : undefined,
+        } : null
+        this.dispatchEvent({type: 'lastOperationChanged', operation: this._lastOperation})
+    }
+
+    /**
+     * Blender's `ED_undo_operator_repeat` (ed_undo.cc:651): pop the operator's undo step
+     * (`ED_undo_pop_op`), run it again with the new properties (`WM_operator_repeat`), and if that
+     * fails put the old result back (`ED_undo_redo`, :706).
+     */
+    private async _redoLast(op: OperatorDescriptor, step: unknown, props: Record<string, unknown>): Promise<OperatorResult> {
+        if (this._redoing) return {ok: false, error: 'a redo is already running'}
+        this._redoing = true
+        try {
+            const undone = this.history.undoTo(step as object)
+            if (undone < 0) {
+                this.setLastOperation(null)
+                return {ok: false, error: `${op.label} can no longer be adjusted: its step has left the undo history`}
+            }
+            const result = await this.run(op.id, props)
+            if (!result.ok) {
+                for (let i = 0; i < undone; i++) this.history.redo()
+            }
+            return result
+        } finally {
+            this._redoing = false
+        }
+    }
+
+    /**
+     * A modal operator's bookkeeping, once the modal has ended: the final props and the undo step it
+     * pushed. Called by the mesh-edit bridge on `transformCommitted`.
+     */
+    completeModal(operatorId: string, props: Record<string, unknown>): void {
+        const operator = this.operators.get(operatorId)
+        if (!operator) return
+        const step = this.history.peek()
+        this._pendingModal = null
+        if (operator.flags?.register) this.setLastOperation({operator, props, step: step ?? undefined})
+    }
+
+    /** The operator whose modal is running, if the last `run` started one. */
+    get pendingModal(): {operator: OperatorDescriptor, props: Record<string, unknown>} | null {
+        return this._pendingModal
+    }
+
+    context(): EditorContext {
+        return {
+            viewer: this.viewer,
+            engine: this,
+            mode: this.mode,
+            selectMode: this.selectMode,
+            selectedObjects: this.picking.getSelectedObjects<IObject3D>().filter(o => o?.isObject3D),
+            editObject: this.meshEdit.editObject,
+        }
+    }
+
+    poll(op: OperatorDescriptor, ctx = this.context()): {enabled: boolean, reason?: string} {
+        if (op.modes && !op.modes.includes(ctx.mode)) {
+            const target = op.modes[0]
+            const reason = target === 'edit'
+                ? `Only in Edit mode: select a mesh and press ${this._keymap.shortcutFor('object.enter_edit', 'object') ?? 'the Edit button'}, or double-click it`
+                : `Only in Object mode: leave Edit mode first${this.keyHint('mesh.exit_edit', 'edit') || ' (the Object button)'}`
+            return {enabled: false, reason}
+        }
+        if (!op.poll) return {enabled: true}
+        const r = op.poll(ctx)
+        if (r === true || r === undefined) return {enabled: true}
+        return {enabled: false, reason: typeof r === 'string' ? r : undefined}
+    }
+
+    async run(id: string, props?: Record<string, unknown>): Promise<OperatorResult> {
+        const op = this.operators.get(id)
+        if (!op) {
+            this.message('error', `Unknown operator "${id}"`)
+            return {ok: false, error: `unknown operator ${id}`}
+        }
+        const ctx = this.context()
+        const polled = this.poll(op, ctx)
+        if (!polled.enabled) {
+            const reason = polled.reason ?? `${op.label} cannot run right now: hover its menu entry or toolbar button for what it needs`
+            this.message('info', reason)
+            return {ok: false, error: reason}
+        }
+        const topBefore = this.history.peek()
+        // Steps the plugins underneath record without a label (the picker's delete, a property
+        // set) are named after the operator that caused them.
+        this.history.pendingLabel = op.label
+        let result: OperatorResult
+        try {
+            result = await op.exec(ctx, props)
+        } catch (e) {
+            result = {ok: false, error: (e as Error)?.message ?? String(e)}
+        } finally {
+            this.history.pendingLabel = null
+        }
+        if (!result.ok && result.error) this.message('error', `${op.label}: ${result.error}`)
+        // A modal's intermediate re-runs (an inset or bevel being dragged or typed) keep their warnings to
+        // themselves; the modal shows the final run's when it is confirmed.
+        if (!this.propDrag?.applying) for (const w of result.warnings ?? []) this.message('warning', w)
+        if (result.ok && op.flags?.register) {
+            const finalProps = result.props ?? props ?? {}
+            if (result.modal) {
+                this._pendingModal = {operator: op, props: finalProps}
+            } else {
+                const top = this.history.peek()
+                this.setLastOperation({operator: op, props: finalProps, step: top && top !== topBefore ? top : undefined})
+            }
+        }
+        this.viewer.setDirty()
+        this.dispatchEvent({type: 'selectionChanged'})
+        return result
+    }
+
+    record(cmd: LabelledUndoCommand): void {
+        this.history.record(cmd)
+    }
+
+    message(level: 'info' | 'warning' | 'error', text: string): void {
+        this.dispatchEvent({type: 'message', level, text})
+    }
+
+    // endregion
+
+    // region status and stats
+
+    get status(): StatusHints | null {
+        if (this.propDrag) return this.propDrag.hints()
+        const knife = this.meshEdit.activeKnife
+        if (knife) {
+            // `knife_update_header` (`editmesh_knife.cc:1061`), with the editor's E / Backspace additions.
+            const h = knife.hints()
+            return {modal: h.modal, lmb: h.lmb, mmb: h.mmb, rmb: h.rmb, keys: h.keys}
+        }
+        if (this.meshEdit.isLineGesture) {
+            return {modal: 'Bisect: drag a line across the mesh', lmb: 'Draw Cut Line', rmb: 'Cancel', keys: [{key: 'Esc', label: 'Cancel'}]}
+        }
+        const lc = this.meshEdit.activeLoopCut
+        if (lc) {
+            // `loopcut_init`'s workspace status (`editmesh_loopcut.cc:481`).
+            return {
+                modal: lc.status,
+                lmb: 'Confirm',
+                rmb: 'Cancel',
+                keys: [
+                    {key: 'Move', label: 'Select ring'},
+                    {key: 'Wheel / PageUp / PageDown', label: 'Number of cuts'},
+                    {key: 'Alt+Wheel', label: 'Smoothness'},
+                    {key: '0-9', label: 'Type the cuts'},
+                ],
+            }
+        }
+        const t = this.meshEdit.activeTransform
+        if (t && (t.mode === 'edgeSlide' || t.mode === 'vertSlide')) {
+            // `applyEdgeSlide` / `applyVertSlide`'s workspace status (`transform_mode_edge_slide.cc:831`).
+            return {
+                modal: t.status,
+                lmb: 'Confirm',
+                rmb: 'Cancel',
+                keys: [
+                    {key: 'E', label: 'Even'},
+                    {key: 'F', label: 'Flipped'},
+                    {key: 'C / Alt', label: 'Clamp'},
+                    {key: '0-9', label: 'Type a factor'},
+                    {key: 'Shift', label: 'Precision'},
+                    {key: 'G', label: 'Move'},
+                ],
+            }
+        }
+        if (t) {
+            return {
+                modal: t.status,
+                lmb: 'Confirm',
+                rmb: 'Cancel',
+                keys: [
+                    {key: 'X / Y / Z', label: 'Lock axis'},
+                    {key: 'Shift+X/Y/Z', label: 'Lock plane'},
+                    {key: '0-9', label: 'Type a value'},
+                    {key: 'Shift', label: 'Precision'},
+                    {key: 'Enter', label: 'Confirm'},
+                    {key: 'Esc', label: 'Cancel'},
+                ],
+            }
+        }
+        const nav = this.navigation.hints()
+        const tip = this._emptyTip()
+        if (this._activeTool?.hints) {
+            const h = this._activeTool.hints
+            // A tip (nothing to act on) stands in for the tool's keys; how to move the view stays.
+            return {...h, mmb: h.mmb ?? nav.mmb, rmb: h.rmb ?? nav.rmb, keys: [...(tip ? [] : h.keys ?? []), ...nav.extra], tip}
+        }
+        // The keys that matter most in each mode, read from the active keymap so they are never stale.
+        const hintOps: [string, string][] = this.mode === 'edit'
+            ? [['mesh.extrude', 'Extrude'], ['mesh.move', 'Move'], ['mesh.delete', 'Delete'], ['mesh.exit_edit', 'Object mode']]
+            : [['object.enter_edit', 'Edit mode'], ['add.menu', 'Add'], ['object.delete', 'Delete'], ['ui.command_palette', 'Search']]
+        const keys: {key: string, label: string}[] = []
+        for (const [id, label] of hintOps) {
+            const key = this._keymap.shortcutFor(id, this.mode)
+            if (key) keys.push({key, label})
+        }
+        return {
+            lmb: `${nav.lmb} (Shift: extend)`,
+            mmb: nav.mmb,
+            rmb: nav.rmb,
+            keys: [...(tip ? [] : keys), ...nav.extra],
+            tip,
+        }
+    }
+
+    /**
+     * What to do when there is nothing to act on, worded with the live keys: edit mode with no
+     * element selected, object mode with no object selected, an empty scene.
+     */
+    private _emptyTip(): string | undefined {
+        const key = (id: string, fallback: string) => this._keymap.shortcutFor(id, this.mode) ?? fallback
+        if (this.mode === 'edit') {
+            const bm = this.meshEdit.state?.bm
+            if (!bm || bm.totvertsel > 0) return undefined
+            const unit = this.selectMode === 'face' ? 'a face' : this.selectMode === 'edge' ? 'an edge' : 'a vertex'
+            return `Nothing selected: click ${unit} or drag a box around some, ${key('mesh.select_all', 'Select > All')} selects everything, ${key('mesh.exit_edit', 'the Object button')} goes back to Object mode.`
+        }
+        if (this.picking.getSelectedObjects().length > 0) return undefined
+        if (this.modelObjects().length === 0) return `The scene is empty: add a shape from the Add menu${this.keyHint('add.menu')}, or drop a .glb / .obj file onto the viewport.`
+        return `Nothing selected: click an object to select it, then ${key('object.enter_edit', 'the Edit button')} or double-click to edit it.`
+    }
+
+    stats(): SceneStats {
+        const state = this.meshEdit.state
+        if (this.mode === 'edit' && state) {
+            const bm = state.bm
+            return {
+                objects: this._countObjects(),
+                verts: bm.totvert, edges: bm.totedge, faces: bm.totface,
+                selected: [bm.totvertsel, bm.totedgesel, bm.totfacesel],
+            }
+        }
+        let verts = 0
+        let faces = 0
+        let objects = 0
+        const entries = this.modelling?.document.entries
+        this.walkModel(o => {
+            objects++
+            // A modelling object counts its evaluated mesh and instances, as Blender's statistics do (not the drawn
+            // buffer, whose corners are split for flat shading).
+            const entry = entries?.find(e => e.object === o)
+            if (entry) {
+                const counted = evaluatedStats(entry)
+                verts += counted.verts
+                faces += counted.tris
+                return
+            }
+            const g = o.geometry
+            if (!g || !(o as any).isMesh) return
+            const pos = g.getAttribute('position')
+            verts += pos?.count ?? 0
+            const idx = g.getIndex()
+            faces += Math.floor((idx ? idx.count : pos?.count ?? 0) / 3)
+        })
+        return {objects, verts, edges: 0, faces, selected: [this.picking.getSelectedObjects().length]}
+    }
+
+    /** Visit the user's objects, skipping widget subtrees (gizmos, edit overlays, helpers). */
+    walkModel(fn: (o: IObject3D) => void): void {
+        const visit = (o: IObject3D) => {
+            if ((o as any).isWidget || o.assetType === 'widget' || o.userData?.isWidgetRoot) return
+            if (o !== this.viewer.scene.modelRoot) fn(o)
+            for (const c of o.children) visit(c as IObject3D)
+        }
+        visit(this.viewer.scene.modelRoot)
+    }
+
+    /** The user's top-level objects (direct children of the model root that are not widgets). */
+    modelObjects(): IObject3D[] {
+        return this.viewer.scene.modelRoot.children.filter(c => !(c as any).isWidget && (c as IObject3D).assetType !== 'widget' && !c.userData?.isWidgetRoot) as IObject3D[]
+    }
+
+    private _countObjects(): number {
+        let n = 0
+        this.walkModel(() => n++)
+        return n
+    }
+
+    // endregion
+}
+
+/** `localStorage`, which throws in private mode and on a full quota; preferences are best-effort. */
+function readStorage(key: string): string | null {
+    try { return localStorage.getItem(key) } catch { return null }
+}
+
+function writeStorage(key: string, value: string | null): void {
+    try {
+        if (value === null) localStorage.removeItem(key)
+        else localStorage.setItem(key, value)
+    } catch { /* private mode, quota */ }
+}
+
+/** The engine for a viewer, adding it (and what it needs) when absent. */
+export function createEditorEngine(viewer: ThreeViewer, options?: EditorEngineOptions): EditorEnginePlugin {
+    const existing = viewer.getPlugin(EditorEnginePlugin)
+    if (existing) return existing
+    return viewer.addPluginSync(new EditorEnginePlugin(options))
+}
+
+// Re-exported for the shell's convenience: the engine's `input` satisfies the public `InputApi`.
+export type {InputApi}

@@ -1,0 +1,183 @@
+/**
+ * A form rendered from an operator's JSON-schema `props`: numbers, integers, booleans, enums,
+ * `[x, y, z]` triples and free text. Used by the redo-last panel and by "run with options" in the
+ * palette. Toggles, menus and the number fields' step buttons commit at once; a typed number commits
+ * on Enter or when the field loses focus. The caller decides what to do with a committed value.
+ */
+
+import React, {useRef, useState} from 'react'
+import {Button, ButtonGroup, Checkbox, HTMLSelect, InputGroup, NumericInput, Tooltip} from '@blueprintjs/core'
+import type {PropDef, PropSchema} from '@threepipe/plugin-editor-engine'
+
+export interface PropsFormProps {
+    schema: PropSchema
+    values: Record<string, unknown>
+    onChange(values: Record<string, unknown>): void
+    disabled?: boolean
+}
+
+function labelOf(key: string): string {
+    return key.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/_/g, ' ').replace(/^./, c => c.toUpperCase())
+}
+
+/** `UI_PRECISION_FLOAT_MAX` (`UI_interface_c.hh:3074`). */
+const PRECISION_FLOAT_MAX = 6
+
+/**
+ * `calc_float_precision` (`interface_utils.cc:706`): more decimals for small values, so 0.00001 does not show as 0.000
+ * (only below `10^-prec`; 10.0001 keeps `prec`).
+ */
+export function calcFloatPrecision(prec: number, value: number): number {
+    const pow10Neg = [1e0, 1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6]
+    const maxPow = 10000000.0
+    prec = Math.min(Math.max(prec, 0), PRECISION_FLOAT_MAX)
+    value = Math.abs(value)
+    if (value < pow10Neg[prec] && value > 1 / maxPow) {
+        // `int(lround(value * max_pow))`: half away from zero.
+        let valueI = Math.round(value * maxPow)
+        if (valueI !== 0) {
+            const precSpan = 3
+            let precMin = -1
+            let decFlag = 0
+            let i = PRECISION_FLOAT_MAX
+            while (i && valueI) {
+                if (valueI % 10) {
+                    decFlag |= 1 << i
+                    precMin = i
+                }
+                valueI = Math.trunc(valueI / 10)
+                i--
+            }
+            let testPrec = precMin
+            decFlag = (decFlag >> (precMin + 1)) & ((1 << precSpan) - 1)
+            while (decFlag) {
+                testPrec++
+                decFlag >>= 1
+            }
+            prec = Math.max(testPrec, prec)
+        }
+    }
+    return Math.min(Math.max(prec, 0), PRECISION_FLOAT_MAX)
+}
+
+/**
+ * A float button's value at its display precision (`button_string_get_ex`: `%.*f` with `calc_float_precision`, round
+ * half to even on the exact value), without trailing zeros: Blender pads to the precision ("0.200"), the editor's
+ * input shows the shortest form ("0.2") so typing over it behaves as before.
+ */
+export function formatFloat(value: number, precision: number): string {
+    const digits = calcFloatPrecision(precision, value)
+    return new Intl.NumberFormat('en-US', {
+        minimumFractionDigits: 0, maximumFractionDigits: digits, useGrouping: false, roundingMode: 'halfEven',
+    } as Intl.NumberFormatOptions).format(value)
+}
+
+/**
+ * A number field that behaves like Blender's: typing edits a draft that is applied on Enter (or when
+ * the field loses focus), not on every keystroke, and Enter or Esc also ends the editing so the next
+ * key goes back to the viewport (Blender: `textedit_end`, `interface_handlers.cc:3918`; keys then go
+ * to the region under the mouse).
+ * Esc drops the draft. Without this, each keystroke re-ran the operator, and the field kept the
+ * focus after Enter, so G/S/E over the viewport typed into it instead.
+ */
+function NumberField({value, onCommit, precision, ...rest}: {value: number | undefined, onCommit(n: number | undefined): void, precision?: number} & Omit<React.ComponentProps<typeof NumericInput>, 'value' | 'onValueChange' | 'onButtonClick' | 'onKeyDown' | 'onBlur'>) {
+    const [draft, setDraft] = useState<string | null>(null)
+    // The draft as of the last event: Enter blurs the field, and the blur must not commit it again.
+    const pending = useRef<string | null>(null)
+    const edit = (s: string | null) => {
+        pending.current = s
+        setDraft(s)
+    }
+    // With a precision the value shows rounded as Blender's float buttons do.
+    const shown = draft ?? (value === undefined ? '' : precision !== undefined ? formatFloat(value, precision) : String(value))
+    const commit = () => {
+        const s = pending.current
+        edit(null)
+        if (s === null) return
+        const n = parseFloat(s)
+        const next = s.trim() === '' || Number.isNaN(n) ? undefined : n
+        if (next !== value) onCommit(next)
+    }
+    return <NumericInput {...rest} value={shown}
+        onValueChange={(_n, s) => edit(s)}
+        onButtonClick={n => { edit(null); onCommit(Number.isNaN(n) ? undefined : n) }}
+        onKeyDown={e => {
+            if (e.key === 'Enter') {
+                commit()
+                e.currentTarget.blur()
+            } else if (e.key === 'Escape') {
+                edit(null)
+                e.currentTarget.blur()
+            }
+        }}
+        onBlur={commit} />
+}
+
+function Field({name, def, value, onChange, disabled}: {name: string, def: PropDef, value: unknown, onChange(v: unknown): void, disabled?: boolean}) {
+    const id = `me-prop-${name}`
+    let control: React.ReactNode
+    const isVec3 = def.type === 'array' && def.items?.type === 'number' && def.minItems === 3 && def.maxItems === 3
+    // Three booleans: per-axis toggles, as Blender draws `constraint_axis`.
+    const isAxisToggles = def.type === 'array' && def.items?.type === 'boolean' && def.minItems === 3 && def.maxItems === 3
+    if (def.enum) {
+        control = <HTMLSelect id={id} value={(value as string) ?? ''} disabled={disabled} fill
+            onChange={e => onChange(e.currentTarget.value || undefined)}>
+            {value === undefined && <option value="">(default)</option>}
+            {def.enum.map(v => <option key={v} value={v}>{v}</option>)}
+        </HTMLSelect>
+    } else if (def.type === 'boolean') {
+        control = <Checkbox id={id} checked={!!value} disabled={disabled}
+            onChange={e => onChange(e.currentTarget.checked)} />
+    } else if (def.type === 'number' || def.type === 'integer') {
+        const step = def.type === 'integer' ? 1 : def.maximum !== undefined && def.maximum <= 1 ? 0.05 : 0.1
+        control = <NumberField id={id} value={value as number | undefined} disabled={disabled} fill
+            precision={def.type === 'number' ? def.precision : undefined}
+            min={def.minimum} max={def.maximum} stepSize={step} minorStepSize={def.type === 'integer' ? null : step / 10}
+            majorStepSize={step * 10} placeholder={def.default !== undefined ? String(def.default) : 'default'}
+            onCommit={onChange} />
+    } else if (isAxisToggles) {
+        const arr = Array.isArray(value) ? (value as unknown[]).map(Boolean) : [false, false, false]
+        control = <ButtonGroup id={id} fill className="me-axis-toggles">
+            {['X', 'Y', 'Z'].map((axis, i) => <Button key={axis} text={axis} small active={arr[i]} disabled={disabled}
+                aria-pressed={arr[i]} data-axis={axis}
+                onClick={() => { const next = [...arr]; next[i] = !next[i]; onChange(next) }} />)}
+        </ButtonGroup>
+    } else if (isVec3) {
+        const arr = Array.isArray(value) ? value as number[] : [0, 0, 0]
+        control = <div className="me-vec3">
+            {['X', 'Y', 'Z'].map((axis, i) => <NumberField key={axis} value={arr[i] ?? 0} disabled={disabled} stepSize={0.1}
+                precision={def.items?.precision}
+                minorStepSize={0.01} majorStepSize={1} buttonPosition="none" leftElement={<span className="me-axis">{axis}</span>}
+                onCommit={n => { const next = [...arr]; next[i] = n ?? 0; onChange(next) }} />)}
+        </div>
+    } else {
+        control = <InputGroup id={id} value={value === undefined ? '' : typeof value === 'string' ? value : JSON.stringify(value)}
+            disabled={disabled} fill placeholder="default"
+            onChange={e => {
+                const s = e.currentTarget.value
+                if (s === '') return onChange(undefined)
+                try { onChange(JSON.parse(s)) } catch { onChange(s) }
+            }} />
+    }
+    return <div className="me-prop">
+        <Tooltip content={def.description ?? name} compact hoverOpenDelay={500} placement="left" targetTagName="label" disabled={!def.description}>
+            <label htmlFor={id} className="me-prop-label">{labelOf(name)}</label>
+        </Tooltip>
+        <div className="me-prop-control">{control}</div>
+    </div>
+}
+
+export function PropsForm({schema, values, onChange, disabled}: PropsFormProps) {
+    const entries = Object.entries(schema.properties ?? {}).filter(([, def]) => !def.hidden)
+    if (!entries.length) return <div className="me-props-empty">No parameters.</div>
+    return <div className="me-props-form">
+        {entries.map(([name, def]) => <Field
+            key={name} name={name} def={def} value={values[name]} disabled={disabled}
+            onChange={v => {
+                const next = {...values}
+                if (v === undefined) delete next[name]
+                else next[name] = v
+                onChange(next)
+            }} />)}
+    </div>
+}

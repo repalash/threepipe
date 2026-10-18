@@ -1,0 +1,4 @@
+*.webm
+.video-raw/
+*.glb
+*.mp4

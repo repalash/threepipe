@@ -20,6 +20,17 @@ const alias = {
     '@threepipe/plugin-svg-renderer': path.resolve(__dirname, './plugins/svg-renderer/src/index.ts'),
     '@threepipe/plugin-tweakpane-editor': path.resolve(__dirname, './plugins/tweakpane-editor/src/index.ts'),
     '@threepipe/plugin-blend-importer': path.resolve(__dirname, './plugins/blend-importer/src/index.ts'),
+    '@threepipe/mesh-kernel': path.resolve(__dirname, './plugins/mesh-kernel/src/index.ts'),
+    '@threepipe/modelling-parts': path.resolve(__dirname, './plugins/modelling-parts/src/index.ts'),
+    '@threepipe/plugin-mesh-edit': path.resolve(__dirname, './plugins/mesh-edit/src/index.ts'),
+    '@threepipe/plugin-modelling': path.resolve(__dirname, './plugins/modelling/src/index.ts'),
+    '@threepipe/plugin-editor-engine': path.resolve(__dirname, './plugins/editor-engine/src/index.ts'),
+    '@threepipe/plugin-procedural/plugin': path.resolve(__dirname, './plugins/procedural/src/plugin/index.ts'),
+    '@threepipe/plugin-procedural': path.resolve(__dirname, './plugins/procedural/src/index.ts'),
+    '@threepipe/plugin-cloud': path.resolve(__dirname, './plugins/cloud/src/index.ts'),
+    // bundled (React 18 + Blueprint inside); the examples config aliases `react` to esm.sh react@19 for r3f, so the
+    // editor ships its own copy via its dist. Build it with `npm run build:modelling-editor` (or `dev` in the package).
+    '@threepipe/plugin-modelling-editor': path.resolve(__dirname, './plugins/modelling-editor/dist/index.mjs'),
     '@threepipe/plugins-extra-importers': path.resolve(__dirname, './plugins/extra-importers/src/index.ts'),
     '@threepipe/plugin-geometry-generator': path.resolve(__dirname, './plugins/geometry-generator/src/index.ts'),
     '@threepipe/plugin-gaussian-splatting': path.resolve(__dirname, './plugins/gaussian-splatting/src/index.ts'),
@@ -173,6 +184,12 @@ export default defineConfig(async ()=>{
             //     return sourcePath.includes('node_modules') && !sourcePath.includes('three/')
             // },
             sourcemapIgnoreList: false,
+            watch: {
+                // The e2e suite writes screenshots and traces here while it runs; watching them made the
+                // dev server reload every open example mid-test when the suite pointed at it. `tmp/` is
+                // scratch output too (the modelling e2e screenshots in tmp/menus, tmp/onboarding).
+                ignored: ['**/tests/snapshots/**', '**/test-results/**', '**/playwright-report/**', '**/tmp/**'],
+            },
         },
         build: {
             sourcemap: false,

@@ -1,0 +1,18 @@
+{
+ "subdiv-all-l0": "exact",
+ "subdiv-all-l1": "exact",
+ "subdiv-all-l2": "exact",
+ "subdiv-all-l3": "exact",
+ "subdiv-typed-l2": "pass (> 16 ulp)",
+ "subdiv-matrix-quads-l0": "exact",
+ "subdiv-matrix-quads-l2": "pass (> 16 ulp)",
+ "subdiv-matrix-ngons": "pass (> 16 ulp)",
+ "subdiv-uv-l2": "exact",
+ "subdiv-uv-primitives": "exact",
+ "subdiv-uv-flipped": "exact",
+ "subdiv-ngons-l4": "exact",
+ "subdiv-loose-only": "exact",
+ "subdiv-materials": "exact",
+ "subdiv-instances": "exact",
+ "subdiv-level-field": "exact"
+}

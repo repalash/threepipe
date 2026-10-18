@@ -1,0 +1,10 @@
+{
+ "repeat-items": "exact",
+ "repeat-count-zero": "exact",
+ "repeat-count-negative": "exact",
+ "repeat-border": "exact",
+ "repeat-field-item": "exact",
+ "repeat-anonymous": "exact",
+ "repeat-nested": "exact",
+ "repeat-group": "exact"
+}

@@ -1,0 +1,44 @@
+{
+ "blender-procedural-buildings": {
+  "Building 1": "exact",
+  "Building 2": "exact",
+  "Building 3": "exact"
+ },
+ "buildify_1.0": {
+  "antenna_a": "exact",
+  "antenna_b": "exact",
+  "building_base": "known gap (procedural-vertex-groups.md): geometry.mesh: attribute 'building:levels' is int32 on domain 2, expected float on POINT",
+  "ground_floor_wall_01": "exact",
+  "roof_window_glass": "exact",
+  "rotating_chimney": "exact",
+  "satelite": "exact",
+  "small_chimney_pointy": "exact",
+  "small_chimney_round": "exact",
+  "street_sign_a": "exact",
+  "street_sign_b": "exact",
+  "top_trim_pillar": "exact",
+  "top_trim_pillar_CC": "exact",
+  "top_trim_pillar_CV": "exact",
+  "trimm": "exact"
+ },
+ "candy_bounce": {
+  "geonodes_floor": "exact",
+  "geonodes_jumpers": "pass (<= 16 ulp)",
+  "geonodes_well": "pass (<= 4 ulp)"
+ },
+ "flower_scattering": {
+  "EN-ground_plane_NEW": "pass (within 1e-5, > 256 ulp)"
+ },
+ "pebble_scattering": {
+  "GEO-ground": "pass (within 1e-5, > 256 ulp)"
+ },
+ "repeat_zone_flower_by_MiRA": {
+  "Rose": "exact"
+ },
+ "sets/buildify-mw6": {
+  "building_base": "known gap (procedural-vertex-groups.md): geometry.mesh: attribute 'building:levels' is int32 on domain 2, expected float on POINT"
+ },
+ "sets/flowers-gd05": {
+  "EN-ground_plane_NEW": "pass (within 1e-5, > 256 ulp)"
+ }
+}

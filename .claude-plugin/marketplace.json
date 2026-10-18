@@ -1,0 +1,15 @@
+{
+  "name": "threepipe",
+  "owner": {
+    "name": "repalash",
+    "email": "palash@shaders.app"
+  },
+  "plugins": [
+    {
+      "name": "threepipe-modelling",
+      "source": "./",
+      "version": "0.1.0",
+      "description": "threepipe modelling: MCP server + skill for building and editing 3D meshes."
+    }
+  ]
+}

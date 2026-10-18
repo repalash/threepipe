@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Mesh Edit Select</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+
+    <script type="importmap">
+    {
+        "imports": {
+          "threepipe": "./../../dist/index.mjs",
+          "@threepipe/mesh-kernel": "./../../plugins/mesh-kernel/dist/index.mjs",
+          "@threepipe/plugin-mesh-edit": "./../../plugins/mesh-edit/dist/index.mjs"
+        }
+    }
+    </script>
+    <style id="example-style">
+        html, body, #canvas-container, #mcanvas {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+        }
+        #panel {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            width: 272px;
+            padding: 12px;
+            background: rgba(20, 20, 24, 0.88);
+            border-radius: 8px;
+            color: #e6e6ea;
+            font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+            backdrop-filter: blur(6px);
+        }
+        #panel h2 { margin: 0 0 8px; font-size: 13px; font-weight: 600; }
+        #panel .row { display: flex; gap: 4px; margin: 4px 0; }
+        #panel button {
+            flex: 1;
+            padding: 5px 6px;
+            border: 1px solid #3a3a44;
+            border-radius: 5px;
+            background: #26262e;
+            color: #e6e6ea;
+            font: inherit;
+            cursor: pointer;
+        }
+        #panel button:hover { background: #32323c; }
+        #panel button.active { background: #4a3a1e; border-color: #ff9900; }
+        #panel button:disabled { opacity: 0.45; cursor: default; }
+        #panel .help { color: #b9b9c4; margin: 2px 0 6px; }
+        #panel .help b { color: #e6e6ea; }
+        #panel .sep { margin: 10px 0 4px; color: #8a8a96; text-transform: uppercase; font-size: 10px; letter-spacing: .06em; }
+        #stats { margin-top: 10px; padding-top: 8px; border-top: 1px solid #3a3a44; white-space: pre-line; color: #b9b9c4; }
+        #notice {
+            position: absolute; left: 50%; bottom: 24px; transform: translateX(-50%);
+            padding: 8px 14px; border-radius: 6px; background: rgba(20, 20, 24, 0.9); color: #ffd9a8;
+            font: 12px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; opacity: 0; transition: opacity .2s;
+            pointer-events: none;
+        }
+        #notice.show { opacity: 1; }
+    </style>
+    <script type="module" src="../examples-utils/global-loading.mjs"></script>
+    <script type="module" src="../examples-utils/simple-code-preview.mjs"></script>
+    <script id="example-script" type="module" src="./script.js" data-scripts="./script.ts;./script.js"></script>
+</head>
+<body>
+<div id="canvas-container">
+    <canvas id="mcanvas"></canvas>
+</div>
+
+<div id="panel">
+    <h2>Mesh Edit: Selection</h2>
+
+    <div class="sep">Mesh</div>
+    <div class="row">
+        <button data-op="grid">Grid</button>
+        <button data-op="sphere">Sphere</button>
+        <button data-op="dense" title="A 51k-face sphere, for timing">Dense</button>
+    </div>
+
+    <div class="sep">Select mode</div>
+    <div class="row">
+        <button data-select="1" title="Vertices (1). Shift adds a mode, Ctrl expands the selection">Vertex</button>
+        <button data-select="2" title="Edges (2)">Edge</button>
+        <button data-select="4" title="Faces (3)">Face</button>
+    </div>
+
+    <div class="sep">Drag tool</div>
+    <div class="row">
+        <button data-tool="box" title="Left-drag draws a box (B)">Box</button>
+        <button data-tool="lasso" title="Left-drag draws a lasso">Lasso</button>
+        <button data-tool="none" title="Left-drag orbits">Orbit</button>
+    </div>
+    <div class="row">
+        <button id="xray" title="See and select through the surface (Alt+Z)">X-ray</button>
+        <button id="dots" title="Face dots in face mode: always, only in X-ray, or never">Dots: always</button>
+    </div>
+
+    <div class="sep">Keys</div>
+    <div class="help">
+        <b>drag</b> box select &nbsp; <b>Shift</b> add &nbsp; <b>Ctrl</b> subtract<br>
+        <b>MMB</b> / <b>Alt+drag</b> orbit<br>
+        <b>C</b> circle select (wheel resizes, Esc ends)<br>
+        <b>Alt+click</b> edge loop &nbsp; <b>Ctrl+Alt+click</b> ring<br>
+        <b>Ctrl+click</b> shortest path from the active element<br>
+        <b>L</b> linked under cursor &nbsp; <b>Ctrl+L</b> linked<br>
+        <b>Ctrl+Numpad+ / -</b> more / less<br>
+        <b>H</b> hide &nbsp; <b>Shift+H</b> hide others &nbsp; <b>Alt+H</b> reveal<br>
+        <b>Shift+1/2/3</b> combine modes &nbsp; <b>Ctrl+1/2/3</b> expand<br>
+        <b>Tab</b> leave / enter edit mode
+    </div>
+
+    <div id="stats">loading…</div>
+</div>
+<div id="notice"></div>
+
+</body>
+</html>

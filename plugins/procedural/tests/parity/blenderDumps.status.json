@@ -1,0 +1,49 @@
+{
+ "blender-procedural-buildings": {
+  "groups": 13,
+  "nodes": 329,
+  "nodeTypes": 23,
+  "missing": {},
+  "unevaluatedObjects": []
+ },
+ "buildify_1.0": {
+  "groups": 9,
+  "nodes": 422,
+  "nodeTypes": 53,
+  "missing": {},
+  "unevaluatedObjects": []
+ },
+ "candy_bounce": {
+  "groups": 7,
+  "nodes": 104,
+  "nodeTypes": 33,
+  "missing": {},
+  "unevaluatedObjects": []
+ },
+ "flower_scattering": {
+  "groups": 5,
+  "nodes": 96,
+  "nodeTypes": 18,
+  "missing": {},
+  "unevaluatedObjects": [
+   "GEO-leaf.grass.004",
+   "GEO-leaf.grass.005",
+   "GEO-leaf.grass.006",
+   "GEO-leaf.grass.007"
+  ]
+ },
+ "pebble_scattering": {
+  "groups": 1,
+  "nodes": 26,
+  "nodeTypes": 8,
+  "missing": {},
+  "unevaluatedObjects": []
+ },
+ "repeat_zone_flower_by_MiRA": {
+  "groups": 7,
+  "nodes": 171,
+  "nodeTypes": 33,
+  "missing": {},
+  "unevaluatedObjects": []
+ }
+}

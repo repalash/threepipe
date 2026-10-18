@@ -1,0 +1,364 @@
+{
+ "name": "Canon EOS 5D Mark IV + EF 24-105 f/4L",
+ "note": "Ground truth: the 2021 camera-webgi demo model (Palash Bansal). Local only, never committed or uploaded; the GPU VM may hold a copy in its gitignored tmp/.",
+ "reference": {
+  "path": "tmp/ref/webgi-camera.glb",
+  "sha256": "4487dde5c305b2d0a8ce4fd76ea160d7848e54a11f526b70393d8f7b02e467bd",
+  "mmPerUnit": 81.07,
+  "mmPerUnitSource": "EF 24-105 f/4L diameter 83.5 mm = 1.030 units (lens shell `new`); body shell width 1.861 u = 150.9 mm agrees with the published 150.7 mm"
+ },
+ "candidate": {
+  "units": "mm",
+  "rotation": [
+   0,
+   180,
+   0
+  ],
+  "exclude": [
+   "reference:*"
+  ]
+ },
+ "align": "scale-translation",
+ "frame": "spec",
+ "frameNote": "Geometry is scored primarily in the spec frame: the reference scaled per axis to Canon's published 150.7 x 116.4 x 75.9 mm (spec.refScaleToSpec). The raw frame (the reference as it is) is reported as secondary: the reference shell is 122.8 mm tall against the published 116.4 mm with the shoe (about 6 mm taller than the spec body), so a build to the published numbers loses millimetres at the top there. Renders and image metrics use the raw reference.",
+ "spec": {
+  "source": "Canon published dimensions, approx. 150.7 x 116.4 x 75.9 mm (W x H x D)",
+  "note": "The reference is off-spec: height 1.5627 u = 126.7 mm (+9 %); depth of the shell `Cube005001` 0.9656 u = 78.3 mm. The ceiling run scores the reference scaled per axis to the spec against itself.",
+  "refScaleToSpec": [
+   0.99865,
+   0.91879,
+   0.96958
+  ]
+ },
+ "samples": 100000,
+ "taus": [
+  1,
+  2,
+  5
+ ],
+ "seed": 1,
+ "render": {
+  "width": 1200,
+  "height": 800,
+  "styles": [
+   "full",
+   "notex",
+   "clay",
+   "mask",
+   "heat"
+  ],
+  "heatMaxMm": 5
+ },
+ "views": [
+  {
+   "name": "front",
+   "position": [
+    -0.13,
+    0,
+    -4.62
+   ],
+   "target": [
+    -0.13,
+    0,
+    0.38
+   ],
+   "fov": 32,
+   "up": [
+    0,
+    1,
+    0
+   ]
+  },
+  {
+   "name": "back",
+   "position": [
+    -0.13,
+    0,
+    5.38
+   ],
+   "target": [
+    -0.13,
+    0,
+    0.38
+   ],
+   "fov": 32,
+   "up": [
+    0,
+    1,
+    0
+   ]
+  },
+  {
+   "name": "right",
+   "position": [
+    4.87,
+    0,
+    0.38
+   ],
+   "target": [
+    -0.13,
+    0,
+    0.38
+   ],
+   "fov": 32,
+   "up": [
+    0,
+    1,
+    0
+   ]
+  },
+  {
+   "name": "left",
+   "position": [
+    -5.13,
+    0,
+    0.38
+   ],
+   "target": [
+    -0.13,
+    0,
+    0.38
+   ],
+   "fov": 32,
+   "up": [
+    0,
+    1,
+    0
+   ]
+  },
+  {
+   "name": "top",
+   "position": [
+    -0.13,
+    5,
+    0.38
+   ],
+   "target": [
+    -0.13,
+    0,
+    0.38
+   ],
+   "fov": 32,
+   "up": [
+    0,
+    0,
+    -1
+   ]
+  },
+  {
+   "name": "hero-front",
+   "position": [
+    2.774,
+    1.7424,
+    -3.2984
+   ],
+   "target": [
+    -0.13,
+    0,
+    0.38
+   ],
+   "fov": 32,
+   "up": [
+    0,
+    1,
+    0
+   ]
+  },
+  {
+   "name": "hero-rear",
+   "position": [
+    -2.922,
+    1.5034,
+    4.2458
+   ],
+   "target": [
+    -0.13,
+    0,
+    0.38
+   ],
+   "fov": 32,
+   "up": [
+    0,
+    1,
+    0
+   ]
+  }
+ ],
+ "groups": {
+  "lens": {
+   "ref": [
+    "new",
+    "Circle002",
+    "+Rings1001",
+    "Rings2001",
+    "+Circle001001",
+    "Text001",
+    "+Plane008001",
+    "+SideButtons001",
+    "Plane006001",
+    "+Plane005001",
+    "+Sphere001001",
+    "+Sphere003001",
+    "+Circle003001"
+   ],
+   "candidate": [
+    "lens-*"
+   ]
+  },
+  "mount": {
+   "ref": [
+    "+BODY092001",
+    "+BODY087001",
+    "+BODY085001",
+    "+BODY086001",
+    "+BODY089001",
+    "+BODY091001",
+    "+BODY014001",
+    "+BODY017001",
+    "+BODY021001",
+    "+BODY093001",
+    "Cube085001",
+    "+Sphere001",
+    "+BODY088001",
+    "+BODY090001",
+    "+BODY022001",
+    "+BODY019001",
+    "+BODY020001",
+    "Cube085_1001",
+    "+Circle001",
+    "+BODY044001",
+    "+Cylinder001"
+   ],
+   "candidate": [
+    "mount-*",
+    "btn-release"
+   ]
+  },
+  "shell": {
+   "ref": [
+    "Cube005001",
+    "Circle004001",
+    "Cube005_3001",
+    "Cube005_2001"
+   ],
+   "candidate": [
+    "body",
+    "grip",
+    "body-prism",
+    "rubber-thumb"
+   ]
+  },
+  "eyepiece": {
+   "ref": [
+    "wizjer",
+    "Cube046001",
+    "+BODY046001"
+   ],
+   "candidate": [
+    "eyecup",
+    "eyepiece*"
+   ]
+  },
+  "rear-controls": {
+   "ref": [
+    "+BODY050001",
+    "+BODY067001",
+    "+BODY055001",
+    "+BODY037001",
+    "+BODY073001",
+    "+BODY098001",
+    "+BODY094001",
+    "+BODY057001",
+    "+BODY074001",
+    "+BODY027001",
+    "+BODY062001",
+    "+BODY047001",
+    "+BODY061001",
+    "+BODY097001",
+    "+BODY058001",
+    "+BODY096001",
+    "+BODY028001",
+    "+BODY076001",
+    "+BODY054001",
+    "+BODY064001"
+   ],
+   "candidate": [
+    "btn-set",
+    "btn-rear-column",
+    "btn-menu",
+    "btn-af",
+    "btn-q",
+    "btn-start",
+    "btn-joystick",
+    "dial-quick"
+   ]
+  },
+  "top": {
+   "ref": [
+    "+BODY077001",
+    "+BODY079001",
+    "+BODY078001",
+    "+BODY033001",
+    "+BODY015001",
+    "+BODY030001",
+    "+BODY081001",
+    "+BODY080001",
+    "+BODY083001",
+    "+BODY032001",
+    "+BODY031001",
+    "+BODY016001",
+    "+BODY035001",
+    "+BODY034001",
+    "+BODY082001",
+    "+BODY002001",
+    "+BODY029001"
+   ],
+   "candidate": [
+    "dial-mode",
+    "dial-main",
+    "btn-shutter",
+    "shoe",
+    "shoe-contact",
+    "btn-top*",
+    "btn-mfn"
+   ]
+  },
+  "other": {
+   "ref": [
+    "+BODY001001",
+    "+BODY013001",
+    "+BODY025001",
+    "+BODY036001",
+    "+BODY012001",
+    "+BODY026001",
+    "+BODY095001",
+    "Cube005_4001",
+    "Circle004_1001",
+    "+BODY023001",
+    "+BODY024001"
+   ],
+   "candidate": [
+    "btn-front",
+    "lug"
+   ]
+  },
+  "screens": {
+   "ref": [
+    "+BODY075001",
+    "Cube005_1001"
+   ],
+   "candidate": [
+    "lcd-screen",
+    "top-lcd-glass"
+   ]
+  },
+  "decals": {
+   "ref": [
+    "+BODY018001",
+    "+BODY018002",
+    "+BODY066001"
+   ],
+   "candidate": []
+  }
+ }
+}

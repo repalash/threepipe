@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Geometry nodes, edited live - threepipe modelling demo</title>
+<style>
+:root { --bg: #0f1012; --fg: #ececee; --mut: #9a9ca4; --line: #26282d; --acc: #4f8cff; }
+* { box-sizing: border-box } body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.55 Inter, ui-sans-serif, system-ui, -apple-system, sans-serif }
+main { max-width: 1240px; margin: 0 auto; padding: 32px 24px 80px }
+a { color: inherit } .back { color: var(--mut); text-decoration: none; font-size: 14px }
+h1 { font-weight: 300; font-size: 44px; margin: 10px 0 6px; letter-spacing: -.01em } h2 { font-weight: 500; font-size: 22px; margin: 48px 0 14px; padding-top: 18px; border-top: 1px solid var(--line) }
+.kick { font: 600 13px ui-monospace, Menlo, monospace; letter-spacing: .2em; text-transform: uppercase; color: var(--acc) }
+.intro { color: #c9cad0; max-width: 860px; font-size: 18px }
+.hero img { width: 100%; display: block; border-radius: 6px; margin-top: 22px }
+video { width: 100%; border-radius: 6px; background: #000; display: block }
+.chapters { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 } .chapters button { background: #1a1b1f; color: var(--fg); border: 1px solid var(--line); border-radius: 4px; padding: 5px 10px; font: 13px system-ui; cursor: pointer } .chapters span { color: var(--mut); margin-left: 4px }
+.novideo { padding: 40px; text-align: center; color: var(--mut); border: 1px dashed var(--line); border-radius: 6px; display: none }
+.metrics { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px }
+.m { background: #17181b; border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px } .m .k { color: var(--mut); font-size: 12px; text-transform: uppercase; letter-spacing: .08em } .m .v { font-size: 21px; margin-top: 2px; word-break: break-word } .m .n { color: var(--mut); font-size: 12px; margin-top: 4px }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 14px } figure { margin: 0 } figure img { width: 100%; display: block; border-radius: 4px } figcaption { color: var(--mut); font-size: 14px; margin-top: 6px }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px }
+table { border-collapse: collapse; width: 100%; font-size: 14px } td, th { border-bottom: 1px solid var(--line); padding: 6px 8px; text-align: left } th { color: var(--mut); font-weight: 500 }
+pre { background: #141518; border: 1px solid var(--line); border-radius: 6px; padding: 14px; overflow: auto; font: 13px/1.5 ui-monospace, Menlo, monospace; max-height: 420px }
+.ops { display: flex; flex-wrap: wrap; gap: 6px } .ops span { background: #1a1b1f; border: 1px solid var(--line); border-radius: 3px; padding: 2px 8px; font: 13px ui-monospace, Menlo, monospace } .ops b { color: var(--acc); font-weight: 600 }
+ul { padding-left: 20px } li { margin: 4px 0 } .renderer { font: 13px ui-monospace, Menlo, monospace; color: var(--mut) }
+</style></head><body><main>
+<a class="back" href="../index.html">← all demos</a>
+<div class="kick">threepipe modelling demo · geometry nodes</div>
+<h1>Geometry nodes, edited live</h1>
+<p class="intro">Blender 5.2.2 geometry-nodes groups evaluated in TypeScript on the mesh kernel, as modifiers in the threepipe modelling editor. Buildify 1.0's building generator and Blender Studio's flower field come from their .blend files through the <code>blendAsset</code> command (node groups, inputs and the objects they read - nothing Blender evaluated); the terrain is a group written in the TypeScript DSL. Each is edited twice: in Properties > Modifiers with the mouse and keyboard, and through the <code>modifier update</code> command an agent sends - every edit one undo step, re-running only what it reaches.</p>
+<div class="hero"><img src="shots/terrain-edited.jpg" alt="Geometry nodes, edited live"></div>
+
+<h2>The film</h2>
+<video id="v" src="video.mp4" controls preload="metadata" poster="shots/terrain-edited.jpg" onerror="this.style.display='none';document.getElementById('nv').style.display='block'"></video>
+<div class="novideo" id="nv">video.mp4 is not here (it is not committed), or this browser cannot play H.264 - record it with <code>node demos/geometry-nodes/record.mjs</code> (see direction.md).</div>
+<div class="chapters"><button onclick="seek(0)">Buildify 1.0 <span>0:00</span></button><button onclick="seek(26.53)">Flower field <span>0:27</span></button><button onclick="seek(53.23)">Terrain <span>0:53</span></button></div>
+<p class="renderer">1:23 · 1920×1080 · 30 fps · H.264, faststart · rendered frame by frame on <b>ANGLE (Apple, ANGLE Metal Renderer: Apple Paravirtual device, Unspecified Version)</b></p>
+
+<h2>Metrics</h2>
+<div class="metrics"><div class="m"><div class="k">Buildify update</div><div class="v">21 ms / update</div><div class="n">load 542 ms · panel edit 30 ms · updates 27 / 19 / 17 / 21 ms · 10 verts</div></div><div class="m"><div class="k">flower field update</div><div class="v">496 ms / update</div><div class="n">load 1398 ms · panel edit 603 ms · updates 581 / 511 / 374 / 518 ms · 4,225 verts</div></div><div class="m"><div class="k">terrain update</div><div class="v">396 ms / update</div><div class="n">load 348 ms · panel edit 328 ms · updates 646 / 320 / 315 / 305 ms · 9,216 verts</div></div><div class="m"><div class="k">commands</div><div class="v">15</div><div class="n">0 failed · the input changes the film timed</div></div><div class="m"><div class="k">command time (GPU page)</div><div class="v">4.62 s</div><div class="n">sum of the commands' own ms in the browser</div></div><div class="m"><div class="k">video</div><div class="v">1:23</div><div class="n">1920×1080, 30 fps, H.264</div></div><div class="m"><div class="k">parity (Blender 5.2.2)</div><div class="v">14 / 15</div><div class="n">buildify_1.0 objects bit-exact; flower field: pass (within 1e-5, &gt; 256 ulp)</div></div><div class="m"><div class="k">agent (track 2, the port)</div><div class="v">712 min</div><div class="n">claude-opus-5-5 · 2,742 tool calls · 2.34M output / 2.5G input tokens (mostly cache reads)</div></div></div>
+
+
+
+<h2>Key steps</h2>
+<div class="grid"><figure><a href="shots/terrain-loaded.jpg"><img loading="lazy" src="shots/terrain-loaded.jpg" alt="Terrain: the DSL group on a plane, as loaded"></a><figcaption>Terrain: the DSL group on a plane, as loaded</figcaption></figure><figure><a href="shots/terrain-final.jpg"><img loading="lazy" src="shots/terrain-final.jpg" alt="Terrain after four more input changes (resolution, seed)"></a><figcaption>Terrain after four more input changes (resolution, seed)</figcaption></figure></div>
+
+<h2>Checks</h2><table><tr><th>asset</th><th>load ms</th><th>panel edit</th><th>updates (ms)</th><th>evaluated</th><th>drawn</th></tr><tr><td>buildify</td><td>542</td><td>Max number of floors = 12: 30 ms</td><td>Input_6=8,Input_7=12: 27; Input_6=4,Input_7=6: 19; Input_3=4: 17; Input_3=3: 21</td><td>10 verts, 4 faces</td><td>234 draws, 20 instanced</td></tr><tr><td>flowers</td><td>1398</td><td>Flower Density = 0.4: 603 ms</td><td>Input_17=3: 581; Input_17=0: 511; Input_5=2: 374; Input_5=3: 518</td><td>4,225 verts, 4,096 faces</td><td>122816 draws, 92 instanced</td></tr><tr><td>terrain</td><td>348</td><td>Height = 8: 328 ms</td><td>Resolution=140: 646; Resolution=96: 320; Seed=12: 315; Seed=0: 305</td><td>9,216 verts, 9,025 faces</td><td>mesh</td></tr></table>
+
+<h2>How it was made</h2>
+<p><code>record.mjs</code> opens <code>examples/procedural-editor-assets</code> once per asset on the GPU VM, clicks the Modifiers tab, types the new value into the field and presses Enter (real Playwright input), waits for the object's evaluated mesh to change and records that time, then sends four timed <code>modifier update</code> commands. <code>demos/shared/film.mjs</code> renders and captures every frame, so an evaluation that takes seconds shows as its number on screen rather than a frozen picture. Times are wall time in the page on the VM (6 cores, Apple Paravirtual GPU).</p><p>Re-run: put the bundles in <code>tmp/bundles/</code> (<code>plugins/procedural/tests/fixtures/ASSETS.md</code>), <code>node demos/geometry-nodes/record.mjs</code>, pull <code>tmp/demo/geometry-nodes/film/</code> to <code>demos/geometry-nodes/film/</code>, <code>node demos/geometry-nodes/make-report.mjs</code>. The track-2 acceptance record (<code>scripts/procedural-acceptance-video.mjs</code>) is the same run in real time.</p>
+<p>The film ran <b>15</b> commands (0 failed), 4615.2 ms of command time in the page on the GPU. By operation:</p>
+<div class="ops"><span><b>15</b> modifier</span></div>
+<p>The first commands of the transcript (<a href="transcript.json">transcript.json</a> has all of them, with results):</p>
+<pre>{&quot;op&quot;:&quot;modifier&quot;,&quot;object&quot;:&quot;building_base&quot;,&quot;index&quot;:0,&quot;via&quot;:&quot;Properties &gt; Modifiers, typed&quot;,&quot;field&quot;:&quot;Max number of floors&quot;,&quot;value&quot;:12}
+{&quot;op&quot;:&quot;modifier&quot;,&quot;object&quot;:&quot;building_base&quot;,&quot;index&quot;:0,&quot;update&quot;:{&quot;inputs&quot;:{&quot;Input_6&quot;:8,&quot;Input_7&quot;:12}}}
+{&quot;op&quot;:&quot;modifier&quot;,&quot;object&quot;:&quot;building_base&quot;,&quot;index&quot;:0,&quot;update&quot;:{&quot;inputs&quot;:{&quot;Input_6&quot;:4,&quot;Input_7&quot;:6}}}
+{&quot;op&quot;:&quot;modifier&quot;,&quot;object&quot;:&quot;building_base&quot;,&quot;index&quot;:0,&quot;update&quot;:{&quot;inputs&quot;:{&quot;Input_3&quot;:4}}}
+{&quot;op&quot;:&quot;modifier&quot;,&quot;object&quot;:&quot;building_base&quot;,&quot;index&quot;:0,&quot;update&quot;:{&quot;inputs&quot;:{&quot;Input_3&quot;:3}}}
+{&quot;op&quot;:&quot;modifier&quot;,&quot;object&quot;:&quot;EN-ground_plane_NEW&quot;,&quot;index&quot;:0,&quot;via&quot;:&quot;Properties &gt; Modifiers, typed&quot;,&quot;field&quot;:&quot;Flower Density&quot;,&quot;value&quot;:0.4}
+{&quot;op&quot;:&quot;modifier&quot;,&quot;object&quot;:&quot;EN-ground_plane_NEW&quot;,&quot;index&quot;:0,&quot;update&quot;:{&quot;inputs&quot;:{&quot;Input_17&quot;:3}}}
+{&quot;op&quot;:&quot;modifier&quot;,&quot;object&quot;:&quot;EN-ground_plane_NEW&quot;,&quot;index&quot;:0,&quot;update&quot;:{&quot;inputs&quot;:{&quot;Input_17&quot;:0}}}
+{&quot;op&quot;:&quot;modifier&quot;,&quot;object&quot;:&quot;EN-ground_plane_NEW&quot;,&quot;index&quot;:0,&quot;update&quot;:{&quot;inputs&quot;:{&quot;Input_5&quot;:2}}}
+{&quot;op&quot;:&quot;modifier&quot;,&quot;object&quot;:&quot;EN-ground_plane_NEW&quot;,&quot;index&quot;:0,&quot;update&quot;:{&quot;inputs&quot;:{&quot;Input_5&quot;:3}}}
+{&quot;op&quot;:&quot;modifier&quot;,&quot;object&quot;:&quot;terrain&quot;,&quot;index&quot;:0,&quot;via&quot;:&quot;Properties &gt; Modifiers, typed&quot;,&quot;field&quot;:&quot;Height&quot;,&quot;value&quot;:8}
+{&quot;op&quot;:&quot;modifier&quot;,&quot;object&quot;:&quot;terrain&quot;,&quot;index&quot;:0,&quot;update&quot;:{&quot;inputs&quot;:{&quot;Resolution&quot;:140}}}
+{&quot;op&quot;:&quot;modifier&quot;,&quot;object&quot;:&quot;terrain&quot;,&quot;index&quot;:0,&quot;update&quot;:{&quot;inputs&quot;:{&quot;Resolution&quot;:96}}}
+{&quot;op&quot;:&quot;modifier&quot;,&quot;object&quot;:&quot;terrain&quot;,&quot;index&quot;:0,&quot;update&quot;:{&quot;inputs&quot;:{&quot;Seed&quot;:12}}}
+{&quot;op&quot;:&quot;modifier&quot;,&quot;object&quot;:&quot;terrain&quot;,&quot;index&quot;:0,&quot;update&quot;:{&quot;inputs&quot;:{&quot;Seed&quot;:0}}}
+…</pre>
+
+<h2>What still looks weak</h2><ul><li>Buildify and the flower field are third-party assets: their renders and this film cannot be committed or published until their use in launch material is decided.</li><li>The editor viewport lighting is the editor default; the flower field's grass reads as flat colour at 1080p.</li><li>The editor frames each asset with its own frame-all, so the terrain sits small in the viewport, and the selection box (red) stays on throughout, because the modifier panel needs the object selected.</li></ul>
+<h2>Credits</h2><p>Buildify 1.0 by Pavel Oliva (free for commercial use, not for resale of the graph). flower_scattering.blend by Simon Thommes and Andy Goralczyk, Blender Studio (CC0). See plugins/procedural/tests/fixtures/ASSETS.md.</p>
+</main>
+<script>function seek(t){const v=document.getElementById('v');v.currentTime=t;v.play()}</script>
+</body></html>

@@ -1,0 +1,54 @@
+<!-- The staff page of threepipe-cloud: the Reports view of ijewel-mono crm/index.html @ 54d43285 (IJ-564), on its own. -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>threepipe reports</title>
+<style>
+:root{color-scheme:light dark;--bg:#fff;--fg:#1f2328;--muted:#656d76;--line:#d8dee4;--field:#f6f8fa;--accent:#5d62f6;--lost:#c43d3d;--won:#178a50;--warn:#8a6a0c}
+@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--fg:#e6edf3;--muted:#9198a1;--line:#30363d;--field:#161b22}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:10px 16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:2}
+header h1{font-size:15px;margin:0 12px 0 0}
+button,select,input,textarea{font:inherit;color:inherit;background:var(--field);border:1px solid var(--line);border-radius:7px;padding:4px 10px}
+button{cursor:pointer}button.on{border-color:var(--accent);color:var(--accent);font-weight:600}
+button[disabled]{opacity:.5;cursor:default}
+main{display:flex;min-height:calc(100vh - 54px)}
+#list{flex:1;min-width:0;padding:12px 16px}
+#drawer{width:min(620px,52vw);border-left:1px solid var(--line);padding:12px 16px;overflow-y:auto;max-height:calc(100vh - 54px);position:sticky;top:54px}
+#drawer:empty{display:none}
+.row{display:flex;gap:10px;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:9px;margin-bottom:6px;cursor:pointer}
+.row:hover{border-color:var(--accent)}.row.gone{opacity:.55}
+.dot{width:9px;height:9px;border-radius:50%;flex:0 0 9px}
+.main{flex:1;min-width:0}.t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+.sub,.meta{color:var(--muted);font-size:12.5px}
+.pill{display:inline-block;padding:1px 8px;border-radius:10px;background:var(--field);font-size:12px;margin-right:4px}
+.box{border:1px solid var(--line);border-radius:9px;padding:8px 12px;margin-bottom:10px}
+.box h3{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:0 0 6px}
+.kv{display:flex;gap:10px;padding:2px 0;font-size:13px}.kv b{flex:0 0 150px;color:var(--muted);font-weight:500;overflow-wrap:anywhere}.kv span{min-width:0;overflow-wrap:anywhere}
+pre{max-height:340px;overflow:auto;white-space:pre-wrap;word-break:break-word;font:12px/1.5 ui-monospace,Menlo,Consolas,monospace;background:var(--field);border-radius:9px;padding:10px 12px;margin:0}
+.text{white-space:pre-wrap;word-break:break-word}
+img.shot{display:block;max-width:100%;max-height:300px;border-radius:9px;border:1px solid var(--line)}
+.err{color:var(--lost)}
+#login{max-width:420px;margin:15vh auto;padding:0 16px}
+#login input{width:100%;margin:8px 0}
+</style>
+<script src="/staff/page.js" defer></script>
+</head>
+<body>
+<div id="login" hidden>
+  <h1>threepipe reports</h1>
+  <p class="meta">A staff token (STAFF_TOKENS on the worker). It stays in this tab only (sessionStorage).</p>
+  <input id="token" type="password" autocomplete="off" placeholder="Staff token" data-staff-token>
+  <button id="signin" data-staff-signin>Open</button>
+  <p id="loginErr" class="err"></p>
+</div>
+<div id="app" hidden>
+  <header id="filters"></header>
+  <main><div id="list"></div><div id="drawer"></div></main>
+</div>
+</body>
+</html>

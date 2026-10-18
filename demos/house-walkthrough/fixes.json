@@ -1,0 +1,27 @@
+[
+  {
+    "commit": "2b51318",
+    "what": "I / Ctrl+B start Blender's inset and bevel modals (typed values, radial mouse, Shift precision, I/O/B toggles); the shelf tools' drag no longer refused by its own modal check",
+    "test": "modelling-editor-inset-bevel"
+  },
+  {
+    "commit": "34ca389",
+    "what": "Redo-panel number fields commit on Enter/blur and hand the keys back; the viewport takes keys when the pointer is over it (ux-keys-after-redo-panel.md)",
+    "test": "modelling-editor-panel-keys"
+  },
+  {
+    "commit": "add661b",
+    "what": "panel-keys e2e reaches a focused select the way a person does (click, Esc)",
+    "test": "modelling-editor-panel-keys"
+  },
+  {
+    "commit": "f5e481d",
+    "what": "Typing a bevel width that starts with 0: bevel command returns newFaces: [] when it declines, reselect keeps the selection, the modal re-runs afresh after a no-op",
+    "test": "modelling-editor-inset-bevel; plugins/modelling/tests/undo-fidelity.test.ts"
+  },
+  {
+    "commit": "7599f95",
+    "what": "Inset Faces / Bevel shelf tools run on press-drag-release in the viewport (blender_default.py:7840, :7851)",
+    "test": "modelling-editor-inset-bevel"
+  }
+]

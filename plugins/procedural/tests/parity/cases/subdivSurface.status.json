@@ -1,0 +1,21 @@
+{
+ "ss-uniform-l0": "exact",
+ "ss-uniform-l1": "exact",
+ "ss-uniform-l2": "pass (<= 1 ulp)",
+ "ss-limit-l1": "exact",
+ "ss-limit-l2": "exact",
+ "ss-limit-l3": "exact",
+ "ss-limit-all": "exact",
+ "ss-creases-uniform": "exact",
+ "ss-creases-limit": "exact",
+ "ss-quality-1": "exact",
+ "ss-quality-5": "exact",
+ "ss-boundary-keep-corners": "exact",
+ "ss-uv-none": "pass (<= 1 ulp)",
+ "ss-uv-keep-corners": "exact",
+ "ss-uv-keep-corners-junctions": "pass (<= 1 ulp)",
+ "ss-uv-keep-corners-junctions-concave": "exact",
+ "ss-uv-keep-boundaries": "pass (<= 1 ulp)",
+ "ss-uv-all": "pass (> 16 ulp)",
+ "ss-typed-uniform": "pass (> 16 ulp)"
+}
