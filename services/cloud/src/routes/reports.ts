@@ -64,8 +64,9 @@ async function intake(req: Request, env: Env, ctx?: ExecutionContext): Promise<R
     const gate = await checkTurnstile(env, req)
     if (!gate.ok) return json({error: gate.error}, gate.status)
 
-    const type = (req.headers.get('content-type') || '').toLowerCase()
-    const multipart = type.startsWith('multipart/form-data')
+    // The boundary is case-sensitive (a browser's is '----WebKitFormBoundaryAbC…'): only the check is lower-cased.
+    const type = req.headers.get('content-type') || ''
+    const multipart = type.toLowerCase().startsWith('multipart/form-data')
     // Capped while it is read: a chunked body has no Content-Length to check first.
     const raw = await readCapped(req, multipart ? BODY_MAX : REPORT_MAX)
     if (raw === null) return json({error: 'body too large'}, 413)

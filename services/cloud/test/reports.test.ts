@@ -29,10 +29,14 @@ async function report(body: Record<string, unknown> = {}, o: ReportOpts = {}) {
         const fd = new FormData()
         fd.set('report', JSON.stringify(json))
         for (const f of o.files) fd.append('file', new Blob([f.bytes]), f.name)
-        // Serialised here: Miniflare's fetch does not take this Node's FormData as a body.
+        // Serialised here, with a boundary in mixed case as browsers write it ('----WebKitFormBoundaryAbC…').
         const encoded = new Response(fd)
-        h['content-type'] = encoded.headers.get('content-type')!
-        payload = new Uint8Array(await encoded.arrayBuffer())
+        const boundary = /boundary=(.+)$/.exec(encoded.headers.get('content-type')!)![1]
+        const browserLike = '----WebKitFormBoundaryAbCdEfGh12345'
+        h['content-type'] = `multipart/form-data; boundary=${browserLike}`
+        // One character per byte and back (not TextDecoder's 'latin1', which is windows-1252), so file bytes pass unchanged.
+        const text = Array.from(new Uint8Array(await encoded.arrayBuffer()), b => String.fromCharCode(b)).join('').split(boundary).join(browserLike)
+        payload = Uint8Array.from(text, c => c.charCodeAt(0))
     } else {
         h['content-type'] = 'application/json'
         payload = JSON.stringify(json)
@@ -211,7 +215,7 @@ describe('intake', () => {
     test('files come with the report in one multipart request; staff download them under a safe name', async() => {
         w = await startWorker()
         const transcript = new TextEncoder().encode(JSON.stringify({operations: [{command: {op: 'primitive', type: 'cube'}}]}))
-        const r = await report({}, {files: [{name: '../scene "final".glb', bytes: bytes(1000, 9)}, {name: 'transcript.json', bytes: transcript}]})
+        const r = await report({}, {files: [{name: '../scene "final".glb', bytes: Uint8Array.from({length: 1000}, (_, i) => 0x80 + i % 128)}, {name: 'transcript.json', bytes: transcript}]})
         expect(r.status).toBe(201)
         const [row] = await rows()
         expect(row).toMatchObject({files_count: 2, files_bytes: 1000 + transcript.byteLength})
@@ -226,6 +230,7 @@ describe('intake', () => {
         const file = await staff(`/reports/${r.json.id}/files/0`)
         expect(file.status).toBe(200)
         expect(file.bytes!.byteLength).toBe(1000)
+        expect(file.bytes!.every((b, i) => b === 0x80 + i % 128)).toBe(true) // binary bytes arrive as sent
         expect(file.headers.get('content-disposition')).toBe('attachment; filename="_scene _22final_22.glb"')
         expect(file.headers.get('x-content-type-options')).toBe('nosniff')
         expect(new TextDecoder().decode((await staff(`/reports/${r.json.id}/files/1`)).bytes!)).toContain('"primitive"')
@@ -300,6 +305,7 @@ describe('pure parts', () => {
             ['GET https://cloud.threepipe.org/share/x?token=abc&x=1 404', 'GET https://cloud.threepipe.org/share/x 404'],
             ['load file:///Users/jane/Desktop/ring.glb?x=1 failed', 'load file:///Users/<user>/Desktop/ring.glb failed'],
             ['at /home/bob/dev/app.js:12:4', 'at /home/<user>/dev/app.js:12:4'],
+            ['at f (http://localhost:9379/src/app.ts?t=1729:12:7)', 'at f (http://localhost:9379/src/app.ts:12:7)'],
             ['C:\\Users\\Bob\\AppData\\x.js', 'C:\\Users\\<user>\\AppData\\x.js'],
             [`auth ${jwtLike}`, 'auth <token>'],
             ['Authorization: Bearer abcdefghijkl123456', 'Authorization: Bearer <token>'],

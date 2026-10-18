@@ -81,6 +81,9 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const NOT_A_TLD = /^(png|jpe?g|gif|webp|svg|ico|bmp|tiff?|exr|hdr|ktx2?|glb|gltf|3dm|obj|fbx|stl|usdz|blend|ply|js|mjs|ts|css|json|html?|bin|wasm|zip|mp4|mov|webm|pdf|txt)$/i
 
 function redactUrl(u: string): string {
+    // A stack frame's ':line:col' comes after the query ('app.js?v=3:12:7'): it stays.
+    const pos = /(?::\d+){1,2}$/.exec(u)?.[0] ?? ''
+    if (pos) return redactUrl(u.slice(0, -pos.length)) + pos
     try {
         const url = new URL(u)
         return url.origin === 'null' ? url.protocol + '//' + url.pathname.replace(/^\/\//, '') : url.origin + url.pathname
