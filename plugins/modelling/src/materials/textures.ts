@@ -58,24 +58,26 @@ export function tiledCells(period: number, cells: number, seed: number, jitter =
 
 /**
  * A height field (in units of one texture tile) for a pattern:
- * - `leather`: pebbled grain - rounded cells (F2 - F1 ridges sink into creases) with fine noise on top.
- * - `grain`: the fine stipple of moulded plastic - two octaves of high-frequency value noise.
- * - `rubber`: a softer, coarser stipple.
+ * - `leather`: pebbled grain - rounded cells (F2 - F1 ridges sink into creases) with fine noise on top. Tile 14 mm.
+ * - `grain`: the fine stipple of moulded plastic - two octaves of value noise. Tile about 8 mm.
+ * - `rubber`: a softer, coarser stipple. Tile about 6 mm.
  */
 export function surfaceHeight(pattern: SurfacePattern, size: number, seed: number): Float32Array {
     const h = new Float32Array(size * size)
     if (pattern === 'leather') {
-        const cells = tiledCells(size, 22, seed), n = tiledNoise(size, 64, seed + 3)
+        // 10 pebbles across a tile: at the 14 mm tile `uv` should use, about 1.4 mm each, which is what reads as
+        // grain at product-shot distance (finer cells average out under mipmapping and the leather looks smooth)
+        const cells = tiledCells(size, 10, seed), n = tiledNoise(size, 40, seed + 3)
         for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
             const [f1, f2] = cells(x, y)
             const crease = Math.min(1, (f2 - f1) * 3.2) // 0 on the cell borders
             h[y * size + x] = Math.sqrt(crease) * 0.9 + 0.1 * n(x, y)
         }
     } else if (pattern === 'grain') {
-        const a = tiledNoise(size, 96, seed), b = tiledNoise(size, 192, seed + 1)
+        const a = tiledNoise(size, 40, seed), b = tiledNoise(size, 80, seed + 1)
         for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) h[y * size + x] = 0.65 * a(x, y) + 0.35 * b(x, y)
     } else {
-        const a = tiledNoise(size, 48, seed), b = tiledNoise(size, 128, seed + 1)
+        const a = tiledNoise(size, 24, seed), b = tiledNoise(size, 64, seed + 1)
         for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) h[y * size + x] = 0.7 * a(x, y) + 0.3 * b(x, y)
     }
     return h
@@ -99,7 +101,7 @@ export function heightToNormal(height: Float32Array, size: number, depth: number
     return normal
 }
 
-const RELIEF: Record<SurfacePattern, number> = {leather: 6, grain: 3, rubber: 4}
+const RELIEF: Record<SurfacePattern, number> = {leather: 8, grain: 3, rubber: 4}
 
 export function surfaceMaps(pattern: SurfacePattern, size = 256, seed = 1): SurfaceMaps {
     const height = surfaceHeight(pattern, size, seed)

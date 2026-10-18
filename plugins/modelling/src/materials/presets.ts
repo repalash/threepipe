@@ -15,7 +15,10 @@ export interface MaterialPreset {
     opacity?: number
     emissive?: string
     emissiveIntensity?: number
-    /** Tiling relief: the pattern, its normal-map strength. One texture tile = one UV unit (see `uv`). */
+    /**
+     * Tiling relief: the pattern, its normal-map strength. One texture tile = one UV unit (see `uv`): run `uv` with
+     * `size` = {@link RELIEF_TILE_MM} for the pattern so the grain has its real size.
+     */
     relief?: {pattern: SurfacePattern, strength: number}
 }
 
@@ -26,12 +29,15 @@ const lin = (v: number) => {
 /** A linear base-colour grey as a CSS colour (CSS colours are sRGB). */
 const grey = (v: number) => { const h = lin(v).toString(16).padStart(2, '0'); return `#${h}${h}${h}` }
 
+/** The world size one relief tile is designed for, in mm (the `uv` size to use). */
+export const RELIEF_TILE_MM: Record<SurfacePattern, number> = {leather: 14, grain: 8, rubber: 6}
+
 export const MATERIAL_PRESETS: Record<string, MaterialPreset> = {
     'plastic-satin-black': {color: grey(0.007), roughness: 0.23, metalness: 0, relief: {pattern: 'grain', strength: 0.15}},
     'plastic-gloss-black': {color: grey(0.004), roughness: 0.22, metalness: 0},
     'rubber': {color: grey(0.006), roughness: 0.30, metalness: 0, relief: {pattern: 'rubber', strength: 0.25}},
     'rubber-matte': {color: grey(0.006), roughness: 0.56, metalness: 0, relief: {pattern: 'rubber', strength: 0.3}},
-    'leather-black': {color: grey(0.016), roughness: 0.53, metalness: 0, relief: {pattern: 'leather', strength: 0.4}},
+    'leather-black': {color: grey(0.016), roughness: 0.53, metalness: 0, relief: {pattern: 'leather', strength: 0.6}},
     'matte-black': {color: grey(0.004), roughness: 0.74, metalness: 0},
     'metal-dark': {color: grey(0.068), roughness: 0.23, metalness: 0.93},
     'chrome': {color: grey(0.507), roughness: 0.23, metalness: 1},

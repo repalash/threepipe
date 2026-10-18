@@ -11,7 +11,7 @@
  */
 
 import {AttrDomain, MeshData, shadeSmooth} from '@threepipe/mesh-kernel'
-import {CanvasTexture, Color, IObject3D, PhysicalMaterial, Raycaster, SRGBColorSpace, Vector3} from 'threepipe'
+import {CanvasTexture, Color, IObject3D, NoColorSpace, PhysicalMaterial, Raycaster, SRGBColorSpace, Vector3} from 'threepipe'
 import {CommandDefinition, S, schema} from './types'
 import {readTarget, readVec3} from './params'
 import {MATERIAL_PRESETS} from '../materials/presets'
@@ -102,6 +102,50 @@ async function rasterise(svg: string, w: number, h: number): Promise<CanvasTextu
     return tex
 }
 
+/**
+ * Emboss: the print's alpha as a height field, turned into a tangent-space normal map by central differences, so
+ * the letters catch light like raised (or, negative, engraved) type. `strength` is the height in pixels of the
+ * raster; the material's normal scale then sets how strongly it reads.
+ */
+function embossNormal(source: HTMLCanvasElement, strength: number): CanvasTexture {
+    const w = source.width, h = source.height
+    const src = source.getContext('2d')!.getImageData(0, 0, w, h).data
+    // a slight blur first so the letter edges bevel instead of stepping
+    const a = new Float32Array(w * h)
+    for (let i = 0; i < w * h; i++) a[i] = src[4 * i + 3] / 255
+    const b = new Float32Array(w * h)
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        let sum = 0, n = 0
+        for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) {
+            const xx = Math.min(w - 1, Math.max(0, x + i)), yy = Math.min(h - 1, Math.max(0, y + j))
+            sum += a[yy * w + xx]; n++
+        }
+        b[y * w + x] = sum / n
+    }
+    const canvas = document.createElement('canvas')
+    canvas.width = w
+    canvas.height = h
+    const ctx = canvas.getContext('2d')!
+    const out = ctx.createImageData(w, h)
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        const hx = b[y * w + Math.min(w - 1, x + 1)] - b[y * w + Math.max(0, x - 1)]
+        // canvas rows run down, the texture's v runs up (flipY)
+        const hy = b[Math.max(0, y - 1) * w + x] - b[Math.min(h - 1, y + 1) * w + x]
+        let nx = -hx * strength / 2, ny = -hy * strength / 2, nz = 1
+        const l = Math.hypot(nx, ny, nz)
+        nx /= l; ny /= l; nz /= l
+        const k = 4 * (y * w + x)
+        out.data[k] = Math.round((nx * 0.5 + 0.5) * 255)
+        out.data[k + 1] = Math.round((ny * 0.5 + 0.5) * 255)
+        out.data[k + 2] = Math.round((nz * 0.5 + 0.5) * 255)
+        out.data[k + 3] = 255
+    }
+    ctx.putImageData(out, 0, 0)
+    const tex = new CanvasTexture(canvas)
+    tex.colorSpace = NoColorSpace
+    return tex
+}
+
 export const decalCommand: CommandDefinition = {
     op: 'decal',
     summary: 'A printed marking - text, logo or legend - as a thin textured object on a surface.',
@@ -136,6 +180,9 @@ export const decalCommand: CommandDefinition = {
         pxPerUnit: S.number('Raster resolution, pixels per scene unit. Default 24 (about 0.04 mm per pixel at mm scale).'),
         preset: S.enum('Material preset for the print. Default print-white.', Object.keys(MATERIAL_PRESETS)),
         roughness: S.number('Override the preset roughness.', {minimum: 0, maximum: 1}),
+        metalness: S.number('Override the preset metalness (metal type, a silver print).', {minimum: 0, maximum: 1}),
+        emboss: S.number('Raised lettering: the print also becomes a normal map, this strong (2-6 reads as raised type; '
+            + 'negative engraves).'),
     }, ['at', 'size', 'content']),
 
     async run(p: Record<string, unknown>, ctx) {
@@ -197,7 +244,7 @@ export const decalCommand: CommandDefinition = {
         if (!preset) throw new Error(`unknown preset "${p.preset}"`)
         mat.color = new Color('#ffffff')
         mat.roughness = (p.roughness as number | undefined) ?? preset.roughness
-        mat.metalness = preset.metalness
+        mat.metalness = (p.metalness as number | undefined) ?? preset.metalness
         mat.transparent = true
         mat.depthWrite = false
 
@@ -207,7 +254,12 @@ export const decalCommand: CommandDefinition = {
         const svg = decalSvg(p.content as {svg?: string, text?: DecalText}, pw, ph)
         let printed = false
         if (ctx.viewer.renderManager.webglRenderer) {
-            mat.map = await rasterise(svg, pw, ph) as never
+            const map = await rasterise(svg, pw, ph)
+            mat.map = map as never
+            if (p.emboss) {
+                mat.normalMap = embossNormal(map.image as HTMLCanvasElement, p.emboss as number) as never
+                mat.normalScale.set(1, 1)
+            }
             mat.needsUpdate = true
             printed = true
         } else {

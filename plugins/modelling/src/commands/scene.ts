@@ -60,7 +60,7 @@ export const materialCommand: CommandDefinition = {
             ['auto', 'flat', 'smooth']),
         preset: S.enum('A product surface: colour, roughness, metalness, transmission and a tiling relief (normal map) '
             + 'measured from a reference product. Other parameters given with it override it. Relief needs UVs: run '
-            + '`uv {object, size}` first, size being one relief tile in scene units (about 4 mm suits leather).',
+            + '`uv {object, size}` first, size being one relief tile in scene units (14 mm for leather, 8 for plastic grain, 6 for rubber - RELIEF_TILE_MM).',
         Object.keys(MATERIAL_PRESETS)),
         transmission: S.number('0..1: light passing through (glass). Needs `ior`.', {minimum: 0, maximum: 1}),
         ior: S.number('Index of refraction, 1.5 for glass.', {minimum: 1, maximum: 2.333}),
