@@ -94,6 +94,8 @@ export function filmSession(film, o = {}) {
         hold: t => film.hold(t === undefined ? captureHold : o.holdMs ? t / 1000 : t),
         /** One orbit round `center` at `radius` and `height` above it, in `seconds`. */
         async orbit({center, radius, height, seconds = 12, deg = 360}) {
+            radius *= o.orbitScale ?? 1
+            height *= o.orbitScale ?? 1
             await film.glide({position: [center[0] + radius, center[1] + height, center[2]], target: center}, glide)
             await film.orbit({deg, sec: seconds, easing: false})
         },

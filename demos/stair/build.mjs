@@ -480,6 +480,8 @@ export default async function build(session) {
         // middle of the bay. Built in the front face of the wall, then extruded through it.
         const N = 14
         const mid = B / 2
+        // In the film, face the arch while it is built (the stair has just stepped aside, out of shot).
+        if (REC) await must({op: 'camera', projection: 'perspective', fov: 40, position: [mid + 2.4, ys + 1.0, 7.5], target: [mid, ys + 1.5, 0]})
         // A point on the left arc of radius r (concentric with the intrados), k of N steps from the
         // springing line to where it reaches the bay's centre line.
         const arcPoint = (k, r) => {
