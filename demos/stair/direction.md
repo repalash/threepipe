@@ -32,9 +32,9 @@ shot for 1.4 s with its caption, so the cut list below is the build's capture li
 | 14 | Split with references | Left half the catalogue photo, right half the model; then HABS sheet 8 and the arcade | two splits | Ends where it started | 12 s |
 | 15 | End card | The command list | — | | 3 s |
 
-As recorded on SwiftShader (2026-10-18): **2 min 08 s**, 13.1 MB, 0 failed commands
+As recorded on SwiftShader (2026-10-18): **2 min 07 s**, 12.9 MB, 0 failed commands
 (`runs/record.txt`). The holds are 1.4 s per shot, the eased moves 0.8 s, section cards 1.6 s, the
-turntable 12 s, each reference split 6 s. Page load (3.8 s) is trimmed off the front by `record.mjs`
+turntable 12 s, each reference split 6 s. Page load (about 3 s) is trimmed off the front by `record.mjs`
 with ffmpeg, so the film opens on the title card.
 
 ## Notes for a GPU re-take

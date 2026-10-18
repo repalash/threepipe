@@ -19,9 +19,9 @@
   selftest: 17 objects, 0 failed
 {
   "out": "/tmp/stair-out/video.webm",
-  "seconds": 163,
-  "trimmedLeadIn": 3.75,
-  "bytes": 13057292,
+  "seconds": 152,
+  "trimmedLeadIn": 2.84,
+  "bytes": 12863454,
   "failures": 0,
   "buildError": null,
   "pageErrors": []
