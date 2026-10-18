@@ -242,9 +242,10 @@ const html = `<!DOCTYPE html>
       <td class="num">${report.topo.reduce((a, o) => a + o.nonManifold, 0)}</td></tr>
     </tbody>
   </table>
-  <p class="note">Boundary edges are where the glass was separated from the stone (one loop per pane, closed by <code>glass</code>
-  and <code>doors</code>), the open roof edge along the party wall, and the road plane. Triangles are the torus rings of the
-  railings; n-gons are the floor plate and the flat of the terrasson, as Blender would leave them.</p>
+  <p class="note">Boundary edges are expected and accounted for: the façade's are exactly the rims of the holes the glass and
+  the doors were separated from (one loop per pane; together the three objects are closed - see
+  <a href="../../issues/open/modelling-tools/command-material-no-face-slots.md">no per-face materials</a>), the dormers' are
+  their panes, the roof's is its eave, sitting on the wall, and the road is a plane. Nothing is non-manifold.</p>
 </section>
 
 <section>

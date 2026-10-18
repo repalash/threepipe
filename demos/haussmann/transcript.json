@@ -2,12 +2,12 @@
  "summary": {
   "url": "http://127.0.0.1:9371/examples/modelling-api/index.html",
   "build": "demos/haussmann/build.mjs",
-  "commands": 388,
+  "commands": 389,
   "failed": 0,
   "captures": 21,
   "medianMs": 0.4,
-  "p90Ms": 5.9,
-  "maxMs": 2576.1,
+  "p90Ms": 8.4,
+  "maxMs": 2529.7,
   "pageErrors": []
  },
  "note": "inspect {detail} payloads (vertex, face and edge lists) are elided to keep this file small; counts are kept. Every command is listed in the order it ran.",
@@ -21,7 +21,7 @@
    "data": {
     "removed": 1
    },
-   "ms": 1
+   "ms": 1.5
   },
   {
    "command": {
@@ -33,7 +33,7 @@
    "data": {
     "environmentIntensity": 0.75
    },
-   "ms": 0.4
+   "ms": 0.3
   },
   {
    "command": {
@@ -101,7 +101,7 @@
     ],
     "unitsPerPixel": 0.013736263736263736
    },
-   "ms": 20.6
+   "ms": 26.6
   },
   {
    "command": {
@@ -136,7 +136,7 @@
     ],
     "unitsPerPixel": 0.013736263736263736
    },
-   "ms": 0.4
+   "ms": 0.5
   },
   {
    "command": {
@@ -179,7 +179,7 @@
     ],
     "unitsPerPixel": 0.026972458713073046
    },
-   "ms": 16.5
+   "ms": 121.1
   },
   {
    "command": {
@@ -214,7 +214,7 @@
     ],
     "unitsPerPixel": 0.026972458713073046
    },
-   "ms": 0.4
+   "ms": 0.3
   },
   {
    "command": {
@@ -250,7 +250,7 @@
     "projection": "orthographic",
     "frustumSize": 27
    },
-   "ms": 1.7
+   "ms": 8.2
   },
   {
    "command": {
@@ -266,7 +266,7 @@
     "label": "the 1870 elevation, registered",
     "path": null
    },
-   "ms": 2203.8,
+   "ms": 2529.7,
    "capture": "001-the-1870-elevation-registered.png"
   },
   {
@@ -303,7 +303,7 @@
     "projection": "orthographic",
     "frustumSize": 24
    },
-   "ms": 0.6
+   "ms": 0.7
   },
   {
    "command": {
@@ -319,7 +319,7 @@
     "label": "the plan, registered",
     "path": null
    },
-   "ms": 114,
+   "ms": 137.9,
    "capture": "002-the-plan-registered.png"
   },
   {
@@ -346,7 +346,7 @@
     "projection": "perspective",
     "fov": 40
    },
-   "ms": 0.5
+   "ms": 2.3
   },
   {
    "command": {
@@ -377,7 +377,7 @@
     ],
     "unitsPerPixel": 0.013736263736263736
    },
-   "ms": 0.3
+   "ms": 0.7
   },
   {
    "command": {
@@ -408,7 +408,7 @@
     ],
     "unitsPerPixel": 0.026972458713073046
    },
-   "ms": 0.2
+   "ms": 0.4
   },
   {
    "command": {
@@ -448,7 +448,7 @@
      ]
     }
    },
-   "ms": 3.9
+   "ms": 4
   },
   {
    "command": {
@@ -482,7 +482,7 @@
      ]
     }
    },
-   "ms": 0.8
+   "ms": 1.5
   },
   {
    "command": {
@@ -512,7 +512,7 @@
     "verts": 96,
     "faces": 50
    },
-   "ms": 2.8
+   "ms": 3
   },
   {
    "command": {
@@ -542,7 +542,7 @@
     "verts": 144,
     "faces": 98
    },
-   "ms": 2.2
+   "ms": 2.8
   },
   {
    "command": {
@@ -579,7 +579,7 @@
     "projection": "perspective",
     "fov": 40
    },
-   "ms": 0
+   "ms": 0.9
   },
   {
    "command": {
@@ -595,7 +595,7 @@
     "label": "blockout: the plan pushed up to the first floor",
     "path": null
    },
-   "ms": 422.5,
+   "ms": 498.9,
    "capture": "003-blockout-the-plan-pushed-up-to-the-first-floor.png"
   },
   {
@@ -626,7 +626,7 @@
     "verts": 192,
     "faces": 146
    },
-   "ms": 1.9
+   "ms": 3.9
   },
   {
    "command": {
@@ -656,7 +656,7 @@
     "verts": 240,
     "faces": 194
    },
-   "ms": 1.8
+   "ms": 4
   },
   {
    "command": {
@@ -686,7 +686,7 @@
     "verts": 288,
     "faces": 242
    },
-   "ms": 2.5
+   "ms": 2.4
   },
   {
    "command": {
@@ -716,7 +716,7 @@
     "verts": 336,
     "faces": 290
    },
-   "ms": 1.9
+   "ms": 2.3
   },
   {
    "command": {
@@ -746,7 +746,7 @@
     "verts": 384,
     "faces": 338
    },
-   "ms": 2.3
+   "ms": 15.7
   },
   {
    "command": {
@@ -776,7 +776,7 @@
     "verts": 432,
     "faces": 386
    },
-   "ms": 1.5
+   "ms": 5.4
   },
   {
    "command": {
@@ -806,7 +806,7 @@
     "verts": 480,
     "faces": 434
    },
-   "ms": 1.6
+   "ms": 1.9
   },
   {
    "command": {
@@ -836,7 +836,7 @@
     "verts": 528,
     "faces": 482
    },
-   "ms": 1.7
+   "ms": 1.8
   },
   {
    "command": {
@@ -866,7 +866,7 @@
     "verts": 576,
     "faces": 530
    },
-   "ms": 1.6
+   "ms": 1.9
   },
   {
    "command": {
@@ -896,7 +896,7 @@
     "verts": 624,
     "faces": 578
    },
-   "ms": 1.7
+   "ms": 1.8
   },
   {
    "command": {
@@ -907,7 +907,7 @@
    "data": {
     "mode": "wireframe"
    },
-   "ms": 0.2
+   "ms": 0.1
   },
   {
    "command": {
@@ -923,7 +923,7 @@
     "label": "one extrude per storey line: every bay is a quad",
     "path": null
    },
-   "ms": 205.1,
+   "ms": 292.1,
    "capture": "004-one-extrude-per-storey-line-every-bay-is-a-quad.png"
   },
   {
@@ -935,7 +935,7 @@
    "data": {
     "mode": "material"
    },
-   "ms": 0.1
+   "ms": 0.3
   },
   {
    "command": {
@@ -948,7 +948,7 @@
    "data": {
     "name": "facade",
     "id": "o2",
-    "uuid": "502715b8-6de3-4c59-ba2d-19a04cfb21df",
+    "uuid": "b3bea4dd-f823-4af7-bf1d-2919d976b96e",
     "revision": 14,
     "verts": 624,
     "edges": 1200,
@@ -994,7 +994,7 @@
     "faceVerts": "[578 elided]",
     "edgeVerts": "[1200 elided]"
    },
-   "ms": 0.7
+   "ms": 0.8
   },
   {
    "command": {
@@ -1158,7 +1158,7 @@
     "verts": 708,
     "faces": 662
    },
-   "ms": 7.1
+   "ms": 35.8
   },
   {
    "command": {
@@ -1171,7 +1171,7 @@
    "data": {
     "name": "facade",
     "id": "o2",
-    "uuid": "502715b8-6de3-4c59-ba2d-19a04cfb21df",
+    "uuid": "b3bea4dd-f823-4af7-bf1d-2919d976b96e",
     "revision": 15,
     "verts": 708,
     "edges": 1368,
@@ -1217,7 +1217,7 @@
     "faceVerts": "[662 elided]",
     "edgeVerts": "[1368 elided]"
    },
-   "ms": 0.3
+   "ms": 1.8
   },
   {
    "command": {
@@ -1868,7 +1868,7 @@
     "verts": 1128,
     "faces": 1082
    },
-   "ms": 6.7
+   "ms": 9.9
   },
   {
    "command": {
@@ -1881,66 +1881,7 @@
    "data": {
     "name": "facade",
     "id": "o2",
-    "uuid": "502715b8-6de3-4c59-ba2d-19a04cfb21df",
-    "revision": 16,
-    "verts": 1128,
-    "edges": 2208,
-    "faces": 1082,
-    "position": [
-     0,
-     0,
-     0
-    ],
-    "rotation": [
-     0,
-     0,
-     0
-    ],
-    "scale": [
-     1,
-     1,
-     1
-    ],
-    "bounds": {
-     "min": [
-      -7.715989589691162,
-      0,
-      -15.832833290100098
-     ],
-     "max": [
-      14.931318283081055,
-      19.94505500793457,
-      0
-     ],
-     "size": [
-      22.647307872772217,
-      19.94505500793457,
-      15.832833290100098
-     ],
-     "center": [
-      3.6076643466949463,
-      9.972527503967285,
-      -7.916416645050049
-     ]
-    },
-    "vertices": "[1128 elided]",
-    "faceVerts": "[1082 elided]",
-    "edgeVerts": "[2208 elided]"
-   },
-   "ms": 0.4
-  },
-  {
-   "command": {
-    "op": "inspect",
-    "object": "facade",
-    "detail": true,
-    "limit": 1000000
-   },
-   "ok": true,
-   "data": {
-    "name": "facade",
-    "id": "o2",
-    "uuid": "502715b8-6de3-4c59-ba2d-19a04cfb21df",
+    "uuid": "b3bea4dd-f823-4af7-bf1d-2919d976b96e",
     "revision": 16,
     "verts": 1128,
     "edges": 2208,
@@ -1987,6 +1928,65 @@
     "edgeVerts": "[2208 elided]"
    },
    "ms": 0.3
+  },
+  {
+   "command": {
+    "op": "inspect",
+    "object": "facade",
+    "detail": true,
+    "limit": 1000000
+   },
+   "ok": true,
+   "data": {
+    "name": "facade",
+    "id": "o2",
+    "uuid": "b3bea4dd-f823-4af7-bf1d-2919d976b96e",
+    "revision": 16,
+    "verts": 1128,
+    "edges": 2208,
+    "faces": 1082,
+    "position": [
+     0,
+     0,
+     0
+    ],
+    "rotation": [
+     0,
+     0,
+     0
+    ],
+    "scale": [
+     1,
+     1,
+     1
+    ],
+    "bounds": {
+     "min": [
+      -7.715989589691162,
+      0,
+      -15.832833290100098
+     ],
+     "max": [
+      14.931318283081055,
+      19.94505500793457,
+      0
+     ],
+     "size": [
+      22.647307872772217,
+      19.94505500793457,
+      15.832833290100098
+     ],
+     "center": [
+      3.6076643466949463,
+      9.972527503967285,
+      -7.916416645050049
+     ]
+    },
+    "vertices": "[1128 elided]",
+    "faceVerts": "[1082 elided]",
+    "edgeVerts": "[2208 elided]"
+   },
+   "ms": 0.2
   },
   {
    "command": {
@@ -2092,7 +2092,7 @@
     "verts": 1272,
     "faces": 1226
    },
-   "ms": 9.6
+   "ms": 10
   },
   {
    "command": {
@@ -2105,7 +2105,7 @@
    "data": {
     "name": "facade",
     "id": "o2",
-    "uuid": "502715b8-6de3-4c59-ba2d-19a04cfb21df",
+    "uuid": "b3bea4dd-f823-4af7-bf1d-2919d976b96e",
     "revision": 17,
     "verts": 1272,
     "edges": 2496,
@@ -2283,7 +2283,7 @@
     "verts": 1464,
     "faces": 1418
    },
-   "ms": 7.4
+   "ms": 5.5
   },
   {
    "command": {
@@ -2296,7 +2296,7 @@
    "data": {
     "name": "facade",
     "id": "o2",
-    "uuid": "502715b8-6de3-4c59-ba2d-19a04cfb21df",
+    "uuid": "b3bea4dd-f823-4af7-bf1d-2919d976b96e",
     "revision": 18,
     "verts": 1464,
     "edges": 2880,
@@ -2342,7 +2342,7 @@
     "faceVerts": "[1418 elided]",
     "edgeVerts": "[2880 elided]"
    },
-   "ms": 0.5
+   "ms": 1.2
   },
   {
    "command": {
@@ -2382,7 +2382,7 @@
     "verts": 1488,
     "faces": 1442
    },
-   "ms": 5.1
+   "ms": 6.1
   },
   {
    "command": {
@@ -2395,7 +2395,7 @@
    "data": {
     "name": "facade",
     "id": "o2",
-    "uuid": "502715b8-6de3-4c59-ba2d-19a04cfb21df",
+    "uuid": "b3bea4dd-f823-4af7-bf1d-2919d976b96e",
     "revision": 19,
     "verts": 1488,
     "edges": 2928,
@@ -2533,7 +2533,7 @@
     "verts": 1608,
     "faces": 1562
    },
-   "ms": 4.7
+   "ms": 10
   },
   {
    "command": {
@@ -2546,7 +2546,7 @@
    "data": {
     "name": "facade",
     "id": "o2",
-    "uuid": "502715b8-6de3-4c59-ba2d-19a04cfb21df",
+    "uuid": "b3bea4dd-f823-4af7-bf1d-2919d976b96e",
     "revision": 20,
     "verts": 1608,
     "edges": 3168,
@@ -2592,7 +2592,7 @@
     "faceVerts": "[1562 elided]",
     "edgeVerts": "[3168 elided]"
    },
-   "ms": 0.5
+   "ms": 0.3
   },
   {
    "command": {
@@ -2632,7 +2632,7 @@
     "verts": 1632,
     "faces": 1586
    },
-   "ms": 4.7
+   "ms": 4.3
   },
   {
    "command": {
@@ -2645,7 +2645,7 @@
    "data": {
     "name": "facade",
     "id": "o2",
-    "uuid": "502715b8-6de3-4c59-ba2d-19a04cfb21df",
+    "uuid": "b3bea4dd-f823-4af7-bf1d-2919d976b96e",
     "revision": 21,
     "verts": 1632,
     "edges": 3216,
@@ -3522,7 +3522,7 @@
     "verts": 2172,
     "faces": 2126
    },
-   "ms": 9
+   "ms": 11.1
   },
   {
    "command": {
@@ -3559,7 +3559,7 @@
     "projection": "perspective",
     "fov": 45
    },
-   "ms": 0.3
+   "ms": 0.2
   },
   {
    "command": {
@@ -3575,7 +3575,7 @@
     "label": "windows framed, recessed and glazed",
     "path": null
    },
-   "ms": 152.2,
+   "ms": 179.1,
    "capture": "005-windows-framed-recessed-and-glazed.png"
   },
   {
@@ -3728,7 +3728,7 @@
     "created": 1,
     "remaining": 1991
    },
-   "ms": 5.9
+   "ms": 5.6
   },
   {
    "command": {
@@ -3741,7 +3741,7 @@
    "data": {
     "name": "glass",
     "id": "o3",
-    "uuid": "441277b0-9f34-4854-830b-ec851ef8f22d",
+    "uuid": "bc8570c6-c0cf-4595-8c59-00e4ad7264b7",
     "revision": 1,
     "verts": 540,
     "edges": 540,
@@ -3787,7 +3787,7 @@
     "faceVerts": "[135 elided]",
     "edgeVerts": "[540 elided]"
    },
-   "ms": 0
+   "ms": 0.1
   },
   {
    "command": {
@@ -3806,7 +3806,7 @@
     "created": 1,
     "remaining": 133
    },
-   "ms": 0.8
+   "ms": 1
   },
   {
    "command": {
@@ -3820,7 +3820,7 @@
    "data": {
     "count": 1
    },
-   "ms": 0.3
+   "ms": 0.2
   },
   {
    "command": {
@@ -3834,7 +3834,7 @@
    "data": {
     "count": 1
    },
-   "ms": 0.2
+   "ms": 0
   },
   {
    "command": {
@@ -3847,7 +3847,7 @@
    "data": {
     "name": "facade",
     "id": "o2",
-    "uuid": "502715b8-6de3-4c59-ba2d-19a04cfb21df",
+    "uuid": "b3bea4dd-f823-4af7-bf1d-2919d976b96e",
     "revision": 23,
     "verts": 2172,
     "edges": 4296,
@@ -4104,7 +4104,7 @@
     "verts": 2268,
     "faces": 2087
    },
-   "ms": 8.3
+   "ms": 9.7
   },
   {
    "command": {
@@ -4117,7 +4117,7 @@
    "data": {
     "name": "facade",
     "id": "o2",
-    "uuid": "502715b8-6de3-4c59-ba2d-19a04cfb21df",
+    "uuid": "b3bea4dd-f823-4af7-bf1d-2919d976b96e",
     "revision": 24,
     "verts": 2268,
     "edges": 4488,
@@ -4163,7 +4163,7 @@
     "faceVerts": "[2087 elided]",
     "edgeVerts": "[4488 elided]"
    },
-   "ms": 0.5
+   "ms": 0.4
   },
   {
    "command": {
@@ -4352,7 +4352,7 @@
     "edges": 4762,
     "faces": 2223
    },
-   "ms": 30.5
+   "ms": 31.8
   },
   {
    "command": {
@@ -4365,7 +4365,7 @@
    "data": {
     "name": "facade",
     "id": "o2",
-    "uuid": "502715b8-6de3-4c59-ba2d-19a04cfb21df",
+    "uuid": "b3bea4dd-f823-4af7-bf1d-2919d976b96e",
     "revision": 25,
     "verts": 2406,
     "edges": 4762,
@@ -4411,7 +4411,7 @@
     "faceVerts": "[2223 elided]",
     "edgeVerts": "[4762 elided]"
    },
-   "ms": 0.5
+   "ms": 0.7
   },
   {
    "command": {
@@ -4622,7 +4622,7 @@
     "verts": 2502,
     "faces": 2319
    },
-   "ms": 30.4
+   "ms": 18.5
   },
   {
    "command": {
@@ -4635,7 +4635,7 @@
    "data": {
     "name": "facade",
     "id": "o2",
-    "uuid": "502715b8-6de3-4c59-ba2d-19a04cfb21df",
+    "uuid": "b3bea4dd-f823-4af7-bf1d-2919d976b96e",
     "revision": 26,
     "verts": 2502,
     "edges": 4954,
@@ -4681,7 +4681,7 @@
     "faceVerts": "[2319 elided]",
     "edgeVerts": "[4954 elided]"
    },
-   "ms": 0.5
+   "ms": 0.4
   },
   {
    "command": {
@@ -5082,7 +5082,7 @@
     "verts": 2694,
     "faces": 2511
    },
-   "ms": 9.6
+   "ms": 19.1
   },
   {
    "command": {
@@ -5119,7 +5119,7 @@
     "projection": "perspective",
     "fov": 45
    },
-   "ms": 0.1
+   "ms": 0.2
   },
   {
    "command": {
@@ -5135,7 +5135,7 @@
     "label": "cornice and string courses pushed out of the wall",
     "path": null
    },
-   "ms": 263,
+   "ms": 285.5,
    "capture": "006-cornice-and-string-courses-pushed-out-of-the-wal.png"
   },
   {
@@ -5176,7 +5176,7 @@
      ]
     }
    },
-   "ms": 0.8
+   "ms": 1
   },
   {
    "command": {
@@ -5247,7 +5247,7 @@
      ]
     }
    },
-   "ms": 0.3
+   "ms": 0.2
   },
   {
    "command": {
@@ -5276,7 +5276,7 @@
     "verts": 12,
     "faces": 7
    },
-   "ms": 0.6
+   "ms": 0.4
   },
   {
    "command": {
@@ -5289,7 +5289,7 @@
    "data": {
     "name": "roof",
     "id": "o5",
-    "uuid": "a0bcaee0-8425-4865-ba67-fada76aed981",
+    "uuid": "ffc205c2-ed2d-4e47-95fb-743a308d514b",
     "revision": 3,
     "verts": 12,
     "edges": 18,
@@ -5361,7 +5361,7 @@
     "edges": 17,
     "faces": 7
    },
-   "ms": 1.4
+   "ms": 1.2
   },
   {
    "command": {
@@ -5374,7 +5374,7 @@
    "data": {
     "name": "roof",
     "id": "o5",
-    "uuid": "a0bcaee0-8425-4865-ba67-fada76aed981",
+    "uuid": "ffc205c2-ed2d-4e47-95fb-743a308d514b",
     "revision": 4,
     "verts": 11,
     "edges": 17,
@@ -5448,7 +5448,7 @@
     "verts": 16,
     "faces": 12
    },
-   "ms": 0.4
+   "ms": 0.5
   },
   {
    "command": {
@@ -5461,7 +5461,7 @@
    "data": {
     "name": "roof",
     "id": "o5",
-    "uuid": "a0bcaee0-8425-4865-ba67-fada76aed981",
+    "uuid": "ffc205c2-ed2d-4e47-95fb-743a308d514b",
     "revision": 5,
     "verts": 16,
     "edges": 27,
@@ -5507,7 +5507,7 @@
     "faceVerts": "[12 elided]",
     "edgeVerts": "[27 elided]"
    },
-   "ms": 0.1
+   "ms": 0
   },
   {
    "command": {
@@ -5535,7 +5535,7 @@
     "verts": 21,
     "faces": 17
    },
-   "ms": 0.4
+   "ms": 0.7
   },
   {
    "command": {
@@ -5582,7 +5582,7 @@
      "faces": -3
     }
    },
-   "ms": 1.3
+   "ms": 1.5
   },
   {
    "command": {
@@ -5595,7 +5595,7 @@
    "data": {
     "name": "roof",
     "id": "o5",
-    "uuid": "a0bcaee0-8425-4865-ba67-fada76aed981",
+    "uuid": "ffc205c2-ed2d-4e47-95fb-743a308d514b",
     "revision": 7,
     "verts": 21,
     "edges": 34,
@@ -5691,7 +5691,7 @@
     "edges": 35,
     "faces": 15
    },
-   "ms": 2.8
+   "ms": 1.6
   },
   {
    "command": {
@@ -5705,7 +5705,7 @@
    "data": {
     "count": 1
    },
-   "ms": 0.2
+   "ms": 0.1
   },
   {
    "command": {
@@ -5742,7 +5742,7 @@
     "projection": "perspective",
     "fov": 32
    },
-   "ms": 0
+   "ms": 0.2
   },
   {
    "command": {
@@ -5758,7 +5758,7 @@
     "label": "mansard: a 45° brisis and a shallow terrasson, by inset",
     "path": null
    },
-   "ms": 329.4,
+   "ms": 254.6,
    "capture": "007-mansard-a-45-brisis-and-a-shallow-terrasson-by-i.png"
   },
   {
@@ -5799,7 +5799,7 @@
      ]
     }
    },
-   "ms": 0.7
+   "ms": 0.9
   },
   {
    "command": {
@@ -5870,7 +5870,7 @@
      ]
     }
    },
-   "ms": 0.6
+   "ms": 0.2
   },
   {
    "command": {
@@ -5899,7 +5899,7 @@
     "verts": 12,
     "faces": 7
    },
-   "ms": 0.2
+   "ms": 0.3
   },
   {
    "command": {
@@ -5935,7 +5935,7 @@
    "data": {
     "name": "balcony-2",
     "id": "o6",
-    "uuid": "3834a236-82bf-40eb-9471-5e1fa682b187",
+    "uuid": "dd0e2bf2-9a34-48d5-bcf4-a1a26fdc5215",
     "revision": 4,
     "verts": 12,
     "edges": 18,
@@ -6058,7 +6058,7 @@
     "verts": 24,
     "faces": 22
    },
-   "ms": 1
+   "ms": 1.1
   },
   {
    "command": {
@@ -6071,7 +6071,7 @@
    "data": {
     "name": "balcony-2",
     "id": "o6",
-    "uuid": "3834a236-82bf-40eb-9471-5e1fa682b187",
+    "uuid": "dd0e2bf2-9a34-48d5-bcf4-a1a26fdc5215",
     "revision": 7,
     "verts": 24,
     "edges": 44,
@@ -6157,7 +6157,7 @@
     "edges": 75,
     "faces": 37
    },
-   "ms": 1.2
+   "ms": 1.6
   },
   {
    "command": {
@@ -6203,7 +6203,7 @@
      ]
     }
    },
-   "ms": 0.7
+   "ms": 0.6
   },
   {
    "command": {
@@ -6248,7 +6248,7 @@
      ]
     }
    },
-   "ms": 3.4
+   "ms": 0.5
   },
   {
    "command": {
@@ -6293,7 +6293,7 @@
      ]
     }
    },
-   "ms": 0.4
+   "ms": 0.5
   },
   {
    "command": {
@@ -6340,7 +6340,7 @@
      ]
     }
    },
-   "ms": 1.6
+   "ms": 1.5
   },
   {
    "command": {
@@ -6360,7 +6360,7 @@
     "verts": 42,
     "faces": 36
    },
-   "ms": 0.7
+   "ms": 0.9
   },
   {
    "command": {
@@ -6424,7 +6424,7 @@
     "verts": 42,
     "faces": 36
    },
-   "ms": 56.3
+   "ms": 40.5
   },
   {
    "command": {
@@ -6441,7 +6441,7 @@
     "mode": "object",
     "count": 1
    },
-   "ms": 0.4
+   "ms": 0.3
   },
   {
    "command": {
@@ -6492,7 +6492,7 @@
     "projection": "perspective",
     "fov": 45
    },
-   "ms": 0.3
+   "ms": 0.2
   },
   {
    "command": {
@@ -6508,7 +6508,7 @@
     "label": "2nd-floor balcony: outset, bisected, solidified, railing on a curve array",
     "path": null
    },
-   "ms": 286,
+   "ms": 263.2,
    "capture": "008-2nd-floor-balcony-outset-bisected-solidified-rai.png"
   },
   {
@@ -6549,7 +6549,7 @@
      ]
     }
    },
-   "ms": 1
+   "ms": 1.2
   },
   {
    "command": {
@@ -6620,7 +6620,7 @@
      ]
     }
    },
-   "ms": 0.3
+   "ms": 0.7
   },
   {
    "command": {
@@ -6649,7 +6649,7 @@
     "verts": 12,
     "faces": 7
    },
-   "ms": 0.4
+   "ms": 0.3
   },
   {
    "command": {
@@ -6672,7 +6672,7 @@
     "edges": 18,
     "faces": 6
    },
-   "ms": 0.2
+   "ms": 0.5
   },
   {
    "command": {
@@ -6685,7 +6685,7 @@
    "data": {
     "name": "balcony-4",
     "id": "o11",
-    "uuid": "9823cb1e-06cb-407b-acb0-982ff20627da",
+    "uuid": "ddb9e12a-d50a-4de9-b2bc-e334c10c8dac",
     "revision": 4,
     "verts": 12,
     "edges": 18,
@@ -6754,7 +6754,7 @@
     "edges": 16,
     "faces": 5
    },
-   "ms": 0.3
+   "ms": 0.2
   },
   {
    "command": {
@@ -6792,7 +6792,7 @@
      "faces": 0
     }
    },
-   "ms": 0.3
+   "ms": 0.4
   },
   {
    "command": {
@@ -6808,7 +6808,7 @@
     "verts": 24,
     "faces": 22
    },
-   "ms": 0.6
+   "ms": 0.5
   },
   {
    "command": {
@@ -6821,7 +6821,7 @@
    "data": {
     "name": "balcony-4",
     "id": "o11",
-    "uuid": "9823cb1e-06cb-407b-acb0-982ff20627da",
+    "uuid": "ddb9e12a-d50a-4de9-b2bc-e334c10c8dac",
     "revision": 7,
     "verts": 24,
     "edges": 44,
@@ -6867,7 +6867,7 @@
     "faceVerts": "[22 elided]",
     "edgeVerts": "[44 elided]"
    },
-   "ms": 0
+   "ms": 0.1
   },
   {
    "command": {
@@ -6907,7 +6907,7 @@
     "edges": 75,
     "faces": 37
    },
-   "ms": 1.4
+   "ms": 1.1
   },
   {
    "command": {
@@ -6953,7 +6953,7 @@
      ]
     }
    },
-   "ms": 0.8
+   "ms": 0.5
   },
   {
    "command": {
@@ -6998,7 +6998,7 @@
      ]
     }
    },
-   "ms": 0.6
+   "ms": 0.3
   },
   {
    "command": {
@@ -7043,7 +7043,7 @@
      ]
     }
    },
-   "ms": 1.4
+   "ms": 0.2
   },
   {
    "command": {
@@ -7090,7 +7090,7 @@
      ]
     }
    },
-   "ms": 0.7
+   "ms": 0.4
   },
   {
    "command": {
@@ -7110,7 +7110,7 @@
     "verts": 42,
     "faces": 36
    },
-   "ms": 0.9
+   "ms": 0.5
   },
   {
    "command": {
@@ -7126,7 +7126,7 @@
     },
     "count": 1
    },
-   "ms": 0.9
+   "ms": 0.3
   },
   {
    "command": {
@@ -7174,7 +7174,7 @@
     "verts": 42,
     "faces": 36
    },
-   "ms": 37
+   "ms": 34.8
   },
   {
    "command": {
@@ -7205,7 +7205,7 @@
    "data": {
     "count": 1
    },
-   "ms": 0.3
+   "ms": 0.2
   },
   {
    "command": {
@@ -7245,7 +7245,7 @@
      ]
     }
    },
-   "ms": 0.6
+   "ms": 0.8
   },
   {
    "command": {
@@ -7316,7 +7316,7 @@
      ]
     }
    },
-   "ms": 0.1
+   "ms": 0.2
   },
   {
    "command": {
@@ -7345,7 +7345,7 @@
     "verts": 12,
     "faces": 7
    },
-   "ms": 0.5
+   "ms": 0.2
   },
   {
    "command": {
@@ -7368,7 +7368,7 @@
     "edges": 18,
     "faces": 6
    },
-   "ms": 0.1
+   "ms": 0.2
   },
   {
    "command": {
@@ -7381,7 +7381,7 @@
    "data": {
     "name": "balcony-5",
     "id": "o16",
-    "uuid": "cc824580-2f34-487a-b39c-7d8b396f8134",
+    "uuid": "a4c891eb-a3d0-4a77-81eb-16cba52e55a2",
     "revision": 4,
     "verts": 12,
     "edges": 18,
@@ -7427,7 +7427,7 @@
     "faceVerts": "[6 elided]",
     "edgeVerts": "[18 elided]"
    },
-   "ms": 0.1
+   "ms": 0
   },
   {
    "command": {
@@ -7450,7 +7450,7 @@
     "edges": 16,
     "faces": 5
    },
-   "ms": 0.3
+   "ms": 0.4
   },
   {
    "command": {
@@ -7488,7 +7488,7 @@
      "faces": 0
     }
    },
-   "ms": 0.3
+   "ms": 0.5
   },
   {
    "command": {
@@ -7504,7 +7504,7 @@
     "verts": 24,
     "faces": 22
    },
-   "ms": 0.3
+   "ms": 0.4
   },
   {
    "command": {
@@ -7517,7 +7517,7 @@
    "data": {
     "name": "balcony-5",
     "id": "o16",
-    "uuid": "cc824580-2f34-487a-b39c-7d8b396f8134",
+    "uuid": "a4c891eb-a3d0-4a77-81eb-16cba52e55a2",
     "revision": 7,
     "verts": 24,
     "edges": 44,
@@ -7563,7 +7563,7 @@
     "faceVerts": "[22 elided]",
     "edgeVerts": "[44 elided]"
    },
-   "ms": 0.1
+   "ms": 0
   },
   {
    "command": {
@@ -7603,7 +7603,7 @@
     "edges": 75,
     "faces": 37
    },
-   "ms": 1.2
+   "ms": 1.9
   },
   {
    "command": {
@@ -7649,7 +7649,7 @@
      ]
     }
    },
-   "ms": 0.4
+   "ms": 0.5
   },
   {
    "command": {
@@ -7786,7 +7786,7 @@
      ]
     }
    },
-   "ms": 0.4
+   "ms": 0.5
   },
   {
    "command": {
@@ -7822,7 +7822,7 @@
     },
     "count": 1
    },
-   "ms": 0.4
+   "ms": 0.2
   },
   {
    "command": {
@@ -7870,7 +7870,7 @@
     "verts": 42,
     "faces": 36
    },
-   "ms": 25.4
+   "ms": 54.9
   },
   {
    "command": {
@@ -7901,7 +7901,7 @@
    "data": {
     "count": 1
    },
-   "ms": 0
+   "ms": 0.1
   },
   {
    "command": {
@@ -7947,7 +7947,7 @@
      ]
     }
    },
-   "ms": 2.5
+   "ms": 0.5
   },
   {
    "command": {
@@ -8037,7 +8037,7 @@
      ]
     }
    },
-   "ms": 0.4
+   "ms": 0.3
   },
   {
    "command": {
@@ -8084,7 +8084,7 @@
      ]
     }
    },
-   "ms": 0.3
+   "ms": 0.5
   },
   {
    "command": {
@@ -8104,7 +8104,7 @@
     "verts": 42,
     "faces": 36
    },
-   "ms": 0.3
+   "ms": 0.4
   },
   {
    "command": {
@@ -8120,7 +8120,7 @@
     },
     "count": 1
    },
-   "ms": 0.2
+   "ms": 0.3
   },
   {
    "command": {
@@ -8137,7 +8137,7 @@
     "mode": "object",
     "count": 1
    },
-   "ms": 0.1
+   "ms": 0.2
   },
   {
    "command": {
@@ -8153,7 +8153,7 @@
     },
     "count": 1
    },
-   "ms": 0.2
+   "ms": 0.1
   },
   {
    "command": {
@@ -8165,16 +8165,16 @@
      0,
      0
     ],
-    "merge": true
+    "merge": false
    },
    "ok": true,
    "data": {
     "mode": "linear",
     "count": 5,
-    "verts": 178,
-    "faces": 172
+    "verts": 210,
+    "faces": 180
    },
-   "ms": 3.7
+   "ms": 1
   },
   {
    "command": {
@@ -8220,7 +8220,7 @@
      ]
     }
    },
-   "ms": 0.3
+   "ms": 0.5
   },
   {
    "command": {
@@ -8236,7 +8236,7 @@
     },
     "count": 1
    },
-   "ms": 0.2
+   "ms": 0.7
   },
   {
    "command": {
@@ -8260,7 +8260,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.5
+   "ms": 1.7
   },
   {
    "command": {
@@ -8332,7 +8332,7 @@
    "data": {
     "created": 1
    },
-   "ms": 3.4
+   "ms": 0.3
   },
   {
    "command": {
@@ -8356,7 +8356,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.4
+   "ms": 0.3
   },
   {
    "command": {
@@ -8380,7 +8380,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.4
+   "ms": 0.3
   },
   {
    "command": {
@@ -8404,7 +8404,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.4
+   "ms": 0.3
   },
   {
    "command": {
@@ -8452,7 +8452,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.2
+   "ms": 0.3
   },
   {
    "command": {
@@ -8476,7 +8476,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.3
+   "ms": 0.4
   },
   {
    "command": {
@@ -8500,7 +8500,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.6
+   "ms": 0.4
   },
   {
    "command": {
@@ -8524,7 +8524,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.5
+   "ms": 0.4
   },
   {
    "command": {
@@ -8548,7 +8548,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.5
+   "ms": 0.2
   },
   {
    "command": {
@@ -8572,7 +8572,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.5
+   "ms": 0.3
   },
   {
    "command": {
@@ -8644,7 +8644,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.4
+   "ms": 0.2
   },
   {
    "command": {
@@ -8668,7 +8668,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.4
+   "ms": 0.3
   },
   {
    "command": {
@@ -8692,7 +8692,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.3
+   "ms": 0.5
   },
   {
    "command": {
@@ -8716,7 +8716,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.4
+   "ms": 0.3
   },
   {
    "command": {
@@ -8774,8 +8774,8 @@
    "data": {
     "name": "balconettes-3",
     "joined": 21,
-    "verts": 3738,
-    "faces": 3612
+    "verts": 4410,
+    "faces": 3780
    },
    "ms": 5.6
   },
@@ -8801,7 +8801,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.3
+   "ms": 0.4
   },
   {
    "command": {
@@ -8825,7 +8825,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.2
+   "ms": 0.4
   },
   {
    "command": {
@@ -8897,7 +8897,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.3
+   "ms": 0.2
   },
   {
    "command": {
@@ -8969,7 +8969,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.2
+   "ms": 0.4
   },
   {
    "command": {
@@ -8993,7 +8993,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.2
+   "ms": 0.3
   },
   {
    "command": {
@@ -9089,7 +9089,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.1
+   "ms": 0.2
   },
   {
    "command": {
@@ -9113,7 +9113,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.1
+   "ms": 3
   },
   {
    "command": {
@@ -9137,7 +9137,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.2
+   "ms": 0.4
   },
   {
    "command": {
@@ -9161,7 +9161,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.2
+   "ms": 0.5
   },
   {
    "command": {
@@ -9185,7 +9185,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.1
+   "ms": 0.3
   },
   {
    "command": {
@@ -9209,7 +9209,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.2
+   "ms": 0.6
   },
   {
    "command": {
@@ -9233,7 +9233,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.1
+   "ms": 0.3
   },
   {
    "command": {
@@ -9281,7 +9281,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.1
+   "ms": 0.3
   },
   {
    "command": {
@@ -9318,7 +9318,7 @@
     "verts": 168,
     "faces": 126
    },
-   "ms": 1.1
+   "ms": 1.3
   },
   {
    "command": {
@@ -9364,7 +9364,7 @@
      ]
     }
    },
-   "ms": 0.2
+   "ms": 0.5
   },
   {
    "command": {
@@ -9409,7 +9409,7 @@
      ]
     }
    },
-   "ms": 0.3
+   "ms": 0.4
   },
   {
    "command": {
@@ -9582,16 +9582,16 @@
      0,
      0
     ],
-    "merge": true
+    "merge": false
    },
    "ok": true,
    "data": {
     "mode": "linear",
     "count": 5,
-    "verts": 178,
-    "faces": 172
+    "verts": 210,
+    "faces": 180
    },
-   "ms": 1.3
+   "ms": 1.1
   },
   {
    "command": {
@@ -9615,7 +9615,7 @@
    "data": {
     "created": 1
    },
-   "ms": 3.7
+   "ms": 0.3
   },
   {
    "command": {
@@ -9639,7 +9639,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.4
+   "ms": 0.3
   },
   {
    "command": {
@@ -9687,7 +9687,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.3
+   "ms": 0.4
   },
   {
    "command": {
@@ -9711,7 +9711,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.4
+   "ms": 0.5
   },
   {
    "command": {
@@ -9735,7 +9735,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.4
+   "ms": 0.3
   },
   {
    "command": {
@@ -9807,7 +9807,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.4
+   "ms": 0.3
   },
   {
    "command": {
@@ -9903,7 +9903,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.4
+   "ms": 0.3
   },
   {
    "command": {
@@ -9927,7 +9927,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.5
+   "ms": 0.4
   },
   {
    "command": {
@@ -9951,7 +9951,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.4
+   "ms": 1.1
   },
   {
    "command": {
@@ -9975,7 +9975,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.3
+   "ms": 0.4
   },
   {
    "command": {
@@ -9999,7 +9999,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.2
+   "ms": 0.4
   },
   {
    "command": {
@@ -10023,7 +10023,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.2
+   "ms": 0.6
   },
   {
    "command": {
@@ -10047,7 +10047,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.3
+   "ms": 0.4
   },
   {
    "command": {
@@ -10071,7 +10071,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.3
+   "ms": 0.5
   },
   {
    "command": {
@@ -10095,7 +10095,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.3
+   "ms": 0.5
   },
   {
    "command": {
@@ -10129,10 +10129,10 @@
    "data": {
     "name": "guards-1",
     "joined": 21,
-    "verts": 3738,
-    "faces": 3612
+    "verts": 4410,
+    "faces": 3780
    },
-   "ms": 4.2
+   "ms": 4.7
   },
   {
    "command": {
@@ -10178,7 +10178,7 @@
    "data": {
     "count": 1
    },
-   "ms": 0.1
+   "ms": 0.2
   },
   {
    "command": {
@@ -10215,7 +10215,7 @@
     "projection": "perspective",
     "fov": 45
    },
-   "ms": 0.2
+   "ms": 0.1
   },
   {
    "command": {
@@ -10225,13 +10225,13 @@
    },
    "ok": true,
    "data": {
-    "dataUrl": "[484138 elided]",
+    "dataUrl": "[484318 elided]",
     "width": 1200,
     "height": 800,
     "label": "balconettes and window guards: one master, placed on every bay",
     "path": null
    },
-   "ms": 2576.1,
+   "ms": 2335.5,
    "capture": "009-balconettes-and-window-guards-one-master-placed-.png"
   },
   {
@@ -10278,7 +10278,7 @@
      ]
     }
    },
-   "ms": 1
+   "ms": 0.7
   },
   {
    "command": {
@@ -10307,7 +10307,7 @@
    "data": {
     "name": "dormer",
     "id": "o93",
-    "uuid": "4cfeeb2d-130e-4ea4-884e-a69973e8fb46",
+    "uuid": "88e10e6a-f9c8-4ae4-accc-24b202d4b603",
     "revision": 2,
     "verts": 8,
     "edges": 12,
@@ -10353,7 +10353,7 @@
     "faceVerts": "[6 elided]",
     "edgeVerts": "[12 elided]"
    },
-   "ms": 0
+   "ms": 0.1
   },
   {
    "command": {
@@ -10422,7 +10422,7 @@
    "data": {
     "name": "dormer",
     "id": "o93",
-    "uuid": "4cfeeb2d-130e-4ea4-884e-a69973e8fb46",
+    "uuid": "88e10e6a-f9c8-4ae4-accc-24b202d4b603",
     "revision": 4,
     "verts": 16,
     "edges": 28,
@@ -10468,7 +10468,7 @@
     "faceVerts": "[14 elided]",
     "edgeVerts": "[28 elided]"
    },
-   "ms": 0.1
+   "ms": 0
   },
   {
    "command": {
@@ -10503,7 +10503,7 @@
     "verts": 20,
     "faces": 18
    },
-   "ms": 0.3
+   "ms": 0.4
   },
   {
    "command": {
@@ -10516,7 +10516,7 @@
    "data": {
     "name": "dormer",
     "id": "o93",
-    "uuid": "4cfeeb2d-130e-4ea4-884e-a69973e8fb46",
+    "uuid": "88e10e6a-f9c8-4ae4-accc-24b202d4b603",
     "revision": 5,
     "verts": 20,
     "edges": 36,
@@ -10588,7 +10588,7 @@
     "verts": 24,
     "faces": 22
    },
-   "ms": 0.5
+   "ms": 0.4
   },
   {
    "command": {
@@ -10669,7 +10669,7 @@
     "projection": "perspective",
     "fov": 45
    },
-   "ms": 0.3
+   "ms": 0.4
   },
   {
    "command": {
@@ -10685,7 +10685,7 @@
     "label": "dormer master",
     "path": null
    },
-   "ms": 382.4,
+   "ms": 382.2,
    "capture": "010-dormer-master.png"
   },
   {
@@ -10706,7 +10706,7 @@
     "mode": "object",
     "count": 2
    },
-   "ms": 0.4
+   "ms": 0.3
   },
   {
    "command": {
@@ -10730,7 +10730,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.5
+   "ms": 0.6
   },
   {
    "command": {
@@ -10754,7 +10754,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.3
+   "ms": 0.4
   },
   {
    "command": {
@@ -10773,7 +10773,7 @@
     },
     "count": 2
    },
-   "ms": 0.3
+   "ms": 0.4
   },
   {
    "command": {
@@ -10797,7 +10797,7 @@
     "count": 6,
     "objects": 2
    },
-   "ms": 1.1
+   "ms": 0.9
   },
   {
    "command": {
@@ -10821,7 +10821,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.3
+   "ms": 0.2
   },
   {
    "command": {
@@ -10864,7 +10864,7 @@
     },
     "count": 2
    },
-   "ms": 0.2
+   "ms": 0.3
   },
   {
    "command": {
@@ -10912,7 +10912,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.3
+   "ms": 0.4
   },
   {
    "command": {
@@ -10955,7 +10955,7 @@
     },
     "count": 2
    },
-   "ms": 0.8
+   "ms": 0.2
   },
   {
    "command": {
@@ -10979,7 +10979,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.3
+   "ms": 0.2
   },
   {
    "command": {
@@ -11022,7 +11022,7 @@
     },
     "count": 2
    },
-   "ms": 0.6
+   "ms": 0.3
   },
   {
    "command": {
@@ -11046,7 +11046,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.7
+   "ms": 0.3
   },
   {
    "command": {
@@ -11070,7 +11070,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.7
+   "ms": 0.2
   },
   {
    "command": {
@@ -11089,7 +11089,7 @@
     },
     "count": 2
    },
-   "ms": 0.8
+   "ms": 0.2
   },
   {
    "command": {
@@ -11113,7 +11113,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.6
+   "ms": 0.2
   },
   {
    "command": {
@@ -11137,7 +11137,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.3
+   "ms": 0.5
   },
   {
    "command": {
@@ -11156,7 +11156,7 @@
     },
     "count": 2
    },
-   "ms": 0.4
+   "ms": 0.6
   },
   {
    "command": {
@@ -11180,7 +11180,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.5
+   "ms": 0.6
   },
   {
    "command": {
@@ -11204,7 +11204,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.4
+   "ms": 0.3
   },
   {
    "command": {
@@ -11247,7 +11247,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.7
+   "ms": 0.6
   },
   {
    "command": {
@@ -11290,7 +11290,7 @@
     },
     "count": 2
    },
-   "ms": 0.5
+   "ms": 0.4
   },
   {
    "command": {
@@ -11314,7 +11314,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.6
+   "ms": 0.4
   },
   {
    "command": {
@@ -11338,7 +11338,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.3
+   "ms": 0.4
   },
   {
    "command": {
@@ -11405,7 +11405,7 @@
    "data": {
     "created": 1
    },
-   "ms": 0.3
+   "ms": 0.4
   },
   {
    "command": {
@@ -11424,7 +11424,7 @@
     },
     "count": 2
    },
-   "ms": 0.3
+   "ms": 0.5
   },
   {
    "command": {
@@ -11448,7 +11448,7 @@
     "verts": 192,
     "faces": 168
    },
-   "ms": 1
+   "ms": 0.8
   },
   {
    "command": {
@@ -11523,7 +11523,7 @@
     "projection": "perspective",
     "fov": 40
    },
-   "ms": 0.2
+   "ms": 0.3
   },
   {
    "command": {
@@ -11533,13 +11533,13 @@
    },
    "ok": true,
    "data": {
-    "dataUrl": "[344906 elided]",
+    "dataUrl": "[345166 elided]",
     "width": 1200,
     "height": 800,
     "label": "dormers on live arrays",
     "path": null
    },
-   "ms": 285.6,
+   "ms": 204.8,
    "capture": "011-dormers-on-live-arrays.png"
   },
   {
@@ -11586,7 +11586,7 @@
      ]
     }
    },
-   "ms": 0.4
+   "ms": 0.6
   },
   {
    "command": {
@@ -11615,7 +11615,7 @@
    "data": {
     "name": "chimney-party",
     "id": "o115",
-    "uuid": "7dc8c851-29b5-4a28-956c-917c41b977b4",
+    "uuid": "a789172f-c919-4bbf-9b79-f3a19a6142d1",
     "revision": 2,
     "verts": 8,
     "edges": 12,
@@ -11742,7 +11742,7 @@
      ]
     }
    },
-   "ms": 0.5
+   "ms": 0.4
   },
   {
    "command": {
@@ -11771,7 +11771,7 @@
    "data": {
     "name": "chimney-front",
     "id": "o116",
-    "uuid": "1b4c1cef-f411-4402-9f4b-1723937fdc18",
+    "uuid": "6bbef76b-2161-4f4d-bcbb-8be62f3fcf30",
     "revision": 2,
     "verts": 8,
     "edges": 12,
@@ -11852,7 +11852,7 @@
     "verts": 12,
     "faces": 10
    },
-   "ms": 0.2
+   "ms": 0.4
   },
   {
    "command": {
@@ -11898,7 +11898,7 @@
      ]
     }
    },
-   "ms": 0.4
+   "ms": 0.6
   },
   {
    "command": {
@@ -11927,7 +11927,7 @@
    "data": {
     "name": "chimney-corner",
     "id": "o117",
-    "uuid": "040194ce-2653-41db-b63e-9fd0c5bb8cf2",
+    "uuid": "a35e9d4b-00f1-4409-971a-19920def9d01",
     "revision": 2,
     "verts": 8,
     "edges": 12,
@@ -12026,7 +12026,7 @@
     "verts": 24,
     "faces": 20
    },
-   "ms": 0.5
+   "ms": 0.3
   },
   {
    "command": {
@@ -12103,7 +12103,7 @@
      ]
     }
    },
-   "ms": 1.3
+   "ms": 1.5
   },
   {
    "command": {
@@ -12119,7 +12119,7 @@
     },
     "count": 1
    },
-   "ms": 0.2
+   "ms": 0.5
   },
   {
    "command": {
@@ -12141,7 +12141,7 @@
     "verts": 74,
     "faces": 84
    },
-   "ms": 41.1
+   "ms": 8.4
   },
   {
    "command": {
@@ -12185,7 +12185,7 @@
      ]
     }
    },
-   "ms": 0.7
+   "ms": 0.6
   },
   {
    "command": {
@@ -12225,7 +12225,7 @@
      ]
     }
    },
-   "ms": 0.5
+   "ms": 0.4
   },
   {
    "command": {
@@ -12296,7 +12296,7 @@
      ]
     }
    },
-   "ms": 0.3
+   "ms": 0.2
   },
   {
    "command": {
@@ -12325,7 +12325,7 @@
     "verts": 12,
     "faces": 7
    },
-   "ms": 0.8
+   "ms": 0.2
   },
   {
    "command": {
@@ -12348,7 +12348,7 @@
     "edges": 18,
     "faces": 6
    },
-   "ms": 1.5
+   "ms": 2.7
   },
   {
    "command": {
@@ -12364,7 +12364,7 @@
     "verts": 24,
     "faces": 24
    },
-   "ms": 0.3
+   "ms": 0.4
   },
   {
    "command": {
@@ -12410,7 +12410,7 @@
      ]
     }
    },
-   "ms": 0.5
+   "ms": 0.6
   },
   {
    "command": {
@@ -12426,7 +12426,7 @@
     },
     "count": 1
    },
-   "ms": 0.2
+   "ms": 0.3
   },
   {
    "command": {
@@ -12439,7 +12439,7 @@
    "data": {
     "name": "neighbour",
     "id": "o121",
-    "uuid": "913ae5b6-0c2e-4ef0-aa7b-de635c3193dd",
+    "uuid": "a0b50d0b-738f-4bdb-8f5c-6bf9b4ad1a3f",
     "revision": 2,
     "verts": 8,
     "edges": 12,
@@ -12512,7 +12512,7 @@
     "verts": 12,
     "faces": 10
    },
-   "ms": 0.2
+   "ms": 0.4
   },
   {
    "command": {
@@ -12570,7 +12570,7 @@
    "data": {
     "count": 3
    },
-   "ms": 0
+   "ms": 0.1
   },
   {
    "command": {
@@ -12598,7 +12598,7 @@
    "data": {
     "count": 1
    },
-   "ms": 0
+   "ms": 0.1
   },
   {
    "command": {
@@ -12612,7 +12612,7 @@
    "data": {
     "count": 1
    },
-   "ms": 0.1
+   "ms": 0
   },
   {
    "command": {
@@ -12663,7 +12663,7 @@
     "projection": "perspective",
     "fov": 40
    },
-   "ms": 0.1
+   "ms": 0.2
   },
   {
    "command": {
@@ -12673,13 +12673,13 @@
    },
    "ok": true,
    "data": {
-    "dataUrl": "[199742 elided]",
+    "dataUrl": "[199766 elided]",
     "width": 1200,
     "height": 800,
     "label": "the street",
     "path": null
    },
-   "ms": 849.5,
+   "ms": 651.9,
    "capture": "012-the-street.png"
   },
   {
@@ -12693,7 +12693,7 @@
     "duplicateNames": [],
     "results": []
    },
-   "ms": 7.7
+   "ms": 10
   },
   {
    "command": {
@@ -12706,7 +12706,7 @@
    "data": {
     "name": "facade",
     "id": "o2",
-    "uuid": "502715b8-6de3-4c59-ba2d-19a04cfb21df",
+    "uuid": "b3bea4dd-f823-4af7-bf1d-2919d976b96e",
     "revision": 27,
     "verts": 2694,
     "edges": 5338,
@@ -12839,7 +12839,7 @@
      ]
     }
    ],
-   "ms": 0.2
+   "ms": 0
   },
   {
    "command": {
@@ -12897,7 +12897,7 @@
      ]
     }
    ],
-   "ms": 0
+   "ms": 0.1
   },
   {
    "command": {
@@ -12968,7 +12968,7 @@
    "data": {
     "name": "glass",
     "id": "o3",
-    "uuid": "441277b0-9f34-4854-830b-ec851ef8f22d",
+    "uuid": "bc8570c6-c0cf-4595-8c59-00e4ad7264b7",
     "revision": 2,
     "verts": 532,
     "edges": 532,
@@ -13027,7 +13027,7 @@
    "data": {
     "name": "roof",
     "id": "o5",
-    "uuid": "a0bcaee0-8425-4865-ba67-fada76aed981",
+    "uuid": "ffc205c2-ed2d-4e47-95fb-743a308d514b",
     "revision": 8,
     "verts": 21,
     "edges": 35,
@@ -13073,7 +13073,7 @@
     "faceVerts": "[15 elided]",
     "edgeVerts": "[35 elided]"
    },
-   "ms": 0
+   "ms": 0.2
   },
   {
    "command": {
@@ -13102,7 +13102,7 @@
      ]
     }
    ],
-   "ms": 0.1
+   "ms": 0
   },
   {
    "command": {
@@ -13110,12 +13110,12 @@
    },
    "ok": true,
    "data": {
-    "documentId": "doc-1-cwvglz",
+    "documentId": "doc-1-oxjyar",
     "objects": 25,
     "totals": {
-     "verts": 11575,
-     "edges": 21150,
-     "faces": 10599
+     "verts": 12919,
+     "edges": 22494,
+     "faces": 10935
     },
     "bounds": {
      "min": [
@@ -13162,7 +13162,7 @@
      "neighbour"
     ]
    },
-   "ms": 0.3
+   "ms": 0.1
   },
   {
    "command": {
@@ -13175,7 +13175,7 @@
    "data": {
     "name": "facade",
     "id": "o2",
-    "uuid": "502715b8-6de3-4c59-ba2d-19a04cfb21df",
+    "uuid": "b3bea4dd-f823-4af7-bf1d-2919d976b96e",
     "revision": 27,
     "verts": 2694,
     "edges": 5338,
@@ -13234,7 +13234,7 @@
    "data": {
     "name": "glass",
     "id": "o3",
-    "uuid": "441277b0-9f34-4854-830b-ec851ef8f22d",
+    "uuid": "bc8570c6-c0cf-4595-8c59-00e4ad7264b7",
     "revision": 2,
     "verts": 532,
     "edges": 532,
@@ -13293,7 +13293,7 @@
    "data": {
     "name": "doors",
     "id": "o4",
-    "uuid": "c958110d-a29f-4938-985a-d24fa6affee3",
+    "uuid": "5b19277a-903e-4de5-8256-fcd68d5098b8",
     "revision": 1,
     "verts": 8,
     "edges": 8,
@@ -13339,7 +13339,7 @@
     "faceVerts": "[2 elided]",
     "edgeVerts": "[8 elided]"
    },
-   "ms": 0.1
+   "ms": 0
   },
   {
    "command": {
@@ -13352,7 +13352,7 @@
    "data": {
     "name": "roof",
     "id": "o5",
-    "uuid": "a0bcaee0-8425-4865-ba67-fada76aed981",
+    "uuid": "ffc205c2-ed2d-4e47-95fb-743a308d514b",
     "revision": 8,
     "verts": 21,
     "edges": 35,
@@ -13398,7 +13398,7 @@
     "faceVerts": "[15 elided]",
     "edgeVerts": "[35 elided]"
    },
-   "ms": 0.1
+   "ms": 0
   },
   {
    "command": {
@@ -13411,7 +13411,7 @@
    "data": {
     "name": "balcony-2",
     "id": "o6",
-    "uuid": "3834a236-82bf-40eb-9471-5e1fa682b187",
+    "uuid": "dd0e2bf2-9a34-48d5-bcf4-a1a26fdc5215",
     "revision": 8,
     "verts": 40,
     "edges": 75,
@@ -13457,7 +13457,7 @@
     "faceVerts": "[37 elided]",
     "edgeVerts": "[75 elided]"
    },
-   "ms": 0
+   "ms": 0.1
   },
   {
    "command": {
@@ -13470,7 +13470,7 @@
    "data": {
     "name": "railing-2",
     "id": "o7",
-    "uuid": "1df8d4dc-59f1-4c3f-8b06-3a9c97c5c388",
+    "uuid": "621f56de-b46f-4dc5-9b70-a2f4f210bcb1",
     "revision": 4,
     "verts": 42,
     "edges": 72,
@@ -13516,7 +13516,7 @@
     "faceVerts": "[36 elided]",
     "edgeVerts": "[72 elided]"
    },
-   "ms": 0
+   "ms": 0.2
   },
   {
    "command": {
@@ -13529,7 +13529,7 @@
    "data": {
     "name": "balcony-4",
     "id": "o11",
-    "uuid": "9823cb1e-06cb-407b-acb0-982ff20627da",
+    "uuid": "ddb9e12a-d50a-4de9-b2bc-e334c10c8dac",
     "revision": 8,
     "verts": 40,
     "edges": 75,
@@ -13588,7 +13588,7 @@
    "data": {
     "name": "railing-4",
     "id": "o12",
-    "uuid": "c2880fed-b0b8-4014-95ea-851a50d2c80a",
+    "uuid": "4c2943d6-121a-4be4-a710-67c29ac9cdaa",
     "revision": 4,
     "verts": 42,
     "edges": 72,
@@ -13634,7 +13634,7 @@
     "faceVerts": "[36 elided]",
     "edgeVerts": "[72 elided]"
    },
-   "ms": 0
+   "ms": 0.1
   },
   {
    "command": {
@@ -13647,7 +13647,7 @@
    "data": {
     "name": "balcony-5",
     "id": "o16",
-    "uuid": "cc824580-2f34-487a-b39c-7d8b396f8134",
+    "uuid": "a4c891eb-a3d0-4a77-81eb-16cba52e55a2",
     "revision": 8,
     "verts": 40,
     "edges": 75,
@@ -13693,7 +13693,7 @@
     "faceVerts": "[37 elided]",
     "edgeVerts": "[75 elided]"
    },
-   "ms": 0.1
+   "ms": 0
   },
   {
    "command": {
@@ -13706,7 +13706,7 @@
    "data": {
     "name": "railing-5",
     "id": "o17",
-    "uuid": "933269c1-ad43-4f1f-850b-f21856d6109e",
+    "uuid": "790fce5c-fba0-4ac2-8b79-377c87ce287d",
     "revision": 4,
     "verts": 42,
     "edges": 72,
@@ -13765,11 +13765,11 @@
    "data": {
     "name": "balconettes-3",
     "id": "o26",
-    "uuid": "3c0e38e6-da97-486d-acfb-eb2df31072aa",
+    "uuid": "2ef77058-cf7e-401e-94ee-dbb85c385689",
     "revision": 2,
-    "verts": 3738,
-    "edges": 6888,
-    "faces": 3612,
+    "verts": 4410,
+    "edges": 7560,
+    "faces": 3780,
     "position": [
      1.6071428571428572,
      10.920329670329672,
@@ -13807,11 +13807,11 @@
       -8.236416625790298
      ]
     },
-    "vertices": "[3738 elided]",
-    "faceVerts": "[3612 elided]",
-    "edgeVerts": "[6888 elided]"
+    "vertices": "[4410 elided]",
+    "faceVerts": "[3780 elided]",
+    "edgeVerts": "[7560 elided]"
    },
-   "ms": 0.6
+   "ms": 0.8
   },
   {
    "command": {
@@ -13824,7 +13824,7 @@
    "data": {
     "name": "balconette-slabs-3",
     "id": "o47",
-    "uuid": "126a197e-af89-4107-90a1-3cb06eec05d1",
+    "uuid": "e117e820-71b3-4a90-b5a3-dad3dd03876e",
     "revision": 2,
     "verts": 168,
     "edges": 252,
@@ -13870,7 +13870,7 @@
     "faceVerts": "[126 elided]",
     "edgeVerts": "[252 elided]"
    },
-   "ms": 0.2
+   "ms": 0.1
   },
   {
    "command": {
@@ -13883,11 +13883,11 @@
    "data": {
     "name": "guards-1",
     "id": "o72",
-    "uuid": "3c44477b-80e3-4af3-a498-26cb7ef4be16",
+    "uuid": "4fcb3eb5-2bdf-4a54-8eeb-cc68b04fbf8c",
     "revision": 2,
-    "verts": 3738,
-    "edges": 6888,
-    "faces": 3612,
+    "verts": 4410,
+    "edges": 7560,
+    "faces": 3780,
     "position": [
      1.6071428571428572,
      4.052197802197802,
@@ -13925,9 +13925,9 @@
       -7.956416415981948
      ]
     },
-    "vertices": "[3738 elided]",
-    "faceVerts": "[3612 elided]",
-    "edgeVerts": "[6888 elided]"
+    "vertices": "[4410 elided]",
+    "faceVerts": "[3780 elided]",
+    "edgeVerts": "[7560 elided]"
    },
    "ms": 0.7
   },
@@ -13942,7 +13942,7 @@
    "data": {
     "name": "dormers-sebastopol",
     "id": "o95",
-    "uuid": "4a852ab9-a00f-4903-8655-6cacea9dffde",
+    "uuid": "a5c29a8c-f0ec-4c63-b4b7-acd1b31c0bcc",
     "revision": 3,
     "verts": 24,
     "edges": 44,
@@ -14001,7 +14001,7 @@
    "data": {
     "name": "dormers-sebastopol-glass",
     "id": "o96",
-    "uuid": "5e8ce1c9-0670-4fc1-90fe-f930ae5e55b8",
+    "uuid": "7d0b6ae3-8048-4548-98ee-c939e1f2abfe",
     "revision": 3,
     "verts": 4,
     "edges": 4,
@@ -14047,7 +14047,7 @@
     "faceVerts": "[1 elided]",
     "edgeVerts": "[4 elided]"
    },
-   "ms": 0.1
+   "ms": 0
   },
   {
    "command": {
@@ -14060,7 +14060,7 @@
    "data": {
     "name": "dormers-greneta",
     "id": "o97",
-    "uuid": "27e8d986-0035-4914-a481-57d2526c08f0",
+    "uuid": "c4b7b481-1a86-4a11-8743-f8ab6e6d16e3",
     "revision": 3,
     "verts": 24,
     "edges": 44,
@@ -14119,7 +14119,7 @@
    "data": {
     "name": "dormers-greneta-glass",
     "id": "o98",
-    "uuid": "7282cc21-3d4c-4ba7-87dc-78a123244eec",
+    "uuid": "e050f8c3-57e0-43eb-b4c4-47c245fedafb",
     "revision": 3,
     "verts": 4,
     "edges": 4,
@@ -14178,7 +14178,7 @@
    "data": {
     "name": "dormers-other",
     "id": "o99",
-    "uuid": "df898507-7d9d-4a6e-90dc-121e2e2f6518",
+    "uuid": "b0972920-8bc2-4d0b-bd0d-0aed13cc67af",
     "revision": 3,
     "verts": 192,
     "edges": 352,
@@ -14237,7 +14237,7 @@
    "data": {
     "name": "dormers-other-glass",
     "id": "o100",
-    "uuid": "864ee0b9-f9c7-4d2b-84c7-22181d13795d",
+    "uuid": "5a026f83-1c51-4975-947f-371e84417a9b",
     "revision": 3,
     "verts": 32,
     "edges": 32,
@@ -14296,7 +14296,7 @@
    "data": {
     "name": "chimney-party",
     "id": "o115",
-    "uuid": "7dc8c851-29b5-4a28-956c-917c41b977b4",
+    "uuid": "a789172f-c919-4bbf-9b79-f3a19a6142d1",
     "revision": 3,
     "verts": 12,
     "edges": 20,
@@ -14342,7 +14342,7 @@
     "faceVerts": "[10 elided]",
     "edgeVerts": "[20 elided]"
    },
-   "ms": 0.1
+   "ms": 0
   },
   {
    "command": {
@@ -14355,7 +14355,7 @@
    "data": {
     "name": "chimneys",
     "id": "o116",
-    "uuid": "1b4c1cef-f411-4402-9f4b-1723937fdc18",
+    "uuid": "6bbef76b-2161-4f4d-bcbb-8be62f3fcf30",
     "revision": 4,
     "verts": 24,
     "edges": 40,
@@ -14414,7 +14414,7 @@
    "data": {
     "name": "pots",
     "id": "o118",
-    "uuid": "4a3b8b74-52f1-421d-b5bf-1003da980582",
+    "uuid": "ad63a2ab-5c79-4b9e-acd8-ae56db96642a",
     "revision": 3,
     "verts": 74,
     "edges": 156,
@@ -14460,7 +14460,7 @@
     "faceVerts": "[84 elided]",
     "edgeVerts": "[156 elided]"
    },
-   "ms": 0
+   "ms": 0.1
   },
   {
    "command": {
@@ -14473,7 +14473,7 @@
    "data": {
     "name": "road",
     "id": "o119",
-    "uuid": "f0da1e31-b7f8-45e2-aaa3-cd1c8fe81672",
+    "uuid": "31996bb4-e7df-4664-9bb3-bcc20d827cd3",
     "revision": 1,
     "verts": 4,
     "edges": 4,
@@ -14519,7 +14519,7 @@
     "faceVerts": "[1 elided]",
     "edgeVerts": "[4 elided]"
    },
-   "ms": 0
+   "ms": 0.1
   },
   {
    "command": {
@@ -14532,7 +14532,7 @@
    "data": {
     "name": "pavement",
     "id": "o120",
-    "uuid": "9ba5812a-2fee-41d9-a82d-80b313f3f160",
+    "uuid": "6ba8e536-40cd-461e-8bb1-465e21eddeb2",
     "revision": 5,
     "verts": 24,
     "edges": 48,
@@ -14591,7 +14591,7 @@
    "data": {
     "name": "neighbour",
     "id": "o121",
-    "uuid": "913ae5b6-0c2e-4ef0-aa7b-de635c3193dd",
+    "uuid": "a0b50d0b-738f-4bdb-8f5c-6bf9b4ad1a3f",
     "revision": 3,
     "verts": 12,
     "edges": 20,
@@ -14683,13 +14683,13 @@
    },
    "ok": true,
    "data": {
-    "dataUrl": "[384238 elided]",
+    "dataUrl": "[384562 elided]",
     "width": 1200,
     "height": 800,
     "label": "hero: from the rue Greneta corner, eye level",
     "path": null
    },
-   "ms": 839.4,
+   "ms": 936.2,
    "capture": "013-hero-from-the-rue-greneta-corner-eye-level.png"
   },
   {
@@ -14726,7 +14726,7 @@
     "projection": "perspective",
     "fov": 42
    },
-   "ms": 0.3
+   "ms": 0.4
   },
   {
    "command": {
@@ -14736,13 +14736,13 @@
    },
    "ok": true,
    "data": {
-    "dataUrl": "[391346 elided]",
+    "dataUrl": "[391426 elided]",
     "width": 1200,
     "height": 800,
     "label": "three-quarter on the cut corner, as the rue Monge photograph",
     "path": null
    },
-   "ms": 254.9,
+   "ms": 397.9,
    "capture": "014-three-quarter-on-the-cut-corner-as-the-rue-monge.png"
   },
   {
@@ -14779,7 +14779,7 @@
     "projection": "perspective",
     "fov": 48
    },
-   "ms": 0.4
+   "ms": 0.2
   },
   {
    "command": {
@@ -14789,13 +14789,13 @@
    },
    "ok": true,
    "data": {
-    "dataUrl": "[224086 elided]",
+    "dataUrl": "[224194 elided]",
     "width": 1200,
     "height": 800,
     "label": "the boulevard front from across the boulevard",
     "path": null
    },
-   "ms": 250,
+   "ms": 253.1,
    "capture": "015-the-boulevard-front-from-across-the-boulevard.png"
   },
   {
@@ -14832,7 +14832,7 @@
     "projection": "perspective",
     "fov": 45
    },
-   "ms": 0.4
+   "ms": 0.3
   },
   {
    "command": {
@@ -14842,13 +14842,13 @@
    },
    "ok": true,
    "data": {
-    "dataUrl": "[272078 elided]",
+    "dataUrl": "[272142 elided]",
     "width": 1200,
     "height": 800,
     "label": "rue Palestro and the upper cut corner",
     "path": null
    },
-   "ms": 220.7,
+   "ms": 246.9,
    "capture": "016-rue-palestro-and-the-upper-cut-corner.png"
   },
   {
@@ -14860,7 +14860,7 @@
    "data": {
     "mode": "wireframe"
    },
-   "ms": 0.4
+   "ms": 0.3
   },
   {
    "command": {
@@ -14906,13 +14906,13 @@
    },
    "ok": true,
    "data": {
-    "dataUrl": "[1000082 elided]",
+    "dataUrl": "[1000118 elided]",
     "width": 1200,
     "height": 800,
     "label": "wireframe",
     "path": null
    },
-   "ms": 346.3,
+   "ms": 468.8,
    "capture": "017-wireframe.png"
   },
   {
@@ -14928,15 +14928,98 @@
   },
   {
    "command": {
+    "op": "inspect"
+   },
+   "ok": true,
+   "data": {
+    "documentId": "doc-1-oxjyar",
+    "objects": 25,
+    "totals": {
+     "verts": 12919,
+     "edges": 22494,
+     "faces": 10935
+    },
+    "bounds": {
+     "min": [
+      -40,
+      -0.15000000596046448,
+      -53
+     ],
+     "max": [
+      50,
+      23.880329132080078,
+      37
+     ],
+     "size": [
+      90,
+      24.030329138040543,
+      90
+     ]
+    },
+    "names": [
+     "facade",
+     "glass",
+     "doors",
+     "roof",
+     "balcony-2",
+     "railing-2",
+     "balcony-4",
+     "railing-4",
+     "balcony-5",
+     "railing-5",
+     "balconettes-3",
+     "balconette-slabs-3",
+     "guards-1",
+     "dormers-sebastopol",
+     "dormers-sebastopol-glass",
+     "dormers-greneta",
+     "dormers-greneta-glass",
+     "dormers-other",
+     "dormers-other-glass",
+     "chimney-party",
+     "chimneys",
+     "pots",
+     "road",
+     "pavement",
+     "neighbour"
+    ]
+   },
+   "ms": 0
+  },
+  {
+   "command": {
     "op": "material",
-    "object": "*",
+    "objects": [
+     "facade",
+     "glass",
+     "doors",
+     "roof",
+     "balcony-2",
+     "railing-2",
+     "balcony-4",
+     "railing-4",
+     "balcony-5",
+     "railing-5",
+     "balconettes-3",
+     "balconette-slabs-3",
+     "guards-1",
+     "dormers-sebastopol",
+     "dormers-sebastopol-glass",
+     "dormers-greneta",
+     "dormers-greneta-glass",
+     "dormers-other",
+     "dormers-other-glass",
+     "chimney-party",
+     "chimneys",
+     "pots"
+    ],
     "opacity": 0.3
    },
    "ok": true,
    "data": {
-    "count": 25
+    "count": 22
    },
-   "ms": 0.9
+   "ms": 1.9
   },
   {
    "command": {
@@ -14972,7 +15055,7 @@
     "projection": "perspective",
     "fov": 40
    },
-   "ms": 0.1
+   "ms": 0.2
   },
   {
    "command": {
@@ -14982,26 +15065,49 @@
    },
    "ok": true,
    "data": {
-    "dataUrl": "[338434 elided]",
+    "dataUrl": "[365090 elided]",
     "width": 1200,
     "height": 800,
     "label": "x-ray",
     "path": null
    },
-   "ms": 752.5,
+   "ms": 916,
    "capture": "018-x-ray.png"
   },
   {
    "command": {
     "op": "material",
-    "object": "*",
+    "objects": [
+     "facade",
+     "glass",
+     "doors",
+     "roof",
+     "balcony-2",
+     "railing-2",
+     "balcony-4",
+     "railing-4",
+     "balcony-5",
+     "railing-5",
+     "balconettes-3",
+     "balconette-slabs-3",
+     "guards-1",
+     "dormers-sebastopol",
+     "dormers-sebastopol-glass",
+     "dormers-greneta",
+     "dormers-greneta-glass",
+     "dormers-other",
+     "dormers-other-glass",
+     "chimney-party",
+     "chimneys",
+     "pots"
+    ],
     "opacity": 1
    },
    "ok": true,
    "data": {
-    "count": 25
+    "count": 22
    },
-   "ms": 1.3
+   "ms": 3.5
   },
   {
    "command": {
@@ -15032,7 +15138,7 @@
     ],
     "unitsPerPixel": 0.013736263736263736
    },
-   "ms": 0.9
+   "ms": 0.6
   },
   {
    "command": {
@@ -15068,7 +15174,7 @@
     "projection": "orthographic",
     "frustumSize": 27
    },
-   "ms": 0.9
+   "ms": 2
   },
   {
    "command": {
@@ -15079,7 +15185,7 @@
    "data": {
     "mode": "wireframe"
    },
-   "ms": 0
+   "ms": 0.2
   },
   {
    "command": {
@@ -15089,13 +15195,13 @@
    },
    "ok": true,
    "data": {
-    "dataUrl": "[1780274 elided]",
+    "dataUrl": "[1780366 elided]",
     "width": 1200,
     "height": 800,
     "label": "orthographic, wireframe over the 1870 elevation",
     "path": null
    },
-   "ms": 688.2,
+   "ms": 627.7,
    "capture": "019-orthographic-wireframe-over-the-1870-elevation.png"
   },
   {
@@ -15107,7 +15213,7 @@
    "data": {
     "mode": "material"
    },
-   "ms": 0.5
+   "ms": 0.3
   },
   {
    "command": {
@@ -15138,7 +15244,7 @@
     ],
     "unitsPerPixel": 0.013736263736263736
    },
-   "ms": 0.4
+   "ms": 0.6
   },
   {
    "command": {
@@ -15154,7 +15260,7 @@
     "label": "orthographic, the model alone, same framing",
     "path": null
    },
-   "ms": 520,
+   "ms": 461.4,
    "capture": "020-orthographic-the-model-alone-same-framing.png"
   },
   {
@@ -15186,7 +15292,7 @@
     ],
     "unitsPerPixel": 0.026972458713073046
    },
-   "ms": 0.4
+   "ms": 0.6
   },
   {
    "command": {
@@ -15233,7 +15339,7 @@
    "data": {
     "mode": "wireframe"
    },
-   "ms": 0.2
+   "ms": 0.3
   },
   {
    "command": {
@@ -15249,7 +15355,7 @@
     "label": "top, wireframe over the 1870 plan",
     "path": null
    },
-   "ms": 654.4,
+   "ms": 954.4,
    "capture": "021-top-wireframe-over-the-1870-plan.png"
   },
   {
@@ -15318,7 +15424,7 @@
     "projection": "perspective",
     "fov": 40
    },
-   "ms": 0.5
+   "ms": 0.4
   },
   {
    "command": {
@@ -15328,11 +15434,11 @@
    },
    "ok": true,
    "data": {
-    "bytes": 4573240,
+    "bytes": 4650520,
     "format": "glb",
     "path": "demos/haussmann/haussmann.glb"
    },
-   "ms": 172.6
+   "ms": 148.7
   }
  ]
 }

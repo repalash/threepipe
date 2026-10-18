@@ -52,11 +52,11 @@
   <p>N° 77 boulevard de Sébastopol, Paris - Paul Mesnard, architect, published by César Daly in 1870 -
   modelled to scale from the engraved elevation and plans, entirely through <code>@threepipe/plugin-modelling</code>'s JSON commands.</p>
   <div class="stats">
-    <span><b>388</b>commands, 0 failed</span>
+    <span><b>389</b>commands, 0 failed</span>
     <span><b>21/21</b>dimension checks within 2 %</span>
     <span><b>19.95 m</b>to the cornice (1859 limit: 20 m)</span>
     <span><b>25</b>objects</span>
-    <span><b>10,599</b>editable faces, 99 % quads</span>
+    <span><b>10,935</b>editable faces, 99 % quads</span>
   </div>
 </div></header>
 <main>
@@ -169,8 +169,8 @@
 <section>
   <h2>Counts and topology</h2>
   <p class="lede">Editable masters, as <code>inspect</code> reports them; live arrays (railings, dormers, pots) are counted once.
-  The viewer draws 65,088 triangles in 25 meshes.
-  The exported <a href="haussmann.glb">haussmann.glb</a> is 4.6 MB.</p>
+  The viewer draws 65,760 triangles in 25 meshes.
+  The exported <a href="haussmann.glb">haussmann.glb</a> is 4.7 MB.</p>
   <table>
     <thead><tr><th>Object</th><th class="num">Verts</th><th class="num">Edges</th><th class="num">Faces</th><th class="num">Quads</th><th class="num">Tris</th><th class="num">N-gons</th><th class="num">Boundary edges</th><th class="num">Non-manifold</th></tr></thead>
     <tbody>
@@ -184,9 +184,9 @@
     <tr><td>railing-4</td><td class="num">42</td><td class="num">72</td><td class="num">36</td><td class="num">36</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">0</td></tr>
     <tr><td>balcony-5</td><td class="num">40</td><td class="num">75</td><td class="num">37</td><td class="num">31</td><td class="num">3</td><td class="num">3</td><td class="num">0</td><td class="num">0</td></tr>
     <tr><td>railing-5</td><td class="num">42</td><td class="num">72</td><td class="num">36</td><td class="num">36</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">0</td></tr>
-    <tr><td>balconettes-3</td><td class="num">3738</td><td class="num">6888</td><td class="num">3612</td><td class="num">3612</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">672</td></tr>
+    <tr><td>balconettes-3</td><td class="num">4410</td><td class="num">7560</td><td class="num">3780</td><td class="num">3780</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">0</td></tr>
     <tr><td>balconette-slabs-3</td><td class="num">168</td><td class="num">252</td><td class="num">126</td><td class="num">126</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">0</td></tr>
-    <tr><td>guards-1</td><td class="num">3738</td><td class="num">6888</td><td class="num">3612</td><td class="num">3612</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">672</td></tr>
+    <tr><td>guards-1</td><td class="num">4410</td><td class="num">7560</td><td class="num">3780</td><td class="num">3780</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">0</td></tr>
     <tr><td>dormers-sebastopol</td><td class="num">24</td><td class="num">44</td><td class="num">21</td><td class="num">21</td><td class="num">0</td><td class="num">0</td><td class="num">4</td><td class="num">0</td></tr>
     <tr><td>dormers-sebastopol-glass</td><td class="num">4</td><td class="num">4</td><td class="num">1</td><td class="num">1</td><td class="num">0</td><td class="num">0</td><td class="num">4</td><td class="num">0</td></tr>
     <tr><td>dormers-greneta</td><td class="num">24</td><td class="num">44</td><td class="num">21</td><td class="num">21</td><td class="num">0</td><td class="num">0</td><td class="num">4</td><td class="num">0</td></tr>
@@ -199,15 +199,16 @@
     <tr><td>road</td><td class="num">4</td><td class="num">4</td><td class="num">1</td><td class="num">1</td><td class="num">0</td><td class="num">0</td><td class="num">4</td><td class="num">0</td></tr>
     <tr><td>pavement</td><td class="num">24</td><td class="num">48</td><td class="num">24</td><td class="num">24</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">0</td></tr>
     <tr><td>neighbour</td><td class="num">12</td><td class="num">20</td><td class="num">10</td><td class="num">10</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">0</td></tr>
-    <tr class="total"><td>Total</td><td class="num">11575</td><td class="num">21150</td><td class="num">10599</td>
-      <td class="num">10538 (99.4 %)</td><td class="num">42</td>
+    <tr class="total"><td>Total</td><td class="num">12919</td><td class="num">22494</td><td class="num">10935</td>
+      <td class="num">10874 (99.4 %)</td><td class="num">42</td>
       <td class="num">19</td><td class="num">1170</td>
-      <td class="num">1344</td></tr>
+      <td class="num">0</td></tr>
     </tbody>
   </table>
-  <p class="note">Boundary edges are where the glass was separated from the stone (one loop per pane, closed by <code>glass</code>
-  and <code>doors</code>), the open roof edge along the party wall, and the road plane. Triangles are the torus rings of the
-  railings; n-gons are the floor plate and the flat of the terrasson, as Blender would leave them.</p>
+  <p class="note">Boundary edges are expected and accounted for: the façade's are exactly the rims of the holes the glass and
+  the doors were separated from (one loop per pane; together the three objects are closed - see
+  <a href="../../issues/open/modelling-tools/command-material-no-face-slots.md">no per-face materials</a>), the dormers' are
+  their panes, the roof's is its eave, sitting on the wall, and the road is a plane. Nothing is non-manifold.</p>
 </section>
 
 <section>

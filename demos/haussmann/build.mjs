@@ -506,7 +506,9 @@ export default async (session) => {
         const n = Math.round((WIN + 0.24) / MODULE)
         await must({op: 'transform', object: name, move: [-n * MODULE / 2, 0, 0]})
         await must({op: 'applyTransform', object: name})
-        await must({op: 'array', object: name, count: n, step: [MODULE, 0, 0], merge: true})
+        // Not welded: the modules' rails meet end to end, and welding two touching boxes leaves their
+        // shared end faces inside the rail (non-manifold). Separate closed shells, as cast.
+        await must({op: 'array', object: name, count: n, step: [MODULE, 0, 0], merge: false})
         return n * MODULE
     }
     /** Copy `master` onto every street bay at height `y`, `out` metres in front of the wall; join the copies. */
@@ -778,9 +780,10 @@ export default async (session) => {
     await must({op: 'display', mode: 'wireframe'})
     await view('wireframe', [-26, 26, 30], [5, 9, -8], 40)
     await must({op: 'display', mode: 'material'})
-    await must({op: 'material', object: '*', opacity: 0.3})
+    const building = (await must({op: 'inspect'})).data.names.filter(n => !['road', 'pavement', 'neighbour'].includes(n))
+    await must({op: 'material', objects: building, opacity: 0.3})
     await view('x-ray', [-26, 26, 30], [5, 9, -8], 40)
-    await must({op: 'material', object: '*', opacity: 1})
+    await must({op: 'material', objects: building, opacity: 1})
     await must({op: 'reference', name: 'elevation', plane: 'front', visible: true})
     await must({op: 'camera', projection: 'orthographic', position: [SEB_LENGTH / 2, 11.5, 60], target: [SEB_LENGTH / 2, 11.5, 0],
         frustumSize: 27})

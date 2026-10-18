@@ -66,6 +66,9 @@ await page.evaluate(({W, H}) => {
     document.body.style.gridTemplateAreas = '"view"'
     const css = document.createElement('style')
     css.textContent = `
+        /* Nothing of the tool on screen: no panels, no loading badge, no code button. */
+        body > :not(#canvas-container):not(#hm-overlay):not(style):not(script) { display: none !important; }
+        #canvas-container > :not(canvas) { display: none !important; }
         #hm-overlay { position: fixed; inset: 0; pointer-events: none; z-index: 1000;
             font: 500 ${Math.round(H / 32)}px/1.25 Georgia, 'Times New Roman', serif; color: #fff; }
         #hm-card { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: flex-end;
@@ -210,11 +213,20 @@ const NOTES = {
     'dormers on live arrays': 'array {step, live: true} - edit one dormer, all follow',
     'the street': 'pavement: the outline outset 4 m; neighbour to the same 20 m cornice',
 }
+/** Ask for frames while holding: the viewer renders on demand, and a texture that finishes loading
+ * (the reference plates) does not by itself bring a new frame. */
+const hold = async ms => {
+    const end = Date.now() + ms
+    while (Date.now() < end) {
+        await page.evaluate(() => window.viewer.setDirty())
+        await sleep(250)
+    }
+}
 async function capture(label, {view, fit} = {}) {
     await shot(label, async () => {
         await caption(label, NOTES[label] ?? '')
         if (view || fit) await run({op: 'camera', ...(view ? {view} : {}), ...(fit ? {fit} : {}), duration: 1800})
-        await sleep(2600)
+        await hold(2600)
     })
 }
 
@@ -240,9 +252,8 @@ async function beat(name, report) {
     } else if (name === 'roof') {
         await shot('roof pitch side view', async () => {
             await caption('The brisis at 45°: the 1859 decree, drawn', `cornice ${L.eave.toFixed(2)} m, brisis top ${L.brisisTop.toFixed(2)} m`)
-            await cam([X + 26, 21, -2.6], [X - 2, 20.6, -2.6], 2500, {fov: 30})
-            await sleep(2500)
-            await cam(around(40, 48, 26), centre, 2500, {fov: 40})
+            await cam(around(-50, 46, 30), [centre[0], 20, centre[2]], 3000, {fov: 40})
+            await orbit(-50, -10, 46, 30, [centre[0], 20, centre[2]], 4, 3)
         })
     } else if (name === 'balconies') {
         await shot('balconies orbit', async () => {
@@ -310,16 +321,18 @@ await shot('wireframe', async () => {
 })
 await shot('x-ray', async () => {
     await caption('X-ray: the shell, the recesses, the roof structure')
-    await run({op: 'material', object: '*', opacity: 0.28})
-    await orbit(60, 100, 40, 16, centre, 5, 3)
-    await run({op: 'material', object: '*', opacity: 1})
+    // The building only: the street at 28 % would wash the frame out.
+    const building = (await send({op: 'inspect'})).data.names.filter(n => !['road', 'pavement', 'neighbour'].includes(n))
+    await run({op: 'material', objects: building, opacity: 0.28})
+    await orbit(-30, -70, 40, 16, centre, 5, 3)
+    await run({op: 'material', objects: building, opacity: 1})
 })
 await shot('over the elevation', async () => {
     await caption('Registered on the 1870 elevation', 'orthographic, wireframe over the drawing')
     await run({op: 'reference', name: 'elevation', plane: 'front', visible: true})
     await run({op: 'camera', projection: 'orthographic', view: 'ref:elevation'})
     await run({op: 'display', mode: 'wireframe'})
-    await sleep(4500)
+    await hold(4500)
     await run({op: 'display', mode: 'material'})
 })
 await shot('split with the reference', async () => {

@@ -282,14 +282,14 @@
     },
     {
       "name": "balconettes-3",
-      "verts": 3738,
-      "edges": 6888,
-      "faces": 3612,
-      "quads": 3612,
+      "verts": 4410,
+      "edges": 7560,
+      "faces": 3780,
+      "quads": 3780,
       "tris": 0,
       "ngons": 0,
       "boundary": 0,
-      "nonManifold": 672
+      "nonManifold": 0
     },
     {
       "name": "balconette-slabs-3",
@@ -304,14 +304,14 @@
     },
     {
       "name": "guards-1",
-      "verts": 3738,
-      "edges": 6888,
-      "faces": 3612,
-      "quads": 3612,
+      "verts": 4410,
+      "edges": 7560,
+      "faces": 3780,
+      "quads": 3780,
       "tris": 0,
       "ngons": 0,
       "boundary": 0,
-      "nonManifold": 672
+      "nonManifold": 0
     },
     {
       "name": "dormers-sebastopol",
@@ -447,13 +447,13 @@
     }
   ],
   "totals": {
-    "verts": 11575,
-    "edges": 21150,
-    "faces": 10599
+    "verts": 12919,
+    "edges": 22494,
+    "faces": 10935
   },
   "objects": 25,
   "evaluated": {
-    "triangles": 65088,
+    "triangles": 65760,
     "meshes": 25
   },
   "balconies": [
