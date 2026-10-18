@@ -49,6 +49,27 @@ export interface CompareOptions {
      * the geonodes-kit exporter) or `srgb` (`.color_srgb`, byte / 255 - `porting/blender/geometry_dump.py`).
      */
     byteColor?: 'linear' | 'srgb'
+    /**
+     * Float tolerance in float32 units in the last place instead of {@link tolerance}: 0 is bit-exact.
+     * Used to report how far from exact a case is (platform `sinf`/`powf`/`atan2f` are not correctly rounded).
+     */
+    ulps?: number
+}
+
+type ResolvedOptions = Required<Omit<CompareOptions, 'ulps'>> & Pick<CompareOptions, 'ulps'>
+
+const f32buf = new Float32Array(1)
+const i32buf = new Int32Array(f32buf.buffer)
+
+/** Distance between two numbers in float32 ULPs (both rounded to float32; ordered integer mapping). */
+export function ulpDistance(a: number, b: number): number {
+    f32buf[0] = a
+    let x = i32buf[0]
+    f32buf[0] = b
+    let y = i32buf[0]
+    if (x < 0) x = -2147483648 - x
+    if (y < 0) y = -2147483648 - y
+    return Math.abs(x - y)
 }
 
 /** Editor UI state Blender's primitive operators add; geometry nodes only carry them along. */
@@ -85,7 +106,7 @@ function byteColorAsExported(data: ArrayLike<number>, mode: 'linear' | 'srgb'): 
 }
 
 function compareAttributes(
-    where: string, storage: AttributeStorage, expected: ExpectedAttribute[], o: Required<CompareOptions>,
+    where: string, storage: AttributeStorage, expected: ExpectedAttribute[], o: ResolvedOptions,
     domainOverride: AttrDomain | undefined, out: string[],
 ): void {
     const seen = new Set<string>()
@@ -118,7 +139,8 @@ function compareAttributes(
             const want = e.values[i]
             const got = decoded ? decoded[i] : layer.data[i]
             const ok = want === null ? Number.isNaN(got) : isFloat
-                ? Math.abs(got - want) <= o.tolerance * Math.max(1, Math.abs(want))
+                ? (o.ulps !== undefined && type !== 'byteColor' ? ulpDistance(got, want) <= o.ulps
+                    : Math.abs(got - want) <= o.tolerance * Math.max(1, Math.abs(want)))
                 : got === want || (type === 'bool' && (got !== 0) === (want !== 0))
             if (!ok) {
                 if (!bad) first = `[${i}] ${got} != ${want}`
@@ -134,7 +156,7 @@ function compareAttributes(
     }
 }
 
-function compareMesh(m: MeshData | undefined, e: NonNullable<ExpectedGeometry['mesh']>, o: Required<CompareOptions>, where: string, out: string[]): void {
+function compareMesh(m: MeshData | undefined, e: NonNullable<ExpectedGeometry['mesh']>, o: ResolvedOptions, where: string, out: string[]): void {
     if (!m) {
         out.push(`${where}: missing mesh (${e.vertices} vertices expected)`)
         return
@@ -150,7 +172,7 @@ function compareMesh(m: MeshData | undefined, e: NonNullable<ExpectedGeometry['m
     compareAttributes(where, m.attributes, e.attributes, o, undefined, out)
 }
 
-function compareReferences(actual: Instances, expected: ExpectedReference[], o: Required<CompareOptions>, where: string, out: string[]): void {
+function compareReferences(actual: Instances, expected: ExpectedReference[], o: ResolvedOptions, where: string, out: string[]): void {
     if (actual.references.length !== expected.length) {
         out.push(`${where}: ${actual.references.length} references, expected ${expected.length}`)
         return
@@ -172,8 +194,9 @@ function compareReferences(actual: Instances, expected: ExpectedReference[], o: 
 
 /** Differences between `actual` and Blender's `expected`; empty means a match. */
 export function compareGeometry(actual: GeometrySet, expected: ExpectedGeometry, options: CompareOptions = {}, where = 'geometry'): string[] {
-    const o: Required<CompareOptions> = {
+    const o: ResolvedOptions = {
         tolerance: options.tolerance ?? 1e-5, ignore: options.ignore ?? EDITOR_STATE_ATTRIBUTES, byteColor: options.byteColor ?? 'linear',
+        ulps: options.ulps,
     }
     const out: string[] = []
     if (expected.mesh && !isEmptyMesh(expected.mesh)) compareMesh(actual.mesh, expected.mesh, o, `${where}.mesh`, out)
