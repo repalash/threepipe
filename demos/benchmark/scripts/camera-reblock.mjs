@@ -13,7 +13,8 @@ import {fitClosedCage, prismCage, resampleClosed, resampleSides, signedArea} fro
 const M = JSON.parse(readFileSync(new URL('../targets/canon-5d4-measure/measurements.json', import.meta.url))).readings
 const orig = JSON.parse(readFileSync(process.argv[2] ?? 'tmp/realism/camera-cmds.json', 'utf8'))
 const outPath = process.argv[3] ?? 'tmp/realism/reblock/camera-reblock.json'
-const levels = 3
+// level 2: the fitted cages are dense enough that level 3 only quadruples the triangles (166k vs 62k) at the same score
+const levels = Number(process.env.LEVELS ?? 2)
 
 const session = new NodeModellingSession()
 const log = []
