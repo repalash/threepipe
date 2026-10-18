@@ -11,7 +11,7 @@ import {
     Box3, Box3B, getFittingDistance, ICamera, iCameraCommons, OrthographicCamera2, PerspectiveCamera2, ThreeViewer,
     Vector3,
 } from 'threepipe'
-import {bakeGeometry, measureMesh} from '@threepipe/mesh-kernel'
+import {bakeGeometry, measureMesh, MeshData} from '@threepipe/mesh-kernel'
 import {summariseMeasure} from './checks'
 import {CommandContext, CommandDefinition, S, schema} from './types'
 import {meshBounds, readTargets, readVec3, Vec3Tuple} from './params'
@@ -403,17 +403,20 @@ export const inspectCommand: CommandDefinition = {
     summary: 'Report an object\'s counts, bounds, transform and - with `detail` - its vertices, edges and faces.',
     description:
         'The reply is what a later `vertices` or `transform` command needs in order to address '
-        + 'anything: indices are the ones those commands take. `detail` lists `vertices` (positions), '
-        + '`edgeVerts` (edge i joins these two vertices), `faceVerts` and `faceEdges`. `bounds` is the master '
-        + 'mesh in object space - what the indices address; with a modifier stack `evaluatedBounds` is the '
-        + 'drawn shape, and `worldBounds` is always the drawn shape in world space. With no object, it '
-        + 'summarises the whole document.',
+        + 'anything: indices are the ones those commands take. With no object, it summarises the '
+        + 'whole document.\n\n'
+        + '`detail` lists `vertices` (positions), `faceVerts` (each face\'s vertex indices, in face '
+        + 'index order), `edgeVerts` (each edge\'s two vertex indices, in edge index order) - the '
+        + 'indices `bevel`, `subdivide` and `deleteElements` take for `edges` - and `faceEdges` (each '
+        + 'face\'s edge indices, in corner order).\n\n'
+        + '`bounds` is the master mesh in object space - what the indices address; with a modifier stack '
+        + '`evaluatedBounds` is the drawn shape, and `worldBounds` is always the drawn shape in world space.',
     mutates: false,
     schema: schema({
         object: S.objectRef('Objects to inspect. Omit to summarise the document.'),
         objects: S.objectRef('Alias for `object`.'),
-        detail: S.boolean('Include vertex positions, edge vertex pairs, and per-face vertex and edge lists.'),
-        limit: S.integer('Cap on detailed vertices per object. Default 400.', {minimum: 1}),
+        detail: S.boolean('Include per-vertex positions, per-face vertex and edge lists and per-edge vertex pairs.'),
+        limit: S.integer('Cap on detailed vertices, faces and edges per object. Default 400.', {minimum: 1}),
     }),
 
     run(p: Record<string, unknown>, ctx) {
@@ -469,25 +472,14 @@ export const inspectCommand: CommandDefinition = {
                 size: world.getSize(new Vector3()).toArray().map(round),
             }
             if (p.detail) {
-                const mesh = entry.mesh
-                const pos = mesh.positions
-                const n = Math.min(mesh.vertsNum, limit)
-                base.vertices = Array.from({length: n},
-                    (_, i) => [round(pos[i * 3]), round(pos[i * 3 + 1]), round(pos[i * 3 + 2])])
-                if (n < mesh.vertsNum) {
-                    base.verticesTruncated = mesh.vertsNum - n
-                    ctx.warn(`"${entry.name}" has ${mesh.vertsNum} vertices; listed the first ${n}`)
+                const detail = meshDetail(entry.mesh, limit)
+                Object.assign(base, detail)
+                if (detail.verticesTruncated) {
+                    ctx.warn(`"${entry.name}" has ${entry.mesh.vertsNum} vertices; listed the first ${limit}`)
                 }
-                const fn = Math.min(mesh.facesNum, limit)
-                base.faceVerts = Array.from({length: fn}, (_, i) => mesh.faceVerts(i))
-                if (fn < mesh.facesNum) base.facesTruncated = mesh.facesNum - fn
-                // Edge `i` joins `edgeVerts[i]` - the indices `bevel {edges}` and `deleteElements {edges}` take.
-                const en = Math.min(mesh.edgesNum, limit)
-                const ev = mesh.edgeVerts
-                base.edgeVerts = Array.from({length: en}, (_, i) => [ev[i * 2], ev[i * 2 + 1]])
-                if (en < mesh.edgesNum) base.edgesTruncated = mesh.edgesNum - en
-                // And, per face, its edges in corner order, so "the edges of face 3" needs no geometry.
-                base.faceEdges = Array.from({length: fn}, (_, i) =>
+                // Per face, its edges in corner order, so "the edges of face 3" needs no geometry.
+                const mesh = entry.mesh
+                base.faceEdges = Array.from({length: detail.faceVerts.length}, (_, i) =>
                     Array.from(mesh.cornerEdges.subarray(mesh.faceOffsets[i], mesh.faceOffsets[i + 1])))
             }
             return base
@@ -497,6 +489,36 @@ export const inspectCommand: CommandDefinition = {
 }
 
 const round = (n: number) => Math.round(n * 1e5) / 1e5
+
+/**
+ * The per-element listing `inspect {detail}` returns: positions, face vertex lists and edge vertex
+ * pairs, each in index order and each capped at `limit`.
+ *
+ * Edges are listed because `bevel`, `subdivide` and `deleteElements` take edge indices, and those
+ * are `MeshData`'s edge order (the order `bmFromMesh` creates them in), which nothing else exposes.
+ */
+export function meshDetail(mesh: MeshData, limit = 400) {
+    const pos = mesh.positions
+    const n = Math.min(mesh.vertsNum, limit)
+    const out: {
+        vertices: number[][], faceVerts: number[][], edgeVerts: [number, number][],
+        verticesTruncated?: number, facesTruncated?: number, edgesTruncated?: number,
+    } = {
+        vertices: Array.from({length: n},
+            (_, i) => [round(pos[i * 3]), round(pos[i * 3 + 1]), round(pos[i * 3 + 2])]),
+        faceVerts: [],
+        edgeVerts: [],
+    }
+    if (n < mesh.vertsNum) out.verticesTruncated = mesh.vertsNum - n
+    const fn = Math.min(mesh.facesNum, limit)
+    out.faceVerts = Array.from({length: fn}, (_, i) => mesh.faceVerts(i))
+    if (fn < mesh.facesNum) out.facesTruncated = mesh.facesNum - fn
+    const en = Math.min(mesh.edgesNum, limit)
+    const ev = mesh.edgeVerts
+    out.edgeVerts = Array.from({length: en}, (_, i) => [ev[i * 2], ev[i * 2 + 1]] as [number, number])
+    if (en < mesh.edgesNum) out.edgesTruncated = mesh.edgesNum - en
+    return out
+}
 
 /** Base64 without blowing the call stack on a multi-megabyte GLB. */
 function bytesToBase64(bytes: Uint8Array): string {

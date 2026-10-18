@@ -79,7 +79,7 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
     private _logger = console.log
     // Used when loading multiple files at once.
     protected _rootContext?: {path: string, rootUrl: string, /* baseUrl: string;*/}
-    private _loaderCache: {loader: ILoader, ext: string[], mime: string[]}[] = []
+    private _loaderCache: {loader: ILoader, ext: string[], mime: string[], importer: IImporter, handlers: RegExp[]}[] = []
     private _fileDatabase: Map<string, IFile> = new Map<string, IFile>()
     private _cachedAssets: IAsset[] = []
 
@@ -173,6 +173,12 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
         for (const importer of importers) {
             const index = this.importers.indexOf(importer)
             if (index >= 0) this.importers.splice(index, 1)
+            // remove the loaders created by the importer, otherwise they are still used for new files
+            this._loaderCache = this._loaderCache.filter(lc => {
+                if (lc.importer !== importer) return true
+                this._disposeLoader(lc)
+                return false
+            })
         }
     }
 
@@ -620,9 +626,14 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
 
     clearLoaderCache(): void {
         for (const lc of this._loaderCache) {
-            lc.loader?.dispose && lc.loader?.dispose()
+            this._disposeLoader(lc)
         }
         this._loaderCache = []
+    }
+
+    private _disposeLoader(lc: AssetImporter['_loaderCache'][number]) {
+        for (const regex of lc.handlers) this._loadingManager.removeHandler(regex)
+        lc.loader?.dispose && lc.loader?.dispose()
     }
 
     // endregion
@@ -696,20 +707,23 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
             || this._loaderCache.find((lc)=> ext && lc.ext.includes(ext) || mime && lc.mime.includes(mime))?.loader
     }
 
-    private _createLoader(name:string, ext?:string, mime?: string): ILoader | undefined { // todo: remove/destroy loader.
+    private _createLoader(name:string, ext?:string, mime?: string): ILoader | undefined {
         const importer = this._getImporter(name, ext, mime)
         if (!importer) return undefined
         const loader = importer.ctor(this)
         if (!loader) return undefined
+        const handlers: RegExp[] = [] // saved to remove from the loading manager when the loader is disposed
         getOrCall(importer.ext)?.forEach(iext => {
             const regex = new RegExp(iext.startsWith('data:') ? '^' + escapeRegExp(iext) + '[\\/\\+\\:\\,\\;]' : '\\.' + iext + '$', 'i')
             this._loadingManager.addHandler(regex, loader)
+            handlers.push(regex)
         })
         importer.mime?.forEach(imime => {
             const regex = new RegExp('^data:' + escapeRegExp(imime) + '[\\/\\+\\:\\,\\;]', 'i')
             this._loadingManager.addHandler(regex, loader)
+            handlers.push(regex)
         })
-        this._loaderCache.push({loader, ext: getOrCall(importer.ext) || [], mime: importer.mime})
+        this._loaderCache.push({loader, ext: getOrCall(importer.ext) || [], mime: importer.mime, importer, handlers})
         this.dispatchEvent({type: 'loaderCreate', loader})
         return loader
     }

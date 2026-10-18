@@ -64,10 +64,14 @@ export class ModellingHistory {
         }))
     }
 
+    /**
+     * Record one command's change. Returns the entry, or `null` when the command changed nothing - no
+     * object it recorded differs from its before-state - in which case nothing is pushed and redo is
+     * kept: Blender's rule for an operator that returns `CANCELLED` (`wm_operator_finished` only
+     * pushes for `FINISHED`, `wm_event_system.cc:1305`). The dispatcher reports it as `changed: false`.
+     */
     push(op: string, label: string, before: EntrySnapshot[], index: number): HistoryEntry | null {
         if (!before.length) return null
-        // A new command discards anything that was undone, as every editor does.
-        this._entries.length = this._position
         const after = before
             .map(b => this._doc.find(b.id))
             .filter((e): e is NonNullable<typeof e> => !!e)
@@ -76,6 +80,13 @@ export class ModellingHistory {
         for (const b of before) {
             if (!this._doc.find(b.id)) after.push({...b, mesh: null})
         }
+        const unchanged = before.every(b => {
+            const a = after.find(x => x.id === b.id)
+            return !!a && this._doc.snapshotsEqual(b, a)
+        })
+        if (unchanged) return null
+        // A new command discards anything that was undone, as every editor does.
+        this._entries.length = this._position
         const entry: HistoryEntry = {op, label, before, after, index}
         this._entries.push(entry)
         if (this._entries.length > this.limit) this._entries.shift()

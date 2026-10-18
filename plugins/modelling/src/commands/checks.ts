@@ -22,7 +22,8 @@ import {
 } from '@threepipe/mesh-kernel'
 import {CommandDefinition, CommandContext, S, schema, Command} from './types'
 import {readIntList, readTargets} from './params'
-import {EntrySnapshot, ModellingDocument, ModellingEntry} from '../document'
+import {EntrySnapshot, ModellingDocument, ModellingEntry, snapshotMaterial} from '../document'
+import type {PhysicalMaterial} from 'threepipe'
 import {evaluateModifiers} from '../modifiers'
 
 type Verdict = 'PASS' | 'FAIL' | 'UNVERIFIED'
@@ -278,11 +279,10 @@ export function targetIds(command: Command, doc: ModellingDocument): string[] {
 function sameState(snap: EntrySnapshot, entry: ModellingEntry): boolean {
     const o = entry.object
     const eq = (a: number[], b: number[]) => a.every((v, i) => v === b[i])
-    const mat = o.material as {color?: {getHexString(): string}} | undefined
     return snap.name === entry.name
-        && eq(snap.position, o.position.toArray()) && eq(snap.rotation, [o.rotation.x, o.rotation.y, o.rotation.z])
+        && eq(snap.position, o.position.toArray()) && eq(snap.quaternion, o.quaternion.toArray())
         && eq(snap.scale, o.scale.toArray()) && snap.visible === o.visible
-        && (snap.materialColor ?? null) === (mat?.color ? '#' + mat.color.getHexString() : null)
+        && JSON.stringify(snap.material) === JSON.stringify(snapshotMaterial(o.material as PhysicalMaterial | undefined))
         && JSON.stringify(snap.modifiers) === JSON.stringify(entry.modifiers)
 }
 

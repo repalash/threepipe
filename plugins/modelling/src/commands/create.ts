@@ -110,6 +110,8 @@ export const primitiveCommand: CommandDefinition = {
         ySegments: S.integer('Grid segments along Y. Default 1.', {minimum: 1}),
         capEnds: S.boolean('Close the ends of a cylinder, cone or circle. Default true.'),
         axis: S.enum('Which axis the primitive stands along. Default `y`.', AXES),
+        uvs: S.boolean('Generate UVs into a `uv` corner layer - Blender\'s "Generate UVs" (`calc_uvs`), '
+            + 'with the same layouts. Default false. Not available for `torus`.'),
         ...PLACEMENT_PROPS,
     }, ['type']),
 
@@ -121,6 +123,13 @@ export const primitiveCommand: CommandDefinition = {
         const radius = num('radius', 0.5)
         const segments = num('segments', 32)
         const capEnds = p.capEnds === undefined ? true : p.capEnds as boolean
+        // Blender's add-primitive operators default `calc_uvs` on (`MESH_OT_primitive_*_add`); here it
+        // is opt-in, so a script that never asked for UVs gets the same mesh it always did.
+        const calcUVs = p.uvs === true
+        if (calcUVs && type === 'torus') {
+            // Blender's torus is the Python `add_mesh_torus` operator; its UV layout is not ported.
+            throw new Error('`uvs` is not available for a torus yet - its UV layout (add_mesh_torus.py) is not ported')
+        }
 
         let mesh: MeshData
         switch (type) {
@@ -128,7 +137,7 @@ export const primitiveCommand: CommandDefinition = {
         case 'box': {
             // Build a unit cube and scale it, so `width`/`height`/`depth` are exact sizes.
             const s: Vec3Tuple = [num('width', size), num('height', size), num('depth', size)]
-            mesh = primitiveCube({size: 1, matrix: scaleMatrix(s)})
+            mesh = primitiveCube({size: 1, matrix: scaleMatrix(s), calcUVs})
             break
         }
         // Blender's `create_grid` takes `size` as a half-extent while `create_cube` takes it as a
@@ -141,17 +150,19 @@ export const primitiveCommand: CommandDefinition = {
                 xSegments: 1, ySegments: 1, size: 0.5,
                 matrix: scaleMatrix([num('width', size), 1, num('depth', size)],
                     axisMatrix(axis === 'y' ? 'y' : axis)),
+                calcUVs,
             })
             break
         case 'grid':
             mesh = primitiveGrid({
                 xSegments: num('xSegments', 1), ySegments: num('ySegments', 1), size: 0.5,
                 matrix: scaleMatrix([num('width', size), 1, num('depth', size)], axisMatrix('y')),
+                calcUVs,
             })
             break
         case 'circle':
             mesh = primitiveCircle({
-                segments, radius, capEnds, matrix: axisMatrix(axis),
+                segments, radius, capEnds, matrix: axisMatrix(axis), calcUVs,
             })
             break
         case 'cylinder':
@@ -162,6 +173,7 @@ export const primitiveCommand: CommandDefinition = {
                 depth: num('height', num('depth', 1)),
                 capEnds,
                 matrix: axisMatrix(axis),
+                calcUVs,
             })
             break
         case 'cone':
@@ -172,15 +184,16 @@ export const primitiveCommand: CommandDefinition = {
                 depth: num('height', num('depth', 1)),
                 capEnds,
                 matrix: axisMatrix(axis),
+                calcUVs,
             })
             break
         case 'sphere':
             mesh = primitiveUVSphere({
-                uSegments: segments, vSegments: num('rings', 16), radius, matrix: axisMatrix(axis),
+                uSegments: segments, vSegments: num('rings', 16), radius, matrix: axisMatrix(axis), calcUVs,
             })
             break
         case 'icosphere':
-            mesh = primitiveIcoSphere({subdivisions: num('subdivisions', 2), radius})
+            mesh = primitiveIcoSphere({subdivisions: num('subdivisions', 2), radius, calcUVs})
             break
         case 'torus':
             mesh = primitiveTorus({

@@ -137,7 +137,7 @@ async function saveIfChanged(args: ParsedArgs, session: ModellingSession, result
     const doc = docPath(args, io)
     const out = args.flags.get('out')
     if (!doc || args.flags.has('no-save')) return null
-    if (!results.some(r => r.ok && r.locality)) return null
+    if (!results.some(r => r.ok && (r.changed ?? !!r.locality))) return null
     const target = typeof out === 'string' && args.verb === 'run' ? resolve(io.cwd, out) : doc
     const r = await session.run({op: 'export', path: target})
     if (!r.ok) throw new Error(`could not save ${target}: ${r.error}`)
