@@ -2071,6 +2071,21 @@ export type SampleNearestSurfaceNode = NodeHandle & {
     readonly isValid: Socket<"BOOLEAN">
 }
 
+/** `GeometryNodeSampleUVSurface` (Sample UV Surface). */
+export interface SampleUVSurfaceArgs {
+    dataType?: "FLOAT" | "INT" | "BOOLEAN" | "FLOAT_VECTOR" | "FLOAT_COLOR" | "QUATERNION" | "FLOAT4X4"
+    mesh?: In<"GEOMETRY">
+    value?: (In<"FLOAT"> | In<"INT"> | In<"BOOLEAN"> | In<"VECTOR"> | In<"RGBA"> | In<"ROTATION"> | In<"MATRIX">)
+    sourceUVMap?: In<"VECTOR">
+    uVMap?: In<"VECTOR">
+    sampleUV?: In<"VECTOR">
+    mute?: boolean
+}
+export type SampleUVSurfaceNode = NodeHandle & {
+    readonly value: Socket<"FLOAT" | "INT" | "BOOLEAN" | "VECTOR" | "RGBA" | "ROTATION" | "MATRIX">
+    readonly isValid: Socket<"BOOLEAN">
+}
+
 /** `GeometryNodeScaleElements` (Scale Elements). */
 export interface ScaleElementsArgs {
     domain?: "FACE" | "EDGE"
@@ -3108,6 +3123,7 @@ export interface NodeConstructors {
     SampleIndex(args?: SampleIndexArgs): SampleIndexNode
     SampleNearest(args?: SampleNearestArgs): SampleNearestNode
     SampleNearestSurface(args?: SampleNearestSurfaceArgs): SampleNearestSurfaceNode
+    SampleUVSurface(args?: SampleUVSurfaceArgs): SampleUVSurfaceNode
     ScaleElements(args?: ScaleElementsArgs): ScaleElementsNode
     ScaleInstances(args?: ScaleInstancesArgs): ScaleInstancesNode
     SceneTime(args?: SceneTimeArgs): SceneTimeNode
