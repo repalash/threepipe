@@ -612,6 +612,8 @@ parity, reactive in the browser and in the modifier panel.
 
 ## 12. Progress (2026-10-18)
 
+Acceptance subplan (course correction 13:40): `15d-procedural-acceptance.md`.
+
 Numbers are test results in `plugins/procedural` (`npm run test`), statuses in `tests/parity/*.status.json`.
 
 **Runtime and data model (M0-M2)**: done as planned (§1-§2), plus Blender's mesh built-in table for procedural
