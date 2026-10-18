@@ -84,6 +84,51 @@ export class KDTree3 {
     }
 
     /**
+     * `kdtree_find_nearest_cb` (`BLI_kdtree.hh:208`): the nearest point the filter accepts (`1` accept, `0` skip, `-1`
+     * stop), or -1. Strictly nearer points replace the current one, in Blender's stack order.
+     */
+    findNearestCb(x: number, y: number, z: number, filter: (index: number, distSq: number) => number = () => 1): number {
+        if (this.root === UNSET) return -1
+        const q = [x, y, z]
+        let minDist = 3.4028234663852886e38
+        let minNode = -1
+        const test = (n: number): boolean => {
+            const dx = f32(this.co[n * 3] - x), dy = f32(this.co[n * 3 + 1] - y), dz = f32(this.co[n * 3 + 2] - z)
+            const distSq = f32(f32(f32(dx * dx) + f32(dy * dy)) + f32(dz * dz))
+            if (distSq >= minDist) return false
+            const r = filter(this.index[n], distSq)
+            if (r === 1) {
+                minDist = distSq
+                minNode = n
+                return false
+            }
+            return r === -1
+        }
+        const stack: number[] = [this.root]
+        while (stack.length) {
+            const n = stack.pop()!
+            const axis = this.d[n]
+            let cur = f32(this.co[n * 3 + axis] - q[axis])
+            if (cur < 0) {
+                cur = f32(-cur * cur)
+                if (-cur < minDist) {
+                    if (test(n)) break
+                    if (this.left[n] !== UNSET) stack.push(this.left[n])
+                }
+                if (this.right[n] !== UNSET) stack.push(this.right[n])
+            } else {
+                cur = f32(cur * cur)
+                if (cur < minDist) {
+                    if (test(n)) break
+                    if (this.right[n] !== UNSET) stack.push(this.right[n])
+                }
+                if (this.left[n] !== UNSET) stack.push(this.left[n])
+            }
+        }
+        return minNode < 0 ? -1 : this.index[minNode]
+    }
+
+    /**
      * `kdtree_range_search_cb` (:588): every point with `distance_squared <= range * range`; `cb` returning false
      * stops the search. Callback order is the traversal order (a stack), not by distance.
      */
