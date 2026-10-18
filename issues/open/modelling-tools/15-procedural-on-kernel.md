@@ -614,6 +614,23 @@ parity, reactive in the browser and in the modifier panel.
 
 Acceptance subplan (course correction 13:40): `15d-procedural-acceptance.md`.
 
+**Update 2026-10-18 14:30 (acceptance):**
+- Node coverage: 232 of the 319 geometry and function node types in Blender 5.2.2's inventory are ported, counting
+  Group and the Repeat and For Each zone nodes. Added since the counts below: Transfer Attributes, Ico Sphere, Sample UV
+  Surface, Pack UV Islands, Matrix SVD, Tag Filter and Subdivision Surface.
+- Own cases: 1042 in 55 sets. 946 are bit-exact and 94 are within ulps.
+  - The ulp cases are libm differences or the limit surface.
+  - `LIBM_PROOF=pass` covered the 78 ulp cases that existed then: 77 are bit-exact with Apple's libm, and the last is
+    the single-value storage gap.
+- Assets: 31/31 plus 2 changed-input dumps.
+  - Rose and the candy floor are now bit-exact.
+  - Buildify is exact apart from the known vertex-group gap. That gap also shows with Module width 6, with no other
+    difference.
+  - The flower field matches within 1e-5, at its defaults and with Grass Density 0.5.
+- The editor's three acceptance assets have e2e tests (`examples/procedural-editor-assets`). The report and video are in
+  `tmp/acceptance/`.
+- One OpenSubdiv port is still open: `procedural-subdiv-one-port.md`.
+
 Numbers are test results in `plugins/procedural` (`npm run test`), statuses in `tests/parity/*.status.json`.
 
 **Runtime and data model (M0-M2)**: done as planned (§1-§2), plus Blender's mesh built-in table for procedural
