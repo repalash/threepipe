@@ -4203,7 +4203,9 @@ test('modelling-editor-engine', async({page}) => {
     const vp = (await page.locator('[data-viewport]').boundingBox())!
     const cx = vp.x + vp.width / 2
     const cy = vp.y + vp.height / 2
-    const empty = {x: vp.x + 40, y: vp.y + vp.height - 60}
+    // Empty viewport space, away from the redo panel at the bottom left (a click there can land on the
+    // panel's fields).
+    const empty = {x: vp.x + vp.width - 60, y: vp.y + vp.height - 60}
 
     // 1. Keymap: the Blender preset is active and every shortcut shown comes from it.
     let s = await state()
@@ -4251,6 +4253,7 @@ test('modelling-editor-engine', async({page}) => {
     expect(s.lastProps?.thickness).toBe(0.3)
     expect(s.history).toEqual(['Add Cube', 'Inset cube'])
     // Leave the text field (a click on empty space deselects, which is not an undo step) and undo.
+    expect(await page.evaluate(({x, y}) => document.elementFromPoint(x, y)?.tagName, empty)).toBe('CANVAS')
     await page.mouse.click(empty.x, empty.y)
     await page.keyboard.press('Control+KeyZ')
     await expect.poll(async() => (await state()).counts).toEqual([8, 12, 6])
@@ -4608,6 +4611,14 @@ test('modelling-editor-fill', async({page}) => {
         await expect(panel(id)).toBeVisible()
         if (!await panel(id).locator('.me-operator-body').isVisible()) await panel(id).locator('.me-operator-title').click()
     }
+    // A click on empty viewport space (leaves a panel field), away from the redo panel at the bottom
+    // left: a click there landed on the panel's labels and put the focus in a field, where Ctrl+Z is the
+    // field's, not the scene's.
+    const clickEmpty = async() => {
+        const empty = {x: vp.x + vp.width - 60, y: vp.y + vp.height - 60}
+        expect(await page.evaluate(({x, y}) => document.elementFromPoint(x, y)?.tagName, empty)).toBe('CANVAS')
+        await page.mouse.click(empty.x, empty.y)
+    }
 
     // ── 1. Merge by Distance: M > By Distance, then the redo panel's Unselected and Merge Distance. ──
     await page.mouse.move(cx, cy)
@@ -4645,7 +4656,7 @@ test('modelling-editor-fill', async({page}) => {
     expect(s.lastProps?.threshold).toBe(0.05)
     expect(s.history.slice(-2)).toEqual(['Duplicate', 'Merge by Distance'])
     // One Ctrl+Z takes back the merge, whatever the panel did to it.
-    await page.mouse.click(vp.x + 40, vp.y + vp.height - 60)
+    await clickEmpty()
     await page.keyboard.press('Control+KeyZ')
     await expect.poll(async() => (await state()).counts).toEqual([16, 24, 12])
 
@@ -4717,7 +4728,7 @@ test('modelling-editor-fill', async({page}) => {
     // Same counts, but the grid's corner moved one vertex round the rim: the inner vertices move.
     expect((await state()).counts).toEqual([121, 220, 100])
     expect(JSON.stringify(await selectedPositions())).not.toBe(JSON.stringify(filled))
-    await page.mouse.click(vp.x + 40, vp.y + vp.height - 60)
+    await clickEmpty()
     await page.keyboard.press('Control+KeyZ')
     await expect.poll(async() => (await state()).counts).toEqual([112, 196, 84])
 
@@ -4811,7 +4822,7 @@ test('modelling-editor-fill', async({page}) => {
     await panel('mesh.dissolve').locator('label:has(#me-prop-useVerts) .bp5-control-indicator').click()
     await expect.poll(async() => (await state()).counts).toEqual([8, 11, 5])
     expect((await state()).lastProps?.useVerts).toBe(false)
-    await page.mouse.click(vp.x + 40, vp.y + vp.height - 60)
+    await clickEmpty()
     await page.keyboard.press('Control+KeyZ')
     await expect.poll(async() => (await state()).counts).toEqual([8, 12, 6])
 
@@ -4876,7 +4887,7 @@ test('modelling-editor-fill', async({page}) => {
     await expect.poll(async() => (await state()).counts).toEqual([24, 48, 24])
     expect((await state()).lastProps?.numberCuts).toBe(2)
     expect((await state()).history.at(-1)).toBe('Bridge Edge Loops')
-    await page.mouse.click(vp.x + 40, vp.y + vp.height - 60)
+    await clickEmpty()
     await page.keyboard.press('Control+KeyZ')
     await expect.poll(async() => (await state()).counts).toEqual([16, 28, 14])
 })
