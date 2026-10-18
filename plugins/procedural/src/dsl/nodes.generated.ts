@@ -2523,6 +2523,35 @@ export type SwitchNode = NodeHandle & {
     readonly output: Socket<"FLOAT" | "INT" | "BOOLEAN" | "VECTOR" | "RGBA" | "ROTATION" | "MATRIX" | "STRING" | "MENU" | "OBJECT" | "IMAGE" | "GEOMETRY" | "COLLECTION" | "MATERIAL" | "BUNDLE" | "CLOSURE">
 }
 
+/** `ThreepipeErosion` (Erosion (threepipe)). */
+export interface ThreepipeErosionArgs {
+    mesh?: In<"GEOMETRY">
+    hydraulic?: In<"BOOLEAN">
+    dropletsPerCell?: In<"FLOAT">
+    seed?: In<"INT">
+    radius?: In<"INT">
+    inertia?: In<"FLOAT">
+    capacity?: In<"FLOAT">
+    minCapacity?: In<"FLOAT">
+    erodeSpeed?: In<"FLOAT">
+    depositSpeed?: In<"FLOAT">
+    evaporateSpeed?: In<"FLOAT">
+    gravity?: In<"FLOAT">
+    lifetime?: In<"INT">
+    thermal?: In<"BOOLEAN">
+    thermalAngle?: In<"FLOAT">
+    thermalIterations?: In<"INT">
+    weight?: In<"FLOAT">
+    mute?: boolean
+}
+export type ThreepipeErosionNode = NodeHandle & {
+    readonly mesh: Socket<"GEOMETRY">
+    readonly flow: Socket<"FLOAT">
+    readonly deposit: Socket<"FLOAT">
+    readonly eroded: Socket<"FLOAT">
+    readonly talus: Socket<"FLOAT">
+}
+
 /** `FunctionNodeTransformDirection` (Transform Direction). */
 export interface TransformDirectionArgs {
     direction?: In<"VECTOR">
@@ -2975,6 +3004,7 @@ export interface NodeConstructors {
     SubdivideCurve(args?: SubdivideCurveArgs): SubdivideCurveNode
     SubdivideMesh(args?: SubdivideMeshArgs): SubdivideMeshNode
     Switch(args?: SwitchArgs): SwitchNode
+    ThreepipeErosion(args?: ThreepipeErosionArgs): ThreepipeErosionNode
     TransformDirection(args?: TransformDirectionArgs): TransformDirectionNode
     TransformGeometry(args?: TransformGeometryArgs): TransformGeometryNode
     TransformPoint(args?: TransformPointArgs): TransformPointNode

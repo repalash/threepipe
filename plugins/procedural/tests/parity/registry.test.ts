@@ -59,6 +59,12 @@ describe(`node declarations match Blender ${inventory.blender}`, () => {
     for (const def of types) {
         it(def.idname, () => {
             const inv = byId.get(def.idname)
+            if (def.extension) {
+                // threepipe extension nodes are not Blender nodes.
+                expect(def.idname.startsWith('Threepipe'), def.idname).toBe(true)
+                expect(inv).toBeUndefined()
+                return
+            }
             if (!inv) {
                 // Interface-driven nodes (group input/output, groups) have no fixed declaration.
                 expect(['NodeGroupInput', 'NodeGroupOutput', 'GeometryNodeGroup', 'NodeReroute', 'NodeFrame']).toContain(def.idname)

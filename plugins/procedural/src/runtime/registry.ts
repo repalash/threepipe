@@ -57,6 +57,11 @@ export interface NodeTypeDef {
     /** DSL class name when the UI label is ambiguous (`Grid` → `MeshGrid`). */
     readonly dslName?: string
     /**
+     * A threepipe extension node: not a Blender node (no Blender declaration or ground truth), named `Threepipe...`.
+     * `source` says where its implementation comes from.
+     */
+    readonly extension?: {source: string}
+    /**
      * DSL keys for properties whose camelCase name is also an input socket's (Axes to Rotation's `primary_axis` enum
      * and "Primary Axis" vector): the socket keeps the plain key, the property takes the key given here.
      */
