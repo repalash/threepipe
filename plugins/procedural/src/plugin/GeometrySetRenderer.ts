@@ -1,8 +1,8 @@
 /**
  * Draws a {@link GeometrySet} in a threepipe scene: real meshes as meshes and every instanced mesh as one
  * `InstancedMesh2` (the draw list of {@link flattenInstances}), point clouds as points. Display only - nothing here
- * feeds back into evaluation. Curves are not drawn yet: Blender draws their evaluated points, and curve evaluation is
- * still being ported.
+ * feeds back into evaluation. Curves are not drawn yet (they are counted in `stats.curvesSkipped`): Blender draws their
+ * evaluated points, which `CurvesEvaluator` (`geometry/curvesEval.ts`) computes; drawing them is not written.
  *
  * Coordinates are Blender's (Z up); put {@link root} under a parent rotated -90 degrees about X for a Y-up scene.
  */

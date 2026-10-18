@@ -4,8 +4,8 @@ prev:
     link: './mesh-kernel'
 
 next:
-    text: '@threepipe/plugin-mesh-edit'
-    link: './plugin-mesh-edit'
+    text: '@threepipe/modelling-parts'
+    link: './modelling-parts'
 
 aside: false
 ---
@@ -84,7 +84,12 @@ with a suggestion (`unknown parameter "raduis" — did you mean "radius"?`) rath
 | `connectVertices` | Blender's J: cut faces between vertices in the order listed; `pairs` for Connect Vertex Pairs |
 | `dissolveElements`, `dissolveLimited` | dissolve by select mode with Blender's options; Limited Dissolve by angle and delimit |
 | `mergeByDistance` | edit-mode Merge by Distance on listed vertices (`useUnselected`, `useCentroid`) |
-| `rename`, `material`, `select` | naming, surface, viewport selection |
+| `part` | a parametric part - knurled ring, dial, button, rocker, eyecup, strap lug, lens barrel, pad - from [`@threepipe/modelling-parts`](./modelling-parts); regenerated with new `params` until edited |
+| `groove` | a panel line along a `path` or round a rounded-rectangle `outline`, projected onto the body and cut with the Manifold boolean; `fill` lays a dark strip in it |
+| `uv` | UVs by cube projection (Blender's UV > Cube Projection); `size` is the texture tile size, for tiling relief |
+| `decal` | a printed marking (`content.text` or `content.svg`) as a thin textured object: `plane`, `project` onto a curved body, or `wrap` round an axis; `emboss` for raised type |
+| `rename`, `select` | naming, viewport selection |
+| `material` | colour, roughness, metalness, transmission... or a `preset` (below) |
 | `light`, `lighting`, `display` | lights, environment, shading mode |
 | `camera` | named views, fit-to-objects, saved views; orthographic or perspective with a chosen `fov` |
 | `reference` | a calibrated reference photograph on a world plane |
@@ -98,6 +103,63 @@ with a suggestion (`unknown parameter "raduis" — did you mean "radius"?`) rath
 
 `{op: 'help'}` lists them at runtime; `{op: 'help', command: 'lathe'}` gives one command's full
 schema. The parameter is `command`, not `op`, because a command object already has an `op` key.
+
+## Parts, panel lines, surfaces and markings
+
+The commands that take a blocked-out shape to a product that reads as real. Each example is a recipe from the
+skill's cookbook (`plugins/modelling-cli/src/skill/cookbook.ts`), which `tests/skill.test.ts` in
+`@threepipe/modelling-cli` runs.
+
+```typescript
+// a knurled lens ring, turned from +y onto +z; `part {list: true}` gives every part's schema
+await modelling.run({op: 'part', type: 'product/knurled-ring', name: 'focus-ring',
+    params: {radius: 38, length: 14, ribs: 72}, position: [0, 0, 90], rotation: [Math.PI / 2, 0, 0]})
+
+// a panel line round a cover on a closed, manifold body, with a dark gap strip (`body-gap`)
+await modelling.run({op: 'primitive', type: 'cube', name: 'body', size: 20})
+await modelling.run({op: 'groove', object: 'body',
+    outline: {at: [0, 0, 10], normal: [0, 0, 1], size: [12, 8], radius: 2}, width: 0.6, depth: 0.4, fill: true})
+
+// leather: UVs at the relief's tile size (mm), then the preset
+await modelling.run({op: 'primitive', type: 'cube', name: 'grip', size: 30})
+await modelling.run({op: 'uv', object: 'grip', size: 14})
+await modelling.run({op: 'material', object: 'grip', preset: 'leather-black'})
+
+// a legend projected onto a curved body
+await modelling.run({op: 'primitive', type: 'sphere', name: 'barrel', radius: 10, segments: 48, rings: 24})
+await modelling.run({op: 'decal', name: 'label', mode: 'project', object: 'barrel',
+    at: [0, 0, 10], normal: [0, 0, 1], size: [8, 2], content: {text: {text: 'ZOOM'}}})
+```
+
+Relief maps and decal prints are textures: they need a browser session. In Node the geometry is built and the
+command warns that the texture is left out. [`@threepipe/modelling-parts`](./modelling-parts) also has SVG
+layouts for `decal` (`ringLabels`, `ringText`, `scaleLabels`, `wordmark`).
+
+### Material presets
+
+`material {preset}`, and the `preset` of `decal` and `fillPreset` of `groove`. Values from `src/materials/presets.ts`;
+the relief tile sizes (`RELIEF_TILE_MM`) are what `uv {size}` should be, in mm.
+
+| Preset | Roughness | Metalness | Other |
+| --- | --- | --- | --- |
+| `plastic-satin-black` | 0.23 | 0 | grain relief (tile 8) |
+| `plastic-gloss-black` | 0.22 | 0 | |
+| `rubber` | 0.30 | 0 | rubber relief (tile 6) |
+| `rubber-matte` | 0.56 | 0 | rubber relief (tile 6) |
+| `leather-black` | 0.53 | 0 | leather relief (tile 14) |
+| `matte-black` | 0.74 | 0 | |
+| `metal-dark` | 0.23 | 0.93 | |
+| `chrome` | 0.23 | 1 | |
+| `metal-satin` | 0.35 | 1 | |
+| `gold-contact` | 0.25 | 1 | colour `#e5b75a` |
+| `glass` | 0 | 0 | transmission 1, IOR 1.5 |
+| `glass-coated` | 0.02 | 0 | transmission 1, IOR 1.6 |
+| `screen-glass` | 0.14 | 0 | transmission 0.58, IOR 1.5 |
+| `accent-red` | 0.5 | 0 | colour `#e74533` |
+| `gap-black` | 1 | 0 | black (the `groove` strip default) |
+| `print-white` | 0.5 | 0 | the `decal` default |
+
+Clear glass shows whatever is behind it; put something dark behind it (a baffle, inner elements).
 
 ## Using it from an agent
 

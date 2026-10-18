@@ -15,7 +15,8 @@ import {terrain} from '../procedural-terrain/terrain.js'
  * The Blender assets come through the `blendAsset` command: the mesh entering the modifier, the node groups, the
  * modifier's input values and the objects / collections / images the graphs read - nothing Blender evaluated. Bundles
  * are made locally from the maintainer's .blend files (`porting/blender/bundle_dump.py` into `tmp/bundles/`); they are
- * not in git (their licences are undecided).
+ * not in git. The files' sources and licences (cleared by the maintainer on 2026-10-18) are in
+ * `plugins/procedural/tests/fixtures/ASSETS.md`.
  */
 
 const ASSETS = {
