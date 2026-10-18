@@ -8,9 +8,9 @@
 import {describe, expect, it} from 'vitest'
 import {existsSync, readdirSync, readFileSync, writeFileSync} from 'node:fs'
 import {join} from 'node:path'
-import {compareGeometry, GeometryNodesEvaluator, GeometrySet} from '../../src'
+import {compareGeometry, ExpectedGeometry, GeometryNodesEvaluator, GeometrySet} from '../../src'
 import {DumpV2, importBlenderDump} from '../../src/io/importBlenderDump'
-import {applyModifierInputs, binResolver, geometryFromDump, inlineBinRefs, sceneFromDump} from '../../src/io/geometryFromDump'
+import {applyModifierInputs, BinResolver, binResolver, geometryFromDump, inlineBinRefs, sceneFromDump} from '../../src/io/geometryFromDump'
 import {BUILTIN_TYPES} from '../../src/runtime/evaluator'
 import {getNodeType} from '../../src/runtime/registry'
 import type {NodeGroupLibrary} from '../../src/runtime/types'
@@ -30,6 +30,27 @@ function missingTypes(library: NodeGroupLibrary, group: string, seen = new Set<s
         else if (!BUILTIN_TYPES.has(node.type) && !getNodeType(node.type)) out.add(node.type)
     }
     return [...out].sort()
+}
+
+/** Float32 policy (plan 2.6): the smallest ulp bound the whole result meets, as for the cases. */
+function parityLevel(geometry: GeometrySet, expected: ExpectedGeometry): string {
+    const ulps = [0, 1, 2, 4, 16, 256].find(u => !compareGeometry(geometry, expected, {byteColor: 'srgb', ulps: u}).length)
+    return ulps === 0 ? 'exact' : `pass (${ulps === undefined ? 'within 1e-5, > 256' : `<= ${ulps}`} ulp)`
+}
+
+/** Run an object's modifiers from the first nodes modifier on (the dump's input geometry is what enters it). */
+function evaluateObject(dump: DumpV2, resolve: BinResolver, library: NodeGroupLibrary, name: string): GeometrySet {
+    const object = dump.objects.find(o => o.name === name)!
+    const enabled = object.modifiers.filter(m => m.enabled)
+    const scene = sceneFromDump(dump.referenced!, resolve)
+    let geometry: GeometrySet = geometryFromDump(object.input_geometry!, resolve)
+    for (const m of enabled.slice(enabled.findIndex(m => m.type === 'NODES'))) {
+        const ev = new GeometryNodesEvaluator(library, m.nodeGroup!, {scene, selfObject: object.name})
+        applyModifierInputs(ev, m.inputs ?? {})
+        ev.setInputGeometry(geometry)
+        geometry = ev.evaluate().geometry ?? new GeometrySet()
+    }
+    return geometry
 }
 
 describe.skipIf(!assets.length)('Blender 5.2.2 assets', () => {
@@ -53,22 +74,10 @@ describe.skipIf(!assets.length)('Blender 5.2.2 assets', () => {
                 continue
             }
             it(`${asset} / ${object.name}`, () => {
-                const scene = sceneFromDump(dump.referenced!, resolve)
-                let geometry: GeometrySet = geometryFromDump(object.input_geometry!, resolve)
-                for (const m of nodes) {
-                    const ev = new GeometryNodesEvaluator(library, m.nodeGroup!, {scene, selfObject: object.name})
-                    applyModifierInputs(ev, m.inputs ?? {})
-                    ev.setInputGeometry(geometry)
-                    geometry = ev.evaluate().geometry ?? new GeometrySet()
-                }
-                const diffs = compareGeometry(geometry, inlineBinRefs(object.output_geometry!, resolve), {byteColor: 'srgb'})
-                let result = diffs.length ? diffs.slice(0, 3).join(' | ') : 'pass'
-                if (!diffs.length) {
-                    // Float32 policy (plan 2.6): the smallest ulp bound the whole result meets, as for the cases.
-                    const expected = inlineBinRefs(object.output_geometry!, resolve)
-                    const ulps = [0, 1, 2, 4, 16, 256].find(u => !compareGeometry(geometry, expected, {byteColor: 'srgb', ulps: u}).length)
-                    result = ulps === 0 ? 'exact' : `pass (${ulps === undefined ? 'within 1e-5, > 256' : `<= ${ulps}`} ulp)`
-                }
+                const geometry = evaluateObject(dump, resolve, library, object.name)
+                const expected = inlineBinRefs(object.output_geometry!, resolve)
+                const diffs = compareGeometry(geometry, expected, {byteColor: 'srgb'})
+                const result = diffs.length ? diffs.slice(0, 3).join(' | ') : parityLevel(geometry, expected)
                 status[asset][object.name] = result
                 writeFileSync(join(__dirname, 'assets.status.json'), JSON.stringify(status, null, 1) + '\n')
                 expect(diffs, `${asset} / ${object.name}`).toEqual([])
@@ -78,4 +87,30 @@ describe.skipIf(!assets.length)('Blender 5.2.2 assets', () => {
     it('writes the status file', () => {
         writeFileSync(join(__dirname, 'assets.status.json'), JSON.stringify(status, null, 1) + '\n')
     })
+})
+
+// Bundles (`porting/blender/bundle_dump.py`, the examples' input) must evaluate to exactly what the dump evaluates to:
+// they carry every evaluation input (unorm8 images decode to the same float32 bits) and nothing evaluated.
+const BUNDLES = join(__dirname, '../../../../tmp/bundles')
+const bundled = assets.filter(a => existsSync(join(BUNDLES, a, 'bundle.json')))
+describe.skipIf(!bundled.length)('runtime bundles', () => {
+    for (const asset of bundled) {
+        it(asset, () => {
+            const dump = JSON.parse(readFileSync(join(ROOT, asset, 'dump.json'), 'utf8')) as DumpV2
+            const bundle = JSON.parse(readFileSync(join(BUNDLES, asset, 'bundle.json'), 'utf8')) as DumpV2
+            expect(bundle.format).toBe('threepipe-procedural-bundle/1')
+            expect(bundle.objects.every(o => !('output_geometry' in o))).toBe(true)
+            const fromDump = binResolver({'dump.bin': readFileSync(join(ROOT, asset, 'dump.bin'))})
+            const fromBundle = binResolver({'bundle.bin': readFileSync(join(BUNDLES, asset, 'bundle.bin'))})
+            const bundleLibrary = importBlenderDump(bundle).library
+            for (const object of dump.objects) {
+                const level = status[asset]?.[object.name]
+                if (!level || level.startsWith('skip')) continue
+                const expected = inlineBinRefs(object.output_geometry!, fromDump)
+                const actual = evaluateObject(bundle, fromBundle, bundleLibrary, object.name)
+                expect(compareGeometry(actual, expected, {byteColor: 'srgb'}), `${asset} / ${object.name}`).toEqual([])
+                expect(parityLevel(actual, expected), `${asset} / ${object.name}: same parity as from the dump`).toBe(level)
+            }
+        })
+    }
 })

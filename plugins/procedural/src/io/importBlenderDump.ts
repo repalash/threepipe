@@ -308,7 +308,9 @@ function importV1(d: DumpV1): ImportedDump {
 
 /** Import a v1 or v2 dump. */
 export function importBlenderDump(dump: DumpV1 | DumpV2): ImportedDump {
-    if ((dump as DumpV2).format?.startsWith('threepipe-procedural-dump/')) return importV2(dump as DumpV2)
+    // Bundles (`bundle_dump.py`) are v2 dumps without the evaluated output.
+    const format = (dump as DumpV2).format
+    if (format?.startsWith('threepipe-procedural-dump/') || format?.startsWith('threepipe-procedural-bundle/')) return importV2(dump as DumpV2)
     if ((dump as DumpV1).trees) return importV1(dump as DumpV1)
     throw new Error('procedural: not a geometry-nodes dump (expected dump_blend.py v2 or extract_geo_nodes.py v1)')
 }

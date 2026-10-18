@@ -21,20 +21,40 @@ import {newMeshData} from '../geometry/components'
 /** A reference to values in the dump's sidecar `.bin` file. */
 export interface BinRef {
     bin: string
-    dtype: 'f4' | 'i4'
+    dtype: 'f4' | 'i4' | 'u1'
     offset: number
     count: number
+    /**
+     * `'unorm8'` (bundles, `bundle_dump.py`): bytes k standing for the float32 `float(k) * (1.0f / 255.0f)`, the
+     * float buffer Blender makes from an 8-bit image in a linear colour space; decoded back to those float32 bits.
+     */
+    encoding?: 'unorm8'
 }
+
+const UNORM8_SCALE = Math.fround(1 / 255)
 
 /** Resolves {@link BinRef}s; in Node read the file, in the browser fetch it. */
 export type BinResolver = (ref: BinRef) => ArrayLike<number>
 
 /** A resolver over already-loaded `.bin` buffers, by file name. */
 export function binResolver(files: Record<string, ArrayBuffer | Uint8Array>): BinResolver {
+    // A view's bytes are copied once into their own buffer, so typed arrays can start at the refs' offsets.
+    const buffers = new Map<string, ArrayBuffer>()
     return ref => {
-        const b = files[ref.bin]
-        if (!b) throw new Error(`procedural: dump references '${ref.bin}', which was not loaded`)
-        const buffer = b instanceof Uint8Array ? b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) : b
+        let buffer = buffers.get(ref.bin)
+        if (!buffer) {
+            const b = files[ref.bin]
+            if (!b) throw new Error(`procedural: dump references '${ref.bin}', which was not loaded`)
+            buffer = b instanceof Uint8Array ? b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer : b
+            buffers.set(ref.bin, buffer)
+        }
+        if (ref.dtype === 'u1') {
+            const bytes = new Uint8Array(buffer, ref.offset, ref.count)
+            if (ref.encoding !== 'unorm8') return bytes
+            const out = new Float32Array(ref.count)
+            for (let i = 0; i < out.length; i++) out[i] = bytes[i] * UNORM8_SCALE
+            return out
+        }
         return ref.dtype === 'f4' ? new Float32Array(buffer, ref.offset, ref.count) : new Int32Array(buffer, ref.offset, ref.count)
     }
 }

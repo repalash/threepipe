@@ -15,7 +15,8 @@ Writes `<out>/dump.json` (+ `<out>/dump.bin` for large arrays):
     input_geometry   the geometry entering the first geometry-nodes modifier, in Blender's element order
     output_geometry  the evaluated geometry (instances with exact references, via evaluated_geometry())
   referenced         objects / collections / images the trees or the modifier inputs point at, with each
-                     object's evaluated geometry and transform and each collection's hierarchy
+                     object's evaluated geometry and transform and each collection's hierarchy; `materials`:
+                     display colours of every material (for renderers; evaluation uses slot names only)
   overrides          the --set values applied before evaluation
 
 v2 of proc's extract_geo_nodes.py: adds multi-input link order (`multi_input_sort_id`), muted links,
@@ -422,6 +423,19 @@ def main():
             "alphaMode": img.alpha_mode,
             "pixels": writer.put(pixels, "f4"),
         }
+
+    # Display only (the example's renderer): each material's viewport colour and, when its node tree has an
+    # unlinked Principled BSDF, that node's base colour / metallic / roughness. Geometry stores slot names.
+    for mat in bpy.data.materials:
+        entry = {"diffuseColor": list(mat.diffuse_color), "metallic": mat.metallic, "roughness": mat.roughness}
+        bsdf = next((n for n in mat.node_tree.nodes if n.bl_idname == "ShaderNodeBsdfPrincipled"), None) \
+            if mat.node_tree is not None else None
+        if bsdf is not None:
+            for key, socket in (("baseColor", "Base Color"), ("metallic", "Metallic"), ("roughness", "Roughness")):
+                inp = bsdf.inputs.get(socket)
+                if inp is not None and not inp.is_linked:
+                    entry[key] = list(inp.default_value) if key == "baseColor" else inp.default_value
+        referenced.setdefault("materials", {})[mat.name] = entry
 
     result = {
         "format": "threepipe-procedural-dump/2",

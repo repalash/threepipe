@@ -120,19 +120,24 @@ def set_properties(node, props):
 
 
 def keep_switch_items(node, coll_name, entries):
-    """Index Switch / Menu Switch items: their socket identifiers are `Item_<identifier>` with identifiers handed
-    out by a per-node counter that `clear()` does not reset, so the node's initial items (identifiers 0, 1) are
-    kept and renamed, and the rest appended (2, 3, ...). Cases list items with identifiers 0..n-1 in order."""
+    """Index Switch / Menu Switch / Repeat items: their socket identifiers are `Item_<identifier>` with identifiers
+    handed out by a per-node counter that `clear()` does not reset, so the node's initial items (identifiers 0, 1;
+    the Repeat Output's one Geometry item, 0) are kept and renamed / retyped, and the rest appended (.., n-1).
+    Cases list items with identifiers 0..n-1 in order."""
     coll = getattr(node, coll_name)
     while len(coll) > max(len(entries), 1):
         coll.remove(coll[len(coll) - 1])
     for i, entry in enumerate(entries):
         if i < len(coll):
             item = coll[i]
-            if coll_name == "enum_items" and entry.get("name") is not None:
+            if coll_name in ("enum_items", "repeat_items") and entry.get("name") is not None:
                 item.name = entry["name"]
+        elif coll_name == "index_switch_items":
+            item = coll.new()
+        elif coll_name == "repeat_items":
+            item = coll.new(entry["socket_type"], entry.get("name") or "")
         else:
-            item = coll.new() if coll_name == "index_switch_items" else coll.new(entry.get("name") or "")
+            item = coll.new(entry.get("name") or "")
         if "identifier" in entry and getattr(item, "identifier", entry["identifier"]) != entry["identifier"]:
             raise ValueError(f"{node.name}: {coll_name}[{i}] has identifier {item.identifier}, the case expects {entry['identifier']}")
         for key, value in entry.items():
@@ -144,7 +149,7 @@ def keep_switch_items(node, coll_name, entries):
 
 def add_items(node, items):
     for coll_name, entries in items.items():
-        if coll_name in ("index_switch_items", "enum_items"):
+        if coll_name in ("index_switch_items", "enum_items", "repeat_items"):
             keep_switch_items(node, coll_name, entries)
             continue
         coll = getattr(node, coll_name)
