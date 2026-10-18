@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- `UndoManagerPlugin.hotKeys` (default `true`): set it to `false` when the app owns its keymap and calls `undo()` / `redo()` itself
 - `NormalBufferPlugin.renderTransparent` (default `true`, serialized, UI toggle): set it to `false` to apply the same material rule as the GBuffer depth to the normal buffer, with the `userData.renderToDepth` and `userData.renderToGBuffer` overrides (objects with a custom GBuffer or normal material can still differ); for screen-space effects that combine both buffers
 
 ### Changed
@@ -22,6 +23,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- `UndoManagerPlugin`: Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z and Ctrl+Y typed into a text field (input, textarea, contenteditable) are left to the field instead of undoing or redoing the scene (the plugin handles the hot keys itself now, with the same keys JSUndoManager's `bindHotKeys` used)
 - Fix `CascadedShadowsPlugin` shadows not rendering (regression from v0.3.0) — `refreshAttachedLight` was picking up a cascade light as the source due to `_lightAutoAttached` being set after `@onChange` fired synchronously; added re-entrancy guard to `refreshLights`; removed stale uniform upload optimization that skipped re-upload after shader recompilation
 - `DRACOLoader2`: enable WASM decoder by default
   - Removed `setDecoderConfig({type: 'js'})` hack from constructor — decoder now uses WASM build when available, auto-falls back to JS via three.js's built-in `typeof WebAssembly !== 'object'` check

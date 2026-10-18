@@ -29,6 +29,13 @@ export class UndoManagerPlugin extends AViewerPluginSync {
     @onChange(UndoManagerPlugin.prototype._refresh)
         limit = 1000
 
+    /**
+     * Handle Ctrl/Cmd+Z (undo), Ctrl/Cmd+Shift+Z and Ctrl+Y (redo) on the document. On by default; an app that owns
+     * its keymap turns it off and calls {@link undo} / {@link redo} itself. Keys typed into a text field (input,
+     * textarea, contenteditable) are always left to the field, so its own text undo works.
+     */
+    hotKeys = true
+
     constructor(enabled = true, limit = 1000) {
         super()
         this.enabled = enabled
@@ -43,6 +50,15 @@ export class UndoManagerPlugin extends AViewerPluginSync {
         this.undoManager?.redo()
     }
 
+    // The keys JSUndoManager's bindHotKeys used: Ctrl/Cmd+Z undo; Ctrl/Cmd+Shift+Z and Ctrl+Y redo.
+    private _onKeyDown = (event: KeyboardEvent) => {
+        if (!this.hotKeys || !this.enabled || !this.undoManager) return
+        if (isTextEditing(event.target)) return
+        const mod = event.ctrlKey || event.metaKey
+        if (event.code === 'KeyZ' && mod && !event.shiftKey) this.undo()
+        else if (event.code === 'KeyZ' && mod && event.shiftKey || event.code === 'KeyY' && event.ctrlKey) this.redo()
+    }
+
     protected _refresh() {
         if (!this.undoManager) return
         this.undoManager.enabled = this.enabled
@@ -55,11 +71,14 @@ export class UndoManagerPlugin extends AViewerPluginSync {
 
     onAdded(viewer: ThreeViewer) {
         super.onAdded(viewer)
-        this.undoManager = new JSUndoManager({bindHotKeys: true, limit: this.limit, debug: viewer.debug || getUrlQueryParam('debugUndo') !== null, hotKeyRoot: document as any})
+        // JSUndoManager's own hot keys act inside text fields too, so they are handled here (_onKeyDown).
+        this.undoManager = new JSUndoManager({bindHotKeys: false, limit: this.limit, debug: viewer.debug || getUrlQueryParam('debugUndo') !== null})
         this._refresh()
+        if (typeof document !== 'undefined') document.addEventListener('keydown', this._onKeyDown)
     }
 
     onRemove(viewer: ThreeViewer) {
+        if (typeof document !== 'undefined') document.removeEventListener('keydown', this._onKeyDown)
         this.undoManager?.dispose()
         this.undoManager = undefined
         super.onRemove(viewer)
@@ -225,4 +244,16 @@ export function createBindingsProxy(bindings: [any, keyof any][], defs: any[]) {
             }
         },
     }
+}
+
+/** A key typed here belongs to the text being edited. */
+function isTextEditing(target: EventTarget | null): boolean {
+    const el = target as HTMLElement | null
+    if (!el) return false
+    if (el.isContentEditable) return true
+    const tag = el.tagName
+    if (tag === 'TEXTAREA') return true
+    if (tag !== 'INPUT') return false
+    const type = ((el as HTMLInputElement).type || 'text').toLowerCase()
+    return !['button', 'checkbox', 'radio', 'range', 'color', 'file', 'submit', 'reset', 'image'].includes(type)
 }
