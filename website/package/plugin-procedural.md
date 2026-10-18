@@ -116,7 +116,8 @@ await modelling.run({op: 'primitive', type: 'plane', name: 'terrain'})
 await modelling.run({op: 'transform', object: 'terrain', rotate: [-Math.PI / 2, 0, 0]})
 await modelling.run({op: 'modifier', object: 'terrain', add: {type: 'geometryNodes', group: 'Terrain', inputs: {}}})
 
-// one undoable command per change; only the nodes the input reaches re-run
+// one undoable command per change; only the nodes the input reaches re-run. `update` replaces `inputs`
+// as a whole (a shallow merge of the modifier), so pass every input you have set.
 await modelling.run({op: 'modifier', object: 'terrain', index: 0, update: {inputs: {Height: 6}}})
 // the group's interface, and the group as code
 await modelling.run({op: 'nodeGroup', name: 'Terrain', describe: true, code: true})
