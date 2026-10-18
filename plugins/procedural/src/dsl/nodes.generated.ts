@@ -284,6 +284,17 @@ export type CollectionNode = NodeHandle & {
     readonly collection: Socket<"COLLECTION">
 }
 
+/** `GeometryNodeCollectionChildren` (Collection Children). */
+export interface CollectionChildrenArgs {
+    collection?: In<"COLLECTION">
+    recursive?: In<"BOOLEAN">
+    mute?: boolean
+}
+export type CollectionChildrenNode = NodeHandle & {
+    readonly collections: Socket<"COLLECTION">
+    readonly objects: Socket<"OBJECT">
+}
+
 /** `GeometryNodeCollectionInfo` (Collection Info). */
 export interface CollectionInfoArgs {
     transformSpace?: "ORIGINAL" | "RELATIVE"
@@ -2909,6 +2920,7 @@ export interface NodeConstructors {
     ClusterByConnected(args?: ClusterByConnectedArgs): ClusterByConnectedNode
     ClusterByDistance(args?: ClusterByDistanceArgs): ClusterByDistanceNode
     Collection(args?: CollectionArgs): CollectionNode
+    CollectionChildren(args?: CollectionChildrenArgs): CollectionChildrenNode
     CollectionInfo(args?: CollectionInfoArgs): CollectionInfoNode
     Color(args?: ColorArgs): ColorNode
     ColorRamp(args?: ColorRampArgs): ColorRampNode
