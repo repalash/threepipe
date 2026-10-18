@@ -46,6 +46,16 @@ export interface CommandResult {
     error?: string
     /** Milliseconds the command took, excluding any capture. */
     ms: number
+    /**
+     * Mutating commands only: what the command actually changed, split into what it named (its
+     * `object`/`objects` and, inside those, its `verts`/`edges`/`faces` plus the faces around them) and
+     * collateral - anything else that changed. See `commands/checks.ts`.
+     */
+    locality?: {
+        local: boolean
+        objects: {claimed: string[], created: string[], deleted: string[], changed: string[], collateral: string[]}
+        meshes: Record<string, unknown>
+    }
 }
 
 /** The subset of JSON Schema the command table uses. */

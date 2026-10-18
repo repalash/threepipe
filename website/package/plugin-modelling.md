@@ -150,13 +150,39 @@ await modelling.run({op: 'undo', to: 'hull done'})
 
 ## Without a browser
 
-Geometry can be generated in Node with no viewport at all, by calling
-[`@threepipe/mesh-kernel`](./mesh-kernel) directly — it has no dependencies and touches no browser
-API. The *commands* need a `ThreeViewer`, which needs a DOM and a WebGL context, so running those
-headlessly means a headless browser; `scripts/modelling-session.mjs` uses one.
+Geometry alone can be generated in Node with no viewport at all, by calling
+[`@threepipe/mesh-kernel`](./mesh-kernel) directly. The *commands* need a `ThreeViewer`; in Node,
+[`@threepipe/modelling-cli`](./modelling-cli)'s `NodeSession` builds one on threepipe's Node stubs
+(`DummyRenderManager`, no WebGL), and every command that does not draw runs there exactly as in a page.
+`look` and `capture` need pixels: the CLI and the [MCP server](./modelling-mcp) run them in a headless
+browser.
 
 The package does not depend on the edit-mode UI either way. `ModellingPlugin.fileSink` is where
-`capture {path}` and `export {path}` write when driving it from Node.
+`capture {path}`, `look {path}` and `export {path}` write when driving it from Node.
+
+## Checks, renders and imports
+
+- `validate` - a port of Blender's `BM_mesh_is_valid` (`bmesh_mesh_validate.cc`) on every object, and with
+  `spec` a three-valued check of written requirements (bounds in world space, counts, volume, manifold,
+  genus, attribute layers, groups unchanged since a checkpoint).
+- `diff {object, from}` and the `locality` on every mutating result - what changed, split into what the
+  command named and collateral.
+- `look` - an auto-framed multi-view sheet (or the viewport, a saved view, `ref:<name>`) in solid,
+  material, wireframe or x-ray, with a highlight overlay and labels, returning the image *and* a JSON
+  description of it. The `view.look` editor operator shows the same sheet.
+- `import` - a GLB/glTF/OBJ/STL, or three.js objects already in the scene, welded into editable
+  document objects; a GLB written here comes back with exact topology.
+
+## Agent socket
+
+`AgentSocketPlugin` connects the page out to a relay (`threepipe-modelling relay`, or the MCP server)
+and runs the commands it receives through `run`, so they are undoable like any other. See
+[Connect an agent](../guide/connect-an-agent).
+
+```typescript
+import {AgentSocketPlugin} from '@threepipe/plugin-modelling'
+viewer.addPluginSync(AgentSocketPlugin).connect('ws://127.0.0.1:9396', token)
+```
 
 ## Driving a session
 

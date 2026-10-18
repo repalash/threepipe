@@ -22,7 +22,8 @@
  * External Data, Defaults, Quit).
  *
  * Not Blender's: a "Commands" submenu at the end of Object (the `plugin-modelling` commands, which have no
- * place in Blender's menus) and edit-mode Discard Edits / Apply to Object at the end of Edit.
+ * place in Blender's menus), edit-mode Discard Edits / Apply to Object at the end of Edit, File > Connect
+ * Agent… and View > Look (Agent View) (the agent socket), Add > Lathe / Sweep.
  */
 
 import type {EditorEnginePlugin} from '../EditorEnginePlugin'
@@ -126,6 +127,9 @@ export function registerMenus(engine: EditorEnginePlugin): void {
                 // the importers know (.glb/.gltf, .obj, .fbx, .stl ...).
                 op('file.import', 'Import...', {blender: 'TOPBAR_MT_file_import'}),
                 sub('TOPBAR_MT_file_export'),
+                // Not Blender's: the agent socket (an AI agent drives this document).
+                sep,
+                op('agent.connect', 'Connect Agent…'),
             ],
         },
         {
@@ -229,6 +233,9 @@ export function registerMenus(engine: EditorEnginePlugin): void {
                 op('render.opengl', 'Render Playblast on Keyframes', {props: {animation: true, render_keyed_only: true}}),
                 sep,
                 absent('INFO_MT_area', 'Area', 'the editor has one fixed layout, not Blender\'s areas'),
+                // Not Blender's: the multi-view sheet an agent sees with `look`.
+                sep,
+                op('view.look', 'Look (Agent View)'),
             ],
         },
         {id: 'VIEW3D_MT_view_local', label: 'Local View', source: 'space_view3d.py:1524', items: [

@@ -144,6 +144,37 @@ export class ModellingHistory {
         return done
     }
 
+    /**
+     * One object's state at a point in history, without moving there: the baseline `diff` and
+     * `validate {spec: {unchanged}}` compare against.
+     *
+     * `at` is a checkpoint name, `'start'` (before the oldest command still kept) or `'previous'`
+     * (before the most recent applied command). Returns the snapshot, or `'current'` when no applied
+     * command since that point touched the object - its present state is its state then. A snapshot
+     * with a `null` mesh means the object did not exist yet.
+     */
+    snapshotAt(at: string, id: string): EntrySnapshot | 'current' {
+        let from: number
+        if (at === 'start') from = -1
+        else if (at === 'previous') {
+            if (this._position === 0) throw new Error('nothing has been done yet, so there is no previous state')
+            from = this._position - 2
+        } else {
+            from = this._entries.findIndex(e => e.checkpoint === at)
+            if (from < 0) {
+                const names = this._entries.filter(e => e.checkpoint).map(e => e.checkpoint).join(', ')
+                throw new Error(`no checkpoint "${at}"` + (names ? ` - have: ${names}, or 'start' / 'previous'`
+                    : ` - none have been made; use 'start' or 'previous'`))
+            }
+            if (from >= this._position) throw new Error(`checkpoint "${at}" has been undone`)
+        }
+        for (let j = from + 1; j < this._position; j++) {
+            const snap = this._entries[j].before.find(b => b.id === id)
+            if (snap) return snap
+        }
+        return 'current'
+    }
+
     /** Rewind until the named checkpoint is the most recent applied command. */
     undoTo(checkpoint: string): number {
         const target = this._entries.findIndex(e => e.checkpoint === checkpoint)

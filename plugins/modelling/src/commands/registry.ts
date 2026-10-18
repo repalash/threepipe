@@ -10,14 +10,32 @@ import {CommandDefinition} from './types'
 
 export class CommandRegistry {
     private _commands = new Map<string, CommandDefinition>()
+    private _groups = new Map<string, string>()
 
-    register(def: CommandDefinition): void {
+    /**
+     * Add a command. `group` files it under a heading (`create`, `edit`, `shape`, ...) - what an agent
+     * front end uses to disclose the table a group at a time instead of all at once.
+     */
+    register(def: CommandDefinition, group?: string): void {
         if (this._commands.has(def.op)) throw new Error(`command "${def.op}" is already registered`)
         this._commands.set(def.op, def)
+        if (group) this._groups.set(def.op, group)
     }
 
-    registerAll(defs: CommandDefinition[]): void {
-        for (const d of defs) this.register(d)
+    registerAll(defs: CommandDefinition[], group?: string): void {
+        for (const d of defs) this.register(d, group)
+    }
+
+    /** The group an op was registered under, or `other`. */
+    groupOf(op: string): string {
+        return this._groups.get(op) ?? 'other'
+    }
+
+    /** Ops by group, groups and ops sorted. */
+    groups(): Record<string, string[]> {
+        const out: Record<string, string[]> = {}
+        for (const op of this.ops) (out[this.groupOf(op)] ??= []).push(op)
+        return Object.fromEntries(Object.entries(out).sort(([a], [b]) => a.localeCompare(b)))
     }
 
     /** Replace an existing command. Used by extensions that specialise a built-in. */
@@ -44,13 +62,15 @@ export class CommandRegistry {
      * already expects, so the bridge becomes a thin wrapper over this rather than a second
      * hand-maintained list of tools.
      */
-    describe(): {name: string, description: string, inputSchema: unknown}[] {
+    describe(): {name: string, description: string, inputSchema: unknown, group: string, mutates: boolean}[] {
         return this.all()
             .sort((a, b) => a.op.localeCompare(b.op))
             .map(d => ({
                 name: d.op,
                 description: d.description ? `${d.summary}\n\n${d.description}` : d.summary,
                 inputSchema: d.schema,
+                group: this.groupOf(d.op),
+                mutates: d.mutates,
             }))
     }
 

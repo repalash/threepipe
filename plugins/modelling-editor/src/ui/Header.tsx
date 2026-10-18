@@ -16,6 +16,7 @@ import type {SelectModeName} from '@threepipe/plugin-editor-engine'
 import {MenuView} from './MenuView'
 import type {EditorViewportPlugin} from '../EditorViewportPlugin'
 import {MeshEditPlugin} from '@threepipe/plugin-mesh-edit'
+import {AgentIndicator} from './AgentIndicator'
 
 /**
  * The menu bar: `engine.headerMenus()` for the current mode - File, Edit, then Blender's 3D view header
@@ -161,6 +162,7 @@ export function Header({title}: {title?: string}) {
         <ModeSwitch />
         <SelectModeButtons />
         <span className="me-spacer" />
+        <AgentIndicator />
         <HeaderSlots />
     </header>
 }

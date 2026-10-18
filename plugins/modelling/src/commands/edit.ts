@@ -181,6 +181,9 @@ export const arrayCommand: CommandDefinition = {
     description:
         'Three modes, chosen by which parameters are present: `step` gives a linear array, `angle` a '
         + 'radial one, `path` a curve array whose copies follow the local tangent.\n\n'
+        + 'A radial array also takes `step`, added to every copy as it turns - Blender\'s Constant '
+        + 'Offset combined with an Object Offset rotation. Along the axis it is a rise per copy, so '
+        + '`{angle: 4 * PI, count: 24, step: [0, 0.2, 0]}` is two turns of a spiral staircase.\n\n'
         + 'Copies land in the same mesh by default and are welded where they meet, so a chain of '
         + 'track shoes is one continuous surface rather than a pile of loose boxes. Set '
         + '`into: "objects"` to get separate objects instead.',
@@ -189,7 +192,8 @@ export const arrayCommand: CommandDefinition = {
         object: S.objectRef('Objects to array.'),
         objects: S.objectRef('Alias for `object`.'),
         count: S.integer('How many copies in total, including the original.', {minimum: 1}),
-        step: S.vec3('Offset between copies, for a linear array.'),
+        step: S.vec3('Offset between copies, for a linear array; for a radial one, the offset added per '
+            + 'copy as it turns (a rise, when along `axis`).'),
         angle: S.number('Total sweep in radians for a radial array. Defaults to a full turn.'),
         axis: S.enum('Rotation axis for a radial array. Default `y`.', AXES),
         pivot: S.vec3('Centre of a radial array.'),
@@ -257,6 +261,7 @@ export const arrayCommand: CommandDefinition = {
                     angle: (p.angle as number) ?? Math.PI * 2,
                     axis: axisVector((p.axis as 'x' | 'y' | 'z') ?? 'y'),
                     pivot: readVec3(p.pivot, [0, 0, 0], 'pivot') as Vec3,
+                    step: p.step !== undefined ? readVec3(p.step, [0, 0, 0], 'step') as Vec3 : undefined,
                     merge,
                 })
             } else {
@@ -307,10 +312,12 @@ function arrayAsObjects(
 
         const m = new Matrix4()
         if (mode === 'radial') {
-            const a = angle * (i / count)
-            m.makeTranslation(pivot[0], pivot[1], pivot[2])
-                .multiply(new Matrix4().makeRotationAxis(new Vector3(...axis), a))
+            // The same per-copy matrix the baked array accumulates, (T * R)^i (MOD_array.cc).
+            const once = new Matrix4().makeTranslation(step[0], step[1], step[2])
+                .multiply(new Matrix4().makeTranslation(pivot[0], pivot[1], pivot[2]))
+                .multiply(new Matrix4().makeRotationAxis(new Vector3(...axis), angle / count))
                 .multiply(new Matrix4().makeTranslation(-pivot[0], -pivot[1], -pivot[2]))
+            for (let k = 0; k < i; k++) m.premultiply(once)
         } else {
             m.makeTranslation(step[0] * i, step[1] * i, step[2] * i)
         }

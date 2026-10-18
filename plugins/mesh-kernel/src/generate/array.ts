@@ -724,11 +724,19 @@ export function arrayLinear(
  * turn brings copy `count` back onto copy 0, which is why merge also welds first to last here.
  *
  * `axis` defaults to `+Y`, the kernel's up axis.
+ *
+ * `step` adds Blender's constant offset (`MOD_ARR_OFF_CONST`) to the rotation, which is how a spiral
+ * staircase is built in Blender: Constant Offset for the rise plus Object Offset to an empty rotated
+ * by one tread. `arrayModifier_doArray` sums the constant offset into `offset` first and then
+ * post-multiplies the object offset (`MOD_array.cc:457-482`), and the per-copy matrix accumulates, so
+ * copy `n` is `(T * R)^n`. With `step` along `axis` the two commute and copy `n` is turned by
+ * `n * angle / count` and lifted by `n * step` - a helix. A `step` off the axis gives Blender's
+ * spiral of the same settings, not a helix.
  */
 export function arrayRadial(
     bm: BMesh,
     input: ArrayInput,
-    opts: {count: number, angle?: number, axis?: Vec3, pivot?: Vec3, merge?: boolean, mergeThreshold?: number},
+    opts: {count: number, angle?: number, axis?: Vec3, pivot?: Vec3, step?: Vec3, merge?: boolean, mergeThreshold?: number},
 ): ArrayResult {
     const angle = opts.angle ?? Math.PI * 2
     const axis = opts.axis ?? [0, 1, 0]
@@ -745,6 +753,8 @@ export function arrayRadial(
         count: opts.count,
         useObjectOffset: true,
         objectOffset,
+        useConstantOffset: opts.step !== undefined,
+        constantOffset: opts.step,
         useMerge: opts.merge,
         // A closed ring needs the seam welded too; when the copies do not meet, the threshold test
         // in `dm_mvert_map_doubles` finds nothing and this costs nothing.

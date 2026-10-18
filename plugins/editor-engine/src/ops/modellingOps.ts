@@ -15,7 +15,7 @@
 import type {EditorEnginePlugin} from '../EditorEnginePlugin'
 import type {EditorContext, OperatorDescriptor, PropSchema} from '../registry'
 
-const SKIP = new Set(['primitive', 'undo', 'redo', 'checkpoint', 'history', 'help', 'selftest', 'capture',
+const SKIP = new Set(['look', 'primitive', 'undo', 'redo', 'checkpoint', 'history', 'help', 'selftest', 'capture',
     'inspect', 'camera', 'export', 'select', 'display', 'measure', 'reference', 'lighting', 'modifier', 'vertices', 'transform',
     'delete', 'duplicate', 'rename', 'join', 'separate', 'deleteElements', 'applyTransform'])
 
@@ -42,6 +42,48 @@ export function visibleSchema(schema: PropSchema): PropSchema {
 export function registerModellingOperators(engine: EditorEnginePlugin): void {
     const modelling = engine.modelling
     if (!modelling) return
+
+    // The agent socket: connect this page to a relay so an agent outside drives the document.
+    engine.operators.register({
+        id: 'agent.connect',
+        label: 'Connect Agent…',
+        description: 'Let an AI agent (Claude Code, the threepipe-modelling CLI) drive this document through the agent socket. Its steps land in this undo history.',
+        icon: 'link',
+        category: 'File',
+        poll: () => engine.viewer.getPlugin('AgentSocketPlugin' as never) ? true : 'AgentSocketPlugin is not loaded',
+        exec() {
+            engine.dispatchEvent({type: 'uiRequest', request: 'agent'})
+            return {ok: true}
+        },
+    })
+
+    // `look` is what an agent sees with. As an operator it renders the same sheet for the person at the
+    // screen and opens it in the shell, beside its description; an agent's own looks land in the same
+    // place through `engine.lastLook`.
+    const lookSchema = modelling.commands.get('look')?.schema.properties as Record<string, any> | undefined
+    if (lookSchema) {
+        engine.operators.register({
+            id: 'view.look',
+            label: 'Look (Agent View)',
+            description: 'Render the auto-framed front / right / top / iso sheet an agent sees with `look`, and show it with what it describes.',
+            icon: 'eye-open',
+            category: 'View',
+            modes: ['object', 'edit'],
+            props: {
+                type: 'object',
+                properties: {
+                    view: {type: 'string', enum: ['angles', 'viewport', 'front', 'back', 'left', 'right', 'top', 'bottom', 'iso'], description: 'Which view. `angles` is the 2x2 sheet.', default: 'angles'},
+                    style: {...lookSchema.style, default: 'solid'},
+                },
+            },
+            async exec(_ctx, props) {
+                const result = await modelling.run({op: 'look', view: props?.view ?? 'angles', style: props?.style ?? 'solid'})
+                if (!result.ok) return {ok: false, error: result.error}
+                engine.dispatchEvent({type: 'uiRequest', request: 'look'})
+                return {ok: true, warnings: result.warnings, props: {view: props?.view ?? 'angles', style: props?.style ?? 'solid'}}
+            },
+        })
+    }
 
     for (const def of modelling.describeCommands()) {
         if (SKIP.has(def.name)) continue

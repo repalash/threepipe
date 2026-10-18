@@ -1,0 +1,2089 @@
+{
+  "keymap": "blender",
+  "url": "http://127.0.0.1:9374/examples/modelling-editor/",
+  "started": "2026-10-18T09:05:30.771Z",
+  "steps": [
+    {
+      "n": 1,
+      "id": "welcome",
+      "title": "First run: the welcome asks \"Have you used Blender?\"",
+      "keys": "click: Yes, I have used Blender · Mouse",
+      "note": null,
+      "finding": null,
+      "ok": true,
+      "ms": 5054,
+      "state": {
+        "mode": "object",
+        "selectMode": "vertex",
+        "tool": "select",
+        "preset": "blender",
+        "counts": null,
+        "sel": null,
+        "modal": false,
+        "lastOp": "add.cube",
+        "lastProps": {
+          "size": 1
+        },
+        "history": [
+          "Add Cube"
+        ],
+        "objects": [
+          "cube"
+        ],
+        "selectedObjects": [],
+        "status": "Nothing selected: click an object to select it, then Tab or double-click to edit it. · LMB · Select (Shift: extend) · MMB · Orbit · RMB · Pan / context menu · Alt+Drag · Orbit · Shift+MMB · Pan · Object · Objects 0/1 · Verts 24 · Tris 12",
+        "fileName": null,
+        "dirty": false
+      },
+      "toasts": [],
+      "shot": "shots/blender-01-welcome.jpg"
+    },
+    {
+      "n": 2,
+      "id": "move-around",
+      "title": "How to move around, drawn for the preset and the device",
+      "keys": "click: Start modelling",
+      "note": null,
+      "finding": null,
+      "ok": true,
+      "check": {
+        "preset": "blender"
+      },
+      "ms": 846,
+      "state": {
+        "mode": "object",
+        "selectMode": "vertex",
+        "tool": "select",
+        "preset": "blender",
+        "counts": null,
+        "sel": null,
+        "modal": false,
+        "lastOp": "add.cube",
+        "lastProps": {
+          "size": 1
+        },
+        "history": [
+          "Add Cube"
+        ],
+        "objects": [
+          "cube"
+        ],
+        "selectedObjects": [],
+        "status": "Nothing selected: click an object to select it, then Tab or double-click to edit it. · LMB · Select (Shift: extend) · MMB · Orbit · RMB · Pan / context menu · Alt+Drag · Orbit · Shift+MMB · Pan · Object · Objects 0/1 · Verts 24 · Tris 12",
+        "fileName": null,
+        "dirty": false
+      },
+      "toasts": [],
+      "shot": "shots/blender-02-move-around.jpg"
+    },
+    {
+      "n": 3,
+      "id": "select-cube",
+      "title": "Click the cube to select it",
+      "keys": "click",
+      "note": null,
+      "finding": null,
+      "ok": true,
+      "ms": 681,
+      "state": {
+        "mode": "object",
+        "selectMode": "vertex",
+        "tool": "select",
+        "preset": "blender",
+        "counts": null,
+        "sel": null,
+        "modal": false,
+        "lastOp": null,
+        "lastProps": null,
+        "history": [
+          "Add Cube",
+          "Select cube"
+        ],
+        "objects": [
+          "cube"
+        ],
+        "selectedObjects": [
+          "cube"
+        ],
+        "status": "LMB · Select (Shift: extend) · MMB · Orbit · RMB · Pan / context menu · Alt+Drag · Orbit · Shift+MMB · Pan · Object · Objects 1/1 · Verts 24 · Tris 12",
+        "fileName": null,
+        "dirty": true
+      },
+      "toasts": [],
+      "shot": "shots/blender-03-select-cube.jpg"
+    },
+    {
+      "n": 4,
+      "id": "edit-mode",
+      "title": "Edit mode",
+      "keys": "Tab",
+      "note": null,
+      "finding": null,
+      "ok": true,
+      "check": {
+        "counts": [
+          8,
+          12,
+          6
+        ]
+      },
+      "ms": 865,
+      "state": {
+        "mode": "edit",
+        "selectMode": "vertex",
+        "tool": "select",
+        "preset": "blender",
+        "counts": [
+          8,
+          12,
+          6
+        ],
+        "sel": [
+          8,
+          12,
+          6
+        ],
+        "modal": false,
+        "lastOp": null,
+        "lastProps": null,
+        "history": [
+          "Add Cube",
+          "Select cube"
+        ],
+        "objects": [
+          "cube"
+        ],
+        "selectedObjects": [],
+        "status": "LMB · Select (Shift: extend) · MMB · Orbit · RMB · Pan / context menu · Alt+Drag · Orbit · Shift+MMB · Pan · Edit · Vertex · Verts 8/8 · Edges 12/12 · Faces 6/6",
+        "fileName": null,
+        "dirty": true
+      },
+      "toasts": [],
+      "shot": "shots/blender-04-edit-mode.jpg"
+    },
+    {
+      "n": 5,
+      "id": "walls",
+      "title": "Scale the cube into a house footprint: 2 wide, 1.4 deep",
+      "keys": "A · S X 2 ↵ · S Z 1.4 ↵",
+      "note": "Up is Y here (the view gizmo says so); Blender users will reach for Z.",
+      "finding": null,
+      "ok": true,
+      "check": {
+        "history": [
+          "Scale",
+          "Scale"
+        ]
+      },
+      "ms": 4259,
+      "state": {
+        "mode": "edit",
+        "selectMode": "vertex",
+        "tool": "select",
+        "preset": "blender",
+        "counts": [
+          8,
+          12,
+          6
+        ],
+        "sel": [
+          8,
+          12,
+          6
+        ],
+        "modal": false,
+        "lastOp": "mesh.scale",
+        "lastProps": {
+          "value": [
+            1,
+            1,
+            1.4
+          ],
+          "orientation": "global",
+          "constraintAxis": [
+            false,
+            false,
+            true
+          ],
+          "proportional": false,
+          "proportionalFalloff": "smooth",
+          "proportionalSize": 1,
+          "_saved": {
+            "orientMatrix": [
+              [
+                1,
+                0,
+                0
+              ],
+              [
+                0,
+                1,
+                0
+              ],
+              [
+                0,
+                0,
+                1
+              ]
+            ],
+            "orientMatrixType": "global",
+            "orientAxis": 2,
+            "connected": false,
+            "projected": false,
+            "snap": false
+          }
+        },
+        "history": [
+          "Add Cube",
+          "Select cube",
+          "Scale",
+          "Scale"
+        ],
+        "objects": [
+          "cube"
+        ],
+        "selectedObjects": [],
+        "status": "LMB · Select (Shift: extend) · MMB · Orbit · RMB · Pan / context menu · Alt+Drag · Orbit · Shift+MMB · Pan · Edit · Vertex · Verts 8/8 · Edges 12/12 · Faces 6/6",
+        "fileName": null,
+        "dirty": true
+      },
+      "toasts": [],
+      "shot": "shots/blender-05-walls.jpg"
+    },
+    {
+      "n": 6,
+      "id": "frame",
+      "title": "Zoom in: the wheel does nothing, so frame the selection",
+      "keys": "wheel ×3 · Numpad .",
+      "note": "Wheel and pinch zoom are dead (three-modded OrbitControls.js:422, fix awaiting a release); there are no zoom keys or View > Zoom either. Framing is the only zoom.",
+      "finding": true,
+      "ok": true,
+      "check": {
+        "distanceBefore": 7.510659092250159,
+        "afterWheel": 7.510659092250159,
+        "afterFrame": 3.4667350151836063
+      },
+      "ms": 2858,
+      "state": {
+        "mode": "edit",
+        "selectMode": "vertex",
+        "tool": "select",
+        "preset": "blender",
+        "counts": [
+          8,
+          12,
+          6
+        ],
+        "sel": [
+          8,
+          12,
+          6
+        ],
+        "modal": false,
+        "lastOp": "mesh.scale",
+        "lastProps": {
+          "value": [
+            1,
+            1,
+            1.4
+          ],
+          "orientation": "global",
+          "constraintAxis": [
+            false,
+            false,
+            true
+          ],
+          "proportional": false,
+          "proportionalFalloff": "smooth",
+          "proportionalSize": 1,
+          "_saved": {
+            "orientMatrix": [
+              [
+                1,
+                0,
+                0
+              ],
+              [
+                0,
+                1,
+                0
+              ],
+              [
+                0,
+                0,
+                1
+              ]
+            ],
+            "orientMatrixType": "global",
+            "orientAxis": 2,
+            "connected": false,
+            "projected": false,
+            "snap": false
+          }
+        },
+        "history": [
+          "Add Cube",
+          "Select cube",
+          "Scale",
+          "Scale"
+        ],
+        "objects": [
+          "cube"
+        ],
+        "selectedObjects": [],
+        "status": "LMB · Select (Shift: extend) · MMB · Orbit · RMB · Pan / context menu · Alt+Drag · Orbit · Shift+MMB · Pan · Edit · Vertex · Verts 8/8 · Edges 12/12 · Faces 6/6",
+        "fileName": null,
+        "dirty": true
+      },
+      "toasts": [],
+      "shot": "shots/blender-06-frame.jpg"
+    },
+    {
+      "n": 7,
+      "id": "loopcut-walls",
+      "title": "Loop cut: two cuts across the front, for a door and two windows",
+      "keys": "Ctrl+R · hover the top front edge · wheel ↑ (2 cuts) · click · right-click (keep centred)",
+      "note": null,
+      "finding": null,
+      "ok": true,
+      "check": {
+        "counts": [
+          16,
+          28,
+          14
+        ]
+      },
+      "ms": 2854,
+      "state": {
+        "mode": "edit",
+        "selectMode": "edge",
+        "tool": "select",
+        "preset": "blender",
+        "counts": [
+          16,
+          28,
+          14
+        ],
+        "sel": [
+          8,
+          8,
+          0
+        ],
+        "modal": false,
+        "lastOp": "mesh.loopcut_slide",
+        "lastProps": {
+          "cuts": 2,
+          "smoothness": 0,
+          "falloff": "inverseSquare",
+          "value": 0,
+          "even": false,
+          "flipped": false,
+          "clamp": true,
+          "_saved": {
+            "mval": [
+              0,
+              0
+            ],
+            "direction": null,
+            "edgeIndex": 4
+          }
+        },
+        "history": [
+          "Add Cube",
+          "Select cube",
+          "Scale",
+          "Scale",
+          "Loop Cut and Slide"
+        ],
+        "objects": [
+          "cube"
+        ],
+        "selectedObjects": [],
+        "status": "LMB · Select (Shift: extend) · MMB · Orbit · RMB · Pan / context menu · Alt+Drag · Orbit · Shift+MMB · Pan · Edit · Edge · Verts 8/16 · Edges 8/28 · Faces 0/14",
+        "fileName": null,
+        "dirty": true
+      },
+      "toasts": [],
+      "shot": "shots/blender-07-loopcut-walls.jpg"
+    },
+    {
+      "n": 8,
+      "id": "loopcut-ridge",
+      "title": "Loop cut along the length: the roof ridge",
+      "keys": "Ctrl+R · hover the top side edge · click · right-click",
+      "note": null,
+      "finding": null,
+      "ok": true,
+      "check": {
+        "counts": [
+          24,
+          44,
+          22
+        ]
+      },
+      "ms": 2310,
+      "state": {
+        "mode": "edit",
+        "selectMode": "edge",
+        "tool": "select",
+        "preset": "blender",
+        "counts": [
+          24,
+          44,
+          22
+        ],
+        "sel": [
+          8,
+          8,
+          0
+        ],
+        "modal": false,
+        "lastOp": "mesh.loopcut_slide",
+        "lastProps": {
+          "cuts": 1,
+          "smoothness": 0,
+          "falloff": "inverseSquare",
+          "value": 0,
+          "even": false,
+          "flipped": false,
+          "clamp": true,
+          "_saved": {
+            "mval": [
+              0,
+              0
+            ],
+            "direction": null,
+            "edgeIndex": 2
+          }
+        },
+        "history": [
+          "Add Cube",
+          "Select cube",
+          "Scale",
+          "Scale",
+          "Loop Cut and Slide",
+          "Loop Cut and Slide"
+        ],
+        "objects": [
+          "cube"
+        ],
+        "selectedObjects": [],
+        "status": "LMB · Select (Shift: extend) · MMB · Orbit · RMB · Pan / context menu · Alt+Drag · Orbit · Shift+MMB · Pan · Edit · Edge · Verts 8/24 · Edges 8/44 · Faces 0/22",
+        "fileName": null,
+        "dirty": true
+      },
+      "toasts": [],
+      "shot": "shots/blender-08-loopcut-ridge.jpg"
+    },
+    {
+      "n": 9,
+      "id": "ridge",
+      "title": "Lift the ridge: select its three edges and move them up",
+      "keys": "2 (edges) · Alt+A · click · Shift+click ×2 · G Y 0.7 ↵",
+      "note": null,
+      "finding": null,
+      "ok": true,
+      "check": {
+        "lastProps": {
+          "value": [
+            0,
+            0.7,
+            0
+          ],
+          "orientation": "global",
+          "constraintAxis": [
+            false,
+            true,
+            false
+          ],
+          "proportional": false,
+          "proportionalFalloff": "smooth",
+          "proportionalSize": 1,
+          "_saved": {
+            "orientMatrix": [
+              [
+                1,
+                0,
+                0
+              ],
+              [
+                0,
+                1,
+                0
+              ],
+              [
+                0,
+                0,
+                1
+              ]
+            ],
+            "orientMatrixType": "global",
+            "orientAxis": 1,
+            "connected": false,
+            "projected": false,
+            "snap": false
+          }
+        }
+      },
+      "ms": 4771,
+      "state": {
+        "mode": "edit",
+        "selectMode": "edge",
+        "tool": "select",
+        "preset": "blender",
+        "counts": [
+          24,
+          44,
+          22
+        ],
+        "sel": [
+          4,
+          3,
+          0
+        ],
+        "modal": false,
+        "lastOp": "mesh.move",
+        "lastProps": {
+          "value": [
+            0,
+            0.7,
+            0
+          ],
+          "orientation": "global",
+          "constraintAxis": [
+            false,
+            true,
+            false
+          ],
+          "proportional": false,
+          "proportionalFalloff": "smooth",
+          "proportionalSize": 1,
+          "_saved": {
+            "orientMatrix": [
+              [
+                1,
+                0,
+                0
+              ],
+              [
+                0,
+                1,
+                0
+              ],
+              [
+                0,
+                0,
+                1
+              ]
+            ],
+            "orientMatrixType": "global",
+            "orientAxis": 1,
+            "connected": false,
+            "projected": false,
+            "snap": false
+          }
+        },
+        "history": [
+          "Add Cube",
+          "Select cube",
+          "Scale",
+          "Scale",
+          "Loop Cut and Slide",
+          "Loop Cut and Slide",
+          "Move"
+        ],
+        "objects": [
+          "cube"
+        ],
+        "selectedObjects": [],
+        "status": "LMB · Select (Shift: extend) · MMB · Orbit · RMB · Pan / context menu · Alt+Drag · Orbit · Shift+MMB · Pan · Edit · Edge · Verts 4/24 · Edges 3/44 · Faces 0/22",
+        "fileName": null,
+        "dirty": true
+      },
+      "toasts": [],
+      "shot": "shots/blender-09-ridge.jpg"
+    },
+    {
+      "n": 10,
+      "id": "frame-all",
+      "title": "Frame everything again",
+      "keys": "Home",
+      "note": null,
+      "finding": null,
+      "ok": true,
+      "ms": 1732,
+      "state": {
+        "mode": "edit",
+        "selectMode": "edge",
+        "tool": "select",
+        "preset": "blender",
+        "counts": [
+          24,
+          44,
+          22
+        ],
+        "sel": [
+          4,
+          3,
+          0
+        ],
+        "modal": false,
+        "lastOp": "mesh.move",
+        "lastProps": {
+          "value": [
+            0,
+            0.7,
+            0
+          ],
+          "orientation": "global",
+          "constraintAxis": [
+            false,
+            true,
+            false
+          ],
+          "proportional": false,
+          "proportionalFalloff": "smooth",
+          "proportionalSize": 1,
+          "_saved": {
+            "orientMatrix": [
+              [
+                1,
+                0,
+                0
+              ],
+              [
+                0,
+                1,
+                0
+              ],
+              [
+                0,
+                0,
+                1
+              ]
+            ],
+            "orientMatrixType": "global",
+            "orientAxis": 1,
+            "connected": false,
+            "projected": false,
+            "snap": false
+          }
+        },
+        "history": [
+          "Add Cube",
+          "Select cube",
+          "Scale",
+          "Scale",
+          "Loop Cut and Slide",
+          "Loop Cut and Slide",
+          "Move"
+        ],
+        "objects": [
+          "cube"
+        ],
+        "selectedObjects": [],
+        "status": "LMB · Select (Shift: extend) · MMB · Orbit · RMB · Pan / context menu · Alt+Drag · Orbit · Shift+MMB · Pan · Edit · Edge · Verts 4/24 · Edges 3/44 · Faces 0/22",
+        "fileName": null,
+        "dirty": true
+      },
+      "toasts": [],
+      "shot": "shots/blender-10-frame-all.jpg"
+    },
+    {
+      "n": 11,
+      "id": "door",
+      "title": "Door, by keys: inset the middle front face, narrow it, push it in",
+      "keys": "3 (faces) · click · I 0.1 ↵ · S X 0.6 ↵ · E -0.1 ↵",
+      "note": null,
+      "finding": null,
+      "ok": true,
+      "check": {
+        "counts": [
+          32,
+          60,
+          30
+        ],
+        "lastProps": {
+          "value": [
+            0,
+            0,
+            -0.1
+          ],
+          "orientation": "normal",
+          "constraintAxis": [
+            false,
+            false,
+            true
+          ],
+          "proportional": false,
+          "proportionalFalloff": "smooth",
+          "proportionalSize": 1,
+          "_saved": {
+            "orientMatrix": [
+              [
+                -1,
+                0,
+                0
+              ],
+              [
+                0,
+                -1,
+                0
+              ],
+              [
+                0,
+                0,
+                1
+              ]
+            ],
+            "orientMatrixType": "normal",
+            "orientAxis": 2,
+            "connected": false,
+            "projected": false,
+            "snap": false
+          }
+        }
+      },
+      "ms": 6967,
+      "state": {
+        "mode": "edit",
+        "selectMode": "face",
+        "tool": "select",
+        "preset": "blender",
+        "counts": [
+          32,
+          60,
+          30
+        ],
+        "sel": [
+          4,
+          4,
+          1
+        ],
+        "modal": false,
+        "lastOp": "mesh.extrude",
+        "lastProps": {
+          "value": [
+            0,
+            0,
+            -0.1
+          ],
+          "orientation": "normal",
+          "constraintAxis": [
+            false,
+            false,
+            true
+          ],
+          "proportional": false,
+          "proportionalFalloff": "smooth",
+          "proportionalSize": 1,
+          "_saved": {
+            "orientMatrix": [
+              [
+                -1,
+                0,
+                0
+              ],
+              [
+                0,
+                -1,
+                0
+              ],
+              [
+                0,
+                0,
+                1
+              ]
+            ],
+            "orientMatrixType": "normal",
+            "orientAxis": 2,
+            "connected": false,
+            "projected": false,
+            "snap": false
+          }
+        },
+        "history": [
+          "Add Cube",
+          "Select cube",
+          "Scale",
+          "Scale",
+          "Loop Cut and Slide",
+          "Loop Cut and Slide",
+          "Move",
+          "Inset cube",
+          "Scale",
+          "Extrude"
+        ],
+        "objects": [
+          "cube"
+        ],
+        "selectedObjects": [],
+        "status": "LMB · Select (Shift: extend) · MMB · Orbit · RMB · Pan / context menu · Alt+Drag · Orbit · Shift+MMB · Pan · Edit · Face · Verts 4/32 · Edges 4/60 · Faces 1/30",
+        "fileName": null,
+        "dirty": true
+      },
+      "toasts": [],
+      "shot": "shots/blender-11-door.jpg"
+    },
+    {
+      "n": 12,
+      "id": "window-context",
+      "title": "Window 1, from the right-click Face menu",
+      "keys": "right-click · Inset Faces · panel Thickness 0.15 ↵ · right-click · Extrude · -0.05 ↵",
+      "note": null,
+      "finding": null,
+      "ok": true,
+      "check": {
+        "counts": [
+          40,
+          76,
+          38
+        ]
+      },
+      "ms": 8149,
+      "state": {
+        "mode": "edit",
+        "selectMode": "face",
+        "tool": "select",
+        "preset": "blender",
+        "counts": [
+          40,
+          76,
+          38
+        ],
+        "sel": [
+          4,
+          4,
+          1
+        ],
+        "modal": false,
+        "lastOp": "mesh.extrude",
+        "lastProps": {
+          "value": [
+            0,
+            0,
+            -0.05
+          ],
+          "orientation": "normal",
+          "constraintAxis": [
+            false,
+            false,
+            true
+          ],
+          "proportional": false,
+          "proportionalFalloff": "smooth",
+          "proportionalSize": 1,
+          "_saved": {
+            "orientMatrix": [
+              [
+                -1,
+                0,
+                0
+              ],
+              [
+                0,
+                -1,
+                0
+              ],
+              [
+                0,
+                0,
+                1
+              ]
+            ],
+            "orientMatrixType": "normal",
+            "orientAxis": 2,
+            "connected": false,
+            "projected": false,
+            "snap": false
+          }
+        },
+        "history": [
+          "Add Cube",
+          "Select cube",
+          "Scale",
+          "Scale",
+          "Loop Cut and Slide",
+          "Loop Cut and Slide",
+          "Move",
+          "Inset cube",
+          "Scale",
+          "Extrude",
+          "Inset cube",
+          "Extrude"
+        ],
+        "objects": [
+          "cube"
+        ],
+        "selectedObjects": [],
+        "status": "LMB · Select (Shift: extend) · MMB · Orbit · RMB · Pan / context menu · Alt+Drag · Orbit · Shift+MMB · Pan · Edit · Face · Verts 4/40 · Edges 4/76 · Faces 1/38",
+        "fileName": null,
+        "dirty": true
+      },
+      "toasts": [],
+      "shot": "shots/blender-12-window-context.jpg"
+    },
+    {
+      "n": 13,
+      "id": "window-keys",
+      "title": "Window 2, by keys",
+      "keys": "click · I 0.15 ↵ · E -0.05 ↵",
+      "note": null,
+      "finding": null,
+      "ok": true,
+      "check": {
+        "counts": [
+          48,
+          92,
+          46
+        ]
+      },
+      "ms": 4920,
+      "state": {
+        "mode": "edit",
+        "selectMode": "face",
+        "tool": "select",
+        "preset": "blender",
+        "counts": [
+          48,
+          92,
+          46
+        ],
+        "sel": [
+          4,
+          4,
+          1
+        ],
+        "modal": false,
+        "lastOp": "mesh.extrude",
+        "lastProps": {
+          "value": [
+            0,
+            0,
+            -0.05
+          ],
+          "orientation": "normal",
+          "constraintAxis": [
+            false,
+            false,
+            true
+          ],
+          "proportional": false,
+          "proportionalFalloff": "smooth",
+          "proportionalSize": 1,
+          "_saved": {
+            "orientMatrix": [
+              [
+                -1,
+                0,
+                0
+              ],
+              [
+                0,
+                -1,
+                0
+              ],
+              [
+                0,
+                0,
+                1
+              ]
+            ],
+            "orientMatrixType": "normal",
+            "orientAxis": 2,
+            "connected": false,
+            "projected": false,
+            "snap": false
+          }
+        },
+        "history": [
+          "Add Cube",
+          "Select cube",
+          "Scale",
+          "Scale",
+          "Loop Cut and Slide",
+          "Loop Cut and Slide",
+          "Move",
+          "Inset cube",
+          "Scale",
+          "Extrude",
+          "Inset cube",
+          "Extrude",
+          "Inset cube",
+          "Extrude"
+        ],
+        "objects": [
+          "cube"
+        ],
+        "selectedObjects": [],
+        "status": "LMB · Select (Shift: extend) · MMB · Orbit · RMB · Pan / context menu · Alt+Drag · Orbit · Shift+MMB · Pan · Edit · Face · Verts 4/48 · Edges 4/92 · Faces 1/46",
+        "fileName": null,
+        "dirty": true
+      },
+      "toasts": [],
+      "shot": "shots/blender-13-window-keys.jpg"
+    },
+    {
+      "n": 14,
+      "id": "side-view",
+      "title": "Side view, to work on the gable end",
+      "keys": "Numpad 3 · Home",
+      "note": null,
+      "finding": null,
+      "ok": true,
+      "ms": 3320,
+      "state": {
+        "mode": "edit",
+        "selectMode": "face",
+        "tool": "select",
+        "preset": "blender",
+        "counts": [
+          48,
+          92,
+          46
+        ],
+        "sel": [
+          4,
+          4,
+          1
+        ],
+        "modal": false,
+        "lastOp": "mesh.extrude",
+        "lastProps": {
+          "value": [
+            0,
+            0,
+            -0.05
+          ],
+          "orientation": "normal",
+          "constraintAxis": [
+            false,
+            false,
+            true
+          ],
+          "proportional": false,
+          "proportionalFalloff": "smooth",
+          "proportionalSize": 1,
+          "_saved": {
+            "orientMatrix": [
+              [
+                -1,
+                0,
+                0
+              ],
+              [
+                0,
+                -1,
+                0
+              ],
+              [
+                0,
+                0,
+                1
+              ]
+            ],
+            "orientMatrixType": "normal",
+            "orientAxis": 2,
+            "connected": false,
+            "projected": false,
+            "snap": false
+          }
+        },
+        "history": [
+          "Add Cube",
+          "Select cube",
+          "Scale",
+          "Scale",
+          "Loop Cut and Slide",
+          "Loop Cut and Slide",
+          "Move",
+          "Inset cube",
+          "Scale",
+          "Extrude",
+          "Inset cube",
+          "Extrude",
+          "Inset cube",
+          "Extrude"
+        ],
+        "objects": [
+          "cube"
+        ],
+        "selectedObjects": [],
+        "status": "LMB · Select (Shift: extend) · MMB · Orbit · RMB · Pan / context menu · Alt+Drag · Orbit · Shift+MMB · Pan · Edit · Face · Verts 4/48 · Edges 4/92 · Faces 1/46",
+        "fileName": null,
+        "dirty": true
+      },
+      "toasts": [],
+      "shot": "shots/blender-14-side-view.jpg"
+    },
+    {
+      "n": 15,
+      "id": "window-toolbar",
+      "title": "Window 3, from the tool shelf: Inset Faces, then Extrude",
+      "keys": "click · Inset Faces tool · drag towards the centre · Extrude tool · move · click · panel Z = -0.05 ↵",
+      "note": null,
+      "finding": null,
+      "ok": true,
+      "check": {
+        "insetThickness": 0.148,
+        "extrudeByMouse": [
+          0,
+          0,
+          0.000468
+        ],
+        "extrude": [
+          0,
+          0,
+          -0.05
+        ]
+      },
+      "ms": 8226,
+      "state": {
+        "mode": "edit",
+        "selectMode": "face",
+        "tool": "select",
+        "preset": "blender",
+        "counts": [
+          56,
+          108,
+          54
+        ],
+        "sel": [
+          4,
+          4,
+          1
+        ],
+        "modal": false,
+        "lastOp": "mesh.extrude",
+        "lastProps": {
+          "value": [
+            0,
+            0,
+            -0.05
+          ],
+          "orientation": "normal",
+          "constraintAxis": [
+            false,
+            false,
+            true
+          ],
+          "proportional": false,
+          "proportionalFalloff": "smooth",
+          "proportionalSize": 1,
+          "_saved": {
+            "orientMatrix": [
+              [
+                0,
+                0,
+                1
+              ],
+              [
+                0,
+                -1,
+                0
+              ],
+              [
+                1,
+                0,
+                0
+              ]
+            ],
+            "orientMatrixType": "normal",
+            "orientAxis": 2,
+            "connected": false,
+            "projected": false,
+            "snap": false
+          }
+        },
+        "history": [
+          "Add Cube",
+          "Select cube",
+          "Scale",
+          "Scale",
+          "Loop Cut and Slide",
+          "Loop Cut and Slide",
+          "Move",
+          "Inset cube",
+          "Scale",
+          "Extrude",
+          "Inset cube",
+          "Extrude",
+          "Inset cube",
+          "Extrude",
+          "Inset cube",
+          "Extrude"
+        ],
+        "objects": [
+          "cube"
+        ],
+        "selectedObjects": [],
+        "status": "LMB · Select (Shift: extend) · MMB · Orbit · RMB · Pan / context menu · Alt+Drag · Orbit · Shift+MMB · Pan · Edit · Face · Verts 4/56 · Edges 4/108 · Faces 1/54",
+        "fileName": null,
+        "dirty": true
+      },
+      "toasts": [],
+      "shot": "shots/blender-15-window-toolbar.jpg"
+    },
+    {
+      "n": 16,
+      "id": "knife-porch",
+      "title": "Knife the porch outline on the gable wall",
+      "keys": "K · click 4 points · ↵",
+      "note": null,
+      "finding": null,
+      "ok": true,
+      "check": {
+        "before": [
+          56,
+          108,
+          54
+        ],
+        "after": [
+          60,
+          113,
+          55
+        ]
+      },
+      "ms": 4858,
+      "state": {
+        "mode": "edit",
+        "selectMode": "face",
+        "tool": "select",
+        "preset": "blender",
+        "counts": [
+          60,
+          113,
+          55
+        ],
+        "sel": [
+          4,
+          4,
+          1
+        ],
+        "modal": false,
+        "lastOp": null,
+        "lastProps": null,
+        "history": [
+          "Add Cube",
+          "Select cube",
+          "Scale",
+          "Scale",
+          "Loop Cut and Slide",
+          "Loop Cut and Slide",
+          "Move",
+          "Inset cube",
+          "Scale",
+          "Extrude",
+          "Inset cube",
+          "Extrude",
+          "Inset cube",
+          "Extrude",
+          "Inset cube",
+          "Extrude",
+          "Knife"
+        ],
+        "objects": [
+          "cube"
+        ],
+        "selectedObjects": [],
+        "status": "LMB · Select (Shift: extend) · MMB · Orbit · RMB · Pan / context menu · Alt+Drag · Orbit · Shift+MMB · Pan · Edit · Face · Verts 4/60 · Edges 4/113 · Faces 1/55",
+        "fileName": null,
+        "dirty": true
+      },
+      "toasts": [],
+      "shot": "shots/blender-16-knife-porch.jpg"
+    },
+    {
+      "n": 17,
+      "id": "porch",
+      "title": "Extrude the porch out of the wall",
+      "keys": "3 · click the new face · E 0.4 ↵",
+      "note": null,
+      "finding": null,
+      "ok": true,
+      "check": {
+        "counts": [
+          64,
+          121,
+          59
+        ]
+      },
+      "ms": 3112,
+      "state": {
+        "mode": "edit",
+        "selectMode": "face",
+        "tool": "select",
+        "preset": "blender",
+        "counts": [
+          64,
+          121,
+          59
+        ],
+        "sel": [
+          4,
+          4,
+          1
+        ],
+        "modal": false,
+        "lastOp": "mesh.extrude",
+        "lastProps": {
+          "value": [
+            0,
+            0,
+            0.4
+          ],
+          "orientation": "normal",
+          "constraintAxis": [
+            false,
+            false,
+            true
+          ],
+          "proportional": false,
+          "proportionalFalloff": "smooth",
+          "proportionalSize": 1,
+          "_saved": {
+            "orientMatrix": [
+              [
+                0,
+                1,
+                -6.033820976323241e-17
+              ],
+              [
+                0,
+                6.033820976323241e-17,
+                1
+              ],
+              [
+                1,
+                0,
+                0
+              ]
+            ],
+            "orientMatrixType": "normal",
+            "orientAxis": 2,
+            "connected": false,
+            "projected": false,
+            "snap": false
+          }
+        },
+        "history": [
+          "Add Cube",
+          "Select cube",
+          "Scale",
+          "Scale",
+          "Loop Cut and Slide",
+          "Loop Cut and Slide",
+          "Move",
+          "Inset cube",
+          "Scale",
+          "Extrude",
+          "Inset cube",
+          "Extrude",
+          "Inset cube",
+          "Extrude",
+          "Inset cube",
+          "Extrude",
+          "Knife",
+          "Extrude"
+        ],
+        "objects": [
+          "cube"
+        ],
+        "selectedObjects": [],
+        "status": "LMB · Select (Shift: extend) · MMB · Orbit · RMB · Pan / context menu · Alt+Drag · Orbit · Shift+MMB · Pan · Edit · Face · Verts 4/64 · Edges 4/121 · Faces 1/59",
+        "fileName": null,
+        "dirty": true
+      },
+      "toasts": [],
+      "shot": "shots/blender-17-porch.jpg"
+    },
+    {
+      "n": 18,
+      "id": "orbit-back",
+      "title": "Orbit back to a three-quarter view",
+      "keys": "middle-drag",
+      "note": null,
+      "finding": null,
+      "ok": true,
+      "check": {
+        "camera": [
+          -2.41,
+          6.26,
+          0.8
+        ]
+      },
+      "ms": 3076,
+      "state": {
+        "mode": "edit",
+        "selectMode": "face",
+        "tool": "select",
+        "preset": "blender",
+        "counts": [
+          64,
+          121,
+          59
+        ],
+        "sel": [
+          4,
+          4,
+          1
+        ],
+        "modal": false,
+        "lastOp": "mesh.extrude",
+        "lastProps": {
+          "value": [
+            0,
+            0,
+            0.4
+          ],
+          "orientation": "normal",
+          "constraintAxis": [
+            false,
+            false,
+            true
+          ],
+          "proportional": false,
+          "proportionalFalloff": "smooth",
+          "proportionalSize": 1,
+          "_saved": {
+            "orientMatrix": [
+              [
+                0,
+                1,
+                -6.033820976323241e-17
+              ],
+              [
+                0,
+                6.033820976323241e-17,
+                1
+              ],
+              [
+                1,
+                0,
+                0
+              ]
+            ],
+            "orientMatrixType": "normal",
+            "orientAxis": 2,
+            "connected": false,
+            "projected": false,
+            "snap": false
+          }
+        },
+        "history": [
+          "Add Cube",
+          "Select cube",
+          "Scale",
+          "Scale",
+          "Loop Cut and Slide",
+          "Loop Cut and Slide",
+          "Move",
+          "Inset cube",
+          "Scale",
+          "Extrude",
+          "Inset cube",
+          "Extrude",
+          "Inset cube",
+          "Extrude",
+          "Inset cube",
+          "Extrude",
+          "Knife",
+          "Extrude"
+        ],
+        "objects": [
+          "cube"
+        ],
+        "selectedObjects": [],
+        "status": "LMB · Select (Shift: extend) · MMB · Orbit · RMB · Pan / context menu · Alt+Drag · Orbit · Shift+MMB · Pan · Edit · Face · Verts 4/64 · Edges 4/121 · Faces 1/59",
+        "fileName": null,
+        "dirty": true
+      },
+      "toasts": [],
+      "shot": "shots/blender-18-orbit-back.jpg"
+    },
+    {
+      "n": 19,
+      "id": "chimney",
+      "title": "Chimney: inset a roof face, extrude it straight up",
+      "keys": "click · I 0.22 ↵ · E Y 0.5 ↵",
+      "note": "Y locks the axis while extruding: the status strip lists X / Y / Z.",
+      "finding": null,
+      "ok": true,
+      "check": {
+        "counts": [
+          72,
+          137,
+          67
+        ],
+        "lastProps": {
+          "value": [
+            0,
+            0.5,
+            0
+          ],
+          "orientation": "global",
+          "constraintAxis": [
+            false,
+            true,
+            false
+          ],
+          "proportional": false,
+          "proportionalFalloff": "smooth",
+          "proportionalSize": 1,
+          "_saved": {
+            "orientMatrix": [
+              [
+                1,
+                0,
+                0
+              ],
+              [
+                0,
+                1,
+                0
+              ],
+              [
+                0,
+                0,
+                1
+              ]
+            ],
+            "orientMatrixType": "global",
+            "orientAxis": 1,
+            "connected": false,
+            "projected": false,
+            "snap": false
+          }
+        }
+      },
+      "ms": 5023,
+      "state": {
+        "mode": "edit",
+        "selectMode": "face",
+        "tool": "select",
+        "preset": "blender",
+        "counts": [
+          72,
+          137,
+          67
+        ],
+        "sel": [
+          4,
+          4,
+          1
+        ],
+        "modal": false,
+        "lastOp": "mesh.extrude",
+        "lastProps": {
+          "value": [
+            0,
+            0.5,
+            0
+          ],
+          "orientation": "global",
+          "constraintAxis": [
+            false,
+            true,
+            false
+          ],
+          "proportional": false,
+          "proportionalFalloff": "smooth",
+          "proportionalSize": 1,
+          "_saved": {
+            "orientMatrix": [
+              [
+                1,
+                0,
+                0
+              ],
+              [
+                0,
+                1,
+                0
+              ],
+              [
+                0,
+                0,
+                1
+              ]
+            ],
+            "orientMatrixType": "global",
+            "orientAxis": 1,
+            "connected": false,
+            "projected": false,
+            "snap": false
+          }
+        },
+        "history": [
+          "Add Cube",
+          "Select cube",
+          "Scale",
+          "Scale",
+          "Loop Cut and Slide",
+          "Loop Cut and Slide",
+          "Move",
+          "Inset cube",
+          "Scale",
+          "Extrude",
+          "Inset cube",
+          "Extrude",
+          "Inset cube",
+          "Extrude",
+          "Inset cube",
+          "Extrude",
+          "Knife",
+          "Extrude",
+          "Inset cube",
+          "Extrude"
+        ],
+        "objects": [
+          "cube"
+        ],
+        "selectedObjects": [],
+        "status": "LMB · Select (Shift: extend) · MMB · Orbit · RMB · Pan / context menu · Alt+Drag · Orbit · Shift+MMB · Pan · Edit · Face · Verts 4/72 · Edges 4/137 · Faces 1/67",
+        "fileName": null,
+        "dirty": true
+      },
+      "toasts": [],
+      "shot": "shots/blender-19-chimney.jpg"
+    },
+    {
+      "n": 20,
+      "id": "bevel",
+      "title": "Bevel the ridge, then add segments in the redo panel",
+      "keys": "2 · click the ridge edges · Ctrl+B 0.06 ↵ · panel Segments = 3 ↵",
+      "note": null,
+      "finding": null,
+      "ok": true,
+      "check": {
+        "ridgeEdges": 3,
+        "counts": [
+          88,
+          166,
+          80
+        ],
+        "lastProps": {
+          "offset": 0.06,
+          "segments": 3
+        }
+      },
+      "ms": 6230,
+      "state": {
+        "mode": "edit",
+        "selectMode": "edge",
+        "tool": "select",
+        "preset": "blender",
+        "counts": [
+          88,
+          166,
+          80
+        ],
+        "sel": [
+          20,
+          32,
+          13
+        ],
+        "modal": false,
+        "lastOp": "mesh.bevel",
+        "lastProps": {
+          "offset": 0.06,
+          "segments": 3
+        },
+        "history": [
+          "Add Cube",
+          "Select cube",
+          "Scale",
+          "Scale",
+          "Loop Cut and Slide",
+          "Loop Cut and Slide",
+          "Move",
+          "Inset cube",
+          "Scale",
+          "Extrude",
+          "Inset cube",
+          "Extrude",
+          "Inset cube",
+          "Extrude",
+          "Inset cube",
+          "Extrude",
+          "Knife",
+          "Extrude",
+          "Inset cube",
+          "Extrude",
+          "Bevel cube"
+        ],
+        "objects": [
+          "cube"
+        ],
+        "selectedObjects": [],
+        "status": "LMB · Select (Shift: extend) · MMB · Orbit · RMB · Pan / context menu · Alt+Drag · Orbit · Shift+MMB · Pan · Edit · Edge · Verts 20/88 · Edges 32/166 · Faces 13/80",
+        "fileName": null,
+        "dirty": true
+      },
+      "toasts": [],
+      "shot": "shots/blender-20-bevel.jpg"
+    },
+    {
+      "n": 21,
+      "id": "undo-redo",
+      "title": "Undo three steps, redo them, in the History tab",
+      "keys": "History tab · Ctrl+Z ×3 · Ctrl+Shift+Z ×3",
+      "note": null,
+      "finding": null,
+      "ok": true,
+      "check": {
+        "undone": 3,
+        "counts": [
+          88,
+          166,
+          80
+        ]
+      },
+      "ms": 6419,
+      "state": {
+        "mode": "edit",
+        "selectMode": "face",
+        "tool": "select",
+        "preset": "blender",
+        "counts": [
+          88,
+          166,
+          80
+        ],
+        "sel": [
+          20,
+          32,
+          13
+        ],
+        "modal": false,
+        "lastOp": null,
+        "lastProps": null,
+        "history": [
+          "Add Cube",
+          "Select cube",
+          "Scale",
+          "Scale",
+          "Loop Cut and Slide",
+          "Loop Cut and Slide",
+          "Move",
+          "Inset cube",
+          "Scale",
+          "Extrude",
+          "Inset cube",
+          "Extrude",
+          "Inset cube",
+          "Extrude",
+          "Inset cube",
+          "Extrude",
+          "Knife",
+          "Extrude",
+          "Inset cube",
+          "Extrude",
+          "Bevel cube"
+        ],
+        "objects": [
+          "cube"
+        ],
+        "selectedObjects": [],
+        "status": "LMB · Select (Shift: extend) · MMB · Orbit · RMB · Pan / context menu · Alt+Drag · Orbit · Shift+MMB · Pan · Edit · Face · Verts 20/88 · Edges 32/166 · Faces 13/80",
+        "fileName": null,
+        "dirty": true
+      },
+      "toasts": [],
+      "shot": "shots/blender-21-undo-redo.jpg"
+    },
+    {
+      "n": 22,
+      "id": "shade-smooth",
+      "title": "Shade Smooth / Flat? Search for it",
+      "keys": "F3 · \"smooth\"",
+      "note": "No Shade Smooth/Flat operator exists (Blender: Face menu, context menu).",
+      "finding": true,
+      "ok": true,
+      "check": {
+        "paletteResults": [
+          "SubdivideCut each selected edge into equal parts and split the faces between them. Set the number of cuts and the smoothness in the panel.Mesh",
+          "Subdivide Edge-RingCut the faces between selected edge rings, with a smooth or shaped profile (Blender's Edge > Subdivide Edge-Ring).Mesh"
+        ]
+      },
+      "ms": 3729,
+      "state": {
+        "mode": "edit",
+        "selectMode": "face",
+        "tool": "select",
+        "preset": "blender",
+        "counts": [
+          88,
+          166,
+          80
+        ],
+        "sel": [
+          20,
+          32,
+          13
+        ],
+        "modal": false,
+        "lastOp": null,
+        "lastProps": null,
+        "history": [
+          "Add Cube",
+          "Select cube",
+          "Scale",
+          "Scale",
+          "Loop Cut and Slide",
+          "Loop Cut and Slide",
+          "Move",
+          "Inset cube",
+          "Scale",
+          "Extrude",
+          "Inset cube",
+          "Extrude",
+          "Inset cube",
+          "Extrude",
+          "Inset cube",
+          "Extrude",
+          "Knife",
+          "Extrude",
+          "Inset cube",
+          "Extrude",
+          "Bevel cube"
+        ],
+        "objects": [
+          "cube"
+        ],
+        "selectedObjects": [],
+        "status": "LMB · Select (Shift: extend) · MMB · Orbit · RMB · Pan / context menu · Alt+Drag · Orbit · Shift+MMB · Pan · Edit · Face · Verts 20/88 · Edges 32/166 · Faces 13/80",
+        "fileName": null,
+        "dirty": true
+      },
+      "toasts": [],
+      "shot": "shots/blender-22-shade-smooth.jpg"
+    },
+    {
+      "n": 23,
+      "id": "object-mode",
+      "title": "Back to Object mode",
+      "keys": "Tab",
+      "note": null,
+      "finding": null,
+      "ok": true,
+      "check": {
+        "finalCounts": [
+          88,
+          166,
+          80
+        ]
+      },
+      "ms": 1486,
+      "state": {
+        "mode": "object",
+        "selectMode": "face",
+        "tool": "select",
+        "preset": "blender",
+        "counts": null,
+        "sel": null,
+        "modal": false,
+        "lastOp": null,
+        "lastProps": null,
+        "history": [
+          "Add Cube",
+          "Select cube",
+          "Scale",
+          "Scale",
+          "Loop Cut and Slide",
+          "Loop Cut and Slide",
+          "Move",
+          "Inset cube",
+          "Scale",
+          "Extrude",
+          "Inset cube",
+          "Extrude",
+          "Inset cube",
+          "Extrude",
+          "Inset cube",
+          "Extrude",
+          "Knife",
+          "Extrude",
+          "Inset cube",
+          "Extrude",
+          "Bevel cube"
+        ],
+        "objects": [
+          "cube"
+        ],
+        "selectedObjects": [
+          "cube"
+        ],
+        "status": "LMB · Select (Shift: extend) · MMB · Orbit · RMB · Pan / context menu · Alt+Drag · Orbit · Shift+MMB · Pan · Object · Objects 1/1 · Verts 332 · Tris 172",
+        "fileName": null,
+        "dirty": true
+      },
+      "toasts": [],
+      "shot": "shots/blender-23-object-mode.jpg"
+    },
+    {
+      "n": 24,
+      "id": "save",
+      "title": "File > Save As… house.glb",
+      "keys": "File menu · Save As… · name · Save",
+      "note": null,
+      "finding": null,
+      "ok": true,
+      "check": {
+        "file": "house-blender.glb",
+        "bytes": 21756
+      },
+      "ms": 3842,
+      "state": {
+        "mode": "object",
+        "selectMode": "face",
+        "tool": "select",
+        "preset": "blender",
+        "counts": null,
+        "sel": null,
+        "modal": false,
+        "lastOp": null,
+        "lastProps": null,
+        "history": [
+          "Add Cube",
+          "Select cube",
+          "Scale",
+          "Scale",
+          "Loop Cut and Slide",
+          "Loop Cut and Slide",
+          "Move",
+          "Inset cube",
+          "Scale",
+          "Extrude",
+          "Inset cube",
+          "Extrude",
+          "Inset cube",
+          "Extrude",
+          "Inset cube",
+          "Extrude",
+          "Knife",
+          "Extrude",
+          "Inset cube",
+          "Extrude",
+          "Bevel cube"
+        ],
+        "objects": [
+          "cube"
+        ],
+        "selectedObjects": [
+          "cube"
+        ],
+        "status": "LMB · Select (Shift: extend) · MMB · Orbit · RMB · Pan / context menu · Alt+Drag · Orbit · Shift+MMB · Pan · Object · Objects 1/1 · Verts 332 · Tris 172",
+        "fileName": "house-blender",
+        "dirty": false
+      },
+      "toasts": [
+        "Saved house-blender.glb to your downloads. It re-opens editable with File > Open (Ctrl+O).",
+        "Saved house-blender.glb to your downloads. It re-opens editable with File > Open (Ctrl+O)."
+      ],
+      "shot": "shots/blender-24-save.jpg"
+    },
+    {
+      "n": 25,
+      "id": "reopen",
+      "title": "File > Open… the saved .glb: the house comes back editable",
+      "keys": "File menu · Open… · pick house.glb · Tab",
+      "note": null,
+      "finding": null,
+      "ok": true,
+      "check": {
+        "saved": [
+          88,
+          166,
+          80
+        ],
+        "reopened": [
+          88,
+          166,
+          80
+        ],
+        "same": true
+      },
+      "ms": 3698,
+      "state": {
+        "mode": "object",
+        "selectMode": "face",
+        "tool": "select",
+        "preset": "blender",
+        "counts": null,
+        "sel": null,
+        "modal": false,
+        "lastOp": null,
+        "lastProps": null,
+        "history": [],
+        "objects": [
+          "cube"
+        ],
+        "selectedObjects": [
+          "cube"
+        ],
+        "status": "LMB · Select (Shift: extend) · MMB · Orbit · RMB · Pan / context menu · Alt+Drag · Orbit · Shift+MMB · Pan · Object · Objects 1/1 · Verts 332 · Tris 172",
+        "fileName": "house-blender",
+        "dirty": false
+      },
+      "toasts": [],
+      "shot": "shots/blender-25-reopen.jpg"
+    },
+    {
+      "n": 26,
+      "id": "final-orbit",
+      "title": "The house",
+      "keys": "middle-drag to orbit",
+      "note": null,
+      "finding": null,
+      "ok": true,
+      "ms": 6244,
+      "state": {
+        "mode": "object",
+        "selectMode": "face",
+        "tool": "select",
+        "preset": "blender",
+        "counts": null,
+        "sel": null,
+        "modal": false,
+        "lastOp": null,
+        "lastProps": null,
+        "history": [],
+        "objects": [
+          "cube"
+        ],
+        "selectedObjects": [
+          "cube"
+        ],
+        "status": "LMB · Select (Shift: extend) · MMB · Orbit · RMB · Pan / context menu · Alt+Drag · Orbit · Shift+MMB · Pan · Object · Objects 1/1 · Verts 332 · Tris 172",
+        "fileName": "house-blender",
+        "dirty": false
+      },
+      "toasts": [],
+      "shot": "shots/blender-26-final-orbit.jpg"
+    }
+  ],
+  "errors": [],
+  "crashed": false,
+  "roundTrip": {
+    "saved": [
+      88,
+      166,
+      80
+    ],
+    "reopened": [
+      88,
+      166,
+      80
+    ],
+    "same": true
+  },
+  "finalCounts": [
+    88,
+    166,
+    80
+  ],
+  "finished": "2026-10-18T09:08:20.501Z",
+  "seconds": 170,
+  "video": "video-blender.webm"
+}

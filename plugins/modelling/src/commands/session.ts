@@ -8,11 +8,12 @@
  */
 
 import {
-    Box3, Box3B, getFittingDistance, ICamera, iCameraCommons, OrthographicCamera2, PerspectiveCamera2, ThreeViewer,
+    Box3, Box3B, getFittingDistance, ICamera, iCameraCommons, IObject3D, OrthographicCamera2, PerspectiveCamera2, ThreeViewer,
     Vector3,
 } from 'threepipe'
-import {bakeGeometry, MeshData} from '@threepipe/mesh-kernel'
-import {CommandDefinition, S, schema} from './types'
+import {bakeGeometry, measureMesh, MeshData} from '@threepipe/mesh-kernel'
+import {summariseMeasure} from './checks'
+import {CommandContext, CommandDefinition, S, schema} from './types'
 import {meshBounds, readTargets, readVec3, Vec3Tuple} from './params'
 import {ModellingEntry} from '../document'
 
@@ -70,7 +71,7 @@ function ensureFarPlane(viewer: ThreeViewer): number | null {
 }
 
 /** Named orientations, as unit directions from the target towards the camera. */
-const STANDARD_VIEWS: Record<string, Vec3Tuple> = {
+export const STANDARD_VIEWS: Record<string, Vec3Tuple> = {
     front: [0, 0, 1],
     back: [0, 0, -1],
     right: [1, 0, 0],
@@ -86,7 +87,7 @@ const STANDARD_VIEWS: Record<string, Vec3Tuple> = {
  * `Box3B` rather than `Box3`: its `expandByObject` takes threepipe's precise-bounds flags, which is
  * what `camera.fitObject` uses, so framing computed here matches framing computed there.
  */
-function worldBounds(objects: ModellingEntry[]): Box3B {
+export function worldBounds(objects: ModellingEntry[]): Box3B {
     const box = new Box3B()
     for (const e of objects) {
         e.object.updateWorldMatrix(true, true)
@@ -127,7 +128,7 @@ function switchCamera(viewer: ThreeViewer, next: ICamera): void {
  * camera now looks, with `margin` to spare: the box's corners projected onto the camera's right and up
  * axes, with the width folded in through the aspect ratio.
  */
-function orthographicFrustumFor(camera: ICamera, box: Box3, margin: number): number {
+export function orthographicFrustumFor(camera: ICamera, box: Box3, margin: number): number {
     camera.updateMatrixWorld(true)
     const e = camera.matrixWorld.elements
     const right = new Vector3(e[0], e[1], e[2]).normalize()
@@ -188,6 +189,19 @@ export const cameraCommand: CommandDefinition = {
     }),
 
     async run(p: Record<string, unknown>, ctx) {
+        const out = await runCamera(p, ctx)
+        // Remember where the session put the camera, so `look {view: 'camera'}` can come back to it
+        // after a person has orbited the viewport in between.
+        const camera = ctx.viewer.scene.mainCamera
+        ctx.plugin.sessionCamera = {
+            position: camera.position.toArray() as Vec3Tuple, target: camera.target.toArray() as Vec3Tuple,
+        }
+        return out
+    },
+}
+
+async function runCamera(p: Record<string, unknown>, ctx: CommandContext) {
+    {
         const viewer = ctx.viewer
         const views = viewer.getPlugin<any>('CameraViews')
         const duration = (p.duration as number) ?? 0
@@ -340,7 +354,7 @@ export const cameraCommand: CommandDefinition = {
                 ...describeLens(),
             },
         }
-    },
+    }
 }
 
 function selectedEntries(ctx: {viewer: any, doc: any}): ModellingEntry[] {
@@ -386,19 +400,22 @@ export const captureCommand: CommandDefinition = {
 
 export const inspectCommand: CommandDefinition = {
     op: 'inspect',
-    summary: 'Report an object\'s counts, bounds, transform and - with `detail` - its vertices.',
+    summary: 'Report an object\'s counts, bounds, transform and - with `detail` - its vertices, edges and faces.',
     description:
         'The reply is what a later `vertices` or `transform` command needs in order to address '
         + 'anything: indices are the ones those commands take. With no object, it summarises the '
         + 'whole document.\n\n'
         + '`detail` lists `vertices` (positions), `faceVerts` (each face\'s vertex indices, in face '
-        + 'index order) and `edgeVerts` (each edge\'s two vertex indices, in edge index order) - the '
-        + 'indices `bevel`, `subdivide` and `deleteElements` take for `edges`.',
+        + 'index order), `edgeVerts` (each edge\'s two vertex indices, in edge index order) - the '
+        + 'indices `bevel`, `subdivide` and `deleteElements` take for `edges` - and `faceEdges` (each '
+        + 'face\'s edge indices, in corner order).\n\n'
+        + '`bounds` is the master mesh in object space - what the indices address; with a modifier stack '
+        + '`evaluatedBounds` is the drawn shape, and `worldBounds` is always the drawn shape in world space.',
     mutates: false,
     schema: schema({
         object: S.objectRef('Objects to inspect. Omit to summarise the document.'),
         objects: S.objectRef('Alias for `object`.'),
-        detail: S.boolean('Include per-vertex positions, per-face vertex lists and per-edge vertex pairs.'),
+        detail: S.boolean('Include per-vertex positions, per-face vertex and edge lists and per-edge vertex pairs.'),
         limit: S.integer('Cap on detailed vertices, faces and edges per object. Default 400.', {minimum: 1}),
     }),
 
@@ -441,12 +458,29 @@ export const inspectCommand: CommandDefinition = {
                 scale: o.scale.toArray(),
                 bounds: meshBounds(entry.mesh),
             }
+            // `bounds` is the master - what vertex indices address. When a modifier stack is present the
+            // drawn shape differs, so report that too, and in world space, which is what a dimension
+            // check against a drawing wants.
+            if (entry.modifiers.length) {
+                base.evaluatedBounds = meshBounds(entry.evaluated)
+                base.evaluated = {verts: entry.evaluated.vertsNum, edges: entry.evaluated.edgesNum, faces: entry.evaluated.facesNum}
+            }
+            o.updateWorldMatrix(true, false)
+            const world = new Box3().expandByObject(o as never)
+            base.worldBounds = world.isEmpty() ? null : {
+                min: world.min.toArray().map(round), max: world.max.toArray().map(round),
+                size: world.getSize(new Vector3()).toArray().map(round),
+            }
             if (p.detail) {
                 const detail = meshDetail(entry.mesh, limit)
                 Object.assign(base, detail)
                 if (detail.verticesTruncated) {
                     ctx.warn(`"${entry.name}" has ${entry.mesh.vertsNum} vertices; listed the first ${limit}`)
                 }
+                // Per face, its edges in corner order, so "the edges of face 3" needs no geometry.
+                const mesh = entry.mesh
+                base.faceEdges = Array.from({length: detail.faceVerts.length}, (_, i) =>
+                    Array.from(mesh.cornerEdges.subarray(mesh.faceOffsets[i], mesh.faceOffsets[i + 1])))
             }
             return base
         })
@@ -508,8 +542,9 @@ export const measureCommand: CommandDefinition = {
     schema: schema({
         object: S.objectRef('Objects to measure. Default everything.'),
         objects: S.objectRef('Alias for `object`.'),
-        mode: S.enum('`bounds` reports each object\'s world box; `overlaps` reports intersecting pairs.',
-            ['bounds', 'overlaps']),
+        mode: S.enum('`bounds` reports each object\'s world box; `overlaps` reports intersecting pairs; '
+            + '`topology` reports counts, area, volume, closed/winding, Euler characteristic, holes and layers.',
+            ['bounds', 'overlaps', 'topology']),
         tolerance: S.number('Ignore overlaps smaller than this on every axis. Default 0.'),
     }),
 
@@ -521,6 +556,16 @@ export const measureCommand: CommandDefinition = {
             e.object.updateWorldMatrix(true, true)
             return {entry: e, box: new Box3().expandByObject(e.object as never)}
         })
+
+        if (mode === 'topology') {
+            return {
+                objects: entries.map(e => e.name),
+                data: entries.map(e => {
+                    e.object.updateWorldMatrix(true, false)
+                    return {name: e.name, ...summariseMeasure(measureMesh(e.evaluated, {matrix: e.object.matrixWorld.elements}))}
+                }),
+            }
+        }
 
         if (mode === 'bounds') {
             return {
@@ -691,14 +736,34 @@ export const exportCommand: CommandDefinition = {
     schema: schema({
         format: S.enum('Output format. Default `glb`.', ['glb', 'gltf']),
         path: S.string('Write to this file. Node only, or when a capture sink is set.'),
-        objects: S.objectRef('Export only these objects. Default the whole scene.'),
+        objects: S.objectRef('Export only these objects (and the groups they sit in). Default the whole scene.'),
         includeData: S.boolean('Return the file as base64 in the result, for a caller that will '
             + 'write it itself. Off by default - it is large.'),
+        viewerConfig: S.boolean('Bundle the viewer and scene settings (camera, environment, plugins). '
+            + 'Default true; false writes a model-only file.'),
+        uuids: S.boolean('Write object UUIDs into the file (threepipe\'s `preserveUUIDs`). Default true. A '
+            + 'replay of the same transcript under the same `documentId` writes the same document UUIDs, but '
+            + 'the viewer\'s own scene root is random per page - so for a byte-comparable model file use '
+            + '`viewerConfig: false, uuids: false`.'),
     }),
 
     async run(p: Record<string, unknown>, ctx) {
         const binary = ((p.format as string) ?? 'glb') === 'glb'
-        const blob = await ctx.viewer.exportScene({exportExt: binary ? 'glb' : 'gltf'})
+        if (p.objects !== undefined) {
+            ctx.warn('`objects` marks the other objects `excludeFromExport`, which threepipe\'s exporter does not honour '
+                + 'yet - they are written as hidden nodes (issues/open/threepipe-exclude-from-export-ignored.md)')
+        }
+        const restore = p.objects !== undefined ? excludeAllBut(ctx.doc.resolve(p.objects as string | string[]).map(e => e.object), ctx) : null
+        let blob
+        try {
+            blob = await ctx.viewer.exportScene({
+                exportExt: binary ? 'glb' : 'gltf',
+                ...p.viewerConfig === false ? {viewerConfig: false} : {},
+                ...p.uuids === false ? {preserveUUIDs: false} : {},
+            })
+        } finally {
+            restore?.()
+        }
         if (!blob) throw new Error('the exporter returned nothing')
         const buffer = new Uint8Array(await blob.arrayBuffer())
         if (p.path) await ctx.plugin.writeFile(p.path as string, buffer)
@@ -713,6 +778,34 @@ export const exportCommand: CommandDefinition = {
     },
 }
 
+/**
+ * Leave everything but `keep` out of the next export, the way threepipe's exporter leaves out any object
+ * marked `userData.excludeFromExport` (`AssetExporter.exportObject`), and return how to undo it.
+ *
+ * A kept object takes its whole subtree; its ancestors stay as the transforms it sits in; every other
+ * branch is excluded. Objects that were already excluded stay that way.
+ */
+function excludeAllBut(keep: IObject3D[], ctx: CommandContext): () => void {
+    const kept = new Set(keep)
+    const onPath = new Set<IObject3D>()
+    for (const o of keep) for (let p = o.parent as IObject3D | null; p; p = p.parent as IObject3D | null) onPath.add(p)
+    const marked: IObject3D[] = []
+    const walk = (node: IObject3D) => {
+        for (const child of node.children as IObject3D[]) {
+            if (kept.has(child)) continue
+            if (onPath.has(child)) walk(child)
+            else if (!child.userData.excludeFromExport) {
+                child.userData.excludeFromExport = true
+                marked.push(child)
+            }
+        }
+    }
+    walk(ctx.viewer.scene.modelRoot as IObject3D)
+    return () => {
+        for (const o of marked) delete o.userData.excludeFromExport
+    }
+}
+
 export const helpCommand: CommandDefinition = {
     op: 'help',
     summary: 'List the available commands, or describe one in full.',
@@ -721,14 +814,23 @@ export const helpCommand: CommandDefinition = {
         + 'The parameter is `command`, not `op`: a command object already has an `op` key, so '
         + '`{op: "help", op: "lathe"}` is not expressible in JSON.',
     mutates: false,
-    schema: schema({command: S.string('A command name. Omit for the list.')}),
+    schema: schema({
+        command: S.string('A command name. Omit for the list.'),
+        group: S.string('List only this group (`create`, `edit`, `shape`, ...).'),
+    }),
 
     run(p: Record<string, unknown>, ctx) {
+        const registry = ctx.plugin.commands
         if (p.command === undefined) {
+            const groups = registry.groups()
+            if (p.group !== undefined && !groups[p.group as string]) {
+                throw new Error(`no group "${p.group}" - have: ${Object.keys(groups).join(', ')}`)
+            }
             return {
-                data: ctx.plugin.commands.all()
+                data: registry.all()
+                    .filter(d => p.group === undefined || registry.groupOf(d.op) === p.group)
                     .sort((a, b) => a.op.localeCompare(b.op))
-                    .map(d => ({op: d.op, summary: d.summary, mutates: d.mutates})),
+                    .map(d => ({op: d.op, summary: d.summary, mutates: d.mutates, group: registry.groupOf(d.op)})),
             }
         }
         const def = ctx.plugin.commands.get(p.command as string)
@@ -742,6 +844,7 @@ export const helpCommand: CommandDefinition = {
                 summary: def.summary,
                 description: def.description ?? null,
                 mutates: def.mutates,
+                group: registry.groupOf(def.op),
                 inputSchema: def.schema,
             },
         }

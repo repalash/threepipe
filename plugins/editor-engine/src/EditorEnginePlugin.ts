@@ -35,6 +35,7 @@ import {
     KeymapApi,
     KeymapPreset,
     LabelledUndoCommand,
+    LastLook,
     LastOperation,
     MenuDescriptor,
     MenuRequestItem,
@@ -118,6 +119,12 @@ export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implemen
     private _keymap = new Keymap(blenderPreset)
     private _activeTool: ToolDescriptor | null = null
     private _lastOperation: LastOperation | null = null
+    private _lastLook: LastLook | null = null
+
+    /** The most recent `look` render in this page, from any caller. See {@link LastLook}. */
+    get lastLook(): LastLook | null {
+        return this._lastLook
+    }
     private _lastStep: unknown = null
     private _pendingModal: {operator: OperatorDescriptor, props: Record<string, unknown>} | null = null
     private _redoing = false
@@ -286,6 +293,11 @@ export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implemen
             }
         })
         if (this.modelling) {
+            this._on(this.modelling, 'commandRun', (e: {command: Record<string, unknown>, result: {ok: boolean, op: string, index: number, data?: unknown}}) => {
+                if (e.result.op !== 'look' || !e.result.ok || !e.result.data) return
+                this._lastLook = {command: e.command, data: e.result.data as Record<string, unknown>, index: e.result.index, time: Date.now()}
+                this.dispatchEvent({type: 'lookChanged', look: this._lastLook})
+            })
             this._on(this.modelling, 'documentChanged', (e: {source?: string}) => {
                 // A command, or an undo of one, changed the document underneath a live edit session:
                 // the session is a view of the document, so it reloads. A sink change came *from* the
@@ -648,7 +660,9 @@ export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implemen
             this.history.pendingLabel = null
         }
         if (!result.ok && result.error) this.message('error', `${op.label}: ${result.error}`)
-        for (const w of result.warnings ?? []) this.message('warning', w)
+        // A modal's intermediate re-runs (an inset or bevel being dragged or typed) keep their warnings to
+        // themselves; the modal shows the final run's when it is confirmed.
+        if (!this.propDrag?.applying) for (const w of result.warnings ?? []) this.message('warning', w)
         if (result.ok && op.flags?.register) {
             const finalProps = result.props ?? props ?? {}
             if (result.modal) {

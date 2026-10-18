@@ -140,11 +140,11 @@ async function init() {
 
     // A clicked button keeps keyboard focus, and keys typed into a button belong to it, not to the
     // viewport: give focus back so the hotkeys keep working after a click.
-    for (const b of document.querySelectorAll<HTMLButtonElement>('#panel button')) {
+    for (const b of Array.from(document.querySelectorAll<HTMLButtonElement>('#panel button'))) {
         b.addEventListener('click', () => b.blur())
     }
 
-    for (const b of document.querySelectorAll<HTMLButtonElement>('[data-op]')) {
+    for (const b of Array.from(document.querySelectorAll<HTMLButtonElement>('[data-op]'))) {
         b.addEventListener('click', async() => {
             await load[b.dataset.op as keyof typeof load]()
             refresh()
