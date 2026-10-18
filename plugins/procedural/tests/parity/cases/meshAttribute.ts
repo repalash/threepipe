@@ -96,9 +96,7 @@ export function meshAttributeCases(): ParityCase[] {
             return g
         })
     }
-    add('capture-point-matrix-on-edge', 'A matrix captured on points read on edges (mix2 of float4x4 = polar decomposition, math_matrix.cc:336)', {
-        blocked: 'math::interpolate(float4x4) needs Eigen JacobiSVD (math_matrix.cc:336), not ported - issues/open/modelling-tools/procedural-eigen-port-licence.md',
-    }, () => {
+    add('capture-point-matrix-on-edge', 'A matrix captured on points read on edges (mix2 of float4x4 = polar decomposition, math_matrix.cc:336)', {}, () => {
         const c = capture(n.MeshGrid({verticesX: 3, verticesY: 2}).mesh, 'POINT', [everyType()[6]])
         return storeAll(c.geometry, 'EDGE', 'm', c.values)
     })
