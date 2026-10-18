@@ -10,5 +10,6 @@
  "collection-info-relative": "exact",
  "collection-info-relative-separate": "exact",
  "collection-info-relative-separate-reset": "exact",
- "collection-info-relative-realized": "exact"
+ "collection-info-relative-realized": "exact",
+ "scene-time": "exact"
 }

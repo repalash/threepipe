@@ -52,6 +52,11 @@ export function meshPrimitiveCases(): ParityCase[] {
     }
     add('uv-sphere-normals', 'UV Sphere vertex normals are the assigned unit positions (mesh_vert_normals_assign), read after a store', {}, () =>
         store(n.MeshUVSphere({segments: 12, rings: 7}).mesh, 'POINT', 'n', n.Normal().normal))
+    add('normals-after-set-position', 'Normals read after Set Position moved vertices along the normals (the write drops the cached normals)', {}, () => {
+        const g = n.SetPosition({geometry: n.MeshGrid({verticesX: 4, verticesY: 3}).mesh,
+            offset: n.Normal().normal.mul(mod(index(), 3).mul(0.4))}).geometry
+        return store(store(g, 'POINT', 'n', n.Normal().normal), 'FACE', 'fn', n.Normal().normal)
+    })
 
     // region Bounding Box
     const box = (g: Socket<'GEOMETRY'>, useRadius = true) => {

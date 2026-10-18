@@ -47,7 +47,9 @@ export interface EvalOptions {
     scene?: SceneProvider
     /** The object the modifier runs on (Self Object, relative transforms). */
     selfObject?: string
-    /** Scene time in seconds and frame (Scene Time node). */
-    seconds?: number
-    frame?: number
+    /**
+     * The scene's current time for Scene Time: `ctime` (`BKE_scene_ctime_get`, `(frame + subframe) * framelen`) and
+     * the frame rate `fps / fps_base`. Default: Blender's new scene, frame 1 at 24 fps.
+     */
+    time?: {ctime: number, frameRate: number}
 }

@@ -1,0 +1,18 @@
+{
+ "resample-count": "exact",
+ "resample-count-selection": "exact",
+ "resample-length": "exact",
+ "resample-length-no-last-segment": "exact",
+ "resample-length-field": "exact",
+ "resample-evaluated": "exact",
+ "trim-factor": "exact",
+ "trim-factor-field": "exact",
+ "trim-factor-ends": "exact",
+ "trim-factor-start-only": "exact",
+ "trim-length": "exact",
+ "trim-length-field": "exact",
+ "trim-selection": "exact",
+ "trim-equal": "exact",
+ "duplicate-spline-curves": "exact",
+ "duplicate-point-curves": "exact"
+}

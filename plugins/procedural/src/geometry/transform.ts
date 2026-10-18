@@ -11,6 +11,8 @@ import {f32} from '../blender/f32'
 import {isIdentityTransform, mat4FromLocQuatScale, mat4Multiply, transformPoint} from '../blender/math/matrix'
 import {GeometrySet} from './GeometrySet'
 import {CurvesGeometry, Instances, PointCloud} from './components'
+import {meshBoundsSetEager, meshCachedBounds} from './meshBounds'
+import {meshTagPositionsChanged, meshTagPositionsChangedUniformly} from './meshRuntime'
 
 /** `math::transform_points(transform, points)` (`math_matrix.cc:616`): skipped for an identity matrix. */
 export function transformPoints(m: ArrayLike<number>, points: Float32Array): void {
@@ -34,16 +36,30 @@ function checkCustomNormals(attributes: AttributeStorage, what: string): void {
     if (n && n.type === 'float3') throw new Error(`procedural: transforming ${what} custom normals (transform_custom_normal_attribute) is not ported`)
 }
 
-/** `bke::mesh_transform(mesh, transform, false)`. */
+/** `bke::mesh_transform(mesh, transform, false)` (`mesh.cc:2073`), ending with `mesh.tag_positions_changed()`. */
 export function meshTransform(mesh: MeshData, m: ArrayLike<number>): void {
     transformPoints(m, mesh.positions)
     checkCustomNormals(mesh.attributes, 'mesh')
+    meshTagPositionsChanged(mesh)
 }
 
-/** `bke::mesh_translate(mesh, translation, false)`. */
+/**
+ * `bke::mesh_translate(mesh, translation, false)` (`mesh.cc:2045`): `tag_positions_changed_uniformly`, and bounds that
+ * were cached are moved along (`bounds_set_eager`).
+ */
 export function meshTranslate(mesh: MeshData, t: ArrayLike<number>): void {
     if (isZero3(t)) return
+    const cached = meshCachedBounds(mesh)
+    const bounds = cached && {min: [...cached.min] as [number, number, number], max: [...cached.max] as [number, number, number]}
     translatePositions(mesh.positions, t)
+    meshTagPositionsChangedUniformly(mesh)
+    if (bounds) {
+        for (let k = 0; k < 3; k++) {
+            bounds.min[k] = f32(bounds.min[k] + t[k])
+            bounds.max[k] = f32(bounds.max[k] + t[k])
+        }
+        meshBoundsSetEager(mesh, bounds)
+    }
 }
 
 function curvesTransform(c: CurvesGeometry, m: ArrayLike<number>): void {

@@ -9,7 +9,7 @@ import {describe, expect, it} from 'vitest'
 import {existsSync, readdirSync, readFileSync, writeFileSync} from 'node:fs'
 import {join} from 'node:path'
 import {compareGeometry, ExpectedGeometry, GeometryNodesEvaluator, GeometrySet} from '../../src'
-import {DumpV2, importBlenderDump} from '../../src/io/importBlenderDump'
+import {DumpV2, dumpTime, importBlenderDump} from '../../src/io/importBlenderDump'
 import {applyModifierInputs, BinResolver, binResolver, geometryFromDump, inlineBinRefs, sceneFromDump} from '../../src/io/geometryFromDump'
 import {BUILTIN_TYPES} from '../../src/runtime/evaluator'
 import {getNodeType} from '../../src/runtime/registry'
@@ -45,7 +45,7 @@ function evaluateObject(dump: DumpV2, resolve: BinResolver, library: NodeGroupLi
     const scene = sceneFromDump(dump.referenced!, resolve)
     let geometry: GeometrySet = geometryFromDump(object.input_geometry!, resolve)
     for (const m of enabled.slice(enabled.findIndex(m => m.type === 'NODES'))) {
-        const ev = new GeometryNodesEvaluator(library, m.nodeGroup!, {scene, selfObject: object.name})
+        const ev = new GeometryNodesEvaluator(library, m.nodeGroup!, {scene, selfObject: object.name, time: dumpTime(dump)})
         applyModifierInputs(ev, m.inputs ?? {})
         ev.setInputGeometry(geometry)
         geometry = ev.evaluate().geometry ?? new GeometrySet()

@@ -10,6 +10,7 @@ import {cornerTriFaces, cornerTrisCalc, MeshData} from '@threepipe/mesh-kernel'
 import {BVHTree, BVHTreeNearest, NearestPointCallback} from '../blender/kdopbvh'
 import {closestOnTriToPointV3, closestToLineSegmentV3, lenSquaredV3V3} from '../blender/math/geom'
 import type {PointCloud} from './components'
+import {meshRuntime} from './meshRuntime'
 
 export interface BVHTreeFromMesh {
     tree: BVHTree | undefined
@@ -24,9 +25,11 @@ interface Cache {
     triFaces?: Int32Array
 }
 
+/** Point cloud trees (`PointCloud::runtime->bvh_cache`); mesh trees live in the mesh runtime (`meshRuntime.ts`). */
 const caches = new WeakMap<object, Cache>()
 
 function cache(owner: object): Cache {
+    if (owner instanceof MeshData) return meshRuntime(owner).bvh as Cache
     let c = caches.get(owner)
     if (!c) caches.set(owner, c = {})
     return c
@@ -66,6 +69,11 @@ export function meshCornerTriFaces(mesh: MeshData): Int32Array {
 
 /** Drop the cached trees and triangulation of a geometry edited in place (`BKE_mesh_runtime_clear_cache`). */
 export function tagBVHChanged(owner: object): void {
+    if (owner instanceof MeshData) {
+        const r = meshRuntime(owner)
+        r.bvh = {}
+        return
+    }
     caches.delete(owner)
 }
 

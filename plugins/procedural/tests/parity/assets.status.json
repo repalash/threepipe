@@ -5,7 +5,7 @@
   "Building 3": "exact"
  },
  "buildify_1.0": {
-  "building_base": "skip (not ported: GeometryNodeCurveEndpointSelection, GeometryNodeCurveToMesh, GeometryNodeMeshToCurve, GeometryNodeResampleCurve, GeometryNodeSplineLength, GeometryNodeSubdivideMesh, GeometryNodeTrimCurve)",
+  "building_base": "skip (not ported: GeometryNodeSubdivideMesh)",
   "antenna_a": "exact",
   "antenna_b": "exact",
   "ground_floor_wall_01": "exact",
@@ -33,6 +33,6 @@
   "GEO-ground": "pass (within 1e-5, > 256 ulp)"
  },
  "repeat_zone_flower_by_MiRA": {
-  "Rose": "skip (not ported: GeometryNodeInputSceneTime, GeometryNodeRepeatInput, GeometryNodeRepeatOutput, GeometryNodeSubdivisionSurface)"
+  "Rose": "skip (not ported: GeometryNodeSubdivisionSurface)"
  }
 }

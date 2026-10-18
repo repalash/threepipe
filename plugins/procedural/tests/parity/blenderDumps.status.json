@@ -11,13 +11,7 @@
   "nodes": 422,
   "nodeTypes": 53,
   "missing": {
-   "GeometryNodeSplineLength": 5,
-   "GeometryNodeMeshToCurve": 4,
-   "GeometryNodeCurveToMesh": 3,
-   "GeometryNodeResampleCurve": 2,
-   "GeometryNodeTrimCurve": 2,
-   "GeometryNodeSubdivideMesh": 2,
-   "GeometryNodeCurveEndpointSelection": 1
+   "GeometryNodeSubdivideMesh": 2
   },
   "unevaluatedObjects": []
  },
@@ -55,9 +49,6 @@
   "nodes": 171,
   "nodeTypes": 33,
   "missing": {
-   "GeometryNodeRepeatOutput": 1,
-   "GeometryNodeRepeatInput": 1,
-   "GeometryNodeInputSceneTime": 1,
    "GeometryNodeSubdivisionSurface": 1
   },
   "unevaluatedObjects": []

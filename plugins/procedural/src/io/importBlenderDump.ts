@@ -89,6 +89,8 @@ export interface DumpV2 {
     node_groups: Record<string, V2Tree>
     hash?: string
     blend_file?: string
+    /** The scene's time for Scene Time (`frame_current_final`, `render.fps`, `render.fps_base`). */
+    scene_time?: {ctime: number, fps: number, fpsBase: number}
     objects: {
         name: string
         type?: string
@@ -320,4 +322,10 @@ export function nodeTypesOf(library: NodeGroupLibrary): Map<string, number> {
     const m = new Map<string, number>()
     for (const t of Object.values(library)) for (const n of t.nodes) m.set(n.type, (m.get(n.type) ?? 0) + 1)
     return m
+}
+
+/** {@link EvalOptions.time} of a dump: `frame_rate = double(fps) / double(fps_base)` (node_geo_input_scene_time.cc:22). */
+export function dumpTime(dump: DumpV2): {ctime: number, frameRate: number} | undefined {
+    const t = dump.scene_time
+    return t ? {ctime: t.ctime, frameRate: t.fps / t.fpsBase} : undefined
 }

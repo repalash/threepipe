@@ -5,13 +5,14 @@
  * `blenkernel/intern/{mesh,pointcloud,curves,instances}_attributes.cc`.
  */
 
-import {AttrDomain, AttributeStorage, MeshData} from '@threepipe/mesh-kernel'
+import {AttrDomain, AttributeLayer, AttributeStorage, MeshData} from '@threepipe/mesh-kernel'
 import {AttributeAccessor, BuiltinAttribute, SingleDomainAccessor} from './attributeAccessor'
 import {adaptMeshDomain} from './meshDomains'
-import {DATA_TYPES} from './dataTypes'
+import {DATA_TYPES, DataType, TypedArray} from './dataTypes'
 import {GVArray} from './varray'
 import {createDefaultMixer} from './mixers'
 import type {GeometrySet} from './GeometrySet'
+import {meshAttributeChanged} from './meshRuntime'
 
 const clampTo = (lo: number, hi: number) => (v: number[]) => v.map(x => Math.min(Math.max(x, lo), hi))
 
@@ -83,6 +84,28 @@ export class MeshAccessor extends AttributeAccessor {
 
     adaptDomain(varray: GVArray, from: AttrDomain, to: AttrDomain): GVArray | undefined {
         return adaptMeshDomain(this.mesh, varray, from, to)
+    }
+
+    // The built-in change tags (`changed_tags`, `mesh_attributes.cc:694`) run when an attribute is written through the
+    // accessor (`GAttributeWriter::finish`), added with data (`fn.add`, :995) or removed (`fn.remove`, :958).
+
+    add(name: string, domain: AttrDomain, type: DataType, init?: TypedArray | readonly number[]): boolean {
+        const added = super.add(name, domain, type, init)
+        if (added) meshAttributeChanged(this.mesh, name)
+        return added
+    }
+
+    remove(name: string): boolean {
+        const removed = super.remove(name)
+        if (removed) meshAttributeChanged(this.mesh, name)
+        return removed
+    }
+
+    /** The layer for an in-place write: tagged here, before the caller writes (nothing reads caches in between). */
+    layerForWrite(name: string): AttributeLayer | undefined {
+        const layer = super.layerForWrite(name)
+        if (layer) meshAttributeChanged(this.mesh, name)
+        return layer
     }
 }
 

@@ -100,6 +100,7 @@ def main():
         "blender": dump["blender"],
         "hash": dump["hash"],
         "blend_file": os.path.basename(dump.get("blend_file", "")),
+        "scene_time": dump.get("scene_time"),
         "node_groups": dump["node_groups"],
         "objects": objects,
         "referenced": referenced,

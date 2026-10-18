@@ -13,10 +13,7 @@ import {AttrDomain, AttributeLayer, MeshData} from '@threepipe/mesh-kernel'
 import {DATA_TYPES, DataType} from './dataTypes'
 import {createPropagationMixer} from './mixers'
 import {tagTopologyChanged} from './meshTopology'
-import {tagPositionsChanged} from './meshNormals'
 import {GroupedIndices} from './meshTopology'
-import {tagBVHChanged} from './meshBVH'
-import {tagBoundsChanged} from './meshBounds'
 
 /** `expand_mesh` (`node_geo_extrude_mesh.cc:133`): grow every domain, keeping existing data; new face offsets are the caller's. */
 export function expandMesh(mesh: MeshData, vertExpand: number, edgeExpand: number, faceExpand: number, cornerExpand: number): void {
@@ -31,12 +28,9 @@ export function expandMesh(mesh: MeshData, vertExpand: number, edgeExpand: numbe
     if (cornerExpand) mesh.resizeDomain(AttrDomain.Corner, corners)
 }
 
-/** `BKE_mesh_runtime_clear_cache`: derived topology, normals (and BVH trees, cached by object) are stale. */
+/** `Mesh::tag_topology_changed` (`mesh_runtime.cc:410`): every runtime cache (`meshRuntime.ts`) is stale. */
 export function tagMeshChanged(mesh: MeshData): void {
     tagTopologyChanged(mesh)
-    tagPositionsChanged(mesh)
-    tagBVHChanged(mesh)
-    tagBoundsChanged(mesh)
 }
 
 /** `get_transfer_attribute_names` (`node_geo_extrude_mesh.cc:276`): attribute layers per domain, minus `skip`. */

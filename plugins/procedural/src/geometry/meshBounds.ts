@@ -4,39 +4,32 @@
  * `PointCloud::bounds_min_max` (`pointcloud.cc:251`, padded by the radius), and
  * `GeometrySet::compute_boundbox_without_instances` (`geometry_set.cc:179`).
  *
- * Eager bounds (`Mesh::bounds_set_eager`, `mesh.cc:1944`) live in a cache per mesh object, like
- * `Mesh::runtime->bounds_cache`; they are not carried into copies yet (see agent question / issue).
+ * Mesh bounds are cached in the mesh runtime (`Mesh::runtime->bounds_cache`, `meshRuntime.ts`): computed on demand or
+ * set eagerly by a primitive (`Mesh::bounds_set_eager`, `mesh.cc:1944`), shared by copies and dropped when the positions
+ * change.
  */
 
 import {MeshData} from '@threepipe/mesh-kernel'
 import {f32} from '../blender/f32'
 import type {GeometrySet} from './GeometrySet'
+import {meshRuntime} from './meshRuntime'
+import type {CurvesGeometry} from './components'
+import {CURVE_TYPE_POLY, CurvesEvaluator, curveTypes} from './curvesEval'
 
 export interface Bounds3 {
     min: [number, number, number]
     max: [number, number, number]
 }
 
-const eager = new WeakMap<MeshData, Bounds3>()
-
-/** `Mesh::bounds_set_eager`. */
+/** `Mesh::bounds_set_eager` (`mesh.cc:1944`): `bounds_cache.ensure` - kept when bounds are already cached. */
 export function meshBoundsSetEager(mesh: MeshData, bounds: Bounds3): void {
-    eager.set(mesh, {min: [...bounds.min], max: [...bounds.max]})
+    const r = meshRuntime(mesh)
+    if (!r.bounds) r.bounds = {min: [...bounds.min], max: [...bounds.max]}
 }
 
-/** `bke::mesh_translate` (`mesh.cc:2045`) keeps cached bounds, shifted by the translation. */
-export function meshBoundsTranslate(mesh: MeshData, t: ArrayLike<number>): void {
-    const b = eager.get(mesh)
-    if (!b) return
-    for (let k = 0; k < 3; k++) {
-        b.min[k] = f32(b.min[k] + t[k])
-        b.max[k] = f32(b.max[k] + t[k])
-    }
-}
-
-/** Drop cached bounds after editing positions (`tag_positions_changed`). */
-export function tagBoundsChanged(mesh: MeshData): void {
-    eager.delete(mesh)
+/** The cached bounds (`bounds_cache.is_cached()` / `data()`), if any. */
+export function meshCachedBounds(mesh: MeshData): Bounds3 | undefined {
+    return meshRuntime(mesh).bounds
 }
 
 /** `bounds::min_max` over flat xyz triples (`BLI_bounds.hh`). */
@@ -63,10 +56,11 @@ export function mergeBounds(a: Bounds3 | undefined, b: Bounds3 | undefined): Bou
     }
 }
 
-/** `Mesh::bounds_min_max` (`mesh.cc:1923`). */
+/** `Mesh::bounds_min_max` (`mesh.cc:1923`): `bounds_cache.ensure(min_max(positions))`. */
 export function meshBoundsMinMax(mesh: MeshData): Bounds3 | undefined {
     if (mesh.vertsNum === 0) return undefined
-    return eager.get(mesh) ?? minMax(mesh.positions, mesh.vertsNum)
+    const r = meshRuntime(mesh)
+    return r.bounds ??= minMax(mesh.positions, mesh.vertsNum)
 }
 
 /**
@@ -94,28 +88,49 @@ export function computeBoundboxWithoutInstances(g: GeometrySet, useRadius: boole
         let b = minMax(pc.positions, pc.pointsNum)!
         if (useRadius) {
             const layer = pc.attributes.get('radius')
-            if (!layer) {
-                // `PointCloud::radius()` is the single default 0.01 (`pointcloud.cc:205`): `Bounds::pad`.
-                const r = f32(0.01)
-                b = {min: b.min.map(v => f32(v - r)) as [number, number, number], max: b.max.map(v => f32(v + r)) as [number, number, number]}
-            } else {
-                // `bounds::min_max_with_radii` (`BLI_bounds.hh:119`): starts from the first position itself.
-                const p = pc.positions, r = layer.data
-                b = {min: [p[0], p[1], p[2]], max: [p[0], p[1], p[2]]}
-                for (let i = 0; i < pc.pointsNum; i++) {
-                    for (let k = 0; k < 3; k++) {
-                        const lo = f32(p[i * 3 + k] - r[i]), hi = f32(p[i * 3 + k] + r[i])
-                        if (lo < b.min[k]) b.min[k] = lo
-                        if (b.max[k] < hi) b.max[k] = hi
-                    }
-                }
-            }
+            // `PointCloud::radius()` is the single default 0.01 (`pointcloud.cc:205`): `Bounds::pad`.
+            b = layer ? minMaxWithRadii(pc.positions, layer.data, pc.pointsNum) : padBounds(b, f32(0.01))
         }
         bounds = mergeBounds(bounds, b)
     }
     if (g.mesh) bounds = mergeBounds(bounds, meshBoundsMinMax(g.mesh))
-    if (g.curves && g.curves.curvesNum) {
-        throw new Error('procedural: curve bounds need evaluated curve positions (CurvesGeometry::bounds_min_max), not ported yet')
-    }
+    if (g.curves && g.curves.curvesNum) bounds = mergeBounds(bounds, curvesBoundsMinMax(g.curves, useRadius))
     return bounds
+}
+
+/** `Bounds::pad` (`BLI_bounds_types.hh`). */
+function padBounds(b: Bounds3, r: number): Bounds3 {
+    return {min: b.min.map(v => f32(v - r)) as [number, number, number], max: b.max.map(v => f32(v + r)) as [number, number, number]}
+}
+
+/** `bounds::min_max_with_radii` (`BLI_bounds.hh:119`): starts from the first position itself. */
+function minMaxWithRadii(p: ArrayLike<number>, r: ArrayLike<number>, count: number): Bounds3 {
+    const b: Bounds3 = {min: [p[0], p[1], p[2]], max: [p[0], p[1], p[2]]}
+    for (let i = 0; i < count; i++) {
+        for (let k = 0; k < 3; k++) {
+            const lo = f32(p[i * 3 + k] - r[i]), hi = f32(p[i * 3 + k] + r[i])
+            if (lo < b.min[k]) b.min[k] = lo
+            if (b.max[k] < hi) b.max[k] = hi
+        }
+    }
+    return b
+}
+
+/** `CurvesGeometry::bounds_min_max(use_radius)` (`curves_geometry.cc:1386`). */
+export function curvesBoundsMinMax(curves: CurvesGeometry, useRadius: boolean): Bounds3 | undefined {
+    if (curves.curvesNum === 0) return undefined
+    const ev = new CurvesEvaluator(curves)
+    if (!useRadius) return minMax(ev.positions, ev.evaluatedPointsNum)
+    const radius = curves.attributes.get('radius')
+    // `radius()` is the single default 0.01 without the attribute.
+    if (!radius) return padBounds(minMax(ev.positions, ev.evaluatedPointsNum)!, f32(0.01))
+    const types = curveTypes(curves)
+    if (Array.prototype.every.call(types, (t: number) => t === CURVE_TYPE_POLY)) return minMaxWithRadii(curves.positions, radius.data, curves.pointsNum)
+    const radii = new Float32Array(ev.evaluatedPointsNum)
+    for (let c = 0; c < curves.curvesNum; c++) {
+        const [s, e] = curves.pointsRange(c)
+        const [es, ee] = ev.evaluatedRange(c)
+        ev.interpolateToEvaluated(c, 'float', (radius.data as Float32Array).subarray(s, e), radii.subarray(es, ee))
+    }
+    return minMaxWithRadii(ev.positions, radii, ev.evaluatedPointsNum)
 }

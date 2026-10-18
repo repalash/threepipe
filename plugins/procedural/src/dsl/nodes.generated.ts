@@ -104,6 +104,20 @@ export type AxisAngleToRotationNode = NodeHandle & {
     readonly rotation: Socket<"ROTATION">
 }
 
+/** `GeometryNodeCurvePrimitiveBezierSegment` (Bézier Segment). */
+export interface BezierSegmentArgs {
+    mode?: "POSITION" | "OFFSET"
+    resolution?: In<"INT">
+    start?: In<"VECTOR">
+    startHandle?: In<"VECTOR">
+    endHandle?: In<"VECTOR">
+    end?: In<"VECTOR">
+    mute?: boolean
+}
+export type BezierSegmentNode = NodeHandle & {
+    readonly curve: Socket<"GEOMETRY">
+}
+
 /** `FunctionNodeInputBool` (Boolean). */
 export interface BooleanArgs {
     boolean?: boolean
@@ -248,6 +262,46 @@ export type CompareNode = NodeHandle & {
     readonly result: Socket<"BOOLEAN">
 }
 
+/** `GeometryNodeCurvePrimitiveCircle` (Curve Circle). */
+export interface CurveCircleArgs {
+    mode?: "POINTS" | "RADIUS"
+    resolution?: In<"INT">
+    point1?: In<"VECTOR">
+    point2?: In<"VECTOR">
+    point3?: In<"VECTOR">
+    radius?: In<"FLOAT">
+    mute?: boolean
+}
+export type CurveCircleNode = NodeHandle & {
+    readonly curve: Socket<"GEOMETRY">
+    readonly center: Socket<"VECTOR">
+}
+
+/** `GeometryNodeCurvePrimitiveLine` (Curve Line). */
+export interface CurveLineArgs {
+    mode?: "POINTS" | "DIRECTION"
+    start?: In<"VECTOR">
+    end?: In<"VECTOR">
+    direction?: In<"VECTOR">
+    length?: In<"FLOAT">
+    mute?: boolean
+}
+export type CurveLineNode = NodeHandle & {
+    readonly curve: Socket<"GEOMETRY">
+}
+
+/** `GeometryNodeCurveToMesh` (Curve to Mesh). */
+export interface CurveToMeshArgs {
+    curve?: In<"GEOMETRY">
+    profileCurve?: In<"GEOMETRY">
+    scale?: In<"FLOAT">
+    fillCaps?: In<"BOOLEAN">
+    mute?: boolean
+}
+export type CurveToMeshNode = NodeHandle & {
+    readonly mesh: Socket<"GEOMETRY">
+}
+
 /** `GeometryNodeDeleteGeometry` (Delete Geometry). */
 export interface DeleteGeometryArgs {
     mode?: "ALL" | "EDGE_FACE" | "ONLY_FACE"
@@ -318,6 +372,16 @@ export type EdgeVerticesNode = NodeHandle & {
     readonly vertexIndex2: Socket<"INT">
     readonly position1: Socket<"VECTOR">
     readonly position2: Socket<"VECTOR">
+}
+
+/** `GeometryNodeCurveEndpointSelection` (Endpoint Selection). */
+export interface EndpointSelectionArgs {
+    startSize?: In<"INT">
+    endSize?: In<"INT">
+    mute?: boolean
+}
+export type EndpointSelectionNode = NodeHandle & {
+    readonly selection: Socket<"BOOLEAN">
 }
 
 /** `FunctionNodeEulerToRotation` (Euler to Rotation). */
@@ -726,6 +790,17 @@ export type MeshLineNode = NodeHandle & {
     readonly mesh: Socket<"GEOMETRY">
 }
 
+/** `GeometryNodeMeshToCurve` (Mesh to Curve). */
+export interface MeshToCurveArgs {
+    mode?: "EDGES" | "FACES"
+    mesh?: In<"GEOMETRY">
+    selection?: In<"BOOLEAN">
+    mute?: boolean
+}
+export type MeshToCurveNode = NodeHandle & {
+    readonly curve: Socket<"GEOMETRY">
+}
+
 /** `GeometryNodeMeshToPoints` (Mesh to Points). */
 export interface MeshToPointsArgs {
     mode?: "VERTICES" | "EDGES" | "FACES" | "CORNERS"
@@ -929,6 +1004,20 @@ export type RemoveNamedAttributeNode = NodeHandle & {
     readonly geometry: Socket<"GEOMETRY">
 }
 
+/** `GeometryNodeResampleCurve` (Resample Curve). */
+export interface ResampleCurveArgs {
+    keepLastSegment?: boolean
+    curve?: In<"GEOMETRY">
+    selection?: In<"BOOLEAN">
+    mode?: In<"MENU">
+    count?: In<"INT">
+    length?: In<"FLOAT">
+    mute?: boolean
+}
+export type ResampleCurveNode = NodeHandle & {
+    readonly curve: Socket<"GEOMETRY">
+}
+
 /** `FunctionNodeRotateEuler` (Rotate Euler). */
 export interface RotateEulerArgs {
     rotationType?: "AXIS_ANGLE" | "EULER"
@@ -1070,6 +1159,15 @@ export type ScaleInstancesNode = NodeHandle & {
     readonly instances: Socket<"GEOMETRY">
 }
 
+/** `GeometryNodeInputSceneTime` (Scene Time). */
+export interface SceneTimeArgs {
+    mute?: boolean
+}
+export type SceneTimeNode = NodeHandle & {
+    readonly seconds: Socket<"FLOAT">
+    readonly frame: Socket<"FLOAT">
+}
+
 /** `FunctionNodeSeparateColor` (Separate Color). */
 export interface SeparateColorArgs {
     mode?: "RGB" | "HSV" | "HSL"
@@ -1176,6 +1274,15 @@ export type SetShadeSmoothNode = NodeHandle & {
     readonly mesh: Socket<"GEOMETRY">
 }
 
+/** `GeometryNodeSplineLength` (Spline Length). */
+export interface SplineLengthArgs {
+    mute?: boolean
+}
+export type SplineLengthNode = NodeHandle & {
+    readonly length: Socket<"FLOAT">
+    readonly pointCount: Socket<"INT">
+}
+
 /** `GeometryNodeSplitEdges` (Split Edges). */
 export interface SplitEdgesArgs {
     mesh?: In<"GEOMETRY">
@@ -1256,6 +1363,21 @@ export interface TranslateInstancesArgs {
 }
 export type TranslateInstancesNode = NodeHandle & {
     readonly instances: Socket<"GEOMETRY">
+}
+
+/** `GeometryNodeTrimCurve` (Trim Curve). */
+export interface TrimCurveArgs {
+    mode?: "FACTOR" | "LENGTH"
+    curve?: In<"GEOMETRY">
+    selection?: In<"BOOLEAN">
+    start?: In<"FLOAT">
+    end?: In<"FLOAT">
+    start1?: In<"FLOAT">
+    end1?: In<"FLOAT">
+    mute?: boolean
+}
+export type TrimCurveNode = NodeHandle & {
+    readonly curve: Socket<"GEOMETRY">
 }
 
 /** `ShaderNodeValue` (Value). */
@@ -1378,6 +1500,7 @@ export interface NodeConstructors {
     AlignRotationToVector(args?: AlignRotationToVectorArgs): AlignRotationToVectorNode
     AttributeStatistic(args?: AttributeStatisticArgs): AttributeStatisticNode
     AxisAngleToRotation(args?: AxisAngleToRotationArgs): AxisAngleToRotationNode
+    BezierSegment(args?: BezierSegmentArgs): BezierSegmentNode
     Boolean(args?: BooleanArgs): BooleanNode
     BooleanMath(args?: BooleanMathArgs): BooleanMathNode
     BoundingBox(args?: BoundingBoxArgs): BoundingBoxNode
@@ -1390,12 +1513,16 @@ export interface NodeConstructors {
     CombineTransform(args?: CombineTransformArgs): CombineTransformNode
     CombineXYZ(args?: CombineXYZArgs): CombineXYZNode
     Compare(args?: CompareArgs): CompareNode
+    CurveCircle(args?: CurveCircleArgs): CurveCircleNode
+    CurveLine(args?: CurveLineArgs): CurveLineNode
+    CurveToMesh(args?: CurveToMeshArgs): CurveToMeshNode
     DeleteGeometry(args?: DeleteGeometryArgs): DeleteGeometryNode
     DistributePointsOnFaces(args?: DistributePointsOnFacesArgs): DistributePointsOnFacesNode
     DuplicateElements(args?: DuplicateElementsArgs): DuplicateElementsNode
     EdgeAngle(args?: EdgeAngleArgs): EdgeAngleNode
     EdgeNeighbors(args?: EdgeNeighborsArgs): EdgeNeighborsNode
     EdgeVertices(args?: EdgeVerticesArgs): EdgeVerticesNode
+    EndpointSelection(args?: EndpointSelectionArgs): EndpointSelectionNode
     EulerToRotation(args?: EulerToRotationArgs): EulerToRotationNode
     ExtrudeMesh(args?: ExtrudeMeshArgs): ExtrudeMeshNode
     FaceArea(args?: FaceAreaArgs): FaceAreaNode
@@ -1430,6 +1557,7 @@ export interface NodeConstructors {
     MeshGrid(args?: MeshGridArgs): MeshGridNode
     MeshIsland(args?: MeshIslandArgs): MeshIslandNode
     MeshLine(args?: MeshLineArgs): MeshLineNode
+    MeshToCurve(args?: MeshToCurveArgs): MeshToCurveNode
     MeshToPoints(args?: MeshToPointsArgs): MeshToPointsNode
     MeshUVSphere(args?: MeshUVSphereArgs): MeshUVSphereNode
     Mix(args?: MixArgs): MixNode
@@ -1445,6 +1573,7 @@ export interface NodeConstructors {
     RandomValue(args?: RandomValueArgs): RandomValueNode
     RealizeInstances(args?: RealizeInstancesArgs): RealizeInstancesNode
     RemoveNamedAttribute(args?: RemoveNamedAttributeArgs): RemoveNamedAttributeNode
+    ResampleCurve(args?: ResampleCurveArgs): ResampleCurveNode
     RotateEuler(args?: RotateEulerArgs): RotateEulerNode
     RotateInstances(args?: RotateInstancesArgs): RotateInstancesNode
     RotateRotation(args?: RotateRotationArgs): RotateRotationNode
@@ -1457,6 +1586,7 @@ export interface NodeConstructors {
     SampleNearest(args?: SampleNearestArgs): SampleNearestNode
     SampleNearestSurface(args?: SampleNearestSurfaceArgs): SampleNearestSurfaceNode
     ScaleInstances(args?: ScaleInstancesArgs): ScaleInstancesNode
+    SceneTime(args?: SceneTimeArgs): SceneTimeNode
     SeparateColor(args?: SeparateColorArgs): SeparateColorNode
     SeparateGeometry(args?: SeparateGeometryArgs): SeparateGeometryNode
     SeparateTransform(args?: SeparateTransformArgs): SeparateTransformNode
@@ -1466,6 +1596,7 @@ export interface NodeConstructors {
     SetMaterialIndex(args?: SetMaterialIndexArgs): SetMaterialIndexNode
     SetPosition(args?: SetPositionArgs): SetPositionNode
     SetShadeSmooth(args?: SetShadeSmoothArgs): SetShadeSmoothNode
+    SplineLength(args?: SplineLengthArgs): SplineLengthNode
     SplitEdges(args?: SplitEdgesArgs): SplitEdgesNode
     StoreNamedAttribute(args?: StoreNamedAttributeArgs): StoreNamedAttributeNode
     Switch(args?: SwitchArgs): SwitchNode
@@ -1473,6 +1604,7 @@ export interface NodeConstructors {
     TransformGeometry(args?: TransformGeometryArgs): TransformGeometryNode
     TransformPoint(args?: TransformPointArgs): TransformPointNode
     TranslateInstances(args?: TranslateInstancesArgs): TranslateInstancesNode
+    TrimCurve(args?: TrimCurveArgs): TrimCurveNode
     Value(args?: ValueArgs): ValueNode
     Vector(args?: VectorArgs): VectorNode
     VectorMath(args?: VectorMathArgs): VectorMathNode
