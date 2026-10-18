@@ -26,10 +26,11 @@ import {
     primitiveSweep,
     primitiveTorus,
     primitiveUVSphere,
+    SweepOptions,
     Vec3,
 } from '@threepipe/mesh-kernel'
 import {CommandDefinition, S, schema} from './types'
-import {meshBounds, readPoints, readVec3, setShading, Vec3Tuple} from './params'
+import {meshBounds, readPoints, readVec3, setShading, transformMeshVerts, Vec3Tuple} from './params'
 import {ModellingEntry} from '../document'
 
 const PRIMITIVE_TYPES = [
@@ -110,6 +111,8 @@ export const primitiveCommand: CommandDefinition = {
         ySegments: S.integer('Grid segments along Y. Default 1.', {minimum: 1}),
         capEnds: S.boolean('Close the ends of a cylinder, cone or circle. Default true.'),
         axis: S.enum('Which axis the primitive stands along. Default `y`.', AXES),
+        uvs: S.boolean('Generate UVs into a `uv` corner layer - Blender\'s "Generate UVs" (`calc_uvs`), '
+            + 'with the same layouts. Default false. Not available for `torus`.'),
         ...PLACEMENT_PROPS,
     }, ['type']),
 
@@ -121,6 +124,13 @@ export const primitiveCommand: CommandDefinition = {
         const radius = num('radius', 0.5)
         const segments = num('segments', 32)
         const capEnds = p.capEnds === undefined ? true : p.capEnds as boolean
+        // Blender's add-primitive operators default `calc_uvs` on (`MESH_OT_primitive_*_add`); here it
+        // is opt-in, so a script that never asked for UVs gets the same mesh it always did.
+        const calcUVs = p.uvs === true
+        if (calcUVs && type === 'torus') {
+            // Blender's torus is the Python `add_mesh_torus` operator; its UV layout is not ported.
+            throw new Error('`uvs` is not available for a torus yet - its UV layout (add_mesh_torus.py) is not ported')
+        }
 
         let mesh: MeshData
         switch (type) {
@@ -128,7 +138,7 @@ export const primitiveCommand: CommandDefinition = {
         case 'box': {
             // Build a unit cube and scale it, so `width`/`height`/`depth` are exact sizes.
             const s: Vec3Tuple = [num('width', size), num('height', size), num('depth', size)]
-            mesh = primitiveCube({size: 1, matrix: scaleMatrix(s)})
+            mesh = primitiveCube({size: 1, matrix: scaleMatrix(s), calcUVs})
             break
         }
         // Blender's `create_grid` takes `size` as a half-extent while `create_cube` takes it as a
@@ -141,17 +151,19 @@ export const primitiveCommand: CommandDefinition = {
                 xSegments: 1, ySegments: 1, size: 0.5,
                 matrix: scaleMatrix([num('width', size), 1, num('depth', size)],
                     axisMatrix(axis === 'y' ? 'y' : axis)),
+                calcUVs,
             })
             break
         case 'grid':
             mesh = primitiveGrid({
                 xSegments: num('xSegments', 1), ySegments: num('ySegments', 1), size: 0.5,
                 matrix: scaleMatrix([num('width', size), 1, num('depth', size)], axisMatrix('y')),
+                calcUVs,
             })
             break
         case 'circle':
             mesh = primitiveCircle({
-                segments, radius, capEnds, matrix: axisMatrix(axis),
+                segments, radius, capEnds, matrix: axisMatrix(axis), calcUVs,
             })
             break
         case 'cylinder':
@@ -162,6 +174,7 @@ export const primitiveCommand: CommandDefinition = {
                 depth: num('height', num('depth', 1)),
                 capEnds,
                 matrix: axisMatrix(axis),
+                calcUVs,
             })
             break
         case 'cone':
@@ -172,15 +185,16 @@ export const primitiveCommand: CommandDefinition = {
                 depth: num('height', num('depth', 1)),
                 capEnds,
                 matrix: axisMatrix(axis),
+                calcUVs,
             })
             break
         case 'sphere':
             mesh = primitiveUVSphere({
-                uSegments: segments, vSegments: num('rings', 16), radius, matrix: axisMatrix(axis),
+                uSegments: segments, vSegments: num('rings', 16), radius, matrix: axisMatrix(axis), calcUVs,
             })
             break
         case 'icosphere':
-            mesh = primitiveIcoSphere({subdivisions: num('subdivisions', 2), radius})
+            mesh = primitiveIcoSphere({subdivisions: num('subdivisions', 2), radius, calcUVs})
             break
         case 'torus':
             mesh = primitiveTorus({
@@ -256,13 +270,39 @@ export const latheCommand: CommandDefinition = {
     },
 }
 
+/**
+ * {@link primitiveSweep} for a Y-up world.
+ *
+ * The kernel is Blender's Curve to Mesh, and Blender's frames are Z-up: `calculate_normals_z_up` and
+ * the first normal of `calculate_normals_minimum` (`curve_poly.cc:126`, `:166`) are perpendicular to
+ * the tangent and to world Z. Handing it threepipe coordinates unconverted made "up" threepipe's +Z,
+ * a horizontal axis, so the same custom section faced differently on a path in the XY plane than on
+ * one in the YZ plane, and `zUp` kept sections level with nothing in particular. The conversion is
+ * the one every other generator here makes (see the file header): the path goes into Blender's axes
+ * with the inverse of {@link axisMatrix}`('y')`, and the mesh comes back out through it. Both are
+ * rotations, so lengths, radii and face winding are unchanged; only which way is up.
+ */
+export function sweepYUp(opts: SweepOptions): MeshData {
+    const toZUp = (p: Vec3): Vec3 => [p[0], -p[2], p[1]]
+    const mesh = primitiveSweep({...opts, path: opts.path.map(toZUp)})
+    transformMeshVerts(mesh, new Matrix4().fromArray(axisMatrix('y')), null)
+    return mesh
+}
+
 export const sweepCommand: CommandDefinition = {
     op: 'sweep',
     summary: 'Sweep a circular (or custom) section along a path to make a tube, rail or handle.',
     description:
         'Frames along the path are rotation-minimising, so the section does not corkscrew around a '
         + 'bend, and a closed path has its residual twist distributed so the seam matches. Output is '
-        + 'quads; caps, when asked for, are single n-gons.',
+        + 'quads; caps, when asked for, are single n-gons.\n\n'
+        + 'How a custom `profile` faces, exactly as Blender\'s Curve to Mesh: profile x runs along the '
+        + 'frame normal and profile y along tangent x normal, so looking along the direction of travel '
+        + 'x points right and y points down. The first normal is horizontal - perpendicular to the '
+        + 'tangent and to world up (+Y) - and minimum twist carries it along the path; `zUp` keeps '
+        + 'every normal horizontal. So on a horizontal path profile x is horizontal, to the right of '
+        + 'travel; on a path in a vertical plane it is across that plane, whichever vertical plane it '
+        + 'is. A path straight up or down has no horizontal normal and falls back to +X.',
     mutates: true,
     schema: schema({
         path: S.array('Path points in object space.', S.vec3('A point.'), {minItems: 2}),
@@ -292,7 +332,7 @@ export const sweepCommand: CommandDefinition = {
                 throw new Error('every entry of `radii` must be a finite number')
             }
         }
-        const mesh = primitiveSweep({
+        const mesh = sweepYUp({
             radii: p.radii as number[] | undefined,
             path,
             radius: (p.radius as number) ?? 0.05,

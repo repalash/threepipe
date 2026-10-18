@@ -16,8 +16,12 @@ class FakeDocument {
 
     snapshot(entry: ModellingEntry): EntrySnapshot {
         return {id: entry.id, name: entry.id, mesh: this.values.get(entry.id) as never,
-            position: [0, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1],
-            visible: true, parentId: null, materialColor: null}
+            position: [0, 0, 0], quaternion: [0, 0, 0, 1], scale: [1, 1, 1],
+            visible: true, parentId: null, material: null}
+    }
+
+    snapshotsEqual(a: EntrySnapshot, b: EntrySnapshot): boolean {
+        return a.id === b.id && a.mesh === b.mesh
     }
 
     restore(snap: EntrySnapshot): void {
@@ -28,8 +32,8 @@ class FakeDocument {
     before(ids: string[]): EntrySnapshot[] {
         return ids.map(id => ({
             id, name: id, mesh: (this.values.get(id) ?? null) as never,
-            position: [0, 0, 0], rotation: [0, 0, 0], scale: [1, 1, 1],
-            visible: true, parentId: null, materialColor: null,
+            position: [0, 0, 0], quaternion: [0, 0, 0, 1], scale: [1, 1, 1],
+            visible: true, parentId: null, material: null,
         }))
     }
 }
@@ -111,6 +115,18 @@ describe('history', () => {
     it('ignores a command that touched nothing', () => {
         history.push('inspect', 'inspect', [], 1)
         expect(history.canUndo).toBe(false)
+    })
+
+    it('pushes nothing for a command that recorded objects but changed none, and keeps redo', () => {
+        command('a', 'x', 1, 1)
+        command('b', 'x', 2, 2)
+        history.undo()
+        // A "weld" with nothing in range: it recorded x, and x is as it was.
+        expect(history.push('weld', 'weld x', doc.before(['x']), 3)).toBe(null)
+        expect(history.entries.length).toBe(2)
+        expect(history.canRedo).toBe(true)
+        history.redo()
+        expect(doc.values.get('x')).toBe(2)
     })
 
     it('keeps a readable log, marking what has been undone', () => {

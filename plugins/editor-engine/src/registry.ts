@@ -254,7 +254,7 @@ export interface MenuRequestItem {
 }
 
 export type UiRequest =
-    | {request: 'palette' | 'history' | 'shortcuts' | 'about' | 'operatorPanel' | 'welcome' | 'hints'}
+    | {request: 'palette' | 'history' | 'shortcuts' | 'about' | 'operatorPanel' | 'welcome' | 'hints' | 'look' | 'agent'}
     | {
         request: 'menu'
         title?: string
@@ -285,6 +285,24 @@ export interface EditorEngineEventMap {
     message: {level: 'info' | 'warning' | 'error', text: string}
     /** An operator asks the shell to open one of its own surfaces, or a popup menu at the cursor. */
     uiRequest: UiRequest
+    /** A `look` command finished - from an agent, a script or the `view.look` operator. */
+    lookChanged: {look: LastLook}
+}
+
+/**
+ * The most recent `look` render and its description, whoever asked for it.
+ *
+ * An agent driving the page sees through `look`; keeping its last render here is what lets a person
+ * watching the editor see what the agent saw.
+ */
+export interface LastLook {
+    /** The command as sent. */
+    command: Record<string, unknown>
+    /** The command's `data`: `image`, `views`, `style`, `highlight`, ... */
+    data: Record<string, unknown>
+    /** Command index within the modelling session. */
+    index: number
+    time: number
 }
 
 /** One key binding of a keymap preset. */
@@ -374,6 +392,8 @@ export interface EditorEngine extends EventDispatcher<EditorEngineEventMap> {
     readonly activeTool: ToolDescriptor | null
     setActiveTool(id: string | null): void
     readonly lastOperation: LastOperation | null
+    /** The most recent `look` render in this page, from any caller. */
+    readonly lastLook: LastLook | null
     readonly status: StatusHints | null
 
     context(): EditorContext

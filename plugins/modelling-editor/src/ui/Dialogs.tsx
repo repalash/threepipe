@@ -23,6 +23,35 @@ export function HistoryDialog({isOpen, onClose}: {isOpen: boolean, onClose: () =
     </Dialog>
 }
 
+/**
+ * The last `look` render - the agent's eyes - beside what it says it rendered.
+ *
+ * Opened by the `view.look` operator, and from the agent indicator, so a person watching an agent
+ * work can see the same sheet the agent judged its work by.
+ */
+export function LookDialog({isOpen, onClose}: {isOpen: boolean, onClose: () => void}) {
+    const {engine} = useEditor()
+    useEngineVersion('lookChanged')
+    const look = engine.lastLook
+    const data = look?.data as {image?: string, style?: string, views?: {name: string, inFrame: string[], partial: string[], highlight?: {offscreen: number}}[], highlight?: {object: string, faces: number, edges: number, verts: number} | null} | undefined
+    return <Dialog isOpen={isOpen} onClose={onClose} title="Look" className="me-dialog me-look-dialog" icon="eye-open">
+        <DialogBody>
+            {!look ? <div className="me-dialog-note">Nothing has been looked at yet. Run <b>Look (Agent View)</b> from the palette, or let an agent call <code>look</code>.</div> : <>
+                {data?.image ? <img className="me-look-image" data-look-image src={data.image} alt="the last look render" /> : <div className="me-dialog-note">The last look was written to a file and not kept in the page.</div>}
+                <div className="me-look-meta" data-look-meta>
+                    <div><b>#{look.index}</b> <code>{JSON.stringify({...look.command, op: undefined})}</code></div>
+                    <div>style <b>{data?.style}</b>{data?.highlight ? <> · highlight <b>{data.highlight.object}</b>: {data.highlight.faces} faces, {data.highlight.edges} edges, {data.highlight.verts} verts</> : null}</div>
+                    {data?.views?.map(v => <div key={v.name}><b>{v.name}</b>: in frame {v.inFrame.join(', ') || 'nothing'}{v.partial.length ? `; cut by the frame: ${v.partial.join(', ')}` : ''}{v.highlight?.offscreen ? `; ${v.highlight.offscreen} highlighted off screen` : ''}</div>)}
+                </div>
+            </>}
+        </DialogBody>
+        <DialogFooter actions={<>
+            <Button text="Look again" icon="eye-open" onClick={() => engine.run('view.look', (look?.command as Record<string, unknown> | undefined)?.view === 'angles' || !look ? {} : {view: (look.command as Record<string, unknown>).view, style: (look.command as Record<string, unknown>).style})} />
+            <Button text="Close" onClick={onClose} />
+        </>} />
+    </Dialog>
+}
+
 /** The cheat sheet, under the name the shell has always exported. */
 export const ShortcutsDialog = CheatSheet
 

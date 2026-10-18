@@ -14,6 +14,7 @@ import {IconButton, TooltipContent} from './IconButton'
 import type {EditorContext, OperatorDescriptor, SelectModeName} from '@threepipe/plugin-editor-engine'
 import type {EditorViewportPlugin} from '../EditorViewportPlugin'
 import {MeshEditPlugin} from '@threepipe/plugin-mesh-edit'
+import {AgentIndicator} from './AgentIndicator'
 
 const MENU_ORDER = ['File', 'Edit', 'Add', 'Object', 'Mesh', 'Select', 'View', 'Help']
 
@@ -202,6 +203,7 @@ export function Header({title}: {title?: string}) {
         <ModeSwitch />
         <SelectModeButtons />
         <span className="me-spacer" />
+        <AgentIndicator />
         <HeaderSlots />
     </header>
 }

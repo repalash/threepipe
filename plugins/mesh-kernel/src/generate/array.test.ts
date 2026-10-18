@@ -525,6 +525,48 @@ describe('arrayRadial', () => {
         expect(windingProblems(bm)).toEqual([])
     })
 
+    it('with a `step` along the axis, lifts each copy by step as it turns: a helix (Blender: constant + object offset)', () => {
+        const bm = new BMesh()
+        const {verts, faces} = box(bm, 1, 2, 0, 0.1, 0, 0.3)
+        const rise = 0.2
+        // Two full turns of twelve: a spiral staircase's treads.
+        const r = arrayRadial(bm, {faces}, {count: 24, angle: Math.PI * 4, axis: [0, 1, 0], step: [0, rise, 0], merge: true})
+        expect(r.copies.length).toBe(24)
+        for (let c = 0; c < 24; c++) {
+            const rot = mat4RotationAxis([0, 1, 0], (Math.PI / 6) * c)
+            for (const v of verts) {
+                const expected = mat4TransformPoint(rot, [v.x, v.y, v.z])
+                const copy = r.copies[c].vertMap.get(v)!
+                expect(copy.x).toBeCloseTo(expected[0], 10)
+                expect(copy.y).toBeCloseTo(expected[1] + rise * c, 10)
+                expect(copy.z).toBeCloseTo(expected[2], 10)
+            }
+        }
+        // Copies a full turn apart are a whole storey apart, so merge (and merge first-to-last) has
+        // nothing to weld: every copy is a closed box of its own.
+        expect(r.merged.length).toBe(0)
+        expect(bm.totvert).toBe(24 * 8)
+        expect(bm.totface).toBe(24 * 6)
+        expect(bm.validate()).toEqual([])
+        expect(windingProblems(bm)).toEqual([])
+    })
+
+    it('composes `step` as T * R per copy, as MOD_array.cc does: off-axis it spirals, it does not helix', () => {
+        const bm = new BMesh()
+        const v = bm.vertCreate(0, 0, 0)
+        const r = arrayRadial(bm, {verts: [v]}, {count: 4, angle: Math.PI * 2, axis: [0, 1, 0], step: [1, 0, 0]})
+        // Copy n is (T R)^n applied to the origin: T R (p) = R p + t. Iterate it by hand.
+        let p: Vec3 = [0, 0, 0]
+        const rot = mat4RotationAxis([0, 1, 0], Math.PI / 2)
+        for (let c = 0; c < 4; c++) {
+            const copy = r.copies[c].vertMap.get(v)!
+            expect(copy.x).toBeCloseTo(p[0], 10)
+            expect(copy.z).toBeCloseTo(p[2], 10)
+            const q = mat4TransformPoint(rot, p)
+            p = [q[0] + 1, q[1], q[2]]
+        }
+    })
+
     it('leaves the sectors loose without merge', () => {
         const bm = new BMesh()
         const sector = annulusSector(bm, 8)
