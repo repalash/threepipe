@@ -1251,6 +1251,28 @@ export type SeparateXYZNode = NodeHandle & {
     readonly z: Socket<"FLOAT">
 }
 
+/** `GeometryNodeSetCurveRadius` (Set Curve Radius). */
+export interface SetCurveRadiusArgs {
+    curve?: In<"GEOMETRY">
+    selection?: In<"BOOLEAN">
+    radius?: In<"FLOAT">
+    mute?: boolean
+}
+export type SetCurveRadiusNode = NodeHandle & {
+    readonly curve: Socket<"GEOMETRY">
+}
+
+/** `GeometryNodeSetCurveTilt` (Set Curve Tilt). */
+export interface SetCurveTiltArgs {
+    curve?: In<"GEOMETRY">
+    selection?: In<"BOOLEAN">
+    tilt?: In<"FLOAT">
+    mute?: boolean
+}
+export type SetCurveTiltNode = NodeHandle & {
+    readonly curve: Socket<"GEOMETRY">
+}
+
 /** `GeometryNodeSetID` (Set ID). */
 export interface SetIDArgs {
     geometry?: In<"GEOMETRY">
@@ -1308,6 +1330,32 @@ export interface SetShadeSmoothArgs {
 export type SetShadeSmoothNode = NodeHandle & {
     readonly geometry: Socket<"GEOMETRY">
     readonly mesh: Socket<"GEOMETRY">
+}
+
+/** `GeometryNodeSetSplineCyclic` (Set Spline Cyclic). */
+export interface SetSplineCyclicArgs {
+    geometry?: In<"GEOMETRY">
+    curve?: In<"GEOMETRY">
+    selection?: In<"BOOLEAN">
+    cyclic?: In<"BOOLEAN">
+    mute?: boolean
+}
+export type SetSplineCyclicNode = NodeHandle & {
+    readonly geometry: Socket<"GEOMETRY">
+    readonly curve: Socket<"GEOMETRY">
+}
+
+/** `GeometryNodeSetSplineResolution` (Set Spline Resolution). */
+export interface SetSplineResolutionArgs {
+    geometry?: In<"GEOMETRY">
+    curve?: In<"GEOMETRY">
+    selection?: In<"BOOLEAN">
+    resolution?: In<"INT">
+    mute?: boolean
+}
+export type SetSplineResolutionNode = NodeHandle & {
+    readonly geometry: Socket<"GEOMETRY">
+    readonly curve: Socket<"GEOMETRY">
 }
 
 /** `GeometryNodeSplineLength` (Spline Length). */
@@ -1629,11 +1677,15 @@ export interface NodeConstructors {
     SeparateGeometry(args?: SeparateGeometryArgs): SeparateGeometryNode
     SeparateTransform(args?: SeparateTransformArgs): SeparateTransformNode
     SeparateXYZ(args?: SeparateXYZArgs): SeparateXYZNode
+    SetCurveRadius(args?: SetCurveRadiusArgs): SetCurveRadiusNode
+    SetCurveTilt(args?: SetCurveTiltArgs): SetCurveTiltNode
     SetID(args?: SetIDArgs): SetIDNode
     SetMaterial(args?: SetMaterialArgs): SetMaterialNode
     SetMaterialIndex(args?: SetMaterialIndexArgs): SetMaterialIndexNode
     SetPosition(args?: SetPositionArgs): SetPositionNode
     SetShadeSmooth(args?: SetShadeSmoothArgs): SetShadeSmoothNode
+    SetSplineCyclic(args?: SetSplineCyclicArgs): SetSplineCyclicNode
+    SetSplineResolution(args?: SetSplineResolutionArgs): SetSplineResolutionNode
     SplineLength(args?: SplineLengthArgs): SplineLengthNode
     SplitEdges(args?: SplitEdgesArgs): SplitEdgesNode
     StoreNamedAttribute(args?: StoreNamedAttributeArgs): StoreNamedAttributeNode

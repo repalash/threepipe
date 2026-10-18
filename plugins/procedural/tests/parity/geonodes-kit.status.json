@@ -430,8 +430,7 @@
   "status": "pass"
  },
  "gs-join-curves-radius-resolution": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeSetCurveRadius, GeometryNodeSetSplineResolution"
+  "status": "pass"
  },
  "gs-join-domain-face-corner": {
   "status": "pass"
