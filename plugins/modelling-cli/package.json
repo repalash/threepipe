@@ -36,6 +36,7 @@
         "test:browser": "vitest run tests/browser"
     },
     "dependencies": {
+        "manifold-3d": "3.5.3",
         "playwright-core": "~1.58.2",
         "ws": "^8.18.0"
     },

@@ -14,12 +14,12 @@ import {faceNormalUpdate} from '../bmesh/polygon'
  */
 
 import {BMEdge, BMFace, BMLoop, BMVert} from '../bmesh/types'
-import {BMesh} from '../bmesh/BMesh'
 import {diskEdges, edgeIsManifold, radialLoops} from '../bmesh/structure'
 import {
     M3, V3, angleNormalizedV3V3, axisDominantV3ToM3, crossV3V3V3, dotV3V3, lenV3V3, midV3V3V3,
-    mulV2M3V3, normalizeV3, nv3, subV3V3V3,
+    mulV2M3V3, nv3, subV3V3V3,
 } from './bevel-math'
+import {isectPointPolyV2} from '../math/geom'
 
 /** A vertex position as a fresh array. Blender's `v->co`. */
 export const co = (v: BMVert): V3 => [v.x, v.y, v.z]
@@ -159,18 +159,6 @@ export function faceCalcCenterBounds(f: BMFace, rCent: V3): void {
     midV3V3V3(rCent, min, max)
 }
 
-/** `isect_point_poly_v2` (`math_geom.cc:1533`) - the crossing-number test. */
-export function isectPointPolyV2(pt: readonly number[], verts: readonly (readonly number[])[], nr: number): boolean {
-    let isect = false
-    for (let i = 0, j = nr - 1; i < nr; j = i++) {
-        if (((verts[i][1] > pt[1]) !== (verts[j][1] > pt[1])) &&
-            (pt[0] < (verts[j][0] - verts[i][0]) * (pt[1] - verts[i][1]) / (verts[j][1] - verts[i][1]) + verts[i][0])) {
-            isect = !isect
-        }
-    }
-    return isect
-}
-
 /** `BM_face_point_inside_test` (`bmesh_polygon.cc:1081`) - in the face's own plane. */
 export function facePointInsideTest(f: BMFace, point: readonly number[]): boolean {
     const axisMat: M3 = [0, 0, 0, 0, 0, 0, 0, 0, 0]
@@ -199,66 +187,10 @@ export function facePointInsideTest(f: BMFace, point: readonly number[]): boolea
 export {faceNormalUpdate}
 
 /**
- * `bm_vert_calc_normals_impl` (`bmesh_mesh_normals.cc:85`) - adjacent face normals weighted by the
- * corner angle each subtends at `v`.
- *
- * The sign flip is Blender's and is load-bearing: the corner angle is computed from *edge* vectors,
- * which run `v1 -> v2` rather than away from the vertex, so when exactly one of the two edges runs
- * backwards relative to its loop the dot product must be negated. Getting the exclusive-or wrong
- * weights some corners by their supplement instead.
+ * `BM_mesh_normals_update` is `bmesh/normals.ts` `meshNormalsUpdate`. Like Blender's bevel, the
+ * operator reads `f->no` / `v->no` as its caller left them: current, in an edit session or a mesh
+ * converted with normals (`bmFromMesh(.., {calcFaceNormal: true, calcVertNormal: true})`).
  */
-export function vertNormalUpdate(v: BMVert): void {
-    const n = nv3()
-    if (v.e) {
-        for (const eIter of diskEdges(v)) {
-            const lFirst = eIter.l
-            if (!lFirst) continue
-            const e2diff = nv3()
-            subV3V3V3(e2diff, co(eIter.v1), co(eIter.v2))
-            normalizeV3(e2diff)
-            let lIter: BMLoop = lFirst
-            do {
-                if (lIter.v === v) {
-                    const ePrev = lIter.prev.e!
-                    const e1diff = nv3()
-                    subV3V3V3(e1diff, co(ePrev.v1), co(ePrev.v2))
-                    normalizeV3(e1diff)
-                    let dotprod = dotV3V3(e1diff, e2diff)
-                    if ((ePrev.v1 === lIter.prev.v) !== (lIter.e!.v1 === lIter.v)) {
-                        dotprod = -dotprod
-                    }
-                    const fac = Math.acos(Math.min(1, Math.max(-1, -dotprod)))
-                    n[0] += lIter.f.nx * fac
-                    n[1] += lIter.f.ny * fac
-                    n[2] += lIter.f.nz * fac
-                }
-                lIter = lIter.radialNext!
-            } while (lIter !== lFirst)
-        }
-        if (normalizeV3(n) !== 0) {
-            v.nx = n[0]
-            v.ny = n[1]
-            v.nz = n[2]
-            return
-        }
-    }
-    // Blender's fallback for a loose vertex: point away from the origin.
-    const fallback = co(v)
-    normalizeV3(fallback)
-    v.nx = fallback[0]
-    v.ny = fallback[1]
-    v.nz = fallback[2]
-}
-
-/**
- * `BM_mesh_normals_update`. Bevel reads `f->no` and `v->no` throughout and edit mode guarantees they
- * are current; nothing in this kernel maintains them, so the operator refreshes the whole mesh on
- * entry. This is the same deliberate side effect `ops/inset.ts` documents.
- */
-export function normalsUpdate(bm: BMesh): void {
-    for (const f of bm.faces) faceNormalUpdate(f)
-    for (const v of bm.verts) vertNormalUpdate(v)
-}
 
 // endregion
 

@@ -7,8 +7,8 @@
 
 import type {Mat3, Mat4, Vec3} from './math'
 
-/** `TFM_TRANSLATION`, `TFM_ROTATION`, `TFM_RESIZE`, `TFM_EDGE_SLIDE`, `TFM_VERT_SLIDE` (`transform.hh`). */
-export type TransformMode = 'translate' | 'rotate' | 'resize' | 'edgeSlide' | 'vertSlide'
+/** `TFM_TRANSLATION`, `TFM_ROTATION`, `TFM_RESIZE`, `TFM_EDGE_SLIDE`, `TFM_VERT_SLIDE`, `TFM_SHRINKFATTEN` (`transform.hh`). */
+export type TransformMode = 'translate' | 'rotate' | 'resize' | 'edgeSlide' | 'vertSlide' | 'shrinkFatten'
 
 /** `V3D_AROUND_*`: what the transform pivots on. */
 export type PivotType = 'median' | 'active' | 'individual' | 'bounds' | 'cursor'
@@ -122,6 +122,8 @@ export interface TransData {
     extra: unknown
     /** Object-mode extras (`TransDataExtension`): the world matrix at the start. */
     ext?: TransDataExtension
+    /** Shrink/fatten's shell factor, Blender's `td_ext->iscale[0]` in that mode (`transform_convert_mesh.cc:1480`). */
+    shellFactor?: number
 }
 
 export interface TransDataExtension {

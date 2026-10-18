@@ -10,6 +10,7 @@
 import {
     bevelEdges,
     bevelVerts,
+    BM_FROM_MESH_NORMALS,
     bmFromMesh,
     bmToMesh,
     insetIndividual,
@@ -73,7 +74,7 @@ export const insetCommand: CommandDefinition = {
 
     run(p: Record<string, unknown>, ctx) {
         const entry = readTarget(p, ctx.doc)
-        const bm = bmFromMesh(entry.mesh)
+        const bm = bmFromMesh(entry.mesh, BM_FROM_MESH_NORMALS)
         const faces = facesOf(bm, p.faces, entry.name)
         if (!faces.length) throw new Error(`"${entry.name}" has no faces to inset`)
 
@@ -140,7 +141,7 @@ export const solidifyCommand: CommandDefinition = {
 
     run(p: Record<string, unknown>, ctx) {
         const entry = readTarget(p, ctx.doc)
-        const bm = bmFromMesh(entry.mesh)
+        const bm = bmFromMesh(entry.mesh, BM_FROM_MESH_NORMALS)
         const faces = facesOf(bm, p.faces, entry.name)
         if (!faces.length) throw new Error(`"${entry.name}" has no faces to solidify`)
 
@@ -205,11 +206,13 @@ export const bevelCommand: CommandDefinition = {
         miterInner: S.enum('How an inner corner is finished.', ['sharp', 'arc']),
         spread: S.number('Distance between the arms of an arc miter.'),
         materialIndex: S.integer('Material slot for the new faces. -1 keeps the neighbours\'.'),
+        hardenNormals: S.boolean('Harden Normals: custom normals so the flat faces keep shading flat and only the bevel bends (Blender\'s option).'),
+        faceStrength: S.enum('Face strength for the weightedNormal modifier\'s face influence: NONE (default), NEW, AFFECTED or ALL.', ['NONE', 'NEW', 'AFFECTED', 'ALL']),
     }),
 
     run(p: Record<string, unknown>, ctx) {
         const entry = readTarget(p, ctx.doc)
-        const bm = bmFromMesh(entry.mesh)
+        const bm = bmFromMesh(entry.mesh, BM_FROM_MESH_NORMALS)
 
         const opts = {
             offset: (p.offset as number) ?? 0.1,
@@ -224,6 +227,8 @@ export const bevelCommand: CommandDefinition = {
             miterInner: p.miterInner as 'sharp' | 'arc' | undefined,
             spread: p.spread as number | undefined,
             materialIndex: p.materialIndex as number | undefined,
+            hardenNormals: p.hardenNormals as boolean | undefined,
+            faceStrengthMode: p.faceStrength as 'NONE' | 'NEW' | 'AFFECTED' | 'ALL' | undefined,
         }
 
         const byVerts = p.verts !== undefined
@@ -238,7 +243,7 @@ export const bevelCommand: CommandDefinition = {
         if (!result.faces.length) {
             ctx.warn('nothing was beveled - the selection may be boundary or non-manifold edges, '
                 + 'which are declined rather than corrupted')
-            return {objects: [entry.name], data: {newFaces: 0}}
+            return {objects: [entry.name], data: {mode: byVerts ? 'verts' : 'edges', newFaces: []}}
         }
 
         const mesh = bmToMesh(bm)
@@ -290,7 +295,7 @@ export const pokeCommand: CommandDefinition = {
 
     run(p: Record<string, unknown>, ctx) {
         const entry = readTarget(p, ctx.doc)
-        const bm = bmFromMesh(entry.mesh)
+        const bm = bmFromMesh(entry.mesh, BM_FROM_MESH_NORMALS)
         const faces = facesOf(bm, p.faces, entry.name)
         if (!faces.length) throw new Error(`"${entry.name}" has no faces to poke`)
 
@@ -380,7 +385,7 @@ export const wireframeCommand: CommandDefinition = {
             }
         }
 
-        const bm = bmFromMesh(entry.mesh)
+        const bm = bmFromMesh(entry.mesh, BM_FROM_MESH_NORMALS)
         const faces = facesOf(bm, p.faces, entry.name)
         if (!faces.length) throw new Error(`"${entry.name}" has no faces to wireframe`)
 

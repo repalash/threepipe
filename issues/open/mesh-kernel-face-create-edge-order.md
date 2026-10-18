@@ -1,5 +1,10 @@
 # mesh-kernel: `BMesh.faceCreate` creates a face's edges in a different order from Blender
 
+**Status**: fixed on `track0-followups` (2026-10-18): `faceCreate` runs `BM_edges_from_verts_ensure`'s loop.
+The subdivide and edge-ring parity tests now build their `bmesh.ops` inputs with `faceCreate` alone and
+check its edges against the order the fixtures recorded; the edit-mode cases (`Mesh.from_pydata`) and
+the loop-cut fixtures still create their edges first, in that function's own order.
+
 **Found by**: track L (loop tools), writing the exact-order subdivide parity test, 2026-10-03.
 
 ## What

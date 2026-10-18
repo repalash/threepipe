@@ -99,6 +99,29 @@ describe('BMesh construction', () => {
     })
 })
 
+describe('faceCreate edge order (BM_face_create_verts)', () => {
+    // `BM_edges_from_verts_ensure` (`bmesh_construct.cc:57`) starts at the closing edge, each edge
+    // running from the earlier corner of its pair as listed.
+    it('makes a quad\'s missing edges as (3, 0), (0, 1), (1, 2), (2, 3)', () => {
+        const bm = new BMesh()
+        const v = [0, 1, 2, 3].map(i => bm.vertCreate(i, i % 2, 0))
+        const f = bm.faceCreate(v)
+        expect([...bm.edges].map(e => [v.indexOf(e.v1), v.indexOf(e.v2)])).toEqual([[3, 0], [0, 1], [1, 2], [2, 3]])
+        // The face's loops still start at the first vertex, each loop's edge leading to the next corner.
+        expect(f.loops().map(l => v.indexOf(l.v))).toEqual([0, 1, 2, 3])
+        expect(f.loops().map(l => [v.indexOf(l.e!.v1), v.indexOf(l.e!.v2)])).toEqual([[0, 1], [1, 2], [2, 3], [3, 0]])
+    })
+
+    it('reuses existing edges in place (BM_CREATE_NO_DOUBLE), creating only the missing ones', () => {
+        const bm = new BMesh()
+        const v = [0, 1, 2, 3].map(i => bm.vertCreate(i, i % 2, 0))
+        const shared = bm.edgeCreate(v[1], v[2])
+        bm.faceCreate(v)
+        expect([...bm.edges][0]).toBe(shared)
+        expect([...bm.edges].map(e => [v.indexOf(e.v1), v.indexOf(e.v2)])).toEqual([[1, 2], [3, 0], [0, 1], [2, 3]])
+    })
+})
+
 describe('disk cycle', () => {
     it('counts the edges around each cube corner as 3', () => {
         const {bm} = cube()

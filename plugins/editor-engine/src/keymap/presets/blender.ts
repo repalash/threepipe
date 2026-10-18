@@ -49,7 +49,7 @@ export const blenderPreset: KeymapPreset = {
         {keys: 'numpad7', id: 'view.top'},
         {keys: 'ctrl+numpad7', id: 'view.bottom'},
         {keys: 'alt+z', id: 'mesh.toggle_xray'},                         // view3d.toggle_xray :1867
-        {keys: 'shift+a', id: 'add.menu'},                               // VIEW3D_MT_add :4559, VIEW3D_MT_mesh_add :5622
+        {keys: 'shift+a', id: 'add.menu'},                               // VIEW3D_MT_add :4559; in edit mode VIEW3D_MT_mesh_add :5622
         {keys: 'w', id: 'select', tool: true},                           // builtin.select_box cycle :1586
         // ── object mode (km_object_mode :4516, km_object_non_modal :4614) ────────────────────
         {keys: 'tab', id: 'object.enter_edit', mode: 'object'},          // object.mode_set EDIT :4624
@@ -85,14 +85,15 @@ export const blenderPreset: KeymapPreset = {
         {keys: 'r', id: 'mesh.rotate', mode: 'edit'},                    // transform.rotate
         {keys: 's', id: 'mesh.scale', mode: 'edit'},                     // transform.resize
         {keys: 'e', id: 'mesh.extrude', mode: 'edit'},                   // view3d.edit_mesh_extrude_move_normal :5600
-        {keys: 'i', id: 'mesh.inset', mode: 'edit'},                     // mesh.inset :5547
-        {keys: 'ctrl+b', id: 'mesh.bevel', mode: 'edit'},                // mesh.bevel :5550
+        {keys: 'i', id: 'mesh.inset', mode: 'edit', tool: true},         // mesh.inset :5547, its modal (edbm_inset_invoke) via the tool
+        {keys: 'ctrl+b', id: 'mesh.bevel', mode: 'edit', tool: true},    // mesh.bevel :5550, its modal (edbm_bevel_invoke) via the tool
+        {keys: 'ctrl+shift+b', id: 'mesh.bevel', mode: 'edit', props: {affect: 'VERTICES'}}, // :5556
         {keys: 'k', id: 'mesh.knife', mode: 'edit'},                     // mesh.knife_tool :5639
         {keys: 'shift+k', id: 'mesh.knife', mode: 'edit', props: {onlySelected: true, cutThrough: true}}, // :5642
         {keys: 'm', id: 'mesh.merge', mode: 'edit'},                     // VIEW3D_MT_edit_mesh_merge :5618
         {keys: 'y', id: 'mesh.split', mode: 'edit'},                     // mesh.split :5624
         {keys: 'p', id: 'mesh.separate', mode: 'edit'},                  // mesh.separate :5623
-        {keys: 'f', id: 'mesh.fill', mode: 'edit', repeat: true},        // mesh.edge_face_add :5620
+        {keys: 'f', id: 'mesh.edge_face_add', mode: 'edit', repeat: true}, // :5620
         {keys: 'j', id: 'mesh.vert_connect_path', mode: 'edit'},         // mesh.vert_connect_path :5625
         {keys: 'shift+d', id: 'mesh.duplicate', mode: 'edit'},           // mesh.duplicate_move :5621
         {keys: 'x', id: 'mesh.delete', mode: 'edit'},                    // VIEW3D_MT_edit_mesh_delete :5634
@@ -103,8 +104,20 @@ export const blenderPreset: KeymapPreset = {
         {keys: 'ctrl+e', id: 'mesh.edges_menu', mode: 'edit'},           // VIEW3D_MT_edit_mesh_edges :5647
         {keys: 'ctrl+v', id: 'mesh.vertices_menu', mode: 'edit'},        // VIEW3D_MT_edit_mesh_vertices :5648
         {keys: 'alt+click', id: 'mesh.select_loop', mode: 'edit'},       // mesh.loop_select :5561 (click bindings are informative; S wires the pointer)
+        {keys: 'h', id: 'mesh.hide', mode: 'edit', props: {unselected: false}},       // _template_items_hide_reveal_actions :461, :5593
+        {keys: 'shift+h', id: 'mesh.hide', mode: 'edit', props: {unselected: true}},
+        {keys: 'alt+h', id: 'mesh.reveal', mode: 'edit'},
         {keys: 'ctrl+alt+click', id: 'mesh.select_ring', mode: 'edit'},  // mesh.edgering_select :5567
         {keys: 'shift+v', id: 'mesh.vert_slide', mode: 'edit'},          // transform.vert_slide :5628
         {keys: 'ctrl+r', id: 'mesh.loopcut_slide', mode: 'edit'},        // mesh.loopcut_slide :5539
+        {keys: 'alt+s', id: 'transform.shrink_fatten', mode: 'edit'},   // :5554
+        {keys: 'alt+e', id: 'mesh.extrude_menu', mode: 'edit'},         // VIEW3D_MT_edit_mesh_extrude :5602
+        {keys: 'ctrl+numpadadd', id: 'mesh.select_more', mode: 'edit', repeat: true},      // :5579
+        {keys: 'ctrl+numpadsubtract', id: 'mesh.select_less', mode: 'edit', repeat: true}, // :5580
+        {keys: 'shift+n', id: 'mesh.normals_make_consistent', mode: 'edit', props: {inside: false}},     // :5595
+        {keys: 'ctrl+shift+n', id: 'mesh.normals_make_consistent', mode: 'edit', props: {inside: true}}, // :5597
+        {keys: 'alt+f', id: 'mesh.fill', mode: 'edit'},                  // :5604
+        {keys: 'ctrl+t', id: 'mesh.quads_convert_to_tris', mode: 'edit', props: {quadMethod: 'BEAUTY', ngonMethod: 'BEAUTY'}}, // :5605
+        {keys: 'ctrl+shift+t', id: 'mesh.quads_convert_to_tris', mode: 'edit', props: {quadMethod: 'FIXED', ngonMethod: 'CLIP'}}, // :5607
     ],
 }

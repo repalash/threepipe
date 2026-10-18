@@ -6,7 +6,7 @@
  * edges without an edit session.
  */
 
-import {bmFromMesh, bmToMesh, editMeshSubdivideOptions, meshNormalsUpdate, subdivideEdges} from '@threepipe/mesh-kernel'
+import {BM_FROM_MESH_NORMALS, bmFromMesh, bmToMesh, editMeshSubdivideOptions, subdivideEdges} from '@threepipe/mesh-kernel'
 import type {BMEdge, SubdQuadCornerType} from '@threepipe/mesh-kernel'
 import {CommandDefinition, S, schema} from './types'
 import {readTarget} from './params'
@@ -39,7 +39,7 @@ export const subdivideCommand: CommandDefinition = {
 
     run(p: Record<string, unknown>, ctx) {
         const entry = readTarget(p, ctx.doc)
-        const bm = bmFromMesh(entry.mesh)
+        const bm = bmFromMesh(entry.mesh, BM_FROM_MESH_NORMALS)
         const all = [...bm.edges]
         let edges: BMEdge[] = all
         if (p.edges !== undefined) {
@@ -53,8 +53,6 @@ export const subdivideCommand: CommandDefinition = {
         }
         if (!edges.length) throw new Error(`"${entry.name}" has no edges to subdivide`)
 
-        // The smoothing reads vertex normals, which edit mode keeps current.
-        meshNormalsUpdate(bm)
         const result = subdivideEdges(bm, edges, editMeshSubdivideOptions({
             numberCuts: (p.cuts as number) ?? 1,
             smoothness: (p.smoothness as number) ?? 0,

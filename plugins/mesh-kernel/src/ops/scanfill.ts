@@ -39,6 +39,18 @@
  */
 
 import type {Vec3} from '../math'
+import {
+    addNewellCrossV3V3V3,
+    axisDominantV3ToM3Negate,
+    compareV2V2,
+    compareV3V3,
+    copyV2V2,
+    cosV2V2V2,
+    distSquaredToLineV2,
+    FLT_EPSILON,
+    mulV2M3V3,
+    normalizeV3Len,
+} from '../math/geom'
 
 // region BLI_scanfill.h
 
@@ -189,8 +201,6 @@ const SF_EDGE_INTERNAL = 2
 const SF_POLY_NEW = 0
 const SF_POLY_VALID = 1
 
-/** `FLT_EPSILON`. */
-const FLT_EPSILON = 1.1920928955078125e-7
 
 /** `uchar` increment/decrement. */
 const u8 = (x: number): number => x & 0xff
@@ -253,127 +263,6 @@ function movelisttolist<T extends ScanFillLink<T>>(dst: ScanFillListBase<T>, src
         dst.last = src.last
     }
     src.first = src.last = null
-}
-
-// endregion
-
-// region math helpers (blenlib/intern/math_*.cc), module-private
-
-/** `normalize_v3` (`math_vector_inline.cc:872`), in place; returns the original length or 0. */
-function normalizeV3(n: Vec3): number {
-    let d = n[0] * n[0] + n[1] * n[1] + n[2] * n[2]
-    if (d > 1.0e-35) {
-        d = Math.sqrt(d)
-        const s = 1.0 / d
-        n[0] *= s
-        n[1] *= s
-        n[2] *= s
-    } else {
-        n[0] = n[1] = n[2] = 0
-        d = 0
-    }
-    return d
-}
-
-/** `normalize_v2` (`math_vector_inline.cc:841`), into `r`. */
-function normalizeV2(r: [number, number], a: readonly [number, number]): number {
-    let d = a[0] * a[0] + a[1] * a[1]
-    if (d > 1.0e-35) {
-        d = Math.sqrt(d)
-        const s = 1.0 / d
-        r[0] = a[0] * s
-        r[1] = a[1] * s
-    } else {
-        r[0] = r[1] = 0
-        d = 0
-    }
-    return d
-}
-
-/** `compare_ff` (`math_base_inline.cc:416`). */
-const compareFF = (a: number, b: number, maxDiff: number): boolean => Math.abs(a - b) <= maxDiff
-
-/** `compare_v2v2` (`math_vector_inline.cc:1015`). */
-const compareV2V2 = (a: readonly number[], b: readonly number[], limit: number): boolean =>
-    compareFF(a[0], b[0], limit) && compareFF(a[1], b[1], limit)
-
-/** `compare_v3v3` (`math_vector_inline.cc:1020`). */
-const compareV3V3 = (a: readonly number[], b: readonly number[], limit: number): boolean =>
-    compareFF(a[0], b[0], limit) && compareFF(a[1], b[1], limit) && compareFF(a[2], b[2], limit)
-
-/** `add_newell_cross_v3_v3v3` (`math_vector_inline.cc:700`). */
-function addNewellCrossV3V3V3(n: Vec3, vPrev: Vec3, vCurr: Vec3): void {
-    n[0] += (vPrev[1] - vCurr[1]) * (vPrev[2] + vCurr[2])
-    n[1] += (vPrev[2] - vCurr[2]) * (vPrev[0] + vCurr[0])
-    n[2] += (vPrev[0] - vCurr[0]) * (vPrev[1] + vCurr[1])
-}
-
-/** `ortho_basis_v3v3_v3` (`math_vector.cc:568`). */
-function orthoBasisV3V3V3(rN1: Vec3, rN2: Vec3, n: Vec3): void {
-    const eps = FLT_EPSILON
-    const f = n[0] * n[0] + n[1] * n[1]
-    if (f > eps) {
-        const d = 1.0 / Math.sqrt(f)
-        rN1[0] = n[1] * d
-        rN1[1] = -n[0] * d
-        rN1[2] = 0.0
-        rN2[0] = -n[2] * rN1[1]
-        rN2[1] = n[2] * rN1[0]
-        rN2[2] = n[0] * rN1[1] - n[1] * rN1[0]
-    } else {
-        /* degenerate case */
-        rN1[0] = (n[2] < 0.0) ? -1.0 : 1.0
-        rN1[1] = rN1[2] = rN2[0] = rN2[2] = 0.0
-        rN2[1] = 1.0
-    }
-}
-
-/**
- * `axis_dominant_v3_to_m3_negate` (`math_geom.cc:3663`): a 3x3 projecting onto the plane of
- * `normal`, mirrored so the 2D winding matches the 3D one. `r[col][row]`, Blender's layout.
- */
-function axisDominantV3ToM3Negate(normal: Vec3): Vec3[] {
-    const r: Vec3[] = [[0, 0, 0], [0, 0, 0], [-normal[0], -normal[1], -normal[2]]]
-    orthoBasisV3V3V3(r[0], r[1], r[2])
-    /* transpose_m3 (math_matrix_c.cc:1199) */
-    let t = r[0][1]; r[0][1] = r[1][0]; r[1][0] = t
-    t = r[0][2]; r[0][2] = r[2][0]; r[2][0] = t
-    t = r[1][2]; r[1][2] = r[2][1]; r[2][1] = t
-    return r
-}
-
-/** `mul_v2_m3v3` (`math_matrix_c.cc:844`). */
-function mulV2M3V3(r: [number, number], m: Vec3[], a: Vec3): void {
-    const t0 = a[0], t1 = a[1], t2 = a[2]
-    r[0] = m[0][0] * t0 + m[1][0] * t1 + m[2][0] * t2
-    r[1] = m[0][1] * t0 + m[1][1] * t1 + m[2][1] * t2
-}
-
-/** `cos_v2v2v2` (`math_vector.cc:302`): cosine of the angle at `p2`. */
-function cosV2V2V2(p1: readonly [number, number], p2: readonly [number, number], p3: readonly [number, number]): number {
-    const vec1: [number, number] = [p2[0] - p1[0], p2[1] - p1[1]]
-    const vec2: [number, number] = [p2[0] - p3[0], p2[1] - p3[1]]
-    normalizeV2(vec1, vec1)
-    normalizeV2(vec2, vec2)
-    return vec1[0] * vec2[0] + vec1[1] * vec2[1]
-}
-
-/** `dist_squared_to_line_v2` (`math_geom.cc:294`) via `closest_to_line_v2` (`math_geom.cc:3298`). */
-function distSquaredToLineV2(p: readonly number[], l1: readonly number[], l2: readonly number[]): number {
-    const u0 = l2[0] - l1[0], u1 = l2[1] - l1[1]
-    const h0 = p[0] - l1[0], h1 = p[1] - l1[1]
-    const denom = u0 * u0 + u1 * u1
-    let c0: number, c1: number
-    if (denom === 0.0) {
-        c0 = l1[0]
-        c1 = l1[1]
-    } else {
-        const lambda = (u0 * h0 + u1 * h1) / denom
-        c0 = l1[0] + u0 * lambda
-        c1 = l1[1] + u1 * lambda
-    }
-    const d0 = c0 - p[0], d1 = c1 - p[1]
-    return d0 * d0 + d1 * d1
 }
 
 // endregion
@@ -943,7 +832,7 @@ export function scanfillCalcEx(ctx: ScanFillContext, flag: number, norProj: Vec3
         }
     }
 
-    if (normalizeV3(n) === 0.0) return 0
+    if (normalizeV3Len(n) === 0.0) return 0
 
     const mat2d = axisDominantV3ToM3Negate(n)
 
@@ -955,7 +844,7 @@ export function scanfillCalcEx(ctx: ScanFillContext, flag: number, norProj: Vec3
 
     if ((flag & ScanFillFlag.Polys) && poly === 0) {
         for (let eve = ctx.fillvertbase.first; eve; eve = eve.next) {
-            mulV2M3V3(eve.xy, mat2d, eve.co)
+            copyV2V2(eve.xy, mulV2M3V3(mat2d, eve.co))
 
             /* get first vertex with no poly number */
             if (eve.polyNr === SF_POLY_UNSET) {
@@ -993,13 +882,13 @@ export function scanfillCalcEx(ctx: ScanFillContext, flag: number, norProj: Vec3
     } else if (poly) {
         /* we pre-calculated poly_nr */
         for (let eve = ctx.fillvertbase.first; eve; eve = eve.next) {
-            mulV2M3V3(eve.xy, mat2d, eve.co)
+            copyV2V2(eve.xy, mulV2M3V3(mat2d, eve.co))
         }
     } else {
         poly = 1
 
         for (let eve = ctx.fillvertbase.first; eve; eve = eve.next) {
-            mulV2M3V3(eve.xy, mat2d, eve.co)
+            copyV2V2(eve.xy, mulV2M3V3(mat2d, eve.co))
             eve.polyNr = 0
         }
 

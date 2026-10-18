@@ -36,7 +36,8 @@
             "@threepipe/mesh-kernel": ["../mesh-kernel/src/index.ts"],
             "@threepipe/plugin-mesh-edit": ["../mesh-edit/src/index.ts"],
             "@threepipe/plugin-modelling": ["../modelling/src/index.ts"],
-            "@threepipe/plugin-editor-engine": ["../editor-engine/src/index.ts"]
+            "@threepipe/plugin-editor-engine": ["../editor-engine/src/index.ts"],
+            "@threepipe/plugin-cloud": ["../cloud/src/index.ts"]
         }
     },
     "include": [

@@ -22,6 +22,11 @@
  * otherwise they z-fight with it. Blender's overlay applies a similar depth offset
  * (`overlay_edit_mesh_vert.glsl:60`, `:98`).
  *
+ * Every overlay material has `allowOverride = false`, as the gizmos' do: three.js-modded applies a
+ * `scene.overrideMaterial` (the editor's Solid / Wireframe shading) to every material that allows it,
+ * which `ShaderMaterial` and threepipe's materials do by default
+ * (`issues/open/modelling-tools/editor-solid-shading-edit-mode.md`).
+ *
  * The fragment shaders end in `colorspace_fragment`, as any three.js `ShaderMaterial` drawn into the
  * scene must: threepipe renders into an RGBM-encoded target by default, and colour written without the
  * output conversion came out decoded as something else - black edges rendered as black-and-white dashes,
@@ -239,6 +244,8 @@ function pointMaterial(colors: {base: string, select: string}, pointSize: number
     })
     // Theme colours are display colours; keep them out of tone mapping.
     material.toneMapped = false
+    // A widget: the viewport's Solid / Wireframe shading (`scene.overrideMaterial`) must not replace it.
+    ;(material as any).allowOverride = false
     return material
 }
 
@@ -273,6 +280,8 @@ export function createEdgeMaterial(): ShaderMaterial {
         },
     })
     material.toneMapped = false
+    // A widget, see `pointMaterial`: overridden, the instanced quads drew as one big quad in Solid shading.
+    ;(material as any).allowOverride = false
     return material
 }
 

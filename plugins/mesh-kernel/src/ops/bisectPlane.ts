@@ -26,27 +26,21 @@ import {faceVertShareLoop} from '../bmesh/walkers'
 import {faceNormalUpdate} from '../bmesh/polygon'
 import {edgeSelectSet, faceSelectSet, selectFlush, selectNone, vertSelectSet} from '../bmesh/marking'
 import {Vec3} from '../math'
+import {planeFromPointNormalV3, planePointSideV3, Vec4} from '../math/geom'
 import {KnifeView} from './knife/view'
-import {invertM4} from './knife/geom'
+import {mat4Invert} from '../math'
 import {triangleFill} from './triangleFill'
 import {faceAttributeFill} from './faceAttributeFill'
 
 /** A plane as `[a, b, c, d]`: points `p` with `a*x + b*y + c*z + d = 0`. Blender's `float plane[4]`. */
-export type Plane4 = [number, number, number, number]
+export type Plane4 = Vec4
 
-/** `plane_from_point_normal_v3` (`math_geom.cc`). The normal is used as given, not normalised. */
-export function planeFromPointNormal(co: Vec3, no: Vec3): Plane4 {
-    return [no[0], no[1], no[2], -(no[0] * co[0] + no[1] * co[1] + no[2] * co[2])]
-}
-
-/** `plane_point_side_v3`: signed distance, scaled by the length of the plane's normal. */
-function planePointSide(plane: Plane4, v: BMVert): number {
-    return plane[0] * v.x + plane[1] * v.y + plane[2] * v.z + plane[3]
-}
+/** `plane_point_side_v3` (`math/geom.ts`) at a vertex: the signed distance, scaled by the normal's length. */
+const planePointSideVert = (plane: Plane4, v: BMVert): number => planePointSideV3(plane, [v.x, v.y, v.z])
 
 /** `plane_point_test_v3` (`bmesh_bisect_plane.cc:41`). */
 function planePointTest(plane: Plane4, v: BMVert, eps: number): {side: number, depth: number} {
-    const f = planePointSide(plane, v)
+    const f = planePointSideVert(plane, v)
     if (f <= -eps) return {side: -1, depth: f}
     if (f >= eps) return {side: 1, depth: f}
     return {side: 0, depth: f}
@@ -55,7 +49,7 @@ function planePointTest(plane: Plane4, v: BMVert, eps: number): {side: number, d
 /** `closest_to_plane_v3`: move `v` onto the plane. */
 function closestToPlane(plane: Plane4, v: BMVert): void {
     const lenSq = plane[0] * plane[0] + plane[1] * plane[1] + plane[2] * plane[2]
-    const side = planePointSide(plane, v)
+    const side = planePointSideVert(plane, v)
     const fac = side / lenSq
     v.x -= plane[0] * fac
     v.y -= plane[1] * fac
@@ -382,7 +376,7 @@ export function bisectPlane(bm: BMesh, geom: Iterable<BMVert | BMEdge | BMFace>,
     const dist = opts.dist ?? 0
     const {planeCo, planeNo} = opts
     if (planeNo[0] === 0 && planeNo[1] === 0 && planeNo[2] === 0) throw new Error('mesh-kernel: bisect: zero normal given')
-    const plane = planeFromPointNormal(planeCo, planeNo)
+    const plane = planeFromPointNormalV3(planeCo, planeNo)
 
     const input = new Set<BMVert | BMEdge | BMFace>()
     const inputVerts: BMVert[] = []
@@ -404,7 +398,7 @@ export function bisectPlane(bm: BMesh, geom: Iterable<BMVert | BMEdge | BMFace>,
         const planeInner: Plane4 = [plane[0], plane[1], plane[2], plane[3] + dist]
         const vertArr: BMVert[] = []
         for (const v of inputVerts) {
-            if ((opts.clearOuter && planePointSide(planeOuter, v) > 0) || (opts.clearInner && planePointSide(planeInner, v) < 0)) {
+            if ((opts.clearOuter && planePointSideVert(planeOuter, v) > 0) || (opts.clearInner && planePointSideVert(planeInner, v) < 0)) {
                 vertArr.push(v)
             }
         }
@@ -519,7 +513,7 @@ export function bisectPlaneFromScreenLine(view: KnifeView, start: [number, numbe
  */
 export function bisectPlaneToLocal(planeCo: Vec3, planeNo: Vec3, objectMatrix: number[]): {planeCo: Vec3, planeNo: Vec3} {
     const m = objectMatrix
-    const inv = invertM4(m)
+    const inv = mat4Invert(m)
     const co: Vec3 = [
         inv[0] * planeCo[0] + inv[4] * planeCo[1] + inv[8] * planeCo[2] + inv[12],
         inv[1] * planeCo[0] + inv[5] * planeCo[1] + inv[9] * planeCo[2] + inv[13],

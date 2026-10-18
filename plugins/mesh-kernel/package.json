@@ -3,6 +3,7 @@
     "description": "Node-safe editable polygon mesh kernel for threepipe - n-gon topology, domain attributes and Blender-style mesh operators",
     "version": "0.1.0",
     "devDependencies": {
+        "manifold-3d": "3.5.3",
         "three": "npm:three-modded@0.168.10006"
     },
     "dependencies": {},

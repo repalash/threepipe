@@ -3,6 +3,10 @@ prev:
     text: '@threepipe/modelling-cli'
     link: './modelling-cli'
 
+next:
+    text: '@threepipe/plugin-cloud'
+    link: './plugin-cloud'
+
 aside: false
 ---
 

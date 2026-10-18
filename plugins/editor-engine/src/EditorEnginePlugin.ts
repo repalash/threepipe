@@ -37,9 +37,11 @@ import {
     LabelledUndoCommand,
     LastLook,
     LastOperation,
+    MenuDescriptor,
     MenuRequestItem,
     OperatorDescriptor,
     OperatorResult,
+    ResolvedMenu,
     SceneStats,
     SelectModeName,
     SimpleRegistry,
@@ -58,12 +60,15 @@ import {registerFileOperators} from './ops/fileOps'
 import {registerObjectOperators} from './ops/objectOps'
 import {registerMeshOperators} from './ops/meshOps'
 import {registerFillOperators} from './ops/fillOps'
+import {registerEditmeshToolOperators} from './ops/editmeshToolOps'
 import {registerLoopOperators} from './ops/loopOps'
 import {registerModellingOperators} from './ops/modellingOps'
 import {registerTools} from './tools/tools'
 import {registerCutOperators} from './ops/cutOps'
 import {registerCutTools} from './tools/cutTools'
 import type {PropDragModal} from './tools/PropDragModal'
+import {registerMenus, HEADER_MENUS, HEADER_LABELS, CONTEXT_MENUS} from './menus/menus'
+import {resolveMenu} from './menus/resolveMenu'
 
 const SELECT_MASKS: Record<SelectModeName, number> = {
     vertex: SelectMode.Vertex,
@@ -97,6 +102,7 @@ export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implemen
 
     readonly operators = new SimpleRegistry<OperatorDescriptor>(item => this._registryChanged(item))
     readonly tools = new SimpleRegistry<ToolDescriptor>(item => this._registryChanged(item))
+    readonly menus = new SimpleRegistry<MenuDescriptor>(() => this._registryChanged())
 
     picking!: PickingPlugin
     undoPlugin!: UndoManagerPlugin
@@ -197,10 +203,12 @@ export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implemen
             registerObjectOperators(this)
             registerMeshOperators(this)
             registerFillOperators(this)
+            registerEditmeshToolOperators(this)
             registerLoopOperators(this)
             registerModellingOperators(this)
             registerTools(this)
             registerCutTools(this, registerCutOperators(this))
+            registerMenus(this)
         }
 
         const stored = this._storedPreset()
@@ -367,7 +375,7 @@ export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implemen
         presets: [] as KeymapPreset[],
         activePreset: blenderPreset,
         setPreset: (id: string) => this._setPreset(id),
-        shortcutFor: (id: string, mode?: EditorMode) => this._keymap.shortcutFor(id, mode ?? this.mode),
+        shortcutFor: (id: string, mode?: EditorMode, props?: Record<string, unknown>) => this._keymap.shortcutFor(id, mode ?? this.mode, props),
         bindingsFor: (id: string) => this._keymap.bindingsFor(id),
     }
 
@@ -425,10 +433,42 @@ export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implemen
         else void this.run(binding.id, binding.props)
     }
 
-    /** Ask the shell to open a popup menu at the cursor (Blender's `wm.call_menu`). */
+    /** Ask the shell to open a one-off list as a popup menu at the cursor (the keymap picker). */
     requestMenu(title: string, items: MenuRequestItem[]): void {
         const {clientX, clientY} = this.input.pointer
         this.dispatchEvent({type: 'uiRequest', request: 'menu', title, items, clientX, clientY})
+    }
+
+    // endregion
+
+    // region menus
+
+    /**
+     * Open a registered menu at the pointer: Blender's `wm.call_menu` (`WM_menu_name_call`,
+     * `wm_operators.cc:2189`), which the keymap binds to Ctrl+V/E/F, X, M, Shift+A.
+     */
+    callMenu(id: string, at?: {clientX: number, clientY: number}): void {
+        const menu = this.menus.get(id)
+        if (!menu) {
+            this.message('error', `Unknown menu "${id}"`)
+            return
+        }
+        const {clientX, clientY} = at ?? this.input.pointer
+        this.dispatchEvent({type: 'uiRequest', request: 'menu', menu: id, title: menu.label, clientX, clientY})
+    }
+
+    resolveMenu(id: string, ctx = this.context()): ResolvedMenu | undefined {
+        return resolveMenu(this, id, ctx)
+    }
+
+    headerMenus(): ResolvedMenu[] {
+        const ctx = this.context()
+        return HEADER_MENUS(ctx).map(id => this.resolveMenu(id, ctx)).filter((m): m is ResolvedMenu => !!m)
+            .map(m => HEADER_LABELS[m.id] ? {...m, label: HEADER_LABELS[m.id]} : m)
+    }
+
+    get contextMenuId(): string {
+        return CONTEXT_MENUS[this.mode]
     }
 
     // endregion
@@ -622,7 +662,9 @@ export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implemen
             this.history.pendingLabel = null
         }
         if (!result.ok && result.error) this.message('error', `${op.label}: ${result.error}`)
-        for (const w of result.warnings ?? []) this.message('warning', w)
+        // A modal's intermediate re-runs (an inset or bevel being dragged or typed) keep their warnings to
+        // themselves; the modal shows the final run's when it is confirmed.
+        if (!this.propDrag?.applying) for (const w of result.warnings ?? []) this.message('warning', w)
         if (result.ok && op.flags?.register) {
             const finalProps = result.props ?? props ?? {}
             if (result.modal) {

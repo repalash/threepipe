@@ -19,9 +19,6 @@ const SKIP = new Set(['look', 'primitive', 'undo', 'redo', 'checkpoint', 'histor
     'inspect', 'camera', 'export', 'select', 'display', 'measure', 'reference', 'lighting', 'modifier', 'vertices', 'transform',
     'delete', 'duplicate', 'rename', 'join', 'separate', 'deleteElements', 'applyTransform'])
 
-/** Shape operators belong in the object context menu; material/light/lathe/sweep stay in the menus. */
-const IN_CONTEXT_MENU = new Set(['inset', 'bevel', 'solidify', 'mirror', 'array', 'extrude', 'weld'])
-
 const ICONS: Record<string, string> = {
     inset: 'inner-join', bevel: 'polygon-filter', solidify: 'layers', mirror: 'swap-horizontal', array: 'layout-grid',
     extrude: 'arrow-up', weld: 'group-objects', material: 'tint', light: 'flash', lathe: 'refresh', sweep: 'flows',
@@ -104,7 +101,6 @@ export function registerModellingOperators(engine: EditorEnginePlugin): void {
             icon: ICONS[def.name] ?? 'wrench',
             category: CATEGORY[def.name] ?? 'Mesh',
             modes: ['object'],
-            contextMenu: IN_CONTEXT_MENU.has(def.name) ? ['object'] : undefined,
             props: Object.keys(visible.properties).length ? visible : undefined,
             flags: {undo: true, register: true},
             poll: ctx => {

@@ -30,6 +30,7 @@ function blenderMesh(name: string): MeshData {
     return mesh
 }
 
+/** A quad; `faceCreate` makes its edges as Blender does: (3, 0), (0, 1), (1, 2), (2, 3) (`BM_edges_from_verts_ensure`). */
 function quad() {
     const bm = new BMesh()
     const v = [bm.vertCreate(0, 0, 0), bm.vertCreate(1, 0, 0), bm.vertCreate(1, 1, 0), bm.vertCreate(0, 1, 0)]
@@ -67,8 +68,8 @@ describe('bmMeshIsValid (BM_mesh_is_valid)', () => {
 
     it('reports two edges over one vertex pair (line 108)', () => {
         const {bm, v} = quad()
-        bm.edgeCreate(v[2], v[1]) // no `noDouble`: a second edge (1, 2), in the other direction
-        expect(bmMeshIsValid(bm)).toEqual(['edge 4, 1: are duplicates'])
+        bm.edgeCreate(v[2], v[1]) // no `noDouble`: a second edge (1, 2) - edge 2 - in the other direction
+        expect(bmMeshIsValid(bm)).toEqual(['edge 4, 2: are duplicates'])
     })
 
     it('reports a face repeated over the same verts, in either winding (line 237)', () => {
@@ -108,14 +109,15 @@ describe('bmMeshIsValid (BM_mesh_is_valid)', () => {
         const e0 = f.lFirst!.e!
         const e1 = f.lFirst!.next.e!
         e0.l = f.lFirst!.next // a loop of e1
-        expect(bmMeshIsValid(bm)[0]).toBe('edge 0: has invalid loop, loop is of face 0')
+        // e0 is the first corner's edge, (0, 1): edge 1.
+        expect(bmMeshIsValid(bm)[0]).toBe('edge 1: has invalid loop, loop is of face 0')
         expect(e1).not.toBe(e0)
     })
 
     it('reports a vertex whose edge does not use it (line 92)', () => {
         const {bm, v} = quad()
-        v[0].e = [...bm.edges][1] // edge (1, 2)
-        expect(bmMeshIsValid(bm)[0]).toBe('vert 0: is not in its referenced edge: 1')
+        v[0].e = [...bm.edges][2] // edge (1, 2)
+        expect(bmMeshIsValid(bm)[0]).toBe('vert 0: is not in its referenced edge: 2')
     })
 
     it('leaves the mesh flags untouched', () => {

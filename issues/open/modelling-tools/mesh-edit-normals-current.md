@@ -1,5 +1,15 @@
 # mesh-edit: the edit session does not keep normals current
 
+**Status**: fixed on `track0-followups` (2026-10-18, `3a776b6`). `EditMeshState` computes the normals when
+it builds the BMesh (entry, undo, reload) and `update(params)` ports `EDBM_update`'s `calc_normals`;
+`MeshEditPlugin` calls it once per committed operator (`commit(before, label, params)`, hide/reveal pass
+`calcNormals: false` as Blender's do), after extrude/duplicate/loop cut and when a modal transform ends,
+never per frame. One `meshNormalsUpdate` (`bmesh/normals.ts`); the copies in `bevel-bmquery.ts` and
+`inset.ts` and the per-operator refreshes (bevel, inset, wireframe, connect, dissolve, fillOps, Subdivide,
+`TransInfo`) are gone. `bmFromMesh(mesh, {calcFaceNormal, calcVertNormal})` ports `BMeshFromMeshParams`
+for the `plugin-modelling` commands. Tests: `plugins/mesh-edit/tests/sessionNormals.test.ts`, e2e
+`modelling-edit-normals`.
+
 **Found**: 2026-10-03, merging p3-fill and p3-loop.
 
 Blender's edit mesh has current face and vertex normals whenever an operator starts: `EDBM_update`

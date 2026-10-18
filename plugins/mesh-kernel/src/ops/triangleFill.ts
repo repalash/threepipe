@@ -9,8 +9,7 @@
  * Operator flags (`ELE_NEW`, `EDGE_MARK`) become sets. `geom.out` is collected the way
  * `BMO_slot_buffer_from_enabled_flag` does it: edges in mesh order, then faces in mesh order.
  *
- * Not ported: `use_beauty` (`:227`), which runs `beautify_fill` - not in the kernel yet. Asking for it
- * throws instead of silently returning the un-beautified triangles.
+ * `use_beauty` (`:227`) runs `beautify_fill` (`beautify.ts`) over the new triangles, nested.
  *
  * Blender 3.4.1 (`bmo_triangulate.c`) differs only in the dissolve step: it joins across every
  * manifold `ELE_NEW` edge (`BM_edge_is_manifold`) with no duplicate-face handling; main (ported)
@@ -24,6 +23,8 @@ import {diskEdgeExists, diskEdges, edgeIsBoundary} from '../bmesh/structure'
 import type {Vec3} from '../math'
 import {faceExists} from './weld'
 import {facesJoinPair} from './dissolveEdges'
+import {bmoBeautifyFillExec} from './beautify'
+import {bmoOpExec} from './bmo'
 import {
     ScanFillFlag,
     ScanFillVert,
@@ -42,7 +43,7 @@ export interface TriangleFillOptions {
     normal?: Vec3
     /** Dissolve the new internal edges, merging the triangles into n-gons. Blender's `use_dissolve`. */
     useDissolve?: boolean
-    /** Blender's `use_beauty`. Not ported (`beautify_fill`); `true` throws. */
+    /** Rotate the new triangles' edges into better-shaped triangles (`beautify_fill`). Blender's `use_beauty`. */
     useBeauty?: boolean
 }
 
@@ -108,14 +109,11 @@ interface SortNormal {
  * Fill the closed loops formed by `edges` with triangles (and, with `useDissolve`, merge them into
  * n-gons). Returns the new faces and edges.
  *
- * Port of `bmo_triangle_fill_exec` (`bmo_triangulate.cc:52`) with `use_beauty = false`.
+ * Port of `bmo_triangle_fill_exec` (`bmo_triangulate.cc:52`).
  */
 export function triangleFill(bm: BMesh, edges: readonly BMEdge[], options: TriangleFillOptions = {}): TriangleFillResult {
     const useBeauty = options.useBeauty ?? false
     const useDissolve = options.useDissolve ?? false
-    if (useBeauty) {
-        throw new Error('mesh-kernel triangleFill: use_beauty needs beautify_fill, which is not ported')
-    }
 
     const edgeMark = new Set<BMEdge>() // EDGE_MARK
     const eleNewEdge = new Set<BMEdge>() // ELE_NEW on edges
@@ -283,6 +281,18 @@ export function triangleFill(bm: BMesh, edges: readonly BMEdge[], options: Trian
     }
 
     scanfillEnd(sfCtx)
+
+    if (useBeauty) { // `:227`
+        // `BMO_op_initf(bm, &bmop, op->flag, "beautify_fill faces=%ff edges=%Fe", ELE_NEW, EDGE_MARK)`: a
+        // nested operator (no edit end) over the new faces and every edge that is not an input edge,
+        // both in mesh order (`%F` is "flag not set", no hide test).
+        const faces = [...bm.faces].filter(f => eleNewFace.has(f))
+        const edges = [...bm.edges].filter(e => !edgeMark.has(e))
+        const r = bmoOpExec(bm, null, () => bmoBeautifyFillExec(bm, faces, edges, false, 0))
+        // `BMO_slot_buffer_flag_enable(bm, bmop.slots_out, "geom.out", BM_FACE | BM_EDGE, ELE_NEW)`
+        for (const f of r.faces) eleNewFace.add(f)
+        for (const e of r.edges) eleNewEdge.add(e)
+    }
 
     if (useDissolve) { // `:236`
         // BM_ITER_MESH_MUTABLE over edges. The loop only ever kills the current edge (and faces), and

@@ -26,6 +26,7 @@ const alias = {
     '@threepipe/plugin-editor-engine': path.resolve(__dirname, './plugins/editor-engine/src/index.ts'),
     '@threepipe/plugin-procedural/plugin': path.resolve(__dirname, './plugins/procedural/src/plugin/index.ts'),
     '@threepipe/plugin-procedural': path.resolve(__dirname, './plugins/procedural/src/index.ts'),
+    '@threepipe/plugin-cloud': path.resolve(__dirname, './plugins/cloud/src/index.ts'),
     // bundled (React 18 + Blueprint inside); the examples config aliases `react` to esm.sh react@19 for r3f, so the
     // editor ships its own copy via its dist. Build it with `npm run build:modelling-editor` (or `dev` in the package).
     '@threepipe/plugin-modelling-editor': path.resolve(__dirname, './plugins/modelling-editor/dist/index.mjs'),
@@ -184,8 +185,9 @@ export default defineConfig(async ()=>{
             sourcemapIgnoreList: false,
             watch: {
                 // The e2e suite writes screenshots and traces here while it runs; watching them made the
-                // dev server reload every open example mid-test when the suite pointed at it.
-                ignored: ['**/tests/snapshots/**', '**/test-results/**', '**/playwright-report/**'],
+                // dev server reload every open example mid-test when the suite pointed at it. `tmp/` is
+                // scratch output too (the modelling e2e screenshots in tmp/menus, tmp/onboarding).
+                ignored: ['**/tests/snapshots/**', '**/test-results/**', '**/playwright-report/**', '**/tmp/**'],
             },
         },
         build: {

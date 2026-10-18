@@ -14,13 +14,13 @@
  */
 
 import {describe, expect, it} from 'vitest'
-import {buildInput, compareMeshes, FixtureInput, FixtureMesh, loadFixture, meshOf, PARITY_TOL, setRawSelection} from './parity-util'
+import {buildInput, compareMeshes, compareUvs, FixtureInput, FixtureMesh, loadFixture, meshOf, PARITY_TOL, setRawSelection} from './parity-util'
 import {BMesh} from '../src/bmesh/BMesh'
 import {BMEdge, BMFace, BMVert} from '../src/bmesh/types'
 import {ElemFlag, SelectMode} from '../src/constants'
 import {getValue, setValue} from '../src/bmesh/customdata'
 import {vertHideSet} from '../src/bmesh/marking'
-import {normalsUpdate} from '../src/ops/bevel-bmquery'
+import {meshNormalsUpdate} from '../src/bmesh/normals'
 import {dissolveFaces, dissolveFacesSelection, DissolveSelectionResult} from '../src/ops/dissolve'
 import {dissolveEdges, dissolveEdgesSelection, dissolveModeSelection, dissolveVerts, dissolveVertsSelection} from '../src/ops/dissolveEdges'
 import {dissolveLimit, DissolveDelimit, dissolveLimitedSelection} from '../src/ops/dissolveLimit'
@@ -137,47 +137,6 @@ function runEdit(bm: BMesh, c: EditCase): DissolveSelectionResult {
     }
 }
 
-/**
- * Compare every face's corner UVs with Blender's (`output.uvs`, written when the mesh has a UV map):
- * vertices are paired by position as in `compareMeshes`, each Blender face is found among ours as the
- * same cyclic vertex sequence, and the UVs are compared corner by corner.
- */
-function compareUvs(bm: BMesh, want: FixtureMesh & {uvs?: number[][][] | null}): string[] {
-    if (!want.uvs) return []
-    const layer = bm.ldata.get('UVMap')
-    if (!layer) return ['no UV layer']
-    const got = meshOf(bm)
-    const used = new Array(got.positions.length).fill(false)
-    const map = want.positions.map(w => {
-        const j = got.positions.findIndex((g, k) => !used[k] && g.every((x, a) => Math.abs(x - w[a]) < PARITY_TOL))
-        if (j >= 0) used[j] = true
-        return j
-    })
-    const gotFaces = [...bm.faces]
-    const problems: string[] = []
-    want.faces.forEach((wf, i) => {
-        const mapped = wf.map(j => map[j])
-        let found = false
-        for (let fi = 0; fi < gotFaces.length && !found; fi++) {
-            const gv = got.faces[fi]
-            if (gv.length !== mapped.length) continue
-            for (let k = 0; k < gv.length && !found; k++) {
-                if (!mapped.every((m, c) => gv[(k + c) % gv.length] === m)) continue
-                found = true
-                const loops = gotFaces[fi].loops()
-                mapped.forEach((_, c) => {
-                    const uv = getValue(loops[(k + c) % loops.length], layer)
-                    const w = want.uvs![i][c]
-                    if (Math.abs(uv[0] - w[0]) > PARITY_TOL || Math.abs(uv[1] - w[1]) > PARITY_TOL) {
-                        problems.push(`face ${i} corner ${c}: uv [${uv.map(x => x.toFixed(4))}], Blender [${w}]`)
-                    }
-                })
-            }
-        }
-        if (!found) problems.push(`face ${i} not found`)
-    })
-    return problems
-}
 
 /** Compare `region.out` as a face set, through the same vertex pairing as the geometry. */
 function compareRegion(got: ReturnType<typeof meshOf>, gotRegion: BMFace[], bm: BMesh, want: FixtureMesh, wantRegion: number[]): string[] {
@@ -194,7 +153,7 @@ describe(`dissolve matches Blender ${fixture.blender}`, () => {
             if (c.kind === 'op') {
                 const {bm, verts, faces, edge} = buildInput(c.input)
                 applyExtras(bm, faces, edge, c.extras)
-                normalsUpdate(bm) // `bm.normal_update()` in the generator
+                meshNormalsUpdate(bm) // `bm.normal_update()` in the generator
                 const region = runOp(bm, c, verts, faces, edge)
                 expect(bm.validate()).toEqual([])
                 const got = meshOf(bm)
@@ -205,6 +164,8 @@ describe(`dissolve matches Blender ${fixture.blender}`, () => {
             } else {
                 const {bm, verts, faces, edge} = buildInput({...c.input, select: undefined})
                 applyExtras(bm, faces, edge, c.extras)
+                // Edit mode has current normals when the operator runs (`EDBM_update` after every operator).
+                meshNormalsUpdate(bm)
                 bm.selectMode = MODE[c.mode]
                 for (const i of c.input.hide) vertHideSet(bm, verts[i], true)
                 setRawSelection(bm, verts, faces, c.entered)
@@ -240,7 +201,7 @@ describe('dissolve, current-source behaviour (hand-checked against bmo_dissolve.
         // and has two tagged edges: not marked. Vertices 5 and 10 are marked (one tagged edge each) but
         // keep three edges, so nothing collapses.
         const {bm, verts, edge} = buildInput(inputOf('edges grid corner-touching pair'))
-        normalsUpdate(bm)
+        meshNormalsUpdate(bm)
         expect(dissolveEdges(bm, [edge(5, 6), edge(6, 10)], {useVerts: true, usePreserveQuads: false})).toBe(2)
         expect(bm.validate()).toEqual([])
         expect([bm.totvert, bm.totedge, bm.totface]).toEqual([16, 22, 7])
@@ -274,7 +235,7 @@ describe('dissolve, current-source behaviour (hand-checked against bmo_dissolve.
         // the plain one (`raw_factor` 0 and the in-plane angle).
         for (const [threshold, kept4] of [[KINK - 0.02, true], [KINK + 0.02, false]] as const) {
             const {bm, verts, edge} = kinkGrid()
-            normalsUpdate(bm)
+            meshNormalsUpdate(bm)
             dissolveEdges(bm, [edge(3, 4), edge(4, 5)], {useVerts: true, angleThreshold: threshold})
             expect(bm.validate()).toEqual([])
             expect(bm.verts.has(verts[3])).toBe(false)
@@ -292,7 +253,7 @@ describe('dissolve, current-source behaviour (hand-checked against bmo_dissolve.
         // dissolves it. The raw angle alone would keep it.
         const co = [[0, 0, 0], [1, 0, 0], [2, 0, 0], [0, 1, 0], [1, 1, 0.3], [2, 1, 0], [0, 2, 0], [1, 2, 0], [2, 2, 0]]
         const {bm, verts, edge} = buildInput({positions: co, faces: [[0, 1, 4, 3], [1, 2, 5, 4], [3, 4, 7, 6], [4, 5, 8, 7]]})
-        normalsUpdate(bm)
+        meshNormalsUpdate(bm)
         dissolveEdges(bm, [edge(3, 4), edge(4, 5)], {useVerts: true, angleThreshold: 20 * Math.PI / 180})
         expect(bm.validate()).toEqual([])
         expect(bm.verts.has(verts[4])).toBe(false)
@@ -301,7 +262,7 @@ describe('dissolve, current-source behaviour (hand-checked against bmo_dissolve.
 
     it('angle_threshold 0 turns use_verts off', () => {
         const {bm, edge} = kinkGrid()
-        normalsUpdate(bm)
+        meshNormalsUpdate(bm)
         dissolveEdges(bm, [edge(3, 4), edge(4, 5)], {useVerts: true, angleThreshold: 0})
         expect([bm.totvert, bm.totface]).toEqual([9, 2])
     })
@@ -325,7 +286,7 @@ describe('dissolve, current-source behaviour (hand-checked against bmo_dissolve.
         // fixture case 'edges quad-tri diagonal' (3.4.1, no preserve) shows exactly that.
         for (const [preserve, counts] of [[true, [4, 4, 1]], [false, [2, 1, 0]]] as const) {
             const {bm, edge} = buildInput(inputOf('edges quad-tri diagonal'))
-            normalsUpdate(bm)
+            meshNormalsUpdate(bm)
             dissolveEdges(bm, [edge(0, 2)], {useVerts: true, usePreserveQuads: preserve})
             expect(bm.validate()).toEqual([])
             expect([bm.totvert, bm.totedge, bm.totface]).toEqual(counts)

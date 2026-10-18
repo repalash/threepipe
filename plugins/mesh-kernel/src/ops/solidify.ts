@@ -45,6 +45,7 @@ import {copyElemAttrs, getComponent, setComponent} from '../bmesh/customdata'
 import {AttrName, ElemFlag} from '../constants'
 import {faceSelectSet, selectNone, vertSelectSet} from '../bmesh/marking'
 import {Vec3, v3add, v3cross, v3dot, v3len, v3mul, v3normalize, v3sub} from '../math'
+import {angleNormalizedV3V3, angleV3V3} from '../math/geom'
 
 /** `FLT_EPSILON`. Blender clamps corner angles and the clamp offset against it. */
 const FLT_EPSILON = 1.1920928955078125e-7
@@ -52,26 +53,6 @@ const FLT_EPSILON = 1.1920928955078125e-7
 const SMALL_NUMBER = 1e-8
 
 // region Blender maths helpers
-
-/** `safe_asinf`: `asin` with the argument clamped, so a rounding overshoot cannot produce NaN. */
-function safeAsin(x: number): number {
-    return Math.asin(Math.max(-1, Math.min(1, x)))
-}
-
-/**
- * Angle between two unit vectors. Port of `angle_normalized_v3v3` (`math_vector.cc:335`), which goes
- * through the chord length rather than `acos(dot)` because that loses precision near 0 and pi - and
- * near 0 is exactly where a nearly flat surface lives.
- */
-function angleNormalized(a: Vec3, b: Vec3): number {
-    if (v3dot(a, b) >= 0) return 2 * safeAsin(v3len(v3sub(a, b)) / 2)
-    return Math.PI - 2 * safeAsin(v3len(v3add(a, b)) / 2)
-}
-
-/** `angle_v3v3` (`math_vector.cc:250`): normalise both, then {@link angleNormalized}. */
-function angleV3V3(a: Vec3, b: Vec3): number {
-    return angleNormalized(v3normalize(a), v3normalize(b))
-}
 
 /**
  * `shell_v3v3_normalized_to_dist` (`math_geom_inline.cc:133`): how far along the unit vector `a` you
@@ -648,7 +629,7 @@ export function solidify(bm: BMesh, faces: BMFace[], opts: SolidifyOptions = {})
                 edgeAngs[ei] = angleSignedOnAxis(n0, n1, axis)
             }
             if (doAngleClamp) {
-                const angle = signedAngles ? edgeAngs[ei] : Math.PI - angleNormalized(n0, n1)
+                const angle = signedAngles ? edgeAngs[ei] : Math.PI - angleNormalizedV3V3(n0, n1)
                 if (angle > vertAngs[i1]) vertAngs[i1] = angle
                 if (angle > vertAngs[i2]) vertAngs[i2] = angle
             }
@@ -771,7 +752,7 @@ export function solidify(bm: BMesh, faces: BMFace[], opts: SolidifyOptions = {})
                     loops[iCurr].v.z - loops[iNext].v.z,
                 ])
                 // `angle = std::max(angle, FLT_EPSILON)` - a zero weight would drop the corner.
-                const angle = Math.max(angleNormalized(norPrev, norNext), FLT_EPSILON)
+                const angle = Math.max(angleNormalizedV3V3(norPrev, norNext), FLT_EPSILON)
                 const vidx = vertIndex.get(loops[iCurr].v)!
                 vertAccum[vidx] += angle
 

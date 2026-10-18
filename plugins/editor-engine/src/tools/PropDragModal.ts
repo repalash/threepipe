@@ -1,16 +1,42 @@
 /**
  * An interactive modal over the redo-last mechanism: run an operator once with its defaults, then
- * let the mouse drive one of its props until a click confirms or Esc cancels.
+ * let the mouse - or typed digits - drive one of its props until a click or Enter confirms, or Esc or
+ * a right click cancels.
  *
- * Blender's inset and bevel modals (`editmesh_inset.cc` `edbm_inset_modal`, `editmesh_bevel.cc`
- * `edbm_bevel_modal`) work the same way from the user's side: the horizontal mouse distance from where
- * the operator started maps to the thickness/offset, the wheel changes the segment count, and the
- * operator is re-executed on every change. Blender re-executes in place on a cached copy of the mesh;
- * here each change is Blender's own redo path - pop the step, exec with the new value, push - which is
- * exactly what the panel does, so the modal and the panel cannot disagree. The cost is one command run
- * per mouse move, throttled to a frame.
+ * Blender's inset and bevel modals (`editmesh_inset.cc` `edbm_inset_invoke` :342 / `edbm_inset_modal`
+ * :378, `editmesh_bevel.cc` `edbm_bevel_invoke` :529 / `edbm_bevel_modal` :716; Blender main
+ * e4e6c79a), from the user's side:
+ * - the value follows the mouse's distance from the selection's centre on screen, one pixel being
+ *   one pixel's worth of world units at that depth (`ED_view3d_pixel_size`). Inset gets thicker as the
+ *   mouse moves *towards* the centre (`amount = old_thickness - (len - initial_length) * pixel_size`,
+ *   :427), bevel wider as it moves *away* (`edbm_bevel_mouse_set_value`, :572);
+ * - Shift slows it down tenfold from where Shift went down ("fake shift-transform", :432, :587);
+ * - digits type the value (`handleNumInput`, :384 and :562): while a typed value is active the mouse
+ *   no longer drives it, and the header shows what was typed;
+ * - the wheel changes the segment count (bevel);
+ * - Enter or a left click confirms, Esc or a right click cancels.
+ *
+ * Blender re-executes in place on a cached copy of the mesh; here each change is Blender's own redo
+ * path - pop the step, exec with the new value, push - which is exactly what the panel does, so the
+ * modal and the panel cannot disagree. The cost is one command run per change, throttled to a frame.
+ *
+ * Started from a key, the reference distance is the pointer's where the key was pressed, as in Blender.
+ * Started from the tool shelf (the pointer is on the shelf), the modal waits for a press in the
+ * viewport: the press is the reference, dragging sets the value and the release confirms, as Blender's
+ * Inset Faces and Bevel tools run the operator from a left drag with `release_confirm`
+ * (`blender_default.py:7840`, `km_3d_view_tool_edit_mesh_inset_faces`, and `:7851` for bevel).
+ * Moving onto the viewport before the press changes nothing, so the value does not jump on the way
+ * from the shelf.
  */
 
+import {
+    applyNumInput,
+    handleNumInput,
+    hasNumInput,
+    initNumInput,
+    NumInput,
+    outputNumInput,
+} from '@threepipe/plugin-mesh-edit'
 import type {EditorEnginePlugin} from '../EditorEnginePlugin'
 import type {StatusHints} from '../registry'
 
@@ -21,6 +47,11 @@ export interface PropDragSpec {
     prop: string
     /** Props to start with (the operator's defaults). */
     initial?: Record<string, unknown>
+    /**
+     * +1: the value grows as the mouse moves away from the selection's centre (bevel); -1: as it moves
+     * towards it (inset). Default +1.
+     */
+    direction?: 1 | -1
     /** World units per screen pixel of mouse travel. Default: measured at the selection's depth. */
     unitsPerPixel?: number
     /** Clamp. */
@@ -30,10 +61,14 @@ export interface PropDragSpec {
     wheelProp?: string
     /** Status-bar label. Default: the operator's label. */
     label?: string
+    /**
+     * Keys (`KeyboardEvent.code`) that flip a boolean prop while the modal runs, as the inset modal's
+     * O / B / I flip outset, boundary and individual (`editmesh_inset.cc:514`, `:528`, `:542`).
+     */
+    toggles?: Record<string, {prop: string, label: string, default?: boolean}>
 }
 
 export class PropDragModal {
-    private _startX = 0
     private _initialValue = 0
     private _value = 0
     private _props: Record<string, unknown> = {}
@@ -41,11 +76,39 @@ export class PropDragModal {
     private _pendingValue: number | null = null
     private _done = false
     private _step: unknown = null
+    /** The selection's median centre on screen, client pixels (`opdata->mcenter`). */
+    private _centre = {x: 0, y: 0}
+    /** The pointer's distance from the centre when the modal started (`opdata->initial_length`). */
+    private _initialLength: number | null = null
+    private _pixelSize = 0.005
+    /** The value when Shift went down (`opdata->shift_amount`), null while Shift is up. */
+    private _shiftAmount: number | null = null
+    /** Typed input (`opdata->num_input`). */
+    private readonly _num = new NumInput()
+    /** Re-runs are serialised: a change waits for the one before it. */
+    private _running: Promise<void> = Promise.resolve()
+    private _applying = false
+    /** Started from the tool shelf and dragged: the release confirms. */
+    private _releaseConfirm = false
+    /** The last re-run's warnings, shown once the modal is confirmed. */
+    private _warnings: string[] = []
 
-    constructor(private _engine: EditorEnginePlugin, readonly spec: PropDragSpec) {}
+    constructor(private _engine: EditorEnginePlugin, readonly spec: PropDragSpec) {
+        initNumInput(this._num)
+        this._num.idxMax = 0
+        this._num.unitType[0] = 'length'
+    }
 
     get active(): boolean {
         return !this._done && this._engine.propDrag === this
+    }
+
+    /**
+     * True while the modal itself re-runs its operator. Operators refuse to run while a modal is
+     * active (`notModalMessage`); the modal's own re-runs are the exception.
+     */
+    get applying(): boolean {
+        return this._applying
     }
 
     /** Run the operator with its defaults and take over the pointer. */
@@ -54,13 +117,13 @@ export class PropDragModal {
         const op = engine.operators.get(this.spec.operatorId)
         if (!op) return false
         this._props = {...this.spec.initial}
-        this._startX = engine.input.pointer.clientX
         const result = await engine.run(op.id, Object.keys(this._props).length ? this._props : undefined)
         if (!result.ok || !engine.lastOperation?.redo || engine.lastOperation.operator.id !== op.id) return false
         this._props = {...engine.lastOperation.props}
         this._initialValue = Number(this._props[this.spec.prop] ?? 0)
         this._value = this._initialValue
         this._step = engine.history.peek()
+        this._measure()
         engine.propDrag = this
         const canvas = engine.viewer.canvas
         canvas.addEventListener('pointermove', this._onMove)
@@ -70,54 +133,104 @@ export class PropDragModal {
         return true
     }
 
-    private _unitsPerPixel(): number {
-        if (this.spec.unitsPerPixel) return this.spec.unitsPerPixel
-        // World units per pixel at the selection's depth, as `MeshEditPlugin._unitsPerPixel` measures it.
+    /**
+     * The centre on screen, the pixel size at its depth and the reference distance
+     * (`calculateTransformCenter`, `ED_view3d_pixel_size`, `edbm_inset_invoke` :358-368).
+     */
+    private _measure(): void {
         const viewer = this._engine.viewer
         const camera = viewer.scene.mainCamera as any
         const object = this._engine.meshEdit.editObject
         const bm = this._engine.meshEdit.state?.bm
         const rect = viewer.canvas.getBoundingClientRect()
-        if (!object || !bm) return 0.005
         let x = 0, y = 0, z = 0, n = 0
-        for (const v of bm.verts) {
-            if (!(v.hflag & 1)) continue
-            x += v.x; y += v.y; z += v.z; n++
+        if (bm) {
+            for (const v of bm.verts) {
+                if (!(v.hflag & 1)) continue
+                x += v.x; y += v.y; z += v.z; n++
+            }
         }
-        const centre = {x: n ? x / n : 0, y: n ? y / n : 0, z: n ? z / n : 0}
-        object.updateWorldMatrix(true, false)
-        const e = object.matrixWorld.elements
-        const wx = e[0] * centre.x + e[4] * centre.y + e[8] * centre.z + e[12]
-        const wy = e[1] * centre.x + e[5] * centre.y + e[9] * centre.z + e[13]
-        const wz = e[2] * centre.x + e[6] * centre.y + e[10] * centre.z + e[14]
-        if (camera.isOrthographicCamera) return (camera.top - camera.bottom) / (camera.zoom || 1) / Math.max(1, rect.height)
-        const c = camera.matrixWorld.elements
-        const dist = Math.max(0.001, Math.hypot(wx - c[12], wy - c[13], wz - c[14]))
-        const fov = (camera.fov ?? 45) * Math.PI / 180
-        return 2 * Math.tan(fov / 2) * dist / Math.max(1, rect.height)
+        const local = {x: n ? x / n : 0, y: n ? y / n : 0, z: n ? z / n : 0}
+        let world = local
+        if (object) {
+            object.updateWorldMatrix(true, false)
+            const e = object.matrixWorld.elements
+            world = {
+                x: e[0] * local.x + e[4] * local.y + e[8] * local.z + e[12],
+                y: e[1] * local.x + e[5] * local.y + e[9] * local.z + e[13],
+                z: e[2] * local.x + e[6] * local.y + e[10] * local.z + e[14],
+            }
+        }
+        camera.updateMatrixWorld?.()
+        const p = new (camera.position.constructor)(world.x, world.y, world.z).project(camera)
+        this._centre = {x: rect.left + (p.x + 1) / 2 * rect.width, y: rect.top + (1 - p.y) / 2 * rect.height}
+        if (this.spec.unitsPerPixel) {
+            this._pixelSize = this.spec.unitsPerPixel
+        } else if (camera.isOrthographicCamera) {
+            this._pixelSize = (camera.top - camera.bottom) / (camera.zoom || 1) / Math.max(1, rect.height)
+        } else {
+            const c = camera.matrixWorld.elements
+            const dist = Math.max(0.001, Math.hypot(world.x - c[12], world.y - c[13], world.z - c[14]))
+            const fov = (camera.fov ?? 45) * Math.PI / 180
+            this._pixelSize = 2 * Math.tan(fov / 2) * dist / Math.max(1, rect.height)
+        }
+        // The router only sees the pointer over the canvas, so its last position is stale when the modal
+        // was started from the tool shelf or a menu; `:hover` says where the pointer is now.
+        const pointer = this._engine.input.pointer
+        const inside = viewer.canvas.matches(':hover')
+        this._initialLength = inside ? Math.hypot(pointer.clientX - this._centre.x, pointer.clientY - this._centre.y) : null
+    }
+
+    private _clamp(value: number): number {
+        if (this.spec.min !== undefined) value = Math.max(this.spec.min, value)
+        if (this.spec.max !== undefined) value = Math.min(this.spec.max, value)
+        return value
     }
 
     private _onMove = (event: PointerEvent): void => {
         if (!this.active) return
-        const dx = event.clientX - this._startX
-        const scale = this._unitsPerPixel() * (event.shiftKey ? 0.1 : 1)
-        let value = this._initialValue + dx * scale
-        if (this.spec.min !== undefined) value = Math.max(this.spec.min, value)
-        if (this.spec.max !== undefined) value = Math.min(this.spec.max, value)
-        this._schedule(value)
+        // Started from the tool shelf: nothing moves until the press in the viewport.
+        if (this._initialLength === null) return
+        const len = Math.hypot(event.clientX - this._centre.x, event.clientY - this._centre.y)
+        // A typed value is final until Backspace clears it (`if (!has_numinput)`, :414).
+        if (hasNumInput(this._num)) return
+        let value = this._initialValue + (this.spec.direction ?? 1) * (len - this._initialLength) * this._pixelSize
+        if (event.shiftKey) {
+            if (this._shiftAmount === null) this._shiftAmount = this._value
+            value = (value - this._shiftAmount) * 0.1 + this._shiftAmount
+        } else {
+            this._shiftAmount = null
+        }
+        this._schedule(this._clamp(value))
     }
 
     private _onDown = (event: PointerEvent): void => {
         if (!this.active) return
-        if (event.button === 0) {
+        if (event.button === 0 && this._initialLength === null) {
+            // The tool's drag (Blender's `builtin.inset_faces` / `builtin.bevel`: a left drag in the
+            // viewport runs the operator with `release_confirm`): the press is the reference, the
+            // release confirms.
             event.preventDefault()
             event.stopPropagation()
-            this.confirm()
+            this._initialLength = Math.hypot(event.clientX - this._centre.x, event.clientY - this._centre.y)
+            this._releaseConfirm = true
+            window.addEventListener('pointerup', this._onUp, true)
+        } else if (event.button === 0) {
+            event.preventDefault()
+            event.stopPropagation()
+            void this.confirm()
         } else if (event.button === 2) {
             event.preventDefault()
             event.stopPropagation()
             this.cancel()
         }
+    }
+
+    private _onUp = (event: PointerEvent): void => {
+        if (!this.active || !this._releaseConfirm || event.button !== 0) return
+        event.preventDefault()
+        event.stopPropagation()
+        void this.confirm()
     }
 
     private _onWheel = (event: WheelEvent): void => {
@@ -126,21 +239,49 @@ export class PropDragModal {
         event.stopPropagation()
         const current = Number(this._props[this.spec.wheelProp] ?? 1)
         this._props[this.spec.wheelProp] = Math.max(1, Math.round(current + (event.deltaY < 0 ? 1 : -1)))
-        this._schedule(this._value)
+        // Keep a value that is typed or moved but not applied yet.
+        this._schedule(this._pendingValue ?? this._value)
     }
 
-    /** Keys the modal owns: Esc cancels, Enter confirms, digits type the value. */
+    /**
+     * Keys the modal owns, in `edbm_inset_modal`'s order: typed input first while it is active, then
+     * Esc cancels and Enter confirms, then a key that can start typed input (digits, `-`, `.`). Other
+     * keys fall through (the keymap tells the user to finish first).
+     */
     handleKey(event: KeyboardEvent): boolean {
         if (!this.active) return false
+        const numEvent = {key: event.key, code: event.code, ctrl: event.ctrlKey, shift: event.shiftKey, alt: event.altKey}
+        if (hasNumInput(this._num) && handleNumInput(this._num, numEvent)) {
+            this._typed()
+            return true
+        }
         if (event.code === 'Escape') {
             this.cancel()
             return true
         }
         if (event.code === 'Enter' || event.code === 'NumpadEnter') {
-            this.confirm()
+            void this.confirm()
+            return true
+        }
+        const toggle = this.spec.toggles?.[event.code]
+        if (toggle && !event.ctrlKey && !event.altKey && !event.metaKey) {
+            this._props = {...this._props, [toggle.prop]: !(this._props[toggle.prop] ?? toggle.default ?? false)}
+            this._schedule(this._pendingValue ?? this._value)
+            return true
+        }
+        if (handleNumInput(this._num, numEvent)) {
+            this._typed()
             return true
         }
         return false
+    }
+
+    /** `applyNumInput(&opdata->num_input, amounts)` then the clamp (`max_ff(amounts[0], 0)`, :387). */
+    private _typed(): void {
+        const v = [this._value]
+        applyNumInput(this._num, v)
+        this._schedule(this._clamp(v[0]))
+        this._engine.dispatchEvent({type: 'statusChanged', hints: this._engine.status})
     }
 
     private _schedule(value: number): void {
@@ -148,29 +289,53 @@ export class PropDragModal {
         if (this._frame) return
         this._frame = requestAnimationFrame(() => {
             this._frame = 0
-            const v = this._pendingValue
-            this._pendingValue = null
-            if (v === null || !this.active) return
-            void this._apply(v)
+            void this._flush()
         })
     }
 
+    /** Apply the latest pending value, after any re-run still in flight. */
+    private _flush(): Promise<void> {
+        this._running = this._running.then(async() => {
+            const v = this._pendingValue
+            this._pendingValue = null
+            if (v === null || this._done) return
+            await this._apply(v)
+        })
+        return this._running
+    }
+
     private async _apply(value: number): Promise<void> {
-        const last = this._engine.lastOperation
-        if (!last?.redo || last.operator.id !== this.spec.operatorId) {
+        const engine = this._engine
+        const last = engine.lastOperation
+        if (!last || last.operator.id !== this.spec.operatorId) {
             this.cancel()
             return
         }
         this._value = Math.round(value * 10000) / 10000
         this._props = {...this._props, [this.spec.prop]: this._value}
-        await last.redo(this._props)
-        this._step = this._engine.history.peek()
-        this._engine.dispatchEvent({type: 'statusChanged', hints: this._engine.status})
+        this._applying = true
+        try {
+            // A re-run that changed nothing (a bevel of width 0, while "0.15" is being typed) pushes no
+            // undo step, so it has no redo; the mesh is then as it was before the operator, and the next
+            // value runs it afresh.
+            const result = last.redo ? await last.redo(this._props) : await engine.run(this.spec.operatorId, this._props)
+            this._warnings = result.ok ? result.warnings ?? [] : []
+        } finally {
+            this._applying = false
+        }
+        // The step to take back on cancel; none when the last re-run changed nothing.
+        this._step = engine.lastOperation?.operator.id === this.spec.operatorId && engine.lastOperation.redo ? engine.history.peek() : null
+        engine.dispatchEvent({type: 'statusChanged', hints: engine.status})
     }
 
-    confirm(): void {
+    /** Apply what is still pending (a value typed just before Enter), then leave. */
+    async confirm(): Promise<void> {
         if (this._done) return
+        cancelAnimationFrame(this._frame)
+        this._frame = 0
+        await this._flush()
         this._finish()
+        for (const w of this._warnings) this._engine.message('warning', w)
     }
 
     /** Undo the operator's step and leave. */
@@ -188,6 +353,7 @@ export class PropDragModal {
         const canvas = this._engine.viewer.canvas
         canvas.removeEventListener('pointermove', this._onMove)
         canvas.removeEventListener('pointerdown', this._onDown, true)
+        window.removeEventListener('pointerup', this._onUp, true)
         canvas.removeEventListener('wheel', this._onWheel, true)
         if (this._engine.propDrag === this) this._engine.propDrag = null
         this._engine.dispatchEvent({type: 'statusChanged', hints: this._engine.status})
@@ -197,13 +363,17 @@ export class PropDragModal {
     hints(): StatusHints {
         const label = this.spec.label ?? this._engine.operators.get(this.spec.operatorId)?.label ?? this.spec.operatorId
         const extra = this.spec.wheelProp ? ` · ${this.spec.wheelProp}: ${this._props[this.spec.wheelProp] ?? 1}` : ''
+        // `edbm_inset_update_header`: the typed text while typing, else the value.
+        const value = hasNumInput(this._num) ? outputNumInput(this._num)[0] : this._value.toFixed(3)
         return {
-            modal: `${label}: ${this.spec.prop} ${this._value.toFixed(3)}${extra}`,
+            modal: `${label}: ${this.spec.prop} ${value}${extra}`,
             lmb: 'Confirm',
             rmb: 'Cancel',
             keys: [
-                {key: 'Drag', label: `Adjust ${this.spec.prop}`},
+                {key: 'Move', label: `Adjust ${this.spec.prop}`},
+                {key: '0-9', label: 'Type a value'},
                 ...(this.spec.wheelProp ? [{key: 'Wheel', label: `Change ${this.spec.wheelProp}`}] : []),
+                ...Object.entries(this.spec.toggles ?? {}).map(([code, t]) => ({key: code.replace(/^Key/, ''), label: `${t.label}${(this._props[t.prop] ?? t.default) ? ' (on)' : ''}`})),
                 {key: 'Shift', label: 'Precision'},
                 {key: 'Enter', label: 'Confirm'},
                 {key: 'Esc', label: 'Cancel'},

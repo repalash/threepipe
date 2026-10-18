@@ -239,9 +239,11 @@ describe('normals, against mesh_normals.cc', () => {
         expect(split[0]).toBe(smooth[0])
     })
 
-    it('treats a non-manifold edge as a fan delimiter', () => {
-        // Three quads on one edge: `normals_calc_corners` does not merge across a non-manifold edge,
-        // so each face keeps its own normal there rather than averaging all three.
+    it('treats a non-manifold edge as a fan delimiter (corner domain); without sharp tags the vertex normal is used', () => {
+        // Three quads on one edge. With no sharp edge or face anywhere, Mesh::normals_domain is POINT
+        // (mesh_normals.cc:301) and every corner takes its vertex's angle-weighted normal, across the
+        // non-manifold edge too. Once a sharp tag exists elsewhere the domain is CORNER, and
+        // normals_calc_corners does not merge across the non-manifold edge: each face keeps its own normal.
         const mesh = MeshData.fromFaces({
             positions: [
                 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1,
@@ -250,10 +252,21 @@ describe('normals, against mesh_normals.cc', () => {
             ],
             faces: [[0, 1, 2, 3], [0, 1, 4, 5], [0, 1, 6, 7]],
         })
+        const pointDomain = normalsOf(mesh)
+        // vertex 0 is shared by all three faces: one normal at its three corners
+        expect(pointDomain[4]).toBe(pointDomain[0])
+        expect(pointDomain[8]).toBe(pointDomain[0])
+
+        const sharp = mesh.attributes.ensure(AttrName.sharpEdge, AttrDomain.Edge, 'bool')
+        for (let e = 0; e < mesh.edgesNum; e++) {
+            const a = mesh.edgeVerts[2 * e], b = mesh.edgeVerts[2 * e + 1]
+            if ((a === 2 && b === 3) || (a === 3 && b === 2)) (sharp.data as Uint8Array)[e] = 1
+        }
         const normals = normalsOf(mesh)
         for (let f = 0; f < mesh.facesNum; f++) {
             const expected = key(faceNormalOf(mesh, f))
-            for (let c = mesh.faceStart(f); c < mesh.faceStart(f) + mesh.faceSize(f); c++) {
+            for (const c of [mesh.faceStart(f), mesh.faceStart(f) + 1]) {
+                // the corners on the non-manifold edge (vertices 0 and 1)
                 expect(normals[c]).toBe(expected)
             }
         }

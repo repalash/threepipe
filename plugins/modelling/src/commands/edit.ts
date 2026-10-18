@@ -15,6 +15,7 @@ import {
     arrayLinear,
     arrayRadial,
     averageFaceNormal,
+    BM_FROM_MESH_NORMALS,
     bmFromMesh,
     bmToMesh,
     deleteSelection,
@@ -248,7 +249,7 @@ export const arrayCommand: CommandDefinition = {
                 changed.push(...arrayAsObjects(ctx, entry, p, mode, count))
                 continue
             }
-            const bm = bmFromMesh(entry.mesh)
+            const bm = bmFromMesh(entry.mesh, BM_FROM_MESH_NORMALS)
             const input = allOf(bm)
             if (mode === 'linear') {
                 arrayLinear(bm, input, {
@@ -414,7 +415,7 @@ export const mirrorCommand: CommandDefinition = {
 
         const changed: string[] = []
         for (const entry of targets) {
-            const bm = bmFromMesh(entry.mesh)
+            const bm = bmFromMesh(entry.mesh, BM_FROM_MESH_NORMALS)
             mirrorGeometry(bm, allOf(bm), {
                 axis,
                 matrix,
@@ -448,7 +449,7 @@ export const extrudeCommand: CommandDefinition = {
 
     run(p: Record<string, unknown>, ctx) {
         const entry = readTarget(p, ctx.doc)
-        const bm = bmFromMesh(entry.mesh)
+        const bm = bmFromMesh(entry.mesh, BM_FROM_MESH_NORMALS)
         const all = [...bm.faces]
         const indices = p.faces as number[]
         const region = indices.map(i => {
@@ -654,7 +655,7 @@ export const weldCommand: CommandDefinition = {
         const reports: unknown[] = []
 
         for (const entry of targets) {
-            const bm = bmFromMesh(entry.mesh)
+            const bm = bmFromMesh(entry.mesh, BM_FROM_MESH_NORMALS)
             const all = [...bm.verts]
             const verts = p.verts === undefined ? all : (p.verts as number[]).map(i => {
                 if (!Number.isInteger(i) || i < 0 || i >= all.length) {
@@ -764,7 +765,7 @@ export const deleteElementsCommand: CommandDefinition = {
             throw new Error(`type ${type} reads only \`${spec.domain}\`; \`${others.join('`, `')}\` would be ignored`)
         }
 
-        const bm = bmFromMesh(entry.mesh)
+        const bm = bmFromMesh(entry.mesh, BM_FROM_MESH_NORMALS)
         const pool = spec.domain === 'verts' ? [...bm.verts] : spec.domain === 'edges' ? [...bm.edges] : [...bm.faces]
         const elements = (list as unknown[]).map(i => {
             if (!Number.isInteger(i) || (i as number) < 0 || (i as number) >= pool.length) {
