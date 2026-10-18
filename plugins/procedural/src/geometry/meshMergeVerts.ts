@@ -785,3 +785,20 @@ export function meshMergeByDistanceConnected(mesh: MeshData, selection: Uint8Arr
     }
     return createMergedMesh(mesh, vertDestMap, killLen, true)
 }
+
+/**
+ * `mesh_merge_verts(mesh, selection, merge_ids)` (`mesh_merge_verts.cc:1934`): every selected vertex merges into the
+ * first selected vertex with its merge ID (groups by first occurrence).
+ */
+export function meshMergeVertsByIds(mesh: MeshData, selection: number[], mergeIds: ArrayLike<number>): MeshData {
+    const vertDestMap = new Int32Array(mesh.vertsNum).fill(OUT_OF_CONTEXT)
+    const groupOf = new Map<number, number>()
+    for (const i of selection) if (!groupOf.has(mergeIds[i])) groupOf.set(mergeIds[i], groupOf.size)
+    const dstByGroup = new Int32Array(Math.max(mesh.vertsNum, groupOf.size)).fill(-1)
+    for (const i of selection) {
+        const g = groupOf.get(mergeIds[i])!
+        if (dstByGroup[g] === -1) dstByGroup[g] = i
+    }
+    for (const i of selection) vertDestMap[i] = dstByGroup[groupOf.get(mergeIds[i])!]
+    return createMergedMesh(mesh, vertDestMap, selection.length - groupOf.size, true)
+}

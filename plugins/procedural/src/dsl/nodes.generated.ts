@@ -252,6 +252,29 @@ export type ClampNode = NodeHandle & {
     readonly result: Socket<"FLOAT">
 }
 
+/** `GeometryNodeClusterByConnected` (Cluster by Connected). */
+export interface ClusterByConnectedArgs {
+    selection?: In<"BOOLEAN">
+    position?: In<"VECTOR">
+    distance?: In<"FLOAT">
+    mute?: boolean
+}
+export type ClusterByConnectedNode = NodeHandle & {
+    readonly clusterID: Socket<"INT">
+}
+
+/** `GeometryNodeClusterByDistance` (Cluster by Distance). */
+export interface ClusterByDistanceArgs {
+    selection?: In<"BOOLEAN">
+    groupID?: In<"INT">
+    position?: In<"VECTOR">
+    distance?: In<"FLOAT">
+    mute?: boolean
+}
+export type ClusterByDistanceNode = NodeHandle & {
+    readonly clusterID: Socket<"INT">
+}
+
 /** `GeometryNodeInputCollection` (Collection). */
 export interface CollectionArgs {
     collection?: unknown
@@ -1296,6 +1319,17 @@ export interface MergeByDistanceArgs {
     mute?: boolean
 }
 export type MergeByDistanceNode = NodeHandle & {
+    readonly geometry: Socket<"GEOMETRY">
+}
+
+/** `GeometryNodeMergePoints` (Merge Points). */
+export interface MergePointsArgs {
+    geometry?: In<"GEOMETRY">
+    selection?: In<"BOOLEAN">
+    mergeID?: In<"INT">
+    mute?: boolean
+}
+export type MergePointsNode = NodeHandle & {
     readonly geometry: Socket<"GEOMETRY">
 }
 
@@ -2740,6 +2774,8 @@ export interface NodeConstructors {
     BoundingBox(args?: BoundingBoxArgs): BoundingBoxNode
     CaptureAttribute(args?: CaptureAttributeArgs): CaptureAttributeNode
     Clamp(args?: ClampArgs): ClampNode
+    ClusterByConnected(args?: ClusterByConnectedArgs): ClusterByConnectedNode
+    ClusterByDistance(args?: ClusterByDistanceArgs): ClusterByDistanceNode
     Collection(args?: CollectionArgs): CollectionNode
     CollectionInfo(args?: CollectionInfoArgs): CollectionInfoNode
     Color(args?: ColorArgs): ColorNode
@@ -2832,6 +2868,7 @@ export interface NodeConstructors {
     MatrixDeterminant(args?: MatrixDeterminantArgs): MatrixDeterminantNode
     MenuSwitch(args?: MenuSwitchArgs): MenuSwitchNode
     MergeByDistance(args?: MergeByDistanceArgs): MergeByDistanceNode
+    MergePoints(args?: MergePointsArgs): MergePointsNode
     MeshCircle(args?: MeshCircleArgs): MeshCircleNode
     MeshCone(args?: MeshConeArgs): MeshConeNode
     MeshCube(args?: MeshCubeArgs): MeshCubeNode
