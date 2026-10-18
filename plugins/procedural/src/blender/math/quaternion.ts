@@ -29,7 +29,7 @@ function lengthSquared3(x: number, y: number, z: number): number {
  */
 export function normalizeAndGetLength3(v: ArrayLike<number>): {v: Float3, length: number} {
     const sq = lengthSquared3(v[0], v[1], v[2])
-    if (sq > 1.0e-35) {
+    if (sq > f32(1.0e-35)) {
         const len = f32(Math.sqrt(sq))
         return {v: [f32(v[0] / len), f32(v[1] / len), f32(v[2] / len)], length: len}
     }

@@ -4,15 +4,14 @@
  },
  "attr-instance-position": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeMeshCube"
+  "reason": "not ported: GeometryNodeInstanceOnPoints"
  },
  "attr-interp-byte-color": {
   "status": "skip",
   "reason": "not ported: FunctionNodeRandomValue"
  },
  "attr-interp-corner": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeMeshCube"
+  "status": "pass"
  },
  "attr-interp-curves": {
   "status": "skip",
@@ -23,7 +22,7 @@
  },
  "attr-interp-loose": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeMeshLine, GeometryNodePointsToVertices"
+  "reason": "not ported: GeometryNodePointsToVertices"
  },
  "attr-interp-point-to-all": {
   "status": "pass"
@@ -280,7 +279,7 @@
  },
  "edge-angle-cube": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeInputMeshEdgeAngle, GeometryNodeMeshCube"
+  "reason": "not ported: GeometryNodeInputMeshEdgeAngle"
  },
  "edge-angle-grid-flat-and-boundary": {
   "status": "skip",
@@ -288,7 +287,7 @@
  },
  "edge-angle-grid-valleys": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeInputMeshEdgeAngle, GeometryNodeSetPosition, ShaderNodeCombineXYZ, ShaderNodeSeparateXYZ"
+  "reason": "not ported: GeometryNodeInputMeshEdgeAngle, ShaderNodeCombineXYZ, ShaderNodeSeparateXYZ"
  },
  "edge-angle-icosphere": {
   "status": "skip",
@@ -296,7 +295,7 @@
  },
  "edge-angle-nonmanifold": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeInputMeshEdgeAngle, GeometryNodeMergeByDistance, GeometryNodeTransform"
+  "reason": "not ported: GeometryNodeInputMeshEdgeAngle, GeometryNodeMergeByDistance"
  },
  "eval-dangling-reroute": {
   "status": "pass"
@@ -319,8 +318,7 @@
   "status": "pass"
  },
  "eval-muted-set-position": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeSetPosition"
+  "status": "pass"
  },
  "eval-reroute": {
   "status": "pass"
@@ -346,11 +344,11 @@
  },
  "extrude-edges-loose-line": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeExtrudeMesh, GeometryNodeMeshLine"
+  "reason": "not ported: GeometryNodeExtrudeMesh"
  },
  "extrude-edges-loose-single-value": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeExtrudeMesh, GeometryNodeMeshLine"
+  "reason": "not ported: GeometryNodeExtrudeMesh"
  },
  "extrude-edges-one-boundary": {
   "status": "skip",
@@ -362,7 +360,7 @@
  },
  "extrude-edges-varying-offset": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeExtrudeMesh, GeometryNodeMeshLine"
+  "reason": "not ported: GeometryNodeExtrudeMesh"
  },
  "extrude-faces-individual-grid": {
   "status": "skip",
@@ -370,7 +368,7 @@
  },
  "extrude-faces-region-cube-all": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeExtrudeMesh, GeometryNodeMeshCube"
+  "reason": "not ported: GeometryNodeExtrudeMesh"
  },
  "extrude-faces-region-grid-all": {
   "status": "skip",
@@ -382,7 +380,7 @@
  },
  "extrude-faces-region-nonmanifold": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeExtrudeMesh, GeometryNodeMergeByDistance, GeometryNodeTransform"
+  "reason": "not ported: GeometryNodeExtrudeMesh, GeometryNodeMergeByDistance"
  },
  "extrude-faces-region-single-quad": {
   "status": "skip",
@@ -416,18 +414,17 @@
  },
  "fields-geometry-binding": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeMeshCube, GeometryNodeSetPosition, ShaderNodeVectorMath"
+  "reason": "not ported: ShaderNodeVectorMath"
  },
  "fields-multi-component": {
   "status": "pass"
  },
  "fields-read-before-write": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeSetPosition, ShaderNodeVectorMath"
+  "reason": "not ported: ShaderNodeVectorMath"
  },
  "fields-selection": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeSetPosition"
+  "status": "pass"
  },
  "fields-two-consumers": {
   "status": "pass"
@@ -458,8 +455,7 @@
   "reason": "not ported: GeometryNodeMeshToPoints"
  },
  "grid-transformed": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeTransform"
+  "status": "pass"
  },
  "grid-uv-stored": {
   "status": "pass"
@@ -485,7 +481,7 @@
  },
  "gs-join-instance-references": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeMeshCube"
+  "reason": "not ported: GeometryNodeInstanceOnPoints"
  },
  "gs-join-missing-fill": {
   "status": "skip",
@@ -510,43 +506,43 @@
  },
  "iop-attribute-propagation": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeMeshCube"
+  "reason": "not ported: GeometryNodeInstanceOnPoints"
  },
  "iop-component-order": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeMeshCube, GeometryNodeMeshLine"
+  "reason": "not ported: GeometryNodeInstanceOnPoints"
  },
  "iop-empty-instance": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeMeshLine"
+  "reason": "not ported: GeometryNodeInstanceOnPoints"
  },
  "iop-face-attribute-to-instances": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeMeshCube"
+  "reason": "not ported: GeometryNodeInstanceOnPoints"
  },
  "iop-line-cubes": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeMeshCube, GeometryNodeMeshLine"
+  "reason": "not ported: GeometryNodeInstanceOnPoints"
  },
  "iop-pick-without-instances": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeMeshCube, GeometryNodeMeshLine"
+  "reason": "not ported: GeometryNodeInstanceOnPoints"
  },
  "iop-pick-wrap": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeMeshCube, GeometryNodeMeshLine"
+  "reason": "not ported: GeometryNodeInstanceOnPoints"
  },
  "iop-points-inside-instances": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeGeometryToInstance, GeometryNodeInstanceOnPoints, GeometryNodeMeshCube, GeometryNodeMeshLine, GeometryNodeTranslateInstances"
+  "reason": "not ported: GeometryNodeGeometryToInstance, GeometryNodeInstanceOnPoints, GeometryNodeTranslateInstances"
  },
  "iop-selection-rot-scale": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeMeshCube, GeometryNodeMeshLine"
+  "reason": "not ported: GeometryNodeInstanceOnPoints"
  },
  "is-edge-smooth-cube-default": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeInputEdgeSmooth, GeometryNodeMeshCube"
+  "reason": "not ported: GeometryNodeInputEdgeSmooth"
  },
  "is-edge-smooth-partial-edges-and-faces": {
   "status": "skip",
@@ -558,7 +554,7 @@
  },
  "is-face-smooth-no-attribute": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeInputShadeSmooth, GeometryNodeMeshLine"
+  "reason": "not ported: GeometryNodeInputShadeSmooth"
  },
  "is-face-smooth-partial-on-edges": {
   "status": "skip",
@@ -579,15 +575,14 @@
  },
  "join-instances": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeMeshCube, GeometryNodeMeshLine"
+  "reason": "not ported: GeometryNodeInstanceOnPoints"
  },
  "join-mesh-order": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeMeshLine"
+  "status": "pass"
  },
  "join-mixed-components": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeMeshCube, GeometryNodeMeshLine"
+  "reason": "not ported: GeometryNodeInstanceOnPoints"
  },
  "join-multi-input-order": {
   "status": "pass"
@@ -597,7 +592,7 @@
  },
  "join-radius-kept": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeMeshLine, GeometryNodeMeshToPoints"
+  "reason": "not ported: GeometryNodeMeshToPoints"
  },
  "join-single-passthrough": {
   "status": "pass"
@@ -806,7 +801,7 @@
  },
  "mesh-to-points-builtins-skipped": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeMeshCube, GeometryNodeMeshToPoints, GeometryNodeSetMaterialIndex, GeometryNodeSetShadeSmooth"
+  "reason": "not ported: GeometryNodeMeshToPoints, GeometryNodeSetMaterialIndex, GeometryNodeSetShadeSmooth"
  },
  "mesh-to-points-corners-grid": {
   "status": "skip",
@@ -822,7 +817,7 @@
  },
  "mesh-to-points-faces-no-faces": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeMeshLine, GeometryNodeMeshToPoints"
+  "reason": "not ported: GeometryNodeMeshToPoints"
  },
  "mesh-to-points-faces-selection-radius-field": {
   "status": "skip",
@@ -886,50 +881,48 @@
  },
  "position-instances": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeMeshCube, GeometryNodeMeshLine"
+  "reason": "not ported: GeometryNodeInstanceOnPoints"
  },
  "position-mesh-edge": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeMeshLine"
+  "status": "pass"
  },
  "position-mesh-face": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeSetPosition"
+  "status": "pass"
  },
  "position-mesh-point": {
   "status": "pass"
  },
  "realize-attr-conflict": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeGeometryToInstance, GeometryNodeInstanceOnPoints, GeometryNodeMeshCube, GeometryNodeMeshLine, GeometryNodeRealizeInstances"
+  "reason": "not ported: GeometryNodeGeometryToInstance, GeometryNodeInstanceOnPoints, GeometryNodeRealizeInstances"
  },
  "realize-curves-order": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeCurvePrimitiveLine, GeometryNodeInstanceOnPoints, GeometryNodeMeshLine, GeometryNodeRealizeInstances"
+  "reason": "not ported: GeometryNodeCurvePrimitiveLine, GeometryNodeInstanceOnPoints, GeometryNodeRealizeInstances"
  },
  "realize-depth-one": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeMeshCube, GeometryNodeMeshLine, GeometryNodeRealizeInstances"
+  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeRealizeInstances"
  },
  "realize-id-hash": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeMeshLine, GeometryNodeRealizeInstances"
+  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeRealizeInstances"
  },
  "realize-instance-attr-curves-domain": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeCurvePrimitiveLine, GeometryNodeInstanceOnPoints, GeometryNodeMeshLine, GeometryNodeRealizeInstances"
+  "reason": "not ported: GeometryNodeCurvePrimitiveLine, GeometryNodeInstanceOnPoints, GeometryNodeRealizeInstances"
  },
  "realize-instance-attr-mesh": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeMeshCube, GeometryNodeMeshLine, GeometryNodeRealizeInstances"
+  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeRealizeInstances"
  },
  "realize-mesh-order": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeMeshCube, GeometryNodeMeshLine, GeometryNodeRealizeInstances"
+  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeRealizeInstances"
  },
  "realize-selection-kept-first": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeMeshCube, GeometryNodeMeshLine, GeometryNodeRealizeInstances"
+  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeRealizeInstances"
  },
  "rv-bool-default": {
   "status": "skip",
@@ -1021,11 +1014,11 @@
  },
  "separate-instances": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeMeshCube, GeometryNodeSeparateGeometry, GeometryNodeSetPosition"
+  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeSeparateGeometry"
  },
  "separate-instances-unused-references": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeGeometryToInstance, GeometryNodeMeshCube, GeometryNodeMeshLine, GeometryNodeSeparateGeometry"
+  "reason": "not ported: GeometryNodeGeometryToInstance, GeometryNodeSeparateGeometry"
  },
  "separate-mesh-constant-false": {
   "status": "skip",
@@ -1049,7 +1042,7 @@
  },
  "separate-mesh-point-grid": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeSeparateGeometry, GeometryNodeTransform"
+  "reason": "not ported: GeometryNodeSeparateGeometry"
  },
  "separate-mesh-point-inverted-only": {
   "status": "skip",
@@ -1065,11 +1058,11 @@
  },
  "separate-pointcloud-point": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeSeparateGeometry, GeometryNodeSetPosition"
+  "reason": "not ported: GeometryNodeSeparateGeometry"
  },
  "set-shade-smooth-edge-keeps-unselected": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeMeshCube, GeometryNodeSetShadeSmooth"
+  "reason": "not ported: GeometryNodeSetShadeSmooth"
  },
  "set-shade-smooth-edge-sharp-partial": {
   "status": "skip",
@@ -1089,7 +1082,7 @@
  },
  "set-shade-smooth-no-faces": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeMeshLine, GeometryNodeSetShadeSmooth"
+  "reason": "not ported: GeometryNodeSetShadeSmooth"
  },
  "set-shade-smooth-selection-false": {
   "status": "skip",
@@ -1097,90 +1090,87 @@
  },
  "switch-bool": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeMeshLine, GeometryNodeSwitch"
+  "reason": "not ported: GeometryNodeSwitch"
  },
  "switch-color-default": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeMeshLine, GeometryNodeSwitch"
+  "reason": "not ported: GeometryNodeSwitch"
  },
  "switch-field-condition": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeMeshLine, GeometryNodeSwitch"
+  "reason": "not ported: GeometryNodeSwitch"
  },
  "switch-field-values": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeMeshLine, GeometryNodeSwitch"
+  "reason": "not ported: GeometryNodeSwitch"
  },
  "switch-float-true": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeMeshLine, GeometryNodeSwitch"
+  "reason": "not ported: GeometryNodeSwitch"
  },
  "switch-geometry": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeMeshLine, GeometryNodeSwitch"
+  "reason": "not ported: GeometryNodeSwitch"
  },
  "switch-geometry-field-condition": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeMeshLine, GeometryNodeSwitch"
+  "reason": "not ported: GeometryNodeSwitch"
  },
  "switch-int": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeMeshLine, GeometryNodeSwitch"
+  "reason": "not ported: GeometryNodeSwitch"
  },
  "switch-new-node-float": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeMeshLine, GeometryNodeSwitch"
+  "reason": "not ported: GeometryNodeSwitch"
  },
  "switch-rotation": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeMeshLine, GeometryNodeSwitch"
+  "reason": "not ported: GeometryNodeSwitch"
  },
  "switch-vector": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeMeshLine, GeometryNodeSwitch"
+  "reason": "not ported: GeometryNodeSwitch"
  },
  "transform-bezier-handles": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeCurvePrimitiveBezierSegment, GeometryNodeTransform"
+  "reason": "not ported: GeometryNodeCurvePrimitiveBezierSegment"
  },
  "transform-instances-top-level": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeMeshCube, GeometryNodeMeshLine, GeometryNodeTransform"
+  "reason": "not ported: GeometryNodeInstanceOnPoints"
  },
  "transform-matrix-mode": {
   "status": "skip",
-  "reason": "not ported: FunctionNodeCombineTransform, GeometryNodeTransform"
+  "reason": "not ported: FunctionNodeCombineTransform"
  },
  "transform-pointcloud-radius": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeTransform"
+  "status": "pass"
  },
  "transform-small-rotation-applied": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeMeshLine, GeometryNodeTransform"
+  "status": "pass"
  },
  "transform-tiny-rotation-dropped": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeMeshLine, GeometryNodeTransform"
+  "status": "pass"
  },
  "translate-global": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeMeshCube, GeometryNodeMeshLine, GeometryNodeTranslateInstances"
+  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeTranslateInstances"
  },
  "translate-local": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeMeshCube, GeometryNodeMeshLine, GeometryNodeTranslateInstances"
+  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeTranslateInstances"
  },
  "translate-local-field": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeMeshCube, GeometryNodeMeshLine, GeometryNodeTranslateInstances"
+  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeTranslateInstances"
  },
  "translate-nested-untouched": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeGeometryToInstance, GeometryNodeInstanceOnPoints, GeometryNodeMeshCube, GeometryNodeMeshLine, GeometryNodeTranslateInstances"
+  "reason": "not ported: GeometryNodeGeometryToInstance, GeometryNodeInstanceOnPoints, GeometryNodeTranslateInstances"
  },
  "translate-selection": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeMeshCube, GeometryNodeMeshLine, GeometryNodeTranslateInstances"
+  "reason": "not ported: GeometryNodeInstanceOnPoints, GeometryNodeTranslateInstances"
  }
 }
