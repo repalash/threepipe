@@ -57,6 +57,21 @@ export interface ReferencePlaneState {
     object: IObject3D
 }
 
+/**
+ * Which reference a command addresses, and which plane it is on.
+ *
+ * An update - `{name, visible: false}`, `{name, opacity}` - names an existing reference and leaves
+ * its plane alone; only a command that gives `plane` moves it. (Defaulting the plane to `front` on
+ * every call turned "hide the back reference" into "move it to the front plane and hide it", so the
+ * `ref:back` view then looked at the model's front.) A new reference with no plane goes on `front`.
+ */
+export function referenceTarget<T extends {plane: string}>(p: Record<string, unknown>, references: Map<string, T>) {
+    const name = (p.name as string) ?? (p.plane as string) ?? 'front'
+    const existing = references.get(name)
+    const planeName = (p.plane as string) ?? existing?.plane ?? 'front'
+    return {name, planeName, existing}
+}
+
 export const referenceCommand: CommandDefinition = {
     op: 'reference',
     summary: 'Place a calibrated reference photograph on a plane in the scene.',
@@ -100,9 +115,7 @@ export const referenceCommand: CommandDefinition = {
             return {data: {planes: [...plugin.references.values()].map(describe)}}
         }
 
-        const planeName = (p.plane as string) ?? 'front'
-        const name = (p.name as string) ?? planeName
-        const existing = plugin.references.get(name)
+        const {name, planeName, existing} = referenceTarget(p, plugin.references)
 
         if (p.remove) {
             if (!existing) throw new Error(`no reference plane named "${name}"`)

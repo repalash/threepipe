@@ -19,3 +19,11 @@ await run({op: 'bevel', object: 'c', edges: [3], offset: 0.1}) // which edge is 
 Add `edgeVerts` (pairs of vertex indices, in edge-index order) to `inspect` detail, under the same
 `limit`, or let edge-taking commands accept vertex pairs. Found while building the Eiffel tower; the
 build worked round it by only deleting faces.
+
+## Status: fixed on `demo-camera`
+
+`inspect {detail: true}` now returns `edgeVerts` - each edge's two vertex indices in edge-index
+order, capped by the same `limit` (with `edgesTruncated`). The listing is `meshDetail()` in
+`commands/session.ts`, tested in `plugins/modelling/tests/inspect-detail.test.ts` (including that the
+listed index is the edge `bevel {edges}` bevels). Found again building the camera demo, which needs
+different bevel widths on the body's outer corners and on its panel recesses.
