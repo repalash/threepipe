@@ -2,9 +2,12 @@
  * The `threepipe-modelling` executable. See `cli/main.ts`.
  */
 
-import './cli/stdio'
+import {quietViewerConsole} from './cli/stdio'
 import './node/polyfill'
+import {ThreeViewer} from 'threepipe'
 import {runCli} from './cli/main'
+
+quietViewerConsole(ThreeViewer as never)
 
 const code = await runCli(process.argv.slice(2), {
     stdout: t => process.stdout.write(t),

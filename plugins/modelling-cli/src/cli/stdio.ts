@@ -7,10 +7,19 @@
 
 import {format} from 'node:util'
 
-for (const level of ['log', 'info', 'debug'] as const) {
-    console[level] = (...args: unknown[]) => {
-        process.stderr.write(format(...args) + '\n')
-    }
+const toStderr = (...args: unknown[]) => {
+    process.stderr.write(format(...args) + '\n')
+}
+
+for (const level of ['log', 'info', 'debug'] as const) console[level] = toStderr
+
+/**
+ * threepipe binds `console.log` into `ThreeViewer.Console` when it loads - before this module's body can
+ * run in a bundle that hoists its imports - so point that at stderr too. `ThreeViewer.Console` is the
+ * documented place to redirect the viewer's logging.
+ */
+export function quietViewerConsole(viewer: {Console: {log: unknown, warn: unknown, error: unknown}}): void {
+    viewer.Console = {log: toStderr, warn: toStderr, error: toStderr}
 }
 
 /**
