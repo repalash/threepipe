@@ -49,3 +49,5 @@ bound by the editor's presets, so it still reaches `JSUndoManager` (a redo from 
   and restores it in its disposers.
 
 Needs the owner's approval (core + library API).
+
+**Status 2026-10-18**: fixed in core by repalash/threepipe#54 (`UndoManagerPlugin` skips text-editing targets; `hotKeys` flag). Once it is in, the engine can set `hotKeys = false` and the InputRouter stop on `<html>` can stay as a general guard.
