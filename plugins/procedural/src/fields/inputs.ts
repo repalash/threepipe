@@ -5,6 +5,7 @@
  * (`functions/intern/field.cc`).
  */
 
+import {curveNormalsVArray} from '../geometry/curvesFields'
 import {AttrDomain} from '@threepipe/mesh-kernel'
 import {DATA_TYPES, DataType} from '../geometry/dataTypes'
 import {GVArray} from '../geometry/varray'
@@ -117,7 +118,7 @@ export class NormalFieldInput extends FieldInput {
 
     getVArray(context: FieldContext): GVArray | undefined {
         if (context.mesh) return meshNormalsVArray(context.mesh, context.domain, this.legacyCornerNormals, this.trueNormals)
-        if (context.curves) throw new Error('procedural: curve normals (curve_normals_varray) are not ported yet')
+        if (context.curves) return curveNormalsVArray(context.curves, context.domain)
         return undefined
     }
 }

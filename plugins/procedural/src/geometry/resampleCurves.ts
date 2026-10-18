@@ -12,6 +12,7 @@ import {fillCurveTypesSelection} from './curvesEdit'
 import {DATA_TYPES, DataType, TypedArray} from './dataTypes'
 import {isAnonymousAttributeName} from './attributeAccessor'
 import {mix2} from './mixers'
+import {normalize3} from '../blender/math/vec'
 
 // region length_parameterize
 
@@ -88,7 +89,7 @@ export function sampleUniform(lengths: ArrayLike<number>, includeLastPoint: bool
  * `length_parameterize::interpolate` (`BLI_length_parameterize.hh:76` via `interpolate_to_masked`): `src` elements
  * `[srcStart, srcStart + srcSize)` sampled at `indices/factors[dstStart ..)`, `math::interpolate` (= `mix2`).
  */
-function interpolateSamples(type: DataType, src: ArrayLike<number>, srcStart: number, srcSize: number, indices: Int32Array, factors: Float32Array,
+export function interpolateSamples(type: DataType, src: ArrayLike<number>, srcStart: number, srcSize: number, indices: Int32Array, factors: Float32Array,
     dst: TypedArray, dstStart: number, dstSize: number): void {
     const last = srcSize - 1
     for (let i = 0; i < dstSize; i++) {
@@ -152,6 +153,37 @@ function gatherPointAttributes(src: CurvesGeometry, dst: CurvesGeometry): {inter
     return {interp, noInterp}
 }
 
+/** `ResampleCurvesOutputAttributeIDs` (`GEO_resample_curves.hh`): anonymous tangent / normal outputs. */
+export interface ResampleOutputIds {
+    tangent?: string
+    normal?: string
+}
+
+/** The output layers of `gather_point_attributes_to_interpolate` (:190-203), created after the interpolated ones. */
+function outputLayers(dst: CurvesGeometry, ids: ResampleOutputIds | undefined): {tangents?: Float32Array, normals?: Float32Array} {
+    const acc = dst.accessor()
+    const layer = (name: string | undefined) => {
+        if (!name) return undefined
+        if (!dst.attributes.get(name)) acc.add(name, AttrDomain.Point, 'float3')
+        return dst.attributes.get(name)!.data as Float32Array
+    }
+    return {tangents: layer(ids?.tangent), normals: layer(ids?.normal)}
+}
+
+/** `normalize_curve_point_data` (:252) for one curve's points. */
+function normalizeRange(data: Float32Array, start: number, end: number): void {
+    for (let i = start; i < end; i++) data.set(normalize3(data.subarray(i * 3, i * 3 + 3)), i * 3)
+}
+
+/** `fill_points(..., float3(0), ...)` of the outputs for unselected curves (:235-242). */
+function zeroUnselected(dst: CurvesGeometry, unselected: number[], out: {tangents?: Float32Array, normals?: Float32Array}): void {
+    for (const c of unselected) {
+        const [s, e] = dst.pointsRange(c)
+        out.tangents?.fill(0, s * 3, e * 3)
+        out.normals?.fill(0, s * 3, e * 3)
+    }
+}
+
 /** `copy_or_defaults_for_unselected_curves` (:211). */
 function copyUnselected(src: CurvesGeometry, dst: CurvesGeometry, unselected: number[], attributes: PointAttribute[]): void {
     const copy = (type: DataType, from: ArrayLike<number>, to: TypedArray) => {
@@ -177,7 +209,7 @@ function splitSelection(selection: ArrayLike<number>, size: number): [number[], 
  * `resample_to_uniform` (:299 with the field-evaluated counts of :430): `counts[i]` is the point count of selected
  * curve `i` (already `max(1, count)` or `get_count_from_length`).
  */
-export function resampleToUniform(src: CurvesGeometry, selection: ArrayLike<number>, counts: ArrayLike<number>): CurvesGeometry {
+export function resampleToUniform(src: CurvesGeometry, selection: ArrayLike<number>, counts: ArrayLike<number>, outputIds?: ResampleOutputIds): CurvesGeometry {
     if (src.curvesNum === 0) return new CurvesGeometry(0, 0)
     const [selected, unselected] = splitSelection(selection, src.curvesNum)
     const offsets = new Int32Array(src.curvesNum + 1)
@@ -196,6 +228,7 @@ export function resampleToUniform(src: CurvesGeometry, selection: ArrayLike<numb
     const ev = new CurvesEvaluator(src)
     fillCurveTypesSelection(dst, selected, CURVE_TYPE_POLY)
     const {interp, noInterp} = gatherPointAttributes(src, dst)
+    const outs = outputLayers(dst, outputIds)
     const types = ev.types
     const sampleIndices = new Int32Array(dst.pointsNum)
     const sampleFactors = new Float32Array(dst.pointsNum)
@@ -225,10 +258,18 @@ export function resampleToUniform(src: CurvesGeometry, selection: ArrayLike<numb
         }
     }
     const evaluatedPositions = ev.positions
-    for (const c of selected) {
-        const [es, ee] = ev.evaluatedRange(c)
-        const [ds, de] = dst.pointsRange(c)
-        interpolateSamples('float3', evaluatedPositions, es, ee - es, sampleIndices, sampleFactors, dst.positions, ds, de - ds)
+    const interpolateEvaluated = (srcData: Float32Array, dstData: Float32Array) => {
+        for (const c of selected) {
+            const [es, ee] = ev.evaluatedRange(c)
+            const [ds, de] = dst.pointsRange(c)
+            interpolateSamples('float3', srcData, es, ee - es, sampleIndices, sampleFactors, dstData, ds, de - ds)
+        }
+    }
+    interpolateEvaluated(evaluatedPositions, dst.positions)
+    for (const [out, srcData] of [[outs.tangents, outs.tangents && ev.tangents], [outs.normals, outs.normals && ev.normals]] as const) {
+        if (!out || !srcData) continue
+        interpolateEvaluated(srcData, out)
+        for (const c of selected) normalizeRange(out, ...dst.pointsRange(c))
     }
     for (const a of noInterp) {
         const comps = DATA_TYPES[a.type].components
@@ -238,6 +279,7 @@ export function resampleToUniform(src: CurvesGeometry, selection: ArrayLike<numb
         }
     }
     copyUnselected(src, dst, unselected, [...interp, ...noInterp])
+    zeroUnselected(dst, unselected, outs)
     return dst
 }
 
@@ -249,7 +291,7 @@ export function countFromLength(curveLength: number, sampleLength: number, keepL
 }
 
 /** `resample_to_evaluated` (:531). */
-export function resampleToEvaluated(src: CurvesGeometry, selection: ArrayLike<number>): CurvesGeometry {
+export function resampleToEvaluated(src: CurvesGeometry, selection: ArrayLike<number>, outputIds?: ResampleOutputIds): CurvesGeometry {
     if (src.curvesNum === 0) return new CurvesGeometry(0, 0)
     const ev = new CurvesEvaluator(src)
     const [selected, unselected] = splitSelection(selection, src.curvesNum)
@@ -266,6 +308,7 @@ export function resampleToEvaluated(src: CurvesGeometry, selection: ArrayLike<nu
     const dst = copyOnlyCurveDomain(src, offsets)
     fillCurveTypesSelection(dst, selected, CURVE_TYPE_POLY)
     const {interp, noInterp} = gatherPointAttributes(src, dst)
+    const outs = outputLayers(dst, outputIds)
     for (const a of interp) {
         const comps = DATA_TYPES[a.type].components
         for (const c of selected) {
@@ -279,6 +322,14 @@ export function resampleToEvaluated(src: CurvesGeometry, selection: ArrayLike<nu
         const [es, ee] = ev.evaluatedRange(c)
         dst.positions.set(evaluatedPositions.subarray(es * 3, ee * 3), dst.curveOffsets[c] * 3)
     }
+    for (const [out, srcData] of [[outs.tangents, outs.tangents && ev.tangents], [outs.normals, outs.normals && ev.normals]] as const) {
+        if (!out || !srcData) continue
+        for (const c of selected) {
+            const [es, ee] = ev.evaluatedRange(c)
+            out.set(srcData.subarray(es * 3, ee * 3), dst.curveOffsets[c] * 3)
+            normalizeRange(out, ...dst.pointsRange(c))
+        }
+    }
     for (const a of noInterp) {
         const comps = DATA_TYPES[a.type].components
         for (const c of selected) {
@@ -287,5 +338,6 @@ export function resampleToEvaluated(src: CurvesGeometry, selection: ArrayLike<nu
         }
     }
     copyUnselected(src, dst, unselected, [...interp, ...noInterp])
+    zeroUnselected(dst, unselected, outs)
     return dst
 }

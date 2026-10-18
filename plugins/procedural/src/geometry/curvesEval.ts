@@ -163,11 +163,20 @@ function catmullRomEvaluateSegment(type: DataType, src: ArrayLike<number>, a: nu
  * points, `dst` its evaluated points.
  */
 export function catmullRomInterpolateToEvaluated(type: DataType, src: ArrayLike<number>, cyclic: boolean, resolution: number, dst: TypedArray): void {
+    const pps = Math.max(1, resolution)
+    catmullRomInterpolateRanges(type, src, cyclic, (i: number): [number, number] => [i * pps, pps], dst)
+}
+
+/** `catmull_rom::interpolate_to_evaluated(src, cyclic, evaluated_offsets, dst)` (:132): per-segment `offsets`. */
+export function catmullRomInterpolateToEvaluatedOffsets(type: DataType, src: ArrayLike<number>, cyclic: boolean, offsets: ArrayLike<number>, dst: TypedArray): void {
+    catmullRomInterpolateRanges(type, src, cyclic, (i: number): [number, number] => [offsets[i], offsets[i + 1] - offsets[i]], dst)
+}
+
+/** `catmull_rom::interpolate_to_evaluated` (:57) with a `range_fn` giving `[start, size]` of each segment. */
+function catmullRomInterpolateRanges(type: DataType, src: ArrayLike<number>, cyclic: boolean, range: (i: number) => [number, number], dst: TypedArray): void {
     const c = DATA_TYPES[type].components
     const n = src.length / c
     const evalNum = dst.length / c
-    const pps = Math.max(1, resolution)
-    const range = (i: number): [number, number] => [i * pps, pps]
     if (n === 1) {
         copyElement(c, src, 0, dst, 0)
         return
@@ -238,7 +247,7 @@ export function bezierVectorHandle(point: ArrayLike<number>, next: ArrayLike<num
 }
 
 /** `calculate_aligned_handle` (:89). */
-function calculateAlignedHandle(position: ArrayLike<number>, otherHandle: ArrayLike<number>, alignedHandle: ArrayLike<number>): V3 {
+export function calculateAlignedHandle(position: ArrayLike<number>, otherHandle: ArrayLike<number>, alignedHandle: ArrayLike<number>): V3 {
     const length = length3(sub3(alignedHandle, position))
     const dir = normalize3(sub3(otherHandle, position))
     return sub3(position, scale3(dir, length))

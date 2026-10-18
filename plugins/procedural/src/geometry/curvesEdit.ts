@@ -65,3 +65,56 @@ export function calculateBezierAutoHandles(curves: CurvesGeometry): void {
             positions.subarray(s * 3, e * 3), (hl.data as Float32Array).subarray(s * 3, e * 3), (hr.data as Float32Array).subarray(s * 3, e * 3))
     }
 }
+
+const BEZIER_HANDLE_NAMES = new Set(['handle_left', 'handle_right', 'handle_type_left', 'handle_type_right'])
+
+/** `reverse_swap_curve_point_data` (:1671): reverse two point layers of a curve and swap them. */
+function reverseSwap(a: {[i: number]: number}, b: {[i: number]: number}, c: number, s: number, n: number): void {
+    const swap = (x: {[i: number]: number}, i: number, y: {[i: number]: number}, j: number) => {
+        for (let k = 0; k < c; k++) {
+            const t = x[(s + i) * c + k]
+            x[(s + i) * c + k] = y[(s + j) * c + k]
+            y[(s + j) * c + k] = t
+        }
+    }
+    for (let i = 0; i < Math.floor(n / 2); i++) {
+        const end = n - 1 - i
+        swap(a, end, b, i)
+        swap(b, end, a, i)
+    }
+    if (n % 2) swap(a, Math.floor(n / 2), b, Math.floor(n / 2))
+}
+
+/** `CurvesGeometry::reverse_curves` (:1695) for the curves in `selection`. */
+export function reverseCurves(curves: CurvesGeometry, selection: ArrayLike<number>): void {
+    for (const layer of curves.attributes.layers()) {
+        if (layer.domain !== AttrDomain.Point) continue
+        if (BEZIER_HANDLE_NAMES.has(layer.name)) continue
+        const c = layer.data.length / Math.max(1, curves.pointsNum)
+        const data = layer.data
+        for (let i = 0; i < selection.length; i++) {
+            const [s, e] = curves.pointsRange(selection[i])
+            // `MutableSpan::reverse`.
+            for (let lo = s, hi = e - 1; lo < hi; lo++, hi--) {
+                for (let k = 0; k < c; k++) {
+                    const t = data[lo * c + k]
+                    data[lo * c + k] = data[hi * c + k]
+                    data[hi * c + k] = t
+                }
+            }
+        }
+    }
+    const knots = curvesAttributeOr(curves, 'knots_mode', curves.curvesNum, 0)
+    for (let i = 0; i < selection.length; i++) {
+        if (knots[selection[i]] === 4) throw new Error('reverse_curves: NURBS custom knots (reverse_custom_knots) are not ported')
+    }
+    const pairs: [string, string, number][] = [['handle_left', 'handle_right', 3], ['handle_type_left', 'handle_type_right', 1]]
+    for (const [l, r, c] of pairs) {
+        const a = curves.attributes.get(l), b = curves.attributes.get(r)
+        if (!a || !b) continue
+        for (let i = 0; i < selection.length; i++) {
+            const [s, e] = curves.pointsRange(selection[i])
+            reverseSwap(a.data, b.data, c, s, e - s)
+        }
+    }
+}

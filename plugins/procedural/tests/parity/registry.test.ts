@@ -28,7 +28,8 @@ function subtypeOf(idname: string): string {
 function sameDefault(a: unknown, b: unknown): boolean {
     if (a === null || a === undefined) return b === undefined || b === null || b === ''
     if (typeof a === 'number') return typeof b === 'number' ? f32(a) === f32(b) : (typeof b === 'boolean' && Number(b) === a)
-    if (Array.isArray(a)) return Array.isArray(b) && a.length === b.length && a.every((x, i) => f32(x) === f32(b[i]))
+    // Number arrays (vectors), or the item names of an enum-flag property.
+    if (Array.isArray(a)) return Array.isArray(b) && a.length === b.length && a.every((x, i) => x === b[i] || f32(x) === f32(b[i]))
     return a === b
 }
 
@@ -90,7 +91,9 @@ describe(`node declarations match Blender ${inventory.blender}`, () => {
                         while (i < p.items.length && p.items[i] !== item) i++
                         if (i++ >= p.items.length) errors.push(`property '${p.identifier}' item '${item}' is not a Blender item or is out of order`)
                     }
-                    if (!ours.includes(p.default as string)) errors.push(`property '${p.identifier}': default ${p.default} not in items`)
+                    // An enum-flag property's default is a list of items.
+                    const defaults = Array.isArray(p.default) ? p.default as string[] : [p.default as string]
+                    if (!defaults.every(d => ours.includes(d))) errors.push(`property '${p.identifier}': default ${p.default} not in items`)
                 }
                 if (p.type === 'ENUM' && p.items?.length && !def.enums?.[p.identifier]) errors.push(`property '${p.identifier}': enum items not declared`)
             }
