@@ -48,6 +48,12 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
     cycleWrap = false
 
     /**
+     * Clicking an object that is already selected cycles through the other objects under the cursor (see
+     * {@link cycleWrap}). Set to `false` to always pick the front object. Same flag as in webgi's ObjectPicker.
+     */
+    cycleThroughHits = true
+
+    /**
      * Time threshold for a pointer click event
      */
     static PointerClickMaxTime = 200
@@ -172,11 +178,16 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
         if (Array.isArray(object)) {
             if (this._selected.length === object.length && this._selected.every((o, i) => o === (object as any)[i])) return
         } else {
-            if (!this._selected.length && !object || this._selected.length === 1 && this._selected[0] === object
-                && currentIntersects?.selectedObject === intersects?.selectedObject
+            if (!this._selected.length && !object) return
+            if (this._selected.length === 1 && this._selected[0] === object
                 && currentIntersects?.selectedWidget === intersects?.selectedWidget
                 && currentIntersects?.selectedHandle === intersects?.selectedHandle
-            ) return
+            ) {
+                // The same object hit again (a click that cycles round to it, or a click on an object that was
+                // selected from code, so with no stored hit): not a selection change, keep the latest hit only.
+                if (intersects) this._selectedIntersects = intersects
+                return
+            }
         }
         const current = [...this._selected]
         this._selected = object ? Array.isArray(object) ? [...object] : [object] : []
@@ -420,7 +431,7 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
             selectedObject = intersects[0].object
             intersect = intersects[0]
 
-            if (this._firstHit && selectedObject.id !== this._firstHit.id) {
+            if (!this.cycleThroughHits || this._firstHit && selectedObject.id !== this._firstHit.id) {
                 selectedObject = intersect.object
             } else {
                 for (let i = 0; i < intersects.length; i++) {

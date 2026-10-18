@@ -1,4 +1,4 @@
-import {describe, expect, it} from 'vitest'
+import {describe, expect, it, vi} from 'vitest'
 import {BoxGeometry, Mesh, MeshBasicMaterial, PerspectiveCamera, Scene} from 'three'
 import {ObjectPicker} from './ObjectPicker'
 
@@ -54,5 +54,41 @@ describe('ObjectPicker click cycling', () => {
         expect(picker.checkIntersection()?.selectedObject).toBe(meshes[1])
         picker.setSelected(meshes[1] as any)
         expect(picker.checkIntersection()?.selectedObject).toBe(meshes[0])
+    })
+
+    it('with cycleThroughHits off, a click always picks the front object', () => {
+        const {picker, meshes} = setup(2)
+        picker.cycleThroughHits = false
+        picker.setSelected(meshes[0] as any)
+        expect(picker.checkIntersection()?.selectedObject).toBe(meshes[0])
+        picker.setSelected(meshes[1] as any)
+        expect(picker.checkIntersection()?.selectedObject).toBe(meshes[0])
+    })
+})
+
+describe('ObjectPicker.setSelected', () => {
+    it('re-selecting the selected object from a click is not a change (no event, no undo step)', () => {
+        const {picker, meshes} = setup(1)
+        picker.cycleWrap = true
+        const record = vi.fn()
+        picker.undoManager = {record} as any
+        picker.setSelected(meshes[0] as any, false) // selected from code: no stored hit
+        const changed = vi.fn()
+        picker.addEventListener('selectedObjectChanged', changed)
+        const hit = picker.checkIntersection()!
+        expect(hit.selectedObject).toBe(meshes[0])
+        picker.setSelected(hit.selectedObject, true, hit)
+        expect(changed).not.toHaveBeenCalled()
+        expect(record).not.toHaveBeenCalled()
+        expect(picker.selectedObject).toBe(meshes[0])
+    })
+
+    it('a different object is still a change with an undo step', () => {
+        const {picker, meshes} = setup(2)
+        const record = vi.fn()
+        picker.undoManager = {record} as any
+        picker.setSelected(meshes[0] as any)
+        picker.setSelected(meshes[1] as any)
+        expect(record).toHaveBeenCalledTimes(2)
     })
 })
