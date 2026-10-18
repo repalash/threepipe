@@ -7,7 +7,7 @@
  */
 
 import {describe, expect, it} from 'vitest'
-import {buildInput, compareMeshes, FixtureInput, FixtureMesh, loadFixture, meshOf, setRawSelection} from './parity-util'
+import {buildInput, compareMeshes, compareUvs, FixtureInput, FixtureMesh, loadFixture, meshOf, setRawSelection} from './parity-util'
 import {BMesh} from '../src/bmesh/BMesh'
 import {BMEdge, BMVert} from '../src/bmesh/types'
 import {ElemFlag, SelectMode} from '../src/constants'
@@ -15,7 +15,6 @@ import {meshNormalsUpdate} from '../src/bmesh/normals'
 import {
     beautifyFillSelection,
     deleteLooseSelection,
-    EdbmResult,
     flipNormalsSelection,
     markSeamSelection,
     markSharpSelection,
@@ -26,6 +25,11 @@ import {
     wireframeSelection,
 } from '../src/ops/editmeshTools'
 import type {TriangulateNgonMethod, TriangulateQuadMethod} from '../src/ops/triangulate'
+import {edgeCollapseSelection, mergeSelection, MergeType} from '../src/ops/collapse'
+import {edgeRotateSelection} from '../src/ops/rotateEdges'
+import {dissolveDegenerateSelection} from '../src/ops/dissolveDegenerate'
+import {selectHistoryStore} from '../src/bmesh/marking'
+import {setValue} from '../src/bmesh/customdata'
 import type {PokeCenterMode} from '../src/ops/poke'
 
 interface EditCase {
@@ -34,10 +38,10 @@ interface EditCase {
     op: string
     props: Record<string, any>
     input: FixtureInput
-    extras: {seams?: number[][], sharp?: number[][]}
+    extras: {seams?: number[][], sharp?: number[][], uv?: number[][][], history?: number[], cursor?: number[]}
     entered: {verts: number[], edges: number[][], faces: number[]}
     result: string[]
-    output: FixtureMesh & {seams: number[][], sharp: number[][]}
+    output: FixtureMesh & {seams: number[][], sharp: number[][], uvs: number[][][] | null}
 }
 
 const fixture = loadFixture<EditCase>('editmesh-tools.json')
@@ -63,7 +67,7 @@ const NGON: Record<string, TriangulateNgonMethod> = {BEAUTY: 'BEAUTY', CLIP: 'EA
 /** `poke_center_modes` (`editmesh_tools.cc:5407`). */
 const POKE_CENTER: Record<string, PokeCenterMode> = {MEDIAN_WEIGHTED: 'meanWeighted', MEDIAN: 'mean', BOUNDS: 'bounds'}
 
-function run(bm: BMesh, c: EditCase): EdbmResult {
+function run(bm: BMesh, c: EditCase): {ok: boolean} {
     const p = c.props
     switch (c.op) {
     case 'poke': return pokeFacesSelection(bm, {
@@ -81,6 +85,10 @@ function run(bm: BMesh, c: EditCase): EdbmResult {
     case 'flip_normals': return flipNormalsSelection(bm)
     case 'normals_make_consistent': return normalsMakeConsistentSelection(bm, !!p.inside)
     case 'delete_loose': return deleteLooseSelection(bm, {useVerts: p.use_verts, useEdges: p.use_edges, useFaces: p.use_faces})
+    case 'merge': return mergeSelection(bm, (p.type ?? 'CENTER') as MergeType, !!p.uvs, c.extras.cursor as [number, number, number] ?? null)
+    case 'edge_collapse': return edgeCollapseSelection(bm)
+    case 'edge_rotate': return edgeRotateSelection(bm, !!p.use_ccw)
+    case 'dissolve_degenerate': return dissolveDegenerateSelection(bm, p.threshold ?? 1e-4)
     }
     throw new Error(`no wrapper for mesh.${c.op}`)
 }
@@ -116,16 +124,22 @@ describe('edit-mode tool wrappers match Blender 5.2.2 (editmesh-tools.json)', ()
             const {bm, verts, faces, edge} = buildInput({...c.input, select: undefined})
             for (const [a, b] of c.extras.seams ?? []) edge(a, b).hflag |= ElemFlag.Seam
             for (const [a, b] of c.extras.sharp ?? []) edge(a, b).hflag &= ~ElemFlag.Smooth
+            if (c.extras.uv) {
+                const layer = bm.addLayer('loop', 'UVMap', 'float2')
+                c.extras.uv.forEach((uvs, fi) => faces[fi].loops().forEach((l, k) => setValue(l, bm.ldata, layer, uvs[k])))
+            }
             // Edit mode has current normals when an operator runs (`EDBM_update` after every operator).
             meshNormalsUpdate(bm)
             bm.selectMode = MODE[c.mode]
             setRawSelection(bm, verts, faces, c.entered)
+            for (const i of c.extras.history ?? []) selectHistoryStore(bm, verts[i])
             const r = run(bm, c)
             expect(r.ok).toBe(c.result[0] === 'FINISHED')
             expect(bm.validate()).toEqual([])
             expect(compareMeshes(meshOf(bm), c.output, {selection: true})).toEqual([])
             expect(edgeKeys(bm, ElemFlag.Seam, false)).toEqual(mapEdgeKeys(bm, c.output, c.output.seams))
             expect(edgeKeys(bm, ElemFlag.Smooth, true)).toEqual(mapEdgeKeys(bm, c.output, c.output.sharp))
+            expect(compareUvs(bm, c.output)).toEqual([])
         })
     }
 })

@@ -11,6 +11,7 @@
  * pass, which only moves the coordinates. That is why nearly every branch below appears twice.
  */
 
+import {layerHasMath} from '../bmesh/customdataMath'
 import {BMEdge, BMFace, BMLoop, BMVert} from '../bmesh/types'
 import {BMesh} from '../bmesh/BMesh'
 import {BMLayerDef} from '../bmesh/customdata'
@@ -32,15 +33,8 @@ import {isectLinePlaneV3} from './bevel-math'
 
 // region math layers (`:1309-1570`)
 
-/**
- * The loop layers that `CustomData_layer_has_math` (`customdata.cc:2456`) answers true for: the ones
- * whose type declares `equal`, `add`, `multiply`, `initminmax` and `dominmax`. In Blender's table
- * that is exactly `CD_PROP_FLOAT2` (UVs), `CD_PROP_COLOR`, `CD_PROP_BYTE_COLOR` and
- * `CD_MLOOP_ORIGSPACE`; the kernel has no origspace layer, so the first three remain.
- */
-export function layerHasMath(layer: BMLayerDef): boolean {
-    return layer.type === 'float2' || layer.type === 'float4' || layer.type === 'byteColor'
-}
+/** `CustomData_layer_has_math`, shared with the other ports (`bmesh/customdataMath.ts`). */
+export {layerHasMath}
 
 /**
  * `CustomData_data_equals` (`customdata.cc:2262`) for the math layers, which is not `memcmp`: each of

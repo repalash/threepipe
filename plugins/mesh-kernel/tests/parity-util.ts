@@ -16,6 +16,7 @@ import {BMEdge, BMFace, BMVert} from '../src/bmesh/types'
 import {ElemFlag} from '../src/constants'
 import {edgeSelectSet, faceSelectSet, selectCountsRecalc, selectFlush, vertSelectSet} from '../src/bmesh/marking'
 import {diskEdgeExists} from '../src/bmesh/structure'
+import {getValue} from '../src/bmesh/customdata'
 
 export interface FixtureMesh {
     positions: number[][]
@@ -180,5 +181,47 @@ export function compareMeshes(got: FixtureMesh, want: FixtureMesh, options: Comp
             problems.push(`selected faces differ: got ${got.selected.faces.length}, Blender ${want.selected.faces.length}`)
         }
     }
+    return problems
+}
+
+/**
+ * Compare every face's corner UVs with Blender's (`output.uvs`, written when the mesh has a UV map):
+ * vertices are paired by position as in `compareMeshes`, each Blender face is found among ours as the
+ * same cyclic vertex sequence, and the UVs are compared corner by corner.
+ */
+export function compareUvs(bm: BMesh, want: FixtureMesh & {uvs?: number[][][] | null}): string[] {
+    if (!want.uvs) return []
+    const layer = bm.ldata.get('UVMap')
+    if (!layer) return ['no UV layer']
+    const got = meshOf(bm)
+    const used = new Array(got.positions.length).fill(false)
+    const map = want.positions.map(w => {
+        const j = got.positions.findIndex((g, k) => !used[k] && g.every((x, a) => Math.abs(x - w[a]) < PARITY_TOL))
+        if (j >= 0) used[j] = true
+        return j
+    })
+    const gotFaces = [...bm.faces]
+    const problems: string[] = []
+    want.faces.forEach((wf, i) => {
+        const mapped = wf.map(j => map[j])
+        let found = false
+        for (let fi = 0; fi < gotFaces.length && !found; fi++) {
+            const gv = got.faces[fi]
+            if (gv.length !== mapped.length) continue
+            for (let k = 0; k < gv.length && !found; k++) {
+                if (!mapped.every((m, c) => gv[(k + c) % gv.length] === m)) continue
+                found = true
+                const loops = gotFaces[fi].loops()
+                mapped.forEach((_, c) => {
+                    const uv = getValue(loops[(k + c) % loops.length], layer)
+                    const w = want.uvs![i][c]
+                    if (Math.abs(uv[0] - w[0]) > PARITY_TOL || Math.abs(uv[1] - w[1]) > PARITY_TOL) {
+                        problems.push(`face ${i} corner ${c}: uv [${uv.map(x => x.toFixed(4))}], Blender [${w}]`)
+                    }
+                })
+            }
+        }
+        if (!found) problems.push(`face ${i} not found`)
+    })
     return problems
 }
