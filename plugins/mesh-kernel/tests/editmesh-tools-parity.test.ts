@@ -31,6 +31,7 @@ import {dissolveDegenerateSelection} from '../src/ops/dissolveDegenerate'
 import {selectHistoryStore} from '../src/bmesh/marking'
 import {setValue} from '../src/bmesh/customdata'
 import {solidifySelectionOperator} from '../src/ops/solidifyFaceRegion'
+import {edgeSplitSelection} from '../src/ops/edgeSplit'
 import {extrudeDiscreteFacesSelection, extrudeEdgesIndivSelection, extrudeVertsIndivSelection} from '../src/ops/extrudeIndiv'
 
 /** `TRANSFORM_OT_translate` exec on the selected vertices (no proportional editing, identity object). */
@@ -111,6 +112,7 @@ function run(bm: BMesh, c: EditCase): {ok: boolean} {
     case 'edge_rotate': return edgeRotateSelection(bm, !!p.use_ccw)
     case 'dissolve_degenerate': return dissolveDegenerateSelection(bm, p.threshold ?? 1e-4)
     case 'solidify': return solidifySelectionOperator(bm, p.thickness ?? 0.01)
+    case 'edge_split': return edgeSplitSelection(bm, p.type ?? 'EDGE')
     case 'extrude_vertices_move': {
         const r = extrudeVertsIndivSelection(bm)
         if (r.ok) translateSelected(bm, p.TRANSFORM_OT_translate.value)
