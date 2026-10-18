@@ -16,7 +16,7 @@ import {
     UndoManagerPlugin,
 } from 'threepipe'
 import {MeshEditPlugin} from '@threepipe/plugin-mesh-edit'
-import {AgentSocketPlugin, ModellingPlugin} from '@threepipe/plugin-modelling'
+import {AgentSocketPlugin, ModellingEntry, ModellingPlugin} from '@threepipe/plugin-modelling'
 import {EditorEngine, EditorEngineOptions, EditorEnginePlugin} from '@threepipe/plugin-editor-engine'
 import {EditorViewportPlugin} from './EditorViewportPlugin'
 import {EditorUiPlugin} from './ui/EditorUiPlugin'
@@ -25,6 +25,7 @@ import {registerViewOperators} from './ops/viewOps'
 import {registerCloudOperators} from './ops/cloudOps'
 import {OnboardingOptions, OnboardingStore} from './onboarding/OnboardingStore'
 import editorCss from './styles/editor.scss?inline'
+import {evaluatedSelectionWidget} from './EvaluatedSelectionWidget'
 
 export interface ModellingEditorOptions {
     /** Where the editor mounts. It fills this element. */
@@ -69,6 +70,8 @@ export function createModellingEditor(options: ModellingEditorOptions): Modellin
     }
 
     // The viewer owns a detached container that the Viewport component adopts on mount.
+    // The modelling plugin of the viewer made below, for widgets created before it exists.
+    let modellingOf = (): ModellingPlugin | undefined => undefined
     const viewerContainer = document.createElement('div')
     viewerContainer.className = 'me-viewer-container'
     const viewer = new ThreeViewer({
@@ -81,7 +84,8 @@ export function createModellingEditor(options: ModellingEditorOptions): Modellin
         container: viewerContainer,
         plugins: [
             UndoManagerPlugin,
-            new PickingPlugin(undefined, false),
+            // The selection box bounds what a modifier draws beside the mesh too (instances).
+            new PickingPlugin(evaluatedSelectionWidget((): readonly ModellingEntry[] => modellingOf()?.document.entries ?? []), false),
             new TransformControlsPlugin(true),
             new EditorViewWidgetPlugin('bottom-right', 96),
             ModellingPlugin,
@@ -93,6 +97,7 @@ export function createModellingEditor(options: ModellingEditorOptions): Modellin
             ...(options.viewer?.plugins ?? []),
         ],
     })
+    modellingOf = () => viewer.getPlugin(ModellingPlugin)
     for (const p of options.plugins ?? []) viewer.addPluginSync(p)
     // The editor teaches its own empty scene ("Add a shape"); a loading screen must not cover it.
     const loadingScreen = viewer.getPlugin(LoadingScreenPlugin)

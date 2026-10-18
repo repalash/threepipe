@@ -16,13 +16,14 @@ import {
     BufferGeometry2,
     Color,
     IObject3D,
+    Object3D,
     Mesh2,
     PhysicalMaterial,
     safeSetProperty,
     ThreeViewer,
 } from 'threepipe'
 import {bakeGeometry, geometryDataToBufferGeometry, MeshData, meshDataFromTriangles} from '@threepipe/mesh-kernel'
-import {evaluateModifierStack, ModifierSpec} from './modifiers'
+import {evaluateModifierStack, GeometryStats, ModifierSpec} from './modifiers'
 
 /** A mesh object under the document's management. */
 export interface ModellingEntry {
@@ -48,6 +49,13 @@ export interface ModellingEntry {
     evaluatedGeometry?: unknown
     /** {@link ModifierResult.realize} of the stack: what applying it bakes from {@link evaluated}. */
     evaluatedRealize?: (mesh: MeshData) => MeshData
+    /** {@link ModifierResult.stats} of the stack: counts of {@link evaluatedGeometry} (instances, points). */
+    evaluatedExtraStats?: () => GeometryStats
+    /**
+     * The scene object that draws {@link evaluatedGeometry}, set by the package that draws it (outside the object, so it
+     * is not picked, listed or exported). Editors include it in the object's selection bounds.
+     */
+    evaluatedDrawing?: Object3D
     /** Per-entry state modifier types keep between evaluations (see `ModifierContext.state`). */
     modifierState?: Map<string, unknown>
     /** Bumped on every topology or position change, so callers can tell what is stale. */
@@ -496,6 +504,7 @@ export class ModellingDocument {
         entry.evaluated = result.mesh
         entry.evaluatedGeometry = result.geometry
         entry.evaluatedRealize = result.realize
+        entry.evaluatedExtraStats = result.stats
         const {data} = bakeGeometry(entry.evaluated, {includeNormals: true})
         const geometry = geometryDataToBufferGeometry<BufferGeometry2>(data, {
             BufferGeometry: BufferGeometry2,
@@ -691,4 +700,17 @@ export class ModellingDocument {
     clear(): void {
         for (const entry of this.entries) this.remove(entry)
     }
+}
+
+/**
+ * The object's statistics as Blender's status bar gives them in object mode: the evaluated mesh's vertices and
+ * triangles (`corner_tris`), plus the evaluated instances and points of a modifier that makes them.
+ */
+export function evaluatedStats(entry: ModellingEntry): GeometryStats {
+    const m = entry.evaluated
+    const fo = m.faceOffsets
+    let tris = 0
+    for (let f = 0; f < m.facesNum; f++) tris += fo[f + 1] - fo[f] - 2
+    const extra = entry.evaluatedExtraStats?.()
+    return {verts: m.vertsNum + (extra?.verts ?? 0), tris: tris + (extra?.tris ?? 0)}
 }

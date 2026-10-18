@@ -205,6 +205,25 @@ async function assetState(page: import('@playwright/test').Page, name: string) {
     }, name)
 }
 
+/** The status bar's object-mode counts. */
+async function statusCounts(page: import('@playwright/test').Page) {
+    const text = await page.locator('[data-stats]').innerText()
+    const num = (label: string) => Number(new RegExp(`${label}\\s+([\\d,]+)`).exec(text)?.[1].replace(/,/g, '') ?? NaN)
+    return {verts: num('Verts'), tris: num('Tris')}
+}
+
+/** The selection box shown around `name`: its world size, from the visible selection widget attached to the object. */
+async function selectionBoxSize(page: import('@playwright/test').Page, name: string) {
+    return page.evaluate(n => {
+        const object = (window as any).modelling.document.find(n).object
+        let size: number[] | undefined
+        ;(window as any).viewer.scene.traverse((o: any) => {
+            if (o.isWidget && o.visible && o.object === object && o.scale) size = [o.scale.x, o.scale.y, o.scale.z]
+        })
+        return size
+    }, name)
+}
+
 /** Edit one field of the first modifier in Properties > Modifiers (a `modifier update` command). */
 async function editField(page: import('@playwright/test').Page, label: string, value: string) {
     const field = page.locator('.me-modifier[data-modifier-index="0"]').locator(`[id="me-prop-${label}"]`)
@@ -222,10 +241,20 @@ test.describe('editor assets: terrain', () => {
         const modifier = page.locator('.me-modifier[data-modifier-index="0"]')
         await expect(modifier.locator('.me-modifier-summary')).toHaveText('Terrain')
         for (const label of ['Size', 'Resolution', 'Height', 'Seed']) await expect(modifier.getByText(label, {exact: true})).toBeVisible()
+        // Float inputs show Blender's 3 decimals (the input drops trailing zeros), not float32 digits.
+        const noiseScale = modifier.locator('[id="me-prop-Noise Scale"]')
+        await expect(noiseScale).toHaveValue('0.12')
+        await expect(modifier.locator('[id="me-prop-Resolution"]')).toHaveValue('96')
+        // The status bar counts the evaluated mesh (Blender's statistics), not the plane under the modifier or the
+        // drawn buffer.
+        expect(await statusCounts(page)).toEqual({verts: 96 * 96, tris: 95 * 95 * 2})
+        // No stray example-hub glyph over the viewport.
+        await expect(page.getByText('<>', {exact: true})).toHaveCount(0)
         await screenshotMatch(page, testInfo, 'terrain')
         // Reactive: the field edit re-evaluates the modifier; undo restores it.
         await editField(page, 'Resolution', '40')
         await expect.poll(async() => (await assetState(page, 'terrain')).verts).toBe(40 * 40)
+        await expect.poll(async() => statusCounts(page)).toEqual({verts: 40 * 40, tris: 39 * 39 * 2})
         await editField(page, 'Height', '9')
         await expect.poll(async() => (await assetState(page, 'terrain')).modifiers[0].inputs.Height).toBe(9)
         await screenshotMatch(page, testInfo, 'terrain-edited')
@@ -252,6 +281,12 @@ test.describe('editor assets: buildify', () => {
         for (const label of ['Min number of floors', 'Max number of floors', 'Module width', 'Module height']) {
             await expect(modifier.getByText(label, {exact: true})).toBeVisible()
         }
+        await expect(modifier.locator('[id="me-prop-Module width"]')).toHaveValue('3')
+        // Statistics count the building's instances, as Blender's do (the footprint mesh alone is 10 vertices).
+        expect((await statusCounts(page)).verts).toBeGreaterThan(1000)
+        // The selection box bounds the building (the drawn instances), not the flat footprint under it.
+        const box = (await selectionBoxSize(page, 'building_base'))!
+        expect(Math.min(...box)).toBeGreaterThan(5)
         await screenshotMatch(page, testInfo, 'buildify')
         // Wider modules: fewer modules along the walls; the spec keeps the file's identifier keys. Undo gives the
         // file's building back.
@@ -276,6 +311,9 @@ test.describe('editor assets: flowers', () => {
         await page.getByRole('tab', {name: 'Modifiers'}).click()
         const modifier = page.locator('.me-modifier[data-modifier-index="0"]')
         for (const label of ['Grass Density', 'Flower Density', 'Seed']) await expect(modifier.getByText(label, {exact: true})).toBeVisible()
+        // The file's float32 values show rounded: 0.20000000298023224 as 0.2, 0.05000000074505806 as 0.05.
+        await expect(modifier.locator('[id="me-prop-Grass Random Tilt"]')).toHaveValue('0.2')
+        await expect(modifier.locator('[id="me-prop-Flower Distance"]')).toHaveValue('0.05')
         // A sparser field: fewer instances; undo restores the file's.
         await editField(page, 'Grass Density', '0.5')
         await expect.poll(async() => (await assetState(page, 'EN-ground_plane_NEW')).drawn.draws, {timeout: 60000}).toBeLessThan(before.drawn.draws)

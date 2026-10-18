@@ -40,6 +40,12 @@ export interface PropDef {
      * not drawn in the redo panel, e.g. Mark Seam's `clear` (`editmesh_tools.cc:1104`).
      */
     hidden?: boolean
+    /**
+     * Decimals a float field shows, as Blender's RNA `precision` (`RNA_def_property_ui_range`, 3 for node sockets):
+     * the value is displayed rounded like Blender's buttons (`calc_float_precision`). Without it the raw value is
+     * shown.
+     */
+    precision?: number
 }
 
 export interface OperatorResult {
