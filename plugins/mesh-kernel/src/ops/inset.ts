@@ -43,7 +43,8 @@ import {BMCustomDataLayout, copyElemAttrs, copyElemHeader, getValue, setValue} f
 import {faceInterpFromFace} from '../bmesh/interp'
 import {ElemFlag} from '../constants'
 import {faceSelectSet, selectNone} from '../bmesh/marking'
-import {Vec3, v3add, v3cross, v3dot, v3len, v3mul, v3normalize, v3sub} from '../math'
+import {Vec3, v3add, v3cross, v3dot, v3mul, v3normalize, v3sub} from '../math'
+import {lenSquaredV3V3, shellV3V3MidNormalizedToDist} from '../math/geom'
 
 // region math_geom_inline.cc - shell thickness
 
@@ -65,20 +66,6 @@ function shellV3V3NormalizedToDist(a: Vec3, b: Vec3): number {
     return angleCos < SMALL_NUMBER ? 1 : 1 / angleCos
 }
 
-/**
- * The same correction for the *bisector* of `a` and `b`: `1 / |cos(angle / 2)|`.
- *
- * Port of `shell_v3v3_mid_normalized_to_dist` (`math_geom_inline.cc:148`). This one function is the
- * whole of `use_even_offset` for a mid-corner. Walking the normalized bisector by `thickness` leaves
- * a sharp corner far short of `thickness` from either edge; multiplying by this puts it at exactly
- * `thickness` from both, which is what "Offset Even" means in the tool header.
- */
-function shellV3V3MidNormalizedToDist(a: Vec3, b: Vec3): number {
-    const ab = v3normalize(v3add(a, b))
-    const angleCos = v3len(ab) !== 0 ? Math.abs(v3dot(a, ab)) : 0
-    return angleCos < SMALL_NUMBER ? 1 : 1 / angleCos
-}
-
 // endregion
 
 // region small vector helpers over BMVert
@@ -90,12 +77,6 @@ function vertMadd(v: BMVert, dir: Vec3, fac: number): void {
     v.x += dir[0] * fac
     v.y += dir[1] * fac
     v.z += dir[2] * fac
-}
-
-/** `len_squared_v3v3` - the squared distance between two vectors read as points. */
-function lenSquaredV3V3(a: Vec3, b: Vec3): number {
-    const d = v3sub(a, b)
-    return v3dot(d, d)
 }
 
 /** `BM_edge_calc_length`. */

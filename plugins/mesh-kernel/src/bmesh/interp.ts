@@ -37,6 +37,7 @@ import {faceCalcNormal} from './polygon'
 import {BMesh} from './BMesh'
 import {copyElemAttrs, interpElemAttrs} from './customdata'
 import {Vec3} from '../math'
+import {orthoBasisV3V3V3, orthoV3V3} from '../math/geom'
 
 /** `FLT_EPSILON`. `interp_weights_poly_v2` derives its tolerances from this, so it must match. */
 const FLT_EPSILON = 1.1920928955078125e-7
@@ -68,21 +69,6 @@ function normalizeV3(a: Vec3): number {
 
 // region projection to 2d
 
-/** `ortho_basis_v3v3_v3` (`blenlib/intern/math_vector.cc:568`). Returns the two vectors orthogonal to `n`. */
-function orthoBasisV3V3V3(n: Vec3): [Vec3, Vec3] {
-    const eps = FLT_EPSILON
-    const f = n[0] * n[0] + n[1] * n[1]
-
-    if (f > eps) {
-        const d = 1.0 / Math.sqrt(f)
-        const n1: Vec3 = [n[1] * d, -n[0] * d, 0]
-        const n2: Vec3 = [-n[2] * n1[1], n[2] * n1[0], n[0] * n1[1] - n[1] * n1[0]]
-        return [n1, n2]
-    }
-    // Degenerate case: the normal is (near enough) the Z axis, so no rotation about Z is defined.
-    return [[n[2] < 0 ? -1 : 1, 0, 0], [0, 1, 0]]
-}
-
 /**
  * `axis_dominant_v3_to_m3` (`blenlib/intern/math_geom.cc:3646`): a basis whose Z row is `normal`,
  * transposed so that {@link mulV2M3V3} reads its columns. `normal` must be unit length.
@@ -102,19 +88,6 @@ function axisDominantV3ToM3(normal: Vec3): Mat3 {
 function mulV2M3V3(out: number[], outOffset: number, m: Mat3, x: number, y: number, z: number): void {
     out[outOffset] = m[0] * x + m[3] * y + m[6] * z
     out[outOffset + 1] = m[1] * x + m[4] * y + m[7] * z
-}
-
-/** `ortho_v3_v3` (`blenlib/intern/math_vector.cc:593`), with `axis_dominant_v3_single` (`math_geom_inline.cc:86`). */
-function orthoV3V3(v: Vec3): Vec3 {
-    const x = Math.abs(v[0])
-    const y = Math.abs(v[1])
-    const z = Math.abs(v[2])
-    const axis = x > y ? (x > z ? 0 : 2) : (y > z ? 1 : 2)
-    switch (axis) {
-    case 0: return [-v[1] - v[2], v[0], v[0]]
-    case 1: return [v[1], -v[0] - v[2], v[1]]
-    default: return [v[2], v[2], -v[0] - v[1]]
-    }
 }
 
 // endregion

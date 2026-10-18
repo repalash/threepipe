@@ -45,56 +45,50 @@ import {
     axisDominantV3ToM3,
     closestRayToSegmentV3,
     closestToLineSegmentV2,
-    compare3,
-    cross3,
-    distSignedSquaredToCorner,
-    distSignedSquaredToPlane,
+    compareV3V3,
+    distSignedSquaredToCornerV3V3V3,
+    distSignedSquaredToPlaneV3,
     distSquaredToLineSegmentV2,
-    distSquaredToPlane,
-    dot3,
+    distSquaredToPlaneV3,
     dotM4V3RowZ,
-    equals3,
+    equalsV3V3,
     FLT_EPSILON,
     FLT_MAX,
-    interp3,
     interpV3V3V3Uv,
-    invertM4,
     isectLinePlaneV3,
     isectPointPolyV2,
     isectRayLineV3,
     isectRayPlaneV3,
     isectRayRayV3,
     isectRayTriEpsilonV3,
-    isectRayTriWatertightPrecalc,
     isectRayTriWatertightV3,
+    isectRayTriWatertightV3Precalc,
     isectSegSegV2PointEx,
     isQuadFlipV3FirstThirdFast,
-    isZero2,
-    isZero3,
-    lenSqV2V2,
-    lenSqV3V3,
+    isZeroV2,
+    isZeroV3,
+    lenSquaredV2V2,
+    lenSquaredV3V3,
     lenV2V2,
     lenV3V3,
-    linePointFactorV3,
-    M4,
-    madd3,
-    mid2,
-    mid3,
+    linePointFactorV3Ex,
+    maddV3V3V3Fl,
+    midV2V2V2,
+    midV3V3V3,
     mulM4V3,
     mulProjectM4V3Zfac,
     mulTransposedMat3M4V3,
     mulV2M3V3,
-    normalize3,
+    normalizeV3V3Length,
     normalTriV3,
-    planeFromPointNormal,
-    projectPlaneNormalized,
-    rotateNormalizedV3,
-    sub3,
+    planeFromPointNormalV3,
+    projectPlaneNormalizedV3V3V3,
+    rotateNormalizedV3V3V3Fl,
     transformPointBySegV3,
-    V2,
-    V3,
-    V4,
-} from './geom'
+    Vec2,
+    Vec4,
+} from '../../math/geom'
+import {Mat4, mat4Invert, v3cross, v3dot, v3lerp, v3sub, Vec3} from '../../math'
 import {KnifeView} from './view'
 import {faceSplitEdgenet, faceSplitEdgenetConnectIslands} from './edgenet'
 
@@ -130,9 +124,9 @@ export interface KnifeVert {
     /** -1 represents the absence of an object. */
     obIndex: number
     /** Vertex position in the original mesh. Equivalent to `BMVert::co`. */
-    co: V3
+    co: Vec3
     /** Vertex position in the cage mesh, world space. */
-    cageco: V3
+    cageco: Vec3
     /** Along a cut created by user input (will draw too). */
     isCut: boolean
     isInvalid: boolean
@@ -158,10 +152,10 @@ export interface KnifeEdge {
 
 /** `KnifeLineHit` (`:136`). Exactly one of `kfe`, `v`, `f` is set when the hit is made. */
 export interface KnifeLineHit {
-    hit: V3
-    cagehit: V3
+    hit: Vec3
+    cagehit: Vec3
     /** Screen coordinates for `cagehit`. */
-    schit: V2
+    schit: Vec2
     /** Lambda along cut line. */
     l: number
     /** Depth front-to-back. */
@@ -174,22 +168,22 @@ export interface KnifeLineHit {
 
 /** `KnifePosData` (`:154`). At most one of `vert`, `edge`, `bmface` is set; none means "in space". */
 export interface KnifePosData {
-    cage: V3
+    cage: Vec3
     vert: KnifeVert | null
     edge: KnifeEdge | null
     bmface: BMFace | null
     /** -1 represents the absence of an object. */
     obIndex: number
     /** Mouse screen position (may be non-integral if snapped to something). */
-    mval: V2
+    mval: Vec2
 }
 
 const isSpace = (p: KnifePosData) => p.obIndex === -1
 
 /** `KnifeMeasureData` (`:176`). */
 export interface KnifeMeasureData {
-    cage: V3
-    mval: V2
+    cage: Vec3
+    mval: Vec2
     isStored: boolean
 }
 
@@ -238,9 +232,9 @@ export type KnifeModalItem =
 /** One event for {@link KnifeTool.modal}. */
 export type KnifeEvent =
     /** A modal keymap item. `release` is Blender's `event->prev_val == KM_RELEASE` (or `val` for PANNING). */
-    | {type: 'modal', item: KnifeModalItem, release?: boolean, mval: V2}
+    | {type: 'modal', item: KnifeModalItem, release?: boolean, mval: Vec2}
     /** `MOUSEMOVE`, region pixels (bottom-left origin). */
-    | {type: 'mousemove', mval: V2}
+    | {type: 'mousemove', mval: Vec2}
 
 /** What {@link KnifeTool.modal} returns, as `wmOperatorStatus`. */
 export type KnifeStatus = 'running' | 'finished' | 'cancelled' | 'passThrough'
@@ -248,7 +242,7 @@ export type KnifeStatus = 'running' | 'finished' | 'cancelled' | 'passThrough'
 export interface KnifeToolOptions {
     view: KnifeView
     /** The mesh's object-to-world matrix, column-major. Default identity. */
-    objectMatrix?: M4
+    objectMatrix?: Mat4
     /** `only_selected`: only cut selected faces. Default false. */
     onlySelect?: boolean
     /** `!use_occlude_geometry`: cut through hidden faces too. Default false. */
@@ -267,13 +261,13 @@ export interface KnifeToolOptions {
      * `EDBM_face_find_nearest` with `dist` = {@link KMAXDIST}: the face under or near the cursor from the
      * selection buffer, used when the ray misses (`knife_find_closest_face`, `:3097`). Interactive only.
      */
-    findNearestFace?: (mval: V2) => BMFace | null
+    findNearestFace?: (mval: Vec2) => BMFace | null
     /**
      * The orientation matrix for an axis constraint in the given mode (`calc_orientation_from_type_ex`
      * via `knife_constrain_axis`, `:3590`): rows are the X/Y/Z axes. Default: global is the identity,
      * local the object's normalised axes.
      */
-    orientationMatrix?: (mode: KnifeAxisMode) => [V3, V3, V3]
+    orientationMatrix?: (mode: KnifeAxisMode) => [Vec3, Vec3, Vec3]
     /** Blender's `em->selectmode`, used for `select_result` (`:3958`). Default: not face-only. */
     selectModeIsFaceOnly?: boolean
     /**
@@ -289,10 +283,10 @@ interface KnifeTri {
     /** The face's three loops' verts (`ltri[i]->v`). */
     verts: [BMVert, BMVert, BMVert]
     /** World-space cage positions (`knife_bm_tri_cagecos_get_worldspace`). */
-    cos: [V3, V3, V3]
+    cos: [Vec3, Vec3, Vec3]
     /** Leaf bound for `tree_intersect_plane_test`: the AABB inflated by the tree epsilon. */
-    min: V3
-    max: V3
+    min: Vec3
+    max: Vec3
 }
 
 // endregion
@@ -301,8 +295,8 @@ const clonePos = (p: KnifePosData): KnifePosData => ({
     cage: [p.cage[0], p.cage[1], p.cage[2]], vert: p.vert, edge: p.edge, bmface: p.bmface, obIndex: p.obIndex, mval: [p.mval[0], p.mval[1]],
 })
 const emptyPos = (): KnifePosData => ({cage: [0, 0, 0], vert: null, edge: null, bmface: null, obIndex: -1, mval: [0, 0]})
-const coOf = (v: BMVert): V3 => [v.x, v.y, v.z]
-const fnoOf = (f: BMFace): V3 => [f.nx, f.ny, f.nz]
+const coOf = (v: BMVert): Vec3 => [v.x, v.y, v.z]
+const fnoOf = (f: BMFace): Vec3 => [f.nx, f.ny, f.nz]
 
 /** `BM_face_vert_share_loop`. */
 function faceVertShareLoop(f: BMFace, v: BMVert): BMLoop | null {
@@ -320,7 +314,7 @@ const loopIsAdjacent = (a: BMLoop, b: BMLoop) => a.next === b || a.prev === b
 function facePointInsideTest(f: BMFace, co: readonly number[]): boolean {
     const axisMat = axisDominantV3ToM3(fnoOf(f))
     const co2d = mulV2M3V3(axisMat, co)
-    const projverts: V2[] = []
+    const projverts: Vec2[] = []
     let l = f.lFirst
     for (let i = 0; i < f.len; i++, l = l.next) projverts.push(mulV2M3V3(axisMat, coOf(l.v)))
     return isectPointPolyV2(co2d, projverts, f.len)
@@ -328,15 +322,15 @@ function facePointInsideTest(f: BMFace, co: readonly number[]): boolean {
 
 /** `BM_loop_point_side_of_loop_test` (`bmesh_query.cc:244`). */
 const loopPointSideOfLoopTest = (l: BMLoop, co: readonly number[]): number =>
-    distSignedSquaredToCorner(co, coOf(l.prev.v), coOf(l.v), coOf(l.next.v), fnoOf(l.f))
+    distSignedSquaredToCornerV3V3V3(co, coOf(l.prev.v), coOf(l.v), coOf(l.next.v), fnoOf(l.f))
 
 /** `BM_loop_point_side_of_edge_test` (`bmesh_query.cc:250`). */
 function loopPointSideOfEdgeTest(l: BMLoop, co: readonly number[]): number {
     const axis = fnoOf(l.f)
-    const dir = sub3(coOf(l.next.v), coOf(l.v))
-    const p = cross3(axis, dir)
-    const plane: V4 = [p[0], p[1], p[2], -dot3(p, coOf(l.v))]
-    return distSignedSquaredToPlane(co, plane)
+    const dir = v3sub(coOf(l.next.v), coOf(l.v))
+    const p = v3cross(axis, dir)
+    const plane: Vec4 = [p[0], p[1], p[2], -v3dot(p, coOf(l.v))]
+    return distSignedSquaredToPlaneV3(co, plane)
 }
 
 /** `BM_vert_in_face`. */
@@ -396,7 +390,7 @@ const edgeIsWire = (e: BMEdge) => e.l === null
 /** `coinciding_edges` (`:2552`): do e1 and e2 go between exactly the same coordinates? */
 function coincidingEdges(e1: BMEdge, e2: BMEdge): boolean {
     const co11 = coOf(e1.v1), co12 = coOf(e1.v2), co21 = coOf(e2.v1), co22 = coOf(e2.v2)
-    return (equals3(co11, co21) && equals3(co12, co22)) || (equals3(co11, co22) && equals3(co12, co21))
+    return (equalsV3V3(co11, co21) && equalsV3V3(co12, co22)) || (equalsV3V3(co11, co22) && equalsV3V3(co12, co21))
 }
 
 type BMElemAny = BMVert | BMEdge | BMFace
@@ -433,12 +427,12 @@ function elemNotInFaceCheck(f: BMFace, elem: BMElemAny): boolean {
 export class KnifeTool {
     readonly bm: BMesh
     view: KnifeView
-    readonly objectMatrix: M4
-    readonly worldToObject: M4
+    readonly objectMatrix: Mat4
+    readonly worldToObject: Mat4
 
     // `KnifeObjectInfo` (`:202`)
     /** `positions_cage`, world space. */
-    private _positionsCage = new Map<BMVert, V3>()
+    private _positionsCage = new Map<BMVert, Vec3>()
     /** `em->looptris` in face order, with each face's first triangle index (`facetrimap`). */
     private _tris: KnifeTri[] = []
     private _faceTriStart = new Map<BMFace, number>()
@@ -478,7 +472,7 @@ export class KnifeTool {
 
     isOrtho = false
     orthoExtent = 0
-    orthoExtentCenter: V3 = [0, 0, 0]
+    orthoExtentCenter: Vec3 = [0, 0, 0]
     clipsta = 0
     clipend = 0
 
@@ -518,15 +512,15 @@ export class KnifeTool {
 
     depthTest: boolean
 
-    private _findNearestFace?: (mval: V2) => BMFace | null
-    private _orientationMatrix: (mode: KnifeAxisMode) => [V3, V3, V3]
+    private _findNearestFace?: (mval: Vec2) => BMFace | null
+    private _orientationMatrix: (mode: KnifeAxisMode) => [Vec3, Vec3, Vec3]
 
     /** `knifetool_init` (`:3924`) and `knifetool_init_obinfo` (`:3860`). */
     constructor(bm: BMesh, opts: KnifeToolOptions) {
         this.bm = bm
         this.view = opts.view
         this.objectMatrix = opts.objectMatrix ? Array.from(opts.objectMatrix) : [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
-        this.worldToObject = invertM4(this.objectMatrix)
+        this.worldToObject = mat4Invert(this.objectMatrix)
         this.isInteractive = opts.isInteractive ?? true
         this.cutThrough = !!opts.cutThrough
         this.onlySelect = !!opts.onlySelect
@@ -559,9 +553,9 @@ export class KnifeTool {
         const eps = FLT_EPSILON * 2
         const add = (f: BMFace, a: BMLoop, b: BMLoop, c: BMLoop) => {
             const verts: [BMVert, BMVert, BMVert] = [a.v, b.v, c.v]
-            const cos = verts.map(v => this._positionsCage.get(v)!) as [V3, V3, V3]
-            const min: V3 = [Infinity, Infinity, Infinity]
-            const max: V3 = [-Infinity, -Infinity, -Infinity]
+            const cos = verts.map(v => this._positionsCage.get(v)!) as [Vec3, Vec3, Vec3]
+            const min: Vec3 = [Infinity, Infinity, Infinity]
+            const max: Vec3 = [-Infinity, -Infinity, -Infinity]
             for (const p of cos) for (let i = 0; i < 3; i++) {
                 min[i] = Math.min(min[i], p[i] - eps)
                 max[i] = Math.max(max[i], p[i] + eps)
@@ -609,12 +603,12 @@ export class KnifeTool {
      * (`:1262`). `co` is world space. Returns the nearest face hit closer than `dist`.
      */
     private _bvhRaycast(co: readonly number[], dir: readonly number[], radius: number, dist = FLT_MAX,
-        filter?: (f: BMFace) => boolean): {f: BMFace, dist: number, cagehit: V3} | null {
+        filter?: (f: BMFace) => boolean): {f: BMFace, dist: number, cagehit: Vec3} | null {
         let hitDist = dist
         let hitIndex = -1
-        let hitCo: V3 = [0, 0, 0]
-        const [d] = normalize3(dir)
-        const pre = radius > 0 ? null : isectRayTriWatertightPrecalc(d)
+        let hitCo: Vec3 = [0, 0, 0]
+        const [d] = normalizeV3V3Length(dir)
+        const pre = radius > 0 ? null : isectRayTriWatertightV3Precalc(d)
         for (const i of this._bvhTris) {
             const tri = this._tris[i]
             if (filter && !filter(tri.f)) continue
@@ -622,7 +616,7 @@ export class KnifeTool {
                 ? isectRayTriEpsilonV3(co, d, tri.cos[0], tri.cos[1], tri.cos[2], radius)
                 : isectRayTriWatertightV3(co, pre!, tri.cos[0], tri.cos[1], tri.cos[2])
             if (r && r[0] < hitDist) {
-                hitCo = madd3(co, d, r[0])
+                hitCo = maddV3V3V3Fl(co, d, r[0])
                 hitDist = r[0]
                 hitIndex = i
             }
@@ -635,13 +629,13 @@ export class KnifeTool {
      * `BLI_bvhtree_intersect_plane` (`kdopbvh.cc:1502`) with `tree_intersect_plane_test` (`:1468`):
      * the triangles whose bound straddles the plane.
      */
-    private _bvhIntersectPlane(plane: V4): number[] {
+    private _bvhIntersectPlane(plane: Vec4): number[] {
         const out: number[] = []
         for (const i of this._bvhTris) {
             const t = this._tris[i]
             // `aabb_get_near_far_from_plane`
-            const near: V3 = [0, 0, 0]
-            const far: V3 = [0, 0, 0]
+            const near: Vec3 = [0, 0, 0]
+            const far: Vec3 = [0, 0, 0]
             for (let k = 0; k < 3; k++) {
                 if (plane[k] < 0) {
                     near[k] = t.max[k]
@@ -651,7 +645,7 @@ export class KnifeTool {
                     far[k] = t.max[k]
                 }
             }
-            if ((dot3(plane, near) + plane[3] > 0) !== (dot3(plane, far) + plane[3] > 0)) out.push(i)
+            if ((v3dot(plane, near) + plane[3] > 0) !== (v3dot(plane, far) + plane[3] > 0)) out.push(i)
         }
         return out
     }
@@ -661,7 +655,7 @@ export class KnifeTool {
     // region geometry utils (`:1398-1478`)
 
     /** `knife_project_v2` (`:1398`). */
-    private _project(co: readonly number[]): V2 {
+    private _project(co: readonly number[]): Vec2 {
         return this.view.projectFloatGlobal(co)
     }
 
@@ -682,7 +676,7 @@ export class KnifeTool {
         if (v1Inface && v2Inface) {
             // Can have case where v1 and v2 are on shared chain between two faces; use a simple
             // "is the midpoint in the face" test.
-            return facePointInsideTest(f, mid3(v1.co, v2.co))
+            return facePointInsideTest(f, midV3V3V3(v1.co, v2.co))
         }
         return false
     }
@@ -867,7 +861,7 @@ export class KnifeTool {
      * `knife_start_cut` (`:1807`): the first click, or the first after a new cut (E / RMB). Copy the
      * current position data into prev.
      */
-    startCut(mval: V2): void {
+    startCut(mval: Vec2): void {
         const ray = this.view.winToRayClipped(mval)
         this._snapCurr(mval, ray.start, ray.dir, null, null)
         this.prev = clonePos(this.curr)
@@ -1097,9 +1091,9 @@ export class KnifeTool {
         for (const [e, list] of ehash) {
             // `sort_verts_by_dist_cb` from `e->v1->co`, captured before splitting.
             const v1co = coOf(e.v1)
-            list.sort((a, b) => lenSqV3V3(v1co, a.co) - lenSqV3V3(v1co, b.co))
+            list.sort((a, b) => lenSquaredV3V3(v1co, a.co) - lenSquaredV3V3(v1co, b.co))
             for (const kfv of list) {
-                const pct = linePointFactorV3(kfv.co, coOf(e.v1), coOf(e.v2))
+                const pct = linePointFactorV3Ex(kfv.co, coOf(e.v1), coOf(e.v2))
                 // `BM_edge_split(bm, e, e->v1, &enew, pct)`
                 kfv.v = splitEdgeMakeVert(bm, e, e.v1, pct).vNew
             }
@@ -1124,14 +1118,14 @@ export class KnifeTool {
     addCut(): void {
         // Allocate new undo frame on stack, unless cut is being dragged.
         if (!this.isDragUndo) {
-            this._undo = {pos: clonePos(this.prev), cuts: 0, splits: 0, mdata: {...this.mdata, cage: [...this.mdata.cage] as V3, mval: [...this.mdata.mval] as V2}}
+            this._undo = {pos: clonePos(this.prev), cuts: 0, splits: 0, mdata: {...this.mdata, cage: [...this.mdata.cage] as Vec3, mval: [...this.mdata.mval] as Vec2}}
             this._undoStack.push(this._undo)
             this.isDragUndo = true
         }
 
         // Save values for angle drawing calculations.
-        this.mdata.cage = [...this.prev.cage] as V3
-        this.mdata.mval = [...this.prev.mval] as V2
+        this.mdata.cage = [...this.prev.cage] as Vec3
+        this.mdata.mval = [...this.prev.mval] as Vec2
         this.mdata.isStored = true
 
         this._prepareLinehitsForCut()
@@ -1141,7 +1135,7 @@ export class KnifeTool {
         }
 
         // Consider most recent linehit in angle drawing calculations.
-        if (this.linehits.length >= 2) this.mdata.cage = [...this.linehits[this.linehits.length - 2].cagehit] as V3
+        if (this.linehits.length >= 2) this.mdata.cage = [...this.linehits[this.linehits.length - 2].cagehit] as Vec3
 
         // Make facehits: map face -> list of linehits touching it (`add_hit_to_facehits`, no dups).
         const facehits = new Map<BMFace, KnifeLineHit[]>()
@@ -1174,8 +1168,8 @@ export class KnifeTool {
             this.prev.bmface = lh.f
             this.prev.vert = lh.v
             this.prev.edge = lh.kfe
-            this.prev.cage = [...lh.cagehit] as V3
-            this.prev.mval = [...lh.schit] as V2
+            this.prev.cage = [...lh.cagehit] as Vec3
+            this.prev.mval = [...lh.schit] as Vec2
         }
         this.linehits = []
     }
@@ -1193,8 +1187,8 @@ export class KnifeTool {
      * `knife_ray_intersect_face` (`:2438`): intersection of v1-v2 with face f, at least
      * `face_tol_sq` (screen space) from the face's edges. Coplanar counts as no intersection.
      */
-    private _rayIntersectFace(s: V2, v1: V3, v2: V3, f: BMFace, faceTolSq: number): {co: V3, cage: V3} | null {
-        const [raydir] = normalize3(sub3(v2, v1))
+    private _rayIntersectFace(s: Vec2, v1: Vec3, v2: Vec3, f: BMFace, faceTolSq: number): {co: Vec3, cage: Vec3} | null {
+        const [raydir] = normalizeV3V3Length(v3sub(v2, v1))
         let triI = this._faceTriStart.get(f)!
         for (; triI < this._tris.length; triI++) {
             const tri = this._tris[triI]
@@ -1206,8 +1200,8 @@ export class KnifeTool {
             if (!r) continue
             // Check if line coplanar with tri.
             const triNorm = normalTriV3(tc[0], tc[1], tc[2])
-            const triPlane = planeFromPointNormal(tc[0], triNorm)
-            if (distSquaredToPlane(v1, triPlane) < KNIFE_FLT_EPS && distSquaredToPlane(v2, triPlane) < KNIFE_FLT_EPS) return null
+            const triPlane = planeFromPointNormalV3(tc[0], triNorm)
+            if (distSquaredToPlaneV3(v1, triPlane) < KNIFE_FLT_EPS && distSquaredToPlaneV3(v2, triPlane) < KNIFE_FLT_EPS) return null
             const hitCage = interpV3V3V3Uv(tc[0], tc[1], tc[2], r[1], r[2])
             // Now check that far enough away from verts and edges.
             for (const kfe of this._getFaceKedges(f)) {
@@ -1224,8 +1218,8 @@ export class KnifeTool {
 
     /** `calc_ortho_extent` (`:2516`): centre and maximum excursion of the mesh. */
     private _calcOrthoExtent(): void {
-        const min: V3 = [Infinity, Infinity, Infinity]
-        const max: V3 = [-Infinity, -Infinity, -Infinity]
+        const min: Vec3 = [Infinity, Infinity, Infinity]
+        const max: Vec3 = [-Infinity, -Infinity, -Infinity]
         for (const ws of this._positionsCage.values()) {
             for (let i = 0; i < 3; i++) {
                 min[i] = Math.min(min[i], ws[i])
@@ -1233,14 +1227,14 @@ export class KnifeTool {
             }
         }
         this.orthoExtent = lenV3V3(min, max) / 2
-        this.orthoExtentCenter = mid3(min, max)
+        this.orthoExtentCenter = midV3V3V3(min, max)
     }
 
     /**
      * `point_is_visible` (`:2615`): is `p` not clipped and not occluded by another face. `s` is the
      * screen projection of p. Faces matching `eleTest` (or connected to it) are ignored.
      */
-    pointIsVisible(p: V3, s: V2, eleTest: BMElemAny | null): boolean {
+    pointIsVisible(p: Vec3, s: Vec2, eleTest: BMElemAny | null): boolean {
         // Reject points that lie behind the viewpoint (perspective views only).
         if (!this.isOrtho && mulProjectM4V3Zfac(this.view.persmat, p) <= 0) return false
         // If not cutting through, make sure no face is in front of p.
@@ -1248,8 +1242,8 @@ export class KnifeTool {
             const viewPt = this.view.unprojectV3(s[0], s[1], 0)
             if (!viewPt) return true
             // Make p_ofs a little towards view, so ray doesn't hit p's face.
-            let [view, dist] = normalize3(sub3(viewPt, p))
-            const pOfs: V3 = [p[0], p[1], p[2]]
+            let [view, dist] = normalizeV3V3Length(v3sub(viewPt, p))
+            const pOfs: Vec3 = [p[0], p[1], p[2]]
             // Avoid projecting behind the viewpoint.
             if (this.isOrtho) dist = this.view.clipEnd * 2
             // See if there's a face hit between p1 and the view.
@@ -1263,16 +1257,16 @@ export class KnifeTool {
     }
 
     /** `clip_to_ortho_planes` (`:2691`). */
-    private _clipToOrthoPlanes(v1: V3, v2: V3, center: V3, d: number): [V3, V3] {
-        const [dir] = normalize3(sub3(v1, v2))
+    private _clipToOrthoPlanes(v1: Vec3, v2: Vec3, center: Vec3, d: number): [Vec3, Vec3] {
+        const [dir] = normalizeV3V3Length(v3sub(v1, v2))
         // could be v1 or v2
-        const closest = projectPlaneNormalized(sub3(v1, center), dir)
-        const c: V3 = [closest[0] + center[0], closest[1] + center[1], closest[2] + center[2]]
-        return [madd3(c, dir, d), madd3(c, dir, -d)]
+        const closest = projectPlaneNormalizedV3V3V3(v3sub(v1, center), dir)
+        const c: Vec3 = [closest[0] + center[0], closest[1] + center[1], closest[2] + center[2]]
+        return [maddV3V3V3Fl(c, dir, d), maddV3V3V3Fl(c, dir, -d)]
     }
 
     /** `knife_linehit_set` (`:2707`). */
-    private _linehitSet(s1: V2, s2: V2, sco: V2, cage: V3, obIndex: number, v: KnifeVert | null, kfe: KnifeEdge | null): KnifeLineHit {
+    private _linehitSet(s1: Vec2, s2: Vec2, sco: Vec2, cage: Vec3, obIndex: number, v: KnifeVert | null, kfe: KnifeEdge | null): KnifeLineHit {
         const hit: KnifeLineHit = {
             hit: [0, 0, 0], cagehit: [cage[0], cage[1], cage[2]], schit: [sco[0], sco[1]],
             // Find position along screen line, used for sorting.
@@ -1292,7 +1286,7 @@ export class KnifeTool {
     }
 
     /** `knife_linehit_face_test` (`:2743`). */
-    private _linehitFaceTest(s1: V2, s2: V2, sco: V2, rayStart: V3, rayEnd: V3, f: BMFace, faceTolSq: number): KnifeLineHit | null {
+    private _linehitFaceTest(s1: Vec2, s2: Vec2, sco: Vec2, rayStart: Vec3, rayEnd: Vec3, f: BMFace, faceTolSq: number): KnifeLineHit | null {
         const r = this._rayIntersectFace(sco, rayStart, rayEnd, f, faceTolSq)
         if (!r) return null
         if (!this.pointIsVisible(r.cage, sco, f)) return null
@@ -1305,29 +1299,29 @@ export class KnifeTool {
     /** `knife_find_line_hits` (`:2769`): visible (or all, cutting through) hits of the drag line. */
     private _findLineHits(): void {
         this.linehits = []
-        let v1: V3 = [...this.prev.cage] as V3
-        let v2: V3 = [...this.curr.cage] as V3
+        let v1: Vec3 = [...this.prev.cage] as Vec3
+        let v2: Vec3 = [...this.curr.cage] as Vec3
 
         // Project screen line's 3d coordinates back into 2d.
         const s1 = this._project(v1)
         const s2 = this._project(v2)
 
         if (this.isInteractive) {
-            if (lenSqV2V2(s1, s2) < 1) return
+            if (lenSquaredV2V2(s1, s2) < 1) return
         } else {
-            if (lenSqV2V2(s1, s2) < KNIFE_FLT_EPS_SQUARED) return
+            if (lenSquaredV2V2(s1, s2) < KNIFE_FLT_EPS_SQUARED) return
         }
 
-        let plane: V4
+        let plane: Vec4
         {
-            let n: V3
+            let n: Vec3
             if (this.isOrtho) {
-                n = cross3(sub3(v2, v1), this.view.viewinvCol(2))
+                n = v3cross(v3sub(v2, v1), this.view.viewinvCol(2))
             } else {
                 const orig = this.view.viewinvCol(3)
-                n = cross3(sub3(v1, orig), sub3(v2, orig))
+                n = v3cross(v3sub(v1, orig), v3sub(v2, orig))
             }
-            plane = planeFromPointNormal(v1, n)
+            plane = planeFromPointNormalV3(v1, n)
         }
 
         // First use BVH tree to find faces, knife edges, and knife verts that might intersect the cut
@@ -1373,12 +1367,12 @@ export class KnifeTool {
         for (const v of [...kfvs]) {
             let kfeHit: KnifeEdge | null = null
             let kfvIsInCut = false
-            let s: V2
+            let s: Vec2
             if (v === this.prev.vert || v === this.curr.vert) {
                 // This KnifeVert was captured by the snap system. Since the tolerance distance can
                 // be different, add this vertex directly.
                 kfeHit = this._bmElemFromKnifeVert(v, true).kfe
-                s = v === this.prev.vert ? [...this.prev.mval] as V2 : [...this.curr.mval] as V2
+                s = v === this.prev.vert ? [...this.prev.mval] as Vec2 : [...this.curr.mval] as Vec2
                 kfvIsInCut = true
             } else {
                 s = this._project(v.cageco)
@@ -1403,17 +1397,17 @@ export class KnifeTool {
             if (kfvs.has(kfe.v1) || kfvs.has(kfe.v2)) continue
             const se1 = this._project(kfe.v1.cageco)
             const se2 = this._project(kfe.v2.cageco)
-            let pCage: V3 = [0, 0, 0]
-            let pCageSs: V2 = [0, 0]
+            let pCage: Vec3 = [0, 0, 0]
+            let pCageSs: Vec2 = [0, 0]
             let kfeIsInCut = false
             if (kfe === this.prev.edge) {
                 // This KnifeEdge was captured by the snap system.
-                pCage = [...this.prev.cage] as V3
-                pCageSs = [...this.prev.mval] as V2
+                pCage = [...this.prev.cage] as Vec3
+                pCageSs = [...this.prev.mval] as Vec2
                 kfeIsInCut = true
             } else if (kfe === this.curr.edge) {
-                pCage = [...this.curr.cage] as V3
-                pCageSs = [...this.curr.mval] as V2
+                pCage = [...this.curr.cage] as Vec3
+                pCageSs = [...this.curr.mval] as Vec2
                 kfeIsInCut = true
             } else {
                 let [isectKind, p] = isectSegSegV2PointEx(s1, s2, se1, se2, 0)
@@ -1421,11 +1415,11 @@ export class KnifeTool {
                 if (isectKind === -1) {
                     // isect_seg_seg_v2_point doesn't do tolerance test around ends of s1-s2.
                     pCageSs = closestToLineSegmentV2(s1, se1, se2)
-                    if (lenSqV2V2(pCageSs, s1) <= lineTolSq) {
+                    if (lenSquaredV2V2(pCageSs, s1) <= lineTolSq) {
                         isectKind = 1
                     } else {
                         pCageSs = closestToLineSegmentV2(s2, se1, se2)
-                        if (lenSqV2V2(pCageSs, s2) <= lineTolSq) isectKind = 1
+                        if (lenSquaredV2V2(pCageSs, s2) <= lineTolSq) isectKind = 1
                     }
                 }
                 if (isectKind === 1) {
@@ -1434,15 +1428,15 @@ export class KnifeTool {
                     if (!(d1 <= lineTol || d2 <= lineTol || Math.abs(d1 - d2) <= lineTol)) {
                         // Can't just interpolate between ends of `kfe`: that doesn't work with
                         // perspective transformation.
-                        const kfeDir = sub3(kfe.v2.cageco, kfe.v1.cageco)
+                        const kfeDir = v3sub(kfe.v2.cageco, kfe.v1.cageco)
                         const lambda = isectRayPlaneV3(kfe.v1.cageco, kfeDir, plane, false)
                         if (lambda !== null) {
-                            pCage = madd3(kfe.v1.cageco, kfeDir, lambda)
+                            pCage = maddV3V3V3Fl(kfe.v1.cageco, kfeDir, lambda)
                             if (this.pointIsVisible(pCage, pCageSs, this._bmElemFromKnifeEdge(kfe))) {
                                 if (this.snapMidpoints) {
                                     // Choose intermediate point snap too.
-                                    pCage = mid3(kfe.v1.cageco, kfe.v2.cageco)
-                                    pCageSs = mid2(se1, se2)
+                                    pCage = midV3V3V3(kfe.v1.cageco, kfe.v2.cageco)
+                                    pCageSs = midV2V2V2(se1, se2)
                                 }
                                 kfeIsInCut = true
                             }
@@ -1491,10 +1485,10 @@ export class KnifeTool {
     // region snapping (`:3079-3771`)
 
     /** `knife_find_closest_face` (`:3079`). */
-    private _findClosestFace(mval: V2, rayOrig: V3, rayDir: V3, r: KnifePosData): boolean {
+    private _findClosestFace(mval: Vec2, rayOrig: Vec3, rayDir: Vec3, r: KnifePosData): boolean {
         const hit = this._bvhRaycast(rayOrig, rayDir, 0)
         let f: BMFace | null = hit ? hit.f : null
-        let cage: V3 = hit ? hit.cagehit : [0, 0, 0]
+        let cage: Vec3 = hit ? hit.cagehit : [0, 0, 0]
         if (f && this.onlySelect && !(f.hflag & ElemFlag.Select)) f = null
         if (f === null && this.isInteractive && this._findNearestFace) {
             // Try the back-buffer selection method if ray casting failed.
@@ -1514,7 +1508,7 @@ export class KnifeTool {
     }
 
     /** `knife_sample_screen_density_from_closest_face` (`:3140`). */
-    private _sampleScreenDensity(radius: number, f: BMFace, cageco: V3): number {
+    private _sampleScreenDensity(radius: number, f: BMFace, cageco: Vec3): number {
         const radiusSq = radius * radius
         let c = 0
         const sco = this._project(cageco)
@@ -1523,7 +1517,7 @@ export class KnifeTool {
             for (const kfv of [kfe.v1, kfe.v2]) {
                 if (kfv.isInvalid) continue
                 const kfvSco = this._project(kfv.cageco)
-                if (lenSqV2V2(kfvSco, sco) < radiusSq) c++
+                if (lenSquaredV2V2(kfvSco, sco) < radiusSq) c++
             }
         }
         return c
@@ -1537,17 +1531,17 @@ export class KnifeTool {
     }
 
     /** `knife_closest_constrain_to_edge` (`:3211`). */
-    private _closestConstrainToEdge(cutOrigin: V3, cutDir: V3, kfv1: V3, kfv2: V3): V3 | null {
+    private _closestConstrainToEdge(cutOrigin: Vec3, cutDir: Vec3, kfv1: Vec3, kfv2: Vec3): Vec3 | null {
         // If snapping, check we're in bounds.
         const lambda = isectRayLineV3(cutOrigin, cutDir, kfv1, kfv2)
         if (lambda === null) return null
         // Be strict when constrained within edge.
         if (lambda < 0 - KNIFE_FLT_EPSBIG || lambda > 1 + KNIFE_FLT_EPSBIG) return null
-        return interp3(kfv1, kfv2, lambda)
+        return v3lerp(kfv1, kfv2, lambda)
     }
 
     /** `knife_find_closest_edge_of_face` (`:3233`): `r.cage` is the closest point on the edge. */
-    private _findClosestEdgeOfFace(f: BMFace, currCageSs: V2, currCageConstrain: V3 | null, rayOrig: V3, rayDir: V3, r: KnifePosData): boolean {
+    private _findClosestEdgeOfFace(f: BMFace, currCageSs: Vec2, currCageConstrain: Vec3 | null, rayOrig: Vec3, rayDir: Vec3, r: KnifePosData): boolean {
         let maxdist: number
         if (this.isInteractive) {
             maxdist = this._snapSize(this.ethresh)
@@ -1560,12 +1554,12 @@ export class KnifeTool {
         let hasHit = false
 
         const cutOrigin = this.prev.cage
-        const [cutDir] = normalize3(sub3(currCageConstrain ?? this.curr.cage, this.prev.cage))
+        const [cutDir] = normalizeV3V3Length(v3sub(currCageConstrain ?? this.curr.cage, this.prev.cage))
 
         // Look through all edges associated with this face.
         for (const kfe of this._getFaceKedges(f)) {
             if (kfe.isInvalid) continue
-            let testCagep: V3 | null
+            let testCagep: Vec3 | null
             // Get the closest point on the edge.
             if ((this.isAngleSnapping || this.axisConstrained) && kfe !== this.prev.edge && this.mode === 'dragging') {
                 // Check if it is within the edges' bounds.
@@ -1576,12 +1570,12 @@ export class KnifeTool {
             }
             // Check if we're close enough.
             const closestSs = this._project(testCagep)
-            const disSq = lenSqV2V2(closestSs, currCageSs)
+            const disSq = lenSquaredV2V2(closestSs, currCageSs)
             if (disSq >= curDistSq) continue
             curDistSq = disSq
             r.edge = kfe
             if (this.snapMidpoints) {
-                r.cage = mid3(kfe.v1.cageco, kfe.v2.cageco)
+                r.cage = midV3V3V3(kfe.v1.cageco, kfe.v2.cageco)
                 r.mval = this._project(r.cage)
             } else {
                 r.cage = testCagep
@@ -1593,7 +1587,7 @@ export class KnifeTool {
     }
 
     /** `knife_find_closest_vert_of_edge` (`:3322`): a vertex near the mouse cursor, if it exists. */
-    private _findClosestVertOfEdge(kfe: KnifeEdge, cageSs: V2, r: KnifePosData): boolean {
+    private _findClosestVertOfEdge(kfe: KnifeEdge, cageSs: Vec2, r: KnifePosData): boolean {
         let maxdist: number
         if (this.isInteractive) {
             maxdist = this._snapSize(this.vthresh)
@@ -1603,7 +1597,7 @@ export class KnifeTool {
         }
         const maxdistSq = maxdist * maxdist
         let curv: KnifeVert | null = null
-        let curKfvSco: V2 = [0, 0]
+        let curKfvSco: Vec2 = [0, 0]
         let curdisSq = FLT_MAX
         for (const kfv of [kfe.v1, kfe.v2]) {
             const kfvSco = this._project(kfv.cageco)
@@ -1611,7 +1605,7 @@ export class KnifeTool {
             if ((this.isAngleSnapping || this.axisConstrained) && this.mode === 'dragging') {
                 if (distSquaredToLineSegmentV2(kfvSco, this.prev.mval, this.curr.mval) > KNIFE_FLT_EPSBIG) continue
             }
-            const disSq = lenSqV2V2(kfvSco, cageSs)
+            const disSq = lenSquaredV2V2(kfvSco, cageSs)
             if (disSq < curdisSq && disSq < maxdistSq) {
                 curv = kfv
                 curdisSq = disSq
@@ -1619,7 +1613,7 @@ export class KnifeTool {
             }
         }
         if (curv) {
-            r.cage = [...curv.cageco] as V3
+            r.cage = [...curv.cageco] as Vec3
             r.vert = curv
             // Update mouse coordinates to the snapped-to vertex's screen coordinates; angle snap uses
             // the previous mouse position.
@@ -1630,54 +1624,54 @@ export class KnifeTool {
     }
 
     /** `knife_snap_v3_angle` (`:3389`). */
-    private _snapV3Angle(dvec: V3, vecx: V3, axis: V3, angleSnap: number): {r: V3, angle: number} {
+    private _snapV3Angle(dvec: Vec3, vecx: Vec3, axis: Vec3, angleSnap: number): {r: Vec3, angle: number} {
         const angle = angleSignedOnAxisV3V3V3(dvec, vecx, axis)
         const angleDelta = (Math.round(angle / angleSnap) * angleSnap) - angle
-        return {r: rotateNormalizedV3(dvec, axis, angleDelta), angle: angle + angleDelta}
+        return {r: rotateNormalizedV3V3V3Fl(dvec, axis, angleDelta), angle: angle + angleDelta}
     }
 
     /** `knife_snap_angle_impl` (`:3398`). */
-    private _snapAngleImpl(vecX: V3, axis: V3, rayOrig: V3, rayDir: V3): {cage: V3, angle: number} | null {
-        const currCageProjected = isectLinePlaneV3(rayOrig, madd3(rayOrig, rayDir, 1), this.prev.cage, axis)
+    private _snapAngleImpl(vecX: Vec3, axis: Vec3, rayOrig: Vec3, rayDir: Vec3): {cage: Vec3, angle: number} | null {
+        const currCageProjected = isectLinePlaneV3(rayOrig, maddV3V3V3Fl(rayOrig, rayDir, 1), this.prev.cage, axis)
         if (!currCageProjected) return null
-        const dvec = sub3(currCageProjected, this.prev.cage)
+        const dvec = v3sub(currCageProjected, this.prev.cage)
         // Currently user can input any float between 0 and 180.
         const snapStep = (this.angleSnappingIncrement > KNIFE_MIN_ANGLE_SNAPPING_INCREMENT && this.angleSnappingIncrement <= KNIFE_MAX_ANGLE_SNAPPING_INCREMENT)
             ? this.angleSnappingIncrement * DEG2RAD : KNIFE_DEFAULT_ANGLE_SNAPPING_INCREMENT * DEG2RAD
         // `is_zero_v2(dvec)`: Blender tests only the first two components.
-        if (isZero2(dvec)) return null
+        if (isZeroV2(dvec)) return null
         const {r, angle} = this._snapV3Angle(dvec, vecX, axis, snapStep)
         return {cage: [this.prev.cage[0] + r[0], this.prev.cage[1] + r[1], this.prev.cage[2] + r[2]], angle}
     }
 
     /** `knife_snap_angle_screen` (`:3435`). */
-    private _snapAngleScreen(rayOrig: V3, rayDir: V3): {cage: V3, angle: number} | null {
+    private _snapAngleScreen(rayOrig: Vec3, rayDir: Vec3): {cage: Vec3, angle: number} | null {
         return this._snapAngleImpl(this.view.viewinvCol(0), this.view.viewinvCol(2), rayOrig, rayDir)
     }
 
     /** `knife_snap_angle_relative` (`:3447`): snap along the plane of the face nearest to prev. */
-    private _snapAngleRelative(rayOrig: V3, rayDir: V3): {cage: V3, angle: number} | null {
+    private _snapAngleRelative(rayOrig: Vec3, rayDir: Vec3): {cage: Vec3, angle: number} | null {
         const fcurr = this._bvhRaycast(rayOrig, rayDir, 0)?.f ?? null
         if (!fcurr) return null
 
         // Calculate a reference vector using previous cut segment, edge or vertex.
-        let refv: V3 | null = null
+        let refv: Vec3 | null = null
         if (this.prev.vert) {
             let count = 0
             for (const kfe of this.prev.vert.edges) {
                 if (kfe.isInvalid) continue
                 if (kfe.e && !edgeInFace(kfe.e, fcurr)) continue
                 if (count === this.snapEdge) {
-                    const kfv = compare3(kfe.v1.cageco, this.prev.cage, KNIFE_FLT_EPSBIG) ? kfe.v2 : kfe.v1
-                    refv = sub3(kfv.cageco, this.prev.cage)
+                    const kfv = compareV3V3(kfe.v1.cageco, this.prev.cage, KNIFE_FLT_EPSBIG) ? kfe.v2 : kfe.v1
+                    refv = v3sub(kfv.cageco, this.prev.cage)
                     this.snapRefEdge = kfe
                     break
                 }
                 count++
             }
         } else if (this.prev.edge) {
-            const kfv = compare3(this.prev.edge.v1.cageco, this.prev.cage, KNIFE_FLT_EPSBIG) ? this.prev.edge.v2 : this.prev.edge.v1
-            refv = sub3(kfv.cageco, this.prev.cage)
+            const kfv = compareV3V3(this.prev.edge.v1.cageco, this.prev.cage, KNIFE_FLT_EPSBIG) ? this.prev.edge.v2 : this.prev.edge.v1
+            refv = v3sub(kfv.cageco, this.prev.cage)
             this.snapRefEdge = this.prev.edge
         } else {
             return null
@@ -1700,12 +1694,12 @@ export class KnifeTool {
         if (!fprev || fprev !== fcurr) return null
 
         // Use normal global direction.
-        const [noGlobal] = normalize3(mulTransposedMat3M4V3(this.worldToObject, fnoOf(fprev)))
+        const [noGlobal] = normalizeV3V3Length(mulTransposedMat3M4V3(this.worldToObject, fnoOf(fprev)))
         return this._snapAngleImpl(refv, noGlobal, rayOrig, rayDir)
     }
 
     /** `knife_calculate_snap_ref_edges` (`:3544`). */
-    private _calculateSnapRefEdges(rayOrig: V3, rayDir: V3): number {
+    private _calculateSnapRefEdges(rayOrig: Vec3, rayDir: Vec3): number {
         const fcurr = this._bvhRaycast(rayOrig, rayDir, 0)?.f ?? null
         let count = 0
         if (!fcurr) return count
@@ -1721,22 +1715,22 @@ export class KnifeTool {
         return count
     }
 
-    private _defaultOrientation(mode: KnifeAxisMode): [V3, V3, V3] {
+    private _defaultOrientation(mode: KnifeAxisMode): [Vec3, Vec3, Vec3] {
         if (mode === KnifeAxisMode.Local) {
             const m = this.objectMatrix
-            return [normalize3([m[0], m[1], m[2]])[0], normalize3([m[4], m[5], m[6]])[0], normalize3([m[8], m[9], m[10]])[0]]
+            return [normalizeV3V3Length([m[0], m[1], m[2]])[0], normalizeV3V3Length([m[4], m[5], m[6]])[0], normalizeV3V3Length([m[8], m[9], m[10]])[0]]
         }
         return [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
     }
 
     /** `knife_constrain_axis` (`:3590`): constrain the current cut to an axis. */
-    private _constrainAxis(rayOrig: V3, rayDir: V3): V3 | null {
+    private _constrainAxis(rayOrig: Vec3, rayDir: Vec3): Vec3 | null {
         const mat = this._orientationMatrix(this.constrainAxisMode)
         const constrainDir = mat[this.constrainAxis - 1]
         const lambda = isectRayRayV3(this.prev.cage, constrainDir, rayOrig, rayDir)
         if (lambda === null) return null
-        const cageDir: V3 = [constrainDir[0] * lambda, constrainDir[1] * lambda, constrainDir[2] * lambda]
-        if (isZero3(cageDir)) return null
+        const cageDir: Vec3 = [constrainDir[0] * lambda, constrainDir[1] * lambda, constrainDir[2] * lambda]
+        if (isZeroV3(cageDir)) return null
         return [this.prev.cage[0] + cageDir[0], this.prev.cage[1] + cageDir[1], this.prev.cage[2] + cageDir[2]]
     }
 
@@ -1744,7 +1738,7 @@ export class KnifeTool {
      * `knife_snap_curr` (`:3641`). `currCageConstrain` is `curr.cage` with constraints applied (snapping
      * recalculates coordinates in 3D); `fallback` is used when no geometry is found.
      */
-    private _snapCurr(mval: V2, rayOrig: V3, rayDir: V3, currCageConstrain: V3 | null, fallback: V3 | null): void {
+    private _snapCurr(mval: Vec2, rayOrig: Vec3, rayDir: Vec3, currCageConstrain: Vec3 | null, fallback: Vec3 | null): void {
         this.curr = emptyPos()
         if (this._findClosestFace(mval, rayOrig, rayDir, this.curr)) {
             if (!this.ignoreEdgeSnapping || !this.ignoreVertSnapping) {
@@ -1760,23 +1754,23 @@ export class KnifeTool {
         this.curr.mval = [mval[0], mval[1]]
         if (fallback) {
             // If no geometry was found, use the fallback point.
-            this.curr.cage = [...fallback] as V3
+            this.curr.cage = [...fallback] as Vec3
             return
         }
         // If no hits are found this would normally default to (0, 0, 0) so instead get a point at the
         // mouse ray closest to the previous point.
-        const p = isectLinePlaneV3(rayOrig, madd3(rayOrig, rayDir, 1), this.prev.cage, this.view.viewinvCol(2))
+        const p = isectLinePlaneV3(rayOrig, maddV3V3V3Fl(rayOrig, rayDir, 1), this.prev.cage, this.view.viewinvCol(2))
         // Should never fail!
-        this.curr.cage = p ?? [...this.prev.cage] as V3
+        this.curr.cage = p ?? [...this.prev.cage] as Vec3
     }
 
     /** `knife_snap_update_from_mval` (`:3705`). */
-    snapUpdateFromMval(mval: V2): void {
+    snapUpdateFromMval(mval: Vec2): void {
         // Mouse and ray with snapping applied.
         const ray = this.view.winToRayClipped(mval)
         let rayOrig = ray.start
         let rayDir = ray.dir
-        let mvalConstrain: V2 = [mval[0], mval[1]]
+        let mvalConstrain: Vec2 = [mval[0], mval[1]]
 
         this.curr = emptyPos()
         // view matrix may have changed, reproject
@@ -1812,23 +1806,23 @@ export class KnifeTool {
             }
         }
 
-        let fallback: V3 | null = null
-        let currCageConstrain: V3 | null = null
+        let fallback: Vec3 | null = null
+        let currCageConstrain: Vec3 | null = null
         if (isConstrained) {
             // Update ray and `mval_constrain`.
             if (this.isOrtho) {
-                const l1 = sub3(this.curr.cage, rayDir)
+                const l1 = v3sub(this.curr.cage, rayDir)
                 // `isect_line_plane_v3(ray_orig, l1, curr.cage, ray_orig, ray_dir)`: the line l1 ->
                 // curr.cage against the plane through the old ray origin, written into `ray_orig`.
                 const o = isectLinePlaneV3(l1, this.curr.cage, rayOrig, rayDir)
                 // Should never fail!
                 rayOrig = o ?? l1
             } else {
-                rayDir = normalize3(sub3(this.curr.cage, rayOrig))[0]
+                rayDir = normalizeV3V3Length(v3sub(this.curr.cage, rayOrig))[0]
             }
             mvalConstrain = this._project(this.curr.cage)
-            currCageConstrain = [...this.curr.cage] as V3
-            fallback = [...this.curr.cage] as V3
+            currCageConstrain = [...this.curr.cage] as Vec3
+            fallback = [...this.curr.cage] as Vec3
         }
         this._snapCurr(mvalConstrain, rayOrig, rayDir, currCageConstrain, fallback)
     }
@@ -1892,13 +1886,13 @@ export class KnifeTool {
     // region updates and finish (`:4078-4137`)
 
     /** `knife_update_active` (`:4078`). */
-    updateActive(mval: V2): void {
+    updateActive(mval: Vec2): void {
         this.snapUpdateFromMval(mval)
         if (this.mode === 'dragging') this._findLineHits()
     }
 
     /** `knifetool_update_mval` (`:4088`). */
-    updateMval(mval: V2): void {
+    updateMval(mval: Vec2): void {
         this.recalcOrtho()
         this.updateActive(mval)
     }
@@ -2109,9 +2103,9 @@ export class KnifeTool {
 
     /** What `knifetool_draw` draws, in world space (cage coordinates). */
     drawData(): KnifeDrawData {
-        const cutVerts: V3[] = []
+        const cutVerts: Vec3[] = []
         for (const kfv of this.kverts) if (kfv.isCut && !kfv.isInvalid) cutVerts.push(kfv.cageco)
-        const cutEdges: [V3, V3][] = []
+        const cutEdges: [Vec3, Vec3][] = []
         for (const kfe of this.kedges) if (kfe.isCut && !kfe.isInvalid) cutEdges.push([kfe.v1.cageco, kfe.v2.cageco])
         return {
             prev: this.mode === 'dragging' || this.prev.vert || this.prev.edge || this.prev.bmface ? {
@@ -2135,20 +2129,20 @@ export class KnifeTool {
 /** What the knife preview shows (see `knifetool_draw`, `editmesh_knife.cc:832`). */
 export interface KnifeDrawData {
     /** The last placed point: a big dot on a vertex, a smaller one on an edge or face. */
-    prev: {cage: V3, kind: 'vert' | 'edge' | 'face' | 'space'} | null
+    prev: {cage: Vec3, kind: 'vert' | 'edge' | 'face' | 'space'} | null
     /** The point under the cursor. */
-    curr: {cage: V3, kind: 'vert' | 'edge' | 'face' | 'space'}
+    curr: {cage: Vec3, kind: 'vert' | 'edge' | 'face' | 'space'}
     /** The edge under the cursor when snapped to an edge (highlighted). */
-    currEdge: [V3, V3] | null
+    currEdge: [Vec3, Vec3] | null
     /** The line from the last point to the cursor while cutting. */
-    line: [V3, V3] | null
+    line: [Vec3, Vec3] | null
     /** Points and edges of the cut so far. */
-    cutVerts: V3[]
-    cutEdges: [V3, V3][]
+    cutVerts: Vec3[]
+    cutEdges: [Vec3, Vec3][]
     /** Relative angle snapping's reference edge. */
-    snapRefEdge: [V3, V3] | null
+    snapRefEdge: [Vec3, Vec3] | null
     /** Where the current line would cut: vertex hits large, others small. */
-    linehits: {cage: V3, snappedToVert: boolean}[]
+    linehits: {cage: Vec3, snappedToVert: boolean}[]
     /** Whether the cut lines are depth tested (V toggles X-ray). */
     depthTest: boolean
 }
@@ -2159,8 +2153,8 @@ export interface KnifeDrawData {
  * first point at the end. With `useTag`, faces inside the polylines are tagged with
  * {@link ElemFlag.Tag} (the selection Knife Project makes); returns the tagged faces.
  */
-export function knifeProject(bm: BMesh, view: KnifeView, polys: readonly (readonly V2[])[], opts: {
-    cutThrough?: boolean, useTag?: boolean, objectMatrix?: M4,
+export function knifeProject(bm: BMesh, view: KnifeView, polys: readonly (readonly Vec2[])[], opts: {
+    cutThrough?: boolean, useTag?: boolean, objectMatrix?: Mat4,
 } = {}): BMFace[] {
     const kcd = new KnifeTool(bm, {
         view, objectMatrix: opts.objectMatrix, onlySelect: false, cutThrough: !!opts.cutThrough,
@@ -2177,7 +2171,7 @@ export function knifeProject(bm: BMesh, view: KnifeView, polys: readonly (readon
         kcd.startCut(mvalFl[0])
         kcd.mode = 'dragging'
         for (let i = 1; i < mvalFl.length; i++) {
-            kcd.updateMval(mvalFl[i] as V2)
+            kcd.updateMval(mvalFl[i] as Vec2)
             kcd.addCut()
         }
         kcd.finishCut()
@@ -2200,12 +2194,12 @@ export function knifeProject(bm: BMesh, view: KnifeView, polys: readonly (readon
 }
 
 /** The face-tagging half of `EDBM_mesh_knife` (`:4824-4911`). */
-function tagFacesInside(bm: BMesh, kcd: KnifeTool, view: KnifeView, polys: readonly (readonly V2[])[], objectMatrix?: M4): BMFace[] {
+function tagFacesInside(bm: BMesh, kcd: KnifeTool, view: KnifeView, polys: readonly (readonly Vec2[])[], objectMatrix?: Mat4): BMFace[] {
     const obmat = objectMatrix ?? [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
     // `edbm_mesh_knife_point_isect` (`:4733`)
-    const pointIsect = (cent: V2) => {
+    const pointIsect = (cent: Vec2) => {
         let isect = 0
-        for (const p of polys) isect += isectPointPolyV2(cent, p as V2[], p.length - 1) ? 1 : 0
+        for (const p of polys) isect += isectPointPolyV2(cent, p as Vec2[], p.length - 1) ? 1 : 0
         return isect % 2 === 1
     }
     // Use face-loop tag to store if we have intersected.
@@ -2214,7 +2208,7 @@ function tagFacesInside(bm: BMesh, kcd: KnifeTool, view: KnifeView, polys: reado
         unknown.add(f)
         f.hflag &= ~ElemFlag.Tag
     }
-    const centSs = (f: BMFace): V2 => view.projectFloatGlobal(mulM4V3(obmat, faceCalcPointInFace(f)))
+    const centSs = (f: BMFace): Vec2 => view.projectFloatGlobal(mulM4V3(obmat, faceCalcPointInFace(f)))
 
     // Tag all faces linked to cut edges.
     for (const e of bm.edges) {
@@ -2261,18 +2255,18 @@ function tagFacesInside(bm: BMesh, kcd: KnifeTool, view: KnifeView, polys: reado
  * `BM_face_calc_point_in_face` (`bmesh_polygon.cc:175`): the centre of the largest triangle of the
  * face's tessellation (the kernel's ear clipping stands in for `BM_face_calc_tessellation`).
  */
-function faceCalcPointInFace(f: BMFace): V3 {
+function faceCalcPointInFace(f: BMFace): Vec3 {
     const loops = f.loops()
     const pts: number[] = []
     for (const l of loops) pts.push(l.v.x, l.v.y, l.v.z)
     const idx: number[] = []
     if (f.len === 3) idx.push(0, 1, 2)
     else tessellatePolygon(pts, idx)
-    let best: V3 = [loops[0].v.x, loops[0].v.y, loops[0].v.z]
+    let best: Vec3 = [loops[0].v.x, loops[0].v.y, loops[0].v.z]
     let bestArea = -1
     for (let i = 0; i < idx.length; i += 3) {
         const a = coOf(loops[idx[i]].v), b = coOf(loops[idx[i + 1]].v), c = coOf(loops[idx[i + 2]].v)
-        const area = lenV3V3([0, 0, 0], cross3(sub3(b, a), sub3(c, a)))
+        const area = lenV3V3([0, 0, 0], v3cross(v3sub(b, a), v3sub(c, a)))
         if (area > bestArea) {
             bestArea = area
             best = [(a[0] + b[0] + c[0]) / 3, (a[1] + b[1] + c[1]) / 3, (a[2] + b[2] + c[2]) / 3]

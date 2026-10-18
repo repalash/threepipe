@@ -11,7 +11,7 @@ import {BMesh} from '../src/bmesh/BMesh'
 import {BMEdge, BMFace, BMVert} from '../src/bmesh/types'
 import {ElemFlag} from '../src/constants'
 import {tessellatePolygon} from '../src/bake'
-import {isectRayTriWatertightPrecalc, isectRayTriWatertightV3} from '../src/ops/knife/geom'
+import {isectRayTriWatertightV3, isectRayTriWatertightV3Precalc} from '../src/math/geom'
 // mesh-edit's port of Blender's square spiral (`_bli_array_iter_spiral_square`); dependency-free.
 import {findNearestId} from '../../mesh-edit/src/select/spiral'
 import {diskEdgeExists} from '../src/bmesh/structure'
@@ -174,7 +174,7 @@ export function faceFindNearestCpu(bm: BMesh, view: KnifeView, distPx: number): 
     const faces = [...bm.faces]
     const faceAt = (x: number, y: number): number => {
         const ray = view.winToRayClipped([x + 0.5, y + 0.5])
-        const pre = isectRayTriWatertightPrecalc(ray.dir)
+        const pre = isectRayTriWatertightV3Precalc(ray.dir)
         let best = Infinity
         let face: BMFace | null = null
         for (const t of tris) {

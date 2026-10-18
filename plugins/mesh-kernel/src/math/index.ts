@@ -14,32 +14,34 @@
 export type Vec3 = [number, number, number]
 /** A 4x4 matrix, column-major, 16 elements - `THREE.Matrix4.elements` order. */
 export type Mat4 = number[]
+/** What a function reads a 3-vector from: a {@link Vec3}, or any array (a slice of a buffer, a `readonly` tuple). */
+export type V3Arg = readonly number[]
 
 export const v3 = (x = 0, y = 0, z = 0): Vec3 => [x, y, z]
-export const v3add = (a: Vec3, b: Vec3): Vec3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]]
-export const v3sub = (a: Vec3, b: Vec3): Vec3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
-export const v3mul = (a: Vec3, s: number): Vec3 => [a[0] * s, a[1] * s, a[2] * s]
-export const v3dot = (a: Vec3, b: Vec3): number => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
-export const v3cross = (a: Vec3, b: Vec3): Vec3 => [
+export const v3add = (a: V3Arg, b: V3Arg): Vec3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]]
+export const v3sub = (a: V3Arg, b: V3Arg): Vec3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]]
+export const v3mul = (a: V3Arg, s: number): Vec3 => [a[0] * s, a[1] * s, a[2] * s]
+export const v3dot = (a: V3Arg, b: V3Arg): number => a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+export const v3cross = (a: V3Arg, b: V3Arg): Vec3 => [
     a[1] * b[2] - a[2] * b[1],
     a[2] * b[0] - a[0] * b[2],
     a[0] * b[1] - a[1] * b[0],
 ]
-export const v3len = (a: Vec3): number => Math.sqrt(v3dot(a, a))
-export const v3dist = (a: Vec3, b: Vec3): number => v3len(v3sub(a, b))
-export const v3lerp = (a: Vec3, b: Vec3, t: number): Vec3 => [
+export const v3len = (a: V3Arg): number => Math.sqrt(v3dot(a, a))
+export const v3dist = (a: V3Arg, b: V3Arg): number => v3len(v3sub(a, b))
+export const v3lerp = (a: V3Arg, b: V3Arg, t: number): Vec3 => [
     a[0] + (b[0] - a[0]) * t,
     a[1] + (b[1] - a[1]) * t,
     a[2] + (b[2] - a[2]) * t,
 ]
 
-export function v3normalize(a: Vec3): Vec3 {
+export function v3normalize(a: V3Arg): Vec3 {
     const l = v3len(a)
     return l > 0 ? [a[0] / l, a[1] / l, a[2] / l] : [0, 0, 0]
 }
 
 /** Component-wise multiply, for non-uniform scale. */
-export const v3scale3 = (a: Vec3, s: Vec3): Vec3 => [a[0] * s[0], a[1] * s[1], a[2] * s[2]]
+export const v3scale3 = (a: V3Arg, s: V3Arg): Vec3 => [a[0] * s[0], a[1] * s[1], a[2] * s[2]]
 
 export const mat4Identity = (): Mat4 => [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
 

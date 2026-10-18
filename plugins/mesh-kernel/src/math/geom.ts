@@ -13,9 +13,11 @@
  * dot products and nothing is transposed twice.
  */
 
-import {Vec3, v3cross, v3dot, v3len, v3normalize, v3sub} from './index'
+import {Mat4, V3Arg, Vec3, v3cross, v3dot, v3len, v3lerp, v3mul, v3sub} from './index'
 
 export type Vec2 = [number, number]
+/** What a function reads a 2-vector from: a {@link Vec2}, or any array. */
+export type V2Arg = readonly number[]
 
 /** The rows of a 3x3 matrix, so `mulV3M3V3(m, a)[i] === dot(m[i], a)`. */
 export type Mat3Rows = [Vec3, Vec3, Vec3]
@@ -29,23 +31,24 @@ export const ISECT_LINE_LINE_NONE = 0
 export const ISECT_LINE_LINE_EXACT = 1
 export const ISECT_LINE_LINE_CROSS = 2
 
-const FLT_EPSILON = 1.1920929e-7
+/** `FLT_EPSILON` (`float.h`). */
+export const FLT_EPSILON = 1.1920928955078125e-7
 
 /** `SMALL_NUMBER` (`BLI_math_base.h`). */
 const SMALL_NUMBER = 1e-8
 
 // region vectors
 
-export const lenV2 = (v: Vec2): number => Math.sqrt(v[0] * v[0] + v[1] * v[1])
-export const dotV2V2 = (a: Vec2, b: Vec2): number => a[0] * b[0] + a[1] * b[1]
+export const lenV2 = (v: V2Arg): number => Math.sqrt(v[0] * v[0] + v[1] * v[1])
+export const dotV2V2 = (a: V2Arg, b: V2Arg): number => a[0] * b[0] + a[1] * b[1]
 /** `cross_v2v2` (`math_vector_inline.cc:674`). */
-export const crossV2V2 = (a: Vec2, b: Vec2): number => a[0] * b[1] - a[1] * b[0]
-export const subV2V2 = (a: Vec2, b: Vec2): Vec2 => [a[0] - b[0], a[1] - b[1]]
-export const equalsV2V2 = (a: Vec2, b: Vec2): boolean => a[0] === b[0] && a[1] === b[1]
-export const isZeroV3 = (v: Vec3): boolean => v[0] === 0 && v[1] === 0 && v[2] === 0
-export const lenSquaredV3V3 = (a: Vec3, b: Vec3): number => (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2
-export const lenV3V3 = (a: Vec3, b: Vec3): number => Math.sqrt(lenSquaredV3V3(a, b))
-export const negateV3 = (v: Vec3): Vec3 => [-v[0], -v[1], -v[2]]
+export const crossV2V2 = (a: V2Arg, b: V2Arg): number => a[0] * b[1] - a[1] * b[0]
+export const subV2V2 = (a: V2Arg, b: V2Arg): Vec2 => [a[0] - b[0], a[1] - b[1]]
+export const equalsV2V2 = (a: V2Arg, b: V2Arg): boolean => a[0] === b[0] && a[1] === b[1]
+export const isZeroV3 = (v: V3Arg): boolean => v[0] === 0 && v[1] === 0 && v[2] === 0
+export const lenSquaredV3V3 = (a: V3Arg, b: V3Arg): number => (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2
+export const lenV3V3 = (a: V3Arg, b: V3Arg): number => Math.sqrt(lenSquaredV3V3(a, b))
+export const negateV3 = (v: V3Arg): Vec3 => [-v[0], -v[1], -v[2]]
 
 /**
  * `normalize_v3` in place, returning the length (`normalize_v3_v3_length`,
@@ -68,21 +71,21 @@ export function normalizeV3Len(v: Vec3): number {
 }
 
 /** `madd_v3_v3fl`: `r += a * f`, in place. */
-export function maddV3V3Fl(r: Vec3, a: Vec3, f: number): void {
+export function maddV3V3Fl(r: Vec3, a: V3Arg, f: number): void {
     r[0] += a[0] * f
     r[1] += a[1] * f
     r[2] += a[2] * f
 }
 
 /** `add_newell_cross_v3_v3v3` (`math_vector_inline.cc:700`). */
-export function addNewellCrossV3V3V3(n: Vec3, vPrev: Vec3, vCurr: Vec3): void {
+export function addNewellCrossV3V3V3(n: Vec3, vPrev: V3Arg, vCurr: V3Arg): void {
     n[0] += (vPrev[1] - vCurr[1]) * (vPrev[2] + vCurr[2])
     n[1] += (vPrev[2] - vCurr[2]) * (vPrev[0] + vCurr[0])
     n[2] += (vPrev[0] - vCurr[0]) * (vPrev[1] + vCurr[1])
 }
 
 /** `interp_v3_v3v3v3`: the weighted sum of three points. */
-export const interpV3V3V3V3 = (a: Vec3, b: Vec3, c: Vec3, w: readonly number[]): Vec3 => [
+export const interpV3V3V3V3 = (a: V3Arg, b: V3Arg, c: V3Arg, w: readonly number[]): Vec3 => [
     a[0] * w[0] + b[0] * w[1] + c[0] * w[2],
     a[1] * w[0] + b[1] * w[1] + c[1] * w[2],
     a[2] * w[0] + b[2] * w[1] + c[2] * w[2],
@@ -96,34 +99,34 @@ export const interpV3V3V3V3 = (a: Vec3, b: Vec3, c: Vec3, w: readonly number[]):
 export const safeAsin = (f: number): number => Math.asin(Math.max(-1, Math.min(1, f)))
 
 /** `angle_normalized_v3v3` (`math_vector.cc:336`): more accurate than `acos(dot)` near 0 and pi. */
-export function angleNormalizedV3V3(v1: Vec3, v2: Vec3): number {
+export function angleNormalizedV3V3(v1: V3Arg, v2: V3Arg): number {
     if (v3dot(v1, v2) >= 0) return 2 * safeAsin(lenV3V3(v1, v2) / 2)
     return Math.PI - 2 * safeAsin(lenV3V3(v1, negateV3(v2)) / 2)
 }
 
 /** `angle_v3v3v3` (`math_vector.cc:252`): the angle at `b`. */
-export function angleV3V3V3(a: Vec3, b: Vec3, c: Vec3): number {
-    return angleNormalizedV3V3(v3normalize(v3sub(b, a)), v3normalize(v3sub(b, c)))
+export function angleV3V3V3(a: V3Arg, b: V3Arg, c: V3Arg): number {
+    return angleNormalizedV3V3(normalizeV3V3Length(v3sub(b, a))[0], normalizeV3V3Length(v3sub(b, c))[0])
 }
 
-/** `angle_v3v3` (`math_vector.cc:275`). */
-export function angleV3V3(a: Vec3, b: Vec3): number {
-    return angleNormalizedV3V3(v3normalize(a), v3normalize(b))
+/** `angle_v3v3` (`math_vector.cc:276`). */
+export function angleV3V3(a: V3Arg, b: V3Arg): number {
+    return angleNormalizedV3V3(normalizeV3V3Length(a)[0], normalizeV3V3Length(b)[0])
 }
 
 /** `project_plane_normalized_v3_v3v3` (`math_vector.cc:529`); `vPlane` must be unit length. */
-export function projectPlaneNormalizedV3V3V3(p: Vec3, vPlane: Vec3): Vec3 {
+export function projectPlaneNormalizedV3V3V3(p: V3Arg, vPlane: V3Arg): Vec3 {
     const mul = v3dot(p, vPlane)
     return [p[0] - mul * vPlane[0], p[1] - mul * vPlane[1], p[2] - mul * vPlane[2]]
 }
 
-/** `angle_on_axis_v3v3_v3` (`math_vector.cc:383`): the angle between two vectors seen down `axis`. */
-export function angleOnAxisV3V3V3(v1: Vec3, v2: Vec3, axis: Vec3): number {
+/** `angle_on_axis_v3v3_v3` (`math_vector.cc:368`): the angle between two vectors seen down `axis`. */
+export function angleOnAxisV3V3V3(v1: V3Arg, v2: V3Arg, axis: V3Arg): number {
     return angleV3V3(projectPlaneNormalizedV3V3V3(v1, axis), projectPlaneNormalizedV3V3V3(v2, axis))
 }
 
-/** `angle_signed_on_axis_v3v3_v3` (`math_vector.cc:392`), in `[0, 2pi)`. */
-export function angleSignedOnAxisV3V3V3(v1: Vec3, v2: Vec3, axis: Vec3): number {
+/** `angle_signed_on_axis_v3v3_v3` (`math_vector.cc:379`), in `[0, 2pi)`. */
+export function angleSignedOnAxisV3V3V3(v1: V3Arg, v2: V3Arg, axis: V3Arg): number {
     const v1Proj = projectPlaneNormalizedV3V3V3(v1, axis)
     const v2Proj = projectPlaneNormalizedV3V3V3(v2, axis)
     let angle = angleV3V3(v1Proj, v2Proj)
@@ -132,12 +135,12 @@ export function angleSignedOnAxisV3V3V3(v1: Vec3, v2: Vec3, axis: Vec3): number 
 }
 
 /** `angle_on_axis_v3v3v3_v3` (`math_vector.cc:399`): the angle at `v2` seen down `axis`. */
-export function angleOnAxisV3V3V3V3(v1: Vec3, v2: Vec3, v3: Vec3, axis: Vec3): number {
+export function angleOnAxisV3V3V3V3(v1: V3Arg, v2: V3Arg, v3: V3Arg, axis: V3Arg): number {
     return angleOnAxisV3V3V3(v3sub(v1, v2), v3sub(v3, v2), axis)
 }
 
-/** `angle_signed_on_axis_v3v3v3_v3` (`math_vector.cc:411`). */
-export function angleSignedOnAxisV3V3V3V3(v1: Vec3, v2: Vec3, v3: Vec3, axis: Vec3): number {
+/** `angle_signed_on_axis_v3v3v3_v3` (`math_vector.cc:412`). */
+export function angleSignedOnAxisV3V3V3V3(v1: V3Arg, v2: V3Arg, v3: V3Arg, axis: V3Arg): number {
     return angleSignedOnAxisV3V3V3(v3sub(v1, v2), v3sub(v3, v2), axis)
 }
 
@@ -146,15 +149,15 @@ export function angleSignedOnAxisV3V3V3V3(v1: Vec3, v2: Vec3, v3: Vec3, axis: Ve
 // region axes and bases
 
 /** `axis_dominant_v3_single` (`math_geom_inline.cc:86`): the index of the largest component. */
-export function axisDominantV3Single(v: Vec3): 0 | 1 | 2 {
+export function axisDominantV3Single(v: V3Arg): 0 | 1 | 2 {
     const x = Math.abs(v[0])
     const y = Math.abs(v[1])
     const z = Math.abs(v[2])
     return x > y ? x > z ? 0 : 2 : y > z ? 1 : 2
 }
 
-/** `ortho_basis_v3v3_v3` (`math_vector.cc:556`): two unit vectors perpendicular to `n` and each other. */
-export function orthoBasisV3V3V3(n: Vec3): [Vec3, Vec3] {
+/** `ortho_basis_v3v3_v3` (`math_vector.cc:568`): two unit vectors perpendicular to `n` and each other. */
+export function orthoBasisV3V3V3(n: V3Arg): [Vec3, Vec3] {
     const f = n[0] * n[0] + n[1] * n[1]
     if (f > FLT_EPSILON) {
         const d = 1 / Math.sqrt(f)
@@ -167,7 +170,7 @@ export function orthoBasisV3V3V3(n: Vec3): [Vec3, Vec3] {
 }
 
 /** `ortho_v3_v3` (`math_vector.cc:593`): any vector perpendicular to `v`. */
-export function orthoV3V3(v: Vec3): Vec3 {
+export function orthoV3V3(v: V3Arg): Vec3 {
     switch (axisDominantV3Single(v)) {
     case 0: return [-v[1] - v[2], v[0], v[0]]
     case 1: return [v[1], -v[0] - v[2], v[1]]
@@ -179,44 +182,44 @@ export function orthoV3V3(v: Vec3): Vec3 {
  * `axis_dominant_v3_to_m3` (`math_geom.cc:3646`): a basis whose third row is `normal`, so that
  * {@link mulV3M3V3} maps a point into a frame where the normal is +Z. `normal` must be unit length.
  */
-export function axisDominantV3ToM3(normal: Vec3): Mat3Rows {
+export function axisDominantV3ToM3(normal: V3Arg): Mat3Rows {
     const [n1, n2] = orthoBasisV3V3V3(normal)
     return [n1, n2, [normal[0], normal[1], normal[2]]]
 }
 
 /** `mul_v3_m3v3` for a {@link Mat3Rows}. */
-export const mulV3M3V3 = (m: Mat3Rows, a: Vec3): Vec3 => [v3dot(m[0], a), v3dot(m[1], a), v3dot(m[2], a)]
+export const mulV3M3V3 = (m: Mat3Rows, a: V3Arg): Vec3 => [v3dot(m[0], a), v3dot(m[1], a), v3dot(m[2], a)]
 
 /** `mul_v2_m3v3`: the first two rows only. */
-export const mulV2M3V3 = (m: Mat3Rows, a: Vec3): Vec2 => [v3dot(m[0], a), v3dot(m[1], a)]
+export const mulV2M3V3 = (m: Mat3Rows, a: V3Arg): Vec2 => [v3dot(m[0], a), v3dot(m[1], a)]
 
 // endregion
 
 // region triangles and barycentric weights
 
 /** `cross_tri_v2` (`math_geom_inline.cc:24`): twice the signed area. */
-export const crossTriV2 = (v1: Vec2, v2: Vec2, v3: Vec2): number =>
+export const crossTriV2 = (v1: V2Arg, v2: V2Arg, v3: V2Arg): number =>
     (v1[0] - v2[0]) * (v2[1] - v3[1]) + (v1[1] - v2[1]) * (v3[0] - v2[0])
 
 /** `area_tri_signed_v2` (`math_geom_inline.cc:29`). */
-export const areaTriSignedV2 = (v1: Vec2, v2: Vec2, v3: Vec2): number => 0.5 * crossTriV2(v1, v2, v3)
+export const areaTriSignedV2 = (v1: V2Arg, v2: V2Arg, v3: V2Arg): number => 0.5 * crossTriV2(v1, v2, v3)
 
 /** `area_tri_v2` (`math_geom_inline.cc:34`). */
-export const areaTriV2 = (v1: Vec2, v2: Vec2, v3: Vec2): number => Math.abs(areaTriSignedV2(v1, v2, v3))
+export const areaTriV2 = (v1: V2Arg, v2: V2Arg, v3: V2Arg): number => Math.abs(areaTriSignedV2(v1, v2, v3))
 
 /** `cross_tri_v3` (`math_geom.cc:30`): the unnormalised normal. */
-export const crossTriV3 = (v1: Vec3, v2: Vec3, v3: Vec3): Vec3 => v3cross(v3sub(v1, v2), v3sub(v2, v3))
+export const crossTriV3 = (v1: V3Arg, v2: V3Arg, v3: V3Arg): Vec3 => v3cross(v3sub(v1, v2), v3sub(v2, v3))
 
 /** `area_tri_v3` (`math_geom.cc:104`). */
-export const areaTriV3 = (v1: Vec3, v2: Vec3, v3: Vec3): number => v3len(crossTriV3(v1, v2, v3)) * 0.5
+export const areaTriV3 = (v1: V3Arg, v2: V3Arg, v3: V3Arg): number => v3len(crossTriV3(v1, v2, v3)) * 0.5
 
 /** `normal_tri_v3` (`math_geom.cc:45`) returning the normal; the length is the unnormalised one. */
-export function normalTriV3(v1: Vec3, v2: Vec3, v3: Vec3): Vec3 {
-    return v3normalize(crossTriV3(v1, v2, v3))
+export function normalTriV3(v1: V3Arg, v2: V3Arg, v3: V3Arg): Vec3 {
+    return normalizeV3V3Length(crossTriV3(v1, v2, v3))[0]
 }
 
 /** `barycentric_weights_v2` (`math_geom.cc:3824`); a zero-area triangle gives thirds. */
-export function barycentricWeightsV2(v1: Vec2, v2: Vec2, v3: Vec2, co: Vec2): [number, number, number] {
+export function barycentricWeightsV2(v1: V2Arg, v2: V2Arg, v3: V2Arg, co: V2Arg): [number, number, number] {
     const w: [number, number, number] = [crossTriV2(v2, v3, co), crossTriV2(v3, v1, co), crossTriV2(v1, v2, co)]
     const wtot = w[0] + w[1] + w[2]
     if (wtot !== 0) {
@@ -232,7 +235,7 @@ export function barycentricWeightsV2(v1: Vec2, v2: Vec2, v3: Vec2, co: Vec2): [n
  * `barycentric_weights_v2_quad` (`math_geom.cc:3893`): mean-value coordinates of `co` in a quad, the
  * weights grid fill blends its boundary with.
  */
-export function barycentricWeightsV2Quad(v1: Vec2, v2: Vec2, v3: Vec2, v4: Vec2, co: Vec2): [number, number, number, number] {
+export function barycentricWeightsV2Quad(v1: V2Arg, v2: V2Arg, v3: V2Arg, v4: V2Arg, co: V2Arg): [number, number, number, number] {
     const dirs: Vec2[] = [
         [v1[0] - co[0], v1[1] - co[1]],
         [v2[0] - co[0], v2[1] - co[1]],
@@ -295,7 +298,7 @@ export function barycentricWeightsV2Quad(v1: Vec2, v2: Vec2, v3: Vec2, v4: Vec2,
  * triangle, re-expressed on the target triangle - barycentric weights in the plane plus the
  * off-plane offset scaled by the area ratio.
  */
-export function transformPointByTriV3(ptSrc: Vec3, triTar: [Vec3, Vec3, Vec3], triSrc: [Vec3, Vec3, Vec3]): Vec3 {
+export function transformPointByTriV3(ptSrc: V3Arg, triTar: [Vec3, Vec3, Vec3], triSrc: [Vec3, Vec3, Vec3]): Vec3 {
     const noTar = normalTriV3(triTar[0], triTar[1], triTar[2])
     const noSrc = normalTriV3(triSrc[0], triSrc[1], triSrc[2])
     const matSrc = axisDominantV3ToM3(noSrc)
@@ -324,7 +327,7 @@ export function transformPointByTriV3(ptSrc: Vec3, triTar: [Vec3, Vec3, Vec3], t
  * `is_quad_flip_v3` (`math_geom.cc:5587`): bit 0 set when the quad is concave across the 1-3
  * diagonal, bit 1 across the 2-4 diagonal.
  */
-export function isQuadFlipV3(v1: Vec3, v2: Vec3, v3: Vec3, v4: Vec3): number {
+export function isQuadFlipV3(v1: V3Arg, v2: V3Arg, v3: V3Arg, v4: V3Arg): number {
     const d12 = v3sub(v1, v2)
     const d23 = v3sub(v2, v3)
     const d34 = v3sub(v3, v4)
@@ -336,7 +339,7 @@ export function isQuadFlipV3(v1: Vec3, v2: Vec3, v3: Vec3, v4: Vec3): number {
 }
 
 /** `is_poly_convex_v2` (`math_geom.cc:5551`): every turn has the same sign. */
-export function isPolyConvexV2(verts: readonly Vec2[]): boolean {
+export function isPolyConvexV2(verts: readonly V2Arg[]): boolean {
     const nr = verts.length
     let signFlag = 0
     let coPrev = verts[nr - 1]
@@ -355,7 +358,7 @@ export function isPolyConvexV2(verts: readonly Vec2[]): boolean {
 }
 
 /** `isect_seg_seg_v2` (`math_geom.cc:1184`): one of the `ISECT_LINE_LINE_*` values. */
-export function isectSegSegV2(v1: Vec2, v2: Vec2, v3: Vec2, v4: Vec2): number {
+export function isectSegSegV2(v1: V2Arg, v2: V2Arg, v3: V2Arg, v4: V2Arg): number {
     const div = (v2[0] - v1[0]) * (v4[1] - v3[1]) - (v2[1] - v1[1]) * (v4[0] - v3[0])
     if (div === 0) return ISECT_LINE_LINE_COLINEAR
 
@@ -456,7 +459,7 @@ export function normalizeQt(q: Quat): number {
 }
 
 /** `axis_angle_normalized_to_quat` (`math_rotation_c.cc:1065`); `axis` must be unit length. */
-export function axisAngleNormalizedToQuat(axis: Vec3, angle: number): Quat {
+export function axisAngleNormalizedToQuat(axis: V3Arg, angle: number): Quat {
     const phi = 0.5 * angle
     const si = Math.sin(phi)
     const co = Math.cos(phi)
@@ -464,7 +467,7 @@ export function axisAngleNormalizedToQuat(axis: Vec3, angle: number): Quat {
 }
 
 /** `axis_angle_to_quat` (`math_rotation_c.cc:1075`): the identity for a zero axis. */
-export function axisAngleToQuat(axis: Vec3, angle: number): Quat {
+export function axisAngleToQuat(axis: V3Arg, angle: number): Quat {
     const nor: Vec3 = [axis[0], axis[1], axis[2]]
     if (normalizeV3Len(nor) !== 0) return axisAngleNormalizedToQuat(nor, angle)
     return unitQt()
@@ -501,7 +504,7 @@ export function quatToMat3(q: Quat): [Vec3, Vec3, Vec3] {
  * `vec_to_quat` (`math_rotation_c.cc:722`): the rotation taking `axis` (0..5 for +X, +Y, +Z, -X,
  * -Y, -Z) onto `vec`, rolled so that `upflag` (0..2) points up.
  */
-export function vecToQuat(vec: Vec3, axis: number, upflag: number): Quat {
+export function vecToQuat(vec: V3Arg, axis: number, upflag: number): Quat {
     const eps = 1e-4
     // first set the quat to unit
     let q = unitQt()
@@ -571,7 +574,7 @@ export function vecToQuat(vec: Vec3, axis: number, upflag: number): Quat {
 }
 
 /** `bisect_v3_v3v3v3` (`math_vector.cc:549`): the normalised sum of the two segment directions at `b`. */
-export function bisectV3V3V3(a: Vec3, b: Vec3, c: Vec3): Vec3 {
+export function bisectV3V3V3(a: V3Arg, b: V3Arg, c: V3Arg): Vec3 {
     const d12 = v3sub(b, a)
     const d23 = v3sub(c, b)
     normalizeV3Len(d12)
@@ -634,7 +637,7 @@ export function normalizeV3Length(v: Vec3, unitLength: number): number {
 }
 
 /** `project_v3_plane` (`math_vector.cc:537`): `out` projected onto the plane through `planeCo`. */
-export function projectV3Plane(out: Vec3, planeNo: Vec3, planeCo: Vec3): Vec3 {
+export function projectV3Plane(out: Vec3, planeNo: V3Arg, planeCo: V3Arg): Vec3 {
     const vector: Vec3 = [out[0] - planeCo[0], out[1] - planeCo[1], out[2] - planeCo[2]]
     const mul = v3dot(vector, planeNo) / v3dot(planeNo, planeNo)
     // out[x] = out[x] - (mul * plane_no[x])
@@ -642,7 +645,7 @@ export function projectV3Plane(out: Vec3, planeNo: Vec3, planeCo: Vec3): Vec3 {
 }
 
 /** `reflect_v3_v3v3` (`math_vector.cc:560`): `v` mirrored in the plane of unit `normal`. */
-export function reflectV3V3V3(v: Vec3, normal: Vec3): Vec3 {
+export function reflectV3V3V3(v: V3Arg, normal: V3Arg): Vec3 {
     const dot2 = 2 * v3dot(v, normal)
     // out[x] = v[x] - (dot2 * normal[x])
     return [v[0] - dot2 * normal[0], v[1] - dot2 * normal[1], v[2] - dot2 * normal[2]]
@@ -665,7 +668,7 @@ export function interpDotSlerp(t: number, cosom: number): [number, number] {
  * `interp_v3_v3v3_slerp` (`math_vector.cc:60`): spherical interpolation of two unit vectors, or null
  * (Blender's `false`) for direct opposites.
  */
-export function interpV3V3V3Slerp(a: Vec3, b: Vec3, t: number): Vec3 | null {
+export function interpV3V3V3Slerp(a: V3Arg, b: V3Arg, t: number): Vec3 | null {
     const cosom = v3dot(a, b)
     // direct opposites
     if (cosom < -1 + FLT_EPSILON) return null
@@ -674,7 +677,7 @@ export function interpV3V3V3Slerp(a: Vec3, b: Vec3, t: number): Vec3 | null {
 }
 
 /** `bisect_v3_v3v3v3` (`math_vector.cc:549`): the unit bisector of the turn at `b`. */
-export function bisectV3V3V3V3(a: Vec3, b: Vec3, c: Vec3): Vec3 {
+export function bisectV3V3V3V3(a: V3Arg, b: V3Arg, c: V3Arg): Vec3 {
     const d12 = v3sub(b, a)
     const d23 = v3sub(c, b)
     normalizeV3Len(d12)
@@ -685,7 +688,7 @@ export function bisectV3V3V3V3(a: Vec3, b: Vec3, c: Vec3): Vec3 {
 }
 
 /** `closest_to_line_v3` (`math_geom.cc:3291`) through `closest_to_ray_v3` (`:3272`). */
-export function closestToLineV3(p: Vec3, l1: Vec3, l2: Vec3): Vec3 {
+export function closestToLineV3(p: V3Arg, l1: V3Arg, l2: V3Arg): Vec3 {
     const rayDir = v3sub(l2, l1)
     if (rayDir[0] === 0 && rayDir[1] === 0 && rayDir[2] === 0) return [l1[0], l1[1], l1[2]]
     const h = v3sub(p, l1)
@@ -698,7 +701,7 @@ export function closestToLineV3(p: Vec3, l1: Vec3, l2: Vec3): Vec3 {
 // region planes
 
 /** `plane_from_point_normal_v3` (`math_geom.cc:225`). */
-export function planeFromPointNormalV3(planeCo: Vec3, planeNo: Vec3): Vec4 {
+export function planeFromPointNormalV3(planeCo: V3Arg, planeNo: V3Arg): Vec4 {
     return [planeNo[0], planeNo[1], planeNo[2], -v3dot(planeNo, planeCo)]
 }
 
@@ -734,10 +737,472 @@ export function isectPlanePlanePlaneV3(planeA: Vec4, planeB: Vec4, planeC: Vec4)
 }
 
 /** `shell_v3v3_mid_normalized_to_dist` (`math_geom_inline.cc:148`); `a` and `b` unit length. */
-export function shellV3V3MidNormalizedToDist(a: Vec3, b: Vec3): number {
+export function shellV3V3MidNormalizedToDist(a: V3Arg, b: V3Arg): number {
     const ab: Vec3 = [a[0] + b[0], a[1] + b[1], a[2] + b[2]]
     const angleCos = normalizeV3Len(ab) !== 0 ? Math.abs(v3dot(a, ab)) : 0
     return angleCos < SMALL_NUMBER ? 1 : 1 / angleCos
+}
+
+// endregion
+
+// region more of `math_vector_inline.cc` / `math_base_inline.cc` (the knife, the scan-fill)
+
+/** `FLT_MIN` and `FLT_MAX` (`float.h`): the limits of Blender's `float`. */
+export const FLT_MIN = 1.1754943508222875e-38
+export const FLT_MAX = 3.4028234663852886e38
+
+/** `len_squared_v2` (`math_vector_inline.cc:713`). */
+export const lenSquaredV2 = (v: V2Arg): number => v[0] * v[0] + v[1] * v[1]
+/** `len_squared_v3` (`math_vector_inline.cc:718`). */
+export const lenSquaredV3 = (v: V3Arg): number => v[0] * v[0] + v[1] * v[1] + v[2] * v[2]
+/** `len_v2v2` (`math_vector_inline.cc:748`). */
+export const lenV2V2 = (a: V2Arg, b: V2Arg): number => Math.sqrt(lenSquaredV2V2(a, b))
+/** `len_squared_v2v2` (`math_vector_inline.cc:780`). */
+export const lenSquaredV2V2 = (a: V2Arg, b: V2Arg): number => (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2
+/** `mid_v2_v2v2`. */
+export const midV2V2V2 = (a: V2Arg, b: V2Arg): Vec2 => [(a[0] + b[0]) * 0.5, (a[1] + b[1]) * 0.5]
+/** `mid_v3_v3v3`. */
+export const midV3V3V3 = (a: V3Arg, b: V3Arg): Vec3 => [(a[0] + b[0]) * 0.5, (a[1] + b[1]) * 0.5, (a[2] + b[2]) * 0.5]
+/** `madd_v3_v3v3fl` (`math_vector_inline.cc:514`): `a + b * f`. */
+export const maddV3V3V3Fl = (a: V3Arg, b: V3Arg, f: number): Vec3 => [a[0] + b[0] * f, a[1] + b[1] * f, a[2] + b[2] * f]
+/** `copy_v2_v2`, in place: `r = a`. */
+export function copyV2V2(r: Vec2, a: V2Arg): void {
+    r[0] = a[0]
+    r[1] = a[1]
+}
+/** `is_zero_v2` (`math_vector_inline.cc:952`). */
+export const isZeroV2 = (v: V2Arg): boolean => v[0] === 0 && v[1] === 0
+/** `equals_v3v3` (`math_vector_inline.cc:1000`). */
+export const equalsV3V3 = (a: V3Arg, b: V3Arg): boolean => a[0] === b[0] && a[1] === b[1] && a[2] === b[2]
+/** `compare_ff` (`math_base_inline.cc:416`). */
+export const compareFf = (a: number, b: number, maxDiff: number): boolean => Math.abs(a - b) <= maxDiff
+/** `compare_v2v2` (`math_vector_inline.cc:1015`): every component within `limit`. */
+export const compareV2V2 = (a: V2Arg, b: V2Arg, limit: number): boolean =>
+    compareFf(a[0], b[0], limit) && compareFf(a[1], b[1], limit)
+/** `compare_v3v3` (`math_vector_inline.cc:1020`): every component within `limit`. */
+export const compareV3V3 = (a: V3Arg, b: V3Arg, limit: number): boolean =>
+    compareFf(a[0], b[0], limit) && compareFf(a[1], b[1], limit) && compareFf(a[2], b[2], limit)
+
+/** `cos_v2v2v2` (`math_vector.cc:302`): the cosine of the angle at `p2`. */
+export function cosV2V2V2(p1: V2Arg, p2: V2Arg, p3: V2Arg): number {
+    const [vec1] = normalizeV2V2Length([p2[0] - p1[0], p2[1] - p1[1]])
+    const [vec2] = normalizeV2V2Length([p2[0] - p3[0], p2[1] - p3[1]])
+    return dotV2V2(vec1, vec2)
+}
+
+/**
+ * `axis_dominant_v3_to_m3_negate` (`math_geom.cc:3663`): {@link axisDominantV3ToM3} for the negated
+ * normal, so the 2D winding of a projected polygon matches its 3D one. As rows, like it.
+ */
+export function axisDominantV3ToM3Negate(normal: V3Arg): Mat3Rows {
+    const neg: Vec3 = [-normal[0], -normal[1], -normal[2]]
+    const [n1, n2] = orthoBasisV3V3V3(neg)
+    return [n1, n2, neg]
+}
+
+/** `dist_squared_to_line_v2` (`math_geom.cc:294`), via `closest_to_line_v2` (:3298). */
+export const distSquaredToLineV2 = (p: V2Arg, l1: V2Arg, l2: V2Arg): number => lenSquaredV2V2(closestToLineV2(p, l1, l2)[0], p)
+
+// endregion
+
+// region planes, lines, rays (`math_geom.cc`), and the matrix products the knife's view uses (`math_matrix_c.cc`)
+
+/**
+ * `normalize_v3_v3_length` (`math_vector_inline.cc:872`): zero for tiny vectors (the threshold is on the
+ * squared length, `d > 1.0e-35f`). Returns `[unit * unitLength, length]`; `normalize_v3_v3` is `unitLength` 1.
+ */
+export function normalizeV3V3Length(a: V3Arg, unitLength = 1): [Vec3, number] {
+    const d = v3dot(a, a)
+    if (d > 1.0e-35) {
+        const l = Math.sqrt(d)
+        const f = unitLength / l
+        return [[a[0] * f, a[1] * f, a[2] * f], l]
+    }
+    return [[0, 0, 0], 0]
+}
+
+/** `normalize_v2_v2_length` (`math_vector_inline.cc:841`), as {@link normalizeV3V3Length}. */
+export function normalizeV2V2Length(a: V2Arg, unitLength = 1): [Vec2, number] {
+    const d = dotV2V2(a, a)
+    if (d > 1.0e-35) {
+        const l = Math.sqrt(d)
+        const f = unitLength / l
+        return [[a[0] * f, a[1] * f], l]
+    }
+    return [[0, 0], 0]
+}
+
+/** `rotate_normalized_v3_v3v3fl` (`math_vector.cc:637`). */
+export function rotateNormalizedV3V3V3Fl(p: V3Arg, axis: V3Arg, angle: number): Vec3 {
+    const c = Math.cos(angle)
+    const s = Math.sin(angle)
+    return [
+        ((c + (1 - c) * axis[0] * axis[0]) * p[0]) + (((1 - c) * axis[0] * axis[1] - axis[2] * s) * p[1]) + (((1 - c) * axis[0] * axis[2] + axis[1] * s) * p[2]),
+        (((1 - c) * axis[0] * axis[1] + axis[2] * s) * p[0]) + ((c + (1 - c) * axis[1] * axis[1]) * p[1]) + (((1 - c) * axis[1] * axis[2] - axis[0] * s) * p[2]),
+        (((1 - c) * axis[0] * axis[2] - axis[1] * s) * p[0]) + (((1 - c) * axis[1] * axis[2] + axis[0] * s) * p[1]) + ((c + (1 - c) * axis[2] * axis[2]) * p[2]),
+    ]
+}
+
+/** `mul_project_m4_v3_zfac` (`math_vector_inline.cc:464`). */
+export const mulProjectM4V3Zfac = (m: Mat4, co: V3Arg): number => m[3] * co[0] + m[7] * co[1] + m[11] * co[2] + m[15]
+
+/** `dot_m4_v3_row_z` (`math_vector_inline.cc:490`). */
+export const dotM4V3RowZ = (m: Mat4, a: V3Arg): number => m[2] * a[0] + m[6] * a[1] + m[10] * a[2]
+
+/** `mul_v3_m4v3` (`math_matrix_c.cc:687`, `mul_m4_v3` :677): the point transform, no divide. */
+export const mulM4V3 = (m: Mat4, v: V3Arg): Vec3 => [
+    m[0] * v[0] + m[4] * v[1] + m[8] * v[2] + m[12],
+    m[1] * v[0] + m[5] * v[1] + m[9] * v[2] + m[13],
+    m[2] * v[0] + m[6] * v[1] + m[10] * v[2] + m[14],
+]
+
+/** `mul_mat3_m4_v3` (`math_matrix_c.cc:738`): the 3x3 part only. */
+export const mulMat3M4V3 = (m: Mat4, v: V3Arg): Vec3 => [
+    m[0] * v[0] + m[4] * v[1] + m[8] * v[2],
+    m[1] * v[0] + m[5] * v[1] + m[9] * v[2],
+    m[2] * v[0] + m[6] * v[1] + m[10] * v[2],
+]
+
+/** `mul_transposed_mat3_m4_v3` (`math_matrix_c.cc:873`): the transpose of the 3x3 part. */
+export const mulTransposedMat3M4V3 = (m: Mat4, v: V3Arg): Vec3 => [
+    m[0] * v[0] + m[1] * v[1] + m[2] * v[2],
+    m[4] * v[0] + m[5] * v[1] + m[6] * v[2],
+    m[8] * v[0] + m[9] * v[1] + m[10] * v[2],
+]
+
+/** `mul_project_m4_v3` (`math_matrix_c.cc:768`): transform then divide by `w`. */
+export function mulProjectM4V3(m: Mat4, v: V3Arg): Vec3 {
+    const w = mulProjectM4V3Zfac(m, v)
+    const r = mulM4V3(m, v)
+    return [r[0] / w, r[1] / w, r[2] / w]
+}
+
+/** `plane_point_side_v3`. */
+export const planePointSideV3 = (plane: V3Arg, co: V3Arg): number => v3dot(plane, co) + plane[3]
+
+/** `dist_squared_to_plane_v3` (`math_geom.cc:486`). */
+export function distSquaredToPlaneV3(p: V3Arg, plane: V3Arg): number {
+    const lenSq = lenSquaredV3(plane)
+    const fac = planePointSideV3(plane, p) / lenSq
+    return lenSq * (fac * fac)
+}
+
+/** `dist_signed_squared_to_plane_v3` (`math_geom.cc:479`). */
+export function distSignedSquaredToPlaneV3(p: V3Arg, plane: V3Arg): number {
+    const lenSq = lenSquaredV3(plane)
+    const side = planePointSideV3(plane, p)
+    const fac = side / lenSq
+    const r = lenSq * (fac * fac)
+    // `copysignf`: carries the sign of `side`, including `-0`.
+    return side < 0 || Object.is(side, -0) ? -r : r
+}
+
+/** `dist_signed_squared_to_plane3_v3` (`math_geom.cc:495`). */
+export function distSignedSquaredToPlane3V3(p: V3Arg, plane: V3Arg): number {
+    const lenSq = lenSquaredV3(plane)
+    const side = v3dot(plane, p)
+    const fac = side / lenSq
+    const r = lenSq * (fac * fac)
+    // `copysignf`: carries the sign of `side`, including `-0`.
+    return side < 0 || Object.is(side, -0) ? -r : r
+}
+
+/** `dist_signed_squared_to_corner_v3v3v3` (`math_geom.cc:562`). */
+export function distSignedSquaredToCornerV3V3V3(p: V3Arg, v1: V3Arg, v2: V3Arg, v3: V3Arg, axisRef: V3Arg): number {
+    const dirA = v3sub(v1, v2)
+    const dirB = v3sub(v3, v2)
+    let axis = v3cross(dirA, dirB)
+    let flip = false
+    if (lenSquaredV3(axis) < FLT_EPSILON) {
+        axis = [axisRef[0], axisRef[1], axisRef[2]]
+    } else if (v3dot(axis, axisRef) < 0) {
+        // concave
+        flip = true
+        axis = v3mul(axis, -1)
+    }
+    const planeA = v3cross(dirA, axis)
+    const planeB = v3cross(axis, dirB)
+    const sPV2 = v3sub(p, v2)
+    const distA = distSignedSquaredToPlane3V3(sPV2, planeA)
+    const distB = distSignedSquaredToPlane3V3(sPV2, planeB)
+    return flip ? Math.min(distA, distB) : Math.max(distA, distB)
+}
+
+/** `closest_to_line_v2` (`math_geom.cc:3298`). */
+export function closestToLineV2(p: V2Arg, l1: V2Arg, l2: V2Arg): [Vec2, number] {
+    const u = subV2V2(l2, l1)
+    const h = subV2V2(p, l1)
+    const denom = dotV2V2(u, u)
+    if (denom === 0) return [[l1[0], l1[1]], 0]
+    const lambda = dotV2V2(u, h) / denom
+    return [[l1[0] + u[0] * lambda, l1[1] + u[1] * lambda], lambda]
+}
+
+/** `closest_to_line_segment_v2` (`math_geom.cc:381`). */
+export function closestToLineSegmentV2(p: V2Arg, l1: V2Arg, l2: V2Arg): Vec2 {
+    const [cp, lambda] = closestToLineV2(p, l1, l2)
+    // flip checks for !finite case (when segment is a point)
+    if (lambda <= 0) return [l1[0], l1[1]]
+    if (lambda >= 1) return [l2[0], l2[1]]
+    return cp
+}
+
+/** `dist_squared_to_line_segment_v2` (`math_geom.cc:307`). */
+export const distSquaredToLineSegmentV2 = (p: V2Arg, l1: V2Arg, l2: V2Arg): number =>
+    lenSquaredV2V2(closestToLineSegmentV2(p, l1, l2), p)
+
+/** `line_point_factor_v3_ex` (`math_geom.cc:3354`). */
+export function linePointFactorV3Ex(p: V3Arg, l1: V3Arg, l2: V3Arg, epsilon = 0, fallback = 0): number {
+    const u = v3sub(l2, l1)
+    const h = v3sub(p, l1)
+    const dot = lenSquaredV3(u)
+    return dot > epsilon ? v3dot(u, h) / dot : fallback
+}
+
+/** `line_point_factor_v2_ex` (`math_geom.cc:3374`). */
+export function linePointFactorV2Ex(p: V2Arg, l1: V2Arg, l2: V2Arg, epsilon = 0, fallback = 0): number {
+    const u = subV2V2(l2, l1)
+    const h = subV2V2(p, l1)
+    const dot = lenSquaredV2(u)
+    return dot > epsilon ? dotV2V2(u, h) / dot : fallback
+}
+
+/** `transform_point_by_seg_v3` (`math_geom.cc:4046`). */
+export const transformPointBySegV3 = (pSrc: V3Arg, lDst1: V3Arg, lDst2: V3Arg, lSrc1: V3Arg, lSrc2: V3Arg): Vec3 =>
+    v3lerp(lDst1, lDst2, linePointFactorV3Ex(pSrc, lSrc1, lSrc2))
+
+/**
+ * `isect_seg_seg_v2_point_ex` (`math_geom.cc:1271`). Returns `[kind, point]`: 1 for an intersection,
+ * -1 for none.
+ */
+export function isectSegSegV2PointEx(
+    v0In: V2Arg, v1In: V2Arg, v2In: V2Arg, v3In: V2Arg, endpointBias: number,
+): [number, Vec2 | null] {
+    let v0 = v0In, v1 = v1In, v2 = v2In, v3 = v3In
+    const eps = 1e-6
+    const endpointMin = -endpointBias
+    const endpointMax = endpointBias + 1
+    let s10 = subV2V2(v1, v0)
+    const s32 = subV2V2(v3, v2)
+    let s30 = subV2V2(v3, v0)
+    const d = crossV2V2(s10, s32)
+    if (d !== 0) {
+        const u = crossV2V2(s30, s32) / d
+        let v = crossV2V2(s10, s30) / d
+        if ((u >= endpointMin && u <= endpointMax) && (v >= endpointMin && v <= endpointMax)) {
+            // intersection
+            const viTest: Vec2 = [v0[0] + s10[0] * u, v0[1] + s10[1] * u]
+            // Re-calculate 'v' to ensure the point overlaps both (#45123).
+            const sViV2 = subV2V2(viTest, v2)
+            v = dotV2V2(s32, sViV2) / dotV2V2(s32, s32)
+            if (v >= endpointMin && v <= endpointMax) return [1, viTest]
+        }
+        // out of segment intersection
+        return [-1, null]
+    }
+    if (crossV2V2(s10, s30) === 0 && crossV2V2(s32, s30) === 0) {
+        // equal lines
+        if (equalsV2V2(v0, v1)) {
+            if (lenSquaredV2V2(v2, v3) > eps * eps) {
+                // use non-point segment as basis
+                [v0, v2] = [v2, v0]
+                ;[v1, v3] = [v3, v1]
+                s10 = subV2V2(v1, v0)
+                s30 = subV2V2(v3, v0)
+            } else {
+                // both of segments are points
+                if (equalsV2V2(v0, v2)) return [1, [v0[0], v0[1]]]
+                return [-1, null]
+            }
+        }
+        const s20 = subV2V2(v2, v0)
+        let uA = dotV2V2(s20, s10) / dotV2V2(s10, s10)
+        let uB = dotV2V2(s30, s10) / dotV2V2(s10, s10)
+        if (uA > uB) [uA, uB] = [uB, uA]
+        if (uA > endpointMax || uB < endpointMin) return [-1, null]
+        if (Math.max(0, uA) === Math.min(1, uB)) {
+            const t = Math.max(0, uA)
+            return [1, [v0[0] + s10[0] * t, v0[1] + s10[1] * t]]
+        }
+    }
+    // lines are collinear
+    return [-1, null]
+}
+
+/** `isect_ray_seg_v2` (`math_geom.cc:2096`). Returns the ray factor, or null. */
+export function isectRaySegV2(rayOrigin: V2Arg, rayDirection: V2Arg, v0: V2Arg, v1: V2Arg): number | null {
+    const v0Local = subV2V2(v0, rayOrigin)
+    const v1Local = subV2V2(v1, rayOrigin)
+    const s10 = subV2V2(v1Local, v0Local)
+    const det = crossV2V2(rayDirection, s10)
+    if (det !== 0) {
+        const v = crossV2V2(v0Local, v1Local)
+        const p: Vec2 = [(rayDirection[0] * v) / det, (rayDirection[1] * v) / det]
+        const t = dotV2V2(p, rayDirection) / dotV2V2(rayDirection, rayDirection)
+        if (!(t >= 0)) return null
+        const h = subV2V2(v1Local, p)
+        const u = dotV2V2(s10, h) / dotV2V2(s10, s10)
+        if (!(u >= 0 && u <= 1)) return null
+        return t
+    }
+    return null
+}
+
+/** `isect_ray_tri_epsilon_v3` (`math_geom.cc:1848`). Returns `[lambda, u, v]` or null. */
+export function isectRayTriEpsilonV3(
+    rayOrigin: V3Arg, rayDirection: V3Arg,
+    v0: V3Arg, v1: V3Arg, v2: V3Arg, epsilon: number,
+): [number, number, number] | null {
+    const e1 = v3sub(v1, v0)
+    const e2 = v3sub(v2, v0)
+    const p = v3cross(rayDirection, e2)
+    const a = v3dot(e1, p)
+    if (a === 0) return null
+    const f = 1 / a
+    const s = v3sub(rayOrigin, v0)
+    const u = f * v3dot(s, p)
+    if (u < -epsilon || u > 1 + epsilon) return null
+    const q = v3cross(s, e1)
+    const v = f * v3dot(rayDirection, q)
+    if (v < -epsilon || u + v > 1 + epsilon) return null
+    const lambda = f * v3dot(e2, q)
+    if (lambda < 0) return null
+    return [lambda, u, v]
+}
+
+/** `IsectRayPrecalc` and `isect_ray_tri_watertight_v3_precalc` (`math_geom.cc:1897`). */
+export interface IsectRayPrecalc {kx: number, ky: number, kz: number, sx: number, sy: number, sz: number}
+
+export function isectRayTriWatertightV3Precalc(dir: V3Arg): IsectRayPrecalc {
+    // `axis_dominant_v3_single`
+    const xn = Math.abs(dir[0]), yn = Math.abs(dir[1]), zn = Math.abs(dir[2])
+    const kz = (zn >= xn && zn >= yn) ? 2 : (yn >= xn) ? 1 : 0
+    let kx = kz !== 2 ? kz + 1 : 0
+    let ky = kx !== 2 ? kx + 1 : 0
+    // Swap kx and ky dimensions to preserve winding direction of triangles.
+    if (dir[kz] < 0) [kx, ky] = [ky, kx]
+    const invDirZ = 1 / dir[kz]
+    return {kx, ky, kz, sx: dir[kx] * invDirZ, sy: dir[ky] * invDirZ, sz: invDirZ}
+}
+
+/** `isect_ray_tri_watertight_v3` (`math_geom.cc:1924`). Returns `[lambda, u, v]` or null. */
+export function isectRayTriWatertightV3(
+    rayOrigin: V3Arg, pre: IsectRayPrecalc,
+    v0: V3Arg, v1: V3Arg, v2: V3Arg,
+): [number, number, number] | null {
+    const {kx, ky, kz, sx, sy, sz} = pre
+    const a = v3sub(v0, rayOrigin)
+    const b = v3sub(v1, rayOrigin)
+    const c = v3sub(v2, rayOrigin)
+    const ax = a[kx] - sx * a[kz]
+    const ay = a[ky] - sy * a[kz]
+    const bx = b[kx] - sx * b[kz]
+    const by = b[ky] - sy * b[kz]
+    const cx = c[kx] - sx * c[kz]
+    const cy = c[ky] - sy * c[kz]
+    const u = cx * by - cy * bx
+    const v = ax * cy - ay * cx
+    const w = bx * ay - by * ax
+    if ((u < 0 || v < 0 || w < 0) && (u > 0 || v > 0 || w > 0)) return null
+    const det = u + v + w
+    if (det === 0 || !isFinite(det)) return null
+    const t = (u * a[kz] + v * b[kz] + w * c[kz]) * sz
+    // `xor_fl(t, sign_det)`: flip the sign of `t` when `det` is negative.
+    const signT = det < 0 || Object.is(det, -0) ? -t : t
+    if (signT < 0) return null
+    const invDet = 1 / det
+    return [t * invDet, u * invDet, v * invDet]
+}
+
+/** `interp_v3_v3v3v3_uv` (`math_vector.cc:166`). */
+export const interpV3V3V3Uv = (v1: V3Arg, v2: V3Arg, v3: V3Arg, u: number, v: number): Vec3 => [
+    v1[0] + (v2[0] - v1[0]) * u + (v3[0] - v1[0]) * v,
+    v1[1] + (v2[1] - v1[1]) * u + (v3[1] - v1[1]) * v,
+    v1[2] + (v2[2] - v1[2]) * u + (v3[2] - v1[2]) * v,
+]
+
+/** `isect_ray_plane_v3_factor` (`math_geom.cc:1815`). */
+export function isectRayPlaneV3Factor(rayOrigin: V3Arg, rayDirection: V3Arg, planeCo: V3Arg, planeNo: V3Arg): number | null {
+    const dot = v3dot(planeNo, rayDirection)
+    if (dot === 0) return null
+    return -v3dot(planeNo, v3sub(rayOrigin, planeCo)) / dot
+}
+
+/** `isect_ray_plane_v3` (`math_geom.cc:1831`), via `plane_to_point_vector_v3`. */
+export function isectRayPlaneV3(rayOrigin: V3Arg, rayDirection: V3Arg, plane: V3Arg, clip: boolean): number | null {
+    // `plane_to_point_vector_v3`: co = -d * n / |n|^2, no = n.
+    const lenSq = lenSquaredV3(plane)
+    const planeCo = v3mul(plane, -plane[3] / lenSq)
+    const lambda = isectRayPlaneV3Factor(rayOrigin, rayDirection, planeCo, plane)
+    if (lambda === null) return null
+    if (clip && lambda < 0) return null
+    return lambda
+}
+
+/** `isect_ray_line_v3` (`math_geom.cc:2142`). */
+export function isectRayLineV3(rayOrigin: V3Arg, rayDirection: V3Arg, v0: V3Arg, v1: V3Arg): number | null {
+    const a = v3sub(v1, v0)
+    const t = v3sub(v0, rayOrigin)
+    const n = v3cross(a, rayDirection)
+    const nlen = lenSquaredV3(n)
+    // The lines are parallel.
+    if (nlen === 0) return null
+    const c = v3sub(n, t)
+    const cray = v3cross(c, rayDirection)
+    return v3dot(cray, n) / nlen
+}
+
+/** `closest_ray_to_segment_v3` (`math_geom.cc:425`). */
+export function closestRayToSegmentV3(rayOrigin: V3Arg, rayDirection: V3Arg, v0: V3Arg, v1: V3Arg): Vec3 {
+    const lambda = isectRayLineV3(rayOrigin, rayDirection, v0, v1)
+    if (lambda === null || lambda <= 0) return [v0[0], v0[1], v0[2]]
+    if (lambda >= 1) return [v1[0], v1[1], v1[2]]
+    return v3lerp(v0, v1, lambda)
+}
+
+/** `isect_line_plane_v3` (`math_geom.cc:2192`). */
+export function isectLinePlaneV3(l1: V3Arg, l2: V3Arg, planeCo: V3Arg, planeNo: V3Arg): Vec3 | null {
+    const u = v3sub(l2, l1)
+    const h = v3sub(l1, planeCo)
+    const dot = v3dot(planeNo, u)
+    if (Math.abs(dot) > FLT_EPSILON) {
+        const lambda = -v3dot(planeNo, h) / dot
+        return maddV3V3V3Fl(l1, u, lambda)
+    }
+    // The segment is parallel to plane
+    return null
+}
+
+/** `isect_ray_ray_epsilon_v3` (`math_geom.cc:3118`) with `FLT_MIN`, as `isect_ray_ray_v3` (`:3154`). Returns `lambda_a`. */
+export function isectRayRayV3(originA: V3Arg, dirA: V3Arg, originB: V3Arg, dirB: V3Arg): number | null {
+    const n = v3cross(dirB, dirA)
+    const nlen = lenSquaredV3(n)
+    // The lines are parallel.
+    if (nlen < FLT_MIN) return null
+    const t = v3sub(originB, originA)
+    const c = v3sub(n, t)
+    const cray = v3cross(c, dirB)
+    return v3dot(cray, n) / nlen
+}
+
+/** `is_quad_flip_v3_first_third_fast` (`math_geom.cc:5609`). */
+export function isQuadFlipV3FirstThirdFast(v1: V3Arg, v2: V3Arg, v3: V3Arg, v4: V3Arg): boolean {
+    const d12 = v3sub(v2, v1)
+    const d13 = v3sub(v3, v1)
+    const d14 = v3sub(v4, v1)
+    return v3dot(v3cross(d12, d13), v3cross(d14, d13)) > 0
+}
+
+/** `isect_point_poly_v2` (`math_geom.cc:1533`). */
+export function isectPointPolyV2(pt: V2Arg, verts: readonly V2Arg[], nr: number): boolean {
+    let isect = false
+    for (let i = 0, j = nr - 1; i < nr; j = i++) {
+        if (((verts[i][1] > pt[1]) !== (verts[j][1] > pt[1])) &&
+            (pt[0] < (verts[j][0] - verts[i][0]) * (pt[1] - verts[i][1]) / (verts[j][1] - verts[i][1]) + verts[i][0])) {
+            isect = !isect
+        }
+    }
+    return isect
 }
 
 // endregion

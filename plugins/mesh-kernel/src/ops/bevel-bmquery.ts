@@ -19,6 +19,7 @@ import {
     M3, V3, angleNormalizedV3V3, axisDominantV3ToM3, crossV3V3V3, dotV3V3, lenV3V3, midV3V3V3,
     mulV2M3V3, nv3, subV3V3V3,
 } from './bevel-math'
+import {isectPointPolyV2} from '../math/geom'
 
 /** A vertex position as a fresh array. Blender's `v->co`. */
 export const co = (v: BMVert): V3 => [v.x, v.y, v.z]
@@ -156,18 +157,6 @@ export function faceCalcCenterBounds(f: BMFace, rCent: V3): void {
         l = l.next
     } while (l !== f.lFirst)
     midV3V3V3(rCent, min, max)
-}
-
-/** `isect_point_poly_v2` (`math_geom.cc:1533`) - the crossing-number test. */
-export function isectPointPolyV2(pt: readonly number[], verts: readonly (readonly number[])[], nr: number): boolean {
-    let isect = false
-    for (let i = 0, j = nr - 1; i < nr; j = i++) {
-        if (((verts[i][1] > pt[1]) !== (verts[j][1] > pt[1])) &&
-            (pt[0] < (verts[j][0] - verts[i][0]) * (pt[1] - verts[i][1]) / (verts[j][1] - verts[i][1]) + verts[i][0])) {
-            isect = !isect
-        }
-    }
-    return isect
 }
 
 /** `BM_face_point_inside_test` (`bmesh_polygon.cc:1081`) - in the face's own plane. */
