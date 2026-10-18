@@ -4127,8 +4127,10 @@ test('modelling-editor', async({page}) => {
     await shot('11-cheatsheet')
     const search = sheet.locator('[data-cheatsheet-search]')
     await search.fill('extrude')
-    await expect(sheet.locator('[data-shortcut-row]')).toHaveCount(1)
+    // E, and Alt+E for Blender's Extrude menu (`VIEW3D_MT_edit_mesh_extrude`).
+    await expect(sheet.locator('[data-shortcut-row]')).toHaveCount(2)
     await expect(sheet.locator('[data-shortcut-row="mesh.extrude"]')).toBeVisible()
+    await expect(sheet.locator('[data-shortcut-row="mesh.extrude_menu"] kbd')).toHaveText('Alt+E')
     await search.fill('ctrl+z')
     await expect(sheet.locator('[data-shortcut-row="edit.undo"]')).toBeVisible()
     await expect(sheet.locator('[data-shortcut-row="mesh.extrude"]')).toHaveCount(0)
