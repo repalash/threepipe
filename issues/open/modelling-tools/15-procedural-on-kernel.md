@@ -275,6 +275,14 @@ rounding of each intermediate, as C does. Parity tolerances: topology, ints, ids
 order exact; positions/transforms ≤ 1e-5 absolute (≤ 4 ulp relative for large coordinates); any looser
 tolerance is a filed issue, not a constant.
 
+**Measured (2026-10-18, `tests/parity/cases/textures.status.json`):** 126 texture cases against Blender 5.2.2
+on the maintainer's Mac (arm64): 108 bit-exact. The other 18 are exactly the cases that call `powf`
+(Voronoi Minkowski), `sinf` (Wave SIN profile) or `atan2f` (Gradient radial): Apple's libm is not correctly
+rounded for these, while JS computes them in double and rounds once (`f32(Math.sin(x))`), so single results
+differ by 1 ulp and grow where later arithmetic cancels (up to ~1e-6 absolute). These can't be bit-exact
+without reproducing a platform libm (Blender on Linux/Windows would differ from macOS too); they pass at
+1e-5 and the status file records the ulp distance per case.
+
 ---
 
 ## 3. First subset — nodes in dependency order
