@@ -1,0 +1,181 @@
+{
+ "blender-procedural-buildings": {
+  "Building 1": {
+   "X": "changes at 6 (233 of 470 nodes re-run)",
+   "Y": "changes at 4 (233 of 470 nodes re-run)",
+   "Z": "changes at 6 (158 of 470 nodes re-run)",
+   "Top floors": "changes at 3 (107 of 470 nodes re-run)",
+   "Modules length": "changes at 3.3000000000000003 (273 of 470 nodes re-run)",
+   "Ground floor height": "changes at 3.8500000000000005 (111 of 470 nodes re-run)",
+   "Window height": "changes at 4.4 (122 of 470 nodes re-run)",
+   "Div height": "changes at 0.6600000262260437 (66 of 470 nodes re-run)",
+   "GF": "not perturbed: object input",
+   "GF corner": "not perturbed: object input",
+   "Window": "not perturbed: object input",
+   "Window corner": "not perturbed: object input",
+   "TF window": "not perturbed: object input",
+   "TF window corner": "not perturbed: object input",
+   "Div side": "not perturbed: object input",
+   "Div corner": "not perturbed: object input",
+   "Roof side": "not perturbed: object input",
+   "Roof middle": "not perturbed: object input",
+   "Roof corner": "not perturbed: object input",
+   "Extra 1": "not perturbed: collection input",
+   "Amount": "changes at 49 (8 of 470 nodes re-run)",
+   "Seed": "changes at 2 (7 of 470 nodes re-run)",
+   "Include normal windows": "changes at false (8 of 470 nodes re-run)",
+   "Include top flors": "changes at false (8 of 470 nodes re-run)",
+   "Extra 2": "not perturbed: collection input",
+   "Extra GF 1": "not perturbed: collection input",
+   "Include sides": "changes at false (8 of 470 nodes re-run)",
+   "Include corners": "changes at false (8 of 470 nodes re-run)",
+   "Extra GF 2": "not perturbed: collection input"
+  },
+  "Building 2": {
+   "X": "changes at 9 (233 of 470 nodes re-run)",
+   "Y": "changes at 6 (233 of 470 nodes re-run)",
+   "Z": "changes at 6 (158 of 470 nodes re-run)",
+   "Top floors": "changes at 2 (107 of 470 nodes re-run)",
+   "Modules length": "changes at 2.2 (273 of 470 nodes re-run)",
+   "Ground floor height": "changes at 3.8500000000000005 (111 of 470 nodes re-run)",
+   "Window height": "changes at 4.179999947547913 (122 of 470 nodes re-run)",
+   "Div height": "changes at 0.44000000655651095 (66 of 470 nodes re-run)",
+   "GF": "not perturbed: object input",
+   "GF corner": "not perturbed: object input",
+   "Window": "not perturbed: object input",
+   "Window corner": "not perturbed: object input",
+   "TF window": "not perturbed: object input",
+   "TF window corner": "not perturbed: object input",
+   "Div side": "not perturbed: object input",
+   "Div corner": "not perturbed: object input",
+   "Roof side": "not perturbed: object input",
+   "Roof middle": "not perturbed: object input",
+   "Roof corner": "not perturbed: object input",
+   "Extra 1": "not perturbed: collection input",
+   "Amount": "changes at 51 (8 of 470 nodes re-run)",
+   "Seed": "changes at 3 (7 of 470 nodes re-run)",
+   "Include normal windows": "changes at false (8 of 470 nodes re-run)",
+   "Include top flors": "changes at false (8 of 470 nodes re-run)",
+   "Extra 2": "not perturbed: collection input",
+   "Extra GF 1": "not perturbed: collection input",
+   "Include sides": "changes at false (8 of 470 nodes re-run)",
+   "Include corners": "changes at false (8 of 470 nodes re-run)",
+   "Extra GF 2": "not perturbed: collection input"
+  },
+  "Building 3": {
+   "X": "changes at 6 (233 of 470 nodes re-run)",
+   "Y": "changes at 5 (233 of 470 nodes re-run)",
+   "Z": "changes at 6 (158 of 470 nodes re-run)",
+   "Top floors": "changes at 2 (107 of 470 nodes re-run)",
+   "Modules length": "changes at 2.8599998950958256 (273 of 470 nodes re-run)",
+   "Ground floor height": "changes at 4.179999947547913 (111 of 470 nodes re-run)",
+   "Window height": "changes at 3.8500000000000005 (122 of 470 nodes re-run)",
+   "Div height": "changes at 0.44000000655651095 (66 of 470 nodes re-run)",
+   "GF": "not perturbed: object input",
+   "GF corner": "not perturbed: object input",
+   "Window": "not perturbed: object input",
+   "Window corner": "not perturbed: object input",
+   "TF window": "not perturbed: object input",
+   "TF window corner": "not perturbed: object input",
+   "Div side": "not perturbed: object input",
+   "Div corner": "not perturbed: object input",
+   "Roof side": "not perturbed: object input",
+   "Roof middle": "not perturbed: object input",
+   "Roof corner": "not perturbed: object input",
+   "Extra 1": "not perturbed: collection input",
+   "Amount": "changes at 99 (8 of 470 nodes re-run)",
+   "Seed": "no change (tried 4, 2, -2147483648, 2147483647, 0, 13)",
+   "Include normal windows": "changes at false (8 of 470 nodes re-run)",
+   "Include top flors": "changes at false (8 of 470 nodes re-run)",
+   "Extra 2": "not perturbed: collection input",
+   "Extra GF 1": "not perturbed: collection input",
+   "Include sides": "changes at true (8 of 470 nodes re-run)",
+   "Include corners": "changes at false (8 of 470 nodes re-run)",
+   "Extra GF 2": "not perturbed: collection input"
+  }
+ },
+ "buildify_1.0": {
+  "antenna_a": {
+   "Angle": "changes at 0.8639380037784578 (4 of 7 nodes re-run)"
+  },
+  "antenna_b": {
+   "Angle": "changes at 0.7103490471839905 (4 of 7 nodes re-run)"
+  },
+  "building_base": {
+   "- BLOSM or ADE -": "changes at false (248 of 458 nodes re-run)",
+   "- Randomize floor numbers - ": "changes at false (252 of 458 nodes re-run)",
+   "Min number of floors": "changes at 5 (251 of 458 nodes re-run)",
+   "Max number of floors": "changes at 0 (239 of 458 nodes re-run)",
+   "Module width": "changes at 3.3000000000000003 (152 of 458 nodes re-run)",
+   "Module height": "changes at 3.3000000000000003 (142 of 458 nodes re-run)"
+  },
+  "ground_floor_wall_01": {
+   "Angle": "changes at 0.6094689667224884 (4 of 7 nodes re-run)"
+  },
+  "roof_window_glass": {
+   "Angle": "changes at 0 (4 of 7 nodes re-run)"
+  },
+  "rotating_chimney": {
+   "Angle": "changes at 0.471238911151886 (4 of 7 nodes re-run)"
+  },
+  "satelite": {
+   "Angle": "changes at 0 (4 of 7 nodes re-run)"
+  },
+  "small_chimney_pointy": {
+   "Angle": "changes at 0 (4 of 7 nodes re-run)"
+  },
+  "small_chimney_round": {
+   "Angle": "changes at 0 (4 of 7 nodes re-run)"
+  },
+  "street_sign_a": {
+   "Angle": "changes at 0 (4 of 7 nodes re-run)"
+  },
+  "street_sign_b": {
+   "Angle": "changes at 0 (4 of 7 nodes re-run)"
+  },
+  "top_trim_pillar": {
+   "Angle": "no change (tried 0.5759586691856384, 0.471238911151886, 0, 3.1415927410125732)",
+   "(input geometry)": "empty"
+  },
+  "top_trim_pillar_CC": {
+   "Angle": "changes at 0.5759586691856384 (4 of 7 nodes re-run)"
+  },
+  "top_trim_pillar_CV": {
+   "Angle": "changes at 0.5759586691856384 (4 of 7 nodes re-run)"
+  },
+  "trimm": {
+   "Angle": "changes at 0.5759586691856384 (4 of 7 nodes re-run)"
+  }
+ },
+ "candy_bounce": {
+  "geonodes_floor": {
+   "(input geometry)": "empty"
+  },
+  "geonodes_jumpers": {
+   "object selection": "changes at 1 (13 of 38 nodes re-run)",
+   "instance density": "changes at 21 (7 of 38 nodes re-run)",
+   "animation speed": "changes at 0.22000000327825547 (14 of 38 nodes re-run)",
+   "height": "changes at 0.55 (10 of 38 nodes re-run)",
+   "(input geometry)": "empty"
+  },
+  "geonodes_well": {
+   "(input geometry)": "empty"
+  }
+ },
+ "flower_scattering": {
+  "EN-ground_plane_NEW": {
+   "Grass Density": "changes at 3.3000000000000003 (13 of 73 nodes re-run)",
+   "Grass Random Tilt": "changes at 0.22000000327825547 (17 of 73 nodes re-run)",
+   "Flowers 1": "not perturbed: collection input",
+   "Flowers 2": "not perturbed: collection input",
+   "Flower Distance": "changes at 0.05500000081956387 (14 of 73 nodes re-run)",
+   "Flower Density": "changes at 0.11000000163912774 (15 of 73 nodes re-run)",
+   "Seed": "changes at 1 (59 of 73 nodes re-run)",
+   "UV": "not perturbed: reads attribute \"UVMap\""
+  }
+ },
+ "pebble_scattering": {},
+ "repeat_zone_flower_by_MiRA": {
+  "Rose": {}
+ }
+}

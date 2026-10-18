@@ -1,0 +1,10 @@
+{
+    "extends": [
+        "../../typedoc.json"
+    ],
+    "entryPoints": [
+        "src/index.ts"
+    ],
+    "name": "Threepipe Procedural (Geometry Nodes)",
+    "readme": "none"
+}

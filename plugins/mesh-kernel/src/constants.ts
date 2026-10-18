@@ -21,9 +21,22 @@ export enum AttrDomain {
     Edge = 1,
     Face = 2,
     Corner = 3,
+    /**
+     * A whole curve of a curves geometry (`AttrDomain::Curve`). Not used by `MeshData`; here so curves,
+     * point clouds and instances (`@threepipe/plugin-procedural`) share this attribute storage.
+     */
+    Curve = 4,
+    /** An instance of an instances component (`AttrDomain::Instance`). Not used by `MeshData`. */
+    Instance = 5,
 }
 
+/** The four mesh domains. `MeshData` uses only these. */
 export const ATTR_DOMAINS = [AttrDomain.Point, AttrDomain.Edge, AttrDomain.Face, AttrDomain.Corner] as const
+
+/** Every domain an {@link AttributeStorage} can hold: the mesh domains plus Curve and Instance. */
+export const ALL_ATTR_DOMAINS = [
+    AttrDomain.Point, AttrDomain.Edge, AttrDomain.Face, AttrDomain.Corner, AttrDomain.Curve, AttrDomain.Instance,
+] as const
 
 export function attrDomainName(domain: AttrDomain): string {
     switch (domain) {
@@ -31,6 +44,8 @@ export function attrDomainName(domain: AttrDomain): string {
     case AttrDomain.Edge: return 'edge'
     case AttrDomain.Face: return 'face'
     case AttrDomain.Corner: return 'corner'
+    case AttrDomain.Curve: return 'curve'
+    case AttrDomain.Instance: return 'instance'
     default: return `unknown(${domain})`
     }
 }
@@ -51,6 +66,7 @@ export type AttrType =
     | 'float4'
     | 'byteColor'
     | 'quaternion'
+    | 'float4x4'
 
 export interface AttrTypeInfo {
     /** Number of scalar components per element. */
@@ -87,6 +103,8 @@ export const ATTR_TYPE_INFO: Readonly<Record<AttrType, AttrTypeInfo>> = {
     float4: {components: 4, array: Float32Array, defaultValue: 0},
     byteColor: {components: 4, array: Uint8Array, defaultValue: 255},
     quaternion: {components: 4, array: Float32Array, defaultValue: 0},
+    /** Column-major 4x4 (`float4x4`), e.g. instance transforms. Not used on mesh domains by the kernel. */
+    float4x4: {components: 16, array: Float32Array, defaultValue: 0},
 }
 
 export function isAttrType(v: string): v is AttrType {

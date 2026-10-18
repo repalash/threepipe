@@ -1,0 +1,6 @@
+{
+ "svd-random": "exact",
+ "svd-binary": "exact",
+ "svd-signs": "exact",
+ "svd-magnitudes": "exact"
+}

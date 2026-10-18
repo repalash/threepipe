@@ -10,7 +10,7 @@
 import {
     ArrayConstructor2,
     AttrDomain,
-    ATTR_DOMAINS,
+    ALL_ATTR_DOMAINS,
     ATTR_TYPE_INFO,
     AttrType,
     attrDomainName,
@@ -50,11 +50,43 @@ function allocate(type: AttrType, count: number): TypedArray2 {
 export class AttributeStorage {
     private _layers = new Map<string, AttributeLayer>()
 
-    /** Current element count per domain, indexed by {@link AttrDomain}. */
-    readonly domainSizes: number[] = [0, 0, 0, 0]
+    /**
+     * Current element count per domain, indexed by {@link AttrDomain}: the four mesh domains, then Curve
+     * and Instance (zero on a mesh).
+     */
+    readonly domainSizes: number[] = [0, 0, 0, 0, 0, 0]
 
-    constructor(domainSizes?: Partial<Record<AttrDomain, number>>) {
-        if (domainSizes) for (const d of ATTR_DOMAINS) this.domainSizes[d] = domainSizes[d] ?? 0
+    /**
+     * Built-in attribute shapes this storage enforces on {@link add}. A mesh's storage uses the mesh
+     * table ({@link BUILTIN_ATTRS}); point clouds, curves and instances pass their own, since the same
+     * name can mean a different domain there (`material_index` is per curve on curves).
+     */
+    get builtins(): Readonly<Record<string, {domain: AttrDomain, type: AttrType}>> {
+        return this._builtins
+    }
+
+    private _builtins: Readonly<Record<string, {domain: AttrDomain, type: AttrType}>>
+
+    /**
+     * Replace the built-in table, e.g. with Blender's smaller mesh table (geometry nodes may put `.select_poly`
+     * on points, which the kernel's table forbids). Throws if an existing layer does not fit the new table.
+     */
+    setBuiltins(builtins: Readonly<Record<string, {domain: AttrDomain, type: AttrType}>>): void {
+        for (const layer of this._layers.values()) {
+            const b = Object.prototype.hasOwnProperty.call(builtins, layer.name) ? builtins[layer.name] : undefined
+            if (b && (b.domain !== layer.domain || b.type !== layer.type)) {
+                throw new Error(`mesh-kernel: attribute '${layer.name}' (${attrDomainName(layer.domain)}/${layer.type}) does not fit the new built-in table`)
+            }
+        }
+        this._builtins = builtins
+    }
+
+    constructor(
+        domainSizes?: Partial<Record<AttrDomain, number>>,
+        builtins: Readonly<Record<string, {domain: AttrDomain, type: AttrType}>> = BUILTIN_ATTRS,
+    ) {
+        if (domainSizes) for (const d of ALL_ATTR_DOMAINS) this.domainSizes[d] = domainSizes[d] ?? 0
+        this._builtins = builtins
     }
 
     get size(): number {
@@ -103,7 +135,7 @@ export class AttributeStorage {
      */
     add({name, domain, type, data}: AttributeInit): AttributeLayer {
         if (this._layers.has(name)) throw new Error(`mesh-kernel: attribute '${name}' already exists`)
-        const builtin = BUILTIN_ATTRS[name]
+        const builtin = Object.prototype.hasOwnProperty.call(this.builtins, name) ? this.builtins[name] : undefined
         if (builtin && (builtin.domain !== domain || builtin.type !== type)) {
             throw new Error(
                 `mesh-kernel: built-in attribute '${name}' must be ${attrDomainName(builtin.domain)}/${builtin.type}, ` +
@@ -154,8 +186,8 @@ export class AttributeStorage {
 
     /** Deep copy, including the contents of every layer. */
     clone(): AttributeStorage {
-        const out = new AttributeStorage()
-        for (const d of ATTR_DOMAINS) out.domainSizes[d] = this.domainSizes[d]
+        const out = new AttributeStorage(undefined, this.builtins)
+        for (const d of ALL_ATTR_DOMAINS) out.domainSizes[d] = this.domainSizes[d]
         for (const layer of this._layers.values()) {
             out._layers.set(layer.name, {
                 name: layer.name,

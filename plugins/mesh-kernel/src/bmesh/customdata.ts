@@ -94,6 +94,9 @@ function interpFor(type: AttrType): BMLayerInterp {
     case 'int32x2':
     case 'int16x2':
         return 'none'
+    // `CD_PROP_FLOAT4X4` (:1721) declares no `.interp` either.
+    case 'float4x4':
+        return 'none'
     }
 }
 

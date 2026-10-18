@@ -1,0 +1,20 @@
+{
+ "image-linear-repeat": "exact",
+ "image-linear-extend": "exact",
+ "image-linear-clip": "exact",
+ "image-linear-mirror": "exact",
+ "image-closest-repeat": "exact",
+ "image-closest-extend": "exact",
+ "image-closest-clip": "exact",
+ "image-closest-mirror": "exact",
+ "image-cubic-repeat": "exact",
+ "image-cubic-extend": "exact",
+ "image-cubic-clip": "exact",
+ "image-cubic-mirror": "exact",
+ "image-alpha-premul": "exact",
+ "image-alpha-channel_packed": "exact",
+ "image-alpha-none": "exact",
+ "image-non-color": "exact",
+ "image-single-vector": "exact",
+ "image-none": "exact"
+}

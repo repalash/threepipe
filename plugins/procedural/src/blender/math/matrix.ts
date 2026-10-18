@@ -1,0 +1,3 @@
+// Moved to @threepipe/mesh-kernel (`src/blender/math/matrix.ts`): one implementation, shared with the kernel's subdivision.
+export {determinant3, eulerToMat3, eulerToQuat, isIdentityTransform, isNegative3, mat3FromMat4, mat3Identity, mat3ToEuler, mat3ToQuat, mat4FromLocEulerScale, mat4FromLocQuatScale, mat4FromLocRot3Scale, blenderMat4Identity as mat4Identity, blenderMat4Multiply as mat4Multiply, mat4ToLocEulerScale, mat4ToLocQuatScaleSafe, mat4ToScale, normalizeAndGetSize3, normalizedToEul2, normalizedToQuatFast, normalizedToQuatSafe, quatToMat3, transformPoint} from '@threepipe/mesh-kernel'
+export type {Float3x3, Float4x4} from '@threepipe/mesh-kernel'

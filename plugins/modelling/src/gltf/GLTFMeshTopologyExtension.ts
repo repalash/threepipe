@@ -63,6 +63,18 @@ export interface MeshTopologyHooks {
     read(object: Object3D): {mesh: MeshData, modifiers: ModifierSpec[]} | null
     /** Called on import for every object that carried topology. */
     write(object: IObject3D, mesh: MeshData, modifiers: ModifierSpec[]): void
+    /**
+     * Document-level JSON data to save (e.g. the node groups `geometryNodes` modifiers use), stored at
+     * the glTF root as `extensions.THREEPIPE_mesh_topology.document`. Undefined writes nothing.
+     */
+    readDocument?(): Record<string, unknown> | undefined
+    /** Called on import with the saved document data, before any object is restored. */
+    writeDocument?(data: Record<string, unknown>): void
+}
+
+/** What the extension writes at the glTF root. */
+export interface MeshTopologyRootDef {
+    document?: Record<string, unknown>
 }
 
 export const MESH_TOPOLOGY_EXTENSION = 'THREEPIPE_mesh_topology'
@@ -100,6 +112,14 @@ export class GLTFMeshTopologyExtension {
     // region export
 
     private _export = (writer: GLTFWriter): GLTFExporterPlugin => ({
+        afterParse: () => {
+            const data = this._hooks.readDocument?.()
+            if (!data || !Object.keys(data).length) return
+            const json = (writer as unknown as {json: {extensions?: Record<string, unknown>}}).json
+            if (!json.extensions) json.extensions = {}
+            json.extensions[MESH_TOPOLOGY_EXTENSION] = {document: JSON.parse(JSON.stringify(data))} satisfies MeshTopologyRootDef
+            writer.extensionsUsed[MESH_TOPOLOGY_EXTENSION] = true
+        },
         writeMesh: (object: Object3D, meshDef: any) => {
             const source = this._hooks.read(object)
             if (!source) return
@@ -120,6 +140,9 @@ export class GLTFMeshTopologyExtension {
         // which is the only point at which the objects exist. Same trick as GLTFObject3DExtras.
         name: '__' + MESH_TOPOLOGY_EXTENSION,
         afterRoot: async(result: GLTF) => {
+            // Document data first: restored objects' modifiers may read it when they are evaluated.
+            const root = (parser.json?.extensions?.[MESH_TOPOLOGY_EXTENSION] ?? undefined) as MeshTopologyRootDef | undefined
+            if (root?.document) this._hooks.writeDocument?.(root.document)
             const scenes = result.scenes || (result.scene ? [result.scene] : [])
             const pending: Promise<void>[] = []
             for (const scene of scenes) {

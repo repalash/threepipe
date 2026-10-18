@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Procedural editor (geometry nodes)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+
+    <script type="importmap">
+    {
+        "imports": {
+          "threepipe": "./../../dist/index.mjs",
+          "@threepipe/mesh-kernel": "./../../plugins/mesh-kernel/dist/index.mjs",
+          "@threepipe/plugin-mesh-edit": "./../../plugins/mesh-edit/dist/index.mjs",
+          "@threepipe/plugin-modelling": "./../../plugins/modelling/dist/index.mjs",
+          "@threepipe/plugin-editor-engine": "./../../plugins/editor-engine/dist/index.mjs",
+          "@threepipe/plugin-modelling-editor": "./../../plugins/modelling-editor/dist/index.mjs",
+          "@threepipe/plugin-procedural": "./../../plugins/procedural/dist/index.mjs",
+          "@threepipe/plugin-procedural/plugin": "./../../plugins/procedural/dist/plugin.mjs"
+        }
+    }
+    </script>
+    <style id="example-style">
+        html, body, #editor {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+            background: #1c1d22;
+        }
+    </style>
+    <script type="module" src="../examples-utils/global-loading.mjs"></script>
+    <script id="example-script" type="module" src="./script.js" data-scripts="./script.ts;./script.js"></script>
+</head>
+<body>
+<div id="editor"></div>
+</body>
+</html>

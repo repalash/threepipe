@@ -225,6 +225,42 @@ describe('AttributeStorage', () => {
         copy.get('w')!.data[0] = 9
         expect(store.get('w')!.data[0]).toBe(1)
     })
+
+    // Curve and Instance carry Blender's `AttrDomain` values (`BKE_attribute_enums.hh:40-56`), so curves,
+    // point clouds and instances in @threepipe/plugin-procedural use this same storage.
+    it('holds curve and instance domains with Blender enum values', () => {
+        expect(AttrDomain.Curve).toBe(4)
+        expect(AttrDomain.Instance).toBe(5)
+        const store = new AttributeStorage({[AttrDomain.Point]: 4, [AttrDomain.Curve]: 2, [AttrDomain.Instance]: 3})
+        expect(store.domainSizes).toEqual([4, 0, 0, 0, 2, 3])
+        store.add({name: 'cyclic', domain: AttrDomain.Curve, type: 'bool', data: [1, 0]})
+        store.resizeDomain(AttrDomain.Curve, 3)
+        expect(Array.from(store.get('cyclic')!.data)).toEqual([1, 0, 0])
+        const copy = store.clone()
+        expect(copy.domainSizes).toEqual([4, 0, 0, 0, 3, 3])
+        expect(copy.validate()).toEqual([])
+    })
+
+    it('enforces the built-in table it was given, and keeps it on clone', () => {
+        // Curves keep `material_index` per curve, not per face (`curves_attributes.cc:259`).
+        const curveBuiltins = {material_index: {domain: AttrDomain.Curve, type: 'int32' as const}}
+        const store = new AttributeStorage({[AttrDomain.Curve]: 2}, curveBuiltins)
+        expect(() => store.add({name: 'material_index', domain: AttrDomain.Curve, type: 'int32'})).not.toThrow()
+        const copy = store.clone()
+        copy.remove('material_index')
+        expect(() => copy.add({name: 'material_index', domain: AttrDomain.Face, type: 'int32'})).toThrow(/must be curve\/int32/)
+        // The default stays the mesh table.
+        expect(() => new AttributeStorage({[AttrDomain.Curve]: 1}).add({name: 'material_index', domain: AttrDomain.Curve, type: 'int32'}))
+            .toThrow(/must be face\/int32/)
+    })
+
+    it('stores float4x4 as 16 floats per element', () => {
+        const store = new AttributeStorage({[AttrDomain.Instance]: 2})
+        const layer = store.add({name: 'instance_transform', domain: AttrDomain.Instance, type: 'float4x4'})
+        expect(layer.data).toBeInstanceOf(Float32Array)
+        expect(layer.data.length).toBe(32)
+        expect(store.validate()).toEqual([])
+    })
 })
 
 describe('kernel node-safety', () => {

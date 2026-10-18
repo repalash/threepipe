@@ -1,0 +1,8 @@
+{
+ "scale-faces-uniform": "exact",
+ "scale-faces-individual": "exact",
+ "scale-faces-axis": "exact",
+ "scale-edges": "exact",
+ "scale-big-island": "exact",
+ "scale-large-islands": "blocked: from_indices_large_groups: tbb::parallel_sort / libc++ std::sort order (procedural-scale-elements-large-islands.md)"
+}

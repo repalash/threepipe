@@ -8,12 +8,14 @@
  */
 
 import React, {useEffect, useMemo, useState} from 'react'
-import {Button, Divider, Tab, Tabs} from '@blueprintjs/core'
+import {Button, Divider, HTMLSelect, Tab, Tabs} from '@blueprintjs/core'
 import {ConfigObject, UiConfigRendererContext} from 'uiconfig-blueprint/lib/esm/lib'
 import {IMaterial, IObject3D, UiObjectConfig} from 'threepipe'
-import {ModellingPlugin} from '@threepipe/plugin-modelling'
+import {describeModifier, getModifierType, modifierFields, ModellingPlugin} from '@threepipe/plugin-modelling'
+import type {PropSchema} from '@threepipe/plugin-editor-engine'
 import {MeshEditPlugin} from '@threepipe/plugin-mesh-edit'
 import {useEditor, useEngineVersion} from './EditorContext'
+import {PropsForm} from './PropsForm'
 
 function activeObject(engine: ReturnType<typeof useEditor>['engine']): IObject3D | null {
     const ctx = engine.context()
@@ -74,28 +76,52 @@ function MeshTab({object}: {object: IObject3D}) {
 function ModifiersTab({object}: {object: IObject3D}) {
     const {engine} = useEditor()
     useEngineVersion('sceneChanged', 'historyChanged')
+    const [code, setCode] = useState<{index: number, text: string} | null>(null)
+    const [group, setGroup] = useState('')
     const modelling = engine.viewer.getPlugin(ModellingPlugin)
     const entry = modelling?.document.find(object.uuid)
     if (!modelling) return <div className="me-empty">ModellingPlugin is not loaded.</div>
     if (!entry) return <div className="me-empty">Only objects created with Add (document objects) carry a modifier stack. Imported meshes join the document in a later phase.</div>
     const run = (cmd: Record<string, unknown>) => modelling.run({op: 'modifier', object: entry.name, ...cmd} as never)
+    // Geometry nodes are offered when a package registered the modifier type and the document has node groups.
+    const groups = Object.keys(modelling.document.getData<Record<string, unknown>>('nodeGroups') ?? {})
+    const canAddNodes = !!getModifierType('geometryNodes') && groups.length > 0
+    const showCode = async(index: number, name: string) => {
+        if (code?.index === index) return setCode(null)
+        const result = await modelling.run({op: 'nodeGroup', name, describe: true, code: true} as never)
+        setCode({index, text: result.ok ? (result.data as {code: string}[])[0].code : result.error ?? ''})
+    }
     return <div className="me-props-scroll me-modifiers">
         {entry.modifiers.length === 0 && <div className="me-empty">No modifiers.</div>}
-        {entry.modifiers.map((m, i) => <div className="me-modifier" key={i}>
-            <div className="me-modifier-head">
-                <span className="me-modifier-type">{m.type}</span>
-                <span className="me-spacer" />
-                <Button variant="minimal" size="small" icon="arrow-up" disabled={i === 0} title="Move up" onClick={() => run({index: i, move: i - 1})} />
-                <Button variant="minimal" size="small" icon="arrow-down" disabled={i === entry.modifiers.length - 1} title="Move down" onClick={() => run({index: i, move: i + 1})} />
-                <Button variant="minimal" size="small" icon="trash" title="Remove" onClick={() => run({index: i, remove: true})} />
+        {entry.modifiers.map((m, i) => {
+            // Every edit is one `modifier update` command: undoable, logged and the same call an agent makes.
+            const fields = modifierFields(m, modelling.document)
+            const nodeGroup = m.type === 'geometryNodes' ? String((m as {group?: unknown}).group) : undefined
+            return <div className="me-modifier" key={i} data-modifier-index={i}>
+                <div className="me-modifier-head">
+                    <span className="me-modifier-type">{m.type}</span>
+                    <span className="me-modifier-summary" title={describeModifier(m)}>{nodeGroup ?? ''}</span>
+                    <span className="me-spacer" />
+                    {nodeGroup && <Button variant="minimal" size="small" icon="code" title="Show the node group as code" active={code?.index === i} onClick={() => showCode(i, nodeGroup)} />}
+                    <Button variant="minimal" size="small" icon="arrow-up" disabled={i === 0} title="Move up" onClick={() => run({index: i, move: i - 1})} />
+                    <Button variant="minimal" size="small" icon="arrow-down" disabled={i === entry.modifiers.length - 1} title="Move down" onClick={() => run({index: i, move: i + 1})} />
+                    <Button variant="minimal" size="small" icon="trash" title="Remove" onClick={() => run({index: i, remove: true})} />
+                </div>
+                {fields
+                    ? <PropsForm schema={fields.schema as PropSchema} values={fields.values} onChange={v => run({index: i, update: fields.update(v)})} />
+                    : <table className="me-kv"><tbody>
+                        {Object.entries(m).filter(([k]) => k !== 'type').map(([k, v]) => <tr key={k}><td>{k}</td><td>{JSON.stringify(v)}</td></tr>)}
+                    </tbody></table>}
+                {code?.index === i && <pre className="me-modifier-code">{code.text}</pre>}
             </div>
-            <table className="me-kv"><tbody>
-                {Object.entries(m).filter(([k]) => k !== 'type').map(([k, v]) => <tr key={k}><td>{k}</td><td>{JSON.stringify(v)}</td></tr>)}
-            </tbody></table>
-        </div>)}
+        })}
         <div className="me-modifier-add">
             <Button size="small" icon="plus" text="Array" onClick={() => run({add: {type: 'array', mode: 'linear', count: 2, step: [1.5, 0, 0]}})} />
             <Button size="small" icon="plus" text="Mirror" onClick={() => run({add: {type: 'mirror', axis: 'x'}})} />
+            {canAddNodes && <>
+                <HTMLSelect minimal value={group || groups[0]} onChange={e => setGroup(e.currentTarget.value)} options={groups} />
+                <Button size="small" icon="plus" text="Geometry Nodes" onClick={() => run({add: {type: 'geometryNodes', group: group || groups[0], inputs: {}}})} />
+            </>}
             <Button size="small" icon="tick" text="Apply all" disabled={!entry.modifiers.length} onClick={() => run({apply: true})} />
         </div>
     </div>

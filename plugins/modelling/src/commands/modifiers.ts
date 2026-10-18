@@ -10,7 +10,7 @@
 
 import {CommandDefinition, S, schema} from './types'
 import {readTarget, readTargets} from './params'
-import {checkModifier, describeModifier, ModifierSpec, SubsurfModifierSpec, WeightedNormalModifierSpec} from '../modifiers'
+import {checkModifier, describeModifier, getModifierTypes, readModifier} from '../modifiers'
 
 export const modifierCommand: CommandDefinition = {
     op: 'modifier',
@@ -25,53 +25,8 @@ export const modifierCommand: CommandDefinition = {
     schema: schema({
         object: S.objectRef('The object whose stack to work on.'),
         objects: S.objectRef('Alias for `object`.'),
-        add: {
-            type: 'object',
-            description: 'A modifier to append. `{type: "array", mode, count, ...}`, '
-                + '`{type: "mirror", axis}`, `{type: "subsurf", levels, ...}` (Blender\'s Subdivision Surface: '
-                + 'levels 1, limit surface, creases from `crease`), `{type: "weightedNormal", mode, weight, keepSharp}` '
-                + '(Blender\'s Weighted Normal: custom normals so big faces shade flat and bevels take the bend; weight 50 '
-                + 'treats faces equally, 100 lets the largest dominate) or `{type: "wireframe", thickness, ...}`. A wireframe '
-                + 'field left out takes the Wireframe modifier\'s default (thickness 0.02, offset 0, '
-                + 'replace and evenOffset on, boundary off), which differs from the `wireframe` '
-                + 'command\'s.',
-            properties: {
-                type: {type: 'string', enum: ['array', 'mirror', 'wireframe', 'subsurf', 'weightedNormal']},
-                mode: {type: 'string', enum: ['linear', 'radial', 'curve', 'FACE_AREA', 'CORNER_ANGLE', 'FACE_AREA_WITH_ANGLE']},
-                count: {type: 'integer', minimum: 1},
-                step: {type: 'array', items: {type: 'number'}, minItems: 3, maxItems: 3},
-                angle: {type: 'number'},
-                axis: {},
-                pivot: {type: 'array', items: {type: 'number'}, minItems: 3, maxItems: 3},
-                path: {type: 'array', items: {type: 'array', items: {type: 'number'}}},
-                closed: {type: 'boolean'},
-                merge: {type: 'boolean'},
-                mergeThreshold: {type: 'number'},
-                mergeDistance: {type: 'number'},
-                center: {type: 'array', items: {type: 'number'}, minItems: 3, maxItems: 3},
-                thickness: {type: 'number', minimum: 0},
-                offset: {type: 'number'},
-                replace: {type: 'boolean'},
-                boundary: {type: 'boolean'},
-                evenOffset: {type: 'boolean'},
-                relativeOffset: {type: 'boolean'},
-                crease: {type: 'boolean'},
-                creaseWeight: {type: 'number'},
-                materialOffset: {type: 'integer'},
-                levels: {type: 'integer', minimum: 0, maximum: 6},
-                quality: {type: 'integer', minimum: 1, maximum: 10},
-                useLimitSurface: {type: 'boolean'},
-                useCreases: {type: 'boolean'},
-                boundarySmooth: {type: 'string', enum: ['ALL', 'PRESERVE_CORNERS']},
-                uvSmooth: {type: 'string', enum: ['NONE', 'PRESERVE_CORNERS', 'PRESERVE_CORNERS_AND_JUNCTIONS', 'PRESERVE_CORNERS_JUNCTIONS_AND_CONCAVE', 'PRESERVE_BOUNDARIES', 'SMOOTH_ALL']},
-                subdivisionType: {type: 'string', enum: ['CATMULL_CLARK', 'SIMPLE']},
-                weight: {type: 'integer', minimum: 1, maximum: 100},
-                threshold: {type: 'number', minimum: 0},
-                keepSharp: {type: 'boolean'},
-                useFaceInfluence: {type: 'boolean'},
-            },
-            required: ['type'],
-        },
+        // Replaced below by a getter built from the registered types; declared here to keep its place in the schema.
+        add: {type: 'object'},
         index: S.integer('Which modifier `update`, `remove` or `move` refers to.', {minimum: 0}),
         update: {type: 'object', description: 'Fields to change on the modifier at `index`.'},
         remove: S.boolean('Remove the modifier at `index`.'),
@@ -104,7 +59,7 @@ export const modifierCommand: CommandDefinition = {
 
         if (p.apply) {
             if (!entry.modifiers.length) ctx.warn(`"${entry.name}" has no modifiers to apply`)
-            entry.mesh = entry.evaluated
+            entry.mesh = entry.evaluatedRealize ? entry.evaluatedRealize(entry.evaluated) : entry.evaluated
             entry.modifiers = []
             ctx.doc.rebake(entry)
             return {objects: [entry.name], data: {applied: true, verts: entry.mesh.vertsNum}}
@@ -140,6 +95,8 @@ export const modifierCommand: CommandDefinition = {
             throw new Error('`remove`, `move` and `update` need an `index` saying which modifier')
         }
 
+        // Modifier types key their cached state by position; a stack that changed shape starts fresh.
+        if (p.add !== undefined || p.remove || p.move !== undefined) entry.modifierState?.clear()
         ctx.doc.rebake(entry)
         return {
             objects: [entry.name],
@@ -154,73 +111,30 @@ export const modifierCommand: CommandDefinition = {
 }
 
 /**
- * Read a loose parameter bag into a typed modifier.
- *
- * `mode` is inferred from which parameters are present when it is left out, by the same rule the
- * `array` command uses - so `{type: 'array', count: 6, step: [...]}` means the same thing to both.
+ * The `add` parameter's schema, built from the registered modifier types when it is read - so a type
+ * another package registers (e.g. `geometryNodes`) appears in `help` and the tool list without this
+ * command changing shape.
  */
-function readModifier(raw: Record<string, unknown>): ModifierSpec {
-    const type = raw.type
-    if (type === 'mirror') {
-        return {
-            type: 'mirror',
-            axis: (raw.axis as 'x' | 'y' | 'z') ?? 'x',
-            mergeDistance: raw.mergeDistance as number | undefined,
-            center: raw.center as ModifierSpec extends never ? never : [number, number, number] | undefined,
+function addSchema(): Record<string, unknown> {
+    const types = getModifierTypes()
+    const properties: Record<string, unknown> = {type: {type: 'string', enum: types.map(t => t.type)}}
+    for (const t of types) {
+        for (const [key, prop] of Object.entries(t.properties ?? {})) {
+            // Types sharing a field name (`mode` of array and weightedNormal) share one entry: their enums join.
+            const prev = properties[key] as {enum?: unknown[]} | undefined
+            const next = prop as {enum?: unknown[]}
+            properties[key] = prev?.enum && next.enum ? {...prev, enum: [...new Set([...prev.enum, ...next.enum])]} : prop
         }
     }
-    if (type === 'subsurf') {
-        return {
-            type: 'subsurf',
-            levels: raw.levels as number | undefined,
-            quality: raw.quality as number | undefined,
-            useLimitSurface: raw.useLimitSurface as boolean | undefined,
-            useCreases: raw.useCreases as boolean | undefined,
-            boundarySmooth: raw.boundarySmooth as SubsurfModifierSpec['boundarySmooth'],
-            uvSmooth: raw.uvSmooth as SubsurfModifierSpec['uvSmooth'],
-            subdivisionType: raw.subdivisionType as SubsurfModifierSpec['subdivisionType'],
-        }
-    }
-    if (type === 'weightedNormal') {
-        return {
-            type: 'weightedNormal',
-            mode: raw.mode as WeightedNormalModifierSpec['mode'],
-            weight: raw.weight as number | undefined,
-            threshold: raw.threshold as number | undefined,
-            keepSharp: raw.keepSharp as boolean | undefined,
-            useFaceInfluence: raw.useFaceInfluence as boolean | undefined,
-        }
-    }
-    if (type === 'wireframe') {
-        return {
-            type: 'wireframe',
-            thickness: raw.thickness as number | undefined,
-            offset: raw.offset as number | undefined,
-            replace: raw.replace as boolean | undefined,
-            boundary: raw.boundary as boolean | undefined,
-            evenOffset: raw.evenOffset as boolean | undefined,
-            relativeOffset: raw.relativeOffset as boolean | undefined,
-            crease: raw.crease as boolean | undefined,
-            creaseWeight: raw.creaseWeight as number | undefined,
-            materialOffset: raw.materialOffset as number | undefined,
-        }
-    }
-    if (type !== 'array') throw new Error(`unknown modifier type "${String(type)}"`)
-    const mode = (raw.mode as 'linear' | 'radial' | 'curve' | undefined)
-        ?? (raw.path ? 'curve' : raw.angle !== undefined || raw.pivot !== undefined ? 'radial' : 'linear')
     return {
-        type: 'array',
-        mode,
-        count: raw.count as number,
-        step: raw.step as [number, number, number] | undefined,
-        angle: raw.angle as number | undefined,
-        axis: raw.axis as [number, number, number] | undefined,
-        pivot: raw.pivot as [number, number, number] | undefined,
-        path: raw.path as [number, number, number][] | undefined,
-        closed: raw.closed as boolean | undefined,
-        merge: raw.merge as boolean | undefined,
-        mergeThreshold: raw.mergeThreshold as number | undefined,
+        type: 'object',
+        description: 'A modifier to append: '
+            + types.map(t => t.summary ?? `\`{type: "${t.type}", ...}\``).join(', ') + '.',
+        properties,
+        required: ['type'],
     }
 }
+
+Object.defineProperty(modifierCommand.schema.properties, 'add', {get: addSchema, enumerable: true, configurable: true})
 
 export const modifierCommands = [modifierCommand]

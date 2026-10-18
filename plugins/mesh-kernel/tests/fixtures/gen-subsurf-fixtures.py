@@ -5,8 +5,10 @@ Ground truth for `subdivisionSurface` (`src/subdiv/`), written by Blender's Subd
 
 Each case builds a mesh object from explicit data (`Mesh.from_pydata`), optionally with `crease_edge` /
 `crease_vert` and a UV map, adds a Subdivision Surface modifier with the case's settings, evaluates it and records
-the evaluated mesh: positions, faces (vertex indices, winding order), loose edges, and the UV map per corner.
-Blender's `subdiv_foreach` vertex order is its own, so the TypeScript side compares geometry as multisets.
+the evaluated mesh: positions, edges, faces (vertex indices, winding order), loose edges, and the UV map per corner.
+Floats are written exactly (float32 values as JSON doubles). The input's edges are recorded in Blender's order
+(`mesh_calc_edges` hash order after `from_pydata`) because `subdiv_foreach` numbers the output by coarse edge, so the
+TypeScript side can rebuild the same input and compare the output index for index.
 
 Writes `subsurf.json` beside this file.
 """
@@ -96,15 +98,17 @@ def run(name, data, mod, edge_crease=None, vert_crease=None, loose_edges=(), uv=
     res = {
         'name': name,
         'input': {'positions': co, 'faces': faces, 'looseEdges': [list(e) for e in loose_edges],
+                  'edges': [list(e.vertices) for e in me.edges],
                   'edgeCrease': [[list(p), v] for p, v in (edge_crease or [])], 'vertCrease': [list(x) for x in (vert_crease or [])], 'uv': uv},
         'modifier': {'levels': m.levels, 'quality': m.quality, 'useLimitSurface': m.use_limit_surface, 'useCreases': m.use_creases,
                      'boundarySmooth': m.boundary_smooth, 'uvSmooth': m.uv_smooth, 'type': m.subdivision_type},
-        'positions': [[round(c, 6) for c in v.co] for v in out.vertices],
+        'positions': [list(v.co) for v in out.vertices],
+        'edges': [list(e.vertices) for e in out.edges],
         'faces': [list(p.vertices) for p in out.polygons],
         'looseEdges': [list(e.vertices) for e in out.edges if e.is_loose],
     }
     if uv and out.uv_layers:
-        res['uv'] = [[round(c, 6) for c in d.uv] for d in out.uv_layers[0].data]
+        res['uv'] = [list(d.uv) for d in out.uv_layers[0].data]
     ev.to_mesh_clear()
     return res
 
@@ -148,6 +152,12 @@ cases = [
 ]
 
 out = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'subsurf.json')
-with open(out, 'w') as fp:
-    json.dump({'blender': bpy.app.version_string, 'generator': 'gen-subsurf-fixtures.py', 'cases': cases}, fp, indent=1)
+def write(path, blender, cases):
+    # one case per line, compact
+    head = json.dumps({'blender': blender, 'generator': 'gen-subsurf-fixtures.py'})[:-1]
+    with open(path, 'w') as fp:
+        fp.write(head + ', "cases": [\n' + ',\n'.join(json.dumps(c, separators=(',', ':')) for c in cases) + '\n]}\n')
+
+
+write(out, bpy.app.version_string, cases)
 print('wrote', out, len(cases), 'cases')

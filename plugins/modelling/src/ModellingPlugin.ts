@@ -26,7 +26,7 @@
 
 import {AViewerPluginEventMap, AViewerPluginSync, IObject3D, JSUndoManager, ThreeViewer} from 'threepipe'
 import type {MeshData} from '@threepipe/mesh-kernel'
-import {ModellingDocument} from './document'
+import {EntrySnapshot, ModellingDocument} from './document'
 import {HistoryEntry, ModellingHistory} from './history'
 import {CommandRegistry} from './commands/registry'
 import {Command, CommandContext, CommandDefinition, CommandResult, validateParams} from './commands/types'
@@ -261,6 +261,20 @@ export class ModellingPlugin extends AViewerPluginSync<ModellingPluginEventMap> 
                 if (!nested) this.document.endRecording()
                 this.dispatchEvent({type: 'documentChanged', document: this.document, source: 'gltf'})
             },
+            readDocument: () => {
+                const keys = this.document.dataKeys
+                return keys.length ? Object.fromEntries(keys.map(k => [k, this.document.getData(k)])) : undefined
+            },
+            // Imported data merges into what the document has, per key (a file's node groups join the
+            // session's; a group of the same name is replaced).
+            writeDocument: data => {
+                for (const [key, value] of Object.entries(data)) {
+                    const existing = this.document.getData(key)
+                    const merged = isPlainObject(existing) && isPlainObject(value) ? {...existing, ...value} : value
+                    this.document.setData(key, merged)
+                }
+                this.dispatchEvent({type: 'documentChanged', document: this.document, source: 'gltf'})
+            },
         })
         viewer.assetManager.registerGltfExtension(this._gltfExtension.extension as never)
     }
@@ -353,7 +367,8 @@ export class ModellingPlugin extends AViewerPluginSync<ModellingPluginEventMap> 
             let locality: CommandResult['locality']
             if (def.mutates && this.reportLocality) {
                 try {
-                    locality = computeLocality(command, before, this.document, targets)
+                    // Object locality: document data slots (node groups, ...) are not objects.
+                    locality = computeLocality(command, before.filter((b): b is EntrySnapshot => b.kind !== 'data'), this.document, targets)
                 } catch (e) {
                     warnings.push(`could not compute locality: ${(e as Error).message}`)
                 }
@@ -509,4 +524,8 @@ function base64ToBytes(base64: string): Uint8Array {
     }
     // Node without a DOM polyfill.
     return new Uint8Array(Buffer.from(base64, 'base64'))
+}
+
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+    return !!v && typeof v === 'object' && !Array.isArray(v)
 }

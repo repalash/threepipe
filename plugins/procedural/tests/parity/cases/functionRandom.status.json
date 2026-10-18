@@ -1,0 +1,17 @@
+{
+ "random-float": "exact",
+ "random-float-single": "exact",
+ "random-int": "exact",
+ "random-int-single": "exact",
+ "random-boolean": "exact",
+ "random-boolean-single": "exact",
+ "random-vector": "exact",
+ "random-vector-single": "exact",
+ "random-id-attribute": "exact",
+ "hash-float": "exact",
+ "hash-int": "exact",
+ "hash-vector": "exact",
+ "hash-rgba": "exact",
+ "hash-rotation": "exact",
+ "hash-single": "exact"
+}

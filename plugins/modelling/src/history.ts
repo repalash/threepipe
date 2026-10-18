@@ -12,15 +12,15 @@
  * far simpler and cost little.
  */
 
-import {EntrySnapshot, ModellingDocument} from './document'
+import {DocumentSnapshot, EntrySnapshot, ModellingDocument} from './document'
 
 export interface HistoryEntry {
     op: string
     label: string
-    /** Object states as they were *before* the command ran. */
-    before: EntrySnapshot[]
+    /** Object (and document data) states as they were *before* the command ran. */
+    before: DocumentSnapshot[]
     /** Object states as they were *after*. Filled in when the entry is pushed. */
-    after: EntrySnapshot[]
+    after: DocumentSnapshot[]
     /** Named by a `checkpoint` command, so `undo {to}` can rewind to it. */
     checkpoint?: string
     index: number
@@ -66,24 +66,20 @@ export class ModellingHistory {
 
     /**
      * Record one command's change. Returns the entry, or `null` when the command changed nothing - no
-     * object it recorded differs from its before-state - in which case nothing is pushed and redo is
-     * kept: Blender's rule for an operator that returns `CANCELLED` (`wm_operator_finished` only
-     * pushes for `FINISHED`, `wm_event_system.cc:1305`). The dispatcher reports it as `changed: false`.
+     * object (or document data slot) it recorded differs from its before-state - in which case nothing is
+     * pushed and redo is kept: Blender's rule for an operator that returns `CANCELLED`
+     * (`wm_operator_finished` only pushes for `FINISHED`, `wm_event_system.cc:1305`). The dispatcher
+     * reports it as `changed: false`.
      */
-    push(op: string, label: string, before: EntrySnapshot[], index: number): HistoryEntry | null {
+    push(op: string, label: string, before: DocumentSnapshot[], index: number): HistoryEntry | null {
         if (!before.length) return null
-        const after = before
-            .map(b => this._doc.find(b.id))
-            .filter((e): e is NonNullable<typeof e> => !!e)
-            .map(e => this._doc.snapshot(e))
-        // Objects the command deleted have no "after"; record the absence so redo removes them again.
-        for (const b of before) {
-            if (!this._doc.find(b.id)) after.push({...b, mesh: null})
-        }
-        const unchanged = before.every(b => {
-            const a = after.find(x => x.id === b.id)
-            return !!a && this._doc.snapshotsEqual(b, a)
+        const after = before.map((b): DocumentSnapshot => {
+            if (b.kind === 'data') return this._doc.resnapshot(b)
+            const entry = this._doc.find(b.id)
+            // Objects the command deleted have no "after"; record the absence so redo removes them again.
+            return entry ? this._doc.snapshot(entry) : {...b, mesh: null}
         })
+        const unchanged = before.every((b, i) => this._doc.snapshotsEqual(b, after[i]))
         if (unchanged) return null
         // A new command discards anything that was undone, as every editor does.
         this._entries.length = this._position
@@ -169,7 +165,7 @@ export class ModellingHistory {
             if (from >= this._position) throw new Error(`checkpoint "${at}" has been undone`)
         }
         for (let j = from + 1; j < this._position; j++) {
-            const snap = this._entries[j].before.find(b => b.id === id)
+            const snap = this._entries[j].before.find((b): b is EntrySnapshot => b.kind !== 'data' && b.id === id)
             if (snap) return snap
         }
         return 'current'

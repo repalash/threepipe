@@ -38,6 +38,11 @@ export class CommandRegistry {
         return Object.fromEntries(Object.entries(out).sort(([a], [b]) => a.localeCompare(b)))
     }
 
+    /** Remove a command, e.g. when the plugin that added it is removed. */
+    unregister(op: string): boolean {
+        return this._commands.delete(op)
+    }
+
     /** Replace an existing command. Used by extensions that specialise a built-in. */
     override(def: CommandDefinition): void {
         this._commands.set(def.op, def)
