@@ -7,7 +7,7 @@
  * to the built node JSON; links out of extra item sockets use sockets made by hand.
  */
 
-import {geometryNodes, GroupBuilder, Socket} from '../../../src/dsl/builder'
+import {AnySocket, geometryNodes, GroupBuilder, Socket} from '../../../src/dsl/builder'
 import type {JSONValue, LinkJSON, NodeGroupLibrary, NodeJSON} from '../../../src/runtime/types'
 import {Inputs, outputsOf, pointsCase} from './functionCommon'
 import {ParityCase} from './types'
@@ -42,7 +42,7 @@ function patchedCase(id: string, description: string, count: number, body: (v: I
 }
 
 /** A case whose output is the geometry `make` returns; `a`, `b`, `c` are point clouds of 3, 5, 7 points with `origin` = 1, 2, 3. */
-function geometryCase(id: string, description: string, make: (g: GroupBuilder, a: Socket, b: Socket, c: Socket, patch: PatchFn) => Socket): ParityCase {
+function geometryCase(id: string, description: string, make: (g: GroupBuilder, a: Socket, b: Socket, c: Socket, patch: PatchFn) => AnySocket): ParityCase {
     const patches = new Map<string, Patch>()
     const points = (g: GroupBuilder, count: number, value: number) => g.node('GeometryNodeStoreNamedAttribute', {
         dataType: 'FLOAT', domain: 'POINT', name: 'origin', value, geometry: g.node('GeometryNodePoints', {count}).outputs.geometry,

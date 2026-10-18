@@ -118,12 +118,14 @@ export function geometryFromDump(g: ExpectedGeometry, resolve?: BinResolver): Ge
     if (g.pointcloud) {
         const pc = new PointCloud(g.pointcloud.points)
         fillAttributes(pc.attributes, g.pointcloud.attributes, resolve)
+        if (g.pointcloud.materials) pc.materials = g.pointcloud.materials.map(x => x ?? '')
         out.setPointCloud(pc)
     }
     if (g.curves) {
         const c = new CurvesGeometry(g.curves.points, g.curves.curves)
         if (g.curves.curveOffsets) c.curveOffsets.set(values(g.curves.curveOffsets, resolve) as number[])
         fillAttributes(c.attributes, g.curves.attributes, resolve)
+        if (g.curves.materials) c.materials = g.curves.materials.map(x => x ?? '')
         out.setCurves(c)
     }
     if (g.instances) {

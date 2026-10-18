@@ -3,11 +3,11 @@
  * written with the DSL.
  */
 
-import {geometryNodes, n} from '../../../src/dsl/builder'
+import {geometryNodes, n, Socket} from '../../../src/dsl/builder'
 import type {NodeGroupLibrary} from '../../../src/runtime/types'
 import {ParityCase} from './types'
 
-function single(id: string, description: string, build: () => ReturnType<typeof n.MeshLine>['geometry']): ParityCase {
+function single(id: string, description: string, build: () => Socket<'GEOMETRY'>): ParityCase {
     const group = geometryNodes(id, g => {
         g.output.geometry('Geometry', build())
     })

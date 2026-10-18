@@ -89,6 +89,8 @@ export class MeshAccessor extends AttributeAccessor {
 /** `PointCloud` (`DNA_pointcloud_types.h`, `BKE_pointcloud.hh`): points with attributes. */
 export class PointCloud {
     readonly attributes: AttributeStorage
+    /** Material slot names (`PointCloud::mat`), `''` for an empty slot - as `MeshData.materials`. */
+    materials: string[] = []
 
     constructor(pointsNum = 0) {
         this.attributes = new AttributeStorage({[AttrDomain.Point]: pointsNum}, kernelTable(POINTCLOUD_BUILTINS))
@@ -110,6 +112,7 @@ export class PointCloud {
     clone(): PointCloud {
         const out = Object.create(PointCloud.prototype) as PointCloud
         ;(out as {attributes: AttributeStorage}).attributes = this.attributes.clone()
+        out.materials = this.materials.slice()
         return out
     }
 }
@@ -120,6 +123,8 @@ export class PointCloud {
  */
 export class CurvesGeometry {
     readonly attributes: AttributeStorage
+    /** Material slot names (`Curves::mat`), `''` for an empty slot - as `MeshData.materials`. */
+    materials: string[] = []
     /** `curves_num + 1` offsets into the points (`curve_offsets`). */
     curveOffsets: Int32Array
 
@@ -154,6 +159,7 @@ export class CurvesGeometry {
         const out = Object.create(CurvesGeometry.prototype) as CurvesGeometry
         ;(out as {attributes: AttributeStorage}).attributes = this.attributes.clone()
         out.curveOffsets = this.curveOffsets.slice()
+        out.materials = this.materials.slice()
         return out
     }
 }

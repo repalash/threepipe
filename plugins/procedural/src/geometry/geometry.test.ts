@@ -62,7 +62,7 @@ describe('attribute mixers (BKE_attribute_math.hh)', () => {
         expect(Array.from(buf)).toEqual([0, 0, 0, 1])
     })
 
-    it('quaternions mix through the exponential map and default to identity', () => {
+    it('quaternions mix through the exponential map and default to the value-initialised (0, 0, 0, 0)', () => {
         const q = eulerToQuat([0, 0, 0.5])
         const buf = new Float32Array(8)
         const m = createDefaultMixer('quaternion', buf)
@@ -71,7 +71,9 @@ describe('attribute mixers (BKE_attribute_math.hh)', () => {
         m.finalize()
         expect(buf[0]).toBeCloseTo(q[0], 6)
         expect(buf[3]).toBeCloseTo(q[3], 6)
-        expect(Array.from(buf.subarray(4))).toEqual([1, 0, 0, 0])
+        // `SimpleMixerWithAccumulationType(buffer, T default_value = {})` (`BKE_attribute_math.hh:677`): `math::Quaternion{}`
+        // value-initialises its defaulted constructor to zeros (Blender's capture-*-every-type parity cases confirm it).
+        expect(Array.from(buf.subarray(4))).toEqual([0, 0, 0, 0])
     })
 
     it('mix2 for ints rounds, for bools thresholds at one half', () => {

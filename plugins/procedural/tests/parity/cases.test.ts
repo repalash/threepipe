@@ -21,6 +21,13 @@ import {textureCases} from './cases/textures'
 import {instanceCases} from './cases/instances'
 import {geometryCases} from './cases/geometry'
 import {sceneCases} from './cases/scene'
+import {meshInputCases} from './cases/meshInputs'
+import {meshAttributeCases} from './cases/meshAttribute'
+import {meshSampleCases} from './cases/meshSample'
+import {meshMaterialCases} from './cases/meshMaterial'
+import {meshEditCases} from './cases/meshEdit'
+import {meshPrimitiveCases} from './cases/meshPrimitive'
+import {meshMergeCases} from './cases/meshMerge'
 import {distributeCases} from './cases/distribute'
 
 const SETS: Record<string, () => ParityCase[]> = {textures: textureCases, instances: instanceCases, geometry: geometryCases, scene: sceneCases, distribute: distributeCases}
@@ -29,6 +36,13 @@ SETS.functionRandom = functionRandomCases
 SETS.functionRotation = functionRotationCases
 SETS.functionCurves = functionCurvesCases
 SETS.functionSwitch = functionSwitchCases
+SETS.meshInputs = meshInputCases
+SETS.meshAttribute = meshAttributeCases
+SETS.meshSample = meshSampleCases
+SETS.meshMaterial = meshMaterialCases
+SETS.meshEdit = meshEditCases
+SETS.meshPrimitive = meshPrimitiveCases
+SETS.meshMerge = meshMergeCases
 
 for (const [set, generate] of Object.entries(SETS)) {
     describe(`parity cases: ${set}`, () => {
@@ -69,6 +83,18 @@ for (const [set, generate] of Object.entries(SETS)) {
                     diffs = compareGeometry(out.geometry!, expected, {byteColor: 'srgb'})
                 } catch (e) {
                     diffs = [`error: ${(e as Error).message}`]
+                }
+                if (c.blocked) {
+                    status[c.id] = `blocked: ${c.blocked}`
+                    expect(diffs.length === 1 && /^error: .*not ported/.test(diffs[0]), `${c.description}: expected the 'not ported' error (${c.blocked}), got ${diffs.join(' | ') || 'a result'}`).toBe(true)
+                    return
+                }
+                if (c.blenderBug) {
+                    // Blender's result is a Blender bug: the port computes the intended values, so it must differ.
+                    status[c.id] = `blender-bug: ${c.blenderBug}`
+                    expect(diffs.filter(d => !d.startsWith('error:')), `${c.description}: expected to differ from Blender (${c.blenderBug})`).not.toEqual([])
+                    expect(diffs.filter(d => d.startsWith('error:'))).toEqual([])
+                    return
                 }
                 // Float32 policy: record whether the case is bit-exact, not only within the 1e-5 tolerance.
                 if (!diffs.length) {

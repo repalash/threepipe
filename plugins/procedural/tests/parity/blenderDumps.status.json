@@ -11,27 +11,13 @@
   "nodes": 422,
   "nodeTypes": 53,
   "missing": {
-   "GeometryNodeCaptureAttribute": 6,
    "GeometryNodeSplineLength": 5,
-   "GeometryNodeSetID": 4,
    "GeometryNodeMeshToCurve": 4,
-   "GeometryNodeInputMeshEdgeNeighbors": 3,
    "GeometryNodeCurveToMesh": 3,
-   "GeometryNodeExtrudeMesh": 3,
-   "GeometryNodeDuplicateElements": 3,
-   "GeometryNodeSampleNearestSurface": 3,
-   "GeometryNodeSplitEdges": 2,
    "GeometryNodeResampleCurve": 2,
    "GeometryNodeTrimCurve": 2,
    "GeometryNodeSubdivideMesh": 2,
-   "GeometryNodeInputMeshIsland": 1,
-   "GeometryNodeInstancesToPoints": 1,
-   "GeometryNodeCurveEndpointSelection": 1,
-   "GeometryNodeSampleIndex": 1,
-   "GeometryNodeSampleNearest": 1,
-   "GeometryNodeSetMaterial": 1,
-   "GeometryNodeAttributeStatistic": 1,
-   "GeometryNodeInputMeshFaceArea": 1
+   "GeometryNodeCurveEndpointSelection": 1
   },
   "unevaluatedObjects": []
  },
@@ -40,11 +26,8 @@
   "nodes": 104,
   "nodeTypes": 33,
   "missing": {
-   "GeometryNodeRotateInstances": 2,
    "GeometryNodeProximity": 1,
-   "GeometryNodeSubdivisionSurface": 1,
-   "GeometryNodeSetMaterial": 1,
-   "GeometryNodeDistributePointsOnFaces": 1
+   "GeometryNodeSubdivisionSurface": 1
   },
   "unevaluatedObjects": []
  },
@@ -53,7 +36,6 @@
   "nodes": 96,
   "nodeTypes": 18,
   "missing": {
-   "GeometryNodeDistributePointsOnFaces": 2,
    "GeometryNodeImageTexture": 2
   },
   "unevaluatedObjects": [
@@ -67,9 +49,7 @@
   "groups": 1,
   "nodes": 26,
   "nodeTypes": 8,
-  "missing": {
-   "GeometryNodeDistributePointsOnFaces": 3
-  },
+  "missing": {},
   "unevaluatedObjects": []
  },
  "repeat_zone_flower_by_MiRA": {
@@ -80,12 +60,7 @@
    "GeometryNodeRepeatOutput": 1,
    "GeometryNodeRepeatInput": 1,
    "GeometryNodeInputSceneTime": 1,
-   "GeometryNodeSetMaterial": 1,
-   "GeometryNodeBoundBox": 1,
-   "GeometryNodeSubdivisionSurface": 1,
-   "GeometryNodeSampleIndex": 1,
-   "GeometryNodeMeshCircle": 1,
-   "GeometryNodeSampleNearest": 1
+   "GeometryNodeSubdivisionSurface": 1
   },
   "unevaluatedObjects": []
  }

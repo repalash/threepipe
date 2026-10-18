@@ -749,6 +749,8 @@ function executePointCloudTasks(
         return
     }
     const dst = new PointCloud(total)
+    // `:1417`: the first point cloud's material slots.
+    dst.materials = tasks[0].info.pc.materials.slice()
     const acc = dst.accessor()
     if (flags.id) acc.add('id', AttrDomain.Point, 'int32')
     if (flags.radius) acc.add('radius', AttrDomain.Point, 'float')
@@ -894,6 +896,8 @@ function executeCurveTasks(
         return
     }
     const dst = new CurvesGeometry(offsets.point, offsets.curve)
+    // `:2491` `curves_copy_parameters(first_curves_id, ...)` (`curves.cc:316`): the first curves' material slots.
+    dst.materials = tasks[0].info.curves.materials.slice()
     const acc = dst.accessor()
     if (flags.id) acc.add('id', AttrDomain.Point, 'int32')
     order.names.forEach((n, i) => acc.add(n, order.kinds[i].domain, order.kinds[i].type))

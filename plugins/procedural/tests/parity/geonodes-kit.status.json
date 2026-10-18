@@ -284,8 +284,7 @@
   "reason": "not ported: GeometryNodeMeshIcoSphere"
  },
  "edge-angle-nonmanifold": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeMergeByDistance"
+  "status": "pass"
  },
  "eval-dangling-reroute": {
   "status": "pass"
@@ -324,72 +323,55 @@
   "status": "pass"
  },
  "extrude-edges-all-grid-normal": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeExtrudeMesh"
+  "status": "pass"
  },
  "extrude-edges-loose-line": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeExtrudeMesh"
+  "status": "pass"
  },
  "extrude-edges-loose-single-value": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeExtrudeMesh"
+  "status": "pass"
  },
  "extrude-edges-one-boundary": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeExtrudeMesh"
+  "status": "pass"
  },
  "extrude-edges-top-side-stored": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeExtrudeMesh"
+  "status": "pass"
  },
  "extrude-edges-varying-offset": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeExtrudeMesh"
+  "status": "pass"
  },
  "extrude-faces-individual-grid": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeExtrudeMesh"
+  "status": "pass"
  },
  "extrude-faces-region-cube-all": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeExtrudeMesh"
+  "status": "pass"
  },
  "extrude-faces-region-grid-all": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeExtrudeMesh"
+  "status": "pass"
  },
  "extrude-faces-region-grid-partial": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeExtrudeMesh"
+  "status": "pass"
  },
  "extrude-faces-region-nonmanifold": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeExtrudeMesh, GeometryNodeMergeByDistance"
+  "status": "pass"
  },
  "extrude-faces-region-single-quad": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeExtrudeMesh"
+  "status": "pass"
  },
  "extrude-faces-top-side-stored": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeExtrudeMesh"
+  "status": "pass"
  },
  "extrude-vertices-grid-first": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeExtrudeMesh"
+  "status": "pass"
  },
  "extrude-vertices-loose-origin": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeExtrudeMesh"
+  "status": "pass"
  },
  "fields-anonymous-lost": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeDuplicateElements"
+  "status": "pass"
  },
  "fields-anonymous-through-join": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeDuplicateElements"
+  "status": "pass"
  },
  "fields-constant-field-into-single": {
   "status": "pass"
@@ -450,7 +432,7 @@
  },
  "gs-join-curves-radius-resolution": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeCurvePrimitiveCircle, GeometryNodeCurvePrimitiveLine, GeometryNodeRemoveAttribute, GeometryNodeSetCurveRadius, GeometryNodeSetSplineResolution"
+  "reason": "not ported: GeometryNodeCurvePrimitiveCircle, GeometryNodeCurvePrimitiveLine, GeometryNodeSetCurveRadius, GeometryNodeSetSplineResolution"
  },
  "gs-join-domain-face-corner": {
   "status": "pass"
@@ -474,8 +456,7 @@
   "status": "pass"
  },
  "gs-join-pointcloud-radius": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeRemoveAttribute"
+  "status": "pass"
  },
  "gs-join-type-promotion": {
   "status": "pass"
@@ -762,8 +743,7 @@
   "status": "pass"
  },
  "mesh-to-points-builtins-skipped": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeSetMaterialIndex"
+  "status": "pass"
  },
  "mesh-to-points-corners-grid": {
   "status": "pass"

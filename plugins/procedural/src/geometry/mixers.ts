@@ -11,6 +11,7 @@
 
 import {f32, roundHalfAway, floatToUint8} from '../blender/f32'
 import {quatFromExpmap, quatToExpmap} from '../blender/math/quaternion'
+import {quatInterpolate} from '../blender/math/rotation'
 import {mat4FromLocQuatScale, mat4ToLocQuatScaleSafe} from '../blender/math/matrix'
 import {DATA_TYPES, DataType, TypedArray} from './dataTypes'
 
@@ -290,7 +291,11 @@ export function createDefaultMixer(type: DataType, buffer: TypedArray): Mixer {
             (acc, out, i) => {
                 const q = quatFromExpmap(acc)
                 for (let k = 0; k < 4; k++) out[i * 4 + k] = q[k]
-            }, [1, 0, 0, 0])
+            },
+            // `SimpleMixerWithAccumulationType(buffer, T default_value = {})` (`BKE_attribute_math.hh:677`):
+            // `math::Quaternion{}` value-initialises its defaulted constructor (`BLI_math_quaternion_types.hh:39`)
+            // to (0, 0, 0, 0), not the identity `CPPType::default_value` uses.
+            [0, 0, 0, 0])
     default:
         throw new Error(`attribute mixer: no default mixer for type '${type as string}'`)
     }
@@ -337,7 +342,15 @@ export function mix2(type: DataType, factor: number, a: ArrayLike<number>, ia: n
         // integral types.
         for (let k = 0; k < c; k++) out[io * c + k] = roundHalfAway(f32(f32(a[ia * c + k] * omt) + f32(b[ib * c + k] * t)))
         return
+    case 'quaternion': {
+        // `mix2(factor, Quaternion, Quaternion)` (`attribute_math.cc:18`): `math::interpolate(a, b, factor)`.
+        const q = quatInterpolate(Array.from(a).slice(ia * 4, ia * 4 + 4), Array.from(b).slice(ib * 4, ib * 4 + 4), t)
+        for (let k = 0; k < 4; k++) out[io * 4 + k] = q[k]
+        return
+    }
     default:
-        throw new Error(`attribute_math::mix2 for '${type}' is not ported yet (needs math::interpolate for quaternion/float4x4)`)
+        // float4x4: `mix2` is `math::interpolate(float4x4)` (`attribute_math.cc:45`), a polar decomposition through
+        // Eigen's SVD (`math_matrix.cc:336`), which is not ported.
+        throw new Error(`attribute_math::mix2 for '${type}' is not ported yet (float4x4 needs math::interpolate: polar_decompose, math_matrix.cc:336)`)
     }
 }

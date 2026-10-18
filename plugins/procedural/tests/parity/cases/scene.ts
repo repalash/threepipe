@@ -10,7 +10,7 @@ import {CaseObject, ParityCase} from './types'
 
 type Extra = Omit<ParityCase, 'id' | 'description' | 'library' | 'group' | 'input'>
 
-function single(id: string, description: string, extra: Extra, build: () => Socket): ParityCase {
+function single(id: string, description: string, extra: Extra, build: () => Socket<'GEOMETRY'>): ParityCase {
     const group = geometryNodes(id, g => {
         g.output.geometry('Geometry', build())
     })
@@ -21,9 +21,9 @@ const rock: CaseObject = {name: 'Rock', mesh: 'cube', location: [1, 2, 3], rotat
 const self = {location: [-0.5, 0.25, 1] as [number, number, number], rotation: [0.1, 0.4, -0.3] as [number, number, number], scale: [2, 1, 1.5] as [number, number, number]}
 
 /** Object Info's transform outputs stored on one point, joined with its geometry. */
-function objectInfo(space: string, asInstance: boolean): Socket {
+function objectInfo(space: 'ORIGINAL' | 'RELATIVE', asInstance: boolean): Socket<'GEOMETRY'> {
     const oi = n.ObjectInfo({object: {_ref: 'OBJECT', name: 'Rock'}, transformSpace: space, asInstance})
-    let point: Socket = n.Points({count: 1}).geometry
+    let point: Socket<'GEOMETRY'> = n.Points({count: 1}).geometry
     point = n.StoreNamedAttribute({geometry: point, dataType: 'FLOAT_VECTOR', name: 'loc', value: oi.location}).geometry
     point = n.StoreNamedAttribute({geometry: point, dataType: 'QUATERNION', name: 'rot', value: oi.rotation}).geometry
     point = n.StoreNamedAttribute({geometry: point, dataType: 'FLOAT_VECTOR', name: 'scl', value: oi.scale}).geometry
@@ -41,7 +41,7 @@ const props: ParityCase['scene'] = [
 
 export function sceneCases(): ParityCase[] {
     const cases: ParityCase[] = []
-    for (const space of ['ORIGINAL', 'RELATIVE']) {
+    for (const space of ['ORIGINAL', 'RELATIVE'] as const) {
         for (const asInstance of [false, true]) {
             cases.push(single(`object-info-${space.toLowerCase()}${asInstance ? '-instance' : ''}`,
                 `Object Info ${space}${asInstance ? ' as instance' : ''}`, {objects: [rock], ...self}, () => objectInfo(space, asInstance)))

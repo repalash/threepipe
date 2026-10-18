@@ -1,6 +1,6 @@
 /**
  * `BLI_kdtree` for 3D float points (`blenlib/BLI_kdtree.hh`): insert, `kdtree_balance` (quick-select around the
- * median per axis, :121), `kdtree_range_search_cb` (:588). Node order after balancing and the pruning tests are
+ * median per axis, :121), `kdtree_range_search_cb` (:588), `kdtree_calc_duplicates_fast` (:723). Node order after balancing and the pruning tests are
  * Blender's, so searches visit the same nodes in the same order.
  */
 
@@ -109,5 +109,55 @@ export class KDTree3 {
                 if (this.right[n] !== UNSET) stack.push(this.right[n])
             }
         }
+    }
+
+    /**
+     * `kdtree_calc_duplicates_fast` (`BLI_kdtree.hh:723`) with `deduplicate_recursive` (:673): `duplicates[i]` becomes
+     * the index `i` merges into; -1 entries are candidates, self-references are kept. Searches go in node order, or by
+     * point index with `useIndexOrder` (`kdtree_order`, :646). Returns the number of merges found.
+     */
+    calcDuplicatesFast(range: number, duplicates: Int32Array, useIndexOrder = false): number {
+        let found = 0
+        const rangeSq = f32(range * range)
+        const recurse = (i: number, search: number, sx: number, sy: number, sz: number) => {
+            const axis = this.d[i]
+            const s = axis === 0 ? sx : axis === 1 ? sy : sz
+            const c = this.co[i * 3 + axis]
+            if (f32(s + range) <= c) {
+                if (this.left[i] !== UNSET) recurse(this.left[i], search, sx, sy, sz)
+            } else if (f32(s - range) >= c) {
+                if (this.right[i] !== UNSET) recurse(this.right[i], search, sx, sy, sz)
+            } else {
+                const index = this.index[i]
+                if (search !== index && duplicates[index] === -1) {
+                    // `math::distance_squared(node->co, search_co)`.
+                    const dx = f32(this.co[i * 3] - sx), dy = f32(this.co[i * 3 + 1] - sy), dz = f32(this.co[i * 3 + 2] - sz)
+                    if (f32(f32(f32(dx * dx) + f32(dy * dy)) + f32(dz * dz)) <= rangeSq) {
+                        duplicates[index] = search
+                        found++
+                    }
+                }
+                if (this.left[i] !== UNSET) recurse(this.left[i], search, sx, sy, sz)
+                if (this.right[i] !== UNSET) recurse(this.right[i], search, sx, sy, sz)
+            }
+        }
+        if (this.root === UNSET) return 0
+        const search = (n: number, index: number) => {
+            if (duplicates[index] !== -1 && duplicates[index] !== index) return
+            const prev = found
+            recurse(this.root, index, this.co[n * 3], this.co[n * 3 + 1], this.co[n * 3 + 2])
+            // Prevent chains of doubles.
+            if (found !== prev) duplicates[index] = index
+        }
+        if (useIndexOrder) {
+            let maxIndex = -1
+            for (let n = 0; n < this.len; n++) maxIndex = Math.max(maxIndex, this.index[n])
+            const order = new Int32Array(maxIndex + 1).fill(-1)
+            for (let n = 0; n < this.len; n++) order[this.index[n]] = n
+            for (let i = 0; i <= maxIndex; i++) if (order[i] !== -1) search(order[i], i)
+        } else {
+            for (let n = 0; n < this.len; n++) search(n, this.index[n])
+        }
+        return found
     }
 }
