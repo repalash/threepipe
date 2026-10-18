@@ -55,7 +55,11 @@ const parts = [
     button('btn-front.0', -19.5, 21, 57.7, 4, 2.2, toZ, {dome: 0.3}),
     button('btn-front.1', -19.5, 34, 57.7, 4, 2.2, toZ, {dome: 0.3}),
     // eyecup: rubber frame round the eyepiece, standing 10.4 out of the rear
-    part('product/eyecup', 'eyecup', {width: 54, height: 35.6, depth: 10.4, radius: 9, windowWidth: 24, windowHeight: 16, windowRadius: 2.5, windowDepth: 9, flare: 1.2}, [15.5, 90, 0.2], toMinusZ),
+    part('product/eyecup', 'eyecup', {width: 54, height: 35.6, depth: 10.4, radius: 13, windowWidth: 24, windowHeight: 16, windowRadius: 3, windowDepth: 9, flare: 2}, [15.5, 90, 0.2], toMinusZ),
+    // the lens bore: a matte baffle and an inner element behind the front glass, so the glass shows a dark,
+    // reflective interior instead of the chrome mount through an empty tube
+    part('product/lens-barrel', 'lens-baffle', {stations: [[22.6, 0], [22.6, 1.2]], segments: 64}, [...LENS, 150], toZ),
+    part('product/lens-barrel', 'lens-inner-element', {stations: [[18, 0], [19.5, 1.5], [19.5, 3], [18, 4.5]], segments: 64}, [...LENS, 156], toZ),
     // strap lugs on both sides, at the measured height
     part('product/strap-lug', 'lug.0', {width: 11, height: 5.2, wire: 1.3}, [74.6, 72.8, 30]),
     part('product/strap-lug', 'lug.1', {width: 11, height: 5.2, wire: 1.3}, [-74.6, 72.8, 30], [0, PI, 0]),
@@ -79,8 +83,12 @@ const surfaces = [
     mat('shoe-contact', 'gold-contact'),
     mat('lens-red-ring', 'accent-red'),
     mat('mount-index', 'accent-red'),
-    mat('lens-front-element', 'glass-coated'),
-    mat(['lcd-screen', 'top-lcd-glass'], 'screen-glass'),
+    mat('lens-front-element', 'glass-coated', {color: '#8fa3b6', transmission: 0.55, roughness: 0.04}),
+    mat('lens-baffle', 'matte-black'),
+    mat('lens-inner-element', 'glass-coated', {color: '#5d7488', transmission: 0.3, roughness: 0.05}),
+    // the monitor shows its screen as a print over an opaque glossy panel: on a transmissive one the print vanished
+    mat('lcd-screen', 'plastic-gloss-black', {roughness: 0.1}),
+    mat('top-lcd-glass', 'screen-glass'),
     mat('eyepiece-glass', 'screen-glass'),
 ]
 
@@ -90,8 +98,9 @@ const text = (t, extra = {}) => ({text: {text: t, color: '#ffffff', ...extra}})
 const prismN = (() => { const l = Math.hypot(22, 21); return [0, 22 / l, 21 / l] })()
 const prismUp = [0, prismN[2], -prismN[1]]
 const svgIcon = (body, w = 64, h = 64) => ({svg: `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">${body}</svg>`})
-const rearLegend = (name, x, y, content, w = 5.2, h = 1.9, z = -1.8) =>
-    decal(name, {mode: 'plane', at: [x, y, z - 0.05], normal: [0, 0, -1], up: [0, 1, 0], size: [w, h], content, offset: 0.02, pxPerUnit: 48})
+// legends are dropped onto their button's domed cap
+const rearLegend = (name, x, y, content, w = 5.2, h = 1.9, button) =>
+    decal(name, {mode: 'project', object: button, at: [x, y, -2], normal: [0, 0, -1], up: [0, 1, 0], size: [w, h], content, offset: 0.03, pxPerUnit: 48, segments: [4, 2]})
 
 const lcdUi = `<svg xmlns="http://www.w3.org/2000/svg" width="1352" height="902" viewBox="0 0 1352 902">
 <rect width="1352" height="902" fill="#06080b"/>
@@ -118,21 +127,26 @@ const prints = [
     decal('decal-rear-canon', {mode: 'plane', at: [20.9, 11.7, -0.05], normal: [0, 0, -1], size: [22, 4.6],
         content: {svg: wordmark({width: 528, height: 110, text: 'Canon'})}}),
     decal('decal-lcd-ui', {mode: 'plane', at: [20.2, 40.95, 0.6], normal: [0, 0, -1], size: [67.6, 45.1], content: {svg: lcdUi}, offset: 0, preset: 'print-white', roughness: 0.15}),
-    rearLegend('decal-btn-menu', 62.2, 79.5, text('MENU', {fit: true, fontWeight: 'bold'})),
-    rearLegend('decal-btn-info', 50.9, 79.5, text('INFO.', {fit: true, fontWeight: 'bold'})),
-    rearLegend('decal-btn-col0', 64.8, 64.9, svgIcon('<rect x="14" y="14" width="36" height="36" fill="none" stroke="#fff" stroke-width="6"/><path d="M22 42 L42 22" stroke="#fff" stroke-width="6"/>'), 3.6, 3.6),
-    rearLegend('decal-btn-col1', 64.8, 53.03, text('RATE', {fit: true}), 4.6, 1.7),
-    rearLegend('decal-btn-col2', 64.8, 41.16, svgIcon('<circle cx="28" cy="28" r="14" fill="none" stroke="#fff" stroke-width="6"/><path d="M38 38 L52 52" stroke="#fff" stroke-width="7"/>'), 3.6, 3.6),
-    rearLegend('decal-btn-col3', 64.8, 29.29, svgIcon('<rect x="10" y="12" width="44" height="40" fill="none" stroke="#fff" stroke-width="5"/><path d="M26 22 L42 32 L26 42 Z" fill="#fff"/>'), 3.8, 3.8),
-    rearLegend('decal-btn-col4', 64.8, 17.42, svgIcon('<path d="M16 18 H48 M22 18 V52 H42 V18 M28 12 H36" fill="none" stroke="#fff" stroke-width="5"/>'), 3.6, 3.6),
-    rearLegend('decal-btn-set', -36.4, 27.3, text('SET', {fit: true, fontWeight: 'bold'}), 5.4, 2.4, -2.45),
-    rearLegend('decal-btn-q', -24.8, 46.6, svgIcon('<rect x="10" y="10" width="44" height="44" rx="6" fill="none" stroke="#fff" stroke-width="5"/><text x="32" y="44" font-size="34" font-family="Helvetica" font-weight="bold" fill="#fff" text-anchor="middle">Q</text>'), 3.6, 3.6, -1.8),
-    rearLegend('decal-btn-start', -21.3, 78.7, svgIcon('<text x="64" y="44" font-size="34" font-family="Helvetica" font-weight="bold" fill="#fff" text-anchor="middle">START/</text><text x="64" y="84" font-size="34" font-family="Helvetica" font-weight="bold" fill="#fff" text-anchor="middle">STOP</text>', 128, 100), 5.6, 4.4, -1.85),
+    rearLegend('decal-btn-menu', 62.2, 79.5, text('MENU', {fit: true, fontWeight: 'bold'}), 5.2, 1.9, 'btn-menu.0'),
+    rearLegend('decal-btn-info', 50.9, 79.5, text('INFO.', {fit: true, fontWeight: 'bold'}), 5.2, 1.9, 'btn-menu.1'),
+    rearLegend('decal-btn-col0', 64.8, 64.9, svgIcon('<rect x="14" y="14" width="36" height="36" fill="none" stroke="#fff" stroke-width="6"/><path d="M22 42 L42 22" stroke="#fff" stroke-width="6"/>'), 3.6, 3.6, 'btn-rear-column.0'),
+    rearLegend('decal-btn-col1', 64.8, 53.03, text('RATE', {fit: true}), 4.6, 1.7, 'btn-rear-column.1'),
+    rearLegend('decal-btn-col2', 64.8, 41.16, svgIcon('<circle cx="28" cy="28" r="14" fill="none" stroke="#fff" stroke-width="6"/><path d="M38 38 L52 52" stroke="#fff" stroke-width="7"/>'), 3.6, 3.6, 'btn-rear-column.2'),
+    rearLegend('decal-btn-col3', 64.8, 29.29, svgIcon('<rect x="10" y="12" width="44" height="40" fill="none" stroke="#fff" stroke-width="5"/><path d="M26 22 L42 32 L26 42 Z" fill="#fff"/>'), 3.8, 3.8, 'btn-rear-column.3'),
+    rearLegend('decal-btn-col4', 64.8, 17.42, svgIcon('<path d="M16 18 H48 M22 18 V52 H42 V18 M28 12 H36" fill="none" stroke="#fff" stroke-width="5"/>'), 3.6, 3.6, 'btn-rear-column.4'),
+    rearLegend('decal-btn-set', -36.4, 27.3, text('SET', {fit: true, fontWeight: 'bold'}), 5.4, 2.4, 'btn-set'),
+    rearLegend('decal-btn-q', -24.8, 46.6, svgIcon('<rect x="10" y="10" width="44" height="44" rx="6" fill="none" stroke="#fff" stroke-width="5"/><text x="32" y="44" font-size="34" font-family="Helvetica" font-weight="bold" fill="#fff" text-anchor="middle">Q</text>'), 3.6, 3.6, 'btn-q'),
+    rearLegend('decal-btn-start', -21.3, 78.7, svgIcon('<text x="64" y="44" font-size="34" font-family="Helvetica" font-weight="bold" fill="#fff" text-anchor="middle">START/</text><text x="64" y="84" font-size="34" font-family="Helvetica" font-weight="bold" fill="#fff" text-anchor="middle">STOP</text>', 128, 100), 5.6, 4.4, 'btn-start'),
+    // the port doors on the +x side: their legends
+    decal('decal-port-a', {mode: 'project', object: 'body', at: [76, 62, 26], normal: [1, 0, 0], up: [0, 1, 0], size: [16, 8],
+        content: {svg: wordmark({width: 384, height: 192, text: 'MIC', sub: 'HDMI', family: 'sans', weight: 'bold'})}, segments: [2, 2]}),
+    decal('decal-port-b', {mode: 'project', object: 'body', at: [76, 26, 26], normal: [1, 0, 0], up: [0, 1, 0], size: [16, 8],
+        content: {svg: wordmark({width: 384, height: 192, text: 'USB', sub: 'PC', family: 'sans', weight: 'bold'})}, segments: [2, 2]}),
     // top: the mode dial's legends round its top, the top LCD's segment display
     decal('decal-dial-mode', {mode: 'plane', at: [56, 96.95, 23], normal: [0, 1, 0], up: [0, 0, 1], size: [21.5, 21.5],
         content: {svg: ringLabels({size: 860, labels: ['M', 'B', 'C1', 'C2', 'C3', 'A+', 'P', 'Tv', 'Av'], radius: 0.8, fontScale: 0.085,
             color: ['#ffffff', '#ffffff', '#ffffff', '#ffffff', '#ffffff', '#3fc96b', '#ffffff', '#ffffff', '#ffffff']})}, offset: 0.03}),
-    decal('decal-top-lcd', {mode: 'plane', at: [-37, 89.52, 15], normal: [0, 1, 0], up: [0, 0, 1], size: [45.5, 19.5], content: {svg: topLcd}, offset: 0, roughness: 0.2}),
+    decal('decal-top-lcd', {mode: 'plane', at: [-37, 89.72, 15], normal: [0, 1, 0], up: [0, 0, 1], size: [45.5, 19.5], content: {svg: topLcd}, offset: 0, roughness: 0.2}),
     // lens: the word mark round the barrel, the focal-length scale behind the zoom ring, the front ring legend
     decal('decal-lens-canon', {mode: 'wrap', at: [LENS[0] - 39.7, LENS[1], 125], up: [0, 0, -1], size: [28, 6.5], wrap: {axis: [0, 0, 1], center: [...LENS, 0]},
         content: {svg: wordmark({width: 672, height: 156, text: 'Canon', color: '#d83a2e'})}, segments: [24, 2], preset: 'accent-red'}),

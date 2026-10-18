@@ -41,6 +41,7 @@ Guarantees: a command either completes or changes nothing; every mutating comman
 - For smooth, product-like forms model a low-poly cage and add `modifier {object, add: {type: "subsurf", levels: 2}}` (Blender's Subdivision Surface, limit surface on); keep panel lines and rims crisp with `crease {object, edges, value: 1}` (or 0.3-0.7 for a softened edge) instead of hand-made support loops.
 - Holes, ports, recesses and slots: model the cutter as its own closed primitive placed where the cut goes, then `boolean {object, with: cutter}` (Blender's Manifold solver; DIFFERENCE by default, the cutter is deleted). Both sides must be closed and manifold; a single quad cutter trims along its plane.
 - Measure before detailing: fit the big masses to published numbers and calibrated photos first. A photo is only good for the axes it faces square-on - a shot from above moves anything higher towards the far edge, so read heights from a level front view and depths only from features on one plane. On the camera demo, refitting the body, prism and grip cages to the front photograph took the silhouette overlap from 0.965 to 0.990 and the measurements moved the top controls further than any detailing would have: the mode dial 7 mm back and 3.8 mm taller, the main dial turned to roll front to back, the top LCD 13 mm wider.
+- Surfaces and markings last, once the form is right: `uv {object, size}` then `material {preset}` (leather, rubber, satin plastic carry a tiling relief map; glass and metals set transmission and metalness), and printed text, logos and legends as `decal` objects - `project` onto a curved body, `wrap` round a lens. Relief maps and prints are textures: run those commands in a browser session (a Node session warns and leaves them out).
 - Primitives, lathes and bevels come out flat-shaded, so every facet catches its own highlight: when a part's shape is done, `shade {object, mode: "byAngle"}` it (fillets read as curves, corners above 30 degrees stay sharp). The realism benchmark measured 85 % faceting on the camera demo against 21 % on the artist model.
 
 ## Cookbook
@@ -87,6 +88,14 @@ A profile of [radius, height] points revolved about an axis - the ISU-152 road w
 
 ```json
 {"op":"lathe","name":"wheel","axis":"x","segments":20,"profile":[[0,-0.08],[0.24,-0.08],[0.275,-0.03],[0.275,0.03],[0.24,0.08],[0,0.08]]}
+```
+
+### A knurled ring, dial, button, rocker, eyecup or strap lug: use a part
+
+`part` builds a parametric part (real ribs and knurls, smoothed by angle) along +y; `rotation` turns it, `part {name, params}` regenerates it with new numbers. `part {list: true}` gives every schema.
+
+```json
+{"op":"part","type":"product/knurled-ring","name":"focus-ring","params":{"radius":38,"length":14,"ribs":72},"position":[0,0,90],"rotation":[1.5707963267948966,0,0]}
 ```
 
 ### A row of identical parts that stays editable
