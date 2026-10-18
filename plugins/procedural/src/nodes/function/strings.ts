@@ -384,3 +384,153 @@ stringNode('FunctionNodeValueToString', 'Value to String', (b, node) => {
     }
     p.set('String', s)
 }, {properties: {data_type: 'FLOAT'}, enums: {data_type: ['FLOAT', 'INT']}})
+
+/** `digits * 10^exp10` rounded to the nearest float32, ties to even; Infinity beyond FLT_MAX. */
+function decimalToFloat32(digits: bigint, exp10: number): number {
+    if (digits === 0n) return 0
+    let num = digits, den = 1n
+    if (exp10 >= 0) num *= 10n ** BigInt(exp10)
+    else den = 10n ** BigInt(-exp10)
+    // Binary exponent e such that 2^23 <= num / den / 2^e < 2^24, clamped to the subnormal range (e >= -149).
+    let e = num.toString(2).length - den.toString(2).length - 24
+    const scaled = (k: number) => (k >= 0 ? [num, den << BigInt(k)] : [num << BigInt(-k), den])
+    for (;;) {
+        const [n, d] = scaled(e)
+        if (n / d >= 1n << 24n) e++
+        else if (n / d < 1n << 23n && e > -149) e--
+        else break
+    }
+    if (e < -149) e = -149
+    const [n, d] = scaled(e)
+    let m = n / d
+    const r = n - m * d
+    if (r * 2n > d || (r * 2n === d && (m & 1n) === 1n)) m += 1n
+    const value = Number(m) * 2 ** e
+    return value > 3.4028234663852886e38 ? Infinity : value
+}
+
+/**
+ * `fast_float::from_chars(first, last, float&)` (fast_float 5.0.0, `extern/fast_float`): an optional '-', digits with an
+ * optional '.', an optional exponent; or inf / infinity / nan(...). Returns the value, the number of bytes used and
+ * whether the result is out of range (overflow, or a nonzero number rounding to zero); undefined when nothing parses.
+ */
+export function fastFloatFromChars(s: string): {value: number, length: number, outOfRange: boolean} | undefined {
+    let p = 0
+    const neg = s[p] === '-'
+    if (neg) p++
+    const isDigit = (c: string | undefined) => c !== undefined && c >= '0' && c <= '9'
+    const start = p
+    if (neg && !(isDigit(s[p]) || s[p] === '.')) return infNan(s)
+    while (isDigit(s[p])) p++
+    let digits = s.slice(start, p)
+    let exp10 = 0
+    if (s[p] === '.') {
+        p++
+        const f0 = p
+        while (isDigit(s[p])) p++
+        digits += s.slice(f0, p)
+        exp10 -= p - f0
+    }
+    if (!digits.length) return infNan(s)
+    if (s[p] === 'e' || s[p] === 'E') {
+        const e0 = p
+        p++
+        let negExp = false
+        if (s[p] === '-') {
+            negExp = true
+            p++
+        } else if (s[p] === '+') {
+            p++
+        }
+        if (!isDigit(s[p])) {
+            p = e0
+        } else {
+            let e = 0
+            while (isDigit(s[p])) {
+                if (e < 0x10000000) e = 10 * e + (s.charCodeAt(p) - 48)
+                p++
+            }
+            exp10 += negExp ? -e : e
+        }
+    }
+    const mantissa = BigInt(digits)
+    const significant = mantissa === 0n ? 0 : mantissa.toString().length
+    let value: number
+    if (mantissa === 0n) value = 0
+    else if (significant + exp10 > 40) value = Infinity
+    else if (significant + exp10 < -47) value = 0
+    else value = decimalToFloat32(mantissa, exp10)
+    const outOfRange = (mantissa !== 0n && value === 0) || value === Infinity
+    return {value: neg ? -value : value, length: p, outOfRange}
+}
+
+/** `parse_infnan` (:3045). */
+function infNan(s: string): {value: number, length: number, outOfRange: boolean} | undefined {
+    let p = 0
+    const neg = s[p] === '-'
+    if (neg) p++
+    const head = s.slice(p, p + 3).toLowerCase()
+    if (head === 'nan') {
+        let end = p + 3
+        if (s[end] === '(') {
+            for (let q = end + 1; q < s.length; q++) {
+                if (s[q] === ')') {
+                    end = q + 1
+                    break
+                }
+                if (!/[A-Za-z0-9_]/.test(s[q])) break
+            }
+        }
+        return {value: NaN, length: end, outOfRange: false}
+    }
+    if (head === 'inf') {
+        const end = s.slice(p, p + 8).toLowerCase() === 'infinity' ? p + 8 : p + 3
+        return {value: neg ? -Infinity : Infinity, length: end, outOfRange: false}
+    }
+    return undefined
+}
+
+/** `std::from_chars(first, last, int&, base)`: an optional '-', base digits (either case); undefined when none. */
+export function intFromChars(s: string, base: number): {value: number, length: number, outOfRange: boolean} | undefined {
+    let p = 0
+    const neg = s[p] === '-'
+    if (neg) p++
+    const digit = (c: string) => {
+        const d = c >= '0' && c <= '9' ? c.charCodeAt(0) - 48 : c >= 'a' && c <= 'z' ? c.charCodeAt(0) - 87 : c >= 'A' && c <= 'Z' ? c.charCodeAt(0) - 55 : 99
+        return d < base ? d : -1
+    }
+    const start = p
+    let v = 0n
+    while (p < s.length && digit(s[p]) >= 0) {
+        v = v * BigInt(base) + BigInt(digit(s[p]))
+        p++
+    }
+    if (p === start) return undefined
+    const signed = neg ? -v : v
+    const outOfRange = signed > 2147483647n || signed < -2147483648n
+    return {value: outOfRange ? 0 : Number(signed), length: p, outOfRange}
+}
+
+// `get_multi_function` (`node_fn_string_to_value.cc:30`): the value and the number of characters it used, or 0 and 0.
+stringNode('FunctionNodeStringToValue', 'String to Value', (b, node) => {
+    const isInt = node.prop<string>('data_type') === 'INT'
+    b.input('STRING', 'String')
+    b.input('INT', 'Base').min(2).max(36).default(10).available(isInt)
+    b.output(isInt ? 'INT' : 'FLOAT', 'Value')
+    b.output('INT', 'Length')
+}, p => {
+    const s = p.string('String')
+    const isInt = p.node.prop<string>('data_type') === 'INT'
+    let r: {value: number, length: number, outOfRange: boolean} | undefined
+    if (isInt) {
+        const base = p.int('Base')
+        r = base < 2 || base > 36 ? undefined : intFromChars(s, base)
+    } else {
+        r = fastFloatFromChars(s)
+    }
+    const ok = r && !r.outOfRange
+    // `BLI_strnlen_utf8(s, ptr - s)`: characters in the used bytes.
+    const length = ok ? charsInBytes(encoder.encode(s), encoder.encode(s.slice(0, r!.length)).length) : 0
+    p.set('Value', GField.constant(isInt ? 'int32' : 'float', [ok ? r!.value : 0]))
+    p.set('Length', int(length))
+}, {properties: {data_type: 'FLOAT'}, enums: {data_type: ['FLOAT', 'INT']}})

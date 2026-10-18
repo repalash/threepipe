@@ -96,5 +96,29 @@ export function functionMiscCases(): ParityCase[] {
     })
     cases.push({id, description: 'String nodes: case mapping tables, reverse, trim, slice, replace, join, value to string (ties, signs, bases), length, find, match',
         library: group.toJSON() as NodeGroupLibrary, group: id, input: 'empty'})
+    // String to Value: single values again, results stored on one point.
+    const sid = 'string-to-value'
+    const sgroup = geometryNodes(sid, g => {
+        let geometry: AnySocket = g.node('GeometryNodePoints', {count: 1}).outputs.geometry
+        const store = (name: string, value: AnySocket, dataType: string) => {
+            geometry = g.node('GeometryNodeStoreNamedAttribute', {dataType, domain: 'POINT', geometry, name, value}).outputs.geometry
+        }
+        const floats = ['3.14abc', '-0.1', '1e-50', '1e39', '  5', '+5', '.5', '5.', '1e', '1e+3x', 'inf', '-Infinity', 'nan(abc)', '0.1',
+            '1.00000005960464477539', '1.0000000596046447753906250001', '3.4028235677973366e38', '1.4e-45', '7e-46', '', '-', '-.e1', '12345678901234567890123']
+        floats.forEach((text, i) => {
+            const r = g.node('FunctionNodeStringToValue', {string: g.node('FunctionNodeInputString', {string: text}).outputs.string}).outputs
+            store(`f${i}`, r.value, 'FLOAT')
+            store(`fl${i}`, r.length, 'INT')
+        })
+        const ints: [string, number][] = [['0x1A', 16], ['ff', 16], ['FF', 16], ['-80000000', 16], ['2147483648', 10], ['-2147483648', 10], ['z9', 36], ['12', 2], ['102', 2], ['7', 40]]
+        ints.forEach(([text, base], i) => {
+            const r = g.node('FunctionNodeStringToValue', {dataType: 'INT', base, string: g.node('FunctionNodeInputString', {string: text}).outputs.string}).outputs
+            store(`i${i}`, r.value, 'INT')
+            store(`il${i}`, r.length, 'INT')
+        })
+        g.output.geometry('Geometry', geometry)
+    })
+    cases.push({id: sid, description: 'String to Value: fast_float syntax and float32 rounding (ties, subnormals, overflow), from_chars bases',
+        library: sgroup.toJSON() as NodeGroupLibrary, group: sid, input: 'empty'})
     return cases
 }
