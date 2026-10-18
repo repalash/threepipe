@@ -1,17 +1,75 @@
 /**
  * `geometry::separate_geometry` (`geometry/intern/separate_geometry.cc:174`): keep the selected elements.
- * Curves (`curves_copy_point_selection` / `curves_copy_curve_selection`) are not ported yet and throw.
  */
 
 import {AttrDomain} from '@threepipe/mesh-kernel'
 import {FieldContext, FieldEvaluation, GField} from '../fields'
 import {DATA_TYPES, DataType} from './dataTypes'
 import {GeometrySet} from './GeometrySet'
-import {PointCloud} from './components'
+import {CurvesGeometry, PointCloud} from './components'
+import {removeAttributesBasedOnTypes} from './trimCurves'
 import {meshCopySelection, meshCopySelectionKeepEdges, meshCopySelectionKeepVerts} from './meshCopySelection'
 import {filterInstances} from './realizeInstances'
 
 export type DeleteGeometryMode = 'ALL' | 'EDGE_FACE' | 'ONLY_FACE'
+
+/** Copy the `indices` elements of every `domain` layer of `src` into `dst` (`gather_attributes`). */
+function gatherLayers(src: CurvesGeometry, dst: CurvesGeometry, domain: AttrDomain, indices: ArrayLike<number>): void {
+    for (const layer of src.attributes.layers()) {
+        if (layer.domain !== domain) continue
+        const c = DATA_TYPES[layer.type as DataType].components
+        const out = dst.attributes.get(layer.name) ?? dst.attributes.add({name: layer.name, domain, type: layer.type})
+        for (let d = 0; d < indices.length; d++) {
+            const s = indices[d]
+            for (let k = 0; k < c; k++) out.data[d * c + k] = layer.data[s * c + k]
+        }
+    }
+}
+
+/** `bke::curves_copy_point_selection` (`curves_geometry.cc:1497`): the selected points, the curves that keep any. */
+export function curvesCopyPointSelection(src: CurvesGeometry, points: number[]): CurvesGeometry {
+    const counts = new Int32Array(src.curvesNum)
+    const pointToCurve = new Int32Array(src.pointsNum)
+    for (let c = 0; c < src.curvesNum; c++) pointToCurve.fill(c, src.curveOffsets[c], src.curveOffsets[c + 1])
+    for (const p of points) counts[pointToCurve[p]]++
+    const curves: number[] = []
+    for (let c = 0; c < src.curvesNum; c++) if (counts[c] > 0) curves.push(c)
+    const dst = new CurvesGeometry(points.length, curves.length)
+    curves.forEach((c, i) => { dst.curveOffsets[i + 1] = dst.curveOffsets[i] + counts[c] })
+    gatherLayers(src, dst, AttrDomain.Point, points)
+    gatherLayers(src, dst, AttrDomain.Curve, curves)
+    // :1554: the type counts stay when every curve is kept, else attributes of absent types go.
+    if (dst.curvesNum !== src.curvesNum) removeAttributesBasedOnTypes(dst)
+    return dst
+}
+
+/** `bke::curves_copy_curve_selection` (`curves_geometry.cc:1593`): the selected curves with all their points. */
+export function curvesCopyCurveSelection(src: CurvesGeometry, curves: number[]): CurvesGeometry {
+    const points: number[] = []
+    const dst = new CurvesGeometry(0, curves.length)
+    curves.forEach((c, i) => {
+        const [s, e] = src.pointsRange(c)
+        for (let p = s; p < e; p++) points.push(p)
+        dst.curveOffsets[i + 1] = dst.curveOffsets[i] + (e - s)
+    })
+    dst.attributes.resizeDomain(AttrDomain.Point, points.length)
+    // `gather_attributes_group_to_group` on points is the same element copy, curve by curve.
+    gatherLayers(src, dst, AttrDomain.Point, points)
+    gatherLayers(src, dst, AttrDomain.Curve, curves)
+    removeAttributesBasedOnTypes(dst)
+    return dst
+}
+
+/** `separate_curves_selection` (:24). Undefined: unchanged. */
+function separateCurves(src: CurvesGeometry, domain: AttrDomain, selection: GField): CurvesGeometry | undefined {
+    const size = domain === AttrDomain.Point ? src.pointsNum : src.curvesNum
+    const sel = new FieldEvaluation(new FieldContext('curves', src, domain), size).evaluate(selection)
+    const keep: number[] = []
+    for (let i = 0; i < size; i++) if (sel.get(i, 0)) keep.push(i)
+    if (keep.length === size) return undefined
+    if (!keep.length) return new CurvesGeometry()
+    return domain === AttrDomain.Point ? curvesCopyPointSelection(src, keep) : curvesCopyCurveSelection(src, keep)
+}
 
 /** `separate_pointcloud_selection` (:54). Undefined: unchanged; null: no point cloud. */
 function separatePointCloud(src: PointCloud, selection: GField): PointCloud | null | undefined {
@@ -51,8 +109,18 @@ export function separateGeometry(geometry: GeometrySet, domain: AttrDomain, mode
         if (dst !== undefined) geometry.setMesh(dst ?? undefined)
         someValidDomain = true
     }
-    if (geometry.curves && (domain === AttrDomain.Point || domain === AttrDomain.Curve)) {
-        throw new Error('procedural: separating curves (curves_copy_point_selection / curves_copy_curve_selection) is not ported yet')
+    const curves = geometry.curves
+    if (curves && (domain === AttrDomain.Point || domain === AttrDomain.Curve)) {
+        // :203-219: an empty result removes the component; otherwise `curves_copy_parameters` (materials).
+        const dst = separateCurves(curves, domain, selection)
+        if (dst) {
+            if (dst.curvesNum === 0) geometry.remove('curves')
+            else {
+                dst.materials = curves.materials.slice()
+                geometry.setCurves(dst)
+            }
+        }
+        someValidDomain = true
     }
     if (geometry.instances && domain === AttrDomain.Instance) {
         // `delete_selected_instances` (:80).

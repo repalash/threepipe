@@ -102,3 +102,12 @@ Case sets (`tests/parity/cases/subdiv*.ts`, `run_cases.py`), each case compared 
 
 ~30k lines of C++ in scope (Vtr ~8.5k, Far ~12k without Loop, Sdc ~1.5k, Osd cpu ~2k, Blender intern ~2.5k, bke subdiv
 ~4.5k). Phase A first and reported before B; each phase ends with its case set vendored and a report in agent.md.
+
+## Status (2026-10-18)
+
+- **Phase A done**: Subdivide Mesh ported (`src/blender/opensubdiv/`, `src/geometry/subdiv*.ts`,
+  `src/nodes/geometry/subdivideMesh.ts`); `tests/parity/cases/subdivMesh` 14/17 bit-exact, 2 within libm ulps (proven:
+  exact with the platform's `__sincosf_stret` / `atan2f`, see `procedural-libm-atan2f-sincos.md`), 1 blocked on the
+  float4x4 `mix2` (Eigen JacobiSVD). The per-file list of ported OSD classes and what is not ported is in the track's
+  agent log; every unported path throws.
+- Phases B/C moved to the realism track (kernel Subdivision Surface, 2026-10-18 11:25 decision).

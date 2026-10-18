@@ -237,6 +237,80 @@ export function bezierVectorHandle(point: ArrayLike<number>, next: ArrayLike<num
     return [0, 1, 2].map(k => f32(f32(point[k] * omt) + f32(next[k] * t))) as V3
 }
 
+/** `calculate_aligned_handle` (:89). */
+function calculateAlignedHandle(position: ArrayLike<number>, otherHandle: ArrayLike<number>, alignedHandle: ArrayLike<number>): V3 {
+    const length = length3(sub3(alignedHandle, position))
+    const dir = normalize3(sub3(otherHandle, position))
+    return sub3(position, scale3(dir, length))
+}
+
+/** `calculate_point_handles` (:143). `left`/`right` are updated in place. */
+function calculatePointHandles(typeLeft: number, typeRight: number, position: ArrayLike<number>, prevPosition: ArrayLike<number>,
+    nextPosition: ArrayLike<number>, left: V3, right: V3): void {
+    if (typeLeft === BEZIER_HANDLE_AUTO || typeRight === BEZIER_HANDLE_AUTO) {
+        const prevDiff = sub3(position, prevPosition)
+        const nextDiff = sub3(nextPosition, position)
+        let prevLen = length3(prevDiff)
+        let nextLen = length3(nextDiff)
+        if (prevLen === 0) prevLen = 1
+        if (nextLen === 0) nextLen = 1
+        const dir = add3([f32(nextDiff[0] / nextLen), f32(nextDiff[1] / nextLen), f32(nextDiff[2] / nextLen)],
+            [f32(prevDiff[0] / prevLen), f32(prevDiff[1] / prevLen), f32(prevDiff[2] / prevLen)])
+        const len = f32(length3(dir) * f32(2.5614))
+        if (len !== 0) {
+            if (typeLeft === BEZIER_HANDLE_AUTO) {
+                const n5 = f32(nextLen * 5)
+                const prevLenClamped = n5 < prevLen ? n5 : prevLen
+                const v = add3(position, scale3(dir, -f32(prevLenClamped / len)))
+                left[0] = v[0]; left[1] = v[1]; left[2] = v[2]
+            }
+            if (typeRight === BEZIER_HANDLE_AUTO) {
+                const p5 = f32(prevLen * 5)
+                const nextLenClamped = p5 < nextLen ? p5 : nextLen
+                const v = add3(position, scale3(dir, f32(nextLenClamped / len)))
+                right[0] = v[0]; right[1] = v[1]; right[2] = v[2]
+            }
+        }
+    }
+    if (typeLeft === BEZIER_HANDLE_VECTOR) {
+        const v = bezierVectorHandle(position, prevPosition)
+        left[0] = v[0]; left[1] = v[1]; left[2] = v[2]
+    }
+    if (typeRight === BEZIER_HANDLE_VECTOR) {
+        const v = bezierVectorHandle(position, nextPosition)
+        right[0] = v[0]; right[1] = v[1]; right[2] = v[2]
+    }
+    if (typeLeft === BEZIER_HANDLE_ALIGN && typeRight !== BEZIER_HANDLE_ALIGN) {
+        const v = calculateAlignedHandle(position, right, left)
+        left[0] = v[0]; left[1] = v[1]; left[2] = v[2]
+    } else if (typeLeft !== BEZIER_HANDLE_ALIGN && typeRight === BEZIER_HANDLE_ALIGN) {
+        const v = calculateAlignedHandle(position, left, right)
+        right[0] = v[0]; right[1] = v[1]; right[2] = v[2]
+    }
+}
+
+/**
+ * `bezier::calculate_auto_handles` (:263) for one curve: arrays are the curve's slices (`positionsLeft/Right`
+ * written in place).
+ */
+export function bezierCalculateAutoHandles(cyclic: boolean, typesLeft: ArrayLike<number>, typesRight: ArrayLike<number>,
+    positions: ArrayLike<number>, positionsLeft: Float32Array, positionsRight: Float32Array): void {
+    const n = positions.length / 3
+    if (n === 1) return
+    const p = (i: number): V3 => [positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]]
+    const twiceMinus = (a: V3, b: V3): V3 => [f32(f32(2 * a[0]) - b[0]), f32(f32(2 * a[1]) - b[1]), f32(f32(2 * a[2]) - b[2])]
+    const run = (i: number, prev: V3, next: V3) => {
+        const left = Array.from(positionsLeft.subarray(i * 3, i * 3 + 3)) as V3
+        const right = Array.from(positionsRight.subarray(i * 3, i * 3 + 3)) as V3
+        calculatePointHandles(typesLeft[i], typesRight[i], p(i), prev, next, left, right)
+        positionsLeft.set(left, i * 3)
+        positionsRight.set(right, i * 3)
+    }
+    run(0, cyclic ? p(n - 1) : twiceMinus(p(0), p(1)), p(1))
+    for (let i = 1; i < n - 1; i++) run(i, p(i - 1), p(i + 1))
+    run(n - 1, p(n - 2), cyclic ? p(0) : twiceMinus(p(n - 1), p(n - 2)))
+}
+
 /** `bezier::evaluate_segment_ex<float3>` (:304) into `out[start .. start + size)` (float3 elements). */
 export function bezierEvaluateSegment(p0: ArrayLike<number>, p1: ArrayLike<number>, p2: ArrayLike<number>, p3: ArrayLike<number>,
     out: Float32Array, start: number, size: number): void {

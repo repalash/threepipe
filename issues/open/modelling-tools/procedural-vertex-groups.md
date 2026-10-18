@@ -18,3 +18,15 @@ Where it is not equivalent:
   ordinary attributes here.
 
 A deform-verts layer in the kernel would make both exact; decide whether that is worth it once an asset depends on it.
+
+**Update 2026-10-18**: an asset now depends on it. With Subdivide Mesh, curve separation and legacy corner normals
+ported, Buildify's `building_base` evaluates completely and matches Blender in every attribute except this one: the
+graph stores an INT face attribute `building:levels` next to the object's float vertex group of the same name;
+Blender keeps both (vertex groups live in `MDeformVert`, outside the generic attributes), the single namespace here
+keeps one. `tests/parity/assets.test.ts` records it as a known gap (it must fail exactly this way).
+
+Proposed fix (needs a decision, it touches the data model): a vertex-group store on the mesh (`vertex_group_names` +
+deform weights, e.g. CSR) in the kernel's `MeshData` (additive), and the procedural mesh accessor ported from
+`VertexGroupsAttributeProvider` (`mesh_attributes.cc:732-790`: lookup order corner data, vertex groups, point/edge/face
+data; reads/writes/deletes of groups), plus the ops that copy groups (`BKE_defgroup_copy_list` with
+`copy_parameters_for_eval`, `mesh_copy_selection`, realize/join `copy_vertex_group_names`).

@@ -106,16 +106,17 @@ export class IDAttributeFieldInput extends FieldInput {
 }
 
 export class NormalFieldInput extends FieldInput {
-    constructor() {
-        super('float3', 'Normal')
+    /** `NormalFieldInput(legacy_corner_normals, true_normals)` (`geometry_fields.cc:833`). */
+    constructor(readonly legacyCornerNormals = false, readonly trueNormals = false) {
+        super('float3', trueNormals ? 'True Normal' : 'Normal')
     }
 
     key(): string {
-        return 'normal'
+        return `normal:${this.legacyCornerNormals}:${this.trueNormals}`
     }
 
     getVArray(context: FieldContext): GVArray | undefined {
-        if (context.mesh) return meshNormalsVArray(context.mesh, context.domain)
+        if (context.mesh) return meshNormalsVArray(context.mesh, context.domain, this.legacyCornerNormals, this.trueNormals)
         if (context.curves) throw new Error('procedural: curve normals (curve_normals_varray) are not ported yet')
         return undefined
     }

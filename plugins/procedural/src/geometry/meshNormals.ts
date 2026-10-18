@@ -129,7 +129,11 @@ export function meshVertNormals(mesh: MeshData): Float32Array {
  * (`Mesh::corner_normals()`, `normals_calc_corners`) are not ported yet; a mesh that would need them
  * throws instead of returning face or vertex normals in their place.
  */
-export function meshNormalsVArray(mesh: MeshData, domain: AttrDomain): GVArray {
+export function meshNormalsVArray(mesh: MeshData, domain: AttrDomain, noCornerNormals = false, trueNormals = false): GVArray {
+    // `vert_normals()` / `face_normals()` follow custom normals, `*_true()` do not; only the latter are ported.
+    if (!trueNormals && mesh.attributes.has(AttrName.customNormal)) {
+        throw new Error('procedural: meshes with custom normals (custom_normal) are not supported yet')
+    }
     switch (domain) {
     case AttrDomain.Face:
         return GVArray.fromArray('float3', meshFaceNormals(mesh))
@@ -146,6 +150,10 @@ export function meshNormalsVArray(mesh: MeshData, domain: AttrDomain): GVArray {
         return GVArray.fromArray('float3', out)
     }
     case AttrDomain.Corner: {
+        // `no_corner_normals || true_normals`: the face normals on the corners.
+        if (noCornerNormals || trueNormals) {
+            return adaptMeshDomain(mesh, GVArray.fromArray('float3', meshFaceNormals(mesh)), AttrDomain.Face, AttrDomain.Corner)!
+        }
         const domainKind = meshNormalsDomain(mesh)
         if (domainKind === 'face') {
             return adaptMeshDomain(mesh, GVArray.fromArray('float3', meshFaceNormals(mesh)), AttrDomain.Face, AttrDomain.Corner)!

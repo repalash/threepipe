@@ -10,9 +10,7 @@
   "groups": 9,
   "nodes": 422,
   "nodeTypes": 53,
-  "missing": {
-   "GeometryNodeSubdivideMesh": 2
-  },
+  "missing": {},
   "unevaluatedObjects": []
  },
  "candy_bounce": {
@@ -20,7 +18,6 @@
   "nodes": 104,
   "nodeTypes": 33,
   "missing": {
-   "GeometryNodeProximity": 1,
    "GeometryNodeSubdivisionSurface": 1
   },
   "unevaluatedObjects": []

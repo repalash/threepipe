@@ -13,6 +13,9 @@
  "trim-length-field": "exact",
  "trim-selection": "exact",
  "trim-equal": "exact",
+ "set-position-bezier-open": "exact",
+ "set-position-bezier-cyclic": "exact",
+ "set-position-bezier-segment": "exact",
  "duplicate-spline-curves": "exact",
  "duplicate-point-curves": "exact"
 }

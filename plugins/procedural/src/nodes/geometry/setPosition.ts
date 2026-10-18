@@ -6,6 +6,8 @@
 
 import {AttrDomain} from '@threepipe/mesh-kernel'
 import {captureFieldsOnGeometry, FieldContext, FieldEvaluation, FieldOperation, GField, lookupMultiFunction} from '../../fields'
+import {AttributeFieldInput} from '../../fields/inputs'
+import {calculateBezierAutoHandles} from '../../geometry/curvesEdit'
 import {registerNodeType} from '../../runtime/registry'
 
 registerNodeType({
@@ -27,13 +29,30 @@ registerNodeType({
         if (geometry.pointCloudForWrite()) captureFieldsOnGeometry(geometry, 'pointcloud', ['position'], AttrDomain.Point, selection, [position])
         const curves = geometry.curvesForWrite()
         if (curves) {
-            // :58-80: handles move with their point; Bezier auto handles are then recalculated.
-            const names = ['position']
-            const fields: GField[] = [position]
+            // `set_curves_position` (:58): handles move with their point, then Bezier auto handles are recalculated.
             if (curves.attributes.has('handle_right') && curves.attributes.has('handle_left')) {
-                throw new Error('procedural: Set Position on Bezier curves (handles, calculate_bezier_auto_handles) is not ported yet')
+                // `try_capture_fields_on_geometry` evaluates every field before writing any of them
+                // (`geometry_fields.cc:1083`), so the handle deltas read the old positions.
+                const sub = lookupMultiFunction('float3 - float3')
+                const delta = new FieldOperation(sub, [position, GField.fromInput(new AttributeFieldInput('position', 'float3'))]).output(0)
+                const names = ['position', 'handle_left', 'handle_right']
+                const fields: GField[] = [position, ...names.slice(1).map(n =>
+                    new FieldOperation(add, [GField.fromInput(new AttributeFieldInput(n, 'float3')), delta]).output(0))]
+                const n = curves.pointsNum
+                const e = new FieldEvaluation(new FieldContext('curves', curves, AttrDomain.Point), n)
+                const sel = e.evaluate(selection)
+                const values = fields.map(f => e.evaluate(f))
+                names.forEach((name, i) => {
+                    const data = curves.attributes.get(name)!.data
+                    for (let p = 0; p < n; p++) {
+                        if (!sel.get(p, 0)) continue
+                        for (let k = 0; k < 3; k++) data[p * 3 + k] = values[i].get(p, k)
+                    }
+                })
+            } else {
+                captureFieldsOnGeometry(geometry, 'curves', ['position'], AttrDomain.Point, selection, [position])
             }
-            captureFieldsOnGeometry(geometry, 'curves', names, AttrDomain.Point, selection, fields)
+            calculateBezierAutoHandles(curves)
         }
         const instances = geometry.instancesForWrite()
         if (instances) {

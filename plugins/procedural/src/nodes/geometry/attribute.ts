@@ -148,10 +148,10 @@ registerNodeType({
         b.output('VECTOR', 'Normal').field()
         b.output('VECTOR', 'True Normal').field()
     },
+    // `node_geo_input_normal.cc`: Normal with the legacy flag, True Normal ignores custom normals.
     execute(p) {
-        if (p.node.prop<boolean>('legacy_corner_normals')) throw new Error('Normal: legacy corner normals are not ported yet')
-        p.set('Normal', GField.fromInput(new NormalFieldInput()))
-        if (p.outputUsed('True Normal')) throw new Error('Normal: the True Normal output is not ported yet')
+        p.set('Normal', GField.fromInput(new NormalFieldInput(p.node.prop<boolean>('legacy_corner_normals'))))
+        if (p.outputUsed('True Normal')) p.set('True Normal', GField.fromInput(new NormalFieldInput(false, true)))
     },
 })
 
