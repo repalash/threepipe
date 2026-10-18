@@ -54,7 +54,7 @@ export function cross3(a: ArrayLike<number>, b: ArrayLike<number>): V3 {
  */
 export function normalize3(a: ArrayLike<number>): V3 {
     const sq = dot3(a, a)
-    if (sq > 1.0e-35) {
+    if (sq > f32(1.0e-35)) {
         const len = f32(Math.sqrt(sq))
         return [f32(a[0] / len), f32(a[1] / len), f32(a[2] / len)]
     }
@@ -111,4 +111,45 @@ export function angleNormalizedV3V3(v1: ArrayLike<number>, v2: ArrayLike<number>
 /** `angle_v3v3` (`math_vector.cc:276`). */
 export function angleV3V3(a: ArrayLike<number>, b: ArrayLike<number>): number {
     return angleNormalizedV3V3(normalizeV3V3(a), normalizeV3V3(b))
+}
+
+/** `math::cross_high_precision` (`BLI_math_vector.hh:565`): products and differences in double, one rounding to float. */
+export function crossHighPrecision3(a: ArrayLike<number>, b: ArrayLike<number>): V3 {
+    return [
+        f32(a[1] * b[2] - a[2] * b[1]),
+        f32(a[2] * b[0] - a[0] * b[2]),
+        f32(a[0] * b[1] - a[1] * b[0]),
+    ]
+}
+
+/** `math::project` (`BLI_math_vector.hh:511`): `v_proj * (dot(p, v_proj) / dot(v_proj, v_proj))`, zero for a zero `v_proj`. */
+export function project3(p: ArrayLike<number>, vProj: ArrayLike<number>): V3 {
+    if (isZero3(vProj)) return [0, 0, 0]
+    return scale3(vProj, f32(dot3(p, vProj) / dot3(vProj, vProj)))
+}
+
+/** `math::reflect` (`BLI_math_vector.hh:486`): `incident - 2.0 * dot(normal, incident) * normal`. */
+export function reflect3(incident: ArrayLike<number>, normal: ArrayLike<number>): V3 {
+    // `2.0 * dot` is a double, converted to float by `operator*(T, VecBase)`; doubling is exact.
+    const k = f32(2 * dot3(normal, incident))
+    return sub3(incident, scale3(normal, k))
+}
+
+/** `math::refract` (`BLI_math_vector.hh:494`). `sqrt` is `math::sqrt<float>`. */
+export function refract3(incident: ArrayLike<number>, normal: ArrayLike<number>, eta: number): V3 {
+    const dotNI = dot3(normal, incident)
+    const k = f32(1 - f32(f32(eta * eta) * f32(1 - f32(dotNI * dotNI))))
+    if (k < 0) return [0, 0, 0]
+    const s = f32(f32(eta * dotNI) + f32(Math.sqrt(k)))
+    return sub3(scale3(incident, eta), scale3(normal, s))
+}
+
+/** `math::faceforward` (`BLI_math_vector.hh:652`). */
+export function faceforward3(vector: ArrayLike<number>, incident: ArrayLike<number>, reference: ArrayLike<number>): V3 {
+    return dot3(reference, incident) < 0 ? [vector[0], vector[1], vector[2]] : [-vector[0], -vector[1], -vector[2]]
+}
+
+/** `math::distance` (`BLI_math_vector.hh:480`): `length(a - b)`. */
+export function distance3(a: ArrayLike<number>, b: ArrayLike<number>): number {
+    return length3(sub3(a, b))
 }
