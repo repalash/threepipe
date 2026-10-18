@@ -25,7 +25,7 @@
  *   mitred round the cut corners; `bevel` rounds the main cornice's soffit.
  * - **Balconies.** The plan polygon again, outset with a negative individual `inset`, its middle and
  *   party-wall side deleted, cut flush with `bisect`, thickened with `solidify`, nosed with `bevel`.
- *   The railings are one 24 cm cast-iron module repeated along the balcony edge by a live curve
+ *   The railings are one 30 cm cast-iron module repeated along the balcony edge by a live curve
  *   `array`, so they turn the corners.
  * - **Mansard.** The roof is the wall's top face, `inset` with a depth equal to its width: a 45° brisis
  *   (the 1859 limit), then a shallow terrasson. Dormers are one master on live `array`s.
@@ -313,7 +313,7 @@ export default async (session) => {
     d = await detail('facade')
     const reveals = d.faceVerts.map((_, i) => i).filter(i => recessed.some(c => near3(centroid(d, i), c)))
     const sash = await must({op: 'inset', object: 'facade', faces: reveals, individual: true, thickness: 0.05})
-    await shotCam([-9, 9, 16], [4, 8, -2], 45)
+    await shotCam([-15, 12, 23], [4, 9, -4], 45)
     await capture('windows framed, recessed and glazed')
 
     // The panes and the shop doors become their own objects, so they can be glass and painted wood.
@@ -402,7 +402,14 @@ export default async (session) => {
     const crown = rd.faceVerts.map((v, i) => ({v, i})).find(({v}) => v.length >= 5 && v.every(k => Math.abs(rd.vertices[k][1] - L.brisisTop) < 1e-4)).i
     const TERRASSON = {width: 1.5, rise: 0.25}
     await must({op: 'inset', object: 'roof', faces: [crown], thickness: TERRASSON.width, depth: TERRASSON.rise})
-    await must({op: 'bisect', object: 'roof', planeCo: [SEB_LENGTH, 0, 0], planeNo: [1, 0, 0], clearOuter: true, fill: true})
+    await must({op: 'bisect', object: 'roof', planeCo: [SEB_LENGTH, 0, 0], planeNo: [1, 0, 0], clearOuter: true})
+    // The roof is a surface, not a solid, so the cut is an open chain and `fill` has no loop to close.
+    // Close the gable with Blender's F on the chain's vertices, in order round the profile.
+    rd = await detail('roof')
+    const gable = rd.vertices.map((p, i) => ({p, i})).filter(({p}) => Math.abs(p[0] - SEB_LENGTH) < 1e-4)
+    const gc = gable.reduce((a, {p}) => [a[0] + p[1] / gable.length, a[1] + p[2] / gable.length], [0, 0])
+    gable.sort((a, b) => Math.atan2(a.p[1] - gc[0], a.p[2] - gc[1]) - Math.atan2(b.p[1] - gc[0], b.p[2] - gc[1]))
+    await must({op: 'makeEdgeFace', object: 'roof', verts: gable.map(g => g.i)})
     await must({op: 'material', object: 'roof', ...MAT.zinc})
     await beat('roof')
     // Seen end-on from the party wall, before the neighbour is built: the gable is the roof's section.
@@ -433,21 +440,21 @@ export default async (session) => {
     }
     const pathLength = pts => pts.slice(1).reduce((s, p, i) => s + Math.hypot(p[0] - pts[i][0], p[1] - pts[i][1]), 0)
 
-    // The railing module: 24 cm of top rail and bottom rail, two bars and a cast ring between them,
+    // The railing module: 30 cm of top rail and bottom rail, one bar and a cast ring beside it,
     // modelled Z-up because the curve array's frames are Blender's (Z up; see
     // issues/open/modelling-tools/command-array-curve-frames-z-up.md): the railing is stood up after.
-    const MODULE = 0.24
+    // (A finer module - two bars to 24 cm - pushed the exported GLB past 5 MB.)
+    const MODULE = 0.3
     const moduleParts = async (name, up) => {
         // `up` is the axis the railing stands along: 'z' for the curve arrays, 'y' for straight runs.
         const at = (x, h) => up === 'z' ? [x, 0, h] : [x, h, 0]
         const box = (w, t, h) => up === 'z' ? {width: w, height: t, depth: h} : {width: w, height: h, depth: t}
-        const parts = [`${name}-top`, `${name}-bottom`, `${name}-bar1`, `${name}-bar2`, `${name}-ring`]
+        const parts = [`${name}-top`, `${name}-bottom`, `${name}-bar`, `${name}-ring`]
         await must({op: 'primitive', type: 'cube', name: parts[0], ...box(MODULE, 0.05, 0.05), position: at(MODULE / 2, 0.975), color: MAT.iron.color})
         await must({op: 'primitive', type: 'cube', name: parts[1], ...box(MODULE, 0.03, 0.03), position: at(MODULE / 2, 0.1)})
-        await must({op: 'primitive', type: 'cube', name: parts[2], ...box(0.018, 0.018, 0.84), position: at(MODULE / 4, 0.535)})
-        await must({op: 'primitive', type: 'cube', name: parts[3], ...box(0.018, 0.018, 0.84), position: at(3 * MODULE / 4, 0.535)})
-        await must({op: 'primitive', type: 'torus', name: parts[4], radius: 0.045, tubeRadius: 0.007, segments: 8,
-            tubeSegments: 3, axis: up === 'z' ? 'y' : 'z', position: at(MODULE / 2, 0.6)})
+        await must({op: 'primitive', type: 'cube', name: parts[2], ...box(0.02, 0.02, 0.84), position: at(0.01, 0.535)})
+        await must({op: 'primitive', type: 'torus', name: parts[3], radius: 0.1, tubeRadius: 0.009, segments: 6,
+            tubeSegments: 3, axis: up === 'z' ? 'y' : 'z', position: at(MODULE / 2, 0.55)})
         await must({op: 'join', objects: parts, name})
         await must({op: 'applyTransform', object: name})
     }
@@ -652,7 +659,7 @@ export default async (session) => {
     await must({op: 'material', object: 'pavement', ...MAT.pavement})
     await must({op: 'material', object: 'neighbour', ...MAT.neighbour})
     await beat('street')
-    await shotCam([-16, 1.7, 26], [3, 12, -6], 45)
+    await shotCam([-36, 13, 40], [4, 8, -7], 40)
     await capture('the street')
 
     // --- checks: the model against the drawings -------------------------------------------------
@@ -711,7 +718,7 @@ export default async (session) => {
         expect('window opening, between stone jambs', Math.max(...jambs) - Math.min(...jambs), WIN, 'Pl. 1 88 px')
     }
     const roof = await detail('roof')
-    const brisisTop = roof.vertices.filter(v => Math.abs(v[1] - L.brisisTop) < 1e-3 && v[0] > 1 && v[0] < SEB_LENGTH - 3)
+    const brisisTop = roof.vertices.filter(v => Math.abs(v[1] - L.brisisTop) < 1e-3 && v[0] > 0.5 && v[0] < SEB_LENGTH + 1e-3)
     const setback = Math.min(...brisisTop.map(v => -v[2]).filter(z => z > 0 && z < 5))
     expect('top of the brisis', Math.max(...brisisTop.map(v => v[1])), L.brisisTop, `Pl. 1 row ${ELEV.rows.brisisTop}`)
     expect('brisis pitch (deg; 1859: within 45°)', Math.atan2(L.brisisTop - L.eave, setback) * 180 / Math.PI, BRISIS_PITCH, '1859 decree', 0.3)

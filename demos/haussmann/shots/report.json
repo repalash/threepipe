@@ -1,0 +1,473 @@
+{
+  "checks": [
+    {
+      "what": "cornice height above the pavement (1859 limit: 20 m)",
+      "want": 19.945,
+      "got": 19.945,
+      "delta": 0,
+      "ok": true,
+      "source": "Pl. 1 row 893"
+    },
+    {
+      "what": "boulevard front, cut corner to party wall",
+      "want": 14.931,
+      "got": 14.931,
+      "delta": 0,
+      "ok": true,
+      "source": "Pl. 1 cols 515-1602"
+    },
+    {
+      "what": "depth, boulevard to rue Palestro",
+      "want": 15.833,
+      "got": 15.833,
+      "delta": 0,
+      "ok": true,
+      "source": "Pl. 3 rows 682-1269"
+    },
+    {
+      "what": "rue Palestro front",
+      "want": 20.973,
+      "got": 20.973,
+      "delta": 0,
+      "ok": true,
+      "source": "Pl. 3 cols 598 to party wall"
+    },
+    {
+      "what": "rue Greneta front",
+      "want": 13.544,
+      "got": 13.544,
+      "delta": 0,
+      "ok": true,
+      "source": "Pl. 3 rows 758-1212"
+    },
+    {
+      "what": "cut corner, Greneta / boulevard",
+      "want": 2.467,
+      "got": 2.467,
+      "delta": 0,
+      "ok": true,
+      "source": "Pl. 3"
+    },
+    {
+      "what": "cut corner, Palestro / Greneta",
+      "want": 2.647,
+      "got": 2.647,
+      "delta": 0,
+      "ok": true,
+      "source": "Pl. 3"
+    },
+    {
+      "what": "rue Greneta, angle off square (deg)",
+      "want": 25.295,
+      "got": 25.295,
+      "delta": 0,
+      "ok": true,
+      "source": "Pl. 3 pier fit"
+    },
+    {
+      "what": "2nd-floor balcony, top of slab",
+      "want": 7.418,
+      "got": 7.418,
+      "delta": 0,
+      "ok": true,
+      "source": "Pl. 1 row 1805"
+    },
+    {
+      "what": "4th-floor balcony, top of slab",
+      "want": 13.874,
+      "got": 13.874,
+      "delta": 0,
+      "ok": true,
+      "source": "Pl. 1 row 1335"
+    },
+    {
+      "what": "5th-floor balcony, top of slab",
+      "want": 16.964,
+      "got": 16.964,
+      "delta": 0,
+      "ok": true,
+      "source": "Pl. 1 row 1110"
+    },
+    {
+      "what": "balcony projection (boulevard)",
+      "want": 0.5,
+      "got": 0.5,
+      "delta": 0,
+      "ok": true,
+      "source": "Pl. 3 outline 18-19 px"
+    },
+    {
+      "what": "3rd-floor balconettes, top of slab",
+      "want": 10.92,
+      "got": 10.92,
+      "delta": 0,
+      "ok": true,
+      "source": "Pl. 1 row 1550"
+    },
+    {
+      "what": "1st floor (the window guards stand on it)",
+      "want": 4.052,
+      "got": 4.052,
+      "delta": 0,
+      "ok": true,
+      "source": "Pl. 1 row 2050"
+    },
+    {
+      "what": "boulevard windows, 2nd floor",
+      "want": 6,
+      "got": 6,
+      "delta": 0,
+      "ok": true,
+      "source": "Pl. 1"
+    },
+    {
+      "what": "bay spacing, boulevard",
+      "want": 2.371,
+      "got": 2.371,
+      "delta": 0,
+      "ok": true,
+      "source": "Pl. 1 window leaves"
+    },
+    {
+      "what": "window opening, between stone jambs",
+      "want": 1.209,
+      "got": 1.209,
+      "delta": 0,
+      "ok": true,
+      "source": "Pl. 1 88 px"
+    },
+    {
+      "what": "top of the brisis",
+      "want": 22.596,
+      "got": 22.596,
+      "delta": 0,
+      "ok": true,
+      "source": "Pl. 1 row 700"
+    },
+    {
+      "what": "brisis pitch (deg; 1859: within 45°)",
+      "want": 45,
+      "got": 45,
+      "delta": 0,
+      "ok": true,
+      "source": "1859 decree"
+    },
+    {
+      "what": "chimney tops (party-wall stack, capping)",
+      "want": 23.5,
+      "got": 23.5,
+      "delta": 0,
+      "ok": true,
+      "source": "Pl. 1 row 640 + coping"
+    },
+    {
+      "what": "main cornice projection",
+      "want": 0.55,
+      "got": 0.55,
+      "delta": 0,
+      "ok": true,
+      "source": "A2 Pl. 6 profile, scaled"
+    }
+  ],
+  "topo": [
+    {
+      "name": "facade",
+      "verts": 2694,
+      "edges": 5338,
+      "faces": 2511,
+      "quads": 2495,
+      "tris": 8,
+      "ngons": 8,
+      "boundary": 540,
+      "nonManifold": 0
+    },
+    {
+      "name": "glass",
+      "verts": 532,
+      "edges": 532,
+      "faces": 133,
+      "quads": 133,
+      "tris": 0,
+      "ngons": 0,
+      "boundary": 532,
+      "nonManifold": 0
+    },
+    {
+      "name": "doors",
+      "verts": 8,
+      "edges": 8,
+      "faces": 2,
+      "quads": 2,
+      "tris": 0,
+      "ngons": 0,
+      "boundary": 8,
+      "nonManifold": 0
+    },
+    {
+      "name": "roof",
+      "verts": 21,
+      "edges": 35,
+      "faces": 15,
+      "quads": 12,
+      "tris": 1,
+      "ngons": 2,
+      "boundary": 6,
+      "nonManifold": 0
+    },
+    {
+      "name": "balcony-2",
+      "verts": 40,
+      "edges": 75,
+      "faces": 37,
+      "quads": 31,
+      "tris": 3,
+      "ngons": 3,
+      "boundary": 0,
+      "nonManifold": 0
+    },
+    {
+      "name": "railing-2",
+      "verts": 42,
+      "edges": 72,
+      "faces": 36,
+      "quads": 36,
+      "tris": 0,
+      "ngons": 0,
+      "boundary": 0,
+      "nonManifold": 0
+    },
+    {
+      "name": "balcony-4",
+      "verts": 40,
+      "edges": 75,
+      "faces": 37,
+      "quads": 31,
+      "tris": 3,
+      "ngons": 3,
+      "boundary": 0,
+      "nonManifold": 0
+    },
+    {
+      "name": "railing-4",
+      "verts": 42,
+      "edges": 72,
+      "faces": 36,
+      "quads": 36,
+      "tris": 0,
+      "ngons": 0,
+      "boundary": 0,
+      "nonManifold": 0
+    },
+    {
+      "name": "balcony-5",
+      "verts": 40,
+      "edges": 75,
+      "faces": 37,
+      "quads": 31,
+      "tris": 3,
+      "ngons": 3,
+      "boundary": 0,
+      "nonManifold": 0
+    },
+    {
+      "name": "railing-5",
+      "verts": 42,
+      "edges": 72,
+      "faces": 36,
+      "quads": 36,
+      "tris": 0,
+      "ngons": 0,
+      "boundary": 0,
+      "nonManifold": 0
+    },
+    {
+      "name": "balconettes-3",
+      "verts": 3738,
+      "edges": 6888,
+      "faces": 3612,
+      "quads": 3612,
+      "tris": 0,
+      "ngons": 0,
+      "boundary": 0,
+      "nonManifold": 672
+    },
+    {
+      "name": "balconette-slabs-3",
+      "verts": 168,
+      "edges": 252,
+      "faces": 126,
+      "quads": 126,
+      "tris": 0,
+      "ngons": 0,
+      "boundary": 0,
+      "nonManifold": 0
+    },
+    {
+      "name": "guards-1",
+      "verts": 3738,
+      "edges": 6888,
+      "faces": 3612,
+      "quads": 3612,
+      "tris": 0,
+      "ngons": 0,
+      "boundary": 0,
+      "nonManifold": 672
+    },
+    {
+      "name": "dormers-sebastopol",
+      "verts": 24,
+      "edges": 44,
+      "faces": 21,
+      "quads": 21,
+      "tris": 0,
+      "ngons": 0,
+      "boundary": 4,
+      "nonManifold": 0
+    },
+    {
+      "name": "dormers-sebastopol-glass",
+      "verts": 4,
+      "edges": 4,
+      "faces": 1,
+      "quads": 1,
+      "tris": 0,
+      "ngons": 0,
+      "boundary": 4,
+      "nonManifold": 0
+    },
+    {
+      "name": "dormers-greneta",
+      "verts": 24,
+      "edges": 44,
+      "faces": 21,
+      "quads": 21,
+      "tris": 0,
+      "ngons": 0,
+      "boundary": 4,
+      "nonManifold": 0
+    },
+    {
+      "name": "dormers-greneta-glass",
+      "verts": 4,
+      "edges": 4,
+      "faces": 1,
+      "quads": 1,
+      "tris": 0,
+      "ngons": 0,
+      "boundary": 4,
+      "nonManifold": 0
+    },
+    {
+      "name": "dormers-other",
+      "verts": 192,
+      "edges": 352,
+      "faces": 168,
+      "quads": 168,
+      "tris": 0,
+      "ngons": 0,
+      "boundary": 32,
+      "nonManifold": 0
+    },
+    {
+      "name": "dormers-other-glass",
+      "verts": 32,
+      "edges": 32,
+      "faces": 8,
+      "quads": 8,
+      "tris": 0,
+      "ngons": 0,
+      "boundary": 32,
+      "nonManifold": 0
+    },
+    {
+      "name": "chimney-party",
+      "verts": 12,
+      "edges": 20,
+      "faces": 10,
+      "quads": 10,
+      "tris": 0,
+      "ngons": 0,
+      "boundary": 0,
+      "nonManifold": 0
+    },
+    {
+      "name": "chimneys",
+      "verts": 24,
+      "edges": 40,
+      "faces": 20,
+      "quads": 20,
+      "tris": 0,
+      "ngons": 0,
+      "boundary": 0,
+      "nonManifold": 0
+    },
+    {
+      "name": "pots",
+      "verts": 74,
+      "edges": 156,
+      "faces": 84,
+      "quads": 60,
+      "tris": 24,
+      "ngons": 0,
+      "boundary": 0,
+      "nonManifold": 0
+    },
+    {
+      "name": "road",
+      "verts": 4,
+      "edges": 4,
+      "faces": 1,
+      "quads": 1,
+      "tris": 0,
+      "ngons": 0,
+      "boundary": 4,
+      "nonManifold": 0
+    },
+    {
+      "name": "pavement",
+      "verts": 24,
+      "edges": 48,
+      "faces": 24,
+      "quads": 24,
+      "tris": 0,
+      "ngons": 0,
+      "boundary": 0,
+      "nonManifold": 0
+    },
+    {
+      "name": "neighbour",
+      "verts": 12,
+      "edges": 20,
+      "faces": 10,
+      "quads": 10,
+      "tris": 0,
+      "ngons": 0,
+      "boundary": 0,
+      "nonManifold": 0
+    }
+  ],
+  "totals": {
+    "verts": 11575,
+    "edges": 21150,
+    "faces": 10599
+  },
+  "objects": 25,
+  "evaluated": {
+    "triangles": 65088,
+    "meshes": 25
+  },
+  "balconies": [
+    {
+      "name": "balcony-2",
+      "railingModules": 186
+    },
+    {
+      "name": "balcony-4",
+      "railingModules": 186
+    },
+    {
+      "name": "balcony-5",
+      "railingModules": 186
+    }
+  ]
+}

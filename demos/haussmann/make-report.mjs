@@ -9,6 +9,7 @@
  */
 
 import {readFile, writeFile, stat} from 'node:fs/promises'
+import {spawnSync} from 'node:child_process'
 import {dirname, join, relative} from 'node:path'
 import {fileURLToPath} from 'node:url'
 import {DATA} from './build.mjs'
@@ -39,8 +40,13 @@ const trimmed = {
 }
 await writeFile(join(here, 'transcript.json'), JSON.stringify(trimmed, null, 1))
 
-const captures = transcript.operations.filter(o => o.capture)
-    .map(o => ({file: rel(join(shotsDir, o.capture)), label: o.command.label}))
+// The session writes PNGs (34 MB for this build); the page uses JPEG copies, which are what is committed.
+const captures = transcript.operations.filter(o => o.capture).map(o => {
+    const jpg = o.capture.replace(/\.png$/, '.jpg')
+    const r = spawnSync('convert', [join(shotsDir, o.capture), '-quality', '86', join(shotsDir, jpg)])
+    if (r.status !== 0) throw new Error(`could not convert ${o.capture}: ${r.stderr}`)
+    return {file: rel(join(shotsDir, jpg)), label: o.command.label}
+})
 const shot = start => {
     const c = captures.find(x => x.label.startsWith(start))
     if (!c) throw new Error(`no capture labelled "${start}…"`)

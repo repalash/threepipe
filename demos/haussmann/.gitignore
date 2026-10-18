@@ -1,2 +1,5 @@
 # The film is re-recorded, not versioned.
 *.webm
+# Session captures: the report uses (and the repo keeps) the JPEG copies make-report.mjs writes.
+shots/*.png
+shots/transcript.json

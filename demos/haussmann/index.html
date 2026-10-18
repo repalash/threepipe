@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Haussmann, by command - 77 boulevard de Sébastopol</title>
+<style>
+  :root { --paper: #f4efe6; --ink: #231d17; --muted: #6f6558; --brass: #a8814a; --stone: #ddd0b6; --line: #d8cdbb; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 16px/1.55 Georgia, 'Times New Roman', serif; }
+  header.hero { position: relative; min-height: 78vh; display: flex; align-items: flex-end; color: #fff;
+    background: #222 url("shots/013-hero-from-the-rue-greneta-corner-eye-level.jpg") center 40%/cover no-repeat; }
+  header.hero::after { content: ''; position: absolute; inset: 0; background: linear-gradient(transparent 45%, #000b); }
+  header.hero div { position: relative; z-index: 1; padding: 0 6vw 6vh; max-width: 1100px; }
+  h1 { font-weight: 400; font-size: clamp(34px, 5vw, 64px); margin: 0 0 .2em; letter-spacing: -.01em; }
+  header p { margin: 0; font-size: 18px; max-width: 760px; }
+  .stats { display: flex; gap: 2.4em; flex-wrap: wrap; margin-top: 1.4em; font: 13px/1.3 ui-monospace, Menlo, monospace; }
+  .stats b { display: block; font: 400 26px/1.1 Georgia, serif; color: #f1d9ad; }
+  main { max-width: 1240px; margin: 0 auto; padding: 0 4vw 6em; }
+  section { margin-top: 4.5em; }
+  h2 { font-weight: 400; font-size: 30px; margin: 0 0 .2em; border-bottom: 1px solid var(--line); padding-bottom: .25em; }
+  h2 small { font-size: 14px; color: var(--muted); margin-left: .6em; }
+  .lede { color: var(--muted); max-width: 820px; margin: .4em 0 1.4em; }
+  figure { margin: 0; }
+  figure img, figure video { width: 100%; display: block; background: #ddd; border-radius: 3px; }
+  figcaption { font-size: 13px; color: var(--muted); margin-top: .4em; line-height: 1.4; }
+  .pairs { display: grid; gap: 2.2em; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 1em; align-items: start; }
+  .pair img { aspect-ratio: 3 / 2; object-fit: contain; background: #e9e2d4; }
+  .strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 1.1em; counter-reset: step; }
+  .strip figure figcaption::before { counter-increment: step; content: counter(step, decimal-leading-zero) '  '; color: var(--brass);
+    font: 12px ui-monospace, Menlo, monospace; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 1em; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: .45em .6em; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-weight: 400; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+  td.num { font: 13px ui-monospace, Menlo, monospace; text-align: right; white-space: nowrap; }
+  td.ok { color: #2f6b3a; } td.bad { color: #a12b1f; }
+  tr.total td { border-top: 2px solid var(--ink); font-weight: 600; }
+  .note { font-size: 14px; color: var(--muted); }
+  ul.issues { list-style: none; padding: 0; display: grid; gap: .9em; }
+  ul.issues li { border-left: 3px solid var(--brass); padding: .15em 0 .15em .9em; }
+  ul.issues a { color: var(--ink); font-weight: 600; text-decoration-color: var(--brass); }
+  code { font: 13px ui-monospace, Menlo, monospace; background: #e9e2d4; padding: .05em .3em; border-radius: 3px; }
+  footer { max-width: 1240px; margin: 0 auto; padding: 2em 4vw 4em; font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); }
+  @media (max-width: 760px) { .pair, .two { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header class="hero"><div>
+  <h1>Haussmann, by command</h1>
+  <p>N° 77 boulevard de Sébastopol, Paris - Paul Mesnard, architect, published by César Daly in 1870 -
+  modelled to scale from the engraved elevation and plans, entirely through <code>@threepipe/plugin-modelling</code>'s JSON commands.</p>
+  <div class="stats">
+    <span><b>388</b>commands, 0 failed</span>
+    <span><b>21/21</b>dimension checks within 2 %</span>
+    <span><b>19.95 m</b>to the cornice (1859 limit: 20 m)</span>
+    <span><b>25</b>objects</span>
+    <span><b>10,599</b>editable faces, 99 % quads</span>
+  </div>
+</div></header>
+<main>
+
+<section>
+  <h2>Reference and result</h2>
+  <p class="lede">Every dimension comes from Daly's plates, read in pixels and converted with the plates' own scale bars;
+  the street photographs show what the drawings do not - how the balconies and the mansard turn a cut corner, the zinc, the stacks.</p>
+  <div class="pairs">
+  <div class="pair">
+    <figure><img src="refs/photo-rue-monge-corner-thbz.jpg" alt="" loading="lazy"><figcaption>Rue Monge, a Haussmann corner (Thierry Bézecourt, CC BY-SA 3.0)</figcaption></figure>
+    <figure><img src="shots/014-three-quarter-on-the-cut-corner-as-the-rue-monge.jpg" alt="" loading="lazy"><figcaption>The model from the same side of its cut corner</figcaption></figure>
+  </div>
+  <div class="pair">
+    <figure><img src="refs/daly-1870-m2-pl1-elevation-77-bd-sebastopol.jpg" alt="" loading="lazy"><figcaption>Daly 1870, Exemple M2 Pl. 1: the boulevard elevation, 1:100</figcaption></figure>
+    <figure><img src="shots/019-orthographic-wireframe-over-the-1870-elevation.jpg" alt="" loading="lazy"><figcaption>Orthographic, registered on the drawing: wireframe over the engraving</figcaption></figure>
+  </div>
+  <div class="pair">
+    <figure><img src="refs/daly-1870-m2-pl1-elevation-77-bd-sebastopol.jpg" alt="" loading="lazy"><figcaption>The same elevation</figcaption></figure>
+    <figure><img src="shots/020-orthographic-the-model-alone-same-framing.jpg" alt="" loading="lazy"><figcaption>The model alone, same camera</figcaption></figure>
+  </div>
+  <div class="pair">
+    <figure><img src="refs/daly-1870-m2-pl3-plans-77-bd-sebastopol.jpg" alt="" loading="lazy"><figcaption>Daly 1870, Exemple M2 Pl. 3: plans of the upper floors, 1:200</figcaption></figure>
+    <figure><img src="shots/021-top-wireframe-over-the-1870-plan.jpg" alt="" loading="lazy"><figcaption>Top view, wireframe over the plan</figcaption></figure>
+  </div>
+  <div class="pair">
+    <figure><img src="refs/photo-typical-paris-corner-7e-flyer84.jpg" alt="" loading="lazy"><figcaption>A Paris corner, 7e (Flyer84, CC BY 3.0): mansard, dormers, stacks</figcaption></figure>
+    <figure><img src="shots/016-rue-palestro-and-the-upper-cut-corner.jpg" alt="" loading="lazy"><figcaption>Rue Palestro and the upper cut corner</figcaption></figure>
+  </div>
+  <div class="pair">
+    <figure><img src="refs/photo-rue-de-la-glaciere-corner-vvvcffrance.jpg" alt="" loading="lazy"><figcaption>Rue de la Glacière (VVVCFFrance, CC BY-SA 4.0): balconies round a cut corner</figcaption></figure>
+    <figure><img src="shots/013-hero-from-the-rue-greneta-corner-eye-level.jpg" alt="" loading="lazy"><figcaption>Street level, from the rue Greneta corner</figcaption></figure>
+  </div>
+  </div>
+</section>
+
+<section>
+  <h2>The build <small>12 captures, in order</small></h2>
+  <p class="lede">The plan outline (48 vertices: corners and window jambs) is extruded once per storey line; openings are inset,
+  recessed and glazed; bands are pushed out of the wall by region inset; the mansard is the top face inset with a depth equal to its width.</p>
+  <div class="strip">
+  <figure><img src="shots/001-the-1870-elevation-registered.jpg" alt="" loading="lazy"><figcaption>the 1870 elevation, registered</figcaption></figure>
+  <figure><img src="shots/002-the-plan-registered.jpg" alt="" loading="lazy"><figcaption>the plan, registered</figcaption></figure>
+  <figure><img src="shots/003-blockout-the-plan-pushed-up-to-the-first-floor.jpg" alt="" loading="lazy"><figcaption>blockout: the plan pushed up to the first floor</figcaption></figure>
+  <figure><img src="shots/004-one-extrude-per-storey-line-every-bay-is-a-quad.jpg" alt="" loading="lazy"><figcaption>one extrude per storey line: every bay is a quad</figcaption></figure>
+  <figure><img src="shots/005-windows-framed-recessed-and-glazed.jpg" alt="" loading="lazy"><figcaption>windows framed, recessed and glazed</figcaption></figure>
+  <figure><img src="shots/006-cornice-and-string-courses-pushed-out-of-the-wal.jpg" alt="" loading="lazy"><figcaption>cornice and string courses pushed out of the wall</figcaption></figure>
+  <figure><img src="shots/007-mansard-a-45-brisis-and-a-shallow-terrasson-by-i.jpg" alt="" loading="lazy"><figcaption>mansard: a 45° brisis and a shallow terrasson, by inset</figcaption></figure>
+  <figure><img src="shots/008-2nd-floor-balcony-outset-bisected-solidified-rai.jpg" alt="" loading="lazy"><figcaption>2nd-floor balcony: outset, bisected, solidified, railing on a curve array</figcaption></figure>
+  <figure><img src="shots/009-balconettes-and-window-guards-one-master-placed-.jpg" alt="" loading="lazy"><figcaption>balconettes and window guards: one master, placed on every bay</figcaption></figure>
+  <figure><img src="shots/010-dormer-master.jpg" alt="" loading="lazy"><figcaption>dormer master</figcaption></figure>
+  <figure><img src="shots/011-dormers-on-live-arrays.jpg" alt="" loading="lazy"><figcaption>dormers on live arrays</figcaption></figure>
+  <figure><img src="shots/012-the-street.jpg" alt="" loading="lazy"><figcaption>the street</figcaption></figure>
+  </div>
+</section>
+
+<section>
+  <h2>Wireframe and x-ray</h2>
+  <div class="two">
+    <figure><img src="shots/017-wireframe.jpg" alt="" loading="lazy"><figcaption>Wireframe: the façade is quads, bay by bay and band by band.</figcaption></figure>
+    <figure><img src="shots/018-x-ray.jpg" alt="" loading="lazy"><figcaption>X-ray (30 % opacity): window reveals, the two roof slopes, balcony slabs inside their railings.</figcaption></figure>
+    <figure><img src="shots/007-mansard-a-45-brisis-and-a-shallow-terrasson-by-i.jpg" alt="" loading="lazy"><figcaption>The roof end-on, from the party wall: a 45° brisis each side, as the 1859 decree allowed.</figcaption></figure>
+    <figure><img src="shots/015-the-boulevard-front-from-across-the-boulevard.jpg" alt="" loading="lazy"><figcaption>The boulevard front from across the street.</figcaption></figure>
+  </div>
+</section>
+
+<section>
+  <h2>Dimensions <small>measured from the finished model</small></h2>
+  <p class="lede">The build measures the model after it is finished - wall vertices, object bounds, the glass panes - and throws if
+  any value is more than 2 % off the drawing.</p>
+  <table>
+    <thead><tr><th>Check</th><th>Source</th><th class="num">Drawing</th><th class="num">Model</th><th class="num">Δ</th><th class="num">Δ %</th></tr></thead>
+    <tbody>
+    <tr><td>cornice height above the pavement (1859 limit: 20 m)</td><td class="note">Pl. 1 row 893</td><td class="num">19.945</td><td class="num">19.945</td><td class="num">+0.000</td><td class="num ok">0.00</td></tr>
+    <tr><td>boulevard front, cut corner to party wall</td><td class="note">Pl. 1 cols 515-1602</td><td class="num">14.931</td><td class="num">14.931</td><td class="num">+0.000</td><td class="num ok">0.00</td></tr>
+    <tr><td>depth, boulevard to rue Palestro</td><td class="note">Pl. 3 rows 682-1269</td><td class="num">15.833</td><td class="num">15.833</td><td class="num">+0.000</td><td class="num ok">0.00</td></tr>
+    <tr><td>rue Palestro front</td><td class="note">Pl. 3 cols 598 to party wall</td><td class="num">20.973</td><td class="num">20.973</td><td class="num">+0.000</td><td class="num ok">0.00</td></tr>
+    <tr><td>rue Greneta front</td><td class="note">Pl. 3 rows 758-1212</td><td class="num">13.544</td><td class="num">13.544</td><td class="num">+0.000</td><td class="num ok">0.00</td></tr>
+    <tr><td>cut corner, Greneta / boulevard</td><td class="note">Pl. 3</td><td class="num">2.467</td><td class="num">2.467</td><td class="num">+0.000</td><td class="num ok">0.00</td></tr>
+    <tr><td>cut corner, Palestro / Greneta</td><td class="note">Pl. 3</td><td class="num">2.647</td><td class="num">2.647</td><td class="num">+0.000</td><td class="num ok">0.00</td></tr>
+    <tr><td>rue Greneta, angle off square (deg)</td><td class="note">Pl. 3 pier fit</td><td class="num">25.295</td><td class="num">25.295</td><td class="num">+0.000</td><td class="num ok">0.00</td></tr>
+    <tr><td>2nd-floor balcony, top of slab</td><td class="note">Pl. 1 row 1805</td><td class="num">7.418</td><td class="num">7.418</td><td class="num">+0.000</td><td class="num ok">0.00</td></tr>
+    <tr><td>4th-floor balcony, top of slab</td><td class="note">Pl. 1 row 1335</td><td class="num">13.874</td><td class="num">13.874</td><td class="num">+0.000</td><td class="num ok">0.00</td></tr>
+    <tr><td>5th-floor balcony, top of slab</td><td class="note">Pl. 1 row 1110</td><td class="num">16.964</td><td class="num">16.964</td><td class="num">+0.000</td><td class="num ok">0.00</td></tr>
+    <tr><td>balcony projection (boulevard)</td><td class="note">Pl. 3 outline 18-19 px</td><td class="num">0.500</td><td class="num">0.500</td><td class="num">+0.000</td><td class="num ok">0.00</td></tr>
+    <tr><td>3rd-floor balconettes, top of slab</td><td class="note">Pl. 1 row 1550</td><td class="num">10.920</td><td class="num">10.920</td><td class="num">+0.000</td><td class="num ok">0.00</td></tr>
+    <tr><td>1st floor (the window guards stand on it)</td><td class="note">Pl. 1 row 2050</td><td class="num">4.052</td><td class="num">4.052</td><td class="num">+0.000</td><td class="num ok">0.00</td></tr>
+    <tr><td>boulevard windows, 2nd floor</td><td class="note">Pl. 1</td><td class="num">6.000</td><td class="num">6.000</td><td class="num">+0.000</td><td class="num ok">0.00</td></tr>
+    <tr><td>bay spacing, boulevard</td><td class="note">Pl. 1 window leaves</td><td class="num">2.371</td><td class="num">2.371</td><td class="num">+0.000</td><td class="num ok">0.00</td></tr>
+    <tr><td>window opening, between stone jambs</td><td class="note">Pl. 1 88 px</td><td class="num">1.209</td><td class="num">1.209</td><td class="num">+0.000</td><td class="num ok">0.00</td></tr>
+    <tr><td>top of the brisis</td><td class="note">Pl. 1 row 700</td><td class="num">22.596</td><td class="num">22.596</td><td class="num">+0.000</td><td class="num ok">0.00</td></tr>
+    <tr><td>brisis pitch (deg; 1859: within 45°)</td><td class="note">1859 decree</td><td class="num">45.000</td><td class="num">45.000</td><td class="num">+0.000</td><td class="num ok">0.00</td></tr>
+    <tr><td>chimney tops (party-wall stack, capping)</td><td class="note">Pl. 1 row 640 + coping</td><td class="num">23.500</td><td class="num">23.500</td><td class="num">+0.000</td><td class="num ok">0.00</td></tr>
+    <tr><td>main cornice projection</td><td class="note">A2 Pl. 6 profile, scaled</td><td class="num">0.550</td><td class="num">0.550</td><td class="num">+0.000</td><td class="num ok">0.00</td></tr>
+    </tbody>
+  </table>
+  <h3 style="font-weight:400;margin-top:2em">Readings</h3>
+  <table>
+    <thead><tr><th>Quantity</th><th>Value</th><th>Where it comes from</th></tr></thead>
+    <tbody><tr><td>Cornice above the pavement</td><td>19.95 m</td><td class="note">Pl. 1, rows 2345 → 893 at 72.8 px/m; the 1859 limit is 20 m</td></tr><tr><td>Storey lines (floors 1-5)</td><td>4.05 / 7.42 / 10.92 / 13.87 / 16.96 m</td><td class="note">Pl. 1, rows 2050 / 1805 / 1550 / 1335 / 1110</td></tr><tr><td>Top of the brisis; chimney tops</td><td>22.60 m; 23.42 m</td><td class="note">Pl. 1, rows 700 and 640</td></tr><tr><td>Boulevard front</td><td>14.93 m, 6 bays at 2.371 m, windows 1.21 m</td><td class="note">Pl. 1, columns 515-1602; window leaves of the 2nd floor</td></tr><tr><td>Depth, boulevard to rue Palestro</td><td>15.83 m</td><td class="note">Pl. 3, rows 682-1269, calibrated on the six bays (37.07 px/m)</td></tr><tr><td>Rue Greneta</td><td>13.54 m at 25.3° off square</td><td class="note">Pl. 3, line fitted to the six piers</td></tr><tr><td>Cut corners</td><td>2.47 m (boulevard) and 2.65 m (Palestro)</td><td class="note">Pl. 3</td></tr><tr><td>Balconies</td><td>0.50 m deep, on the 2nd, 4th and 5th floors; balconettes on the 3rd; guards on the 1st</td><td class="note">Pl. 3 outline; Pl. 1</td></tr><tr><td>Roof</td><td>45° brisis, 2.65 m high; terrasson 3.2 m deep rising 0.35 m</td><td class="note">1859 decree (45° line from the eaves); Pl. 1</td></tr></tbody>
+  </table>
+  <p class="note">The plan's own scale bar (35.57 px/m) disagrees with the elevation by 4.2 %: it
+  would put the six boulevard bays 2.47 m apart against the elevation's 2.371 m. The elevation is
+  twice the scale and puts the cornice on the 20 m of the 1859 decree, so the plan is calibrated on the same six bays instead
+  (37.07 px/m). Even so, the plan draws the party wall 0.58 m
+  beyond the elevation's edge; the elevation stops at the wall's axis and the plan draws all of it, which explains about half of
+  that. The model follows the elevation.</p>
+</section>
+
+<section>
+  <h2>Counts and topology</h2>
+  <p class="lede">Editable masters, as <code>inspect</code> reports them; live arrays (railings, dormers, pots) are counted once.
+  The viewer draws 65,088 triangles in 25 meshes.
+  The exported <a href="haussmann.glb">haussmann.glb</a> is 4.6 MB.</p>
+  <table>
+    <thead><tr><th>Object</th><th class="num">Verts</th><th class="num">Edges</th><th class="num">Faces</th><th class="num">Quads</th><th class="num">Tris</th><th class="num">N-gons</th><th class="num">Boundary edges</th><th class="num">Non-manifold</th></tr></thead>
+    <tbody>
+    <tr><td>facade</td><td class="num">2694</td><td class="num">5338</td><td class="num">2511</td><td class="num">2495</td><td class="num">8</td><td class="num">8</td><td class="num">540</td><td class="num">0</td></tr>
+    <tr><td>glass</td><td class="num">532</td><td class="num">532</td><td class="num">133</td><td class="num">133</td><td class="num">0</td><td class="num">0</td><td class="num">532</td><td class="num">0</td></tr>
+    <tr><td>doors</td><td class="num">8</td><td class="num">8</td><td class="num">2</td><td class="num">2</td><td class="num">0</td><td class="num">0</td><td class="num">8</td><td class="num">0</td></tr>
+    <tr><td>roof</td><td class="num">21</td><td class="num">35</td><td class="num">15</td><td class="num">12</td><td class="num">1</td><td class="num">2</td><td class="num">6</td><td class="num">0</td></tr>
+    <tr><td>balcony-2</td><td class="num">40</td><td class="num">75</td><td class="num">37</td><td class="num">31</td><td class="num">3</td><td class="num">3</td><td class="num">0</td><td class="num">0</td></tr>
+    <tr><td>railing-2</td><td class="num">42</td><td class="num">72</td><td class="num">36</td><td class="num">36</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">0</td></tr>
+    <tr><td>balcony-4</td><td class="num">40</td><td class="num">75</td><td class="num">37</td><td class="num">31</td><td class="num">3</td><td class="num">3</td><td class="num">0</td><td class="num">0</td></tr>
+    <tr><td>railing-4</td><td class="num">42</td><td class="num">72</td><td class="num">36</td><td class="num">36</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">0</td></tr>
+    <tr><td>balcony-5</td><td class="num">40</td><td class="num">75</td><td class="num">37</td><td class="num">31</td><td class="num">3</td><td class="num">3</td><td class="num">0</td><td class="num">0</td></tr>
+    <tr><td>railing-5</td><td class="num">42</td><td class="num">72</td><td class="num">36</td><td class="num">36</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">0</td></tr>
+    <tr><td>balconettes-3</td><td class="num">3738</td><td class="num">6888</td><td class="num">3612</td><td class="num">3612</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">672</td></tr>
+    <tr><td>balconette-slabs-3</td><td class="num">168</td><td class="num">252</td><td class="num">126</td><td class="num">126</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">0</td></tr>
+    <tr><td>guards-1</td><td class="num">3738</td><td class="num">6888</td><td class="num">3612</td><td class="num">3612</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">672</td></tr>
+    <tr><td>dormers-sebastopol</td><td class="num">24</td><td class="num">44</td><td class="num">21</td><td class="num">21</td><td class="num">0</td><td class="num">0</td><td class="num">4</td><td class="num">0</td></tr>
+    <tr><td>dormers-sebastopol-glass</td><td class="num">4</td><td class="num">4</td><td class="num">1</td><td class="num">1</td><td class="num">0</td><td class="num">0</td><td class="num">4</td><td class="num">0</td></tr>
+    <tr><td>dormers-greneta</td><td class="num">24</td><td class="num">44</td><td class="num">21</td><td class="num">21</td><td class="num">0</td><td class="num">0</td><td class="num">4</td><td class="num">0</td></tr>
+    <tr><td>dormers-greneta-glass</td><td class="num">4</td><td class="num">4</td><td class="num">1</td><td class="num">1</td><td class="num">0</td><td class="num">0</td><td class="num">4</td><td class="num">0</td></tr>
+    <tr><td>dormers-other</td><td class="num">192</td><td class="num">352</td><td class="num">168</td><td class="num">168</td><td class="num">0</td><td class="num">0</td><td class="num">32</td><td class="num">0</td></tr>
+    <tr><td>dormers-other-glass</td><td class="num">32</td><td class="num">32</td><td class="num">8</td><td class="num">8</td><td class="num">0</td><td class="num">0</td><td class="num">32</td><td class="num">0</td></tr>
+    <tr><td>chimney-party</td><td class="num">12</td><td class="num">20</td><td class="num">10</td><td class="num">10</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">0</td></tr>
+    <tr><td>chimneys</td><td class="num">24</td><td class="num">40</td><td class="num">20</td><td class="num">20</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">0</td></tr>
+    <tr><td>pots</td><td class="num">74</td><td class="num">156</td><td class="num">84</td><td class="num">60</td><td class="num">24</td><td class="num">0</td><td class="num">0</td><td class="num">0</td></tr>
+    <tr><td>road</td><td class="num">4</td><td class="num">4</td><td class="num">1</td><td class="num">1</td><td class="num">0</td><td class="num">0</td><td class="num">4</td><td class="num">0</td></tr>
+    <tr><td>pavement</td><td class="num">24</td><td class="num">48</td><td class="num">24</td><td class="num">24</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">0</td></tr>
+    <tr><td>neighbour</td><td class="num">12</td><td class="num">20</td><td class="num">10</td><td class="num">10</td><td class="num">0</td><td class="num">0</td><td class="num">0</td><td class="num">0</td></tr>
+    <tr class="total"><td>Total</td><td class="num">11575</td><td class="num">21150</td><td class="num">10599</td>
+      <td class="num">10538 (99.4 %)</td><td class="num">42</td>
+      <td class="num">19</td><td class="num">1170</td>
+      <td class="num">1344</td></tr>
+    </tbody>
+  </table>
+  <p class="note">Boundary edges are where the glass was separated from the stone (one loop per pane, closed by <code>glass</code>
+  and <code>doors</code>), the open roof edge along the party wall, and the road plane. Triangles are the torus rings of the
+  railings; n-gons are the floor plate and the flat of the terrasson, as Blender would leave them.</p>
+</section>
+
+<section>
+  <h2>The film</h2>
+  <p class="lede">The build run live in the page, cut to the storyboard in <a href="direction.md">direction.md</a> by
+  <code>record.mjs</code>.</p>
+  <figure><video src="video.webm" controls preload="metadata" poster="shots/013-hero-from-the-rue-greneta-corner-eye-level.jpg"></video></figure>
+</section>
+
+<section>
+  <h2>What the API lacked</h2>
+  <ul class="issues">
+  <li><a href="../../issues/open/modelling-tools/command-array-curve-frames-z-up.md">Curve array keeps Blender's Z-up frames in a Y-up scene</a><br><span class="note">Railings on a ground-plane path came out upside down on some runs; built Z-up and stood up by hand.</span></li>
+  <li><a href="../../issues/open/modelling-tools/command-material-no-face-slots.md">No per-face material slots</a><br><span class="note">Glass had to be separated from the stone, leaving a hole per window in the façade mesh.</span></li>
+  <li><a href="../../issues/open/modelling-tools/command-inset-individual-ignores-outset.md">Individual inset silently ignores outset</a><br><span class="note">Balcony slabs grow outward only with a negative thickness, which nothing tells you.</span></li>
+  <li><a href="../../issues/open/modelling-tools/session-wait-timeout-ignored.md">Session harness waited 30 s, not 90 s, for the page (fixed here)</a><br><span class="note">On a loaded machine every session died before the build began.</span></li>
+  <li><a href="../../issues/open/modelling-tools/command-no-edge-listing.md">Edges could not be addressed (fixed on modelling-editor, cherry-picked)</a><br><span class="note">Bevelling the cornice soffit and the balcony noses needs edge indices; `inspect` now lists them.</span></li>
+  <li><a href="../../issues/open/modelling-tools/command-sweep-profile-orientation.md">Sweep profile orientation (open, from the Eiffel build)</a><br><span class="note">Avoided: mouldings are made by region inset rather than swept profiles.</span></li>
+  <li><a href="../../issues/open/modelling-tools/03-agent-modelling-api.md">No booleans yet (waits on manifold-3d)</a><br><span class="note">Shop fronts and dormer cheeks would be cut cleanly into the wall and the roof; here the dormers simply sit in the brisis.</span></li>
+  </ul>
+</section>
+</main>
+<footer>
+  Drawings: César Daly, <i>L'architecture privée au XIXe siècle</i>, série 1, t. 2, Paris 1870, Exemple M2 (N° 77 bd de Sébastopol, Paul Mesnard)
+  and A2 - Heidelberg University Library, Public Domain Mark. Photographs: Wikimedia Commons, see <a href="refs/SOURCES.md">refs/SOURCES.md</a>.
+  Build: <a href="build.mjs">build.mjs</a> · transcript: <a href="transcript.json">transcript.json</a> · median command 0.4 ms.
+</footer>
+</body>
+</html>

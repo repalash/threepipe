@@ -246,7 +246,7 @@ async function beat(name, report) {
         })
     } else if (name === 'balconies') {
         await shot('balconies orbit', async () => {
-            await caption('Balconies on the 2nd, 4th and 5th floors', 'one 24 cm cast-iron module, arrayed live along the outline')
+            await caption('Balconies on the 2nd, 4th and 5th floors', 'one 30 cm cast-iron module, arrayed live along the outline')
             await cam([-12, 9, 9], [-1.5, 8, -1.2], 2500)
             await orbit(-60, -20, 16, 10, [-1.5, 9, -1.5], 5, 4)
         })
