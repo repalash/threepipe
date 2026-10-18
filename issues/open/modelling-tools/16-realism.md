@@ -285,6 +285,25 @@ Run metrics of the baseline: 308 commands, 0 failed, 31 captures; 13.0 s in comm
 A benchmark run takes 3.7 min: 30 s in Node (align 27 s), the rest is the VM round trip (render 47 s; sync,
 pushes and pulling a 9 MB tarball through the relay ~2 min).
 
+### 2.2 R2a part 1: shade by angle, measured (2026-10-18)
+
+`shade {object, mode: flat|smooth|byAngle, angle: 30, keepSharpEdges: true}` (kernel `shading.ts`, ports of
+`mesh_smooth_set` / `mesh_sharp_edges_set_from_angle` / `mesh_edges_sharp_tag` / `face_normal_calc`). The camera
+build replayed in the Node session (221 commands, 0.9 s) is the control; the same plus `shade {object: "*"}`:
+
+| | control | + shade byAngle |
+| --- | ---: | ---: |
+| faceting of large parts | 85 % | 50 % |
+| body / prism / grip split vertices | 100 / 100 / 47 % | 14 / 17 / 24 % |
+| edge-SSIM `clay` (up in all 7 views) | 0.543 | 0.552 |
+| SSIM `clay` / `full` | 0.612 / 0.499 | 0.618 / 0.503 |
+| F@2 mm | 0.516 | 0.516 |
+| composite | 56.5 | 57.9 |
+
+Shading fixes the wrong faceting but moves the form metrics by about 0.01: the blockout's shape is the gap,
+which R2b (subdivision cages) and R3 (parts) address. The remaining 50 % is mostly real 90° steps (knurl ribs,
+mount flanges); the reference's rib rings are 78 % split as well.
+
 ---
 
 ## 3. R2 — the high-poly workflow
