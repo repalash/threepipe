@@ -296,14 +296,16 @@ class MaterialCreator {
 
     async getAsArray() {
 
+        const materialsArray = this.materialsArray;
+        const nameLookup = this.nameLookup;
         const names = Object.keys(this.materialsInfo);
         const materials = await Promise.all(names.map(mn => this.create(mn)));
         names.forEach((mn, index) => {
-            this.materialsArray[index] = materials[index];
-            this.nameLookup[mn] = index;
+            materialsArray[index] = materials[index];
+            nameLookup[mn] = index;
         });
 
-        return this.materialsArray;
+        return materialsArray;
 
     }
 

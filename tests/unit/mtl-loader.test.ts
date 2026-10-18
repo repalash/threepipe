@@ -1,5 +1,5 @@
 import {afterEach, describe, expect, it, vi} from 'vitest'
-import {ClampToEdgeWrapping, Color, DoubleSide, Loader, LoadingManager, NoColorSpace, SRGBColorSpace, Texture} from 'three'
+import {ClampToEdgeWrapping, Color, DoubleSide, Loader, LoadingManager, MeshPhongMaterial, NoColorSpace, SRGBColorSpace, Texture} from 'three'
 import {MTLLoader2} from '../../src/assetmanager/import/MTLLoader2'
 import {OBJLoader2} from '../../src/assetmanager/import/OBJLoader2'
 
@@ -124,6 +124,26 @@ map_d alpha.png
         expect((await replaced).map).toBe(request('replacement').texture)
     })
 
+    it('keeps a pending getAsArray result separate after setMaterials replaces its destinations', async() => {
+        const {creator, request} = controlledLoader('newmtl first\nmap_Kd old.png')
+        const oldArray = creator.materialsArray
+        const oldLookup = creator.nameLookup
+        const pending = creator.getAsArray()
+        creator.setMaterials({replacement: {map_kd: 'new.png'}})
+        const replacement = creator.getAsArray()
+        request('new').resolve()
+        const current = await replacement
+        request('old').resolve()
+
+        expect(await pending).toBe(oldArray)
+        expect(oldArray.map(material => material.name)).toEqual(['first'])
+        expect(oldLookup).toEqual({first: 0})
+        expect(current).toBe(creator.materialsArray)
+        expect(current).not.toBe(oldArray)
+        expect(current.map(material => material.name)).toEqual(['replacement'])
+        expect(creator.nameLookup).toEqual({replacement: 0})
+    })
+
     it('accepts a synchronous cached texture callback', async() => {
         const {creator, load} = controlledLoader('newmtl cached\nmap_Kd a.png\nmap_Ke b.png')
         const textures: Texture[] = []
@@ -167,6 +187,36 @@ f 1 2 3
         expect(object.children[2].material).toBe(object.children[0].material)
         expect(load).toHaveBeenCalledTimes(2)
         expect(requests.has('/textures/unused.png')).toBe(false)
+    })
+
+    it('calls a custom OBJ factory for each material occurrence and preserves its distinct results', async() => {
+        const materials = [new MeshPhongMaterial(), new MeshPhongMaterial(), new MeshPhongMaterial()]
+        const finish: Array<() => void> = []
+        const create = vi.fn((_name: string) => new Promise<MeshPhongMaterial>(resolve => {
+            const material = materials[finish.length]
+            finish.push(() => resolve(material))
+        }))
+        const pending = new OBJLoader2(undefined).setMaterials({create}).parse(`
+v 0 0 0
+v 1 0 0
+v 0 1 0
+o firstObject
+usemtl same
+f 1 2 3
+usemtl same
+f 1 2 3
+o secondObject
+usemtl same
+f 1 2 3
+`)
+        expect(create.mock.calls).toEqual([['same'], ['same'], ['same']])
+        finish[2]()
+        finish[1]()
+        finish[0]()
+        const object = await pending
+        expect(object.children.map(child => child.name)).toEqual(['firstObject', 'secondObject'])
+        expect(object.children[0].material).toEqual([materials[0], materials[1]])
+        expect(object.children[1].material).toBe(materials[2])
     })
 
     it('completes after failed images while retaining the other maps', async() => {
