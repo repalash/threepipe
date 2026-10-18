@@ -37,7 +37,7 @@ td:first-child,th:first-child{text-align:left}.small{color:#666;font-size:12px}.
 
 <h2>Components (the result)</h2>
 <div class="cols"><div>
-${table(['Shape (mm, after similarity alignment)', ''], [
+${table([`Shape (mm, after ${esc(a.mode)} alignment)`, ''], [
         ['accuracy: candidate → reference, mean', n(sh.accuracy)], ['completeness: reference → candidate, mean', n(sh.completeness)],
         ['Chamfer (mean of the two)', n(sh.chamfer)], ['Hausdorff95', n(sh.hausdorff95)], ['Hausdorff (max)', n(sh.hausdorff)],
         ...Object.entries(sh.fscore).map(([t, f]) => [`F-score @ ${t} mm (precision / recall)`, `${n(f.f)} (${n(f.precision)} / ${n(f.recall)})`]),
