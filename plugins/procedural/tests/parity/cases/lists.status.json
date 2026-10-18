@@ -4,5 +4,6 @@
  "sort-filter": "exact",
  "strings": "exact",
  "collection-children-direct": "exact",
- "collection-children-recursive": "exact"
+ "collection-children-recursive": "exact",
+ "tag-filter": "exact"
 }

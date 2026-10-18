@@ -2666,6 +2666,16 @@ export type SwitchNode = NodeHandle & {
     readonly output: Socket<"FLOAT" | "INT" | "BOOLEAN" | "VECTOR" | "RGBA" | "ROTATION" | "MATRIX" | "STRING" | "MENU" | "OBJECT" | "IMAGE" | "GEOMETRY" | "COLLECTION" | "MATERIAL" | "BUNDLE" | "CLOSURE">
 }
 
+/** `GeometryNodeTagFilter` (Tag Filter). */
+export interface TagFilterArgs {
+    tagFilter?: In<"STRING">
+    tags?: In<"STRING">
+    mute?: boolean
+}
+export type TagFilterNode = NodeHandle & {
+    readonly match: Socket<"BOOLEAN">
+}
+
 /** `ThreepipeErosion` (Erosion (threepipe)). */
 export interface ThreepipeErosionArgs {
     mesh?: In<"GEOMETRY">
@@ -3185,6 +3195,7 @@ export interface NodeConstructors {
     SubdivideCurve(args?: SubdivideCurveArgs): SubdivideCurveNode
     SubdivideMesh(args?: SubdivideMeshArgs): SubdivideMeshNode
     Switch(args?: SwitchArgs): SwitchNode
+    TagFilter(args?: TagFilterArgs): TagFilterNode
     ThreepipeErosion(args?: ThreepipeErosionArgs): ThreepipeErosionNode
     TransferAttributes(args?: TransferAttributesArgs): TransferAttributesNode
     TransformDirection(args?: TransformDirectionArgs): TransformDirectionNode

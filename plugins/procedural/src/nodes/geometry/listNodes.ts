@@ -330,3 +330,35 @@ registerNodeType({
         p.set('Objects', GList.fromItems('OBJECT', objects.sort(natural).map(name => ({_ref: 'OBJECT', name}))))
     },
 })
+
+/** `tag_filter_matches` (`node_geo_tag_filter.cc:47`): any comma-separated, trimmed filter entry is a tag; empty matches. */
+export function tagFilterMatches(filter: string, tags: Set<string>): boolean {
+    if (!filter) return true
+    let remaining = filter
+    while (remaining) {
+        const sep = remaining.indexOf(',')
+        // `StringRef::trim()`: " \t\r\n" (`BLI_string_ref.hh:400`).
+        const tag = (sep === -1 ? remaining : remaining.slice(0, sep)).replace(/^[ \t\r\n]+|[ \t\r\n]+$/g, '')
+        if (tags.has(tag)) return true
+        if (sep === -1) return false
+        remaining = remaining.slice(sep + 1)
+    }
+    return false
+}
+
+registerNodeType({
+    idname: 'GeometryNodeTagFilter',
+    label: 'Tag Filter',
+    declare(b) {
+        b.input('STRING', 'Tag Filter')
+        b.input('STRING', 'Tags').list()
+        b.output('BOOLEAN', 'Match')
+    },
+    // `node_geo_exec` (:20): the tags are the items of a string list; anything else is no tags.
+    execute(p) {
+        const list = listOf(p.get('Tags'))
+        const tags = new Set<string>()
+        if (list && list.type === 'STRING') for (let i = 0; i < list.size; i++) tags.add(String(list.item(i)))
+        p.set('Match', GField.constant('bool', [tagFilterMatches(p.string('Tag Filter'), tags) ? 1 : 0]))
+    },
+})
