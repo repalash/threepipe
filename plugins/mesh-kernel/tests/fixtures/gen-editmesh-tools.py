@@ -257,4 +257,12 @@ edit_case('extrude faces grid two uvs', GRID, 'FACE', 'extrude_faces_move', {'TR
 edit_case('extrude faces grid even', GRID, 'FACE', 'extrude_faces_move',
           {'TRANSFORM_OT_shrink_fatten': {'value': 0.3, 'use_even_offset': True}}, {'faces': [1, 2]})
 
+# --- mesh.edge_split (MESH_OT_edge_split, editmesh_tools.cc:2039) ---------------------------------
+edit_case('edge split grid inner edges', GRID, 'EDGE', 'edge_split', {}, {'edges': [[5, 6], [6, 10]]})
+edit_case('edge split cube ring', CUBE, 'EDGE', 'edge_split', {}, {'edges': [[0, 1], [1, 3], [3, 2], [2, 0]]})
+edit_case('edge split grid boundary only', GRID, 'EDGE', 'edge_split', {}, {'edges': [[0, 1]]})
+edit_case('edge split vert grid inner', GRID, 'VERT', 'edge_split', {'type': 'VERT'}, {'verts': [5]})
+edit_case('edge split vert cube corner', CUBE, 'VERT', 'edge_split', {'type': 'VERT'}, {'verts': [7]})
+edit_case('edge split vert wire chain', LOOSE, 'VERT', 'edge_split', {'type': 'VERT'}, {'verts': [6, 2]})
+
 write(__file__, 'editmesh-tools.json', cases)
