@@ -190,5 +190,6 @@ export const RULES: string[] = [
     'A failed command changes nothing - fix it and resend. `changed: false` means it was a no-op and left no undo step.',
     'Do not hand-place many identical parts: `array` or `sweep` them.',
     'For smooth, product-like forms model a low-poly cage and add `modifier {object, add: {type: "subsurf", levels: 2}}` (Blender\'s Subdivision Surface, limit surface on); keep panel lines and rims crisp with `crease {object, edges, value: 1}` (or 0.3-0.7 for a softened edge) instead of hand-made support loops.',
+    'Holes, ports, recesses and slots: model the cutter as its own closed primitive placed where the cut goes, then `boolean {object, with: cutter}` (Blender\'s Manifold solver; DIFFERENCE by default, the cutter is deleted). Both sides must be closed and manifold; a single quad cutter trims along its plane.',
     'Primitives, lathes and bevels come out flat-shaded, so every facet catches its own highlight: when a part\'s shape is done, `shade {object, mode: "byAngle"}` it (fillets read as curves, corners above 30 degrees stay sharp). The realism benchmark measured 85 % faceting on the camera demo against 21 % on the artist model.',
 ]
