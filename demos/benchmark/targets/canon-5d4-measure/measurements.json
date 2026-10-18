@@ -1,0 +1,55 @@
+{
+ "subject": "Canon EOS 5D Mark IV body (no lens)",
+ "note": "Measurement set for blocking out the camera from public sources only. The scored reference GLB is never an input here. Model frame: millimetres, Y up; x = 0.375 is the body centre (body spans -74.975..75.725), +x is the side away from the grip; y = 0 is the base; z = 0 is the rear face (monitor plane), +z towards the lens. Uncertainties are 1 sigma, estimated from edge sharpness and the agreement between photographs.",
+ "published": {
+  "body": {"w": 150.7, "h": 116.4, "d": 75.9, "source": "Canon Europe, EOS 5D Mark IV specifications, https://www.canon-europe.com/cameras/eos-5d-mark-iv/specifications/", "depthConvention": "taken as rear face (z = 0) to the front of the grip (z = 75.9); the eyecup and the lens mount are outside it, as in the original demo build"},
+  "monitor": {"diagonalIn": 3.2, "aspect": "3:2", "activeMm": [67.7, 45.1], "source": "Canon Europe specifications"},
+  "efMount": {"innerDiameter": 54, "flangeFocalDistance": 44.0, "source": "https://en.wikipedia.org/wiki/Canon_EF_lens_mount"},
+  "accessoryShoe": {"isoInnerMm": [18.6, 16.0, 2.0], "source": "ISO 518:2006 as quoted in https://en.wikipedia.org/wiki/Hot_shoe"}
+ },
+ "photos": {
+  "front": {"file": "body-mount.jpg", "commons": "https://commons.wikimedia.org/wiki/File:Canon_EOS-5D-Mark-IV-02.jpg", "author": "CEphoto, Uwe Aranas", "licence": "CC BY-SA 3.0",
+   "calibration": {"mmPerPx": 0.11008, "how": "published width 150.7 mm across the body silhouette, x 230..1599 px, strap lug excluded", "anchorPx": [914.5, 1151], "anchorMm": [0.375, 0]},
+   "check": "near-level: the shoe top reads 116.5 mm against the published 116.4 mm, so the elevation is under 1 degree; height/width 0.776 vs published 0.772. The body is yawed a few degrees (the +x side face shows), so x positions on the far half carry +-1 mm."},
+  "rear": {"file": "body-rear.jpg", "commons": "https://commons.wikimedia.org/wiki/File:Canon_EOS-5D-Mark-IV-04.jpg", "author": "CEphoto, Uwe Aranas", "licence": "CC BY-SA 3.0",
+   "calibration": {"mmPerPx": 0.10027, "how": "published width across x 243..1746 px", "anchorPx": [994.5, 1374], "anchorMm": [0.375, 0], "mirror": true},
+   "check": "looks down onto the top plate (the shoe reads 121 mm high): use for x positions only, never heights."},
+  "top": {"file": "body-top.jpg", "commons": "https://commons.wikimedia.org/wiki/File:Canon_EOS_5D_Mark_IV%2BEF_24-105mm_f4L_IS_II_USM_(3).jpg", "author": "Dinkun Chen", "licence": "CC BY-SA 4.0",
+   "derivation": "crop (300, 700)-(2700, 2500) of Commons' 3840 px rendition, resized to 1600 x 1200",
+   "calibration": {"xMmPerPx": 0.109, "zMmPerPx": 0.120, "how": "x from the four top-plate buttons, whose pitch the front photo gives (9.65 mm over 133 px of the 3840 rendition); z from the plate's rear edge (y 311 px, z = 0) to the lens index dot on the mount (y 927 px, z = 74 +- 2: flange 73 plus the dot's setback)", "zOrigin": 311.3},
+   "check": "close range, strongly oblique: points above the top plate (y = 90) move towards the rear of the image by about 0.47 mm per mm of height (tan 25 deg), so only top-plate features are read for z, and x is read only from front-photo-anchored spacings."}
+ },
+ "readings": {
+  "outline": {
+   "source": "front", "uncertainty": 0.5,
+   "note": "Silhouette of the body proper (prism and dials removed), from demos/benchmark/scripts/silhouette.mjs on the front photo at 1-2 mm steps.",
+   "gripSide": {"sideAtY": [[1, -69.5], [2, -72.6], [3, -73.4], [4, -73.8], [6, -74.1], [8, -74.6], [12, -74.9], [60, -74.5], [68, -74.4], [72, -74.2], [76, -73.2], [80, -70.7], [84, -67.8], [86, -65.9], [88, -62.6]],
+                "topAtX": [[-73, 76.7], [-71, 79.7], [-69, 82.4], [-67, 85.0], [-65, 86.6], [-63, 87.7], [-61, 88.5], [-59, 89.1], [-49, 90.3], [-45, 90.6], [-41, 90.0], [-31, 91.1], [-21, 92.1], [-17, 92.7]]},
+   "farSide": {"sideAtY": [[1, 67.2], [2, 69.2], [4, 71.5], [6, 73.1], [8, 73.9], [12, 74.2], [60, 75.5], [64, 75.1], [68, 74.6], [76, 72.9], [80, 71.9], [84, 70.2], [86, 68.0]],
+               "topAtX": [[70, 84.2], [72, 79.9], [74, 74.3]], "plateUnderModeDial": 88.2}
+  },
+  "prism": {
+   "source": "front", "uncertainty": 0.5,
+   "flanksAtY": [[93, -16.1, 44.6], [96, -14.4, 44.0], [98, -13.4, 41.9], [100, -12.6, 42.4], [105, -9.6, 39.3], [108, -7.4, 36.9], [110, -5.6, 35.0], [112, -3.4, 33.0], [113, -2.0, 31.7]],
+   "housingTop": {"value": 114.0, "atX": [0, 30], "uncertainty": 0.3},
+   "centreX": {"value": 14.8, "uncertainty": 0.5, "crossCheck": "rear photo: eyepiece and shoe 15.5 mm to the far side of centre"},
+   "frontAtY": {"value": [[88, 66], [95, 65.5], [103, 63], [109, 57], [114, 46]], "source": "top", "uncertainty": 3, "used": false, "why": "low confidence: rests on the 0.47 mm/mm height correction; tried (v3) and it scored worse than the straight 70 -> 48 slope, which it matches at the top",
+    "note": "z of the housing's front face by height, from the top photo: the base where it meets the mount boss (y 1960 px of the 3840 rendition), the Canon logo (1880 px, 103 mm up) and the front edge of the flat top (1600 px, 114 mm up), each corrected by 0.47 mm per mm above the plate"}
+  },
+  "shoe": {"source": "front", "topWidth": [24.1, 22.2], "atY": [115, 116], "top": 116.6, "centreX": 16.4, "uncertainty": 0.4, "crossCheck": "rear photo, shoe outer width 23.1 mm"},
+  "modeDial": {"source": "front + top", "centreX": 56.0, "diameter": 22.5, "base": 88.2, "top": 98.3, "centreZ": 23, "uncertainty": {"x": 0.5, "diameter": 0.7, "top": 0.4, "z": 4},
+   "zNote": "top photo, dial centre (1146.7, 462) px: 18.1 mm on the plate scale, plus 0.47 x 10 mm for the dial top sitting 10 mm above the plate"},
+  "mainDial": {"source": "front + top", "axis": "z", "centreX": -55.3, "top": 90.9, "diameter": 15, "centreZ": 46, "uncertainty": {"x": 1, "top": 0.4, "z": 3},
+   "note": "seen from above as a ribbed bar across x, ribs running along z, so its axle runs front to back; the front photo shows only its knurled top above the plate"},
+  "topButtons": {"source": "front (x) + top (z)", "count": 4, "centresX": [-54.4, -44.7, -35.3, -25.4], "centreZ": 33, "top": 92.0, "diameter": 6.5, "uncertainty": {"x": 0.7, "z": 3},
+   "note": "front photo shows the three nearest the prism at -44.7, -35.3, -25.4; the fourth is hidden by the main dial and continues the 9.65 mm pitch the top photo shows"},
+  "mFn": {"source": "top", "centreX": -45, "centreZ": 53, "diameter": 5, "uncertainty": {"x": 2, "z": 3}},
+  "shutter": {"source": "front + top", "centreX": -55.7, "centreZ": 64, "diameter": 12.5, "faceCentreY": 84.6, "tiltDeg": 35, "slopeFromZ": 52, "uncertainty": {"x": 0.7, "z": 4, "tiltDeg": 8},
+   "note": "front photo: the cap is an ellipse 9.9 x 7.2 mm centred 84.6 mm up (x -60.7..-50.8), so its face is turned about 35 degrees towards the lens and sits below the plate: the grip top falls away in front of the main dial; slopeFromZ is where that fall must start for the cap centre to land at 84.6"},
+  "topLcd": {"source": "rear (x) + top (z)", "x": [-61, -13], "z": [4.5, 25.5], "uncertainty": {"x": 1.5, "z": 2},
+   "note": "rear photo -63..-13, top photo -59..-12 (button-anchored); the original demo build used 34.6 x 19.6 mm at x -59.8..-25.2, z 15..35"},
+  "strapLug": {"source": "front", "y": 72.8, "outerX": 78.6, "uncertainty": 0.5},
+  "depthLayout": {"rearFace": 0, "bodyFront": 58, "mountFlange": 73, "gripFront": 75.9, "sensorPlane": 29,
+   "source": "published depth and EF flange distance; the side photo (body-side.jpg in the demo refs) puts the front face beside the mount about 15 mm behind the flange", "uncertainty": 2}
+ }
+}
