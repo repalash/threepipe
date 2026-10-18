@@ -11,7 +11,6 @@
  "subdiv-uv-primitives": "exact",
  "subdiv-uv-flipped": "exact",
  "subdiv-ngons-l4": "exact",
- "subdiv-quad-l6": "exact",
  "subdiv-loose-only": "exact",
  "subdiv-materials": "exact",
  "subdiv-instances": "exact",

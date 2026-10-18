@@ -4,19 +4,19 @@
  * freshly added node). Blender output, read as data.
  */
 import {describe, expect, it} from 'vitest'
-import {readFileSync} from 'node:fs'
 import {join} from 'node:path'
 import {NodeInstance, registeredNodeTypes} from '../../src/runtime/registry'
 import {SocketDecl} from '../../src/runtime/declaration'
 import {socketTypeFromIdname} from '../../src/runtime/types'
 import {f32} from '../../src/blender/f32'
 import '../../src/nodes'
+import {readFixtureJSON} from './fixtures'
 
 interface InvSocket {identifier: string, name: string, type: string, default: unknown, hideValue?: boolean, disabledByDefault?: boolean}
 interface InvProp {identifier: string, type: string, items?: string[], default: unknown}
 interface InvNode {idname: string, label: string, inputs: InvSocket[], outputs: InvSocket[], properties: InvProp[]}
 
-const inventory = JSON.parse(readFileSync(join(__dirname, 'geonodes-kit/coverage/nodes-5.2.2.json'), 'utf8')) as {blender: string, nodes: InvNode[]}
+const inventory = readFixtureJSON<{blender: string, nodes: InvNode[]}>(join(__dirname, 'geonodes-kit/coverage/nodes-5.2.2.json'))
 const byId = new Map(inventory.nodes.map(x => [x.idname, x]))
 
 /** `NodeSocketFloatDistance` → `DISTANCE`, `NodeSocketVectorEuler` → `EULER`, `NodeSocketFloat` → `NONE`. */

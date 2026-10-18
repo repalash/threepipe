@@ -1,12 +1,19 @@
 import {describe, expect, it} from 'vitest'
-import {readFileSync} from 'node:fs'
+import {existsSync, readFileSync} from 'node:fs'
 import {join} from 'node:path'
 import {importBlenderDump, nodeTypesOf, DumpV1} from './importBlenderDump'
 import {isInterfaceSocket} from '../runtime/types'
 
-describe('importBlenderDump (v1, extract_geo_nodes.py)', () => {
-    const dump = JSON.parse(readFileSync(join(__dirname, '../../tests/fixtures/dumps-v1/flower_scattering.json'), 'utf8')) as DumpV1
-    const imported = importBlenderDump(dump)
+/**
+ * `flower_scattering.json`: the `extract_geo_nodes.py` (v1) dump of `flower_scattering.blend` (Blender 5.0.1, March 2026,
+ * `proc` branch). It is derived from a third-party asset whose licence is undecided, so it lives with the local bundles
+ * (`<worktree>/tmp/bundles/dumps-v1/`, not in git) and the test skips without it.
+ */
+const V1_DUMP = join(__dirname, '../../../../tmp/bundles/dumps-v1/flower_scattering.json')
+
+describe.skipIf(!existsSync(V1_DUMP))('importBlenderDump (v1, extract_geo_nodes.py)', () => {
+    const dump = existsSync(V1_DUMP) ? JSON.parse(readFileSync(V1_DUMP, 'utf8')) as DumpV1 : undefined as never
+    const imported = dump ? importBlenderDump(dump) : undefined as never
 
     it('flattens nested group trees into a library, deduplicated by name', () => {
         expect(Object.keys(imported.library).sort()).toEqual(['Flower Field System', 'Flower System', 'Grass Scattering', 'Grass System', 'Random Orientation'])

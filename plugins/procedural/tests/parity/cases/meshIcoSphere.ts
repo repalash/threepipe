@@ -7,7 +7,8 @@ import {ParityCase} from './types'
 export function meshIcoSphereCases(): ParityCase[] {
     const cases: ParityCase[] = []
     const add = (id: string, description: string, extra: Extra, build: () => Socket<'GEOMETRY'>) => cases.push(meshCase(id, description, extra, build))
-    for (const [subdivisions, radius] of [[1, 1], [2, 1], [3, 2.5], [4, 0.37], [5, 1], [6, 3]] as const) {
+    // Subdivisions 6 (Blender's maximum) is the same algorithm as 5 at four times the size: left out to keep the fixtures small.
+    for (const [subdivisions, radius] of [[1, 1], [2, 1], [3, 2.5], [4, 0.37], [5, 3]] as const) {
         add(`ico-s${subdivisions}`, `Ico Sphere, ${subdivisions} subdivisions, radius ${radius}, with the UV map`, {}, () => {
             const ico = n.MeshIcoSphere({subdivisions, radius})
             return store(ico.mesh, 'CORNER', 'uv', ico.uVMap)

@@ -108,10 +108,7 @@ export function subdivMeshCases(): ParityCase[] {
         const tri = n.TransformGeometry({geometry: n.MeshCircle({vertices: 3, fillType: 'NGON'}).mesh, translation: [0, 3, 0]}).geometry
         return n.SubdivideMesh({mesh: attributed(n.JoinGeometry({geometry: [ngon, fan, tri]}).geometry), level: 4}).mesh
     })
-    add('subdiv-quad-l6', 'Subdivide Mesh level 6 (the maximum) of a non-planar quad and a triangle (topology and positions only, to keep the result small)', SCENE, () => {
-        const part = n.DeleteGeometry({geometry: shape(), domain: 'FACE', selection: index().eq(1).not()}).geometry
-        return n.SubdivideMesh({mesh: n.JoinGeometry({geometry: [part, n.TransformGeometry({geometry: n.MeshCircle({vertices: 3, fillType: 'NGON'}).mesh, translation: [0, 3, 0]}).geometry]}).geometry, level: 6}).mesh
-    })
+    // Level 6 (the maximum) is the level-4 path at 16 times the size: left out to keep the fixtures small.
     add('subdiv-loose-only', 'Subdivide Mesh level 2 of meshes without faces: a line (loose edges) and loose vertices', {}, () => {
         const line = n.MeshLine({count: 4, offset: [0.5, 0.2, -0.1]}).mesh
         const verts = n.DeleteGeometry({geometry: n.MeshLine({count: 3, startLocation: [0, 2, 0]}).mesh, domain: 'EDGE', mode: 'EDGE_FACE', selection: true}).geometry

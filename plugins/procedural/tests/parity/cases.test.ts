@@ -7,7 +7,7 @@
  * `<worktree>/tmp/gt-5.2.2/cases/<set>/`; cases without a result are skipped with that reason.
  */
 import {describe, expect, it} from 'vitest'
-import {existsSync, readFileSync, writeFileSync} from 'node:fs'
+import {writeFileSync} from 'node:fs'
 import {join} from 'node:path'
 import {compareGeometry, ExpectedGeometry, GeometryNodesEvaluator} from '../../src'
 import {binResolver, DumpReferenced, geometryFromDump, inlineBinRefs, sceneFromDump} from '../../src/io/geometryFromDump'
@@ -68,6 +68,7 @@ import {meshConvexHullCases} from './cases/meshConvexHull'
 import {meshIcoSphereCases} from './cases/meshIcoSphere'
 import {sampleUVSurfaceCases} from './cases/sampleUVSurface'
 import {uvPackCases} from './cases/uvPack'
+import {fixtureExists, readFixture, readFixtureJSON, readFixtureText, writeFixture} from './fixtures'
 
 /** The case's images over the scene Blender built: the pixels Blender's float buffer holds (`foreach_set`). */
 function withCaseImages(scene: SceneProvider | undefined, images: CaseImage[]): SceneProvider {
@@ -134,23 +135,23 @@ for (const [set, generate] of Object.entries(SETS)) {
         // One case per line: compact, and diffs stay per case.
         const text = '[\n' + cases.map(c => JSON.stringify(c)).join(',\n') + '\n]\n'
         it('the committed case list matches the generator', () => {
-            if (process.env.UPDATE_PARITY_CASES) writeFileSync(file, text)
-            expect(existsSync(file) && readFileSync(file, 'utf8') === text, `${set}.json is out of date`).toBe(true)
+            if (process.env.UPDATE_PARITY_CASES) writeFixture(file, text)
+            expect(readFixtureText(file) === text, `${set}.json is out of date`).toBe(true)
         })
         const dirs = [join(__dirname, 'cases', `${set}.gt`), join(__dirname, '../../../../tmp/gt-5.2.2/cases', set)]
         const status: Record<string, string> = {}
         for (const c of cases) {
-            const dir = dirs.find(d => existsSync(join(d, `${c.id}.json`)))
+            const dir = dirs.find(d => fixtureExists(join(d, `${c.id}.json`)))
             if (!dir) {
                 status[c.id] = 'no Blender result'
                 it.skip(`${c.id} (no Blender result yet)`, () => undefined)
                 continue
             }
             it(c.id, () => {
-                const gt = JSON.parse(readFileSync(join(dir, `${c.id}.json`), 'utf8')) as {geometry?: ExpectedGeometry, error?: string, scene?: DumpReferenced, input?: ExpectedGeometry}
+                const gt = readFixtureJSON<{geometry?: ExpectedGeometry, error?: string, scene?: DumpReferenced, input?: ExpectedGeometry}>(join(dir, `${c.id}.json`))
                 if (gt.error) throw new Error(`Blender failed on this case: ${gt.error}`)
-                const bin = join(dir, `${c.id}.bin`)
-                const resolver = binResolver(existsSync(bin) ? {[`${c.id}.bin`]: readFileSync(bin)} : {})
+                const bin = readFixture(join(dir, `${c.id}.bin`))
+                const resolver = binResolver(bin ? {[`${c.id}.bin`]: bin} : {})
                 const expected = inlineBinRefs(gt.geometry!, resolver)
                 // The case's object is named after the case (`run_cases.py`); Object/Collection Info read the scene Blender built.
                 const options: EvalOptions = gt.scene ? {scene: sceneFromDump(gt.scene, resolver), selfObject: c.id} : {}
