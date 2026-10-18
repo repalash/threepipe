@@ -146,6 +146,17 @@ export function registerFileOperators(engine: EditorEnginePlugin): void {
             },
         },
         {
+            // `WM_OT_clear_recent_files` (wm_files.cc:4361), File > Open Recent > Clear Recent Files List.
+            id: 'file.clear_recent',
+            label: 'Clear Recent Files List',
+            description: 'Forget the files opened here before (only their names are kept).',
+            icon: 'trash',
+            category: 'File',
+            hidden: true,
+            poll: () => file.recent.length > 0 || 'No files have been opened yet',
+            exec: () => { file.clearRecent(); return {ok: true} },
+        },
+        {
             id: 'file.import',
             label: 'Import…',
             description: 'Add a model file to the scene, keeping what is there.',

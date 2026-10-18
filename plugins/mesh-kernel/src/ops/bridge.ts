@@ -41,7 +41,7 @@ import {FLT_MAX, bmoBeautifyFillExec} from './beautify'
 import {bmoTriangulateExec, faceCreateVerts, loopAttrsCopy} from './triangulate'
 import {BmeshEditEndFlags, bmoOpExec} from './bmo'
 import {edbmFlagDisableAll, elemHflagDisableAll, elemsHflagEnable} from '../bmesh/hflag'
-import {normalsUpdate} from './bevel-bmquery'
+import {meshNormalsUpdate} from '../bmesh/normals'
 import {ElemFlag, ElemType} from '../constants'
 import {Vec3, v3cross, v3dot, v3sub} from '../math'
 import {isZeroV3, lenV3V3, modI, normalizeV3Len} from '../math/geom'
@@ -754,8 +754,8 @@ export function bridgeEdgeLoopsSelection(bm: BMesh, options: BridgeEdgeLoopsOpti
 
     if (useMerge === false) {
         if (opProps.cuts) {
-            // we only need face normals updated
-            normalsUpdate(bm)
+            // "we only need face normals updated": `EDBM_mesh_normals_update(em)`.
+            meshNormalsUpdate(bm)
             const subd = bmoSubdivideEdgering(bm, bmop.edges, opProps)
             cutFaces = subd.faces
             elemsHflagEnable(bm, subd.faces, ElemType.Face, ElemFlag.Select, true)

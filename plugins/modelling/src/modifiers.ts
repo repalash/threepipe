@@ -18,6 +18,7 @@ import {
     arrayCurve,
     arrayLinear,
     arrayRadial,
+    BM_FROM_MESH_NORMALS,
     bmFromMesh,
     bmToMesh,
     mirrorGeometry,
@@ -94,7 +95,7 @@ export function evaluateModifiers(mesh: MeshData, modifiers: ModifierSpec[]): Me
     if (!modifiers.length) return mesh
     let current = mesh
     for (const modifier of modifiers) {
-        const bm = bmFromMesh(current)
+        const bm = bmFromMesh(current, BM_FROM_MESH_NORMALS)
         const input = {verts: [...bm.verts], edges: [...bm.edges], faces: [...bm.faces]}
         if (modifier.type === 'array') {
             const merge = modifier.merge !== false

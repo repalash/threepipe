@@ -1,7 +1,8 @@
 import {describe, expect, it} from 'vitest'
 import {MeshData} from '../MeshData'
 import {AttrDomain, AttrName, ElemFlag, SelectMode} from '../constants'
-import {bmFromMesh, bmToMesh} from './convert'
+import {BM_FROM_MESH_NORMALS, bmFromMesh, bmToMesh} from './convert'
+import {meshNormalsUpdate} from './normals'
 import {edgeIsManifold, radialLength} from './structure'
 import {BMFace} from './types'
 
@@ -43,6 +44,29 @@ describe('bmFromMesh', () => {
         const mesh = cubeMesh()
         mesh.cornerVerts[0] = 99
         expect(() => bmFromMesh(mesh)).toThrow(/cannot convert an invalid MeshData/)
+    })
+
+    it('leaves normals zero unless asked (BMeshFromMeshParams calc_face_normal / calc_vert_normal)', () => {
+        const plain = bmFromMesh(cubeMesh())
+        for (const f of plain.faces) expect([f.nx, f.ny, f.nz]).toEqual([0, 0, 0])
+        for (const v of plain.verts) expect([v.nx, v.ny, v.nz]).toEqual([0, 0, 0])
+
+        const faceOnly = bmFromMesh(cubeMesh(), {calcFaceNormal: true})
+        for (const f of faceOnly.faces) expect(Math.hypot(f.nx, f.ny, f.nz)).toBeCloseTo(1, 12)
+        for (const v of faceOnly.verts) expect([v.nx, v.ny, v.nz]).toEqual([0, 0, 0])
+
+        // Both: exactly what `BM_mesh_normals_update` gives the same mesh afterwards.
+        const both = bmFromMesh(cubeMesh(), BM_FROM_MESH_NORMALS)
+        const ref = bmFromMesh(cubeMesh())
+        meshNormalsUpdate(ref)
+        const fr = [...ref.faces], vr = [...ref.verts]
+        ;[...both.faces].forEach((f, i) => expect([f.nx, f.ny, f.nz]).toEqual([fr[i].nx, fr[i].ny, fr[i].nz]))
+        ;[...both.verts].forEach((v, i) => expect([v.nx, v.ny, v.nz]).toEqual([vr[i].nx, vr[i].ny, vr[i].nz]))
+        // A cube corner's normal is the corner-angle weighted sum of three face normals: the diagonal.
+        const c = [...both.verts].find(v => v.x > 0 && v.y > 0 && v.z > 0)!
+        expect(c.nx).toBeCloseTo(1 / Math.sqrt(3), 12)
+        expect(c.ny).toBeCloseTo(1 / Math.sqrt(3), 12)
+        expect(c.nz).toBeCloseTo(1 / Math.sqrt(3), 12)
     })
 
     it('reuses the mesh edge indices rather than creating parallel edges', () => {
