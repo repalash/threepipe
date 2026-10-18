@@ -41,16 +41,37 @@ parity status files in `plugins/procedural/tests/parity/`, as of 2026-10-18:
   registered either.
 - **Parity against Blender 5.2.2:** the package's own cases, 1042 in 55 sets: 946 bit-exact and 94 within a few
   ulps, from libm differences and the subdivision limit surface (the limit surface was made exact later the same
-  day). The geonodes-kit corpus (`geonodes-kit.status.json`): 324 pass and 15 skip of 339. Whole assets against
-  Blender's evaluated output: 31 of 31 plus 2 dumps with changed inputs; most are bit-exact, the flower field is
-  within 1e-5, and Buildify's `building_base` has one known gap (a vertex group and a face attribute sharing a
-  name).
+  day). The geonodes-kit corpus (`geonodes-kit.status.json`): 324 pass and 15 skip of 339.
 - **Subdivision:** one implementation, in the kernel (OpenSubdiv's float pipeline and Blender's `bke::subdiv`). The
   Subdivide Mesh and Subdivision Surface nodes call it, as does the editor's Subdivision Surface modifier.
 
 Every port cites the Blender file and line it follows. Blender computes in single precision, built with
 `-ffp-contract=off`; the port rounds to float32 per operation where Blender does, so results match bit for bit
 except where a libm function (`sin`, `atan2`, ...) differs in the last place.
+
+### Assets
+
+Whole Blender files evaluated here and compared with Blender's own evaluated output, per object. From
+`plugins/procedural/tests/parity/assets.status.json` as last updated on 2026-10-18: 26 objects, 19 exact, 5 within
+a tolerance, 2 known gaps, none skipped.
+
+| Asset | Objects | Exact | Within tolerance | Known gap |
+| --- | --- | --- | --- | --- |
+| `blender-procedural-buildings` | 3 | 3 | | |
+| `buildify_1.0` | 15 | 14 | | 1: `building_base` |
+| `candy_bounce` | 3 | 1 (`geonodes_floor`) | 2: `geonodes_jumpers` (<= 16 ulp), `geonodes_well` (<= 4 ulp) | |
+| `flower_scattering` | 1 | | 1: within 1e-5 | |
+| `pebble_scattering` | 1 | | 1: within 1e-5 | |
+| `repeat_zone_flower_by_MiRA` | 1 | 1 (`Rose`) | | |
+| `sets/buildify-mw6` (Module width 6) | 1 | | | 1: `building_base` |
+| `sets/flowers-gd05` (Grass Density 0.5) | 1 | | 1: within 1e-5 | |
+
+The `sets/` rows are dumps made with a modifier input changed (`dump_blend.py --set`). The known gap is the same in
+both: the object has a vertex group and the graph stores a face attribute, both named `building:levels`. Blender
+keeps the two apart (vertex groups live outside the generic attributes); the kernel has one attribute namespace and
+no deform-verts layer, so the result has the int32 face attribute where Blender's comparison expects the float
+point one (`issues/open/modelling-tools/procedural-vertex-groups.md`). The test fails if that difference changes or
+disappears.
 
 ## Graphs as code
 
