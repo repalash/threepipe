@@ -78,6 +78,15 @@ export class GeometrySet {
         }
     }
 
+    /**
+     * `operator==(GeometrySet, GeometrySet)` (`BKE_geometry_set.hh:458`): the same component objects and
+     * name - not the geometry data. Instance references to geometry compare with this.
+     */
+    equals(other: GeometrySet): boolean {
+        return this._mesh === other._mesh && this._pointCloud === other._pointCloud && this._curves === other._curves &&
+            this._instances === other._instances && this.name === other.name
+    }
+
     /** `is_empty()`: no component at all. */
     get isEmpty(): boolean {
         return !this._mesh && !this._pointCloud && !this._curves && !this._instances

@@ -54,9 +54,14 @@ export interface CompareOptions {
      * Used to report how far from exact a case is (platform `sinf`/`powf`/`atan2f` are not correctly rounded).
      */
     ulps?: number
+    /**
+     * geonodes-kit's exporter writes a `None` instance reference as `{kind: "geometry", geometry: {}}`
+     * (`tools/blender/geometry_export.py:61`), so for its cases an empty expected geometry also matches `none`.
+     */
+    noneAsEmptyGeometry?: boolean
 }
 
-type ResolvedOptions = Required<Omit<CompareOptions, 'ulps'>> & Pick<CompareOptions, 'ulps'>
+type ResolvedOptions = Required<Omit<CompareOptions, 'ulps' | 'noneAsEmptyGeometry'>> & Pick<CompareOptions, 'ulps' | 'noneAsEmptyGeometry'>
 
 const f32buf = new Float32Array(1)
 const i32buf = new Int32Array(f32buf.buffer)
@@ -184,6 +189,8 @@ function compareReferences(actual: Instances, expected: ExpectedReference[], o: 
             if (a.type !== 'none') out.push(`${w}: ${a.type}, expected none`)
         } else if (e.kind === 'object' || e.kind === 'collection') {
             if (a.type !== e.kind || a.name !== e.name) out.push(`${w}: ${a.type} ${'name' in a ? a.name : ''}, expected ${e.kind} ${e.name}`)
+        } else if (a.type === 'none' && o.noneAsEmptyGeometry && Object.keys((e as {geometry: ExpectedGeometry}).geometry).length === 0) {
+            // The exporter wrote a None reference as an empty geometry (see CompareOptions.noneAsEmptyGeometry).
         } else if (a.type !== 'geometry') {
             out.push(`${w}: ${a.type}, expected geometry`)
         } else {
@@ -197,6 +204,7 @@ export function compareGeometry(actual: GeometrySet, expected: ExpectedGeometry,
     const o: ResolvedOptions = {
         tolerance: options.tolerance ?? 1e-5, ignore: options.ignore ?? EDITOR_STATE_ATTRIBUTES, byteColor: options.byteColor ?? 'linear',
         ulps: options.ulps,
+        noneAsEmptyGeometry: options.noneAsEmptyGeometry,
     }
     const out: string[] = []
     if (expected.mesh && !isEmptyMesh(expected.mesh)) compareMesh(actual.mesh, expected.mesh, o, `${where}.mesh`, out)

@@ -45,6 +45,22 @@ const SOCKET_IDNAME: Record<SocketType, string> = {
     CLOSURE: 'NodeSocketClosure', CUSTOM: 'NodeSocketVirtual',
 }
 
+/**
+ * A plain value for an input socket in the shape Blender stores (`bNodeSocketValue*`): a number on a
+ * vector or rotation socket is splat to all three components and on a colour socket to (v, v, v, 1) - what
+ * Blender's float-to-vector/colour conversions give - so `scale: 0.5` means a uniform scale.
+ */
+function storedValue(d: SocketDecl, v: JSONValue, where: string): JSONValue {
+    const len = d.type === 'VECTOR' || d.type === 'ROTATION' ? 3 : d.type === 'RGBA' ? 4 : 0
+    if (!len) return v
+    if (typeof v === 'number' || typeof v === 'boolean') {
+        const x = Number(v)
+        return len === 4 ? [x, x, x, 1] : [x, x, x]
+    }
+    if (Array.isArray(v) && (v.length === len || (d.type === 'RGBA' && v.length === 3))) return d.type === 'RGBA' && v.length === 3 ? [...v, 1] : v
+    throw new Error(`${where}: expected ${len} numbers for a ${d.type} socket, got ${JSON.stringify(v)}`)
+}
+
 /** A node output (or group input) a value can be linked from. */
 export class Socket {
     constructor(readonly builder: TreeBuilder, readonly node: string, readonly identifier: string, readonly type: SocketType) {}
@@ -243,7 +259,7 @@ export class TreeBuilder {
                     const first = Object.values(value.outputs)[0]
                     if (!first) throw new Error(`${value.type} has no output to link`)
                     this.link(first, name, d.identifier, d.type)
-                } else json.inputs![d.identifier] = value as JSONValue
+                } else json.inputs![d.identifier] = storedValue(d, value as JSONValue, `${dslClassName(def)}.${k}`)
             }
         }
         const outputs: Record<string, Socket> = {}
