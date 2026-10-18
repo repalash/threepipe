@@ -41,6 +41,7 @@ export default defineConfig({
           {text: 'Serialization', link: 'guide/serialization'},
           {text: 'Plugin System', link: 'guide/plugin-system'},
           {text: 'Modelling', link: 'guide/modelling'},
+          {text: 'Connect an Agent', link: 'guide/connect-an-agent'},
           {text: 'Material Extension', link: 'guide/material-extension'},
           {text: 'Screen Pass Shaders', link: 'guide/screen-pass'},
         ]
@@ -232,6 +233,8 @@ export default defineConfig({
           {text: 'Mesh Edit Plugin', link: 'package/plugin-mesh-edit'},
           {text: 'Editor Engine', link: 'package/plugin-editor-engine'},
           {text: 'Modelling Editor', link: 'package/plugin-modelling-editor'},
+          {text: 'Modelling CLI', link: 'package/modelling-cli'},
+          {text: 'Modelling MCP Server', link: 'package/modelling-mcp'},
         ]
       },
     ],

@@ -1,0 +1,31 @@
+{
+    "name": "@threepipe/modelling-mcp",
+    "description": "MCP server for threepipe's modelling command API: run, batch, look, measure, validate, diff, inspect, export, help - on a live editor over the agent socket, or a headless session",
+    "version": "0.1.0",
+    "type": "module",
+    "bin": {
+        "threepipe-modelling-mcp": "dist/server.mjs"
+    },
+    "main": "dist/server.mjs",
+    "files": ["dist", "src", "README.md"],
+    "engines": {"node": ">=20"},
+    "scripts": {
+        "build": "rimraf dist && vite build && npm run build:page",
+        "build:page": "node scripts/copy-page.mjs",
+        "typecheck": "tsc --noEmit -p tsconfig.json",
+        "test": "vitest run"
+    },
+    "dependencies": {
+        "@modelcontextprotocol/sdk": "^1.25.1",
+        "playwright-core": "~1.58.2",
+        "ws": "^8.18.0"
+    },
+    "devDependencies": {
+        "@types/ws": "^8.5.12"
+    },
+    "author": "repalash <palash@shaders.app>",
+    "license": "Apache-2.0",
+    "keywords": ["three", "threepipe", "modelling", "mcp", "agent", "claude"],
+    "homepage": "https://threepipe.org/package/modelling-mcp.html",
+    "repository": {"type": "git", "url": "git://github.com/repalash/threepipe.git", "directory": "plugins/modelling-mcp"}
+}

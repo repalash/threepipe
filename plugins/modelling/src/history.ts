@@ -12,7 +12,7 @@
  * far simpler and cost little.
  */
 
-import {DocumentSnapshot, ModellingDocument} from './document'
+import {DocumentSnapshot, EntrySnapshot, ModellingDocument} from './document'
 
 export interface HistoryEntry {
     op: string
@@ -64,16 +64,25 @@ export class ModellingHistory {
         }))
     }
 
+    /**
+     * Record one command's change. Returns the entry, or `null` when the command changed nothing - no
+     * object (or document data slot) it recorded differs from its before-state - in which case nothing is
+     * pushed and redo is kept: Blender's rule for an operator that returns `CANCELLED`
+     * (`wm_operator_finished` only pushes for `FINISHED`, `wm_event_system.cc:1305`). The dispatcher
+     * reports it as `changed: false`.
+     */
     push(op: string, label: string, before: DocumentSnapshot[], index: number): HistoryEntry | null {
         if (!before.length) return null
-        // A new command discards anything that was undone, as every editor does.
-        this._entries.length = this._position
         const after = before.map((b): DocumentSnapshot => {
             if (b.kind === 'data') return this._doc.resnapshot(b)
             const entry = this._doc.find(b.id)
             // Objects the command deleted have no "after"; record the absence so redo removes them again.
             return entry ? this._doc.snapshot(entry) : {...b, mesh: null}
         })
+        const unchanged = before.every((b, i) => this._doc.snapshotsEqual(b, after[i]))
+        if (unchanged) return null
+        // A new command discards anything that was undone, as every editor does.
+        this._entries.length = this._position
         const entry: HistoryEntry = {op, label, before, after, index}
         this._entries.push(entry)
         if (this._entries.length > this.limit) this._entries.shift()
@@ -129,6 +138,37 @@ export class ModellingHistory {
             done++
         }
         return done
+    }
+
+    /**
+     * One object's state at a point in history, without moving there: the baseline `diff` and
+     * `validate {spec: {unchanged}}` compare against.
+     *
+     * `at` is a checkpoint name, `'start'` (before the oldest command still kept) or `'previous'`
+     * (before the most recent applied command). Returns the snapshot, or `'current'` when no applied
+     * command since that point touched the object - its present state is its state then. A snapshot
+     * with a `null` mesh means the object did not exist yet.
+     */
+    snapshotAt(at: string, id: string): EntrySnapshot | 'current' {
+        let from: number
+        if (at === 'start') from = -1
+        else if (at === 'previous') {
+            if (this._position === 0) throw new Error('nothing has been done yet, so there is no previous state')
+            from = this._position - 2
+        } else {
+            from = this._entries.findIndex(e => e.checkpoint === at)
+            if (from < 0) {
+                const names = this._entries.filter(e => e.checkpoint).map(e => e.checkpoint).join(', ')
+                throw new Error(`no checkpoint "${at}"` + (names ? ` - have: ${names}, or 'start' / 'previous'`
+                    : ` - none have been made; use 'start' or 'previous'`))
+            }
+            if (from >= this._position) throw new Error(`checkpoint "${at}" has been undone`)
+        }
+        for (let j = from + 1; j < this._position; j++) {
+            const snap = this._entries[j].before.find((b): b is EntrySnapshot => b.kind !== 'data' && b.id === id)
+            if (snap) return snap
+        }
+        return 'current'
     }
 
     /** Rewind until the named checkpoint is the most recent applied command. */

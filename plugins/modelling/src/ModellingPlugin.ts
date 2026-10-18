@@ -26,7 +26,7 @@
 
 import {AViewerPluginEventMap, AViewerPluginSync, IObject3D, JSUndoManager, ThreeViewer} from 'threepipe'
 import type {MeshData} from '@threepipe/mesh-kernel'
-import {ModellingDocument} from './document'
+import {EntrySnapshot, ModellingDocument} from './document'
 import {HistoryEntry, ModellingHistory} from './history'
 import {CommandRegistry} from './commands/registry'
 import {Command, CommandContext, CommandDefinition, CommandResult, validateParams} from './commands/types'
@@ -41,6 +41,9 @@ import {modifierCommands} from './commands/modifiers'
 import {shapeCommands} from './commands/shape'
 import {loopCommands} from './commands/loop'
 import {cutCommands} from './commands/cut'
+import {lookCommand} from './commands/look'
+import {importCommand} from './commands/import'
+import {checkCommands, computeLocality, targetIds} from './commands/checks'
 
 export interface CaptureResult {
     dataUrl: string
@@ -76,11 +79,24 @@ export class ModellingPlugin extends AViewerPluginSync<ModellingPluginEventMap> 
     /** Calibrated reference planes, keyed by name. See `commands/reference.ts`. */
     readonly references = new Map<string, ReferencePlaneState>()
 
+    /**
+     * Where the last `camera` command left the camera. A person orbiting the viewport moves the
+     * camera without touching this, so `look {view: 'camera'}` can still see what the session framed.
+     */
+    sessionCamera: {position: [number, number, number], target: [number, number, number]} | null = null
+
     /** Current viewport shading, as set by the `display` command. */
     displayMode: 'material' | 'solid' | 'wireframe' = 'material'
 
     /** Every result this session has produced, in order. A session log, and a replayable one. */
     readonly results: CommandResult[] = []
+
+    /**
+     * Attach a `locality` report to every mutating command's result: a geometric diff of each object it
+     * touched, against the before-state already recorded for undo. Turn off to save the diff's time on
+     * very large meshes.
+     */
+    reportLocality = true
 
     /** Keep the last N results. Captures are large; the log should not grow without bound. */
     resultLimit = 500
@@ -109,25 +125,38 @@ export class ModellingPlugin extends AViewerPluginSync<ModellingPluginEventMap> 
         return this._undoManager
     }
 
+    private _documentId: string | undefined
+
+    /**
+     * @param options.documentId - fix the document id instead of generating one. Everything the document
+     * creates derives its UUID from it, so a replay under the same id exports byte-identical files.
+     */
+    constructor(options: {documentId?: string} = {}) {
+        super()
+        this._documentId = options.documentId
+    }
+
     onAdded(viewer: ThreeViewer): void {
         super.onAdded(viewer)
-        this.document = new ModellingDocument(viewer)
+        this.document = new ModellingDocument(viewer, this._documentId)
         this.history = new ModellingHistory(this.document)
         this._connectMeshEdit(viewer)
         this._connectUndoManager(viewer)
         this._registerGltfExtension(viewer)
-        this.commands.registerAll([
-            ...createCommands,
-            ...editCommands,
-            ...fillCommands,
-            ...sceneCommands,
-            ...sessionCommands,
-            ...referenceCommands,
-            ...modifierCommands,
-            ...shapeCommands,
-            ...loopCommands,
-            ...cutCommands,
-        ])
+        // Grouped for progressive disclosure: an MCP client sees a group's commands when it asks for them.
+        this.commands.registerAll(createCommands, 'create')
+        this.commands.registerAll(editCommands, 'edit')
+        this.commands.registerAll(shapeCommands, 'shape')
+        this.commands.registerAll(loopCommands, 'loop')
+        this.commands.registerAll(cutCommands, 'cut')
+        this.commands.registerAll(fillCommands, 'fill')
+        this.commands.registerAll(modifierCommands, 'modifiers')
+        this.commands.registerAll(sceneCommands, 'scene')
+        this.commands.registerAll(referenceCommands, 'reference')
+        this.commands.registerAll(sessionCommands, 'session')
+        this.commands.registerAll([lookCommand], 'look')
+        this.commands.registerAll(checkCommands, 'checks')
+        this.commands.registerAll([importCommand], 'import')
     }
 
     /**
@@ -220,9 +249,12 @@ export class ModellingPlugin extends AViewerPluginSync<ModellingPluginEventMap> 
                 return entry ? {mesh: entry.mesh, modifiers: entry.modifiers} : null
             },
             write: (object, mesh, modifiers) => {
-                this.document.beginRecording()
+                // Inside a command (`import`) the adoption is part of that command's undo step; a glTF
+                // dropped on the page records nothing, as before.
+                const nested = this.document.isRecording
+                if (!nested) this.document.beginRecording()
                 this.document.adopt(object, mesh, modifiers)
-                this.document.endRecording()
+                if (!nested) this.document.endRecording()
                 this.dispatchEvent({type: 'documentChanged', document: this.document, source: 'gltf'})
             },
             readDocument: () => {
@@ -323,25 +355,44 @@ export class ModellingPlugin extends AViewerPluginSync<ModellingPluginEventMap> 
             warn: (m: string) => warnings.push(m),
         }
 
+        const targets = def.mutates && this.reportLocality ? targetIds(command, this.document) : []
         if (def.mutates) this.document.beginRecording()
         try {
             const output = await def.run(params, ctx) || {}
             const before = def.mutates ? this.document.endRecording() : []
+            let locality: CommandResult['locality']
+            if (def.mutates && this.reportLocality) {
+                try {
+                    // Object locality: document data slots (node groups, ...) are not objects.
+                    locality = computeLocality(command, before.filter((b): b is EntrySnapshot => b.kind !== 'data'), this.document, targets)
+                } catch (e) {
+                    warnings.push(`could not compute locality: ${(e as Error).message}`)
+                }
+            }
+            // A mutating command that left the document as it found it - a weld with nothing in range,
+            // a bevel of edges Blender declines - pushes no undo step and says so, so a following
+            // `undo` is never mistaken for undoing it.
+            let changed: boolean | undefined
             if (def.mutates) {
                 const label = describeCommand(command)
                 const entry = this.history.push(op, label, before, index)
-                if (entry) this._recordUndoStep(entry, labelForUndo(command))
-                this.dispatchEvent({type: 'documentChanged', document: this.document, source: 'command'})
+                changed = !!entry
+                if (entry) {
+                    this._recordUndoStep(entry, labelForUndo(command))
+                    this.dispatchEvent({type: 'documentChanged', document: this.document, source: 'command'})
+                }
             }
             const result: CommandResult = {
                 ok: true,
                 op,
                 index,
                 documentId: this.document.documentId,
+                changed,
                 objects: output.objects,
                 data: output.data,
                 warnings: warnings.length ? warnings : undefined,
                 ms: round(now() - started),
+                locality,
             }
             this._viewer?.setDirty()
             this._finish(command, result)
@@ -372,13 +423,13 @@ export class ModellingPlugin extends AViewerPluginSync<ModellingPluginEventMap> 
      * Generated from the same definitions the dispatcher runs, so a command cannot exist without
      * being described, and a description cannot describe a command that is not there.
      */
-    describeCommands(): {name: string, description: string, inputSchema: unknown}[] {
+    describeCommands(): {name: string, description: string, inputSchema: unknown, group: string, mutates: boolean}[] {
         return this.commands.describe()
     }
 
     /** Add a command of your own. It gains validation, undo and the tool list for free. */
-    addCommand(def: CommandDefinition): void {
-        this.commands.register(def)
+    addCommand(def: CommandDefinition, group?: string): void {
+        this.commands.register(def, group)
     }
 
     // endregion

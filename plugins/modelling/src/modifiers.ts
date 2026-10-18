@@ -31,7 +31,7 @@ export interface ArrayModifierSpec {
     type: 'array'
     mode: 'linear' | 'radial' | 'curve'
     count: number
-    /** Linear: offset between copies. */
+    /** Linear: offset between copies. Radial: offset added per copy as it turns (Blender's constant offset). */
     step?: Vec3
     /** Radial: total sweep in radians, default a full turn. */
     angle?: number
@@ -271,6 +271,7 @@ registerModifierType<ArrayModifierSpec>({
     describe(spec) {
         const detail = spec.mode === 'radial'
             ? `${((spec.angle ?? Math.PI * 2) * 180 / Math.PI).toFixed(0)}° about [${(spec.axis ?? [0, 1, 0]).join(', ')}]`
+                + (spec.step ? `, step [${spec.step.join(', ')}]` : '')
             : spec.mode === 'curve'
                 ? `along ${spec.path?.length ?? 0} path points`
                 : `step [${(spec.step ?? [0, 0, 0]).join(', ')}]`
@@ -285,6 +286,7 @@ registerModifierType<ArrayModifierSpec>({
                     angle: spec.angle ?? Math.PI * 2,
                     axis: spec.axis ?? [0, 1, 0],
                     pivot: spec.pivot ?? [0, 0, 0],
+                    step: spec.step,
                     merge,
                 })
             } else if (spec.mode === 'curve') {

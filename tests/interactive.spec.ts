@@ -5336,3 +5336,198 @@ test('modelling-editor-cut', async({page}) => {
     await page.keyboard.press('Control+KeyZ')
     await expect.poll(async() => (await state()).counts).toEqual([8, 12, 6])
 })
+
+test('modelling-replay', async({page}) => {
+    // A replay restarts the whole 271-command build once more below; give it room on a loaded runner.
+    test.setTimeout(360000)
+    await expect(page).toHaveTitle('Modelling Replay')
+
+    const state = () => page.evaluate(() => {
+        const w = window as any
+        return {
+            done: w.replay.done as boolean,
+            next: w.replay.next as number,
+            commands: w.replay.commands.length as number,
+            failed: w.replay.failed.map((f: any) => `${f.command.op}: ${f.error}`) as string[],
+            objects: w.modelling.document.entries.map((e: any) => e.name) as string[],
+            history: w.engine.history.entries().map((x: any) => x.label + (x.undone ? ' *' : '')) as string[],
+            dirty: w.engine.file.dirty as boolean,
+        }
+    })
+
+    // The page reports ready only after the default transcript - the Eiffel tower build - has replayed.
+    let s = await state()
+    expect(s.done).toBe(true)
+    expect(s.commands).toBe(271)
+    expect(s.next).toBe(271)
+    expect(s.failed).toEqual([])
+    expect(s.objects.length).toBe(39)
+    expect(s.objects).toContain('antenna')
+    expect(s.dirty).toBe(false)
+    // Every mutating command is a step in the editor's undo history, labelled as a person's would be.
+    expect(s.history.length).toBe(268)
+    expect(s.history[0]).toBe('Add Cube')
+    expect(s.history.at(-1)).toBe('Lathe')
+    await expect(page.locator('[data-replay-status]')).toContainText('271 commands')
+    await expect(page.locator('[data-replay-status]')).toContainText('no failures')
+
+    // The replayed build passes the structural checks, and every one of its edits was local.
+    const validate = await page.evaluate(() => (window as any).modelling.run({op: 'validate'}))
+    expect(validate.ok).toBe(true)
+    expect(validate.data.verdict).toBe('PASS')
+    expect(validate.data.objects.length).toBe(39)
+
+    // Real input: Ctrl+Z in the viewport takes the last command (the antenna lathe) back, Ctrl+Shift+Z redoes it.
+    const vp = (await page.locator('[data-viewport]').boundingBox())!
+    await page.mouse.click(vp.x + 30, vp.y + 60)
+    await page.keyboard.press('Control+KeyZ')
+    await expect.poll(async() => (await state()).objects.includes('antenna')).toBe(false)
+    expect((await state()).history.at(-1)).toBe('Lathe *')
+    await page.keyboard.press('Control+Shift+KeyZ')
+    await expect.poll(async() => (await state()).objects.includes('antenna')).toBe(true)
+
+    // look: the agent's view of the build - an auto-framed sheet, and what each view shows. (With a
+    // highlight and no `fit`, look frames the highlighted object; `fit: '*'` frames the whole tower.)
+    const look = await page.evaluate(() => (window as any).modelling.run({op: 'look', fit: '*', highlight: {object: 'plinth', faces: [0]}, size: 640}))
+    expect(look.ok).toBe(true)
+    expect(look.data.views.map((v: any) => v.name)).toEqual(['front', 'right', 'top', 'iso'])
+    for (const v of look.data.views) expect(v.inFrame).toContain('antenna')
+    expect(look.data.highlight).toEqual({object: 'plinth', faces: 1, edges: 0, verts: 0})
+    expect(look.data.image.startsWith('data:image/jpeg;base64,')).toBe(true)
+    // ...and it left the person's camera and history alone.
+    expect((await state()).history.length).toBe(268)
+
+    // Real input: the palette's Look (Agent View) renders the same sheet into the Look dialog.
+    await page.mouse.move(vp.x + vp.width / 2, vp.y + vp.height / 2)
+    await page.keyboard.press('F3')
+    await page.locator('.me-palette input').fill('Look (Agent')
+    await page.keyboard.press('Enter')
+    await expect(page.locator('[data-look-image]')).toBeVisible({timeout: 60000})
+    await expect(page.locator('[data-look-meta]')).toContainText('in frame')
+    await page.keyboard.press('Escape')
+
+    // Real input: Restart clears the scene and history and replays from the first command again.
+    await page.locator('[data-replay-restart]').click()
+    await expect.poll(async() => (await state()).next, {timeout: 30000}).toBeLessThan(271)
+    await expect.poll(async() => (await state()).done, {timeout: 240000, intervals: [2000]}).toBe(true)
+    s = await state()
+    expect(s.failed).toEqual([])
+    expect(s.objects.length).toBe(39)
+    expect(s.history.length).toBe(268)
+})
+
+test('modelling-editor-agent', async({page}) => {
+    await expect(page).toHaveTitle('Modelling Editor Agent')
+    // The relay from the CLI package's bundle (npm run build:modelling-cli): what `threepipe-modelling relay` runs.
+    const {AgentRelay, RelayClient} = await import('../plugins/modelling-cli/dist/relay.mjs' as string)
+    const relay = new AgentRelay({port: 0, token: 'e2e-token'})
+    await relay.start()
+    try {
+        const state = () => page.evaluate(() => {
+            const w = window as any
+            return {
+                history: w.engine.history.entries().map((x: any) => x.label + (x.undone ? ' *' : '')) as string[],
+                faces: (w.modelling.document.find('box')?.mesh.facesNum ?? null) as number | null,
+                status: w.agentSocket.status as string,
+            }
+        })
+        // Idle: no indicator at all.
+        await expect(page.locator('[data-agent-indicator]')).toHaveCount(0)
+
+        // Real input: File > Connect Agent…, paste the relay's URL and token, Connect.
+        await page.locator('.me-header').getByText('File', {exact: true}).click()
+        await page.getByRole('menuitem', {name: 'Connect Agent…'}).click()
+        await page.locator('[data-agent-url]').fill(relay.url)
+        await page.locator('[data-agent-token]').fill('e2e-token')
+        await page.locator('[data-agent-connect]').click()
+        await expect(page.locator('[data-agent-status="connected"]')).toBeVisible()
+        await page.keyboard.press('Escape')
+        await expect(page.locator('[data-agent-indicator="connected"]')).toBeVisible()
+
+        // An agent (the CLI's client) drives the page through the relay.
+        const agent = new RelayClient(relay.url, 'e2e-token', 'e2e-agent')
+        await agent.connect()
+        await expect(page.locator('[data-agent-indicator]')).toContainText('e2e-agent')
+        const made = await agent.run({op: 'primitive', type: 'cube', name: 'box', size: 2})
+        expect(made.ok).toBe(true)
+        const inset = await agent.run({op: 'inset', object: 'box', faces: [0], thickness: 0.2})
+        expect(inset.ok).toBe(true)
+        expect(inset.locality.local).toBe(true)
+        // A wrong command comes back as a failed result with the registry's hint, not a dropped socket.
+        const typo = await agent.run({op: 'insett', object: 'box'})
+        expect(typo).toMatchObject({ok: false, op: 'insett'})
+        expect(typo.error).toContain('did you mean "inset"')
+
+        // The agent's steps are the editor's undo history, labelled as a person's would be.
+        let s = await state()
+        expect(s.history).toEqual(['Add Cube', 'Inset box'])
+        expect(s.faces).toBe(10)
+        await expect(page.locator('[data-agent-last]')).toContainText('insett box')
+
+        // Real input: Ctrl+Z in the viewport undoes the agent's inset; the agent sees it.
+        const vp = (await page.locator('[data-viewport]').boundingBox())!
+        await page.mouse.click(vp.x + 30, vp.y + 60)
+        await page.keyboard.press('Control+KeyZ')
+        await expect.poll(async() => (await state()).faces).toBe(6)
+        s = await state()
+        expect(s.history).toEqual(['Add Cube', 'Inset box *'])
+        const seen = await agent.run({op: 'inspect', object: 'box'})
+        expect(seen.data.faces).toBe(6)
+
+        // The agent looks; the person opens what it saw from the indicator.
+        const look = await agent.run({op: 'look', includeImage: false})
+        expect(look.ok).toBe(true)
+        await page.locator('[data-agent-indicator]').click()
+        await expect(page.locator('[data-agent-activity]')).toContainText('look')
+        await page.getByRole('button', {name: 'Last look'}).click()
+        await expect(page.locator('[data-look-meta]')).toContainText('front')
+        await page.keyboard.press('Escape')
+
+        // Disconnect from the dialog: the indicator goes away and the relay drops the page.
+        await page.locator('.me-header').getByText('File', {exact: true}).click()
+        await page.getByRole('menuitem', {name: 'Connect Agent…'}).click()
+        await page.locator('[data-agent-disconnect]').click()
+        await page.keyboard.press('Escape')
+        await expect(page.locator('[data-agent-indicator]')).toHaveCount(0)
+        await expect.poll(() => relay.pages().length).toBe(0)
+        agent.close()
+    } finally {
+        await relay.stop()
+    }
+
+    // The MCP server (npm run build:modelling-mcp): an MCP client's tool call reaches this editor through
+    // the server's own agent socket and lands in its undo history.
+    const sdk = '../plugins/modelling-mcp/node_modules/@modelcontextprotocol/sdk/dist/esm/client/'
+    const {Client} = await import(sdk + 'index.js')
+    const {StdioClientTransport} = await import(sdk + 'stdio.js')
+    const transport = new StdioClientTransport({
+        command: 'node', args: ['plugins/modelling-mcp/dist/server.mjs', '--port', '0', '--headless', 'node', '--token', 'mcp-e2e'],
+        stderr: 'pipe',
+    })
+    let stderr = ''
+    transport.stderr?.on('data', (d: Buffer) => (stderr += d.toString()))
+    const mcp = new Client({name: 'e2e', version: '1.0.0'})
+    await mcp.connect(transport)
+    try {
+        await expect.poll(() => /agent socket: (ws:\/\/\S+)/.exec(stderr)?.[1] ?? null).not.toBeNull()
+        const socketUrl = /agent socket: (ws:\/\/\S+)/.exec(stderr)![1]
+        // Open the editor already pointed at the server, as its connect hint says.
+        await page.goto(`${page.url().split('?')[0]}?agent=${encodeURIComponent(socketUrl)}&agentToken=mcp-e2e`)
+        await page.waitForFunction(() => (window as any).agentSocket?.status === 'connected', null, {timeout: 60000})
+        await expect(page.locator('[data-agent-indicator="connected"]')).toContainText('MCP agent')
+        const help = await mcp.callTool({name: 'help', arguments: {}})
+        expect(JSON.parse(help.content[0].text).target.kind).toBe('editor')
+        const r = await mcp.callTool({name: 'run', arguments: {command: {op: 'primitive', type: 'cylinder', name: 'post', segments: 8}}})
+        expect(r.isError).toBeFalsy()
+        expect(JSON.parse(r.content[0].text)).toMatchObject({ok: true, objects: ['post']})
+        const v = await mcp.callTool({name: 'validate', arguments: {object: 'post'}})
+        expect(JSON.parse(v.content[0].text).data.verdict).toBe('PASS')
+        await expect.poll(() => page.evaluate(() => (window as any).engine.history.entries().map((x: any) => x.label))).toEqual(['Add Cylinder'])
+        await expect(page.locator('[data-agent-last]')).toContainText('validate post')
+        const look = await mcp.callTool({name: 'look', arguments: {view: 'iso', size: 320}})
+        expect(look.content.map((c: any) => c.type)).toEqual(['text', 'image'])
+        expect(look.content[1].mimeType).toBe('image/jpeg')
+    } finally {
+        await mcp.close()
+    }
+})

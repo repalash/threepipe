@@ -16,7 +16,7 @@ import {
     UndoManagerPlugin,
 } from 'threepipe'
 import {MeshEditPlugin} from '@threepipe/plugin-mesh-edit'
-import {ModellingPlugin} from '@threepipe/plugin-modelling'
+import {AgentSocketPlugin, ModellingPlugin} from '@threepipe/plugin-modelling'
 import {EditorEngine, EditorEngineOptions, EditorEnginePlugin} from '@threepipe/plugin-editor-engine'
 import {EditorViewportPlugin} from './EditorViewportPlugin'
 import {EditorUiPlugin} from './ui/EditorUiPlugin'
@@ -84,6 +84,9 @@ export function createModellingEditor(options: ModellingEditorOptions): Modellin
             new TransformControlsPlugin(true),
             new EditorViewWidgetPlugin('bottom-right', 96),
             ModellingPlugin,
+            // Lets an agent drive this document over the agent socket (`?agent=…&agentToken=…`, or
+            // File > Connect Agent…). Idle until connected.
+            AgentSocketPlugin,
             MeshEditPlugin,
             EditorViewportPlugin,
             ...(options.viewer?.plugins ?? []),

@@ -13,6 +13,7 @@ import {
     IObject3D,
     PhysicalMaterial,
     PointLight2,
+    safeSetProperty,
     SpotLight2,
 } from 'threepipe'
 import {CommandDefinition, S, schema} from './types'
@@ -158,6 +159,10 @@ export const lightCommand: CommandDefinition = {
                     : type === 'ambient' ? new AmbientLight2()
                         : new DirectionalLight2()
             light.name = name
+            // Derived, not random, so a replayed session exports the same file (see `stableUuid`).
+            safeSetProperty(light, 'uuid', ctx.doc.stableUuid(`light/${name}`), true, true)
+            if (light.shadow?.camera) safeSetProperty(light.shadow.camera, 'uuid', ctx.doc.stableUuid(`light/${name}/shadow`), true, true)
+            if (light.target) safeSetProperty(light.target, 'uuid', ctx.doc.stableUuid(`light/${name}/target`), true, true)
             scene.addObject(light as IObject3D, {autoScale: false, autoCenter: false})
         }
 

@@ -1,0 +1,29 @@
+{
+  "name": "threepipe-modelling",
+  "version": "0.1.0",
+  "description": "Model and edit 3D geometry with threepipe: an MCP server over the modelling command API (live editor or headless) and a skill with the workflow, rules and a tested cookbook.",
+  "author": {
+    "name": "repalash",
+    "email": "palash@shaders.app"
+  },
+  "homepage": "https://threepipe.org/guide/connect-an-agent.html",
+  "repository": "https://github.com/repalash/threepipe",
+  "license": "Apache-2.0",
+  "keywords": [
+    "3d",
+    "modelling",
+    "mesh",
+    "threepipe",
+    "three.js",
+    "mcp"
+  ],
+  "mcpServers": {
+    "threepipe-modelling": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@threepipe/modelling-mcp"
+      ]
+    }
+  }
+}

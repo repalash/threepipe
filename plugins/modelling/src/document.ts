@@ -18,9 +18,10 @@ import {
     IObject3D,
     Mesh2,
     PhysicalMaterial,
+    safeSetProperty,
     ThreeViewer,
 } from 'threepipe'
-import {bakeGeometry, geometryDataToBufferGeometry, MeshData} from '@threepipe/mesh-kernel'
+import {bakeGeometry, geometryDataToBufferGeometry, MeshData, meshDataFromTriangles} from '@threepipe/mesh-kernel'
 import {evaluateModifierStack, ModifierSpec} from './modifiers'
 
 /** A mesh object under the document's management. */
@@ -51,7 +52,27 @@ export interface ModellingEntry {
     revision: number
 }
 
-/** A restorable snapshot of one object. `null` `mesh` means the object did not exist. */
+/**
+ * The material properties the `material` command sets - all of them, so an undo gives back every one.
+ * `color` is the linear RGB the material holds, not a hex string, so restoring it is exact.
+ */
+export interface MaterialSnapshot {
+    color: [number, number, number]
+    metalness: number
+    roughness: number
+    opacity: number
+    transparent: boolean
+    flatShading: boolean
+    wireframe: boolean
+}
+
+/**
+ * A restorable snapshot of one object. `null` `mesh` means the object did not exist.
+ *
+ * Every field holds the value the object holds, not one derived from it - the rotation is the
+ * quaternion, not Euler angles re-derived from it - so restoring a snapshot reproduces the object
+ * exactly, and a redo is a replay rather than an approximation.
+ */
 export interface EntrySnapshot {
     kind?: 'entry'
     id: string
@@ -59,11 +80,96 @@ export interface EntrySnapshot {
     mesh: MeshData | null
     modifiers: ModifierSpec[]
     position: [number, number, number]
-    rotation: [number, number, number]
+    /** `object.quaternion`, `[x, y, z, w]`. */
+    quaternion: [number, number, number, number]
     scale: [number, number, number]
     visible: boolean
     parentId: string | null
-    materialColor: string | null
+    material: MaterialSnapshot | null
+    /** The object's and material's UUIDs, so an object revived by undo is the same object to a file. */
+    uuid?: string
+    materialUuid?: string
+}
+
+/** The `material` command's properties of a material, or null when it has none of them. */
+export function snapshotMaterial(mat: PhysicalMaterial | undefined): MaterialSnapshot | null {
+    if (!mat?.color) return null
+    return {
+        color: mat.color.toArray() as [number, number, number],
+        metalness: mat.metalness,
+        roughness: mat.roughness,
+        opacity: mat.opacity,
+        transparent: mat.transparent,
+        flatShading: mat.flatShading,
+        wireframe: mat.wireframe,
+    }
+}
+
+/** Write a {@link MaterialSnapshot} back. */
+export function applyMaterial(mat: PhysicalMaterial | undefined, snap: MaterialSnapshot | null): void {
+    if (!mat?.color || !snap) return
+    mat.color.fromArray(snap.color)
+    mat.metalness = snap.metalness
+    mat.roughness = snap.roughness
+    mat.opacity = snap.opacity
+    mat.transparent = snap.transparent
+    // `needsUpdate` through threepipe's setDirty: flat shading and wireframe change the program.
+    if (mat.flatShading !== snap.flatShading || mat.wireframe !== snap.wireframe) mat.needsUpdate = true
+    mat.flatShading = snap.flatShading
+    mat.wireframe = snap.wireframe
+    mat.setDirty?.()
+}
+
+/** Exact equality of two meshes: face offsets, material slots, selection state and every attribute layer. */
+export function meshDataEqual(a: MeshData, b: MeshData): boolean {
+    if (a === b) return true
+    if (a.faceOffsets.length !== b.faceOffsets.length || a.faceOffsets.some((x, i) => x !== b.faceOffsets[i])) return false
+    if (a.materials.length !== b.materials.length || a.materials.some((x, i) => x !== b.materials[i])) return false
+    if (JSON.stringify(a.select) !== JSON.stringify(b.select)) return false
+    const la = a.attributes.layers(), lb = b.attributes.layers()
+    if (la.length !== lb.length) return false
+    for (const x of la) {
+        const y = b.attributes.get(x.name)
+        if (!y || y.domain !== x.domain || y.type !== x.type || y.data.length !== x.data.length) return false
+        // Object.is, so -0 and 0 count as different, as they are different bits in the file.
+        for (let i = 0; i < x.data.length; i++) if (!Object.is(x.data[i], y.data[i])) return false
+    }
+    return true
+}
+
+/** Whether two snapshots of the same object describe the same state - i.e. a command changed nothing. */
+export function snapshotsEqual(a: EntrySnapshot, b: EntrySnapshot): boolean {
+    if (a.id !== b.id || a.name !== b.name || a.visible !== b.visible || a.parentId !== b.parentId) return false
+    if (!a.mesh || !b.mesh) {
+        if (a.mesh !== b.mesh) return false
+    } else if (!meshDataEqual(a.mesh, b.mesh)) return false
+    const same = (x: unknown, y: unknown) => JSON.stringify(x) === JSON.stringify(y)
+    return same(a.modifiers, b.modifiers) && same(a.position, b.position) && same(a.quaternion, b.quaternion)
+        && same(a.scale, b.scale) && same(a.material, b.material)
+}
+
+/** What {@link ModellingDocument.importObject} did with one mesh. */
+export interface ImportedObject {
+    name: string
+    /** `topology`: already editable (kernel-made, or a glTF with `THREEPIPE_mesh_topology`); `welded`: recovered from triangles. */
+    source: 'topology' | 'welded'
+    /** Vertices the weld merged away. */
+    welded: number
+    verts: number
+    edges: number
+    faces: number
+}
+
+/** A buffer attribute's values as a flat array, de-interleaving when needed. */
+function attributeArray(attr: {array: ArrayLike<number>, count: number, itemSize: number, isInterleavedBufferAttribute?: boolean, getComponent?: (i: number, k: number) => number, getX(i: number): number, getY(i: number): number, getZ(i: number): number}, size: 2 | 3): ArrayLike<number> {
+    if (!attr.isInterleavedBufferAttribute && attr.itemSize === size) return attr.array
+    const out = new Float32Array(attr.count * size)
+    for (let i = 0; i < attr.count; i++) {
+        out[i * size] = attr.getX(i)
+        out[i * size + 1] = attr.getY(i)
+        if (size === 3) out[i * size + 2] = attr.getZ(i)
+    }
+    return out
 }
 
 /**
@@ -102,6 +208,64 @@ export class ModellingDocument {
 
     constructor(readonly viewer: ThreeViewer, documentId?: string) {
         this.documentId = documentId ?? `doc-${++documentCounter}-${Math.random().toString(36).slice(2, 8)}`
+    }
+
+    /**
+     * A UUID derived from the document id and a key, for everything the document creates.
+     *
+     * three.js gives every object and material a random UUID and threepipe writes them into the glTF it
+     * exports, so two replays of one transcript differed in nothing but those strings. Derived ones make a
+     * replay byte-identical when the document id is the same (`new ModellingPlugin({documentId})`), and keep
+     * an object's UUID across delete and undo, since a revived object derives the same one. Different
+     * documents still get different UUIDs.
+     */
+    stableUuid(key: string): string {
+        const text = `${this.documentId}/${key}`
+        // Four FNV-1a passes with different offsets make 128 bits; a UUID only needs to be unique within
+        // the scene, which the document id already scopes.
+        let hex = ''
+        for (const seed of [0x811c9dc5, 0x01000193, 0x9e3779b9, 0x85ebca6b]) {
+            let h = seed >>> 0
+            for (let i = 0; i < text.length; i++) {
+                h ^= text.charCodeAt(i)
+                h = Math.imul(h, 0x01000193) >>> 0
+            }
+            hex += h.toString(16).padStart(8, '0')
+        }
+        // RFC 4122 layout, version 5-style (name-based) and variant bits set.
+        return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-5${hex.slice(13, 16)}-${(8 | (parseInt(hex[16], 16) & 3)).toString(16)}${hex.slice(17, 20)}-${hex.slice(20, 32)}`
+    }
+
+    /**
+     * A new object and material for `entry`, with UUIDs derived from its id.
+     *
+     * An object imported from a file keeps the UUID it was saved with, which may be one this document
+     * would derive for a later id (a file written by an earlier session with the same document id).
+     * Rather than let threepipe replace a clash with a random UUID, the derivation is salted until it is
+     * free - still deterministic, since the scene's contents are.
+     */
+    private _createObject(entryId: string, name: string, color: string): IObject3D {
+        let salt = ''
+        for (let i = 1; this.viewer.scene.modelRoot.getObjectByProperty('uuid', this.stableUuid(`${entryId}/object${salt}`)); i++) {
+            salt = `#${i}`
+        }
+        return this._createObjectWith(entryId + salt, name, color)
+    }
+
+    private _createObjectWith(entryId: string, name: string, color: string): IObject3D {
+        const material = new PhysicalMaterial({
+            color: new Color(color),
+            roughness: 0.55,
+            metalness: 0.1,
+        })
+        // threepipe's own way to set an identity (`MaterialManager.create`, `GLTFLoader2`): `uuid` is
+        // read-only in its types. The material mirrors it into `userData.uuid` for serialisation.
+        safeSetProperty(material, 'uuid', this.stableUuid(`${entryId}/material`), true, true)
+        material.userData.uuid = material.uuid
+        const object = new Mesh2(new BufferGeometry2(), material) as unknown as IObject3D
+        safeSetProperty(object, 'uuid', this.stableUuid(`${entryId}/object`), true, true)
+        object.name = name
+        return object
     }
 
     get entries(): ModellingEntry[] {
@@ -201,16 +365,11 @@ export class ModellingDocument {
      */
     add(mesh: MeshData, options: {name?: string, color?: string} = {}): ModellingEntry {
         const name = this.uniqueName(options.name ?? 'object')
-        const material = new PhysicalMaterial({
-            color: new Color(options.color ?? '#b7bcc4'),
-            roughness: 0.55,
-            metalness: 0.1,
-        })
-        const object = new Mesh2(new BufferGeometry2(), material) as unknown as IObject3D
-        object.name = name
+        const id = `o${this._nextId++}`
+        const object = this._createObject(id, name, options.color ?? '#b7bcc4')
 
         const entry: ModellingEntry = {
-            id: `o${this._nextId++}`,
+            id,
             name,
             object,
             mesh,
@@ -261,6 +420,48 @@ export class ModellingDocument {
         return entry
     }
 
+    /**
+     * Make every mesh under `root` editable: weld its triangles back into shared-vertex topology and adopt
+     * it, keeping the object - its UUID, place in the hierarchy, transform and material.
+     *
+     * The "generate anywhere, edit here" bridge: a three.js `Group` from generated code, or a glTF from
+     * any tool, becomes document objects that every command can address. This is the same entry edit
+     * mode takes for a plain mesh (`MeshEditPlugin.enter` -> `meshDataFromTriangles`), so the result is
+     * the same as opening the object in edit mode once. Welding is lossy where coincident vertices were
+     * deliberately separate (hard UV seams, split normals); `welded` reports how many collapsed. Meshes the
+     * document already manages - including any a glTF brought in with `THREEPIPE_mesh_topology`, which
+     * restores exact topology - are reported, not re-welded.
+     */
+    importObject(root: IObject3D, options: {tolerance?: number, mergeCoplanar?: boolean} = {}): ImportedObject[] {
+        const out: ImportedObject[] = []
+        const meshes: IObject3D[] = []
+        root.traverse((o: IObject3D) => {
+            if ((o as {isMesh?: boolean}).isMesh && o.geometry?.getAttribute?.('position')) meshes.push(o)
+        })
+        for (const object of meshes) {
+            const existing = this.find(object.uuid)
+            if (existing) {
+                out.push({name: existing.name, source: 'topology', welded: 0,
+                    verts: existing.mesh.vertsNum, edges: existing.mesh.edgesNum, faces: existing.mesh.facesNum})
+                continue
+            }
+            const geometry = object.geometry!
+            const position = geometry.getAttribute('position')
+            const index = geometry.getIndex()
+            const uv = geometry.getAttribute('uv')
+            const {mesh, weldedCount} = meshDataFromTriangles({
+                position: attributeArray(position, 3),
+                index: index ? (index.array as ArrayLike<number>) : null,
+                uv: uv ? attributeArray(uv, 2) : null,
+                groups: geometry.groups,
+            }, {tolerance: options.tolerance, mergeCoplanar: options.mergeCoplanar})
+            const entry = this.adopt(object, mesh)
+            out.push({name: entry.name, source: 'welded', welded: weldedCount,
+                verts: mesh.vertsNum, edges: mesh.edgesNum, faces: mesh.facesNum})
+        }
+        return out
+    }
+
     /** Remove an object from the document and the scene. */
     remove(entry: ModellingEntry): void {
         this.record(entry)
@@ -308,6 +509,11 @@ export class ModellingDocument {
 
     // region recording, for undo
 
+    /** A command is recording before-states right now. */
+    get isRecording(): boolean {
+        return this._recorder !== null
+    }
+
     /** Start collecting before-states. One recording spans one command. */
     beginRecording(): void {
         this._recorder = new Map()
@@ -332,11 +538,11 @@ export class ModellingDocument {
             mesh: null,
             modifiers: [],
             position: [0, 0, 0],
-            rotation: [0, 0, 0],
+            quaternion: [0, 0, 0, 1],
             scale: [1, 1, 1],
             visible: true,
             parentId: null,
-            materialColor: null,
+            material: null,
         } : this.snapshot(entry))
     }
 
@@ -398,12 +604,22 @@ export class ModellingDocument {
             mesh: entry.mesh.clone(),
             modifiers: entry.modifiers.map(m => ({...m})),
             position: o.position.toArray() as [number, number, number],
-            rotation: [o.rotation.x, o.rotation.y, o.rotation.z],
+            quaternion: o.quaternion.toArray() as [number, number, number, number],
             scale: o.scale.toArray() as [number, number, number],
             visible: o.visible,
             parentId: null,
-            materialColor: mat?.color ? '#' + mat.color.getHexString() : null,
+            material: snapshotMaterial(mat),
+            uuid: o.uuid,
+            materialUuid: (mat as {uuid?: string} | undefined)?.uuid,
         }
+    }
+
+    /** Whether two snapshots describe the same state. See {@link snapshotsEqual}; data slots compare as JSON. */
+    snapshotsEqual(a: DocumentSnapshot, b: DocumentSnapshot): boolean {
+        if (a.kind === 'data' || b.kind === 'data') {
+            return a.kind === b.kind && a.id === b.id && JSON.stringify((a as DataSnapshot).value) === JSON.stringify((b as DataSnapshot).value)
+        }
+        return snapshotsEqual(a, b)
     }
 
     /** Put one object back the way a snapshot found it. A `null` mesh means: it should not exist. */
@@ -424,14 +640,16 @@ export class ModellingDocument {
             return
         }
         if (!entry) {
-            // The command deleted it; rebuild under the same id so later snapshots still match.
-            const material = new PhysicalMaterial({
-                color: new Color(snap.materialColor ?? '#b7bcc4'),
-                roughness: 0.55,
-                metalness: 0.1,
-            })
-            const object = new Mesh2(new BufferGeometry2(), material) as unknown as IObject3D
-            object.name = snap.name
+            // The command deleted it; rebuild under the same id so later snapshots still match - and
+            // under the same UUIDs, which derive from that id.
+            // The defaults `add` uses; `_applyTransform` then writes the snapshot's own values over them.
+            const object = this._createObject(snap.id, snap.name, '#b7bcc4')
+            if (snap.uuid && snap.uuid !== object.uuid) safeSetProperty(object, 'uuid', snap.uuid, true, true)
+            const material = object.material as unknown as {uuid: string, userData: Record<string, unknown>} | undefined
+            if (material && snap.materialUuid && snap.materialUuid !== material.uuid) {
+                safeSetProperty(material, 'uuid', snap.materialUuid, true, true)
+                material.userData.uuid = snap.materialUuid
+            }
             const revived: ModellingEntry = {
                 id: snap.id, name: snap.name, object,
                 mesh: snap.mesh.clone(),
@@ -457,11 +675,10 @@ export class ModellingDocument {
     private _applyTransform(entry: ModellingEntry, snap: EntrySnapshot): void {
         const o = entry.object
         o.position.fromArray(snap.position)
-        o.rotation.set(snap.rotation[0], snap.rotation[1], snap.rotation[2])
+        o.quaternion.fromArray(snap.quaternion)
         o.scale.fromArray(snap.scale)
         o.visible = snap.visible
-        const mat = o.material as PhysicalMaterial | undefined
-        if (snap.materialColor && mat?.color) mat.color.set(snap.materialColor)
+        applyMaterial(o.material as PhysicalMaterial | undefined, snap.material)
         o.setDirty?.()
     }
 
