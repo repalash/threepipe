@@ -140,7 +140,7 @@ export class EvaluateOnDomainInput extends FieldInput {
     }
 }
 
-/** `EvaluateAtIndexInput` (`geometry_fields.cc:621`): out-of-range indices give the type's default. */
+/** `EvaluateAtIndexInput` (`geometry_fields.cc:621`): out-of-range indices are value-initialised (:645, zeros). */
 export class EvaluateAtIndexInput extends FieldInput {
     constructor(readonly indexField: GField, readonly valueField: GField, readonly valueDomain: AttrDomain) {
         super(valueField.type, 'Evaluate at Index')
@@ -158,11 +158,10 @@ export class EvaluateAtIndexInput extends FieldInput {
         const indices = new FieldEvaluation(context, context.size).evaluate(this.indexField)
         const c = DATA_TYPES[this.type].components
         const out = new DATA_TYPES[this.type].array(context.size * c)
-        const def = DATA_TYPES[this.type].defaultValue
         for (let i = 0; i < context.size; i++) {
             const j = indices.get(i)
+            // `value_initialize_indices`: the typed array is already zero-filled.
             if (j >= 0 && j < values.size) for (let k = 0; k < c; k++) out[i * c + k] = values.get(j, k)
-            else for (let k = 0; k < c; k++) out[i * c + k] = def[k]
         }
         return GVArray.fromArray(this.type, out)
     }
