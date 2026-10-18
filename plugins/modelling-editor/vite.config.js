@@ -20,6 +20,8 @@ const globals = {
     '@threepipe/plugin-mesh-edit': '@threepipe/plugin-mesh-edit',
     '@threepipe/plugin-modelling': '@threepipe/plugin-modelling',
     '@threepipe/plugin-editor-engine': '@threepipe/plugin-editor-engine',
+    // Only its types are imported (src/ops/cloudOps.ts finds the plugin by name); external all the same.
+    '@threepipe/plugin-cloud': '@threepipe/plugin-cloud',
 }
 
 export default defineConfig({

@@ -22,6 +22,7 @@ import {EditorViewportPlugin} from './EditorViewportPlugin'
 import {EditorUiPlugin} from './ui/EditorUiPlugin'
 import {ModellingEditorApp} from './ui/ModellingEditorApp'
 import {registerViewOperators} from './ops/viewOps'
+import {registerCloudOperators} from './ops/cloudOps'
 import {OnboardingOptions, OnboardingStore} from './onboarding/OnboardingStore'
 import editorCss from './styles/editor.scss?inline'
 
@@ -100,6 +101,8 @@ export function createModellingEditor(options: ModellingEditorOptions): Modellin
     const ui = viewer.addPluginSync(new EditorUiPlugin())
     const engine = options.createEngine ? options.createEngine(viewer) : viewer.addPluginSync(new EditorEnginePlugin(options.engine))
     const unregisterViewOps = registerViewOperators(engine, viewer.getPlugin(EditorViewportPlugin))
+    // Help > Report a Problem… and Send Feedback…, when the app adds @threepipe/plugin-cloud.
+    const unregisterCloudOps = registerCloudOperators(engine)
     const picking = viewer.getPlugin(PickingPlugin)!
     picking.widgetEnabled = true
     // The gizmo is driven by the toolbar's tool; start with it hidden (Select tool).
@@ -126,6 +129,7 @@ export function createModellingEditor(options: ModellingEditorOptions): Modellin
         dispose() {
             root.unmount()
             unregisterViewOps()
+            unregisterCloudOps()
             engine.dispose()
             viewer.dispose()
         },

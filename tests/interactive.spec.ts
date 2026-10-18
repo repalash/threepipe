@@ -6594,4 +6594,119 @@ test('modelling-editor-ops', async({page}) => {
     await popEntry('MESH_OT_separate.type', 'By Loose Parts').click()
     await expect.poll(async() => (await state()).objects).toBe(2)
     expect((await state()).counts).toEqual(CUBE)
+
+test('modelling-editor-feedback', async({page}) => {
+    await expect(page).toHaveTitle('Modelling Editor Feedback')
+    // A local threepipe-cloud worker (services/cloud, `wrangler dev --local`: workerd with a local D1 and R2), on a
+    // free port with its own store, started through the package's dev script. Turnstile's test secret passes offline.
+    const {spawn} = await import('node:child_process')
+    const net = await import('node:net')
+    const fs = await import('node:fs')
+    const port = await new Promise<number>(resolve => {
+        const srv = net.createServer().listen(0, '127.0.0.1', () => { const p = (srv.address() as any).port; srv.close(() => resolve(p)) })
+    })
+    const persist = fs.mkdtempSync('/tmp/threepipe-cloud-e2e-')
+    const worker = spawn('npm', ['run', 'dev', '--prefix', 'services/cloud'], {env: {...process.env, PORT: String(port), PERSIST: persist}, detached: true, stdio: ['ignore', 'pipe', 'pipe']})
+    let out = ''
+    worker.stdout!.on('data', d => (out += d))
+    worker.stderr!.on('data', d => (out += d))
+    const cloud = `http://127.0.0.1:${port}`
+    const staff = async(path: string) => {
+        const res = await fetch(cloud + '/staff' + path, {headers: {authorization: 'Bearer dev-staff-token-local'}})
+        return res.headers.get('content-type')?.includes('json') ? res.json() : new Uint8Array(await res.arrayBuffer())
+    }
+    try {
+        await expect.poll(async() => (await fetch(cloud + '/').catch(() => null))?.status ?? 0, {timeout: 90000, message: out}).toBe(200)
+
+        // Turnstile's script comes from Cloudflare; here a stub answers as the test site key does (a pass at once).
+        await page.route('https://challenges.cloudflare.com/turnstile/**', route => route.fulfill({contentType: 'text/javascript', body:
+            `window.turnstile = {render(el, o) { el.textContent = 'Turnstile (stub)'; setTimeout(() => o.callback('XXXX.DUMMY.TOKEN.XXXX'), 50); return 'w1' }, reset() {}, remove() {}}`}))
+        await page.goto(`${page.url().split('?')[0]}?cloud=${encodeURIComponent(cloud)}`)
+        await page.waitForFunction(() => (window as any).engine?.operators.get('help.report_problem'), null, {timeout: 60000})
+
+        // Something for the log: a warning with a token in a URL and someone else's email, which must not leave the page.
+        await page.evaluate(() => console.warn('fetch https://api.example.com/x?token=SECRET123456 for someone@corp.example failed'))
+        await expect(page.locator('[data-feedback-button]')).toBeVisible()
+
+        // Real input: Help > Report a Problem…, type, attach the scene, Send.
+        await page.locator('.me-header').getByText('Help', {exact: true}).click()
+        await page.getByRole('menuitem', {name: 'Report a Problem…'}).click()
+        const dialog = page.locator('[data-tpc-dialog]')
+        await expect(dialog).toBeVisible()
+        await expect(dialog.locator('[data-tpc-type="bug"]')).toHaveAttribute('aria-pressed', 'true')
+        await dialog.locator('[data-tpc-text]').click()
+        await page.keyboard.type('The cube went black after a bevel. Write to me at me@example.com')
+        await dialog.locator('[data-tpc-email]').click()
+        await page.keyboard.type('me@example.com')
+        await expect(dialog.locator('[data-tpc-note="context:editor"]')).toContainText('transcript.json')
+        await dialog.locator('[data-tpc-attach="scene"]').check()
+        await expect(dialog.locator('[data-tpc-note="scene"]')).toHaveText(/\d+(\.\d)? (KB|MB)/)
+        await expect(dialog.locator('[data-tpc-turnstile]')).toHaveText('Turnstile (stub)')
+        await dialog.locator('[data-tpc-preview] summary').click()
+        await expect(dialog.locator('[data-tpc-preview-json]')).toContainText('"surface": "modelling-editor"')
+        await page.screenshot({path: 'tmp/feedback/dialog-report.png'})
+        await expect(dialog.locator('[data-tpc-send]')).toBeEnabled()
+        await dialog.locator('[data-tpc-send]').click()
+        const idEl = dialog.locator('[data-tpc-id]')
+        await expect(idEl).toHaveText(/^R-[0-9A-HJKMNP-TV-Z]{6}$/)
+        await page.screenshot({path: 'tmp/feedback/dialog-sent.png'})
+        const id = (await idEl.textContent())!
+        await dialog.locator('[data-tpc-close]').click()
+        await expect(dialog).toHaveCount(0)
+
+        // What arrived: the row, the document, the screenshot and both files, redacted.
+        const got = await staff(`/reports/${id}`) as any
+        expect(got.row).toMatchObject({id, type: 'bug', surface: 'modelling-editor', env: 'local', email: 'me@example.com', has_image: true, files_count: 2})
+        const r = got.report
+        expect(r.text).toBe('The cube went black after a bevel. Write to me at me@example.com')
+        expect(r.versions).toMatchObject({app: '0.1.0'})
+        expect(r.versions.threepipe).toMatch(/^\d+\.\d+\.\d+/)
+        const log = r.log.join('\n')
+        expect(log).toContain('fetch https://api.example.com/x for <email> failed')
+        expect(JSON.stringify(r)).not.toContain('SECRET123456')
+        expect(JSON.stringify(r)).not.toContain('someone@corp.example')
+        expect(r.environment.webgl.renderer).toBeTruthy()
+        expect(r.environment.plugins).toContain('ThreepipeCloudPlugin')
+        expect(r.context.editor).toMatchObject({mode: 'object', keymap: 'blender', objects: 1})
+        expect(r.context.editor.history).toContain('Add Cube')
+        expect(got.files.map((f: any) => [f.name, f.state])).toEqual([['transcript.json', 'done'], ['scene.glb', 'done']])
+        const image = await staff(`/reports/${id}/image`) as Uint8Array
+        expect([image[0], image[1]]).toEqual([0xFF, 0xD8]) // a JPEG
+        const transcript = JSON.parse(new TextDecoder().decode(await staff(`/reports/${id}/files/0`) as Uint8Array))
+        expect(transcript.operations[0].command).toMatchObject({op: 'primitive', type: 'cube'})
+        // The transcript replays: plugin-modelling's own reader takes it.
+        expect(await page.evaluate(t => (window as any).parseCommands(JSON.stringify(t)).map((c: any) => c.op), transcript)).toEqual(['primitive'])
+        const glb = await staff(`/reports/${id}/files/1`) as Uint8Array
+        expect(new TextDecoder().decode(glb.slice(0, 4))).toBe('glTF')
+
+        // An uncaught error: the editor's toast says so once, and its Report opens the dialog about it.
+        await page.evaluate(() => { setTimeout(() => { throw new Error('boom in step 12') }) })
+        const toast = page.locator('.bp5-toast', {hasText: 'Something went wrong: boom in step 12'})
+        await expect(toast).toBeVisible()
+        await toast.getByRole('button', {name: 'Report'}).click()
+        await expect(dialog.locator('[data-tpc-cause]')).toHaveText('About: boom in step 12')
+        await dialog.locator('[data-tpc-text]').click()
+        await page.keyboard.type('It happened after I clicked around.')
+        await expect(dialog.locator('[data-tpc-send]')).toBeEnabled()
+        await dialog.locator('[data-tpc-send]').click()
+        await expect(dialog.locator('[data-tpc-id]')).toHaveText(/^R-/)
+        const id2 = (await dialog.locator('[data-tpc-id]').textContent())!
+        await page.keyboard.press('Escape')
+        await expect(dialog).toHaveCount(0)
+        const second = await staff(`/reports/${id2}`) as any
+        expect(second.report.cause).toMatchObject({kind: 'error', message: 'boom in step 12'})
+        expect(second.report.cause.frame).toBeTruthy()
+
+        // The header's button opens Send Feedback (an idea); Cancel closes it and the editor's keys work again.
+        await page.locator('[data-feedback-button]').click()
+        await expect(dialog.locator('[data-tpc-type="idea"]')).toHaveAttribute('aria-pressed', 'true')
+        await page.screenshot({path: 'tmp/feedback/dialog-feedback.png'})
+        await dialog.locator('[data-tpc-cancel]').click()
+        await expect(dialog).toHaveCount(0)
+        const list = await staff('/reports') as any
+        expect(list.rows.map((x: any) => x.id).sort()).toEqual([id, id2].sort())
+    } finally {
+        try { process.kill(-worker.pid!, 'SIGTERM') } catch { /* already gone */ }
+        fs.rmSync(persist, {recursive: true, force: true})
+    }
 })

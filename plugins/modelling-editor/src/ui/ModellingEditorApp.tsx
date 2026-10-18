@@ -28,6 +28,8 @@ import {Welcome} from './Welcome'
 import {Hints} from './Hints'
 import {EmptyState} from './EmptyState'
 import {HistoryPanel} from './HistoryList'
+import {cloudOf} from '../ops/cloudOps'
+import type {Problem} from '@threepipe/plugin-cloud'
 
 export interface ModellingEditorAppProps {
     value: EditorContextValue
@@ -114,14 +116,32 @@ function Shell({title}: {title?: string}) {
     }, [])
 
     useEngineEvent('message', e => {
+        // An error can be reported from its toast when the app has the cloud plugin (src/ops/cloudOps.ts).
+        const report = e.level === 'error' && engine.operators.get('help.report_problem')
         AppToaster().show({
             message: e.text,
             intent: e.level === 'error' ? 'danger' : e.level === 'warning' ? 'warning' : 'primary',
             icon: e.level === 'error' ? 'error' : e.level === 'warning' ? 'warning-sign' : 'info-sign',
-            timeout: e.level === 'error' ? 6000 : 3500,
+            timeout: e.level === 'error' ? 8000 : 3500,
             isCloseButtonShown: true,
+            action: report ? {text: 'Report', onClick: () => void engine.run('help.report_problem', {cause: {kind: 'operation', message: e.text}})} : undefined,
         })
     })
+    // What the cloud plugin caught (an uncaught error, a rejection, a lost WebGL context): a toast, once per problem.
+    useEffect(() => {
+        const cloud = cloudOf(engine.viewer)
+        if (!cloud) return
+        const onProblem = (e: {problem: Problem, notify: boolean}) => {
+            if (!e.notify) return
+            AppToaster().show({
+                message: `Something went wrong: ${e.problem.message}`,
+                intent: 'danger', icon: 'error', timeout: 10000, isCloseButtonShown: true,
+                action: {text: 'Report', onClick: () => void engine.run('help.report_problem', {cause: e.problem})},
+            })
+        }
+        cloud.addEventListener('problem', onProblem as never)
+        return () => cloud.removeEventListener('problem', onProblem as never)
+    }, [engine])
     useEngineEvent('uiRequest', e => {
         if (e.request === 'palette') setPalette(p => !p)
         else if (e.request === 'history' || e.request === 'shortcuts' || e.request === 'about' || e.request === 'look' || e.request === 'agent') setDialog(e.request)
