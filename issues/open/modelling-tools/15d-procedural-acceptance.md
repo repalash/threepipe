@@ -57,3 +57,27 @@ outside the acceptance assets; go to acceptance and make `track2-procedural` mer
 These are written but not committed, kept outside the package:
 - UV Tangent (MikkTSpace serial port) in `tmp/parked-uv-tangent/`. It is not verified against Blender.
 - Format String, Image Info, Integer Vector, Input Menu: not started.
+
+## Status (2026-10-18 14:30)
+
+1. Merge: done (81854129). The branch is 0 commits behind modelling-editor.
+2. Subdivision Surface: the node is done (eeb59fb2).
+   - Uniform is exact, apart from one value 1 ulp off from a Blender data race.
+   - The limit surface is within 1e-5, through the kernel's adaptive refiner and patch tables.
+   - Rose and the candy floor are exact.
+   - One port: proposal in `procedural-subdiv-one-port.md`. Subdivide Mesh stays on the procedural port until the kernel
+     is float32-exact and writes Blender's order.
+3. Vertex groups: still waiting for the user. The gap is unchanged.
+4. Editor: done (bd3e52ef).
+   - Terrain, Buildify and the flower field load as `geometryNodes` modifiers.
+   - Panel edits are reactive. Fixing that needed 7f2f473f: identifier-keyed specs.
+   - procedural.spec.ts passes 7/7.
+   - The edited states match Blender too: `tmp/gt-5.2.2-sets`.
+5. Report and video: done.
+   - `tmp/acceptance/index.html` and `video.mp4`, recorded on the GPU VM with Metal.
+   - Third-party renders, so not committed.
+6. Merge-ready: done.
+   - typecheck:plugins passes.
+   - Unit tests pass: kernel 2088, modelling 77, mesh-edit 270, editor-engine 66, modelling-cli 49, procedural 1894.
+   - e2e: procedural 7/7 and modelling 16/16.
+   - The local environment needed the modelling-cli and modelling-mcp dists built and the editor's snapshot baselines.
