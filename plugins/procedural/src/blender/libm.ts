@@ -2,7 +2,7 @@
  * Float inverse trigonometry as the reference platform's libm returns it.
  *
  * Blender is compiled against the platform libm, and the Blender 5.2.2 ground truth comes from macOS arm64
- * (macOS 15.5, libSystem). Measured there (`tmp/libm-probe/probe.py`, run by the Blender worker on 2026-10-18):
+ * (macOS 15.5, libSystem). Measured there (`porting/blender/libm_probe.py`, run on the Blender worker on 2026-10-18):
  * - `acosf(-1) = 3.1415925` (0x40490fda), not the correctly rounded `float(pi) = 3.1415927` (0x40490fdb);
  * - `asinf(+-1) = +-1.5707962` (0x3fc90fda), not `float(pi / 2) = 1.5707964` (`acosf(0)` is 1.5707964);
  * - `atan2f(y, x)` is `+-3.1415925` wherever the correctly rounded result is `+-float(pi)`
