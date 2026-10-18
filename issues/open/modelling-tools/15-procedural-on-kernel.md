@@ -620,8 +620,8 @@ meshes (kernel `AttributeStorage.setBuiltins`, additive), measured libm boundari
 runtime bundles (`porting/blender/bundle_dump.py`: the dump without evaluated output; unorm8 images).
 
 **Nodes** (counts against Blender 5.2.2's 318 geometry/function node types, `node_geo_*.cc` / `node_fn_*.cc`):
-211 are ported, plus the Repeat and For Each Geometry Element zones and the `ThreepipeErosion` extension node
-([A5]). That covers all of §3 (F, S, G1-G7, I1-I3, C1-C3): Subdivide Mesh, Triangulate, Dual Mesh, Scale/Sort/Split
+215 are ported, counting the Repeat and For Each Geometry Element zone nodes, plus the `ThreepipeErosion`
+extension node ([A5]). That covers all of §3 (F, S, G1-G7, I1-I3, C1-C3): Subdivide Mesh, Triangulate, Dual Mesh, Scale/Sort/Split
 elements, edge paths and face groups, Raycast, Proximity, Index of Nearest, Blur Attribute, every curve node except
 grease-pencil and font ones (Fill/Fillet/Interpolate/Subdivide/Sample Curve, Curve to Points, primitives, handles,
 spline types), Convex Hull (Bullet port), the string and matrix function nodes, Merge Points and the Cluster nodes.
@@ -637,7 +637,7 @@ Not ported, by group:
 
 **Parity** (Blender 5.2.2, run through `run_cases.py` on the maintainer's Mac):
 - geonodes-kit corpus: 323 pass / 16 skip (13 need operator-built scene objects, Ico Sphere, 2 volumes) / 0 fail.
-- own case sets (52 sets, about 1000 cases): bit-exact except libm ulps (Apple `sinf`/`cosf`/`acosf`/`atan2f`/
+- own case sets (48 sets, 983 cases: 904 bit-exact, 75 within ulps, 3 blocked, 1 blenderBug): bit-exact except libm ulps (Apple `sinf`/`cosf`/`acosf`/`atan2f`/
   `asinf`/`__sincosf_stret`, proven by substitution, `procedural-libm-atan2f-sincos.md`), 1 ulp from Blender's single-
   value attribute storage (`procedural-single-value-attribute-storage.md`), 2 reproduced Blender bugs (realize
   material slots, For Each main items), 1 `blenderBug` (Face Is Planar), 3 `blocked` (float4x4 mix2 = Eigen
