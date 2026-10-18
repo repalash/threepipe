@@ -105,7 +105,8 @@ export function addBlendObject(doc: ModellingDocument, bundle: BlendBundle, obje
             if (input.type === 'ATTRIBUTE' && input.attribute_name) inputs[identifier] = {attribute: input.attribute_name}
             else if (input.value !== undefined) inputs[identifier] = input.value as JSONValue
         }
-        return {type: 'geometryNodes', group: m.nodeGroup!, inputs}
+        const outputs = Object.fromEntries(Object.entries(m.outputs ?? {}).map(([identifier, o]) => [identifier, o.attribute_name]))
+        return Object.keys(outputs).length ? {type: 'geometryNodes', group: m.nodeGroup!, inputs, outputs} : {type: 'geometryNodes', group: m.nodeGroup!, inputs}
     })
     doc.rebake(entry)
     return {name: entry.name, modifiers: entry.modifiers.length, warnings}

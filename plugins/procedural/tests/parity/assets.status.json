@@ -22,7 +22,7 @@
   "trimm": "exact"
  },
  "candy_bounce": {
-  "geonodes_floor": "skip (not ported: GeometryNodeSubdivisionSurface)",
+  "geonodes_floor": "exact",
   "geonodes_jumpers": "pass (<= 16 ulp)",
   "geonodes_well": "pass (<= 4 ulp)"
  },
@@ -33,6 +33,6 @@
   "GEO-ground": "pass (within 1e-5, > 256 ulp)"
  },
  "repeat_zone_flower_by_MiRA": {
-  "Rose": "skip (not ported: GeometryNodeSubdivisionSurface)"
+  "Rose": "exact"
  }
 }

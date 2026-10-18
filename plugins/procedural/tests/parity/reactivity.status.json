@@ -148,6 +148,9 @@
   }
  },
  "candy_bounce": {
+  "geonodes_floor": {
+   "(input geometry)": "empty"
+  },
   "geonodes_jumpers": {
    "object selection": "changes at 1 (13 of 38 nodes re-run)",
    "instance density": "changes at 21 (7 of 38 nodes re-run)",
@@ -172,5 +175,7 @@
   }
  },
  "pebble_scattering": {},
- "repeat_zone_flower_by_MiRA": {}
+ "repeat_zone_flower_by_MiRA": {
+  "Rose": {}
+ }
 }
