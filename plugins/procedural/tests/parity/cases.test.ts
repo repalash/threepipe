@@ -14,8 +14,9 @@ import {binResolver, inlineBinRefs} from '../../src/io/geometryFromDump'
 import {ParityCase} from './cases/types'
 import {textureCases} from './cases/textures'
 import {instanceCases} from './cases/instances'
+import {geometryCases} from './cases/geometry'
 
-const SETS: Record<string, () => ParityCase[]> = {textures: textureCases, instances: instanceCases}
+const SETS: Record<string, () => ParityCase[]> = {textures: textureCases, instances: instanceCases, geometry: geometryCases}
 
 for (const [set, generate] of Object.entries(SETS)) {
     describe(`parity cases: ${set}`, () => {

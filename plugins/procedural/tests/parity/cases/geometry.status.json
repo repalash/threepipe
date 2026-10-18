@@ -1,0 +1,20 @@
+{
+ "delete-point-all": "exact",
+ "delete-point-edge_face": "exact",
+ "delete-point-only_face": "exact",
+ "separate-point-inverted": "exact",
+ "delete-edge-all": "exact",
+ "delete-edge-edge_face": "exact",
+ "delete-edge-only_face": "exact",
+ "separate-edge-inverted": "exact",
+ "delete-face-all": "exact",
+ "delete-face-edge_face": "exact",
+ "delete-face-only_face": "exact",
+ "separate-face-inverted": "exact",
+ "delete-all-selected": "exact",
+ "separate-points-cloud": "exact",
+ "delete-instances": "exact",
+ "cube-variants": "exact",
+ "mesh-line-modes": "exact",
+ "transform-set-position": "exact"
+}
