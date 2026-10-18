@@ -263,7 +263,8 @@ if (mode !== 'none') {
         const log = vm.run(root, `rm -rf ${runRel}/renders && npm run benchmark:render -- ${runRel}/job.json 2>&1 | tail -3 && tar czf ${runRel}/renders.tgz -C ${runRel} renders`)
         console.log(log.trim().split('\n').slice(-3).join('\n'))
         await vm.pull(root, `${runRel}/renders.tgz`, join(out, 'renders.tgz'))
-        execFileSync('tar', ['xzf', join(out, 'renders.tgz'), '-C', out])
+        // -m: do not restore mtimes; the workspace mount sometimes refuses utime on the directory ("Cannot utime")
+        execFileSync('tar', ['xzmf', join(out, 'renders.tgz'), '-C', out])
         timings.vmRenderMs = Date.now() - tr
     } else if (mode === 'local') {
         execFileSync('node', [join(root, 'demos/benchmark/render.mjs'), join(out, 'job.json')], {cwd: root, stdio: 'inherit'})

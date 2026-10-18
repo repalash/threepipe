@@ -416,6 +416,62 @@ Next for the shell: a side elevation (a CC photo, or Canon's own side product sh
 source) to fix the depth layout, the grip's front profile and the prism's front slope, which are the remaining
 unmeasured inputs.
 
+### 3.4 R4 + R3 on the camera: markings, surfaces and parts (2026-10-18)
+
+Phase after §3.3 (proportions frozen). Judged visually on full renders against the reference, full-render SSIM as
+the number. Built, in this order:
+
+- **Kernel** `uv/cubeProject.ts`: Blender's UV Cube Projection (`uvedit_unwrap_cube_project`,
+  `uvedit_unwrap_ops.cc:4245`, `axis_dominant_v3`). Command `uv {object, size}`.
+- **Materials**: `material {preset, relief, transmission, ior, thickness, emissive}`. 16 presets with §1.4's measured
+  values (satin/gloss plastic, rubber, leather, metals, coated glass, screen, prints). Leather, plastic grain and rubber
+  carry tiling normal maps from a seeded Node-safe generator (`materials/textures.ts`, after webgi-worlds
+  `riad/mosaic.ts`), one shared texture per pattern. A tiling map baked to a glTF texture, not a shader extension,
+  because the benchmark and any glTF consumer only see what exports.
+- **Markings**: `decal {mode: plane | project | wrap, content: {text | svg}}`, the reference's own approach (prints on
+  decal meshes with textures). `project` drops a quad grid onto a surface by ray casts and leaves out cells that miss;
+  `wrap` bends it round an axis. SVG is rasterised by the browser. Generic type, no logotypes.
+- **Parts**: new package `@threepipe/modelling-parts` (source-only for now, bundled by plugin-modelling):
+  `product/knurled-ring`, `dial`, `button`, `rocker`, `eyecup`, `strap-lug`, `lens-barrel`, plus SVG layouts
+  (`ringLabels`, `ringText`, `scaleLabels`, `wordmark`). Command `part {type, name, params, position, rotation}`;
+  `part {name, params}` regenerates until another command edits the object.
+- **Camera**: `demos/benchmark/scripts/camera-dress.mjs` - 32 `part`s replace the hand-made lens rings, dials,
+  buttons, eyecup and lugs (+ a lens baffle and inner element); 3 `uv`, 16 `material`, 21 `decal`s (word marks,
+  model badge, monitor screen, button legends, mode-dial legends, top LCD, port legends, lens word mark,
+  focal-length scale, front-ring legend). Geometry runs in Node (171 commands, 5 s); surfaces and prints in a
+  browser session (40 commands, < 1 s of command time, about 8 min of session overhead here).
+
+Results (`tmp/bench/dress-v5`, sheet `tmp/bench/dress-v5/sheet-before-after.png`: reference | re-block | dressed,
+full and clay): full-render SSIM, mean of 7 views, **0.504 -> 0.489**; notex 0.538 -> 0.532; clay 0.615 -> 0.611;
+silhouette IoU 0.886 -> 0.887. Per view, full: front 0.515 -> 0.483, back 0.397 -> 0.405, hero-front 0.547 ->
+0.537 (0.566 in v4), hero-rear 0.476 -> 0.449. Geometry, spec frame (completeness mm): top 2.43 -> 2.16, screens
+0.77 -> 0.56, decals 2.57 -> 2.26, eyepiece 1.39 -> 1.31, shell 2.91 -> 2.78, lens 2.99 -> 2.88; Chamfer 2.64 ->
+2.58. 39 -> 74 parts, 62.5k -> 84.1k triangles.
+
+Reading: visually the dressed camera reads as the product (legends, monitor, lens prints, ribs, glass, leather
+and gloss), while full SSIM dropped slightly. SSIM on 1200x800 greyscale rewards matching flat dark areas and
+punishes detail that is not pixel-registered with the reference's: our legends and screen are in measured places,
+the reference's are where its (taller) model puts them, so each added print is new high-frequency content in the
+wrong pixels. Between iterations SSIM also moves by +-0.02 per view with the ICP alignment alone (v4 -> v5 shifted
+the left and hero views without changing them). It is a weak judge of markings; the sheet is the result.
+
+What still looks better in the reference, and why:
+- **Surface sculpting**: its rear has a raised rubber thumb rest wrapping the quick dial and the multi-controller,
+  contour lines round the controls, and port covers as separate parts with black gap strips (9 `GapsColor` strips);
+  ours is a flat rear face with parts on it, no panel lines.
+- **Leather**: a photographed leather normal map at 512 px x6 reads as grain at render distance; our procedural
+  cells are finer and read as noise on the grip and thumb rest.
+- **Lens**: 3D lettering on the front ring, more visible inner elements, a sharper red ring; ours prints the front
+  legend flat and small.
+- **Eyecup**: a softer, rounded rubber form with an inner frame; ours (measured 54 x 36 mm) still reads boxy.
+- **Screen and top LCD**: real UI screenshots as textures vs our drawn SVG screens.
+- **Form**: its prism and grip are taller (off-spec, §3.3), so the silhouettes differ in every view.
+
+Cost: 14:26 to 15:53 UTC (87 min) including housekeeping, 191 tool calls, 168k output and 89M input tokens (mostly
+cache reads). Housekeeping: the photos are fetched by `fetch-refs.mjs` (URL + sha256), the spec frame is primary
+(§2.1), `tpvm sync` is used again; `score.mjs` extracts renders with `tar -m` (the mount refused `utime`).
+Issue filed: `modelling-node-texture-export.md` (Node sessions cannot export textures).
+
 ### 3.1 R2c status (2026-10-18)
 
 - Kernel `meshBooleanManifold(api, meshes, op, transforms)` (`plugins/mesh-kernel/src/boolean/manifoldBoolean.ts`):
