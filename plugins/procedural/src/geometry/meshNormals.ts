@@ -179,3 +179,48 @@ export function meshNormalsDomain(mesh: MeshData): 'face' | 'point' | 'corner' {
     if (edgeMix === 'false' && faceMix === 'false') return 'point'
     return 'corner'
 }
+
+/** C `normalize_v3` (`math_vector_inline.cc:872`): one reciprocal, three products; zero below 1e-35. */
+function normalizeV3C(x: number, y: number, z: number): [number, number, number] {
+    const d = f32(f32(f32(x * x) + f32(y * y)) + f32(z * z))
+    if (d > f32(1.0e-35)) {
+        const s = f32(1 / f32(Math.sqrt(d)))
+        return [f32(x * s), f32(y * s), f32(z * s)]
+    }
+    return [0, 0, 0]
+}
+
+/**
+ * `bke::mesh::face_normal_calc` (`mesh_normals.cc:143`): `normal_quad_v3` for quads (cross of the diagonals,
+ * `math_geom.cc:62`), `math::normal_tri` for triangles (`normalize(cross(v1 - v2, v2 - v3))`), Newell otherwise;
+ * +Z when zero. Not what the cached `Mesh::face_normals()` use (Newell for every face, `normals_calc_faces`).
+ */
+export function faceNormalCalc(positions: ArrayLike<number>, cornerVerts: ArrayLike<number>, start: number, end: number): [number, number, number] {
+    const size = end - start
+    const P = (i: number, k: number) => positions[cornerVerts[start + i] * 3 + k]
+    let n: [number, number, number]
+    if (size === 4) {
+        const n1 = [f32(P(0, 0) - P(2, 0)), f32(P(0, 1) - P(2, 1)), f32(P(0, 2) - P(2, 2))]
+        const n2 = [f32(P(1, 0) - P(3, 0)), f32(P(1, 1) - P(3, 1)), f32(P(1, 2) - P(3, 2))]
+        n = normalizeV3C(
+            f32(f32(n1[1] * n2[2]) - f32(n1[2] * n2[1])),
+            f32(f32(n1[2] * n2[0]) - f32(n1[0] * n2[2])),
+            f32(f32(n1[0] * n2[1]) - f32(n1[1] * n2[0])))
+    } else if (size === 3) {
+        const a = [f32(P(0, 0) - P(1, 0)), f32(P(0, 1) - P(1, 1)), f32(P(0, 2) - P(1, 2))]
+        const b = [f32(P(1, 0) - P(2, 0)), f32(P(1, 1) - P(2, 1)), f32(P(1, 2) - P(2, 2))]
+        const c = [f32(f32(a[1] * b[2]) - f32(a[2] * b[1])), f32(f32(a[2] * b[0]) - f32(a[0] * b[2])), f32(f32(a[0] * b[1]) - f32(a[1] * b[0]))]
+        // `math::normalize` divides by the length (`BLI_math_vector.hh:521`).
+        const sq = f32(f32(f32(c[0] * c[0]) + f32(c[1] * c[1])) + f32(c[2] * c[2]))
+        if (sq > f32(1.0e-35)) {
+            const len = f32(Math.sqrt(sq))
+            n = [f32(c[0] / len), f32(c[1] / len), f32(c[2] / len)]
+        } else n = [0, 0, 0]
+    } else {
+        const out = new Float32Array(3)
+        normalCalcNgon(positions as Float32Array, cornerVerts as Int32Array, start, end, out, 0)
+        return [out[0], out[1], out[2]]
+    }
+    if (n[0] === 0 && n[1] === 0 && n[2] === 0) n[2] = 1
+    return n
+}

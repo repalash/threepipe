@@ -44,7 +44,10 @@ function compareSockets(kind: string, inv: InvSocket[], ours: SocketDecl[], erro
         if (b.name !== o.name) errors.push(`${where} name: Blender '${b.name}', ours '${o.name}'`)
         if (socketTypeFromIdname(b.type) !== o.type) errors.push(`${where} type: Blender ${b.type}, ours ${o.type}`)
         if (subtypeOf(b.type) !== (o.subtype ?? 'NONE')) errors.push(`${where} subtype: Blender ${subtypeOf(b.type)}, ours ${o.subtype ?? 'NONE'}`)
-        if (kind === 'input' && !sameDefault(b.default, o.default)) errors.push(`${where} default: Blender ${JSON.stringify(b.default)}, ours ${JSON.stringify(o.default)}`)
+        // The inventory writes an empty ID socket (Object, Collection, ...) as the string "None" (Python's repr).
+        const idSocket = ['OBJECT', 'COLLECTION', 'MATERIAL', 'IMAGE', 'TEXTURE'].includes(o.type)
+        const invDefault = idSocket && b.default === 'None' ? undefined : b.default
+        if (kind === 'input' && !sameDefault(invDefault, o.default)) errors.push(`${where} default: Blender ${JSON.stringify(b.default)}, ours ${JSON.stringify(o.default)}`)
         if (kind === 'input' && !!b.hideValue !== !!o.hideValue) errors.push(`${where} hideValue: Blender ${!!b.hideValue}, ours ${!!o.hideValue}`)
         if (!!b.disabledByDefault === o.available) errors.push(`${where} available: Blender ${!b.disabledByDefault}, ours ${o.available}`)
     })

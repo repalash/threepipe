@@ -142,32 +142,31 @@
   "status": "pass"
  },
  "collection-info-none": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeCollectionInfo"
+  "status": "pass"
  },
  "collection-info-reset": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeCollectionInfo"
+  "reason": "needs scene objects created by Blender operators"
  },
  "collection-info-reset-ignored": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeCollectionInfo"
+  "reason": "needs scene objects created by Blender operators"
  },
  "collection-info-separate-order": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeCollectionInfo"
+  "reason": "needs scene objects created by Blender operators"
  },
  "collection-info-separate-transform": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeCollectionInfo"
+  "reason": "needs scene objects created by Blender operators"
  },
  "collection-info-whole": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeCollectionInfo"
+  "reason": "needs scene objects created by Blender operators"
  },
  "collection-info-whole-realized": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeCollectionInfo"
+  "reason": "needs scene objects created by Blender operators"
  },
  "combine-basic": {
   "status": "pass"
@@ -272,24 +271,21 @@
   "status": "pass"
  },
  "edge-angle-cube": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeInputMeshEdgeAngle"
+  "status": "pass"
  },
  "edge-angle-grid-flat-and-boundary": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeInputMeshEdgeAngle"
+  "status": "pass"
  },
  "edge-angle-grid-valleys": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeInputMeshEdgeAngle"
+  "status": "pass"
  },
  "edge-angle-icosphere": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeInputMeshEdgeAngle, GeometryNodeMeshIcoSphere"
+  "reason": "not ported: GeometryNodeMeshIcoSphere"
  },
  "edge-angle-nonmanifold": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeInputMeshEdgeAngle, GeometryNodeMergeByDistance"
+  "reason": "not ported: GeometryNodeMergeByDistance"
  },
  "eval-dangling-reroute": {
   "status": "pass"
@@ -789,47 +785,43 @@
  },
  "object-info-as-instance": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeObjectInfo"
+  "reason": "needs scene objects created by Blender operators"
  },
  "object-info-as-instance-relative": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeObjectInfo"
+  "reason": "needs scene objects created by Blender operators"
  },
  "object-info-empty-as-instance": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeObjectInfo"
+  "reason": "needs scene objects created by Blender operators"
  },
  "object-info-empty-geometry": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeObjectInfo"
+  "reason": "needs scene objects created by Blender operators"
  },
  "object-info-negative-scale": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeObjectInfo"
+  "reason": "needs scene objects created by Blender operators"
  },
  "object-info-none-scale": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeObjectInfo"
+  "status": "pass"
  },
  "object-info-none-transform": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeObjectInfo"
+  "status": "pass"
  },
  "object-info-original": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeObjectInfo"
+  "reason": "needs scene objects created by Blender operators"
  },
  "object-info-relative": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeObjectInfo"
+  "reason": "needs scene objects created by Blender operators"
  },
  "object-info-self-geometry": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeObjectInfo"
+  "status": "pass"
  },
  "object-info-self-location": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeObjectInfo"
+  "status": "pass"
  },
  "position-curve-bezier": {
   "status": "skip",
