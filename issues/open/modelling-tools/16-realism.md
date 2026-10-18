@@ -319,6 +319,25 @@ mount flanges); the reference's rib rings are 78 % split as well.
 
 Order: shading (immediately visible, tiny), subsurf + crease, booleans, custom normals.
 
+### 3.1 R2c status (2026-10-18)
+
+- Kernel `meshBooleanManifold(api, meshes, op, transforms)` (`plugins/mesh-kernel/src/boolean/manifoldBoolean.ts`):
+  a port of `mesh_boolean_manifold.cc` with `manifold-3d@3.4.1` (Blender's pinned version) injected, so the
+  kernel keeps no runtime dependency. Join with transforms, per-mesh Manifold with `faceID` runs, BatchBoolean or
+  the TrimByPlane case, `clean_meshgl`, triangles merged back to n-gons per source face, valence-2 dissolve, and
+  the OutToInMaps for point/edge/face/corner attributes (new corners mean-value interpolated in the source face).
+- `boolean {object, with, operation, cutters}` command in plugin-modelling; manifold-3d lazy-loaded. Checked in
+  Node and in the headless browser: a cube drilled by a 32-segment cylinder gives 72 verts / 40 faces, validate
+  PASS, the same in both.
+- Not ported: `material_remaps` (index-based materials only); n-gons above four corners use the kernel ear
+  clipper, not `BLI_polyfill` (`kernel-triangulate-ngon-polyfill.md`).
+- Not built: a live **Boolean modifier**. Our modifier stack evaluates one object's mesh in isolation
+  (`evaluateModifiers(mesh, specs)`); an operand object needs object references in specs, dependency
+  re-evaluation when a cutter moves and cycle checks, which is a document-model change for approval first.
+- Parity: `plugins/mesh-kernel/tests/fixtures/gen-boolean-fixtures.py` (10 cases: corner cut, union, intersect,
+  rotated cutter, drilled and recessed by n-gon-capped cylinders, plane trim, two and three operands,
+  non-manifold operand) waits for Blender with the subsurf and shading fixtures.
+
 ---
 
 ## 4. R3 — the standard library
