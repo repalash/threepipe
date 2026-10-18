@@ -134,17 +134,25 @@ export const eyecup: PartDefinition<EyecupParams> = {
         // the window is resampled to the outer outline's point count, by matching angles round the centre
         const win = resample(roundedRect(ww, wh, wr, n), outer.length)
         const rim = (o: [number, number][], k: number) => offsetOutline(o, k)
-        const lipIn = roundedRectLerp(outer, win, 0.25)
-        const rings = [
-            {pts: outer, c: 0},
-            {pts: rim(outer, fl * 0.6), c: D * 0.7},
-            {pts: rim(outer, fl), c: D - 1},
-            {pts: rim(outer, fl * 0.7), c: D},
-            {pts: lipIn, c: D},
-            {pts: roundedRectLerp(lipIn, win, 0.6), c: D - 0.8},
-            {pts: win, c: D - 1.6},
-            {pts: win, c: D - wd},
-        ]
+        // a soft rubber section: the wall bulges out, rolls over a rounded rim (radius rr) onto a top band, then rolls
+        // in over a second, smaller radius into the window. ring(s, e, c): outline lerped from outer (s 0) to the
+        // window (s 1), offset outwards by e, at height c.
+        const ring = (sv: number, e: number, c: number) => ({pts: rim(roundedRectLerp(outer, win, sv), e), c})
+        const rr = Math.min(D * 0.45, (Math.min(W - ww, H - wh)) / 4)
+        const ri = rr * 0.6
+        const rings = [ring(0, 0, 0), ring(0, fl * 0.55, D * 0.35)]
+        for (let k = 0; k <= 4; k++) {
+            const t = k / 4 * Math.PI / 2
+            rings.push(ring(0, fl - rr + rr * Math.cos(t), D - rr + rr * Math.sin(t)))
+        }
+        // across the top band (outer rim inner edge at s0, inner roll starts at s1)
+        const s0 = Math.min(0.3, rr / Math.max(1e-6, (W - ww) / 2)), s1 = 1 - Math.min(0.45, ri / Math.max(1e-6, (W - ww) / 2))
+        rings.push(ring((s0 + s1) / 2, 0, D))
+        for (let k = 0; k <= 4; k++) {
+            const t = k / 4 * Math.PI / 2
+            rings.push(ring(s1 + (1 - s1) * Math.sin(t), 0, D - ri + ri * Math.cos(t)))
+        }
+        rings.push(ring(1, 0, D - wd))
         const mesh = stack(rings, {A: [1, 0, 0], B: [0, 0, -1], C: [0, 1, 0]}, true, true)
         return shaped(mesh, D, Math.max(W, H) / 2, 30)
     },
@@ -236,4 +244,61 @@ function shaped(mesh: MeshData, height: number, radius: number, smoothAngle: num
         anchors: {base: {position: [0, 0, 0], normal: [0, -1, 0]}, top: {position: [0, height, 0], normal: [0, 1, 0]}},
         smoothAngle,
     }
+}
+
+/** Chaikin corner cutting on a closed polyline - a smooth outline from a few hand-placed points. */
+export function chaikinClosed(pts: [number, number][], iterations = 2): [number, number][] {
+    let p = pts
+    for (let it = 0; it < iterations; it++) {
+        const q: [number, number][] = []
+        for (let i = 0; i < p.length; i++) {
+            const a = p[i], b = p[(i + 1) % p.length]
+            q.push([0.75 * a[0] + 0.25 * b[0], 0.75 * a[1] + 0.25 * b[1]], [0.25 * a[0] + 0.75 * b[0], 0.25 * a[1] + 0.75 * b[1]])
+        }
+        p = q
+    }
+    return p
+}
+
+const area2 = (p: [number, number][]) => p.reduce((s, a, i) => { const b = p[(i + 1) % p.length]; return s + a[0] * b[1] - b[0] * a[1] }, 0)
+
+export interface PadParams {
+    outline: [number, number][]
+    thickness: number
+    round?: number
+    smooth?: number
+    samples?: number
+}
+
+export const pad: PartDefinition<PadParams> = {
+    id: 'product/pad',
+    title: 'Pad (raised panel with a rounded edge)',
+    tags: ['pad', 'thumb rest', 'panel', 'rubber', 'grip'],
+    params: {
+        type: 'object',
+        properties: {
+            outline: {type: 'array', description: 'Closed outline points [a, b]: a along x, b along -z (seen from +y, the pad\'s face). A few points; it is smoothed.', items: {type: 'array'}},
+            thickness: {type: 'number', description: 'Height above the surface (+y).'},
+            round: {type: 'number', description: 'Radius of the rounded top edge. Default thickness x 0.6.'},
+            smooth: {type: 'integer', description: 'Chaikin smoothing passes on the outline. Default 3.', minimum: 0, maximum: 6},
+            samples: {type: 'integer', description: 'Points round the outline after smoothing. Default 120.', minimum: 12},
+        },
+        required: ['outline', 'thickness'],
+        additionalProperties: false,
+    },
+    build(p) {
+        let o = chaikinClosed(p.outline, p.smooth ?? 3)
+        if (area2(o) < 0) o = [...o].reverse()
+        o = resample(o, p.samples ?? 120)
+        const T = p.thickness, R = Math.min(p.round ?? T * 0.6, T * 0.95)
+        const rings: {pts: [number, number][], c: number}[] = [{pts: o, c: -0.3}, {pts: o, c: T - R}]
+        for (let k = 1; k <= 4; k++) {
+            const t = k / 4 * Math.PI / 2
+            rings.push({pts: offsetOutline(o, -R * (1 - Math.cos(t))), c: T - R + R * Math.sin(t)})
+        }
+        const mesh = stack(rings, {A: [1, 0, 0], B: [0, 0, -1], C: [0, 1, 0]})
+        let bx = 0
+        for (const [a, b] of o) bx = Math.max(bx, Math.abs(a), Math.abs(b))
+        return shaped(mesh, T, bx, 35)
+    },
 }

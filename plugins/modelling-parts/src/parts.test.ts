@@ -10,6 +10,7 @@ const defaults: Record<string, Record<string, unknown>> = {
     'product/rocker': {length: 8, width: 4, height: 2},
     'product/eyecup': {width: 50, height: 35, depth: 9},
     'product/strap-lug': {width: 12, height: 6},
+    'product/pad': {outline: [[0, 0], [20, 0], [22, 30], [10, 36], [6, 20], [0, 18]], thickness: 1.2},
 }
 
 /** Signed volume by the divergence theorem: positive when every face winds outwards. */
