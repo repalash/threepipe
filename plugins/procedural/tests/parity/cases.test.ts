@@ -62,6 +62,7 @@ import {curvesFilletCases} from './cases/curvesFillet'
 import {meshConvexHullCases} from './cases/meshConvexHull'
 import {meshClusterCases} from './cases/meshCluster'
 import {listCases} from './cases/lists'
+import {transferCases} from './cases/transfer'
 
 /** The case's images over the scene Blender built: the pixels Blender's float buffer holds (`foreach_set`). */
 function withCaseImages(scene: SceneProvider | undefined, images: CaseImage[]): SceneProvider {
@@ -114,6 +115,7 @@ SETS.geometryUtil = geometryUtilCases
 SETS.zonesForeach = zonesForeachCases
 SETS.meshCluster = meshClusterCases
 SETS.lists = listCases
+SETS.transfer = transferCases
 
 for (const [set, generate] of Object.entries(SETS)) {
     describe(`parity cases: ${set}`, () => {

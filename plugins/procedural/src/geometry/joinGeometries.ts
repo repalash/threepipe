@@ -98,7 +98,7 @@ function joinComponentType(type: ComponentType, src: GeometrySet[], allowMerging
         return
     }
     // One identity instance per component, realized with original ids and without instance attributes.
-    const inst = new Instances(with_.length)
+    const inst = new Instances(with_.length, true)
     inst.transforms.fill(0)
     for (let i = 0; i < with_.length; i++) {
         const t = inst.transforms.subarray(i * 16, i * 16 + 16)
