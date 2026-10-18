@@ -3,5 +3,6 @@
  "bit-math": "exact",
  "axes-to-rotation": "exact",
  "matrix-nodes": "exact",
- "string-nodes": "exact"
+ "string-nodes": "exact",
+ "string-to-value": "exact"
 }

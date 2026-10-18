@@ -11,6 +11,7 @@ Target: Blender 5.2.2 LTS. Not a module Blender ships; imported by dump_blend.py
 """
 
 import array
+import math
 import os
 
 import bpy
@@ -44,7 +45,9 @@ class BinWriter:
         self.offset = 0
 
     def put(self, values, dtype):
-        if len(values) <= BIN_THRESHOLD:
+        # JSON has no Infinity / NaN: float arrays holding them always go to the binary sidecar.
+        finite = dtype != "f4" or all(math.isfinite(v) for v in values)
+        if len(values) <= BIN_THRESHOLD and finite:
             return list(values)
         if self.handle is None:
             self.handle = open(self.path, "wb")

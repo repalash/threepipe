@@ -2491,6 +2491,18 @@ export type StringLengthNode = NodeHandle & {
     readonly length: Socket<"INT">
 }
 
+/** `FunctionNodeStringToValue` (String to Value). */
+export interface StringToValueArgs {
+    dataType?: "FLOAT" | "INT"
+    string?: In<"STRING">
+    base?: In<"INT">
+    mute?: boolean
+}
+export type StringToValueNode = NodeHandle & {
+    readonly value: Socket<"FLOAT" | "INT">
+    readonly length: Socket<"INT">
+}
+
 /** `GeometryNodeSubdivideCurve` (Subdivide Curve). */
 export interface SubdivideCurveArgs {
     curve?: In<"GEOMETRY">
@@ -3001,6 +3013,7 @@ export interface NodeConstructors {
     StoreNamedAttribute(args?: StoreNamedAttributeArgs): StoreNamedAttributeNode
     String(args?: StringArgs): StringNode
     StringLength(args?: StringLengthArgs): StringLengthNode
+    StringToValue(args?: StringToValueArgs): StringToValueNode
     SubdivideCurve(args?: SubdivideCurveArgs): SubdivideCurveNode
     SubdivideMesh(args?: SubdivideMeshArgs): SubdivideMeshNode
     Switch(args?: SwitchArgs): SwitchNode

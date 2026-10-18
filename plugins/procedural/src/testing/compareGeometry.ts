@@ -147,7 +147,8 @@ function compareAttributes(
         for (let i = 0; i < e.values.length; i++) {
             const want = e.values[i]
             const got = decoded ? decoded[i] : layer.data[i]
-            const ok = want === null ? Number.isNaN(got) : isFloat
+            // Equal values (also infinities) and NaN against NaN match before any tolerance arithmetic.
+            const ok = want === null ? Number.isNaN(got) : got === want || (isFloat && Number.isNaN(got) && Number.isNaN(want)) ? true : isFloat
                 ? (o.ulps !== undefined && type !== 'byteColor' ? ulpDistance(got, want) <= o.ulps
                     : Math.abs(got - want) <= o.tolerance * Math.max(1, Math.abs(want)))
                 : got === want || (type === 'bool' && (got !== 0) === (want !== 0))
