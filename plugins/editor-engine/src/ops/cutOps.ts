@@ -121,6 +121,7 @@ export function registerCutOperators(engine: EditorEnginePlugin): CutActions {
     const ops: OperatorDescriptor[] = [
         {
             id: 'mesh.knife', label: 'Knife', icon: 'cut', category: 'Mesh', modes: ['edit'],
+            contextMenu: ['vertex', 'edge', 'face'],
             description: 'Cut new edges by clicking points on the surface; Enter applies, Esc cancels. Shift+K cuts through to the back, selected faces only.',
             flags: {undo: true},
             props: {type: 'object', properties: {
@@ -134,6 +135,7 @@ export function registerCutOperators(engine: EditorEnginePlugin): CutActions {
         },
         {
             id: 'mesh.bisect', label: 'Bisect', icon: 'slash', category: 'Mesh', modes: ['edit'],
+            contextMenu: ['edge', 'face'],
             description: 'Cut the selection along a plane: drag a line across the mesh. Adjust the plane, Fill and Clear in the panel.',
             flags: {undo: true, register: true},
             props: bisectSchema(),

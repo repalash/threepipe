@@ -199,10 +199,66 @@ export function facePointInsideTest(f: BMFace, point: readonly number[]): boolea
 export {faceNormalUpdate}
 
 /**
- * `BM_mesh_normals_update` is `bmesh/normals.ts` `meshNormalsUpdate`. Like Blender's bevel, the
- * operator reads `f->no` / `v->no` as its caller left them: current, in an edit session or a mesh
- * converted with normals (`bmFromMesh(.., {calcFaceNormal: true, calcVertNormal: true})`).
+ * `bm_vert_calc_normals_impl` (`bmesh_mesh_normals.cc:85`) - adjacent face normals weighted by the
+ * corner angle each subtends at `v`.
+ *
+ * The sign flip is Blender's and is load-bearing: the corner angle is computed from *edge* vectors,
+ * which run `v1 -> v2` rather than away from the vertex, so when exactly one of the two edges runs
+ * backwards relative to its loop the dot product must be negated. Getting the exclusive-or wrong
+ * weights some corners by their supplement instead.
  */
+export function vertNormalUpdate(v: BMVert): void {
+    const n = nv3()
+    if (v.e) {
+        for (const eIter of diskEdges(v)) {
+            const lFirst = eIter.l
+            if (!lFirst) continue
+            const e2diff = nv3()
+            subV3V3V3(e2diff, co(eIter.v1), co(eIter.v2))
+            normalizeV3(e2diff)
+            let lIter: BMLoop = lFirst
+            do {
+                if (lIter.v === v) {
+                    const ePrev = lIter.prev.e!
+                    const e1diff = nv3()
+                    subV3V3V3(e1diff, co(ePrev.v1), co(ePrev.v2))
+                    normalizeV3(e1diff)
+                    let dotprod = dotV3V3(e1diff, e2diff)
+                    if ((ePrev.v1 === lIter.prev.v) !== (lIter.e!.v1 === lIter.v)) {
+                        dotprod = -dotprod
+                    }
+                    const fac = Math.acos(Math.min(1, Math.max(-1, -dotprod)))
+                    n[0] += lIter.f.nx * fac
+                    n[1] += lIter.f.ny * fac
+                    n[2] += lIter.f.nz * fac
+                }
+                lIter = lIter.radialNext!
+            } while (lIter !== lFirst)
+        }
+        if (normalizeV3(n) !== 0) {
+            v.nx = n[0]
+            v.ny = n[1]
+            v.nz = n[2]
+            return
+        }
+    }
+    // Blender's fallback for a loose vertex: point away from the origin.
+    const fallback = co(v)
+    normalizeV3(fallback)
+    v.nx = fallback[0]
+    v.ny = fallback[1]
+    v.nz = fallback[2]
+}
+
+/**
+ * `BM_mesh_normals_update`. Bevel reads `f->no` and `v->no` throughout and edit mode guarantees they
+ * are current; nothing in this kernel maintains them, so the operator refreshes the whole mesh on
+ * entry. This is the same deliberate side effect `ops/inset.ts` documents.
+ */
+export function normalsUpdate(bm: BMesh): void {
+    for (const f of bm.faces) faceNormalUpdate(f)
+    for (const v of bm.verts) vertNormalUpdate(v)
+}
 
 // endregion
 

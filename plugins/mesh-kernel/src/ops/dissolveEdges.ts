@@ -28,6 +28,7 @@ import {selectCountsRecalc} from '../bmesh/marking'
 import {angleOnAxisV3V3V3V3, angleV3V3V3} from '../math/geom'
 import {v3dot, Vec3} from '../math'
 import {ElemFlag, SelectMode, SelectModeMask} from '../constants'
+import {normalsUpdate} from './bevel-bmquery'
 import {bmeshEditEnd} from './bmo'
 import {
     DISSOLVE_EDIT_END,
@@ -472,6 +473,7 @@ export function dissolveEdgesSelection(bm: BMesh, options: DissolveEdgesSelectio
     const totfaceOrig = bm.totface
     if (bm.totedgesel === 0) return {ok: false, error: 'No edges dissolved'}
 
+    normalsUpdate(bm)
     dissolveEdges(bm, elemsWithHflag(bm.edges, ElemFlag.Select), {
         useVerts: options.useVerts ?? true,
         useFaceSplit: options.useFaceSplit ?? false,

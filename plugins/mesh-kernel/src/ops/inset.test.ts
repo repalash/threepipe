@@ -22,16 +22,7 @@ import {
     boundaryEdgeCount, eulerCharacteristic, faceCenter, faceNormal, windingProblems,
 } from '../generate/topology.testutil'
 import {Vec3, v3add, v3dot, v3len, v3mul, v3normalize, v3sub} from '../math'
-import {meshNormalsUpdate} from '../bmesh/normals'
-import * as inset from './inset'
-
-/*
- * `bmo_inset_*` read `f->no` and `v->no` as their caller leaves them; in Blender that is edit mode,
- * which has them current when an operator starts (`EDBM_update`). These tests stand in for it.
- */
-const insetIndividual: typeof inset.insetIndividual = (bm, ...rest) => { meshNormalsUpdate(bm); return inset.insetIndividual(bm, ...rest) }
-const insetRegion: typeof inset.insetRegion = (bm, ...rest) => { meshNormalsUpdate(bm); return inset.insetRegion(bm, ...rest) }
-const insetSelection: typeof inset.insetSelection = (bm, ...rest) => { meshNormalsUpdate(bm); return inset.insetSelection(bm, ...rest) }
+import {insetIndividual, insetRegion, insetSelection} from './inset'
 
 // region fixtures and assertions
 

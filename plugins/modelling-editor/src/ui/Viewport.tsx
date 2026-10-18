@@ -1,14 +1,16 @@
 /**
- * The viewport: hosts `viewer.container` and opens the engine's context menu for the mode on a right
- * click that did not drag (so right-drag still pans).
+ * The viewport: hosts `viewer.container` and opens the operator context menu on a right click that
+ * did not drag (so right-drag still pans).
  */
 
 import {useEffect, useRef} from 'react'
 import {useEditor} from './EditorContext'
+import {useContextMenu} from './ContextMenuProvider'
 
 export function Viewport() {
     const {viewer, engine} = useEditor()
     const ref = useRef<HTMLDivElement>(null)
+    const contextMenu = useContextMenu()
 
     useEffect(() => {
         const host = ref.current
@@ -31,8 +33,9 @@ export function Viewport() {
             const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y)
             down = null
             if (moved > 4) return
-            // Blender's right-click: `wm.call_menu` with the mode's context menu (blender_default.py:4582, :5656).
-            engine.callMenu(engine.contextMenuId, {clientX: e.clientX, clientY: e.clientY})
+            const scope = engine.mode === 'edit' ? engine.selectMode : 'object'
+            const title = engine.mode === 'edit' ? `${scope} context` : engine.context().selectedObjects[0]?.name || 'Object'
+            contextMenu.showOperators({clientX: e.clientX, clientY: e.clientY}, scope, undefined, title)
         }
         const onContext = (e: MouseEvent) => e.preventDefault()
         canvas.addEventListener('pointerdown', onDown)
@@ -43,7 +46,7 @@ export function Viewport() {
             canvas.removeEventListener('pointerup', onUp)
             canvas.removeEventListener('contextmenu', onContext)
         }
-    }, [viewer, engine])
+    }, [viewer, engine, contextMenu])
 
     return <div className="me-viewport" ref={ref} data-viewport />
 }

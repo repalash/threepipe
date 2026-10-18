@@ -34,8 +34,14 @@ import {onlyInEditMessage, notModalMessage} from './messages'
 
 type Vec3 = [number, number, number]
 
-/** Blender's `mesh.delete` types, `prop_mesh_delete_types` (`editmesh_tools.cc:532`). */
-const DELETE_TYPES = ['VERT', 'EDGE', 'FACE', 'EDGE_FACE', 'ONLY_FACE']
+/** Blender's `mesh.delete` types (`editmesh_tools.cc`, `MESH_OT_delete`), as the X menu lists them. */
+const DELETE_MENU: {type: string, label: string}[] = [
+    {type: 'VERT', label: 'Vertices'},
+    {type: 'EDGE', label: 'Edges'},
+    {type: 'FACE', label: 'Faces'},
+    {type: 'EDGE_FACE', label: 'Only Edges & Faces'},
+    {type: 'ONLY_FACE', label: 'Only Faces'},
+]
 
 export function registerMeshOperators(engine: EditorEnginePlugin): void {
     const me = engine.meshEdit
@@ -59,15 +65,6 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
         const schema = visibleSchema(def.inputSchema as PropSchema)
         for (const k of ['faces', 'edges', 'verts', 'type', 'mode', 'name']) delete schema.properties[k]
         schema.required = []
-        return schema
-    }
-    const bevelSchema = (): PropSchema | undefined => {
-        const schema = commandSchema('bevel')
-        if (!schema) return undefined
-        schema.properties = {
-            affect: {type: 'string', enum: ['VERTICES', 'EDGES'], description: 'Affect: bevel the selected vertices, or the selected edges. Unset, the select mode decides.'},
-            ...schema.properties,
-        }
         return schema
     }
     const docEntry = () => me.editObject && modelling ? modelling.document.find(me.editObject.uuid) : undefined
@@ -158,7 +155,7 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
     }
 
     const transformOp = (id: string, mode: 'translate' | 'rotate' | 'resize', label: string, icon: string, description: string, props: PropSchema): OperatorDescriptor => ({
-        id, label, icon, description, category: 'Mesh', modes: ['edit'],
+        id, label, icon, description, category: 'Mesh', modes: ['edit'], contextMenu: ['vertex', 'edge', 'face'],
         flags: {undo: true, register: true},
         props,
         poll: ready(hasSelection),
@@ -202,12 +199,14 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
         })),
         {
             id: 'mesh.select_all', label: 'Select All', icon: 'select', category: 'Select', modes: ['edit'],
+            contextMenu: ['vertex', 'edge', 'face'],
             description: 'Select every element.',
             poll: editing,
             exec: () => { me.selectAllElements(); return {ok: true} },
         },
         {
             id: 'mesh.select_none', label: 'Select None', icon: 'disable', category: 'Select', modes: ['edit'],
+            contextMenu: ['vertex', 'edge', 'face'],
             description: 'Deselect every element.',
             poll: editing,
             exec: () => { me.deselectAllElements(); return {ok: true} },
@@ -220,12 +219,14 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
         },
         {
             id: 'mesh.select_linked', label: 'Select Linked', icon: 'graph', category: 'Select', modes: ['edit'],
+            contextMenu: ['vertex', 'edge', 'face'],
             description: 'Grow the selection to everything connected to it.',
             poll: hasSelection,
             exec: () => { me.selectLinked(); return {ok: true} },
         },
         {
             id: 'mesh.select_loop', label: 'Select Edge Loop', icon: 'ring', category: 'Select', modes: ['edit'],
+            contextMenu: ['edge', 'face'],
             description: 'Select the loop of edges (or faces, in face mode) running through the active edge.',
             poll: () => !!activeEdge(me) || 'Select an edge first (click one; the last selected is the active edge)',
             exec: ctx => {
@@ -239,6 +240,7 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
         },
         {
             id: 'mesh.select_ring', label: 'Select Edge Ring', icon: 'ring', category: 'Select', modes: ['edit'],
+            contextMenu: ['edge'],
             description: 'Select the ring of edges parallel to the active edge, across the quads.',
             poll: () => !!activeEdge(me) || 'Select an edge first (click one; the last selected is the active edge)',
             exec: () => {
@@ -271,6 +273,7 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
         // --- topology: session operators ------------------------------------------------------
         {
             id: 'mesh.extrude', label: 'Extrude', icon: 'arrow-up', category: 'Mesh', modes: ['edit'],
+            contextMenu: ['vertex', 'edge', 'face'],
             description: 'Extrude the selection and start moving it along its normal. Click or Enter to confirm, Esc to cancel the move.',
             flags: {undo: true, register: true},
             props: {type: 'object', properties: {
@@ -285,6 +288,7 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
         },
         {
             id: 'mesh.duplicate', label: 'Duplicate', icon: 'duplicate', category: 'Mesh', modes: ['edit'],
+            contextMenu: ['vertex', 'edge', 'face'],
             description: 'Copy the selected elements and start moving the copy.',
             flags: {undo: true, register: true},
             props: {type: 'object', properties: {
@@ -299,6 +303,7 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
         },
         {
             id: 'mesh.split', label: 'Split', icon: 'fork', category: 'Mesh', modes: ['edit'],
+            contextMenu: ['vertex', 'edge', 'face'],
             description: 'Detach the selection from the rest of the mesh, keeping it in place.',
             flags: {undo: true, register: true},
             poll: ready(hasSelection),
@@ -306,6 +311,7 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
         },
         {
             id: 'mesh.merge', label: 'Merge', icon: 'group-objects', category: 'Mesh', modes: ['edit'],
+            contextMenu: ['vertex', 'edge', 'face'],
             description: 'Collapse the selected vertices into one: at their centre, or at the first or last selected.',
             flags: {undo: true, register: true},
             props: {type: 'object', properties: {
@@ -313,9 +319,14 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
             }},
             poll: ready(ctx => { const p = hasSelection(ctx); return p === true ? me.state!.bm.totvertsel > 1 || 'Select two or more vertices to merge: Shift+click adds to the selection' : p }),
             exec: (_ctx, p) => {
-                // No props: M, `op_menu("VIEW3D_MT_edit_mesh_merge")` (blender_default.py:5618).
                 if (!p) {
-                    engine.callMenu('VIEW3D_MT_edit_mesh_merge')
+                    engine.requestMenu('Merge', [
+                        {id: 'mesh.merge', label: 'At Center', props: {mode: 'center'}},
+                        {id: 'mesh.merge', label: 'At First', props: {mode: 'first'}},
+                        {id: 'mesh.merge', label: 'At Last', props: {mode: 'last'}},
+                        // VIEW3D_MT_edit_mesh_merge: `layout.operator("mesh.remove_doubles", text="By Distance")`.
+                        ...engine.operators.get('mesh.remove_doubles') ? [{id: 'mesh.remove_doubles', label: 'By Distance'}] : [],
+                    ])
                     return {ok: true}
                 }
                 const mode = (p.mode as 'center' | 'first' | 'last') ?? 'center'
@@ -328,6 +339,7 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
         // --- topology: document commands ------------------------------------------------------
         {
             id: 'mesh.inset', label: 'Inset Faces', icon: 'inner-join', category: 'Mesh', modes: ['edit'],
+            contextMenu: ['face'],
             description: 'Inset the selected faces: a smaller copy of each, ringed by new side faces. Adjust the thickness in the panel.',
             flags: {undo: true, register: true},
             props: commandSchema('inset'),
@@ -337,33 +349,35 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
         },
         {
             id: 'mesh.bevel', label: 'Bevel', icon: 'polygon-filter', category: 'Mesh', modes: ['edit'],
+            contextMenu: ['vertex', 'edge'],
             description: 'Round or chamfer the selected edges (or vertex corners, in vertex mode). Adjust width and segments in the panel.',
             flags: {undo: true, register: true},
-            props: bevelSchema(),
+            props: commandSchema('bevel'),
             poll: ready(ctx => { const p = hasSelection(ctx); return p === true ? needsDocument() : p }),
             exec: (ctx, p) => {
-                // `affect` is MESH_OT_bevel's (editmesh_bevel.cc): Ctrl+B is EDGES, Ctrl+Shift+B VERTICES
-                // (blender_default.py:5550, :5556). Unset, it follows the select mode.
-                const {affect, ...rest} = p ?? {}
-                const byVerts = affect === undefined ? ctx.selectMode === 'vertex' : affect === 'VERTICES'
-                return runCommand('bevel', {[byVerts ? 'verts' : 'edges']: selectedIndices(byVerts ? 'vertex' : 'edge'), offset: 0.1, segments: 1, ...rest},
+                const byVerts = ctx.selectMode === 'vertex'
+                return runCommand('bevel', {[byVerts ? 'verts' : 'edges']: selectedIndices(byVerts ? 'vertex' : 'edge'), offset: 0.1, segments: 1, ...p},
                     data => ({kind: 'face', indices: data?.newFaces ?? []}))
-                    .then(r => r.ok && affect !== undefined ? {...r, props: {...p}} : r)
             },
         },
         {
             id: 'mesh.delete', label: 'Delete', icon: 'trash', category: 'Mesh', modes: ['edit'],
+            contextMenu: ['vertex', 'edge', 'face'],
             description: 'Delete the selected vertices, edges or faces; the menu picks what goes (Blender\'s X).',
             flags: {undo: true, register: true},
             props: {type: 'object', properties: {
-                type: {type: 'string', enum: DELETE_TYPES, description: 'What to delete, as Blender\'s mesh.delete.'},
+                type: {type: 'string', enum: DELETE_MENU.map(d => d.type), description: 'What to delete, as Blender\'s mesh.delete.'},
             }},
             poll: ready(ctx => { const p = hasSelection(ctx); return p === true ? needsDocument() : p }),
             exec: (ctx, p) => {
                 let type = p?.type as string | undefined
-                // No type: X, `op_menu("VIEW3D_MT_edit_mesh_delete")` (blender_default.py:5634).
                 if (!type) {
-                    engine.callMenu('VIEW3D_MT_edit_mesh_delete')
+                    engine.requestMenu('Delete', [
+                        ...DELETE_MENU.map(d => ({id: 'mesh.delete', label: d.label, props: {type: d.type}})),
+                        // VIEW3D_MT_edit_mesh_delete: the dissolve operators follow the delete types.
+                        ...['mesh.dissolve_verts', 'mesh.dissolve_edges', 'mesh.dissolve_faces', 'mesh.dissolve_limited']
+                            .filter(id => engine.operators.get(id)).map(id => ({id})),
+                    ])
                     return {ok: true}
                 }
                 // `auto` is the Design preset's Delete key: by select mode, no menu.
@@ -377,6 +391,7 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
         },
         {
             id: 'mesh.separate', label: 'Separate Selection', icon: 'split-columns', category: 'Mesh', modes: ['edit'],
+            contextMenu: ['face'],
             description: 'Move the selected faces into a new object (Blender\'s P).',
             flags: {undo: true, register: true},
             poll: ready(() => { const p = hasFaces(); return p === true ? needsDocument() : p }),
@@ -384,38 +399,6 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
                 const faces = selectedIndices('face')
                 if (me.state && faces.length === me.state.bm.totface) return {ok: false, error: 'That would separate every face and leave nothing behind: select fewer faces'}
                 return runCommand('separate', {mode: 'faces', faces})
-            },
-        },
-        {
-            // `MESH_OT_hide` (editmesh_tools.cc:2596, exec :2531): H hides the selection, Shift+H everything else
-            // (`_template_items_hide_reveal_actions`, blender_default.py:461).
-            id: 'mesh.hide', label: 'Hide Selected', icon: 'eye-off', category: 'Mesh', modes: ['edit'],
-            description: 'Hide the selected vertices, edges and faces (or, Unselected, everything else) so you can work behind them; Reveal Hidden brings them back.',
-            flags: {undo: true, register: true},
-            props: {type: 'object', properties: {
-                unselected: {type: 'boolean', default: false, description: 'Unselected: hide unselected rather than selected.'},
-            }},
-            poll: ready(editing),
-            exec: (_ctx, p) => {
-                const unselected = !!p?.unselected
-                // Nothing hidden cancels (`edbm_hide_exec` :2585); `hideSelected` has already said why.
-                return me.hideSelected(unselected) ? {ok: true, props: {unselected}} : {ok: false}
-            },
-        },
-        {
-            // `MESH_OT_reveal` (editmesh_tools.cc:2645), Alt+H.
-            id: 'mesh.reveal', label: 'Reveal Hidden', icon: 'eye-open', category: 'Mesh', modes: ['edit'],
-            description: 'Show every hidden vertex, edge and face, and select what comes back.',
-            flags: {undo: true, register: true},
-            props: {type: 'object', properties: {
-                select: {type: 'boolean', default: true, description: 'Select: select the revealed elements.'},
-            }},
-            poll: ready(editing),
-            exec: (_ctx, p) => {
-                const select = p?.select === undefined ? true : !!p.select
-                // Nothing hidden is not a failure: Blender's reveal finishes either way.
-                me.revealHidden(select)
-                return {ok: true, props: {select}}
             },
         },
         {

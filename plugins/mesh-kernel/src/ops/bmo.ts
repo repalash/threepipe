@@ -16,7 +16,7 @@ import {diskEdges, edgeIsBoundary, radialLoops} from '../bmesh/structure'
 import {selectModeFlush} from '../bmesh/marking'
 import {ElemType} from '../constants'
 import {copyElemAttrs, copyElemHeader} from '../bmesh/customdata'
-import {meshNormalsUpdate} from '../bmesh/normals'
+import {normalsUpdate} from './bevel-bmquery'
 
 // region BMO_op_exec
 
@@ -33,7 +33,7 @@ export interface BmeshEditEndFlags {
  * and (without `selectValidate`) keep the select history untouched across that flush.
  */
 export function bmeshEditEnd(bm: BMesh, flags: BmeshEditEndFlags): void {
-    if (flags.normalsCalc) meshNormalsUpdate(bm)
+    if (flags.normalsCalc) normalsUpdate(bm)
     let selectHistory = null
     if (!flags.selectValidate) {
         selectHistory = bm.selectHistory

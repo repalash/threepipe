@@ -74,7 +74,7 @@ import {
 import {calculateCenterFromAround, meshIslandsCalc, TransIslandData} from './pivot'
 import {calculatePropRatio, meshConnectivityDistance, PROP_FALLOFF_ORDER, restoreElement, setPropDist} from './proportional'
 import {calcOrientationFromType, createSpaceNormal, orientationSpaceName} from './orientation'
-import {vertNo} from './bmeshQuery'
+import {meshNormalsUpdate, vertNo} from './bmeshQuery'
 import {
     CON_APPLY,
     CON_AXIS0,
@@ -1070,7 +1070,7 @@ function createTransEditVerts(t: TransInfo, bm: BMesh, objectMatrix: Mat4): Tran
     // Note: ignore modes here, even in edge/face modes transform data is created by selected vertices.
     if ((!propMode || propMode & T_PROP_CONNECTED) && bm.totvertsel === 0) return []
 
-    // `v->no` is read as the edit session left it: current (`EditMeshState.update`), as Blender's is.
+    meshNormalsUpdate(bm)
 
     // Even for translation this is needed because of island orientation, see #51651.
     const isIslandCenter = t.around === 'individual'

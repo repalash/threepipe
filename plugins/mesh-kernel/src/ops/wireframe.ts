@@ -18,6 +18,10 @@
  *
  * Divergences from Blender, all local to this file:
  *
+ * - **Normals are recomputed on entry.** Both entry points have current `f->no` and `v->no` - edit
+ *   mode keeps them, and the modifier converts with `calc_face_normal` and `calc_vert_normal` set.
+ *   Nothing in this kernel maintains them, so {@link normalsUpdate} (`BM_mesh_normals_update`) runs
+ *   first, as in `inset.ts` and `bevel.ts`.
  * - **Indices live in maps.** Blender stores array slots in `BM_elem_index_set` and relies on new
  *   faces reading back -1. Maps have that behaviour without clobbering the mesh's lazy indices, the
  *   same choice `inset.ts` makes.
@@ -31,6 +35,7 @@ import {BMEdge, BMFace, BMLoop, BMVert} from '../bmesh/types'
 import {diskEdgeExists, diskEdges} from '../bmesh/structure'
 import {copyElemAttrs, copyElemHeader, setComponent} from '../bmesh/customdata'
 import {ElemFlag, AttrName} from '../constants'
+import {normalsUpdate} from './bevel-bmquery'
 import {
     FLT_EPSILON, V3, addV3V3, addV3V3V3, angleV3V3, angleV3V3V3, compareV3V3, crossV3V3V3, dotV3V3,
     maddV3V3Fl, maddV3V3V3Fl, negateV3, normalizeV3, nv3, subV3V3V3,
@@ -306,6 +311,8 @@ export function wireframe(bm: BMesh, faces: readonly BMFace[] | null, opts: Wire
         for (const e of bm.edges) e.hflag &= ~ElemFlag.Tag
     }
 
+    // See the file header: both of Blender's callers arrive with current normals.
+    normalsUpdate(bm)
 
     meshWireframe(bm, {
         offset: opts.thickness ?? 0.01,

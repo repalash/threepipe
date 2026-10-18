@@ -12,7 +12,6 @@ import {
     bisectFillDefault,
     bisectPlaneToLocal,
     bisectSelection,
-    BM_FROM_MESH_NORMALS,
     bmFromMesh,
     bmToMesh,
     BMEdge,
@@ -75,7 +74,7 @@ export const bisectCommand: CommandDefinition = {
         const threshold = p.threshold === undefined ? 0.0001 : Number(p.threshold)
         if (!(threshold >= 0)) throw new Error('threshold must be zero or more')
 
-        const bm = bmFromMesh(entry.mesh, BM_FROM_MESH_NORMALS)
+        const bm = bmFromMesh(entry.mesh)
         const listed = p.verts !== undefined || p.edges !== undefined || p.faces !== undefined
         if (listed) {
             selectNone(bm)

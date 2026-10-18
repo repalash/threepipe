@@ -18,7 +18,7 @@ import {bmoTriangulate} from '../src/ops/triangulate'
 import {
     bmoSubdivideEdgering, SubdivideEdgeringOptions, subdivideEdgeringSelection, SubdivideEdgeringSelectionOptions,
 } from '../src/ops/subdivideEdgering'
-import {meshNormalsUpdate} from '../src/bmesh/normals'
+import {normalsUpdate} from '../src/ops/bevel-bmquery'
 import {ElemFlag, SelectMode} from '../src/constants'
 import {faceSelectSet} from '../src/bmesh/marking'
 import {BMesh} from '../src/bmesh/BMesh'
@@ -138,7 +138,7 @@ export function runCase(c: Case) {
     if (c.kind === 'bmof') {
         const {bm, verts, faces} = buildInput(c.input)
         if (c.inputUvs) addUvs(bm, c.inputUvs)
-        meshNormalsUpdate(bm)
+        normalsUpdate(bm)
         for (const i of c.vtags!) verts[i].hflag |= ElemFlag.Tag
         const input = c.inputFaces!.map(i => faces[i])
         const p = c.params!
@@ -152,7 +152,7 @@ export function runCase(c: Case) {
         if (c.inputUvs) addUvs(bm, c.inputUvs)
         bm.selectMode = MODE[c.mode]
         // `bmesh_fixture_util.build` ends with `bm.normal_update()`
-        meshNormalsUpdate(bm)
+        normalsUpdate(bm)
         const edges = c.inputEdges!.map(([a, b]) => edge(a, b))
         const r = c.op === 'bridge_loops'
             ? bmoBridgeLoops(bm, edges, bridgeOpts(c.params!))
@@ -165,7 +165,7 @@ export function runCase(c: Case) {
     setRawSelection(bm, verts, faces, c.entered!)
     // Edit mode: `BM_mesh_bm_from_me` numbers the elements, and the normals are current.
     bm.elemIndexEnsure()
-    meshNormalsUpdate(bm)
+    normalsUpdate(bm)
     const r = c.op === 'bridge_edge_loops'
         ? bridgeEdgeLoopsSelection(bm, bridgeProps(c.props!))
         : subdivideEdgeringSelection(bm, subdivProps(c.props!))
@@ -242,7 +242,7 @@ describe(`BM_edge_rotate matches Blender ${fixture.blender} (bmesh.utils.edge_ro
             const {bm, faces, edge} = buildInput(c.input)
             faces.forEach((f, i) => f.setFlag(ElemFlag.Smooth, !!c.smooth![i]))
             for (const i of c.selectFaces!) faceSelectSet(bm, faces[i], true)
-            meshNormalsUpdate(bm)
+            normalsUpdate(bm)
             const [a, b] = c.inputEdges![0]
             const eNew = edgeRotate(bm, edge(a, b), c.ccw!, 0)
             expect(bm.validate()).toEqual([])

@@ -20,6 +20,7 @@ export function registerViewOperators(engine: EditorEngine, vp: EditorViewportPl
         },
         {
             id: 'view.frame_selected', label: 'Frame Selected', icon: 'locate', category: 'View',
+            contextMenu: ['object', 'vertex', 'edge', 'face'],
             description: 'Fit the selection in the view.',
             poll: ctx => !!vp && (ctx.selectedObjects.length > 0 || !!ctx.editObject) || 'Click an object to select it first, or use Frame All',
             async exec(ctx) { await vp!.frame(ctx.editObject ? [ctx.editObject] : ctx.selectedObjects); return {ok: true} },

@@ -8,9 +8,8 @@
 
 import React, {createContext, useCallback, useContext, useMemo, useState} from 'react'
 import {ContextMenuPopover, Menu, MenuDivider, MenuItem, MenuItemProps} from '@blueprintjs/core'
-import {useEditor} from './EditorContext'
-import type {MenuRequestItem} from '@threepipe/plugin-editor-engine'
-import {MenuView} from './MenuView'
+import {useEditor, formatShortcut} from './EditorContext'
+import type {EditorContext as EngineContext, MenuRequestItem, OperatorDescriptor} from '@threepipe/plugin-editor-engine'
 
 export interface MenuItem2 {
     props: MenuItemProps
@@ -46,12 +45,9 @@ interface Store {
     targetOffset: {left: number, top: number}
     show(event: {clientX: number, clientY: number, preventDefault?: () => void}, menu: React.JSX.Element): void
     hide(): void
-    /**
-     * Show one of the engine's menus at the pointer (`uiRequest: menu` with a `menu` id: the X delete menu,
-     * Shift+A, Ctrl+V/E/F, the right-click menus).
-     */
-    showMenu(event: {clientX: number, clientY: number}, menuId: string, title?: string): void
-    /** Show a one-off list the engine asked for (`uiRequest: menu` with `items`: the keymap picker). */
+    /** Show the operators that apply right now, for the given context-menu scope. */
+    showOperators(event: {clientX: number, clientY: number, preventDefault?: () => void}, scope: NonNullable<OperatorDescriptor['contextMenu']>[number], extra?: MenuItem2[], title?: string): void
+    /** Show a popup menu the engine asked for (`uiRequest: menu` - the X delete menu, Shift+A add, ...). */
     showItems(event: {clientX: number, clientY: number}, items: MenuRequestItem[], title?: string): void
 }
 
@@ -71,24 +67,20 @@ export function ContextMenuProvider({children}: {children: React.ReactNode}) {
         setIsOpen(true)
     }, [])
 
+    const showOperators = useCallback<Store['showOperators']>((event, scope, extra, title) => {
+        const ctx = engine.context()
+        const ops = engine.operators.list(op => !!op.contextMenu?.includes(scope) && (!op.modes || op.modes.includes(ctx.mode)))
+        const items = operatorsToMenuItems(ops, ctx, (id) => engine.run(id))
+        const rc = [...renderMenuItems(extra, null), ...renderMenuItems(items, null)]
+        if (!rc.length) return
+        show(event, <Menu className="me-context-menu">
+            {title ? <MenuDivider title={title} className="context-menu-divider" /> : null}
+            {rc}
+        </Menu>)
+    }, [engine, show])
+
     const isOpenRef = React.useRef(false)
     isOpenRef.current = isOpen
-
-    /**
-     * Open a popup. Requested from an item of an open menu (context menu > Delete > the delete-type
-     * menu): that item's click also closes its popover through `onClose`, after this runs. Let it close,
-     * then open the new one, so the close cannot swallow it.
-     */
-    const openRef = React.useRef<(event: {clientX: number, clientY: number}, menu: React.JSX.Element) => void>(() => undefined)
-    openRef.current = (event, menu) => {
-        if (isOpenRef.current) {
-            hide()
-            requestAnimationFrame(() => show(event, menu))
-        } else {
-            show(event, menu)
-        }
-    }
-    const open = useCallback((event: {clientX: number, clientY: number}, menu: React.JSX.Element) => openRef.current(event, menu), [])
 
     const showItems = useCallback<Store['showItems']>((event, items, title) => {
         const ctx = engine.context()
@@ -106,17 +98,20 @@ export function ContextMenuProvider({children}: {children: React.ReactNode}) {
             />
         }).filter(x => !!x)
         if (!rc.length) return
-        open(event, <Menu className="me-context-menu me-popup-menu">
+        const menu = <Menu className="me-context-menu me-popup-menu">
             {title ? <MenuDivider title={title} className="context-menu-divider" /> : null}
             {rc}
-        </Menu>)
-    }, [engine])
-
-    const showMenu = useCallback<Store['showMenu']>((event, menuId, title) => {
-        const menu = engine.resolveMenu(menuId)
-        if (!menu?.items.length) return
-        open(event, <MenuView menu={menu} title={title ?? menu.label} className="me-context-menu me-popup-menu" onRun={hide} />)
-    }, [engine, hide])
+        </Menu>
+        // Requested from an item of an open menu (context menu > Delete > the delete-type menu): that
+        // item's click also closes its popover through `onClose`, after this runs. Let it close, then
+        // open the new one, so the close cannot swallow it.
+        if (isOpenRef.current) {
+            hide()
+            requestAnimationFrame(() => show(event, menu))
+        } else {
+            show(event, menu)
+        }
+    }, [engine, show, hide])
 
     // Blueprint's ContextMenuPopover only closes from its backdrop; Escape should close it too.
     // The engine's keymap stands down while a menu is open, so its keys go to the menu.
@@ -131,7 +126,7 @@ export function ContextMenuProvider({children}: {children: React.ReactNode}) {
         }
     }, [isOpen, hide, engine])
 
-    const value = useMemo<Store>(() => ({isOpen, content, targetOffset, show, hide, showMenu, showItems}), [isOpen, content, targetOffset, show, hide, showMenu, showItems])
+    const value = useMemo<Store>(() => ({isOpen, content, targetOffset, show, hide, showOperators, showItems}), [isOpen, content, targetOffset, show, hide, showOperators, showItems])
 
     return <StoreContext.Provider value={value}>
         {children}
@@ -148,4 +143,22 @@ export function useContextMenu(): Store {
     const v = useContext(StoreContext)
     if (!v) throw new Error('useContextMenu: no ContextMenuProvider')
     return v
+}
+
+/** Operators as menu items, disabled with their poll reason as the title. */
+export function operatorsToMenuItems(ops: OperatorDescriptor[], ctx: EngineContext, run: (id: string, props?: Record<string, unknown>) => unknown): MenuItem2[] {
+    return ops.map(op => {
+        const polled = ctx.engine.poll(op, ctx)
+        return {
+            key: op.id,
+            props: {
+                text: op.label,
+                icon: op.icon as never,
+                label: formatShortcut(op.shortcut),
+                disabled: !polled.enabled,
+                title: polled.enabled ? op.description : polled.reason ?? op.description,
+            },
+            action: () => run(op.id),
+        }
+    })
 }

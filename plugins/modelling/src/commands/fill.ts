@@ -11,7 +11,6 @@
 import {
     BMesh,
     bridgeEdgeLoopsSelection,
-    BM_FROM_MESH_NORMALS,
     bmFromMesh,
     bmToMesh,
     DissolveDelimit,
@@ -60,7 +59,7 @@ const MODE_MASK = {vertex: SelectMode.Vertex, edge: SelectMode.Edge, face: Selec
  * and the selection afterwards as indices into the new mesh. Throws on out-of-range indices.
  */
 export function runOnSelection<R>(mesh: MeshData, sel: ElementSelection, fn: (bm: BMesh) => R): {mesh: MeshData, result: R, selected: SelectionResult} {
-    const bm = bmFromMesh(mesh, BM_FROM_MESH_NORMALS)
+    const bm = bmFromMesh(mesh)
     const verts = [...bm.verts]
     const edges = [...bm.edges]
     const faces = [...bm.faces]

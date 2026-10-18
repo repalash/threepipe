@@ -9,7 +9,7 @@ import {BMesh} from '../bmesh/BMesh'
 import {BMEdge, BMVert} from '../bmesh/types'
 import {diskEdgeExists} from '../bmesh/structure'
 import {edgeSelectSet} from '../bmesh/marking'
-import {meshNormalsUpdate} from '../bmesh/normals'
+import {normalsUpdate} from './bevel-bmquery'
 import {SelectMode} from '../constants'
 import {
     bmoSubdivideEdgering, edgeSplitN, subdivideEdgeringSelection,
@@ -29,7 +29,7 @@ function strip(bm: BMesh, n: number) {
         b.push(bm.vertCreate(i, 1, 0))
     }
     for (let i = 0; i < n; i++) bm.faceCreate([a[i], a[i + 1], b[i + 1], b[i]])
-    meshNormalsUpdate(bm)
+    normalsUpdate(bm)
     const rung = (i: number): BMEdge => diskEdgeExists(a[i], b[i])!
     return {a, b, rung}
 }

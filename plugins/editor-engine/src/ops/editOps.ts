@@ -48,6 +48,7 @@ export function registerEditOperators(engine: EditorEnginePlugin): void {
         },
         {
             id: 'edit.rename', label: 'Rename', icon: 'edit', category: 'Edit', modes: ['object'],
+            contextMenu: ['object'],
             description: 'Rename the active object.',
             flags: {undo: true},
             poll: ctx => ctx.selectedObjects.length > 0 || 'Click an object to select it first',

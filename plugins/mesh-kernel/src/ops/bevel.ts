@@ -68,6 +68,9 @@
  *
  * ## Divergences from Blender, all deliberate
  *
+ * - **Normals are recomputed on entry.** Bevel reads `f->no` and `v->no` throughout and edit mode
+ *   keeps them current; nothing in this kernel does, so `normalsUpdate` runs first. Same deliberate
+ *   whole-mesh side effect as `ops/inset.ts`.
  * - **`VERT_OUT` / `EDGE_OUT` are sets, not an operator flag layer.** The kernel has no `BMO_*_flag`
  *   layer; `BevelParams.outVerts` / `outEdges` have exactly the same lifetime and meaning.
  * - **`BM_elem_attrs_copy`'s header rule is applied by hand.** See `bevel-create.ts`; this is the
@@ -85,6 +88,7 @@ import {
     PRO_CIRCLE_R, PRO_LINE_R, PRO_SQUARE_IN_R, PRO_SQUARE_R, findBevVert, getFaceKind,
     newProfileSpacing,
 } from './bevel-types'
+import {normalsUpdate} from './bevel-bmquery'
 import {findProfileFullness, setProfileSpacing} from './bevel-profile'
 import {bevelExtendEdgeData, buildBoundary, mathLayerInfoInit} from './bevel-boundary'
 import {bevelMergeUvs, determineUvVertConnectivity, uvVertMapInit, uvVertMapPop} from './bevel-create'
@@ -429,6 +433,9 @@ function run(
     if (bp.offset <= 0) {
         return {faces: [], verts: [], edges: []}
     }
+    /* Bevel reads `f->no` and `v->no` everywhere and nothing here maintains them; see the file
+     * header. This is a side effect on the whole mesh, not just the beveled part. */
+    normalsUpdate(bm)
     tagInput(bm, verts, edges)
     meshBevel(bm, bp)
     const res = collectResult(bm, bp)

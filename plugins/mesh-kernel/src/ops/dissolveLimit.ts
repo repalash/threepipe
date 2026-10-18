@@ -31,6 +31,7 @@ import {elemsHflagEnable} from '../bmesh/hflag'
 import {angleNormalizedV3V3, angleV3V3V3, axisDominantV3ToM3, crossTriV2, Mat3Rows, Vec2} from '../math/geom'
 import {v3normalize, v3sub, Vec3} from '../math'
 import {ElemFlag, ElemType, SelectMode, SelectModeMask} from '../constants'
+import {normalsUpdate} from './bevel-bmquery'
 import {bmeshEditEnd} from './bmo'
 import {Heap, HeapNode} from '../math/heap'
 import {
@@ -592,6 +593,7 @@ export function dissolveLimitedSelection(
         edges = elemsWithHflag(bm.edges, ElemFlag.Select)
     }
 
+    normalsUpdate(bm)
     const regionOut = dissolveLimit(bm, verts, edges, {angleLimit, useDissolveBoundaries, delimit})
     bmeshEditEnd(bm, DISSOLVE_EDIT_END)
     // `EDBM_op_call_and_selectf(.., "region.out", true, ..)`

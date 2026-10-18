@@ -72,13 +72,12 @@ export interface OperatorDescriptor {
      * a value given at registration is overwritten, so operators never hard-code a key.
      */
     shortcut?: string
-    /**
-     * Command-palette grouping: `File`, `Edit`, `Add`, `Object`, `Mesh`, `Select`, `View`, `Help`. Menus
-     * do not read it; they are {@link MenuDescriptor}s (Blender's `VIEW3D_MT_*`), which name operators.
-     */
+    /** Menu / palette grouping: `File`, `Edit`, `Add`, `Object`, `Mesh`, `Select`, `View`, `Help`. */
     category?: string
     /** Which modes it belongs to. Undefined means all. */
     modes?: EditorMode[]
+    /** Shown in the viewport context menu for these select modes (edit mode) or always (`object`). */
+    contextMenu?: (SelectModeName | 'object')[]
     /** Parameters, as JSON schema. Absent means the operator takes none. */
     props?: PropSchema
     /** Blender flags. `undo` - records an undo step; `register` - appears in the redo-last panel. */
@@ -244,125 +243,6 @@ export interface EditorContext {
     editObject: IObject3D | null
 }
 
-/**
- * One row of a menu, as Blender's `Menu.draw` lays it out (`layout.operator`, `layout.menu`,
- * `layout.separator`, `layout.label`). Ports of `space_view3d.py` / `space_topbar.py` are lists of these.
- */
-export type MenuItem =
-    | MenuOperatorItem
-    | MenuSubmenuItem
-    | {type: 'separator', visible?: MenuPredicate}
-    | {type: 'label', label: string, visible?: MenuPredicate}
-
-/** Whether a row is drawn now - Blender's `if` around a `layout.*` call (select mode, selection counts). */
-export type MenuPredicate = (ctx: EditorContext) => boolean
-
-/** `layout.operator(idname, text=...)`, with the properties the menu sets on it. */
-export interface MenuOperatorItem {
-    type: 'operator'
-    /** Operator id in the registry. An id that is not registered is shown disabled, "not available yet". */
-    id: string
-    /** The text Blender shows: the menu's `text=`, else the operator's `ot->name`. */
-    label: string
-    /** Properties the menu sets (`.type = 'VERT'`); passed to `run`, and matched against key bindings. */
-    props?: Record<string, unknown>
-    icon?: string
-    /** Blender's operator idname, when this item's `id` is a different (engine) operator. */
-    blender?: string
-    /**
-     * The engine has the operator, but not this variant of Blender's (an enum value it does not
-     * implement, an option it has no equivalent for), now or in some contexts. Shown disabled with this
-     * text after "Not available yet: ".
-     */
-    unavailable?: string | ((ctx: EditorContext) => string | undefined)
-    visible?: MenuPredicate
-}
-
-/**
- * `layout.menu(idname, text=...)`: a submenu by id; or, with `items`, an inline one - Blender's
- * `operator_menu_enum`, which draws an operator's enum as a submenu without a registered menu type.
- */
-export interface MenuSubmenuItem {
-    type: 'menu'
-    /** The submenu's id (a registered {@link MenuDescriptor}), or a key for an inline one. */
-    id: string
-    /** Overrides the submenu's own label (`text=`). */
-    label?: string
-    icon?: string
-    /** Inline submenu content (`operator_menu_enum`). */
-    items?: MenuItem[]
-    /**
-     * Blender has this submenu, but nothing in it exists here: shown as one disabled entry, not opened.
-     * The text follows "Not available yet: ".
-     */
-    unavailable?: string
-    visible?: MenuPredicate
-}
-
-/** A menu type: Blender's `bpy.types.Menu` subclass, ported as data. */
-export interface MenuDescriptor {
-    /** Blender's `bl_idname`, e.g. `VIEW3D_MT_edit_mesh_vertices`. */
-    id: string
-    /** `bl_label`. */
-    label: string
-    /** Where it was ported from, `space_view3d.py:4820` (Blender 5.3). */
-    source?: string
-    /**
-     * The operator a key opens this menu with (`mesh.vertices_menu` for Ctrl+V, `mesh.delete` for X).
-     * Its key is shown beside the submenu entry, as Blender shows the `wm.call_menu` binding.
-     */
-    operator?: string
-    /**
-     * The modes whose keymap has that key (Shift+A opens `VIEW3D_MT_add` in object mode and
-     * `VIEW3D_MT_mesh_add` in edit mode); undefined means any. Blender looks the key up in the active
-     * keymaps only, so the other mode's menu shows none.
-     */
-    operatorModes?: EditorMode[]
-    /** The rows; a function for menus whose `draw` reads the context (Open Recent, the context menus). */
-    items: MenuItem[] | ((ctx: EditorContext) => MenuItem[])
-}
-
-/** A menu row with everything worked out for the current context: what the shell draws. */
-export type ResolvedMenuItem =
-    | {
-        type: 'operator'
-        key: string
-        id: string
-        label: string
-        props?: Record<string, unknown>
-        icon?: string
-        /** From the active keymap, for this operator with these props in this mode. */
-        shortcut?: string
-        enabled: boolean
-        /** The operator exists with this variant. False: "not available yet". */
-        available: boolean
-        /** Description when enabled; the poll reason or "Not available yet ..." when not. */
-        tooltip?: string
-    }
-    | {
-        type: 'menu'
-        key: string
-        id: string
-        label: string
-        icon?: string
-        shortcut?: string
-        available: boolean
-        tooltip?: string
-        /** Absent when not available. */
-        menu?: ResolvedMenu
-    }
-    | {type: 'separator', key: string}
-    | {type: 'label', key: string, label: string}
-
-export interface ResolvedMenu {
-    id: string
-    label: string
-    items: ResolvedMenuItem[]
-}
-
-/** The tooltip prefix of a menu entry that has no operator behind it yet. */
-export const NOT_AVAILABLE_YET = 'Not available yet'
-
 /** One entry of a popup menu the engine asks the shell to open (Blender's `wm.call_menu`). */
 export interface MenuRequestItem {
     /** Operator id to run when chosen. */
@@ -378,10 +258,7 @@ export type UiRequest =
     | {
         request: 'menu'
         title?: string
-        /** A registered menu to open (`wm.call_menu`'s `name`); the shell draws `engine.resolveMenu(menu)`. */
-        menu?: string
-        /** Or a one-off list (the keymap and input-device pickers). */
-        items?: MenuRequestItem[]
+        items: MenuRequestItem[]
         /** Where to open it; the engine's last known pointer position on the canvas. */
         clientX?: number
         clientY?: number
@@ -457,12 +334,8 @@ export interface KeymapApi {
     readonly presets: KeymapPreset[]
     readonly activePreset: KeymapPreset
     setPreset(id: string): void
-    /**
-     * The display string for an operator or tool id in the active preset, if bound. With `props`, only
-     * a binding that sets exactly those props counts (a menu's `Delete Vertices` is not X's bare
-     * `mesh.delete`); without, any binding of the id.
-     */
-    shortcutFor(id: string, mode?: EditorMode, props?: Record<string, unknown>): string | undefined
+    /** The display string for an operator or tool id in the active preset, if bound. */
+    shortcutFor(id: string, mode?: EditorMode): string | undefined
     /** Every binding for an id in the active preset. */
     bindingsFor(id: string): KeyBinding[]
 }
@@ -488,8 +361,6 @@ export interface EditorEngine extends EventDispatcher<EditorEngineEventMap> {
     readonly viewer: ThreeViewer
     readonly operators: Registry<OperatorDescriptor>
     readonly tools: Registry<ToolDescriptor>
-    /** Menu types (header menus, the Ctrl+V/E/F and X menus, context menus), Blender's `VIEW3D_MT_*`. */
-    readonly menus: Registry<MenuDescriptor>
     readonly history: HistoryApi
     readonly keymap: KeymapApi
     readonly input: InputApi
@@ -513,17 +384,6 @@ export interface EditorEngine extends EventDispatcher<EditorEngineEventMap> {
     poll(op: OperatorDescriptor, ctx?: EditorContext): {enabled: boolean, reason?: string}
     /** Run an operator by id through the registry (poll, exec, last-operation bookkeeping, toasts). */
     run(id: string, props?: Record<string, unknown>): Promise<OperatorResult>
-    /**
-     * The header's menus for the current mode, in order: the top bar's File / Edit, then Blender's
-     * `VIEW3D_MT_editor_menus` (View, Select, Add, Object or Mesh / Vertex / Edge / Face / UV), then Help.
-     */
-    headerMenus(): ResolvedMenu[]
-    /** The viewport's right-click menu for the current mode (`VIEW3D_MT_object_context_menu` / `VIEW3D_MT_edit_mesh_context_menu`). */
-    readonly contextMenuId: string
-    /** A menu with labels, keys, enabled state and tooltips worked out for now. Undefined if not registered. */
-    resolveMenu(id: string, ctx?: EditorContext): ResolvedMenu | undefined
-    /** Open a registered menu at the pointer (Blender's `wm.call_menu`). */
-    callMenu(id: string, at?: {clientX: number, clientY: number}): void
     /** Record an already-performed action on the one undo stack so `Ctrl+Z` can reverse it. */
     record(cmd: LabelledUndoCommand): void
     /** Tell the user something. The shell shows a toast. */

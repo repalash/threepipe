@@ -24,8 +24,6 @@ import {BMesh} from './BMesh'
 import {BMEdge, BMFace, BMVert} from './types'
 import {BMCustomDataLayout, getComponent, setValue} from './customdata'
 import {diskEdgeExists} from './structure'
-import {faceNormalUpdate} from './polygon'
-import {vertCalcNormalsImpl} from './normals'
 
 /**
  * Attributes represented by BMesh header flags or dedicated fields rather than by a layer.
@@ -65,34 +63,12 @@ function boolReader(mesh: MeshData, name: string, domain: AttrDomain): (i: numbe
     return (i: number) => data[i] !== 0
 }
 
-/** `BMeshFromMeshParams` (`bmesh_mesh_convert.hh:27`): the two that apply here. */
-export interface BMeshFromMeshParams {
-    /** `calc_face_normal`: `BM_face_normal_update` on every face as it is built (`bmesh_mesh_convert.cc:676`). */
-    calcFaceNormal?: boolean
-    /**
-     * `calc_vert_normal`: vertex normals copied from the mesh's (`mesh->vert_normals()`, :374, :548). A
-     * `MeshData` caches none, so they are computed here with the same corner-angle weighting
-     * (`bm_vert_calc_normals_impl`), which needs the face normals: they are computed as well.
-     */
-    calcVertNormal?: boolean
-}
-
-/**
- * Both normals: what a caller passes when it runs an operator on the result, since operators read
- * `f->no` / `v->no` (the bevel modifier's conversion, `MOD_bevel.cc:147`; `mesh.separate`'s,
- * `editmesh_tools.cc:4600`).
- */
-export const BM_FROM_MESH_NORMALS: Readonly<BMeshFromMeshParams> = {calcFaceNormal: true, calcVertNormal: true}
-
 /**
  * Build a BMesh from a MeshData.
  *
- * Port of `BM_mesh_bm_from_me` (`bmesh_mesh_convert.cc:311`). The input is not modified. Like
- * Blender's, it leaves normals zero unless `params` asks for them; operators read `f->no` / `v->no`,
- * so a caller that runs one on the result passes both (as Blender's bevel modifier and `mesh.separate` do,
- * `editmesh_tools.cc:4600`).
+ * Port of `BM_mesh_bm_from_me` (`bmesh_mesh_convert.cc:311`). The input is not modified.
  */
-export function bmFromMesh(mesh: MeshData, params: BMeshFromMeshParams = {}): BMesh {
+export function bmFromMesh(mesh: MeshData): BMesh {
     const problems = mesh.validate()
     if (problems.length) {
         throw new Error(`mesh-kernel: cannot convert an invalid MeshData:\n  ${problems.slice(0, 8).join('\n  ')}`)
@@ -183,7 +159,6 @@ export function bmFromMesh(mesh: MeshData, params: BMeshFromMeshParams = {}): BM
         else if (faceSelected(fi)) faceSelectSet(bm, f, true) // `BM_face_select_set`
         if (materialLayer) f.matNr = materialLayer.data[fi]
         copyGeneric(AttrDomain.Face, bm.pdata, fi, f)
-        if (params.calcFaceNormal || params.calcVertNormal) faceNormalUpdate(f)
 
         // Corner data, in the same order the loop cycle was built.
         let k = 0
@@ -204,7 +179,6 @@ export function bmFromMesh(mesh: MeshData, params: BMeshFromMeshParams = {}): BM
     if (mesh.select.activeFace >= 0 && mesh.select.activeFace < faces.length) {
         bm.actFace = faces[mesh.select.activeFace]
     }
-    if (params.calcVertNormal) for (const v of verts) vertCalcNormalsImpl(v)
 
     return bm
 }

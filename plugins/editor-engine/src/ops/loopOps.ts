@@ -6,7 +6,7 @@
  * is registered, so the redo-last panel re-runs it with edited props (Blender's F9 panel).
  */
 
-import {editMeshSubdivide} from '@threepipe/mesh-kernel'
+import {editMeshSubdivide, meshNormalsUpdate} from '@threepipe/mesh-kernel'
 import type {SubdFalloff, SubdQuadCornerType} from '@threepipe/mesh-kernel'
 import type {LoopCutCutProps, ModalTransform, SlideSavedProps, TransformSavedProps} from '@threepipe/plugin-mesh-edit'
 import type {EditorEnginePlugin} from '../EditorEnginePlugin'
@@ -84,6 +84,7 @@ export function registerLoopOperators(engine: EditorEnginePlugin): void {
         {
             // `MESH_OT_subdivide` (`editmesh_tools.cc:150`).
             id: 'mesh.subdivide', label: 'Subdivide', icon: 'grid', category: 'Mesh', modes: ['edit'],
+            contextMenu: ['edge', 'face'],
             description: 'Cut each selected edge into equal parts and split the faces between them. Set the number of cuts and the smoothness in the panel.',
             flags: {undo: true, register: true},
             props: {type: 'object', properties: {
@@ -105,7 +106,8 @@ export function registerLoopOperators(engine: EditorEnginePlugin): void {
                 // so the panel shows what ran.
                 if (!ngon && quadCorner === 'straightCut') quadCorner = 'innerVert'
 
-                // The smoothing reads vertex normals, which the session keeps current (`EDBM_update`).
+                // Edit mode keeps vertex normals current (`EDBM_update`); the smoothing reads them.
+                meshNormalsUpdate(state.bm)
                 const done = editMeshSubdivide(state.bm, {numberCuts: cuts, smoothness, ngon, quadcorner: quadCorner})
                 if (!done) return {ok: false, error: 'Select some edges or faces first'}
                 me.commit(before, 'Subdivide')
@@ -142,11 +144,11 @@ export function registerLoopOperators(engine: EditorEnginePlugin): void {
             },
         },
         ...([
-            ['edgeSlide', 'mesh.edge_slide', 'Edge Slide', 'Slide the selected edge loops along the faces beside them. E: even, F: flip, C or Alt: unclamped.'],
-            ['vertSlide', 'mesh.vert_slide', 'Vertex Slide', 'Slide the selected vertices along one of their edges, picked by the direction the mouse moves. E: even, F: flip, C or Alt: unclamped.'],
-        ] as const).map(([mode, id, label, description]): OperatorDescriptor => ({
+            ['edgeSlide', 'mesh.edge_slide', 'Edge Slide', 'Slide the selected edge loops along the faces beside them. E: even, F: flip, C or Alt: unclamped.', ['edge']],
+            ['vertSlide', 'mesh.vert_slide', 'Vertex Slide', 'Slide the selected vertices along one of their edges, picked by the direction the mouse moves. E: even, F: flip, C or Alt: unclamped.', ['vertex']],
+        ] as const).map(([mode, id, label, description, menu]): OperatorDescriptor => ({
             // `TRANSFORM_OT_edge_slide` / `TRANSFORM_OT_vert_slide` (`transform_ops.cc:1215`, `:1253`).
-            id, label, description, icon: 'swap-horizontal', category: 'Mesh', modes: ['edit'],
+            id, label, description, icon: 'swap-horizontal', category: 'Mesh', modes: ['edit'], contextMenu: [...menu],
             flags: {undo: true, register: true},
             props: slideSchema(mode),
             poll: () => {

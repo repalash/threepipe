@@ -94,9 +94,6 @@ export const designPreset: KeymapPreset = {
         // J is Blender's and free here, P is Modo's "Make Polygon" (free in edit mode: P parents in object mode).
         {keys: 'j', id: 'mesh.vert_connect_path', mode: 'edit'},
         {keys: 'p', id: 'mesh.fill', mode: 'edit', repeat: true},
-        {keys: 'ctrl+h', id: 'mesh.hide', mode: 'edit', props: {unselected: false}},  // mesh.hide :3100
-        {keys: 'shift+h', id: 'mesh.hide', mode: 'edit', props: {unselected: true}},  // :3102
-        {keys: 'alt+h', id: 'mesh.reveal', mode: 'edit'},                // mesh.reveal :3104
         {keys: 'dblclick', id: 'mesh.select_loop', mode: 'edit'},        // mesh.loop_select DOUBLE_CLICK :3070 (informative; S wires the pointer)
         {keys: 'alt+dblclick', id: 'mesh.select_ring', mode: 'edit'},    // mesh.edgering_select :3077
     ],

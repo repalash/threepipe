@@ -20,7 +20,6 @@ import {dirname, resolve} from 'node:path'
 import {fileURLToPath} from 'node:url'
 import {describe, expect, it} from 'vitest'
 import {BMesh} from '../src/bmesh/BMesh'
-import {meshNormalsUpdate} from '../src/bmesh/normals'
 import {pokeFaces, PokeCenterMode} from '../src/ops/poke'
 import {wireframe, WireframeOptions} from '../src/ops/wireframe'
 
@@ -68,8 +67,6 @@ function build(input: Case['input']) {
     const bm = new BMesh()
     const verts = input.positions.map(c => bm.vertCreate(c[0], c[1], c[2]))
     const faces = input.faces.map(f => bm.faceCreate(f.map(i => verts[i])))
-    // The generator's `build` ends with `bm.normal_update()` (gen-bmesh-ops-fixtures.py:53).
-    meshNormalsUpdate(bm)
     return {bm, faces}
 }
 
@@ -138,7 +135,6 @@ describe(`poke and wireframe match Blender ${fixture.blender}`, () => {
                 wireframe(bm, sel, wireOpts(c.params))
             } else {
                 const poked = pokeFaces(bm, sel, pokeOpts(c.params.poke))
-                meshNormalsUpdate(bm) // `bm.normal_update()` between the two (gen-bmesh-ops-fixtures.py:75)
                 wireframe(bm, poked.faces, wireOpts(c.params.wireframe))
             }
             expect(bm.validate()).toEqual([])

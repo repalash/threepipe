@@ -16,26 +16,10 @@ import {
     GeometryData,
     MeshData,
     meshDataFromTriangles,
-    meshNormalsUpdate,
     selectCountsRecalc,
     SelectMode,
     SelectModeMask,
 } from '@threepipe/mesh-kernel'
-
-/**
- * `EDBMUpdate_Params` (`ED_mesh.hh:157`): what an operator asks the session to recompute after it.
- * Each operator says it, as Blender's do when they call `EDBM_update`. `calc_looptris` has no
- * counterpart: the session re-bakes the drawn surface after every change anyway.
- */
-export interface EditMeshUpdateParams {
-    /** `calc_normals`: recompute face and vertex normals, `BM_mesh_normals_update`. */
-    calcNormals: boolean
-}
-
-/** The usual one: a topology or position change, after which the normals are stale. */
-export const EDIT_UPDATE_NORMALS: Readonly<EditMeshUpdateParams> = {calcNormals: true}
-/** Selection, visibility: nothing an operator reads from the normals changed (`mesh.hide`, `editmesh_tools.cc:2579`). */
-export const EDIT_UPDATE_NONE: Readonly<EditMeshUpdateParams> = {calcNormals: false}
 
 /** Buffers a source geometry must expose for edit mode to take it over. */
 export interface SourceGeometryArrays {
@@ -58,12 +42,6 @@ export interface EditMeshStateOptions {
  * On construction the source triangles are welded into a {@link MeshData} and a {@link BMesh} is built
  * from it. Operators mutate the BMesh; {@link syncFromBMesh} pushes the result back to the array form
  * and re-bakes the render buffers.
- *
- * The BMesh's face and vertex normals are current whenever an operator starts, as in Blender's edit
- * mode: computed when the session (or an undo step) builds the BMesh
- * (`BKE_editmesh_looptris_and_normals_calc`, `object_edit.cc:906`, `editmesh_undo.cc:1075`) and by
- * {@link update} after each committed operator and modal transform (`EDBM_update`). Not per frame
- * while a transform runs: the drawn surface has its own normals, from {@link bake}.
  */
 export class EditMeshState {
     /** The canonical array-form mesh. Rebuilt from the BMesh after every committed change. */
@@ -85,7 +63,6 @@ export class EditMeshState {
         this.mesh = mesh
         this.weldedCount = weldedCount
         this.bm = bmFromMesh(mesh)
-        meshNormalsUpdate(this.bm)
     }
 
     /** Build a session directly from an existing kernel mesh, with no welding. */
@@ -93,7 +70,6 @@ export class EditMeshState {
         const state = Object.create(EditMeshState.prototype) as EditMeshState
         state.mesh = mesh
         state.bm = bmFromMesh(mesh)
-        meshNormalsUpdate(state.bm)
         state.revision = 0
         Object.defineProperty(state, 'weldedCount', {value: 0, enumerable: true})
         return state
@@ -117,18 +93,7 @@ export class EditMeshState {
     /** Rebuild the BMesh from the array form. Used after an undo restores a snapshot. */
     syncToBMesh(): void {
         this.bm = bmFromMesh(this.mesh)
-        meshNormalsUpdate(this.bm)
         this.revision++
-    }
-
-    /**
-     * `EDBM_update` (`editmesh_utils.cc:1776`) for what the BMesh carries: after an operator, recompute
-     * what it says went stale. Once per committed operator; the plugin calls it from its commit path and
-     * when a modal transform ends.
-     */
-    update(params: EditMeshUpdateParams): void {
-        // `EDBM_mesh_normals_update` -> `BM_mesh_normals_update` (:1789).
-        if (params.calcNormals) meshNormalsUpdate(this.bm)
     }
 
     /** Baked render buffers for the current state. With `skipHidden`, hidden faces are not drawn. */
