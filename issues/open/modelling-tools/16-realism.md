@@ -472,6 +472,37 @@ cache reads). Housekeeping: the photos are fetched by `fetch-refs.mjs` (URL + sh
 (§2.1), `tpvm sync` is used again; `score.mjs` extracts renders with `tar -m` (the mount refused `utime`).
 Issue filed: `modelling-node-texture-export.md` (Node sessions cannot export textures).
 
+### 3.5 Final camera pass: sculpted rear, leather grain, lens, eyecup (2026-10-18)
+
+Last pass on the camera; each item built as a general tool or part:
+- **`groove`** (plugin-modelling): a panel line cut along a `path` or round a rounded-rectangle `outline`, projected
+  onto curved bodies, subtracted with the Manifold boolean, with an optional `fill` gap strip (`gap-black`). On the
+  camera: the two port doors and the monitor surround.
+- **`product/pad`** (modelling-parts): a raised panel from a smoothed outline with a rounded top edge. On the camera:
+  the rubber thumb rest wrapping the quick dial, multi-controller, Q and START (holes by `boolean`).
+- **Leather grain at real scale**: the generated cells were 0.18 mm and averaged out under mipmapping, so the grip
+  rendered smooth. Tuned against a crop of the reference's grip: 10 pebbles per 14 mm tile (about 1.4 mm), strength
+  0.6; plastic grain and rubber rescaled too; `RELIEF_TILE_MM` gives the `uv` size per pattern.
+- **Lens**: `decal {emboss}` turns a print's alpha into a normal map (raised silver front-ring type); inner elements
+  wider than the bore so only their coated faces show; a matte retaining ring; the red ring as a raised `lens-barrel`
+  band with crisp edges.
+- **`product/eyecup`**: a soft rolled-rim section (wall bulge, outer roll, top band, inner roll) plus an inner frame
+  (a second, thin eyecup instance in gloss plastic).
+- **Skill**: a "Realism kit" section (measure, block cages, parts, grooves, shading, surfaces, markings, judging) and
+  tested cookbook entries for `groove`, presets and `decal`.
+
+Results (`tmp/bench/dress-v7`, sheet `tmp/bench/dress-v7/sheet-final.png`: reference | re-block | dressed | final,
+full and clay, 5 views): full-render SSIM 0.504 (re-block) / 0.489 (3.4) / **0.484**; edge-SSIM full 0.434 / 0.421 /
+**0.446**; clay 0.615 / 0.611 / 0.611; IoU 0.886 / 0.887 / 0.888. Spec-frame completeness (mm), re-block / 3.4 /
+final: lens 2.99 / 2.88 / 2.62, rear-controls 1.29 / 1.29 / 1.16, eyepiece 1.39 / 1.31 / 1.29, shell 2.91 / 2.78 /
+2.87, top 2.43 / 2.16 / 2.33, screens 0.77 / 0.56 / 0.70, decals 2.57 / 2.26 / 2.51, other 3.68 / 3.65 / 3.62; Chamfer
+2.64 / 2.58 / 2.51. 80 parts, 92.4k triangles. The edge-SSIM rise is the grain and seams; the small group moves
+(top, screens, decals) follow the per-run alignment shift, not edits to those parts.
+
+Still better in the reference: its quick dial and multi-controller are sculpted into the pad with contour lines; its
+front element shows true inner optics (ours shows one reflection ring); photographed leather and real UI textures;
+and its off-spec taller prism and grip, which no published measurement supports. The camera work stops here.
+
 ### 3.1 R2c status (2026-10-18)
 
 - Kernel `meshBooleanManifold(api, meshes, op, transforms)` (`plugins/mesh-kernel/src/boolean/manifoldBoolean.ts`):

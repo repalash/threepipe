@@ -15,7 +15,7 @@ const LENS = [15.5, 48]   // lens axis (x, y); it runs along +z
 // ------------------------------------------------------------------ the parts that replace hand-made ones
 const replaced = new Set(['lens-focus-ring', 'lens-zoom-ring', 'dial-mode', 'dial-main', 'dial-quick', 'btn-set',
     'btn-rear-column', 'btn-menu', 'btn-af', 'btn-q', 'btn-start', 'btn-joystick', 'btn-top', 'btn-mfn', 'btn-release',
-    'btn-front', 'eyecup', 'lug'])
+    'btn-front', 'eyecup', 'lug', 'lens-red-ring', 'rubber-thumb'])
 const named = c => [c.name, typeof c.object === 'string' ? c.object : null].filter(Boolean)
 const gone = o => replaced.has(o) || (o.endsWith('*') && replaced.has(o.slice(0, -1)))
 const kept = src.map(c => Array.isArray(c.object) ? {...c, object: c.object.filter(o => !gone(o))} : c).filter(c => {
@@ -55,11 +55,27 @@ const parts = [
     button('btn-front.0', -19.5, 21, 57.7, 4, 2.2, toZ, {dome: 0.3}),
     button('btn-front.1', -19.5, 34, 57.7, 4, 2.2, toZ, {dome: 0.3}),
     // eyecup: rubber frame round the eyepiece, standing 10.4 out of the rear
-    part('product/eyecup', 'eyecup', {width: 54, height: 35.6, depth: 10.4, radius: 16, windowWidth: 24, windowHeight: 16, windowRadius: 3.5, windowDepth: 9, flare: 2.5}, [15.5, 90, 0.2], toMinusZ),
+    part('product/eyecup', 'eyecup', {width: 54, height: 35.6, depth: 10.4, radius: 14, windowWidth: 33, windowHeight: 24, windowRadius: 4, windowDepth: 8.8, flare: 1.6}, [15.5, 90, 0.2], toMinusZ),
     // the lens bore: a matte baffle and an inner element behind the front glass, so the glass shows a dark,
     // reflective interior instead of the chrome mount through an empty tube
     part('product/lens-barrel', 'lens-baffle', {stations: [[22.6, 0], [22.6, 1.2]], segments: 64}, [...LENS, 150], toZ),
-    part('product/lens-barrel', 'lens-inner-element', {stations: [[18, 0], [19.5, 1.5], [19.5, 3], [18, 4.5]], segments: 64}, [...LENS, 156], toZ),
+    // inner elements wider than the bore (r 22.5), so their edges sit inside the barrel and only their faces show
+    part('product/lens-barrel', 'lens-inner-element', {stations: [[24, 0], [26, 1.5], [26, 3], [24, 4.5]], segments: 64}, [...LENS, 156], toZ),
+    part('product/lens-barrel', 'lens-inner-element-2', {stations: [[24, 0], [26, 1.8], [26, 3.2], [24, 5]], segments: 64}, [...LENS, 162], toZ),
+    // a matte retaining ring just behind the front element: its edge is what the eye finds through the glass
+    part('product/lens-barrel', 'lens-retainer', {stations: [[33.4, 0], [33.4, 1.2]], bore: 29.5, segments: 96}, [...LENS, 169.2], toZ),
+    // the red ring: a raised band with crisp edges, proud of the barrel
+    part('product/lens-barrel', 'lens-red-ring', {stations: [[41.7, 0], [42.05, 0.15], [42.05, 1.15], [41.7, 1.3]], bore: 41.2, segments: 128}, [...LENS, 168.2], toZ),
+    // the rubber thumb rest on the rear, wrapping the quick dial, the multi-controller, Q and START (holes cut below)
+    part('product/pad', 'rubber-thumb', {outline: [[-73.5, -72], [-73.5, -9], [-46, -8], [-22, -10], [-18, -30], [-18, -52], [-22, -70], [-40, -73]],
+        thickness: 1.3, round: 0.8, smooth: 3, samples: 140}, [0, 0, 0.3], toMinusZ),
+    {op: 'primitive', type: 'cylinder', name: 'cut-pad-dial', axis: 'z', radius: 16.6, height: 8, position: [-36.4, 27.3, -2]},
+    {op: 'primitive', type: 'cylinder', name: 'cut-pad-joy', axis: 'z', radius: 6.4, height: 8, position: [-28.6, 62.7, -2]},
+    {op: 'primitive', type: 'cylinder', name: 'cut-pad-q', axis: 'z', radius: 4.4, height: 8, position: [-24.8, 46.6, -2]},
+    {op: 'primitive', type: 'cylinder', name: 'cut-pad-start', axis: 'z', radius: 6.7, height: 8, position: [-21.3, 78.7, -2]},
+    {op: 'boolean', object: 'rubber-thumb', with: 'cut-pad-*'},
+    // eyecup inner frame: a thin hard bezel at the bottom of the window
+    part('product/eyecup', 'eyepiece-frame', {width: 31, height: 23, depth: 1.6, radius: 4, windowWidth: 22, windowHeight: 14, windowRadius: 2.5, windowDepth: 1.4, flare: 0.3}, [15.5, 90, -1.3], toMinusZ),
     // strap lugs on both sides, at the measured height
     part('product/strap-lug', 'lug.0', {width: 11, height: 5.2, wire: 1.3}, [74.6, 72.8, 30]),
     part('product/strap-lug', 'lug.1', {width: 11, height: 5.2, wire: 1.3}, [-74.6, 72.8, 30], [0, PI, 0]),
@@ -69,11 +85,15 @@ const parts = [
 const uv = (object, size) => ({op: 'uv', object, size})
 const mat = (object, preset, extra = {}) => ({op: 'material', object, preset, ...extra})
 const surfaces = [
-    uv(['body', 'body-prism', 'lens-barrel', 'lens-mount', 'mount-boss'], 3),
-    uv(['grip', 'rubber-thumb'], 4),
-    uv(['lens-focus-ring', 'lens-zoom-ring', 'eyecup'], 2.5),
+    // one UV unit = one relief tile at its designed size (RELIEF_TILE_MM): plastic grain 8, leather 14, rubber 6
+    uv(['body', 'body-prism', 'lens-barrel', 'lens-mount', 'mount-boss'], 8),
+    uv(['grip'], 14),
+    uv(['rubber-thumb', 'lens-focus-ring', 'lens-zoom-ring', 'eyecup'], 6),
     mat(['body', 'body-prism', 'mount-boss'], 'plastic-satin-black'),
-    mat(['grip', 'rubber-thumb'], 'leather-black'),
+    mat('grip', 'leather-black'),
+    mat('rubber-thumb', 'rubber-matte'),
+    mat('eyepiece-frame', 'plastic-gloss-black'),
+    mat('lens-retainer', 'matte-black'),
     mat('lens-barrel', 'plastic-satin-black', {roughness: 0.3}),
     mat(['lens-focus-ring', 'lens-zoom-ring'], 'rubber'),
     mat('eyecup', 'rubber-matte'),
@@ -81,9 +101,12 @@ const surfaces = [
     mat(['mount-flange', 'lug.*', 'lens-mount'], 'chrome'),
     mat('shoe', 'metal-satin'),
     mat('shoe-contact', 'gold-contact'),
-    mat('lens-red-ring', 'accent-red'),
+    mat('lens-red-ring', 'accent-red', {roughness: 0.35}),
     mat('mount-index', 'accent-red'),
-    mat(['lens-front-element', 'lens-inner-element'], 'glass-coated'),
+    mat('lens-front-element', 'glass-coated'),
+    // inner elements: their coatings tint the reflections green and magenta
+    mat('lens-inner-element', 'glass-coated', {color: '#d6f0de'}),
+    mat('lens-inner-element-2', 'glass-coated', {color: '#ecd6ef'}),
     mat('lens-baffle', 'matte-black'),
     // the monitor shows its screen as a print over an opaque glossy panel: on a transmissive one the print vanished
     mat('lcd-screen', 'plastic-gloss-black', {roughness: 0.1}),
@@ -153,7 +176,17 @@ const prints = [
         content: {svg: scaleLabels({width: 1248, height: 77, marks: [[0.06, '105'], [0.3, '70'], [0.52, '50'], [0.73, '35'], [0.93, '24']], color: '#ffffff', fontScale: 0.62})}, segments: [24, 1]}),
     // the front legend sits on the bezel that slopes from the rim down to the front element (r 33.6 to 38.5)
     decal('decal-lens-front', {mode: 'project', object: 'lens-barrel', at: [...LENS, 181], normal: [0, 0, 1], up: [0, 1, 0], size: [78, 78],
-        content: {svg: ringText({size: 1560, text: 'CANON ZOOM LENS EF 24-105mm 1:4 L IS USM   \u00d877mm', radius: 0.9, fontScale: 0.042, letterSpacing: 0.06, at: 180})}, offset: 0.04, segments: [64, 64]}),
+        content: {svg: ringText({size: 1560, text: 'CANON ZOOM LENS EF 24-105mm 1:4 L IS USM   \u00d877mm', radius: 0.87, fontScale: 0.052, letterSpacing: 0.05, at: 180})}, offset: 0.04, segments: [64, 64],
+        // raised silver type, as the lens has
+        emboss: 5, metalness: 0.9, roughness: 0.3}),
+]
+
+// panel lines: real grooves with a dark strip in them, round the port doors, the monitor and the thumb rest
+const groove = (object, name, outline, width = 0.55) => ({op: 'groove', object, name, outline, width, depth: 0.45, fill: true})
+const grooves = [
+    groove('body', 'gap-port-a', {at: [75.7, 58, 26], normal: [1, 0, 0], up: [0, 1, 0], size: [22, 30], radius: 2.5}),
+    groove('body', 'gap-port-b', {at: [75.5, 24, 26], normal: [1, 0, 0], up: [0, 1, 0], size: [22, 22], radius: 2.5}),
+    groove('body', 'gap-monitor', {at: [20.2, 40.95, 0], normal: [0, 0, -1], up: [0, 1, 0], size: [78, 55], radius: 3}),
 ]
 
 const finish = [
@@ -164,8 +197,8 @@ const finish = [
 // prints are smooth quad grids; shading them by angle would not change them, but keep them out of '*'-wide edits
 // Two transcripts: the geometry runs anywhere (Node is fast); surfaces and prints need a browser for their textures,
 // so they run on the saved geometry: `run geometry --node`, then `run dress --doc <that glb> --browser`.
-const out = [...kept, ...parts, ...finish, ...surfaces, ...prints]
+const out = [...kept, ...parts, ...grooves, ...finish, ...surfaces, ...prints]
 writeFileSync(outPath, JSON.stringify(out))
-writeFileSync(outPath.replace(/\.json$/, '-geometry.json'), JSON.stringify([...kept, ...parts, ...finish]))
+writeFileSync(outPath.replace(/\.json$/, '-geometry.json'), JSON.stringify([...kept, ...parts, ...grooves, ...finish]))
 writeFileSync(outPath.replace(/\.json$/, '-surface.json'), JSON.stringify([...surfaces, ...prints]))
 console.log(JSON.stringify({commands: out.length, kept: kept.length, parts: parts.length, surfaces: surfaces.length, prints: prints.length}))
