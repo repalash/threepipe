@@ -6210,8 +6210,7 @@ test('modelling-edit-normals', async({page}) => {
         }, [png, points] as const)
     }
 
-    // Material preview (the default): faces in one plane shade alike. (Solid shading draws edit mode
-    // wrongly under SwiftShader: issues/open/modelling-tools/editor-solid-shading-edit-mode.md.)
+    // Material preview (the default) first, then Solid at the end: faces in one plane shade alike.
     const vp = (await page.locator('[data-viewport]').boundingBox())!
     await page.mouse.move(vp.x + vp.width / 2, vp.y + vp.height / 2)
     await page.keyboard.press('Tab')
@@ -6267,6 +6266,26 @@ test('modelling-edit-normals', async({page}) => {
     const [below, extruded, topColour] = await colourAt(pts)
     for (let k = 0; k < 3; k++) expect(Math.abs(below[k] - extruded[k])).toBeLessThan(12)
     expect(Math.abs(topColour[0] - below[0]) + Math.abs(topColour[1] - below[1]) + Math.abs(topColour[2] - below[2])).toBeGreaterThan(15)
+
+    // Solid shading (the header's button) in edit mode: the overlays keep their own materials
+    // (`allowOverride = false`), so nothing new appears around the mesh - the fat edges used to draw
+    // their instanced quad as one grey quad behind it (editor-solid-shading-edit-mode.md) - and the
+    // coplanar faces still shade alike.
+    const around = [await onScreen([0, 2, 0]), await onScreen([-1.4, 0.4, 0]), await onScreen([1.6, 0.8, 0])]
+    const aroundMaterial = await colourAt(around)
+    await page.locator('[data-shading="solid"]').click()
+    await page.mouse.move(vp.x + vp.width * 0.8, vp.y + vp.height * 0.3)
+    expect(await page.evaluate(() => {
+        const out: string[] = []
+        ;(window as any).viewer.scene.getObjectByName('MeshEdit Overlays').traverse((o: any) => { if (o.material?.allowOverride) out.push(o.type) })
+        return out
+    })).toEqual([])
+    await page.waitForTimeout(600)
+    await page.screenshot({path: 'tmp/normals/extrude-move-solid.png'})
+    const aroundSolid = await colourAt(around)
+    aroundSolid.forEach((c, i) => { for (let k = 0; k < 3; k++) expect(Math.abs(c[k] - aroundMaterial[i][k])).toBeLessThan(10) })
+    const [belowSolid, extrudedSolid] = await colourAt(pts)
+    for (let k = 0; k < 3; k++) expect(Math.abs(belowSolid[k] - extrudedSolid[k])).toBeLessThan(12)
 })
 
 test('modelling-editor-ops', async({page}) => {
@@ -6594,6 +6613,7 @@ test('modelling-editor-ops', async({page}) => {
     await popEntry('MESH_OT_separate.type', 'By Loose Parts').click()
     await expect.poll(async() => (await state()).objects).toBe(2)
     expect((await state()).counts).toEqual(CUBE)
+})
 
 test('modelling-editor-feedback', async({page}) => {
     await expect(page).toHaveTitle('Modelling Editor Feedback')

@@ -17,3 +17,23 @@ may not reach the material the Solid override swaps in.
 
 **Next**: reproduce on the Mac GPU browser; check how `EditorViewportPlugin.setShading('solid')` replaces
 materials and whether `_offsetSurface` / the overlays' depth settings apply to it.
+
+## Fixed 2026-10-18 (track0-followups) - not SwiftShader-only
+
+**GPU check**: on the Mac VM (Chromium, `--use-angle=metal`, "ANGLE Metal Renderer: Apple Paravirtual
+device") the same view showed the same thing: a dark quad standing behind the cube, striped faces, most of
+the vertex and edge overlays gone (`tmp/gpu/edit-shading-solid.png` in the worktree). Object-mode Solid was
+clean. So it was not a SwiftShader artefact.
+
+**Cause**: three.js-modded applies `scene.overrideMaterial` (how the editor does Solid and Wireframe
+shading) to every material with `allowOverride === true`, which is the default for `ShaderMaterial` and for
+threepipe's materials. The edit-mode overlays did not opt out (the gizmos and the knife overlay already
+did): the fat-edge `LineSegments2` was drawn with the solid `PhysicalMaterial`, i.e. its instanced
+screen-space quad as one plain quad (the grey quad); the selected-face tint (`UnlitMaterial`) became an
+opaque solid surface without its polygon offset (the stripes); the vertex `Points` lost their shader.
+
+**Fix**: `allowOverride = false` on the vertex, edge, face-dot, selected-face and preselect materials
+(`plugins/mesh-edit/src/overlayMaterials.ts`, `MeshEditPlugin._buildOverlays`). After it the Metal
+screenshots in Solid and Wireframe show the normal overlays (`tmp/gpu/after-edit-shading-*.png`), and the
+`modelling-edit-normals` e2e now also checks Solid shading in edit mode (no overlay allows the override,
+the screen around the mesh is unchanged, coplanar faces shade alike).
