@@ -6,6 +6,10 @@ All notable changes to this project will be documented in this file.
 
 ## [0.6.0-dev]
 
+### Added
+
+- `NormalBufferPlugin.renderTransparent` (default `true`, serialized, UI toggle): set it to `false` to apply the same material rule as the GBuffer depth to the normal buffer, with the `userData.renderToDepth` and `userData.renderToGBuffer` overrides (objects with a custom GBuffer or normal material can still differ); for screen-space effects that combine both buffers
+
 ### Changed
 
 - Switch `three` and `@types/three` dependencies from GitHub Releases tgz URLs to npm packages using `npm:` aliases

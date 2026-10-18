@@ -34,3 +34,12 @@ const normalTarget = normalPlugin.target;
 
 // Use the normal target by accessing `normalTarget.texture`.
 ```
+
+By default, transparent and transmissive materials are rendered to the normal buffer like opaque materials. Set `renderTransparent` to `false` to apply the same material rule as the depth in [`GBufferPlugin`](./GBufferPlugin): a transparent or transmissive material is then rendered only when its `userData.renderToDepth` (or `userData.renderToGBuffer`) is `true`, and an opaque material is left out when it is `false`. Objects with a `customGBufferMaterial` or `customNormalMaterial` can still differ, as each pass draws its own custom material. Screen-space effects that compare normals across edges with the GBuffer depth need this, otherwise a transparent surface over an object that only the depth shows gives wrong normals at its edges.
+
+```typescript
+normalPlugin.renderTransparent = false
+
+// render one transparent material to the normal buffer anyway
+material.userData.renderToDepth = true
+```
