@@ -129,6 +129,66 @@ export class KDTree3 {
     }
 
     /**
+     * `kdtree_find_nearest_n` (`BLI_kdtree.hh:446`, via `kdtree_find_nearest_n_with_len_squared_cb` :351 and
+     * `nearest_ordered_insert` :318): up to `capacity` nearest points, nearest first (ties keep insertion order),
+     * distances `sqrtf`'d at the end.
+     */
+    findNearestN(x: number, y: number, z: number, capacity: number): {index: number, dist: number}[] {
+        if (this.root === UNSET || capacity === 0) return []
+        const q = [x, y, z]
+        const nearest: {index: number, dist: number}[] = []
+        const lenSq = (n: number) => {
+            const dx = f32(x - this.co[n * 3]), dy = f32(y - this.co[n * 3 + 1]), dz = f32(z - this.co[n * 3 + 2])
+            return f32(f32(f32(dx * dx) + f32(dy * dy)) + f32(dz * dz))
+        }
+        const insert = (n: number, dist: number) => {
+            let len = nearest.length
+            if (len < capacity) nearest.push({index: 0, dist: 0}), len++
+            let i: number
+            for (i = len - 1; i > 0; i--) {
+                if (dist >= nearest[i - 1].dist) break
+                nearest[i] = {...nearest[i - 1]}
+            }
+            nearest[i] = {index: this.index[n], dist}
+        }
+        const root = this.root
+        insert(root, lenSq(root))
+        const stack: number[] = []
+        if (q[this.d[root]] < this.co[root * 3 + this.d[root]]) {
+            if (this.right[root] !== UNSET) stack.push(this.right[root])
+            if (this.left[root] !== UNSET) stack.push(this.left[root])
+        } else {
+            if (this.left[root] !== UNSET) stack.push(this.left[root])
+            if (this.right[root] !== UNSET) stack.push(this.right[root])
+        }
+        while (stack.length) {
+            const n = stack.pop()!
+            const axis = this.d[n]
+            let cur = f32(this.co[n * 3 + axis] - q[axis])
+            const full = () => nearest.length < capacity
+            if (cur < 0) {
+                cur = f32(-cur * cur)
+                if (full() || -cur < nearest[nearest.length - 1].dist) {
+                    cur = lenSq(n)
+                    if (full() || cur < nearest[nearest.length - 1].dist) insert(n, cur)
+                    if (this.left[n] !== UNSET) stack.push(this.left[n])
+                }
+                if (this.right[n] !== UNSET) stack.push(this.right[n])
+            } else {
+                cur = f32(cur * cur)
+                if (full() || cur < nearest[nearest.length - 1].dist) {
+                    cur = lenSq(n)
+                    if (full() || cur < nearest[nearest.length - 1].dist) insert(n, cur)
+                    if (this.right[n] !== UNSET) stack.push(this.right[n])
+                }
+                if (this.left[n] !== UNSET) stack.push(this.left[n])
+            }
+        }
+        for (const r of nearest) r.dist = f32(Math.sqrt(r.dist))
+        return nearest
+    }
+
+    /**
      * `kdtree_range_search_cb` (:588): every point with `distance_squared <= range * range`; `cb` returning false
      * stops the search. Callback order is the traversal order (a stack), not by distance.
      */

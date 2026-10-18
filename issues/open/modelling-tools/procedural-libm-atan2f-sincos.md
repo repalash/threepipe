@@ -36,3 +36,11 @@ The Subdivide Mesh port itself is exact (both cases bit-exact once the platform 
 Port Apple's float `atan2f` / `__sincosf_stret` algorithms (if their source is available - Apple's arm64 libm is not in
 the open-source Libm drop as far as I know), or accept these as libm ulps (the current "pass (<= N ulp)" statuses).
 Either way `libm.ts`'s comment should be corrected and the sincos pairing noted for any future `sinf`/`cosf` port.
+
+## Addendum (2026-10-18): `asinf` too
+
+`tests/parity/cases/curvesFillet` `fillet-mixed-types` ("pass (> 16 ulp)", 1-ulp position / handle differences) is the
+same effect through `angle_v3v3` -> `angle_normalized_v3v3` -> `safe_asinf`: Apple `asinf(0.5767986178398132)` =
+`0.6148042678833008`, correctly rounded `0.614804208278656`. With the platform's `asinf`, `tanf` and
+`__sincosf_stret` values substituted for the case's 8 / 7 / 7 inputs (same probe method) the case is bit-exact; `tanf`
+and the sin/cos pairs matched correctly rounded for those inputs.
