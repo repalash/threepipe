@@ -251,6 +251,13 @@ Changes from the design above, from what the runs showed:
   4.45° (mostly about X) to trade the reference's extra height for a lower RMS (2.19 vs 2.44 mm) and lifts
   F@2 mm from 0.517 to 0.578: the fit was hiding a shape error. The free fit is still run and reported as a
   diagnostic (`alignment.freeRotationDiagnostic`).
+- **Geometry frame (2026-10-18, after §3.3): the spec frame is primary.** Shape and per-group numbers are scored
+  against the reference scaled to Canon's published size (`targets/canon-5d4.json` `"frame": "spec"`); the raw
+  frame (the reference as it is) is reported beside it as `secondary`. The reference shell is 122.8 mm tall
+  against the published 116.4 mm with the shoe - its body is about 6 mm taller than the spec - so in the raw
+  frame a build to published numbers loses millimetres at the top that are the reference's, not the build's.
+  Renders, heat maps and image metrics stay in the raw frame (the page shows the unscaled reference).
+  `--frame raw|spec` overrides; the ceiling is raw only (it already scales the reference).
 - The **ceiling** is measured: the reference scaled per axis to Canon's published size
   (`spec.refScaleToSpec` = 0.9987, 0.9188, 0.9696) scored against the reference.
 - Builds now record their own wall time: `scripts/modelling-session.mjs` and the CLI `session` verb write
