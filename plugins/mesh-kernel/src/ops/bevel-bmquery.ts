@@ -14,11 +14,10 @@ import {faceNormalUpdate} from '../bmesh/polygon'
  */
 
 import {BMEdge, BMFace, BMLoop, BMVert} from '../bmesh/types'
-import {BMesh} from '../bmesh/BMesh'
 import {diskEdges, edgeIsManifold, radialLoops} from '../bmesh/structure'
 import {
     M3, V3, angleNormalizedV3V3, axisDominantV3ToM3, crossV3V3V3, dotV3V3, lenV3V3, midV3V3V3,
-    mulV2M3V3, normalizeV3, nv3, subV3V3V3,
+    mulV2M3V3, nv3, subV3V3V3,
 } from './bevel-math'
 
 /** A vertex position as a fresh array. Blender's `v->co`. */

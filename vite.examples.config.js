@@ -182,8 +182,9 @@ export default defineConfig(async ()=>{
             sourcemapIgnoreList: false,
             watch: {
                 // The e2e suite writes screenshots and traces here while it runs; watching them made the
-                // dev server reload every open example mid-test when the suite pointed at it.
-                ignored: ['**/tests/snapshots/**', '**/test-results/**', '**/playwright-report/**'],
+                // dev server reload every open example mid-test when the suite pointed at it. `tmp/` is
+                // scratch output too (the modelling e2e screenshots in tmp/menus, tmp/onboarding).
+                ignored: ['**/tests/snapshots/**', '**/test-results/**', '**/playwright-report/**', '**/tmp/**'],
             },
         },
         build: {

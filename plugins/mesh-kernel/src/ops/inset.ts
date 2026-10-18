@@ -1,4 +1,3 @@
-import {faceNormalUpdate} from '../bmesh/polygon'
 /**
  * Inset operators.
  *

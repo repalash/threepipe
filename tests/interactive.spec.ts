@@ -5481,17 +5481,16 @@ test('modelling-editor-menus', async({page}) => {
     await entry('TOPBAR_MT_file_export', 'glTF 2.0 (.glb/.gltf)').click()
     expect((await glb).suggestedFilename()).toMatch(/\.glb$/)
 
-    // The right-click menu is VIEW3D_MT_object_context_menu: Delete there removes the selection.
-    await page.evaluate(() => {
-        const w = window as any
-        w.viewer.getPlugin('Picking').setSelectedObject(w.engine.modelObjects()[2], false, false)
-    })
+    // The right-click menu is VIEW3D_MT_object_context_menu: Delete there removes the selection (the
+    // object under the pointer, which the right click picked), and Ctrl+Z brings it back.
     await page.mouse.click(cx, cy, {button: 'right'})
     await expect(menu('VIEW3D_MT_object_context_menu')).toBeVisible()
     await insideWindow()
     await shot('object-context-menu')
     await entry('VIEW3D_MT_object_context_menu', 'Delete').click()
     await expect.poll(async() => (await state()).objects).toBe(2)
+    await page.keyboard.press('Control+KeyZ')
+    await expect.poll(async() => (await state()).objects).toBe(3)
     await page.evaluate(() => {
         const w = window as any
         w.viewer.getPlugin('Picking').setSelectedObject(w.modelling.document.find('cube').object, false, false)
@@ -5545,22 +5544,44 @@ test('modelling-editor-menus', async({page}) => {
     await header('Edit').click()
     await entry('TOPBAR_MT_edit', 'Undo').click()
     await expect.poll(async() => (await state()).counts).toEqual([8, 12, 6])
-    // Face > Inset Faces on every face: six inner faces and their rims.
-    await page.keyboard.press('KeyA')
+    // Face > Inset Faces on the face under the pointer (face mode, a click): an inner face and four rim faces.
+    await page.mouse.move(cx, cy)
+    await page.keyboard.press('3')
+    await page.mouse.click(cx, cy)
+    await expect.poll(async() => (await state()).sel![2]).toBe(1)
     await header('Face').click()
     await entry('VIEW3D_MT_edit_mesh_faces', 'Inset Faces').click()
     await expect.poll(async() => (await state()).lastOp).toBe('mesh.inset')
-    expect((await state()).counts![2]).toBeGreaterThan(6)
+    // Inset is a document command: the session reloads from the document after it.
+    await expect.poll(async() => (await state()).counts![2]).toBe(10)
     await page.keyboard.press('Control+KeyZ')
     await expect.poll(async() => (await state()).counts).toEqual([8, 12, 6])
-    // Vertex > Extrude Vertices: the extrusion and its move start; Enter confirms it where it is.
-    await page.keyboard.press('KeyA')
-    await header('Vertex').click()
-    await entry('VIEW3D_MT_edit_mesh_vertices', 'Extrude Vertices').click()
+    // Vertex > Connect Vertex Path between two opposite corners of the top face (+Y, the view looks down
+    // on it; vertex mode, a click and a Shift+click): the face splits along the new edge.
+    const cornerOnScreen = (sx: number, sz: number) => page.evaluate(([sx, sz]) => {
+        const w = window as any
+        const o = w.engine.context().editObject
+        const v = [...w.engine.meshEdit.state.bm.verts].find((x: any) => Math.sign(x.x) === sx && Math.sign(x.z) === sz && x.y > 0)
+        const p = o.localToWorld(o.position.clone().set(v.x, v.y, v.z)).project(w.viewer.scene.mainCamera)
+        const r = w.viewer.canvas.getBoundingClientRect()
+        return {x: r.left + (p.x + 1) / 2 * r.width, y: r.top + (1 - p.y) / 2 * r.height}
+    }, [sx, sz])
     await page.mouse.move(cx, cy)
-    await page.keyboard.press('Enter')
-    await expect.poll(async() => (await state()).history.at(-1)).toBe('Extrude')
-    expect((await state()).counts).not.toEqual([8, 12, 6])
+    await page.keyboard.press('1')
+    const c1 = await cornerOnScreen(1, 1)
+    const c2 = await cornerOnScreen(-1, -1)
+    await page.mouse.click(c1.x, c1.y)
+    await page.keyboard.down('Shift')
+    await page.mouse.click(c2.x, c2.y)
+    await page.keyboard.up('Shift')
+    await expect.poll(async() => (await state()).sel).toEqual([2, 0, 0])
+    await header('Vertex').click()
+    // Extrude Vertices (`extrude_vert_indiv`) is not ported yet: shown, disabled, and it says so.
+    await expect(entry('VIEW3D_MT_edit_mesh_vertices', 'Extrude Vertices')).toHaveAttribute('aria-disabled', 'true')
+    await expect(entry('VIEW3D_MT_edit_mesh_vertices', 'Extrude Vertices')).toHaveAttribute('title', /Not available yet/)
+    await entry('VIEW3D_MT_edit_mesh_vertices', 'Connect Vertex Path').click()
+    await expect.poll(async() => (await state()).counts).toEqual([8, 13, 7])
+    expect((await state()).lastOp).toBe('mesh.vert_connect_path')
     await page.keyboard.press('Control+KeyZ')
     await expect.poll(async() => (await state()).counts).toEqual([8, 12, 6])
     // Mesh > Show/Hide > Hide Selected, then Reveal Hidden (H, Alt+H shown beside them).

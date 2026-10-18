@@ -83,6 +83,13 @@ export function registerMenus(engine: EditorEnginePlugin): void {
     const lightType = (ctx: EditorContext) => (activeObject(ctx) as {type?: string} | undefined)?.type
 
     const notInEditMesh = (ctx: EditorContext) => ctx.mode === 'edit' ? 'adding a primitive into the mesh being edited' : undefined
+    /*
+     * Extrude Edges is `mesh.extrude_edges_move` (`extrude_edge_only` on the selected edges). The engine's
+     * `mesh.extrude` is Extrude Region, which runs the same `extrude_edge_only` when no face is selected
+     * and extrudes the faces when one is. Extrude Vertices (`extrude_vert_indiv`) is not ported:
+     * `issues/open/modelling-tools/kernel-extrude-vertices.md`.
+     */
+    const edgesOnlyWithFaces = () => selCounts().f > 0 ? 'extruding only the edges while faces are selected (`mesh.extrude_edges_indiv`)' : undefined
 
     // --- shared menus ----------------------------------------------------------------------------
     const transformBase: MenuItem[] = [
@@ -679,9 +686,9 @@ export function registerMenus(engine: EditorEnginePlugin): void {
                 op('view3d.edit_mesh_extrude_move_shrink_fatten', 'Extrude Faces Along Normals', {visible: () => selCounts().f > 0}),
                 op('mesh.extrude_faces_move', 'Extrude Individual Faces', {visible: () => selCounts().f > 0}),
                 op('view3d.edit_mesh_extrude_manifold_normal', 'Extrude Manifold', {visible: () => selCounts().f > 0}),
-                op('mesh.extrude', 'Extrude Edges', {blender: 'mesh.extrude_edges_move',
+                op('mesh.extrude', 'Extrude Edges', {blender: 'mesh.extrude_edges_move', unavailable: edgesOnlyWithFaces,
                     visible: c => selCounts().e > 0 && (c.selectMode === 'vertex' || c.selectMode === 'edge')}),
-                op('mesh.extrude', 'Extrude Vertices', {blender: 'mesh.extrude_vertices_move',
+                op('mesh.extrude_vertices_move', 'Extrude Vertices', {
                     visible: c => selCounts().v > 0 && c.selectMode === 'vertex'}),
                 sep,
                 op('mesh.extrude_repeat', 'Extrude Repeat'),
@@ -790,7 +797,7 @@ export function registerMenus(engine: EditorEnginePlugin): void {
         {
             id: 'VIEW3D_MT_edit_mesh_vertices', label: 'Vertex', source: 'space_view3d.py:4820', operator: 'mesh.vertices_menu',
             items: [
-                op('mesh.extrude', 'Extrude Vertices', {blender: 'mesh.extrude_vertices_move'}),
+                op('mesh.extrude_vertices_move', 'Extrude Vertices'),
                 op('mesh.dupli_extrude_cursor', 'Extrude to Cursor or Add', {props: {rotate_source: true}}),
                 op('mesh.bevel', 'Bevel Vertices', {props: {affect: 'VERTICES'}}),
                 sep,
@@ -820,7 +827,7 @@ export function registerMenus(engine: EditorEnginePlugin): void {
         {
             id: 'VIEW3D_MT_edit_mesh_edges', label: 'Edge', source: 'space_view3d.py:4874', operator: 'mesh.edges_menu',
             items: [
-                op('mesh.extrude', 'Extrude Edges', {blender: 'mesh.extrude_edges_move'}),
+                op('mesh.extrude', 'Extrude Edges', {blender: 'mesh.extrude_edges_move', unavailable: edgesOnlyWithFaces}),
                 op('mesh.bevel', 'Bevel Edges', {props: {affect: 'EDGES'}}),
                 op('mesh.bridge_edge_loops', 'Bridge Edge Loops'),
                 op('mesh.screw', 'Screw'),
@@ -925,7 +932,7 @@ export function registerMenus(engine: EditorEnginePlugin): void {
                     label('Vertex'), sep,
                     op('mesh.subdivide', 'Subdivide'),
                     sep,
-                    op('mesh.extrude', 'Extrude Vertices', {blender: 'mesh.extrude_vertices_move'}),
+                    op('mesh.extrude_vertices_move', 'Extrude Vertices'),
                     op('mesh.bevel', 'Bevel Vertices', {props: {affect: 'VERTICES'}}),
                     {...sep, visible: () => selCounts().v > 1},
                     op('mesh.fill', 'New Edge/Face from Vertices', {blender: 'mesh.edge_face_add', visible: () => selCounts().v > 1}),
@@ -956,7 +963,7 @@ export function registerMenus(engine: EditorEnginePlugin): void {
                     label('Edge'), sep,
                     op('mesh.subdivide', 'Subdivide'),
                     sep,
-                    op('mesh.extrude', 'Extrude Edges', {blender: 'mesh.extrude_edges_move'}),
+                    op('mesh.extrude', 'Extrude Edges', {blender: 'mesh.extrude_edges_move', unavailable: edgesOnlyWithFaces}),
                     op('mesh.bevel', 'Bevel Edges', {props: {affect: 'EDGES'}}),
                     op('mesh.bridge_edge_loops', 'Bridge Edge Loops', {visible: () => selCounts().e >= 2}),
                     op('mesh.fill', 'New Face from Edges', {blender: 'mesh.edge_face_add', visible: () => selCounts().e >= 1}),

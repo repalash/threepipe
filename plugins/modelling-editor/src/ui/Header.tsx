@@ -27,12 +27,17 @@ export function AppMenu() {
     // Resolved on every engine change above, so poll state and context-dependent rows (Open Recent,
     // Extrude, Merge's At First / At Last) are current while a menu is open.
     const menus = engine.headerMenus()
+    // Controlled, so that running an entry closes the whole menu, submenus included: a click in a
+    // submenu (drawn in a portal) does not reach the header popover's own dismiss handling.
+    const [open, setOpen] = React.useState<string | null>(null)
     return <div className="me-app-menu" role="menubar">
         {menus.map(m => <Popover
             key={m.id}
             placement="bottom-start"
             minimal
-            content={<MenuView menu={m} />}
+            isOpen={open === m.id}
+            onInteraction={next => setOpen(o => next ? m.id : o === m.id ? null : o)}
+            content={<MenuView menu={m} onRun={() => setOpen(null)} />}
         >
             <Button variant="minimal" size="small" text={m.label} className="me-menu-button" data-menu={m.label} data-menu-id={m.id} />
         </Popover>)}
