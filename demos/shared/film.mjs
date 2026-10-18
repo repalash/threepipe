@@ -43,6 +43,7 @@ export async function openFilm(o = {}) {
     const frameDir = join(out, 'frames')
     rmSync(frameDir, {recursive: true, force: true})
     mkdirSync(frameDir, {recursive: true})
+    rmSync(join(out, 'stills'), {recursive: true, force: true})
     mkdirSync(join(out, 'stills'), {recursive: true})
     const port = o.port ?? 9473
     const page0 = o.page ?? '/examples/modelling-api/index.html'
