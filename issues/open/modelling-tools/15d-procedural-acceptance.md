@@ -28,8 +28,8 @@ outside the acceptance assets; go to acceptance and make `track2-procedural` mer
    - Their inputs are editable there and the result is reactive.
    - The two Blender assets come in through the `blendAsset` command from their bundles. The terrain is the DSL group.
    - One e2e test each, in `tests/procedural.spec.ts`, with SwiftShader baselines.
-   - Bundles are local (`tmp/bundles`, licences undecided [A6]). Their tests skip with that reason when the bundle is
-     missing.
+   - Bundles are local (`tmp/bundles`): too large for git. Licences are recorded in
+     `plugins/procedural/tests/fixtures/ASSETS.md`. Their tests skip with that reason when the bundle is missing.
 5. **Report page and video.**
    - The page `examples/procedural-acceptance-report/`, or under `tmp/` if it holds third-party renders, shows for each
      asset:

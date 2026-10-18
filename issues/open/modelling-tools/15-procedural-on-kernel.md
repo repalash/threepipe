@@ -697,6 +697,8 @@ bundles are local, see below). e2e: `tests/procedural.spec.ts`.
   stack there and add adaptive refinement to it. The GN Subdivision Surface node then calls it.
 - Vertex groups (`procedural-vertex-groups.md`) and single-value attributes (`procedural-single-value-attribute-
   storage.md`): two kernel data-model additions that exact parity needs.
-- Asset bundles are derived from third-party .blend files (Buildify, flower/pebble scatter, candy bounce): they
-  stay out of git (`tmp/bundles`) until their licences and hosting are decided ([A6]); the flower bundle is 40 MB.
+- Asset licences are decided (2026-10-18): the maintainer cleared the six third-party .blend files for commercial and
+  non-commercial use. Sources, authors and exact licences are in `plugins/procedural/tests/fixtures/ASSETS.md`.
+  - The .blend files (about 60 MB) and the large bundles stay out of git; tests skip without them.
+  - Small derived dumps go in git, gzipped. The first is the flower v1 dump, 16 KB.
 - Eigen (float4x4 interpolate / invert / determinant): licence decision in `procedural-eigen-port-licence.md`.
