@@ -1,0 +1,9 @@
+{
+ "dual-closed-drop": "exact",
+ "dual-open-drop": "exact",
+ "dual-flipped-drop": "exact",
+ "dual-closed-keep": "exact",
+ "dual-open-keep": "exact",
+ "dual-flipped-keep": "exact",
+ "dual-twice": "exact"
+}

@@ -28,6 +28,7 @@ import {meshReorderCases} from './cases/meshReorder'
 import {meshSplitCases} from './cases/meshSplit'
 import {meshScaleCases} from './cases/meshScale'
 import {meshTriangulateCases} from './cases/meshTriangulate'
+import {meshDualCases} from './cases/meshDual'
 import {materialOpCases} from './cases/materialOps'
 import {functionMathCases} from './cases/functionMath'
 import {functionRandomCases} from './cases/functionRandom'
@@ -88,6 +89,7 @@ SETS.meshReorder = meshReorderCases
 SETS.meshSplit = meshSplitCases
 SETS.meshScale = meshScaleCases
 SETS.meshTriangulate = meshTriangulateCases
+SETS.meshDual = meshDualCases
 
 for (const [set, generate] of Object.entries(SETS)) {
     describe(`parity cases: ${set}`, () => {

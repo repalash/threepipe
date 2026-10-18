@@ -439,6 +439,16 @@ export type DomainSizeNode = NodeHandle & {
     readonly layerCount: Socket<"INT">
 }
 
+/** `GeometryNodeDualMesh` (Dual Mesh). */
+export interface DualMeshArgs {
+    mesh?: In<"GEOMETRY">
+    keepBoundaries?: In<"BOOLEAN">
+    mute?: boolean
+}
+export type DualMeshNode = NodeHandle & {
+    readonly dualMesh: Socket<"GEOMETRY">
+}
+
 /** `GeometryNodeDuplicateElements` (Duplicate Elements). */
 export interface DuplicateElementsArgs {
     domain?: "POINT" | "EDGE" | "FACE" | "SPLINE" | "LAYER" | "INSTANCE"
@@ -2087,6 +2097,7 @@ export interface NodeConstructors {
     DeleteGeometry(args?: DeleteGeometryArgs): DeleteGeometryNode
     DistributePointsOnFaces(args?: DistributePointsOnFacesArgs): DistributePointsOnFacesNode
     DomainSize(args?: DomainSizeArgs): DomainSizeNode
+    DualMesh(args?: DualMeshArgs): DualMeshNode
     DuplicateElements(args?: DuplicateElementsArgs): DuplicateElementsNode
     EdgeAngle(args?: EdgeAngleArgs): EdgeAngleNode
     EdgeNeighbors(args?: EdgeNeighborsArgs): EdgeNeighborsNode
