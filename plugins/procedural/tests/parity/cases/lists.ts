@@ -91,5 +91,33 @@ export function listCases(): ParityCase[] {
         }
         return g
     }, SHAPE_SCENE)
+    // Collection Children: objects (cubes / planes moved apart) instanced in the list's order.
+    const obj = (name: string, x: number) => ({name, mesh: 'cube' as const, location: [x, 0, 0] as [number, number, number]})
+    const scene = [
+        {collection: 'Root', objects: [obj('zeta', 0), obj('Alpha', 2)]},
+        {collection: 'b10', parent: 'Root', objects: [obj('ten', 4)]},
+        {collection: 'b2', parent: 'Root', objects: [obj('two', 6)]},
+        {collection: 'c', parent: 'b2', objects: [obj('obj9', 8), obj('obj10', 10)]},
+    ]
+    for (const recursive of [false, true]) {
+        add(`collection-children-${recursive ? 'recursive' : 'direct'}`, `Collection Children (${recursive ? 'recursive' : 'direct'}): natural-sorted collections and objects`, () => {
+            const ch = n.CollectionChildren({collection: {_ref: 'COLLECTION', name: 'Root'}, recursive})
+            let g: Socket<'GEOMETRY'> = n.Points({count: 1}).points
+            g = n.StoreNamedAttribute({geometry: g, dataType: 'INT', name: 'collections', value: n.ListLength({dataType: 'COLLECTION', list: ch.collections}).length}).geometry
+            g = n.StoreNamedAttribute({geometry: g, dataType: 'INT', name: 'objects', value: n.ListLength({dataType: 'OBJECT', list: ch.objects}).length}).geometry
+            const parts: Socket<'GEOMETRY'>[] = [g]
+            for (let i = 0; i < (recursive ? 5 : 2); i++) {
+                const o = n.GetListItem({socketType: 'OBJECT', list: ch.objects, index: i}).value as Socket<'OBJECT'>
+                const info = n.ObjectInfo({object: o, transformSpace: 'RELATIVE'}).geometry
+                parts.push(n.StoreNamedAttribute({geometry: info, dataType: 'INT', name: 'order', value: i}).geometry)
+            }
+            for (let i = 0; i < (recursive ? 3 : 2); i++) {
+                const c = n.GetListItem({socketType: 'COLLECTION', list: ch.collections, index: i}).value as Socket<'COLLECTION'>
+                const info = n.CollectionInfo({collection: c, transformSpace: 'RELATIVE'}).instances
+                parts.push(n.StoreNamedAttribute({geometry: n.RealizeInstances({geometry: info}).geometry, dataType: 'INT', name: 'corder', value: i}).geometry)
+            }
+            return n.JoinGeometry({geometry: parts}).geometry
+        }, {scene})
+    }
     return cases
 }

@@ -11,6 +11,7 @@ import {DATA_TYPES, DataType} from '../../geometry/dataTypes'
 import {GeometrySet} from '../../geometry/GeometrySet'
 import {sortIndicesByWeights} from '../../geometry/reorder'
 import {GVArray} from '../../geometry/varray'
+import {strcasecmpNatural} from '../../blender/string'
 import {evaluateFieldToList, executeMultiFunctionOnLists, GList, sampleIndexFunction} from '../../runtime/list'
 import {registerNodeType} from '../../runtime/registry'
 import type {SocketType} from '../../runtime/types'
@@ -280,3 +281,52 @@ registerNodeType({
     },
 })
 
+
+registerNodeType({
+    idname: 'GeometryNodeCollectionChildren',
+    label: 'Collection Children',
+    declare(b) {
+        b.input('COLLECTION', 'Collection')
+        b.input('BOOLEAN', 'Recursive').default(false)
+        b.output('COLLECTION', 'Collections').list()
+        b.output('OBJECT', 'Objects').list()
+    },
+    // `node_geo_exec` (:49): child collections (depth first, each once when recursive), sorted by
+    // `BLI_strcasecmp_natural` of the names; objects of the collection (and the children when recursive), each once.
+    execute(p) {
+        const ref = p.idRef('Collection')
+        const scene = p.options.scene
+        const col = ref ? scene?.collection?.(ref.name) : undefined
+        if (!ref || !col) return
+        const children: string[] = []
+        if (p.bool('Recursive')) {
+            const visited = new Set<string>()
+            const walk = (name: string) => {
+                for (const c of scene?.collection?.(name)?.children ?? []) {
+                    if (visited.has(c)) continue
+                    visited.add(c)
+                    children.push(c)
+                    walk(c)
+                }
+            }
+            walk(ref.name)
+        } else {
+            children.push(...col.children)
+        }
+        const natural = (a: string, b: string) => strcasecmpNatural(a, b)
+        // `std::ranges::sort` with `< 0`: names are unique, so the order is the comparison's.
+        const sortedChildren = [...children].sort(natural)
+        p.set('Collections', GList.fromItems('COLLECTION', sortedChildren.map(name => ({_ref: 'COLLECTION', name}))))
+        if (!p.outputUsed('Objects')) return
+        const objects: string[] = []
+        const seen = new Set<string>()
+        for (const c of p.bool('Recursive') ? [ref.name, ...sortedChildren] : [ref.name]) {
+            for (const o of scene?.collection?.(c)?.objects ?? []) {
+                if (seen.has(o)) continue
+                seen.add(o)
+                objects.push(o)
+            }
+        }
+        p.set('Objects', GList.fromItems('OBJECT', objects.sort(natural).map(name => ({_ref: 'OBJECT', name}))))
+    },
+})
