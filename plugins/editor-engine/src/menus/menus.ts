@@ -708,11 +708,11 @@ export function registerMenus(engine: EditorEnginePlugin): void {
             // first / last element of the select history is a vertex.
             id: 'VIEW3D_MT_edit_mesh_merge', label: 'Merge', source: 'space_view3d.py:5188', operator: 'mesh.merge',
             items: [
-                op('mesh.merge', 'At Center', {props: {mode: 'center'}, blender: 'mesh.merge CENTER'}),
-                op('mesh.merge', 'At Cursor', {blender: 'mesh.merge CURSOR', unavailable: 'there is no 3D cursor to merge at'}),
-                op('mesh.merge', 'Collapse', {blender: 'mesh.merge COLLAPSE', unavailable: 'merging each connected group at its own centre'}),
-                op('mesh.merge', 'At First', {props: {mode: 'first'}, blender: 'mesh.merge FIRST', visible: c => historyEndIsVert(c, 'first')}),
-                op('mesh.merge', 'At Last', {props: {mode: 'last'}, blender: 'mesh.merge LAST', visible: c => historyEndIsVert(c, 'last')}),
+                op('mesh.merge', 'At Center', {props: {type: 'CENTER'}}),
+                op('mesh.merge', 'At Cursor', {props: {type: 'CURSOR'}}),
+                op('mesh.merge', 'Collapse', {props: {type: 'COLLAPSE'}}),
+                op('mesh.merge', 'At First', {props: {type: 'FIRST'}, visible: c => historyEndIsVert(c, 'first')}),
+                op('mesh.merge', 'At Last', {props: {type: 'LAST'}, visible: c => historyEndIsVert(c, 'last')}),
                 sep,
                 op('mesh.remove_doubles', 'By Distance'),
             ],

@@ -56,7 +56,8 @@ import {
     duplicateSelection,
     splitSelection,
     deleteSelection,
-    mergeSelectedVerts,
+    mergeSelection,
+    MergeType,
     DeleteContext,
     bmToMesh,
     editMeshLoopCut,
@@ -1697,13 +1698,35 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         return true
     }
 
-    /** Merge the selected vertices. Blender's `M`. */
-    merge(mode: 'center' | 'first' | 'last' = 'center'): boolean {
+    /**
+     * The 3D cursor in the edited object's local space, the space of the session's BMesh:
+     * `world_to_object * cursor`, as Blender's Merge at Cursor computes it (`merge_target`,
+     * `editmesh_tools.cc:3447`). Null outside edit mode.
+     */
+    cursorLocal(): [number, number, number] | null {
+        const object = this.editObject
+        if (!object) return null
+        object.updateWorldMatrix(true, false)
+        const inv = new Matrix4().copy(object.matrixWorld as never).invert()
+        const e = inv.elements
+        const [x, y, z] = this.cursor
+        const w = e[3] * x + e[7] * y + e[11] * z + e[15]
+        return [(e[0] * x + e[4] * y + e[8] * z + e[12]) / w, (e[1] * x + e[5] * y + e[9] * z + e[13]) / w, (e[2] * x + e[6] * y + e[10] * z + e[14]) / w]
+    }
+
+    /**
+     * Merge the selected vertices: Blender's `M` (`MESH_OT_merge`, `edbm_merge_exec`), at their centre,
+     * the 3D cursor, the first or last selected vertex, or collapsing each connected group (`type`);
+     * `uvs` moves the UVs with the merge.
+     */
+    merge(type: MergeType = 'CENTER', uvs = false): boolean {
         const state = this.state
         if (!state) return false
         const before = this._snapshot()
-        if (!mergeSelectedVerts(state.bm, mode)) {
-            this._notice('Select two or more vertices to merge.', 'info')
+        const r = mergeSelection(state.bm, type, uvs, type === 'CURSOR' ? this.cursorLocal() : null)
+        if (!r.ok) {
+            this.revert(before)
+            this._notice(r.error, 'info')
             return false
         }
         this._commitTopologyChange(before, 'Merge')

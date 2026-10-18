@@ -11,7 +11,7 @@ import {notModalMessage, onlyInEditMessage} from './messages'
 
 /** A session operator's kernel call: change `bm` in place, say what happened. */
 export type KernelRun = (props: Record<string, unknown>, ctx: EditorContext) =>
-    {ok: true, label?: string, message?: string, props?: Record<string, unknown>} | {ok: false, error: string}
+    {ok: true, label?: string, message?: string, warning?: string, props?: Record<string, unknown>} | {ok: false, error: string}
 
 /** Fill `props` from the schema defaults, so redo-last shows (and re-runs with) every value. */
 export function withDefaults(schema: PropSchema | undefined, props: Record<string, unknown> | undefined): Record<string, unknown> {
@@ -58,7 +58,8 @@ export function sessionOps(engine: EditorEnginePlugin): SessionOps {
             me.commit(before, r.label ?? label)
             if (r.message) engine.message('info', r.message)
             // Props the operator worked out itself (Grid Fill's span) are what the panel shows and redo reuses.
-            return {ok: true, props: {...props, ...r.props}}
+            // A warning (Blender's `RPT_WARNING`) is the engine's to show, so a redo-panel drag can hold it back.
+            return {ok: true, props: {...props, ...r.props}, ...r.warning ? {warnings: [r.warning]} : {}}
         },
         selected: (count, n, what) => () => {
             const bm = me.state?.bm

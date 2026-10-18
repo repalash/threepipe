@@ -22,6 +22,8 @@ import {
     edgeSelectSet,
     ElemFlag,
     faceSelectSet,
+    mergeSelection,
+    MergeType,
     selectHistoryActive,
     walkEdgeLoop,
     walkEdgeRing,
@@ -30,6 +32,7 @@ import {
 import type {EditorEnginePlugin} from '../EditorEnginePlugin'
 import type {EditorContext, OperatorDescriptor, OperatorResult, PropSchema} from '../registry'
 import {visibleSchema} from './modellingOps'
+import {sessionOps} from './session'
 import {onlyInEditMessage, notModalMessage} from './messages'
 
 type Vec3 = [number, number, number]
@@ -53,6 +56,16 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
         const p = poll(ctx)
         return p === true ? notModal() : p
     }
+    // `MESH_OT_merge` props (editmesh_tools.cc:3639): `type`, and `uvs` ("Move UVs according to merge").
+    const mergeProps: PropSchema = {type: 'object', properties: {
+        type: {type: 'string', enum: ['CENTER', 'CURSOR', 'COLLAPSE', 'FIRST', 'LAST'], default: 'CENTER',
+            description: 'Type: merge method to use - At Center, At Cursor, Collapse, At First, At Last.'},
+        uvs: {type: 'boolean', default: false, description: 'UVs: move UVs according to merge.'},
+    }}
+    const mergeSession = sessionOps(engine).runSession('Merge', mergeProps, p => {
+        const type = p.type as MergeType
+        return mergeSelection(me.state!.bm, type, !!p.uvs, type === 'CURSOR' ? me.cursorLocal() : null)
+    })
     const commandSchema = (op: string): PropSchema | undefined => {
         const def = modelling?.describeCommands().find(c => c.name === op)
         if (!def) return undefined
@@ -305,21 +318,19 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
             exec: () => me.split() ? {ok: true} : {ok: false, error: 'Nothing to split. Select some vertices, edges or faces first'},
         },
         {
+            // `MESH_OT_merge` (editmesh_tools.cc:3620): `type` (`merge_type_items`, :3565), `uvs`.
             id: 'mesh.merge', label: 'Merge', icon: 'group-objects', category: 'Mesh', modes: ['edit'],
-            description: 'Collapse the selected vertices into one: at their centre, or at the first or last selected.',
+            description: 'Merge the selected vertices: at their centre, at the 3D cursor, at the first or last selected, or each connected group into one (Collapse).',
             flags: {undo: true, register: true},
-            props: {type: 'object', properties: {
-                mode: {type: 'string', enum: ['center', 'first', 'last'], description: 'Where the merged vertex ends up.', default: 'center'},
-            }},
-            poll: ready(ctx => { const p = hasSelection(ctx); return p === true ? me.state!.bm.totvertsel > 1 || 'Select two or more vertices to merge: Shift+click adds to the selection' : p }),
-            exec: (_ctx, p) => {
+            props: mergeProps,
+            poll: ready(ctx => { const p = hasSelection(ctx); return p === true ? me.state!.bm.totvertsel > 0 || 'Select the vertices to merge first' : p }),
+            exec: (ctx, p) => {
                 // No props: M, `op_menu("VIEW3D_MT_edit_mesh_merge")` (blender_default.py:5618).
                 if (!p) {
                     engine.callMenu('VIEW3D_MT_edit_mesh_merge')
                     return {ok: true}
                 }
-                const mode = (p.mode as 'center' | 'first' | 'last') ?? 'center'
-                return me.merge(mode) ? {ok: true, props: {mode}} : {ok: false, error: 'Select at least two vertices to merge'}
+                return mergeSession(ctx, p)
             },
         },
         // `mesh.dissolve` (Ctrl+X, `mesh.dissolve_mode`) and the dissolve family are registered by fillOps.ts.

@@ -15,6 +15,9 @@
 import {
     beautifyFillSelection,
     deleteLooseSelection,
+    dissolveDegenerateSelection,
+    edgeCollapseSelection,
+    edgeRotateSelection,
     flipNormalsSelection,
     markSeamSelection,
     markSharpSelection,
@@ -99,6 +102,14 @@ export function registerEditmeshToolOperators(engine: EditorEnginePlugin): void 
         useVerts: {type: 'boolean', default: true, description: 'Vertices: remove loose vertices.'},
         useEdges: {type: 'boolean', default: true, description: 'Edges: remove loose edges.'},
         useFaces: {type: 'boolean', default: false, description: 'Faces: remove loose faces.'},
+    }}
+    // `MESH_OT_edge_rotate` (:2507)
+    const edgeRotateProps: PropSchema = {type: 'object', properties: {
+        useCcw: {type: 'boolean', default: false, description: 'Counter Clockwise.'},
+    }}
+    // `MESH_OT_dissolve_degenerate` (:6512)
+    const degenerateProps: PropSchema = {type: 'object', properties: {
+        threshold: {type: 'number', minimum: 1e-6, maximum: 50, default: 1e-4, description: 'Merge Distance: maximum distance between elements to merge.'},
     }}
     // `MESH_OT_select_more` / `_less` (editmesh_select.cc:4971, :5020)
     const faceStepProps: PropSchema = {type: 'object', properties: {
@@ -207,6 +218,38 @@ export function registerEditmeshToolOperators(engine: EditorEnginePlugin): void 
                 // `edbm_report_delete_info` (editmesh_tools.cc:433).
                 const [v, e, f] = r.removed
                 return {ok: true, message: `Removed: ${v} vertices, ${e} edges, ${f} faces`}
+            }),
+        },
+        {
+            id: 'mesh.edge_collapse', label: 'Collapse Edges & Faces', icon: 'collapse-all', category: 'Mesh', modes: ['edit'],
+            description: 'Collapse each connected group of selected edges (or faces) into one vertex, merging UVs and colours.',
+            flags: {undo: true, register: true},
+            poll: edgesSelected('Select the edges or faces to collapse first'),
+            exec: runSession('Collapse Edges & Faces', undefined, () => ok(edgeCollapseSelection(bm()))),
+        },
+        {
+            id: 'mesh.edge_rotate', label: 'Rotate Selected Edge', icon: 'refresh', category: 'Mesh', modes: ['edit'],
+            description: 'Rotate the selected edges (or the edges between two selected faces) to join the other corners of their two faces.',
+            flags: {undo: true, register: true},
+            props: edgeRotateProps,
+            poll: edgesSelected('Select edges or face pairs for edge loops to rotate about'),
+            exec: runSession('Rotate Selected Edge', edgeRotateProps, p => {
+                const r = edgeRotateSelection(bm(), !!p.useCcw)
+                if (!r.ok) return r
+                // `BKE_reportf(.., RPT_WARNING, "Unable to rotate %d edge(s)", tot_failed_all)` (:2496).
+                return {ok: true, warning: r.failed ? `Unable to rotate ${r.failed} edge(s)` : undefined}
+            }),
+        },
+        {
+            id: 'mesh.dissolve_degenerate', label: 'Degenerate Dissolve', icon: 'clean', category: 'Mesh', modes: ['edit'],
+            description: 'Dissolve zero-length edges and zero-area faces among the selection (closer than the merge distance).',
+            flags: {undo: true, register: true},
+            props: degenerateProps,
+            poll: edgesSelected('Select the part to clean up first (A selects everything)'),
+            exec: runSession('Degenerate Dissolve', degenerateProps, p => {
+                const r = dissolveDegenerateSelection(bm(), Number(p.threshold))
+                const [v, e, f] = r.removed
+                return {ok: true, message: r.changed ? `Removed: ${v} vertices, ${e} edges, ${f} faces` : 'No degenerate geometry found'}
             }),
         },
         ...([

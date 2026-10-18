@@ -11,6 +11,7 @@ import {BMesh, bmFromMesh, BM_FROM_MESH_NORMALS, bmToMesh, ElemFlag, MeshData, m
 import {selectLess, selectMore} from '../../mesh-edit/src/select/moreLess'
 import {registerEditmeshToolOperators} from '../src/ops/editmeshToolOps'
 import {registerFillOperators} from '../src/ops/fillOps'
+import {registerMeshOperators} from '../src/ops/meshOps'
 import {registerMenus} from '../src/menus/menus'
 import {resolveMenu} from '../src/menus/resolveMenu'
 import {Keymap} from '../src/keymap/Keymap'
@@ -38,6 +39,10 @@ function makeSession(mesh: MeshData) {
             history.push(label)
             meshNormalsUpdate(bm)
         },
+        cursor: [0, 0, 0] as [number, number, number],
+        cursorLocal: () => meshEdit.cursor,
+        // meshOps listens for the transform/extrude chain events; nothing here fires them.
+        addEventListener: () => undefined,
         selectMore: (faceStep: boolean) => selectMore(bm, faceStep),
         selectLess: (faceStep: boolean) => selectLess(bm, faceStep),
     }
@@ -47,12 +52,15 @@ function makeSession(mesh: MeshData) {
         meshEdit, operators, menus, propDrag: null,
         keymap: {shortcutFor: (id: string, mode?: 'object' | 'edit', props?: Record<string, unknown>) => keymap.shortcutFor(id, mode, props)},
         message: (_l: string, text: string) => messages.push(text),
+        callMenu: (id: string) => messages.push(`menu ${id}`),
+        addEventListener: () => undefined,
         poll: (op: OperatorDescriptor, ctx: EditorContext) => {
             const p = op.poll ? op.poll(ctx) : true
             return p === true ? {enabled: true} : {enabled: false, reason: typeof p === 'string' ? p : undefined}
         },
         file: {recent: []},
     }
+    registerMeshOperators(engine as never)
     registerFillOperators(engine as never)
     registerEditmeshToolOperators(engine as never)
     registerMenus(engine as never)
@@ -220,14 +228,69 @@ describe('edit-mode tool operators', () => {
         expect(s.history).toEqual([])
     })
 
+    it('Merge: M opens the Merge menu; At Center / At Cursor / Collapse (Blender\'s merge_type_items)', () => {
+        const s = makeSession(primitiveGrid({xSegments: 3, ySegments: 2, size: 2}))
+        selectFaces(s.bm, i => i === 1)
+        expect(s.run('mesh.merge').ok).toBe(true)
+        expect(s.messages).toContain('menu VIEW3D_MT_edit_mesh_merge')
+        s.bm.selectMode = SelectMode.Vertex
+        expect(s.run('mesh.merge', {type: 'CENTER'})).toMatchObject({ok: true, props: {type: 'CENTER', uvs: false}})
+        expect(counts(s.bm)).toEqual([9, 13, 5])
+        expect(s.bm.totvertsel).toBe(1)
+        // At Cursor: the merged vertex lands on the cursor (in the object's space).
+        const t = makeSession(primitiveGrid({xSegments: 3, ySegments: 2, size: 2}))
+        selectFaces(t.bm, i => i === 1)
+        t.bm.selectMode = SelectMode.Vertex
+        ;(t.engine.meshEdit as {cursor: number[]}).cursor = [0.25, 0.5, 2]
+        expect(t.run('mesh.merge', {type: 'CURSOR'}).ok).toBe(true)
+        const v = [...t.bm.verts].find(x => x.hflag & ElemFlag.Select)!
+        expect([v.x, v.y, v.z]).toEqual([0.25, 0.5, 2])
+        // Collapse: each connected group of selected edges, here one face, to one vertex; edge mode deselects.
+        const u = makeSession(primitiveGrid({xSegments: 3, ySegments: 2, size: 2}))
+        selectFaces(u.bm, i => i === 1)
+        u.bm.selectMode = SelectMode.Edge
+        expect(u.run('mesh.merge', {type: 'COLLAPSE'}).ok).toBe(true)
+        expect(counts(u.bm)).toEqual([9, 13, 5])
+        expect(sel(u.bm)).toEqual([0, 0, 0])
+    })
+
+    it('Collapse Edges & Faces, Rotate Edge (CW / CCW) and Degenerate Dissolve', () => {
+        const s = makeSession(primitiveGrid({xSegments: 3, ySegments: 2, size: 2}))
+        selectFaces(s.bm, i => i === 4)
+        expect(s.run('mesh.edge_collapse').ok).toBe(true)
+        expect(counts(s.bm)).toEqual([9, 13, 5])
+        expect(s.history).toEqual(['Collapse Edges & Faces'])
+
+        const r = makeSession(primitiveGrid({xSegments: 2, ySegments: 1, size: 2}))
+        selectFaces(r.bm, () => false)
+        r.bm.selectMode = SelectMode.Edge
+        // the edge between the two quads
+        const mid = [...r.bm.edges].find(e => e.l && e.l.radialNext !== e.l)!
+        mid.hflag |= ElemFlag.Select; mid.v1.hflag |= ElemFlag.Select; mid.v2.hflag |= ElemFlag.Select
+        selectCountsRecalc(r.bm)
+        const selectedEdge = () => [...r.bm.edges].find(e => e.hflag & ElemFlag.Select)!
+        expect(r.run('mesh.edge_rotate').ok).toBe(true)
+        const cw = selectedEdge()
+        expect(r.run('mesh.edge_rotate', {useCcw: true}).ok).toBe(true)
+        expect(counts(r.bm)).toEqual([6, 7, 2])
+        expect(selectedEdge()).not.toBe(cw)
+
+        const d = makeSession(primitiveGrid({xSegments: 3, ySegments: 2, size: 2}))
+        selectFaces(d.bm, () => true)
+        expect(d.run('mesh.dissolve_degenerate').ok).toBe(true)
+        expect(d.messages).toContain('No degenerate geometry found')
+    })
+
     it('their menu entries are no longer "Not available yet"', () => {
         const s = makeSession(primitiveCube())
         selectFaces(s.bm, () => true)
         const flat = (m: ResolvedMenu): ResolvedMenuItem[] => m.items.flatMap(x => x.type === 'menu' && x.menu ? [x, ...flat(x.menu)] : [x])
-        const entries = ['VIEW3D_MT_edit_mesh_faces', 'VIEW3D_MT_edit_mesh_edges', 'VIEW3D_MT_edit_mesh_normals', 'VIEW3D_MT_edit_mesh_clean']
+        const entries = ['VIEW3D_MT_edit_mesh_faces', 'VIEW3D_MT_edit_mesh_edges', 'VIEW3D_MT_edit_mesh_normals', 'VIEW3D_MT_edit_mesh_clean',
+            'VIEW3D_MT_edit_mesh_merge', 'VIEW3D_MT_edit_mesh_delete']
             .flatMap(id => flat(resolveMenu(s.engine as never, id, s.ctx())!))
         for (const id of ['mesh.poke', 'mesh.quads_convert_to_tris', 'mesh.beautify_fill', 'mesh.wireframe', 'mesh.fill',
-            'mesh.mark_seam', 'mesh.mark_sharp', 'mesh.flip_normals', 'mesh.normals_make_consistent', 'mesh.delete_loose']) {
+            'mesh.mark_seam', 'mesh.mark_sharp', 'mesh.flip_normals', 'mesh.normals_make_consistent', 'mesh.delete_loose',
+            'mesh.merge', 'mesh.edge_collapse', 'mesh.edge_rotate', 'mesh.dissolve_degenerate']) {
             const items = entries.filter(x => x.type === 'operator' && x.id === id)
             expect(items.length, id).toBeGreaterThan(0)
             for (const x of items) expect(x.type === 'operator' && x.available, `${id} ${'label' in x ? x.label : ''}`).toBe(true)
