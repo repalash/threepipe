@@ -373,13 +373,13 @@ unit test (manifold, counts, groups, determinism) and a `look` sheet in the docs
 | 1 | `product/knurled-ring` (ribs as separate rib bodies or cut grooves; count, depth, profile) | camera `knurl` ×5; ref ribs are 167 separate bodies | code |
 | 2 | `product/rubber-grip-band` (focus/zoom ring with real rib section) | lens rings | code |
 | 3 | `product/button-round` (chamfer, dome, collar, icon slot) | camera `button` ×9 (14 buttons) | code |
-| 4 | `product/button-rect` (rounded rect, chamfer, legend slot) | rear column | code |
+| 4 | `product/button-rect` (rounded rect, chamfer, legend slot) | rear column; seed: `polyStack` (webgi worlds) | code |
 | 5 | `product/dial` (detents, knurled side, top marking ring, lock button) | mode dial, quick dial | code |
 | 6 | `product/thumb-wheel` (axle, ribbed rim) | main dial | code |
 | 7 | `product/screw` (pan / countersunk / socket; slot / cross / hex / torx) | tripod and body screws | code |
 | 8 | `product/port-door` (flap with gap groove, hinge side, icon slot) | ref port covers | code |
 | 9 | `product/grille` (hole/slot pattern on a plate or curved face) | mic/speaker | **GN** (distribute + instance + boolean) |
-| 10 | `product/display` (recess, bezel, glass layer, screen material slot) | `cutRect` (8 `bisect`s) + inset | code |
+| 10 | `product/display` (recess, bezel, glass layer, screen material slot) | `cutRect` (8 `bisect`s) + inset; bezel seed: `polyStack` | code |
 | 11 | `product/lens-element-stack` (front element cap, retaining ring, filter thread, baffles, rear element) | lens lathe profiles | code |
 | 12 | `product/bayonet-mount` (lugs, index dot, contacts) | mount + lugs | code |
 | 13 | `product/hot-shoe` (ISO 518 channel, contacts) | shoe | code |
@@ -387,23 +387,46 @@ unit test (manifold, counts, groups, determinism) and a `look` sheet in the docs
 | 15 | `product/strap-lug` | lugs | code |
 | 16 | `product/slide-switch` (track, knob, legend) | lens switches | code |
 | 17 | `product/gap-strip` and `groove` (along an edge loop or a curve on a surface) | ref `GapsColor` strips | code (+ boolean) |
-| 18 | `arch/moulding-profiles` (ogee, cyma recta/reversa, torus, astragal, cavetto, scotia, ovolo) | stair/arcade lathe profiles | code (profiles) |
-| 19 | `arch/cornice` (profile swept along a footprint with mitred corners) | Haussmann storey bands, 17 extrudes | code |
-| 20 | `arch/window` (frame, sill, glazing bars, shutters/guard options) | Haussmann window bays | code |
-| 21 | `arch/door` (panelled leaf, frame, transom) | shop fronts | code |
-| 22 | `arch/baluster` (from profile library) and `arch/railing` (balusters or cast-iron bars along a path, handrail) | `straightRailing`, `spread`, stair balusters | baluster code; railing **GN** |
+| 18 | `arch/moulding-profiles` (ogee, cyma recta/reversa, torus, astragal, cavetto, scotia, ovolo) | stair/arcade lathe profiles; data: cathedral Attic base (torus-scotia-torus) and bell capital | code (profiles) |
+| 19 | `arch/cornice` (profile swept along a footprint with mitred corners) | Haussmann storey bands, 17 extrudes; algorithm: Golden Temple mitred plan sweep | code |
+| 20 | `arch/window` (frame, sill, glazing bars, shutters/guard options) | Haussmann window bays; openings (flat / horseshoe / lobed / pointed) from riad, joinery from cyclades | code |
+| 21 | `arch/door` (panelled leaf, frame, transom) | shop fronts; cyclades door leaves and fanlights | code |
+| 22 | `arch/baluster` (from profile library) and `arch/railing` (balusters or cast-iron bars along a path, handrail) | `straightRailing`, `spread`, stair balusters; post spacing from Golden Temple `stairBalustrade` / `railing` | baluster code; railing **GN** |
 | 23 | `arch/balcony` (slab, console brackets, railing) | Haussmann `balcony` | code + railing |
 | 24 | `arch/dormer` (cheeks, pediment, window) and `arch/chimney` (stack, coping, pots) | dormer ×24 commands, `stack` | code |
-| 25 | `arch/facade-bays` (windows/balconies/cornices distributed on a wall by storey and bay) | 83 duplicates + transforms | **GN** (Track 2's Buildify family) |
+| 25 | `arch/facade-bays` (windows/balconies/cornices distributed on a wall by storey and bay) | 83 duplicates + transforms; parameter model: `FacadeSpec` (`kit/architecture.ts:116`) | **GN** (Track 2's Buildify family) |
 
 GN-shaped families (9, 22-railing, 25) are specified here and built by Track 2 on its runtime; this track
 supplies the parts they instance. Coordination goes through the parent.
+
+### 4.4 What comes from the webgi SSGI worlds (`research-webgi-worlds-reuse.md`, decisions 1-2)
+
+The worlds (`.repos/webgi-worlds`, threepipe-webgi PR #12) are triangle soup merged per material, so parts take
+their **parameterisations and profile data**, not their output, and are rebuilt on the kernel (lathe, sweep,
+extrude, inset, bevel, booleans) as editable n-gon `MeshData` with material slots and named groups. Code
+reused directly: the Golden Temple `Mesher` primitives (`W/goldentemple/world/hall-lib.js`: `cbox`, `beam`,
+`lathe`, `extrude` with holes, `sweep`, `bar`, `warp` with its inverse-transpose normal fix), which already track
+quads; they are adapted to emit kernel faces and keep the Golden Temple MIT notice (Leon Lin). Architecture
+parts start from the cathedral moulding profiles and `pointedArch` / `lancetOutline` (`W/cathedral/geom.ts`), the
+mitred plan sweep (`W/goldentemple/world/buildings-kit.js:293`), the riad opening model (`W/riad/geo.ts:98`) and
+the cyclades joinery (`W/cyclades/village.ts:90`); `FacadeSpec` is the parameter model for Track 2's facade
+bays. Product parts have nothing to port beyond `polyStack` / `superLathe` / `chamferBox` seeds: knurling,
+dials, screws, mounts, hot shoes, eyecups and lens stacks are written here. The Sun Temple assets (CC BY-NC-SA)
+are not used.
 
 ---
 
 ## 5. R4 — materials and markings
 
-- **Preset library** (`@threepipe/modelling-parts/materials`, values only): from §1.4 — `plastic-satin-black`
+- **One preset system** (decision 3 of `research-webgi-worlds-reuse.md`): built on `W/cyclades/proc.ts`
+  (`procExtension`, a threepipe `MaterialExtension` with a hashed cache key), with `W/riad/shader.ts`'s height hook
+  (finite-difference bump) and `W/kit/surface.ts`'s local frame, per-instance seed and triplanar sampling merged in;
+  parameters as uniforms instead of values baked into GLSL, a serialisable JSON description per preset (GLSL
+  strings do not survive glTF), and an optional bake to textures for export. Procedural presets to lift: lime
+  wash, paint with wear, marble, rubble masonry, timber, bronze, terracotta, glass mosaic, plaster / tadelakt,
+  zellige, stucco, cedar, brass, roof tile, fabric. `W/riad/mosaic.ts` + `patterns.ts` (pure, Node-safe, RGBA
+  albedo / normal / roughness) is the procedural texture generator. Derived code keeps the Golden Temple MIT notice.
+- **Preset values for products** (`@threepipe/modelling-parts/materials`): from §1.4 — `plastic-satin-black`
   (0.007, r 0.23, grain normal 0.15 ×5), `plastic-gloss-black` (r 0.22), `rubber` (r 0.30), `rubber-matte`
   (r 0.56), `leather-black` (0.016, r 0.53, leather normal 0.40 ×6), `matte-black` (r 0.74), `metal-dark`
   (0.068, r 0.23, m 0.93), `chrome` (0.507, r 0.23, m 1), `gold-contact`, `glass` (transmission 1, ior 1.5),
@@ -422,8 +445,12 @@ supplies the parts they instance. Coordination goes through the parent.
   lens ring. The atlas is rasterised from SVG (text as SVG `<text>` with a bundled font): in Node by sharp
   (librsvg), in the browser by canvas, from the same SVG. **Engraved/embossed text** (the lens front's 3D
   letters) is geometry: font outlines → `MeshData` faces → extrude or boolean.
-- **Render presets**: `product-studio` (studio HDRI, ground with baked shadow, optional webgi SSR/SSAO when
-  the plugins are present), `architectural-daylight` (sun + sky). A `lighting {preset}` parameter.
+- **Render presets** (decision 4): `product-studio` from `W/kit/stage.ts` `studioBackdrop` (radial product sweep)
+  with `W/kit/grade.ts` (`ColorGradePlugin`, pure threepipe); `architectural-daylight` from `litSky` + `alignSky` +
+  `hdriSun` + `kelvinToColor` (`ssgi-demo/lighting.ts`) + height fog + `roomProbes` (`W/kit/probe.ts`). Two fixes
+  when lifting: `kit/heightFog.ts` overwrites the global `ShaderChunk` (must become a material extension), and
+  `stage.ts` pulls the showcase's network helpers. Depth of field stays an optional webgi plugin. A
+  `lighting {preset}` parameter selects them; the benchmark keeps its own fixed plain viewer.
 
 ---
 
