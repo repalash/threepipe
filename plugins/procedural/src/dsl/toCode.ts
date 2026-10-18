@@ -90,7 +90,24 @@ function treeCode(t: NodeTreeJSON, library: NodeGroupLibrary, groupVars: Map<str
             identifier: `Item_${typeof item.identifier === 'number' ? item.identifier : i}`, name: String(item.name ?? ''), type: String(item.socket_type),
         }))
     }
-    const pairedInput = (output: NodeJSON) => t.nodes.find(x => x.type === 'GeometryNodeRepeatInput' && x.pairedOutput === output.name)
+    const pairedInput = (output: NodeJSON) => t.nodes.find(x => (x.type === 'GeometryNodeRepeatInput' || x.type === 'GeometryNodeForeachGeometryElementInput') &&
+        x.pairedOutput === output.name)
+    // For Each zones print as `g.forEachElement({...})` and `zone.output({main, generated})`.
+    const feItems = (output: NodeJSON | undefined, coll: 'input_items' | 'main_items' | 'generation_items', prefix: string) =>
+        (output?.items?.[coll] ?? []).map((item, i) => ({
+            identifier: `${prefix}_${typeof item.identifier === 'number' ? item.identifier : i}`, name: String(item.name ?? ''),
+            type: String(item.socket_type), domain: item.domain === undefined ? undefined : String(item.domain),
+        }))
+    /** Generation items grouped as the DSL writes them: `[group index, field name | undefined]` per item. */
+    const feGeneration = (output: NodeJSON) => {
+        const out = new Map<string, {group: number, field?: string}>()
+        let group = -1
+        for (const item of feItems(output, 'generation_items', 'Generation')) {
+            if (item.type === 'GEOMETRY') out.set(item.identifier, {group: ++group})
+            else if (group >= 0) out.set(item.identifier, {group, field: item.name})
+        }
+        return out
+    }
     const prop = (name: string) => (/^[A-Za-z_$][\w$]*$/.test(name) ? `.${name}` : `[${lit(name)}]`)
     const key = (name: string) => (/^[A-Za-z_$][\w$]*$/.test(name) ? name : lit(name))
     const expr = (from: [string, string]): string => {
@@ -102,6 +119,20 @@ function treeCode(t: NodeTreeJSON, library: NodeGroupLibrary, groupVars: Map<str
         }
         if (src.type === 'GeometryNodeRepeatOutput') {
             return `${nodeVar.get(src.name)}${prop(zoneItems(pairedInput(src)!).find(i => i.identifier === from[1])!.name)}`
+        }
+        if (src.type === 'GeometryNodeForeachGeometryElementInput') {
+            if (from[1] === 'Index') return `${nodeVar.get(src.name)}.index`
+            if (from[1] === 'Element') return `${nodeVar.get(src.name)}.element`
+            const item = feItems(byName.get(src.pairedOutput ?? ''), 'input_items', 'Input').find(i => i.identifier === from[1])!
+            return `${nodeVar.get(src.name)}.input${prop(item.name)}`
+        }
+        if (src.type === 'GeometryNodeForeachGeometryElementOutput') {
+            const v = nodeVar.get(src.name)
+            if (from[1] === 'Geometry') return `${v}.geometry`
+            const main = feItems(src, 'main_items', 'Main').find(i => i.identifier === from[1])
+            if (main) return `${v}.main${prop(main.name)}`
+            const g = feGeneration(src).get(from[1])!
+            return g.field === undefined ? `${v}.generated[${g.group}].geometry` : `${v}.generated[${g.group}].fields${prop(g.field)}`
         }
         if (src.type === 'NodeReroute') {
             const l = incoming.get(src.name)?.[0]
@@ -120,7 +151,7 @@ function treeCode(t: NodeTreeJSON, library: NodeGroupLibrary, groupVars: Map<str
         stack.add(n.name)
         for (const l of incoming.get(n.name) ?? []) visit(byName.get(l.from[0])!, stack)
         // A zone's output comes after its input.
-        if (n.type === 'GeometryNodeRepeatOutput') {
+        if (n.type === 'GeometryNodeRepeatOutput' || n.type === 'GeometryNodeForeachGeometryElementOutput') {
             const input = pairedInput(n)
             if (input) visit(input, stack)
         }
@@ -155,6 +186,58 @@ function treeCode(t: NodeTreeJSON, library: NodeGroupLibrary, groupVars: Map<str
                 return l ? [`${key(item.name)}: ${expr(l.from)}`] : []
             })
             lines.push(`    const ${v} = ${nodeVar.get(input.name)}.output({${items.join(', ')}})`)
+            continue
+        }
+        if (node.type === 'GeometryNodeForeachGeometryElementInput') {
+            const output = byName.get(node.pairedOutput ?? '')
+            const parts: string[] = []
+            const geo = links.find(x => x.to[1] === 'Geometry')
+            parts.push(`geometry: ${geo ? expr(geo.from) : 'undefined'}`)
+            const domain = output?.properties?.domain
+            if (domain !== undefined && domain !== 'POINT') parts.push(`domain: ${lit(domain as JSONValue)}`)
+            const sel = links.find(x => x.to[1] === 'Selection')
+            if (sel) parts.push(`selection: ${expr(sel.from)}`)
+            else if (node.inputs?.Selection !== undefined && node.inputs.Selection !== true) parts.push(`selection: ${lit(node.inputs.Selection)}`)
+            const items = feItems(output, 'input_items', 'Input').map(item => {
+                const l = links.find(x => x.to[1] === item.identifier)
+                if (l) return `${key(item.name)}: ${expr(l.from)}`
+                const value = node.inputs?.[item.identifier]
+                return `${key(item.name)}: {type: ${lit(item.type)}${value !== undefined ? `, value: ${lit(value)}` : ''}}`
+            })
+            if (items.length) parts.push(`inputs: {${items.join(', ')}}`)
+            lines.push(`    const ${v} = g.forEachElement({${parts.join(', ')}})`)
+            continue
+        }
+        if (node.type === 'GeometryNodeForeachGeometryElementOutput') {
+            const input = pairedInput(node)!
+            const main = feItems(node, 'main_items', 'Main').flatMap(item => {
+                const l = links.find(x => x.to[1] === item.identifier)
+                return l ? [`${key(item.name)}: ${expr(l.from)}`] : []
+            })
+            const groups: string[][] = []
+            const gen = feGeneration(node)
+            for (const item of feItems(node, 'generation_items', 'Generation')) {
+                const g = gen.get(item.identifier)
+                if (!g) continue
+                const l = links.find(x => x.to[1] === item.identifier)
+                if (g.field === undefined) {
+                    groups[g.group] = [`name: ${lit(item.name)}`]
+                    if (l) groups[g.group].push(`geometry: ${expr(l.from)}`)
+                } else if (l) {
+                    const value = item.domain && item.domain !== 'POINT' ? `{value: ${expr(l.from)}, domain: ${lit(item.domain)}}` : expr(l.from)
+                    groups[g.group].push(`fields: {${key(item.name)}: ${value}}`)
+                }
+            }
+            // Several fields of one group merge into one `fields` object.
+            const genCode = groups.map(parts => {
+                const fields = parts.filter(p => p.startsWith('fields: {')).map(p => p.slice(9, -1))
+                const rest = parts.filter(p => !p.startsWith('fields: {'))
+                return `{${[...rest, ...(fields.length ? [`fields: {${fields.join(', ')}}`] : [])].join(', ')}}`
+            })
+            const args: string[] = []
+            if (main.length) args.push(`main: {${main.join(', ')}}`)
+            args.push(`generated: [${genCode.join(', ')}]`)
+            lines.push(`    const ${v} = ${nodeVar.get(input.name)}.output({${args.join(', ')}})`)
             continue
         }
         if (node.type === 'GeometryNodeGroup') {

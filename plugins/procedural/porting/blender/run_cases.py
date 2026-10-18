@@ -135,11 +135,11 @@ def keep_switch_items(node, coll_name, entries):
     for i, entry in enumerate(entries):
         if i < len(coll):
             item = coll[i]
-            if coll_name in ("enum_items", "repeat_items") and entry.get("name") is not None:
+            if coll_name in ("enum_items", "repeat_items", "generation_items") and entry.get("name") is not None:
                 item.name = entry["name"]
         elif coll_name == "index_switch_items":
             item = coll.new()
-        elif coll_name == "repeat_items":
+        elif coll_name in ("repeat_items", "generation_items"):
             item = coll.new(entry["socket_type"], entry.get("name") or "")
         else:
             item = coll.new(entry.get("name") or "")
@@ -154,7 +154,8 @@ def keep_switch_items(node, coll_name, entries):
 
 def add_items(node, items):
     for coll_name, entries in items.items():
-        if coll_name in ("index_switch_items", "enum_items", "repeat_items"):
+        if coll_name in ("index_switch_items", "enum_items", "repeat_items", "generation_items"):
+            # The For Each output starts with one Geometry generation item (`node_init`), like the Repeat Output.
             keep_switch_items(node, coll_name, entries)
             continue
         coll = getattr(node, coll_name)
@@ -274,9 +275,19 @@ def build_group(name, spec, groups, ident_maps):
             set_curve_mapping(node, nspec["curveMapping"])
         nodes[nspec["name"]] = node
 
-    def remap(node, ident):
+    def remap(node, ident, sockets):
         if node.bl_idname in ("NodeGroupInput", "NodeGroupOutput"):
             return ident_map.get(ident, ident)
+        if node.bl_idname in ("GeometryNodeForeachGeometryElementInput", "GeometryNodeForeachGeometryElementOutput"):
+            # For Each items: cases number them 0..n-1 per collection (`Input_<i>`, `Main_<i>`, `Generation_<i>`);
+            # Blender's identifiers come from per-collection counters that `clear()` does not reset (and the items do
+            # not expose them), so the i-th socket with the prefix is the i-th item's.
+            prefix, _, index = ident.partition("_")
+            if prefix in ("Input", "Main", "Generation") and index.isdigit():
+                matching = [sk for sk in sockets if sk.identifier.startswith(prefix + "_")]
+                if int(index) < len(matching):
+                    return matching[int(index)].identifier
+            return ident
         if node.bl_idname == "GeometryNodeGroup" and node.node_tree is not None:
             return ident_maps[node.node_tree.name].get(ident, ident)
         return ident
@@ -287,15 +298,15 @@ def build_group(name, spec, groups, ident_maps):
     for nspec in spec["nodes"]:
         node = nodes[nspec["name"]]
         for ident, value in nspec.get("inputs", {}).items():
-            sock = find_socket(node.inputs, remap(node, ident), f"{nspec['name']} inputs")
+            sock = find_socket(node.inputs, remap(node, ident, node.inputs), f"{nspec['name']} inputs")
             sock.default_value = resolve(value)
         node.mute = bool(nspec.get("mute", False))
 
     # Reverse order: the last link created gets the highest multi-input sort id and is evaluated first.
     for link in reversed(spec["links"]):
         a, b = nodes[link["from"][0]], nodes[link["to"][0]]
-        out_sock = find_socket(a.outputs, remap(a, link["from"][1]), f"{a.name} outputs")
-        in_sock = find_socket(b.inputs, remap(b, link["to"][1]), f"{b.name} inputs")
+        out_sock = find_socket(a.outputs, remap(a, link["from"][1], a.outputs), f"{a.name} outputs")
+        in_sock = find_socket(b.inputs, remap(b, link["to"][1], b.inputs), f"{b.name} inputs")
         made = tree.links.new(out_sock, in_sock)
         if link.get("muted"):
             made.is_muted = True

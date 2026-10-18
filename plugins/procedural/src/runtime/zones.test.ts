@@ -3,6 +3,7 @@ import {geometryNodes, n, NodeGroup} from '../dsl/builder'
 import {toCode} from '../dsl/toCode'
 import {GeometryNodesEvaluator} from './evaluator'
 import {zoneCases} from '../../tests/parity/cases/zones'
+import {zonesForeachCases} from '../../tests/parity/cases/zonesForeach'
 import '../nodes'
 
 const positions = (group: NodeGroup | {library: any, group: string}) => {
@@ -43,6 +44,44 @@ describe('repeat zones', () => {
             const code = toCode(c.library, c.group)
             expect(code).toContain('g.repeatZone(')
             // The root group is printed last.
+            const v = [...code.matchAll(/const (\w+) = geometryNodes\(/g)].pop()![1]
+            const rebuilt = new Function('geometryNodes', 'n', `${code}\nreturn ${v}`)(geometryNodes, n) as NodeGroup
+            expect(positions(rebuilt), c.id).toEqual(positions(c))
+        }
+    })
+})
+
+describe('For Each Geometry Element zones', () => {
+    const counts = (group: NodeGroup) => {
+        const ev = new GeometryNodesEvaluator(group.json, group.name)
+        return ev
+    }
+
+    it('runs the body per selected element, and again only when a value it reads changes', () => {
+        const group = geometryNodes('ForEach', g => {
+            const height = g.input.float('Height', {default: 1})
+            const lift = g.input.float('Lift', {default: 0})
+            const zone = g.forEachElement({geometry: n.MeshGrid({verticesX: 3, verticesY: 2}).mesh, domain: 'FACE', inputs: {c: n.Position().position}})
+            const line = n.MeshLine({count: 2, startLocation: zone.input.c, offset: n.CombineXYZ({z: height.mul(zone.index.add(1))}).vector}).mesh
+            const out = zone.output({generated: [{geometry: line}]})
+            g.output.geometry('Geometry', n.SetPosition({geometry: out.generated[0].geometry, offset: n.CombineXYZ({x: lift}).vector}).geometry)
+        })
+        const ev = counts(group)
+        const first = ev.evaluate()
+        // Two faces: two lines of two points, heights 1 and 2.
+        expect(Array.from(first.geometry!.mesh!.positions).filter((_, i) => i % 3 === 2)).toEqual([0, 1, 0, 2])
+        expect(ev.evaluate().stats.executed).toBe(0)
+        ev.setInput('Lift', 1)
+        expect(ev.evaluate().stats.executed).toBeLessThan(3)
+        ev.setInput('Height', 2)
+        const raised = ev.evaluate()
+        expect(Array.from(raised.geometry!.mesh!.positions).filter((_, i) => i % 3 === 2)).toEqual([0, 2, 0, 4])
+    })
+
+    it('prints as code that rebuilds the same zones', () => {
+        for (const c of zonesForeachCases()) {
+            const code = toCode(c.library, c.group)
+            expect(code).toContain('g.forEachElement(')
             const v = [...code.matchAll(/const (\w+) = geometryNodes\(/g)].pop()![1]
             const rebuilt = new Function('geometryNodes', 'n', `${code}\nreturn ${v}`)(geometryNodes, n) as NodeGroup
             expect(positions(rebuilt), c.id).toEqual(positions(c))

@@ -332,6 +332,82 @@ export class TreeBuilder {
         })
     }
 
+    /**
+     * A For Each Geometry Element zone (`node_geo_foreach_geometry_element.cc`): the body runs once per selected element
+     * of `domain` (default points) of `geometry`. `inputs` are fields evaluated on that domain; the body reads them at
+     * the element from `zone.input`, with `zone.index` and the element's own geometry `zone.element`. `zone.output`
+     * takes the `main` values (stored on the input geometry as attributes) and the `generated` geometries (joined, each
+     * with fields captured on them), and returns the zone's outputs.
+     */
+    forEachElement<I extends Record<string, AnySocket | RepeatItemValue>>(spec: ForEachSpec<I>): ForEachZone<RepeatSockets<I>> {
+        const inName = this.uniqueName('For Each Geometry Element Input')
+        const outName = this.uniqueName('For Each Geometry Element Output')
+        const inputs = spec.inputs ?? ({} as I)
+        const keys = Object.keys(inputs)
+        const types = keys.map(k => {
+            const v = inputs[k]
+            return v instanceof Socket ? v.type : v.type
+        })
+        for (const [k, t] of keys.map((k, i) => [k, types[i]] as const)) {
+            if (!socketDataType(t)) throw new Error(`forEachElement: input '${k}' is a ${t} socket; zone inputs are fields`)
+        }
+        const input: NodeJSON = {name: inName, type: 'GeometryNodeForeachGeometryElementInput', pairedOutput: outName, inputs: {}}
+        const output: NodeJSON = {
+            name: outName, type: 'GeometryNodeForeachGeometryElementOutput', inputs: {}, properties: spec.domain ? {domain: spec.domain} : {},
+            items: {input_items: keys.map((k, i) => ({name: k, socket_type: types[i]})), main_items: [], generation_items: []},
+        }
+        this.tree.nodes.push(input, output)
+        this.link(spec.geometry, inName, 'Geometry', 'GEOMETRY')
+        if (spec.selection instanceof Socket) this.link(spec.selection, inName, 'Selection', 'BOOLEAN')
+        else if (spec.selection !== undefined) input.inputs!.Selection = spec.selection
+        keys.forEach((k, i) => {
+            const v = inputs[k]
+            if (v instanceof Socket) this.link(v, inName, `Input_${i}`, types[i])
+            else if (v.value !== undefined) input.inputs![`Input_${i}`] = v.value
+        })
+        type S = RepeatSockets<I>
+        const values = Object.fromEntries(keys.map((k, i) => [k, new Socket(this, inName, `Input_${i}`, types[i])])) as unknown as S
+        return new ForEachZone<S>(
+            values,
+            new Socket(this, inName, 'Index', 'INT') as Socket<'INT'>,
+            new Socket(this, inName, 'Element', 'GEOMETRY') as Socket<'GEOMETRY'>,
+            out => {
+                const main = Object.entries(out.main ?? {})
+                const items = output.items!
+                items.main_items = main.map(([k, v]) => {
+                    if (!socketDataType(v.type)) throw new Error(`forEachElement: main item '${k}' is a ${v.type} socket; main items are attribute values`)
+                    return {name: k, socket_type: v.type}
+                })
+                main.forEach(([, v], i) => this.link(v, outName, `Main_${i}`, v.type))
+                const generated = out.generated?.length ? out.generated : [{}]
+                const result: ForEachResult = {
+                    geometry: new Socket(this, outName, 'Geometry', 'GEOMETRY') as Socket<'GEOMETRY'>,
+                    main: Object.fromEntries(main.map(([k, v], i) => [k, new Socket(this, outName, `Main_${i}`, v.type)])),
+                    generated: [],
+                }
+                const gen: Record<string, JSONValue>[] = []
+                for (const g of generated) {
+                    const gi = gen.length
+                    gen.push({name: g.name ?? 'Geometry', socket_type: 'GEOMETRY'})
+                    if (g.geometry) this.link(g.geometry, outName, `Generation_${gi}`, 'GEOMETRY')
+                    const fields: Record<string, AnySocket> = {}
+                    for (const [k, f] of Object.entries(g.fields ?? {})) {
+                        const fi = gen.length
+                        const value = f instanceof Socket ? f : f.value
+                        if (!socketDataType(value.type)) throw new Error(`forEachElement: generated field '${k}' is a ${value.type} socket`)
+                        const domain = f instanceof Socket ? undefined : f.domain
+                        gen.push({name: k, socket_type: value.type, ...(domain ? {domain} : {})})
+                        this.link(value, outName, `Generation_${fi}`, value.type)
+                        fields[k] = new Socket(this, outName, `Generation_${fi}`, value.type)
+                    }
+                    result.generated.push({geometry: new Socket(this, outName, `Generation_${gi}`, 'GEOMETRY') as Socket<'GEOMETRY'>, fields})
+                }
+                items.generation_items = gen
+                return result
+            },
+        )
+    }
+
     /** Use another node group: adds a `GeometryNodeGroup` node and the group's trees to this library. */
     group(sub: NodeGroup, args: Record<string, Socket | JSONValue> = {}): NodeHandle {
         Object.assign(this.library, sub.library, {[this.tree.name]: this.tree})
@@ -386,6 +462,54 @@ export class RepeatZone<I extends Record<string, AnySocket>> {
     }
 }
 
+/** {@link GroupBuilder.forEachElement}'s zone input. */
+export interface ForEachSpec<I> {
+    geometry: Socket<'GEOMETRY'>
+    /** Iteration domain (the output node's `domain`): POINT (default), EDGE, FACE, CORNER, CURVE, INSTANCE, LAYER. */
+    domain?: string
+    selection?: Socket<'BOOLEAN'> | boolean
+    /** Fields evaluated on the iteration domain, read per element in the body. */
+    inputs?: I
+}
+
+/** A generated geometry of a For Each zone: the geometry and fields captured on it (default domain: points). */
+export interface ForEachGenerated {
+    name?: string
+    geometry?: Socket<'GEOMETRY'>
+    fields?: Record<string, AnySocket | {value: AnySocket, domain?: string}>
+}
+
+/** The outputs of a For Each zone. */
+export interface ForEachResult {
+    /** The input geometry with the main items as attributes. */
+    geometry: Socket<'GEOMETRY'>
+    /** The main items' attributes, as fields. */
+    main: Record<string, AnySocket>
+    generated: {geometry: Socket<'GEOMETRY'>, fields: Record<string, AnySocket>}[]
+}
+
+/** A For Each Geometry Element zone being built ({@link GroupBuilder.forEachElement}). */
+export class ForEachZone<I extends Record<string, AnySocket>> {
+    private done = false
+
+    constructor(
+        /** The input items' values at the current element. */
+        readonly input: I,
+        /** The current element's index in its component. */
+        readonly index: Socket<'INT'>,
+        /** The current element as its own geometry. */
+        readonly element: Socket<'GEOMETRY'>,
+        private readonly close: (out: {main?: Record<string, AnySocket>, generated?: ForEachGenerated[]}) => ForEachResult,
+    ) {}
+
+    /** Close the zone; returns its outputs. */
+    output(out: {main?: Record<string, AnySocket>, generated?: ForEachGenerated[]} = {}): ForEachResult {
+        if (this.done) throw new Error('forEachElement output() was already called')
+        this.done = true
+        return this.close(out)
+    }
+}
+
 /** A built node group: its tree and every group it uses. */
 export class NodeGroup {
     constructor(readonly name: string, readonly tree: NodeTreeJSON, readonly library: NodeGroupLibrary) {}
@@ -426,6 +550,7 @@ export interface GroupBuilder {
     group(sub: NodeGroup, args?: Record<string, Socket | JSONValue>): NodeHandle
     /** A repeat zone carrying `items` through `iterations` runs of its body (see {@link TreeBuilder.repeatZone}). */
     repeatZone<I extends Record<string, AnySocket | RepeatItemValue>>(items: I, iterations?: Socket<'INT'> | number): RepeatZone<RepeatSockets<I>>
+    forEachElement<I extends Record<string, AnySocket | RepeatItemValue>>(spec: ForEachSpec<I>): ForEachZone<RepeatSockets<I>>
 }
 
 let current: TreeBuilder | undefined
@@ -452,6 +577,7 @@ export function geometryNodes(name: string, fn: (g: GroupBuilder) => void): Node
             node: (id, args) => b.node(id, args),
             group: (sub, args) => b.group(sub, args),
             repeatZone: (items, iterations) => b.repeatZone(items, iterations),
+            forEachElement: spec => b.forEachElement(spec),
         })
     } finally {
         current = prev
