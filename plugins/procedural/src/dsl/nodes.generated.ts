@@ -368,6 +368,15 @@ export type CompareNode = NodeHandle & {
     readonly result: Socket<"BOOLEAN">
 }
 
+/** `GeometryNodeConvexHull` (Convex Hull). */
+export interface ConvexHullArgs {
+    geometry?: In<"GEOMETRY">
+    mute?: boolean
+}
+export type ConvexHullNode = NodeHandle & {
+    readonly convexHull: Socket<"GEOMETRY">
+}
+
 /** `GeometryNodeCornersOfEdge` (Corners of Edge). */
 export interface CornersOfEdgeArgs {
     edgeIndex?: In<"INT">
@@ -791,6 +800,31 @@ export type FieldVarianceNode = NodeHandle & {
     readonly variance: Socket<"FLOAT" | "VECTOR">
 }
 
+/** `GeometryNodeFillCurve` (Fill Curve). */
+export interface FillCurveArgs {
+    curve?: In<"GEOMETRY">
+    groupID?: In<"INT">
+    mode?: In<"MENU">
+    fillRule?: In<"MENU">
+    mute?: boolean
+}
+export type FillCurveNode = NodeHandle & {
+    readonly mesh: Socket<"GEOMETRY">
+}
+
+/** `GeometryNodeFilletCurve` (Fillet Curve). */
+export interface FilletCurveArgs {
+    curve?: In<"GEOMETRY">
+    radius?: In<"FLOAT">
+    limitRadius?: In<"BOOLEAN">
+    mode?: In<"MENU">
+    count?: In<"INT">
+    mute?: boolean
+}
+export type FilletCurveNode = NodeHandle & {
+    readonly curve: Socket<"GEOMETRY">
+}
+
 /** `FunctionNodeFindInString` (Find in String). */
 export interface FindInStringArgs {
     string?: In<"STRING">
@@ -1051,6 +1085,23 @@ export interface IntegerMathArgs {
 }
 export type IntegerMathNode = NodeHandle & {
     readonly value: Socket<"INT">
+}
+
+/** `GeometryNodeInterpolateCurves` (Interpolate Curves). */
+export interface InterpolateCurvesArgs {
+    guideCurves?: In<"GEOMETRY">
+    guideUp?: In<"VECTOR">
+    guideGroupID?: In<"INT">
+    points?: In<"GEOMETRY">
+    pointUp?: In<"VECTOR">
+    pointGroupID?: In<"INT">
+    maxNeighbors?: In<"INT">
+    mute?: boolean
+}
+export type InterpolateCurvesNode = NodeHandle & {
+    readonly curves: Socket<"GEOMETRY">
+    readonly closestIndex: Socket<"INT">
+    readonly closestWeight: Socket<"FLOAT">
 }
 
 /** `FunctionNodeInvertMatrix` (Invert Matrix). */
@@ -2698,6 +2749,7 @@ export interface NodeConstructors {
     CombineTransform(args?: CombineTransformArgs): CombineTransformNode
     CombineXYZ(args?: CombineXYZArgs): CombineXYZNode
     Compare(args?: CompareArgs): CompareNode
+    ConvexHull(args?: ConvexHullArgs): ConvexHullNode
     CornersOfEdge(args?: CornersOfEdgeArgs): CornersOfEdgeNode
     CornersOfFace(args?: CornersOfFaceArgs): CornersOfFaceNode
     CornersOfVertex(args?: CornersOfVertexArgs): CornersOfVertexNode
@@ -2735,6 +2787,8 @@ export interface NodeConstructors {
     FieldAverage(args?: FieldAverageArgs): FieldAverageNode
     FieldMinMax(args?: FieldMinMaxArgs): FieldMinMaxNode
     FieldVariance(args?: FieldVarianceArgs): FieldVarianceNode
+    FillCurve(args?: FillCurveArgs): FillCurveNode
+    FilletCurve(args?: FilletCurveArgs): FilletCurveNode
     FindInString(args?: FindInStringArgs): FindInStringNode
     FlipFaces(args?: FlipFacesArgs): FlipFacesNode
     FloatCurve(args?: FloatCurveArgs): FloatCurveNode
@@ -2759,6 +2813,7 @@ export interface NodeConstructors {
     InstanceTransform(args?: InstanceTransformArgs): InstanceTransformNode
     Integer(args?: IntegerArgs): IntegerNode
     IntegerMath(args?: IntegerMathArgs): IntegerMathNode
+    InterpolateCurves(args?: InterpolateCurvesArgs): InterpolateCurvesNode
     InvertMatrix(args?: InvertMatrixArgs): InvertMatrixNode
     InvertRotation(args?: InvertRotationArgs): InvertRotationNode
     IsEdgeSmooth(args?: IsEdgeSmoothArgs): IsEdgeSmoothNode

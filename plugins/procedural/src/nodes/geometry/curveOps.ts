@@ -12,6 +12,7 @@ import {countFromLength, resampleToEvaluated, resampleToUniform} from '../../geo
 import {trimCurves} from '../../geometry/trimCurves'
 import {reverseCurves} from '../../geometry/curvesEdit'
 import {subdivideCurves} from '../../geometry/subdivideCurves'
+import {filletCurves} from '../../geometry/filletCurves'
 import {registerNodeType} from '../../runtime/registry'
 
 registerNodeType({
@@ -150,6 +151,38 @@ registerNodeType({
             const cuts = new FieldEvaluation(new FieldContext('curves', src, AttrDomain.Point), src.pointsNum).evaluate(cutsField)
             if (cuts.isSingle && cuts.get(0) < 1) return
             const dst = subdivideCurves(src, cuts.isSingle ? new Int32Array(src.pointsNum).fill(cuts.get(0)) : cuts.materialize())
+            g.setCurves(dst)
+        }, p.options.scene))
+    },
+})
+
+registerNodeType({
+    idname: 'GeometryNodeFilletCurve',
+    label: 'Fillet Curve',
+    declare(b) {
+        b.input('GEOMETRY', 'Curve')
+        b.output('GEOMETRY', 'Curve')
+        b.input('FLOAT', 'Radius').min(0).max(3.4028234663852886e38).subtype('DISTANCE').default(0.25).field()
+        b.input('BOOLEAN', 'Limit Radius')
+        b.input('MENU', 'Mode').default('Bézier')
+        b.input('INT', 'Count').default(1).min(1).max(1000).field()
+    },
+    // `node_geo_exec` (`node_geo_curve_fillet.cc:115`) with `fillet_curve` (:57).
+    execute(p) {
+        const mode = p.string('Mode')
+        if (mode !== 'Bézier' && mode !== 'Poly') throw new Error(`Fillet Curve: mode '${mode}' is not a menu item`)
+        const radiusField = p.field('Radius')
+        const limit = p.bool('Limit Radius')
+        const countField = mode === 'Poly' ? p.field('Count') : undefined
+        p.set('Curve', foreachRealGeometry(p.geometry('Curve'), g => {
+            const src = g.curves
+            if (!src) return
+            const e = new FieldEvaluation(new FieldContext('curves', src, AttrDomain.Point), src.pointsNum)
+            const radius = e.evaluate(radiusField).materialize()
+            // `fillet_curves_bezier`: a single count of 1 per point.
+            const counts = countField ? e.evaluate(countField).materialize() : new Int32Array(src.pointsNum).fill(1)
+            const dst = filletCurves(src, radius, counts, limit, mode === 'Bézier')
+            dst.materials = src.materials.slice()
             g.setCurves(dst)
         }, p.options.scene))
     },

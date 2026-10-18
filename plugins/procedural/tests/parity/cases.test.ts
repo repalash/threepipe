@@ -30,6 +30,9 @@ import {meshScaleCases} from './cases/meshScale'
 import {meshTriangulateCases} from './cases/meshTriangulate'
 import {meshDualCases} from './cases/meshDual'
 import {meshPathCases} from './cases/meshPaths'
+import {functionMiscCases} from './cases/functionMisc'
+import {geometryUtilCases} from './cases/geometryUtil'
+import {zonesForeachCases} from './cases/zonesForeach'
 import {materialOpCases} from './cases/materialOps'
 import {functionMathCases} from './cases/functionMath'
 import {functionRandomCases} from './cases/functionRandom'
@@ -54,9 +57,9 @@ import {subdivMeshCases} from './cases/subdivMesh'
 import {curvesQueryCases} from './cases/curvesQuery'
 import {curvesGenerateCases} from './cases/curvesGenerate'
 import {curvesEditingCases} from './cases/curvesEditing'
-import {functionMiscCases} from './cases/functionMisc'
-import {geometryUtilCases} from './cases/geometryUtil'
-import {zonesForeachCases} from './cases/zonesForeach'
+import {curvesFillCases} from './cases/curvesFill'
+import {curvesFilletCases} from './cases/curvesFillet'
+import {meshConvexHullCases} from './cases/meshConvexHull'
 
 /** The case's images over the scene Blender built: the pixels Blender's float buffer holds (`foreach_set`). */
 function withCaseImages(scene: SceneProvider | undefined, images: CaseImage[]): SceneProvider {
@@ -94,6 +97,9 @@ SETS.subdivMesh = subdivMeshCases
 SETS.curvesQuery = curvesQueryCases
 SETS.curvesGenerate = curvesGenerateCases
 SETS.curvesEditing = curvesEditingCases
+SETS.curvesFill = curvesFillCases
+SETS.curvesFillet = curvesFilletCases
+SETS.meshConvexHull = meshConvexHullCases
 SETS.meshFieldOps = meshFieldOpCases
 SETS.meshReorder = meshReorderCases
 SETS.meshSplit = meshSplitCases

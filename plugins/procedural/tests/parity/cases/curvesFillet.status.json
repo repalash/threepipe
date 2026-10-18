@@ -1,0 +1,14 @@
+{
+ "fillet-bezier": "exact",
+ "fillet-bezier-limit": "exact",
+ "fillet-poly": "exact",
+ "fillet-poly-limit": "exact",
+ "fillet-mixed-types": "pass (> 16 ulp)",
+ "fillet-bezier-handles": "exact",
+ "interpolate-curves-n1": "exact",
+ "interpolate-curves-n2": "exact",
+ "interpolate-curves-n4": "exact",
+ "interpolate-curves-up": "exact",
+ "interpolate-curves-mesh": "exact",
+ "interpolate-curves-no-guides-in-group": "exact"
+}
