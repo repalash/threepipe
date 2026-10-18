@@ -1,0 +1,8 @@
+{
+ "topology-cornersofface": "exact",
+ "topology-cornersofvertex": "exact",
+ "topology-cornersofedge": "exact",
+ "topology-edgesofvertex": "exact",
+ "topology-corner-maps": "exact",
+ "topology-curves": "exact"
+}
