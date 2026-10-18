@@ -122,6 +122,33 @@ ported from `space_view3d.py` / `space_topbar.py` (Blender 5.3, `e4e6c79a`) with
   screenshots in `tmp/menus/`.
 - Follow-ups filed: [kernel-extrude-vertices](./kernel-extrude-vertices.md) (Vertex > Extrude Vertices).
 
+## Kernel operations wired into the menus (done 2026-10-18, track0-followups follow-up)
+
+Every operation the kernel had (or could have from a short port of the `bmo_*` it already half had) is an
+engine operator with Blender's id, RNA props (camelCase), defaults, redo panel and keys, so its menu entry
+is live (`menus-not-available.md`, regenerated):
+
+- Kernel `src/ops/editmeshTools.ts` - the `edbm_*_exec` wrappers for Poke, Triangulate, Beautify,
+  Wireframe, Fill (+ `triangle_fill`'s `use_beauty`), Mark Seam / Sharp, Flip / Recalculate Normals,
+  Delete Loose (+ `BM_mesh_delete_hflag_context`); `collapse.ts` (point merge, collapse, collapse UVs,
+  the UV-island walker, Merge At Cursor / Collapse / First / Last with `uvs`, Collapse Edges & Faces);
+  `rotateEdges.ts`; `dissolveDegenerate.ts`; `solidifyFaceRegion.ts` (`bmo_solidify`, not the modifier);
+  `extrudeIndiv.ts` (verts / edges / discrete faces); `edgeSplit.ts` with `bmesh/separate.ts`
+  (vertex / edge separate Euler ops); `bmesh/customdataMath.ts`, `bmesh/query.ts`.
+- Ground truth: `tests/fixtures/gen-editmesh-tools.py` run by Blender 5.2.2 on the GPU VM
+  (`~/tools/blender`), 74 cases in `tests/editmesh-tools-parity.test.ts`, all equal; two n-gon
+  triangulate cases are `it.fails` until track 2's `polyfill_2d` lands (`kernel-triangulate-ngon-polyfill.md`).
+- mesh-edit: the Shrink/Fatten transform mode (`TFM_SHRINKFATTEN`), the extrude macros as one undo step,
+  E dispatching like `edbm_extrude_mesh` (closes `kernel-extrude-vertices.md`); edit overlays opt out of
+  `scene.overrideMaterial` (fixes `editor-solid-shading-edit-mode.md`, reproduced on Metal).
+- Engine: Make Edge/Face is `mesh.edge_face_add` so `mesh.fill` is Blender's Fill; P opens Separate's
+  type menu (Selection, By Loose Parts); Spin with `edbm_spin_invoke`'s cursor / view-axis defaults.
+- e2e `modelling-editor-ops` drives each through its menu entry or key.
+
+Not done (no kernel op): Rip, Triangles to Quads (`join_triangles`), Un-Subdivide, Smooth Vertices,
+Decimate, Symmetrize, Convex Hull, Intersect, the select-by-trait family, Mirror (a `TFM_MIRROR` transform
+mode), Offset Edge Slide, Extrude Repeat / Manifold, the normals tools; shading belongs to the realism track.
+
 ## Rules for every track
 
 Same as P1: port from Blender source and cite file:line; each user-facing behaviour gets a real-input
