@@ -12,17 +12,22 @@ import {join} from 'node:path'
 import {compareGeometry, ExpectedGeometry, GeometryNodesEvaluator} from '../../src'
 import {binResolver, inlineBinRefs} from '../../src/io/geometryFromDump'
 import {ParityCase} from './cases/types'
+import {functionMathCases} from './cases/functionMath'
+import {functionRandomCases} from './cases/functionRandom'
 import {textureCases} from './cases/textures'
 import {instanceCases} from './cases/instances'
 import {geometryCases} from './cases/geometry'
 
 const SETS: Record<string, () => ParityCase[]> = {textures: textureCases, instances: instanceCases, geometry: geometryCases}
+SETS.functionMath = functionMathCases
+SETS.functionRandom = functionRandomCases
 
 for (const [set, generate] of Object.entries(SETS)) {
     describe(`parity cases: ${set}`, () => {
         const cases = generate()
         const file = join(__dirname, 'cases', `${set}.json`)
-        const text = JSON.stringify(cases, null, 1) + '\n'
+        // One case per line: compact, and diffs stay per case.
+        const text = '[\n' + cases.map(c => JSON.stringify(c)).join(',\n') + '\n]\n'
         it('the committed case list matches the generator', () => {
             if (process.env.UPDATE_PARITY_CASES) writeFileSync(file, text)
             expect(existsSync(file) && readFileSync(file, 'utf8') === text, `${set}.json is out of date`).toBe(true)
