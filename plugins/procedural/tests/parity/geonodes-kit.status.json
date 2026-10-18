@@ -279,8 +279,7 @@
   "status": "pass"
  },
  "edge-angle-icosphere": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeMeshIcoSphere"
+  "status": "pass"
  },
  "edge-angle-nonmanifold": {
   "status": "pass"
