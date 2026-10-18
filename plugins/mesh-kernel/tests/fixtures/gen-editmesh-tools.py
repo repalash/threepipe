@@ -74,6 +74,14 @@ def dump_flags(bm):
     }
 
 
+def dump_uvs(bm):
+    """Every face's corner UVs (face and corner order as `dump`), when the mesh has a UV map."""
+    layer = bm.loops.layers.uv.active
+    if layer is None:
+        return None
+    return [[[round(c, 6) for c in l[layer].uv] for l in f.loops] for f in bm.faces]
+
+
 def edit_case(name, geo, mode, opname, props, select, extras=None):
     co, faces, edges = geo
     bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -88,15 +96,30 @@ def edit_case(name, geo, mode, opname, props, select, extras=None):
         e.seam = True
     for e in edge_lookup(bm, extras.get('sharp', [])):
         e.smooth = False
+    if 'uv' in extras:
+        layer = bm.loops.layers.uv.new('UVMap')
+        for fi, uvs in enumerate(extras['uv']):
+            for l, uv in zip(bm.faces[fi].loops, uvs):
+                l[layer].uv = uv
     bm.to_mesh(me)
     bm.free()
+    if 'cursor' in extras:
+        bpy.context.scene.cursor.location = extras['cursor']
     bpy.context.tool_settings.mesh_select_mode = MODES[mode]
     bpy.ops.object.mode_set(mode='EDIT')
+    if 'history' in extras:
+        ebm = bmesh.from_edit_mesh(me)
+        ebm.verts.ensure_lookup_table()
+        ebm.select_history.clear()
+        for i in extras['history']:
+            ebm.select_history.add(ebm.verts[i])
+        bmesh.update_edit_mesh(me)
     entered = dump(bmesh.from_edit_mesh(me))['selected']
     result = getattr(bpy.ops.mesh, opname)(**props)
     ebm = bmesh.from_edit_mesh(me)
     out = dump(ebm)
     out.update(dump_flags(ebm))
+    out['uvs'] = dump_uvs(ebm)
     bpy.ops.object.mode_set(mode='OBJECT')
     cases.append({
         'name': name, 'mode': mode, 'op': opname, 'props': props,
@@ -170,5 +193,46 @@ LOOSE_ALL = {'verts': list(range(12))}
 edit_case('delete loose defaults', LOOSE, 'VERT', 'delete_loose', {}, LOOSE_ALL)
 edit_case('delete loose with faces', LOOSE, 'VERT', 'delete_loose', {'use_faces': True}, LOOSE_ALL)
 edit_case('delete loose verts only partial', LOOSE, 'VERT', 'delete_loose', {'use_edges': False}, {'verts': [4, 5, 6, 0]})
+
+# --- batch 2 ------------------------------------------------------------------------------------------
+GRID_UV = [[[GRID_CO[v][0] / 3 + 0.2 * fi, GRID_CO[v][1] / 2] for v in f] for fi, f in enumerate(GRID_FACES)]
+GRID_UV_CONT = [[[GRID_CO[v][0] / 3, GRID_CO[v][1] / 2] for v in f] for f in GRID_FACES]
+
+# --- mesh.merge (MESH_OT_merge, editmesh_tools.cc:3620) --------------------------------------------
+edit_case('merge center grid', GRID, 'VERT', 'merge', {'type': 'CENTER'}, {'verts': [5, 6, 9, 10]})
+edit_case('merge center grid uvs', GRID, 'VERT', 'merge', {'type': 'CENTER', 'uvs': True}, {'verts': [5, 6, 9, 10]}, {'uv': GRID_UV_CONT})
+edit_case('merge cursor grid', GRID, 'VERT', 'merge', {'type': 'CURSOR'}, {'verts': [1, 2, 5]}, {'cursor': [1.2, 0.3, 0.5]})
+edit_case('merge first grid', GRID, 'VERT', 'merge', {'type': 'FIRST'}, {'verts': [0, 5, 10]}, {'history': [10, 0, 5]})
+edit_case('merge last grid uvs', GRID, 'VERT', 'merge', {'type': 'LAST', 'uvs': True}, {'verts': [0, 5, 10]},
+          {'history': [10, 0, 5], 'uv': GRID_UV})
+edit_case('merge collapse grid two groups', GRID, 'EDGE', 'merge', {'type': 'COLLAPSE'}, {'edges': [[0, 1], [1, 2], [7, 11]]})
+edit_case('merge collapse grid uvs', GRID, 'EDGE', 'merge', {'type': 'COLLAPSE', 'uvs': True}, {'edges': [[5, 6], [6, 10]]}, {'uv': GRID_UV})
+edit_case('merge center face mode', GRID, 'FACE', 'merge', {'type': 'CENTER'}, {'faces': [1]})
+
+# --- mesh.edge_collapse (MESH_OT_edge_collapse, :718) ----------------------------------------------
+edit_case('edge collapse ring', GRID, 'EDGE', 'edge_collapse', {}, {'edges': [[1, 5], [2, 6], [9, 10]]})
+edit_case('edge collapse face', GRID, 'FACE', 'edge_collapse', {}, {'faces': [4]}, {'uv': GRID_UV})
+edit_case('edge collapse cube face uvs cont', CUBE, 'FACE', 'edge_collapse', {}, {'faces': [0]})
+
+# --- mesh.edge_rotate (MESH_OT_edge_rotate, :2507) -------------------------------------------------
+edit_case('rotate one edge cw', TRIS, 'EDGE', 'edge_rotate', {}, {'edges': [[1, 4]]})
+edit_case('rotate one edge ccw', TRIS, 'EDGE', 'edge_rotate', {'use_ccw': True}, {'edges': [[1, 4]]})
+edit_case('rotate grid quad edge', GRID, 'EDGE', 'edge_rotate', {}, {'edges': [[5, 9]]})
+edit_case('rotate tris all diagonals', TRIS, 'EDGE', 'edge_rotate', {},
+          {'edges': [[1, 4], [2, 5], [3, 6], [5, 8], [6, 9], [7, 10]]})
+edit_case('rotate between two faces', GRID, 'FACE', 'edge_rotate', {}, {'faces': [0, 1]})
+edit_case('rotate shared tris', TRIS, 'EDGE', 'edge_rotate', {}, {'edges': [[1, 4], [1, 5], [2, 5]]})
+
+# --- mesh.dissolve_degenerate (MESH_OT_dissolve_degenerate, :6512) --------------------------------
+# A grid with a near-zero edge (vertex 6 almost on 5) and a folded ear (vertex 11 almost on the 7-10 line).
+DEG_CO = [list(c) for c in GRID_CO]
+DEG_CO[6] = [DEG_CO[5][0] + 0.00005, DEG_CO[5][1], DEG_CO[5][2]]
+DEG_CO.append([3.0, 2.0 - 0.00002, 0.0])
+DEG_FACES = [list(f) for f in GRID_FACES]
+edit_case('degenerate short edge', (DEG_CO, GRID_FACES, []), 'VERT', 'dissolve_degenerate', {}, {'verts': list(range(12))})
+edit_case('degenerate threshold', (DEG_CO, GRID_FACES, []), 'VERT', 'dissolve_degenerate', {'threshold': 0.2}, {'verts': list(range(12))})
+edit_case('degenerate nothing', GRID, 'VERT', 'dissolve_degenerate', {}, {'verts': list(range(12))})
+SLIVER_CO = [[0, 0, 0], [2, 0, 0], [1, 0.00003, 0], [1, 1, 0]]
+edit_case('degenerate sliver ear', (SLIVER_CO, [[0, 1, 3], [0, 2, 1]], []), 'VERT', 'dissolve_degenerate', {}, {'verts': [0, 1, 2, 3]})
 
 write(__file__, 'editmesh-tools.json', cases)
