@@ -54,6 +54,25 @@ export class GLTFWriter2 extends GLTFExporter.Utils.GLTFWriter {
         object.userData = userData
     }
 
+    /** What `write` was asked to export: an object marked `excludeFromExport` is still written when it is one of these. */
+    private _exportRoots = new Set<Object3D>()
+
+    async write(input: Object3D | Object3D[], onDone: (gltf: ArrayBuffer | {[key: string]: any}) => void, options?: GLTFExporterOptions): Promise<void> {
+        this._exportRoots = new Set(Array.isArray(input) ? input : [input])
+        return super.write(input, onDone, options)
+    }
+
+    /**
+     * Leave out objects marked `userData.excludeFromExport`, with their subtree - helpers, reference planes,
+     * editor-only cameras. `AssetExporter.exportObject` used to hide them for the export instead, but the
+     * writer runs with `onlyVisible: false`, so hidden objects were written anyway.
+     * `processNode` is untyped in three's declarations, hence the prototype call.
+     */
+    processNode(object: Object3D): number | null {
+        if (object.userData?.excludeFromExport && !this._exportRoots.has(object)) return null
+        return (GLTFExporter.Utils.GLTFWriter.prototype as unknown as {processNode(o: Object3D): number | null}).processNode.call(this, object)
+    }
+
     processObjects(objects: Object3D[]) {
         if (objects.length === 1 && objects[0]?.userData.rootSceneModelRoot) {
             // objects[0].isScene = true
