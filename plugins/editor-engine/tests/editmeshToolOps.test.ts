@@ -7,6 +7,7 @@
  */
 
 import {describe, expect, it} from 'vitest'
+import {Matrix4} from 'three'
 import {BMesh, bmFromMesh, BM_FROM_MESH_NORMALS, bmToMesh, ElemFlag, MeshData, meshNormalsUpdate, primitiveCube, primitiveGrid, selectCountsRecalc, SelectMode} from '@threepipe/mesh-kernel'
 import {selectLess, selectMore} from '../../mesh-edit/src/select/moreLess'
 import {registerEditmeshToolOperators} from '../src/ops/editmeshToolOps'
@@ -41,6 +42,7 @@ function makeSession(mesh: MeshData) {
         },
         cursor: [0, 0, 0] as [number, number, number],
         cursorLocal: () => meshEdit.cursor,
+        editObject: {updateWorldMatrix: () => undefined, matrixWorld: new Matrix4()},
         // meshOps listens for the transform/extrude chain events; nothing here fires them.
         addEventListener: () => undefined,
         selectMore: (faceStep: boolean) => selectMore(bm, faceStep),
@@ -295,6 +297,19 @@ describe('edit-mode tool operators', () => {
         s.bm.selectMode = SelectMode.Edge
         expect(s.run('mesh.edge_split')).toMatchObject({ok: true, props: {type: 'EDGE'}})
         expect(counts(s.bm)).toEqual([12, 16, 6])
+    })
+
+    it('Spin: an edge swept a full turn in 12 steps closes into a ring of 12 quads (auto merge)', () => {
+        const s = makeSession(primitiveGrid({xSegments: 1, ySegments: 1, size: 2}))
+        selectFaces(s.bm, () => false)
+        s.bm.selectMode = SelectMode.Edge
+        const e = [...s.bm.edges].find(x => x.v1.x === x.v2.x && x.v1.x > 0)!
+        e.hflag |= ElemFlag.Select; e.v1.hflag |= ElemFlag.Select; e.v2.hflag |= ElemFlag.Select
+        selectCountsRecalc(s.bm)
+        const r = s.run('mesh.spin', {angle: 360, center: [3, 0, 0], axis: [0, 1, 0]})
+        expect(r).toMatchObject({ok: true, props: {steps: 12, angle: 360, useAutoMerge: true, center: [3, 0, 0], axis: [0, 1, 0]}})
+        // 12 spokes (the input edge is one) and 24 rims: 4 + 36 - 1 edges.
+        expect(counts(s.bm)).toEqual([4 + 22, 4 + 36 - 1, 1 + 12])
     })
 
     it('their menu entries are no longer "Not available yet"', () => {

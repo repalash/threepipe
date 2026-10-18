@@ -26,6 +26,12 @@ import {
     pokeFacesSelection,
     quadsConvertToTrisSelection,
     solidifySelectionOperator,
+    spin,
+    bmoOpExec,
+    edbmFlagDisableAll,
+    elemsHflagEnable,
+    ElemFlag,
+    ElemType,
     triangleFillSelection,
     wireframeSelection,
 } from '@threepipe/mesh-kernel'
@@ -45,6 +51,10 @@ const QUAD_METHODS: Record<string, TriangulateQuadMethod> = {
 const NGON_METHODS: Record<string, TriangulateNgonMethod> = {BEAUTY: 'BEAUTY', CLIP: 'EAR_CLIP'}
 /** `poke_center_modes` (`editmesh_tools.cc:5407`). */
 const POKE_CENTER_MODES: Record<string, PokeCenterMode> = {MEDIAN_WEIGHTED: 'meanWeighted', MEDIAN: 'mean', BOUNDS: 'bounds'}
+
+type V3 = [number, number, number]
+/** Column `i` of a three.js column-major 4x4 (`elements`), as a direction. */
+const col = (m: ArrayLike<number>, i: number): V3 => [m[i * 4], m[i * 4 + 1], m[i * 4 + 2]]
 
 const ok = (r: {ok: true} | {ok: false, error: string}) => r.ok ? {ok: true as const} : {ok: false as const, error: r.error}
 
@@ -108,6 +118,17 @@ export function registerEditmeshToolOperators(engine: EditorEnginePlugin): void 
     // `MESH_OT_solidify` (:4167)
     const solidifyProps: PropSchema = {type: 'object', properties: {
         thickness: {type: 'number', minimum: -10000, maximum: 10000, default: 0.01, description: 'Thickness.'},
+    }}
+    // `MESH_OT_spin` (editmesh_extrude_spin.cc:169). `center` / `axis` unset are what `edbm_spin_invoke`
+    // gives them (:122): the 3D cursor and the view direction (`rv3d->viewinv[2]`), world space.
+    const spinProps: PropSchema = {type: 'object', properties: {
+        steps: {type: 'integer', minimum: 0, maximum: 1000000, default: 12, description: 'Steps.'},
+        dupli: {type: 'boolean', default: false, description: 'Use Duplicates.'},
+        angle: {type: 'number', minimum: -360, maximum: 360, default: 90, description: 'Angle (degrees): rotation for each step.'},
+        useAutoMerge: {type: 'boolean', default: true, description: 'Auto Merge: merge first/last when the angle is a full revolution.'},
+        useNormalFlip: {type: 'boolean', default: false, description: 'Flip Normals.'},
+        center: {type: 'array', items: {type: 'number'}, minItems: 3, maxItems: 3, description: 'Center in global view space.'},
+        axis: {type: 'array', items: {type: 'number'}, minItems: 3, maxItems: 3, description: 'Axis in global view space.'},
     }}
     // `MESH_OT_edge_split` (:2039): `split_type_items` (:2054).
     const edgeSplitProps: PropSchema = {type: 'object', properties: {
@@ -237,6 +258,44 @@ export function registerEditmeshToolOperators(engine: EditorEnginePlugin): void 
             props: solidifyProps,
             poll: facesSelected('Select the faces to solidify first'),
             exec: runSession('Solidify', solidifyProps, p => ok(solidifySelectionOperator(bm(), Number(p.thickness)))),
+        },
+        {
+            id: 'mesh.spin', label: 'Spin', icon: 'refresh', category: 'Mesh', modes: ['edit'],
+            description: 'Extrude the selection round the 3D cursor about the view direction, step by step (a lathe). Steps, angle and axis in the panel.',
+            flags: {undo: true, register: true},
+            props: spinProps,
+            poll: ready(selected('vert', 1, 'Select the profile to spin first')),
+            exec: runSession('Spin', spinProps, p => {
+                const b = bm()
+                const center = (Array.isArray(p.center) ? p.center.map(Number) : [...me.cursor]) as V3
+                let axis = (Array.isArray(p.axis) ? p.axis.map(Number) : null) as V3 | null
+                if (!axis) {
+                    const camera = engine.viewer.scene.mainCamera as unknown as {updateMatrixWorld(f: boolean): void, matrixWorld: {elements: number[]}}
+                    camera.updateMatrixWorld(true)
+                    axis = col(camera.matrixWorld.elements, 2)
+                }
+                if (axis[0] === 0 && axis[1] === 0 && axis[2] === 0) return {ok: false, error: 'Invalid/unset axis'}
+                const steps = Math.trunc(Number(p.steps)), angle = Number(p.angle) * DEG, dupli = !!p.dupli
+                const useAutoMerge = !!p.useAutoMerge && !dupli && steps >= 3 && Math.abs(Math.abs(angle) - Math.PI * 2) <= 1e-6
+                // "Keep the values in world-space since we're passing the obmat" (`space=%m4`): the kernel's
+                // spin works in the mesh's space, so the centre and axis come into it (rigid and uniformly
+                // scaled objects agree; a non-uniform scale would spin in object space, not world).
+                const object = me.editObject!
+                object.updateWorldMatrix(true, false)
+                const m = object.matrixWorld.clone().invert().elements
+                const cLocal: V3 = [m[0] * center[0] + m[4] * center[1] + m[8] * center[2] + m[12],
+                    m[1] * center[0] + m[5] * center[1] + m[9] * center[2] + m[13], m[2] * center[0] + m[6] * center[1] + m[10] * center[2] + m[14]]
+                const aLocal: V3 = [m[0] * axis[0] + m[4] * axis[1] + m[8] * axis[2], m[1] * axis[0] + m[5] * axis[1] + m[9] * axis[2], m[2] * axis[0] + m[6] * axis[1] + m[10] * axis[2]]
+                const vis = <T extends {hflag: number}>(set: Iterable<T>) => [...set].filter(e => (e.hflag & ElemFlag.Select) && !(e.hflag & ElemFlag.Hidden))
+                // `spin geom=%hvef ..` (`bmo_spin_def`: NORMALS_CALC | SELECT_FLUSH), with `-angle` as Blender passes it.
+                const r = bmoOpExec(b, {normalsCalc: true, selectFlush: true}, () => spin(b, {verts: vis(b.verts), edges: vis(b.edges), faces: vis(b.faces)},
+                    {center: cLocal, axis: aLocal, angle: -angle, steps, useMerge: useAutoMerge, useDuplicate: dupli, useNormalFlip: !!p.useNormalFlip}))
+                if (!useAutoMerge) {
+                    edbmFlagDisableAll(b, ElemFlag.Select)
+                    elemsHflagEnable(b, [...r.verts, ...r.edges, ...r.faces], ElemType.Vert | ElemType.Edge | ElemType.Face, ElemFlag.Select, true)
+                }
+                return {ok: true, props: {center, axis}}
+            }),
         },
         {
             id: 'mesh.edge_split', label: 'Edge Split', icon: 'cut', category: 'Mesh', modes: ['edit'],

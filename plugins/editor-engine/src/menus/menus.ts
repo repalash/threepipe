@@ -692,7 +692,7 @@ export function registerMenus(engine: EditorEnginePlugin): void {
                     visible: c => selCounts().v > 0 && c.selectMode === 'vertex'}),
                 sep,
                 op('mesh.extrude_repeat', 'Extrude Repeat'),
-                op('mesh.spin', 'Spin', {props: {angle: Math.PI * 2}}),
+                op('mesh.spin', 'Spin', {props: {angle: 360}}),
             ],
         },
         {
