@@ -6,7 +6,7 @@
  * so the skill cannot describe a command that changed.
  */
 
-import {COOKBOOK, RULES} from './cookbook'
+import {COOKBOOK, REALISM_KIT, RULES} from './cookbook'
 
 export interface SkillCommandInfo {
     name: string
@@ -74,6 +74,10 @@ export function renderSkill(commands: SkillCommandInfo[], version: string): stri
     out.push('3. **Validate**: `validate` (Blender\'s `BM_mesh_is_valid` + a `spec` of the dimensions you were given).')
     out.push('4. **Look**: `look` - an image *and* a description of what is in it. Last, not first.')
     out.push('5. **Export**: `export` a GLB.')
+    out.push('')
+    out.push('## Realism kit: a product that reads as real')
+    out.push('')
+    REALISM_KIT.forEach((r, i) => out.push(`${i + 1}. ${r}`))
     out.push('')
     out.push('Guarantees: a command either completes or changes nothing; every mutating command is one undo step and reports '
         + '`changed` and `locality` (what it changed, split into what it named and collateral); replaying the same commands '

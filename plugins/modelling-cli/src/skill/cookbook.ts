@@ -65,6 +65,33 @@ export const COOKBOOK: CookbookEntry[] = [
         check: rs => rs[0].ok && (rs[0].data as any).groups.knurl.faces === 288 ? null : rs[0].error ?? 'no knurl group',
     },
     {
+        task: 'A panel line or seam round a cover, door or control',
+        how: '`groove` sweeps a round section along a rounded-rectangle `outline` (or a `path`), drops it onto a curved '
+            + 'body with `project`, and cuts it with the Manifold boolean; `fill` lays a dark gap strip in it. The body must '
+            + 'be closed and manifold.',
+        given: [{op: 'primitive', type: 'cube', name: 'body', size: 20}],
+        commands: [{op: 'groove', object: 'body', outline: {at: [0, 0, 10], normal: [0, 0, 1], size: [12, 8], radius: 2}, width: 0.6, depth: 0.4, fill: true}],
+        check: rs => rs[0].ok && (rs[0].data as any).strip === 'body-gap' ? null : rs[0].error ?? 'no gap strip',
+    },
+    {
+        task: 'Make a surface read as leather, rubber, satin plastic, metal or glass',
+        how: '`uv {size}` first - the relief tile size: 14 for leather, 8 for plastic grain, 6 for rubber, in mm - then '
+            + '`material {preset}`. Presets carry measured colour, roughness, metalness and transmission; relief maps are '
+            + 'textures, so they need a browser session (a Node session warns and skips them).',
+        given: [{op: 'primitive', type: 'cube', name: 'grip', size: 30}],
+        commands: [{op: 'uv', object: 'grip', size: 14}, {op: 'material', object: 'grip', preset: 'leather-black'}],
+        check: rs => rs.every(r => r.ok) ? null : rs.find(r => !r.ok)!.error!,
+    },
+    {
+        task: 'Printed text, a logo or a legend on a surface',
+        how: '`decal` makes a thin textured object from `content.text` or `content.svg`: `plane` on a flat face, `project` '
+            + 'onto a curved body (cells that miss are left out), `wrap` round a ring; `emboss` raises it. Rasterised in a '
+            + 'browser session; a Node session builds only the geometry.',
+        given: [{op: 'primitive', type: 'sphere', name: 'barrel', radius: 10, segments: 48, rings: 24}],
+        commands: [{op: 'decal', name: 'label', mode: 'project', object: 'barrel', at: [0, 0, 10], normal: [0, 0, 1], size: [8, 2], content: {text: {text: 'ZOOM'}}}],
+        check: rs => rs[0].ok ? null : rs[0].error!,
+    },
+    {
         task: 'A row of identical parts that stays editable',
         how: 'A live `array` modifier: edit the master and every copy follows. Do not duplicate by hand.',
         given: [{op: 'primitive', type: 'cylinder', name: 'post', radius: 0.1, depth: 1, segments: 12}],
@@ -181,6 +208,21 @@ export const COOKBOOK: CookbookEntry[] = [
         commands: [{op: 'export', format: 'glb', viewerConfig: false, uuids: false}],
         check: rs => data(rs[0]).bytes > 500 ? null : 'export too small',
     },
+]
+
+/**
+ * The realism kit, in the order to use it - from the camera benchmark (16-realism.md §3.3-3.4): what moved a
+ * hand-built product towards the artist model, and what each tool is for.
+ */
+export const REALISM_KIT: string[] = [
+    '**Measure first.** Published dimensions, standard interfaces (mounts, threads, ISO sizes) and photographs placed to scale with `reference {calibrate}`, each with source and uncertainty. A photo only measures the axes it faces square-on.',
+    '**Block the masses as subdivision cages** (`modifier {add: {type: "subsurf"}}`; `crease` for crisp rims), fitted to the measured outlines, and check the silhouettes against the photos (`camera {view: "ref:<name>"}` + `look`) before any detail. Proportions are fixed here or nowhere.',
+    '**Parts for recurring components**: `part` builds knurled rings, dials, buttons, rockers, raised pads, eyecups, strap lugs and lens barrels with real ribs and rounded edges (`part {list: true}` for the schemas). Do not hand-lathe knurling or hand-place 60 ribs. `part {name, params}` adjusts one until something else edits it.',
+    '**Panel lines and seams**: `groove` round covers, doors and screens (`outline`, `project` on curved bodies, `fill` for the dark strip). Real seams are what make a shell read as an assembled product.',
+    '**Shading**: `shade {mode: "byAngle"}` everywhere, `weightedNormal` on bevelled hard parts.',
+    '**Surfaces**: `uv {size}` at the relief tile size (leather 14, plastic grain 8, rubber 6, in mm), then `material {preset}`. Glass is clear (`glass`, `glass-coated`) with something dark behind it - a baffle, inner elements - or it shows what is behind it.',
+    '**Markings last**: `decal` - `plane` for flat faces, `project` for curved ones, `wrap` round rings; `emboss` for raised or engraved type. Generic fonts; prints and relief maps need a browser session.',
+    '**Judge on renders against the reference.** Full-render SSIM rewards flat dark areas and penalises detail that is not pixel-registered with the reference; a sheet of full and clay renders is the better judge of markings and materials.',
 ]
 
 /** The anti-mistake list: imperatives, each from a failure seen in a real build or harness run. */
