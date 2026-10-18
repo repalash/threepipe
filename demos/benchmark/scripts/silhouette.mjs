@@ -15,14 +15,16 @@
 // shoulders are) and the left / right edges per row - as model-minus-photo differences in mm, plus an overlay PNG
 // (photo only = red, build only = blue, both = grey).
 import '../../../plugins/modelling-cli/dist/index.mjs'
-import {readFileSync, writeFileSync} from 'node:fs'
+import {existsSync, readFileSync, writeFileSync} from 'node:fs'
 import {dirname, resolve} from 'node:path'
 import sharp from 'sharp'
 import {readGlb} from '../metrics/glb.mjs'
 
 const [calPath, glbPath, outPrefix] = process.argv.slice(2)
 const cal = JSON.parse(readFileSync(calPath, 'utf8'))
-const photoPath = resolve(dirname(calPath), cal.photo)
+// `photo` is relative to the working directory (the repo root; fetch-refs.mjs puts the photos in tmp/refs), else to
+// the calibration file
+const photoPath = existsSync(resolve(cal.photo)) ? resolve(cal.photo) : resolve(dirname(calPath), cal.photo)
 
 // --- photo mask ---
 const img = sharp(photoPath)
