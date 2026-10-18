@@ -1,7 +1,7 @@
 ---
 prev:
-    text: 'Plugin System'
-    link: './plugin-system'
+    text: 'Connect an Agent'
+    link: './connect-an-agent'
 
 next:
     text: 'Screen Pass'

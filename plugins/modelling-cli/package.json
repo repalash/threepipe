@@ -14,7 +14,10 @@
             "types": "./dist/index.d.ts",
             "import": "./dist/index.mjs"
         },
-        "./page/": "./dist/page/"
+        "./page/": "./dist/page/",
+        "./relay": {
+            "import": "./dist/relay.mjs"
+        }
     },
     "files": [
         "dist",

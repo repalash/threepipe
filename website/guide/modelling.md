@@ -2,6 +2,10 @@
 prev:
     text: 'Plugin System'
     link: './plugin-system'
+
+next:
+    text: 'Connect an Agent'
+    link: './connect-an-agent'
 ---
 
 # Modelling
@@ -111,38 +115,39 @@ A command that throws part-way is rolled back rather than leaving half its chang
 
 ## Checking your work
 
+Measure, then validate, then look - a picture is the last check, not the first.
+
 ```typescript
-await modelling.run({op: 'selftest'})                      // topology and bake, every object
+await modelling.run({op: 'measure', mode: 'topology'})     // closed, winding, Euler, holes, area, volume
 await modelling.run({op: 'measure', mode: 'overlaps'})     // intersecting pairs, with the overlap
-await modelling.run({op: 'capture'})                       // a rendered frame, as a data URL
+await modelling.run({op: 'validate', object: 'hull',       // Blender's BM_mesh_is_valid, and a spec
+    spec: {bbox: {size: [2.44, 0.85, 6.77]}, manifold: {closed: true}}})
+await modelling.run({op: 'look'})                          // front/right/top/iso sheet + what is in it
 await modelling.run({op: 'export', format: 'glb'})
 ```
 
-`capture` drives the render loop explicitly rather than awaiting `requestAnimationFrame`, so it
-cannot stall behind a background tab and hold up the edits queued after it.
+`validate` answers each requirement `PASS`, `FAIL` or `UNVERIFIED`, with the evidence it rests on
+(measured, structural, derived), and never passes an empty spec. `look` renders and *describes* what
+it rendered - the camera, the objects in frame, where highlighted elements landed - and leaves the
+camera and materials as it found them; `highlight: {object, edges: [5]}` shows an index before an edit
+spends it.
+
+Every mutating command's result carries `locality`: what it changed, split into what it named (its
+objects and selection, plus the faces around it) and collateral - anything else. `diff {object, from}`
+does the same across several commands, from a checkpoint.
 
 ## Driving it from an agent
 
-`describeCommands()` returns the table as `{name, description, inputSchema}` — the shape an LLM tool
-list takes — generated from the same definitions the dispatcher runs, so a command cannot exist
-without being described.
+`describeCommands()` returns the table as `{name, description, inputSchema, group}` - the shape an
+LLM tool list takes - generated from the same definitions the dispatcher runs, so a command cannot
+exist without being described. Mistakes are answered rather than ignored: an unknown parameter gets
+`unknown parameter "raduis" - did you mean "radius"?`, and a missing object names the ones that do
+exist.
 
-```typescript
-const tools = modelling.describeCommands()
-```
-
-Mistakes are answered rather than ignored: an unknown parameter gets `unknown parameter "raduis" —
-did you mean "radius"?`, and a missing object names the ones that do exist.
-
-In the threepipe repository, `scripts/modelling-session.mjs` runs a build script against a real viewer
-or watches a file of commands for a live session:
-
-```bash
-npm run modelling:session -- my-build.mjs --out tmp/my-build
-npm run modelling:session -- --watch tmp/session
-```
-
-Both write numbered captures and a replayable transcript.
+An agent outside the page reaches the same commands three ways - see
+[Connect an agent](./connect-an-agent): the [MCP server](../package/modelling-mcp), the
+[CLI](../package/modelling-cli), or the agent socket into a live editor, where its steps land in the
+undo history beside yours.
 
 ## Editing by hand
 
