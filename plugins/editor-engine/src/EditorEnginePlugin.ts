@@ -622,7 +622,9 @@ export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implemen
             this.history.pendingLabel = null
         }
         if (!result.ok && result.error) this.message('error', `${op.label}: ${result.error}`)
-        for (const w of result.warnings ?? []) this.message('warning', w)
+        // A modal's intermediate re-runs (an inset or bevel being dragged or typed) keep their warnings to
+        // themselves; the modal shows the final run's when it is confirmed.
+        if (!this.propDrag?.applying) for (const w of result.warnings ?? []) this.message('warning', w)
         if (result.ok && op.flags?.register) {
             const finalProps = result.props ?? props ?? {}
             if (result.modal) {

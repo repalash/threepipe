@@ -71,6 +71,19 @@ describe('a command that changes nothing', () => {
         expect(m.document.find('g')).toBeUndefined()
     })
 
+    it('reports a declined bevel\'s new faces as an empty list, the shape a bevel that works returns', async() => {
+        // The editor reselects `data.newFaces`; a count of 0 here made it throw "indices is not iterable"
+        // while a bevel width was being typed (0, 0.1, 0.15) in the house-walkthrough demo.
+        const m = makePlugin()
+        await must(m, {op: 'primitive', type: 'grid', name: 'g', xSegments: 2, ySegments: 2})
+        const declined = await must(m, {op: 'bevel', object: 'g', edges: [0], segments: 3})
+        expect(declined.data?.newFaces).toEqual([])
+        await must(m, {op: 'primitive', type: 'cube', name: 'c'})
+        const beveled = await must(m, {op: 'bevel', object: 'c', edges: [0], offset: 0.1})
+        expect(Array.isArray(beveled.data?.newFaces)).toBe(true)
+        expect((beveled.data?.newFaces as number[]).length).toBeGreaterThan(0)
+    })
+
     it('reports changed: true, and pushes a step, when it does change something', async() => {
         const m = makePlugin()
         const created = await must(m, {op: 'primitive', type: 'cube', name: 'c'})

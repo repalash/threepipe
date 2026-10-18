@@ -85,8 +85,8 @@ export const blenderPreset: KeymapPreset = {
         {keys: 'r', id: 'mesh.rotate', mode: 'edit'},                    // transform.rotate
         {keys: 's', id: 'mesh.scale', mode: 'edit'},                     // transform.resize
         {keys: 'e', id: 'mesh.extrude', mode: 'edit'},                   // view3d.edit_mesh_extrude_move_normal :5600
-        {keys: 'i', id: 'mesh.inset', mode: 'edit'},                     // mesh.inset :5547
-        {keys: 'ctrl+b', id: 'mesh.bevel', mode: 'edit'},                // mesh.bevel :5550
+        {keys: 'i', id: 'mesh.inset', mode: 'edit', tool: true},         // mesh.inset :5547, its modal (edbm_inset_invoke) via the tool
+        {keys: 'ctrl+b', id: 'mesh.bevel', mode: 'edit', tool: true},    // mesh.bevel :5550, its modal (edbm_bevel_invoke) via the tool
         {keys: 'k', id: 'mesh.knife', mode: 'edit'},                     // mesh.knife_tool :5639
         {keys: 'shift+k', id: 'mesh.knife', mode: 'edit', props: {onlySelected: true, cutThrough: true}}, // :5642
         {keys: 'm', id: 'mesh.merge', mode: 'edit'},                     // VIEW3D_MT_edit_mesh_merge :5618

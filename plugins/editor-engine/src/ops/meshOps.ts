@@ -357,7 +357,8 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
             exec: (ctx, p) => {
                 const byVerts = ctx.selectMode === 'vertex'
                 return runCommand('bevel', {[byVerts ? 'verts' : 'edges']: selectedIndices(byVerts ? 'vertex' : 'edge'), offset: 0.1, segments: 1, ...p},
-                    data => ({kind: 'face', indices: data?.newFaces ?? []}))
+                    // A bevel that changed nothing (width 0, or declined edges) keeps the selection.
+                    data => data?.newFaces?.length ? {kind: 'face', indices: data.newFaces} : null)
             },
         },
         {
