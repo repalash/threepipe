@@ -11,15 +11,10 @@ const globals = {
     'three': 'threepipe', // just incase someone uses three
     'threepipe': 'threepipe',
     '@threepipe/mesh-kernel': '@threepipe/mesh-kernel',
+    '@threepipe/modelling-parts': '@threepipe/modelling-parts',
 }
 
 export default defineConfig({
-    // the parts package is source-only for now and bundled in (it depends only on the kernel, which stays external)
-    resolve: {
-        alias: {
-            '@threepipe/modelling-parts': new URL('../modelling-parts/src/index.ts', import.meta.url).pathname,
-        },
-    },
     optimizeDeps: {
         exclude: ['uiconfig.js', 'ts-browser-helpers'],
     },

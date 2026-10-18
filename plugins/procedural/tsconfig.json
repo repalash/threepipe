@@ -39,6 +39,9 @@
             "@threepipe/plugin-modelling": [
                 "../modelling/dist/index.d.ts"
             ],
+            "@threepipe/modelling-parts": [
+                "../modelling-parts/dist/index.d.ts"
+            ],
             "@threepipe/plugin-procedural": [
                 "./src/index.ts"
             ]

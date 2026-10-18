@@ -66,6 +66,7 @@
     "benchmark:render": "node demos/benchmark/render.mjs",
     "benchmark:score": "node demos/benchmark/score.mjs",
     "modelling": "node plugins/modelling-cli/dist/cli.mjs",
+    "build:modelling-parts": "npm run build --prefix plugins/modelling-parts",
     "build:modelling-cli": "npm run build --prefix plugins/modelling-cli",
     "test:unit:modelling-cli": "npm run test --prefix plugins/modelling-cli",
     "modelling:mcp": "node plugins/modelling-mcp/dist/server.mjs",

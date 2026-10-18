@@ -6,12 +6,13 @@
     "dependencies": {
         "threepipe": "file:./../../src/",
         "@threepipe/mesh-kernel": "file:./../mesh-kernel/src/",
-        "@threepipe/modelling-parts": "file:./../modelling-parts/",
+        "@threepipe/modelling-parts": "file:./../modelling-parts/src/",
         "manifold-3d": "3.5.3"
     },
     "peerDependencies": {
         "threepipe": ">=0.5.0",
-        "@threepipe/mesh-kernel": ">=0.1.0"
+        "@threepipe/mesh-kernel": ">=0.1.0",
+        "@threepipe/modelling-parts": ">=0.1.0"
     },
     "exports": {
         ".": {

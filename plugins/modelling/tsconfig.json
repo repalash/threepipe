@@ -36,7 +36,7 @@
                 "../mesh-kernel/dist/index.d.ts"
             ],
             "@threepipe/modelling-parts": [
-                "../modelling-parts/src/index.ts"
+                "../modelling-parts/dist/index.d.ts"
             ]
         }
     },
