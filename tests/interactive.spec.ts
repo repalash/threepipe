@@ -4031,10 +4031,11 @@ test('modelling-editor', async({page}) => {
     await expect(palette).toHaveCount(0)
     expect((await engineState()).mode).toBe('object')
 
-    // Menus render from the registry: Add > UV Sphere adds an object and fills the redo-last panel,
+    // Menus are the engine's definitions (Blender's VIEW3D_MT_add): Add > Mesh > UV Sphere adds an object and fills the redo-last panel,
     // which is open by itself for the first operations.
     await page.locator('[data-menu="Add"]').click()
-    await page.getByRole('menuitem', {name: 'UV Sphere'}).click()
+    await page.locator('ul[data-menu-id="VIEW3D_MT_add"] [data-menu-label="Mesh"]').hover()
+    await page.locator('ul[data-menu-id="VIEW3D_MT_mesh_add"] [data-menu-label="UV Sphere"]').click()
     await expect.poll(async() => (await engineState()).stats.objects).toBe(2)
     s = await engineState()
     expect(s.lastOp).toBe('add.sphere')
@@ -4045,7 +4046,7 @@ test('modelling-editor', async({page}) => {
     // Edit menu: the undo history dialog lists the document commands by name and reverses them. Mode
     // switches and the selections they imply are not steps, so the list is exactly the two adds.
     await page.locator('[data-menu="Edit"]').click()
-    await page.getByRole('menuitem', {name: 'Undo History…'}).click()
+    await page.getByRole('menuitem', {name: 'Undo History...'}).click()
     const history = page.locator('[data-history]')
     await expect(history).toBeVisible()
     await expect(history).toContainText('Add Sphere')
@@ -4090,7 +4091,7 @@ test('modelling-editor', async({page}) => {
     // Disabled operators explain themselves instead of failing silently.
     await page.evaluate(() => (window as any).engine.picking.clearSelection())
     await page.locator('[data-menu="Object"]').click()
-    const del = page.getByRole('menuitem', {name: 'Delete'})
+    const del = page.locator('ul[data-menu-id="VIEW3D_MT_object"] [data-menu-label="Delete"]')
     await expect(del).toHaveAttribute('aria-disabled', 'true')
     await page.keyboard.press('Escape')
     // the menu button keeps its popover open after Escape; a click on it closes it
@@ -4260,7 +4261,8 @@ test('modelling-editor-engine', async({page}) => {
     await page.keyboard.press('Shift+KeyA')
     const popup = page.locator('.me-popup-menu')
     await expect(popup).toBeVisible()
-    await popup.getByRole('menuitem', {name: 'UV Sphere'}).click()
+    await popup.locator('[data-menu-label="Mesh"]').hover()
+    await page.locator('ul[data-menu-id="VIEW3D_MT_mesh_add"] [data-menu-label="UV Sphere"]').click()
     await expect.poll(async() => (await state()).objects).toBe(2)
     s = await state()
     expect(s.history).toEqual(['Add Cube', 'Inset cube', 'Add Sphere'])
@@ -4277,14 +4279,14 @@ test('modelling-editor-engine', async({page}) => {
     await expect.poll(async() => (await state()).objects).toBe(2)
     expect((await state()).cubeFaces).toBe(10)
 
-    // 5. Context menus: object mode lists object operators; edit mode lists the select-mode ones, and
-    // Delete opens Blender's delete-type menu. The X key opens the same menu at the cursor.
+    // 5. Context menus: object mode is VIEW3D_MT_object_context_menu; edit mode is
+    // VIEW3D_MT_edit_mesh_context_menu with the select mode's column, whose Delete Faces deletes
+    // directly. The X key opens Blender's delete-type menu at the cursor.
     await page.mouse.click(cx, cy, {button: 'right'})
-    // The popup menus the engine asks for share the context menu's styling; tell them apart here.
-    const context = page.locator('.me-context-menu:not(.me-popup-menu)')
+    const context = page.locator('ul[data-menu-id="VIEW3D_MT_object_context_menu"]')
     await expect(context).toBeVisible()
-    await expect(context).toContainText('Duplicate')
-    await expect(context).toContainText('Apply Transform')
+    await expect(context).toContainText('Duplicate Objects')
+    await expect(context).toContainText('Delete')
     await page.keyboard.press('Escape')
     await expect(context).toHaveCount(0)
     // The sphere sits inside the cube: a click on the already-selected cube cycles to the object behind
@@ -4305,12 +4307,10 @@ test('modelling-editor-engine', async({page}) => {
     await page.keyboard.press('Escape')
     await expect(popup).toHaveCount(0)
     await page.mouse.click(cx, cy, {button: 'right'})
-    await expect(context).toBeVisible()
-    await expect(context).toContainText('Inset Faces')
-    // A menu item's accessible name carries its shortcut label too ("Delete X").
-    await context.getByRole('menuitem', {name: /^Delete\b/}).click()
-    await expect(popup).toBeVisible()
-    await popup.getByRole('menuitem', {name: 'Faces', exact: true}).click()
+    const editContext = page.locator('ul[data-menu-id="VIEW3D_MT_edit_mesh_context_menu"]')
+    await expect(editContext).toBeVisible()
+    await expect(editContext).toContainText('Inset Faces')
+    await editContext.locator('[data-menu-label="Delete Faces"]').click()
     await expect.poll(async() => (await state()).counts![2]).toBe(9)
     expect((await state()).history.at(-1)).toBe('Delete cube')
 
@@ -4394,7 +4394,8 @@ test('modelling-editor-engine', async({page}) => {
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
     await page.keyboard.press('Shift+KeyA')
     await expect(popup).toBeVisible()
-    await popup.getByRole('menuitem', {name: /UV Sphere/}).click()
+    await page.locator('.me-popup-menu [data-menu-label="Mesh"]').hover()
+    await page.locator('ul[data-menu-id="VIEW3D_MT_mesh_add"] [data-menu-label="UV Sphere"]').click()
     await expect.poll(meshCount).toBe(meshesBefore + 1)
     const selected = () => page.evaluate(() => ((window as any).viewer.getPlugin('Picking').picker.selectedObjects ?? []).length)
     await page.mouse.move(box.x + 12, box.y + 12)
@@ -4442,7 +4443,8 @@ test('modelling-editor-files', async({page}) => {
 
     // 2. Unsaved changes: any new step sets the dot; undoing back to the saved step clears it.
     await page.keyboard.press('Shift+KeyA')
-    await page.locator('.me-popup-menu').getByRole('menuitem', {name: 'Cube'}).click()
+    await page.locator('.me-popup-menu [data-menu-label="Mesh"]').hover()
+    await page.locator('ul[data-menu-id="VIEW3D_MT_mesh_add"] [data-menu-label="Cube"]').click()
     await expect.poll(async() => (await state()).dirty).toBe(true)
     await expect(docName).toHaveAttribute('data-dirty', 'true')
     await expect(page.locator('.me-doc-dirty')).toBeVisible()
@@ -4476,7 +4478,8 @@ test('modelling-editor-files', async({page}) => {
     // 4. A change after the save, then Open (Ctrl+O) the saved file: the editor asks first, the scene
     // is replaced by the file's, and the cylinder comes back with its 32-gon caps, editable.
     await page.keyboard.press('Shift+KeyA')
-    await page.locator('.me-popup-menu').getByRole('menuitem', {name: 'UV Sphere'}).click()
+    await page.locator('.me-popup-menu [data-menu-label="Mesh"]').hover()
+    await page.locator('ul[data-menu-id="VIEW3D_MT_mesh_add"] [data-menu-label="UV Sphere"]').click()
     await expect.poll(async() => (await state()).objects.length).toBe(2)
     await page.keyboard.press('Control+KeyO')
     const confirm = page.locator('.bp5-dialog', {hasText: 'Unsaved changes are lost'})
@@ -4499,25 +4502,26 @@ test('modelling-editor-files', async({page}) => {
     await page.keyboard.press('Tab')
     await expect.poll(() => page.evaluate(() => (window as any).engine.mode)).toBe('object')
 
-    // 5. Exports are named after the document.
+    // 5. Exports are named after the document: File > Export > glTF 2.0 / Wavefront / STL.
     const exportVia = async(label: string) => {
         await page.locator('[data-menu="File"]').click()
+        await page.locator('ul[data-menu-id="TOPBAR_MT_file"] [data-menu-label="Export"]').hover()
         const dl = page.waitForEvent('download')
-        await page.getByRole('menuitem', {name: label}).click()
+        await page.locator(`ul[data-menu-id="TOPBAR_MT_file_export"] [data-menu-label="${label}"]`).click()
         const d = await dl
         const path = `tmp/onboarding/files/export-${d.suggestedFilename()}`
         await d.saveAs(path)
         return {name: d.suggestedFilename(), path}
     }
-    expect((await exportVia('Export GLB')).name).toBe('tube.glb')
-    const obj = await exportVia('Export OBJ')
+    expect((await exportVia('glTF 2.0 (.glb/.gltf)')).name).toBe('tube.glb')
+    const obj = await exportVia('Wavefront (.obj)')
     expect(obj.name).toBe('tube.obj')
-    expect((await exportVia('Export STL')).name).toBe('tube.stl')
+    expect((await exportVia('STL (.stl)')).name).toBe('tube.stl')
 
     // 6. Open Recent lists what was opened, by name only.
     await page.locator('[data-menu="File"]').click()
-    await page.locator('[data-recent-menu]').hover()
-    await expect(page.locator('[data-recent-file="tube.glb"]')).toBeVisible()
+    await page.locator('ul[data-menu-id="TOPBAR_MT_file"] [data-menu-label="Open Recent"]').hover()
+    await expect(page.locator('ul[data-menu-id="TOPBAR_MT_file_open_recent"] [data-menu-label="tube.glb"]')).toBeVisible()
     await shot('03-open-recent')
     await page.keyboard.press('Escape')
     await page.keyboard.press('Escape')
@@ -4663,7 +4667,8 @@ test('modelling-editor-fill', async({page}) => {
     await page.keyboard.press('KeyX')                       // object mode X: delete the start cube
     await expect.poll(() => page.evaluate(() => (window as any).engine.stats().objects)).toBe(0)
     await page.keyboard.press('Shift+KeyA')
-    await popup.getByRole('menuitem', {name: 'Grid'}).click()
+    await page.locator('.me-popup-menu [data-menu-label="Mesh"]').hover()
+    await page.locator('ul[data-menu-id="VIEW3D_MT_mesh_add"] [data-menu-label="Grid"]').click()
     await expect.poll(() => page.evaluate(() => (window as any).engine.stats().objects)).toBe(1)
     await page.keyboard.press('Tab')
     await expect.poll(async() => (await state()).counts).toEqual([121, 220, 100])
@@ -4812,7 +4817,8 @@ test('modelling-editor-fill', async({page}) => {
     await page.keyboard.press('KeyX')
     await expect.poll(() => page.evaluate(() => (window as any).engine.stats().objects)).toBe(0)
     await page.keyboard.press('Shift+KeyA')
-    await popup.getByRole('menuitem', {name: 'Grid'}).click()
+    await page.locator('.me-popup-menu [data-menu-label="Mesh"]').hover()
+    await page.locator('ul[data-menu-id="VIEW3D_MT_mesh_add"] [data-menu-label="Grid"]').click()
     await page.keyboard.press('Tab')
     await page.keyboard.press('KeyA')
     await expect.poll(async() => (await state()).sel).toEqual([121, 220, 100])
@@ -4989,14 +4995,13 @@ test('modelling-loop-tools', async({page}) => {
     await page.keyboard.press('Control+KeyZ')
     await expect.poll(async() => JSON.stringify((await verts()).map(v => v.co))).toBe(JSON.stringify(cube.map(v => v.co)))
 
-    // ── Subdivide from the Mesh menu, the redo panel changing the cuts, undo ──
+    // ── Subdivide from the Edge menu (VIEW3D_MT_edit_mesh_edges), the redo panel changing the cuts, undo ──
     await page.keyboard.press('2')
     await page.mouse.move(cx, cy)
     await page.keyboard.press('KeyA')
     await expect.poll(async() => (await state()).sel).toEqual([8, 12, 6])
-    await page.locator('[role="menubar"]').getByRole('button', {name: 'Mesh'}).click()
-    // The edit-mode entry; the object-mode Subdivide is listed too, disabled here.
-    await page.getByRole('menuitem', {name: /^Subdivide$/}).and(page.locator(':not([aria-disabled="true"])')).click()
+    await page.locator('[role="menubar"] [data-menu="Edge"]').click()
+    await page.locator('ul[data-menu-id="VIEW3D_MT_edit_mesh_edges"] [data-menu-label="Subdivide"]').click()
     // One cut: a vertex per edge and per face, four quads per face (`bmo_subdivide.cc`, quad_4edge).
     await expect.poll(async() => (await state()).counts).toEqual([26, 48, 24])
     s = await state()
