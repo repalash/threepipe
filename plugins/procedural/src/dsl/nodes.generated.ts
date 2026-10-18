@@ -1486,6 +1486,17 @@ export type MeshGridNode = NodeHandle & {
     readonly uVMap: Socket<"VECTOR">
 }
 
+/** `GeometryNodeMeshIcoSphere` (Ico Sphere). */
+export interface MeshIcoSphereArgs {
+    radius?: In<"FLOAT">
+    subdivisions?: In<"INT">
+    mute?: boolean
+}
+export type MeshIcoSphereNode = NodeHandle & {
+    readonly mesh: Socket<"GEOMETRY">
+    readonly uVMap: Socket<"VECTOR">
+}
+
 /** `GeometryNodeInputMeshIsland` (Mesh Island). */
 export interface MeshIslandArgs {
     mute?: boolean
@@ -3050,6 +3061,7 @@ export interface NodeConstructors {
     MeshCube(args?: MeshCubeArgs): MeshCubeNode
     MeshCylinder(args?: MeshCylinderArgs): MeshCylinderNode
     MeshGrid(args?: MeshGridArgs): MeshGridNode
+    MeshIcoSphere(args?: MeshIcoSphereArgs): MeshIcoSphereNode
     MeshIsland(args?: MeshIslandArgs): MeshIslandNode
     MeshLine(args?: MeshLineArgs): MeshLineNode
     MeshToCurve(args?: MeshToCurveArgs): MeshToCurveNode
