@@ -8,7 +8,7 @@
 // indices `inspect` reports after its bisects, as an agent would - then splices them into the demo transcript.
 import {readFileSync, writeFileSync} from 'node:fs'
 import {NodeModellingSession} from '../../../plugins/modelling-cli/dist/index.mjs'
-import {fitClosedCage, prismCage, resampleClosed, signedArea} from './cage.mjs'
+import {fitClosedCage, prismCage, resampleClosed, resampleSides, signedArea} from './cage.mjs'
 
 const M = JSON.parse(readFileSync(new URL('../targets/canon-5d4-measure/measurements.json', import.meta.url))).readings
 const orig = JSON.parse(readFileSync(process.argv[2] ?? 'tmp/realism/camera-cmds.json', 'utf8'))
@@ -22,6 +22,37 @@ async function run(cmd) {
     if (!r.ok) throw new Error(`${cmd.op} failed: ${JSON.stringify(r).slice(0, 400)}`)
     log.push(cmd)
     return r
+}
+// Replace the cage's two n-gon caps with quad grids (Blender's Grid Fill over the face): a 64-gon cap subdivides
+// into a fan of thin quads around one pole, which shows as a starburst in the shading of a flat face. The cage is
+// sampled with equal counts on opposite sides; the grid's `span` and corner `offset` that give the squarest quads
+// are found by trying them (each trial undone, so it leaves no trace in the model or the transcript).
+const trials = {count: 0}
+async function gridCaps(name, n, spans) {
+    for (let k = 0; k < 2; k++) {
+        const ins = await session.run({op: 'inspect', object: name, detail: true, limit: 100000})
+        const f = ins.data.faceVerts.findIndex(fv => fv.length === n)
+        if (f < 0) throw new Error(`${name}: no ${n}-gon cap left`)
+        let best = null
+        for (const span of spans) for (let offset = 0; offset < n; offset++) {
+            const r = await session.run({op: 'gridFill', object: name, faces: [f], span, offset})
+            trials.count++
+            if (!r.ok) continue
+            const g = (await session.run({op: 'inspect', object: name, detail: true, limit: 100000})).data
+            // squareness: the worst ratio of a new quad's shorter to longer diagonal
+            let q = 1
+            for (const fv of g.faceVerts.slice(ins.data.faceVerts.length - 1)) {
+                if (fv.length !== 4) { q = 0; break }
+                const P = fv.map(i => g.vertices[i])
+                const d = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2])
+                const d1 = d(P[0], P[2]), d2 = d(P[1], P[3])
+                q = Math.min(q, Math.min(d1, d2) / Math.max(d1, d2))
+            }
+            await session.run({op: 'undo'})
+            if (!best || q > best.q) best = {q, span, offset}
+        }
+        await run({op: 'gridFill', object: name, faces: [f], span: best.span, offset: best.offset})
+    }
 }
 const orient = (poly, sign) => Math.sign(signedArea(poly)) === sign ? poly : [...poly].reverse()
 const r2 = v => +v.toFixed(3)
@@ -39,9 +70,11 @@ const bodyOutline = [
     [-17, 92.4], [-21, 92.1], [-25, 91.2], [-31, 90.6], [-41, 90.2], [-49, 90.3], [-57, 90.0],
     ...gripCorner,
 ]
-const bodyTarget = orient(resampleClosed(bodyOutline, 64), -1)
+// split at the four shoulders and base corners: 20 samples along base and top, 12 up each side
+const bodyTarget = orient(resampleSides(bodyOutline, [[-72, 2], [72, 4], [68, 86], [-63, 87.7]], [20, 12, 20, 12]), -1)
 const bodyCage = fitClosedCage(bodyTarget)
 for (const c of prismCage('body', 'z', bodyCage, (i, e, p) => [p[0], p[1], e ? D.bodyFront : D.rearFace])) await run(c)
+await gridCaps('body', bodyCage.length, [12, 20])
 // support loops 4 mm in from the rear and front faces: the plan corners round to about that radius
 await run({op: 'bisect', object: 'body', planeCo: [0, 0, 4], planeNo: [0, 0, 1]})
 await run({op: 'bisect', object: 'body', planeCo: [0, 0, D.bodyFront - 4], planeNo: [0, 0, 1]})
@@ -71,7 +104,7 @@ const gripPlan = [
     [-74.9, 30], [-74.9, 50], [-74.6, 60], [-73.4, 66], [-70.5, 71], [-66, 74.4], [-60, 75.7], [-50, 75.9], [-42, 75.6],
     [-36.5, 74], [-32.5, 70.5], [-29.6, 65.5], [-28, 60], [-27.6, 55], [-28.5, 30], [-50, 25],
 ]
-const gripTarget = orient(resampleClosed(gripPlan, 32, 2), 1)
+const gripTarget = orient(resampleSides(gripPlan, [[-74.9, 30], [-73.4, 66], [-36.5, 74], [-28.5, 30]], [6, 10, 6, 10], 2), 1)
 const gripCage = fitClosedCage(gripTarget)
 // the top follows the measured grip-side shoulder (front outline), 0.5 mm under the body's
 const shoulder = x => {
@@ -86,6 +119,7 @@ const SH = M.shutter, slope = Math.tan(SH.tiltDeg * Math.PI / 180)
 const gripTop = (x, z) => Math.min(shoulder(x) - 0.5, z <= SH.slopeFromZ ? Infinity : 89.1 - slope * (z - SH.slopeFromZ))
 const gripBase = 1.5
 for (const c of prismCage('grip', 'y', gripCage, (i, e, p) => [p[0], e ? gripTop(p[0], p[1]) : gripBase, p[1]])) await run(c)
+await gridCaps('grip', gripCage.length, [6, 10])
 // support loops: 4 mm above the base, and a ring 4 mm under the sloped top - bisect at a level the whole band
 // crosses, then lift each ring vertex to 4 mm under the top edge above it
 await run({op: 'bisect', object: 'grip', planeCo: [0, gripBase + 4, 0], planeNo: [0, 1, 0]})
@@ -106,13 +140,14 @@ const prismOutline = [
     [-17, 86], ...P.flanksAtY.map(([y, l]) => [l, y]), [-0.6, 113.7], [3, top], [27, top], [30.6, 113.7],
     ...P.flanksAtY.slice().reverse().map(([y, , r]) => [r, y]), [46, 86],
 ]
-const prismTarget = orient(resampleClosed(prismOutline, 40, 3), -1)
+const prismTarget = orient(resampleSides(prismOutline, [[-17, 86], [-9.6, 105], [39.3, 105], [46, 86]], [8, 12, 8, 12], 3), -1)
 const prismCageP = fitClosedCage(prismTarget)
 // front: 70 at the base, where it overhangs the mount boss, sloping to 48 at the housing top's front edge; rear 0 to 5.
 // (The top photo's reading of a curved front, P.frontAtY, scored worse and is outside the photo's +-3 mm, so the
 // straight slope stays.)
 const yBase = 93, zFront = y => y <= yBase ? 70 : 70 - 22 * (y - yBase) / (top - yBase), zRear = y => y <= yBase ? 0 : 5 * (y - yBase) / (top - yBase)
 for (const c of prismCage('body-prism', 'z', prismCageP, (i, e, p) => [p[0], p[1], e ? zFront(p[1]) : zRear(p[1])])) await run(c)
+await gridCaps('body-prism', prismCageP.length, [8, 12])
 // support loops 4 mm inside the sloped front and rear planes
 const nFront = (() => { const dy = top - yBase, dz = -22, l = Math.hypot(dy, dz); return [0, -dz / l, dy / l] })() // outward normal (y, z)
 const nRear = (() => { const dy = top - yBase, dz = 5, l = Math.hypot(dy, dz); return [0, dz / l, -dy / l] })()
@@ -197,4 +232,4 @@ out.push(
 )
 writeFileSync(outPath, JSON.stringify(out))
 await session.close()
-console.log(JSON.stringify({commands: out.length, newBlock: {body: bodyCmds.length, grip: gripCmds.length, prism: prismCmds.length, shoe: shoeCmds.length}}))
+console.log(JSON.stringify({commands: out.length, gridFillTrials: trials.count, newBlock: {body: bodyCmds.length, grip: gripCmds.length, prism: prismCmds.length, shoe: shoeCmds.length}}))

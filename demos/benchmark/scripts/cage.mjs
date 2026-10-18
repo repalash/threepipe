@@ -88,3 +88,51 @@ export function prismCage(name, axis, profile, place) {
         {op: 'vertices', object: name, verts},
     ]
 }
+
+/**
+ * Resample a closed polyline side by side: `corners` are points near which the outline is split (in order along
+ * it), `counts[i]` the number of samples from corner i up to (not including) corner i + 1. Opposite sides with
+ * equal counts let Grid Fill make a regular quad grid of the cap.
+ */
+export function resampleSides(poly, corners, counts, cornerWeight = 4) {
+    const m = poly.length
+    const near = c => poly.reduce((b, p, i) => Math.hypot(p[0] - c[0], p[1] - c[1]) < Math.hypot(poly[b][0] - c[0], poly[b][1] - c[1]) ? i : b, 0)
+    const idx = corners.map(near)
+    const out = []
+    for (let s = 0; s < idx.length; s++) {
+        const a = idx[s], b = idx[(s + 1) % idx.length]
+        const side = []
+        for (let i = a; ; i = (i + 1) % m) { side.push(poly[i]); if (i === b) break }
+        out.push(...resampleOpen(side, counts[s], cornerWeight))
+    }
+    return out
+}
+
+/** n samples of an open polyline from its start, the end excluded, spaced by arclength (weighted by turning). */
+export function resampleOpen(poly, n, cornerWeight = 4) {
+    const m = poly.length
+    const w = []
+    let total = 0
+    const turn = k => {
+        if (k <= 0 || k >= m - 1) return 0
+        const p = poly[k - 1], q = poly[k], r = poly[k + 1]
+        let d = Math.atan2(r[1] - q[1], r[0] - q[0]) - Math.atan2(q[1] - p[1], q[0] - p[0])
+        while (d > Math.PI) d -= 2 * Math.PI
+        while (d < -Math.PI) d += 2 * Math.PI
+        return Math.abs(d)
+    }
+    for (let i = 0; i < m - 1; i++) {
+        const len = Math.hypot(poly[i + 1][0] - poly[i][0], poly[i + 1][1] - poly[i][1])
+        const wi = len + cornerWeight * 5 * (turn(i) + turn(i + 1)) / 2
+        w.push(wi); total += wi
+    }
+    const out = []
+    let acc = 0, si = 0
+    for (let k = 0; k < n; k++) {
+        const target = k / n * total
+        while (si < m - 2 && acc + w[si] < target) { acc += w[si]; si++ }
+        const t = Math.min(1, Math.max(0, (target - acc) / w[si]))
+        out.push([poly[si][0] + (poly[si + 1][0] - poly[si][0]) * t, poly[si][1] + (poly[si + 1][1] - poly[si][1]) * t])
+    }
+    return out
+}

@@ -2,7 +2,7 @@
  * Score a build against a target's ground truth (issues/open/modelling-tools/16-realism.md §2).
  *
  *     npm run benchmark:score -- --target canon-5d4 --glb <build.glb> [--transcript transcript.json]
- *         [--agent agent.jsonl] [--out tmp/bench/<label>] [--renders vm|local|none|<dir>] [--label name] [--spec-frame]
+ *         [--agent agent.jsonl] [--out tmp/bench/<label>] [--renders vm|local|none|<dir>] [--label name] [--spec-frame] [--no-sync]
  *     npm run benchmark:score -- --target canon-5d4 --ceiling      # the reference, scaled to spec, vs itself
  *
  * Writes <out>/score.json (every metric, inputs' hashes, renderer) and <out>/index.html (sheets per view,
@@ -243,7 +243,9 @@ if (mode !== 'none') {
     if (mode === 'vm') {
         const dirty = execFileSync('git', ['status', '--porcelain', '--', 'demos/benchmark', 'package.json'], {cwd: root, encoding: 'utf8'}).trim()
         if (dirty) console.warn('benchmark: uncommitted changes under demos/benchmark are not on the VM:\n' + dirty)
-        vm.sync(root)
+        // `--no-sync`: the VM worktree is already at HEAD. `tpvm sync` sends unpushed commits as one relay write,
+        // which the relay caps at 1 MB, so a branch carrying photographs has to be synced in parts by hand first.
+        if (!flags['no-sync']) vm.sync(root)
         for (const f of [inputs.ref, inputs.cand, `${runRel}/heat-ref.json`, `${runRel}/heat-cand.json`, `${runRel}/job.json`]) vm.push(root, join(root, f), f)
         const tr = Date.now()
         const log = vm.run(root, `rm -rf ${runRel}/renders && npm run benchmark:render -- ${runRel}/job.json 2>&1 | tail -3 && tar czf ${runRel}/renders.tgz -C ${runRel} renders`)
