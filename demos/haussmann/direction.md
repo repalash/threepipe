@@ -1,9 +1,9 @@
 # Direction: "Haussmann, by command"
 
-A film of about two and a half minutes (hard limit 3:00), 1280×720 (or 1920×1080), recorded by
-`record.mjs`. The build runs live in the page; every shot below is a `shot()` in `record.mjs` and is
-kept at real speed, and the building work between shots is time-lapsed to at most 1.6 s, so the cut
-is the same length on a slow machine and a fast one.
+A film of about two and a half minutes, 1920×1080, 30 fps, H.264 (faststart), recorded by `record.mjs` on the GPU VM
+(Chromium on ANGLE/Metal) with `demos/shared/film.mjs`: every frame is rendered and captured, so moves are smooth and
+the build's slow commands do not show as waiting. `build.mjs` runs unchanged through `demos/shared/session.mjs`: its
+camera jumps become eased glides, each `capture` a held shot with its label as caption, each beat a title card.
 
 **The idea.** Start from what an architect of 1870 would have had on the desk - a street photograph of
 the type and the engraved elevation at 1:100 - and show the building rising out of those drawings,
@@ -53,15 +53,17 @@ Time-lapsed building between shots: about 25 stretches of at most 1.6 s, 35-40 s
   reference planes in the scene.
 - Shot 17: `refs/photo-typical-paris-corner-7e-flyer84.jpg` (Flyer84, CC BY 3.0).
 
+## Realism pass (2026-10-18)
+
+A chapter after the street: the same close view of the lower cut corner before and after the realism kit is applied
+to the parts as built (stone relief, zinc, wrought iron, coated glass, pavement joints by `groove`), then the hero view.
+
 ## Recording
 
 ```bash
-npm run vite -- --host 0.0.0.0 --port 9371 --strictPort &      # serves the page and the refs
-node demos/haussmann/record.mjs                                # local SwiftShader, writes video.webm
-node demos/haussmann/record.mjs --ws ws://<mac>:<port>/<id> \
-    --url http://9371.threepipe.aibox.localhost/examples/modelling-api/index.html --size 1920x1080
+node demos/haussmann/record.mjs            # on the GPU VM (tpvm); writes tmp/demo/haussmann/film/
+node demos/shared/report.mjs demos/haussmann --film <pulled film dir>
 ```
 
-SwiftShader renders a few frames a second at 1280×720, so camera moves in a local recording are
-jerky; the timing and framing are right, and a GPU browser (`--ws`) gives the smooth version of the
-same cut.
+The plates and photographs are read from `refs/` (not committed; `refs/SOURCES.md`). The sun's shadow camera is sized
+to the block by the film; the `light` command has no parameter for it yet.

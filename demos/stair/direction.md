@@ -4,7 +4,8 @@ A spiral staircase and a Gothic arcade, built live by JSON commands. The film's 
 of generating commands (`lathe`, `sweep`), a live `array` and a `mirror` turn one hand-made part into
 something that looks generated, and nothing is baked: every copy follows its master.
 
-Format: 1280×720, ≤ 3 min, WebM. Everything on screen is the live viewer
+Format: 1920×1080, 30 fps, H.264 (faststart), about 2 min, rendered frame by frame on the GPU VM (Chromium on
+ANGLE/Metal) by `demos/shared/film.mjs`. Everything on screen is the live viewer
 (`examples/modelling-api`) running `demos/stair/build.mjs`; cards, captions and the command chip are
 DOM overlays drawn by `record.mjs`. The command chip (top left) always shows the JSON of the command
 that just ran, so the viewer sees that it is commands all the way down.
@@ -32,13 +33,13 @@ shot for 1.4 s with its caption, so the cut list below is the build's capture li
 | 14 | Split with references | Left half the catalogue photo, right half the model; then HABS sheet 8 and the arcade | two splits | Ends where it started | 12 s |
 | 15 | End card | The command list | — | | 3 s |
 
-As recorded on SwiftShader (2026-10-18): **2 min 07 s**, 12.9 MB, 0 failed commands
-(`runs/record.txt`). The holds are 1.4 s per shot, the eased moves 0.8 s, section cards 1.6 s, the
-turntable 12 s, each reference split 6 s. Page load (about 3 s) is trimmed off the front by `record.mjs`
-with ffmpeg, so the film opens on the title card.
+Re-recorded on the GPU (2026-10-18) with a realism pass between the bays and the heroes: before/after on the "both
+pieces" view - the stair in cast iron (`metal-dark`, cast relief), the arcade in tooled limestone, flagstone joints
+on the aisle floor as `groove` strips. The dealer's photographs of the stair are not shown (all rights reserved);
+the opening shows HABS sheet 8 (public domain) instead.
 
-## Notes for a GPU re-take
+## Recording
 
-`node demos/stair/record.mjs --ws <endpoint>` runs the same film on a remote browser. SwiftShader at
-1280×720 renders the shadowed scene at a few frames a second, so moves and the turntable are choppy
-locally; the timing (holds, cards) is wall-clock and does not change.
+`node demos/stair/record.mjs` on the VM (tpvm), pull `tmp/demo/stair/film/`, then `node demos/shared/report.mjs
+demos/stair`. Holds are 1.2 s per capture, glides 0.9 s, section cards 1.5 s, the turntable 12 s; the sun's shadow
+camera is sized by the film.

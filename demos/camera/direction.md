@@ -1,45 +1,29 @@
-# Direction — "Canon EOS 5D Mark IV, to scale, in JSON commands"
+# Direction - "Canon EOS 5D Mark IV + EF 24-105mm f/4L: the build story"
 
-**Format.** 1280 × 720, under 3 minutes, no sound. Recorded by `record.mjs`, which runs `build.mjs`
-live in the modelling example page: every frame of geometry is a real command arriving. The
-storyboard below is the `DIRECTION` table in `record.mjs`, keyed by the `beat()` calls in the build.
+**Format.** 1920 × 1080, 30 fps, H.264 (faststart), about 1:30. Recorded by `record.mjs` on the GPU VM (Chromium on
+ANGLE/Metal) with `demos/shared/film.mjs`: every frame is rendered and captured on purpose, so camera moves are smooth
+and a slow command never shows as a freeze; command times are measured and reported, not shown as waiting.
 
-**Tone.** A product film, not a screen recording. Dark title cards with one line and a sub-line;
-the model on a light studio grey; a single red accent (the L-series ring) for rules and the split.
-Cuts on section changes, slow drifts inside a section, nothing faster than the eye can follow.
+**What is on screen.** The page is `examples/modelling-api` reduced to its viewport. Every change to the model is one
+of the 220 commands from `build.mjs` arriving through `ModellingPlugin.run`; the last four are listed bottom right as
+they land. Overlays that are not model commands: title cards, the step chip, captions, the measurement drawing over the
+photograph, the red cage lines (a projected line drawing of `inspect {detail}`'s edges) and the clay grey of the build
+chapters (`scene.overrideMaterial`).
 
-**Why this order.** It is the order a modeller works in, and it lets the hardest-looking surface
-(the knurled lens) arrive first, while the audience is still paying full attention. The body
-follows from block to detail. Only after it is finished do we put it against the photographs —
-the payoff is earned.
+**Story.** The realism workflow, in its order, so the film doubles as the SKILL's "Realism kit" section:
 
-| # | Scene | Beat | Shot | What it shows, and why | ≈ s |
-|---|---|---|---|---|---|
-| 1 | Cold open | `references` | Full-frame product photograph (`refs/hero-5d4-ef24-105.jpg`), title card over it, card fades to leave the photo | The subject before any geometry, so the audience knows what "right" looks like | 7 |
-| 2 | Calibrate | `references` | Card "Calibrate". Orthographic cuts: front photo on its plane, back photo, the lens elevation | Each plane is placed by two points and a published distance (150.7 mm, 107 mm); the caption gives the px/mm. Scale is measured, not eyeballed | 8 |
-| 3 | Lathe the lens | `lens` | **One continuous shot**: fixed three-quarter on the lens axis, slow 38° orbit, no cuts. Mount, barrel, focus ring, zoom ring appear; the ribs cut in; red ring, front element, distance window, switches | The lathe is the hero operation of the piece. Holding one framing makes each profile visibly add to the last; the orbit shows the knurling catching light | 26 |
-| 4 | Block, bevel, cut | `body` | Rear three-quarter, slow drift. A box appears, its corners round (6 segments), its edges round (3), then the monitor recess is cut and sunk | Shows bevel doing the work that makes a box read as a product, then bisect + inset as surgical detail on a flat face | 12 |
-| 5 | Sweep the grip | `grip` | Front-left three-quarter, static | The grip is a measured section swept up the body; a static frame makes its silhouette the subject | 5 |
-| 6 | Prism, top LCD, hot shoe | `top` | High front three-quarter | The prism's sloped faces, the top LCD sunk into the plate, the shoe's ISO channel | 6 |
-| 7 | Dials and buttons | `controls` | Rear, slow 30° drift | Lathed dials with inset knurling, a button arrayed down the column at the measured pitch | 10 |
-| 8 | Eyecup | `eyecup` | Close on the eyepiece from above-behind | A section swept round a closed path - the only closed sweep in the build | 4 |
-| 9 | Mount and lugs | `mount` | Front three-quarter | The EF bayonet at its published 54 mm, and the strap lug mirrored live to the far side | 5 |
-| 10 | Assembled | `assembled` | The hero photograph's viewpoint, held | First full look at the finished product, in materials | 3 |
-| 11 | Checks | (log) | Same frame; the check log on screen, line by line | Every published dimension measured off the model, with its delta. Fails would stop the build | 4 |
-| 12 | Against the photographs | `compare` | Orthographic: model over the front photo, model alone; back; side over the lens elevation; top | The registered overlays are the proof of scale. Alternating overlay / model-only lets the eye find the differences | 12 |
-| 13 | Close-ups | `closeups` | Corners from behind (material, then every mesh edge as a thin red strut), lens ribs with their edges, mode dial in material then with edges, x-ray of the shell | The edge overlay shows *how* the round corners and knurls are made - real geometry, quads, not a texture. (Built with `duplicate` + `wireframe`, because the viewport's wireframe mode draws triangles - see the issue) | 12 |
-| 14 | Turntable | (end) | 360° orbit, 16 s, long lens | The product, all sides, uninterrupted | 17 |
-| 15 | Split | (end) | Photograph left, model right from the same viewpoint, red rule between | The closing comparison: the build against the thing it was built from | 6 |
-| 16 | End card | (end) | Command count, failures, checks passed; where the files are | | 4 |
+| # | Chapter | What happens | Camera | Why |
+| --- | --- | --- | --- | --- |
+| 0 | Open | The Commons photograph of the exact pairing, title card over it | still | The subject before any geometry |
+| 1 | Measure | The level front photograph at 0.110 mm/px; the published 150.7 × 116.4 mm, the EF throat (54 mm) and the ISO 518 shoe drawn onto it one by one; the measurement set as a panel | still | Numbers first: the SKILL's step 1 |
+| 2 | Block out cages | Lens lathes, then the body as a 64-point cage fitted to the measured outline; the cage drawn in red, then seen square-on | slow orbit, then a long-lens front view | Proportions are fixed here |
+| 3 | Subdivision | `subsurf` level 2 smooths the body under its cage; Manifold booleans cut the monitor, top LCD and port recesses; the grip and the creased prism go through the same cage → subsurf step; shoe, shutter, eyepiece, mount, then every number measured back | front three-quarter, orbit round to the rear | The limit surface, and that cuts go into the smooth body |
+| 4 | Parts | 42 `part`s (dials, buttons, knurled rings, the thumb pad, eyecup, lugs) replace the hand-made ones | rear three-quarter, slow orbit | Recurring components from a library |
+| 5 | Grooves | Panel lines round the port doors and the monitor; shading by angle and weighted normals | close on the +x side, then the rear | Seams are what make a shell read as assembled |
+| 6 | Materials | UVs at the relief tile size; clay off; leather, rubber, plastics, metal and coated-glass presets | the grip side, orbit and dolly in | The reveal: form first, surfaces after |
+| 7 | Prints | Decals: word marks, the monitor screen, legends, the mode dial, the lens prints (wrapped and embossed) | rear, top, lens front | Markings last |
+| 8 | Final | Model metrics panel, a 360° turntable, then the photograph and the model side by side, end card | hero view, turntable | The result against the thing it was built from |
 
-Recorded locally (SwiftShader, 2026-10-18): 2 min 01 s, 1280 × 720 VP9, about 22 MB, no time-lapse needed. The end card counts the 277 commands the build sends in the film; the session transcript's 308 also counts its 31 `capture`s, which the film replaces with held shots.
-
-Total ≈ 1 min 30 s of cards, holds and the ending, plus command time (`--pace`, 150 ms after each
-edit, plus however long the renderer takes). Inside a continuous shot (`lens`, `body`, `grip`, `top`,
-`controls`, `eyecup`, `mount`, `hero`) the build's own still-framing `camera` commands are ignored, so
-the director's camera holds. If the recording runs past `--max-seconds` (178 by default) -
-SwiftShader under load does - it is time-lapsed to fit, and `record.mjs` prints the factor.
-
-**Re-recording on a GPU.** `node demos/camera/record.mjs --ws <playwright endpoint>` runs the same
-storyboard on a remote browser; SwiftShader is slow enough that drifts step rather than glide, which
-the GPU run fixes without any change to the script.
+**Re-recording.** `node demos/camera/build.mjs && node demos/camera/record.mjs` (on the VM through `tpvm`), pull
+`tmp/demo/camera/film/`, then `node demos/shared/report.mjs demos/camera`. The photographs are read from `refs/`
+(not committed; `refs/SOURCES.md`). `--views` renders the storyboard's camera positions on the finished model only.
