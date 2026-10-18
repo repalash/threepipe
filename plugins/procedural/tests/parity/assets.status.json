@@ -1,0 +1,38 @@
+{
+ "blender-procedural-buildings": {
+  "Building 1": "exact",
+  "Building 2": "exact",
+  "Building 3": "exact"
+ },
+ "buildify_1.0": {
+  "antenna_a": "skip (not ported: GeometryNodeInputMeshEdgeAngle)",
+  "antenna_b": "skip (not ported: GeometryNodeInputMeshEdgeAngle)",
+  "building_base": "skip (not ported: GeometryNodeAttributeStatistic, GeometryNodeCaptureAttribute, GeometryNodeCurveEndpointSelection, GeometryNodeCurveToMesh, GeometryNodeDuplicateElements, GeometryNodeExtrudeMesh, GeometryNodeInputMeshEdgeAngle, GeometryNodeInputMeshEdgeNeighbors, GeometryNodeInputMeshFaceArea, GeometryNodeInputMeshIsland, GeometryNodeInstancesToPoints, GeometryNodeMeshToCurve, GeometryNodeResampleCurve, GeometryNodeSampleIndex, GeometryNodeSampleNearest, GeometryNodeSampleNearestSurface, GeometryNodeSetID, GeometryNodeSetMaterial, GeometryNodeSplineLength, GeometryNodeSplitEdges, GeometryNodeSubdivideMesh, GeometryNodeTrimCurve)",
+  "ground_floor_wall_01": "skip (not ported: GeometryNodeInputMeshEdgeAngle)",
+  "roof_window_glass": "skip (not ported: GeometryNodeInputMeshEdgeAngle)",
+  "rotating_chimney": "skip (not ported: GeometryNodeInputMeshEdgeAngle)",
+  "satelite": "skip (not ported: GeometryNodeInputMeshEdgeAngle)",
+  "small_chimney_pointy": "skip (not ported: GeometryNodeInputMeshEdgeAngle)",
+  "small_chimney_round": "skip (not ported: GeometryNodeInputMeshEdgeAngle)",
+  "street_sign_a": "skip (not ported: GeometryNodeInputMeshEdgeAngle)",
+  "street_sign_b": "skip (not ported: GeometryNodeInputMeshEdgeAngle)",
+  "top_trim_pillar": "skip (not ported: GeometryNodeInputMeshEdgeAngle)",
+  "top_trim_pillar_CC": "skip (not ported: GeometryNodeInputMeshEdgeAngle)",
+  "top_trim_pillar_CV": "skip (not ported: GeometryNodeInputMeshEdgeAngle)",
+  "trimm": "skip (not ported: GeometryNodeInputMeshEdgeAngle)"
+ },
+ "candy_bounce": {
+  "geonodes_floor": "skip (not ported: GeometryNodeProximity, GeometryNodeSetMaterial, GeometryNodeSubdivisionSurface)",
+  "geonodes_jumpers": "skip (not ported: GeometryNodeDistributePointsOnFaces, GeometryNodeRotateInstances)",
+  "geonodes_well": "skip (not ported: GeometryNodeRotateInstances)"
+ },
+ "flower_scattering": {
+  "EN-ground_plane_NEW": "skip (not ported: GeometryNodeDistributePointsOnFaces, GeometryNodeImageTexture)"
+ },
+ "pebble_scattering": {
+  "GEO-ground": "skip (not ported: GeometryNodeDistributePointsOnFaces)"
+ },
+ "repeat_zone_flower_by_MiRA": {
+  "Rose": "skip (not ported: GeometryNodeBoundBox, GeometryNodeInputSceneTime, GeometryNodeMeshCircle, GeometryNodeRepeatInput, GeometryNodeRepeatOutput, GeometryNodeSampleIndex, GeometryNodeSampleNearest, GeometryNodeSetMaterial, GeometryNodeSubdivisionSurface)"
+ }
+}
