@@ -619,20 +619,34 @@ meshes (kernel `AttributeStorage.setBuiltins`, additive), measured libm boundari
 `blenderSystem.libm`), `blenderSystem.threadCount` for thread-count-dependent orders. Dump importer v1/v2 and
 runtime bundles (`porting/blender/bundle_dump.py`: the dump without evaluated output; unorm8 images).
 
-**Nodes**: function nodes F1-F8 and S (all), G1-G5, G6 except Subdivide Mesh / Flip Faces / Triangulate / Scale
-Elements, G7 except Raycast / Proximity, I1-I3 (Image Info pending), mesh primitives incl. Circle/Cylinder/Cone/UV
-Sphere (Ico Sphere pending), Bounding Box, Merge by Distance, Duplicate Elements. Curves (C1-C3) in progress.
+**Nodes** (counts against Blender 5.2.2's 318 geometry/function node types, `node_geo_*.cc` / `node_fn_*.cc`):
+211 are ported, plus the Repeat and For Each Geometry Element zones and the `ThreepipeErosion` extension node
+([A5]). That covers all of §3 (F, S, G1-G7, I1-I3, C1-C3): Subdivide Mesh, Triangulate, Dual Mesh, Scale/Sort/Split
+elements, edge paths and face groups, Raycast, Proximity, Index of Nearest, Blur Attribute, every curve node except
+grease-pencil and font ones (Fill/Fillet/Interpolate/Subdivide/Sample Curve, Curve to Points, primitives, handles,
+spline types), Convex Hull (Bullet port), the string and matrix function nodes, Merge Points and the Cluster nodes.
+Not ported, by group:
+- volumes and grids (OpenVDB, ~35 nodes), grease pencil (8), lists / closures / bundles (12, a runtime value kind),
+  Simulation and Bake zones, tool-context nodes (9), file import (6), Viewer, gizmos;
+- in work by the sub-agent: Ico Sphere (exact BMesh path), Sample UV Surface, UV Unwrap / Pack Islands;
+- blocked on decisions: Subdivision Surface (one OpenSubdiv port, see below), Set Mesh Normal (custom normals in
+  the kernel), Mesh Boolean (the realism track's Manifold port; Exact solver is a separate large port), Mesh Bevel;
+- remaining smaller nodes: Transfer Attributes (needs lists), Image Info (needs image channel info in bundles),
+  Input Menu, Integer Vector, Format/Split String, String to Value, Matrix SVD (Eigen JacobiSVD), UV Tangent, Cube
+  Grid Topology, Distribute Points in Grid, Camera Info, Collection Children (lists), String to Curves (fonts).
 
 **Parity** (Blender 5.2.2, run through `run_cases.py` on the maintainer's Mac):
-- geonodes-kit corpus: 316 pass / 23 skip (unported nodes) / 0 fail.
-- own case sets (19 sets): 587 bit-exact, 66 within 16 ulp (libm `sinf`/`cosf`/`powf`/`acosf` differences, §2.6),
-  1 `blenderBug` (Face Is Planar threshold, issue filed), 1 `blocked` (float4x4 `mix2` = Eigen JacobiSVD, issue
-  `procedural-eigen-port-licence.md`), 1 failing (uv-sphere-normals: mesh runtime caches through copies, in work).
-- assets (whole graphs vs Blender's evaluated output): Blender procedural buildings 3/3 bit-exact; Buildify
-  14/15 bit-exact (`building_base` needs curves + Subdivide Mesh); flower scatter (30 740 instances, Image
-  Texture) and pebble scatter (40 758 instances) match within 1e-5 - 18 / 1 matrix values beyond 256 ulp (near-
-  zero rotation terms); candy bounce jumpers <= 16 ulp, well <= 4 ulp. Not yet: candy floor (Proximity,
-  Subdivision Surface), rose (repeat zone, Scene Time, Subdivision Surface).
+- geonodes-kit corpus: 323 pass / 16 skip (13 need operator-built scene objects, Ico Sphere, 2 volumes) / 0 fail.
+- own case sets (52 sets, about 1000 cases): bit-exact except libm ulps (Apple `sinf`/`cosf`/`acosf`/`atan2f`/
+  `asinf`/`__sincosf_stret`, proven by substitution, `procedural-libm-atan2f-sincos.md`), 1 ulp from Blender's single-
+  value attribute storage (`procedural-single-value-attribute-storage.md`), 2 reproduced Blender bugs (realize
+  material slots, For Each main items), 1 `blenderBug` (Face Is Planar), 3 `blocked` (float4x4 mix2 = Eigen
+  JacobiSVD; Scale Elements' large-island grouping order = TBB/libc++ unstable sort; NURBS custom knots).
+- assets (whole graphs vs Blender's evaluated output): Blender procedural buildings 3/3 bit-exact; Buildify 14/15
+  bit-exact. `building_base` evaluates fully and matches except one attribute: a vertex group and a face attribute
+  share the name `building:levels` (known gap, `procedural-vertex-groups.md`, a kernel data-model decision). Flower
+  and pebble scatter are within 1e-5, candy bounce jumpers <= 16 ulp, well <= 4 ulp. Candy floor and rose wait for
+  Subdivision Surface.
 - reactivity (§7.2): `tests/parity/reactivity.test.ts` perturbs every modifier input of every evaluable asset.
 
 **Modifier, editor, examples (M5)**: `geometryNodes` modifier type and `nodeGroup` command (`./plugin`), editable
@@ -642,9 +656,12 @@ bundle of any dumped .blend: evaluates, draws instances as `InstancedMesh2` per 
 bundles are local, see below). e2e: `tests/procedural.spec.ts`.
 
 **Blockers / decisions for the maintainer**
-- Subdivide Mesh and Subdivision Surface go through OpenSubdiv in 5.2.2 (`bke::subdiv`), not a Blender-only
-  bilinear path as §3 G6 assumed: the exact port needs the OpenSubdiv pieces the bilinear/Catmull-Clark schemes
-  use (topology refiner, patch evaluation; Apache-2.0). Next milestone; [A4] to be revisited with this.
+- OpenSubdiv: Subdivide Mesh is exact on this branch's OSD port (`src/blender/opensubdiv/`, uniform refinement,
+  TOST-1.0). The realism branch has a second, kernel-side OSD port whose adaptive patch evaluation (needed by
+  Subdivision Surface) is still to come (S6b). Recommendation: one port in the kernel. Move this branch's evaluator
+  stack there and add adaptive refinement to it. The GN Subdivision Surface node then calls it.
+- Vertex groups (`procedural-vertex-groups.md`) and single-value attributes (`procedural-single-value-attribute-
+  storage.md`): two kernel data-model additions that exact parity needs.
 - Asset bundles are derived from third-party .blend files (Buildify, flower/pebble scatter, candy bounce): they
   stay out of git (`tmp/bundles`) until their licences and hosting are decided ([A6]); the flower bundle is 40 MB.
 - Eigen (float4x4 interpolate / invert / determinant): licence decision in `procedural-eigen-port-licence.md`.
