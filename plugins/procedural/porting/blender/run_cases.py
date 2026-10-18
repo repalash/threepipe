@@ -323,8 +323,6 @@ def read_scene(depsgraph, writer, self_name):
     """The scene the case built, as dump_blend.py's `referenced` block: objects (world matrix and evaluated
     geometry; the modified object itself with its matrix only), collections. Object Info / Collection Info
     cases evaluate against it."""
-    if not bpy.data.collections and len(bpy.data.objects) <= 1:
-        return None
     objects = {}
     for o in bpy.data.objects:
         entry = {"type": o.type, "matrix_world": matrix_list(o.matrix_world),

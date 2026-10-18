@@ -47,6 +47,8 @@ export interface EvalOptions {
     scene?: SceneProvider
     /** The object the modifier runs on (Self Object, relative transforms). */
     selfObject?: string
+    /** A render evaluation (`DAG_EVAL_RENDER`) rather than a viewport one: Is Viewport reads false. */
+    render?: boolean
     /**
      * The scene's current time for Scene Time: `ctime` (`BKE_scene_ctime_get`, `(frame + subframe) * framelen`) and
      * the frame rate `fps / fps_base`. Default: Blender's new scene, frame 1 at 24 fps.
