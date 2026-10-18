@@ -100,7 +100,24 @@ def read_attributes(owner, writer, skip=()):
     return [read_attribute(a, writer) for a in owner.attributes if a.name not in skip]
 
 
-def read_mesh(mesh, writer):
+def read_vertex_groups(mesh, names, writer):
+    """Vertex groups as float point attributes, which is how geometry nodes read them
+    (`mesh_attributes.cc:743-790`: non-builtin Float attributes on the point domain, 0 where unassigned)."""
+    out = []
+    if not names:
+        return out
+    weights = [[0.0] * len(mesh.vertices) for _ in names]
+    for v in mesh.vertices:
+        for g in v.groups:
+            if g.group < len(names):
+                weights[g.group][v.index] = g.weight
+    for name, values in zip(names, weights):
+        out.append({"name": name, "domain": "POINT", "type": "FLOAT", "vertexGroup": True,
+                    "values": writer.put(values, "f4")})
+    return out
+
+
+def read_mesh(mesh, writer, vertex_groups=()):
     edges = [0] * (len(mesh.edges) * 2)
     if edges:
         mesh.edges.foreach_get("vertices", edges)
@@ -117,7 +134,7 @@ def read_mesh(mesh, writer):
         "corners": len(mesh.loops),
         "faceOffsets": writer.put(starts + [len(mesh.loops)], "i4"),
         "materials": [m.name if m else None for m in mesh.materials],
-        "attributes": read_attributes(mesh, writer),
+        "attributes": read_attributes(mesh, writer) + read_vertex_groups(mesh, list(vertex_groups), writer),
     }
 
 
@@ -154,11 +171,12 @@ def read_reference(reference, writer, depth):
     return {"kind": "geometry", "geometry": read_geometry(reference, writer, depth + 1)}
 
 
-def read_geometry(geometry, writer, depth=0):
-    """`geometry` is a bpy.types.GeometrySet."""
+def read_geometry(geometry, writer, depth=0, vertex_groups=()):
+    """`geometry` is a bpy.types.GeometrySet. `vertex_groups`: the owning object's vertex group names (a mesh in a
+    geometry set keeps the weights but Python only lists the names on the object)."""
     result = {"name": getattr(geometry, "name", "")}
     if geometry.mesh is not None:
-        result["mesh"] = read_mesh(geometry.mesh, writer)
+        result["mesh"] = read_mesh(geometry.mesh, writer, vertex_groups)
     if geometry.pointcloud is not None:
         result["pointcloud"] = read_pointcloud(geometry.pointcloud, writer)
     if geometry.curves is not None:

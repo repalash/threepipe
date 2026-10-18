@@ -83,6 +83,12 @@ function fillAttributes(storage: AttributeStorage, attrs: ExpectedAttribute[], r
         // `geometry_dump.py` writes byte colours as `color_srgb` (byte / 255).
         if (type === 'byteColor') data = Array.from(data, v => Math.round(v * 255))
         let layer = storage.get(a.name)
+        // A vertex group (exported as a point float attribute) shadows an attribute of the same name: mesh lookups
+        // try vertex groups first (`mesh_attributes.cc:878`). MeshData has one namespace, so the group replaces it.
+        if (layer && (a as {vertexGroup?: boolean}).vertexGroup) {
+            storage.remove(a.name)
+            layer = undefined
+        }
         if (!layer) layer = storage.add({name: a.name, domain, type})
         if (layer.data.length !== data.length) {
             throw new Error(`procedural: dumped attribute '${a.name}' has ${data.length} values, expected ${layer.data.length}`)

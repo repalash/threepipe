@@ -10,6 +10,7 @@
 
 import {f32} from '../f32'
 import {normalizeAndGetLength3, Quat, Float3} from './quaternion'
+import {atan2f} from '../libm'
 
 /** 3x3, column major. */
 export type Float3x3 = Float32Array<ArrayBufferLike>
@@ -73,18 +74,18 @@ export function normalizedToEul2(m: ArrayLike<number>): [Float3, Float3] {
     const cy = f32(Math.hypot(at(0, 0), at(0, 1)))
     if (cy > f32(16 * FLT_EPSILON)) {
         const e1: Float3 = [
-            f32(Math.atan2(at(1, 2), at(2, 2))),
-            f32(Math.atan2(-at(0, 2), cy)),
-            f32(Math.atan2(at(0, 1), at(0, 0))),
+            atan2f(at(1, 2), at(2, 2)),
+            atan2f(-at(0, 2), cy),
+            atan2f(at(0, 1), at(0, 0)),
         ]
         const e2: Float3 = [
-            f32(Math.atan2(-at(1, 2), -at(2, 2))),
-            f32(Math.atan2(-at(0, 2), -cy)),
-            f32(Math.atan2(-at(0, 1), -at(0, 0))),
+            atan2f(-at(1, 2), -at(2, 2)),
+            atan2f(-at(0, 2), -cy),
+            atan2f(-at(0, 1), -at(0, 0)),
         ]
         return [e1, e2]
     }
-    const e1: Float3 = [f32(Math.atan2(-at(2, 1), at(1, 1))), f32(Math.atan2(-at(0, 2), cy)), 0]
+    const e1: Float3 = [atan2f(-at(2, 1), at(1, 1)), atan2f(-at(0, 2), cy), 0]
     return [e1, [e1[0], e1[1], e1[2]]]
 }
 

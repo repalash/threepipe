@@ -1,0 +1,9 @@
+{
+ "distribute-random": "pass (<= 16 ulp)",
+ "distribute-random-smooth": "pass (<= 16 ulp)",
+ "distribute-random-field": "pass (<= 16 ulp)",
+ "distribute-random-legacy-normal": "pass (<= 4 ulp)",
+ "distribute-poisson": "exact",
+ "distribute-poisson-selection": "exact",
+ "distribute-cube": "exact"
+}

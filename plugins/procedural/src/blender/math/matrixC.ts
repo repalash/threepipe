@@ -8,6 +8,7 @@
 
 import {f32} from '../f32'
 import {angleV3V3, dot3, normalizeV3V3, V3} from './vec'
+import {atan2f} from '../libm'
 
 export type M3 = Float32Array
 
@@ -93,11 +94,11 @@ function mat3NormalizedToEul2(m: ArrayLike<number>): [V3, V3] {
     const cy = f32(Math.hypot(at(0, 0), at(0, 1)))
     if (cy > EULER_HYPOT_EPSILON) {
         return [
-            [f32(Math.atan2(at(1, 2), at(2, 2))), f32(Math.atan2(-at(0, 2), cy)), f32(Math.atan2(at(0, 1), at(0, 0)))],
-            [f32(Math.atan2(-at(1, 2), -at(2, 2))), f32(Math.atan2(-at(0, 2), -cy)), f32(Math.atan2(-at(0, 1), -at(0, 0)))],
+            [atan2f(at(1, 2), at(2, 2)), atan2f(-at(0, 2), cy), atan2f(at(0, 1), at(0, 0))],
+            [atan2f(-at(1, 2), -at(2, 2)), atan2f(-at(0, 2), -cy), atan2f(-at(0, 1), -at(0, 0))],
         ]
     }
-    const e: V3 = [f32(Math.atan2(-at(2, 1), at(1, 1))), f32(Math.atan2(-at(0, 2), cy)), 0]
+    const e: V3 = [atan2f(-at(2, 1), at(1, 1)), atan2f(-at(0, 2), cy), 0]
     return [e, [e[0], e[1], e[2]]]
 }
 

@@ -7,6 +7,7 @@
  */
 
 import {f32} from '../f32'
+import {atan2f} from '../libm'
 
 export type Quat = [number, number, number, number]
 export type Float3 = [number, number, number]
@@ -67,7 +68,7 @@ export function quatToAxisAngle(q: ArrayLike<number>): {axis: Float3, angle: num
     ay = f32(ay / sinHalf)
     az = f32(az / sinHalf)
     // AngleRadianBase(cos, sin) is atan2(sin, cos); `* 2` doubles it.
-    const angle = f32(f32(Math.atan2(sinHalf, cosHalf)) * 2)
+    const angle = f32(atan2f(sinHalf, cosHalf) * 2)
     return {axis: [ax, ay, az], angle}
 }
 

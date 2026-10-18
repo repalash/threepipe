@@ -9,6 +9,7 @@ import {quatToMat3} from './matrix'
 import {mulM3M3M3} from './matrixC'
 import {Quat} from './quaternion'
 import {normalize3} from './vec'
+import {acosf} from '../libm'
 
 const PI_F = f32(Math.PI)
 
@@ -38,7 +39,7 @@ export function quatConjugate(q: ArrayLike<number>): Quat {
 export function safeAcos(a: number): number {
     if (a <= -1) return PI_F
     if (a >= 1) return 0
-    return f32(Math.acos(a))
+    return acosf(a)
 }
 
 /** `math::pow(Quaternion, T)` (`BLI_math_quaternion.hh:204`). */
