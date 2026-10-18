@@ -1,0 +1,9 @@
+{
+ "title": "Haussmann, by command",
+ "blurb": "A Paris corner block (77 bd de Sébastopol, 1870) built to the engraved drawings, then a realism pass.",
+ "hero": "shots/16-hero-from-the-rue-greneta-corner-eye-level.jpg",
+ "line": "397 commands, 0 failed · 66,798 triangles · 2:42 film · 16.6 ms/frame",
+ "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple Paravirtual device, Unspecified Version)",
+ "seconds": 162.1,
+ "generated": "2026-10-18"
+}

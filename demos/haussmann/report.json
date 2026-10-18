@@ -89,7 +89,7 @@
   [
    "realism pass",
    "≈ 20 min",
-   "this session (demos-gpu); 13 commands + 39 pavement grooves"
+   "this session (demos-gpu): 7 uv / material commands and 40 pavement grooves, no new geometry"
   ]
  ],
  "how": "<p><code>build.mjs</code> is the demo's session build script: measured data (pixel readings off Daly's plates, with the plate and row cited), then the build as commands, then the checks - each dimension measured off the model, not restated from constants. The realism pass is its own block at the end of the build (<code>session.realism</code>, on by default). <code>record.mjs</code> runs the unchanged build in <code>examples/modelling-api</code> on the GPU VM through <code>demos/shared/session.mjs</code>: its camera jumps become eased glides, each <code>capture</code> a held shot with its caption, each beat a title card; <code>demos/shared/film.mjs</code> renders and captures every frame. The shadow camera of the sun is sized to the block by the film (the <code>light</code> command has no parameter for it yet).</p><p>Re-run: <code>node demos/haussmann/record.mjs</code> then <code>node demos/shared/report.mjs demos/haussmann</code>. The plates and photographs come from <code>refs/</code> (not committed; <code>refs/SOURCES.md</code>).</p>",
