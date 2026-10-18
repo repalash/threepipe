@@ -4,7 +4,7 @@
 
 import {AttrDomain} from '@threepipe/mesh-kernel'
 import {CurvesGeometry} from './components'
-import {CURVE_TYPE_CATMULL_ROM} from './curvesEval'
+import {bezierCalculateAutoHandles, CURVE_TYPE_BEZIER, CURVE_TYPE_CATMULL_ROM, curvesAttributeOr, curveTypes} from './curvesEval'
 
 /** `CurvesGeometry::fill_curve_types(type)` (:244): Catmull Rom removes the attribute (its default), others store `type` everywhere. */
 export function fillCurveTypes(curves: CurvesGeometry, type: number): void {
@@ -46,4 +46,22 @@ export function curvesAttributeForWrite(curves: CurvesGeometry, name: string, de
         acc.add(name, b.domain, b.type, def)
     }
     return curves.attributes.get(name)!.data
+}
+
+/** `CurvesGeometry::calculate_bezier_auto_handles` (`curves_geometry.cc:1287`). */
+export function calculateBezierAutoHandles(curves: CurvesGeometry): void {
+    const types = curveTypes(curves)
+    if (!Array.prototype.some.call(types, (t: number) => t === CURVE_TYPE_BEZIER)) return
+    const hl = curves.attributes.get('handle_left'), hr = curves.attributes.get('handle_right')
+    if (!hl || !hr) return
+    const cyclic = curvesAttributeOr(curves, 'cyclic', curves.curvesNum, 0)
+    const tl = curvesAttributeOr(curves, 'handle_type_left', curves.pointsNum, 0)
+    const tr = curvesAttributeOr(curves, 'handle_type_right', curves.pointsNum, 0)
+    const positions = curves.positions
+    for (let c = 0; c < curves.curvesNum; c++) {
+        if (types[c] !== CURVE_TYPE_BEZIER) continue
+        const [s, e] = curves.pointsRange(c)
+        bezierCalculateAutoHandles(!!cyclic[c], Array.prototype.slice.call(tl, s, e), Array.prototype.slice.call(tr, s, e),
+            positions.subarray(s * 3, e * 3), (hl.data as Float32Array).subarray(s * 3, e * 3), (hr.data as Float32Array).subarray(s * 3, e * 3))
+    }
 }

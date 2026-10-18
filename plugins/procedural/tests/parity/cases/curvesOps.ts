@@ -82,6 +82,24 @@ export function curvesOpsCases(): ParityCase[] {
     trim('trim-equal', 'Trim Curve (Factor) with start equal to end (single points, or split cyclic curves)', () => ({start: 0.4, end: 0.4}))
     // endregion
 
+    // region Set Position on Bézier curves
+    for (const cyclic of [false, true]) {
+        add(`set-position-bezier-${cyclic ? 'cyclic' : 'open'}`, 'Set Position on Bézier curves with every handle type: handles follow, auto/vector/align handles recalculated', SHAPE_SCENE, () => {
+            let g = typedCurve(2, cyclic, [0, 0, 0])
+            g = storeInt8(g, 'POINT', 'handle_type_left', mod(index(), 4))
+            g = storeInt8(g, 'POINT', 'handle_type_right', mod(index().add(1), 4))
+            g = n.JoinGeometry({geometry: [g, typedCurve(1, cyclic, [0, 3, 0])]}).geometry
+            g = n.SetPosition({geometry: g, selection: mod(index(), 3).eq(2).not(),
+                offset: n.CombineXYZ({x: mod(index(), 2).mul(0.3), y: index().mul(0.05), z: mod(index(), 3).mul(-0.2)}).vector}).geometry
+            return n.JoinGeometry({geometry: [g, n.CurveToMesh({curve: g}).mesh]}).geometry
+        })
+    }
+    add('set-position-bezier-segment', 'Set Position of a Bézier Segment (aligned handles) moving one control point', {}, () => {
+        const g = n.SetPosition({geometry: n.BezierSegment({resolution: 6}).curve, selection: index().eq(0), position: [-1.5, 0.7, 0.3]}).geometry
+        return n.JoinGeometry({geometry: [g, n.CurveToMesh({curve: g}).mesh]}).geometry
+    })
+    // endregion
+
     // region Duplicate Elements on curves
     for (const domain of ['SPLINE', 'POINT'] as const) {
         add(`duplicate-${domain.toLowerCase()}-curves`, `Duplicate Elements (${domain}) of curves with ids, a count field and a selection`, SHAPE_SCENE, () => {

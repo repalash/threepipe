@@ -5,9 +5,9 @@
   "Building 3": "exact"
  },
  "buildify_1.0": {
-  "building_base": "skip (not ported: GeometryNodeSubdivideMesh)",
   "antenna_a": "exact",
   "antenna_b": "exact",
+  "building_base": "known gap (procedural-vertex-groups.md): geometry.mesh: attribute 'building:levels' is int32 on domain 2, expected float on POINT",
   "ground_floor_wall_01": "exact",
   "roof_window_glass": "exact",
   "rotating_chimney": "exact",
@@ -22,7 +22,7 @@
   "trimm": "exact"
  },
  "candy_bounce": {
-  "geonodes_floor": "skip (not ported: GeometryNodeProximity, GeometryNodeSubdivisionSurface)",
+  "geonodes_floor": "skip (not ported: GeometryNodeSubdivisionSurface)",
   "geonodes_jumpers": "pass (<= 16 ulp)",
   "geonodes_well": "pass (<= 4 ulp)"
  },

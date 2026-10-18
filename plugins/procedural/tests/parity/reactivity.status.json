@@ -101,6 +101,14 @@
   "antenna_b": {
    "Angle": "changes at 0.7103490471839905 (4 of 7 nodes re-run)"
   },
+  "building_base": {
+   "- BLOSM or ADE -": "changes at false (248 of 458 nodes re-run)",
+   "- Randomize floor numbers - ": "changes at false (252 of 458 nodes re-run)",
+   "Min number of floors": "changes at 5 (251 of 458 nodes re-run)",
+   "Max number of floors": "changes at 0 (239 of 458 nodes re-run)",
+   "Module width": "changes at 3.3000000000000003 (152 of 458 nodes re-run)",
+   "Module height": "changes at 3.3000000000000003 (142 of 458 nodes re-run)"
+  },
   "ground_floor_wall_01": {
    "Angle": "changes at 0.6094689667224884 (4 of 7 nodes re-run)"
   },
