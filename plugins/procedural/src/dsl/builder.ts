@@ -33,6 +33,11 @@ export function dslKey(name: string): string {
     return parts.map((p, i) => i === 0 ? p.charAt(0).toLowerCase() + p.slice(1) : p.charAt(0).toUpperCase() + p.slice(1)).join('')
 }
 
+/** DSL key of a node type's property: `dslPropertyKeys` when it collides with an input socket, else {@link dslKey}. */
+export function dslPropertyKey(def: NodeTypeDef, prop: string): string {
+    return def.dslPropertyKeys?.[prop] ?? dslKey(prop)
+}
+
 /** DSL class name of a node type: its `dslName`, else the PascalCase UI label. */
 export function dslClassName(def: NodeTypeDef): string {
     if (def.dslName) return def.dslName
@@ -238,7 +243,7 @@ export class TreeBuilder {
         if (!def) throw new Error(`node type ${idname} is not ported`)
         const name = this.uniqueName(def.label)
         const json: NodeJSON = {name, type: idname, properties: {}, inputs: {}}
-        const propKeys = new Map(Object.keys(def.properties ?? {}).map(p => [dslKey(p), p]))
+        const propKeys = new Map(Object.keys(def.properties ?? {}).map(p => [dslPropertyKey(def, p), p]))
         const rest: [string, unknown][] = []
         for (const [k, v] of Object.entries(args)) {
             if (v === undefined) continue

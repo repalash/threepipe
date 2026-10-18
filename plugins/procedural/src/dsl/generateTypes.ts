@@ -9,7 +9,7 @@ import {NodeInstance, NodeTypeDef, registeredNodeTypes} from '../runtime/registr
 import {SocketDecl, socketDataType} from '../runtime/declaration'
 import {isConvertible} from '../geometry/typeConversions'
 import type {JSONValue, SocketType} from '../runtime/types'
-import {dslClassName, dslKey} from './builder'
+import {dslClassName, dslKey, dslPropertyKey} from './builder'
 
 const SOCKET_TYPES: SocketType[] = ['GEOMETRY', 'FLOAT', 'INT', 'BOOLEAN', 'VECTOR', 'RGBA', 'ROTATION', 'MATRIX', 'STRING', 'MENU',
     'OBJECT', 'COLLECTION', 'MATERIAL', 'IMAGE', 'TEXTURE', 'BUNDLE', 'CLOSURE', 'CUSTOM']
@@ -112,8 +112,8 @@ export function generateDslTypes(): string {
         }
         lines.push(`/** \`${def.idname}\` (${def.label}). */`, `export interface ${cls}Args {`)
         for (const [k, v] of Object.entries(def.properties ?? {})) {
-            const key = dslKey(k)
-            if (inputs.has(key)) continue
+            const key = dslPropertyKey(def, k)
+            if (inputs.has(key)) throw new Error(`generateDslTypes: ${def.idname} property '${k}' and an input share the DSL key '${key}'; set dslPropertyKeys`)
             const t = def.enums?.[k] ? def.enums[k].map(x => lit(x)).join(' | ')
                 : typeof v === 'boolean' ? 'boolean' : typeof v === 'number' ? 'number' : typeof v === 'string' ? 'string' : 'unknown'
             lines.push(`    ${quote(key)}?: ${t}`)
