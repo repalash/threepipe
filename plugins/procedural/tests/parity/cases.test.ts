@@ -23,6 +23,7 @@ import {fieldNodeCases} from './cases/fieldNodes'
 import {topologyCases} from './cases/topology'
 import {inputCases} from './cases/inputs'
 import {geometryOpCases} from './cases/geometryOps'
+import {materialOpCases} from './cases/materialOps'
 import {functionMathCases} from './cases/functionMath'
 import {functionRandomCases} from './cases/functionRandom'
 import {functionRotationCases} from './cases/functionRotation'
@@ -70,6 +71,7 @@ SETS.fieldNodes = fieldNodeCases
 SETS.topology = topologyCases
 SETS.inputs = inputCases
 SETS.geometryOps = geometryOpCases
+SETS.materialOps = materialOpCases
 SETS.meshEdit = meshEditCases
 SETS.meshPrimitive = meshPrimitiveCases
 SETS.meshMerge = meshMergeCases

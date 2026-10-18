@@ -32,6 +32,7 @@ import {
 import {AttributeAccessor, BuiltinAttribute} from './attributeAccessor'
 import type {SceneProvider} from '../runtime/context'
 import {newMeshData} from './components'
+import {meshCachedMaxMaterialIndex, meshEnsureMaxMaterialIndex} from './meshRuntime'
 import {copyMesh, meshTagPositionsChanged} from './meshRuntime'
 
 export interface RealizeInstancesOptions {
@@ -799,7 +800,11 @@ function executeMeshTasks(
     }
     const dst = newMeshData()
     dst.resize({verts: offsets.vert, edges: offsets.edge, faces: offsets.face, corners: offsets.corner})
-    dst.materials = materials.map(m => m ?? '')
+    // `BKE_mesh_copy_parameters_for_eval(dst, first_mesh)` copies the first mesh's slots, then the ordered materials
+    // are assigned to slots 1.. (`BKE_id_material_eval_assign`, :2062): slots past them keep the first mesh's.
+    const slots = tasks[0].info.mesh.materials.slice()
+    materials.forEach((m, i) => { slots[i] = m ?? '' })
+    dst.materials = slots
     const acc = new MeshAccessor(dst)
     if (flags.id) acc.add('id', AttrDomain.Point, 'int32')
     order.names.forEach((n, i) => acc.add(n, order.kinds[i].domain, order.kinds[i].type))
@@ -842,20 +847,30 @@ function executeMeshTasks(
 
 /** `join_mesh_material_indices` (`:1925`). */
 function joinMaterialIndices(materials: (string | null)[], infos: MeshInfo[], tasks: Task<MeshInfo>[], dst: MeshData): void {
-    if (materials.length <= 1) return
+    if (materials.length <= 1) {
+        meshEnsureMaxMaterialIndex(dst, 0)
+        return
+    }
     const mapped = (info: MeshInfo, index: number) => {
         if (info.mesh.materials.length === 0) return info.materialIndexMap[0]
         return index >= 0 && index < info.mesh.materials.length ? info.materialIndexMap[index] : info.materialIndexMap[0]
     }
-    // `calc_material_index_max_hint` returns 0 when every mesh maps to slot 0: no attribute then.
+    // `calc_material_index_max_hint` (:1871): each mesh's cached max index (`max_material_index`, mapped - the map of
+    // the largest index, not the largest mapped index), else its single index; 0 means no attribute.
     const maxHint = (() => {
         let max = -Infinity
         for (const info of infos) {
+            const cached = meshCachedMaxMaterialIndex(info.mesh)
+            if (cached !== undefined) {
+                max = Math.max(max, mapped(info, cached))
+                continue
+            }
             if (!info.materialIndices.isSingle) return undefined
             max = Math.max(max, mapped(info, info.materialIndices.single[0]))
         }
         return max
     })()
+    if (maxHint !== undefined) meshEnsureMaxMaterialIndex(dst, maxHint)
     if (maxHint === 0) return
     const acc = new MeshAccessor(dst)
     // `calc_single_value_material_index`.

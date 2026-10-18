@@ -12,6 +12,7 @@ import {AttributeFieldInput} from '../../fields/inputs'
 import {MeshAccessor} from '../../geometry/components'
 import {ensureDefaultMaterialSlot} from '../../geometry/meshPrimitives'
 import {foreachRealGeometry} from '../../geometry/joinGeometries'
+import {meshEnsureMaxMaterialIndex} from '../../geometry/meshRuntime'
 import {registerNodeType} from '../../runtime/registry'
 
 /** `assign_material_to_id_geometry` (`node_geo_set_material.cc:42`) for a mesh's faces. */
@@ -24,6 +25,8 @@ function assignMaterialToMesh(mesh: MeshData, selectionField: GField, material: 
     if (selected.length !== domainSize) ensureDefaultMaterialSlot(mesh)
     // :62-72: `first_index_try(material)` (pointer equality; an empty slot is nullptr), else append a slot.
     const slot = material ?? ''
+    // :63: the slot count before a new slot is added.
+    const origMaterialsNum = mesh.materials.length
     let newIndex = mesh.materials.indexOf(slot)
     if (newIndex === -1) {
         newIndex = mesh.materials.length
@@ -32,14 +35,17 @@ function assignMaterialToMesh(mesh: MeshData, selectionField: GField, material: 
     }
     const attributes = new MeshAccessor(mesh)
     if (selected.length === domainSize) {
-        // :74.
+        // :74: and the max index cache is the new index (:76).
         attributes.remove('material_index')
         attributes.add('material_index', AttrDomain.Face, 'int32', [newIndex])
+        meshEnsureMaxMaterialIndex(mesh, newIndex)
     } else {
         // :80: `lookup_or_add_for_write_span` (the built-in default 0 for a new attribute), then `masked_fill`.
         if (!attributes.contains('material_index')) attributes.add('material_index', AttrDomain.Face, 'int32')
         const data = attributes.layerForWrite('material_index')!.data
         for (const i of selected) data[i] = newIndex
+        // :84: a new last slot is the largest index.
+        if (newIndex === origMaterialsNum) meshEnsureMaxMaterialIndex(mesh, newIndex)
     }
 }
 
