@@ -7,7 +7,7 @@
  * - face attributes are copied from the coarse face (`subdiv_mesh_face`, `:1331`);
  * - corner attributes other than UV maps are interpolated bilinearly over the coarse face
  *   (`loop_interpolation_from_face` / `_from_corner`, `:611`, `:657`); UV maps go through face-varying
- *   subdivision (step S5 of `16b-subdivision-surface.md`).
+ *   subdivision (`fvarRefiner.ts`).
  *
  * Bilinear interpolation over a coarse face at the grid points equals linear subdivision applied level by level
  * (face point = mean of the face, edge point = midpoint, vertex = itself; within a ptex quad the same rules are a
@@ -33,13 +33,14 @@ interface Carried { layer: AttributeLayer, comps: number, bool: boolean, values:
 /**
  * Carry `mesh`'s attributes down to level `levels` of `refiner` and write them onto `out` (whose vertices,
  * faces and corners are the level's, in order). `baseToMesh` maps base vertices to mesh vertices. UV maps are
- * interpolated linearly here; the caller reports that when the UV smoothing mode is not `NONE` (S5).
+ * left to the caller (face-varying subdivision).
  */
 export function propagateAttributes(
     refiner: TopologyRefiner, levels: number, mesh: MeshData, baseToMesh: Int32Array, out: MeshData, warnings: string[],
 ): void {
     const base = refiner.levels[0]
-    const layers = mesh.attributes.layers().filter(l => !TOPOLOGY.has(l.name))
+    // UV maps go through face-varying subdivision (fvarRefiner.ts), not linear mixing
+    const layers = mesh.attributes.layers().filter(l => !TOPOLOGY.has(l.name) && !isUVMapLayer(l))
     if (!layers.length) return
 
     // base-level values

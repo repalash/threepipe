@@ -21,6 +21,8 @@ import {createBaseLevel, TopologyRefiner} from './refiner'
 import {CreasingMethod, FVarLinearInterpolation, SdcOptions, VtxBoundaryInterpolation} from './sdc'
 import {Level} from './level'
 import {isUVMapLayer, propagateAttributes} from './attributes'
+import {FVarChannel, uvValuesFromCorners} from './fvarRefiner'
+import {AttrDomain} from '../constants'
 
 export type SubdivBoundarySmooth = 'ALL' | 'PRESERVE_CORNERS'
 export type SubdivUVSmooth = 'NONE' | 'PRESERVE_CORNERS' | 'PRESERVE_CORNERS_AND_JUNCTIONS'
@@ -122,9 +124,32 @@ export function subdivisionSurfaceEvaluate(mesh: MeshData, opts: SubdivisionSurf
 
     const warnings: string[] = []
     propagateAttributes(refiner, levels, mesh, base.baseToMesh, out, warnings)
-    const uvSmooth = opts.uvSmooth ?? 'PRESERVE_BOUNDARIES'
-    if (uvSmooth !== 'NONE' && mesh.attributes.layers().some(isUVMapLayer)) {
-        warnings.push(`UV maps were interpolated linearly; face-varying smoothing "${uvSmooth}" is not ported yet (16b S5)`)
+
+    // UV maps: face-varying channels, refined to the same depth, limited the same way as positions
+    for (const layer of mesh.attributes.layers().filter(isUVMapLayer)) {
+        const {cornerValues, values} = uvValuesFromCorners(mesh, layer.data)
+        const channel = new FVarChannel(refiner, cornerValues, values.length / 2)
+        let vals = values
+        let atLevelsVals = values
+        for (let l = 1; l <= depth; l++) {
+            vals = channel.interpolate(l, vals, 2)
+            if (l === levels) atLevelsVals = vals
+        }
+        const fL = channel.levels[levels], fD = channel.levels[depth]
+        const limited = useLimit && !simple
+        const src = limited ? channel.limit(vals, 2) : atLevelsVals
+        const dstUV = out.attributes.ensure(layer.name, AttrDomain.Corner, 'float2').data as Float32Array
+        const fv = outLevel.faceVerts.indices
+        for (let c = 0; c < fv.length; c++) {
+            let val = fL.faceVertValues[c]
+            if (limited && depth > levels) {
+                // the level-`levels` value's descendant: same vertex index, same sibling, deeper offsets
+                const v = fv[c]
+                val = fD.vertSiblingOffsets[v] + (val - fL.vertSiblingOffsets[v])
+            }
+            dstUV[2 * c] = src[2 * val]
+            dstUV[2 * c + 1] = src[2 * val + 1]
+        }
     }
     if (base.baseToMesh.length < mesh.vertsNum) warnings.push('loose vertices and edges are not carried to the output yet (16b S7)')
     return {mesh: out, refiner, level: outLevel, warnings}

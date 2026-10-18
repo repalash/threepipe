@@ -166,16 +166,50 @@ describe('subdivisionSurface attributes (subdiv_mesh.cc semantics)', () => {
         expect(r.warnings).toEqual([])
     })
 
-    it('corner attributes mix within the face; UV maps say face-varying smoothing is pending', () => {
+    it('UVs: linear when uvSmooth is NONE; per-face islands stay inside their faces', () => {
         const m = cube()
         const uv = m.attributes.ensure('UVMap', AttrDomain.Corner, 'float2').data as Float32Array
-        for (let c = 0; c < m.cornersNum; c++) { uv[2 * c] = c % 4 === 1 || c % 4 === 2 ? 1 : 0; uv[2 * c + 1] = c % 4 >= 2 ? 1 : 0 }
-        const r = subdivisionSurfaceEvaluate(m, {levels: 1, useLimitSurface: false, uvSmooth: 'NONE'})!
-        const ouv = r.mesh.attributes.get('UVMap')!.data
-        const pairs = new Set<string>()
-        for (let c = 0; c < r.mesh.cornersNum; c++) pairs.add(`${ouv[2 * c]},${ouv[2 * c + 1]}`)
-        expect(pairs.has('0.5,0.5')).toBe(true) // face centres
-        expect(r.warnings).toEqual([])
-        expect(subdivisionSurfaceEvaluate(m, {levels: 1})!.warnings[0]).toMatch(/face-varying/)
+        // every face its own unit square, offset along u: all edges are UV seams
+        for (let f = 0; f < 6; f++) for (let k = 0; k < 4; k++) {
+            const c = 4 * f + k
+            uv[2 * c] = 2 * f + (k === 1 || k === 2 ? 1 : 0)
+            uv[2 * c + 1] = k >= 2 ? 1 : 0
+        }
+        for (const uvSmooth of ['NONE', 'PRESERVE_BOUNDARIES'] as const) {
+            const r = subdivisionSurfaceEvaluate(m, {levels: 2, useLimitSurface: false, uvSmooth})!
+            expect(r.warnings).toEqual([])
+            const ouv = r.mesh.attributes.get('UVMap')!.data
+            // linear boundaries: every corner stays inside its coarse face's square
+            for (let c = 0; c < r.mesh.cornersNum; c++) {
+                const f = Math.floor(c / 64) // level 2: 16 child quads per coarse face, 64 corners, contiguous
+                expect(ouv[2 * c]).toBeGreaterThanOrEqual(2 * f - 1e-6)
+                expect(ouv[2 * c]).toBeLessThanOrEqual(2 * f + 1 + 1e-6)
+            }
+        }
+    })
+
+    it('UVs that are an affine map of a flat grid subdivide like the positions (SMOOTH_ALL)', () => {
+        const pos: number[] = [], faces: number[][] = []
+        const n = 4
+        for (let y = 0; y <= n; y++) for (let x = 0; x <= n; x++) pos.push(x + 0.13 * Math.sin(3 * y), y + 0.1 * Math.cos(2 * x), 0)
+        for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) faces.push([y * (n + 1) + x, y * (n + 1) + x + 1, (y + 1) * (n + 1) + x + 1, (y + 1) * (n + 1) + x])
+        const g = MeshData.fromFaces({positions: pos, faces})
+        const uv = g.attributes.ensure('UVMap', AttrDomain.Corner, 'float2').data as Float32Array
+        const map = (x: number, y: number) => [0.5 * x - 0.2 * y + 0.1, 0.3 * x + 0.4 * y]
+        for (let c = 0; c < g.cornersNum; c++) {
+            const v = g.cornerVerts[c]
+            const [u, w] = map(g.positions[3 * v], g.positions[3 * v + 1])
+            uv[2 * c] = u; uv[2 * c + 1] = w
+        }
+        for (const useLimitSurface of [false, true]) {
+            const r = subdivisionSurfaceEvaluate(g, {levels: 2, useLimitSurface, uvSmooth: 'SMOOTH_ALL'})!
+            const out = r.mesh, ouv = out.attributes.get('UVMap')!.data
+            for (let c = 0; c < out.cornersNum; c++) {
+                const v = out.cornerVerts[c]
+                const [u, w] = map(out.positions[3 * v], out.positions[3 * v + 1])
+                expect(ouv[2 * c]).toBeCloseTo(u, 5)
+                expect(ouv[2 * c + 1]).toBeCloseTo(w, 5)
+            }
+        }
     })
 })
