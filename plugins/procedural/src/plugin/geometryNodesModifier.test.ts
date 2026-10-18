@@ -67,4 +67,29 @@ describe('geometryNodes modifier', () => {
         expect(out.data[0].inputs.map(i => i.name)).toEqual(['Geometry', 'Vertices', 'Height'])
         expect(out.data[0].code).toContain('geometryNodes("Grid Heights"')
     })
+
+    it('keeps instances out of the evaluated mesh, passes them down the stack and realizes them on apply', () => {
+        const doc = fakeDocument()
+        const scatter = geometryNodes('Scatter', g => {
+            const geometry = g.input.geometry('Geometry')
+            const cubes = n.InstanceOnPoints({points: n.MeshLine({count: 3, offset: [2, 0, 0]}).mesh, instance: n.MeshCube().mesh})
+            g.output.geometry('Geometry', n.JoinGeometry({geometry: [geometry, cubes.instances]}).geometry)
+        })
+        const realize = geometryNodes('Realize', g => {
+            g.output.geometry('Geometry', n.RealizeInstances({geometry: g.input.geometry('Geometry')}).geometry)
+        })
+        nodeGroupCommand.run({library: {...scatter.json, ...realize.json}}, {doc} as never)
+        const input = MeshData.fromFaces({positions: [0, 0, 5, 1, 0, 5, 0, 1, 5], faces: [[0, 1, 2]]})
+        const ctx = (index: number, previous?: unknown) => ({doc, index, state: new Map(), previous}) as unknown as ModifierContext
+        const out = geometryNodesModifierType.evaluate(input, {type: 'geometryNodes', group: 'Scatter', inputs: {}}, ctx(0)) as {mesh: MeshData, geometry: any, realize: (m: MeshData) => MeshData}
+        // The evaluated mesh is the mesh component (the input triangle); the cubes stay instances.
+        expect(out.mesh.vertsNum).toBe(3)
+        expect(out.geometry.instances.instancesNum).toBe(3)
+        // Applying realizes them after the mesh (realize_instances order).
+        expect(out.realize(out.mesh).vertsNum).toBe(3 + 3 * 8)
+        // The next geometry-nodes modifier receives the instances with the mesh.
+        const next = geometryNodesModifierType.evaluate(out.mesh, {type: 'geometryNodes', group: 'Realize', inputs: {}}, ctx(1, out)) as {mesh: MeshData, geometry?: unknown}
+        expect(next.mesh.vertsNum).toBe(3 + 3 * 8)
+        expect(next.geometry).toBeUndefined()
+    })
 })

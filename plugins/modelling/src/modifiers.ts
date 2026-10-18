@@ -109,6 +109,11 @@ export interface ModifierContext {
     /** Position of the modifier in the stack. */
     index: number
     /**
+     * The previous modifier's output, when it carried more than a mesh: a geometry-nodes modifier reads the whole
+     * geometry (instances, points, curves) as Blender passes the geometry set down the stack.
+     */
+    previous?: ModifierResult
+    /**
      * State a modifier keeps between evaluations of this entry (caches, incremental evaluators). Keyed
      * by the modifier type's choice; cleared when the entry's stack changes shape.
      */
@@ -117,12 +122,18 @@ export interface ModifierContext {
 
 /**
  * A modifier's output: the mesh the next modifier (and the renderer) receives, and optionally richer
- * geometry the type's own package knows how to draw (instances, points, curves). Only the last
- * modifier's `geometry` is kept, as `ModellingEntry.evaluatedGeometry`.
+ * geometry the type's own package knows how to draw (instances, points, curves). Mesh-only modifiers after it
+ * change the mesh and pass the rest on, as Blender's stack does for non-node modifiers after a geometry-nodes one;
+ * the stack's last `geometry` is kept as `ModellingEntry.evaluatedGeometry`.
  */
 export interface ModifierResult {
     mesh: MeshData
     geometry?: unknown
+    /**
+     * The mesh applying the stack bakes, from the stack's final mesh, when it is more than that mesh (a
+     * geometry-nodes modifier realizes its instances, as Blender's apply does). Default: the final mesh.
+     */
+    realize?(mesh: MeshData): MeshData
 }
 
 /** A modifier type. The built-ins are registered below; other packages add theirs at runtime. */
@@ -219,8 +230,9 @@ export function evaluateModifierStack(mesh: MeshData, modifiers: ModifierSpec[],
     let current: ModifierResult = {mesh}
     const base = ctx ?? {state: new Map<string, unknown>()}
     modifiers.forEach((modifier, index) => {
-        const out = requireModifierType(modifier.type).evaluate(current.mesh, modifier, {...base, index})
-        current = out instanceof MeshData ? {mesh: out} : out
+        const previous = current.geometry !== undefined || current.realize ? current : undefined
+        const out = requireModifierType(modifier.type).evaluate(current.mesh, modifier, {...base, index, previous})
+        current = out instanceof MeshData ? {mesh: out, geometry: current.geometry, realize: current.realize} : out
     })
     return current
 }

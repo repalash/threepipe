@@ -57,4 +57,35 @@ describe('modifier types', () => {
         const add = modifierCommand.schema.properties.add as {properties: Record<string, {enum?: string[]}>}
         expect(add.properties.type.enum).toEqual(['array', 'mirror', 'wireframe'])
     })
+
+    it('passes extra geometry down the stack and realizes it on apply', () => {
+        const previous: unknown[] = []
+        registerModifierType<{type: 'withExtra'}>({
+            type: 'withExtra',
+            check() {},
+            describe: () => 'with extra',
+            evaluate(mesh, _spec, ctx) {
+                previous.push(ctx.previous?.geometry)
+                // Applying bakes the final mesh plus one more vertex (a stand-in for realized instances).
+                return {mesh, geometry: {extra: true}, realize: m => {
+                    const out = m.clone()
+                    out.resize({verts: out.vertsNum + 1})
+                    return out
+                }}
+            },
+        })
+        try {
+            const stack: ModifierSpec[] = [{type: 'withExtra'} as ModifierSpec, {type: 'mirror', axis: 'x'}, {type: 'withExtra'} as ModifierSpec]
+            const result = evaluateModifierStack(cube(), stack)
+            // The mesh-only mirror keeps the geometry; the next modifier sees it as `previous`.
+            expect(previous).toEqual([undefined, {extra: true}])
+            expect(result.geometry).toEqual({extra: true})
+            expect(result.realize).toBeTypeOf('function')
+            const mirrored = evaluateModifierStack(cube(), stack.slice(0, 2))
+            expect(mirrored.geometry).toEqual({extra: true})
+            expect(mirrored.realize).toBeTypeOf('function')
+        } finally {
+            unregisterModifierType('withExtra')
+        }
+    })
 })

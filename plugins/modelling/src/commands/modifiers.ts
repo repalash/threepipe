@@ -57,7 +57,7 @@ export const modifierCommand: CommandDefinition = {
 
         if (p.apply) {
             if (!entry.modifiers.length) ctx.warn(`"${entry.name}" has no modifiers to apply`)
-            entry.mesh = entry.evaluated
+            entry.mesh = entry.evaluatedRealize ? entry.evaluatedRealize(entry.evaluated) : entry.evaluated
             entry.modifiers = []
             ctx.doc.rebake(entry)
             return {objects: [entry.name], data: {applied: true, verts: entry.mesh.vertsNum}}
