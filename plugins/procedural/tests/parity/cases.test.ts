@@ -22,6 +22,7 @@ import {curveSetterCases} from './cases/curveSetters'
 import {fieldNodeCases} from './cases/fieldNodes'
 import {topologyCases} from './cases/topology'
 import {inputCases} from './cases/inputs'
+import {geometryOpCases} from './cases/geometryOps'
 import {functionMathCases} from './cases/functionMath'
 import {functionRandomCases} from './cases/functionRandom'
 import {functionRotationCases} from './cases/functionRotation'
@@ -68,6 +69,7 @@ SETS.curveSetters = curveSetterCases
 SETS.fieldNodes = fieldNodeCases
 SETS.topology = topologyCases
 SETS.inputs = inputCases
+SETS.geometryOps = geometryOpCases
 SETS.meshEdit = meshEditCases
 SETS.meshPrimitive = meshPrimitiveCases
 SETS.meshMerge = meshMergeCases

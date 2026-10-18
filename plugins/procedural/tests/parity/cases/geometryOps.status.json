@@ -1,0 +1,7 @@
+{
+ "flip-faces": "exact",
+ "flip-faces-all-instanced": "exact",
+ "separate-components": "exact",
+ "set-point-radius": "exact",
+ "set-instance-transform": "exact"
+}
