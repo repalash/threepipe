@@ -32,6 +32,8 @@ the payoff is earned.
 | 15 | Split | (end) | Photograph left, model right from the same viewpoint, red rule between | The closing comparison: the build against the thing it was built from | 6 |
 | 16 | End card | (end) | Command count, failures, checks passed; where the files are | | 4 |
 
+Recorded locally (SwiftShader, 2026-10-18): 2 min 01 s, 1280 × 720 VP9, about 22 MB, no time-lapse needed. The end card counts the 277 commands the build sends in the film; the session transcript's 308 also counts its 31 `capture`s, which the film replaces with held shots.
+
 Total ≈ 1 min 30 s of cards, holds and the ending, plus command time (`--pace`, 150 ms after each
 edit, plus however long the renderer takes). Inside a continuous shot (`lens`, `body`, `grip`, `top`,
 `controls`, `eyecup`, `mount`, `hero`) the build's own still-framing `camera` commands are ignored, so

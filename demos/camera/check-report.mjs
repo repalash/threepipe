@@ -30,10 +30,18 @@ const video = await page.evaluate(() => {
         if (v.readyState >= 1) r({duration: v.duration, w: v.videoWidth, h: v.videoHeight})
         v.addEventListener('loadedmetadata', () => r({duration: v.duration, w: v.videoWidth, h: v.videoHeight}))
         v.addEventListener('error', () => r({error: v.error?.code}))
-        v.load()
+        // Only kick it if nothing is loading: load() aborts an in-flight request, which reads as a failure.
+        if (v.networkState === v.NETWORK_EMPTY) v.load()
     })
 })
 await page.evaluate(() => window.scrollTo(0, 0))
+// Chromium fetches media in ranges and aborts its first request once it has the header; that shows
+// up as ERR_ABORTED on the video. It is not a failure if the video's metadata did load.
+if (video?.duration > 0) {
+    for (let i = problems.length - 1; i >= 0; i--) {
+        if (/\.webm net::ERR_ABORTED$/.test(problems[i])) problems.splice(i, 1)
+    }
+}
 await page.screenshot({path: 'tmp/camera-report-check.png', fullPage: false})
 await browser.close()
 console.log(JSON.stringify({url, images: images.length, broken: bad.map(b => b.src), video, problems}, null, 2))

@@ -97,6 +97,10 @@ await page.evaluate(({refBase}) => {
     const css = document.createElement('style')
     css.textContent = `
       #rec-card, #rec-photo { position: fixed; inset: 0; z-index: 50; transition: opacity .6s ease; }
+      #rec-card { z-index: 70; text-align: center; padding: 0 8vw; }
+      #rec-log:empty { display: none; }
+      /* The example's loading indicator reports every texture fetch; the film is not about that. */
+      [class*="loadingScreen"] { display: none !important; }
       #rec-card { background: #0d0e10; color: #f2f2f4; display: flex; flex-direction: column;
         align-items: center; justify-content: center; font: 300 46px/1.2 ui-sans-serif, system-ui, sans-serif;
         letter-spacing: .01em; opacity: 0; pointer-events: none; }
@@ -165,6 +169,14 @@ await page.evaluate(async () => {
     await window.viewer.getPlugin('LoadingScreenPlugin')?.hide?.()
     for (let i = 0; i < 10; i++) await new Promise(r => requestAnimationFrame(r))
 })
+// Put the opening photograph up now, so the first frame of the film is the photograph.
+await page.evaluate(refBase => {
+    const p = document.getElementById('rec-photo')
+    p.style.transition = 'none'
+    p.style.backgroundImage = `url(${refBase}hero-5d4-ef24-105.jpg)`
+    p.style.opacity = 1
+    requestAnimationFrame(() => (p.style.transition = ''))
+}, refBase)
 await sleep(1500)
 // Everything before this is the page loading - minutes, on a busy machine - and is cut from the film.
 const stageReady = Date.now()
@@ -200,7 +212,10 @@ let failedCommands = 0
 let beatName = null
 const logLines = []
 
+let buildCommands = 0
+let building = true
 async function run(command) {
+    if (building) buildCommands++
     if (command.op === 'export') return {ok: true, op: 'export', data: {skipped: 'not recorded'}}
     // Inside a continuous shot the director's camera holds; the build's still-framing moves are
     // for its PNG captures, not for the film.
@@ -279,6 +294,7 @@ await build({run, capture, beat, log, page, outDir: join(scratch, 'shots')})
 // --- ending: turntable, then the split with the photograph --------------------------------------
 await page.evaluate(() => window.__stopDrift())
 beatName = null // the build is over: the ending's camera moves are the director's
+building = false
 await ui.caption('')
 await ui.log([])
 await run({op: 'camera', projection: 'perspective', fov: 24, position: [AX + 520 * Math.sin(0.5), 190, 70 + 520 * Math.cos(0.5)],
@@ -297,8 +313,10 @@ await run({op: 'camera', projection: 'perspective', fov: 34, position: HERO, tar
 await ui.caption('photograph · model')
 await sleep(6000)
 await ui.caption('')
+await ui.unphoto()
+await page.evaluate(() => { document.getElementById('rec-split').style.display = 'none' })
 const checksLine = `${checksOk}/${checksAll} dimension checks within 2 %`
-await ui.card(`${commands} commands · ${failedCommands} failed · ${checksLine}`,
+await ui.card(`${buildCommands} commands · ${failedCommands} failed · ${checksLine}`,
     'demos/camera — build.mjs, transcript.json, camera.glb', 'THREEPIPE · MODELLING')
 await sleep(3500)
 
