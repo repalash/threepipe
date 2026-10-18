@@ -35,6 +35,15 @@ regions or a point of a regular B-spline patch — i.e. the **exact limit point 
 and Gregory end-cap interiors only sampled when `levels > quality`. This is the hypothesis S6 tests against
 fixtures before relying on it.
 
+**Fixtures disproved it (2026-10-18, `subsurf.json`, 28 cases).** Every `use_limit_surface = false` case matches
+to ~1e-7, and the limit cases match only where no irregular patch is sampled. Grid points inside irregular
+regions (n-gon centres, valence-2 boundary corners in EDGE_ONLY, non-manifold fins, cube corners when
+`levels > quality`) are where Blender evaluates the **Gregory-basis end cap at isolation level `quality`**, not
+the exact limit (differences 2.5e-3 to 7.6e-3 on unit-sized cages). Semi-sharp creases still sharp at
+`quality` are not isolated further and the end caps / regular patches treat them as smooth (crease 0.9 at l1:
+4.6e-2; vertex crease 0.7 at l2: 0.25, a visibly rounder corner). With UVs, `considerFVarChannels` also
+isolates face-varying features. So parity needs the adaptive path itself: S6b.
+
 ## Plan
 
 | Step | Port | Done = |
@@ -45,6 +54,7 @@ fixtures before relying on it.
 | S4 | `Far::PrimvarRefiner::Interpolate` (`primvarRefiner.h:458-650`: face, edge, vertex points with crease masks) | **parity with Blender, `use_limit_surface = false`**, levels 1–3, cube / creased cube / plane (boundary modes) / n-gon panel / non-manifold, max vertex error < 1e-5 |
 | S5 | Face-varying: `fvarLevel.cpp`, `fvarRefinement.cpp`, `InterpolateFaceVarying` with the six linear-interpolation modes | UV parity with Blender for all six `uv_smooth` values (implemented 2026-10-18: `subdiv/fvar.ts`, `fvarRefiner.ts`; parity pending fixtures) |
 | S6 | Limit positions: `PrimvarRefiner::Limit` (`:1007`) with `Scheme::ComputeVertexLimitMask` (`scheme.h:580-640`, `catmarkScheme.h:191-260`) at the final level | **parity with Blender's default (`use_limit_surface = true`, quality 3)** for levels 1–3; documented and measured gap for levels > quality (Gregory interiors), which would need `Far` patch tables (not planned unless a fixture needs it) |
+| S6b | Blender's limit evaluation as it is: `Far::TopologyRefiner::RefineAdaptive` with `selectFeatureAdaptiveComponents` (`topologyRefiner.cpp:398-737`) and sparse `Vtr` refinement (`refinement.cpp` sparse paths, `sparseSelector.cpp`, `quadRefinement.cpp` `markSparseFaceChildren`); `PrimvarRefiner` over sparse levels; `Far::PtexIndices`; `PatchTableFactory` adaptive path (`patchTableFactory.cpp`) with `PatchBuilder` (`patchBuilder.cpp`) regular / boundary-mask patches, `useInfSharpPatch`, and `ENDCAP_GREGORY_BASIS` through `CatmarkPatchBuilder`'s `GregoryConverter` (`catmarkPatchBuilder.cpp`) and `SparseMatrix` local points; FVar patch tables (`generateFVarTables`, no legacy linear); `PatchBasis` evaluation (regular B-spline with boundary masks, Gregory basis, bilinear); Blender's `PatchMap` (`evaluator/patch_map.cc`) and `EvalOutputAPI::evaluateLimit` / `evaluateFaceVarying` (`evaluator_impl.cc:249-311`) at each grid point's ptex (u, v) | **all 28 subsurf fixtures pass** at 2e-4, including UVs |
 | S7 | Output `MeshData` like `subdiv_mesh.cc`: quads, attribute interpolation (UVs from S5, other point/corner attributes linear as Blender does, `crease_edge` on child edges as `subdiv_mesh` writes it), `sharp_edge` / `sharp_face` | attribute parity on the fixtures |
 | S8 | API + `subsurf` modifier in plugin-modelling's stack (`levels`, `quality`, `useLimitSurface`, `useCreases`, `boundarySmooth`, `uvSmooth`, `simple`), and a `crease` command (`crease_edge` / `crease_vert`) | camera body re-built as a cage + subsurf, scored on the benchmark |
 
