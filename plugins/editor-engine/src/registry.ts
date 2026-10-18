@@ -254,7 +254,7 @@ export interface MenuRequestItem {
 }
 
 export type UiRequest =
-    | {request: 'palette' | 'history' | 'shortcuts' | 'about' | 'operatorPanel' | 'welcome' | 'hints' | 'look'}
+    | {request: 'palette' | 'history' | 'shortcuts' | 'about' | 'operatorPanel' | 'welcome' | 'hints' | 'look' | 'agent'}
     | {
         request: 'menu'
         title?: string

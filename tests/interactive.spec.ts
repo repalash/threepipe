@@ -5395,3 +5395,83 @@ test('modelling-replay', async({page}) => {
     expect(s.objects.length).toBe(39)
     expect(s.history.length).toBe(268)
 })
+
+test('modelling-editor-agent', async({page}) => {
+    await expect(page).toHaveTitle('Modelling Editor Agent')
+    // The relay from the CLI package's bundle (npm run build:modelling-cli): what `threepipe-modelling relay` runs.
+    const {AgentRelay, RelayClient} = await import('../plugins/modelling-cli/dist/relay.mjs' as string)
+    const relay = new AgentRelay({port: 0, token: 'e2e-token'})
+    await relay.start()
+    try {
+        const state = () => page.evaluate(() => {
+            const w = window as any
+            return {
+                history: w.engine.history.entries().map((x: any) => x.label + (x.undone ? ' *' : '')) as string[],
+                faces: (w.modelling.document.find('box')?.mesh.facesNum ?? null) as number | null,
+                status: w.agentSocket.status as string,
+            }
+        })
+        // Idle: no indicator at all.
+        await expect(page.locator('[data-agent-indicator]')).toHaveCount(0)
+
+        // Real input: File > Connect Agent…, paste the relay's URL and token, Connect.
+        await page.locator('.me-header').getByText('File', {exact: true}).click()
+        await page.getByRole('menuitem', {name: 'Connect Agent…'}).click()
+        await page.locator('[data-agent-url]').fill(relay.url)
+        await page.locator('[data-agent-token]').fill('e2e-token')
+        await page.locator('[data-agent-connect]').click()
+        await expect(page.locator('[data-agent-status="connected"]')).toBeVisible()
+        await page.keyboard.press('Escape')
+        await expect(page.locator('[data-agent-indicator="connected"]')).toBeVisible()
+
+        // An agent (the CLI's client) drives the page through the relay.
+        const agent = new RelayClient(relay.url, 'e2e-token', 'e2e-agent')
+        await agent.connect()
+        await expect(page.locator('[data-agent-indicator]')).toContainText('e2e-agent')
+        const made = await agent.run({op: 'primitive', type: 'cube', name: 'box', size: 2})
+        expect(made.ok).toBe(true)
+        const inset = await agent.run({op: 'inset', object: 'box', faces: [0], thickness: 0.2})
+        expect(inset.ok).toBe(true)
+        expect(inset.locality.local).toBe(true)
+        // A wrong command comes back as a failed result with the registry's hint, not a dropped socket.
+        const typo = await agent.run({op: 'insett', object: 'box'})
+        expect(typo).toMatchObject({ok: false, op: 'insett'})
+        expect(typo.error).toContain('did you mean "inset"')
+
+        // The agent's steps are the editor's undo history, labelled as a person's would be.
+        let s = await state()
+        expect(s.history).toEqual(['Add Cube', 'Inset box'])
+        expect(s.faces).toBe(10)
+        await expect(page.locator('[data-agent-last]')).toContainText('insett box')
+
+        // Real input: Ctrl+Z in the viewport undoes the agent's inset; the agent sees it.
+        const vp = (await page.locator('[data-viewport]').boundingBox())!
+        await page.mouse.click(vp.x + 30, vp.y + 60)
+        await page.keyboard.press('Control+KeyZ')
+        await expect.poll(async() => (await state()).faces).toBe(6)
+        s = await state()
+        expect(s.history).toEqual(['Add Cube', 'Inset box *'])
+        const seen = await agent.run({op: 'inspect', object: 'box'})
+        expect(seen.data.faces).toBe(6)
+
+        // The agent looks; the person opens what it saw from the indicator.
+        const look = await agent.run({op: 'look', includeImage: false})
+        expect(look.ok).toBe(true)
+        await page.locator('[data-agent-indicator]').click()
+        await expect(page.locator('[data-agent-activity]')).toContainText('look')
+        await page.getByRole('button', {name: 'Last look'}).click()
+        await expect(page.locator('[data-look-meta]')).toContainText('front')
+        await page.keyboard.press('Escape')
+
+        // Disconnect from the dialog: the indicator goes away and the relay drops the page.
+        await page.locator('.me-header').getByText('File', {exact: true}).click()
+        await page.getByRole('menuitem', {name: 'Connect Agent…'}).click()
+        await page.locator('[data-agent-disconnect]').click()
+        await page.keyboard.press('Escape')
+        await expect(page.locator('[data-agent-indicator]')).toHaveCount(0)
+        await expect.poll(() => relay.pages().length).toBe(0)
+        agent.close()
+    } finally {
+        await relay.stop()
+    }
+})

@@ -46,6 +46,20 @@ export function registerModellingOperators(engine: EditorEnginePlugin): void {
     const modelling = engine.modelling
     if (!modelling) return
 
+    // The agent socket: connect this page to a relay so an agent outside drives the document.
+    engine.operators.register({
+        id: 'agent.connect',
+        label: 'Connect Agent…',
+        description: 'Let an AI agent (Claude Code, the threepipe-modelling CLI) drive this document through the agent socket. Its steps land in this undo history.',
+        icon: 'link',
+        category: 'File',
+        poll: () => engine.viewer.getPlugin('AgentSocketPlugin' as never) ? true : 'AgentSocketPlugin is not loaded',
+        exec() {
+            engine.dispatchEvent({type: 'uiRequest', request: 'agent'})
+            return {ok: true}
+        },
+    })
+
     // `look` is what an agent sees with. As an operator it renders the same sheet for the person at the
     // screen and opens it in the shell, beside its description; an agent's own looks land in the same
     // place through `engine.lastLook`.

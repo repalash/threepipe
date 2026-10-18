@@ -23,6 +23,7 @@ import {OperatorPanel} from './OperatorPanel'
 import {StatusBar} from './StatusBar'
 import {CommandPalette} from './CommandPalette'
 import {AboutDialog, HistoryDialog, LookDialog, ShortcutsDialog} from './Dialogs'
+import {AgentDialog} from './AgentIndicator'
 import {Welcome} from './Welcome'
 import {Hints} from './Hints'
 import {EmptyState} from './EmptyState'
@@ -99,7 +100,7 @@ function Shell({title}: {title?: string}) {
     const [onboarding] = useOnboarding()
     const contextMenu = useContextMenu()
     const [palette, setPalette] = useState(false)
-    const [dialog, setDialog] = useState<'history' | 'shortcuts' | 'about' | 'look' | null>(null)
+    const [dialog, setDialog] = useState<'history' | 'shortcuts' | 'about' | 'look' | 'agent' | null>(null)
     // Blender opens its Quick Setup on the splash while no preferences have been saved (wm_splash_screen.cc:349).
     const [welcome, setWelcome] = useState(() => onboarding.showWelcome)
     const visual = useVisualStyle()
@@ -123,7 +124,7 @@ function Shell({title}: {title?: string}) {
     })
     useEngineEvent('uiRequest', e => {
         if (e.request === 'palette') setPalette(p => !p)
-        else if (e.request === 'history' || e.request === 'shortcuts' || e.request === 'about' || e.request === 'look') setDialog(e.request)
+        else if (e.request === 'history' || e.request === 'shortcuts' || e.request === 'about' || e.request === 'look' || e.request === 'agent') setDialog(e.request)
         else if (e.request === 'welcome') setWelcome(true)
         else if (e.request === 'hints') onboarding.resetHints()
         else if (e.request === 'menu') {
@@ -181,6 +182,7 @@ function Shell({title}: {title?: string}) {
         <ShortcutsDialog isOpen={dialog === 'shortcuts'} onClose={() => setDialog(null)} />
         <AboutDialog isOpen={dialog === 'about'} onClose={() => setDialog(null)} />
         <LookDialog isOpen={dialog === 'look'} onClose={() => setDialog(null)} />
+        <AgentDialog isOpen={dialog === 'agent'} onClose={() => setDialog(null)} onLook={() => setDialog('look')} />
         <Welcome isOpen={welcome} onClose={() => {
             setWelcome(false)
             onboarding.finishWelcome()

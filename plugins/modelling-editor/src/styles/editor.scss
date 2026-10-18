@@ -411,6 +411,27 @@
 
 // ------------------------------------------------------------------ onboarding: document name, welcome, hints, empty state
 
+.me-agent-indicator {
+  display: inline-flex; align-items: center; gap: 6px; margin-right: 8px; padding: 2px 8px; max-width: 360px;
+  border: 1px solid var(--me-border, rgba(255, 255, 255, 0.1)); border-radius: 10px; background: transparent;
+  color: var(--me-text); font-size: var(--me-font-size-small); cursor: pointer; white-space: nowrap; overflow: hidden;
+  &:hover { background: rgba(255, 255, 255, 0.06); }
+  .me-agent-dot { width: 7px; height: 7px; border-radius: 50%; background: #7a7f87; flex: none; }
+  .me-agent-last { color: var(--me-text-muted); overflow: hidden; text-overflow: ellipsis; }
+  &.me-agent-connected .me-agent-dot { background: #3dcc91; }
+  &.me-agent-connecting .me-agent-dot { background: #ffb366; }
+  &.me-agent-error .me-agent-dot { background: #ff7373; }
+  &.me-agent-busy .me-agent-dot { animation: me-agent-pulse 0.8s ease-in-out infinite alternate; }
+}
+@keyframes me-agent-pulse { from { opacity: 1; } to { opacity: 0.3; } }
+.me-agent-dialog {
+  .me-agent-status { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 8px; code { font-size: 11px; } }
+  .me-agent-error { width: 100%; color: #ff7373; font-size: var(--me-font-size-small); }
+  .me-agent-activity { max-height: 240px; overflow: auto; font-size: var(--me-font-size-small); line-height: 1.7; }
+  .me-agent-ms { color: var(--me-text-muted); }
+  .me-agent-failed { color: #ff7373; }
+}
+
 .me-doc-name {
   font-size: var(--me-font-size-small);
   color: var(--me-text-muted);
