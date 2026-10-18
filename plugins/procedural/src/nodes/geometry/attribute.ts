@@ -21,6 +21,12 @@ registerNodeType({
     label: 'Store Named Attribute',
     // `node_init` (:62): CD_PROP_FLOAT on points.
     properties: {data_type: 'FLOAT', domain: 'POINT'},
+    enums: {
+        // rna_enum_attribute_type_items filtered by generic_attribute_type_supported
+        // (node_geo_store_named_attribute.cc:231, node_geometry_util.cc:68). FLOAT4 throws in dataTypeFromRNA.
+        data_type: ['FLOAT', 'INT', 'BOOLEAN', 'FLOAT_VECTOR', 'FLOAT_COLOR', 'QUATERNION', 'FLOAT4X4', 'INT8', 'FLOAT2', 'FLOAT4', 'BYTE_COLOR'],
+        domain: ['POINT', 'EDGE', 'FACE', 'CORNER', 'CURVE', 'INSTANCE', 'LAYER'],
+    },
     declare(b, node) {
         b.input('GEOMETRY', 'Geometry')
         b.output('GEOMETRY', 'Geometry')
@@ -76,6 +82,8 @@ registerNodeType({
     idname: 'GeometryNodeInputNamedAttribute',
     label: 'Named Attribute',
     properties: {data_type: 'FLOAT'},
+    // attribute_type_type_with_socket_fn (node_geometry_util.cc:55).
+    enums: {data_type: ['FLOAT', 'INT', 'BOOLEAN', 'FLOAT_VECTOR', 'FLOAT_COLOR', 'QUATERNION', 'FLOAT4X4']},
     declare(b, node) {
         b.input('STRING', 'Name')
         b.output(socketTypeFromRNA(node.prop<string>('data_type')), 'Attribute').field()

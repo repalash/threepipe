@@ -130,3 +130,160 @@ export function hashFloatToFloat3(x: number, y: number, z: number): number {
 export function hashFloatToFloat4(x: number, y: number, z: number, w: number): number {
     return uintToFloat01(hashFloat4(x, y, z, w))
 }
+
+/** `hash_float_to_float2(float2)` (`noise.cc:274`). */
+export function hashFloatToFloat2From2(x: number, y: number): [number, number] {
+    return [hashFloatToFloat2(x, y), hashFloatToFloat3(x, y, 1)]
+}
+
+/** `hash_float_to_float2(float3)` (`noise.cc:279`). */
+export function hashFloatToFloat2From3(x: number, y: number, z: number): [number, number] {
+    return [hashFloatToFloat3(x, y, z), hashFloatToFloat3(z, x, y)]
+}
+
+/** `hash_float_to_float2(float4)` (`noise.cc:285`). */
+export function hashFloatToFloat2From4(x: number, y: number, z: number, w: number): [number, number] {
+    return [hashFloatToFloat4(x, y, z, w), hashFloatToFloat4(z, x, w, y)]
+}
+
+/** `hash_float_to_float3(float)` (`noise.cc:291`). */
+export function hashFloatToFloat3From1(k: number): [number, number, number] {
+    return [hashFloatToFloat1(k), hashFloatToFloat2(k, 1), hashFloatToFloat2(k, 2)]
+}
+
+/** `hash_float_to_float3(float2)` (`noise.cc:298`). */
+export function hashFloatToFloat3From2(x: number, y: number): [number, number, number] {
+    return [hashFloatToFloat2(x, y), hashFloatToFloat3(x, y, 1), hashFloatToFloat3(x, y, 2)]
+}
+
+/** `hash_float_to_float3(float3)` (`noise.cc:305`). */
+export function hashFloatToFloat3From3(x: number, y: number, z: number): [number, number, number] {
+    return [hashFloatToFloat3(x, y, z), hashFloatToFloat4(x, y, z, 1), hashFloatToFloat4(x, y, z, 2)]
+}
+
+/** `hash_float_to_float3(float4)` (`noise.cc:312`). */
+export function hashFloatToFloat3From4(x: number, y: number, z: number, w: number): [number, number, number] {
+    return [hashFloatToFloat4(x, y, z, w), hashFloatToFloat4(z, x, w, y), hashFloatToFloat4(w, z, y, x)]
+}
+
+/** `hash_float_to_float4(float4)` (`noise.cc:319`). */
+export function hashFloatToFloat4From4(x: number, y: number, z: number, w: number): [number, number, number, number] {
+    return [hashFloatToFloat4(x, y, z, w), hashFloatToFloat4(w, x, y, z), hashFloatToFloat4(z, w, x, y), hashFloatToFloat4(y, z, w, x)]
+}
+
+/*
+ * PCG 2D/3D/4D integer hashes (`noise.cc:151-198`, "Hash Functions for GPU Rendering", JCGT 2020), signed
+ * 32-bit arithmetic that wraps (`ATTR_NO_SIGNED_INT_OVERFLOW`): `Math.imul` and `| 0`. `v >> 16` on a
+ * signed int is an arithmetic shift, as JS `>>` is.
+ */
+
+/** `hash_pcg2d_i` (`noise.cc:159`). Writes into and returns `out`. */
+export function hashPcg2dI(x: number, y: number, out: number[] = [0, 0]): number[] {
+    x = (Math.imul(x, 1664525) + 1013904223) | 0
+    y = (Math.imul(y, 1664525) + 1013904223) | 0
+    x = (x + Math.imul(y, 1664525)) | 0
+    y = (y + Math.imul(x, 1664525)) | 0
+    x ^= x >> 16
+    y ^= y >> 16
+    x = (x + Math.imul(y, 1664525)) | 0
+    y = (y + Math.imul(x, 1664525)) | 0
+    out[0] = x
+    out[1] = y
+    return out
+}
+
+/** `hash_pcg3d_i` (`noise.cc:171`). */
+export function hashPcg3dI(x: number, y: number, z: number, out: number[] = [0, 0, 0]): number[] {
+    x = (Math.imul(x, 1664525) + 1013904223) | 0
+    y = (Math.imul(y, 1664525) + 1013904223) | 0
+    z = (Math.imul(z, 1664525) + 1013904223) | 0
+    x = (x + Math.imul(y, z)) | 0
+    y = (y + Math.imul(z, x)) | 0
+    z = (z + Math.imul(x, y)) | 0
+    x ^= x >> 16
+    y ^= y >> 16
+    z ^= z >> 16
+    x = (x + Math.imul(y, z)) | 0
+    y = (y + Math.imul(z, x)) | 0
+    z = (z + Math.imul(x, y)) | 0
+    out[0] = x
+    out[1] = y
+    out[2] = z
+    return out
+}
+
+/** `hash_pcg4d_i` (`noise.cc:185`). */
+export function hashPcg4dI(x: number, y: number, z: number, w: number, out: number[] = [0, 0, 0, 0]): number[] {
+    x = (Math.imul(x, 1664525) + 1013904223) | 0
+    y = (Math.imul(y, 1664525) + 1013904223) | 0
+    z = (Math.imul(z, 1664525) + 1013904223) | 0
+    w = (Math.imul(w, 1664525) + 1013904223) | 0
+    x = (x + Math.imul(y, w)) | 0
+    y = (y + Math.imul(z, x)) | 0
+    z = (z + Math.imul(x, y)) | 0
+    w = (w + Math.imul(y, z)) | 0
+    x ^= x >> 16
+    y ^= y >> 16
+    z ^= z >> 16
+    w ^= w >> 16
+    x = (x + Math.imul(y, w)) | 0
+    y = (y + Math.imul(z, x)) | 0
+    z = (z + Math.imul(x, y)) | 0
+    w = (w + Math.imul(y, z)) | 0
+    out[0] = x
+    out[1] = y
+    out[2] = z
+    out[3] = w
+    return out
+}
+
+/**
+ * `int_to_float_01` (`noise.cc:329`): `float(k & 0x7fffffff) * (1.0f / float(0x7fffffff))`.
+ * `float(0x7fffffff)` is 2^31, so the factor is exactly 2^-31; the integer is rounded to float first.
+ */
+export function intToFloat01(k: number): number {
+    return f32(f32(k & 0x7fffffff) * 4.656612873077393e-10)
+}
+
+const pcgOut = [0, 0, 0, 0]
+
+/** `hash_int2_to_float2` (`noise.cc:334`). */
+export function hashInt2ToFloat2(x: number, y: number, out: number[] = [0, 0]): number[] {
+    const h = hashPcg2dI(x, y, pcgOut)
+    out[0] = intToFloat01(h[0])
+    out[1] = intToFloat01(h[1])
+    return out
+}
+
+/** `hash_int3_to_float3` (`noise.cc:340`). */
+export function hashInt3ToFloat3(x: number, y: number, z: number, out: number[] = [0, 0, 0]): number[] {
+    const h = hashPcg3dI(x, y, z, pcgOut)
+    out[0] = intToFloat01(h[0])
+    out[1] = intToFloat01(h[1])
+    out[2] = intToFloat01(h[2])
+    return out
+}
+
+/** `hash_int4_to_float4` (`noise.cc:346`). */
+export function hashInt4ToFloat4(x: number, y: number, z: number, w: number, out: number[] = [0, 0, 0, 0]): number[] {
+    const h = hashPcg4dI(x, y, z, w, pcgOut)
+    out[0] = intToFloat01(h[0])
+    out[1] = intToFloat01(h[1])
+    out[2] = intToFloat01(h[2])
+    out[3] = intToFloat01(h[3])
+    return out
+}
+
+/** `hash_int2_to_float3` (`noise.cc:353`): `hash_int3_to_float3(int3(k.x, k.y, 0))`. */
+export function hashInt2ToFloat3(x: number, y: number, out: number[] = [0, 0, 0]): number[] {
+    return hashInt3ToFloat3(x, y, 0, out)
+}
+
+/** `hash_int4_to_float3` (`noise.cc:358`): `hash_int4_to_float4(k).xyz()`. */
+export function hashInt4ToFloat3(x: number, y: number, z: number, w: number, out: number[] = [0, 0, 0]): number[] {
+    const h = hashPcg4dI(x, y, z, w, pcgOut)
+    out[0] = intToFloat01(h[0])
+    out[1] = intToFloat01(h[1])
+    out[2] = intToFloat01(h[2])
+    return out
+}
