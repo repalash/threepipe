@@ -119,5 +119,19 @@ export function listCases(): ParityCase[] {
             return n.JoinGeometry({geometry: parts}).geometry
         }, {scene})
     }
+    add('tag-filter', 'Tag Filter: empty filter, trimmed comma-separated entries, empty entries, untrimmed tags, no list', () => {
+        const str = (s: string) => n.String({string: s}).string
+        const tags = n.SplitString({string: str('a,b, c,d\t'), separator: str(',')}).list
+        const filters = ['', 'a', ' b ,x', 'x, y', 'x,', ',', ' ', 'c', ' c', 'x , d', 'd\t', 'y,z', 'x,,', 'B']
+        let g: AnySocket = n.Points({count: 1}).points
+        filters.forEach((filter, i) => {
+            const match = n.TagFilter({tagFilter: str(filter), tags}).match
+            g = n.StoreNamedAttribute({geometry: g, dataType: 'BOOLEAN', name: `m${i}`, value: match}).geometry
+        })
+        const none = n.TagFilter({tagFilter: str('a')}).match
+        g = n.StoreNamedAttribute({geometry: g, dataType: 'BOOLEAN', name: 'no_list', value: none}).geometry
+        const single = n.TagFilter({tagFilter: str('a'), tags: str('a')}).match
+        return n.StoreNamedAttribute({geometry: g, dataType: 'BOOLEAN', name: 'single', value: single}).geometry as Socket<'GEOMETRY'>
+    })
     return cases
 }
