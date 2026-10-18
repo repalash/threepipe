@@ -20,6 +20,7 @@ import {raycastCases} from './cases/raycast'
 import {demoCases} from './cases/demos'
 import {curveSetterCases} from './cases/curveSetters'
 import {fieldNodeCases} from './cases/fieldNodes'
+import {topologyCases} from './cases/topology'
 import {functionMathCases} from './cases/functionMath'
 import {functionRandomCases} from './cases/functionRandom'
 import {functionRotationCases} from './cases/functionRotation'
@@ -63,6 +64,7 @@ SETS.raycast = raycastCases
 SETS.demos = demoCases
 SETS.curveSetters = curveSetterCases
 SETS.fieldNodes = fieldNodeCases
+SETS.topology = topologyCases
 SETS.meshEdit = meshEditCases
 SETS.meshPrimitive = meshPrimitiveCases
 SETS.meshMerge = meshMergeCases

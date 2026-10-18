@@ -277,6 +277,42 @@ export type CompareNode = NodeHandle & {
     readonly result: Socket<"BOOLEAN">
 }
 
+/** `GeometryNodeCornersOfEdge` (Corners of Edge). */
+export interface CornersOfEdgeArgs {
+    edgeIndex?: In<"INT">
+    weights?: In<"FLOAT">
+    sortIndex?: In<"INT">
+    mute?: boolean
+}
+export type CornersOfEdgeNode = NodeHandle & {
+    readonly cornerIndex: Socket<"INT">
+    readonly total: Socket<"INT">
+}
+
+/** `GeometryNodeCornersOfFace` (Corners of Face). */
+export interface CornersOfFaceArgs {
+    faceIndex?: In<"INT">
+    weights?: In<"FLOAT">
+    sortIndex?: In<"INT">
+    mute?: boolean
+}
+export type CornersOfFaceNode = NodeHandle & {
+    readonly cornerIndex: Socket<"INT">
+    readonly total: Socket<"INT">
+}
+
+/** `GeometryNodeCornersOfVertex` (Corners of Vertex). */
+export interface CornersOfVertexArgs {
+    vertexIndex?: In<"INT">
+    weights?: In<"FLOAT">
+    sortIndex?: In<"INT">
+    mute?: boolean
+}
+export type CornersOfVertexNode = NodeHandle & {
+    readonly cornerIndex: Socket<"INT">
+    readonly total: Socket<"INT">
+}
+
 /** `GeometryNodeCurvePrimitiveCircle` (Curve Circle). */
 export interface CurveCircleArgs {
     mode?: "POINTS" | "RADIUS"
@@ -303,6 +339,16 @@ export interface CurveLineArgs {
 }
 export type CurveLineNode = NodeHandle & {
     readonly curve: Socket<"GEOMETRY">
+}
+
+/** `GeometryNodeCurveOfPoint` (Curve of Point). */
+export interface CurveOfPointArgs {
+    pointIndex?: In<"INT">
+    mute?: boolean
+}
+export type CurveOfPointNode = NodeHandle & {
+    readonly curveIndex: Socket<"INT">
+    readonly indexInCurve: Socket<"INT">
 }
 
 /** `GeometryNodeCurveToMesh` (Curve to Mesh). */
@@ -394,6 +440,28 @@ export type EdgeNeighborsNode = NodeHandle & {
     readonly faceCount: Socket<"INT">
 }
 
+/** `GeometryNodeEdgesOfCorner` (Edges of Corner). */
+export interface EdgesOfCornerArgs {
+    cornerIndex?: In<"INT">
+    mute?: boolean
+}
+export type EdgesOfCornerNode = NodeHandle & {
+    readonly nextEdgeIndex: Socket<"INT">
+    readonly previousEdgeIndex: Socket<"INT">
+}
+
+/** `GeometryNodeEdgesOfVertex` (Edges of Vertex). */
+export interface EdgesOfVertexArgs {
+    vertexIndex?: In<"INT">
+    weights?: In<"FLOAT">
+    sortIndex?: In<"INT">
+    mute?: boolean
+}
+export type EdgesOfVertexNode = NodeHandle & {
+    readonly edgeIndex: Socket<"INT">
+    readonly total: Socket<"INT">
+}
+
 /** `GeometryNodeInputMeshEdgeVertices` (Edge Vertices). */
 export interface EdgeVerticesArgs {
     mute?: boolean
@@ -478,6 +546,16 @@ export interface FaceNeighborsArgs {
 export type FaceNeighborsNode = NodeHandle & {
     readonly vertexCount: Socket<"INT">
     readonly faceCount: Socket<"INT">
+}
+
+/** `GeometryNodeFaceOfCorner` (Face of Corner). */
+export interface FaceOfCornerArgs {
+    cornerIndex?: In<"INT">
+    mute?: boolean
+}
+export type FaceOfCornerNode = NodeHandle & {
+    readonly faceIndex: Socket<"INT">
+    readonly indexInFace: Socket<"INT">
 }
 
 /** `GeometryNodeFieldAverage` (Field Average). */
@@ -1037,6 +1115,27 @@ export type ObjectInfoNode = NodeHandle & {
     readonly geometry: Socket<"GEOMETRY">
 }
 
+/** `GeometryNodeOffsetCornerInFace` (Offset Corner in Face). */
+export interface OffsetCornerInFaceArgs {
+    cornerIndex?: In<"INT">
+    offset?: In<"INT">
+    mute?: boolean
+}
+export type OffsetCornerInFaceNode = NodeHandle & {
+    readonly cornerIndex: Socket<"INT">
+}
+
+/** `GeometryNodeOffsetPointInCurve` (Offset Point in Curve). */
+export interface OffsetPointInCurveArgs {
+    pointIndex?: In<"INT">
+    offset?: In<"INT">
+    mute?: boolean
+}
+export type OffsetPointInCurveNode = NodeHandle & {
+    readonly isValidOffset: Socket<"BOOLEAN">
+    readonly pointIndex: Socket<"INT">
+}
+
 /** `GeometryNodePoints` (Points). */
 export interface PointsArgs {
     count?: In<"INT">
@@ -1047,6 +1146,18 @@ export interface PointsArgs {
 export type PointsNode = NodeHandle & {
     readonly geometry: Socket<"GEOMETRY">
     readonly points: Socket<"GEOMETRY">
+}
+
+/** `GeometryNodePointsOfCurve` (Points of Curve). */
+export interface PointsOfCurveArgs {
+    curveIndex?: In<"INT">
+    weights?: In<"FLOAT">
+    sortIndex?: In<"INT">
+    mute?: boolean
+}
+export type PointsOfCurveNode = NodeHandle & {
+    readonly pointIndex: Socket<"INT">
+    readonly total: Socket<"INT">
 }
 
 /** `GeometryNodePointsToVertices` (Points to Vertices). */
@@ -1487,6 +1598,16 @@ export type StoreNamedAttributeNode = NodeHandle & {
     readonly geometry: Socket<"GEOMETRY">
 }
 
+/** `GeometryNodeSubdivideMesh` (Subdivide Mesh). */
+export interface SubdivideMeshArgs {
+    mesh?: In<"GEOMETRY">
+    level?: In<"INT">
+    mute?: boolean
+}
+export type SubdivideMeshNode = NodeHandle & {
+    readonly mesh: Socket<"GEOMETRY">
+}
+
 /** `GeometryNodeSwitch` (Switch). */
 export interface SwitchArgs {
     inputType?: "FLOAT" | "INT" | "BOOLEAN" | "VECTOR" | "RGBA" | "ROTATION" | "MATRIX" | "STRING" | "MENU" | "OBJECT" | "IMAGE" | "GEOMETRY" | "COLLECTION" | "MATERIAL" | "BUNDLE" | "CLOSURE" | "FONT" | "SOUND"
@@ -1616,6 +1737,15 @@ export type VertexNeighborsNode = NodeHandle & {
     readonly faceCount: Socket<"INT">
 }
 
+/** `GeometryNodeVertexOfCorner` (Vertex of Corner). */
+export interface VertexOfCornerArgs {
+    cornerIndex?: In<"INT">
+    mute?: boolean
+}
+export type VertexOfCornerNode = NodeHandle & {
+    readonly vertexIndex: Socket<"INT">
+}
+
 /** `ShaderNodeTexVoronoi` (Voronoi Texture). */
 export interface VoronoiTextureArgs {
     voronoiDimensions?: "1D" | "2D" | "3D" | "4D"
@@ -1694,8 +1824,12 @@ export interface NodeConstructors {
     CombineTransform(args?: CombineTransformArgs): CombineTransformNode
     CombineXYZ(args?: CombineXYZArgs): CombineXYZNode
     Compare(args?: CompareArgs): CompareNode
+    CornersOfEdge(args?: CornersOfEdgeArgs): CornersOfEdgeNode
+    CornersOfFace(args?: CornersOfFaceArgs): CornersOfFaceNode
+    CornersOfVertex(args?: CornersOfVertexArgs): CornersOfVertexNode
     CurveCircle(args?: CurveCircleArgs): CurveCircleNode
     CurveLine(args?: CurveLineArgs): CurveLineNode
+    CurveOfPoint(args?: CurveOfPointArgs): CurveOfPointNode
     CurveToMesh(args?: CurveToMeshArgs): CurveToMeshNode
     DeleteGeometry(args?: DeleteGeometryArgs): DeleteGeometryNode
     DistributePointsOnFaces(args?: DistributePointsOnFacesArgs): DistributePointsOnFacesNode
@@ -1703,6 +1837,8 @@ export interface NodeConstructors {
     DuplicateElements(args?: DuplicateElementsArgs): DuplicateElementsNode
     EdgeAngle(args?: EdgeAngleArgs): EdgeAngleNode
     EdgeNeighbors(args?: EdgeNeighborsArgs): EdgeNeighborsNode
+    EdgesOfCorner(args?: EdgesOfCornerArgs): EdgesOfCornerNode
+    EdgesOfVertex(args?: EdgesOfVertexArgs): EdgesOfVertexNode
     EdgeVertices(args?: EdgeVerticesArgs): EdgeVerticesNode
     EndpointSelection(args?: EndpointSelectionArgs): EndpointSelectionNode
     EulerToRotation(args?: EulerToRotationArgs): EulerToRotationNode
@@ -1711,6 +1847,7 @@ export interface NodeConstructors {
     ExtrudeMesh(args?: ExtrudeMeshArgs): ExtrudeMeshNode
     FaceArea(args?: FaceAreaArgs): FaceAreaNode
     FaceNeighbors(args?: FaceNeighborsArgs): FaceNeighborsNode
+    FaceOfCorner(args?: FaceOfCornerArgs): FaceOfCornerNode
     FieldAverage(args?: FieldAverageArgs): FieldAverageNode
     FieldMinMax(args?: FieldMinMaxArgs): FieldMinMaxNode
     FieldVariance(args?: FieldVarianceArgs): FieldVarianceNode
@@ -1754,7 +1891,10 @@ export interface NodeConstructors {
     NoiseTexture(args?: NoiseTextureArgs): NoiseTextureNode
     Normal(args?: NormalArgs): NormalNode
     ObjectInfo(args?: ObjectInfoArgs): ObjectInfoNode
+    OffsetCornerInFace(args?: OffsetCornerInFaceArgs): OffsetCornerInFaceNode
+    OffsetPointInCurve(args?: OffsetPointInCurveArgs): OffsetPointInCurveNode
     Points(args?: PointsArgs): PointsNode
+    PointsOfCurve(args?: PointsOfCurveArgs): PointsOfCurveNode
     PointsToVertices(args?: PointsToVerticesArgs): PointsToVerticesNode
     Position(args?: PositionArgs): PositionNode
     QuaternionToRotation(args?: QuaternionToRotationArgs): QuaternionToRotationNode
@@ -1792,6 +1932,7 @@ export interface NodeConstructors {
     SplineLength(args?: SplineLengthArgs): SplineLengthNode
     SplitEdges(args?: SplitEdgesArgs): SplitEdgesNode
     StoreNamedAttribute(args?: StoreNamedAttributeArgs): StoreNamedAttributeNode
+    SubdivideMesh(args?: SubdivideMeshArgs): SubdivideMeshNode
     Switch(args?: SwitchArgs): SwitchNode
     TransformDirection(args?: TransformDirectionArgs): TransformDirectionNode
     TransformGeometry(args?: TransformGeometryArgs): TransformGeometryNode
@@ -1803,6 +1944,7 @@ export interface NodeConstructors {
     VectorMath(args?: VectorMathArgs): VectorMathNode
     VectorRotate(args?: VectorRotateArgs): VectorRotateNode
     VertexNeighbors(args?: VertexNeighborsArgs): VertexNeighborsNode
+    VertexOfCorner(args?: VertexOfCornerArgs): VertexOfCornerNode
     VoronoiTexture(args?: VoronoiTextureArgs): VoronoiTextureNode
     WaveTexture(args?: WaveTextureArgs): WaveTextureNode
     WhiteNoiseTexture(args?: WhiteNoiseTextureArgs): WhiteNoiseTextureNode
