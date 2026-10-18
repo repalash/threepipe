@@ -42,6 +42,7 @@ import {shapeCommands} from './commands/shape'
 import {shadingCommands} from './commands/shading'
 import {decalCommands} from './commands/decal'
 import {partCommands} from './commands/part'
+import {grooveCommands} from './commands/groove'
 import {booleanCommands} from './commands/boolean'
 import {loopCommands} from './commands/loop'
 import {cutCommands} from './commands/cut'
@@ -155,6 +156,7 @@ export class ModellingPlugin extends AViewerPluginSync<ModellingPluginEventMap> 
         this.commands.registerAll(shadingCommands, 'shading')
         this.commands.registerAll(decalCommands, 'shading')
         this.commands.registerAll(booleanCommands, 'boolean')
+        this.commands.registerAll(grooveCommands, 'boolean')
         this.commands.registerAll(loopCommands, 'loop')
         this.commands.registerAll(cutCommands, 'cut')
         this.commands.registerAll(fillCommands, 'fill')

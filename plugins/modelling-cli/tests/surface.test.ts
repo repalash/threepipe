@@ -70,4 +70,26 @@ describe('surface commands', () => {
         for (const v of bg.vertices) expect(Math.hypot(...v as [number, number, number])).toBeCloseTo(10.05, 0)
         s.dispose()
     })
+
+    it('groove cuts a panel line round an outline, keeps the object closed, and lays a gap strip', async() => {
+        const s = new NodeSession()
+        await s.run({op: 'primitive', type: 'cube', name: 'box', size: 20})
+        const before = ((await s.run({op: 'inspect', object: 'box'})).data as any).faces
+        const g = await s.run({op: 'groove', object: 'box', outline: {at: [0, 0, 10], normal: [0, 0, 1], size: [12, 8], radius: 2}, width: 0.6, depth: 0.4, fill: true})
+        expect(g.ok).toBe(true)
+        expect((g.data as any).strip).toBe('box-gap')
+        const after = (await s.run({op: 'inspect', object: 'box', detail: true})).data as any
+        expect(after.faces).toBeGreaterThan(before)
+        // the groove floor is 0.4 under the face at z = 10
+        const zs = after.vertices.map((v: number[]) => v[2]).filter((z: number) => z < 9.99 && z > 9)
+        expect(Math.min(...zs)).toBeCloseTo(9.6, 2)
+        expect((await s.run({op: 'validate', object: 'box'})).ok).toBe(true)
+        const strip = (await s.run({op: 'inspect', object: 'box-gap'})).data as any
+        expect(strip.worldBounds.max[2]).toBeLessThan(10)
+        // a path along a sphere, projected: the groove follows the surface
+        await s.run({op: 'primitive', type: 'sphere', name: 'ball', radius: 10, segments: 48, rings: 24})
+        const p = await s.run({op: 'groove', object: 'ball', path: [[-4, 0, 10], [0, 0, 10], [4, 0, 10]], normal: [0, 0, 1], width: 0.5})
+        expect(p.ok).toBe(true)
+        s.dispose()
+    })
 })
