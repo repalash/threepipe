@@ -60,11 +60,11 @@ const DIRECTION = {
     top: {title: 'Prism, top LCD, hot shoe', sub: 'ISO 518 channel: inset 2.7 mm, sunk 2 mm',
         camera: {position: [210, 330, 330], target: [10, 80, 40], fov: 30}, continuous: true},
     controls: {title: 'Dials and buttons', sub: 'Lathed, knurled with inset, arrayed at the measured pitch',
-        camera: {position: [-120, 170, -360], target: [5, 55, 0], fov: 30}, continuous: true, drift: {deg: 30, ms: 14000}},
+        camera: {position: [-200, 210, -430], target: [0, 58, 30], fov: 30}, continuous: true, drift: {deg: 20, ms: 14000}},
     eyecup: {title: 'Eyecup', sub: 'A section swept round a closed rounded rectangle',
         camera: {position: [90, 190, -210], target: [AX, 88, 0], fov: 30}, continuous: true},
     mount: {title: 'Mount and lugs', sub: 'EF throat 54 mm · lugs mirrored live',
-        camera: {position: [150, 120, 420], target: [0, 58, 60], fov: 30}, continuous: true},
+        camera: {position: [260, 170, 560], target: [10, 58, 75], fov: 30}, continuous: true},
     assembled: {title: null, camera: {position: HERO, target: [8, 52, 80], fov: 26}, hold: 2500},
     compare: {title: 'Against the photographs', sub: 'Orthographic, registered to each calibrated plane',
         hold: 1600},
@@ -158,6 +158,14 @@ await page.evaluate(({refBase}) => {
     window.__stopDrift = () => { if (window.__driftToken) window.__driftToken.stop = true }
 }, {refBase})
 
+// Wait out the example's own start-up: the environment map download and the loading screen. Then
+// hide that screen and let a few frames render, so the film's first frame is the stage itself.
+await page.waitForFunction(() => !!window.viewer?.scene?.environment, {timeout: 900000})
+await page.evaluate(async () => {
+    await window.viewer.getPlugin('LoadingScreenPlugin')?.hide?.()
+    for (let i = 0; i < 10; i++) await new Promise(r => requestAnimationFrame(r))
+})
+await sleep(1500)
 // Everything before this is the page loading - minutes, on a busy machine - and is cut from the film.
 const stageReady = Date.now()
 
@@ -244,8 +252,10 @@ async function beat(name) {
         await sleep(1700)
     }
     if (d.camera) {
-        await run({op: 'camera', projection: 'perspective', fov: d.camera.fov ?? 30,
-            position: d.camera.position, target: d.camera.target})
+        // The director's own move: straight to the page, past the continuous-shot rule in `run`
+        // (which would otherwise swallow it, since the beat is already this one).
+        await page.evaluate(c => window.modelling.run(c), {op: 'camera', projection: 'perspective',
+            fov: d.camera.fov ?? 30, position: d.camera.position, target: d.camera.target})
     }
     if (d.title) await ui.uncard()
     if (d.caption) await ui.caption(d.caption)
@@ -268,6 +278,7 @@ await build({run, capture, beat, log, page, outDir: join(scratch, 'shots')})
 
 // --- ending: turntable, then the split with the photograph --------------------------------------
 await page.evaluate(() => window.__stopDrift())
+beatName = null // the build is over: the ending's camera moves are the director's
 await ui.caption('')
 await ui.log([])
 await run({op: 'camera', projection: 'perspective', fov: 24, position: [AX + 520 * Math.sin(0.5), 190, 70 + 520 * Math.cos(0.5)],
