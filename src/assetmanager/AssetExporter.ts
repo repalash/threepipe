@@ -66,20 +66,8 @@ export class AssetExporter extends EventDispatcher<AssetExporterEventMap> implem
             console.error('Object has no asset type')
             return undefined
         }
-        const excluded: IObject3D[] = []
-        if (obj.assetType === 'model') {
-            obj.traverse((o)=>{
-                // todo this wont work when we are exporting invisible objects as well
-                if (o.userData.excludeFromExport && o.visible) {
-                    o.visible = false
-                    excluded.push(o)
-                }
-            })
-        }
+        // objects marked userData.excludeFromExport are left out by the glTF writer (GLTFWriter2.processNode)
         const blob = await this._exportFile(obj, options)
-        if (obj.assetType === 'model') {
-            excluded.forEach((o: any)=>o.visible = true)
-        }
         if ((obj as any)?.userData?.rootSceneModelRoot && options.viewerConfig === false) {
             delete (obj as any)!.userData!.__exportViewerConfig
         }

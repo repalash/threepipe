@@ -67,3 +67,23 @@ if (typeof globalThis.location === 'undefined') {
         hash: '',
     }
 }
+
+// FileReader: three's GLTFExporter reads its buffers (and the glb) through it; Node has Blob but no FileReader
+if (typeof globalThis.FileReader === 'undefined') {
+    (globalThis as any).FileReader = class FileReader {
+        result: string | ArrayBuffer | null = null
+        onload: (() => void) | null = null
+        onloadend: (() => void) | null = null
+        private _done(result: string | ArrayBuffer) {
+            this.result = result
+            this.onload?.()
+            this.onloadend?.()
+        }
+        readAsArrayBuffer(blob: Blob) {
+            void blob.arrayBuffer().then(b => this._done(b))
+        }
+        readAsDataURL(blob: Blob) {
+            void blob.arrayBuffer().then(b => this._done(`data:${blob.type || 'application/octet-stream'};base64,${Buffer.from(b).toString('base64')}`))
+        }
+    }
+}
