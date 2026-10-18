@@ -10,12 +10,16 @@ import {Instances, InstanceReference, instanceReferenceEquals} from './component
 import {realizeInstances, ensureGeometryInstances} from './realizeInstances'
 import type {SceneProvider} from '../runtime/context'
 
-/** `GeometryComponent::is_empty()`. */
+/**
+ * `GeometryComponent::is_empty()`: a mesh, point cloud or curves component is empty only when it holds no
+ * data-block (`geometry_component_mesh.cc:89`, `_pointcloud.cc:88`, `_curves.cc:96`) - a zero-size mesh is
+ * kept; instances are empty with zero instances (`geometry_component_instances.cc:45`).
+ */
 function componentEmpty(g: GeometrySet, type: ComponentType): boolean {
     switch (type) {
-    case 'mesh': return !g.mesh || (g.mesh.vertsNum === 0 && g.mesh.edgesNum === 0 && g.mesh.facesNum === 0)
-    case 'pointcloud': return !g.pointCloud || g.pointCloud.pointsNum === 0
-    case 'curves': return !g.curves || g.curves.curvesNum === 0
+    case 'mesh': return !g.mesh
+    case 'pointcloud': return !g.pointCloud
+    case 'curves': return !g.curves
     case 'instances': return !g.instances || g.instances.instancesNum === 0
     }
 }

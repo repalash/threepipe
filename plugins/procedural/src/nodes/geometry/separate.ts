@@ -3,7 +3,7 @@
  * on `geometry::separate_geometry` (`src/geometry/separateGeometry.ts`).
  */
 
-import {elementwise, FieldOperation, GField} from '../../fields'
+import {GField, invertBooleanField} from '../../fields'
 import {GeometrySet} from '../../geometry/GeometrySet'
 import {foreachRealGeometry} from '../../geometry/joinGeometries'
 import {DeleteGeometryMode, separateGeometry} from '../../geometry/separateGeometry'
@@ -11,9 +11,7 @@ import type {ExecParams} from '../../runtime/params'
 import {registerNodeType} from '../../runtime/registry'
 import {domainFromRNA} from '../attributeTypes'
 
-/** `fn::invert_boolean_field` (`functions/intern/field.cc`): a "Not" operation. */
-const notFn = elementwise('Not', ['bool'], ['bool'], ([a], [o]) => { o[0] = a[0] ? 0 : 1 })
-const invert = (f: GField) => new FieldOperation(notFn, [f]).output(0)
+const invert = invertBooleanField
 
 // rna_enum_attribute_domain_without_corner_items.
 const DOMAINS = ['POINT', 'EDGE', 'FACE', 'CURVE', 'INSTANCE', 'LAYER']
