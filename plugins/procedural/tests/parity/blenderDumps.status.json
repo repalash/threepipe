@@ -20,7 +20,6 @@
    "GeometryNodeExtrudeMesh": 3,
    "GeometryNodeDuplicateElements": 3,
    "GeometryNodeSampleNearestSurface": 3,
-   "GeometryNodeInputMeshEdgeAngle": 2,
    "GeometryNodeSplitEdges": 2,
    "GeometryNodeResampleCurve": 2,
    "GeometryNodeTrimCurve": 2,
