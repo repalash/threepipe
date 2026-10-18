@@ -17,7 +17,11 @@ import type {NodeGroupLibrary} from '../../src/runtime/types'
 import '../../src/nodes'
 
 const ROOT = join(__dirname, '../../../../tmp/gt-5.2.2')
-const assets = existsSync(ROOT) ? readdirSync(ROOT).filter(d => existsSync(join(ROOT, d, 'dump.json'))).sort() : []
+/** Dumps made with modifier inputs changed (`dump_blend.py --set`), named `sets/<dir>`: the assets' reactivity against Blender. */
+const SETS_ROOT = join(__dirname, '../../../../tmp/gt-5.2.2-sets')
+const dumpsIn = (root: string) => (existsSync(root) ? readdirSync(root).filter(d => existsSync(join(root, d, 'dump.json'))).sort() : [])
+const assets = [...dumpsIn(ROOT), ...dumpsIn(SETS_ROOT).map(d => `sets/${d}`)]
+const assetDir = (asset: string) => (asset.startsWith('sets/') ? join(SETS_ROOT, asset.slice(5)) : join(ROOT, asset))
 const status: Record<string, Record<string, string>> = {}
 
 /** Node types a group needs, through the groups it uses. */
@@ -39,6 +43,11 @@ function missingTypes(library: NodeGroupLibrary, group: string, seen = new Set<s
 const KNOWN_GAPS: Record<string, {issue: string, diffs: string[]}> = {
     // A vertex group and a face attribute both named `building:levels`: one attribute namespace here.
     'buildify_1.0 / building_base': {
+        issue: 'procedural-vertex-groups.md',
+        diffs: ["geometry.mesh: attribute 'building:levels' is int32 on domain 2, expected float on POINT"],
+    },
+    // The same object with Module width 6 (`--set`).
+    'sets/buildify-mw6 / building_base': {
         issue: 'procedural-vertex-groups.md',
         diffs: ["geometry.mesh: attribute 'building:levels' is int32 on domain 2, expected float on POINT"],
     },
@@ -68,7 +77,7 @@ function evaluateObject(dump: DumpV2, resolve: BinResolver, library: NodeGroupLi
 
 describe.skipIf(!assets.length)('Blender 5.2.2 assets', () => {
     for (const asset of assets) {
-        const dir = join(ROOT, asset)
+        const dir = assetDir(asset)
         const dump = JSON.parse(readFileSync(join(dir, 'dump.json'), 'utf8')) as DumpV2
         const resolve = binResolver(existsSync(join(dir, 'dump.bin')) ? {'dump.bin': readFileSync(join(dir, 'dump.bin'))} : {})
         const {library} = importBlenderDump(dump)
@@ -111,12 +120,12 @@ const bundled = assets.filter(a => existsSync(join(BUNDLES, a, 'bundle.json')))
 describe.skipIf(!bundled.length)('runtime bundles', () => {
     for (const asset of bundled) {
         it(asset, () => {
-            const dump = JSON.parse(readFileSync(join(ROOT, asset, 'dump.json'), 'utf8')) as DumpV2
+            const dump = JSON.parse(readFileSync(join(assetDir(asset), 'dump.json'), 'utf8')) as DumpV2
             const bundle = JSON.parse(readFileSync(join(BUNDLES, asset, 'bundle.json'), 'utf8')) as DumpV2
             expect(bundle.format).toBe('threepipe-procedural-bundle/1')
             expect(bundle.objects.every(o => !('output_geometry' in o))).toBe(true)
             // A dump whose arrays all fit inline has no dump.bin.
-            const dumpBin = join(ROOT, asset, 'dump.bin')
+            const dumpBin = join(assetDir(asset), 'dump.bin')
             const fromDump = binResolver(existsSync(dumpBin) ? {'dump.bin': readFileSync(dumpBin)} : {})
             const fromBundle = binResolver({'bundle.bin': readFileSync(join(BUNDLES, asset, 'bundle.bin'))})
             const bundleLibrary = importBlenderDump(bundle).library

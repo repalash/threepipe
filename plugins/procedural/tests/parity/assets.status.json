@@ -34,5 +34,11 @@
  },
  "repeat_zone_flower_by_MiRA": {
   "Rose": "exact"
+ },
+ "sets/buildify-mw6": {
+  "building_base": "known gap (procedural-vertex-groups.md): geometry.mesh: attribute 'building:levels' is int32 on domain 2, expected float on POINT"
+ },
+ "sets/flowers-gd05": {
+  "EN-ground_plane_NEW": "pass (within 1e-5, > 256 ulp)"
  }
 }
