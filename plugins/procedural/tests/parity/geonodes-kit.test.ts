@@ -6,13 +6,14 @@
  */
 
 import {describe, expect, it} from 'vitest'
-import {readdirSync, readFileSync, writeFileSync} from 'node:fs'
+import {readdirSync, writeFileSync} from 'node:fs'
 import {join} from 'node:path'
 import {CaseJSON, compareGeometry, ExpectedGeometry, GeometryNodesEvaluator, getNodeType, importCase} from '../../src'
 import {BUILTIN_TYPES} from '../../src/runtime/evaluator'
+import {readFixtureJSON, withoutGz} from './fixtures'
 
 const dir = join(__dirname, 'geonodes-kit')
-const files = readdirSync(dir).filter(f => f.endsWith('.json') && f !== 'cases.json').sort()
+const files = readdirSync(dir).map(withoutGz).filter(f => f.endsWith('.json') && f !== 'cases.json').sort()
 
 interface Status {
     status: 'pass' | 'fail' | 'skip'
@@ -30,7 +31,7 @@ function missingTypes(c: CaseJSON): string[] {
 
 describe('geonodes-kit reference cases (Blender 5.2.2)', () => {
     for (const file of files) {
-        const data = JSON.parse(readFileSync(join(dir, file), 'utf8')) as {case: CaseJSON, geometry: ExpectedGeometry}
+        const data = readFixtureJSON<{case: CaseJSON, geometry: ExpectedGeometry}>(join(dir, file))
         const c = data.case
         const missing = missingTypes(c)
         if (missing.length) {

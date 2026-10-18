@@ -20,6 +20,7 @@ import {libmProof, LibmName} from '../../src/blender/libm'
 import {binResolver, DumpReferenced, geometryFromDump, inlineBinRefs, sceneFromDump} from '../../src/io/geometryFromDump'
 import type {EvalOptions} from '../../src/runtime/context'
 import type {ParityCase} from './cases/types'
+import {fixtureExists, readFixture, readFixtureJSON} from './fixtures'
 
 const spec = process.env.LIBM_PROOF
 const NAMES: LibmName[] = ['acosf', 'asinf', 'atan2f', 'sincosf', 'sinf', 'cosf', 'tanf', 'powf', 'sincos', 'atan2']
@@ -48,16 +49,16 @@ describe.skipIf(!spec)('libm proof', () => {
         writeFileSync(join(OUT, `${name}.result.txt`), report.join('\n') + '\n')
     })
     for (const [set, id] of list) it(`${set}/${id}`, () => {
-        const cases = JSON.parse(readFileSync(join(CASES, `${set}.json`), 'utf8')) as ParityCase[]
+        const cases = readFixtureJSON<ParityCase[]>(join(CASES, `${set}.json`))
         const c = cases.find(x => x.id === id)
         if (!c) throw new Error(`no case ${id} in ${set}.json`)
         if (c.images) throw new Error('cases with images are not supported here')
         const dir = [join(CASES, `${set}.gt`), join(__dirname, '../../../../tmp/gt-5.2.2/cases', set)]
-            .find(d => existsSync(join(d, `${id}.json`)))
+            .find(d => fixtureExists(join(d, `${id}.json`)))
         if (!dir) throw new Error(`no Blender result for ${set}/${id}`)
-        const gt = JSON.parse(readFileSync(join(dir, `${id}.json`), 'utf8')) as {geometry: ExpectedGeometry, scene?: DumpReferenced, input?: ExpectedGeometry}
-        const bin = join(dir, `${id}.bin`)
-        const resolver = binResolver(existsSync(bin) ? {[`${id}.bin`]: readFileSync(bin)} : {})
+        const gt = readFixtureJSON<{geometry: ExpectedGeometry, scene?: DumpReferenced, input?: ExpectedGeometry}>(join(dir, `${id}.json`))
+        const bin = readFixture(join(dir, `${id}.bin`))
+        const resolver = binResolver(bin ? {[`${id}.bin`]: bin} : {})
         const expected = inlineBinRefs(gt.geometry, resolver)
         const evaluate = () => {
             const options: EvalOptions = gt.scene ? {scene: sceneFromDump(gt.scene, resolver), selfObject: id} : {}

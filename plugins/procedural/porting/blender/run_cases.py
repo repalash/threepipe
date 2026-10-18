@@ -37,6 +37,7 @@ Writes <out dir>/<case id>.json (+ .bin when large): {"blender", "case", "input"
 "multiInputOrder": {...}} or {"error": ...}. One failing case does not stop the batch.
 """
 
+import gzip
 import json
 import os
 import sys
@@ -413,8 +414,13 @@ def main():
     argv = sys.argv[sys.argv.index("--") + 1:]
     cases_file, out_dir = argv[0], argv[1]
     only = [argv[i + 1] for i, a in enumerate(argv) if a == "--only"]
-    with open(cases_file, encoding="utf8") as handle:
-        cases = json.load(handle)
+    # The case list may be stored gzipped (`<set>.json.gz`, tests/parity/fixtures.ts).
+    if not os.path.exists(cases_file) and os.path.exists(cases_file + ".gz"):
+        with gzip.open(cases_file + ".gz", "rt", encoding="utf8") as handle:
+            cases = json.load(handle)
+    else:
+        with open(cases_file, encoding="utf8") as handle:
+            cases = json.load(handle)
     os.makedirs(out_dir, exist_ok=True)
     failures = 0
     for case in cases:
