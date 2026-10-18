@@ -261,10 +261,25 @@ export class Instances {
     readonly attributes: AttributeStorage
     references: InstanceReference[] = []
 
-    constructor(instancesNum = 0) {
+    /**
+     * Blender's `Instances` creates `.reference_index` and `instance_transform` on first write
+     * (`reference_handles_for_write` / `transforms_for_write`, `instances.cc:225`), so their place in the attribute
+     * storage is the order the creating code writes them: handles first in most places (Instance on Points, join,
+     * collections, extract), transforms first in `transformsFirst` creators (Split to Instances, `join_component_type`,
+     * partial realize, `mesh_boolean`). The order shows in attribute iteration (Transfer Attributes' names).
+     */
+    constructor(instancesNum = 0, transformsFirst = false) {
         this.attributes = new AttributeStorage({[AttrDomain.Instance]: instancesNum}, kernelTable(INSTANCES_BUILTINS))
-        this.attributes.add({name: 'instance_transform', domain: AttrDomain.Instance, type: 'float4x4'})
-        this.attributes.add({name: '.reference_index', domain: AttrDomain.Instance, type: 'int32'})
+        const names = transformsFirst ? ['instance_transform', '.reference_index'] : ['.reference_index', 'instance_transform']
+        for (const name of names) {
+            this.attributes.add({name, domain: AttrDomain.Instance, type: name === 'instance_transform' ? 'float4x4' : 'int32'})
+        }
+    }
+
+    /** Whether `instance_transform` comes before `.reference_index` in the storage (see the constructor). */
+    get transformsFirst(): boolean {
+        const names = this.attributes.names()
+        return names.indexOf('instance_transform') < names.indexOf('.reference_index')
     }
 
     get instancesNum(): number {

@@ -573,7 +573,8 @@ function identity(): Float32Array {
 export function filterInstances(inst: Instances, mask: Uint8Array, keepSelected: boolean): Instances {
     const keepIdx: number[] = []
     for (let i = 0; i < inst.instancesNum; i++) if ((mask[i] !== 0) === keepSelected) keepIdx.push(i)
-    const out = new Instances(keepIdx.length)
+    // `gather_attributes` into empty instances: the source's attribute order.
+    const out = new Instances(keepIdx.length, inst.transformsFirst)
     out.references = inst.references.slice()
     for (const layer of inst.attributes.layers()) {
         const c = DATA_TYPES[layer.type as DataType].components
@@ -702,7 +703,8 @@ function addInstanceAttributesToSingle(order: Ordered, fallbacks: Fallbacks, acc
 function executeInstancesTasks(tasks: {inst: Instances, transform: Float32Array, fallbacks: Fallbacks}[], order: Ordered, result: GeometrySet): void {
     if (!tasks.length) return
     const total = tasks.reduce((s, t) => s + t.inst.instancesNum, 0)
-    const dst = new Instances(total)
+    // `transforms_for_write` before `reference_handles_for_write` (:1136).
+    const dst = new Instances(total, true)
     let offset = 0
     for (const t of tasks) {
         const map = t.inst.references.map(r => dst.addReference(r))

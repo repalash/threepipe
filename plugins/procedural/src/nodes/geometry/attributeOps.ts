@@ -45,9 +45,9 @@ registerNodeType({
 // region Remove Named Attribute
 
 /** `StringPattern::from_str` / `match` (`nodes/intern/string_pattern.cc`); menu values are the item names. */
-type Pattern = {exact: string} | {prefix: string, suffix: string}
+export type Pattern = {exact: string} | {prefix: string, suffix: string}
 
-function patternFromString(mode: string, pattern: string): Pattern | string {
+export function patternFromString(mode: string, pattern: string): Pattern | string {
     if (mode === 'Exact') return {exact: pattern}
     if (mode !== 'Wildcard') return 'Invalid pattern'
     const count = pattern.split('*').length - 1
@@ -57,7 +57,7 @@ function patternFromString(mode: string, pattern: string): Pattern | string {
     return {prefix: pattern.slice(0, i), suffix: pattern.slice(i + 1)}
 }
 
-function patternMatch(p: Pattern, query: string): boolean {
+export function patternMatch(p: Pattern, query: string): boolean {
     if ('exact' in p) return p.exact === query
     return query.startsWith(p.prefix) && query.endsWith(p.suffix)
 }

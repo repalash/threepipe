@@ -2658,6 +2658,32 @@ export type ThreepipeErosionNode = NodeHandle & {
     readonly talus: Socket<"FLOAT">
 }
 
+/** `GeometryNodeTransferAttributes` (Transfer Attributes). */
+export interface TransferAttributesArgs {
+    target?: In<"GEOMETRY">
+    targetPointID?: In<"INT">
+    targetEdgeID?: In<"INT">
+    targetFaceID?: In<"INT">
+    targetCornerID?: In<"INT">
+    targetCurveID?: In<"INT">
+    targetInstanceID?: In<"INT">
+    source?: In<"GEOMETRY">
+    sourcePointID?: In<"INT">
+    sourceEdgeID?: In<"INT">
+    sourceFaceID?: In<"INT">
+    sourceCornerID?: In<"INT">
+    sourceCurveID?: In<"INT">
+    sourceInstanceID?: In<"INT">
+    patternMode?: In<"MENU">
+    attributeNames?: In<"STRING">
+    excludeNames?: In<"BOOLEAN">
+    mute?: boolean
+}
+export type TransferAttributesNode = NodeHandle & {
+    readonly target: Socket<"GEOMETRY">
+    readonly transferredNames: Socket<"STRING">
+}
+
 /** `FunctionNodeTransformDirection` (Transform Direction). */
 export interface TransformDirectionArgs {
     direction?: In<"VECTOR">
@@ -3120,6 +3146,7 @@ export interface NodeConstructors {
     SubdivideMesh(args?: SubdivideMeshArgs): SubdivideMeshNode
     Switch(args?: SwitchArgs): SwitchNode
     ThreepipeErosion(args?: ThreepipeErosionArgs): ThreepipeErosionNode
+    TransferAttributes(args?: TransferAttributesArgs): TransferAttributesNode
     TransformDirection(args?: TransformDirectionArgs): TransformDirectionNode
     TransformGeometry(args?: TransformGeometryArgs): TransformGeometryNode
     TransformPoint(args?: TransformPointArgs): TransformPointNode

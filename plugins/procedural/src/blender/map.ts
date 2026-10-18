@@ -116,3 +116,103 @@ export class BlenderIntMap<V> {
         for (let i = 0; i < this.keys_.length; i++) if (this.keys_[i] !== undefined) yield [this.keys_[i]!, this.values[i]!]
     }
 }
+
+/** `hash_string` (`BLI_hash.hh:175`): djb2 over the UTF-8 bytes (`-funsigned-char`), 64-bit. */
+export function hashString(s: string): bigint {
+    let h = 5381n
+    for (const c of new TextEncoder().encode(s)) h = (h * 33n + BigInt(c)) & MASK64
+    return h
+}
+
+/**
+ * `blender::VectorSet<std::string>` (`BLI_vector_set.hh`): keys in insertion order, a slot table for lookups
+ * (`SimpleVectorSetSlot`: empty / removed / index). Ported for `remove_if` (:451), which walks the slots and
+ * fills each removed key's place with the last key (`remove_key_internal`, :1046), so the order after removals
+ * depends on the slot order.
+ */
+export class BlenderStringVectorSet {
+    readonly keys: string[] = []
+    /** -1 empty, -2 removed, else the key's index. */
+    private slots: number[] = [-1]
+    private hashes: bigint[] = [0n]
+    private occupiedAndRemoved = 0
+    private removed = 0
+    private usable = 0
+    private mask = 0n
+
+    private *probe(hash: bigint, mask: bigint): Generator<number> {
+        let h = hash, perturb = hash
+        for (;;) {
+            yield Number(h & mask)
+            perturb >>= 5n
+            h = (5n * h + 1n + perturb) & MASK64
+        }
+    }
+
+    /** `realloc_and_reinsert` (:749); the slot array's inline capacity is `compute_total_slots(4, 1/2)` = 8. */
+    private realloc(minUsable: number): void {
+        minUsable = Math.max(minUsable, this.keys.length * 2)
+        const total = Math.max(totalSlotsFor(minUsable), 8)
+        const mask = BigInt(total - 1)
+        const slots = new Array<number>(total).fill(-1)
+        const hashes = new Array<bigint>(total).fill(0n)
+        for (let s = 0; s < this.slots.length; s++) {
+            if (this.slots[s] < 0) continue
+            for (const i of this.probe(this.hashes[s], mask)) {
+                if (slots[i] !== -1) continue
+                slots[i] = this.slots[s]
+                hashes[i] = this.hashes[s]
+                break
+            }
+        }
+        this.slots = slots
+        this.hashes = hashes
+        this.occupiedAndRemoved -= this.removed
+        this.removed = 0
+        this.usable = Math.floor(total / 2)
+        this.mask = mask
+    }
+
+    /** `add` (:900): false when present. */
+    add(key: string): boolean {
+        if (this.occupiedAndRemoved >= this.usable) this.realloc(this.keys.length + 1)
+        const hash = hashString(key)
+        for (const i of this.probe(hash, this.mask)) {
+            const s = this.slots[i]
+            if (s === -1) {
+                this.slots[i] = this.keys.length
+                this.hashes[i] = hash
+                this.keys.push(key)
+                this.occupiedAndRemoved++
+                return true
+            }
+            if (s >= 0 && this.hashes[i] === hash && this.keys[s] === key) return false
+        }
+        return false
+    }
+
+    /** `remove_if` (:451). */
+    removeIf(predicate: (key: string) => boolean): number {
+        const before = this.keys.length
+        for (let i = 0; i < this.slots.length; i++) {
+            const index = this.slots[i]
+            if (index < 0 || !predicate(this.keys[index])) continue
+            const last = this.keys.length - 1
+            if (index < last) {
+                const moved = this.keys[last]
+                this.keys[index] = moved
+                // `update_slot_index`: the moved key's slot points at its new index.
+                for (const j of this.probe(hashString(moved), this.mask)) {
+                    if (this.slots[j] === last) {
+                        this.slots[j] = index
+                        break
+                    }
+                }
+            }
+            this.keys.pop()
+            this.slots[i] = -2
+            this.removed++
+        }
+        return before - this.keys.length
+    }
+}

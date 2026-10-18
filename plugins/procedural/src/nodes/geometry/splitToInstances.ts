@@ -103,7 +103,7 @@ registerNodeType({
             // `split_instance_groups` (:193).
             const split = commonSplit('instances', inst, AttrDomain.Instance, selection, groupId, groups)
             split?.ids.forEach((id, g) => {
-                const out = new Instances(split.masks[g].length)
+                const out = new Instances(split.masks[g].length, inst.transformsFirst)
                 for (const ref of inst.references) out.addReference(ref)
                 gatherAttributes(inst.accessor(), AttrDomain.Instance, out.accessor(), AttrDomain.Instance, new Set(), split.masks[g])
                 removeUnusedReferences(out)
@@ -112,7 +112,7 @@ registerNodeType({
         }
         // `node_geo_exec` (:224): identity transforms, handles in map order.
         const items = [...groups.items()]
-        const dst = new Instances(items.length)
+        const dst = new Instances(items.length, true)
         const groupName = p.outputUsed('Group ID') ? p.anonymousName('Group ID') : undefined
         if (groupName) dst.accessor().add(groupName, AttrDomain.Instance, 'int32', Int32Array.from(items, ([id]) => id))
         const t = dst.transforms
