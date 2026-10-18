@@ -14,12 +14,13 @@
  *        [--ws <playwright ws endpoint>] [--out demos/house-walkthrough] [--no-video] [--until <step id>]
  *        [--pace <multiplier>]
  *
- * Writes into --out: video-<keymap>.webm (not committed), shots/<keymap>-NN-<step>.jpg,
+ * Writes into --out: video-<keymap>.mp4 (H.264 from a CDP screencast, holds over 1.5 s cut; not committed), shots/<keymap>-NN-<step>.jpg,
  * run-<keymap>.json (each step: keys, checks, timings, toasts, errors) and house-<keymap>.glb (the saved
  * file, re-opened at the end).
  */
 
 import {chromium} from 'playwright'
+import {startScreencast, encodeScreencast} from '../shared/screencast.mjs'
 import {mkdirSync, writeFileSync, renameSync, existsSync, rmSync, readdirSync, statSync} from 'node:fs'
 import {join, resolve, dirname} from 'node:path'
 import {fileURLToPath} from 'node:url'
@@ -219,10 +220,8 @@ const keyLabel = k => k.replace(/Key([A-Z])/g, '$1').replace(/Digit(\d)/g, '$1')
 async function runKeymap(browser, keymap) {
     const K = KM[keymap]
     const contextOpts = {viewport: {width: W, height: H}, acceptDownloads: true, deviceScaleFactor: 1}
-    if (VIDEO) {
-        rmSync(rawVideoDir, {recursive: true, force: true})
-        contextOpts.recordVideo = {dir: rawVideoDir, size: {width: W, height: H}}
-    }
+    // The film is a CDP screencast started once the editor has loaded (see below), encoded to H.264 at the end.
+    let screencast = null
     const context = await browser.newContext(contextOpts)
     await context.addInitScript(overlayInit)
     const page = await context.newPage()
@@ -320,6 +319,13 @@ async function runKeymap(browser, keymap) {
         await page.goto(URL, {waitUntil: 'domcontentloaded', timeout: 600000})
         await page.waitForFunction(() => window.engine?.operators.list().length > 0, null, {timeout: 600000})
         await page.evaluate(installReaders)
+        result.renderer = await page.evaluate(() => {
+            const gl = window.viewer.renderManager.renderer.getContext()
+            const ext = gl.getExtension('WEBGL_debug_renderer_info')
+            return ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)
+        })
+        log(`${keymap}: renderer ${result.renderer}`)
+        if (VIDEO) screencast = await startScreencast(page, join(rawVideoDir, keymap))
         await sleep(1500)
 
         // ── 1. first run ──
@@ -669,25 +675,26 @@ async function runKeymap(browser, keymap) {
     await card(null).catch(() => {})
     result.finished = new Date().toISOString()
     result.seconds = Math.round((Date.now() - Date.parse(result.started)) / 1000)
-    const video = page.video()
-    await context.close()
-    if (video) {
+    if (screencast) {
         try {
-            const p = await video.path()
-            const dest = join(OUT, `video-${keymap}.webm`)
-            renameSync(p, dest)
-            result.video = `video-${keymap}.webm`
+            const frames = await screencast.stop()
+            const enc = encodeScreencast(frames, join(OUT, `video-${keymap}.mp4`), {maxHold: 1.5})
+            result.video = `video-${keymap}.mp4`
+            result.videoInfo = {...enc, wallSeconds: +frames.wallSeconds.toFixed(1)}
+            log(`${keymap}: video ${JSON.stringify(result.videoInfo)}`)
         } catch (e) { result.videoError = String(e) }
     }
+    await context.close()
     writeFileSync(join(OUT, `run-${keymap}.json`), JSON.stringify(result, null, 2))
     const failed = result.steps.filter(s => !s.ok)
     log(`${keymap}: ${result.steps.length} steps, ${failed.length} failed${failed.length ? ': ' + failed.map(s => s.id).join(', ') : ''}; final ${JSON.stringify(result.finalCounts)}; round trip ${JSON.stringify(result.roundTrip)}`)
     return result
 }
 
-const browser = WS ? await chromium.connect(String(WS)) : await chromium.launch({
-    args: ['--no-sandbox', '--disable-dev-shm-usage', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'],
-})
+// macOS (the GPU VM): full Chromium on ANGLE/Metal; elsewhere SwiftShader.
+const browser = WS ? await chromium.connect(String(WS)) : await chromium.launch(process.platform === 'darwin'
+    ? {channel: 'chromium', args: ['--use-angle=metal', '--hide-scrollbars']}
+    : {args: ['--no-sandbox', '--disable-dev-shm-usage', '--use-angle=swiftshader', '--enable-unsafe-swiftshader']})
 const results = []
 for (const k of KEYMAPS) results.push(await runKeymap(browser, k))
 await browser.close()
