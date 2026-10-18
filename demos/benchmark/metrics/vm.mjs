@@ -48,5 +48,17 @@ export function push(cwd, local, rel) {
 /** Run a shell command in the VM worktree under the GPU lock. */
 export function run(cwd, cmd, timeoutSec = 1800) { return sh(TPVM, ['run', '-t', String(timeoutSec), cmd], {cwd}) }
 
-/** Copy `<vm worktree>/<rel>` back to `local`. */
-export function pull(cwd, rel, local) { return sh(TPVM, ['pull', rel, local], {cwd}) }
+/**
+ * Copy `<vm worktree>/<rel>` back to `local`, checked against the VM's md5 and retried: a relay notice or a
+ * dropped slice in `tpvm pull` otherwise yields a silently corrupt file.
+ */
+export function pull(cwd, rel, local, attempts = 3) {
+    const want = md5Of(ij(`md5 -q ${q(`${vmPath(cwd)}/${rel}`)}`))
+    for (let i = 1; i <= attempts; i++) {
+        sh(TPVM, ['pull', rel, local], {cwd})
+        const got = md5(local)
+        if (got === want) return {md5: got, attempts: i}
+        console.warn(`vm pull ${rel}: md5 ${got}, expected ${want} (attempt ${i} of ${attempts})`)
+    }
+    throw new Error(`vm pull ${rel}: still corrupt after ${attempts} attempts`)
+}
