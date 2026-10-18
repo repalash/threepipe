@@ -7,9 +7,11 @@
  * - `asinf(+-1) = +-1.5707962` (0x3fc90fda), not `float(pi / 2) = 1.5707964` (`acosf(0)` is 1.5707964);
  * - `atan2f(y, x)` is `+-3.1415925` wherever the correctly rounded result is `+-float(pi)`
  *   (`y = +-0` or tiny with `x < 0`, including `x = -0`).
- * Everywhere else these agree with the correctly rounded value, which is what `f32(Math.xxx(...))` gives. The
- * difference matters: a quaternion built from `acosf(-1)` or `atan2f(0, x < 0)` flips the sign of a near-zero
- * cosine, and code that branches on that sign (`vec_to_quat`) then returns a different rotation.
+ * These boundary values matter beyond an ulp: a quaternion built from `acosf(-1)` or `atan2f(0, x < 0)` flips the
+ * sign of a near-zero cosine, and code that branches on that sign (`vec_to_quat`) then returns a different rotation.
+ * Elsewhere `f32(Math.xxx(...))` (correctly rounded) is used, which is not always what Apple's libm returns: its
+ * `atan2f` is 1 ulp off on some inputs (7 of 128 measured), and `sinf`/`cosf` of one angle come from
+ * `__sincosf_stret` (issue `procedural-libm-atan2f-sincos.md`). Those stay ulp-level differences (plan 2.6).
  *
  * `blenderSystem.libm = 'correctly-rounded'` reproduces a platform whose libm rounds these correctly.
  */
