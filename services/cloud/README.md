@@ -100,5 +100,5 @@ The maintainer decides the account, the domain, the Turnstile widget and where t
 7. In the app: `new ThreepipeCloudPlugin({endpoint: 'https://<domain>', turnstileSiteKey: '…'})` — for the
    modelling editor, in the page that calls `createModellingEditor({plugins: [cloud]})`.
 
-Backups: D1 has Time Travel (30 days on paid plans); the R2 bucket has none of its own. A deleted report's
+Backups: D1 has Time Travel (30 days on the Workers Paid plan, 7 on Free); the R2 bucket has none of its own. A deleted report's
 row is still in Time Travel until it expires.
