@@ -84,7 +84,6 @@ export function registerLoopOperators(engine: EditorEnginePlugin): void {
         {
             // `MESH_OT_subdivide` (`editmesh_tools.cc:150`).
             id: 'mesh.subdivide', label: 'Subdivide', icon: 'grid', category: 'Mesh', modes: ['edit'],
-            contextMenu: ['edge', 'face'],
             description: 'Cut each selected edge into equal parts and split the faces between them. Set the number of cuts and the smoothness in the panel.',
             flags: {undo: true, register: true},
             props: {type: 'object', properties: {
@@ -144,11 +143,11 @@ export function registerLoopOperators(engine: EditorEnginePlugin): void {
             },
         },
         ...([
-            ['edgeSlide', 'mesh.edge_slide', 'Edge Slide', 'Slide the selected edge loops along the faces beside them. E: even, F: flip, C or Alt: unclamped.', ['edge']],
-            ['vertSlide', 'mesh.vert_slide', 'Vertex Slide', 'Slide the selected vertices along one of their edges, picked by the direction the mouse moves. E: even, F: flip, C or Alt: unclamped.', ['vertex']],
-        ] as const).map(([mode, id, label, description, menu]): OperatorDescriptor => ({
+            ['edgeSlide', 'mesh.edge_slide', 'Edge Slide', 'Slide the selected edge loops along the faces beside them. E: even, F: flip, C or Alt: unclamped.'],
+            ['vertSlide', 'mesh.vert_slide', 'Vertex Slide', 'Slide the selected vertices along one of their edges, picked by the direction the mouse moves. E: even, F: flip, C or Alt: unclamped.'],
+        ] as const).map(([mode, id, label, description]): OperatorDescriptor => ({
             // `TRANSFORM_OT_edge_slide` / `TRANSFORM_OT_vert_slide` (`transform_ops.cc:1215`, `:1253`).
-            id, label, description, icon: 'swap-horizontal', category: 'Mesh', modes: ['edit'], contextMenu: [...menu],
+            id, label, description, icon: 'swap-horizontal', category: 'Mesh', modes: ['edit'],
             flags: {undo: true, register: true},
             props: slideSchema(mode),
             poll: () => {

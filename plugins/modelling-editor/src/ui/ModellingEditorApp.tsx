@@ -131,7 +131,8 @@ function Shell({title}: {title?: string}) {
             const fallback = engine.viewer.canvas.getBoundingClientRect()
             const clientX = e.clientX || fallback.left + fallback.width / 2
             const clientY = e.clientY || fallback.top + fallback.height / 2
-            contextMenu.showItems({clientX, clientY}, e.items, e.title)
+            if (e.menu) contextMenu.showMenu({clientX, clientY}, e.menu, e.title)
+            else if (e.items) contextMenu.showItems({clientX, clientY}, e.items, e.title)
         }
     })
 

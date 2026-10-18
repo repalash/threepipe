@@ -2,85 +2,39 @@
  * The header: app menu, Object/Edit mode switch, vertex/edge/face buttons, pivot / orientation /
  * snapping / proportional slots, shading and X-ray toggles.
  *
- * Menus render from the operator registry grouped by `category`; nothing here names an operator.
+ * Menus are the engine's menu definitions (Blender's `VIEW3D_MT_*` / `TOPBAR_MT_*`), drawn by
+ * {@link MenuView}; nothing here names an operator or a menu.
  * The four popover slots are placeholders: the engine rebuild (P1) provides pivot, orientation,
  * snapping and proportional editing, and their popovers will mount here.
  */
 
 import React from 'react'
-import {Button, ButtonGroup, Menu, MenuDivider, MenuItem, Popover, Tooltip} from '@blueprintjs/core'
+import {Button, ButtonGroup, Popover, Tooltip} from '@blueprintjs/core'
 import {useEditor, useEngineVersion, formatShortcut} from './EditorContext'
 import {IconButton, TooltipContent} from './IconButton'
-import type {EditorContext, OperatorDescriptor, SelectModeName} from '@threepipe/plugin-editor-engine'
+import type {SelectModeName} from '@threepipe/plugin-editor-engine'
+import {MenuView} from './MenuView'
 import type {EditorViewportPlugin} from '../EditorViewportPlugin'
 import {MeshEditPlugin} from '@threepipe/plugin-mesh-edit'
 
-const MENU_ORDER = ['File', 'Edit', 'Add', 'Object', 'Mesh', 'Select', 'View', 'Help']
-
-function MenuForCategory({category, ops, ctx}: {category: string, ops: OperatorDescriptor[], ctx: EditorContext}) {
-    const {engine} = useEditor()
-    const polled = (op: OperatorDescriptor) => engine.poll(op, ctx)
-    const mode = ctx.mode
-    const inMode = ops.filter(op => (!op.modes || op.modes.includes(mode)) && !op.hidden)
-    const other = ops.filter(op => op.modes && !op.modes.includes(mode) && !op.hidden)
-    const item = (op: OperatorDescriptor) => {
-        const p = polled(op)
-        return <MenuItem
-            key={op.id}
-            text={op.label}
-            icon={op.icon as never}
-            label={formatShortcut(op.shortcut)}
-            disabled={!p.enabled}
-            title={p.enabled ? op.description : p.reason ?? op.description}
-            onClick={() => engine.run(op.id)}
-        />
-    }
-    return <Menu className="me-menu">
-        {inMode.flatMap(op => op.id === 'file.open' ? [item(op), <RecentFilesMenu key="recent" />] : [item(op)])}
-        {other.length ? <MenuDivider title={`${other[0].modes![0] === 'edit' ? 'Edit' : 'Object'} mode`} /> : null}
-        {other.map(item)}
-        {category === 'Help' ? <><MenuDivider /><MenuItem text="Version" disabled label="shell 0.1.0" /></> : null}
-        {category === 'Edit' ? <><MenuDivider /><MenuItem text="Keymap" disabled label={engine.keymap.activePreset.label} /></> : null}
-    </Menu>
-}
-
-/** File > Open Recent: names only (a page cannot re-open a file by itself, so an entry opens the picker). */
-function RecentFilesMenu() {
-    const {engine} = useEditor()
-    const recent = engine.file.recent
-    const when = (t: number) => {
-        const d = new Date(t)
-        return d.toDateString() === new Date().toDateString() ? d.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}) : d.toLocaleDateString()
-    }
-    const size = (n: number) => n > 1e6 ? `${(n / 1e6).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1e3))} KB`
-    return <MenuItem text="Open Recent" icon="history" disabled={!recent.length} data-recent-menu
-        title={recent.length ? 'Files opened here before. The browser asks you to pick the file again.' : 'No files opened yet: File > Open, or drop one onto the viewport.'}>
-        {recent.map(r => <MenuItem key={r.name} text={r.name} label={`${size(r.size)} · ${when(r.openedAt)}`} data-recent-file={r.name}
-            onClick={() => engine.run('file.open_recent', {name: r.name})} />)}
-        <MenuDivider />
-        <MenuItem text="Clear Recent List" icon="trash" onClick={() => engine.file.clearRecent()} />
-    </MenuItem>
-}
-
+/**
+ * The menu bar: `engine.headerMenus()` for the current mode - File, Edit, then Blender's 3D view header
+ * menus (View, Select, Add, Object; or Mesh, Vertex, Edge, Face, UV in edit mode), then Help.
+ */
 export function AppMenu() {
     const {engine} = useEditor()
-    useEngineVersion('registryChanged', 'modeChanged', 'selectionChanged', 'historyChanged', 'lastOperationChanged', 'keymapChanged', 'fileChanged', 'navigationChanged')
-    const ctx = engine.context()
-    const byCategory = new Map<string, OperatorDescriptor[]>()
-    for (const op of engine.operators.list()) {
-        const c = op.category ?? 'Other'
-        if (!byCategory.has(c)) byCategory.set(c, [])
-        byCategory.get(c)!.push(op)
-    }
-    const categories = [...MENU_ORDER.filter(c => byCategory.has(c)), ...[...byCategory.keys()].filter(c => !MENU_ORDER.includes(c))]
+    useEngineVersion('registryChanged', 'modeChanged', 'selectModeChanged', 'selectionChanged', 'historyChanged', 'lastOperationChanged', 'keymapChanged', 'fileChanged', 'navigationChanged')
+    // Resolved on every engine change above, so poll state and context-dependent rows (Open Recent,
+    // Extrude, Merge's At First / At Last) are current while a menu is open.
+    const menus = engine.headerMenus()
     return <div className="me-app-menu" role="menubar">
-        {categories.map(c => <Popover
-            key={c}
+        {menus.map(m => <Popover
+            key={m.id}
             placement="bottom-start"
             minimal
-            content={<MenuForCategory category={c} ops={byCategory.get(c)!} ctx={ctx} />}
+            content={<MenuView menu={m} />}
         >
-            <Button variant="minimal" size="small" text={c} className="me-menu-button" data-menu={c} />
+            <Button variant="minimal" size="small" text={m.label} className="me-menu-button" data-menu={m.label} data-menu-id={m.id} />
         </Popover>)}
     </div>
 }

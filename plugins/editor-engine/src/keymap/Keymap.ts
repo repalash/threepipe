@@ -118,11 +118,23 @@ export class Keymap {
         return this._byId.get(id) ?? []
     }
 
-    /** The display string for an id: the binding for the mode, else the first one. */
-    shortcutFor(id: string, mode?: EditorMode): string | undefined {
-        const list = this._byId.get(id)
+    /**
+     * The display string for an id: the binding for the mode, else the first one. With `props`, only
+     * bindings that set exactly those props (none for `{}`), as Blender's menus show a key only when the
+     * keymap item's properties match the menu entry's (`WM_key_event_operator_string`).
+     */
+    shortcutFor(id: string, mode?: EditorMode, props?: Record<string, unknown>): string | undefined {
+        let list = this._byId.get(id)
+        if (props) list = list?.filter(b => samePropValues(b.props ?? {}, props))
         if (!list?.length) return undefined
         const b = (mode && list.find(x => x.mode === mode)) ?? list.find(x => !x.mode) ?? list[0]
         return formatCombo(b.keys)
     }
+}
+
+/** Same keys, and equal values (deep, for arrays and plain objects). */
+function samePropValues(a: Record<string, unknown>, b: Record<string, unknown>): boolean {
+    const ka = Object.keys(a)
+    if (ka.length !== Object.keys(b).length) return false
+    return ka.every(k => k in b && JSON.stringify(a[k]) === JSON.stringify(b[k]))
 }
