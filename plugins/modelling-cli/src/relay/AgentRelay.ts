@@ -13,19 +13,12 @@
  * strings (here always a `CommandResult`), and `EADDRINUSE` swallowed (here `start()` rejects).
  */
 
-import '../node/polyfill'
 import {EventEmitter} from 'node:events'
 import {randomBytes, timingSafeEqual} from 'node:crypto'
 import {WebSocket, WebSocketServer} from 'ws'
-import {
-    AGENT_PROTOCOL_VERSION,
-    AgentCloseCode,
-    AgentMessage,
-    Command,
-    CommandResult,
-    PageInfo,
-    transportFailure,
-} from '@threepipe/plugin-modelling'
+import {AGENT_PROTOCOL_VERSION, AgentCloseCode, transportFailure} from '@threepipe/plugin-modelling/agent-protocol'
+import type {AgentMessage, PageInfo} from '@threepipe/plugin-modelling/agent-protocol'
+import type {Command, CommandResult} from '@threepipe/plugin-modelling'
 
 export interface AgentRelayOptions {
     /** Port to listen on. 0 picks a free one. Default 9396. */

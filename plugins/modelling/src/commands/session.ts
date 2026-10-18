@@ -8,7 +8,7 @@
  */
 
 import {
-    Box3, Box3B, getFittingDistance, ICamera, iCameraCommons, OrthographicCamera2, PerspectiveCamera2, ThreeViewer,
+    Box3, Box3B, getFittingDistance, ICamera, iCameraCommons, IObject3D, OrthographicCamera2, PerspectiveCamera2, ThreeViewer,
     Vector3,
 } from 'threepipe'
 import {bakeGeometry, measureMesh, MeshData} from '@threepipe/mesh-kernel'
@@ -736,7 +736,7 @@ export const exportCommand: CommandDefinition = {
     schema: schema({
         format: S.enum('Output format. Default `glb`.', ['glb', 'gltf']),
         path: S.string('Write to this file. Node only, or when a capture sink is set.'),
-        objects: S.objectRef('Export only these objects. Default the whole scene.'),
+        objects: S.objectRef('Export only these objects (and the groups they sit in). Default the whole scene.'),
         includeData: S.boolean('Return the file as base64 in the result, for a caller that will '
             + 'write it itself. Off by default - it is large.'),
         viewerConfig: S.boolean('Bundle the viewer and scene settings (camera, environment, plugins). '
@@ -750,14 +750,20 @@ export const exportCommand: CommandDefinition = {
     async run(p: Record<string, unknown>, ctx) {
         const binary = ((p.format as string) ?? 'glb') === 'glb'
         if (p.objects !== undefined) {
-            ctx.warn('`objects` is not supported yet - the whole scene was exported '
-                + '(issues/open/modelling-tools/command-export-objects-ignored.md)')
+            ctx.warn('`objects` marks the other objects `excludeFromExport`, which threepipe\'s exporter does not honour '
+                + 'yet - they are written as hidden nodes (issues/open/threepipe-exclude-from-export-ignored.md)')
         }
-        const blob = await ctx.viewer.exportScene({
-            exportExt: binary ? 'glb' : 'gltf',
-            ...p.viewerConfig === false ? {viewerConfig: false} : {},
-            ...p.uuids === false ? {preserveUUIDs: false} : {},
-        })
+        const restore = p.objects !== undefined ? excludeAllBut(ctx.doc.resolve(p.objects as string | string[]).map(e => e.object), ctx) : null
+        let blob
+        try {
+            blob = await ctx.viewer.exportScene({
+                exportExt: binary ? 'glb' : 'gltf',
+                ...p.viewerConfig === false ? {viewerConfig: false} : {},
+                ...p.uuids === false ? {preserveUUIDs: false} : {},
+            })
+        } finally {
+            restore?.()
+        }
         if (!blob) throw new Error('the exporter returned nothing')
         const buffer = new Uint8Array(await blob.arrayBuffer())
         if (p.path) await ctx.plugin.writeFile(p.path as string, buffer)
@@ -770,6 +776,34 @@ export const exportCommand: CommandDefinition = {
             },
         }
     },
+}
+
+/**
+ * Leave everything but `keep` out of the next export, the way threepipe's exporter leaves out any object
+ * marked `userData.excludeFromExport` (`AssetExporter.exportObject`), and return how to undo it.
+ *
+ * A kept object takes its whole subtree; its ancestors stay as the transforms it sits in; every other
+ * branch is excluded. Objects that were already excluded stay that way.
+ */
+function excludeAllBut(keep: IObject3D[], ctx: CommandContext): () => void {
+    const kept = new Set(keep)
+    const onPath = new Set<IObject3D>()
+    for (const o of keep) for (let p = o.parent as IObject3D | null; p; p = p.parent as IObject3D | null) onPath.add(p)
+    const marked: IObject3D[] = []
+    const walk = (node: IObject3D) => {
+        for (const child of node.children as IObject3D[]) {
+            if (kept.has(child)) continue
+            if (onPath.has(child)) walk(child)
+            else if (!child.userData.excludeFromExport) {
+                child.userData.excludeFromExport = true
+                marked.push(child)
+            }
+        }
+    }
+    walk(ctx.viewer.scene.modelRoot as IObject3D)
+    return () => {
+        for (const o of marked) delete o.userData.excludeFromExport
+    }
 }
 
 export const helpCommand: CommandDefinition = {

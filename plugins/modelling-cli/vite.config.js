@@ -14,6 +14,7 @@ export default defineConfig({
         alias: {
             'threepipe': path.resolve(__dirname, '../../dist/index.mjs'),
             '@threepipe/mesh-kernel': path.resolve(__dirname, '../mesh-kernel/src/index.ts'),
+            '@threepipe/plugin-modelling/agent-protocol': path.resolve(__dirname, '../modelling/src/agent/protocol.ts'),
             '@threepipe/plugin-modelling': path.resolve(__dirname, '../modelling/src/index.ts'),
         },
     },
@@ -28,6 +29,8 @@ export default defineConfig({
             input: {
                 index: path.resolve(__dirname, 'src/index.ts'),
                 cli: path.resolve(__dirname, 'src/cli.ts'),
+                // The relay alone - no threepipe, no DOM stubs - for the MCP server and tests.
+                relay: path.resolve(__dirname, 'src/relay.ts'),
             },
             external: ['ws', 'playwright-core', ...builtinModules, ...builtinModules.map(m => `node:${m}`)],
             output: {

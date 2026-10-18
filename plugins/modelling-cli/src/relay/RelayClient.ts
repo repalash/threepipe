@@ -5,7 +5,9 @@
  */
 
 import {WebSocket} from 'ws'
-import {AGENT_PROTOCOL_VERSION, AgentMessage, Command, CommandResult, PageInfo, transportFailure} from '@threepipe/plugin-modelling'
+import {AGENT_PROTOCOL_VERSION, transportFailure} from '@threepipe/plugin-modelling/agent-protocol'
+import type {AgentMessage, PageInfo} from '@threepipe/plugin-modelling/agent-protocol'
+import type {Command, CommandResult} from '@threepipe/plugin-modelling'
 
 export class RelayClient {
     pages: PageInfo[] = []
