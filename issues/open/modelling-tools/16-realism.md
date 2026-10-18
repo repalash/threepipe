@@ -1,6 +1,6 @@
 # Track R — realism: subplan
 
-**Status**: proposed 2026-10-18, Phase A of Track R. Parent: [13-roadmap-2026-10 §6](./13-roadmap-2026-10.md).
+**Status**: Phase A approved 2026-10-18 (answers in §9); R1 done (§2.1); next R2a shading. Parent: [13-roadmap-2026-10 §6](./13-roadmap-2026-10.md).
 Branch `realism` (worktree `.repos/threepipe-realism`). Everything below that is a number was measured on
 2026-10-18 by the scripts named next to it; the reference model is never committed (`tmp/ref/`, gitignored).
 
@@ -233,6 +233,60 @@ written in the test (plain and Draco), quality metrics on a cube and an open gri
 
 ---
 
+### 2.1 R1 done: the harness and the baseline (2026-10-18)
+
+Code: `demos/benchmark/` — `score.mjs` (entry), `render.mjs` + `render/` (the plain-viewer page), `metrics/`
+(`glb`, `shape`, `image`, `quality`, `run`, `vm`, `report`), `targets/canon-5d4.json` (reference sha256, mm/unit,
+spec, 7 views, 9 part groups partitioning all 94 reference meshes). The folder is `metrics/`, not `lib/`: the
+root `.gitignore` drops every `lib`. Tests: `npm run test:unit -- tests/unit/benchmark` (26 tests).
+
+```
+npm run build:modelling-cli        # once: score.mjs imports its Node polyfill before three
+npm run benchmark:score -- --target canon-5d4 --glb <build.glb> [--transcript t.json] [--agent a.jsonl] [--label x]
+npm run benchmark:score -- --target canon-5d4 --ceiling
+```
+
+Changes from the design above, from what the runs showed:
+- **Alignment holds the rotation** (`scale-translation`) by default. A free-rotation fit tilts our camera by
+  4.45° (mostly about X) to trade the reference's extra height for a lower RMS (2.19 vs 2.44 mm) and lifts
+  F@2 mm from 0.517 to 0.578: the fit was hiding a shape error. The free fit is still run and reported as a
+  diagnostic (`alignment.freeRotationDiagnostic`).
+- The **ceiling** is measured: the reference scaled per axis to Canon's published size
+  (`spec.refScaleToSpec` = 0.9987, 0.9188, 0.9696) scored against the reference.
+- Builds now record their own wall time: `scripts/modelling-session.mjs` and the CLI `session` verb write
+  `summary.wallMs` and `startedAt`, and the CLI records per-command `wallMs` (the demo transcripts predate
+  this, so `buildWallMs` is null for them).
+- Determinism: three VM render runs of the baseline gave byte-identical PNGs (70 each), and re-scoring gives
+  identical values for all 183 numbers compared (shape, groups, images, quality, alignment, composite).
+
+| | camera demo (baseline) | spec ceiling |
+| --- | ---: | ---: |
+| fitted scale | 0.984 | 1.027 |
+| accuracy / completeness (mm) | 2.63 / 3.00 | 0.75 / 0.80 |
+| Chamfer (mm) | **2.81** | 0.78 |
+| Hausdorff95 / max (mm) | 8.93 / 21.6 | 3.05 / 4.18 |
+| F-score @ 1 / 2 / 5 mm | 0.301 / **0.517** / 0.835 | 0.731 / 0.894 / 1.000 |
+| silhouette IoU (7 views) | **0.881** | 0.946 |
+| SSIM full / notex / clay | **0.502** / 0.534 / 0.613 | 0.701 / 0.749 / 0.772 |
+| edge-SSIM full / clay | 0.430 / **0.544** | 0.668 / 0.724 |
+| group completeness within 2 mm (mean of 9) | 0.489 | 0.931 |
+| faceting of large parts (split vertices, area-weighted) | 85 % (reference 21 %) | 21 % |
+| triangles / components | 28,976 / 46 | 136,266 / 340 |
+| quads (topology) / 3-poles / 5+-poles | 87.1 % / 1,192 / 974 | — |
+| **composite (ranking aid)** | **56.6** | 80.9 |
+
+Per group (baseline, completeness mean in mm / share within 2 mm): top 5.97 / 15 % (the reference's taller
+prism, hot shoe and top controls), decals 4.69 / 47 %, other 3.62 / 37 %, shell 3.29 / 50 %, lens 2.84 / 44 %,
+mount 2.66 / 49 %, screens 2.31 / 68 %, eyepiece 2.12 / 59 %, rear controls 1.45 / 72 %. Worst views: back
+(SSIM full 0.38, clay edge 0.44) and hero-rear.
+
+Run metrics of the baseline: 308 commands, 0 failed, 31 captures; 13.0 s in commands, 15.4 s operation wall,
+12.3 s of it captures; agent (claude-opus-5-5): 189 active min, 262 tool calls, 160k output and 129M input tokens.
+A benchmark run takes 3.7 min: 30 s in Node (align 27 s), the rest is the VM round trip (render 47 s; sync,
+pushes and pulling a 9 MB tarball through the relay ~2 min).
+
+---
+
 ## 3. R2 — the high-poly workflow
 
 | Item | Port from | Kernel/API work | Size |
@@ -408,13 +462,22 @@ Measured in §1.6: commands are seconds, agents spend their hours waiting on pag
 | R3b | Parts 18–25 (architecture) with Track 2's GN families | Haussmann rebuilt with mouldings, windows, railings, dormers, materials |
 | R5 | Decimate + normal bake | camera LOD at 10 % within 0.02 SSIM of the high poly |
 
-**Acceptance — the camera.** Preliminary baseline of today's demo model (ICP similarity, 50k samples,
-`tmp/realism/shape-prelim.mjs`; Phase B will publish the exact numbers): Chamfer 2.47 mm, Hausdorff95 7.9 mm,
-F@1/2/5 mm = 0.37 / 0.57 / 0.86; renders (approximate alignment) SSIM `full` 0.49, edge-SSIM `clay` 0.54,
-IoU 0.85. Proposed X for the rebuilt camera: **F@2 mm ≥ 0.80, Chamfer ≤ 1.2 mm, mean SSIM `full` ≥ 0.70,
-edge-SSIM `clay` ≥ 0.70, IoU ≥ 0.92**, and run metrics recorded (agent time ≤ 60 min). The ceiling is below
-1.0 because the reference is 9 % off-spec in height (§1.1); Phase B measures that ceiling directly by scoring
-a spec-scaled copy of the reference against itself, and X is re-anchored to it if needed.
+**Acceptance — the camera.** Measured (§2.1): baseline 56.6 composite, spec ceiling 80.9. A spec-correct
+copy of the reference reaches only 0.70 SSIM `full`, so the Phase A proposal (SSIM ≥ 0.70, IoU ≥ 0.92 and
+edge-SSIM ≥ 0.70) asked for the ceiling itself. Re-anchored: X = baseline + 70 % of the gap to the ceiling,
+rounded:
+
+| Measure | Baseline | Ceiling | X (pass) |
+| --- | ---: | ---: | ---: |
+| F-score @ 2 mm | 0.517 | 0.894 | **≥ 0.78** |
+| Chamfer | 2.81 mm | 0.78 mm | **≤ 1.4 mm** |
+| SSIM `full` (7 views) | 0.502 | 0.701 | **≥ 0.64** |
+| edge-SSIM `clay` | 0.544 | 0.724 | **≥ 0.67** |
+| silhouette IoU | 0.881 | 0.946 | **≥ 0.92** |
+| faceting of large parts | 85 % | 21 % | **≤ 30 %** |
+| composite (ranking aid) | 56.6 | 80.9 | ≥ 73 |
+
+plus run metrics recorded by the harness (agent time ≤ 60 min).
 
 **Acceptance — Haussmann.** Rebuilt with the moulding profiles, cornices, windows, railings, balconies,
 dormers and chimneys from the library, material presets (limestone, zinc, slate, cast iron), daylight preset;
@@ -424,12 +487,14 @@ Palash has one (a webgi/iJewel building scene), it gets the full benchmark.
 
 ---
 
-## 9. Open questions for the parent / Palash
+## 9. Decisions (parent, 2026-10-18)
 
-1. Is the VM allowed to hold the reference GLB (copied into the VM worktree's `tmp/`, gitignored, md5
-   checked)? Phase A's renders did this; it is Palash's machine through the iJewel relay, nothing else.
-2. The composite weights (§2) — fine as a ranking aid, or report components only?
-3. `@threepipe/modelling-parts` as a new package, or parts inside `plugin-modelling`? (Recommendation: new
-   package; the command `part` lives in plugin-modelling and resolves the registry.)
-4. Shading (R2a) overlaps Track 3's "shade smooth / auto-smooth" — this track takes it, since the benchmark
-   shows it is the cheapest realism gain?
+1. The VM may hold the reference GLB in its gitignored `tmp/` (Palash's machine, his relay); never committed,
+   never sent anywhere else.
+2. Both: every component is the primary result; the composite is printed as a "ranking aid" with its weights.
+3. New package `@threepipe/modelling-parts`; the `part` command lives in plugin-modelling and resolves the registry.
+4. This track takes shading (R2a).
+5. This track owns the single Subdivision Surface port (R2b, OpenSubdiv semantics). Track 2's Subdivision
+   Surface node ([A4] in `15-procedural-on-kernel.md`) calls the same kernel API: `MeshData` in, `MeshData` out,
+   crease attributes, levels, boundary and UV options.
+6. Order: R1 → R2a → R2b → R2c; report after R1 and after R2a with numbers.
