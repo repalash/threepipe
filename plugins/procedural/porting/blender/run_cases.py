@@ -12,7 +12,8 @@ Usage:
     "group": "<group name>",                         // the one the modifier runs
     "inputs": {"<interface socket name>": value},    // modifier inputs (IDs by name)
     "input": "empty" | "cube" | "plane" | {"positions": [x,y,z,...], "faces": [[i,j,k,...], ...]},
-    "scene": [{"collection": "C", "objects": [ObjectSpec]}], "objects": [ObjectSpec]
+    "scene": [{"collection": "C", "objects": [ObjectSpec], "instanceOffset"?: [x,y,z], "parent"?: "B"}],
+    "objects": [ObjectSpec], "location"?, "rotation"?, "scale"? (the modified object's transform)
   }
   NodeTreeJSON = {
     "interface": [{"inOut": "INPUT"|"OUTPUT", "name", "socketType", "identifier", "default"?, "min_value"?,
@@ -43,7 +44,7 @@ import bpy
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from geometry_dump import BinWriter, input_group, read_geometry  # noqa: E402
+from geometry_dump import BinWriter, input_group, matrix_list, read_geometry  # noqa: E402
 
 # Properties that change which sockets exist must be set first.
 PROPERTY_ORDER = ["data_type", "input_type", "capture_type", "domain", "mode", "noise_dimensions",
@@ -95,11 +96,17 @@ def make_object(spec):
 
 
 def build_scene(case):
+    created = {}
     for entry in case.get("scene", []):
         coll = bpy.data.collections.new(entry["collection"])
-        bpy.context.scene.collection.children.link(coll)
+        coll.instance_offset = entry.get("instanceOffset", (0, 0, 0))
+        created[entry["collection"]] = coll
         for spec in entry.get("objects", []):
             coll.objects.link(make_object(spec))
+    # `parent` nests a collection in another one of the case's; the rest go under the scene collection.
+    for entry in case.get("scene", []):
+        parent = created[entry["parent"]] if entry.get("parent") else bpy.context.scene.collection
+        parent.children.link(created[entry["collection"]])
     for spec in case.get("objects", []):
         bpy.context.scene.collection.objects.link(make_object(spec))
 
@@ -296,6 +303,27 @@ def case_tree(case):
         "nodes": nodes, "links": links}}, case["id"]
 
 
+def read_scene(depsgraph, writer, self_name):
+    """The scene the case built, as dump_blend.py's `referenced` block: objects (world matrix and evaluated
+    geometry; the modified object itself with its matrix only), collections. Object Info / Collection Info
+    cases evaluate against it."""
+    if not bpy.data.collections and len(bpy.data.objects) <= 1:
+        return None
+    objects = {}
+    for o in bpy.data.objects:
+        entry = {"type": o.type, "matrix_world": matrix_list(o.matrix_world),
+                 "parent": o.parent.name if o.parent else None, "geometry": None,
+                 "instance_collection": o.instance_collection.name if o.type == "EMPTY" and o.instance_collection else None}
+        if o.name != self_name and o.type in ("MESH", "CURVES", "POINTCLOUD", "CURVE"):
+            evaluated = o.evaluated_get(depsgraph)
+            if evaluated.is_evaluated:
+                entry["geometry"] = read_geometry(evaluated.evaluated_geometry(), writer)
+        objects[o.name] = entry
+    collections = {c.name: {"objects": [o.name for o in c.objects], "children": [ch.name for ch in c.children],
+                            "instance_offset": list(c.instance_offset)} for c in bpy.data.collections}
+    return {"objects": objects, "collections": collections, "images": {}}
+
+
 def evaluate(case, writer):
     bpy.ops.wm.read_factory_settings(use_empty=True)
     build_scene(case)
@@ -303,6 +331,9 @@ def evaluate(case, writer):
     groups = {name: bpy.data.node_groups.new(name, "GeometryNodeTree") for name in library}
     built = {name: build_group(name, spec, groups) for name, spec in library.items()}
     obj = bpy.data.objects.new(case["id"], make_mesh(case["id"], case.get("input", "empty")))
+    obj.location = case.get("location", (0, 0, 0))
+    obj.rotation_euler = case.get("rotation", (0, 0, 0))
+    obj.scale = case.get("scale", (1, 1, 1))
     bpy.context.scene.collection.objects.link(obj)
 
     depsgraph = bpy.context.evaluated_depsgraph_get()
@@ -324,6 +355,7 @@ def evaluate(case, writer):
     return {
         "input": input_geometry,
         "geometry": geometry,
+        "scene": read_scene(depsgraph, writer, case["id"]),
         "interfaceIdentifiers": ident_map,
         "multiInputOrder": {name: multi_input_order(groups[name]) for name in library},
     }
