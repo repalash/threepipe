@@ -84,13 +84,6 @@ export function registerMenus(engine: EditorEnginePlugin): void {
     const lightType = (ctx: EditorContext) => (activeObject(ctx) as {type?: string} | undefined)?.type
 
     const notInEditMesh = (ctx: EditorContext) => ctx.mode === 'edit' ? 'adding a primitive into the mesh being edited' : undefined
-    /*
-     * Extrude Edges is `mesh.extrude_edges_move` (`extrude_edge_only` on the selected edges). The engine's
-     * `mesh.extrude` is Extrude Region, which runs the same `extrude_edge_only` when no face is selected
-     * and extrudes the faces when one is. Extrude Vertices (`extrude_vert_indiv`) is not ported:
-     * `issues/open/modelling-tools/kernel-extrude-vertices.md`.
-     */
-    const edgesOnlyWithFaces = () => selCounts().f > 0 ? 'extruding only the edges while faces are selected (`mesh.extrude_edges_indiv`)' : undefined
 
     // --- shared menus ----------------------------------------------------------------------------
     const transformBase: MenuItem[] = [
@@ -693,7 +686,7 @@ export function registerMenus(engine: EditorEnginePlugin): void {
                 op('view3d.edit_mesh_extrude_move_shrink_fatten', 'Extrude Faces Along Normals', {visible: () => selCounts().f > 0}),
                 op('mesh.extrude_faces_move', 'Extrude Individual Faces', {visible: () => selCounts().f > 0}),
                 op('view3d.edit_mesh_extrude_manifold_normal', 'Extrude Manifold', {visible: () => selCounts().f > 0}),
-                op('mesh.extrude', 'Extrude Edges', {blender: 'mesh.extrude_edges_move', unavailable: edgesOnlyWithFaces,
+                op('mesh.extrude_edges_move', 'Extrude Edges', {
                     visible: c => selCounts().e > 0 && (c.selectMode === 'vertex' || c.selectMode === 'edge')}),
                 op('mesh.extrude_vertices_move', 'Extrude Vertices', {
                     visible: c => selCounts().v > 0 && c.selectMode === 'vertex'}),
@@ -834,7 +827,7 @@ export function registerMenus(engine: EditorEnginePlugin): void {
         {
             id: 'VIEW3D_MT_edit_mesh_edges', label: 'Edge', source: 'space_view3d.py:4874', operator: 'mesh.edges_menu',
             items: [
-                op('mesh.extrude', 'Extrude Edges', {blender: 'mesh.extrude_edges_move', unavailable: edgesOnlyWithFaces}),
+                op('mesh.extrude_edges_move', 'Extrude Edges'),
                 op('mesh.bevel', 'Bevel Edges', {props: {affect: 'EDGES'}}),
                 op('mesh.bridge_edge_loops', 'Bridge Edge Loops'),
                 op('mesh.screw', 'Screw'),
@@ -968,7 +961,7 @@ export function registerMenus(engine: EditorEnginePlugin): void {
                     label('Edge'), sep,
                     op('mesh.subdivide', 'Subdivide'),
                     sep,
-                    op('mesh.extrude', 'Extrude Edges', {blender: 'mesh.extrude_edges_move', unavailable: edgesOnlyWithFaces}),
+                    op('mesh.extrude_edges_move', 'Extrude Edges'),
                     op('mesh.bevel', 'Bevel Edges', {props: {affect: 'EDGES'}}),
                     op('mesh.bridge_edge_loops', 'Bridge Edge Loops', {visible: () => selCounts().e >= 2}),
                     op('mesh.edge_face_add', 'New Face from Edges', {visible: () => selCounts().e >= 1}),
@@ -1080,13 +1073,16 @@ export function registerMenus(engine: EditorEnginePlugin): void {
         },
     ]
 
-    /** `operator_menu_enum("mesh.separate", "type")` (:4528), `prop_separate_types` (editmesh_tools.cc:4647). */
-    function separateEnum(key: string): MenuSubmenuItem {
-        return sub(key, {label: 'Separate', items: [
-            op('mesh.separate', 'Selection', {blender: 'mesh.separate SELECTED'}),
+    /** `prop_separate_types` (editmesh_tools.cc:4647): `operator_menu_enum("mesh.separate", "type")` (:4528) and P's `WM_menu_invoke`. */
+    function separateItems(): MenuItem[] {
+        return [
+            op('mesh.separate', 'Selection', {props: {type: 'SELECTED'}}),
             op('mesh.separate', 'By Material', {blender: 'mesh.separate MATERIAL', unavailable: 'separating by material'}),
-            op('mesh.separate', 'By Loose Parts', {blender: 'mesh.separate LOOSE', unavailable: 'in edit mode (Object > Commands > Separate by Loose Parts does it for a whole object)'}),
-        ]})
+            op('mesh.separate', 'By Loose Parts', {props: {type: 'LOOSE'}}),
+        ]
+    }
+    function separateEnum(key: string): MenuSubmenuItem {
+        return sub(key, {label: 'Separate', items: separateItems()})
     }
 
     /** `merge_type_itemf`: the first / last entry of the select history is a vertex, in vertex select mode. */
@@ -1096,6 +1092,9 @@ export function registerMenus(engine: EditorEnginePlugin): void {
         const h = end === 'first' ? bm.selectHistory[0] : bm.selectHistory[bm.selectHistory.length - 1]
         return h.elem instanceof BMVert
     }
+
+    // P (`mesh.separate` without props): the operator's `type` enum as a popup (`WM_menu_invoke`).
+    menus.push({id: 'MESH_OT_separate.type', label: 'Separate', source: 'editmesh_tools.cc:4645', items: separateItems()})
 
     for (const m of menus) engine.menus.register(m)
 }

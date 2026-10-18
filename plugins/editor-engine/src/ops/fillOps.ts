@@ -278,11 +278,12 @@ export function registerFillOperators(engine: EditorEnginePlugin): void {
                 return {ok: true, message: r.removed === 1 ? 'Removed 1 vertex' : `Removed ${r.removed} vertices`}
             }),
         },
-        // --- the Ctrl+V / Ctrl+E / Ctrl+F menus (`wm.call_menu`, blender_default.py:5646-5648) ---------
+        // --- the Ctrl+V / Ctrl+E / Ctrl+F / Alt+E menus (`wm.call_menu`, blender_default.py:5646-5648, :5602) ---
         ...([
             ['mesh.vertices_menu', 'Vertex', 'dot', 'VIEW3D_MT_edit_mesh_vertices'],
             ['mesh.edges_menu', 'Edge', 'minus', 'VIEW3D_MT_edit_mesh_edges'],
             ['mesh.faces_menu', 'Face', 'square', 'VIEW3D_MT_edit_mesh_faces'],
+            ['mesh.extrude_menu', 'Extrude', 'arrow-up', 'VIEW3D_MT_edit_mesh_extrude'],
         ] as const).map(([id, label, icon, menu]): OperatorDescriptor => ({
             id, label, icon, category: 'Mesh', modes: ['edit'], hidden: true,
             description: `The ${label} menu (${menu}, menus/menus.ts), at the pointer.`,

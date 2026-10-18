@@ -110,6 +110,8 @@ export const blenderPreset: KeymapPreset = {
         {keys: 'ctrl+alt+click', id: 'mesh.select_ring', mode: 'edit'},  // mesh.edgering_select :5567
         {keys: 'shift+v', id: 'mesh.vert_slide', mode: 'edit'},          // transform.vert_slide :5628
         {keys: 'ctrl+r', id: 'mesh.loopcut_slide', mode: 'edit'},        // mesh.loopcut_slide :5539
+        {keys: 'alt+s', id: 'transform.shrink_fatten', mode: 'edit'},   // :5554
+        {keys: 'alt+e', id: 'mesh.extrude_menu', mode: 'edit'},         // VIEW3D_MT_edit_mesh_extrude :5602
         {keys: 'ctrl+numpadadd', id: 'mesh.select_more', mode: 'edit', repeat: true},      // :5579
         {keys: 'ctrl+numpadsubtract', id: 'mesh.select_less', mode: 'edit', repeat: true}, // :5580
         {keys: 'shift+n', id: 'mesh.normals_make_consistent', mode: 'edit', props: {inside: false}},     // :5595

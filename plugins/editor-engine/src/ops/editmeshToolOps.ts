@@ -1,7 +1,7 @@
 /**
  * Edit-mode operators over the kernel's `edbm_*_exec` wrappers (`@threepipe/mesh-kernel`'s
  * `ops/editmeshTools.ts`): Poke, Triangulate, Beautify, Wireframe, Fill, Mark Seam / Sharp, Flip and
- * Recalculate Normals, Delete Loose, Select More / Less.
+ * Recalculate Normals, Delete Loose, Select More / Less, Solidify, Collapse, Rotate Edge, Degenerate Dissolve.
  *
  * Ids, props (Blender's RNA identifiers in camelCase), defaults and descriptions are Blender's
  * (`editors/mesh/editmesh_tools.cc`, `editmesh_select.cc`; each operator cites its `MESH_OT_*`). They
@@ -24,6 +24,7 @@ import {
     normalsMakeConsistentSelection,
     pokeFacesSelection,
     quadsConvertToTrisSelection,
+    solidifySelectionOperator,
     triangleFillSelection,
     wireframeSelection,
 } from '@threepipe/mesh-kernel'
@@ -102,6 +103,10 @@ export function registerEditmeshToolOperators(engine: EditorEnginePlugin): void 
         useVerts: {type: 'boolean', default: true, description: 'Vertices: remove loose vertices.'},
         useEdges: {type: 'boolean', default: true, description: 'Edges: remove loose edges.'},
         useFaces: {type: 'boolean', default: false, description: 'Faces: remove loose faces.'},
+    }}
+    // `MESH_OT_solidify` (:4167)
+    const solidifyProps: PropSchema = {type: 'object', properties: {
+        thickness: {type: 'number', minimum: -10000, maximum: 10000, default: 0.01, description: 'Thickness.'},
     }}
     // `MESH_OT_edge_rotate` (:2507)
     const edgeRotateProps: PropSchema = {type: 'object', properties: {
@@ -219,6 +224,14 @@ export function registerEditmeshToolOperators(engine: EditorEnginePlugin): void 
                 const [v, e, f] = r.removed
                 return {ok: true, message: `Removed: ${v} vertices, ${e} edges, ${f} faces`}
             }),
+        },
+        {
+            id: 'mesh.solidify', label: 'Solidify', icon: 'layers', category: 'Mesh', modes: ['edit'],
+            description: 'Give the selected faces a thickness: a shell extruded inwards, compensating for sharp angles.',
+            flags: {undo: true, register: true},
+            props: solidifyProps,
+            poll: facesSelected('Select the faces to solidify first'),
+            exec: runSession('Solidify', solidifyProps, p => ok(solidifySelectionOperator(bm(), Number(p.thickness)))),
         },
         {
             id: 'mesh.edge_collapse', label: 'Collapse Edges & Faces', icon: 'collapse-all', category: 'Mesh', modes: ['edit'],

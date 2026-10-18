@@ -14,7 +14,7 @@
  */
 
 import {ModalTransform} from '@threepipe/plugin-mesh-edit'
-import type {TransformSavedProps} from '@threepipe/plugin-mesh-edit'
+import type {ExtrudeMacro, TransformSavedProps} from '@threepipe/plugin-mesh-edit'
 import {
     BMEdge,
     BMFace,
@@ -124,7 +124,10 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
     const savedToProps = (saved: TransformSavedProps): Record<string, unknown> => ({
         ...(saved.mode === 'rotate'
             ? {angle: Math.round(saved.value[0] * 180 / Math.PI * 1e4) / 1e4}
-            : {value: saved.value.map(x => Math.round(x * 1e6) / 1e6)}),
+            : saved.mode === 'shrinkFatten'
+                // `TRANSFORM_OT_shrink_fatten`: `value` is one offset, and `use_even_offset` (`transform_ops.cc:1136`).
+                ? {value: Math.round(saved.value[0] * 1e6) / 1e6, useEvenOffset: !!saved.shrinkFatten?.useEvenOffset}
+                : {value: saved.value.map(x => Math.round(x * 1e6) / 1e6)}),
         orientation: saved.orientType,
         constraintAxis: saved.constraintAxis ?? [false, false, false],
         proportional: saved.proportional.enabled,
@@ -135,14 +138,17 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
             connected: saved.proportional.connected, projected: saved.proportional.projected, snap: saved.snap},
     })
 
-    const propsToSaved = (mode: 'translate' | 'rotate' | 'resize', p: Record<string, unknown>): TransformSavedProps => {
+    const propsToSaved = (mode: 'translate' | 'rotate' | 'resize' | 'shrinkFatten', p: Record<string, unknown>): TransformSavedProps => {
         const hidden = (p._saved ?? {}) as Partial<{orientMatrix: TransformSavedProps['orientMatrix'], orientMatrixType: TransformSavedProps['orientMatrixType'],
             orientAxis: number, connected: boolean, projected: boolean, snap: boolean}>
         const axis = Array.isArray(p.constraintAxis) ? (p.constraintAxis as unknown[]).map(Boolean) : [false, false, false]
         const orientation = (p.orientation as TransformSavedProps['orientType']) ?? 'global'
         return {
             mode,
-            value: mode === 'rotate' ? [Number(p.angle ?? 0) * Math.PI / 180] : vec3(p.value, mode === 'resize' ? [1, 1, 1] : [0, 0, 0]),
+            value: mode === 'rotate' ? [Number(p.angle ?? 0) * Math.PI / 180]
+                : mode === 'shrinkFatten' ? [Number(p.value ?? 0)]
+                    : vec3(p.value, mode === 'resize' ? [1, 1, 1] : [0, 0, 0]),
+            ...mode === 'shrinkFatten' ? {shrinkFatten: {useEvenOffset: !!p.useEvenOffset}} : {},
             orientType: orientation,
             // A changed orientation in the panel means the stored matrix no longer applies.
             orientMatrixType: hidden.orientMatrixType === orientation ? hidden.orientMatrixType : orientation,
@@ -161,6 +167,14 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
     }
 
     const ORIENTATIONS = ['global', 'local', 'normal', 'view', 'cursor', 'custom']
+    // `TRANSFORM_OT_shrink_fatten` (transform_ops.cc:1136): `value`, `use_even_offset`, proportional.
+    const shrinkFattenProps: PropSchema = {type: 'object', properties: {
+        value: {type: 'number', description: 'Offset: distance along the normals.'},
+        useEvenOffset: {type: 'boolean', default: false, description: 'Offset Even: scale the offset to give more even thickness.'},
+        proportional: {type: 'boolean', description: 'Proportional editing: move nearby unselected elements too, falling off with distance.'},
+        proportionalFalloff: {type: 'string', enum: ['smooth', 'sphere', 'root', 'inverseSquare', 'sharp', 'linear', 'constant', 'random'], description: 'Proportional falloff shape.'},
+        proportionalSize: {type: 'number', minimum: 0, description: 'Proportional radius.'},
+    }}
     const FALLOFFS = ['smooth', 'sphere', 'root', 'inverseSquare', 'sharp', 'linear', 'constant', 'random']
     const commonTransformProps = {
         orientation: {type: 'string' as const, enum: ORIENTATIONS, description: 'The axes the values and constraint are in.'},
@@ -296,6 +310,57 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
                 return me.extrudeBy(propsToSaved('translate', p)) ? {ok: true, props: p} : {ok: false, error: 'Nothing to extrude. Select some vertices, edges or faces first'}
             },
         },
+        // --- Shrink/Fatten (`TRANSFORM_OT_shrink_fatten`, transform_ops.cc:1120) and the extrude macros
+        // that chain into it or into Move (`mesh_ops.cc:293-327`) ---------------------------------------
+        {
+            id: 'transform.shrink_fatten', label: 'Shrink/Fatten', icon: 'arrows-vertical', category: 'Mesh', modes: ['edit'],
+            description: 'Move the selected vertices along their normals; drag up to fatten, down to shrink. S or Alt: keep the thickness even.',
+            flags: {undo: true, register: true},
+            props: shrinkFattenProps,
+            poll: ready(hasSelection),
+            exec: (_ctx, p) => {
+                if (!p) return me.startTransform('shrinkFatten', {shrinkFatten: {useEvenOffset: false}}) ? {ok: true, modal: true} : {ok: false, error: 'Nothing to shrink or fatten. Select some vertices, edges or faces first'}
+                return me.applyTransformValues(propsToSaved('shrinkFatten', p)) ? {ok: true, props: p} : {ok: false, error: 'Nothing to shrink or fatten. Select some vertices, edges or faces first'}
+            },
+        },
+        ...([
+            ['mesh.extrude_vertices_move', 'Extrude Vertices', 'Extrude Only Vertices and Move: each selected vertex gets a new one joined by an edge, which then moves.', 'vert', 'Select the vertices to extrude first'],
+            ['mesh.extrude_edges_move', 'Extrude Edges', 'Extrude Only Edges and Move: the selected edges extrude on their own into a strip of faces, whose new edges then move.', 'edge', 'Select the edges to extrude first'],
+            ['mesh.extrude_faces_move', 'Extrude Individual Faces', 'Extrude Individual Faces and Move: each selected face extrudes on its own and moves out along its normal (Shrink/Fatten).', 'face', 'Select the faces to extrude first'],
+            ['mesh.extrude_region_shrink_fatten', 'Extrude Region and Shrink/Fatten', 'Extrude the selected faces as one region and move them out along their vertex normals (Shrink/Fatten).', 'face', 'Select the faces to extrude first'],
+        ] as const).map(([id, label, description, need, what]): OperatorDescriptor => {
+            const kind = id.slice('mesh.'.length) as ExtrudeMacro
+            const shrink = kind === 'extrude_faces_move' || kind === 'extrude_region_shrink_fatten'
+            const props: PropSchema = shrink ? shrinkFattenProps : {type: 'object', properties: {
+                // `MESH_OT_extrude_edges_indiv.use_normal_flip` (editmesh_extrude.cc:633).
+                ...kind === 'extrude_edges_move' ? {useNormalFlip: {type: 'boolean' as const, default: false, description: 'Flip Normals.'}} : {},
+                value: {type: 'array', items: {type: 'number'}, minItems: 3, maxItems: 3, description: 'Move X, Y, Z of the new geometry, in the orientation\'s axes.'},
+                ...commonTransformProps,
+            }}
+            return {
+                id, label, icon: 'arrow-up', category: 'Mesh', modes: ['edit'], description,
+                flags: {undo: true, register: true},
+                props,
+                poll: ready(() => !me.state ? onlyInEdit()
+                    : (need === 'vert' ? me.state.bm.totvertsel : need === 'edge' ? me.state.bm.totedgesel : me.state.bm.totfacesel) > 0 || what),
+                exec: (_ctx, p) => {
+                    const useNormalFlip = !!p?.useNormalFlip
+                    if (!p || p.value === undefined) {
+                        return me.extrudeMacro(kind, {useNormalFlip}) ? {ok: true, modal: true} : {ok: false, error: what}
+                    }
+                    return me.extrudeMacroBy(kind, propsToSaved(shrink ? 'shrinkFatten' : 'translate', p), {useNormalFlip})
+                        ? {ok: true, props: p} : {ok: false, error: what}
+                },
+            }
+        }),
+        {
+            // `VIEW3D_OT_edit_mesh_extrude_shrink_fatten` (scripts/startup/bl_operators/view3d.py:173): with
+            // faces selected Extrude Region and Shrink/Fatten, otherwise Extrude Region and Move.
+            id: 'view3d.edit_mesh_extrude_move_shrink_fatten', label: 'Extrude Faces Along Normals', icon: 'arrow-up', category: 'Mesh', modes: ['edit'],
+            description: 'Extrude the selected faces as one region and move them out along their vertex normals.',
+            poll: ready(hasSelection),
+            exec: () => engine.run(me.state && me.state.bm.totfacesel >= 1 ? 'mesh.extrude_region_shrink_fatten' : 'mesh.extrude'),
+        },
         {
             id: 'mesh.duplicate', label: 'Duplicate', icon: 'duplicate', category: 'Mesh', modes: ['edit'],
             description: 'Copy the selected elements and start moving the copy.',
@@ -388,14 +453,31 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
             },
         },
         {
-            id: 'mesh.separate', label: 'Separate Selection', icon: 'split-columns', category: 'Mesh', modes: ['edit'],
-            description: 'Move the selected faces into a new object (Blender\'s P).',
+            // `MESH_OT_separate` (editmesh_tools.cc:4645): `type` from `prop_separate_types` - Selection and
+            // By Loose Parts (plugin-modelling's `separate` command, `faces` / `loose`); By Material is not
+            // there yet. No props: P, `WM_menu_invoke` - the type as a menu.
+            id: 'mesh.separate', label: 'Separate', icon: 'split-columns', category: 'Mesh', modes: ['edit'],
+            description: 'Move the selection, or each loose part, into new objects (Blender\'s P).',
             flags: {undo: true, register: true},
-            poll: ready(() => { const p = hasFaces(); return p === true ? needsDocument() : p }),
-            exec: async() => {
+            props: {type: 'object', properties: {
+                type: {type: 'string', enum: ['SELECTED', 'LOOSE'], default: 'SELECTED', description: 'Type: Selection, or By Loose Parts.'},
+            }},
+            poll: ready(() => !me.state ? onlyInEdit() : needsDocument()),
+            exec: async(_ctx, p) => {
+                if (!p) {
+                    engine.callMenu('MESH_OT_separate.type')
+                    return {ok: true}
+                }
+                if (p.type === 'LOOSE') {
+                    const r = await runCommand('separate', {mode: 'loose'})
+                    return r.ok ? {...r, props: {type: 'LOOSE'}} : r
+                }
+                const f = hasFaces()
+                if (f !== true) return {ok: false, error: f}
                 const faces = selectedIndices('face')
                 if (me.state && faces.length === me.state.bm.totface) return {ok: false, error: 'That would separate every face and leave nothing behind: select fewer faces'}
-                return runCommand('separate', {mode: 'faces', faces})
+                const r = await runCommand('separate', {mode: 'faces', faces})
+                return r.ok ? {...r, props: {type: 'SELECTED'}} : r
             },
         },
         {
@@ -439,12 +521,13 @@ export function registerMeshOperators(engine: EditorEnginePlugin): void {
     for (const op of ops) engine.operators.register(op)
 
     // A modal transform that just ended tells the redo panel what it did (Blender's `saveTransform`).
-    const onCommitted = (e: {transform: ModalTransform, chained: 'extrude' | 'duplicate' | null, saved: TransformSavedProps}) => {
+    const onCommitted = (e: {transform: ModalTransform, chained: string | null, saved: TransformSavedProps}) => {
         // Edge and vertex slide (`G G`) and Loop Cut and Slide are reported by `loopOps.ts`.
         if (!e.chained && e.saved.slide || (e.chained as string) === 'loopcut') return
         const props = savedToProps(e.saved)
         if (e.chained) engine.completeModal(`mesh.${e.chained}`, props)
-        else engine.completeModal(e.saved.mode === 'translate' ? 'mesh.move' : e.saved.mode === 'rotate' ? 'mesh.rotate' : 'mesh.scale', props)
+        else engine.completeModal(e.saved.mode === 'translate' ? 'mesh.move' : e.saved.mode === 'rotate' ? 'mesh.rotate'
+            : e.saved.mode === 'shrinkFatten' ? 'transform.shrink_fatten' : 'mesh.scale', props)
     }
     me.addEventListener('transformCommitted', onCommitted as never)
     engine.addEventListener('dispose' as never, () => me.removeEventListener('transformCommitted', onCommitted as never))

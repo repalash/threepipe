@@ -118,7 +118,7 @@ describe('menu definitions', () => {
         // A variant the engine's operator does not implement (Separate > By Material).
         const separate = byLabel(mesh, 'Separate') as Extract<ResolvedMenuItem, {type: 'menu'}>
         expect(separate.menu!.items.map(i => [(i as {label: string}).label, (i as {enabled: boolean}).enabled]))
-            .toEqual([['Selection', true], ['By Material', false], ['By Loose Parts', false]])
+            .toEqual([['Selection', true], ['By Material', false], ['By Loose Parts', true]])
     })
 
     it('keys come from the active keymap, matching the entry\'s props', () => {
