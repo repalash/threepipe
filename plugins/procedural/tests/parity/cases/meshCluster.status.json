@@ -1,0 +1,5 @@
+{
+ "merge-points": "pass (<= 1 ulp)",
+ "cluster-connected": "exact",
+ "cluster-distance": "exact"
+}

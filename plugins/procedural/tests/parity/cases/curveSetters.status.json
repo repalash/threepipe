@@ -1,0 +1,6 @@
+{
+ "set-radius-tilt": "exact",
+ "set-radius-tilt-sweep": "exact",
+ "set-resolution-cyclic": "exact",
+ "set-on-instances": "exact"
+}

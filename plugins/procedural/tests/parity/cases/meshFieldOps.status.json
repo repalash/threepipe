@@ -1,0 +1,12 @@
+{
+ "index-of-nearest-jittered": "exact",
+ "index-of-nearest-ties": "exact",
+ "index-of-nearest-groups": "exact",
+ "index-of-nearest-points": "exact",
+ "blur-mesh-float": "exact",
+ "blur-mesh-int": "exact",
+ "blur-mesh-float_vector": "exact",
+ "blur-mesh-float_color": "exact",
+ "blur-mesh-corner-iterations": "exact",
+ "blur-curves": "exact"
+}

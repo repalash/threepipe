@@ -1,0 +1,8 @@
+{
+ "shortest-paths-grid": "exact",
+ "shortest-paths-costs": "exact",
+ "shortest-paths-none": "exact",
+ "edge-paths-selection": "exact",
+ "edge-paths-curves": "exact",
+ "face-groups": "exact"
+}

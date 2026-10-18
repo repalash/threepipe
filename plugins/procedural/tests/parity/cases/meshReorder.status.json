@@ -1,0 +1,9 @@
+{
+ "sort-points-weight": "exact",
+ "sort-points-group-only": "exact",
+ "sort-edges-group-weight": "exact",
+ "sort-faces-weight": "exact",
+ "sort-faces-noop": "exact",
+ "sort-curves": "exact",
+ "sort-instances": "exact"
+}

@@ -1,0 +1,15 @@
+{
+ "object-info-original": "pass (<= 4 ulp)",
+ "object-info-original-instance": "pass (<= 4 ulp)",
+ "collection-info-original": "exact",
+ "collection-info-original-separate": "exact",
+ "collection-info-original-separate-reset": "exact",
+ "collection-info-original-realized": "exact",
+ "object-info-relative": "exact",
+ "object-info-relative-instance": "exact",
+ "collection-info-relative": "exact",
+ "collection-info-relative-separate": "exact",
+ "collection-info-relative-separate-reset": "exact",
+ "collection-info-relative-realized": "exact",
+ "scene-time": "exact"
+}

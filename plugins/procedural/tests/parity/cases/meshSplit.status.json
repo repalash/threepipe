@@ -1,0 +1,7 @@
+{
+ "split-faces": "exact",
+ "split-edges-points": "exact",
+ "split-many-groups": "exact",
+ "split-points-curves": "exact",
+ "split-instances": "exact"
+}

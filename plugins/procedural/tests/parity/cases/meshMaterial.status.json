@@ -1,0 +1,8 @@
+{
+ "set-material-mesh": "exact",
+ "set-material-none-selection": "exact",
+ "set-material-join": "exact",
+ "set-material-instances": "exact",
+ "set-material-points": "exact",
+ "set-material-points-alone": "exact"
+}

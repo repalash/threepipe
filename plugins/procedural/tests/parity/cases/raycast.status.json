@@ -1,0 +1,17 @@
+{
+ "raycast-down": "exact",
+ "raycast-angled": "pass (<= 1 ulp)",
+ "raycast-axis-x": "exact",
+ "raycast-axis-neg-y": "exact",
+ "raycast-axis-diagonal": "exact",
+ "raycast-length": "exact",
+ "raycast-zero-direction": "exact",
+ "raycast-single": "exact",
+ "raycast-attribute-interpolated-float": "exact",
+ "raycast-attribute-interpolated-float_vector": "exact",
+ "raycast-attribute-interpolated-int": "exact",
+ "raycast-attribute-nearest-float": "exact",
+ "raycast-attribute-nearest-float_vector": "exact",
+ "raycast-attribute-nearest-int": "exact",
+ "raycast-no-faces": "exact"
+}

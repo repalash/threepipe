@@ -1,0 +1,18 @@
+{
+ "subdivide-curve-field": "exact",
+ "subdivide-curve-single": "exact",
+ "subdivide-curve-zero": "exact",
+ "subdivide-curve-bezier": "exact",
+ "subdivide-curve-one-point": "exact",
+ "arc-radius": "exact",
+ "arc-points": "exact",
+ "arc-points-invert-offset": "exact",
+ "arc-points-flipped-normal": "exact",
+ "arc-points-colinear": "exact",
+ "arc-points-colinear-axis": "exact",
+ "arc-points-coincident": "exact",
+ "spiral": "exact",
+ "star": "exact",
+ "quadrilateral": "exact",
+ "quadratic-bezier": "exact"
+}

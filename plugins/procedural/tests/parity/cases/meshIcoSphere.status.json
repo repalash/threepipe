@@ -1,0 +1,11 @@
+{
+ "ico-s1": "exact",
+ "ico-s2": "exact",
+ "ico-s3": "exact",
+ "ico-s4": "exact",
+ "ico-s5": "exact",
+ "ico-no-uv": "exact",
+ "ico-negative-radius": "exact",
+ "ico-zero-radius": "exact",
+ "ico-edge-angle": "pass (<= 1 ulp)"
+}

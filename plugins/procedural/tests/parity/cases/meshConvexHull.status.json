@@ -1,0 +1,14 @@
+{
+ "hull-random": "exact",
+ "hull-random-flat-box": "exact",
+ "hull-cube-attributes": "exact",
+ "hull-uv-sphere": "exact",
+ "hull-cylinder": "exact",
+ "hull-flat-grid": "exact",
+ "hull-colinear": "exact",
+ "hull-tiny": "exact",
+ "hull-duplicates": "exact",
+ "hull-components": "exact",
+ "hull-test-meshes": "exact",
+ "hull-instances": "exact"
+}
