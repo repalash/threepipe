@@ -22,7 +22,8 @@ import {CornerFanSpaces, customNormalToData, faceNormalsTrue, normalsCalcCorners
 import {FACE_STRENGTH, FACE_WEIGHT_LAYER} from '../weightedNormal'
 import {BevelParams, FKind, getFaceKind} from './bevel-types'
 import {bevelEdgesSharpBoundary} from './bevel-boundary'
-import {edgeOtherLoop, normalsUpdate} from './bevel-bmquery'
+import {edgeOtherLoop} from './bevel-bmquery'
+import {meshNormalsUpdate} from '../bmesh/normals'
 
 type V3 = [number, number, number]
 
@@ -45,7 +46,7 @@ const fno = (l: BMLoop): V3 => [l.f.nx, l.f.ny, l.f.nz]
 /** `bevel_harden_normals` (`bmesh_bevel.cc:3006`). */
 export function bevelHardenNormals(bp: BevelParams, bm: BMesh): void {
     if (bp.offset === 0) return
-    normalsUpdate(bm)
+    meshNormalsUpdate(bm)
     let layer = bm.ldata.get(AttrName.customNormal)
     if (!layer) bevelEdgesSharpBoundary(bm, bp)
     if (layer && layer.type !== 'int16x2') return // the attribute exists with another type: leave it, as Blender does
