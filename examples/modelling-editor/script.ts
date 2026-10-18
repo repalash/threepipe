@@ -1,5 +1,7 @@
 import {_testFinish, _testStart, LoadingScreenPlugin, PickingPlugin} from 'threepipe'
 import {createModellingEditor} from '@threepipe/plugin-modelling-editor'
+import {ThreepipeCloudPlugin} from '@threepipe/plugin-cloud'
+import {CLOUD_ENDPOINT, CLOUD_TURNSTILE_SITE_KEY} from '../globals.js'
 
 /**
  * The modelling editor shell: header, toolbar, viewport, outliner, properties, operator panel,
@@ -12,13 +14,22 @@ import {createModellingEditor} from '@threepipe/plugin-modelling-editor'
  *
  * The start scene, like Blender's: a cube on the grid seen from a three-quarter view, not selected
  * yet - clicking it is the first hint.
+ *
+ * Help > Report a Problem / Send Feedback goes to threepipe-cloud when the examples' .env sets TP_EX_CLOUD_ENDPOINT
+ * and TP_EX_CLOUD_TURNSTILE_SITE_KEY (the hosted build, CLOUDFLARE.md); without them the editor has no cloud plugin.
  */
 
 async function init() {
+    const cloud = CLOUD_ENDPOINT ? new ThreepipeCloudPlugin({
+        endpoint: CLOUD_ENDPOINT,
+        turnstileSiteKey: CLOUD_TURNSTILE_SITE_KEY || undefined,
+        surface: 'modelling-editor',
+    }) : undefined
     const editor = createModellingEditor({
         container: document.getElementById('editor')!,
         title: 'threepipe',
         viewer: {plugins: [LoadingScreenPlugin]},
+        plugins: cloud ? [cloud] : [],
     })
     const {viewer, engine} = editor
 

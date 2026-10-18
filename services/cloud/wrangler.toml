@@ -1,13 +1,14 @@
 # threepipe-cloud: reports and file sharing for threepipe (README.md). One Worker, one D1 database, one R2 bucket.
-# Nothing here is deployed yet. The ids below are placeholders: README.md "Deploy" lists the commands that create the
-# resources and print the values to put here.
+# Deploy: CLOUDFLARE.md at the repository root (npm run provision -- --apply, then npm run deploy, from services/cloud).
+# database_id is filled in by `npm run provision -- --apply` when it creates the D1 database.
 name = "threepipe-cloud"
+account_id = "3c4cf55a12810e878be2349f1411ca08"
 main = "src/worker.ts"
 compatibility_date = "2026-03-01"
 workers_dev = true
 
-# The custom domain, once chosen (README.md, "Deploy"):
-# routes = [{ pattern = "cloud.threepipe.org", custom_domain = true }]
+# The custom domain on the threepipe.org zone (same account): wrangler deploy creates its DNS record and certificate.
+routes = [{ pattern = "cloud.threepipe.org", custom_domain = true }]
 
 # The staff page's script is served as text (src/routes/staff.ts); .html is Text by default.
 rules = [{ type = "Text", globs = ["**/*.client.js"], fallthrough = true }]
@@ -38,9 +39,9 @@ REPORTS_DAILY_CAP = "20"
 REPORTS_DAILY_CAP_ALL = "500"
 REPORTS_DAILY_FILE_BYTES_ALL = "2147483648"
 # On the Discord card: where staff open a report.
-# STAFF_URL = "https://cloud.threepipe.org/staff"
+STAFF_URL = "https://cloud.threepipe.org/staff"
 # Where a browser visit to the workers.dev name is sent.
-# CANONICAL_HOST = "cloud.threepipe.org"
+CANONICAL_HOST = "cloud.threepipe.org"
 
 # Secrets (wrangler secret put <NAME>), never in this file:
 #   TURNSTILE_SECRET   the secret key of the Turnstile widget
