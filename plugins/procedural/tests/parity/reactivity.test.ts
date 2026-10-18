@@ -15,7 +15,7 @@ import {existsSync, readdirSync, readFileSync, writeFileSync} from 'node:fs'
 import {join} from 'node:path'
 import type {AttributeStorage} from '@threepipe/mesh-kernel'
 import {GeometryNodesEvaluator, GeometrySet, isInterfaceSocket, JSONValue, socketTypeFromIdname} from '../../src'
-import {DumpV2, importBlenderDump} from '../../src/io/importBlenderDump'
+import {DumpV2, dumpTime, importBlenderDump} from '../../src/io/importBlenderDump'
 import {applyModifierInputs, binResolver, geometryFromDump, sceneFromDump} from '../../src/io/geometryFromDump'
 import {BUILTIN_TYPES} from '../../src/runtime/evaluator'
 import {getNodeType} from '../../src/runtime/registry'
@@ -104,7 +104,7 @@ describe.skipIf(!assets.length)('reactivity of the Blender assets', () => {
             const m = object.modifiers.find(x => x.type === 'NODES' && x.enabled)
             if (!m || missingTypes(library, m.nodeGroup!).length || object.modifiers.filter(x => x.enabled).length !== 1) continue
             it(`${asset} / ${object.name}`, () => {
-                const ev = new GeometryNodesEvaluator(library, m.nodeGroup!, {scene: sceneFromDump(dump.referenced!, resolve), selfObject: object.name})
+                const ev = new GeometryNodesEvaluator(library, m.nodeGroup!, {scene: sceneFromDump(dump.referenced!, resolve), selfObject: object.name, time: dumpTime(dump)})
                 applyModifierInputs(ev, m.inputs ?? {})
                 ev.setInputGeometry(geometryFromDump(object.input_geometry!, resolve))
                 const first = ev.evaluate()

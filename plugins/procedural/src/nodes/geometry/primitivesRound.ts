@@ -11,7 +11,6 @@ import {ensureDefaultMaterialSlot} from '../../geometry/meshPrimitives'
 import {CircleFillType, ConeAttributeOutputs, createCircleMesh, createCylinderOrConeMesh, createUVSphereMesh} from '../../geometry/meshPrimitivesRound'
 import {meshVertNormalsAssign} from '../../geometry/meshNormals'
 import {meshTranslate} from '../../geometry/transform'
-import {meshBoundsTranslate} from '../../geometry/meshBounds'
 import {f32} from '../../blender/f32'
 import type {ExecParams} from '../../runtime/params'
 import {registerNodeType} from '../../runtime/registry'
@@ -137,7 +136,6 @@ registerNodeType({
         ensureDefaultMaterialSlot(mesh)
         // `bke::mesh_translate(*mesh, float3(0, 0, depth * 0.5f), false)`.
         meshTranslate(mesh, [0, 0, f32(depth * 0.5)])
-        meshBoundsTranslate(mesh, [0, 0, f32(depth * 0.5)])
         p.set('Mesh', GeometrySet.fromMesh(mesh))
         setConeOutputs(p, o)
     },

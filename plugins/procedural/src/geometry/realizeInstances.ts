@@ -32,6 +32,7 @@ import {
 import {AttributeAccessor, BuiltinAttribute} from './attributeAccessor'
 import type {SceneProvider} from '../runtime/context'
 import {newMeshData} from './components'
+import {copyMesh, meshTagPositionsChanged} from './meshRuntime'
 
 export interface RealizeInstancesOptions {
     /** Keep ids of the original geometry instead of mixing in instance ids (Join Geometry uses this). */
@@ -784,11 +785,13 @@ function executeMeshTasks(
     if (!tasks.length) return
     if (tasks.length === 1) {
         const t = tasks[0]
-        const mesh = t.info.mesh.clone()
+        const mesh = copyMesh(t.info.mesh)
         if (!isIdentityTransform(t.transform)) {
-            // `bke::mesh_transform(mesh, transform, false)`: positions only (no custom normals here).
+            // `bke::mesh_transform(mesh, transform, false)`: positions only (no custom normals here), then
+            // `tag_positions_changed` (`mesh.cc:2085`).
             const p = mesh.positions
             for (let i = 0; i < mesh.vertsNum; i++) transformPoint(t.transform, p[i * 3], p[i * 3 + 1], p[i * 3 + 2], p, i * 3)
+            meshTagPositionsChanged(mesh)
         }
         addInstanceAttributesToSingle(order, t.fallbacks, new MeshAccessor(mesh))
         result.setMesh(mesh)

@@ -14,6 +14,7 @@ import {binResolver, DumpReferenced, geometryFromDump, inlineBinRefs, sceneFromD
 import type {EvalOptions, SceneProvider} from '../../src/runtime/context'
 import {CaseImage, ParityCase} from './cases/types'
 import {imageTextureCases} from './cases/imageTexture'
+import {zoneCases} from './cases/zones'
 import {functionMathCases} from './cases/functionMath'
 import {functionRandomCases} from './cases/functionRandom'
 import {functionRotationCases} from './cases/functionRotation'
@@ -30,6 +31,8 @@ import {meshMaterialCases} from './cases/meshMaterial'
 import {meshEditCases} from './cases/meshEdit'
 import {meshPrimitiveCases} from './cases/meshPrimitive'
 import {meshMergeCases} from './cases/meshMerge'
+import {curvesBasicCases} from './cases/curvesBasic'
+import {curvesOpsCases} from './cases/curvesOps'
 import {distributeCases} from './cases/distribute'
 
 /** The case's images over the scene Blender built: the pixels Blender's float buffer holds (`foreach_set`). */
@@ -49,9 +52,12 @@ SETS.meshAttribute = meshAttributeCases
 SETS.meshSample = meshSampleCases
 SETS.meshMaterial = meshMaterialCases
 SETS.imageTexture = imageTextureCases
+SETS.zones = zoneCases
 SETS.meshEdit = meshEditCases
 SETS.meshPrimitive = meshPrimitiveCases
 SETS.meshMerge = meshMergeCases
+SETS.curvesBasic = curvesBasicCases
+SETS.curvesOps = curvesOpsCases
 
 for (const [set, generate] of Object.entries(SETS)) {
     describe(`parity cases: ${set}`, () => {

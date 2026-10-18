@@ -12,7 +12,7 @@
 import {MeshData} from '@threepipe/mesh-kernel'
 import type {ModifierContext, ModifierType, ModellingDocument} from '@threepipe/plugin-modelling'
 import {
-    GeometryNodesEvaluator, GeometrySet, isInterfaceSocket, JSONValue, NodeGroupLibrary, realizeInstances,
+    copyMesh, GeometryNodesEvaluator, GeometrySet, isInterfaceSocket, JSONValue, NodeGroupLibrary, realizeInstances,
     newMeshData, SceneProvider, socketTypeFromIdname,
 } from '@threepipe/plugin-procedural'
 
@@ -138,7 +138,7 @@ export const geometryNodesModifierType: ModifierType<GeometryNodesModifierSpec> 
             }
         }
         // The master can be edited in place between evaluations, so the input geometry is always new.
-        ev.setInputGeometry(GeometrySet.fromMesh(mesh.clone()))
+        ev.setInputGeometry(GeometrySet.fromMesh(copyMesh(mesh)))
         const result = ev.evaluate()
         const geometry = result.geometry ?? new GeometrySet()
         const realized = realizeInstances(geometry, {scene: documentScene(ctx.doc)})

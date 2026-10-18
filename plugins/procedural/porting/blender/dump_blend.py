@@ -443,6 +443,9 @@ def main():
         "hash": bpy.app.build_hash.decode(),
         "blend_file": bpy.data.filepath,
         "overrides": applied,
+        # Scene Time reads `BKE_scene_ctime_get` (= frame_current_final) and fps / fps_base.
+        "scene_time": {"ctime": bpy.context.scene.frame_current_final, "fps": bpy.context.scene.render.fps,
+                       "fpsBase": bpy.context.scene.render.fps_base},
         "node_groups": groups,
         "objects": objects,
         "referenced": referenced,

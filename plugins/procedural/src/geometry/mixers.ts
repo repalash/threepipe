@@ -344,7 +344,7 @@ export function mix2(type: DataType, factor: number, a: ArrayLike<number>, ia: n
         return
     case 'quaternion': {
         // `mix2(factor, Quaternion, Quaternion)` (`attribute_math.cc:18`): `math::interpolate(a, b, factor)`.
-        const q = quatInterpolate(Array.from(a).slice(ia * 4, ia * 4 + 4), Array.from(b).slice(ib * 4, ib * 4 + 4), t)
+        const q = quatInterpolate([a[ia * 4], a[ia * 4 + 1], a[ia * 4 + 2], a[ia * 4 + 3]], [b[ib * 4], b[ib * 4 + 1], b[ib * 4 + 2], b[ib * 4 + 3]], t)
         for (let k = 0; k < 4; k++) out[io * 4 + k] = q[k]
         return
     }

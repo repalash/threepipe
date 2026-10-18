@@ -57,5 +57,11 @@ export function sceneCases(): ParityCase[] {
         cases.push(single(`collection-info-${space.toLowerCase()}-realized`, `Collection Info ${space}, separate children, realized`, {scene: props, ...self}, () =>
             n.RealizeInstances({geometry: n.CollectionInfo({collection: {_ref: 'COLLECTION', name: 'Props'}, transformSpace: space, separateChildren: true}).instances}).geometry))
     }
+    // Scene Time in Blender's new scene: frame 1 at 24 fps.
+    cases.push(single('scene-time', 'Scene Time: Seconds and Frame stored on points', {}, () => {
+        const t = n.SceneTime()
+        const g = n.StoreNamedAttribute({geometry: n.MeshLine({count: 2}).mesh, dataType: 'FLOAT', name: 'seconds', value: t.seconds}).geometry
+        return n.StoreNamedAttribute({geometry: g, dataType: 'FLOAT', name: 'frame', value: t.frame}).geometry
+    }))
     return cases
 }

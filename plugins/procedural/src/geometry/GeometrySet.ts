@@ -10,6 +10,7 @@
 import {AttrDomain, MeshData} from '@threepipe/mesh-kernel'
 import {AttributeAccessor} from './attributeAccessor'
 import {BLENDER_MESH_TABLE, CurvesGeometry, Instances, MeshAccessor, PointCloud} from './components'
+import {copyMesh} from './meshRuntime'
 
 export type ComponentType = 'mesh' | 'pointcloud' | 'curves' | 'instances'
 
@@ -155,7 +156,8 @@ export class GeometrySet {
     }
 
     meshForWrite(): MeshData | undefined {
-        if (this._mesh && !this.owned.has('mesh')) this.setMesh(this._mesh.clone())
+        // `get_mesh_for_write`: a copy of a shared mesh (`copyMesh`: the runtime caches are shared, `mesh_copy_data`).
+        if (this._mesh && !this.owned.has('mesh')) this.setMesh(copyMesh(this._mesh))
         return this._mesh
     }
 

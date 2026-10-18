@@ -290,6 +290,43 @@ export class TreeBuilder {
         return new NodeHandle(name, idname, outputs)
     }
 
+    /**
+     * A repeat zone: a Repeat Input and its paired Repeat Output (`node_geo_repeat.cc`). `items` name the values the
+     * loop carries (item name -> initial value); the body reads them from `zone.input` and hands the next iteration's
+     * values to `zone.output(...)`, which returns the values after the last iteration.
+     */
+    repeatZone<I extends Record<string, AnySocket | RepeatItemValue>>(items: I, iterations: Socket<'INT'> | number = 1): RepeatZone<RepeatSockets<I>> {
+        const inName = this.uniqueName('Repeat Input')
+        const outName = this.uniqueName('Repeat Output')
+        const keys = Object.keys(items)
+        const types = keys.map(k => {
+            const v = items[k]
+            return v instanceof Socket ? v.type : v.type
+        })
+        const repeatItems = keys.map((k, i) => ({name: k, socket_type: types[i]}))
+        const input: NodeJSON = {name: inName, type: 'GeometryNodeRepeatInput', pairedOutput: outName, inputs: {}}
+        const output: NodeJSON = {name: outName, type: 'GeometryNodeRepeatOutput', inputs: {}, items: {repeat_items: repeatItems}}
+        this.tree.nodes.push(input, output)
+        if (iterations instanceof Socket) this.link(iterations, inName, 'Iterations', 'INT')
+        else input.inputs!.Iterations = iterations
+        keys.forEach((k, i) => {
+            const v = items[k]
+            if (v instanceof Socket) this.link(v, inName, `Item_${i}`, types[i])
+            else if (v.value !== undefined) input.inputs![`Item_${i}`] = v.value
+        })
+        type S = RepeatSockets<I>
+        const state = Object.fromEntries(keys.map((k, i) => [k, new Socket(this, inName, `Item_${i}`, types[i])])) as unknown as S
+        const after = Object.fromEntries(keys.map((k, i) => [k, new Socket(this, outName, `Item_${i}`, types[i])])) as unknown as S
+        return new RepeatZone<S>(state, new Socket(this, inName, 'Iteration', 'INT') as Socket<'INT'>, values => {
+            for (const [k, v] of Object.entries(values)) {
+                const i = keys.indexOf(k)
+                if (i < 0) throw new Error(`repeat zone has no item '${k}' (items: ${keys.join(', ')})`)
+                if (v) this.link(v, outName, `Item_${i}`, types[i])
+            }
+            return after
+        })
+    }
+
     /** Use another node group: adds a `GeometryNodeGroup` node and the group's trees to this library. */
     group(sub: NodeGroup, args: Record<string, Socket | JSONValue> = {}): NodeHandle {
         Object.assign(this.library, sub.library, {[this.tree.name]: this.tree})
@@ -313,6 +350,35 @@ function socketTypeOf(idname: string): SocketType {
     const entry = (Object.entries(SOCKET_IDNAME) as [SocketType, string][]).find(([, v]) => idname.startsWith(v))
     if (!entry) throw new Error(`unknown socket type ${idname}`)
     return entry[0]
+}
+
+/** A repeat item without a linked initial value: its socket type and the unlinked input's value. */
+export interface RepeatItemValue {
+    type: SocketType
+    value?: JSONValue
+}
+
+/** The sockets of a repeat zone's items, by item name. */
+export type RepeatSockets<I> = {[K in keyof I]: I[K] extends Socket<infer T> ? Socket<T> : I[K] extends {type: infer T extends SocketType} ? Socket<T> : AnySocket}
+
+/** A repeat zone being built ({@link GroupBuilder.repeatZone}). */
+export class RepeatZone<I extends Record<string, AnySocket>> {
+    private done = false
+
+    constructor(
+        /** The items' values in the current iteration (Repeat Input outputs). */
+        readonly input: I,
+        /** The current iteration, from 0. */
+        readonly iteration: Socket<'INT'>,
+        private readonly close: (values: Partial<I>) => I,
+    ) {}
+
+    /** Hand the next iteration's values to the Repeat Output; returns the values after the last iteration. */
+    output(values: Partial<I>): I {
+        if (this.done) throw new Error('repeat zone output() was already called')
+        this.done = true
+        return this.close(values)
+    }
 }
 
 /** A built node group: its tree and every group it uses. */
@@ -353,6 +419,8 @@ export interface GroupBuilder {
     node(idname: string, args?: Record<string, unknown>): NodeHandle
     /** Use another node group. */
     group(sub: NodeGroup, args?: Record<string, Socket | JSONValue>): NodeHandle
+    /** A repeat zone carrying `items` through `iterations` runs of its body (see {@link TreeBuilder.repeatZone}). */
+    repeatZone<I extends Record<string, AnySocket | RepeatItemValue>>(items: I, iterations?: Socket<'INT'> | number): RepeatZone<RepeatSockets<I>>
 }
 
 let current: TreeBuilder | undefined
@@ -378,6 +446,7 @@ export function geometryNodes(name: string, fn: (g: GroupBuilder) => void): Node
             },
             node: (id, args) => b.node(id, args),
             group: (sub, args) => b.group(sub, args),
+            repeatZone: (items, iterations) => b.repeatZone(items, iterations),
         })
     } finally {
         current = prev

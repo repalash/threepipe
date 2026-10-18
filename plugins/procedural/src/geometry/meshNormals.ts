@@ -15,31 +15,28 @@ import {dot3, interpolate3, normalize3, sub3, V3} from '../blender/math/vec'
 import {faceCornerNext, faceCornerPrev, faceFindCornerFromVert, vertToFaceMap} from './meshTopology'
 import {GVArray} from './varray'
 import {adaptMeshDomain} from './meshDomains'
+import {meshRuntime, MeshRuntime, meshTagPositionsChanged} from './meshRuntime'
 
-interface NormalsCache {
-    face?: Float32Array
-    vert?: Float32Array
-}
-
-const caches = new WeakMap<MeshData, NormalsCache>()
-
-/** Blender's `Mesh::tag_positions_changed`: drop cached normals after editing positions in place. */
+/**
+ * Blender's `Mesh::tag_positions_changed`: drop the cached normals (and the other position-derived caches,
+ * `meshRuntime.ts`) after editing positions in place.
+ */
 export function tagPositionsChanged(mesh: MeshData): void {
-    caches.delete(mesh)
+    meshTagPositionsChanged(mesh)
 }
 
 /**
- * `bke::mesh_vert_normals_assign` (`blenkernel/intern/mesh_normals.cc:56`): vertex normals a primitive already knows
- * (UV Sphere), used instead of computing them until the positions change.
+ * `bke::mesh_vert_normals_assign` (`blenkernel/intern/mesh_normals.cc:50`): vertex normals a primitive already knows
+ * (UV Sphere) stored in `vert_normals_true_cache`, used instead of computing them until the positions change (copies
+ * share them, `meshRuntime.ts`).
  */
 export function meshVertNormalsAssign(mesh: MeshData, normals: Float32Array): void {
     cache(mesh).vert = normals
 }
 
-function cache(mesh: MeshData): NormalsCache {
-    let c = caches.get(mesh)
-    if (!c) caches.set(mesh, c = {})
-    return c
+/** `Mesh::runtime->vert_normals_true_cache` / `face_normals_true_cache`. */
+function cache(mesh: MeshData): MeshRuntime['normals'] {
+    return meshRuntime(mesh).normals
 }
 
 /**

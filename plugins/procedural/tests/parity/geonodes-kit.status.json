@@ -12,8 +12,7 @@
   "status": "pass"
  },
  "attr-interp-curves": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeCurvePrimitiveCircle"
+  "status": "pass"
  },
  "attr-interp-int-rounding": {
   "status": "pass"
@@ -432,7 +431,7 @@
  },
  "gs-join-curves-radius-resolution": {
   "status": "skip",
-  "reason": "not ported: GeometryNodeCurvePrimitiveCircle, GeometryNodeCurvePrimitiveLine, GeometryNodeSetCurveRadius, GeometryNodeSetSplineResolution"
+  "reason": "not ported: GeometryNodeSetCurveRadius, GeometryNodeSetSplineResolution"
  },
  "gs-join-domain-face-corner": {
   "status": "pass"
@@ -804,12 +803,10 @@
   "status": "pass"
  },
  "position-curve-bezier": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeCurvePrimitiveBezierSegment"
+  "status": "pass"
  },
  "position-curve-domain": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeCurvePrimitiveLine"
+  "status": "pass"
  },
  "position-instances": {
   "status": "pass"
@@ -827,8 +824,7 @@
   "status": "pass"
  },
  "realize-curves-order": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeCurvePrimitiveLine"
+  "status": "pass"
  },
  "realize-depth-one": {
   "status": "pass"
@@ -837,8 +833,7 @@
   "status": "pass"
  },
  "realize-instance-attr-curves-domain": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeCurvePrimitiveLine"
+  "status": "pass"
  },
  "realize-instance-attr-mesh": {
   "status": "pass"
@@ -1006,8 +1001,7 @@
   "status": "pass"
  },
  "transform-bezier-handles": {
-  "status": "skip",
-  "reason": "not ported: GeometryNodeCurvePrimitiveBezierSegment"
+  "status": "pass"
  },
  "transform-instances-top-level": {
   "status": "pass"

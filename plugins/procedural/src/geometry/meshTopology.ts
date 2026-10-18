@@ -7,6 +7,7 @@
  */
 
 import type {MeshData} from '@threepipe/mesh-kernel'
+import {meshRuntime, meshTagTopologyChanged} from './meshRuntime'
 
 export interface GroupedIndices {
     /** `size + 1` offsets into {@link indices}. */
@@ -28,20 +29,14 @@ interface TopologyCache {
     looseEdgesCount?: number
 }
 
-const caches = new WeakMap<MeshData, TopologyCache>()
-
+/** The topology caches in the mesh's runtime (`meshRuntime.ts`, shared by copies). */
 function cache(mesh: MeshData): TopologyCache {
-    let c = caches.get(mesh)
-    if (!c) {
-        c = {}
-        caches.set(mesh, c)
-    }
-    return c
+    return meshRuntime(mesh).topology as TopologyCache
 }
 
-/** Drop every cached topology map of `mesh`. */
+/** Drop every cached topology map of `mesh` - `Mesh::tag_topology_changed`, which clears every runtime cache. */
 export function tagTopologyChanged(mesh: MeshData): void {
-    caches.delete(mesh)
+    meshTagTopologyChanged(mesh)
 }
 
 /** `offset_indices::build_reverse_offsets` (`blenlib/intern/offset_indices.cc`). */

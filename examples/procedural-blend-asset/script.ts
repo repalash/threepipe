@@ -3,6 +3,7 @@ import {
     applyModifierInputs,
     binResolver,
     DumpV2,
+    dumpTime,
     geometryFromDump,
     GeometryNodesEvaluator,
     GeometrySet,
@@ -60,7 +61,7 @@ async function init() {
     const other = stack.filter(m => m.type !== 'NODES')
     if (other.length) throw new Error(`modifiers other than geometry nodes are not ported: ${other.map(m => m.type).join(', ')}`)
     const evaluators = stack.map(m => {
-        const ev = new GeometryNodesEvaluator(library, m.nodeGroup!, {scene, selfObject: object.name})
+        const ev = new GeometryNodesEvaluator(library, m.nodeGroup!, {scene, selfObject: object.name, time: dumpTime(json)})
         applyModifierInputs(ev, m.inputs ?? {})
         return ev
     })

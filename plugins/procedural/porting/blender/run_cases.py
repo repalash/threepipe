@@ -231,7 +231,9 @@ def find_socket(sockets, identifier, where):
     raise KeyError(f"{where}: no socket '{identifier}' among {[s.identifier for s in sockets]}")
 
 
-def build_group(name, spec, groups):
+def build_interface(name, spec, groups):
+    """The group's interface sockets; returns our identifier -> Blender's. Every group's interface is built before
+    any group's nodes, so group nodes see their sockets whatever the library order."""
     tree = groups[name]
     ident_map = {}
     for item in spec.get("interface", []):
@@ -246,7 +248,12 @@ def build_group(name, spec, groups):
                 key = "default_value"
             if hasattr(sock, key):
                 setattr(sock, key, resolve(value))
+    return ident_map
 
+
+def build_group(name, spec, groups, ident_maps):
+    tree = groups[name]
+    ident_map = ident_maps[name]
     nodes = {}
     for nspec in spec["nodes"]:
         node = tree.nodes.new(nspec["type"])
@@ -261,21 +268,23 @@ def build_group(name, spec, groups):
         if nspec.get("curveMapping"):
             set_curve_mapping(node, nspec["curveMapping"])
         nodes[nspec["name"]] = node
+
+    def remap(node, ident):
+        if node.bl_idname in ("NodeGroupInput", "NodeGroupOutput"):
+            return ident_map.get(ident, ident)
+        if node.bl_idname == "GeometryNodeGroup" and node.node_tree is not None:
+            return ident_maps[node.node_tree.name].get(ident, ident)
+        return ident
+
     for nspec in spec["nodes"]:
         if nspec.get("pairedOutput"):
             nodes[nspec["name"]].pair_with_output(nodes[nspec["pairedOutput"]])
     for nspec in spec["nodes"]:
         node = nodes[nspec["name"]]
         for ident, value in nspec.get("inputs", {}).items():
-            sock = find_socket(node.inputs, ident_map.get(ident, ident) if node.bl_idname == "NodeGroupOutput" else ident,
-                               f"{nspec['name']} inputs")
+            sock = find_socket(node.inputs, remap(node, ident), f"{nspec['name']} inputs")
             sock.default_value = resolve(value)
         node.mute = bool(nspec.get("mute", False))
-
-    def remap(node, ident):
-        if node.bl_idname in ("NodeGroupInput", "NodeGroupOutput"):
-            return ident_map.get(ident, ident)
-        return ident
 
     # Reverse order: the last link created gets the highest multi-input sort id and is evaluated first.
     for link in reversed(spec["links"]):
@@ -347,7 +356,8 @@ def evaluate(case, writer):
     build_scene(case)
     library, main = case_tree(case)
     groups = {name: bpy.data.node_groups.new(name, "GeometryNodeTree") for name in library}
-    built = {name: build_group(name, spec, groups) for name, spec in library.items()}
+    ident_maps = {name: build_interface(name, spec, groups) for name, spec in library.items()}
+    built = {name: build_group(name, spec, groups, ident_maps) for name, spec in library.items()}
     obj = bpy.data.objects.new(case["id"], make_mesh(case["id"], case.get("input", "empty")))
     obj.location = case.get("location", (0, 0, 0))
     obj.rotation_euler = case.get("rotation", (0, 0, 0))

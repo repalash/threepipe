@@ -83,9 +83,26 @@ function treeCode(t: NodeTreeJSON, library: NodeGroupLibrary, groupVars: Map<str
         if (!s) throw new Error(`toCode: group ${node.group} has no socket ${identifier}`)
         return dslKey(s.name)
     }
+    // Repeat zones print as `g.repeatZone({...}, iterations)` and `zone.output({...})`, items addressed by name.
+    const zoneItems = (input: NodeJSON): {identifier: string, name: string, type: string}[] => {
+        const out = byName.get(input.pairedOutput ?? '')
+        return (out?.items?.repeat_items ?? []).map((item, i) => ({
+            identifier: `Item_${typeof item.identifier === 'number' ? item.identifier : i}`, name: String(item.name ?? ''), type: String(item.socket_type),
+        }))
+    }
+    const pairedInput = (output: NodeJSON) => t.nodes.find(x => x.type === 'GeometryNodeRepeatInput' && x.pairedOutput === output.name)
+    const prop = (name: string) => (/^[A-Za-z_$][\w$]*$/.test(name) ? `.${name}` : `[${lit(name)}]`)
+    const key = (name: string) => (/^[A-Za-z_$][\w$]*$/.test(name) ? name : lit(name))
     const expr = (from: [string, string]): string => {
         const src = byName.get(from[0])!
         if (src.type === 'NodeGroupInput') return inputVar.get(from[1])!
+        if (src.type === 'GeometryNodeRepeatInput') {
+            if (from[1] === 'Iteration') return `${nodeVar.get(src.name)}.iteration`
+            return `${nodeVar.get(src.name)}.input${prop(zoneItems(src).find(i => i.identifier === from[1])!.name)}`
+        }
+        if (src.type === 'GeometryNodeRepeatOutput') {
+            return `${nodeVar.get(src.name)}${prop(zoneItems(pairedInput(src)!).find(i => i.identifier === from[1])!.name)}`
+        }
         if (src.type === 'NodeReroute') {
             const l = incoming.get(src.name)?.[0]
             return l ? expr(l.from) : 'undefined'
@@ -102,6 +119,11 @@ function treeCode(t: NodeTreeJSON, library: NodeGroupLibrary, groupVars: Map<str
         if (stack.has(n.name)) throw new Error(`cycle through ${n.name}`)
         stack.add(n.name)
         for (const l of incoming.get(n.name) ?? []) visit(byName.get(l.from[0])!, stack)
+        // A zone's output comes after its input.
+        if (n.type === 'GeometryNodeRepeatOutput') {
+            const input = pairedInput(n)
+            if (input) visit(input, stack)
+        }
         stack.delete(n.name)
         done.add(n.name)
         ordered.push(n)
@@ -114,6 +136,27 @@ function treeCode(t: NodeTreeJSON, library: NodeGroupLibrary, groupVars: Map<str
         nodeVar.set(node.name, v)
         const args: string[] = []
         const links = incoming.get(node.name) ?? []
+        if (node.type === 'GeometryNodeRepeatInput') {
+            const items = zoneItems(node).map(item => {
+                const l = links.find(x => x.to[1] === item.identifier)
+                if (l) return `${key(item.name)}: ${expr(l.from)}`
+                const value = node.inputs?.[item.identifier]
+                return `${key(item.name)}: {type: ${lit(item.type)}${value !== undefined ? `, value: ${lit(value)}` : ''}}`
+            })
+            const it = links.find(x => x.to[1] === 'Iterations')
+            const count = it ? expr(it.from) : lit(node.inputs?.Iterations ?? 1)
+            lines.push(`    const ${v} = g.repeatZone({${items.join(', ')}}, ${count})`)
+            continue
+        }
+        if (node.type === 'GeometryNodeRepeatOutput') {
+            const input = pairedInput(node)!
+            const items = zoneItems(input).flatMap(item => {
+                const l = links.find(x => x.to[1] === item.identifier)
+                return l ? [`${key(item.name)}: ${expr(l.from)}`] : []
+            })
+            lines.push(`    const ${v} = ${nodeVar.get(input.name)}.output({${items.join(', ')}})`)
+            continue
+        }
         if (node.type === 'GeometryNodeGroup') {
             for (const [k, val] of Object.entries(node.inputs ?? {})) {
                 if (!links.some(l => l.to[1] === k)) args.push(`${groupSocketKey(node, k)}: ${lit(val)}`)

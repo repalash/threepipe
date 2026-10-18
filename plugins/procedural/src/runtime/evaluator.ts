@@ -59,6 +59,30 @@ interface Dep {
     socket: string
     multi: boolean
     value: SocketValue | SocketValue[]
+    /** The node whose input this is, when not the node owning the cache (a zone output reads its input node). */
+    node?: CNode
+    /** A link read across a zone border: re-checked as the source's current value. */
+    src?: LinkSource
+    /** The iteration of a zone the result depends on (anonymous attribute names are per iteration). */
+    zone?: Zone
+}
+
+/**
+ * A repeat zone (`bNodeTreeZone`, `blenkernel/intern/node_tree_zones.cc`): the nodes between a Repeat Input and its
+ * paired Repeat Output. Its body runs once per iteration (`LazyFunctionForRepeatZone`,
+ * `nodes/intern/geometry_nodes_repeat_zone.cc`), each iteration in its own compute context.
+ */
+interface Zone {
+    input: CNode
+    output: CNode
+    parent?: Zone
+    items: {identifier: string, type: SocketType}[]
+    /** Execution state while the body runs. */
+    running: boolean
+    iteration: number
+    state: SocketValue[]
+    iterationValue: SocketValue
+    border: Dep[]
 }
 
 interface External {
@@ -83,7 +107,7 @@ interface CNode {
     /** Undefined for the built-in group input/output, reroute and frame nodes. */
     def?: NodeTypeDef
     inst?: NodeInstance
-    kind: 'node' | 'group-input' | 'group-output' | 'reroute' | 'frame' | 'group'
+    kind: 'node' | 'group-input' | 'group-output' | 'reroute' | 'frame' | 'group' | 'repeat-input' | 'repeat-output'
     inputDecls: Map<string, SocketDecl>
     outputDecls: Map<string, SocketDecl>
     inputLinks: Map<string, LinkSource[]>
@@ -93,6 +117,10 @@ interface CNode {
     checked: number
     cache?: NodeCache
     sub?: TreeEval
+    /** The innermost zone the node is in (its inputs are read inside it); for zone input/output nodes, the zone around theirs. */
+    zone?: Zone
+    /** The zone a Repeat Input / Repeat Output node opens / closes. */
+    ownZone?: Zone
 }
 
 export interface EvalWarning {
@@ -118,7 +146,22 @@ interface Root {
     sameExternal(key: string, version: number | string): boolean
 }
 
-const BUILTIN_TYPES = new Set(['NodeGroupInput', 'NodeGroupOutput', 'NodeReroute', 'NodeFrame', 'GeometryNodeGroup'])
+const BUILTIN_TYPES = new Set(['NodeGroupInput', 'NodeGroupOutput', 'NodeReroute', 'NodeFrame', 'GeometryNodeGroup',
+    'GeometryNodeRepeatInput', 'GeometryNodeRepeatOutput'])
+
+/** `RepeatItemsAccessor::socket_identifier_for_item` (`NOD_geo_repeat.hh`): `Item_<identifier>`. */
+function repeatItems(output: NodeJSON | undefined): {identifier: string, name: string, type: SocketType}[] {
+    const items = output?.items?.repeat_items ?? []
+    return items.map((item, i) => ({
+        identifier: `Item_${typeof item.identifier === 'number' ? item.identifier : i}`,
+        name: String(item.name ?? ''),
+        type: String(item.socket_type) as SocketType,
+    }))
+}
+
+function itemDecl(identifier: string, name: string, type: SocketType): SocketDecl {
+    return {identifier, name, type, available: true, structure: socketDataType(type) ? 'dynamic' : type === 'GEOMETRY' ? 'geometry' : 'single'}
+}
 
 /** `get_internal_link_type_priority` (`blenkernel/intern/node_tree_update.cc:111`). */
 function internalLinkPriority(from: SocketType, to: SocketType): number {
@@ -171,7 +214,8 @@ class TreeEval {
     constructor(
         readonly root: Root,
         readonly tree: NodeTreeJSON,
-        readonly path: string,
+        /** Compute context of this tree evaluation (group nodes and zone iterations above it). */
+        public path: string,
         /** Reads a group input from the calling node; undefined for the root tree. */
         public parentInput: ((identifier: string) => SocketValue) | undefined,
         /** Root-tree interface input values (modifier inputs). */
@@ -200,6 +244,86 @@ class TreeEval {
         }
         const outs = [...this.nodes.values()].filter(n => n.kind === 'group-output')
         this.groupOutputNode = outs.find(n => n.json.properties?.is_active_output !== false) ?? outs[0]
+        this.findZones()
+    }
+
+    /**
+     * `discover_tree_zones` (`node_tree_zones.cc:222`): a node is in a zone when it depends on the zone's input node
+     * and not on its output; the zone output depends on everything its input depends on. The innermost such zone is
+     * the node's zone. Invalid zone layouts (a node both inside and after a zone, cycles) make the tree invalid.
+     */
+    private findZones(): void {
+        const zones: Zone[] = []
+        for (const out of this.nodes.values()) {
+            if (out.kind !== 'repeat-output') continue
+            const input = [...this.nodes.values()].find(n => n.kind === 'repeat-input' && n.json.pairedOutput === out.json.name)
+            if (!input) throw new Error(`procedural: Repeat Output '${out.json.name}' in '${this.tree.name}' has no paired Repeat Input`)
+            const zone: Zone = {input, output: out, items: repeatItems(out.json), running: false, iteration: 0, state: [], iterationValue: null, border: []}
+            input.ownZone = out.ownZone = zone
+            zones.push(zone)
+        }
+        if (!zones.length) return
+        // `toposort_left_to_right`, with each zone output after its input.
+        const order: CNode[] = []
+        const seen = new Set<CNode>()
+        const visit = (n: CNode, stack: Set<CNode>) => {
+            if (seen.has(n)) return
+            if (stack.has(n)) throw new Error(`procedural: '${this.tree.name}' has a link cycle through '${n.json.name}'`)
+            stack.add(n)
+            for (const links of n.inputLinks.values()) for (const l of links) visit(l.node, stack)
+            if (n.kind === 'repeat-output') visit(n.ownZone!.input, stack)
+            stack.delete(n)
+            seen.add(n)
+            order.push(n)
+        }
+        for (const n of this.nodes.values()) visit(n, new Set())
+        const dependsOnInput = new Map<CNode, Set<Zone>>()
+        const dependsOnOutput = new Map<CNode, Set<Zone>>()
+        for (const n of order) {
+            const dIn = new Set<Zone>(), dOut = new Set<Zone>()
+            for (const links of n.inputLinks.values()) {
+                for (const l of links) {
+                    dependsOnInput.get(l.node)!.forEach(z => dIn.add(z))
+                    dependsOnOutput.get(l.node)!.forEach(z => dOut.add(z))
+                }
+            }
+            if (n.kind === 'repeat-input') {
+                dIn.add(n.ownZone!)
+            } else if (n.kind === 'repeat-output') {
+                const z = n.ownZone!
+                dependsOnInput.get(z.input)!.forEach(x => dIn.add(x))
+                dependsOnOutput.get(z.input)!.forEach(x => dOut.add(x))
+                dIn.delete(z)
+                dOut.add(z)
+            }
+            for (const z of dIn) {
+                if (dOut.has(z)) throw new Error(`procedural: '${n.json.name}' in '${this.tree.name}' is both inside and after the zone of '${z.output.json.name}'`)
+            }
+            dependsOnInput.set(n, dIn)
+            dependsOnOutput.set(n, dOut)
+        }
+        // `get_direct_zone_relations` (:82): a zone's parent is the innermost other zone its output depends on.
+        const ancestors = new Map<Zone, Set<Zone>>()
+        for (const z of zones) {
+            const set = new Set(dependsOnInput.get(z.output))
+            set.delete(z)
+            for (const p of set) if (dependsOnInput.get(p.output)!.has(z)) throw new Error(`procedural: zones '${z.output.json.name}' and '${p.output.json.name}' in '${this.tree.name}' depend on each other`)
+            ancestors.set(z, set)
+        }
+        const innermost = (set: Set<Zone>): Zone | undefined => {
+            for (const z of set) if ([...set].every(o => o === z || ancestors.get(z)!.has(o))) return z
+            if (set.size) throw new Error(`procedural: a node of '${this.tree.name}' is in several unrelated zones`)
+            return undefined
+        }
+        for (const z of zones) z.parent = innermost(ancestors.get(z)!)
+        // `update_zone_per_node` (:140).
+        for (const n of order) {
+            const set = new Set(dependsOnInput.get(n))
+            if (n.ownZone) set.delete(n.ownZone)
+            n.zone = innermost(set)
+            if (n.ownZone) n.zone = n.ownZone.parent
+        }
+        if (this.groupOutputNode?.zone) throw new Error(`procedural: the Group Output of '${this.tree.name}' is inside a zone`)
     }
 
     private compile(json: NodeJSON): CNode {
@@ -230,6 +354,26 @@ class TreeEval {
         }
         case 'NodeFrame':
             return {...base, kind: 'frame'}
+        case 'GeometryNodeRepeatInput': {
+            // `repeat_input_node::node_declare` (node_geo_repeat.cc:72): items of the paired output node.
+            const n: CNode = {...base, kind: 'repeat-input'}
+            n.outputDecls.set('Iteration', itemDecl('Iteration', 'Iteration', 'INT'))
+            n.inputDecls.set('Iterations', {...itemDecl('Iterations', 'Iterations', 'INT'), min: 0, default: 1})
+            for (const item of repeatItems(this.tree.nodes.find(x => x.name === json.pairedOutput))) {
+                n.inputDecls.set(item.identifier, itemDecl(item.identifier, item.name, item.type))
+                n.outputDecls.set(item.identifier, itemDecl(item.identifier, item.name, item.type))
+            }
+            return n
+        }
+        case 'GeometryNodeRepeatOutput': {
+            // `repeat_output_node::node_declare` (:175).
+            const n: CNode = {...base, kind: 'repeat-output'}
+            for (const item of repeatItems(json)) {
+                n.inputDecls.set(item.identifier, itemDecl(item.identifier, item.name, item.type))
+                n.outputDecls.set(item.identifier, itemDecl(item.identifier, item.name, item.type))
+            }
+            return n
+        }
         case 'GeometryNodeGroup': {
             const groupName = json.group ?? (json.properties?.node_tree as {name?: string} | undefined)?.name
             const group = groupName ? this.root.library[groupName] : undefined
@@ -276,6 +420,14 @@ class TreeEval {
         }
         case 'reroute':
             return this.inputValue(n, 'Input', undefined)
+        case 'repeat-input': {
+            // Inside the zone: the current iteration's values (`LazyFunctionForRepeatZone` body inputs).
+            const z = n.ownZone!
+            if (!z.running) throw new Error(`procedural: '${src.socket}' of Repeat Input '${n.json.name}' read outside its zone`)
+            if (src.socket === 'Iteration') return z.iterationValue
+            const k = z.items.findIndex(i => i.identifier === src.socket)
+            return z.state[k]
+        }
         default: {
             this.ensure(n)
             const out = n.cache!.outputs.get(src.socket)
@@ -317,6 +469,7 @@ class TreeEval {
         } else {
             const src = links[0]
             const raw = this.sourceValue(src)
+            this.recordBorder(n, src, raw)
             const fromDecl = src.node.outputDecls.get(src.socket)!
             value = convertLinkValue(raw, fromDecl.type, decl.type) ?? this.unlinked(n, socket)
         }
@@ -346,10 +499,51 @@ class TreeEval {
         const links = (n.inputLinks.get(socket) ?? []).filter(l => !this.isDanglingReroute(l.node))
         const values = links.map(src => {
             const raw = this.sourceValue(src)
+            this.recordBorder(n, src, raw)
             return convertLinkValue(raw, src.node.outputDecls.get(src.socket)!.type, decl.type)
         }).filter((v): v is SocketValue => v !== undefined)
         record?.push({socket, multi: true, value: values})
         return values
+    }
+
+    /** Whether `n` reads its inputs inside `zone` (directly or in a nested zone), or is the zone's output node. */
+    private inZone(n: CNode, zone: Zone): boolean {
+        if (n === zone.output) return true
+        for (let z = n.zone; z; z = z.parent) if (z === zone) return true
+        return false
+    }
+
+    /**
+     * A running zone remembers every value its body read from outside it (`bNodeTreeZone::border_links`): the zone's
+     * result is reused on the next evaluation only while they are unchanged.
+     */
+    private recordBorder(n: CNode, src: LinkSource, raw: SocketValue): void {
+        for (let z = n.kind === 'repeat-output' ? n.ownZone : n.zone; z; z = z.parent) {
+            if (!z.running) continue
+            if (!this.inZone(n, z) || this.inZone(src.node, z) || src.node === z.input) continue
+            if (!z.border.some(d => d.src!.node === src.node && d.src!.socket === src.socket)) z.border.push({socket: src.socket, multi: false, value: raw, src})
+        }
+    }
+
+    /** The compute context of a node's iteration: `<repeat output>#<iteration>/` per zone around it, outermost first. */
+    private zonePath(n: CNode): string {
+        let p = ''
+        for (let z = n.zone; z; z = z.parent) p = `${z.output.json.name}#${z.iteration}/${p}`
+        return p
+    }
+
+    /** Dependencies on the iterations of the zones around `n` (its anonymous attribute names include them). */
+    private recordIterations(n: CNode, deps: Dep[]): void {
+        for (let z = n.zone; z; z = z.parent) {
+            if (!deps.some(d => d.zone === z)) deps.push({socket: '', multi: false, value: String(z.iteration), zone: z})
+        }
+    }
+
+    private depValue(n: CNode, d: Dep): SocketValue | SocketValue[] {
+        if (d.zone) return String(d.zone.iteration)
+        if (d.src) return this.sourceValue(d.src)
+        const node = d.node ?? n
+        return d.multi ? this.inputValues(node, d.socket, undefined) : this.inputValue(node, d.socket, undefined)
     }
 
     // endregion
@@ -362,7 +556,7 @@ class TreeEval {
         const c = n.cache
         if (c && c.localVersion === n.localVersion &&
             c.externals.every(e => this.root.sameExternal(e.key, e.version)) &&
-            c.deps.every(d => sameValue(d.multi ? this.inputValues(n, d.socket, undefined) : this.inputValue(n, d.socket, undefined), d.value))) {
+            c.deps.every(d => sameValue(this.depValue(n, d), d.value))) {
             this.root.stats.reused++
             return
         }
@@ -381,8 +575,12 @@ class TreeEval {
         case 'group':
             this.executeGroup(n, cache)
             return
+        case 'repeat-output':
+            this.executeRepeat(n, cache)
+            return
         case 'frame':
         case 'group-output':
+        case 'repeat-input':
             return
         default:
             break
@@ -486,13 +684,53 @@ class TreeEval {
         }
     }
 
+    /**
+     * `LazyFunctionForRepeatZone` (`geometry_nodes_repeat_zone.cc`): the Iterations input (`max(0, ...)`, :201) and
+     * the items' initial values are read outside the zone; the body runs `iterations` times, each iteration's outputs
+     * feeding the next one's inputs (:296); no iterations pass the inputs through (:339).
+     */
+    private executeRepeat(n: CNode, cache: NodeCache): void {
+        const z = n.ownZone!
+        const read = (id: string): SocketValue => {
+            const rec: Dep[] = []
+            const v = this.inputValue(z.input, id, rec)
+            for (const d of rec) cache.deps.push({...d, node: z.input})
+            return v
+        }
+        const count = read('Iterations')
+        const iterations = Math.max(0, count instanceof GField ? singleOf('Iterations', count)[0] : 0)
+        let state = z.items.map(item => read(item.identifier))
+        if (z.running) throw new Error(`procedural: repeat zone '${n.json.name}' re-entered`)
+        z.border = []
+        z.running = true
+        try {
+            for (let i = 0; i < iterations; i++) {
+                // A new pass: every node re-checks its inputs, the body's against this iteration's values.
+                this.root.revision++
+                z.iteration = i
+                z.iterationValue = GField.constant('int32', [i])
+                z.state = state
+                state = z.items.map(item => this.inputValue(n, item.identifier, undefined))
+            }
+        } finally {
+            z.running = false
+            z.state = []
+        }
+        cache.deps.push(...z.border)
+        z.items.forEach((item, k) => cache.outputs.set(item.identifier, state[k]))
+    }
+
     /** `LazyFunctionForGroupNode` (`geometry_nodes_lazy_function.cc:1140`). */
     private executeGroup(n: CNode, cache: NodeCache): void {
         const groupName = n.json.group ?? (n.json.properties?.node_tree as {name?: string} | undefined)?.name
         const tree = this.root.library[groupName!]
+        // The group's compute context includes the zone iterations around this node.
+        const path = `${this.path}${this.zonePath(n)}${n.json.name}/`
         if (!n.sub) {
-            n.sub = new TreeEval(this.root, tree, `${this.path}${n.json.name}/`, undefined)
+            n.sub = new TreeEval(this.root, tree, path, undefined)
         }
+        n.sub.path = path
+        this.recordIterations(n, cache.deps)
         const sub = n.sub
         // The group reads its inputs from this node lazily; every read is recorded on this node.
         sub.parentInput = (id: string) => {
@@ -567,7 +805,10 @@ class TreeEval {
                 cache.outputs.set(id, value)
             },
             outputUsed: id => n.linkedOutputs.has(id),
-            anonymousName: id => `.a_${self.path}${n.json.name}_${id}`,
+            anonymousName: id => {
+                self.recordIterations(n, cache.deps)
+                return `.a_${self.path}${self.zonePath(n)}${n.json.name}_${id}`
+            },
             warn: message => self.root.warnings.push({path: self.path, node: n.json.name, message}),
             dependsOn: (key, version) => cache.externals.push({key, version}),
         }
@@ -646,6 +887,14 @@ export class GeometryNodesEvaluator {
             sameExternal: (key, version) => this.externalVersions.get(key) === version,
         }
         this.tree = new TreeEval(this.root, tree, '', undefined, this.inputs)
+        const time = options.time ?? {ctime: 1, frameRate: 24}
+        this.externalVersions.set('scene-time', `${time.ctime}/${time.frameRate}`)
+    }
+
+    /** Change the scene time Scene Time reads (frame `ctime`, `frameRate` = fps / fps_base); only nodes reading it re-run. */
+    setTime(ctime: number, frameRate = this.root.options.time?.frameRate ?? 24): void {
+        this.root.options.time = {ctime, frameRate}
+        this.externalVersions.set('scene-time', `${ctime}/${frameRate}`)
     }
 
     get interfaceInputs(): readonly InterfaceSocketJSON[] {
