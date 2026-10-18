@@ -148,11 +148,29 @@ const prismCageP = fitClosedCage(prismTarget)
 const yBase = 93, zFront = y => y <= yBase ? 70 : 70 - 22 * (y - yBase) / (top - yBase), zRear = y => y <= yBase ? 0 : 5 * (y - yBase) / (top - yBase)
 for (const c of prismCage('body-prism', 'z', prismCageP, (i, e, p) => [p[0], p[1], e ? zFront(p[1]) : zRear(p[1])])) await run(c)
 await gridCaps('body-prism', prismCageP.length, [8, 12])
-// support loops 4 mm inside the sloped front and rear planes
-const nFront = (() => { const dy = top - yBase, dz = -22, l = Math.hypot(dy, dz); return [0, -dz / l, dy / l] })() // outward normal (y, z)
-const nRear = (() => { const dy = top - yBase, dz = 5, l = Math.hypot(dy, dz); return [0, dz / l, -dy / l] })()
-await run({op: 'bisect', object: 'body-prism', planeCo: [0, r2(yBase - 4 * nFront[1]), r2(70 - 4 * nFront[2])], planeNo: nFront.map(r2)})
-await run({op: 'bisect', object: 'body-prism', planeCo: [0, r2(yBase - 4 * nRear[1]), r2(0 - 4 * nRear[2])], planeNo: nRear.map(r2)})
+// Grid Fill places the inner grid by blending the boundary (a Coons patch), which twists across the front's kink at
+// the plate; put every cap vertex back on its face - z of the front or rear by height
+{
+    const g = (await run({op: 'inspect', object: 'body-prism', detail: true, limit: 100000})).data
+    const moves = []
+    g.vertices.forEach(([x, y, z], i) => {
+        const zf = zFront(y), zr = zRear(y), zt = Math.abs(z - zf) < Math.abs(z - zr) ? zf : zr
+        if (Math.abs(zt - z) > 1e-4) moves.push([i, x, y, r2(zt)])
+    })
+    if (moves.length) await run({op: 'vertices', object: 'body-prism', verts: moves})
+}
+// The front and rear are not planar (vertical below the plate, sloped above), so a support loop cut by a plane
+// would cross the grid-filled front; crease the two rims instead (OpenSubdiv semi-sharp: sharpness 10 c^2).
+const pi = (await run({op: 'inspect', object: 'body-prism', detail: true, limit: 100000})).data
+// band faces have corners on both ends; their edges with both ends on one cap are the rims
+const end = v => { const [, y, z] = pi.vertices[v]; return Math.abs(z - zFront(y)) < 1e-3 ? 1 : Math.abs(z - zRear(y)) < 1e-3 ? 0 : -1 }
+const rims = []
+pi.faceVerts.forEach((fv, f) => {
+    const ends = fv.map(end)
+    if (!(ends.includes(0) && ends.includes(1))) return
+    pi.faceEdges[f].forEach((e, k) => { const a = fv[k], b = fv[(k + 1) % fv.length]; if (end(a) === end(b) && end(a) >= 0) rims.push(e) })
+})
+await run({op: 'crease', object: 'body-prism', edges: rims, value: 0.6})
 await run({op: 'modifier', object: 'body-prism', add: {type: 'subsurf', levels}})
 await run({op: 'material', object: 'body-prism', color: '#141517', metalness: 0.1, roughness: 0.6})
 const prismCmds = log.splice(0)
