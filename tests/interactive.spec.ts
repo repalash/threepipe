@@ -29,6 +29,43 @@ test('3dm-to-glb', async({page, browserName}, testInfo) => {
     await downloadFileMatch(page, 'file.glb', async() => btnClick(page, 'Download .glb'))
 })
 
+test('obj-mtl-load', async({page}) => {
+    await expect(page).toHaveTitle('OBJ MTL Load')
+
+    const imageWidths = await page.evaluate(() => {
+        const widths: number[] = []
+        const viewer = (window as any).threeViewers[0]
+        viewer.scene.modelRoot.traverse((object: any) => {
+            const materials = Array.isArray(object.material) ? object.material : [object.material]
+            for (const material of materials) {
+                if (material?.map) widths.push(material.map.image?.width ?? 0)
+            }
+        })
+        return widths
+    })
+    expect(imageWidths.length).toBeGreaterThan(0)
+    expect(imageWidths.every(width => width > 0)).toBe(true)
+})
+
+test('obj-to-glb', async({page}) => {
+    await expect(page).toHaveTitle('OBJ To GLB')
+
+    // The example exports the OBJ and reloads the GLB; its textures must survive the roundtrip.
+    const imageWidths = await page.evaluate(() => {
+        const widths: number[] = []
+        const viewer = (window as any).threeViewers[0]
+        viewer.scene.modelRoot.traverse((object: any) => {
+            const materials = Array.isArray(object.material) ? object.material : [object.material]
+            for (const material of materials) {
+                if (material?.map) widths.push(material.map.image?.width ?? 0)
+            }
+        })
+        return widths
+    })
+    expect(imageWidths.length).toBeGreaterThan(0)
+    expect(imageWidths.every(width => width > 0)).toBe(true)
+})
+
 test('camera-uiconfig', async({page}, testInfo) => {
     await expect(page).toHaveTitle('Camera UiConfig')
     const setCam = async(fn: string) => {
