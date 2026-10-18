@@ -12,6 +12,7 @@ import {foreachRealGeometry} from '../../geometry/joinGeometries'
 import {GVArray} from '../../geometry/varray'
 import {AttributeAccessor} from '../../geometry/attributeAccessor'
 import {registerNodeType} from '../../runtime/registry'
+import {newMeshData} from '../../geometry/components'
 
 /** "max(float, float)" (`multi_function_common.cc:288`): `std::max(a, b)`. */
 const maxFloat = elementwise('max(float, float)', ['float', 'float'], ['float'], ([a, b], [o]) => { o[0] = a[0] < b[0] ? b[0] : a[0] })
@@ -112,7 +113,7 @@ registerNodeType({
             if (!points || points.pointsNum === 0) return clear()
             const sel = selected(new FieldEvaluation(new FieldContext('pointcloud', points, AttrDomain.Point), points.pointsNum).evaluate(selection), points.pointsNum)
             // `mesh_new_no_attributes(selection.size(), 0, 0, 0)`.
-            const mesh = new MeshData()
+            const mesh = newMeshData()
             for (const l of mesh.attributes.layers()) if (l.domain === AttrDomain.Point) mesh.attributes.remove(l.name)
             mesh.resize({verts: sel.length})
             copyAttributes(g.attributes('pointcloud')!, g.attributes('mesh') ?? meshAccessorOf(mesh), undefined, sel, [], {'.selection': '.select_vert'})

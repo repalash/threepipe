@@ -9,6 +9,7 @@
 import {AttrDomain, MeshData} from '@threepipe/mesh-kernel'
 import {DATA_TYPES, DataType} from './dataTypes'
 import {GVArray} from './varray'
+import {newMeshData} from './components'
 
 type Mask = number[]
 
@@ -99,7 +100,7 @@ function gatherCorners(src: MeshData, dst: MeshData, faceMask: Mask, skip: reado
 
 /** `mesh_new_no_attributes` + `BKE_mesh_copy_parameters_for_eval` + `gather_selected_offsets`. */
 function newMeshFor(src: MeshData, verts: number, edges: number, faceMask: Mask): MeshData {
-    const dst = new MeshData()
+    const dst = newMeshData()
     for (const layer of dst.attributes.layers()) dst.attributes.remove(layer.name)
     const so = src.faceOffsets
     let corners = 0

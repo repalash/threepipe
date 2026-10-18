@@ -10,7 +10,7 @@ import {describe, expect, it} from 'vitest'
 import {existsSync, readFileSync, writeFileSync} from 'node:fs'
 import {join} from 'node:path'
 import {compareGeometry, ExpectedGeometry, GeometryNodesEvaluator} from '../../src'
-import {binResolver, DumpReferenced, inlineBinRefs, sceneFromDump} from '../../src/io/geometryFromDump'
+import {binResolver, DumpReferenced, geometryFromDump, inlineBinRefs, sceneFromDump} from '../../src/io/geometryFromDump'
 import {ParityCase} from './cases/types'
 import {functionMathCases} from './cases/functionMath'
 import {functionRandomCases} from './cases/functionRandom'
@@ -50,23 +50,29 @@ for (const [set, generate] of Object.entries(SETS)) {
                 continue
             }
             it(c.id, () => {
-                const gt = JSON.parse(readFileSync(join(dir, `${c.id}.json`), 'utf8')) as {geometry?: ExpectedGeometry, error?: string, scene?: DumpReferenced}
+                const gt = JSON.parse(readFileSync(join(dir, `${c.id}.json`), 'utf8')) as {geometry?: ExpectedGeometry, error?: string, scene?: DumpReferenced, input?: ExpectedGeometry}
                 if (gt.error) throw new Error(`Blender failed on this case: ${gt.error}`)
                 const bin = join(dir, `${c.id}.bin`)
                 const resolver = binResolver(existsSync(bin) ? {[`${c.id}.bin`]: readFileSync(bin)} : {})
                 const expected = inlineBinRefs(gt.geometry!, resolver)
                 // The case's object is named after the case (`run_cases.py`); Object/Collection Info read the scene Blender built.
                 const options = gt.scene ? {scene: sceneFromDump(gt.scene, resolver), selfObject: c.id} : {}
+                // The modifier's input: the mesh Blender built for the case object (`input`), or nothing.
+                const evaluate = () => {
+                    const ev = new GeometryNodesEvaluator(c.library, c.group, options)
+                    if (c.input !== 'empty' && gt.input) ev.setInputGeometry(geometryFromDump(gt.input, resolver))
+                    return ev.evaluate()
+                }
                 let diffs: string[]
                 try {
-                    const out = new GeometryNodesEvaluator(c.library, c.group, options).evaluate()
+                    const out = evaluate()
                     diffs = compareGeometry(out.geometry!, expected, {byteColor: 'srgb'})
                 } catch (e) {
                     diffs = [`error: ${(e as Error).message}`]
                 }
                 // Float32 policy: record whether the case is bit-exact, not only within the 1e-5 tolerance.
                 if (!diffs.length) {
-                    const actual = new GeometryNodesEvaluator(c.library, c.group, options).evaluate().geometry!
+                    const actual = evaluate().geometry!
                     const ulps = [0, 1, 2, 4, 16].find(u => !compareGeometry(actual, expected, {byteColor: 'srgb', ulps: u}).length)
                     status[c.id] = ulps === 0 ? 'exact' : `pass (${ulps === undefined ? '> 16' : `<= ${ulps}`} ulp)`
                 } else {

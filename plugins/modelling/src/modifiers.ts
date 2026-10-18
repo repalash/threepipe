@@ -139,6 +139,34 @@ export interface ModifierType<S extends ModifierSpec = ModifierSpec> {
     /** One line, for `inspect`, the `modifier` listing and UI lists. */
     describe(spec: S): string
     evaluate(mesh: MeshData, spec: S, ctx: ModifierContext): MeshData | ModifierResult
+    /**
+     * The modifier's editable fields for a UI. Defaults to {@link properties} and the spec's own values; a type
+     * whose fields are not its spec's keys (a geometry-nodes group's inputs) supplies its own.
+     */
+    fields?(spec: S, doc: ModellingDocument | undefined): ModifierFields | undefined
+}
+
+/** Editable fields of one modifier: a JSON schema, the current values, and the `modifier` command's `update` for new values. */
+export interface ModifierFields {
+    schema: {type: 'object', properties: Record<string, unknown>}
+    values: Record<string, unknown>
+    update(values: Record<string, unknown>): Record<string, unknown>
+}
+
+/** {@link ModifierType.fields} of a spec, or the default from the type's `properties`. */
+export function modifierFields(spec: ModifierSpec, doc?: ModellingDocument): ModifierFields | undefined {
+    const def = modifierTypes.get(spec.type)
+    if (!def) return undefined
+    if (def.fields) return def.fields(spec, doc)
+    if (!def.properties) return undefined
+    const {type: _type, ...values} = spec as Record<string, unknown>
+    void _type
+    return {
+        schema: {type: 'object', properties: def.properties},
+        values,
+        // Keys set to undefined are dropped from the spec (JSON), so a cleared field returns to its default.
+        update: next => Object.fromEntries(Object.keys({...values, ...next}).map(k => [k, next[k]])),
+    }
 }
 
 const modifierTypes = new Map<string, ModifierType>()

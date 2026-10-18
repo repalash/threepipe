@@ -61,14 +61,32 @@ export class AttributeStorage {
      * table ({@link BUILTIN_ATTRS}); point clouds, curves and instances pass their own, since the same
      * name can mean a different domain there (`material_index` is per curve on curves).
      */
-    readonly builtins: Readonly<Record<string, {domain: AttrDomain, type: AttrType}>>
+    get builtins(): Readonly<Record<string, {domain: AttrDomain, type: AttrType}>> {
+        return this._builtins
+    }
+
+    private _builtins: Readonly<Record<string, {domain: AttrDomain, type: AttrType}>>
+
+    /**
+     * Replace the built-in table, e.g. with Blender's smaller mesh table (geometry nodes may put `.select_poly`
+     * on points, which the kernel's table forbids). Throws if an existing layer does not fit the new table.
+     */
+    setBuiltins(builtins: Readonly<Record<string, {domain: AttrDomain, type: AttrType}>>): void {
+        for (const layer of this._layers.values()) {
+            const b = Object.prototype.hasOwnProperty.call(builtins, layer.name) ? builtins[layer.name] : undefined
+            if (b && (b.domain !== layer.domain || b.type !== layer.type)) {
+                throw new Error(`mesh-kernel: attribute '${layer.name}' (${attrDomainName(layer.domain)}/${layer.type}) does not fit the new built-in table`)
+            }
+        }
+        this._builtins = builtins
+    }
 
     constructor(
         domainSizes?: Partial<Record<AttrDomain, number>>,
         builtins: Readonly<Record<string, {domain: AttrDomain, type: AttrType}>> = BUILTIN_ATTRS,
     ) {
         if (domainSizes) for (const d of ALL_ATTR_DOMAINS) this.domainSizes[d] = domainSizes[d] ?? 0
-        this.builtins = builtins
+        this._builtins = builtins
     }
 
     get size(): number {

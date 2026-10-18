@@ -62,7 +62,7 @@ export const INSTANCES_BUILTINS: Readonly<Record<string, BuiltinAttribute>> = {
     '.reference_index': {domain: AttrDomain.Instance, type: 'int32', deletable: false},
 }
 
-const kernelTable = (t: Readonly<Record<string, BuiltinAttribute>>) =>
+export const kernelTable = (t: Readonly<Record<string, BuiltinAttribute>>) =>
     Object.fromEntries(Object.entries(t).map(([k, v]) => [k, {domain: v.domain, type: v.type}]))
 
 /** Mesh attribute access (`MeshComponent::attributes`, `mesh_attributes.cc`). */
@@ -274,4 +274,19 @@ export class Instances {
         out.references = this.references.slice()
         return out
     }
+}
+
+/**
+ * Blender's mesh built-in table (`mesh_attributes.cc` `builtin_attributes()`): the kernel's default table also
+ * fixes the editor's attributes (`.select_*`, `.hide_*`, creases, bevel weights, `uv_seam`) to one domain, which
+ * Blender does not - geometry nodes can move `.select_poly` onto points. Meshes the procedural package creates or
+ * writes use this table.
+ */
+export const BLENDER_MESH_TABLE = kernelTable(MESH_BUILTINS)
+
+/** A new empty mesh with Blender's built-in table. */
+export function newMeshData(): MeshData {
+    const mesh = new MeshData()
+    mesh.attributes.setBuiltins(BLENDER_MESH_TABLE)
+    return mesh
 }

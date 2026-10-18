@@ -4,7 +4,7 @@
  * element order, referenced objects for Object/Collection Info, images.
  */
 
-import {AttrDomain, AttributeStorage, MeshData} from '@threepipe/mesh-kernel'
+import {AttrDomain, AttributeStorage} from '@threepipe/mesh-kernel'
 import {DATA_TYPES, DataType} from '../geometry/dataTypes'
 import {GeometrySet} from '../geometry/GeometrySet'
 import {CurvesGeometry, InstanceReference, Instances, PointCloud} from '../geometry/components'
@@ -16,6 +16,7 @@ import {GField} from '../fields/field'
 import {AttributeFieldInput} from '../fields/inputs'
 import {socketDataType} from '../runtime/declaration'
 import {socketTypeFromIdname, JSONValue} from '../runtime/types'
+import {newMeshData} from '../geometry/components'
 
 /** A reference to values in the dump's sidecar `.bin` file. */
 export interface BinRef {
@@ -103,7 +104,7 @@ export function geometryFromDump(g: ExpectedGeometry, resolve?: BinResolver): Ge
     out.name = g.name ?? ''
     if (g.mesh) {
         const m = g.mesh
-        const mesh = new MeshData()
+        const mesh = newMeshData()
         const offsets = m.faceOffsets ? Array.from(values(m.faceOffsets, resolve))
             : [...(m.faceStarts ?? []), (m.faceStarts?.length ? m.faceStarts[m.faceStarts.length - 1] + m.faceSizes![m.faceSizes!.length - 1] : 0)]
         const edgesNum = typeof m.edges === 'number' ? m.edges : m.edges.length / 2
