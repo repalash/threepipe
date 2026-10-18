@@ -2,7 +2,7 @@
 // the same set-up the side-by-side in issues/open/modelling-tools/16-realism.md was judged in.
 // ../render.mjs drives it through `window.bench`; one model and one style per page load.
 
-import {Color, DRACOLoader2, Matrix4, PhysicalMaterial, SRGBColorSpace, ThreeViewer, UnlitMaterial} from 'threepipe'
+import {BufferAttribute, Color, DRACOLoader2, Matrix4, PhysicalMaterial, SRGBColorSpace, ThreeViewer, UnlitMaterial} from 'threepipe'
 
 // The decoder three ships, served from this repo, instead of the CDN default.
 DRACOLoader2.DRACO_LIBRARY_PATH = new URL('../../../node_modules/three/examples/jsm/libs/draco/', import.meta.url).href
@@ -51,7 +51,8 @@ async function frames(n) {
 window.bench = {
     /**
      * @param {string} url GLB url
-     * @param {{matrix?: number[], exclude?: string[], style?: 'full'|'notex'|'clay'|'mask'}} opts
+     * @param {{matrix?: number[], exclude?: string[], style?: 'full'|'notex'|'clay'|'mask'|'heat', heat?: string}} opts
+     *   `heat`: url of `{meshes: [{verts, rgb (base64 sRGB bytes)}]}`, one entry per non-excluded mesh in traversal order
      */
     async load(url, opts = {}) {
         await envPending
@@ -71,6 +72,9 @@ window.bench = {
         if (style === 'mask') {
             viewer.scene.backgroundColor = new Color('#000000')
         }
+        const heat = style === 'heat' ? await (await fetch(opts.heat)).json() : null
+        const heatErrors = []
+        let meshIndex = 0
         const hide = [], done = new Set()
         root.traverse(o => {
             if (!o.isMesh) return
@@ -82,6 +86,20 @@ window.bench = {
             if (style === 'full') return
             if (style === 'clay') { o.material = clay; return }
             if (style === 'mask') { o.material = mask; return }
+            if (style === 'heat') {
+                const h = heat.meshes[meshIndex++]
+                const n = o.geometry.attributes.position.count
+                if (!h || h.verts !== n) { heatErrors.push(`${o.name}: ${n} vertices, heat has ${h?.verts}`); o.material = clay; return }
+                const bytes = Uint8Array.from(atob(h.rgb), c => c.charCodeAt(0))
+                const col = new Float32Array(n * 3), c = new Color()
+                for (let i = 0; i < n; i++) {
+                    c.setRGB(bytes[3 * i] / 255, bytes[3 * i + 1] / 255, bytes[3 * i + 2] / 255, SRGBColorSpace)
+                    col[3 * i] = c.r; col[3 * i + 1] = c.g; col[3 * i + 2] = c.b
+                }
+                o.geometry.setAttribute('color', new BufferAttribute(col, 3))
+                o.material = new PhysicalMaterial({color: '#ffffff', vertexColors: true, roughness: 0.7, metalness: 0})
+                return
+            }
             // notex: each colour texture folded into its material as the texture's mean colour and alpha (so a
             // label that is mostly transparent fades out, a screen keeps its average tone); every other map dropped.
             for (const m of mats) {
@@ -100,7 +118,8 @@ window.bench = {
         for (const o of hide) { o.visible = false; info.hidden++ }
         viewer.scene.setDirty?.({refreshScene: true})
         await frames(3)
-        return {meshes: info.meshes, hidden: info.hidden, decals: info.decals, materials: info.materials.size, lightsRemoved: info.lightsRemoved}
+        if (heat && meshIndex !== heat.meshes.length) heatErrors.push(`page has ${meshIndex} meshes, heat has ${heat.meshes.length}`)
+        return {meshes: info.meshes, hidden: info.hidden, decals: info.decals, materials: info.materials.size, lightsRemoved: info.lightsRemoved, heatErrors}
     },
 
     /** @param {{position: number[], target: number[], fov?: number, up?: number[]}} view */

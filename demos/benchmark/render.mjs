@@ -5,7 +5,7 @@
  *
  *     npm run benchmark:render -- <job.json>
  *
- * job.json: {out, width, height, port, models: [{id, url, matrix?, exclude?}], styles: ['full'|'notex'|'clay'],
+ * job.json: {out, width, height, port, models: [{id, url, matrix?, exclude?, heat?}], styles: ['full'|'notex'|'clay'|'mask'|'heat'],
  *            views: [{name, position, target, fov}]}
  * `url` is relative to the repo root (the static server's root). Writes <out>/<id>-<style>-<view>.png and
  * <out>/render.json (renderer string, per-model load info, timings).
@@ -43,6 +43,7 @@ const result = {renderer: null, width, height, renders: [], loads: {}}
 const t0 = Date.now()
 try {
     for (const model of job.models) for (const style of job.styles) {
+        if (style === 'heat' && !model.heat) continue
         const page = await browser.newPage({viewport: {width, height}, deviceScaleFactor: 1})
         const errors = []
         page.on('pageerror', e => errors.push(e.message))
@@ -51,7 +52,7 @@ try {
         result.renderer ??= await page.evaluate(() => window.bench.renderer())
         const tl = Date.now()
         const load = await page.evaluate(([url, o]) => window.bench.load(url, o),
-            ['/' + model.url, {matrix: model.matrix, exclude: model.exclude, style}])
+            ['/' + model.url, {matrix: model.matrix, exclude: model.exclude, style, heat: model.heat ? '/' + model.heat : undefined}])
         result.loads[`${model.id}-${style}`] = {...load, ms: Date.now() - tl, errors}
         for (const view of job.views) {
             await page.evaluate(v => window.bench.view(v), view)
