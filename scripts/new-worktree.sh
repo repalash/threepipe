@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Create a worktree off modelling-editor that shares node_modules with the editor worktree.
 #   scripts/new-worktree.sh <name> [base-branch]
-# Result: .repos/threepipe-<name> on branch <name>, node_modules symlinked (root and every plugin),
+# Result: .repos/threepipe-<name> on branch <name>, node_modules symlinked (root, every plugin and service),
 # tests/snapshots copied, safe.directory registered.
 set -euo pipefail
 name="$1"; base="${2:-modelling-editor}"
@@ -13,6 +13,12 @@ ln -s "$(readlink -f "$src/node_modules")" "$dst/node_modules"
 for p in "$src"/plugins/*/; do
   n="$p/node_modules"; [ -e "$n" ] || continue
   ln -s "$(readlink -f "$n")" "$dst/plugins/$(basename "$p")/node_modules"
+done
+# The services have dependencies of their own too (services/cloud: marked); without them wrangler cannot bundle
+# the worker and the modelling-editor-feedback e2e has no server.
+for p in "$src"/services/*/; do
+  n="$p/node_modules"; [ -e "$n" ] && [ -d "$dst/services/$(basename "$p")" ] || continue
+  ln -s "$(readlink -f "$n")" "$dst/services/$(basename "$p")/node_modules"
 done
 for p in "$src"/plugins/*/; do
   d="$p/dist"; [ -d "$d" ] || continue
