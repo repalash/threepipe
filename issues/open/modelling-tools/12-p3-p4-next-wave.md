@@ -85,17 +85,42 @@ download (File System Access API not used); the `modelling-workspace` example's 
   - K's [kernel-knife-port-gaps](./kernel-knife-port-gaps.md) and
     [kernel-blender-math-duplicated](./kernel-blender-math-duplicated.md)
 
-## Next: menus
+## Menus (done 2026-10-18, track0-followups)
 
-The header builds one flat menu per operator `category`. With the P3 operators, the Mesh menu is
-taller than the window. It now scrolls inside itself; before, it scrolled the page and left it there.
+Before: the header built one flat menu per operator `category`; the Mesh menu outgrew the window.
 
-Blender's edit-mode header instead has Select / Add / Mesh / Vertex / Edge / Face / UV, and Mesh
-has submenus: Transform, Mirror, Snap, Split, Separate, Clean Up, Delete.
+Now Blender's structure, as **menu definitions in the engine** (`plugins/editor-engine/src/menus/menus.ts`),
+ported from `space_view3d.py` / `space_topbar.py` (Blender 5.3, `e4e6c79a`) with line cites:
 
-The fix is to port that structure (`VIEW3D_MT_edit_mesh*` in `space_view3d.py`) as menu
-definitions in the engine, with the same ids the Ctrl+V/E/F menus already use, and to keep
-`category` only for the command palette.
+- Header (`engine.headerMenus()`): File, Edit, then `VIEW3D_MT_editor_menus` - object mode View / Select /
+  Add / Object, edit mode View / Select / Add (`VIEW3D_MT_mesh_add`) / Mesh / Vertex / Edge / Face / UV -
+  then Help. Mesh has Blender's submenus (Transform, Mirror, Snap, Extrude, Merge, Split, Separate,
+  Normals, Shading, Weights, Sort Elements, Show/Hide, Clean Up, Delete) and separators.
+- A definition is data: items naming operator ids with Blender's labels and props, submenus by id,
+  inline `operator_menu_enum` submenus, separators, labels, and `visible` predicates for Blender's `if`s
+  (Extrude by selection, Merge's At First/Last, the context menu's per-select-mode column).
+  `engine.resolveMenu(id)` works out labels, poll state, tooltips and keys (the active keymap's binding
+  for the operator *with the entry's props*, or for a submenu the key of the operator that opens it).
+- The same definitions are the Ctrl+V / Ctrl+E / Ctrl+F menus (`mesh.vertices_menu` ... call
+  `engine.callMenu('VIEW3D_MT_edit_mesh_vertices')`, Blender's `wm.call_menu`), X / M / Ctrl+A / Shift+A,
+  and the right-click menus (`VIEW3D_MT_object_context_menu`, `VIEW3D_MT_edit_mesh_context_menu`,
+  `engine.contextMenuId`). `OperatorDescriptor.contextMenu` is gone; `category` is only the palette's.
+- The shell draws resolved menus with one component (`MenuView`); submenus open in a portal, every level
+  is capped at the window height, and running an entry closes the whole menu.
+- Entries without an operator are shown disabled, "Not available yet", never dropped:
+  [menus-not-available.md](./menus-not-available.md) lists them all.
+- Not Blender's, marked as such in the definitions: Object > Commands (the `plugin-modelling` commands as
+  object operators, and Separate by Loose Parts), Add > Lathe / Sweep, Edit > Discard Edits / Apply to
+  Object in edit mode, Edit > Keymap / Input Device (Blender has them in Preferences).
+- Left out: entries Blender gates on build options or object types the editor lacks, node-group
+  operator assets, and the top bar's desktop-only File entries (Link/Append, Recover, External Data,
+  Defaults, Quit).
+- New on the way: `mesh.hide` / `mesh.reveal` (H, Shift+H, Alt+H; the Design preset's Ctrl+H / Shift+H /
+  Alt+H), `file.clear_recent`, `mesh.bevel`'s `affect` (Ctrl+Shift+B = vertices).
+- Tests: `plugins/editor-engine/tests/menus.test.ts`; e2e `modelling-editor-menus` (every header menu in
+  both modes, submenus, the popups and context menus, one entry run from each menu, a short window);
+  screenshots in `tmp/menus/`.
+- Follow-ups filed: [kernel-extrude-vertices](./kernel-extrude-vertices.md) (Vertex > Extrude Vertices).
 
 ## Rules for every track
 
