@@ -86,11 +86,12 @@ writeFileSync(join(here, 'ux-findings.md'), md.join('\n'))
 // ── index.html ──
 const badge = rank => `<span class="badge ${rank}">${rank}</span>`
 const fmtCounts = c => c ? `${c[0]} verts · ${c[1]} edges · ${c[2]} faces` : 'n/a'
-const video = (file, label) => {
-    const info = videoInfo[file]
+const video = (file, label, run) => {
+    const info = run?.videoInfo
     return `<figure class="video"><video controls preload="metadata" src="${file}"></video>
-      <figcaption>${esc(label)}${info ? ` · ${esc(info.duration)} s · ${esc(info.sizeMB)} MB` : ''} · <a href="${file}">${file}</a></figcaption></figure>`
+      <figcaption>${esc(label)}${info ? ` · ${Math.floor(info.seconds / 60)}:${String(Math.round(info.seconds % 60)).padStart(2, '0')} (${esc(info.deadTimeCut)} s of holds over 1.5 s cut from ${esc(info.wallSeconds)} s)` : ''} · <a href="${file}">${file}</a></figcaption></figure>`
 }
+const renderer = runs.find(r => r.renderer)?.renderer ?? 'not recorded'
 const stepCard = (s) => `<li class="step ${s.ok ? 'ok' : 'fail'}">
     ${s.shot ? `<a href="${s.shot}"><img loading="lazy" src="${s.shot}" alt="${esc(s.title)}"></a>` : '<div class="noshot">no screenshot</div>'}
     <div class="meta"><span class="n">${s.n}</span> ${esc(s.title)}</div>
@@ -169,6 +170,7 @@ const html = `<!DOCTYPE html>
 </head>
 <body>
 <main>
+<a href="../index.html" style="color:#888;text-decoration:none;font-size:14px">← all demos</a>
 <h1>House walkthrough</h1>
 <p class="sub">threepipe modelling editor, used as a newcomer would: a low-poly house from the start cube, with real keyboard and
 mouse input only (Playwright), once with the Blender keymap and once with the Design keymap. Branch <code>demo-house-walkthrough</code>${commit ? ` at <code>${esc(commit)}</code>` : ''}.
@@ -181,13 +183,14 @@ Driver: <a href="drive.mjs">drive.mjs</a> · findings: <a href="ux-findings.md">
 
 <h2>Videos</h2>
 <div class="videos">
-  ${existsSync(join(here, 'video-side-by-side.webm')) ? video('video-side-by-side.webm', 'Blender keymap (left) and Design keymap (right), side by side').replace('class="video"', 'class="video wide"') : ''}
-  ${video('video-blender.webm', 'Blender keymap')}
-  ${video('video-design.webm', 'Design keymap (Figma / trackpad)')}
+  ${video('video.mp4', 'Blender keymap', runs.find(r => r.keymap === 'blender'))}
+  ${video('video-design.mp4', 'Design keymap (Figma / trackpad)', runs.find(r => r.keymap === 'design'))}
 </div>
-<p class="sub">Recorded with Playwright in headless Chromium on SwiftShader (no GPU), 1280x720; the cursor dot, key chips and title
-cards are overlays drawn by the driver, not part of the editor. <code>drive.mjs --ws &lt;endpoint&gt;</code> re-records on a GPU
-browser. Videos are not committed: run <code>drive.mjs</code> and <code>compose-videos.mjs</code> to make them.</p>
+<p class="sub">Recorded on the GPU VM in Chromium on <b>${esc(renderer)}</b>, 1280x720, as a CDP screencast encoded to
+H.264 (faststart); real time, with holds over 1.5 s cut. The cursor dot, key chips and title cards are overlays drawn by
+the driver, not part of the editor. Videos are not committed: run <code>drive.mjs</code> to make them.</p>
+<p class="sub">Agent that wrote the walkthrough and its findings: claude-opus-5-5, 261 active minutes, 333 tool calls,
+233k output / 180M input tokens (mostly cache reads).</p>
 
 <h2>Result and glb round trip</h2>
 <table>
@@ -214,3 +217,16 @@ ${fixes.map(f => `<tr><td><code>${esc(f.commit)}</code></td><td>${esc(f.what)}</
 `
 writeFileSync(join(here, 'index.html'), html)
 console.log('wrote index.html and ux-findings.md;', runs.length, 'runs,', findings.length, 'findings')
+
+// One hero and one metrics line for the overview page (demos/index.html, demos/shared/overview.mjs).
+{
+    const b = runs.find(r => r.keymap === 'blender')
+    const heroStep = b?.steps.filter(s => s.ok && s.shot).find(s => s.id === 'object-mode') ?? b?.steps.filter(s => s.ok && s.shot).at(-1)
+    const secs = b?.videoInfo?.seconds
+    writeFileSync(join(here, 'summary.json'), JSON.stringify({
+        title: 'House walkthrough', blurb: 'A low-poly house built in the editor with a real keyboard and mouse, Blender and Design keymaps.',
+        hero: heroStep?.shot ?? null,
+        line: runs.map(r => `${r.keymap} ${r.steps.filter(s => s.ok).length}/${r.steps.length} steps`).join(' · ')
+            + (secs ? ` · ${Math.floor(secs / 60)}:${String(Math.round(secs % 60)).padStart(2, '0')} film` : ''),
+        renderer, seconds: secs ?? null, generated: new Date().toISOString().slice(0, 10)}, null, 1))
+}
