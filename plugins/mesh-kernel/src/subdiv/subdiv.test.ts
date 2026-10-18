@@ -141,3 +141,41 @@ describe('subdivisionSurface', () => {
         expect(Array.from(r.positions)).toEqual(Array.from(m.positions))
     })
 })
+
+describe('subdivisionSurface attributes (subdiv_mesh.cc semantics)', () => {
+    it('face attributes follow the coarse face, edge attributes only the edges along coarse edges, points mix bilinearly', () => {
+        const m = cube()
+        const sf = m.attributes.ensure(AttrName.sharpFace, AttrDomain.Face, 'bool').data as Uint8Array
+        sf[1] = 1
+        const mi = m.attributes.ensure(AttrName.materialIndex, AttrDomain.Face, 'int32').data as Int32Array
+        mi[2] = 3
+        const se = m.attributes.ensure(AttrName.sharpEdge, AttrDomain.Edge, 'bool').data as Uint8Array
+        se[0] = 1
+        const w = m.attributes.ensure('weight', AttrDomain.Point, 'float').data as Float32Array
+        w[0] = 1
+        const r = subdivisionSurfaceEvaluate(m, {levels: 2, useLimitSurface: false})!
+        const out = r.mesh
+        const osf = out.attributes.get(AttrName.sharpFace)!.data, omi = out.attributes.get(AttrName.materialIndex)!.data
+        expect(Array.from(osf).reduce((a, b) => a + b, 0)).toBe(16) // one coarse face -> 16 faces at level 2
+        expect(Array.from(omi).filter(v => v === 3).length).toBe(16)
+        expect(Array.from(out.attributes.get(AttrName.sharpEdge)!.data).reduce((a, b) => a + b, 0)).toBe(4) // one coarse edge -> 4 edges
+        // the weight is 1 at the coarse corner, 1/2 at the first edge midpoint, 1/4 at the face centre
+        const ow = out.attributes.get('weight')!.data
+        const values = new Set(Array.from(ow).map(v => +v.toFixed(4)))
+        for (const v of [1, 0.75, 0.5, 0.25, 0.5625, 0.375, 0.125, 0]) expect(values.has(v)).toBe(true)
+        expect(r.warnings).toEqual([])
+    })
+
+    it('corner attributes mix within the face; UV maps say face-varying smoothing is pending', () => {
+        const m = cube()
+        const uv = m.attributes.ensure('UVMap', AttrDomain.Corner, 'float2').data as Float32Array
+        for (let c = 0; c < m.cornersNum; c++) { uv[2 * c] = c % 4 === 1 || c % 4 === 2 ? 1 : 0; uv[2 * c + 1] = c % 4 >= 2 ? 1 : 0 }
+        const r = subdivisionSurfaceEvaluate(m, {levels: 1, useLimitSurface: false, uvSmooth: 'NONE'})!
+        const ouv = r.mesh.attributes.get('UVMap')!.data
+        const pairs = new Set<string>()
+        for (let c = 0; c < r.mesh.cornersNum; c++) pairs.add(`${ouv[2 * c]},${ouv[2 * c + 1]}`)
+        expect(pairs.has('0.5,0.5')).toBe(true) // face centres
+        expect(r.warnings).toEqual([])
+        expect(subdivisionSurfaceEvaluate(m, {levels: 1})!.warnings[0]).toMatch(/face-varying/)
+    })
+})

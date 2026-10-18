@@ -9,9 +9,9 @@
  * renders as a row of facets. Smooth by angle keeps the real corners sharp and lets the fillets read as curves.
  */
 
-import {shadeFlat, shadeSmooth, shadeSmoothByAngle} from '@threepipe/mesh-kernel'
+import {AttrDomain, AttrName, shadeFlat, shadeSmooth, shadeSmoothByAngle} from '@threepipe/mesh-kernel'
 import {CommandDefinition, S, schema} from './types'
-import {readTargets} from './params'
+import {readTarget, readTargets} from './params'
 
 export const shadeCommand: CommandDefinition = {
     op: 'shade',
@@ -51,4 +51,56 @@ export const shadeCommand: CommandDefinition = {
     },
 }
 
-export const shadingCommands = [shadeCommand]
+/**
+ * `crease`: Blender's edge crease (Shift E) and vertex crease, written as the `crease_edge` / `crease_vert`
+ * attributes the Subdivision Surface modifier reads (`subdiv_converter_mesh.cc`: sharpness = 10 * crease^2, so
+ * 1 is a fully sharp edge and 0.5 a softened one that relaxes after a few levels).
+ */
+export const creaseCommand: CommandDefinition = {
+    op: 'crease',
+    summary: 'Set edge and vertex creases for subdivision (Blender\'s Edge Crease / Vertex Crease).',
+    description:
+        'Creases control how a `subsurf` modifier treats edges: 1 keeps the edge sharp, values between soften it '
+        + '(sharpness = 10 * crease^2 in OpenSubdiv). Use them on cage edges that must stay crisp - a panel line, '
+        + 'the rim of a dial - instead of adding support loops. `edges` and `verts` are indices from '
+        + '`inspect {detail: true}`; `edges: "all"` creases every edge.',
+    mutates: true,
+    schema: schema({
+        object: S.objectRef('The object to crease.'),
+        objects: S.objectRef('Alias for `object`.'),
+        edges: {description: 'Edge indices, or "all".', oneOf: [{type: 'array', items: {type: 'integer'}}, {type: 'string', enum: ['all']}]},
+        verts: S.array('Vertex indices for a vertex crease.', {type: 'integer'}),
+        value: S.number('Crease 0..1 for the edges. Default 1.', {minimum: 0, maximum: 1}),
+        vertexValue: S.number('Crease 0..1 for the vertices. Default 1.', {minimum: 0, maximum: 1}),
+    }),
+
+    run(p: Record<string, unknown>, ctx) {
+        const entry = readTarget(p, ctx.doc)
+        const mesh = entry.mesh.clone()
+        let edges = 0, verts = 0
+        if (p.edges !== undefined) {
+            const layer = mesh.attributes.ensure(AttrName.creaseEdge, AttrDomain.Edge, 'float').data as Float32Array
+            const value = (p.value as number | undefined) ?? 1
+            const list = p.edges === 'all' ? Array.from({length: mesh.edgesNum}, (_, i) => i) : p.edges as number[]
+            for (const e of list) {
+                if (!Number.isInteger(e) || e < 0 || e >= mesh.edgesNum) throw new Error(`edge ${e} does not exist (the mesh has ${mesh.edgesNum})`)
+                layer[e] = value
+                edges++
+            }
+        }
+        if (p.verts !== undefined) {
+            const layer = mesh.attributes.ensure(AttrName.creaseVert, AttrDomain.Point, 'float').data as Float32Array
+            const value = (p.vertexValue as number | undefined) ?? 1
+            for (const v of p.verts as number[]) {
+                if (!Number.isInteger(v) || v < 0 || v >= mesh.vertsNum) throw new Error(`vertex ${v} does not exist (the mesh has ${mesh.vertsNum})`)
+                layer[v] = value
+                verts++
+            }
+        }
+        if (!edges && !verts) throw new Error('crease needs `edges` or `verts`')
+        ctx.doc.setMesh(entry, mesh)
+        return {objects: [entry.name], data: {edges, verts}}
+    },
+}
+
+export const shadingCommands = [shadeCommand, creaseCommand]

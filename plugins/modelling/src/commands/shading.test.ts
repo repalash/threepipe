@@ -45,3 +45,26 @@ describe('shade', () => {
         expect(validateParams(shadeCommand, {object: 'x', mode: 'auto'}).length).toBeGreaterThan(0)
     })
 })
+
+describe('crease and the subsurf modifier', () => {
+    it('crease writes crease_edge / crease_vert; a fully creased cube stays a cube under subsurf', async() => {
+        const {evaluateModifiers} = await import('../modifiers')
+        const {primitiveCube} = await import('@threepipe/mesh-kernel')
+        const {creaseCommand} = await import('./shading')
+        const cube = primitiveCube()
+        const {ctx, entries} = stub({cube})
+        expect(validateParams(creaseCommand, {object: 'cube', edges: 'all'})).toEqual([])
+        creaseCommand.run({object: 'cube', edges: 'all'}, ctx)
+        const creased = entries[0].mesh
+        expect(Array.from(creased.attributes.get(AttrName.creaseEdge)!.data)).toEqual(new Array(12).fill(1))
+        const sharp = evaluateModifiers(creased, [{type: 'subsurf', levels: 2}])
+        const smooth = evaluateModifiers(cube, [{type: 'subsurf', levels: 2}])
+        expect(sharp.facesNum).toBe(96)
+        const extent = (m: MeshData) => { let e = 0; for (const v of m.positions) e = Math.max(e, Math.abs(v)); return e }
+        expect(extent(sharp)).toBeCloseTo(extent(cube), 6) // corners stay
+        expect(extent(smooth)).toBeLessThan(extent(cube) * 0.9) // corners round off
+        creaseCommand.run({object: 'cube', verts: [0], vertexValue: 0.5}, ctx)
+        expect(entries[0].mesh.attributes.get(AttrName.creaseVert)!.data[0]).toBeCloseTo(0.5, 6)
+        expect(() => creaseCommand.run({object: 'cube', edges: [99]}, ctx)).toThrow(/does not exist/)
+    })
+})

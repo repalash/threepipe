@@ -21,9 +21,11 @@ import {
     bmFromMesh,
     bmToMesh,
     mirrorGeometry,
+    subdivisionSurface,
     Vec3,
     wireframe,
 } from '@threepipe/mesh-kernel'
+import type {SubdivBoundarySmooth, SubdivUVSmooth} from '@threepipe/mesh-kernel'
 import type {MeshData} from '@threepipe/mesh-kernel'
 
 export interface ArrayModifierSpec {
@@ -81,7 +83,24 @@ export interface WireframeModifierSpec {
     materialOffset?: number
 }
 
-export type ModifierSpec = ArrayModifierSpec | MirrorModifierSpec | WireframeModifierSpec
+/**
+ * Blender's Subdivision Surface modifier (`MOD_subsurf.cc`, settings per `subdiv_modifier.cc:31-39`), evaluated by
+ * the kernel's OpenSubdiv port. Defaults are `SubsurfModifierData`'s (`DNA_modifier_types.h`): levels 1, quality 3,
+ * limit surface on, creases on, boundary smooth ALL, UV smooth PRESERVE_BOUNDARIES, Catmull-Clark.
+ */
+export interface SubsurfModifierSpec {
+    type: 'subsurf'
+    levels?: number
+    quality?: number
+    useLimitSurface?: boolean
+    useCreases?: boolean
+    boundarySmooth?: SubdivBoundarySmooth
+    uvSmooth?: SubdivUVSmooth
+    /** `CATMULL_CLARK` or `SIMPLE`. */
+    subdivisionType?: 'CATMULL_CLARK' | 'SIMPLE'
+}
+
+export type ModifierSpec = ArrayModifierSpec | MirrorModifierSpec | WireframeModifierSpec | SubsurfModifierSpec
 
 /**
  * Run a master mesh through its stack.
@@ -94,6 +113,19 @@ export function evaluateModifiers(mesh: MeshData, modifiers: ModifierSpec[]): Me
     if (!modifiers.length) return mesh
     let current = mesh
     for (const modifier of modifiers) {
+        if (modifier.type === 'subsurf') {
+            // MeshData in, MeshData out: no BMesh round trip
+            current = subdivisionSurface(current, {
+                levels: modifier.levels ?? 1,
+                quality: modifier.quality ?? 3,
+                useLimitSurface: modifier.useLimitSurface ?? true,
+                useCreases: modifier.useCreases ?? true,
+                boundarySmooth: modifier.boundarySmooth ?? 'ALL',
+                uvSmooth: modifier.uvSmooth ?? 'PRESERVE_BOUNDARIES',
+                scheme: modifier.subdivisionType ?? 'CATMULL_CLARK',
+            })
+            continue
+        }
         const bm = bmFromMesh(current)
         const input = {verts: [...bm.verts], edges: [...bm.edges], faces: [...bm.faces]}
         if (modifier.type === 'array') {
@@ -165,6 +197,11 @@ export function checkModifier(spec: ModifierSpec): void {
         if (!['x', 'y', 'z'].includes(spec.axis)) {
             throw new Error('a mirror modifier needs an `axis` of x, y or z')
         }
+    } else if (spec.type === 'subsurf') {
+        const levels = spec.levels ?? 1
+        if (!Number.isInteger(levels) || levels < 0 || levels > 6) throw new Error('a subsurf modifier needs whole `levels` from 0 to 6')
+        const quality = spec.quality ?? 3
+        if (!Number.isInteger(quality) || quality < 1 || quality > 10) throw new Error('a subsurf modifier `quality` must be a whole number from 1 to 10')
     } else if (spec.type === 'wireframe') {
         if (spec.thickness !== undefined && (!Number.isFinite(spec.thickness) || spec.thickness < 0)) {
             throw new Error('a wireframe modifier `thickness` must be a number of 0 or more')
@@ -189,5 +226,6 @@ export function describeModifier(spec: ModifierSpec): string {
         return `array ${spec.mode} ×${spec.count}, ${detail}`
     }
     if (spec.type === 'wireframe') return `wireframe ${spec.thickness ?? 0.02}`
+    if (spec.type === 'subsurf') return `subsurf ${spec.subdivisionType === 'SIMPLE' ? 'simple ' : ''}level ${spec.levels ?? 1}${spec.useLimitSurface === false ? ', no limit surface' : ''}`
     return `mirror ${spec.axis}`
 }

@@ -20,6 +20,7 @@ import {MeshData} from '../MeshData'
 import {createBaseLevel, TopologyRefiner} from './refiner'
 import {CreasingMethod, FVarLinearInterpolation, SdcOptions, VtxBoundaryInterpolation} from './sdc'
 import {Level} from './level'
+import {isUVMapLayer, propagateAttributes} from './attributes'
 
 export type SubdivBoundarySmooth = 'ALL' | 'PRESERVE_CORNERS'
 export type SubdivUVSmooth = 'NONE' | 'PRESERVE_CORNERS' | 'PRESERVE_CORNERS_AND_JUNCTIONS'
@@ -62,8 +63,10 @@ export function fvarInterpolationFromUVSmooth(uvSmooth: SubdivUVSmooth): FVarLin
 export interface SubdivisionResult {
     mesh: MeshData
     refiner: TopologyRefiner
-    /** Output vertex -> refiner vertex at `levels` (identity today; kept for when loose geometry is appended). */
+    /** The refiner level the output mesh is (its vertices, faces and corners, in order). */
     level: Level
+    /** What was not reproduced exactly (UV smoothing modes pending S5, dropped layer types, loose geometry). */
+    warnings: string[]
 }
 
 export function subdivisionSurfaceEvaluate(mesh: MeshData, opts: SubdivisionSurfaceOptions = {}): SubdivisionResult | null {
@@ -115,7 +118,16 @@ export function subdivisionSurfaceEvaluate(mesh: MeshData, opts: SubdivisionSurf
     const faces: number[][] = []
     for (let f = 0; f < outLevel.numFaces; f++) faces.push(Array.from(outLevel.getFaceVertices(f)))
     const out = MeshData.fromFaces({positions: Float32Array.from(finalPos), faces})
-    return {mesh: out, refiner, level: outLevel}
+    out.materials = [...mesh.materials]
+
+    const warnings: string[] = []
+    propagateAttributes(refiner, levels, mesh, base.baseToMesh, out, warnings)
+    const uvSmooth = opts.uvSmooth ?? 'PRESERVE_BOUNDARIES'
+    if (uvSmooth !== 'NONE' && mesh.attributes.layers().some(isUVMapLayer)) {
+        warnings.push(`UV maps were interpolated linearly; face-varying smoothing "${uvSmooth}" is not ported yet (16b S5)`)
+    }
+    if (base.baseToMesh.length < mesh.vertsNum) warnings.push('loose vertices and edges are not carried to the output yet (16b S7)')
+    return {mesh: out, refiner, level: outLevel, warnings}
 }
 
 /** Blender's Subdivision Surface: `MeshData` in, `MeshData` out. Level 0 (or a mesh without faces) is a copy. */
