@@ -64,6 +64,11 @@ export function renderSkill(commands: SkillCommandInfo[], version: string): stri
     out.push('')
     out.push('## Workflow')
     out.push('')
+    out.push('0. **Measure, then block out**: for a real object, first write down its numbers from public sources - published '
+        + 'dimensions, standard interfaces (lens mounts, threads, ISO sizes) and photographs placed to scale with `reference '
+        + '{calibrate}` - each with its unit, source and uncertainty. Block the main masses to them as low-poly cages under '
+        + '`subsurf`, then check the silhouettes: `camera {view: "ref:<name>"}` and `look` with the photo behind at `opacity` 0.5. '
+        + 'An outline that misses the photo goes back to the cage; detail only after the masses fit.')
     out.push('1. **Build** with `run` / `batch`: create, then edit. Name everything.')
     out.push('2. **Measure**: `measure` (bounds, overlaps, `mode: "topology"`) and `inspect`.')
     out.push('3. **Validate**: `validate` (Blender\'s `BM_mesh_is_valid` + a `spec` of the dimensions you were given).')

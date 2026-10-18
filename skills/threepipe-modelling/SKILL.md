@@ -15,6 +15,7 @@ A document of named objects, each an editable polygon mesh (n-gons, Blender's BM
 
 ## Workflow
 
+0. **Measure, then block out**: for a real object, first write down its numbers from public sources - published dimensions, standard interfaces (lens mounts, threads, ISO sizes) and photographs placed to scale with `reference {calibrate}` - each with its unit, source and uncertainty. Block the main masses to them as low-poly cages under `subsurf`, then check the silhouettes: `camera {view: "ref:<name>"}` and `look` with the photo behind at `opacity` 0.5. An outline that misses the photo goes back to the cage; detail only after the masses fit.
 1. **Build** with `run` / `batch`: create, then edit. Name everything.
 2. **Measure**: `measure` (bounds, overlaps, `mode: "topology"`) and `inspect`.
 3. **Validate**: `validate` (Blender's `BM_mesh_is_valid` + a `spec` of the dimensions you were given).
@@ -39,6 +40,7 @@ Guarantees: a command either completes or changes nothing; every mutating comman
 - Do not hand-place many identical parts: `array` or `sweep` them.
 - For smooth, product-like forms model a low-poly cage and add `modifier {object, add: {type: "subsurf", levels: 2}}` (Blender's Subdivision Surface, limit surface on); keep panel lines and rims crisp with `crease {object, edges, value: 1}` (or 0.3-0.7 for a softened edge) instead of hand-made support loops.
 - Holes, ports, recesses and slots: model the cutter as its own closed primitive placed where the cut goes, then `boolean {object, with: cutter}` (Blender's Manifold solver; DIFFERENCE by default, the cutter is deleted). Both sides must be closed and manifold; a single quad cutter trims along its plane.
+- Measure before detailing: fit the big masses to published numbers and calibrated photos first. A photo is only good for the axes it faces square-on - a shot from above moves anything higher towards the far edge, so read heights from a level front view and depths only from features on one plane. On the camera demo, refitting the body, prism and grip cages to the front photograph took the silhouette overlap from 0.965 to 0.990 and the measurements moved the top controls further than any detailing would have: the mode dial 7 mm back and 3.8 mm taller, the main dial turned to roll front to back, the top LCD 13 mm wider.
 - Primitives, lathes and bevels come out flat-shaded, so every facet catches its own highlight: when a part's shape is done, `shade {object, mode: "byAngle"}` it (fillets read as curves, corners above 30 degrees stay sharp). The realism benchmark measured 85 % faceting on the camera demo against 21 % on the artist model.
 
 ## Cookbook
