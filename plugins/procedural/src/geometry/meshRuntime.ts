@@ -78,6 +78,17 @@ export function meshTagPositionsChangedUniformly(mesh: MeshData): void {
     delete r.bounds
 }
 
+/**
+ * `Mesh::tag_face_winding_changed` (`mesh_runtime.cc:373`): the normals and the vertex-to-corner map (corners swapped
+ * places inside their faces).
+ */
+export function meshTagFaceWindingChanged(mesh: MeshData): void {
+    const r = runtimes.get(mesh)
+    if (!r) return
+    r.normals = {}
+    delete (r.topology as Record<string, unknown>).vertToCorner
+}
+
 /** `Mesh::tag_topology_changed` (`mesh_runtime.cc:410`) via `BKE_mesh_runtime_clear_geometry` (:301): every cache. */
 export function meshTagTopologyChanged(mesh: MeshData): void {
     runtimes.delete(mesh)

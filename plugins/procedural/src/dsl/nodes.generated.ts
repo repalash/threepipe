@@ -617,6 +617,16 @@ export type FieldVarianceNode = NodeHandle & {
     readonly variance: Socket<"FLOAT" | "VECTOR">
 }
 
+/** `GeometryNodeFlipFaces` (Flip Faces). */
+export interface FlipFacesArgs {
+    mesh?: In<"GEOMETRY">
+    selection?: In<"BOOLEAN">
+    mute?: boolean
+}
+export type FlipFacesNode = NodeHandle & {
+    readonly mesh: Socket<"GEOMETRY">
+}
+
 /** `ShaderNodeFloatCurve` (Float Curve). */
 export interface FloatCurveArgs {
     factor?: In<"FLOAT">
@@ -1524,6 +1534,20 @@ export type SeparateColorNode = NodeHandle & {
     readonly alpha: Socket<"FLOAT">
 }
 
+/** `GeometryNodeSeparateComponents` (Separate Components). */
+export interface SeparateComponentsArgs {
+    geometry?: In<"GEOMETRY">
+    mute?: boolean
+}
+export type SeparateComponentsNode = NodeHandle & {
+    readonly mesh: Socket<"GEOMETRY">
+    readonly curve: Socket<"GEOMETRY">
+    readonly greasePencil: Socket<"GEOMETRY">
+    readonly pointCloud: Socket<"GEOMETRY">
+    readonly volume: Socket<"GEOMETRY">
+    readonly instances: Socket<"GEOMETRY">
+}
+
 /** `GeometryNodeSeparateGeometry` (Separate Geometry). */
 export interface SeparateGeometryArgs {
     domain?: "POINT" | "EDGE" | "FACE" | "CURVE" | "INSTANCE" | "LAYER"
@@ -1591,6 +1615,17 @@ export type SetIDNode = NodeHandle & {
     readonly geometry: Socket<"GEOMETRY">
 }
 
+/** `GeometryNodeSetInstanceTransform` (Set Instance Transform). */
+export interface SetInstanceTransformArgs {
+    instances?: In<"GEOMETRY">
+    selection?: In<"BOOLEAN">
+    transform?: In<"MATRIX">
+    mute?: boolean
+}
+export type SetInstanceTransformNode = NodeHandle & {
+    readonly instances: Socket<"GEOMETRY">
+}
+
 /** `GeometryNodeSetMaterial` (Set Material). */
 export interface SetMaterialArgs {
     geometry?: In<"GEOMETRY">
@@ -1611,6 +1646,17 @@ export interface SetMaterialIndexArgs {
 }
 export type SetMaterialIndexNode = NodeHandle & {
     readonly geometry: Socket<"GEOMETRY">
+}
+
+/** `GeometryNodeSetPointRadius` (Set Point Radius). */
+export interface SetPointRadiusArgs {
+    points?: In<"GEOMETRY">
+    selection?: In<"BOOLEAN">
+    radius?: In<"FLOAT">
+    mute?: boolean
+}
+export type SetPointRadiusNode = NodeHandle & {
+    readonly points: Socket<"GEOMETRY">
 }
 
 /** `GeometryNodeSetPosition` (Set Position). */
@@ -1961,6 +2007,7 @@ export interface NodeConstructors {
     FieldAverage(args?: FieldAverageArgs): FieldAverageNode
     FieldMinMax(args?: FieldMinMaxArgs): FieldMinMaxNode
     FieldVariance(args?: FieldVarianceArgs): FieldVarianceNode
+    FlipFaces(args?: FlipFacesArgs): FlipFacesNode
     FloatCurve(args?: FloatCurveArgs): FloatCurveNode
     GeometryProximity(args?: GeometryProximityArgs): GeometryProximityNode
     GeometryToInstance(args?: GeometryToInstanceArgs): GeometryToInstanceNode
@@ -2037,14 +2084,17 @@ export interface NodeConstructors {
     SceneTime(args?: SceneTimeArgs): SceneTimeNode
     SelfObject(args?: SelfObjectArgs): SelfObjectNode
     SeparateColor(args?: SeparateColorArgs): SeparateColorNode
+    SeparateComponents(args?: SeparateComponentsArgs): SeparateComponentsNode
     SeparateGeometry(args?: SeparateGeometryArgs): SeparateGeometryNode
     SeparateTransform(args?: SeparateTransformArgs): SeparateTransformNode
     SeparateXYZ(args?: SeparateXYZArgs): SeparateXYZNode
     SetCurveRadius(args?: SetCurveRadiusArgs): SetCurveRadiusNode
     SetCurveTilt(args?: SetCurveTiltArgs): SetCurveTiltNode
     SetID(args?: SetIDArgs): SetIDNode
+    SetInstanceTransform(args?: SetInstanceTransformArgs): SetInstanceTransformNode
     SetMaterial(args?: SetMaterialArgs): SetMaterialNode
     SetMaterialIndex(args?: SetMaterialIndexArgs): SetMaterialIndexNode
+    SetPointRadius(args?: SetPointRadiusArgs): SetPointRadiusNode
     SetPosition(args?: SetPositionArgs): SetPositionNode
     SetShadeSmooth(args?: SetShadeSmoothArgs): SetShadeSmoothNode
     SetSplineCyclic(args?: SetSplineCyclicArgs): SetSplineCyclicNode
