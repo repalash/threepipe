@@ -40,6 +40,7 @@ import {GLTFMeshTopologyExtension} from './gltf/GLTFMeshTopologyExtension'
 import {modifierCommands} from './commands/modifiers'
 import {shapeCommands} from './commands/shape'
 import {shadingCommands} from './commands/shading'
+import {decalCommands} from './commands/decal'
 import {booleanCommands} from './commands/boolean'
 import {loopCommands} from './commands/loop'
 import {cutCommands} from './commands/cut'
@@ -150,6 +151,7 @@ export class ModellingPlugin extends AViewerPluginSync<ModellingPluginEventMap> 
         this.commands.registerAll(editCommands, 'edit')
         this.commands.registerAll(shapeCommands, 'shape')
         this.commands.registerAll(shadingCommands, 'shading')
+        this.commands.registerAll(decalCommands, 'shading')
         this.commands.registerAll(booleanCommands, 'boolean')
         this.commands.registerAll(loopCommands, 'loop')
         this.commands.registerAll(cutCommands, 'cut')

@@ -9,7 +9,7 @@
  * renders as a row of facets. Smooth by angle keeps the real corners sharp and lets the fillets read as curves.
  */
 
-import {AttrDomain, AttrName, shadeFlat, shadeSmooth, shadeSmoothByAngle} from '@threepipe/mesh-kernel'
+import {AttrDomain, AttrName, shadeFlat, shadeSmooth, shadeSmoothByAngle, uvCubeProject} from '@threepipe/mesh-kernel'
 import {CommandDefinition, S, schema} from './types'
 import {readTarget, readTargets} from './params'
 
@@ -103,4 +103,37 @@ export const creaseCommand: CommandDefinition = {
     },
 }
 
-export const shadingCommands = [shadeCommand, creaseCommand]
+/**
+ * `uv`: Blender's UV > Cube Projection (`uvedit_unwrap_cube_project`, ported in the kernel's `uv/cubeProject.ts`),
+ * which is what a tiling surface texture (leather, plastic grain) needs on a hard-surface part.
+ */
+export const uvCommand: CommandDefinition = {
+    op: 'uv',
+    summary: 'Generate UVs by cube projection (Blender\'s UV > Cube Projection), for tiling surface textures.',
+    description: 'Each face is projected along the axis its normal is closest to: `uv = 0.5 + (position - center) / size` '
+        + 'on the other two axes, in object space. `size` is the world size of one UV unit, so a relief texture '
+        + '(`material {relief}` or a preset with one) repeats every `size` units on every face. Writes the `uv` corner '
+        + 'layer, which subdivision, booleans and the bake carry along.',
+    mutates: true,
+    schema: schema({
+        object: S.objectRef('Objects to unwrap. `prefix*` and `*` work.'),
+        objects: S.objectRef('Alias for `object`.'),
+        mode: S.enum('Projection. Only `cube` for now.', ['cube']),
+        size: S.number('World size of one UV unit (Blender\'s Cube Size). Default 1.', {minimum: 0}),
+        center: S.vec3('Projection centre, object space. Default the origin.'),
+        faces: S.array('Only these faces. Default all.', {type: 'integer'}),
+    }),
+
+    run(p: Record<string, unknown>, ctx) {
+        const names: string[] = []
+        for (const entry of readTargets(p, ctx.doc)) {
+            const mesh = entry.mesh.clone()
+            uvCubeProject(mesh, {cubeSize: p.size as number | undefined, center: p.center as number[] | undefined, faces: p.faces as number[] | undefined})
+            ctx.doc.setMesh(entry, mesh)
+            names.push(entry.name)
+        }
+        return {objects: names, data: {count: names.length, mode: 'cube'}}
+    },
+}
+
+export const shadingCommands = [shadeCommand, creaseCommand, uvCommand]
