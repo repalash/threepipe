@@ -83,20 +83,30 @@ export class ProceduralPlugin extends AViewerPluginSync {
                 this._viewer.scene.addObject(renderer.root, {addToRoot: true})
                 d = {renderer, geometry, entry}
                 this._displays.set(entry, d)
+                entry.evaluatedDrawing = renderer.root
                 renderer.update(geometry)
+                this._drawingChanged(entry)
             } else if (d.geometry !== geometry) {
                 d.geometry = geometry
                 d.renderer.update(geometry)
+                this._drawingChanged(entry)
             }
         }
         for (const [entry, d] of this._displays) {
             if (live.has(entry)) continue
+            if (entry.evaluatedDrawing === d.renderer.root) entry.evaluatedDrawing = undefined
             d.renderer.root.removeFromParent()
             d.renderer.dispose()
             this._displays.delete(entry)
         }
         this._followObjects()
         this._viewer.setDirty()
+    }
+
+    /** Tell the object's listeners (a selection box bounding the drawing) that what is drawn for it changed. */
+    private _drawingChanged(entry: ModellingEntry): void {
+        this._followObjects()
+        entry.object.setDirty?.({change: 'evaluatedDrawing'})
     }
 
     /** Keep each drawing at its object's world transform (objects move without document changes while dragged). */
@@ -114,6 +124,7 @@ export class ProceduralPlugin extends AViewerPluginSync {
 
     private _clear(): void {
         for (const d of this._displays.values()) {
+            if (d.entry.evaluatedDrawing === d.renderer.root) d.entry.evaluatedDrawing = undefined
             d.renderer.root.removeFromParent()
             d.renderer.dispose()
         }

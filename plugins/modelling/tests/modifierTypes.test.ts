@@ -91,3 +91,29 @@ describe('modifier types', () => {
         }
     })
 })
+
+describe('statistics of evaluated objects', () => {
+    it('count the evaluated mesh by vertices and corner triangles, plus what a modifier makes besides it', async() => {
+        const {evaluatedStats} = await import('../src/document')
+        registerModifierType<{type: 'withInstances'}>({
+            type: 'withInstances',
+            check() {},
+            describe: () => 'with instances',
+            evaluate: mesh => ({mesh, geometry: {}, stats: () => ({verts: 100, tris: 50})}),
+        }, true)
+        try {
+            // A mesh-only modifier after it keeps the extra geometry and its counts, as the stack keeps `geometry`.
+            const result = evaluateModifierStack(cube(), [{type: 'withInstances'}, {type: 'mirror', axis: 'x'}])
+            expect(result.stats?.()).toEqual({verts: 100, tris: 50})
+            const m = result.mesh
+            let tris = 0
+            for (let f = 0; f < m.facesNum; f++) tris += m.faceOffsets[f + 1] - m.faceOffsets[f] - 2
+            const entry = {evaluated: m, evaluatedExtraStats: result.stats} as never
+            expect(evaluatedStats(entry)).toEqual({verts: m.vertsNum + 100, tris: tris + 50})
+            // A plain cube: 8 vertices and 12 triangles (not the 24 corners of its flat-shaded drawing).
+            expect(evaluatedStats({evaluated: cube()} as never)).toEqual({verts: 8, tris: 12})
+        } finally {
+            unregisterModifierType('withInstances')
+        }
+    })
+})

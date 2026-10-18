@@ -12,8 +12,8 @@
 import {MeshData} from '@threepipe/mesh-kernel'
 import type {ModifierContext, ModifierType, ModellingDocument} from '@threepipe/plugin-modelling'
 import {
-    AttributeFieldInput, copyMesh, GeometryNodesEvaluator, GeometrySet, GField, isInterfaceSocket, JSONValue, NodeGroupLibrary,
-    realizeInstances, newMeshData, SceneProvider, socketDataType, socketTypeFromIdname,
+    AttributeFieldInput, copyMesh, flattenInstances, GeometryNodesEvaluator, GeometrySet, GField, isInterfaceSocket, JSONValue,
+    NodeGroupLibrary, realizeInstances, newMeshData, SceneProvider, socketDataType, socketTypeFromIdname,
 } from '@threepipe/plugin-procedural'
 
 export const NODE_GROUPS_KEY = 'nodeGroups'
@@ -164,10 +164,12 @@ export const geometryNodesModifierType: ModifierType<GeometryNodesModifierSpec> 
             const def: Record<string, unknown> = {description: s.description || undefined, default: s.default}
             if (type === 'FLOAT' || type === 'INT') {
                 def.type = type === 'INT' ? 'integer' : 'number'
+                // Blender's float sockets show 3 decimals (the RNA default precision).
+                if (type === 'FLOAT') def.precision = 3
                 if (s.min_value !== undefined && Math.abs(s.min_value) < 1e30) def.minimum = s.min_value
                 if (s.max_value !== undefined && Math.abs(s.max_value) < 1e30) def.maximum = s.max_value
             } else if (type === 'BOOLEAN') def.type = 'boolean'
-            else if (type === 'VECTOR' || type === 'ROTATION') Object.assign(def, {type: 'array', items: {type: 'number'}, minItems: 3, maxItems: 3})
+            else if (type === 'VECTOR' || type === 'ROTATION') Object.assign(def, {type: 'array', items: {type: 'number', precision: 3}, minItems: 3, maxItems: 3})
             else if (type === 'STRING' || type === 'MENU') def.type = 'string'
             else continue
             properties[s.name] = def
@@ -266,6 +268,27 @@ export const geometryNodesModifierType: ModifierType<GeometryNodesModifierSpec> 
                 g.setMesh(copyMesh(final))
                 return realizeInstances(g, {scene}).mesh ?? newMeshData()
             } : undefined,
+            stats: hasRest ? () => restStats(rest, scene) : undefined,
         }
     },
+}
+
+/**
+ * Vertices and triangles of what a geometry-nodes modifier makes besides its mesh, each instance counted, as Blender's
+ * statistics count evaluated instances (`stats_object` over the dupli list): meshes by vertices and corner triangles,
+ * point clouds and curves by points.
+ */
+function restStats(rest: GeometrySet, scene: SceneProvider | undefined): {verts: number, tris: number} {
+    const list = flattenInstances(rest, scene)
+    let verts = 0, tris = 0
+    for (const item of list.meshes) {
+        const m = item.component
+        let t = 0
+        for (let f = 0; f < m.facesNum; f++) t += m.faceOffsets[f + 1] - m.faceOffsets[f] - 2
+        verts += m.vertsNum * item.count
+        tris += t * item.count
+    }
+    for (const item of list.pointClouds) verts += item.component.pointsNum * item.count
+    for (const item of list.curves) verts += item.component.pointsNum * item.count
+    return {verts, tris}
 }

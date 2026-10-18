@@ -20,6 +20,58 @@ function labelOf(key: string): string {
     return key.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/_/g, ' ').replace(/^./, c => c.toUpperCase())
 }
 
+/** `UI_PRECISION_FLOAT_MAX` (`UI_interface_c.hh:3074`). */
+const PRECISION_FLOAT_MAX = 6
+
+/**
+ * `calc_float_precision` (`interface_utils.cc:706`): more decimals for small values, so 0.00001 does not show as 0.000
+ * (only below `10^-prec`; 10.0001 keeps `prec`).
+ */
+export function calcFloatPrecision(prec: number, value: number): number {
+    const pow10Neg = [1e0, 1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6]
+    const maxPow = 10000000.0
+    prec = Math.min(Math.max(prec, 0), PRECISION_FLOAT_MAX)
+    value = Math.abs(value)
+    if (value < pow10Neg[prec] && value > 1 / maxPow) {
+        // `int(lround(value * max_pow))`: half away from zero.
+        let valueI = Math.round(value * maxPow)
+        if (valueI !== 0) {
+            const precSpan = 3
+            let precMin = -1
+            let decFlag = 0
+            let i = PRECISION_FLOAT_MAX
+            while (i && valueI) {
+                if (valueI % 10) {
+                    decFlag |= 1 << i
+                    precMin = i
+                }
+                valueI = Math.trunc(valueI / 10)
+                i--
+            }
+            let testPrec = precMin
+            decFlag = (decFlag >> (precMin + 1)) & ((1 << precSpan) - 1)
+            while (decFlag) {
+                testPrec++
+                decFlag >>= 1
+            }
+            prec = Math.max(testPrec, prec)
+        }
+    }
+    return Math.min(Math.max(prec, 0), PRECISION_FLOAT_MAX)
+}
+
+/**
+ * A float button's value at its display precision (`button_string_get_ex`: `%.*f` with `calc_float_precision`, round
+ * half to even on the exact value), without trailing zeros: Blender pads to the precision ("0.200"), the editor's
+ * input shows the shortest form ("0.2") so typing over it behaves as before.
+ */
+export function formatFloat(value: number, precision: number): string {
+    const digits = calcFloatPrecision(precision, value)
+    return new Intl.NumberFormat('en-US', {
+        minimumFractionDigits: 0, maximumFractionDigits: digits, useGrouping: false, roundingMode: 'halfEven',
+    } as Intl.NumberFormatOptions).format(value)
+}
+
 /**
  * A number field that behaves like Blender's: typing edits a draft that is applied on Enter (or when
  * the field loses focus), not on every keystroke, and Enter or Esc also ends the editing so the next
@@ -28,7 +80,7 @@ function labelOf(key: string): string {
  * Esc drops the draft. Without this, each keystroke re-ran the operator, and the field kept the
  * focus after Enter, so G/S/E over the viewport typed into it instead.
  */
-function NumberField({value, onCommit, ...rest}: {value: number | undefined, onCommit(n: number | undefined): void} & Omit<React.ComponentProps<typeof NumericInput>, 'value' | 'onValueChange' | 'onButtonClick' | 'onKeyDown' | 'onBlur'>) {
+function NumberField({value, onCommit, precision, ...rest}: {value: number | undefined, onCommit(n: number | undefined): void, precision?: number} & Omit<React.ComponentProps<typeof NumericInput>, 'value' | 'onValueChange' | 'onButtonClick' | 'onKeyDown' | 'onBlur'>) {
     const [draft, setDraft] = useState<string | null>(null)
     // The draft as of the last event: Enter blurs the field, and the blur must not commit it again.
     const pending = useRef<string | null>(null)
@@ -36,7 +88,8 @@ function NumberField({value, onCommit, ...rest}: {value: number | undefined, onC
         pending.current = s
         setDraft(s)
     }
-    const shown = draft ?? (value === undefined ? '' : String(value))
+    // With a precision the value shows rounded as Blender's float buttons do.
+    const shown = draft ?? (value === undefined ? '' : precision !== undefined ? formatFloat(value, precision) : String(value))
     const commit = () => {
         const s = pending.current
         edit(null)
@@ -78,6 +131,7 @@ function Field({name, def, value, onChange, disabled}: {name: string, def: PropD
     } else if (def.type === 'number' || def.type === 'integer') {
         const step = def.type === 'integer' ? 1 : def.maximum !== undefined && def.maximum <= 1 ? 0.05 : 0.1
         control = <NumberField id={id} value={value as number | undefined} disabled={disabled} fill
+            precision={def.type === 'number' ? def.precision : undefined}
             min={def.minimum} max={def.maximum} stepSize={step} minorStepSize={def.type === 'integer' ? null : step / 10}
             majorStepSize={step * 10} placeholder={def.default !== undefined ? String(def.default) : 'default'}
             onCommit={onChange} />
@@ -92,6 +146,7 @@ function Field({name, def, value, onChange, disabled}: {name: string, def: PropD
         const arr = Array.isArray(value) ? value as number[] : [0, 0, 0]
         control = <div className="me-vec3">
             {['X', 'Y', 'Z'].map((axis, i) => <NumberField key={axis} value={arr[i] ?? 0} disabled={disabled} stepSize={0.1}
+                precision={def.items?.precision}
                 minorStepSize={0.01} majorStepSize={1} buttonPosition="none" leftElement={<span className="me-axis">{axis}</span>}
                 onCommit={n => { const next = [...arr]; next[i] = n ?? 0; onChange(next) }} />)}
         </div>

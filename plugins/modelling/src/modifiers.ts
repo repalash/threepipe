@@ -169,6 +169,17 @@ export interface ModifierResult {
      * geometry-nodes modifier realizes its instances, as Blender's apply does). Default: the final mesh.
      */
     realize?(mesh: MeshData): MeshData
+    /**
+     * Vertex and triangle counts of the geometry besides {@link mesh} (instances, points), for scene statistics:
+     * Blender's statistics count the evaluated instances too. Called lazily.
+     */
+    stats?(): GeometryStats
+}
+
+/** Counts as Blender's statistics give them in object mode: vertices and triangles. */
+export interface GeometryStats {
+    verts: number
+    tris: number
 }
 
 /** A modifier type. The built-ins are registered below; other packages add theirs at runtime. */
@@ -267,7 +278,7 @@ export function evaluateModifierStack(mesh: MeshData, modifiers: ModifierSpec[],
     modifiers.forEach((modifier, index) => {
         const previous = current.geometry !== undefined || current.realize ? current : undefined
         const out = requireModifierType(modifier.type).evaluate(current.mesh, modifier, {...base, index, previous})
-        current = out instanceof MeshData ? {mesh: out, geometry: current.geometry, realize: current.realize} : out
+        current = out instanceof MeshData ? {mesh: out, geometry: current.geometry, realize: current.realize, stats: current.stats} : out
     })
     return current
 }

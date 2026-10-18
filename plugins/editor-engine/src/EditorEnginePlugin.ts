@@ -23,7 +23,7 @@ import {
     UndoManagerPlugin,
 } from 'threepipe'
 import {MeshEditPlugin} from '@threepipe/plugin-mesh-edit'
-import {ModellingPlugin} from '@threepipe/plugin-modelling'
+import {evaluatedStats, ModellingPlugin} from '@threepipe/plugin-modelling'
 import {SelectMode} from '@threepipe/mesh-kernel'
 import {
     EditorContext,
@@ -804,8 +804,18 @@ export class EditorEnginePlugin extends AViewerPluginSync<EngineEvents> implemen
         let verts = 0
         let faces = 0
         let objects = 0
+        const entries = this.modelling?.document.entries
         this.walkModel(o => {
             objects++
+            // A modelling object counts its evaluated mesh and instances, as Blender's statistics do (not the drawn
+            // buffer, whose corners are split for flat shading).
+            const entry = entries?.find(e => e.object === o)
+            if (entry) {
+                const counted = evaluatedStats(entry)
+                verts += counted.verts
+                faces += counted.tris
+                return
+            }
             const g = o.geometry
             if (!g || !(o as any).isMesh) return
             const pos = g.getAttribute('position')
