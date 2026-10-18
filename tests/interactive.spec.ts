@@ -5386,6 +5386,26 @@ test('modelling-replay', async({page}) => {
     await page.keyboard.press('Control+Shift+KeyZ')
     await expect.poll(async() => (await state()).objects.includes('antenna')).toBe(true)
 
+    // look: the agent's view of the build - an auto-framed sheet, and what each view shows. (With a
+    // highlight and no `fit`, look frames the highlighted object; `fit: '*'` frames the whole tower.)
+    const look = await page.evaluate(() => (window as any).modelling.run({op: 'look', fit: '*', highlight: {object: 'plinth', faces: [0]}, size: 640}))
+    expect(look.ok).toBe(true)
+    expect(look.data.views.map((v: any) => v.name)).toEqual(['front', 'right', 'top', 'iso'])
+    for (const v of look.data.views) expect(v.inFrame).toContain('antenna')
+    expect(look.data.highlight).toEqual({object: 'plinth', faces: 1, edges: 0, verts: 0})
+    expect(look.data.image.startsWith('data:image/jpeg;base64,')).toBe(true)
+    // ...and it left the person's camera and history alone.
+    expect((await state()).history.length).toBe(268)
+
+    // Real input: the palette's Look (Agent View) renders the same sheet into the Look dialog.
+    await page.mouse.move(vp.x + vp.width / 2, vp.y + vp.height / 2)
+    await page.keyboard.press('F3')
+    await page.locator('.me-palette input').fill('Look (Agent')
+    await page.keyboard.press('Enter')
+    await expect(page.locator('[data-look-image]')).toBeVisible({timeout: 60000})
+    await expect(page.locator('[data-look-meta]')).toContainText('in frame')
+    await page.keyboard.press('Escape')
+
     // Real input: Restart clears the scene and history and replays from the first command again.
     await page.locator('[data-replay-restart]').click()
     await expect.poll(async() => (await state()).next, {timeout: 30000}).toBeLessThan(271)
