@@ -261,12 +261,12 @@ async function runKeymap(browser, keymap) {
     const panelField = async(prop, value) => {
         await openPanel()
         const f = page.locator(`.me-operator-panel #me-prop-${prop}`)
-        await f.click(); await page.keyboard.press('Control+KeyA'); await type(String(value)); await press('Enter', 600)
+        await f.click(); await page.keyboard.press('ControlOrMeta+KeyA'); await type(String(value)); await press('Enter', 600)
     }
     const panelVec = async(index, value) => {
         await openPanel()
         const f = page.locator('.me-operator-panel .me-vec3 input').nth(index)
-        await f.click(); await page.keyboard.press('Control+KeyA'); await type(String(value)); await press('Enter', 600)
+        await f.click(); await page.keyboard.press('ControlOrMeta+KeyA'); await type(String(value)); await press('Enter', 600)
     }
     const dragHandle = async(handle, dx, dy) => {
         const p = await page.evaluate(h => window.__h.findHandle(h), handle)
@@ -617,10 +617,10 @@ async function runKeymap(browser, keymap) {
         const glbPath = join(OUT, `house-${keymap}.glb`)
         await step('save', 'File > Save As… house.glb', 'File menu · Save As… · name · Save', async() => {
             await page.locator('[data-menu="File"]').click(); await sleep(600)
-            await page.getByRole('menuitem', {name: 'Save As…'}).click(); await sleep(600)
+            await page.locator('[data-menu-item="file.save_as"]').click(); await sleep(600)
             const input = page.locator('#dialog-prompt-text-input')
             await input.waitFor()
-            await input.click(); await page.keyboard.press('Control+KeyA'); await type(`house-${keymap}`)
+            await input.click(); await page.keyboard.press('ControlOrMeta+KeyA'); await type(`house-${keymap}`)
             const dl = page.waitForEvent('download', {timeout: 120000})
             await page.locator('[data-dialog-submit]').click()
             const d = await dl
@@ -631,7 +631,8 @@ async function runKeymap(browser, keymap) {
         await step('reopen', 'File > Open… the saved .glb: the house comes back editable', 'File menu · Open… · pick house.glb · Tab', async() => {
             await page.locator('[data-menu="File"]').click(); await sleep(600)
             const chooser = page.waitForEvent('filechooser', {timeout: 120000})
-            await page.getByRole('menuitem', {name: 'Open…'}).click()
+            chooser.catch(() => {}) // awaited below; a failed step must not become an unhandled rejection
+            await page.locator('[data-menu-item="file.open"]').click()
             const confirm = page.locator('.bp5-dialog', {hasText: 'Unsaved changes are lost'})
             await Promise.race([chooser, confirm.waitFor({timeout: 5000}).then(() => confirm.locator('[data-dialog-submit]').click()).catch(() => {})])
             await (await chooser).setFiles(glbPath)
