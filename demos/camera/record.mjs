@@ -113,7 +113,7 @@ const measure = stage => `<svg viewBox="0 0 1920 1298" preserveAspectRatio="xMid
    ${stage >= 3 ? `<circle cx="${X(LENS[0])}" cy="${Y(LENS[1])}" r="${27 / mm}"/>` : ''}
    ${stage >= 4 ? `<path d="M${X(16.4 - 12.05)} ${Y(121)} V${Y(125)} H${X(16.4 + 12.05)} V${Y(121)}"/>` : ''}
   </g>
-  ${stage >= 1 ? lbl(X(0), Y(-10) - 16, '150.7 mm  Canon spec') : ''}
+  ${stage >= 1 ? lbl(X(48), Y(-10) - 18, '150.7 mm  Canon spec') : ''}
   ${stage >= 2 ? lbl(X(94), Y(58), '116.4 mm', 'start') : ''}
   ${stage >= 3 ? lbl(X(LENS[0]), Y(LENS[1]) + 12, 'EF throat 54 mm') : ''}
   ${stage >= 4 ? lbl(X(16.4) + 150, Y(118) + 10, 'shoe 24.1 mm · ISO 518', 'start') : ''}
