@@ -132,6 +132,7 @@ import {
 import {gridViewScale, SnapContext} from '../snap/snap'
 import {blenderTransformKeymap, ModalKeyEvent, TransformKeymap, TransformModalItem} from './keymap'
 import {EdgeSlideParams, SlideEvent, SlideProps, TransModeEdgeSlide, TransModeVertSlide, VertSlideParams} from './slide'
+import {ShrinkFattenProps, shrinkFattenSavedEven, shrinkFattenVertNormal, TransModeShrinkFatten, vertCalcShellFactorEx} from './shrinkFatten'
 
 /** `T_PROP_SIZE_MIN/MAX` (`transform.hh:37`). */
 const T_PROP_SIZE_MIN = 1e-6
@@ -232,6 +233,8 @@ export interface TransInfoOptions {
      * them from `op->ptr` (`initEdgeSlide`, `initVertSlide`). A slide entered with `G G` gets defaults.
      */
     slide?: SlideProps | null
+    /** Shrink/fatten: the operator's `use_even_offset` (`initShrinkFatten`). */
+    shrinkFatten?: ShrinkFattenProps | null
     /**
      * X-ray is on: edge slide then considers every vertex, not only those with a visible edge
      * (`use_occlude_geometry`, `transform_mode_edge_slide.cc:238`).
@@ -265,6 +268,8 @@ export interface TransformSavedProps {
     snap: boolean
     /** Edge and vertex slide only: the slide operator's properties. */
     slide?: SlideSavedProps
+    /** Shrink/fatten only: `use_even_offset` as the transform ended (`saveTransform`, `T_ALT_TRANSFORM`). */
+    shrinkFatten?: {useEvenOffset: boolean}
 }
 
 /**
@@ -290,7 +295,7 @@ export interface SlideSavedProps {
 export interface TransformModeInfo {
     flags: number
     /** `init_fn`; `op` is the operator's properties, null when the mode is entered from another. */
-    init(t: TransInfo, op: SlideProps | null): void
+    init(t: TransInfo, op: SlideProps | ShrinkFattenProps | null): void
     transform(t: TransInfo): void
     /**
      * `handle_event_fn`: the mode's own keys and mouse handling, after the transform's. `handled` is
@@ -402,6 +407,9 @@ export class TransInfo implements MouseInputContext {
         this.propSize = prop?.size ?? 1
         this.propMode = prop?.falloff ?? 'smooth'
 
+        // `initTransform` sets `t->mode` before `createTransData`, which reads it (shrink/fatten's normals).
+        this.mode = opts.mode
+
         // `createTransData`.
         if (opts.bm) {
             this.flag |= T_EDIT | T_POINTS
@@ -473,7 +481,7 @@ export class TransInfo implements MouseInputContext {
         initMouseInput(this.mouse, this.center2d, this.mval, !!opts.precision)
         if (opts.precision) this.modifiers |= MOD_PRECISION
 
-        this.transformModeInit(opts.mode, opts.slide ?? null)
+        this.transformModeInit(opts.mode, opts.mode === 'shrinkFatten' ? opts.shrinkFatten ?? null : opts.slide ?? null)
         // A slide on a selection it cannot slide (`t->state == TRANS_CANCEL` after init).
         if (this._initFailed()) return
 
@@ -629,7 +637,7 @@ export class TransInfo implements MouseInputContext {
     }
 
     /** `transform_mode_init` (`transform_mode.cc:1207`). */
-    transformModeInit(mode: TransformMode, op: SlideProps | null = null): void {
+    transformModeInit(mode: TransformMode, op: SlideProps | ShrinkFattenProps | null = null): void {
         this.mode = mode
         this.modeInfo = modeInfoGet(mode)
         this.flag |= this.modeInfo.flags
@@ -654,6 +662,11 @@ export class TransInfo implements MouseInputContext {
     /** `convertViewVec` (`transform.cc:185`). */
     convertViewVec(dx: number, dy: number): Vec3 {
         return this.view.winToDelta(dx, dy, this.zfac)
+    }
+
+    /** `t->viewinv[1]`, for `INPUT_VERTICAL_ABSOLUTE`. */
+    viewUp(): Vec3 {
+        return this.view.viewinvCol(1)
     }
 
     /** `transformApply` (`transform.cc:2243`): recompute everything from the current input. */
@@ -764,7 +777,8 @@ export class TransInfo implements MouseInputContext {
         case 'rotate':
         case 'resize':
         case 'vertEdgeSlide':
-            // `transform_mode_is_changeable`: every mode of this port is.
+            // `transform_mode_is_changeable` (`transform_mode.cc:74`): shrink/fatten is not.
+            if (this.mode === 'shrinkFatten') return false
             if (item === 'translate' && this.mode === 'translate') return false
             if (item === 'rotate' && this.mode === 'rotate') return false
             if (item === 'resize' && this.mode === 'resize') return false
@@ -960,7 +974,7 @@ export class TransInfo implements MouseInputContext {
         const type = this.orient[this.orientCurr].type
         return {
             mode: this.mode,
-            value: this.mode === 'rotate' || isSlideMode(this.mode) ? [this.valuesFinal[0]] : [...this.valuesFinal],
+            value: this.mode === 'rotate' || this.mode === 'shrinkFatten' || isSlideMode(this.mode) ? [this.valuesFinal[0]] : [...this.valuesFinal],
             orientType: type,
             orientMatrixType: type,
             orientMatrix: copyM3(this.spacemtx),
@@ -975,6 +989,7 @@ export class TransInfo implements MouseInputContext {
             },
             snap: !!(this.modifiers & MOD_SNAP),
             slide: this._saveSlideProps(),
+            ...this.mode === 'shrinkFatten' ? {shrinkFatten: {useEvenOffset: shrinkFattenSavedEven(this)}} : {},
         }
     }
 
@@ -1078,7 +1093,8 @@ function createTransEditVerts(t: TransInfo, bm: BMesh, objectMatrix: Mat4): Tran
     if (isIslandCenter) {
         // In this specific case nearby vertices need to know the island of the nearest connected vertex.
         const calcSingleIslands = (propMode & T_PROP_CONNECTED) !== 0 && t.around === 'individual' && (bm.selectMode & SelectMode.Vertex) !== 0
-        islandData = meshIslandsCalc(bm, calcSingleIslands, true, true)
+        // `calc_island_axismtx = !ELEM(t->mode, TFM_SHRINKFATTEN)` (`transform_convert_mesh.cc:1557`).
+        islandData = meshIslandsCalc(bm, calcSingleIslands, true, t.mode !== 'shrinkFatten')
         t.islands = islandData
     }
 
@@ -1114,7 +1130,7 @@ function createTransEditVerts(t: TransInfo, bm: BMesh, objectMatrix: Mat4): Tran
 
         // `VertsToTransData` (`transform_convert_mesh.cc:1435`).
         const iloc: Vec3 = [v.x, v.y, v.z]
-        const no = vertNo(v)
+        const no = (t.mode === 'shrinkFatten' ? shrinkFattenVertNormal(v, bm.selectMode) : null) ?? vertNo(v)
         let center: Vec3
         if (islandData?.center && islandIndex !== -1) center = copyV3(islandData.center[islandIndex])
         else center = copyV3(iloc)
@@ -1133,6 +1149,7 @@ function createTransEditVerts(t: TransInfo, bm: BMesh, objectMatrix: Mat4): Tran
             factor: 1, dist: 0, rdist: 0, flag: 0, extra: v,
         }
         if (selected) td.flag |= TD_SELECTED
+        if (t.mode === 'shrinkFatten') td.shellFactor = vertCalcShellFactorEx(v, no, ElemFlag.Select)
         // Blender stores FLT_MAX unless "connected" is on; the measured distance is kept so Alt+C
         // mid-transform has data (the falloff reads `rdist` when not connected, so nothing changes).
         if (propMode && dists) td.dist = dists[v.index]
@@ -1768,6 +1785,7 @@ export function modeInfoGet(mode: TransformMode): TransformModeInfo {
     case 'resize': return TransModeResize
     case 'edgeSlide': return TransModeEdgeSlide
     case 'vertSlide': return TransModeVertSlide
+    case 'shrinkFatten': return TransModeShrinkFatten
     }
 }
 

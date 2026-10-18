@@ -117,6 +117,32 @@ export function vertCalcNormal(v: BMVert): {no: Vec3, ok: boolean} {
 }
 
 /**
+ * `BM_vert_calc_normal_ex` (`bmesh_polygon.cc:734`): {@link vertCalcNormal} over only the faces with
+ * `hflag` set (shrink/fatten in face select mode uses the selected faces' normal).
+ */
+export function vertCalcNormalEx(v: BMVert, hflag: number): {no: Vec3, ok: boolean} {
+    let len = 0
+    const no: Vec3 = [0, 0, 0]
+    if (v.e) {
+        for (const e of diskEdges(v)) {
+            if (e.l) {
+                for (const l of radialLoops(e)) {
+                    if (l.v === v && (l.f.hflag & hflag)) {
+                        loopNormalAccum(l, no)
+                        len++
+                    }
+                }
+            }
+        }
+    }
+    if (len) {
+        normalizeV3Len(no)
+        return {no, ok: true}
+    }
+    return {no, ok: false}
+}
+
+/**
  * `BM_vert_normal_update` (`bmesh_polygon.cc:819`): `BM_vert_calc_normal(v, v->no)`. Unlike the
  * whole-mesh update there is no fallback: a vertex without faces gets the zero normal. (Named apart
  * from `bmesh/normals.ts`'s `vertCalcNormalsImpl`, which is `bm_vert_calc_normals_impl` with the

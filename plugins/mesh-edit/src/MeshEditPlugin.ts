@@ -58,6 +58,9 @@ import {
     deleteSelection,
     mergeSelection,
     MergeType,
+    extrudeDiscreteFacesSelection,
+    extrudeEdgesIndivSelection,
+    extrudeVertsIndivSelection,
     DeleteContext,
     bmToMesh,
     editMeshLoopCut,
@@ -66,6 +69,7 @@ import {
 import {Matrix4, Quaternion} from 'threepipe'
 import {EDIT_UPDATE_NONE, EDIT_UPDATE_NORMALS, EditMeshState, EditMeshUpdateParams} from './EditMeshState'
 import {ModalTransform, TransformMode, TransformSavedProps} from './transform'
+import type {ShrinkFattenProps} from './transform/shrinkFatten'
 import {
     buildEdgeOverlay,
     buildFaceDotOverlay,
@@ -146,7 +150,9 @@ export interface StartTransformOptions {
     /** Where the drag starts, in canvas CSS pixels; defaults to the last pointer position. */
     mouse?: {x: number, y: number}
     /** The topology operator this transform completes, for the undo label and the redo panel. */
-    chained?: 'extrude' | 'duplicate' | 'loopcut'
+    chained?: TransformChain
+    /** Shrink/fatten: the operator's `use_even_offset`. */
+    shrinkFatten?: ShrinkFattenProps
     /** Edge and vertex slide: the slide operator's properties (even, flipped, clamp). */
     slide?: SlideProps
 }
@@ -176,7 +182,7 @@ export interface MeshEditPluginEventMap extends AViewerPluginEventMap {
      * `chained` names the topology change the move followed (`extrude`, `duplicate`), if any.
      * Dispatched before `transformChanged: null`, while `transform` still holds its final state.
      */
-    transformCommitted: {transform: ModalTransform, chained: 'extrude' | 'duplicate' | 'loopcut' | null, saved: TransformSavedProps}
+    transformCommitted: {transform: ModalTransform, chained: TransformChain | null, saved: TransformSavedProps}
     /** The loop cut modal started, previewed another ring or cut count, or ended (null). */
     loopCutChanged: {loopCut: LoopCutModal | null}
     /**
@@ -226,7 +232,7 @@ const SUSPENDED_PLUGINS = ['Picking', 'TransformControlsPlugin', 'PivotControlsP
 const DISABLE_KEY = 'meshEdit'
 
 /** Undo-step labels, as Blender names the operators in its Undo History. */
-const TRANSFORM_LABELS: Record<TransformMode, string> = {translate: 'Move', rotate: 'Rotate', resize: 'Scale', edgeSlide: 'Edge Slide', vertSlide: 'Vertex Slide'}
+const TRANSFORM_LABELS: Record<TransformMode, string> = {translate: 'Move', rotate: 'Rotate', resize: 'Scale', edgeSlide: 'Edge Slide', vertSlide: 'Vertex Slide', shrinkFatten: 'Shrink/Fatten'}
 /** What to select when a transform has nothing to work on. */
 const TRANSFORM_EMPTY: Record<TransformMode, string> = {
     translate: 'Select something to move first.',
@@ -234,9 +240,52 @@ const TRANSFORM_EMPTY: Record<TransformMode, string> = {
     resize: 'Select something to scale first.',
     // `transform_mesh_edge_slide_data_create` returns nothing for anything but edge loops.
     edgeSlide: 'Select one or more edge loops to slide: each selected vertex needs one or two selected edges, each edge at most two faces.',
+    shrinkFatten: 'Select something to shrink or fatten first.',
     vertSlide: 'Select vertices to slide first.',
 }
-const CHAIN_LABELS = {extrude: 'Extrude', duplicate: 'Duplicate', loopcut: 'Loop Cut and Slide'} as const
+/**
+ * `edbm_extrude_mesh` (`editmesh_extrude.cc:358`): what E extrudes, by select mode and counts. In
+ * vertex mode one selected vertex, or vertices with no selected edge, extrude on their own
+ * (`edbm_extrude_verts_indiv`); in edge mode edges with no selected face extrude on their own
+ * (`EDBM_extrude_edges_indiv`); everything else is a region (`edbm_extrude_ex`). Null when nothing
+ * is selected for the mode.
+ */
+function extrudeMeshDispatch(bm: BMesh): object | null {
+    const mode = bm.selectMode
+    let nr: 'none' | 'elemFlag' | 'vertOnly' | 'edgeOnly'
+    if (mode & SelectMode.Vertex) {
+        nr = bm.totvertsel === 0 ? 'none' : bm.totvertsel === 1 || bm.totedgesel === 0 ? 'vertOnly' : 'elemFlag'
+    } else if (mode & SelectMode.Edge) {
+        nr = bm.totedgesel === 0 ? 'none' : bm.totfacesel === 0 ? 'edgeOnly' : 'elemFlag'
+    } else {
+        nr = bm.totfacesel === 0 ? 'none' : 'elemFlag'
+    }
+    switch (nr) {
+    case 'none': return null
+    case 'vertOnly': return extrudeVertsIndivSelection(bm).ok ? {} : null
+    case 'edgeOnly': return extrudeEdgesIndivSelection(bm, false).ok ? {} : null
+    case 'elemFlag': return extrudeSelection(bm)
+    }
+}
+
+/**
+ * The topology operators a transform can be chained to: Blender's operator macros (`mesh_ops.cc:250-327`)
+ * and the undo label each gets (the macro's name).
+ */
+const CHAIN_LABELS = {
+    extrude: 'Extrude', duplicate: 'Duplicate', loopcut: 'Loop Cut and Slide',
+    extrude_vertices_move: 'Extrude Only Vertices and Move',
+    extrude_edges_move: 'Extrude Only Edges and Move',
+    extrude_faces_move: 'Extrude Individual Faces and Move',
+    extrude_region_shrink_fatten: 'Extrude Region and Shrink/Fatten',
+} as const
+export type TransformChain = keyof typeof CHAIN_LABELS
+/** The extrude macros {@link MeshEditPlugin.extrudeMacro} runs: the extrude half, and the transform it chains to. */
+export type ExtrudeMacro = 'extrude_vertices_move' | 'extrude_edges_move' | 'extrude_faces_move' | 'extrude_region_shrink_fatten'
+const EXTRUDE_MACRO_MODE: Record<ExtrudeMacro, TransformMode> = {
+    extrude_vertices_move: 'translate', extrude_edges_move: 'translate',
+    extrude_faces_move: 'shrinkFatten', extrude_region_shrink_fatten: 'shrinkFatten',
+}
 
 /**
  * What a loop cut ran with, for its redo: `MESH_OT_loopcut`'s `number_cuts`, `smoothness` and `falloff`,
@@ -462,7 +511,7 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
     /** The mesh as it was before the running operation, for its undo step. */
     private _undoBefore: MeshData | null = null
     /** The running transform follows a topology change (extrude, duplicate) that must stay undoable. */
-    private _chained: 'extrude' | 'duplicate' | 'loopcut' | null = null
+    private _chained: TransformChain | null = null
     private _loopCut: LoopCutModal | null = null
     /** The cut whose slide is running, reported by `loopCutDone` when the slide ends. */
     private _loopCutPending: LoopCutCutProps | null = null
@@ -1544,7 +1593,7 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         const normal = selectedFaces.length ? averageFaceNormal(selectedFaces) : null
 
         const before = this._snapshot()
-        const result = extrudeSelection(state.bm)
+        const result = extrudeMeshDispatch(state.bm)
         if (!result) {
             this._notice('Select something to extrude first.')
             return false
@@ -1575,7 +1624,7 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         const state = this.state
         if (!state) return false
         const before = this._snapshot()
-        if (!extrudeSelection(state.bm)) {
+        if (!extrudeMeshDispatch(state.bm)) {
             this._notice('Select something to extrude first.')
             return false
         }
@@ -1617,6 +1666,66 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
         }
         this._runTransform(move)
         this._commitTopologyChange(before, 'Duplicate')
+        return true
+    }
+
+    /**
+     * The extrude half of an extrude macro (`ExtrudeMacro`), then `EDBM_update` as its exec does: the
+     * individual extrudes run with `calc_normals = false` (`editmesh_extrude.cc:557`, `:608`, `:659`) -
+     * Extrude Individual Faces has just set each vertex normal to its face's, which the shrink/fatten
+     * reads - and Extrude Region with `calc_normals = true` (`:451`).
+     */
+    private _extrudeMacroTopology(kind: ExtrudeMacro, opts: {useNormalFlip?: boolean}): boolean {
+        const bm = this.state!.bm
+        let r: {ok: boolean, error?: string}
+        switch (kind) {
+        case 'extrude_vertices_move': r = extrudeVertsIndivSelection(bm); break
+        case 'extrude_edges_move': r = extrudeEdgesIndivSelection(bm, !!opts.useNormalFlip); break
+        case 'extrude_faces_move': r = extrudeDiscreteFacesSelection(bm); break
+        case 'extrude_region_shrink_fatten': r = extrudeSelection(bm) ? {ok: true} : {ok: false, error: 'Select some faces to extrude first.'}; break
+        }
+        if (!r.ok) {
+            this._notice(r.error ?? 'Nothing to extrude.')
+            return false
+        }
+        this.state!.update(kind === 'extrude_region_shrink_fatten' ? EDIT_UPDATE_NORMALS : EDIT_UPDATE_NONE)
+        return true
+    }
+
+    /**
+     * Blender's extrude macros, interactive: `MESH_OT_extrude_vertices_move` and `_edges_move`
+     * (extrude, then Move), `MESH_OT_extrude_faces_move` and `_region_shrink_fatten` (extrude, then
+     * Shrink/Fatten), `mesh_ops.cc:293-327`. One undo step, recorded when the transform ends; cancelling
+     * the transform keeps the extrusion, as in Blender.
+     */
+    extrudeMacro(kind: ExtrudeMacro, opts: {useNormalFlip?: boolean, useEvenOffset?: boolean} = {}): boolean {
+        const state = this.state
+        if (!state) return false
+        const before = this._snapshot()
+        if (!this._extrudeMacroTopology(kind, opts)) {
+            this.revert(before)
+            return false
+        }
+        state.syncFromBMesh()
+        this.applyToObject()
+        this.refreshOverlays()
+        this.dispatchEvent({type: 'meshChanged', state})
+        const mode = EXTRUDE_MACRO_MODE[kind]
+        this.startTransform(mode, {undoBefore: before, chained: kind, ...mode === 'shrinkFatten' ? {shrinkFatten: {useEvenOffset: !!opts.useEvenOffset}} : {}})
+        return true
+    }
+
+    /** An extrude macro with its transform's saved properties, no modal: the redo panel's re-run. */
+    extrudeMacroBy(kind: ExtrudeMacro, move: TransformSavedProps, opts: {useNormalFlip?: boolean} = {}): boolean {
+        const state = this.state
+        if (!state) return false
+        const before = this._snapshot()
+        if (!this._extrudeMacroTopology(kind, opts)) {
+            this.revert(before)
+            return false
+        }
+        this._runTransform(move)
+        this._commitTopologyChange(before, CHAIN_LABELS[kind])
         return true
     }
 
@@ -1664,6 +1773,7 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
             proportional: saved.proportional,
             snap: {...this.snapping, enabled: false},
             slide: saved.slide ?? null,
+            shrinkFatten: saved.shrinkFatten ?? null,
             xray: this.xray,
             bm: state.bm,
             objectMatrix,
@@ -1927,6 +2037,7 @@ export class MeshEditPlugin extends AViewerPluginSync<MeshEditPluginEventMap> {
             constraint: opts.constraint,
             releaseConfirm: opts.releaseConfirm,
             slide: opts.slide ?? null,
+            shrinkFatten: opts.shrinkFatten ?? null,
             xray: this.xray,
             bm: state.bm,
             objectMatrix,
