@@ -229,11 +229,12 @@ async function sessionVerb(args: ParsedArgs, session: ModellingSession, io: CliI
     const build = (await import(pathToFileURL(modulePath).href)).default
     if (typeof build !== 'function') throw new Error(`${script} must default-export an async function taking the session`)
 
-    const transcript: {command: Command, result: CommandResult, image?: string}[] = []
+    const transcript: {command: Command, result: CommandResult, wallMs: number, image?: string}[] = []
     let lookIndex = 0
     const run = async(command: Command) => {
+        const started = Date.now()
         const result = await session.run(command)
-        transcript.push({command, result: stripLarge(result)})
+        transcript.push({command, result: stripLarge(result), wallMs: Date.now() - started})
         if (!result.ok) log(`  x ${command.op}: ${result.error}`)
         return result
     }
@@ -257,6 +258,8 @@ async function sessionVerb(args: ParsedArgs, session: ModellingSession, io: CliI
         return r.ok ? r.data : null
     }
     let thrown: string | null = null
+    // the build's own wall time, for the benchmark's run metrics (demos/benchmark/metrics/run.mjs)
+    const buildStarted = Date.now()
     try {
         await build({run, runAll, look, capture: look, inspect, log: (...parts: unknown[]) => log(parts.join(' ')), outDir})
     } catch (e) {
@@ -265,7 +268,8 @@ async function sessionVerb(args: ParsedArgs, session: ModellingSession, io: CliI
     const failed = transcript.filter(t => !t.result.ok)
     const transcriptPath = join(outDir, 'transcript.json')
     await writeFile(transcriptPath, JSON.stringify({
-        summary: {build: script, session: session.kind, commands: transcript.length, failed: failed.length, looks: lookIndex},
+        summary: {build: script, session: session.kind, commands: transcript.length, failed: failed.length, looks: lookIndex,
+            wallMs: Date.now() - buildStarted, startedAt: new Date(buildStarted).toISOString()},
         operations: transcript,
     }, null, 2))
     const saved = await saveIfChanged(args, session, transcript.map(t => t.result), io)

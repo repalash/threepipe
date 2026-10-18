@@ -6,7 +6,8 @@ import {builtinModules} from 'node:module'
  * Node bundles: `dist/index.mjs` (the library) and `dist/cli.mjs` (the executable).
  *
  * threepipe, `@threepipe/plugin-modelling` and `@threepipe/mesh-kernel` are bundled in, so the CLI runs
- * on its own with `npx`; `ws` and `playwright-core` stay dependencies. threepipe comes from its built
+ * on its own with `npx`; `ws`, `playwright-core` and `manifold-3d` (a WebAssembly module that loads its `.wasm`
+ * from beside its own script, so it cannot be inlined) stay dependencies. threepipe comes from its built
  * bundle (`npm run build` at the root). The session page is a separate build (`vite.page.config.js`).
  */
 export default defineConfig({
@@ -33,7 +34,7 @@ export default defineConfig({
                 relay: path.resolve(__dirname, 'src/relay.ts'),
                 skill: path.resolve(__dirname, 'src/skill.ts'),
             },
-            external: ['ws', 'playwright-core', ...builtinModules, ...builtinModules.map(m => `node:${m}`)],
+            external: ['ws', 'playwright-core', 'manifold-3d', ...builtinModules, ...builtinModules.map(m => `node:${m}`)],
             output: {
                 format: 'es',
                 entryFileNames: '[name].mjs',

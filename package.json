@@ -59,6 +59,8 @@
     "dev:modelling-editor": "npm run dev --prefix plugins/modelling-editor",
     "vite:modelling-editor": "NODE_ENV=development vite --config vite.examples.config.js --host 0.0.0.0 --port 9361",
     "modelling:session": "node scripts/modelling-session.mjs",
+    "benchmark:render": "node demos/benchmark/render.mjs",
+    "benchmark:score": "node demos/benchmark/score.mjs",
     "modelling": "node plugins/modelling-cli/dist/cli.mjs",
     "build:modelling-cli": "npm run build --prefix plugins/modelling-cli",
     "test:unit:modelling-cli": "npm run test --prefix plugins/modelling-cli",

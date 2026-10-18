@@ -5,7 +5,8 @@
     "devDependencies": {},
     "dependencies": {
         "threepipe": "file:./../../src/",
-        "@threepipe/mesh-kernel": "file:./../mesh-kernel/src/"
+        "@threepipe/mesh-kernel": "file:./../mesh-kernel/src/",
+        "manifold-3d": "3.5.3"
     },
     "peerDependencies": {
         "threepipe": ">=0.5.0",

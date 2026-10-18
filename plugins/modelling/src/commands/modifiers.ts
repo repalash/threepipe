@@ -10,7 +10,7 @@
 
 import {CommandDefinition, S, schema} from './types'
 import {readTarget, readTargets} from './params'
-import {checkModifier, describeModifier, ModifierSpec} from '../modifiers'
+import {checkModifier, describeModifier, ModifierSpec, SubsurfModifierSpec, WeightedNormalModifierSpec} from '../modifiers'
 
 export const modifierCommand: CommandDefinition = {
     op: 'modifier',
@@ -28,13 +28,16 @@ export const modifierCommand: CommandDefinition = {
         add: {
             type: 'object',
             description: 'A modifier to append. `{type: "array", mode, count, ...}`, '
-                + '`{type: "mirror", axis}` or `{type: "wireframe", thickness, ...}`. A wireframe '
+                + '`{type: "mirror", axis}`, `{type: "subsurf", levels, ...}` (Blender\'s Subdivision Surface: '
+                + 'levels 1, limit surface, creases from `crease`), `{type: "weightedNormal", mode, weight, keepSharp}` '
+                + '(Blender\'s Weighted Normal: custom normals so big faces shade flat and bevels take the bend; weight 50 '
+                + 'treats faces equally, 100 lets the largest dominate) or `{type: "wireframe", thickness, ...}`. A wireframe '
                 + 'field left out takes the Wireframe modifier\'s default (thickness 0.02, offset 0, '
                 + 'replace and evenOffset on, boundary off), which differs from the `wireframe` '
                 + 'command\'s.',
             properties: {
-                type: {type: 'string', enum: ['array', 'mirror', 'wireframe']},
-                mode: {type: 'string', enum: ['linear', 'radial', 'curve']},
+                type: {type: 'string', enum: ['array', 'mirror', 'wireframe', 'subsurf', 'weightedNormal']},
+                mode: {type: 'string', enum: ['linear', 'radial', 'curve', 'FACE_AREA', 'CORNER_ANGLE', 'FACE_AREA_WITH_ANGLE']},
                 count: {type: 'integer', minimum: 1},
                 step: {type: 'array', items: {type: 'number'}, minItems: 3, maxItems: 3},
                 angle: {type: 'number'},
@@ -55,6 +58,17 @@ export const modifierCommand: CommandDefinition = {
                 crease: {type: 'boolean'},
                 creaseWeight: {type: 'number'},
                 materialOffset: {type: 'integer'},
+                levels: {type: 'integer', minimum: 0, maximum: 6},
+                quality: {type: 'integer', minimum: 1, maximum: 10},
+                useLimitSurface: {type: 'boolean'},
+                useCreases: {type: 'boolean'},
+                boundarySmooth: {type: 'string', enum: ['ALL', 'PRESERVE_CORNERS']},
+                uvSmooth: {type: 'string', enum: ['NONE', 'PRESERVE_CORNERS', 'PRESERVE_CORNERS_AND_JUNCTIONS', 'PRESERVE_CORNERS_JUNCTIONS_AND_CONCAVE', 'PRESERVE_BOUNDARIES', 'SMOOTH_ALL']},
+                subdivisionType: {type: 'string', enum: ['CATMULL_CLARK', 'SIMPLE']},
+                weight: {type: 'integer', minimum: 1, maximum: 100},
+                threshold: {type: 'number', minimum: 0},
+                keepSharp: {type: 'boolean'},
+                useFaceInfluence: {type: 'boolean'},
             },
             required: ['type'],
         },
@@ -153,6 +167,28 @@ function readModifier(raw: Record<string, unknown>): ModifierSpec {
             axis: (raw.axis as 'x' | 'y' | 'z') ?? 'x',
             mergeDistance: raw.mergeDistance as number | undefined,
             center: raw.center as ModifierSpec extends never ? never : [number, number, number] | undefined,
+        }
+    }
+    if (type === 'subsurf') {
+        return {
+            type: 'subsurf',
+            levels: raw.levels as number | undefined,
+            quality: raw.quality as number | undefined,
+            useLimitSurface: raw.useLimitSurface as boolean | undefined,
+            useCreases: raw.useCreases as boolean | undefined,
+            boundarySmooth: raw.boundarySmooth as SubsurfModifierSpec['boundarySmooth'],
+            uvSmooth: raw.uvSmooth as SubsurfModifierSpec['uvSmooth'],
+            subdivisionType: raw.subdivisionType as SubsurfModifierSpec['subdivisionType'],
+        }
+    }
+    if (type === 'weightedNormal') {
+        return {
+            type: 'weightedNormal',
+            mode: raw.mode as WeightedNormalModifierSpec['mode'],
+            weight: raw.weight as number | undefined,
+            threshold: raw.threshold as number | undefined,
+            keepSharp: raw.keepSharp as boolean | undefined,
+            useFaceInfluence: raw.useFaceInfluence as boolean | undefined,
         }
     }
     if (type === 'wireframe') {
