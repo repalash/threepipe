@@ -4239,9 +4239,7 @@ test('modelling-editor-engine', async({page}) => {
     await page.locator('[data-operator-panel="mesh.inset"] .me-operator-title').click()
     const thickness = page.locator('[data-operator-panel="mesh.inset"] #me-prop-thickness')
     await expect(thickness).toBeVisible()
-    // A typed value applies on Enter, as in Blender's number fields (not on every keystroke).
     await thickness.fill('0.3')
-    await thickness.press('Enter')
     await expect.poll(async() => JSON.stringify(await selectedVerts())).not.toBe(JSON.stringify(thin))
     s = await state()
     expect(s.counts).toEqual([12, 20, 10])
@@ -4847,8 +4845,6 @@ test('modelling-editor-fill', async({page}) => {
     await expect.poll(async() => (await state()).sel).toEqual([8, 8, 2])
     await page.keyboard.press('KeyI')
     await expect.poll(async() => (await state()).counts).toEqual([16, 28, 14])
-    // I is Blender's inset modal: Enter confirms the default thickness.
-    await page.keyboard.press('Enter')
     expect((await state()).sel?.[2]).toBe(2)                 // the two inset faces
     await page.keyboard.press('Control+KeyE')
     await expect(popup).toBeVisible()
@@ -4945,7 +4941,6 @@ test('modelling-loop-tools', async({page}) => {
     const factor = page.locator('[data-operator-panel="mesh.edge_slide"] #me-prop-value')
     await expect(factor).toBeVisible()
     await factor.fill('-0.5')
-    await factor.press('Enter')
     await expect.poll(async() => JSON.stringify(await slid())).toBe(JSON.stringify(wentDown ? across(0.5) : down(0.5)))
     s = await state()
     expect(s.lastProps?.value).toBe(-0.5)
@@ -5011,7 +5006,6 @@ test('modelling-loop-tools', async({page}) => {
     const cuts = page.locator('[data-operator-panel="mesh.subdivide"] #me-prop-cuts')
     await expect(cuts).toBeVisible()
     await cuts.fill('2')
-    await cuts.press('Enter')
     await expect.poll(async() => (await state()).counts).toEqual([56, 108, 54])
     expect((await state()).lastProps?.cuts).toBe(2)
     expect((await state()).history.filter(h => h.startsWith('Subdivide')).length).toBe(1)
@@ -5057,7 +5051,6 @@ test('modelling-loop-tools', async({page}) => {
     const ringCuts = page.locator('[data-operator-panel="mesh.subdivide_edgering"] #me-prop-numberCuts')
     await expect(ringCuts).toBeVisible()
     await ringCuts.fill('2')
-    await ringCuts.press('Enter')
     await expect.poll(async() => (await state()).counts).toEqual([16, 28, 14])
     await page.mouse.click(empty.x, empty.y)
     await page.keyboard.press('Control+KeyZ')
@@ -5119,7 +5112,6 @@ test('modelling-loop-tools', async({page}) => {
     const lcCuts = page.locator('[data-operator-panel="mesh.loopcut_slide"] #me-prop-cuts')
     await expect(lcCuts).toBeVisible()
     await lcCuts.fill('2')
-    await lcCuts.press('Enter')
     await expect.poll(async() => (await state()).counts).toEqual([16, 28, 14])
     expect((await state()).history.filter(h => h.startsWith('Loop Cut')).length).toBe(1)
     await page.mouse.click(empty.x, empty.y)
@@ -5343,237 +5335,4 @@ test('modelling-editor-cut', async({page}) => {
     await page.mouse.click(vp.x + 30, vp.y + vp.height - 40)
     await page.keyboard.press('Control+KeyZ')
     await expect.poll(async() => (await state()).counts).toEqual([8, 12, 6])
-})
-
-test('modelling-editor-inset-bevel', async({page}) => {
-    await expect(page).toHaveTitle('Modelling Editor Inset Bevel')
-    await page.waitForFunction(() => (window as any).engine?.operators.get('mesh.inset'))
-
-    // ── Real input only: keys, clicks and pointer moves. State is read back afterwards. ──
-    const state = () => page.evaluate(() => {
-        const e = (window as any).engine
-        const bm = e.meshEdit.state?.bm
-        return {
-            mode: e.mode as string,
-            selectMode: e.selectMode as string,
-            counts: bm ? [bm.totvert, bm.totedge, bm.totface] as number[] : null,
-            sel: bm ? [bm.totvertsel, bm.totedgesel, bm.totfacesel] as number[] : null,
-            propDrag: (e.propDrag?.spec.operatorId ?? null) as string | null,
-            tool: (e.activeTool?.id ?? null) as string | null,
-            lastOp: (e.lastOperation?.operator.id ?? null) as string | null,
-            lastProps: (e.lastOperation?.props ?? null) as Record<string, unknown> | null,
-            history: e.history.entries().map((x: any) => x.label + (x.undone ? ' *' : '')) as string[],
-            toasts: document.querySelectorAll('.bp5-toast').length,
-        }
-    })
-    /** The face most turned towards the camera: its centre and one edge's midpoint, in client pixels. */
-    const frontFace = () => page.evaluate(() => {
-        const w = window as any
-        const me = w.engine.meshEdit
-        const cam = w.viewer.scene.mainCamera
-        cam.updateMatrixWorld()
-        const m = me.editObject.matrixWorld
-        const V = cam.position.constructor
-        const r = w.viewer.canvas.getBoundingClientRect()
-        const world = (v: any) => new V(v.x, v.y, v.z).applyMatrix4(m)
-        const screen = (p: any) => {
-            const q = p.clone().project(cam)
-            return {x: r.left + (q.x * 0.5 + 0.5) * r.width, y: r.top + (-q.y * 0.5 + 0.5) * r.height}
-        }
-        let best: any = null
-        let bestDot = -Infinity
-        for (const f of me.state.bm.faces) {
-            const vs = f.verts().map(world)
-            const c = vs.reduce((a: any, b: any) => a.add(b), new V()).multiplyScalar(1 / vs.length)
-            const n = vs[1].clone().sub(vs[0]).cross(vs[2].clone().sub(vs[1])).normalize()
-            const d = n.dot(cam.position.clone().sub(c).normalize())
-            if (d > bestDot) { bestDot = d; best = {vs, c} }
-        }
-        return {centre: screen(best.c), edge: screen(best.vs[0].clone().lerp(best.vs[1], 0.5))}
-    })
-    /** The selected vertices' extent along each axis: the inset face's size. */
-    const selectedExtent = () => page.evaluate(() => {
-        const bm = (window as any).engine.meshEdit.state.bm
-        const vs = [...bm.verts].filter((v: any) => v.hflag & 1)
-        return [0, 1, 2].map(i => {
-            const a = vs.map((v: any) => [v.x, v.y, v.z][i])
-            return Math.round((Math.max(...a) - Math.min(...a)) * 1e4) / 1e4
-        }).sort()
-    })
-    const modalText = page.locator('[data-status-bar] [data-modal]')
-
-    const vp = (await page.locator('[data-viewport]').boundingBox())!
-    await page.mouse.move(vp.x + vp.width / 2, vp.y + vp.height / 2)
-    await page.keyboard.press('Tab')
-    await expect.poll(async() => (await state()).mode).toBe('edit')
-    await page.keyboard.press('Digit3')
-    let f = await frontFace()
-    await page.mouse.click(f.centre.x, f.centre.y)
-    await expect.poll(async() => (await state()).sel).toEqual([4, 4, 1])
-
-    // 1. Blender's `I 0.2 Enter`: I starts the inset modal (the face is inset at once, at the default),
-    // the digits type the thickness - they do not switch to vertex/edge select mode - and Enter
-    // confirms. One undo step.
-    await page.mouse.move(f.centre.x + 120, f.centre.y + 80)
-    await page.keyboard.press('KeyI')
-    await expect.poll(async() => (await state()).propDrag).toBe('mesh.inset')
-    await expect.poll(async() => (await state()).counts).toEqual([12, 20, 10])
-    await expect(modalText).toContainText('Inset Faces: thickness')
-    await page.keyboard.type('0.2')
-    await expect(modalText).toContainText('0.2')
-    expect((await state()).selectMode).toBe('face')
-    await page.keyboard.press('Enter')
-    await expect.poll(async() => (await state()).propDrag).toBeNull()
-    let s = await state()
-    expect(s.lastOp).toBe('mesh.inset')
-    expect(s.lastProps?.thickness).toBe(0.2)
-    expect(s.counts).toEqual([12, 20, 10])
-    expect(s.history.filter(h => h.startsWith('Inset')).length).toBe(1)
-    // A 1-unit face inset by 0.2 on every side leaves a 0.6 square (and no extent along the normal).
-    expect(await selectedExtent()).toEqual([0, 0.6, 0.6])
-    expect(s.toasts).toBe(0)
-    await page.keyboard.press('Control+KeyZ')
-    await expect.poll(async() => (await state()).counts).toEqual([8, 12, 6])
-
-    // 2. Esc cancels: the inset made when I was pressed is taken back, nothing is left in the history.
-    const steps = (await state()).history.filter(h => !h.endsWith('*')).length
-    await page.keyboard.press('KeyI')
-    await expect.poll(async() => (await state()).counts).toEqual([12, 20, 10])
-    await page.keyboard.press('Escape')
-    await expect.poll(async() => (await state()).counts).toEqual([8, 12, 6])
-    expect((await state()).history.filter(h => !h.endsWith('*')).length).toBe(steps)
-
-    // 3. The mouse drives it, from the tool shelf too (Blender's `edbm_inset_modal`): moving towards the
-    // face's centre makes the rim thicker. The re-runs are the modal's own - no "finish the current
-    // operation first" toasts - and the shelf goes back to Select when it ends.
-    await page.locator('[data-tool="mesh.inset"]').click()
-    await expect.poll(async() => (await state()).propDrag).toBe('mesh.inset')
-    // Off the canvas when it started: the first move over the canvas is the reference (one pixel there
-    // is about 0.01 units at the cube's depth).
-    await page.mouse.move(f.centre.x + 200, f.centre.y)
-    await page.mouse.move(f.centre.x + 185, f.centre.y, {steps: 5})
-    await expect.poll(async() => Number((await state()).lastProps?.thickness)).toBeGreaterThan(0.1)
-    const dragged = Number((await state()).lastProps?.thickness)
-    await page.mouse.move(f.centre.x + 196, f.centre.y, {steps: 5})
-    await expect.poll(async() => Number((await state()).lastProps?.thickness)).toBeLessThan(dragged)
-    await page.mouse.click(f.centre.x + 196, f.centre.y)
-    await expect.poll(async() => (await state()).propDrag).toBeNull()
-    s = await state()
-    expect(s.toasts).toBe(0)
-    expect(s.tool).toBe('select')
-    expect(s.counts).toEqual([12, 20, 10])
-    expect(s.history.filter(h => h.startsWith('Inset') && !h.endsWith('*')).length).toBe(1)
-    await page.keyboard.press('Control+KeyZ')
-    await expect.poll(async() => (await state()).counts).toEqual([8, 12, 6])
-
-    // 4. Ctrl+B bevels an edge the same way: type the width, the wheel adds segments, Enter confirms.
-    await page.keyboard.press('Digit2')
-    f = await frontFace()
-    await page.mouse.move(f.edge.x, f.edge.y, {steps: 4})
-    await page.mouse.click(f.edge.x, f.edge.y)
-    await expect.poll(async() => (await state()).sel?.[1]).toBe(1)
-    await page.mouse.move(f.centre.x + 150, f.centre.y + 100, {steps: 4})
-    await page.keyboard.press('Control+KeyB')
-    await expect.poll(async() => (await state()).propDrag).toBe('mesh.bevel')
-    await page.keyboard.type('0.15')
-    await page.mouse.wheel(0, -100)
-    await page.mouse.wheel(0, -100)
-    await expect(modalText).toContainText('segments: 3')
-    await page.keyboard.press('Enter')
-    await expect.poll(async() => (await state()).propDrag).toBeNull()
-    s = await state()
-    expect(s.lastOp).toBe('mesh.bevel')
-    expect(s.lastProps).toMatchObject({offset: 0.15, segments: 3})
-    // One edge, three segments: the edge becomes a strip of three faces.
-    expect(s.counts![2]).toBe(9)
-    expect(s.toasts).toBe(0)
-    expect(s.selectMode).toBe('edge')
-})
-
-test('modelling-editor-panel-keys', async({page}) => {
-    await expect(page).toHaveTitle('Modelling Editor Panel Keys')
-    await page.waitForFunction(() => (window as any).engine?.operators.get('mesh.scale'))
-
-    const state = () => page.evaluate(() => {
-        const e = (window as any).engine
-        const bm = e.meshEdit.state?.bm
-        let max = 0
-        const selectMode = e.selectMode as string
-        if (bm) for (const v of bm.verts) max = Math.max(max, Math.abs(v.x))
-        return {
-            mode: e.mode as string,
-            transform: !!e.meshEdit.activeTransform,
-            lastOp: (e.lastOperation?.operator.id ?? null) as string | null,
-            lastProps: (e.lastOperation?.props ?? null) as Record<string, any> | null,
-            halfWidth: Math.round(max * 1e4) / 1e4,
-            selectMode,
-            focus: (document.activeElement?.tagName ?? null) as string | null,
-            history: e.history.entries().map((x: any) => x.label + (x.undone ? ' *' : '')) as string[],
-        }
-    })
-    const vp = (await page.locator('[data-viewport]').boundingBox())!
-    const over = {x: vp.x + vp.width / 2 + 40, y: vp.y + vp.height / 2 - 40}
-
-    // Tab, A, S 2 Enter: the Scale panel.
-    await page.mouse.move(over.x, over.y)
-    await page.keyboard.press('Tab')
-    await expect.poll(async() => (await state()).mode).toBe('edit')
-    await page.keyboard.press('KeyA')
-    await page.keyboard.press('KeyS')
-    await page.keyboard.type('2')
-    await page.keyboard.press('Enter')
-    await expect.poll(async() => (await state()).halfWidth).toBe(1)
-    const panel = page.locator('[data-operator-panel="mesh.scale"]')
-    await expect(panel).toBeVisible()
-    if (await panel.locator('.me-operator-title').getAttribute('data-open') !== 'true') await panel.locator('.me-operator-title').click()
-
-    // 1. Type 1.5 into X key by key: nothing re-runs while typing (each keystroke used to re-run the
-    // scale), Enter applies it once and ends the editing, as Blender's number fields do.
-    const x = panel.locator('.me-vec3 input').first()
-    await x.click()
-    await page.keyboard.press('Control+KeyA')
-    await page.keyboard.type('1.5', {delay: 60})
-    expect((await state()).halfWidth).toBe(1)
-    expect((await state()).focus).toBe('INPUT')
-    await page.keyboard.press('Enter')
-    await expect.poll(async() => (await state()).halfWidth).toBe(0.75)
-    let s = await state()
-    expect(s.lastProps?.value?.[0]).toBe(1.5)
-    expect(s.focus).not.toBe('INPUT')
-    expect(s.history.filter(h => h === 'Scale').length).toBe(1)
-
-    // 2. Back over the viewport - no click, which would change the selection - G moves.
-    await page.mouse.move(over.x, over.y, {steps: 4})
-    await page.keyboard.press('KeyG')
-    await expect.poll(async() => (await state()).transform).toBe(true)
-    await page.keyboard.press('Escape')
-    await expect.poll(async() => (await state()).transform).toBe(false)
-
-    // 3. The same after tabbing through the panel's fields to a menu (a select): a focused control that
-    // is not a text field used to keep every key, wherever the pointer was.
-    await page.keyboard.press('KeyS')
-    await page.keyboard.type('2')
-    await page.keyboard.press('Enter')
-    await expect.poll(async() => (await state()).halfWidth).toBe(1.5)
-    if (await panel.locator('.me-operator-title').getAttribute('data-open') !== 'true') await panel.locator('.me-operator-title').click()
-    await x.click()
-    for (let i = 0; i < 6 && await page.evaluate(() => document.activeElement?.id) !== 'me-prop-orientation'; i++) await page.keyboard.press('Tab')
-    expect(await page.evaluate(() => document.activeElement?.id)).toBe('me-prop-orientation')
-    expect((await state()).focus).toBe('SELECT')
-    await page.mouse.move(over.x, over.y, {steps: 4})
-    await page.keyboard.press('KeyG')
-    await expect.poll(async() => (await state()).transform).toBe(true)
-    await page.keyboard.press('Escape')
-    await expect.poll(async() => (await state()).transform).toBe(false)
-
-    // 4. A text field that is being typed into keeps the keys, wherever the pointer is: 3 is typed into
-    // it, not taken as Blender's face select mode.
-    await x.click()
-    await page.keyboard.press('Control+KeyA')
-    await page.mouse.move(over.x, over.y, {steps: 4})
-    await page.keyboard.type('3')
-    expect((await state()).selectMode).toBe('vertex')
-    expect(await x.inputValue()).toBe('3')
-    await page.keyboard.press('Escape')
-    expect((await state()).focus).not.toBe('INPUT')
 })

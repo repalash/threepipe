@@ -85,11 +85,8 @@ export const blenderPreset: KeymapPreset = {
         {keys: 'r', id: 'mesh.rotate', mode: 'edit'},                    // transform.rotate
         {keys: 's', id: 'mesh.scale', mode: 'edit'},                     // transform.resize
         {keys: 'e', id: 'mesh.extrude', mode: 'edit'},                   // view3d.edit_mesh_extrude_move_normal :5600
-        // I and Ctrl+B invoke Blender's inset and bevel modals (`edbm_inset_invoke`, `edbm_bevel_invoke`):
-        // the mouse or typed digits set the thickness/width, Enter confirms. The modal is the tool's
-        // (PropDragModal); the menus and the palette run the operator at its defaults for the redo panel.
-        {keys: 'i', id: 'mesh.inset', mode: 'edit', tool: true},         // mesh.inset :5547
-        {keys: 'ctrl+b', id: 'mesh.bevel', mode: 'edit', tool: true},    // mesh.bevel :5550
+        {keys: 'i', id: 'mesh.inset', mode: 'edit'},                     // mesh.inset :5547
+        {keys: 'ctrl+b', id: 'mesh.bevel', mode: 'edit'},                // mesh.bevel :5550
         {keys: 'k', id: 'mesh.knife', mode: 'edit'},                     // mesh.knife_tool :5639
         {keys: 'shift+k', id: 'mesh.knife', mode: 'edit', props: {onlySelected: true, cutThrough: true}}, // :5642
         {keys: 'm', id: 'mesh.merge', mode: 'edit'},                     // VIEW3D_MT_edit_mesh_merge :5618

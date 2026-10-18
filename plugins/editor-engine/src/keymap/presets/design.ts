@@ -80,9 +80,9 @@ export const designPreset: KeymapPreset = {
         {keys: 'ctrl+i', id: 'mesh.select_invert', mode: 'edit'},        // INVERT :3092
         {keys: 'ctrl+l', id: 'mesh.select_linked', mode: 'edit'},        // mesh.select_linked :3095
         {keys: 'ctrl+e', id: 'mesh.extrude', mode: 'edit'},              // view3d.edit_mesh_extrude_move_normal (IC Ctrl+E)
-        {keys: 'i', id: 'mesh.inset', mode: 'edit', tool: true},         // mesh.inset (IC I): the interactive modal, as in Blender's preset
+        {keys: 'i', id: 'mesh.inset', mode: 'edit'},                     // mesh.inset (IC I)
         {keys: 'k', id: 'mesh.knife', mode: 'edit', tool: true},         // builtin.knife (IC K, industry_compatible_data.py:3120)
-        {keys: 'ctrl+b', id: 'mesh.bevel', mode: 'edit', tool: true},    // mesh.bevel (IC Ctrl+B): the interactive modal
+        {keys: 'ctrl+b', id: 'mesh.bevel', mode: 'edit'},                // mesh.bevel (IC Ctrl+B)
         {keys: 'm', id: 'mesh.merge', mode: 'edit'},
         {keys: 'ctrl+d', id: 'mesh.duplicate', mode: 'edit'},            // mesh.duplicate_move :3106
         {keys: 'delete', id: 'mesh.delete', mode: 'edit'},               // VIEW3D_MT_edit_mesh_delete :3108
