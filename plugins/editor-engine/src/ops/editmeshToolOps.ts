@@ -18,6 +18,7 @@ import {
     dissolveDegenerateSelection,
     edgeCollapseSelection,
     edgeRotateSelection,
+    edgeSplitSelection,
     flipNormalsSelection,
     markSeamSelection,
     markSharpSelection,
@@ -107,6 +108,10 @@ export function registerEditmeshToolOperators(engine: EditorEnginePlugin): void 
     // `MESH_OT_solidify` (:4167)
     const solidifyProps: PropSchema = {type: 'object', properties: {
         thickness: {type: 'number', minimum: -10000, maximum: 10000, default: 0.01, description: 'Thickness.'},
+    }}
+    // `MESH_OT_edge_split` (:2039): `split_type_items` (:2054).
+    const edgeSplitProps: PropSchema = {type: 'object', properties: {
+        type: {type: 'string', enum: ['EDGE', 'VERT'], default: 'EDGE', description: 'Type: Faces by Edges (split faces along selected edges), or Faces & Edges by Vertices.'},
     }}
     // `MESH_OT_edge_rotate` (:2507)
     const edgeRotateProps: PropSchema = {type: 'object', properties: {
@@ -232,6 +237,14 @@ export function registerEditmeshToolOperators(engine: EditorEnginePlugin): void 
             props: solidifyProps,
             poll: facesSelected('Select the faces to solidify first'),
             exec: runSession('Solidify', solidifyProps, p => ok(solidifySelectionOperator(bm(), Number(p.thickness)))),
+        },
+        {
+            id: 'mesh.edge_split', label: 'Edge Split', icon: 'cut', category: 'Mesh', modes: ['edit'],
+            description: 'Split the selected edges so each neighbouring face gets its own copy (or, by Vertices, split faces and edges at the selected vertices).',
+            flags: {undo: true, register: true},
+            props: edgeSplitProps,
+            poll: ready(selected('vert', 1, 'Select the edges (or vertices) to split first')),
+            exec: runSession('Edge Split', edgeSplitProps, p => ok(edgeSplitSelection(bm(), p.type === 'VERT' ? 'VERT' : 'EDGE'))),
         },
         {
             id: 'mesh.edge_collapse', label: 'Collapse Edges & Faces', icon: 'collapse-all', category: 'Mesh', modes: ['edit'],

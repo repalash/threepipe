@@ -289,17 +289,25 @@ describe('edit-mode tool operators', () => {
         expect(s.bm.totfacesel).toBe(1)
     })
 
+    it('Edge Split: a cube face\'s rim splits off (Blender: 12 verts, 16 edges, 6 faces)', () => {
+        const s = makeSession(primitiveCube())
+        selectFaces(s.bm, i => i === 0)
+        s.bm.selectMode = SelectMode.Edge
+        expect(s.run('mesh.edge_split')).toMatchObject({ok: true, props: {type: 'EDGE'}})
+        expect(counts(s.bm)).toEqual([12, 16, 6])
+    })
+
     it('their menu entries are no longer "Not available yet"', () => {
         const s = makeSession(primitiveCube())
         selectFaces(s.bm, () => true)
         const flat = (m: ResolvedMenu): ResolvedMenuItem[] => m.items.flatMap(x => x.type === 'menu' && x.menu ? [x, ...flat(x.menu)] : [x])
         const entries = ['VIEW3D_MT_edit_mesh_faces', 'VIEW3D_MT_edit_mesh_edges', 'VIEW3D_MT_edit_mesh_normals', 'VIEW3D_MT_edit_mesh_clean',
-            'VIEW3D_MT_edit_mesh_merge', 'VIEW3D_MT_edit_mesh_delete', 'VIEW3D_MT_edit_mesh_vertices', 'VIEW3D_MT_transform']
+            'VIEW3D_MT_edit_mesh_merge', 'VIEW3D_MT_edit_mesh_delete', 'VIEW3D_MT_edit_mesh_split', 'VIEW3D_MT_edit_mesh_vertices', 'VIEW3D_MT_transform']
             .flatMap(id => flat(resolveMenu(s.engine as never, id, s.ctx())!))
         for (const id of ['mesh.poke', 'mesh.quads_convert_to_tris', 'mesh.beautify_fill', 'mesh.wireframe', 'mesh.fill',
             'mesh.mark_seam', 'mesh.mark_sharp', 'mesh.flip_normals', 'mesh.normals_make_consistent', 'mesh.delete_loose',
             'mesh.merge', 'mesh.edge_collapse', 'mesh.edge_rotate', 'mesh.dissolve_degenerate', 'mesh.solidify',
-            'mesh.extrude_faces_move', 'mesh.extrude_edges_move', 'mesh.extrude_vertices_move', 'view3d.edit_mesh_extrude_move_shrink_fatten', 'transform.shrink_fatten']) {
+            'mesh.edge_split', 'mesh.extrude_faces_move', 'mesh.extrude_edges_move', 'mesh.extrude_vertices_move', 'view3d.edit_mesh_extrude_move_shrink_fatten', 'transform.shrink_fatten']) {
             const items = entries.filter(x => x.type === 'operator' && x.id === id)
             expect(items.length, id).toBeGreaterThan(0)
             for (const x of items) expect(x.type === 'operator' && x.available, `${id} ${'label' in x ? x.label : ''}`).toBe(true)
