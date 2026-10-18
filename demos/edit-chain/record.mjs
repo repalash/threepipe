@@ -20,6 +20,8 @@ const main = results.steps.filter(s => s.chain === 'main').sort((a, b) => a.n - 
 if (main.length !== 30) throw new Error(`expected 30 main steps, got ${main.length}`)
 
 const film = await openFilm({out, accent: '#e8a33d', background: '#2b2d33'})
+// the example page starts with its own demo object; the chain starts from an empty document, as the harness's does
+await film.stage({op: 'delete', object: '*'})
 await film.stage({op: 'lighting', environmentIntensity: 1})
 await film.stage({op: 'light', name: 'key', type: 'directional', position: [3, 5, 4], target: [0, 0, 0], intensity: 2})
 const mark = st => st === 'PASS' ? '✓' : st === 'N/A' ? '–' : st === 'FAIL' ? '✗' : '?'
@@ -55,6 +57,8 @@ await film.caption('')
 await film.step('')
 film.ticker(false)
 film.chapter('Result')
+// the rook now stands on the ground (step 26): frame it there
+await film.glide({position: [2.3, 1.9, 2.7], target: [0, 0.75, 0], fov: 32}, 1.2)
 await film.still('hero')
 const stats = await film.stats()
 const frameMs = await film.frameMs(60)

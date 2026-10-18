@@ -5,32 +5,92 @@
  "blurb": "A Paris corner block (77 bd de Sébastopol, 1870) built to the engraved drawings, then a realism pass.",
  "intro": "The <i>maison à loyer</i> at N° 77 boulevard de Sébastopol, Paris (Paul Mesnard, published by César Daly in 1870), built to scale from the 1:100 elevation and 1:200 plans through the modelling command API: one plan n-gon extruded storey by storey, every opening an inset, cornices mitred round both cut corners, a 45° mansard by inset, railings on live curve arrays, dormers on live arrays. Then a short realism pass with the realism kit on the parts as built. Every dimension is measured back off the model.",
  "recordCommand": "node demos/haussmann/record.mjs",
- "hero": {"file": "15-hero-from-the-rue-greneta-corner-eye-level", "caption": "From the rue Greneta corner, eye level"},
+ "hero": {
+  "file": "16-hero-from-the-rue-greneta-corner-eye-level",
+  "caption": "From the rue Greneta corner, eye level"
+ },
  "compareTitle": "Realism pass: before and after",
  "compareIntro": "No geometry rebuilt (30-minute budget): the realism kit applied to the parts that exist. Stone: UVs at a 0.3 m tile and a tiling relief (the kit has no stone pattern yet, so its <code>grain</code> pattern stands in for tooled limestone). Roof and dormers: the <code>metal-satin</code> preset as zinc. Railings, balconettes and guards: <code>metal-dark</code> as wrought iron. Panes: <code>screen-glass</code>. Pavement: 1.2 m slab joints and a kerb line cut with <code>groove</code> (Manifold boolean). The facade itself could not take grooves for its rusticated courses: after the panes are separated it is an open shell (540 boundary edges), and <code>groove</code> cuts closed manifolds only; <code>cut: false</code> strips per pier would do it.",
  "compare": [
-  [{"file": "13-before-the-realism-pass-flat-colours", "caption": "Before: the demo's flat colours"}, {"file": "14-after-tooled-stone-zinc-wrought-iron-coated-glas", "caption": "After: tooled-stone relief, zinc, wrought iron, coated glass, pavement joints"}]
+  [
+   {
+    "file": "13-before-the-realism-pass-flat-colours",
+    "caption": "Before: the demo's flat colours, close on the lower cut corner"
+   },
+   {
+    "file": "14-after-tooled-stone-zinc-wrought-iron-coated-glas",
+    "caption": "After: tooled-stone relief, zinc, wrought iron, coated glass, pavement joints"
+   }
+  ]
  ],
  "stills": [
-  {"file": "01-the-1870-elevation-registered", "caption": "The 1870 elevation, registered at its scale bar (72.8 px/m)"},
-  {"file": "04-one-extrude-per-storey-line-every-bay-is-a-quad", "caption": "Walls: one extrude per storey line - every bay is a quad"},
-  {"file": "05-windows-framed-recessed-and-glazed", "caption": "Openings: inset, recess, inset, separate the panes"},
-  {"file": "07-mansard-a-45-brisis-and-a-shallow-terrasson-by-i", "caption": "The mansard: a 45° brisis (the 1859 limit) and a terrasson, by inset"},
-  {"file": "08-2nd-floor-balcony-outset-bisected-solidified-rai", "caption": "The 2nd-floor balcony; the railing is one 30 cm module on a live curve array"},
-  {"file": "11-dormers-on-live-arrays", "caption": "Dormers on live arrays"},
-  {"file": "15-hero-from-the-rue-greneta-corner-eye-level", "caption": "Hero, eye level"},
-  {"file": "16-three-quarter-on-the-cut-corner-as-the-rue-monge", "caption": "Three-quarter on the cut corner"},
-  {"file": "19-wireframe", "caption": "Wireframe"},
-  {"file": "21-orthographic-wireframe-over-the-1870-elevation", "caption": "Orthographic wireframe over the 1870 elevation"},
-  {"file": "23-top-wireframe-over-the-1870-plan", "caption": "Top, over the 1870 plan"},
-  {"file": "hero-turntable", "caption": "After the turntable"}
+  {
+   "file": "01-the-1870-elevation-registered",
+   "caption": "The 1870 elevation, registered at its scale bar (72.8 px/m)"
+  },
+  {
+   "file": "04-one-extrude-per-storey-line-every-bay-is-a-quad",
+   "caption": "Walls: one extrude per storey line - every bay is a quad"
+  },
+  {
+   "file": "05-windows-framed-recessed-and-glazed",
+   "caption": "Openings: inset, recess, inset, separate the panes"
+  },
+  {
+   "file": "07-mansard-a-45-brisis-and-a-shallow-terrasson-by-i",
+   "caption": "The mansard: a 45° brisis (the 1859 limit) and a terrasson, by inset"
+  },
+  {
+   "file": "08-2nd-floor-balcony-outset-bisected-solidified-rai",
+   "caption": "The 2nd-floor balcony; the railing is one 30 cm module on a live curve array"
+  },
+  {
+   "file": "11-dormers-on-live-arrays",
+   "caption": "Dormers on live arrays"
+  },
+  {
+   "file": "15-after-from-the-rue-greneta-corner",
+   "caption": "After the realism pass, from the rue Greneta corner"
+  },
+  {
+   "file": "17-three-quarter-on-the-cut-corner-as-the-rue-monge",
+   "caption": "Three-quarter on the cut corner"
+  },
+  {
+   "file": "20-wireframe",
+   "caption": "Wireframe"
+  },
+  {
+   "file": "22-orthographic-wireframe-over-the-1870-elevation",
+   "caption": "Orthographic wireframe over the 1870 elevation"
+  },
+  {
+   "file": "24-top-wireframe-over-the-1870-plan",
+   "caption": "Top, over the 1870 plan"
+  },
+  {
+   "file": "hero-turntable",
+   "caption": "After the turntable"
+  }
  ],
  "metricsFirst": [
-  ["build wall time (Node)", "1.1 s", "388 commands headless in Node (no film), 0 failed, 21/21 checks"]
+  [
+   "build wall time (Node)",
+   "1.1 s",
+   "388 commands headless in Node (no film), 0 failed, 21/21 checks"
+  ]
  ],
  "metrics": [
-  ["agent (original demo)", "194 min", "claude-opus-5-5 · 282 tool calls · 269k output / 140M input tokens"],
-  ["realism pass", "≈ 20 min", "this session (demos-gpu); 13 commands + 39 pavement grooves"]
+  [
+   "agent (original demo)",
+   "194 min",
+   "claude-opus-5-5 · 282 tool calls · 269k output / 140M input tokens"
+  ],
+  [
+   "realism pass",
+   "≈ 20 min",
+   "this session (demos-gpu); 13 commands + 39 pavement grooves"
+  ]
  ],
  "how": "<p><code>build.mjs</code> is the demo's session build script: measured data (pixel readings off Daly's plates, with the plate and row cited), then the build as commands, then the checks - each dimension measured off the model, not restated from constants. The realism pass is its own block at the end of the build (<code>session.realism</code>, on by default). <code>record.mjs</code> runs the unchanged build in <code>examples/modelling-api</code> on the GPU VM through <code>demos/shared/session.mjs</code>: its camera jumps become eased glides, each <code>capture</code> a held shot with its caption, each beat a title card; <code>demos/shared/film.mjs</code> renders and captures every frame. The shadow camera of the sun is sized to the block by the film (the <code>light</code> command has no parameter for it yet).</p><p>Re-run: <code>node demos/haussmann/record.mjs</code> then <code>node demos/shared/report.mjs demos/haussmann</code>. The plates and photographs come from <code>refs/</code> (not committed; <code>refs/SOURCES.md</code>).</p>",
  "weak": [
