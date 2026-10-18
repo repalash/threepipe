@@ -35,9 +35,7 @@
   "groups": 5,
   "nodes": 96,
   "nodeTypes": 18,
-  "missing": {
-   "GeometryNodeImageTexture": 2
-  },
+  "missing": {},
   "unevaluatedObjects": [
    "GEO-leaf.grass.004",
    "GEO-leaf.grass.005",

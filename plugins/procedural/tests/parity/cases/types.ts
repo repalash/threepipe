@@ -11,6 +11,18 @@ export interface CaseObject {
     scale?: Vec3
 }
 
+/** A float image `run_cases.py` creates (`bpy.data.images.new(float_buffer=True)` + `pixels.foreach_set`). */
+export interface CaseImage {
+    name: string
+    width: number
+    height: number
+    /** RGBA, rows from the bottom (Blender's float buffer). */
+    pixels: number[]
+    alphaMode?: 'STRAIGHT' | 'PREMUL' | 'CHANNEL_PACKED' | 'NONE'
+    /** Set the colour space to a data space (`colorspace_settings.is_data = True`, Non-Color). */
+    isData?: boolean
+}
+
 /** A case for `porting/blender/run_cases.py` (see its docstring). */
 export interface ParityCase {
     id: string
@@ -35,6 +47,8 @@ export interface ParityCase {
     blocked?: string
     /** Materials `run_cases.py` creates (`bpy.data.materials.new`) before building the node groups. */
     materials?: string[]
+    /** Images `run_cases.py` creates before building the node groups ({"_ref": "IMAGE"}). */
+    images?: CaseImage[]
     /** The modified object's transform. */
     location?: Vec3
     rotation?: Vec3

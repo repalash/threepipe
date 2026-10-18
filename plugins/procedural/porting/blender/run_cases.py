@@ -15,6 +15,7 @@ Usage:
     "scene": [{"collection": "C", "objects": [ObjectSpec], "instanceOffset"?: [x,y,z], "parent"?: "B"}],
     "objects": [ObjectSpec], "location"?, "rotation"?, "scale"? (the modified object's transform),
     "materials"?: ["<name>", ...]                    // materials created before the node groups ({"_ref": "MATERIAL"})
+    "images"?: [{"name", "width", "height", "pixels": [r,g,b,a,...], "alphaMode"?, "isData"?}]  // float images ({"_ref": "IMAGE"})
   }
   NodeTreeJSON = {
     "interface": [{"inOut": "INPUT"|"OUTPUT", "name", "socketType", "identifier", "default"?, "min_value"?,
@@ -329,6 +330,15 @@ def evaluate(case, writer):
     bpy.ops.wm.read_factory_settings(use_empty=True)
     for name in case.get("materials", []):
         bpy.data.materials.new(name)
+    for spec in case.get("images", []):
+        # A float buffer holding exactly `pixels` (`rna_Image_pixels_set` copies into `ImBuf::float_buffer`).
+        img = bpy.data.images.new(spec["name"], spec["width"], spec["height"], alpha=True, float_buffer=True)
+        # Alpha mode and colour space first: their RNA updates signal the image (IMA_SIGNAL_COLORMANAGE), which
+        # frees and regenerates a generated image's buffer.
+        img.alpha_mode = spec.get("alphaMode", "STRAIGHT")
+        if spec.get("isData"):
+            img.colorspace_settings.is_data = True
+        img.pixels.foreach_set(spec["pixels"])
     build_scene(case)
     library, main = case_tree(case)
     groups = {name: bpy.data.node_groups.new(name, "GeometryNodeTree") for name in library}

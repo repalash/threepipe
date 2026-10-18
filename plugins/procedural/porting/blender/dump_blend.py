@@ -418,6 +418,7 @@ def main():
             "channels": img.channels,
             "isFloat": img.is_float,
             "colorspace": img.colorspace_settings.name,
+            "isData": img.colorspace_settings.is_data,
             "alphaMode": img.alpha_mode,
             "pixels": writer.put(pixels, "f4"),
         }

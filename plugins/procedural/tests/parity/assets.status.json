@@ -23,14 +23,14 @@
  },
  "candy_bounce": {
   "geonodes_floor": "skip (not ported: GeometryNodeProximity, GeometryNodeSubdivisionSurface)",
-  "geonodes_jumpers": "pass (within 1e-5, not bit-exact)",
-  "geonodes_well": "pass (within 1e-5, not bit-exact)"
+  "geonodes_jumpers": "pass (<= 16 ulp)",
+  "geonodes_well": "pass (<= 4 ulp)"
  },
  "flower_scattering": {
-  "EN-ground_plane_NEW": "skip (not ported: GeometryNodeImageTexture)"
+  "EN-ground_plane_NEW": "pass (within 1e-5, > 256 ulp)"
  },
  "pebble_scattering": {
-  "GEO-ground": "pass (within 1e-5, not bit-exact)"
+  "GEO-ground": "pass (within 1e-5, > 256 ulp)"
  },
  "repeat_zone_flower_by_MiRA": {
   "Rose": "skip (not ported: GeometryNodeInputSceneTime, GeometryNodeRepeatInput, GeometryNodeRepeatOutput, GeometryNodeSubdivisionSurface)"

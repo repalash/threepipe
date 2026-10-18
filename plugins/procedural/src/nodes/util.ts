@@ -4,8 +4,10 @@
  */
 
 import {f32} from '../blender/f32'
-import {DataType} from '../geometry/dataTypes'
-import {elementwise, MultiFunction} from '../fields/field'
+import {DATA_TYPES, DataType} from '../geometry/dataTypes'
+import {elementwise, FieldOperation, GField, MultiFunction} from '../fields/field'
+import {evaluateConstantField} from '../fields/evaluate'
+import {GVArray} from '../geometry/varray'
 
 /** `std::min` / `min_ff` (`(b < a) ? b : a` / `(a < b) ? a : b` agree except for NaN: Blender's `min_ff` keeps `b` for NaN `a`). */
 export const minFF = (a: number, b: number) => (a < b ? a : b)
@@ -63,4 +65,19 @@ export function elementwiseBool(name: string, inputs: readonly DataType[], pred:
 const LUMA = [f32(0.2126), f32(0.7152), f32(0.0722)]
 export function colormanagementLuminance(rgb: ArrayLike<number>): number {
     return f32(f32(f32(LUMA[0] * rgb[0]) + f32(LUMA[1] * rgb[1])) + f32(LUMA[2] * rgb[2]))
+}
+
+/**
+ * `execute_multi_function_on_value_variant` (`geometry_nodes_lazy_function.cc:502`): single inputs run the function
+ * once and give single values, otherwise its outputs are field operations.
+ */
+export function applyFunction(fn: MultiFunction, inputs: GField[]): GField[] {
+    if (inputs.every(f => !f.dependsOnInput)) {
+        const singles = inputs.map(f => GVArray.fromSingle(f.type, 1, evaluateConstantField(f)))
+        const outs = fn.outputs.map(t => new DATA_TYPES[t].array(DATA_TYPES[t].components))
+        fn.call(1, singles, outs)
+        return fn.outputs.map((t, i) => GField.constant(t, Array.from(outs[i])))
+    }
+    const op = new FieldOperation(fn, inputs)
+    return fn.outputs.map((_, i) => op.output(i))
 }

@@ -148,7 +148,7 @@ export interface DumpReferenced {
         instance_collection?: string | null
     }>
     collections: Record<string, {objects: string[], children: string[], instance_offset: number[]}>
-    images: Record<string, {size: [number, number], channels: number, pixels: unknown}>
+    images: Record<string, {size: [number, number], channels: number, isFloat?: boolean, isData?: boolean, alphaMode?: SceneImage['alphaMode'], pixels: unknown}>
 }
 
 /**
@@ -194,8 +194,12 @@ export function sceneFromDump(ref: DumpReferenced, resolve?: BinResolver): Scene
             if (!img) {
                 const d = ref.images[name]
                 if (!d) return undefined
+                // `Image.pixels` is the float buffer for float images (`rna_Image_pixels_get`, rna_image.cc:647); for
+                // byte images it is `byte / 255`, not the colour-managed buffer `IMB_float_from_byte` makes for the node.
+                if (d.isFloat === false) throw new Error(`image "${name}": byte images need IMB_float_from_byte (colour management), not ported`)
+                if (d.channels !== 4) throw new Error(`image "${name}": ${d.channels} channels, the Image Texture node reads RGBA float buffers`)
                 const px = values(d.pixels, resolve)
-                img = {width: d.size[0], height: d.size[1], pixels: px instanceof Float32Array ? px : Float32Array.from(px)}
+                img = {width: d.size[0], height: d.size[1], pixels: px instanceof Float32Array ? px : Float32Array.from(px), alphaMode: d.alphaMode, isData: d.isData}
                 images.set(name, img)
             }
             return img

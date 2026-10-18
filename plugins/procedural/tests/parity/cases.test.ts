@@ -11,7 +11,9 @@ import {existsSync, readFileSync, writeFileSync} from 'node:fs'
 import {join} from 'node:path'
 import {compareGeometry, ExpectedGeometry, GeometryNodesEvaluator} from '../../src'
 import {binResolver, DumpReferenced, geometryFromDump, inlineBinRefs, sceneFromDump} from '../../src/io/geometryFromDump'
-import {ParityCase} from './cases/types'
+import type {EvalOptions, SceneProvider} from '../../src/runtime/context'
+import {CaseImage, ParityCase} from './cases/types'
+import {imageTextureCases} from './cases/imageTexture'
 import {functionMathCases} from './cases/functionMath'
 import {functionRandomCases} from './cases/functionRandom'
 import {functionRotationCases} from './cases/functionRotation'
@@ -30,6 +32,12 @@ import {meshPrimitiveCases} from './cases/meshPrimitive'
 import {meshMergeCases} from './cases/meshMerge'
 import {distributeCases} from './cases/distribute'
 
+/** The case's images over the scene Blender built: the pixels Blender's float buffer holds (`foreach_set`). */
+function withCaseImages(scene: SceneProvider | undefined, images: CaseImage[]): SceneProvider {
+    const byName = new Map(images.map(i => [i.name, {width: i.width, height: i.height, pixels: Float32Array.from(i.pixels), alphaMode: i.alphaMode, isData: i.isData}]))
+    return {...scene, image: name => byName.get(name) ?? scene?.image?.(name)}
+}
+
 const SETS: Record<string, () => ParityCase[]> = {textures: textureCases, instances: instanceCases, geometry: geometryCases, scene: sceneCases, distribute: distributeCases}
 SETS.functionMath = functionMathCases
 SETS.functionRandom = functionRandomCases
@@ -40,6 +48,7 @@ SETS.meshInputs = meshInputCases
 SETS.meshAttribute = meshAttributeCases
 SETS.meshSample = meshSampleCases
 SETS.meshMaterial = meshMaterialCases
+SETS.imageTexture = imageTextureCases
 SETS.meshEdit = meshEditCases
 SETS.meshPrimitive = meshPrimitiveCases
 SETS.meshMerge = meshMergeCases
@@ -70,7 +79,8 @@ for (const [set, generate] of Object.entries(SETS)) {
                 const resolver = binResolver(existsSync(bin) ? {[`${c.id}.bin`]: readFileSync(bin)} : {})
                 const expected = inlineBinRefs(gt.geometry!, resolver)
                 // The case's object is named after the case (`run_cases.py`); Object/Collection Info read the scene Blender built.
-                const options = gt.scene ? {scene: sceneFromDump(gt.scene, resolver), selfObject: c.id} : {}
+                const options: EvalOptions = gt.scene ? {scene: sceneFromDump(gt.scene, resolver), selfObject: c.id} : {}
+                if (c.images) options.scene = withCaseImages(options.scene, c.images)
                 // The modifier's input: the mesh Blender built for the case object (`input`), or nothing.
                 const evaluate = () => {
                     const ev = new GeometryNodesEvaluator(c.library, c.group, options)
