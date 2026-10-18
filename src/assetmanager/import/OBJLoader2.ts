@@ -757,6 +757,15 @@ class OBJLoader2 extends Loader implements ILoader{
 
         if ( hasPrimitives === true ) {
 
+            // Load only materials used by geometry, and start them together so
+            // independent MTL textures do not wait for preceding objects/groups.
+            const materialNames = this.materials === null ? [] : Array.from(new Set(
+                state.objects.filter(object => object.geometry.vertices.length > 0)
+                    .flatMap(object => object.materials.map(material => material.name))
+            ));
+            const loadedMaterials = await Promise.all(materialNames.map(name => this.materials.create(name)));
+            const materialsByName = new Map(materialNames.map((name, index) => [name, loadedMaterials[index]]));
+
             for ( let i = 0, l = state.objects.length; i < l; i ++ ) {
 
                 const object = state.objects[ i ];
@@ -804,7 +813,7 @@ class OBJLoader2 extends Loader implements ILoader{
 
                     if ( this.materials !== null ) {
 
-                        material = await this.materials.create( sourceMaterial.name );
+                        material = materialsByName.get( sourceMaterial.name );
 
                         // mtl etc. loaders probably can't create line materials correctly, copy properties to a line material.
                         if ( isLine && material && ! ( material instanceof LineBasicMaterial ) ) {

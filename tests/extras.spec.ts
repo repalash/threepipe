@@ -27,8 +27,26 @@ test('import-test', async({page}) => expect(page).toHaveTitle('Basic Lib Import 
 test('ktx-load', async({page}) => expect(page).toHaveTitle('KTX Texture Load'))
 test('ktx2-load', async({page}) => expect(page).toHaveTitle('KTX2 Texture Load'))
 test('material-uiconfig', async({page}) => expect(page).toHaveTitle('Material UiConfig'))
-test('obj-mtl-load', async({page}) => expect(page).toHaveTitle('OBJ MTL Load'))
-test('obj-to-glb', async({page}) => expect(page).toHaveTitle('OBJ To GLB'))
+for (const [name, title] of [['obj-mtl-load', 'OBJ MTL Load'], ['obj-to-glb', 'OBJ To GLB']]) {
+    test(name, async({page}) => {
+        await expect(page).toHaveTitle(title)
+        // Also checks the OBJ export/reimport path: the final scene must contain
+        // loaded texture images, not merely finish with an untextured model.
+        const imageWidths = await page.evaluate(() => {
+            const widths: number[] = []
+            const viewer = (window as any).threeViewers[0]
+            viewer.scene.modelRoot.traverse((object: any) => {
+                const materials = Array.isArray(object.material) ? object.material : [object.material]
+                for (const material of materials) {
+                    if (material?.map) widths.push(material.map.image?.width ?? 0)
+                }
+            })
+            return widths
+        })
+        expect(imageWidths.length).toBeGreaterThan(0)
+        expect(imageWidths.every(width => width > 0)).toBe(true)
+    })
+}
 test('object-uiconfig', async({page}) => expect(page).toHaveTitle('Object UiConfig'))
 test('parallel-asset-import', async({page}) => expect(page).toHaveTitle('Parallel Asset Import/Download'))
 test('ply-load', async({page}) => expect(page).toHaveTitle('PLY Load'))
