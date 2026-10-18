@@ -283,6 +283,13 @@ differ by 1 ulp and grow where later arithmetic cancels (up to ~1e-6 absolute). 
 without reproducing a platform libm (Blender on Linux/Windows would differ from macOS too); they pass at
 1e-5 and the status file records the ulp distance per case.
 
+**libm boundaries (measured 2026-10-18 on the reference Mac, `tmp/libm-probe/probe.py`):** macOS arm64's float
+`acosf(-1)` = 3.1415925, `asinf(+-1)` = +-1.5707962 and `atan2f` = +-3.1415925 wherever the correctly rounded result
+is +-float(pi) (e.g. `atan2f(+-0, x < 0)`), one ulp below the correctly rounded values. Unlike other libm ulps these
+change branches (`vec_to_quat` flips a near-zero cosine's sign and returns a different rotation for axis-aligned
+normals), so `src/blender/libm.ts` models exactly these measured results (`blenderSystem.libm = 'apple-arm64'`,
+switchable to `'correctly-rounded'`) and every `acosf`/`asinf`/`atan2f` call site uses it.
+
 ---
 
 ## 3. First subset — nodes in dependency order

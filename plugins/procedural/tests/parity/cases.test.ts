@@ -21,8 +21,9 @@ import {textureCases} from './cases/textures'
 import {instanceCases} from './cases/instances'
 import {geometryCases} from './cases/geometry'
 import {sceneCases} from './cases/scene'
+import {distributeCases} from './cases/distribute'
 
-const SETS: Record<string, () => ParityCase[]> = {textures: textureCases, instances: instanceCases, geometry: geometryCases, scene: sceneCases}
+const SETS: Record<string, () => ParityCase[]> = {textures: textureCases, instances: instanceCases, geometry: geometryCases, scene: sceneCases, distribute: distributeCases}
 SETS.functionMath = functionMathCases
 SETS.functionRandom = functionRandomCases
 SETS.functionRotation = functionRotationCases

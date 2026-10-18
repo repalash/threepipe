@@ -8,6 +8,7 @@ import {stdClamp} from '../../blender/noiseTextures'
 import {MultiFunction} from '../../fields/field'
 import {registerNodeType} from '../../runtime/registry'
 import {cached} from '../util'
+import {atan2f} from '../../blender/libm'
 
 const stdMin = (a: number, b: number) => (b < a ? b : a)
 const stdMax = (a: number, b: number) => (a < b ? b : a)
@@ -33,7 +34,7 @@ const GRADIENTS: Record<string, (x: number, y: number, z: number) => number> = {
     },
     DIAGONAL: (x, y) => stdClamp(f32(f32(x + y) * 0.5), 0, 1),
     // `atan2f(y, x) / (M_PI * 2.0f) + 0.5f`: the division and the sum are in double.
-    RADIAL: (x, y) => f32(f32(Math.atan2(y, x)) / (Math.PI * 2.0) + 0.5),
+    RADIAL: (x, y) => f32(atan2f(y, x) / (Math.PI * 2.0) + 0.5),
     QUADRATIC_SPHERE: (x, y, z) => {
         const r = stdMax(f32(F_0_999999 - length3(x, y, z)), 0)
         return f32(r * r)

@@ -12,6 +12,7 @@ import {GVArray} from '../../geometry/varray'
 import {MultiFunction} from '../../fields/field'
 import {registerNodeType} from '../../runtime/registry'
 import {cached, fmodf, fn1, fn2, fn3, maxFF, minFF, stdMax, stdMin} from '../util'
+import {acosf, asinf, atan2f} from '../../blender/libm'
 
 const FLT_EPSILON = 1.1920928955078125e-7
 
@@ -89,10 +90,10 @@ const OPS: Record<string, MultiFunction> = {
     SINE: fn1('sin(float)', a => Math.sin(a)),
     COSINE: fn1('cos(float)', a => Math.cos(a)),
     TANGENT: fn1('tan(float)', a => Math.tan(a)),
-    ARCSINE: fn1('asin(float)', a => Math.asin(clamp1(a))),
-    ARCCOSINE: fn1('acos(float)', a => Math.acos(clamp1(a))),
+    ARCSINE: fn1('asin(float)', a => asinf(clamp1(a))),
+    ARCCOSINE: fn1('acos(float)', a => acosf(clamp1(a))),
     ARCTANGENT: fn1('atan(float)', a => Math.atan(a)),
-    ARCTAN2: fn2('atan2(float, float)', (a, b) => Math.atan2(a, b)),
+    ARCTAN2: fn2('atan2(float, float)', (a, b) => atan2f(a, b)),
     SINH: fn1('sinh(float)', a => Math.sinh(a)),
     COSH: fn1('cosh(float)', a => Math.cosh(a)),
     TANH: fn1('tanh(float)', a => Math.tanh(a)),

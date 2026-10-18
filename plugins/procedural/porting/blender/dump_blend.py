@@ -286,7 +286,7 @@ def geometry_of(obj, writer):
     if not evaluated.is_evaluated:
         UNEVALUATED.append(obj.name)
         return None
-    return read_geometry(evaluated.evaluated_geometry(), writer)
+    return read_geometry(evaluated.evaluated_geometry(), writer, vertex_groups=[g.name for g in obj.vertex_groups])
 
 
 def input_geometry(obj, writer):

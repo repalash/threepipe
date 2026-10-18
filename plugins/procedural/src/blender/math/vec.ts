@@ -6,6 +6,7 @@
  */
 
 import {f32} from '../f32'
+import {asinf} from '../libm'
 
 export type V3 = [number, number, number]
 
@@ -98,7 +99,7 @@ export function lenV3V3(a: ArrayLike<number>, b: ArrayLike<number>): number {
 
 /** `safe_asinf` (`math_base_safe_inline.cc:49`): CLAMP to [-1, 1] then `asinf`. */
 function safeAsinf(a: number): number {
-    return f32(Math.asin(a < -1 ? -1 : a > 1 ? 1 : a))
+    return asinf(a < -1 ? -1 : a > 1 ? 1 : a)
 }
 
 /** `angle_normalized_v3v3` (`blenlib/intern/math_vector.cc:336`). */
