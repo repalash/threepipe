@@ -2,7 +2,7 @@
 // the same set-up the side-by-side in issues/open/modelling-tools/16-realism.md was judged in.
 // ../render.mjs drives it through `window.bench`; one model and one style per page load.
 
-import {DRACOLoader2, Matrix4, PhysicalMaterial, ThreeViewer} from 'threepipe'
+import {Color, DRACOLoader2, Matrix4, PhysicalMaterial, SRGBColorSpace, ThreeViewer} from 'threepipe'
 
 // The decoder three ships, served from this repo, instead of the CDN default.
 DRACOLoader2.DRACO_LIBRARY_PATH = new URL('../../../node_modules/three/examples/jsm/libs/draco/', import.meta.url).href
@@ -24,6 +24,19 @@ const TEXTURE_SLOTS = ['map', 'normalMap', 'bumpMap', 'roughnessMap', 'metalness
 const isDecal = m => !!m && m.transparent && !!m.map
 
 let root = null
+
+/** Mean sRGB colour and alpha of an image, 0..1, over a 64x64 resample. */
+function meanColor(image) {
+    const c = document.createElement('canvas')
+    c.width = c.height = 64
+    const ctx = c.getContext('2d')
+    ctx.drawImage(image, 0, 0, 64, 64)
+    const d = ctx.getImageData(0, 0, 64, 64).data
+    let r = 0, g = 0, b = 0, a = 0
+    for (let i = 0; i < d.length; i += 4) { const w = d[i + 3] / 255; r += d[i] * w; g += d[i + 1] * w; b += d[i + 2] * w; a += w }
+    const n = d.length / 4
+    return a > 0 ? [r / a / 255, g / a / 255, b / a / 255, a / n] : [0, 0, 0, 0]
+}
 const info = {meshes: 0, hidden: 0, decals: 0, materials: new Set()}
 
 async function frames(n) {
@@ -40,24 +53,38 @@ window.bench = {
      */
     async load(url, opts = {}) {
         await envPending
-        root = await viewer.load(url, {autoCenter: false, autoScale: false})
+        // Model only: no viewer config (background, exposure, plugins) and no lights from the file, so both
+        // models are lit by the same HDRI and nothing else.
+        root = await viewer.load(url, {autoCenter: false, autoScale: false, importConfig: false})
         if (!root) throw new Error('nothing loaded from ' + url)
+        const lights = []
+        root.traverse(o => { if (o.isLight) lights.push(o) })
+        for (const l of lights) l.parent?.remove(l)
+        info.lightsRemoved = lights.length
         if (opts.matrix) root.applyMatrix4(new Matrix4().fromArray(opts.matrix))
         const exclude = (opts.exclude ?? []).map(glob)
         const clay = new PhysicalMaterial({color: '#8c8c8c', roughness: 0.55, metalness: 0})
         const style = opts.style ?? 'full'
-        const hide = []
+        const hide = [], done = new Set()
         root.traverse(o => {
             if (!o.isMesh) return
             info.meshes++
             if (exclude.some(r => r.test(o.name))) { hide.push(o); return }
             const mats = Array.isArray(o.material) ? o.material : [o.material]
             mats.forEach(m => m && info.materials.add(m.uuid))
+            if (mats.some(isDecal)) info.decals++
             if (style === 'full') return
-            if (mats.some(isDecal)) { info.decals++; hide.push(o); return }
             if (style === 'clay') { o.material = clay; return }
-            // notex: every texture slot cleared, factors kept
+            // notex: each colour texture folded into its material as the texture's mean colour and alpha (so a
+            // label that is mostly transparent fades out, a screen keeps its average tone); every other map dropped.
             for (const m of mats) {
+                if (!m || done.has(m)) continue
+                done.add(m)
+                if (m.map?.image) {
+                    const [r, g, b, a] = meanColor(m.map.image)
+                    m.color.multiply(new Color().setRGB(r, g, b, SRGBColorSpace))
+                    if (m.transparent) m.opacity *= a
+                }
                 for (const k of TEXTURE_SLOTS) if (m[k]) m[k] = null
                 m.needsUpdate = true
                 m.setDirty?.()
@@ -66,7 +93,7 @@ window.bench = {
         for (const o of hide) { o.visible = false; info.hidden++ }
         viewer.scene.setDirty?.({refreshScene: true})
         await frames(3)
-        return {meshes: info.meshes, hidden: info.hidden, decals: info.decals, materials: info.materials.size}
+        return {meshes: info.meshes, hidden: info.hidden, decals: info.decals, materials: info.materials.size, lightsRemoved: info.lightsRemoved}
     },
 
     /** @param {{position: number[], target: number[], fov?: number, up?: number[]}} view */
