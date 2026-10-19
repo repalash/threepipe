@@ -13,7 +13,8 @@
         "types": "wrangler types --env-interface CloudflareBindings",
         "typecheck": "npm run types && tsc --noEmit -p tsconfig.json",
         "test": "vitest run",
-        "deploy": "npm run typecheck && npm test && npm run db:migrate:remote && wrangler deploy"
+        "deploy": "npm run typecheck && npm test && npm run db:migrate:remote && wrangler deploy",
+        "provision": "node scripts/provision.mjs"
     },
     "dependencies": {
         "marked": "^16.4.2"

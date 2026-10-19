@@ -71,7 +71,9 @@ npm run test --prefix services/cloud   # 22 tests: Miniflare (workerd) with a lo
 
 ## Deploy
 
-The maintainer decides the account, the domain, the Turnstile widget and where the card goes. Then, from
+The runbook for threepipe.org (account, `cloud.threepipe.org`, every command in order) is
+[CLOUDFLARE.md](../../CLOUDFLARE.md) at the repository root. There, `npm run provision -- --apply` covers the D1
+database, the bucket and the secrets below in one go (`npm run provision` alone only checks). The steps by hand, from
 `services/cloud`:
 
 1. `npx wrangler login` (or `CLOUDFLARE_API_TOKEN`), and put the account id in `wrangler.toml` as
