@@ -18,6 +18,7 @@ All notable changes to this project will be documented in this file.
 - Set up CI/CD with OIDC trusted publishing for both `three-modded` and `three-types-modded` npm packages
 - Upgrade `three` from v0.163.10003 to v0.168.10006 (see details below)
 - Fix `Iterator.forEach()` — use `Array.from()` for Map.keys() iteration (pre-node22 compat)
+- Keep GBuffer `unpackNormal` finite for finite encodings outside the valid disk (including quantization at its boundary), preventing NaNs from the square root from propagating into screen-space filters. Valid encodings are unchanged; out-of-range results are not necessarily unit normals
 - Fix `npm run build-examples` on a fresh clone without `examples/.env`: `generate-example-env` now exports every key of `examples/sample.env` (empty when unset), so examples importing `CESIUM_ION_API_TOKEN` and others type-check
 
 ### Fixed
