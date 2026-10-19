@@ -559,6 +559,7 @@ Many features will be added but the core API will not change significantly in fu
   - [@threepipe/plugin-tweakpane-editor](https://threepipe.org/package/plugin-tweakpane-editor.html) - Editor Plugin using Tweakpane for plugin UI
   - [@threepipe/plugin-configurator](https://threepipe.org/package/plugin-configurator.html) - Provides `MaterialConfiguratorPlugin` and `SwitchNodePlugin` to allow users to select variations
   - [@threepipe/plugin-gltf-transform](https://threepipe.org/package/plugin-gltf-transform.html) - Plugin to transform glTF models (draco compression)
+  - [@threepipe/plugin-draco-js](https://threepipe.org/package/plugin-draco-js.html) - Decode Draco meshes with the pure-JS [draco.js](https://github.com/mrdoob/draco.js) decoder (no wasm/worker, smaller, Node-safe) with WASM fallback
   - [@threepipe/plugins-extra-importers](https://threepipe.org/package/plugins-extra-importers.html) - Plugin for loading more file types supported by loaders in three.js
   - [@threepipe/plugin-blend-importer](https://threepipe.org/package/plugin-blend-importer.html) - Add support for loading .blend file. (Partial/WIP) ([Blender](https://www.blender.org/))
   - [@threepipe/plugin-geometry-generator](https://threepipe.org/package/plugin-geometry-generator.html) - Text geometry generator and FontLibrary. All other generators are in core threepipe.
