@@ -42,6 +42,7 @@ export default defineConfig({
           {text: 'Plugin System', link: 'guide/plugin-system'},
           {text: 'Material Extension', link: 'guide/material-extension'},
           {text: 'Screen Pass Shaders', link: 'guide/screen-pass'},
+          {text: 'Publishing', link: 'guide/publishing'},
         ]
       },
       {
