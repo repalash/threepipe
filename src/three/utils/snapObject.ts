@@ -50,27 +50,31 @@ export function snapObject(
     const clearColor = renderer.getClearColor(new Color())
     const clearAlpha = renderer.getClearAlpha()
     renderer.setClearColor(0x000000, 0)
-    renderer.clear()
-    if (typeof renderer.renderWithModes === 'function') {
-        renderer.renderWithModes({
-            backgroundRender: false,
-            // mainRenderPass: false,
-            // screenSpaceRendering: false,
-            // shadowMapRender: false,
-        }, ()=>{
+    let snap: string
+    try {
+        renderer.clear()
+        if (typeof renderer.renderWithModes === 'function') {
+            renderer.renderWithModes({
+                backgroundRender: false,
+                // mainRenderPass: false,
+                // screenSpaceRendering: false,
+                // shadowMapRender: false,
+            }, ()=>{
+                renderer.render(root ?? object, camera)
+            })
+        } else {
             renderer.render(root ?? object, camera)
-        })
-    } else {
-        renderer.render(root ?? object, camera)
+        }
+
+        // renderer.setRenderTarget(target)
+        // this._renderer.render(root, camera)
+        // todo use webp when possible.
+        snap = renderer.domElement.toDataURL('image/png')
+
+        renderer.clear()
+    } finally {
+        renderer.setClearColor(clearColor, clearAlpha)
     }
-
-    // renderer.setRenderTarget(target)
-    // this._renderer.render(root, camera)
-    // todo use webp when possible.
-    const snap = renderer.domElement.toDataURL('image/png')
-
-    renderer.clear()
-    renderer.setClearColor(clearColor, clearAlpha)
 
     object.visible = oldVisible
     object.traverseVisible(obj => {

@@ -53,4 +53,13 @@ describe('snapshot clear state', () => {
         expect(r.getClearAlpha()).toBe(0.75)
     })
 
+    it.each(['render', 'encode'])('restores the clear state when %s throws', (stage) => {
+        const r = renderer()
+        const error = new Error('snapshot failed')
+        const failing = stage === 'render' ? r.render : r.domElement.toDataURL
+        failing.mockImplementationOnce(() => { throw error })
+        expect(() => tp.snapObject(r as any, new tp.Object3D())).toThrow(error)
+        expect(r.getClearColor(new tp.Color()).toArray()).toEqual([0.2, 0.4, 0.6])
+        expect(r.getClearAlpha()).toBe(0.75)
+    })
 })
