@@ -28,7 +28,13 @@ scene.addEventListener('progress', event => {
     const invalidValue: string = event.value
     void invalidValue
 })
-scene.addEventListener('sceneUpdate', event => console.log(event.label.toUpperCase()))
+scene.addEventListener('sceneUpdate', event => {
+    console.log(event.hierarchyChanged)
+    // @ts-expect-error Built-in events do not guarantee custom fields from ProgressEvents.
+    const label: string = event.label
+    void label
+})
+scene.setDirty()
 
 const midpoint: number = lerp(0, 10, 0.5)
 scene.dispatchEvent({type: 'progress', value: midpoint})
