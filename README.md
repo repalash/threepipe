@@ -527,6 +527,7 @@ Many features will be added but the core API will not change significantly in fu
   - [NoiseBumpMaterialPlugin](https://threepipe.org/plugin/NoiseBumpMaterialPlugin.html) - Sparkle Bump/Noise Bump material extension for PhysicalMaterial
   - [CustomBumpMapPlugin](https://threepipe.org/plugin/CustomBumpMapPlugin.html) - Adds multiple bump map support and bicubic filtering material extension for PhysicalMaterial
   - [ClearcoatTintPlugin](https://threepipe.org/plugin/ClearcoatTintPlugin.html) - Clearcoat Tint material extension for PhysicalMaterial
+  - [MultiLayerRoughnessPlugin](https://threepipe.org/plugin/MultiLayerRoughnessPlugin.html) - Multi-lobe specular roughness blending (reflection tail-off) material extension for PhysicalMaterial
   - [FragmentClippingExtensionPlugin](https://threepipe.org/plugin/FragmentClippingExtensionPlugin.html) - Fragment/SDF Clipping material extension for PhysicalMaterial
   - [ParallaxMappingPlugin](https://threepipe.org/plugin/ParallaxMappingPlugin.html) - Relief Parallax Bump Mapping extension for PhysicalMaterial
   - [HDRiGroundPlugin](https://threepipe.org/plugin/HDRiGroundPlugin.html) - Add support for ground projected hdri/skybox to the webgl background shader.

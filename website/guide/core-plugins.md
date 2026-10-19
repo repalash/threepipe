@@ -110,6 +110,7 @@ Plugins to add support for custom materials and material extensions for existing
 - [NoiseBumpMaterialPlugin](../plugin/NoiseBumpMaterialPlugin) - Sparkle Bump/Noise Bump material extension for PhysicalMaterial
 - [CustomBumpMapPlugin](../plugin/CustomBumpMapPlugin) - Custom Bump Map material extension for PhysicalMaterial
 - [ClearcoatTintPlugin](../plugin/ClearcoatTintPlugin) - Clearcoat Tint material extension for PhysicalMaterial
+- [MultiLayerRoughnessPlugin](../plugin/MultiLayerRoughnessPlugin) - Multi-lobe specular roughness blending (reflection tail-off) material extension for PhysicalMaterial
 - [FragmentClippingExtensionPlugin](../plugin/FragmentClippingExtensionPlugin) - Fragment/SDF Clipping material extension for PhysicalMaterial
 - [ParallaxMappingPlugin](../plugin/ParallaxMappingPlugin) - Relief Parallax Bump Mapping extension for PhysicalMaterial
 
