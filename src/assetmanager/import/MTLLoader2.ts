@@ -178,6 +178,7 @@ class MaterialCreator {
         this.options = options;
         this.materialsInfo = {};
         this.materials = {};
+        this.materialsPending = new Map();
         this.materialsArray = [];
         this.nameLookup = {};
 
@@ -205,6 +206,7 @@ class MaterialCreator {
 
         this.materialsInfo = this.convert(materialsInfo);
         this.materials = {};
+        this.materialsPending = new Map();
         this.materialsArray = [];
         this.nameLookup = {};
 
@@ -282,11 +284,7 @@ class MaterialCreator {
 
     async preload() {
 
-        for (const mn in this.materialsInfo) {
-
-            await this.create(mn);
-
-        }
+        await Promise.all(Object.keys(this.materialsInfo).map(mn => this.create(mn)));
 
     }
 
@@ -298,17 +296,16 @@ class MaterialCreator {
 
     async getAsArray() {
 
-        let index = 0;
+        const materialsArray = this.materialsArray;
+        const nameLookup = this.nameLookup;
+        const names = Object.keys(this.materialsInfo);
+        const materials = await Promise.all(names.map(mn => this.create(mn)));
+        names.forEach((mn, index) => {
+            materialsArray[index] = materials[index];
+            nameLookup[mn] = index;
+        });
 
-        for (const mn in this.materialsInfo) {
-
-            this.materialsArray[index] = await this.create(mn);
-            this.nameLookup[mn] = index;
-            index++;
-
-        }
-
-        return this.materialsArray;
+        return materialsArray;
 
     }
 
@@ -316,7 +313,15 @@ class MaterialCreator {
 
         if (this.materials[materialName] === undefined) {
 
-            await this.createMaterial_(materialName);
+            const pending = this.materialsPending;
+            if (!pending.has(materialName)) {
+                pending.set(materialName, this.createMaterial_(materialName));
+            }
+            try {
+                return await pending.get(materialName);
+            } finally {
+                pending.delete(materialName);
+            }
 
         }
 
@@ -349,34 +354,14 @@ class MaterialCreator {
 
         }
 
-        async function setMapForType(mapType, value) {
+        const maps = new Map();
+        const mapOrder = [];
 
-            if (params[mapType]) return; // Keep the first encountered texture
-
-            const texParams = scope.getTextureParams(value, params);
-            return new Promise((resolve, reject) => {
-                let resolved = false;
-                let res = ()=> (!resolved && (resolved = true) && resolve())
-                const map = scope.loadTexture(resolveURL(scope.baseUrl, texParams.url), undefined, (map)=>{
-                    params[mapType] = map;
-                    res()
-                }, undefined, res);
-                setTimeout(res, 50); // timeout.
-
-                map.repeat.copy(texParams.scale);
-                map.offset.copy(texParams.offset);
-
-                map.wrapS = scope.wrap;
-                map.wrapT = scope.wrap;
-
-                if ( mapType === 'map' || mapType === 'emissiveMap' ) {
-
-                    map.colorSpace = SRGBColorSpace;
-
-                }
-
-            })
-
+        function setMapForType(mapType, value) {
+            const entry = {mapType, value};
+            if (!maps.has(mapType)) maps.set(mapType, []);
+            maps.get(mapType).push(entry);
+            mapOrder.push(entry);
         }
 
         /**
@@ -423,7 +408,7 @@ class MaterialCreator {
 
                     // Diffuse texture map
 
-                    await setMapForType('map', value);
+                    setMapForType('map', value);
 
                     break;
 
@@ -431,7 +416,7 @@ class MaterialCreator {
 
                     // Specular map
 
-                    await setMapForType('specularMap', value);
+                    setMapForType('specularMap', value);
 
                     break;
 
@@ -439,13 +424,13 @@ class MaterialCreator {
 
                     // Emissive map
 
-                    await setMapForType('emissiveMap', value);
+                    setMapForType('emissiveMap', value);
 
                     break;
 
                 case 'norm':
 
-                    await setMapForType('normalMap', value);
+                    setMapForType('normalMap', value);
 
                     break;
 
@@ -454,7 +439,7 @@ class MaterialCreator {
 
                     // Bump texture map
 
-                    await setMapForType('bumpMap', value);
+                    setMapForType('bumpMap', value);
 
                     break;
 
@@ -462,7 +447,7 @@ class MaterialCreator {
 
                     // Alpha map
 
-                    await setMapForType('alphaMap', value);
+                    setMapForType('alphaMap', value);
                     params.transparent = true;
 
                     break;
@@ -509,6 +494,36 @@ class MaterialCreator {
 
             }
 
+        }
+
+        // Independent maps load together. Aliases for the same slot (map_bump/bump)
+        // keep the first successful texture, only trying the next after a failure.
+        await Promise.all(Array.from(maps.values(), async(entries) => {
+            for (const entry of entries) {
+                entry.params = {};
+                entry.texParams = scope.getTextureParams(entry.value, entry.params);
+                const url = resolveURL(scope.baseUrl, entry.texParams.url);
+                entry.map = await new Promise((resolve) => {
+                    scope.loadTexture(url, undefined, resolve, undefined, (e) => {
+                        console.warn('MTLLoader2: Unable to load texture', url, e);
+                        resolve(undefined);
+                    });
+                });
+                if (entry.map) break;
+            }
+        }));
+
+        // Apply parameters in MTL order, regardless of image completion order.
+        // Failed attempts can still set -bm; skipped duplicate maps must not.
+        for (const {mapType, map, texParams, params: mapParams} of mapOrder) {
+            Object.assign(params, mapParams);
+            if (!map) continue;
+            map.repeat.copy(texParams.scale);
+            map.offset.copy(texParams.offset);
+            map.wrapS = scope.wrap;
+            map.wrapT = scope.wrap;
+            if (mapType === 'map' || mapType === 'emissiveMap') map.colorSpace = SRGBColorSpace;
+            params[mapType] = map;
         }
 
         this.materials[materialName] = new MeshPhongMaterial(params);

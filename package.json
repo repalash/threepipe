@@ -50,6 +50,7 @@
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
     "test:e2e:precache": "node tests/precache-cdn.mjs",
+    "test:e2e:serve": "ws -d .",
     "test:e2e": "npx playwright test",
     "test:e2e:interactive": "npx playwright test tests/interactive.spec.ts",
     "test:e2e:smoke": "npx playwright test tests/extras.spec.ts",
@@ -138,7 +139,7 @@
     "rimraf": "^5.0.1",
     "rollup-plugin-glsl": "^1.3.0",
     "rollup-plugin-license": "^3.0.1",
-    "three": "npm:three-modded@0.168.10006",
+    "three": "npm:three-modded@0.168.10007",
     "tslib": "^2.5.0",
     "typedoc": "^0.28.10",
     "typescript": "5.8.3",
@@ -160,7 +161,7 @@
     "uiconfig.js": ">=0.3.1"
   },
   "peerDependencies": {
-    "three": "npm:three-modded@0.168.10006"
+    "three": "npm:three-modded@0.168.10007"
   },
   "overrides": {
     "ts-browser-helpers": "$ts-browser-helpers",
