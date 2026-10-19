@@ -315,13 +315,9 @@ class MaterialCreator {
 
             const pending = this.materialsPending;
             if (!pending.has(materialName)) {
-                pending.set(materialName, this.createMaterial_(materialName));
+                pending.set(materialName, this.createMaterial_(materialName).finally(() => pending.delete(materialName)));
             }
-            try {
-                return await pending.get(materialName);
-            } finally {
-                pending.delete(materialName);
-            }
+            return pending.get(materialName);
 
         }
 
@@ -334,6 +330,7 @@ class MaterialCreator {
         // Create material
 
         const scope = this;
+        const materials = this.materials; // setMaterials can replace it while the maps load
         const mat = this.materialsInfo[materialName];
         const params = {
 
@@ -354,14 +351,46 @@ class MaterialCreator {
 
         }
 
-        const maps = new Map();
-        const mapOrder = [];
+        // Maps of different slots load together. Aliases of one slot (map_bump/bump) load one after
+        // the other, so the first texture that loads is kept.
+        const mapLoads = new Map();
 
         function setMapForType(mapType, value) {
-            const entry = {mapType, value};
-            if (!maps.has(mapType)) maps.set(mapType, []);
-            maps.get(mapType).push(entry);
-            mapOrder.push(entry);
+
+            const load = () => params[mapType] ? undefined : loadMap(mapType, value);
+            mapLoads.set(mapType, mapLoads.has(mapType) ? mapLoads.get(mapType).then(load) : load());
+
+        }
+
+        async function loadMap(mapType, value) {
+
+            const texParams = scope.getTextureParams(value, params);
+            const url = resolveURL(scope.baseUrl, texParams.url);
+
+            // Wait for the texture (image) to load, so that the material is complete (for render, export etc) when the loader resolves.
+            // Note - there must be no timeout here, a texture that is not set in params before the material is created is never added to the material.
+            const map = await new Promise((resolve) => {
+                scope.loadTexture(url, undefined, resolve, undefined, (e) => {
+                    console.warn('MTLLoader2: Unable to load texture', url, e);
+                    resolve(undefined);
+                });
+            });
+            if (!map) return; // same as before for a failed texture, the material is created without it
+
+            map.repeat.copy(texParams.scale);
+            map.offset.copy(texParams.offset);
+
+            map.wrapS = scope.wrap;
+            map.wrapT = scope.wrap;
+
+            if ( mapType === 'map' || mapType === 'emissiveMap' ) {
+
+                map.colorSpace = SRGBColorSpace;
+
+            }
+
+            params[mapType] = map;
+
         }
 
         /**
@@ -496,38 +525,10 @@ class MaterialCreator {
 
         }
 
-        // Independent maps load together. Aliases for the same slot (map_bump/bump)
-        // keep the first successful texture, only trying the next after a failure.
-        await Promise.all(Array.from(maps.values(), async(entries) => {
-            for (const entry of entries) {
-                entry.params = {};
-                entry.texParams = scope.getTextureParams(entry.value, entry.params);
-                const url = resolveURL(scope.baseUrl, entry.texParams.url);
-                entry.map = await new Promise((resolve) => {
-                    scope.loadTexture(url, undefined, resolve, undefined, (e) => {
-                        console.warn('MTLLoader2: Unable to load texture', url, e);
-                        resolve(undefined);
-                    });
-                });
-                if (entry.map) break;
-            }
-        }));
+        await Promise.all(mapLoads.values());
 
-        // Apply parameters in MTL order, regardless of image completion order.
-        // Failed attempts can still set -bm; skipped duplicate maps must not.
-        for (const {mapType, map, texParams, params: mapParams} of mapOrder) {
-            Object.assign(params, mapParams);
-            if (!map) continue;
-            map.repeat.copy(texParams.scale);
-            map.offset.copy(texParams.offset);
-            map.wrapS = scope.wrap;
-            map.wrapT = scope.wrap;
-            if (mapType === 'map' || mapType === 'emissiveMap') map.colorSpace = SRGBColorSpace;
-            params[mapType] = map;
-        }
-
-        this.materials[materialName] = new MeshPhongMaterial(params);
-        return this.materials[materialName];
+        materials[materialName] = new MeshPhongMaterial(params);
+        return materials[materialName];
 
     }
 
