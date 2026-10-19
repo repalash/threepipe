@@ -757,6 +757,13 @@ class OBJLoader2 extends Loader implements ILoader{
 
         if ( hasPrimitives === true ) {
 
+            // Start used materials together, preserving one create call per occurrence.
+            // Material creators decide whether repeated names share an instance.
+            const loadedMaterials = this.materials === null ? [] : await Promise.all(
+                state.objects.map(object => object.geometry.vertices.length === 0 ? [] :
+                    Promise.all(object.materials.map(material => this.materials.create(material.name))))
+            );
+
             for ( let i = 0, l = state.objects.length; i < l; i ++ ) {
 
                 const object = state.objects[ i ];
@@ -804,7 +811,7 @@ class OBJLoader2 extends Loader implements ILoader{
 
                     if ( this.materials !== null ) {
 
-                        material = await this.materials.create( sourceMaterial.name );
+                        material = loadedMaterials[i][mi];
 
                         // mtl etc. loaders probably can't create line materials correctly, copy properties to a line material.
                         if ( isLine && material && ! ( material instanceof LineBasicMaterial ) ) {
