@@ -1,8 +1,8 @@
 import {_testFinish, _testStart, IScene, ISceneEventMap, lerp, PerspectiveCamera2, RootScene, Scene, ThreeViewer} from 'threepipe'
 
+// Add a custom key without requiring extra fields on events emitted by RootScene.
 interface ProgressEvents extends ISceneEventMap {
     progress: {value: number}
-    sceneUpdate: ISceneEventMap['sceneUpdate'] & {label: string}
 }
 
 /** Register built-in callbacks while preserving the scene's custom event map. */
@@ -30,7 +30,7 @@ scene.addEventListener('progress', event => {
 })
 scene.addEventListener('sceneUpdate', event => {
     console.log(event.hierarchyChanged)
-    // @ts-expect-error Built-in events do not guarantee custom fields from ProgressEvents.
+    // @ts-expect-error The base sceneUpdate payload has no label field.
     const label: string = event.label
     void label
 })
