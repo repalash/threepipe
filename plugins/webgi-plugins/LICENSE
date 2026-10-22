@@ -1,0 +1,120 @@
+webgi Free Forever License
+Version 1.0, effective 2026-10-DD
+
+Copyright (c) 2023-present Palash Bansal <palash@shaders.app>
+
+1. Definitions
+
+   "Plugins" means the software published as the npm package "@threepipe/webgi-plugins", version
+   0.7.0 and later, as published by the Licensor, and its source code in the
+   "plugins/webgi-plugins" folder of the threepipe repository. The term covers source and compiled
+   forms, with or without your modifications.
+
+   "Application" means a website, a web or native application, a hosted service, or a theme or
+   template that end users install. Its main purpose is not to give developers the Plugins'
+   functionality to program with.
+
+   "Official Package" means the Plugins as the Licensor publishes them on npm.
+
+   "You" means the person or organization that exercises rights under this license, including
+   the organization you act for.
+
+   "Licensor" means Palash Bansal and his successors and assigns.
+
+2. Grant
+
+   The Licensor grants you a perpetual, worldwide, non-exclusive, royalty-free license to use,
+   copy, modify, bundle, run and distribute the Plugins, for any purpose, subject to Section 3.
+   The license is irrevocable except as Section 7 says.
+
+   This includes personal, educational and commercial use. It includes closed-source and
+   proprietary Applications. There is no limit on the number of Applications, clients, domains,
+   viewers, page views or revenue.
+
+   You do not have to publish your own source code because the Plugins are in your Application.
+   You do not have to show a logo, name or link. A mention such as "rendering powered by webgi"
+   is appreciated and optional.
+
+   The Licensor also grants you a license under any patent claims it holds that the Plugins alone
+   infringe, to the extent needed to exercise the rights above. This patent license ends if you
+   bring a patent claim, including a cross-claim or counterclaim, that alleges the Plugins
+   infringe a patent.
+
+3. Restriction
+
+   You must not:
+
+   a. publish the Plugins, or a copy or modified copy of them, as a package, library, SDK or
+      framework for developers, on a registry, CDN or other download. Only the Licensor publishes
+      the Official Package;
+   b. put a copy of the Plugins in work that you give developers to program with. Such work must
+      install the Official Package as a dependency and keep it external to its published build;
+   c. claim that you wrote or own the Plugins, or present them as your own rendering
+      technology;
+   d. charge for the Plugins as such. A fee for your Application, or for its features that use
+      the Plugins, is allowed.
+
+   The following are allowed:
+
+   - an Application, theme or hosted viewer, for one client or for many, open or closed source,
+     with the Plugins in any form: bundled, minified, tree-shaken, as separate files, loaded from
+     a public CDN such as unpkg or jsDelivr, or committed as build output in your repository;
+   - a public or private fork of the threepipe repository. A package that you publish from the
+     fork must not contain the Plugins;
+   - a private registry, proxy or cache that serves the Official Package only to your own team;
+   - unmodified copies of the Official Package, with this LICENSE file inside, in a project
+     archive, container image or node_modules folder that you share;
+   - not naming webgi in your product.
+
+4. Notices
+
+   Keep this license text, or a link to it, in a notices file or licenses page of your
+   Application, such as THIRD_PARTY_LICENSES. The text is in the LICENSE file of the Official
+   Package and at https://unpkg.com/@threepipe/webgi-plugins@0.7.0/LICENSE. Your build tools can
+   remove comments from compiled code.
+
+5. Trademarks
+
+   This license grants no rights to the names or logos "webgi", "threepipe" or "iJewel3D". You
+   can say that your product uses webgi or threepipe.
+
+6. Contributions
+
+   If you submit a change to the Licensor for inclusion in the Plugins, for example as a pull
+   request, you grant the Licensor a perpetual, worldwide, irrevocable, non-exclusive,
+   royalty-free, sublicensable license to use, modify, distribute and relicense your contribution
+   on any terms. You confirm that you have the right to grant it.
+
+7. Termination
+
+   If you breach Section 3, your rights under this license end unless you cure the breach within
+   30 days after written notice from the Licensor, by email or as an issue on your repository. A
+   second breach after a cure ends your rights with no new cure period.
+
+   Termination does not affect Applications that you distributed in compliance with this license.
+   It does not affect people who received the Plugins from you; they hold their own license under
+   these terms.
+
+8. Disclaimer of warranty and liability
+
+   TO THE EXTENT THE LAW ALLOWS, THE PLUGINS ARE PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+   PURPOSE AND NONINFRINGEMENT. IN NO EVENT IS THE LICENSOR LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+   CONNECTION WITH THE PLUGINS OR THE USE OR OTHER DEALINGS IN THE PLUGINS.
+
+9. General
+
+   Using the Plugins means you accept this license. Rights not granted here are reserved. If the
+   Licensor does not act on a breach, that is not a waiver. If a part of this license is
+   unenforceable, the rest stays in force, and that part is read as narrowly as needed to make
+   it enforceable.
+
+10. Relation to other licenses and history
+
+   The threepipe core library is licensed separately under the Apache License 2.0. Third-party
+   components keep their own licenses and notices. Releases of "@threepipe/webgi-plugins" before
+   0.7.0 stay available under the license that each release carried. This license applies from
+   version 0.7.0.
+
+Contact: contact@ijewel3d.com
