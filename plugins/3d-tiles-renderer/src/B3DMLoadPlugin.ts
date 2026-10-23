@@ -10,7 +10,7 @@ import {
 } from 'threepipe'
 import type {B3DMResult} from '3d-tiles-renderer/src/three/loaders/B3DMLoader'
 import {B3DMLoader, B3DMScene, LoaderBase} from '3d-tiles-renderer'
-import {GLTF} from 'three/examples/jsm/loaders/GLTFLoader'
+import {GLTF} from 'three/examples/jsm/loaders/GLTFLoader.js'
 
 /**
  * Adds support for loading .b3dm files and data uris.

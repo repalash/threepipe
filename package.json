@@ -57,6 +57,7 @@
     "test:e2e:update": "npx playwright test --update-snapshots",
     "test:e2e:list": "npx playwright test --list",
     "check-test-coverage": "node scripts/check-test-coverage.mjs",
+    "test:types": "node scripts/check-consumer-types.mjs",
     "test": "npm run test:unit && npm run test:e2e",
     "docs": "npx typedoc --skipErrorChecking && npm run website:build",
     "docs-plugins": "node scripts/each-plugin.mjs run docs",

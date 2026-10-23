@@ -12,8 +12,10 @@ import {
     TextureInfo,
     WriterContext,
 } from '@gltf-transform/core'
-import type {EncoderOptions} from '@gltf-transform/extensions/dist/khr-draco-mesh-compression/encoder'
 import {ALL_EXTENSIONS, KHRDracoMeshCompression} from '@gltf-transform/extensions'
+
+// From the public API: @gltf-transform/extensions does not export its encoder module path.
+export type EncoderOptions = Parameters<KHRDracoMeshCompression['setEncoderOptions']>[0]
 import {DRACOLoader2, GLTFExporter2, GLTFExporter2Options, GLTFViewerConfigExtension, IExportWriter} from 'threepipe'
 
 /**

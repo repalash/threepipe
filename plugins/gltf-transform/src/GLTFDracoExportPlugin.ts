@@ -23,7 +23,7 @@ import {
     GLTFViewerConfigExtensionGP,
 } from './GLTFDracoExporter'
 import {UiObjectConfig} from 'uiconfig.js'
-import type {EncoderOptions} from '@gltf-transform/extensions/dist/khr-draco-mesh-compression/encoder'
+import type {EncoderOptions} from './GLTFDracoExporterBase'
 import {Extension} from '@gltf-transform/core'
 
 export enum EncoderMethod {

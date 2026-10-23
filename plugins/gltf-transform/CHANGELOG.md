@@ -19,6 +19,7 @@ All notable changes to this plugin will be documented in this file.
 - `gltfKhrPbrSpecularGlossinessConverterBase` — IO-agnostic factory function for spec-gloss conversion
 - `lib/` build — unbundled ESM with externalized `@gltf-transform/*` dependencies, available via `@threepipe/plugin-gltf-transform/lib`
 - `@gltf-transform/core`, `@gltf-transform/extensions` and `@gltf-transform/functions` (`^4.2.0`) as optional `peerDependencies`: install them to use `/lib`; the default bundle includes them
+- `EncoderOptions` type, exported from `GLTFDracoExporterBase` (from `KHRDracoMeshCompression.setEncoderOptions`; the declarations imported `@gltf-transform/extensions/dist/...`, which that package does not export)
 
 ### Changed
 
