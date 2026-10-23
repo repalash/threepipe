@@ -4,11 +4,12 @@ All notable changes to this project will be documented in this file.
 
 [//]: # (The format is based on [Keep a Changelog]&#40;https://keepachangelog.com/en/1.1.0/&#41;, and this project adheres to [Semantic Versioning]&#40;https://semver.org/spec/v2.0.0.html&#41;.)
 
-## [0.6.0-dev]
+## [0.6.0] - 2026-10-23
 
 ### Added
 
 - `NormalBufferPlugin.renderTransparent` (default `true`, serialized, UI toggle): set it to `false` to apply the same material rule as the GBuffer depth to the normal buffer, with the `userData.renderToDepth` and `userData.renderToGBuffer` overrides (objects with a custom GBuffer or normal material can still differ); for screen-space effects that combine both buffers
+- Add [`@threepipe/webgi-plugins`](https://threepipe.org/package/webgi-plugins.html) package page to the website, with the live showcase viewer from webgi.dev
 
 ### Changed
 
@@ -16,7 +17,7 @@ All notable changes to this project will be documented in this file.
   - [`three-modded`](https://www.npmjs.com/package/three-modded) ([GitHub](https://github.com/repalash/three.js-modded))
   - [`three-types-modded`](https://www.npmjs.com/package/three-types-modded) ([GitHub](https://github.com/repalash/three-ts-types))
 - Set up CI/CD with OIDC trusted publishing for both `three-modded` and `three-types-modded` npm packages
-- Upgrade `three` from v0.163.10003 to v0.168.10006 (see details below)
+- Upgrade `three` from v0.163.10003 to v0.168.10008 (see details below)
 - Fix `Iterator.forEach()` — use `Array.from()` for Map.keys() iteration (pre-node22 compat)
 - Keep GBuffer `unpackNormal` finite for finite encodings outside the valid disk (including quantization at its boundary), preventing NaNs from the square root from propagating into screen-space filters. Valid encodings are unchanged; out-of-range results are not necessarily unit normals
 - Fix `npm run build-examples` on a fresh clone without `examples/.env`: `generate-example-env` now exports every key of `examples/sample.env` (empty when unset), so examples importing `CESIUM_ION_API_TOKEN` and others type-check
@@ -48,11 +49,14 @@ All notable changes to this project will be documented in this file.
 - Fix textures randomly missing on OBJ+MTL models — `MTLLoader2` waited only 50ms for each texture and created the material without the map when the image took longer (the map was then never added). Independent maps and used materials now load concurrently; the loader waits for every texture to load or fail, so `viewer.load()` of an `.obj` resolves with complete materials. (`obj-to-glb` example exported untextured or partly textured models because of this)
 - Fix loads hanging forever (e.g. `viewer.load()` of an `.obj` with MTL textures) when the `CacheStorage` lookup fails (storage unavailable, quota, corrupted entry) — `overrideThreeCache`'s `threeCache.get` rejected, and `ImageLoader` doesn't handle that rejection, so neither `onLoad` nor `onError` fired. A failed lookup is now treated as a cache miss (warns, falls through to the network). Failures in `threeCache.add`/`remove` are warned instead of leaving unhandled promise rejections.
 - `snapObject` (and so `MaterialPreviewGenerator` and switch node previews) now clears to transparent explicitly instead of using the clear color left by the last pass. Previews have a transparent background, and the previous clear color and alpha are restored even if rendering or PNG encoding fails.
+- Fix `OrbitControls` (`three-modded` 0.168.10007, 0.168.10008): with damping disabled, perspective wheel/pinch zoom applies the full step; constructing the controls keeps the camera distance; an `update()` with nothing to apply leaves the camera position exactly as set (it drifted by floating point error on every idle update).
+- Fix EXR export with ZIP/ZIPS compression writing corrupt data for partial or incompressible blocks (`three-modded` 0.168.10008).
+- Fix `Texture` construction throwing in Node.js, where `ImageData` is not defined (`three-modded` 0.168.10008).
 - Note: RGBA-packed depth (depth and shadow map targets, and their exported images) has a different byte layout since three.js r167. Values decoded with `unpackRGBAToDepth` in the same version are unchanged.
 
 ### three.js r168 Upgrade
 
-- Upgrade `three` from v0.163.10003 to v0.168.10007 and `@types/three` to v0.168.10003
+- Upgrade `three` from v0.163.10003 to v0.168.10008 and `@types/three` to v0.168.10003
 - Upgrade `ts-browser-helpers` to >=0.20.0
 - ETC1 compressed textures with an sRGB `colorSpace` are now decoded as sRGB — three.js uploads ETC1 as ETC2 since r164, which has an sRGB variant (previously the color space was ignored for ETC1). Such textures render darker than before, matching the same image in BC/ASTC.
 - Update `getShadow` GLSL calls — r168 adds `shadowIntensity` parameter (6 args instead of 5). Updated in `CascadedShadowsPlugin` (4 calls), `progressive-hdr-shadows-exp` example, and `SSContactShadowsPlugin` (webgi)
