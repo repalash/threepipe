@@ -43,6 +43,35 @@ for (const dir of [path.join(root, 'lib'), path.join(root, 'dist'), path.join(pl
     if (!fs.existsSync(path.join(dir, 'index.d.ts'))) throw new Error(`${dir}/index.d.ts is missing. Build first (see the header of this script).`)
 }
 
+// Static check of every built package (core and plugins/*), also the ones the consumer below does not
+// install: relative imports in its .d.ts files carry .js, and a "types" condition in its exports comes
+// first and names a file that exists.
+const relativeSpecRE = /(\bfrom\s+|\bimport\s*\(\s*|\bimport\s+(?=['"])|\bdeclare\s+module\s+)(['"])(\.\.?\/[^'"\n]*)\2/g
+const dtsFiles = dir => fs.readdirSync(dir, {withFileTypes: true}).flatMap(e => e.isDirectory() ? dtsFiles(path.join(dir, e.name)) : e.name.endsWith('.d.ts') ? [path.join(dir, e.name)] : [])
+const staticErrors = []
+for (const dir of [root, ...fs.readdirSync(path.join(root, 'plugins')).map(d => path.join(root, 'plugins', d))]) {
+    const built = ['dist', 'lib'].map(d => path.join(dir, d)).filter(d => fs.existsSync(d))
+    if (!fs.existsSync(path.join(dir, 'package.json')) || !built.length) continue
+    const pkg = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf8'))
+    for (const [sub, cond] of Object.entries(pkg.exports || {})) {
+        if (!cond || typeof cond !== 'object' || !('types' in cond)) continue
+        if (Object.keys(cond)[0] !== 'types') staticErrors.push(`${pkg.name} exports["${sub}"]: "types" must be the first condition`)
+        if (!fs.existsSync(path.join(dir, cond.types))) staticErrors.push(`${pkg.name} exports["${sub}"].types: ${cond.types} is not in the build`)
+    }
+    for (const file of built.flatMap(dtsFiles)) {
+        const text = fs.readFileSync(file, 'utf8')
+        for (const m of text.matchAll(relativeSpecRE)) {
+            const line = text.slice(text.lastIndexOf('\n', m.index) + 1, m.index)
+            if (!/^\s*(\*|\/\/)/.test(line) && !m[3].endsWith('.js')) staticErrors.push(`${path.relative(root, file)}: '${m[3]}' needs .js (add afterBuild: fixDtsImports to its dts() call)`)
+        }
+    }
+}
+if (staticErrors.length) {
+    console.log('FAIL  static declaration check\n' + staticErrors.slice(0, 20).map(e => '      ' + e).join('\n'))
+    process.exit(1)
+}
+console.log('pass  static declaration check (every built package)')
+
 const t0 = Date.now()
 const work = fs.mkdtempSync(path.join(os.tmpdir(), 'threepipe-consumer-types-'))
 const cleanPackage = path.join(root, 'node_modules/.bin/clean-package')

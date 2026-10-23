@@ -18,6 +18,7 @@ All notable changes to this plugin will be documented in this file.
 - `GLTFSpecGlossinessConverterPluginBase` — base plugin class with abstract `_createIO()` for Node.js usage
 - `gltfKhrPbrSpecularGlossinessConverterBase` — IO-agnostic factory function for spec-gloss conversion
 - `lib/` build — unbundled ESM with externalized `@gltf-transform/*` dependencies, available via `@threepipe/plugin-gltf-transform/lib`
+- `EncoderOptions` type, exported from `GLTFDracoExporterBase` (from `KHRDracoMeshCompression.setEncoderOptions`; the declarations imported `@gltf-transform/extensions/dist/...`, which that package does not export)
 
 ### Changed
 
