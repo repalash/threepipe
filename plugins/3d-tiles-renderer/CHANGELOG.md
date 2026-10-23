@@ -14,6 +14,7 @@ All notable changes to this plugin will be documented in this file.
 
 ### Fixed
 
+- Type declarations resolve in consumer projects with `moduleResolution: bundler`, `node16` and `nodenext` ([#60](https://github.com/repalash/threepipe/pull/60)): the `.d.ts` files imported `three/examples/jsm/loaders/GLTFLoader` without `.js`; relative imports carry `.js`
 - Guard the `setDirty` call in the `load-content`, `load-tile-set` and `needs-update` handlers of `TilesRendererLoader`, so a handler that runs while the tileset group has no `setDirty` does not throw
 
 ## [0.3.2] - 2025-09-03
