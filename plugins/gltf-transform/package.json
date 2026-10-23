@@ -11,7 +11,21 @@
         "threepipe": "file:./../../src/"
     },
     "peerDependencies": {
-        "threepipe": ">=0.1.0"
+        "threepipe": ">=0.1.0",
+        "@gltf-transform/core": "^4.2.0",
+        "@gltf-transform/extensions": "^4.2.0",
+        "@gltf-transform/functions": "^4.2.0"
+    },
+    "peerDependenciesMeta": {
+        "@gltf-transform/core": {
+            "optional": true
+        },
+        "@gltf-transform/extensions": {
+            "optional": true
+        },
+        "@gltf-transform/functions": {
+            "optional": true
+        }
     },
     "exports": {
         ".": {
