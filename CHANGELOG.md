@@ -8,6 +8,9 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- `ObjectPicker.cycleWrap` (default `false`): clicking an already-selected object cycles to the next one under the cursor and wraps round to the front instead of clearing the selection, so clicking the only object under the cursor keeps it selected (Blender's behaviour)
+- `ObjectPicker.cycleThroughHits` (default `true`, as in webgi): set it to `false` to always pick the front object under the cursor instead of cycling through the objects behind it
+- `PickingPlugin.keyboardShortcuts` (default `true`): set it to `false` when the app owns the viewport keymap; the plugin's Ctrl+A/C/X/V/D, Delete, H, F, Alt+G/R/S and Esc handlers then do nothing
 - `NormalBufferPlugin.renderTransparent` (default `true`, serialized, UI toggle): set it to `false` to apply the same material rule as the GBuffer depth to the normal buffer, with the `userData.renderToDepth` and `userData.renderToGBuffer` overrides (objects with a custom GBuffer or normal material can still differ); for screen-space effects that combine both buffers
 
 ### Changed
@@ -23,6 +26,9 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- `PickingPlugin`: clearing the selection because the plugin was disabled no longer records an undo step
+- `ObjectPicker.setSelected`: selecting the already selected object again (a click on an object selected from code, or a cycle that comes round to it) no longer dispatches `selectedObjectChanged` or records an undo step; only the stored hit is updated
+- `Dropzone`: drops whose `DataTransfer` was built by script (`new DataTransfer()` + `items.add(file)`) or whose items give no file entry are read from `dataTransfer.files` instead of being ignored
 - Fix `CascadedShadowsPlugin` shadows not rendering (regression from v0.3.0) — `refreshAttachedLight` was picking up a cascade light as the source due to `_lightAutoAttached` being set after `@onChange` fired synchronously; added re-entrancy guard to `refreshLights`; removed stale uniform upload optimization that skipped re-upload after shader recompilation
 - `DRACOLoader2`: enable WASM decoder by default
   - Removed `setDecoderConfig({type: 'js'})` hack from constructor — decoder now uses WASM build when available, auto-falls back to JS via three.js's built-in `typeof WebAssembly !== 'object'` check

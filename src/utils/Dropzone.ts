@@ -97,9 +97,11 @@ export class Dropzone {
             return
         }
 
-        // Prefer .items, which allow folder traversal if necessary.
-        if (Dropzone.USE_DATA_TRANSFER_ITEMS && items.length > 0) {
-            const entries = items.map((item) => item.webkitGetAsEntry())
+        // Prefer .items, which allow folder traversal if necessary. An item gives no entry when the
+        // DataTransfer was built by script (`new DataTransfer()` + `items.add(file)`, as automation and
+        // in-page drag sources do) or is not a file; with no entries at all, read `.files` instead.
+        const entries = Dropzone.USE_DATA_TRANSFER_ITEMS ? items.map((item) => item.webkitGetAsEntry()).filter(en => !!en) : []
+        if (entries.length > 0) {
 
             // if (entries[0].name.match(/\.zip$/)) {
             //     this._loadZip(items[0].getAsFile())

@@ -40,6 +40,20 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
         pickingMode: PickingModeType = 'auto'
 
     /**
+     * Clicking an object that is already selected cycles to the next object behind it under the cursor.
+     * With `cycleWrap` the cycle wraps round to the front object instead of ending in an empty
+     * selection, so clicking the only object under the cursor keeps it selected - Blender's behaviour.
+     * Off by default: past the last object, the click clears the selection.
+     */
+    cycleWrap = false
+
+    /**
+     * Clicking an object that is already selected cycles through the other objects under the cursor (see
+     * {@link cycleWrap}). Set to `false` to always pick the front object. Same flag as in webgi's ObjectPicker.
+     */
+    cycleThroughHits = true
+
+    /**
      * Time threshold for a pointer click event
      */
     static PointerClickMaxTime = 200
@@ -164,11 +178,16 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
         if (Array.isArray(object)) {
             if (this._selected.length === object.length && this._selected.every((o, i) => o === (object as any)[i])) return
         } else {
-            if (!this._selected.length && !object || this._selected.length === 1 && this._selected[0] === object
-                && currentIntersects?.selectedObject === intersects?.selectedObject
+            if (!this._selected.length && !object) return
+            if (this._selected.length === 1 && this._selected[0] === object
                 && currentIntersects?.selectedWidget === intersects?.selectedWidget
                 && currentIntersects?.selectedHandle === intersects?.selectedHandle
-            ) return
+            ) {
+                // The same object hit again (a click that cycles round to it, or a click on an object that was
+                // selected from code, so with no stored hit): not a selection change, keep the latest hit only.
+                if (intersects) this._selectedIntersects = intersects
+                return
+            }
         }
         const current = [...this._selected]
         this._selected = object ? Array.isArray(object) ? [...object] : [object] : []
@@ -412,12 +431,12 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
             selectedObject = intersects[0].object
             intersect = intersects[0]
 
-            if (this._firstHit && selectedObject.id !== this._firstHit.id) {
+            if (!this.cycleThroughHits || this._firstHit && selectedObject.id !== this._firstHit.id) {
                 selectedObject = intersect.object
             } else {
                 for (let i = 0; i < intersects.length; i++) {
                     if (this.selectedObject && this.selectedObject.id === intersects[i].object.id) {
-                        const n = i + 1 // Use ( i + 1 ) % intersects.length for looping through objects
+                        const n = this.cycleWrap ? (i + 1) % intersects.length : i + 1
                         if (n < intersects.length) {
                             intersect = intersects[n]
                             selectedObject = intersect.object
