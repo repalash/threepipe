@@ -32,7 +32,7 @@ The plugins are added to a [threepipe](../guide/introduction) viewer. The viewer
 npm install threepipe @threepipe/webgi-plugins
 ```
 
-License: webgi Free Forever License from version 0.7.0, see the package LICENSE. Earlier releases keep the license they shipped with.
+License: webgi Free Forever License from version 1.0.0, see the package LICENSE. Earlier releases keep the license they shipped with.
 
 ## Plugins
 
