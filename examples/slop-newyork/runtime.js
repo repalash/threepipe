@@ -16,7 +16,8 @@ export const cityThree = {
 
 export function createViewer(canvas) {
     const query = new URLSearchParams(location.search);
-    const scale = Math.max(0.35, Math.min(2, Number(query.get('scale')) || Math.min(devicePixelRatio, 1.5)));
+    const displayScale = Math.max(1, Math.min(devicePixelRatio, 2, Math.sqrt(4.2e6 / (innerWidth * innerHeight))));
+    const scale = Math.max(0.35, Math.min(2, Number(query.get('scale')) || displayScale));
     const viewer = new THREE.ThreeViewer({
         canvas, msaa: false, rgbm: false, zPrepass: false,
         renderScale: scale, maxRenderScale: scale,
@@ -24,12 +25,12 @@ export function createViewer(canvas) {
         dropzone: false,
     });
     viewer.renderEnabled = false;
-    viewer.renderManager.stableNoise = false;
+    viewer.renderManager.stableNoise = true;
     const gi = viewer.addPluginSync(new SSGIPlugin(THREE.HalfFloatType, 1, query.get('gi') !== 'off'));
     gi.pass.autoRadius = false;
     gi.pass.objectRadius = 32;
-    gi.pass.rayCount = 2;
-    gi.pass.stepCount = 12;
+    gi.pass.rayCount = 4;
+    gi.pass.stepCount = 16;
     gi.pass.power = 1;
     // The experimental PR 13 world volume spans a fixed number of probes. It is opt-in for a 40 km city.
     gi.pass.envOcclusion = query.get('envocc') === '1';
@@ -122,11 +123,13 @@ export class LightingSystem {
 export function createPostProcessing(viewer) {
     const tone = viewer.getPlugin(THREE.TonemapPlugin);
     const bloom = viewer.cityEffects.bloom;
+    // Keep the ACES toe intact; ThreePipe contrast is a post-tone offset,
+    // unlike the upstream scene-linear contrast curve.
     const looks = {
-        golden: {exposure: 1.04, contrast: 1.08, saturation: 1.04, bloom: 0.12, threshold: 1.2},
-        midday: {exposure: 1, contrast: 1.06, saturation: 1.02, bloom: 0.09, threshold: 1.35},
-        twilight: {exposure: 1.06, contrast: 1.08, saturation: 1.04, bloom: 0.14, threshold: 1.05},
-        midnight: {exposure: 1.04, contrast: 1.06, saturation: 1.04, bloom: 0.15, threshold: 1},
+        golden: {exposure: 1.04, contrast: 1, saturation: 1.04, bloom: 0.12, threshold: 1.2},
+        midday: {exposure: 1, contrast: 1, saturation: 1.02, bloom: 0.09, threshold: 1.35},
+        twilight: {exposure: 1.06, contrast: 1, saturation: 1.04, bloom: 0.14, threshold: 1.05},
+        midnight: {exposure: 1.04, contrast: 1, saturation: 1.04, bloom: 0.15, threshold: 1},
     };
     return {bloomPass: bloom.pass, applyPreset(id) {
         const p = looks[id] || looks.golden;

@@ -36,4 +36,5 @@ init().catch(error => {
     console.error(error)
     const status = document.getElementById('loading-status')
     if (status) status.textContent = `Unable to start: ${error.message}. See the browser console.`
+    window.showCityRecovery?.()
 })

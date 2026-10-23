@@ -550,6 +550,7 @@ initApp().catch(error => {
   window.__NYC_ERROR = String(error.stack || error);
   const status = document.getElementById('loading-status');
   if (status) status.textContent = `Unable to start: ${error.message}`;
+  window.showCityRecovery?.();
 });
 
 })();

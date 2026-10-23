@@ -150,23 +150,12 @@ const filteredPulse = Fn(([x, a, b, w]) => {
 });
 
 /**
- * Occlusion-Aware Urban Canyon Sky Visibility (aoNode)
- * Models how Manhattan street canyons occlude overhead sky irradiance near the street floor (y = 0..65m),
- * while opening up in Central Park and on upper tower shafts.
+ * The WebGI path obtains canyon visibility from shadowing and SSGI. The
+ * upstream height-based sky multiplier darkened every street to about 34%
+ * before real occlusion was applied, including streets with open sky.
+ * Keep this shared node neutral; material-local cavity terms remain intact.
  */
-const canyonSkyAONode = Fn(() => {
-  const wp = positionWorld;
-  // Open sky inside Central Park (city-config.js CENTRAL_PARK_BOUNDS, 5th Ave to Central Park West, 59th to 110th St)
-  const cp = window.NYC.CENTRAL_PARK_BOUNDS;
-  const inParkX = smoothstep(cp.minX - 10.0, cp.minX + 20.0, wp.x).mul(float(1.0).sub(smoothstep(cp.maxX - 20.0, cp.maxX + 10.0, wp.x)));
-  const inParkZ = smoothstep(cp.minZ - 10.0, cp.minZ + 30.0, wp.z).mul(float(1.0).sub(smoothstep(cp.maxZ - 30.0, cp.maxZ + 10.0, wp.z)));
-  const inPark = inParkX.mul(inParkZ);
-
-  const heightOpenness = smoothstep(0.0, 68.0, wp.y);
-  const streetCrevice = smoothstep(0.0, 7.5, wp.y).mul(0.22).add(0.78);
-  const canyonAO = mix(float(0.44), float(1.0), heightOpenness).mul(streetCrevice);
-  return mix(canyonAO, float(1.0), inPark);
-});
+const canyonSkyAONode = () => float(1.0);
 
 // Material caches to prevent duplicate WebGPU WGSL shader compilation across blocks & landmarks
 const _curtainWallCache = new Map();
@@ -583,8 +572,8 @@ function createCurtainWallMaterial(opts = {}) {
     const upperGlazed = mix(aptRoom.xyz.mul(color(0xb6c6bf)), cGlass, grime);
     const glazedBase = mix(upperGlazed, shopBase, isGroundFloor);
 
-    const glassColor = mix(glazedBase, envReflection, fresnel.mul(uReflectivity).add(0.18))
-      .add(cityUniforms.uSunColor.mul(sunSpec));
+    // Reflections and sun highlights belong to the PBR specular lobe, not albedo.
+    const glassColor = glazedBase;
 
     const spandrelDark = cFrame.mul(0.52);
     const frameBase = mix(cFrame, spandrelDark, filteredPulse(cellUV.y, 0.0, spandrelRatio, fw.y));
@@ -619,8 +608,13 @@ function createCurtainWallMaterial(opts = {}) {
     return mix(mix(glassOrFrame, float(0.36), coping), float(0.88), blank);
   })();
 
-  // Glass & metal, but the concrete lot-line walls aren't
-  mat.metalnessNode = mix(float(0.72), float(0.0), blank);
+  // Glass and concrete are dielectrics. Only the aluminium framing is metallic.
+  mat.metalnessNode = Fn(() => {
+    const pane = filteredPulse(cellUV.x, mullionThickness, 1.0 - mullionThickness, fw.x)
+      .mul(filteredPulse(cellUV.y, spandrelRatio, 1.0, fw.y));
+    return float(1.0).sub(pane).max(coping).mul(0.72)
+      .mul(float(1.0).sub(max(isRoof, blank)));
+  })();
 
   // Hardware derivative bumpNormal for raised curtain-wall mullions & spandrel channels (ramps >= 2px, see pre-war)
   mat.normalNode = Fn(() => {
@@ -1819,7 +1813,7 @@ function createRoadSurfaceMaterial() {
   })();
 
   // Water's Fresnel (F0 = 0.02): weights SSR & trades diffuse for reflection in pools (fully) and the wet film (partly)
-  mat.metalnessNode = clamp(waterFresnel.mul(1.6), 0.0, 0.85).mul(max(puddle, film.mul(0.6)));
+  mat.metalnessNode = float(0.0); // Wet asphalt is dielectric; the BRDF supplies Fresnel.
 
   // Footprint-gated 3mm + 1.6mm asphalt aggregate relief via bumpNormal (from CityGenerator.js)
   // Flattens to mirror-smooth 0.0 inside standing rainwater puddles so SSR reflections stay crisp!
@@ -1959,7 +1953,7 @@ function createSidewalkMaterial() {
   })();
 
   // Water's Fresnel (F0 = 0.02) on pools & the wet film, as for the roadway
-  mat.metalnessNode = clamp(swFresnel.mul(1.6), 0.0, 0.85).mul(max(swPuddle, swWet.z.mul(0.3)));
+  mat.metalnessNode = float(0.0); // Wet concrete is dielectric.
 
   // Physical -12mm scored expansion joints + +3mm concrete aggregate grain via bumpNormal
   mat.normalNode = Fn(() => {
@@ -2543,9 +2537,8 @@ const waterBoxCover = Fn(([x, a, b, s]) => {
  *   slowly drifting wind patches; the slope variance below each pixel footprint (plus always-unresolved capillary
  *   ripples) becomes GGX roughness, so crisp chop near the piers turns into a soft glitter path towards the horizon
  *   and from the air, without shimmer or visible tiling.
- * - Murky, sediment-laden green-grey body colour lit as a diffuse volume. Metalness carries the water's Fresnel
- *   (F0 = 0.02): it hands the transmitted share to the body colour and weights the pipeline's SSR, so reflections come
- *   only from the sky IBL, the sun's GGX specular and SSR (no painted-in glint).
+ * - Murky, sediment-laden green-grey body colour with dielectric IOR 1.333 (F0 ≈ 0.02).
+ *   Reflections come from sky IBL, sun GGX specular and SSR rather than view-dependent metalness.
  * - Night: the lit skyline & far shores sit beyond SSR's reach, so an analytic city (lots, lit windows, storefronts &
  *   riverside lamps on Manhattan's shoreline, the NJ / Queens / Brooklyn waterfronts & Central Park's rim) is reflected
  *   through the same wave normals & Fresnel, blurred by the unresolved slopes into the familiar vertical light streaks.
@@ -2555,6 +2548,7 @@ function createWaterMaterial() {
   const { sqrt } = window.NYC.TSL;
   const mat = new THREE.MeshStandardNodeMaterial({
     metalness: 0.0,
+    ior: 1.333,
     roughness: 0.25
   });
 
@@ -2612,7 +2606,7 @@ function createWaterMaterial() {
 
   const viewDir = normalize(cameraPosition.sub(positionWorld));
   const fresnel = pow(float(1.0).sub(clamp(dot(waterNormal, viewDir), 0.0, 1.0)), 5.0).mul(0.98).add(0.02);
-  mat.metalnessNode = clamp(fresnel.mul(1.6), 0.0, 0.9);
+  mat.metalnessNode = float(0.0); // Water is dielectric; do not encode Fresnel as metalness.
 
   // Sediment-laden estuary: deep blue-green grey ↔ silty olive grey; thin sunlit crests transmit a greener tint
   mat.colorNode = Fn(() => {

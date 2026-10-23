@@ -74,7 +74,8 @@
     "copy:inlines": "#copyfiles -u 1 \"src/**/*.{css,glsl}\" lib",
     "dev:slop-newyork": "vite --config vite.slop-newyork.config.js --open /examples/slop-newyork/",
     "build:slop-newyork": "vite build --config vite.slop-newyork.config.js",
-    "test:slop-newyork": "node scripts/smoke-slop-newyork.mjs"
+    "test:slop-newyork": "node scripts/smoke-slop-newyork.mjs",
+    "test:slop-newyork-materials": "node scripts/visual-color-check.mjs && node scripts/visual-contrast-check.mjs && node scripts/visual-gbuffer-check.mjs"
   },
   "clean-package": {
     "remove": [

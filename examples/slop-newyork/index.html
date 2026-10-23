@@ -72,7 +72,7 @@
       <div class="brand-titles">
         <div class="brand-heading">
           <h1>New York · ThreePipe</h1>
-          <a class="repo-link" href="https://github.com/repalash/threepipe/tree/dev/examples/slop-newyork" target="_blank" rel="noopener noreferrer" aria-label="New York · ThreePipe on GitHub (opens in a new tab)">GitHub <span aria-hidden="true">↗</span></a>
+          <a class="repo-link" href="https://github.com/repalash/threepipe/tree/codex/new-york-webgi-demo/examples/slop-newyork" target="_blank" rel="noopener noreferrer" aria-label="New York · ThreePipe on GitHub (opens in a new tab)">GitHub <span aria-hidden="true">↗</span></a>
         </div>
         <div class="brand-subtitle">ThreePipe · WebGI · WebGL2 · <span id="hud-fps" class="fps-ok">60</span> fps</div>
       </div>
@@ -279,5 +279,25 @@
   </section>
 
   <script id="example-script" type="module" src="./script.js"></script>
+<script>
+window.showCityRecovery = () => {
+  const overlay = document.getElementById('loading-overlay');
+  if (overlay) overlay.classList.remove('hidden');
+  const status = document.getElementById('loading-status');
+  if (!status || document.getElementById('city-retry')) return;
+  const retry = document.createElement('a');
+  retry.id = 'city-retry'; retry.textContent = 'Retry with reduced graphics';
+  const url = new URL(location.href);
+  url.searchParams.set('scale', '0.5'); url.searchParams.set('shadows', 'off');
+  url.searchParams.set('gi', 'off'); url.searchParams.set('ssr', 'off');
+  retry.href = url.href; retry.style.cssText = 'display:block;color:#fff;margin-top:16px;text-decoration:underline';
+  status.after(retry);
+};
+document.getElementById('mcanvas').addEventListener('webglcontextlost', event => {
+  event.preventDefault();
+  document.getElementById('loading-status').textContent = 'Graphics context lost. Reload to continue.';
+  window.showCityRecovery();
+});
+</script>
 </body>
 </html>

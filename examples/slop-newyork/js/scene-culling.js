@@ -174,7 +174,9 @@ function setupSceneCulling(scene, roots, shadow = null) {
 
   // 2. Shadow stand-ins for the big static casters
   const cams = [];
-  if (shadow && typeof shadow.getCamera === 'function') {
+  if (shadow?.camera?.layers && typeof shadow.getCamera !== 'function') {
+    cams.push(shadow.camera);
+  } else if (shadow && typeof shadow.getCamera === 'function') {
     const count = typeof shadow.getViewportCount === 'function' ? shadow.getViewportCount() : 2;
     for (let i = 0; i < count; i++) {
       const cam = shadow.getCamera(i);
@@ -189,6 +191,13 @@ function setupSceneCulling(scene, roots, shadow = null) {
       let m = proxyMaterials.get(side);
       if (!m) {
         m = new THREE.MeshBasicNodeMaterial({ side: side.side, color: 0x000000 });
+        // WebGLShadowMap checks the view camera's layers, not the shadow camera's.
+        // Keep proxies traversable by that camera without writing into color/depth buffers.
+        m.colorWrite = false;
+        m.depthWrite = false;
+        m.transparent = true;
+        m.opacity = 0;
+        m.allowOverride = false;
         m.shadowSide = side.shadowSide;
         m.name = 'ShadowProxy';
         proxyMaterials.set(side, m);
@@ -275,6 +284,7 @@ function setupSceneCulling(scene, roots, shadow = null) {
     const addProxy = (mesh, tris) => {
       mesh.name = 'ShadowProxy';
       mesh.layers.set(SHADOW_PROXY_LAYER);
+      mesh.layers.enable(0);
       mesh.castShadow = true;
       mesh.receiveShadow = false;
       mesh.frustumCulled = true;

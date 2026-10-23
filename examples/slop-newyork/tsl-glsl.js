@@ -340,6 +340,16 @@ function compiledGraph(source, mode) {
     return c;
 }
 
+function injectShaderMain(code, body, label) {
+    // Preserve offsets while ignoring commented examples of main(). Missing or
+    // ambiguous entry points must fail instead of leaving varyings uninitialized.
+    const executable = code.replace(/\/\*[\s\S]*?\*\/|\/\/[^\n\r]*/g, comment => comment.replace(/[^\n\r]/g, ' '));
+    const entries = [...executable.matchAll(/void\s+main\s*\(\s*(?:void\s*)?\)\s*\{/g)];
+    if (entries.length !== 1) throw new Error(`NYC shader ${label}: expected one main() entry point, found ${entries.length}`);
+    const end = entries[0].index + entries[0][0].length;
+    return code.slice(0, end) + '\n' + body + '\n' + code.slice(end);
+}
+
 function patchShader(shader, source, mode = 'surface') {
     if (new URLSearchParams(globalThis.location?.search).has('debug')) console.log('[compile]', mode, source.uuid);
     const c = compiledGraph(source, mode);
@@ -352,7 +362,7 @@ function patchShader(shader, source, mode = 'surface') {
     vertex += c.vertexBody + '\n' + c.varyingBody + '\n';
     if (c.position) vertex += `nyLocalPosition = ${c.position};\n`;
     vertex += 'nyViewPosition = (modelViewMatrix * vec4(nyLocalPosition, 1.0)).xyz;\nnyWorldPosition = (modelMatrix * vec4(nyLocalPosition, 1.0)).xyz;\nnyGeometryNormal = normalize(normalMatrix * nyLocalNormal);\n';
-    shader.vertexShader = shader.vertexShader.replace('void main() {', `void main() {\n${vertex}`);
+    shader.vertexShader = injectShaderMain(shader.vertexShader, vertex, `${mode} vertex`);
     if (c.position) {
         shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', 'vec3 transformed = nyLocalPosition;');
         if (source.isCitySprite) {
@@ -363,8 +373,16 @@ function patchShader(shader, source, mode = 'surface') {
         }
         shader.vertexShader = shader.vertexShader.replace('#include <beginnormal_vertex>', 'vec3 objectNormal = nyLocalNormal;');
     }
-    shader.fragmentShader = shader.fragmentShader.replace('void main() {', 'void main() {\nnyShadingNormal = normalize(nyGeometryNormal);');
+    shader.fragmentShader = injectShaderMain(shader.fragmentShader, 'nyShadingNormal = normalize(nyGeometryNormal);', `${mode} fragment`);
     const p = c.pieces;
+    if (mode === 'surface' && p.color) {
+        // TSL colorNode replaces materialColor (base color/map), while vertex and
+        // instance colors still multiply it in <color_fragment>.
+        shader.fragmentShader = shader.fragmentShader.replace(
+            /vec4 diffuseColor = vec4\(\s*diffuse\s*,\s*opacity\s*\);/,
+            'vec4 diffuseColor = vec4(vec3(1.0), opacity);');
+        shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', '');
+    }
     const color = (p.color ? `${p.color.code}\nvec4 nyColor = ${p.color.expr};\ndiffuseColor *= nyColor;\n` : '') + (p.opacity ? `${p.opacity.code}\ndiffuseColor.a *= ${p.opacity.expr};\n` : '') + (p.mask ? `${p.mask.code}\nif (!(${p.mask.expr})) discard;\n` : '') + (source.alphaTestNode ? 'if (diffuseColor.a < 0.5) discard;\n' : '');
     shader.fragmentShader = shader.fragmentShader.replace('#include <alphatest_fragment>', `${color}\n#include <alphatest_fragment>`);
     if (mode === 'depth' && p.roughness) {
@@ -392,7 +410,7 @@ function patchShader(shader, source, mode = 'surface') {
         shader.fragmentShader = 'varying vec3 vViewPosition;\n' + shader.fragmentShader;
         shader.vertexShader = 'varying vec3 vViewPosition;\n' + shader.vertexShader;
         shader.vertexShader = shader.vertexShader.replace('#include <project_vertex>', '#include <project_vertex>\nvViewPosition = -mvPosition.xyz;');
-        shader.fragmentShader = shader.fragmentShader.replace('void main() {', 'void main() {\nvec3 normal = normalize(nyGeometryNormal);');
+        shader.fragmentShader = injectShaderMain(shader.fragmentShader, 'vec3 normal = normalize(nyGeometryNormal);', 'surface basic fragment');
     }
     return c;
 }
@@ -423,6 +441,10 @@ export function prepareCityBuffers(root, velocityFactory, velocityTemplate) {
     const velocities = new Map();
     const instances = [];
     const buffers = new Map();
+    const geometryUsers = new Map();
+    root.traverse(object => {
+        if (object.isMesh) geometryUsers.set(object.geometry, (geometryUsers.get(object.geometry) || 0) + 1);
+    });
     root.traverse((object) => {
         if (!object.isMesh) return;
         const source = Array.isArray(object.material) ? object.material[0] : object.material;
@@ -443,6 +465,8 @@ export function prepareCityBuffers(root, velocityFactory, velocityTemplate) {
             }
             object.userData.cityVelocityMaterial = velocity;
             if (object.isInstancedMesh) {
+                // Previous transforms belong to this mesh, even when city meshes share geometry.
+                if (geometryUsers.get(object.geometry) > 1) object.geometry = object.geometry.clone();
                 const previous = new THREE.InstancedBufferAttribute(object.instanceMatrix.array.slice(), 16);
                 object.geometry.setAttribute('nyPreviousMatrix', previous);
                 instances.push({object, previous, version: -1});
