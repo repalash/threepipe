@@ -23,6 +23,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- glTF export leaves out objects marked `userData.excludeFromExport` (and their subtrees): `GLTFWriter2.processNode` skips them. `AssetExporter.exportObject` only hid them, and the writer exports invisible nodes (`onlyVisible: false`), so they were written anyway. An object exported directly is still written even when marked. Animation tracks that target a left-out object are dropped (a clip left with no tracks is not written), and `exportObject` no longer toggles `visible` on marked objects during the export.
 - Fix `CascadedShadowsPlugin` shadows not rendering (regression from v0.3.0) — `refreshAttachedLight` was picking up a cascade light as the source due to `_lightAutoAttached` being set after `@onChange` fired synchronously; added re-entrancy guard to `refreshLights`; removed stale uniform upload optimization that skipped re-upload after shader recompilation
 - `DRACOLoader2`: enable WASM decoder by default
   - Removed `setDecoderConfig({type: 'js'})` hack from constructor — decoder now uses WASM build when available, auto-falls back to JS via three.js's built-in `typeof WebAssembly !== 'object'` check
