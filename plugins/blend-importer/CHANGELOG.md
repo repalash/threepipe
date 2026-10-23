@@ -8,6 +8,12 @@ All notable changes to this plugin will be documented in this file.
 
 ### Added
 
+- NA
+
+## [0.3.0] - 2026-10-23
+
+### Added
+
 - **Blender 5.0 (file format version 1) support.** Reads the new 17-byte header (`BLENDER17-01v0500`) and the reordered 32-byte `LargeBHead8` block layout (64-bit lengths, `SDNAnr`/`len` swapped). Added `int8_t`/`int16_t`/`int32_t`/`int64_t`/`uint*` explicit-width SDNA field types (Blender 5.0 DNA uses them widely). Verified against the bundled Blender 5.0 startup file and 3 geometry-nodes scenes; all 41 legacy fixtures (Blender 1.69 → 4.5) remain byte-identical.
 - **Blender 5.0 mesh geometry via `attribute_storage`.** Blender 5.0 moved mesh data out of CustomData (`vdata`/`ldata`) into a new `AttributeStorage` of named attributes. The loader now reads `position` (Float3) and `.corner_vert` (Int32) from it, using each attribute's stored `AttributeArray.size` (the Mesh `tot*` fields are runtime/post-geometry-nodes counts that don't match the stored arrays). NaN/Inf verts are sanitized; out-of-range face indices are skipped.
 - **UV extraction** from the first user `UVMap` (Float2 corner-domain attribute) on the Blender 5.0 path. Per-vertex assignment (exact away from UV seams).
@@ -57,6 +63,7 @@ All notable changes to this plugin will be documented in this file.
 - Update [threepipe](https://threepipe.org/) `peerDependency` to [0.1.0](https://github.com/repalash/threepipe/releases/tag/v0.1.0)
 
 [unreleased]: https://github.com/repalash/threepipe/tree/dev/plugins/blend-importer
+[0.3.0]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugin-blend-importer-0.3.0
 [0.2.0]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugin-blend-importer-0.2.0
 [0.1.0]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugin-blend-importer-0.1.0
 [0.0.9]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugin-blend-importer-0.0.9
