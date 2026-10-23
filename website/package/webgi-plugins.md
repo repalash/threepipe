@@ -24,7 +24,7 @@ The plugins are added to a [threepipe](../guide/introduction) viewer. The viewer
 
 [Examples](https://threepipe.org/examples/?q=webgi) &mdash;
 [Source Code](https://github.com/repalash/threepipe/tree/dev/plugins/webgi-plugins) &mdash;
-[API Reference](https://threepipe.org/plugins/webgi-plugins/docs/)
+[API Reference](https://webgi.dev/docs/)
 
 [![NPM Package](https://img.shields.io/npm/v/@threepipe/webgi-plugins.svg)](https://www.npmjs.com/package/@threepipe/webgi-plugins)
 

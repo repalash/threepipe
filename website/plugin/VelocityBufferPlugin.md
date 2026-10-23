@@ -13,7 +13,7 @@ aside: false
 # VelocityBufferPlugin
 
 [Example](https://threepipe.org/examples/#velocity-buffer-plugin/) &mdash;
-[API Reference](https://threepipe.org/plugins/webgi-plugins/docs/classes/VelocityBufferPlugin.html)
+[API Reference](https://webgi.dev/docs/classes/VelocityBufferPlugin.html)
 
 <iframe src="https://threepipe.org/examples/velocity-buffer-plugin/" style="width:100%;min-height:600px;border:none;" loading="lazy" title="Threepipe Velocity Buffer Plugin Example"></iframe>
 
