@@ -59,7 +59,8 @@ export function commonPlugins (packageJson, dirname, isProduction = false) {
     ]
 }
 
-const dtsSpecifierRE = /(\bfrom\s+|\bimport\s*\(\s*|\bdeclare\s+module\s+)(['"])([^'"\n]+)\2/g
+// `from '…'`, `import('…')`, side-effect `import '…'` and `declare module '…'`
+const dtsSpecifierRE = /(\bfrom\s+|\bimport\s*\(\s*|\bimport\s+(?=['"])|\bdeclare\s+module\s+)(['"])([^'"\n]+)\2/g
 const dtsExtRE = /\.(d\.ts|tsx?|js)$/
 
 /**
