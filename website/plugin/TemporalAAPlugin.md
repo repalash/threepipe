@@ -1,7 +1,7 @@
 ---
 prev:
-  text: 'FrameFadePlugin'
-  link: './FrameFadePlugin'
+  text: '@threepipe/webgi-plugins'
+  link: '../package/webgi-plugins'
 
 next:
   text: 'VelocityBufferPlugin'
@@ -13,7 +13,7 @@ aside: false
 # TemporalAAPlugin (Temporal Anti-Aliasing Plugin)
 
 [Example](https://threepipe.org/examples/#temporalaa-plugin/) &mdash;
-[API Reference](https://webgi.dev/docs/classes/TemporalAAPlugin.html)
+[API Reference](https://threepipe.org/plugins/webgi-plugins/docs/classes/TemporalAAPlugin.html)
 
 <iframe src="https://threepipe.org/examples/temporalaa-plugin/" style="width:100%;min-height:600px;border:none;" loading="lazy" title="Threepipe Temporal AA Plugin Example"></iframe>
 
@@ -36,7 +36,7 @@ Optionally, it can also utilize [VelocityBufferPlugin](./VelocityBufferPlugin) t
 
 ## Installation
 
-This plugin is part of the `@threepipe/webgi-plugins` package:
+This plugin is part of the [`@threepipe/webgi-plugins`](../package/webgi-plugins) package:
 
 ```bash
 npm install @threepipe/webgi-plugins

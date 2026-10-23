@@ -13,7 +13,7 @@ aside: false
 # SSGIPlugin (Screen Space Global Illumination Plugin)
 
 [Example](https://threepipe.org/examples/#ssgi-plugin/) &mdash;
-[API Reference](https://webgi.dev/docs/classes/SSGIPlugin.html)
+[API Reference](https://threepipe.org/plugins/webgi-plugins/docs/classes/SSGIPlugin.html)
 
 <iframe src="https://threepipe.org/examples/ssgi-plugin/" style="width:100%;min-height:600px;border:none;" loading="lazy" title="Threepipe SSGI Plugin Example"></iframe>
 
@@ -39,7 +39,7 @@ The SSGIPlugin implements an advanced screen-space ray-tracing algorithm that tr
 
 ## Installation
 
-This plugin is part of the `@threepipe/webgi-plugins` package:
+This plugin is part of the [`@threepipe/webgi-plugins`](../package/webgi-plugins) package:
 
 ```bash
 npm install @threepipe/webgi-plugins
@@ -432,7 +432,7 @@ SSGI integrates at the material level, modifying the lighting calculation:
 
 ## API Reference
 
-See the [SSGIPlugin API documentation](https://webgi.dev/docs/classes/SSGIPlugin.html) for detailed information on all properties and methods.
+See the [SSGIPlugin API documentation](https://threepipe.org/plugins/webgi-plugins/docs/classes/SSGIPlugin.html) for detailed information on all properties and methods.
 
 ## Related Plugins
 

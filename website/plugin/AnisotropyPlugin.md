@@ -13,7 +13,7 @@ aside: false
 # AnisotropyPlugin
 
 [Example](https://threepipe.org/examples/#anisotropy-plugin/) &mdash;
-[API Reference](https://webgi.dev/docs/classes/AnisotropyPlugin.html)
+[API Reference](https://threepipe.org/plugins/webgi-plugins/docs/classes/AnisotropyPlugin.html)
 
 <iframe src="https://threepipe.org/examples/anisotropy-plugin/" style="width:100%;min-height:600px;border:none;" loading="lazy" title="Threepipe Anisotropy Plugin Example"></iframe>
 
@@ -39,7 +39,7 @@ The AnisotropyPlugin implements a physically-based anisotropic BRDF based on the
 
 ## Installation
 
-This plugin is part of the `@threepipe/webgi-plugins` package:
+This plugin is part of the [`@threepipe/webgi-plugins`](../package/webgi-plugins) package:
 
 ```bash
 npm install @threepipe/webgi-plugins
@@ -605,7 +605,7 @@ Check out these examples to see the plugin in action:
 
 ## API Reference
 
-See the [AnisotropyPlugin API documentation](https://webgi.dev/docs/classes/AnisotropyPlugin.html) for detailed information on all properties and methods.
+See the [AnisotropyPlugin API documentation](https://threepipe.org/plugins/webgi-plugins/docs/classes/AnisotropyPlugin.html) for detailed information on all properties and methods.
 
 ## Related Plugins
 
