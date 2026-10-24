@@ -144,6 +144,43 @@ export class OutlinePlugin extends AScreenPassExtensionPlugin {
     }
     dependencies = [PickingPlugin, GBufferPlugin]
 
+    private _pickingPlugin?: PickingPlugin
+
+    private _onSelectedObjectChanged = () => {
+        if (this._animationCallBack) return
+        if (this._pickingPlugin?.getSelectedObject()) {
+            if (this.enableDynamicSelection) {
+                this.transparency = 1
+                this._animationCallBack = this._startTransparencyAnimation(1, this.highlightTransparency, 400)
+            } else {
+                this.transparency = this.highlightTransparency
+            }
+        } else {
+            this.transparency = 1
+        }
+    }
+
+    private _onMouseMove = (e: MouseEvent) => {
+        if (!this.mouseInOutAnimationEnabled) return
+        if (!this.enableHighlight) return
+        const selectedObject = this._pickingPlugin?.getSelectedObject()
+        if (selectedObject && this.enableDynamicSelection) {
+            if (e.target !== this._viewer?.canvas) {
+                if (!this._animationCallBack && this._state === 'in') {
+                    this._animationCallBack = this._startTransparencyAnimation(this.highlightTransparency, 1, 600)
+                    this._state = 'out'
+                }
+            } else {
+                if (!this._animationCallBack && this._state === 'out') {
+                    this._animationCallBack = this._startTransparencyAnimation(1, this.highlightTransparency, 600)
+                    this._state = 'in'
+                }
+            }
+        } else {
+            this.transparency = selectedObject ? this.highlightTransparency : 1
+        }
+    }
+
     private _pickingWidgetDisabled = false
     setDirty() {
         super.setDirty()
@@ -181,47 +218,22 @@ export class OutlinePlugin extends AScreenPassExtensionPlugin {
         // this._pass.beforeRender = wrapThisFunction2(this._beforeRender, this._pass.beforeRender) // not needed at the moment
         viewer.renderManager.registerPass(this._pass)
 
-        // todo use forPlugin and remove listener
-        const pickingPlugin = viewer.getPlugin(PickingPlugin)
-        pickingPlugin?.addEventListener('selectedObjectChanged', ()=> {
-            if (!this._animationCallBack && this) {
-                if (pickingPlugin?.getSelectedObject()) {
-                    if (this.enableDynamicSelection) {
-                        this.transparency = 1
-                        this._animationCallBack = this._startTransparencyAnimation(1, this.highlightTransparency, 400)
-                    } else {
-                        this.transparency = this.highlightTransparency
-                    }
-                } else {
-                    this.transparency = 1
-                }
-            }
-        })
+        viewer.forPlugin(PickingPlugin, (p) => {
+            this._pickingPlugin = p
+            p.addEventListener('selectedObjectChanged', this._onSelectedObjectChanged)
+        }, (p) => {
+            p.removeEventListener('selectedObjectChanged', this._onSelectedObjectChanged)
+            this._pickingPlugin = undefined
+        }, this)
 
-        // todo remove listener
-        document.addEventListener('mousemove', (e: MouseEvent)=> {
-            if (!this) return
-            if (!this.mouseInOutAnimationEnabled) return
-            if (!this.enableHighlight) return
-            const selectedObject = pickingPlugin?.getSelectedObject()
-            if (selectedObject && this.enableDynamicSelection) {
-                if (e.target !== viewer.canvas) {
-                    if (!this._animationCallBack && this._state === 'in') {
-                        this._animationCallBack = this._startTransparencyAnimation(this.highlightTransparency, 1, 600)
-                        this._state = 'out'
-                    }
-                } else {
-                    if (!this._animationCallBack && this._state === 'out') {
-                        this._animationCallBack = this._startTransparencyAnimation(1, this.highlightTransparency, 600)
-                        this._state = 'in'
-                    }
-                }
-            } else {
-                this.transparency = selectedObject ? this.highlightTransparency : 1
-            }
-        })
+        document.addEventListener('mousemove', this._onMouseMove, {passive: true})
     }
     onRemove(viewer: ThreeViewer): void {
+        document.removeEventListener('mousemove', this._onMouseMove)
+        this._pickingPlugin?.removeEventListener('selectedObjectChanged', this._onSelectedObjectChanged)
+        this._pickingPlugin = undefined
+        this._animationCallBack = undefined
+
         this._disposeTarget()
         if (this._pass) {
             viewer.renderManager.unregisterPass(this._pass)
