@@ -8,6 +8,7 @@ import {
     ILoader,
     ImportAddOptions,
     Importer,
+    LoadingManager,
     Mesh,
     Object3D,
     PhysicalMaterial,
@@ -27,6 +28,7 @@ import {MDD, MDDLoader} from 'three/examples/jsm/loaders/MDDLoader.js'
 import {PCDLoader} from 'three/examples/jsm/loaders/PCDLoader.js'
 import {VRMLLoader} from 'three/examples/jsm/loaders/VRMLLoader.js'
 import {LDrawLoader} from 'three/examples/jsm/loaders/LDrawLoader.js'
+import {LDrawConditionalLineMaterial} from 'three/examples/jsm/materials/LDrawConditionalLineMaterial.js'
 import {VTKLoader} from 'three/examples/jsm/loaders/VTKLoader.js'
 import {XYZLoader} from 'three/examples/jsm/loaders/XYZLoader.js'
 
@@ -175,6 +177,11 @@ export class VRMLLoadPlugin extends BaseImporterPlugin {
 export class LDrawLoadPlugin extends BaseImporterPlugin {
     public static readonly PluginType = 'LDrawLoadPlugin'
     protected _importer = new Importer(class extends LDrawLoader implements ILoader {
+        constructor(manager?: LoadingManager) {
+            super(manager)
+            // since three.js r171 the loader throws on conditional (edge) lines unless the material type is set
+            this.setConditionalLineMaterial(LDrawConditionalLineMaterial)
+        }
         transform(res: Group, _: AnyOptions): any {
             // Convert from LDraw coordinates: rotate 180 degrees around OX
             res.rotation.x = Math.PI
