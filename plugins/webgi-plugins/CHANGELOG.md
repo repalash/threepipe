@@ -26,6 +26,9 @@ All notable changes to this plugin will be documented in this file.
 - `WatchHandsPlugin`: a watch without a second hand never moved, and an hour or minute offset change waited for the second hand; any hand off its target rotation now updates all hands
 - `SSGIPlugin`: disabling or removing SSGI left SSAO disabled for good; SSGI now gives the SSAO disable key back when it is off or removed
 - `SSGIPlugin`: the material's SSGI "Enabled" toggle (`userData.ssgiDisabled`) had no effect on rendering; it now turns SSGI off for that material
+- `VelocityBufferPlugin`: the per-material opt-out (`userData.VelocityBuffer.disabled`) worked the wrong way round; it is now passed as the inverse of `renderToGBuffer`
+- `VelocityBufferPlugin`: alpha-mapped meshes wrote motion vectors over their cut-out texels (and the alpha map had no UV channel); the velocity shader now applies the alpha test like the GBuffer material
+- `AdvancedGroundPlugin`: removing the plugin left the shadow baker's render target, blur material and light in place; `ShadowMapBaker.dispose()` frees them and `onRemove` calls it. `RandomizedDirectionalLight.dispose()` now frees its shadow map
 
 ## [0.6.4]
 

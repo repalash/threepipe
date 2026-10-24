@@ -110,7 +110,11 @@ export class VelocityBufferPlugin
             }
         }(this.passId, this.target, this.material, new Color(0.5, 0.5, 0.5), 1) // clear color 0.5 means 0 velocity
         const preprocessMaterial = pass.preprocessMaterial
-        pass.preprocessMaterial = (m) => preprocessMaterial(m, m.userData[VelocityBufferPlugin.PluginType]?.disabled)
+        // `disabled` is the opposite of renderToGBuffer; undefined keeps the material's own renderToGBuffer
+        pass.preprocessMaterial = (m) => {
+            const disabled = m.userData[VelocityBufferPlugin.PluginType]?.disabled
+            return preprocessMaterial(m, disabled === undefined ? undefined : !disabled)
+        }
         pass.before = ['render']
         pass.after = []
         pass.required = ['render']
@@ -240,9 +244,19 @@ export class SSVelocityMaterial extends ShaderMaterial {
 
         let x = this.uniforms.alphaMap.value ? 1 : undefined
         if (x !== this.defines.USE_ALPHAMAP) {
-            if (x === undefined) delete this.defines.USE_ALPHAMAP
-            else this.defines.USE_ALPHAMAP = x
+            if (x === undefined) {
+                delete this.defines.USE_ALPHAMAP
+                delete this.defines.ALPHAMAP_UV
+            } else {
+                this.defines.USE_ALPHAMAP = x
+                this.defines.ALPHAMAP_UV = 'uv' // uv_vertex needs the channel for vAlphaMapUv, as in GBufferMaterial
+            }
             this.needsUpdate = true
+        }
+        const alphaMap = this.uniforms.alphaMap.value as Texture | null
+        if (alphaMap) {
+            if (alphaMap.matrixAutoUpdate) alphaMap.updateMatrix()
+            this.uniforms.alphaMapTransform.value.copy(alphaMap.matrix)
         }
         x = mat?.userData.ALPHA_I_RGBA_PACKING ? 1 : undefined
         if (x !== this.defines.ALPHA_I_RGBA_PACKING) {

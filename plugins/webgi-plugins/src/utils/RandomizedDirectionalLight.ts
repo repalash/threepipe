@@ -192,7 +192,7 @@ export class RandomizedDirectionalLight extends DirectionalLight2 implements IDi
     }
 
     dispose(): void {
-        // todo;
+        super.dispose() // DirectionalLight: frees the shadow map
     }
 
     // todo move to commons and base class in threepipe like materials

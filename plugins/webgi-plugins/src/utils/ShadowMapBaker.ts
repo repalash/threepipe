@@ -114,9 +114,11 @@ export class ShadowMapBaker extends SimpleEventDispatcher<'shadowBaking'|'shadow
     }
 
     dispose() {
-        // todo: dispose everything and remove light from scene.
         this._shadowMat.dispose()
+        this._shadowBlurMat.dispose()
+        if (this._target) this._viewer.renderManager.disposeTarget(this._target)
         this._target = undefined
+        this._light.dispose() // removes the light from the scene and frees its shadow map
         this.reset()
     }
 

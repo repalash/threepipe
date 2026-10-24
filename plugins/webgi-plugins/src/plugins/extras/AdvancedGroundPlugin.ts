@@ -6,7 +6,6 @@ import {
     generateUiConfig,
     IGeometry,
     IMaterial,
-    IRenderTarget,
     IScene,
     ISceneEventMap,
     LinearFilter,
@@ -24,6 +23,7 @@ import {
     uiToggle,
     UnsignedByteType,
     VSMShadowMap,
+    WebGLRenderTarget,
 } from 'threepipe'
 import {SSReflectionPlugin} from '../postprocessing/SSReflectionPlugin'
 import {Reflector2} from '../../utils/Reflector2'
@@ -119,7 +119,7 @@ export class AdvancedGroundPlugin extends BaseGroundPlugin {
     }
 
     declare _mesh: Reflector2<IGeometry&PlaneGeometry>
-    private _reflectionTarget?: IRenderTarget
+    private _reflectionTarget?: WebGLRenderTarget
 
     onAdded(viewer: ThreeViewer) {
         super.onAdded(viewer)
@@ -145,7 +145,9 @@ export class AdvancedGroundPlugin extends BaseGroundPlugin {
             viewer.renderManager.disposeTarget(this._reflectionTarget)
             this._reflectionTarget = undefined
         }
-        return super.onRemove(viewer)
+        super.onRemove(viewer) // unregisters the baker's material extension (_removeMaterial)
+        this._shadowBaker?.dispose()
+        this._shadowBaker = undefined
     }
 
     protected _removeMaterial() {

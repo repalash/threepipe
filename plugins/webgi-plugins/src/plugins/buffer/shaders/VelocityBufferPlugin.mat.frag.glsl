@@ -1,3 +1,11 @@
+#ifdef USE_ALPHAMAP
+#define USE_UV
+#include <packing>
+uniform sampler2D alphaMap;
+uniform float alphaTest;
+#endif
+#include <uv_pars_fragment>
+
 varying vec3 vWorldPosition;
 varying vec3 vWorldPositionPrevious;
 uniform mat4 currentProjectionViewMatrix;
@@ -17,6 +25,17 @@ vec2 computeScreenSpaceVelocity2() {
 }
 
 void main() {
+    // alpha test like the GBuffer material, so cut-out texels do not write the mesh's motion
+    #ifdef USE_ALPHAMAP
+    float alphaMapValue =
+    #ifdef ALPHA_I_RGBA_PACKING
+    1. - unpackRGBAToDepth( texture2D( alphaMap, vAlphaMapUv ) );
+    #else
+    texture2D( alphaMap, vAlphaMapUv ).g;
+    #endif
+    if ( alphaMapValue < alphaTest ) discard;
+    #endif
+
     vec2 velocity = clamp(computeScreenSpaceVelocity2(), -1.0, 1.0);
     velocity = sign(velocity) * pow(abs(velocity), vec2(1./4.));
     velocity = velocity * 0.5 + 0.5;
