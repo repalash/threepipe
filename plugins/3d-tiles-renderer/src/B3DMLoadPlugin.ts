@@ -8,8 +8,10 @@ import {
     LoadingManager,
     ThreeViewer,
 } from 'threepipe'
-import type {B3DMResult} from '3d-tiles-renderer/src/three/loaders/B3DMLoader'
 import {B3DMLoader, B3DMScene, LoaderBase} from '3d-tiles-renderer'
+
+// The package root exports the loader but not its result type (deep src/ paths are outside its exports map).
+type B3DMResult = Awaited<ReturnType<B3DMLoader['parse']>>
 import {GLTF} from 'three/examples/jsm/loaders/GLTFLoader.js'
 
 /**
