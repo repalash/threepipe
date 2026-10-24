@@ -196,7 +196,8 @@ export function createMaterial(mat: any, ctx: Ctx) {
         else { const r = num(socketConst(roughSock)); if (r !== undefined) material.roughness = r }
         const metalSock = socketByName(inp, 'Metallic')
         const metalTex = textureFromSocket(links, metalSock, false, ctx)
-        if (metalTex) material.metalnessMap = metalTex
+        // three.js multiplies the map by the factor (default 0), so use 1 like the white base color above.
+        if (metalTex) { material.metalnessMap = metalTex; material.metalness = 1 }
         else { const m = num(socketConst(metalSock)); if (m !== undefined) material.metalness = m }
 
         // Normal map + strength (materials.py:376; Normal Map node "Strength").
@@ -304,6 +305,7 @@ export function createMaterial(mat: any, ctx: Ctx) {
     const emStrSock = emission ? socketByName(inputsOf(emission), 'Strength')
         : (principled ? socketByName(inputsOf(principled), 'Emission Strength') : null)
     const emTex = textureFromSocket(links, emSock, true, ctx)
+    if (emTex) material.emissiveMap = emTex
     let emCol = socketConst(emSock)
     // When a texture drives emission, the Emission Color factor multiplies it. Blender's default factor is
     // black [0,0,0] (and stays black even with a texture linked), which would zero out the map — so treat a
