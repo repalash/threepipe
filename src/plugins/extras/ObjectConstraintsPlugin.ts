@@ -69,7 +69,8 @@ export class ObjectConstraintsPlugin extends AViewerPluginSync<ObjectConstraints
         }
         this._setupUiConfig(obj)
         // refresh target refs for all registered constraints that have target == obj.uuid
-        this._constraints.keys().forEach(c=>{
+        // todo remove after node22 widespread
+        Array.from(this._constraints.keys()).forEach(c=>{
             if (c?.target === obj.uuid) this._refreshConstraint(c, obj)
         })
 
@@ -279,7 +280,7 @@ export class ObjectConstraintsPlugin extends AViewerPluginSync<ObjectConstraints
             // console.log(delta, this._viewer?.timeline.running)
             if (this._viewer?.timeline.running && this._viewer.timeline.delta === 0) return
 
-            const updated = this._constraints.keys().filter(c=>c.needsUpdate)
+            const updated = Array.from(this._constraints.keys()).filter(c=>c.needsUpdate)
             let hasUpdate = false
             updated.forEach(u=>{
                 const data = this._constraints.get(u)

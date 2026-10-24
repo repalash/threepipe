@@ -4,8 +4,8 @@ prev:
     link: './CascadedShadowsPlugin'
 
 next:
-    text: 'TemporalAAPlugin'
-    link: './TemporalAAPlugin'
+    text: '@threepipe/webgi-plugins'
+    link: '../package/webgi-plugins'
 
 aside: false
 ---

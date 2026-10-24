@@ -78,7 +78,6 @@ export class ThreeSerialization {
                 return ret
             },
             deserialize: copier(cls),
-            // @ts-expect-error type in next version
             type: isType.startsWith('is') ? isType.slice(2) : cls.name,
         }
     }
@@ -654,6 +653,7 @@ export function getEmptyMeta(res?: Partial<SerializationResourcesType>): Seriali
         animations: {...res?.animations},
         extras: {...res?.extras},
         typed: {...res?.typed},
+        nodes: {...res?.nodes},
         _context: {},
     }
 }
@@ -666,6 +666,7 @@ export interface SerializationResourcesType {
     shapes: Record<string, any>,
     skeletons: Record<string, any>,
     animations: Record<string, any>,
+    nodes: Record<string, any>,
     extras: Record<string, any>,
     typed: Record<string, any>,
     object?: any, // todo what is this used for?

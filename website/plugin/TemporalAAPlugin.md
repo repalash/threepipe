@@ -1,7 +1,7 @@
 ---
 prev:
-  text: 'FrameFadePlugin'
-  link: './FrameFadePlugin'
+  text: '@threepipe/webgi-plugins'
+  link: '../package/webgi-plugins'
 
 next:
   text: 'VelocityBufferPlugin'
@@ -36,7 +36,7 @@ Optionally, it can also utilize [VelocityBufferPlugin](./VelocityBufferPlugin) t
 
 ## Installation
 
-This plugin is part of the `@threepipe/webgi-plugins` package:
+This plugin is part of the [`@threepipe/webgi-plugins`](../package/webgi-plugins) package:
 
 ```bash
 npm install @threepipe/webgi-plugins

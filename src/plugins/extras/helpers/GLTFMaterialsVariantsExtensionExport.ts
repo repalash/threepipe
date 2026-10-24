@@ -25,7 +25,7 @@ const compatibleObject = (object: Object3D) => {
  * @return {boolean}
  */
 const compatibleMaterial = (material: Material) => {
-    // @TODO: support multi materials?
+    // TODO: support multi materials?
     return material && material.isMaterial && !Array.isArray(material)
 }
 

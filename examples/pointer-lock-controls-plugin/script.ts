@@ -3,6 +3,7 @@ import {
     _testStart,
     IObject3D,
     LoadingScreenPlugin,
+    PointerLockControls2,
     PointerLockControlsPlugin,
     ThreeViewer,
 } from 'threepipe'
@@ -28,8 +29,9 @@ async function init() {
     viewer.scene.mainCamera.controlsMode = 'pointerLock'
 
     const overlayEl = document.getElementById('pointerLockOverlay') as HTMLDivElement
-    viewer.scene.mainCamera.controls?.addEventListener('lock', ()=> overlayEl.style.display = 'none')
-    viewer.scene.mainCamera.controls?.addEventListener('unlock', ()=> overlayEl.style.display = 'flex')
+    const controls = viewer.scene.mainCamera.controls as PointerLockControls2 | undefined
+    controls?.addEventListener('lock', ()=> overlayEl.style.display = 'none')
+    controls?.addEventListener('unlock', ()=> overlayEl.style.display = 'flex')
 
 }
 

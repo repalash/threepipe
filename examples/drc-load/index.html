@@ -27,9 +27,10 @@
     <script type="module" src="../examples-utils/global-loading.mjs"></script>
     <script type="module" src="../examples-utils/simple-code-preview.mjs"></script>
     <script id="example-script" type="module">
-        import {_testFinish, _testStart, ThreeViewer} from 'threepipe'
+        import {_testFinish, _testStart, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
 
         const viewer = new ThreeViewer({canvas: document.getElementById('mcanvas')})
+        viewer.addPluginSync(LoadingScreenPlugin)
 
         async function init() {
 

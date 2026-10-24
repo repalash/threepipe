@@ -29,6 +29,43 @@ test('3dm-to-glb', async({page, browserName}, testInfo) => {
     await downloadFileMatch(page, 'file.glb', async() => btnClick(page, 'Download .glb'))
 })
 
+test('obj-mtl-load', async({page}) => {
+    await expect(page).toHaveTitle('OBJ MTL Load')
+
+    const imageWidths = await page.evaluate(() => {
+        const widths: number[] = []
+        const viewer = (window as any).threeViewers[0]
+        viewer.scene.modelRoot.traverse((object: any) => {
+            const materials = Array.isArray(object.material) ? object.material : [object.material]
+            for (const material of materials) {
+                if (material?.map) widths.push(material.map.image?.width ?? 0)
+            }
+        })
+        return widths
+    })
+    expect(imageWidths.length).toBeGreaterThan(0)
+    expect(imageWidths.every(width => width > 0)).toBe(true)
+})
+
+test('obj-to-glb', async({page}) => {
+    await expect(page).toHaveTitle('OBJ To GLB')
+
+    // The example exports the OBJ and reloads the GLB; its textures must survive the roundtrip.
+    const imageWidths = await page.evaluate(() => {
+        const widths: number[] = []
+        const viewer = (window as any).threeViewers[0]
+        viewer.scene.modelRoot.traverse((object: any) => {
+            const materials = Array.isArray(object.material) ? object.material : [object.material]
+            for (const material of materials) {
+                if (material?.map) widths.push(material.map.image?.width ?? 0)
+            }
+        })
+        return widths
+    })
+    expect(imageWidths.length).toBeGreaterThan(0)
+    expect(imageWidths.every(width => width > 0)).toBe(true)
+})
+
 test('camera-uiconfig', async({page}, testInfo) => {
     await expect(page).toHaveTitle('Camera UiConfig')
     const setCam = async(fn: string) => {
@@ -159,15 +196,46 @@ test('depth-buffer-plugin', async({page}, testInfo) => {
     await btnClick(page, 'Toggle Depth rendering')
     await screenshotMatch(page, testInfo, 'depth-off')
 
-    // Switch depth packing to BasicDepthPacking (0) — no Tweakpane UI in this example
+    // Switch depth packing to BasicDepthPacking (3200)
     await page.evaluate(() => {
         const v = (window as any).threeViewers?.[0]
         const p = v?.getPlugin('DepthBufferPlugin')
-        if (p) { p.depthPacking = 0; p.setDirty() }
+        if (p) { p.depthPacking = 3200; p.setDirty() }
     })
     await page.waitForTimeout(300)
     await btnClick(page, 'Toggle Depth rendering')
     await screenshotMatch(page, testInfo, 'depth-basic')
+    await btnClick(page, 'Toggle Depth rendering')
+
+    // Switch depth packing to RGBDepthPacking (3202)
+    await page.evaluate(() => {
+        const v = (window as any).threeViewers?.[0]
+        const p = v?.getPlugin('DepthBufferPlugin')
+        if (p) { p.depthPacking = 3202; p.setDirty() }
+    })
+    await page.waitForTimeout(300)
+    await btnClick(page, 'Toggle Depth rendering')
+    await screenshotMatch(page, testInfo, 'depth-rgb')
+    await btnClick(page, 'Toggle Depth rendering')
+
+    // Switch depth packing to RGDepthPacking (3203)
+    await page.evaluate(() => {
+        const v = (window as any).threeViewers?.[0]
+        const p = v?.getPlugin('DepthBufferPlugin')
+        if (p) { p.depthPacking = 3203; p.setDirty() }
+    })
+    await page.waitForTimeout(300)
+    await btnClick(page, 'Toggle Depth rendering')
+    await screenshotMatch(page, testInfo, 'depth-rg')
+    await btnClick(page, 'Toggle Depth rendering')
+
+    // Switch back to RGBADepthPacking (3201) for remaining tests
+    await page.evaluate(() => {
+        const v = (window as any).threeViewers?.[0]
+        const p = v?.getPlugin('DepthBufferPlugin')
+        if (p) { p.depthPacking = 3201; p.setDirty() }
+    })
+    await page.waitForTimeout(300)
 
     // --- Download snapshot button ---
     await downloadFileMatch(page, 'file.png', async() => btnClick(page, 'Download snapshot'))
@@ -609,6 +677,71 @@ test('tonemap-plugin', async({page}, testInfo) => {
 
 test('gbuffer-plugin', async({page}, testInfo) => {
     await expect(page).toHaveTitle('GBuffer Plugin')
+
+    // Exercise the actual GBuffer GLSL, including every possible pair of 8-bit normal channels.
+    const decoded = await page.evaluate(async() => {
+        const {Camera, FloatType, Mesh, NearestFilter, PlaneGeometry, Scene, ShaderMaterial, Vector2, WebGLRenderTarget} = await import('threepipe')
+        const viewer = (window as any).threeViewers[0]
+        const renderer = viewer.renderManager.renderer
+        const shader = {fragmentShader: `
+            #include <gbuffer_unpack>
+            uniform bool grid;
+            uniform vec2 encoding;
+            void main() {
+                vec2 enc = grid ? floor(gl_FragCoord.xy) / 255.0 : encoding;
+                gl_FragColor = vec4(unpackNormal(enc), 1.0);
+            }
+        `}
+        viewer.getPlugin('GBuffer').unpackExtension.shaderExtender(shader)
+        const material = new ShaderMaterial({
+            vertexShader: 'void main() { gl_Position = vec4(position.xy, 0.0, 1.0); }',
+            fragmentShader: shader.fragmentShader,
+            uniforms: {grid: {value: true}, encoding: {value: new Vector2()}},
+            depthTest: false, depthWrite: false, toneMapped: false,
+        })
+        const geometry = new PlaneGeometry(2, 2)
+        const scene = new Scene()
+        scene.add(new Mesh(geometry, material))
+        const camera = new Camera()
+        const target = new WebGLRenderTarget(256, 256, {
+            type: FloatType, minFilter: NearestFilter, magFilter: NearestFilter, depthBuffer: false,
+        })
+        const previousTarget = renderer.getRenderTarget()
+        try {
+            renderer.setRenderTarget(target)
+            renderer.render(scene, camera)
+            const pixels = new Float32Array(256 * 256 * 4)
+            renderer.readRenderTargetPixels(target, 0, 0, 256, 256, pixels)
+            const nonFinite = Array.from(pixels).filter(value => !Number.isFinite(value)).length
+            material.uniforms.grid.value = false
+            const samples = []
+            // Center, interior, four exact boundary points, a quantized boundary, and a corner outside the disk.
+            for (const [x, y] of [[0.5, 0.5], [0.75, 0.5], [1, 0.5], [0, 0.5], [0.5, 1], [0.5, 0], [1, 128 / 255], [0, 0]]) {
+                material.uniforms.encoding.value.set(x, y)
+                renderer.render(scene, camera)
+                const pixel = new Float32Array(4)
+                renderer.readRenderTargetPixels(target, 0, 0, 1, 1, pixel)
+                samples.push(Array.from(pixel))
+            }
+            return {nonFinite, samples}
+        } finally {
+            renderer.setRenderTarget(previousTarget)
+            target.dispose()
+            geometry.dispose()
+            material.dispose()
+        }
+    })
+    expect(decoded.nonFinite).toBe(0)
+    const expected = [
+        [0, 0, 1, 1], [Math.sqrt(3) / 2, 0, 0.5, 1],
+        [0, 0, -1, 1], [0, 0, -1, 1], [0, 0, -1, 1], [0, 0, -1, 1],
+        [0, 0, -1 - 2 / 255 ** 2, 1], [0, 0, -3, 1],
+    ]
+    for (let i = 0; i < expected.length; i++) {
+        for (let channel = 0; channel < 4; channel++) {
+            expect(decoded.samples[i][channel]).toBeCloseTo(expected[i][channel], 5)
+        }
+    }
 
     // --- Buffer visualization toggles ---
     await btnClick(page, 'Toggle Normal+Depth')

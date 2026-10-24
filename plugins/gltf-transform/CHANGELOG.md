@@ -10,6 +10,24 @@ All notable changes to this plugin will be documented in this file.
 
 - NA
 
+## [0.3.0] - 2026-04-19
+
+### Added
+
+- `GLTFDracoExporterBase` — base class accepting `PlatformIO`, enabling Node.js usage with `NodeIO`
+- `GLTFSpecGlossinessConverterPluginBase` — base plugin class with abstract `_createIO()` for Node.js usage
+- `gltfKhrPbrSpecularGlossinessConverterBase` — IO-agnostic factory function for spec-gloss conversion
+- `lib/` build — unbundled ESM with externalized `@gltf-transform/*` dependencies, available via `@threepipe/plugin-gltf-transform/lib`
+- `@gltf-transform/core`, `@gltf-transform/extensions` and `@gltf-transform/functions` (`^4.2.0`) as optional `peerDependencies`: install them to use `/lib`; the default bundle includes them
+- `EncoderOptions` type, exported from `GLTFDracoExporterBase` (from `KHRDracoMeshCompression.setEncoderOptions`; the declarations imported `@gltf-transform/extensions/dist/...`, which that package does not export)
+
+### Changed
+
+- `GLTFDracoExporter` now extends `GLTFDracoExporterBase` (no breaking change for browser users)
+- `GLTFSpecGlossinessConverterPlugin` now extends `GLTFSpecGlossinessConverterPluginBase` (no breaking change for browser users)
+- `EncoderOptions` imports changed to `import type` (compile-time only)
+- Modernized `vite.config.js` to use shared `vite-utils.mjs` helpers
+
 ## [0.2.2] - 2025-09-03
 
 ### Changed
@@ -17,5 +35,6 @@ All notable changes to this plugin will be documented in this file.
 - Update [threepipe](https://threepipe.org/) `peerDependency` to [0.1.0](https://github.com/repalash/threepipe/releases/tag/v0.1.0)
 
 [unreleased]: https://github.com/repalash/threepipe/tree/dev/plugins/gltf-transform
+[0.3.0]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugin-gltf-transform-0.3.0
 [0.2.2]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugin-gltf-transform-0.2.2
 [0.2.1]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugin-gltf-transform-0.2.1

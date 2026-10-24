@@ -36,7 +36,7 @@ The DepthOfFieldPlugin implements a high-quality multi-pass depth of field algor
 
 ## Installation
 
-This plugin is part of the `@threepipe/webgi-plugins` package:
+This plugin is part of the [`@threepipe/webgi-plugins`](../package/webgi-plugins) package:
 
 ```bash
 npm install @threepipe/webgi-plugins

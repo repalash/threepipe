@@ -82,7 +82,7 @@ export class PopmotionPlugin extends AViewerPluginSync {
             return
         }
 
-        let delta
+        let delta: number
         if (this.autoIncrementTime) {
             const time = now() / 1000.0
             if (this._lastFrameTime < 1) this._lastFrameTime = time - 1.0 / 60.0

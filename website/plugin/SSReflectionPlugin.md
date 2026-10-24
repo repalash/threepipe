@@ -38,7 +38,7 @@ The SSReflectionPlugin implements an advanced screen-space ray-tracing algorithm
 
 ## Installation
 
-This plugin is part of the `@threepipe/webgi-plugins` package:
+This plugin is part of the [`@threepipe/webgi-plugins`](../package/webgi-plugins) package:
 
 ```bash
 npm install @threepipe/webgi-plugins

@@ -1,6 +1,6 @@
 import {Object3D, PerspectiveCamera} from 'three'
 import {generateUiFolder, IUiConfigContainer, uiToggle} from 'uiconfig.js'
-import {Group2, iObjectCommons, IWidget} from '../../core'
+import {Group2, iObjectCommons, IObject3D, IWidget} from '../../core'
 import {onChange2} from 'ts-browser-helpers'
 
 /**
@@ -64,9 +64,10 @@ export abstract class AHelperWidget extends Group2 implements IWidget {
         this.object = object
         if (this.object) {
             this.update()
-            this.object.addEventListener('beforeRender', this._objectBeforeRender)
-            this.object.addEventListener('objectUpdate', this._objectUpdate)
-            this.object.addEventListener('geometryUpdate', this._objectUpdate)
+            const obj = this.object as IObject3D
+            obj.addEventListener('beforeRender', this._objectBeforeRender)
+            obj.addEventListener('objectUpdate', this._objectUpdate)
+            obj.addEventListener('geometryUpdate', this._objectUpdate)
             this.uiConfig && this.object.uiConfig?.children?.push(this.uiConfig)
             this.visible = true
         }
@@ -75,9 +76,10 @@ export abstract class AHelperWidget extends Group2 implements IWidget {
 
     detach(): this {
         if (!this.object) return this
-        this.object.removeEventListener('beforeRender', this._objectBeforeRender)
-        this.object.removeEventListener('objectUpdate', this._objectUpdate)
-        this.object.removeEventListener('geometryUpdate', this._objectUpdate)
+        const obj = this.object as IObject3D
+        obj.removeEventListener('beforeRender', this._objectBeforeRender)
+        obj.removeEventListener('objectUpdate', this._objectUpdate)
+        obj.removeEventListener('geometryUpdate', this._objectUpdate)
         if (this.uiConfig) {
             const i = this.object.uiConfig?.children?.indexOf(this.uiConfig)
             if (i !== undefined && i >= 0)

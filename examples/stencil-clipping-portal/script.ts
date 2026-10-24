@@ -45,8 +45,7 @@ async function init() {
         stencilFunc: THREE.AlwaysStencilFunc,
         stencilZPass: THREE.ReplaceStencilOp,
     })
-    const maskPlane = new THREE.Mesh(new THREE.PlaneGeometry(4, 4), maskMaterial)
-    viewer.scene.addObject(maskPlane)
+    const maskPlane = viewer.scene.addObject(new THREE.Mesh(new THREE.PlaneGeometry(4, 4), maskMaterial))
 
     const maskCube = new THREE.Mesh(new THREE.BoxGeometry(4, 4, 20), new THREE.MeshBasicMaterial({
         color: 0xffffff,

@@ -1,5 +1,5 @@
 import {IObject3D, IObject3DEventMap, IObject3DUserData, IObjectSetDirtyOptions} from './IObject'
-import {Color, Scene, Texture} from 'three'
+import {Color, Object3D, Scene, Texture} from 'three'
 import {IShaderPropertiesUpdater} from '../materials'
 import {ICamera} from './ICamera'
 import {Box3B} from '../three'
@@ -193,7 +193,7 @@ export interface IScene<TE extends ISceneEventMap = ISceneEventMap>
     // environmentLight?: IEnvironmentLight;
     // processors: ObjectProcessorMap<'environment' | 'background'>
 
-    addObject<T extends IObject3D>(imported: T, options?: AddObjectOptions): T&IObject3D;
+    addObject<T extends Object3D | IObject3D>(imported: T, options?: AddObjectOptions): T&IObject3D;
 
     setDirty(e?: ISceneSetDirtyOptions): void
 

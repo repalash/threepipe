@@ -6,7 +6,7 @@ All notable changes to this plugin will be documented in this file.
 
 ## [Unreleased]
 
-- NA
+- `HierarchyUiPlugin.treeView` is typed `any`: treejs is bundled from a git repository and not on npm, so its type could not resolve in consumer declarations.
 
 ## [0.6.0]
 

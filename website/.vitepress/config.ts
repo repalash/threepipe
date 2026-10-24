@@ -100,6 +100,7 @@ export default defineConfig({
           {
             text: 'Realistic Rendering (webgi)', collapsed: true,
             items: [
+              {text: '@threepipe/webgi-plugins (Overview)', link: 'package/webgi-plugins'},
               {text: 'TemporalAAPlugin', link: 'plugin/TemporalAAPlugin'},
               {text: 'VelocityBufferPlugin', link: 'plugin/VelocityBufferPlugin'},
               {text: 'BloomPlugin', link: 'plugin/BloomPlugin'},
@@ -208,7 +209,7 @@ export default defineConfig({
       {
         text: 'Packages', collapsed: false,
         items: [
-          {text: 'WebGi Rendering Plugins', link: 'https://webgi.dev/'},
+          {text: 'WebGi Rendering Plugins', link: 'package/webgi-plugins'},
           {text: 'Tweakpane Plugin', link: 'package/plugin-tweakpane'},
           {text: 'Blueprint.js Plugin', link: 'package/plugin-blueprintjs'},
           {text: 'Tweakpane Editor Plugin', link: 'package/plugin-tweakpane-editor'},

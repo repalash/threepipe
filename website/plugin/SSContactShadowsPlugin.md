@@ -36,7 +36,7 @@ The SSContactShadowsPlugin extends the shadow system by tracing rays from lit su
 
 ## Installation
 
-This plugin is part of the `@threepipe/webgi-plugins` package:
+This plugin is part of the [`@threepipe/webgi-plugins`](../package/webgi-plugins) package:
 
 ```bash
 npm install @threepipe/webgi-plugins

@@ -21,7 +21,8 @@ import {GBufferRenderPass} from '../../postprocessing'
 import {ThreeViewer} from '../../viewer'
 import {PipelinePassPlugin} from '../base/PipelinePassPlugin'
 import {IMaterial, IObject3D, PhysicalMaterial} from '../../core'
-import {uiFolderContainer, uiImage} from 'uiconfig.js'
+import {uiFolderContainer, uiImage, uiToggle} from 'uiconfig.js'
+import {onChange2, serialize} from 'ts-browser-helpers'
 
 // type NormalBufferPluginTarget = WebGLRenderTarget
 export type NormalBufferPluginTarget = WebGLRenderTarget
@@ -30,6 +31,13 @@ export type NormalBufferPluginPass = GBufferRenderPass<'normal', NormalBufferPlu
  * Normal Buffer Plugin
  *
  * Adds a pre-render pass to render the normal buffer to a render target that can be used for postprocessing.
+ *
+ * By default, transparent and transmissive materials are rendered to the normal buffer like opaque ones.
+ * Set {@link renderTransparent} to false to apply the same material rule as the depth in {@link GBufferPlugin}
+ * (objects with a `customGBufferMaterial` or `customNormalMaterial` can still differ).
+ * Screen-space effects that compare normals across edges with the GBuffer depth need that: a transparent
+ * surface in the normal buffer, over an object that only the depth shows, gives wrong normals at its edges.
+ * The normal buffer of webgi v0 also left transparent materials out.
  * @category Plugins
  */
 @uiFolderContainer('Normal Buffer Plugin')
@@ -48,6 +56,20 @@ export class NormalBufferPlugin
     // @onChange2(NormalBufferPlugin.prototype._createTarget)
     // @uiDropdown('Buffer Type', threeConstMappings.TextureDataType.uiConfig)
     readonly bufferType: TextureDataType // cannot be changed after creation (for now)
+
+    /**
+     * Render transparent and transmissive materials to the normal buffer, like opaque ones. Default `true`.
+     *
+     * When `false`, the normal buffer uses the same material rule as the depth in {@link GBufferPlugin}: a
+     * transparent or transmissive material is rendered only when its `userData.renderToDepth` (or, when
+     * that is not set, `userData.renderToGBuffer`) is `true`, and an opaque material is left out when it is
+     * `false`. Objects with a `customGBufferMaterial` or `customNormalMaterial` can still differ, as each pass
+     * draws its own custom material. Use it for screen-space effects that combine the normal buffer with the
+     * GBuffer depth.
+     */
+    @uiToggle('Render Transparent')
+    @onChange2(NormalBufferPlugin.prototype.setDirty)
+    @serialize() renderTransparent = true
 
     protected _createTarget(recreate = true) {
         if (!this._viewer) return
@@ -85,7 +107,8 @@ export class NormalBufferPlugin
         this.material.userData.isGBufferMaterial = true
         const pass = new GBufferRenderPass(this.passId, ()=>this.target, this.material, new Color(0, 0, 0), 1)
         const preprocessMaterial = pass.preprocessMaterial
-        pass.preprocessMaterial = (m) => preprocessMaterial(m, true)
+        // renderTransparent: every material, else the rule of GBufferPlugin (userData.renderToDepth, then renderToGBuffer)
+        pass.preprocessMaterial = (m) => preprocessMaterial(m, this.renderTransparent ? true : m.userData.renderToDepth)
 
         // not calling super, since we don't want to check for depth here
         // const preprocessObject = pass.preprocessObject
@@ -148,6 +171,8 @@ export class MeshNormalMaterialOverride extends MeshNormalMaterial {
         if (material.bumpMap !== undefined) this.bumpMap = material.bumpMap
         if (material.bumpScale !== undefined) this.bumpScale = material.bumpScale
         // if (material.alphaMap !== undefined) this.alphaMap = material.alphaMap
+        // Note: MeshNormalMaterial's shader samples neither map nor alphaMap and has no alpha test, so
+        // these two have no effect: alpha-cut materials are solid in the normal buffer and cut in the GBuffer.
         if (material.alphaTest !== undefined) this.alphaTest = material.alphaTest < 1e-4 ? 1e-4 : material.alphaTest
         if (material.alphaHash !== undefined) this.alphaHash = material.alphaHash
 

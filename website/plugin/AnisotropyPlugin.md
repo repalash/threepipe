@@ -39,7 +39,7 @@ The AnisotropyPlugin implements a physically-based anisotropic BRDF based on the
 
 ## Installation
 
-This plugin is part of the `@threepipe/webgi-plugins` package:
+This plugin is part of the [`@threepipe/webgi-plugins`](../package/webgi-plugins) package:
 
 ```bash
 npm install @threepipe/webgi-plugins

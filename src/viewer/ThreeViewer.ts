@@ -1262,11 +1262,11 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         return filter?.map(type=>{
             const plugin = this.getPlugin(type)
             return plugin ? this.serializePlugin(plugin, meta) : undefined
-        }).filter(p=> !!p) ?? Object.entries(this.plugins).map(p=> {
+        }).filter((p): p is ISerializedConfig => !!p) ?? Object.entries(this.plugins).map(p=> {
             if (filter && !filter.includes(p[1].constructor.PluginType)) return
             if (p[0] === p[1].constructor.OldPluginType) return // duplicate key
             return this.serializePlugin(p[1], meta)
-        }).filter(p=> !!p)
+        }).filter((p): p is ISerializedConfig=> !!p)
     }
 
     serializePlugin(plugin: IViewerPlugin, meta: SerializationMetaType): ISerializedConfig|undefined {
@@ -1445,10 +1445,11 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
             this._scene.backgroundIntensity = data2.backgroundIntensity
             delete data2.backgroundIntensity
         }
-        if (data2.useLegacyLights !== undefined && data2.renderManager?.useLegacyLights === undefined) {
-            this.console.warn('old file format, useLegacyLights moved to RenderManager')
-            this.renderManager.useLegacyLights = data2.useLegacyLights
-            delete data2.useLegacyLights
+        if (data2.useLegacyLights !== undefined) {
+            if (data2.useLegacyLights) {
+                this.console.warn('useLegacyLights support removed since threepipe v0.5.0')
+            }
+            delete data2.useLegacyLights // useLegacyLights removed in r168
         }
         if (data2.background !== undefined && data2.scene?.background === undefined) {
             this.console.warn('old file format, background moved to RootScene')
@@ -1672,10 +1673,10 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
     private _onListeners: {[T in keyof ViewerEventMap]?: ViewerEventListener<T>[]} = {}
     on<T extends keyof ViewerEventMap>(type: T, listener: ViewerEventListener<T>) {
         if (!this._onListeners[type]) this._onListeners[type] = []
-        if (this._onListeners[type].includes(listener)) {
+        if (this._onListeners[type]!.includes(listener)) {
             return
         }
-        this._onListeners[type].push(listener)
+        this._onListeners[type]!.push(listener)
         return ()=> this.off(type, listener)
     }
     off<T extends keyof ViewerEventMap>(type: T, listener: ViewerEventListener<T>): void {

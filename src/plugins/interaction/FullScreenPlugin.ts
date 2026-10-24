@@ -14,7 +14,7 @@ export interface FullScreenPluginEventMap extends AViewerPluginEventMap{
  * Implementation from:
  * https://stackoverflow.com/questions/50568474/how-to-enter-fullscreen-in-three-js
  *
- * @todo: try out some lib like https://github.com/sindresorhus/screenfull for proper cross browser support
+ * todo: try out some lib like https://github.com/sindresorhus/screenfull for proper cross browser support
  * @category Plugins
  */
 @uiFolderContainer('Full Screen')

@@ -99,7 +99,6 @@ export class TypeSystem {
                         if (v.type && Serialization.SerializableClasses.has(v.type)) return v.type
                         if (v.serializableClassId && Serialization.SerializableClasses.has(v.serializableClassId)) return v.serializableClassId
                         const custom = Serialization.GetSerializer(v)
-                        // @ts-expect-error type in next version
                         if (custom && typeof custom.type === 'string' && !custom.type.startsWith('_')) return custom.type
                         return false
                     }

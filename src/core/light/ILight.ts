@@ -23,6 +23,8 @@ export interface ILight<
 
     target?: Object3D
 
+    toJSON(meta?: any): any
+
     // region inherited type fixes
     // re-declaring from IObject3D because: https://github.com/microsoft/TypeScript/issues/16936
 

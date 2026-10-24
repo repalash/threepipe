@@ -7,7 +7,7 @@ import type {BlobExt} from '../assetmanager'
  * @param paddingByte (Optional)
  * @returns The same buffer if it's already aligned to 4-byte boundary or a new buffer
  */
-function getPaddedArrayBuffer(arrayBuffer: Uint8Array<ArrayBuffer>, paddingByte = 0): ArrayBuffer {
+function getPaddedArrayBuffer(arrayBuffer: Uint8Array, paddingByte = 0): ArrayBuffer {
     const paddedLength = getPaddedBufferSize(arrayBuffer.byteLength)
     if (paddedLength !== arrayBuffer.byteLength) {
         const array = new Uint8Array(paddedLength)
@@ -19,7 +19,7 @@ function getPaddedArrayBuffer(arrayBuffer: Uint8Array<ArrayBuffer>, paddingByte 
         }
         return array.buffer
     }
-    return arrayBuffer.buffer
+    return arrayBuffer.buffer as ArrayBuffer
 }
 
 
@@ -51,7 +51,7 @@ const GLB_CHUNK_TYPE_JSON = 0x4E4F534A
 const GLB_CHUNK_TYPE_BIN = 0x004E4942
 
 // https://github.com/mrdoob/three.js/blob/4dbd0065f2ec29b89c250d8582f61e9f4792e077/examples/jsm/exporters/GLTFExporter.js#L558
-export function makeGLBFile(buffers: Uint8Array<ArrayBuffer>, json: any): BlobExt {
+export function makeGLBFile(buffers: Uint8Array, json: any): BlobExt {
     // Binary chunk.
     const binaryChunk = getPaddedArrayBuffer(buffers)
     const binaryChunkPrefix = new DataView(new ArrayBuffer(GLB_CHUNK_PREFIX_BYTES))
@@ -59,7 +59,7 @@ export function makeGLBFile(buffers: Uint8Array<ArrayBuffer>, json: any): BlobEx
     binaryChunkPrefix.setUint32(4, GLB_CHUNK_TYPE_BIN, true)
 
     // JSON chunk.
-    const buffer1 = new TextEncoder().encode(JSON.stringify(json || {})) as Uint8Array<ArrayBuffer>
+    const buffer1 = new TextEncoder().encode(JSON.stringify(json || {})) as Uint8Array
     const jsonChunk = getPaddedArrayBuffer(buffer1, 0x20)
     const jsonChunkPrefix = new DataView(new ArrayBuffer(GLB_CHUNK_PREFIX_BYTES))
     jsonChunkPrefix.setUint32(0, jsonChunk.byteLength, true)

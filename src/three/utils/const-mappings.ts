@@ -19,6 +19,8 @@ import {
     NoBlending,
     NormalBlending,
     RGBADepthPacking,
+    RGBDepthPacking,
+    RGDepthPacking,
     RGBM16ColorSpace,
     ShortType,
     SRGBColorSpace,
@@ -76,7 +78,9 @@ const textureDataType: Record<string, TextureDataType> = {
 
 const depthPackingStrategies: Record<string, DepthPackingStrategies> = {
     Basic: BasicDepthPacking,
-    RGBADepthPacking: RGBADepthPacking,
+    RGBA: RGBADepthPacking,
+    RGB: RGBDepthPacking,
+    RG: RGDepthPacking,
 }
 
 function makeMapping<T extends string|number|symbol>(a: Record<string, T>) {

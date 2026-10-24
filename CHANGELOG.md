@@ -4,7 +4,82 @@ All notable changes to this project will be documented in this file.
 
 [//]: # (The format is based on [Keep a Changelog]&#40;https://keepachangelog.com/en/1.1.0/&#41;, and this project adheres to [Semantic Versioning]&#40;https://semver.org/spec/v2.0.0.html&#41;.)
 
-## [0.5.1]
+## [0.6.0] - 2026-10-23
+
+### Added
+
+- `NormalBufferPlugin.renderTransparent` (default `true`, serialized, UI toggle): set it to `false` to apply the same material rule as the GBuffer depth to the normal buffer, with the `userData.renderToDepth` and `userData.renderToGBuffer` overrides (objects with a custom GBuffer or normal material can still differ); for screen-space effects that combine both buffers
+- Add [`@threepipe/webgi-plugins`](https://threepipe.org/package/webgi-plugins.html) package page to the website, with the live showcase viewer from webgi.dev
+
+### Changed
+
+- Switch `three` and `@types/three` dependencies from GitHub Releases tgz URLs to npm packages using `npm:` aliases
+  - [`three-modded`](https://www.npmjs.com/package/three-modded) ([GitHub](https://github.com/repalash/three.js-modded))
+  - [`three-types-modded`](https://www.npmjs.com/package/three-types-modded) ([GitHub](https://github.com/repalash/three-ts-types))
+- Set up CI/CD with OIDC trusted publishing for both `three-modded` and `three-types-modded` npm packages
+- Upgrade `three` from v0.163.10003 to v0.168.10008 (see details below)
+- Fix `Iterator.forEach()` — use `Array.from()` for Map.keys() iteration (pre-node22 compat)
+- Keep GBuffer `unpackNormal` finite for finite encodings outside the valid disk (including quantization at its boundary), preventing NaNs from the square root from propagating into screen-space filters. Valid encodings are unchanged; out-of-range results are not necessarily unit normals
+- Fix `npm run build-examples` on a fresh clone without `examples/.env`: `generate-example-env` now exports every key of `examples/sample.env` (empty when unset), so examples importing `CESIUM_ION_API_TOKEN` and others type-check
+
+### Fixed
+
+- Type declarations resolve under `moduleResolution: node16 | nodenext`. Relative imports in the emitted `.d.ts` files of threepipe and every plugin now carry `.js` (`./core/index.js`); without it those consumers got none of the exports and `declare module` augmentations did not apply. The build fails when a declaration imports a path consumers cannot resolve (`fixDtsImports` in `scripts/vite-utils.mjs`)
+- Declarations no longer import extensionless `three/...` subpaths that only `moduleResolution: node` resolves (`TransformControls`, `PolyhavenMaterialGLTFLoader`; `lerp` in #57)
+- Plugin declarations that no consumer could resolve: `plugin-extra-importers`, `plugin-geometry-generator` and `plugin-svg-renderer` emitted `import('./threepipe')` from their tsconfig `paths` alias (now `import('three')`), `plugin-3d-tiles-renderer` imported an extensionless `GLTFLoader` path, `plugin-gaussian-splatting` did not ship `ISort.d.ts` and its `exports` named a `types` file that is not in the package (now `./dist/index.d.ts`, first), and the `plugin-gltf-transform` `/lib` declarations kept extensionless imports and a deep `@gltf-transform/extensions/dist/...` import that the package does not export (`EncoderOptions` now comes from `KHRDracoMeshCompression.setEncoderOptions`)
+- `Importer.onCtor` is a method signature, so importer plugins (`STLLoadPlugin`, `KTX2LoadPlugin`, ...) type-check in consumers with `strict` and `skipLibCheck: false`
+- Add `npm run test:types`: a static check of the built declarations of core and every plugin (`.js` on relative imports, `exports` `types` first and present, a plugin's declarations import only its dependencies, optional peers or threepipe's); it also packs threepipe and `@threepipe/plugin-tweakpane` and type-checks a consumer project under TypeScript 5.0, 5.8, 6.0 and 7.0 with `bundler`, `node16`, `nodenext` and `node` resolution; the publish workflow runs it before every publish
+- Fix `CascadedShadowsPlugin` shadows not rendering (regression from v0.3.0) — `refreshAttachedLight` was picking up a cascade light as the source due to `_lightAutoAttached` being set after `@onChange` fired synchronously; added re-entrancy guard to `refreshLights`; removed stale uniform upload optimization that skipped re-upload after shader recompilation
+- `DRACOLoader2`: enable WASM decoder by default
+  - Removed `setDecoderConfig({type: 'js'})` hack from constructor — decoder now uses WASM build when available, auto-falls back to JS via three.js's built-in `typeof WebAssembly !== 'object'` check
+  - Fixed `initDecoder()` / `initEncoder()` to pass loader config (including `wasmBinary`) and await the `onModuleLoaded` emscripten callback before resolving — required for async WASM init; previously the WASM branch was dead code because the config was never forwarded to the module factory
+  - Added `decoderModulePending` cache in `initDecoder()` symmetric with `encoderPending`
+  - Encoder default stays `{type: 'js'}` (documented on the field) because the default CDN path (`cdn.jsdelivr.net/gh/google/draco@1.5.6/javascript/`) does not ship `draco_encoder.wasm`; override to `{}` or `{type: 'wasm'}` only if your decoder path hosts it (e.g. `draco3dgltf` npm package)
+  - Added `DRACOLoader2.SetDecoderWasmBinary(wrapperJs, wasmBinary)` helper for bundling the WASM decoder with app source, symmetric with `SetDecoderJsString`
+  - Updated `SetDecoderJsString` docblock: users bundling only the JS build should also call `setDecoderConfig({type: 'js'})` on the instance to skip the wasm fetch
+  - Removed duplicate `setDecoderConfig({type: 'js'})` hack from `GLTFDracoExporterBase` (plugin-gltf-transform)
+- `AssetImporter.removeImporter` now also removes (and disposes) the loaders created by the importer. They were still used for new files after the importer was removed, so replacing the importer for an extension had no effect once a file of that type was loaded
+- `AssetImporter.clearLoaderCache` removes the handlers of the disposed loaders from the loading manager, the disposed loaders were still returned for new files
+- `drc-load` example: add `LoadingScreenPlugin`
+- `overrideThreeCache` (`src/three/utils/cache.ts`): reject invalid payloads on both read and write
+  - On `threeCache.add`, skip payloads whose `byteLength` / `size` / `length` is 0 — previously a one-off corrupted fetch (extension interference, aborted network, flaky response) persisted a 0-byte `Response` to `CacheStorage` that replayed on every subsequent load
+  - On `threeCache.get`, if the cached `Response` decodes to an empty payload or fails to decode (e.g. truncated json), delete the stale entry and return `undefined` so three.js falls through to a fresh network fetch. Existing 0-byte cached entries auto-heal on the next load
+  - Symptom this fixes: "THREE.DRACOLoader: Unexpected geometry type" (or similar binary-decode errors) persisting in one browser profile while working in Incognito
+  - Fix every `FileLoader` load throwing `Cannot read properties of undefined (reading 'then')` when no `CacheStorage` is available (insecure context, `file://`, Node) — the cache is no longer patched without a storage, three.js `Cache` is used as is
+  - Fix the original three.js `Cache` functions being lost when `overrideThreeCache` is called again after a call without a storage
+  - Fix `json` and `document` responses being stored as `[object Object]` / `[object XMLDocument]` — they are serialized before writing to the storage
+  - Fix urls that merely start with `blob` (like `blobstore/file.glb`) being skipped, only `blob:` urls are
+- Fix EXR export of render targets failing with `ReferenceError: texture is not defined` in `EXRExporter` (`exportRenderTarget`, render target preview "Download", `AssetExporter`) — broken in 0.5.1 with three v0.163.10003, fixed in `three-modded` 0.168.10004.
+- Fix `DepthBufferPlugin` background being read as the near plane after the r168 upgrade — three.js changed `packDepthToRGBA` (most significant byte moved from alpha to red), so the depth target's black clear color unpacked to ~0 instead of ~1. With the plugin as the primary gbuffer this made `ScreenPass` drop the scene background (alpha 0) and disabled `tonemapBackground`/`clipBackground`. The target is now cleared to the packed far value for the active `depthPacking` (white for RGBA, RGB and RG, black for Basic).
+- Fix textures randomly missing on OBJ+MTL models — `MTLLoader2` waited only 50ms for each texture and created the material without the map when the image took longer (the map was then never added). Independent maps and used materials now load concurrently; the loader waits for every texture to load or fail, so `viewer.load()` of an `.obj` resolves with complete materials. (`obj-to-glb` example exported untextured or partly textured models because of this)
+- Fix loads hanging forever (e.g. `viewer.load()` of an `.obj` with MTL textures) when the `CacheStorage` lookup fails (storage unavailable, quota, corrupted entry) — `overrideThreeCache`'s `threeCache.get` rejected, and `ImageLoader` doesn't handle that rejection, so neither `onLoad` nor `onError` fired. A failed lookup is now treated as a cache miss (warns, falls through to the network). Failures in `threeCache.add`/`remove` are warned instead of leaving unhandled promise rejections.
+- `snapObject` (and so `MaterialPreviewGenerator` and switch node previews) now clears to transparent explicitly instead of using the clear color left by the last pass. Previews have a transparent background, and the previous clear color and alpha are restored even if rendering or PNG encoding fails.
+- Fix `OrbitControls` (`three-modded` 0.168.10007, 0.168.10008): with damping disabled, perspective wheel/pinch zoom applies the full step; constructing the controls keeps the camera distance; an `update()` with nothing to apply leaves the camera position exactly as set (it drifted by floating point error on every idle update).
+- Fix EXR export with ZIP/ZIPS compression writing corrupt data for partial or incompressible blocks (`three-modded` 0.168.10008).
+- Fix `Texture` construction throwing in Node.js, where `ImageData` is not defined (`three-modded` 0.168.10008).
+- Note: RGBA-packed depth (depth and shadow map targets, and their exported images) has a different byte layout since three.js r167. Values decoded with `unpackRGBAToDepth` in the same version are unchanged.
+
+### three.js r168 Upgrade
+
+- Upgrade `three` from v0.163.10003 to v0.168.10008 and `@types/three` to v0.168.10003
+- Upgrade `ts-browser-helpers` to >=0.20.0
+- ETC1 compressed textures with an sRGB `colorSpace` are now decoded as sRGB — three.js uploads ETC1 as ETC2 since r164, which has an sRGB variant (previously the color space was ignored for ETC1). Such textures render darker than before, matching the same image in BC/ASTC.
+- Update `getShadow` GLSL calls — r168 adds `shadowIntensity` parameter (6 args instead of 5). Updated in `CascadedShadowsPlugin` (4 calls), `progressive-hdr-shadows-exp` example, and `SSContactShadowsPlugin` (webgi)
+- Remove `useLegacyLights` — deprecated since r155, removed from r168 types. Removed from `IRenderManager` interface, `RenderManager` getter/setter, and viewer config migration
+- Update `IRenderTarget.depthTexture` type to `DepthTexture | null` (r168 nullability change)
+- Add `nodes: Record<string, any>` to `SerializationResourcesType` to satisfy r168's `JSONMeta` interface
+- Add `__register`/`__unregister` events to `IObject3DEventMap`, `MaterialEventMap`, `BufferGeometryEventMap`, and `TextureEventMap` for r168 strict event map typing
+- Widen `IScene.addObject` constraint to accept raw `Object3D | IObject3D` — returns `T & IObject3D` so users get the upgraded type without casts
+- Add `toJSON(meta?: any): any` override to `ILight` to resolve dual-extend conflict between `Light` and `IObject3D`
+- Update `MaterialExtender` callbacks to accept `WebGLRenderer` (matching r168 event map types), cast to `IWebGLRenderer` inside
+- Update `ICameraControls.domElement` type to `HTMLElement | Document | null` for r168 OrbitControls compat
+- Fix `ExtendedRenderPass` — explicitly type `renderer.properties.get()` result for r168 stricter types
+- Cast to `IObject3D` in `AHelperWidget` for `addEventListener` calls (r168 strict `Object3DEventMap`)
+- Add `RootScene` `@ts-expect-error` on narrowed `addEventListener` override (intentionally narrower than parent)
+- Fix `Uint8Array<ArrayBuffer>` generic syntax removed (TS 5.8 compat with r168 types)
+- Add support for `RGBDepthPacking` and `RGDepthPacking` in `depthPackingStrategies` and `DepthBufferPlugin`.
+
+## [0.5.1] - 2026-04-05
 
 ### Added
 
@@ -25,7 +100,7 @@ All notable changes to this project will be documented in this file.
 - Fix ShiftRight not activating snapping in `TransformControls2`
 - Add missing `selectionFilterTest` on `PivotControlsPlugin` — consistent with `TransformControlsPlugin`
 
-## [0.5.0]
+## [0.5.0] - 2026-03-30
 
 ### Added
 

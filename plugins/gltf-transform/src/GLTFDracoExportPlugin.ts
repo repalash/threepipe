@@ -23,7 +23,7 @@ import {
     GLTFViewerConfigExtensionGP,
 } from './GLTFDracoExporter'
 import {UiObjectConfig} from 'uiconfig.js'
-import {EncoderOptions} from '@gltf-transform/extensions/dist/khr-draco-mesh-compression/encoder'
+import type {EncoderOptions} from './GLTFDracoExporterBase'
 import {Extension} from '@gltf-transform/core'
 
 export enum EncoderMethod {
@@ -162,7 +162,7 @@ export class GLTFDracoExportPlugin extends AViewerPluginSync {
         super.onRemove(viewer)
     }
 
-    protected _makeUi = (exporter: AssetExporterPlugin)=>[
+    protected _makeUi = (exporter: AssetExporterPlugin): UiObjectConfig[]=>[
         {
             type: 'checkbox',
             label: 'DRACO Compress',

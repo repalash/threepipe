@@ -38,7 +38,7 @@ The AdvancedGroundPlugin builds upon the basic ground plane functionality by add
 
 ## Installation
 
-This plugin is part of the `@threepipe/webgi-plugins` package:
+This plugin is part of the [`@threepipe/webgi-plugins`](../package/webgi-plugins) package:
 
 ```bash
 npm install @threepipe/webgi-plugins

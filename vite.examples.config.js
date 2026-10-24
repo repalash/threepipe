@@ -33,7 +33,7 @@ const alias = {
     '@threepipe/plugin-troika-text': path.resolve(__dirname, './plugins/troika-text/src/index.ts'),
     '@threepipe/plugin-procedural-generation/graph': path.resolve(__dirname, './plugins/procedural-generation/src/graph/index.ts'),
     '@threepipe/plugin-procedural-generation': path.resolve(__dirname, './plugins/procedural-generation/src/index.ts'),
-    '@threepipe/webgi-plugins': 'https://unpkg.com/@threepipe/webgi-plugins@0.6.3/dist/index.mjs',
+    '@threepipe/webgi-plugins': 'https://unpkg.com/@threepipe/webgi-plugins@0.6.4/dist/index.mjs',
     'suspend-react': 'https://esm.sh/suspend-react',
     'react': 'https://esm.sh/react@19/',
     'react/jsx-runtime': 'https://esm.sh/react@19/jsx-runtime',

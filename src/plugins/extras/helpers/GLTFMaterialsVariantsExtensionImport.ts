@@ -28,7 +28,7 @@ const ensureUniqueNames = (variantNames: string[]): string[] => {
     for (const name of variantNames) {
         let uniqueName = name
         let suffix = 0
-        // @TODO: An easy solution.
+        // TODO: An easy solution.
         //        O(N^2) in the worst scenario where N is variantNames.length.
         //        Fix me if needed.
         while (knownNames.has(uniqueName)) {

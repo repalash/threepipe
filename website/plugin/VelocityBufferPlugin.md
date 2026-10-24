@@ -33,7 +33,7 @@ The VelocityBufferPlugin creates a pre-render pass that calculates the velocity 
 
 ## Installation
 
-This plugin is part of the `@threepipe/webgi-plugins` package:
+This plugin is part of the [`@threepipe/webgi-plugins`](../package/webgi-plugins) package:
 
 ```bash
 npm install @threepipe/webgi-plugins

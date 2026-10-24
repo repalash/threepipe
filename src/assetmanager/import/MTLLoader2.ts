@@ -178,6 +178,7 @@ class MaterialCreator {
         this.options = options;
         this.materialsInfo = {};
         this.materials = {};
+        this.materialsPending = new Map();
         this.materialsArray = [];
         this.nameLookup = {};
 
@@ -205,6 +206,7 @@ class MaterialCreator {
 
         this.materialsInfo = this.convert(materialsInfo);
         this.materials = {};
+        this.materialsPending = new Map();
         this.materialsArray = [];
         this.nameLookup = {};
 
@@ -282,11 +284,7 @@ class MaterialCreator {
 
     async preload() {
 
-        for (const mn in this.materialsInfo) {
-
-            await this.create(mn);
-
-        }
+        await Promise.all(Object.keys(this.materialsInfo).map(mn => this.create(mn)));
 
     }
 
@@ -298,17 +296,16 @@ class MaterialCreator {
 
     async getAsArray() {
 
-        let index = 0;
+        const materialsArray = this.materialsArray;
+        const nameLookup = this.nameLookup;
+        const names = Object.keys(this.materialsInfo);
+        const materials = await Promise.all(names.map(mn => this.create(mn)));
+        names.forEach((mn, index) => {
+            materialsArray[index] = materials[index];
+            nameLookup[mn] = index;
+        });
 
-        for (const mn in this.materialsInfo) {
-
-            this.materialsArray[index] = await this.create(mn);
-            this.nameLookup[mn] = index;
-            index++;
-
-        }
-
-        return this.materialsArray;
+        return materialsArray;
 
     }
 
@@ -316,7 +313,11 @@ class MaterialCreator {
 
         if (this.materials[materialName] === undefined) {
 
-            await this.createMaterial_(materialName);
+            const pending = this.materialsPending;
+            if (!pending.has(materialName)) {
+                pending.set(materialName, this.createMaterial_(materialName).finally(() => pending.delete(materialName)));
+            }
+            return pending.get(materialName);
 
         }
 
@@ -329,6 +330,7 @@ class MaterialCreator {
         // Create material
 
         const scope = this;
+        const materials = this.materials; // setMaterials can replace it while the maps load
         const mat = this.materialsInfo[materialName];
         const params = {
 
@@ -349,33 +351,45 @@ class MaterialCreator {
 
         }
 
-        async function setMapForType(mapType, value) {
+        // Maps of different slots load together. Aliases of one slot (map_bump/bump) load one after
+        // the other, so the first texture that loads is kept.
+        const mapLoads = new Map();
 
-            if (params[mapType]) return; // Keep the first encountered texture
+        function setMapForType(mapType, value) {
+
+            const load = () => params[mapType] ? undefined : loadMap(mapType, value);
+            mapLoads.set(mapType, mapLoads.has(mapType) ? mapLoads.get(mapType).then(load) : load());
+
+        }
+
+        async function loadMap(mapType, value) {
 
             const texParams = scope.getTextureParams(value, params);
-            return new Promise((resolve, reject) => {
-                let resolved = false;
-                let res = ()=> (!resolved && (resolved = true) && resolve())
-                const map = scope.loadTexture(resolveURL(scope.baseUrl, texParams.url), undefined, (map)=>{
-                    params[mapType] = map;
-                    res()
-                }, undefined, res);
-                setTimeout(res, 50); // timeout.
+            const url = resolveURL(scope.baseUrl, texParams.url);
 
-                map.repeat.copy(texParams.scale);
-                map.offset.copy(texParams.offset);
+            // Wait for the texture (image) to load, so that the material is complete (for render, export etc) when the loader resolves.
+            // Note - there must be no timeout here, a texture that is not set in params before the material is created is never added to the material.
+            const map = await new Promise((resolve) => {
+                scope.loadTexture(url, undefined, resolve, undefined, (e) => {
+                    console.warn('MTLLoader2: Unable to load texture', url, e);
+                    resolve(undefined);
+                });
+            });
+            if (!map) return; // same as before for a failed texture, the material is created without it
 
-                map.wrapS = scope.wrap;
-                map.wrapT = scope.wrap;
+            map.repeat.copy(texParams.scale);
+            map.offset.copy(texParams.offset);
 
-                if ( mapType === 'map' || mapType === 'emissiveMap' ) {
+            map.wrapS = scope.wrap;
+            map.wrapT = scope.wrap;
 
-                    map.colorSpace = SRGBColorSpace;
+            if ( mapType === 'map' || mapType === 'emissiveMap' ) {
 
-                }
+                map.colorSpace = SRGBColorSpace;
 
-            })
+            }
+
+            params[mapType] = map;
 
         }
 
@@ -423,7 +437,7 @@ class MaterialCreator {
 
                     // Diffuse texture map
 
-                    await setMapForType('map', value);
+                    setMapForType('map', value);
 
                     break;
 
@@ -431,7 +445,7 @@ class MaterialCreator {
 
                     // Specular map
 
-                    await setMapForType('specularMap', value);
+                    setMapForType('specularMap', value);
 
                     break;
 
@@ -439,13 +453,13 @@ class MaterialCreator {
 
                     // Emissive map
 
-                    await setMapForType('emissiveMap', value);
+                    setMapForType('emissiveMap', value);
 
                     break;
 
                 case 'norm':
 
-                    await setMapForType('normalMap', value);
+                    setMapForType('normalMap', value);
 
                     break;
 
@@ -454,7 +468,7 @@ class MaterialCreator {
 
                     // Bump texture map
 
-                    await setMapForType('bumpMap', value);
+                    setMapForType('bumpMap', value);
 
                     break;
 
@@ -462,7 +476,7 @@ class MaterialCreator {
 
                     // Alpha map
 
-                    await setMapForType('alphaMap', value);
+                    setMapForType('alphaMap', value);
                     params.transparent = true;
 
                     break;
@@ -511,8 +525,10 @@ class MaterialCreator {
 
         }
 
-        this.materials[materialName] = new MeshPhongMaterial(params);
-        return this.materials[materialName];
+        await Promise.all(mapLoads.values());
+
+        materials[materialName] = new MeshPhongMaterial(params);
+        return materials[materialName];
 
     }
 

@@ -421,20 +421,6 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
         return this._renderer
     }
 
-    /**
-     * @deprecated will be removed in the future
-     */
-    @serialize()
-    get useLegacyLights(): boolean {
-        return this._renderer.useLegacyLights
-    }
-    set useLegacyLights(v: boolean) {
-        this._renderer.useLegacyLights = v
-        this._updated({change: 'useLegacyLights', data: v})
-        this.resetShadows()
-        this.uiConfig?.uiRefresh?.(true, 'postFrame', 1)
-    }
-
     get clock() {
         return this._composer.clock
     }
@@ -760,7 +746,7 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
                     if (colorSpace !== undefined) t.colorSpace = colorSpace
                     if (!t.userData) t.userData = {}
                     t._target = this
-                    t.toJSON = () => ({ // todo use readRenderTargetPixels as data url or data buffer.
+                    ;(t as any).toJSON = () => ({ // todo use readRenderTargetPixels as data url or data buffer.
                         isRenderTargetTexture: true,
                     }) // so that it doesn't get serialized
                 }

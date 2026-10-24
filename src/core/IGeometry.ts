@@ -96,5 +96,9 @@ declare module 'three'{
             geometry: IGeometry
             bubbleToObject?: boolean
         } & IGeometrySetDirtyOptions
+        // eslint-disable-next-line @typescript-eslint/ban-types
+        __unregister: {}
+        // eslint-disable-next-line @typescript-eslint/ban-types
+        __register: {}
     }
 }

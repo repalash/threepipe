@@ -140,8 +140,9 @@ export function updateMaterialDefines(defines: MaterialExtension['extraDefines']
     if (flag) material.needsUpdate = true
 }
 
-function materialBeforeRender({target, object, renderer}:{object?: Object3D, renderer?: IWebGLRenderer, target: IMaterial}) {
+function materialBeforeRender({target, object, renderer: renderer0}:{object?: Object3D, renderer?: WebGLRenderer, target: IMaterial}) {
     const material = target
+    const renderer = renderer0 as IWebGLRenderer | undefined
     if (!material || !object || !renderer) throw new Error('Invalid material, object or renderer')
     if (!material.materialExtensions) return
     for (const value of material.materialExtensions) {
@@ -159,8 +160,9 @@ function materialBeforeRender({target, object, renderer}:{object?: Object3D, ren
     }
 }
 
-function materialAfterRender({target, object, renderer}:{object?: Object3D, renderer?: IWebGLRenderer, target: IMaterial}) {
+function materialAfterRender({target, object, renderer: renderer0}:{object?: Object3D, renderer?: WebGLRenderer, target: IMaterial}) {
     const material = target
+    const renderer = renderer0 as IWebGLRenderer | undefined
     if (!material || !object || !renderer) throw new Error('Invalid material, object or renderer')
     if (!material.materialExtensions) return
     for (const value of material.materialExtensions) {

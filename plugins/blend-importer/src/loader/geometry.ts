@@ -12,10 +12,188 @@ function getLayer(layers: any, i: number) {
 // https://projects.blender.org/blender/blender/issues/95967
 // https://projects.blender.org/blender/blender/pulls/106638
 
+// Read a NUL-terminated C string from a resolved pointer block (e.g. an Attribute.name char*).
+function readCString(block: any): string | null {
+    if (!block || block.__data_address__ === undefined || !block.__blender_file__) return null
+    const u8 = block.__blender_file__.byte
+    let s = '', o = block.__data_address__
+    while (o < u8.length && u8[o] !== 0 && s.length < 256) s += String.fromCharCode(u8[o++])
+    return s
+}
+
+// Blender 5.0 (.blend file_format_version 1) stores mesh attributes in `attribute_storage`
+// (struct AttributeStorage { Attribute *dna_attributes; int dna_attributes_num; ... }) instead of
+// the CustomData vdata/ldata layers used by 2.8-4.x. See
+// .repos/blender/source/blender/makesdna/DNA_attribute_types.h and BKE_attribute_enums.hh.
+// Each Attribute { char *name; int16 data_type; int8 domain; int8 storage_type; void *data; } where
+// data -> AttributeArray { void *data; ...; int64 size; } and the void* points to the packed values.
+const ATTR_TYPE_INT32 = 3, ATTR_TYPE_FLOAT2 = 6, ATTR_TYPE_FLOAT3 = 7 // bke::AttrType
+const ATTR_DOMAIN_CORNER = 3 // bke::AttrDomain (Point=0, Edge=1, Face=2, Corner=3)
+function getAttributes(meshData: any): any[] {
+    const as = meshData.attribute_storage
+    if (!as) return []
+    let attrs = as.dna_attributes
+    if (!attrs) return []
+    attrs = (Array.isArray(attrs) || attrs.length !== undefined) ? Array.from(attrs) : [attrs]
+    return attrs as any[]
+}
+function findAttribute(attrs: any[], name: string, type?: number): any {
+    for (const a of attrs) {
+        if (readCString(a.name) === name && (type === undefined || a.data_type === type)) return a
+    }
+    return null
+}
+// Element count actually stored for an attribute (AttributeArray.size). In Blender 5.0 the Mesh
+// tot* fields are runtime (post-geometry-nodes) counts and DON'T match the stored array sizes — a
+// geometry-nodes "Circle" can report totvert=15 while only 4 base vertices are stored. So the
+// attribute's own size is authoritative; reading tot* elements overruns into adjacent blocks (garbage).
+function attrSize(attr: any): number {
+    const arr = attr && attr.data
+    const n = arr && arr.size !== undefined ? Number(arr.size) : 0
+    return Number.isFinite(n) && n >= 0 ? n : 0
+}
+// Read the packed array for an Attribute as a TypedArray of `count` elements (alignment-safe).
+function readAttrArray(attr: any, Ctor: any, count: number): any {
+    const arr = attr && attr.data // AttributeArray
+    const block = arr && arr.data // void* -> packed values block
+    if (!block || block.__data_address__ === undefined || !block.__blender_file__) return null
+    return block.__blender_file__.readTypedArray(Ctor, block.__data_address__, count)
+}
+
+// ── Per-face material slots -> BufferGeometry groups ─────────────────
+type GroupRun = {start: number, count: number, mat: number}
+// Append a triangle run [start, start+count) (index-buffer offsets) tagged with material slot `mat`,
+// merging into the previous run when contiguous and same-slot so the group count stays minimal.
+function mergeGroupRun(runs: GroupRun[], start: number, count: number, mat: number) {
+    if (count <= 0) return
+    const last = runs[runs.length - 1]
+    if (last && last.mat === mat && last.start + last.count === start) last.count += count
+    else runs.push({start, count, mat})
+}
+// Mid path (corner_vert): per-face material slot is the `pdata` CustomData layer "material_index"
+// (CD_PROP_INT32, type 11), one int per face. `pdata.layers` is a single object when totlayer===1.
+function readFaceMaterialIndex(meshData: any, faceCount: number): number[] | null {
+    const pd = meshData.pdata
+    if (!pd || !pd.layers || !pd.totlayer) return null
+    for (let i = 0; i < pd.totlayer; i++) {
+        const l = getLayer(pd.layers, i)
+        if (l && l.name === 'material_index' && l.data) {
+            const data = Array.isArray(l.data) ? l.data : (l.data.length !== undefined ? Array.from(l.data) : null)
+            if (!data) return null
+            const out: number[] = new Array(faceCount)
+            for (let f = 0; f < faceCount; f++) {
+                const e: any = data[f]
+                out[f] = (e && typeof e === 'object') ? (e.i ?? e.value ?? 0) : (e || 0)
+            }
+            return out
+        }
+    }
+    return null
+}
+
+// Build geometry from Blender 5.0 attribute_storage. Returns null if positions aren't available
+// (so the caller can fall back to the vdata/ldata path).
+function createBufferGeometryFromAttributes(meshData: any, ctx: Ctx): any {
+    const attrs = getAttributes(meshData)
+    if (!attrs.length) return null
+
+    const posAttr = findAttribute(attrs, 'position', ATTR_TYPE_FLOAT3)
+    const vertCount = attrSize(posAttr)
+    const posRaw = vertCount > 0 && readAttrArray(posAttr, Float32Array, vertCount * 3)
+    if (!posRaw) return null
+
+    const geometry = new ctx.BufferGeometry()
+    geometry.name = meshData.aname || ''
+
+    // Blender Z-up (x,y,z) -> three.js Y-up (x, z, -y). Sanitize non-finite components to 0 —
+    // real .blend files can contain NaN/Inf verts (e.g. from degenerate geometry-nodes ops), which
+    // Blender tolerates but three.js does not (computeBoundingBox/Sphere return NaN and break culling).
+    const positions = new Float32Array(vertCount * 3)
+    for (let j = 0; j < vertCount; j++) {
+        const x = posRaw[j * 3], y = posRaw[j * 3 + 1], z = posRaw[j * 3 + 2]
+        positions[j * 3] = Number.isFinite(x) ? x : 0
+        positions[j * 3 + 1] = Number.isFinite(z) ? z : 0
+        positions[j * 3 + 2] = Number.isFinite(y) ? -y : 0
+    }
+    geometry.setAttribute('position', new ctx.BufferAttribute(positions, 3))
+
+    // Faces: .corner_vert (vertex index per loop) + poly_offset_indices (loop range per face).
+    // Use the corner_vert array size for the loop count, and the poly_offset_indices DATA block's
+    // byte length for the face count (both are stored counts; Mesh.totloop/totpoly are runtime).
+    const cvAttr = findAttribute(attrs, '.corner_vert', ATTR_TYPE_INT32)
+    const loopCount = attrSize(cvAttr)
+    const cornerVerts = loopCount > 0 && readAttrArray(cvAttr, Int32Array, loopCount)
+    const poi = meshData.poly_offset_indices
+    const faceOffsetCount = poi && poi.__byte_length__ ? (poi.__byte_length__ >> 2) : 0
+    if (cornerVerts && faceOffsetCount > 1 && poi) {
+        const faceIndices = poi.__blender_file__.readTypedArray(Int32Array, poi.__data_address__, faceOffsetCount)
+        const faceCount = faceIndices.length - 1
+        let totalTriangles = 0
+        for (let i = 0; i < faceCount; i++) totalTriangles += Math.max(0, (faceIndices[i + 1] - faceIndices[i]) - 2)
+        const indexes = new Uint32Array(totalTriangles * 3)
+        const inRange = (v: number) => v >= 0 && v < vertCount
+        // Per-face material slot -> groups (only when >1 slot). material_index is a Face-domain Int32 attribute.
+        const matAttr = (meshData.totcol || 0) > 1 ? findAttribute(attrs, 'material_index', ATTR_TYPE_INT32) : null
+        const faceMat = matAttr && attrSize(matAttr) >= faceCount ? readAttrArray(matAttr, Int32Array, faceCount) : null
+        const groupRuns: GroupRun[] = []
+        let t = 0
+        for (let i = 0; i < faceCount; i++) {
+            const faceStart = faceIndices[i], faceVertCount = faceIndices[i + 1] - faceStart
+            const triStart = t
+            if (faceVertCount >= 3 && faceStart >= 0 && faceStart + faceVertCount <= loopCount) {
+                const firstVert = cornerVerts[faceStart] // todo: proper (ear-clip) triangulation for concave n-gons
+                for (let k = 1; k < faceVertCount - 1; k++) {
+                    const b = cornerVerts[faceStart + k], c = cornerVerts[faceStart + k + 1]
+                    // Skip triangles referencing out-of-range vertices (corrupt/partial geometry-nodes data).
+                    if (inRange(firstVert) && inRange(b) && inRange(c)) {
+                        indexes[t++] = firstVert
+                        indexes[t++] = b
+                        indexes[t++] = c
+                    }
+                }
+            }
+            if (faceMat) mergeGroupRun(groupRuns, triStart, t - triStart, faceMat[i] || 0)
+        }
+        geometry.setIndex(new ctx.BufferAttribute(t === indexes.length ? indexes : indexes.slice(0, t), 1))
+        if (faceMat) for (const g of groupRuns) geometry.addGroup(g.start, g.count, g.mat)
+
+        // UVs: the first user UV map is a Float2 attribute on the Corner domain (named, not dot-prefixed;
+        // `.uv_select_*` are bools). UVs are per-corner but our geometry is per-vertex indexed, so we
+        // assign each vertex the UV of a corner referencing it (last write wins). This is exact away
+        // from UV seams; seam-correct UVs would need per-corner vertex expansion (todo).
+        // Blender and three.js share the same UV origin (bottom-left), so no V flip.
+        const uvAttr = attrs.find((a: any) => a.data_type === ATTR_TYPE_FLOAT2 && a.domain === ATTR_DOMAIN_CORNER && !(readCString(a.name) || '.').startsWith('.'))
+        const uvRaw = uvAttr && attrSize(uvAttr) >= loopCount && readAttrArray(uvAttr, Float32Array, loopCount * 2)
+        if (uvRaw) {
+            const uvs = new Float32Array(vertCount * 2)
+            for (let i = 0; i < loopCount; i++) {
+                const v = cornerVerts[i]
+                if (v >= 0 && v < vertCount) {
+                    const u = uvRaw[i * 2], vv = uvRaw[i * 2 + 1]
+                    uvs[v * 2] = Number.isFinite(u) ? u : 0
+                    uvs[v * 2 + 1] = Number.isFinite(vv) ? vv : 0
+                }
+            }
+            geometry.setAttribute('uv', new ctx.BufferAttribute(uvs, 2))
+        }
+    }
+
+    if (geometry.attributes.position && !geometry.attributes.normal)
+        geometry.computeVertexNormals()
+    return geometry
+}
+
 // https://github.com/blender/blender/blob/55e2fd2929b7577e0785c128c8f8069efd990c07/source/blender/blenkernel/intern/mesh.cc#L413
 export function createBufferGeometry(meshData: any, ctx: Ctx) {
 
     if (meshData.mpoly) return createBufferGeometryOld(meshData, ctx)
+
+    // Blender 5.0+ mesh attribute storage (file_format_version 1). Falls through to the
+    // vdata/ldata path below if positions aren't found there.
+    if (meshData.attribute_storage) {
+        const g = createBufferGeometryFromAttributes(meshData, ctx)
+        if (g) return g
+    }
     const geometry = new ctx.BufferGeometry()
     geometry.name = meshData.aname || ''
 
@@ -26,7 +204,8 @@ export function createBufferGeometry(meshData: any, ctx: Ctx) {
     let vertices
     let verticesData
     let indices
-    let indicesData
+    let indicesData: any
+    let uvLayerData: any = null
 
     // Extract vertex positions from vdata layers
     if (meshData.vdata && meshData.vdata.layers && meshData.vdata.totlayer > 0) {
@@ -59,7 +238,15 @@ export function createBufferGeometry(meshData: any, ctx: Ctx) {
             const data = layer.data || []
             // if (layer.name === '.corner_vert') { // type = 11
             if (data.length === meshData.totloop) { // type = 11
-                if (indices && (layer.name !== '.corner_vert' || indices.name === '.corner_vert')) {
+                const lname = layer.name || ''
+                // UV map: a Float2 corner layer (CD_PROP_FLOAT2, type 49), user-named (not dot-prefixed
+                // like `.corner_vert`/`.corner_edge`). Without this, textured meshes on the mid (3.6-4.x
+                // corner_vert) path render with no UVs and the base-colour texture cannot map.
+                if (!uvLayerData && (layer.type === 49 || (lname[0] !== '.' && /uv/i.test(lname)))) {
+                    uvLayerData = data
+                    continue
+                }
+                if (indices && (lname !== '.corner_vert' || indices.name === '.corner_vert')) {
                     // console.warn('BlendLoader - multiple indices, ignoring', layer)
                     continue
                 }
@@ -103,14 +290,56 @@ export function createBufferGeometry(meshData: any, ctx: Ctx) {
 
     let faceIndices: number[] = []
     if (meshData.poly_offset_indices && meshData.totpoly > 0) {
-        faceIndices = [...new Int32Array(meshData.poly_offset_indices.__blender_file__.AB, meshData.poly_offset_indices.__data_address__, meshData.totpoly + 1)]
+        // Use the parser's alignment-safe reader — Blender packs blocks unpadded, so on v1
+        // (Blender 5.0) and some v0 files this offset isn't 4-aligned and a raw Int32Array view throws.
+        faceIndices = [...meshData.poly_offset_indices.__blender_file__.readTypedArray(Int32Array, meshData.poly_offset_indices.__data_address__, meshData.totpoly + 1)]
     }
     // if (faceSize !== 3 && faceSize !== 4 && !faceIndices.length) {
     //     console.error('not supported polygons with ', faceSize, 'vertices')
     //     return geometry
     // }
 
-    if (verticesData && verticesData.length > 0) {
+    // Per-corner vertex expansion for SEAM-CORRECT UVs (mid path). Blender stores UVs per corner (loop);
+    // three.js needs one UV per vertex. A Blender vertex shared by corners with DIFFERENT UVs is a UV seam —
+    // assigning it a single UV (last-write-wins) makes the faces across the seam interpolate the texture over
+    // the whole UV range, smearing/stretching it (classic symptom: the back of a UV-mapped sphere). Expand to
+    // one vertex per unique (blenderVert, uv) so seams split. Coincident split verts stay welded under the
+    // subsurf subdivision (same positions → same repositioning), so no crack. No UV layer ⇒ no expansion.
+    const vco = (vd: any): [number, number, number] => vd?.x !== undefined ? [vd.x, vd.y, vd.z] : (vd?.co ? [vd.co[0], vd.co[1], vd.co[2]] : [0, 0, 0])
+    let cornerToVert: Int32Array | null = null
+    let expandedPos: Float32Array | null = null
+    let expandedUv: Float32Array | null = null
+    if (uvLayerData && indicesData && verticesData && verticesData.length) {
+        cornerToVert = new Int32Array(indicesData.length)
+        const seen = new Map<string, number>()
+        const ps: number[] = [], us: number[] = []
+        const uvN = uvLayerData.length
+        for (let i = 0; i < indicesData.length; i++) {
+            const bv = indicesData[i]?.i
+            if (!(bv >= 0 && bv < verticesData.length)) { cornerToVert[i] = 0; continue }
+            const e = i < uvN ? uvLayerData[i] : null
+            const u = e && Number.isFinite(e.x) ? e.x : 0
+            const w = e && Number.isFinite(e.y) ? e.y : 0
+            const key = bv + '|' + Math.round(u * 4096) + '|' + Math.round(w * 4096)
+            let ev = seen.get(key)
+            if (ev === undefined) {
+                ev = us.length / 2
+                seen.set(key, ev)
+                const [x, y, z] = vco(verticesData[bv])
+                ps.push(x, z, -y) // Blender Z-up → three Y-up (same mapping as the non-expanded path)
+                us.push(u, w)
+            }
+            cornerToVert[i] = ev
+        }
+        expandedPos = new Float32Array(ps)
+        expandedUv = new Float32Array(us)
+    }
+    // Expanded-vertex index for a corner (loop) index; falls back to the raw Blender vertex when not expanding.
+    const vAt = (corner: number) => cornerToVert ? cornerToVert[corner] : indicesData[corner].i
+
+    if (expandedPos) {
+        geometry.setAttribute('position', new ctx.BufferAttribute(expandedPos, 3))
+    } else if (verticesData && verticesData.length > 0) {
         const positions = new Float32Array(verticesData.length * 3)
         for (let j = 0; j < verticesData.length; j++) {
             const {x, y, z, co} = verticesData[j] || {}
@@ -137,8 +366,9 @@ export function createBufferGeometry(meshData: any, ctx: Ctx) {
         const faceSize = meshData.totloop / meshData.totpoly
         if (faceIndices.length > 0) {
             // Use face offset indices for variable-sized faces
+            const faceCount = faceIndices.length - 1
             let totalTriangles = 0
-            for (let i = 0; i < faceIndices.length - 1; i++) {
+            for (let i = 0; i < faceCount; i++) {
                 const faceVertCount = faceIndices[i + 1] - faceIndices[i]
                 totalTriangles += Math.max(0, faceVertCount - 2)
             }
@@ -146,26 +376,33 @@ export function createBufferGeometry(meshData: any, ctx: Ctx) {
             const indexes = new Uint32Array(totalTriangles * 3)
             let t = 0
 
-            for (let i = 0; i < faceIndices.length - 1; i++) {
+            // Per-face material slot -> groups (only when >1 slot). material_index lives in the `pdata` layer.
+            const faceMat = (meshData.totcol || 0) > 1 ? readFaceMaterialIndex(meshData, faceCount) : null
+            const groupRuns: GroupRun[] = []
+
+            for (let i = 0; i < faceCount; i++) {
                 const faceStart = faceIndices[i]
                 const faceEnd = faceIndices[i + 1]
                 const faceVertCount = faceEnd - faceStart
+                const triStart = t
 
                 if (faceVertCount >= 3) {
                     // todo better Triangulate the face using fan triangulation
-                    const firstVert = indicesData[faceStart].i
+                    const firstVert = vAt(faceStart)
                     for (let k = 1; k < faceVertCount - 1; k++) {
                         indexes[t++] = firstVert
-                        indexes[t++] = indicesData[faceStart + k].i
-                        indexes[t++] = indicesData[faceStart + k + 1].i
+                        indexes[t++] = vAt(faceStart + k)
+                        indexes[t++] = vAt(faceStart + k + 1)
                     }
                 } else {
                     // debugger
                 }
+                if (faceMat) mergeGroupRun(groupRuns, triStart, t - triStart, faceMat[i] || 0)
             }
 
             // console.log(indexes)
             geometry.setIndex(new ctx.BufferAttribute(indexes, 1))
+            if (faceMat) for (const g of groupRuns) geometry.addGroup(g.start, g.count, g.mat)
         } else if (faceSize === 3 || faceSize === 4) {
             // Fall back to uniform face size approach
             const isQuad = faceSize === 4
@@ -174,15 +411,15 @@ export function createBufferGeometry(meshData: any, ctx: Ctx) {
 
             if (faceSize !== 3 && faceSize !== 4) return geometry
             for (let j = 0, t = 0; j < indices.length; j += faceSize) {
-                const a = indices[j].i
-                const b = indices[j + 1].i
-                const c = indices[j + 2].i
+                const a = vAt(j)
+                const b = vAt(j + 1)
+                const c = vAt(j + 2)
                 indexes[t++] = a
                 indexes[t++] = b
                 indexes[t++] = c
 
                 if (isQuad) {
-                    const d = indices[j + 3].i
+                    const d = vAt(j + 3)
                     indexes[t++] = a
                     indexes[t++] = c
                     indexes[t++] = d
@@ -196,6 +433,12 @@ export function createBufferGeometry(meshData: any, ctx: Ctx) {
 
     // console.log(geometry.attributes.position)
     // console.log(geometry.index)
+
+    // UVs (mid corner_vert path): seam-correct, from the per-corner expansion above (one UV per split vertex).
+    // Blender and three.js share the same UV origin (bottom-left), so no V flip.
+    if (expandedUv && !geometry.attributes.uv) {
+        geometry.setAttribute('uv', new ctx.BufferAttribute(expandedUv, 2))
+    }
 
     // compute stuff not present
     if (geometry.attributes.position && !geometry.attributes.normal)
@@ -238,9 +481,16 @@ export function createBufferGeometryOld(mesh: any, ctx: Ctx) {
     let currentIndex = 0
     let computeNormals = false
 
+    // Per-face material slot (mat_nr) -> geometry groups, but only when the mesh has >1 slot. Faces are
+    // emitted in order, so each face's triangles form a contiguous index range; we merge consecutive
+    // same-slot faces into one group. mesh.ts then assigns one material per slot.
+    const useGroups = (mesh.totcol || 0) > 1
+    const groupRuns: GroupRun[] = []
+
     for (const face of faces) {
         const len = face.totloop
         const start = face.loopstart
+        const faceStartIndex = currentIndex
         let indexi = 1
 
         while (indexi < len) {
@@ -283,12 +533,19 @@ export function createBufferGeometryOld(mesh: any, ctx: Ctx) {
 
             indexi += 2
         }
+
+        if (useGroups) mergeGroupRun(groupRuns, faceStartIndex, currentIndex - faceStartIndex, face.mat_nr || 0)
     }
 
     geometry.setAttribute('position', new ctx.BufferAttribute(positions, 3))
     geometry.setIndex(new ctx.BufferAttribute(indices, 1))
     geometry.setAttribute('normal', new ctx.BufferAttribute(normals, 3))
     geometry.setAttribute('uv', new ctx.BufferAttribute(uvs, 2))
+
+    // Emit groups for any multi-slot mesh: even a single run carries the correct slot index, so a mesh
+    // whose faces all use e.g. slot 2 renders with material[2] (not material[0]).
+    if (useGroups && groupRuns.length)
+        for (const g of groupRuns) geometry.addGroup(g.start, g.count, g.mat)
 
     if (computeNormals) {
         geometry.computeVertexNormals()

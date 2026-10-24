@@ -14,10 +14,10 @@ aside: false
 
 Threepipe is built on top of three.js, so most vanilla three.js code should work without any issues. 
 
-However, since threepipe uses [a fork of three.js](https://github.com/repalash/three.js-modded), it is bundled within the package instead of being a separate dependency. 
+However, since threepipe uses a fork of three.js — [`three-modded`](https://www.npmjs.com/package/three-modded) ([GitHub](https://github.com/repalash/three.js-modded)) — it is bundled within the package instead of being a separate dependency.
 This means you can use threepipe as a drop-in replacement for three.js in many cases.
 
-The three.js fork is [updated till r160](https://github.com/repalash/three.js-modded/releases), and is regularly updated with new features and bug fixes.
+The three.js fork is currently based on r168, and is regularly updated with new features and bug fixes. The corresponding types package is [`three-types-modded`](https://www.npmjs.com/package/three-types-modded) ([GitHub](https://github.com/repalash/three-ts-types)).
 
 ## Importing three.js objects
 

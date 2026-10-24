@@ -36,7 +36,7 @@ export class SlippyMapTilesLoader extends TilesRendererLoader {
     }
 }
 
-declare module 'TilesRendererPlugin'{
+declare module './TilesRendererPlugin'{
     interface TilesImportOptions {
         XYZTilesPlugin?: boolean | {
             levels: number // default = 20,

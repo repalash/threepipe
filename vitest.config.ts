@@ -24,6 +24,8 @@ export default defineConfig({
             'experiments/**',
             '.claude/**',
             '.repos/**',
+            'three.js-modded/**',
+            'three-ts-types/**',
             'website/**',
             'examples/**',
             'plugins/**',

@@ -135,10 +135,10 @@ async function init() {
     ui.setupPluginUi(BloomPlugin)
 
     const targetPreview = viewer.addPluginSync(RenderTargetPreviewPlugin)
-    targetPreview.addTarget(()=>csmPlugin.lights[0].shadow.map, 'csmShadowMap0', false, true, false)
-    targetPreview.addTarget(()=>csmPlugin.lights[1].shadow.map, 'csmShadowMap1', false, true, false)
-    targetPreview.addTarget(()=>csmPlugin.lights[2].shadow.map, 'csmShadowMap2', false, true, false)
-    targetPreview.addTarget(()=>csmPlugin.lights[3].shadow.map, 'csmShadowMap3', false, true, false)
+    targetPreview.addTarget(()=>csmPlugin.lights[0]?.shadow.map, 'csmShadowMap0', false, true, false)
+    targetPreview.addTarget(()=>csmPlugin.lights[1]?.shadow.map, 'csmShadowMap1', false, true, false)
+    targetPreview.addTarget(()=>csmPlugin.lights[2]?.shadow.map, 'csmShadowMap2', false, true, false)
+    targetPreview.addTarget(()=>csmPlugin.lights[3]?.shadow.map, 'csmShadowMap3', false, true, false)
 }
 
 _testStart()
