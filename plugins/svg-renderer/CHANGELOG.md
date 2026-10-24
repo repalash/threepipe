@@ -14,6 +14,7 @@ All notable changes to this plugin will be documented in this file.
 
 ### Fixed
 
+- `@svgdotjs/svg.js` and `three-mesh-bvh` (bundled) are optional `peerDependencies`: install them for full types with `skipLibCheck: false` ([#60](https://github.com/repalash/threepipe/pull/60))
 - Type declarations resolve in consumer projects with `moduleResolution: bundler`, `node16` and `nodenext` ([#60](https://github.com/repalash/threepipe/pull/60)): the `.d.ts` files imported `../../threepipe` from a tsconfig `paths` alias, which resolves nowhere; relative imports carry `.js`
 
 ## [0.2.5] - 2025-09-03

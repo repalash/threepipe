@@ -14,6 +14,7 @@ All notable changes to this plugin will be documented in this file.
 
 ### Fixed
 
+- `comlink` and `@types/emscripten` are optional `peerDependencies`: install them for full types with `skipLibCheck: false` ([#60](https://github.com/repalash/threepipe/pull/60))
 - Type declarations resolve in consumer projects with `moduleResolution: bundler`, `node16` and `nodenext` ([#60](https://github.com/repalash/threepipe/pull/60)): `exports` named a `types` file that is not in the package (now `./dist/index.d.ts`, the first condition), `ISort.d.ts` was missing, and relative imports carry `.js`
 
 ## [0.2.5] - 2025-09-03
