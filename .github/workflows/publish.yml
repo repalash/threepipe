@@ -81,7 +81,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: npm-publish
     permissions:
-      contents: read
+      contents: write # push the release tags (scripts/ci/publish-packages.mjs)
       id-token: write
     steps:
       - uses: actions/checkout@v4
