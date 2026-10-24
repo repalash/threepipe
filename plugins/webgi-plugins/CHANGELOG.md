@@ -10,6 +10,10 @@ All notable changes to this plugin will be documented in this file.
 
 - NA
 
+### Changed
+
+- `AnisotropyPlugin` glTF export uses the async `writeMaterialAsync` hook and `processTextureAsync` (three.js r170 made `GLTFExporter` async and no longer calls `writeMaterial`; without this, exported files silently lost the anisotropy extension)
+
 ## [0.7.0] - 2026-10-24
 
 ### Changed
