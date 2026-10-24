@@ -65,7 +65,7 @@ export default defineConfig({
         @license
         ${name} v${version}
         Copyright 2023<%= moment().format('YYYY') > 2023 ? '-' + moment().format('YYYY') : null %> ${author}
-        Modified GNU GPL-3.0-only, see LICENSE
+        webgi Free Forever License, see LICENSE
         See ./dependencies.txt for any bundled third-party dependencies and licenses.
       `,
             thirdParty: {
