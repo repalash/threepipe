@@ -10,6 +10,13 @@ All notable changes to this plugin will be documented in this file.
 
 - NA
 
+## [0.3.1] - 2026-10-24
+
+### Fixed
+
+- **Metallic textures had no effect.** A texture linked to the Principled BSDF Metallic input set `metalnessMap` but left `metalness` at 0, and three.js multiplies the map by that factor, so the surface stayed non-metallic. `metalness` is now 1 when the map is set.
+- **Emission textures were not applied.** The emission texture was loaded and used to pick the emissive color, but never assigned to `emissiveMap`, so the surface emitted a flat color (white with Blender's default black factor) instead of the texture pattern. It is now set as `emissiveMap`.
+
 ## [0.3.0] - 2026-10-23
 
 ### Added
@@ -63,6 +70,7 @@ All notable changes to this plugin will be documented in this file.
 - Update [threepipe](https://threepipe.org/) `peerDependency` to [0.1.0](https://github.com/repalash/threepipe/releases/tag/v0.1.0)
 
 [unreleased]: https://github.com/repalash/threepipe/tree/dev/plugins/blend-importer
+[0.3.1]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugin-blend-importer-0.3.1
 [0.3.0]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugin-blend-importer-0.3.0
 [0.2.0]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugin-blend-importer-0.2.0
 [0.1.0]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugin-blend-importer-0.1.0
