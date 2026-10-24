@@ -13,7 +13,7 @@ aside: false
 # SSContactShadowsPlugin (Screen Space Contact Shadows Plugin)
 
 [Example](https://threepipe.org/examples/#sscontactshadows-plugin/) &mdash;
-[API Reference](https://webgi.dev/docs/classes/SSContactShadowsPlugin.html)
+[API Reference](https://threepipe.org/plugins/webgi-plugins/docs/classes/SSContactShadowsPlugin.html)
 
 <iframe src="https://threepipe.org/examples/sscontactshadows-plugin/" style="width:100%;min-height:600px;border:none;" loading="lazy" title="Threepipe SS Contact Shadows Plugin Example"></iframe>
 

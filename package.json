@@ -88,6 +88,7 @@
     "plugins/*/dist",
     "plugins/*/src",
     "plugins/*/tsconfig.json",
+    "!plugins/webgi-plugins/tsconfig.json",
     "tsconfig.json"
   ],
   "repository": {

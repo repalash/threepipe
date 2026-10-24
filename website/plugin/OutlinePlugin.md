@@ -13,7 +13,7 @@ aside: false
 # OutlinePlugin
 
 [Example](https://threepipe.org/examples/#outline-plugin/) &mdash;
-[API Reference](https://webgi.dev/docs/classes/OutlinePlugin.html)
+[API Reference](https://threepipe.org/plugins/webgi-plugins/docs/classes/OutlinePlugin.html)
 
 <iframe src="https://threepipe.org/examples/outline-plugin/" style="width:100%;min-height:600px;border:none;" loading="lazy" title="Threepipe Outline Plugin Example"></iframe>
 
