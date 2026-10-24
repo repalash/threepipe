@@ -135,8 +135,7 @@ export class GLTFExporter2 extends GLTFExporter implements IExportWriter {
     processors: ((obj: ArrayBuffer|any|Blob, options: GLTFExporter2Options) => Promise<ArrayBuffer|any|Blob>)[] = []
 
     // three's GLTFExporter.parseAsync resolves with the raw glTF (ArrayBuffer or json); threepipe exporters (IExportWriter)
-    // resolve with a Blob after the processors ran, so this override intentionally does not match the base signature.
-    // @ts-expect-error TS2416
+    // resolve with a Blob after the processors ran (the three-modded types keep the base result as `{[key: string]: any}` for this).
     async parseAsync(obj: ArrayBuffer|any, options: GLTFExporter2Options): Promise<Blob> {
         if (!obj) throw new Error('No object to export')
         let gltf = !obj.__isGLTFOutput && (Array.isArray(obj) || obj.isObject3D) ? await new Promise((resolve, reject) => this.parse(obj, resolve, reject, options)) : obj
