@@ -24,6 +24,8 @@ All notable changes to this plugin will be documented in this file.
 
 - `AdvancedGroundPlugin`: planar reflections created a new 1024x1024 render target on every reflection update; the target is now created once, reused, and disposed in `onRemove`
 - `WatchHandsPlugin`: a watch without a second hand never moved, and an hour or minute offset change waited for the second hand; any hand off its target rotation now updates all hands
+- `SSGIPlugin`: disabling or removing SSGI left SSAO disabled for good; SSGI now gives the SSAO disable key back when it is off or removed
+- `SSGIPlugin`: the material's SSGI "Enabled" toggle (`userData.ssgiDisabled`) had no effect on rendering; it now turns SSGI off for that material
 
 ## [0.6.4]
 

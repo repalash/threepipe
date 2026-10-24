@@ -152,6 +152,7 @@ export class SSGIPlugin
 
         this._gbufferUnpackExtensionChanged()
         viewer.renderManager.addEventListener('gbufferUnpackExtensionChanged', this._gbufferUnpackExtensionChanged)
+        viewer.addEventListener('preFrame', this._releaseSsao)
         viewer.forPlugin(VelocityBufferPlugin, (vbp) => {
             this._pass?.material.registerMaterialExtensions([vbp.unpackExtension])
         }, (vbp)=>{
@@ -162,6 +163,8 @@ export class SSGIPlugin
     onRemove(viewer: ThreeViewer): void {
         this._disposeTarget()
         viewer.renderManager.removeEventListener('gbufferUnpackExtensionChanged', this._gbufferUnpackExtensionChanged)
+        viewer.removeEventListener('preFrame', this._releaseSsao)
+        viewer.getPlugin<SSAOPlugin>('SSAOPlugin')?.enable(SSGIPlugin.PluginType)
         return super.onRemove(viewer)
     }
 
@@ -174,6 +177,12 @@ export class SSGIPlugin
             if (data.pass.enabled !== undefined) data.enabled = data.pass.enabled
         }
         return super.fromJSON(data, meta)
+    }
+
+    // _beforeRender disables SSAO while SSGI renders. It does not run once the pass is off, so the
+    // key is given back here: SSAO is usable again when SSGI is disabled (enable() is a no-op otherwise).
+    private _releaseSsao = () => {
+        if (this.isDisabled()) this._viewer?.getPlugin<SSAOPlugin>('SSAOPlugin')?.enable(SSGIPlugin.PluginType)
     }
 
     protected _beforeRender(_?: IScene, _1?: ICamera, _2?: IRenderManager): boolean {
@@ -456,6 +465,7 @@ ${getShaders().calculateGI}
             && (this.renderWithCamera || renderer.renderManager.frameCount > 1) &&
             renderer.userData.screenSpaceRendering !== false &&
             !material.userData?.pluginsDisabled &&
+            !material.userData?.ssgiDisabled && // the material UI toggle; the two below are older flags
             !material.userData?.ssrtaoDisabled &&
             !material.userData?.ssaoDisabled ? this.split > 0 ? 2 : 1 : 0
 
