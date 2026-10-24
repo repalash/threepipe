@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 [//]: # (The format is based on [Keep a Changelog]&#40;https://keepachangelog.com/en/1.1.0/&#41;, and this project adheres to [Semantic Versioning]&#40;https://semver.org/spec/v2.0.0.html&#41;.)
 
+## [0.6.1-dev]
+
+### Added
+
+- `npm run test:e2e:ab -- <baseUrlA> <baseUrlB> <outDir>`: renders every e2e example from two served checkouts on one browser (A, A again, B), pixel-diffs them and writes an HTML report with the A/A repeat noise, console differences and unfinished examples; `scripts/remote-browser/connect.mjs` checks a remote Playwright browser server (for example a GPU machine). See `scripts/remote-browser/README.md`
+
 ## [0.6.0] - 2026-10-23
 
 ### Added
