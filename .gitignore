@@ -91,3 +91,10 @@ compose.dev.yaml
 tests/snapshots/
 tests/download-file-hashes.json.lock
 
+
+# Standalone New York example build
+/dist-slop-newyork/
+/dist-slopexample/
+
+# This example vendors JavaScript sources rather than generated TypeScript output.
+!examples/slop-newyork/**/*.js

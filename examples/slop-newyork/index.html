@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>New York · ThreePipe</title>
+  <link rel="icon" href="data:," />
+  <meta name="description" content="Explore Manhattan with ThreePipe and WebGI: temporal SSGI, denoised SSR, TAA and HDR bloom. Based on mrdoob/slop-newyork." />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+
+  <!-- Inter (UI) & Overpass (street-name signs: modelled on Highway Gothic, the US road sign typeface) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400..800&amp;family=Overpass:wght@600;700&amp;display=swap" />
+  <link rel="stylesheet" href="./css/style.css?v=20261022-repo-link" />
+
+  <script type="importmap">
+  {"imports": {
+    "threepipe": "../../dist/index.mjs",
+    "@threepipe/webgi-plugins": "../../plugins/webgi-plugins/dist/index.mjs",
+    "three": "../../dist/index.mjs",
+    "three/": "https://unpkg.com/three-modded@0.168.10008/"
+  }}
+  </script>
+</head>
+<body>
+  <!-- Icon sprite (24 × 24 stroke icons, drawn in currentColor) -->
+  <svg class="icon-sprite" width="0" height="0" aria-hidden="true" focusable="false">
+    <defs>
+      <symbol id="i-walk" viewBox="0 0 24 24"><circle cx="13" cy="4.4" r="2"/><path d="M12.3 8.2 10.8 13.8M10.8 13.8 9.2 17.2 7.2 20.5M10.8 13.8l2.4 3 1.6 3.8M12.3 8.6 9.6 10.2l-.8 2.6M12.3 8.6l2.1 2.4 2.4.8"/></symbol>
+      <symbol id="i-car" viewBox="0 0 24 24"><path d="M9.6 4.8V3.4a.6.6 0 0 1 .6-.6h3.6a.6.6 0 0 1 .6.6v1.4"/><path d="m5.2 10.5 1.4-4.1A2.2 2.2 0 0 1 8.7 4.8h6.6a2.2 2.2 0 0 1 2.1 1.6l1.4 4.1"/><rect x="3" y="10.5" width="18" height="6.5" rx="2"/><path d="M6 17v2.6M18 17v2.6M6.6 13.8h1.6M15.8 13.8h1.6"/></symbol>
+      <symbol id="i-bike" viewBox="0 0 24 24"><circle cx="5.5" cy="16.5" r="3.6"/><circle cx="18.5" cy="16.5" r="3.6"/><path d="M5.5 16.5 9.3 9.6h6.3M11.6 16.5 9.3 9.6M11.6 16.5l4-6.9M5.5 16.5h6.1M15.6 9.6l2.9 6.9M15.6 9.6 14.8 7h2.4M8 8.4h2.8"/></symbol>
+      <symbol id="i-heli" viewBox="0 0 24 24"><path d="M3.5 4h15M11 4v3.2"/><path d="M6 12.2a5 5 0 0 1 5-5h1.6a4.4 4.4 0 0 1 4.4 4.4V15H8.8A2.8 2.8 0 0 1 6 12.2z"/><path d="M17 11h4.2M21.2 8.8v4.4M7 19h10.5M9.5 15v4M15 15v4"/></symbol>
+      <symbol id="i-golden" viewBox="0 0 24 24"><path d="M3 17.5h18M7 17.5a5 5 0 0 1 10 0M12 5v3M5.6 9.6l2 1.6M18.4 9.6l-2 1.6M7.5 21h9"/></symbol>
+      <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.8v2.1M12 19.1v2.1M2.8 12h2.1M19.1 12h2.1M5.5 5.5 7 7M17 17l1.5 1.5M5.5 18.5 7 17M17 7l1.5-1.5"/></symbol>
+      <symbol id="i-twilight" viewBox="0 0 24 24"><path d="M3 15.5h18M7.5 19h9M8 15.5a4 4 0 0 1 8 0M17.5 4v3.2M15.9 5.6h3.2M7 7.4v1.8M6.1 8.3h1.8"/></symbol>
+      <symbol id="i-moon" viewBox="0 0 24 24"><path d="M19.5 14.6A7.8 7.8 0 0 1 9.4 4.5a7.8 7.8 0 1 0 10.1 10.1z"/></symbol>
+      <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21.2s-6.6-5.7-6.6-11.2a6.6 6.6 0 0 1 13.2 0c0 5.5-6.6 11.2-6.6 11.2z"/><circle cx="12" cy="10" r="2.4"/></symbol>
+      <symbol id="i-map" viewBox="0 0 24 24"><path d="M9 4.5 3.5 6.6v13l5.5-2.1 6 2.1 5.5-2.1v-13L15 6.6 9 4.5zM9 4.5v13M15 6.6v13"/></symbol>
+      <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.5 12s3.5-6.5 9.5-6.5 9.5 6.5 9.5 6.5-3.5 6.5-9.5 6.5S2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/></symbol>
+      <symbol id="i-eye-off" viewBox="0 0 24 24"><path d="M3.5 3.5l17 17M10.6 5.6c.5-.1.9-.1 1.4-.1 6 0 9.5 6.5 9.5 6.5a16 16 0 0 1-2.4 3.2M6.6 6.6A15.6 15.6 0 0 0 2.5 12s3.5 6.5 9.5 6.5c1.6 0 3.1-.4 4.4-1.1M9.9 9.9a2.8 2.8 0 0 0 4.2 4.2"/></symbol>
+      <symbol id="i-chevron-down" viewBox="0 0 24 24"><path d="m7 9.5 5 5 5-5"/></symbol>
+      <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="M14.5 6.5 9 12l5.5 5.5"/></symbol>
+      <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9.5 6.5 5.5 5.5-5.5 5.5"/></symbol>
+      <symbol id="i-camera" viewBox="0 0 24 24"><rect x="2.8" y="6.5" width="12.4" height="11" rx="2.4"/><path d="m15.2 10.4 6-3.4v10l-6-3.4"/></symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5.5v13M5.5 12h13"/></symbol>
+      <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5.5 12h13"/></symbol>
+      <symbol id="i-locate" viewBox="0 0 24 24"><circle cx="12" cy="12" r="6.4"/><circle cx="12" cy="12" r="1.7" fill="currentColor"/><path d="M12 2.5v3.1M12 18.4v3.1M2.5 12h3.1M18.4 12h3.1"/></symbol>
+      <symbol id="i-fit" viewBox="0 0 24 24"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></symbol>
+      <symbol id="i-search" viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="6.3"/><path d="m20 20-4.6-4.6"/></symbol>
+      <symbol id="i-close" viewBox="0 0 24 24"><path d="m6.5 6.5 11 11M17.5 6.5l-11 11"/></symbol>
+    </defs>
+  </svg>
+
+  <!-- Loading Screen -->
+  <div id="loading-overlay" role="status" aria-live="polite">
+    <div class="loader">
+      <span class="mta-bullet loader-bullet" aria-hidden="true">NY</span>
+      <div class="loader-title">New York · ThreePipe</div>
+      <div class="loader-track is-indeterminate" aria-hidden="true"><span id="loading-progress" class="loader-fill"></span></div>
+      <div id="loading-status">Initializing ThreePipe &amp; WebGI rendering...</div>
+    </div>
+  </div>
+
+  <!-- 3D WebGPU Viewport Container -->
+  <main id="canvas-container" aria-label="Interactive Manhattan"><canvas id="mcanvas"></canvas></main>
+
+  <!-- Top-Left: Brand & Renderer Telemetry -->
+  <header class="hud hud-top-left">
+    <div class="panel brand">
+      <span class="mta-bullet" aria-hidden="true">NY</span>
+      <div class="brand-titles">
+        <div class="brand-heading">
+          <h1>New York · ThreePipe</h1>
+          <a class="repo-link" href="https://github.com/repalash/threepipe/tree/codex/new-york-webgi-demo/examples/slop-newyork" target="_blank" rel="noopener noreferrer" aria-label="New York · ThreePipe on GitHub (opens in a new tab)">GitHub <span aria-hidden="true">↗</span></a>
+        </div>
+        <div class="brand-subtitle">ThreePipe · WebGI · WebGL2 · <span id="hud-fps" class="fps-ok">60</span> fps</div>
+      </div>
+    </div>
+  </header>
+
+  <details class="panel render-settings"><summary>Rendering</summary><div id="render-effects"></div><a href="https://github.com/mrdoob/slop-newyork/">Original by mrdoob ↗</a><a href="https://opendata.cityofnewyork.us/">NYC Open Data ↗</a><a href="https://www.openstreetmap.org/copyright">© OpenStreetMap contributors · ODbL ↗</a></details>
+
+  <!-- Top-Right Toolbar: Time of Day, Teleport, Map & Clean View -->
+  <div class="hud hud-top-right">
+    <div id="hud-toolbar" class="panel toolbar">
+      <div class="time-switch" role="group" aria-label="Atmosphere &amp; time of day">
+        <button id="time-golden" class="time-btn active" data-time="golden" type="button" title="Golden Hour">
+          <svg class="icon" aria-hidden="true"><use href="#i-golden"/></svg><span class="seg-label">Golden Hour</span>
+        </button>
+        <button id="time-midday" class="time-btn" data-time="midday" type="button" title="Sunny Midday">
+          <svg class="icon" aria-hidden="true"><use href="#i-sun"/></svg><span class="seg-label">Midday</span>
+        </button>
+        <button id="time-twilight" class="time-btn" data-time="twilight" type="button" title="Blue Hour">
+          <svg class="icon" aria-hidden="true"><use href="#i-twilight"/></svg><span class="seg-label">Blue Hour</span>
+        </button>
+        <button id="time-midnight" class="time-btn" data-time="midnight" type="button" title="Night 23:00">
+          <svg class="icon" aria-hidden="true"><use href="#i-moon"/></svg><span class="seg-label">Night</span>
+        </button>
+      </div>
+      <span class="toolbar-divider" aria-hidden="true"></span>
+      <button id="btn-teleport" class="tool-btn" type="button" popovertarget="teleport-popover" title="Teleport the active player">
+        <svg class="icon" aria-hidden="true"><use href="#i-pin"/></svg><span class="tool-label">Teleport</span><svg class="icon icon-sm" aria-hidden="true"><use href="#i-chevron-down"/></svg>
+      </button>
+      <button id="btn-open-map" class="tool-btn" type="button" title="Full New York City street map [M]">
+        <svg class="icon" aria-hidden="true"><use href="#i-map"/></svg><span class="tool-label">Map</span><kbd>M</kbd>
+      </button>
+      <span class="toolbar-divider" aria-hidden="true"></span>
+      <button id="btn-toggle-hud" class="tool-btn icon-only" type="button" title="Clean view: hide the HUD [H]" aria-label="Hide HUD" aria-pressed="false">
+        <svg class="icon icon-hide" aria-hidden="true"><use href="#i-eye"/></svg><svg class="icon icon-show" aria-hidden="true"><use href="#i-eye-off"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Teleport Destinations (native popover: light-dismiss & Esc) -->
+  <div id="teleport-popover" class="popover" popover data-side="below" data-anchor="hud-toolbar" aria-label="Teleport the active player">
+    <div class="pop-title">Teleport to</div>
+    <button id="tp-empire" class="pop-item tp-btn" data-teleport="empire" type="button"><span class="pop-name">Empire State Building</span><span class="pop-sub">5th Ave · Midtown</span></button>
+    <button id="tp-timessq" class="pop-item tp-btn" data-teleport="timessq" type="button"><span class="pop-name">Times Square</span><span class="pop-sub">7th Ave · Theater District</span></button>
+    <button id="tp-chrysler" class="pop-item tp-btn" data-teleport="chrysler" type="button"><span class="pop-name">Chrysler Building</span><span class="pop-sub">Lexington Ave · Midtown East</span></button>
+    <button id="tp-grandcentral" class="pop-item tp-btn" data-teleport="grandcentral" type="button"><span class="pop-name">Grand Central Terminal</span><span class="pop-sub">Park Ave · Midtown East</span></button>
+    <button id="tp-bryant" class="pop-item tp-btn" data-teleport="bryant" type="button"><span class="pop-name">Bryant Park</span><span class="pop-sub">6th Ave · Midtown</span></button>
+    <button id="tp-flatiron" class="pop-item tp-btn" data-teleport="flatiron" type="button"><span class="pop-name">Flatiron Building</span><span class="pop-sub">5th Ave · Flatiron District</span></button>
+    <button id="tp-centralpark" class="pop-item tp-btn" data-teleport="centralpark" type="button"><span class="pop-name">Central Park</span><span class="pop-sub">6th Ave · Central Park South</span></button>
+    <button id="tp-owtc" class="pop-item tp-btn" data-teleport="owtc" type="button"><span class="pop-name">One World Trade Center</span><span class="pop-sub">Vesey St · Financial District</span></button>
+  </div>
+
+  <!-- Bottom-Left: Street-Name Signs & Live GPS Radar Minimap -->
+  <div class="hud hud-bottom-left">
+    <div id="hud-location" class="location" aria-live="off"></div>
+    <aside id="minimap-card" class="panel radar" aria-label="Live NYC Street Radar Minimap" title="Open the full New York City street map [M]">
+      <canvas id="minimap-canvas"></canvas>
+      <span class="radar-north" aria-hidden="true">N</span>
+      <kbd class="radar-key">M</kbd>
+    </aside>
+  </div>
+
+  <!-- Bottom-Center: Third-Person Mode Switcher & Controls Guide -->
+  <footer class="hud hud-bottom-center">
+    <div id="hud-controls-hint" class="controls-hint"></div>
+    <nav id="mode-switch" class="panel mode-switch" aria-label="Third-Person Navigation Mode">
+      <span class="mode-indicator" aria-hidden="true"></span>
+      <button id="mode-person" class="mode-btn" data-mode="person" type="button" title="Person [1]">
+        <svg class="icon" aria-hidden="true"><use href="#i-walk"/></svg><span class="mode-label">Walk</span><kbd>1</kbd>
+      </button>
+      <button id="mode-car" class="mode-btn active" data-mode="car" type="button" title="Car · Yellow Cab [2]">
+        <svg class="icon" aria-hidden="true"><use href="#i-car"/></svg><span class="mode-label">Drive</span><kbd>2</kbd>
+      </button>
+      <button id="mode-cyclist" class="mode-btn" data-mode="cyclist" type="button" title="Cyclist [3]">
+        <svg class="icon" aria-hidden="true"><use href="#i-bike"/></svg><span class="mode-label">Cycle</span><kbd>3</kbd>
+      </button>
+      <button id="mode-helicopter" class="mode-btn" data-mode="helicopter" type="button" title="Helicopter [4]">
+        <svg class="icon" aria-hidden="true"><use href="#i-heli"/></svg><span class="mode-label">Fly</span><kbd>4</kbd>
+      </button>
+    </nav>
+  </footer>
+
+  <!-- Bottom-Right: Speed Cluster & Camera Switcher -->
+  <div class="hud hud-bottom-right">
+    <section id="hud-cluster" class="panel cluster" aria-label="Vehicle telemetry and camera">
+      <div class="gauge">
+        <div class="gauge-top">
+          <span id="hud-active-mode" class="gauge-label">NYC Yellow Taxi</span>
+          <span class="gauge-alt"><span class="gauge-alt-label">Alt</span> <span id="hud-altitude">0</span> ft</span>
+        </div>
+        <div class="gauge-speed"><span id="hud-speed">0</span><span class="gauge-unit">mph</span></div>
+        <div class="gauge-meter" aria-hidden="true"><span id="hud-speed-meter"></span></div>
+      </div>
+      <div id="camera-switch" class="camera-switch">
+        <button id="cam-prev" class="icon-btn" type="button" title="Previous camera" aria-label="Previous camera">
+          <svg class="icon" aria-hidden="true"><use href="#i-chevron-left"/></svg>
+        </button>
+        <button id="cam-menu-btn" class="camera-current" type="button" popovertarget="camera-popover" title="All cameras [V cycles]">
+          <svg class="icon" aria-hidden="true"><use href="#i-camera"/></svg><span id="hud-active-camera">3rd-Person Chase</span><kbd>V</kbd>
+        </button>
+        <button id="cam-next" class="icon-btn" type="button" title="Next camera [V]" aria-label="Next camera">
+          <svg class="icon" aria-hidden="true"><use href="#i-chevron-right"/></svg>
+        </button>
+      </div>
+    </section>
+  </div>
+
+  <!-- Touch input stays available in clean view; the map temporarily suspends it. -->
+  <section id="touch-controls" aria-label="Touch controls" hidden>
+    <div class="touch-movement">
+      <div id="touch-stick" role="group" aria-label="Movement joystick: drag up or down to move, left or right to turn">
+        <span class="touch-stick-axis" aria-hidden="true"></span>
+        <span id="touch-stick-knob" aria-hidden="true"></span>
+      </div>
+      <span class="touch-caption">Move &amp; steer</span>
+    </div>
+    <p class="touch-look-hint">Drag to look · Pinch to zoom</p>
+    <div class="touch-actions" role="group" aria-label="Hold to perform an action">
+      <button class="touch-action" data-touch-action="up" type="button" aria-label="Jump" aria-pressed="false" hidden>
+        <span aria-hidden="true">↑</span><span data-touch-label="up">Jump</span>
+      </button>
+      <button class="touch-action" data-touch-action="down" type="button" aria-label="Descend" aria-pressed="false" hidden>
+        <span aria-hidden="true">↓</span><span data-touch-label="down">Descend</span>
+      </button>
+      <button class="touch-action touch-boost" data-touch-action="boost" type="button" aria-label="Boost" aria-pressed="false">
+        <span aria-hidden="true">↟</span><span data-touch-label="boost">Boost</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- All Cameras: 3 Follow Cameras + 7 Iconic NYC Vantage Cameras + Auto-Director Drone -->
+  <div id="camera-popover" class="popover" popover data-side="above" data-anchor="hud-cluster" data-align="hud-cluster" aria-label="Multiple Camera Angles">
+    <div class="pop-title">Follow</div>
+    <button id="cam-chase" class="pop-item cam-btn active" data-camera="chase" type="button"><span class="pop-name">3rd-Person Chase</span><kbd>5</kbd></button>
+    <button id="cam-action" class="pop-item cam-btn" data-camera="action" type="button"><span class="pop-name">Low-Angle Action</span><kbd>6</kbd></button>
+    <button id="cam-pov" class="pop-item cam-btn" data-camera="pov" type="button"><span class="pop-name">First-Person / Cockpit</span><kbd>7</kbd></button>
+    <div class="pop-title">Scenic</div>
+    <button id="cam-centralPark" class="pop-item cam-btn" data-camera="centralPark" type="button"><span class="pop-name">Central Park Oasis</span></button>
+    <button id="cam-fifthAve" class="pop-item cam-btn" data-camera="fifthAve" type="button"><span class="pop-name">5th Ave &amp; Empire State</span><kbd>8</kbd></button>
+    <button id="cam-timesSquare" class="pop-item cam-btn" data-camera="timesSquare" type="button"><span class="pop-name">Times Square Crossroads</span><kbd>9</kbd></button>
+    <button id="cam-chryslerGCT" class="pop-item cam-btn" data-camera="chryslerGCT" type="button"><span class="pop-name">42nd St · Chrysler &amp; GCT</span><kbd>0</kbd></button>
+    <button id="cam-observatory" class="pop-item cam-btn" data-camera="observatory" type="button"><span class="pop-name">Empire State 86th Deck</span></button>
+    <button id="cam-bryantPark" class="pop-item cam-btn" data-camera="bryantPark" type="button"><span class="pop-name">Bryant Park &amp; NYPL</span></button>
+    <button id="cam-waterfront" class="pop-item cam-btn" data-camera="waterfront" type="button"><span class="pop-name">East River &amp; Skyline</span></button>
+    <button id="cam-drone" class="pop-item cam-btn" data-camera="drone" type="button"><span class="pop-name">Auto-Director Aerial</span></button>
+  </div>
+
+  <!-- Full-Screen Interactive New York City Street Map ([M]) -->
+  <section id="fullmap-modal" class="fullmap-modal hidden" role="dialog" aria-modal="true" aria-label="Full New York City Interactive Street Map">
+    <div id="fullmap-canvas-wrap" class="fullmap-canvas-wrap">
+      <canvas id="fullmap-canvas"></canvas>
+    </div>
+
+    <div class="fullmap-header">
+      <div class="panel fullmap-title">
+        <span class="mta-bullet" aria-hidden="true">NY</span>
+        <div>
+          <h2>Manhattan Street Atlas</h2>
+          <p id="fullmap-player-info" class="fullmap-subtitle">You are at 5th Ave &amp; 35th St</p>
+        </div>
+      </div>
+      <label class="panel fullmap-search-wrap">
+        <svg class="icon" aria-hidden="true"><use href="#i-search"/></svg>
+        <input id="fullmap-search" class="fullmap-search" type="text" placeholder="Search streets &amp; landmarks — Broadway, Canal, Wall St…" aria-label="Search street or landmark" autocomplete="off" spellcheck="false" />
+      </label>
+      <button id="close-fullmap-btn" class="panel tool-btn fullmap-close" type="button" title="Close map [M / Esc]">
+        <svg class="icon" aria-hidden="true"><use href="#i-close"/></svg><span class="tool-label">Close</span><kbd>Esc</kbd>
+      </button>
+    </div>
+
+    <div class="map-controls">
+      <div class="panel map-compass" title="True north · Manhattan's street grid runs 29° east of it">
+        <svg viewBox="0 0 44 44" aria-hidden="true">
+          <g id="map-compass-needle">
+            <path d="M22 9.5 25.6 22h-7.2z" fill="#f05a4f"/>
+            <path d="M22 34.5 25.6 22h-7.2z" fill="rgba(255,255,255,0.72)"/>
+            <text x="22" y="8" text-anchor="middle">N</text>
+          </g>
+        </svg>
+      </div>
+      <div class="panel map-zoom">
+        <button id="map-zoom-in" class="icon-btn" type="button" title="Zoom in" aria-label="Zoom in"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg></button>
+        <button id="map-zoom-out" class="icon-btn" type="button" title="Zoom out" aria-label="Zoom out"><svg class="icon" aria-hidden="true"><use href="#i-minus"/></svg></button>
+      </div>
+      <div class="panel map-zoom">
+        <button id="map-center-player" class="icon-btn" type="button" title="Street view around you" aria-label="Center on player"><svg class="icon" aria-hidden="true"><use href="#i-locate"/></svg></button>
+        <button id="map-view-all" class="icon-btn" type="button" title="All of Manhattan (125th St to Battery Park)" aria-label="Fit all of Manhattan"><svg class="icon" aria-hidden="true"><use href="#i-fit"/></svg></button>
+      </div>
+    </div>
+
+    <div class="fullmap-footer">
+      <div class="panel fullmap-status">
+        <span id="fullmap-hover-info">Click anywhere to teleport &amp; set your GPS route · Drag to pan · Scroll to zoom</span>
+      </div>
+    </div>
+
+    <div class="panel fullmap-legend">
+      <span class="legend-item"><span class="legend-swatch player-swatch"></span>You</span>
+      <span class="legend-item"><span class="legend-swatch landmark-swatch"></span>Landmark</span>
+      <span class="legend-item"><span class="legend-swatch gps-swatch"></span>GPS route</span>
+      <span class="legend-item"><span class="legend-swatch bridge-swatch"></span>Bridge / Hwy</span>
+      <span id="fullmap-counts" class="legend-counts"></span>
+    </div>
+  </section>
+
+  <script id="example-script" type="module" src="./script.js"></script>
+<script>
+window.showCityRecovery = () => {
+  const overlay = document.getElementById('loading-overlay');
+  if (overlay) overlay.classList.remove('hidden');
+  const status = document.getElementById('loading-status');
+  if (!status || document.getElementById('city-retry')) return;
+  const retry = document.createElement('a');
+  retry.id = 'city-retry'; retry.textContent = 'Retry with reduced graphics';
+  const url = new URL(location.href);
+  url.searchParams.set('scale', '0.5'); url.searchParams.set('shadows', 'off');
+  url.searchParams.set('gi', 'off'); url.searchParams.set('ssr', 'off');
+  retry.href = url.href; retry.style.cssText = 'display:block;color:#fff;margin-top:16px;text-decoration:underline';
+  status.after(retry);
+};
+document.getElementById('mcanvas').addEventListener('webglcontextlost', event => {
+  event.preventDefault();
+  document.getElementById('loading-status').textContent = 'Graphics context lost. Reload to continue.';
+  window.showCityRecovery();
+});
+</script>
+</body>
+</html>
