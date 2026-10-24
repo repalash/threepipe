@@ -1,0 +1,83 @@
+{
+    "name": "@threepipe/webgi-plugins",
+    "description": "WebGi - Realistic Rendering Plugins for ThreePipe.",
+    "version": "0.7.0",
+    "devDependencies": {
+        "rand-seed": "^2.1.7"
+    },
+    "dependencies": {
+        "threepipe": "file:./../../src/"
+    },
+    "peerDependencies": {
+        "threepipe": ">=0.5.1"
+    },
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.mjs",
+            "require": "./dist/index.js"
+        },
+        "./dist/": {
+            "import": "./dist/",
+            "require": "./dist/"
+        }
+    },
+    "type": "module",
+    "main": "dist/index.js",
+    "module": "dist/index.mjs",
+    "types": "dist/index.d.ts",
+    "files": [
+        "dist",
+        "src",
+        "README.md",
+        "CHANGELOG.md",
+        "docs",
+        "tsconfig.json",
+        "LICENSE",
+        "NOTICE",
+        "THIRD_PARTY_NOTICES.md"
+    ],
+    "scripts": {
+        "new:pack": "npm run prepare 1>&2 && npm run docs 1>&2 && clean-package && npm pack --silent && clean-package restore",
+        "prepare": "npm run build",
+        "build": "rimraf dist && vite build",
+        "dev": "NODE_ENV=development vite build --watch",
+        "docs": "rimraf docs && npx typedoc --skipErrorChecking"
+    },
+    "author": "repalash <palash@shaders.app> (https://repalash.com)",
+    "license": "SEE LICENSE IN LICENSE",
+    "keywords": [
+        "3d",
+        "three.js",
+        "typescript",
+        "javascipt",
+        "browser",
+        "rendering",
+        "viewer",
+        "webgl",
+        "webgi",
+        "canvas"
+    ],
+    "bugs": {
+        "url": "https://github.com/repalash/threepipe/issues"
+    },
+    "homepage": "https://threepipe.org/package/webgi-plugins.html",
+    "repository": {
+        "type": "git",
+        "url": "git://github.com/repalash/threepipe.git",
+        "directory": "plugins/webgi-plugins"
+    },
+    "clean-package": {
+        "remove": [
+            "clean-package",
+            "scripts",
+            "devDependencies",
+            "overrides",
+            "//"
+        ],
+        "replace": {
+            "dependencies": {}
+        }
+    },
+    "sideEffects": false
+}
