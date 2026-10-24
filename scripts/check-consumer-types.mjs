@@ -46,6 +46,7 @@ for (const dir of [path.join(root, 'lib'), path.join(root, 'dist'), path.join(pl
 // Static check of every built package (core and plugins/*), also the ones the consumer below does not
 // install: relative imports in its .d.ts files carry .js, and a "types" condition in its exports comes
 // first and names a file that exists.
+const bareSpecRE = /(\bfrom\s+|\bimport\s*\(\s*|\bimport\s+(?=['"])|\bdeclare\s+module\s+)(['"])([^.'"\n/][^'"\n]*)\2/g
 const relativeSpecRE = /(\bfrom\s+|\bimport\s*\(\s*|\bimport\s+(?=['"])|\bdeclare\s+module\s+)(['"])(\.\.?\/[^'"\n]*)\2/g
 const dtsFiles = dir => fs.readdirSync(dir, {withFileTypes: true}).flatMap(e => e.isDirectory() ? dtsFiles(path.join(dir, e.name)) : e.name.endsWith('.d.ts') ? [path.join(dir, e.name)] : [])
 const staticErrors = []
@@ -58,11 +59,21 @@ for (const dir of [root, ...fs.readdirSync(path.join(root, 'plugins')).map(d => 
         if (Object.keys(cond)[0] !== 'types') staticErrors.push(`${pkg.name} exports["${sub}"]: "types" must be the first condition`)
         if (!fs.existsSync(path.join(dir, cond.types))) staticErrors.push(`${pkg.name} exports["${sub}"].types: ${cond.types} is not in the build`)
     }
+    // A plugin's declarations may import only packages it declares (dependencies or peerDependencies) or that
+    // threepipe, its peer, brings. A bundled devDependency must be an optional peer, or its types stay out.
+    const declared = dir === root ? null : new Set([pkg, rootPkg].flatMap(p => [...Object.keys(p.dependencies || {}), ...Object.keys(p.peerDependencies || {})]).concat('threepipe'))
     for (const file of built.flatMap(dtsFiles)) {
         const text = fs.readFileSync(file, 'utf8')
         for (const m of text.matchAll(relativeSpecRE)) {
             const line = text.slice(text.lastIndexOf('\n', m.index) + 1, m.index)
             if (!/^\s*(\*|\/\/)/.test(line) && !m[3].endsWith('.js')) staticErrors.push(`${path.relative(root, file)}: '${m[3]}' needs .js (add afterBuild: fixDtsImports to its dts() call)`)
+        }
+        if (!declared) continue
+        for (const m of text.matchAll(bareSpecRE)) {
+            const line = text.slice(text.lastIndexOf('\n', m.index) + 1, m.index)
+            const name = m[3].startsWith('@') ? m[3].split('/').slice(0, 2).join('/') : m[3].split('/')[0]
+            if (!/^\s*(\*|\/\/)/.test(line) && !name.includes('*') && !declared.has(name) && !declared.has('@types/' + name))
+                staticErrors.push(`${path.relative(root, file)}: '${m[3]}' is not a dependency or peerDependency of ${pkg.name} (declare it, optional if it is bundled)`)
         }
     }
 }

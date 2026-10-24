@@ -162,7 +162,7 @@ export class GLTFDracoExportPlugin extends AViewerPluginSync {
         super.onRemove(viewer)
     }
 
-    protected _makeUi = (exporter: AssetExporterPlugin)=>[
+    protected _makeUi = (exporter: AssetExporterPlugin): UiObjectConfig[]=>[
         {
             type: 'checkbox',
             label: 'DRACO Compress',

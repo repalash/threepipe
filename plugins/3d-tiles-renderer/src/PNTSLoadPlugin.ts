@@ -10,8 +10,10 @@ import {
     LoadingManager,
     ThreeViewer,
 } from 'threepipe'
-import type {PNTSResult} from '3d-tiles-renderer/src/three/loaders/PNTSLoader'
 import {LoaderBase, PNTSLoader, PNTSScene} from '3d-tiles-renderer'
+
+// The package root exports the loader but not its result type (deep src/ paths are outside its exports map).
+type PNTSResult = Awaited<ReturnType<PNTSLoader['parse']>>
 
 /**
  * Adds support for loading .pnts files and data uris.

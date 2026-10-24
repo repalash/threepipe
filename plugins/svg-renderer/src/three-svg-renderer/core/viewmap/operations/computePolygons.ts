@@ -90,7 +90,7 @@ export async function computePolygons(
   Arr2D.destroy(p);
 }
 
-export function convertContourList(
+function convertContourList(
     vector: Arrangement2D.ContourList) : Array<Array<Vector2>> {
 
   const array = new Array<Array<Vector2>>();
@@ -100,7 +100,7 @@ export function convertContourList(
   return array;
 }
 
-export function convertContour(
+function convertContour(
     contour: Arrangement2D.Contour) : Array<Vector2> {
 
   const array = new Array<Vector2>();
