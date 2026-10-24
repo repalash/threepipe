@@ -13,7 +13,7 @@ aside: false
 # BloomPlugin (HDR Bloom)
 
 [Example](https://threepipe.org/examples/#bloom-plugin/) &mdash;
-[API Reference](https://threepipe.org/plugins/webgi-plugins/docs/classes/BloomPlugin.html)
+[API Reference](https://webgi.dev/docs/classes/BloomPlugin.html)
 
 <iframe src="https://threepipe.org/examples/bloom-plugin/" style="width:100%;min-height:600px;border:none;" loading="lazy" title="Threepipe Bloom Plugin Example"></iframe>
 

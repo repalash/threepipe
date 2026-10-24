@@ -13,7 +13,7 @@ aside: false
 # SSReflectionPlugin (Screen Space Reflection Plugin)
 
 [Example](https://threepipe.org/examples/#ssreflection-plugin/) &mdash;
-[API Reference](https://threepipe.org/plugins/webgi-plugins/docs/classes/SSReflectionPlugin.html)
+[API Reference](https://webgi.dev/docs/classes/SSReflectionPlugin.html)
 
 <iframe src="https://threepipe.org/examples/ssreflection-plugin/" style="width:100%;min-height:600px;border:none;" loading="lazy" title="Threepipe SSReflection Plugin Example"></iframe>
 
