@@ -112,17 +112,11 @@ export class WatchHandsPlugin extends AViewerPluginSync {
         const minuteHandRotation = invert * (time.getMinutes() - this.minuteOffset) * (Math.PI * 2) / 60 + secondHandRotation / 60
         const hourHandRotation = invert * (time.getHours() - this.hourOffset) * (Math.PI * 2) / 12 + minuteHandRotation / 12
 
-        if (this.hands.find(h=>h.type === 'second' && Math.abs(secondHandRotation - h.object.rotation[this.axis]) > 0.001)) {
+        // every found hand counts, so a watch without a second hand (or a changed offset) updates too
+        const targetRotation = {second: secondHandRotation, minute: minuteHandRotation, hour: hourHandRotation}
+        if (this.hands.some(h=>Math.abs(targetRotation[h.type] - h.object.rotation[this.axis]) > 0.001)) {
             for (const hand of this.hands) {
-                if (hand.type === 'second') {
-                    hand.object.rotation[this.axis] = secondHandRotation
-                }
-                if (hand.type === 'minute') {
-                    hand.object.rotation[this.axis] = minuteHandRotation
-                }
-                if (hand.type === 'hour') {
-                    hand.object.rotation[this.axis] = hourHandRotation
-                }
+                hand.object.rotation[this.axis] = targetRotation[hand.type]
             }
             this._viewer?.renderManager.resetShadows()
             this._viewer?.setDirty()

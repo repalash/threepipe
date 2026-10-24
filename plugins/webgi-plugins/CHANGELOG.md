@@ -20,6 +20,11 @@ All notable changes to this plugin will be documented in this file.
 - The bundle is no longer minified, like the other threepipe plugins; the package also ships `src`
 - Shader provenance: unused helpers and dead code removed; the TAA sharpening and the light sampling are rewritten from their formulas
 
+### Fixed
+
+- `AdvancedGroundPlugin`: planar reflections created a new 1024x1024 render target on every reflection update; the target is now created once, reused, and disposed in `onRemove`
+- `WatchHandsPlugin`: a watch without a second hand never moved, and an hour or minute offset change waited for the second hand; any hand off its target rotation now updates all hands
+
 ## [0.6.4]
 
 - Fix for SSContact Shadow plugin after threepipe/three.js update

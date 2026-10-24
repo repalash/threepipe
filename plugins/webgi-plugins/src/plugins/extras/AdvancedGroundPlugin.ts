@@ -6,6 +6,7 @@ import {
     generateUiConfig,
     IGeometry,
     IMaterial,
+    IRenderTarget,
     IScene,
     ISceneEventMap,
     LinearFilter,
@@ -83,7 +84,8 @@ export class AdvancedGroundPlugin extends BaseGroundPlugin {
 
     protected _createMesh(mesh?: Mesh2<IGeometry & PlaneGeometry, IMaterial>) {
         if (mesh) throw new Error('AdvancedGroundPlugin - mesh should not be provided')
-        const reflector = new Reflector2<IGeometry&PlaneGeometry>(this._geometry, ()=>this._viewer?.renderManager.createTarget({
+        // created once on first use and reused: Reflector2 asks for the target on every reflection update
+        const reflector = new Reflector2<IGeometry&PlaneGeometry>(this._geometry, ()=>this._reflectionTarget ??= this._viewer?.renderManager.createTarget({
             // type: HalfFloatType,
             type: UnsignedByteType,
             format: RGBAFormat,
@@ -117,6 +119,7 @@ export class AdvancedGroundPlugin extends BaseGroundPlugin {
     }
 
     declare _mesh: Reflector2<IGeometry&PlaneGeometry>
+    private _reflectionTarget?: IRenderTarget
 
     onAdded(viewer: ThreeViewer) {
         super.onAdded(viewer)
@@ -138,7 +141,10 @@ export class AdvancedGroundPlugin extends BaseGroundPlugin {
     }
 
     onRemove(viewer: ThreeViewer) {
-        // todo
+        if (this._reflectionTarget) {
+            viewer.renderManager.disposeTarget(this._reflectionTarget)
+            this._reflectionTarget = undefined
+        }
         return super.onRemove(viewer)
     }
 
