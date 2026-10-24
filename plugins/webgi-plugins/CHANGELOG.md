@@ -6,9 +6,9 @@ All notable changes to this plugin will be documented in this file.
 
 ## [Unreleased]
 
-### Added
+### Changed
 
-- NA
+- License: the webgi Free Forever License replaces the modified GNU GPL-3.0-only notice, from 1.0.0; see LICENSE and THIRD_PARTY_NOTICES.md. Releases before 1.0.0 keep the license they carried
 
 ## [0.7.0] - 2026-10-24
 
