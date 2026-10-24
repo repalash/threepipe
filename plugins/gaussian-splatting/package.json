@@ -10,13 +10,23 @@
         "threepipe": "file:./../../src/"
     },
     "peerDependencies": {
-        "threepipe": ">=0.1.0"
+        "threepipe": ">=0.1.0",
+        "comlink": "^4.4.1",
+        "@types/emscripten": "^1.39.10"
+    },
+    "peerDependenciesMeta": {
+        "comlink": {
+            "optional": true
+        },
+        "@types/emscripten": {
+            "optional": true
+        }
     },
     "exports": {
         ".": {
+            "types": "./dist/index.d.ts",
             "import": "./dist/index.mjs",
-            "require": "./dist/index.js",
-            "types": "./src/index.d.ts"
+            "require": "./dist/index.js"
         },
         "./dist/": {
             "import": "./dist/",

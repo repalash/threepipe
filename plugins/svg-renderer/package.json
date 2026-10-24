@@ -17,7 +17,17 @@
         "threepipe": "file:./../../src/"
     },
     "peerDependencies": {
-        "threepipe": ">=0.1.0"
+        "threepipe": ">=0.1.0",
+        "@svgdotjs/svg.js": "^3.2.0",
+        "three-mesh-bvh": "^0.7.4"
+    },
+    "peerDependenciesMeta": {
+        "@svgdotjs/svg.js": {
+            "optional": true
+        },
+        "three-mesh-bvh": {
+            "optional": true
+        }
     },
     "exports": {
         ".": {

@@ -152,6 +152,21 @@ A reference to "three" is also added to be same as threepipe, this way any libra
 npm install threepipe
 ```
 
+#### TypeScript
+
+The type declarations are checked before every release in a consumer project with TypeScript 5.0 and newer, `strict`, and `moduleResolution` set to `bundler`, `node16`, `nodenext` or `node`. Recommended `tsconfig.json` settings:
+
+```json
+{
+  "compilerOptions": {
+    "moduleResolution": "bundler",
+    "skipLibCheck": true
+  }
+}
+```
+
+`skipLibCheck: false` needs TypeScript 5.7 or newer, and some dependencies (`@types/three` among them) report errors of their own with it. If a threepipe type does not resolve in your setup, open an [issue](https://github.com/repalash/threepipe/issues) with your TypeScript version and `tsconfig.json`.
+
 #### Loading a 3D Model
 
 First, create a canvas element in your HTML page:

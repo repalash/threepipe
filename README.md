@@ -137,6 +137,8 @@ Check out the details about the [ThreeViewer API](https://threepipe.org/guide/vi
 npm install threepipe
 ```
 
+TypeScript: the published declarations are type-checked the way a consumer project sees them (`npm run test:types`, also run before every publish): TypeScript 5.0 and newer with `skipLibCheck: true`, TypeScript 5.7 and newer with `skipLibCheck: false`, `strict`, with `moduleResolution` set to `bundler`, `node16`, `nodenext` or `node` (TypeScript 6 and older). With `skipLibCheck: false`, some dependencies, `@types/three` among them, report errors of their own.
+
 ### Loading a 3D Model
 
 First, create a canvas element in your HTML page:
