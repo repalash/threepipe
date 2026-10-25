@@ -10,6 +10,10 @@ All notable changes to this plugin will be documented in this file.
 
 - NA
 
+### Changed
+
+- Use [@threepipe/tweakpane-image-plugin](https://www.npmjs.com/package/@threepipe/tweakpane-image-plugin) 1.1.406 from npm in `devDependencies`, replacing the `tweakpane-image-plugin` 1.1.404 release tarball. A dropped file that is not an image (like `.hdr`, `.cube`) is now passed on as a `File` and loaded by the asset importer, instead of being set as a broken image texture.
+
 ## [0.10.1] - 2025-10-27
 
 ### Changed
