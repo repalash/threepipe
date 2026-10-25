@@ -1,4 +1,4 @@
-import * as TweakpaneImagePlugin from 'tweakpane-image-plugin'
+import * as TweakpaneImagePlugin from '@threepipe/tweakpane-image-plugin'
 import {UiConfigRendererTweakpane} from 'uiconfig-tweakpane/lib/esm'
 import {
     Class,

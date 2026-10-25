@@ -71,7 +71,7 @@ export default defineConfig(async ()=>{
         optimizeDeps: {
             exclude: ['uiconfig.js',
                 'tweakpane',
-                'tweakpane-image-plugin',
+                '@threepipe/tweakpane-image-plugin',
                 'ts-browser-helpers',
                 'uiconfig-tweakpane',
                 ...Object.keys(alias)],
