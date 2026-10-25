@@ -20,6 +20,7 @@
         "src/index.ts"
     ],
     "name": "ThreePipe",
+    "hostedBaseUrl": "https://threepipe.org/docs/",
     "excludeExternals": true,
     "readme": "none",
     "sourceLinkExternal": true,

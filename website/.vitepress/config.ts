@@ -4,6 +4,9 @@ import {defineConfig} from 'vitepress'
 export default defineConfig({
   title: "Threepipe",
   description: "Effortlessly create 3D web experiences, from quick demos to advanced applications, with Three.js",
+  sitemap: {
+    hostname: 'https://threepipe.org',
+  },
   themeConfig: {
     logo: {src: '/logo-filled.png', height: '80px', style: {height: '40px', marginRight: '4px'}},
     outline: 'deep',
