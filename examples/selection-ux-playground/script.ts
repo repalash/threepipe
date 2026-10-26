@@ -53,6 +53,7 @@ async function init() {
     setupLayers(viewer, ux)
     setupSettings(viewer, ux, picking)
     setupHints(ux)
+    setupNotes(ux)
 
     try {
         await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
@@ -597,7 +598,8 @@ function setupHints(ux: SelectionUxPlugin) {
     card.innerHTML = '<h4>Shortcuts</h4>' + shortcuts.map(([a, b]) => `<div><span>${a}</span><span>${b.split('  ').map(x => `<kbd>${x}</kbd>`).join(' ')}</span></div>`).join('')
     document.getElementById('help')!.addEventListener('click', () => toggleHelp(false))
     window.addEventListener('keydown', e => {
-        if ((e.target as HTMLElement)?.tagName === 'INPUT') return
+        const tag = (e.target as HTMLElement)?.tagName
+        if (tag === 'INPUT' || tag === 'TEXTAREA') return
         if (e.key === '?') toggleHelp()
         else if (e.key === 'Escape') toggleHelp(false)
     })
@@ -639,6 +641,85 @@ function setupHints(ux: SelectionUxPlugin) {
         toast.classList.add('show')
         clearTimeout(timer)
         timer = window.setTimeout(() => toast.classList.remove('show'), 1800)
+    })
+}
+
+// endregion
+
+// region notes
+
+/**
+ * Scratchpad for feedback. Kept in localStorage, and on the playground server (POST /api/notes) when it has one,
+ * so the notes can be read back from the session that serves the page.
+ */
+function setupNotes(ux: SelectionUxPlugin) {
+    const text = document.getElementById('notes-text') as HTMLTextAreaElement
+    const status = document.getElementById('notes-status')!
+    const key = 'selection-ux-playground-notes'
+    const api = '/api/notes'
+    let serverOk = false
+    let timer = 0
+
+    const local = (() => {
+        try {
+            return localStorage.getItem(key) || ''
+        } catch (e) {
+            return ''
+        }
+    })()
+    text.value = local
+
+    // the server copy wins when it is longer, e.g. notes written on another device
+    fetch(api).then(async r => r.ok ? r.json() : Promise.reject(r.status)).then((d: {text?: string}) => {
+        serverOk = true
+        if (typeof d.text === 'string' && d.text.length > text.value.length) text.value = d.text
+        status.textContent = 'saved on server'
+    }).catch(() => {
+        status.textContent = 'saved in this browser'
+    })
+
+    const save = () => {
+        try {
+            localStorage.setItem(key, text.value)
+        } catch (e) {
+            // private mode: the server copy is all there is
+        }
+        if (!serverOk) {
+            status.textContent = 'saved in this browser'
+            return
+        }
+        status.textContent = 'saving…'
+        fetch(api, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({text: text.value})})
+            .then(r => {
+                status.textContent = r.ok ? 'saved on server' : 'server save failed, kept in browser'
+            })
+            .catch(() => {
+                status.textContent = 'server save failed, kept in browser'
+            })
+    }
+    text.addEventListener('input', () => {
+        status.textContent = 'editing…'
+        clearTimeout(timer)
+        timer = window.setTimeout(save, 600)
+    })
+    // keep Ctrl+Z, Delete, arrows etc. in the text box, away from the scene undo and hotkeys
+    text.addEventListener('keydown', e => e.stopPropagation())
+
+    document.getElementById('notes-context')!.addEventListener('click', () => {
+        const st = ux.settings
+        const preset = presets.find(p => Object.entries(p.s).every(([k, v]) => (st as any)[k] === v))
+        const sel = ux.selected.map(o => ux.displayName(o)).join(', ')
+        const at = text.selectionStart ?? text.value.length
+        const line = `${at ? '\n' : ''}[${new Date().toLocaleString()} · ${preset ? preset.name : 'custom: ' + st.visual + ', rotate ' + st.rotate}${sel ? ' · selected: ' + sel : ''}]\n`
+        text.value = text.value.slice(0, at) + line + text.value.slice(at)
+        text.focus()
+        text.selectionStart = text.selectionEnd = at + line.length
+        save()
+    })
+    document.getElementById('notes-copy')!.addEventListener('click', () => {
+        navigator.clipboard?.writeText(text.value).then(() => {
+            status.textContent = 'copied'
+        })
     })
 }
 

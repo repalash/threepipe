@@ -55,7 +55,33 @@
             box-sizing: border-box;
             user-select: none;
         }
-        #layers { left: 0; width: 240px; border-right: 1px solid var(--ui-line); }
+        #layers { left: 0; width: 240px; bottom: 300px; border-right: 1px solid var(--ui-line); }
+        #notes {
+            left: 0;
+            width: 240px;
+            top: auto;
+            height: 300px;
+            border-right: 1px solid var(--ui-line);
+            border-top: 1px solid var(--ui-line);
+            display: flex;
+            flex-direction: column;
+            user-select: text;
+        }
+        #notes textarea {
+            flex: 1;
+            margin: 0 12px;
+            border: 1px solid var(--ui-line);
+            border-radius: 6px;
+            padding: 8px;
+            font: inherit;
+            line-height: 1.5;
+            resize: none;
+            outline: none;
+            background: #fffdf3;
+        }
+        #notes textarea:focus { border-color: var(--accent); }
+        #notes .btns { padding: 6px 12px 10px; }
+        #notes-status { color: var(--ui-dim); }
         #settings { right: 0; width: 280px; border-left: 1px solid var(--ui-line); }
         .panel h3 {
             margin: 0;
@@ -230,7 +256,7 @@
 
         @media (max-width: 800px) {
             #canvas-container { inset: 0 0 40% 0; }
-            #layers { display: none; }
+            #layers, #notes { display: none; }
             #settings { top: 60%; width: 100%; border-left: 0; border-top: 1px solid var(--ui-line); }
             #hint { display: none; }
         }
@@ -242,6 +268,14 @@
 <div id="layers" class="panel">
     <h3>Layers <small>click · shift · ⌘</small></h3>
     <div id="layer-tree"></div>
+</div>
+<div id="notes" class="panel">
+    <h3>Notes <small id="notes-status"></small></h3>
+    <textarea id="notes-text" placeholder="Feedback, ideas, bugs… Saved automatically. “+ Context” adds the current variant and selection."></textarea>
+    <div class="btns">
+        <button id="notes-context" title="Insert the current preset, look and selection">+ Context</button>
+        <button id="notes-copy">Copy</button>
+    </div>
 </div>
 <div id="canvas-container">
     <canvas id="mcanvas"></canvas>
