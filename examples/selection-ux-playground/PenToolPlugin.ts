@@ -43,6 +43,8 @@ const SVG_NS = 'http://www.w3.org/2000/svg'
 export interface PenToolEventMap extends AViewerPluginEventMap {
     /** Drawing started, finished or was cancelled */
     change: object
+    /** A path was made (not after undo or redo) */
+    created: {object: IObject3D}
 }
 
 export class PenToolPlugin extends AViewerPluginSync<PenToolEventMap> {
@@ -313,6 +315,7 @@ export class PenToolPlugin extends AViewerPluginSync<PenToolEventMap> {
         viewer.getPlugin(UndoManagerPlugin)?.undoManager?.record({undo: remove, redo: add})
         // selected without an undo step of its own: one undo removes the new path
         viewer.getPlugin(PickingPlugin)?.setSelectedObject(obj, false, false)
+        this.dispatchEvent({type: 'created', object: obj})
     }
 
     // endregion

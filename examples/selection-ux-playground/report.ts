@@ -3,16 +3,76 @@
  * It opens by itself once for each new {@link REPORT_VERSION}.
  */
 
-export const REPORT_VERSION = '2026-10-26-r7'
+export const REPORT_VERSION = '2026-10-27-r8'
 
 const REPORT_HTML = `
-<h1>Selection UX prototype <span>round 7 · 26 Oct 2026</span></h1>
+<h1>Selection UX prototype <span>round 8 · 27 Oct 2026</span></h1>
 <p class="lead">A Figma-like way to select, move and edit things in threepipe, for people who are not 3D experts.
 Two pages run the same plugins: the <b>playground</b> (simple, light panels) and the <b>editor</b> (the tweakpane editor with
 everything else). Code: branch <code>claude/figma-style-selection-ux-j74hh2</code> in repalash/threepipe,
 folder <code>examples/selection-ux-playground/</code>. Ticket: <a href="https://ijewel3d.youtrack.cloud/issue/IJ-1052" target="_blank">IJ-1052</a>.</p>
 
-<h2>New in round 7</h2>
+<h2>Usability test: a camera along a bezier, on the timeline, to an MP4</h2>
+<p>Before this round it took about 17 steps in 3 tabs: a line, a curve type change, 4 handle drags, a constraint with a typed object name,
+the timeline turned on in the Animation tab, two ◆ keyframes at exact times — and then no way to make a video at all (threepipe had no recorder).
+Now it is 3 steps and Record. Try it on either page:</p>
+<ol>
+<li><b>Draw the path.</b> Press <kbd>P</kbd> (or the pen in the toolbar). Click 4 or 5 points on the floor in front of the jewellery; on one point, press and drag to make the curve smooth. <kbd>Enter</kbd> finishes.</li>
+<li><b>Animate a camera along it.</b> A chip says “Path 1 drawn · Animate a camera along it”: click it. (Also: right-click a path or a camera in Layers,
+toolbar camera menu → “Animate a camera along a path…”, or “Camera path” in the timeline.)</li>
+<li><b>Choose, then Animate.</b> Camera (or “+ New camera”), Path, <b>Lift the path</b> (1.2 m is preset when the path lies on the floor, so the camera is at eye height),
+Look at (the centre of the scene, ahead along the path, or the camera's own target), Duration, Speed (constant, or ease in and out), Direction.
+The view now looks through the camera and plays.</li>
+<li><b>Adjust the timing.</b> The timeline bar at the bottom shows the violet clip “Product Camera · path”. Drag the clip to start later, drag its right edge to make it longer,
+click or drag on the ruler to scrub, type the end time, loop on or off. Every change is one undo step.</li>
+<li><b>Check the shot from outside.</b> “Product Camera view” in the bar (or <kbd>0</kbd>) goes back to your view. Select the camera or the path: violet dots show where the camera
+goes and where it looks, with the start and end times.</li>
+<li><b>Record.</b> ● Record in the bar or the toolbar: camera, size (HD, Full HD, square, vertical, 4K; a red frame on the view shows what is in the video), 24 / 30 / 60 fps,
+Draft or Final (waits for anti-aliasing on every frame), MP4 or WebM, hide the path lines. It records frame by frame, so the timing is exact even when the scene is slow;
+selection, grid and helpers are hidden. A preview and Cancel show while it runs; then the video plays in the dialog → <b>Download .mp4</b>.</li>
+<li><kbd>Ctrl</kbd>+<kbd>Z</kbd> removes the camera animation (and the lift) in one step.</li>
+</ol>
+<table>
+<tr><th>Part</th><th>What is new</th></tr>
+<tr><td>CameraPathPlugin</td><td><code>animateAlongPath(camera, path, {duration, look, reverse, ease, lift})</code>: the follow_path constraint plus a 0 → 1 keyframe track on its offset, one undo step;
+the dialog, the chip after the pen, the path preview</td></tr>
+<tr><td>TimelineBarPlugin</td><td>Slim timeline: play, to start, time / end, loop, camera view, Camera path, Record; animations as clips you drag and stretch; shows by itself when there are animations,
+the toolbar button toggles it</td></tr>
+<tr><td>VideoRecorderPlugin</td><td><code>record({fps, width, height, format, quality, camera})</code>: moves the timeline frame by frame, encodes with WebCodecs (H.264 MP4 or VP9 WebM),
+muxes with mp4-muxer / webm-muxer; MediaRecorder in real time where WebCodecs is missing. Reusable, no UI</td></tr>
+<tr><td>Library fixes (threepipe <code>src/</code>)</td><td>PopmotionPlugin: a timeline track did not follow a seek when it was added (or rebuilt) while the time stood still, so “scrub to 0 from the end” left the camera at the end.
+follow_path: an object in a moved group was placed wrong (the world position was set as a local one)</td></tr>
+</table>
+<p class="lead" style="font-size:13px">Limits: MP4 needs WebCodecs (Chrome, Edge, Safari 17+, Firefox 130+); the muxer loads from jsdelivr on the first recording. Keep the tab in front while recording
+(background tabs stop rendering). glTF animations (the editor page's GLTFAnimationPlugin) are not shown as clips in the bar yet. “Ahead” keeps the horizon level (no banking).
+Keyframes are added with ◆ next to a field in the editor panels, not in the bar.</p>
+
+<h2>New in round 8</h2>
+<table>
+<tr><th>You asked</th><th>What changed</th><th>Try it</th></tr>
+<tr><td>Small, clean FPS / performance panel, as a plugin; show Energy Saver</td><td><b>PerfPanelPlugin</b>: an FPS pill in a corner (green, amber, red); click it for frame time (avg, p95, max), render CPU time, draw calls and triangles,
+canvas size, GPU, memory and warnings. It warns when the frame rate is capped at about 30 (Chrome Energy Saver or battery saver; a page cannot read the setting itself,
+so it detects the cap), when the laptop runs on battery, when WebGL runs in software, and whether the CPU or the GPU is the limit</td><td>Bottom-right pill</td></tr>
+<tr><td>Editor: modes on the right with coloured icons</td><td>A vertical bar on the right with one icon and one colour per mode (Viewer blue, Interaction orange, Post-processing pink, Export green…),
+like Blender's property tabs. Hover for the name; click the open mode again to hide the panel</td><td>Editor page, right edge</td></tr>
+<tr><td>Colours in the light and camera icons</td><td>Cameras violet, sun amber, spot orange, bulb yellow, area light light-orange, ambient grey, plus a dot in the light's own colour</td><td>Look at the scene</td></tr>
+<tr><td>Toolbar structure (like the gizmo / overlay menus of Unity and Blender); the toolbar font</td><td>One bar: tools (select, move, rotate, scale, pen, annotate) · Add · camera, shading, <b>Overlays</b> · Edit/View · focus, undo, redo · snapshot, save, ⋯.
+Overlays is one menu with switches that stay open: grid, background, effects, icons, 3D widgets, annotations, outlines, names, sizes, smart guides, hints, performance.
+The bottom button bar is merged into it (⋯ menu). The toolbar uses the page font (the tweakpane font)</td><td>Toolbar → the layers icon</td></tr>
+<tr><td>Figma style tweakpane theme</td><td>Two new tweakpane colour modes, <b>figma</b> and <b>figma-dark</b>: Inter, 11 px, grey panels, flat folders with a line, blue focus. The editor page starts in figma</td><td>Editor page</td></tr>
+<tr><td>Rename “Current”; mode keys A–F did nothing</td><td>“Current” is now <b>Classic</b> (the threepipe default). Modes are numbered 1–7 and the number keys switch them (also in Classic), with a toast</td><td><kbd>1</kbd>…<kbd>7</kbd></td></tr>
+<tr><td>Splash screen like the iJewel playground</td><td>Drop a file, click to choose one, or load a sample (jewellery demo, watch, helmet, horse, lines, empty). <kbd>Esc</kbd> or × closes it. Reopen: ⋯ → Open a file or sample</td><td>Reload the page</td></tr>
+<tr><td>Selection lines behind annotations</td><td>The selection overlay is now above the annotation markers</td><td>Select an object with a marker</td></tr>
+<tr><td>Move a light or box by exactly 5 on X</td><td>While you drag an object: press <kbd>X</kbd>, <kbd>Y</kbd> or <kbd>Z</kbd> to lock the axis (a coloured line shows it), type a number (<kbd>5</kbd>, <kbd>-2.5</kbd>) and press <kbd>Enter</kbd>.
+Like Blender, but in the middle of a normal drag, so there is nothing new to learn first. The inspector fields also take math and relative values: <code>+5</code>, <code>*2</code>, <code>1/3</code></td><td>Drag the box, press <kbd>X</kbd> <kbd>5</kbd> <kbd>Enter</kbd></td></tr>
+<tr><td>Duplicate again should repeat the offset</td><td>It was broken: the press on the copy hit the original behind it, which changed the selection and reset the duplicate tracker.
+Now a press prefers the object that is already selected. Duplicate, move the copy, duplicate again: the third one gets the same offset</td><td><kbd>Ctrl</kbd>+<kbd>D</kbd>, drag, <kbd>Ctrl</kbd>+<kbd>D</kbd></td></tr>
+<tr><td>Notes window lines did not scroll</td><td>The ruled lines now scroll with the text</td><td>Notes → type many lines</td></tr>
+<tr><td>Pen tool for bezier lines</td><td><b>PenToolPlugin</b>: click to add points, drag to pull smooth handles, click the first point to close, <kbd>Backspace</kbd> removes the last point,
+<kbd>Enter</kbd> or double-click finishes, <kbd>Esc</kbd> cancels. Points land on surfaces, or on a flat plane at the height of the last point. The result is a normal line object (one undo step), selected; a chip then offers “Animate a camera along it”</td><td><kbd>P</kbd> or the pen button</td></tr>
+</table>
+
+<h2>Round 7</h2>
 <table>
 <tr><th>You asked</th><th>What changed</th><th>Try it</th></tr>
 <tr><td>Annotations in the 3D scene, saved in the .glb, with a camera view (like Sketchfab)</td><td><b>AnnotationsPlugin</b>: numbered markers on surfaces. Click one: the camera flies to its saved view and a card shows the title and text

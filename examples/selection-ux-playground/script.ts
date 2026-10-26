@@ -25,6 +25,8 @@ import {showReport, showReportIfNew} from './report'
 import {showSplash} from './splash'
 import {PerfPanelPlugin} from './PerfPanelPlugin'
 import {PenToolPlugin} from './PenToolPlugin'
+import {CameraPathPlugin} from './CameraPathPlugin'
+import {TimelineBarPlugin} from './TimelineBarPlugin'
 
 async function init() {
     const viewer = new ThreeViewer({
@@ -49,6 +51,9 @@ async function init() {
     viewer.addPluginSync(new PerfPanelPlugin({position: 'bottom-right'}))
     // P: draw a path point by point, like Figma's pen
     viewer.addPluginSync(new PenToolPlugin())
+    // camera along a path, the timeline bar with Record (adds VideoRecorderPlugin)
+    viewer.addPluginSync(new CameraPathPlugin())
+    viewer.addPluginSync(new TimelineBarPlugin())
     const layers = viewer.addPluginSync(new LayersPanelPlugin('light'))
     Object.assign(window, {viewer, ux}) // for poking from the console
 

@@ -1,5 +1,6 @@
 import {AViewerPluginSync, IObject3D, PickingPlugin, ThreeViewer, UndoManagerPlugin} from 'threepipe'
 import {SelectionUxPlugin} from './SelectionUxPlugin'
+import {CameraPathPlugin} from './CameraPathPlugin'
 
 interface FlatRow {o: IObject3D, depth: number, kids: number, open: boolean, hidden: boolean, locked: boolean}
 
@@ -787,9 +788,11 @@ export class LayersPanelPlugin extends AViewerPluginSync {
         const locked = this._locked
         const sel = this._selected()
         const isGroup = sel.some(s => !s.geometry && this._kids(s).length)
+        const cp = this._viewer?.getPlugin(CameraPathPlugin)
         const items: MenuItem[] = [
             ['Zoom to', 'F', () => picking?.focusSelected()],
             ...o.isCamera && ux ? [['Look through', '0', () => ux.lookThrough(o)], ['Move to this view', 'Ctrl+Alt+0', locked ? null : () => ux.alignCameraToView(o)]] as MenuItem[] : [],
+            ...cp && (o.isCamera || (o as any).isLine2 || (o as any).isLine) ? [['Animate along a path…', '', locked ? null : () => cp.openDialog(o.isCamera ? {object: o} : {path: o})]] as MenuItem[] : [],
             ['Rename', 'Double-click', locked ? null : () => {
                 const row = this._rows.get(o)
                 if (row) this._rename(o, row)

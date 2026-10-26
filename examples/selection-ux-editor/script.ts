@@ -15,6 +15,8 @@ import {showReport, showReportIfNew} from '../selection-ux-playground/report'
 import {showSplash} from '../selection-ux-playground/splash'
 import {PerfPanelPlugin} from '../selection-ux-playground/PerfPanelPlugin'
 import {PenToolPlugin} from '../selection-ux-playground/PenToolPlugin'
+import {CameraPathPlugin} from '../selection-ux-playground/CameraPathPlugin'
+import {TimelineBarPlugin} from '../selection-ux-playground/TimelineBarPlugin'
 import {setupModeBar} from '../selection-ux-playground/ModeBar'
 
 // The tweakpane editor with the new selection UX: SelectionUxPlugin + the pipeline outline instead of OutlinePlugin,
@@ -53,6 +55,9 @@ async function init() {
     viewer.addPluginSync(new PerfPanelPlugin({position: 'bottom-right'}))
     // P: draw a path point by point, like Figma's pen
     viewer.addPluginSync(new PenToolPlugin())
+    // camera along a path, the timeline bar with Record (adds VideoRecorderPlugin)
+    viewer.addPluginSync(new CameraPathPlugin())
+    viewer.addPluginSync(new TimelineBarPlugin())
     const layers = viewer.addPluginSync(new LayersPanelPlugin('light'))
     const notes = viewer.addPluginSync(new NotesPlugin({pageKey: 'selection-ux-playground-notes', syncUrl: '/api/notes', contextProvider: modeContext(ux)}))
     setupSidePanel(viewer.container, layers, notes, 'sux-side-pos-editor')

@@ -20,6 +20,8 @@ import {SelectionUxPlugin} from './SelectionUxPlugin'
 import {AnnotationsPlugin} from './AnnotationsPlugin'
 import {SceneOverrides} from './SceneOverrides'
 import {PenToolPlugin} from './PenToolPlugin'
+import {TimelineBarPlugin} from './TimelineBarPlugin'
+import {CameraPathPlugin} from './CameraPathPlugin'
 
 export interface EditorToolbarOptions {
     /** Add a floor grid the toolbar can show and hide */
@@ -56,6 +58,10 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
     private _menu?: HTMLDivElement
     private _grid?: GridHelper
     private _viewMode = false
+    /** View (what a visitor sees) or Edit */
+    get viewMode() {
+        return this._viewMode
+    }
     private _view = 'shaded'
     private _expanded = false
     private _gizmo: 'off' | 'translate' | 'rotate' | 'scale' = 'off'
@@ -96,6 +102,7 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
         this.overrides.addEventListener('change', this._onOverrides)
         viewer.forPlugin(SelectionUxPlugin, ux => ux.addEventListener('uxUpdate', this._onUxUpdate), ux => ux.removeEventListener('uxUpdate', this._onUxUpdate))
         viewer.forPlugin(PenToolPlugin, p => p.addEventListener('change', this.render), p => p.removeEventListener('change', this.render))
+        viewer.forPlugin(TimelineBarPlugin, p => p.addEventListener('change', this.render), p => p.removeEventListener('change', this.render))
         viewer.forPlugin(AnnotationsPlugin, a => {
             a.addEventListener('annotationChange', this.render)
             a.editable = !this._viewMode
@@ -467,6 +474,14 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
             else t.start()
             this.render()
         }, 'toggle', playing)
+        const bar = viewer?.getPlugin(TimelineBarPlugin)
+        if (bar) {
+            btn(I.timeline, 'Timeline: the animations, camera paths and Record', '', () => {
+                bar.toggle()
+                this.render()
+            }, 'toggle', bar.visible)
+            btn(I.record, 'Record a video of the timeline', '', () => bar.openRecordDialog())
+        }
         const controls = viewer?.scene.mainCamera.controls as any
         btn(I.orbit, 'Auto-rotate the camera', '', () => {
             if (controls?.autoRotate === undefined) return
@@ -701,6 +716,8 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
             items.push('-', ['Move the selected camera to this view <kbd>Ctrl Alt 0</kbd>', () => ux.alignCameraToView()])
             if (ux.viewCamera) items.push([(ux.lockCameraToView ? 'Unlock' : 'Lock') + ' camera to view <kbd>L</kbd>', () => ux.setLockCameraToView(!ux.lockCameraToView), ux.lockCameraToView])
         }
+        const cp = viewer.getPlugin(CameraPathPlugin)
+        if (cp) items.push('-', ['Animate a camera along a path…', () => cp.openDialog()])
         return items
     }
 
@@ -772,6 +789,8 @@ const I = {
     undo: svg('<path d="M5 3.5L2.5 6 5 8.5"/><path d="M2.5 6h7a4 4 0 0 1 0 8h-3"/>'),
     redo: svg('<path d="M11 3.5L13.5 6 11 8.5"/><path d="M13.5 6h-7a4 4 0 0 0 0 8h3"/>'),
     save: svg('<path d="M3 2.5h8l2.5 2.5v8.5H3z"/><path d="M5.5 2.5v3.5h4.5V2.5M5.5 13.5V9.5h5v4"/>'),
+    timeline: svg('<path d="M2 4.5h12M2 8h12M2 11.5h12" stroke-opacity=".3"/><path d="M3 3h6v3H3zM6 9.8h7v3H6z" fill="currentColor" stroke="none"/>'),
+    record: svg('<circle cx="8" cy="8" r="4" fill="#ef4444" stroke="none"/><circle cx="8" cy="8" r="6.2"/>'),
     expand: svg('<path d="M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10"/>'),
     shrink: svg('<path d="M6 2.5V6H2.5M13.5 6H10V2.5M10 13.5V10h3.5M2.5 10H6v3.5"/>'),
 }
