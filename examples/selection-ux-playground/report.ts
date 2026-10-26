@@ -43,8 +43,7 @@ muxes with mp4-muxer / webm-muxer; MediaRecorder in real time where WebCodecs is
 <tr><td>Library fixes (threepipe <code>src/</code>)</td><td>PopmotionPlugin: a timeline track did not follow a seek when it was added (or rebuilt) while the time stood still, so “scrub to 0 from the end” left the camera at the end.
 follow_path: an object in a moved group was placed wrong (the world position was set as a local one)</td></tr>
 </table>
-<p class="lead" style="font-size:13px">Limits: MP4 needs WebCodecs (Chrome, Edge, Safari 17+, Firefox 130+); the muxer loads from jsdelivr on the first recording. Keep the tab in front while recording
-(background tabs stop rendering). glTF animations (the editor page's GLTFAnimationPlugin) are not shown as clips in the bar yet. “Ahead” keeps the horizon level (no banking).
+<p class="lead" style="font-size:13px">Limits: MP4 needs WebCodecs (Chrome, Edge, Safari 17+, Firefox 130+); the muxer loads from jsdelivr on the first recording. In a background tab the recorder runs the frames itself, and a wake lock keeps the screen on. glTF animations (the editor page's GLTFAnimationPlugin) are not shown as clips in the bar yet. “Ahead” keeps the horizon level (no banking).
 Keyframes are added with ◆ next to a field in the editor panels, not in the bar.</p>
 
 <h2>New in round 8</h2>

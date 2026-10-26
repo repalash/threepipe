@@ -117,7 +117,6 @@ export class TimelineBarPlugin extends AViewerPluginSync<TimelineBarEventMap> {
     private _build(viewer: ThreeViewer) {
         const root = document.createElement('div')
         root.className = 'mo-ui mo-card tlb-root'
-        root.dataset.ownKeys = ''
         root.setAttribute('role', 'region')
         root.setAttribute('aria-label', 'Timeline')
         const head = document.createElement('div')

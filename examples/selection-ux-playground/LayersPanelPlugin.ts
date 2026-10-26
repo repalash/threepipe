@@ -9,7 +9,7 @@ export type LayersTab = 'objects' | 'materials' | 'textures' | 'geometries'
 type AssetRow = {kind: 'asset', a: any, users: IObject3D[], open: boolean} | {kind: 'user', o: IObject3D, a: any}
 type MenuItem = [string, string, (() => void) | null]
 
-const TABS: [LayersTab, string][] = [['objects', 'Objects'], ['materials', 'Materials'], ['textures', 'Textures'], ['geometries', 'Geometries']]
+const TABS: [LayersTab, string][] = [['objects', 'Objects'], ['materials', 'Materials'], ['textures', 'Textures'], ['geometries', 'Geometry']]
 
 const ROW = 28
 
@@ -178,8 +178,12 @@ export class LayersPanelPlugin extends AViewerPluginSync {
         this._tabsEl.querySelectorAll<HTMLButtonElement>('button').forEach(b => {
             const t = b.dataset.tab as LayersTab
             b.classList.toggle('on', t === this._tab)
+            // the counts are in the tooltips, so the four tabs fit the panel
             b.querySelector('span')!.textContent = counts[t] ? ' ' + counts[t].toLocaleString() : ''
+            b.title = `${TABS.find(x => x[0] === t)![1]}: ${counts[t]}`
         })
+        // the header counts what the open tab lists
+        this._count.textContent = counts[this._tab] ? counts[this._tab].toLocaleString() : ''
     }
 
     private _isContent(o: IObject3D) {
@@ -219,7 +223,6 @@ export class LayersPanelPlugin extends AViewerPluginSync {
             if (open) for (const k of kids) add(k, depth + 1, hidden, locked)
         }
         for (const o of this._kids(root)) add(o, 0, false, false)
-        this._count.textContent = this._total > 50 ? this._total.toLocaleString() : ''
     }
 
     private _render() {
@@ -832,7 +835,7 @@ export class LayersPanelPlugin extends AViewerPluginSync {
         for (const [label, key, fn] of items) {
             const it = document.createElement('div')
             it.className = 'lp-menu-item' + (fn ? '' : ' lp-disabled')
-            it.innerHTML = `<span>${label}</span><kbd>${key}</kbd>`
+            it.innerHTML = `<span>${label}</span>${key ? `<kbd>${key}</kbd>` : ''}`
             if (fn) it.addEventListener('click', () => {
                 this._closeMenu()
                 fn()
@@ -896,10 +899,11 @@ body[class*="tpTheme-"] .lp-root {
 .lp-count { font-weight: 400; color: var(--lp-dim); margin-left: 4px; }
 .lp-search { display: flex; align-items: center; gap: 6px; margin: 0 8px 6px; padding: 0 8px; height: 26px; border-radius: 5px; background: var(--lp-input); color: var(--lp-dim); }
 .lp-search input { flex: 1; min-width: 0; border: 0; outline: none; background: transparent; color: var(--lp-fg); font: inherit; }
-.lp-tabs { display: flex; gap: 2px; margin: 0 8px 6px; overflow-x: auto; scrollbar-width: none; }
-.lp-tabs button { border: 0; background: transparent; color: var(--lp-dim); padding: 5px 6px; border-radius: 5px; font: inherit; cursor: pointer; white-space: nowrap; }
+.lp-tabs { display: flex; gap: 2px; margin: 0 8px 6px; padding: 2px; border-radius: 6px; background: var(--lp-input); }
+.lp-tabs button { flex: 1 1 auto; min-width: 0; border: 0; background: transparent; color: var(--lp-dim); padding: 4px 2px; border-radius: 4px; font: inherit; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lp-tabs button span { display: none; }
 .lp-tabs button:hover { color: var(--lp-fg); background: var(--lp-hover); }
-.lp-tabs button.on { color: var(--lp-fg); background: var(--lp-input); font-weight: 600; }
+.lp-tabs button.on { color: var(--lp-fg); background: var(--lp-bg); box-shadow: 0 0 0 1px var(--lp-line), 0 1px 2px rgba(0,0,0,.06); font-weight: 600; }
 .lp-tabs button span { font-weight: 400; color: var(--lp-dim); }
 .lp-swatch { width: 12px; height: 12px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(0,0,0,.2); display: inline-block; }
 .lp-thumb { width: 16px; height: 16px; border-radius: 3px; object-fit: cover; box-shadow: 0 0 0 1px rgba(0,0,0,.15); }
@@ -932,11 +936,20 @@ body[class*="tpTheme-"] .lp-root {
 .lp-head .lp-icon-btn.lp-on { color: #fff; background: var(--lp-accent); }
 .lp-editing-locked .lp-row .lp-lock { visibility: hidden !important; }
 .lp-empty { color: var(--lp-dim); padding: 12px; }
-.lp-menu { position: fixed; z-index: 1000; min-width: 200px; background: #1e1e1e; color: #fff; border-radius: 8px; padding: 6px 0; box-shadow: 0 6px 24px rgba(0,0,0,.25); font: 11px/1 Inter, ui-sans-serif, system-ui, sans-serif; }
-.lp-menu-item { display: flex; justify-content: space-between; gap: 16px; padding: 7px 14px; cursor: default; }
-.lp-menu-item:hover { background: #0d99ff; }
+/* like the toolbar menus: light, or the tweakpane theme's colours */
+.lp-menu {
+  position: fixed; z-index: 1000; min-width: 200px; background: #fff; color: #1e1e1e; border-radius: 6px; padding: 4px;
+  box-shadow: 0 0 0 1px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.06), 0 6px 20px rgba(0,0,0,.10);
+  font: 500 11px/1 var(--tp-font-family, Inter, ui-sans-serif, system-ui, sans-serif); animation: lp-in .12s ease-out;
+}
+@keyframes lp-in { from { opacity: 0; transform: translateY(-3px); } }
+.lp-menu-item { display: flex; justify-content: space-between; align-items: center; gap: 18px; padding: 0 10px; height: 28px; border-radius: 4px; cursor: pointer; white-space: nowrap; }
+.lp-menu-item:hover { background: #f2f3f5; }
 .lp-menu-item.lp-disabled { opacity: 0.4; pointer-events: none; }
-.lp-menu-item kbd { font: inherit; color: #aaa; }
+.lp-menu-item kbd { font: inherit; font-size: 10px; color: #8a8f97; background: #f0f1f3; border-radius: 4px; padding: 2px 5px; }
+body[class*="tpTheme-"] .lp-menu { background: var(--tp-base-background-color, #1c2026); color: var(--tp-container-foreground-color, #f0f0f0); }
+body[class*="tpTheme-"] .lp-menu-item:hover { background: var(--tp-button-background-color-hover, rgba(255,255,255,.09)); }
+body[class*="tpTheme-"] .lp-menu-item kbd { color: var(--tp-monitor-foreground-color, #9a9a9a); background: var(--tp-input-background-color, rgba(255,255,255,.07)); }
 `
     document.head.appendChild(st)
 }

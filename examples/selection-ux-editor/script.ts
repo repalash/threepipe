@@ -1,4 +1,4 @@
-import {_testFinish, _testStart, GBufferPlugin, HemisphereLight, IViewerPlugin, Class, PickingPlugin, TransformControlsPlugin} from 'threepipe'
+import {_testFinish, _testStart, EditorViewWidgetPlugin, GBufferPlugin, HemisphereLight, IViewerPlugin, Class, PickingPlugin, TransformControlsPlugin} from 'threepipe'
 import {HierarchyUiPlugin, TweakpaneEditorPlugin} from '@threepipe/plugin-tweakpane-editor'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 import {OutlinePlugin} from '@threepipe/webgi-plugins'
@@ -71,6 +71,9 @@ async function init() {
     setupModeMenu(viewer.container, viewer, ux, {buttonHost: toolbar.slot, links: [['Open the playground ↗', '../selection-ux-playground/index.html']]})
     setupHints(viewer.container, ux)
     // the editor's modes (Viewer, Interaction, ...) as coloured icons on the right instead of tabs on top
+    // the view gizmo sits top-right below the toolbar, out of the way of the layers and the panels at the bottom
+    const gizmo = viewer.getPlugin(EditorViewWidgetPlugin)?.widget?.domContainer
+    if (gizmo) Object.assign(gizmo.style, {top: '56px', left: '', right: '4px', bottom: '', transform: 'scale(.72)', transformOrigin: '100% 0'})
     const editor = viewer.getPlugin(TweakpaneEditorPlugin)
     if (editor) setupModeBar(editor, document.body, () => document.getElementById('tweakpaneUiContainer'))
     // once: the Figma-like tweakpane theme, light or dark like the theme in use (Color Mode in the Tweakpane UI folder changes it)

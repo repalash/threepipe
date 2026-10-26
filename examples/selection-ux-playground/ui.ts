@@ -290,72 +290,93 @@ export function addStressObjects(viewer: ThreeViewer, ux: SelectionUxPlugin) {
 
 // region hints, toast, shortcuts
 
-const shortcuts: [string, string][] = [
-    ['Select', 'Click'],
-    ['Add / remove from selection', 'Shift + Click'],
-    ['Select inside a group', 'Double-click'],
-    ['Select the deepest part', '⌘/Ctrl + Click'],
-    ['Box select', 'Shift + Drag empty (or Drag, in Box select mode)'],
-    ['Select parent', 'Esc  or  Shift + Enter'],
-    ['Select children', 'Enter'],
-    ['Edit the geometry (points, parameters)', 'Enter on a part  or  Double-click it again'],
-    ['Finish editing the geometry', 'Esc'],
-    ['Aim a light or camera', 'Drag the dot at the end of its line'],
-    ['Look through the camera / back', '0 · or double-click a camera icon'],
-    ['Selection mode 1–7 (7: Classic)', '1 … 7'],
-    ['Lock the camera to the view (orbit moves it)', 'L'],
-    ['Move the selected camera to this view', 'Ctrl Alt 0'],
-    ['Tools: select · move · rotate · scale', 'V · W · E · R'],
-    ['While moving: lock to an axis, type an exact distance, confirm', 'X Y Z  ·  5  ·  Enter'],
-    ['Duplicate (again: same offset as the last move)', 'Ctrl D'],
-    ['Add an annotation (then click a surface)', 'N'],
-    ['Pen: click points, drag for curves, Enter to finish', 'P'],
-    ['Expand the canvas', 'Shift Space'],
-    ['Next / previous sibling', 'Tab / Shift + Tab'],
-    ['Select all at this level', '⌘/Ctrl + A'],
-    ['Move', 'Drag the object'],
-    ['Change the move plane (floor, walls, facing you)', 'Tab while moving'],
-    ['Move on one axis', 'Shift while dragging'],
-    ['Duplicate while moving', 'Alt + Drag'],
-    ['Turn off snapping', 'Hold ⌘/Ctrl while dragging'],
-    ['Scale (always uniform)', 'Drag a corner'],
-    ['Scale from center', 'Alt + Drag a corner'],
-    ['Stretch one side', 'Drag a side / face handle'],
-    ['Uniform from a side', 'Shift + Drag a side handle'],
-    ['Rotate in 15° steps', 'Shift while rotating'],
-    ['Cancel a drag', 'Esc'],
-    ['Nudge', 'Arrow keys (Shift = ×10)'],
-    ['Nudge up / down', 'Alt + ↑ / ↓'],
-    ['Group / Ungroup', '⌘/Ctrl + G / ⌘/Ctrl + Shift + G'],
-    ['Duplicate', '⌘/Ctrl + D'],
-    ['Copy / Paste', '⌘/Ctrl + C / V'],
-    ['Delete', 'Delete'],
-    ['Hide / show all', 'H / Shift + H'],
-    ['Zoom to selection', 'F  or  Shift + 2'],
-    ['Zoom to fit all', 'Shift + 1'],
-    ['Orbit (any mode)', 'Space + Drag, or Right-drag in Box select mode'],
-    ['Undo / Redo', '⌘/Ctrl + Z / ⌘/Ctrl + Shift + Z'],
-    ['This sheet', '?'],
+// sections of [what, keys]; in keys, "  " separates alternatives
+const shortcuts: [string, [string, string][]][] = [
+    ['Select', [
+        ['Select', 'Click'],
+        ['Add or remove', 'Shift Click'],
+        ['Inside a group', 'Double-click'],
+        ['The deepest part', 'Ctrl Click'],
+        ['Box select', 'Shift Drag'],
+        ['All at this level', 'Ctrl A'],
+        ['Parent', 'Esc  Shift Enter'],
+        ['Children', 'Enter'],
+        ['Next / previous sibling', 'Tab  Shift Tab'],
+    ]],
+    ['Move and shape', [
+        ['Tools: select, move, rotate, scale', 'V W E R'],
+        ['Move', 'Drag'],
+        ['On one axis', 'Shift Drag'],
+        ['Exact: axis, distance, confirm', 'X Y Z  5  Enter'],
+        ['Move plane: floor, wall, facing', 'Tab while moving'],
+        ['No snapping', 'Ctrl while dragging'],
+        ['Copy while moving', 'Alt Drag'],
+        ['Nudge (Shift: ×10)', 'Arrows'],
+        ['Nudge up / down', 'Alt ↑  Alt ↓'],
+        ['Scale (uniform)', 'Drag a corner'],
+        ['From the centre', 'Alt Drag a corner'],
+        ['Stretch one side', 'Drag a side'],
+        ['Rotate in 15° steps', 'Shift while rotating'],
+        ['Cancel a drag', 'Esc'],
+    ]],
+    ['Edit', [
+        ['Geometry: points, parameters', 'Enter on a part'],
+        ['Done with the geometry', 'Esc'],
+        ['Duplicate (again: same offset)', 'Ctrl D'],
+        ['Copy / paste', 'Ctrl C  Ctrl V'],
+        ['Group / ungroup', 'Ctrl G  Ctrl Shift G'],
+        ['Delete', 'Delete'],
+        ['Hide / show all', 'H  Shift H'],
+        ['Undo / redo', 'Ctrl Z  Ctrl Shift Z'],
+        ['Pen: points, drag for curves', 'P'],
+        ['Annotation', 'N'],
+    ]],
+    ['View and camera', [
+        ['Orbit', 'Space Drag'],
+        ['Zoom to the selection', 'F'],
+        ['Zoom to fit all', 'Shift 1'],
+        ['Look through a camera / back', '0'],
+        ['Lock the camera to the view', 'L'],
+        ['Move the camera to this view', 'Ctrl Alt 0'],
+        ['Aim a light or camera', 'Drag its end dot'],
+        ['Selection style 1–7', '1 … 7'],
+        ['Expand the canvas', 'Shift Space'],
+        ['This sheet', '?'],
+    ]],
 ]
+
+const keysHtml = (k: string) => k.split('  ').map(x => `<kbd>${x}</kbd>`).join('<i>or</i>')
 
 export function toggleHelp(show?: boolean) {
     const h = document.getElementById('sux-help')
     if (!h) return
     const on = show ?? !h.classList.contains('show')
     h.classList.toggle('show', on)
+    if (on) h.focus()
+    else if (document.activeElement === h) h.blur()
 }
 
 export function setupHints(host: HTMLElement, ux: SelectionUxPlugin) {
     injectUiStyles()
     const help = document.createElement('div')
     help.id = 'sux-help'
-    help.innerHTML = '<div class="card"><h4>Shortcuts</h4>' + shortcuts.map(([a, b]) => `<div><span>${a}</span><span>${b.split('  ').map(x => `<kbd>${x}</kbd>`).join(' ')}</span></div>`).join('') + '</div>'
+    help.setAttribute('role', 'dialog')
+    help.setAttribute('aria-label', 'Keyboard shortcuts')
+    help.innerHTML = '<div class="card"><h4>Keyboard shortcuts <small>⌘ on a Mac for Ctrl · Esc or a click closes this</small></h4><div class="cols">' +
+        shortcuts.map(([title, rows]) => `<section><h5>${title}</h5>${rows.map(([a, b]) => `<p><span>${a}</span><span>${keysHtml(b)}</span></p>`).join('')}</section>`).join('') + '</div></div>'
     document.body.appendChild(help)
     help.addEventListener('click', () => toggleHelp(false))
+    // the open sheet has the focus and owns the keys (data-own-keys), so Esc closes it and does not deselect
+    help.tabIndex = -1
+    help.dataset.ownKeys = ''
+    help.addEventListener('keydown', e => {
+        if (e.key === 'Escape' || e.key === '?') toggleHelp(false)
+        e.stopPropagation() // PickingPlugin listens on window too (Esc deselects, Delete deletes)
+    })
     window.addEventListener('keydown', e => {
         const tag = (e.target as HTMLElement)?.tagName
         if (tag === 'INPUT' || tag === 'TEXTAREA') return
-        if (e.key === '?') toggleHelp()
+        if (e.key === '?' && !(e.target as HTMLElement)?.closest?.('#sux-help')) toggleHelp(true)
     })
 
     // the text comes from the plugin (settings.showHints, hintProvider); the × turns it off, the mode menu turns it back on
@@ -434,7 +455,7 @@ export function injectUiStyles() {
 .sux-side {
   position: absolute; left: 10px; top: 10px; bottom: 52px; width: 240px; z-index: 11; display: flex; flex-direction: column; gap: 8px; pointer-events: none;
 }
-.sux-side > * { pointer-events: auto; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,.14); }
+.sux-side > * { pointer-events: auto; border-radius: 8px; overflow: hidden; box-shadow: 0 0 0 1px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.06), 0 6px 20px rgba(0,0,0,.10); }
 .sux-side .lp-root { flex: 1; min-height: 120px; height: auto; }
 .sux-side .np-root { height: 230px; flex: none; }
 .sux-side .np-root.np-collapsed { height: auto; }
@@ -464,18 +485,26 @@ export function injectUiStyles() {
 .sux-hint > span { overflow: hidden; text-overflow: ellipsis; }
 .sux-hint-x { pointer-events: auto; border: 0; background: transparent; color: #aaa; font-size: 14px; line-height: 1; cursor: pointer; padding: 2px 6px; border-radius: 4px; }
 .sux-hint-x:hover { background: #444; color: #fff; }
-.sux-hint kbd, #sux-help kbd { font: inherit; background: rgba(255,255,255,.16); border-radius: 3px; padding: 0 4px; }
+.sux-hint kbd { font: inherit; background: rgba(255,255,255,.16); border-radius: 3px; padding: 0 4px; }
 .sux-toast {
   position: absolute; left: 50%; top: 56px; transform: translateX(-50%) translateY(-8px); background: #1e1e1e; color: #fff; padding: 7px 12px;
   border-radius: 8px; opacity: 0; transition: opacity .15s, transform .15s; pointer-events: none; z-index: 13;
 }
 .sux-toast.show { opacity: 1; transform: translateX(-50%); }
-#sux-help { position: fixed; inset: 0; background: rgba(0,0,0,.35); display: none; align-items: center; justify-content: center; z-index: 2000; }
+#sux-help { position: fixed; inset: 0; background: rgba(0,0,0,.28); display: none; align-items: center; justify-content: center; z-index: 2000; padding: 16px; box-sizing: border-box; }
 #sux-help.show { display: flex; }
-#sux-help .card { background: #1e1e1e; color: #fff; border-radius: 12px; padding: 18px 22px; max-width: 760px; columns: 2; column-gap: 32px; line-height: 1.9; }
-#sux-help .card h4 { margin: 0 0 4px; font-size: 12px; }
-#sux-help .card div { display: flex; justify-content: space-between; gap: 16px; break-inside: avoid; }
-#sux-help .card div span:first-child { color: #bbb; }
+#sux-help:focus { outline: none; }
+#sux-help .card { background: #fff; color: #1e1e1e; border-radius: 10px; padding: 16px 20px 18px; width: min(1040px, 100%); max-height: 100%; overflow: auto; box-sizing: border-box;
+  box-shadow: 0 0 0 1px rgba(0,0,0,.06), 0 12px 40px rgba(0,0,0,.2); cursor: default; }
+#sux-help h4 { margin: 0 0 12px; font-size: 13px; font-weight: 600; display: flex; align-items: baseline; gap: 10px; }
+#sux-help h4 small { font-size: 11px; font-weight: 400; color: #8a8f97; }
+#sux-help .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 4px 24px; }
+#sux-help h5 { margin: 0 0 4px; font-size: 11px; font-weight: 600; color: #0d99ff; text-transform: uppercase; letter-spacing: .04em; }
+#sux-help p { margin: 0; display: flex; justify-content: space-between; align-items: center; gap: 10px; min-height: 22px; border-bottom: 1px solid #f2f2f3; }
+#sux-help p span:first-child { color: #4a4f57; }
+#sux-help p span:last-child { flex: none; text-align: right; white-space: nowrap; }
+#sux-help kbd { font-family: inherit; font-size: 10.5px; font-weight: 500; line-height: 1; color: #1e1e1e; background: #f3f4f6; border: 1px solid #e3e4e8; border-bottom-width: 2px; border-radius: 4px; padding: 2px 5px; white-space: nowrap; }
+#sux-help i { font-style: normal; color: #9a9ea6; margin: 0 4px; font-size: 10px; }
 .sux-params {
   --pp-bg: #fff; --pp-fg: #1e1e1e; --pp-dim: #757575; --pp-input: #f3f4f6; --pp-line: #ececec;
   position: absolute; left: 0; top: 0; width: 240px; max-height: 70%; overflow: auto; background: var(--pp-bg); color: var(--pp-fg); border-radius: 6px;

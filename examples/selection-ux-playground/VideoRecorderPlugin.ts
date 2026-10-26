@@ -101,7 +101,9 @@ export class VideoRecorderPlugin extends AViewerPluginSync<VideoRecorderEventMap
         const rm = viewer.renderManager
         const oldScale = rm.renderScale
         const oldCamera = viewer.scene.mainCamera
+        let wakeLock: {release(): Promise<void>} | undefined
         const cleanup = () => {
+            wakeLock?.release().catch(() => undefined)
             if (rm.renderScale !== oldScale) rm.renderScale = oldScale
             if (viewer.scene.mainCamera !== oldCamera) oldCamera.activateMain()
             tl.setTime(oldTime)
@@ -112,6 +114,8 @@ export class VideoRecorderPlugin extends AViewerPluginSync<VideoRecorderEventMap
         let sink: FrameSink | undefined
         try {
             this.dispatchEvent({type: 'recordStart', options})
+            // keep the screen on: a sleeping screen hides the page
+            wakeLock = await (navigator as any).wakeLock?.request('screen').catch(() => undefined)
             if (wasRunning) tl.stop()
             if (options.camera && options.camera !== oldCamera) options.camera.activateMain()
             // render at least as many pixels as the output, in the view's aspect; the copy crops the centre
@@ -138,14 +142,28 @@ export class VideoRecorderPlugin extends AViewerPluginSync<VideoRecorderEventMap
             sink = sink ?? this._mediaRecorderSink(copy, format, fps, bitrate)
 
             const progressive = viewer.getPlugin(ProgressivePlugin)
-            const nextFrame = async() => viewer.doOnce('postFrame')
+            // a hidden tab gets no animation frames (and slow timers): then the recorder runs the viewer's frames itself
+            const runFrame = () => rm.animationLoop(performance.now())
+            const nextFrame = async() => {
+                if (document.hidden) return runFrame()
+                return new Promise<void>(resolve => {
+                    const onHide = () => document.hidden && runFrame()
+                    document.addEventListener('visibilitychange', onHide)
+                    viewer.doOnce('postFrame', () => {
+                        document.removeEventListener('visibilitychange', onHide)
+                        resolve()
+                    })
+                })
+            }
             for (let i = 0; i < frames; i++) {
                 if (options.signal?.aborted) throw new DOMException('Recording cancelled', 'AbortError')
                 tl.setTime(start + i / fps)
                 // the timeline moves the animations in the next frame, constraints follow their targets after it
                 await nextFrame()
                 await nextFrame()
-                if (options.quality === 'final' && progressive) await progressive.convergedPromise
+                if (options.quality === 'final' && progressive) {
+                    for (let n = 0; n < 512 && !progressive.isConverged(true); n++) await nextFrame()
+                }
                 grab()
                 await sink.add(copy, i)
                 options.onProgress?.(i + 1, frames, copy)
@@ -200,7 +218,10 @@ export class VideoRecorderPlugin extends AViewerPluginSync<VideoRecorderEventMap
                 const f = new videoFrameClass(frame, {timestamp: Math.round(i * us), duration: Math.round(us)})
                 encoder.encode(f, {keyFrame: i % (fps * 2) === 0})
                 f.close()
-                while (encoder.encodeQueueSize > 6) await new Promise(r => setTimeout(r, 4))
+                // wait for the encoder; 'dequeue' also fires in a hidden tab, where timers are slowed down
+                while (encoder.encodeQueueSize > 6) {
+                    await new Promise<void>(r => 'ondequeue' in encoder ? encoder.addEventListener('dequeue', () => r(), {once: true}) : setTimeout(r, 4))
+                }
             },
             finish: async() => {
                 await encoder.flush()
