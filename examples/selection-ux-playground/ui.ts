@@ -21,6 +21,7 @@ const options: Opt<any>[] = [
     {key: 'rotate', label: 'Rotate with', options: [['corners', 'Corners'], ['knob', 'Knob'], ['ring', 'Ring'], ['off', 'Off']]},
     {key: 'rotateAxis', label: 'Rotate axis', options: [['up', 'Turntable'], ['view', 'Screen'], ['free', 'Free']]},
     {key: 'marquee', label: 'Box select', options: [['touch', 'Touch'], ['contain', 'Inside']]},
+    {key: 'objectHelpers', label: 'Lights, cams', options: [['overlay', 'New overlay'], ['widgets', '3D widgets'], ['both', 'Both']]},
     {key: 'unit', label: 'Units', options: [['mm', 'mm'], ['cm', 'cm'], ['m', 'm']]},
     {key: 'accent', label: 'Color', options: [['#0d99ff', 'Blue'], ['#7b61ff', 'Violet'], ['#14ae5c', 'Green'], ['#ff7a1a', 'Orange']]},
 ]
@@ -288,6 +289,9 @@ const shortcuts: [string, string][] = [
     ['Box select', 'Shift + Drag empty (or Drag, in Box select mode)'],
     ['Select parent', 'Esc  or  Shift + Enter'],
     ['Select children', 'Enter'],
+    ['Edit the geometry (points, parameters)', 'Enter on a part  or  Double-click it again'],
+    ['Finish editing the geometry', 'Esc'],
+    ['Aim a light or camera', 'Drag the dot at the end of its line'],
     ['Next / previous sibling', 'Tab / Shift + Tab'],
     ['Select all at this level', '⌘/Ctrl + A'],
     ['Move', 'Drag the object'],
@@ -541,6 +545,18 @@ export function injectUiStyles() {
 }
 .sux-notes textarea:focus { border-color: #0d99ff; }
 .sux-notes .sux-btns { padding: 6px 12px 10px; }
+.sux-params {
+  position: absolute; left: 0; top: 0; width: 220px; background: #fff; color: #1e1e1e; border-radius: 10px; box-shadow: 0 6px 24px rgba(0,0,0,.2);
+  padding: 4px 0 8px; font: 11px/1.3 Inter, ui-sans-serif, system-ui, sans-serif; z-index: 3;
+}
+.sux-params-head { display: flex; align-items: center; gap: 6px; padding: 8px 10px 6px 12px; }
+.sux-params-head span { flex: 1; color: #757575; }
+.sux-params-head button { border: 0; background: var(--sux-accent); color: #fff; border-radius: 5px; padding: 4px 9px; font: inherit; cursor: pointer; }
+.sux-params-row { display: flex; align-items: center; gap: 8px; padding: 2px 12px; }
+.sux-params-row span { flex: 1; color: #555; user-select: none; }
+.sux-params-row input[type=number] { width: 72px; border: 1px solid transparent; background: #f5f5f5; border-radius: 4px; padding: 3px 5px; font: inherit; outline: none; }
+.sux-params-row input[type=number]:focus { border-color: var(--sux-accent); background: #fff; }
+.sux-params-note { color: #757575; padding: 4px 12px; }
 .sux-name, .sux-dims { position: absolute; left: 0; top: 0; white-space: nowrap; line-height: 16px; }
 .sux-name { color: var(--sux-accent); pointer-events: auto; font-weight: 500; }
 .sux-crumb { opacity: 0.65; cursor: pointer; }

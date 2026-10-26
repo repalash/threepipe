@@ -149,6 +149,7 @@ export class LayersPanelPlugin extends AViewerPluginSync {
 
     private _isContent(o: IObject3D) {
         return !o.userData.isWidgetRoot && o.assetType !== 'widget' && o.userData.userSelectable !== false && !o.userData.isMultiSelectDummy
+            && (o.parent as any)?.target !== o // the target child of a directional or spot light
     }
 
     private _kids(o: IObject3D) {
@@ -413,7 +414,7 @@ export class LayersPanelPlugin extends AViewerPluginSync {
 
     /** Drag the panel header to move `target` (a positioned container) inside its parent. The position is remembered. */
     makeMovable(target: HTMLElement, storageKey = 'layers-panel-pos') {
-        const head = this.element.querySelector('.lp-head')!
+        const head = this.element.querySelector<HTMLElement>('.lp-head')!
         head.classList.add('lp-movable')
         head.title = 'Drag to move'
         const clamp = (x: number, y: number) => {

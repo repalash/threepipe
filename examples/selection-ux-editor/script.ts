@@ -6,7 +6,7 @@ import {SelectionUxPlugin} from '../selection-ux-playground/SelectionUxPlugin'
 import {SelectionOutlinePlugin} from '../selection-ux-playground/SelectionOutlinePlugin'
 import {LayersPanelPlugin} from '../selection-ux-playground/LayersPanelPlugin'
 import {applyModeFromUrl, setupHints, setupModeMenu, setupSidePanel} from '../selection-ux-playground/ui'
-import {buildScene} from '../selection-ux-playground/scene'
+import {buildExtras, buildScene} from '../selection-ux-playground/scene'
 
 // The tweakpane editor with the new selection UX: SelectionUxPlugin + the pipeline outline instead of OutlinePlugin,
 // and LayersPanelPlugin instead of the treejs HierarchyUiPlugin.
@@ -27,7 +27,7 @@ async function init() {
     viewer.editorPlugins = viewer.editorPlugins.filter(p => !isReplaced(p))
     // after PickingPlugin and the GBuffer, which they depend on
     const at = viewer.editorPlugins.findIndex(p => p === PickingPlugin) + 1
-    viewer.editorPlugins.splice(at, 0, new SelectionUxPlugin({persistKey: 'selection-ux-settings'}), SelectionOutlinePlugin)
+    viewer.editorPlugins.splice(at, 0, new SelectionUxPlugin({persistKey: 'selection-ux-settings', selectGeometryInEdit: true}), SelectionOutlinePlugin)
     viewer.editorModes.Interaction = [PickingPlugin, ...viewer.editorModes.Interaction.filter(p => !isReplaced(p) && p !== PickingPlugin)]
     await viewer.init()
     if (!viewer.getPlugin(GBufferPlugin)) console.warn('GBufferPlugin missing, the outline needs it')
@@ -47,6 +47,7 @@ async function init() {
     Object.assign(window, {viewer, ux})
 
     buildScene(viewer)
+    buildExtras(viewer)
     viewer.scene.mainCamera.position.set(7, 7, 11)
     viewer.scene.mainCamera.target.set(0, 0.8, 0)
     viewer.scene.mainCamera.setDirty()

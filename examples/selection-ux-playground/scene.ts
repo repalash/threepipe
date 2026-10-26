@@ -1,4 +1,4 @@
-import {BoxGeometry, CylinderGeometry, Group2, Mesh, PhysicalMaterial, SphereGeometry, ThreeViewer, TorusGeometry} from 'threepipe'
+import {BoxGeometry, CatmullRomCurve3, CubicBezierCurve3, CylinderGeometry, GeometryGeneratorPlugin, Group2, Mesh, Object3DGeneratorPlugin, PhysicalMaterial, SphereGeometry, ThreeViewer, TorusGeometry, Vector3} from 'threepipe'
 
 /** A small jewellery scene with nested groups, to try the selection rules on */
 export function buildScene(viewer: ThreeViewer) {
@@ -81,4 +81,63 @@ export function buildScene(viewer: ThreeViewer) {
     const stand = mesh('Display Stand', new CylinderGeometry(1.1, 1.3, 0.5, 48), plaster, [-4.5, 0.25, -4.5])
 
     for (const o of [ring, earrings, pendant, gift, watch, stand]) viewer.scene.addObject(o)
+}
+
+/**
+ * Lights, a camera, shapes from the geometry generator and two curves, to try the selection UX on objects that are
+ * not plain meshes. Uses Object3DGeneratorPlugin and GeometryGeneratorPlugin when the viewer has them.
+ */
+export function buildExtras(viewer: ThreeViewer) {
+    const objGen = viewer.getPlugin(Object3DGeneratorPlugin)
+    const geoGen = viewer.getPlugin(GeometryGeneratorPlugin)
+    const group = (name: string, x: number, z: number) => {
+        const g = new Group2()
+        g.name = name
+        g.position.set(x, 0, z)
+        return g
+    }
+    if (objGen) {
+        const make = (type: string, params: any, name: string) => {
+            const o = objGen.generate(type, params, false, false, false)!
+            o.name = name
+            return o
+        }
+        const lights = group('Lights', 0, 0)
+        lights.add(
+            make('light-directional', {color: 0xfff1dd, intensity: 1.2, position: new Vector3(-5, 7, 4), target: new Vector3(0, 0, 0)}, 'Sun'),
+            make('light-spot', {color: 0xffffff, intensity: 30, position: new Vector3(3.5, 5.5, 3), target: new Vector3(0, 1, 0)}, 'Key Spot'),
+            make('light-point', {color: 0xffc58a, intensity: 4, position: new Vector3(-3, 2.5, -2)}, 'Warm Fill'),
+        )
+        const cams = group('Cameras', 0, 0)
+        cams.add(make('camera-perspective', {position: new Vector3(5.5, 2.5, 7), target: new Vector3(0, 1, 0)}, 'Product Camera'))
+        viewer.scene.addObject(lights)
+        viewer.scene.addObject(cams)
+    }
+    if (geoGen) {
+        const shapes = group('Generated Shapes', 8, 0)
+        const mat = (c: string) => new PhysicalMaterial({color: c, metalness: 0.6, roughness: 0.3})
+        const torus = geoGen.generateObject('torus', {radius: 0.7, tube: 0.2, radialSegments: 24, tubularSegments: 64, material: mat('#e8c372')})
+        torus.name = 'Torus'
+        torus.position.set(0, 0.9, -2.5)
+        const box = geoGen.generateObject('box', {width: 1.2, height: 0.8, depth: 1.2, material: mat('#7aa7e8')})
+        box.name = 'Box'
+        box.position.set(0, 0.4, 0)
+        const cyl = geoGen.generateObject('cylinder', {radiusTop: 0.4, radiusBottom: 0.6, height: 1.4, material: mat('#c58ae8')})
+        cyl.name = 'Cylinder'
+        cyl.position.set(0, 0.7, 2.5)
+        shapes.add(torus, box, cyl)
+
+        const curves = group('Curves', -8, 0)
+        const spline = geoGen.generateObject('line', {curve: new CatmullRomCurve3([
+            new Vector3(-1, 0.2, -2), new Vector3(0.5, 1.2, -1), new Vector3(-0.5, 0.6, 0.5), new Vector3(1, 1.5, 2),
+        ]), segments: 120})
+        spline.name = 'Spline'
+        const bezier = geoGen.generateObject('line', {curve: new CubicBezierCurve3(
+            new Vector3(-1.5, 0.3, 3), new Vector3(-1, 2.5, 3), new Vector3(1, -1, 3), new Vector3(1.5, 1.2, 3),
+        ), segments: 80})
+        bezier.name = 'Bezier'
+        curves.add(spline, bezier)
+        viewer.scene.addObject(shapes)
+        viewer.scene.addObject(curves)
+    }
 }

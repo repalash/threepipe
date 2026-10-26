@@ -128,7 +128,7 @@ export class SelectionOutlinePlugin extends AScreenPassExtensionPlugin {
         const ux = this._ux()
         if (!ux || !this._active(ux)) return items
         const s = ux.settings
-        const sel = s.outlineSelected ? ux.selected : []
+        const sel = s.outlineSelected ? ux.selected.length ? ux.selected : ux.geometryEdit ? [ux.geometryEdit] : [] : []
         sel.forEach((o, i) => {
             // parts: the children one level down, the ones a double-click would select
             const L = ux.levels(o)
@@ -164,10 +164,10 @@ export class SelectionOutlinePlugin extends AScreenPassExtensionPlugin {
         if (!ux || !this._target || !this._viewer) return
         const s = ux.settings
         const u = this.extraUniforms
-        const active = this._active(ux) && (ux.selected.length > 0 || !!(ux.externalHover || ux.hovered))
+        const active = this._active(ux) && (ux.selected.length > 0 || !!ux.geometryEdit || !!(ux.externalHover || ux.hovered))
         if (this._pass) this._pass.enabled = active
         u.suxActive.value = active ? 1 : 0
-        u.suxHasSel.value = s.outlineSelected && ux.selected.length ? 1 : 0
+        u.suxHasSel.value = s.outlineSelected && (ux.selected.length || ux.geometryEdit) ? 1 : 0
         u.tSuxMask.value = this._target.texture
         u.suxMaskSize.value.set(this._target.width, this._target.height)
         u.suxSelColor.value.set(s.accent)

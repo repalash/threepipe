@@ -7,7 +7,10 @@ import {
     Group2,
     IObject3D,
     Matrix4,
+    GeometryGeneratorPlugin,
     MOUSE,
+    Object3D,
+    Object3DWidgetsPlugin,
     PickingPlugin,
     Plane,
     Quaternion,
@@ -76,6 +79,8 @@ export interface SelectionUxSettings {
     dimOthers: boolean
     /** Show the hint line at the bottom of the viewport (see {@link SelectionUxPlugin.getHint}) */
     showHints: boolean
+    /** Lights and cameras: the new overlay (icons, aim lines, frustum), the 3D widgets of Object3DWidgetsPlugin, or both */
+    objectHelpers: 'overlay' | 'widgets' | 'both'
 }
 
 export const defaultSelectionUxSettings: SelectionUxSettings = {
@@ -104,6 +109,7 @@ export const defaultSelectionUxSettings: SelectionUxSettings = {
     fillTint: false,
     dimOthers: false,
     showHints: true,
+    objectHelpers: 'overlay',
 }
 
 /** A named set of settings. Built-in ones are below; more can be added with {@link SelectionUxPlugin.registerMode}. */
@@ -134,6 +140,11 @@ export interface SelectionUxPluginOptions {
     modes?: SelectionUxMode[]
     /** Mode to start in when nothing is restored */
     mode?: string
+    /**
+     * In geometry editing, select the geometry in PickingPlugin (so an editor shows the geometry and generator UI),
+     * instead of keeping the object selected.
+     */
+    selectGeometryInEdit?: boolean
 }
 
 export interface SelectionUxPluginEventMap extends AViewerPluginEventMap {
@@ -163,15 +174,34 @@ type HandleData =
     {kind: 'scale', pivot: Vector3} |
     {kind: 'stretch', axis: number, side: number} |
     {kind: 'rotate', axis: 'up' | 'view' | 'free', ring?: boolean} |
-    {kind: 'crumb', obj: IObject3D}
+    {kind: 'crumb', obj: IObject3D} |
+    {kind: 'icon', obj: IObject3D} |
+    {kind: 'aim', obj: IObject3D} |
+    {kind: 'cp', obj: IObject3D, index: number} |
+    {kind: 'param', key: string}
 
 type DragState =
-    {kind: 'press', start: Vector2, leaf: IObject3D | null, hitPoint: Vector3 | null, passthrough: boolean, shift: boolean, deep: boolean, alt: boolean} |
+    {kind: 'press', start: Vector2, leaf: IObject3D | null, hitPoint: Vector3 | null, passthrough: boolean, shift: boolean, deep: boolean, alt: boolean, target?: IObject3D} |
+    {kind: 'aim', start: Vector2, obj: IObject3D, plane: Plane, snaps: TransformSnapshot[], camTarget?: Vector3} |
+    {kind: 'cp', start: Vector2, obj: IObject3D, point: CurvePoint, before: number[], plane: Plane} |
     {kind: 'move', start: Vector2, hitPoint: Vector3, plane: Plane, planeKind: MovePlaneKind, baseDelta: Vector3, lastDelta: Vector3, snaps: TransformSnapshot[], startBox: Box3, others: Box3[], lockAxis: 0 | 1 | 2 | -1, viewRight: Vector3, viewUp: Vector3} |
     {kind: 'scale', start: Vector2, pivot: Vector3, pivotS: Vector2, dir: Vector2, d0: number, snaps: TransformSnapshot[]} |
     {kind: 'stretch', start: Vector2, obj: IObject3D, axis: number, pivotLocal: Vector3, pivotS: Vector2, dir: Vector2, d0: number, snaps: TransformSnapshot[], boxToObj: Matrix4} |
     {kind: 'rotate', start: Vector2, center: Vector3, axis: Vector3, centerS: Vector2, a0: number, mode: 'plane' | 'screen' | 'dx' | 'free', sign: number, snaps: TransformSnapshot[]} |
     {kind: 'marquee', start: Vector2, cur: Vector2, base: IObject3D[], candidates: IObject3D[]}
+
+/** An editable control point of a curve in `geometry.userData.generationParams.curve` (object local space) */
+interface CurvePoint {vec: {x: number, y: number, z?: number, toArray: () => number[], fromArray: (a: number[]) => void}, key: string}
+
+/** The control points of a three.js curve: v0..v3 (lines, beziers), points[] (splines), curves[] (paths) */
+function curvePoints(curve: any, prefix = ''): CurvePoint[] {
+    const res: CurvePoint[] = []
+    if (!curve) return res
+    for (const k of ['v0', 'v1', 'v2', 'v3']) if (curve[k]?.toArray) res.push({vec: curve[k], key: prefix + k})
+    if (Array.isArray(curve.points)) curve.points.forEach((p: any, i: number) => res.push({vec: p, key: prefix + 'points.' + i}))
+    if (Array.isArray(curve.curves)) curve.curves.forEach((c: any, i: number) => res.push(...curvePoints(c, prefix + 'curves.' + i + '.')))
+    return res
+}
 
 const SVG_NS = 'http://www.w3.org/2000/svg'
 const UNIT_CUBE: Vector3[] = Array.from({length: 8}, (_, i) => new Vector3((i & 1) - 0.5, (i >> 1 & 1) - 0.5, (i >> 2 & 1) - 0.5))
@@ -226,7 +256,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
     private _initialMode?: string
 
     /** Settings that belong to the person, not to a mode: they stay when the mode changes */
-    static PersonalKeys: (keyof SelectionUxSettings)[] = ['emptyDrag', 'dragMove', 'unit', 'accent', 'outlineWidth', 'showHints']
+    static PersonalKeys: (keyof SelectionUxSettings)[] = ['emptyDrag', 'dragMove', 'unit', 'accent', 'outlineWidth', 'showHints', 'objectHelpers']
 
     /**
      * Replaces the hint text at the bottom of the viewport. Return HTML, or '' to show nothing.
@@ -239,7 +269,12 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         this.persistKey = options.persistKey ?? null
         this.modes = [...options.modes ?? builtinSelectionUxModes]
         this._initialMode = options.mode
+        this.selectGeometryInEdit = options.selectGeometryInEdit ?? false
     }
+
+    /** The object whose geometry is being edited (Figma's vector edit), or null */
+    geometryEdit: IObject3D | null = null
+    selectGeometryInEdit: boolean
 
     /** Add a mode, or replace the one with the same id */
     registerMode(mode: SelectionUxMode) {
@@ -373,6 +408,8 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         window.addEventListener('keyup', this._onKeyUp, {capture: true})
         window.addEventListener('blur', this._onBlur)
 
+        viewer.scene.addEventListener('sceneUpdate', this._markSpecials)
+        viewer.scene.addEventListener('addSceneObject', this._markSpecials)
         this._picking.addEventListener('hitObject', this._onPickerHit)
         this._picking.addEventListener('selectedObjectChanged', this._onSelectionChanged)
         if (this.load()) this.applySettings()
@@ -394,6 +431,8 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         window.removeEventListener('keydown', this._onKeyDown, {capture: true})
         window.removeEventListener('keyup', this._onKeyUp, {capture: true})
         window.removeEventListener('blur', this._onBlur)
+        viewer.scene.removeEventListener('sceneUpdate', this._markSpecials)
+        viewer.scene.removeEventListener('addSceneObject', this._markSpecials)
         this._picking?.removeEventListener('hitObject', this._onPickerHit)
         this._picking?.removeEventListener('selectedObjectChanged', this._onSelectionChanged)
         this._root?.remove()
@@ -416,6 +455,8 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         }
         this._root && (this._root.style.display = legacy ? 'none' : '')
         this._root?.style.setProperty('--sux-accent', this.settings.accent)
+        const widgets = this._viewer.getPlugin(Object3DWidgetsPlugin)
+        if (widgets) widgets.enabled = legacy || this.settings.objectHelpers !== 'overlay'
         this._matchMode()
         this.save()
         this._emit('settings')
@@ -428,6 +469,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         const st = this.settings
         const k = (s: string) => `<kbd>${s}</kbd>`
         if (st.visual === 'legacy') return 'Current behaviour: click to select, Shift/Ctrl+click to add'
+        if (this.geometryEdit) return `Editing the geometry of “${this.displayName(this.geometryEdit)}” · drag the points or change the parameters · ${k('Esc')} done`
         const sel = this.selected
         if (!sel.length) {
             const nav = st.emptyDrag === 'orbit' ? `Drag empty space to orbit · ${k('Shift')}+drag to box-select` : `Drag empty space to box-select · ${k('Space')}+drag or right-drag to orbit`
@@ -441,7 +483,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
             st.dragMove === 'off' ? '' : 'Drag to move',
             'Corners scale',
             st.rotate === 'corners' ? 'Just outside a corner rotates' : st.rotate === 'knob' ? 'Knob rotates' : st.rotate === 'ring' ? 'Ring turns it' : '',
-            hasKids ? 'Double-click to go inside' : '',
+            hasKids ? 'Double-click to go inside' : sel[0].geometry ? `Double-click or ${k('Enter')} to edit the geometry` : '',
             i > 0 ? `${k('Esc')} selects parent` : `${k('Esc')} deselects`,
         ].filter(Boolean).join(' · ')
     }
@@ -481,7 +523,8 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
     }
 
     private _isHelper(o: IObject3D) {
-        return o.assetType === 'widget' || o.userData.isWidgetRoot || o.userData.userSelectable === false || o.userData.isMultiSelectDummy
+        return o.assetType === 'widget' || o.userData.isWidgetRoot || o.userData.userSelectable === false || o.userData.isMultiSelectDummy ||
+            (o.parent as any)?.target === o // the target child of a directional or spot light
     }
 
     private _contentChildren(o: IObject3D): IObject3D[] {
@@ -536,7 +579,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
     private _hasContent(o: IObject3D) {
         let has = false
         o.traverse(c => {
-            if ((c as IObject3D).geometry || (c as IObject3D).isLight) has = true
+            if ((c as IObject3D).geometry || (c as IObject3D).isLight || (c as IObject3D).isCamera) has = true
         })
         return has
     }
@@ -630,10 +673,21 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
     raycastLeaf(sx: number, sy: number): {leaf: IObject3D, point: Vector3} | null {
         if (!this._viewer || !this._picking?.picker) return null
         this._rayFromScreen(sx, sy)
-        const hits = this._raycaster.intersectObject(this._modelRoot, true)
+        const cam = this._camera() as any
+        this._raycaster.params.Line = {threshold: this._worldPerPixel(cam.target ?? new Vector3()) * 5}
+        // the 3D widgets of lights, cameras and lines stand for their object
+        const roots = [this._modelRoot, ...this.settings.objectHelpers !== 'overlay' ? this._picking.picker.extraObjects : []]
+        const hits = this._raycaster.intersectObjects(roots, true)
         const cond = this._picking.picker.selectionCondition
         for (const hit of hits) {
             const o = hit.object as IObject3D
+            let w: any = o
+            while (w && !(w.assetType === 'widget' && w.object)) w = w.parent
+            if (w) {
+                const t = w.object as IObject3D
+                if (t.visible && !this.isLocked(t) && this.levels(t).length) return {leaf: t, point: hit.point.clone()}
+                continue
+            }
             if (!cond(o) || this.isLocked(o)) continue
             return {leaf: o, point: hit.point.clone()}
         }
@@ -767,6 +821,12 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
     }
 
     private _onSelectionChanged = () => {
+        const g = this.geometryEdit
+        const v = this._picking?.picker?.selectedObject
+        if (g && v !== g && v !== g.geometry) {
+            this.geometryEdit = null
+            this._buildParamsPanel()
+        }
         this._emit('selection')
     }
 
@@ -796,6 +856,13 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         const hk = target?.getAttribute?.('data-sux')
         if (hk && e.button === 0) {
             const data = this._handleMap.get(hk)
+            if (data?.kind === 'icon') { // light or camera icon: click selects, drag moves
+                e.stopPropagation()
+                e.preventDefault()
+                this._state = {kind: 'press', start: p, leaf: null, hitPoint: data.obj.getWorldPosition(new Vector3()), passthrough: false, shift: e.shiftKey, deep: false, alt: e.altKey, target: data.obj}
+                return
+            }
+            if (data?.kind === 'param') return // inputs in the parameters panel
             if (data && (data.kind === 'crumb' || this.canEdit)) {
                 e.stopPropagation()
                 e.preventDefault()
@@ -836,8 +903,13 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
                 this._state = null
                 return
             }
-            if (s.leaf) this._beginMove(s)
-            else this._beginMarquee(s)
+            if (s.leaf || s.target) {
+                if (this.editingLocked) {
+                    this._state = null
+                    return
+                }
+                this._beginMove(s)
+            } else this._beginMarquee(s)
         }
         this._updateDrag(p)
     }
@@ -860,7 +932,10 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         const hit = this.raycastLeaf(p.x, p.y)
         if (!hit) return
         const tgt = this.resolveTarget(hit.leaf, false, true)
-        if (tgt) {
+        const sel = this.selected
+        // already at the deepest level: go from object to geometry editing, like Figma's vector edit
+        if (tgt && sel.length === 1 && sel[0] === tgt && this._canEditGeometry(tgt)) this.enterGeometryEdit(tgt)
+        else if (tgt) {
             this.select([tgt])
             this._toast(`Selected “${this.displayName(tgt)}” — Esc to go back up`)
         }
@@ -868,11 +943,11 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
     }
 
     private _click(s: Extract<DragState, {kind: 'press'}>) {
-        if (!s.leaf) {
+        if (!s.leaf && !s.target) {
             if (!s.shift) this.select([])
             return
         }
-        const tgt = this.resolveTarget(s.leaf, s.deep, false)
+        const tgt = s.target ?? this.resolveTarget(s.leaf!, s.deep, false)
         if (!tgt) return
         const sel = this.selected
         if (s.shift) {
@@ -887,7 +962,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
     }
 
     private _beginMove(s: Extract<DragState, {kind: 'press'}>) {
-        let tgt = this.resolveTarget(s.leaf!, s.deep, false)
+        let tgt = s.target ?? this.resolveTarget(s.leaf!, s.deep, false)
         if (!tgt) return
         let sel = this.selected
         if (!sel.includes(tgt)) {
@@ -996,6 +1071,25 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         const sel = this.selected
         if (data.kind === 'crumb') {
             this.select([data.obj])
+            return
+        }
+        if (data.kind === 'aim') {
+            const o = data.obj
+            const aim = this._aimPoint(o)
+            const cam = this._camera()
+            const camDir = cam.getWorldDirection(new Vector3())
+            // aim on the floor (at the aim height) when looking down at it, else on a plane facing the camera
+            const plane = camDir.y < -0.3 ? new Plane(new Vector3(0, 1, 0), -aim.y) : new Plane().setFromNormalAndCoplanarPoint(camDir.negate(), aim)
+            this._state = {kind: 'aim', start: p, obj: o, plane, snaps: this.snapshot([o]), camTarget: (o as any).isCamera && (o as any).target?.isVector3 ? (o as any).target.clone() : undefined}
+            return
+        }
+        if (data.kind === 'cp') {
+            const pts = curvePoints(genParams(data.obj)?.curve)
+            const pt = pts[data.index]
+            if (!pt) return
+            const world = this._cpWorld(data.obj, pt)
+            const camDir = this._camera().getWorldDirection(new Vector3())
+            this._state = {kind: 'cp', start: p, obj: data.obj, point: pt, before: pt.vec.toArray(), plane: new Plane().setFromNormalAndCoplanarPoint(camDir.negate(), world)}
             return
         }
         if (!sel.length) return
@@ -1133,6 +1227,18 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         } else if (s.kind === 'marquee') {
             s.cur.copy(p)
             this._updateMarquee(s)
+        } else if (s.kind === 'aim') {
+            const hp = this._planeHit(p, s.plane)
+            if (hp) this._setAim(s.obj, hp)
+        } else if (s.kind === 'cp') {
+            const hp = this._planeHit(p, s.plane)
+            if (hp) {
+                const local = s.obj.worldToLocal(hp.clone())
+                const arr = s.point.vec.toArray()
+                s.point.vec.fromArray(arr.length === 2 ? [local.x, local.y] : [local.x, local.y, local.z])
+                s.obj.geometry?.setDirty?.({regenerate: true} as any)
+                this._liveLabel = `${s.point.key}: ${local.toArray().map(v => this._fmt(v)).join(', ')}`
+            }
         }
         this._viewer.setDirty()
         this._emit('drag')
@@ -1223,11 +1329,24 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
     }
 
     private _endDrag(s: DragState) {
-        if (s.kind === 'move' || s.kind === 'scale' || s.kind === 'stretch' || s.kind === 'rotate') {
+        const um = this._viewer?.getPlugin(UndoManagerPlugin)?.undoManager
+        if (s.kind === 'aim') {
+            if (s.camTarget) {
+                const o = s.obj as any, before = s.camTarget.clone(), after = o.target.clone()
+                um?.record({undo: () => this._setAim(o, before), redo: () => this._setAim(o, after)})
+            } else this.recordTransform(s.snaps, 'aim')
+        } else if (s.kind === 'cp') {
+            const pt = s.point, g = s.obj.geometry, before = s.before, after = pt.vec.toArray()
+            const set = (a: number[]) => {
+                pt.vec.fromArray(a)
+                g?.setDirty?.({regenerate: true} as any)
+                this._viewer?.setDirty()
+            }
+            um?.record({undo: () => set(before), redo: () => set(after)})
+        } else if (s.kind === 'move' || s.kind === 'scale' || s.kind === 'stretch' || s.kind === 'rotate') {
             this.recordTransform(s.snaps, s.kind)
         } else if (s.kind === 'marquee') {
             const final = this.selected
-            const um = this._viewer?.getPlugin(UndoManagerPlugin)?.undoManager
             const before = s.base
             if (final.length !== before.length || final.some((o, i) => o !== before[i])) um?.record({
                 undo: () => this.select(before, false),
@@ -1298,10 +1417,12 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
                 this._guides = []
                 return
             }
-            this.selectParent()
+            if (this.geometryEdit) this.exitGeometryEdit()
+            else this.selectParent()
         } else if (e.code === 'Enter' || e.code === 'NumpadEnter') {
             own()
             if (e.shiftKey) this.selectParent()
+            else if (sel.length === 1 && !this._contentChildren(sel[0]).length && this._canEditGeometry(sel[0])) this.enterGeometryEdit(sel[0])
             else this.selectChildren()
         } else if (e.code === 'Tab') {
             own()
@@ -1545,8 +1666,13 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
 
         const hover = this.externalHover || this._hover
         if (hover && st.hover && !st.outlineHover && !sel.includes(hover) && !dragging) this._drawOutline('hover', [hover], 1, 1)
-        if (sel.length > 1 && !st.outlineSelected) sel.forEach((o, i) => this._drawOutline('sub' + i, [o], 1, 0.55))
-        if (sel.length) this._drawSelection(sel, dragging)
+        if (st.objectHelpers !== 'widgets') this._drawSpecialObjects(sel, hover)
+        if (this.geometryEdit) this._drawGeometryEdit(this.geometryEdit)
+        else {
+            if (sel.length > 1 && !st.outlineSelected) sel.forEach((o, i) => this._drawOutline('sub' + i, [o], 1, 0.55))
+            const boxSel = st.objectHelpers === 'widgets' ? sel : sel.filter(o => !this._isSpecial(o))
+            if (boxSel.length) this._drawSelection(boxSel, dragging)
+        }
 
         const s = this._state
         if (s?.kind === 'marquee') {
@@ -1613,6 +1739,364 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         L.get('move-floor', 'path', {d: ring, fill: 'color-mix(in srgb, var(--sux-accent) 14%, transparent)', stroke: 'var(--sux-accent)', 'stroke-width': 1, opacity: 0.7})
         L.get('move-drop', 'path', {d: Math.abs(base.y) > 1e-4 ? seg(base, floor) : '', stroke: 'var(--sux-accent)', 'stroke-width': 1, 'stroke-dasharray': '3 3'})
     }
+
+
+    // region lights and cameras
+
+    private _specials: IObject3D[] = []
+    private _specialsDirty = true
+    private _markSpecials = () => {
+        this._specialsDirty = true
+    }
+
+    private _isSpecial(o: IObject3D) {
+        return !!(o.isLight || o.isCamera)
+    }
+
+    /** Lights and cameras in the model root */
+    private _getSpecials() {
+        if (this._specialsDirty && this._viewer) {
+            this._specialsDirty = false
+            this._specials = []
+            this._modelRoot.traverse(o => {
+                if (this._isSpecial(o as IObject3D) && !this._isHelper(o as IObject3D) && o !== this._viewer!.scene.mainCamera) this._specials.push(o as IObject3D)
+            })
+        }
+        return this._specials
+    }
+
+    private _visibleChain(o: Object3D) {
+        let p: Object3D | null = o
+        while (p) {
+            if (!p.visible) return false
+            p = p.parent
+        }
+        return true
+    }
+
+    /** Where a light or camera points: the camera target, the floor under a light, or a few units ahead */
+    private _aimPoint(o: IObject3D) {
+        const t = (o as any).target
+        if (o.isCamera && t?.isVector3) return t.clone() as Vector3
+        const pos = o.getWorldPosition(new Vector3())
+        const dir = new Vector3(0, 0, -1).transformDirection(o.matrixWorld)
+        if (dir.y < -0.05) {
+            const d = -pos.y / dir.y
+            if (d > 0 && d < 100) return pos.addScaledVector(dir, d)
+        }
+        return pos.addScaledVector(dir, 3)
+    }
+
+    /** A length that reads well on screen at this point (about 90 px) */
+    private _detailLength(at: Vector3) {
+        return this._worldPerPixel(at) * 90
+    }
+
+    private _setAim(o: IObject3D, p: Vector3) {
+        const t = (o as any).target
+        if (o.isCamera && t?.isVector3) {
+            t.copy(p)
+            o.setDirty?.()
+        } else {
+            o.lookAt(p)
+            o.updateMatrixWorld(true)
+            o.setDirty?.({change: 'transform', frameFade: false})
+        }
+        this._viewer?.setDirty()
+    }
+
+    private _drawSpecialObjects(sel: IObject3D[], hover: IObject3D | null) {
+        const H = this._handles!, T = this._labels!
+        for (const o of this._getSpecials()) {
+            if (!this._visibleChain(o)) continue
+            const pos = o.getWorldPosition(new Vector3())
+            const sp = this.toScreen(pos)
+            if (sp.behind) continue
+            const isSel = sel.includes(o) || this.geometryEdit === o
+            if (isSel || hover === o) this._drawObjectDetails(o, pos, isSel)
+            const key = 'ic-' + o.uuid
+            const hk = this._handle(key, {kind: 'icon', obj: o})
+            const fg = isSel ? '#fff' : '#3a3f47'
+            H.get(key + '-bg', 'circle', {cx: sp.x, cy: sp.y, r: 11, fill: isSel ? 'var(--sux-accent)' : 'rgba(255,255,255,.92)', stroke: isSel || hover === o ? 'var(--sux-accent)' : 'rgba(0,0,0,.25)', 'stroke-width': 1.5, 'data-sux': hk, style: 'pointer-events:all;cursor:pointer'})
+            H.get(key, 'path', {d: iconPath(o), fill: 'none', stroke: fg, 'stroke-width': 1.3, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', transform: `translate(${(sp.x - 8).toFixed(1)} ${(sp.y - 8).toFixed(1)})`, style: 'pointer-events:none'})
+            if (isSel && this.settings.showName) {
+                const tag = T.get(key + '-name', 'div', {class: 'sux-name'})
+                tag.textContent = this.displayName(o)
+                tag.style.transform = `translate(${sp.x + 15}px, ${sp.y - 8}px)`
+            }
+        }
+    }
+
+    /** Aim line + handle, spot cone, camera frustum, point light range, rect light size */
+    private _drawObjectDetails(o: IObject3D, pos: Vector3, isSel: boolean) {
+        const L = this._lines!, H = this._handles!
+        const color = isSel ? 'var(--sux-accent)' : '#8a8f98'
+        const k = 'od-' + o.uuid
+        const sc = (v: Vector3) => this.toScreen(v)
+        const path = (pts: Vector3[], close = false) => {
+            const ss = pts.map(sc)
+            if (ss.some(q => q.behind)) return ''
+            return ss.map((q, i) => `${i ? 'L' : 'M'}${q.x.toFixed(1)} ${q.y.toFixed(1)}`).join('') + (close ? 'Z' : '')
+        }
+        const local = (x: number, y: number, z: number) => new Vector3(x, y, z).applyMatrix4(o.matrixWorld)
+        const ol = o as any
+        const hasAim = ol.isDirectionalLight || ol.isSpotLight || ol.isCamera || ol.isRectAreaLight
+        let d = ''
+        if (hasAim) {
+            const aim = this._aimPoint(o)
+            // the cone and the frustum are drawn short; the aim line goes all the way to the aim point
+            const dist = Math.min(Math.max(1e-3, pos.distanceTo(aim)), this._detailLength(pos))
+            if (ol.isSpotLight) {
+                // cone: circle at the aim distance, four lines from the apex
+                const r = Math.tan(Math.min(ol.angle ?? Math.PI / 6, 1.3)) * dist
+                const ring: Vector3[] = []
+                for (let i = 0; i <= 40; i++) {
+                    const a = i / 40 * Math.PI * 2
+                    ring.push(local(Math.cos(a) * r, Math.sin(a) * r, -dist))
+                }
+                d += path(ring)
+                for (const a of [0, Math.PI / 2, Math.PI, Math.PI * 1.5]) d += path([pos, local(Math.cos(a) * r, Math.sin(a) * r, -dist)])
+            } else if (ol.isCamera && ol.isPerspectiveCamera) {
+                // frustum to the target distance (capped), and a small triangle on top for "up"
+                const depth = Math.min(dist, ol.far ?? dist)
+                const hh = Math.tan((ol.fov ?? 45) * Math.PI / 360) * depth, hw = hh * (ol.aspect || 1)
+                const c = [local(-hw, -hh, -depth), local(hw, -hh, -depth), local(hw, hh, -depth), local(-hw, hh, -depth)]
+                d += path(c, true)
+                for (const q of c) d += path([pos, q])
+                d += path([local(-hw * 0.3, hh * 1.08, -depth), local(0, hh * 1.35, -depth), local(hw * 0.3, hh * 1.08, -depth)], true)
+            } else if (ol.isRectAreaLight) {
+                const w = (ol.width ?? 1) / 2, h = (ol.height ?? 1) / 2
+                d += path([local(-w, -h, 0), local(w, -h, 0), local(w, h, 0), local(-w, h, 0)], true)
+            }
+            const aimS = sc(aim)
+            L.get(k + '-aim', 'path', {d: path([pos, aim]), fill: 'none', stroke: color, 'stroke-width': 1, 'stroke-dasharray': '4 3', opacity: isSel ? 1 : 0.7})
+            if (isSel && this.canEdit && !aimS.behind) {
+                const hk = this._handle(k + '-aimh', {kind: 'aim', obj: o})
+                H.get(k + '-aimh-hit', 'circle', {cx: aimS.x, cy: aimS.y, r: 11, fill: 'transparent', 'data-sux': hk, style: 'pointer-events:all;cursor:crosshair'})
+                H.get(k + '-aimh', 'circle', {cx: aimS.x, cy: aimS.y, r: 5, fill: '#fff', stroke: color, 'stroke-width': 1.5, style: 'pointer-events:none'})
+                H.get(k + '-aimh2', 'circle', {cx: aimS.x, cy: aimS.y, r: 1.8, fill: color, style: 'pointer-events:none'})
+            }
+        } else if (ol.isPointLight && ol.distance > 0) {
+            const sp = sc(pos)
+            if (!sp.behind) {
+                const r = ol.distance / this._worldPerPixel(pos)
+                L.get(k + '-range', 'circle', {cx: sp.x, cy: sp.y, r: Math.min(r, 4000), fill: 'none', stroke: color, 'stroke-width': 1, 'stroke-dasharray': '4 4', opacity: 0.6})
+            }
+        }
+        L.get(k, 'path', {d, fill: 'none', stroke: color, 'stroke-width': 1, opacity: isSel ? 0.9 : 0.6, 'stroke-linejoin': 'round'})
+    }
+
+    // endregion
+
+    // region geometry editing
+
+    private _canEditGeometry(o: IObject3D) {
+        return !!o.geometry && !this.editingLocked && !this.isLocked(o)
+    }
+
+    /** Go from the object to its geometry: curve points in the view and the generator parameters in a panel */
+    enterGeometryEdit(o: IObject3D) {
+        if (!this._canEditGeometry(o)) return
+        this.geometryEdit = o
+        if (this.selectGeometryInEdit && o.geometry) this._picking?.picker?.setSelected(o.geometry as any, false)
+        else if (!(this.selected.length === 1 && this.selected[0] === o)) this.select([o], false)
+        this._buildParamsPanel()
+        this._emit('geometryEdit')
+        this._viewer?.setDirty()
+        this._toast(genParams(o) ? 'Editing the geometry — Esc when done' : 'This geometry has no parameters — Esc to go back')
+    }
+
+    exitGeometryEdit() {
+        const o = this.geometryEdit
+        this.geometryEdit = null
+        this._buildParamsPanel()
+        if (o) this.select([o], false)
+        this._emit('geometryEdit')
+        this._viewer?.setDirty()
+    }
+
+    private _cpWorld(o: IObject3D, pt: CurvePoint) {
+        const a = pt.vec.toArray()
+        return new Vector3(a[0], a[1], a[2] ?? 0).applyMatrix4(o.matrixWorld)
+    }
+
+    private _paramsEl?: HTMLDivElement
+    private _paramInputs = new Map<string, HTMLInputElement>()
+    private _paramUndo?: {cmd: {undo: () => void, redo: () => void}, time: number, key: string, before: any}
+
+    /** Change one generator parameter, regenerate, and record undo (quick edits of the same parameter merge) */
+    setGeometryParam(o: IObject3D, key: string, value: any) {
+        const g = o.geometry
+        const params = genParams(o)
+        if (!g || !params || params[key] === value) return
+        const gen = this._viewer?.getPlugin(GeometryGeneratorPlugin)
+        const apply = (v: any) => {
+            if (gen) gen.updateGeometry(g, {[key]: v})
+            else {
+                params[key] = v
+                g.setDirty?.({regenerate: true} as any)
+            }
+            (g as any).uiConfig?.uiRefresh?.(true, 'postFrame')
+            this._refreshParamInputs()
+            this._viewer?.setDirty()
+            this._emit('transform')
+        }
+        const um = this._viewer?.getPlugin(UndoManagerPlugin)?.undoManager
+        const uid = g.uuid + key
+        const now = performance.now()
+        const last = this._paramUndo
+        const merge = um && last && last.key === uid && um.peek() === last.cmd && now - last.time < 1000
+        const before = merge ? last.before : params[key]
+        apply(value)
+        const cmd = {undo: () => apply(before), redo: () => apply(value)}
+        if (um) {
+            if (merge) um.replaceLast(cmd)
+            else um.record(cmd)
+        }
+        this._paramUndo = {cmd, time: now, key: uid, before}
+    }
+
+    private _refreshParamInputs() {
+        const params = genParams(this.geometryEdit)
+        if (!params) return
+        for (const [k, input] of this._paramInputs) {
+            if (document.activeElement === input) continue
+            if (input.type === 'checkbox') input.checked = !!params[k]
+            else input.value = String(+(+params[k]).toFixed(4))
+        }
+    }
+
+    /** Floating panel next to the object with the generator parameters */
+    private _buildParamsPanel() {
+        this._paramsEl?.remove()
+        this._paramsEl = undefined
+        this._paramInputs.clear()
+        const o = this.geometryEdit
+        if (!o || !this._root) return
+        const g = o.geometry
+        const params = genParams(o)
+        const el = document.createElement('div')
+        el.className = 'sux-params'
+        el.style.pointerEvents = 'auto'
+        el.innerHTML = `<div class="sux-params-head"><b>Geometry</b><span>${params?.type ?? 'mesh'}</span><button>Done</button></div>`
+        el.querySelector('button')!.addEventListener('click', () => this.exitGeometryEdit())
+        // keys typed in the panel stay there
+        el.addEventListener('keydown', e => {
+            e.stopPropagation()
+            if (e.key === 'Escape') this.exitGeometryEdit()
+        })
+        if (!params) {
+            const n = g?.attributes?.position?.count ?? 0
+            el.insertAdjacentHTML('beforeend', `<div class="sux-params-note">Not parametric (${n.toLocaleString()} vertices). Shapes made with the geometry generator have their parameters here.</div>`)
+        } else {
+            for (const [k, v] of Object.entries(params)) {
+                if (k === 'type') continue
+                if (k === 'curve' && v && typeof v === 'object') {
+                    const n = curvePoints(v).length
+                    el.insertAdjacentHTML('beforeend', `<div class="sux-params-note">Curve: ${n} point${n === 1 ? '' : 's'}. Drag them in the view.</div>`)
+                    continue
+                }
+                if (typeof v !== 'number' && typeof v !== 'boolean') continue
+                const row = document.createElement('label')
+                row.className = 'sux-params-row'
+                const name = document.createElement('span')
+                name.textContent = k.replace(/([A-Z])/g, ' $1').toLowerCase()
+                const input = document.createElement('input')
+                if (typeof v === 'boolean') {
+                    input.type = 'checkbox'
+                    input.checked = v
+                    input.addEventListener('change', () => this.setGeometryParam(o, k, input.checked))
+                } else {
+                    input.type = 'number'
+                    const isInt = Number.isInteger(v) && /segment|count|sides|detail|points|tubular|radial|height[sS]eg|width[sS]eg/i.test(k)
+                    input.step = isInt ? '1' : 'any'
+                    input.value = String(+v.toFixed(4))
+                    input.addEventListener('change', () => {
+                        const n = parseFloat(input.value)
+                        if (isFinite(n)) this.setGeometryParam(o, k, isInt ? Math.round(n) : n)
+                    })
+                    // scrub: drag the name left or right
+                    name.style.cursor = 'ew-resize'
+                    name.addEventListener('pointerdown', e => {
+                        e.preventDefault()
+                        name.setPointerCapture(e.pointerId)
+                        const x0 = e.clientX
+                        const v0 = +params[k]
+                        const step = isInt ? 0.25 : Math.max(0.001, Math.abs(v0) * 0.01 || 0.01)
+                        const move = (ev: PointerEvent) => {
+                            let n = v0 + (ev.clientX - x0) * step * (ev.shiftKey ? 10 : 1)
+                            if (isInt) n = Math.max(1, Math.round(n))
+                            this.setGeometryParam(o, k, n)
+                        }
+                        const up = () => {
+                            name.removeEventListener('pointermove', move)
+                            name.removeEventListener('pointerup', up)
+                            if (this._paramUndo) this._paramUndo.time = 0 // the next edit is a new undo step
+                        }
+                        name.addEventListener('pointermove', move)
+                        name.addEventListener('pointerup', up)
+                    })
+                }
+                this._paramInputs.set(k, input)
+                row.append(name, input)
+                el.appendChild(row)
+            }
+        }
+        this._root.appendChild(el)
+        this._paramsEl = el
+    }
+
+    private _drawGeometryEdit(o: IObject3D) {
+        const L = this._lines!, H = this._handles!, T = this._labels!
+        const info = this.boxInfo([o], 'local')
+        const rect = this._screenRect(info.corners)
+        if (!rect) return
+        L.get('ge-rect', 'rect', {x: rect.minX, y: rect.minY, width: rect.maxX - rect.minX, height: rect.maxY - rect.minY, fill: 'none', stroke: 'var(--sux-accent)', 'stroke-width': 1, 'stroke-dasharray': '4 3', opacity: 0.7})
+        const tag = T.get('ge-name', 'div', {class: 'sux-name'})
+        const label = `${this.displayName(o)} · Geometry`
+        if (tag.textContent !== label) tag.textContent = label
+        tag.style.transform = `translate(${rect.minX}px, ${rect.minY - 4}px) translateY(-100%)`
+        if (this._paramsEl) {
+            const {w} = this._size()
+            const left = rect.maxX + 14 + 220 > w ? Math.max(4, rect.minX - 14 - 220) : rect.maxX + 14
+            this._paramsEl.style.transform = `translate(${left}px, ${Math.max(4, rect.minY)}px)`
+        }
+        const curve = genParams(o)?.curve
+        const pts = curvePoints(curve)
+        if (!pts.length) return
+        // the curve itself, then the tangent lines of beziers, then the points
+        const toW = (a: number[]) => new Vector3(a[0], a[1], a[2] ?? 0).applyMatrix4(o.matrixWorld)
+        let d = ''
+        try {
+            const samples = (curve.getPoints(80) as any[]).map(q => this.toScreen(toW(q.toArray())))
+            if (!samples.some(q => q.behind)) d = samples.map((q, i) => `${i ? 'L' : 'M'}${q.x.toFixed(1)} ${q.y.toFixed(1)}`).join('')
+        } catch (e) {
+            d = ''
+        }
+        L.get('ge-curve', 'path', {d, fill: 'none', stroke: 'var(--sux-accent)', 'stroke-width': 2})
+        const sp = pts.map(pt => this.toScreen(this._cpWorld(o, pt)))
+        let t = ''
+        const tangent = (a: number, b: number) => {
+            if (sp[a] && sp[b] && !sp[a].behind && !sp[b].behind) t += `M${sp[a].x.toFixed(1)} ${sp[a].y.toFixed(1)}L${sp[b].x.toFixed(1)} ${sp[b].y.toFixed(1)}`
+        }
+        pts.forEach((pt, i) => {
+            if (pt.key.endsWith('v1')) tangent(i - 1, i)
+            if (pt.key.endsWith('v3')) tangent(i - 1, i)
+            if (pt.key.endsWith('v2') && !pts[i + 1]?.key.endsWith('v3')) tangent(i - 1, i)
+        })
+        L.get('ge-tangents', 'path', {d: t, fill: 'none', stroke: 'var(--sux-accent)', 'stroke-width': 1, opacity: 0.6})
+        const editing = this._state?.kind === 'cp' ? this._state.point : null
+        sp.forEach((q, i) => {
+            if (q.behind) return
+            const key = 'cp' + i
+            const hk = this._handle(key, {kind: 'cp', obj: o, index: i})
+            const on = editing === pts[i]
+            H.get(key + '-hit', 'circle', {cx: q.x, cy: q.y, r: 10, fill: 'transparent', 'data-sux': hk, style: 'pointer-events:all;cursor:move'})
+            H.get(key, 'rect', {x: q.x - 4, y: q.y - 4, width: 8, height: 8, rx: 4, fill: on ? 'var(--sux-accent)' : '#fff', stroke: 'var(--sux-accent)', 'stroke-width': 1.5, style: 'pointer-events:none'})
+        })
+    }
+
+    // endregion
 
     private _boxEdgesPath(info: BoxInfo, front: boolean[], which: 'visible' | 'hidden') {
         const sc = info.corners.map(c => this.toScreen(c))
@@ -1884,6 +2368,22 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
 }
 
 const ROTATE_CURSOR = `url("data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path d="M6 14a7 7 0 1 0 2-7" fill="none" stroke="white" stroke-width="4" stroke-linecap="round"/><path d="M6 14a7 7 0 1 0 2-7" fill="none" stroke="black" stroke-width="1.6" stroke-linecap="round"/><path d="M4 3v6h6" fill="none" stroke="white" stroke-width="4" stroke-linejoin="round"/><path d="M4 3v6h6" fill="none" stroke="black" stroke-width="1.6" stroke-linejoin="round"/></svg>')}") 12 12, alias`
+
+/** The generator parameters of an object's geometry (GeometryGeneratorPlugin), if any */
+function genParams(o?: IObject3D | null): Record<string, any> | undefined {
+    return o?.geometry?.userData?.generationParams as any
+}
+
+/** 16×16 icon paths for lights and cameras */
+function iconPath(o: IObject3D) {
+    const ol = o as any
+    if (ol.isCamera) return 'M2 5.5h8.5v6H2zM10.5 7.5l3.5-2v6l-3.5-2'
+    if (ol.isSpotLight) return 'M5.5 3h5l3 8.5h-11zM6 13.5h4'
+    if (ol.isDirectionalLight) return 'M8 5.5a2.5 2.5 0 1 1 0 5a2.5 2.5 0 1 1 0-5M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M3.4 12.6l1.4-1.4M11.2 4.8l1.4-1.4'
+    if (ol.isPointLight) return 'M8 2.5a4 4 0 0 1 2.5 7.1V11h-5V9.6A4 4 0 0 1 8 2.5M6 13.5h4'
+    if (ol.isRectAreaLight) return 'M2.5 4.5h11v7h-11zM5 14h6'
+    return 'M2.5 10a5.5 5.5 0 0 1 11 0zM2 12.5h12' // ambient, hemisphere
+}
 
 /** Resize cursor that points along a screen direction */
 function resizeCursor(dx: number, dy: number) {

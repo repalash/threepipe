@@ -2,6 +2,9 @@ import {
     _testFinish,
     _testStart,
     GBufferPlugin,
+    GeometryGeneratorPlugin,
+    Object3DGeneratorPlugin,
+    Object3DWidgetsPlugin,
     GridHelper,
     LoadingScreenPlugin,
     Matrix4,
@@ -14,7 +17,7 @@ import {SelectionUxPlugin, TransformSnapshot} from './SelectionUxPlugin'
 import {SelectionOutlinePlugin} from './SelectionOutlinePlugin'
 import {LayersPanelPlugin} from './LayersPanelPlugin'
 import {applyModeFromUrl, setupHints, setupModeMenu, setupSidePanel} from './ui'
-import {buildScene} from './scene'
+import {buildExtras, buildScene} from './scene'
 
 async function init() {
     const viewer = new ThreeViewer({
@@ -25,7 +28,7 @@ async function init() {
             allowedExtensions: ['gltf', 'glb', 'fbx', 'obj', '3dm', 'hdr', 'exr', 'bin', 'png', 'jpg', 'jpeg', 'webp'],
             addOptions: {autoCenter: true, autoScale: true, autoScaleRadius: 2.5},
         },
-        plugins: [LoadingScreenPlugin, UndoManagerPlugin, GBufferPlugin],
+        plugins: [LoadingScreenPlugin, UndoManagerPlugin, GBufferPlugin, GeometryGeneratorPlugin, Object3DGeneratorPlugin, new Object3DWidgetsPlugin(false)],
     })
     viewer.scene.setBackgroundColor('#e3e6eb')
 
@@ -42,6 +45,7 @@ async function init() {
     viewer.scene.add(grid)
 
     buildScene(viewer)
+    buildExtras(viewer)
     viewer.scene.mainCamera.position.set(7, 7, 11)
     viewer.scene.mainCamera.target.set(0, 0.8, 0)
     viewer.scene.mainCamera.setDirty()
@@ -65,6 +69,14 @@ async function init() {
 function setupInspector(root: HTMLElement, viewer: ThreeViewer, ux: SelectionUxPlugin) {
     const fields: {[k: string]: HTMLInputElement} = {}
     root.innerHTML = '<h3><span id="insp-title">Design</span><small id="insp-sub"></small></h3>'
+    // object → geometry, like Figma's vector edit
+    const geoBtn = document.createElement('button')
+    geoBtn.className = 'insp-geo'
+    root.appendChild(geoBtn)
+    geoBtn.onclick = () => {
+        if (ux.geometryEdit) ux.exitGeometryEdit()
+        else if (ux.selected[0]) ux.enterGeometryEdit(ux.selected[0])
+    }
     const body = document.createElement('div')
     root.appendChild(body)
     const empty = document.createElement('div')
@@ -163,7 +175,10 @@ function setupInspector(root: HTMLElement, viewer: ThreeViewer, ux: SelectionUxP
         body.style.display = sel.length ? '' : 'none'
         empty.style.display = sel.length ? 'none' : ''
         document.getElementById('insp-title')!.textContent = sel.length > 1 ? `${sel.length} selected` : sel.length ? ux.displayName(sel[0]) : 'Design'
-        document.getElementById('insp-sub')!.textContent = sel.length === 1 ? sel[0].geometry ? 'Mesh' : 'Group' : ''
+        const one = sel.length === 1 ? sel[0] : undefined
+        document.getElementById('insp-sub')!.textContent = one ? one.isLight ? 'Light' : one.isCamera ? 'Camera' : one.geometry ? one.geometry.userData?.generationParams ? 'Generated ' + one.geometry.userData.generationParams.type : 'Mesh' : 'Group' : ''
+        geoBtn.style.display = one?.geometry || ux.geometryEdit ? '' : 'none'
+        geoBtn.textContent = ux.geometryEdit ? 'Done editing geometry  Esc' : 'Edit geometry  ⏎'
         if (!sel.length) return
         const info = ux.boxInfo(sel, 'world')
         const local = ux.boxInfo(sel)
