@@ -3,16 +3,31 @@
  * It opens by itself once for each new {@link REPORT_VERSION}.
  */
 
-export const REPORT_VERSION = '2026-10-26-r5b'
+export const REPORT_VERSION = '2026-10-26-r6'
 
 const REPORT_HTML = `
-<h1>Selection UX prototype <span>round 5 · 26 Oct 2026</span></h1>
+<h1>Selection UX prototype <span>round 6 · 26 Oct 2026</span></h1>
 <p class="lead">A Figma-like way to select, move and edit things in threepipe, for people who are not 3D experts.
 Two pages run the same plugins: the <b>playground</b> (simple, light panels) and the <b>editor</b> (the tweakpane editor with
 everything else). Code: branch <code>claude/figma-style-selection-ux-j74hh2</code> in repalash/threepipe,
 folder <code>examples/selection-ux-playground/</code>. Ticket: <a href="https://ijewel3d.youtrack.cloud/issue/IJ-1052" target="_blank">IJ-1052</a>.</p>
 
-<h2>New in this round</h2>
+<h2>New in round 6</h2>
+<table>
+<tr><th>You asked</th><th>What changed</th><th>Try it</th></tr>
+<tr><td>Look through a camera, change the main camera</td><td>Like Blender's camera view. <kbd>0</kbd> looks through the selected camera (else the last one); <kbd>0</kbd> or <kbd>Esc</kbd> goes back.
+Double-click a camera icon does the same. A bar on the view shows the camera, <b>Lock to view</b> (<kbd>L</kbd>: orbit and zoom move that camera, one undo step) and Exit.
+<kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>0</kbd> moves the selected camera to the current view (undoable). Also in the toolbar camera menu and the layers right-click menu.
+Built on <code>activateMain()</code> and the camera's interactions; the editor camera stays as it was.</td><td>Select “Product Camera”, press <kbd>0</kbd></td></tr>
+<tr><td>Lines and curves not visible</td><td>They were 1 px white lines on a white floor. Now 4 px, orange (Spline) and blue (Bezier)</td><td>Left side, “Curves”</td></tr>
+<tr><td>“Cameras” group box in the centre</td><td>A group box now includes its lights and cameras (they have no geometry, so they were left out)</td><td>Layers → Cameras</td></tr>
+<tr><td>No shadows when a light moves</td><td>The lights did not cast shadows, the ground was 8 units wide (the scene is 18), and the environment light was much stronger than the lights.
+Now: sun, spot and fill cast shadows, the sun covers the whole scene, ground 26 units, environment 0.5, sun 8, spot 400. The playground has a ground too</td><td>Drag the sun or the bulbs</td></tr>
+<tr><td>Toolbar look</td><td>Light, like the layers panel (dark theme as an option). Clusters instead of lines; solid blue only for the current tool,
+soft blue for toggles; a caret on menu buttons and a dot when a view setting is not the default; tooltips with the shortcut; menus with check marks and key hints</td><td>Hover the toolbar</td></tr>
+</table>
+
+<h2>Round 5</h2>
 <table>
 <tr><th>You asked</th><th>What changed</th><th>Try it</th></tr>
 <tr><td>Toolbar like the blueprint editor</td><td>One toolbar on top: selection mode, Select / Move / Rotate / Scale gizmo, gizmo space and size, Add menu

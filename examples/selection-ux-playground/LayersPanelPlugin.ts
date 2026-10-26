@@ -789,6 +789,7 @@ export class LayersPanelPlugin extends AViewerPluginSync {
         const isGroup = sel.some(s => !s.geometry && this._kids(s).length)
         const items: MenuItem[] = [
             ['Zoom to', 'F', () => picking?.focusSelected()],
+            ...o.isCamera && ux ? [['Look through', '0', () => ux.lookThrough(o)], ['Move to this view', 'Ctrl+Alt+0', locked ? null : () => ux.alignCameraToView(o)]] as MenuItem[] : [],
             ['Rename', 'Double-click', locked ? null : () => {
                 const row = this._rows.get(o)
                 if (row) this._rename(o, row)

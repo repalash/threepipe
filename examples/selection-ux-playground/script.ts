@@ -1,6 +1,7 @@
 import {
     _testFinish,
     _testStart,
+    ContactShadowGroundPlugin,
     GBufferPlugin,
     GeometryGeneratorPlugin,
     Object3DGeneratorPlugin,
@@ -30,7 +31,7 @@ async function init() {
             allowedExtensions: ['gltf', 'glb', 'fbx', 'obj', '3dm', 'hdr', 'exr', 'bin', 'png', 'jpg', 'jpeg', 'webp'],
             addOptions: {autoCenter: true, autoScale: true, autoScaleRadius: 2.5},
         },
-        plugins: [LoadingScreenPlugin, UndoManagerPlugin, GBufferPlugin, GeometryGeneratorPlugin, Object3DGeneratorPlugin, new Object3DWidgetsPlugin(false)],
+        plugins: [LoadingScreenPlugin, UndoManagerPlugin, GBufferPlugin, ContactShadowGroundPlugin, GeometryGeneratorPlugin, Object3DGeneratorPlugin, new Object3DWidgetsPlugin(false)],
     })
     viewer.scene.setBackgroundColor('#e3e6eb')
 

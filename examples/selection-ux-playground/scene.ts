@@ -1,4 +1,4 @@
-import {BoxGeometry, CatmullRomCurve3, CubicBezierCurve3, CylinderGeometry, GeometryGeneratorPlugin, Group2, Mesh, Object3DGeneratorPlugin, PhysicalMaterial, SphereGeometry, ThreeViewer, TorusGeometry, Vector3} from 'threepipe'
+import {BoxGeometry, CatmullRomCurve3, ContactShadowGroundPlugin, CubicBezierCurve3, CylinderGeometry, GeometryGeneratorPlugin, Group2, IObject3D, LineMaterial2, Mesh, Object3DGeneratorPlugin, PhysicalMaterial, SphereGeometry, ThreeViewer, TorusGeometry, Vector3} from 'threepipe'
 
 /** A small jewellery scene with nested groups, to try the selection rules on */
 export function buildScene(viewer: ThreeViewer) {
@@ -104,12 +104,29 @@ export function buildExtras(viewer: ThreeViewer) {
         }
         const lights = group('Lights', 0, 0)
         lights.add(
-            make('light-directional', {color: 0xfff1dd, intensity: 1.2, position: new Vector3(-5, 7, 4), target: new Vector3(0, 0, 0)}, 'Sun'),
-            make('light-spot', {color: 0xffffff, intensity: 30, position: new Vector3(3.5, 5.5, 3), target: new Vector3(0, 1, 0)}, 'Key Spot'),
+            make('light-directional', {color: 0xfff1dd, intensity: 8, position: new Vector3(-5, 7, 4), target: new Vector3(0, 0, 0)}, 'Sun'),
+            make('light-spot', {color: 0xffffff, intensity: 400, position: new Vector3(3.5, 5.5, 3), target: new Vector3(0, 1, 0)}, 'Key Spot'),
             make('light-point', {color: 0xffc58a, intensity: 4, position: new Vector3(-3, 2.5, -2)}, 'Warm Fill'),
         )
         const cams = group('Cameras', 0, 0)
         cams.add(make('camera-perspective', {position: new Vector3(5.5, 2.5, 7), target: new Vector3(0, 1, 0)}, 'Product Camera'))
+        // shadows from the lights, so moving one moves its shadow on the ground
+        const shadow = (name: string, size: number) => {
+            const l = lights.getObjectByName(name) as IObject3D & {shadow: any}
+            l.castShadow = true
+            l.shadow.mapSize.set(size, size)
+            l.shadow.bias = -0.0005
+            l.shadow.normalBias = 0.02
+            return l
+        }
+        const sun = shadow('Sun', 2048)
+        // the sun's shadow box covers the whole scene, shapes and curves included
+        Object.assign(sun.shadow.camera, {left: -13, right: 13, top: 13, bottom: -13, near: 0.5, far: 30})
+        sun.shadow.camera.updateProjectionMatrix()
+        shadow('Key Spot', 1024)
+        shadow('Warm Fill', 512)
+        // the lights, not the environment, make the shadows: keep the environment softer so they show
+        viewer.scene.envMapIntensity = 0.5
         viewer.scene.addObject(lights)
         viewer.scene.addObject(cams)
     }
@@ -130,14 +147,17 @@ export function buildExtras(viewer: ThreeViewer) {
         const curves = group('Curves', -8, 0)
         const spline = geoGen.generateObject('line', {curve: new CatmullRomCurve3([
             new Vector3(-1, 0.2, -2), new Vector3(0.5, 1.2, -1), new Vector3(-0.5, 0.6, 0.5), new Vector3(1, 1.5, 2),
-        ]), segments: 120})
+        ]), segments: 120, material: new LineMaterial2({name: 'Spline Line', color: '#ff6b3d', linewidth: 4})})
         spline.name = 'Spline'
         const bezier = geoGen.generateObject('line', {curve: new CubicBezierCurve3(
             new Vector3(-1.5, 0.3, 3), new Vector3(-1, 2.5, 3), new Vector3(1, -1, 3), new Vector3(1.5, 1.2, 3),
-        ), segments: 80})
+        ), segments: 80, material: new LineMaterial2({name: 'Bezier Line', color: '#3d8bff', linewidth: 4})})
         bezier.name = 'Bezier'
         curves.add(spline, bezier)
         viewer.scene.addObject(shapes)
         viewer.scene.addObject(curves)
     }
+    // a ground under everything (the shapes and curves stand at x = ±8), so every object has somewhere to cast its shadow
+    const ground = viewer.getPlugin(ContactShadowGroundPlugin)
+    if (ground) ground.size = 26
 }

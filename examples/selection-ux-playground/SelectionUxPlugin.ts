@@ -435,6 +435,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
 
         viewer.scene.addEventListener('sceneUpdate', this._markSpecials)
         viewer.scene.addEventListener('addSceneObject', this._markSpecials)
+        viewer.scene.addEventListener('mainCameraChange', this._onMainCameraChange)
         this._picking.addEventListener('hitObject', this._onPickerHit)
         this._picking.addEventListener('selectedObjectChanged', this._onSelectionChanged)
         if (this.load()) this.applySettings()
@@ -458,6 +459,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         window.removeEventListener('blur', this._onBlur)
         viewer.scene.removeEventListener('sceneUpdate', this._markSpecials)
         viewer.scene.removeEventListener('addSceneObject', this._markSpecials)
+        viewer.scene.removeEventListener('mainCameraChange', this._onMainCameraChange)
         this._picking?.removeEventListener('hitObject', this._onPickerHit)
         this._picking?.removeEventListener('selectedObjectChanged', this._onSelectionChanged)
         this._root?.remove()
@@ -496,6 +498,11 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         if (st.visual === 'legacy') return 'Current behaviour: click to select, Shift/Ctrl+click to add'
         if (this.geometryEdit) return `Editing the geometry of “${this.displayName(this.geometryEdit)}” · drag the points or change the parameters · ${k('Esc')} done`
         const sel = this.selected
+        const vc = this.viewCamera
+        if (vc && !sel.length) {
+            return this.lockCameraToView ? `Orbit and zoom move “${this.displayName(vc)}” · ${k('L')} unlock · ${k('0')} exit` :
+                `Looking through “${this.displayName(vc)}” · ${k('L')} lock to move it · ${k('0')} or ${k('Esc')} exit`
+        }
         if (!sel.length) {
             const nav = st.emptyDrag === 'orbit' ? `Drag empty space to orbit · ${k('Shift')}+drag to box-select` : `Drag empty space to box-select · ${k('Space')}+drag or right-drag to orbit`
             return `Click an object to select · ${nav} · ${k('?')} shortcuts`
@@ -508,7 +515,8 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
             st.dragMove === 'off' ? '' : 'Drag to move',
             'Corners scale',
             st.rotate === 'corners' ? 'Just outside a corner rotates' : st.rotate === 'knob' ? 'Knob rotates' : st.rotate === 'ring' ? 'Ring turns it' : '',
-            hasKids ? 'Double-click to go inside' : sel[0].geometry ? `Double-click or ${k('Enter')} to edit the geometry` : '',
+            sel[0].isCamera ? `Double-click or ${k('0')} to look through · ${k('Ctrl')}+${k('Alt')}+${k('0')} move it to this view` :
+                hasKids ? 'Double-click to go inside' : sel[0].geometry ? `Double-click or ${k('Enter')} to edit the geometry` : '',
             i > 0 ? `${k('Esc')} selects parent` : `${k('Esc')} deselects`,
         ].filter(Boolean).join(' · ')
     }
@@ -727,7 +735,15 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         const m = new Matrix4()
         obj.traverseVisible(c => {
             const g = (c as IObject3D).geometry
-            if (!g || this._isHelper(c as IObject3D)) return
+            if (this._isHelper(c as IObject3D)) return
+            if (!g) {
+                // a light or camera inside a group: a small cube at its position, as when it is selected alone
+                if (c !== obj && ((c as any).isLight || (c as any).isCamera)) {
+                    const p = c.getWorldPosition(new Vector3())
+                    box.union(new Box3().setFromCenterAndSize(p, new Vector3().setScalar(this._fallbackSize(c as IObject3D))).applyMatrix4(inv))
+                }
+                return
+            }
             if (!g.boundingBox) g.computeBoundingBox()
             if (!g.boundingBox) return
             m.multiplyMatrices(inv, c.matrixWorld)
@@ -955,7 +971,14 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
     }
 
     private _onDblClick = (e: MouseEvent) => {
-        if (!this._active || e.target !== this._viewer?.canvas) return
+        if (!this._active) return
+        const icon = this._handleMap.get((e.target as Element)?.getAttribute?.('data-sux') || '')
+        if (icon?.kind === 'icon' && icon.obj.isCamera) { // a camera icon: look through it
+            e.stopPropagation()
+            this.lookThrough(icon.obj)
+            return
+        }
+        if (e.target !== this._viewer?.canvas) return
         const p = this._local(e)
         const hit = this.raycastLeaf(p.x, p.y)
         if (!hit) return
@@ -1441,7 +1464,16 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
                 return
             }
             if (this.geometryEdit) this.exitGeometryEdit()
+            else if (!sel.length && this.viewCamera) this.exitCameraView()
             else this.selectParent()
+        } else if (e.code === 'Digit0' || e.code === 'Numpad0') {
+            own()
+            if (ctrl && e.altKey) this.alignCameraToView()
+            else if (this.viewCamera) this.exitCameraView()
+            else this.lookThrough()
+        } else if (e.code === 'KeyL' && !ctrl && this.viewCamera) {
+            own()
+            this.setLockCameraToView(!this.lockCameraToView)
         } else if (e.code === 'Enter' || e.code === 'NumpadEnter') {
             own()
             if (e.shiftKey) this.selectParent()
@@ -1917,6 +1949,149 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
             }
         }
         L.get(k, 'path', {d, fill: 'none', stroke: color, 'stroke-width': 1, opacity: isSel ? 0.9 : 0.6, 'stroke-linejoin': 'round'})
+    }
+
+    // endregion
+
+    // region camera view
+
+    /** The scene camera the view looks through, or null for the editor camera */
+    get viewCamera(): IObject3D | null {
+        const scene = this._viewer?.scene
+        return scene && scene.mainCamera !== scene.defaultCamera ? scene.mainCamera as IObject3D : null
+    }
+
+    /** While looking through a camera, orbit and zoom move that camera (Blender's "lock camera to view") */
+    get lockCameraToView() {
+        return !!this._camView?.locked
+    }
+
+    private _lastViewCamera: IObject3D | null = null
+    private _camView: {cam: any, pose: CameraPose, controlsMode: string, locked: boolean} | null = null
+    private _camHud?: HTMLDivElement
+
+    private _sceneCameras() {
+        const cams: IObject3D[] = []
+        this._modelRoot.traverse(o => {
+            if ((o as IObject3D).isCamera && (o as any).activateMain) cams.push(o as IObject3D)
+        })
+        return cams
+    }
+
+    /** Look through a scene camera. No argument: the selected camera, else the last one, else the first in the scene. */
+    lookThrough(cam?: IObject3D | null) {
+        cam = cam ?? this.selected.find(o => o.isCamera) ?? this._lastViewCamera ?? this._sceneCameras()[0]
+        if (!cam?.isCamera || !(cam as any).activateMain) {
+            this._toast('No camera in the scene: add one with + → Cameras')
+            return
+        }
+        if (cam !== this.viewCamera) (cam as any).activateMain()
+    }
+
+    /** Back to the editor camera */
+    exitCameraView() {
+        if (this.viewCamera) this._viewer?.scene.defaultCamera.activateMain()
+    }
+
+    /** Lock: orbit and zoom move the camera you look through. The moves are one undo step, made when you unlock or exit. */
+    setLockCameraToView(lock: boolean) {
+        const v = this._camView
+        if (!v || v.locked === lock) return
+        v.locked = lock
+        if (lock) {
+            v.pose = cameraPose(v.cam)
+            if (!v.cam.controlsMode) v.cam.controlsMode = 'orbit'
+            v.cam.setInteractions(true, SelectionUxPlugin.PluginType)
+        } else {
+            this._recordCameraMove(v.cam, v.pose)
+            v.cam.setInteractions(false, SelectionUxPlugin.PluginType)
+            v.cam.controlsMode = v.controlsMode
+        }
+        this._renderCamHud()
+        this._emit('camera')
+    }
+
+    /** Move a camera to the current view (Ctrl+Alt+0): the selected camera, else the last one. One undo step. */
+    alignCameraToView(cam?: IObject3D | null) {
+        const viewer = this._viewer
+        cam = cam ?? this.selected.find(o => o.isCamera) ?? this._lastViewCamera
+        const view = viewer?.scene.mainCamera
+        if (!viewer || !view || !cam?.isCamera || cam === view) {
+            this._toast(cam === view ? 'Exit the camera view first (0)' : 'Select a camera to move it to this view')
+            return
+        }
+        const before = cameraPose(cam)
+        setCameraPose(cam, {
+            position: view.getWorldPosition(new Vector3()),
+            quaternion: view.getWorldQuaternion(new Quaternion()),
+            target: (view as any).target.clone(),
+            zoom: view.zoom,
+        })
+        this._recordCameraMove(cam, before)
+        this._toast(`“${this.displayName(cam)}” now looks from here — 0 to look through it`)
+    }
+
+    private _recordCameraMove(cam: IObject3D, before: CameraPose) {
+        const after = cameraPose(cam)
+        if (before.position.distanceToSquared(after.position) + before.target.distanceToSquared(after.target) < 1e-10 &&
+            Math.abs(before.quaternion.dot(after.quaternion)) > 1 - 1e-9) return
+        this._viewer?.getPlugin(UndoManagerPlugin)?.undoManager?.record({
+            undo: () => setCameraPose(cam, before),
+            redo: () => setCameraPose(cam, after),
+        })
+    }
+
+    private _onMainCameraChange = () => {
+        const prev = this._camView
+        if (prev && prev.cam !== this.viewCamera) {
+            // leaving a camera: keep its moves as one undo step and give back its own controls
+            if (prev.locked) {
+                this._recordCameraMove(prev.cam, prev.pose)
+                prev.cam.controlsMode = prev.controlsMode
+            }
+            prev.cam.setInteractions(true, SelectionUxPlugin.PluginType)
+            this._camView = null
+        }
+        const cam = this.viewCamera as any
+        if (cam && !this._camView) {
+            this._lastViewCamera = cam
+            this._camView = {cam, pose: cameraPose(cam), controlsMode: cam.controlsMode ?? '', locked: false}
+            // not locked: looking around does not move the camera
+            cam.setInteractions(false, SelectionUxPlugin.PluginType)
+            if (this.selected.includes(cam)) this.select([], false)
+        }
+        this._specialsDirty = true
+        this._renderCamHud()
+        this._emit('camera')
+    }
+
+    /** The bar over the view while looking through a camera: name, lock, align, exit */
+    private _renderCamHud() {
+        const v = this._camView
+        if (!this._root) return
+        this._root.style.boxShadow = v ? 'inset 0 0 0 2px var(--sux-accent, #0d99ff)' : ''
+        if (!v) {
+            this._camHud?.remove()
+            this._camHud = undefined
+            return
+        }
+        if (!this._camHud) {
+            this._camHud = document.createElement('div')
+            this._camHud.className = 'sux-camhud'
+            // top centre, under a toolbar that sits at the top
+            this._camHud.style.cssText = 'position:absolute;left:50%;top:60px;transform:translateX(-50%);white-space:nowrap;display:flex;align-items:center;gap:4px;padding:4px 4px 4px 10px;border-radius:10px;' +
+                'background:rgba(30,30,30,.92);color:#eee;font:11px/1 Inter,ui-sans-serif,system-ui,sans-serif;pointer-events:auto;box-shadow:0 4px 14px rgba(0,0,0,.2);'
+            this._camHud.addEventListener('pointerdown', e => e.stopPropagation())
+            this._root.appendChild(this._camHud)
+        }
+        const b = (label: string, title: string, on = false) =>
+            `<button data-a="${label}" title="${title}" style="border:0;border-radius:7px;padding:6px 9px;font:inherit;cursor:pointer;color:#fff;background:${on ? 'var(--sux-accent,#0d99ff)' : '#3a3a3a'}">${label}</button>`
+        this._camHud.innerHTML = `<span style="opacity:.7;margin-right:2px">Camera</span><b style="margin-right:6px">${esc(this.displayName(v.cam))}</b>` +
+            b(v.locked ? 'Locked to view' : 'Lock to view', 'Orbit and zoom move this camera (L)', v.locked) + b('Exit', 'Back to the editor camera (0 or Esc)')
+        this._camHud.querySelectorAll('button').forEach(el => el.addEventListener('click', () => {
+            if (el.dataset.a === 'Exit') this.exitCameraView()
+            else this.setLockCameraToView(!v.locked)
+        }))
     }
 
     // endregion
@@ -2426,4 +2601,36 @@ function resizeCursor(dx: number, dy: number) {
 
 function esc(s: string) {
     return s.replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'} as any)[c])
+}
+
+interface CameraPose {
+    position: Vector3 // world
+    quaternion: Quaternion // world
+    target: Vector3 // world
+    zoom: number
+}
+
+function cameraPose(cam: any): CameraPose {
+    return {
+        position: cam.getWorldPosition(new Vector3()),
+        quaternion: cam.getWorldQuaternion(new Quaternion()),
+        target: cam.target?.clone() ?? new Vector3(),
+        zoom: cam.zoom ?? 1,
+    }
+}
+
+/** Set a camera from a world-space pose, also when it is inside a moved group */
+function setCameraPose(cam: any, pose: CameraPose) {
+    const parent = cam.parent as Object3D | null
+    cam.position.copy(pose.position)
+    cam.quaternion.copy(pose.quaternion)
+    if (parent) {
+        parent.updateWorldMatrix(true, false)
+        parent.worldToLocal(cam.position)
+        cam.quaternion.premultiply(parent.getWorldQuaternion(new Quaternion()).invert())
+    }
+    cam.target?.copy(pose.target)
+    cam.zoom = pose.zoom
+    cam.updateMatrixWorld(true)
+    cam.setDirty?.({change: 'transform'})
 }

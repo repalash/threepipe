@@ -25,6 +25,8 @@ export interface EditorToolbarOptions {
     expandHides?: () => HTMLElement[]
     /** Extra buttons at the end: [label or svg, title, action] */
     extra?: [string, string, () => void][]
+    /** Light (default, like the layers panel) or dark */
+    theme?: 'light' | 'dark'
 }
 
 /** Post-processing plugin types that the "Effects" toggle turns off while editing */
@@ -57,13 +59,17 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
     private _effectsOff = false
     private _widgetsOff = false
     private _options: EditorToolbarOptions
+    private _tip: HTMLDivElement
+    private _tipTimer = 0
 
     constructor(options: EditorToolbarOptions = {}) {
         super()
         this._options = options
         injectStyles()
         this.element = document.createElement('div')
-        this.element.className = 'tb-root'
+        this.element.className = 'tb-root' + (options.theme === 'dark' ? ' tb-dark' : '')
+        this._tip = document.createElement('div')
+        this._tip.className = 'tb-tip' + (options.theme === 'dark' ? ' tb-dark' : '')
         this.slot = document.createElement('div')
         this.slot.className = 'tb-slot'
     }
@@ -88,6 +94,7 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
         window.removeEventListener('pointerdown', this._closeMenuOutside, true)
         viewer.scene.removeEventListener('mainCameraChange', this.render)
         this._grid?.removeFromParent()
+        this._tip.remove()
         this.element.remove()
         super.onRemove(viewer)
     }
@@ -275,82 +282,134 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
         const el = this.element
         el.innerHTML = ''
         el.appendChild(this.slot)
-        const sep = () => el.appendChild(Object.assign(document.createElement('span'), {className: 'tb-sep'}))
-        const btn = (icon: string, title: string, fn: (b: HTMLButtonElement) => void, on = false, disabled = false) => {
+        let group = el
+        const newGroup = () => {
+            group = el.appendChild(Object.assign(document.createElement('div'), {className: 'tb-group'}))
+        }
+        /**
+         * kind: 'tool' (one of a set, solid when on), 'toggle' (soft when on), 'menu' (caret; a dot when not the default),
+         * 'action' (no state)
+         */
+        const btn = (icon: string, tip: string, keys: string, fn: (b: HTMLButtonElement) => void,
+            kind: 'tool' | 'toggle' | 'menu' | 'action' = 'action', on = false, disabled = false) => {
             const b = document.createElement('button')
-            b.className = 'tb-btn' + (on ? ' on' : '')
-            b.innerHTML = icon
-            b.title = title
+            b.className = `tb-btn tb-k-${kind}` + (on ? ' on' : '')
+            b.innerHTML = icon + (kind === 'menu' ? I.caret : '')
+            b.setAttribute('aria-label', tip)
+            if (kind === 'tool' || kind === 'toggle') b.setAttribute('aria-pressed', String(on))
             b.disabled = disabled
             b.addEventListener('pointerdown', e => e.preventDefault()) // keep the focus where it is
-            b.addEventListener('click', () => fn(b))
-            el.appendChild(b)
+            b.addEventListener('click', () => {
+                this._hideTip()
+                fn(b)
+            })
+            b.addEventListener('pointerenter', () => this._showTip(b, tip, keys))
+            b.addEventListener('pointerleave', () => this._hideTip())
+            group.appendChild(b)
             return b
         }
         const v = this._viewMode
-        sep()
+        const viewer = this._viewer
         if (!v) {
-            btn(I.pointer, 'Select (V)', () => this.setGizmo('off'), this._gizmo === 'off')
-            btn(I.move, 'Move gizmo (W)', () => this.setGizmo('translate'), this._gizmo === 'translate')
-            btn(I.rotate, 'Rotate gizmo (E)', () => this.setGizmo('rotate'), this._gizmo === 'rotate')
-            btn(I.scale, 'Scale gizmo (R)', () => this.setGizmo('scale'), this._gizmo === 'scale')
-            btn(I.dots, 'Gizmo space and size', b => this._openMenu(b, this._gizmoMenu()), false, this._gizmo === 'off')
-            sep()
-            btn(I.plus, 'Add an object', b => this._openMenu(b, this._addMenu()), false, !this._viewer?.getPlugin(Object3DGeneratorPlugin))
-            sep()
+            newGroup()
+            btn(I.pointer, 'Select', 'V', () => this.setGizmo('off'), 'tool', this._gizmo === 'off')
+            btn(I.move, 'Move gizmo', 'W', () => this.setGizmo('translate'), 'tool', this._gizmo === 'translate')
+            btn(I.rotate, 'Rotate gizmo', 'E', () => this.setGizmo('rotate'), 'tool', this._gizmo === 'rotate')
+            btn(I.scale, 'Scale gizmo', 'R', () => this.setGizmo('scale'), 'tool', this._gizmo === 'scale')
+            btn(I.dots, 'Gizmo space and size', '', b => this._openMenu(b, this._gizmoMenu()), 'menu', false, this._gizmo === 'off')
+            newGroup()
+            btn(I.plus, 'Add an object', '', b => this._openMenu(b, this._addMenu()), 'menu', false, !viewer?.getPlugin(Object3DGeneratorPlugin))
         }
-        btn(I.camera, 'Camera', b => this._openMenu(b, this._cameraMenu()), this._viewer?.scene.mainCamera !== this._viewer?.scene.defaultCamera)
-        btn(I.eye, 'View as (overrides the materials)', b => this._openMenu(b, this._viewMenu()), this._view !== 'shaded')
+        newGroup()
+        btn(I.camera, 'Camera', '0', b => this._openMenu(b, this._cameraMenu()), 'menu', viewer?.scene.mainCamera !== viewer?.scene.defaultCamera)
+        btn(I.eye, 'View as', '', b => this._openMenu(b, this._viewMenu()), 'menu', this._view !== 'shaded')
         if (!v) {
-            btn(I.sparkle, 'Effects (post-processing)', () => this.setEffects(this._effectsOff), !this._effectsOff)
-            btn(I.widget, 'Widgets (3D helpers of lights, cameras, lines)', () => this.setWidgets(this._widgetsOff), !this._widgetsOff, !this._viewer?.getPlugin(Object3DWidgetsPlugin))
-            btn(I.grid, 'Grid', () => {
+            newGroup()
+            btn(I.sparkle, 'Effects (post-processing)', '', () => this.setEffects(this._effectsOff), 'toggle', !this._effectsOff)
+            btn(I.widget, 'Widgets: 3D helpers of lights, cameras, lines', '', () => this.setWidgets(this._widgetsOff), 'toggle', !this._widgetsOff, !viewer?.getPlugin(Object3DWidgetsPlugin))
+            btn(I.grid, 'Grid', '', () => {
                 if (this._grid) this._grid.userData.toolbarOn = !this._gridOn
                 this.setGrid(this._gridOn)
-            }, this._gridOn, !this._grid)
-            btn(I.background, 'Background', () => this.setBackground(!this._viewer?.renderManager.renderPass.renderBackground), !!this._viewer?.renderManager.renderPass.renderBackground)
+            }, 'toggle', this._gridOn, !this._grid)
+            btn(I.background, 'Background', '', () => this.setBackground(!viewer?.renderManager.renderPass.renderBackground), 'toggle', !!viewer?.renderManager.renderPass.renderBackground)
         }
-        sep()
-        const seg = document.createElement('span')
-        seg.className = 'tb-seg'
-        for (const [label, val] of [['Edit', false], ['View', true]] as const) {
+        newGroup()
+        const seg = document.createElement('div')
+        seg.className = 'tb-seg' + (v ? ' tb-seg-2' : '')
+        seg.setAttribute('role', 'radiogroup')
+        for (const [label, val, tip] of [['Edit', false, 'Select and change things'], ['View', true, 'The scene as a visitor sees it']] as const) {
             const b = document.createElement('button')
             b.textContent = label
             b.className = v === val ? 'on' : ''
-            b.title = val ? 'View: the scene as a visitor sees it' : 'Edit: select and change things'
-            b.addEventListener('click', () => this.setViewMode(val))
+            b.setAttribute('role', 'radio')
+            b.setAttribute('aria-checked', String(v === val))
+            b.addEventListener('click', () => {
+                this._hideTip()
+                this.setViewMode(val)
+            })
+            b.addEventListener('pointerenter', () => this._showTip(b, tip, ''))
+            b.addEventListener('pointerleave', () => this._hideTip())
             seg.appendChild(b)
         }
-        el.appendChild(seg)
-        sep()
-        btn(I.focus, 'Zoom to selection (F) · to all (Shift+1)', () => {
-            const p = this._viewer?.getPlugin(PickingPlugin)
+        group.appendChild(seg)
+        newGroup()
+        btn(I.focus, 'Zoom to the selection, or to everything', 'F', () => {
+            const p = viewer?.getPlugin(PickingPlugin)
             if (p?.getSelectedObject()) p.focusSelected()
-            else this._viewer?.fitToView(undefined, 1.25, 800, 'easeOut')
+            else viewer?.fitToView(undefined, 1.25, 800, 'easeOut')
         })
         if (!v) {
-            btn(I.undo, 'Undo (Ctrl+Z)', () => this._undo())
-            btn(I.redo, 'Redo (Ctrl+Shift+Z)', () => this._undo(true))
+            btn(I.undo, 'Undo', 'Ctrl Z', () => this._undo())
+            btn(I.redo, 'Redo', 'Ctrl Shift Z', () => this._undo(true))
         }
-        btn(I.save, 'Save .glb (with the scene notes)', () => void this.saveGlb())
-        for (const [icon, title, fn] of this._options.extra || []) btn(icon, title, fn)
-        btn(this._expanded ? I.shrink : I.expand, 'Expand the canvas (Shift+Space)', () => this.setExpanded(!this._expanded), this._expanded)
+        newGroup()
+        btn(I.save, 'Save .glb, with the scene notes', '', () => void this.saveGlb())
+        for (const [icon, title, fn] of this._options.extra || []) btn(icon, title, '', fn)
+        btn(this._expanded ? I.shrink : I.expand, this._expanded ? 'Show the panels' : 'Expand the canvas', 'Shift Space', () => this.setExpanded(!this._expanded), 'toggle', this._expanded)
+    }
+
+    private _showTip(anchor: HTMLElement, text: string, keys: string) {
+        clearTimeout(this._tipTimer)
+        // the first tooltip waits a little; moving along the bar shows the next at once
+        const delay = this._tip.classList.contains('show') ? 0 : 450
+        this._tipTimer = window.setTimeout(() => {
+            if (this._menu || !anchor.isConnected) return
+            this._tip.innerHTML = text + (keys ? keys.split(' ').map(k => `<kbd>${k}</kbd>`).join('') : '')
+            if (!this._tip.isConnected) document.body.appendChild(this._tip)
+            const r = anchor.getBoundingClientRect()
+            const tr = this._tip.getBoundingClientRect()
+            this._tip.style.left = Math.max(8, Math.min(innerWidth - tr.width - 8, r.left + r.width / 2 - tr.width / 2)) + 'px'
+            this._tip.style.top = r.bottom + 8 + 'px'
+            this._tip.classList.add('show')
+        }, delay)
+    }
+
+    private _hideTip() {
+        clearTimeout(this._tipTimer)
+        // stay "warm" briefly so the next button shows its tooltip without the delay
+        this._tipTimer = window.setTimeout(() => this._tip.classList.remove('show'), 120)
     }
 
     private _closeMenuOutside = (e: Event) => {
         if (this._menu && !this._menu.contains(e.target as Node)) this._closeMenu()
     }
 
+    private _menuAnchor?: HTMLElement
+
     private _closeMenu() {
         this._menu?.remove()
         this._menu = undefined
+        this._menuAnchor?.classList.remove('open')
+        this._menuAnchor = undefined
     }
 
     /** items: [label, action, active?] or '-' for a separator or '#title' for a heading */
     private _openMenu(anchor: HTMLElement, items: ([string, () => void, boolean?] | string)[]) {
         this._closeMenu()
+        this._hideTip()
         const m = document.createElement('div')
-        m.className = 'tb-menu'
+        m.className = 'tb-menu' + (this._options.theme === 'dark' ? ' tb-dark' : '')
+        m.setAttribute('role', 'menu')
         for (const it of items) {
             if (typeof it === 'string') {
                 const d = document.createElement('div')
@@ -362,7 +421,8 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
             const [label, fn, on] = it
             const d = document.createElement('div')
             d.className = 'tb-menu-item' + (on ? ' on' : '')
-            d.innerHTML = label
+            d.setAttribute('role', 'menuitem')
+            d.innerHTML = `<span class="tb-check">${on ? I.check : ''}</span><span class="tb-label">${label}</span>`
             d.addEventListener('click', () => {
                 fn()
                 this._closeMenu()
@@ -373,8 +433,10 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
         const r = anchor.getBoundingClientRect()
         const mr = m.getBoundingClientRect()
         m.style.left = Math.max(8, Math.min(innerWidth - mr.width - 8, r.left)) + 'px'
-        m.style.top = r.bottom + 6 + 'px'
+        m.style.top = r.bottom + 8 + 'px'
+        anchor.classList.add('open')
         this._menu = m
+        this._menuAnchor = anchor
     }
 
     private _gizmoMenu() {
@@ -404,12 +466,17 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
         const viewer = this._viewer
         if (!viewer) return []
         const main = viewer.scene.mainCamera
-        const items: ([string, () => void, boolean?] | string)[] = ['#Editor', ['Editor camera', () => viewer.scene.defaultCamera.activateMain(), main === viewer.scene.defaultCamera]]
+        const items: ([string, () => void, boolean?] | string)[] = ['#Editor', ['Editor camera <kbd>0</kbd>', () => viewer.scene.defaultCamera.activateMain(), main === viewer.scene.defaultCamera]]
         const cams: IObject3D[] = []
         viewer.scene.modelRoot.traverse(o => {
             if ((o as IObject3D).isCamera && (o as any).activateMain) cams.push(o as IObject3D)
         })
-        if (cams.length) items.push('#Scene cameras', ...cams.map(c => [c.name || c.type, () => (c as any).activateMain(), main === c] as [string, () => void, boolean]))
+        if (cams.length) items.push('#Look through', ...cams.map(c => [c.name || c.type, () => (c as any).activateMain(), main === c] as [string, () => void, boolean]))
+        const ux = viewer.getPlugin(SelectionUxPlugin)
+        if (ux && cams.length) {
+            items.push('-', ['Move the selected camera to this view <kbd>Ctrl Alt 0</kbd>', () => ux.alignCameraToView()])
+            if (ux.viewCamera) items.push([(ux.lockCameraToView ? 'Unlock' : 'Lock') + ' camera to view <kbd>L</kbd>', () => ux.setLockCameraToView(!ux.lockCameraToView), ux.lockCameraToView])
+        }
         return items
     }
 
@@ -421,8 +488,10 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
     // endregion
 }
 
-const svg = (d: string) => `<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`
+const svg = (d: string) => `<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`
 const I = {
+    caret: '<svg class="tb-caret" viewBox="0 0 8 8" width="7" height="7"><path d="M1.5 3l2.5 2.5L6.5 3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    check: svg('<path d="M3.5 8.5l3 3 6-7"/>'),
     pointer: svg('<path d="M4 2.5l8 5.2-3.6.8 2.1 4.2-1.6.8-2.1-4.2L4 12z"/>'),
     move: svg('<path d="M8 1.5v13M1.5 8h13M8 1.5L6 3.5M8 1.5l2 2M8 14.5l-2-2M8 14.5l2-2M1.5 8l2-2M1.5 8l2 2M14.5 8l-2-2M14.5 8l-2 2"/>'),
     rotate: svg('<path d="M13 8a5 5 0 1 1-1.5-3.6"/><path d="M12 1.8v2.8H9.2"/>'),
@@ -449,29 +518,78 @@ function injectStyles() {
     stylesAdded = true
     const st = document.createElement('style')
     st.textContent = `
-.tb-root {
-  position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 12; display: flex; align-items: center; gap: 2px;
-  background: rgba(30,30,30,.94); color: #e6e6e6; padding: 4px; border-radius: 10px; box-shadow: 0 4px 16px rgba(0,0,0,.2);
-  font: 11px/1 Inter, ui-sans-serif, system-ui, sans-serif; max-width: calc(100% - 20px);
+.tb-root, .tb-menu, .tb-tip {
+  --tb-bg: #ffffff; --tb-fg: #1e1e1e; --tb-icon: #444a52; --tb-dim: #8a8f97; --tb-line: #e9eaec; --tb-hover: #f2f3f5; --tb-press: #e8e9ec;
+  --tb-accent: #0d99ff; --tb-accent-fg: #ffffff; --tb-soft: #e5f4ff; --tb-soft-fg: #0b84dd; --tb-track: #f0f1f3; --tb-thumb: #ffffff;
+  --tb-shadow: 0 0 0 1px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.06), 0 6px 20px rgba(0,0,0,.10);
+  font: 500 11px/1 Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased;
 }
-.tb-slot { display: flex; align-items: center; }
+.tb-dark.tb-root, .tb-dark.tb-menu, .tb-dark.tb-tip {
+  --tb-bg: #2c2c2c; --tb-fg: #f0f0f0; --tb-icon: #d4d4d4; --tb-dim: #9a9a9a; --tb-line: #3d3d3d; --tb-hover: #383838; --tb-press: #444;
+  --tb-soft: rgba(13,153,255,.22); --tb-soft-fg: #7cc6ff; --tb-track: #383838; --tb-thumb: #555;
+  --tb-shadow: 0 0 0 1px rgba(0,0,0,.4), 0 6px 20px rgba(0,0,0,.35);
+}
+.tb-root {
+  position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 12; display: flex; align-items: center;
+  background: var(--tb-bg); color: var(--tb-fg); padding: 4px; border-radius: 12px; box-shadow: var(--tb-shadow); max-width: calc(100% - 20px);
+}
+.tb-group { display: flex; align-items: center; gap: 2px; padding: 0 4px; position: relative; flex: none; }
+.tb-group + .tb-group::before { content: ''; position: absolute; left: -.5px; top: 6px; bottom: 6px; width: 1px; background: var(--tb-line); }
+.tb-slot { display: flex; align-items: center; padding-right: 4px; }
 .tb-slot:empty { display: none; }
-.tb-slot:empty + .tb-sep { display: none; }
-.tb-btn { border: 0; background: transparent; color: #cfcfcf; width: 30px; height: 30px; border-radius: 7px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; flex: none; padding: 0; }
-.tb-btn:hover:not(:disabled) { background: #3a3a3a; color: #fff; }
-.tb-btn.on { background: #0d99ff; color: #fff; }
-.tb-btn:disabled { opacity: .35; cursor: default; }
-.tb-sep { width: 1px; align-self: stretch; background: #444; margin: 3px 4px; flex: none; }
-.tb-seg { display: inline-flex; background: #2a2a2a; border-radius: 7px; padding: 2px; flex: none; }
-.tb-seg button { border: 0; background: transparent; color: #bbb; padding: 6px 9px; border-radius: 5px; font: inherit; cursor: pointer; }
-.tb-seg button.on { background: #505050; color: #fff; }
-.tb-menu { position: fixed; z-index: 1000; min-width: 170px; background: #1e1e1e; color: #fff; border-radius: 9px; padding: 6px; box-shadow: 0 8px 28px rgba(0,0,0,.3);
-  font: 11px/1.2 Inter, ui-sans-serif, system-ui, sans-serif; max-height: 70vh; overflow: auto; }
-.tb-menu-item { padding: 7px 9px; border-radius: 6px; cursor: pointer; white-space: nowrap; }
-.tb-menu-item:hover { background: #2f2f2f; }
-.tb-menu-item.on { background: #0d99ff; }
-.tb-menu-title { color: #8a8a8a; padding: 8px 9px 3px; font-size: 10px; text-transform: uppercase; letter-spacing: .04em; }
-.tb-menu-sep { height: 1px; background: #333; margin: 4px 2px; }
+.tb-btn {
+  position: relative; border: 0; background: transparent; color: var(--tb-icon); height: 32px; min-width: 32px; padding: 0 8px; border-radius: 8px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 3px; cursor: pointer; flex: none; transition: background-color .12s, color .12s;
+}
+.tb-btn svg { flex: none; }
+.tb-k-menu { padding: 0 5px 0 8px; }
+.tb-btn .tb-caret { opacity: .55; margin-left: 1px; }
+.tb-btn:hover:not(:disabled) { background: var(--tb-hover); color: var(--tb-fg); }
+.tb-btn:active:not(:disabled), .tb-btn.open { background: var(--tb-press); color: var(--tb-fg); }
+.tb-btn:focus-visible, .tb-seg button:focus-visible { outline: 2px solid var(--tb-accent); outline-offset: 1px; }
+.tb-btn:disabled { opacity: .3; cursor: default; }
+/* a tool: one of a set, solid when it is the current one */
+.tb-k-tool.on, .tb-k-tool.on:hover:not(:disabled) { background: var(--tb-accent); color: var(--tb-accent-fg); }
+/* a toggle: soft when on, so a row of toggles does not shout */
+.tb-k-toggle.on { color: var(--tb-soft-fg); }
+.tb-k-toggle.on:hover:not(:disabled) { background: var(--tb-soft); color: var(--tb-soft-fg); }
+/* a menu with a setting that is not the default: a small dot */
+.tb-k-menu.on::after { content: ''; position: absolute; top: 5px; right: 5px; width: 5px; height: 5px; border-radius: 50%; background: var(--tb-accent); box-shadow: 0 0 0 1.5px var(--tb-bg); }
+.tb-seg { display: inline-flex; background: var(--tb-track); border-radius: 8px; padding: 2px; position: relative; flex: none; }
+.tb-seg button {
+  position: relative; z-index: 1; border: 0; background: transparent; color: var(--tb-dim); height: 28px; padding: 0 11px; border-radius: 6px; font: inherit; cursor: pointer;
+  transition: color .15s;
+}
+.tb-seg button:hover { color: var(--tb-fg); }
+.tb-seg button.on { color: var(--tb-fg); background: var(--tb-thumb); box-shadow: 0 0 0 .5px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.12); }
+.tb-menu {
+  position: fixed; z-index: 1000; min-width: 200px; background: var(--tb-bg); color: var(--tb-fg); border-radius: 12px; padding: 6px;
+  box-shadow: var(--tb-shadow); max-height: 70vh; overflow: auto; animation: tb-in .12s ease-out;
+}
+@keyframes tb-in { from { opacity: 0; transform: translateY(-3px); } }
+.tb-menu-item { display: flex; align-items: center; gap: 6px; padding: 0 10px 0 4px; height: 30px; border-radius: 7px; cursor: pointer; white-space: nowrap; }
+.tb-menu-item:hover { background: var(--tb-hover); }
+.tb-check { width: 16px; height: 16px; flex: none; color: var(--tb-accent); }
+.tb-label { flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+.tb-menu kbd, .tb-tip kbd { font: inherit; font-size: 10px; color: var(--tb-dim); background: var(--tb-track); border-radius: 4px; padding: 2px 5px; margin-left: 4px; }
+.tb-menu-title { color: var(--tb-dim); padding: 9px 10px 5px 26px; font-size: 10px; font-weight: 600; letter-spacing: .02em; }
+.tb-menu-sep { height: 1px; background: var(--tb-line); margin: 5px 4px; }
+.tb-tip {
+  position: fixed; z-index: 1001; pointer-events: none; background: #1e1e1e; color: #fff; border-radius: 7px; padding: 6px 8px; white-space: nowrap;
+  opacity: 0; transform: translateY(-2px); transition: opacity .1s, transform .1s; box-shadow: 0 4px 14px rgba(0,0,0,.18);
+}
+.tb-tip.show { opacity: 1; transform: none; }
+.tb-tip kbd { color: #bdbdbd; background: #3a3a3a; }
+.tb-root .sux-mode-btn { height: 32px; padding: 0 8px 0 10px; border-radius: 8px; background: transparent; color: var(--tb-fg); box-shadow: none; font-weight: 500; }
+.tb-root .sux-mode-btn b { color: var(--tb-accent); }
+.tb-root .sux-mode-btn:hover, .tb-root .sux-mode-btn.on { background: var(--tb-hover); color: var(--tb-fg); }
+.tb-root .sux-menu { top: calc(100% + 12px); left: -4px; background: var(--tb-bg); color: var(--tb-fg); border-radius: 12px; box-shadow: var(--tb-shadow); }
+.tb-root .sux-menu-item:hover { background: var(--tb-hover); }
+.tb-root .sux-menu-item.on { background: var(--tb-soft); }
+.tb-root .sux-menu-item.on b, .tb-root .sux-menu-item.on .d { color: var(--tb-soft-fg); }
+.tb-root .sux-menu-item > b { color: var(--tb-accent); }
+.tb-root .sux-menu-item .d, .tb-root .sux-menu-plain kbd { color: var(--tb-dim); }
+.tb-root .sux-menu-sep { background: var(--tb-line); }
 `
     document.head.appendChild(st)
 }
