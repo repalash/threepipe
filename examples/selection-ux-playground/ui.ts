@@ -22,7 +22,7 @@ const options: Opt<any>[] = [
     {key: 'rotate', label: 'Rotate with', options: [['corners', 'Corners'], ['knob', 'Knob'], ['ring', 'Ring'], ['off', 'Off']]},
     {key: 'rotateAxis', label: 'Rotate axis', options: [['up', 'Turntable'], ['view', 'Screen'], ['free', 'Free']]},
     {key: 'marquee', label: 'Box select', options: [['touch', 'Touch'], ['contain', 'Inside']]},
-    {key: 'objectHelpers', label: 'Lights, cams', options: [['overlay', 'New overlay'], ['widgets', '3D widgets'], ['both', 'Both']]},
+    {key: 'objectHelpers', label: 'Lights, cams', options: [['overlay', 'New overlay'], ['widgets', '3D widgets'], ['both', 'Both'], ['none', 'None']]},
     {key: 'unit', label: 'Units', options: [['mm', 'mm'], ['cm', 'cm'], ['m', 'm']]},
     {key: 'accent', label: 'Color', options: [['#0d99ff', 'Blue'], ['#7b61ff', 'Violet'], ['#14ae5c', 'Green'], ['#ff7a1a', 'Orange']]},
 ]
@@ -302,9 +302,12 @@ const shortcuts: [string, string][] = [
     ['Finish editing the geometry', 'Esc'],
     ['Aim a light or camera', 'Drag the dot at the end of its line'],
     ['Look through the camera / back', '0 · or double-click a camera icon'],
+    ['Selection mode 1–7 (7: Classic)', '1 … 7'],
     ['Lock the camera to the view (orbit moves it)', 'L'],
     ['Move the selected camera to this view', 'Ctrl Alt 0'],
     ['Tools: select · move · rotate · scale', 'V · W · E · R'],
+    ['While moving: lock to an axis, type an exact distance, confirm', 'X Y Z  ·  5  ·  Enter'],
+    ['Duplicate (again: same offset as the last move)', 'Ctrl D'],
     ['Add an annotation (then click a surface)', 'N'],
     ['Expand the canvas', 'Shift Space'],
     ['Next / previous sibling', 'Tab / Shift + Tab'],
@@ -401,7 +404,7 @@ export function injectUiStyles() {
     const st = document.createElement('style')
     st.textContent = `
 .sux-modes, .sux-pop, .sux-hint, .sux-toast, #sux-help, .sux-name, .sux-dims {
-  font: 11px/1.3 Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font: 11px/1.3 var(--tp-font-family, Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif);
 }
 .sux-modes { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 12; }
 .sux-modes-inline { position: relative; top: auto; left: auto; transform: none; }

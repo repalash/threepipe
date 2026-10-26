@@ -92,7 +92,7 @@ export interface SelectionUxSettings {
     /** Show the hint line at the bottom of the viewport (see {@link SelectionUxPlugin.getHint}) */
     showHints: boolean
     /** Lights and cameras: the new overlay (icons, aim lines, frustum), the 3D widgets of Object3DWidgetsPlugin, or both */
-    objectHelpers: 'overlay' | 'widgets' | 'both'
+    objectHelpers: 'overlay' | 'widgets' | 'both' | 'none'
 }
 
 export const defaultSelectionUxSettings: SelectionUxSettings = {
@@ -136,13 +136,13 @@ export interface SelectionUxMode {
 }
 
 export const builtinSelectionUxModes: SelectionUxMode[] = [
-    {id: 'figma2d', short: 'A', label: 'Figma 2D', description: 'Screen box, corner scale, rotate outside corners, hover outline', settings: {visual: 'figma2d', rotate: 'corners', rotateAxis: 'up', scalePivot: 'base', stretchHandles: false, outlineHover: true}},
-    {id: 'box3d', short: 'B', label: '3D box', description: 'Line box, corner dots, face stretch, turn ring', settings: {visual: 'box3d', rotate: 'ring', scalePivot: 'opposite', stretchHandles: true, xray: true}},
-    {id: 'brackets', short: 'C', label: 'Brackets', description: 'Minimal corner brackets, rotate knob', settings: {visual: 'brackets', rotate: 'knob', rotateAxis: 'up', scalePivot: 'base', stretchHandles: false, xray: false}},
-    {id: 'hybrid', short: 'D', label: 'Hybrid', description: '3D box + 2D handles, side stretch, free rotate', settings: {visual: 'hybrid', rotate: 'corners', rotateAxis: 'free', scalePivot: 'base', stretchHandles: true, xray: true}},
-    {id: 'outline', short: 'E', label: 'Outline', description: 'Mesh outline + part lines from the render pipeline, handles only', settings: {visual: 'minimal', rotate: 'corners', rotateAxis: 'up', scalePivot: 'base', outlineSelected: true, outlineHover: true, outlineParts: true, outlineXray: true}},
-    {id: 'focus', short: 'F', label: 'Focus', description: 'Outline, dims the rest (colors of the selection stay), turn ring', settings: {visual: 'minimal', rotate: 'ring', scalePivot: 'base', outlineSelected: true, outlineHover: true, outlineParts: true, outlineXray: true, dimOthers: true}},
-    {id: 'current', short: '—', label: 'Current', description: 'Existing PickingPlugin box and clicks', settings: {visual: 'legacy'}},
+    {id: 'figma2d', short: '1', label: 'Figma 2D', description: 'Screen box, corner scale, rotate outside corners, hover outline', settings: {visual: 'figma2d', rotate: 'corners', rotateAxis: 'up', scalePivot: 'base', stretchHandles: false, outlineHover: true}},
+    {id: 'box3d', short: '2', label: '3D box', description: 'Line box, corner dots, face stretch, turn ring', settings: {visual: 'box3d', rotate: 'ring', scalePivot: 'opposite', stretchHandles: true, xray: true}},
+    {id: 'brackets', short: '3', label: 'Brackets', description: 'Minimal corner brackets, rotate knob', settings: {visual: 'brackets', rotate: 'knob', rotateAxis: 'up', scalePivot: 'base', stretchHandles: false, xray: false}},
+    {id: 'hybrid', short: '4', label: 'Hybrid', description: '3D box + 2D handles, side stretch, free rotate', settings: {visual: 'hybrid', rotate: 'corners', rotateAxis: 'free', scalePivot: 'base', stretchHandles: true, xray: true}},
+    {id: 'outline', short: '5', label: 'Outline', description: 'Mesh outline + part lines from the render pipeline, handles only', settings: {visual: 'minimal', rotate: 'corners', rotateAxis: 'up', scalePivot: 'base', outlineSelected: true, outlineHover: true, outlineParts: true, outlineXray: true}},
+    {id: 'focus', short: '6', label: 'Focus', description: 'Outline, dims the rest (colors of the selection stay), turn ring', settings: {visual: 'minimal', rotate: 'ring', scalePivot: 'base', outlineSelected: true, outlineHover: true, outlineParts: true, outlineXray: true, dimOthers: true}},
+    {id: 'current', short: '7', label: 'Classic', description: 'The threepipe default: bounding box, click to select, transform gizmo (W E R)', settings: {visual: 'legacy'}},
 ]
 
 export interface SelectionUxPluginOptions {
@@ -198,7 +198,12 @@ type DragState =
     {kind: 'aim', start: Vector2, obj: IObject3D, plane: Plane, snaps: TransformSnapshot[], camTarget?: Vector3} |
     {kind: 'cp', start: Vector2, obj: IObject3D, point: CurvePoint, before: number[], plane: Plane} |
     {kind: 'shape', start: Vector2, obj: IObject3D, handle: ShapeHandle, v0: number} |
-    {kind: 'move', start: Vector2, hitPoint: Vector3, plane: Plane, planeKind: MovePlaneKind, baseDelta: Vector3, lastDelta: Vector3, snaps: TransformSnapshot[], startBox: Box3, others: Box3[], lockAxis: 0 | 1 | 2 | -1, viewRight: Vector3, viewUp: Vector3} |
+    {kind: 'move', start: Vector2, hitPoint: Vector3, plane: Plane, planeKind: MovePlaneKind, baseDelta: Vector3, lastDelta: Vector3, snaps: TransformSnapshot[], startBox: Box3, others: Box3[], lockAxis: 0 | 1 | 2 | -1, viewRight: Vector3, viewUp: Vector3,
+        /** X/Y/Z pressed while dragging: move along this world axis only */
+        axis?: 0 | 1 | 2
+        /** A value typed while dragging (in display units): the exact distance along the axis */
+        typed?: string
+        lastP?: Vector2} |
     {kind: 'scale', start: Vector2, pivot: Vector3, pivotS: Vector2, dir: Vector2, d0: number, snaps: TransformSnapshot[]} |
     {kind: 'stretch', start: Vector2, obj: IObject3D, axis: number, pivotLocal: Vector3, pivotS: Vector2, dir: Vector2, d0: number, snaps: TransformSnapshot[], boxToObj: Matrix4} |
     {kind: 'rotate', start: Vector2, center: Vector3, axis: Vector3, centerS: Vector2, a0: number, mode: 'plane' | 'screen' | 'dx' | 'free', sign: number, snaps: TransformSnapshot[]} |
@@ -389,6 +394,22 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         return st
     }
 
+    /** The screen icons of lights and cameras are drawn (objectHelpers overlay or both) */
+    get iconsShown() {
+        return this.settings.objectHelpers === 'overlay' || this.settings.objectHelpers === 'both'
+    }
+
+    /** The 3D widgets of Object3DWidgetsPlugin are on (objectHelpers widgets or both) */
+    get widgetsShown() {
+        return this.settings.objectHelpers === 'widgets' || this.settings.objectHelpers === 'both'
+    }
+
+    /** Turn the light and camera icons and the 3D widgets on or off, each on its own */
+    setObjectHelpers(icons: boolean, widgets: boolean) {
+        this.settings.objectHelpers = icons && widgets ? 'both' : icons ? 'overlay' : widgets ? 'widgets' : 'none'
+        this.applySettings()
+    }
+
     /** View-only mode: selection works, nothing can be moved, scaled, grouped or deleted */
     editingLocked = false
 
@@ -440,7 +461,8 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
 
         const root = document.createElement('div')
         root.className = 'sux-overlay'
-        root.style.cssText = 'position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:5;'
+        // above the annotation markers (z-index 6), so the selection lines read over them
+        root.style.cssText = 'position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:7;'
         const svg = document.createElementNS(SVG_NS, 'svg')
         svg.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;overflow:visible;'
         const gLines = document.createElementNS(SVG_NS, 'g')
@@ -517,7 +539,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         this._root && (this._root.style.display = legacy ? 'none' : '')
         this._root?.style.setProperty('--sux-accent', this.settings.accent)
         const widgets = this._viewer.getPlugin(Object3DWidgetsPlugin)
-        if (widgets) widgets.enabled = legacy || this.settings.objectHelpers !== 'overlay'
+        if (widgets) widgets.enabled = legacy || this.widgetsShown
         this._matchMode()
         this.save()
         this._emit('settings')
@@ -529,7 +551,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         if (this.hintProvider) return this.hintProvider(this)
         const st = this.settings
         const k = (s: string) => `<kbd>${s}</kbd>`
-        if (st.visual === 'legacy') return 'Current behaviour: click to select, Shift/Ctrl+click to add'
+        if (st.visual === 'legacy') return 'Classic: click to select, Shift/Ctrl+click to add, W E R for the gizmo · 1–6 for the other modes'
         if (this.geometryEdit) return `Editing the geometry of “${this.displayName(this.geometryEdit)}” · drag the points or change the parameters · ${k('Esc')} done`
         const sel = this.selected
         const vc = this.viewCamera
@@ -746,22 +768,31 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         const cam = this._camera() as any
         this._raycaster.params.Line = {threshold: this._worldPerPixel(cam.target ?? new Vector3()) * 5}
         // the 3D widgets of lights, cameras and lines stand for their object
-        const roots = [this._modelRoot, ...this.settings.objectHelpers !== 'overlay' ? this._picking.picker.extraObjects : []]
+        const roots = [this._modelRoot, ...this.widgetsShown ? this._picking.picker.extraObjects : []]
         const hits = this._raycaster.intersectObjects(roots, true)
         const cond = this._picking.picker.selectionCondition
+        // the selection wins over what is in front of it, like in Figma: a duplicate sits exactly on its original,
+        // and a press on it must drag the copy (and keep the duplicate offset chain), not select the original
+        const sel = this.selected
+        const inSelection = (o: Object3D | null) => {
+            for (let p = o; p; p = p.parent) if (sel.includes(p as IObject3D)) return true
+            return false
+        }
+        let first: {leaf: IObject3D, point: Vector3} | null = null
         for (const hit of hits) {
             const o = hit.object as IObject3D
             let w: any = o
             while (w && !(w.assetType === 'widget' && w.object)) w = w.parent
+            let leaf: IObject3D | null = null
             if (w) {
                 const t = w.object as IObject3D
-                if (t.visible && !this.isLocked(t) && this.levels(t).length) return {leaf: t, point: hit.point.clone()}
-                continue
-            }
-            if (!cond(o) || this.isLocked(o)) continue
-            return {leaf: o, point: hit.point.clone()}
+                if (t.visible && !this.isLocked(t) && this.levels(t).length) leaf = t
+            } else if (cond(o) && !this.isLocked(o)) leaf = o
+            if (!leaf) continue
+            if (!sel.length || inSelection(leaf)) return {leaf, point: hit.point.clone()}
+            first ??= {leaf, point: hit.point.clone()}
         }
-        return null
+        return first
     }
 
     /** Box of the object in its own frame */
@@ -1385,6 +1416,8 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
     }
 
     private _updateMove(s: Extract<DragState, {kind: 'move'}>, p: Vector2) {
+        s.lastP = p.clone()
+        if (s.axis !== undefined || s.typed) return this._updateAxisMove(s, p)
         const hp = this._planeHit(p, s.plane)
         if (!hp) return
         const delta = hp.sub(s.hitPoint).add(s.baseDelta)
@@ -1414,6 +1447,42 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         s.lastDelta.copy(delta)
         const u = this._unitScale()
         this._liveLabel = `${SelectionUxPlugin.PlaneLabels[s.planeKind]} · Tab: switch   Δ ${this._fmt(delta.x * u)}, ${this._fmt(delta.y * u)}, ${this._fmt(delta.z * u)} ${this._unitLabel()}`
+    }
+
+    /**
+     * Precise moves while dragging, like Blender: X, Y or Z locks the move to that world axis (the pointer slides along it),
+     * a typed number moves exactly that far along it (display units), Enter confirms, Esc cancels.
+     */
+    private _updateAxisMove(s: Extract<DragState, {kind: 'move'}>, p: Vector2) {
+        const u = this._unitScale()
+        // typed without an axis: the axis moved most so far, else X
+        if (s.axis === undefined) {
+            const d = s.lastDelta
+            s.axis = d.lengthSq() < 1e-12 ? 0 : [0, 1, 2].reduce((a, b) => Math.abs(d.getComponent(b)) > Math.abs(d.getComponent(a)) ? b : a, 0) as 0 | 1 | 2
+        }
+        const dir = new Vector3().setComponent(s.axis, 1)
+        const typed = s.typed !== undefined && s.typed !== '' && s.typed !== '-' ? parseFloat(s.typed) : NaN
+        let t: number
+        if (isFinite(typed)) t = typed / u
+        else {
+            // the point of the axis line (through the grab point) nearest to the pointer ray
+            const ray = this._rayFromScreen(p.x, p.y)
+            const w0 = ray.origin.clone().sub(s.hitPoint)
+            const b = ray.direction.dot(dir), d = ray.direction.dot(w0), e = dir.dot(w0)
+            const den = 1 - b * b
+            if (den < 1e-6) return // looking straight along the axis
+            t = (e - b * d) / den
+            const maxD = Math.max(s.startBox.getSize(new Vector3()).length() * 50, this._worldPerPixel(s.hitPoint) * 2000)
+            t = Math.max(-maxD, Math.min(maxD, t))
+            if (this._keys.shift) t = Math.round(t * u) / u // whole units
+        }
+        const delta = dir.multiplyScalar(t)
+        this._guides = []
+        for (const sn of s.snaps) this._setWorld(sn.obj, new Matrix4().makeTranslation(delta.x, delta.y, delta.z).multiply(sn.world))
+        s.lastDelta.copy(delta)
+        const name = 'XYZ'[s.axis]
+        const value = s.typed !== undefined ? `${s.typed}▏` : this._fmt(t * u)
+        this._liveLabel = `${name} ${value} ${this._unitLabel()} · type a value · Enter: done · ${name}: free`
     }
 
     /** Snap the moving box edges/centers to other objects on x and z (and to the floor on y) */
@@ -1527,6 +1596,19 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
     private _onKeyDown = (e: KeyboardEvent) => {
         this._syncMods(e)
         this._pointerDirty = true
+        // 1-9: the modes in the menu order, also from the Classic mode so there is always a way back
+        if (this.enabled && /^Digit[1-9]$/.test(e.code) && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey && !this._state) {
+            const t0 = e.target as HTMLElement
+            const typing = t0 && (t0.tagName === 'INPUT' || t0.tagName === 'TEXTAREA' || t0.isContentEditable || t0.closest?.('[data-own-keys]'))
+            const m = this.modes[+e.code.slice(5) - 1]
+            if (!typing && m) {
+                e.preventDefault()
+                e.stopPropagation()
+                this.setMode(m.id)
+                this._toast(`${m.short ? m.short + ' · ' : ''}${m.label}${m.description ? ' — ' + m.description : ''}`)
+                return
+            }
+        }
         if (!this._active) return
         const t = e.target as HTMLElement
         if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
@@ -1548,6 +1630,35 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
             own()
             this._switchMovePlane()
             return
+        }
+        const ms = this._state?.kind === 'move' ? this._state : null
+        if (ms && !ctrl) {
+            const axis = ({KeyX: 0, KeyY: 1, KeyZ: 2} as const)[e.code as 'KeyX']
+            const digit = /^(Digit|Numpad)[0-9]$/.test(e.code) ? e.code.slice(-1) : e.code === 'Period' || e.code === 'NumpadDecimal' ? '.' : e.code === 'Minus' || e.code === 'NumpadSubtract' ? '-' : ''
+            if (axis !== undefined) { // again: back to the free move
+                own()
+                if (ms.axis === axis) {
+                    ms.axis = undefined
+                    ms.typed = undefined
+                } else ms.axis = axis
+            } else if (digit || e.code === 'Backspace') {
+                own()
+                const cur = ms.typed ?? ''
+                ms.typed = e.code === 'Backspace' ? cur.slice(0, -1) : digit === '-' ? cur.startsWith('-') ? cur.slice(1) : '-' + cur : cur + digit
+            } else if (e.code === 'Enter' || e.code === 'NumpadEnter') {
+                own()
+                this._state = null
+                this._guides = []
+                this._liveLabel = ''
+                this._endDrag(ms)
+                this._pointerDirty = true
+                return
+            } else if (e.code !== 'Escape') return
+            if (e.code !== 'Escape') {
+                if (ms.lastP) this._updateMove(ms, ms.lastP)
+                this._viewer?.setDirty()
+                return
+            }
         }
         const editKey = ctrl && ['KeyD', 'KeyX', 'KeyV', 'KeyG'].includes(e.code) || ['Delete', 'Backspace'].includes(e.code) || e.code.startsWith('Arrow') && !ctrl
         if (editKey && sel.length && !this.canEdit) {
@@ -1833,11 +1944,11 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         if (!st.outlineHover) this.externalHoverList.forEach((o, i) => this._drawOutline('hl' + i, [o], 1, 0.9))
         // a selected material/geometry/texture: show the objects that use it
         if (!sel.length && !this.geometryEdit && !st.outlineSelected) this.assetUsers.forEach((o, i) => this._drawOutline('au' + i, [o], 1.5, 0.8))
-        if (st.objectHelpers !== 'widgets') this._drawSpecialObjects(sel, hover)
+        if (this.iconsShown) this._drawSpecialObjects(sel, hover)
         if (this.geometryEdit) this._drawGeometryEdit(this.geometryEdit)
         else {
             if (sel.length > 1 && !st.outlineSelected) sel.forEach((o, i) => this._drawOutline('sub' + i, [o], 1, 0.55))
-            const boxSel = st.objectHelpers === 'widgets' ? sel : sel.filter(o => !this._isSpecial(o))
+            const boxSel = this.iconsShown ? sel.filter(o => !this._isSpecial(o)) : sel
             if (boxSel.length) this._drawSelection(boxSel, dragging)
         }
 
@@ -1849,7 +1960,10 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
                 fill: 'color-mix(in srgb, var(--sux-accent) 12%, transparent)', stroke: 'var(--sux-accent)', 'stroke-width': 1,
             })
         }
-        if (s?.kind === 'move') this._drawMovePlane(s)
+        if (s?.kind === 'move') {
+            if (s.axis !== undefined) this._drawMoveAxis(s)
+            else this._drawMovePlane(s)
+        }
         this._guides.forEach((g, i) => {
             const a = this.toScreen(g.a), b = this.toScreen(g.b)
             if (a.behind || b.behind) return
@@ -1862,6 +1976,20 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
     }
 
     /** While moving: the plane as a grid patch, and a drop line to the floor with a mark where it lands */
+    /** The locked axis: a long line in the axis colour through the moved point */
+    private _drawMoveAxis(s: Extract<DragState, {kind: 'move'}>) {
+        const a = s.axis!
+        const c = s.hitPoint.clone().add(s.lastDelta)
+        const L = this._worldPerPixel(c) * 3000
+        const d = new Vector3().setComponent(a, L)
+        const p0 = this.toScreen(c.clone().sub(d)), p1 = this.toScreen(c.clone().add(d)), pc = this.toScreen(c)
+        if (p0.behind || p1.behind) return
+        const color = ['#ef4444', '#22c55e', '#3b82f6'][a]
+        this._lines!.get('move-axis', 'line', {x1: p0.x, y1: p0.y, x2: p1.x, y2: p1.y, stroke: color, 'stroke-width': 1.5, opacity: 0.85})
+        const st = this.toScreen(s.hitPoint)
+        if (!st.behind) this._lines!.get('move-axis-from', 'line', {x1: st.x, y1: st.y, x2: pc.x, y2: pc.y, stroke: color, 'stroke-width': 3, opacity: 0.5, 'stroke-linecap': 'round'})
+    }
+
     private _drawMovePlane(s: Extract<DragState, {kind: 'move'}>) {
         const L = this._lines!
         const box = s.startBox.clone().translate(s.lastDelta)
@@ -1983,9 +2111,14 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
             if (isSel || hover === o) this._drawObjectDetails(o, pos, isSel)
             const key = 'ic-' + o.uuid
             const hk = this._handle(key, {kind: 'icon', obj: o})
-            const fg = isSel ? '#fff' : '#3a3f47'
-            H.get(key + '-bg', 'circle', {cx: sp.x, cy: sp.y, r: 11, fill: isSel ? 'var(--sux-accent)' : 'rgba(255,255,255,.92)', stroke: isSel || hover === o ? 'var(--sux-accent)' : 'rgba(0,0,0,.25)', 'stroke-width': 1.5, 'data-sux': hk, style: 'pointer-events:all;cursor:pointer'})
-            H.get(key, 'path', {d: iconPath(o), fill: 'none', stroke: fg, 'stroke-width': 1.3, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', transform: `translate(${(sp.x - 8).toFixed(1)} ${(sp.y - 8).toFixed(1)})`, style: 'pointer-events:none'})
+            // each kind has its colour (like Blender), so "the orange spot" is easy to find and to talk about
+            const kind = specialColor(o)
+            const fg = isSel ? '#fff' : kind
+            H.get(key + '-bg', 'circle', {cx: sp.x, cy: sp.y, r: 11, fill: isSel ? kind : 'rgba(255,255,255,.95)', stroke: isSel || hover === o ? 'var(--sux-accent)' : kind, 'stroke-width': isSel || hover === o ? 2 : 1.5, 'data-sux': hk, style: 'pointer-events:all;cursor:pointer'})
+            H.get(key, 'path', {d: iconPath(o), fill: 'none', stroke: fg, 'stroke-width': 1.4, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', transform: `translate(${(sp.x - 8).toFixed(1)} ${(sp.y - 8).toFixed(1)})`, style: 'pointer-events:none'})
+            // the light's own colour
+            const lc = (o as any).isLight && (o as any).color?.isColor ? '#' + (o as any).color.getHexString() : ''
+            if (lc) H.get(key + '-c', 'circle', {cx: sp.x + 8, cy: sp.y + 8, r: 3.5, fill: lc, stroke: '#fff', 'stroke-width': 1.2, style: 'pointer-events:none'})
             if (isSel && this.settings.showName) {
                 const tag = T.get(key + '-name', 'div', {class: 'sux-name'})
                 tag.textContent = this.displayName(o)
@@ -1997,7 +2130,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
     /** Aim line + handle, spot cone, camera frustum, point light range, rect light size */
     private _drawObjectDetails(o: IObject3D, pos: Vector3, isSel: boolean) {
         const L = this._lines!, H = this._handles!
-        const color = isSel ? 'var(--sux-accent)' : '#8a8f98'
+        const color = isSel ? 'var(--sux-accent)' : specialColor(o)
         const k = 'od-' + o.uuid
         const sc = (v: Vector3) => this.toScreen(v)
         const path = (pts: Vector3[], close = false) => {
@@ -2782,6 +2915,13 @@ function shapeHandles(p: Record<string, any>): ShapeHandle[] {
     default:
         return []
     }
+}
+
+/** The colour of a light or camera kind, for its icon and lines */
+function specialColor(o: IObject3D) {
+    const a = o as any
+    return a.isCamera ? '#8b5cf6' : a.isDirectionalLight ? '#f59e0b' : a.isSpotLight ? '#f97316' : a.isPointLight ? '#eab308' :
+        a.isRectAreaLight ? '#fb923c' : a.isHemisphereLight || a.isAmbientLight ? '#64748b' : '#8a8f98'
 }
 
 function iconPath(o: IObject3D) {

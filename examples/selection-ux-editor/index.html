@@ -34,7 +34,7 @@
     </script>
 
     <!-- Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Instrument+Serif&display=swap" rel="stylesheet">
 
     <style id="example-style">
         html {
@@ -45,8 +45,17 @@
         }
         /* the side panel (ui.ts) starts below the view widget and ends above the webgi logo */
         #canvas-container .sux-side { top: 140px; bottom: 60px; }
-        /* above the editor's bottom tool bar */
-        #canvas-container .sux-hint { bottom: 64px; }
+        #canvas-container .sux-hint { bottom: 16px; }
+        /* the modes are a coloured icon bar on the right (ModeBar.ts), the bottom buttons are in the toolbar */
+        .mode-buttons-container, .util-buttons-container { display: none !important; }
+        @media only screen and (min-width: 920px) {
+            body #canvas-container {
+                width: calc(100% - 3rem - 44px - max(var(--tweakpane-ui-container-width, 300px), 3rem)) !important;
+                height: calc(100% - 3rem);
+                margin: 1.5rem 1.5rem 1.5rem 1.5rem !important;
+            }
+            body #tweakpaneUiContainer { margin-top: 0 !important; right: 56px !important; }
+        }
     </style>
     <script type="module" src="../examples-utils/global-loading.mjs"></script>
     <script id="example-script" type="module" src="./script.js" data-scripts="./script.ts;./script.js"></script>

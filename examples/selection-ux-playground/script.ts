@@ -18,10 +18,12 @@ import {SelectionOutlinePlugin} from './SelectionOutlinePlugin'
 import {LayersPanelPlugin} from './LayersPanelPlugin'
 import {NotesPlugin} from './NotesPlugin'
 import {applyModeFromUrl, setupHints, setupModeMenu, setupSidePanel, modeContext} from './ui'
-import {buildExtras, buildScene, demoAnnotations} from './scene'
+import {buildExtras, buildScene, demoAnnotations, splashSamples} from './scene'
 import {AnnotationsPlugin} from './AnnotationsPlugin'
 import {EditorToolbarPlugin} from './EditorToolbarPlugin'
 import {showReport, showReportIfNew} from './report'
+import {showSplash} from './splash'
+import {PerfPanelPlugin} from './PerfPanelPlugin'
 
 async function init() {
     const viewer = new ThreeViewer({
@@ -42,6 +44,8 @@ async function init() {
     viewer.addPluginSync(SelectionOutlinePlugin)
     // notes on surfaces with a camera view each, saved in the .glb (toolbar: Annotate N, Tour in View mode)
     viewer.addPluginSync(new AnnotationsPlugin({editable: true}))
+    // FPS, frame and render times, draw calls; warns about a capped frame rate (Chrome Energy Saver), battery, software GL
+    viewer.addPluginSync(new PerfPanelPlugin({position: 'bottom-right'}))
     const layers = viewer.addPluginSync(new LayersPanelPlugin('light'))
     Object.assign(window, {viewer, ux}) // for poking from the console
 
@@ -57,7 +61,7 @@ async function init() {
     const toolbar = viewer.addPluginSync(new EditorToolbarPlugin({
         grid: true,
         expandHides: () => [document.querySelector<HTMLElement>('.sux-side')!, document.getElementById('inspector')!],
-        extra: [[REPORT_ICON, 'Report: what changed and what to try', () => showReport()]],
+        extra: [[REPORT_ICON, 'Open a file or sample…', () => openSplash()], [REPORT_ICON, 'Report: what changed and what to try', () => showReport()]],
     }))
     container.appendChild(toolbar.element)
     setupModeMenu(container, viewer, ux, {buttonHost: toolbar.slot, links: [['Open in the editor ↗', '../selection-ux-editor/index.html']]})
@@ -65,7 +69,10 @@ async function init() {
     const notes = viewer.addPluginSync(new NotesPlugin({pageKey: 'selection-ux-playground-notes', syncUrl: '/api/notes', contextProvider: modeContext(ux)}))
     setupSidePanel(container, layers, notes, 'sux-side-pos-playground')
     setupInspector(document.getElementById('inspector')!, viewer, ux)
-    showReportIfNew()
+    // the welcome screen: drop a file or pick a sample (skip with ?nosplash); the report of this round after it
+    const openSplash = () => showSplash(viewer, {title: 'Welcome to the threepipe Editor', samples: splashSamples(viewer), onClose: showReportIfNew})
+    if (new URLSearchParams(location.search).has('nosplash')) showReportIfNew()
+    else openSplash()
 
     try {
         await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
@@ -137,8 +144,12 @@ function setupInspector(root: HTMLElement, viewer: ThreeViewer, ux: SelectionUxP
                     input.blur()
                 }
             })
+            input.addEventListener('focus', () => {
+                input.dataset.prev = input.value
+            })
             input.addEventListener('change', () => {
-                const v = parseFloat(input.value)
+                // math like in Figma: "10/4", and +5, *2, /2 change the value it had
+                const v = evalField(input.value, parseFloat(input.dataset.prev ?? '') || 0)
                 if (!isFinite(v)) return refresh(true)
                 const snaps = ux.snapshot(ux.selected)
                 applyField(k, v, snaps)
@@ -249,3 +260,16 @@ function withSnaps<T>(snaps: TransformSnapshot[], fn: () => T): T {
 
 _testStart()
 init().finally(_testFinish)
+
+/** A number field's text: a number, simple math ("10/4", "2*(1+3)"), or +n *n /n applied to the previous value */
+function evalField(text: string, prev: number) {
+    let t = text.trim().replace(/,/g, '.')
+    if (/^[+*/]/.test(t)) t = prev + t
+    if (!/^[-+*/().\d\s.eE]+$/.test(t)) return NaN
+    try {
+        // only digits and operators get here
+        return Number(new Function(`return (${t})`)())
+    } catch (e) {
+        return NaN
+    }
+}

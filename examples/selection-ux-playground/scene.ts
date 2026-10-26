@@ -1,5 +1,6 @@
 import {BoxGeometry, CatmullRomCurve3, ContactShadowGroundPlugin, CubicBezierCurve3, CylinderGeometry, GeometryGeneratorPlugin, Group2, IObject3D, LineMaterial2, Matrix4, Mesh, Object3DGeneratorPlugin, PhysicalMaterial, Quaternion, Raycaster, SphereGeometry, ThreeViewer, TorusGeometry, UndoManagerPlugin, Vector3} from 'threepipe'
 import {AnnotationsPlugin, AnnotationView} from './AnnotationsPlugin'
+import {SPLASH_ICONS, SplashSample} from './splash'
 
 /** A small jewellery scene with nested groups, to try the selection rules on */
 export function buildScene(viewer: ThreeViewer) {
@@ -185,4 +186,39 @@ export function demoAnnotations(viewer: ThreeViewer) {
     add(new Vector3(4.2, 3.2, -0.8), new Vector3(0, 1.2, -4.5), 'Gift box', 'Notes are saved inside the .glb with the camera view, like Sketchfab annotations.\n- Edit mode: + Annotate (N)\n- View mode: Tour')
     // the examples are not edits: keep them out of the undo history
     viewer.getPlugin(UndoManagerPlugin)?.undoManager?.reset()
+}
+
+/** The samples of the splash screen: this demo scene, models from samples.threepipe.org, an empty scene */
+export function splashSamples(viewer: ThreeViewer): SplashSample[] {
+    const reset = () => {
+        // a new scene: its annotations and undo steps go with the old one
+        const notes = viewer.getPlugin(AnnotationsPlugin)
+        if (notes?.getAnnotations().length) notes.clear()
+        viewer.scene.disposeSceneModels()
+    }
+    const done = () => viewer.getPlugin(UndoManagerPlugin)?.undoManager?.reset()
+    const model = (label: string, icon: string, url: string): SplashSample => ({label, icon, load: async() => {
+        reset()
+        await viewer.load(url, {autoScale: true, autoCenter: true, autoScaleRadius: 2.5})
+        await viewer.fitToView(undefined, 1.2, 0)
+        done()
+    }})
+    return [
+        {label: 'Jewellery demo', icon: SPLASH_ICONS.ring, load: () => {
+            if (viewer.scene.getObjectByName('Solitaire Ring')) return // already loaded
+            reset()
+            buildScene(viewer)
+            buildExtras(viewer)
+            demoAnnotations(viewer)
+            done()
+        }},
+        model('Classic watch', SPLASH_ICONS.watch, 'https://samples.threepipe.org/demos/classic-watch.glb'),
+        model('Damaged helmet', SPLASH_ICONS.helmet, 'https://samples.threepipe.org/minimal/DamagedHelmet/glTF/DamagedHelmet.gltf'),
+        model('Horse', SPLASH_ICONS.horse, 'https://samples.threepipe.org/minimal/Horse.glb'),
+        model('Temple lines', SPLASH_ICONS.lines, 'https://samples.threepipe.org/demos/temple-lines.glb'),
+        {label: 'Empty scene', icon: SPLASH_ICONS.empty, load: () => {
+            reset()
+            done()
+        }},
+    ]
 }

@@ -1,5 +1,6 @@
 import {
     AViewerPluginSync,
+    CameraViewPlugin,
     GridHelper,
     IObject3D,
     Material,
@@ -8,6 +9,8 @@ import {
     Object3DGeneratorPlugin,
     Object3DWidgetsPlugin,
     PickingPlugin,
+    PivotControlsPlugin,
+    PivotEditPlugin,
     ThreeViewer,
     TransformControlsPlugin,
     UndoManagerPlugin,
@@ -100,7 +103,7 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
     }
 
     private _wasLegacy = false
-    /** A mode change to or from "Current" moves the active tool between the classic gizmo and the selection UX */
+    /** A mode change to or from "Classic" moves the active tool between the classic gizmo and the selection UX */
     private _onUxUpdate = (e: {reason?: string}) => {
         if (e.reason !== 'settings' && e.reason !== 'camera' && e.reason !== 'tool') return
         const legacy = !this._uxTools
@@ -135,7 +138,7 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
         return this._viewer?.getPlugin(TransformControlsPlugin)
     }
 
-    /** True when the selection plugin draws its own handles (any mode but "Current"): V W E R switch its tools then */
+    /** True when the selection plugin draws its own handles (any mode but "Classic"): V W E R switch its tools then */
     private get _uxTools() {
         const ux = this._viewer?.getPlugin(SelectionUxPlugin)
         return ux && ux.enabled && ux.settings.visual !== 'legacy' ? ux : undefined
@@ -143,7 +146,7 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
 
     /**
      * V: select. W/E/R: move, rotate, scale. With the new selection UX these are its on-canvas tools;
-     * in the "Current" mode (and without the plugin) they are the classic transform gizmo.
+     * in the "Classic" mode (and without the plugin) they are the classic transform gizmo.
      */
     setGizmo(mode: 'off' | 'translate' | 'rotate' | 'scale') {
         if (!this._viewer) return
@@ -393,6 +396,8 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
         }
         const v = this._viewMode
         const viewer = this._viewer
+        const notes = viewer?.getPlugin(AnnotationsPlugin)
+        // 1. tools: what a drag does
         if (!v) {
             newGroup()
             const g = this._uxTools ? '' : ' gizmo'
@@ -401,33 +406,17 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
             btn(I.rotate, 'Rotate' + g, 'E', () => this.setGizmo('rotate'), 'tool', this._gizmo === 'rotate')
             btn(I.scale, 'Scale' + g, 'R', () => this.setGizmo('scale'), 'tool', this._gizmo === 'scale')
             if (!this._uxTools) btn(I.dots, 'Gizmo space and size', '', b => this._openMenu(b, this._gizmoMenu()), 'menu', false, this._gizmo === 'off')
+            if (notes) btn(I.pin, notes.adding ? 'Click a surface to place it (Esc cancels)' : 'Annotate: a note on a surface, with this camera view', 'N', () => this.annotate(), 'toggle', notes.adding)
+            // 2. create
             newGroup()
             btn(I.plus, 'Add an object', '', b => this._openMenu(b, this._addMenu()), 'menu', false, !viewer?.getPlugin(Object3DGeneratorPlugin))
-            const notes = viewer?.getPlugin(AnnotationsPlugin)
-            if (notes) btn(I.pin, notes.adding ? 'Click a surface to place it (Esc cancels)' : 'Add an annotation: a note on a surface, with this camera view', 'N', () => this.annotate(), 'toggle', notes.adding)
         }
-        const tour = viewer?.getPlugin(AnnotationsPlugin)
-        if (v && tour?.getAnnotations().length) {
-            newGroup()
-            btn(tour.touring ? I.stop : I.play, tour.touring ? 'Stop the tour' : 'Tour: go through the annotations', '', () => {
-                if (tour.touring) tour.stopTour()
-                else tour.playTour(4500)
-                this.render()
-            }, 'toggle', tour.touring)
-        }
+        // 3. how the view looks: camera, shading, overlays
         newGroup()
-        btn(I.camera, 'Camera', '0', b => this._openMenu(b, this._cameraMenu()), 'menu', viewer?.scene.mainCamera !== viewer?.scene.defaultCamera)
-        btn(I.eye, 'View as: debug views, lights and environment', '', b => this._openMenu(b, this._viewMenu()), 'menu', this._view !== 'shaded' || this.overrides.active)
-        if (!v) {
-            newGroup()
-            btn(I.sparkle, 'Effects (post-processing)', '', () => this.setEffects(this._effectsOff), 'toggle', !this._effectsOff)
-            btn(I.widget, 'Widgets: 3D helpers of lights, cameras, lines', '', () => this.setWidgets(this._widgetsOff), 'toggle', !this._widgetsOff, !viewer?.getPlugin(Object3DWidgetsPlugin))
-            btn(I.grid, 'Grid', '', () => {
-                if (this._grid) this._grid.userData.toolbarOn = !this._gridOn
-                this.setGrid(this._gridOn)
-            }, 'toggle', this._gridOn, !this._grid)
-            btn(I.background, 'Background', '', () => this.setBackground(!viewer?.renderManager.renderPass.renderBackground), 'toggle', !!viewer?.renderManager.renderPass.renderBackground)
-        }
+        btn(I.camera, 'Camera', '0', b => this._openMenu(b, () => this._cameraMenu()), 'menu', viewer?.scene.mainCamera !== viewer?.scene.defaultCamera)
+        btn(I.shading, 'Shading: lit, clay, wireframe, debug views, lights and environment', '', b => this._openMenu(b, () => this._viewMenu()), 'menu', this._view !== 'shaded' || this.overrides.active)
+        btn(I.overlays, 'Overlays: grid, icons, outlines, labels, effects', '', b => this._openMenu(b, () => this._overlaysMenu()), 'menu', this._overlaysChanged())
+        // 4. edit or present
         newGroup()
         const seg = document.createElement('div')
         seg.className = 'tb-seg' + (v ? ' tb-seg-2' : '')
@@ -447,6 +436,7 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
             seg.appendChild(b)
         }
         group.appendChild(seg)
+        // 5. history and focus
         newGroup()
         btn(I.focus, 'Zoom to the selection, or to everything', 'F', () => {
             const p = viewer?.getPlugin(PickingPlugin)
@@ -457,10 +447,123 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
             btn(I.undo, 'Undo', 'Ctrl Z', () => this._undo())
             btn(I.redo, 'Redo', 'Ctrl Shift Z', () => this._undo(true))
         }
+        // 6. motion: animations, auto-rotate, annotation tour
         newGroup()
-        btn(I.save, 'Save .glb, with the scene notes', '', () => void this.saveGlb())
-        for (const [icon, title, fn] of this._options.extra || []) btn(icon, title, '', fn)
+        const playing = !!viewer?.timeline.running
+        btn(playing ? I.pause : I.play, playing ? 'Stop the animations' : 'Play the animations (timeline)', '', () => {
+            const t = viewer!.timeline
+            t.reset()
+            if (t.running) t.stop()
+            else t.start()
+            this.render()
+        }, 'toggle', playing)
+        const controls = viewer?.scene.mainCamera.controls as any
+        btn(I.orbit, 'Auto-rotate the camera', '', () => {
+            if (controls?.autoRotate === undefined) return
+            controls.autoRotate = !controls.autoRotate
+            this.render()
+        }, 'toggle', !!controls?.autoRotate, controls?.autoRotate === undefined)
+        if (v && notes?.getAnnotations().length) btn(notes.touring ? I.stop : I.tour, notes.touring ? 'Stop the tour' : 'Tour: go through the annotations', '', () => {
+            if (notes.touring) notes.stopTour()
+            else notes.playTour(4500)
+            this.render()
+        }, 'toggle', notes.touring)
+        // 7. output and the rest
+        newGroup()
+        btn(I.snapshot, 'Snapshot: save a PNG of the view', '', () => void this.snapshot())
+        btn(I.save, 'Save .glb, with the scene notes and annotations', '', () => void this.saveGlb())
+        btn(I.dots, 'More', '', b => this._openMenu(b, () => this._moreMenu()), 'menu')
         btn(this._expanded ? I.shrink : I.expand, this._expanded ? 'Show the panels' : 'Expand the canvas', 'Shift Space', () => this.setExpanded(!this._expanded), 'toggle', this._expanded)
+    }
+
+    /** Download a PNG of the canvas */
+    async snapshot() {
+        const blob = await this._viewer?.getScreenshotBlob({mimeType: 'image/png'})
+        if (!blob) return
+        const a = document.createElement('a')
+        a.href = URL.createObjectURL(blob)
+        a.download = 'snapshot.png'
+        a.click()
+        setTimeout(() => URL.revokeObjectURL(a.href), 5000)
+    }
+
+    /** Like Blender's overlays and Unity's gizmos menu: what is drawn over the scene, toggled without closing the menu */
+    private _overlaysMenu(): MenuItem[] {
+        const viewer = this._viewer
+        if (!viewer) return []
+        const ux = viewer.getPlugin(SelectionUxPlugin)
+        const st = ux?.settings
+        const set = (k: keyof NonNullable<typeof st>, val: any) => {
+            if (!ux) return
+            const settings: Record<string, any> = ux.settings
+            settings[k] = val
+            ux.applySettings()
+        }
+        const rp = viewer.renderManager.renderPass
+        const notes = viewer.getPlugin(AnnotationsPlugin)
+        const perf = viewer.getPlugin('PerfPanelPlugin') as any
+        const items: MenuItem[] = ['#Viewport']
+        if (this._grid) items.push(['Grid', () => {
+            this._grid!.userData.toolbarOn = !this._gridOn
+            this.setGrid(this._gridOn)
+        }, this._gridOn, true])
+        items.push(['Background', () => this.setBackground(!rp.renderBackground), !!rp.renderBackground, true])
+        items.push(['Effects (post-processing)', () => this.setEffects(this._effectsOff), !this._effectsOff, true])
+        items.push('#Lights and cameras')
+        if (ux) {
+            items.push(['Icons', () => ux.setObjectHelpers(!ux.iconsShown, ux.widgetsShown), ux.iconsShown, true])
+            items.push(['3D widgets', () => ux.setObjectHelpers(ux.iconsShown, !ux.widgetsShown), ux.widgetsShown, true])
+        } else items.push(['3D widgets', () => this.setWidgets(this._widgetsOff), !this._widgetsOff, true])
+        if (notes) items.push(['Annotations', () => {
+            notes.enabled = !notes.enabled
+            this.render()
+        }, notes.enabled, true])
+        if (st) {
+            items.push('#Selection')
+            items.push(['Outline the selection', () => set('outlineSelected', !st.outlineSelected), st.outlineSelected, true])
+            items.push(['Outline on hover', () => set('outlineHover', !st.outlineHover), st.outlineHover, true])
+            items.push(['Names', () => set('showName', !st.showName), st.showName, true])
+            items.push(['Sizes', () => set('showDims', !st.showDims), st.showDims, true])
+            items.push(['Smart guides', () => set('smartGuides', !st.smartGuides), st.smartGuides, true])
+            items.push(['Hints at the bottom', () => set('showHints', !st.showHints), st.showHints, true])
+        }
+        if (perf) {
+            items.push('#Info')
+            items.push(['Performance', () => {
+                perf.enabled = !perf.enabled
+                this.render()
+            }, perf.enabled, true])
+        }
+        return items
+    }
+
+    /** Whether an overlay is off that is on by default (the button shows a dot then) */
+    private _overlaysChanged() {
+        const ux = this._viewer?.getPlugin(SelectionUxPlugin)
+        return this._effectsOff || !!this._grid && !this._gridOn || !!ux && !ux.iconsShown
+    }
+
+    private _moreMenu(): MenuItem[] {
+        const viewer = this._viewer
+        if (!viewer) return []
+        const items: MenuItem[] = []
+        const pivot = viewer.getPlugin(PivotControlsPlugin)
+        if (pivot) items.push(['Pivot controls', () => {
+            pivot.enabled = !pivot.enabled
+            const edit = viewer.getPlugin(PivotEditPlugin)
+            if (edit) edit.enabled = pivot.enabled
+        }, pivot.enabled])
+        for (const [, title, fn] of this._options.extra || []) items.push([title, fn])
+        if (items.length) items.push('-')
+        items.push(['Reset all settings…', async() => {
+            if (!await viewer.dialog.confirm('Reset all plugin settings to their defaults?')) return
+            for (const p of Object.values(viewer.plugins)) await (p as any)?.resetDefaults?.()
+        }])
+        items.push(['Clear the scene…', async() => {
+            if (!await viewer.dialog.confirm('Remove all objects from the scene?')) return
+            viewer.scene.disposeSceneModels()
+        }])
+        return items
     }
 
     private _showTip(anchor: HTMLElement, text: string, keys: string) {
@@ -498,8 +601,15 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
         this._menuAnchor = undefined
     }
 
-    /** items: [label, action, active?] or '-' for a separator or '#title' for a heading */
-    private _openMenu(anchor: HTMLElement, items: ([string, () => void, boolean?] | string)[]) {
+    /**
+     * items: [label, action, active?, keepOpen?] or '-' for a separator or '#title' for a heading.
+     * Pass a function to rebuild the items after a keep-open item (a toggle in the Overlays menu) is clicked.
+     */
+    private _openMenu(anchor: HTMLElement, list: MenuItem[] | (() => MenuItem[])) {
+        const items = typeof list === 'function' ? list() : list
+        // reopened after a toggle: keep its place (the toolbar re-rendered, so the anchor may be gone)
+        const left = this._menu?.style.left
+        const top = this._menu?.style.top
         this._closeMenu()
         this._hideTip()
         const m = document.createElement('div')
@@ -513,22 +623,27 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
                 m.appendChild(d)
                 continue
             }
-            const [label, fn, on] = it
+            const [label, fn, on, keep] = it
             const d = document.createElement('div')
-            d.className = 'tb-menu-item' + (on ? ' on' : '')
-            d.setAttribute('role', 'menuitem')
-            d.innerHTML = `<span class="tb-check">${on ? I.check : ''}</span><span class="tb-label">${label}</span>`
+            d.className = 'tb-menu-item' + (on ? ' on' : '') + (keep ? ' tb-menu-toggle' : '')
+            d.setAttribute('role', keep ? 'menuitemcheckbox' : 'menuitem')
+            if (keep) d.setAttribute('aria-checked', String(!!on))
+            d.innerHTML = keep ?
+                `<span class="tb-label">${label}</span><span class="tb-switch${on ? ' on' : ''}"></span>` :
+                `<span class="tb-check">${on ? I.check : ''}</span><span class="tb-label">${label}</span>`
             d.addEventListener('click', () => {
                 fn()
-                this._closeMenu()
+                if (keep) this._openMenu(anchor, list) // the same menu, updated, at the same place
+                else this._closeMenu()
             })
             m.appendChild(d)
         }
         document.body.appendChild(m)
         const r = anchor.getBoundingClientRect()
         const mr = m.getBoundingClientRect()
-        m.style.left = Math.max(8, Math.min(innerWidth - mr.width - 8, r.left)) + 'px'
-        m.style.top = r.bottom + 8 + 'px'
+        m.style.left = left ?? Math.max(8, Math.min(innerWidth - mr.width - 8, r.left)) + 'px'
+        if (items.some(it => typeof it !== 'string' && it[3])) m.classList.add('tb-menu-toggles')
+        m.style.top = top ?? r.bottom + 8 + 'px'
         anchor.classList.add('open')
         this._menu = m
         this._menuAnchor = anchor
@@ -567,6 +682,10 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
             if ((o as IObject3D).isCamera && (o as any).activateMain) cams.push(o as IObject3D)
         })
         if (cams.length) items.push('#Look through', ...cams.map(c => [c.name || c.type, () => (c as any).activateMain(), main === c] as [string, () => void, boolean]))
+        const views = viewer.getPlugin(CameraViewPlugin)
+        if (views) items.push('-', ['Loop the saved camera views', () => {
+            views.viewLooping = !views.viewLooping
+        }, views.viewLooping])
         const ux = viewer.getPlugin(SelectionUxPlugin)
         if (ux && cams.length) {
             items.push('-', ['Move the selected camera to this view <kbd>Ctrl Alt 0</kbd>', () => ux.alignCameraToView()])
@@ -611,6 +730,8 @@ export function keepLinesOutOfOverride(viewer: ThreeViewer, on: boolean) {
     viewer.setDirty()
 }
 
+type MenuItem = [string, () => void, boolean?, boolean?] | string
+
 const svg = (d: string) => `<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`
 const I = {
     caret: '<svg class="tb-caret" viewBox="0 0 8 8" width="7" height="7"><path d="M1.5 3l2.5 2.5L6.5 3" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>',
@@ -621,6 +742,12 @@ const I = {
     scale: svg('<path d="M2.5 9.5v4h4M2.5 13.5l5-5M13.5 6.5v-4h-4M13.5 2.5l-5 5"/>'),
     dots: svg('<circle cx="3.5" cy="8" r=".8"/><circle cx="8" cy="8" r=".8"/><circle cx="12.5" cy="8" r=".8"/>'),
     plus: svg('<path d="M8 3v10M3 8h10"/>'),
+    shading: svg('<circle cx="8" cy="8" r="5.5"/><path d="M8 2.5a5.5 5.5 0 0 1 0 11z" fill="currentColor"/>'),
+    overlays: svg('<circle cx="6" cy="8" r="4"/><circle cx="10" cy="8" r="4"/>'),
+    pause: svg('<path d="M5.5 3.5v9M10.5 3.5v9"/>'),
+    orbit: svg('<ellipse cx="8" cy="8" rx="6" ry="2.6"/><circle cx="8" cy="8" r="1.6" fill="currentColor"/><path d="M12.6 4.6l1.4.8-.9 1.3"/>'),
+    tour: svg('<path d="M3 13l3.5-4 3 2.5L13 6"/><circle cx="3" cy="13" r="1"/><circle cx="13" cy="6" r="1"/>'),
+    snapshot: svg('<rect x="2" y="4.5" width="12" height="8.5" rx="1.5"/><circle cx="8" cy="8.8" r="2.2"/><path d="M5.5 4.5l1-1.8h3l1 1.8"/>'),
     pin: svg('<path d="M8 14s-4.5-4.2-4.5-7.5a4.5 4.5 0 0 1 9 0C12.5 9.8 8 14 8 14z"/><circle cx="8" cy="6.5" r="1.6"/>'),
     play: svg('<path d="M5 3.5l7.5 4.5L5 12.5z"/>'),
     stop: svg('<rect x="4" y="4" width="8" height="8" rx="1"/>'),
@@ -648,7 +775,8 @@ function injectStyles() {
   --tb-bg: #ffffff; --tb-fg: #1e1e1e; --tb-icon: #444a52; --tb-dim: #8a8f97; --tb-line: #e9eaec; --tb-hover: #f2f3f5; --tb-press: #e8e9ec;
   --tb-accent: #0d99ff; --tb-accent-fg: #ffffff; --tb-soft: #e5f4ff; --tb-soft-fg: #0b84dd; --tb-track: #f0f1f3; --tb-thumb: #ffffff;
   --tb-shadow: 0 0 0 1px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.06), 0 6px 20px rgba(0,0,0,.10);
-  font: 500 11px/1 Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-font-smoothing: antialiased;
+  /* the page's font: tweakpane's when it is there, so the toolbar matches the panels */
+  font: 500 11px/1 var(--tp-font-family, Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif); -webkit-font-smoothing: antialiased;
 }
 .tb-dark.tb-root, .tb-dark.tb-menu, .tb-dark.tb-tip {
   --tb-bg: #2c2c2c; --tb-fg: #f0f0f0; --tb-icon: #d4d4d4; --tb-dim: #9a9a9a; --tb-line: #3d3d3d; --tb-hover: #383838; --tb-press: #444;
@@ -710,6 +838,13 @@ body.tpTheme-black .tb-menu, body.tpTheme-dark .tb-menu, body.tpTheme-blue .tb-m
 .tb-check { width: 16px; height: 16px; flex: none; color: var(--tb-accent); }
 .tb-label { flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 18px; }
 .tb-menu kbd, .tb-tip kbd { font: inherit; font-size: 10px; color: var(--tb-dim); background: var(--tb-track); border-radius: 4px; padding: 2px 5px; margin-left: 4px; }
+.tb-menu-toggle { padding: 0 8px 0 10px; }
+.tb-menu-toggles .tb-menu-title { padding-left: 10px; }
+.tb-menu-toggle .tb-label { justify-content: flex-start; }
+.tb-switch { position: relative; width: 24px; height: 14px; border-radius: 7px; background: var(--tb-press); flex: none; transition: background-color .12s; }
+.tb-switch::after { content: ''; position: absolute; left: 2px; top: 2px; width: 10px; height: 10px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.25); transition: transform .12s; }
+.tb-switch.on { background: var(--tb-accent); }
+.tb-switch.on::after { transform: translateX(10px); }
 .tb-menu-title { color: var(--tb-dim); padding: 9px 10px 5px 26px; font-size: 10px; font-weight: 600; letter-spacing: .02em; }
 .tb-menu-sep { height: 1px; background: var(--tb-line); margin: 5px 4px; }
 .tb-tip {

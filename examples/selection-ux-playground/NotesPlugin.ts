@@ -178,7 +178,8 @@ function injectStyles() {
 .np-tabs button { flex: 1; border: 0; background: transparent; border-radius: 5px; padding: 4px; font: inherit; color: #8a7d3c; cursor: pointer; white-space: nowrap; }
 .np-tabs button.on { background: #fffdf0; color: #3b3418; box-shadow: 0 0 0 1px #e8dc96; }
 .np-root textarea { flex: 1; min-height: 70px; margin: 0 10px; border: 0; background: transparent; resize: none; outline: none; font: inherit; color: inherit;
-  background-image: linear-gradient(transparent 21px, #efe3a0 22px); background-size: 100% 22px; line-height: 22px; padding: 0 2px; }
+  background-image: linear-gradient(transparent 21px, #efe3a0 22px); background-size: 100% 22px; line-height: 22px; padding: 0 2px;
+  background-attachment: local; /* the lines scroll with the text */ }
 .np-foot { display: flex; gap: 6px; padding: 6px 10px 10px; }
 .np-foot button { border: 1px solid #e8dc96; background: #fffdf0; color: #3b3418; border-radius: 5px; padding: 4px 8px; font: inherit; cursor: pointer; }
 .np-foot button:hover { background: #fff; }
