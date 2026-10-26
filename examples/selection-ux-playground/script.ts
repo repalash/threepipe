@@ -18,7 +18,8 @@ import {SelectionOutlinePlugin} from './SelectionOutlinePlugin'
 import {LayersPanelPlugin} from './LayersPanelPlugin'
 import {NotesPlugin} from './NotesPlugin'
 import {applyModeFromUrl, setupHints, setupModeMenu, setupSidePanel, modeContext} from './ui'
-import {buildExtras, buildScene} from './scene'
+import {buildExtras, buildScene, demoAnnotations} from './scene'
+import {AnnotationsPlugin} from './AnnotationsPlugin'
 import {EditorToolbarPlugin} from './EditorToolbarPlugin'
 import {showReport, showReportIfNew} from './report'
 
@@ -39,11 +40,14 @@ async function init() {
     // persistKey: settings and mode are saved in this browser
     const ux = viewer.addPluginSync(new SelectionUxPlugin({persistKey: 'selection-ux-settings'}))
     viewer.addPluginSync(SelectionOutlinePlugin)
+    // notes on surfaces with a camera view each, saved in the .glb (toolbar: Annotate N, Tour in View mode)
+    viewer.addPluginSync(new AnnotationsPlugin({editable: true}))
     const layers = viewer.addPluginSync(new LayersPanelPlugin('light'))
     Object.assign(window, {viewer, ux}) // for poking from the console
 
     buildScene(viewer)
     buildExtras(viewer)
+    demoAnnotations(viewer)
     viewer.scene.mainCamera.position.set(7, 7, 11)
     viewer.scene.mainCamera.target.set(0, 0.8, 0)
     viewer.scene.mainCamera.setDirty()

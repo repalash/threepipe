@@ -7,7 +7,8 @@ import {SelectionOutlinePlugin} from '../selection-ux-playground/SelectionOutlin
 import {LayersPanelPlugin} from '../selection-ux-playground/LayersPanelPlugin'
 import {NotesPlugin} from '../selection-ux-playground/NotesPlugin'
 import {applyModeFromUrl, setupHints, setupModeMenu, setupSidePanel, modeContext} from '../selection-ux-playground/ui'
-import {buildExtras, buildScene} from '../selection-ux-playground/scene'
+import {buildExtras, buildScene, demoAnnotations} from '../selection-ux-playground/scene'
+import {AnnotationsPlugin} from '../selection-ux-playground/AnnotationsPlugin'
 import {EditorToolbarPlugin} from '../selection-ux-playground/EditorToolbarPlugin'
 import {showReport, showReportIfNew} from '../selection-ux-playground/report'
 
@@ -42,6 +43,7 @@ async function init() {
     const hemiLight = viewer.scene.addObject(new HemisphereLight(0xffffff, 0x444444, 5), {addToRoot: true})
     hemiLight.name = 'Hemisphere Light'
 
+    viewer.addPluginSync(new AnnotationsPlugin({editable: true}))
     const layers = viewer.addPluginSync(new LayersPanelPlugin('light'))
     const notes = viewer.addPluginSync(new NotesPlugin({pageKey: 'selection-ux-playground-notes', syncUrl: '/api/notes', contextProvider: modeContext(ux)}))
     setupSidePanel(viewer.container, layers, notes, 'sux-side-pos-editor')
@@ -58,6 +60,7 @@ async function init() {
 
     buildScene(viewer)
     buildExtras(viewer)
+    demoAnnotations(viewer)
     viewer.scene.mainCamera.position.set(7, 7, 11)
     viewer.scene.mainCamera.target.set(0, 0.8, 0)
     viewer.scene.mainCamera.setDirty()

@@ -3,16 +3,45 @@
  * It opens by itself once for each new {@link REPORT_VERSION}.
  */
 
-export const REPORT_VERSION = '2026-10-26-r6'
+export const REPORT_VERSION = '2026-10-26-r7'
 
 const REPORT_HTML = `
-<h1>Selection UX prototype <span>round 6 · 26 Oct 2026</span></h1>
+<h1>Selection UX prototype <span>round 7 · 26 Oct 2026</span></h1>
 <p class="lead">A Figma-like way to select, move and edit things in threepipe, for people who are not 3D experts.
 Two pages run the same plugins: the <b>playground</b> (simple, light panels) and the <b>editor</b> (the tweakpane editor with
 everything else). Code: branch <code>claude/figma-style-selection-ux-j74hh2</code> in repalash/threepipe,
 folder <code>examples/selection-ux-playground/</code>. Ticket: <a href="https://ijewel3d.youtrack.cloud/issue/IJ-1052" target="_blank">IJ-1052</a>.</p>
 
-<h2>New in round 6</h2>
+<h2>New in round 7</h2>
+<table>
+<tr><th>You asked</th><th>What changed</th><th>Try it</th></tr>
+<tr><td>Annotations in the 3D scene, saved in the .glb, with a camera view (like Sketchfab)</td><td><b>AnnotationsPlugin</b>: numbered markers on surfaces. Click one: the camera flies to its saved view and a card shows the title and text
+(<code>**bold**</code>, <code>*italic*</code>, links, bullets; click the text to edit it). ‹ › and ← → go through them; Tour plays them one by one (View mode).
+Better than Sketchfab: a marker is attached to its object and moves with it, it dims behind other objects, you can drag it to another spot,
+“Update view” saves the current view, every edit is undoable. Saved in the .glb (viewer config) and restored on load.</td><td>Toolbar pin or <kbd>N</kbd>, then click a surface. Two examples are in the scene</td></tr>
+<tr><td>Simple shapes: edit with dots like the lines</td><td>Geometry edit of a box, plane, circle, sphere, cylinder or torus: dots drag sizes along their axis (width, height, radius, tube…),
+diamonds drag segment counts sideways. A wireframe shows the segments while you edit. One undo step per drag; <kbd>Shift</kbd> snaps</td><td>Double-click “Box” twice, or select it and <kbd>Enter</kbd></td></tr>
+<tr><td>Use uiConfig in the geometry panel; close path did not work</td><td>The panel shows the generator's own uiConfig (the same fields as the editor's “Generation Params”: curve type, curve points, add point,
+closed, tension…). Close path was a bug in the library: three.js keeps the segment count of the first render, so a line regenerated with more points
+did not draw the new ones. Fixed in GeometryGeneratorPlugin</td><td>Edit “Spline”, tick close path</td></tr>
+<tr><td>Lights should show a frustum</td><td>A selected light that casts shadows draws its shadow camera: the sun's shadow box (what its shadows cover), the spot's frustum</td><td>Select “Sun” or “Key Spot”</td></tr>
+<tr><td>Move / Rotate / Scale should use the new UI</td><td>In the new modes <kbd>W</kbd> <kbd>E</kbd> <kbd>R</kbd> are tools of the selection UX: Move hides the scale and rotate handles;
+Rotate shows the ring and dragging the object turns it; Scale shows corners and sides and dragging the object right/left scales it from its base
+(<kbd>Alt</kbd>: centre). In “Current” mode they are the classic gizmo</td><td><kbd>E</kbd>, drag the ring</td></tr>
+<tr><td>Blueprint editor's material / environment overrides</td><td>“View as” menu: Shaded, Clay, Wireframe, Unlit, Depth, Normal, Normal World, Material ID, UV (again: next UV set);
+Lights instead of the scene's (Day, Night, Studio, None); Environment instead of the scene's (Day, Night, Studio, Indoors, Outdoors).
+Nothing in the scene changes: the overrides apply only while rendering, so export and the panels see the real scene</td><td>Toolbar eye button</td></tr>
+<tr><td>Same colours as the tweakpane theme</td><td>Toolbar, menus, layers and the geometry panel take the tweakpane colours (black, dark, blue, light, white) when it is on the page</td><td>Tweakpane → Color Mode</td></tr>
+<tr><td>Less border radius in the toolbar</td><td>Bar 8 px, buttons 4 px, menus 6 px</td><td>—</td></tr>
+<tr><td>Expand canvas, Space+drag, Shift+Space</td><td>Expand now fills the window in the editor too (the editor's CSS sized the canvas with <code>!important</code>);
+Shift+Space reached the selection plugin first and was eaten; releasing Space no longer presses a focused button. Space+drag orbits (tested)</td><td><kbd>Shift</kbd>+<kbd>Space</kbd></td></tr>
+<tr><td>Lines show as a rectangle</td><td>Fat lines (Line2) are instanced quads that only the line shader turns into lines. The G-buffer and shadows use line versions of their
+materials (fine). Anything that draws the scene with one override material draws the raw quads: a big rectangle. Fixed here for “View as” and the
+blueprint overrides (lines keep their own material) and for the outline (a line-shaped mask). Library proposal: line materials default to
+<code>allowOverride = false</code>, or a line version of any override material</td><td>View as → Normal, with the curves in view</td></tr>
+</table>
+
+<h2>Round 6</h2>
 <table>
 <tr><th>You asked</th><th>What changed</th><th>Try it</th></tr>
 <tr><td>Look through a camera, change the main camera</td><td>Like Blender's camera view. <kbd>0</kbd> looks through the selected camera (else the last one); <kbd>0</kbd> or <kbd>Esc</kbd> goes back.

@@ -4,19 +4,18 @@ import {
     IObject3D,
     Material,
     MeshBasicMaterial,
-    MeshDepthMaterial,
-    MeshNormalMaterial,
     MeshStandardMaterial,
     Object3DGeneratorPlugin,
     Object3DWidgetsPlugin,
     PickingPlugin,
-    ShaderMaterial,
     ThreeViewer,
     TransformControlsPlugin,
     UndoManagerPlugin,
     Vector3,
 } from 'threepipe'
 import {SelectionUxPlugin} from './SelectionUxPlugin'
+import {AnnotationsPlugin} from './AnnotationsPlugin'
+import {SceneOverrides} from './SceneOverrides'
 
 export interface EditorToolbarOptions {
     /** Add a floor grid the toolbar can show and hide */
@@ -59,6 +58,8 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
     private _effectsOff = false
     private _widgetsOff = false
     private _options: EditorToolbarOptions
+    /** Debug views and lighting from the blueprint editor: unlit, depth, normals, material ID, UV; light and environment presets */
+    readonly overrides = new SceneOverrides()
     private _tip: HTMLDivElement
     private _tipTimer = 0
 
@@ -81,12 +82,19 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
             this._grid.name = 'Editor Grid'
             this._grid.userData.userSelectable = false
             this._grid.userData.bboxVisible = false
+            ;(this._grid.material as Material).allowOverride = false // the grid keeps its look in the debug views
             viewer.scene.add(this._grid)
         }
         window.addEventListener('keydown', this._onKey)
         window.addEventListener('pointerdown', this._closeMenuOutside, true)
         viewer.scene.addEventListener('mainCameraChange', this.render)
+        this.overrides.viewer = viewer
+        this.overrides.addEventListener('change', this._onOverrides)
         viewer.forPlugin(SelectionUxPlugin, ux => ux.addEventListener('uxUpdate', this._onUxUpdate), ux => ux.removeEventListener('uxUpdate', this._onUxUpdate))
+        viewer.forPlugin(AnnotationsPlugin, a => {
+            a.addEventListener('annotationChange', this.render)
+            a.editable = !this._viewMode
+        }, a => a.removeEventListener('annotationChange', this.render))
         this._wasLegacy = !this._uxTools
         this.render()
     }
@@ -112,7 +120,10 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
         window.removeEventListener('pointerdown', this._closeMenuOutside, true)
         viewer.scene.removeEventListener('mainCameraChange', this.render)
         viewer.getPlugin(SelectionUxPlugin)?.removeEventListener('uxUpdate', this._onUxUpdate)
+        viewer.getPlugin(AnnotationsPlugin)?.removeEventListener('annotationChange', this.render)
         this._grid?.removeFromParent()
+        this.overrides.removeEventListener('change', this._onOverrides)
+        this.overrides.dispose()
         this._tip.remove()
         this.element.remove()
         super.onRemove(viewer)
@@ -187,27 +198,33 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
         viewer.getPlugin(SelectionUxPlugin)?.select([obj])
     }
 
+    // lit views; the debug views (normals, depth, UV...) are in SceneOverrides
     private _viewMaterials: Record<string, () => Material | undefined> = {
         shaded: () => undefined,
         clay: () => new MeshStandardMaterial({color: 0xd8d8d8, roughness: 0.65, metalness: 0}),
-        normals: () => new MeshNormalMaterial(),
         wireframe: () => new MeshBasicMaterial({color: 0x333a44, wireframe: true}),
-        depth: () => new MeshDepthMaterial(),
-        uv: () => new ShaderMaterial({
-            vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-            fragmentShader: 'varying vec2 vUv; void main(){ vec2 c = floor(fract(vUv) * 8.); float k = mod(c.x + c.y, 2.); gl_FragColor = vec4(mix(vec3(vUv, 0.), vec3(1.), k * .25), 1.); }',
-        }),
     }
 
-    /** Draw every mesh with one material: normals, clay, wireframe, depth, UV checker; "shaded" is the real materials */
+    /** Draw every mesh with one material: clay or wireframe; "shaded" is the real materials. Clears a debug view. */
     setView(view: string) {
         const rp = this._viewer?.renderManager.renderPass as any
         if (!rp) return
+        if (view !== 'shaded' && this.overrides.material) this.overrides.setMaterial(null)
         rp.overrideMaterial?.dispose?.()
         rp.overrideMaterial = this._viewMaterials[view]?.() ?? null
         this._view = view
+        this._syncLines()
         this._viewer?.setDirty()
         this.render()
+    }
+
+    private _onOverrides = () => {
+        this._syncLines()
+        this.render()
+    }
+
+    private _syncLines() {
+        if (this._viewer) keepLinesOutOfOverride(this._viewer, this._view !== 'shaded' || !!this.overrides.material)
     }
 
     setEffects(on: boolean) {
@@ -263,6 +280,8 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
             if (ux) ux.enabled = true
         }
         ux?.applySettings()
+        const notes = viewer.getPlugin(AnnotationsPlugin)
+        if (notes) notes.editable = !view
         if (this._grid) this._grid.visible = !view && this._gridOn
         viewer.setDirty()
         this.render()
@@ -306,6 +325,15 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
         setTimeout(() => URL.revokeObjectURL(a.href), 5000)
     }
 
+    /** N: place an annotation on the next surface clicked (AnnotationsPlugin); again: cancel */
+    annotate() {
+        const a = this._viewer?.getPlugin(AnnotationsPlugin)
+        if (!a || this._viewMode) return
+        if (a.adding) a.cancelAdding()
+        else a.startAdding()
+        this.render()
+    }
+
     private _undo(redo = false) {
         const um = this._viewer?.getPlugin(UndoManagerPlugin)?.undoManager
         if (redo) um?.redo()
@@ -321,6 +349,10 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
             return
         }
         if (e.ctrlKey || e.metaKey || e.altKey || this._viewMode) return
+        if (e.code === 'KeyN') {
+            this.annotate()
+            return
+        }
         const g = ({KeyV: 'off', KeyW: 'translate', KeyE: 'rotate', KeyR: 'scale'} as const)[e.code as 'KeyV']
         if (g) this.setGizmo(g)
     }
@@ -371,10 +403,21 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
             if (!this._uxTools) btn(I.dots, 'Gizmo space and size', '', b => this._openMenu(b, this._gizmoMenu()), 'menu', false, this._gizmo === 'off')
             newGroup()
             btn(I.plus, 'Add an object', '', b => this._openMenu(b, this._addMenu()), 'menu', false, !viewer?.getPlugin(Object3DGeneratorPlugin))
+            const notes = viewer?.getPlugin(AnnotationsPlugin)
+            if (notes) btn(I.pin, notes.adding ? 'Click a surface to place it (Esc cancels)' : 'Add an annotation: a note on a surface, with this camera view', 'N', () => this.annotate(), 'toggle', notes.adding)
+        }
+        const tour = viewer?.getPlugin(AnnotationsPlugin)
+        if (v && tour?.getAnnotations().length) {
+            newGroup()
+            btn(tour.touring ? I.stop : I.play, tour.touring ? 'Stop the tour' : 'Tour: go through the annotations', '', () => {
+                if (tour.touring) tour.stopTour()
+                else tour.playTour(4500)
+                this.render()
+            }, 'toggle', tour.touring)
         }
         newGroup()
         btn(I.camera, 'Camera', '0', b => this._openMenu(b, this._cameraMenu()), 'menu', viewer?.scene.mainCamera !== viewer?.scene.defaultCamera)
-        btn(I.eye, 'View as', '', b => this._openMenu(b, this._viewMenu()), 'menu', this._view !== 'shaded')
+        btn(I.eye, 'View as: debug views, lights and environment', '', b => this._openMenu(b, this._viewMenu()), 'menu', this._view !== 'shaded' || this.overrides.active)
         if (!v) {
             newGroup()
             btn(I.sparkle, 'Effects (post-processing)', '', () => this.setEffects(this._effectsOff), 'toggle', !this._effectsOff)
@@ -533,11 +576,39 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
     }
 
     private _viewMenu() {
-        const names: Record<string, string> = {shaded: 'Shaded (materials)', clay: 'Clay', normals: 'Normals', wireframe: 'Wireframe', depth: 'Depth', uv: 'UV checker'}
-        return Object.entries(names).map(([k, l]) => [l, () => this.setView(k), this._view === k] as [string, () => void, boolean])
+        const ov = this.overrides
+        const items: ([string, () => void, boolean?] | string)[] = ['#Materials']
+        const names: Record<string, string> = {shaded: 'Shaded (the real materials)', clay: 'Clay', wireframe: 'Wireframe'}
+        for (const [k, l] of Object.entries(names)) items.push([l, () => this.setView(k), this._view === k && !ov.material])
+        for (const m of ov.materialTypes) {
+            items.push([ov.labelOf(m) + (m.key === 'uv' && ov.material === 'uv' ? ' <kbd>again: next set</kbd>' : ''), () => {
+                if (this._view !== 'shaded') this.setView('shaded')
+                ov.setMaterial(m.key)
+            }, ov.material === m.key])
+        }
+        const presets = (group: 'lights' | 'env') => ov.lightingPresets.filter(p => p.group === group).map(p => [
+            ov.loading === p.key ? p.label + ' …' : p.label,
+            () => void ov.setLighting(ov.lighting === p.key ? null : p.key),
+            ov.lighting === p.key,
+        ] as [string, () => void, boolean])
+        items.push('-', '#Lights instead of the scene\'s', ...presets('lights'), '#Environment instead of the scene\'s', ...presets('env'))
+        if (ov.lighting) items.push('-', ['Back to the scene\'s lighting', () => void ov.setLighting(null)])
+        return items
     }
 
     // endregion
+}
+
+/**
+ * Fat lines (Line2, MeshLine) are instanced quads that only their line shader turns into lines; drawn with an override
+ * material they show as big rectangles. While an override is on, line materials opt out of it and keep their own look.
+ */
+export function keepLinesOutOfOverride(viewer: ThreeViewer, on: boolean) {
+    viewer.scene.traverse(o => {
+        const mats = (o as any).material
+        for (const m of Array.isArray(mats) ? mats : [mats]) if (m?.isLineMaterial) m.allowOverride = !on
+    })
+    viewer.setDirty()
 }
 
 const svg = (d: string) => `<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`
@@ -550,6 +621,9 @@ const I = {
     scale: svg('<path d="M2.5 9.5v4h4M2.5 13.5l5-5M13.5 6.5v-4h-4M13.5 2.5l-5 5"/>'),
     dots: svg('<circle cx="3.5" cy="8" r=".8"/><circle cx="8" cy="8" r=".8"/><circle cx="12.5" cy="8" r=".8"/>'),
     plus: svg('<path d="M8 3v10M3 8h10"/>'),
+    pin: svg('<path d="M8 14s-4.5-4.2-4.5-7.5a4.5 4.5 0 0 1 9 0C12.5 9.8 8 14 8 14z"/><circle cx="8" cy="6.5" r="1.6"/>'),
+    play: svg('<path d="M5 3.5l7.5 4.5L5 12.5z"/>'),
+    stop: svg('<rect x="4" y="4" width="8" height="8" rx="1"/>'),
     camera: svg('<path d="M2 5.5h8.5v6H2zM10.5 7.5l3.5-2v6l-3.5-2"/>'),
     eye: svg('<path d="M1.5 8s2.4-4.5 6.5-4.5S14.5 8 14.5 8s-2.4 4.5-6.5 4.5S1.5 8 1.5 8z"/><circle cx="8" cy="8" r="2"/>'),
     sparkle: svg('<path d="M8 2l1.3 3.7L13 7l-3.7 1.3L8 12l-1.3-3.7L3 7l3.7-1.3zM12.5 11.5l.5 1.5 1.5.5-1.5.5-.5 1.5-.5-1.5-1.5-.5 1.5-.5z"/>'),

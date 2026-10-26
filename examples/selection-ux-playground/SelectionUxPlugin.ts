@@ -1530,8 +1530,8 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         if (!this._active) return
         const t = e.target as HTMLElement
         if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
-        // a focused list (the layers panel) uses the arrow keys itself, like in Figma
-        if (e.code.startsWith('Arrow') && t?.closest?.('[data-own-arrows]')) return
+        // a focused list (the layers panel) uses the arrow keys itself, like in Figma; [data-own-keys] (an annotation card) all keys
+        if (e.code.startsWith('Arrow') && t?.closest?.('[data-own-arrows]') || t?.closest?.('[data-own-keys]')) return
         const ctrl = e.ctrlKey || e.metaKey
         const own = () => {
             e.preventDefault()

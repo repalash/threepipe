@@ -1,4 +1,5 @@
-import {BoxGeometry, CatmullRomCurve3, ContactShadowGroundPlugin, CubicBezierCurve3, CylinderGeometry, GeometryGeneratorPlugin, Group2, IObject3D, LineMaterial2, Mesh, Object3DGeneratorPlugin, PhysicalMaterial, SphereGeometry, ThreeViewer, TorusGeometry, Vector3} from 'threepipe'
+import {BoxGeometry, CatmullRomCurve3, ContactShadowGroundPlugin, CubicBezierCurve3, CylinderGeometry, GeometryGeneratorPlugin, Group2, IObject3D, LineMaterial2, Matrix4, Mesh, Object3DGeneratorPlugin, PhysicalMaterial, Quaternion, Raycaster, SphereGeometry, ThreeViewer, TorusGeometry, UndoManagerPlugin, Vector3} from 'threepipe'
+import {AnnotationsPlugin, AnnotationView} from './AnnotationsPlugin'
 
 /** A small jewellery scene with nested groups, to try the selection rules on */
 export function buildScene(viewer: ThreeViewer) {
@@ -126,7 +127,7 @@ export function buildExtras(viewer: ThreeViewer) {
         shadow('Key Spot', 1024)
         shadow('Warm Fill', 512)
         // the lights, not the environment, make the shadows: keep the environment softer so they show
-        viewer.scene.envMapIntensity = 0.5
+        viewer.scene.environmentIntensity = 0.5
         viewer.scene.addObject(lights)
         viewer.scene.addObject(cams)
     }
@@ -160,4 +161,28 @@ export function buildExtras(viewer: ThreeViewer) {
     // a ground under everything (the shapes and curves stand at x = ±8), so every object has somewhere to cast its shadow
     const ground = viewer.getPlugin(ContactShadowGroundPlugin)
     if (ground) ground.size = 26
+}
+
+/** Two example annotations (when the plugin is there and the scene has none): a point on the surface seen from a view */
+export function demoAnnotations(viewer: ThreeViewer) {
+    const plugin = viewer.getPlugin(AnnotationsPlugin)
+    if (!plugin || plugin.getAnnotations().length) return
+    viewer.scene.modelRoot.updateMatrixWorld(true)
+    const add = (from: Vector3, at: Vector3, title: string, text: string) => {
+        // the view looks from `from` at `at`; the annotation goes where that line first meets a surface
+        const quaternion = new Quaternion().setFromRotationMatrix(new Matrix4().lookAt(from, at, new Vector3(0, 1, 0)))
+        const view: AnnotationView = {position: from.toArray(), target: at.toArray(), quaternion: quaternion.toArray(), zoom: 1}
+        const ray = new Raycaster(from, at.clone().sub(from).normalize())
+        ray.camera = viewer.scene.mainCamera // fat lines (Line2) need it to raycast
+        const hit = ray.intersectObject(viewer.scene.modelRoot, true).find(h => (h.object as any).isMesh && h.object.visible && h.face)
+        if (!hit) return
+        const obj = hit.object as any
+        const localPoint = obj.worldToLocal(hit.point.clone())
+        const localNormal = hit.face!.normal.clone()
+        plugin.add(obj, localPoint, localNormal, view, {title, text})
+    }
+    add(new Vector3(2.2, 3.6, 4.2), new Vector3(0, 2.6, 0), 'Solitaire', '**Round brilliant**, 4-prong setting.\nClick the numbers to move between notes, or use ← →.')
+    add(new Vector3(4.2, 3.2, -0.8), new Vector3(0, 1.2, -4.5), 'Gift box', 'Notes are saved inside the .glb with the camera view, like Sketchfab annotations.\n- Edit mode: + Annotate (N)\n- View mode: Tour')
+    // the examples are not edits: keep them out of the undo history
+    viewer.getPlugin(UndoManagerPlugin)?.undoManager?.reset()
 }

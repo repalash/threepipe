@@ -10,8 +10,10 @@ import {
     IRenderManager,
     IScene,
     IWebGLRenderer,
+    Material,
     PickingPlugin,
     NearestFilter,
+    NoBlending,
     Object3D,
     RenderPass,
     ShaderMaterial,
@@ -232,6 +234,15 @@ export class SelectionMaskPass extends RenderPass implements IPipelinePass<'sele
         } else {
             const layer = SelectionMaskPass.Layer
             for (const o of this._items.keys()) o.layers.enable(layer)
+            // fat lines are instanced quads that only a line shader turns into lines: give them a line-shaped mask material
+            const lines: Object3D[] = []
+            for (const o of this._items.keys()) {
+                const line = o as any
+                const lm = line.isLine2 || line.isLineSegments2 ? line.currentMaterial ?? line.material : null
+                if (!lm?.isLineMaterial) continue
+                line.forcedOverrideMaterial = this._lineMask(lm)
+                lines.push(o)
+            }
             const mask = this.camera.layers.mask
             this.camera.layers.set(layer)
             renderer.renderWithModes({
@@ -243,9 +254,37 @@ export class SelectionMaskPass extends RenderPass implements IPipelinePass<'sele
                 mainRenderPass: false,
             }, () => super.render(renderer, writeBuffer as any, target, deltaTime as any, maskActive as any))
             for (const o of this._items.keys()) o.layers.disable(layer)
+            for (const o of lines) delete (o as any).forcedOverrideMaterial
             this.camera.layers.mask = mask
         }
         renderer.setRenderTarget(t, face, mip)
+    }
+
+    private _lineMasks = new WeakMap<Material, ShaderMaterial>()
+
+    /** The line material's own vertex shader (thick quads) with the mask output; shares its uniforms (width, resolution) */
+    private _lineMask(lm: ShaderMaterial) {
+        let m = this._lineMasks.get(lm)
+        if (!m) {
+            m = new ShaderMaterial({
+                uniforms: {...lm.uniforms, itemData: {value: new Vector3()}, cameraNearFar: {value: new Vector2(0.1, 1000)}},
+                defines: {...lm.defines},
+                vertexShader: lm.vertexShader,
+                fragmentShader: LINE_MASK_FRAG,
+                blending: NoBlending,
+            })
+            m.allowOverride = false
+            const mask = m
+            m.onBeforeRender = (_r, _s, camera, _g, object) => {
+                const d = this._items.get(object)
+                if (d) mask.uniforms.itemData.value.copy(d)
+                const cam = camera as any
+                mask.uniforms.cameraNearFar.value.set(cam.near, cam.far)
+                mask.uniformsNeedUpdate = true
+            }
+            this._lineMasks.set(lm, m)
+        }
+        return m
     }
 
     dispose() {
@@ -281,6 +320,18 @@ varying vec3 vViewPosition;
 void main() {
     // same linear depth as the gbuffer: (viewZ - near) / (far - near)
     float d = clamp((vViewPosition.z - cameraNearFar.x) / (cameraNearFar.y - cameraNearFar.x), 0., 1.);
+    gl_FragColor = vec4(itemData, d);
+}
+`
+
+const LINE_MASK_FRAG = /* glsl */`
+#include <packing>
+uniform vec2 cameraNearFar;
+uniform vec3 itemData;
+void main() {
+    // the line shader has no view position varying: the depth comes from the fragment depth (perspective camera)
+    float viewZ = -perspectiveDepthToViewZ(gl_FragCoord.z, cameraNearFar.x, cameraNearFar.y);
+    float d = clamp((viewZ - cameraNearFar.x) / (cameraNearFar.y - cameraNearFar.x), 0., 1.);
     gl_FragColor = vec4(itemData, d);
 }
 `
