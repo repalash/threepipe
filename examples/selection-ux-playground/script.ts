@@ -3,6 +3,7 @@ import {
     _testStart,
     BoxGeometry,
     CylinderGeometry,
+    GBufferPlugin,
     GridHelper,
     Group2,
     IObject3D,
@@ -19,6 +20,7 @@ import {
     Vector3,
 } from 'threepipe'
 import {defaultSelectionUxSettings, SelectionUxPlugin, SelectionUxSettings, TransformSnapshot} from './SelectionUxPlugin'
+import {SelectionOutlinePlugin} from './SelectionOutlinePlugin'
 
 async function init() {
     const viewer = new ThreeViewer({
@@ -29,12 +31,13 @@ async function init() {
             allowedExtensions: ['gltf', 'glb', 'fbx', 'obj', '3dm', 'hdr', 'exr', 'bin', 'png', 'jpg', 'jpeg', 'webp'],
             addOptions: {autoCenter: true, autoScale: true, autoScaleRadius: 2.5},
         },
-        plugins: [LoadingScreenPlugin, UndoManagerPlugin],
+        plugins: [LoadingScreenPlugin, UndoManagerPlugin, GBufferPlugin],
     })
     viewer.scene.setBackgroundColor('#eef0f3')
 
     const picking = viewer.addPluginSync(new PickingPlugin(undefined, false))
     const ux = viewer.addPluginSync(SelectionUxPlugin)
+    viewer.addPluginSync(SelectionOutlinePlugin)
     Object.assign(window, {viewer, ux}) // for poking from the console
 
     const grid = new GridHelper(40, 40, 0xc4c8cf, 0xdadde2)
@@ -240,15 +243,18 @@ function setupLayers(viewer: ThreeViewer, ux: SelectionUxPlugin) {
 interface Opt<K extends keyof SelectionUxSettings> {key: K, label: string, options: [SelectionUxSettings[K], string][]}
 
 const presets: {name: string, desc: string, s: Partial<SelectionUxSettings>}[] = [
-    {name: 'A · Figma 2D', desc: 'Screen box, corner scale, rotate outside corners', s: {visual: 'figma2d', rotate: 'corners', rotateAxis: 'up', scalePivot: 'base', stretchHandles: false}},
+    {name: 'A · Figma 2D', desc: 'Screen box, corner scale, rotate outside corners, hover outline', s: {visual: 'figma2d', rotate: 'corners', rotateAxis: 'up', scalePivot: 'base', stretchHandles: false, outlineHover: true}},
     {name: 'B · 3D box', desc: 'Line box, corner dots, face stretch, turn ring', s: {visual: 'box3d', rotate: 'ring', scalePivot: 'opposite', stretchHandles: true, xray: true}},
     {name: 'C · Brackets', desc: 'Minimal corner brackets, rotate knob', s: {visual: 'brackets', rotate: 'knob', rotateAxis: 'up', scalePivot: 'base', stretchHandles: false, xray: false}},
     {name: 'D · Hybrid', desc: '3D box + 2D handles and side stretch', s: {visual: 'hybrid', rotate: 'corners', rotateAxis: 'view', scalePivot: 'base', stretchHandles: true, xray: true}},
+    {name: 'E · Outline', desc: 'Mesh outline + part lines from the render pipeline, handles only', s: {visual: 'minimal', rotate: 'corners', rotateAxis: 'up', scalePivot: 'base', outlineSelected: true, outlineHover: true, outlineParts: true, outlineXray: true}},
+    {name: 'F · Focus', desc: 'Outline + tint, dims the rest, turn ring', s: {visual: 'minimal', rotate: 'ring', scalePivot: 'base', outlineSelected: true, outlineHover: true, outlineParts: true, outlineXray: true, fillTint: true, dimOthers: true}},
     {name: 'Current', desc: 'Existing PickingPlugin box and clicks', s: {visual: 'legacy'}},
 ]
 
 const options: Opt<any>[] = [
-    {key: 'visual', label: 'Look', options: [['figma2d', '2D'], ['box3d', '3D box'], ['brackets', 'Brackets'], ['hybrid', 'Hybrid'], ['legacy', 'Current']]},
+    {key: 'visual', label: 'Look', options: [['figma2d', '2D'], ['box3d', '3D box'], ['brackets', 'Brackets'], ['hybrid', 'Hybrid'], ['minimal', 'Handles'], ['legacy', 'Current']]},
+    {key: 'outlineWidth', label: 'Outline px', options: [[1, '1'], [1.5, '1.5'], [2, '2'], [3, '3']]},
     {key: 'boxSpace', label: 'Box aligns to', options: [['local', 'Object'], ['world', 'World']]},
     {key: 'emptyDrag', label: 'Drag on empty', options: [['orbit', 'Orbit'], ['marquee', 'Box select']]},
     {key: 'dragMove', label: 'Drag object', options: [['any', 'Moves it'], ['selected', 'If selected'], ['off', 'Orbits']]},
@@ -261,6 +267,12 @@ const options: Opt<any>[] = [
     {key: 'accent', label: 'Color', options: [['#0d99ff', 'Blue'], ['#7b61ff', 'Violet'], ['#14ae5c', 'Green'], ['#ff7a1a', 'Orange']]},
 ]
 const toggles: [keyof SelectionUxSettings, string][] = [
+    ['outlineSelected', 'Outline selected meshes (pipeline)'],
+    ['outlineHover', 'Outline on hover (pipeline)'],
+    ['outlineParts', 'Lines between parts of a group'],
+    ['outlineXray', 'Dashed outline where hidden'],
+    ['fillTint', 'Tint selection'],
+    ['dimOthers', 'Dim everything else'],
     ['stretchHandles', 'Side / face stretch handles'],
     ['smartGuides', 'Smart guides + snapping'],
     ['hover', 'Hover highlight'],
@@ -371,7 +383,7 @@ function setupSettings(viewer: ThreeViewer, ux: SelectionUxPlugin, picking: Pick
         sec.appendChild(btns)
         const note = document.createElement('div')
         note.className = 'insp-empty'
-        note.innerHTML = 'Drop a .glb / .gltf / .3dm on the canvas to try your own model. Link to a preset: <code>?preset=0..4</code>'
+        note.innerHTML = `Drop a .glb / .gltf / .3dm on the canvas to try your own model. Link to a preset: <code>?preset=0..${presets.length - 1}</code>`
         sec.appendChild(note)
     }
     render()

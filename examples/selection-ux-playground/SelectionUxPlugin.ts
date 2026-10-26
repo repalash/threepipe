@@ -25,7 +25,7 @@ import {
  * clipboard/delete/hide hotkeys) and draws the selection as a crisp screen-space SVG overlay with handles.
  */
 
-export type SelVisual = 'figma2d' | 'box3d' | 'brackets' | 'hybrid' | 'legacy'
+export type SelVisual = 'figma2d' | 'box3d' | 'brackets' | 'hybrid' | 'minimal' | 'legacy'
 
 export interface SelectionUxSettings {
     /** How the selection is drawn */
@@ -57,6 +57,20 @@ export interface SelectionUxSettings {
     /** Length of 1 scene unit, for the size label */
     unit: 'mm' | 'cm' | 'm'
     accent: string
+    /** Pipeline outline (SelectionOutlinePlugin) around the selected meshes */
+    outlineSelected: boolean
+    /** Pipeline outline around the hovered object, replaces the hover box */
+    outlineHover: boolean
+    /** Outline width in px */
+    outlineWidth: number
+    /** Dashed outline where the selection is behind other objects */
+    outlineXray: boolean
+    /** Thin lines between the parts of a selected group (what a double-click would select) */
+    outlineParts: boolean
+    /** Tint the selected meshes */
+    fillTint: boolean
+    /** Dim everything that is not selected */
+    dimOthers: boolean
 }
 
 export const defaultSelectionUxSettings: SelectionUxSettings = {
@@ -77,6 +91,13 @@ export const defaultSelectionUxSettings: SelectionUxSettings = {
     marquee: 'touch',
     unit: 'cm',
     accent: '#0d99ff',
+    outlineSelected: false,
+    outlineHover: false,
+    outlineWidth: 2,
+    outlineXray: true,
+    outlineParts: true,
+    fillTint: false,
+    dimOthers: false,
 }
 
 export interface SelectionUxPluginEventMap extends AViewerPluginEventMap {
@@ -179,6 +200,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
     private _guides: {a: Vector3, b: Vector3}[] = []
     private _liveLabel = ''
     private _raf = 0
+    private _lastExternalHover: IObject3D | null = null
     private _savedMouseButtons?: {LEFT: MOUSE, MIDDLE: MOUSE, RIGHT: MOUSE}
 
     // region lifecycle
@@ -1178,6 +1200,11 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
             this._pointerDirty = false
             this._updateHover()
         }
+        const ext = this.externalHover
+        if (ext !== this._lastExternalHover) {
+            this._lastExternalHover = ext
+            this._emit('hover')
+        }
         this._draw()
     }
 
@@ -1185,10 +1212,13 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         let h: IObject3D | null = null
         if (this._pointerInside && this.settings.hover) {
             const hit = this.raycastLeaf(this._pointer.x, this._pointer.y)
-            if (hit) h = this.resolveTarget(hit.leaf, this._keys.ctrl, false)
+            const tgt = hit ? this.resolveTarget(hit.leaf, this._keys.ctrl, false) : null
+            h = tgt
+            // inside a selected group, hover previews the part that a double-click selects
+            if (hit && tgt && this.selected.includes(tgt)) h = this.resolveTarget(hit.leaf, false, true)
             const canvas = this._viewer!.canvas
-            const canMove = h && (this.settings.dragMove === 'any' || this.settings.dragMove === 'selected' && this.selected.includes(h))
-            canvas.style.cursor = this._keys.space ? 'grab' : canMove ? 'move' : h ? 'pointer' : this.settings.emptyDrag === 'marquee' ? 'crosshair' : 'grab'
+            const canMove = tgt && (this.settings.dragMove === 'any' || this.settings.dragMove === 'selected' && this.selected.includes(tgt))
+            canvas.style.cursor = this._keys.space ? 'grab' : canMove ? 'move' : tgt ? 'pointer' : this.settings.emptyDrag === 'marquee' ? 'crosshair' : 'grab'
         }
         if (h !== this._hover) {
             this._hover = h
@@ -1239,8 +1269,8 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         const dragging = !!this._state && this._state.kind !== 'press' && this._state.kind !== 'marquee'
 
         const hover = this.externalHover || this._hover
-        if (hover && st.hover && !sel.includes(hover) && !dragging) this._drawOutline('hover', [hover], 1, 1)
-        if (sel.length > 1) sel.forEach((o, i) => this._drawOutline('sub' + i, [o], 1, 0.55))
+        if (hover && st.hover && !st.outlineHover && !sel.includes(hover) && !dragging) this._drawOutline('hover', [hover], 1, 1)
+        if (sel.length > 1 && !st.outlineSelected) sel.forEach((o, i) => this._drawOutline('sub' + i, [o], 1, 0.55))
         if (sel.length) this._drawSelection(sel, dragging)
 
         const s = this._state
@@ -1286,7 +1316,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         const st = this.settings
         const info = this.boxInfo(objs)
         const L = this._lines!
-        if (st.visual === 'figma2d') {
+        if (st.visual === 'figma2d' || st.visual === 'minimal') {
             const r = this._screenRect(info.corners)
             if (!r) return
             L.get(key, 'rect', {x: r.minX, y: r.minY, width: r.maxX - r.minX, height: r.maxY - r.minY, fill: 'none', stroke: 'var(--sux-accent)', 'stroke-width': width, opacity})
@@ -1318,11 +1348,12 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         }
 
         const visual = st.visual
-        const use2dRect = visual === 'figma2d' || visual === 'hybrid'
+        const use2dRect = visual === 'figma2d' || visual === 'hybrid' || visual === 'minimal'
         if (use2dRect) {
             L.get('sel-rect', 'rect', {
                 x: rect.minX, y: rect.minY, width: rect.maxX - rect.minX, height: rect.maxY - rect.minY, fill: 'none', stroke: accent,
-                'stroke-width': visual === 'hybrid' ? 1 : 1.5, opacity: visual === 'hybrid' ? 0.5 : 1,
+                'stroke-width': visual === 'figma2d' ? 1.5 : 1, opacity: visual === 'figma2d' ? 1 : visual === 'hybrid' ? 0.5 : 0.35,
+                'stroke-dasharray': visual === 'minimal' ? '4 4' : undefined,
             })
         }
         if (visual === 'box3d' || visual === 'hybrid') {
