@@ -10,9 +10,9 @@ export class EXRExporter2 extends EXRExporter implements IExportWriter {
         if (!target.isWebGLRenderTarget && !(<DataTexture>obj).isDataTexture) throw new Error('Invalid object type')
         if (target.isWebGLRenderTarget && target.textures.length > 1 && options.textureIndex === undefined)
             console.warn('RenderTarget has multiple textures, but no textureIndex specified. Using texture 0.')
-        const res = target.isWebGLRenderTarget ?
+        const res = await (target.isWebGLRenderTarget ?
             this.parse(target.renderManager!.webglRenderer, <WebGLRenderTarget>target, options) :
-            this.parse(<DataTexture>obj, options)
+            this.parse(<DataTexture>obj, options))
         return new Blob([res], {type: 'image/x-exr'})
     }
 }

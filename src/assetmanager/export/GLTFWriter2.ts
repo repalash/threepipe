@@ -15,7 +15,7 @@ export class GLTFWriter2 extends GLTFExporter.Utils.GLTFWriter {
         this.json.asset.subversion = this.TPAssetVersion
     }
 
-    // Hook for deterministic-injection.js to patch processBufferViewImage/write for testing.
+    // Hook for deterministic-injection.js to patch processBufferViewImage/writeAsync for testing.
     // Guarded by import.meta.env.DEV — stripped from production builds by Vite.
     static { if (import.meta.env.DEV) (globalThis as any).testing_patchGLTFWriter2?.(GLTFWriter2) }
 
@@ -54,13 +54,13 @@ export class GLTFWriter2 extends GLTFExporter.Utils.GLTFWriter {
         object.userData = userData
     }
 
-    processObjects(objects: Object3D[]) {
+    async processObjectsAsync(objects: Object3D[]) {
         if (objects.length === 1 && objects[0]?.userData.rootSceneModelRoot) {
             // objects[0].isScene = true
-            this.processScene(objects[0])
+            await this.processSceneAsync(objects[0])
             // delete objects[0].isScene
         } else
-            super.processObjects(objects)
+            await super.processObjectsAsync(objects)
     }
 
     protected _defaultMaterial = new MeshStandardMaterial()
@@ -69,7 +69,7 @@ export class GLTFWriter2 extends GLTFExporter.Utils.GLTFWriter {
      * Checks for shader material and does the same thing...
      * @param material
      */
-    processMaterial(material: Material): number|null {
+    async processMaterialAsync(material: Material): Promise<number|null> {
         if (this.cache.materials.has(material)) return this.cache.materials.get(material)!
 
         let mat = material as any
@@ -77,7 +77,7 @@ export class GLTFWriter2 extends GLTFExporter.Utils.GLTFWriter {
         // set default material when material is null. shader material is processed further below for custom extensions like diamonds.
         if (!mat || mat.isShaderMaterial) mat = this._defaultMaterial
 
-        const defIndex = super.processMaterial(mat)
+        const defIndex = await super.processMaterialAsync(mat)
 
         if (defIndex === null) {
             console.error('GLTFWriter2: Unexpected error: Failed to process material', material)
@@ -99,8 +99,8 @@ export class GLTFWriter2 extends GLTFExporter.Utils.GLTFWriter {
 
         this.serializeUserData(material, materialDef)
 
-        this._invokeAll((ext)=>{
-            ext.writeMaterial && ext.writeMaterial(material, materialDef)
+        await this._invokeAllAsync(async(ext)=>{
+            ext.writeMaterialAsync && await ext.writeMaterialAsync(material, materialDef)
         })
 
         // todo: test remove this
@@ -181,7 +181,13 @@ export class GLTFWriter2 extends GLTFExporter.Utils.GLTFWriter {
         return samplerIndex
 
     }
-    processTexture(map: Texture) {
+    /**
+     * Images of textures that are referenced by url (`userData.rootPath`) and not embedded: the value says whether a 32px preview is embedded instead.
+     * Set for the duration of `super.processTextureAsync`, read in {@link processImage}. (Kept on the writer, not on the texture, because the super call awaits and the texture may be rendered meanwhile.)
+     */
+    private _externalImages = new Map<any, boolean>()
+
+    async processTextureAsync(map: Texture) {
         const cache = this.cache
         const json = this.json
 
@@ -193,15 +199,24 @@ export class GLTFWriter2 extends GLTFExporter.Utils.GLTFWriter {
         const hasRootPath = !map.isRenderTargetTexture && map.userData.rootPath && typeof map.userData.rootPath === 'string' &&
             isNonRelativeUrl(map.userData.rootPath)
 
-        if (hasRootPath && !this.options.exporterOptions.embedUrlImages) {
-            if (map.source.data) { // handled below in GLTFWriter2.processImage
-                if (!this.options.exporterOptions.embedUrlImagePreviews || (map as any).isDataTexture) map.source.data = null // todo make sure its only Texture, check for svg etc
-                else map.source.data._savePreview = true
+        const externalImage = hasRootPath && !this.options.exporterOptions.embedUrlImages
+        if (externalImage) {
+            if (srcData) { // handled below in GLTFWriter2.processImage
+                // todo make sure its only Texture, check for svg etc
+                this._externalImages.set(srcData, !!this.options.exporterOptions.embedUrlImagePreviews && !(map as any).isDataTexture)
             }
             delete map.userData.mimeType // for extensions like ktx2
         }
 
-        const processed = super.processTexture(map)
+        let processed: number
+        try {
+            processed = await super.processTextureAsync(map)
+        } finally {
+            if (externalImage) {
+                if (srcData) this._externalImages.delete(srcData)
+                map.userData.mimeType = mimeType
+            }
+        }
 
         const textureDef = json.textures[processed]
         if (!textureDef) {
@@ -211,11 +226,7 @@ export class GLTFWriter2 extends GLTFExporter.Utils.GLTFWriter {
 
         // if (!textureDef.extras) textureDef.extras = {}
 
-        if (hasRootPath && !this.options.exporterOptions.embedUrlImages) {
-            if (map.source.data) delete map.source.data._savePreview
-            else map.source.data = srcData
-
-            map.userData.mimeType = mimeType
+        if (externalImage) {
             if (!textureDef) {
                 console.error('textureDef is null', processed, map)
                 return processed
@@ -259,14 +270,17 @@ export class GLTFWriter2 extends GLTFExporter.Utils.GLTFWriter {
         return processed
     }
 
-    // Add extra check for null images. This is set in processTexture when we have a rootPath
+    // Images of url-referenced textures are not embedded (or only as a 32px preview), see processTextureAsync
     processImage(image: any, format: PixelFormat, flipY: boolean, mimeType = 'image/png') {
         if (!image) return -1
-        return super.processImage(image, format, flipY, mimeType, image._savePreview ? 32 : undefined, image._savePreview ? 32 : undefined)
+        const external = this._externalImages.get(image)
+        if (external === false) return -1
+        const preview = external === true
+        return super.processImage(image, format, flipY, mimeType, preview ? 32 : undefined, preview ? 32 : undefined)
     }
 
     /**
-     * Used in GLTFWriter2.processTexture for rootPath. Note that this does not check for options.exporterOptions.embedUrlImages, it must be done separately.
+     * Used in GLTFWriter2.processTextureAsync for rootPath. Note that this does not check for options.exporterOptions.embedUrlImages, it must be done separately.
      * @param image
      * @param uri
      * @param flipY

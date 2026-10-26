@@ -1,7 +1,7 @@
-import {ColorSpace, LinearSRGBColorSpace, NoColorSpace, RGBM16ColorSpace, SRGBColorSpace} from 'three'
+import {LinearSRGBColorSpace, NoColorSpace, RGBM16ColorSpace, SRGBColorSpace} from 'three'
 
 // three.js WebGLProgram.js
-export function getTexelDecodingFunction(functionName: string, colorSpace: ColorSpace) {
+export function getTexelDecodingFunction(functionName: string, colorSpace: string) {
 
     let fn
     switch (colorSpace) {
@@ -30,7 +30,7 @@ export function getTexelDecodingFunction(functionName: string, colorSpace: Color
 
 }
 
-export function getTexelDecoding(mapName: string, colorSpace?: ColorSpace) {
+export function getTexelDecoding(mapName: string, colorSpace?: string) {
 
     return getTexelDecodingFunction(mapName + 'TexelToLinear', colorSpace ?? LinearSRGBColorSpace) + '\n'
 

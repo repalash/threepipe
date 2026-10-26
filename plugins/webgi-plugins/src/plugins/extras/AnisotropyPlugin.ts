@@ -478,7 +478,7 @@ class GLTFMaterialsAnisotropyExtensionImport implements GLTFLoaderPlugin {
 
 
 const glTFMaterialsAnisotropyExtensionExport = (w: GLTFWriter2)=> ({
-    writeMaterial: (material: any, materialDef: any) => {
+    writeMaterialAsync: async(material: any, materialDef: any) => {
         if (!material.isMeshStandardMaterial || !material.userData._isAnisotropic) return
 
         if ((material.userData._anisotropyFactor || 0) < 0.001) return // todo: is this correct?
@@ -493,7 +493,7 @@ const glTFMaterialsAnisotropyExtensionExport = (w: GLTFWriter2)=> ({
 
         if (w.checkEmptyMap(material.userData._anisotropyDirectionMap) && extensionDef.anisotropyDirectionMode !== 'CONSTANT') {
 
-            const anisotropyDirectionMapDef = {index: w.processTexture(material.userData._anisotropyDirectionMap)}
+            const anisotropyDirectionMapDef = {index: await w.processTextureAsync(material.userData._anisotropyDirectionMap)}
             w.applyTextureTransform(anisotropyDirectionMapDef, material.userData._anisotropyDirectionMap)
             extensionDef.anisotropyDirection = anisotropyDirectionMapDef
 

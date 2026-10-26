@@ -116,8 +116,6 @@ console.log(`packed and installed in ${((Date.now() - t0) / 1000).toFixed(0)}s (
 const KNOWN = [
     {setups: ['node16', 'nodenext'], match: 'Property \'setupPluginUi\' does not exist',
         why: 'ts-browser-helpers dist/index.d.ts re-exports \'./types\' without .js, so `Class` is unresolved under node16/nodenext and addPluginSync() loses the plugin type'},
-    {setups: ['nodenext'], skipLibCheck: false, match: 'has no exported member \'TextureImageData\'',
-        why: '@types/three (three-types-modded) src/Three.d.ts exports \'./textures/types\' without .js'},
 ]
 const seen = new Set()
 const ours = /^(consumer\.ts|node_modules\/(threepipe|@threepipe)\/)/

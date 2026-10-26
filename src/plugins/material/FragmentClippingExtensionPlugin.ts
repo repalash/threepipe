@@ -261,7 +261,7 @@ class GLTFMaterialsFragmentClippingExtensionImport implements GLTFLoaderPlugin {
 }
 
 const glTFMaterialsFragmentClippingExtensionExport = (w: GLTFWriter2)=> ({
-    writeMaterial: (material: any, materialDef: any) => {
+    writeMaterialAsync: async(material: any, materialDef: any) => {
         if (!material.isMeshStandardMaterial || !material.userData._fragmentClippingExt?.clipEnabled) return
         materialDef.extensions = materialDef.extensions || {}
 
