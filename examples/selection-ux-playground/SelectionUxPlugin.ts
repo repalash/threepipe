@@ -27,6 +27,9 @@ import {
 
 export type SelVisual = 'figma2d' | 'box3d' | 'brackets' | 'hybrid' | 'minimal' | 'legacy'
 
+/** ground = the floor (XZ), xy = front wall, yz = side wall, view = facing the camera */
+export type MovePlaneKind = 'ground' | 'xy' | 'yz' | 'view'
+
 export interface SelectionUxSettings {
     /** How the selection is drawn */
     visual: SelVisual
@@ -37,7 +40,7 @@ export interface SelectionUxSettings {
     /** Which objects can be dragged directly to move them */
     dragMove: 'any' | 'selected' | 'off'
     /** Plane used when moving by dragging */
-    movePlane: 'auto' | 'ground' | 'view'
+    movePlane: 'auto' | MovePlaneKind
     /** Point that stays fixed when scaling from a corner */
     scalePivot: 'base' | 'center' | 'opposite'
     /** Side/face handles that stretch one axis */
@@ -71,6 +74,8 @@ export interface SelectionUxSettings {
     fillTint: boolean
     /** Dim everything that is not selected */
     dimOthers: boolean
+    /** Show the hint line at the bottom of the viewport (see {@link SelectionUxPlugin.getHint}) */
+    showHints: boolean
 }
 
 export const defaultSelectionUxSettings: SelectionUxSettings = {
@@ -98,6 +103,37 @@ export const defaultSelectionUxSettings: SelectionUxSettings = {
     outlineParts: true,
     fillTint: false,
     dimOthers: false,
+    showHints: true,
+}
+
+/** A named set of settings. Built-in ones are below; more can be added with {@link SelectionUxPlugin.registerMode}. */
+export interface SelectionUxMode {
+    id: string
+    label: string
+    /** One or two characters for compact menus */
+    short?: string
+    description?: string
+    /** Applied on top of the defaults; the person's own choices ({@link SelectionUxPlugin.PersonalKeys}) are kept */
+    settings: Partial<SelectionUxSettings>
+}
+
+export const builtinSelectionUxModes: SelectionUxMode[] = [
+    {id: 'figma2d', short: 'A', label: 'Figma 2D', description: 'Screen box, corner scale, rotate outside corners, hover outline', settings: {visual: 'figma2d', rotate: 'corners', rotateAxis: 'up', scalePivot: 'base', stretchHandles: false, outlineHover: true}},
+    {id: 'box3d', short: 'B', label: '3D box', description: 'Line box, corner dots, face stretch, turn ring', settings: {visual: 'box3d', rotate: 'ring', scalePivot: 'opposite', stretchHandles: true, xray: true}},
+    {id: 'brackets', short: 'C', label: 'Brackets', description: 'Minimal corner brackets, rotate knob', settings: {visual: 'brackets', rotate: 'knob', rotateAxis: 'up', scalePivot: 'base', stretchHandles: false, xray: false}},
+    {id: 'hybrid', short: 'D', label: 'Hybrid', description: '3D box + 2D handles, side stretch, free rotate', settings: {visual: 'hybrid', rotate: 'corners', rotateAxis: 'free', scalePivot: 'base', stretchHandles: true, xray: true}},
+    {id: 'outline', short: 'E', label: 'Outline', description: 'Mesh outline + part lines from the render pipeline, handles only', settings: {visual: 'minimal', rotate: 'corners', rotateAxis: 'up', scalePivot: 'base', outlineSelected: true, outlineHover: true, outlineParts: true, outlineXray: true}},
+    {id: 'focus', short: 'F', label: 'Focus', description: 'Outline, dims the rest (colors of the selection stay), turn ring', settings: {visual: 'minimal', rotate: 'ring', scalePivot: 'base', outlineSelected: true, outlineHover: true, outlineParts: true, outlineXray: true, dimOthers: true}},
+    {id: 'current', short: '—', label: 'Current', description: 'Existing PickingPlugin box and clicks', settings: {visual: 'legacy'}},
+]
+
+export interface SelectionUxPluginOptions {
+    /** localStorage key to save and restore the settings and the mode. Off when not set. */
+    persistKey?: string
+    /** Modes to offer, defaults to {@link builtinSelectionUxModes} */
+    modes?: SelectionUxMode[]
+    /** Mode to start in when nothing is restored */
+    mode?: string
 }
 
 export interface SelectionUxPluginEventMap extends AViewerPluginEventMap {
@@ -131,7 +167,7 @@ type HandleData =
 
 type DragState =
     {kind: 'press', start: Vector2, leaf: IObject3D | null, hitPoint: Vector3 | null, passthrough: boolean, shift: boolean, deep: boolean, alt: boolean} |
-    {kind: 'move', start: Vector2, hitPoint: Vector3, plane: Plane, planeKind: 'ground' | 'view', baseDelta: Vector3, lastDelta: Vector3, snaps: TransformSnapshot[], startBox: Box3, others: Box3[], lockAxis: 0 | 1 | 2 | -1, viewRight: Vector3, viewUp: Vector3} |
+    {kind: 'move', start: Vector2, hitPoint: Vector3, plane: Plane, planeKind: MovePlaneKind, baseDelta: Vector3, lastDelta: Vector3, snaps: TransformSnapshot[], startBox: Box3, others: Box3[], lockAxis: 0 | 1 | 2 | -1, viewRight: Vector3, viewUp: Vector3} |
     {kind: 'scale', start: Vector2, pivot: Vector3, pivotS: Vector2, dir: Vector2, d0: number, snaps: TransformSnapshot[]} |
     {kind: 'stretch', start: Vector2, obj: IObject3D, axis: number, pivotLocal: Vector3, pivotS: Vector2, dir: Vector2, d0: number, snaps: TransformSnapshot[], boxToObj: Matrix4} |
     {kind: 'rotate', start: Vector2, center: Vector3, axis: Vector3, centerS: Vector2, a0: number, mode: 'plane' | 'screen' | 'dx' | 'free', sign: number, snaps: TransformSnapshot[]} |
@@ -180,6 +216,81 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
     dependencies = [PickingPlugin]
 
     settings: SelectionUxSettings = {...defaultSelectionUxSettings}
+
+    /** Modes offered in menus. Use {@link registerMode} to add one. */
+    modes: SelectionUxMode[]
+    /** Current mode id, null when the settings were changed away from every mode */
+    mode: string | null = null
+    /** localStorage key for the settings and the mode, null to not save them */
+    persistKey: string | null
+    private _initialMode?: string
+
+    /** Settings that belong to the person, not to a mode: they stay when the mode changes */
+    static PersonalKeys: (keyof SelectionUxSettings)[] = ['emptyDrag', 'dragMove', 'unit', 'accent', 'outlineWidth', 'showHints']
+
+    /**
+     * Replaces the hint text at the bottom of the viewport. Return HTML, or '' to show nothing.
+     * Hints can also be turned off with `settings.showHints`.
+     */
+    hintProvider: ((ux: SelectionUxPlugin) => string) | null = null
+
+    constructor(options: SelectionUxPluginOptions = {}) {
+        super()
+        this.persistKey = options.persistKey ?? null
+        this.modes = [...options.modes ?? builtinSelectionUxModes]
+        this._initialMode = options.mode
+    }
+
+    /** Add a mode, or replace the one with the same id */
+    registerMode(mode: SelectionUxMode) {
+        const i = this.modes.findIndex(m => m.id === mode.id)
+        if (i >= 0) this.modes[i] = mode
+        else this.modes.push(mode)
+        this._emit('settings')
+    }
+
+    unregisterMode(id: string) {
+        this.modes = this.modes.filter(m => m.id !== id)
+        if (this.mode === id) this.mode = null
+        this._emit('settings')
+    }
+
+    setMode(id: string) {
+        const m = this.modes.find(x => x.id === id)
+        if (!m) return
+        const personal: Partial<SelectionUxSettings> = {}
+        for (const k of SelectionUxPlugin.PersonalKeys) (personal as any)[k] = this.settings[k]
+        Object.assign(this.settings, defaultSelectionUxSettings, personal, m.settings)
+        this.applySettings()
+    }
+
+    private _matchMode() {
+        const m = this.modes.find(x => Object.entries(x.settings).every(([k, v]) => (this.settings as any)[k] === v))
+        this.mode = m ? m.id : null
+    }
+
+    /** Save settings and mode to localStorage (only with {@link persistKey}) */
+    save() {
+        if (!this.persistKey) return
+        try {
+            localStorage.setItem(this.persistKey, JSON.stringify({mode: this.mode, settings: this.settings}))
+        } catch (e) {
+            // private mode or storage full
+        }
+    }
+
+    /** Restore from localStorage (only with {@link persistKey}). Returns false when nothing was saved. */
+    load(): boolean {
+        if (!this.persistKey) return false
+        try {
+            const d = JSON.parse(localStorage.getItem(this.persistKey) || 'null')
+            if (!d?.settings) return false
+            Object.assign(this.settings, defaultSelectionUxSettings, d.settings)
+            return true
+        } catch (e) {
+            return false
+        }
+    }
 
     /** Object highlighted from outside, e.g. a hovered row in a layers panel */
     externalHover: IObject3D | null = null
@@ -264,7 +375,9 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
 
         this._picking.addEventListener('hitObject', this._onPickerHit)
         this._picking.addEventListener('selectedObjectChanged', this._onSelectionChanged)
-        this.applySettings()
+        if (this.load()) this.applySettings()
+        else if (this._initialMode || this.modes[0]) this.setMode(this._initialMode || this.modes[0].id)
+        else this.applySettings()
         this._raf = requestAnimationFrame(this._tick)
     }
 
@@ -303,7 +416,34 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         }
         this._root && (this._root.style.display = legacy ? 'none' : '')
         this._root?.style.setProperty('--sux-accent', this.settings.accent)
+        this._matchMode()
+        this.save()
         this._emit('settings')
+    }
+
+    /** The hint line for the bottom of the viewport (HTML), from {@link hintProvider} or the built-in text */
+    getHint(): string {
+        if (!this.settings.showHints) return ''
+        if (this.hintProvider) return this.hintProvider(this)
+        const st = this.settings
+        const k = (s: string) => `<kbd>${s}</kbd>`
+        if (st.visual === 'legacy') return 'Current behaviour: click to select, Shift/Ctrl+click to add'
+        const sel = this.selected
+        if (!sel.length) {
+            const nav = st.emptyDrag === 'orbit' ? `Drag empty space to orbit · ${k('Shift')}+drag to box-select` : `Drag empty space to box-select · ${k('Space')}+drag or right-drag to orbit`
+            return `Click an object to select · ${nav} · ${k('?')} shortcuts`
+        }
+        if (!this.canEdit) return `${this.editingLocked ? 'Editing is locked' : 'Locked layer'} · ${k('Esc')} deselects`
+        const L = this.levels(sel[0])
+        const i = L.findIndex(l => l.includes(sel[0]))
+        const hasKids = !!L[i] && L[i][L[i].length - 1].children.length > 0 && !sel[0].geometry
+        return [
+            st.dragMove === 'off' ? '' : `Drag to move (${k('Tab')} while dragging changes the plane)`,
+            'Corners scale',
+            st.rotate === 'corners' ? 'Just outside a corner rotates' : st.rotate === 'knob' ? 'Knob rotates' : st.rotate === 'ring' ? 'Ring turns it' : '',
+            hasKids ? 'Double-click to go inside' : '',
+            i > 0 ? `${k('Esc')} selects parent` : `${k('Esc')} deselects`,
+        ].filter(Boolean).join(' · ')
     }
 
     private get _active() {
@@ -647,7 +787,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
     private _onPointerDown = (e: PointerEvent) => {
         // the camera controls prevent default, so a text field keeps focus and gets Ctrl+Z. Move focus to the scene.
         const ae = document.activeElement as HTMLElement | null
-        if (ae && (ae.tagName === 'TEXTAREA' || ae.tagName === 'INPUT')) ae.blur()
+        if (ae && ae !== document.body && ae !== this._viewer?.canvas && (e.target as Element)?.closest?.('.sux-overlay, canvas')) ae.blur()
         if (!this._active || e.isPrimary === false) return
         this._syncMods(e)
         const p = this._local(e)
@@ -777,8 +917,9 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         const hit = s.hitPoint!.clone()
         let mode = this.settings.movePlane
         // the floor only when looking down at it from above; from below or the side, move facing the camera
-        if (mode === 'auto') mode = camDir.y < -0.3 && cam.getWorldPosition(new Vector3()).y > hit.y ? 'ground' : 'view'
-        const planeKind = mode === 'ground' ? 'ground' : 'view'
+        // from the side: the axis-aligned wall that faces the camera most
+        if (mode === 'auto') mode = camDir.y < -0.3 && cam.getWorldPosition(new Vector3()).y > hit.y ? 'ground' : Math.abs(camDir.z) >= Math.abs(camDir.x) ? 'xy' : 'yz'
+        const planeKind: MovePlaneKind = mode
         const plane = this._movePlane(planeKind, hit)
         const viewRight = new Vector3().setFromMatrixColumn(cam.matrixWorld, 0).normalize()
         const viewUp = new Vector3().setFromMatrixColumn(cam.matrixWorld, 1).normalize()
@@ -808,9 +949,30 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         this._viewer!.canvas.style.cursor = 'move'
     }
 
-    private _movePlane(kind: 'ground' | 'view', through: Vector3) {
-        const camDir = this._camera().getWorldDirection(new Vector3())
-        return kind === 'ground' ? new Plane(new Vector3(0, 1, 0), -through.y) : new Plane().setFromNormalAndCoplanarPoint(camDir.negate(), through)
+    private _movePlane(kind: MovePlaneKind, through: Vector3) {
+        const n = kind === 'ground' ? new Vector3(0, 1, 0) : kind === 'xy' ? new Vector3(0, 0, 1) : kind === 'yz' ? new Vector3(1, 0, 0) : this._camera().getWorldDirection(new Vector3()).negate()
+        return new Plane().setFromNormalAndCoplanarPoint(n, through)
+    }
+
+    /** Two unit vectors that span the plane */
+    private _planeAxes(kind: MovePlaneKind): [Vector3, Vector3] {
+        if (kind === 'ground') return [new Vector3(1, 0, 0), new Vector3(0, 0, 1)]
+        if (kind === 'xy') return [new Vector3(1, 0, 0), new Vector3(0, 1, 0)]
+        if (kind === 'yz') return [new Vector3(0, 0, 1), new Vector3(0, 1, 0)]
+        const m = this._camera().matrixWorld
+        return [new Vector3().setFromMatrixColumn(m, 0).normalize(), new Vector3().setFromMatrixColumn(m, 1).normalize()]
+    }
+
+    /** World axis that the plane does not move along, -1 for the camera plane */
+    private _normalAxis(kind: MovePlaneKind) {
+        return kind === 'ground' ? 1 : kind === 'xy' ? 2 : kind === 'yz' ? 0 : -1
+    }
+
+    static readonly PlaneLabels: Record<MovePlaneKind, string> = {
+        ground: 'On the floor (XZ)',
+        xy: 'On the front wall (XY)',
+        yz: 'On the side wall (YZ)',
+        view: 'Facing you',
     }
 
     /** Tab while moving: continue on the other plane from where the object is now */
@@ -819,7 +981,8 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         if (s?.kind !== 'move') return
         s.hitPoint = s.hitPoint.clone().add(s.lastDelta).sub(s.baseDelta)
         s.baseDelta.copy(s.lastDelta)
-        s.planeKind = s.planeKind === 'ground' ? 'view' : 'ground'
+        const order: MovePlaneKind[] = ['ground', 'xy', 'yz', 'view']
+        s.planeKind = order[(order.indexOf(s.planeKind) + 1) % order.length]
         s.plane = this._movePlane(s.planeKind, s.hitPoint)
         s.lockAxis = -1
         this._updateDrag(this._pointer)
@@ -983,11 +1146,13 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         const maxD = Math.max(s.startBox.getSize(new Vector3()).length(), 1e-3) * 50
         if (delta.length() > maxD) delta.setLength(maxD)
         if (this._keys.shift) {
-            const groundPlane = s.planeKind === 'ground'
-            if (groundPlane) {
-                if (s.lockAxis < 0 && delta.length() > this._worldPerPixel(s.hitPoint) * 6) s.lockAxis = Math.abs(delta.x) > Math.abs(delta.z) ? 0 : 2
-                if (s.lockAxis === 0) delta.z = 0
-                else if (s.lockAxis === 2) delta.x = 0
+            const na = this._normalAxis(s.planeKind)
+            if (na >= 0) {
+                // the two world axes of the plane: keep the one moved most
+                const [a0, a1] = [0, 1, 2].filter(i => i !== na) as [0 | 1 | 2, 0 | 1 | 2]
+                if (s.lockAxis < 0 && delta.length() > this._worldPerPixel(s.hitPoint) * 6) s.lockAxis = Math.abs(delta.getComponent(a0)) > Math.abs(delta.getComponent(a1)) ? a0 : a1
+                if (s.lockAxis === a0) delta.setComponent(a1, 0)
+                else if (s.lockAxis === a1) delta.setComponent(a0, 0)
             } else {
                 const r = delta.dot(s.viewRight), u = delta.dot(s.viewUp)
                 delta.copy(Math.abs(r) > Math.abs(u) ? s.viewRight.clone().multiplyScalar(r) : s.viewUp.clone().multiplyScalar(u))
@@ -1001,7 +1166,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         }
         s.lastDelta.copy(delta)
         const u = this._unitScale()
-        this._liveLabel = `${s.planeKind === 'ground' ? 'On the floor' : 'Facing you'} · Tab: switch   Δ ${this._fmt(delta.x * u)}, ${this._fmt(delta.y * u)}, ${this._fmt(delta.z * u)} ${this._unitLabel()}`
+        this._liveLabel = `${SelectionUxPlugin.PlaneLabels[s.planeKind]} · Tab: switch   Δ ${this._fmt(delta.x * u)}, ${this._fmt(delta.y * u)}, ${this._fmt(delta.z * u)} ${this._unitLabel()}`
     }
 
     /** Snap the moving box edges/centers to other objects on x and z (and to the floor on y) */
@@ -1012,7 +1177,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         const vals = (b: Box3, axis: number) => [b.min.getComponent(axis), (b.min.getComponent(axis) + b.max.getComponent(axis)) / 2, b.max.getComponent(axis)]
         for (const axis of [0, 2, 1]) {
             if (s.lockAxis >= 0 && s.lockAxis !== axis) continue
-            if (axis === 1 && s.planeKind === 'ground') continue // ground plane drags keep their height
+            if (axis === this._normalAxis(s.planeKind)) continue // the plane keeps this coordinate
             const mine = vals(box, axis)
             let best: {d: number, other: Box3 | null, v: number} | null = null
             const targets: {b: Box3 | null, v: number[]}[] = s.others.map(b => ({b, v: vals(b, axis)}))
@@ -1089,6 +1254,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
     private _onKeyUp = (e: KeyboardEvent) => {
         this._syncMods(e)
         if (e.code === 'Space') this._keys.space = false
+        if (e.code.startsWith('Arrow') && this._nudgeUndo) this._nudgeUndo.final = true
         this._pointerDirty = true
     }
 
@@ -1098,6 +1264,8 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         if (!this._active) return
         const t = e.target as HTMLElement
         if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
+        // a focused list (the layers panel) uses the arrow keys itself, like in Figma
+        if (e.code.startsWith('Arrow') && t?.closest?.('[data-own-arrows]')) return
         const ctrl = e.ctrlKey || e.metaKey
         const own = () => {
             e.preventDefault()
@@ -1181,8 +1349,30 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         d.multiplyScalar(step)
         const snaps = this.snapshot(sel)
         for (const sn of snaps) this._setWorld(sn.obj, new Matrix4().makeTranslation(d.x, d.y, d.z).multiply(sn.world))
-        this.recordTransform(snaps, 'nudge')
+        this._recordNudge(snaps)
         this._viewer?.setDirty()
+        this._emit('transform')
+    }
+
+    private _nudgeUndo?: {cmd: {undo: () => void, redo: () => void}, time: number, key: string, before: TransformSnapshot[], final: boolean}
+
+    /**
+     * Nudges while a key is held (or pressed again quickly) become one undo step, like the value edits in
+     * UndoManagerPlugin: the last step is replaced while it is recent and not final. Key up makes it final.
+     */
+    private _recordNudge(snaps: TransformSnapshot[]) {
+        const um = this._viewer?.getPlugin(UndoManagerPlugin)?.undoManager
+        if (!um) return
+        const key = snaps.map(sn => sn.obj.uuid).join()
+        const now = performance.now()
+        const after = snaps.map(sn => ({obj: sn.obj, position: sn.obj.position.clone(), quaternion: sn.obj.quaternion.clone(), scale: sn.obj.scale.clone()}))
+        const last = this._nudgeUndo
+        const merge = last && !last.final && last.key === key && um.peek() === last.cmd && now - last.time < 1000
+        const before = merge ? last.before : snaps
+        const cmd = {undo: () => this._restore(before), redo: () => this._restore(after)}
+        if (merge) um.replaceLast(cmd)
+        else um.record(cmd)
+        this._nudgeUndo = {cmd, time: now, key, before, final: false}
     }
 
     groupSelected() {
@@ -1393,21 +1583,18 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
             return p.behind || q.behind ? '' : `M${p.x.toFixed(1)} ${p.y.toFixed(1)}L${q.x.toFixed(1)} ${q.y.toFixed(1)}`
         }
         let d = ''
-        if (s.planeKind === 'ground') {
-            const cx = Math.round(base.x / step) * step, cz = Math.round(base.z / step) * step
-            for (let i = -n; i <= n; i++) {
-                d += seg(new Vector3(cx + i * step, base.y, cz - n * step), new Vector3(cx + i * step, base.y, cz + n * step))
-                d += seg(new Vector3(cx - n * step, base.y, cz + i * step), new Vector3(cx + n * step, base.y, cz + i * step))
+        // grid on the plane through the box, lines on a world grid for the axis-aligned planes
+        const [ax, ay] = this._planeAxes(s.planeKind)
+        const origin = s.planeKind === 'ground' ? base.clone() : c.clone()
+        if (s.planeKind !== 'view') {
+            for (const v of [ax, ay]) {
+                const comp = Math.abs(v.x) > 0.5 ? 'x' : Math.abs(v.y) > 0.5 ? 'y' : 'z'
+                origin[comp] = Math.round(origin[comp] / step) * step
             }
-        } else {
-            // a grid on the camera-facing plane through the box center
-            const cam = this._camera()
-            const r = new Vector3().setFromMatrixColumn(cam.matrixWorld, 0).normalize()
-            const u = new Vector3().setFromMatrixColumn(cam.matrixWorld, 1).normalize()
-            for (let i = -n; i <= n; i++) {
-                d += seg(c.clone().addScaledVector(r, i * step).addScaledVector(u, -n * step), c.clone().addScaledVector(r, i * step).addScaledVector(u, n * step))
-                d += seg(c.clone().addScaledVector(u, i * step).addScaledVector(r, -n * step), c.clone().addScaledVector(u, i * step).addScaledVector(r, n * step))
-            }
+        }
+        for (let i = -n; i <= n; i++) {
+            d += seg(origin.clone().addScaledVector(ax, i * step).addScaledVector(ay, -n * step), origin.clone().addScaledVector(ax, i * step).addScaledVector(ay, n * step))
+            d += seg(origin.clone().addScaledVector(ay, i * step).addScaledVector(ax, -n * step), origin.clone().addScaledVector(ay, i * step).addScaledVector(ax, n * step))
         }
         L.get('move-grid', 'path', {d, fill: 'none', stroke: 'var(--sux-accent)', 'stroke-width': 1, opacity: 0.28})
         // drop line and the floor mark show the height and where the object is over the floor

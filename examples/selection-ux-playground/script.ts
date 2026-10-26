@@ -13,7 +13,7 @@ import {
 import {SelectionUxPlugin, TransformSnapshot} from './SelectionUxPlugin'
 import {SelectionOutlinePlugin} from './SelectionOutlinePlugin'
 import {LayersPanelPlugin} from './LayersPanelPlugin'
-import {applyInitialPreset, setupHints, setupNotes, setupVariantBar} from './ui'
+import {applyModeFromUrl, setupHints, setupModeMenu, setupSidePanel} from './ui'
 import {buildScene} from './scene'
 
 async function init() {
@@ -30,10 +30,10 @@ async function init() {
     viewer.scene.setBackgroundColor('#e3e6eb')
 
     viewer.addPluginSync(new PickingPlugin(undefined, false))
-    const ux = viewer.addPluginSync(SelectionUxPlugin)
+    // persistKey: settings and mode are saved in this browser
+    const ux = viewer.addPluginSync(new SelectionUxPlugin({persistKey: 'selection-ux-settings'}))
     viewer.addPluginSync(SelectionOutlinePlugin)
     const layers = viewer.addPluginSync(new LayersPanelPlugin('light'))
-    document.getElementById('layers')!.appendChild(layers.element)
     Object.assign(window, {viewer, ux}) // for poking from the console
 
     const grid = new GridHelper(40, 40, 0x8f97a3, 0xb7bdc6)
@@ -46,11 +46,11 @@ async function init() {
     viewer.scene.mainCamera.target.set(0, 0.8, 0)
     viewer.scene.mainCamera.setDirty()
 
-    applyInitialPreset(ux)
+    applyModeFromUrl(ux)
     const container = viewer.container
-    setupVariantBar(container, viewer, ux, {links: [['Open in editor ↗', '../selection-ux-editor/index.html']]})
+    setupModeMenu(container, viewer, ux, {links: [['Open in the editor ↗', '../selection-ux-editor/index.html']]})
     setupHints(container, ux)
-    setupNotes(document.getElementById('notes')!, ux)
+    setupSidePanel(container, layers, ux, 'sux-side-pos-playground')
     setupInspector(document.getElementById('inspector')!, viewer, ux)
 
     try {

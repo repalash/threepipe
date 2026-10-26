@@ -36,7 +36,7 @@
         }
         #canvas-container {
             position: absolute;
-            inset: 0 260px 0 240px;
+            inset: 0 260px 0 0;
         }
         #mcanvas {
             width: 100%;
@@ -50,8 +50,6 @@
             box-sizing: border-box;
             user-select: none;
         }
-        #layers { left: 0; top: 0; bottom: 300px; width: 240px; border-right: 1px solid var(--ui-line); overflow: hidden; }
-        #notes { left: 0; bottom: 0; height: 300px; width: 240px; border-right: 1px solid var(--ui-line); border-top: 1px solid var(--ui-line); }
         #inspector { right: 0; top: 0; bottom: 0; width: 260px; border-left: 1px solid var(--ui-line); }
 
         /* inspector */
@@ -83,7 +81,7 @@
 
         @media (max-width: 800px) {
             #canvas-container { inset: 0 0 35% 0; }
-            #layers, #notes { display: none; }
+            .sux-side { display: none !important; }
             #inspector { top: 65%; width: 100%; border-left: 0; border-top: 1px solid var(--ui-line); }
         }
     </style>
@@ -91,8 +89,6 @@
     <script id="example-script" type="module" src="./script.js" data-scripts="./script.ts;./script.js"></script>
 </head>
 <body>
-<div id="layers" class="panel"></div>
-<div id="notes" class="panel"></div>
 <div id="canvas-container">
     <canvas id="mcanvas"></canvas>
 </div>

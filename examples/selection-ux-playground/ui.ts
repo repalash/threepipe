@@ -1,22 +1,14 @@
-import {IObject3D, ThreeViewer, TransformControlsPlugin, UndoManagerPlugin, Vector3} from 'threepipe'
-import {defaultSelectionUxSettings, SelectionUxPlugin, SelectionUxSettings} from './SelectionUxPlugin'
+import {Group2, IObject3D, Mesh, PhysicalMaterial, SphereGeometry, ThreeViewer, TorusGeometry, TransformControlsPlugin, UndoManagerPlugin, Vector3} from 'threepipe'
+import {SelectionUxPlugin, SelectionUxSettings} from './SelectionUxPlugin'
+import {LayersPanelPlugin} from './LayersPanelPlugin'
 
 /**
- * UI shared by the playground and the editor page: the variant bar over the canvas with a settings popover,
- * hints, toast, shortcut sheet and the notes scratchpad.
+ * UI shared by the playground and the editor page: the mode menu over the canvas with a settings popover,
+ * the floating layers + notes side panel, hints, toast, the shortcut sheet and the notes scratchpad.
+ * The modes, the saved settings and the hint text live in SelectionUxPlugin; this file only draws them.
  */
 
 interface Opt<K extends keyof SelectionUxSettings> {key: K, label: string, options: [SelectionUxSettings[K], string][]}
-
-export const presets: {short: string, name: string, desc: string, s: Partial<SelectionUxSettings>}[] = [
-    {short: 'A', name: 'Figma 2D', desc: 'Screen box, corner scale, rotate outside corners, hover outline', s: {visual: 'figma2d', rotate: 'corners', rotateAxis: 'up', scalePivot: 'base', stretchHandles: false, outlineHover: true}},
-    {short: 'B', name: '3D box', desc: 'Line box, corner dots, face stretch, turn ring', s: {visual: 'box3d', rotate: 'ring', scalePivot: 'opposite', stretchHandles: true, xray: true}},
-    {short: 'C', name: 'Brackets', desc: 'Minimal corner brackets, rotate knob', s: {visual: 'brackets', rotate: 'knob', rotateAxis: 'up', scalePivot: 'base', stretchHandles: false, xray: false}},
-    {short: 'D', name: 'Hybrid', desc: '3D box + 2D handles, side stretch, free rotate', s: {visual: 'hybrid', rotate: 'corners', rotateAxis: 'free', scalePivot: 'base', stretchHandles: true, xray: true}},
-    {short: 'E', name: 'Outline', desc: 'Mesh outline + part lines from the render pipeline, handles only', s: {visual: 'minimal', rotate: 'corners', rotateAxis: 'up', scalePivot: 'base', outlineSelected: true, outlineHover: true, outlineParts: true, outlineXray: true}},
-    {short: 'F', name: 'Focus', desc: 'Outline, dims the rest (colors of the selection stay), turn ring', s: {visual: 'minimal', rotate: 'ring', scalePivot: 'base', outlineSelected: true, outlineHover: true, outlineParts: true, outlineXray: true, dimOthers: true}},
-    {short: '—', name: 'Current', desc: 'Existing PickingPlugin box and clicks', s: {visual: 'legacy'}},
-]
 
 const options: Opt<any>[] = [
     {key: 'visual', label: 'Look', options: [['figma2d', '2D'], ['box3d', '3D box'], ['brackets', 'Brackets'], ['hybrid', 'Hybrid'], ['minimal', 'Handles'], ['legacy', 'Current']]},
@@ -24,7 +16,7 @@ const options: Opt<any>[] = [
     {key: 'boxSpace', label: 'Box aligns to', options: [['local', 'Object'], ['world', 'World']]},
     {key: 'emptyDrag', label: 'Drag on empty', options: [['orbit', 'Orbit'], ['marquee', 'Box select']]},
     {key: 'dragMove', label: 'Drag object', options: [['any', 'Moves it'], ['selected', 'If selected'], ['off', 'Orbits']]},
-    {key: 'movePlane', label: 'Move on', options: [['auto', 'Auto'], ['ground', 'Floor'], ['view', 'Facing you']]},
+    {key: 'movePlane', label: 'Move on', options: [['auto', 'Auto'], ['ground', 'Floor XZ'], ['xy', 'Front XY'], ['yz', 'Side YZ'], ['view', 'Facing you']]},
     {key: 'scalePivot', label: 'Scale from', options: [['base', 'Base'], ['center', 'Center'], ['opposite', 'Corner']]},
     {key: 'rotate', label: 'Rotate with', options: [['corners', 'Corners'], ['knob', 'Knob'], ['ring', 'Ring'], ['off', 'Off']]},
     {key: 'rotateAxis', label: 'Rotate axis', options: [['up', 'Turntable'], ['view', 'Screen'], ['free', 'Free']]},
@@ -45,110 +37,108 @@ const toggles: [keyof SelectionUxSettings, string][] = [
     ['showName', 'Name + breadcrumb'],
     ['showDims', 'Size label'],
     ['xray', 'Show hidden box edges'],
+    ['showHints', 'Hint line at the bottom'],
 ]
 
-export function currentPreset(st: SelectionUxSettings) {
-    return presets.find(p => Object.entries(p.s).every(([k, v]) => (st as any)[k] === v))
+/** ?mode=<id> or ?preset=<index> picks a mode, overriding the saved one */
+export function applyModeFromUrl(ux: SelectionUxPlugin) {
+    const q = new URLSearchParams(location.search)
+    const id = q.get('mode') ?? (q.get('preset') !== null ? ux.modes[+q.get('preset')!]?.id : null)
+    if (id) ux.setMode(id)
 }
 
-export function applyPreset(ux: SelectionUxPlugin, i: number) {
-    const st = ux.settings
-    // keep the choices that are about the person, not the variant
-    Object.assign(st, defaultSelectionUxSettings, {emptyDrag: st.emptyDrag, dragMove: st.dragMove, unit: st.unit, accent: st.accent, outlineWidth: st.outlineWidth}, presets[i].s)
-    ux.applySettings()
-    try {
-        localStorage.setItem('selection-ux-preset', String(i))
-    } catch (e) {
-        // private mode
-    }
+function modeLabel(ux: SelectionUxPlugin) {
+    const m = ux.modes.find(x => x.id === ux.mode)
+    return m ? `${m.short ? `<b>${m.short}</b> ` : ''}${m.label}` : '<b>·</b> Custom'
 }
 
-/** ?preset=N, else the last one picked in this browser */
-export function applyInitialPreset(ux: SelectionUxPlugin) {
-    let i = 0
-    const q = new URLSearchParams(location.search).get('preset')
-    try {
-        i = q !== null ? +q : +(localStorage.getItem('selection-ux-preset') || 0)
-    } catch (e) {
-        i = q !== null ? +q : 0
-    }
-    applyPreset(ux, Math.max(0, Math.min(presets.length - 1, i || 0)))
-}
+// region mode menu + settings popover
 
-// region variant bar + settings popover
-
-export interface VariantBarOptions {
-    /** [label, url] links shown at the end of the bar, e.g. to the other page */
+export interface ModeMenuOptions {
+    /** [label, url] links in the menu, e.g. to the other page */
     links?: [string, string][]
     /** extra buttons in the settings popover */
     actions?: [string, () => void][]
 }
 
-export function setupVariantBar(host: HTMLElement, viewer: ThreeViewer, ux: SelectionUxPlugin, op: VariantBarOptions = {}) {
+/**
+ * One small button over the canvas: the current mode. It opens a menu with the modes, Settings and Shortcuts.
+ */
+export function setupModeMenu(host: HTMLElement, viewer: ThreeViewer, ux: SelectionUxPlugin, op: ModeMenuOptions = {}) {
     injectUiStyles()
-    const bar = document.createElement('div')
-    bar.className = 'sux-bar'
-    host.appendChild(bar)
+    const wrap = document.createElement('div')
+    wrap.className = 'sux-modes'
+    host.appendChild(wrap)
     const pop = document.createElement('div')
     pop.className = 'sux-pop'
     host.appendChild(pop)
-    let open = false
+    let menuOpen = false
+    let settingsOpen = false
 
-    const renderBar = () => {
-        const cur = currentPreset(ux.settings)
-        bar.innerHTML = ''
-        presets.forEach((p, i) => {
-            const b = document.createElement('button')
-            b.className = 'sux-chip' + (cur === p ? ' on' : '')
-            b.innerHTML = `<b>${p.short}</b> ${p.name}`
-            b.title = p.desc
-            b.onclick = () => {
-                applyPreset(ux, i)
+    const renderMenu = () => {
+        wrap.innerHTML = ''
+        const btn = document.createElement('button')
+        btn.className = 'sux-mode-btn' + (menuOpen ? ' on' : '')
+        btn.innerHTML = `${modeLabel(ux)} <svg viewBox="0 0 16 16" width="10" height="10"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>`
+        btn.title = 'Selection mode'
+        btn.onclick = () => {
+            menuOpen = !menuOpen
+            renderMenu()
+        }
+        wrap.appendChild(btn)
+        if (!menuOpen) return
+        const menu = document.createElement('div')
+        menu.className = 'sux-menu'
+        for (const m of ux.modes) {
+            const it = document.createElement('div')
+            it.className = 'sux-menu-item' + (ux.mode === m.id ? ' on' : '')
+            it.innerHTML = `<b>${m.short ?? ''}</b><span><span class="t">${m.label}</span>${m.description ? `<span class="d">${m.description}</span>` : ''}</span>`
+            it.onclick = () => {
+                ux.setMode(m.id)
+                menuOpen = false
                 renderAll()
             }
-            bar.appendChild(b)
+            menu.appendChild(it)
+        }
+        const sep = () => {
+            const d = document.createElement('div')
+            d.className = 'sux-menu-sep'
+            menu.appendChild(d)
+        }
+        const item = (label: string, fn: () => void) => {
+            const it = document.createElement('div')
+            it.className = 'sux-menu-item sux-menu-plain'
+            it.innerHTML = label
+            it.onclick = () => {
+                menuOpen = false
+                fn()
+                renderAll()
+            }
+            menu.appendChild(it)
+        }
+        sep()
+        item(settingsOpen ? 'Hide settings' : 'Settings…', () => {
+            settingsOpen = !settingsOpen
         })
-        if (!cur) {
-            const c = document.createElement('span')
-            c.className = 'sux-chip on sux-custom'
-            c.textContent = 'Custom'
-            bar.appendChild(c)
-        }
-        const sep = document.createElement('span')
-        sep.className = 'sux-sep-v'
-        bar.appendChild(sep)
-        const gear = document.createElement('button')
-        gear.className = 'sux-chip sux-gear' + (open ? ' on' : '')
-        gear.title = 'All settings'
-        gear.innerHTML = '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M2 4h7M12 4h2M2 12h2M7 12h7"/><circle cx="10.5" cy="4" r="1.5"/><circle cx="5.5" cy="12" r="1.5"/></svg> Settings'
-        gear.onclick = () => {
-            open = !open
-            renderAll()
-        }
-        bar.appendChild(gear)
-        const help = document.createElement('button')
-        help.className = 'sux-chip'
-        help.textContent = '?'
-        help.title = 'Shortcuts'
-        help.onclick = () => toggleHelp(true)
-        bar.appendChild(help)
-        for (const [label, url] of op.links || []) {
-            const a = document.createElement('a')
-            a.className = 'sux-chip sux-link'
-            a.textContent = label
-            a.href = url
-            bar.appendChild(a)
-        }
+        item('Shortcuts <kbd>?</kbd>', () => toggleHelp(true))
+        item(ux.settings.showHints ? 'Hide hints' : 'Show hints', () => {
+            ux.settings.showHints = !ux.settings.showHints
+            ux.applySettings()
+        })
+        for (const [label, url] of op.links || []) item(label, () => {
+            location.href = url
+        })
+        wrap.appendChild(menu)
     }
 
     const renderPop = () => {
-        pop.style.display = open ? '' : 'none'
-        if (!open) return
+        pop.style.display = settingsOpen ? '' : 'none'
+        if (!settingsOpen) return
         const st = ux.settings
-        const cur = currentPreset(st)
-        pop.innerHTML = `<div class="sux-pop-head"><b>${cur ? cur.short + ' · ' + cur.name : 'Custom'}</b><span>${cur ? cur.desc : 'Changed from a preset'}</span><button class="sux-x" title="Close">×</button></div>`
+        const cur = ux.modes.find(x => x.id === ux.mode)
+        pop.innerHTML = `<div class="sux-pop-head"><b>${cur ? (cur.short ? cur.short + ' · ' : '') + cur.label : 'Custom'}</b><span>${cur ? cur.description ?? '' : 'Changed from a mode'}</span><button class="sux-x" title="Close">×</button></div>`
         pop.querySelector('.sux-x')!.addEventListener('click', () => {
-            open = false
+            settingsOpen = false
             renderAll()
         })
         for (const o of options) {
@@ -164,7 +154,6 @@ export function setupVariantBar(host: HTMLElement, viewer: ThreeViewer, ux: Sele
                 b.onclick = () => {
                     (st as any)[o.key] = v
                     ux.applySettings()
-                    renderAll()
                 }
                 seg.appendChild(b)
             }
@@ -180,7 +169,6 @@ export function setupVariantBar(host: HTMLElement, viewer: ThreeViewer, ux: Sele
             lab.querySelector('input')!.onchange = (e) => {
                 (st as any)[k] = (e.target as HTMLInputElement).checked
                 ux.applySettings()
-                renderAll()
             }
             tg.appendChild(lab)
         }
@@ -210,6 +198,7 @@ export function setupVariantBar(host: HTMLElement, viewer: ThreeViewer, ux: Sele
                     ux.select([m])
                 }
             }],
+            ['Add 2000 objects (stress test)', () => addStressObjects(viewer, ux)],
             ['Undo', () => viewer.getPlugin(UndoManagerPlugin)?.undoManager?.undo()],
             ['Redo', () => viewer.getPlugin(UndoManagerPlugin)?.undoManager?.redo()],
             ...op.actions || [],
@@ -223,14 +212,21 @@ export function setupVariantBar(host: HTMLElement, viewer: ThreeViewer, ux: Sele
         pop.appendChild(btns)
         const note = document.createElement('div')
         note.className = 'sux-note'
-        note.innerHTML = `Drop a .glb / .gltf / .3dm on the canvas to try your own model. Link to a preset: <code>?preset=0..${presets.length - 1}</code>`
+        note.innerHTML = `Drop a .glb / .gltf / .3dm on the canvas to try your own model. Open a mode directly: <code>?mode=${ux.modes.map(m => m.id).join('|')}</code>. Settings are saved in this browser${ux.persistKey ? '' : ' (off)'}.`
         pop.appendChild(note)
     }
 
     const renderAll = () => {
-        renderBar()
+        renderMenu()
         renderPop()
     }
+    // close the menu on any click outside it
+    window.addEventListener('pointerdown', e => {
+        if (menuOpen && !wrap.contains(e.target as Node)) {
+            menuOpen = false
+            renderMenu()
+        }
+    }, true)
     ux.addEventListener('uxUpdate', e => {
         if (e.reason === 'settings') renderAll()
     })
@@ -238,6 +234,49 @@ export function setupVariantBar(host: HTMLElement, viewer: ThreeViewer, ux: Sele
 }
 
 // endregion
+
+// region side panel (layers + notes)
+
+/**
+ * Floating side panel with the layers on top and the notes below. The layers header drags the whole panel.
+ */
+export function setupSidePanel(host: HTMLElement, layers: LayersPanelPlugin, ux: SelectionUxPlugin, storageKey: string) {
+    injectUiStyles()
+    const side = document.createElement('div')
+    side.className = 'sux-side'
+    host.appendChild(side)
+    side.appendChild(layers.element)
+    const notes = document.createElement('div')
+    side.appendChild(notes)
+    setupNotes(notes, ux)
+    notes.querySelector('.sux-notes-head')!.addEventListener('click', () => notes.classList.toggle('collapsed'))
+    layers.makeMovable(side, storageKey)
+    return side
+}
+
+// endregion
+
+/** 40 groups of 50 objects, to try the layers panel and picking with a big file */
+export function addStressObjects(viewer: ThreeViewer, ux: SelectionUxPlugin) {
+    const root = new Group2()
+    root.name = 'Stress test (2000)'
+    const geos = [new SphereGeometry(0.12, 12, 8), new TorusGeometry(0.1, 0.035, 8, 16)]
+    const mats = ['#e8c372', '#dfe3e8', '#d2304f', '#a9dcff'].map(c => new PhysicalMaterial({color: c, metalness: 0.8, roughness: 0.3}))
+    for (let g = 0; g < 40; g++) {
+        const grp = new Group2()
+        grp.name = `Row ${g + 1}`
+        grp.position.set(-6 + g % 8 * 1.7, 0, 7 + Math.floor(g / 8) * 1.7)
+        for (let i = 0; i < 50; i++) {
+            const m = new Mesh(geos[i % 2], mats[(g + i) % 4])
+            m.name = `Item ${g * 50 + i + 1}`
+            m.position.set(i % 10 * 0.15, 0.12 + Math.floor(i / 10) * 0.25, 0)
+            grp.add(m)
+        }
+        root.add(grp)
+    }
+    viewer.scene.addObject(root)
+    ux.select([root])
+}
 
 // region hints, toast, shortcuts
 
@@ -252,7 +291,7 @@ const shortcuts: [string, string][] = [
     ['Next / previous sibling', 'Tab / Shift + Tab'],
     ['Select all at this level', '⌘/Ctrl + A'],
     ['Move', 'Drag the object'],
-    ['Switch floor / facing-you plane', 'Tab while moving'],
+    ['Change the move plane (floor, walls, facing you)', 'Tab while moving'],
     ['Move on one axis', 'Shift while dragging'],
     ['Duplicate while moving', 'Alt + Drag'],
     ['Turn off snapping', 'Hold ⌘/Ctrl while dragging'],
@@ -296,33 +335,24 @@ export function setupHints(host: HTMLElement, ux: SelectionUxPlugin) {
         if (e.key === '?') toggleHelp()
     })
 
+    // the text comes from the plugin (settings.showHints, hintProvider); the × turns it off, the mode menu turns it back on
     const hint = document.createElement('div')
     hint.className = 'sux-hint'
     host.appendChild(hint)
-    const k = (s: string) => `<kbd>${s}</kbd>`
+    const text = document.createElement('span')
+    const close = document.createElement('button')
+    close.className = 'sux-hint-x'
+    close.title = 'Hide hints (Mode menu → Show hints)'
+    close.textContent = '×'
+    close.onclick = () => {
+        ux.settings.showHints = false
+        ux.applySettings()
+    }
+    hint.append(text, close)
     const update = () => {
-        const st = ux.settings
-        if (st.visual === 'legacy') {
-            hint.innerHTML = 'Current behaviour: click to select, Shift/Ctrl+click to add'
-            return
-        }
-        const sel = ux.selected
-        const orbit = st.emptyDrag === 'orbit' ? `Drag empty space to orbit · ${k('Shift')}+drag to box-select` : `Drag empty space to box-select · ${k('Space')}+drag or right-drag to orbit`
-        if (!sel.length) hint.innerHTML = `Click an object to select · ${orbit} · ${k('?')} shortcuts`
-        else if (!ux.canEdit) hint.innerHTML = `${ux.editingLocked ? 'Editing is locked' : 'Locked layer'} · ${k('Esc')} deselects`
-        else {
-            const L = ux.levels(sel[0])
-            const i = L.findIndex(l => l.includes(sel[0]))
-            const hasKids = L[i] && L[i][L[i].length - 1].children.length > 0 && !sel[0].geometry
-            const parts = [
-                st.dragMove === 'off' ? '' : 'Drag to move',
-                'Corners scale',
-                st.rotate === 'corners' ? 'Just outside a corner rotates' : st.rotate === 'knob' ? 'Knob rotates' : st.rotate === 'ring' ? 'Ring turns it' : '',
-                hasKids ? 'Double-click to go inside' : '',
-                i > 0 ? `${k('Esc')} selects parent` : `${k('Esc')} deselects`,
-            ].filter(Boolean)
-            hint.innerHTML = parts.join(' · ')
-        }
+        const h = ux.getHint()
+        hint.style.display = h ? '' : 'none'
+        if (text.innerHTML !== h) text.innerHTML = h
     }
     ux.addEventListener('uxUpdate', e => {
         if (e.reason !== 'drag' && e.reason !== 'hover' && e.reason !== 'transform') update()
@@ -406,11 +436,11 @@ export function setupNotes(host: HTMLElement, ux: SelectionUxPlugin) {
 
     host.querySelector('.ctx')!.addEventListener('click', () => {
         const st = ux.settings
-        const preset = currentPreset(st)
+        const preset = ux.modes.find(m => m.id === ux.mode)
         const sel = ux.selected.map(o => ux.displayName(o)).join(', ')
         const page = document.title
         const at = text.selectionStart ?? text.value.length
-        const line = `${at ? '\n' : ''}[${new Date().toLocaleString()} · ${page} · ${preset ? preset.short + ' · ' + preset.name : 'custom: ' + st.visual + ', rotate ' + st.rotate}${sel ? ' · selected: ' + sel : ''}]\n`
+        const line = `${at ? '\n' : ''}[${new Date().toLocaleString()} · ${page} · ${preset ? preset.label : 'custom: ' + st.visual + ', rotate ' + st.rotate}${sel ? ' · selected: ' + sel : ''}]\n`
         text.value = text.value.slice(0, at) + line + text.value.slice(at)
         text.focus()
         text.selectionStart = text.selectionEnd = at + line.length
@@ -431,24 +461,39 @@ export function injectUiStyles() {
     stylesAdded = true
     const st = document.createElement('style')
     st.textContent = `
-.sux-bar, .sux-pop, .sux-hint, .sux-toast, .sux-notes, #sux-help, .sux-name, .sux-dims {
+.sux-modes, .sux-pop, .sux-hint, .sux-toast, .sux-notes, #sux-help, .sux-name, .sux-dims {
   font: 11px/1.3 Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 }
-.sux-bar {
-  position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 12; display: flex; gap: 2px; align-items: center;
-  background: rgba(30,30,30,.92); padding: 4px; border-radius: 10px; box-shadow: 0 4px 16px rgba(0,0,0,.18); max-width: calc(100% - 20px); overflow-x: auto;
+.sux-modes { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 12; }
+.sux-mode-btn {
+  border: 0; background: rgba(30,30,30,.9); color: #eee; padding: 6px 10px; border-radius: 8px; font: inherit; cursor: pointer;
+  display: inline-flex; gap: 6px; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,.18); white-space: nowrap;
 }
-.sux-chip {
-  border: 0; background: transparent; color: #ddd; padding: 6px 9px; border-radius: 7px; font: inherit; cursor: pointer; white-space: nowrap;
-  display: inline-flex; gap: 5px; align-items: center; text-decoration: none;
+.sux-mode-btn b { color: #8fd0ff; }
+.sux-mode-btn:hover, .sux-mode-btn.on { background: #1e1e1e; color: #fff; }
+.sux-menu {
+  position: absolute; top: calc(100% + 6px); left: 50%; transform: translateX(-50%); width: 280px; background: #1e1e1e; color: #fff;
+  border-radius: 10px; padding: 6px; box-shadow: 0 8px 28px rgba(0,0,0,.3);
 }
-.sux-chip b { color: #8fd0ff; font-weight: 600; }
-.sux-chip:hover { background: #3a3a3a; }
-.sux-chip.on { background: #0d99ff; color: #fff; }
-.sux-chip.on b { color: #fff; }
-.sux-custom { cursor: default; background: #555 !important; }
-.sux-sep-v { width: 1px; align-self: stretch; background: #444; margin: 2px 4px; }
-.sux-link { color: #8fd0ff; }
+.sux-menu-item { display: flex; gap: 10px; padding: 7px 8px; border-radius: 6px; cursor: pointer; align-items: flex-start; }
+.sux-menu-item > b { width: 12px; color: #8fd0ff; flex: none; }
+.sux-menu-item .t { display: block; }
+.sux-menu-item .d { display: block; color: #9a9a9a; margin-top: 2px; }
+.sux-menu-item:hover { background: #2f2f2f; }
+.sux-menu-item.on { background: #0d99ff; }
+.sux-menu-item.on b, .sux-menu-item.on .d { color: #fff; }
+.sux-menu-plain { padding: 6px 8px; justify-content: space-between; }
+.sux-menu-plain kbd { font: inherit; color: #9a9a9a; }
+.sux-menu-sep { height: 1px; background: #333; margin: 4px 2px; }
+.sux-side {
+  position: absolute; left: 10px; top: 10px; bottom: 52px; width: 240px; z-index: 11; display: flex; flex-direction: column; gap: 8px; pointer-events: none;
+}
+.sux-side > * { pointer-events: auto; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,.14); }
+.sux-side .lp-root { flex: 1; min-height: 120px; height: auto; }
+.sux-side .sux-notes { height: 210px; flex: none; }
+.sux-side .sux-notes.collapsed { height: auto; }
+.sux-side .sux-notes.collapsed textarea, .sux-side .sux-notes.collapsed .sux-btns { display: none; }
+.sux-side .sux-notes-head { cursor: pointer; }
 .sux-pop {
   position: absolute; top: 56px; right: 12px; z-index: 12; width: 300px; max-height: calc(100% - 80px); overflow: auto;
   background: #fff; color: #1e1e1e; border-radius: 10px; box-shadow: 0 8px 28px rgba(0,0,0,.2); padding-bottom: 8px;
@@ -469,9 +514,12 @@ export function injectUiStyles() {
 .sux-btns button:hover { background: #f2f2f2; }
 .sux-note { color: #757575; padding: 6px 12px 4px; }
 .sux-hint {
-  position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); background: rgba(30,30,30,.86); color: #fff; padding: 6px 12px;
-  border-radius: 8px; pointer-events: none; white-space: nowrap; z-index: 10;
+  position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); background: rgba(30,30,30,.86); color: #fff; padding: 5px 6px 5px 12px;
+  border-radius: 8px; pointer-events: none; white-space: nowrap; z-index: 10; display: flex; align-items: center; gap: 8px; max-width: calc(100% - 24px);
 }
+.sux-hint > span { overflow: hidden; text-overflow: ellipsis; }
+.sux-hint-x { pointer-events: auto; border: 0; background: transparent; color: #aaa; font-size: 14px; line-height: 1; cursor: pointer; padding: 2px 6px; border-radius: 4px; }
+.sux-hint-x:hover { background: #444; color: #fff; }
 .sux-hint kbd, #sux-help kbd { font: inherit; background: rgba(255,255,255,.16); border-radius: 3px; padding: 0 4px; }
 .sux-toast {
   position: absolute; left: 50%; top: 56px; transform: translateX(-50%) translateY(-8px); background: #1e1e1e; color: #fff; padding: 7px 12px;

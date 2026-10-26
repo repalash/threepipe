@@ -5,7 +5,7 @@ import {ThreeEditor} from '../tweakpane-editor/ThreeEditor'
 import {SelectionUxPlugin} from '../selection-ux-playground/SelectionUxPlugin'
 import {SelectionOutlinePlugin} from '../selection-ux-playground/SelectionOutlinePlugin'
 import {LayersPanelPlugin} from '../selection-ux-playground/LayersPanelPlugin'
-import {applyInitialPreset, setupHints, setupNotes, setupVariantBar} from '../selection-ux-playground/ui'
+import {applyModeFromUrl, setupHints, setupModeMenu, setupSidePanel} from '../selection-ux-playground/ui'
 import {buildScene} from '../selection-ux-playground/scene'
 
 // The tweakpane editor with the new selection UX: SelectionUxPlugin + the pipeline outline instead of OutlinePlugin,
@@ -27,7 +27,7 @@ async function init() {
     viewer.editorPlugins = viewer.editorPlugins.filter(p => !isReplaced(p))
     // after PickingPlugin and the GBuffer, which they depend on
     const at = viewer.editorPlugins.findIndex(p => p === PickingPlugin) + 1
-    viewer.editorPlugins.splice(at, 0, SelectionUxPlugin, SelectionOutlinePlugin)
+    viewer.editorPlugins.splice(at, 0, new SelectionUxPlugin({persistKey: 'selection-ux-settings'}), SelectionOutlinePlugin)
     viewer.editorModes.Interaction = [PickingPlugin, ...viewer.editorModes.Interaction.filter(p => !isReplaced(p) && p !== PickingPlugin)]
     await viewer.init()
     if (!viewer.getPlugin(GBufferPlugin)) console.warn('GBufferPlugin missing, the outline needs it')
@@ -39,18 +39,10 @@ async function init() {
     const hemiLight = viewer.scene.addObject(new HemisphereLight(0xffffff, 0x444444, 5), {addToRoot: true})
     hemiLight.name = 'Hemisphere Light'
 
-    const side = document.createElement('div')
-    side.className = 'sux-side'
-    viewer.container.appendChild(side)
     const layers = viewer.addPluginSync(new LayersPanelPlugin('light'))
-    side.appendChild(layers.element)
-    const notes = document.createElement('div')
-    side.appendChild(notes)
-    setupNotes(notes, ux)
-    notes.querySelector('.sux-notes-head')!.addEventListener('click', () => notes.classList.toggle('collapsed'))
-
-    applyInitialPreset(ux)
-    setupVariantBar(viewer.container, viewer, ux, {links: [['Playground ↗', '../selection-ux-playground/index.html']]})
+    setupSidePanel(viewer.container, layers, ux, 'sux-side-pos-editor')
+    applyModeFromUrl(ux)
+    setupModeMenu(viewer.container, viewer, ux, {links: [['Open the playground ↗', '../selection-ux-playground/index.html']]})
     setupHints(viewer.container, ux)
     Object.assign(window, {viewer, ux})
 

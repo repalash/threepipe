@@ -43,30 +43,8 @@
             width: 100%;
             height: 100%;
         }
-        /* floating layers + notes on the left of the viewport */
-        .sux-side {
-            position: absolute;
-            left: 10px;
-            top: 140px; /* below the view widget */
-            bottom: 60px; /* above the webgi logo */
-            width: 240px;
-            z-index: 11;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            pointer-events: none;
-        }
-        .sux-side > * {
-            pointer-events: auto;
-            border-radius: 10px;
-            overflow: hidden;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, .18);
-        }
-        .sux-side .lp-root { flex: 1; min-height: 120px; height: auto; }
-        .sux-side .sux-notes { height: 210px; flex: none; }
-        .sux-side .sux-notes.collapsed { height: auto; }
-        .sux-side .sux-notes.collapsed textarea, .sux-side .sux-notes.collapsed .sux-btns { display: none; }
-        .sux-side .sux-notes-head { cursor: pointer; }
+        /* the side panel (ui.ts) starts below the view widget and ends above the webgi logo */
+        #canvas-container .sux-side { top: 140px; bottom: 60px; }
         /* above the editor's bottom tool bar */
         #canvas-container .sux-hint { bottom: 64px; }
     </style>
