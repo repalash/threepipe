@@ -77,6 +77,8 @@ export class UiConfigForm {
     private _render(c: UiObjectConfig, host: HTMLElement, parents: UiObjectConfig[]) {
         if (!c || getOrCall(c.hidden) || this._drawn.has(c)) return
         this._drawn.add(c)
+        // a config with getValue / setValue (the curve type dropdown) gets its property binding here, like tweakpane does
+        UiConfigMethods.InitUiConfig(c)
         const type = String(getOrCall(c.type))
         const label = UiConfigMethods.GetLabel(c).replace(/([a-z])([A-Z])/g, '$1 $2')
         const disabled = !!(getOrCall(c.disabled) || getOrCall(c.readOnly))

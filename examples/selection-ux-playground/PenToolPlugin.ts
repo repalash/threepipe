@@ -83,7 +83,7 @@ export class PenToolPlugin extends AViewerPluginSync<PenToolEventMap> {
         this._svg = svg
         const hint = document.createElement('div')
         hint.className = 'pen-hint'
-        hint.innerHTML = 'Pen · click: point · drag: curve · click the first point: close · <kbd>⌫</kbd> undo point · <kbd>Enter</kbd> done · <kbd>Esc</kbd> cancel'
+        hint.innerHTML = 'Pen · click: point · drag: curve · <kbd>Shift</kbd> keep the height · first point: close · <kbd>⌫</kbd> undo point · <kbd>Enter</kbd> done · <kbd>Esc</kbd> cancel'
         viewer.container.appendChild(hint)
         this._hint = hint
         viewer.addEventListener('postFrame', this._draw)
@@ -107,7 +107,8 @@ export class PenToolPlugin extends AViewerPluginSync<PenToolEventMap> {
         window.addEventListener('pointerup', this._onUp, {capture: true})
         window.addEventListener('keydown', this._onKey, {capture: true})
         window.addEventListener('dblclick', this._onDbl, {capture: true})
-        this._viewer.canvas.style.cursor = 'crosshair'
+        // a body class: the selection UX sets the canvas cursor itself; it also hides the selection hints
+        document.body.classList.add('pen-drawing')
         this._hint?.classList.add('show')
         this._changed()
     }
@@ -142,7 +143,7 @@ export class PenToolPlugin extends AViewerPluginSync<PenToolEventMap> {
         window.removeEventListener('pointerup', this._onUp, {capture: true})
         window.removeEventListener('keydown', this._onKey, {capture: true})
         window.removeEventListener('dblclick', this._onDbl, {capture: true})
-        if (this._viewer) this._viewer.canvas.style.cursor = ''
+        document.body.classList.remove('pen-drawing')
         this._hint?.classList.remove('show')
         this._draw()
         this._changed()
@@ -169,13 +170,14 @@ export class PenToolPlugin extends AViewerPluginSync<PenToolEventMap> {
             this.finish(true)
             return
         }
-        const p = this._place(s)
+        const p = this._place(s, e.shiftKey)
         if (!p) return
         const a: Anchor = {p, hIn: p.clone(), hOut: p.clone()}
         this._anchors.push(a)
-        // dragging pulls out the handles, in a plane facing the camera through the point
-        const cam = this._viewer!.scene.mainCamera
-        const n = cam.getWorldDirection(new Vector3()).negate()
+        // dragging pulls out the handles flat, so a path on the floor stays on it; facing the camera when it looks
+        // along the floor (a flat plane would be edge-on)
+        const view = this._viewer!.scene.mainCamera.getWorldDirection(new Vector3())
+        const n = Math.abs(view.y) > 0.25 ? new Vector3(0, 1, 0) : view.negate()
         this._drag = {anchor: a, plane: new Plane().setFromNormalAndCoplanarPoint(n, p)}
         this._draw()
     }
@@ -191,7 +193,7 @@ export class PenToolPlugin extends AViewerPluginSync<PenToolEventMap> {
                 anchor.hOut.copy(hit)
                 anchor.hIn.copy(anchor.p).multiplyScalar(2).sub(hit) // symmetric, like a smooth point
             }
-        } else if (this._onCanvas(e)) this._hover = this._place(s)
+        } else if (this._onCanvas(e)) this._hover = this._place(s, e.shiftKey)
         else this._hover = null
         this._draw()
     }
@@ -255,14 +257,21 @@ export class PenToolPlugin extends AViewerPluginSync<PenToolEventMap> {
         return this._ray
     }
 
-    /** The surface under the pointer, else the level plane through the previous point (the ground for the first) */
-    private _place(s: Vector2): Vector3 | null {
+    /**
+     * The surface under the pointer, else the floor (y = 0). With `keepHeight` (Shift) the level plane through the
+     * previous point, to draw in the air; also when the pointer is above the horizon and misses the floor.
+     */
+    private _place(s: Vector2, keepHeight = false): Vector3 | null {
         const viewer = this._viewer!
         const ray = this._rayAt(s)
-        const hit = ray.intersectObject(viewer.scene.modelRoot, true).find(h => (h.object as any).isMesh && !(h.object as any).isLine2 && h.object.visible)
-        if (hit) return hit.point.clone()
-        const y = this._anchors.length ? this._anchors[this._anchors.length - 1].p.y : 0
-        return ray.ray.intersectPlane(new Plane(new Vector3(0, 1, 0), -y), new Vector3())
+        const last = this._anchors[this._anchors.length - 1]
+        if (!(keepHeight && last)) {
+            const hit = ray.intersectObject(viewer.scene.modelRoot, true).find(h => (h.object as any).isMesh && !(h.object as any).isLine2 && h.object.visible)
+            if (hit) return hit.point.clone()
+            const floor = ray.ray.intersectPlane(new Plane(new Vector3(0, 1, 0), 0), new Vector3())
+            if (floor) return floor
+        }
+        return ray.ray.intersectPlane(new Plane(new Vector3(0, 1, 0), -(last?.p.y ?? 0)), new Vector3())
     }
 
     private _toScreen(p: Vector3) {
@@ -380,12 +389,15 @@ function injectStyles() {
 .pen-a.pen-close { fill: #0d99ff; }
 .pen-cursor { fill: #0d99ff; opacity: .6; }
 .pen-hint {
-  position: absolute; left: 50%; bottom: 56px; transform: translateX(-50%); z-index: 13; display: none; white-space: nowrap;
+  position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 13; display: none; white-space: nowrap;
   background: rgba(30,30,30,.92); color: #fff; border-radius: 6px; padding: 7px 12px; pointer-events: none;
   font: 11px/1.3 var(--tp-font-family, Inter, ui-sans-serif, system-ui, sans-serif);
 }
 .pen-hint.show { display: block; }
 .pen-hint kbd { font: inherit; background: #3a3a3a; border-radius: 3px; padding: 0 4px; }
+/* while drawing: the pen's hint in place of the selection hints, and a crosshair over the selection UX's cursor */
+body.pen-drawing .sux-hint { display: none !important; }
+body.pen-drawing canvas { cursor: crosshair !important; }
 `
     document.head.appendChild(st)
 }

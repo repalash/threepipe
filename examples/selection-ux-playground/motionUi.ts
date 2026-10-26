@@ -77,12 +77,16 @@ export const MO_ICONS = {
     timeline: svg('<path d="M2 4.5h12M2 8h12M2 11.5h12" stroke-opacity=".35"/><rect x="3" y="3" width="6" height="3" rx="1" fill="currentColor" stroke="none"/><rect x="6" y="9.8" width="7" height="3" rx="1" fill="currentColor" stroke="none"/>'),
 }
 
-/** A segmented choice; returns the element and a getter */
+/** A segmented choice; returns the element, the value and a setter */
 export function segmented<T extends string>(items: [T, string][], value: T, onChange?: (v: T) => void) {
     const el = document.createElement('div')
     el.className = 'mo-seg'
     el.setAttribute('role', 'radiogroup')
     let cur = value
+    const show = () => btns.forEach((x, i) => {
+        x.classList.toggle('on', items[i][0] === cur)
+        x.setAttribute('aria-checked', String(items[i][0] === cur))
+    })
     const btns = items.map(([v, label]) => {
         const b = document.createElement('button')
         b.type = 'button'
@@ -90,19 +94,18 @@ export function segmented<T extends string>(items: [T, string][], value: T, onCh
         b.setAttribute('role', 'radio')
         b.addEventListener('click', () => {
             cur = v
-            btns.forEach((x, i) => {
-                x.classList.toggle('on', items[i][0] === v)
-                x.setAttribute('aria-checked', String(items[i][0] === v))
-            })
+            show()
             onChange?.(v)
         })
-        b.classList.toggle('on', v === value)
-        b.setAttribute('aria-checked', String(v === value))
         el.appendChild(b)
         return b
     })
+    show()
     return {el, get value() {
         return cur
+    }, set(v: T) {
+        cur = v
+        show()
     }}
 }
 

@@ -155,6 +155,8 @@ export class VideoRecorderPlugin extends AViewerPluginSync<VideoRecorderEventMap
                     })
                 })
             }
+            // a stop takes effect in the next frame and moves the clock on by that frame: let it pass before seeking
+            if (wasRunning) await nextFrame()
             for (let i = 0; i < frames; i++) {
                 if (options.signal?.aborted) throw new DOMException('Recording cancelled', 'AbortError')
                 tl.setTime(start + i / fps)

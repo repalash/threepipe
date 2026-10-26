@@ -95,12 +95,14 @@ export class TimelineBarPlugin extends AViewerPluginSync<TimelineBarEventMap> {
         })
         viewer.timeline.addEventListener('endTimeChanged', this._onAnimations)
         viewer.forPlugin(CameraPathPlugin, p => p.addEventListener('change', this._onAnimations), p => p.removeEventListener('change', this._onAnimations))
+        viewer.forPlugin(PickingPlugin, p => p.addEventListener('selectedObjectChanged', this._syncClipSelection), p => p.removeEventListener('selectedObjectChanged', this._syncClipSelection))
         this.refresh()
     }
 
     onRemove(viewer: ThreeViewer) {
         viewer.removeEventListener('postFrame', this._tick)
         viewer.timeline.removeEventListener('endTimeChanged', this._onAnimations)
+        viewer.getPlugin(PickingPlugin)?.removeEventListener('selectedObjectChanged', this._syncClipSelection)
         this._root?.remove()
         this.closeRecordDialog()
         super.onRemove(viewer)
@@ -128,10 +130,7 @@ export class TimelineBarPlugin extends AViewerPluginSync<TimelineBarEventMap> {
             return b
         }
         this._playBtn = icon(MO_ICONS.play, 'Play', () => this.togglePlay())
-        const toStart = icon(MO_ICONS.toStart, 'Go to the start', () => {
-            viewer.timeline.stop()
-            viewer.timeline.setTime(0)
-        })
+        const toStart = icon(MO_ICONS.toStart, 'Go to the start', () => this.seekPaused(0))
         this._timeEl = document.createElement('span')
         this._timeEl.className = 'tlb-time'
         const slash = document.createElement('span')
@@ -146,6 +145,7 @@ export class TimelineBarPlugin extends AViewerPluginSync<TimelineBarEventMap> {
         end.addEventListener('change', () => {
             const v = parseFloat(end.value)
             if (v > 0) this._setEndTime(v)
+            else end.value = String(Math.round(viewer.timeline.endTime * 100) / 100)
         })
         end.addEventListener('keydown', e => {
             if (e.key === 'Enter') end.blur()
@@ -185,6 +185,20 @@ export class TimelineBarPlugin extends AViewerPluginSync<TimelineBarEventMap> {
         this._root = root
         this._lanesEl = lanes
         this._playhead = ph
+    }
+
+    /**
+     * Pause at `time`. A stop takes effect in the next frame, and the clock then adds that frame's time to the time set
+     * now, so the time is set again after it.
+     */
+    seekPaused(time: number) {
+        const viewer = this._viewer
+        if (!viewer) return
+        const t = viewer.timeline
+        const running = t.running
+        t.stop()
+        t.setTime(time)
+        if (running) viewer.doOnce('postFrame', () => t.setTime(time))
     }
 
     togglePlay() {
@@ -241,12 +255,13 @@ export class TimelineBarPlugin extends AViewerPluginSync<TimelineBarEventMap> {
             el.appendChild(empty)
             return
         }
-        const sel = new Set((this._viewer?.getPlugin(PickingPlugin)?.getSelectedObjects?.() ?? []) as IObject3D[])
+        this._clips = []
         for (const lane of this._lanes) {
             const r = document.createElement('div')
             r.className = 'tlb-lane'
             const clip = document.createElement('div')
-            clip.className = 'tlb-clip' + (lane.obj && sel.has(lane.obj) ? ' tlb-sel' : '')
+            clip.className = 'tlb-clip'
+            this._clips.push([clip, lane.obj])
             clip.style.setProperty('--c', lane.color)
             this._placeClip(clip, lane.anim)
             clip.title = `${lane.label}\nDrag to move, drag the right edge to change the length, click to select`
@@ -266,6 +281,14 @@ export class TimelineBarPlugin extends AViewerPluginSync<TimelineBarEventMap> {
             r.appendChild(clip)
             el.appendChild(r)
         }
+        this._syncClipSelection()
+    }
+
+    private _clips: [HTMLElement, IObject3D | undefined][] = []
+    /** The clips of the selected objects are outlined */
+    private _syncClipSelection = () => {
+        const sel = new Set((this._viewer?.getPlugin(PickingPlugin)?.getSelectedObjects?.() ?? []) as IObject3D[])
+        for (const [clip, obj] of this._clips) clip.classList.toggle('tlb-sel', !!obj && sel.has(obj))
     }
 
     private _placeClip(clip: HTMLElement, a: AnimationObject) {
@@ -279,6 +302,7 @@ export class TimelineBarPlugin extends AViewerPluginSync<TimelineBarEventMap> {
         const t = viewer.timeline
         this._playBtn.innerHTML = t.running ? MO_ICONS.pause : MO_ICONS.play
         this._playBtn.title = t.running ? 'Pause' : 'Play'
+        this._playBtn.setAttribute('aria-label', this._playBtn.title)
         this._loopBtn?.classList.toggle('on', t.resetOnEnd)
         const ux = viewer.getPlugin(SelectionUxPlugin)
         const cam = ux?.viewCamera
@@ -312,7 +336,7 @@ export class TimelineBarPlugin extends AViewerPluginSync<TimelineBarEventMap> {
         if (!viewer || !this.visible || !this._playhead || !this._timeEl) return
         const t = viewer.timeline
         this._playhead.style.left = `calc(${Math.min(1, t.time / this._total) * 100}% )`
-        this._timeEl.textContent = fmtSec(t.time)
+        this._timeEl.textContent = fmtSec(t.endTime > 0 ? Math.min(t.time, t.endTime) : t.time)
         const cam = viewer.scene.mainCamera
         if (t.running !== this._lastRunning || cam !== this._lastCam) {
             this._lastRunning = t.running
@@ -342,11 +366,10 @@ export class TimelineBarPlugin extends AViewerPluginSync<TimelineBarEventMap> {
         if (!viewer) return
         e.preventDefault()
         const t = viewer.timeline
-        t.stop()
         const rect = body.getBoundingClientRect()
         // just before the end: a timeline that is still running in this frame goes back to 0 at its end
         const at = (x: number) => Math.min(Math.max(0, Math.min(1, (x - rect.left) / rect.width)) * this._total, t.endTime > 0 ? t.endTime - 1e-3 : Infinity)
-        t.setTime(at(e.clientX))
+        this.seekPaused(at(e.clientX))
         const move = (m: PointerEvent) => t.setTime(at(m.clientX))
         const up = () => {
             window.removeEventListener('pointermove', move)
@@ -406,6 +429,8 @@ export class TimelineBarPlugin extends AViewerPluginSync<TimelineBarEventMap> {
 
     // region record
 
+    private _lastRecord = {size: '1080p', fps: '30', quality: 'draft', format: 'mp4', hidePaths: true}
+
     openRecordDialog() {
         const viewer = this._viewer
         const rec = viewer?.getPlugin(VideoRecorderPlugin)
@@ -424,15 +449,19 @@ export class TimelineBarPlugin extends AViewerPluginSync<TimelineBarEventMap> {
         const cur = viewer.getPlugin(SelectionUxPlugin)?.viewCamera
         const camDefault = cur?.uuid ?? (pathCam && viewer.getPlugin(CameraPathPlugin)?.getPathAnimation(pathCam) ? pathCam.uuid : 'view')
         const camSel = select([['view', 'The current view'], ...cams.map(c => [c.uuid, c.name || 'Camera'] as [string, string])], camDefault)
-        const sizeSel = select(SIZES.map(([k, label]) => [k, k === 'view' ? `${label} (${viewer.canvas.width}×${viewer.canvas.height})` : label] as [string, string]), '1080p')
-        const fps = segmented([['24', '24'], ['30', '30'], ['60', '60']], '30')
-        const quality = segmented([['draft', 'Draft'], ['final', 'Final']], 'draft')
+        // the last choices, so "Record again" keeps them
+        const last = this._lastRecord
+        const sizeSel = select(SIZES.map(([k, label]) => [k, k === 'view' ? `${label} (${viewer.canvas.width}×${viewer.canvas.height})` : label] as [string, string]), last.size)
+        const fps = segmented([['24', '24'], ['30', '30'], ['60', '60']], last.fps)
+        const quality = segmented([['draft', 'Draft'], ['final', 'Final']], last.quality)
         quality.el.title = 'Final waits for anti-aliasing and effects to settle on every frame: smoother, slower'
         const support = videoSupport()
-        const format = segmented([['mp4', 'MP4'], ['webm', 'WebM']], 'mp4')
+        const format = segmented([['mp4', 'MP4'], ['webm', 'WebM']], last.format)
         const hidePaths = document.createElement('label')
         hidePaths.className = 'mo-check'
-        hidePaths.innerHTML = '<input type="checkbox" checked> Hide the camera path lines'
+        hidePaths.innerHTML = '<input type="checkbox"> Hide the camera path lines'
+        hidePaths.querySelector('input')!.checked = last.hidePaths
+        const hasPaths = !!viewer.getPlugin(CameraPathPlugin)?.pathAnimations().length
         const lengthEl = document.createElement('span')
         const updateLength = () => {
             const end = viewer.timeline.endTime || 5
@@ -449,22 +478,26 @@ export class TimelineBarPlugin extends AViewerPluginSync<TimelineBarEventMap> {
         x.setAttribute('aria-label', 'Close')
         title.appendChild(x)
         form.append(title, row('Camera', camSel), row('Size', sizeSel), row('Frame rate', fps.el), row('Quality', quality.el),
-            row('Format', format.el), row('Length', lengthEl), row('', hidePaths))
+            row('Format', format.el), row('Length', lengthEl), ...hasPaths ? [row('', hidePaths)] : [])
         const note = document.createElement('p')
         note.className = 'mo-note'
-        note.textContent = support.frameByFrame ?
+        note.textContent = (this._lanes.length ? '' : 'Nothing moves on the timeline yet: the video is a still view. ') + (support.frameByFrame ?
             'Frame by frame: the timing is exact however slow the scene is. The frame on the view shows what is in the video. Selection, grid and helpers are hidden.' :
-            'This browser cannot encode frame by frame: it records in real time. Keep this tab in front.'
+            'This browser cannot encode frame by frame: it records in real time. Keep this tab in front.')
         const btns = document.createElement('div')
         btns.className = 'mo-btns'
-        const start = button(`${MO_ICONS.record} Record`, 'mo-red', () => void this._record({
-            camera: camSel.value === 'view' ? undefined : viewer.object3dManager.findObject(camSel.value) as any,
-            size: SIZES.find(s => s[0] === sizeSel.value)!,
-            fps: parseInt(fps.value),
-            quality: quality.value as 'draft' | 'final',
-            format: format.value as 'mp4' | 'webm',
-            hidePaths: hidePaths.querySelector('input')!.checked,
-        }))
+        const start = button(`${MO_ICONS.record} Record`, 'mo-red', () => {
+            const h = hasPaths && hidePaths.querySelector('input')!.checked
+            this._lastRecord = {size: sizeSel.value, fps: fps.value, quality: quality.value, format: format.value, hidePaths: h || !hasPaths && last.hidePaths}
+            void this._record({
+                camera: camSel.value === 'view' ? undefined : viewer.object3dManager.findObject(camSel.value) as any,
+                size: SIZES.find(z => z[0] === sizeSel.value)!,
+                fps: parseInt(fps.value),
+                quality: quality.value as 'draft' | 'final',
+                format: format.value as 'mp4' | 'webm',
+                hidePaths: h,
+            })
+        })
         btns.append(button('Cancel', '', () => this.closeRecordDialog()), start)
         form.append(note, btns)
         d.appendChild(form)
@@ -625,7 +658,7 @@ export class TimelineBarPlugin extends AViewerPluginSync<TimelineBarEventMap> {
         video.playsInline = true
         const info = document.createElement('p')
         info.className = 'mo-note'
-        info.textContent = `${r.width}×${r.height} · ${r.frames} frames · ${r.ext.toUpperCase()} · ${(r.blob.size / 1e6).toFixed(1)} MB · made in ${secs.toFixed(0)} s${r.method === 'realtime' ? ' (real time)' : ''}`
+        info.textContent = `${r.width}×${r.height} · ${r.frames} frames · ${r.ext.toUpperCase()} · ${r.blob.size < 1e6 ? Math.max(1, Math.round(r.blob.size / 1e3)) + ' KB' : (r.blob.size / 1e6).toFixed(1) + ' MB'} · made in ${secs.toFixed(0)} s${r.method === 'realtime' ? ' (real time)' : ''}`
         const name = `threepipe-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.${r.ext}`
         const dl = document.createElement('a')
         dl.className = 'mo-btn mo-primary'
@@ -660,7 +693,7 @@ function injectStyles() {
     const st = document.createElement('style')
     st.textContent = `
 /* between the layers/notes column on the left and the edge; --tlb-left is the column's width */
-.tlb-root { position: absolute; left: var(--tlb-left, 184px); right: 12px; bottom: 52px; margin: 0 auto; z-index: 12; max-width: 760px; padding: 6px 8px 8px; }
+.tlb-root { position: absolute; left: var(--tlb-left, 262px); right: 12px; bottom: 52px; margin: 0 auto; z-index: 12; max-width: 760px; padding: 6px 8px 8px; }
 .tlb-head { display: flex; align-items: center; gap: 4px; height: 28px; }
 .tlb-time { font-variant-numeric: tabular-nums; min-width: 44px; text-align: right; margin-left: 4px; }
 .tlb-dim { color: var(--mo-dim); }
@@ -669,22 +702,22 @@ function injectStyles() {
 .tlb-cam { background: transparent; }
 .tlb-cam.on { background: var(--mo-soft); color: var(--mo-cam); }
 .tlb-rec { color: var(--mo-rec); }
-.tlb-body { position: relative; margin: 6px 4px 0; cursor: ew-resize; user-select: none; }
+.tlb-body { position: relative; margin: 6px 4px 0; cursor: ew-resize; user-select: none; overflow: hidden; padding-top: 2px; }
 .tlb-ruler { position: relative; height: 14px; border-bottom: 1px solid var(--mo-line); }
 .tlb-ruler span { position: absolute; top: 0; transform: translateX(-50%); color: var(--mo-dim); font-size: 10px; font-variant-numeric: tabular-nums; }
-.tlb-ruler span:first-child { transform: none; }
+.tlb-ruler span:first-child { transform: none; margin-left: 4px; }
 .tlb-endmark { position: absolute; top: 0; bottom: -200px; width: 0; border-left: 2px dashed var(--mo-rec); opacity: .5; pointer-events: none; }
 .tlb-lanes { display: flex; flex-direction: column; gap: 3px; padding-top: 4px; max-height: 92px; overflow-y: auto; overflow-x: hidden; }
 .tlb-lane { position: relative; height: 20px; }
 .tlb-empty { color: var(--mo-dim); padding: 4px 0 2px; cursor: default; }
 .tlb-clip {
   position: absolute; top: 0; bottom: 0; border-radius: 4px; background: color-mix(in srgb, var(--c) 18%, var(--mo-bg)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 55%, transparent);
-  color: var(--mo-fg); cursor: grab; overflow: hidden; display: flex; align-items: center; padding: 0 8px; font-size: 10px; white-space: nowrap;
+  color: var(--mo-fg); cursor: grab; overflow: hidden; display: flex; align-items: center; padding: 0 14px; font-size: 10px; white-space: nowrap;
 }
 .tlb-clip.tlb-sel { box-shadow: inset 0 0 0 2px var(--c); }
 .tlb-clip span { overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
 .tlb-key { position: absolute; top: 50%; width: 7px; height: 7px; margin: -3.5px 0 0 -3.5px; background: var(--c); transform: rotate(45deg); pointer-events: none; }
-.tlb-key:first-of-type { margin-left: 1px; }
+.tlb-key:first-of-type { margin-left: 2px; }
 .tlb-key:last-of-type { margin-left: -9px; }
 .tlb-edge { position: absolute; right: 0; top: 0; bottom: 0; width: 7px; cursor: ew-resize; }
 .tlb-playhead { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--mo-rec); pointer-events: none; border-radius: 1px; }

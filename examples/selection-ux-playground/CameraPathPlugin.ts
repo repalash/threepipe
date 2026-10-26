@@ -33,6 +33,8 @@ export interface PathAnimationOptions {
     start?: number
     /** Move the path up by this much first (a path drawn on the floor puts the camera at eye height) */
     lift?: number
+    /** `obj` is new: add it to this parent in the same undo step */
+    addTo?: IObject3D
 }
 
 export interface PathAnimation {
@@ -84,6 +86,10 @@ export class CameraPathPlugin extends AViewerPluginSync<CameraPathEventMap> {
         viewer.addEventListener('postFrame', this._draw)
         viewer.forPlugin(PickingPlugin, p => p.addEventListener('selectedObjectChanged', this._onSelect), p => p.removeEventListener('selectedObjectChanged', this._onSelect))
         viewer.forPlugin(PenToolPlugin, p => p.addEventListener('created', this._onPathCreated), p => p.removeEventListener('created', this._onPathCreated))
+        // a moved or stretched clip, undo: the start and end times on the preview change
+        viewer.forPlugin(AnimationObjectPlugin, p => p.addEventListener('rebuildTimeline', this._markDirty), p => p.removeEventListener('rebuildTimeline', this._markDirty))
+        // the chip goes when you go on working in the view
+        viewer.canvas.addEventListener('pointerdown', this._onCanvasDown)
     }
 
     onRemove(viewer: ThreeViewer) {
@@ -91,6 +97,8 @@ export class CameraPathPlugin extends AViewerPluginSync<CameraPathEventMap> {
         viewer.removeEventListener('postFrame', this._draw)
         viewer.getPlugin(PickingPlugin)?.removeEventListener('selectedObjectChanged', this._onSelect)
         viewer.getPlugin(PenToolPlugin)?.removeEventListener('created', this._onPathCreated)
+        viewer.getPlugin(AnimationObjectPlugin)?.removeEventListener('rebuildTimeline', this._markDirty)
+        viewer.canvas.removeEventListener('pointerdown', this._onCanvasDown)
         this._svg?.remove()
         this.closeDialog()
         this._hideChip()
@@ -133,7 +141,7 @@ export class CameraPathPlugin extends AViewerPluginSync<CameraPathEventMap> {
             duration: (anim?.duration ?? 6000) / 1000,
             start: (anim?.delay ?? 0) / 1000,
             reverse: values.length > 1 && values[0] > values[values.length - 1],
-            look: (c.props as any).followCurve ? 'ahead' : 'center',
+            look: (c.props as any).look ?? ((c.props as any).followCurve ? 'ahead' : 'center'),
             ease: anim?.ease ?? 'linear',
         }
     }
@@ -168,7 +176,8 @@ export class CameraPathPlugin extends AViewerPluginSync<CameraPathEventMap> {
 
         const c = new ObjectConstraint('follow_path')
         c.target = path.uuid
-        c.props = {offset: options.reverse ? 1 : 0, followCurve: look === 'ahead'}
+        // look is ours, follow_path ignores it; it keeps "Its target" apart from "The centre" for the dialog
+        c.props = {offset: options.reverse ? 1 : 0, followCurve: look === 'ahead', look} as any
         const ao = new AnimationObject()
         ao.name = `${obj.name || 'Camera'} along ${path.name || 'path'}`
         ao.values = options.reverse ? [1, 0] : [0, 1]
@@ -181,7 +190,12 @@ export class CameraPathPlugin extends AViewerPluginSync<CameraPathEventMap> {
         const pathY = path.position.y
         const center = look === 'center' ? this.sceneCenter([path, obj]) : undefined
 
+        const addTo = options.addTo
         const apply = () => {
+            if (addTo) {
+                addTo.add(obj)
+                viewer.scene.setDirty({refreshScene: true})
+            }
             if (old) this._detach(obj, old)
             if (lift) this._setY(path, pathY + lift)
             cons.addConstraint(obj, c)
@@ -201,6 +215,12 @@ export class CameraPathPlugin extends AViewerPluginSync<CameraPathEventMap> {
             this._setPose(obj, before)
             viewer.timeline.endTime = oldEnd
             this._refresh(obj)
+            if (addTo) {
+                // looking through the camera that goes away: back to the editor camera
+                if (viewer.scene.mainCamera === obj as any) viewer.scene.defaultCamera.activateMain()
+                obj.removeFromParent()
+                viewer.scene.setDirty({refreshScene: true})
+            }
         }
         apply()
         viewer.getPlugin(UndoManagerPlugin)?.undoManager?.record({undo: revert, redo: apply})
@@ -324,10 +344,10 @@ export class CameraPathPlugin extends AViewerPluginSync<CameraPathEventMap> {
         d.className = 'mo-ui mo-card cp-dialog'
         d.dataset.ownKeys = ''
         d.setAttribute('role', 'dialog')
-        d.setAttribute('aria-label', 'Camera along a path')
+        d.setAttribute('aria-label', 'Animate a camera along a path')
         const title = document.createElement('div')
         title.className = 'mo-title'
-        title.innerHTML = `<span style="color:var(--mo-cam);display:flex">${MO_ICONS.camera}</span>Camera along a path`
+        title.innerHTML = `<span style="color:var(--mo-cam);display:flex">${MO_ICONS.camera}</span>Animate a camera along a path`
         const x = button(MO_ICONS.close, 'mo-icon mo-x', () => this.closeDialog())
         x.setAttribute('aria-label', 'Close')
         title.appendChild(x)
@@ -368,10 +388,13 @@ export class CameraPathPlugin extends AViewerPluginSync<CameraPathEventMap> {
             const p = viewer.object3dManager.findObject(pathSel.value) as IObject3D | undefined
             if (!p) return
             let o = viewer.object3dManager.findObject(camSel.value) as IObject3D | undefined
+            const addTo = o ? undefined : viewer.scene.modelRoot
             if (!o) o = this._newCamera()
             if (!o) return
+            const d0 = parseFloat(dur.input.value)
             this.animateAlongPath(o, p, {
-                duration: parseFloat(dur.input.value) || 6,
+                addTo,
+                duration: Number.isFinite(d0) ? Math.max(0.5, d0) : 6,
                 look: look.value,
                 ease: speed.value as PathAnimationOptions['ease'],
                 reverse: dir.value === 'rev',
@@ -382,18 +405,31 @@ export class CameraPathPlugin extends AViewerPluginSync<CameraPathEventMap> {
         })
         const sync = () => {
             const o = viewer.object3dManager.findObject(camSel.value) as IObject3D | undefined
-            const has = !!o && !!this.getPathAnimation(o)
-            remove.style.display = has ? '' : 'none'
-            go.textContent = has ? 'Update' : 'Animate'
+            const a = o ? this.getPathAnimation(o) : undefined
+            remove.style.display = a ? '' : 'none'
+            go.textContent = a ? 'Update' : 'Animate'
             go.disabled = !pathSel.value
+            return a
         }
-        camSel.addEventListener('change', sync)
+        // another camera: its own settings, or the defaults
+        camSel.addEventListener('change', () => {
+            const a = sync()
+            look.set(a?.look ?? 'center')
+            dur.input.value = String(a?.duration ?? 6)
+            speed.set(a?.ease === 'easeInOutSine' ? 'easeInOutSine' : 'linear')
+            dir.set(a?.reverse ? 'rev' : 'fwd')
+            if (a?.path) {
+                pathSel.value = a.path.uuid
+                syncLift()
+            }
+        })
         sync()
         btns.append(remove, button('Cancel', '', () => this.closeDialog()), go)
         d.appendChild(btns)
         d.addEventListener('keydown', e => {
             if (e.key === 'Escape') this.closeDialog()
-            else if (e.key === 'Enter' && (e.target as HTMLElement).tagName !== 'SELECT') go.click()
+            // Enter in a field animates; on a button it presses that button
+            else if (e.key === 'Enter' && (e.target as HTMLElement).tagName === 'INPUT') go.click()
             e.stopPropagation()
         })
         viewer.container.appendChild(d)
@@ -407,23 +443,10 @@ export class CameraPathPlugin extends AViewerPluginSync<CameraPathEventMap> {
         this._dialog = undefined
     }
 
-    /** A new camera at the current view, in one undo step with the path animation that follows */
+    /** A new camera, not yet in the scene: animateAlongPath adds it in the same undo step (addTo) */
     private _newCamera() {
-        const viewer = this._viewer
-        const gen = viewer?.getPlugin(Object3DGeneratorPlugin)
-        const obj = gen?.generate('camera-perspective', {}, false, false, false) as IObject3D | undefined
-        if (!viewer || !obj) return undefined
-        obj.name = 'Path Camera'
-        const root = viewer.scene.modelRoot
-        const add = () => {
-            root.add(obj)
-            viewer.scene.setDirty({refreshScene: true})
-        }
-        add()
-        viewer.getPlugin(UndoManagerPlugin)?.undoManager?.record({undo: () => {
-            obj.removeFromParent()
-            viewer.scene.setDirty({refreshScene: true})
-        }, redo: add})
+        const obj = this._viewer?.getPlugin(Object3DGeneratorPlugin)?.generate('camera-perspective', {}, false, false, false) as IObject3D | undefined
+        if (obj) obj.name = 'Path Camera'
         return obj
     }
 
@@ -439,7 +462,7 @@ export class CameraPathPlugin extends AViewerPluginSync<CameraPathEventMap> {
             tl.setTime(a?.start ?? 0)
             tl.start()
         })
-        ux?.dispatchEvent({type: 'toast', message: `${obj.name || 'The camera'} follows ${a?.path?.name || 'the path'} for ${fmtSec(a?.duration ?? 6)}. Record a video with ● in the timeline; 0 goes back to your view`})
+        ux?.dispatchEvent({type: 'toast', message: `${obj.name || 'Camera'} follows ${a?.path?.name || 'the path'} · ${fmtSec(a?.duration ?? 6)} · 0: your view`})
     }
 
     // endregion
@@ -461,6 +484,8 @@ export class CameraPathPlugin extends AViewerPluginSync<CameraPathEventMap> {
         viewer.container.appendChild(chip)
         this._chip = chip
     }
+
+    private _onCanvasDown = () => this._hideChip()
 
     private _hideChip() {
         this._chip?.remove()
@@ -519,7 +544,8 @@ export class CameraPathPlugin extends AViewerPluginSync<CameraPathEventMap> {
                 out += `<circle cx="${s[0]}" cy="${s[1]}" r="${i === 0 || i === n - 1 ? 4.5 : 3}" class="cp-dot${i === 0 ? ' cp-start' : ''}"/>`
                 if (i === 0 || i === n - 1) {
                     const t = a.start + (i === 0 ? 0 : a.duration)
-                    out += `<text x="${s[0] + 8}" y="${s[1] - 8}" class="cp-label">${i === 0 ? 'Start' : 'End'} · ${fmtSec(t)}</text>`
+                    // below the dot: the name label of a selected camera sits above it
+                    out += `<text x="${s[0] + 8}" y="${s[1] + 18}" class="cp-label">${i === 0 ? 'Start' : 'End'} · ${fmtSec(t)}</text>`
                 }
             }
         }
@@ -563,8 +589,9 @@ function injectStyles() {
     stylesAdded = true
     const st = document.createElement('style')
     st.textContent = `
-.cp-dialog { position: absolute; left: 50%; bottom: 150px; transform: translateX(-50%); width: 340px; max-width: calc(100% - 24px); z-index: 14; }
-.cp-chip { bottom: 150px; }
+/* under the toolbar: a new path is usually drawn in the lower half of the view */
+.cp-dialog { position: absolute; left: 50%; top: 60px; transform: translateX(-50%); width: 340px; max-width: calc(100% - 24px); z-index: 14; }
+.cp-chip { top: 60px; }
 .cp-overlay .cp-dot { fill: #fff; stroke: #8b5cf6; stroke-width: 2; }
 .cp-overlay .cp-start { fill: #8b5cf6; }
 .cp-overlay .cp-look { stroke: #8b5cf6; stroke-width: 1.5; stroke-opacity: .7; }

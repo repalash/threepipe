@@ -28,6 +28,8 @@ export interface EditorToolbarOptions {
     grid?: boolean
     /** Elements hidden by "Expand canvas" (Shift+Space), e.g. side panels */
     expandHides?: () => HTMLElement[]
+    /** Elements hidden in View mode (what a visitor sees), e.g. the layers and the inspector */
+    viewHides?: () => HTMLElement[]
     /** Extra buttons at the end: [label or svg, title, action] */
     extra?: [string, string, () => void][]
     /** Light (default, like the layers panel) or dark */
@@ -103,6 +105,9 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
         viewer.forPlugin(SelectionUxPlugin, ux => ux.addEventListener('uxUpdate', this._onUxUpdate), ux => ux.removeEventListener('uxUpdate', this._onUxUpdate))
         viewer.forPlugin(PenToolPlugin, p => p.addEventListener('change', this.render), p => p.removeEventListener('change', this.render))
         viewer.forPlugin(TimelineBarPlugin, p => p.addEventListener('change', this.render), p => p.removeEventListener('change', this.render))
+        // the Play button follows the timeline, also when the bar or the end of the timeline stops it
+        viewer.timeline.addEventListener('start', this.render)
+        viewer.timeline.addEventListener('stop', this.render)
         viewer.forPlugin(AnnotationsPlugin, a => {
             a.addEventListener('annotationChange', this.render)
             a.editable = !this._viewMode
@@ -131,6 +136,8 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
         window.removeEventListener('keydown', this._onKey)
         window.removeEventListener('pointerdown', this._closeMenuOutside, true)
         viewer.scene.removeEventListener('mainCameraChange', this.render)
+        viewer.timeline.removeEventListener('start', this.render)
+        viewer.timeline.removeEventListener('stop', this.render)
         viewer.getPlugin(SelectionUxPlugin)?.removeEventListener('uxUpdate', this._onUxUpdate)
         viewer.getPlugin(AnnotationsPlugin)?.removeEventListener('annotationChange', this.render)
         this._grid?.removeFromParent()
@@ -297,8 +304,15 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
         const notes = viewer.getPlugin(AnnotationsPlugin)
         if (notes) notes.editable = !view
         if (this._grid) this._grid.visible = !view && this._gridOn
+        this._syncPanels()
         viewer.setDirty()
         this.render()
+    }
+
+    /** Panels show in Edit mode with the canvas not expanded */
+    private _syncPanels() {
+        const hidden = new Set([...this._expanded ? this._options.expandHides?.() || [] : [], ...this._viewMode ? this._options.viewHides?.() || [] : []])
+        for (const el of new Set([...this._options.expandHides?.() || [], ...this._options.viewHides?.() || []])) el.style.display = hidden.has(el) ? 'none' : ''
     }
 
     private get _gridOn() {
@@ -311,7 +325,7 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
     setExpanded(v: boolean) {
         if (v === this._expanded) return
         this._expanded = v
-        for (const el of this._options.expandHides?.() || []) el.style.display = v ? 'none' : ''
+        this._syncPanels()
         document.body.classList.toggle('tb-expanded', v)
         // inline and important: page styles size the container with id selectors and !important (the tweakpane editor does)
         const c = this._viewer?.container
@@ -467,12 +481,14 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
         // 6. motion: animations, auto-rotate, annotation tour
         newGroup()
         const playing = !!viewer?.timeline.running
-        btn(playing ? I.pause : I.play, playing ? 'Stop the animations' : 'Play the animations (timeline)', '', () => {
+        btn(playing ? I.pause : I.play, playing ? 'Pause the animations' : 'Play the animations (timeline)', '', () => {
             const t = viewer!.timeline
-            t.reset()
             if (t.running) t.stop()
-            else t.start()
-            this.render()
+            else {
+                // from where it is; from the start when it is at the end
+                if (t.endTime > 0 && t.time >= t.endTime - 1e-3) t.setTime(0)
+                t.start()
+            }
         }, 'toggle', playing)
         const bar = viewer?.getPlugin(TimelineBarPlugin)
         if (bar) {

@@ -795,7 +795,7 @@ export class LayersPanelPlugin extends AViewerPluginSync {
         const items: MenuItem[] = [
             ['Zoom to', 'F', () => picking?.focusSelected()],
             ...o.isCamera && ux ? [['Look through', '0', () => ux.lookThrough(o)], ['Move to this view', 'Ctrl+Alt+0', locked ? null : () => ux.alignCameraToView(o)]] as MenuItem[] : [],
-            ...cp && (o.isCamera || (o as any).isLine2 || (o as any).isLine) ? [['Animate along a path…', '', locked ? null : () => cp.openDialog(o.isCamera ? {object: o} : {path: o})]] as MenuItem[] : [],
+            ...cp && (o.isCamera || (o as any).isLine2 || (o as any).isLine) ? [[o.isCamera ? 'Animate along a path…' : 'Animate a camera along it…', '', locked ? null : () => cp.openDialog(o.isCamera ? {object: o} : {path: o})]] as MenuItem[] : [],
             ['Rename', 'Double-click', locked ? null : () => {
                 const row = this._rows.get(o)
                 if (row) this._rename(o, row)

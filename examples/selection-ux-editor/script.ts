@@ -65,6 +65,7 @@ async function init() {
     const toolbar = viewer.addPluginSync(new EditorToolbarPlugin({
         grid: true,
         expandHides: () => [document.querySelector<HTMLElement>('.sux-side')!, document.getElementById('tweakpaneUiContainer')!],
+        viewHides: () => [document.querySelector<HTMLElement>('.sux-side')!],
         extra: [[REPORT_ICON, 'Open a file or sample…', () => openSplash()], [REPORT_ICON, 'Report: what changed and what to try', () => showReport()]],
     }))
     viewer.container.appendChild(toolbar.element)
