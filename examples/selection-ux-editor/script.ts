@@ -14,6 +14,7 @@ import {EditorToolbarPlugin} from '../selection-ux-playground/EditorToolbarPlugi
 import {showReport, showReportIfNew} from '../selection-ux-playground/report'
 import {showSplash} from '../selection-ux-playground/splash'
 import {PerfPanelPlugin} from '../selection-ux-playground/PerfPanelPlugin'
+import {PenToolPlugin} from '../selection-ux-playground/PenToolPlugin'
 import {setupModeBar} from '../selection-ux-playground/ModeBar'
 
 // The tweakpane editor with the new selection UX: SelectionUxPlugin + the pipeline outline instead of OutlinePlugin,
@@ -50,6 +51,8 @@ async function init() {
     viewer.addPluginSync(new AnnotationsPlugin({editable: true}))
     // FPS, frame and render times, draw calls; warns about a capped frame rate (Chrome Energy Saver), battery, software GL
     viewer.addPluginSync(new PerfPanelPlugin({position: 'bottom-right'}))
+    // P: draw a path point by point, like Figma's pen
+    viewer.addPluginSync(new PenToolPlugin())
     const layers = viewer.addPluginSync(new LayersPanelPlugin('light'))
     const notes = viewer.addPluginSync(new NotesPlugin({pageKey: 'selection-ux-playground-notes', syncUrl: '/api/notes', contextProvider: modeContext(ux)}))
     setupSidePanel(viewer.container, layers, notes, 'sux-side-pos-editor')

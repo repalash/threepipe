@@ -309,6 +309,7 @@ const shortcuts: [string, string][] = [
     ['While moving: lock to an axis, type an exact distance, confirm', 'X Y Z  ·  5  ·  Enter'],
     ['Duplicate (again: same offset as the last move)', 'Ctrl D'],
     ['Add an annotation (then click a surface)', 'N'],
+    ['Pen: click points, drag for curves, Enter to finish', 'P'],
     ['Expand the canvas', 'Shift Space'],
     ['Next / previous sibling', 'Tab / Shift + Tab'],
     ['Select all at this level', '⌘/Ctrl + A'],

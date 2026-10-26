@@ -24,6 +24,7 @@ import {EditorToolbarPlugin} from './EditorToolbarPlugin'
 import {showReport, showReportIfNew} from './report'
 import {showSplash} from './splash'
 import {PerfPanelPlugin} from './PerfPanelPlugin'
+import {PenToolPlugin} from './PenToolPlugin'
 
 async function init() {
     const viewer = new ThreeViewer({
@@ -46,6 +47,8 @@ async function init() {
     viewer.addPluginSync(new AnnotationsPlugin({editable: true}))
     // FPS, frame and render times, draw calls; warns about a capped frame rate (Chrome Energy Saver), battery, software GL
     viewer.addPluginSync(new PerfPanelPlugin({position: 'bottom-right'}))
+    // P: draw a path point by point, like Figma's pen
+    viewer.addPluginSync(new PenToolPlugin())
     const layers = viewer.addPluginSync(new LayersPanelPlugin('light'))
     Object.assign(window, {viewer, ux}) // for poking from the console
 

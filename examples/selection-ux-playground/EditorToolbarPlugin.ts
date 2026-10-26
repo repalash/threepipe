@@ -19,6 +19,7 @@ import {
 import {SelectionUxPlugin} from './SelectionUxPlugin'
 import {AnnotationsPlugin} from './AnnotationsPlugin'
 import {SceneOverrides} from './SceneOverrides'
+import {PenToolPlugin} from './PenToolPlugin'
 
 export interface EditorToolbarOptions {
     /** Add a floor grid the toolbar can show and hide */
@@ -94,6 +95,7 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
         this.overrides.viewer = viewer
         this.overrides.addEventListener('change', this._onOverrides)
         viewer.forPlugin(SelectionUxPlugin, ux => ux.addEventListener('uxUpdate', this._onUxUpdate), ux => ux.removeEventListener('uxUpdate', this._onUxUpdate))
+        viewer.forPlugin(PenToolPlugin, p => p.addEventListener('change', this.render), p => p.removeEventListener('change', this.render))
         viewer.forPlugin(AnnotationsPlugin, a => {
             a.addEventListener('annotationChange', this.render)
             a.editable = !this._viewMode
@@ -150,6 +152,8 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
      */
     setGizmo(mode: 'off' | 'translate' | 'rotate' | 'scale') {
         if (!this._viewer) return
+        const pen = this._viewer.getPlugin(PenToolPlugin)
+        if (pen?.active) pen.finish() // another tool: keep what was drawn
         const ux = this._uxTools
         if (ux) {
             this._gizmo = mode
@@ -356,6 +360,10 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
             this.annotate()
             return
         }
+        if (e.code === 'KeyP') {
+            this._viewer?.getPlugin(PenToolPlugin)?.toggle()
+            return
+        }
         const g = ({KeyV: 'off', KeyW: 'translate', KeyE: 'rotate', KeyR: 'scale'} as const)[e.code as 'KeyV']
         if (g) this.setGizmo(g)
     }
@@ -401,11 +409,13 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
         if (!v) {
             newGroup()
             const g = this._uxTools ? '' : ' gizmo'
-            btn(I.pointer, 'Select', 'V', () => this.setGizmo('off'), 'tool', this._gizmo === 'off')
+            const pen = viewer?.getPlugin(PenToolPlugin)
+            btn(I.pointer, 'Select', 'V', () => this.setGizmo('off'), 'tool', this._gizmo === 'off' && !pen?.active)
             btn(I.move, 'Move' + g, 'W', () => this.setGizmo('translate'), 'tool', this._gizmo === 'translate')
             btn(I.rotate, 'Rotate' + g, 'E', () => this.setGizmo('rotate'), 'tool', this._gizmo === 'rotate')
             btn(I.scale, 'Scale' + g, 'R', () => this.setGizmo('scale'), 'tool', this._gizmo === 'scale')
             if (!this._uxTools) btn(I.dots, 'Gizmo space and size', '', b => this._openMenu(b, this._gizmoMenu()), 'menu', false, this._gizmo === 'off')
+            if (pen) btn(I.pen, pen.active ? 'Pen: Enter or click here to finish the path' : 'Pen: draw a path (curve) point by point', 'P', () => pen.toggle(), 'tool', pen.active)
             if (notes) btn(I.pin, notes.adding ? 'Click a surface to place it (Esc cancels)' : 'Annotate: a note on a surface, with this camera view', 'N', () => this.annotate(), 'toggle', notes.adding)
             // 2. create
             newGroup()
@@ -742,6 +752,7 @@ const I = {
     scale: svg('<path d="M2.5 9.5v4h4M2.5 13.5l5-5M13.5 6.5v-4h-4M13.5 2.5l-5 5"/>'),
     dots: svg('<circle cx="3.5" cy="8" r=".8"/><circle cx="8" cy="8" r=".8"/><circle cx="12.5" cy="8" r=".8"/>'),
     plus: svg('<path d="M8 3v10M3 8h10"/>'),
+    pen: svg('<path d="M8 1.8l3.6 6.6L8 14.2 4.4 8.4z"/><circle cx="8" cy="8.6" r="1.1"/><path d="M8 1.8v5.7"/>'),
     shading: svg('<circle cx="8" cy="8" r="5.5"/><path d="M8 2.5a5.5 5.5 0 0 1 0 11z" fill="currentColor"/>'),
     overlays: svg('<circle cx="6" cy="8" r="4"/><circle cx="10" cy="8" r="4"/>'),
     pause: svg('<path d="M5.5 3.5v9M10.5 3.5v9"/>'),
