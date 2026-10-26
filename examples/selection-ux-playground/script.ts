@@ -5,7 +5,6 @@ import {
     GeometryGeneratorPlugin,
     Object3DGeneratorPlugin,
     Object3DWidgetsPlugin,
-    GridHelper,
     LoadingScreenPlugin,
     Matrix4,
     PickingPlugin,
@@ -16,8 +15,11 @@ import {
 import {SelectionUxPlugin, TransformSnapshot} from './SelectionUxPlugin'
 import {SelectionOutlinePlugin} from './SelectionOutlinePlugin'
 import {LayersPanelPlugin} from './LayersPanelPlugin'
-import {applyModeFromUrl, setupHints, setupModeMenu, setupSidePanel} from './ui'
+import {NotesPlugin} from './NotesPlugin'
+import {applyModeFromUrl, setupHints, setupModeMenu, setupSidePanel, modeContext} from './ui'
 import {buildExtras, buildScene} from './scene'
+import {EditorToolbarPlugin} from './EditorToolbarPlugin'
+import {showReport, showReportIfNew} from './report'
 
 async function init() {
     const viewer = new ThreeViewer({
@@ -39,11 +41,6 @@ async function init() {
     const layers = viewer.addPluginSync(new LayersPanelPlugin('light'))
     Object.assign(window, {viewer, ux}) // for poking from the console
 
-    const grid = new GridHelper(40, 40, 0x8f97a3, 0xb7bdc6)
-    grid.userData.userSelectable = false
-    grid.userData.bboxVisible = false
-    viewer.scene.add(grid)
-
     buildScene(viewer)
     buildExtras(viewer)
     viewer.scene.mainCamera.position.set(7, 7, 11)
@@ -52,10 +49,18 @@ async function init() {
 
     applyModeFromUrl(ux)
     const container = viewer.container
-    setupModeMenu(container, viewer, ux, {links: [['Open in the editor ↗', '../selection-ux-editor/index.html']]})
+    const toolbar = viewer.addPluginSync(new EditorToolbarPlugin({
+        grid: true,
+        expandHides: () => [document.querySelector<HTMLElement>('.sux-side')!, document.getElementById('inspector')!],
+        extra: [[REPORT_ICON, 'Report: what changed and what to try', () => showReport()]],
+    }))
+    container.appendChild(toolbar.element)
+    setupModeMenu(container, viewer, ux, {buttonHost: toolbar.slot, links: [['Open in the editor ↗', '../selection-ux-editor/index.html']]})
     setupHints(container, ux)
-    setupSidePanel(container, layers, ux, 'sux-side-pos-playground')
+    const notes = viewer.addPluginSync(new NotesPlugin({pageKey: 'selection-ux-playground-notes', syncUrl: '/api/notes', contextProvider: modeContext(ux)}))
+    setupSidePanel(container, layers, notes, 'sux-side-pos-playground')
     setupInspector(document.getElementById('inspector')!, viewer, ux)
+    showReportIfNew()
 
     try {
         await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
@@ -63,6 +68,8 @@ async function init() {
         console.warn('Environment map failed to load', e)
     }
 }
+
+const REPORT_ICON = '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><path d="M4 1.5h5.5L12.5 4.5v10H4z"/><path d="M6 7.5h4.5M6 10h4.5M6 12.5h3"/></svg>'
 
 // region inspector
 

@@ -1,6 +1,7 @@
 import {Group2, IObject3D, Mesh, PhysicalMaterial, SphereGeometry, ThreeViewer, TorusGeometry, TransformControlsPlugin, UndoManagerPlugin, Vector3} from 'threepipe'
 import {SelectionUxPlugin, SelectionUxSettings} from './SelectionUxPlugin'
 import {LayersPanelPlugin} from './LayersPanelPlugin'
+import type {NotesPlugin} from './NotesPlugin'
 
 /**
  * UI shared by the playground and the editor page: the mode menu over the canvas with a settings popover,
@@ -60,6 +61,8 @@ export interface ModeMenuOptions {
     links?: [string, string][]
     /** extra buttons in the settings popover */
     actions?: [string, () => void][]
+    /** where the mode button goes, e.g. the slot of EditorToolbarPlugin; default: top center of host */
+    buttonHost?: HTMLElement
 }
 
 /**
@@ -68,8 +71,8 @@ export interface ModeMenuOptions {
 export function setupModeMenu(host: HTMLElement, viewer: ThreeViewer, ux: SelectionUxPlugin, op: ModeMenuOptions = {}) {
     injectUiStyles()
     const wrap = document.createElement('div')
-    wrap.className = 'sux-modes'
-    host.appendChild(wrap)
+    wrap.className = 'sux-modes' + (op.buttonHost ? ' sux-modes-inline' : '')
+    ;(op.buttonHost ?? host).appendChild(wrap)
     const pop = document.createElement('div')
     pop.className = 'sux-pop'
     host.appendChild(pop)
@@ -90,15 +93,16 @@ export function setupModeMenu(host: HTMLElement, viewer: ThreeViewer, ux: Select
         if (!menuOpen) return
         const menu = document.createElement('div')
         menu.className = 'sux-menu'
+        const pickMode = (id: string) => {
+            ux.setMode(id)
+            menuOpen = false
+            renderAll()
+        }
         for (const m of ux.modes) {
             const it = document.createElement('div')
             it.className = 'sux-menu-item' + (ux.mode === m.id ? ' on' : '')
             it.innerHTML = `<b>${m.short ?? ''}</b><span><span class="t">${m.label}</span>${m.description ? `<span class="d">${m.description}</span>` : ''}</span>`
-            it.onclick = () => {
-                ux.setMode(m.id)
-                menuOpen = false
-                renderAll()
-            }
+            it.onclick = () => pickMode(m.id)
             menu.appendChild(it)
         }
         const sep = () => {
@@ -239,20 +243,25 @@ export function setupModeMenu(host: HTMLElement, viewer: ThreeViewer, ux: Select
 // region side panel (layers + notes)
 
 /**
- * Floating side panel with the layers on top and the notes below. The layers header drags the whole panel.
+ * Floating side panel with the layers on top and the sticky notes below. The layers header drags the whole panel.
  */
-export function setupSidePanel(host: HTMLElement, layers: LayersPanelPlugin, ux: SelectionUxPlugin, storageKey: string) {
+export function setupSidePanel(host: HTMLElement, layers: LayersPanelPlugin, notes: NotesPlugin, storageKey: string) {
     injectUiStyles()
     const side = document.createElement('div')
     side.className = 'sux-side'
     host.appendChild(side)
     side.appendChild(layers.element)
-    const notes = document.createElement('div')
-    side.appendChild(notes)
-    setupNotes(notes, ux)
-    notes.querySelector('.sux-notes-head')!.addEventListener('click', () => notes.classList.toggle('collapsed'))
+    side.appendChild(notes.element)
     layers.makeMovable(side, storageKey)
     return side
+}
+
+/** "+ Context" text from the selection UX: the current mode */
+export function modeContext(ux: SelectionUxPlugin) {
+    return () => {
+        const m = ux.modes.find(x => x.id === ux.mode)
+        return `${document.title} · ${m ? m.label : 'custom: ' + ux.settings.visual}`
+    }
 }
 
 // endregion
@@ -377,87 +386,7 @@ export function setupHints(host: HTMLElement, ux: SelectionUxPlugin) {
 
 // endregion
 
-// region notes
 
-/**
- * Scratchpad for feedback. Kept in localStorage, and on the playground server (POST /api/notes) when it has one,
- * so the notes can be read back from the session that serves the page.
- */
-export function setupNotes(host: HTMLElement, ux: SelectionUxPlugin) {
-    injectUiStyles()
-    host.classList.add('sux-notes')
-    host.innerHTML = `<div class="sux-notes-head"><b>Notes</b><small></small></div>
-<textarea placeholder="Feedback, ideas, bugs… Saved automatically. “+ Context” adds the current variant and selection."></textarea>
-<div class="sux-btns"><button class="ctx" title="Insert the current preset and selection">+ Context</button><button class="copy">Copy</button></div>`
-    const text = host.querySelector('textarea')!
-    const status = host.querySelector('small')!
-    const key = 'selection-ux-playground-notes'
-    const api = '/api/notes'
-    let serverOk = false
-    let timer = 0
-
-    try {
-        text.value = localStorage.getItem(key) || ''
-    } catch (e) {
-        text.value = ''
-    }
-
-    // the server copy wins when it is longer, e.g. notes written on another device
-    fetch(api).then(async r => r.ok ? r.json() : Promise.reject(r.status)).then((d: {text?: string}) => {
-        serverOk = true
-        if (typeof d.text === 'string' && d.text.length > text.value.length) text.value = d.text
-        status.textContent = 'saved on server'
-    }).catch(() => {
-        status.textContent = 'saved in this browser'
-    })
-
-    const save = () => {
-        try {
-            localStorage.setItem(key, text.value)
-        } catch (e) {
-            // private mode: the server copy is all there is
-        }
-        if (!serverOk) {
-            status.textContent = 'saved in this browser'
-            return
-        }
-        status.textContent = 'saving…'
-        fetch(api, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({text: text.value})})
-            .then(r => {
-                status.textContent = r.ok ? 'saved on server' : 'server save failed, kept in browser'
-            })
-            .catch(() => {
-                status.textContent = 'server save failed, kept in browser'
-            })
-    }
-    text.addEventListener('input', () => {
-        status.textContent = 'editing…'
-        clearTimeout(timer)
-        timer = window.setTimeout(save, 600)
-    })
-    // keep Ctrl+Z, Delete, arrows etc. in the text box, away from the scene undo and hotkeys
-    text.addEventListener('keydown', e => e.stopPropagation())
-
-    host.querySelector('.ctx')!.addEventListener('click', () => {
-        const st = ux.settings
-        const preset = ux.modes.find(m => m.id === ux.mode)
-        const sel = ux.selected.map(o => ux.displayName(o)).join(', ')
-        const page = document.title
-        const at = text.selectionStart ?? text.value.length
-        const line = `${at ? '\n' : ''}[${new Date().toLocaleString()} · ${page} · ${preset ? preset.label : 'custom: ' + st.visual + ', rotate ' + st.rotate}${sel ? ' · selected: ' + sel : ''}]\n`
-        text.value = text.value.slice(0, at) + line + text.value.slice(at)
-        text.focus()
-        text.selectionStart = text.selectionEnd = at + line.length
-        save()
-    })
-    host.querySelector('.copy')!.addEventListener('click', () => {
-        navigator.clipboard?.writeText(text.value).then(() => {
-            status.textContent = 'copied'
-        })
-    })
-}
-
-// endregion
 
 let stylesAdded = false
 export function injectUiStyles() {
@@ -465,10 +394,13 @@ export function injectUiStyles() {
     stylesAdded = true
     const st = document.createElement('style')
     st.textContent = `
-.sux-modes, .sux-pop, .sux-hint, .sux-toast, .sux-notes, #sux-help, .sux-name, .sux-dims {
+.sux-modes, .sux-pop, .sux-hint, .sux-toast, #sux-help, .sux-name, .sux-dims {
   font: 11px/1.3 Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 .sux-modes { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 12; }
+.sux-modes-inline { position: relative; top: auto; left: auto; transform: none; }
+.sux-modes-inline .sux-mode-btn { box-shadow: none; background: transparent; }
+.sux-modes-inline .sux-menu { left: 0; transform: none; }
 .sux-mode-btn {
   border: 0; background: rgba(30,30,30,.9); color: #eee; padding: 6px 10px; border-radius: 8px; font: inherit; cursor: pointer;
   display: inline-flex; gap: 6px; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,.18); white-space: nowrap;
@@ -494,10 +426,8 @@ export function injectUiStyles() {
 }
 .sux-side > * { pointer-events: auto; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,.14); }
 .sux-side .lp-root { flex: 1; min-height: 120px; height: auto; }
-.sux-side .sux-notes { height: 210px; flex: none; }
-.sux-side .sux-notes.collapsed { height: auto; }
-.sux-side .sux-notes.collapsed textarea, .sux-side .sux-notes.collapsed .sux-btns { display: none; }
-.sux-side .sux-notes-head { cursor: pointer; }
+.sux-side .np-root { height: 230px; flex: none; }
+.sux-side .np-root.np-collapsed { height: auto; }
 .sux-pop {
   position: absolute; top: 56px; right: 12px; z-index: 12; width: 300px; max-height: calc(100% - 80px); overflow: auto;
   background: #fff; color: #1e1e1e; border-radius: 10px; box-shadow: 0 8px 28px rgba(0,0,0,.2); padding-bottom: 8px;
@@ -536,15 +466,6 @@ export function injectUiStyles() {
 #sux-help .card h4 { margin: 0 0 4px; font-size: 12px; }
 #sux-help .card div { display: flex; justify-content: space-between; gap: 16px; break-inside: avoid; }
 #sux-help .card div span:first-child { color: #bbb; }
-.sux-notes { display: flex; flex-direction: column; background: #fff; color: #1e1e1e; user-select: text; }
-.sux-notes-head { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px 6px; }
-.sux-notes-head small { color: #757575; }
-.sux-notes textarea {
-  flex: 1; min-height: 80px; margin: 0 12px; border: 1px solid #e6e6e6; border-radius: 6px; padding: 8px; font: inherit; line-height: 1.5;
-  resize: none; outline: none; background: #fffdf3; color: #1e1e1e;
-}
-.sux-notes textarea:focus { border-color: #0d99ff; }
-.sux-notes .sux-btns { padding: 6px 12px 10px; }
 .sux-params {
   position: absolute; left: 0; top: 0; width: 220px; background: #fff; color: #1e1e1e; border-radius: 10px; box-shadow: 0 6px 24px rgba(0,0,0,.2);
   padding: 4px 0 8px; font: 11px/1.3 Inter, ui-sans-serif, system-ui, sans-serif; z-index: 3;

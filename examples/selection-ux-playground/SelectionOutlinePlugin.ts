@@ -10,6 +10,7 @@ import {
     IRenderManager,
     IScene,
     IWebGLRenderer,
+    PickingPlugin,
     NearestFilter,
     Object3D,
     RenderPass,
@@ -119,7 +120,9 @@ export class SelectionOutlinePlugin extends AScreenPassExtensionPlugin {
         const ux = this._ux()
         if (!ux) return ''
         const s = ux.settings
-        return [ux.selected.map(o => o.uuid).join(), (ux.externalHover || ux.hovered)?.uuid, JSON.stringify(s)].join('|')
+        const v = ux.selected.length ? '' : (this._viewer?.getPlugin(PickingPlugin)?.getSelectedObject() as any)?.uuid
+        return [ux.selected.map(o => o.uuid).join(), v, ux.geometryEdit?.uuid, (ux.externalHover || ux.hovered)?.uuid,
+            ux.externalHoverList.map(o => o.uuid).join(), ux.enabled, JSON.stringify(s)].join('|')
     }
 
     /** Which meshes go in the mask, and their ids */
@@ -128,7 +131,7 @@ export class SelectionOutlinePlugin extends AScreenPassExtensionPlugin {
         const ux = this._ux()
         if (!ux || !this._active(ux)) return items
         const s = ux.settings
-        const sel = s.outlineSelected ? ux.selected.length ? ux.selected : ux.geometryEdit ? [ux.geometryEdit] : [] : []
+        const sel = s.outlineSelected ? ux.selected.length ? ux.selected : ux.geometryEdit ? [ux.geometryEdit] : ux.assetUsers : []
         sel.forEach((o, i) => {
             // parts: the children one level down, the ones a double-click would select
             const L = ux.levels(o)
@@ -145,7 +148,8 @@ export class SelectionOutlinePlugin extends AScreenPassExtensionPlugin {
             })
         })
         const hover = s.outlineHover ? ux.externalHover || ux.hovered : null
-        if (hover && !(ux.selected.includes(hover) && s.outlineSelected)) hover.traverseVisible(m => {
+        const hovers = s.outlineHover ? [...hover ? [hover] : [], ...ux.externalHoverList] : []
+        for (const h of hovers) if (!(ux.selected.includes(h) && s.outlineSelected)) h.traverseVisible(m => {
             if (!(m as IObject3D).geometry || !(m as any).isMesh) return
             const v = items.get(m)
             if (v) v.z = 1
@@ -156,7 +160,7 @@ export class SelectionOutlinePlugin extends AScreenPassExtensionPlugin {
 
     private _active(ux: SelectionUxPlugin) {
         const s = ux.settings
-        return !this.isDisabled() && s.visual !== 'legacy' && (s.outlineSelected || s.outlineHover)
+        return !this.isDisabled() && ux.enabled && s.visual !== 'legacy' && (s.outlineSelected || s.outlineHover)
     }
 
     private _preRender = () => {
@@ -164,10 +168,10 @@ export class SelectionOutlinePlugin extends AScreenPassExtensionPlugin {
         if (!ux || !this._target || !this._viewer) return
         const s = ux.settings
         const u = this.extraUniforms
-        const active = this._active(ux) && (ux.selected.length > 0 || !!ux.geometryEdit || !!(ux.externalHover || ux.hovered))
+        const active = this._active(ux) && (ux.selected.length > 0 || !!ux.geometryEdit || !!(ux.externalHover || ux.hovered) || ux.externalHoverList.length > 0 || ux.assetUsers.length > 0)
         if (this._pass) this._pass.enabled = active
         u.suxActive.value = active ? 1 : 0
-        u.suxHasSel.value = s.outlineSelected && (ux.selected.length || ux.geometryEdit) ? 1 : 0
+        u.suxHasSel.value = s.outlineSelected && (ux.selected.length || ux.geometryEdit || ux.assetUsers.length) ? 1 : 0
         u.tSuxMask.value = this._target.texture
         u.suxMaskSize.value.set(this._target.width, this._target.height)
         u.suxSelColor.value.set(s.accent)

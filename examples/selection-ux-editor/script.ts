@@ -5,8 +5,11 @@ import {ThreeEditor} from '../tweakpane-editor/ThreeEditor'
 import {SelectionUxPlugin} from '../selection-ux-playground/SelectionUxPlugin'
 import {SelectionOutlinePlugin} from '../selection-ux-playground/SelectionOutlinePlugin'
 import {LayersPanelPlugin} from '../selection-ux-playground/LayersPanelPlugin'
-import {applyModeFromUrl, setupHints, setupModeMenu, setupSidePanel} from '../selection-ux-playground/ui'
+import {NotesPlugin} from '../selection-ux-playground/NotesPlugin'
+import {applyModeFromUrl, setupHints, setupModeMenu, setupSidePanel, modeContext} from '../selection-ux-playground/ui'
 import {buildExtras, buildScene} from '../selection-ux-playground/scene'
+import {EditorToolbarPlugin} from '../selection-ux-playground/EditorToolbarPlugin'
+import {showReport, showReportIfNew} from '../selection-ux-playground/report'
 
 // The tweakpane editor with the new selection UX: SelectionUxPlugin + the pipeline outline instead of OutlinePlugin,
 // and LayersPanelPlugin instead of the treejs HierarchyUiPlugin.
@@ -34,15 +37,22 @@ async function init() {
 
     const ux = viewer.getPlugin(SelectionUxPlugin)!
     const tc = viewer.getPlugin(TransformControlsPlugin)
-    if (tc) tc.enabled = false // the selection UX moves things; the gizmo can be turned on in Settings
+    if (tc) tc.enabled = false // the selection UX moves things; the toolbar turns the gizmo on (W/E/R)
 
     const hemiLight = viewer.scene.addObject(new HemisphereLight(0xffffff, 0x444444, 5), {addToRoot: true})
     hemiLight.name = 'Hemisphere Light'
 
     const layers = viewer.addPluginSync(new LayersPanelPlugin('light'))
-    setupSidePanel(viewer.container, layers, ux, 'sux-side-pos-editor')
+    const notes = viewer.addPluginSync(new NotesPlugin({pageKey: 'selection-ux-playground-notes', syncUrl: '/api/notes', contextProvider: modeContext(ux)}))
+    setupSidePanel(viewer.container, layers, notes, 'sux-side-pos-editor')
     applyModeFromUrl(ux)
-    setupModeMenu(viewer.container, viewer, ux, {links: [['Open the playground ↗', '../selection-ux-playground/index.html']]})
+    const toolbar = viewer.addPluginSync(new EditorToolbarPlugin({
+        grid: true,
+        expandHides: () => [document.querySelector<HTMLElement>('.sux-side')!, document.getElementById('tweakpaneUiContainer')!],
+        extra: [[REPORT_ICON, 'Report: what changed and what to try', () => showReport()]],
+    }))
+    viewer.container.appendChild(toolbar.element)
+    setupModeMenu(viewer.container, viewer, ux, {buttonHost: toolbar.slot, links: [['Open the playground ↗', '../selection-ux-playground/index.html']]})
     setupHints(viewer.container, ux)
     Object.assign(window, {viewer, ux})
 
@@ -51,8 +61,11 @@ async function init() {
     viewer.scene.mainCamera.position.set(7, 7, 11)
     viewer.scene.mainCamera.target.set(0, 0.8, 0)
     viewer.scene.mainCamera.setDirty()
+    showReportIfNew()
     await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
 }
+
+const REPORT_ICON = '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"><path d="M4 1.5h5.5L12.5 4.5v10H4z"/><path d="M6 7.5h4.5M6 10h4.5M6 12.5h3"/></svg>'
 
 _testStart()
 init().finally(_testFinish)

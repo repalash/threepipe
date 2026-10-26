@@ -3,6 +3,13 @@ import {SelectionUxPlugin} from './SelectionUxPlugin'
 
 interface FlatRow {o: IObject3D, depth: number, kids: number, open: boolean, hidden: boolean, locked: boolean}
 
+export type LayersTab = 'objects' | 'materials' | 'textures' | 'geometries'
+/** A material, texture or geometry and the objects in the scene that use it; `user` rows list those objects */
+type AssetRow = {kind: 'asset', a: any, users: IObject3D[], open: boolean} | {kind: 'user', o: IObject3D, a: any}
+type MenuItem = [string, string, (() => void) | null]
+
+const TABS: [LayersTab, string][] = [['objects', 'Objects'], ['materials', 'Materials'], ['textures', 'Textures'], ['geometries', 'Geometries']]
+
 const ROW = 28
 
 /**
@@ -15,6 +22,8 @@ const ROW = 28
  * - Right-click for actions. Search filters by name. Alt+click on the arrow opens or closes all levels.
  * - The lock button in the header locks all editing (view-only), here and in the viewport.
  * - Virtual list: only the rows in view are in the DOM, so large scenes stay fast.
+ * - Tabs for materials, textures and geometries: swatch / thumbnail / size, how many objects use each (open to list
+ *   them, hover to highlight them), click selects it in PickingPlugin, double-click a geometry to edit it.
  *
  * Mount {@link element} anywhere. {@link makeMovable} lets the header drag a floating container.
  */
@@ -40,6 +49,11 @@ export class LayersPanelPlugin extends AViewerPluginSync {
     private _dragged: IObject3D[] = []
     private _filter = ''
     private _total = 0
+    private _tab: LayersTab = 'objects'
+    private _tabsEl!: HTMLDivElement
+    private _assetRows: AssetRow[] = []
+    private _expandedAssets = new Set<any>()
+    private _thumbs = new WeakMap<object, string>()
 
     constructor(theme: 'light' | 'dark' = 'light') {
         super()
@@ -51,13 +65,16 @@ export class LayersPanelPlugin extends AViewerPluginSync {
   <span class="lp-title">Layers <span class="lp-count"></span></span>
   <button class="lp-icon-btn lp-edit-lock" title="Lock editing (view only)">${ICONS.unlock}</button>
 </div>
-<div class="lp-search">${ICONS.search}<input placeholder="Search layers"></div>
+<div class="lp-search">${ICONS.search}<input placeholder="Search"></div>
+<div class="lp-tabs">${TABS.map(([t, l]) => `<button data-tab="${t}">${l}<span></span></button>`).join('')}</div>
 <div class="lp-list" tabindex="0" data-own-arrows><div class="lp-spacer"></div></div>`
         this._list = this.element.querySelector('.lp-list')!
         this._spacer = this.element.querySelector('.lp-spacer')!
         this._count = this.element.querySelector('.lp-count')!
         this._search = this.element.querySelector('.lp-search input')!
         this._lockBtn = this.element.querySelector('.lp-edit-lock')!
+        this._tabsEl = this.element.querySelector('.lp-tabs')!
+        this._tabsEl.querySelectorAll<HTMLButtonElement>('button').forEach(b => b.addEventListener('click', () => this.setTab(b.dataset.tab as LayersTab)))
         this._search.addEventListener('input', () => {
             this._filter = this._search.value.trim().toLowerCase()
             this.refresh(true)
@@ -134,6 +151,12 @@ export class LayersPanelPlugin extends AViewerPluginSync {
         else if (e.reason === 'settings') this.refresh()
     }
 
+    setTab(tab: LayersTab) {
+        this._tab = tab
+        this._list.scrollTop = 0
+        this.refresh(true)
+    }
+
     /** Redraw the rows in view. `structure` also rebuilds the flat list (hierarchy, expand, filter, visibility). */
     refresh = (structure = false) => {
         if (structure) this._structureDirty = true
@@ -143,7 +166,18 @@ export class LayersPanelPlugin extends AViewerPluginSync {
             this._queued = false
             if (this._renaming) return
             if (this._structureDirty) this._buildFlat()
-            this._render()
+            this._renderTabs()
+            if (this._tab === 'objects') this._render()
+            else this._renderAssets()
+        })
+    }
+
+    private _renderTabs() {
+        const counts: Record<LayersTab, number> = {objects: this._total, materials: this._collect('materials').length, textures: this._collect('textures').length, geometries: this._collect('geometries').length}
+        this._tabsEl.querySelectorAll<HTMLButtonElement>('button').forEach(b => {
+            const t = b.dataset.tab as LayersTab
+            b.classList.toggle('on', t === this._tab)
+            b.querySelector('span')!.textContent = counts[t] ? ' ' + counts[t].toLocaleString() : ''
         })
     }
 
@@ -283,6 +317,186 @@ export class LayersPanelPlugin extends AViewerPluginSync {
         return row
     }
 
+    // region asset tabs
+
+    private _inScene(o: any) {
+        const root = this._viewer?.scene.modelRoot
+        let p = o
+        while (p) {
+            if (p === root) return true
+            p = p.parent
+        }
+        return false
+    }
+
+    /** The materials / textures / geometries used in the scene, each with the objects that use it */
+    private _collect(tab: LayersTab): {a: any, users: IObject3D[]}[] {
+        const om = (this._viewer as any)?.object3dManager
+        if (!om || tab === 'objects') return []
+        const meshes = (a: any) => [...a?.appliedMeshes ?? []].filter(m => this._inScene(m)) as IObject3D[]
+        if (tab === 'materials') return (om.getMaterials() as any[]).map(a => ({a, users: meshes(a)})).filter(x => x.users.length)
+        if (tab === 'geometries') return (om.getGeometries() as any[]).map(a => ({a, users: meshes(a)})).filter(x => x.users.length)
+        return (om.getTextures() as any[]).map(t => {
+            const users = new Set<IObject3D>()
+            let scene = false
+            t.appliedObjects?.forEach((o: any) => {
+                if (o.isMaterial) meshes(o).forEach(m => users.add(m))
+                else if (o.isScene) scene = true
+                else if (o.isObject3D && this._inScene(o)) users.add(o)
+            })
+            return {a: t, users: [...users], scene}
+        }).filter(x => x.users.length || x.scene)
+    }
+
+    private _assetName(a: any) {
+        return a.name || (a.isTexture ? 'Texture' : a.isMaterial ? a.type : 'Geometry') + ' ' + String(a.uuid).slice(0, 4)
+    }
+
+    private _buildAssets() {
+        const list = this._collect(this._tab).filter(x => !this._filter || this._assetName(x.a).toLowerCase().includes(this._filter))
+        this._assetRows = []
+        for (const x of list) {
+            const open = this._expandedAssets.has(x.a)
+            this._assetRows.push({kind: 'asset', a: x.a, users: x.users, open})
+            if (open) for (const o of x.users) this._assetRows.push({kind: 'user', o, a: x.a})
+        }
+    }
+
+    private _renderAssets() {
+        this._buildAssets()
+        const picked = this._picking?.getSelectedObject() as any
+        const selObjs = new Set(this._selected())
+        const rows = this._assetRows
+        this._spacer.style.height = rows.length * ROW + 'px'
+        const first = Math.max(0, Math.floor(this._list.scrollTop / ROW) - 8)
+        const last = Math.min(rows.length, Math.ceil((this._list.scrollTop + this._list.clientHeight) / ROW) + 8)
+        this._spacer.innerHTML = ''
+        this._rows.clear()
+        for (let i = first; i < last; i++) {
+            const r = rows[i]
+            const row = r.kind === 'asset' ? this._assetRow(r, picked === r.a, r.users.some(u => selObjs.has(u))) : this._userRow(r, selObjs.has(r.o))
+            row.style.top = i * ROW + 'px'
+            this._spacer.appendChild(row)
+            if (r.kind === 'user') this._rows.set(r.o, row)
+        }
+        if (!rows.length) {
+            const empty = document.createElement('div')
+            empty.className = 'lp-empty'
+            empty.textContent = this._filter ? 'Nothing matches' : `No ${this._tab} in the scene`
+            this._spacer.appendChild(empty)
+        }
+        this._updateHover()
+    }
+
+    private _thumb(t: any) {
+        const cached = this._thumbs.get(t)
+        if (cached !== undefined) return cached
+        let url = ''
+        const img = t.image
+        try {
+            if (img && img.width && (img instanceof HTMLImageElement || img instanceof HTMLCanvasElement || typeof ImageBitmap !== 'undefined' && img instanceof ImageBitmap)) {
+                const c = document.createElement('canvas')
+                c.width = c.height = 36
+                c.getContext('2d')!.drawImage(img, 0, 0, 36, 36)
+                url = c.toDataURL()
+            }
+        } catch (e) {
+            url = ''
+        }
+        this._thumbs.set(t, url)
+        return url
+    }
+
+    private _assetRow(r: Extract<AssetRow, {kind: 'asset'}>, isSel: boolean, usedBySel: boolean) {
+        const a = r.a
+        const row = document.createElement('div')
+        row.className = 'lp-row' + (isSel ? ' lp-sel' : usedBySel ? ' lp-sel-parent' : '')
+        row.style.paddingLeft = '2px'
+        let icon = ICONS.mesh
+        let meta = `${r.users.length} obj`
+        if (a.isMaterial) {
+            const c = a.color?.getHexString?.()
+            icon = `<span class="lp-swatch" style="background:${c ? '#' + c : '#ccc'}"></span>`
+        } else if (a.isTexture) {
+            const th = this._thumb(a)
+            icon = th ? `<img class="lp-thumb" src="${th}" alt="">` : ICONS.texture
+            const w = a.image?.width, h = a.image?.height
+            meta = (w ? `${w}×${h} · ` : '') + (r.users.length ? `${r.users.length} obj` : 'scene')
+        } else if (a.isBufferGeometry) {
+            const n = a.attributes?.position?.count ?? 0
+            const gen = a.userData?.generationParams?.type
+            icon = ICONS.geometry
+            meta = `${gen ? gen + ' · ' : ''}${n >= 1000 ? (n / 1000).toFixed(1) + 'k' : n} v · ${r.users.length} obj`
+        }
+        row.innerHTML = `<span class="lp-caret ${r.users.length ? '' : 'lp-none'}">${r.users.length ? r.open ? ICONS.down : ICONS.right : ''}</span>` +
+            `<span class="lp-type">${icon}</span><span class="lp-name"></span><span class="lp-meta"></span>`
+        row.querySelector('.lp-name')!.textContent = this._assetName(a)
+        row.querySelector('.lp-meta')!.textContent = meta
+        const caret = row.querySelector('.lp-caret')!
+        caret.addEventListener('pointerdown', e => e.stopPropagation())
+        caret.addEventListener('click', e => {
+            e.stopPropagation()
+            if (this._expandedAssets.has(a)) this._expandedAssets.delete(a)
+            else this._expandedAssets.add(a)
+            this.refresh()
+        })
+        row.addEventListener('click', () => {
+            this._list.focus({preventScroll: true})
+            this._picking?.picker?.setSelected(a, true)
+        })
+        row.addEventListener('dblclick', () => {
+            const ux = this._ux()
+            if (a.isBufferGeometry && r.users.length === 1 && ux) ux.enterGeometryEdit(r.users[0])
+            else this._select(r.users)
+        })
+        row.querySelector('.lp-name')!.addEventListener('dblclick', e => {
+            if (a.isBufferGeometry) return
+            e.stopPropagation()
+            if (!this._locked) this._rename(a, row)
+        })
+        row.addEventListener('pointerenter', () => this._ux()?.setExternalHoverList(r.users))
+        row.addEventListener('pointerleave', () => this._ux()?.setExternalHoverList([]))
+        row.addEventListener('contextmenu', e => {
+            e.preventDefault()
+            this._openAssetMenu(r, row, e.clientX, e.clientY)
+        })
+        return row
+    }
+
+    private _userRow(r: Extract<AssetRow, {kind: 'user'}>, isSel: boolean) {
+        const o = r.o
+        const row = document.createElement('div')
+        row.className = 'lp-row lp-user' + (isSel ? ' lp-sel' : '')
+        row.style.paddingLeft = '24px'
+        row.innerHTML = `<span class="lp-type">${o.isLight ? ICONS.light : o.isCamera ? ICONS.camera : ICONS.mesh}</span><span class="lp-name"></span>`
+        row.querySelector('.lp-name')!.textContent = o.name || o.type
+        row.addEventListener('click', e => this._clickRow(o, e))
+        row.addEventListener('pointerenter', () => {
+            const ux = this._ux()
+            if (ux) ux.externalHover = o
+        })
+        row.addEventListener('pointerleave', () => {
+            const ux = this._ux()
+            if (ux && ux.externalHover === o) ux.externalHover = null
+        })
+        return row
+    }
+
+    private _openAssetMenu(r: Extract<AssetRow, {kind: 'asset'}>, row: HTMLDivElement, x: number, y: number) {
+        const a = r.a
+        const ux = this._ux()
+        const items: MenuItem[] = [
+            [`Select the objects using it (${r.users.length})`, '', r.users.length ? () => this._select(r.users) : null],
+            ['Zoom to the objects', '', r.users.length ? () => void this._viewer?.fitToView(r.users, 1.25, 800, 'easeOut') : null],
+        ]
+        if (a.isBufferGeometry) items.push(['Edit geometry', 'Double-click', ux && r.users.length === 1 && !this._locked ? () => ux.enterGeometryEdit(r.users[0]) : null])
+        else items.push(['Rename', 'Double-click name', this._locked ? null : () => this._rename(a, row)])
+        this._showMenu(x, y, items)
+    }
+
+    // endregion
+
+
     private _toggleOpen(o: IObject3D, all: boolean) {
         const open = !this._expanded.has(o)
         const set = (x: IObject3D) => {
@@ -324,6 +538,16 @@ export class LayersPanelPlugin extends AViewerPluginSync {
         if (!e.code.startsWith('Arrow')) return
         e.preventDefault()
         e.stopPropagation()
+        if (this._tab !== 'objects') {
+            if (e.code !== 'ArrowDown' && e.code !== 'ArrowUp') return
+            const picked = this._picking?.getSelectedObject() as any
+            const sel = this._selected()
+            const i = this._assetRows.findIndex(r => r.kind === 'asset' ? r.a === picked : sel.includes(r.o))
+            const t = this._assetRows[Math.max(0, Math.min(this._assetRows.length - 1, i + (e.code === 'ArrowDown' ? 1 : -1)))]
+            if (t?.kind === 'asset') this._picking?.picker?.setSelected(t.a, true)
+            else if (t) this._select([t.o])
+            return
+        }
         if (this._structureDirty) this._buildFlat()
         const sel = this._selected()
         const i = sel.length ? this._index.get(sel[0]) ?? -1 : -1
@@ -376,7 +600,7 @@ export class LayersPanelPlugin extends AViewerPluginSync {
         this._record(() => apply(before), () => apply(targets.map(() => v)))
     }
 
-    private _rename(o: IObject3D, row: HTMLDivElement) {
+    private _rename(o: {name: string, setDirty?: (...a: any[]) => any}, row: HTMLDivElement) {
         const nameEl = row.querySelector('.lp-name')!
         const input = document.createElement('input')
         input.className = 'lp-rename'
@@ -563,7 +787,7 @@ export class LayersPanelPlugin extends AViewerPluginSync {
         const locked = this._locked
         const sel = this._selected()
         const isGroup = sel.some(s => !s.geometry && this._kids(s).length)
-        const items: [string, string, (() => void) | null][] = [
+        const items: MenuItem[] = [
             ['Zoom to', 'F', () => picking?.focusSelected()],
             ['Rename', 'Double-click', locked ? null : () => {
                 const row = this._rows.get(o)
@@ -574,8 +798,31 @@ export class LayersPanelPlugin extends AViewerPluginSync {
             ['Ungroup', 'Ctrl+Shift+G', locked || !ux || !isGroup ? null : () => ux.ungroupSelected()],
             [o.visible ? 'Hide' : 'Show', 'H', () => this._toggle(o, 'visible')],
             [o.userData.locked ? 'Unlock' : 'Lock', '', locked ? null : () => this._toggle(o, 'locked')],
+            ['Move up', '', locked ? null : () => this._moveInParent(o, -1)],
+            ['Move down', '', locked ? null : () => this._moveInParent(o, 1)],
             ['Delete', 'Delete', locked ? null : async() => picking?.deleteSelected()],
         ]
+        this._showMenu(x, y, items)
+    }
+
+    /** Move one step up or down among its siblings (undoable) */
+    private _moveInParent(o: IObject3D, d: number) {
+        const p = o.parent
+        if (!p) return
+        const from = p.children.indexOf(o)
+        const to = Math.max(0, Math.min(p.children.length - 1, from + d))
+        if (from === to) return
+        const place = (i: number) => {
+            p.children.splice(p.children.indexOf(o), 1)
+            p.children.splice(i, 0, o)
+            this._changed()
+        }
+        place(to)
+        this._record(() => place(from), () => place(to))
+    }
+
+    private _showMenu(x: number, y: number, items: MenuItem[]) {
+        this._closeMenu()
         const m = document.createElement('div')
         m.className = 'lp-menu'
         for (const [label, key, fn] of items) {
@@ -609,6 +856,8 @@ const ICONS = {
     lock: svg('<rect x="3.5" y="7" width="9" height="6.5" rx="1"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/>'),
     unlock: svg('<rect x="3.5" y="7" width="9" height="6.5" rx="1"/><path d="M5.5 7V5a2.5 2.5 0 0 1 4.9-.7"/>'),
     search: svg('<circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/>'),
+    texture: svg('<rect x="2.5" y="2.5" width="11" height="11" rx="1.5"/><path d="M2.5 10.5l3-3 3 3 2-2 3 3"/><circle cx="10.5" cy="5.5" r="1"/>'),
+    geometry: svg('<path d="M8 2l5 3v6l-5 3-5-3V5z"/><path d="M3 5l5 3 5-3M8 8v6M5.5 3.5l5 9M10.5 3.5l-5 9" opacity=".5"/>'),
     right: '<svg viewBox="0 0 16 16" width="10" height="10"><path d="M6 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>',
     down: '<svg viewBox="0 0 16 16" width="10" height="10"><path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>',
 }
@@ -636,6 +885,15 @@ function injectStyles() {
 .lp-count { font-weight: 400; color: var(--lp-dim); margin-left: 4px; }
 .lp-search { display: flex; align-items: center; gap: 6px; margin: 0 8px 6px; padding: 0 8px; height: 26px; border-radius: 5px; background: var(--lp-input); color: var(--lp-dim); }
 .lp-search input { flex: 1; min-width: 0; border: 0; outline: none; background: transparent; color: var(--lp-fg); font: inherit; }
+.lp-tabs { display: flex; gap: 2px; margin: 0 8px 6px; overflow-x: auto; scrollbar-width: none; }
+.lp-tabs button { border: 0; background: transparent; color: var(--lp-dim); padding: 5px 6px; border-radius: 5px; font: inherit; cursor: pointer; white-space: nowrap; }
+.lp-tabs button:hover { color: var(--lp-fg); background: var(--lp-hover); }
+.lp-tabs button.on { color: var(--lp-fg); background: var(--lp-input); font-weight: 600; }
+.lp-tabs button span { font-weight: 400; color: var(--lp-dim); }
+.lp-swatch { width: 12px; height: 12px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(0,0,0,.2); display: inline-block; }
+.lp-thumb { width: 16px; height: 16px; border-radius: 3px; object-fit: cover; box-shadow: 0 0 0 1px rgba(0,0,0,.15); }
+.lp-meta { color: var(--lp-dim); font-size: 10px; padding: 0 6px; white-space: nowrap; flex: none; }
+.lp-row.lp-user .lp-name { color: var(--lp-dim); }
 .lp-list { flex: 1; overflow: auto; outline: none; padding-bottom: 8px; position: relative; }
 .lp-spacer { position: relative; }
 .lp-row { position: absolute; left: 0; right: 0; display: flex; align-items: center; height: ${ROW}px; padding-right: 4px; gap: 0; cursor: default; white-space: nowrap; box-sizing: border-box; }

@@ -2,15 +2,15 @@ import {BoxGeometry, CatmullRomCurve3, CubicBezierCurve3, CylinderGeometry, Geom
 
 /** A small jewellery scene with nested groups, to try the selection rules on */
 export function buildScene(viewer: ThreeViewer) {
-    const gold = new PhysicalMaterial({color: '#e8c372', metalness: 1, roughness: 0.22})
-    const white = new PhysicalMaterial({color: '#dfe3e8', metalness: 1, roughness: 0.18})
-    const gem = new PhysicalMaterial({color: '#a9dcff', metalness: 0.2, roughness: 0.04})
-    const ruby = new PhysicalMaterial({color: '#d2304f', metalness: 0.2, roughness: 0.05})
-    const pearl = new PhysicalMaterial({color: '#f4efe6', metalness: 0, roughness: 0.32})
-    const paper = new PhysicalMaterial({color: '#e25c5c', metalness: 0, roughness: 0.6})
-    const ribbon = new PhysicalMaterial({color: '#f2c94c', metalness: 0.1, roughness: 0.45})
-    const leather = new PhysicalMaterial({color: '#5b4636', metalness: 0, roughness: 0.7})
-    const plaster = new PhysicalMaterial({color: '#fafafa', metalness: 0, roughness: 0.8})
+    const gold = new PhysicalMaterial({name: 'Yellow Gold', color: '#e8c372', metalness: 1, roughness: 0.22})
+    const white = new PhysicalMaterial({name: 'White Gold', color: '#dfe3e8', metalness: 1, roughness: 0.18})
+    const gem = new PhysicalMaterial({name: 'Diamond', color: '#a9dcff', metalness: 0.2, roughness: 0.04})
+    const ruby = new PhysicalMaterial({name: 'Ruby', color: '#d2304f', metalness: 0.2, roughness: 0.05})
+    const pearl = new PhysicalMaterial({name: 'Pearl', color: '#f4efe6', metalness: 0, roughness: 0.32})
+    const paper = new PhysicalMaterial({name: 'Gift Paper', color: '#e25c5c', metalness: 0, roughness: 0.6})
+    const ribbon = new PhysicalMaterial({name: 'Ribbon', color: '#f2c94c', metalness: 0.1, roughness: 0.45})
+    const leather = new PhysicalMaterial({name: 'Leather', color: '#5b4636', metalness: 0, roughness: 0.7})
+    const plaster = new PhysicalMaterial({name: 'Plaster', color: '#fafafa', metalness: 0, roughness: 0.8})
 
     const mesh = (name: string, g: any, m: PhysicalMaterial, p: [number, number, number] = [0, 0, 0], r?: [number, number, number]) => {
         const o = new Mesh(g, m)
@@ -115,14 +115,14 @@ export function buildExtras(viewer: ThreeViewer) {
     }
     if (geoGen) {
         const shapes = group('Generated Shapes', 8, 0)
-        const mat = (c: string) => new PhysicalMaterial({color: c, metalness: 0.6, roughness: 0.3})
-        const torus = geoGen.generateObject('torus', {radius: 0.7, tube: 0.2, radialSegments: 24, tubularSegments: 64, material: mat('#e8c372')})
+        const mat = (c: string, name: string) => new PhysicalMaterial({name, color: c, metalness: 0.6, roughness: 0.3})
+        const torus = geoGen.generateObject('torus', {radius: 0.7, tube: 0.2, radialSegments: 24, tubularSegments: 64, material: mat('#e8c372', 'Brushed Gold')})
         torus.name = 'Torus'
         torus.position.set(0, 0.9, -2.5)
-        const box = geoGen.generateObject('box', {width: 1.2, height: 0.8, depth: 1.2, material: mat('#7aa7e8')})
+        const box = geoGen.generateObject('box', {width: 1.2, height: 0.8, depth: 1.2, material: mat('#7aa7e8', 'Blue Metal')})
         box.name = 'Box'
         box.position.set(0, 0.4, 0)
-        const cyl = geoGen.generateObject('cylinder', {radiusTop: 0.4, radiusBottom: 0.6, height: 1.4, material: mat('#c58ae8')})
+        const cyl = geoGen.generateObject('cylinder', {radiusTop: 0.4, radiusBottom: 0.6, height: 1.4, material: mat('#c58ae8', 'Violet Metal')})
         cyl.name = 'Cylinder'
         cyl.position.set(0, 0.7, 2.5)
         shapes.add(torus, box, cyl)

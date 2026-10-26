@@ -16,6 +16,7 @@ import {
     Quaternion,
     Raycaster,
     ThreeViewer,
+    TransformControlsPlugin,
     UndoManagerPlugin,
     Vector2,
     Vector3,
@@ -27,6 +28,9 @@ import {
  * It replaces the click/drag handling of PickingPlugin (PickingPlugin still owns the selection state, undo and the
  * clipboard/delete/hide hotkeys) and draws the selection as a crisp screen-space SVG overlay with handles.
  */
+
+/** Live media query, read every frame */
+const coarsePointer = matchMedia('(pointer: coarse)')
 
 export type SelVisual = 'figma2d' | 'box3d' | 'brackets' | 'hybrid' | 'minimal' | 'legacy'
 
@@ -329,6 +333,27 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
 
     /** Object highlighted from outside, e.g. a hovered row in a layers panel */
     externalHover: IObject3D | null = null
+    /** Several objects highlighted from outside, e.g. the users of a hovered material row */
+    externalHoverList: IObject3D[] = []
+
+    setExternalHoverList(list: IObject3D[]) {
+        this.externalHoverList = list
+        this._emit('hover')
+        this._viewer?.setDirty()
+    }
+
+    /**
+     * When the selection is a material, geometry or texture (e.g. from a layers tab): the objects in the scene that use it
+     */
+    get assetUsers(): IObject3D[] {
+        const v = this._picking?.picker?.selectedObject as any
+        if (!v || v.isObject3D) return []
+        const meshes = new Set<IObject3D>()
+        const addMeshes = (a: any) => a?.appliedMeshes?.forEach((m: IObject3D) => meshes.add(m))
+        if (v.isMaterial || v.isBufferGeometry) addMeshes(v)
+        else if (v.isTexture) v.appliedObjects?.forEach((o: any) => o.isMaterial ? addMeshes(o) : o.isObject3D && meshes.add(o))
+        return [...meshes].filter(m => this.levels(m).length && m.visible)
+    }
 
     /** View-only mode: selection works, nothing can be moved, scaled, grouped or deleted */
     editingLocked = false
@@ -464,7 +489,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
 
     /** The hint line for the bottom of the viewport (HTML), from {@link hintProvider} or the built-in text */
     getHint(): string {
-        if (!this.settings.showHints) return ''
+        if (!this.settings.showHints || !this.enabled) return ''
         if (this.hintProvider) return this.hintProvider(this)
         const st = this.settings
         const k = (s: string) => `<kbd>${s}</kbd>`
@@ -871,6 +896,9 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
             }
         }
         if (target !== this._viewer!.canvas) return
+        // the transform gizmo (TransformControlsPlugin) gets the press when the pointer is on one of its axes
+        const tc = this._viewer!.getPlugin(TransformControlsPlugin)
+        if (tc && !tc.isDisabled() && (tc.transformControls as any)?.axis) return
         if (e.button !== 0) return
         const navigate = this._keys.space || this.settings.emptyDrag === 'marquee' && e.altKey
         if (navigate) return // orbit with the camera controls
@@ -1004,16 +1032,10 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         if (this.settings.smartGuides) {
             const candidates = new Set<IObject3D>([...this._contentChildren(this._modelRoot), ...this.scopeObjects()])
             for (const o of candidates) {
+                // skip o when it is (or contains) a selected object
                 let related = false
                 for (const so of sel) {
-                    let a: IObject3D | null = so
-                    while (a) {
-                        if (a === o) related = true
-                        a = a.parent as IObject3D | null
-                    }
-                    o.traverse(c => {
-                        if (c === so) related = true
-                    })
+                    for (let a: IObject3D | null = so; a && !related; a = a.parent as IObject3D | null) related = a === o
                 }
                 if (related || selSet.has(o) || !o.visible) continue
                 const b = this.worldBox([o])
@@ -1249,7 +1271,8 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         if (!hp) return
         const delta = hp.sub(s.hitPoint).add(s.baseDelta)
         // keep grazing-angle drags from shooting to the horizon
-        const maxD = Math.max(s.startBox.getSize(new Vector3()).length(), 1e-3) * 50
+        // lights and empties have no size: use what 2000 px are worth there
+        const maxD = Math.max(s.startBox.getSize(new Vector3()).length() * 50, this._worldPerPixel(s.hitPoint) * 2000)
         if (delta.length() > maxD) delta.setLength(maxD)
         if (this._keys.shift) {
             const na = this._normalAxis(s.planeKind)
@@ -1606,7 +1629,14 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
 
     private _updateHover() {
         let h: IObject3D | null = null
-        if (this._pointerInside && this.settings.hover) {
+        // over an overlay handle: an icon hovers its object, other handles hover nothing (no ray through them)
+        const {left, top} = this._size()
+        const el = this._pointerInside ? document.elementFromPoint(this._pointer.x + left, this._pointer.y + top) : null
+        const hk = el?.getAttribute?.('data-sux')
+        if (hk || el && el !== this._viewer!.canvas) {
+            const d = hk ? this._handleMap.get(hk) : undefined
+            h = d?.kind === 'icon' ? d.obj : null
+        } else if (this._pointerInside && this.settings.hover) {
             const hit = this.raycastLeaf(this._pointer.x, this._pointer.y)
             const tgt = hit ? this.resolveTarget(hit.leaf, this._keys.ctrl, false) : null
             h = tgt
@@ -1666,6 +1696,9 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
 
         const hover = this.externalHover || this._hover
         if (hover && st.hover && !st.outlineHover && !sel.includes(hover) && !dragging) this._drawOutline('hover', [hover], 1, 1)
+        if (!st.outlineHover) this.externalHoverList.forEach((o, i) => this._drawOutline('hl' + i, [o], 1, 0.9))
+        // a selected material/geometry/texture: show the objects that use it
+        if (!sel.length && !this.geometryEdit && !st.outlineSelected) this.assetUsers.forEach((o, i) => this._drawOutline('au' + i, [o], 1.5, 0.8))
         if (st.objectHelpers !== 'widgets') this._drawSpecialObjects(sel, hover)
         if (this.geometryEdit) this._drawGeometryEdit(this.geometryEdit)
         else {
@@ -1701,7 +1734,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         const size = box.getSize(new Vector3())
         const c = box.getCenter(new Vector3())
         const base = new Vector3(c.x, box.min.y, c.z)
-        const ext = Math.max(size.x, size.z, size.y * 0.5) * 1.6 || 1
+        const ext = Math.max(size.x, size.z, size.y * 0.5, this._worldPerPixel(c) * 60) * 1.6
         const step = Math.pow(10, Math.floor(Math.log10(ext / 2)))
         const n = Math.ceil(ext / step)
         const seg = (a: Vector3, b: Vector3) => {
@@ -2141,7 +2174,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         const sc = info.corners.map(c => this.toScreen(c))
         const front = this._frontFaces(info)
         const accent = 'var(--sux-accent)'
-        const handleSize = matchMedia('(pointer: coarse)').matches ? 12 : 8
+        const handleSize = coarsePointer.matches ? 12 : 8
         const hs = handleSize / 2
         const showHandles = (!dragging || this._state?.kind !== 'move') && this.canEdit
 
