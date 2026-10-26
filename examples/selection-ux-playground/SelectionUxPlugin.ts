@@ -438,7 +438,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         const i = L.findIndex(l => l.includes(sel[0]))
         const hasKids = !!L[i] && L[i][L[i].length - 1].children.length > 0 && !sel[0].geometry
         return [
-            st.dragMove === 'off' ? '' : `Drag to move (${k('Tab')} while dragging changes the plane)`,
+            st.dragMove === 'off' ? '' : 'Drag to move',
             'Corners scale',
             st.rotate === 'corners' ? 'Just outside a corner rotates' : st.rotate === 'knob' ? 'Knob rotates' : st.rotate === 'ring' ? 'Ring turns it' : '',
             hasKids ? 'Double-click to go inside' : '',
