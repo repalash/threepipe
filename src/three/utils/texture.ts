@@ -1,15 +1,40 @@
 import {
+    AlphaFormat,
+    AnyPixelFormat,
     DataTexture,
     DataUtils,
+    DepthFormat,
+    DepthStencilFormat,
     FloatType,
     HalfFloatType,
     LinearSRGBColorSpace,
+    PixelFormat,
+    RedFormat,
+    RedIntegerFormat,
+    RGBAFormat,
+    RGBAIntegerFormat,
+    RGBFormat,
+    RGBIntegerFormat,
+    RGFormat,
+    RGIntegerFormat,
     Texture, TextureImageData,
     TextureDataType,
     UnsignedByteType,
     WebGLRenderer,
 } from 'three'
 import {canvasFlipY, LinearToSRGB} from 'ts-browser-helpers'
+
+// mirrors the `PixelFormat` union in the three.js types (r177), update together
+const pixelFormats = new Set<AnyPixelFormat>([AlphaFormat, RGBFormat, RGBAFormat, DepthFormat, DepthStencilFormat, RedFormat, RedIntegerFormat, RGFormat, RGIntegerFormat, RGBIntegerFormat, RGBAIntegerFormat])
+
+/**
+ * Check if a texture format is an uncompressed {@link PixelFormat}, the formats a render target can be created with (since three r177 `RenderTargetOptions.format` is a `PixelFormat`).
+ * Compressed formats (like from KTX2, DDS files) return false.
+ * @param format
+ */
+export function isPixelFormat(format: AnyPixelFormat): format is PixelFormat {
+    return pixelFormats.has(format)
+}
 
 export function getTextureDataType(renderer?: WebGLRenderer): TextureDataType {
     if (!renderer) return UnsignedByteType

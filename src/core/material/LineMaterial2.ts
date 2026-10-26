@@ -72,7 +72,7 @@ export class LineMaterial2<TE extends IMaterialEventMap = IMaterialEventMap> ext
 
     onBeforeCompile(shader: WebGLProgramParametersWithUniforms, renderer: WebGLRenderer): void { // shader is not Shader but WebglUniforms.getParameters return value type so includes defines
         const f = [
-            ['vec4 diffuseColor = ', 'beforeAccumulation'],
+            ['#include <logdepthbuf_fragment>', 'beforeAccumulation'], // three r177 (#31144) moved `vec4 diffuseColor = ` to the start of main(), this keeps the marker after the discards and the final alpha
             ['#include <clipping_planes_fragment>', 'mainStart'],
         ]
         const v = [
