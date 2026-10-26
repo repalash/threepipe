@@ -470,17 +470,38 @@ export function injectUiStyles() {
 #sux-help .card div { display: flex; justify-content: space-between; gap: 16px; break-inside: avoid; }
 #sux-help .card div span:first-child { color: #bbb; }
 .sux-params {
-  position: absolute; left: 0; top: 0; width: 220px; background: #fff; color: #1e1e1e; border-radius: 10px; box-shadow: 0 6px 24px rgba(0,0,0,.2);
-  padding: 4px 0 8px; font: 11px/1.3 Inter, ui-sans-serif, system-ui, sans-serif; z-index: 3;
+  --pp-bg: #fff; --pp-fg: #1e1e1e; --pp-dim: #757575; --pp-input: #f3f4f6; --pp-line: #ececec;
+  position: absolute; left: 0; top: 0; width: 240px; max-height: 70%; overflow: auto; background: var(--pp-bg); color: var(--pp-fg); border-radius: 6px;
+  box-shadow: 0 0 0 1px rgba(0,0,0,.06), 0 8px 28px rgba(0,0,0,.16); padding: 2px 0 8px; font: 11px/1.3 Inter, ui-sans-serif, system-ui, sans-serif; z-index: 3;
 }
-.sux-params-head { display: flex; align-items: center; gap: 6px; padding: 8px 10px 6px 12px; }
-.sux-params-head span { flex: 1; color: #757575; }
-.sux-params-head button { border: 0; background: var(--sux-accent); color: #fff; border-radius: 5px; padding: 4px 9px; font: inherit; cursor: pointer; }
-.sux-params-row { display: flex; align-items: center; gap: 8px; padding: 2px 12px; }
-.sux-params-row span { flex: 1; color: #555; user-select: none; }
-.sux-params-row input[type=number] { width: 72px; border: 1px solid transparent; background: #f5f5f5; border-radius: 4px; padding: 3px 5px; font: inherit; outline: none; }
-.sux-params-row input[type=number]:focus { border-color: var(--sux-accent); background: #fff; }
-.sux-params-note { color: #757575; padding: 4px 12px; }
+/* with the tweakpane UI on the page, take its theme colours */
+body[class*="tpTheme-"] .sux-params {
+  --pp-bg: var(--tp-base-background-color, #1c2026); --pp-fg: var(--tp-container-foreground-color, #f0f0f0);
+  --pp-dim: var(--tp-monitor-foreground-color, #9a9a9a); --pp-input: var(--tp-input-background-color, rgba(255,255,255,.07));
+  --pp-line: var(--tp-container-border-color, rgba(255,255,255,.12));
+}
+.sux-params-head { display: flex; align-items: center; gap: 6px; padding: 8px 8px 6px 12px; position: sticky; top: -2px; background: var(--pp-bg); z-index: 1; }
+.sux-params-head span { flex: 1; color: var(--pp-dim); }
+.sux-params-head button { border: 0; background: var(--sux-accent); color: #fff; border-radius: 4px; padding: 5px 10px; font: inherit; cursor: pointer; }
+.sux-params-note { color: var(--pp-dim); padding: 2px 12px 6px; }
+.ucf-row { display: flex; align-items: center; gap: 6px; padding: 2px 10px 2px 12px; min-height: 26px; }
+.ucf-name { flex: 1; color: var(--pp-dim); user-select: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-transform: capitalize; }
+.ucf-row-wide { flex-wrap: wrap; }
+.ucf-row-wide .ucf-name { flex-basis: 100%; }
+.ucf-row input, .ucf-row select { font: inherit; color: var(--pp-fg); background: var(--pp-input); border: 1px solid transparent; border-radius: 4px; padding: 4px 6px; outline: none; min-width: 0; }
+.ucf-row input[type=number], .ucf-row input:not([type]) { width: 74px; }
+.ucf-row input:focus, .ucf-row select:focus { border-color: var(--sux-accent); }
+.ucf-row input[type=checkbox] { width: 14px; height: 14px; accent-color: var(--sux-accent); }
+.ucf-row input[type=range] { flex: 1; min-width: 60px; padding: 0; background: none; accent-color: var(--sux-accent); }
+.ucf-row input[type=color] { width: 40px; height: 24px; padding: 1px; }
+.ucf-row select { max-width: 130px; }
+.ucf-vec { display: flex; gap: 4px; width: 100%; }
+.ucf-vec input[type=number] { flex: 1; width: 0; }
+.ucf-folder { margin: 4px 0; border-top: 1px solid var(--pp-line); padding-top: 2px; }
+.ucf-folder-head { padding: 6px 12px 2px; font-weight: 600; text-transform: capitalize; }
+.ucf-button { display: block; margin: 4px 12px; width: calc(100% - 24px); border: 0; border-radius: 4px; padding: 6px; background: var(--pp-input); color: var(--pp-fg); font: inherit; cursor: pointer; }
+.ucf-button:hover { filter: brightness(.96); }
+.ucf-monitor { color: var(--pp-dim); }
 .sux-name, .sux-dims { position: absolute; left: 0; top: 0; white-space: nowrap; line-height: 16px; }
 .sux-name { color: var(--sux-accent); pointer-events: auto; font-weight: 500; }
 .sux-crumb { opacity: 0.65; cursor: pointer; }

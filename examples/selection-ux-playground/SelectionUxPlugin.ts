@@ -2,10 +2,13 @@ import {
     AViewerPluginEventMap,
     AViewerPluginSync,
     Box3,
+    BufferGeometry,
     duplicateObjects,
     filterTopmostAncestors,
     Group2,
     IObject3D,
+    LineBasicMaterial,
+    LineSegments,
     Matrix4,
     GeometryGeneratorPlugin,
     MOUSE,
@@ -17,11 +20,14 @@ import {
     Raycaster,
     ThreeViewer,
     TransformControlsPlugin,
+    UiObjectConfig,
     UndoManagerPlugin,
     Vector2,
     Vector3,
     Vector4,
+    WireframeGeometry,
 } from 'threepipe'
+import {UiConfigForm} from './UiConfigForm'
 
 /**
  * Prototype of a Figma-like selection UX for threepipe.
@@ -33,6 +39,8 @@ import {
 const coarsePointer = matchMedia('(pointer: coarse)')
 
 export type SelVisual = 'figma2d' | 'box3d' | 'brackets' | 'hybrid' | 'minimal' | 'legacy'
+
+export type SelectionTool = 'select' | 'move' | 'rotate' | 'scale'
 
 /** ground = the floor (XZ), xy = front wall, yz = side wall, view = facing the camera */
 export type MovePlaneKind = 'ground' | 'xy' | 'yz' | 'view'
@@ -182,12 +190,14 @@ type HandleData =
     {kind: 'icon', obj: IObject3D} |
     {kind: 'aim', obj: IObject3D} |
     {kind: 'cp', obj: IObject3D, index: number} |
+    {kind: 'shape', obj: IObject3D, index: number} |
     {kind: 'param', key: string}
 
 type DragState =
     {kind: 'press', start: Vector2, leaf: IObject3D | null, hitPoint: Vector3 | null, passthrough: boolean, shift: boolean, deep: boolean, alt: boolean, target?: IObject3D} |
     {kind: 'aim', start: Vector2, obj: IObject3D, plane: Plane, snaps: TransformSnapshot[], camTarget?: Vector3} |
     {kind: 'cp', start: Vector2, obj: IObject3D, point: CurvePoint, before: number[], plane: Plane} |
+    {kind: 'shape', start: Vector2, obj: IObject3D, handle: ShapeHandle, v0: number} |
     {kind: 'move', start: Vector2, hitPoint: Vector3, plane: Plane, planeKind: MovePlaneKind, baseDelta: Vector3, lastDelta: Vector3, snaps: TransformSnapshot[], startBox: Box3, others: Box3[], lockAxis: 0 | 1 | 2 | -1, viewRight: Vector3, viewUp: Vector3} |
     {kind: 'scale', start: Vector2, pivot: Vector3, pivotS: Vector2, dir: Vector2, d0: number, snaps: TransformSnapshot[]} |
     {kind: 'stretch', start: Vector2, obj: IObject3D, axis: number, pivotLocal: Vector3, pivotS: Vector2, dir: Vector2, d0: number, snaps: TransformSnapshot[], boxToObj: Matrix4} |
@@ -355,6 +365,30 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         return [...meshes].filter(m => this.levels(m).length && m.visible)
     }
 
+    /**
+     * The toolbar tool (V W E R in the new modes): which handles show and what dragging the selection does.
+     * select: all handles of the mode, drag moves. move: no scale or rotate handles. rotate: the turn ring, drag turns.
+     * scale: corner and side handles, drag scales (from the base, Alt: the centre).
+     */
+    tool: SelectionTool = 'select'
+
+    setTool(tool: SelectionTool) {
+        if (this.tool === tool) return
+        this.tool = tool
+        this._pointerDirty = true
+        this._emit('tool')
+        this._viewer?.setDirty()
+    }
+
+    /** The settings with the current tool applied */
+    private get _toolSettings(): SelectionUxSettings {
+        const st = this.settings
+        if (this.tool === 'move') return {...st, rotate: 'off', stretchHandles: false}
+        if (this.tool === 'rotate') return {...st, rotate: 'ring', stretchHandles: false}
+        if (this.tool === 'scale') return {...st, rotate: 'off', stretchHandles: true}
+        return st
+    }
+
     /** View-only mode: selection works, nothing can be moved, scaled, grouped or deleted */
     editingLocked = false
 
@@ -511,6 +545,9 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         const L = this.levels(sel[0])
         const i = L.findIndex(l => l.includes(sel[0]))
         const hasKids = !!L[i] && L[i][L[i].length - 1].children.length > 0 && !sel[0].geometry
+        if (this.tool === 'rotate') return `Rotate tool: drag the object or the ring to turn it · ${k('Shift')} snaps · ${k('V')} back to select`
+        if (this.tool === 'scale') return `Scale tool: drag the object right or left to scale it, corners and sides too · ${k('Alt')} from the centre · ${k('Shift')} snaps · ${k('V')} back to select`
+        if (this.tool === 'move') return `Move tool: drag to move · ${k('Tab')} while dragging changes the plane · arrows nudge · ${k('V')} back to select`
         return [
             st.dragMove === 'off' ? '' : 'Drag to move',
             'Corners scale',
@@ -952,7 +989,8 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
                     this._state = null
                     return
                 }
-                this._beginMove(s)
+                if (this.tool === 'rotate' || this.tool === 'scale') this._beginToolDrag(s)
+                else this._beginMove(s)
             } else this._beginMarquee(s)
         }
         this._updateDrag(p)
@@ -1009,6 +1047,28 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
             this.select(next)
         } else if (!(sel.length === 1 && sel[0] === tgt)) {
             this.select([tgt])
+        }
+    }
+
+    /** Rotate or scale tool: dragging the selection turns it (like the ring) or scales it from its centre */
+    private _beginToolDrag(s: Extract<DragState, {kind: 'press'}>) {
+        const tgt = s.target ?? this.resolveTarget(s.leaf!, s.deep, false)
+        if (!tgt) return
+        if (!this.selected.includes(tgt)) this.select(s.shift ? [tgt, ...this.selected] : [tgt])
+        if (!this.canEdit) {
+            this._state = null
+            return
+        }
+        this._state = null
+        const sel = this.selected
+        if (this.tool === 'rotate') this._startHandleDrag({kind: 'rotate', axis: 'up', ring: true}, s.start)
+        else {
+            // by horizontal distance (the press is often on the pivot itself): 120 px right doubles it.
+            // The pivot is the mode's: the base keeps things standing on the floor, Alt scales from the centre
+            const d0 = 120
+            const info = this.boxInfo(sel)
+            const pivot = (this.settings.scalePivot === 'center' || this._keys.alt ? info.center : info.base).clone()
+            this._state = {kind: 'scale', start: s.start, pivot, pivotS: new Vector2(s.start.x - d0, s.start.y), dir: new Vector2(1, 0), d0, snaps: this.snapshot(sel)}
         }
     }
 
@@ -1128,6 +1188,12 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
             this._state = {kind: 'aim', start: p, obj: o, plane, snaps: this.snapshot([o]), camTarget: (o as any).isCamera && (o as any).target?.isVector3 ? (o as any).target.clone() : undefined}
             return
         }
+        if (data.kind === 'shape') {
+            const params = genParams(data.obj)
+            const handle = params && shapeHandles(params)[data.index]
+            if (handle) this._state = {kind: 'shape', start: p, obj: data.obj, handle, v0: +params![handle.key]}
+            return
+        }
         if (data.kind === 'cp') {
             const pts = curvePoints(genParams(data.obj)?.curve)
             const pt = pts[data.index]
@@ -1205,6 +1271,21 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         }
     }
 
+    /** Local coordinate along `axis` (object space, through its origin) of the point on that line nearest to the pointer ray */
+    private _axisCoord(o: IObject3D, axis: Vector3, p: Vector2): number | null {
+        const ray = this._rayFromScreen(p.x, p.y)
+        const origin = o.localToWorld(new Vector3())
+        const dir = axis.clone().transformDirection(o.matrixWorld)
+        // closest points of two lines: the ray and the axis
+        const w0 = ray.origin.clone().sub(origin)
+        const b = ray.direction.dot(dir), d = ray.direction.dot(w0), e = dir.dot(w0)
+        const den = 1 - b * b
+        if (den < 1e-6) return null // looking straight down the axis
+        const t = (e - b * d) / den
+        const world = origin.addScaledVector(dir, t)
+        return o.worldToLocal(world).dot(axis)
+    }
+
     private _planeHit(p: Vector2, plane: Plane) {
         const ray = this._rayFromScreen(p.x, p.y)
         return ray.intersectPlane(plane, new Vector3())
@@ -1275,6 +1356,20 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         } else if (s.kind === 'aim') {
             const hp = this._planeHit(p, s.plane)
             if (hp) this._setAim(s.obj, hp)
+        } else if (s.kind === 'shape') {
+            const h = s.handle
+            const params = genParams(s.obj)
+            if (!params) return
+            let v: number
+            if (h.kind === 'count') v = Math.max(h.min ?? 1, Math.round(s.v0 + (p.x - s.start.x) / 12 * (this._keys.shift ? 4 : 1)))
+            else {
+                const c = this._axisCoord(s.obj, h.axis!, p)
+                if (c === null) return
+                v = Math.max(1e-3, h.value!(c, params))
+                if (this._keys.shift) v = Math.max(0.05, Math.round(v * 20) / 20)
+            }
+            this.setGeometryParam(s.obj, h.key, v)
+            this._liveLabel = `${h.key.replace(/([A-Z])/g, ' $1').toLowerCase()} ${h.kind === 'count' ? v : this._fmt(v)}`
         } else if (s.kind === 'cp') {
             const hp = this._planeHit(p, s.plane)
             if (hp) {
@@ -1381,6 +1476,8 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
                 const o = s.obj as any, before = s.camTarget.clone(), after = o.target.clone()
                 um?.record({undo: () => this._setAim(o, before), redo: () => this._setAim(o, after)})
             } else this.recordTransform(s.snaps, 'aim')
+        } else if (s.kind === 'shape') {
+            if (this._paramUndo) this._paramUndo.time = 0 // setGeometryParam recorded it; the next drag is a new undo step
         } else if (s.kind === 'cp') {
             const pt = s.point, g = s.obj.geometry, before = s.before, after = pt.vec.toArray()
             const set = (a: number[]) => {
@@ -1418,7 +1515,11 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
 
     private _onKeyUp = (e: KeyboardEvent) => {
         this._syncMods(e)
-        if (e.code === 'Space') this._keys.space = false
+        if (e.code === 'Space') {
+            // the key was ours (orbit while held): do not let it also press a focused button on release
+            if (this._keys.space) e.preventDefault()
+            this._keys.space = false
+        }
         if (e.code.startsWith('Arrow') && this._nudgeUndo) this._nudgeUndo.final = true
         this._pointerDirty = true
     }
@@ -1436,7 +1537,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
             e.preventDefault()
             e.stopPropagation()
         }
-        if (e.code === 'Space') {
+        if (e.code === 'Space' && !e.shiftKey) { // Shift+Space is the toolbar's "expand"
             if (!this._keys.space) this._toast('Space held: drag to orbit')
             this._keys.space = true
             own()
@@ -1676,7 +1777,8 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
             if (hit && tgt && this.selected.includes(tgt)) h = this.resolveTarget(hit.leaf, false, true)
             const canvas = this._viewer!.canvas
             const canMove = tgt && (this.settings.dragMove === 'any' || this.settings.dragMove === 'selected' && this.selected.includes(tgt))
-            canvas.style.cursor = this._keys.space ? 'grab' : canMove ? 'move' : tgt ? 'pointer' : this.settings.emptyDrag === 'marquee' ? 'crosshair' : 'grab'
+            const dragCursor = this.tool === 'rotate' ? ROTATE_CURSOR : this.tool === 'scale' ? 'nwse-resize' : 'move'
+            canvas.style.cursor = this._keys.space ? 'grab' : canMove ? dragCursor : tgt ? 'pointer' : this.settings.emptyDrag === 'marquee' ? 'crosshair' : 'grab'
         }
         if (h !== this._hover) {
             this._hover = h
@@ -1933,6 +2035,26 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
                 const w = (ol.width ?? 1) / 2, h = (ol.height ?? 1) / 2
                 d += path([local(-w, -h, 0), local(w, -h, 0), local(w, h, 0), local(-w, h, 0)], true)
             }
+            // the shadow camera, like a camera frustum: what this light's shadows cover
+            const sh = ol.castShadow && isSel ? ol.shadow?.camera : null
+            if (sh && (ol.isDirectionalLight || ol.isSpotLight)) {
+                const near = sh.near ?? 0.5
+                let quad: (z: number) => Vector3[]
+                let far: number
+                if (sh.isOrthographicCamera) {
+                    far = sh.far ?? 30
+                    quad = z => [local(sh.left, sh.bottom, -z), local(sh.right, sh.bottom, -z), local(sh.right, sh.top, -z), local(sh.left, sh.top, -z)]
+                } else {
+                    // three.js sets the spot shadow camera to twice the cone angle, square; draw it to the aim point
+                    far = Math.min(ol.distance || sh.far || dist, pos.distanceTo(this._aimPoint(o)) * 1.2)
+                    const t = Math.tan(Math.min(ol.angle ?? Math.PI / 6, 1.3))
+                    quad = z => [local(-t * z, -t * z, -z), local(t * z, -t * z, -z), local(t * z, t * z, -z), local(-t * z, t * z, -z)]
+                }
+                const a = quad(near), b = quad(far)
+                let f = path(a, true) + path(b, true)
+                for (let i = 0; i < 4; i++) f += path([a[i], b[i]])
+                L.get(k + '-shadow', 'path', {d: f, fill: 'none', stroke: color, 'stroke-width': 1, 'stroke-dasharray': '2 3', opacity: 0.55})
+            }
             const aimS = sc(aim)
             L.get(k + '-aim', 'path', {d: path([pos, aim]), fill: 'none', stroke: color, 'stroke-width': 1, 'stroke-dasharray': '4 3', opacity: isSel ? 1 : 0.7})
             if (isSel && this.canEdit && !aimS.behind) {
@@ -2079,13 +2201,13 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
             this._camHud = document.createElement('div')
             this._camHud.className = 'sux-camhud'
             // top centre, under a toolbar that sits at the top
-            this._camHud.style.cssText = 'position:absolute;left:50%;top:60px;transform:translateX(-50%);white-space:nowrap;display:flex;align-items:center;gap:4px;padding:4px 4px 4px 10px;border-radius:10px;' +
+            this._camHud.style.cssText = 'position:absolute;left:50%;top:60px;transform:translateX(-50%);white-space:nowrap;display:flex;align-items:center;gap:4px;padding:4px 4px 4px 10px;border-radius:6px;' +
                 'background:rgba(30,30,30,.92);color:#eee;font:11px/1 Inter,ui-sans-serif,system-ui,sans-serif;pointer-events:auto;box-shadow:0 4px 14px rgba(0,0,0,.2);'
             this._camHud.addEventListener('pointerdown', e => e.stopPropagation())
             this._root.appendChild(this._camHud)
         }
         const b = (label: string, title: string, on = false) =>
-            `<button data-a="${label}" title="${title}" style="border:0;border-radius:7px;padding:6px 9px;font:inherit;cursor:pointer;color:#fff;background:${on ? 'var(--sux-accent,#0d99ff)' : '#3a3a3a'}">${label}</button>`
+            `<button data-a="${label}" title="${title}" style="border:0;border-radius:4px;padding:6px 9px;font:inherit;cursor:pointer;color:#fff;background:${on ? 'var(--sux-accent,#0d99ff)' : '#3a3a3a'}">${label}</button>`
         this._camHud.innerHTML = `<span style="opacity:.7;margin-right:2px">Camera</span><b style="margin-right:6px">${esc(this.displayName(v.cam))}</b>` +
             b(v.locked ? 'Locked to view' : 'Lock to view', 'Orbit and zoom move this camera (L)', v.locked) + b('Exit', 'Back to the editor camera (0 or Esc)')
         this._camHud.querySelectorAll('button').forEach(el => el.addEventListener('click', () => {
@@ -2117,10 +2239,51 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
     exitGeometryEdit() {
         const o = this.geometryEdit
         this.geometryEdit = null
+        this._updateWire(null)
         this._buildParamsPanel()
         if (o) this.select([o], false)
         this._emit('geometryEdit')
         this._viewer?.setDirty()
+    }
+
+    private _wire?: {helper: LineSegments, key: string}
+
+    /** The edges of a generated shape while its geometry is edited, so segment counts are visible. null removes it. */
+    private _updateWire(o: IObject3D | null) {
+        const g = o?.geometry
+        const pos = g?.attributes?.position
+        if (!o || !g || !pos) {
+            if (this._wire) {
+                this._wire.helper.removeFromParent()
+                this._wire.helper.geometry.dispose()
+                ;(this._wire.helper.material as LineBasicMaterial).dispose()
+                this._wire = undefined
+                this._viewer?.setDirty()
+            }
+            return
+        }
+        // regenerate when the generator replaced or changed the buffers
+        const key = `${g.uuid}:${(pos as any).id ?? ''}:${(pos as any).version}:${pos.count}:${g.index?.version ?? ''}:${g.index?.count ?? ''}`
+        if (!this._wire) {
+            const helper = new LineSegments(new BufferGeometry(), new LineBasicMaterial({color: 0x0d99ff, transparent: true, opacity: 0.45, depthWrite: false}))
+            helper.name = 'Geometry edit wireframe'
+            helper.userData.userSelectable = false
+            helper.matrixAutoUpdate = false
+            this._viewer?.scene.add(helper) // the scene root, not the model root: never picked or exported
+            this._wire = {helper, key: ''}
+        }
+        const w = this._wire
+        if (w.key !== key) {
+            w.helper.geometry.dispose()
+            w.helper.geometry = new WireframeGeometry(g)
+            w.key = key
+            this._viewer?.setDirty()
+        }
+        if (!w.helper.matrix.equals(o.matrixWorld)) {
+            w.helper.matrix.copy(o.matrixWorld)
+            w.helper.matrixWorldNeedsUpdate = true
+            this._viewer?.setDirty()
+        }
     }
 
     private _cpWorld(o: IObject3D, pt: CurvePoint) {
@@ -2129,7 +2292,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
     }
 
     private _paramsEl?: HTMLDivElement
-    private _paramInputs = new Map<string, HTMLInputElement>()
+    private _paramsForm?: UiConfigForm
     private _paramUndo?: {cmd: {undo: () => void, redo: () => void}, time: number, key: string, before: any}
 
     /** Change one generator parameter, regenerate, and record undo (quick edits of the same parameter merge) */
@@ -2145,7 +2308,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
                 g.setDirty?.({regenerate: true} as any)
             }
             (g as any).uiConfig?.uiRefresh?.(true, 'postFrame')
-            this._refreshParamInputs()
+            this._paramsForm?.refresh()
             this._viewer?.setDirty()
             this._emit('transform')
         }
@@ -2164,21 +2327,10 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         this._paramUndo = {cmd, time: now, key: uid, before}
     }
 
-    private _refreshParamInputs() {
-        const params = genParams(this.geometryEdit)
-        if (!params) return
-        for (const [k, input] of this._paramInputs) {
-            if (document.activeElement === input) continue
-            if (input.type === 'checkbox') input.checked = !!params[k]
-            else input.value = String(+(+params[k]).toFixed(4))
-        }
-    }
-
-    /** Floating panel next to the object with the generator parameters */
     private _buildParamsPanel() {
         this._paramsEl?.remove()
         this._paramsEl = undefined
-        this._paramInputs.clear()
+        this._paramsForm = undefined
         const o = this.geometryEdit
         if (!o || !this._root) return
         const g = o.geometry
@@ -2193,62 +2345,25 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
             e.stopPropagation()
             if (e.key === 'Escape') this.exitGeometryEdit()
         })
-        if (!params) {
+        // the generator's own uiConfig, the same fields as the editor's "Generation Params" folder
+        const gen = params ? this._viewer?.getPlugin(GeometryGeneratorPlugin)?.generators[params.type] as any : undefined
+        const configs = g && gen?.createUiConfig ? gen.createUiConfig(g) as UiObjectConfig[] : []
+        if (!params || !configs.length) {
             const n = g?.attributes?.position?.count ?? 0
             el.insertAdjacentHTML('beforeend', `<div class="sux-params-note">Not parametric (${n.toLocaleString()} vertices). Shapes made with the geometry generator have their parameters here.</div>`)
         } else {
-            for (const [k, v] of Object.entries(params)) {
-                if (k === 'type') continue
-                if (k === 'curve' && v && typeof v === 'object') {
-                    const n = curvePoints(v).length
-                    el.insertAdjacentHTML('beforeend', `<div class="sux-params-note">Curve: ${n} point${n === 1 ? '' : 's'}. Drag them in the view.</div>`)
-                    continue
-                }
-                if (typeof v !== 'number' && typeof v !== 'boolean') continue
-                const row = document.createElement('label')
-                row.className = 'sux-params-row'
-                const name = document.createElement('span')
-                name.textContent = k.replace(/([A-Z])/g, ' $1').toLowerCase()
-                const input = document.createElement('input')
-                if (typeof v === 'boolean') {
-                    input.type = 'checkbox'
-                    input.checked = v
-                    input.addEventListener('change', () => this.setGeometryParam(o, k, input.checked))
-                } else {
-                    input.type = 'number'
-                    const isInt = Number.isInteger(v) && /segment|count|sides|detail|points|tubular|radial|height[sS]eg|width[sS]eg/i.test(k)
-                    input.step = isInt ? '1' : 'any'
-                    input.value = String(+v.toFixed(4))
-                    input.addEventListener('change', () => {
-                        const n = parseFloat(input.value)
-                        if (isFinite(n)) this.setGeometryParam(o, k, isInt ? Math.round(n) : n)
-                    })
-                    // scrub: drag the name left or right
-                    name.style.cursor = 'ew-resize'
-                    name.addEventListener('pointerdown', e => {
-                        e.preventDefault()
-                        name.setPointerCapture(e.pointerId)
-                        const x0 = e.clientX
-                        const v0 = +params[k]
-                        const step = isInt ? 0.25 : Math.max(0.001, Math.abs(v0) * 0.01 || 0.01)
-                        const move = (ev: PointerEvent) => {
-                            let n = v0 + (ev.clientX - x0) * step * (ev.shiftKey ? 10 : 1)
-                            if (isInt) n = Math.max(1, Math.round(n))
-                            this.setGeometryParam(o, k, n)
-                        }
-                        const up = () => {
-                            name.removeEventListener('pointermove', move)
-                            name.removeEventListener('pointerup', up)
-                            if (this._paramUndo) this._paramUndo.time = 0 // the next edit is a new undo step
-                        }
-                        name.addEventListener('pointermove', move)
-                        name.addEventListener('pointerup', up)
-                    })
-                }
-                this._paramInputs.set(k, input)
-                row.append(name, input)
-                el.appendChild(row)
-            }
+            if (params.curve) el.insertAdjacentHTML('beforeend', '<div class="sux-params-note">Drag the curve points in the view, or type them here.</div>')
+            this._paramsForm = new UiConfigForm(configs, {
+                undoManager: this._viewer?.getPlugin(UndoManagerPlugin)?.undoManager,
+                onChange: () => {
+                    (g as any).uiConfig?.uiRefresh?.(true, 'postFrame')
+                    this._viewer?.setDirty()
+                    this._emit('transform')
+                },
+                // e.g. a new curve type has other fields
+                onStructureChange: () => requestAnimationFrame(() => this._buildParamsPanel()),
+            })
+            el.appendChild(this._paramsForm.element)
         }
         this._root.appendChild(el)
         this._paramsEl = el
@@ -2269,7 +2384,10 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
             const left = rect.maxX + 14 + 220 > w ? Math.max(4, rect.minX - 14 - 220) : rect.maxX + 14
             this._paramsEl.style.transform = `translate(${left}px, ${Math.max(4, rect.minY)}px)`
         }
-        const curve = genParams(o)?.curve
+        const params = genParams(o)
+        this._updateWire(params && !params.curve ? o : null)
+        if (params && !params.curve) this._drawShapeHandles(o, params)
+        const curve = params?.curve
         const pts = curvePoints(curve)
         if (!pts.length) return
         // the curve itself, then the tangent lines of beziers, then the points
@@ -2281,6 +2399,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         } catch (e) {
             d = ''
         }
+        if (d && params?.closePath) d += 'Z'
         L.get('ge-curve', 'path', {d, fill: 'none', stroke: 'var(--sux-accent)', 'stroke-width': 2})
         const sp = pts.map(pt => this.toScreen(this._cpWorld(o, pt)))
         let t = ''
@@ -2301,6 +2420,34 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
             const on = editing === pts[i]
             H.get(key + '-hit', 'circle', {cx: q.x, cy: q.y, r: 10, fill: 'transparent', 'data-sux': hk, style: 'pointer-events:all;cursor:move'})
             H.get(key, 'rect', {x: q.x - 4, y: q.y - 4, width: 8, height: 8, rx: 4, fill: on ? 'var(--sux-accent)' : '#fff', stroke: 'var(--sux-accent)', 'stroke-width': 1.5, style: 'pointer-events:none'})
+        })
+    }
+
+    /** Dots that change a generated shape's sizes (drag along their axis) and diamonds for its segment counts (drag sideways) */
+    private _drawShapeHandles(o: IObject3D, params: Record<string, any>) {
+        const L = this._lines!, H = this._handles!, T = this._labels!
+        const active = this._state?.kind === 'shape' ? this._state.handle.key : null
+        const c = this.toScreen(o.localToWorld(new Vector3()))
+        shapeHandles(params).forEach((h, i) => {
+            const q = this.toScreen(h.point.clone().applyMatrix4(o.matrixWorld))
+            if (q.behind) return
+            const key = 'sh' + i
+            const hk = this._handle(key, {kind: 'shape', obj: o, index: i})
+            const on = active === h.key
+            if (h.kind === 'length') {
+                // a guide from the centre, so the direction of the drag is clear
+                if (!c.behind) L.get(key + '-guide', 'path', {d: `M${c.x.toFixed(1)} ${c.y.toFixed(1)}L${q.x.toFixed(1)} ${q.y.toFixed(1)}`, stroke: 'var(--sux-accent)', 'stroke-width': 1, 'stroke-dasharray': '3 3', opacity: on ? 0.9 : 0.45, fill: 'none'})
+                const cur = c.behind ? 'move' : resizeCursor(q.x - c.x, q.y - c.y)
+                H.get(key + '-hit', 'circle', {cx: q.x, cy: q.y, r: 10, fill: 'transparent', 'data-sux': hk, style: `pointer-events:all;cursor:${cur}`})
+                H.get(key, 'circle', {cx: q.x, cy: q.y, r: on ? 5.5 : 4.5, fill: on ? 'var(--sux-accent)' : '#fff', stroke: 'var(--sux-accent)', 'stroke-width': 1.5, style: 'pointer-events:none'})
+            } else {
+                H.get(key + '-hit', 'circle', {cx: q.x, cy: q.y, r: 10, fill: 'transparent', 'data-sux': hk, style: 'pointer-events:all;cursor:ew-resize'})
+                H.get(key, 'path', {d: `M${q.x} ${q.y - 5}L${q.x + 5} ${q.y}L${q.x} ${q.y + 5}L${q.x - 5} ${q.y}Z`, fill: on ? 'var(--sux-accent)' : '#fff', stroke: 'var(--sux-accent)', 'stroke-width': 1.5, style: 'pointer-events:none'})
+                const tag = T.get(key + '-n', 'div', {class: 'sux-dims'})
+                const text = String(params[h.key])
+                if (tag.textContent !== text) tag.textContent = text
+                tag.style.transform = `translate(${q.x + 8}px, ${q.y - 8}px)`
+            }
         })
     }
 
@@ -2341,7 +2488,9 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
     }
 
     private _drawSelection(sel: IObject3D[], dragging: boolean) {
-        const st = this.settings
+        const st = this._toolSettings
+        // the move and rotate tools hide the scale corners
+        const scaleCorners = this.tool !== 'move' && this.tool !== 'rotate'
         const L = this._lines!, H = this._handles!
         const info = this.boxInfo(sel)
         const rect = this._screenRect(info.corners)
@@ -2412,7 +2561,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
                         pivot = info.corners[best]
                     }
                     if (st.rotate === 'corners') this._rotateZone('rot' + i, x, y, i)
-                    drawSquare('c' + i, x, y, cursors[i], {kind: 'scale', pivot})
+                    if (scaleCorners) drawSquare('c' + i, x, y, cursors[i], {kind: 'scale', pivot})
                 })
                 if (st.stretchHandles && sel.length === 1) {
                     // each side stretches the box axis that looks most like that side's direction on screen
@@ -2448,7 +2597,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
                 // 3D corner handles: the fixed point is the opposite corner, or base/center
                 const cs0 = this.toScreen(info.center)
                 const centerS = {x: cs0.x, y: cs0.y}
-                for (let i = 0; i < 8; i++) {
+                for (let i = 0; i < 8 && scaleCorners; i++) {
                     if (sc[i].behind) continue
                     const faces = [0, 1, 2].map(a => a * 2 + (i & 1 << a ? 1 : 0))
                     const visible = faces.some(f => front[f])
@@ -2583,6 +2732,58 @@ function genParams(o?: IObject3D | null): Record<string, any> | undefined {
 }
 
 /** 16×16 icon paths for lights and cameras */
+/** A handle of a generated shape: a size along a local axis, or a segment count */
+interface ShapeHandle {
+    key: string
+    kind: 'length' | 'count'
+    /** Local position of the handle */
+    point: Vector3
+    /** Local unit axis through the object origin, for sizes */
+    axis?: Vector3
+    /** The parameter value from the local coordinate along the axis */
+    value?: (c: number, p: Record<string, any>) => number
+    min?: number
+}
+
+/** Handles for the built-in GeometryGeneratorPlugin shapes (centred at the origin, like the three.js geometries) */
+function shapeHandles(p: Record<string, any>): ShapeHandle[] {
+    const v = (x: number, y: number, z: number) => new Vector3(x, y, z)
+    const X = v(1, 0, 0), Y = v(0, 1, 0), Z = v(0, 0, 1)
+    const full = (c: number) => Math.abs(c) * 2
+    const abs = (c: number) => Math.abs(c)
+    const len = (key: string, point: Vector3, axis: Vector3, value: ShapeHandle['value']): ShapeHandle => ({key, kind: 'length', point, axis, value})
+    const count = (key: string, point: Vector3, min = 1): ShapeHandle => ({key, kind: 'count', point, min})
+    const s = Math.SQRT1_2
+    switch (p.type) {
+    case 'box': {
+        const [w, h, d] = [p.width / 2, p.height / 2, p.depth / 2]
+        return [len('width', v(w, 0, 0), X, full), len('height', v(0, h, 0), Y, full), len('depth', v(0, 0, d), Z, full),
+            count('widthSegments', v(w / 2, h, d)), count('heightSegments', v(w, h / 2, d)), count('depthSegments', v(w, h, d / 2))]
+    }
+    case 'plane': {
+        const [w, h] = [p.width / 2, p.height / 2]
+        return [len('width', v(w, 0, 0), X, full), len('height', v(0, h, 0), Y, full),
+            count('widthSegments', v(w / 2, h, 0)), count('heightSegments', v(w, h / 2, 0))]
+    }
+    case 'circle':
+        return [len('radius', v(p.radius, 0, 0), X, abs), count('segments', v(p.radius * s, p.radius * s, 0), 3)]
+    case 'sphere':
+        return [len('radius', v(p.radius, 0, 0), X, abs), count('widthSegments', v(p.radius * s, 0, p.radius * s), 3),
+            count('heightSegments', v(0, p.radius * s, p.radius * s), 2)]
+    case 'cylinder': {
+        const h = p.height / 2
+        return [len('radiusTop', v(p.radiusTop, h, 0), X, abs), len('radiusBottom', v(p.radiusBottom, -h, 0), X, abs), len('height', v(0, h, 0), Y, full),
+            count('radialSegments', v(p.radiusBottom * s, -h, p.radiusBottom * s), 3), count('heightSegments', v(-(p.radiusTop + p.radiusBottom) / 2, 0, 0))]
+    }
+    case 'torus':
+        // radius on the inner edge, tube on the outer edge, both on +X
+        return [len('radius', v(p.radius - p.tube, 0, 0), X, (c, q) => Math.abs(c) + q.tube), len('tube', v(p.radius + p.tube, 0, 0), X, (c, q) => Math.abs(c) - q.radius),
+            count('tubularSegments', v(p.radius * s, p.radius * s, p.tube), 3), count('radialSegments', v(-p.radius - p.tube, 0, 0), 3)]
+    default:
+        return []
+    }
+}
+
 function iconPath(o: IObject3D) {
     const ol = o as any
     if (ol.isCamera) return 'M2 5.5h8.5v6H2zM10.5 7.5l3.5-2v6l-3.5-2'

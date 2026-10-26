@@ -86,6 +86,24 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
         window.addEventListener('keydown', this._onKey)
         window.addEventListener('pointerdown', this._closeMenuOutside, true)
         viewer.scene.addEventListener('mainCameraChange', this.render)
+        viewer.forPlugin(SelectionUxPlugin, ux => ux.addEventListener('uxUpdate', this._onUxUpdate), ux => ux.removeEventListener('uxUpdate', this._onUxUpdate))
+        this._wasLegacy = !this._uxTools
+        this.render()
+    }
+
+    private _wasLegacy = false
+    /** A mode change to or from "Current" moves the active tool between the classic gizmo and the selection UX */
+    private _onUxUpdate = (e: {reason?: string}) => {
+        if (e.reason !== 'settings' && e.reason !== 'camera' && e.reason !== 'tool') return
+        const legacy = !this._uxTools
+        if (e.reason === 'settings' && legacy !== this._wasLegacy) {
+            this._wasLegacy = legacy
+            const mode = this._gizmo
+            this._viewer?.getPlugin(SelectionUxPlugin)?.setTool('select')
+            if (this._tc?.enabled) this._tc.enabled = false
+            this._gizmo = 'off'
+            if (mode !== 'off') this.setGizmo(mode)
+        }
         this.render()
     }
 
@@ -93,6 +111,7 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
         window.removeEventListener('keydown', this._onKey)
         window.removeEventListener('pointerdown', this._closeMenuOutside, true)
         viewer.scene.removeEventListener('mainCameraChange', this.render)
+        viewer.getPlugin(SelectionUxPlugin)?.removeEventListener('uxUpdate', this._onUxUpdate)
         this._grid?.removeFromParent()
         this._tip.remove()
         this.element.remove()
@@ -105,9 +124,26 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
         return this._viewer?.getPlugin(TransformControlsPlugin)
     }
 
-    /** V: select only. W/E/R: the transform gizmo in that mode */
+    /** True when the selection plugin draws its own handles (any mode but "Current"): V W E R switch its tools then */
+    private get _uxTools() {
+        const ux = this._viewer?.getPlugin(SelectionUxPlugin)
+        return ux && ux.enabled && ux.settings.visual !== 'legacy' ? ux : undefined
+    }
+
+    /**
+     * V: select. W/E/R: move, rotate, scale. With the new selection UX these are its on-canvas tools;
+     * in the "Current" mode (and without the plugin) they are the classic transform gizmo.
+     */
     setGizmo(mode: 'off' | 'translate' | 'rotate' | 'scale') {
         if (!this._viewer) return
+        const ux = this._uxTools
+        if (ux) {
+            this._gizmo = mode
+            ux.setTool(({off: 'select', translate: 'move', rotate: 'rotate', scale: 'scale'} as const)[mode])
+            if (this._tc?.enabled) this._tc.enabled = false
+            this.render()
+            return
+        }
         let tc = this._tc
         if (mode !== 'off' && !tc) tc = this._viewer.addPluginSync(TransformControlsPlugin)
         this._gizmo = mode
@@ -236,10 +272,25 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
         return this._grid ? this._grid.userData.toolbarOn !== false : false
     }
 
+    private _containerStyle: string | null = null
+
+    /** The canvas fills the window, the panels in {@link EditorToolbarOptions.expandHides} hide */
     setExpanded(v: boolean) {
+        if (v === this._expanded) return
         this._expanded = v
         for (const el of this._options.expandHides?.() || []) el.style.display = v ? 'none' : ''
         document.body.classList.toggle('tb-expanded', v)
+        // inline and important: page styles size the container with id selectors and !important (the tweakpane editor does)
+        const c = this._viewer?.container
+        if (c) {
+            if (v) {
+                this._containerStyle = c.getAttribute('style')
+                const full = {'position': 'fixed', 'inset': '0', 'width': 'auto', 'height': 'auto', 'margin': '0', 'border-radius': '0', 'box-shadow': 'none', 'z-index': '50'}
+                for (const [k, val] of Object.entries(full)) c.style.setProperty(k, val, 'important')
+            } else if (this._containerStyle === null) c.removeAttribute('style')
+            else c.setAttribute('style', this._containerStyle)
+            this._viewer!.canvas.style.setProperty('border-radius', v ? '0' : '')
+        }
         this.render()
     }
 
@@ -312,11 +363,12 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
         const viewer = this._viewer
         if (!v) {
             newGroup()
+            const g = this._uxTools ? '' : ' gizmo'
             btn(I.pointer, 'Select', 'V', () => this.setGizmo('off'), 'tool', this._gizmo === 'off')
-            btn(I.move, 'Move gizmo', 'W', () => this.setGizmo('translate'), 'tool', this._gizmo === 'translate')
-            btn(I.rotate, 'Rotate gizmo', 'E', () => this.setGizmo('rotate'), 'tool', this._gizmo === 'rotate')
-            btn(I.scale, 'Scale gizmo', 'R', () => this.setGizmo('scale'), 'tool', this._gizmo === 'scale')
-            btn(I.dots, 'Gizmo space and size', '', b => this._openMenu(b, this._gizmoMenu()), 'menu', false, this._gizmo === 'off')
+            btn(I.move, 'Move' + g, 'W', () => this.setGizmo('translate'), 'tool', this._gizmo === 'translate')
+            btn(I.rotate, 'Rotate' + g, 'E', () => this.setGizmo('rotate'), 'tool', this._gizmo === 'rotate')
+            btn(I.scale, 'Scale' + g, 'R', () => this.setGizmo('scale'), 'tool', this._gizmo === 'scale')
+            if (!this._uxTools) btn(I.dots, 'Gizmo space and size', '', b => this._openMenu(b, this._gizmoMenu()), 'menu', false, this._gizmo === 'off')
             newGroup()
             btn(I.plus, 'Add an object', '', b => this._openMenu(b, this._addMenu()), 'menu', false, !viewer?.getPlugin(Object3DGeneratorPlugin))
         }
@@ -529,16 +581,28 @@ function injectStyles() {
   --tb-soft: rgba(13,153,255,.22); --tb-soft-fg: #7cc6ff; --tb-track: #383838; --tb-thumb: #555;
   --tb-shadow: 0 0 0 1px rgba(0,0,0,.4), 0 6px 20px rgba(0,0,0,.35);
 }
+/* with the tweakpane UI on the page, take its theme colours (body.tpTheme-black / dark / blue / light / white) */
+body[class*="tpTheme-"] .tb-root, body[class*="tpTheme-"] .tb-menu {
+  --tb-bg: var(--tp-base-background-color, #1c2026); --tb-fg: var(--tp-container-foreground-color, #f0f0f0);
+  --tb-icon: var(--tp-label-foreground-color, #d2d3d5); --tb-dim: var(--tp-monitor-foreground-color, #9a9a9a);
+  --tb-line: var(--tp-container-border-color, rgba(255,255,255,.14)); --tb-hover: var(--tp-button-background-color-hover, rgba(255,255,255,.09));
+  --tb-press: var(--tp-button-background-color-active, rgba(255,255,255,.15)); --tb-track: var(--tp-input-background-color, rgba(255,255,255,.07));
+  --tb-thumb: var(--tp-button-background-color, rgba(255,255,255,.18)); --tb-soft: rgba(13,153,255,.2);
+}
+body.tpTheme-black .tb-root, body.tpTheme-dark .tb-root, body.tpTheme-blue .tb-root,
+body.tpTheme-black .tb-menu, body.tpTheme-dark .tb-menu, body.tpTheme-blue .tb-menu {
+  --tb-soft-fg: #7cc6ff; --tb-shadow: 0 0 0 1px rgba(0,0,0,.35), 0 6px 20px rgba(0,0,0,.3);
+}
 .tb-root {
   position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 12; display: flex; align-items: center;
-  background: var(--tb-bg); color: var(--tb-fg); padding: 4px; border-radius: 12px; box-shadow: var(--tb-shadow); max-width: calc(100% - 20px);
+  background: var(--tb-bg); color: var(--tb-fg); padding: 4px; border-radius: 8px; box-shadow: var(--tb-shadow); max-width: calc(100% - 20px);
 }
 .tb-group { display: flex; align-items: center; gap: 2px; padding: 0 4px; position: relative; flex: none; }
 .tb-group + .tb-group::before { content: ''; position: absolute; left: -.5px; top: 6px; bottom: 6px; width: 1px; background: var(--tb-line); }
 .tb-slot { display: flex; align-items: center; padding-right: 4px; }
 .tb-slot:empty { display: none; }
 .tb-btn {
-  position: relative; border: 0; background: transparent; color: var(--tb-icon); height: 32px; min-width: 32px; padding: 0 8px; border-radius: 8px;
+  position: relative; border: 0; background: transparent; color: var(--tb-icon); height: 32px; min-width: 32px; padding: 0 8px; border-radius: 4px;
   display: inline-flex; align-items: center; justify-content: center; gap: 3px; cursor: pointer; flex: none; transition: background-color .12s, color .12s;
 }
 .tb-btn svg { flex: none; }
@@ -555,19 +619,19 @@ function injectStyles() {
 .tb-k-toggle.on:hover:not(:disabled) { background: var(--tb-soft); color: var(--tb-soft-fg); }
 /* a menu with a setting that is not the default: a small dot */
 .tb-k-menu.on::after { content: ''; position: absolute; top: 5px; right: 5px; width: 5px; height: 5px; border-radius: 50%; background: var(--tb-accent); box-shadow: 0 0 0 1.5px var(--tb-bg); }
-.tb-seg { display: inline-flex; background: var(--tb-track); border-radius: 8px; padding: 2px; position: relative; flex: none; }
+.tb-seg { display: inline-flex; background: var(--tb-track); border-radius: 5px; padding: 2px; position: relative; flex: none; }
 .tb-seg button {
-  position: relative; z-index: 1; border: 0; background: transparent; color: var(--tb-dim); height: 28px; padding: 0 11px; border-radius: 6px; font: inherit; cursor: pointer;
+  position: relative; z-index: 1; border: 0; background: transparent; color: var(--tb-dim); height: 28px; padding: 0 11px; border-radius: 3px; font: inherit; cursor: pointer;
   transition: color .15s;
 }
 .tb-seg button:hover { color: var(--tb-fg); }
 .tb-seg button.on { color: var(--tb-fg); background: var(--tb-thumb); box-shadow: 0 0 0 .5px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.12); }
 .tb-menu {
-  position: fixed; z-index: 1000; min-width: 200px; background: var(--tb-bg); color: var(--tb-fg); border-radius: 12px; padding: 6px;
+  position: fixed; z-index: 1000; min-width: 200px; background: var(--tb-bg); color: var(--tb-fg); border-radius: 6px; padding: 4px;
   box-shadow: var(--tb-shadow); max-height: 70vh; overflow: auto; animation: tb-in .12s ease-out;
 }
 @keyframes tb-in { from { opacity: 0; transform: translateY(-3px); } }
-.tb-menu-item { display: flex; align-items: center; gap: 6px; padding: 0 10px 0 4px; height: 30px; border-radius: 7px; cursor: pointer; white-space: nowrap; }
+.tb-menu-item { display: flex; align-items: center; gap: 6px; padding: 0 10px 0 4px; height: 30px; border-radius: 4px; cursor: pointer; white-space: nowrap; }
 .tb-menu-item:hover { background: var(--tb-hover); }
 .tb-check { width: 16px; height: 16px; flex: none; color: var(--tb-accent); }
 .tb-label { flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 18px; }
@@ -575,15 +639,16 @@ function injectStyles() {
 .tb-menu-title { color: var(--tb-dim); padding: 9px 10px 5px 26px; font-size: 10px; font-weight: 600; letter-spacing: .02em; }
 .tb-menu-sep { height: 1px; background: var(--tb-line); margin: 5px 4px; }
 .tb-tip {
-  position: fixed; z-index: 1001; pointer-events: none; background: #1e1e1e; color: #fff; border-radius: 7px; padding: 6px 8px; white-space: nowrap;
+  position: fixed; z-index: 1001; pointer-events: none; background: #1e1e1e; color: #fff; border-radius: 4px; padding: 6px 8px; white-space: nowrap;
   opacity: 0; transform: translateY(-2px); transition: opacity .1s, transform .1s; box-shadow: 0 4px 14px rgba(0,0,0,.18);
 }
 .tb-tip.show { opacity: 1; transform: none; }
 .tb-tip kbd { color: #bdbdbd; background: #3a3a3a; }
-.tb-root .sux-mode-btn { height: 32px; padding: 0 8px 0 10px; border-radius: 8px; background: transparent; color: var(--tb-fg); box-shadow: none; font-weight: 500; }
+.tb-root .sux-mode-btn { height: 32px; padding: 0 8px 0 10px; border-radius: 4px; background: transparent; color: var(--tb-fg); box-shadow: none; font-weight: 500; }
 .tb-root .sux-mode-btn b { color: var(--tb-accent); }
 .tb-root .sux-mode-btn:hover, .tb-root .sux-mode-btn.on { background: var(--tb-hover); color: var(--tb-fg); }
-.tb-root .sux-menu { top: calc(100% + 12px); left: -4px; background: var(--tb-bg); color: var(--tb-fg); border-radius: 12px; box-shadow: var(--tb-shadow); }
+.tb-root .sux-menu { top: calc(100% + 12px); left: -4px; background: var(--tb-bg); color: var(--tb-fg); border-radius: 6px; box-shadow: var(--tb-shadow); }
+.tb-root .sux-menu-item { border-radius: 4px; }
 .tb-root .sux-menu-item:hover { background: var(--tb-hover); }
 .tb-root .sux-menu-item.on { background: var(--tb-soft); }
 .tb-root .sux-menu-item.on b, .tb-root .sux-menu-item.on .d { color: var(--tb-soft-fg); }

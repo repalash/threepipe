@@ -879,6 +879,13 @@ function injectStyles() {
   --lp-bg: #2c2c2c; --lp-fg: #e8e8e8; --lp-dim: #9a9a9a; --lp-line: #3a3a3a; --lp-hover: #383838;
   --lp-sel: #0d99ff40; --lp-sel-focus: #0d99ff66; --lp-sel-parent: #0d99ff18; --lp-input: #383838;
 }
+/* with the tweakpane UI on the page, take its theme colours */
+body[class*="tpTheme-"] .lp-root {
+  --lp-bg: var(--tp-base-background-color, #1c2026); --lp-fg: var(--tp-container-foreground-color, #f0f0f0);
+  --lp-dim: var(--tp-monitor-foreground-color, #9a9a9a); --lp-line: var(--tp-container-border-color, rgba(255,255,255,.12));
+  --lp-hover: var(--tp-container-background-color-hover, rgba(255,255,255,.06)); --lp-input: var(--tp-input-background-color, rgba(255,255,255,.07));
+  --lp-sel: rgba(13,153,255,.22); --lp-sel-focus: rgba(13,153,255,.34); --lp-sel-parent: rgba(13,153,255,.08);
+}
 .lp-head { display: flex; align-items: center; justify-content: space-between; padding: 8px 8px 6px 12px; min-height: 24px; }
 .lp-head.lp-movable { cursor: grab; }
 .lp-head.lp-movable:active { cursor: grabbing; }
