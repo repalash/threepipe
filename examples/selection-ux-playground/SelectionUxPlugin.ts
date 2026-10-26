@@ -44,8 +44,8 @@ export interface SelectionUxSettings {
     stretchHandles: boolean
     /** How rotation is offered */
     rotate: 'corners' | 'knob' | 'ring' | 'off'
-    /** Axis for corner/knob rotation. The ring always turns around up. */
-    rotateAxis: 'up' | 'view'
+    /** Axis for corner/knob rotation. The ring always turns around up. Free: horizontal drag turns, vertical drag tilts. */
+    rotateAxis: 'up' | 'view' | 'free'
     /** Snap to other objects while moving, and show guides */
     smartGuides: boolean
     hover: boolean
@@ -126,15 +126,15 @@ export interface TransformSnapshot {obj: IObject3D, position: Vector3, quaternio
 type HandleData =
     {kind: 'scale', pivot: Vector3} |
     {kind: 'stretch', axis: number, side: number} |
-    {kind: 'rotate', axis: 'up' | 'view', ring?: boolean} |
+    {kind: 'rotate', axis: 'up' | 'view' | 'free', ring?: boolean} |
     {kind: 'crumb', obj: IObject3D}
 
 type DragState =
     {kind: 'press', start: Vector2, leaf: IObject3D | null, hitPoint: Vector3 | null, passthrough: boolean, shift: boolean, deep: boolean, alt: boolean} |
-    {kind: 'move', start: Vector2, hitPoint: Vector3, plane: Plane, snaps: TransformSnapshot[], startBox: Box3, others: Box3[], lockAxis: 0 | 1 | 2 | -1, viewRight: Vector3, viewUp: Vector3} |
+    {kind: 'move', start: Vector2, hitPoint: Vector3, plane: Plane, planeKind: 'ground' | 'view', baseDelta: Vector3, lastDelta: Vector3, snaps: TransformSnapshot[], startBox: Box3, others: Box3[], lockAxis: 0 | 1 | 2 | -1, viewRight: Vector3, viewUp: Vector3} |
     {kind: 'scale', start: Vector2, pivot: Vector3, pivotS: Vector2, dir: Vector2, d0: number, snaps: TransformSnapshot[]} |
     {kind: 'stretch', start: Vector2, obj: IObject3D, axis: number, pivotLocal: Vector3, pivotS: Vector2, dir: Vector2, d0: number, snaps: TransformSnapshot[], boxToObj: Matrix4} |
-    {kind: 'rotate', start: Vector2, center: Vector3, axis: Vector3, centerS: Vector2, a0: number, mode: 'plane' | 'screen' | 'dx', sign: number, snaps: TransformSnapshot[]} |
+    {kind: 'rotate', start: Vector2, center: Vector3, axis: Vector3, centerS: Vector2, a0: number, mode: 'plane' | 'screen' | 'dx' | 'free', sign: number, snaps: TransformSnapshot[]} |
     {kind: 'marquee', start: Vector2, cur: Vector2, base: IObject3D[], candidates: IObject3D[]}
 
 const SVG_NS = 'http://www.w3.org/2000/svg'
@@ -183,6 +183,30 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
 
     /** Object highlighted from outside, e.g. a hovered row in a layers panel */
     externalHover: IObject3D | null = null
+
+    /** View-only mode: selection works, nothing can be moved, scaled, grouped or deleted */
+    editingLocked = false
+
+    /** Locked objects (userData.locked on it or a parent) cannot be picked or moved in the viewport, like in Figma */
+    isLocked(o: IObject3D) {
+        let p: IObject3D | null = o
+        while (p && p !== this._viewer?.scene.modelRoot) {
+            if (p.userData.locked) return true
+            p = p.parent as IObject3D | null
+        }
+        return false
+    }
+
+    /** Whether the current selection can be transformed */
+    get canEdit() {
+        return !this.editingLocked && !this.selected.some(o => this.isLocked(o))
+    }
+
+    setEditingLocked(v: boolean) {
+        this.editingLocked = v
+        this._emit('settings')
+        this._toast(v ? 'Editing locked: select and look only' : 'Editing unlocked')
+    }
 
     private _picking?: PickingPlugin
     private _root?: HTMLDivElement
@@ -470,7 +494,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         const cond = this._picking.picker.selectionCondition
         for (const hit of hits) {
             const o = hit.object as IObject3D
-            if (!cond(o)) continue
+            if (!cond(o) || this.isLocked(o)) continue
             return {leaf: o, point: hit.point.clone()}
         }
         return null
@@ -621,6 +645,9 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
     }
 
     private _onPointerDown = (e: PointerEvent) => {
+        // the camera controls prevent default, so a text field keeps focus and gets Ctrl+Z. Move focus to the scene.
+        const ae = document.activeElement as HTMLElement | null
+        if (ae && (ae.tagName === 'TEXTAREA' || ae.tagName === 'INPUT')) ae.blur()
         if (!this._active || e.isPrimary === false) return
         this._syncMods(e)
         const p = this._local(e)
@@ -629,7 +656,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         const hk = target?.getAttribute?.('data-sux')
         if (hk && e.button === 0) {
             const data = this._handleMap.get(hk)
-            if (data) {
+            if (data && (data.kind === 'crumb' || this.canEdit)) {
                 e.stopPropagation()
                 e.preventDefault()
                 this._startHandleDrag(data, p)
@@ -645,7 +672,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         if (hit) {
             const tgt = this.resolveTarget(hit.leaf, deep, false)
             const sel = this.selected
-            const canMove = this.settings.dragMove === 'any' || this.settings.dragMove === 'selected' && !!tgt && sel.includes(tgt)
+            const canMove = !this.editingLocked && (this.settings.dragMove === 'any' || this.settings.dragMove === 'selected' && !!tgt && sel.includes(tgt))
             this._state = {kind: 'press', start: p, leaf: hit.leaf, hitPoint: hit.point, passthrough: !canMove, shift: e.shiftKey, deep, alt: e.altKey}
             if (canMove) e.stopPropagation()
         } else {
@@ -749,8 +776,10 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         const camDir = cam.getWorldDirection(new Vector3())
         const hit = s.hitPoint!.clone()
         let mode = this.settings.movePlane
-        if (mode === 'auto') mode = Math.abs(camDir.y) > 0.3 ? 'ground' : 'view'
-        const plane = mode === 'ground' ? new Plane(new Vector3(0, 1, 0), -hit.y) : new Plane().setFromNormalAndCoplanarPoint(camDir.clone().negate(), hit)
+        // the floor only when looking down at it from above; from below or the side, move facing the camera
+        if (mode === 'auto') mode = camDir.y < -0.3 && cam.getWorldPosition(new Vector3()).y > hit.y ? 'ground' : 'view'
+        const planeKind = mode === 'ground' ? 'ground' : 'view'
+        const plane = this._movePlane(planeKind, hit)
         const viewRight = new Vector3().setFromMatrixColumn(cam.matrixWorld, 0).normalize()
         const viewUp = new Vector3().setFromMatrixColumn(cam.matrixWorld, 1).normalize()
         const snaps = this.snapshot(sel)
@@ -775,8 +804,25 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
                 if (!b.isEmpty()) others.push(b)
             }
         }
-        this._state = {kind: 'move', start: s.start, hitPoint: hit, plane, snaps, startBox: this.worldBox(sel), others, lockAxis: -1, viewRight, viewUp}
+        this._state = {kind: 'move', start: s.start, hitPoint: hit, plane, planeKind, baseDelta: new Vector3(), lastDelta: new Vector3(), snaps, startBox: this.worldBox(sel), others, lockAxis: -1, viewRight, viewUp}
         this._viewer!.canvas.style.cursor = 'move'
+    }
+
+    private _movePlane(kind: 'ground' | 'view', through: Vector3) {
+        const camDir = this._camera().getWorldDirection(new Vector3())
+        return kind === 'ground' ? new Plane(new Vector3(0, 1, 0), -through.y) : new Plane().setFromNormalAndCoplanarPoint(camDir.negate(), through)
+    }
+
+    /** Tab while moving: continue on the other plane from where the object is now */
+    private _switchMovePlane() {
+        const s = this._state
+        if (s?.kind !== 'move') return
+        s.hitPoint = s.hitPoint.clone().add(s.lastDelta).sub(s.baseDelta)
+        s.baseDelta.copy(s.lastDelta)
+        s.planeKind = s.planeKind === 'ground' ? 'view' : 'ground'
+        s.plane = this._movePlane(s.planeKind, s.hitPoint)
+        s.lockAxis = -1
+        this._updateDrag(this._pointer)
     }
 
     private _beginMarquee(s: Extract<DragState, {kind: 'press'}>) {
@@ -825,11 +871,21 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
             const info = this.boxInfo(sel, 'world')
             const cam = this._camera()
             const camDir = cam.getWorldDirection(new Vector3())
-            const axisMode = data.ring ? 'up' : data.axis
+            const axisMode: 'up' | 'view' | 'free' = data.ring ? 'up' : data.axis
             const center = axisMode === 'up' ? info.base.clone().setY(info.center.y) : info.center.clone()
             const cs = this.toScreen(center)
             const centerS = new Vector2(cs.x, cs.y)
-            if (axisMode === 'view') {
+            if (axisMode === 'free') {
+                // horizontal drag turns around up (front follows the pointer), vertical drag tilts around the screen x axis
+                const toCam = cam.position.clone().sub(center).setY(0)
+                if (toCam.lengthSq() < 1e-9) toCam.set(0, 0, 1)
+                toCam.normalize().multiplyScalar(Math.max(info.size.x, info.size.z) / 2 || 1)
+                const f0 = this.toScreen(center.clone().add(toCam))
+                const f1 = this.toScreen(center.clone().add(toCam.clone().applyAxisAngle(new Vector3(0, 1, 0), 0.05)))
+                const sign = Math.sign(f1.x - f0.x) || 1
+                const right = new Vector3().setFromMatrixColumn(cam.matrixWorld, 0).normalize()
+                this._state = {kind: 'rotate', start: p, center: info.center.clone(), axis: right, centerS, a0: 0, mode: 'free', sign, snaps}
+            } else if (axisMode === 'view') {
                 const a0 = Math.atan2(p.y - cs.y, p.x - cs.x)
                 this._state = {kind: 'rotate', start: p, center, axis: camDir.clone().negate(), centerS, a0, mode: 'screen', sign: -1, snaps}
             } else if (Math.abs(camDir.y) > 0.2) {
@@ -869,15 +925,32 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         } else if (s.kind === 'stretch') {
             let f = new Vector2(p.x - s.pivotS.x, p.y - s.pivotS.y).dot(s.dir) / s.d0
             f = Math.max(0.01, f)
-            if (this._keys.shift) f = Math.max(0.05, Math.round(f * 20) / 20)
-            const sc = new Vector3(1, 1, 1).setComponent(s.axis, f)
+            // Shift keeps the proportions, like in Figma
+            const uniform = this._keys.shift
+            const sc = uniform ? new Vector3(f, f, f) : new Vector3(1, 1, 1).setComponent(s.axis, f)
             const pl = s.pivotLocal
             const m = new Matrix4().makeTranslation(pl.x, pl.y, pl.z)
                 .multiply(new Matrix4().makeScale(sc.x, sc.y, sc.z))
                 .multiply(new Matrix4().makeTranslation(-pl.x, -pl.y, -pl.z))
             const sn = s.snaps.find(x => x.obj === s.obj) || s.snaps[0]
             this._setWorld(sn.obj, sn.world.clone().multiply(m))
-            this._liveLabel = `${'XYZ'[s.axis]} ×${f.toFixed(2)}`
+            this._liveLabel = uniform ? `uniform ×${f.toFixed(2)}` : `${'XYZ'[s.axis]} ×${f.toFixed(2)} · Shift: uniform`
+        } else if (s.kind === 'rotate' && s.mode === 'free') {
+            const k = Math.PI * 2 / 500
+            let yaw = s.sign * (p.x - s.start.x) * k
+            let pitch = (p.y - s.start.y) * k
+            const step = Math.PI / 12
+            if (this._keys.shift) {
+                yaw = Math.round(yaw / step) * step
+                pitch = Math.round(pitch / step) * step
+            }
+            const c = s.center
+            const m = new Matrix4().makeTranslation(c.x, c.y, c.z)
+                .multiply(new Matrix4().makeRotationAxis(s.axis, pitch))
+                .multiply(new Matrix4().makeRotationAxis(new Vector3(0, 1, 0), yaw))
+                .multiply(new Matrix4().makeTranslation(-c.x, -c.y, -c.z))
+            for (const sn of s.snaps) this._setWorld(sn.obj, m.clone().multiply(sn.world))
+            this._liveLabel = `turn ${Math.round(yaw * 180 / Math.PI)}° · tilt ${Math.round(pitch * 180 / Math.PI)}°`
         } else if (s.kind === 'rotate') {
             let a = 0
             if (s.mode === 'screen') a = s.sign * (Math.atan2(p.y - s.centerS.y, p.x - s.centerS.x) - s.a0)
@@ -905,12 +978,12 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
     private _updateMove(s: Extract<DragState, {kind: 'move'}>, p: Vector2) {
         const hp = this._planeHit(p, s.plane)
         if (!hp) return
-        const delta = hp.sub(s.hitPoint)
+        const delta = hp.sub(s.hitPoint).add(s.baseDelta)
         // keep grazing-angle drags from shooting to the horizon
         const maxD = Math.max(s.startBox.getSize(new Vector3()).length(), 1e-3) * 50
         if (delta.length() > maxD) delta.setLength(maxD)
         if (this._keys.shift) {
-            const groundPlane = Math.abs(s.plane.normal.y) > 0.99
+            const groundPlane = s.planeKind === 'ground'
             if (groundPlane) {
                 if (s.lockAxis < 0 && delta.length() > this._worldPerPixel(s.hitPoint) * 6) s.lockAxis = Math.abs(delta.x) > Math.abs(delta.z) ? 0 : 2
                 if (s.lockAxis === 0) delta.z = 0
@@ -926,8 +999,9 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
             const m = new Matrix4().makeTranslation(delta.x, delta.y, delta.z).multiply(sn.world)
             this._setWorld(sn.obj, m)
         }
+        s.lastDelta.copy(delta)
         const u = this._unitScale()
-        this._liveLabel = `Δ ${this._fmt(delta.x * u)}, ${this._fmt(delta.y * u)}, ${this._fmt(delta.z * u)} ${this._unitLabel()}`
+        this._liveLabel = `${s.planeKind === 'ground' ? 'On the floor' : 'Facing you'} · Tab: switch   Δ ${this._fmt(delta.x * u)}, ${this._fmt(delta.y * u)}, ${this._fmt(delta.z * u)} ${this._unitLabel()}`
     }
 
     /** Snap the moving box edges/centers to other objects on x and z (and to the floor on y) */
@@ -938,7 +1012,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         const vals = (b: Box3, axis: number) => [b.min.getComponent(axis), (b.min.getComponent(axis) + b.max.getComponent(axis)) / 2, b.max.getComponent(axis)]
         for (const axis of [0, 2, 1]) {
             if (s.lockAxis >= 0 && s.lockAxis !== axis) continue
-            if (axis === 1 && Math.abs(s.plane.normal.y) > 0.99) continue // ground plane drags keep their height
+            if (axis === 1 && s.planeKind === 'ground') continue // ground plane drags keep their height
             const mine = vals(box, axis)
             let best: {d: number, other: Box3 | null, v: number} | null = null
             const targets: {b: Box3 | null, v: number[]}[] = s.others.map(b => ({b, v: vals(b, axis)}))
@@ -1036,6 +1110,17 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
             return
         }
         const sel = this.selected
+        if (e.code === 'Tab' && this._state?.kind === 'move') {
+            own()
+            this._switchMovePlane()
+            return
+        }
+        const editKey = ctrl && ['KeyD', 'KeyX', 'KeyV', 'KeyG'].includes(e.code) || ['Delete', 'Backspace'].includes(e.code) || e.code.startsWith('Arrow') && !ctrl
+        if (editKey && sel.length && !this.canEdit) {
+            own()
+            this._toast(this.editingLocked ? 'Editing is locked' : 'The selection is locked')
+            return
+        }
         if (e.code === 'Escape') {
             own()
             if (this._state) { // cancel the drag
@@ -1281,6 +1366,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
                 fill: 'color-mix(in srgb, var(--sux-accent) 12%, transparent)', stroke: 'var(--sux-accent)', 'stroke-width': 1,
             })
         }
+        if (s?.kind === 'move') this._drawMovePlane(s)
         this._guides.forEach((g, i) => {
             const a = this.toScreen(g.a), b = this.toScreen(g.b)
             if (a.behind || b.behind) return
@@ -1290,6 +1376,55 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         L.end()
         H.end()
         T.end()
+    }
+
+    /** While moving: the plane as a grid patch, and a drop line to the floor with a mark where it lands */
+    private _drawMovePlane(s: Extract<DragState, {kind: 'move'}>) {
+        const L = this._lines!
+        const box = s.startBox.clone().translate(s.lastDelta)
+        const size = box.getSize(new Vector3())
+        const c = box.getCenter(new Vector3())
+        const base = new Vector3(c.x, box.min.y, c.z)
+        const ext = Math.max(size.x, size.z, size.y * 0.5) * 1.6 || 1
+        const step = Math.pow(10, Math.floor(Math.log10(ext / 2)))
+        const n = Math.ceil(ext / step)
+        const seg = (a: Vector3, b: Vector3) => {
+            const p = this.toScreen(a), q = this.toScreen(b)
+            return p.behind || q.behind ? '' : `M${p.x.toFixed(1)} ${p.y.toFixed(1)}L${q.x.toFixed(1)} ${q.y.toFixed(1)}`
+        }
+        let d = ''
+        if (s.planeKind === 'ground') {
+            const cx = Math.round(base.x / step) * step, cz = Math.round(base.z / step) * step
+            for (let i = -n; i <= n; i++) {
+                d += seg(new Vector3(cx + i * step, base.y, cz - n * step), new Vector3(cx + i * step, base.y, cz + n * step))
+                d += seg(new Vector3(cx - n * step, base.y, cz + i * step), new Vector3(cx + n * step, base.y, cz + i * step))
+            }
+        } else {
+            // a grid on the camera-facing plane through the box center
+            const cam = this._camera()
+            const r = new Vector3().setFromMatrixColumn(cam.matrixWorld, 0).normalize()
+            const u = new Vector3().setFromMatrixColumn(cam.matrixWorld, 1).normalize()
+            for (let i = -n; i <= n; i++) {
+                d += seg(c.clone().addScaledVector(r, i * step).addScaledVector(u, -n * step), c.clone().addScaledVector(r, i * step).addScaledVector(u, n * step))
+                d += seg(c.clone().addScaledVector(u, i * step).addScaledVector(r, -n * step), c.clone().addScaledVector(u, i * step).addScaledVector(r, n * step))
+            }
+        }
+        L.get('move-grid', 'path', {d, fill: 'none', stroke: 'var(--sux-accent)', 'stroke-width': 1, opacity: 0.28})
+        // drop line and the floor mark show the height and where the object is over the floor
+        const floor = new Vector3(base.x, 0, base.z)
+        const r = Math.max(size.x, size.z) / 2
+        let ring = ''
+        for (let i = 0; i <= 32; i++) {
+            const a = i / 32 * Math.PI * 2
+            const p = this.toScreen(new Vector3(floor.x + Math.cos(a) * r, 0, floor.z + Math.sin(a) * r))
+            if (p.behind) {
+                ring = ''
+                break
+            }
+            ring += `${i ? 'L' : 'M'}${p.x.toFixed(1)} ${p.y.toFixed(1)}`
+        }
+        L.get('move-floor', 'path', {d: ring, fill: 'color-mix(in srgb, var(--sux-accent) 14%, transparent)', stroke: 'var(--sux-accent)', 'stroke-width': 1, opacity: 0.7})
+        L.get('move-drop', 'path', {d: Math.abs(base.y) > 1e-4 ? seg(base, floor) : '', stroke: 'var(--sux-accent)', 'stroke-width': 1, 'stroke-dasharray': '3 3'})
     }
 
     private _boxEdgesPath(info: BoxInfo, front: boolean[], which: 'visible' | 'hidden') {
@@ -1337,7 +1472,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         const accent = 'var(--sux-accent)'
         const handleSize = matchMedia('(pointer: coarse)').matches ? 12 : 8
         const hs = handleSize / 2
-        const showHandles = !dragging || this._state?.kind !== 'move'
+        const showHandles = (!dragging || this._state?.kind !== 'move') && this.canEdit
 
         const drawSquare = (key: string, x: number, y: number, cursor: string, data: HandleData, round = false) => {
             const hk = this._handle(key, data)
@@ -1432,6 +1567,8 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
                 }
             } else {
                 // 3D corner handles: the fixed point is the opposite corner, or base/center
+                const cs0 = this.toScreen(info.center)
+                const centerS = {x: cs0.x, y: cs0.y}
                 for (let i = 0; i < 8; i++) {
                     if (sc[i].behind) continue
                     const faces = [0, 1, 2].map(a => a * 2 + (i & 1 << a ? 1 : 0))
@@ -1440,11 +1577,11 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
                     const pivot = st.scalePivot === 'opposite' ? info.corners[i ^ 7] : st.scalePivot === 'center' ? info.center : info.base
                     if (!visible) {
                         const hk = this._handle('c' + i, {kind: 'scale', pivot})
-                        H.get('c' + i + '-hit', 'circle', {cx: sc[i].x, cy: sc[i].y, r: 8, fill: 'transparent', 'data-sux': hk, style: 'pointer-events:all;cursor:nwse-resize'})
+                        H.get('c' + i + '-hit', 'circle', {cx: sc[i].x, cy: sc[i].y, r: 8, fill: 'transparent', 'data-sux': hk, style: `pointer-events:all;cursor:${resizeCursor(sc[i].x - centerS.x, sc[i].y - centerS.y)}`})
                         H.get('c' + i, 'circle', {cx: sc[i].x, cy: sc[i].y, r: 2.5, fill: accent, opacity: 0.6, style: 'pointer-events:none'})
                         continue
                     }
-                    drawSquare('c' + i, sc[i].x, sc[i].y, 'nwse-resize', {kind: 'scale', pivot}, true)
+                    drawSquare('c' + i, sc[i].x, sc[i].y, resizeCursor(sc[i].x - centerS.x, sc[i].y - centerS.y), {kind: 'scale', pivot}, true)
                 }
                 if (st.stretchHandles && sel.length === 1) {
                     const local = st.boxSpace === 'local' ? info : this.boxInfo(sel, 'local')
@@ -1455,7 +1592,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
                         if (fc.behind) continue
                         const key = `f${a}${side}`
                         const hk = this._handle(key, {kind: 'stretch', axis: a, side})
-                        H.get(key + '-hit', 'circle', {cx: fc.x, cy: fc.y, r: 10, fill: 'transparent', 'data-sux': hk, style: 'pointer-events:all;cursor:move'})
+                        H.get(key + '-hit', 'circle', {cx: fc.x, cy: fc.y, r: 10, fill: 'transparent', 'data-sux': hk, style: `pointer-events:all;cursor:${resizeCursor(fc.x - centerS.x, fc.y - centerS.y)}`})
                         H.get(key, 'rect', {x: fc.x - 4, y: fc.y - 4, width: 8, height: 8, transform: `rotate(45 ${fc.x} ${fc.y})`, fill: accent, stroke: '#fff', 'stroke-width': 1.5, style: 'pointer-events:none'})
                     }
                 }
@@ -1560,6 +1697,12 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
 }
 
 const ROTATE_CURSOR = `url("data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path d="M6 14a7 7 0 1 0 2-7" fill="none" stroke="white" stroke-width="4" stroke-linecap="round"/><path d="M6 14a7 7 0 1 0 2-7" fill="none" stroke="black" stroke-width="1.6" stroke-linecap="round"/><path d="M4 3v6h6" fill="none" stroke="white" stroke-width="4" stroke-linejoin="round"/><path d="M4 3v6h6" fill="none" stroke="black" stroke-width="1.6" stroke-linejoin="round"/></svg>')}") 12 12, alias`
+
+/** Resize cursor that points along a screen direction */
+function resizeCursor(dx: number, dy: number) {
+    const a = (Math.atan2(dy, dx) * 180 / Math.PI % 180 + 180) % 180
+    return a < 22.5 || a >= 157.5 ? 'ew-resize' : a < 67.5 ? 'nwse-resize' : a < 112.5 ? 'ns-resize' : 'nesw-resize'
+}
 
 function esc(s: string) {
     return s.replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'} as any)[c])

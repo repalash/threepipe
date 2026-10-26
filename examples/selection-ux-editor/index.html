@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Selection UX Editor</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Import maps polyfill -->
+    <!-- Remove this when import maps will be widely supported -->
+    <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+
+    <script type="importmap">
+    {
+        "imports": {
+          "three": "./../../dist/index.mjs",
+          "threepipe": "./../../dist/index.mjs",
+          "@threepipe/plugin-tweakpane": "./../../plugins/tweakpane/dist/index.mjs",
+          "@threepipe/plugin-tweakpane-editor": "./../../plugins/tweakpane-editor/dist/index.mjs",
+          "@threepipe/plugins-extra-importers": "./../../plugins/extra-importers/dist/index.js",
+          "@threepipe/plugin-blend-importer": "./../../plugins/blend-importer/dist/index.mjs",
+          "@threepipe/plugin-geometry-generator": "./../../plugins/geometry-generator/dist/index.mjs",
+          "@threepipe/plugin-configurator": "./../../plugins/configurator/dist/index.mjs",
+          "@threepipe/plugin-network": "./../../plugins/network/dist/index.mjs",
+          "@threepipe/plugin-gltf-transform": "./../../plugins/gltf-transform/dist/index.mjs",
+          "@threepipe/plugin-gaussian-splatting": "./../../plugins/gaussian-splatting/dist/index.mjs",
+          "@threepipe/plugin-3d-tiles-renderer": "./../../plugins/3d-tiles-renderer/dist/index.mjs",
+          "@threepipe/plugin-assimpjs": "./../../plugins/assimpjs/dist/index.mjs",
+          "@threepipe/plugin-path-tracing": "./../../plugins/path-tracing/dist/index.mjs",
+          "@threepipe/plugin-timeline-ui": "./../../plugins/timeline-ui/dist/index.mjs",
+          "@threepipe/plugin-troika-text": "./../../plugins/troika-text/dist/index.mjs",
+          "@threepipe/webgi-plugins": "./../../plugins/webgi-plugins/dist/index.mjs"
+        }
+    }
+
+    </script>
+
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+
+    <style id="example-style">
+        html {
+            display: block;
+            overscroll-behavior: contain;
+            width: 100%;
+            height: 100%;
+        }
+        /* floating layers + notes on the left of the viewport */
+        .sux-side {
+            position: absolute;
+            left: 10px;
+            top: 140px; /* below the view widget */
+            bottom: 60px; /* above the webgi logo */
+            width: 240px;
+            z-index: 11;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            pointer-events: none;
+        }
+        .sux-side > * {
+            pointer-events: auto;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, .18);
+        }
+        .sux-side .lp-root { flex: 1; min-height: 120px; height: auto; }
+        .sux-side .sux-notes { height: 210px; flex: none; }
+        .sux-side .sux-notes.collapsed { height: auto; }
+        .sux-side .sux-notes.collapsed textarea, .sux-side .sux-notes.collapsed .sux-btns { display: none; }
+        .sux-side .sux-notes-head { cursor: pointer; }
+        /* above the editor's bottom tool bar */
+        #canvas-container .sux-hint { bottom: 64px; }
+    </style>
+    <script type="module" src="../examples-utils/global-loading.mjs"></script>
+    <script id="example-script" type="module" src="./script.js" data-scripts="./script.ts;./script.js"></script>
+</head>
+<body>
+<div id="canvas-container">
+    <canvas id="mcanvas"></canvas>
+</div>
+</body>
+</html>
