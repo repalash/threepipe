@@ -62,7 +62,8 @@ editor.loadPlugins({
 
 `UiConfigForm` draws a list of uiconfig.js configs (the same configs that the Tweakpane panels use) as a small plain-DOM form. Use it for a popup or a card next to an object, where a Tweakpane panel is too large.
 
-- Fields: number (drag the name to scrub, Shift for 10x), slider, checkbox, dropdown, vector, color, text, button, monitor, and folders (always open).
+- Fields: number (drag the name to scrub, Shift for 10x), slider, checkbox, dropdown, vector, color, text, button, monitor, and folders (always open). An `input` bound to a boolean or a number gets a checkbox or a number field.
+- A button's function can return an undo function or `{action, undo, redo}`, as in uiconfig.js: the action runs, and with an `undoManager` it is one undo step.
 - A change sets the value through the binding of the config, then calls `onChange` of the config and of each parent folder, as the Tweakpane renderer does.
 - A scrub, the slider and the colour picker send changes with `last: false` while they move, and a final change with `last: true` when they end, as Tweakpane does. A config that waits for the final change (e.g. to rebuild a geometry) gets it.
 - With an `undoManager`, each edit is one undo step. Quick edits of the same field (a scrub, the slider) merge into one step.

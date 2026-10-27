@@ -283,6 +283,56 @@ describe('UiConfigForm', () => {
         }
     })
 
+    test('an input field takes the type of its value: boolean, number or text', () => {
+        const target = {autoNearFar: true, near: 0.5, name: 'Box'}
+        const form = new UiConfigForm([
+            {type: 'input', label: 'Auto Near Far', property: [target, 'autoNearFar']},
+            {type: 'input', label: 'Near', property: [target, 'near']},
+            {type: 'input', label: 'Name', property: [target, 'name']},
+        ])
+        const [check] = row(form, 'Auto Near Far').inputs
+        expect(check.type).toBe('checkbox')
+        check.checked = false
+        check.fire('change')
+        expect(target.autoNearFar).toBe(false)
+        const [near] = row(form, 'Near').inputs
+        expect(near.type).toBe('number')
+        near.value = '0.25'
+        near.fire('change')
+        expect(target.near).toBe(0.25)
+        expect(row(form, 'Name').inputs[0].type).toBe('text')
+    })
+
+    test('a button runs the action it returns, as one undo step', async() => {
+        const target = {x: 0}
+        const undoManager = new JSUndoManager({limit: 100, debug: false, bindHotKeys: false})
+        const form = new UiConfigForm([
+            {type: 'button', label: 'Center', value: () => ({action: () => target.x = 5, undo: () => target.x = 0})},
+            {type: 'button', label: 'Add', value: () => {
+                target.x += 1
+                return () => target.x -= 1 // an undo function: redo runs the button again
+            }},
+        ], {undoManager})
+        const buttons = (form.element as any as FakeElement).all().filter(e => e.tagName === 'button')
+        const click = async(b: FakeElement) => {
+            b.fire('click')
+            await new Promise(r => setTimeout(r, 0))
+        }
+        await click(buttons[0])
+        expect(target.x).toBe(5)
+        await click(buttons[1])
+        expect(target.x).toBe(6)
+        undoManager.undo()
+        await new Promise(r => setTimeout(r, 0))
+        expect(target.x).toBe(5)
+        undoManager.undo()
+        await new Promise(r => setTimeout(r, 0))
+        expect(target.x).toBe(0)
+        undoManager.redo()
+        await new Promise(r => setTimeout(r, 0))
+        expect(target.x).toBe(5)
+    })
+
     test('dispose removes the form', () => {
         const host = new FakeElement('div')
         const form = new UiConfigForm([])

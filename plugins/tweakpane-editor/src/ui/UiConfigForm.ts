@@ -32,7 +32,10 @@ export interface UiConfigFormOptions {
  * or a card next to an object, where a Tweakpane panel is too large.
  *
  * - Fields: number (drag the name to scrub, Shift for 10x), slider, checkbox, dropdown, vector, color, text, button,
- *   monitor, and folders (always open).
+ *   monitor, and folders (always open). An `input` (or another type) bound to a boolean or a number gets a checkbox or
+ *   a number field.
+ * - A button's function can return an undo function or `{action, undo, redo}`, as in uiconfig.js: the action runs, and
+ *   with an `undoManager` it is one undo step.
  * - The values are read and written through the bindings of the configs. A change calls `onChange` of the config and
  *   of each parent folder, as the Tweakpane renderer does.
  * - With an `undoManager`, each edit is one undo step. Quick edits of the same field merge into one step.
@@ -125,6 +128,30 @@ export class UiConfigForm {
         this._undo = {config: c, cmd, time: now, before: first}
     }
 
+    /**
+     * Runs the function of a button. As in uiconfig.js, it can return an undo function (redo runs the function again), or
+     * an object with `undo` and `redo` and an optional `action` that is run now. With an undo manager, that is one step.
+     */
+    private async _action(c: UiObjectConfig, parents: UiObjectConfig[], run: () => any) {
+        const res = await run()
+        const action = typeof res === 'object' && typeof res?.action === 'function' ? res.action.bind(res) : undefined
+        if (action) await action()
+        const undo = typeof res === 'function' ? res : typeof res?.undo === 'function' ? res.undo.bind(res) : undefined
+        const redo = typeof res === 'function' ? run : typeof res?.redo === 'function' ? res.redo.bind(res) : action
+        const um = this._options.undoManager
+        if (!undo || !um) return
+        um.record({
+            undo: async() => {
+                await undo()
+                this._dispatch(c, parents, true)
+            },
+            redo: async() => {
+                await redo?.()
+                this._dispatch(c, parents, true)
+            },
+        })
+    }
+
     /** The end of a continuous edit: the final change (`last`), which some configs wait for (e.g. to rebuild a geometry) */
     private _end(c: UiObjectConfig, parents: UiObjectConfig[]) {
         if (this._unfinished !== c) return
@@ -170,7 +197,7 @@ export class UiConfigForm {
             b.addEventListener('click', async() => {
                 const [obj, key] = UiConfigMethods.GetBinding(c, false)
                 const fn = obj ? obj[key] ?? obj.value : undefined
-                if (typeof fn === 'function') await fn.call(obj)
+                if (typeof fn === 'function') await this._action(c, parents, () => fn.call(obj))
                 if (typeof c.onClick === 'function') await (c.onClick as any)()
                 this._dispatch(c, parents, true)
                 this._options.onStructureChange?.()
@@ -187,8 +214,14 @@ export class UiConfigForm {
         host.appendChild(row)
         const value = () => UiConfigMethods.GetRawValue(c)
         const firstRow = this._rows.length
+        // an input (or a type the form does not know) bound to a boolean or a number gets a checkbox or a number field
+        let kind = type
+        if (!FIELD_TYPES.has(type)) {
+            const v = value()
+            kind = typeof v === 'boolean' ? 'checkbox' : typeof v === 'number' ? 'number' : 'text'
+        }
 
-        if (type === 'checkbox' || type === 'toggle') {
+        if (kind === 'checkbox' || kind === 'toggle') {
             const input = document.createElement('input')
             input.type = 'checkbox'
             input.disabled = disabled
@@ -197,7 +230,7 @@ export class UiConfigForm {
             this._rows.push({config: c, update: () => {
                 input.checked = !!value()
             }})
-        } else if (type === 'dropdown') {
+        } else if (kind === 'dropdown') {
             const sel = document.createElement('select')
             sel.disabled = disabled
             const opts = this._children(c).map(o => ({label: UiConfigMethods.GetLabel(o), value: (o as any).value ?? UiConfigMethods.GetLabel(o)}))
@@ -209,7 +242,7 @@ export class UiConfigForm {
                 const i = opts.findIndex(o => o.value === v || equalsPrimitive(o.value, v))
                 if (i >= 0) sel.value = String(i)
             }})
-        } else if (type === 'color') {
+        } else if (kind === 'color') {
             const input = document.createElement('input')
             input.type = 'color'
             input.disabled = disabled
@@ -225,7 +258,7 @@ export class UiConfigForm {
                 const v = value() as any
                 if (document.activeElement !== input) input.value = v?.isColor ? '#' + v.getHexString() : typeof v === 'number' ? '#' + v.toString(16).padStart(6, '0') : String(v ?? '#000000')
             }})
-        } else if (type === 'vec' || type === 'vec2' || type === 'vec3' || type === 'vec4') {
+        } else if (kind === 'vec' || kind === 'vec2' || kind === 'vec3' || kind === 'vec4') {
             const v0 = value() as any
             const axes = ['x', 'y', 'z', 'w'].filter(a => typeof v0?.[a] === 'number')
             const wrap = document.createElement('span')
@@ -248,12 +281,12 @@ export class UiConfigForm {
                     if (document.activeElement !== inputs[i]) inputs[i].value = fmt(v?.[a])
                 })
             }})
-        } else if (type === 'number' || type === 'slider') {
-            const {min, max, step} = UiConfigMethods.GetBounds(c, type === 'number')
+        } else if (kind === 'number' || kind === 'slider') {
+            const {min, max, step} = UiConfigMethods.GetBounds(c, kind === 'number')
             const isInt = (this._options.isInteger ?? defaultIsInteger)(c, label)
             const clamp = (n: number) => Math.min(max, Math.max(min, isInt ? Math.round(n) : n))
             const input = this._number(disabled, n => this._set(c, parents, clamp(n)), value)
-            if (type === 'slider') {
+            if (kind === 'slider') {
                 const range = document.createElement('input')
                 range.type = 'range'
                 range.min = String(min)
@@ -273,7 +306,7 @@ export class UiConfigForm {
                 if (document.activeElement !== input) input.value = fmt(value())
             }})
             if (!disabled) this._scrub(name, () => +(value() as any), isInt, n => this._set(c, parents, clamp(n), false), () => this._end(c, parents))
-        } else if (type === 'monitor') {
+        } else if (kind === 'monitor') {
             const out = document.createElement('span')
             out.className = 'ucf-monitor'
             row.appendChild(out)
@@ -334,6 +367,9 @@ export class UiConfigForm {
         })
     }
 }
+
+/** The field types that the form draws as they are; any other type is drawn by the type of its value */
+const FIELD_TYPES = new Set(['checkbox', 'toggle', 'dropdown', 'color', 'vec', 'vec2', 'vec3', 'vec4', 'number', 'slider', 'monitor'])
 
 function fmt(v: any) {
     return typeof v === 'number' ? String(+v.toFixed(4)) : String(v ?? '')
