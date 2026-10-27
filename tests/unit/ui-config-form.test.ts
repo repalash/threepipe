@@ -517,6 +517,34 @@ describe('UiConfigForm', () => {
         expect(radius().value).toBe('2')
     })
 
+    test('a slider drag with a pause is one undo step; a later drag is another', () => {
+        const target = {size: 1}
+        const undoManager = new JSUndoManager({limit: 100, debug: false, bindHotKeys: false})
+        const form = new UiConfigForm([{type: 'slider', label: 'Size', property: [target, 'size'], bounds: [0, 4]}], {undoManager})
+        const [range] = row(form, 'Size').inputs
+        let time = 1000
+        const now = vi.spyOn(performance, 'now').mockImplementation(() => time)
+        try {
+            const move = (v: string) => {
+                range.value = v
+                range.fire('input')
+            }
+            move('2')
+            time += 1500 // a pause in the drag
+            move('3')
+            range.fire('change') // released
+            time += 1500
+            move('4') // a new drag
+            range.fire('change')
+            undoManager.undo()
+            expect(target.size).toBe(3)
+            undoManager.undo()
+            expect(target.size).toBe(1)
+        } finally {
+            now.mockRestore()
+        }
+    })
+
     test('dispose removes the form', () => {
         const host = new FakeElement('div')
         const form = new UiConfigForm([])

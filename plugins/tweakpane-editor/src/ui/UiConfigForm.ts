@@ -139,13 +139,16 @@ export class UiConfigForm {
             if (structural) this._structureChange()
         }
         apply(value, last)
+        // a continuous edit of this field (scrub, slider, colour picker) that has not ended yet
+        const continuing = this._unfinished === c
         this._unfinished = last ? undefined : c
         const um = this._options.undoManager
         if (!um) return
         const now = performance.now()
         const u = this._undo
-        // the same field again within a second, with no other step between: one step from the first value
-        const merge = !!u && u.config === c && um.peek() === u.cmd && now - u.time < 1000
+        // the same field again, in the same gesture or within a second, with no other step between: one step from the
+        // first value
+        const merge = !!u && u.config === c && um.peek() === u.cmd && (continuing || now - u.time < 1000)
         const first = merge && u ? u.before : before
         const after = clonePrimitive(value)
         const cmd = {undo: () => apply(first, true, true), redo: () => apply(after, true, true)}
