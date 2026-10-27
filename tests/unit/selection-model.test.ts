@@ -220,6 +220,14 @@ describe('selection box', () => {
         expect(boxInfo([group('Empty')], 'local', point).size.toArray().map(v => +v.toFixed(5))).toEqual([0.1, 0.1, 0.1])
     })
 
+    test('the world box adds each part in the world: a rotated part in a rotated group', () => {
+        const cube = new Mesh(new BoxGeometry(1, 1, 1), material) as any as IObject3D
+        cube.rotation.z = -Math.PI / 4
+        const g = group('G', cube)
+        g.rotation.z = Math.PI / 4 // the cube is back on the world axes
+        expect(boxInfo([g], 'world', point).size.toArray().map(v => +v.toFixed(5))).toEqual([1, 1, 1])
+    })
+
     test('an instanced mesh: the box of all its instances, as in Box3B', () => {
         const im = new InstancedMesh(new BoxGeometry(0.5, 0.5, 0.5), material, 2) as any as IObject3D
         ;(im as any).setMatrixAt(0, new Matrix4().makeTranslation(-5, 0, 0))
