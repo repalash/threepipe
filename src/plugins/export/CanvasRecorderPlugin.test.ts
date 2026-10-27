@@ -510,9 +510,10 @@ describe('converge mode hold', () => {
                 plugin._postRender()
             }
             plugin._postFrame()
+            plugin._pendingCapture?.() // the timeout of the capture, after the listeners of the frame
         }
-        loop(true) // a converged render: its capture waits for a timeout
-        loop(false) // a still loop: the capture of the render, then the hold
+        loop(true) // a converged render
+        loop(false) // a still loop: the hold
         loop(false)
         expect(captured).toEqual([1, 1, 1])
         progressive.isConverged = () => false
@@ -537,7 +538,20 @@ describe('a recorder that still records a frame', () => {
         expect(requestFrame).not.toHaveBeenCalled()
         busy = false
         plugin._postFrame() // ready: the still scene (the converged pose) is captured
+        plugin._pendingCapture?.()
         expect(requestFrame).toHaveBeenCalledTimes(1)
+    })
+
+    test('a still-loop capture waits for the other listeners of the frame, so the animations still step', () => {
+        const {plugin} = setup() // converge mode, the scene is converged
+        let busy = false
+        Object.assign(plugin._recorder, {requestFrame: () => busy = true, isBusy: () => busy}) // a browser recorder
+        plugin._recorder.start()
+        plugin._postFrame() // a still loop
+        expect(plugin.canRecordFrame()).toBe(true) // e.g. GLTFAnimationPlugin, a later postFrame listener: it steps
+        plugin._pendingCapture?.() // the timeout, after the frame
+        expect(busy).toBe(true)
+        expect(plugin.canRecordFrame()).toBe(false) // the next frame waits for the recorder
     })
 })
 

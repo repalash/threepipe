@@ -157,8 +157,29 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
 
     private _renderToScreenDisabled = false
 
-    /** A capture of the last converged frame that waits for its timeout */
+    /** The capture of the frames that wait for their timeout ({@link _captureSoon}) */
     private _pendingCapture?: () => void
+    /** The frames that the pending capture requests */
+    private _pendingFrames = 0
+
+    /**
+     * Converge mode: captures the canvas after the listeners of this frame ran (they read {@link canRecordFrame}, which a
+     * capture can change), at a timeout or before the next render (_preRender), whichever comes first.
+     */
+    private _captureSoon() {
+        this._pendingFrames++
+        if (this._pendingCapture) return
+        const fn = () => {
+            if (this._pendingCapture !== fn) return
+            this._pendingCapture = undefined
+            const frames = this._pendingFrames
+            this._pendingFrames = 0
+            for (let i = 0; i < frames; i++) this._recorder?.requestFrame()
+        }
+        this._pendingCapture = fn
+        // give some time to the browser to render the frame
+        timeout(1).then(fn)
+    }
 
     private _preRender = () => {
         // several frames can render in one animation loop (maxFramePerLoop): capture the last one before it is replaced
@@ -183,19 +204,7 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
                 // real time; or converge mode without ProgressivePlugin, where the animations run on the wall clock
                 this._requestRealtimeFrames()
             } else if (progressive.isConverged(true) && this.canRecordFrame()) {
-                // once: at its timeout, or before the next render (_preRender), whichever comes first
-                let done = false
-                const fn = () => {
-                    if (done) return
-                    done = true
-                    if (this._pendingCapture === fn) this._pendingCapture = undefined
-                    this._recorder?.requestFrame()
-                }
-                // give some time to the browser to render the frame
-                const waitTime = 1
-                // this._viewer!.renderer.frameWaitTime = waitTime
-                this._pendingCapture = fn
-                timeout(waitTime).then(fn)
+                this._captureSoon()
             }
         }
         if (this._renderToScreenDisabled) {
@@ -226,9 +235,8 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
         }
         // the animations stepped in this loop only if the recorder could take a frame (canRecordFrame)
         if (!progressive.isConverged(true) || !this.canRecordFrame()) return
-        // the capture of the last render first, so the frames keep their order (a still scene: the same image)
-        this._pendingCapture?.()
-        this._recorder.requestFrame()
+        // after the other postFrame listeners, so the animations of this frame still step (a still scene: the same image)
+        this._captureSoon()
     }
 
     /**
