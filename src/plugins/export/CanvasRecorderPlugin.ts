@@ -128,6 +128,7 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
         // the render manager sets composer.renderToScreen before its own preRender event, so it is changed there
         viewer.renderManager.addEventListener('preRender', this._preRender)
         viewer.addEventListener('postRender', this._postRender)
+        viewer.addEventListener('postFrame', this._postFrame)
         viewer.scene.addEventListener('addSceneObject', this._refreshUi)
 
         // add record indicator
@@ -166,6 +167,7 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
     }
 
     private _postRender = () => {
+        this._rendered = true
         if (this._recorder?.isRecording()) {
             const progressive = this._viewer?.getPlugin<ProgressivePlugin>('ProgressivePlugin')
             if (!this._convergeNow || !progressive) {
@@ -179,6 +181,8 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
                     done = true
                     if (this._pendingCapture === fn) this._pendingCapture = undefined
                     this._recorder?.requestFrame()
+                    // a hold of this frame (_postFrame) adds its next frame one frame time later
+                    this._nextFrameTime = performance.now() + 1000 / (this._active ?? this).videoFrameRate
                 }
                 // give some time to the browser to render the frame
                 const waitTime = 1
@@ -191,8 +195,23 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
             this._viewer!.renderManager.composer.renderToScreen = true
         }
     }
-    /** The time of the next frame of a real-time recording, in ms (0: the recording starts) */
+    /** The time of the next frame of a real-time recording or a converged hold, in ms (0: no frame yet) */
     private _nextFrameTime = 0
+
+    /** A frame rendered in this animation loop */
+    private _rendered = false
+
+    /**
+     * Converge mode: while nothing renders (the scene stays converged, e.g. a pause between camera views or the end
+     * padding), the last frame is held in the video for that time, at the frame rate of the recording.
+     */
+    private _postFrame = () => {
+        const rendered = this._rendered
+        this._rendered = false
+        if (rendered || this._pendingCapture || !this._nextFrameTime || !this._convergeNow || !this._recorder?.isRecording()) return
+        const progressive = this._viewer?.getPlugin<ProgressivePlugin>('ProgressivePlugin')
+        if (!progressive || progressive.isConverged(true)) this._requestRealtimeFrames()
+    }
 
     /**
      * Real time (not converge mode, or converge mode without ProgressivePlugin): the frames follow the frame rate of the recording, not the render rate. A render
@@ -222,6 +241,7 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
     onRemove(viewer: ThreeViewer): void {
         viewer.renderManager.removeEventListener('preRender', this._preRender)
         viewer.removeEventListener('postRender', this._postRender)
+        viewer.removeEventListener('postFrame', this._postFrame)
         viewer.scene.removeEventListener('addSceneObject', this._refreshUi)
         this._recorder?.dispose()
         Object.values(this._recorders).forEach(r => {
@@ -630,10 +650,13 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
             this.dispatchEvent({type: 'start'})
             this._stateChange(!this._convergeNow)
         })
+        // an error ends the recording too: the indicator hides and the viewer stops rendering every frame for it
         recorder.addEventListener('error', () => {
             this._active = undefined
             if (this._optionsPending) this.refreshRecorderOptions()
+            this._recordIndicator!.style.visibility = 'hidden'
             this.dispatchEvent({type: 'error'})
+            this._stateChange(false)
         })
         recorder.addEventListener('paused', () => this._stateChange(false))
         // recorder.addEventListener("resume", () => this._stateChange(!this.convergeMode));

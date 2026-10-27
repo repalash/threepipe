@@ -473,6 +473,50 @@ describe('CanvasRecorderPlugin stop and remove', () => {
     })
 })
 
+describe('recorder failure', () => {
+    test('a recorder error hides the indicator and ends the dirty state of a real-time recording', () => {
+        const {plugin} = setup()
+        plugin._active = {convergeMode: false, videoFrameRate: 30} // a real-time recording
+        plugin._viewer.canvas = {}
+        plugin._recordIndicator = {style: {visibility: 'hidden'}}
+        const rec = plugin._getRecorder('image')
+        rec._console = {error: () => undefined, warn: () => undefined}
+        rec.setState('recording')
+        expect(plugin.dirty).toBe(true)
+        expect(plugin._recordIndicator.style.visibility).toBe('visible')
+        rec.setState('error', {error: new Error('the encoder failed')})
+        expect(plugin.dirty).toBe(false)
+        expect(plugin._recordIndicator.style.visibility).toBe('hidden')
+    })
+})
+
+describe('converge mode hold', () => {
+    test('a converged scene that does not render is held in the video for its wall time', () => {
+        const {plugin} = setup() // converge mode, the scene is converged
+        const requestFrame = vi.fn()
+        plugin._recorder.requestFrame = requestFrame
+        plugin._recorder.start()
+        let time = 1000
+        const now = vi.spyOn(performance, 'now').mockImplementation(() => time)
+        try {
+            const loop = (t: number, render: boolean) => {
+                time = 1000 + t
+                if (render) plugin._postRender()
+                plugin._postFrame()
+                plugin._pendingCapture?.() // the capture of a converged render, at its timeout
+                return requestFrame.mock.calls.length
+            }
+            expect(loop(0, true)).toBe(1) // the converged frame
+            expect(loop(16, false)).toBe(1) // a still loop within one frame time (30 fps): no frame yet
+            expect(loop(34, false)).toBe(2) // the hold: one frame per 33.3 ms
+            expect(loop(190, false)).toBe(6) // a late loop adds the frames it passed (66.7, 100, 133.3, 166.7 ms)
+            expect(loop(200, true)).toBe(7) // a render: a new converged frame
+        } finally {
+            now.mockRestore()
+        }
+    })
+})
+
 describe('converge mode stop', () => {
     // each postFrame renders one progressive frame; the converged frame is captured (in _postRender)
     function converging(maxFrameCount: number) {
