@@ -96,6 +96,8 @@ export class FFMPEGRecorder extends ACanvasRecorder<'encode-progress'> {
         }
         if (this.state !== 'paused') {
             this._frameCount = 0
+            // one image type for the whole recording: the frames and the encode input must match
+            this._imageType = this._mime
             // this.images = [];
         }
         this.setState('starting')
@@ -131,7 +133,7 @@ export class FFMPEGRecorder extends ACanvasRecorder<'encode-progress'> {
         const args = [
             '-r', fps,
             '-an', // disable sound
-            '-i', `img%06d.${this._mime}`,
+            '-i', `img%06d.${this._imageType}`,
             '-frames:v', this._frameCount.toString(),
             '-c:v', 'libx264',
             '-crf', Math.min(28, Math.max(1, this.ffmpegOptions.crf ?? 17)).toString(), // https://trac.ffmpeg.org/wiki/Encode/H.264
@@ -185,6 +187,9 @@ export class FFMPEGRecorder extends ACanvasRecorder<'encode-progress'> {
         colorSpace: 'bt709',
     }
 
+    /** The image type of the frames of the running recording ({@link ffmpegOptions} can change during it) */
+    private _imageType = 'jpeg'
+
     private get _mime() {
         let mime = this.ffmpegOptions.imageType ?? 'jpeg'
         const allowed = ['png', 'jpeg', 'webp']
@@ -199,7 +204,7 @@ export class FFMPEGRecorder extends ACanvasRecorder<'encode-progress'> {
         if (this._pendingCaptures.size) {
             console.warn('FFMPEGRecorder: Previous frame capture not complete', frameCount - 1)
         }
-        const mime = this._mime
+        const mime = this._imageType
         const capture: Promise<void> = new Promise<void>((resolve) => {
             this._canvas.toBlob(
                 (data) => {

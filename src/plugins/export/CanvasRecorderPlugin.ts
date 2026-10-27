@@ -168,8 +168,10 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
     private _postRender = () => {
         if (this._recorder?.isRecording()) {
             const progressive = this._viewer?.getPlugin<ProgressivePlugin>('ProgressivePlugin')
-            if (!this._convergeNow || !progressive || progressive.isConverged(true)) {
-
+            if (!this._convergeNow || !progressive) {
+                // real time; or converge mode without ProgressivePlugin, where the animations run on the wall clock
+                this._requestRealtimeFrames()
+            } else if (progressive.isConverged(true)) {
                 // once: at its timeout, or before the next render (_preRender), whichever comes first
                 let done = false
                 const fn = () => {
@@ -178,13 +180,11 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
                     if (this._pendingCapture === fn) this._pendingCapture = undefined
                     this._recorder?.requestFrame()
                 }
-                if (this._convergeNow) {
-                    // give some time to the browser to render the frame
-                    const waitTime = 1
-                    // this._viewer!.renderer.frameWaitTime = waitTime
-                    this._pendingCapture = fn
-                    timeout(waitTime).then(fn)
-                } else this._requestRealtimeFrames()
+                // give some time to the browser to render the frame
+                const waitTime = 1
+                // this._viewer!.renderer.frameWaitTime = waitTime
+                this._pendingCapture = fn
+                timeout(waitTime).then(fn)
             }
         }
         if (this._renderToScreenDisabled) {
@@ -195,7 +195,7 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
     private _nextFrameTime = 0
 
     /**
-     * Real time (not converge mode): the frames follow the frame rate of the recording, not the render rate. A render
+     * Real time (not converge mode, or converge mode without ProgressivePlugin): the frames follow the frame rate of the recording, not the render rate. A render
      * that comes early captures no frame; one that comes late captures the frames it passed (the same image), so the
      * video keeps the speed of the animation. After a pause of more than a second, the time starts again.
      */

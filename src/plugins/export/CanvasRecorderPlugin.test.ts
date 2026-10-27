@@ -228,8 +228,27 @@ describe('converge mode without ProgressivePlugin', () => {
         plugin._preRender()
         expect(composer.renderToScreen).toBe(true)
         plugin._postRender()
-        await new Promise(r => setTimeout(r, 5)) // converge mode captures after 1 ms
+        await new Promise(r => setTimeout(r, 5))
         expect(requestFrame).toHaveBeenCalledTimes(1)
+    })
+
+    test('the frames follow the frame rate: the animations run on the wall clock then', () => {
+        const plugin = new CanvasRecorderPlugin() as any
+        plugin.convergeMode = true
+        plugin._viewer = {getPlugin: () => undefined, renderManager: {composer: {renderToScreen: true}}}
+        const requestFrame = vi.fn()
+        plugin._recorder = {isRecording: () => true, requestFrame}
+        let time = 1000
+        const now = vi.spyOn(performance, 'now').mockImplementation(() => time)
+        try {
+            for (const t of [0, 16, 34]) { // renders at 60 Hz, a video at 30 fps
+                time = 1000 + t
+                plugin._postRender()
+            }
+            expect(requestFrame).toHaveBeenCalledTimes(2)
+        } finally {
+            now.mockRestore()
+        }
     })
 })
 
@@ -499,6 +518,34 @@ describe('CameraViewPlugin.recordAllViews download', () => {
         await views.recordAllViews(undefined, true)
         expect(promptDefault).toBe('recording.webm')
         expect(exportFile).toHaveBeenCalledWith(expect.any(Blob), 'recording.webm')
+    })
+})
+
+describe('FFMPEGRecorder image type', () => {
+    test('a change of ffmpegOptions.imageType during a recording applies to the next one', async() => {
+        const messages: string[] = []
+        vi.stubGlobal('Worker', class {
+            onmessage: any = null
+            postMessage(m: any) {
+                messages.push(m.type === 'image' ? m.file.name : m.arguments[m.arguments.indexOf('-i') + 1])
+            }
+        })
+        try {
+            const canvas = {width: 4, height: 4, toBlob: (cb: (b: Blob) => void) => cb(new Blob([]))} as any
+            const rec = new FFMPEGRecorder(canvas, {mimeType: 'video/mp4'}) as any
+            vi.spyOn(console, 'log').mockImplementation(() => undefined)
+            vi.spyOn(console, 'time').mockImplementation(() => undefined)
+            rec.start()
+            rec.requestFrame()
+            rec.ffmpegOptions.imageType = 'png' // in the advanced options, while it records
+            rec.requestFrame()
+            rec.stop(() => undefined)
+            await new Promise(r => setTimeout(r, 0))
+            expect(messages).toEqual(['img000000.jpeg', 'img000001.jpeg', 'img%06d.jpeg'])
+        } finally {
+            vi.unstubAllGlobals()
+            vi.restoreAllMocks()
+        }
     })
 })
 
