@@ -2,6 +2,8 @@ import {describe, expect, test, vi} from 'vitest'
 import {EventDispatcher, Vector3} from 'three'
 import {CanvasRecorderPlugin} from './CanvasRecorderPlugin'
 import {ImageSequenceRecorder} from '../../utils/canvas-recorder/ImageSequenceRecorder'
+import {FFMPEGRecorder} from '../../utils/canvas-recorder/FFMPEGRecorder'
+import {CameraViewPlugin} from '../animation/CameraViewPlugin'
 
 // a recorder that starts at once and stops with an empty blob
 function fakeRecorder(plugin: CanvasRecorderPlugin) {
@@ -63,6 +65,18 @@ describe('CanvasRecorderPlugin', () => {
         })
         expect(blob).toBeInstanceOf(Blob)
         expect(during).toBe(16)
+        expect(progressive.maxFrameCount).toBe(32)
+    })
+
+    test('record(): rejects when the recording cannot start', async() => {
+        const {plugin, progressive} = setup()
+        plugin._recorder = undefined // no recorder: startRecording() returns false
+        const action = vi.fn()
+        await expect(Promise.race([
+            plugin.record(action),
+            new Promise((_, r) => setTimeout(() => r(new Error('hung')), 1000)),
+        ])).rejects.toThrow('could not start')
+        expect(action).not.toHaveBeenCalled()
         expect(progressive.maxFrameCount).toBe(32)
     })
 
@@ -134,5 +148,70 @@ describe('converge mode without ProgressivePlugin', () => {
         plugin._postRender()
         await new Promise(r => setTimeout(r, 5)) // converge mode captures after 1 ms
         expect(requestFrame).toHaveBeenCalledTimes(1)
+    })
+})
+
+describe('ImageSequenceRecorder start', () => {
+    test('without showDirectoryPicker, the start ends in the error state', () => {
+        const rec = new ImageSequenceRecorder({} as any, {mimeType: 'image/png'}) as any
+        rec._console = {error: () => undefined, warn: () => undefined}
+        const states: string[] = []
+        rec.addEventListener('error', () => states.push('error'))
+        rec.start()
+        expect(rec.state).toBe('error')
+        expect(states).toEqual(['error'])
+    })
+})
+
+describe('FFMPEGRecorder stop', () => {
+    test('encodes after every capture is in the worker, also when the captures overlap', async() => {
+        const messages: string[] = []
+        vi.stubGlobal('Worker', class {
+            onmessage = null
+            postMessage(m: any) {
+                messages.push(m.type === 'image' ? 'image:' + m.file.name : m.type)
+            }
+        })
+        try {
+            const callbacks: (() => void)[] = []
+            const canvas = {width: 4, height: 4, toBlob: (cb: (b: Blob) => void) => callbacks.push(() => cb(new Blob([])))} as any
+            const rec = new FFMPEGRecorder(canvas, {mimeType: 'video/mp4'}) as any
+            vi.spyOn(console, 'log').mockImplementation(() => undefined)
+            vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+            vi.spyOn(console, 'time').mockImplementation(() => undefined)
+            rec.start()
+            rec.requestFrame()
+            rec.requestFrame() // before the first toBlob calls back
+            callbacks[0]()
+            await new Promise(r => setTimeout(r, 0))
+            rec.stop(() => undefined)
+            await new Promise(r => setTimeout(r, 0))
+            expect(messages).toEqual(['image:img000000.jpeg']) // waits for the second capture
+            callbacks[1]()
+            await new Promise(r => setTimeout(r, 0))
+            expect(messages).toEqual(['image:img000000.jpeg', 'image:img000001.jpeg', 'run'])
+        } finally {
+            vi.unstubAllGlobals()
+            vi.restoreAllMocks()
+        }
+    })
+})
+
+describe('CameraViewPlugin.recordAllViews', () => {
+    test('a failing animation rejects, stops the recording and turns the view loop back on', async() => {
+        const {plugin: recorder} = setup()
+        const views = new CameraViewPlugin() as any
+        views._viewer = {getPlugin: (t: string) => t === 'CanvasRecorder' ? recorder : undefined}
+        views._cameraViews = [{}]
+        views._animationLooping = true // the view loop itself does not run here
+        views.viewLooping = true
+        views.resetToFirstView = async() => undefined
+        views.animateAllViews = async() => {
+            expect(views.viewLooping).toBe(false)
+            throw new Error('anim failed')
+        }
+        await expect(views.recordAllViews(undefined, false)).rejects.toThrow('anim failed')
+        expect(recorder.isRecording()).toBe(false)
+        expect(views.viewLooping).toBe(true)
     })
 })

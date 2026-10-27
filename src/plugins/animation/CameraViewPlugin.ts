@@ -751,37 +751,19 @@ export class CameraViewPlugin extends AViewerPluginSync<CameraViewPluginEventMap
             looping = true
             this.viewLooping = false
         }
-        await this.resetToFirstView()
-        return new Promise<Blob|undefined>((resolve, reject) => {
-            const listener2 = ()=>{
-                recorder.removeEventListener('start', listenerStart)
-                recorder.removeEventListener('stop', listener2)
-                recorder.removeEventListener('error', listenerError)
-            }
-            const listenerStart = async() => {
-                listener2()
-                onStart?.()
-                await this.animateAllViews()
-                const blob = await recorder.stopRecording()
-                if (looping) this.viewLooping = true
-                if (downloadOnEnd) {
-                    const name = await this._viewer?.dialog.prompt('Canvas Recorder: Save file as', 'recording.mp4')
-                    if (name !== null && blob) await this._downloadBlob(blob, name || 'recording.mp4')
-                }
-                resolve(blob)
-            }
-            const listenerError = async() => {
-                listener2()
-                reject()
-            }
-            recorder.addEventListener('start', listenerStart)
-            recorder.addEventListener('stop', listener2)
-            recorder.addEventListener('error', listenerError)
-            if (!recorder.startRecording()) {
-                console.error('cannot start recording')
-                return
-            }
-        })
+        let blob: Blob | undefined
+        try {
+            await this.resetToFirstView()
+            // record() rejects when the start, onStart or the animation fails, and stops the recording
+            blob = await recorder.record(async() => this.animateAllViews(), onStart)
+        } finally {
+            if (looping) this.viewLooping = true
+        }
+        if (downloadOnEnd && blob) {
+            const name = await this._viewer?.dialog.prompt('Canvas Recorder: Save file as', 'recording.mp4')
+            if (name !== null) await this._downloadBlob(blob, name || 'recording.mp4')
+        }
+        return blob
     }
 
     private async _downloadBlob(blob: Blob, name: string) {

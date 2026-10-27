@@ -31,7 +31,7 @@ export class ImageSequenceRecorder extends ACanvasRecorder {
         this._frameCount = 0
 
         this.setState('starting')
-        if (window && (window as any).showDirectoryPicker) {
+        if (typeof window !== 'undefined' && (window as any).showDirectoryPicker) {
             (window as any)
                 .showDirectoryPicker()
                 .then(async(dir: FileSystemDirectoryHandle) => {
@@ -43,6 +43,9 @@ export class ImageSequenceRecorder extends ACanvasRecorder {
                 .catch((e: any) => {
                     this._onerror({detail: e} as any)
                 })
+        } else {
+            // no folder to write to (the File System Access API is not in this browser)
+            this._onerror({detail: new Error('ImageSequenceRecorder: showDirectoryPicker is not supported in this browser')} as any)
         }
     }
 

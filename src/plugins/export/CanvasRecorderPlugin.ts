@@ -202,7 +202,10 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
                 this.addEventListener('start', listenerStart)
                 this.addEventListener('stop', listener2)
                 this.addEventListener('error', listenerError)
-                this.startRecording()
+                if (!this.startRecording()) {
+                    listener2()
+                    reject(new Error('CanvasRecorderPlugin: the recording could not start'))
+                }
             })
             return await this.stopRecording()
         } catch (e) {

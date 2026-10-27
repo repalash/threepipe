@@ -84,8 +84,8 @@ export class FFMPEGRecorder extends ACanvasRecorder<'encode-progress'> {
         this._recordingCallback = recordingCallback
         this.setState('stopping')
 
-        if (this._lastCanvasCapturePromise) this._lastCanvasCapturePromise.then(() => this._onStop())
-        else this._onStop()
+        // toBlob calls back later: encode after every requested frame is in the worker
+        Promise.all([...this._pendingCaptures]).then(() => this._onStop())
     }
 
     private _onStop() {
@@ -140,7 +140,8 @@ export class FFMPEGRecorder extends ACanvasRecorder<'encode-progress'> {
         return true
     }
 
-    private _lastCanvasCapturePromise?: Promise<void>
+    /** The frame captures whose toBlob has not called back yet */
+    private _pendingCaptures = new Set<Promise<void>>()
     // private _lastCanvasCaptureFrame = 0
 
     ffmpegOptions: FFMPEGOptions = {
@@ -164,12 +165,11 @@ export class FFMPEGRecorder extends ACanvasRecorder<'encode-progress'> {
     }
 
     sendBlobToWorker(frameCount: number): void {
-        if (this._lastCanvasCapturePromise) {
+        if (this._pendingCaptures.size) {
             console.warn('FFMPEGRecorder: Previous frame capture not complete', frameCount - 1)
-            // todo skip frame?
         }
         const mime = this._mime
-        this._lastCanvasCapturePromise = new Promise<void>((resolve) => {
+        const capture: Promise<void> = new Promise<void>((resolve) => {
             this._canvas.toBlob(
                 (data) => {
                 // data?.arrayBuffer().then((data)=> )
@@ -181,13 +181,14 @@ export class FFMPEGRecorder extends ACanvasRecorder<'encode-progress'> {
                             data,
                         },
                     })
-                    this._lastCanvasCapturePromise = undefined
                     resolve()
                 },
                 `image/${mime}`,
                 90,
             )
         })
+        this._pendingCaptures.add(capture)
+        capture.then(() => this._pendingCaptures.delete(capture))
     }
 
     pad(n: number | string, width: number) {
