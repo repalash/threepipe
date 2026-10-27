@@ -92,6 +92,17 @@ describe('selection hierarchy', () => {
         expect(resolveTarget(root, [], a, false, false)).toBe(a) // not the locked group
         expect(selectionLevels(root, c)).toEqual([[wrapper], [hidden], [c]])
         expect(childTargets(root, [wrapper])).toEqual([]) // Enter: the parts of the hidden group are not shown
+        // the parts of the locked group are at its parent's level: Tab and Ctrl+A reach them
+        expect(scopeObjects(root, [a])).toEqual([a, b, wrapper])
+        expect(siblingTarget(root, [a], 1)).toBe(b)
+        const outer = group('Outer', locked)
+        root.add(outer)
+        expect(childTargets(root, [outer])).toEqual([a, b]) // Enter
+        expect(selectionLevels(root, a)).toEqual([[outer], [a]])
+        expect(parentTarget(root, [a])).toBe(outer)
+        // a hidden locked group has no parts to select
+        locked.visible = false
+        expect(childTargets(root, [outer])).toEqual([])
     })
 
     test('a frame: a file root, or the only top-level object with meshes, with two or more parts', () => {
