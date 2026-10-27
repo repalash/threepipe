@@ -6,6 +6,7 @@ All notable changes to this plugin will be documented in this file.
 
 ## [Unreleased]
 
+- Add `SelectionUxPlugin` (part 1, the selection model): Figma-like click and key selection in the viewport. A click selects the outermost group (a group with a single child is one level with it, a file root passes the click to its parts), a double click goes one level in, a click again on the same spot selects the object behind, Shift adds or removes, Ctrl/Cmd selects the deepest object; Esc / Shift+Enter parent, Enter children, Tab siblings, Ctrl/Cmd+A the level. The selection stays in the `PickingPlugin` (one undo step per change). Not added to the editor by default. Example `selection-ux-plugin`.
 - `HierarchyUiPlugin.treeView` is typed `any`: treejs is bundled from a git repository and not on npm, so its type could not resolve in consumer declarations.
 
 ## [0.6.0]

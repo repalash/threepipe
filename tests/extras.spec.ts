@@ -123,6 +123,7 @@ test('screen-pass-extension', async({page}) => expect(page).toHaveTitle('Screen 
 test('screen-shader', async({page}) => expect(page).toHaveTitle('Screen Shader'))
 test('screen-shader-advanced', async({page}) => expect(page).toHaveTitle('Screen Shader Advanced'))
 test('screen-shader-material', async({page}) => expect(page).toHaveTitle('Screen Shader Material'))
+test('selection-ux-plugin', async({page}) => expect(page).toHaveTitle('Selection UX Plugin'))
 test('shape-tube-extrude', async({page}) => expect(page).toHaveTitle('Shape Tube Extrude Plugin'))
 test('shape-tube-extrude-plugin', async({page}) => expect(page).toHaveTitle('Shape Tube Extrude Plugin'))
 test('simple-svg-text-plane', async({page}) => expect(page).toHaveTitle('Simple Text Plane (svg)'))
