@@ -3,6 +3,8 @@
     --mb-bg: #ffffff; --mb-line: #e6e6e6; --mb-hover: #f2f3f5;
     position: fixed; right: 0; top: 0; bottom: 0; width: 44px; z-index: 30; display: flex; flex-direction: column; align-items: center; gap: 4px;
     padding: 10px 0; background: var(--mb-bg); border-left: 1px solid var(--mb-line); box-sizing: border-box;
+    /* a short window: the bar scrolls, so every mode and the buttons at the bottom stay reachable */
+    overflow-x: hidden; overflow-y: auto; scrollbar-width: thin;
 }
 body[class*="tpTheme-"] .mb-root {
     --mb-bg: var(--tp-base-background-color, #1c2026); --mb-line: var(--tp-container-border-color, rgba(255,255,255,.1));
