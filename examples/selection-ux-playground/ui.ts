@@ -51,7 +51,7 @@ export function applyModeFromUrl(ux: SelectionUxPlugin) {
 
 function modeLabel(ux: SelectionUxPlugin) {
     const m = ux.modes.find(x => x.id === ux.mode)
-    return m ? `${m.short ? `<b>${m.short}</b> ` : ''}${m.label}` : '<b>·</b> Custom'
+    return m ? `${m.short ? `<b>${m.short}</b> ` : ''}<span class="sux-mode-label">${m.label}</span>` : '<b>·</b> <span class="sux-mode-label">Custom</span>'
 }
 
 // region mode menu + settings popover

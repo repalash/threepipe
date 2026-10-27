@@ -90,6 +90,7 @@ export class CameraPathPlugin extends AViewerPluginSync<CameraPathEventMap> {
         viewer.forPlugin(AnimationObjectPlugin, p => p.addEventListener('rebuildTimeline', this._markDirty), p => p.removeEventListener('rebuildTimeline', this._markDirty))
         // the chip goes when you go on working in the view
         viewer.canvas.addEventListener('pointerdown', this._onCanvasDown)
+        viewer.forPlugin(SelectionUxPlugin, u => u.addEventListener('uxUpdate', this._onUx), u => u.removeEventListener('uxUpdate', this._onUx))
     }
 
     onRemove(viewer: ThreeViewer) {
@@ -99,6 +100,7 @@ export class CameraPathPlugin extends AViewerPluginSync<CameraPathEventMap> {
         viewer.getPlugin(PenToolPlugin)?.removeEventListener('created', this._onPathCreated)
         viewer.getPlugin(AnimationObjectPlugin)?.removeEventListener('rebuildTimeline', this._markDirty)
         viewer.canvas.removeEventListener('pointerdown', this._onCanvasDown)
+        viewer.getPlugin(SelectionUxPlugin)?.removeEventListener('uxUpdate', this._onUx)
         this._svg?.remove()
         this.closeDialog()
         this._hideChip()
@@ -486,6 +488,10 @@ export class CameraPathPlugin extends AViewerPluginSync<CameraPathEventMap> {
     }
 
     private _onCanvasDown = () => this._hideChip()
+    // editing the new path's points: the chip would sit over them
+    private _onUx = () => {
+        if (this._chip && this._viewer?.getPlugin(SelectionUxPlugin)?.geometryEdit) this._hideChip()
+    }
 
     private _hideChip() {
         this._chip?.remove()

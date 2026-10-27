@@ -3,16 +3,40 @@
  * It opens by itself once for each new {@link REPORT_VERSION}.
  */
 
-export const REPORT_VERSION = '2026-10-27-r8'
+export const REPORT_VERSION = '2026-10-27-r9'
 
 const REPORT_HTML = `
-<h1>Selection UX prototype <span>round 8 · 27 Oct 2026</span></h1>
+<h1>Selection UX prototype <span>round 9 · 27 Oct 2026</span></h1>
 <p class="lead">A Figma-like way to select, move and edit things in threepipe, for people who are not 3D experts.
 Two pages run the same plugins: the <b>playground</b> (simple, light panels) and the <b>editor</b> (the tweakpane editor with
 everything else). Code: branch <code>claude/figma-style-selection-ux-j74hh2</code> in repalash/threepipe,
 folder <code>examples/selection-ux-playground/</code>. Ticket: <a href="https://ijewel3d.youtrack.cloud/issue/IJ-1052" target="_blank">IJ-1052</a>.</p>
 
-<h2>Usability test: a camera along a bezier, on the timeline, to an MP4</h2>
+<h2>New in round 9: everything tested again, polished</h2>
+<p class="lead">Every feature was tested again on both pages, with the mouse and the keyboard, at 1300×800 and 1920×1000, light and dark.
+About 70 problems were found; most are fixed, the rest are listed below the table. The main fixes:</p>
+<table>
+<tr><th>Area</th><th>What changed</th><th>Try it</th></tr>
+<tr><td>Look</td><td>The inspector is a floating card like the layers panel (Figma UI3); one corner radius and shadow for all panels. The layers tabs fit; the layers menu is light like the toolbar menus.
+The shortcut sheet is light, in four sections, with keys that do not wrap. In the editor the view gizmo is top-right and the fullscreen button is gone (Expand does it)</td><td>Select something; <kbd>?</kbd></td></tr>
+<tr><td>Keyboard</td><td>Esc closes menus, the report, the splash and the shortcut sheet without deselecting. Menus work with the arrows, Enter and Space. With nothing selected, Tab reaches the toolbar.
+Keys no longer reach the scene through an open dialog. F with nothing selected zooms to everything</td><td>Open a menu, <kbd>↓</kbd> <kbd>Enter</kbd>, <kbd>Esc</kbd></td></tr>
+<tr><td>Toolbar</td><td>Fits a narrow editor (compact buttons). Play shows the real state and plays from where it is. Clicking an open menu's button closes it. Overlays switches no longer flicker;
+its dot shows for every overlay that is off. Annotate and the pen cannot both be on. Add: one undo step, proper names, a visible orange line. Snapshot leaves out the grid and selection.
+Clear the scene uses a styled confirm, clears the annotations too, and undo brings everything back. View mode hides the editing panels</td><td>Toolbar</td></tr>
+<tr><td>Camera path</td><td>Enter on a dialog button presses that button (it used to animate). “+ New camera” and its animation are one undo step, and undo leaves its view.
+“Its target” is kept. Each camera loads its own settings. The dialog and the chip sit under the toolbar, away from a path drawn below; the chip goes when you go on working</td><td>Pen, then the chip</td></tr>
+<tr><td>Pen</td><td>Handles stay flat, so a path on the floor stays on it; a click that misses a surface lands on the floor (<kbd>Shift</kbd>: keep the last height). A crosshair, and its hint replaces the selection hints</td><td><kbd>P</kbd></td></tr>
+<tr><td>Timeline</td><td>Go to start and scrubbing while playing land exactly (a stop takes a frame, which moved the time on). The clip of the selected object is outlined at once. The time stops at the end.
+The bar no longer overlaps the notes panel or draws its end line outside</td><td>Play, ⏮</td></tr>
+<tr><td>Video</td><td>Records in a background tab too: the recorder runs the frames itself, and a wake lock keeps the screen on. The first frame is right when the timeline was playing.
+“Record again” keeps the settings; a note says when nothing moves</td><td>● Record, switch tab</td></tr>
+<tr><td>Fixed files</td><td>The Studio environment and a splash sample pointed to missing files: the environment is replaced, the sample removed; a sample that fails now says so and the splash stays open</td><td>Shading → Studio</td></tr>
+</table>
+<p class="lead" style="font-size:13px">Still open: WebM files are one frame short (the muxer); a path drawn at the very bottom of the view can sit under the timeline bar;
+UV views of a missing UV set show black; Background off shows black, not a checkerboard.</p>
+
+<h2>Round 8 usability test: a camera along a bezier, on the timeline, to an MP4</h2>
 <p>Before this round it took about 17 steps in 3 tabs: a line, a curve type change, 4 handle drags, a constraint with a typed object name,
 the timeline turned on in the Animation tab, two ◆ keyframes at exact times — and then no way to make a video at all (threepipe had no recorder).
 Now it is 3 steps and Record. Try it on either page:</p>
@@ -32,7 +56,7 @@ Draft or Final (waits for anti-aliasing on every frame), MP4 or WebM, hide the p
 selection, grid and helpers are hidden. A preview and Cancel show while it runs; then the video plays in the dialog → <b>Download .mp4</b>.</li>
 <li><kbd>Ctrl</kbd>+<kbd>Z</kbd> removes the camera animation (and the lift) in one step.</li>
 </ol>
-<table>
+<table class="rp-2">
 <tr><th>Part</th><th>What is new</th></tr>
 <tr><td>CameraPathPlugin</td><td><code>animateAlongPath(camera, path, {duration, look, reverse, ease, lift})</code>: the follow_path constraint plus a 0 → 1 keyframe track on its offset, one undo step;
 the dialog, the chip after the pen, the path preview</td></tr>
@@ -57,7 +81,7 @@ like Blender's property tabs. Hover for the name; click the open mode again to h
 <tr><td>Colours in the light and camera icons</td><td>Cameras violet, sun amber, spot orange, bulb yellow, area light light-orange, ambient grey, plus a dot in the light's own colour</td><td>Look at the scene</td></tr>
 <tr><td>Toolbar structure (like the gizmo / overlay menus of Unity and Blender); the toolbar font</td><td>One bar: tools (select, move, rotate, scale, pen, annotate) · Add · camera, shading, <b>Overlays</b> · Edit/View · focus, undo, redo · snapshot, save, ⋯.
 Overlays is one menu with switches that stay open: grid, background, effects, icons, 3D widgets, annotations, outlines, names, sizes, smart guides, hints, performance.
-The bottom button bar is merged into it (⋯ menu). The toolbar uses the page font (the tweakpane font)</td><td>Toolbar → the layers icon</td></tr>
+The bottom button bar is merged into it (⋯ menu). The toolbar uses the page font (the tweakpane font)</td><td>Toolbar → Overlays (two circles)</td></tr>
 <tr><td>Figma style tweakpane theme</td><td>Two new tweakpane colour modes, <b>figma</b> and <b>figma-dark</b>: Inter, 11 px, grey panels, flat folders with a line, blue focus. The editor page starts in figma</td><td>Editor page</td></tr>
 <tr><td>Rename “Current”; mode keys A–F did nothing</td><td>“Current” is now <b>Classic</b> (the threepipe default). Modes are numbered 1–7 and the number keys switch them (also in Classic), with a toast</td><td><kbd>1</kbd>…<kbd>7</kbd></td></tr>
 <tr><td>Splash screen like the iJewel playground</td><td>Drop a file, click to choose one, or load a sample (jewellery demo, watch, helmet, horse, lines, empty). <kbd>Esc</kbd> or × closes it. Reopen: ⋯ → Open a file or sample</td><td>Reload the page</td></tr>
@@ -86,10 +110,10 @@ did not draw the new ones. Fixed in GeometryGeneratorPlugin</td><td>Edit “Spli
 <tr><td>Lights should show a frustum</td><td>A selected light that casts shadows draws its shadow camera: the sun's shadow box (what its shadows cover), the spot's frustum</td><td>Select “Sun” or “Key Spot”</td></tr>
 <tr><td>Move / Rotate / Scale should use the new UI</td><td>In the new modes <kbd>W</kbd> <kbd>E</kbd> <kbd>R</kbd> are tools of the selection UX: Move hides the scale and rotate handles;
 Rotate shows the ring and dragging the object turns it; Scale shows corners and sides and dragging the object right/left scales it from its base
-(<kbd>Alt</kbd>: centre). In “Current” mode they are the classic gizmo</td><td><kbd>E</kbd>, drag the ring</td></tr>
+(<kbd>Alt</kbd>: centre). In the Classic mode (7) they are the classic gizmo</td><td><kbd>E</kbd>, drag the ring</td></tr>
 <tr><td>Blueprint editor's material / environment overrides</td><td>“View as” menu: Shaded, Clay, Wireframe, Unlit, Depth, Normal, Normal World, Material ID, UV (again: next UV set);
 Lights instead of the scene's (Day, Night, Studio, None); Environment instead of the scene's (Day, Night, Studio, Indoors, Outdoors).
-Nothing in the scene changes: the overrides apply only while rendering, so export and the panels see the real scene</td><td>Toolbar eye button</td></tr>
+Nothing in the scene changes: the overrides apply only while rendering, so export and the panels see the real scene</td><td>Toolbar → Shading (half-filled circle)</td></tr>
 <tr><td>Same colours as the tweakpane theme</td><td>Toolbar, menus, layers and the geometry panel take the tweakpane colours (black, dark, blue, light, white) when it is on the page</td><td>Tweakpane → Color Mode</td></tr>
 <tr><td>Less border radius in the toolbar</td><td>Bar 8 px, buttons 4 px, menus 6 px</td><td>—</td></tr>
 <tr><td>Expand canvas, Space+drag, Shift+Space</td><td>Expand now fills the window in the editor too (the editor's CSS sized the canvas with <code>!important</code>);
@@ -172,7 +196,7 @@ parameters (radius, tube, segments…). Drag a name to scrub, or type.</li>
 <li>Drag it: it slides on the floor (grid shows). Press <kbd>Tab</kbd> while dragging for the front wall, the side wall, or facing you.</li>
 <li>Drag a corner: uniform scale. Just outside a corner: rotate. <kbd>Shift</kbd> snaps.</li>
 <li>Toolbar → <kbd>W</kbd>: the classic 3D gizmo on the same selection. <kbd>V</kbd> takes it away.</li>
-<li>Toolbar → mode button: try A to F. F (Focus) dims the rest.</li>
+<li>Toolbar → mode button, or the keys 1 to 7: 6 (Focus) dims the rest.</li>
 <li>Toolbar → View: what a visitor sees. Edit brings the tools back.</li>
 </ol>
 
@@ -215,11 +239,19 @@ export function showReport(show = true) {
         el.addEventListener('click', e => {
             if (e.target === el || (e.target as Element).classList.contains('rp-x')) showReport(false)
         })
-        window.addEventListener('keydown', e => {
-            if (e.key === 'Escape' && el!.classList.contains('show')) showReport(false)
+        // the open report has the focus and the keys (data-own-keys): Esc closes it, nothing reaches the scene
+        el.tabIndex = -1
+        el.dataset.ownKeys = ''
+        el.setAttribute('role', 'dialog')
+        el.setAttribute('aria-label', 'Prototype report')
+        el.addEventListener('keydown', e => {
+            if (e.key === 'Escape') showReport(false)
+            e.stopPropagation()
         })
     }
     el.classList.toggle('show', show)
+    if (show) el.focus({preventScroll: true})
+    else if (el.contains(document.activeElement)) (document.activeElement as HTMLElement).blur()
     if (!show) {
         try {
             localStorage.setItem('sux-report-seen', REPORT_VERSION)
@@ -259,13 +291,17 @@ function injectStyles() {
 #sux-report td { border-bottom: 1px solid #f0f0f0; padding: 8px; vertical-align: top; }
 #sux-report td:first-child { font-weight: 500; width: 22%; }
 #sux-report td:last-child { width: 24%; color: #444; }
+#sux-report table.rp-2 td:last-child { width: auto; color: inherit; }
 #sux-report ul, #sux-report ol { margin: 0; padding-left: 20px; }
 #sux-report li { margin: 4px 0; }
 #sux-report code { background: #f2f2f2; border-radius: 4px; padding: 1px 4px; font-size: 12px; }
 #sux-report kbd { font: inherit; font-size: 11px; background: #f2f2f2; border: 1px solid #e0e0e0; border-bottom-width: 2px; border-radius: 4px; padding: 0 4px; }
 #sux-report a { color: #0d99ff; }
-#sux-report .rp-x { position: absolute; right: 14px; top: 12px; border: 0; background: transparent; font-size: 22px; color: #757575; cursor: pointer; line-height: 1; }
-@media (max-width: 700px) { #sux-report td:last-child { display: none; } }
+/* stays in view while the report scrolls */
+#sux-report .rp-x { position: sticky; top: 0; float: right; margin: -16px -20px 0 8px; width: 32px; height: 32px; border-radius: 50%; border: 0; background: #f2f2f3; font-size: 20px; color: #555; cursor: pointer; line-height: 1; z-index: 1; }
+#sux-report .rp-x:hover { background: #e6e6e8; }
+#sux-report:focus { outline: none; }
+@media (max-width: 700px) { #sux-report table:not(.rp-2) td:last-child { display: none; } }
 `
     document.head.appendChild(st)
 }

@@ -59,6 +59,10 @@ body.tpTheme-black .mo-ui, body.tpTheme-dark .mo-ui, body.tpTheme-blue .mo-ui, b
   white-space: nowrap; animation: mo-in .18s ease-out;
 }
 @keyframes mo-in { from { opacity: 0; transform: translate(-50%, 6px); } }
+.mo-confirm-back { position: fixed; inset: 0; z-index: 3000; background: rgba(15,17,21,.3); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.mo-confirm { width: 320px; max-width: 100%; padding: 16px; }
+.mo-confirm p { margin: 0; font-size: 12px; line-height: 1.5; }
+.mo-confirm:focus { outline: none; }
 `
     document.head.appendChild(st)
 }
@@ -157,3 +161,40 @@ export function button(label: string, cls = '', onClick?: () => void) {
 
 /** Seconds as "4.5 s" */
 export const fmtSec = (s: number) => `${(Math.round(s * 10) / 10).toFixed(1)} s`
+
+/**
+ * A small confirm card in the page's style, instead of the browser's confirm(). Enter confirms, Esc cancels; it owns
+ * the keys while open, so they do not reach the scene.
+ */
+export async function confirmBox(message: string, ok = 'OK', danger = false): Promise<boolean> {
+    injectMotionStyles()
+    return new Promise(resolve => {
+        const back = document.createElement('div')
+        back.className = 'mo-ui mo-confirm-back'
+        const card = document.createElement('div')
+        card.className = 'mo-card mo-confirm'
+        card.setAttribute('role', 'alertdialog')
+        card.setAttribute('aria-label', message)
+        card.tabIndex = -1
+        card.dataset.ownKeys = ''
+        const text = document.createElement('p')
+        text.textContent = message
+        const btns = document.createElement('div')
+        btns.className = 'mo-btns'
+        const done = (v: boolean) => {
+            back.remove()
+            resolve(v)
+        }
+        const yes = button(ok, danger ? 'mo-red' : 'mo-primary', () => done(true))
+        btns.append(button('Cancel', '', () => done(false)), yes)
+        card.append(text, btns)
+        back.appendChild(card)
+        back.addEventListener('pointerdown', e => e.target === back && done(false))
+        card.addEventListener('keydown', e => {
+            e.stopPropagation()
+            if (e.key === 'Escape') done(false)
+        })
+        document.body.appendChild(back)
+        yes.focus()
+    })
+}

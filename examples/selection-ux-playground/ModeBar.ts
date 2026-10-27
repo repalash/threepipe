@@ -83,6 +83,8 @@ export function setupModeBar(editor: ModeBarEditor, host: HTMLElement, panel?: (
         open = v
         const p = panel?.()
         if (p) p.style.visibility = v ? '' : 'hidden'
+        // the page can give the canvas the panel's room (the editor's CSS does)
+        document.body.classList.toggle('mb-panel-hidden', !v)
         select(selected)
     }
     host.appendChild(bar)

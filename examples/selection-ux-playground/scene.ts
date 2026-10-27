@@ -199,7 +199,8 @@ export function splashSamples(viewer: ThreeViewer): SplashSample[] {
     const done = () => viewer.getPlugin(UndoManagerPlugin)?.undoManager?.reset()
     const model = (label: string, icon: string, url: string): SplashSample => ({label, icon, load: async() => {
         reset()
-        await viewer.load(url, {autoScale: true, autoCenter: true, autoScaleRadius: 2.5})
+        const obj = await viewer.load(url, {autoScale: true, autoCenter: true, autoScaleRadius: 2.5})
+        if (!obj) throw new Error(`Could not load ${label}`) // the splash stays open and says so
         await viewer.fitToView(undefined, 1.2, 0)
         done()
     }})
@@ -215,7 +216,6 @@ export function splashSamples(viewer: ThreeViewer): SplashSample[] {
         model('Classic watch', SPLASH_ICONS.watch, 'https://samples.threepipe.org/demos/classic-watch.glb'),
         model('Damaged helmet', SPLASH_ICONS.helmet, 'https://samples.threepipe.org/minimal/DamagedHelmet/glTF/DamagedHelmet.gltf'),
         model('Horse', SPLASH_ICONS.horse, 'https://samples.threepipe.org/minimal/Horse.glb'),
-        model('Temple lines', SPLASH_ICONS.lines, 'https://samples.threepipe.org/demos/temple-lines.glb'),
         {label: 'Empty scene', icon: SPLASH_ICONS.empty, load: () => {
             reset()
             done()

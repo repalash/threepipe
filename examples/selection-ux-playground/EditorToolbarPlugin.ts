@@ -22,6 +22,7 @@ import {SceneOverrides} from './SceneOverrides'
 import {PenToolPlugin} from './PenToolPlugin'
 import {TimelineBarPlugin} from './TimelineBarPlugin'
 import {CameraPathPlugin} from './CameraPathPlugin'
+import {confirmBox} from './motionUi'
 
 export interface EditorToolbarOptions {
     /** Add a floor grid the toolbar can show and hide */
@@ -87,8 +88,19 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
         this.slot.className = 'tb-slot'
     }
 
+    /** A narrow view: smaller buttons, and the selection mode as its number only, so every button stays reachable */
+    private _fit = () => {
+        const el = this.element
+        if (!el.isConnected) return
+        el.classList.remove('tb-compact')
+        if (el.scrollWidth > el.clientWidth + 1) el.classList.add('tb-compact')
+    }
+
+    private _fitObserver = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => this._fit()) : undefined
+
     onAdded(viewer: ThreeViewer) {
         super.onAdded(viewer)
+        this._fitObserver?.observe(viewer.container)
         if (this._options.grid) {
             this._grid = new GridHelper(40, 40, 0x8f97a3, 0xb7bdc6)
             this._grid.name = 'Editor Grid'
@@ -110,8 +122,12 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
         viewer.timeline.addEventListener('stop', this.render)
         viewer.forPlugin(AnnotationsPlugin, a => {
             a.addEventListener('annotationChange', this.render)
+            a.addEventListener('addingChange', this.render)
             a.editable = !this._viewMode
-        }, a => a.removeEventListener('annotationChange', this.render))
+        }, a => {
+            a.removeEventListener('annotationChange', this.render)
+            a.removeEventListener('addingChange', this.render)
+        })
         this._wasLegacy = !this._uxTools
         this.render()
     }
@@ -133,6 +149,7 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
     }
 
     onRemove(viewer: ThreeViewer) {
+        this._fitObserver?.disconnect()
         window.removeEventListener('keydown', this._onKey)
         window.removeEventListener('pointerdown', this._closeMenuOutside, true)
         viewer.scene.removeEventListener('mainCameraChange', this.render)
@@ -200,6 +217,14 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
         if (!viewer || !gen) return
         const obj = gen.generate(type, {}, false, false, false)
         if (!obj) return
+        // "box" → "Box", "TubeShape" → "Tube Shape", like the lights and cameras
+        if (obj.name) obj.name = (obj.name[0].toUpperCase() + obj.name.slice(1)).replace(/([a-z])([A-Z])/g, '$1 $2')
+        // a new line is white and 1 px on a white floor: make it a visible path, like the pen's
+        const lm = (obj as any).isLine2 ? (obj as any).material : undefined
+        if (lm?.color) {
+            lm.color.set('#ff6b3d')
+            if ('linewidth' in lm) lm.linewidth = 3
+        }
         const sel = viewer.getPlugin(PickingPlugin)?.getSelectedObject() as IObject3D | undefined
         const parent = sel?.isObject3D && !sel.geometry && !sel.isLight && !sel.isCamera ? sel : viewer.scene.modelRoot
         if (!obj.isLight && !obj.isCamera) {
@@ -216,7 +241,8 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
         }
         redo()
         viewer.getPlugin(UndoManagerPlugin)?.undoManager?.record({undo, redo})
-        viewer.getPlugin(SelectionUxPlugin)?.select([obj])
+        // selected without an undo step of its own: one undo removes the new object
+        viewer.getPlugin(PickingPlugin)?.setSelectedObject(obj, false, false)
     }
 
     // lit views; the debug views (normals, depth, UV...) are in SceneOverrides
@@ -305,6 +331,7 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
         if (notes) notes.editable = !view
         if (this._grid) this._grid.visible = !view && this._gridOn
         this._syncPanels()
+        document.body.classList.toggle('tb-view', view)
         viewer.setDirty()
         this.render()
     }
@@ -358,7 +385,11 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
         const a = this._viewer?.getPlugin(AnnotationsPlugin)
         if (!a || this._viewMode) return
         if (a.adding) a.cancelAdding()
-        else a.startAdding()
+        else {
+            // one placing tool at a time: the pen ends (its path is made from the points so far)
+            this._viewer?.getPlugin(PenToolPlugin)?.finish()
+            a.startAdding()
+        }
         this.render()
     }
 
@@ -385,6 +416,11 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
             this._viewer?.getPlugin(PenToolPlugin)?.toggle()
             return
         }
+        // F zooms to the selection (PickingPlugin); with nothing selected, to everything, like the button
+        if (e.code === 'KeyF' && !e.shiftKey && !this._viewer?.getPlugin(PickingPlugin)?.getSelectedObject()) {
+            this._viewer?.fitToView(undefined, 1.25, 800, 'easeOut')
+            return
+        }
         const g = ({KeyV: 'off', KeyW: 'translate', KeyE: 'rotate', KeyR: 'scale'} as const)[e.code as 'KeyV']
         if (g) this.setGizmo(g)
     }
@@ -395,6 +431,7 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
 
     render = () => {
         const el = this.element
+        requestAnimationFrame(this._fit)
         el.innerHTML = ''
         el.appendChild(this.slot)
         let group = el
@@ -518,8 +555,49 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
     }
 
     /** Download a PNG of the canvas */
+    /** Remove every object and annotation; one undo step brings them back (nothing is disposed) */
+    clearScene() {
+        const viewer = this._viewer
+        if (!viewer) return
+        const root = viewer.scene.modelRoot
+        const kids = [...root.children]
+        const notes = viewer.getPlugin(AnnotationsPlugin)
+        const saved = notes ? notes.toJSON() : undefined
+        viewer.getPlugin(PickingPlugin)?.setSelectedObject(undefined, false, false)
+        const apply = () => {
+            notes?.clear()
+            for (const k of kids) k.removeFromParent()
+            viewer.scene.setDirty({refreshScene: true})
+        }
+        const revert = () => {
+            for (const k of kids) root.add(k)
+            if (notes && saved) notes.fromJSON(saved)
+            viewer.scene.setDirty({refreshScene: true})
+        }
+        apply()
+        viewer.getPlugin(UndoManagerPlugin)?.undoManager?.record({undo: revert, redo: apply})
+    }
+
+    /** A PNG of the view as a visitor sees it: for that frame no selection (outline, gizmo), grid or 3D widgets */
     async snapshot() {
-        const blob = await this._viewer?.getScreenshotBlob({mimeType: 'image/png'})
+        const viewer = this._viewer
+        if (!viewer) return
+        const picking = viewer.getPlugin(PickingPlugin)
+        const sel = (picking?.getSelectedObjects?.() ?? []) as IObject3D[]
+        const widgets = viewer.getPlugin(Object3DWidgetsPlugin)
+        const grid = this._grid?.visible
+        picking?.setSelectedObject(undefined, false, false)
+        widgets?.disable(KEY + 'Snapshot')
+        this._tc?.disable(KEY + 'Snapshot')
+        if (this._grid) this._grid.visible = false
+        viewer.setDirty()
+        await viewer.doOnce('postFrame')
+        const blob = await viewer.getScreenshotBlob({mimeType: 'image/png'})
+        if (this._grid && grid !== undefined) this._grid.visible = grid
+        widgets?.enable(KEY + 'Snapshot')
+        this._tc?.enable(KEY + 'Snapshot')
+        if (sel.length) viewer.getPlugin(SelectionUxPlugin)?.select(sel)
+        viewer.setDirty()
         if (!blob) return
         const a = document.createElement('a')
         a.href = URL.createObjectURL(blob)
@@ -549,7 +627,7 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
             this.setGrid(this._gridOn)
         }, this._gridOn, true])
         items.push(['Background', () => this.setBackground(!rp.renderBackground), !!rp.renderBackground, true])
-        items.push(['Effects (post-processing)', () => this.setEffects(this._effectsOff), !this._effectsOff, true])
+        if (EFFECT_PLUGINS.some(t => viewer.getPlugin(t))) items.push(['Effects (post-processing)', () => this.setEffects(this._effectsOff), !this._effectsOff, true])
         items.push('#Lights and cameras')
         if (ux) {
             items.push(['Icons', () => ux.setObjectHelpers(!ux.iconsShown, ux.widgetsShown), ux.iconsShown, true])
@@ -580,8 +658,14 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
 
     /** Whether an overlay is off that is on by default (the button shows a dot then) */
     private _overlaysChanged() {
-        const ux = this._viewer?.getPlugin(SelectionUxPlugin)
-        return this._effectsOff || !!this._grid && !this._gridOn || !!ux && !ux.iconsShown
+        const viewer = this._viewer
+        const ux = viewer?.getPlugin(SelectionUxPlugin)
+        const st = ux?.settings
+        const notes = viewer?.getPlugin(AnnotationsPlugin)
+        const perf = viewer?.getPlugin('PerfPanelPlugin') as any
+        return this._effectsOff || !!this._grid && !this._gridOn || !!ux && (!ux.iconsShown || !ux.widgetsShown) ||
+            !!viewer && !viewer.renderManager.renderPass.renderBackground || !!notes && !notes.enabled ||
+            !!st && (!st.showHints || !st.outlineHover || !st.showName || !st.showDims || !st.smartGuides) || !!perf && !perf.enabled
     }
 
     private _moreMenu(): MenuItem[] {
@@ -597,12 +681,12 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
         for (const [, title, fn] of this._options.extra || []) items.push([title, fn])
         if (items.length) items.push('-')
         items.push(['Reset all settings…', async() => {
-            if (!await viewer.dialog.confirm('Reset all plugin settings to their defaults?')) return
+            if (!await confirmBox('Reset all plugin settings to their defaults?', 'Reset', true)) return
             for (const p of Object.values(viewer.plugins)) await (p as any)?.resetDefaults?.()
         }])
         items.push(['Clear the scene…', async() => {
-            if (!await viewer.dialog.confirm('Remove all objects from the scene?')) return
-            viewer.scene.disposeSceneModels()
+            if (!await confirmBox('Remove all objects and annotations from the scene? Undo brings them back.', 'Clear', true)) return
+            this.clearScene()
         }])
         return items
     }
@@ -630,13 +714,21 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
     }
 
     private _closeMenuOutside = (e: Event) => {
-        if (this._menu && !this._menu.contains(e.target as Node)) this._closeMenu()
+        if (!this._menu || this._menu.contains(e.target as Node)) return
+        // a press on the open menu's own button closes it; the click that follows must not open it again
+        if (this._menuAnchor?.contains(e.target as Node)) this._closedByAnchor = {anchor: this._menuAnchor, time: performance.now()}
+        this._closeMenu()
     }
+
+    private _closedByAnchor?: {anchor: HTMLElement, time: number}
 
     private _menuAnchor?: HTMLElement
 
     private _closeMenu() {
-        this._menu?.remove()
+        const m = this._menu
+        // the focus goes back to the page, so the scene keys work again
+        if (m?.contains(document.activeElement)) (document.activeElement as HTMLElement).blur()
+        m?.remove()
         this._menu = undefined
         this._menuAnchor?.classList.remove('open')
         this._menuAnchor = undefined
@@ -647,15 +739,24 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
      * Pass a function to rebuild the items after a keep-open item (a toggle in the Overlays menu) is clicked.
      */
     private _openMenu(anchor: HTMLElement, list: MenuItem[] | (() => MenuItem[])) {
+        const c = this._closedByAnchor
+        this._closedByAnchor = undefined
+        if (c && c.anchor === anchor && performance.now() - c.time < 600) return
         const items = typeof list === 'function' ? list() : list
-        // reopened after a toggle: keep its place (the toolbar re-rendered, so the anchor may be gone)
+        // reopened after a toggle: keep its place (the toolbar re-rendered, so the anchor may be gone), no fade, the same item focused
+        const reopen = !!this._menu
         const left = this._menu?.style.left
         const top = this._menu?.style.top
+        const focusIndex = this._menu ? Array.from(this._menu.querySelectorAll('[role^="menuitem"]')).indexOf(document.activeElement!) : -1
+        const keyboard = !reopen && anchor.matches(':focus-visible')
         this._closeMenu()
         this._hideTip()
         const m = document.createElement('div')
-        m.className = 'tb-menu' + (this._options.theme === 'dark' ? ' tb-dark' : '')
+        m.className = 'tb-menu' + (this._options.theme === 'dark' ? ' tb-dark' : '') + (reopen ? ' tb-noanim' : '')
         m.setAttribute('role', 'menu')
+        // the open menu has the keys: arrows move, Enter or Space choose, Esc closes (the scene does not see them)
+        m.tabIndex = -1
+        m.dataset.ownKeys = ''
         for (const it of items) {
             if (typeof it === 'string') {
                 const d = document.createElement('div')
@@ -668,6 +769,7 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
             const d = document.createElement('div')
             d.className = 'tb-menu-item' + (on ? ' on' : '') + (keep ? ' tb-menu-toggle' : '')
             d.setAttribute('role', keep ? 'menuitemcheckbox' : 'menuitem')
+            d.tabIndex = -1
             if (keep) d.setAttribute('aria-checked', String(!!on))
             d.innerHTML = keep ?
                 `<span class="tb-label">${label}</span><span class="tb-switch${on ? ' on' : ''}"></span>` :
@@ -688,6 +790,27 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
         anchor.classList.add('open')
         this._menu = m
         this._menuAnchor = anchor
+        const entries = Array.from(m.querySelectorAll<HTMLElement>('[role^="menuitem"]'))
+        m.addEventListener('keydown', e => {
+            e.stopPropagation()
+            const i = entries.indexOf(document.activeElement as HTMLElement)
+            if (e.key === 'Escape' || e.key === 'Tab') {
+                e.preventDefault()
+                this._closeMenu()
+                if (anchor.isConnected) anchor.focus()
+            } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                e.preventDefault()
+                const n = entries.length
+                const step = e.key === 'ArrowDown' ? 1 : -1
+                const from = i >= 0 ? i : step > 0 ? -1 : 0
+                entries[(from + step + n) % n]?.focus()
+            } else if ((e.key === 'Enter' || e.key === ' ') && i >= 0) {
+                e.preventDefault()
+                entries[i].click()
+            }
+        })
+        const target = entries[focusIndex] ?? (keyboard ? entries[0] : m)
+        target.focus({preventScroll: true})
     }
 
     private _gizmoMenu() {
@@ -706,7 +829,7 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
             const [g, ...rest] = key.split('-')
             const name = rest.join(' ') || g
             const group = g === 'geometry' ? 'Shapes' : g[0].toUpperCase() + g.slice(1) + 's'
-            ;(groups[group] ||= []).push([name[0].toUpperCase() + name.slice(1), () => this.addObject(key)])
+            ;(groups[group] ||= []).push([(name[0].toUpperCase() + name.slice(1)).replace(/([a-z])([A-Z])/g, '$1 $2'), () => this.addObject(key)])
         }
         const items: ([string, () => void] | string)[] = []
         for (const [g, list] of Object.entries(groups)) items.push('#' + g, ...list)
@@ -724,12 +847,15 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
         })
         if (cams.length) items.push('#Look through', ...cams.map(c => [c.name || c.type, () => (c as any).activateMain(), main === c] as [string, () => void, boolean]))
         const views = viewer.getPlugin(CameraViewPlugin)
-        if (views) items.push('-', ['Loop the saved camera views', () => {
+        // only with saved views: without them the loop has nothing to play
+        if (views?.cameraViews.length) items.push('-', ['Loop the saved camera views', () => {
             views.viewLooping = !views.viewLooping
         }, views.viewLooping])
         const ux = viewer.getPlugin(SelectionUxPlugin)
-        if (ux && cams.length) {
-            items.push('-', ['Move the selected camera to this view <kbd>Ctrl Alt 0</kbd>', () => ux.alignCameraToView()])
+        // the camera it moves: the selected one, else the last one looked through; named, so the item says what it does
+        const moveCam = ux?.selected.find(o => o.isCamera) ?? ux?.lastViewCamera
+        if (ux && cams.length && moveCam && main !== moveCam as any) {
+            items.push('-', [`Move ${moveCam.name || 'the camera'} to this view <kbd>Ctrl Alt 0</kbd>`, () => ux.alignCameraToView(moveCam)])
             if (ux.viewCamera) items.push([(ux.lockCameraToView ? 'Unlock' : 'Lock') + ' camera to view <kbd>L</kbd>', () => ux.setLockCameraToView(!ux.lockCameraToView), ux.lockCameraToView])
         }
         const cp = viewer.getPlugin(CameraPathPlugin)
@@ -743,7 +869,7 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
         const names: Record<string, string> = {shaded: 'Shaded (the real materials)', clay: 'Clay', wireframe: 'Wireframe'}
         for (const [k, l] of Object.entries(names)) items.push([l, () => this.setView(k), this._view === k && !ov.material])
         for (const m of ov.materialTypes) {
-            items.push([ov.labelOf(m) + (m.key === 'uv' && ov.material === 'uv' ? ' <kbd>again: next set</kbd>' : ''), () => {
+            items.push([ov.labelOf(m) + (m.key === 'uv' && ov.material === 'uv' ? ' <kbd>click: next set</kbd>' : ''), () => {
                 if (this._view !== 'shaded') this.setView('shaded')
                 ov.setMaterial(m.key)
             }, ov.material === m.key])
@@ -837,8 +963,8 @@ body[class*="tpTheme-"] .tb-root, body[class*="tpTheme-"] .tb-menu {
   --tb-press: var(--tp-button-background-color-active, rgba(255,255,255,.15)); --tb-track: var(--tp-input-background-color, rgba(255,255,255,.07));
   --tb-thumb: var(--tp-button-background-color, rgba(255,255,255,.18)); --tb-soft: rgba(13,153,255,.2);
 }
-body.tpTheme-black .tb-root, body.tpTheme-dark .tb-root, body.tpTheme-blue .tb-root,
-body.tpTheme-black .tb-menu, body.tpTheme-dark .tb-menu, body.tpTheme-blue .tb-menu {
+body.tpTheme-black .tb-root, body.tpTheme-dark .tb-root, body.tpTheme-blue .tb-root, body.tpTheme-figma-dark .tb-root,
+body.tpTheme-black .tb-menu, body.tpTheme-dark .tb-menu, body.tpTheme-blue .tb-menu, body.tpTheme-figma-dark .tb-menu {
   --tb-soft-fg: #7cc6ff; --tb-shadow: 0 0 0 1px rgba(0,0,0,.35), 0 6px 20px rgba(0,0,0,.3);
 }
 .tb-root {
@@ -867,6 +993,11 @@ body.tpTheme-black .tb-menu, body.tpTheme-dark .tb-menu, body.tpTheme-blue .tb-m
 .tb-k-toggle.on:hover:not(:disabled) { background: var(--tb-soft); color: var(--tb-soft-fg); }
 /* a menu with a setting that is not the default: a small dot */
 .tb-k-menu.on::after { content: ''; position: absolute; top: 5px; right: 5px; width: 5px; height: 5px; border-radius: 50%; background: var(--tb-accent); box-shadow: 0 0 0 1.5px var(--tb-bg); }
+.tb-compact .tb-btn { min-width: 27px; padding: 0 5px; }
+.tb-compact .tb-group { padding: 0 2px; }
+.tb-compact .tb-seg button { padding: 0 7px; }
+.tb-compact .sux-mode-label { display: none; }
+body.tb-view .tb-slot { display: none; }
 .tb-seg { display: inline-flex; background: var(--tb-track); border-radius: 5px; padding: 2px; position: relative; flex: none; }
 .tb-seg button {
   position: relative; z-index: 1; border: 0; background: transparent; color: var(--tb-dim); height: 28px; padding: 0 11px; border-radius: 3px; font: inherit; cursor: pointer;
@@ -880,7 +1011,9 @@ body.tpTheme-black .tb-menu, body.tpTheme-dark .tb-menu, body.tpTheme-blue .tb-m
 }
 @keyframes tb-in { from { opacity: 0; transform: translateY(-3px); } }
 .tb-menu-item { display: flex; align-items: center; gap: 6px; padding: 0 10px 0 4px; height: 30px; border-radius: 4px; cursor: pointer; white-space: nowrap; }
-.tb-menu-item:hover { background: var(--tb-hover); }
+.tb-menu-item:hover, .tb-menu-item:focus { background: var(--tb-hover); outline: none; }
+.tb-menu:focus { outline: none; }
+.tb-menu.tb-noanim { animation: none; }
 .tb-check { width: 16px; height: 16px; flex: none; color: var(--tb-accent); }
 .tb-label { flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 18px; }
 .tb-menu kbd, .tb-tip kbd { font: inherit; font-size: 10px; color: var(--tb-dim); background: var(--tb-track); border-radius: 4px; padding: 2px 5px; margin-left: 4px; }

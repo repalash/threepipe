@@ -537,7 +537,7 @@ export class PerfPanelPlugin extends AViewerPluginSync {
         ctx.fillText('16', w - 1, y(1000 / 60) - 2 * dpr)
         ctx.fillText('33', w - 1, y(1000 / 30) - 2 * dpr)
         const bw = Math.max(1, Math.round(dpr))
-        const pw = w - Math.round(14 * dpr) // the labels keep the right edge
+        const pw = w - Math.round(18 * dpr) // the labels keep the right edge, with a gap to the bars
         const now = this._last
         let color = ''
         for (let k = 0; k < this._count; k++) {
@@ -644,7 +644,7 @@ body[class*="tpTheme-"] .pp-root {
   --pp-dim: var(--tp-monitor-foreground-color, #9a9a9a); --pp-line: var(--tp-container-border-color, rgba(255,255,255,.14));
   --pp-hover: var(--tp-button-background-color-hover, rgba(255,255,255,.09)); --pp-spark-idle: var(--tp-label-foreground-color, #8a8f97);
 }
-body.tpTheme-black .pp-root, body.tpTheme-dark .pp-root, body.tpTheme-blue .pp-root {
+body.tpTheme-black .pp-root, body.tpTheme-dark .pp-root, body.tpTheme-blue .pp-root, body.tpTheme-figma-dark .pp-root {
   --pp-warn-bg: rgba(245,165,36,.14); --pp-warn-fg: #ffc965; --pp-shadow: 0 0 0 1px rgba(0,0,0,.35), 0 6px 20px rgba(0,0,0,.3);
 }
 .pp-top-left { top: 10px; left: 10px; }

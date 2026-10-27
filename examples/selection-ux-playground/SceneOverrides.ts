@@ -185,7 +185,7 @@ class MaterialIdOverrideMaterial extends MeshBasicMaterial {
     }
 }
 
-/** UV: U in red, V in green for the selected channel (0-3); magenta when the mesh has no UVs */
+/** UV: U in red, V in green for the selected channel (0-3); black where the mesh has no such UV set (a missing attribute reads as 0) */
 class UvOverrideMaterial extends MeshBasicMaterial {
     uvChannel: 0 | 1 | 2 | 3 = 0
 
@@ -353,7 +353,7 @@ function defaultLightingPresets(): SceneOverrideLightingPreset[] {
         {key: 'lights-none', label: 'None', group: 'lights', icon: 'disable', lights: () => []},
         {key: 'env-day', label: 'Day', group: 'env', icon: 'globe', url: ENV_BASE + 'quarry_01_1k.hdr'},
         {key: 'env-night', label: 'Night', group: 'env', icon: 'moon', url: ENV_BASE + 'moonless_golf_1k.hdr'},
-        {key: 'env-studio', label: 'Studio', group: 'env', icon: 'camera', url: ENV_BASE + 'royal_esplanade_1k.hdr'},
+        {key: 'env-studio', label: 'Studio', group: 'env', icon: 'camera', url: 'https://samples.threepipe.org/minimal/studio_small_03_1k.hdr'},
         {key: 'env-indoors', label: 'Indoors', group: 'env', icon: 'home', url: 'https://samples.threepipe.org/minimal/empty_warehouse_01_1k.hdr'},
         {key: 'env-outdoors', label: 'Outdoors', group: 'env', icon: 'outdated', url: 'https://samples.threepipe.org/minimal/venice_sunset_1k.hdr'},
     ]

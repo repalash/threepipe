@@ -57,6 +57,7 @@ export function showSplash(viewer: ThreeViewer, options: SplashOptions) {
 </div>
 <input type="file" multiple hidden accept=".glb,.gltf,.fbx,.obj,.stl,.ply,.3dm,.usdz,.drc,.json,.hdr,.exr,.jpg,.png">`
     const row = el.querySelector<HTMLElement>('.spl-samples')!
+    const sub = el.querySelector<HTMLElement>('.spl-sub')!
     for (const s of options.samples) {
         const b = document.createElement('button')
         b.className = 'spl-sample'
@@ -72,6 +73,8 @@ export function showSplash(viewer: ThreeViewer, options: SplashOptions) {
                 console.error(e)
                 b.classList.remove('spl-loading')
                 el.classList.remove('spl-busy')
+                sub.textContent = `Could not load “${s.label}”. Pick another sample, or drop a file.`
+                sub.classList.add('spl-error')
             }
         })
         row.appendChild(b)
@@ -114,6 +117,10 @@ export function showSplash(viewer: ThreeViewer, options: SplashOptions) {
         close()
     }
     window.addEventListener('keydown', onKey, {capture: true})
+    // the open splash has the focus and the keys: W, E, Delete... do not reach the scene behind it
+    el.tabIndex = -1
+    el.dataset.ownKeys = ''
+    el.addEventListener('keydown', e => e.stopPropagation())
     function close() {
         window.removeEventListener('keydown', onKey, {capture: true})
         el.classList.add('spl-out')
@@ -123,6 +130,7 @@ export function showSplash(viewer: ThreeViewer, options: SplashOptions) {
     }
     el.querySelector('.spl-x')!.addEventListener('click', close)
     document.body.appendChild(el)
+    el.focus({preventScroll: true})
     open = el
     return {close}
 }
@@ -156,7 +164,9 @@ function injectStyles() {
 .spl-pill span { color: var(--spl-dim); }
 .spl-root h1 { margin: 26px 0 8px; font: 400 clamp(32px, 5vw, 58px)/1.05 'Instrument Serif', 'Playfair Display', Georgia, serif; letter-spacing: -.01em; }
 .spl-root h1 em { font-style: normal; color: var(--spl-accent); }
-.spl-sub { font-size: 14px; color: #3b3b3b; margin-top: 18px; }
+.spl-sub { font-size: 14px; color: var(--spl-fg); opacity: .8; margin-top: 18px; }
+.spl-sub.spl-error { color: #dc2626; opacity: 1; }
+.spl-root:focus { outline: none; }
 .spl-samples { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
 .spl-sample {
   position: relative; width: 50px; height: 50px; border-radius: 8px; border: 1px solid #dedee3; background: #fff; color: #6b6b6b; cursor: pointer;
@@ -177,16 +187,16 @@ function injectStyles() {
 }
 .spl-x:hover { background: #dcdce0; }
 .spl-root button:focus-visible { outline: 2px solid var(--spl-accent); outline-offset: 2px; }
-body.tpTheme-figma-dark .spl-root, body.tpTheme-dark .spl-root, body.tpTheme-black .spl-root {
+body.tpTheme-figma-dark .spl-root, body.tpTheme-dark .spl-root, body.tpTheme-black .spl-root, body.tpTheme-blue .spl-root {
   --spl-fg: #f2f2f2; --spl-dim: #a8a8a8;
   background:
     repeating-radial-gradient(ellipse 120% 70% at 62% 48%, rgba(255,255,255,0) 0 70px, rgba(255,255,255,.035) 110px, rgba(255,255,255,0) 150px),
     radial-gradient(ellipse at 50% 50%, #26262b 0%, #1d1d21 70%, #18181b 100%);
 }
-body.tpTheme-figma-dark .spl-pill, body.tpTheme-dark .spl-pill, body.tpTheme-black .spl-pill,
-body.tpTheme-figma-dark .spl-sample, body.tpTheme-dark .spl-sample, body.tpTheme-black .spl-sample { background: #2a2a2f; border-color: #3a3a40; }
-body.tpTheme-figma-dark .spl-x, body.tpTheme-dark .spl-x, body.tpTheme-black .spl-x { background: #333338; color: #f2f2f2; }
-body.tpTheme-figma-dark .spl-drop, body.tpTheme-dark .spl-drop, body.tpTheme-black .spl-drop { background: color-mix(in srgb, var(--spl-accent) 16%, #222); }
+body.tpTheme-figma-dark .spl-pill, body.tpTheme-dark .spl-pill, body.tpTheme-black .spl-pill, body.tpTheme-blue .spl-pill,
+body.tpTheme-figma-dark .spl-sample, body.tpTheme-dark .spl-sample, body.tpTheme-black .spl-sample, body.tpTheme-blue .spl-sample { background: #2a2a2f; border-color: #3a3a40; }
+body.tpTheme-figma-dark .spl-x, body.tpTheme-dark .spl-x, body.tpTheme-black .spl-x, body.tpTheme-blue .spl-x { background: #333338; color: #f2f2f2; }
+body.tpTheme-figma-dark .spl-drop, body.tpTheme-dark .spl-drop, body.tpTheme-black .spl-drop, body.tpTheme-blue .spl-drop { background: color-mix(in srgb, var(--spl-accent) 16%, #222); }
 `
     document.head.appendChild(st)
 }

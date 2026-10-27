@@ -1614,6 +1614,10 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
         // a focused list (the layers panel) uses the arrow keys itself, like in Figma; [data-own-keys] (an annotation card) all keys
         if (e.code.startsWith('Arrow') && t?.closest?.('[data-own-arrows]') || t?.closest?.('[data-own-keys]')) return
+        // a control reached with the keyboard (a toolbar button, a menu item) presses with Enter and Space itself
+        if (['Enter', 'NumpadEnter', 'Space'].includes(e.code) && !this._state && t?.matches?.(':focus-visible') && t.closest?.('button, select, a[href], [role="menuitem"]')) return
+        // with nothing selected, Tab moves the focus as usual (to the toolbar and the panels)
+        if (e.code === 'Tab' && !this._state && !this.selected.length) return
         const ctrl = e.ctrlKey || e.metaKey
         const own = () => {
             e.preventDefault()
@@ -2222,6 +2226,10 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
     }
 
     private _lastViewCamera: IObject3D | null = null
+    /** The scene camera looked through last (0 looks through it again) */
+    get lastViewCamera() {
+        return this._lastViewCamera
+    }
     private _camView: {cam: any, pose: CameraPose, controlsMode: string, locked: boolean} | null = null
     private _camHud?: HTMLDivElement
 
@@ -2513,9 +2521,13 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         if (tag.textContent !== label) tag.textContent = label
         tag.style.transform = `translate(${rect.minX}px, ${rect.minY - 4}px) translateY(-100%)`
         if (this._paramsEl) {
-            const {w} = this._size()
+            const {w, h} = this._size()
             const left = rect.maxX + 14 + 220 > w ? Math.max(4, rect.minX - 14 - 220) : rect.maxX + 14
-            this._paramsEl.style.transform = `translate(${left}px, ${Math.max(4, rect.minY)}px)`
+            // the bottom of the view has the hints and the timeline bar: the panel ends above them and scrolls
+            const bottom = 160
+            const top = Math.max(60, Math.min(rect.minY, h - bottom - 240))
+            this._paramsEl.style.transform = `translate(${left}px, ${top}px)`
+            this._paramsEl.style.maxHeight = Math.max(160, h - bottom - top) + 'px'
         }
         const params = genParams(o)
         this._updateWire(params && !params.curve ? o : null)
