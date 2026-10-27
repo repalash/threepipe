@@ -52,13 +52,13 @@
         .mode-buttons-container, .util-buttons-container { display: none !important; }
         @media only screen and (min-width: 920px) {
             body #canvas-container {
-                width: calc(100% - 3rem - 44px - max(var(--tweakpane-ui-container-width, 300px), 3rem)) !important;
+                width: calc(100% - 3rem - var(--mb-width, 44px) - max(var(--tweakpane-ui-container-width, 300px), 3rem)) !important;
                 height: calc(100% - 3rem);
                 margin: 1.5rem 1.5rem 1.5rem 1.5rem !important;
             }
-            body #tweakpaneUiContainer { margin-top: 0 !important; right: 56px !important; }
+            body #tweakpaneUiContainer { margin-top: 0 !important; right: calc(var(--mb-width, 44px) + 12px) !important; }
             /* the panel hidden from the mode bar: the canvas takes its room */
-            body.mb-panel-hidden #canvas-container { width: calc(100% - 3rem - 44px) !important; }
+            body.mb-panel-hidden #canvas-container { width: calc(100% - 3rem - var(--mb-width, 44px)) !important; }
         }
     </style>
     <script type="module" src="../examples-utils/global-loading.mjs"></script>

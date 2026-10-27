@@ -37,6 +37,8 @@ export class EditorCameraPlugin extends AViewerPluginSync {
         const c = this.camera
         c.name = 'Editor camera'
         c.userData.disableWidgets = true
+        // made without a canvas, so the aspect does not follow it by itself
+        c.autoAspect = true
         // the ground's "keep the camera above the ground" is for visitors (threepipe PR #78)
         c.userData.disableGroundLimit = true
         c.position.set(0, 0, 5)

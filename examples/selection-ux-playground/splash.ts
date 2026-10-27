@@ -170,15 +170,14 @@ function injectStyles() {
 .spl-root:focus { outline: none; }
 .spl-samples { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
 .spl-sample {
-  position: relative; width: 50px; height: 50px; border-radius: 8px; border: 1px solid #dedee3; background: #fff; color: #6b6b6b; cursor: pointer;
-  display: flex; align-items: center; justify-content: center; transition: border-color .12s, color .12s, transform .12s;
+  position: relative; width: 92px; height: 76px; border-radius: 8px; border: 1px solid #dedee3; background: #fff; color: #6b6b6b; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; padding: 0 6px; font: inherit;
+  transition: border-color .12s, color .12s, transform .12s;
 }
 .spl-sample:hover { border-color: var(--spl-accent); color: var(--spl-accent); transform: translateY(-1px); }
-.spl-sample span {
-  position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 11px; color: var(--spl-dim);
-  opacity: 0; transition: opacity .12s; pointer-events: none;
-}
-.spl-sample:hover span, .spl-sample:focus-visible span { opacity: 1; }
+/* the name under the icon, always shown: a new user does not know the icons */
+.spl-sample span { font-size: 11px; line-height: 1.2; color: var(--spl-dim); text-align: center; pointer-events: none; }
+.spl-sample:hover span, .spl-sample:focus-visible span { color: var(--spl-accent); }
 .spl-busy .spl-sample, .spl-busy .spl-drop { pointer-events: none; }
 .spl-sample.spl-loading { color: var(--spl-accent); border-color: var(--spl-accent); animation: spl-pulse .9s ease-in-out infinite; }
 @keyframes spl-pulse { 50% { opacity: .45; } }

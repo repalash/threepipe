@@ -341,6 +341,7 @@ const shortcuts: [string, [string, string][]][] = [
         ['Aim a light or camera', 'Drag its end dot'],
         ['Selection style 1–7', '1 … 7'],
         ['Expand the canvas', 'Shift Space'],
+        ['Light / dark theme (editor)', 'Shift T'],
         ['This sheet', '?'],
     ]],
 ]

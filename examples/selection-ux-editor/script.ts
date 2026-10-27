@@ -90,6 +90,18 @@ async function init() {
     } catch (e) {
         // private mode: keep the theme
     }
+    // Shift+T: light or dark, the same theme family
+    const themePairs = [['clean', 'clean-dark'], ['light', 'dark'], ['white', 'black'], ['clean', 'blue']]
+    const otherTheme = (t: string) => themePairs.map(([a, b]) => t === a ? b : t === b ? a : '').find(Boolean)
+    window.addEventListener('keydown', e => {
+        if (!tp || e.code !== 'KeyT' || !e.shiftKey || e.ctrlKey || e.metaKey || e.altKey || e.repeat || e.defaultPrevented) return
+        const t = e.target as HTMLElement | null
+        if (t?.closest?.('input, textarea, select, [contenteditable], [data-own-keys]')) return
+        const next = otherTheme(tp.colorMode)
+        if (!next) return
+        e.preventDefault()
+        tp.colorMode = next as typeof tp.colorMode
+    })
     Object.assign(window, {viewer, ux})
 
     buildScene(viewer)
