@@ -231,6 +231,8 @@ export class EditorCameraPlugin extends AViewerPluginSync {
         const position = start.getWorldPosition(new Vector3())
         c.position.copy(position)
         c.target.copy(lookTargetOf(start, position))
+        // the orbit controls turn the camera only while it is the main camera: in View, turn it here
+        c.lookAt(c.target)
         if ((start as PerspectiveCamera2).fov) c.fov = (start as PerspectiveCamera2).fov
         c.zoom = start.zoom
         c.setDirty()

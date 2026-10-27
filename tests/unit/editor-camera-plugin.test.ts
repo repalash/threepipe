@@ -265,6 +265,20 @@ describe('EditorCameraPlugin', () => {
         expect(start.position.toArray()).toEqual([0, 1, 6])
     })
 
+    test('in View, copyStartView also turns the editor camera to the start view', () => {
+        const {plugin, start} = setup()
+        plugin.editing = false
+        plugin.camera.quaternion.set(0, 1, 0, 0) // an old editor view, looking the other way
+        start.controls = undefined
+        plugin.copyStartView() // e.g. a viewer config loads in View
+        const forward = plugin.camera.getWorldDirection(new Vector3())
+        expect(forward.dot(start.getWorldDirection(new Vector3()))).toBeCloseTo(1)
+        // and the start view keeps its direction when it is set from the editor
+        const q = start.quaternion.clone()
+        plugin.setStartViewFromEditor()
+        expect(start.quaternion.angleTo(q)).toBeCloseTo(0)
+    })
+
     test('copyStartView copies the zoom', () => {
         const {plugin, start} = setup()
         start.zoom = 1.5
