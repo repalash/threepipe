@@ -100,7 +100,8 @@ export const defaultSelectionUxSettings: SelectionUxSettings = {
     visual: 'figma2d',
     boxSpace: 'local',
     emptyDrag: 'orbit',
-    dragMove: 'any',
+    // only the selection moves: a drag on anything else orbits, so a zoomed-in view can always turn
+    dragMove: 'selected',
     movePlane: 'auto',
     scalePivot: 'base',
     stretchHandles: false,
@@ -276,6 +277,8 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
     private _initialMode?: string
 
     /** Settings that belong to the person, not to a mode: they stay when the mode changes */
+    /** Saved with the settings; a newer version can reset a setting whose default changed */
+    static SettingsVersion = 2
     static PersonalKeys: (keyof SelectionUxSettings)[] = ['emptyDrag', 'dragMove', 'unit', 'accent', 'outlineWidth', 'showHints', 'objectHelpers']
 
     /**
@@ -328,7 +331,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
     save() {
         if (!this.persistKey) return
         try {
-            localStorage.setItem(this.persistKey, JSON.stringify({mode: this.mode, settings: this.settings}))
+            localStorage.setItem(this.persistKey, JSON.stringify({v: SelectionUxPlugin.SettingsVersion, mode: this.mode, settings: this.settings}))
         } catch (e) {
             // private mode or storage full
         }
@@ -340,6 +343,8 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         try {
             const d = JSON.parse(localStorage.getItem(this.persistKey) || 'null')
             if (!d?.settings) return false
+            // version 2: drag moves only the selection by default (saved before: it moved anything)
+            if ((d.v ?? 1) < 2) delete d.settings.dragMove
             Object.assign(this.settings, defaultSelectionUxSettings, d.settings)
             return true
         } catch (e) {
@@ -354,8 +359,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
 
     setExternalHoverList(list: IObject3D[]) {
         this.externalHoverList = list
-        this._emit('hover')
-        this._viewer?.setDirty()
+        this._emit('hover') // the outline asks for one frame (SelectionOutlinePlugin)
     }
 
     /**
@@ -561,8 +565,8 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
                 `Looking through “${this.displayName(vc)}” · ${k('L')} lock to move it · ${k('0')} or ${k('Esc')} exit`
         }
         if (!sel.length) {
-            const nav = st.emptyDrag === 'orbit' ? `Drag empty space to orbit · ${k('Shift')}+drag to box-select` : `Drag empty space to box-select · ${k('Space')}+drag or right-drag to orbit`
-            return `Click an object to select · ${nav} · ${k('?')} shortcuts`
+            const nav = st.emptyDrag === 'orbit' ? `Drag ${st.dragMove === 'any' ? 'empty space' : 'anywhere'} to orbit · ${k('Shift')}+drag to box-select` : `Drag empty space to box-select · ${k('Space')}+drag or right-drag to orbit`
+            return `Click an object to select, again to go behind · ${nav} · ${k('?')} shortcuts`
         }
         if (!this.canEdit) return `${this.editingLocked ? 'Editing is locked' : 'Locked layer'} · ${k('Esc')} deselects`
         const L = this.levels(sel[0])
@@ -572,7 +576,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         if (this.tool === 'scale') return `Scale tool: drag the object right or left to scale it, corners and sides too · ${k('Alt')} from the centre · ${k('Shift')} snaps · ${k('V')} back to select`
         if (this.tool === 'move') return `Move tool: drag to move · ${k('Tab')} while dragging changes the plane · arrows nudge · ${k('V')} back to select`
         return [
-            st.dragMove === 'off' ? '' : 'Drag to move',
+            st.dragMove === 'off' ? '' : st.dragMove === 'selected' ? 'Drag it to move · elsewhere orbits' : 'Drag to move',
             'Corners scale',
             st.rotate === 'corners' ? 'Just outside a corner rotates' : st.rotate === 'knob' ? 'Knob rotates' : st.rotate === 'ring' ? 'Ring turns it' : '',
             sel[0].isCamera ? `Double-click or ${k('0')} to look through · ${k('Ctrl')}+${k('Alt')}+${k('0')} move it to this view` :
@@ -657,7 +661,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         return level[0]
     }
 
-    /** The objects at the same level as the primary selection, or the top level */
+    /** The objects at the same level as the primary selection, or the top level (inside a frame: its parts) */
     scopeObjects(): IObject3D[] {
         const primary = this.selected[0]
         let parent = this._modelRoot
@@ -665,8 +669,37 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
             const L = this.levels(primary)
             const i = L.findIndex(l => l.includes(primary))
             if (i > 0) parent = L[i - 1][L[i - 1].length - 1]
+        } else {
+            const top = this._contentChildren(this._modelRoot).filter(o => o.visible && this._hasContent(o))
+            const frames = top.filter(o => this.isFrame(o))
+            if (frames.length) return [...top.filter(o => !frames.includes(o)), ...frames.flatMap(f => {
+                const level = this.levels(f)[0] ?? [f]
+                return this._contentChildren(level[level.length - 1]).filter(o => o.visible && this._hasContent(o))
+            })]
         }
         return this._contentChildren(parent).filter(o => o.visible && this._hasContent(o))
+    }
+
+    /**
+     * A top-level object that holds a whole file, like a top-level frame in Figma: a click selects its parts, not
+     * all of it (select it in the layers, or Esc from a part). It is an imported file root (glTF scene), or the only
+     * top-level object with meshes, and it has two or more parts.
+     */
+    isFrame(o: IObject3D) {
+        if (o.parent !== this._modelRoot) return false
+        const level = this.levels(o)[0]
+        const deepest = level ? level[level.length - 1] : o
+        if (this._contentChildren(deepest).filter(c => c.visible && this._hasContent(c)).length < 2) return false
+        const ud = o.userData as any
+        if (ud.rootPath || ud.gltfAsset || ud.glTF2ExportSettings) return true
+        const hasMesh = (x: IObject3D) => {
+            let m = false
+            x.traverse(c => {
+                if ((c as any).isMesh) m = true
+            })
+            return m
+        }
+        return this._contentChildren(this._modelRoot).filter(c => c.visible && hasMesh(c)).length === 1
     }
 
     private _hasContent(o: IObject3D) {
@@ -694,6 +727,8 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
             // same parent group as the primary selection: select the sibling under the pointer
             if (pi > 0 && L[pi - 1] && this._rep(L[pi - 1]) === this._rep(PL[pi - 1]) && L[pi]) return this._rep(L[pi])
         }
+        // a frame (a file's root) is passed through: its parts are what a click selects
+        if (L.length > 1 && this.isFrame(this._rep(L[0]))) return this._rep(L[1])
         return this._rep(L[0])
     }
 
@@ -1065,13 +1100,46 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         e.stopPropagation()
     }
 
+    private _lastClick: {p: Vector2, t: number, tgt: IObject3D} | null = null
+
+    /** The objects under a point, front to back, as a click selects them (one per object, at the click's level) */
+    targetsAt(x: number, y: number, deep = false): IObject3D[] {
+        if (!this._viewer || !this._picking?.picker) return []
+        this._rayFromScreen(x, y)
+        const roots = [this._modelRoot, ...this.widgetsShown ? this._picking.picker.extraObjects : []]
+        const cond = this._picking.picker.selectionCondition
+        const out: IObject3D[] = []
+        for (const hit of this._raycaster.intersectObjects(roots, true)) {
+            const o = hit.object as IObject3D
+            let w: any = o
+            while (w && !(w.assetType === 'widget' && w.object)) w = w.parent
+            const leaf = w ? w.object as IObject3D : cond(o) && !this.isLocked(o) ? o : null
+            if (!leaf || w && (!leaf.visible || this.isLocked(leaf) || !this.levels(leaf).length)) continue
+            const t = this.resolveTarget(leaf, deep, false)
+            if (t && !out.includes(t)) out.push(t)
+        }
+        return out
+    }
+
     private _click(s: Extract<DragState, {kind: 'press'}>) {
         if (!s.leaf && !s.target) {
             if (!s.shift) this.select([])
+            this._lastClick = null
             return
         }
-        const tgt = s.target ?? this.resolveTarget(s.leaf!, s.deep, false)
+        let tgt = s.target ?? this.resolveTarget(s.leaf!, s.deep, false)
         if (!tgt) return
+        // a click again on the same spot (not a double-click) goes behind: the next object under the pointer, like Blender
+        const now = performance.now()
+        const last = this._lastClick
+        if (!s.target && !s.shift && last && last.p.distanceTo(s.start) < 4 && now - last.t > 400 && this.selected.length === 1 && this.selected[0] === last.tgt) {
+            const under = this.targetsAt(s.start.x, s.start.y, s.deep)
+            if (under.length > 1) {
+                tgt = under[(under.indexOf(last.tgt) + 1) % under.length]
+                if (tgt !== last.tgt) this._toast(`Behind: ${this.displayName(tgt)} · ${under.indexOf(tgt) + 1} of ${under.length} here`)
+            }
+        }
+        this._lastClick = {p: s.start.clone(), t: now, tgt}
         const sel = this.selected
         if (s.shift) {
             const i = sel.indexOf(tgt)

@@ -294,6 +294,7 @@ export function addStressObjects(viewer: ThreeViewer, ux: SelectionUxPlugin) {
 const shortcuts: [string, [string, string][]][] = [
     ['Select', [
         ['Select', 'Click'],
+        ['The one behind', 'Click again'],
         ['Add or remove', 'Shift Click'],
         ['Inside a group', 'Double-click'],
         ['The deepest part', 'Ctrl Click'],
@@ -305,7 +306,7 @@ const shortcuts: [string, [string, string][]][] = [
     ]],
     ['Move and shape', [
         ['Tools: select, move, rotate, scale', 'V W E R'],
-        ['Move', 'Drag'],
+        ['Move the selection', 'Drag it'],
         ['On one axis', 'Shift Drag'],
         ['Exact: axis, distance, confirm', 'X Y Z  5  Enter'],
         ['Move plane: floor, wall, facing', 'Tab while moving'],

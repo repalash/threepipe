@@ -120,6 +120,9 @@ export function setupLayout(viewer: ThreeViewer, actions: LayoutActions) {
         else top.remove()
         if (l === 'statusbar') document.body.appendChild(bottom)
         else bottom.remove()
+        // the panel has no title of its own here (the mode bar hides and shows it): open it if it was folded
+        const root = document.querySelector<HTMLElement>('#tweakpaneUiContainer .tp-rotv')
+        if (l !== 'cards' && root && !root.classList.contains('tp-rotv-expanded')) root.querySelector<HTMLElement>('.tp-rotv_b')?.click()
         refresh()
         try {
             localStorage.setItem(KEY, l)
@@ -189,6 +192,8 @@ body.lay-floating { --lay-top: 0px; --lay-bottom: 0px; --lay-gap: 12px; }
     background: var(--tp-base-background-color, #fff); border-left: 1px solid var(--tp-container-border-color, #e6e6e6); box-sizing: border-box;
   }
   body.lay-titlebar #tweakpaneUiContainer .tp-rotv, body.lay-statusbar #tweakpaneUiContainer .tp-rotv { border-radius: 0 !important; box-shadow: none !important; }
+  /* no "Configuration" title: the mode bar names the open mode and folds the whole panel */
+  body.lay-titlebar #tweakpaneUiContainer .tp-rotv_b, body.lay-statusbar #tweakpaneUiContainer .tp-rotv_b, body.lay-floating #tweakpaneUiContainer .tp-rotv_b { display: none !important; }
   body.lay-titlebar .mb-root, body.lay-statusbar .mb-root { top: var(--lay-top); bottom: var(--lay-bottom); }
   body.lay-titlebar #mcanvas, body.lay-statusbar #mcanvas, body.lay-floating #mcanvas { border-radius: 0 !important; }
 
