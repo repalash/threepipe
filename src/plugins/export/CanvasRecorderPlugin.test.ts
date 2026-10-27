@@ -547,6 +547,24 @@ describe('recording time', () => {
         expect(done).toBe(true)
     })
 
+    test('a scene that does not converge waits the rest of the time on the wall clock', async() => {
+        const {plugin, progressive} = setup()
+        const viewer = Object.assign(new EventDispatcher(), plugin._viewer)
+        plugin._viewer = viewer
+        progressive.maxFrameCount = 4
+        Object.assign(progressive, {postFrameConvergedRecordingDelta: () => 0}) // e.g. a plugin that stays dirty
+        plugin._recorder.start()
+        let done = false
+        const wait = plugin.waitRecordingTime(100).then(() => done = true) // 3 frames at 30 fps
+        for (let i = 0; i < 6; i++) viewer.dispatchEvent({type: 'postFrame'}) // maxFrameCount + 2 frames without a step
+        await Promise.resolve()
+        expect(done).toBe(false)
+        viewer.dispatchEvent({type: 'postFrame'}) // one more: it does not converge, the rest (100 ms) on the wall clock
+        const result = await Promise.race([wait, new Promise(r => setTimeout(() => r('hung'), 1000))])
+        expect(result).not.toBe('hung')
+        expect(done).toBe(true)
+    })
+
     test('the pause between camera views waits for recording time while a recording runs', async() => {
         const views = new CameraViewPlugin() as any
         const waitRecordingTime = vi.fn(async() => {

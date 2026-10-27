@@ -25,7 +25,7 @@ Canvas Recorder Plugin records the viewer canvas to a video or to an image seque
 
 **Converge mode** (`convergeMode`, on by default) records frame by frame instead of in real time. A frame is captured only after the [ProgressivePlugin](./ProgressivePlugin) converges, and the animations step by `1 / videoFrameRate` seconds per captured frame, with [ProgressivePlugin.postFrameConvergedRecordingDelta](https://threepipe.org/docs/classes/ProgressivePlugin.html#postframeconvergedrecordingdelta). [PopmotionPlugin](./PopmotionPlugin), [GLTFAnimationPlugin](./GLTFAnimationPlugin) and the viewer timeline follow it. So the video plays at the full frame rate with converged frames, also when one frame takes long to render. Without the ProgressivePlugin, every frame counts as converged.
 
-While the scene does not change (a pause), the animations still step, and each step captures the last frame again. A wait in an action uses `waitRecordingTime(ms)`: in a converge-mode recording it waits for the frames of that time in the video, else for the wall time. The end padding (`endPaddingMs`) and the pause between camera views of `CameraViewPlugin` use it.
+While the scene does not change (a pause), the animations still step, and each step captures the last frame again. A wait in an action uses `waitRecordingTime(ms)`: in a converge-mode recording it waits for the frames of that time in the video (a scene that does not converge waits the rest on the wall clock), else for the wall time. The end padding (`endPaddingMs`) and the pause between camera views of `CameraViewPlugin` use it.
 
 ```typescript
 import {ThreeViewer, CanvasRecorderPlugin, PopmotionPlugin, ProgressivePlugin, FileTransferPlugin} from 'threepipe'

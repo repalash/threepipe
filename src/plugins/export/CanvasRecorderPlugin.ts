@@ -355,8 +355,9 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
 
     /**
      * Waits for a time of the video: in a converge-mode recording, for the steps of the recording (one frame each, as
-     * the animations step), so a pause has its length in the video; else for the wall time. It ends early when the
-     * recording ends.
+     * the animations step), so a pause has its length in the video; else for the wall time. A scene that does not
+     * converge (no step in `maxFrameCount` frames, e.g. a plugin that stays dirty) waits the rest on the wall clock.
+     * It ends early when the recording ends.
      * @param ms - the time in milliseconds
      */
     async waitRecordingTime(ms: number): Promise<void> {
@@ -366,19 +367,26 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
             await timeout(ms)
             return
         }
-        const steps = Math.round(ms / 1000 * (this._active ?? this).videoFrameRate)
+        const fps = (this._active ?? this).videoFrameRate
+        const steps = Math.round(ms / 1000 * fps)
         let n = 0
+        let noStep = 0
         // a listener, not doOnce: with maxFramePerLoop above 1, several frames come in one animation loop
-        return new Promise<void>(resolve => {
+        await new Promise<void>(resolve => {
             const step = () => {
-                if (progressive.postFrameConvergedRecordingDelta() > 0) n++
-                if (n < steps && this.isRecording()) return
+                if (progressive.postFrameConvergedRecordingDelta() > 0) {
+                    n++
+                    noStep = 0
+                } else noStep++
+                if (n < steps && this.isRecording() && noStep <= progressive.maxFrameCount + 2) return
                 viewer.removeEventListener('postFrame', step)
                 resolve()
             }
             if (steps < 1) resolve()
             else viewer.addEventListener('postFrame', step)
         })
+        // the scene does not converge: the steps that are left, on the wall clock
+        if (n < steps && this.isRecording()) await timeout((steps - n) / fps * 1000)
     }
 
     private async _stop(): Promise<Blob | undefined> {
