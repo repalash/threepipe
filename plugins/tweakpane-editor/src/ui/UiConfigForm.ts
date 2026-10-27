@@ -177,7 +177,9 @@ export class UiConfigForm {
         UiConfigMethods.InitUiConfig(c)
         const type = String(getOrCall(c.type))
         const label = UiConfigMethods.GetLabel(c).replace(/([a-z])([A-Z])/g, '$1 $2')
-        const disabled = !!(getOrCall(c.disabled) || getOrCall(c.readOnly))
+        // disabled and readOnly can change (a callback): refresh() applies them again
+        const isDisabled = () => !!(getOrCall(c.disabled) || getOrCall(c.readOnly))
+        const disabled = isDisabled()
         if (type === 'folder' || type === 'panel') {
             const f = document.createElement('div')
             f.className = 'ucf-folder'
@@ -198,11 +200,14 @@ export class UiConfigForm {
                 const [obj, key] = UiConfigMethods.GetBinding(c, false)
                 const fn = obj ? obj[key] ?? obj.value : undefined
                 if (typeof fn === 'function') await this._action(c, parents, () => fn.call(obj))
-                if (typeof c.onClick === 'function') await (c.onClick as any)()
+                if (typeof c.onClick === 'function') await this._action(c, parents, () => (c.onClick as any)())
                 this._dispatch(c, parents, true)
                 this._options.onStructureChange?.()
             })
             host.appendChild(b)
+            this._rows.push({config: c, update: () => {
+                b.disabled = isDisabled()
+            }})
             return
         }
         const row = document.createElement('label')
@@ -305,7 +310,7 @@ export class UiConfigForm {
             this._rows.push({config: c, update: () => {
                 if (document.activeElement !== input) input.value = fmt(value())
             }})
-            if (!disabled) this._scrub(name, () => +(value() as any), isInt, n => this._set(c, parents, clamp(n), false), () => this._end(c, parents))
+            this._scrub(name, isDisabled, () => +(value() as any), isInt, n => this._set(c, parents, clamp(n), false), () => this._end(c, parents))
         } else if (kind === 'monitor') {
             const out = document.createElement('span')
             out.className = 'ucf-monitor'
@@ -323,6 +328,10 @@ export class UiConfigForm {
                 if (document.activeElement !== input) input.value = String(value() ?? '')
             }})
         }
+        this._rows.push({config: c, update: () => {
+            const d = isDisabled()
+            row.querySelectorAll<HTMLInputElement | HTMLSelectElement>('input, select').forEach(el => el.disabled = d)
+        }})
         // the first values of the fields of this config (a slider has two)
         for (let i = firstRow; i < this._rows.length; i++) this._rows[i].update()
     }
@@ -345,9 +354,10 @@ export class UiConfigForm {
     }
 
     /** Drag the name left or right to change the number, Shift for 10x */
-    private _scrub(handle: HTMLElement, get: () => number, isInt: boolean, set: (n: number) => void, end: () => void) {
+    private _scrub(handle: HTMLElement, isDisabled: () => boolean, get: () => number, isInt: boolean, set: (n: number) => void, end: () => void) {
         handle.style.cursor = 'ew-resize'
         handle.addEventListener('pointerdown', e => {
+            if (isDisabled()) return
             e.preventDefault()
             handle.setPointerCapture(e.pointerId)
             const x0 = e.clientX

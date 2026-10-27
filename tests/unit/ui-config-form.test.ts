@@ -41,6 +41,11 @@ class FakeElement {
     fire(type: string, e: any = {}) {
         for (const f of this._listeners.get(type) ?? []) f({preventDefault: () => {}, pointerId: 1, clientX: 0, ...e})
     }
+    /** The elements below this one with one of the tag names of a selector like 'input, select' */
+    querySelectorAll(selector: string) {
+        const tags = selector.split(',').map(t => t.trim())
+        return this.all().filter(e => tags.includes(e.tagName))
+    }
     /** All elements below this one, depth first */
     all(): FakeElement[] {
         return this.children.flatMap(c => [c, ...c.all()])
@@ -331,6 +336,45 @@ describe('UiConfigForm', () => {
         undoManager.redo()
         await new Promise(r => setTimeout(r, 0))
         expect(target.x).toBe(5)
+    })
+
+    test('disabled and readOnly callbacks apply again on refresh, also to the scrub', () => {
+        const camera = {autoNearFar: true, near: 0.5}
+        const form = new UiConfigForm([
+            {type: 'checkbox', label: 'Auto Near Far', property: [camera, 'autoNearFar']},
+            {type: 'number', label: 'Near', property: [camera, 'near'], readOnly: () => camera.autoNearFar},
+        ])
+        const [near] = row(form, 'Near').inputs
+        const name = row(form, 'Near').row.children[0]
+        expect(near.disabled).toBe(true)
+        name.fire('pointerdown', {clientX: 0})
+        name.fire('pointermove', {clientX: 50})
+        name.fire('pointerup')
+        expect(camera.near).toBe(0.5) // no scrub while read only
+        const [check] = row(form, 'Auto Near Far').inputs
+        check.checked = false
+        check.fire('change') // the change refreshes the form
+        expect(near.disabled).toBe(false)
+        name.fire('pointerdown', {clientX: 0})
+        name.fire('pointermove', {clientX: 50})
+        name.fire('pointerup')
+        expect(camera.near).not.toBe(0.5)
+    })
+
+    test('the undo result of an onClick is one undo step', async() => {
+        const target = {count: 0}
+        const undoManager = new JSUndoManager({limit: 100, debug: false, bindHotKeys: false})
+        const form = new UiConfigForm([{type: 'button', label: 'Add', onClick: () => {
+            target.count++
+            return {undo: () => target.count--, redo: () => target.count++}
+        }}], {undoManager})
+        const button = (form.element as any as FakeElement).all().find(e => e.tagName === 'button')!
+        button.fire('click')
+        await new Promise(r => setTimeout(r, 0))
+        expect(target.count).toBe(1)
+        undoManager.undo()
+        await new Promise(r => setTimeout(r, 0))
+        expect(target.count).toBe(0)
     })
 
     test('dispose removes the form', () => {
