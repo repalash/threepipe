@@ -359,7 +359,9 @@ export class UiConfigForm {
             this._rows.push({config: c, update: (force) => {
                 if (force || document.activeElement !== input) input.value = fmt(value())
             }})
-            this._scrub(name, isDisabled, () => +(value() as any), isInt, n => this._set(c, parents, clamp(n), false), () => this._end(c, parents))
+            // per pixel: the stepSize of the config (as in Tweakpane), else 1% of the value, and at most 1% of the bounds
+            const scrubStep = isInt ? 0.25 : getOrCall(c.stepSize) || ((v: number) => Math.min(Math.max(0.001, Math.abs(v) * 0.01 || 0.01), (max - min) / 100))
+            this._scrub(name, isDisabled, () => +(value() as any), scrubStep, n => this._set(c, parents, clamp(n), false), () => this._end(c, parents))
         } else if (kind === 'monitor') {
             const out = document.createElement('span')
             out.className = 'ucf-monitor'
@@ -403,7 +405,11 @@ export class UiConfigForm {
     }
 
     /** Drag the name left or right to change the number, Shift for 10x */
-    private _scrub(handle: HTMLElement, isDisabled: () => boolean, get: () => number, isInt: boolean, set: (n: number) => void, end: () => void) {
+    /**
+     * Drag on the handle to change the number
+     * @param step - the change per pixel, or a function of the value at the start of the drag
+     */
+    private _scrub(handle: HTMLElement, isDisabled: () => boolean, get: () => number, step: number | ((v: number) => number), set: (n: number) => void, end: () => void) {
         handle.style.cursor = 'ew-resize'
         handle.addEventListener('pointerdown', e => {
             if (isDisabled()) return
@@ -411,8 +417,8 @@ export class UiConfigForm {
             handle.setPointerCapture(e.pointerId)
             const x0 = e.clientX
             const v0 = get()
-            const step = isInt ? 0.25 : Math.max(0.001, Math.abs(v0) * 0.01 || 0.01)
-            const move = (ev: PointerEvent) => set(v0 + (ev.clientX - x0) * step * (ev.shiftKey ? 10 : 1))
+            const perPixel = typeof step === 'function' ? step(v0) : step
+            const move = (ev: PointerEvent) => set(v0 + (ev.clientX - x0) * perPixel * (ev.shiftKey ? 10 : 1))
             const up = () => {
                 handle.removeEventListener('pointermove', move)
                 handle.removeEventListener('pointerup', up)

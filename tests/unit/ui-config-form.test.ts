@@ -545,6 +545,24 @@ describe('UiConfigForm', () => {
         }
     })
 
+    test('a scrub moves by the stepSize per pixel, else by at most 1% of the bounds', () => {
+        const target = {bias: 0, small: 0}
+        const form = new UiConfigForm([
+            {type: 'number', label: 'Bias', property: [target, 'bias'], bounds: [-0.001, 0.001], stepSize: 0.00001},
+            {type: 'number', label: 'Small', property: [target, 'small'], bounds: [0, 0.1]},
+        ])
+        const scrub = (label: string, dx: number) => {
+            const name = row(form, label).row.children[0]
+            name.fire('pointerdown', {clientX: 0})
+            name.fire('pointermove', {clientX: dx})
+            name.fire('pointerup')
+        }
+        scrub('Bias', 3)
+        expect(target.bias).toBeCloseTo(0.00003, 10)
+        scrub('Small', 5)
+        expect(target.small).toBeCloseTo(0.005, 10)
+    })
+
     test('dispose removes the form', () => {
         const host = new FakeElement('div')
         const form = new UiConfigForm([])
