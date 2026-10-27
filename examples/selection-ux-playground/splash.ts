@@ -25,6 +25,7 @@ export const SPLASH_ICONS = {
     watch: ic('<circle cx="12" cy="12" r="5"/><path d="M9 7.5L9.6 3h4.8l.6 4.5M9 16.5l.6 4.5h4.8l.6-4.5M12 9.5V12l1.6 1"/>'),
     helmet: ic('<path d="M4 14a8 8 0 0 1 16 0v3H4z"/><path d="M8 17v-3h8v3M12 6v4"/>'),
     horse: ic('<path d="M7 20v-6l-2-3 3-5 2-2 1 2 4 1 3 4-2 1-3-1v3l3 6"/><circle cx="10.5" cy="7.5" r=".6" fill="currentColor"/>'),
+    timeline: ic('<circle cx="8" cy="9" r="4"/><path d="M8 7v2l1.2 1"/><path d="M3 18h18M3 21h18" stroke-opacity=".45"/><rect x="5" y="16.6" width="6" height="2.8" rx="1" fill="currentColor" stroke="none"/><rect x="13" y="19.6" width="6" height="2.8" rx="1" fill="currentColor" stroke="none"/>'),
     lines: ic('<path d="M3 20l4-9 4 5 3-8 3 6 4-9"/>'),
     empty: ic('<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/>'),
 }
@@ -187,16 +188,16 @@ function injectStyles() {
 }
 .spl-x:hover { background: #dcdce0; }
 .spl-root button:focus-visible { outline: 2px solid var(--spl-accent); outline-offset: 2px; }
-body.tpTheme-figma-dark .spl-root, body.tpTheme-dark .spl-root, body.tpTheme-black .spl-root, body.tpTheme-blue .spl-root {
+body.tpTheme-clean-dark .spl-root, body.tpTheme-dark .spl-root, body.tpTheme-black .spl-root, body.tpTheme-blue .spl-root {
   --spl-fg: #f2f2f2; --spl-dim: #a8a8a8;
   background:
     repeating-radial-gradient(ellipse 120% 70% at 62% 48%, rgba(255,255,255,0) 0 70px, rgba(255,255,255,.035) 110px, rgba(255,255,255,0) 150px),
     radial-gradient(ellipse at 50% 50%, #26262b 0%, #1d1d21 70%, #18181b 100%);
 }
-body.tpTheme-figma-dark .spl-pill, body.tpTheme-dark .spl-pill, body.tpTheme-black .spl-pill, body.tpTheme-blue .spl-pill,
-body.tpTheme-figma-dark .spl-sample, body.tpTheme-dark .spl-sample, body.tpTheme-black .spl-sample, body.tpTheme-blue .spl-sample { background: #2a2a2f; border-color: #3a3a40; }
-body.tpTheme-figma-dark .spl-x, body.tpTheme-dark .spl-x, body.tpTheme-black .spl-x, body.tpTheme-blue .spl-x { background: #333338; color: #f2f2f2; }
-body.tpTheme-figma-dark .spl-drop, body.tpTheme-dark .spl-drop, body.tpTheme-black .spl-drop, body.tpTheme-blue .spl-drop { background: color-mix(in srgb, var(--spl-accent) 16%, #222); }
+body.tpTheme-clean-dark .spl-pill, body.tpTheme-dark .spl-pill, body.tpTheme-black .spl-pill, body.tpTheme-blue .spl-pill,
+body.tpTheme-clean-dark .spl-sample, body.tpTheme-dark .spl-sample, body.tpTheme-black .spl-sample, body.tpTheme-blue .spl-sample { background: #2a2a2f; border-color: #3a3a40; }
+body.tpTheme-clean-dark .spl-x, body.tpTheme-dark .spl-x, body.tpTheme-black .spl-x, body.tpTheme-blue .spl-x { background: #333338; color: #f2f2f2; }
+body.tpTheme-clean-dark .spl-drop, body.tpTheme-dark .spl-drop, body.tpTheme-black .spl-drop, body.tpTheme-blue .spl-drop { background: color-mix(in srgb, var(--spl-accent) 16%, #222); }
 `
     document.head.appendChild(st)
 }

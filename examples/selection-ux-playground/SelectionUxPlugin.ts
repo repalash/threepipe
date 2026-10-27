@@ -137,7 +137,7 @@ export interface SelectionUxMode {
 }
 
 export const builtinSelectionUxModes: SelectionUxMode[] = [
-    {id: 'figma2d', short: '1', label: 'Figma 2D', description: 'Screen box, corner scale, rotate outside corners, hover outline', settings: {visual: 'figma2d', rotate: 'corners', rotateAxis: 'up', scalePivot: 'base', stretchHandles: false, outlineHover: true}},
+    {id: 'figma2d', short: '1', label: 'Screen 2D', description: 'Screen box, corner scale, rotate outside corners, hover outline', settings: {visual: 'figma2d', rotate: 'corners', rotateAxis: 'up', scalePivot: 'base', stretchHandles: false, outlineHover: true}},
     {id: 'box3d', short: '2', label: '3D box', description: 'Line box, corner dots, face stretch, turn ring', settings: {visual: 'box3d', rotate: 'ring', scalePivot: 'opposite', stretchHandles: true, xray: true}},
     {id: 'brackets', short: '3', label: 'Brackets', description: 'Minimal corner brackets, rotate knob', settings: {visual: 'brackets', rotate: 'knob', rotateAxis: 'up', scalePivot: 'base', stretchHandles: false, xray: false}},
     {id: 'hybrid', short: '4', label: 'Hybrid', description: '3D box + 2D handles, side stretch, free rotate', settings: {visual: 'hybrid', rotate: 'corners', rotateAxis: 'free', scalePivot: 'base', stretchHandles: true, xray: true}},

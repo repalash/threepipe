@@ -1019,7 +1019,7 @@ function injectStyles() {
   --anp-bg: #ffffff; --anp-fg: #1e1e1e; --anp-dim: #757575; --anp-line: #e6e6e6; --anp-hover: #f5f5f5; --anp-accent: #0d99ff;
   --anp-mk-bg: rgba(255,255,255,.95); --anp-mk-fg: #1e1e1e; --anp-mk-ring: rgba(0,0,0,.18);
   font: 12px/1.45 Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--anp-fg); }
-body.tpTheme-dark .anp-layer, body.tpTheme-black .anp-layer, body.tpTheme-blue .anp-layer, body.tpTheme-figma-dark .anp-layer {
+body.tpTheme-dark .anp-layer, body.tpTheme-black .anp-layer, body.tpTheme-blue .anp-layer, body.tpTheme-clean-dark .anp-layer {
   --anp-bg: #2c2c2c; --anp-fg: #f0f0f0; --anp-dim: #a0a0a0; --anp-line: #444; --anp-hover: #383838;
   --anp-mk-bg: rgba(30,30,30,.92); --anp-mk-fg: #fff; --anp-mk-ring: rgba(255,255,255,.35); }
 body.tpTheme-black .anp-layer { --anp-bg: #141414; --anp-line: #333; --anp-hover: #222; }

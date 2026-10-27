@@ -158,13 +158,13 @@
     --tp-monitor-foreground-color: #b6bfcb;
 }
 
-:root .tpTheme-figma, :root .tpTheme-figma-dark {
-    /* Figma-like: Inter, small radii, thin separators instead of boxes, grey labels */
+:root .tpTheme-clean, :root .tpTheme-clean-dark {
+    /* clean: Inter, small radii, thin separators instead of boxes, grey labels */
     --tp-font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
     --tp-element-border-radius: 5px;
 }
 
-:root .tpTheme-figma {
+:root .tpTheme-clean {
     --tp-base-background-color: #ffffff;
     --tp-base-shadow-color: rgba(0, 0, 0, 0.08);
     --tp-button-background-color: #f5f5f5;
@@ -189,7 +189,7 @@
     --tp-monitor-foreground-color: #757575;
 }
 
-:root .tpTheme-figma-dark {
+:root .tpTheme-clean-dark {
     --tp-base-background-color: #2c2c2c;
     --tp-base-shadow-color: rgba(0, 0, 0, 0.3);
     --tp-button-background-color: #383838;
@@ -215,10 +215,10 @@
 }
 
 /*
- * Figma's Design panel: 24px fields on a light grey fill, 11px Inter, grey labels, flat sections split by thin lines,
- * small square checkboxes, outlined buttons. Scoped to the two figma modes.
+ * Like the property panel of a design tool: 24px fields on a light grey fill, 11px Inter, grey labels, flat sections split by thin lines,
+ * small square checkboxes, outlined buttons. Scoped to the two clean modes.
  */
-:root .tpTheme-figma, :root .tpTheme-figma-dark {
+:root .tpTheme-clean, :root .tpTheme-clean-dark {
     --tp-blade-unit-size: 24px;
     --tp-container-horizontal-padding: 8px;
     --tp-container-vertical-padding: 6px;
@@ -227,20 +227,20 @@
     --tpf-knob: #ffffff;
     --tpf-check-border: rgba(0, 0, 0, 0.5);
 }
-:root .tpTheme-figma-dark {
+:root .tpTheme-clean-dark {
     --tpf-check-border: rgba(255, 255, 255, 0.5);
 }
-.tpTheme-figma .tp-rotv, .tpTheme-figma-dark .tp-rotv {
+.tpTheme-clean .tp-rotv, .tpTheme-clean-dark .tp-rotv {
     font-size: 11px !important;
     letter-spacing: 0.005em;
     border-radius: 8px;
     box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.06), 0 2px 10px rgba(0, 0, 0, 0.08);
 }
-.tpTheme-figma-dark .tp-rotv {
+.tpTheme-clean-dark .tp-rotv {
     box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4), 0 2px 10px rgba(0, 0, 0, 0.3);
 }
-/* the panel title: left, like Figma's "Design" tab */
-.tpTheme-figma .tp-rotv_b, .tpTheme-figma-dark .tp-rotv_b {
+/* the panel title on the left, like a tab */
+.tpTheme-clean .tp-rotv_b, .tpTheme-clean-dark .tp-rotv_b {
     font-size: 11px !important;
     font-weight: 600 !important;
     text-align: left !important;
@@ -248,36 +248,36 @@
     height: 40px !important;
 }
 /* sections: a thin line above, the title on the left, a small chevron instead of the bars */
-.tpTheme-figma .tp-fldv, .tpTheme-figma-dark .tp-fldv {
+.tpTheme-clean .tp-fldv, .tpTheme-clean-dark .tp-fldv {
     border: 0 !important;
     border-top: 1px solid var(--tpf-line) !important;
 }
-.tpTheme-figma .tp-fldv_b, .tpTheme-figma-dark .tp-fldv_b,
-.tpTheme-figma .tp-fldv_b + .tp-brkv .tp-fldv_b, .tpTheme-figma-dark .tp-fldv_b + .tp-brkv .tp-fldv_b {
+.tpTheme-clean .tp-fldv_b, .tpTheme-clean-dark .tp-fldv_b,
+.tpTheme-clean .tp-fldv_b + .tp-brkv .tp-fldv_b, .tpTheme-clean-dark .tp-fldv_b + .tp-brkv .tp-fldv_b {
     height: 36px !important;
     line-height: 36px !important;
     font-size: 11px !important;
     font-weight: 600 !important;
     background: transparent !important;
 }
-.tpTheme-figma .tp-fldv_b:hover, .tpTheme-figma-dark .tp-fldv_b:hover {
+.tpTheme-clean .tp-fldv_b:hover, .tpTheme-clean-dark .tp-fldv_b:hover {
     background: transparent !important;
 }
 /* nested sections: no box, a lighter title */
-.tpTheme-figma .tp-fldv .tp-fldv, .tpTheme-figma-dark .tp-fldv .tp-fldv {
+.tpTheme-clean .tp-fldv .tp-fldv, .tpTheme-clean-dark .tp-fldv .tp-fldv {
     border-top: 0 !important;
 }
-.tpTheme-figma .tp-fldv .tp-fldv > .tp-fldv_b, .tpTheme-figma-dark .tp-fldv .tp-fldv > .tp-fldv_b {
+.tpTheme-clean .tp-fldv .tp-fldv > .tp-fldv_b, .tpTheme-clean-dark .tp-fldv .tp-fldv > .tp-fldv_b {
     height: 28px !important;
     line-height: 28px !important;
     font-weight: 500 !important;
     color: var(--tp-label-foreground-color) !important;
 }
-.tpTheme-figma .tp-fldv_t, .tpTheme-figma-dark .tp-fldv_t {
+.tpTheme-clean .tp-fldv_t, .tpTheme-clean-dark .tp-fldv_t {
     padding-left: 22px !important;
     font-weight: inherit !important;
 }
-.tpTheme-figma .tp-fldv_m, .tpTheme-figma-dark .tp-fldv_m {
+.tpTheme-clean .tp-fldv_m, .tpTheme-clean-dark .tp-fldv_m {
     background: none !important;
     width: 5px !important;
     height: 5px !important;
@@ -289,24 +289,24 @@
     opacity: 0.45 !important;
     transform: rotate(-45deg) !important;
 }
-.tpTheme-figma .tp-fldv.tp-fldv-expanded > .tp-fldv_b > .tp-fldv_m,
-.tpTheme-figma-dark .tp-fldv.tp-fldv-expanded > .tp-fldv_b > .tp-fldv_m {
+.tpTheme-clean .tp-fldv.tp-fldv-expanded > .tp-fldv_b > .tp-fldv_m,
+.tpTheme-clean-dark .tp-fldv.tp-fldv-expanded > .tp-fldv_b > .tp-fldv_m {
     transform: translateY(-1px) rotate(45deg) !important;
 }
-.tpTheme-figma .tp-fldv_b:hover > .tp-fldv_m, .tpTheme-figma-dark .tp-fldv_b:hover > .tp-fldv_m {
+.tpTheme-clean .tp-fldv_b:hover > .tp-fldv_m, .tpTheme-clean-dark .tp-fldv_b:hover > .tp-fldv_m {
     opacity: 0.9 !important;
 }
-.tpTheme-figma .tp-fldv_c, .tpTheme-figma-dark .tp-fldv_c {
+.tpTheme-clean .tp-fldv_c, .tpTheme-clean-dark .tp-fldv_c {
     padding-left: 8px !important;
     padding-right: 8px !important;
     border-left: 0 !important;
 }
-.tpTheme-figma .tp-fldv .tp-fldv .tp-fldv_c, .tpTheme-figma-dark .tp-fldv .tp-fldv .tp-fldv_c {
+.tpTheme-clean .tp-fldv .tp-fldv .tp-fldv_c, .tpTheme-clean-dark .tp-fldv .tp-fldv .tp-fldv_c {
     padding-left: 0 !important;
     padding-right: 0 !important;
 }
 /* rows: grey 11px labels, no wrapping hyphens */
-.tpTheme-figma .tp-lblv_l, .tpTheme-figma-dark .tp-lblv_l {
+.tpTheme-clean .tp-lblv_l, .tpTheme-clean-dark .tp-lblv_l {
     font-size: 11px !important;
     font-weight: 400 !important;
     line-height: 1.25;
@@ -314,54 +314,54 @@
     hyphens: none;
 }
 /* fields: 24px, grey fill, a line on hover, the accent on focus */
-.tpTheme-figma .tp-txtv_i, .tpTheme-figma-dark .tp-txtv_i,
-.tpTheme-figma .tp-lstv_s, .tpTheme-figma-dark .tp-lstv_s {
+.tpTheme-clean .tp-txtv_i, .tpTheme-clean-dark .tp-txtv_i,
+.tpTheme-clean .tp-lstv_s, .tpTheme-clean-dark .tp-lstv_s {
     font-size: 11px !important;
     font-weight: 400 !important;
     height: 24px;
     border-radius: 5px;
     padding: 0 8px;
 }
-.tpTheme-figma .tp-txtv_i:hover, .tpTheme-figma-dark .tp-txtv_i:hover,
-.tpTheme-figma .tp-lstv_s:hover, .tpTheme-figma-dark .tp-lstv_s:hover {
+.tpTheme-clean .tp-txtv_i:hover, .tpTheme-clean-dark .tp-txtv_i:hover,
+.tpTheme-clean .tp-lstv_s:hover, .tpTheme-clean-dark .tp-lstv_s:hover {
     background-color: var(--tp-input-background-color) !important;
     box-shadow: inset 0 0 0 1px var(--tpf-line);
 }
-.tpTheme-figma .tp-txtv_i:focus, .tpTheme-figma-dark .tp-txtv_i:focus,
-.tpTheme-figma .tp-lstv_s:focus, .tpTheme-figma-dark .tp-lstv_s:focus {
+.tpTheme-clean .tp-txtv_i:focus, .tpTheme-clean-dark .tp-txtv_i:focus,
+.tpTheme-clean .tp-lstv_s:focus, .tpTheme-clean-dark .tp-lstv_s:focus {
     box-shadow: inset 0 0 0 1px var(--tpf-accent);
 }
-/* numbers read from the left, like Figma; the drag knob is a small dot until you hover it */
-.tpTheme-figma .tp-txtv-num .tp-txtv_i, .tpTheme-figma-dark .tp-txtv-num .tp-txtv_i {
+/* numbers read from the left; the drag knob is a small dot until you hover it */
+.tpTheme-clean .tp-txtv-num .tp-txtv_i, .tpTheme-clean-dark .tp-txtv-num .tp-txtv_i {
     text-align: left !important;
     padding-left: 12px;
 }
-.tpTheme-figma .tp-txtv_k, .tpTheme-figma-dark .tp-txtv_k {
+.tpTheme-clean .tp-txtv_k, .tpTheme-clean-dark .tp-txtv_k {
     left: 0 !important;
     cursor: ew-resize !important;
 }
-.tpTheme-figma .tp-txtv_k::before, .tpTheme-figma-dark .tp-txtv_k::before {
+.tpTheme-clean .tp-txtv_k::before, .tpTheme-clean-dark .tp-txtv_k::before {
     width: 3px !important;
     height: 3px !important;
     border-radius: 50% !important;
     opacity: 0.35 !important;
 }
-.tpTheme-figma .tp-txtv_k:hover::before, .tpTheme-figma-dark .tp-txtv_k:hover::before,
-.tpTheme-figma .tp-txtv-drg .tp-txtv_k::before, .tpTheme-figma-dark .tp-txtv-drg .tp-txtv_k::before {
+.tpTheme-clean .tp-txtv_k:hover::before, .tpTheme-clean-dark .tp-txtv_k:hover::before,
+.tpTheme-clean .tp-txtv-drg .tp-txtv_k::before, .tpTheme-clean-dark .tp-txtv-drg .tp-txtv_k::before {
     height: 12px !important;
     width: 2px !important;
     border-radius: 1px !important;
     opacity: 0.8 !important;
 }
 /* slider: a thin track, the filled part in the accent, a small white knob */
-.tpTheme-figma .tp-sldv_t::before, .tpTheme-figma-dark .tp-sldv_t::before {
+.tpTheme-clean .tp-sldv_t::before, .tpTheme-clean-dark .tp-sldv_t::before {
     background-color: var(--tp-groove-foreground-color);
     height: 2px;
 }
-.tpTheme-figma .tp-sldv_k::before, .tpTheme-figma-dark .tp-sldv_k::before {
+.tpTheme-clean .tp-sldv_k::before, .tpTheme-clean-dark .tp-sldv_k::before {
     background-color: var(--tpf-accent) !important;
 }
-.tpTheme-figma .tp-sldv_k::after, .tpTheme-figma-dark .tp-sldv_k::after {
+.tpTheme-clean .tp-sldv_k::after, .tpTheme-clean-dark .tp-sldv_k::after {
     background-color: var(--tpf-knob) !important;
     width: 12px;
     height: 12px;
@@ -369,41 +369,41 @@
     border-radius: 50%;
     box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.25);
 }
-.tpTheme-figma .tp-sldv_t:hover .tp-sldv_k::after, .tpTheme-figma-dark .tp-sldv_t:hover .tp-sldv_k::after,
-.tpTheme-figma .tp-sldv_t:active .tp-sldv_k::after, .tpTheme-figma-dark .tp-sldv_t:active .tp-sldv_k::after {
+.tpTheme-clean .tp-sldv_t:hover .tp-sldv_k::after, .tpTheme-clean-dark .tp-sldv_t:hover .tp-sldv_k::after,
+.tpTheme-clean .tp-sldv_t:active .tp-sldv_k::after, .tpTheme-clean-dark .tp-sldv_t:active .tp-sldv_k::after {
     box-shadow: 0 0 0 1px var(--tpf-accent), 0 1px 3px rgba(0, 0, 0, 0.25);
 }
 /* checkbox: a 14px square, filled with the accent when on */
-.tpTheme-figma .tp-ckbv_l, .tpTheme-figma-dark .tp-ckbv_l {
+.tpTheme-clean .tp-ckbv_l, .tpTheme-clean-dark .tp-ckbv_l {
     display: flex;
     align-items: center;
     height: var(--bld-us);
 }
-.tpTheme-figma .tp-ckbv_w, .tpTheme-figma-dark .tp-ckbv_w {
+.tpTheme-clean .tp-ckbv_w, .tpTheme-clean-dark .tp-ckbv_w {
     width: 14px;
     height: 14px;
     border-radius: 3px;
     background-color: transparent !important;
     box-shadow: inset 0 0 0 1px var(--tpf-check-border);
 }
-.tpTheme-figma .tp-ckbv_i:checked + .tp-ckbv_w, .tpTheme-figma-dark .tp-ckbv_i:checked + .tp-ckbv_w {
+.tpTheme-clean .tp-ckbv_i:checked + .tp-ckbv_w, .tpTheme-clean-dark .tp-ckbv_i:checked + .tp-ckbv_w {
     background-color: var(--tpf-accent) !important;
     box-shadow: none;
 }
-.tpTheme-figma .tp-ckbv_i:focus-visible + .tp-ckbv_w, .tpTheme-figma-dark .tp-ckbv_i:focus-visible + .tp-ckbv_w {
+.tpTheme-clean .tp-ckbv_i:focus-visible + .tp-ckbv_w, .tpTheme-clean-dark .tp-ckbv_i:focus-visible + .tp-ckbv_w {
     outline: 2px solid var(--tpf-accent);
     outline-offset: 1px;
 }
-.tpTheme-figma .tp-ckbv_w svg, .tpTheme-figma-dark .tp-ckbv_w svg {
+.tpTheme-clean .tp-ckbv_w svg, .tpTheme-clean-dark .tp-ckbv_w svg {
     /* the check is drawn for 16px without a viewBox: scale it, do not resize it */
     transform: scale(0.65);
 }
-.tpTheme-figma .tp-ckbv_w svg path, .tpTheme-figma-dark .tp-ckbv_w svg path {
+.tpTheme-clean .tp-ckbv_w svg path, .tpTheme-clean-dark .tp-ckbv_w svg path {
     stroke: #ffffff;
     stroke-width: 2.5;
 }
 /* buttons: outlined, 24px */
-.tpTheme-figma .tp-btnv_b, .tpTheme-figma-dark .tp-btnv_b {
+.tpTheme-clean .tp-btnv_b, .tpTheme-clean-dark .tp-btnv_b {
     height: 24px !important;
     font-size: 11px !important;
     font-weight: 500 !important;
@@ -411,26 +411,26 @@
     background-color: transparent !important;
     box-shadow: inset 0 0 0 1px var(--tpf-line);
 }
-.tpTheme-figma .tp-btnv_b:hover, .tpTheme-figma-dark .tp-btnv_b:hover {
+.tpTheme-clean .tp-btnv_b:hover, .tpTheme-clean-dark .tp-btnv_b:hover {
     background-color: var(--tp-button-background-color-hover) !important;
 }
-.tpTheme-figma .tp-btnv_b:active, .tpTheme-figma-dark .tp-btnv_b:active {
+.tpTheme-clean .tp-btnv_b:active, .tpTheme-clean-dark .tp-btnv_b:active {
     background-color: var(--tp-button-background-color-active) !important;
 }
 /* colour swatch and image previews: small radius, a hairline */
-.tpTheme-figma .tp-colswv_sw, .tpTheme-figma-dark .tp-colswv_sw {
+.tpTheme-clean .tp-colswv_sw, .tpTheme-clean-dark .tp-colswv_sw {
     border-radius: 3px;
     box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1);
 }
-.tpTheme-figma .pluginOptionsButton, .tpTheme-figma-dark .pluginOptionsButton {
+.tpTheme-clean .pluginOptionsButton, .tpTheme-clean-dark .pluginOptionsButton {
     top: 0.5rem;
     opacity: 0.6;
 }
-/* the page around the canvas, like Figma's canvas grey */
-body.tpTheme-figma {
+/* the page around the canvas: a light grey (dark in clean-dark) */
+body.tpTheme-clean {
     background-color: #f0f0f0 !important;
 }
-body.tpTheme-figma-dark {
+body.tpTheme-clean-dark {
     background-color: #1e1e1e !important;
 }
 

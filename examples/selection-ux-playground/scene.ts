@@ -1,4 +1,4 @@
-import {BoxGeometry, CatmullRomCurve3, ContactShadowGroundPlugin, CubicBezierCurve3, CylinderGeometry, GeometryGeneratorPlugin, Group2, IObject3D, LineMaterial2, Matrix4, Mesh, Object3DGeneratorPlugin, PhysicalMaterial, Quaternion, Raycaster, SphereGeometry, ThreeViewer, TorusGeometry, UndoManagerPlugin, Vector3} from 'threepipe'
+import {BoxGeometry, CameraViewPlugin, CatmullRomCurve3, ContactShadowGroundPlugin, CubicBezierCurve3, CylinderGeometry, GeometryGeneratorPlugin, Group2, IObject3D, LineMaterial2, Matrix4, Mesh, Object3DGeneratorPlugin, PhysicalMaterial, Quaternion, Raycaster, SphereGeometry, ThreeViewer, TorusGeometry, UndoManagerPlugin, Vector3} from 'threepipe'
 import {AnnotationsPlugin, AnnotationView} from './AnnotationsPlugin'
 import {SPLASH_ICONS, SplashSample} from './splash'
 
@@ -214,6 +214,23 @@ export function splashSamples(viewer: ThreeViewer): SplashSample[] {
             done()
         }},
         model('Classic watch', SPLASH_ICONS.watch, 'https://samples.threepipe.org/demos/classic-watch.glb'),
+        // the threepipe "timeline-ui-plugin" example: the watch's camera views, material variations and glTF clip on the timeline
+        {label: 'Watch timeline', icon: SPLASH_ICONS.timeline, load: async() => {
+            reset()
+            // as authored: the camera views in the file are at its own scale and place
+            const obj = await viewer.load('https://samples.threepipe.org/demos/classic-watch.glb')
+            if (!obj) throw new Error('Could not load Watch timeline')
+            const views = viewer.getPlugin(CameraViewPlugin)
+            if (views) {
+                views.viewPauseTime = 0
+                views.animEase = 'linear'
+            }
+            viewer.timeline.endTime = 12
+            // the timeline panel (TimelineUiPlugin) on the pages that have it: the tweakpane editor
+            const ui = viewer.getPlugin<any>('TimelineUiPlugin')
+            if (ui) ui.enabled = true
+            done()
+        }},
         model('Damaged helmet', SPLASH_ICONS.helmet, 'https://samples.threepipe.org/minimal/DamagedHelmet/glTF/DamagedHelmet.gltf'),
         model('Horse', SPLASH_ICONS.horse, 'https://samples.threepipe.org/minimal/Horse.glb'),
         {label: 'Empty scene', icon: SPLASH_ICONS.empty, load: () => {

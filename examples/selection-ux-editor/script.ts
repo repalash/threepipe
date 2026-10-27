@@ -80,12 +80,12 @@ async function init() {
     if (gizmo) Object.assign(gizmo.style, {top: '56px', left: '', right: '4px', bottom: '', transform: 'scale(.72)', transformOrigin: '100% 0'})
     const editor = viewer.getPlugin(TweakpaneEditorPlugin)
     if (editor) setupModeBar(editor, document.body, () => document.getElementById('tweakpaneUiContainer'))
-    // once: the Figma-like tweakpane theme, light or dark like the theme in use (Color Mode in the Tweakpane UI folder changes it)
+    // once: the clean tweakpane theme, light or dark like the theme in use (Color Mode in the Tweakpane UI folder changes it)
     const tp = viewer.getPlugin(TweakpaneUiPlugin)
     try {
-        if (tp && !localStorage.getItem('sux-figma-theme')) {
-            tp.colorMode = ['dark', 'black', 'blue'].includes(tp.colorMode) ? 'figma-dark' : 'figma'
-            localStorage.setItem('sux-figma-theme', '1')
+        if (tp && !localStorage.getItem('sux-clean-theme')) {
+            tp.colorMode = ['dark', 'black', 'blue'].includes(tp.colorMode) ? 'clean-dark' : 'clean'
+            localStorage.setItem('sux-clean-theme', '1')
         }
     } catch (e) {
         // private mode: keep the theme

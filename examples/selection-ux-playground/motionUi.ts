@@ -23,7 +23,7 @@ body[class*="tpTheme-"] .mo-ui {
   --mo-hover: var(--tp-button-background-color-hover, rgba(255,255,255,.09)); --mo-field: var(--tp-input-background-color, rgba(255,255,255,.07));
   --mo-soft: rgba(13,153,255,.2);
 }
-body.tpTheme-black .mo-ui, body.tpTheme-dark .mo-ui, body.tpTheme-blue .mo-ui, body.tpTheme-figma-dark .mo-ui {
+body.tpTheme-black .mo-ui, body.tpTheme-dark .mo-ui, body.tpTheme-blue .mo-ui, body.tpTheme-clean-dark .mo-ui {
   --mo-shadow: 0 0 0 1px rgba(0,0,0,.35), 0 6px 20px rgba(0,0,0,.3);
 }
 .mo-card { background: var(--mo-bg); border-radius: 8px; box-shadow: var(--mo-shadow); padding: 12px; }
