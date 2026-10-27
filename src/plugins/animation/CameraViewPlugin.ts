@@ -264,6 +264,10 @@ export class CameraViewPlugin extends AViewerPluginSync<CameraViewPluginEventMap
 
         camera.setInteractions && camera.setInteractions(false, CameraViewPlugin.PluginType) // todo: also for seekOnScroll
 
+        if (!camera.userData.autoLookAtTarget) {
+            console.warn('CameraViewPlugin: camera autoLookAtTarget is disabled, camera look at might not be correct during animation')
+        }
+
         this.dispatchEvent({type: 'startViewChange', view})
 
         const popmotion = this._viewer?.getPlugin(PopmotionPlugin)
