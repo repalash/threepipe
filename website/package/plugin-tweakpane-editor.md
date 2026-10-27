@@ -71,7 +71,7 @@ editor.loadPlugins({
 - As in the `PickingPlugin`, a hidden object, an object with `userData.userSelectable = false` or `userData.bboxVisible = false`, and everything inside it are not selected: a click goes to the object behind, and Enter, Tab and Ctrl/Cmd+A skip them. A click on a mesh that the `PickingPlugin` cannot select selects its first parent that it can.
 - With Multi-Select off in the `PickingPlugin`, one object is selected: Shift+click is a click, Enter selects the first child, and Ctrl/Cmd+A does nothing.
 
-The selection is the selection of the `PickingPlugin` (the plugin adds it): its `selectedObjectChanged` event, its box widget and its undo steps work as before, and each selection change is one undo step when the viewer has an `UndoManagerPlugin`. While the plugin is enabled, it takes over the clicks of the `PickingPlugin`. The plugin is not added to the editor by default.
+The selection is the selection of the `PickingPlugin` (the plugin adds it): its `selectedObjectChanged` event, its box widget and its undo steps work as before, and each selection change is one undo step when the viewer has an `UndoManagerPlugin`. While the plugin is enabled, it takes over the clicks of the `PickingPlugin`. When the `PickingPlugin` picks materials, geometries or textures (`selectionMode` or `pickingMode`), the plugin is off and the core picker keeps the clicks. The plugin is not added to the editor by default.
 
 ```typescript
 import {ThreeViewer, UndoManagerPlugin} from 'threepipe'

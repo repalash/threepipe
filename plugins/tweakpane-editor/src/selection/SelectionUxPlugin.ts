@@ -119,8 +119,14 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         super.onRemove(viewer)
     }
 
+    /**
+     * On, with the PickingPlugin on and picking objects. When the picker picks materials, geometries or textures, the
+     * core picker keeps the clicks.
+     */
     private get _active() {
-        return !this.isDisabled() && !!this._viewer && !!this._picking && !this._picking.isDisabled()
+        const picker = this._picking?.picker
+        const mode = picker?.pickingMode === 'auto' ? picker.selectionMode : picker?.pickingMode
+        return !this.isDisabled() && !!this._viewer && !!this._picking && !this._picking.isDisabled() && mode === 'object'
     }
 
     private _emit(reason: string) {

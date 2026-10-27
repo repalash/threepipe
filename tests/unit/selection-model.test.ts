@@ -428,6 +428,21 @@ describe('SelectionUxPlugin', () => {
         expect(hit.intersects.consumed).toBeUndefined() // the core pick goes on, with the handle for the gizmo
     })
 
+    test('when the picker picks materials (or geometries, textures), the core picker keeps the clicks', () => {
+        const {ux, picking, click, key, lamp, names} = setup()
+        ux.select([lamp])
+        picking.picker.pickingMode = 'material'
+        const hit = {intersects: {} as {consumed?: boolean}}
+        ;(ux as any)._onPickerHit(hit)
+        expect(hit.intersects.consumed).toBeUndefined() // the core picker selects the material
+        expect(key('Escape')).toBe(false)
+        picking.picker.pickingMode = 'auto'
+        picking.picker.selectionMode = 'texture'
+        click(lamp.parent!.children[2]) // the wall
+        expect(picking.picker.selectionMode).toBe('texture') // not switched back to objects by an object selection
+        expect(names()).toEqual(['Lamp'])
+    })
+
     test('a hit on a part that cannot be selected selects its first parent that can, as the core picker does', () => {
         const {picking, click, lamp, names} = setup()
         const g = lamp.parent as IObject3D
