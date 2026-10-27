@@ -12,7 +12,8 @@ export interface ICanvasRecorder<T extends string=any>
     options: CanvasRecorderOptions;
     start: () => void;
     pause: () => void;
-    stop: (recordingCallback: (b: Blob) => void) => void;
+    /** Calls back with the recording; an image sequence (written to a folder) has none */
+    stop: (recordingCallback: (b?: Blob) => void) => void;
 }
 
 export interface CanvasRecorderOptions {
@@ -89,7 +90,7 @@ export abstract class ACanvasRecorder<T extends string=any>
 
     abstract pause(): void
 
-    abstract stop(recordingCallback: (b: Blob) => void): void
+    abstract stop(recordingCallback: (b?: Blob) => void): void
 
     protected _ondataavailable: (event: BlobEvent) => void = (event) => {
         if (event.data && event.data.size > 0) {

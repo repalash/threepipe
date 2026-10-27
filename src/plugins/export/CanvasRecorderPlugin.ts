@@ -120,7 +120,9 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
         if (this.convergeMode && this._recorder?.isRecording()) {
             const composer = this._viewer!.renderManager.composer
             const k = composer.renderToScreen
-            composer.renderToScreen = this._viewer?.getPlugin<ProgressivePlugin>('ProgressivePlugin')?.isConverged() || false
+            // without ProgressivePlugin there is nothing to converge: every frame is final
+            const progressive = this._viewer?.getPlugin<ProgressivePlugin>('ProgressivePlugin')
+            composer.renderToScreen = progressive ? progressive.isConverged() : true
             if (k && !composer.renderToScreen) {
                 this._renderToScreenDisabled = true // set back to true post render
             }
@@ -129,7 +131,8 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
 
     private _postRender = () => {
         if (this._recorder?.isRecording()) {
-            if (!this.convergeMode || this._viewer?.getPlugin<ProgressivePlugin>('ProgressivePlugin')?.isConverged(true)) {
+            const progressive = this._viewer?.getPlugin<ProgressivePlugin>('ProgressivePlugin')
+            if (!this.convergeMode || !progressive || progressive.isConverged(true)) {
 
                 const fn = () => this._recorder?.requestFrame()
                 if (this.convergeMode) {

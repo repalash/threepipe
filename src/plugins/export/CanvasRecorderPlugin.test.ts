@@ -95,3 +95,44 @@ describe('ImageSequenceRecorder', () => {
         expect(rec._currentImages.map((i: [string, Blob]) => i[0])).toEqual(['frame_00001.png', 'frame_00002.png'])
     })
 })
+
+describe('ImageSequenceRecorder stop', () => {
+    test('waits for a capture still running, writes it, then calls back without a blob', async() => {
+        const callbacks: (() => void)[] = []
+        const canvas = {toBlob: (cb: (b: Blob) => void) => callbacks.push(() => cb(new Blob([])))} as any
+        const rec = new ImageSequenceRecorder(canvas, {mimeType: 'image/png'}) as any
+        const written: string[] = []
+        rec._writeImages = async(images: [string, Blob][]) => {
+            written.push(...images.map(i => i[0]))
+        }
+        rec.setState('recording')
+        rec.requestFrame()
+        rec.requestFrame()
+        callbacks[0]() // the second capture is still running at stop
+        const done = new Promise(resolve => rec.stop(resolve))
+        let settled = false
+        void done.then(() => settled = true)
+        await new Promise(r => setTimeout(r, 0))
+        expect(settled).toBe(false) // it waits for the second capture
+        callbacks[1]()
+        expect(await done).toBeUndefined()
+        expect(written).toEqual(['frame_00001.png', 'frame_00002.png'])
+        expect(rec.state).toBe('stopped')
+    })
+})
+
+describe('converge mode without ProgressivePlugin', () => {
+    test('every frame is captured and shown', async() => {
+        const plugin = new CanvasRecorderPlugin() as any
+        plugin.convergeMode = true
+        const composer = {renderToScreen: true}
+        plugin._viewer = {getPlugin: () => undefined, renderManager: {composer}}
+        const requestFrame = vi.fn()
+        plugin._recorder = {isRecording: () => true, requestFrame}
+        plugin._preRender()
+        expect(composer.renderToScreen).toBe(true)
+        plugin._postRender()
+        await new Promise(r => setTimeout(r, 5)) // converge mode captures after 1 ms
+        expect(requestFrame).toHaveBeenCalledTimes(1)
+    })
+})

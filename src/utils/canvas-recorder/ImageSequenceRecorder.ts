@@ -3,6 +3,13 @@ import {writeFile} from 'ts-browser-helpers'
 
 export class ImageSequenceRecorder extends ACanvasRecorder {
     private _currentImages: [string, Blob][] = [] // filename, dataurl
+    /** Captures (toBlob) and writes not done yet; stop waits for them */
+    private _pending = new Set<Promise<void>>()
+
+    private _track(p: Promise<void>) {
+        this._pending.add(p)
+        p.finally(() => this._pending.delete(p))
+    }
 
     public start() {
         if (this.state === 'recording') {
@@ -48,20 +55,21 @@ export class ImageSequenceRecorder extends ACanvasRecorder {
         const name = 'frame_' + String(this._frameCount).padStart(5, '0') + (mime.includes('png') ? '.png' : '.jpg')
 
         // const dataUrl = this._canvas.toDataURL(mime, 90);
-        this._canvas.toBlob(
+        this._track(new Promise<void>(resolve => this._canvas.toBlob(
             (blob) => {
-                this._currentImages.push([name, blob!])
+                if (blob) this._currentImages.push([name, blob])
+                resolve()
             },
             mime,
             90,
-        )
+        )))
         // this._currentImages.push([
         //   "frame_" + String(this._frameCount).padStart(5, "0") + (mime.includes("png") ? ".png" : ".jpg"),
         //   dataUrl,
         // ]);
 
         if (this._currentImages.length > 60) {
-            this._writeImages([...this._currentImages])
+            this._track(this._writeImages([...this._currentImages]))
             this._currentImages = []
         }
         return true
@@ -73,7 +81,11 @@ export class ImageSequenceRecorder extends ACanvasRecorder {
         this.setState('paused')
     }
 
-    public stop(_recordingCallback: (b: Blob) => void) {
+    /**
+     * Writes the frames that are left, after the captures still running, then calls back. An image sequence has no
+     * blob: the callback gets undefined.
+     */
+    public stop(recordingCallback: (b?: Blob) => void) {
         if (this.state === 'stopped') return
         if (this.state === 'error') {
             this._console.error('Recorder in error state, cannot stop, call start again.')
@@ -82,7 +94,10 @@ export class ImageSequenceRecorder extends ACanvasRecorder {
         // if (this.state === 'paused') this._recorder?.resume() //todo
 
         this.setState('stopping')
-        this._onstop({} as any)
+        this._finish().then(() => {
+            recordingCallback(undefined)
+            this.setState('stopped')
+        })
     }
 
     private async _writeImages(images: [string, Blob][]) {
@@ -102,13 +117,13 @@ export class ImageSequenceRecorder extends ACanvasRecorder {
         await Promise.all(writes)
     }
 
-    private _onstop: EventListener = (_evt) => {
+    private async _finish() {
+        while (this._pending.size) await Promise.all([...this._pending])
         if (this._currentImages.length > 0) {
-            // image sequence
-            this._writeImages([...this._currentImages])
+            const images = [...this._currentImages]
             this._currentImages = []
+            await this._writeImages(images)
         }
-        this.setState('stopped')
     }
 
     private _onerror: (event: any) => void = (event) => {
