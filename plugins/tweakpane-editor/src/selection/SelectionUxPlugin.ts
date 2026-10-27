@@ -250,11 +250,12 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
 
     /**
      * The object that a press at a screen point is on. The selection wins over what is in front of it, like in Figma,
-     * and a line or point wins over a surface at about the same depth.
+     * and a line or point wins over a surface at about the same depth. `handle` is set when the press is on a widget
+     * handle (a curve point): the PickingPlugin selects it, so the transform gizmo can move it.
      * @param sx - x in pixels from the left of the viewer container
      * @param sy - y in pixels from the top of the viewer container
      */
-    raycastLeaf(sx: number, sy: number): {leaf: IObject3D, point: Vector3} | null {
+    raycastLeaf(sx: number, sy: number): {leaf: IObject3D, point: Vector3, handle?: Object3D} | null {
         if (!this._viewer || !this._picking?.picker) return null
         this._rayFromScreen(sx, sy)
         const wpp = this._worldPerPixel((this._viewer.scene.mainCamera as any).target ?? new Vector3())
@@ -270,12 +271,13 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
             for (let p = o; p; p = p.parent) if (sel.includes(p as IObject3D)) return true
             return false
         }
-        let first: {leaf: IObject3D, point: Vector3} | null = null
+        let first: {leaf: IObject3D, point: Vector3, handle?: Object3D} | null = null
         for (const hit of hits) {
             const leaf = this._hitLeaf(hit.object as IObject3D)
             if (!leaf) continue
-            if (!sel.length || inSelection(leaf)) return {leaf, point: hit.point.clone()}
-            first ??= {leaf, point: hit.point.clone()}
+            const handle = hit.object.userData.isWidgetHandle ? hit.object : undefined
+            if (!sel.length || inSelection(leaf)) return {leaf, point: hit.point.clone(), handle}
+            first ??= {leaf, point: hit.point.clone(), handle}
         }
         return first
     }
@@ -302,9 +304,9 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
 
     // region pointer
 
-    private _onPickerHit = (e: {intersects: {consumed?: boolean}}) => {
-        // this plugin selects on click; the PickingPlugin keeps the state
-        if (this._active) e.intersects.consumed = true
+    private _onPickerHit = (e: {intersects: {consumed?: boolean, selectedHandle?: unknown}}) => {
+        // this plugin selects on click; the PickingPlugin keeps the state, and selects a widget handle itself
+        if (this._active && !e.intersects.selectedHandle) e.intersects.consumed = true
     }
 
     private _onSelectionChanged = () => {
@@ -338,7 +340,10 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         if (tc && !tc.isDisabled() && tc.transformControls?.axis) return
         const p = this._local(e)
         this._pointer.copy(p)
-        this._state = {kind: 'press', start: p, leaf: this.raycastLeaf(p.x, p.y)?.leaf ?? null, shift: e.shiftKey, deep: e.ctrlKey || e.metaKey}
+        const hit = this.raycastLeaf(p.x, p.y)
+        // a widget handle (a curve point): the PickingPlugin selects it with its intersection, for the transform gizmo
+        if (hit?.handle) return
+        this._state = {kind: 'press', start: p, leaf: hit?.leaf ?? null, shift: e.shiftKey, deep: e.ctrlKey || e.metaKey}
     }
 
     private _onPointerMove = (e: PointerEvent) => {
@@ -368,7 +373,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         if (!this._active || e.target !== this._viewer!.canvas) return
         const p = this._local(e)
         const hit = this.raycastLeaf(p.x, p.y)
-        if (!hit) return
+        if (!hit || hit.handle) return
         // one level inside the selected group
         const tgt = this.resolveTarget(hit.leaf, false, true)
         if (tgt) this.select([tgt])

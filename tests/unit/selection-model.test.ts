@@ -382,6 +382,21 @@ describe('SelectionUxPlugin', () => {
         expect(names()).toEqual(['Table'])
     })
 
+    test('a press on a widget handle (a curve point) is left to the PickingPlugin', () => {
+        const {ux, click, lamp, picking, names} = setup()
+        const widget = Object.assign(group('Lamp widget'), {assetType: 'widget', object: lamp})
+        const handle = mesh('Handle', 2, 0, 1) // in front of the lamp
+        handle.userData.isWidgetHandle = true
+        widget.add(handle)
+        widget.updateMatrixWorld(true)
+        picking.picker.extraObjects.push(widget)
+        click(handle)
+        expect(names()).toEqual([]) // this plugin does not select the lamp
+        const hit = {intersects: {selectedHandle: handle} as any}
+        ;(ux as any)._onPickerHit(hit)
+        expect(hit.intersects.consumed).toBeUndefined() // the core pick goes on, with the handle for the gizmo
+    })
+
     test('a hidden object is not selected: the click goes to the visible one behind it', () => {
         const {click, lamp, names} = setup()
         lamp.visible = false
