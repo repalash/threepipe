@@ -410,7 +410,7 @@ export class SelectionMaskPass extends RenderPass implements IPipelinePass<'sele
         let m = this._lineMasks.get(lm)
         if (!m) {
             m = new ShaderMaterial({
-                uniforms: {...lm.uniforms, itemData: {value: new Vector3()}, cameraNearFar: {value: new Vector2(0.1, 1000)}},
+                uniforms: {...lm.uniforms, itemData: {value: new Vector3()}, cameraNearFar: {value: new Vector2(0.1, 1000)}, cameraOrtho: {value: 0}},
                 defines: {...lm.defines},
                 vertexShader: lm.vertexShader,
                 fragmentShader: LINE_MASK_FRAG,
@@ -423,6 +423,7 @@ export class SelectionMaskPass extends RenderPass implements IPipelinePass<'sele
                 if (d) mask.uniforms.itemData.value.copy(d)
                 const cam = camera as any
                 mask.uniforms.cameraNearFar.value.set(cam.near, cam.far)
+                mask.uniforms.cameraOrtho.value = cam.isOrthographicCamera ? 1 : 0
                 mask.uniformsNeedUpdate = true
             }
             this._lineMasks.set(lm, m)
@@ -444,31 +445,39 @@ function maskAlphaUniforms() {
     return {
         maskSkip: {value: 0},
         maskOpacity: {value: 1},
-        maskAlphaTex: {value: null as Texture | null},
-        maskAlphaChannel: {value: -1},
-        maskAlphaUvTransform: {value: new Matrix3()},
+        maskMap: {value: null as Texture | null},
+        maskUseMap: {value: 0},
+        maskMapUvTransform: {value: new Matrix3()},
+        maskAlphaMap: {value: null as Texture | null},
+        maskUseAlphaMap: {value: 0},
+        maskAlphaMapUvTransform: {value: new Matrix3()},
         maskAlphaCut: {value: 0.5},
     }
 }
 
 /**
- * The alpha of a material as in its own render: `opacity` when transparent, the alpha of `map` (transparent or alpha
- * test) or the green channel of `alphaMap`, cut at `alphaTest` (or 0.5)
+ * The alpha of a material as in its own render (transparent or alpha test): `opacity` when transparent, times the
+ * alpha of `map`, times the green channel of `alphaMap`, cut at `alphaTest` (or 0.5)
  */
 function setMaskAlpha(mask: ShaderMaterial, material: Material | undefined) {
     const m = material as MeshPhysicalMaterial | undefined
     const u = mask.uniforms
     const cut = m?.alphaTest || 0
     const useAlpha = !!m && (m.transparent || cut > 0)
-    const tex = !useAlpha ? null : m.alphaMap ?? m.map ?? null
     u.maskOpacity.value = useAlpha && m.transparent ? m.opacity : 1
-    u.maskAlphaTex.value = tex
-    u.maskAlphaChannel.value = !tex ? -1 : tex === m?.alphaMap ? 1 : 3
-    if (tex) {
-        if (tex.matrixAutoUpdate) tex.updateMatrix()
-        u.maskAlphaUvTransform.value.copy(tex.matrix)
-    }
+    setMaskTexture(u.maskMap, u.maskUseMap, u.maskMapUvTransform, useAlpha ? m.map : null)
+    setMaskTexture(u.maskAlphaMap, u.maskUseAlphaMap, u.maskAlphaMapUvTransform, useAlpha ? m.alphaMap : null)
     u.maskAlphaCut.value = cut > 0 ? cut : 0.5
+}
+
+/** Sets a texture of the mask alpha with its UV transform */
+function setMaskTexture(tex: {value: Texture | null}, use: {value: number}, uvTransform: {value: Matrix3}, t: Texture | null) {
+    tex.value = t
+    use.value = t ? 1 : 0
+    if (t) {
+        if (t.matrixAutoUpdate) t.updateMatrix()
+        uvTransform.value.copy(t.matrix)
+    }
 }
 
 /** A mesh with a geometry: the objects that the mask pass draws */
@@ -505,20 +514,22 @@ uniform vec2 cameraNearFar;
 uniform vec3 itemData;
 uniform float maskSkip;
 uniform float maskOpacity;
-uniform sampler2D maskAlphaTex;
-uniform float maskAlphaChannel;
-uniform mat3 maskAlphaUvTransform;
+uniform sampler2D maskMap;
+uniform float maskUseMap;
+uniform mat3 maskMapUvTransform;
+uniform sampler2D maskAlphaMap;
+uniform float maskUseAlphaMap;
+uniform mat3 maskAlphaMapUvTransform;
 uniform float maskAlphaCut;
 varying vec3 vViewPosition;
 varying vec2 vMaskUv;
 void main() {
     if (maskSkip > 0.5) discard;
     // the alpha of the object's own material: a mesh cut by its texture is cut here too
+    // as in the material: the alpha of map times the green channel of alphaMap
     float alpha = maskOpacity;
-    if (maskAlphaChannel > 0.) {
-        vec4 t = texture2D(maskAlphaTex, (maskAlphaUvTransform * vec3(vMaskUv, 1.)).xy);
-        alpha *= maskAlphaChannel > 2. ? t.a : t.g;
-    }
+    if (maskUseMap > 0.5) alpha *= texture2D(maskMap, (maskMapUvTransform * vec3(vMaskUv, 1.)).xy).a;
+    if (maskUseAlphaMap > 0.5) alpha *= texture2D(maskAlphaMap, (maskAlphaMapUvTransform * vec3(vMaskUv, 1.)).xy).g;
     if (alpha < maskAlphaCut) discard;
     // same linear depth as the gbuffer: (viewZ - near) / (far - near)
     float d = clamp((vViewPosition.z - cameraNearFar.x) / (cameraNearFar.y - cameraNearFar.x), 0., 1.);
@@ -530,9 +541,12 @@ const LINE_MASK_FRAG = /* glsl */`
 #include <packing>
 uniform vec2 cameraNearFar;
 uniform vec3 itemData;
+uniform float cameraOrtho;
 void main() {
-    // the line shader has no view position varying: the depth comes from the fragment depth (perspective camera)
-    float viewZ = -perspectiveDepthToViewZ(gl_FragCoord.z, cameraNearFar.x, cameraNearFar.y);
+    // the line shader has no view position varying: the depth comes from the fragment depth
+    float viewZ = cameraOrtho > 0.5 ?
+        -orthographicDepthToViewZ(gl_FragCoord.z, cameraNearFar.x, cameraNearFar.y) :
+        -perspectiveDepthToViewZ(gl_FragCoord.z, cameraNearFar.x, cameraNearFar.y);
     float d = clamp((viewZ - cameraNearFar.x) / (cameraNearFar.y - cameraNearFar.x), 0., 1.);
     gl_FragColor = vec4(itemData, d);
 }

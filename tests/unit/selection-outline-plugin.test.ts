@@ -191,11 +191,12 @@ describe('SelectionOutlinePlugin', () => {
     test('the mask material: objects outside the mask write nothing; a material array uses the group material', () => {
         const u = (v: any) => ({value: v})
         const material = new ShaderMaterial({uniforms: {
-            itemData: u(new Vector3()), maskSkip: u(0), maskOpacity: u(1), maskAlphaTex: u(null),
-            maskAlphaChannel: u(-1), maskAlphaUvTransform: u(new Matrix3()), maskAlphaCut: u(0.5),
+            itemData: u(new Vector3()), maskSkip: u(0), maskOpacity: u(1),
+            maskMap: u(null), maskUseMap: u(0), maskMapUvTransform: u(new Matrix3()),
+            maskAlphaMap: u(null), maskUseAlphaMap: u(0), maskAlphaMapUvTransform: u(new Matrix3()), maskAlphaCut: u(0.5),
         }})
         const pass = new SelectionMaskPass(() => ({}) as any, material) as any
-        const cutout = new MeshBasicMaterial({alphaTest: 0.3, map: new Texture()})
+        const cutout = new MeshBasicMaterial({alphaTest: 0.3, map: new Texture(), alphaMap: new Texture()})
         const item = new Mesh(new BoxGeometry(), [new MeshBasicMaterial(), cutout])
         const other = mesh('other')
         pass._items = new Map([[item, new Vector3(1, 2, 0)]])
@@ -207,11 +208,15 @@ describe('SelectionOutlinePlugin', () => {
         before(null, null, null, null, item, {materialIndex: 1})
         expect(material.uniforms.maskSkip.value).toBe(0)
         expect(material.uniforms.itemData.value.toArray()).toEqual([1, 2, 0])
-        expect(material.uniforms.maskAlphaTex.value).toBe(cutout.map)
+        // both textures: the alpha of map and the green of alphaMap are multiplied
+        expect(material.uniforms.maskMap.value).toBe(cutout.map)
+        expect(material.uniforms.maskUseMap.value).toBe(1)
+        expect(material.uniforms.maskAlphaMap.value).toBe(cutout.alphaMap)
+        expect(material.uniforms.maskUseAlphaMap.value).toBe(1)
         expect(material.uniforms.maskAlphaCut.value).toBeCloseTo(0.3)
 
         before(null, null, null, null, item, {materialIndex: 0})
-        expect(material.uniforms.maskAlphaTex.value).toBe(null)
-        expect(material.uniforms.maskAlphaChannel.value).toBe(-1)
+        expect(material.uniforms.maskUseMap.value).toBe(0)
+        expect(material.uniforms.maskUseAlphaMap.value).toBe(0)
     })
 })
