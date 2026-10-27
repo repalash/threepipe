@@ -69,8 +69,23 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
     private _recorders: PartialRecord<'ffmpeg.js' | 'canvas-media' | 'image', ICanvasRecorder> = {}
     private _recorder?: ICanvasRecorder
 
+    /** A recorder option changed while a recording runs: applied when it stops */
+    private _optionsPending = false
+
+    /** The recorder is starting, recording or stopping (an MP4 encodes while it stops) */
+    private _recorderBusy() {
+        const state = this._recorder?.state
+        return state === 'starting' || state === 'recording' || state === 'stopping' || !!this._stopping
+    }
+
     refreshRecorderOptions(): void {
         if (!this._viewer) return
+        // the running recording keeps its recorder and options; a new format applies to the next recording
+        if (this._recorderBusy()) {
+            this._optionsPending = true
+            return
+        }
+        this._optionsPending = false
         let recorderType: 'ffmpeg.js' | 'canvas-media' | 'image' = 'image'
         if (this.mimeType === 'video/mp4') {
             recorderType = 'ffmpeg.js'
@@ -221,6 +236,8 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
 
     startRecording(): boolean {
         if (!this.enabled) return false
+        // the last recording is not done yet (an MP4 encodes while it stops): its end would stop the new one
+        if (this._recorderBusy()) return false
         if (this.recorder?.isRecording() === false) {
             this.recorder.options.stepMode = this.convergeMode
             this.recorder.start()
@@ -248,6 +265,8 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
             return await stopping
         } finally {
             this._stopping = undefined
+            // a format change made during the recording
+            if (this._optionsPending) this.refreshRecorderOptions()
         }
     }
 
@@ -555,11 +574,13 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
             this._stateChange(!this.convergeMode)
         })
         recorder.addEventListener('error', () => {
+            if (this._optionsPending) this.refreshRecorderOptions()
             this.dispatchEvent({type: 'error'})
         })
         recorder.addEventListener('paused', () => this._stateChange(false))
         // recorder.addEventListener("resume", () => this._stateChange(!this.convergeMode));
         recorder.addEventListener('stopped', () => {
+            if (this._optionsPending) this.refreshRecorderOptions()
             this._recordIndicator!.style.visibility = 'hidden'
             this.dispatchEvent({type: 'stop'})
             this._stateChange(false)

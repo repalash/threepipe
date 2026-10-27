@@ -101,6 +101,42 @@ describe('CanvasRecorderPlugin', () => {
         expect(exportFile).toHaveBeenCalledWith(expect.any(Blob), 'recording.webm')
     })
 
+    test('no new recording while the last one still stops (an MP4 encodes)', () => {
+        const {plugin} = setup()
+        plugin._recorder.state = 'stopping'
+        plugin._recorder.isRecording = () => false
+        const start = vi.spyOn(plugin._recorder, 'start')
+        expect(plugin.startRecording()).toBe(false)
+        expect(start).not.toHaveBeenCalled()
+    })
+
+    test('a format change during a recording applies after it stops', async() => {
+        const {plugin} = setup()
+        const rec = plugin._recorder
+        let state = 'stopped'
+        Object.defineProperty(rec, 'state', {get: () => state})
+        const start = rec.start
+        rec.start = () => {
+            state = 'recording'
+            start()
+        }
+        const stop = rec.stop
+        rec.stop = (cb: any) => {
+            state = 'stopped'
+            stop(cb)
+        }
+        const next = {setOptions: vi.fn()}
+        plugin._getRecorder = vi.fn(() => next)
+        plugin._viewer.renderManager = {composer: {}}
+        rec.start()
+        plugin.mimeType = 'image/png'
+        expect(plugin._recorder).toBe(rec) // the running recording keeps its recorder
+        expect(plugin._getRecorder).not.toHaveBeenCalled()
+        await plugin.stopRecording()
+        expect(plugin._getRecorder).toHaveBeenCalledWith('image')
+        expect(plugin._recorder).toBe(next)
+    })
+
     test('recordCamera360 without PopmotionPlugin leaves the camera interactions alone', async() => {
         const {plugin, camera} = setup()
         const error = vi.spyOn(console, 'error').mockImplementation(() => undefined)
