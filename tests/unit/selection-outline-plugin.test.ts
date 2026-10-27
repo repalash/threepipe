@@ -1,5 +1,5 @@
 import {describe, expect, test, vi} from 'vitest'
-import {BoxGeometry, EventDispatcher, Group, Mesh, Object3D, PerspectiveCamera, ShaderMaterial, Vector3} from 'three'
+import {BoxGeometry, EventDispatcher, Group, Matrix3, Mesh, MeshBasicMaterial, Object3D, PerspectiveCamera, ShaderMaterial, Texture, Vector3} from 'three'
 import {PickingPlugin} from 'threepipe'
 import {SelectionMaskPass, SelectionOutlinePlugin} from '../../plugins/tweakpane-editor/src/SelectionOutlinePlugin'
 
@@ -186,5 +186,32 @@ describe('SelectionOutlinePlugin', () => {
         expect(inPass.every(m => (m & 1 << SelectionMaskPass.Layer) !== 0)).toBe(true)
         expect([onLayer.layers.mask, other.layers.mask]).toEqual(masks)
         expect(camera.layers.mask).toBe(1)
+    })
+
+    test('the mask material: objects outside the mask write nothing; a material array uses the group material', () => {
+        const u = (v: any) => ({value: v})
+        const material = new ShaderMaterial({uniforms: {
+            itemData: u(new Vector3()), maskSkip: u(0), maskOpacity: u(1), maskAlphaTex: u(null),
+            maskAlphaChannel: u(-1), maskAlphaUvTransform: u(new Matrix3()), maskAlphaCut: u(0.5),
+        }})
+        const pass = new SelectionMaskPass(() => ({}) as any, material) as any
+        const cutout = new MeshBasicMaterial({alphaTest: 0.3, map: new Texture()})
+        const item = new Mesh(new BoxGeometry(), [new MeshBasicMaterial(), cutout])
+        const other = mesh('other')
+        pass._items = new Map([[item, new Vector3(1, 2, 0)]])
+        const before = material.onBeforeRender as any
+
+        before(null, null, null, null, other, null)
+        expect(material.uniforms.maskSkip.value).toBe(1)
+
+        before(null, null, null, null, item, {materialIndex: 1})
+        expect(material.uniforms.maskSkip.value).toBe(0)
+        expect(material.uniforms.itemData.value.toArray()).toEqual([1, 2, 0])
+        expect(material.uniforms.maskAlphaTex.value).toBe(cutout.map)
+        expect(material.uniforms.maskAlphaCut.value).toBeCloseTo(0.3)
+
+        before(null, null, null, null, item, {materialIndex: 0})
+        expect(material.uniforms.maskAlphaTex.value).toBe(null)
+        expect(material.uniforms.maskAlphaChannel.value).toBe(-1)
     })
 })

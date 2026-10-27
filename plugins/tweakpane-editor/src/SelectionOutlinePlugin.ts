@@ -337,10 +337,14 @@ export class SelectionMaskPass extends RenderPass implements IPipelinePass<'sele
 
     constructor(public target: () => WebGLRenderTarget | undefined, material: ShaderMaterial) {
         super(undefined, undefined, material, new Color(0, 0, 0), 1)
-        material.onBeforeRender = (_r, _s, _c, _g, object) => {
+        material.onBeforeRender = (_r, _s, _c, _g, object, group) => {
             const d = this._items.get(object)
             if (d) material.uniforms.itemData.value.copy(d)
-            setMaskAlpha(material, (object as Mesh).material)
+            // an object that is on the layer but not in the mask (not selected or hovered) writes nothing
+            material.uniforms.maskSkip.value = d ? 0 : 1
+            // a mesh with a material array: the material of the geometry group drawn now
+            const own = (object as Mesh).material
+            setMaskAlpha(material, Array.isArray(own) ? own[group?.materialIndex ?? 0] : own)
             material.uniformsNeedUpdate = true
         }
     }
@@ -438,6 +442,7 @@ export class SelectionMaskPass extends RenderPass implements IPipelinePass<'sele
 /** Uniforms for the alpha of the object's own material, so a mesh that is cut by its texture is cut in the mask too */
 function maskAlphaUniforms() {
     return {
+        maskSkip: {value: 0},
         maskOpacity: {value: 1},
         maskAlphaTex: {value: null as Texture | null},
         maskAlphaChannel: {value: -1},
@@ -450,8 +455,8 @@ function maskAlphaUniforms() {
  * The alpha of a material as in its own render: `opacity` when transparent, the alpha of `map` (transparent or alpha
  * test) or the green channel of `alphaMap`, cut at `alphaTest` (or 0.5)
  */
-function setMaskAlpha(mask: ShaderMaterial, material: Material | Material[] | undefined) {
-    const m = (Array.isArray(material) ? undefined : material) as MeshPhysicalMaterial | undefined
+function setMaskAlpha(mask: ShaderMaterial, material: Material | undefined) {
+    const m = material as MeshPhysicalMaterial | undefined
     const u = mask.uniforms
     const cut = m?.alphaTest || 0
     const useAlpha = !!m && (m.transparent || cut > 0)
@@ -498,6 +503,7 @@ void main() {
 const MASK_FRAG = /* glsl */`
 uniform vec2 cameraNearFar;
 uniform vec3 itemData;
+uniform float maskSkip;
 uniform float maskOpacity;
 uniform sampler2D maskAlphaTex;
 uniform float maskAlphaChannel;
@@ -506,6 +512,7 @@ uniform float maskAlphaCut;
 varying vec3 vViewPosition;
 varying vec2 vMaskUv;
 void main() {
+    if (maskSkip > 0.5) discard;
     // the alpha of the object's own material: a mesh cut by its texture is cut here too
     float alpha = maskOpacity;
     if (maskAlphaChannel > 0.) {
