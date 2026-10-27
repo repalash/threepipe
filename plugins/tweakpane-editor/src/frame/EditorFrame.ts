@@ -160,7 +160,7 @@ export class EditorFrame {
         let name = base
         try {
             name = decodeURIComponent(base)
-        } catch (e) {
+        } catch (decodeError) {
             // a local file name is not URI-encoded ("100% model.glb"): show it as it is
         }
         if (name) this.fileName = name
