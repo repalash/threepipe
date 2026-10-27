@@ -8,7 +8,7 @@ All notable changes to this plugin will be documented in this file.
 
 ### Added
 
-- NA
+- Color modes `clean` and `clean-dark` (`TweakpaneUiPlugin.colorMode`): a property-panel look with Inter at 11px, 24px fields on a grey fill, grey labels, sections split by thin lines with a chevron, 14px checkboxes filled with the accent, a thin slider track with a round knob, and outlined buttons.
 
 ### Changed
 
