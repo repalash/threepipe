@@ -153,12 +153,18 @@ export function screenRect(points: ScreenPoint[]): ScreenRect | null {
     return any ? {minX, minY, maxX, maxY} : null
 }
 
-/** Which faces of the box face a camera at `eye`; index axis * 2 + (1 for the + side, 0 for the - side) */
-export function frontFaces(info: BoxInfo, eye: Vector3): boolean[] {
+/**
+ * Which faces of the box face the camera; index axis * 2 + (1 for the + side, 0 for the - side)
+ * @param eye - the camera position (a perspective camera: a face faces it when the camera is in front of the face)
+ * @param viewDir - the view direction of an orthographic camera, whose rays are parallel: a face faces it when it
+ * faces against this direction, wherever the box is
+ */
+export function frontFaces(info: BoxInfo, eye: Vector3, viewDir?: Vector3): boolean[] {
     const res: boolean[] = []
     for (let a = 0; a < 3; a++) for (const side of [-1, 1]) {
         const fc = info.center.clone().addScaledVector(info.axes[a], side * info.size.getComponent(a) / 2)
-        res.push(info.axes[a].clone().multiplyScalar(side).dot(eye.clone().sub(fc)) > 0)
+        const toCamera = viewDir ? viewDir.clone().negate() : eye.clone().sub(fc)
+        res.push(info.axes[a].clone().multiplyScalar(side).dot(toCamera) > 0)
     }
     return res
 }

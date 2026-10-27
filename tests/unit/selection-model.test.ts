@@ -15,7 +15,7 @@ import {
     toggleSelected,
 } from '../../plugins/tweakpane-editor/src/selection/selectionHierarchy'
 import {SelectionUxPlugin} from '../../plugins/tweakpane-editor/src/selection/SelectionUxPlugin'
-import {boxInfo, localBox, screenRect, toScreen} from '../../plugins/tweakpane-editor/src/selection/selectionBox'
+import {boxInfo, frontFaces, localBox, screenRect, toScreen} from '../../plugins/tweakpane-editor/src/selection/selectionBox'
 import {ElementPool} from '../../plugins/tweakpane-editor/src/selection/ElementPool'
 
 const geometry = new BoxGeometry(0.5, 0.5, 0.5)
@@ -240,6 +240,13 @@ describe('selection box', () => {
         ;(im as any).setMatrixAt(0, new Matrix4().makeTranslation(-5, 0, 0))
         ;(im as any).setMatrixAt(1, new Matrix4().makeTranslation(5, 0, 0))
         expect(localBox(im, point).getSize(new Vector3()).toArray().map(v => +v.toFixed(5))).toEqual([10.5, 0.5, 0.5])
+    })
+
+    test('the faces that face an orthographic camera follow its view direction, wherever the box is', () => {
+        const info = boxInfo([mesh('Far right', 100, 0, 0, 2)], 'world', point)
+        const eye = new Vector3(0, 0, 10)
+        expect(frontFaces(info, eye)).toEqual([true, false, false, false, false, true]) // perspective: -x and +z
+        expect(frontFaces(info, eye, new Vector3(0, 0, -1))).toEqual([false, false, false, false, false, true]) // +z only
     })
 
     test('a point behind the camera, for a perspective and an orthographic camera', () => {
@@ -776,6 +783,13 @@ describe('SelectionUxPlugin', () => {
         expect(lines().map(l => edges(l.getAttribute('d')))).toEqual([7])
         ux.boxStyle = 'brackets'
         expect(lines().map(l => edges(l.getAttribute('d')))).toEqual([24]) // 3 strokes at each corner
+    })
+
+    test('overlay: placed over the canvas in the scrolled content of its offset parent', () => {
+        const {canvas, frame} = setup()
+        Object.assign(canvas, {scrollLeft: 30, scrollTop: 20})
+        const root = frame()
+        expect([root.style.left, root.style.top]).toEqual(['30.0px', '20.0px'])
     })
 
     test('overlay: a hover box of the PickingPlugin shown when the overlay starts is cleared', () => {

@@ -594,6 +594,12 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         return this._viewer!.scene.mainCamera.getWorldPosition(new Vector3())
     }
 
+    /** The faces of a box that face the main camera; an orthographic camera by its view direction (see {@link frontFaces}) */
+    private _frontFaces(info: BoxInfo) {
+        const cam = this._viewer!.scene.mainCamera
+        return frontFaces(info, this._eye(), (cam as any).isOrthographicCamera ? cam.getWorldDirection(new Vector3()) : undefined)
+    }
+
     /** While the overlay draws, the box and the hover box of the PickingPlugin are off; after, they are as before */
     private _takeOverPickingBox(on: boolean) {
         const p = this._picking
@@ -618,11 +624,12 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         this._takeOverPickingBox(on)
         root.style.display = on ? '' : 'none'
         if (!on) return
-        // over the canvas, which can be smaller than the container or offset in it (from the box the root is placed in)
+        // over the canvas, which can be smaller than the container or offset in it (from the box the root is placed in,
+        // in its scrolled content)
         const base = root.offsetParent as HTMLElement | null ?? this._viewer!.container
         const c = base.getBoundingClientRect(), r = this._viewer!.canvas.getBoundingClientRect()
-        root.style.left = px(r.left - c.left - (base.clientLeft || 0))
-        root.style.top = px(r.top - c.top - (base.clientTop || 0))
+        root.style.left = px(r.left - c.left - (base.clientLeft || 0) + (base.scrollLeft || 0))
+        root.style.top = px(r.top - c.top - (base.clientTop || 0) + (base.scrollTop || 0))
         root.style.width = px(r.width)
         root.style.height = px(r.height)
         this._draw()
@@ -649,7 +656,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         const sc = info.corners.map(c => this.toScreen(c))
         const stroke = {fill: 'none', stroke: this.accent, strokeWidth: width, opacity}
         if (this.boxStyle !== 'rect') {
-            this._lines!.get(key, 'path', {...stroke, strokeLinejoin: 'round', d: boxEdgesPath(sc, frontFaces(info, this._eye()), 'visible')})
+            this._lines!.get(key, 'path', {...stroke, strokeLinejoin: 'round', d: boxEdgesPath(sc, this._frontFaces(info), 'visible')})
             return
         }
         const r = screenRect(sc)
@@ -666,7 +673,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         if (this.boxStyle === 'rect') L.get('sel', 'rect', {...stroke, strokeWidth: 1.5, ...rectAttrs(rect)})
         else if (this.boxStyle === 'brackets') L.get('sel', 'path', {...stroke, strokeWidth: 2, strokeLinecap: 'round', d: bracketsPath(sc)})
         else {
-            const front = frontFaces(info, this._eye())
+            const front = this._frontFaces(info)
             L.get('sel', 'path', {...stroke, strokeWidth: 1.5, strokeLinejoin: 'round', d: boxEdgesPath(sc, front, 'visible')})
             if (this.xray) L.get('sel-hidden', 'path', {...stroke, strokeWidth: 1, strokeDasharray: '3 3', opacity: 0.6, d: boxEdgesPath(sc, front, 'hidden')})
         }
