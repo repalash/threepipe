@@ -393,7 +393,9 @@ export class SelectionMaskPass extends RenderPass implements IPipelinePass<'sele
                 backgroundRender: false,
                 opaqueRender: true,
                 transparentRender: true,
-                transmissionRender: false,
+                // glass (transmission > 0) is in the transmissive list: draw it with the mask material too.
+                // true, not undefined: the renderer draws the list without its transmission pre-pass
+                transmissionRender: true,
                 mainRenderPass: false,
             }, () => super.render(renderer, writeBuffer as any, target, deltaTime as any, maskActive as any))
             for (const [o, m] of masks) o.layers.mask = m

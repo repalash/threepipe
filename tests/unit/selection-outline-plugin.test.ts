@@ -175,9 +175,11 @@ describe('SelectionOutlinePlugin', () => {
         const camera = new PerspectiveCamera() as any
         pass.camera = camera
         let inPass: number[] = []
+        let modes: any = {}
         const renderer: any = {
             getRenderTarget: () => null, getActiveCubeFace: () => 0, getActiveMipmapLevel: () => 0, setRenderTarget: () => {},
-            renderWithModes: () => {
+            renderWithModes: (m: any) => {
+                modes = m
                 inPass = [onLayer.layers.mask, other.layers.mask]
             },
         }
@@ -186,6 +188,8 @@ describe('SelectionOutlinePlugin', () => {
         expect(inPass.every(m => (m & 1 << SelectionMaskPass.Layer) !== 0)).toBe(true)
         expect([onLayer.layers.mask, other.layers.mask]).toEqual(masks)
         expect(camera.layers.mask).toBe(1)
+        // glass is in the transmissive list: it is drawn too
+        expect(modes.transmissionRender).toBe(true)
     })
 
     test('the mask material: objects outside the mask write nothing; a material array uses the group material', () => {
