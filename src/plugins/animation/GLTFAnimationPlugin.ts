@@ -645,14 +645,17 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<GLTFAnimationPluginEv
         const clips: AnimationClip[] = obj.animations
         if (clips.length < 1) return false
 
-        const animation = this._animations.find(a => a.object === obj) || {
+        const known = this._animations.find(a => a.object === obj)
+        // every scene update (an object move too) comes here: nothing to do when the clips did not change
+        if (known && known.clips.length === clips.length && known.clips.every((c, i) => c === clips[i])) return false
+        const animation = known || {
             object: obj,
             mixer: new AnimationMixer(root),
             clips: [],
             actions: [],
             duration: 0,
         }
-        animation.clips = clips
+        animation.clips = [...clips]
 
         animation.duration = Math.max(...clips.map(an => an.duration))
 
@@ -696,7 +699,7 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<GLTFAnimationPluginEv
 
         animation.actions.forEach(ac => ac.clampWhenFinished = true)
 
-        this._animations.push(animation)
+        if (!known) this._animations.push(animation)
         this.uiConfig?.uiRefresh?.(true, 'postFrame')
         this.dispatchEvent({type: 'addAnimation', animation})
         // todo remove on object dispose/remove
