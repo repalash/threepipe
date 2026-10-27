@@ -202,9 +202,9 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
     /**
      * Converge mode: in an animation loop without a render (the scene stays converged, e.g. a pause between camera
      * views or the end padding), the animations still step by one frame ({@link ProgressivePlugin.postFrameConvergedRecordingDelta}),
-     * so the last frame is captured again: each step of the recording has one frame. A wait on the wall clock (a
-     * timeout) gets one frame per animation loop. Without ProgressivePlugin, the animations run on the wall clock, and
-     * the frames follow the frame rate of the recording.
+     * so the last frame is captured again: each step of the recording has one frame. A wait for a time in the video
+     * uses {@link waitRecordingTime}. Without ProgressivePlugin, the animations run on the wall clock, and the frames
+     * follow the frame rate of the recording.
      */
     private _postFrame = () => {
         const rendered = this._rendered
@@ -353,6 +353,34 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
         }
     }
 
+    /**
+     * Waits for a time of the video: in a converge-mode recording, for the steps of the recording (one frame each, as
+     * the animations step), so a pause has its length in the video; else for the wall time. It ends early when the
+     * recording ends.
+     * @param ms - the time in milliseconds
+     */
+    async waitRecordingTime(ms: number): Promise<void> {
+        const viewer = this._viewer
+        const progressive = viewer?.getPlugin<ProgressivePlugin>('ProgressivePlugin')
+        if (!viewer || !progressive || !this._convergeNow || !this.isRecording()) {
+            await timeout(ms)
+            return
+        }
+        const steps = Math.round(ms / 1000 * (this._active ?? this).videoFrameRate)
+        let n = 0
+        // a listener, not doOnce: with maxFramePerLoop above 1, several frames come in one animation loop
+        return new Promise<void>(resolve => {
+            const step = () => {
+                if (progressive.postFrameConvergedRecordingDelta() > 0) n++
+                if (n < steps && this.isRecording()) return
+                viewer.removeEventListener('postFrame', step)
+                resolve()
+            }
+            if (steps < 1) resolve()
+            else viewer.addEventListener('postFrame', step)
+        })
+    }
+
     private async _stop(): Promise<Blob | undefined> {
         if (this._viewer) {
             await this._viewer.doOnce('postFrame')
@@ -369,7 +397,7 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
             }
             // the capture of the last converged frame waits for a timeout: take it before the recorder stops
             this._pendingCapture?.()
-            if (this.endPaddingMs) await timeout(this.endPaddingMs)
+            if (this.endPaddingMs) await this.waitRecordingTime(this.endPaddingMs)
             // the recorder failed (or stopped) during the waits above: its stop() would not call back
             const recorder = this.recorder
             if (!recorder || recorder.state === 'error' || recorder.state === 'stopped') return undefined

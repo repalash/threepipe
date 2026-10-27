@@ -492,7 +492,9 @@ export class CameraViewPlugin extends AViewerPluginSync<CameraViewPluginEventMap
                 else break
             }
             await this.animateToView(this._viewQueue.shift()!)
-            await timeout(2 + this.viewPauseTime) // ms delay
+            // a time of the video while a converge-mode recording runs (frames do not follow the wall clock there)
+            const recorder = this._viewer?.getPlugin<CanvasRecorderPlugin>('CanvasRecorder')
+            await (recorder?.isRecording() ? recorder.waitRecordingTime(2 + this.viewPauseTime) : timeout(2 + this.viewPauseTime)) // ms delay
         }
         this._animationLooping = false
     }

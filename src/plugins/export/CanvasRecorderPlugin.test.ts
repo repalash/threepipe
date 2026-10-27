@@ -449,11 +449,16 @@ describe('CanvasRecorderPlugin stop and remove', () => {
             state = 'stopped'
             cb(new Blob([]))
         }
+        // converge mode: the padding waits for frames of the recording (postFrame)
+        const viewer = Object.assign(new EventDispatcher(), plugin._viewer)
+        plugin._viewer = viewer
+        Object.assign(plugin._viewer.getPlugin('ProgressivePlugin'), {postFrameConvergedRecordingDelta: () => 1 / 30})
         plugin.endPaddingMs = 20
         rec.start()
         const stop = plugin.stopRecording()
         await new Promise(r => setTimeout(r, 5))
         state = 'error' // e.g. MediaRecorder fails during the padding
+        viewer.dispatchEvent({type: 'postFrame'}) // the next animation loop
         const done = await Promise.race([stop, new Promise(r => setTimeout(() => r('hung'), 1000))])
         expect(done).toBeUndefined()
         expect(plugin._stopping).toBeUndefined()
@@ -513,6 +518,47 @@ describe('converge mode hold', () => {
         progressive.isConverged = () => false
         loop(true) // a render that is not converged: no frame
         expect(captured).toEqual([1, 1, 1])
+    })
+})
+
+describe('recording time', () => {
+    test('a converge-mode wait lasts its frames of the video, counted per frame (also several in one loop)', async() => {
+        const {plugin, progressive} = setup()
+        const viewer = Object.assign(new EventDispatcher(), plugin._viewer)
+        plugin._viewer = viewer
+        let delta = 1 / 30
+        Object.assign(progressive, {postFrameConvergedRecordingDelta: () => delta})
+        plugin._recorder.start()
+        let done = false
+        const wait = plugin.waitRecordingTime(200).then(() => done = true) // 6 frames at 30 fps
+        const frame = () => viewer.dispatchEvent({type: 'postFrame'})
+        frame()
+        frame()
+        delta = 0 // a render that is not converged: no step
+        frame()
+        delta = 1 / 30
+        frame()
+        frame()
+        frame()
+        await Promise.resolve()
+        expect(done).toBe(false) // 5 steps
+        frame()
+        await wait
+        expect(done).toBe(true)
+    })
+
+    test('the pause between camera views waits for recording time while a recording runs', async() => {
+        const views = new CameraViewPlugin() as any
+        const waitRecordingTime = vi.fn(async() => {
+            views.viewLooping = false // one view, then the loop ends
+        })
+        views._viewer = {getPlugin: (t: string) => t === 'CanvasRecorder' ? {isRecording: () => true, waitRecordingTime} : undefined}
+        views._cameraViews = [{}]
+        views.animateToView = async() => undefined
+        views.viewPauseTime = 200
+        views.viewLooping = true
+        await views._animationLoop()
+        expect(waitRecordingTime).toHaveBeenCalledWith(202)
     })
 })
 
