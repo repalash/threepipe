@@ -164,7 +164,8 @@ export class ThreeGpuPathTracerPlugin extends AViewerPluginSync {
             this.tracer.updateCamera()// todo do post frame?
             this.reset()
         })
-        viewer.scene.mainCamera.addEventListener('update', () => {
+        // the main camera at any time (an editor can make another camera main after this plugin is added)
+        viewer.scene.addEventListener('mainCameraUpdate', () => {
             if (this.isDisabled() || !this.tracer || this._refreshing) return
             this.tracer.updateCamera()// todo do post frame?
             this.reset()
