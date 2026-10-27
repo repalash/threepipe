@@ -7,6 +7,9 @@ const doc = globalThis.document as any
 const listeners = {addEventListener: () => {}, removeEventListener: () => {}}
 if (!doc.body?.addEventListener) doc.body = {style: {}, ...listeners, getRootNode: () => listeners}
 
+// a viewer config with a start view, as a file brings it
+const viewerConfig = {assetType: 'config', type: 'ThreeViewer', scene: {defaultCamera: {}}}
+
 // a start view (the scene's default camera) and a scene that tracks the main camera
 function setup({undo = true} = {}) {
     const scene = new EventDispatcher<any>() as any
@@ -120,7 +123,7 @@ describe('EditorCameraPlugin', () => {
         const {plugin, viewer, start} = setup()
         plugin.editing = false
         start.position.set(1, 2, 3) // the imported start view
-        viewer.assetManager.dispatchEvent({type: 'loadAsset', data: {importedViewerConfig: true}})
+        viewer.assetManager.dispatchEvent({type: 'loadAsset', data: {importedViewerConfig: viewerConfig}})
         start.position.set(4, 1, 0) // a look around
         plugin.editing = true
         expect(start.position.toArray()).toEqual([1, 2, 3])
@@ -129,8 +132,19 @@ describe('EditorCameraPlugin', () => {
     test('a viewer config file sets the editor camera to its start view', () => {
         const {plugin, viewer, start} = setup()
         start.position.set(1, 2, 3)
-        viewer.assetManager.dispatchEvent({type: 'loadAsset', data: {assetType: 'config'}})
+        viewer.assetManager.dispatchEvent({type: 'loadAsset', data: viewerConfig})
         expect(plugin.camera.position.toArray()).toEqual([1, 2, 3])
+    })
+
+    test('a plugin preset (a config without a start view) leaves the cameras as they are', () => {
+        const {plugin, viewer, start} = setup()
+        plugin.camera.position.set(9, 0, 0) // the editor view
+        plugin.editing = false
+        start.position.set(4, 1, 0) // a look around in View
+        viewer.assetManager.dispatchEvent({type: 'loadAsset', data: {assetType: 'config', type: 'TonemapPlugin'}})
+        expect(plugin.camera.position.toArray()).toEqual([9, 0, 0])
+        plugin.editing = true
+        expect(start.position.toArray()).toEqual([0, 1, 6]) // the look around is not kept
     })
 
     test('added in View: Edit puts back the start view of the add', () => {
@@ -234,7 +248,7 @@ describe('EditorCameraPlugin', () => {
         start.position.set(1, 2, 3)
         viewer.assetManager.dispatchEvent({type: 'loadAsset', data: {}})
         expect(plugin.camera.position.toArray()).toEqual([0, 1, 6])
-        viewer.assetManager.dispatchEvent({type: 'loadAsset', data: {importedViewerConfig: true}})
+        viewer.assetManager.dispatchEvent({type: 'loadAsset', data: {importedViewerConfig: viewerConfig}})
         expect(plugin.camera.position.toArray()).toEqual([1, 2, 3])
     })
 

@@ -26,6 +26,15 @@ function poseOf(camera: ICamera): StartPose {
 }
 
 /**
+ * A loaded asset brings a start view: a viewer config (in a model, or a viewer config file) with the scene's default
+ * camera. A plugin preset is a config too (`assetType` 'config'), but it has no start view.
+ */
+function hasStartView(data: any): boolean {
+    const config = data?.importedViewerConfig ?? (data?.assetType === 'config' ? data : undefined)
+    return !!config?.scene?.defaultCamera
+}
+
+/**
  * The point that a camera looks at, for orbit controls: its target, or, when it looks away from the target (a camera
  * without controls can), the point straight ahead at the same distance
  */
@@ -268,7 +277,7 @@ export class EditorCameraPlugin extends AViewerPluginSync {
 
     // a file with a viewer config (in a model, or a viewer config file) brings its start view: begin to edit from it
     private _onLoad = (e: {data?: any}) => {
-        if (!e.data?.importedViewerConfig && e.data?.assetType !== 'config') return
+        if (!hasStartView(e.data)) return
         this.copyStartView()
         // in View, the start view of the new file is the one to put back
         const start = this.startCamera
