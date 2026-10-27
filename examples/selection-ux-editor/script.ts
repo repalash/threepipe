@@ -7,7 +7,7 @@ import {SelectionUxPlugin} from '../selection-ux-playground/SelectionUxPlugin'
 import {SelectionOutlinePlugin} from '../selection-ux-playground/SelectionOutlinePlugin'
 import {LayersPanelPlugin} from '../selection-ux-playground/LayersPanelPlugin'
 import {NotesPlugin} from '../selection-ux-playground/NotesPlugin'
-import {applyModeFromUrl, setupHints, setupModeMenu, setupSidePanel, modeContext} from '../selection-ux-playground/ui'
+import {applyModeFromUrl, setupHints, setupModeMenu, setupSidePanel, modeContext, toggleHelp} from '../selection-ux-playground/ui'
 import {buildExtras, buildScene, demoAnnotations, splashSamples} from '../selection-ux-playground/scene'
 import {AnnotationsPlugin} from '../selection-ux-playground/AnnotationsPlugin'
 import {EditorToolbarPlugin} from '../selection-ux-playground/EditorToolbarPlugin'
@@ -19,6 +19,7 @@ import {CameraPathPlugin} from '../selection-ux-playground/CameraPathPlugin'
 import {TimelineBarPlugin} from '../selection-ux-playground/TimelineBarPlugin'
 import {EditorCameraPlugin} from '../selection-ux-playground/EditorCameraPlugin'
 import {setupModeBar} from '../selection-ux-playground/ModeBar'
+import {setupLayout} from './layout'
 
 // The tweakpane editor with the new selection UX: SelectionUxPlugin + the pipeline outline instead of OutlinePlugin,
 // and LayersPanelPlugin instead of the treejs HierarchyUiPlugin.
@@ -77,7 +78,8 @@ async function init() {
     // the editor's modes (Viewer, Interaction, ...) as coloured icons on the right instead of tabs on top
     // the view gizmo sits top-right below the toolbar, out of the way of the layers and the panels at the bottom
     const gizmo = viewer.getPlugin(EditorViewWidgetPlugin)?.widget?.domContainer
-    if (gizmo) Object.assign(gizmo.style, {top: '56px', left: '', right: '4px', bottom: '', transform: 'scale(.72)', transformOrigin: '100% 0'})
+    // (the floating layout keeps it out from under the panel: --lay-right-inset)
+    if (gizmo) Object.assign(gizmo.style, {top: '56px', left: '', right: 'calc(var(--lay-right-inset, 0px) + 4px)', bottom: '', transform: 'scale(.72)', transformOrigin: '100% 0'})
     const editor = viewer.getPlugin(TweakpaneEditorPlugin)
     if (editor) setupModeBar(editor, document.body, () => document.getElementById('tweakpaneUiContainer'))
     // once: the clean tweakpane theme, light or dark like the theme in use (Color Mode in the Tweakpane UI folder changes it)
@@ -93,20 +95,25 @@ async function init() {
     // Shift+T: light or dark, the same theme family
     const themePairs = [['clean', 'clean-dark'], ['light', 'dark'], ['white', 'black'], ['clean', 'blue']]
     const otherTheme = (t: string) => themePairs.map(([a, b]) => t === a ? b : t === b ? a : '').find(Boolean)
+    const toggleTheme = () => {
+        const next = tp && otherTheme(tp.colorMode)
+        if (tp && next) tp.colorMode = next as typeof tp.colorMode
+    }
     window.addEventListener('keydown', e => {
-        if (!tp || e.code !== 'KeyT' || !e.shiftKey || e.ctrlKey || e.metaKey || e.altKey || e.repeat || e.defaultPrevented) return
+        if (e.code !== 'KeyT' || !e.shiftKey || e.ctrlKey || e.metaKey || e.altKey || e.repeat || e.defaultPrevented) return
         const t = e.target as HTMLElement | null
         if (t?.closest?.('input, textarea, select, [contenteditable], [data-own-keys]')) return
-        const next = otherTheme(tp.colorMode)
-        if (!next) return
         e.preventDefault()
-        tp.colorMode = next as typeof tp.colorMode
+        toggleTheme()
     })
+    // the frame around the editor: title bar, status bar, floating panels or the old cards (?layout=, or the layout button)
+    const layout = setupLayout(viewer, {open: () => openSplash(), shortcuts: () => toggleHelp(true), toggleTheme, report: () => showReport()})
     Object.assign(window, {viewer, ux})
 
     buildScene(viewer)
     buildExtras(viewer)
     demoAnnotations(viewer)
+    layout.setFileName('Jewellery demo')
     viewer.scene.mainCamera.position.set(7, 7, 11)
     viewer.scene.mainCamera.target.set(0, 0.8, 0)
     viewer.scene.mainCamera.setDirty()
