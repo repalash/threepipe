@@ -411,6 +411,42 @@ describe('UiConfigForm', () => {
         expect(onStructureChange).toHaveBeenCalledTimes(3)
     })
 
+    test('a returned undo function: undo after a redo undoes the run of the redo', async() => {
+        const objects: number[] = []
+        let next = 1
+        const undoManager = new JSUndoManager({limit: 100, debug: false, bindHotKeys: false})
+        const form = new UiConfigForm([{type: 'button', label: 'Add', value: () => {
+            const id = next++
+            objects.push(id)
+            return () => {
+                const i = objects.indexOf(id)
+                if (i >= 0) objects.splice(i, 1)
+            }
+        }}], {undoManager})
+        const button = (form.element as any as FakeElement).all().find(e => e.tagName === 'button')!
+        const wait = () => new Promise(r => setTimeout(r, 0))
+        button.fire('click')
+        await wait()
+        undoManager.undo()
+        await wait()
+        undoManager.redo() // adds object 2
+        await wait()
+        expect(objects).toEqual([2])
+        undoManager.undo()
+        await wait()
+        expect(objects).toEqual([])
+    })
+
+    test('small numbers keep their digits; float noise is not shown', () => {
+        const target = {bias: 0.00001, sum: 0.1 + 0.2}
+        const form = new UiConfigForm([
+            {type: 'number', label: 'Bias', property: [target, 'bias'], stepSize: 0.00001},
+            {type: 'number', label: 'Sum', property: [target, 'sum']},
+        ])
+        expect(row(form, 'Bias').inputs[0].value).toBe('0.00001')
+        expect(row(form, 'Sum').inputs[0].value).toBe('0.3')
+    })
+
     test('dispose removes the form', () => {
         const host = new FakeElement('div')
         const form = new UiConfigForm([])

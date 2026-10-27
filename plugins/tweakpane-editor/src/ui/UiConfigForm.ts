@@ -138,8 +138,14 @@ export class UiConfigForm {
         const um = this._options.undoManager
         if (!um || typeof res !== 'function' && typeof res?.undo !== 'function') return
         // read at replay: an action can replace its own undo or redo (EntityComponentPlugin.addComponent does)
-        const undo = () => typeof res === 'function' ? res() : res.undo()
-        const redo = () => typeof res === 'function' ? run() : typeof res.redo === 'function' ? res.redo() : res.action?.()
+        // a returned undo function: redo runs the button again, and its new undo function undoes that run
+        let undoFn = typeof res === 'function' ? res : undefined
+        const undo = () => undoFn ? undoFn() : res.undo()
+        const redo = async() => {
+            if (!undoFn) return typeof res.redo === 'function' ? res.redo() : res.action?.()
+            const again = await run()
+            if (typeof again === 'function') undoFn = again
+        }
         // a button can change which fields there are: the page makes the form again after its undo and redo too
         const replayed = () => {
             this._dispatch(c, parents, true)
@@ -386,8 +392,9 @@ export class UiConfigForm {
 /** The field types that the form draws as they are; any other type is drawn by the type of its value */
 const FIELD_TYPES = new Set(['checkbox', 'toggle', 'dropdown', 'color', 'vec', 'vec2', 'vec3', 'vec4', 'number', 'slider', 'monitor'])
 
+/** A number with 12 significant digits: no float noise (0.30000000000000004), and small steps (0.00001) stay */
 function fmt(v: any) {
-    return typeof v === 'number' ? String(+v.toFixed(4)) : String(v ?? '')
+    return typeof v === 'number' ? String(+v.toPrecision(12)) : String(v ?? '')
 }
 
 function defaultIsInteger(c: UiObjectConfig, label: string) {
