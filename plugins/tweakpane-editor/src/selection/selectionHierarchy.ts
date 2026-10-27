@@ -178,11 +178,16 @@ export function childTargets(root: IObject3D, selected: IObject3D[]): IObject3D[
     return selected.flatMap(s => selectionLevels(root, s).length ? selectableChildren(chainEnd(s)) : [])
 }
 
-/** The next (`dir` 1) or previous (-1) object in {@link scopeObjects} after the primary selection, with wrap around (Tab) */
+/**
+ * The next (`dir` 1) or previous (-1) object in {@link scopeObjects} after the primary selection, with wrap around (Tab).
+ * A primary selection inside a chain (selected in a layers panel) counts as its level's target.
+ */
 export function siblingTarget(root: IObject3D, selected: IObject3D[], dir: 1 | -1): IObject3D | null {
     const scope = scopeObjects(root, selected)
     if (!scope.length) return null
-    const i = selected[0] ? scope.indexOf(selected[0]) : -1
+    const primary = selected[0]
+    const level = primary ? selectionLevels(root, primary).find(l => l.includes(primary)) : undefined
+    const i = primary ? scope.indexOf(level ? levelTarget(level) : primary) : -1
     const from = i >= 0 ? i : dir > 0 ? -1 : 0
     return scope[(from + dir + scope.length) % scope.length]
 }

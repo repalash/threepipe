@@ -161,6 +161,9 @@ describe('selection hierarchy', () => {
         expect(siblingTarget(s.root, [s.prong1], -1)).toBe(s.prong2)
         expect(siblingTarget(s.root, [], 1)).toBe(s.ring)
         expect(siblingTarget(s.root, [], -1)).toBe(s.stand)
+        // an object inside a chain (selected in a layers panel) counts as the chain's outermost object
+        expect(siblingTarget(s.root, [s.watch], 1)).toBe(s.stand)
+        expect(siblingTarget(s.root, [s.watchRoot], -1)).toBe(s.ring)
     })
 
     test('scope: the level of the selection; with nothing selected the top level, a frame stands for its parts', () => {
