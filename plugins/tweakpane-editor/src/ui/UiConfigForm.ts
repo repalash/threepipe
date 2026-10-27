@@ -56,7 +56,7 @@ export class UiConfigForm {
     private static _styles?: HTMLStyleElement
 
     readonly element: HTMLDivElement
-    private _rows: {config: UiObjectConfig, update: () => void}[] = []
+    private _rows: {config: UiObjectConfig, update: (force?: boolean) => void}[] = []
     /** A config that is in the list twice is drawn once */
     private _drawn = new Set<UiObjectConfig>()
     private _undo?: {config: UiObjectConfig, cmd: {undo: () => void, redo: () => void}, time: number, before: any}
@@ -74,9 +74,12 @@ export class UiConfigForm {
         for (const c of configs) this._render(c, this.element, [])
     }
 
-    /** Reads the values again, after a change from elsewhere. A field that has the focus keeps what is typed in it. */
-    refresh() {
-        for (const r of this._rows) r.update()
+    /**
+     * Reads the values again, after a change from elsewhere. A field that has the focus keeps what is typed in it.
+     * @param force - also the field that has the focus (an undo or redo replaces what it shows)
+     */
+    refresh(force = false) {
+        for (const r of this._rows) r.update(force)
     }
 
     /** Removes the form from the page */
@@ -105,11 +108,11 @@ export class UiConfigForm {
             if (last) this._end(c, parents)
             return
         }
-        const apply = (v: any, isLast: boolean) => {
+        const apply = (v: any, isLast: boolean, replay = false) => {
             const cur = obj[key]
             if (cur && typeof cur === 'object' && typeof cur.copy === 'function') copyPrimitive(cur, v)
             else obj[key] = clonePrimitive(v)
-            this._dispatch(c, parents, isLast)
+            this._dispatch(c, parents, isLast, replay)
             if (structural) this._options.onStructureChange?.()
         }
         apply(value, last)
@@ -122,7 +125,7 @@ export class UiConfigForm {
         const merge = !!u && u.config === c && um.peek() === u.cmd && now - u.time < 1000
         const first = merge && u ? u.before : before
         const after = clonePrimitive(value)
-        const cmd = {undo: () => apply(first, true), redo: () => apply(after, true)}
+        const cmd = {undo: () => apply(first, true, true), redo: () => apply(after, true, true)}
         if (merge) um.replaceLast(cmd)
         else um.record(cmd)
         this._undo = {config: c, cmd, time: now, before: first}
@@ -148,7 +151,7 @@ export class UiConfigForm {
         }
         // a button can change which fields there are: the page makes the form again after its undo and redo too
         const replayed = () => {
-            this._dispatch(c, parents, true)
+            this._dispatch(c, parents, true, true)
             this._options.onStructureChange?.()
         }
         um.record({
@@ -170,15 +173,18 @@ export class UiConfigForm {
         this._dispatch(c, parents, true)
     }
 
-    /** `onChange` of the config, then of each parent (what Tweakpane does with `parentOnChange`) */
-    private _dispatch(c: UiObjectConfig, parents: UiObjectConfig[], last: boolean) {
+    /**
+     * `onChange` of the config, then of each parent (what Tweakpane does with `parentOnChange`)
+     * @param replay - an undo or redo: the fields show the values also when they have the focus
+     */
+    private _dispatch(c: UiObjectConfig, parents: UiObjectConfig[], last: boolean, replay = false) {
         UiConfigMethods.DispatchOnChangeSync(c, {last})
         for (let i = parents.length - 1; i >= 0; i--) {
             const p = parents[i]
             if (typeof p.onChange === 'function') (p.onChange as any)({type: 'change', last, config: c, target: p})
         }
         this._options.onChange?.(c)
-        this.refresh()
+        this.refresh(replay)
     }
 
     private _render(c: UiObjectConfig, host: HTMLElement, parents: UiObjectConfig[]) {
@@ -270,9 +276,9 @@ export class UiConfigForm {
             // the picker closes
             input.addEventListener('change', () => this._end(c, parents))
             row.appendChild(input)
-            this._rows.push({config: c, update: () => {
+            this._rows.push({config: c, update: (force) => {
                 const v = value() as any
-                if (document.activeElement !== input) input.value = v?.isColor ? '#' + v.getHexString() : typeof v === 'number' ? '#' + v.toString(16).padStart(6, '0') : String(v ?? '#000000')
+                if (force || document.activeElement !== input) input.value = v?.isColor ? '#' + v.getHexString() : typeof v === 'number' ? '#' + v.toString(16).padStart(6, '0') : String(v ?? '#000000')
             }})
         } else if (kind === 'vec' || kind === 'vec2' || kind === 'vec3' || kind === 'vec4') {
             const v0 = value() as any
@@ -296,10 +302,10 @@ export class UiConfigForm {
             })
             row.classList.add('ucf-row-wide')
             row.appendChild(wrap)
-            this._rows.push({config: c, update: () => {
+            this._rows.push({config: c, update: (force) => {
                 const v = value() as any
                 axes.forEach((a, i) => {
-                    if (document.activeElement !== inputs[i]) inputs[i].value = fmt(v?.[a])
+                    if (force || document.activeElement !== inputs[i]) inputs[i].value = fmt(v?.[a])
                 })
             }})
         } else if (kind === 'number' || kind === 'slider') {
@@ -323,8 +329,8 @@ export class UiConfigForm {
                 }})
             }
             row.appendChild(input)
-            this._rows.push({config: c, update: () => {
-                if (document.activeElement !== input) input.value = fmt(value())
+            this._rows.push({config: c, update: (force) => {
+                if (force || document.activeElement !== input) input.value = fmt(value())
             }})
             this._scrub(name, isDisabled, () => +(value() as any), isInt, n => this._set(c, parents, clamp(n), false), () => this._end(c, parents))
         } else if (kind === 'monitor') {
@@ -340,8 +346,8 @@ export class UiConfigForm {
             input.disabled = disabled
             input.addEventListener('change', () => this._set(c, parents, input.value))
             row.appendChild(input)
-            this._rows.push({config: c, update: () => {
-                if (document.activeElement !== input) input.value = String(value() ?? '')
+            this._rows.push({config: c, update: (force) => {
+                if (force || document.activeElement !== input) input.value = String(value() ?? '')
             }})
         }
         this._rows.push({config: c, update: () => {

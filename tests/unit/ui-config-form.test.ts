@@ -466,6 +466,28 @@ describe('UiConfigForm', () => {
         expect(target.noise.toArray()).toEqual([1, 0, 0.5])
     })
 
+    test('undo and redo show the value also in the field that has the focus', () => {
+        const target = {radius: 1}
+        const undoManager = new JSUndoManager({limit: 100, debug: false, bindHotKeys: false})
+        const form = new UiConfigForm([{type: 'number', label: 'Radius', property: [target, 'radius']}], {undoManager})
+        const [input] = row(form, 'Radius').inputs
+        doc.activeElement = input
+        try {
+            input.value = '3'
+            input.fire('change') // the spinner: the focus stays
+            undoManager.undo()
+            expect(target.radius).toBe(1)
+            expect(input.value).toBe('1')
+            undoManager.redo()
+            expect(input.value).toBe('3')
+            input.value = '3.5' // typing, not committed: a refresh from elsewhere keeps it
+            form.refresh()
+            expect(input.value).toBe('3.5')
+        } finally {
+            doc.activeElement = null
+        }
+    })
+
     test('dispose removes the form', () => {
         const host = new FakeElement('div')
         const form = new UiConfigForm([])
