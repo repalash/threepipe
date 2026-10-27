@@ -401,8 +401,12 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
                 this._lastClick = {p: s.start.clone(), t: now, tgt: last.tgt}
                 // it can be the first click of a double click (which goes one level in): wait until that is ruled out
                 this._cancelClickBehind()
+                const from = last.tgt
                 this._clickBehind = setTimeout(() => {
                     this._clickBehind = undefined
+                    // the selection changed meanwhile (Esc, Tab, another panel) or the plugin is off: that wins
+                    const current = this.selected
+                    if (!this._active || current.length !== 1 || current[0] !== from) return
                     if (this._lastClick) this._lastClick.tgt = behind
                     this.select([behind])
                 }, SelectionUxPlugin.ClickAgainDelay)

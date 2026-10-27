@@ -290,6 +290,27 @@ describe('SelectionUxPlugin', () => {
         }
     })
 
+    test('a selection change or a disabled plugin during the wait cancels the click behind', () => {
+        vi.useFakeTimers({toFake: ['setTimeout', 'clearTimeout']})
+        try {
+            const {ux, click, key, lamp, wait, names} = setup()
+            click(lamp)
+            wait(500)
+            click(lamp) // the click behind waits
+            key('Escape') // the parent: nothing
+            vi.advanceTimersByTime(SelectionUxPlugin.ClickAgainDelay)
+            expect(names()).toEqual([])
+            click(lamp)
+            wait(500)
+            click(lamp)
+            ux.enabled = false
+            vi.advanceTimersByTime(SelectionUxPlugin.ClickAgainDelay)
+            expect(names()).toEqual(['Lamp'])
+        } finally {
+            vi.useRealTimers()
+        }
+    })
+
     test('a double click after a pause goes one level in, not to the object behind', () => {
         vi.useFakeTimers({toFake: ['setTimeout', 'clearTimeout']})
         try {
