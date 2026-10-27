@@ -156,7 +156,13 @@ export class EditorFrame {
 
     private _onLoad = (e: {data?: any}) => {
         const path: string | undefined = e.data?.userData?.rootPath || e.data?.__rootPath
-        const name = path ? decodeURIComponent(path.split(/[?#]/)[0].split('/').pop() || '') : ''
+        const base = path ? path.split(/[?#]/)[0].split('/').pop() || '' : ''
+        let name = base
+        try {
+            name = decodeURIComponent(base)
+        } catch (e) {
+            // a local file name is not URI-encoded ("100% model.glb"): show it as it is
+        }
         if (name) this.fileName = name
     }
 

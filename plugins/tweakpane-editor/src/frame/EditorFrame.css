@@ -37,8 +37,11 @@ body[class*="tpTheme-"] .mb-root {
 body.lay-titlebar { --lay-top: 36px; --lay-bottom: 0px; }
 body.lay-statusbar { --lay-top: 0px; --lay-bottom: 26px; }
 body.lay-floating { --lay-top: 0px; --lay-bottom: 0px; --lay-gap: 12px; }
-/* the mode bar replaces the mode tabs */
-body.lay-titlebar .mode-buttons-container, body.lay-statusbar .mode-buttons-container, body.lay-floating .mode-buttons-container { display: none !important; }
+/* below 920 px the page keeps the editor's own layout: no bars, no mode bar, the mode tabs and the panel stay */
+@media only screen and (max-width: 919.98px) {
+    .mb-root, .mb-tip, .lay-bar, .lay-menu { display: none !important; }
+    body.mb-panel-hidden #tweakpaneUiContainer { visibility: visible !important; }
+}
 /* the page around the canvas in the clean themes (the Tweakpane theme styles only the panel) */
 body.lay-titlebar.tpTheme-clean, body.lay-statusbar.tpTheme-clean, body.lay-floating.tpTheme-clean { background-color: #f0f0f0 !important; }
 body.lay-titlebar.tpTheme-clean-dark, body.lay-statusbar.tpTheme-clean-dark, body.lay-floating.tpTheme-clean-dark { background-color: #1e1e1e !important; }
@@ -73,6 +76,8 @@ body.lay-titlebar.tpTheme-clean-dark, body.lay-statusbar.tpTheme-clean-dark, bod
 .lay-menu button:hover { background: var(--tp-button-background-color-hover, #f2f3f5); }
 .lay-menu button[aria-checked="true"]::before { content: '✓'; position: absolute; left: 9px; }
 @media only screen and (min-width: 920px) {
+    /* the mode bar replaces the mode tabs */
+    body.lay-titlebar .mode-buttons-container, body.lay-statusbar .mode-buttons-container, body.lay-floating .mode-buttons-container { display: none !important; }
     /* title and status bar: the canvas and the panel edge to edge, between the bars */
     body.lay-titlebar #canvas-container, body.lay-statusbar #canvas-container {
         margin: 0 !important; left: 0; top: var(--lay-top) !important; border-radius: 0 !important; box-shadow: none !important;

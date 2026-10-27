@@ -31,9 +31,10 @@ async function init() {
     })
     await viewer.init()
 
-    // ?frame=titlebar | statusbar | floating: the page frame with the modes on the right (TweakpaneEditorPlugin.setFrame)
-    const frame = getUrlQueryParam('frame') as EditorFrameLayout | null
-    if (frame && EDITOR_FRAME_LAYOUTS.some(([k]) => k === frame)) viewer.getPlugin(TweakpaneEditorPlugin)?.setFrame(frame)
+    // ?frame=titlebar | statusbar | floating | auto: the page frame with the modes on the right (TweakpaneEditorPlugin.setFrame).
+    // auto: the layout picked last in the layout menu
+    const frame = getUrlQueryParam('frame') as EditorFrameLayout | 'auto' | null
+    if (frame && (frame === 'auto' || EDITOR_FRAME_LAYOUTS.some(([k]) => k === frame))) viewer.getPlugin(TweakpaneEditorPlugin)?.setFrame(frame)
 
     // for fat lines
     // GLTFLoader2.UseMeshLines = true

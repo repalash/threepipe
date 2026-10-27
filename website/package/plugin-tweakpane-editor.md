@@ -66,9 +66,9 @@ In the frame:
 - A click on a mode shows its panels. A click on the open mode hides the panel, and the canvas takes its room.
 - The button at the bottom of the mode bar shows or hides the mode names.
 - Shift+T switches between the light and the dark theme of the same family (`clean` and `clean-dark`, `light` and `dark`, `white` and `black`).
-- The layout button changes the layout. The layout and the names setting are kept in `localStorage`.
+- The layout button changes the layout. The layout and the names setting are kept in `localStorage`. `setFrame('auto')` opens the layout picked last (else the title bar); a named layout always opens that layout.
 
-The frame layout applies when the window is 920 px wide or more.
+The frame applies when the window is 920 px wide or more. In a narrower window, the page keeps the mode tabs and the editor's own layout.
 
 ```typescript
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
@@ -92,4 +92,4 @@ EditorModeBar.Looks['My mode'] = {color: '#0d99ff', icon: '<svg ...></svg>'}
 editor.setFrame(undefined)
 ```
 
-In the [Tweakpane Editor example](https://threepipe.org/examples/tweakpane-editor/), add `?frame=titlebar`, `?frame=statusbar` or `?frame=floating` to the URL.
+In the [Tweakpane Editor example](https://threepipe.org/examples/tweakpane-editor/), add `?frame=titlebar`, `?frame=statusbar`, `?frame=floating` or `?frame=auto` to the URL.

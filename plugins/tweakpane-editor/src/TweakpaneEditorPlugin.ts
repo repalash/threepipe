@@ -56,10 +56,11 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync {
      * Puts the editor in a page frame: a title bar, a status bar or floating panels ({@link EditorFrameLayout}), with
      * the modes as coloured icons on the right ({@link EditorModeBar}) and Shift+T for a light or dark theme.
      * `undefined` removes the frame, and the page has the mode tabs at the bottom again.
-     * @param layout - the layout, or `undefined` for no frame
+     * @param layout - the layout; `'auto'` for the layout the person picked last in the layout menu (kept in
+     * `localStorage`), else the title bar; `undefined` for no frame
      * @param options - options of the frame, used when the frame is made
      */
-    setFrame(layout: EditorFrameLayout | undefined, options?: EditorFrameOptions) {
+    setFrame(layout: EditorFrameLayout | 'auto' | undefined, options?: EditorFrameOptions) {
         if (!layout) {
             this.frame?.dispose()
             this.frame = undefined
@@ -67,7 +68,7 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync {
             return
         }
         if (this.frame) {
-            this.frame.setLayout(layout)
+            if (layout !== 'auto') this.frame.setLayout(layout)
             return
         }
         if (!this._viewer) throw new Error('Plugin not added to viewer.')
@@ -76,7 +77,7 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync {
             colorMode: ui ? {get: () => ui.colorMode, set: (m) => ui.colorMode = m as TweakpaneUiPlugin['colorMode']} : undefined,
             ...options,
         }
-        this.frame = new EditorFrame(this._viewer, this, {...this._frameOptions, layout})
+        this.frame = new EditorFrame(this._viewer, this, {...this._frameOptions, layout: layout === 'auto' ? undefined : layout})
         this.frame.modeBar.select(this._selectedMode)
     }
 
