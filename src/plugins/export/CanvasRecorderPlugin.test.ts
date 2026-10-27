@@ -779,6 +779,37 @@ describe('CanvasMediaRecorder', () => {
         }
     })
 
+    test('step mode: frames requested during a frame time wait for it, and the stop waits for them', async() => {
+        const mediaRecorder = fakeMediaRecorder()
+        vi.stubGlobal('window', {MediaRecorder: mediaRecorder})
+        vi.stubGlobal('MediaRecorder', mediaRecorder)
+        try {
+            const track = {stop: vi.fn(), requestFrame: vi.fn()}
+            const canvas = {captureStream: () => ({getVideoTracks: () => [track]})} as any
+            const rec = new CanvasMediaRecorder(canvas, {mimeType: 'auto', frameRate: 100, stepMode: true}) as any // 10 ms per frame
+            rec.start()
+            const events: string[] = []
+            rec._recorder.resume = () => {
+                events.push('resume')
+                rec._recorder.onresume(new Event('resume'))
+            }
+            const stop = rec._recorder.stop.bind(rec._recorder)
+            rec._recorder.stop = () => {
+                events.push('stop')
+                stop()
+            }
+            rec.requestFrame()
+            rec.requestFrame()
+            rec.requestFrame() // three frames in one frame time
+            expect(events).toEqual(['resume'])
+            await new Promise(resolve => rec.stop(resolve))
+            expect(events).toEqual(['resume', 'resume', 'resume', 'stop']) // a frame time each, then the stop
+            expect(track.requestFrame).toHaveBeenCalledTimes(3)
+        } finally {
+            vi.unstubAllGlobals()
+        }
+    })
+
     test('a stop without data still calls back, with no recording', async() => {
         const mediaRecorder = fakeMediaRecorder()
         vi.stubGlobal('window', {MediaRecorder: mediaRecorder})

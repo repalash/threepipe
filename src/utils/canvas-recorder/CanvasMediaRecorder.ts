@@ -61,6 +61,8 @@ export class CanvasMediaRecorder extends ACanvasRecorder {
 
         this._currentRecording = []
         this._frameCount = 0
+        this._stepping = false
+        this._queuedFrames = 0
         // a start that cannot record ends in the error state, so the caller does not wait for it
         if (!hasMediaRecorder() || !options.mimeType?.startsWith('video')) {
             const error = new Error(hasMediaRecorder() ? 'No supported video type for MediaRecorder' : 'MediaRecorder not supported, use an image sequence')
@@ -95,14 +97,27 @@ export class CanvasMediaRecorder extends ACanvasRecorder {
 
     private _resumeSyncTime = 0
 
+    /** Step mode: a frame records for one frame time (resume, then pause in _onresume) */
+    private _stepping = false
+    /** Step mode: the frames requested while a frame records; each gets its own frame time after it */
+    private _queuedFrames = 0
+
     requestFrame() {
         if (!this._recorder || !super.requestFrame()) return false
         if (!this._track || !this.options.stepMode) return true
+        // a resume of a recorder that records gives no frame time: the frame waits for the one before it
+        if (this._stepping) this._queuedFrames++
+        else this._step()
+        return true
+    }
+
+    /** Step mode: records the canvas for one frame time */
+    private _step() {
+        this._stepping = true
         this._resumeSyncTime = now()
         // @ts-expect-error no ts for CanvasCaptureMediaStreamTrack
         this._track!.requestFrame()
-        this._recorder.resume()
-        return true
+        this._recorder!.resume()
     }
 
     public pause() {
@@ -128,6 +143,8 @@ export class CanvasMediaRecorder extends ACanvasRecorder {
 
         this._recordingCallback = recordingCallback
         this.setState('stopping')
+        // step mode: the frames that record or wait finish first, then the recorder stops (_onresume)
+        if (this._stepping) return
         if (this._recorder) this._recorder.stop()
         else this._onstop(new Event('stop'))
     }
@@ -168,7 +185,13 @@ export class CanvasMediaRecorder extends ACanvasRecorder {
         if (this.state === 'paused' || this.state === 'starting' || this.state === 'stopped') this.setState('recording')
         if (!this.options.stepMode) return
         const pse = () => {
-            if (this.state === 'recording') this._recorder?.pause()
+            this._stepping = false
+            if (this._queuedFrames > 0 && (this.state === 'recording' || this.state === 'stopping')) {
+                this._queuedFrames--
+                this._recorder?.pause()
+                this._step()
+            } else if (this.state === 'recording') this._recorder?.pause()
+            else if (this.state === 'stopping') this._recorder?.stop()
         }
         const del = Math.min(this._resumeSyncTime - now(), 0) + 1000 / this.options.frameRate
         if (del > 0) timeout(del).then(pse)
