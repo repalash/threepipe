@@ -68,7 +68,7 @@ editor.loadPlugins({
 - Shift+click adds or removes an object. Ctrl/Cmd+click selects the deepest object under the pointer.
 - Keys: Esc or Shift+Enter select the parent, Enter the children, Tab / Shift+Tab the next / previous sibling, Ctrl/Cmd+A all objects at the level of the selection. With nothing selected, Esc, Enter and Tab keep their usual use.
 - A drag is not a click: the camera controls keep it.
-- Hidden objects are not selected. An object with `userData.userSelectable = false` is not a level: its parts are at the level of its parent (a click, Tab, Enter and Ctrl/Cmd+A reach them), and a click on a part of it that cannot be selected selects its first parent that can.
+- Hidden objects are not selected. As in the `PickingPlugin`, an object with `userData.userSelectable = false` and everything inside it are not selected: a click goes to the object behind, and Enter, Tab and Ctrl/Cmd+A skip them. A click on a mesh that the `PickingPlugin` cannot select selects its first parent that it can.
 
 The selection is the selection of the `PickingPlugin` (the plugin adds it): its `selectedObjectChanged` event, its box widget and its undo steps work as before, and each selection change is one undo step when the viewer has an `UndoManagerPlugin`. While the plugin is enabled, it takes over the clicks of the `PickingPlugin`. The plugin is not added to the editor by default.
 

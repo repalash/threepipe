@@ -80,29 +80,25 @@ describe('selection hierarchy', () => {
         expect(childTargets(s.root, [s.ring])).toEqual([s.band, s.head, light])
     })
 
-    test('an object that cannot be selected is not a level, and a hidden single child does not merge', () => {
-        const a = mesh('A'), b = mesh('B'), c = mesh('C'), d = mesh('D')
+    test('nothing inside an object that cannot be selected is selected (as in the PickingPlugin); a hidden single child does not merge', () => {
+        const a = mesh('A'), b = mesh('B'), c = mesh('C'), d = mesh('D'), e = mesh('E')
         const locked = group('Locked', a, b)
         locked.userData.userSelectable = false
         const hidden = group('Hidden', c, d)
         hidden.visible = false
         const wrapper = group('Wrapper', hidden)
-        const root = group('modelRoot', locked, wrapper)
-        expect(selectionLevels(root, a)).toEqual([[a]])
-        expect(resolveTarget(root, [], a, false, false)).toBe(a) // not the locked group
+        const outer = group('Outer', locked, e)
+        const root = group('modelRoot', outer, wrapper)
+        expect(selectionLevels(root, a)).toEqual([])
+        expect(selectionLevels(root, locked)).toEqual([])
+        expect(resolveTarget(root, [], a, false, false)).toBe(null) // not the locked group, and not its parts
+        expect(resolveTarget(root, [], a, true, false)).toBe(null)
+        // Enter, Tab and Ctrl+A do not reach them either; Outer is a wrapper of E only
+        expect(selectionLevels(root, e)).toEqual([[outer, e]])
+        expect(childTargets(root, [outer])).toEqual([])
+        expect(scopeObjects(root, [])).toEqual([outer, wrapper])
         expect(selectionLevels(root, c)).toEqual([[wrapper], [hidden], [c]])
         expect(childTargets(root, [wrapper])).toEqual([]) // Enter: the parts of the hidden group are not shown
-        // the parts of the locked group are at its parent's level: Tab and Ctrl+A reach them
-        expect(scopeObjects(root, [a])).toEqual([a, b, wrapper])
-        expect(siblingTarget(root, [a], 1)).toBe(b)
-        const outer = group('Outer', locked)
-        root.add(outer)
-        expect(childTargets(root, [outer])).toEqual([a, b]) // Enter
-        expect(selectionLevels(root, a)).toEqual([[outer], [a]])
-        expect(parentTarget(root, [a])).toBe(outer)
-        // a hidden locked group has no parts to select
-        locked.visible = false
-        expect(childTargets(root, [outer])).toEqual([])
     })
 
     test('a frame: a file root, or the only top-level object with meshes, with two or more parts', () => {
@@ -425,6 +421,19 @@ describe('SelectionUxPlugin', () => {
         picking.picker.selectionCondition = (o: IObject3D) => o.userData.userSelectable === true || condition(o)
         click(lamp)
         expect(names()).toEqual(['Box'])
+    })
+
+    test('a click on a part of a group that cannot be selected goes to the object behind it', () => {
+        const {click, lamp, names} = setup()
+        const g = lamp.parent as IObject3D
+        const locked = group('Locked')
+        locked.userData.userSelectable = false
+        g.add(locked)
+        g.remove(lamp)
+        locked.add(lamp)
+        locked.updateMatrixWorld(true)
+        click(lamp)
+        expect(names()).toEqual(['Wall'])
     })
 
     test('the pointer is measured on the canvas, also when the container is larger', () => {

@@ -19,17 +19,17 @@ export function isHelperObject(o: IObject3D): boolean {
         (o.parent as any)?.target === o // the target child of a directional or spot light
 }
 
-/** Whether `o` cannot be selected (`userData.userSelectable === false`): its parts are selected in its place, at its parent's level */
+/**
+ * Whether `o` cannot be selected (`userData.userSelectable === false`). As in the `PickingPlugin`, nothing inside it
+ * can be selected either.
+ */
 export function isLocked(o: IObject3D): boolean {
     return o.userData.userSelectable === false
 }
 
-/**
- * The children of `o` that are not helpers ({@link isHelperObject}). A child that cannot be selected
- * ({@link isLocked}) is replaced by its own content children, or by none when it is hidden.
- */
+/** The children of `o` that are not helpers ({@link isHelperObject}) and can be selected ({@link isLocked}) */
 export function contentChildren(o: IObject3D): IObject3D[] {
-    return (o.children as IObject3D[]).flatMap(c => isHelperObject(c) ? [] : isLocked(c) ? c.visible ? contentChildren(c) : [] : [c])
+    return (o.children as IObject3D[]).filter(c => !isHelperObject(c) && !isLocked(c))
 }
 
 /** Whether `o` or an object inside it has a geometry, or is a light or a camera */
@@ -73,8 +73,9 @@ function levelIndex(levels: SelectionLevel[], o: IObject3D): number {
  * The levels of the hierarchy from the model root down to `node` (the root is not in them).
  * Each level is a chain: a group with a single visible child is merged with that child (glTF wrappers like "Scene" >
  * "root"), so one click never selects a wrapper that looks the same as its only child. A helper ({@link isHelperObject})
- * or an object that cannot be selected ({@link isLocked}) is not in the levels.
- * The last level ends at `node`. Returns an empty array when `node` is not inside `root`.
+ * is not in the levels.
+ * The last level ends at `node`. Returns an empty array when `node` is not inside `root`, or when `node` or a parent
+ * of it cannot be selected ({@link isLocked}).
  */
 export function selectionLevels(root: IObject3D, node: IObject3D): SelectionLevel[] {
     const path: IObject3D[] = []
@@ -83,12 +84,12 @@ export function selectionLevels(root: IObject3D, node: IObject3D): SelectionLeve
         path.unshift(o)
         o = o.parent as IObject3D | null
     }
-    if (o !== root) return []
+    if (o !== root || path.some(isLocked)) return []
     const levels: SelectionLevel[] = []
     let chain: IObject3D[] = []
     for (const n of path) {
-        // an object that cannot be selected (userSelectable false, a widget) is not a level: its parts are
-        if (isHelperObject(n) || isLocked(n)) continue
+        // a helper (a widget) is not a level: its parts are
+        if (isHelperObject(n)) continue
         chain.push(n)
         if (!wrappedChild(n)) {
             levels.push(chain)
