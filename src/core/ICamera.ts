@@ -47,6 +47,12 @@ export interface ICameraUserData extends IObject3DUserData {
      */
     disableJitter?: boolean
 
+    /**
+     * Do not limit this camera above the ground (`limitCameraAboveGround` of the ground plugins), like an editor's own camera.
+     * @default false
+     */
+    disableGroundLimit?: boolean
+
     __lastScale?: Vector3,
     __isMainCamera?: boolean,
     __cameraSetup?: boolean,
