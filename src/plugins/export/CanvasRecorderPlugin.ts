@@ -181,8 +181,6 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
                     done = true
                     if (this._pendingCapture === fn) this._pendingCapture = undefined
                     this._recorder?.requestFrame()
-                    // a hold of this frame (_postFrame) adds its next frame one frame time later
-                    this._nextFrameTime = performance.now() + 1000 / (this._active ?? this).videoFrameRate
                 }
                 // give some time to the browser to render the frame
                 const waitTime = 1
@@ -195,22 +193,32 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
             this._viewer!.renderManager.composer.renderToScreen = true
         }
     }
-    /** The time of the next frame of a real-time recording or a converged hold, in ms (0: no frame yet) */
+    /** The time of the next frame of a real-time recording, in ms (0: the recording starts) */
     private _nextFrameTime = 0
 
     /** A frame rendered in this animation loop */
     private _rendered = false
 
     /**
-     * Converge mode: while nothing renders (the scene stays converged, e.g. a pause between camera views or the end
-     * padding), the last frame is held in the video for that time, at the frame rate of the recording.
+     * Converge mode: in an animation loop without a render (the scene stays converged, e.g. a pause between camera
+     * views or the end padding), the animations still step by one frame ({@link ProgressivePlugin.postFrameConvergedRecordingDelta}),
+     * so the last frame is captured again: each step of the recording has one frame. A wait on the wall clock (a
+     * timeout) gets one frame per animation loop. Without ProgressivePlugin, the animations run on the wall clock, and
+     * the frames follow the frame rate of the recording.
      */
     private _postFrame = () => {
         const rendered = this._rendered
         this._rendered = false
-        if (rendered || this._pendingCapture || !this._nextFrameTime || !this._convergeNow || !this._recorder?.isRecording()) return
+        if (rendered || !this._convergeNow || !this._recorder?.isRecording()) return
         const progressive = this._viewer?.getPlugin<ProgressivePlugin>('ProgressivePlugin')
-        if (!progressive || progressive.isConverged(true)) this._requestRealtimeFrames()
+        if (!progressive) {
+            this._requestRealtimeFrames()
+            return
+        }
+        if (!progressive.isConverged(true)) return
+        // the capture of the last render first, so the frames keep their order
+        this._pendingCapture?.()
+        this._recorder.requestFrame()
     }
 
     /**

@@ -491,29 +491,28 @@ describe('recorder failure', () => {
 })
 
 describe('converge mode hold', () => {
-    test('a converged scene that does not render is held in the video for its wall time', () => {
-        const {plugin} = setup() // converge mode, the scene is converged
-        const requestFrame = vi.fn()
-        plugin._recorder.requestFrame = requestFrame
+    test('each still loop of a converged scene adds one frame, as the animations step one frame per loop', () => {
+        const {plugin, progressive} = setup() // converge mode, the scene is converged
+        let shown = 0 // the frame that the canvas shows
+        const captured: number[] = []
+        plugin._recorder.requestFrame = () => captured.push(shown)
         plugin._recorder.start()
-        let time = 1000
-        const now = vi.spyOn(performance, 'now').mockImplementation(() => time)
-        try {
-            const loop = (t: number, render: boolean) => {
-                time = 1000 + t
-                if (render) plugin._postRender()
-                plugin._postFrame()
-                plugin._pendingCapture?.() // the capture of a converged render, at its timeout
-                return requestFrame.mock.calls.length
+        plugin._viewer.renderManager = {composer: {renderToScreen: true}}
+        const loop = (render: boolean) => {
+            if (render) {
+                plugin._preRender()
+                shown++
+                plugin._postRender()
             }
-            expect(loop(0, true)).toBe(1) // the converged frame
-            expect(loop(16, false)).toBe(1) // a still loop within one frame time (30 fps): no frame yet
-            expect(loop(34, false)).toBe(2) // the hold: one frame per 33.3 ms
-            expect(loop(190, false)).toBe(6) // a late loop adds the frames it passed (66.7, 100, 133.3, 166.7 ms)
-            expect(loop(200, true)).toBe(7) // a render: a new converged frame
-        } finally {
-            now.mockRestore()
+            plugin._postFrame()
         }
+        loop(true) // a converged render: its capture waits for a timeout
+        loop(false) // a still loop: the capture of the render, then the hold
+        loop(false)
+        expect(captured).toEqual([1, 1, 1])
+        progressive.isConverged = () => false
+        loop(true) // a render that is not converged: no frame
+        expect(captured).toEqual([1, 1, 1])
     })
 })
 
