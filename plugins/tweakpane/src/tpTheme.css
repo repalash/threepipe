@@ -426,13 +426,6 @@
     top: 0.5rem;
     opacity: 0.6;
 }
-/* the page around the canvas: a light grey (dark in clean-dark) */
-body.tpTheme-clean {
-    background-color: #f0f0f0 !important;
-}
-body.tpTheme-clean-dark {
-    background-color: #1e1e1e !important;
-}
 
 .tp-fldv {
     /*margin-top: 0.25rem;*/

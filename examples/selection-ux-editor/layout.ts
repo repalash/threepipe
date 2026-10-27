@@ -147,6 +147,9 @@ function injectStyles() {
     added = true
     const st = document.createElement('style')
     st.textContent = `
+/* the page around the canvas in the clean modes (the tweakpane theme styles only the panel) */
+body.tpTheme-clean { background-color: #f0f0f0 !important; }
+body.tpTheme-clean-dark { background-color: #1e1e1e !important; }
 body.lay-titlebar { --lay-top: 36px; --lay-bottom: 0px; }
 body.lay-statusbar { --lay-top: 0px; --lay-bottom: 26px; }
 body.lay-floating { --lay-top: 0px; --lay-bottom: 0px; --lay-gap: 12px; }
