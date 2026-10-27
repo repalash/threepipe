@@ -455,6 +455,13 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<GLTFAnimationPluginEv
             const time = now() / 1000.0
             if (this._lastFrameTime < 1) this._lastFrameTime = time - 1.0 / 30.0
             let delta = time - this._lastFrameTime
+
+            // a converge-mode recording steps by its frame time instead of the wall time; the speed below applies to it
+            const d = this._viewer.getPlugin<ProgressivePlugin>('Progressive')?.postFrameConvergedRecordingDelta()
+            if (d && d > 0) delta = d
+            if (d === 0) delta = 0 // not converged yet.
+            // if d < 0: not recording, do nothing
+
             delta *= this.animationSpeed
 
             this._lastFrameTime = time
@@ -465,11 +472,6 @@ export class GLTFAnimationPlugin extends AViewerPluginSync<GLTFAnimationPluginEv
             else if (dragAnimate) delta *= this._dragAnimationState
 
             // if (Math.abs(delta) < 0.0001) return
-
-            const d = this._viewer.getPlugin<ProgressivePlugin>('Progressive')?.postFrameConvergedRecordingDelta()
-            if (d && d > 0) delta = d
-            if (d === 0) delta = 0 // not converged yet.
-            // if d < 0: not recording, do nothing
 
             const ts = Math.abs(this.timeScale)
             this._animationTime += delta * (ts > 0 ? ts : 1)

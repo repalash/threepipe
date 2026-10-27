@@ -587,12 +587,8 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
                     camera.position.setFromSpherical(current).add(cameraTarget)
                     camera.setDirty()
                 },
-                onComplete: async() => {
-                    current.theta = initial
-                    camera.position.setFromSpherical(current).add(cameraTarget)
-                    camera.setDirty()
-                    // await timeout(500)
-                },
+                // the end pose stays while the recording stops (the last frames and the end padding); the camera goes
+                // back in the finally below
             }).promise, onStart)
         } finally {
             // also when the recording failed: the camera goes back and can be used again

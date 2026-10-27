@@ -170,6 +170,24 @@ describe('CanvasRecorderPlugin', () => {
         error.mockRestore()
     })
 
+    test('recordCamera360: the end pose stays until the recording stops, then the camera goes back', async() => {
+        const popmotion = {animate: (o: any) => {
+            o.onUpdate(o.to)
+            o.onComplete?.()
+            return {promise: Promise.resolve()}
+        }}
+        const {plugin, camera} = setup({PopmotionPlugin: popmotion})
+        let atStop: number[] = []
+        const stop = plugin._recorder.stop
+        plugin._recorder.stop = (cb: any) => {
+            atStop = camera.position.toArray().map((v: number) => +v.toFixed(5))
+            stop(cb)
+        }
+        await plugin.recordCamera360(1, false, 90) // a quarter turn
+        expect(atStop).toEqual([5, 0, 0]) // the end of the turn, not the start
+        expect(camera.position.toArray().map((v: number) => +v.toFixed(5))).toEqual([0, 0, 5])
+    })
+
     test('recordCamera360: a failing recording still gives the camera back', async() => {
         const popmotion = {animate: () => ({promise: Promise.reject(new Error('anim failed'))})}
         const {plugin, camera} = setup({PopmotionPlugin: popmotion})

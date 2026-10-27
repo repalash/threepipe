@@ -15,6 +15,7 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 
 - `ViewerTimeline` read the recording delta in milliseconds, but it is in seconds, so the timeline advanced 1000x too slowly in a converge-mode recording
+- `GLTFAnimationPlugin` applies `animationSpeed` (and the scroll and drag factors) to the converge-mode recording step too; it replaced the speed-adjusted step, so with the recording delta now active a speed of 2 would record at half speed
 
 ## [0.6.0] - 2026-10-23
 
