@@ -184,6 +184,9 @@ export default defineConfig(async ({command})=>{
             },
         ],
         server: {
+            // npm start opens the examples in the browser, except in CI, over SSH and on Linux without a display
+            open: process.env.CI || process.env.SSH_CONNECTION ||
+                process.platform === 'linux' && !process.env.DISPLAY && !process.env.WAYLAND_DISPLAY ? false : '/examples/index.html',
             // This is the default value, and will add all files with node_modules
             // in their paths to the ignore list.
             // sourcemapIgnoreList (sourcePath, sourcemapPath) {

@@ -63,7 +63,7 @@
         "new:pack": "npm run prepare 1>&2 && npm run docs 1>&2 && clean-package && npm pack --silent && clean-package restore",
         "prepare": "npm run build",
         "build": "rimraf dist && vite build",
-        "dev": "NODE_ENV=development vite build --watch",
+        "watch": "NODE_ENV=development vite build --watch",
         "docs": "rimraf docs && npx typedoc --skipErrorChecking"
     },
     "author": "repalash <palash@shaders.app>",
