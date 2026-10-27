@@ -3,15 +3,16 @@
     "description": "Path tracing plugin interfaces for Threepipe",
     "version": "0.2.0",
     "devDependencies": {
-        "three-gpu-pathtracer": "^0.0.23"
+        "three-gpu-pathtracer": "^0.0.23",
+        "three-mesh-bvh": "^0.9.16"
     },
     "dependencies": {
         "three": "file:./../../node_modules/three",
-        "threepipe": "file:./../../src/"
+        "threepipe": ">=0.4.0"
     },
     "peerDependencies": {
-        "threepipe": ">=0.4.0",
-        "three-gpu-pathtracer": "^0.0.23"
+        "three-gpu-pathtracer": "^0.0.23",
+        "threepipe": ">=0.4.0"
     },
     "peerDependenciesMeta": {
         "three-gpu-pathtracer": {
@@ -40,7 +41,11 @@
     "types": "dist/index.d.ts",
     "files": [
         "dist",
-        "src", "README.md", "CHANGELOG.md", "docs", "tsconfig.json"
+        "src",
+        "README.md",
+        "CHANGELOG.md",
+        "docs",
+        "tsconfig.json"
     ],
     "scripts": {
         "new:pack": "npm run prepare 1>&2 && npm run docs 1>&2 && clean-package && npm pack --silent && clean-package restore",

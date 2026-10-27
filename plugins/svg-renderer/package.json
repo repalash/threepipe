@@ -9,7 +9,7 @@
         "fast-triangle-triangle-intersection": "^1.0.7",
         "flatbush": "^4.4.0",
         "isect": "^3.0.2",
-        "three-mesh-bvh": "^0.7.4",
+        "three-mesh-bvh": "^0.9.16",
         "xml-formatter": "^2.6.1",
         "three": "file:./../../node_modules/three"
     },
@@ -19,7 +19,7 @@
     "peerDependencies": {
         "threepipe": ">=0.1.0",
         "@svgdotjs/svg.js": "^3.2.0",
-        "three-mesh-bvh": "^0.7.4"
+        "three-mesh-bvh": "^0.9.16"
     },
     "peerDependenciesMeta": {
         "@svgdotjs/svg.js": {
