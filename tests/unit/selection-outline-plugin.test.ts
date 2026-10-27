@@ -1,7 +1,7 @@
 import {describe, expect, test, vi} from 'vitest'
-import {BoxGeometry, EventDispatcher, Group, Mesh, Object3D} from 'three'
+import {BoxGeometry, EventDispatcher, Group, Mesh, Object3D, PerspectiveCamera, ShaderMaterial, Vector3} from 'three'
 import {PickingPlugin} from 'threepipe'
-import {SelectionOutlinePlugin} from '../../plugins/tweakpane-editor/src/SelectionOutlinePlugin'
+import {SelectionMaskPass, SelectionOutlinePlugin} from '../../plugins/tweakpane-editor/src/SelectionOutlinePlugin'
 
 const mesh = (name: string) => Object.assign(new Mesh(new BoxGeometry()), {name})
 
@@ -104,6 +104,37 @@ describe('SelectionOutlinePlugin', () => {
         expect(viewer.renderManager.setDirty).toHaveBeenCalledTimes(3)
     })
 
+    test('followPicking: a PickingPlugin added later or replaced is followed', () => {
+        const makePicking = (sel: any[]) => Object.assign(new EventDispatcher<any>(), {getSelectedObjects: () => sel})
+        const listeners: Record<string, (() => void)[]> = {add: [], remove: []}
+        let picking: any
+        const plugin = new SelectionOutlinePlugin()
+        const viewer = Object.assign(new EventDispatcher<any>(), {
+            renderManager: {setDirty: vi.fn(), screenPass: {setDirty: vi.fn()}},
+            getPlugin: (p: any) => p === PickingPlugin ? picking : undefined,
+            addPluginListener: (t: string, l: () => void) => listeners[t].push(l),
+            removePluginListener: vi.fn(),
+        })
+        ;(plugin as any)._viewer = viewer
+        // only the listener part of onAdded: the render targets need a renderer
+        viewer.addPluginListener('add', (plugin as any)._onPickingAdded)
+        viewer.addPluginListener('remove', (plugin as any)._onPickingRemoved)
+
+        const a = mesh('a') as any
+        const b = mesh('b') as any
+        picking = makePicking([a]) // added after the outline plugin
+        listeners.add.forEach(l => l())
+        expect(plugin.selected).toEqual([a])
+
+        const old = picking
+        listeners.remove.forEach(l => l()) // replaced: the old one is removed first
+        picking = makePicking([b])
+        listeners.add.forEach(l => l())
+        expect(plugin.selected).toEqual([b])
+        old.dispatchEvent({type: 'hoverObjectChanged', object: a})
+        expect(plugin.hovered).toEqual([]) // the old one is not followed
+    })
+
     test('followPicking: the selection and the hover come from the PickingPlugin', () => {
         const picking = Object.assign(new EventDispatcher<any>(), {selected: [] as any[], getSelectedObjects() {
             return this.selected
@@ -132,5 +163,28 @@ describe('SelectionOutlinePlugin', () => {
         picking.selected = [a]
         plugin.followPicking = true
         expect(plugin.selected).toEqual([a])
+    })
+
+    test('the mask pass gives each object its own layer mask back', () => {
+        const pass = new SelectionMaskPass(() => ({}) as any, new ShaderMaterial({uniforms: {itemData: {value: new Vector3()}}}))
+        const onLayer = mesh('on-layer')
+        onLayer.layers.enable(SelectionMaskPass.Layer)
+        const other = mesh('other')
+        pass.getItems = () => new Map([[onLayer, new Vector3(1, 0, 0)], [other, new Vector3(2, 0, 0)]])
+        pass.scene = new Group() as any
+        const camera = new PerspectiveCamera() as any
+        pass.camera = camera
+        let inPass: number[] = []
+        const renderer: any = {
+            getRenderTarget: () => null, getActiveCubeFace: () => 0, getActiveMipmapLevel: () => 0, setRenderTarget: () => {},
+            renderWithModes: () => {
+                inPass = [onLayer.layers.mask, other.layers.mask]
+            },
+        }
+        const masks = [onLayer.layers.mask, other.layers.mask]
+        pass.render(renderer)
+        expect(inPass.every(m => (m & 1 << SelectionMaskPass.Layer) !== 0)).toBe(true)
+        expect([onLayer.layers.mask, other.layers.mask]).toEqual(masks)
+        expect(camera.layers.mask).toBe(1)
     })
 })

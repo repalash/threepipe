@@ -140,7 +140,15 @@ export class SelectionOutlinePlugin extends AScreenPassExtensionPlugin {
     /** After tonemapping and the other extensions, so the colors are exact */
     priority = -110
 
-    protected _shaderPatch = 'diffuseColor = selectionOutline(diffuseColor);'
+    // the screen pass clears the alpha of the background after this patch (a transparent background): a pixel with
+    // outline coverage is not background
+    protected _shaderPatch = `diffuseColor = selectionOutline(diffuseColor);
+#ifdef HAS_GBUFFER
+if (selCoverage > 0.0) {
+    isBackground = false;
+    depth = clamp(depth, 0.0001, 0.99);
+}
+#endif`
 
     parsFragmentSnippet = () => this.isDisabled() ? '' : OUTLINE_GLSL
 
@@ -193,11 +201,16 @@ export class SelectionOutlinePlugin extends AScreenPassExtensionPlugin {
         this._pass.getItems = () => this.maskItems()
         viewer.renderManager.registerPass(this._pass)
         viewer.addEventListener('preRender', this._preRender)
+        // the PickingPlugin can be added before or after this plugin, removed and replaced
+        viewer.addPluginListener('add', this._onPickingAdded, PickingPlugin.PluginType)
+        viewer.addPluginListener('remove', this._onPickingRemoved, PickingPlugin.PluginType)
         this._refreshPicking()
     }
 
     onRemove(viewer: ThreeViewer) {
         this._setPicking(undefined)
+        viewer.removePluginListener('add', this._onPickingAdded)
+        viewer.removePluginListener('remove', this._onPickingRemoved)
         viewer.removeEventListener('preRender', this._preRender)
         if (this._pass) {
             viewer.renderManager.unregisterPass(this._pass)
@@ -266,6 +279,10 @@ export class SelectionOutlinePlugin extends AScreenPassExtensionPlugin {
         this._onPickingSelection()
         this._onPickingHover({object: null})
     }
+
+    private _onPickingAdded = () => this._refreshPicking()
+    // the removed plugin is still the one getPlugin returns at this point
+    private _onPickingRemoved = () => this._setPicking(undefined)
 
     private _onPickingSelection = () => {
         if (!this._picking) return
@@ -350,7 +367,12 @@ export class SelectionMaskPass extends RenderPass implements IPipelinePass<'sele
             renderer.setClearColor(c, a)
         } else {
             const layer = SelectionMaskPass.Layer
-            for (const o of this._items.keys()) o.layers.enable(layer)
+            // the layer masks before the pass: an object that is on the layer already keeps it
+            const masks = new Map<Object3D, number>()
+            for (const o of this._items.keys()) {
+                masks.set(o, o.layers.mask)
+                o.layers.enable(layer)
+            }
             // fat lines are instanced quads that only a line shader turns into lines: give them a line-shaped mask material
             const lines: Object3D[] = []
             for (const o of this._items.keys()) {
@@ -370,7 +392,7 @@ export class SelectionMaskPass extends RenderPass implements IPipelinePass<'sele
                 transmissionRender: false,
                 mainRenderPass: false,
             }, () => super.render(renderer, writeBuffer as any, target, deltaTime as any, maskActive as any))
-            for (const o of this._items.keys()) o.layers.disable(layer)
+            for (const [o, m] of masks) o.layers.mask = m
             for (const o of lines) delete (o as any).forcedOverrideMaterial
             this.camera.layers.mask = mask
         }
@@ -523,6 +545,17 @@ uniform float selDim;
 uniform float selActive;
 uniform float selHasSel;
 
+// the alpha of the outline at this pixel, set by selectionOutline
+float selCoverage = 0.0;
+
+// paints a color with alpha a over dst (straight alpha), so the outline shows on a transparent background too
+vec4 selOver(vec4 dst, vec3 c, float a) {
+    float outA = a + dst.a * (1.0 - a);
+    if (outA <= 0.0) return vec4(dst.rgb, 0.0);
+    selCoverage = max(selCoverage, a);
+    return vec4((c * a + dst.rgb * dst.a * (1.0 - a)) / outA, outA);
+}
+
 // true when the masked surface at uv is hidden by another object in the scene
 float selHidden(vec2 uv, float maskDepth) {
     return getDepth(uv) < maskDepth - 0.002 ? 1.0 : 0.0;
@@ -535,19 +568,19 @@ vec4 selectionOutline(in vec4 color) {
     float cSel = floor(c.r + 0.5);
     float cPart = floor(c.g + 0.5);
     float cHov = floor(c.b + 0.5);
-    vec3 col = color.rgb;
+    vec4 col = color;
     float dash = mod(floor((gl_FragCoord.x + gl_FragCoord.y) / 3.0), 2.0);
 
     // dim everything outside the selection
     if (selDim > 0.0 && selHasSel > 0.5 && cSel < 0.5) {
-        float l = dot(col, vec3(0.2126, 0.7152, 0.0722));
-        col = mix(col, vec3(l) * 0.6 + 0.25, selDim);
+        float l = dot(col.rgb, vec3(0.2126, 0.7152, 0.0722));
+        col.rgb = mix(col.rgb, vec3(l) * 0.6 + 0.25, selDim);
     }
 
     // fill tint inside the selection (fainter where hidden)
     if (cSel > 0.5 && selFill > 0.0) {
         float hid = selHidden(vUv, c.a);
-        col = mix(col, selColor, selFill * (hid > 0.5 ? 0.5 * selXray : 1.0));
+        col.rgb = mix(col.rgb, selColor, selFill * (hid > 0.5 ? 0.5 * selXray : 1.0));
     }
 
     // search around the pixel for the nearest different id. Rings of 12 taps.
@@ -581,18 +614,18 @@ vec4 selectionOutline(in vec4 color) {
     if (selParts > 0.0 && dPart < 10.0) {
         float hid = selHidden(vUv, c.a);
         float a = selParts * (hid > 0.5 ? 0.5 * selXray * dash : 1.0);
-        col = mix(col, selColor, a);
+        col = selOver(col, selColor, a);
     }
     if (dHov < 10.0) {
         float a = clamp(selHoverWidth + 0.5 - dHov, 0.0, 1.0);
         if (hidHov > 0.5) a *= selXray * dash * 0.8;
-        col = mix(col, selHoverColor, a);
+        col = selOver(col, selHoverColor, a);
     }
     if (dSel < 10.0) {
         float a = clamp(selWidth + 0.5 - dSel, 0.0, 1.0);
         if (hidSel > 0.5) a *= selXray * dash;
-        col = mix(col, selColor, a);
+        col = selOver(col, selColor, a);
     }
-    return vec4(col, max(color.a, 0.0));
+    return col;
 }
 `
