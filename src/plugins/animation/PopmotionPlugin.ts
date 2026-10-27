@@ -54,7 +54,6 @@ export class PopmotionPlugin extends AViewerPluginSync {
 
     // private _animating = false
     private _lastFrameTime = 0 // for post frame
-    private _lastPreFrameTime = 0 // for pre frame
     private _updaters: {u: ((timestamp: number) => void), time: number}[] = []
     private _timelineUpdaters: {u: ((timestamp: number) => void), time: number}[] = []
 
@@ -134,26 +133,15 @@ export class PopmotionPlugin extends AViewerPluginSync {
     }
     private _preFrame = ()=>{
         if (!this._viewer) return
-        if (this.isDisabled() || Object.keys(this._timelineUpdaters).length < 1) {
-            this._lastPreFrameTime = 0
-            return
-        }
+        if (this.isDisabled() || Object.keys(this._timelineUpdaters).length < 1) return
 
-        const time = this._viewer.timeline.time * 1000
-        // if (this._lastPreFrameTime < 1) this._lastPreFrameTime = time - 1.0 / 60.0
-        const delta = time - this._lastPreFrameTime
+        const time = Math.max(0, this._viewer.timeline.time * 1000)
 
-        this._lastPreFrameTime = time
-
-        if (Math.abs(delta) <= 0.0001) return
-
-        // dont clamp delta
-
+        // each updater moves to the timeline time from its own time, so one started (or rebuilt) while the timeline
+        // is paused follows the next seek too, also when the timeline time itself did not change since the last frame
         this._timelineUpdaters.forEach(u=>{
-            let dt = delta
-            if (u.time !== time) dt = time - u.time
-            if (u.time + dt < 0) dt = -u.time
-            u.time += dt
+            const dt = time - u.time
+            u.time = time
             if (Math.abs(dt) > 0.001) u.u(dt)
         })
     }
