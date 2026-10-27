@@ -4,6 +4,7 @@ import {
     Box3,
     BufferGeometry,
     BVHPlugin,
+    CatmullRomCurve3,
     duplicateObjects,
     filterTopmostAncestors,
     GeometryGeneratorPlugin,
@@ -20,6 +21,7 @@ import {
     Plane,
     Quaternion,
     Raycaster,
+    SplineCurve,
     ThreeViewer,
     TransformControlsPlugin,
     UiObjectConfig,
@@ -194,6 +196,8 @@ type HandleData =
     {kind: 'icon', obj: IObject3D} |
     {kind: 'aim', obj: IObject3D} |
     {kind: 'cp', obj: IObject3D, index: number} |
+    /** the + between two points of a line or spline: adds a point there */
+    {kind: 'cpadd', obj: IObject3D, index: number} |
     {kind: 'shape', obj: IObject3D, index: number} |
     {kind: 'param', key: string}
 
@@ -215,6 +219,28 @@ type DragState =
 
 /** An editable control point of a curve in `geometry.userData.generationParams.curve` (object local space) */
 interface CurvePoint {vec: {x: number, y: number, z?: number, toArray: () => number[], fromArray: (a: number[]) => void}, key: string}
+
+/** Lines, points and fat lines: thin targets that a press must not miss */
+function isThin(o: any) {
+    return !!(o.isLine || o.isLine2 || o.isLineSegments2 || o.isPoints)
+}
+
+/** Straight lines and splines through points: a point can be added between two points */
+function canAddPoints(curve: any): boolean {
+    return !!curve && (curve.isLineCurve3 || curve.isLineCurve || curve.isCatmullRomCurve3 || curve.isSplineCurve)
+}
+
+/** The point of the curve halfway between control points `i` and `i + 1` (of `n`), in the curve's space */
+function curveMidpoint(curve: any, i: number, n: number): Vector3 {
+    const q = curve.getPoint(curve.points ? (i + 0.5) / (n - 1) : 0.5)
+    return new Vector3(q.x, q.y, q.z ?? 0)
+}
+
+/** A spline through these points, of the curve's dimension, keeping its settings (closed, type, tension) */
+function pointsCurve(curve: any, pts: number[][]): CatmullRomCurve3 | SplineCurve {
+    if (curve.isLineCurve || curve.isSplineCurve) return new SplineCurve(pts.map(a => new Vector2(a[0], a[1])))
+    return new CatmullRomCurve3(pts.map(a => new Vector3(a[0], a[1], a[2] ?? 0)), curve.closed ?? false, curve.curveType ?? 'centripetal', curve.tension ?? 0.5)
+}
 
 /** The control points of a three.js curve: v0..v3 (lines, beziers), points[] (splines), curves[] (paths) */
 function curvePoints(curve: any, prefix = ''): CurvePoint[] {
@@ -559,7 +585,12 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         const st = this.settings
         const k = (s: string) => `<kbd>${s}</kbd>`
         if (st.visual === 'legacy') return 'Classic: click to select, Shift/Ctrl+click to add, W E R for the gizmo · 1–6 for the other modes'
-        if (this.geometryEdit) return `Editing the geometry of “${this.displayName(this.geometryEdit)}” · drag the points or change the parameters · ${k('Esc')} done`
+        if (this.geometryEdit) {
+            const name = this.displayName(this.geometryEdit)
+            return canAddPoints(genParams(this.geometryEdit)?.curve) ?
+                `Editing “${name}” · drag a point to move it · click + between two points to add one · ${k('Alt')}+click a point to remove it · ${k('Esc')} done` :
+                `Editing the geometry of “${name}” · drag the points or change the parameters · ${k('Esc')} done`
+        }
         const sel = this.selected
         const vc = this.viewCamera
         if (vc && !sel.length) {
@@ -582,7 +613,8 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
             'Corners scale',
             st.rotate === 'corners' ? 'Just outside a corner rotates' : st.rotate === 'knob' ? 'Knob rotates' : st.rotate === 'ring' ? 'Ring turns it' : '',
             sel[0].isCamera ? `Double-click or ${k('0')} to look through · ${k('Ctrl')}+${k('Alt')}+${k('0')} move it to this view` :
-                hasKids ? 'Double-click to go inside' : sel[0].geometry ? `Double-click or ${k('Enter')} to edit the geometry` : '',
+                hasKids ? 'Double-click to go inside' : canAddPoints(genParams(sel[0])?.curve) ? `Double-click or ${k('Enter')} to edit its points` :
+                    sel[0].geometry ? `Double-click or ${k('Enter')} to edit the geometry` : '',
             i > 0 ? `${k('Esc')} selects parent` : `${k('Esc')} deselects`,
         ].filter(Boolean).join(' · ')
     }
@@ -808,10 +840,17 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         if (!this._viewer || !this._picking?.picker) return null
         this._rayFromScreen(sx, sy)
         const cam = this._camera() as any
-        this._raycaster.params.Line = {threshold: this._worldPerPixel(cam.target ?? new Vector3()) * 5}
+        const wpp = this._worldPerPixel(cam.target ?? new Vector3())
+        this._raycaster.params.Line = {threshold: wpp * 5}
+        this._raycaster.params.Line2 = {threshold: 8} // fat lines: pixels added to the line width
         // the 3D widgets of lights, cameras and lines stand for their object
         const roots = [this._modelRoot, ...this.widgetsShown ? this._picking.picker.extraObjects : []]
         const hits = targets ? this._raycaster.intersectObjects(targets, false) : this._raycaster.intersectObjects(roots, true)
+        // a line on a surface is hit at about the surface's distance: lines and points win within a few pixels of
+        // depth, else a line on the floor could not be picked
+        const tol = wpp * 12
+        const depth = (h: typeof hits[number]) => h.distance - (isThin(h.object) ? tol : 0)
+        hits.sort((a, b) => depth(a) - depth(b))
         const cond = this._picking.picker.selectionCondition
         // the selection wins over what is in front of it, like in Figma: a duplicate sits exactly on its original,
         // and a press on it must drag the copy (and keep the duplicate offset chain), not select the original
@@ -1302,7 +1341,19 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
             if (handle) this._state = {kind: 'shape', start: p, obj: data.obj, handle, v0: +params![handle.key]}
             return
         }
+        if (data.kind === 'cpadd') {
+            const res = this._addCurvePoint(data.obj, data.index)
+            if (!res) return
+            const world = this._cpWorld(data.obj, res)
+            const camDir = this._camera().getWorldDirection(new Vector3())
+            this._state = {kind: 'cp', start: p, obj: data.obj, point: res, before: res.vec.toArray(), plane: new Plane().setFromNormalAndCoplanarPoint(camDir.negate(), world)}
+            return
+        }
         if (data.kind === 'cp') {
+            if (this._keys.alt) {
+                this._removeCurvePoint(data.obj, data.index)
+                return
+            }
             const pts = curvePoints(genParams(data.obj)?.curve)
             const pt = pts[data.index]
             if (!pt) return
@@ -1485,6 +1536,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
                 const arr = s.point.vec.toArray()
                 s.point.vec.fromArray(arr.length === 2 ? [local.x, local.y] : [local.x, local.y, local.z])
                 s.obj.geometry?.setDirty?.({regenerate: true} as any)
+                this._paramsForm?.refresh()
                 this._liveLabel = `${s.point.key}: ${local.toArray().map(v => this._fmt(v)).join(', ')}`
             }
         }
@@ -1995,13 +2047,17 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         const bvh = viewer?.getPlugin(BVHPlugin)
         if (!viewer || !gpu || gpu.isDisabled() || bvh && !bvh.isDisabled()) return this.raycastLeaf(x, y)
         const cond = this._picking?.picker?.selectionCondition
-        const hit = gpu.pick(x, y, o => !cond || cond(o as IObject3D) && !this.isLocked(o as IObject3D))
-        if (hit) return {leaf: hit.object, point: hit.point}
         const rest: Object3D[] = []
-        const add = (o: Object3D) => (o as any).isLine || (o as any).isLine2 || (o as any).isLineSegments2 || (o as any).isPoints || (o as any).isSprite
-        this._modelRoot.traverseVisible(o => add(o) && rest.push(o))
+        this._modelRoot.traverseVisible(o => (isThin(o) || (o as any).isSprite) && rest.push(o))
         if (this.widgetsShown) for (const w of this._picking?.picker?.extraObjects ?? []) w.traverseVisible(o => rest.push(o))
-        return rest.length ? this.raycastLeaf(x, y, rest) : null
+        const thin = rest.length ? this.raycastLeaf(x, y, rest) : null
+        const hit = gpu.pick(x, y, o => !cond || cond(o as IObject3D) && !this.isLocked(o as IObject3D))
+        if (!hit) return thin
+        if (!thin) return {leaf: hit.object, point: hit.point}
+        // the same rule as raycastLeaf: a line or a widget wins unless the mesh is clearly in front
+        const eye = this._camera().getWorldPosition(new Vector3())
+        const tol = this._worldPerPixel(hit.point) * 12
+        return eye.distanceTo(thin.point) - tol <= hit.distance ? thin : {leaf: hit.object, point: hit.point}
     }
 
     private _screenRect(corners: Vector3[]) {
@@ -2543,6 +2599,45 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         return new Vector3(a[0], a[1], a[2] ?? 0).applyMatrix4(o.matrixWorld)
     }
 
+    /**
+     * Add a point in the middle of segment `index` (one undo step). A straight line becomes a curve through its points
+     * (centripetal Catmull-Rom: no loops or overshoot). Returns the new point.
+     */
+    private _addCurvePoint(o: IObject3D, index: number): CurvePoint | undefined {
+        const curve = genParams(o)?.curve
+        if (!canAddPoints(curve)) return
+        const old = curvePoints(curve).map(p => p.vec.toArray())
+        const mid = curveMidpoint(curve, index, old.length).toArray()
+        old.splice(index + 1, 0, mid)
+        const next = pointsCurve(curve, old)
+        this.setGeometryParam(o, 'curve', next)
+        if (this._paramUndo) this._paramUndo.time = 0 // the drag of the new point is its own step
+        if (!curve.points) this._toast('The line is now a curve through its points')
+        this._rebuildParamsSoon(o)
+        return curvePoints(next)[index + 1]
+    }
+
+    /** Remove a point of a line or spline (Alt+click); at least two stay */
+    private _removeCurvePoint(o: IObject3D, index: number) {
+        const curve = genParams(o)?.curve
+        if (!canAddPoints(curve)) return
+        const pts = curvePoints(curve).map(p => p.vec.toArray())
+        if (pts.length <= 2) {
+            this._toast('A line needs two points')
+            return
+        }
+        pts.splice(index, 1)
+        this.setGeometryParam(o, 'curve', pointsCurve(curve, pts))
+        if (this._paramUndo) this._paramUndo.time = 0
+        this._rebuildParamsSoon(o)
+    }
+
+    /** The panel's fields follow the curve's type and point count */
+    private _rebuildParamsSoon(o: IObject3D) {
+        if (o.geometry) (o.geometry.userData as any).__generationParamsUiType = ''
+        requestAnimationFrame(() => this._buildParamsPanel())
+    }
+
     private _paramsEl?: HTMLDivElement
     private _paramsForm?: UiConfigForm
     private _paramUndo?: {cmd: {undo: () => void, redo: () => void}, time: number, key: string, before: any}
@@ -2604,7 +2699,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
             const n = g?.attributes?.position?.count ?? 0
             el.insertAdjacentHTML('beforeend', `<div class="sux-params-note">Not parametric (${n.toLocaleString()} vertices). Shapes made with the geometry generator have their parameters here.</div>`)
         } else {
-            if (params.curve) el.insertAdjacentHTML('beforeend', '<div class="sux-params-note">Drag the curve points in the view, or type them here.</div>')
+            if (params.curve) el.insertAdjacentHTML('beforeend', `<div class="sux-params-note">Drag the curve points in the view, or type them here.${canAddPoints(params.curve) ? ' A + between two points adds one.' : ''}</div>`)
             this._paramsForm = new UiConfigForm(configs, {
                 undoManager: this._viewer?.getPlugin(UndoManagerPlugin)?.undoManager,
                 onChange: () => {
@@ -2669,6 +2764,18 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         })
         L.get('ge-tangents', 'path', {d: t, fill: 'none', stroke: 'var(--sux-accent)', 'stroke-width': 1, opacity: 0.6})
         const editing = this._state?.kind === 'cp' ? this._state.point : null
+        // + between two points: adds a point there (lines and splines)
+        if (canAddPoints(curve)) {
+            for (let i = 0; i < pts.length - 1; i++) {
+                const m = this.toScreen(toW(curveMidpoint(curve, i, pts.length).toArray()))
+                if (m.behind || !sp[i] || !sp[i + 1] || Math.hypot(sp[i].x - sp[i + 1].x, sp[i].y - sp[i + 1].y) < 36) continue
+                const key = 'cpa' + i
+                const hk = this._handle(key, {kind: 'cpadd', obj: o, index: i})
+                H.get(key + '-hit', 'circle', {cx: m.x, cy: m.y, r: 9, fill: 'transparent', 'data-sux': hk, style: 'pointer-events:all;cursor:copy'})
+                H.get(key, 'circle', {cx: m.x, cy: m.y, r: 6, fill: '#fff', stroke: 'var(--sux-accent)', 'stroke-width': 1, opacity: 0.9, style: 'pointer-events:none'})
+                H.get(key + '-p', 'path', {d: `M${m.x - 3} ${m.y}H${m.x + 3}M${m.x} ${m.y - 3}V${m.y + 3}`, stroke: 'var(--sux-accent)', 'stroke-width': 1.5, style: 'pointer-events:none'})
+            }
+        }
         sp.forEach((q, i) => {
             if (q.behind) return
             const key = 'cp' + i

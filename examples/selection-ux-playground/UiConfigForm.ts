@@ -39,7 +39,7 @@ export class UiConfigForm {
     }
 
     private _set(c: UiObjectConfig, parents: UiObjectConfig[], value: any, last = true) {
-        const [obj, key] = UiConfigMethods.GetBinding(c)
+        const [obj, key] = binding(c)
         if (!obj) return
         const before = clonePrimitive(obj[key])
         if (equalsPrimitive(before, value)) return
@@ -116,7 +116,10 @@ export class UiConfigForm {
         name.textContent = label
         row.appendChild(name)
         host.appendChild(row)
-        const value = () => UiConfigMethods.GetRawValue(c)
+        const value = () => {
+            const [obj, key] = binding(c)
+            return obj ? obj[key] : undefined
+        }
 
         if (type === 'checkbox' || type === 'toggle') {
             const input = document.createElement('input')
@@ -252,6 +255,17 @@ export class UiConfigForm {
             handle.addEventListener('pointerup', up)
         })
     }
+}
+
+/**
+ * The object and key of a field. uiconfig.js `GetBinding` turns the key of an array item ('0') into a number in the
+ * config's own array, and the next call reads the key 0 as no binding: the first point of a spline lost its value.
+ * Array items are read directly here.
+ */
+function binding(c: UiObjectConfig): [any, any] {
+    const p = c.property as any
+    if (Array.isArray(p) && Array.isArray(p[0]) && /^\d+$/.test(String(p[1]))) return [p[0], +p[1]]
+    return UiConfigMethods.GetBinding(c) as [any, any]
 }
 
 function fmt(v: any) {
