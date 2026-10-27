@@ -33,9 +33,10 @@ const BOX_EDGES: [number, number][] = []
 for (let i = 0; i < 8; i++) for (const b of [1, 2, 4]) if (!(i & b)) BOX_EDGES.push([i, i | b])
 
 /**
- * The box of what is drawn of `obj`, in its own frame: the geometries of its visible meshes, lines and points, and a
- * cube of `pointSize(o)` at each light or camera inside it. Helpers (widgets, a light's target) are left out.
- * Empty when `obj` has none of these.
+ * The box of what is drawn of `obj`, in its own frame: the boxes of its visible meshes, lines and points, and a cube of
+ * `pointSize(o)` at each light or camera inside it. Helpers (widgets, a light's target) are left out.
+ * As in `Box3B.expandByObject`, an object with its own `boundingBox` (an instanced or a skinned mesh: the box of all
+ * instances, or of the pose) uses it before the box of its geometry. Empty when `obj` has none of these.
  */
 export function localBox(obj: IObject3D, pointSize: (o: IObject3D) => number): Box3 {
     const box = new Box3()
@@ -43,20 +44,25 @@ export function localBox(obj: IObject3D, pointSize: (o: IObject3D) => number): B
     const inv = obj.matrixWorld.clone().invert()
     const m = new Matrix4()
     obj.traverseVisible(o => {
-        const c = o as IObject3D
+        const c = o as IObject3D & {boundingBox?: Box3 | null, computeBoundingBox?: () => void}
         if (isHelperObject(c)) return
-        const g = c.geometry
-        if (!g) {
+        let b: Box3 | null | undefined
+        if (c.boundingBox !== undefined) {
+            if (c.boundingBox === null) c.computeBoundingBox?.()
+            b = c.boundingBox
+        } else if (c.geometry) {
+            if (!c.geometry.boundingBox) c.geometry.computeBoundingBox()
+            b = c.geometry.boundingBox
+        } else {
             if (c !== obj && (c.isLight || c.isCamera)) {
                 const p = c.getWorldPosition(new Vector3())
                 box.union(new Box3().setFromCenterAndSize(p, new Vector3().setScalar(pointSize(c))).applyMatrix4(inv))
             }
             return
         }
-        if (!g.boundingBox) g.computeBoundingBox()
-        if (!g.boundingBox) return
+        if (!b) return
         m.multiplyMatrices(inv, c.matrixWorld)
-        box.union(g.boundingBox.clone().applyMatrix4(m))
+        box.union(b.clone().applyMatrix4(m))
     })
     return box
 }

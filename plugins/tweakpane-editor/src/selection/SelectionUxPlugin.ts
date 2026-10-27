@@ -21,6 +21,7 @@ import {
     selectionLevels,
     siblingTarget,
     toggleSelected,
+    wrappedChain,
 } from './selectionHierarchy'
 import {boxEdgesPath, boxInfo, BoxInfo, bracketsPath, frontFaces, ScreenPoint, screenRect, ScreenRect, toScreen} from './selectionBox'
 import {ElementPool} from './ElementPool'
@@ -565,8 +566,10 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
      * innermost name that is not a generic one (Scene, root, RootNode, glTF, group). Else its name, or its type.
      */
     displayName(o: IObject3D): string {
-        const level = this.levels(o).find(l => l.includes(o))
-        const named = (level ? [...level].reverse() : [o]).find(n => n.name && !/^(scene|root|rootnode|gltf|group)$/i.test(n.name))
+        // the levels end at `o`: the chain goes on below it
+        const level = this.levels(o).find(l => l.includes(o)) ?? [o]
+        const chain = [...level, ...wrappedChain(o).slice(1)]
+        const named = chain.reverse().find(n => n.name && !/^(scene|root|rootnode|gltf|group)$/i.test(n.name))
         return named?.name || o.name || o.type
     }
 

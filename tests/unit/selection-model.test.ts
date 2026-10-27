@@ -1,5 +1,5 @@
 import {afterEach, beforeEach, describe, expect, test, vi} from 'vitest'
-import {BoxGeometry, DirectionalLight, EventDispatcher, Group, Mesh, MeshBasicMaterial, Object3D, PerspectiveCamera, Vector3} from 'three'
+import {BoxGeometry, DirectionalLight, EventDispatcher, Group, InstancedMesh, Matrix4, Mesh, MeshBasicMaterial, Object3D, PerspectiveCamera, Vector3} from 'three'
 import {JSUndoManager} from 'ts-browser-helpers'
 import {IObject3D, ObjectPicker} from 'threepipe'
 import {
@@ -218,6 +218,13 @@ describe('selection box', () => {
         expect(b.min.toArray().map(v => +v.toFixed(5))).toEqual([-0.25, -0.25, -0.25])
         expect(b.max.toArray().map(v => +v.toFixed(5))).toEqual([0.25, 3.05, 0.25])
         expect(boxInfo([group('Empty')], 'local', point).size.toArray().map(v => +v.toFixed(5))).toEqual([0.1, 0.1, 0.1])
+    })
+
+    test('an instanced mesh: the box of all its instances, as in Box3B', () => {
+        const im = new InstancedMesh(new BoxGeometry(0.5, 0.5, 0.5), material, 2) as any as IObject3D
+        ;(im as any).setMatrixAt(0, new Matrix4().makeTranslation(-5, 0, 0))
+        ;(im as any).setMatrixAt(1, new Matrix4().makeTranslation(5, 0, 0))
+        expect(localBox(im, point).getSize(new Vector3()).toArray().map(v => +v.toFixed(5))).toEqual([10.5, 0.5, 0.5])
     })
 
     test('the screen rectangle leaves out the points behind the camera', () => {
@@ -709,6 +716,16 @@ describe('SelectionUxPlugin', () => {
         ux.select([lamp, table])
         expect(labels().map(l => l.children.map(c => c.textContent).join('') || l.textContent)).toEqual(['2 selected', '5.10 × 1.50 × 0.50 cm'])
         expect(lines().map(l => l.tagName + ' ' + l.getAttribute('stroke-width')).sort()).toEqual(['rect 1', 'rect 1', 'rect 1.5'])
+    })
+
+    test('overlay: a wrapper chain shows the innermost name that is not generic, also when its outermost object is selected', () => {
+        const {ux, table, labels} = setup()
+        const watch = group('Watch', mesh('Case'), mesh('Dial'))
+        const scene = group('Scene', group('root', watch))
+        table.parent!.add(scene)
+        expect(ux.displayName(scene)).toBe('Watch')
+        ux.select([watch.children[0] as IObject3D])
+        expect(labels()[0].children.map(c => c.textContent)).toEqual(['Watch', '/', 'Case'])
     })
 
     test('overlay: the box of the hovered object, also inside the selected group', () => {

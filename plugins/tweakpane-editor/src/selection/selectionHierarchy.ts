@@ -65,6 +65,13 @@ function chainEnd(o: IObject3D): IObject3D {
     return o
 }
 
+/** `o` and the chain of single children below it that select as one with it (a wrapper chain), outermost first */
+export function wrappedChain(o: IObject3D): IObject3D[] {
+    const chain = [o]
+    for (let c = wrappedChild(o); c; c = wrappedChild(c)) chain.push(c)
+    return chain
+}
+
 /** The index of the level that holds `o`, -1 when no level holds it */
 function levelIndex(levels: SelectionLevel[], o: IObject3D): number {
     return levels.findIndex(l => l.includes(o))
