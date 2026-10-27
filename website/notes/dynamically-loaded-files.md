@@ -36,8 +36,9 @@ import draco_decoder from './libs/draco_decoder.1.5.6.js?raw' // vite will load 
 DRACOLoader2.SetDecoderJsString(draco_decoder) // this sets DRACOLoader2.LibraryValueMap['draco_decoder.js']
 ```
 - `Rhino3dmLoader2.LIBRARY_PATH` - The URL to the Rhino3dm library used for loading Rhino 3D models.
-  - Default: `https://cdn.jsdelivr.net/npm/rhino3dm@8.0.1`
+  - Default: `https://cdn.jsdelivr.net/npm/rhino3dm@8.0.1/`
   - Note - Versions since 8.4.0 has issues with several files. Use 8.0.1 for stability.
+  - Note - The `rhino3dm` query parameter of the page URL sets the version in the default URL, e.g. `?rhino3dm=8.4.0`. It is read when the class loads.
 - `MeshOptSimplifyModifierPlugin.SIMPLIFIER_URL` - The URL to the MeshOptimizer library's simplifier module used for mesh simplification.
   - Default: `https://unpkg.com/meshoptimizer@0.20.0/meshopt_simplifier.module.js`
   - Alternative: `https://cdn.jsdelivr.net/gh/zeux/meshoptimizer@master/js/meshopt_simplifier.module.js`
@@ -59,6 +60,7 @@ DRACOLoader2.SetDecoderJsString(draco_decoder) // this sets DRACOLoader2.Library
   - Alternative:
     - `https://cdn.jsdelivr.net/gh/repalash/assimpjs@fbx/`
     - `https://cdn.jsdelivr.net/npm/assimpjs@$0.10.0`
+  - Note - The `assimpjs` query parameter of the page URL sets the git ref in the default URL, e.g. `?assimpjs=fbx`. It is read when the class loads.
 - `AWSClientPlugin.PROXY_URL` - To proxy AWS requests through a CORS proxy. (Required For Cloudflare)
   - Note - Requires setting `AWSClientPlugin.USE_PROXY` to true to enable.
 
