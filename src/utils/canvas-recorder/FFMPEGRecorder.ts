@@ -77,6 +77,15 @@ export class FFMPEGRecorder extends ACanvasRecorder<'encode-progress'> {
         this.setState('error', {error: new Error(reason)})
     }
 
+    /**
+     * Ends the encoder worker. A recording that runs or encodes is dropped: a pending stop calls back with no recording.
+     */
+    dispose() {
+        if (this.state === 'stopping') this._encodeFailed('the recorder was disposed')
+        else if (this.isRecording() || this.state === 'paused') this.setState('stopped')
+        this.worker.terminate()
+    }
+
     public start() {
         if (this.state === 'recording') {
             console.log('Already recording canvas')

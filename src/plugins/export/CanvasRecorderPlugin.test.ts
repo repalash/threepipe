@@ -3,6 +3,7 @@ import {EventDispatcher, Vector3} from 'three'
 import {CanvasRecorderPlugin} from './CanvasRecorderPlugin'
 import {ImageSequenceRecorder} from '../../utils/canvas-recorder/ImageSequenceRecorder'
 import {FFMPEGRecorder} from '../../utils/canvas-recorder/FFMPEGRecorder'
+import {CanvasMediaRecorder} from '../../utils/canvas-recorder/CanvasMediaRecorder'
 import {CameraViewPlugin} from '../animation/CameraViewPlugin'
 import {ProgressivePlugin} from '../pipeline/ProgressivePlugin'
 
@@ -384,5 +385,92 @@ describe('CameraViewPlugin.recordAllViews', () => {
         await expect(views.recordAllViews(undefined, false)).rejects.toThrow('anim failed')
         expect(recorder.isRecording()).toBe(false)
         expect(views.viewLooping).toBe(true)
+    })
+})
+
+describe('FFMPEGRecorder dispose', () => {
+    test('ends the worker; an encode that runs settles its stop without a recording', async() => {
+        const terminate = vi.fn()
+        vi.stubGlobal('Worker', class {
+            onmessage: any = null
+            postMessage() {
+                return undefined
+            }
+            terminate = terminate
+        })
+        try {
+            const canvas = {width: 4, height: 4, toBlob: (cb: (b: Blob) => void) => cb(new Blob([]))} as any
+            const rec = new FFMPEGRecorder(canvas, {mimeType: 'video/mp4'}) as any
+            vi.spyOn(console, 'log').mockImplementation(() => undefined)
+            vi.spyOn(console, 'error').mockImplementation(() => undefined)
+            vi.spyOn(console, 'time').mockImplementation(() => undefined)
+            rec.start()
+            rec.requestFrame()
+            const done = new Promise(resolve => rec.stop(resolve))
+            rec.dispose() // while the stop waits for the encode
+            expect(await done).toBeUndefined()
+            expect(terminate).toHaveBeenCalledTimes(1)
+        } finally {
+            vi.unstubAllGlobals()
+            vi.restoreAllMocks()
+        }
+    })
+})
+
+describe('CanvasMediaRecorder', () => {
+    function fakeMediaRecorder() {
+        return class {
+            // eslint-disable-next-line @typescript-eslint/naming-convention
+            static isTypeSupported = () => true
+            onstart: any
+            onstop: any
+            onerror: any
+            ondataavailable: any
+            onresume: any
+            start() {
+                this.onstart?.(new Event('start'))
+            }
+            stop() {
+                this.onstop?.(new Event('stop')) // no data chunk
+            }
+            pause() {
+                return undefined
+            }
+            resume() {
+                return undefined
+            }
+        }
+    }
+
+    test('without MediaRecorder, the start ends in the error state', () => {
+        vi.stubGlobal('window', {})
+        try {
+            const rec = new CanvasMediaRecorder({} as any, {mimeType: 'auto'}) as any
+            rec._console = {error: () => undefined, warn: () => undefined, log: () => undefined}
+            rec.start()
+            expect(rec.state).toBe('error')
+        } finally {
+            vi.unstubAllGlobals()
+        }
+    })
+
+    test('a stop without data still calls back, with no recording', async() => {
+        const mediaRecorder = fakeMediaRecorder()
+        vi.stubGlobal('window', {MediaRecorder: mediaRecorder})
+        vi.stubGlobal('MediaRecorder', mediaRecorder)
+        try {
+            const canvas = {captureStream: () => ({getVideoTracks: () => [{}]})} as any
+            const rec = new CanvasMediaRecorder(canvas, {mimeType: 'auto'}) as any
+            rec.start()
+            expect(rec.state).toBe('recording')
+            const done = await Promise.race([
+                new Promise(resolve => rec.stop(() => resolve('called back'))),
+                new Promise(resolve => setTimeout(() => resolve('hung'), 1000)),
+            ])
+            expect(done).toBe('called back')
+            expect(rec.state).toBe('stopped')
+        } finally {
+            vi.unstubAllGlobals()
+        }
     })
 })

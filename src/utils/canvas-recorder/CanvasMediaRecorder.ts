@@ -1,6 +1,11 @@
 import {ACanvasRecorder, CanvasRecorderOptions} from './ACanvasRecorder'
 import {now, timeout} from 'ts-browser-helpers'
 
+/** The browser has MediaRecorder */
+function hasMediaRecorder() {
+    return typeof window !== 'undefined' && !!window.MediaRecorder
+}
+
 export class CanvasMediaRecorder extends ACanvasRecorder {
     private _recorder?: MediaRecorder
     private _track: MediaStreamTrack | undefined
@@ -12,14 +17,9 @@ export class CanvasMediaRecorder extends ACanvasRecorder {
             this.options.mimeType = (CanvasMediaRecorder.GetSupportedMimeTypes([], ['h264'], true) ??
                 CanvasMediaRecorder.GetSupportedMimeTypes(undefined, undefined, true)) as string
         }
-        if (!this.options.mimeType || this.options.mimeType?.startsWith('video/')) {
-            if (!window.MediaRecorder) {
-                this._console.warn('MediaRecorder is not supported, switching to png')
-                this.options.mimeType = 'image/png'
-            }
-        }
-
-        if (!this.options.mimeType) {
+        // without MediaRecorder, start() ends in the error state (use an image sequence instead)
+        if (!hasMediaRecorder()) this._console.warn('MediaRecorder is not supported in this browser')
+        else if (!this.options.mimeType) {
             console.warn(new Error('No supported mimetype found'))
         }
     }
@@ -29,7 +29,7 @@ export class CanvasMediaRecorder extends ACanvasRecorder {
         this._setOptions(options)
     }
 
-    private _recordingCallback?: (b: Blob) => void
+    private _recordingCallback?: (b?: Blob) => void
 
     constructor(canvas: HTMLCanvasElement, options?: Partial<CanvasRecorderOptions>) {
         super(canvas, options)
@@ -61,31 +61,31 @@ export class CanvasMediaRecorder extends ACanvasRecorder {
 
         this._currentRecording = []
         this._frameCount = 0
-        if (options.mimeType?.startsWith('video'))
-            if (!window.MediaRecorder) {
-                this._console.error('MediaRecorder not supported, use image sequence')
-                this.setState('error', {error: new Error('MediaRecorder not supported')})
-                return
-            } else {
-                const stream = this._canvas.captureStream(this.options.stepMode ? 0 : this.options.frameRate)
-                const track = stream.getVideoTracks()?.[0]
-                // if (track) {
-                //     const constraints = track.getConstraints()
-                // constraints.frameRate = 30
-                // track.applyConstraints(constraints).then(()=>{
-                //     console.log(track.getCapabilities(), track.getSettings(), track)
-                // })
-                // }
-                this._track = track
+        // a start that cannot record ends in the error state, so the caller does not wait for it
+        if (!hasMediaRecorder() || !options.mimeType?.startsWith('video')) {
+            const error = new Error(hasMediaRecorder() ? 'No supported video type for MediaRecorder' : 'MediaRecorder not supported, use an image sequence')
+            this._console.error(error.message)
+            this.setState('error', {error})
+            return
+        }
+        const stream = this._canvas.captureStream(this.options.stepMode ? 0 : this.options.frameRate)
+        const track = stream.getVideoTracks()?.[0]
+        // if (track) {
+        //     const constraints = track.getConstraints()
+        // constraints.frameRate = 30
+        // track.applyConstraints(constraints).then(()=>{
+        //     console.log(track.getCapabilities(), track.getSettings(), track)
+        // })
+        // }
+        this._track = track
 
-                this._recorder = new window.MediaRecorder(stream, options)
-                this._recorder.onstop = this._onstop
-                this._recorder.ondataavailable = this._ondataavailable
-                this._recorder.onerror = this._onerror as any // todo see ts error without any
-                this._recorder.onresume = this._onresume
-                this._recorder.onstart = this._onstart
-                // this._recorder.onpause = this._onpause
-            }
+        this._recorder = new window.MediaRecorder(stream, options)
+        this._recorder.onstop = this._onstop
+        this._recorder.ondataavailable = this._ondataavailable
+        this._recorder.onerror = this._onerror as any // todo see ts error without any
+        this._recorder.onresume = this._onresume
+        this._recorder.onstart = this._onstart
+        // this._recorder.onpause = this._onpause
 
         this.setState('starting')
         if (this._recorder) {
@@ -117,7 +117,8 @@ export class CanvasMediaRecorder extends ACanvasRecorder {
         }
     }
 
-    public stop(recordingCallback: (b: Blob) => void) {
+    /** Calls back with the recording, or with undefined when there is no data or the recorder failed */
+    public stop(recordingCallback: (b?: Blob) => void) {
         if (this.state === 'stopped') return
         if (this.state === 'error') {
             this._console.error('Recorder in error state, cannot stop, call start again.')
@@ -127,9 +128,15 @@ export class CanvasMediaRecorder extends ACanvasRecorder {
 
         this._recordingCallback = recordingCallback
         this.setState('stopping')
-        if (this._recorder) {
-            this._recorder.stop()
-        }
+        if (this._recorder) this._recorder.stop()
+        else this._onstop(new Event('stop'))
+    }
+
+    /** Calls back the pending stop once */
+    private _settleStop(blob?: Blob) {
+        const callback = this._recordingCallback
+        this._recordingCallback = undefined
+        callback?.(blob)
     }
 
     dispose() {
@@ -139,10 +146,8 @@ export class CanvasMediaRecorder extends ACanvasRecorder {
     }
 
     private _onstop: EventListener = (_evt) => {
-        if (this._recorder && this._currentRecording.length > 0) {
-            const blob = new Blob(this._currentRecording, {type: this.options.mimeType})
-            this._recordingCallback?.(blob)
-        }
+        // also without data: the stop settles with no recording
+        this._settleStop(this._currentRecording.length > 0 ? new Blob(this._currentRecording, {type: this.options.mimeType}) : undefined)
         this._recorder = undefined
         this.setState('stopped')
     }
@@ -164,6 +169,7 @@ export class CanvasMediaRecorder extends ACanvasRecorder {
     }
 
     private _onerror: (event: any) => void = (event) => {
+        this._settleStop(undefined)
         this.setState('error', {error: event})
         this._console.error(event)
         this._recorder = undefined
@@ -175,7 +181,7 @@ export class CanvasMediaRecorder extends ACanvasRecorder {
         codecs?: string[],
         firstOnly = false,
     ): string[] | string | undefined {
-        if (!window.MediaRecorder) return firstOnly ? undefined : []
+        if (!hasMediaRecorder()) return firstOnly ? undefined : []
         const VIDEO_TYPES = ['webm', 'ogg', 'mp4', 'x-matroska'].filter(
             (value) => !types || types.length < 1 || types.includes(value),
         )
