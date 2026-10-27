@@ -234,6 +234,8 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
 
     /** The selectable object of a raycast hit: the object of a widget, or the hit object when the PickingPlugin can select it */
     private _hitLeaf(o: IObject3D): IObject3D | null {
+        // a raycast also hits hidden objects: an object that is hidden, or in a hidden parent, is not on the screen
+        for (let p: Object3D | null = o; p; p = p.parent) if (!p.visible) return null
         let w: any = o
         while (w && !(w.assetType === 'widget' && w.object)) w = w.parent
         const leaf: IObject3D | null = w ? w.object.visible ? w.object : null : this._picking?.picker?.selectionCondition(o) ? o : null

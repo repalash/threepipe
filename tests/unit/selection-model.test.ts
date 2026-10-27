@@ -196,6 +196,7 @@ function setup() {
         getSelectedObjects: () => picker.selectedObjects,
     })
     picker.addEventListener('selectedObjectChanged', e => picking.dispatchEvent(e))
+    picker.addEventListener('hitObject', e => picking.dispatchEvent(e)) // as PickingPlugin: the same intersects object
     const viewer = Object.assign(new EventDispatcher<any>(), {
         container: canvas,
         canvas,
@@ -301,6 +302,25 @@ describe('SelectionUxPlugin', () => {
         window.dispatchEvent(ev('pointermove', {clientX: p.clientX + 10, clientY: p.clientY, buttons: 1}))
         window.dispatchEvent(ev('pointerup', {clientX: p.clientX + 10, clientY: p.clientY}))
         expect(names()).toEqual([])
+    })
+
+    test('a short quick drag on empty space keeps the selection (the core picker takes it as a click)', () => {
+        const {canvas, click, top, names} = setup()
+        click(top)
+        expect(names()).toEqual(['Table'])
+        const p = {clientX: 2, clientY: 2}, q = {clientX: 12, clientY: 2} // 10 px in no time: a click for the core picker
+        canvas.dispatchEvent(ev('pointerdown', p))
+        window.dispatchEvent(ev('pointermove', {...q, buttons: 1}))
+        canvas.dispatchEvent(ev('pointerup', q))
+        window.dispatchEvent(ev('pointerup', q))
+        expect(names()).toEqual(['Table'])
+    })
+
+    test('a hidden object is not selected: the click goes to the visible one behind it', () => {
+        const {click, lamp, names} = setup()
+        lamp.visible = false
+        click(lamp)
+        expect(names()).toEqual(['Wall'])
     })
 
     test('keys: Esc and Shift+Enter parent, Enter children, Tab siblings, Ctrl+A the level', () => {
