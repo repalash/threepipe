@@ -4,18 +4,25 @@ We welcome contributions to Threepipe. Please read the following guidelines to s
 
 ## Setting up the project
 
+Requires Node.js `^20.19` or `>=22.12` (Vite 8) and npm 10 or newer.
+
 1. Clone the repository
 2. Run `npm install`
 
+The repository is an npm workspace: one install at the root sets up the core and every package in `plugins/` (one `package-lock.json`, hoisted `node_modules`). Nothing is built during install.
+
 ## Development
 
-1. Run `npm run vite` to run vite dev server and navigate to http://localhost:5173/examples/index.html
-2. Test the examples and pick the one you are working on.
+The quickest way to try the examples needs no build at all:
 
-OR
-1. If changing the `src/` folder - Run `npm run dev` to start the development in watch mode
-2. If changing the `plugins/` folder - `cd` to the plugin directory and run `npm run dev` to start the development in watch mode for the package.
-3. Run `npm run dev-examples` to start the examples build in watch mode and run `npm run serve` to start the development server, and navigate to http://localhost:9229/index.html
+1. Run `npm start` (or `npm run vite`) to start the vite dev server, and navigate to http://localhost:5173/examples/index.html
+2. Test the examples and pick the one you are working on. The dev server loads the core and all plugins from their `src/` folders, so changes reload directly.
+
+To test against the built bundles instead (as the deployed site and the e2e tests do):
+1. Run `npm run build:all` once to build the core, all plugins and the examples.
+2. If changing the `src/` folder - Run `npm run dev` to rebuild the core in watch mode.
+3. If changing the `plugins/` folder - `cd` to the plugin directory and run `npm run dev` to rebuild the package in watch mode.
+4. Run `npm run dev-examples` to compile the examples in watch mode and `npm run serve` to start the static server, and navigate to http://localhost:9229/index.html
 
 For website(vitepress) development -
 - Run `npm run website:dev` to start the website server.
@@ -25,18 +32,26 @@ For website(vitepress) development -
 Some examples requires env variables.
 - Run `cp examples/sample.env examples/.env` and set the required tokens/keys in the `examples/.env` file, and build the examples again.
 
+To add a dependency to a plugin, run `npm install <package> -w plugins/<plugin-name>` from the root (`-D` for a devDependency).
+
 ## Testing
 
-TBD
+- `npm run test:unit` runs the unit tests (vitest), from source.
+- `npm run test:e2e` runs the example tests (playwright) against the built bundles, run `npm run build:all` first.
+- `npm run test:types` type-checks the published declarations as a consumer, run `npm run build` first.
 
 ## Building
 
-1. Run `npm run build` to build the project, or in a specific package directory to build the package
-2. Run `npm run build-examples` to build the examples
-3. Run `npm run website:build` to build the website
-4. Run `npm run docs` to build only the API docs
-5. Run `npm run prepare` to build the project, examples and plugins
-6. Run `npm run docs-all` to build API docs and website
+Builds run through [Turborepo](https://turborepo.com): packages build in parallel in dependency order, and a package whose inputs did not change is restored from the cache in `.turbo/` instead of being built again.
+
+1. Run `npm run build` to build the core (`dist/` and `lib/`), or in a specific package directory to build the package
+2. Run `npm run build-plugins` to build all the plugins
+3. Run `npm run build-examples` to compile the examples (`tsc`, against the built bundles)
+4. Run `npm run build:all` to build the core, plugins and examples
+5. Run `npm run website:build` to build the website
+6. Run `npm run docs` to build the API docs and the website, `npm run docs-all` to also build the API docs of every plugin
+
+Turbo options can be passed through, for example `npx turbo run build --filter=@threepipe/plugin-tweakpane` builds one plugin and what it depends on, `--force` ignores the cache.
 
 ## Publishing
 
@@ -70,6 +85,7 @@ Checklist
 Checklist
 - Duplicate a template plugin from `plugins/` folder - `plugin-template-vite`
 - Change `name`, `description`, `repository.directory`, `dependencies` and any other relevant fields in `package.json`
+- Run `npm install` at the root, every folder in `plugins/` (except `plugin-template-*`) is a workspace package
 - Change `name` in `typedoc.json`
 - Update link in plugin's `CHANGELOG.md` and `README.md`
 - Check `globals` in `vite.config.js`

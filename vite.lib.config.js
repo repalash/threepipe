@@ -1,10 +1,8 @@
 import {defineConfig} from 'vite'
-import json from '@rollup/plugin-json';
 import dts from 'vite-plugin-dts'
-import {fixDtsImports} from './scripts/vite-utils.mjs';
-import packageJson from './package.json';
+import {fixDtsImports, glsl} from './scripts/vite-utils.mjs';
+import packageJson from './package.json' with {type: 'json'};
 import license from 'rollup-plugin-license';
-import glsl from 'rollup-plugin-glsl';
 import path from 'node:path';
 
 const isProd = process.env.NODE_ENV === 'production'
@@ -27,9 +25,6 @@ export default defineConfig({
     // define: {
     //     'process.env': process.env
     // },
-    esbuild: {
-        legalComments: 'none',
-    },
     build: {
         sourcemap: true,
         minify: isProd,
@@ -47,11 +42,9 @@ export default defineConfig({
         },
         outDir: dist,
         emptyOutDir: isProd,
-        commonjsOptions: {
-            exclude: [/uiconfig.js/, /ts-browser-helpers/],
-        },
-        rollupOptions: {
+        rolldownOptions: {
             output: {
+                comments: {legal: false}, // strip bundled legal comments, the license() banner is added after
                 // inlineDynamicImports: false,
                 globals,
             },
@@ -64,7 +57,6 @@ export default defineConfig({
         glsl({ // todo: minify glsl.
             include: 'src/**/*.glsl',
         }),
-        json(),
         // postcss({
         //     modules: false,
         //     autoModules: true,  // todo; issues with typescript import css, because inject is false
@@ -81,7 +73,7 @@ export default defineConfig({
         See ./dependencies.txt for bundled third-party dependencies and licenses.
       `,
             thirdParty: {
-                output: path.join(__dirname, dist, 'dependencies.txt'),
+                output: path.join(import.meta.dirname, dist, 'dependencies.txt'),
                 includePrivate: true, // Default is false.
             },
         }),

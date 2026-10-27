@@ -1,10 +1,8 @@
 import {defineConfig} from 'vite'
-import json from '@rollup/plugin-json';
 import dts from 'vite-plugin-dts'
-import {fixDtsImports} from '../../scripts/vite-utils.mjs';
-import packageJson from './package.json';
+import {fixDtsImports, glsl} from '../../scripts/vite-utils.mjs';
+import packageJson from './package.json' with {type: 'json'};
 import license from 'rollup-plugin-license';
-import glsl from 'rollup-plugin-glsl';
 import path from 'node:path';
 import replace from '@rollup/plugin-replace';
 
@@ -42,10 +40,7 @@ export default defineConfig({
         },
         outDir: 'dist',
         emptyOutDir: isProd,
-        commonjsOptions: {
-            exclude: [/uiconfig.js/, /ts-browser-helpers/, /three-mesh-bvh/, /three/],
-        },
-        rollupOptions: {
+        rolldownOptions: {
             output: {
                 // inlineDynamicImports: false,
                 globals,
@@ -70,7 +65,6 @@ export default defineConfig({
         glsl({ // todo: minify glsl.
             include: 'src/**/*.glsl',
         }),
-        json(),
         // postcss({
         //     modules: false,
         //     autoModules: true,  // todo; issues with typescript import css, because inject is false
@@ -87,7 +81,7 @@ export default defineConfig({
         See ./dependencies.txt for any bundled third-party dependencies and licenses.
       `,
             thirdParty: {
-                output: path.join(__dirname, 'dist', 'dependencies.txt'),
+                output: path.join(import.meta.dirname, 'dist', 'dependencies.txt'),
                 includePrivate: true, // Default is false.
             },
         }),
