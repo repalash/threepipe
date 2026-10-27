@@ -58,7 +58,7 @@
     "check-test-coverage": "node scripts/check-test-coverage.mjs",
     "test:types": "node scripts/check-consumer-types.mjs",
     "test": "npm run test:unit && npm run test:e2e",
-    "docs": "npx typedoc --skipErrorChecking && npm run website:build",
+    "docs": "npx typedoc --skipErrorChecking --hostedBaseUrl https://threepipe.org/docs/ && npm run website:build",
     "docs-plugins": "node scripts/each-plugin.mjs run docs",
     "docs-all": "npm run docs && npm run docs-plugins",
     "build-plugins": "node scripts/each-plugin.mjs clean-install -p",
@@ -161,7 +161,7 @@
     "stats.js": "^0.17.0",
     "three-mesh-bvh": "^0.9.16",
     "ts-browser-helpers": ">=0.20.0",
-    "uiconfig.js": ">=0.3.1"
+    "uiconfig.js": ">=0.4.1"
   },
   "peerDependencies": {
     "three": "npm:three-modded@0.168.10008"

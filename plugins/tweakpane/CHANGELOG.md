@@ -8,7 +8,15 @@ All notable changes to this plugin will be documented in this file.
 
 ### Added
 
-- NA
+- Color modes `clean` and `clean-dark` (`TweakpaneUiPlugin.colorMode`): a property-panel look with Inter at 11px, 24px fields on a grey fill, grey labels, sections split by thin lines with a chevron, 14px checkboxes filled with the accent, a thin slider track with a round knob, and outlined buttons.
+
+### Changed
+
+- Use [@threepipe/tweakpane-image-plugin](https://www.npmjs.com/package/@threepipe/tweakpane-image-plugin) 1.1.406 from npm in `devDependencies`, replacing the `tweakpane-image-plugin` 1.1.404 release tarball. A dropped file that is not an image (like `.hdr`, `.cube`) is now passed on as a `File` and loaded by the asset importer, instead of being set as a broken image texture.
+
+### Fixed
+
+- A dropped `File` was ignored when the current value of the image input was a texture whose image has no `src`, like an `.hdr` environment map.
 
 ## [0.10.1] - 2025-10-27
 

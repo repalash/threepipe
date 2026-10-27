@@ -294,6 +294,19 @@ describe('LineGeometryGenerator', () => {
         expect(d2.vertices.length).toBe(d1.vertices.length + 3)
     })
 
+    test('regenerating a line with more points lets it draw them all', async() => {
+        const lines = await import('../../../core/geometry/LineGeometry2')
+        const g = new LineGen()
+        const geometry = new lines.LineGeometry2()
+        g.generate(geometry, {segments: 10})
+        const before = geometry.getAttribute('instanceStart').count
+        // what three.js WebGLBindingStates stores at the first render; it is not updated when the attributes change
+        ;(geometry as any)._maxInstanceCount = before
+        g.generate(geometry, {segments: 20, closePath: true})
+        expect(geometry.getAttribute('instanceStart').count).toBeGreaterThan(before)
+        expect((geometry as any)._maxInstanceCount).toBeUndefined()
+    })
+
     test('throws when no curve provided and no default curve', () => {
         const g = new LineGen()
         g.defaultParams.curve = undefined
