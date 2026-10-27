@@ -32,6 +32,7 @@ export {FullScreenPlugin} from './interaction/FullScreenPlugin'
 export {LoadingScreenPlugin} from './interaction/LoadingScreenPlugin'
 export {InteractionPromptPlugin} from './interaction/InteractionPromptPlugin'
 export {PickingPlugin, type PickingPluginEventMap} from './interaction/PickingPlugin'
+export {GPUPickingPlugin, type GPUPickResult} from './interaction/GPUPickingPlugin'
 export {DuplicateTracker, type DuplicateMode} from './interaction/DuplicateTracker'
 export {ObjectClipboard, type ClipboardState, type ClipboardMode} from './interaction/ObjectClipboard'
 export {TransformControlsPlugin, TransformControls2} from './interaction/TransformControlsPlugin'
@@ -114,6 +115,7 @@ export {GLTFKHRMaterialVariantsPlugin} from './extras/GLTFKHRMaterialVariantsPlu
 export {TailwindCSSCDNPlugin} from './extras/TailwindCSSCDNPlugin'
 export {DynamicImportPlugin, sampleThreepipeViteHmrPlugin} from './extras/DynamicImportPlugin'
 export {ObjectConstraintsPlugin, ObjectConstraint, type ObjectConstraintsPluginEventMap} from './extras/ObjectConstraintsPlugin'
+export {BVHPlugin, type BVHMode, type BVHPluginEventMap, type BVHPluginOptions, type ThreeMeshBVH} from './extras/BVHPlugin'
 export {basicObjectConstraints, type ConstraintPropsTypes, type TConstraintPropsType, type ConstraintPropsType} from './extras/helpers/BasicObjectConstraints'
 
 // ecs

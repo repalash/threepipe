@@ -1,6 +1,7 @@
 import {
     _testFinish,
     _testStart,
+    BVHPlugin,
     Color,
     ContactShadowGroundPlugin,
     GBufferPlugin,
@@ -46,6 +47,8 @@ async function init() {
     viewer.addPluginSync(new PickingPlugin(undefined, false))
     // persistKey: settings and mode are saved in this browser
     const ux = viewer.addPluginSync(new SelectionUxPlugin({persistKey: 'selection-ux-settings'}))
+    // fast raycasts (picking, hover) on big meshes; ?bvh=0 to compare without
+    if (new URLSearchParams(location.search).get('bvh') !== '0') viewer.addPluginSync(new BVHPlugin())
     viewer.addPluginSync(SelectionOutlinePlugin)
     // the editor's own camera (free, no damping, never saved); the scene's default camera is the start view
     viewer.addPluginSync(new EditorCameraPlugin())

@@ -19,6 +19,8 @@ const globals = {
     'popmotion': 'popmotion',
     'stats.js': 'stats.js',
 };
+// loaded on demand by BVHPlugin: the consumer's bundler puts it in its own chunk
+const lazyExternals = ['three-mesh-bvh']
 
 export default defineConfig({
     optimizeDeps: {
@@ -55,7 +57,7 @@ export default defineConfig({
                 // inlineDynamicImports: false,
                 globals,
             },
-            external: Object.keys(globals),
+            external: [...Object.keys(globals), ...lazyExternals],
         },
     },
     plugins: [

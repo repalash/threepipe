@@ -13,6 +13,8 @@ const {main, module, browser} = packageJson
 
 const dist = 'dist'
 const globals = {}
+// loaded on demand by BVHPlugin: kept out of the bundle (an import map or BVHPluginOptions.load provides it)
+const lazyExternals = ['three-mesh-bvh']
 
 export default defineConfig({
     optimizeDeps: {
@@ -45,7 +47,7 @@ export default defineConfig({
                 // inlineDynamicImports: false,
                 globals,
             },
-            external: Object.keys(globals),
+            external: [...Object.keys(globals), ...lazyExternals],
         },
     },
     plugins: [

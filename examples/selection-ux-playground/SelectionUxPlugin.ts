@@ -3,14 +3,16 @@ import {
     AViewerPluginSync,
     Box3,
     BufferGeometry,
+    BVHPlugin,
     duplicateObjects,
     filterTopmostAncestors,
+    GeometryGeneratorPlugin,
+    GPUPickingPlugin,
     Group2,
     IObject3D,
     LineBasicMaterial,
     LineSegments,
     Matrix4,
-    GeometryGeneratorPlugin,
     MOUSE,
     Object3D,
     Object3DWidgetsPlugin,
@@ -798,14 +800,18 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
     }
 
     /** The visible leaf object under a screen point */
-    raycastLeaf(sx: number, sy: number): {leaf: IObject3D, point: Vector3} | null {
+    /**
+     * The object a press or hover at a screen point is on (the selection wins over what is in front of it).
+     * @param targets - only these objects (not their children); default: the model and the shown widgets
+     */
+    raycastLeaf(sx: number, sy: number, targets?: Object3D[]): {leaf: IObject3D, point: Vector3} | null {
         if (!this._viewer || !this._picking?.picker) return null
         this._rayFromScreen(sx, sy)
         const cam = this._camera() as any
         this._raycaster.params.Line = {threshold: this._worldPerPixel(cam.target ?? new Vector3()) * 5}
         // the 3D widgets of lights, cameras and lines stand for their object
         const roots = [this._modelRoot, ...this.widgetsShown ? this._picking.picker.extraObjects : []]
-        const hits = this._raycaster.intersectObjects(roots, true)
+        const hits = targets ? this._raycaster.intersectObjects(targets, false) : this._raycaster.intersectObjects(roots, true)
         const cond = this._picking.picker.selectionCondition
         // the selection wins over what is in front of it, like in Figma: a duplicate sits exactly on its original,
         // and a press on it must drag the copy (and keep the duplicate offset chain), not select the original
@@ -1963,7 +1969,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
             const d = hk ? this._handleMap.get(hk) : undefined
             h = d?.kind === 'icon' ? d.obj : null
         } else if (this._pointerInside && this.settings.hover) {
-            const hit = this.raycastLeaf(this._pointer.x, this._pointer.y)
+            const hit = this._hoverHit(this._pointer.x, this._pointer.y)
             const tgt = hit ? this.resolveTarget(hit.leaf, this._keys.ctrl, false) : null
             h = tgt
             // inside a selected group, hover previews the part that a double-click selects
@@ -1977,6 +1983,25 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
             this._hover = h
             this._emit('hover')
         }
+    }
+
+    /**
+     * The hover hit. With GPUPickingPlugin and no BVHPlugin: the GPU pick for meshes (one draw, no triangle tests),
+     * and a raycast of the lines, points and widgets only when it finds no mesh. Else the raycast.
+     */
+    private _hoverHit(x: number, y: number) {
+        const viewer = this._viewer
+        const gpu = viewer?.getPlugin(GPUPickingPlugin)
+        const bvh = viewer?.getPlugin(BVHPlugin)
+        if (!viewer || !gpu || gpu.isDisabled() || bvh && !bvh.isDisabled()) return this.raycastLeaf(x, y)
+        const cond = this._picking?.picker?.selectionCondition
+        const hit = gpu.pick(x, y, o => !cond || cond(o as IObject3D) && !this.isLocked(o as IObject3D))
+        if (hit) return {leaf: hit.object, point: hit.point}
+        const rest: Object3D[] = []
+        const add = (o: Object3D) => (o as any).isLine || (o as any).isLine2 || (o as any).isLineSegments2 || (o as any).isPoints || (o as any).isSprite
+        this._modelRoot.traverseVisible(o => add(o) && rest.push(o))
+        if (this.widgetsShown) for (const w of this._picking?.picker?.extraObjects ?? []) w.traverseVisible(o => rest.push(o))
+        return rest.length ? this.raycastLeaf(x, y, rest) : null
     }
 
     private _screenRect(corners: Vector3[]) {

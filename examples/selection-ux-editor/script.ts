@@ -1,4 +1,4 @@
-import {_testFinish, _testStart, EditorViewWidgetPlugin, GBufferPlugin, HemisphereLight, IViewerPlugin, Class, PickingPlugin, TransformControlsPlugin} from 'threepipe'
+import {BVHPlugin, GPUPickingPlugin, _testFinish, _testStart, EditorViewWidgetPlugin, GBufferPlugin, HemisphereLight, IViewerPlugin, Class, PickingPlugin, TransformControlsPlugin} from 'threepipe'
 import {HierarchyUiPlugin, TweakpaneEditorPlugin} from '@threepipe/plugin-tweakpane-editor'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 import {OutlinePlugin} from '@threepipe/webgi-plugins'
@@ -63,6 +63,11 @@ async function init() {
     // camera along a path, the timeline bar with Record (adds VideoRecorderPlugin)
     viewer.addPluginSync(new CameraPathPlugin())
     viewer.addPluginSync(new TimelineBarPlugin())
+    // fast raycasts (picking, hover) on big meshes; ?bvh=0 to compare without.
+    // ?pick=gpu: no BVH, the hover picks object ids on the GPU instead (GPUPickingPlugin)
+    const pickParam = new URLSearchParams(location.search)
+    if (pickParam.get('pick') === 'gpu') viewer.addPluginSync(new GPUPickingPlugin())
+    else if (pickParam.get('bvh') !== '0') viewer.addPluginSync(new BVHPlugin())
     // the material variations and switch node options of the selection, in a bar over it
     viewer.addPluginSync(new VariationsBarPlugin())
     const layers = viewer.addPluginSync(new LayersPanelPlugin('light'))
