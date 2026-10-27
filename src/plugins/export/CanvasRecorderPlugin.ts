@@ -175,33 +175,42 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
             progressive.maxFrameCount = Math.min(16, maxFrameCount ?? 16)
         }
 
-        await new Promise<void>((resolve, reject) => {
-            const listener2 = () => {
-                this.removeEventListener('start', listenerStart)
-                this.removeEventListener('stop', listener2)
-                this.removeEventListener('error', listenerError)
+        try {
+            await new Promise<void>((resolve, reject) => {
+                const listener2 = () => {
+                    this.removeEventListener('start', listenerStart)
+                    this.removeEventListener('stop', listener2)
+                    this.removeEventListener('error', listenerError)
+                }
+                const listenerStart = async() => {
+                    listener2()
+                    try {
+                        onStart?.()
+                        await action()
+                        resolve()
+                    } catch (e) {
+                        reject(e)
+                    }
+                }
+                const listenerError = async() => {
+                    listener2()
+                    reject()
+                }
+                this.addEventListener('start', listenerStart)
+                this.addEventListener('stop', listener2)
+                this.addEventListener('error', listenerError)
+                this.startRecording()
+            })
+            return await this.stopRecording()
+        } catch (e) {
+            // the action failed: stop the recording (its result is dropped) and pass the error on
+            if (this._recorder?.isRecording()) await this.stopRecording()
+            throw e
+        } finally {
+            if (progressive && this.convergeMode) {
+                progressive.maxFrameCount = maxFrameCount ?? 16
             }
-            const listenerStart = async() => {
-                listener2()
-                onStart?.()
-                await action()
-                resolve()
-            }
-            const listenerError = async() => {
-                listener2()
-                reject()
-            }
-            this.addEventListener('start', listenerStart)
-            this.addEventListener('stop', listener2)
-            this.addEventListener('error', listenerError)
-            this.startRecording()
-        })
-        const res = await this.stopRecording()
-
-        if (progressive && this.convergeMode) {
-            progressive.maxFrameCount = maxFrameCount ?? 16
         }
-        return res
     }
 
     startRecording(): boolean {
@@ -438,6 +447,12 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
     async recordCamera360(durationNum: number, ccw = false, angle = 360, ease?: Easing, onStart?: () => void): Promise<Blob | undefined> {
         if (this.recorder?.isRecording()) return
         if (!this._viewer) return
+        // before the camera is changed: without it nothing records, and the camera must stay usable
+        const popmotion = this._viewer.getPlugin<PopmotionPlugin>('PopmotionPlugin')
+        if (!popmotion) {
+            console.error('Popmotion plugin not found')
+            return
+        }
         const camera = this._viewer.scene.mainCamera
         let interactions = camera.interactionsEnabled
         let i = 0
@@ -452,39 +467,37 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
         camera.setInteractions(false, CanvasRecorderPlugin.PluginType)
         const cameraTarget = camera.target.clone()
         const cameraPos = camera.position.clone().sub(cameraTarget)
-        const popmotion = this._viewer.getPlugin<PopmotionPlugin>('PopmotionPlugin')
-        if (!popmotion) {
-            console.error('Popmotion plugin not found')
-            return
-        }
         const current = new Spherical().setFromVector3(cameraPos)
         camera.position.setFromSpherical(current).add(cameraTarget)
         camera.setDirty()
         const lastAutoLookAt = camera.userData.autoLookAtTarget
         camera.userData.autoLookAtTarget = true
         const initial = current.theta
-        const b = await this.record(async() => popmotion.animate({
-            from: initial,
-            to: initial + (ccw ? -1 : 1) * angle * Math.PI / 180,
-            duration: durationNum * 1000,
-            ease: ease ?? EasingFunctions.linear,
-            onUpdate: (v: number) => {
-                current.theta = v
-                camera.position.setFromSpherical(current).add(cameraTarget)
-                camera.setDirty()
-            },
-            onComplete: async() => {
-                current.theta = initial
-                camera.position.setFromSpherical(current).add(cameraTarget)
-                camera.setDirty()
-                // await timeout(500)
-            },
-        }).promise, onStart)
-        camera.userData.autoLookAtTarget = lastAutoLookAt
-        camera.position.copy(cameraPos).add(cameraTarget)
-        camera.setDirty()
-        camera.setInteractions(true, CanvasRecorderPlugin.PluginType)
-        return b
+        try {
+            return await this.record(async() => popmotion.animate({
+                from: initial,
+                to: initial + (ccw ? -1 : 1) * angle * Math.PI / 180,
+                duration: durationNum * 1000,
+                ease: ease ?? EasingFunctions.linear,
+                onUpdate: (v: number) => {
+                    current.theta = v
+                    camera.position.setFromSpherical(current).add(cameraTarget)
+                    camera.setDirty()
+                },
+                onComplete: async() => {
+                    current.theta = initial
+                    camera.position.setFromSpherical(current).add(cameraTarget)
+                    camera.setDirty()
+                    // await timeout(500)
+                },
+            }).promise, onStart)
+        } finally {
+            // also when the recording failed: the camera goes back and can be used again
+            camera.userData.autoLookAtTarget = lastAutoLookAt
+            camera.position.copy(cameraPos).add(cameraTarget)
+            camera.setDirty()
+            camera.setInteractions(true, CanvasRecorderPlugin.PluginType)
+        }
     }
 
     protected _getRecorder(type: 'ffmpeg.js' | 'canvas-media' | 'image') {

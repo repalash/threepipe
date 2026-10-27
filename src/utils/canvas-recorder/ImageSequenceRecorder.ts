@@ -44,14 +44,13 @@ export class ImageSequenceRecorder extends ACanvasRecorder {
     requestFrame() {
         if (!super.requestFrame()) return false
         const mime = this.options.mimeType
+        // the name now: toBlob calls back later, after more frames may have been requested
+        const name = 'frame_' + String(this._frameCount).padStart(5, '0') + (mime.includes('png') ? '.png' : '.jpg')
 
         // const dataUrl = this._canvas.toDataURL(mime, 90);
         this._canvas.toBlob(
             (blob) => {
-                this._currentImages.push([
-                    'frame_' + String(this._frameCount).padStart(5, '0') + (mime.includes('png') ? '.png' : '.jpg'),
-                    blob!,
-                ])
+                this._currentImages.push([name, blob!])
             },
             mime,
             90,
