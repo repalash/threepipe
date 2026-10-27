@@ -164,6 +164,11 @@ export class CanvasMediaRecorder extends ACanvasRecorder {
     dispose() {
         this._stopTrack()
         if (!this._recorder) return
+        // step mode: the frames that wait are dropped, and a stop that waits for a step stops now
+        const stepping = this._stepping
+        this._stepping = false
+        this._queuedFrames = 0
+        if (stepping && this.state === 'stopping') this._recorder.stop()
         super.dispose()
         this._recorder = undefined
     }

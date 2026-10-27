@@ -848,6 +848,30 @@ describe('CanvasMediaRecorder', () => {
         }
     })
 
+    test('step mode: a dispose during a step settles the stop and drops the frames that wait', async() => {
+        const mediaRecorder = fakeMediaRecorder()
+        vi.stubGlobal('window', {MediaRecorder: mediaRecorder})
+        vi.stubGlobal('MediaRecorder', mediaRecorder)
+        try {
+            const track = {stop: vi.fn(), requestFrame: vi.fn()}
+            const canvas = {captureStream: () => ({getVideoTracks: () => [track]})} as any
+            const rec = new CanvasMediaRecorder(canvas, {mimeType: 'auto', frameRate: 100, stepMode: true}) as any // 10 ms per frame
+            rec.start()
+            rec._recorder.resume = function(this: any) {
+                this.onresume(new Event('resume'))
+            }
+            rec.requestFrame()
+            rec.requestFrame() // waits for the first
+            const stopped = new Promise(resolve => rec.stop(() => resolve('called back')))
+            rec.dispose() // e.g. the plugin is removed
+            expect(await Promise.race([stopped, new Promise(r => setTimeout(() => r('hung'), 100))])).toBe('called back')
+            await new Promise(r => setTimeout(r, 30)) // the timer of the step ends without an error
+            expect(track.requestFrame).toHaveBeenCalledTimes(1)
+        } finally {
+            vi.unstubAllGlobals()
+        }
+    })
+
     test('a stop without data still calls back, with no recording', async() => {
         const mediaRecorder = fakeMediaRecorder()
         vi.stubGlobal('window', {MediaRecorder: mediaRecorder})
