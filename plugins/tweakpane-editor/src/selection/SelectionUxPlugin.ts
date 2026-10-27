@@ -215,8 +215,9 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
 
     // region raycast
 
+    /** The canvas rectangle: the rendered view (it can be smaller than the container, or offset in it) */
     private _size() {
-        const r = this._viewer!.container.getBoundingClientRect()
+        const r = this._viewer!.canvas.getBoundingClientRect()
         return {w: r.width, h: r.height, left: r.left, top: r.top}
     }
 
@@ -238,13 +239,17 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         return [this._modelRoot, ...this._picking?.picker?.extraObjects ?? []]
     }
 
-    /** The selectable object of a raycast hit: the object of a widget, or the hit object when the PickingPlugin can select it */
+    /**
+     * The selectable object of a raycast hit: the object of a widget, else the hit object or its first parent that the
+     * PickingPlugin can select (as the core picker does)
+     */
     private _hitLeaf(o: IObject3D): IObject3D | null {
         // a raycast also hits hidden objects: an object that is hidden, or in a hidden parent, is not on the screen
         for (let p: Object3D | null = o; p; p = p.parent) if (!p.visible) return null
         let w: any = o
         while (w && !(w.assetType === 'widget' && w.object)) w = w.parent
-        const leaf: IObject3D | null = w ? w.object.visible ? w.object : null : this._picking?.picker?.selectionCondition(o) ? o : null
+        let leaf: IObject3D | null = w ? w.object.visible ? w.object : null : o
+        if (!w) while (leaf && !this._picking?.picker?.selectionCondition(leaf)) leaf = leaf.parent as IObject3D | null
         return leaf && this.levels(leaf).length ? leaf : null
     }
 
@@ -252,8 +257,8 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
      * The object that a press at a screen point is on. The selection wins over what is in front of it, like in Figma,
      * and a line or point wins over a surface at about the same depth. `handle` is set when the press is on a widget
      * handle (a curve point): the PickingPlugin selects it, so the transform gizmo can move it.
-     * @param sx - x in pixels from the left of the viewer container
-     * @param sy - y in pixels from the top of the viewer container
+     * @param sx - x in pixels from the left of the viewer canvas
+     * @param sy - y in pixels from the top of the viewer canvas
      */
     raycastLeaf(sx: number, sy: number): {leaf: IObject3D, point: Vector3, handle?: Object3D} | null {
         if (!this._viewer || !this._picking?.picker) return null
@@ -284,8 +289,8 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
 
     /**
      * The objects under a screen point, front to back, as a click selects them (one per object, at the click's level)
-     * @param x - x in pixels from the left of the viewer container
-     * @param y - y in pixels from the top of the viewer container
+     * @param x - x in pixels from the left of the viewer canvas
+     * @param y - y in pixels from the top of the viewer canvas
      * @param deep - the deepest level (as Ctrl/Cmd+click)
      */
     targetsAt(x: number, y: number, deep = false): IObject3D[] {

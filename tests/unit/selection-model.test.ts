@@ -397,6 +397,29 @@ describe('SelectionUxPlugin', () => {
         expect(hit.intersects.consumed).toBeUndefined() // the core pick goes on, with the handle for the gizmo
     })
 
+    test('a hit on a part that cannot be selected selects its first parent that can, as the core picker does', () => {
+        const {picking, click, lamp, names} = setup()
+        const g = lamp.parent as IObject3D
+        const box = group('Box')
+        box.userData.userSelectable = true
+        g.add(box)
+        g.remove(lamp)
+        box.add(lamp)
+        lamp.userData.userSelectable = false
+        box.updateMatrixWorld(true)
+        const condition = picking.picker.selectionCondition
+        picking.picker.selectionCondition = (o: IObject3D) => o.userData.userSelectable === true || condition(o)
+        click(lamp)
+        expect(names()).toEqual(['Box'])
+    })
+
+    test('the pointer is measured on the canvas, also when the container is larger', () => {
+        const {viewer, click, lamp, names} = setup()
+        viewer.container = {getBoundingClientRect: () => ({left: 0, top: 0, width: SIZE * 2, height: SIZE * 2})}
+        click(lamp)
+        expect(names()).toEqual(['Lamp'])
+    })
+
     test('a hidden object is not selected: the click goes to the visible one behind it', () => {
         const {click, lamp, names} = setup()
         lamp.visible = false
