@@ -178,6 +178,12 @@ export class EditorCameraPlugin extends AViewerPluginSync {
         super.onRemove(viewer)
     }
 
+    /** Disposes the editor camera and its orbit controls (their pointer listeners on the canvas) */
+    dispose() {
+        this.camera.dispose()
+        super.dispose()
+    }
+
     private _refreshEditing() {
         // this sets editing again, and the second call applies it
         if (this.editing && !this.enabled) {

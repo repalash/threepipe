@@ -240,6 +240,15 @@ describe('EditorCameraPlugin', () => {
         expect(start.fov).toBe(50)
     })
 
+    test('dispose disposes the editor camera (its controls)', () => {
+        const {plugin, viewer} = setup()
+        const dispose = vi.spyOn(plugin.camera, 'dispose')
+        plugin.onRemove(viewer)
+        expect(dispose).not.toHaveBeenCalled() // a removed plugin can be added again
+        plugin.dispose()
+        expect(dispose).toHaveBeenCalledTimes(1)
+    })
+
     test('copyStartView copies the zoom', () => {
         const {plugin, start} = setup()
         start.zoom = 1.5
