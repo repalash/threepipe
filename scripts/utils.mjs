@@ -151,11 +151,19 @@ export async function execEachPluginParallel (command, templates = false) {
 
     console.log(`\nExecuting '${command}' in parallel...`);
 
+    // A failed plugin does not stop the others: the plugins that depend on it are skipped, the rest still run, and
+    // the error comes at the end. Else one broken plugin leaves a fresh clone half installed.
+    const failed = new Map() // plugin name -> error message
     for (let levelIndex = 0; levelIndex < installPlan.length; levelIndex++) {
         const level = installPlan[levelIndex];
         console.log(`\n--- Level ${levelIndex + 1} (${level.length} plugins) ---`);
 
         const run = async (plugin) => {
+            const brokenDep = plugin.deps.find(d => failed.has(d));
+            if (brokenDep) {
+                console.error(`- Skipped: ${plugin.name} (depends on ${brokenDep}, which failed)`);
+                return {plugin: plugin.name, success: false, duration: 0, error: `skipped: depends on ${brokenDep}`};
+            }
             const startTime = Date.now();
             console.log(`Starting: ${command} in ${plugin.name}`);
 
@@ -183,18 +191,17 @@ export async function execEachPluginParallel (command, templates = false) {
             results.push(...await Promise.all(group.map(run)));
         }
 
-        // Check if any failed
         const failures = results.filter(r => !r.success);
-        if (failures.length > 0) {
-            console.error(`\n❌ ${failures.length} plugin(s) failed in level ${levelIndex + 1}:`);
-            failures.forEach(failure => {
-                console.error(`  - ${failure.plugin}: ${failure.error}`);
-            });
-            throw new Error(`Installation failed for ${failures.length} plugin(s)`);
-        }
+        failures.forEach(failure => failed.set(failure.plugin, failure.error));
 
         const totalTime = Math.max(...results.map(r => r.duration));
-        console.log(`✓ Level ${levelIndex + 1} completed in ${totalTime}ms`);
+        console.log(`${failures.length ? '✗' : '✓'} Level ${levelIndex + 1} done in ${totalTime}ms${failures.length ? `, ${failures.length} failed or skipped` : ''}`);
+    }
+
+    if (failed.size > 0) {
+        console.error(`\n❌ ${failed.size} plugin(s) failed or were skipped; the other plugins are done:`);
+        failed.forEach((error, plugin) => console.error(`  - ${plugin}: ${error}`));
+        throw new Error(`'${command}' failed for ${failed.size} plugin(s): ${[...failed.keys()].join(', ')}`);
     }
 
     console.log('\n🎉 All plugins processed successfully!');

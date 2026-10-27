@@ -5,11 +5,18 @@ We welcome contributions to Threepipe. Please read the following guidelines to s
 ## Setting up the project
 
 1. Clone the repository
-2. Run `npm install`
+2. Run `npm install`. It also builds the core, installs and builds every plugin in `plugins/`, and builds the examples.
+
+With npm 12 or newer, run `npm install --allow-git=all` instead. npm 12 refuses dependencies from git repositories by
+default (`EALLOWGIT`), and `plugins/tweakpane-editor` (treejs) and `plugins/svg-renderer` (arrangement-2d-js) still
+have one each.
+
+If a plugin fails to install, the others are still installed and the examples are still built; the install ends
+with the list of failed plugins. Fix the cause, then run `npm ci` in that plugin's folder (`plugins/<name>`).
 
 ## Development
 
-1. Run `npm run vite` to run vite dev server and navigate to http://localhost:5173/examples/index.html
+1. Run `npm run vite` to run vite dev server and open the URL it prints (http://localhost:5173/ opens the examples at /examples/index.html)
 2. Test the examples and pick the one you are working on.
 
 OR
