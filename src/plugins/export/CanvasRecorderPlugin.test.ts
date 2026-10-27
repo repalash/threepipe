@@ -28,7 +28,7 @@ function fakeRecorder(plugin: CanvasRecorderPlugin) {
 function setup(plugins: Record<string, any> = {}) {
     const plugin = new CanvasRecorderPlugin() as any
     plugin.convergeMode = true
-    const progressive = {maxFrameCount: 32, isConverged: () => true}
+    const progressive = {maxFrameCount: 32, isConverged: (_postRender?: boolean) => true}
     const camera = Object.assign(new EventDispatcher(), {
         interactionsEnabled: true,
         target: new Vector3(),
@@ -470,6 +470,38 @@ describe('CanvasRecorderPlugin stop and remove', () => {
         expect(dispose).toHaveBeenCalled()
         expect(plugin.recorder).toBeUndefined()
         expect(plugin._recorders).toEqual({})
+    })
+})
+
+describe('converge mode stop', () => {
+    // each postFrame renders one progressive frame; the converged frame is captured (in _postRender)
+    function converging(maxFrameCount: number) {
+        const {plugin, progressive} = setup()
+        let frameCount = 0
+        progressive.maxFrameCount = maxFrameCount
+        progressive.isConverged = (postRender = false) => frameCount >= maxFrameCount - 1 + (postRender ? 1 : 0)
+        const captured: number[] = []
+        const rec = plugin._recorder
+        rec.requestFrame = () => rec.isRecording() && captured.push(frameCount)
+        plugin._viewer.doOnce = async() => {
+            if (progressive.isConverged(true)) return // converged: nothing renders
+            frameCount++
+            plugin._postRender()
+        }
+        rec.start()
+        return {plugin, captured}
+    }
+
+    test('the stop waits for the last pose to converge (16 samples in record())', async() => {
+        const {plugin, captured} = converging(16)
+        await plugin.stopRecording()
+        expect(captured).toEqual([16])
+    })
+
+    test('the converged frame is captured before the recorder stops, also without end padding', async() => {
+        const {plugin, captured} = converging(4)
+        await plugin.stopRecording()
+        expect(captured).toEqual([4])
     })
 })
 

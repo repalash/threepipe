@@ -331,13 +331,16 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
             if (this._convergeNow) {
                 const progressive = this._viewer?.getPlugin<ProgressivePlugin>('ProgressivePlugin')
                 if (progressive) {
-                    const max = 10
+                    // the last pose converges in maxFrameCount frames; the cap ends the wait in a scene that never converges
+                    const max = progressive.maxFrameCount + 2
                     for (let i = 0; i < max; i++) {
                         if (progressive.isConverged(true)) break
                         await this._viewer.doOnce('postFrame')
                     }
                 }
             }
+            // the capture of the last converged frame waits for a timeout: take it before the recorder stops
+            this._pendingCapture?.()
             if (this.endPaddingMs) await timeout(this.endPaddingMs)
             // the recorder failed (or stopped) during the waits above: its stop() would not call back
             const recorder = this.recorder
