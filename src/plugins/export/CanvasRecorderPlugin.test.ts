@@ -581,6 +581,31 @@ describe('recording time', () => {
         expect(done).toBe(true)
     })
 
+    test('a wait counts the still frames of a browser recorder, whose capture comes after the listeners', async() => {
+        const {plugin, progressive} = setup()
+        const viewer = Object.assign(new EventDispatcher(), plugin._viewer)
+        plugin._viewer = viewer
+        let busy = false
+        Object.assign(plugin._recorder, {requestFrame: () => busy = true, isBusy: () => busy}) // a browser recorder
+        Object.assign(progressive, {postFrameConvergedRecordingDelta: () => plugin.canRecordFrame() ? 1 / 30 : 0})
+        viewer.addEventListener('postFrame', plugin._postFrame) // the recorder listens before the wait
+        plugin._recorder.start()
+        let done = false
+        const wait = plugin.waitRecordingTime(100).then(() => done = true) // 3 frames at 30 fps
+        const stillFrame = () => {
+            viewer.dispatchEvent({type: 'postFrame'})
+            plugin._pendingCapture?.() // the capture, at its timeout
+            busy = false // the browser recorder ends the frame before the next one
+        }
+        stillFrame()
+        stillFrame()
+        await Promise.resolve()
+        expect(done).toBe(false)
+        stillFrame()
+        await wait
+        expect(done).toBe(true)
+    })
+
     test('a scene that does not converge waits the rest of the time on the wall clock', async() => {
         const {plugin, progressive} = setup()
         const viewer = Object.assign(new EventDispatcher(), plugin._viewer)
