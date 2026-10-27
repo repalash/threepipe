@@ -101,6 +101,30 @@ describe('EditorCameraPlugin', () => {
         expect(start.target.toArray()).toEqual([0, 0, 0])
     })
 
+    test('in View, undo of setStartViewFromEditor is kept when Edit starts again', () => {
+        const {plugin, start, records} = setup()
+        plugin.editing = false
+        plugin.camera.position.set(2, 3, 4)
+        plugin.setStartViewFromEditor()
+        records[0].undo()
+        plugin.editing = true
+        expect(start.position.toArray()).toEqual([0, 1, 6])
+        plugin.editing = false
+        records[0].redo()
+        plugin.resetStartView()
+        expect(start.position.toArray()).toEqual([2, 3, 4])
+    })
+
+    test('in View, a file with a viewer config sets the start view to put back', () => {
+        const {plugin, viewer, start} = setup()
+        plugin.editing = false
+        start.position.set(1, 2, 3) // the imported start view
+        viewer.assetManager.dispatchEvent({type: 'loadAsset', data: {importedViewerConfig: true}})
+        start.position.set(4, 1, 0) // a look around
+        plugin.editing = true
+        expect(start.position.toArray()).toEqual([1, 2, 3])
+    })
+
     test('setStartViewFromEditor works without the UndoManagerPlugin', () => {
         const {plugin, start} = setup({undo: false})
         plugin.camera.position.set(2, 3, 4)

@@ -186,10 +186,14 @@ export class EditorCameraPlugin extends AViewerPluginSync {
         const before = {position: start.position.clone(), target: start.target.clone()}
         // the start view is a child of the scene, so the world pose of the editor camera is its local pose
         const after = {position: this.camera.getWorldPosition(new Vector3()), target: this.camera.target.clone()}
-        this._setStartView(after)
+        this._moveStartView(after)
         this._recordStartView(before, after)
-        // in View, the start view is looked through: the new pose is the one to put back
-        if (this._startPose) this._startPose = after
+    }
+
+    /** Moves the start view. In View, the pose to put back moves with it, so a later Edit or reset keeps the move. */
+    private _moveStartView(pose: {position: Vector3, target: Vector3}) {
+        this._setStartView(pose)
+        if (this._startPose) this._startPose = pose
     }
 
     private _setStartView(pose: {position: Vector3, target: Vector3}) {
@@ -205,8 +209,8 @@ export class EditorCameraPlugin extends AViewerPluginSync {
     private _recordStartView(before: {position: Vector3, target: Vector3}, after: {position: Vector3, target: Vector3}) {
         if (after.position.equals(before.position) && after.target.equals(before.target)) return
         this._viewer?.getPlugin(UndoManagerPlugin)?.undoManager?.record({
-            undo: () => this._setStartView(before),
-            redo: () => this._setStartView(after),
+            undo: () => this._moveStartView(before),
+            redo: () => this._moveStartView(after),
         })
     }
 
@@ -225,6 +229,10 @@ export class EditorCameraPlugin extends AViewerPluginSync {
 
     // a file with a viewer config brings its start view: begin to edit from it
     private _onLoad = (e: {data?: any}) => {
-        if (e.data?.importedViewerConfig) this.copyStartView()
+        if (!e.data?.importedViewerConfig) return
+        this.copyStartView()
+        // in View, the start view of the new file is the one to put back
+        const start = this.startCamera
+        if (start && this._startPose) this._startPose = {position: start.position.clone(), target: start.target.clone()}
     }
 }
