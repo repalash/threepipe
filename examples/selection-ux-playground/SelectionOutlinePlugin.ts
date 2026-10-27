@@ -111,7 +111,9 @@ export class SelectionOutlinePlugin extends AScreenPassExtensionPlugin {
         const key = this._stateKey()
         if (key === this._lastKey) return
         this._lastKey = key
-        this._viewer?.setDirty()
+        // one more frame, not a restart: the mask is drawn in the screen pass, over the converged image.
+        // viewer.setDirty() threw the progressive frames away, so each hover cost 32 full frames.
+        this._viewer?.renderManager.setDirty()
     }
 
     private _ux() {
