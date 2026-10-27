@@ -4,6 +4,7 @@ import {CanvasRecorderPlugin} from './CanvasRecorderPlugin'
 import {ImageSequenceRecorder} from '../../utils/canvas-recorder/ImageSequenceRecorder'
 import {FFMPEGRecorder} from '../../utils/canvas-recorder/FFMPEGRecorder'
 import {CameraViewPlugin} from '../animation/CameraViewPlugin'
+import {ProgressivePlugin} from '../pipeline/ProgressivePlugin'
 
 // a recorder that starts at once and stops with an empty blob
 function fakeRecorder(plugin: CanvasRecorderPlugin) {
@@ -137,6 +138,29 @@ describe('CanvasRecorderPlugin', () => {
         expect(plugin._recorder).toBe(next)
     })
 
+    test('the running recording keeps its converge mode and frame rate; a change applies to the next one', async() => {
+        const {plugin, progressive} = setup()
+        Object.defineProperty(plugin._recorder, 'state', {get: () => plugin._recorder.isRecording() ? 'recording' : 'stopped'})
+        plugin._getRecorder = vi.fn(() => ({setOptions: vi.fn()}))
+        plugin.videoFrameRate = 30
+        // the animation step that ProgressivePlugin gives while the recording runs
+        const delta = () => ProgressivePlugin.prototype.postFrameConvergedRecordingDelta.call({
+            _viewer: {getPlugin: () => plugin}, isConverged: () => true,
+        } as any)
+        let settings: any
+        let step = -1
+        await plugin.record(async() => {
+            plugin.videoFrameRate = 60
+            plugin.convergeMode = false
+            settings = plugin.recordingSettings
+            step = delta()
+        })
+        expect(settings).toEqual({convergeMode: true, videoFrameRate: 30})
+        expect(step).toBeCloseTo(1 / 30)
+        expect(progressive.maxFrameCount).toBe(32) // restored for the converge mode of the recording
+        expect(plugin.recordingSettings).toBeUndefined()
+    })
+
     test('recordCamera360 without PopmotionPlugin leaves the camera interactions alone', async() => {
         const {plugin, camera} = setup()
         const error = vi.spyOn(console, 'error').mockImplementation(() => undefined)
@@ -241,6 +265,26 @@ describe('ImageSequenceRecorder failures and names', () => {
         expect(rec.state).toBe('error')
     })
 
+    test('a failed batch write: stop still waits for the captures that run', async() => {
+        const callbacks: (() => void)[] = []
+        const canvas = {toBlob: (cb: (b: Blob) => void) => callbacks.push(() => cb(new Blob([])))} as any
+        const rec = new ImageSequenceRecorder(canvas, {mimeType: 'image/png'}) as any
+        rec._console = {error: () => undefined, warn: () => undefined}
+        let fail!: (e: Error) => void
+        rec._track(new Promise<void>((_, reject) => fail = reject)) // a batch write that fails during the stop
+        rec.setState('recording')
+        rec.requestFrame()
+        const done = new Promise(resolve => rec.stop(resolve))
+        let settled = false
+        void done.then(() => settled = true)
+        fail(new Error('disk full'))
+        await new Promise(r => setTimeout(r, 0))
+        expect(settled).toBe(false) // the capture still runs
+        callbacks[0]()
+        await done
+        expect(rec.state).toBe('error')
+    })
+
     test('WebP frames get the .webp extension', () => {
         const canvas = {toBlob: (cb: (b: Blob) => void) => cb(new Blob([]))} as any
         const rec = new ImageSequenceRecorder(canvas, {mimeType: 'image/webp'}) as any
@@ -289,6 +333,34 @@ describe('FFMPEGRecorder stop', () => {
             callbacks[1]()
             await new Promise(r => setTimeout(r, 0))
             expect(messages).toEqual(['image:img000000.jpeg', 'image:img000001.jpeg', 'run'])
+        } finally {
+            vi.unstubAllGlobals()
+            vi.restoreAllMocks()
+        }
+    })
+
+    test('an encode without output still calls back, and the recorder ends in the error state', async() => {
+        vi.stubGlobal('Worker', class {
+            onmessage: any = null
+            postMessage() {
+                return undefined
+            }
+        })
+        try {
+            const canvas = {width: 4, height: 4, toBlob: (cb: (b: Blob) => void) => cb(new Blob([]))} as any
+            const rec = new FFMPEGRecorder(canvas, {mimeType: 'video/mp4'}) as any
+            vi.spyOn(console, 'log').mockImplementation(() => undefined)
+            vi.spyOn(console, 'error').mockImplementation(() => undefined)
+            vi.spyOn(console, 'time').mockImplementation(() => undefined)
+            rec.start()
+            rec.requestFrame()
+            await new Promise(r => setTimeout(r, 0))
+            const done = new Promise(resolve => rec.stop(resolve))
+            await new Promise(r => setTimeout(r, 0))
+            rec.worker.onmessage({data: {type: 'exit', data: 1}})
+            rec.worker.onmessage({data: {type: 'done', data: {MEMFS: []}}}) // ffmpeg wrote no file
+            expect(await done).toBeUndefined()
+            expect(rec.state).toBe('error')
         } finally {
             vi.unstubAllGlobals()
             vi.restoreAllMocks()

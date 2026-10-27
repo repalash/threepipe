@@ -8,7 +8,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
-- [`CanvasRecorderPlugin`](https://threepipe.org/plugin/CanvasRecorderPlugin.html), ported from webgi: records the canvas to MP4 (ffmpeg.js, `FFMPEGRecorder.LIBRARY_PATH`), to the browser's `MediaRecorder` format (`mimeType: 'auto'`) or to an image sequence. Converge mode captures a frame after the `ProgressivePlugin` converges and steps the animations by `1 / videoFrameRate` per frame. Also `record(action)`, `recordCamera360`, `download360Recording`, the recorders `FFMPEGRecorder`, `CanvasMediaRecorder`, `ImageSequenceRecorder` and `ACanvasRecorder`, and an example
+- [`CanvasRecorderPlugin`](https://threepipe.org/plugin/CanvasRecorderPlugin.html), ported from webgi: records the canvas to MP4 (ffmpeg.js, `FFMPEGRecorder.LIBRARY_PATH`), to the browser's `MediaRecorder` format (`mimeType: 'auto'`) or to an image sequence. Converge mode captures a frame after the `ProgressivePlugin` converges and steps the animations by `1 / videoFrameRate` per frame. A recording keeps the format, frame rate and converge mode it started with (`recordingSettings`). Also `record(action)`, `recordCamera360`, `download360Recording`, the recorders `FFMPEGRecorder`, `CanvasMediaRecorder`, `ImageSequenceRecorder` and `ACanvasRecorder`, and an example
 - `CameraViewPlugin.recordAllViews()` (and its UI button) records the animation through all the camera views with the `CanvasRecorderPlugin`
 - `ProgressivePlugin.postFrameConvergedRecordingDelta()` returns the recording delta of a `CanvasRecorderPlugin` (it was a stub that returned -1)
 

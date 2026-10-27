@@ -72,6 +72,22 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
     /** A recorder option changed while a recording runs: applied when it stops */
     private _optionsPending = false
 
+    private _active?: {convergeMode: boolean, videoFrameRate: number}
+
+    /**
+     * The converge mode and the frame rate of the running recording, from its start until it stops. A change of
+     * {@link convergeMode} or {@link videoFrameRate} during a recording applies to the next one, so the frames, the
+     * animation steps ({@link ProgressivePlugin.postFrameConvergedRecordingDelta}) and the encoded frame rate match.
+     */
+    get recordingSettings(): {convergeMode: boolean, videoFrameRate: number} | undefined {
+        return this._active
+    }
+
+    /** The converge mode of the running recording, else the setting */
+    private get _convergeNow(): boolean {
+        return (this._active ?? this).convergeMode
+    }
+
     /** The recorder is starting, recording or stopping (an MP4 encodes while it stops) */
     private _recorderBusy() {
         const state = this._recorder?.state
@@ -132,7 +148,7 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
     private _renderToScreenDisabled = false
 
     private _preRender = () => {
-        if (this.convergeMode && this._recorder?.isRecording()) {
+        if (this._convergeNow && this._recorder?.isRecording()) {
             const composer = this._viewer!.renderManager.composer
             const k = composer.renderToScreen
             // without ProgressivePlugin there is nothing to converge: every frame is final
@@ -147,10 +163,10 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
     private _postRender = () => {
         if (this._recorder?.isRecording()) {
             const progressive = this._viewer?.getPlugin<ProgressivePlugin>('ProgressivePlugin')
-            if (!this.convergeMode || !progressive || progressive.isConverged(true)) {
+            if (!this._convergeNow || !progressive || progressive.isConverged(true)) {
 
                 const fn = () => this._recorder?.requestFrame()
-                if (this.convergeMode) {
+                if (this._convergeNow) {
                     // give some time to the browser to render the frame
                     const waitTime = 1
                     // this._viewer!.renderer.frameWaitTime = waitTime
@@ -189,7 +205,9 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
 
         const progressive = this._viewer?.getPlugin<ProgressivePlugin>('ProgressivePlugin')
         const maxFrameCount = progressive?.maxFrameCount
-        if (progressive && this.convergeMode) {
+        // the recording keeps this converge mode (recordingSettings): maxFrameCount is restored for it below
+        const convergeMode = this.convergeMode
+        if (progressive && convergeMode) {
             progressive.maxFrameCount = Math.min(16, maxFrameCount ?? 16)
         }
 
@@ -228,7 +246,7 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
             if (this._recorder?.isRecording()) await this.stopRecording()
             throw e
         } finally {
-            if (progressive && this.convergeMode) {
+            if (progressive && convergeMode) {
                 progressive.maxFrameCount = maxFrameCount ?? 16
             }
         }
@@ -239,6 +257,7 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
         // the last recording is not done yet (an MP4 encodes while it stops): its end would stop the new one
         if (this._recorderBusy()) return false
         if (this.recorder?.isRecording() === false) {
+            this._active = {convergeMode: this.convergeMode, videoFrameRate: this.videoFrameRate}
             this.recorder.options.stepMode = this.convergeMode
             this.recorder.start()
             return true
@@ -265,6 +284,7 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
             return await stopping
         } finally {
             this._stopping = undefined
+            this._active = undefined
             // a format change made during the recording
             if (this._optionsPending) this.refreshRecorderOptions()
         }
@@ -273,7 +293,7 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
     private async _stop(): Promise<Blob | undefined> {
         if (this._viewer) {
             await this._viewer.doOnce('postFrame')
-            if (this.convergeMode) {
+            if (this._convergeNow) {
                 const progressive = this._viewer?.getPlugin<ProgressivePlugin>('ProgressivePlugin')
                 if (progressive) {
                     const max = 10
@@ -571,15 +591,17 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
             this._recordIndicator!.style.visibility = 'visible'
             this._recordIndicator!.style.backgroundColor = 'red'
             this.dispatchEvent({type: 'start'})
-            this._stateChange(!this.convergeMode)
+            this._stateChange(!this._convergeNow)
         })
         recorder.addEventListener('error', () => {
+            this._active = undefined
             if (this._optionsPending) this.refreshRecorderOptions()
             this.dispatchEvent({type: 'error'})
         })
         recorder.addEventListener('paused', () => this._stateChange(false))
         // recorder.addEventListener("resume", () => this._stateChange(!this.convergeMode));
         recorder.addEventListener('stopped', () => {
+            this._active = undefined
             if (this._optionsPending) this.refreshRecorderOptions()
             this._recordIndicator!.style.visibility = 'hidden'
             this.dispatchEvent({type: 'stop'})

@@ -39,21 +39,42 @@ export class FFMPEGRecorder extends ACanvasRecorder<'encode-progress'> {
                 console.log('Process exited with code ' + msg.data)
                 // worker.terminate();
                 break
-            case 'done':
-                if (msg.data.MEMFS[0].data === undefined) {
-                    console.log('video processing failed')
+            case 'done': {
+                const files = msg.data?.MEMFS as {name: string, data?: Uint8Array}[] | undefined
+                const out = files?.find(f => f.name === 'out.mp4') ?? files?.[0]
+                if (!out?.data?.length) {
+                    this._encodeFailed('video processing failed, no output file')
                     return
                 }
-                this._recordingCallback?.(new Blob([msg.data.MEMFS[0].data], {
+                const callback = this._recordingCallback
+                this._recordingCallback = undefined
+                callback?.(new Blob([out.data], {
                     type: 'video/mp4',
                 }))
                 console.timeEnd('ffmpeg-record')
                 this.setState('stopped')
                 break
+            }
+            case 'error':
+            case 'abort':
+                if (this.state === 'stopping') this._encodeFailed('the encoder stopped: ' + msg.data)
+                break
             default:
                 break
             }
         }
+        this.worker.onerror = (e) => {
+            if (this.state === 'stopping') this._encodeFailed('the encoder worker failed: ' + e.message)
+        }
+    }
+
+    /** The encode failed: the stop still settles (without a recording), and the recorder ends in the error state */
+    private _encodeFailed(reason: string) {
+        console.error('FFMPEGRecorder: ' + reason)
+        const callback = this._recordingCallback
+        this._recordingCallback = undefined
+        callback?.(undefined)
+        this.setState('error', {error: new Error(reason)})
     }
 
     public start() {
@@ -72,9 +93,10 @@ export class FFMPEGRecorder extends ACanvasRecorder<'encode-progress'> {
         this.setState('recording')
     }
 
-    private _recordingCallback?: (b: Blob) => void
+    private _recordingCallback?: (b?: Blob) => void
 
-    public stop(recordingCallback: (b: Blob) => void) {
+    /** Encodes the frames and calls back with the MP4, or with undefined when the encode fails (the state is then 'error') */
+    public stop(recordingCallback: (b?: Blob) => void) {
         if (this.state === 'stopped') return
         if (this.state === 'error') {
             console.error('FFMPEGRecorder: Recorder in error state, cannot stop, call start again.')

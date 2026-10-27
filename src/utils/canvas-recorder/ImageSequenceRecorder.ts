@@ -9,13 +9,13 @@ export class ImageSequenceRecorder extends ACanvasRecorder {
     private _writeError?: unknown
 
     private _track(p: Promise<void>) {
-        this._pending.add(p)
-        // a failed write is kept and reported by stop(), not as an unhandled rejection here
-        const done = () => this._pending.delete(p)
-        p.then(done, (e) => {
+        // a failed write is kept and reported by stop(), not as an unhandled rejection here. The tracked promise does
+        // not reject, so stop() waits for every capture and write, also after a failed one.
+        const tracked = p.then(() => undefined, (e) => {
             this._writeError = this._writeError ?? e
-            done()
         })
+        this._pending.add(tracked)
+        tracked.then(() => this._pending.delete(tracked))
     }
 
     public start() {

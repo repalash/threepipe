@@ -138,8 +138,11 @@ export class ProgressivePlugin
      */
     postFrameConvergedRecordingDelta(recorderPlugin = 'CanvasRecorder'): number {
         const recorder = this._viewer?.getPlugin<IConvergedCanvasRecorder&IViewerPlugin>(recorderPlugin)
-        if (recorder && recorder.isRecording() && recorder.convergeMode)
-            return this.isConverged(true) ? 1. / recorder.videoFrameRate : 0
+        if (!recorder?.isRecording()) return -1
+        // the settings of the running recording: a change during the recording applies to the next one
+        const settings = recorder.recordingSettings ?? recorder
+        if (settings.convergeMode)
+            return this.isConverged(true) ? 1. / settings.videoFrameRate : 0
         return -1
     }
 
@@ -181,6 +184,8 @@ export interface IConvergedCanvasRecorder{
     convergeMode: boolean;
     isRecording(): boolean;
     videoFrameRate: number;
+    /** The converge mode and frame rate of the running recording, when they can differ from the settings above */
+    readonly recordingSettings?: {convergeMode: boolean, videoFrameRate: number};
 }
 
 export class ProgressiveBlendPass extends AddBlendTexturePass implements IPipelinePass {

@@ -55,6 +55,8 @@ const turntable = await recorder.recordCamera360(5)
 
 Use `startRecording()` and `stopRecording()` to start and stop a recording yourself. The plugin dispatches the `start`, `stop`, `error` and `encode-progress` events.
 
+A recording keeps the format, the frame rate and the converge mode that it started with (`recordingSettings`). A change of `mimeType`, `videoFrameRate` or `convergeMode` during a recording applies to the next one. A new recording cannot start while the last one still stops (an MP4 encodes while it stops). When the MP4 encode fails, `stopRecording()` resolves with no blob and the recorder is in the `error` state.
+
 [CameraViewPlugin.recordAllViews](https://threepipe.org/docs/classes/CameraViewPlugin.html#recordallviews) uses this plugin to record the animation through all the camera views.
 
 The MP4 recorder loads ffmpeg.js from [FFMPEGRecorder.LIBRARY_PATH](https://threepipe.org/docs/classes/FFMPEGRecorder.html#library_path) (jsdelivr by default) when it is created. Set it before the plugin is added to host the files yourself.
