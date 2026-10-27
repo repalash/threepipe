@@ -34,6 +34,8 @@ export interface EditorToolbarOptions {
     viewHides?: () => HTMLElement[]
     /** Extra buttons at the end: [label or svg, title, action] */
     extra?: [string, string, () => void][]
+    /** More items for the end of the More menu, made each time it opens: [label, action, checked] or '#Section' */
+    moreItems?: () => MenuItem[]
     /** Light (default, like the layers panel) or dark */
     theme?: 'light' | 'dark'
 }
@@ -353,6 +355,7 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
         ux?.applySettings()
         // View looks through the start view with its own controls (limits, damping); Edit through the editor camera
         viewer.getPlugin(EditorCameraPlugin)?.setActive(!view)
+        this._renderViewHud()
         const notes = viewer.getPlugin(AnnotationsPlugin)
         if (notes) notes.editable = !view
         if (this._grid) this._grid.visible = !view && this._gridOn
@@ -360,6 +363,50 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
         document.body.classList.toggle('tb-view', view)
         viewer.setDirty()
         this.render()
+    }
+
+    private _viewHud?: HTMLDivElement
+
+    /**
+     * The bar under the toolbar in View mode (like the one over a camera view): the start view, and whether the camera
+     * moves made while viewing are kept (the start view moves there, one undo step) or the start view comes back.
+     */
+    private _renderViewHud() {
+        const viewer = this._viewer
+        const edCam = viewer?.getPlugin(EditorCameraPlugin)
+        if (!viewer || !edCam || !this._viewMode) {
+            this._viewHud?.remove()
+            this._viewHud = undefined
+            return
+        }
+        if (!this._viewHud) {
+            this._viewHud = document.createElement('div')
+            this._viewHud.className = 'tb-viewhud'
+            this._viewHud.dataset.ownKeys = ''
+            this._viewHud.addEventListener('pointerdown', e => e.stopPropagation())
+            viewer.container.appendChild(this._viewHud)
+        }
+        const h = this._viewHud
+        h.innerHTML = ''
+        const label = document.createElement('span')
+        label.textContent = 'Start view'
+        const keep = document.createElement('button')
+        keep.className = 'tb-viewhud-btn' + (edCam.keepViewMoves ? ' on' : '')
+        keep.textContent = edCam.keepViewMoves ? 'Keeping camera moves' : 'Keep camera moves'
+        keep.title = edCam.keepViewMoves ?
+            'On: when you go back to Edit, the start view stays where you left the camera (undo puts it back)' :
+            'Off: looking around does not change the start view. On: it moves where you leave the camera'
+        keep.setAttribute('aria-pressed', String(edCam.keepViewMoves))
+        keep.addEventListener('click', () => {
+            edCam.keepViewMoves = !edCam.keepViewMoves
+            this._renderViewHud()
+        })
+        const reset = document.createElement('button')
+        reset.className = 'tb-viewhud-btn'
+        reset.textContent = 'Reset'
+        reset.title = 'Back to the start view as it was'
+        reset.addEventListener('click', () => edCam.resetStartView())
+        h.append(label, keep, reset)
     }
 
     /** Panels show in Edit mode with the canvas not expanded */
@@ -706,6 +753,7 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
             if (edit) edit.enabled = pivot.enabled
         }, pivot.enabled])
         for (const [, title, fn] of this._options.extra || []) items.push([title, fn])
+        items.push(...this._options.moreItems?.() ?? [])
         if (items.length) items.push('-')
         items.push(['Reset all settings…', async() => {
             if (!await confirmBox('Reset all plugin settings to their defaults?', 'Reset', true)) return
@@ -933,7 +981,7 @@ export function keepLinesOutOfOverride(viewer: ThreeViewer, on: boolean) {
     viewer.setDirty()
 }
 
-type MenuItem = [string, () => void, boolean?, boolean?] | string
+export type MenuItem = [string, () => void, boolean?, boolean?] | string
 
 const svg = (d: string) => `<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`
 const I = {
@@ -949,7 +997,8 @@ const I = {
     shading: svg('<circle cx="8" cy="8" r="5.5"/><path d="M8 2.5a5.5 5.5 0 0 1 0 11z" fill="currentColor"/>'),
     overlays: svg('<circle cx="6" cy="8" r="4"/><circle cx="10" cy="8" r="4"/>'),
     pause: svg('<path d="M5.5 3.5v9M10.5 3.5v9"/>'),
-    orbit: svg('<ellipse cx="8" cy="8" rx="6" ry="2.6"/><circle cx="8" cy="8" r="1.6" fill="currentColor"/><path d="M12.6 4.6l1.4.8-.9 1.3"/>'),
+    // a turntable: an object over a curved arrow (an ellipse with a dot read as an eye)
+    orbit: svg('<path d="M8 2.2l3 1.6v3.4L8 8.8 5 7.2V3.8z"/><path d="M5 3.8l3 1.6 3-1.6M8 5.4v3.4"/><path d="M2.4 10.4c.7 1.5 2.9 2.6 5.6 2.6s4.9-1.1 5.6-2.6"/><path d="M11.9 12.6l1.8.4.1-1.9"/>'),
     tour: svg('<path d="M3 13l3.5-4 3 2.5L13 6"/><circle cx="3" cy="13" r="1"/><circle cx="13" cy="6" r="1"/>'),
     snapshot: svg('<rect x="2" y="4.5" width="12" height="8.5" rx="1.5"/><circle cx="8" cy="8.8" r="2.2"/><path d="M5.5 4.5l1-1.8h3l1 1.8"/>'),
     pin: svg('<path d="M8 14s-4.5-4.2-4.5-7.5a4.5 4.5 0 0 1 9 0C12.5 9.8 8 14 8 14z"/><circle cx="8" cy="6.5" r="1.6"/>'),
@@ -1005,6 +1054,14 @@ body.tpTheme-black .tb-menu, body.tpTheme-dark .tb-menu, body.tpTheme-blue .tb-m
   position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 12; display: flex; align-items: center;
   background: var(--tb-bg); color: var(--tb-fg); padding: 4px; border-radius: 8px; box-shadow: var(--tb-shadow); max-width: calc(100% - 20px);
 }
+.tb-viewhud {
+  position: absolute; left: 50%; top: 60px; transform: translateX(-50%); z-index: 12; display: flex; align-items: center; gap: 4px;
+  padding: 4px 4px 4px 10px; border-radius: 6px; background: rgba(30,30,30,.92); color: #eee; white-space: nowrap;
+  font: 11px/1 var(--tp-font-family, Inter, ui-sans-serif, system-ui, sans-serif); box-shadow: 0 4px 14px rgba(0,0,0,.2);
+}
+.tb-viewhud-btn { border: 0; border-radius: 4px; height: 24px; padding: 0 8px; background: rgba(255,255,255,.1); color: inherit; font: inherit; cursor: pointer; }
+.tb-viewhud-btn:hover { background: rgba(255,255,255,.18); }
+.tb-viewhud-btn.on { background: #0d99ff; color: #fff; }
 .tb-group { display: flex; align-items: center; gap: 2px; padding: 0 4px; position: relative; flex: none; }
 .tb-group + .tb-group::before { content: ''; position: absolute; left: -.5px; top: 6px; bottom: 6px; width: 1px; background: var(--tb-line); }
 .tb-slot { display: flex; align-items: center; padding-right: 4px; }

@@ -19,7 +19,7 @@ import {CameraPathPlugin} from '../selection-ux-playground/CameraPathPlugin'
 import {TimelineBarPlugin} from '../selection-ux-playground/TimelineBarPlugin'
 import {EditorCameraPlugin} from '../selection-ux-playground/EditorCameraPlugin'
 import {setupModeBar} from '../selection-ux-playground/ModeBar'
-import {setupLayout} from './layout'
+import {EDITOR_LAYOUTS, setupLayout} from './layout'
 import {VariationsBarPlugin} from '../selection-ux-playground/VariationsBarPlugin'
 
 // The tweakpane editor with the new selection UX: SelectionUxPlugin + the pipeline outline instead of OutlinePlugin,
@@ -79,6 +79,8 @@ async function init() {
         expandHides: () => [document.querySelector<HTMLElement>('.sux-side')!, document.getElementById('tweakpaneUiContainer')!],
         viewHides: () => [document.querySelector<HTMLElement>('.sux-side')!],
         extra: [[REPORT_ICON, 'Open a file or sample…', () => openSplash()], [REPORT_ICON, 'Report: what changed and what to try', () => showReport()]],
+        // the frames have their own layout button only when they have a bar: the floating one has none
+        moreItems: () => ['#Page layout', ...EDITOR_LAYOUTS.map(([k, label]) => [label, () => layout.set(k), layout.current === k] as [string, () => void, boolean])],
     }))
     viewer.container.appendChild(toolbar.element)
     setupModeMenu(viewer.container, viewer, ux, {buttonHost: toolbar.slot, links: [['Open the playground ↗', '../selection-ux-playground/index.html']]})
@@ -89,7 +91,18 @@ async function init() {
     // (the floating layout keeps it out from under the panel: --lay-right-inset)
     if (gizmo) Object.assign(gizmo.style, {top: '56px', left: '', right: 'calc(var(--lay-right-inset, 0px) + 4px)', bottom: '', transform: 'scale(.72)', transformOrigin: '100% 0'})
     const editor = viewer.getPlugin(TweakpaneEditorPlugin)
-    if (editor) setupModeBar(editor, document.body, () => document.getElementById('tweakpaneUiContainer'))
+    const modeBar = editor ? setupModeBar(editor, document.body, () => document.getElementById('tweakpaneUiContainer')) : undefined
+    // like webgi: a selection opens its properties (object, material, geometry) in the panel: the Interaction mode,
+    // whose Picking folder shows the selected object
+    ux.addEventListener('uxUpdate', e => {
+        if (e.reason !== 'selection' || !ux.selected.length || !editor || !modeBar) return
+        modeBar.show(editor.modeKeys.indexOf('Interaction'))
+        const picking = viewer.getPlugin(PickingPlugin)
+        if (picking?.uiConfig && !picking.uiConfig.expanded) {
+            picking.uiConfig.expanded = true
+            picking.uiConfig.uiRefresh?.(false, 'postFrame')
+        }
+    })
     // once: the clean tweakpane theme, light or dark like the theme in use (Color Mode in the Tweakpane UI folder changes it)
     const tp = viewer.getPlugin(TweakpaneUiPlugin)
     try {

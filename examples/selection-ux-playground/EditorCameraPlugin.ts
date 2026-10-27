@@ -1,4 +1,4 @@
-import {AViewerPluginSync, ICamera, OrbitControls3, PerspectiveCamera2, ThreeViewer, Vector3} from 'threepipe'
+import {AViewerPluginSync, ICamera, OrbitControls3, PerspectiveCamera2, ThreeViewer, UndoManagerPlugin, Vector3} from 'threepipe'
 
 /**
  * The editor's own camera, like the blueprint editor's: Edit mode looks through it, and it is never saved (it is in
@@ -88,6 +88,23 @@ export class EditorCameraPlugin extends AViewerPluginSync {
         super.onRemove(viewer)
     }
 
+    /**
+     * In View mode: keep the camera where it is when you go back to Edit (the start view moves there, one undo step).
+     * Off: View mode puts the start view back, so looking around does not change it.
+     */
+    keepViewMoves = false
+
+    /** View mode: the start view as it was when View mode began */
+    resetStartView() {
+        const start = this._viewer?.scene.defaultCamera
+        if (!start || !this._startPose) return
+        const controls = start.controls as OrbitControls3 | undefined
+        controls?.stopDamping?.()
+        start.position.copy(this._startPose.position)
+        start.target.copy(this._startPose.target)
+        start.setDirty()
+    }
+
     /** Edit mode (true) looks through the editor camera; View mode (false) through the start view, with its own controls */
     setActive(active: boolean) {
         const viewer = this._viewer
@@ -95,11 +112,21 @@ export class EditorCameraPlugin extends AViewerPluginSync {
         this._active = active
         const start = viewer.scene.defaultCamera
         if (active) {
-            if (this._startPose) {
-                (start.controls as OrbitControls3 | undefined)?.stopDamping?.()
-                start.position.copy(this._startPose.position)
-                start.target.copy(this._startPose.target)
-                start.setDirty()
+            const before = this._startPose
+            if (before && this.keepViewMoves) {
+                const controls = start.controls as OrbitControls3 | undefined
+                controls?.stopDamping?.()
+                const after = {position: start.position.clone(), target: start.target.clone()}
+                const set = (p: typeof after) => {
+                    start.position.copy(p.position)
+                    start.target.copy(p.target)
+                    start.setDirty()
+                }
+                if (!after.position.equals(before.position) || !after.target.equals(before.target))
+                    viewer.getPlugin(UndoManagerPlugin)?.undoManager?.record({undo: () => set(before), redo: () => set(after)})
+                this._startPose = undefined
+            } else if (before) {
+                this.resetStartView()
                 this._startPose = undefined
             }
             this.camera.activateMain()

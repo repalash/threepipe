@@ -128,7 +128,16 @@ export function setupModeBar(editor: ModeBarEditor, host: HTMLElement, panel?: (
     host.appendChild(bar)
     setExpanded(expanded)
     select(0)
-    return {element: bar, select, setExpanded}
+    /** Open a mode's panel (and show the panel if it was hidden), like a click on its button */
+    const show = (i: number) => {
+        if (i < 0 || i >= buttons.length) return
+        if (i !== selected) {
+            editor.setSelectedMode(i)
+            select(i)
+        }
+        if (!open) setOpen(true)
+    }
+    return {element: bar, select, setExpanded, show}
 }
 
 let stylesAdded = false
