@@ -880,6 +880,7 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
         const camName = (c: IObject3D) => c === start ? 'Start view' : c.name || c.type
         if (cams.length) items.push('#Look through', ...cams.map(c => [camName(c), () => (c as any).activateMain(), main === c] as [string, () => void, boolean]))
         if (start && ux && main === home) items.push('-', ['Set the start view to this view', () => ux.alignCameraToView(start)])
+        if (edCam) items.push(['Smooth orbit (glides a little)', () => edCam.smooth = !edCam.smooth, edCam.smooth])
         const views = viewer.getPlugin(CameraViewPlugin)
         // only with saved views: without them the loop has nothing to play
         if (views?.cameraViews.length) items.push('-', ['Loop the saved camera views', () => {

@@ -1007,8 +1007,10 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         this._syncMods(e)
         const p = this._local(e)
         this._pointer.copy(p)
-        this._pointerDirty = true
         const s = this._state
+        // a button held with no drag of ours: the camera is orbiting or panning. No hover while it moves (a raycast
+        // per frame on a big model costs frames); the hover comes back on release.
+        if (s || !e.buttons) this._pointerDirty = true
         if (!s) return
         if (s.kind === 'press') {
             if (s.start.distanceTo(p) < 4) return
@@ -1858,6 +1860,8 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         return named?.name || o.name || o.type
     }
 
+    private _nextHoverAt = 0
+
     private _tick = () => {
         this._raf = requestAnimationFrame(this._tick)
         if (!this._viewer || !this._root) return
@@ -1865,9 +1869,13 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
             if (this._hover) this._hover = null
             return
         }
-        if (this._pointerDirty && !this._state) {
+        if (this._pointerDirty && !this._state && performance.now() >= this._nextHoverAt) {
             this._pointerDirty = false
+            const t = performance.now()
             this._updateHover()
+            // a heavy scene: hover less often, so the raycast does not take every frame
+            const dt = performance.now() - t
+            this._nextHoverAt = dt > 4 ? performance.now() + dt * 3 : 0
         }
         const ext = this.externalHover
         if (ext !== this._lastExternalHover) {

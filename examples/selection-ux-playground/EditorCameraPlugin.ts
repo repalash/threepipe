@@ -21,11 +21,27 @@ export class EditorCameraPlugin extends AViewerPluginSync {
         maxZoomSpeed: 0.5,
         autoPushTarget: true,
         autoPullTarget: false,
-        rotateSpeed: 1,
+        // threepipe's default: the same turn per pixel as the viewer (1 needed twice the mouse travel)
+        rotateSpeed: 2,
         minPolarAngle: 0,
         maxPolarAngle: Math.PI,
         minAzimuthAngle: -1e6,
         maxAzimuthAngle: 1e6,
+    }
+
+    private _smooth = false
+    /** Smooth orbit: a light damping (the view follows in about 0.1 s and glides a little after release). Off: 1:1. */
+    get smooth() {
+        return this._smooth
+    }
+    set smooth(v: boolean) {
+        this._smooth = v
+        try {
+            localStorage.setItem('sux-editor-smooth-orbit', v ? '1' : '0')
+        } catch (e) {
+            // no storage: this page only
+        }
+        this._onMainCameraChange()
     }
 
     private _active = false
@@ -41,6 +57,11 @@ export class EditorCameraPlugin extends AViewerPluginSync {
         c.autoAspect = true
         // the ground's "keep the camera above the ground" is for visitors (threepipe PR #78)
         c.userData.disableGroundLimit = true
+        try {
+            this._smooth = localStorage.getItem('sux-editor-smooth-orbit') === '1'
+        } catch (e) {
+            // no storage: 1:1
+        }
         c.position.set(0, 0, 5)
         c.target.set(0, 0, 0)
     }
@@ -108,7 +129,7 @@ export class EditorCameraPlugin extends AViewerPluginSync {
         if (this._viewer?.scene.mainCamera !== this.camera) return
         // the controls are made when the camera becomes the main one
         const ctrl = this.camera.controls as OrbitControls3 | undefined
-        if (ctrl) Object.assign(ctrl, EditorCameraPlugin.ControlProps)
+        if (ctrl) Object.assign(ctrl, EditorCameraPlugin.ControlProps, this._smooth ? {enableDamping: true, dampingFactor: 0.25} : {})
     }
 
     // a file with a viewer config brings its start view: begin editing from it
