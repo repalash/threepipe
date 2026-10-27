@@ -125,6 +125,27 @@ describe('EditorCameraPlugin', () => {
         expect(start.position.toArray()).toEqual([1, 2, 3])
     })
 
+    test('a viewer config file sets the editor camera to its start view', () => {
+        const {plugin, viewer, start} = setup()
+        start.position.set(1, 2, 3)
+        viewer.assetManager.dispatchEvent({type: 'loadAsset', data: {assetType: 'config'}})
+        expect(plugin.camera.position.toArray()).toEqual([1, 2, 3])
+    })
+
+    test('added in View: Edit puts back the start view of the add', () => {
+        const {plugin, scene, start, viewer} = setup()
+        plugin.onRemove(viewer)
+        plugin.editing = false
+        plugin.onAdded(viewer)
+        expect(scene.mainCamera).toBe(start)
+        start.position.set(4, 1, 0) // a look around
+        plugin.resetStartView()
+        expect(start.position.toArray()).toEqual([0, 1, 6])
+        start.position.set(4, 1, 0)
+        plugin.editing = true
+        expect(start.position.toArray()).toEqual([0, 1, 6])
+    })
+
     test('setStartViewFromEditor works without the UndoManagerPlugin', () => {
         const {plugin, start} = setup({undo: false})
         plugin.camera.position.set(2, 3, 4)

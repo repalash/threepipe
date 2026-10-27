@@ -118,6 +118,9 @@ export class EditorCameraPlugin extends AViewerPluginSync {
         viewer.assetManager.addEventListener('loadAsset', this._onLoad)
         this.copyStartView()
         this._refreshEditing()
+        // added in View: the start view now is the one to put back
+        const start = viewer.scene.defaultCamera
+        if (!this._shownEditing) this._startPose = {position: start.position.clone(), target: start.target.clone()}
     }
 
     onRemove(viewer: ThreeViewer) {
@@ -227,9 +230,9 @@ export class EditorCameraPlugin extends AViewerPluginSync {
         if (ctrl) Object.assign(ctrl, EditorCameraPlugin.ControlProps, this.smooth ? {enableDamping: true, dampingFactor: 0.25} : {})
     }
 
-    // a file with a viewer config brings its start view: begin to edit from it
+    // a file with a viewer config (in a model, or a viewer config file) brings its start view: begin to edit from it
     private _onLoad = (e: {data?: any}) => {
-        if (!e.data?.importedViewerConfig) return
+        if (!e.data?.importedViewerConfig && e.data?.assetType !== 'config') return
         this.copyStartView()
         // in View, the start view of the new file is the one to put back
         const start = this.startCamera
