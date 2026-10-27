@@ -82,9 +82,10 @@ export class WebGLPathTracer2 extends WebGLPathTracer {
         this._materials.forEach((material: any) => {
             material.userData.__emissiveIntensity = material.emissiveIntensity
             material.emissiveIntensity *= this.emissiveMultiplier
+            // a zero distance absorbs everything in the path tracer: trace with a long one, and put the value back after
             if (material.attenuationDistance < 0.00001) {
-                material.attenuationDistance = 10000
                 material.userData.__attenuationDistance = material.attenuationDistance
+                material.attenuationDistance = 10000
             }
         })
         super.updateMaterials()
