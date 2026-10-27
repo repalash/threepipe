@@ -23,6 +23,7 @@ import {PenToolPlugin} from './PenToolPlugin'
 import {TimelineBarPlugin} from './TimelineBarPlugin'
 import {CameraPathPlugin} from './CameraPathPlugin'
 import {confirmBox} from './motionUi'
+import {EditorCameraPlugin} from './EditorCameraPlugin'
 
 export interface EditorToolbarOptions {
     /** Add a floor grid the toolbar can show and hide */
@@ -336,6 +337,8 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
         const ux = viewer.getPlugin(SelectionUxPlugin)
         const picking = viewer.getPlugin(PickingPlugin)
         if (view) {
+            // back from a camera view first: its moves become one undo step and it gets its controls back
+            ux?.exitCameraView()
             picking?.setSelectedObject(undefined)
             picking?.disable(KEY)
             this._tc?.disable(KEY)
@@ -348,6 +351,8 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
             if (ux) ux.enabled = true
         }
         ux?.applySettings()
+        // View looks through the start view with its own controls (limits, damping); Edit through the editor camera
+        viewer.getPlugin(EditorCameraPlugin)?.setActive(!view)
         const notes = viewer.getPlugin(AnnotationsPlugin)
         if (notes) notes.editable = !view
         if (this._grid) this._grid.visible = !view && this._gridOn
@@ -504,7 +509,7 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
         }
         // 3. how the view looks: camera, shading, overlays
         newGroup()
-        btn(I.camera, 'Camera', '0', b => this._openMenu(b, () => this._cameraMenu()), 'menu', viewer?.scene.mainCamera !== viewer?.scene.defaultCamera)
+        btn(I.camera, 'Camera', '0', b => this._openMenu(b, () => this._cameraMenu()), 'menu', !!viewer?.getPlugin(SelectionUxPlugin)?.viewCamera)
         btn(I.shading, 'Shading: lit, clay, wireframe, debug views, lights and environment', '', b => this._openMenu(b, () => this._viewMenu()), 'menu', this._view !== 'shaded' || this.overrides.active)
         btn(I.overlays, 'Overlays: grid, icons, outlines, labels, effects', '', b => this._openMenu(b, () => this._overlaysMenu()), 'menu', this._overlaysChanged())
         // 4. edit or present
@@ -862,21 +867,27 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
         const viewer = this._viewer
         if (!viewer) return []
         const main = viewer.scene.mainCamera
-        const items: ([string, () => void, boolean?] | string)[] = ['#Editor', ['Editor camera <kbd>0</kbd>', () => viewer.scene.defaultCamera.activateMain(), main === viewer.scene.defaultCamera]]
-        const cams: IObject3D[] = []
+        const ux = viewer.getPlugin(SelectionUxPlugin)
+        const edCam = viewer.getPlugin(EditorCameraPlugin)
+        const home = edCam?.homeCamera ?? viewer.scene.defaultCamera
+        const items: ([string, () => void, boolean?] | string)[] = ['#Editor', ['Editor camera <kbd>0</kbd>', () => home.activateMain(), main === home]]
+        // with an editor camera, the default camera is the start view: what a visitor sees first, saved in the file
+        const start = edCam?.startCamera as IObject3D | undefined
+        const cams: IObject3D[] = start ? [start] : []
         viewer.scene.modelRoot.traverse(o => {
             if ((o as IObject3D).isCamera && (o as any).activateMain) cams.push(o as IObject3D)
         })
-        if (cams.length) items.push('#Look through', ...cams.map(c => [c.name || c.type, () => (c as any).activateMain(), main === c] as [string, () => void, boolean]))
+        const camName = (c: IObject3D) => c === start ? 'Start view' : c.name || c.type
+        if (cams.length) items.push('#Look through', ...cams.map(c => [camName(c), () => (c as any).activateMain(), main === c] as [string, () => void, boolean]))
+        if (start && ux && main === home) items.push('-', ['Set the start view to this view', () => ux.alignCameraToView(start)])
         const views = viewer.getPlugin(CameraViewPlugin)
         // only with saved views: without them the loop has nothing to play
         if (views?.cameraViews.length) items.push('-', ['Loop the saved camera views', () => {
             views.viewLooping = !views.viewLooping
         }, views.viewLooping])
-        const ux = viewer.getPlugin(SelectionUxPlugin)
         // the camera it moves: the selected one, else the last one looked through; named, so the item says what it does
         const moveCam = ux?.selected.find(o => o.isCamera) ?? ux?.lastViewCamera
-        if (ux && cams.length && moveCam && main !== moveCam as any) {
+        if (ux && cams.length && moveCam && moveCam !== start && main !== moveCam as any) {
             items.push('-', [`Move ${moveCam.name || 'the camera'} to this view <kbd>Ctrl Alt 0</kbd>`, () => ux.alignCameraToView(moveCam)])
             if (ux.viewCamera) items.push([(ux.lockCameraToView ? 'Unlock' : 'Lock') + ' camera to view <kbd>L</kbd>', () => ux.setLockCameraToView(!ux.lockCameraToView), ux.lockCameraToView])
         }

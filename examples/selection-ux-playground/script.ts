@@ -27,6 +27,7 @@ import {showSplash} from './splash'
 import {PerfPanelPlugin} from './PerfPanelPlugin'
 import {PenToolPlugin} from './PenToolPlugin'
 import {CameraPathPlugin} from './CameraPathPlugin'
+import {EditorCameraPlugin} from './EditorCameraPlugin'
 import {TimelineBarPlugin} from './TimelineBarPlugin'
 
 async function init() {
@@ -46,6 +47,8 @@ async function init() {
     // persistKey: settings and mode are saved in this browser
     const ux = viewer.addPluginSync(new SelectionUxPlugin({persistKey: 'selection-ux-settings'}))
     viewer.addPluginSync(SelectionOutlinePlugin)
+    // the editor's own camera (free, no damping, never saved); the scene's default camera is the start view
+    viewer.addPluginSync(new EditorCameraPlugin())
     // notes on surfaces with a camera view each, saved in the .glb (toolbar: Annotate N, Tour in View mode)
     viewer.addPluginSync(new AnnotationsPlugin({editable: true}))
     // FPS, frame and render times, draw calls; warns about a capped frame rate (Chrome Energy Saver), battery, software GL

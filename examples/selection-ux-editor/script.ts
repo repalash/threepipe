@@ -17,6 +17,7 @@ import {PerfPanelPlugin} from '../selection-ux-playground/PerfPanelPlugin'
 import {PenToolPlugin} from '../selection-ux-playground/PenToolPlugin'
 import {CameraPathPlugin} from '../selection-ux-playground/CameraPathPlugin'
 import {TimelineBarPlugin} from '../selection-ux-playground/TimelineBarPlugin'
+import {EditorCameraPlugin} from '../selection-ux-playground/EditorCameraPlugin'
 import {setupModeBar} from '../selection-ux-playground/ModeBar'
 
 // The tweakpane editor with the new selection UX: SelectionUxPlugin + the pipeline outline instead of OutlinePlugin,
@@ -51,6 +52,8 @@ async function init() {
     hemiLight.name = 'Hemisphere Light'
 
     viewer.addPluginSync(new AnnotationsPlugin({editable: true}))
+    // the editor's own camera (free, no damping, never saved); the scene's default camera is the start view
+    viewer.addPluginSync(new EditorCameraPlugin())
     // FPS, frame and render times, draw calls; warns about a capped frame rate (Chrome Energy Saver), battery, software GL
     viewer.addPluginSync(new PerfPanelPlugin({position: 'bottom-right'}))
     // P: draw a path point by point, like Figma's pen

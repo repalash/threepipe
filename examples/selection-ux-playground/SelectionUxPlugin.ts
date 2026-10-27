@@ -28,6 +28,7 @@ import {
     WireframeGeometry,
 } from 'threepipe'
 import {UiConfigForm} from './UiConfigForm'
+import {EditorCameraPlugin} from './EditorCameraPlugin'
 
 /**
  * Prototype of a Figma-like selection UX for threepipe.
@@ -1848,6 +1849,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
     // region drawing
 
     displayName(o: IObject3D) {
+        if (o === this._viewer?.getPlugin(EditorCameraPlugin)?.startCamera as IObject3D | undefined) return 'Start view'
         const L = this.levels(o)
         const level = L.find(l => l.includes(o))
         // a merged wrapper chain shows the most specific name
@@ -2214,10 +2216,15 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
 
     // region camera view
 
-    /** The scene camera the view looks through, or null for the editor camera */
+    /** The camera the editor goes back to: the editor camera (EditorCameraPlugin), else the scene's default camera */
+    private get _homeCamera() {
+        return this._viewer?.getPlugin(EditorCameraPlugin)?.homeCamera ?? this._viewer?.scene.defaultCamera
+    }
+
+    /** The scene camera the view looks through, or null for the editor camera (and when the plugin is off: View mode) */
     get viewCamera(): IObject3D | null {
         const scene = this._viewer?.scene
-        return scene && scene.mainCamera !== scene.defaultCamera ? scene.mainCamera as IObject3D : null
+        return scene && this.enabled && scene.mainCamera !== this._homeCamera ? scene.mainCamera as IObject3D : null
     }
 
     /** While looking through a camera, orbit and zoom move that camera (Blender's "lock camera to view") */
@@ -2235,6 +2242,9 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
 
     private _sceneCameras() {
         const cams: IObject3D[] = []
+        // with an editor camera, the default camera is the saved start view: a scene camera too
+        const start = this._viewer?.getPlugin(EditorCameraPlugin)?.startCamera
+        if (start) cams.push(start as IObject3D)
         this._modelRoot.traverse(o => {
             if ((o as IObject3D).isCamera && (o as any).activateMain) cams.push(o as IObject3D)
         })
@@ -2253,7 +2263,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
 
     /** Back to the editor camera */
     exitCameraView() {
-        if (this.viewCamera) this._viewer?.scene.defaultCamera.activateMain()
+        if (this.viewCamera) this._homeCamera?.activateMain()
     }
 
     /** Lock: orbit and zoom move the camera you look through. The moves are one undo step, made when you unlock or exit. */
