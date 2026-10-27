@@ -20,6 +20,7 @@ import {TimelineBarPlugin} from '../selection-ux-playground/TimelineBarPlugin'
 import {EditorCameraPlugin} from '../selection-ux-playground/EditorCameraPlugin'
 import {setupModeBar} from '../selection-ux-playground/ModeBar'
 import {setupLayout} from './layout'
+import {VariationsBarPlugin} from '../selection-ux-playground/VariationsBarPlugin'
 
 // The tweakpane editor with the new selection UX: SelectionUxPlugin + the pipeline outline instead of OutlinePlugin,
 // and LayersPanelPlugin instead of the treejs HierarchyUiPlugin.
@@ -62,6 +63,8 @@ async function init() {
     // camera along a path, the timeline bar with Record (adds VideoRecorderPlugin)
     viewer.addPluginSync(new CameraPathPlugin())
     viewer.addPluginSync(new TimelineBarPlugin())
+    // the material variations and switch node options of the selection, in a bar over it
+    viewer.addPluginSync(new VariationsBarPlugin())
     const layers = viewer.addPluginSync(new LayersPanelPlugin('light'))
     const notes = viewer.addPluginSync(new NotesPlugin({pageKey: 'selection-ux-playground-notes', syncUrl: '/api/notes', contextProvider: modeContext(ux)}))
     setupSidePanel(viewer.container, layers, notes, 'sux-side-pos-editor')
