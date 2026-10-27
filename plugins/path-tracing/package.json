@@ -8,11 +8,11 @@
     },
     "dependencies": {
         "three": "file:./../../node_modules/three",
-        "threepipe": ">=0.4.0"
+        "threepipe": "file:./../../src/"
     },
     "peerDependencies": {
-        "three-gpu-pathtracer": "^0.0.23",
-        "threepipe": ">=0.4.0"
+        "threepipe": ">=0.4.0",
+        "three-gpu-pathtracer": "^0.0.23"
     },
     "peerDependenciesMeta": {
         "three-gpu-pathtracer": {
@@ -41,11 +41,7 @@
     "types": "dist/index.d.ts",
     "files": [
         "dist",
-        "src",
-        "README.md",
-        "CHANGELOG.md",
-        "docs",
-        "tsconfig.json"
+        "src", "README.md", "CHANGELOG.md", "docs", "tsconfig.json"
     ],
     "scripts": {
         "new:pack": "npm run prepare 1>&2 && npm run docs 1>&2 && clean-package && npm pack --silent && clean-package restore",
