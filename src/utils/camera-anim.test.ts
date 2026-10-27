@@ -1,4 +1,4 @@
-import {describe, expect, test} from 'vitest'
+import {describe, expect, test, vi} from 'vitest'
 import {PerspectiveCamera, Vector3} from 'three'
 import {animateCameraToViewLinear, animateCameraToViewSpherical} from './camera-anim'
 
@@ -48,6 +48,19 @@ describe('camera animations face the target in every frame', () => {
         const end = camera(new Vector3(5, 0, 0), new Vector3(0, 0, 0))
         const anim = animateCameraToViewLinear(cam, {position: end.position.clone(), target: end.target.clone(), quaternion: end.quaternion.clone(), zoom: 1} as any)
         anim.onComplete!()
+        expect(aimError(cam)).toBeLessThan(1e-4)
+    })
+})
+
+describe('with autoLookAtTarget, setDirty turns the camera', () => {
+    test('spherical leaves lookAt to setDirty', () => {
+        const cam = camera(new Vector3(0, 0, 5), new Vector3(0, 0, 0))
+        cam.userData.autoLookAtTarget = true
+        cam.setDirty = () => cam.lookAt(cam.target) // what iCameraCommons.setDirty does with autoLookAtTarget
+        const lookAt = vi.spyOn(cam, 'lookAt')
+        const anim = animateCameraToViewSpherical(cam, {position: new Vector3(5, 0, 0), target: new Vector3(0, 0, 0), zoom: 1} as any)
+        anim.onUpdate!(0.5)
+        expect(lookAt).toHaveBeenCalledTimes(1) // once, from setDirty
         expect(aimError(cam)).toBeLessThan(1e-4)
     })
 })
