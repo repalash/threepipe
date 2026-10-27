@@ -276,16 +276,21 @@ export class UiConfigForm {
             }})
         } else if (kind === 'vec' || kind === 'vec2' || kind === 'vec3' || kind === 'vec4') {
             const v0 = value() as any
-            const axes = ['x', 'y', 'z', 'w'].filter(a => typeof v0?.[a] === 'number')
+            // a three.js vector (x, y, z, w) or a tuple of numbers ([0, 1, 2, 3])
+            const isArray = Array.isArray(v0)
+            const axes: (string | number)[] = isArray ? v0.map((_: any, i: number) => i) : ['x', 'y', 'z', 'w'].filter(a => typeof v0?.[a] === 'number')
+            // the bounds of the config apply to each component
+            const {min, max} = UiConfigMethods.GetBounds(c, true)
             const wrap = document.createElement('span')
             wrap.className = 'ucf-vec'
             const inputs = axes.map(a => {
                 const input = this._number(disabled, n => {
-                    const v = (value() as any).clone()
-                    v[a] = n
+                    const cur = value() as any
+                    const v = isArray ? [...cur] : cur.clone()
+                    v[a] = Math.min(max, Math.max(min, n))
                     this._set(c, parents, v)
                 }, () => (value() as any)?.[a])
-                input.title = a
+                input.title = String(a)
                 wrap.appendChild(input)
                 return input
             })

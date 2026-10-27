@@ -447,6 +447,25 @@ describe('UiConfigForm', () => {
         expect(row(form, 'Sum').inputs[0].value).toBe('0.3')
     })
 
+    test('a vector bound to a tuple of numbers; vector bounds apply to each component', () => {
+        const target = {clip: [1, 2, 3, 4], noise: new Vector3(0.5, 0.5, 0.5)}
+        const form = new UiConfigForm([
+            {type: 'vec4', label: 'Clip', property: [target, 'clip']},
+            {type: 'vec3', label: 'Noise', property: [target, 'noise'], bounds: [0, 1]},
+        ])
+        const clip = row(form, 'Clip').inputs
+        expect(clip.map(i => i.value)).toEqual(['1', '2', '3', '4'])
+        clip[2].value = '7'
+        clip[2].fire('change')
+        expect(target.clip).toEqual([1, 2, 7, 4])
+        const noise = row(form, 'Noise').inputs
+        noise[0].value = '5'
+        noise[0].fire('change')
+        noise[1].value = '-1'
+        noise[1].fire('change')
+        expect(target.noise.toArray()).toEqual([1, 0, 0.5])
+    })
+
     test('dispose removes the form', () => {
         const host = new FakeElement('div')
         const form = new UiConfigForm([])
