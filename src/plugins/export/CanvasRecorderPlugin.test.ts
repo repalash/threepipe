@@ -151,6 +151,33 @@ describe('converge mode without ProgressivePlugin', () => {
     })
 })
 
+describe('ImageSequenceRecorder failures and names', () => {
+    test('a failed write at stop still calls back, and the recorder ends in the error state', async() => {
+        const canvas = {toBlob: (cb: (b: Blob) => void) => cb(new Blob([]))} as any
+        const rec = new ImageSequenceRecorder(canvas, {mimeType: 'image/png'}) as any
+        rec._console = {error: () => undefined, warn: () => undefined}
+        rec._writeImages = async() => {
+            throw new Error('disk full')
+        }
+        rec.setState('recording')
+        rec.requestFrame()
+        const done = await Promise.race([
+            new Promise(resolve => rec.stop(() => resolve('called back'))),
+            new Promise(resolve => setTimeout(() => resolve('hung'), 1000)),
+        ])
+        expect(done).toBe('called back')
+        expect(rec.state).toBe('error')
+    })
+
+    test('WebP frames get the .webp extension', () => {
+        const canvas = {toBlob: (cb: (b: Blob) => void) => cb(new Blob([]))} as any
+        const rec = new ImageSequenceRecorder(canvas, {mimeType: 'image/webp'}) as any
+        rec.setState('recording')
+        rec.requestFrame()
+        expect(rec._currentImages[0][0]).toBe('frame_00001.webp')
+    })
+})
+
 describe('ImageSequenceRecorder start', () => {
     test('without showDirectoryPicker, the start ends in the error state', () => {
         const rec = new ImageSequenceRecorder({} as any, {mimeType: 'image/png'}) as any

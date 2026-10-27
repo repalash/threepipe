@@ -8,7 +8,9 @@ export class ImageSequenceRecorder extends ACanvasRecorder {
 
     private _track(p: Promise<void>) {
         this._pending.add(p)
-        p.finally(() => this._pending.delete(p))
+        // a failed write is reported by stop(), not as an unhandled rejection here
+        const done = () => this._pending.delete(p)
+        p.then(done, done)
     }
 
     public start() {
@@ -55,7 +57,7 @@ export class ImageSequenceRecorder extends ACanvasRecorder {
         if (!super.requestFrame()) return false
         const mime = this.options.mimeType
         // the name now: toBlob calls back later, after more frames may have been requested
-        const name = 'frame_' + String(this._frameCount).padStart(5, '0') + (mime.includes('png') ? '.png' : '.jpg')
+        const name = 'frame_' + String(this._frameCount).padStart(5, '0') + (mime.includes('png') ? '.png' : mime.includes('webp') ? '.webp' : '.jpg')
 
         // const dataUrl = this._canvas.toDataURL(mime, 90);
         this._track(new Promise<void>(resolve => this._canvas.toBlob(
@@ -100,6 +102,10 @@ export class ImageSequenceRecorder extends ACanvasRecorder {
         this._finish().then(() => {
             recordingCallback(undefined)
             this.setState('stopped')
+        }, (e) => {
+            // a write failed (disk full, folder access revoked): the caller's stop still settles, and the error is reported
+            recordingCallback(undefined)
+            this._onerror({detail: e})
         })
     }
 
