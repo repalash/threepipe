@@ -13,16 +13,24 @@ import {
     Vector3,
 } from 'threepipe'
 
-/** A pose of the start view. The rotation is kept too: a camera without controls can look away from its target. */
+/**
+ * A pose of the start view. The rotation is kept too: a camera without controls can look away from its target. The zoom
+ * is the framing of an orthographic camera (and the FoV zoom of a perspective one).
+ */
 interface StartPose {
     position: Vector3
     target: Vector3
     quaternion: Quaternion
+    zoom: number
 }
 
 /** The pose of a camera that is a child of the scene (its local pose is its world pose) */
 function poseOf(camera: ICamera): StartPose {
-    return {position: camera.position.clone(), target: camera.target.clone(), quaternion: camera.quaternion.clone()}
+    return {position: camera.position.clone(), target: camera.target.clone(), quaternion: camera.quaternion.clone(), zoom: camera.zoom}
+}
+
+function samePose(a: StartPose, b: StartPose) {
+    return a.position.equals(b.position) && a.target.equals(b.target) && a.quaternion.equals(b.quaternion) && a.zoom === b.zoom
 }
 
 /**
@@ -231,6 +239,7 @@ export class EditorCameraPlugin extends AViewerPluginSync {
             position: this.camera.getWorldPosition(new Vector3()),
             target: this.camera.target.clone(),
             quaternion: this.camera.getWorldQuaternion(new Quaternion()),
+            zoom: this.camera.zoom,
         }
         this._moveStartView(after)
         this._recordStartView(before, after)
@@ -251,11 +260,13 @@ export class EditorCameraPlugin extends AViewerPluginSync {
         start.target.copy(pose.target)
         // a camera without controls or autoLookAtTarget does not turn by itself: its rotation is part of the pose
         start.quaternion.copy(pose.quaternion)
+        start.zoom = pose.zoom
+        start.updateProjectionMatrix()
         start.setDirty()
     }
 
     private _recordStartView(before: StartPose, after: StartPose) {
-        if (after.position.equals(before.position) && after.target.equals(before.target) && after.quaternion.equals(before.quaternion)) return
+        if (samePose(before, after)) return
         this._viewer?.getPlugin(UndoManagerPlugin)?.undoManager?.record({
             undo: () => this._moveStartView(before),
             redo: () => this._moveStartView(after),
@@ -276,8 +287,9 @@ export class EditorCameraPlugin extends AViewerPluginSync {
     }
 
     // a file with a viewer config (in a model, or a viewer config file) brings its start view: begin to edit from it
-    private _onLoad = (e: {data?: any}) => {
-        if (!hasStartView(e.data)) return
+    private _onLoad = (e: {data?: any, options?: {importConfig?: boolean}}) => {
+        // loaded with importConfig false: the viewer config of the file was not imported, the start view did not change
+        if (e.options?.importConfig === false || !hasStartView(e.data)) return
         this.copyStartView()
         // in View, the start view of the new file is the one to put back
         const start = this.startCamera

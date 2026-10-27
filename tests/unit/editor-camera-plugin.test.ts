@@ -202,6 +202,34 @@ describe('EditorCameraPlugin', () => {
         expect(plugin.camera.target.toArray()).toEqual(start.target.toArray())
     })
 
+    test('the zoom is part of the start view: put back in Edit, one undo step with keepViewMoves', () => {
+        const {plugin, start, records} = setup()
+        plugin.editing = false
+        start.zoom = 2 // a zoom in View (an orthographic camera)
+        plugin.resetStartView()
+        expect(start.zoom).toBe(1)
+        start.zoom = 2
+        plugin.editing = true
+        expect(start.zoom).toBe(1)
+
+        plugin.keepViewMoves = true
+        plugin.editing = false
+        start.zoom = 3 // only the zoom changes
+        plugin.editing = true
+        expect(start.zoom).toBe(3)
+        expect(records.length).toBe(1)
+        records[0].undo()
+        expect(start.zoom).toBe(1)
+    })
+
+    test('a file loaded with importConfig false leaves the cameras as they are', () => {
+        const {plugin, viewer, start} = setup()
+        plugin.camera.position.set(9, 0, 0) // the editor view
+        start.position.set(1, 2, 3)
+        viewer.assetManager.dispatchEvent({type: 'loadAsset', data: {importedViewerConfig: viewerConfig}, options: {importConfig: false}})
+        expect(plugin.camera.position.toArray()).toEqual([9, 0, 0])
+    })
+
     test('copyStartView copies the zoom', () => {
         const {plugin, start} = setup()
         start.zoom = 1.5

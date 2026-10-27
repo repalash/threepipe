@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 [//]: # (The format is based on [Keep a Changelog]&#40;https://keepachangelog.com/en/1.1.0/&#41;, and this project adheres to [Semantic Versioning]&#40;https://semver.org/spec/v2.0.0.html&#41;.)
 
+## [Unreleased]
+
+### Changed
+
+- The `loadAsset` event of `AssetManager` has the `options` of the load, so a listener can tell that a viewer config in the asset was not imported (`importConfig: false`)
+
 ## [0.6.0] - 2026-10-23
 
 ### Added
