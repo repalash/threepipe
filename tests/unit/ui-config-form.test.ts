@@ -488,6 +488,35 @@ describe('UiConfigForm', () => {
         }
     })
 
+    test('after a rebuild, undo and redo of an older edit show in the form made in its place', () => {
+        const target = {type: 'a', radius: 1}
+        const undoManager = new JSUndoManager({limit: 100, debug: false, bindHotKeys: false})
+        const configs: UiObjectConfig[] = [
+            {type: 'dropdown', label: 'Type', property: [target, 'type'], children: [{label: 'A', value: 'a'}, {label: 'B', value: 'b'}]},
+            {type: 'number', label: 'Radius', property: [target, 'radius']},
+        ]
+        // the page makes the form again on a structure change
+        let form: UiConfigForm | undefined
+        const make = () => {
+            form?.dispose()
+            form = new UiConfigForm(configs, {undoManager, onStructureChange: make})
+        }
+        make()
+        const radius = () => row(form!, 'Radius').inputs[0]
+        radius().value = '2'
+        radius().fire('change')
+        const select = row(form!, 'Type').inputs[0]
+        select.value = '1'
+        select.fire('change') // the form is made again
+        undoManager.undo() // the dropdown: made again
+        expect(target.type).toBe('a')
+        undoManager.undo() // the radius, an edit of the first form
+        expect(target.radius).toBe(1)
+        expect(radius().value).toBe('1')
+        undoManager.redo()
+        expect(radius().value).toBe('2')
+    })
+
     test('dispose removes the form', () => {
         const host = new FakeElement('div')
         const form = new UiConfigForm([])

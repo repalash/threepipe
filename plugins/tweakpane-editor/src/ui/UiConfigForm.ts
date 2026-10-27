@@ -17,7 +17,8 @@ export interface UiConfigFormOptions {
     onChange?: (config: UiObjectConfig) => void
     /**
      * Called after a dropdown change (also after its undo and redo) or a button click: these can change which fields
-     * there are (e.g. the type of a curve). Make the form again then.
+     * there are (e.g. the type of a curve). Make the form again then. A form made in this call (synchronously) takes
+     * the place of this one: the undo and redo of the older edits refresh it.
      */
     onStructureChange?: () => void
     /**
@@ -62,12 +63,18 @@ export class UiConfigForm {
     private _undo?: {config: UiObjectConfig, cmd: {undo: () => void, redo: () => void}, time: number, before: any}
     /** The config of a continuous edit (scrub, slider, colour picker) that has no final (`last`) change yet */
     private _unfinished?: UiObjectConfig
+    /** The form that the page made in `onStructureChange` of this one, to take its place */
+    private _next?: UiConfigForm
+    /** The form whose `onStructureChange` runs: a form made in it is its {@link _next} */
+    private static _replacing?: UiConfigForm
 
     /**
      * @param configs - the configs to draw, e.g. the children of an object's `uiConfig`
      * @param options - undo, change callbacks
      */
     constructor(configs: UiObjectConfig[], private _options: UiConfigFormOptions = {}) {
+        const replaced = UiConfigForm._replacing
+        if (replaced && !replaced._next) replaced._next = this
         if (UiConfigForm.InjectStyles && !UiConfigForm._styles?.isConnected) UiConfigForm._styles = createStyles(styles)
         this.element = document.createElement('div')
         this.element.className = 'ucf'
@@ -88,6 +95,22 @@ export class UiConfigForm {
         this._rows = []
         this._drawn.clear()
         this._undo = undefined
+    }
+
+    /** The form on the page now: this one, or the last one made in place of it (an undo of an older edit refreshes it) */
+    private get _live(): UiConfigForm {
+        return this._next ? this._next._live : this
+    }
+
+    /** Calls `onStructureChange`; a form that the page makes in it takes the place of the live form */
+    private _structureChange() {
+        const prev = UiConfigForm._replacing
+        UiConfigForm._replacing = this._live
+        try {
+            this._options.onStructureChange?.()
+        } finally {
+            UiConfigForm._replacing = prev
+        }
     }
 
     private _children(c: UiObjectConfig) {
@@ -113,7 +136,7 @@ export class UiConfigForm {
             if (cur && typeof cur === 'object' && typeof cur.copy === 'function') copyPrimitive(cur, v)
             else obj[key] = clonePrimitive(v)
             this._dispatch(c, parents, isLast, replay)
-            if (structural) this._options.onStructureChange?.()
+            if (structural) this._structureChange()
         }
         apply(value, last)
         this._unfinished = last ? undefined : c
@@ -152,7 +175,7 @@ export class UiConfigForm {
         // a button can change which fields there are: the page makes the form again after its undo and redo too
         const replayed = () => {
             this._dispatch(c, parents, true, true)
-            this._options.onStructureChange?.()
+            this._structureChange()
         }
         um.record({
             undo: async() => {
@@ -184,7 +207,8 @@ export class UiConfigForm {
             if (typeof p.onChange === 'function') (p.onChange as any)({type: 'change', last, config: c, target: p})
         }
         this._options.onChange?.(c)
-        this.refresh(replay)
+        // after a rebuild (onStructureChange), the replay of an older edit shows in the form made in place of this one
+        this._live.refresh(replay)
     }
 
     private _render(c: UiObjectConfig, host: HTMLElement, parents: UiObjectConfig[]) {
@@ -219,7 +243,7 @@ export class UiConfigForm {
                 if (typeof fn === 'function') await this._action(c, parents, () => fn.call(obj))
                 if (typeof c.onClick === 'function') await this._action(c, parents, () => (c.onClick as any)())
                 this._dispatch(c, parents, true)
-                this._options.onStructureChange?.()
+                this._structureChange()
             })
             host.appendChild(b)
             this._rows.push({config: c, update: () => {

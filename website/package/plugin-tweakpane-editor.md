@@ -80,7 +80,7 @@ const undo = viewer.addPluginSync(UndoManagerPlugin)
 const form = new UiConfigForm(UiConfigMethods.GetChildren(material.uiConfig), {
     undoManager: undo.undoManager,
     onChange: () => viewer.setDirty(),
-    // a dropdown or a button can change which fields there are: make the form again
+    // a dropdown or a button can change which fields there are: make the form again (in this call)
     onStructureChange: () => {/* form.dispose(); make a new form */},
 })
 popup.appendChild(form.element)
@@ -89,5 +89,5 @@ popup.appendChild(form.element)
 form.refresh()
 ```
 
-The form does not watch the values: call `refresh()` after a change from elsewhere (code, another panel). Its own undo and redo steps refresh it. A config that is `hidden` when the form is made is not drawn.
+The form does not watch the values: call `refresh()` after a change from elsewhere (code, another panel). Its own undo and redo steps refresh it. A form made in `onStructureChange` takes the place of the old one: the undo and redo of edits made in the old form refresh the new one. A config that is `hidden` when the form is made is not drawn.
 
