@@ -16,8 +16,8 @@ export interface UiConfigFormOptions {
     /** Called after every change, e.g. to redraw */
     onChange?: (config: UiObjectConfig) => void
     /**
-     * Called after a dropdown change or a button click: these can change which fields there are (e.g. the type of a
-     * curve). Make the form again then.
+     * Called after a dropdown change (also after its undo and redo) or a button click: these can change which fields
+     * there are (e.g. the type of a curve). Make the form again then.
      */
     onStructureChange?: () => void
     /**
@@ -57,6 +57,8 @@ export class UiConfigForm {
     /** A config that is in the list twice is drawn once */
     private _drawn = new Set<UiObjectConfig>()
     private _undo?: {config: UiObjectConfig, cmd: {undo: () => void, redo: () => void}, time: number, before: any}
+    /** The config of a continuous edit (scrub, slider, colour picker) that has no final (`last`) change yet */
+    private _unfinished?: UiObjectConfig
 
     /**
      * @param configs - the configs to draw, e.g. the children of an object's `uiConfig`
@@ -89,19 +91,26 @@ export class UiConfigForm {
     /**
      * Sets the value of a config through its binding, as one undo step
      * @param last - false while the value still changes (scrub, slider, colour picker), like the `last` of a change event
+     * @param structural - the value can change which fields there are (a dropdown): `onStructureChange` is called after
+     * the change, and after its undo and redo
      */
-    private _set(c: UiObjectConfig, parents: UiObjectConfig[], value: any, last = true) {
+    private _set(c: UiObjectConfig, parents: UiObjectConfig[], value: any, last = true, structural = false) {
         const [obj, key] = UiConfigMethods.GetBinding(c)
         if (!obj) return
         const before = clonePrimitive(obj[key])
-        if (equalsPrimitive(before, value)) return
+        if (equalsPrimitive(before, value)) {
+            if (last) this._end(c, parents)
+            return
+        }
         const apply = (v: any, isLast: boolean) => {
             const cur = obj[key]
             if (cur && typeof cur === 'object' && typeof cur.copy === 'function') copyPrimitive(cur, v)
             else obj[key] = clonePrimitive(v)
             this._dispatch(c, parents, isLast)
+            if (structural) this._options.onStructureChange?.()
         }
         apply(value, last)
+        this._unfinished = last ? undefined : c
         const um = this._options.undoManager
         if (!um) return
         const now = performance.now()
@@ -114,6 +123,13 @@ export class UiConfigForm {
         if (merge) um.replaceLast(cmd)
         else um.record(cmd)
         this._undo = {config: c, cmd, time: now, before: first}
+    }
+
+    /** The end of a continuous edit: the final change (`last`), which some configs wait for (e.g. to rebuild a geometry) */
+    private _end(c: UiObjectConfig, parents: UiObjectConfig[]) {
+        if (this._unfinished !== c) return
+        this._unfinished = undefined
+        this._dispatch(c, parents, true)
     }
 
     /** `onChange` of the config, then of each parent (what Tweakpane does with `parentOnChange`) */
@@ -186,10 +202,7 @@ export class UiConfigForm {
             sel.disabled = disabled
             const opts = this._children(c).map(o => ({label: UiConfigMethods.GetLabel(o), value: (o as any).value ?? UiConfigMethods.GetLabel(o)}))
             opts.forEach((o, i) => sel.appendChild(Object.assign(document.createElement('option'), {value: String(i), textContent: o.label})))
-            sel.addEventListener('change', () => {
-                this._set(c, parents, opts[+sel.value].value)
-                this._options.onStructureChange?.()
-            })
+            sel.addEventListener('change', () => this._set(c, parents, opts[+sel.value].value, true, true))
             row.appendChild(sel)
             this._rows.push({config: c, update: () => {
                 const v = value()
@@ -205,6 +218,8 @@ export class UiConfigForm {
                 if (cur?.isColor) this._set(c, parents, cur.clone().set(input.value), false)
                 else this._set(c, parents, typeof cur === 'number' ? parseInt(input.value.slice(1), 16) : input.value, false)
             })
+            // the picker closes
+            input.addEventListener('change', () => this._end(c, parents))
             row.appendChild(input)
             this._rows.push({config: c, update: () => {
                 const v = value() as any
@@ -220,7 +235,7 @@ export class UiConfigForm {
                     const v = (value() as any).clone()
                     v[a] = n
                     this._set(c, parents, v)
-                })
+                }, () => (value() as any)?.[a])
                 input.title = a
                 wrap.appendChild(input)
                 return input
@@ -237,7 +252,7 @@ export class UiConfigForm {
             const {min, max, step} = UiConfigMethods.GetBounds(c, type === 'number')
             const isInt = (this._options.isInteger ?? defaultIsInteger)(c, label)
             const clamp = (n: number) => Math.min(max, Math.max(min, isInt ? Math.round(n) : n))
-            const input = this._number(disabled, n => this._set(c, parents, clamp(n)))
+            const input = this._number(disabled, n => this._set(c, parents, clamp(n)), value)
             if (type === 'slider') {
                 const range = document.createElement('input')
                 range.type = 'range'
@@ -246,6 +261,8 @@ export class UiConfigForm {
                 range.step = String(step)
                 range.disabled = disabled
                 range.addEventListener('input', () => this._set(c, parents, clamp(+range.value), false))
+                // the slider is released
+                range.addEventListener('change', () => this._end(c, parents))
                 row.appendChild(range)
                 this._rows.push({config: c, update: () => {
                     range.value = String(value())
@@ -255,7 +272,7 @@ export class UiConfigForm {
             this._rows.push({config: c, update: () => {
                 if (document.activeElement !== input) input.value = fmt(value())
             }})
-            if (!disabled) this._scrub(name, () => +(value() as any), isInt, n => this._set(c, parents, clamp(n), false))
+            if (!disabled) this._scrub(name, () => +(value() as any), isInt, n => this._set(c, parents, clamp(n), false), () => this._end(c, parents))
         } else if (type === 'monitor') {
             const out = document.createElement('span')
             out.className = 'ucf-monitor'
@@ -277,7 +294,11 @@ export class UiConfigForm {
         for (let i = firstRow; i < this._rows.length; i++) this._rows[i].update()
     }
 
-    private _number(disabled: boolean, set: (n: number) => void) {
+    /**
+     * A number field. After a committed edit (Enter, the spinner, a blur), it shows the value of the binding, which can
+     * be clamped or rounded, also while it has the focus.
+     */
+    private _number(disabled: boolean, set: (n: number) => void, get: () => any) {
         const input = document.createElement('input')
         input.type = 'number'
         input.step = 'any'
@@ -285,12 +306,13 @@ export class UiConfigForm {
         input.addEventListener('change', () => {
             const n = parseFloat(input.value)
             if (isFinite(n)) set(n)
+            input.value = fmt(get())
         })
         return input
     }
 
     /** Drag the name left or right to change the number, Shift for 10x */
-    private _scrub(handle: HTMLElement, get: () => number, isInt: boolean, set: (n: number) => void) {
+    private _scrub(handle: HTMLElement, get: () => number, isInt: boolean, set: (n: number) => void, end: () => void) {
         handle.style.cursor = 'ew-resize'
         handle.addEventListener('pointerdown', e => {
             e.preventDefault()
@@ -304,6 +326,7 @@ export class UiConfigForm {
                 handle.removeEventListener('pointerup', up)
                 handle.removeEventListener('pointercancel', up)
                 if (this._undo) this._undo.time = -Infinity // the next edit is a new undo step (also in the first second of the page)
+                end()
             }
             handle.addEventListener('pointermove', move)
             handle.addEventListener('pointerup', up)

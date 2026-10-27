@@ -64,6 +64,7 @@ editor.loadPlugins({
 
 - Fields: number (drag the name to scrub, Shift for 10x), slider, checkbox, dropdown, vector, color, text, button, monitor, and folders (always open).
 - A change sets the value through the binding of the config, then calls `onChange` of the config and of each parent folder, as the Tweakpane renderer does.
+- A scrub, the slider and the colour picker send changes with `last: false` while they move, and a final change with `last: true` when they end, as Tweakpane does. A config that waits for the final change (e.g. to rebuild a geometry) gets it.
 - With an `undoManager`, each edit is one undo step. Quick edits of the same field (a scrub, the slider) merge into one step.
 - A number field takes whole numbers when its `stepSize` is a whole number of 1 or more, or when its name is a count (segments, sides, steps...). Change this with the `isInteger` option.
 - The form adds its stylesheet once (`UiConfigForm.InjectStyles`). The colours follow the Tweakpane theme variables (`--tp-...`) when the page sets them.

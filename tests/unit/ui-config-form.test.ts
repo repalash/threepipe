@@ -219,6 +219,70 @@ describe('UiConfigForm', () => {
         expect(target.width).toBeCloseTo(2)
     })
 
+    test('a slider, a colour and a scrub end with a final change (last: true)', () => {
+        const target = {size: 1, color: new Color('#ff0000'), width: 1}
+        const lasts: Record<string, boolean[]> = {size: [], color: [], width: []}
+        const on = (k: string) => (e: any) => lasts[k].push(e.last)
+        const form = new UiConfigForm([
+            {type: 'slider', label: 'Size', property: [target, 'size'], bounds: [0, 4], onChange: on('size')},
+            {type: 'color', label: 'Color', property: [target, 'color'], onChange: on('color')},
+            {type: 'number', label: 'Width', property: [target, 'width'], onChange: on('width')},
+        ])
+        const [range] = row(form, 'Size').inputs
+        range.value = '2'
+        range.fire('input')
+        range.value = '3'
+        range.fire('input')
+        range.fire('change') // released on the last value
+        expect(lasts.size).toEqual([false, false, true])
+
+        const [color] = row(form, 'Color').inputs
+        color.value = '#00ff00'
+        color.fire('input')
+        color.fire('change') // the picker closes
+        expect(lasts.color).toEqual([false, true])
+
+        const name = row(form, 'Width').row.children[0]
+        name.fire('pointerdown', {clientX: 0})
+        name.fire('pointermove', {clientX: 50})
+        name.fire('pointerup')
+        expect(lasts.width).toEqual([false, true])
+        name.fire('pointerdown', {clientX: 0}) // a click without a move: no change
+        name.fire('pointerup')
+        expect(lasts.width).toEqual([false, true])
+    })
+
+    test('the undo and redo of a dropdown call onStructureChange', () => {
+        const target = {type: 'a'}
+        const undoManager = new JSUndoManager({limit: 100, debug: false, bindHotKeys: false})
+        const onStructureChange = vi.fn()
+        const form = new UiConfigForm([{type: 'dropdown', label: 'Type', property: [target, 'type'], children: [{label: 'A', value: 'a'}, {label: 'B', value: 'b'}]}], {undoManager, onStructureChange})
+        const [select] = row(form, 'Type').inputs
+        select.value = '1'
+        select.fire('change')
+        expect(onStructureChange).toHaveBeenCalledTimes(1)
+        undoManager.undo()
+        expect(target.type).toBe('a')
+        expect(onStructureChange).toHaveBeenCalledTimes(2)
+        undoManager.redo()
+        expect(onStructureChange).toHaveBeenCalledTimes(3)
+    })
+
+    test('a committed number shows the clamped value, also while the field has the focus', () => {
+        const target = {radius: 1}
+        const form = new UiConfigForm([{type: 'number', label: 'Radius', property: [target, 'radius'], bounds: [0, 10]}])
+        const [input] = row(form, 'Radius').inputs
+        doc.activeElement = input
+        try {
+            input.value = '25'
+            input.fire('change') // Enter or the spinner, the focus stays
+            expect(target.radius).toBe(10)
+            expect(input.value).toBe('10')
+        } finally {
+            doc.activeElement = null
+        }
+    })
+
     test('dispose removes the form', () => {
         const host = new FakeElement('div')
         const form = new UiConfigForm([])
