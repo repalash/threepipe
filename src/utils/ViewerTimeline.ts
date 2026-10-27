@@ -162,7 +162,10 @@ export class ViewerTimeline extends EventDispatcher<ViewerTimelineEventMap> {
         const isReset = this.resetOnEnd && isEnd
         const isStop = this.stopOnEnd && isEnd
         if (this._stop || isStop) {
+            // Clock.stop() adds the time since the last frame, which would move a time set after stop() (a seek) on
+            const time = this._clock.elapsedTime
             this._clock.stop()
+            this._clock.elapsedTime = time
             this._start = false
             this._stop = false
             this.running = this._clock.running
