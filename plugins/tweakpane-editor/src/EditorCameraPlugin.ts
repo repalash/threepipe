@@ -265,13 +265,14 @@ export class EditorCameraPlugin extends AViewerPluginSync {
         if (!start) return
         const controls = start.controls as OrbitControls3 | undefined
         controls?.stopDamping?.()
+        // the projection first: a FOV change dollies a camera with dollyFov, and the position below replaces that move
+        start.zoom = pose.zoom
+        if (pose.fov !== undefined && (start as PerspectiveCamera2).fov !== undefined) (start as PerspectiveCamera2).fov = pose.fov
+        start.updateProjectionMatrix()
         start.position.copy(pose.position)
         start.target.copy(pose.target)
         // a camera without controls or autoLookAtTarget does not turn by itself: its rotation is part of the pose
         start.quaternion.copy(pose.quaternion)
-        start.zoom = pose.zoom
-        if (pose.fov !== undefined && (start as PerspectiveCamera2).fov !== undefined) (start as PerspectiveCamera2).fov = pose.fov
-        start.updateProjectionMatrix()
         start.setDirty()
     }
 

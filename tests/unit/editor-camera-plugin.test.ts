@@ -249,6 +249,22 @@ describe('EditorCameraPlugin', () => {
         expect(dispose).toHaveBeenCalledTimes(1)
     })
 
+    test('undo restores the position also when a FOV change dollies the start view (dollyFov)', () => {
+        const {plugin, start, records} = setup()
+        let fov = 50
+        Object.defineProperty(start, 'fov', {get: () => fov, set: (v: number) => {
+            fov = v
+            start.position.set(99, 99, 99) // the dolly of RootScene on a FOV change
+        }})
+        plugin.camera.fov = 30
+        plugin.camera.position.set(2, 3, 4)
+        plugin.setStartViewFromEditor()
+        expect(start.position.toArray()).toEqual([2, 3, 4])
+        records[0].undo()
+        expect(fov).toBe(50)
+        expect(start.position.toArray()).toEqual([0, 1, 6])
+    })
+
     test('copyStartView copies the zoom', () => {
         const {plugin, start} = setup()
         start.zoom = 1.5
