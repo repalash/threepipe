@@ -230,6 +230,16 @@ describe('EditorCameraPlugin', () => {
         expect(plugin.camera.position.toArray()).toEqual([9, 0, 0])
     })
 
+    test('setStartViewFromEditor gives the start view the editor FOV; undo the old one', () => {
+        const {plugin, start, records} = setup()
+        start.fov = 50
+        plugin.camera.fov = 30
+        plugin.setStartViewFromEditor()
+        expect(start.fov).toBe(30)
+        records[0].undo()
+        expect(start.fov).toBe(50)
+    })
+
     test('copyStartView copies the zoom', () => {
         const {plugin, start} = setup()
         start.zoom = 1.5

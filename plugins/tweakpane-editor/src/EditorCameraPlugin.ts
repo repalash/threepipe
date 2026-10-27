@@ -22,15 +22,17 @@ interface StartPose {
     target: Vector3
     quaternion: Quaternion
     zoom: number
+    /** The field of view of a perspective camera */
+    fov?: number
 }
 
 /** The pose of a camera that is a child of the scene (its local pose is its world pose) */
 function poseOf(camera: ICamera): StartPose {
-    return {position: camera.position.clone(), target: camera.target.clone(), quaternion: camera.quaternion.clone(), zoom: camera.zoom}
+    return {position: camera.position.clone(), target: camera.target.clone(), quaternion: camera.quaternion.clone(), zoom: camera.zoom, fov: (camera as PerspectiveCamera2).fov}
 }
 
 function samePose(a: StartPose, b: StartPose) {
-    return a.position.equals(b.position) && a.target.equals(b.target) && a.quaternion.equals(b.quaternion) && a.zoom === b.zoom
+    return a.position.equals(b.position) && a.target.equals(b.target) && a.quaternion.equals(b.quaternion) && a.zoom === b.zoom && a.fov === b.fov
 }
 
 /**
@@ -240,6 +242,7 @@ export class EditorCameraPlugin extends AViewerPluginSync {
             target: this.camera.target.clone(),
             quaternion: this.camera.getWorldQuaternion(new Quaternion()),
             zoom: this.camera.zoom,
+            fov: this.camera.fov,
         }
         this._moveStartView(after)
         this._recordStartView(before, after)
@@ -261,6 +264,7 @@ export class EditorCameraPlugin extends AViewerPluginSync {
         // a camera without controls or autoLookAtTarget does not turn by itself: its rotation is part of the pose
         start.quaternion.copy(pose.quaternion)
         start.zoom = pose.zoom
+        if (pose.fov !== undefined && (start as PerspectiveCamera2).fov !== undefined) (start as PerspectiveCamera2).fov = pose.fov
         start.updateProjectionMatrix()
         start.setDirty()
     }
