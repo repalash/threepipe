@@ -34,7 +34,8 @@ for (let i = 0; i < 8; i++) for (const b of [1, 2, 4]) if (!(i & b)) BOX_EDGES.p
 
 /**
  * The box of what is drawn of `obj` in a frame: the boxes of its visible meshes, lines and points, and a cube of
- * `pointSize(o)` at each light or camera inside it. Helpers (widgets, a light's target) are left out.
+ * `pointSize(o)` at each light or camera inside it. Helpers (widgets, a light's target) and an object with
+ * `userData.bboxVisible === false` are left out, with all inside them (as in `Box3B.expandByObject`).
  * As in `Box3B.expandByObject`, an object with its own `boundingBox` (an instanced or a skinned mesh: the box of all
  * instances, or of the pose) uses it before the box of its geometry. Empty when `obj` has none of these.
  * @param frame - maps the world to the frame; each part's box goes into the frame from its own world transform
@@ -43,9 +44,10 @@ function contentBox(obj: IObject3D, frame: Matrix4, pointSize: (o: IObject3D) =>
     const box = new Box3()
     obj.updateWorldMatrix(true, true)
     const m = new Matrix4()
-    obj.traverseVisible(o => {
+    const visit = (o: IObject3D) => {
         const c = o as IObject3D & {boundingBox?: Box3 | null, computeBoundingBox?: () => void}
-        if (isHelperObject(c)) return
+        if (!c.visible || c.userData.bboxVisible === false || isHelperObject(c)) return
+        c.children.forEach(visit)
         let b: Box3 | null | undefined
         if (c.boundingBox !== undefined) {
             if (c.boundingBox === null) c.computeBoundingBox?.()
@@ -63,7 +65,8 @@ function contentBox(obj: IObject3D, frame: Matrix4, pointSize: (o: IObject3D) =>
         if (!b) return
         m.multiplyMatrices(frame, c.matrixWorld)
         box.union(b.clone().applyMatrix4(m))
-    })
+    }
+    visit(obj)
     return box
 }
 
@@ -75,8 +78,8 @@ export function localBox(obj: IObject3D, pointSize: (o: IObject3D) => number): B
 
 /**
  * The world box (aligned to the world axes) of what is drawn of objects: the boxes of their visible meshes, lines and
- * points, and a cube of `pointSize(o)` at each light or camera inside them. Helpers (widgets, a light's target) are
- * left out. As in `Box3B.expandByObject`, an object with its own `boundingBox` (an instanced or a skinned mesh: the box
+ * points, and a cube of `pointSize(o)` at each light or camera inside them. Helpers (widgets, a light's target) and an
+ * object with `userData.bboxVisible === false` are left out, with all inside them. As in `Box3B.expandByObject`, an object with its own `boundingBox` (an instanced or a skinned mesh: the box
  * of all instances, or of the pose) uses it before the box of its geometry. An object with nothing drawn adds its
  * position.
  */

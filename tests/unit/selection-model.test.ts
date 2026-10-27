@@ -228,6 +228,13 @@ describe('selection box', () => {
         expect(boxInfo([g], 'world', point).size.toArray().map(v => +v.toFixed(5))).toEqual([1, 1, 1])
     })
 
+    test('an object with bboxVisible false is left out with all inside it, as in Box3B', () => {
+        const a = mesh('A'), far = mesh('Far', 10, 0, 0)
+        const noBox = group('No box', far)
+        noBox.userData.bboxVisible = false
+        expect(localBox(group('G', a, noBox), point).getSize(new Vector3()).toArray().map(v => +v.toFixed(5))).toEqual([0.5, 0.5, 0.5])
+    })
+
     test('an instanced mesh: the box of all its instances, as in Box3B', () => {
         const im = new InstancedMesh(new BoxGeometry(0.5, 0.5, 0.5), material, 2) as any as IObject3D
         ;(im as any).setMatrixAt(0, new Matrix4().makeTranslation(-5, 0, 0))
