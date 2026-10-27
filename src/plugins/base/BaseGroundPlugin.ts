@@ -101,6 +101,7 @@ export class BaseGroundPlugin<TE extends AViewerPluginEventMap = AViewerPluginEv
         viewer.scene.addEventListener('addSceneObject', this._onSceneUpdate)
         viewer.addEventListener('preRender', this._preRender)
         viewer.addEventListener('postFrame', this._postFrame)
+        viewer.scene.addEventListener('mainCameraChange', this._refreshCameraLimits)
         this.refresh()
     }
 
@@ -111,6 +112,7 @@ export class BaseGroundPlugin<TE extends AViewerPluginEventMap = AViewerPluginEv
         viewer.scene.removeEventListener('addSceneObject', this._onSceneUpdate)
         viewer.removeEventListener('postFrame', this._postFrame)
         viewer.removeEventListener('preRender', this._preRender)
+        viewer.scene.removeEventListener('mainCameraChange', this._refreshCameraLimits)
         return super.onRemove(viewer)
     }
 
@@ -170,24 +172,24 @@ export class BaseGroundPlugin<TE extends AViewerPluginEventMap = AViewerPluginEv
     }
 
 
-    private _cameraLimitsSet = false
-    private _cameraLastMaxPolarAngle = Math.PI
+    // the controls that have the limit now, and their own max polar angle before it
+    private _cameraLimited?: {orbit: OrbitControls3, maxPolarAngle: number}
     private _refreshCameraLimits() {
-        const orbit = this._viewer?.scene.mainCamera.controls as OrbitControls3
-        if (!orbit) return
-        if (orbit.maxPolarAngle === undefined) {
-            console.warn('refreshCameraLimits only available with orbit controls.')
-            return
+        const camera = this._viewer?.scene.mainCamera
+        let orbit = camera?.controls as OrbitControls3 | undefined
+        if (orbit && orbit.maxPolarAngle === undefined) {
+            if (this.limitCameraAboveGround) console.warn('refreshCameraLimits only available with orbit controls.')
+            orbit = undefined
         }
-        if (this.limitCameraAboveGround) {
-            if (!this._cameraLimitsSet) this._cameraLastMaxPolarAngle = orbit.maxPolarAngle
-            orbit.maxPolarAngle = Math.PI / 2
-            this._cameraLimitsSet = true
-        } else if (this._cameraLimitsSet) {
-            orbit.maxPolarAngle = this._cameraLastMaxPolarAngle
-            this._cameraLimitsSet = false
+        const limited = this.limitCameraAboveGround && !camera?.userData.disableGroundLimit ? orbit : undefined
+        // another main camera (or none): the last one gets its own limit back
+        if (this._cameraLimited && this._cameraLimited.orbit !== limited) {
+            this._cameraLimited.orbit.maxPolarAngle = this._cameraLimited.maxPolarAngle
+            this._cameraLimited = undefined
         }
-
+        if (!limited) return
+        if (!this._cameraLimited) this._cameraLimited = {orbit: limited, maxPolarAngle: limited.maxPolarAngle}
+        limited.maxPolarAngle = Math.PI / 2
     }
 
     // not serialized. this can be controlled by other plugins like ModelStagePlugin and serialized there
