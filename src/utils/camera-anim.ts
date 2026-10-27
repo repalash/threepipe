@@ -39,7 +39,9 @@ export function animateCameraToViewSpherical(camera: ICamera, view: ICameraView)
         camera.position.copy(parent ? parent.worldToLocal(current.position) : current.position)
         camera.target.copy(current.target) // always in world space
         camera.zoom = current.zoom
-        // lookAt in setDirty updates the quaternion
+        // face the target in every frame: setDirty does it only with autoLookAtTarget, and the controls that also do it
+        // are off while an animation disables the interactions, so the camera turned only at the end (a snap)
+        camera.lookAt(current.target)
         camera.setDirty() // because it has min change distance in setter
     }
 
