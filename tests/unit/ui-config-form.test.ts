@@ -377,6 +377,40 @@ describe('UiConfigForm', () => {
         expect(target.count).toBe(0)
     })
 
+    test('a button action: undo and redo read its current callbacks and call onStructureChange', async() => {
+        const ids: number[] = []
+        let next = 1
+        const onStructureChange = vi.fn()
+        const undoManager = new JSUndoManager({limit: 100, debug: false, bindHotKeys: false})
+        // like EntityComponentPlugin.addComponent: its undo replaces its redo, so a redo brings back the same id
+        const add = () => {
+            const id = next++
+            ids.push(id)
+            const action: any = {
+                undo: () => {
+                    ids.splice(ids.indexOf(id), 1)
+                    action.redo = () => ids.push(id)
+                },
+                redo: () => ids.push(next++),
+            }
+            return action
+        }
+        const form = new UiConfigForm([{type: 'button', label: 'Add', onClick: add}], {undoManager, onStructureChange})
+        const button = (form.element as any as FakeElement).all().find(e => e.tagName === 'button')!
+        const wait = () => new Promise(r => setTimeout(r, 0))
+        button.fire('click')
+        await wait()
+        expect(ids).toEqual([1])
+        expect(onStructureChange).toHaveBeenCalledTimes(1)
+        undoManager.undo()
+        await wait()
+        expect(ids).toEqual([])
+        undoManager.redo()
+        await wait()
+        expect(ids).toEqual([1]) // the same id, from the redo that the undo set
+        expect(onStructureChange).toHaveBeenCalledTimes(3)
+    })
+
     test('dispose removes the form', () => {
         const host = new FakeElement('div')
         const form = new UiConfigForm([])

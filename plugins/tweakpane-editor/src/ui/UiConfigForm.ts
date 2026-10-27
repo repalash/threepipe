@@ -134,20 +134,25 @@ export class UiConfigForm {
      */
     private async _action(c: UiObjectConfig, parents: UiObjectConfig[], run: () => any) {
         const res = await run()
-        const action = typeof res === 'object' && typeof res?.action === 'function' ? res.action.bind(res) : undefined
-        if (action) await action()
-        const undo = typeof res === 'function' ? res : typeof res?.undo === 'function' ? res.undo.bind(res) : undefined
-        const redo = typeof res === 'function' ? run : typeof res?.redo === 'function' ? res.redo.bind(res) : action
+        if (typeof res === 'object' && typeof res?.action === 'function') await res.action()
         const um = this._options.undoManager
-        if (!undo || !um) return
+        if (!um || typeof res !== 'function' && typeof res?.undo !== 'function') return
+        // read at replay: an action can replace its own undo or redo (EntityComponentPlugin.addComponent does)
+        const undo = () => typeof res === 'function' ? res() : res.undo()
+        const redo = () => typeof res === 'function' ? run() : typeof res.redo === 'function' ? res.redo() : res.action?.()
+        // a button can change which fields there are: the page makes the form again after its undo and redo too
+        const replayed = () => {
+            this._dispatch(c, parents, true)
+            this._options.onStructureChange?.()
+        }
         um.record({
             undo: async() => {
                 await undo()
-                this._dispatch(c, parents, true)
+                replayed()
             },
             redo: async() => {
-                await redo?.()
-                this._dispatch(c, parents, true)
+                await redo()
+                replayed()
             },
         })
     }
