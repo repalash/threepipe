@@ -399,6 +399,72 @@ describe('CameraViewPlugin.recordAllViews', () => {
     })
 })
 
+describe('CanvasRecorderPlugin stop and remove', () => {
+    test('a recorder that fails during the end padding: the stop resolves without a recording', async() => {
+        const {plugin} = setup()
+        const rec = plugin._recorder
+        let state = 'stopped'
+        Object.defineProperty(rec, 'state', {get: () => state})
+        rec.start = () => state = 'recording'
+        rec.isRecording = () => state === 'recording'
+        rec.stop = (cb: any) => {
+            if (state === 'error') return // as the recorders do: no callback in the error state
+            state = 'stopped'
+            cb(new Blob([]))
+        }
+        plugin.endPaddingMs = 20
+        rec.start()
+        const stop = plugin.stopRecording()
+        await new Promise(r => setTimeout(r, 5))
+        state = 'error' // e.g. MediaRecorder fails during the padding
+        const done = await Promise.race([stop, new Promise(r => setTimeout(() => r('hung'), 1000))])
+        expect(done).toBeUndefined()
+        expect(plugin._stopping).toBeUndefined()
+    })
+
+    test('onRemove drops the disposed recorders, so an add makes new ones', () => {
+        const {plugin} = setup()
+        const dispose = vi.fn()
+        plugin._recorders = {'ffmpeg.js': {dispose}}
+        plugin._recorder = plugin._recorders['ffmpeg.js']
+        const listeners = {removeEventListener: () => undefined}
+        plugin._viewer = {...listeners, renderManager: listeners, scene: listeners, console}
+        plugin.onRemove(plugin._viewer)
+        expect(dispose).toHaveBeenCalled()
+        expect(plugin.recorder).toBeUndefined()
+        expect(plugin._recorders).toEqual({})
+    })
+})
+
+describe('real-time recording (not converge mode)', () => {
+    test('the frames follow the frame rate, not the render rate', () => {
+        const {plugin} = setup()
+        const rec = plugin._recorder
+        rec.setOptions = () => undefined
+        plugin._getRecorder = () => rec // keep the fake recorder when the options change
+        plugin.convergeMode = false
+        plugin.videoFrameRate = 30 // a frame every 33.3 ms
+        const requestFrame = vi.fn()
+        rec.requestFrame = requestFrame
+        plugin.startRecording()
+        let time = 1000
+        const now = vi.spyOn(performance, 'now').mockImplementation(() => time)
+        try {
+            const render = (t: number) => {
+                time = 1000 + t
+                plugin._postRender()
+                return requestFrame.mock.calls.length
+            }
+            expect(render(0)).toBe(1) // the first frame
+            expect(render(16)).toBe(1) // a render at 60 Hz: no frame yet
+            expect(render(34)).toBe(2)
+            expect(render(134)).toBe(5) // a late render: the frames at 66.7, 100 and 133.3 ms
+        } finally {
+            now.mockRestore()
+        }
+    })
+})
+
 describe('converge mode with several frames in one loop', () => {
     test('each converged frame is captured before the next render', async() => {
         const {plugin} = setup()

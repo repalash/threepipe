@@ -184,13 +184,31 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
                     // this._viewer!.renderer.frameWaitTime = waitTime
                     this._pendingCapture = fn
                     timeout(waitTime).then(fn)
-                } else fn()
+                } else this._requestRealtimeFrames()
             }
         }
         if (this._renderToScreenDisabled) {
             this._viewer!.renderManager.composer.renderToScreen = true
         }
     }
+    /** The time of the next frame of a real-time recording, in ms (0: the recording starts) */
+    private _nextFrameTime = 0
+
+    /**
+     * Real time (not converge mode): the frames follow the frame rate of the recording, not the render rate. A render
+     * that comes early captures no frame; one that comes late captures the frames it passed (the same image), so the
+     * video keeps the speed of the animation. After a pause of more than a second, the time starts again.
+     */
+    private _requestRealtimeFrames() {
+        const interval = 1000 / (this._active ?? this).videoFrameRate
+        const now = performance.now()
+        if (!this._nextFrameTime || now - this._nextFrameTime > 1000) this._nextFrameTime = now
+        while (now >= this._nextFrameTime) {
+            this._recorder?.requestFrame()
+            this._nextFrameTime += interval
+        }
+    }
+
     private _refreshUi = () => {
         this.uiConfig.children?.map(value => getOrCall(value)).flat(2).forEach(v => v?.uiRefresh?.())
     }
@@ -209,6 +227,9 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
         Object.values(this._recorders).forEach(r => {
             r?.dispose()
         })
+        // a disposed recorder (an ended MP4 worker) is not used again: an add makes new ones
+        this._recorders = {}
+        this._recorder = undefined
         return super.onRemove(viewer)
     }
 
@@ -271,6 +292,7 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
         if (this._recorderBusy()) return false
         if (this.recorder?.isRecording() === false) {
             this._active = {convergeMode: this.convergeMode, videoFrameRate: this.videoFrameRate}
+            this._nextFrameTime = 0
             this.recorder.options.stepMode = this.convergeMode
             this.recorder.start()
             return true
@@ -317,7 +339,10 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
                 }
             }
             if (this.endPaddingMs) await timeout(this.endPaddingMs)
-            return new Promise((resolve) => this.recorder?.stop(resolve))
+            // the recorder failed (or stopped) during the waits above: its stop() would not call back
+            const recorder = this.recorder
+            if (!recorder || recorder.state === 'error' || recorder.state === 'stopped') return undefined
+            return new Promise((resolve) => recorder.stop(resolve))
         }
         return undefined
     }
