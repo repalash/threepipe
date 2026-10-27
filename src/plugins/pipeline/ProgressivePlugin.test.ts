@@ -75,4 +75,15 @@ describe('ProgressivePlugin.postFrameConvergedRecordingDelta', () => {
         s2.viewer.renderManager.frameCount = 4
         expect(s2.progressive.postFrameConvergedRecordingDelta()).toBeCloseTo(1 / 60)
     })
+
+    test('converged, but the recorder still records a frame (a browser recorder): 0, the animations wait', () => {
+        const {progressive, recorder, viewer, setRecording} = setup(4)
+        setRecording(true)
+        viewer.renderManager.frameCount = 4
+        let busy = true
+        recorder._recorder.isBusy = () => busy
+        expect(progressive.postFrameConvergedRecordingDelta()).toBe(0)
+        busy = false
+        expect(progressive.postFrameConvergedRecordingDelta()).toBeCloseTo(1 / 30)
+    })
 })

@@ -521,6 +521,26 @@ describe('converge mode hold', () => {
     })
 })
 
+describe('a recorder that still records a frame', () => {
+    test('no frame is requested until it is ready, for a converged render or a still loop', () => {
+        const {plugin} = setup() // converge mode, the scene is converged
+        const requestFrame = vi.fn()
+        let busy = true
+        Object.assign(plugin._recorder, {requestFrame, isBusy: () => busy})
+        plugin._recorder.start()
+        plugin._viewer.renderManager = {composer: {renderToScreen: true}}
+        plugin._preRender()
+        plugin._postRender() // a converged render while busy: no capture
+        plugin._postFrame()
+        plugin._postFrame() // still loops while busy: no hold
+        expect(plugin._pendingCapture).toBeUndefined()
+        expect(requestFrame).not.toHaveBeenCalled()
+        busy = false
+        plugin._postFrame() // ready: the still scene (the converged pose) is captured
+        expect(requestFrame).toHaveBeenCalledTimes(1)
+    })
+})
+
 describe('recording time', () => {
     test('a converge-mode wait lasts its frames of the video, counted per frame (also several in one loop)', async() => {
         const {plugin, progressive} = setup()

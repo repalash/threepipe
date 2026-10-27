@@ -134,7 +134,8 @@ export class ProgressivePlugin
 
     /**
      * Get recording delta post render, For use with animations to sync with converge mode in canvas recorder. See PopmotionPlugin for usage.
-     * @returns {number} - delta time in seconds (1 / videoFrameRate), or 0 when converging, or -1 in case of not recording in converge mode
+     * @returns {number} - delta time in seconds (1 / videoFrameRate), or 0 when converging or when the recorder cannot take a
+     * frame yet ({@link IConvergedCanvasRecorder.canRecordFrame}), or -1 in case of not recording in converge mode
      */
     postFrameConvergedRecordingDelta(recorderPlugin = 'CanvasRecorder'): number {
         const recorder = this._viewer?.getPlugin<IConvergedCanvasRecorder&IViewerPlugin>(recorderPlugin)
@@ -142,7 +143,7 @@ export class ProgressivePlugin
         // the settings of the running recording: a change during the recording applies to the next one
         const settings = recorder.recordingSettings ?? recorder
         if (settings.convergeMode)
-            return this.isConverged(true) ? 1. / settings.videoFrameRate : 0
+            return this.isConverged(true) && recorder.canRecordFrame?.() !== false ? 1. / settings.videoFrameRate : 0
         return -1
     }
 
@@ -186,6 +187,8 @@ export interface IConvergedCanvasRecorder{
     videoFrameRate: number;
     /** The converge mode and frame rate of the running recording, when they can differ from the settings above */
     readonly recordingSettings?: {convergeMode: boolean, videoFrameRate: number};
+    /** False while a frame still records (a browser recorder records each frame for one frame time): the animations wait */
+    canRecordFrame?(): boolean;
 }
 
 export class ProgressiveBlendPass extends AddBlendTexturePass implements IPipelinePass {

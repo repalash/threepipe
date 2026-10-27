@@ -8,6 +8,8 @@ export interface ICanvasRecorder<T extends string=any>
     setOptions: (options: Partial<CanvasRecorderOptions>) => void;
     isRecording: () => boolean;
     requestFrame: () => boolean;
+    /** A frame still records, so the next frame would wait (a step-mode browser recorder) */
+    isBusy?: () => boolean;
     dispose: () => void;
     options: CanvasRecorderOptions;
     start: () => void;

@@ -83,6 +83,15 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
         return this._active
     }
 
+    /**
+     * Whether the recorder can take a frame now. A browser recorder in converge mode records each frame for one frame
+     * time: until then, no frame is requested and the animations do not step
+     * ({@link ProgressivePlugin.postFrameConvergedRecordingDelta}), so each pose gets its own frame.
+     */
+    canRecordFrame(): boolean {
+        return !this._recorder?.isBusy?.()
+    }
+
     /** The converge mode of the running recording, else the setting */
     private get _convergeNow(): boolean {
         return (this._active ?? this).convergeMode
@@ -173,7 +182,7 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
             if (!this._convergeNow || !progressive) {
                 // real time; or converge mode without ProgressivePlugin, where the animations run on the wall clock
                 this._requestRealtimeFrames()
-            } else if (progressive.isConverged(true)) {
+            } else if (progressive.isConverged(true) && this.canRecordFrame()) {
                 // once: at its timeout, or before the next render (_preRender), whichever comes first
                 let done = false
                 const fn = () => {
@@ -215,8 +224,9 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
             this._requestRealtimeFrames()
             return
         }
-        if (!progressive.isConverged(true)) return
-        // the capture of the last render first, so the frames keep their order
+        // the animations stepped in this loop only if the recorder could take a frame (canRecordFrame)
+        if (!progressive.isConverged(true) || !this.canRecordFrame()) return
+        // the capture of the last render first, so the frames keep their order (a still scene: the same image)
         this._pendingCapture?.()
         this._recorder.requestFrame()
     }

@@ -111,6 +111,11 @@ export class CanvasMediaRecorder extends ACanvasRecorder {
         return true
     }
 
+    /** Step mode: a frame records now; a frame requested now would wait for it */
+    isBusy() {
+        return this._stepping || this._queuedFrames > 0
+    }
+
     /** Step mode: records the canvas for one frame time */
     private _step() {
         this._stepping = true
