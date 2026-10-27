@@ -760,8 +760,10 @@ export class CameraViewPlugin extends AViewerPluginSync<CameraViewPluginEventMap
             if (looping) this.viewLooping = true
         }
         if (downloadOnEnd && blob) {
-            const name = await this._viewer?.dialog.prompt('Canvas Recorder: Save file as', 'recording.mp4')
-            if (name !== null) await this._downloadBlob(blob, name || 'recording.mp4')
+            // the extension of the recorded format (webm for a MediaRecorder recording in Chrome)
+            const fileName = 'recording.' + (blob.type.split(';')[0].split('/').pop() || 'mp4')
+            const name = await this._viewer?.dialog.prompt('Canvas Recorder: Save file as', fileName)
+            if (name !== null) await this._downloadBlob(blob, name || fileName)
         }
         return blob
     }

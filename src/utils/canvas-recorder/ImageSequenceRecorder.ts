@@ -66,9 +66,11 @@ export class ImageSequenceRecorder extends ACanvasRecorder {
         const name = 'frame_' + String(this._frameCount).padStart(5, '0') + (mime.includes('png') ? '.png' : mime.includes('webp') ? '.webp' : '.jpg')
 
         // const dataUrl = this._canvas.toDataURL(mime, 90);
-        this._track(new Promise<void>(resolve => this._canvas.toBlob(
+        this._track(new Promise<void>((resolve, reject) => this._canvas.toBlob(
             (blob) => {
-                if (blob) this._currentImages.push([name, blob])
+                // no image (e.g. a canvas of size 0): the frame is missing, the stop reports it
+                if (!blob) return reject(new Error('ImageSequenceRecorder: no image for ' + name))
+                this._currentImages.push([name, blob])
                 resolve()
             },
             mime,

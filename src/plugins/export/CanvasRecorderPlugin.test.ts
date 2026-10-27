@@ -286,6 +286,17 @@ describe('ImageSequenceRecorder failures and names', () => {
         expect(rec.state).toBe('error')
     })
 
+    test('a capture without an image (a canvas of size 0) makes the stop end in the error state', async() => {
+        const canvas = {toBlob: (cb: (b: Blob | null) => void) => cb(null)} as any
+        const rec = new ImageSequenceRecorder(canvas, {mimeType: 'image/png'}) as any
+        rec._console = {error: () => undefined, warn: () => undefined}
+        rec._writeImages = async() => undefined
+        rec.setState('recording')
+        rec.requestFrame()
+        await new Promise(resolve => rec.stop(resolve))
+        expect(rec.state).toBe('error')
+    })
+
     test('WebP frames get the .webp extension', () => {
         const canvas = {toBlob: (cb: (b: Blob) => void) => cb(new Blob([]))} as any
         const rec = new ImageSequenceRecorder(canvas, {mimeType: 'image/webp'}) as any
@@ -385,6 +396,43 @@ describe('CameraViewPlugin.recordAllViews', () => {
         await expect(views.recordAllViews(undefined, false)).rejects.toThrow('anim failed')
         expect(recorder.isRecording()).toBe(false)
         expect(views.viewLooping).toBe(true)
+    })
+})
+
+describe('converge mode with several frames in one loop', () => {
+    test('each converged frame is captured before the next render', async() => {
+        const {plugin} = setup()
+        let shown = 0 // the frame that the canvas shows
+        const captured: number[] = []
+        plugin._recorder.requestFrame = () => captured.push(shown)
+        plugin._recorder.start()
+        plugin._viewer.renderManager = {composer: {renderToScreen: true}}
+        for (const frame of [1, 2]) { // two renders in one animation loop (maxFramePerLoop 2)
+            plugin._preRender()
+            shown = frame
+            plugin._postRender()
+        }
+        await new Promise(r => setTimeout(r, 10))
+        expect(captured).toEqual([1, 2])
+    })
+})
+
+describe('CameraViewPlugin.recordAllViews download', () => {
+    test('the file name has the extension of the recorded format', async() => {
+        const {plugin: recorder} = setup()
+        recorder.record = async() => new Blob([], {type: 'video/webm;codecs=vp9'})
+        const views = new CameraViewPlugin() as any
+        let promptDefault = ''
+        const exportFile = vi.fn()
+        views._viewer = {
+            getPlugin: (t: string) => t === 'CanvasRecorder' ? recorder : t === 'FileTransferPlugin' ? {exportFile} : undefined,
+            dialog: {prompt: async(_m: string, def: string) => (promptDefault = def, '')},
+        }
+        views._cameraViews = [{}]
+        views.resetToFirstView = async() => undefined
+        await views.recordAllViews(undefined, true)
+        expect(promptDefault).toBe('recording.webm')
+        expect(exportFile).toHaveBeenCalledWith(expect.any(Blob), 'recording.webm')
     })
 })
 

@@ -147,7 +147,12 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
 
     private _renderToScreenDisabled = false
 
+    /** A capture of the last converged frame that waits for its timeout */
+    private _pendingCapture?: () => void
+
     private _preRender = () => {
+        // several frames can render in one animation loop (maxFramePerLoop): capture the last one before it is replaced
+        this._pendingCapture?.()
         if (this._convergeNow && this._recorder?.isRecording()) {
             const composer = this._viewer!.renderManager.composer
             const k = composer.renderToScreen
@@ -165,11 +170,19 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
             const progressive = this._viewer?.getPlugin<ProgressivePlugin>('ProgressivePlugin')
             if (!this._convergeNow || !progressive || progressive.isConverged(true)) {
 
-                const fn = () => this._recorder?.requestFrame()
+                // once: at its timeout, or before the next render (_preRender), whichever comes first
+                let done = false
+                const fn = () => {
+                    if (done) return
+                    done = true
+                    if (this._pendingCapture === fn) this._pendingCapture = undefined
+                    this._recorder?.requestFrame()
+                }
                 if (this._convergeNow) {
                     // give some time to the browser to render the frame
                     const waitTime = 1
                     // this._viewer!.renderer.frameWaitTime = waitTime
+                    this._pendingCapture = fn
                     timeout(waitTime).then(fn)
                 } else fn()
             }
