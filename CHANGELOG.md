@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 [//]: # (The format is based on [Keep a Changelog]&#40;https://keepachangelog.com/en/1.1.0/&#41;, and this project adheres to [Semantic Versioning]&#40;https://semver.org/spec/v2.0.0.html&#41;.)
 
+## [Unreleased]
+
+### Added
+
+- [`CanvasRecorderPlugin`](https://threepipe.org/plugin/CanvasRecorderPlugin.html), ported from webgi: records the canvas to MP4 (ffmpeg.js, `FFMPEGRecorder.LIBRARY_PATH`), to the browser's `MediaRecorder` format (`mimeType: 'auto'`) or to an image sequence. Converge mode captures a frame after the `ProgressivePlugin` converges and steps the animations by `1 / videoFrameRate` per frame. Also `record(action)`, `recordCamera360`, `download360Recording`, the recorders `FFMPEGRecorder`, `CanvasMediaRecorder`, `ImageSequenceRecorder` and `ACanvasRecorder`, and an example
+- `CameraViewPlugin.recordAllViews()` (and its UI button) records the animation through all the camera views with the `CanvasRecorderPlugin`
+- `ProgressivePlugin.postFrameConvergedRecordingDelta()` returns the recording delta of a `CanvasRecorderPlugin` (it was a stub that returned -1)
+
+### Fixed
+
+- `ViewerTimeline` read the recording delta in milliseconds, but it is in seconds, so the timeline advanced 1000x too slowly in a converge-mode recording
+
 ## [0.6.0] - 2026-10-23
 
 ### Added
