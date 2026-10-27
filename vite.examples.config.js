@@ -6,6 +6,7 @@ import glsl from 'rollup-plugin-glsl';
 import path from 'node:path';
 import fs from 'node:fs';
 import react from '@vitejs/plugin-react';
+import {execFileSync} from 'node:child_process';
 
 const isProd = process.env.NODE_ENV === 'production'
 const { name, version, author } = packageJson
@@ -47,7 +48,11 @@ const alias = {
     'troika-three-text': 'https://esm.sh/troika-three-text?external=three',
     'uiconfig-tweakpane/lib/esm': 'uiconfig-tweakpane',
 }
-export default defineConfig(async ()=>{
+export default defineConfig(async ({command})=>{
+
+    // examples/globals.js (gitignored) holds the example env values. `npm run build-examples` writes it, but a fresh
+    // clone whose install stopped early has none, and the editor on examples/index.html fails to load without it.
+    if (command === 'serve') execFileSync(process.execPath, ['./scripts/generate-example-env.mjs'], {cwd: __dirname, stdio: 'inherit'})
 
     // we have to download remote libs and replace alias with local paths, otherwise local module resolution don't work...
     for (const [key, value] of Object.entries(alias)) {
@@ -83,6 +88,18 @@ export default defineConfig(async ()=>{
             alias,
         },
         plugins: [
+            { // the server prints its root URL; the examples start at /examples/index.html
+                name: 'root-to-examples',
+                apply: 'serve',
+                configureServer (server) {
+                    server.middlewares.use((req, res, next) => {
+                        if (req.url !== '/' && req.url !== '/index.html') return next()
+                        res.statusCode = 302
+                        res.setHeader('Location', '/examples/index.html')
+                        res.end()
+                    })
+                },
+            },
             !isProd ? react({
                 jsxRuntime: 'classic',
             }) : react(),
@@ -167,6 +184,9 @@ export default defineConfig(async ()=>{
             },
         ],
         server: {
+            // npm start opens the examples in the browser, except in CI, over SSH and on Linux without a display
+            open: process.env.CI || process.env.SSH_CONNECTION ||
+                process.platform === 'linux' && !process.env.DISPLAY && !process.env.WAYLAND_DISPLAY ? false : '/examples/index.html',
             // This is the default value, and will add all files with node_modules
             // in their paths to the ignore list.
             // sourcemapIgnoreList (sourcePath, sourcemapPath) {
