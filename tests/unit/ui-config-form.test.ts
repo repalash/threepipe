@@ -1,0 +1,229 @@
+import {afterAll, beforeAll, describe, expect, test, vi} from 'vitest'
+import {Color, Vector3} from 'three'
+import {JSUndoManager, UiObjectConfig} from 'threepipe'
+import {isIntegerName, UiConfigForm} from '../../plugins/tweakpane-editor/src/ui/UiConfigForm'
+
+// the node setup has no DOM: a small element with what the form uses
+class FakeElement {
+    children: FakeElement[] = []
+    parent?: FakeElement
+    className = ''
+    style: Record<string, string> = {}
+    textContent = ''
+    value = ''
+    checked = false
+    disabled = false
+    type = ''
+    title = ''
+    min = ''
+    max = ''
+    step = ''
+    private _listeners = new Map<string, ((e: any) => void)[]>()
+    classList = {add: (...c: string[]) => this.className = [...this.className.split(' ').filter(Boolean), ...c].join(' ')}
+    constructor(readonly tagName: string) {}
+    appendChild(c: FakeElement) {
+        c.parent = this
+        this.children.push(c)
+        return c
+    }
+    remove() {
+        if (!this.parent) return
+        this.parent.children = this.parent.children.filter(x => x !== this)
+        this.parent = undefined
+    }
+    addEventListener(type: string, f: (e: any) => void) {
+        this._listeners.set(type, [...this._listeners.get(type) ?? [], f])
+    }
+    removeEventListener(type: string, f: (e: any) => void) {
+        this._listeners.set(type, (this._listeners.get(type) ?? []).filter(x => x !== f))
+    }
+    setPointerCapture() {}
+    fire(type: string, e: any = {}) {
+        for (const f of this._listeners.get(type) ?? []) f({preventDefault: () => {}, pointerId: 1, clientX: 0, ...e})
+    }
+    /** All elements below this one, depth first */
+    all(): FakeElement[] {
+        return this.children.flatMap(c => [c, ...c.all()])
+    }
+}
+
+const doc = globalThis.document as any
+const createElement = doc.createElement
+beforeAll(() => {
+    UiConfigForm.InjectStyles = false
+    doc.createElement = (tag: string) => new FakeElement(tag)
+    doc.activeElement = null
+})
+afterAll(() => {
+    doc.createElement = createElement
+    UiConfigForm.InjectStyles = true
+})
+
+/** The row of a label, and its inputs */
+function row(form: UiConfigForm, label: string) {
+    const root = form.element as any as FakeElement
+    const r = root.all().find(e => e.className.includes('ucf-row') && e.children[0]?.textContent === label)
+    if (!r) throw new Error('no row ' + label)
+    return {row: r, inputs: r.all().filter(e => e.tagName === 'input' || e.tagName === 'select')}
+}
+
+describe('UiConfigForm', () => {
+    test('a slider shows its value in the range and in the number field', () => {
+        const target = {size: 2.5}
+        const form = new UiConfigForm([{type: 'slider', label: 'Size', property: [target, 'size'], bounds: [0, 4], stepSize: 0.1}])
+        const [range, input] = row(form, 'Size').inputs
+        expect(range.type).toBe('range')
+        expect(range.value).toBe('2.5')
+        expect(input.value).toBe('2.5')
+    })
+
+    test('a number change sets the binding, clamps it and calls onChange of the config, its folders and the form', () => {
+        const target = {radius: 1}
+        const own = vi.fn()
+        const parent = vi.fn()
+        const onChange = vi.fn()
+        const field: UiObjectConfig = {type: 'number', label: 'Radius', property: [target, 'radius'], bounds: [0, 10], onChange: own}
+        const form = new UiConfigForm([{type: 'folder', label: 'Shape', children: [field], onChange: parent}], {onChange})
+        const [input] = row(form, 'Radius').inputs
+        input.value = '25'
+        input.fire('change')
+        expect(target.radius).toBe(10)
+        expect(own).toHaveBeenCalledTimes(1)
+        expect(parent).toHaveBeenCalledTimes(1)
+        expect(onChange).toHaveBeenCalledWith(field)
+        expect(input.value).toBe('10')
+    })
+
+    test('a count takes whole numbers', () => {
+        const target = {radialSegments: 8, width: 1, n: 1}
+        const form = new UiConfigForm([
+            {type: 'number', label: 'Radial Segments', property: [target, 'radialSegments']},
+            {type: 'number', label: 'Width', property: [target, 'width']},
+            {type: 'number', label: 'N', property: [target, 'n'], stepSize: 1},
+        ])
+        for (const [label, key] of [['Radial Segments', 'radialSegments'], ['Width', 'width'], ['N', 'n']] as const) {
+            const [input] = row(form, label).inputs
+            input.value = '3.4'
+            input.fire('change')
+            expect(target[key]).toBe(key === 'width' ? 3.4 : 3)
+        }
+        expect(isIntegerName('heightSegments')).toBe(true)
+        expect(isIntegerName('radius')).toBe(false)
+    })
+
+    test('quick edits of one field are one undo step; another field is a new step', () => {
+        const target = {a: 1, b: 1}
+        const undoManager = new JSUndoManager({limit: 100, debug: false, bindHotKeys: false})
+        const form = new UiConfigForm([
+            {type: 'number', label: 'A', property: [target, 'a']},
+            {type: 'number', label: 'B', property: [target, 'b']},
+        ], {undoManager})
+        const [a] = row(form, 'A').inputs
+        const [b] = row(form, 'B').inputs
+        for (const v of ['2', '3', '4']) {
+            a.value = v
+            a.fire('change')
+        }
+        b.value = '5'
+        b.fire('change')
+        undoManager.undo()
+        expect(target).toEqual({a: 4, b: 1})
+        undoManager.undo()
+        expect(target).toEqual({a: 1, b: 1})
+        expect(a.value).toBe('1') // the form reads the value again after the undo
+        undoManager.redo()
+        expect(target.a).toBe(4)
+    })
+
+    test('checkbox, dropdown, vector, color and text', () => {
+        const target = {visible: true, side: 0, position: new Vector3(1, 2, 3), color: new Color('#ff0000'), name: 'Box'}
+        const onStructureChange = vi.fn()
+        const form = new UiConfigForm([
+            {type: 'checkbox', label: 'Visible', property: [target, 'visible']},
+            {type: 'dropdown', label: 'Side', property: [target, 'side'], children: [{label: 'Front', value: 0}, {label: 'Back', value: 1}]},
+            {type: 'vec3', label: 'Position', property: [target, 'position']},
+            {type: 'color', label: 'Color', property: [target, 'color']},
+            {type: 'input', label: 'Name', property: [target, 'name']},
+        ], {onStructureChange})
+
+        const [check] = row(form, 'Visible').inputs
+        expect(check.checked).toBe(true)
+        check.checked = false
+        check.fire('change')
+        expect(target.visible).toBe(false)
+
+        const [select] = row(form, 'Side').inputs
+        expect(select.value).toBe('0')
+        select.value = '1'
+        select.fire('change')
+        expect(target.side).toBe(1)
+        expect(onStructureChange).toHaveBeenCalledTimes(1)
+
+        const vec = row(form, 'Position').inputs
+        expect(vec.map(i => i.value)).toEqual(['1', '2', '3'])
+        const position = target.position
+        vec[1].value = '7'
+        vec[1].fire('change')
+        expect(target.position).toBe(position) // set in place
+        expect(position.toArray()).toEqual([1, 7, 3])
+
+        const [color] = row(form, 'Color').inputs
+        expect(color.value).toBe('#ff0000')
+        color.value = '#00ff00'
+        color.fire('input')
+        expect(target.color.getHexString()).toBe('00ff00')
+
+        const [text] = row(form, 'Name').inputs
+        expect(text.value).toBe('Box')
+        text.value = 'Ring'
+        text.fire('change')
+        expect(target.name).toBe('Ring')
+    })
+
+    test('a hidden config is not drawn; a config in the list twice is drawn once', () => {
+        const target = {a: 1, b: 2}
+        const a: UiObjectConfig = {type: 'number', label: 'A', property: [target, 'a']}
+        const form = new UiConfigForm([a, a, {type: 'number', label: 'B', property: [target, 'b'], hidden: () => true}])
+        const rows = (form.element as any as FakeElement).all().filter(e => e.className === 'ucf-row')
+        expect(rows.map(r => r.children[0].textContent)).toEqual(['A'])
+    })
+
+    test('a button calls its function, then onChange and onStructureChange', async() => {
+        const target = {reset: vi.fn()}
+        const onChange = vi.fn()
+        const onStructureChange = vi.fn()
+        const form = new UiConfigForm([{type: 'button', label: 'Reset', property: [target, 'reset']}], {onChange, onStructureChange})
+        const button = (form.element as any as FakeElement).all().find(e => e.tagName === 'button')!
+        button.fire('click')
+        await new Promise(r => setTimeout(r, 0))
+        expect(target.reset).toHaveBeenCalledTimes(1)
+        expect(onChange).toHaveBeenCalledTimes(1)
+        expect(onStructureChange).toHaveBeenCalledTimes(1)
+    })
+
+    test('scrub: a drag of the name changes the number; the next drag is a new undo step', () => {
+        const target = {width: 1}
+        const undoManager = new JSUndoManager({limit: 100, debug: false, bindHotKeys: false})
+        const form = new UiConfigForm([{type: 'number', label: 'Width', property: [target, 'width']}], {undoManager})
+        const name = row(form, 'Width').row.children[0]
+        const drag = (dx: number) => {
+            name.fire('pointerdown', {clientX: 0})
+            name.fire('pointermove', {clientX: dx})
+            name.fire('pointerup')
+        }
+        drag(100) // 0.01 per px from 1
+        expect(target.width).toBeCloseTo(2)
+        drag(100)
+        expect(target.width).toBeCloseTo(2 + 0.02 * 100)
+        undoManager.undo()
+        expect(target.width).toBeCloseTo(2)
+    })
+
+    test('dispose removes the form', () => {
+        const host = new FakeElement('div')
+        const form = new UiConfigForm([])
+        host.appendChild(form.element as any)
+        form.dispose()
+        expect(host.children).toEqual([])
+    })
+})

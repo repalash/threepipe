@@ -1,0 +1,28 @@
+/* UiConfigForm: a small form for uiconfig.js configs. The colours follow the Tweakpane theme variables when they are set. */
+.ucf {
+    --ucf-fg: var(--tp-container-foreground-color, #1e1e1e);
+    --ucf-dim: var(--tp-label-foreground-color, #757575);
+    --ucf-input: var(--tp-input-background-color, #f2f3f5);
+    --ucf-line: var(--tp-container-border-color, #e6e6e6);
+    --ucf-accent: #0d99ff;
+    color: var(--ucf-fg); font: 400 12px/1.2 var(--tp-font-family, Inter, ui-sans-serif, system-ui, sans-serif);
+}
+.ucf-row { display: flex; align-items: center; gap: 6px; padding: 2px 10px 2px 12px; min-height: 26px; }
+.ucf-name { flex: 1; color: var(--ucf-dim); user-select: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-transform: capitalize; }
+.ucf-row-wide { flex-wrap: wrap; }
+.ucf-row-wide .ucf-name { flex-basis: 100%; }
+.ucf-row input, .ucf-row select { font: inherit; color: var(--ucf-fg); background: var(--ucf-input); border: 1px solid transparent; border-radius: 4px; padding: 4px 6px; outline: none; min-width: 0; box-sizing: border-box; }
+.ucf-row input[type=number], .ucf-row input[type=text] { width: 74px; }
+.ucf-row input:focus, .ucf-row select:focus { border-color: var(--ucf-accent); }
+.ucf-row input:disabled, .ucf-row select:disabled, .ucf-button:disabled { opacity: .5; }
+.ucf-row input[type=checkbox] { width: 14px; height: 14px; accent-color: var(--ucf-accent); }
+.ucf-row input[type=range] { flex: 1; min-width: 60px; padding: 0; background: none; accent-color: var(--ucf-accent); }
+.ucf-row input[type=color] { width: 40px; height: 24px; padding: 1px; }
+.ucf-row select { max-width: 130px; }
+.ucf-vec { display: flex; gap: 4px; width: 100%; }
+.ucf-vec input[type=number] { flex: 1; width: 0; }
+.ucf-folder { margin: 4px 0; border-top: 1px solid var(--ucf-line); padding-top: 2px; }
+.ucf-folder-head { padding: 6px 12px 2px; font-weight: 600; text-transform: capitalize; }
+.ucf-button { display: block; margin: 4px 12px; width: calc(100% - 24px); border: 0; border-radius: 4px; padding: 6px; background: var(--ucf-input); color: var(--ucf-fg); font: inherit; cursor: pointer; }
+.ucf-button:hover { filter: brightness(.96); }
+.ucf-monitor { color: var(--ucf-dim); }
