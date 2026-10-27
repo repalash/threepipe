@@ -330,6 +330,8 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
     }
 
     private _onSelectionChanged = () => {
+        // the hover target depends on the selection (inside a selected group: the part a double click selects)
+        this._pointerDirty = true
         this._emit('selection')
     }
 

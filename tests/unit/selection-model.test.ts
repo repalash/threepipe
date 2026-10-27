@@ -540,7 +540,7 @@ describe('SelectionUxPlugin', () => {
         expect(ux.hovered?.name).toBe('Table')
         expect(events).toEqual(['hover'])
         ux.select([table])
-        move()
+        viewer.dispatchEvent({type: 'preFrame'}) // the pointer did not move: the selection change updates the hover
         expect(ux.hovered?.name).toBe('Legs')
         canvas.dispatchEvent(ev('pointerleave'))
         viewer.dispatchEvent({type: 'preFrame'})
