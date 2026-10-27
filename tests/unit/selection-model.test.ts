@@ -80,6 +80,20 @@ describe('selection hierarchy', () => {
         expect(childTargets(s.root, [s.ring])).toEqual([s.band, s.head, light])
     })
 
+    test('an object that cannot be selected is not a level, and a hidden single child does not merge', () => {
+        const a = mesh('A'), b = mesh('B'), c = mesh('C'), d = mesh('D')
+        const locked = group('Locked', a, b)
+        locked.userData.userSelectable = false
+        const hidden = group('Hidden', c, d)
+        hidden.visible = false
+        const wrapper = group('Wrapper', hidden)
+        const root = group('modelRoot', locked, wrapper)
+        expect(selectionLevels(root, a)).toEqual([[a]])
+        expect(resolveTarget(root, [], a, false, false)).toBe(a) // not the locked group
+        expect(selectionLevels(root, c)).toEqual([[wrapper], [hidden], [c]])
+        expect(childTargets(root, [wrapper])).toEqual([]) // Enter: the parts of the hidden group are not shown
+    })
+
     test('a frame: a file root, or the only top-level object with meshes, with two or more parts', () => {
         const s = jewellery()
         expect(isFrame(s.root, s.ring)).toBe(false) // other top-level objects have meshes

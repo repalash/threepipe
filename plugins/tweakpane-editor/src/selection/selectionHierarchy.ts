@@ -43,13 +43,16 @@ export function levelTarget(level: SelectionLevel): IObject3D {
     return level[0]
 }
 
+/** The only child of a wrapper (a group with a single visible content child, merged with it into one level), else undefined */
+function wrappedChild(o: IObject3D): IObject3D | undefined {
+    if (o.geometry) return undefined
+    const children = contentChildren(o)
+    return children.length === 1 && children[0].visible ? children[0] : undefined
+}
+
 /** The innermost object of the level that `o` starts: `o`, or the end of its chain of single children */
 function chainEnd(o: IObject3D): IObject3D {
-    let children = contentChildren(o)
-    while (!o.geometry && children.length === 1) {
-        o = children[0]
-        children = contentChildren(o)
-    }
+    for (let c = wrappedChild(o); c; c = wrappedChild(o)) o = c
     return o
 }
 
@@ -60,8 +63,9 @@ function levelIndex(levels: SelectionLevel[], o: IObject3D): number {
 
 /**
  * The levels of the hierarchy from the model root down to `node` (the root is not in them).
- * Each level is a chain: a group with a single child is merged with that child (glTF wrappers like "Scene" > "root"),
- * so one click never selects a wrapper that looks the same as its only child.
+ * Each level is a chain: a group with a single visible child is merged with that child (glTF wrappers like "Scene" >
+ * "root"), so one click never selects a wrapper that looks the same as its only child. An object that cannot be
+ * selected ({@link isHelperObject}) is not in the levels.
  * The last level ends at `node`. Returns an empty array when `node` is not inside `root`.
  */
 export function selectionLevels(root: IObject3D, node: IObject3D): SelectionLevel[] {
@@ -75,9 +79,10 @@ export function selectionLevels(root: IObject3D, node: IObject3D): SelectionLeve
     const levels: SelectionLevel[] = []
     let chain: IObject3D[] = []
     for (const n of path) {
+        // an object that cannot be selected (userSelectable false, a widget) is not a level: its parts are
+        if (isHelperObject(n)) continue
         chain.push(n)
-        const wrapper = !n.geometry && contentChildren(n).length === 1
-        if (!wrapper) {
+        if (!wrappedChild(n)) {
             levels.push(chain)
             chain = []
         }
