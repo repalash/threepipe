@@ -49,6 +49,8 @@ DRACOLoader2.SetDecoderJsString(draco_decoder) // this sets DRACOLoader2.Library
 - `FFMPEGRecorder.LIBRARY_PATH` - The folder of the ffmpeg.js worker (`ffmpeg-worker-mp4.js` and `.wasm`) used by `CanvasRecorderPlugin` to encode MP4 videos.
   - Default: `https://cdn.jsdelivr.net/npm/@repalash/ffmpeg.js@4.2.9005/dist/`
   - Note - It is read when the MP4 recorder is created. With the default `mimeType` (`video/mp4`), that is when `CanvasRecorderPlugin` is added, so set it before adding the plugin.
+- `TailwindCSSCDNPlugin.CDN_URL` - The URL of the Tailwind CSS script that `TailwindCSSCDNPlugin` adds to the page.
+  - Default: `https://cdn.tailwindcss.com`
 
 ### Packages 
 

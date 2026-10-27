@@ -52,6 +52,7 @@ Checklist
 - Set a unique `PluginType`
 - Write plugin
 - Add jsdoc comments to the class
+- If the plugin loads a library or a file at runtime from a URL (a CDN), keep the URL in a static property that a user can set (like `DRACOLoader2.DRACO_LIBRARY_PATH`), and add it to `./website/notes/dynamically-loaded-files.md`
 - Export classes, functions in `./src/plugins/index.ts`
 - Optionally, use plugin in `./examples/tweakpane-editor/script.ts`
 - Optionally, use plugin in `./examples/model-viewer/script.ts`
@@ -75,6 +76,7 @@ Checklist
 - Check `globals` in `vite.config.js`
 - Write plugin/package
 - Add jsdoc comments to the classes
+- If the plugin loads a library or a file at runtime from a URL (a CDN), keep the URL in a static property that a user can set (like `DRACOLoader2.DRACO_LIBRARY_PATH`), and add it to `./website/notes/dynamically-loaded-files.md`
 - Export classes, functions in `index.ts`
 - Optionally, use plugin in `./examples/tweakpane-editor/script.ts`
 - Optionally, use plugin in `./examples/model-viewer/script.ts`
