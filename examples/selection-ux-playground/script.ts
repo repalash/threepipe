@@ -1,6 +1,7 @@
 import {
     _testFinish,
     _testStart,
+    Color,
     ContactShadowGroundPlugin,
     GBufferPlugin,
     GeometryGeneratorPlugin,
@@ -111,6 +112,40 @@ function setupInspector(root: HTMLElement, viewer: ThreeViewer, ux: SelectionUxP
     empty.className = 'insp-empty'
     empty.textContent = 'Select something to see its position, rotation and size. Drag a field label to scrub.'
     root.appendChild(empty)
+    // with nothing selected, the scene's own settings (saved in the .glb), like Figma's page settings; the toolbar's
+    // Overlays and Shading are view settings for editing, never saved
+    const sceneEl = document.createElement('div')
+    sceneEl.className = 'insp-scene'
+    sceneEl.innerHTML = '<div class="sub">Background <small>saved in the .glb</small></div>' +
+        '<div class="insp-row"><input type="color" aria-label="Background colour"><label><input type="checkbox"> Transparent</label></div>'
+    root.appendChild(sceneEl)
+    const bgColor = sceneEl.querySelector<HTMLInputElement>('input[type=color]')!
+    const bgClear = sceneEl.querySelector<HTMLInputElement>('input[type=checkbox]')!
+    let lastColor = '#ffffff'
+    const setBackground = (color: string | null) => {
+        const sc = viewer.scene
+        const before = {background: sc.background, color: sc.backgroundColor?.clone() ?? null}
+        const after = {background: color === null ? null : sc.background, color: color === null ? null : new Color(color)}
+        const set = (v: typeof before) => () => {
+            sc.background = v.background
+            sc.backgroundColor = v.color?.clone() ?? null
+            sc.setDirty()
+            refreshScene()
+        }
+        set(after)()
+        viewer.getPlugin(UndoManagerPlugin)?.undoManager?.record({undo: set(before), redo: set(after)})
+    }
+    bgColor.addEventListener('change', () => setBackground(bgColor.value))
+    bgClear.addEventListener('change', () => setBackground(bgClear.checked ? null : lastColor))
+    const refreshScene = () => {
+        const c = viewer.scene.backgroundColor
+        if (c) lastColor = '#' + c.getHexString()
+        bgColor.value = lastColor
+        bgColor.disabled = !c
+        bgClear.checked = !c && !viewer.scene.background
+    }
+    viewer.scene.addEventListener('backgroundChanged', refreshScene)
+    refreshScene()
 
     const group = (title: string, keys: string[], labels: string[]) => {
         const t = document.createElement('div')
@@ -206,7 +241,8 @@ function setupInspector(root: HTMLElement, viewer: ThreeViewer, ux: SelectionUxP
         const sel = ux.selected
         body.style.display = sel.length ? '' : 'none'
         empty.style.display = sel.length ? 'none' : ''
-        document.getElementById('insp-title')!.textContent = sel.length > 1 ? `${sel.length} selected` : sel.length ? ux.displayName(sel[0]) : 'Design'
+        sceneEl.style.display = sel.length ? 'none' : ''
+        document.getElementById('insp-title')!.textContent = sel.length > 1 ? `${sel.length} selected` : sel.length ? ux.displayName(sel[0]) : 'Scene'
         const one = sel.length === 1 ? sel[0] : undefined
         document.getElementById('insp-sub')!.textContent = one ? one.isLight ? 'Light' : one.isCamera ? 'Camera' : one.geometry ? one.geometry.userData?.generationParams ? 'Generated ' + one.geometry.userData.generationParams.type : 'Mesh' : 'Group' : ''
         geoBtn.style.display = one?.geometry || ux.geometryEdit ? '' : 'none'

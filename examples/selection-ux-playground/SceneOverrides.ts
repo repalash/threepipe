@@ -185,9 +185,11 @@ class MaterialIdOverrideMaterial extends MeshBasicMaterial {
     }
 }
 
-/** UV: U in red, V in green for the selected channel (0-3); black where the mesh has no such UV set (a missing attribute reads as 0) */
+/** UV: U in red, V in green for the selected channel (0-3); magenta when the mesh has no such UV set */
 class UvOverrideMaterial extends MeshBasicMaterial {
     uvChannel: 0 | 1 | 2 | 3 = 0
+    // set for each object before it draws: a missing attribute would read as 0, black, which looks like a UV value
+    private _uvMissing = {value: 0}
 
     constructor() {
         super()
@@ -201,6 +203,7 @@ class UvOverrideMaterial extends MeshBasicMaterial {
     onBeforeCompile(shader: any) {
         if (!shader.defines) shader.defines = {}
         shader.defines.USE_UV = ''
+        shader.uniforms.uvMissing = this._uvMissing
         shader.vertexUv1s = true
         shader.vertexUv2s = true
         shader.vertexUv3s = true
@@ -227,13 +230,9 @@ class UvOverrideMaterial extends MeshBasicMaterial {
     vUv3 = uv3;
 #endif
 `, {append: true})
-        shader.fragmentShader = shaderReplaceString(shader.fragmentShader, 'uniform float opacity;', '\n#define vUv0 vUv\n' + varyings, {append: true})
+        shader.fragmentShader = shaderReplaceString(shader.fragmentShader, 'uniform float opacity;', '\nuniform float uvMissing;\n#define vUv0 vUv\n' + varyings, {append: true})
         shader.fragmentShader = shaderReplaceString(shader.fragmentShader, '#include <opaque_fragment>', `
-#ifdef USE_UV
-    gl_FragColor = vec4( fract(vUv${this.uvChannel}.x), fract(vUv${this.uvChannel}.y), 0.0, diffuseColor.a );
-#else
-    gl_FragColor = vec4( 1.0, 0.0, 1.0, diffuseColor.a );
-#endif
+    gl_FragColor = uvMissing > 0.5 ? vec4( 1.0, 0.0, 1.0, diffuseColor.a ) : vec4( fract(vUv${this.uvChannel}.x), fract(vUv${this.uvChannel}.y), 0.0, diffuseColor.a );
 `)
     }
 
@@ -242,6 +241,7 @@ class UvOverrideMaterial extends MeshBasicMaterial {
         const material = sourceMaterial(object)
         if (!material) return
         copyCommon(this, material)
+        this._uvMissing.value = geometry.attributes[this.uvChannel ? 'uv' + this.uvChannel : 'uv'] ? 0 : 1
         ;(renderer as WebGLRenderer & {resetCurrentMaterial?: () => void}).resetCurrentMaterial?.()
     }
 

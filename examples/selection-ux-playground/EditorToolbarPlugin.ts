@@ -120,6 +120,8 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
         // the Play button follows the timeline, also when the bar or the end of the timeline stops it
         viewer.timeline.addEventListener('start', this.render)
         viewer.timeline.addEventListener('stop', this.render)
+        // the checkerboard follows the scene's background (transparent or not)
+        viewer.scene.addEventListener('backgroundChanged', this.render)
         viewer.forPlugin(AnnotationsPlugin, a => {
             a.addEventListener('annotationChange', this.render)
             a.addEventListener('addingChange', this.render)
@@ -155,6 +157,7 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
         viewer.scene.removeEventListener('mainCameraChange', this.render)
         viewer.timeline.removeEventListener('start', this.render)
         viewer.timeline.removeEventListener('stop', this.render)
+        viewer.scene.removeEventListener('backgroundChanged', this.render)
         viewer.getPlugin(SelectionUxPlugin)?.removeEventListener('uxUpdate', this._onUxUpdate)
         viewer.getPlugin(AnnotationsPlugin)?.removeEventListener('annotationChange', this.render)
         this._grid?.removeFromParent()
@@ -300,10 +303,28 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
         this.render()
     }
 
+    private _bgHidden = false
+    private _bgClip = false
+
+    /** Whether the scene has no background (transparent): a scene setting, saved in the .glb (the inspector's Scene section) */
+    get transparentBackground() {
+        const sc = this._viewer?.scene
+        return !!sc && !sc.background && !sc.backgroundColor
+    }
+
+    /**
+     * A view setting, for editing and previewing: hide the background (a checkerboard shows instead). The scene is not
+     * changed, so saving and export are not affected. The screen pass clips the background with the G-buffer depth,
+     * which works with and without RGBM.
+     */
     setBackground(on: boolean) {
-        const rp = this._viewer?.renderManager.renderPass
-        if (rp) rp.renderBackground = on
-        this._viewer?.setDirty()
+        const viewer = this._viewer
+        if (!viewer || on === !this._bgHidden) return
+        const sp = viewer.renderManager.screenPass
+        if (!on) this._bgClip = sp.clipBackground
+        sp.clipBackground = on ? this._bgClip : true
+        this._bgHidden = !on
+        viewer.setDirty()
         this.render()
     }
 
@@ -432,6 +453,8 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
     render = () => {
         const el = this.element
         requestAnimationFrame(this._fit)
+        // a checkerboard where the background is transparent: hidden in the view, or none in the scene
+        this._viewer?.container.classList.toggle('tb-checker', this._bgHidden || this.transparentBackground)
         el.innerHTML = ''
         el.appendChild(this.slot)
         let group = el
@@ -618,7 +641,6 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
             settings[k] = val
             ux.applySettings()
         }
-        const rp = viewer.renderManager.renderPass
         const notes = viewer.getPlugin(AnnotationsPlugin)
         const perf = viewer.getPlugin('PerfPanelPlugin') as any
         const items: MenuItem[] = ['#Viewport']
@@ -626,7 +648,7 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
             this._grid!.userData.toolbarOn = !this._gridOn
             this.setGrid(this._gridOn)
         }, this._gridOn, true])
-        items.push(['Background', () => this.setBackground(!rp.renderBackground), !!rp.renderBackground, true])
+        items.push(['Background', () => this.setBackground(this._bgHidden), !this._bgHidden, true])
         if (EFFECT_PLUGINS.some(t => viewer.getPlugin(t))) items.push(['Effects (post-processing)', () => this.setEffects(this._effectsOff), !this._effectsOff, true])
         items.push('#Lights and cameras')
         if (ux) {
@@ -664,7 +686,7 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
         const notes = viewer?.getPlugin(AnnotationsPlugin)
         const perf = viewer?.getPlugin('PerfPanelPlugin') as any
         return this._effectsOff || !!this._grid && !this._gridOn || !!ux && (!ux.iconsShown || !ux.widgetsShown) ||
-            !!viewer && !viewer.renderManager.renderPass.renderBackground || !!notes && !notes.enabled ||
+            this._bgHidden || !!notes && !notes.enabled ||
             !!st && (!st.showHints || !st.outlineHover || !st.showName || !st.showDims || !st.smartGuides) || !!perf && !perf.enabled
     }
 
@@ -993,6 +1015,8 @@ body.tpTheme-black .tb-menu, body.tpTheme-dark .tb-menu, body.tpTheme-blue .tb-m
 .tb-k-toggle.on:hover:not(:disabled) { background: var(--tb-soft); color: var(--tb-soft-fg); }
 /* a menu with a setting that is not the default: a small dot */
 .tb-k-menu.on::after { content: ''; position: absolute; top: 5px; right: 5px; width: 5px; height: 5px; border-radius: 50%; background: var(--tb-accent); box-shadow: 0 0 0 1.5px var(--tb-bg); }
+.tb-checker { background: repeating-conic-gradient(#e6e7ea 0 25%, #fafafa 0 50%) 0 0 / 16px 16px !important; }
+body[class*="tpTheme-"]:not(.tpTheme-light):not(.tpTheme-white):not(.tpTheme-figma) .tb-checker { background: repeating-conic-gradient(#2a2a2e 0 25%, #333338 0 50%) 0 0 / 16px 16px !important; }
 .tb-compact .tb-btn { min-width: 27px; padding: 0 5px; }
 .tb-compact .tb-group { padding: 0 2px; }
 .tb-compact .tb-seg button { padding: 0 7px; }

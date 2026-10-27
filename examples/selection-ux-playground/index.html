@@ -84,6 +84,12 @@
         .insp-geo { margin: 0 12px 6px; width: calc(100% - 24px); border: 1px solid var(--ui-line); background: #fff; border-radius: 5px; padding: 6px; font: inherit; cursor: pointer; }
         .insp-geo:hover { border-color: var(--accent); }
         .sub { padding: 6px 12px 2px; color: var(--ui-dim); }
+        .sub small { margin-left: 4px; opacity: .8; }
+        .insp-row { display: flex; align-items: center; gap: 10px; padding: 4px 12px 8px; }
+        .insp-row input[type=color] { width: 28px; height: 24px; padding: 0; border: 1px solid var(--ui-line); border-radius: 4px; background: none; cursor: pointer; }
+        .insp-row input[type=color]:disabled { opacity: .35; cursor: default; }
+        .insp-row label { display: flex; align-items: center; gap: 5px; cursor: pointer; }
+        .insp-empty { order: 2; }
 
         /* below the toolbar */
         #canvas-container .sux-side { top: 60px; }
