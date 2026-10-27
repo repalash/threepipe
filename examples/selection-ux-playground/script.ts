@@ -24,7 +24,7 @@ import {buildExtras, buildScene, demoAnnotations, splashSamples} from './scene'
 import {AnnotationsPlugin} from './AnnotationsPlugin'
 import {EditorToolbarPlugin} from './EditorToolbarPlugin'
 import {showReport, showReportIfNew} from './report'
-import {showSplash} from './splash'
+import {showSplash, splashAtStartup} from './splash'
 import {PerfPanelPlugin} from './PerfPanelPlugin'
 import {PenToolPlugin} from './PenToolPlugin'
 import {CameraPathPlugin} from './CameraPathPlugin'
@@ -86,8 +86,9 @@ async function init() {
     setupSidePanel(container, layers, notes, 'sux-side-pos-playground')
     setupInspector(document.getElementById('inspector')!, viewer, ux)
     // the welcome screen: drop a file or pick a sample (skip with ?nosplash); the report of this round after it
-    const openSplash = () => showSplash(viewer, {title: 'Welcome to the threepipe Editor', samples: splashSamples(viewer), onClose: showReportIfNew})
-    if (new URLSearchParams(location.search).has('nosplash')) showReportIfNew()
+    const openSplash = () => showSplash(viewer, {title: 'threepipe Editor', version: 'v' + ThreeViewer.VERSION, samples: splashSamples(viewer), onClose: showReportIfNew})
+    // the start screen with the page, unless "Show at startup" is off (or ?nosplash)
+    if (new URLSearchParams(location.search).has('nosplash') || !splashAtStartup()) showReportIfNew()
     else openSplash()
 
     try {

@@ -1,4 +1,4 @@
-import {BVHPlugin, GPUPickingPlugin, _testFinish, _testStart, EditorViewWidgetPlugin, GBufferPlugin, HemisphereLight, IViewerPlugin, Class, PickingPlugin, TransformControlsPlugin} from 'threepipe'
+import {BVHPlugin, GPUPickingPlugin, _testFinish, _testStart, EditorViewWidgetPlugin, GBufferPlugin, HemisphereLight, IViewerPlugin, Class, PickingPlugin, ThreeViewer, TransformControlsPlugin} from 'threepipe'
 import {HierarchyUiPlugin, TweakpaneEditorPlugin} from '@threepipe/plugin-tweakpane-editor'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 import {OutlinePlugin} from '@threepipe/webgi-plugins'
@@ -12,7 +12,7 @@ import {buildExtras, buildScene, demoAnnotations, splashSamples} from '../select
 import {AnnotationsPlugin} from '../selection-ux-playground/AnnotationsPlugin'
 import {EditorToolbarPlugin} from '../selection-ux-playground/EditorToolbarPlugin'
 import {showReport, showReportIfNew} from '../selection-ux-playground/report'
-import {showSplash} from '../selection-ux-playground/splash'
+import {showSplash, splashAtStartup} from '../selection-ux-playground/splash'
 import {PerfPanelPlugin} from '../selection-ux-playground/PerfPanelPlugin'
 import {PenToolPlugin} from '../selection-ux-playground/PenToolPlugin'
 import {CameraPathPlugin} from '../selection-ux-playground/CameraPathPlugin'
@@ -139,8 +139,9 @@ async function init() {
     viewer.scene.mainCamera.target.set(0, 0.8, 0)
     viewer.scene.mainCamera.setDirty()
     // the welcome screen: drop a file or pick a sample (skip with ?nosplash); the report of this round after it
-    const openSplash = () => showSplash(viewer, {title: 'Welcome to the threepipe Editor', samples: splashSamples(viewer), onClose: showReportIfNew})
-    if (new URLSearchParams(location.search).has('nosplash')) showReportIfNew()
+    const openSplash = () => showSplash(viewer, {title: 'threepipe Editor', version: 'v' + ThreeViewer.VERSION, samples: splashSamples(viewer), onClose: showReportIfNew})
+    // the start screen with the page, unless "Show at startup" is off (or ?nosplash)
+    if (new URLSearchParams(location.search).has('nosplash') || !splashAtStartup()) showReportIfNew()
     else openSplash()
     await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
 }

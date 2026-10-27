@@ -197,7 +197,7 @@ export function splashSamples(viewer: ThreeViewer): SplashSample[] {
         viewer.scene.disposeSceneModels()
     }
     const done = () => viewer.getPlugin(UndoManagerPlugin)?.undoManager?.reset()
-    const model = (label: string, icon: string, url: string): SplashSample => ({label, icon, load: async() => {
+    const model = (label: string, description: string, icon: string, url: string): SplashSample => ({label, description, icon, load: async() => {
         reset()
         const obj = await viewer.load(url, {autoScale: true, autoCenter: true, autoScaleRadius: 2.5})
         if (!obj) throw new Error(`Could not load ${label}`) // the splash stays open and says so
@@ -205,7 +205,7 @@ export function splashSamples(viewer: ThreeViewer): SplashSample[] {
         done()
     }})
     return [
-        {label: 'Jewellery demo', icon: SPLASH_ICONS.ring, load: () => {
+        {label: 'Jewellery demo', description: 'Rings, a pendant, lights, cameras and notes', icon: SPLASH_ICONS.ring, load: () => {
             if (viewer.scene.getObjectByName('Solitaire Ring')) return // already loaded
             reset()
             buildScene(viewer)
@@ -213,9 +213,9 @@ export function splashSamples(viewer: ThreeViewer): SplashSample[] {
             demoAnnotations(viewer)
             done()
         }},
-        model('Classic watch', SPLASH_ICONS.watch, 'https://samples.threepipe.org/demos/classic-watch.glb'),
+        model('Classic watch', 'A detailed model with material variations', SPLASH_ICONS.watch, 'https://samples.threepipe.org/demos/classic-watch.glb'),
         // the threepipe "timeline-ui-plugin" example: the watch's camera views, material variations and glTF clip on the timeline
-        {label: 'Watch timeline', icon: SPLASH_ICONS.timeline, load: async() => {
+        {label: 'Watch timeline', description: 'Camera views and a clip on the timeline', icon: SPLASH_ICONS.timeline, load: async() => {
             reset()
             // as authored: the camera views in the file are at its own scale and place
             const obj = await viewer.load('https://samples.threepipe.org/demos/classic-watch.glb')
@@ -231,9 +231,9 @@ export function splashSamples(viewer: ThreeViewer): SplashSample[] {
             if (ui) ui.enabled = true
             done()
         }},
-        model('Damaged helmet', SPLASH_ICONS.helmet, 'https://samples.threepipe.org/minimal/DamagedHelmet/glTF/DamagedHelmet.gltf'),
-        model('Horse', SPLASH_ICONS.horse, 'https://samples.threepipe.org/minimal/Horse.glb'),
-        {label: 'Empty scene', icon: SPLASH_ICONS.empty, load: () => {
+        model('Damaged helmet', 'The glTF sample with PBR textures', SPLASH_ICONS.helmet, 'https://samples.threepipe.org/minimal/DamagedHelmet/glTF/DamagedHelmet.gltf'),
+        model('Horse', 'An animated model', SPLASH_ICONS.horse, 'https://samples.threepipe.org/minimal/Horse.glb'),
+        {label: 'Empty scene', icon: SPLASH_ICONS.empty, group: 'start', load: () => {
             reset()
             done()
         }},
