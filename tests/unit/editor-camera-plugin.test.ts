@@ -13,6 +13,7 @@ function setup({undo = true} = {}) {
     const start = new PerspectiveCamera() as any
     start.target = new Vector3(0, 0, 0)
     start.position.set(0, 1, 6)
+    start.lookAt(start.target) // the controls of the start view do this
     start.setDirty = vi.fn()
     start.controls = {stopDamping: vi.fn()}
     const activate = (cam: any) => () => {
@@ -168,6 +169,23 @@ describe('EditorCameraPlugin', () => {
         plugin.editing = false
         plugin.editing = true
         expect(start.quaternion.equals(q)).toBe(true)
+    })
+
+    test('copyStartView keeps the view direction of a start view that looks away from its target', () => {
+        const {plugin, start} = setup()
+        start.controls = undefined
+        start.rotation.set(0, 0.5, 0) // set in the camera UI, independent of the target
+        start.updateMatrixWorld()
+        plugin.copyStartView()
+        const forward = start.getWorldDirection(new Vector3())
+        const editorForward = plugin.camera.target.clone().sub(plugin.camera.position).normalize()
+        expect(editorForward.dot(forward)).toBeCloseTo(1)
+        expect(plugin.camera.position.distanceTo(plugin.camera.target)).toBeCloseTo(start.position.distanceTo(start.target))
+        // a start view that looks at its target gives its own target
+        start.lookAt(start.target)
+        start.updateMatrixWorld()
+        plugin.copyStartView()
+        expect(plugin.camera.target.toArray()).toEqual(start.target.toArray())
     })
 
     test('copyStartView copies the zoom', () => {

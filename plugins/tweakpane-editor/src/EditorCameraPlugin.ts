@@ -26,6 +26,18 @@ function poseOf(camera: ICamera): StartPose {
 }
 
 /**
+ * The point that a camera looks at, for orbit controls: its target, or, when it looks away from the target (a camera
+ * without controls can), the point straight ahead at the same distance
+ */
+function lookTargetOf(camera: ICamera, position: Vector3): Vector3 {
+    const forward = camera.getWorldDirection(new Vector3())
+    const toTarget = camera.target.clone().sub(position)
+    const distance = toTarget.length()
+    if (distance > 1e-6 && toTarget.dot(forward) / distance > 0.9999) return camera.target.clone()
+    return position.clone().addScaledVector(forward, distance > 1e-6 ? distance : 1)
+}
+
+/**
  * Editor Camera Plugin
  *
  * Gives an editor its own camera, separate from the scene's camera.
@@ -182,14 +194,18 @@ export class EditorCameraPlugin extends AViewerPluginSync {
         if (this._startPose) this._setStartView(this._startPose)
     }
 
-    /** The editor camera takes the start view */
+    /**
+     * The editor camera takes the start view. It looks in the same direction, also when the start view looks away from
+     * its target. The editor camera stays upright: a roll of the start view is not copied.
+     */
     @uiButton('Editor camera to start view', {sendArgs: false})
     copyStartView() {
         const start = this.startCamera
         if (!start) return
         const c = this.camera
-        c.position.copy(start.getWorldPosition(new Vector3()))
-        c.target.copy(start.target)
+        const position = start.getWorldPosition(new Vector3())
+        c.position.copy(position)
+        c.target.copy(lookTargetOf(start, position))
         if ((start as PerspectiveCamera2).fov) c.fov = (start as PerspectiveCamera2).fov
         c.zoom = start.zoom
         c.setDirty()
