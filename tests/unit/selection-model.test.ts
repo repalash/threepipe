@@ -249,6 +249,20 @@ describe('selection box', () => {
         expect(frontFaces(info, eye, new Vector3(0, 0, -1))).toEqual([false, false, false, false, false, true]) // +z only
     })
 
+    test('the faces of a sheared box (a rotated part under a parent with a non-uniform scale)', () => {
+        const part = new Mesh(new BoxGeometry(1, 1, 1), material) as any as IObject3D
+        part.rotation.z = Math.PI / 4
+        const parent = group('Stretched', part)
+        parent.scale.set(2, 1, 1)
+        const info = boxInfo([part], 'local', point)
+        // the true normal of the +x face is across the other two edges; the camera is on its back side
+        const eye = new Vector3(10, -10, 10)
+        const n = new Vector3().crossVectors(info.axes[1], info.axes[2])
+        const fc = info.center.clone().addScaledVector(info.axes[0], info.size.x / 2)
+        expect(n.dot(eye.clone().sub(fc)) > 0).toBe(false)
+        expect(frontFaces(info, eye)[1]).toBe(false)
+    })
+
     test('a point behind the camera, for a perspective and an orthographic camera', () => {
         for (const cam of [new PerspectiveCamera(45, 1, 0.1, 100), new OrthographicCamera(-5, 5, 5, -5, -100, 100)]) {
             cam.position.set(0, 0, 10)

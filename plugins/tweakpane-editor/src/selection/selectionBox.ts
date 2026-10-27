@@ -161,10 +161,16 @@ export function screenRect(points: ScreenPoint[]): ScreenRect | null {
  */
 export function frontFaces(info: BoxInfo, eye: Vector3, viewDir?: Vector3): boolean[] {
     const res: boolean[] = []
-    for (let a = 0; a < 3; a++) for (const side of [-1, 1]) {
-        const fc = info.center.clone().addScaledVector(info.axes[a], side * info.size.getComponent(a) / 2)
-        const toCamera = viewDir ? viewDir.clone().negate() : eye.clone().sub(fc)
-        res.push(info.axes[a].clone().multiplyScalar(side).dot(toCamera) > 0)
+    for (let a = 0; a < 3; a++) {
+        // the face normal is across the other two axes: a box under a parent with a non-uniform scale can be sheared,
+        // and then its axis is not the normal
+        const n = new Vector3().crossVectors(info.axes[(a + 1) % 3], info.axes[(a + 2) % 3])
+        if (n.dot(info.axes[a]) < 0) n.negate()
+        for (const side of [-1, 1]) {
+            const fc = info.center.clone().addScaledVector(info.axes[a], side * info.size.getComponent(a) / 2)
+            const toCamera = viewDir ? viewDir.clone().negate() : eye.clone().sub(fc)
+            res.push(n.dot(toCamera) * side > 0)
+        }
     }
     return res
 }
