@@ -425,7 +425,7 @@ describe('CanvasRecorderPlugin stop and remove', () => {
     test('onRemove drops the disposed recorders, so an add makes new ones', () => {
         const {plugin} = setup()
         const dispose = vi.fn()
-        plugin._recorders = {'ffmpeg.js': {dispose}}
+        plugin._recorders = {['ffmpeg.js']: {dispose}}
         plugin._recorder = plugin._recorders['ffmpeg.js']
         const listeners = {removeEventListener: () => undefined}
         plugin._viewer = {...listeners, renderManager: listeners, scene: listeners, console}
