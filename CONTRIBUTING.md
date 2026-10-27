@@ -8,8 +8,7 @@ We welcome contributions to Threepipe. Please read the following guidelines to s
 2. Run `npm install`. It also builds the core, installs and builds every plugin in `plugins/`, and builds the examples.
 
 With npm 12 or newer, run `npm install --allow-git=all` instead. npm 12 refuses dependencies from git repositories by
-default (`EALLOWGIT`), and `plugins/tweakpane-editor` (treejs) and `plugins/svg-renderer` (arrangement-2d-js) still
-have one each.
+default (`EALLOWGIT`), and `plugins/tweakpane-editor` still has one (treejs).
 
 If a plugin fails to install, the others are still installed and the examples are still built; the install ends
 with the list of failed plugins. Fix the cause, then run `npm ci` in that plugin's folder (`plugins/<name>`).

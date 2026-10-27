@@ -5,7 +5,7 @@
     "devDependencies": {
         "@svgdotjs/svg.js": "^3.2.0",
         "@svgdotjs/svg.topath.js": "^2.0.3",
-        "arrangement-2d-js": "github:LokiResearch/arrangement-2d-js",
+        "@threepipe/arrangement-2d-js": "^1.0.0",
         "fast-triangle-triangle-intersection": "^1.0.7",
         "flatbush": "^4.4.0",
         "isect": "^3.0.2",
