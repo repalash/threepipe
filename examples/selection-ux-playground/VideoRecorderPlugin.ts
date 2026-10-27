@@ -1,4 +1,5 @@
 import {AViewerPluginEventMap, AViewerPluginSync, ICamera, ProgressivePlugin, ThreeViewer} from 'threepipe'
+import type * as Mediabunny from 'mediabunny'
 
 export interface VideoRecordOptions {
     /** Frames per second, default 30 */
@@ -48,8 +49,8 @@ interface FrameSink {
 /**
  * Records the timeline into a video file, frame by frame: for each frame it moves the timeline to the frame's time,
  * waits for the render (and, at 'final' quality, for the progressive renderer to converge), and encodes the canvas
- * with WebCodecs. Timing is exact however slow a frame is. The file is muxed with mp4-muxer / webm-muxer, loaded on
- * the first recording. Without WebCodecs it falls back to MediaRecorder in real time.
+ * with WebCodecs. Timing is exact however slow a frame is. Encoding and the file are done by mediabunny, loaded on
+ * the first recording ({@link load}). Without WebCodecs it falls back to MediaRecorder in real time.
  *
  * It records only the canvas: DOM overlays (icons, panels, the timeline) never show. Things drawn into the canvas
  * (selection outline, grid, widgets) are the app's to hide; listen to `recordStart` / `recordEnd`.
@@ -67,11 +68,8 @@ export class VideoRecorderPlugin extends AViewerPluginSync<VideoRecorderEventMap
     static readonly PluginType = 'VideoRecorderPlugin'
     enabled = true
 
-    /** ES module URLs of the muxers */
-    muxerUrls = {
-        mp4: 'https://cdn.jsdelivr.net/npm/mp4-muxer@5.2.2/+esm',
-        webm: 'https://cdn.jsdelivr.net/npm/webm-muxer@5.1.4/+esm',
-    }
+    /** Loads mediabunny on the first recording; replace it to load from elsewhere (an import map, a CDN) */
+    load: () => Promise<typeof Mediabunny> = async() => import('mediabunny')
 
     private _recording = false
     get recording() {
@@ -135,7 +133,7 @@ export class VideoRecorderPlugin extends AViewerPluginSync<VideoRecorderEventMap
             }
 
             sink = videoSupport().frameByFrame ?
-                await this._webCodecsSink(format, W, H, fps, bitrate).catch(e => {
+                await this._webCodecsSink(copy, format, W, H, fps, bitrate).catch(e => {
                     console.warn('VideoRecorderPlugin: frame by frame encoding is not available, recording in real time', e)
                     return undefined
                 }) : undefined
@@ -183,57 +181,30 @@ export class VideoRecorderPlugin extends AViewerPluginSync<VideoRecorderEventMap
         }
     }
 
-    private async _webCodecsSink(format: 'mp4' | 'webm', width: number, height: number, fps: number, bitrate: number): Promise<FrameSink> {
-        const videoEncoderClass = (window as any).VideoEncoder
-        const videoFrameClass = (window as any).VideoFrame
+    private async _webCodecsSink(copy: HTMLCanvasElement, format: 'mp4' | 'webm', width: number, height: number, fps: number, bitrate: number): Promise<FrameSink> {
+        const M = await this.load()
         const mp4 = format === 'mp4'
-        // H.264 levels from 5.2 down to 3.1, then VP9; the first the browser takes for this size
-        const codecs = mp4 ?
-            ['avc1.640034', 'avc1.640033', 'avc1.640028', 'avc1.4d0028', 'avc1.42e01f'] :
-            ['vp09.00.40.08', 'vp09.00.10.08', 'vp8']
-        let codec = ''
-        for (const c of codecs) {
-            const r = await videoEncoderClass.isConfigSupported({codec: c, width, height, bitrate, framerate: fps}).catch(() => null)
-            if (r?.supported) {
-                codec = c
-                break
-            }
-        }
+        // the first codec the browser encodes at this size: H.264 for mp4, VP9 or VP8 for webm
+        const codec = await M.getFirstEncodableVideoCodec(mp4 ? ['avc'] : ['vp9', 'vp8'], {width, height, bitrate})
         if (!codec) throw new Error(`No ${format} video encoder for ${width}×${height}`)
-        const M = await import(/* @vite-ignore */ this.muxerUrls[format])
-        const target = new M.ArrayBufferTarget()
-        const muxer = mp4 ?
-            new M.Muxer({target, video: {codec: 'avc', width, height, frameRate: fps}, fastStart: 'in-memory'}) :
-            new M.Muxer({target, video: {codec: codec === 'vp8' ? 'V_VP8' : 'V_VP9', width, height, frameRate: fps}})
-        let error: unknown
-        const encoder = new videoEncoderClass({
-            output: (chunk: any, meta: any) => muxer.addVideoChunk(chunk, meta),
-            error: (e: unknown) => error = e,
+        const output = new M.Output({
+            format: mp4 ? new M.Mp4OutputFormat({fastStart: 'in-memory'}) : new M.WebMOutputFormat(),
+            target: new M.BufferTarget(),
         })
-        encoder.configure({codec, width, height, bitrate, framerate: fps, ...mp4 ? {avc: {format: 'avc'}} : {}})
-        const us = 1e6 / fps
+        const source = new M.CanvasSource(copy, {codec, bitrate, keyFrameInterval: 2})
+        output.addVideoTrack(source, {frameRate: fps})
+        await output.start()
         return {
             method: 'frames',
             ext: format,
-            add: async(frame, i) => {
-                if (error) throw error
-                const f = new videoFrameClass(frame, {timestamp: Math.round(i * us), duration: Math.round(us)})
-                encoder.encode(f, {keyFrame: i % (fps * 2) === 0})
-                f.close()
-                // wait for the encoder; 'dequeue' also fires in a hidden tab, where timers are slowed down
-                while (encoder.encodeQueueSize > 6) {
-                    await new Promise<void>(r => 'ondequeue' in encoder ? encoder.addEventListener('dequeue', () => r(), {once: true}) : setTimeout(r, 4))
-                }
-            },
+            // each frame has its time and duration, the last one too; add() waits for the encoder (backpressure)
+            add: async(_frame, i) => source.add(i / fps, 1 / fps),
             finish: async() => {
-                await encoder.flush()
-                if (error) throw error
-                encoder.close()
-                muxer.finalize()
-                return new Blob([target.buffer], {type: mp4 ? 'video/mp4' : 'video/webm'})
+                await output.finalize()
+                return new Blob([output.target.buffer!], {type: output.format.mimeType})
             },
             cancel: () => {
-                if (encoder.state !== 'closed') encoder.close()
+                output.cancel().catch(() => undefined)
             },
         }
     }

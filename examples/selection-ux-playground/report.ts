@@ -63,11 +63,11 @@ the dialog, the chip after the pen, the path preview</td></tr>
 <tr><td>TimelineBarPlugin</td><td>Slim timeline: play, to start, time / end, loop, camera view, Camera path, Record; animations as clips you drag and stretch; shows by itself when there are animations,
 the toolbar button toggles it</td></tr>
 <tr><td>VideoRecorderPlugin</td><td><code>record({fps, width, height, format, quality, camera})</code>: moves the timeline frame by frame, encodes with WebCodecs (H.264 MP4 or VP9 WebM),
-muxes with mp4-muxer / webm-muxer; MediaRecorder in real time where WebCodecs is missing. Reusable, no UI</td></tr>
+encodes and muxes with mediabunny (loaded on the first recording); MediaRecorder in real time where WebCodecs is missing. Reusable, no UI</td></tr>
 <tr><td>Library fixes (threepipe <code>src/</code>)</td><td>PopmotionPlugin: a timeline track did not follow a seek when it was added (or rebuilt) while the time stood still, so “scrub to 0 from the end” left the camera at the end.
 follow_path: an object in a moved group was placed wrong (the world position was set as a local one)</td></tr>
 </table>
-<p class="lead" style="font-size:13px">Limits: MP4 needs WebCodecs (Chrome, Edge, Safari 17+, Firefox 130+); the muxer loads from jsdelivr on the first recording. In a background tab the recorder runs the frames itself, and a wake lock keeps the screen on. glTF animations (the editor page's GLTFAnimationPlugin) are not shown as clips in the bar yet. “Ahead” keeps the horizon level (no banking).
+<p class="lead" style="font-size:13px">Limits: MP4 needs WebCodecs (Chrome, Edge, Safari 17+, Firefox 130+); mediabunny loads on the first recording. In a background tab the recorder runs the frames itself, and a wake lock keeps the screen on. glTF animations (the editor page's GLTFAnimationPlugin) are not shown as clips in the bar yet. “Ahead” keeps the horizon level (no banking).
 Keyframes are added with ◆ next to a field in the editor panels, not in the bar.</p>
 
 <h2>New in round 8</h2>
