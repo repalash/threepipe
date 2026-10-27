@@ -13,6 +13,7 @@ import {
 import {
     childTargets,
     isFrame,
+    levelTarget,
     parentTarget,
     resolveTarget,
     scopeObjects,
@@ -21,11 +22,18 @@ import {
     siblingTarget,
     toggleSelected,
 } from './selectionHierarchy'
+import {boxEdgesPath, boxInfo, BoxInfo, bracketsPath, frontFaces, ScreenPoint, screenRect, ScreenRect, toScreen} from './selectionBox'
+import {ElementPool} from './ElementPool'
 
 export interface SelectionUxPluginEventMap extends AViewerPluginEventMap {
     /** The selection (`reason: 'selection'`) or the hovered object (`reason: 'hover'`) changed */
     uxUpdate: {reason: string}
 }
+
+/** How the overlay draws the box of the selection: a screen rectangle (as in Figma), the 3D box, or the corners of the 3D box */
+export type SelectionBoxStyle = 'rect' | 'box' | 'brackets'
+
+const SVG_NS = 'http://www.w3.org/2000/svg'
 
 /** A press of the left button on the canvas, until it is released (a click) or moves (then the camera controls have it) */
 interface DragState {kind: 'press', start: Vector2, leaf: IObject3D | null, shift: boolean, deep: boolean}
@@ -47,9 +55,13 @@ function isThin(o: any) {
  *   Ctrl/Cmd+A all objects at the level of the selection.
  * - A drag is not a click: the camera controls keep it.
  *
- * The selection is the selection of the {@link PickingPlugin} (added as a dependency): its events, its undo steps and its
- * box widget stay as they are. While enabled, this plugin takes over the clicks and keys that select.
+ * The selection is the selection of the {@link PickingPlugin} (added as a dependency): its events and its undo steps stay
+ * as they are. While enabled, this plugin takes over the clicks and keys that select.
  * Each selection change is one undo step, when the viewer has an `UndoManagerPlugin`.
+ *
+ * The overlay ({@link overlay}) draws the selection over the canvas: its box ({@link boxStyle}), the boxes of the
+ * objects of a multiple selection, the box of the hovered object, the name with its parent levels (a click on a parent
+ * selects it) and the size. While it draws, the box and the hover box of the PickingPlugin are off.
  */
 export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventMap> {
     static readonly PluginType = 'SelectionUxPlugin'
@@ -64,6 +76,28 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
      */
     static ClickAgainDelay = 400
 
+    /**
+     * Draw the overlay over the canvas: the boxes of the selection and of the hovered object, the name and the size.
+     * While it draws, the box and the hover box of the PickingPlugin are off (they come back when it stops).
+     */
+    overlay = true
+    /** How the box of the selection is drawn: a screen rectangle (as in Figma), the 3D box, or the corners of the 3D box */
+    boxStyle: SelectionBoxStyle = 'rect'
+    /** The box of one object turns with it (`local`) or follows the world axes (`world`); a box of several objects follows the world axes */
+    boxSpace: 'local' | 'world' = 'local'
+    /** With the `box` style, draw the edges that face away from the camera dashed */
+    xray = true
+    /** Draw the box of the hovered object (see {@link hovered}) */
+    showHover = true
+    /** Show the name above the selection, after the names of its parent levels; a click on a parent name selects it */
+    showName = true
+    /** Show the size of the box below the selection, in scene units (see {@link unit}) */
+    showSize = true
+    /** The unit after the size, like `'cm'`; empty for none */
+    unit = ''
+    /** The colour of the overlay, a CSS colour */
+    accent = '#0d99ff'
+
     private _picking?: PickingPlugin
     private _raycaster = new Raycaster()
     private _pointer = new Vector2()
@@ -76,6 +110,13 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
     /** A click behind that waits until a double click is ruled out (a press within {@link ClickAgainDelay} cancels it) */
     private _clickBehind?: ReturnType<typeof setTimeout>
     private _nextHoverAt = 0
+    private _root?: HTMLDivElement
+    private _lines?: ElementPool<SVGElement>
+    private _labels?: ElementPool<HTMLElement>
+    /** The objects of the parent names in the name label, by their index in `data-sux-crumb` */
+    private _crumbs: IObject3D[] = []
+    /** The box and hover settings of the PickingPlugin while the overlay draws, to restore them after */
+    private _pickingSaved?: {widget: boolean, hover: boolean}
 
     onAdded(viewer: ThreeViewer) {
         super.onAdded(viewer)
@@ -92,8 +133,25 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         window.addEventListener('keyup', this._onKeyUp, {capture: true})
         window.addEventListener('blur', this._onBlur)
         viewer.addEventListener('preFrame', this._onPreFrame)
+        viewer.addEventListener('postFrame', this._onPostFrame)
         this._picking.addEventListener('hitObject', this._onPickerHit)
         this._picking.addEventListener('selectedObjectChanged', this._onSelectionChanged)
+
+        // the overlay: SVG lines, and HTML labels on top, over the canvas; only the parent names take the pointer
+        const root = document.createElement('div')
+        root.className = 'sux-overlay'
+        root.setAttribute('style', 'position:absolute;pointer-events:none;overflow:hidden;display:none;' +
+            'font:11px/16px var(--tp-font-family, ui-sans-serif, system-ui, sans-serif);')
+        const svg = document.createElementNS(SVG_NS, 'svg')
+        svg.setAttribute('style', 'position:absolute;inset:0;width:100%;height:100%;overflow:visible;')
+        const labels = document.createElement('div')
+        labels.setAttribute('style', 'position:absolute;inset:0;')
+        root.appendChild(svg)
+        root.appendChild(labels)
+        c.appendChild(root)
+        this._root = root
+        this._lines = new ElementPool(svg, t => document.createElementNS(SVG_NS, t) as SVGElement)
+        this._labels = new ElementPool(labels, t => document.createElement(t))
     }
 
     onRemove(viewer: ThreeViewer) {
@@ -109,8 +167,13 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         window.removeEventListener('keyup', this._onKeyUp, {capture: true})
         window.removeEventListener('blur', this._onBlur)
         viewer.removeEventListener('preFrame', this._onPreFrame)
+        viewer.removeEventListener('postFrame', this._onPostFrame)
         this._picking?.removeEventListener('hitObject', this._onPickerHit)
         this._picking?.removeEventListener('selectedObjectChanged', this._onSelectionChanged)
+        this._takeOverPickingBox(false)
+        this._root?.remove()
+        this._root = this._lines = this._labels = undefined
+        this._crumbs = []
         this._picking = undefined
         this._state = null
         this._lastClick = null
@@ -350,7 +413,17 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
     }
 
     private _onPointerDown = (e: PointerEvent) => {
-        if (!this._active || e.isPrimary === false || e.target !== this._viewer!.canvas) return
+        if (!this._active || e.isPrimary === false) return
+        // a parent name in the name label of the overlay: select that parent
+        const crumb = (e.target as Element | null)?.getAttribute?.('data-sux-crumb')
+        if (crumb != null && e.button === 0) {
+            e.stopPropagation()
+            e.preventDefault()
+            const o = this._crumbs[Number(crumb)]
+            if (o) this.select([o])
+            return
+        }
+        if (e.target !== this._viewer!.canvas) return
         // the camera controls prevent the default, so a focused text field would keep the focus and the keys
         const ae = document.activeElement as HTMLElement | null
         if (ae && ae !== document.body && ae !== this._viewer!.canvas) ae.blur()
@@ -485,6 +558,153 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
 
     // endregion
 
+    // region overlay
+
+    /**
+     * The name shown for an object. For a chain of wrappers that selects as one (glTF "Scene" > "root" > "Watch"): the
+     * innermost name that is not a generic one (Scene, root, RootNode, glTF, group). Else its name, or its type.
+     */
+    displayName(o: IObject3D): string {
+        const level = this.levels(o).find(l => l.includes(o))
+        const named = (level ? [...level].reverse() : [o]).find(n => n.name && !/^(scene|root|rootnode|gltf|group)$/i.test(n.name))
+        return named?.name || o.name || o.type
+    }
+
+    /**
+     * The box around objects, as the overlay draws it
+     * @param space - default: {@link boxSpace}
+     */
+    boxInfo(objs: IObject3D[], space = this.boxSpace): BoxInfo {
+        return boxInfo(objs, space, this._pointSize)
+    }
+
+    /** The point on the canvas, in pixels from its top left corner, where the main camera shows a world point */
+    toScreen(v: Vector3): ScreenPoint {
+        const {w, h} = this._size()
+        return toScreen(v, this._viewer!.scene.mainCamera, w, h)
+    }
+
+    /** A light, a camera or an empty object is a cube of about 5% of its distance to the camera, so it keeps a size on screen */
+    private _pointSize = (o: IObject3D) => Math.max(1e-3, this._eye().distanceTo(o.getWorldPosition(new Vector3())) * 0.05)
+
+    private _eye() {
+        return this._viewer!.scene.mainCamera.getWorldPosition(new Vector3())
+    }
+
+    /** While the overlay draws, the box and the hover box of the PickingPlugin are off; after, they are as before */
+    private _takeOverPickingBox(on: boolean) {
+        const p = this._picking
+        if (!p || on === !!this._pickingSaved) return
+        if (on) {
+            this._pickingSaved = {widget: p.widgetEnabled, hover: p.hoverEnabled}
+            p.widgetEnabled = false
+            p.hoverEnabled = false
+        } else {
+            p.widgetEnabled = this._pickingSaved!.widget
+            p.hoverEnabled = this._pickingSaved!.hover
+            this._pickingSaved = undefined
+        }
+    }
+
+    private _onPostFrame = () => {
+        const root = this._root
+        if (!root) return
+        const on = this.overlay && this._active
+        this._takeOverPickingBox(on)
+        root.style.display = on ? '' : 'none'
+        if (!on) return
+        // over the canvas, which can be smaller than the container or offset in it (from the box the root is placed in)
+        const base = root.offsetParent as HTMLElement | null ?? this._viewer!.container
+        const c = base.getBoundingClientRect(), r = this._viewer!.canvas.getBoundingClientRect()
+        root.style.left = px(r.left - c.left - (base.clientLeft || 0))
+        root.style.top = px(r.top - c.top - (base.clientTop || 0))
+        root.style.width = px(r.width)
+        root.style.height = px(r.height)
+        this._draw()
+    }
+
+    private _draw() {
+        const L = this._lines!, T = this._labels!
+        L.begin()
+        T.begin()
+        this._crumbs = []
+        const sel = this.selected
+        const hover = this._hover
+        if (hover && this.showHover && !sel.includes(hover)) this._drawBox('hover', [hover], 1, 1)
+        // each object of a multiple selection in a thin box
+        if (sel.length > 1) sel.forEach((o, i) => this._drawBox('part' + i, [o], 1, 0.55))
+        if (sel.length) this._drawSelection(sel)
+        L.end()
+        T.end()
+    }
+
+    /** A thin box: the screen rectangle (`rect` style), else the edges of the 3D box that face the camera */
+    private _drawBox(key: string, objs: IObject3D[], width: number, opacity: number) {
+        const info = this.boxInfo(objs)
+        const sc = info.corners.map(c => this.toScreen(c))
+        const stroke = {fill: 'none', stroke: this.accent, strokeWidth: width, opacity}
+        if (this.boxStyle !== 'rect') {
+            this._lines!.get(key, 'path', {...stroke, strokeLinejoin: 'round', d: boxEdgesPath(sc, frontFaces(info, this._eye()), 'visible')})
+            return
+        }
+        const r = screenRect(sc)
+        if (r) this._lines!.get(key, 'rect', {...stroke, ...rectAttrs(r)})
+    }
+
+    private _drawSelection(sel: IObject3D[]) {
+        const L = this._lines!
+        const info = this.boxInfo(sel)
+        const sc = info.corners.map(c => this.toScreen(c))
+        const rect = screenRect(sc)
+        if (!rect) return
+        const stroke = {fill: 'none', stroke: this.accent}
+        if (this.boxStyle === 'rect') L.get('sel', 'rect', {...stroke, strokeWidth: 1.5, ...rectAttrs(rect)})
+        else if (this.boxStyle === 'brackets') L.get('sel', 'path', {...stroke, strokeWidth: 2, strokeLinecap: 'round', d: bracketsPath(sc)})
+        else {
+            const front = frontFaces(info, this._eye())
+            L.get('sel', 'path', {...stroke, strokeWidth: 1.5, strokeLinejoin: 'round', d: boxEdgesPath(sc, front, 'visible')})
+            if (this.xray) L.get('sel-hidden', 'path', {...stroke, strokeWidth: 1, strokeDasharray: '3 3', opacity: 0.6, d: boxEdgesPath(sc, front, 'hidden')})
+        }
+        this._drawLabels(sel, info, rect)
+    }
+
+    /** The name with its parent levels above the box, and the size below it */
+    private _drawLabels(sel: IObject3D[], info: BoxInfo, rect: ScreenRect) {
+        const T = this._labels!
+        const label = 'position:absolute;left:0;top:0;white-space:nowrap;'
+        if (this.showName) {
+            const tag = T.get('name', 'div', {style: `${label}font-weight:500;color:${this.accent};transform:translate(${px(rect.minX)}, ${px(rect.minY - 4)}) translateY(-100%);`})
+            if (sel.length === 1) {
+                const levels = this.levels(sel[0])
+                this._crumbs = levels.slice(0, Math.max(0, levels.findIndex(l => l.includes(sel[0])))).map(levelTarget)
+            }
+            const names = sel.length > 1 ? [`${sel.length} selected`] : [...this._crumbs, sel[0]].map(o => this.displayName(o))
+            const key = names.join('\n')
+            // the elements change only with the names, so a parent name under the pointer stays the same element
+            if (tag.getAttribute('data-names') !== key) {
+                tag.setAttribute('data-names', key)
+                const parts: HTMLElement[] = []
+                names.forEach((n, k) => {
+                    if (k) parts.push(span('/', 'opacity:.4;margin:0 4px;'))
+                    const parent = k < this._crumbs.length
+                    const s = span(n, parent ? 'opacity:.65;cursor:pointer;pointer-events:auto;' : '')
+                    if (parent) s.setAttribute('data-sux-crumb', String(k))
+                    parts.push(s)
+                })
+                tag.replaceChildren(...parts)
+            }
+        }
+        if (this.showSize) {
+            const s = info.size
+            const text = `${fmt(s.x)} × ${fmt(s.y)} × ${fmt(s.z)}${this.unit ? ' ' + this.unit : ''}`
+            const pill = T.get('size', 'div', {style: `${label}color:#fff;background:${this.accent};border-radius:3px;padding:0 5px;font-variant-numeric:tabular-nums;` +
+                    `transform:translate(${px((rect.minX + rect.maxX) / 2)}, ${px(rect.maxY + 8)}) translateX(-50%);`})
+            if (pill.textContent !== text) pill.textContent = text
+        }
+    }
+
+    // endregion
+
     // region keyboard
 
     private _onBlur = () => {
@@ -520,4 +740,28 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
     }
 
     // endregion
+}
+
+/** A CSS length in pixels */
+function px(v: number) {
+    return v.toFixed(1) + 'px'
+}
+
+/** The attributes of an SVG rect */
+function rectAttrs(r: ScreenRect) {
+    return {x: r.minX.toFixed(1), y: r.minY.toFixed(1), width: (r.maxX - r.minX).toFixed(1), height: (r.maxY - r.minY).toFixed(1)}
+}
+
+/** A length with 3 significant digits at most: 123, 12.3, 1.23 */
+function fmt(v: number) {
+    const a = Math.abs(v)
+    return a >= 100 ? v.toFixed(0) : a >= 10 ? v.toFixed(1) : v.toFixed(2)
+}
+
+/** A span element of a label */
+function span(text: string, style: string) {
+    const s = document.createElement('span')
+    s.textContent = text
+    if (style) s.setAttribute('style', style)
+    return s
 }

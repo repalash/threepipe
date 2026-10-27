@@ -15,6 +15,8 @@ import {
     toggleSelected,
 } from '../../plugins/tweakpane-editor/src/selection/selectionHierarchy'
 import {SelectionUxPlugin} from '../../plugins/tweakpane-editor/src/selection/SelectionUxPlugin'
+import {boxInfo, localBox, screenRect} from '../../plugins/tweakpane-editor/src/selection/selectionBox'
+import {ElementPool} from '../../plugins/tweakpane-editor/src/selection/ElementPool'
 
 const geometry = new BoxGeometry(0.5, 0.5, 0.5)
 const material = new MeshBasicMaterial()
@@ -188,9 +190,100 @@ describe('selection hierarchy', () => {
     })
 })
 
+describe('selection box', () => {
+    const point = () => 0.1
+
+    test('one object: its own box turns with it (local), or the box on the world axes', () => {
+        const m = new Mesh(new BoxGeometry(1, 2, 3), material) as any as IObject3D
+        m.position.set(5, 0, 0)
+        m.rotation.y = Math.PI / 2
+        const local = boxInfo([m], 'local', point)
+        expect(local.size.toArray().map(v => +v.toFixed(5))).toEqual([1, 2, 3])
+        expect(local.center.toArray().map(v => +v.toFixed(5))).toEqual([5, 0, 0])
+        expect(local.axes[0].toArray().map(v => +v.toFixed(5))).toEqual([0, 0, -1]) // the x axis of the mesh
+        const world = boxInfo([m], 'world', point)
+        expect(world.size.toArray().map(v => +v.toFixed(5))).toEqual([3, 2, 1])
+        expect(world.base.toArray().map(v => +v.toFixed(5))).toEqual([5, -1, 0])
+    })
+
+    test('what is drawn: hidden parts and helpers are left out; a light inside is a small cube; an empty object is a cube', () => {
+        const a = mesh('A', 0, 0, 0), hidden = mesh('Hidden', 10, 0, 0)
+        hidden.visible = false
+        const light = new DirectionalLight() as any as IObject3D
+        light.position.set(0, 3, 0)
+        light.add(light.target) // a helper: its target
+        light.target.position.set(0, -50, 0)
+        const g = group('G', a, hidden, light)
+        const b = localBox(g, point)
+        expect(b.min.toArray().map(v => +v.toFixed(5))).toEqual([-0.25, -0.25, -0.25])
+        expect(b.max.toArray().map(v => +v.toFixed(5))).toEqual([0.25, 3.05, 0.25])
+        expect(boxInfo([group('Empty')], 'local', point).size.toArray().map(v => +v.toFixed(5))).toEqual([0.1, 0.1, 0.1])
+    })
+
+    test('the screen rectangle leaves out the points behind the camera', () => {
+        expect(screenRect([{x: 1, y: 2, behind: false}, {x: 5, y: -1, behind: false}, {x: 100, y: 100, behind: true}])).toEqual({minX: 1, minY: -1, maxX: 5, maxY: 2})
+        expect(screenRect([{x: 1, y: 2, behind: true}])).toBe(null)
+    })
+
+    test('the element pool keeps an element between redraws and removes the ones not drawn', () => {
+        const root = new FakeElement('g')
+        const pool = new ElementPool(root as any, t => new FakeElement(t) as any)
+        pool.begin()
+        const a = pool.get('a', 'rect', {x: 1, fill: 'none'})
+        pool.get('b', 'rect', {})
+        pool.end()
+        pool.begin()
+        expect(pool.get('a', 'rect', {x: 2, fill: undefined})).toBe(a)
+        pool.end()
+        expect(root.children).toEqual([a])
+        expect([a.getAttribute('x'), a.getAttribute('fill')]).toEqual(['2', null])
+        pool.begin()
+        expect(pool.get('a', 'path', {})).not.toBe(a) // another tag: a new element
+        pool.clear()
+        expect(root.children).toEqual([])
+    })
+})
+
 // region SelectionUxPlugin with a fake viewer
 
 const SIZE = 400
+
+/** The node setup has no DOM: a small element with what the overlay uses */
+class FakeElement {
+    children: FakeElement[] = []
+    parent?: {children: FakeElement[]}
+    className = ''
+    textContent = ''
+    style: Record<string, string> = {}
+    attributes = new Map<string, string>()
+    constructor(readonly tagName: string) {}
+    setAttribute(k: string, v: string) {
+        this.attributes.set(k, v)
+    }
+    getAttribute(k: string) {
+        return this.attributes.get(k) ?? null
+    }
+    removeAttribute(k: string) {
+        this.attributes.delete(k)
+    }
+    appendChild(c: FakeElement) {
+        c.parent = this
+        this.children.push(c)
+        return c
+    }
+    replaceChildren(...cs: FakeElement[]) {
+        this.children = []
+        cs.forEach(c => this.appendChild(c))
+    }
+    remove() {
+        if (this.parent) this.parent.children = this.parent.children.filter(x => x !== this)
+        this.parent = undefined
+    }
+    /** All elements below this one, depth first */
+    all(): FakeElement[] {
+        return this.children.flatMap(c => [c, ...c.all()])
+    }
+}
 
 /** An event with the fields the plugin reads */
 function ev(type: string, fields: Record<string, any> = {}) {
@@ -199,7 +292,7 @@ function ev(type: string, fields: Record<string, any> = {}) {
 
 /**
  * Table (x -2) > Top, Legs > Leg 1, Leg 2; Lamp (x 2) with Wall behind it; the camera looks down -z.
- * The canvas is the container, a SIZE px square at the page origin.
+ * The canvas is the container, a SIZE px square at the page origin; the overlay is its child.
  */
 function setup() {
     const top = mesh('Top', 0, 0.5, 0), leg1 = mesh('Leg 1', -0.6, -0.5, 0), leg2 = mesh('Leg 2', 0.6, -0.5, 0)
@@ -217,7 +310,12 @@ function setup() {
 
     const canvas = Object.assign(new EventTarget(), {
         style: {},
+        children: [] as FakeElement[],
         getBoundingClientRect: () => ({left: 0, top: 0, width: SIZE, height: SIZE}),
+        appendChild(c: FakeElement) {
+            c.parent = canvas
+            canvas.children.push(c)
+        },
     })
     const picker = new ObjectPicker(root, canvas as any, camera as any)
     const undoManager = new JSUndoManager({limit: 100, debug: false, bindHotKeys: false})
@@ -226,6 +324,8 @@ function setup() {
         picker,
         isDisabled: () => false,
         getSelectedObjects: () => picker.selectedObjects,
+        widgetEnabled: true,
+        hoverEnabled: true,
     })
     picker.addEventListener('selectedObjectChanged', e => picking.dispatchEvent(e))
     picker.addEventListener('hitObject', e => picking.dispatchEvent(e)) // as PickingPlugin: the same intersects object
@@ -263,7 +363,16 @@ function setup() {
         return e.defaultPrevented
     }
     const names = () => ux.selected.map(o => o.name)
-    return {ux, viewer, picking, undoManager, canvas, events, table, legs, leg1, leg2, top, lamp, wall, at, wait, click, dblclick, key, names}
+    /** Draw the overlay (a frame of the viewer) and return its root */
+    const frame = () => {
+        viewer.dispatchEvent({type: 'postFrame'})
+        return canvas.children[0]
+    }
+    /** Draw a frame and return the SVG elements of the overlay */
+    const lines = () => frame().children[0].children
+    /** Draw a frame and return the label elements of the overlay */
+    const labels = () => frame().children[1].children
+    return {ux, viewer, picking, undoManager, canvas, events, table, legs, leg1, leg2, top, lamp, wall, at, wait, click, dblclick, key, names, frame, lines, labels, camera}
 }
 
 describe('SelectionUxPlugin', () => {
@@ -275,6 +384,9 @@ describe('SelectionUxPlugin', () => {
             removeEventListener: win.removeEventListener.bind(win),
             dispatchEvent: win.dispatchEvent.bind(win),
         })
+        const doc = document as any
+        vi.spyOn(doc, 'createElement').mockImplementation((tag: any) => new FakeElement(tag))
+        vi.spyOn(doc, 'createElementNS').mockImplementation((_ns: any, tag: any) => new FakeElement(tag))
     })
     afterEach(() => {
         vi.restoreAllMocks()
@@ -556,6 +668,93 @@ describe('SelectionUxPlugin', () => {
         const hit2 = {intersects: {} as any}
         picking.dispatchEvent({type: 'hitObject', ...hit2})
         expect(hit2.intersects.consumed).toBeUndefined()
+    })
+
+    test('overlay: the box of the selection on the canvas; the box of the PickingPlugin is off while it draws', () => {
+        const {ux, picking, table, lines, camera} = setup()
+        expect(lines()).toEqual([])
+        expect(picking.widgetEnabled).toBe(false)
+        expect(picking.hoverEnabled).toBe(false)
+        ux.select([table])
+        const [rect, ...rest] = lines()
+        expect(rest).toEqual([])
+        expect(rect.tagName).toBe('rect')
+        // Table spans x -2.85..-1.15, y -0.75..0.75, z -0.25..0.25: the rectangle around its 8 corners on screen
+        const xs: number[] = [], ys: number[] = []
+        for (const x of [-2.85, -1.15]) for (const y of [-0.75, 0.75]) for (const z of [-0.25, 0.25]) {
+            const v = new Vector3(x, y, z).project(camera)
+            xs.push((v.x + 1) / 2 * SIZE)
+            ys.push((1 - v.y) / 2 * SIZE)
+        }
+        expect(+rect.getAttribute('x')!).toBeCloseTo(Math.min(...xs), 1)
+        expect(+rect.getAttribute('y')!).toBeCloseTo(Math.min(...ys), 1)
+        expect(+rect.getAttribute('width')!).toBeCloseTo(Math.max(...xs) - Math.min(...xs), 1)
+        expect(+rect.getAttribute('height')!).toBeCloseTo(Math.max(...ys) - Math.min(...ys), 1)
+    })
+
+    test('overlay: the name after the parent names, a click on a parent name selects it; the size', () => {
+        const {ux, canvas, leg1, lamp, table, labels, lines, names} = setup()
+        ux.select([leg1])
+        const [name, size] = labels()
+        expect(name.children.map(c => c.textContent)).toEqual(['Table', '/', 'Legs', '/', 'Leg 1'])
+        expect(size.textContent).toBe('0.50 × 0.50 × 0.50')
+        const e = ev('pointerdown')
+        Object.defineProperty(e, 'target', {value: name.children[2]}) // Legs
+        canvas.dispatchEvent(e)
+        expect(e.defaultPrevented).toBe(true)
+        expect(names()).toEqual(['Legs'])
+        expect(labels()[0].children.map(c => c.textContent)).toEqual(['Table', '/', 'Legs'])
+        // several objects: a box for each, and one around all
+        ux.unit = 'cm'
+        ux.select([lamp, table])
+        expect(labels().map(l => l.children.map(c => c.textContent).join('') || l.textContent)).toEqual(['2 selected', '5.10 × 1.50 × 0.50 cm'])
+        expect(lines().map(l => l.tagName + ' ' + l.getAttribute('stroke-width')).sort()).toEqual(['rect 1', 'rect 1', 'rect 1.5'])
+    })
+
+    test('overlay: the box of the hovered object, also inside the selected group', () => {
+        const {ux, viewer, canvas, at, leg1, table, lines} = setup()
+        canvas.dispatchEvent(ev('pointermove'))
+        window.dispatchEvent(ev('pointermove', at(leg1)))
+        viewer.dispatchEvent({type: 'preFrame'})
+        expect(lines().map(l => [l.tagName, l.getAttribute('stroke-width')])).toEqual([['rect', '1']]) // Table
+        ux.select([table])
+        viewer.dispatchEvent({type: 'preFrame'})
+        expect(lines().map(l => l.tagName + ' ' + l.getAttribute('stroke-width')).sort()).toEqual(['rect 1', 'rect 1.5']) // Legs, Table
+        ux.showHover = false
+        expect(lines()).toHaveLength(1)
+    })
+
+    test('overlay: the box and brackets styles', () => {
+        const {ux, lamp, lines} = setup()
+        ux.select([lamp])
+        ux.boxStyle = 'box'
+        const edges = (d: string | null) => (d ?? '').split('M').length - 1
+        // the camera at the origin sees the front (+z) and the left (-x) faces of the lamp: 7 edges; 5 are hidden
+        expect(lines().map(l => edges(l.getAttribute('d')))).toEqual([7, 5])
+        ux.xray = false
+        expect(lines().map(l => edges(l.getAttribute('d')))).toEqual([7])
+        ux.boxStyle = 'brackets'
+        expect(lines().map(l => edges(l.getAttribute('d')))).toEqual([24]) // 3 strokes at each corner
+    })
+
+    test('overlay: off with the plugin or with `overlay` false, then the box of the PickingPlugin is back; onRemove removes it', () => {
+        const {ux, picking, viewer, canvas, frame} = setup()
+        frame()
+        ux.enabled = false
+        expect(frame().style.display).toBe('none')
+        expect(picking.widgetEnabled).toBe(true)
+        ux.enabled = true
+        expect(frame().style.display).toBe('')
+        expect(picking.widgetEnabled).toBe(false)
+        ux.overlay = false
+        expect(frame().style.display).toBe('none')
+        expect(picking.hoverEnabled).toBe(true)
+        ux.overlay = true
+        frame()
+        ux.onRemove(viewer)
+        expect(canvas.children).toEqual([])
+        expect(picking.widgetEnabled).toBe(true)
+        expect(picking.hoverEnabled).toBe(true)
     })
 
     test('onRemove removes the listeners', () => {

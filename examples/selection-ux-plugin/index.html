@@ -19,6 +19,9 @@
 
     </script>
     <style id="example-style">
+        #canvas-container {
+            position: relative;
+        }
         html, body, #canvas-container, #mcanvas {
             width: 100%;
             height: 100%;
@@ -28,6 +31,10 @@
         .help {
             position: absolute; left: 12px; bottom: 12px; padding: 6px 10px; border-radius: 6px; pointer-events: none;
             font: 12px/1.6 sans-serif; color: #333; background: rgba(255,255,255,.85);
+        }
+        .box-style {
+            position: absolute; right: 12px; top: 12px; padding: 4px 8px; border-radius: 6px;
+            font: 12px sans-serif; color: #333; background: rgba(255,255,255,.85);
         }
     </style>
     <script type="module" src="../examples-utils/global-loading.mjs"></script>
@@ -39,8 +46,16 @@
     <canvas id="mcanvas"></canvas>
     <div class="help">
         Click: the group · Double click: one level in · Click again: the one behind · Shift: add/remove · Ctrl/Cmd: deepest<br>
-        Esc / Shift+Enter: parent · Enter: children · Tab: next · Ctrl/Cmd+A: all at this level · Ctrl/Cmd+Z: undo
+        Esc / Shift+Enter: parent · Enter: children · Tab: next · Ctrl/Cmd+A: all at this level · Ctrl/Cmd+Z: undo<br>
+        A parent name above the box selects that parent
     </div>
+    <label class="box-style">Box
+        <select id="box-style">
+            <option value="rect">Screen rectangle</option>
+            <option value="box">3D box</option>
+            <option value="brackets">Corners</option>
+        </select>
+    </label>
 </div>
 
 </body>
