@@ -53,3 +53,43 @@ editor.loadPlugins({
     ['Debug']: [RenderTargetPreviewPlugin],
 })
 ```
+
+## Page frame and mode bar
+
+`TweakpaneEditorPlugin.setFrame()` puts the editor in a page frame. The modes are then coloured icons on the right (`EditorModeBar`) instead of the tabs at the bottom.
+
+- `'titlebar'`: a slim bar on top with the app name, the name of the last loaded file and the actions. The canvas and the panel are edge to edge below it.
+- `'statusbar'`: the same bar at the bottom, like a code editor.
+- `'floating'`: the canvas fills the window. The panel and the mode bar float over it, with the same gap on every side. The actions are in the mode bar.
+
+In the frame:
+- A click on a mode shows its panels. A click on the open mode hides the panel, and the canvas takes its room.
+- The button at the bottom of the mode bar shows or hides the mode names.
+- Shift+T switches between the light and the dark theme of the same family (`clean` and `clean-dark`, `light` and `dark`, `white` and `black`).
+- The layout button changes the layout. The layout and the names setting are kept in `localStorage`.
+
+The frame layout applies when the window is 920 px wide or more.
+
+```typescript
+import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
+import {EditorModeBar, TweakpaneEditorPlugin} from '@threepipe/plugin-tweakpane-editor'
+
+viewer.addPluginSync(new TweakpaneUiPlugin(true))
+const editor = viewer.addPluginSync(new TweakpaneEditorPlugin())
+editor.loadPlugins({
+    ['Viewer']: [ViewerUiConfigPlugin],
+    ['Export']: [AssetExporterPlugin],
+})
+
+editor.setFrame('titlebar', {title: 'My app'})
+editor.frame?.setLayout('floating')
+editor.frame?.modeBar.setExpanded(false) // icons only
+
+// the colour and icon of a mode (an SVG string)
+EditorModeBar.Looks['My mode'] = {color: '#0d99ff', icon: '<svg ...></svg>'}
+
+// back to the mode tabs at the bottom
+editor.setFrame(undefined)
+```
+
+In the [Tweakpane Editor example](https://threepipe.org/examples/tweakpane-editor/), add `?frame=titlebar`, `?frame=statusbar` or `?frame=floating` to the URL.

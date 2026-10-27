@@ -1,2 +1,6 @@
 export {TweakpaneEditorPlugin} from './TweakpaneEditorPlugin'
 export {HierarchyUiPlugin} from './HierarchyUiPlugin'
+export {EditorFrame, EDITOR_FRAME_LAYOUTS} from './frame/EditorFrame'
+export type {EditorFrameLayout, EditorFrameOptions} from './frame/EditorFrame'
+export {EditorModeBar} from './frame/EditorModeBar'
+export type {EditorModeLook, EditorModeBarHost} from './frame/EditorModeBar'

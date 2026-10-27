@@ -1,5 +1,6 @@
 import {_testFinish, _testStart, DropzonePlugin, getUrlQueryParam, HemisphereLight} from 'threepipe'
 import {TransfrSharePlugin} from '@threepipe/plugin-network'
+import {EditorFrameLayout, EDITOR_FRAME_LAYOUTS, TweakpaneEditorPlugin} from '@threepipe/plugin-tweakpane-editor'
 import {ThreeEditor} from './ThreeEditor'
 
 async function init() {
@@ -29,6 +30,10 @@ async function init() {
         },
     })
     await viewer.init()
+
+    // ?frame=titlebar | statusbar | floating: the page frame with the modes on the right (TweakpaneEditorPlugin.setFrame)
+    const frame = getUrlQueryParam('frame') as EditorFrameLayout | null
+    if (frame && EDITOR_FRAME_LAYOUTS.some(([k]) => k === frame)) viewer.getPlugin(TweakpaneEditorPlugin)?.setFrame(frame)
 
     // for fat lines
     // GLTFLoader2.UseMeshLines = true

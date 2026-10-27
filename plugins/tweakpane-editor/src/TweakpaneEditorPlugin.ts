@@ -14,6 +14,7 @@ import styles from './TweakpaneEditorPlugin.css?inline'
 import tippy from 'tippy.js'
 import tippyStyles from 'tippy.js/dist/tippy.css?inline'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
+import {EditorFrame, EditorFrameLayout, EditorFrameOptions} from './frame/EditorFrame'
 
 export class TweakpaneEditorPlugin extends AViewerPluginSync {
     public static readonly PluginType: string = 'TweakpaneEditorPlugin'
@@ -38,6 +39,45 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync {
 
         setupWebGiLogo(viewer)
         setupFullscreenButton(viewer)
+    }
+
+    onRemove(viewer: ThreeViewer) {
+        this.setFrame(undefined)
+        super.onRemove(viewer)
+    }
+
+    /**
+     * The page frame, with the mode bar on the right instead of the mode tabs at the bottom. Set with {@link setFrame}.
+     */
+    frame?: EditorFrame
+    private _frameOptions?: EditorFrameOptions
+
+    /**
+     * Puts the editor in a page frame: a title bar, a status bar or floating panels ({@link EditorFrameLayout}), with
+     * the modes as coloured icons on the right ({@link EditorModeBar}) and Shift+T for a light or dark theme.
+     * `undefined` removes the frame, and the page has the mode tabs at the bottom again.
+     * @param layout - the layout, or `undefined` for no frame
+     * @param options - options of the frame, used when the frame is made
+     */
+    setFrame(layout: EditorFrameLayout | undefined, options?: EditorFrameOptions) {
+        if (!layout) {
+            this.frame?.dispose()
+            this.frame = undefined
+            this._frameOptions = undefined
+            return
+        }
+        if (this.frame) {
+            this.frame.setLayout(layout)
+            return
+        }
+        if (!this._viewer) throw new Error('Plugin not added to viewer.')
+        const ui = this._viewer.getPlugin(TweakpaneUiPlugin)
+        this._frameOptions = {
+            colorMode: ui ? {get: () => ui.colorMode, set: (m) => ui.colorMode = m as TweakpaneUiPlugin['colorMode']} : undefined,
+            ...options,
+        }
+        this.frame = new EditorFrame(this._viewer, this, {...this._frameOptions, layout})
+        this.frame.modeBar.select(this._selectedMode)
     }
 
     private _selectedMode = 0
@@ -80,6 +120,13 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync {
 
         this.setSelectedMode(0)
 
+        // the mode bar shows the modes of the frame: make it again with the new modes
+        if (this.frame) {
+            const layout = this.frame.layout
+            const options = this._frameOptions
+            this.setFrame(undefined)
+            this.setFrame(layout, options)
+        }
     }
 
     setSelectedMode(mode: number) {
@@ -100,6 +147,7 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync {
         for (let i = 0; i < this.modeKeys.length; i++) {
             this.modeDivs[i]?.classList[this._selectedMode !== i ? 'remove' : 'add']('mode-button-selected', 'button-bar-selected')
         }
+        this.frame?.modeBar.select(mode)
         // this._viewer.setDirty()
         this.uiPlugin?.refreshPluginsEnabled()
 
