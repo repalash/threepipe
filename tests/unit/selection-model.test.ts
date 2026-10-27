@@ -1,5 +1,5 @@
 import {afterEach, beforeEach, describe, expect, test, vi} from 'vitest'
-import {BoxGeometry, DirectionalLight, EventDispatcher, Group, InstancedMesh, Matrix4, Mesh, MeshBasicMaterial, Object3D, PerspectiveCamera, Vector3} from 'three'
+import {BoxGeometry, DirectionalLight, EventDispatcher, Group, InstancedMesh, Matrix4, Mesh, MeshBasicMaterial, Object3D, OrthographicCamera, PerspectiveCamera, Vector3} from 'three'
 import {JSUndoManager} from 'ts-browser-helpers'
 import {IObject3D, ObjectPicker} from 'threepipe'
 import {
@@ -15,7 +15,7 @@ import {
     toggleSelected,
 } from '../../plugins/tweakpane-editor/src/selection/selectionHierarchy'
 import {SelectionUxPlugin} from '../../plugins/tweakpane-editor/src/selection/SelectionUxPlugin'
-import {boxInfo, localBox, screenRect} from '../../plugins/tweakpane-editor/src/selection/selectionBox'
+import {boxInfo, localBox, screenRect, toScreen} from '../../plugins/tweakpane-editor/src/selection/selectionBox'
 import {ElementPool} from '../../plugins/tweakpane-editor/src/selection/ElementPool'
 
 const geometry = new BoxGeometry(0.5, 0.5, 0.5)
@@ -240,6 +240,15 @@ describe('selection box', () => {
         ;(im as any).setMatrixAt(0, new Matrix4().makeTranslation(-5, 0, 0))
         ;(im as any).setMatrixAt(1, new Matrix4().makeTranslation(5, 0, 0))
         expect(localBox(im, point).getSize(new Vector3()).toArray().map(v => +v.toFixed(5))).toEqual([10.5, 0.5, 0.5])
+    })
+
+    test('a point behind the camera, for a perspective and an orthographic camera', () => {
+        for (const cam of [new PerspectiveCamera(45, 1, 0.1, 100), new OrthographicCamera(-5, 5, 5, -5, -100, 100)]) {
+            cam.position.set(0, 0, 10)
+            cam.updateMatrixWorld(true)
+            expect(toScreen(new Vector3(1, 0, 0), cam, 100, 100).behind).toBe(false)
+            expect(toScreen(new Vector3(1, 0, 20), cam, 100, 100).behind).toBe(true)
+        }
     })
 
     test('the screen rectangle leaves out the points behind the camera', () => {
@@ -767,6 +776,13 @@ describe('SelectionUxPlugin', () => {
         expect(lines().map(l => edges(l.getAttribute('d')))).toEqual([7])
         ux.boxStyle = 'brackets'
         expect(lines().map(l => edges(l.getAttribute('d')))).toEqual([24]) // 3 strokes at each corner
+    })
+
+    test('overlay: a hover box of the PickingPlugin shown when the overlay starts is cleared', () => {
+        const {picking, lamp, frame} = setup()
+        picking.picker.setHoverObject(lamp)
+        frame()
+        expect(picking.picker.hoverObject).toBe(null)
     })
 
     test('overlay: off with the plugin or with `overlay` false, then the box of the PickingPlugin is back; onRemove removes it', () => {

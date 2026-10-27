@@ -126,13 +126,16 @@ export function boxInfo(objs: IObject3D[], space: 'local' | 'world', pointSize: 
 
 const v4 = new Vector4()
 /**
- * The point on a canvas of `w`×`h` pixels where a camera shows a world point
+ * The point on a canvas of `w`×`h` pixels where a camera shows a world point. The point is behind the camera when it is
+ * not in front of the camera's plane (camera space z >= 0), for a perspective and an orthographic camera.
  * @param camera - its world matrix and projection matrix are up to date (as after a render)
  */
 export function toScreen(v: Vector3, camera: {matrixWorldInverse: Matrix4, projectionMatrix: Matrix4}, w: number, h: number): ScreenPoint {
-    const p = v4.set(v.x, v.y, v.z, 1).applyMatrix4(camera.matrixWorldInverse).applyMatrix4(camera.projectionMatrix)
+    const p = v4.set(v.x, v.y, v.z, 1).applyMatrix4(camera.matrixWorldInverse)
+    const behind = p.z >= 0
+    p.applyMatrix4(camera.projectionMatrix)
     const iw = 1 / Math.abs(p.w || 1e-6)
-    return {x: (p.x * iw + 1) / 2 * w, y: (1 - p.y * iw) / 2 * h, behind: p.w <= 0}
+    return {x: (p.x * iw + 1) / 2 * w, y: (1 - p.y * iw) / 2 * h, behind}
 }
 
 /** The rectangle around the points in front of the camera, null when all are behind it */

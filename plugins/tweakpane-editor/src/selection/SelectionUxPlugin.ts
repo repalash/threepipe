@@ -600,6 +600,8 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         if (!p || on === !!this._pickingSaved) return
         if (on) {
             this._pickingSaved = {widget: p.widgetEnabled, hover: p.hoverEnabled}
+            // a hover box shown now: clear it while the PickingPlugin still updates its box (it stops once the widget is off)
+            p.picker?.setHoverObject(null)
             p.widgetEnabled = false
             p.hoverEnabled = false
         } else {
