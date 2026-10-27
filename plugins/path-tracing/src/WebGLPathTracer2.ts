@@ -120,7 +120,16 @@ export class WebGLPathTracer2 extends WebGLPathTracer {
         super.reset()
     }
 
-    // @uiButton()
-    // dispose() {super.dispose()}
+    /**
+     * three-gpu-pathtracer 0.0.23 disposes `_renderQuad`, which does not exist (the quad is `_quad`), and throws. Fixed in
+     * 0.0.25, which needs three r185. This also disposes the low resolution path tracer.
+     */
+    dispose() {
+        const self = this as any
+        self._quad?.dispose()
+        self._quad?.material.dispose()
+        self._pathTracer?.dispose()
+        self._lowResPathTracer?.dispose()
+    }
 
 }
