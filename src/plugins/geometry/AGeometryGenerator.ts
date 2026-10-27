@@ -126,6 +126,9 @@ export abstract class AGeometryGenerator<Tp extends object=any, Tt extends strin
 
         if (positions !== undefined && (geometry as LineGeometry2).setPositions) {
             (geometry as LineGeometry2).setPositions(positions)
+            // three.js keeps the instance count of the first render (WebGLBindingStates), so a line regenerated with
+            // more points (more segments, close path) would still draw only the old number of segments
+            ;(geometry as any)._maxInstanceCount = undefined
         } else {
             // console.log(indices, vertices, normals, uvs, groups)
             indices && updateIndices(geometry, indices)

@@ -197,7 +197,10 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
 
     private _onKeyDown = (event: KeyboardEvent) => {
         if (this.isDisabled()) return
-        if ((event.target as any)?.tagName === 'TEXTAREA' || (event.target as any)?.tagName === 'INPUT') return
+        // a key another handler already used (a menu, a dialog, an editor overlay), or one typed into a field
+        if (event.defaultPrevented) return
+        const target = event.target as HTMLElement | null
+        if (target?.tagName === 'TEXTAREA' || target?.tagName === 'INPUT' || target?.tagName === 'SELECT' || target?.isContentEditable) return
         const ctrl = event.ctrlKey || event.metaKey
 
         if (ctrl && event.code === 'KeyA') {
@@ -226,7 +229,9 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
             else this.toggleVisibilitySelected()
         } else if (event.code === 'KeyF' && !ctrl) {
             event.preventDefault()
-            this.focusSelected()
+            // nothing selected: everything
+            if (this.getSelectedObject()) this.focusSelected()
+            else this._viewer?.fitToView()
         } else if (event.altKey && !ctrl && (event.code === 'KeyG' || event.code === 'KeyR' || event.code === 'KeyS')) {
             event.preventDefault()
             this.resetTransform(event.code === 'KeyG' ? 'position' : event.code === 'KeyR' ? 'rotation' : 'scale')
