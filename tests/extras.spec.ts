@@ -73,6 +73,7 @@ test('dispose-reimport-test-2', async({page}) => expect(page).toHaveTitle('Dispo
 test('dispose-reimport-test-3', async({page}) => expect(page).toHaveTitle('Dispose + Reimport Test with config 2'))
 test('dzi-load', async({page}) => expect(page).toHaveTitle('DZI (Deep Zoom Image) Load'))
 test('editor-view-widget-plugin', async({page}) => expect(page).toHaveTitle('Editor View Widget Plugin'))
+test('editor-camera-plugin', async({page}) => expect(page).toHaveTitle('Editor Camera Plugin'))
 test('entity-component-custom', async({page}) => expect(page).toHaveTitle('Entity Component Custom'))
 test('entity-component-plugin', async({page}) => expect(page).toHaveTitle('Entity Component Plugin'))
 test('fat-line-spiral', async({page}) => expect(page).toHaveTitle('Fat Lines/Mesh Lines 2'))
