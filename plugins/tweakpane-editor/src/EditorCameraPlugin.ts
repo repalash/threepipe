@@ -178,6 +178,7 @@ export class EditorCameraPlugin extends AViewerPluginSync {
         c.position.copy(start.getWorldPosition(new Vector3()))
         c.target.copy(start.target)
         if ((start as PerspectiveCamera2).fov) c.fov = (start as PerspectiveCamera2).fov
+        c.zoom = start.zoom
         c.setDirty()
     }
 
@@ -206,6 +207,8 @@ export class EditorCameraPlugin extends AViewerPluginSync {
         controls?.stopDamping?.()
         start.position.copy(pose.position)
         start.target.copy(pose.target)
+        // a camera without controls or autoLookAtTarget does not turn to its target by itself
+        if (!start.userData.autoLookAtTarget) start.lookAt(pose.target)
         start.setDirty()
     }
 

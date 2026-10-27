@@ -1,5 +1,5 @@
 import {describe, expect, test, vi} from 'vitest'
-import {EventDispatcher, Object3D, Vector3} from 'three'
+import {EventDispatcher, Object3D, PerspectiveCamera, Vector3} from 'three'
 import {EditorCameraPlugin} from '../../plugins/tweakpane-editor/src/EditorCameraPlugin'
 
 // the editor camera makes its orbit controls on document.body, which the node setup does not have
@@ -10,7 +10,7 @@ if (!doc.body?.addEventListener) doc.body = {style: {}, ...listeners, getRootNod
 // a start view (the scene's default camera) and a scene that tracks the main camera
 function setup({undo = true} = {}) {
     const scene = new EventDispatcher<any>() as any
-    const start = new Object3D() as any
+    const start = new PerspectiveCamera() as any
     start.target = new Vector3(0, 0, 0)
     start.position.set(0, 1, 6)
     start.setDirty = vi.fn()
@@ -144,6 +144,26 @@ describe('EditorCameraPlugin', () => {
         start.position.set(4, 1, 0)
         plugin.editing = true
         expect(start.position.toArray()).toEqual([0, 1, 6])
+    })
+
+    test('setStartViewFromEditor turns a start camera without controls to the new target', () => {
+        const {plugin, start, records} = setup()
+        start.controls = undefined
+        plugin.camera.position.set(5, 0, 0)
+        plugin.camera.target.set(0, 0, 0)
+        plugin.setStartViewFromEditor()
+        const forward = new Vector3(0, 0, -1).applyQuaternion(start.quaternion)
+        expect(forward.x).toBeCloseTo(-1) // looks from +x to the origin
+        records[0].undo()
+        const back = new Vector3(0, 0, -1).applyQuaternion(start.quaternion)
+        expect(back.z).toBeLessThan(-0.9) // looks from (0, 1, 6) to the origin again
+    })
+
+    test('copyStartView copies the zoom', () => {
+        const {plugin, start} = setup()
+        start.zoom = 1.5
+        plugin.copyStartView()
+        expect(plugin.camera.zoom).toBe(1.5)
     })
 
     test('setStartViewFromEditor works without the UndoManagerPlugin', () => {
