@@ -214,21 +214,217 @@
     --tp-monitor-foreground-color: #b3b3b3;
 }
 
-.tpTheme-figma .tp-fldv, .tpTheme-figma-dark .tp-fldv {
-    border: 0 !important;
-    border-top: 1px solid var(--tp-container-border-color) !important;
+/*
+ * Figma's Design panel: 24px fields on a light grey fill, 11px Inter, grey labels, flat sections split by thin lines,
+ * small square checkboxes, outlined buttons. Scoped to the two figma modes.
+ */
+:root .tpTheme-figma, :root .tpTheme-figma-dark {
+    --tp-blade-unit-size: 24px;
+    --tp-container-horizontal-padding: 8px;
+    --tp-container-vertical-padding: 6px;
+    --tpf-accent: #0d99ff;
+    --tpf-line: var(--tp-container-border-color);
+    --tpf-knob: #ffffff;
+    --tpf-check-border: rgba(0, 0, 0, 0.5);
 }
-.tpTheme-figma .tp-fldv_b, .tpTheme-figma-dark .tp-fldv_b {
+:root .tpTheme-figma-dark {
+    --tpf-check-border: rgba(255, 255, 255, 0.5);
+}
+.tpTheme-figma .tp-rotv, .tpTheme-figma-dark .tp-rotv {
+    font-size: 11px !important;
+    letter-spacing: 0.005em;
+    border-radius: 8px;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.06), 0 2px 10px rgba(0, 0, 0, 0.08);
+}
+.tpTheme-figma-dark .tp-rotv {
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4), 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+/* the panel title: left, like Figma's "Design" tab */
+.tpTheme-figma .tp-rotv_b, .tpTheme-figma-dark .tp-rotv_b {
     font-size: 11px !important;
     font-weight: 600 !important;
+    text-align: left !important;
+    padding-left: 16px !important;
+    height: 40px !important;
 }
+/* sections: a thin line above, the title on the left, a small chevron instead of the bars */
+.tpTheme-figma .tp-fldv, .tpTheme-figma-dark .tp-fldv {
+    border: 0 !important;
+    border-top: 1px solid var(--tpf-line) !important;
+}
+.tpTheme-figma .tp-fldv_b, .tpTheme-figma-dark .tp-fldv_b,
+.tpTheme-figma .tp-fldv_b + .tp-brkv .tp-fldv_b, .tpTheme-figma-dark .tp-fldv_b + .tp-brkv .tp-fldv_b {
+    height: 36px !important;
+    line-height: 36px !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    background: transparent !important;
+}
+.tpTheme-figma .tp-fldv_b:hover, .tpTheme-figma-dark .tp-fldv_b:hover {
+    background: transparent !important;
+}
+/* nested sections: no box, a lighter title */
+.tpTheme-figma .tp-fldv .tp-fldv, .tpTheme-figma-dark .tp-fldv .tp-fldv {
+    border-top: 0 !important;
+}
+.tpTheme-figma .tp-fldv .tp-fldv > .tp-fldv_b, .tpTheme-figma-dark .tp-fldv .tp-fldv > .tp-fldv_b {
+    height: 28px !important;
+    line-height: 28px !important;
+    font-weight: 500 !important;
+    color: var(--tp-label-foreground-color) !important;
+}
+.tpTheme-figma .tp-fldv_t, .tpTheme-figma-dark .tp-fldv_t {
+    padding-left: 22px !important;
+    font-weight: inherit !important;
+}
+.tpTheme-figma .tp-fldv_m, .tpTheme-figma-dark .tp-fldv_m {
+    background: none !important;
+    width: 5px !important;
+    height: 5px !important;
+    left: 10px !important;
+    right: auto !important;
+    border-right: 1.5px solid var(--tp-container-foreground-color);
+    border-bottom: 1.5px solid var(--tp-container-foreground-color);
+    border-radius: 0 !important;
+    opacity: 0.45 !important;
+    transform: rotate(-45deg) !important;
+}
+.tpTheme-figma .tp-fldv.tp-fldv-expanded > .tp-fldv_b > .tp-fldv_m,
+.tpTheme-figma-dark .tp-fldv.tp-fldv-expanded > .tp-fldv_b > .tp-fldv_m {
+    transform: translateY(-1px) rotate(45deg) !important;
+}
+.tpTheme-figma .tp-fldv_b:hover > .tp-fldv_m, .tpTheme-figma-dark .tp-fldv_b:hover > .tp-fldv_m {
+    opacity: 0.9 !important;
+}
+.tpTheme-figma .tp-fldv_c, .tpTheme-figma-dark .tp-fldv_c {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+    border-left: 0 !important;
+}
+.tpTheme-figma .tp-fldv .tp-fldv .tp-fldv_c, .tpTheme-figma-dark .tp-fldv .tp-fldv .tp-fldv_c {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+}
+/* rows: grey 11px labels, no wrapping hyphens */
 .tpTheme-figma .tp-lblv_l, .tpTheme-figma-dark .tp-lblv_l {
     font-size: 11px !important;
     font-weight: 400 !important;
+    line-height: 1.25;
+    padding-right: 8px;
+    hyphens: none;
 }
+/* fields: 24px, grey fill, a line on hover, the accent on focus */
+.tpTheme-figma .tp-txtv_i, .tpTheme-figma-dark .tp-txtv_i,
+.tpTheme-figma .tp-lstv_s, .tpTheme-figma-dark .tp-lstv_s {
+    font-size: 11px !important;
+    font-weight: 400 !important;
+    height: 24px;
+    border-radius: 5px;
+    padding: 0 8px;
+}
+.tpTheme-figma .tp-txtv_i:hover, .tpTheme-figma-dark .tp-txtv_i:hover,
+.tpTheme-figma .tp-lstv_s:hover, .tpTheme-figma-dark .tp-lstv_s:hover {
+    background-color: var(--tp-input-background-color) !important;
+    box-shadow: inset 0 0 0 1px var(--tpf-line);
+}
+.tpTheme-figma .tp-txtv_i:focus, .tpTheme-figma-dark .tp-txtv_i:focus,
+.tpTheme-figma .tp-lstv_s:focus, .tpTheme-figma-dark .tp-lstv_s:focus {
+    box-shadow: inset 0 0 0 1px var(--tpf-accent);
+}
+/* numbers read from the left, like Figma; the drag knob is a small dot until you hover it */
+.tpTheme-figma .tp-txtv-num .tp-txtv_i, .tpTheme-figma-dark .tp-txtv-num .tp-txtv_i {
+    text-align: left !important;
+    padding-left: 12px;
+}
+.tpTheme-figma .tp-txtv_k, .tpTheme-figma-dark .tp-txtv_k {
+    left: 0 !important;
+    cursor: ew-resize !important;
+}
+.tpTheme-figma .tp-txtv_k::before, .tpTheme-figma-dark .tp-txtv_k::before {
+    width: 3px !important;
+    height: 3px !important;
+    border-radius: 50% !important;
+    opacity: 0.35 !important;
+}
+.tpTheme-figma .tp-txtv_k:hover::before, .tpTheme-figma-dark .tp-txtv_k:hover::before,
+.tpTheme-figma .tp-txtv-drg .tp-txtv_k::before, .tpTheme-figma-dark .tp-txtv-drg .tp-txtv_k::before {
+    height: 12px !important;
+    width: 2px !important;
+    border-radius: 1px !important;
+    opacity: 0.8 !important;
+}
+/* slider: a thin track, the filled part in the accent, a small white knob */
+.tpTheme-figma .tp-sldv_t::before, .tpTheme-figma-dark .tp-sldv_t::before {
+    background-color: var(--tp-groove-foreground-color);
+    height: 2px;
+}
+.tpTheme-figma .tp-sldv_k::before, .tpTheme-figma-dark .tp-sldv_k::before {
+    background-color: var(--tpf-accent) !important;
+}
+.tpTheme-figma .tp-sldv_k::after, .tpTheme-figma-dark .tp-sldv_k::after {
+    background-color: var(--tpf-knob) !important;
+    width: 12px;
+    height: 12px;
+    right: -6px;
+    border-radius: 50%;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12), 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+.tpTheme-figma .tp-sldv_t:hover .tp-sldv_k::after, .tpTheme-figma-dark .tp-sldv_t:hover .tp-sldv_k::after,
+.tpTheme-figma .tp-sldv_t:active .tp-sldv_k::after, .tpTheme-figma-dark .tp-sldv_t:active .tp-sldv_k::after {
+    box-shadow: 0 0 0 1px var(--tpf-accent), 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+/* checkbox: a 14px square, filled with the accent when on */
+.tpTheme-figma .tp-ckbv_l, .tpTheme-figma-dark .tp-ckbv_l {
+    display: flex;
+    align-items: center;
+    height: var(--bld-us);
+}
+.tpTheme-figma .tp-ckbv_w, .tpTheme-figma-dark .tp-ckbv_w {
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    background-color: transparent !important;
+    box-shadow: inset 0 0 0 1px var(--tpf-check-border);
+}
+.tpTheme-figma .tp-ckbv_i:checked + .tp-ckbv_w, .tpTheme-figma-dark .tp-ckbv_i:checked + .tp-ckbv_w {
+    background-color: var(--tpf-accent) !important;
+    box-shadow: none;
+}
+.tpTheme-figma .tp-ckbv_i:focus-visible + .tp-ckbv_w, .tpTheme-figma-dark .tp-ckbv_i:focus-visible + .tp-ckbv_w {
+    outline: 2px solid var(--tpf-accent);
+    outline-offset: 1px;
+}
+.tpTheme-figma .tp-ckbv_w svg, .tpTheme-figma-dark .tp-ckbv_w svg {
+    /* the check is drawn for 16px without a viewBox: scale it, do not resize it */
+    transform: scale(0.65);
+}
+.tpTheme-figma .tp-ckbv_w svg path, .tpTheme-figma-dark .tp-ckbv_w svg path {
+    stroke: #ffffff;
+    stroke-width: 2.5;
+}
+/* buttons: outlined, 24px */
 .tpTheme-figma .tp-btnv_b, .tpTheme-figma-dark .tp-btnv_b {
+    height: 24px !important;
     font-size: 11px !important;
     font-weight: 500 !important;
+    border-radius: 5px;
+    background-color: transparent !important;
+    box-shadow: inset 0 0 0 1px var(--tpf-line);
+}
+.tpTheme-figma .tp-btnv_b:hover, .tpTheme-figma-dark .tp-btnv_b:hover {
+    background-color: var(--tp-button-background-color-hover) !important;
+}
+.tpTheme-figma .tp-btnv_b:active, .tpTheme-figma-dark .tp-btnv_b:active {
+    background-color: var(--tp-button-background-color-active) !important;
+}
+/* colour swatch and image previews: small radius, a hairline */
+.tpTheme-figma .tp-colswv_sw, .tpTheme-figma-dark .tp-colswv_sw {
+    border-radius: 3px;
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1);
+}
+.tpTheme-figma .pluginOptionsButton, .tpTheme-figma-dark .pluginOptionsButton {
+    top: 0.5rem;
+    opacity: 0.6;
 }
 /* the page around the canvas, like Figma's canvas grey */
 body.tpTheme-figma {
@@ -236,10 +432,6 @@ body.tpTheme-figma {
 }
 body.tpTheme-figma-dark {
     background-color: #1e1e1e !important;
-}
-.tpTheme-figma .tp-txtv_i:focus, .tpTheme-figma-dark .tp-txtv_i:focus,
-.tpTheme-figma .tp-lstv_s:focus, .tpTheme-figma-dark .tp-lstv_s:focus {
-    box-shadow: inset 0 0 0 1px #0d99ff;
 }
 
 .tp-fldv {
