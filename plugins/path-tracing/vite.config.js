@@ -53,6 +53,7 @@ export default defineConfig({
         isProd ? dts({tsconfigPath: './tsconfig.json', afterBuild: fixDtsImports}) : null,
         replace({
             'from \'three\'': 'from \'threepipe\'',
+            'from "three"': 'from \'threepipe\'', // TS sources reach this transform with double quotes (oxc)
             // 'from \'three/examples/jsm/.*\'': 'from \'threepipe\'', // todo regex doesnt work...
             'from \'three/examples/jsm/postprocessing/Pass.js\'': 'from \'threepipe\'',
             delimiters: ['', ''],

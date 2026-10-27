@@ -54,6 +54,7 @@ export default defineConfig({
         isProd ? dts({tsconfigPath: './tsconfig.json', aliasesExclude: [/^three$/], afterBuild: fixDtsImports}) : null,
         replace({
             'from \'three\'': 'from \'threepipe\'',
+            'from "three"': 'from \'threepipe\'', // TS sources reach this transform with double quotes (oxc)
             delimiters: ['', ''],
             preventAssignment: true,
         }),

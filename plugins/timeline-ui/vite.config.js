@@ -23,6 +23,10 @@ export default defineConfig({
         exclude: ['uiconfig.js', 'ts-browser-helpers'],
     },
     base: '',
+    resolve: {
+        // Bundle this package's own copies: in the workspace, hoisted dependencies (react-uid, ...) resolve the root react 19
+        dedupe: ['react', 'react-dom'],
+    },
     // define: {
     //     'process.env': process.env
     // },
