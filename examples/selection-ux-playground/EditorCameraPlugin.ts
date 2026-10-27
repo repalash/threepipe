@@ -37,6 +37,8 @@ export class EditorCameraPlugin extends AViewerPluginSync {
         const c = this.camera
         c.name = 'Editor camera'
         c.userData.disableWidgets = true
+        // the ground's "keep the camera above the ground" is for visitors (threepipe PR #78)
+        c.userData.disableGroundLimit = true
         c.position.set(0, 0, 5)
         c.target.set(0, 0, 0)
     }
@@ -59,8 +61,6 @@ export class EditorCameraPlugin extends AViewerPluginSync {
         this.setActive(false)
         viewer.scene.removeEventListener('mainCameraChange', this._onMainCameraChange)
         viewer.assetManager.removeEventListener('loadAsset', this._onLoad)
-        this._ctrl?.removeEventListener('start', this._applyProps)
-        this._ctrl = undefined
         this.camera.removeFromParent()
         super.onRemove(viewer)
     }
@@ -102,22 +102,11 @@ export class EditorCameraPlugin extends AViewerPluginSync {
         c.setDirty()
     }
 
-    private _ctrl?: OrbitControls3
-
     private _onMainCameraChange = () => {
         if (this._viewer?.scene.mainCamera !== this.camera) return
         // the controls are made when the camera becomes the main one
         const ctrl = this.camera.controls as OrbitControls3 | undefined
-        if (!ctrl || ctrl === this._ctrl) return this._applyProps()
-        this._ctrl?.removeEventListener('start', this._applyProps)
-        this._ctrl = ctrl
-        ctrl.addEventListener('start', this._applyProps)
-        this._applyProps()
-    }
-
-    // scene settings set limits on the main camera too (the ground's limitCameraAboveGround): each orbit starts free
-    private _applyProps = () => {
-        if (this._ctrl) Object.assign(this._ctrl, EditorCameraPlugin.ControlProps)
+        if (ctrl) Object.assign(ctrl, EditorCameraPlugin.ControlProps)
     }
 
     // a file with a viewer config brings its start view: begin editing from it
