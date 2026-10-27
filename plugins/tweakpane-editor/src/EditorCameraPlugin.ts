@@ -8,9 +8,22 @@ import {
     uiButton,
     uiFolderContainer,
     uiToggle,
+    Quaternion,
     UndoManagerPlugin,
     Vector3,
 } from 'threepipe'
+
+/** A pose of the start view. The rotation is kept too: a camera without controls can look away from its target. */
+interface StartPose {
+    position: Vector3
+    target: Vector3
+    quaternion: Quaternion
+}
+
+/** The pose of a camera that is a child of the scene (its local pose is its world pose) */
+function poseOf(camera: ICamera): StartPose {
+    return {position: camera.position.clone(), target: camera.target.clone(), quaternion: camera.quaternion.clone()}
+}
 
 /**
  * Editor Camera Plugin
@@ -84,7 +97,7 @@ export class EditorCameraPlugin extends AViewerPluginSync {
     /** The value of {@link editing} that the cameras show now */
     private _shownEditing = false
     /** The start view when View started, to put it back (see {@link keepViewMoves}) */
-    private _startPose?: {position: Vector3, target: Vector3}
+    private _startPose?: StartPose
 
     constructor() {
         super()
@@ -120,7 +133,7 @@ export class EditorCameraPlugin extends AViewerPluginSync {
         this._refreshEditing()
         // added in View: the start view now is the one to put back
         const start = viewer.scene.defaultCamera
-        if (!this._shownEditing) this._startPose = {position: start.position.clone(), target: start.target.clone()}
+        if (!this._shownEditing) this._startPose = poseOf(start)
     }
 
     onRemove(viewer: ThreeViewer) {
@@ -151,13 +164,13 @@ export class EditorCameraPlugin extends AViewerPluginSync {
             if (before && this.keepViewMoves) {
                 const controls = start.controls as OrbitControls3 | undefined
                 controls?.stopDamping?.()
-                this._recordStartView(before, {position: start.position.clone(), target: start.target.clone()})
+                this._recordStartView(before, poseOf(start))
             } else if (before) {
                 this._setStartView(before)
             }
             this.camera.activateMain()
         } else {
-            this._startPose = {position: start.position.clone(), target: start.target.clone()}
+            this._startPose = poseOf(start)
             start.activateMain()
         }
         this.uiConfig?.uiRefresh?.(true)
@@ -187,33 +200,37 @@ export class EditorCameraPlugin extends AViewerPluginSync {
     setStartViewFromEditor() {
         const start = this.startCamera
         if (!start) return
-        const before = {position: start.position.clone(), target: start.target.clone()}
+        const before = poseOf(start)
         // the start view is a child of the scene, so the world pose of the editor camera is its local pose
-        const after = {position: this.camera.getWorldPosition(new Vector3()), target: this.camera.target.clone()}
+        const after: StartPose = {
+            position: this.camera.getWorldPosition(new Vector3()),
+            target: this.camera.target.clone(),
+            quaternion: this.camera.getWorldQuaternion(new Quaternion()),
+        }
         this._moveStartView(after)
         this._recordStartView(before, after)
     }
 
     /** Moves the start view. In View, the pose to put back moves with it, so a later Edit or reset keeps the move. */
-    private _moveStartView(pose: {position: Vector3, target: Vector3}) {
+    private _moveStartView(pose: StartPose) {
         this._setStartView(pose)
         if (this._startPose) this._startPose = pose
     }
 
-    private _setStartView(pose: {position: Vector3, target: Vector3}) {
+    private _setStartView(pose: StartPose) {
         const start = this.startCamera
         if (!start) return
         const controls = start.controls as OrbitControls3 | undefined
         controls?.stopDamping?.()
         start.position.copy(pose.position)
         start.target.copy(pose.target)
-        // a camera without controls or autoLookAtTarget does not turn to its target by itself
-        if (!start.userData.autoLookAtTarget) start.lookAt(pose.target)
+        // a camera without controls or autoLookAtTarget does not turn by itself: its rotation is part of the pose
+        start.quaternion.copy(pose.quaternion)
         start.setDirty()
     }
 
-    private _recordStartView(before: {position: Vector3, target: Vector3}, after: {position: Vector3, target: Vector3}) {
-        if (after.position.equals(before.position) && after.target.equals(before.target)) return
+    private _recordStartView(before: StartPose, after: StartPose) {
+        if (after.position.equals(before.position) && after.target.equals(before.target) && after.quaternion.equals(before.quaternion)) return
         this._viewer?.getPlugin(UndoManagerPlugin)?.undoManager?.record({
             undo: () => this._moveStartView(before),
             redo: () => this._moveStartView(after),
@@ -239,6 +256,6 @@ export class EditorCameraPlugin extends AViewerPluginSync {
         this.copyStartView()
         // in View, the start view of the new file is the one to put back
         const start = this.startCamera
-        if (start && this._startPose) this._startPose = {position: start.position.clone(), target: start.target.clone()}
+        if (start && this._startPose) this._startPose = poseOf(start)
     }
 }

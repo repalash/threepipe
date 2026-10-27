@@ -146,17 +146,28 @@ describe('EditorCameraPlugin', () => {
         expect(start.position.toArray()).toEqual([0, 1, 6])
     })
 
-    test('setStartViewFromEditor turns a start camera without controls to the new target', () => {
+    test('setStartViewFromEditor gives a start camera without controls the editor rotation; undo the old one', () => {
         const {plugin, start, records} = setup()
         start.controls = undefined
         plugin.camera.position.set(5, 0, 0)
         plugin.camera.target.set(0, 0, 0)
+        plugin.camera.lookAt(0, 0, 0) // the orbit controls do this for the editor camera
         plugin.setStartViewFromEditor()
         const forward = new Vector3(0, 0, -1).applyQuaternion(start.quaternion)
         expect(forward.x).toBeCloseTo(-1) // looks from +x to the origin
         records[0].undo()
         const back = new Vector3(0, 0, -1).applyQuaternion(start.quaternion)
         expect(back.z).toBeLessThan(-0.9) // looks from (0, 1, 6) to the origin again
+    })
+
+    test('View and back to Edit keep a rotation that does not look at the target', () => {
+        const {plugin, start} = setup()
+        start.controls = undefined
+        start.rotation.set(0.3, 0.2, 0) // set in the camera UI, independent of the target
+        const q = start.quaternion.clone()
+        plugin.editing = false
+        plugin.editing = true
+        expect(start.quaternion.equals(q)).toBe(true)
     })
 
     test('copyStartView copies the zoom', () => {
