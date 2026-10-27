@@ -46,6 +46,9 @@ DRACOLoader2.SetDecoderJsString(draco_decoder) // this sets DRACOLoader2.Library
   - Alternative: `https://cdn.jsdelivr.net/gh/zeux/meshoptimizer@master/js/meshopt_decoder.module.js`
 - `KTX2LoadPlugin.TRANSCODER_LIBRARY_PATH` - The URL to the Basis Universal transcoder library used for loading KTX2 textures.
   - Default: `https://cdn.jsdelivr.net/gh/BinomialLLC/basis_universal@1.16.4/webgl/transcoder/build/`
+- `FFMPEGRecorder.LIBRARY_PATH` - The folder of the ffmpeg.js worker (`ffmpeg-worker-mp4.js` and `.wasm`) used by `CanvasRecorderPlugin` to encode MP4 videos.
+  - Default: `https://cdn.jsdelivr.net/npm/@repalash/ffmpeg.js@4.2.9005/dist/`
+  - Note - It is read when the MP4 recorder is created. With the default `mimeType` (`video/mp4`), that is when `CanvasRecorderPlugin` is added, so set it before adding the plugin.
 
 ### Packages 
 

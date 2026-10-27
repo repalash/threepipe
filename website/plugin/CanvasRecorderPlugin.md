@@ -59,6 +59,6 @@ With converge mode off (or without the `ProgressivePlugin`, where the animations
 
 [CameraViewPlugin.recordAllViews](https://threepipe.org/docs/classes/CameraViewPlugin.html#recordallviews) uses this plugin to record the animation through all the camera views.
 
-The MP4 recorder loads ffmpeg.js from [FFMPEGRecorder.LIBRARY_PATH](https://threepipe.org/docs/classes/FFMPEGRecorder.html#library_path) (jsdelivr by default) when it is created. Set it before the plugin is added to host the files yourself.
+The MP4 recorder loads ffmpeg.js from [FFMPEGRecorder.LIBRARY_PATH](https://threepipe.org/docs/classes/FFMPEGRecorder.html#library_path) (jsdelivr by default) when it is created. Set it before the plugin is added to host the files yourself. All such URLs are listed in [Dynamically loaded files](../notes/dynamically-loaded-files).
 
 The plugin UI has the recorder options, buttons to record the camera turntable and the glTF animations, and the ffmpeg options of the MP4 recorder.
