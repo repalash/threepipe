@@ -58,7 +58,10 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
 
     /** Pointer movement in pixels after which a press is a drag, not a click */
     static ClickDistance = 4
-    /** A second click on the same spot after this time (ms) selects the object behind; a quicker one is a double click */
+    /**
+     * A second click on the same spot after this time (ms) selects the object behind, this time after that click (a press
+     * in between makes it a double click); a quicker second click is a double click
+     */
     static ClickAgainDelay = 400
 
     private _picking?: PickingPlugin
@@ -70,6 +73,8 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
     private _hover: IObject3D | null = null
     private _state: DragState | null = null
     private _lastClick: {p: Vector2, t: number, tgt: IObject3D} | null = null
+    /** A click behind that waits until a double click is ruled out (a press within {@link ClickAgainDelay} cancels it) */
+    private _clickBehind?: ReturnType<typeof setTimeout>
     private _nextHoverAt = 0
 
     onAdded(viewer: ThreeViewer) {
@@ -109,6 +114,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         this._picking = undefined
         this._state = null
         this._lastClick = null
+        this._cancelClickBehind()
         this._hover = null
         super.onRemove(viewer)
     }
@@ -325,6 +331,8 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         const ae = document.activeElement as HTMLElement | null
         if (ae && ae !== document.body && ae !== this._viewer!.canvas) ae.blur()
         if (e.button !== 0) return
+        // the second press of a double click: the click behind of the first one does not happen
+        this._cancelClickBehind()
         // the transform gizmo gets the press when the pointer is on one of its axes
         const tc = this._viewer!.getPlugin(TransformControlsPlugin)
         if (tc && !tc.isDisabled() && tc.transformControls?.axis) return
@@ -367,6 +375,11 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         e.stopPropagation()
     }
 
+    private _cancelClickBehind() {
+        clearTimeout(this._clickBehind)
+        this._clickBehind = undefined
+    }
+
     private _click(s: DragState) {
         if (!s.leaf) {
             // the PickingPlugin also clears the selection on a quick click on empty space
@@ -374,7 +387,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
             this._lastClick = null
             return
         }
-        let tgt = this.resolveTarget(s.leaf, s.deep, false)
+        const tgt = this.resolveTarget(s.leaf, s.deep, false)
         if (!tgt) return
         // a click again on the same spot (not a double click) goes behind: the next object under the pointer, like Blender
         const now = performance.now()
@@ -383,7 +396,18 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         if (!s.shift && last && last.p.distanceTo(s.start) < SelectionUxPlugin.ClickDistance && now - last.t > SelectionUxPlugin.ClickAgainDelay &&
             sel.length === 1 && sel[0] === last.tgt) {
             const under = this.targetsAt(s.start.x, s.start.y, s.deep)
-            if (under.length > 1) tgt = under[(under.indexOf(last.tgt) + 1) % under.length]
+            if (under.length > 1) {
+                const behind = under[(under.indexOf(last.tgt) + 1) % under.length]
+                this._lastClick = {p: s.start.clone(), t: now, tgt: last.tgt}
+                // it can be the first click of a double click (which goes one level in): wait until that is ruled out
+                this._cancelClickBehind()
+                this._clickBehind = setTimeout(() => {
+                    this._clickBehind = undefined
+                    if (this._lastClick) this._lastClick.tgt = behind
+                    this.select([behind])
+                }, SelectionUxPlugin.ClickAgainDelay)
+                return
+            }
         }
         this._lastClick = {p: s.start.clone(), t: now, tgt}
         if (s.shift) this.select(toggleSelected(sel, tgt))

@@ -271,15 +271,46 @@ describe('SelectionUxPlugin', () => {
     })
 
     test('a click again on the same spot after a pause selects the object behind, then cycles', () => {
-        const {click, lamp, wait, names} = setup()
-        click(lamp)
-        expect(names()).toEqual(['Lamp'])
-        wait(500)
-        click(lamp)
-        expect(names()).toEqual(['Wall'])
-        wait(500)
-        click(lamp)
-        expect(names()).toEqual(['Lamp'])
+        vi.useFakeTimers({toFake: ['setTimeout', 'clearTimeout']})
+        try {
+            const {click, lamp, wait, names} = setup()
+            click(lamp)
+            expect(names()).toEqual(['Lamp'])
+            wait(500)
+            click(lamp)
+            expect(names()).toEqual(['Lamp']) // it can still be a double click
+            vi.advanceTimersByTime(SelectionUxPlugin.ClickAgainDelay)
+            expect(names()).toEqual(['Wall'])
+            wait(500)
+            click(lamp)
+            vi.advanceTimersByTime(SelectionUxPlugin.ClickAgainDelay)
+            expect(names()).toEqual(['Lamp'])
+        } finally {
+            vi.useRealTimers()
+        }
+    })
+
+    test('a double click after a pause goes one level in, not to the object behind', () => {
+        vi.useFakeTimers({toFake: ['setTimeout', 'clearTimeout']})
+        try {
+            const {click, dblclick, lamp, legs, leg1, wait, names} = setup()
+            click(lamp)
+            wait(500)
+            click(lamp) // the first click of the double click
+            click(lamp) // the second one, which cancels the click behind
+            dblclick(lamp)
+            vi.advanceTimersByTime(SelectionUxPlugin.ClickAgainDelay)
+            expect(names()).toEqual(['Lamp']) // a mesh: one level in is the lamp itself, not the wall
+            click(leg1)
+            wait(500)
+            click(leg1)
+            click(leg1)
+            dblclick(leg1)
+            vi.advanceTimersByTime(SelectionUxPlugin.ClickAgainDelay)
+            expect(names()).toEqual([legs.name])
+        } finally {
+            vi.useRealTimers()
+        }
     })
 
     test('Shift adds and removes, Ctrl selects the deepest object, empty space selects nothing', () => {
