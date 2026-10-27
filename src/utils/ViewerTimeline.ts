@@ -136,9 +136,9 @@ export class ViewerTimeline extends EventDispatcher<ViewerTimelineEventMap> {
         }
         const d = viewer.getPlugin<ProgressivePlugin>('ProgressivePlugin')?.postFrameConvergedRecordingDelta()
         if (d && d > 0) {
-            // recorded frame
-            this.delta = d / 1000
-            this._clock.oldTime += d
+            // recorded frame, d is in seconds (1 / videoFrameRate), oldTime is in ms
+            this.delta = d
+            this._clock.oldTime += d * 1000
             this._clock.elapsedTime += this.delta
             this._time = this._clock.elapsedTime
             // viewer.setDirty(this) // for next frame

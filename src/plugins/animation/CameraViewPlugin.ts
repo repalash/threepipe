@@ -9,6 +9,8 @@ import {CameraView, createCameraPath, ICamera, ICameraView, IGeometry, IMaterial
 import {AnimationResult, PopmotionPlugin} from './PopmotionPlugin'
 import {InteractionPromptPlugin} from '../interaction/InteractionPromptPlugin'
 import {getFittingDistance} from '../../three/utils/camera'
+import type {CanvasRecorderPlugin} from '../export/CanvasRecorderPlugin'
+import type {FileTransferPlugin} from '../export/FileTransferPlugin'
 
 export interface CameraViewPluginOptions{duration?: number, ease?: EasingFunctionType, interpolateMode?: 'spherical'|'linear'}
 
@@ -43,7 +45,7 @@ export class CameraViewPlugin extends AViewerPluginSync<CameraViewPluginEventMap
         this.addCurrentView = this.addCurrentView.bind(this)
         this.resetToFirstView = this.resetToFirstView.bind(this)
         this.animateAllViews = this.animateAllViews.bind(this)
-        // this.recordAllViews = this.recordAllViews.bind(this)
+        this.recordAllViews = this.recordAllViews.bind(this)
         // this._wheel = this._wheel.bind(this)
         // this._pointerMove = this._pointerMove.bind(this)
         this._postFrame = this._postFrame.bind(this)
@@ -734,62 +736,62 @@ export class CameraViewPlugin extends AViewerPluginSync<CameraViewPluginEventMap
     //     }
     // }
 
-    // @uiButton('Record All Views')
-    // public async recordAllViews(onStart?: ()=>void, downloadOnEnd = true) {
-    //     if (this.isDisabled()) return
-    //     const recorder = this._viewer?.getPluginByType<CanvasRecorderPlugin>('CanvasRecorder')
-    //     if (!recorder || !recorder.enabled) return
-    //     if (this._cameraViews.length < 1) return
-    //     if (recorder.isRecording()) {
-    //         console.error('CanvasRecorderPlugin is already recording')
-    //         return
-    //     }
-    //     let looping = false
-    //     if (this.viewLooping) {
-    //         looping = true
-    //         this.viewLooping = false
-    //     }
-    // await this.resetToFirstView()
-    //     return new Promise<Blob|undefined>((resolve, reject) => {
-    //         const listener2 = ()=>{
-    //             recorder.removeEventListener('start', listenerStart)
-    //             recorder.removeEventListener('stop', listener2)
-    //             recorder.removeEventListener('error', listenerError)
-    //         }
-    //         const listenerStart = async() => {
-    //             listener2()
-    //             onStart?.()
-    //             await this.animateAllViews()
-    //             const blob = await recorder.stopRecording()
-    //             if (looping) this.viewLooping = true
-    //             if (downloadOnEnd) {
-    //                 const name = await this._viewer?.prompt('Canvas Recorder: Save file as', 'recording.mp4')
-    //                 if (name !== null && blob) await this._downloadBlob(blob, name || 'recording.mp4')
-    //             }
-    //             resolve(blob)
-    //         }
-    //         const listenerError = async() => {
-    //             listener2()
-    //             reject()
-    //         }
-    //         recorder.addEventListener('start', listenerStart)
-    //         recorder.addEventListener('stop', listener2)
-    //         recorder.addEventListener('error', listenerError)
-    //         if (!recorder.startRecording()) {
-    //             console.error('cannot start recording')
-    //             return
-    //         }
-    //     })
-    // }
+    @uiButton('Record All Views', {sendArgs: false})
+    public async recordAllViews(onStart?: ()=>void, downloadOnEnd = true) {
+        if (this.isDisabled()) return
+        const recorder = this._viewer?.getPlugin<CanvasRecorderPlugin>('CanvasRecorder')
+        if (!recorder || !recorder.enabled) return
+        if (this._cameraViews.length < 1) return
+        if (recorder.isRecording()) {
+            console.error('CanvasRecorderPlugin is already recording')
+            return
+        }
+        let looping = false
+        if (this.viewLooping) {
+            looping = true
+            this.viewLooping = false
+        }
+        await this.resetToFirstView()
+        return new Promise<Blob|undefined>((resolve, reject) => {
+            const listener2 = ()=>{
+                recorder.removeEventListener('start', listenerStart)
+                recorder.removeEventListener('stop', listener2)
+                recorder.removeEventListener('error', listenerError)
+            }
+            const listenerStart = async() => {
+                listener2()
+                onStart?.()
+                await this.animateAllViews()
+                const blob = await recorder.stopRecording()
+                if (looping) this.viewLooping = true
+                if (downloadOnEnd) {
+                    const name = await this._viewer?.dialog.prompt('Canvas Recorder: Save file as', 'recording.mp4')
+                    if (name !== null && blob) await this._downloadBlob(blob, name || 'recording.mp4')
+                }
+                resolve(blob)
+            }
+            const listenerError = async() => {
+                listener2()
+                reject()
+            }
+            recorder.addEventListener('start', listenerStart)
+            recorder.addEventListener('stop', listener2)
+            recorder.addEventListener('error', listenerError)
+            if (!recorder.startRecording()) {
+                console.error('cannot start recording')
+                return
+            }
+        })
+    }
 
-    // private async _downloadBlob(blob: Blob, name: string) {
-    //     const tr = this._viewer?.getPluginByType<FileTransferPlugin>('FileTransferPlugin')
-    //     if (!tr) {
-    //         this._viewer?.console.error('FileTransferPlugin required to export/download file')
-    //         return
-    //     }
-    //     await tr.exportFile(blob, name)
-    // }
+    private async _downloadBlob(blob: Blob, name: string) {
+        const tr = this._viewer?.getPlugin<FileTransferPlugin>('FileTransferPlugin')
+        if (!tr) {
+            this._viewer?.console.error('FileTransferPlugin required to export/download file')
+            return
+        }
+        await tr.exportFile(blob, name)
+    }
 
     // endregion
 }

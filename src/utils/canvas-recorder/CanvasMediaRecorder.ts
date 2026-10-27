@@ -1,0 +1,215 @@
+import {ACanvasRecorder, CanvasRecorderOptions} from './ACanvasRecorder'
+import {now, timeout} from 'ts-browser-helpers'
+
+export class CanvasMediaRecorder extends ACanvasRecorder {
+    private _recorder?: MediaRecorder
+    private _track: MediaStreamTrack | undefined
+
+    protected _setOptions(value: Partial<CanvasRecorderOptions>) {
+        super._setOptions(value)
+
+        if (!this.options.mimeType || this.options.mimeType === 'auto') {
+            this.options.mimeType = (CanvasMediaRecorder.GetSupportedMimeTypes([], ['h264'], true) ??
+                CanvasMediaRecorder.GetSupportedMimeTypes(undefined, undefined, true)) as string
+        }
+        if (!this.options.mimeType || this.options.mimeType?.startsWith('video/')) {
+            if (!window.MediaRecorder) {
+                this._console.warn('MediaRecorder is not supported, switching to png')
+                this.options.mimeType = 'image/png'
+            }
+        }
+
+        if (!this.options.mimeType) {
+            console.warn(new Error('No supported mimetype found'))
+        }
+    }
+
+    public setOptions(options: Partial<CanvasRecorderOptions>) {
+        // todo: remove undefined keys and values from options
+        this._setOptions(options)
+    }
+
+    private _recordingCallback?: (b: Blob) => void
+
+    constructor(canvas: HTMLCanvasElement, options?: Partial<CanvasRecorderOptions>) {
+        super(canvas, options)
+    }
+
+    public start() {
+        if (this.state === 'recording') {
+            this._console.log('Already recording canvas')
+            return
+        }
+        if (this.state === 'error') {
+            this._recorder = undefined
+            this._console.warn('Resetting from error state.')
+        }
+        if (this._recorder) {
+            if (this.state === 'paused') {
+                this.setState('starting')
+                this._recorder.resume()
+                return
+            }
+            this._console.warn('Canvas recorder unknown state', this.state)
+            return
+        }
+
+        const options: MediaRecorderOptions = {
+            mimeType: this.options.mimeType,
+            videoBitsPerSecond: this.options.videoBitsPerSecond,
+        }
+
+        this._currentRecording = []
+        this._frameCount = 0
+        if (options.mimeType?.startsWith('video'))
+            if (!window.MediaRecorder) {
+                this._console.error('MediaRecorder not supported, use image sequence')
+                this.setState('error', {error: new Error('MediaRecorder not supported')})
+                return
+            } else {
+                const stream = this._canvas.captureStream(this.options.stepMode ? 0 : this.options.frameRate)
+                const track = stream.getVideoTracks()?.[0]
+                // if (track) {
+                //     const constraints = track.getConstraints()
+                // constraints.frameRate = 30
+                // track.applyConstraints(constraints).then(()=>{
+                //     console.log(track.getCapabilities(), track.getSettings(), track)
+                // })
+                // }
+                this._track = track
+
+                this._recorder = new window.MediaRecorder(stream, options)
+                this._recorder.onstop = this._onstop
+                this._recorder.ondataavailable = this._ondataavailable
+                this._recorder.onerror = this._onerror as any // todo see ts error without any
+                this._recorder.onresume = this._onresume
+                this._recorder.onstart = this._onstart
+                // this._recorder.onpause = this._onpause
+            }
+
+        this.setState('starting')
+        if (this._recorder) {
+            this._recorder?.start()
+        }
+    }
+
+    private _resumeSyncTime = 0
+
+    requestFrame() {
+        if (!this._recorder || !super.requestFrame()) return false
+        if (!this._track || !this.options.stepMode) return true
+        this._resumeSyncTime = now()
+        // @ts-expect-error no ts for CanvasCaptureMediaStreamTrack
+        this._track!.requestFrame()
+        this._recorder.resume()
+        return true
+    }
+
+    public pause() {
+        if (this.state === 'paused' || this.state === 'stopped') return
+        if (this.options.stepMode) {
+            console.error('Pause not supported in stepMode')
+            return
+        }
+        if (this._recorder) {
+            this._recorder.pause()
+            this.setState('paused')
+        }
+    }
+
+    public stop(recordingCallback: (b: Blob) => void) {
+        if (this.state === 'stopped') return
+        if (this.state === 'error') {
+            this._console.error('Recorder in error state, cannot stop, call start again.')
+            return
+        }
+        // if (this.state === 'paused') this._recorder?.resume() //todo
+
+        this._recordingCallback = recordingCallback
+        this.setState('stopping')
+        if (this._recorder) {
+            this._recorder.stop()
+        }
+    }
+
+    dispose() {
+        if (!this._recorder) return
+        super.dispose()
+        this._recorder = undefined
+    }
+
+    private _onstop: EventListener = (_evt) => {
+        if (this._recorder && this._currentRecording.length > 0) {
+            const blob = new Blob(this._currentRecording, {type: this.options.mimeType})
+            this._recordingCallback?.(blob)
+        }
+        this._recorder = undefined
+        this.setState('stopped')
+    }
+    private _onstart: EventListener = (_evt) => {
+        this._frameCount = 0
+        if (this.options.stepMode) this._recorder?.pause()
+        this.setState('recording')
+    }
+    private _onresume: EventListener = (_evt) => {
+        if (this.state === 'paused' || this.state === 'starting' || this.state === 'stopped') this.setState('recording')
+        if (!this.options.stepMode) return
+        const pse = () => {
+            if (this.state === 'recording') this._recorder?.pause()
+        }
+        const del = Math.min(this._resumeSyncTime - now(), 0) + 1000 / this.options.frameRate
+        if (del > 0) timeout(del).then(pse)
+        else pse()
+        // console.log(del)
+    }
+
+    private _onerror: (event: any) => void = (event) => {
+        this.setState('error', {error: event})
+        this._console.error(event)
+        this._recorder = undefined
+    }
+
+    // https://stackoverflow.com/questions/41739837/all-mime-types-supported-by-mediarecorder-in-firefox-and-chrome
+    public static GetSupportedMimeTypes(
+        types?: string[],
+        codecs?: string[],
+        firstOnly = false,
+    ): string[] | string | undefined {
+        if (!window.MediaRecorder) return firstOnly ? undefined : []
+        const VIDEO_TYPES = ['webm', 'ogg', 'mp4', 'x-matroska'].filter(
+            (value) => !types || types.length < 1 || types.includes(value),
+        )
+        const VIDEO_CODECS = [
+            'vp9',
+            'vp9.0',
+            'vp8',
+            'vp8.0',
+            'avc1',
+            'av1',
+            'h265',
+            'h.265',
+            'h264',
+            'h.264',
+            'opus',
+        ].filter((value) => !codecs || codecs.length < 1 || codecs.includes(value))
+
+        const supportedTypes: string[] = []
+        VIDEO_TYPES.forEach((videoType) => {
+            const type = `video/${videoType}`
+            VIDEO_CODECS.forEach((codec) => {
+                const variations = [
+                    `${type};codecs=${codec}`,
+                    `${type};codecs:${codec}`,
+                    `${type};codecs=${codec.toUpperCase()}`,
+                    `${type};codecs:${codec.toUpperCase()}`,
+                    `${type}`,
+                ]
+                variations.forEach((variation) => {
+                    if (MediaRecorder.isTypeSupported(variation)) supportedTypes.push(variation)
+                })
+            })
+        })
+        if (firstOnly) return supportedTypes.length > 0 ? supportedTypes[0] : undefined
+        return supportedTypes
+    }
+}

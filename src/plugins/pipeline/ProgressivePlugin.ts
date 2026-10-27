@@ -1,6 +1,6 @@
 import {IUniform, Texture, TextureDataType, UnsignedByteType, WebGLRenderTarget} from 'three'
 import {IPassID, IPipelinePass} from '../../postprocessing'
-import {ISerializedConfig, ThreeViewer} from '../../viewer'
+import {ISerializedConfig, type IViewerPlugin, ThreeViewer} from '../../viewer'
 import {PipelinePassPlugin} from '../base/PipelinePassPlugin'
 import {uiFolderContainer, uiImage, uiInput} from 'uiconfig.js'
 import {ICamera, IRenderManager, IScene, IWebGLRenderer} from '../../core'
@@ -134,12 +134,12 @@ export class ProgressivePlugin
 
     /**
      * Get recording delta post render, For use with animations to sync with converge mode in canvas recorder. See PopmotionPlugin for usage.
-     * @returns {number} - delta time in milliseconds, or 0 when converging, or -1 in case of not recording in converge mode
+     * @returns {number} - delta time in seconds (1 / videoFrameRate), or 0 when converging, or -1 in case of not recording in converge mode
      */
-    postFrameConvergedRecordingDelta(_ = 'CanvasRecorder'): number {
-        // const recorder = this._viewer!.getPluginByType<IConvergedCanvasRecorder&IViewerPlugin>(recorderPlugin)
-        // if (recorder && recorder.isRecording() && recorder.convergeMode)
-        //     return this.isConverged(true) ? 1. / recorder.videoFrameRate : 0
+    postFrameConvergedRecordingDelta(recorderPlugin = 'CanvasRecorder'): number {
+        const recorder = this._viewer?.getPlugin<IConvergedCanvasRecorder&IViewerPlugin>(recorderPlugin)
+        if (recorder && recorder.isRecording() && recorder.convergeMode)
+            return this.isConverged(true) ? 1. / recorder.videoFrameRate : 0
         return -1
     }
 
@@ -172,6 +172,15 @@ export class ProgressivePlugin
         return super.fromJSON(data, meta)
     }
 
+}
+
+/**
+ * Interface of a canvas recorder that {@link ProgressivePlugin.postFrameConvergedRecordingDelta} looks up by its PluginType, see CanvasRecorderPlugin.
+ */
+export interface IConvergedCanvasRecorder{
+    convergeMode: boolean;
+    isRecording(): boolean;
+    videoFrameRate: number;
 }
 
 export class ProgressiveBlendPass extends AddBlendTexturePass implements IPipelinePass {
