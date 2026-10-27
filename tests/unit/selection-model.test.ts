@@ -97,8 +97,16 @@ describe('selection hierarchy', () => {
         expect(selectionLevels(root, e)).toEqual([[outer, e]])
         expect(childTargets(root, [outer])).toEqual([])
         expect(scopeObjects(root, [])).toEqual([outer, wrapper])
-        expect(selectionLevels(root, c)).toEqual([[wrapper], [hidden], [c]])
+        // a hidden group, and a group without a box, are left out the same way (as in the PickingPlugin)
+        expect(selectionLevels(root, c)).toEqual([])
         expect(childTargets(root, [wrapper])).toEqual([]) // Enter: the parts of the hidden group are not shown
+        expect(childTargets(root, [hidden])).toEqual([]) // a selected group hidden later (H): Enter does not reach its parts
+        hidden.visible = true
+        expect(childTargets(root, [hidden])).toEqual([c, d])
+        expect(selectionLevels(root, c)).toEqual([[wrapper, hidden], [c]])
+        hidden.userData.bboxVisible = false
+        expect(selectionLevels(root, c)).toEqual([])
+        expect(childTargets(root, [wrapper])).toEqual([])
     })
 
     test('a frame: a file root, or the only top-level object with meshes, with two or more parts', () => {
@@ -369,6 +377,19 @@ describe('SelectionUxPlugin', () => {
         expect(names()).toEqual(['Leg 1'])
         click({clientX: 2, clientY: 2})
         expect(names()).toEqual([])
+    })
+
+    test('with Multi-Select off in the PickingPlugin, one object is selected: Shift+click is a click, Enter the first child, Ctrl+A nothing', () => {
+        const {ux, picking, click, key, leg1, lamp, table, names} = setup()
+        picking.picker.multiSelectEnabled = false
+        click(leg1)
+        click(lamp, {shiftKey: true})
+        expect(names()).toEqual(['Lamp'])
+        ux.select([table])
+        key('Enter')
+        expect(names()).toEqual(['Top'])
+        expect(key('KeyA', {ctrlKey: true})).toBe(false) // left to the page
+        expect(names()).toEqual(['Top'])
     })
 
     test('a drag past the threshold is not a click and is left to the camera controls', () => {

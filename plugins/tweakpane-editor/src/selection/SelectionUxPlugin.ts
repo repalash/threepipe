@@ -193,10 +193,15 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         this.select(p ? [p] : [])
     }
 
-    /** Select the children of the selected objects */
+    /** Whether more than one object can be selected: the Multi-Select setting of the PickingPlugin */
+    private get _multi() {
+        return this._picking?.picker?.multiSelectEnabled !== false
+    }
+
+    /** Select the children of the selected objects (with Multi-Select off in the PickingPlugin: the first child) */
     selectChildren() {
         const children = childTargets(this._modelRoot, this.selected)
-        if (children.length) this.select(children)
+        if (children.length) this.select(this._multi ? children : children.slice(0, 1))
     }
 
     /** Select the next (1) or previous (-1) object at the level of the primary selection */
@@ -205,8 +210,12 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         if (next) this.select([next])
     }
 
-    /** Select all objects at the level of the primary selection (with nothing selected: the top level) */
+    /**
+     * Select all objects at the level of the primary selection (with nothing selected: the top level). Does nothing with
+     * Multi-Select off in the PickingPlugin, as its `selectAll()`.
+     */
     selectAllInScope() {
+        if (!this._multi) return
         const scope = this.scopeObjects()
         if (scope.length) this.select(scope)
     }
@@ -399,11 +408,13 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         }
         const tgt = this.resolveTarget(s.leaf, s.deep, false)
         if (!tgt) return
+        // with Multi-Select off in the PickingPlugin, Shift+click is a click, as in the core picker
+        const shift = s.shift && this._multi
         // a click again on the same spot (not a double click) goes behind: the next object under the pointer, like Blender
         const now = performance.now()
         const last = this._lastClick
         const sel = this.selected
-        if (!s.shift && last && last.p.distanceTo(s.start) < SelectionUxPlugin.ClickDistance && now - last.t > SelectionUxPlugin.ClickAgainDelay &&
+        if (!shift && last && last.p.distanceTo(s.start) < SelectionUxPlugin.ClickDistance && now - last.t > SelectionUxPlugin.ClickAgainDelay &&
             sel.length === 1 && sel[0] === last.tgt) {
             const under = this.targetsAt(s.start.x, s.start.y, s.deep)
             if (under.length > 1) {
@@ -424,7 +435,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
             }
         }
         this._lastClick = {p: s.start.clone(), t: now, tgt}
-        if (s.shift) this.select(toggleSelected(sel, tgt))
+        if (shift) this.select(toggleSelected(sel, tgt))
         else if (!(sel.length === 1 && sel[0] === tgt)) this.select([tgt])
     }
 
@@ -486,7 +497,10 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         const enter = e.code === 'Enter' || e.code === 'NumpadEnter'
         // a control reached with the keyboard (a toolbar button, a menu item) presses with Enter itself
         if (enter && t?.matches?.(':focus-visible') && t.closest?.('button, select, a[href], [role="menuitem"]')) return
-        if ((e.ctrlKey || e.metaKey) && e.code === 'KeyA') this.selectAllInScope()
+        const selectAll = (e.ctrlKey || e.metaKey) && e.code === 'KeyA'
+        // with Multi-Select off, Ctrl/Cmd+A stays for the page
+        if (selectAll && !this._multi) return
+        if (selectAll) this.selectAllInScope()
         // with nothing selected, Esc, Enter and Tab keep their usual use (close a dialog, move the focus)
         else if (!this.selected.length) return
         else if (e.code === 'Escape' || enter && e.shiftKey) this.selectParent()

@@ -20,16 +20,17 @@ export function isHelperObject(o: IObject3D): boolean {
 }
 
 /**
- * Whether `o` cannot be selected (`userData.userSelectable === false`). As in the `PickingPlugin`, nothing inside it
- * can be selected either.
+ * Whether the `PickingPlugin` leaves `o` out of the selection: it is hidden (`visible = false`), cannot be selected
+ * (`userData.userSelectable === false`) or has no box (`userData.bboxVisible === false`). As in the `PickingPlugin`,
+ * nothing inside it is selected either.
  */
-export function isLocked(o: IObject3D): boolean {
-    return o.userData.userSelectable === false
+export function isExcluded(o: IObject3D): boolean {
+    return !o.visible || o.userData.userSelectable === false || o.userData.bboxVisible === false
 }
 
-/** The children of `o` that are not helpers ({@link isHelperObject}) and can be selected ({@link isLocked}) */
+/** The children of `o` that are not helpers ({@link isHelperObject}) and not excluded ({@link isExcluded}) */
 export function contentChildren(o: IObject3D): IObject3D[] {
-    return (o.children as IObject3D[]).filter(c => !isHelperObject(c) && !isLocked(c))
+    return (o.children as IObject3D[]).filter(c => !isHelperObject(c) && !isExcluded(c))
 }
 
 /** Whether `o` or an object inside it has a geometry, or is a light or a camera */
@@ -41,9 +42,9 @@ export function hasContent(o: IObject3D): boolean {
     return has
 }
 
-/** The visible children of `o` with content: what a click, Enter or Ctrl+A can select inside `o` */
+/** The content children of `o` with content: what a click, Enter or Ctrl+A can select inside `o` */
 export function selectableChildren(o: IObject3D): IObject3D[] {
-    return contentChildren(o).filter(c => c.visible && hasContent(c))
+    return contentChildren(o).filter(hasContent)
 }
 
 /** The object that a level selects: the outermost of its chain */
@@ -51,11 +52,11 @@ export function levelTarget(level: SelectionLevel): IObject3D {
     return level[0]
 }
 
-/** The only child of a wrapper (a group with a single visible content child, merged with it into one level), else undefined */
+/** The only child of a wrapper (a group with a single content child, merged with it into one level), else undefined */
 function wrappedChild(o: IObject3D): IObject3D | undefined {
     if (o.geometry) return undefined
     const children = contentChildren(o)
-    return children.length === 1 && children[0].visible ? children[0] : undefined
+    return children.length === 1 ? children[0] : undefined
 }
 
 /** The innermost object of the level that `o` starts: `o`, or the end of its chain of single children */
@@ -71,11 +72,11 @@ function levelIndex(levels: SelectionLevel[], o: IObject3D): number {
 
 /**
  * The levels of the hierarchy from the model root down to `node` (the root is not in them).
- * Each level is a chain: a group with a single visible child is merged with that child (glTF wrappers like "Scene" >
+ * Each level is a chain: a group with a single content child is merged with that child (glTF wrappers like "Scene" >
  * "root"), so one click never selects a wrapper that looks the same as its only child. A helper ({@link isHelperObject})
  * is not in the levels.
  * The last level ends at `node`. Returns an empty array when `node` is not inside `root`, or when `node` or a parent
- * of it cannot be selected ({@link isLocked}).
+ * of it is excluded ({@link isExcluded}: hidden, or left out by the `PickingPlugin`).
  */
 export function selectionLevels(root: IObject3D, node: IObject3D): SelectionLevel[] {
     const path: IObject3D[] = []
@@ -84,7 +85,7 @@ export function selectionLevels(root: IObject3D, node: IObject3D): SelectionLeve
         path.unshift(o)
         o = o.parent as IObject3D | null
     }
-    if (o !== root || path.some(isLocked)) return []
+    if (o !== root || path.some(isExcluded)) return []
     const levels: SelectionLevel[] = []
     let chain: IObject3D[] = []
     for (const n of path) {
@@ -117,7 +118,7 @@ export function isFrame(root: IObject3D, o: IObject3D): boolean {
         })
         return m
     }
-    return contentChildren(root).filter(c => c.visible && hasMesh(c)).length === 1
+    return contentChildren(root).filter(hasMesh).length === 1
 }
 
 /**
