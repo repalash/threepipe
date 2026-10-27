@@ -57,15 +57,23 @@ export class FFMPEGRecorder extends ACanvasRecorder<'encode-progress'> {
             }
             case 'error':
             case 'abort':
-                if (this.state === 'stopping') this._encodeFailed('the encoder stopped: ' + msg.data)
+                this._workerFailed('the encoder stopped: ' + msg.data)
                 break
             default:
                 break
             }
         }
-        this.worker.onerror = (e) => {
-            if (this.state === 'stopping') this._encodeFailed('the encoder worker failed: ' + e.message)
-        }
+        this.worker.onerror = (e) => this._workerFailed('the encoder worker failed: ' + e.message)
+    }
+
+    /** Why the worker failed (it does not load, or it crashed): a recording cannot be encoded */
+    private _workerError?: string
+
+    /** A worker that fails is kept failed: a start ends in the error state, a stop settles without a recording */
+    private _workerFailed(reason: string) {
+        this._workerError = reason
+        if (this.state === 'stopping') this._encodeFailed(reason)
+        else if (this.isRecording() || this.state === 'paused') this.setState('error', {error: new Error(reason)})
     }
 
     /** The encode failed: the stop still settles (without a recording), and the recorder ends in the error state */
@@ -89,6 +97,11 @@ export class FFMPEGRecorder extends ACanvasRecorder<'encode-progress'> {
     public start() {
         if (this.state === 'recording') {
             console.log('Already recording canvas')
+            return
+        }
+        if (this._workerError) {
+            console.error('FFMPEGRecorder: ' + this._workerError)
+            this.setState('error', {error: new Error(this._workerError)})
             return
         }
         if (this.state === 'error') {

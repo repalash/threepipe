@@ -549,6 +549,31 @@ describe('FFMPEGRecorder image type', () => {
     })
 })
 
+describe('FFMPEGRecorder worker failure', () => {
+    test('a worker that fails while recording ends the recording; a later start ends in the error state', () => {
+        vi.stubGlobal('Worker', class {
+            onmessage: any = null
+            onerror: any = null
+            postMessage() {
+                return undefined
+            }
+        })
+        try {
+            const canvas = {width: 4, height: 4, toBlob: (cb: (b: Blob) => void) => cb(new Blob([]))} as any
+            const rec = new FFMPEGRecorder(canvas, {mimeType: 'video/mp4'}) as any
+            vi.spyOn(console, 'error').mockImplementation(() => undefined)
+            rec.start()
+            rec.worker.onerror({message: 'failed to load the wasm'})
+            expect(rec.state).toBe('error') // the plugin's stop then settles without a recording
+            rec.start()
+            expect(rec.state).toBe('error')
+        } finally {
+            vi.unstubAllGlobals()
+            vi.restoreAllMocks()
+        }
+    })
+})
+
 describe('FFMPEGRecorder dispose', () => {
     test('ends the worker; an encode that runs settles its stop without a recording', async() => {
         const terminate = vi.fn()
@@ -620,7 +645,8 @@ describe('CanvasMediaRecorder', () => {
         vi.stubGlobal('window', {MediaRecorder: mediaRecorder})
         vi.stubGlobal('MediaRecorder', mediaRecorder)
         try {
-            const canvas = {captureStream: () => ({getVideoTracks: () => [{}]})} as any
+            const track = {stop: vi.fn()}
+            const canvas = {captureStream: () => ({getVideoTracks: () => [track]})} as any
             const rec = new CanvasMediaRecorder(canvas, {mimeType: 'auto'}) as any
             rec.start()
             expect(rec.state).toBe('recording')
@@ -630,6 +656,7 @@ describe('CanvasMediaRecorder', () => {
             ])
             expect(done).toBe('called back')
             expect(rec.state).toBe('stopped')
+            expect(track.stop).toHaveBeenCalledTimes(1) // the canvas capture ends with the recording
         } finally {
             vi.unstubAllGlobals()
         }

@@ -140,6 +140,7 @@ export class CanvasMediaRecorder extends ACanvasRecorder {
     }
 
     dispose() {
+        this._stopTrack()
         if (!this._recorder) return
         super.dispose()
         this._recorder = undefined
@@ -149,7 +150,14 @@ export class CanvasMediaRecorder extends ACanvasRecorder {
         // also without data: the stop settles with no recording
         this._settleStop(this._currentRecording.length > 0 ? new Blob(this._currentRecording, {type: this.options.mimeType}) : undefined)
         this._recorder = undefined
+        this._stopTrack()
         this.setState('stopped')
+    }
+
+    /** Ends the canvas capture of the recording: a stream that stays open keeps capturing the renders */
+    private _stopTrack() {
+        this._track?.stop()
+        this._track = undefined
     }
     private _onstart: EventListener = (_evt) => {
         this._frameCount = 0
@@ -173,6 +181,7 @@ export class CanvasMediaRecorder extends ACanvasRecorder {
         this.setState('error', {error: event})
         this._console.error(event)
         this._recorder = undefined
+        this._stopTrack()
     }
 
     // https://stackoverflow.com/questions/41739837/all-mime-types-supported-by-mediarecorder-in-firefox-and-chrome
