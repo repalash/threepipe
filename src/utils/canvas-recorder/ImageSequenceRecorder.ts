@@ -5,12 +5,17 @@ export class ImageSequenceRecorder extends ACanvasRecorder {
     private _currentImages: [string, Blob][] = [] // filename, dataurl
     /** Captures (toBlob) and writes not done yet; stop waits for them */
     private _pending = new Set<Promise<void>>()
+    /** The first failed write of this recording, reported when it stops */
+    private _writeError?: unknown
 
     private _track(p: Promise<void>) {
         this._pending.add(p)
-        // a failed write is reported by stop(), not as an unhandled rejection here
+        // a failed write is kept and reported by stop(), not as an unhandled rejection here
         const done = () => this._pending.delete(p)
-        p.then(done, done)
+        p.then(done, (e) => {
+            this._writeError = this._writeError ?? e
+            done()
+        })
     }
 
     public start() {
@@ -31,6 +36,7 @@ export class ImageSequenceRecorder extends ACanvasRecorder {
         this._currentRecording = []
         this._currentImages = []
         this._frameCount = 0
+        this._writeError = undefined
 
         this.setState('starting')
         if (typeof window !== 'undefined' && (window as any).showDirectoryPicker) {
@@ -133,6 +139,8 @@ export class ImageSequenceRecorder extends ACanvasRecorder {
             this._currentImages = []
             await this._writeImages(images)
         }
+        // a batch write that failed during the recording: frames are missing
+        if (this._writeError) throw this._writeError
     }
 
     private _onerror: (event: any) => void = (event) => {

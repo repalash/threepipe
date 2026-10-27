@@ -233,8 +233,26 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
     @uiSlider('End padding (MS)', [0, 1000], 1)
         endPaddingMs = 500
 
+    private _stopping?: Promise<Blob | undefined>
+
+    /**
+     * Stops the recording and resolves with the recording (no blob for an image sequence). A second call while the
+     * recording stops gets the same promise.
+     */
     async stopRecording(): Promise<Blob | undefined> {
-        if (this.recorder?.isRecording() && this._viewer) {
+        if (this._stopping) return this._stopping
+        if (!this.recorder?.isRecording() || !this._viewer) return undefined
+        const stopping = this._stop()
+        this._stopping = stopping
+        try {
+            return await stopping
+        } finally {
+            this._stopping = undefined
+        }
+    }
+
+    private async _stop(): Promise<Blob | undefined> {
+        if (this._viewer) {
             await this._viewer.doOnce('postFrame')
             if (this.convergeMode) {
                 const progressive = this._viewer?.getPlugin<ProgressivePlugin>('ProgressivePlugin')
@@ -252,14 +270,16 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
         return undefined
     }
 
-    private async _downloadBlob(blob: Blob, _ext: string) {
-        const name = await this._viewer?.dialog.prompt('Canvas Recorder: Save file as', 'recording.mp4', false)
+    private async _downloadBlob(blob: Blob, ext: string) {
+        // the extension of the recorded format (webm for a MediaRecorder recording in Chrome)
+        const fileName = 'recording.' + (ext || 'mp4')
+        const name = await this._viewer?.dialog.prompt('Canvas Recorder: Save file as', fileName, false)
         const tr = this._viewer?.getPlugin<FileTransferPlugin>('FileTransferPlugin')
         if (!tr) {
             this._viewer?.console.error('FileTransferPlugin required to export/download file')
             return
         }
-        await tr.exportFile(blob, name || 'recording.mp4')
+        await tr.exportFile(blob, name || fileName)
     }
 
     /**

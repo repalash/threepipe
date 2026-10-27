@@ -80,6 +80,27 @@ describe('CanvasRecorderPlugin', () => {
         expect(progressive.maxFrameCount).toBe(32)
     })
 
+    test('stopRecording(): a second call while the recording stops gets the same result', async() => {
+        const {plugin} = setup()
+        const stop = vi.spyOn(plugin._recorder, 'stop')
+        plugin._recorder.start()
+        const [a, b] = await Promise.all([plugin.stopRecording(), plugin.stopRecording()])
+        expect(a).toBeInstanceOf(Blob)
+        expect(b).toBe(a)
+        expect(stop).toHaveBeenCalledTimes(1)
+    })
+
+    test('the default file name has the extension of the recorded format', async() => {
+        const {plugin} = setup()
+        const exportFile = vi.fn()
+        let promptDefault = ''
+        plugin._viewer.dialog = {prompt: async(_m: string, def: string) => (promptDefault = def, null)}
+        plugin._viewer.getPlugin = (t: string) => t === 'FileTransferPlugin' ? {exportFile} : undefined
+        await plugin._downloadBlob(new Blob([]), 'webm')
+        expect(promptDefault).toBe('recording.webm')
+        expect(exportFile).toHaveBeenCalledWith(expect.any(Blob), 'recording.webm')
+    })
+
     test('recordCamera360 without PopmotionPlugin leaves the camera interactions alone', async() => {
         const {plugin, camera} = setup()
         const error = vi.spyOn(console, 'error').mockImplementation(() => undefined)
@@ -166,6 +187,21 @@ describe('ImageSequenceRecorder failures and names', () => {
             new Promise(resolve => setTimeout(() => resolve('hung'), 1000)),
         ])
         expect(done).toBe('called back')
+        expect(rec.state).toBe('error')
+    })
+
+    test('a batch write that failed during the recording is reported at stop', async() => {
+        const canvas = {toBlob: (cb: (b: Blob) => void) => cb(new Blob([]))} as any
+        const rec = new ImageSequenceRecorder(canvas, {mimeType: 'image/png'}) as any
+        rec._console = {error: () => undefined, warn: () => undefined}
+        let writes = 0
+        rec._writeImages = async() => {
+            if (writes++ === 0) throw new Error('disk full') // the first batch of 60 frames
+        }
+        rec.setState('recording')
+        for (let i = 0; i < 62; i++) rec.requestFrame() // a batch write starts after 60 frames
+        await new Promise(r => setTimeout(r, 0))
+        await new Promise(resolve => rec.stop(resolve))
         expect(rec.state).toBe('error')
     })
 
