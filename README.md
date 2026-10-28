@@ -45,6 +45,23 @@ View and edit the source code by pressing the code button on the top left of the
 
 ![Threepipe Examples SSAO With Editor](website/public/images/examples-ssao-edit.webp)
 
+## Develop locally
+
+To work on threepipe itself (the core, the plugins or the examples), with Node.js 20.19+ or 22.12+ (vite 7):
+
+```bash
+git clone https://github.com/repalash/threepipe.git
+cd threepipe
+npm install   # npm 12+: npm install --allow-git=all
+npm start     # opens the examples at http://localhost:5173/examples/index.html
+```
+
+`npm install` also builds the core, every plugin and the examples, so it takes a few minutes. Edit a file in `src/`,
+`plugins/*/src` or `examples/` and the page reloads. All commands, and what each one is for, are in
+[CONTRIBUTING.md](CONTRIBUTING.md#commands).
+
+To use threepipe in your own project instead, see [Getting Started](#getting-started).
+
 ## Threepipe Editor
 
 A web-based editor to create, edit, configure and export 3D scenes and models for use with Threepipe.
@@ -465,6 +482,7 @@ Many features will be added but the core API will not change significantly in fu
 - [ThreePipe](https://github.com/repalash/threepipe/)
   - [Examples](https://threepipe.org/examples/)
   - [Table of Contents](#table-of-contents)
+  - [Develop locally](#develop-locally)
   - [Getting Started](#getting-started)
     - [HTML/JS Quickstart (CDN)](#htmljs-quickstart-cdn)
     - [NPM/YARN Package](#npmyarn)

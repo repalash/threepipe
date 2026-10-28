@@ -5,17 +5,49 @@ We welcome contributions to Threepipe. Please read the following guidelines to s
 ## Setting up the project
 
 1. Clone the repository
-2. Run `npm install`
+2. Run `npm install`. It also builds the core, installs and builds every plugin in `plugins/`, and builds the examples.
+
+With npm 12 or newer, run `npm install --allow-git=all` instead. npm 12 refuses dependencies from git repositories by
+default (`EALLOWGIT`), and `plugins/tweakpane-editor` still has one (treejs).
+
+If a plugin fails to install, the others are still installed and the examples are still built; the install ends
+with the list of failed plugins. Fix the cause, then run `npm ci` in that plugin's folder (`plugins/<name>`).
 
 ## Development
 
-1. Run `npm run vite` to run vite dev server and navigate to http://localhost:5173/examples/index.html
-2. Test the examples and pick the one you are working on.
+1. Run `npm start` (same as `npm run dev`). It starts the vite dev server and opens the examples at
+   http://localhost:5173/examples/index.html.
+2. Pick the example you are working on. The examples use the sources of the core and the plugins, so a change in
+   `src/`, `plugins/*/src` or `examples/` reloads the page.
 
-OR
-1. If changing the `src/` folder - Run `npm run dev` to start the development in watch mode
-2. If changing the `plugins/` folder - `cd` to the plugin directory and run `npm run dev` to start the development in watch mode for the package.
-3. Run `npm run dev-examples` to start the examples build in watch mode and run `npm run serve` to start the development server, and navigate to http://localhost:9229/index.html
+OR, to work on the built files:
+1. If changing the `src/` folder - Run `npm run watch` to rebuild the core on every change
+2. If changing the `plugins/` folder - `cd` to the plugin directory and run `npm run watch` to rebuild the package on every change.
+3. Run `npm run watch-examples` to start the examples build in watch mode and run `npm run serve` to start the development server, and navigate to http://localhost:9229/index.html
+
+## Commands
+
+Run them in the repository root, unless the table says otherwise.
+
+| Command | What it does | When |
+|---|---|---|
+| `npm install` | Installs the dependencies, builds the core, installs and builds every plugin (`build-plugins`), builds the examples | After cloning, and after pulling changes to dependencies |
+| `npm start` / `npm run dev` | Examples dev server (vite) on http://localhost:5173, opens `/examples/index.html` | Day to day: run and edit the examples, the core and the plugins |
+| `npm run vite` | Same as `npm run dev` (the old name) | — |
+| `npm run watch` | Rebuilds the core bundle (`dist/`) on every change. In a plugin folder: rebuilds that plugin's `dist/` | When another project links this build |
+| `npm run build` | Builds the core into `dist/` and `lib/` | Before publishing, or to test the built files |
+| `npm run build-plugins` | `npm ci` in every plugin, in dependency order; a failed plugin skips the ones that depend on it, and the list of failures comes at the end | After a plugin's dependencies change |
+| `npm run build-examples` / `npm run watch-examples` | Compiles the examples to JavaScript (once / on change), for `npm run serve` | To test the examples as they are deployed |
+| `npm run serve` | Static server for the built files on http://localhost:9229 | With `build-examples` or `watch-examples` |
+| `npm run test:unit` | Unit tests (vitest) | Before a pull request |
+| `npm run test:e2e` | Browser tests (playwright) | Before a pull request that changes rendering |
+| `npm run website:dev` | The website (vitepress) | Docs changes |
+| `npm run docs` / `npm run docs-all` | API docs of the core and the website build / the same plus the API docs of every plugin | Docs changes |
+
+Different from other projects:
+- `dev` starts the dev server (as in vite projects); the watch build of the library is `watch`. Before this change,
+  `dev` was the watch build and `vite` the dev server.
+- `npm install` runs `prepare`, which builds everything. It takes a few minutes the first time.
 
 For website(vitepress) development -
 - Run `npm run website:dev` to start the website server.
