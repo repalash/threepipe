@@ -275,6 +275,9 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
         viewer.removeEventListener('postRender', this._postRender)
         viewer.removeEventListener('postFrame', this._postFrame)
         viewer.scene.removeEventListener('addSceneObject', this._refreshUi)
+        // no frame comes after a removal (or a viewer dispose): the waits of a stop end now
+        ;[...this._frameWaits].forEach(end => end())
+        this._frameWaits.clear()
         this._recorder?.dispose()
         Object.values(this._recorders).forEach(r => {
             r?.dispose()
@@ -398,25 +401,49 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
         let noStep = 0
         // a listener, not doOnce: with maxFramePerLoop above 1, several frames come in one animation loop
         await new Promise<void>(resolve => {
+            const end = () => {
+                viewer.removeEventListener('postFrame', step)
+                this._frameWaits.delete(end)
+                resolve()
+            }
             const step = () => {
                 if (progressive.postFrameConvergedRecordingDelta() > 0) {
                     n++
                     noStep = 0
                 } else noStep++
                 if (n < steps && this.isRecording() && noStep <= progressive.maxFrameCount + 2) return
-                viewer.removeEventListener('postFrame', step)
-                resolve()
+                end()
             }
             if (steps < 1) resolve()
-            else viewer.addEventListener('postFrame', step)
+            else {
+                viewer.addEventListener('postFrame', step)
+                this._frameWaits.add(end)
+            }
         })
         // the scene does not converge: the steps that are left, on the wall clock
         if (n < steps && this.isRecording()) await timeout((steps - n) / fps * 1000)
     }
 
+    /** The ends of the frame waits of a stop; {@link onRemove} calls them, as no frame comes after it */
+    private _frameWaits = new Set<() => void>()
+
+    /** The next frame of the viewer, or the removal of the plugin (or a viewer dispose), whichever comes first */
+    private async _nextFrame() {
+        const viewer = this._viewer
+        if (!viewer) return
+        let end!: () => void
+        const removed = new Promise<void>(resolve => end = resolve)
+        this._frameWaits.add(end)
+        try {
+            await Promise.race([viewer.doOnce('postFrame'), removed])
+        } finally {
+            this._frameWaits.delete(end)
+        }
+    }
+
     private async _stop(): Promise<Blob | undefined> {
         if (this._viewer) {
-            await this._viewer.doOnce('postFrame')
+            await this._nextFrame()
             if (this._convergeNow) {
                 const progressive = this._viewer?.getPlugin<ProgressivePlugin>('ProgressivePlugin')
                 if (progressive) {
@@ -424,18 +451,19 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
                     const max = progressive.maxFrameCount + 2
                     for (let i = 0; i < max; i++) {
                         if (progressive.isConverged(true)) break
-                        await this._viewer.doOnce('postFrame')
+                        await this._nextFrame()
                     }
                     // the last pose converged while the browser recorder still recorded a frame: a still loop takes it once
                     // the recorder is ready
                     for (let i = 0; i < max && this._uncapturedRender && this._recorder?.isRecording(); i++) {
-                        await this._viewer.doOnce('postFrame')
+                        await this._nextFrame()
                     }
                 }
             }
             // the capture of the last converged frame waits for a timeout: take it before the recorder stops
             this._pendingCapture?.()
-            if (this.endPaddingMs) await this.waitRecordingTime(this.endPaddingMs)
+            // a removed plugin has no recording to pad
+            if (this.endPaddingMs && this._viewer) await this.waitRecordingTime(this.endPaddingMs)
             // the recorder failed (or stopped) during the waits above: its stop() would not call back
             const recorder = this.recorder
             if (!recorder || recorder.state === 'error' || recorder.state === 'stopped') return undefined

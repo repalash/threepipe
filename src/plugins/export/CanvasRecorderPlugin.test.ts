@@ -464,6 +464,45 @@ describe('CanvasRecorderPlugin stop and remove', () => {
         expect(plugin._stopping).toBeUndefined()
     })
 
+    // a viewer dispose removes the plugin and ends the animation loop: no frame comes after it
+    function removable() {
+        const {plugin, progressive} = setup()
+        const viewer = Object.assign(new EventDispatcher(), plugin._viewer, {
+            renderManager: new EventDispatcher(),
+            scene: Object.assign(new EventDispatcher(), plugin._viewer.scene),
+        })
+        plugin._viewer = viewer
+        plugin._recorder.dispose = () => plugin._recorder.stop(() => undefined)
+        return {plugin, progressive, viewer}
+    }
+
+    test('a removal during the converge-mode end padding settles the stop', async() => {
+        const {plugin, progressive, viewer} = removable()
+        Object.assign(progressive, {postFrameConvergedRecordingDelta: () => 1 / 30})
+        plugin.endPaddingMs = 500 // 15 frames, which never come
+        plugin._recorder.start()
+        const stop = plugin.stopRecording()
+        await new Promise(r => setTimeout(r, 5))
+        viewer.dispatchEvent({type: 'postFrame'}) // one frame of the padding, then the viewer is disposed
+        plugin.onRemove(viewer)
+        expect(await Promise.race([stop, new Promise(r => setTimeout(() => r('hung'), 100))])).toBeUndefined()
+        expect(plugin._stopping).toBeUndefined()
+        expect(plugin._frameWaits.size).toBe(0)
+        expect(viewer._listeners?.postFrame ?? []).toHaveLength(0)
+    })
+
+    test('a removal while the stop waits for the last pose to converge settles the stop', async() => {
+        const {plugin, progressive, viewer} = removable()
+        progressive.isConverged = () => false
+        viewer.doOnce = async() => new Promise(() => undefined) // the frames never come
+        plugin._recorder.start()
+        const stop = plugin.stopRecording()
+        await new Promise(r => setTimeout(r, 5))
+        plugin.onRemove(viewer)
+        expect(await Promise.race([stop, new Promise(r => setTimeout(() => r('hung'), 100))])).toBeUndefined()
+        expect(plugin._frameWaits.size).toBe(0)
+    })
+
     test('onRemove drops the disposed recorders, so an add makes new ones', () => {
         const {plugin} = setup()
         const dispose = vi.fn()
