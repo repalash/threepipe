@@ -7,7 +7,7 @@ All notable changes to this plugin will be documented in this file.
 ## [Unreleased]
 
 - Add `EditorCameraPlugin`: the editor's own camera (Edit, 1:1 with the pointer, no limits, never saved) and the scene's start view (View, the visitor's controls); `setStartViewFromEditor()` with undo, `keepViewMoves`, `smooth`. Example `editor-camera-plugin`.
-- `HierarchyUiPlugin.treeView` is typed `any`: treejs is bundled from a git repository and not on npm, so its type could not resolve in consumer declarations.
+- treejs comes from npm, `@repalash/treejs` 2.0.0 (the same code), instead of a git URL, which npm 12 refuses by default. `HierarchyUiPlugin.treeView` is typed `any`: treejs is bundled, so its type could not resolve in consumer declarations.
 
 ## [0.6.0]
 

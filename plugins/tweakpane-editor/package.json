@@ -4,7 +4,7 @@
     "version": "0.6.0",
     "devDependencies": {
         "tippy.js": "^6.3.7",
-        "treejs": "git://github.com/repalash/treejs.git#d303016bb74e75725d13e97291ac1d4727985918"
+        "@repalash/treejs": "^2.0.0"
     },
     "dependencies": {
         "threepipe": "file:./../../src/",
