@@ -488,6 +488,7 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         const c = [...this._cards.values()].find(x => x.card === card)
         if (!c) return
         const w = card.offsetWidth, h = card.offsetHeight
+        if (!w || !h) return // hidden (Show off, or the canvas hidden): not a size the person gave
         if (Math.abs(w - c.size[0]) < 2 && Math.abs(h - c.size[1]) < 2) return // the size the layout gave it
         c.size = [w, h]
         if (this.layout === 'stack') this._state.stack = {...this._state.stack, w, h}

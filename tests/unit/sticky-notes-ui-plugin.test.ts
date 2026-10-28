@@ -334,6 +334,20 @@ describe('StickyNotesUiPlugin', () => {
         expect([menu.style.left, menu.style.top]).toEqual(['70px', '406px'])
     })
 
+    test('a size from the corner is kept; a hidden post-it (size 0) changes no size', () => {
+        const {notes, sticky, layer} = setup()
+        const n = notes.addNote('a')
+        const card = cards(layer)[0]
+        card.offsetWidth = 300
+        card.offsetHeight = 200
+        ;(sticky as any)._cardResized(card)
+        expect(state().board[n.id]).toMatchObject({w: 300, h: 200})
+        sticky.shown = false
+        card.offsetWidth = card.offsetHeight = 0
+        ;(sticky as any)._cardResized(card)
+        expect(state().board[n.id]).toMatchObject({w: 300, h: 200})
+    })
+
     test('Show hides the layer; removing the plugin removes it', () => {
         const {sticky, viewer, layer} = setup()
         sticky.shown = false
