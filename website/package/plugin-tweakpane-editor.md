@@ -53,3 +53,40 @@ editor.loadPlugins({
     ['Debug']: [RenderTargetPreviewPlugin],
 })
 ```
+
+## NotesPlugin
+
+[Example](https://threepipe.org/examples/#notes-plugin/) &mdash;
+[Source Code](https://github.com/repalash/threepipe/blob/master/plugins/tweakpane-editor/src/NotesPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/plugins/tweakpane-editor/docs/classes/NotesPlugin.html)
+
+`NotesPlugin` adds notes to the editor, in a UI folder (`Notes`) with two tabs:
+
+- **Scene**: `sceneNotes` is a serialized property. The notes are saved in the viewer config, so in an exported .glb, and come back when the file loads.
+- **Page**: kept in this browser (`localStorage`, key `pageKey`). With `syncUrl`, they are also kept on a server: GET returns `{text}`, POST takes `{text}`. At the start, the longer text of the two wins.
+
+"+ Context" adds a line with the time, the text of `contextProvider` and the names of the objects selected in `PickingPlugin`. "Copy" copies the open tab. Keys typed in the notes do not reach the viewer's shortcuts.
+
+```typescript
+import {PickingPlugin, ThreeViewer} from 'threepipe'
+import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
+import {NotesPlugin} from '@threepipe/plugin-tweakpane-editor'
+
+const viewer = new ThreeViewer({...})
+viewer.addPluginSync(PickingPlugin)
+const notes = viewer.addPluginSync(new NotesPlugin({
+    pageKey: 'my-app-notes', // default: 'threepipe-page-notes'
+    syncUrl: '/api/notes', // optional
+    contextProvider: () => 'Move tool', // optional, extra text for "+ Context"
+}))
+
+const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+ui.setupPluginUi(NotesPlugin, {expanded: true})
+
+notes.sceneNotes = 'Check the prongs' // saved with the scene
+
+// or mount the notes anywhere on the page, without the tweakpane UI
+document.getElementById('side-panel')!.appendChild(notes.element)
+```
+
+The notes use the colours of the Tweakpane theme (the `--tp-*` variables). Set `NotesPlugin.InjectStyles = false` before the plugin is made to style the `np-` classes yourself.

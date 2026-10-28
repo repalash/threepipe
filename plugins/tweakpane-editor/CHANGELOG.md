@@ -6,6 +6,12 @@ All notable changes to this plugin will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- `NotesPlugin`: notes in the editor, in two tabs. Scene notes are serialized (saved in the viewer config and in an exported .glb); page notes are kept in `localStorage`, and on a server with `syncUrl`. "+ Context" adds the time and the names of the selected objects. Its UI folder is `Notes`; the `notes-plugin` example and the Extras mode of the tweakpane editor example show it.
+
+### Changed
+
 - `HierarchyUiPlugin.treeView` is typed `any`: treejs is bundled from a git repository and not on npm, so its type could not resolve in consumer declarations.
 
 ## [0.6.0]
