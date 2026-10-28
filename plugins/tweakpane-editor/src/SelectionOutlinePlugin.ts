@@ -52,7 +52,7 @@ import {
  *
  * @category Plugins
  */
-@uiFolderContainer('Selection Outline')
+@uiFolderContainer('Selection Outline (Editor)')
 export class SelectionOutlinePlugin extends AScreenPassExtensionPlugin {
     static readonly PluginType = 'SelectionOutlinePlugin'
     dependencies = [GBufferPlugin]

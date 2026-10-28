@@ -63,7 +63,7 @@ import {
     VirtualCamerasPlugin,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
-import {HierarchyUiPlugin, TweakpaneEditorPlugin} from '@threepipe/plugin-tweakpane-editor'
+import {HierarchyUiPlugin, SelectionOutlinePlugin, TweakpaneEditorPlugin} from '@threepipe/plugin-tweakpane-editor'
 import {BlendLoadPlugin} from '@threepipe/plugin-blend-importer'
 import {extraImportPlugins} from '@threepipe/plugins-extra-importers'
 import {FontLibrary, GeometryGeneratorExtrasPlugin} from '@threepipe/plugin-geometry-generator'
@@ -123,6 +123,7 @@ export class ThreeEditor extends ThreeViewer {
         new PivotControlsPlugin(false),
         new PivotEditPlugin(false),
         OutlinePlugin,
+        SelectionOutlinePlugin,
         EditorViewWidgetPlugin,
         ViewerUiConfigPlugin,
         ClearcoatTintPlugin,
@@ -178,7 +179,7 @@ export class ThreeEditor extends ThreeViewer {
 
     editorModes: Record<string, Class<IViewerPlugin<any>>[]> = {
         ['Viewer']: [ViewerUiConfigPlugin, DropzonePlugin, BaseGroundPlugin, ContactShadowGroundPlugin, TweakpaneUiPlugin, InteractionPromptPlugin, ThreeGpuPathTracerPlugin, FullScreenPlugin],
-        ['Interaction']: [HierarchyUiPlugin, TransformControlsPlugin, PivotControlsPlugin, PivotEditPlugin, PickingPlugin, OutlinePlugin, Object3DGeneratorPlugin, GeometryGeneratorPlugin, EditorViewWidgetPlugin, ObjectConstraintsPlugin, Object3DWidgetsPlugin, MeshOptSimplifyModifierPlugin],
+        ['Interaction']: [HierarchyUiPlugin, TransformControlsPlugin, PivotControlsPlugin, PivotEditPlugin, PickingPlugin, OutlinePlugin, SelectionOutlinePlugin, Object3DGeneratorPlugin, GeometryGeneratorPlugin, EditorViewWidgetPlugin, ObjectConstraintsPlugin, Object3DWidgetsPlugin, MeshOptSimplifyModifierPlugin],
         ['Buffers']: [GBufferPlugin, DepthBufferPlugin, NormalBufferPlugin, CascadedShadowsPlugin],
         ['Post-processing']: [TonemapPlugin, ProgressivePlugin, SSAAPlugin, SSAOPlugin, SSReflectionPlugin, BloomPlugin, DepthOfFieldPlugin, SSGIPlugin, FrameFadePlugin, VignettePlugin, ChromaticAberrationPlugin, FilmicGrainPlugin, TemporalAAPlugin, VelocityBufferPlugin, SSContactShadowsPlugin],
         ['Export']: [AssetExporterPlugin, CanvasSnapshotPlugin, AWSClientPlugin, TransfrSharePlugin, AssimpJsPlugin, LoadingScreenPlugin],
