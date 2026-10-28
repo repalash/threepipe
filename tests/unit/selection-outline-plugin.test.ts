@@ -1,7 +1,7 @@
 import {describe, expect, test, vi} from 'vitest'
 import {BoxGeometry, EventDispatcher, Group, Mesh, MeshBasicMaterial, Object3D, PerspectiveCamera, ShaderMaterial, Texture, Vector3} from 'three'
 import {PickingPlugin} from 'threepipe'
-import {SelectionMaskPass, selectionMaskMaterial, SelectionOutlinePlugin} from '../../plugins/tweakpane-editor/src/SelectionOutlinePlugin'
+import {lineMaskFragment, SelectionMaskPass, selectionMaskMaterial, SelectionOutlinePlugin} from '../../plugins/tweakpane-editor/src/SelectionOutlinePlugin'
 
 const mesh = (name: string) => Object.assign(new Mesh(new BoxGeometry()), {name})
 
@@ -198,6 +198,42 @@ describe('SelectionOutlinePlugin', () => {
         expect(material.vertexShader).toContain('#include <clipping_planes_vertex>')
         expect(material.fragmentShader).toContain('#include <clipping_planes_pars_fragment>')
         expect(material.fragmentShader).toContain('#include <clipping_planes_fragment>')
+    })
+
+    test('the line mask keeps the line shader up to its coverage (dash gaps, caps), then writes the mask', () => {
+        const line = 'uniform float dashSize;\nvoid main() {\n    if (dash) discard; // the gaps\n    #include <logdepthbuf_fragment>\n    gl_FragColor = vec4(diffuse, 1.);\n}\n'
+        const frag = lineMaskFragment(line)
+        expect(frag).toContain('uniform float dashSize;')
+        expect(frag).toContain('if (dash) discard;')
+        expect(frag).toContain('gl_FragColor = vec4(itemData, maskDepth);')
+        expect(frag).not.toContain('gl_FragColor = vec4(diffuse') // the line's colour output is cut
+        expect(frag.indexOf('discard')).toBeLessThan(frag.indexOf('vec4(itemData'))
+        expect(lineMaskFragment('void main() {}')).toContain('gl_FragColor = vec4(itemData, maskDepth);') // no coverage point
+    })
+
+    test('the line mask follows the defines of the line (a line made dashed after its first mask)', () => {
+        const pass = new SelectionMaskPass(() => ({}) as any, selectionMaskMaterial()) as any
+        const line = new ShaderMaterial({defines: {}, fragmentShader: 'void main() {\n#include <logdepthbuf_fragment>\n}'})
+        const mask = pass._lineMask(line)
+        expect(mask.defines).toEqual({})
+        line.defines.USE_DASH = ''
+        expect(pass._lineMask(line)).toBe(mask)
+        expect(mask.defines).toEqual({USE_DASH: ''})
+    })
+
+    test('the mask material follows the displacement map of the material, as the render', () => {
+        const material = selectionMaskMaterial()
+        const pass = new SelectionMaskPass(() => ({}) as any, material) as any
+        const displaced = new MeshBasicMaterial() as any
+        Object.assign(displaced, {displacementMap: new Texture(), displacementScale: 2, displacementBias: 0.5})
+        displaced.displacementMap.channel = 1
+        const item = new Mesh(new BoxGeometry(), displaced)
+        pass._items = new Map([[item, new Vector3(1, 0, 0)]])
+        ;(material.onBeforeRender as any)(null, null, null, null, item, null)
+        const u = material.uniforms
+        expect([u.maskUseDisplacementMap.value, u.maskDisplacementMap.value, u.maskDisplacementMapChannel.value]).toEqual([1, displaced.displacementMap, 1])
+        expect([u.maskDisplacementScale.value, u.maskDisplacementBias.value]).toEqual([2, 0.5])
+        expect(material.vertexShader).toContain('normalize(objectNormal)')
     })
 
     test('the mask material: objects outside the mask write nothing; a material array uses the group material', () => {

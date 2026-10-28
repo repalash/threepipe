@@ -400,7 +400,10 @@ export class SelectionMaskPass extends RenderPass implements IPipelinePass<'sele
 
     private _lineMasks = new WeakMap<Material, ShaderMaterial>()
 
-    /** The line material's own vertex shader (thick quads) with the mask output; shares its uniforms (width, resolution) */
+    /**
+     * The line material's own shaders (thick quads; the dash gaps, the caps and the world-unit shaping discard the same
+     * fragments) with the mask output; shares its uniforms (width, resolution, dashes)
+     */
     private _lineMask(lm: ShaderMaterial) {
         let m = this._lineMasks.get(lm)
         if (!m) {
@@ -408,8 +411,9 @@ export class SelectionMaskPass extends RenderPass implements IPipelinePass<'sele
                 uniforms: {...lm.uniforms, itemData: {value: new Vector3()}, cameraNearFar: {value: new Vector2(0.1, 1000)}, cameraOrtho: {value: 0}},
                 defines: {...lm.defines},
                 vertexShader: lm.vertexShader,
-                fragmentShader: LINE_MASK_FRAG,
+                fragmentShader: lineMaskFragment(lm.fragmentShader),
                 blending: NoBlending,
+                clipping: lm.clipping,
             })
             m.allowOverride = false
             const mask = m
@@ -422,6 +426,11 @@ export class SelectionMaskPass extends RenderPass implements IPipelinePass<'sele
                 mask.uniformsNeedUpdate = true
             }
             this._lineMasks.set(lm, m)
+        }
+        // the line's defines change with its options (dashed, world units, vertex colors): the mask follows them
+        if (!sameDefines(m.defines, lm.defines)) {
+            m.defines = {...lm.defines}
+            m.needsUpdate = true
         }
         return m
     }
@@ -468,12 +477,18 @@ function maskAlphaUniforms() {
         maskAlphaMapUvTransform: {value: new Matrix3()},
         maskAlphaMapChannel: {value: 0},
         maskAlphaCut: {value: 0.5},
+        maskDisplacementMap: {value: null as Texture | null},
+        maskUseDisplacementMap: {value: 0},
+        maskDisplacementMapUvTransform: {value: new Matrix3()},
+        maskDisplacementMapChannel: {value: 0},
+        maskDisplacementScale: {value: 1},
+        maskDisplacementBias: {value: 0},
     }
 }
 
 /**
  * The alpha of a material as in its own render (transparent or alpha test): `opacity` when transparent, times the
- * alpha of `map`, times the green channel of `alphaMap`, cut at `alphaTest` (or 0.5)
+ * alpha of `map`, times the green channel of `alphaMap`, cut at `alphaTest` (or 0.5). Also its displacement map.
  */
 function setMaskAlpha(mask: ShaderMaterial, material: Material | undefined) {
     const m = material as MeshPhysicalMaterial | undefined
@@ -484,6 +499,11 @@ function setMaskAlpha(mask: ShaderMaterial, material: Material | undefined) {
     setMaskTexture(u.maskMap, u.maskUseMap, u.maskMapUvTransform, u.maskMapChannel, useAlpha ? m.map : null)
     setMaskTexture(u.maskAlphaMap, u.maskUseAlphaMap, u.maskAlphaMapUvTransform, u.maskAlphaMapChannel, useAlpha ? m.alphaMap : null)
     u.maskAlphaCut.value = cut > 0 ? cut : 0.5
+    // the displaced surface, as in the render and the gbuffer
+    const disp = m?.displacementMap ?? null
+    setMaskTexture(u.maskDisplacementMap, u.maskUseDisplacementMap, u.maskDisplacementMapUvTransform, u.maskDisplacementMapChannel, disp)
+    u.maskDisplacementScale.value = m?.displacementScale ?? 1
+    u.maskDisplacementBias.value = m?.displacementBias ?? 0
 }
 
 /** Sets a texture of the mask alpha with its UV transform and its UV set (`channel`: uv, uv1, uv2 or uv3) */
@@ -500,6 +520,12 @@ function setMaskTexture(tex: {value: Texture | null}, use: {value: number}, uvTr
 /** A mesh with a geometry: the objects that the mask pass draws */
 function isMaskMesh(o: Object3D) {
     return !!(o as IObject3D).geometry && !!(o as any).isMesh
+}
+
+/** The same shader defines (keys and values) */
+function sameDefines(a: Record<string, any> = {}, b: Record<string, any> = {}) {
+    const ka = Object.keys(a)
+    return ka.length === Object.keys(b).length && ka.every(k => k in b && a[k] === b[k])
 }
 
 /** The same objects in the same order */
@@ -526,6 +552,12 @@ uniform mat3 maskMapUvTransform;
 uniform float maskMapChannel;
 uniform mat3 maskAlphaMapUvTransform;
 uniform float maskAlphaMapChannel;
+uniform sampler2D maskDisplacementMap;
+uniform float maskUseDisplacementMap;
+uniform mat3 maskDisplacementMapUvTransform;
+uniform float maskDisplacementMapChannel;
+uniform float maskDisplacementScale;
+uniform float maskDisplacementBias;
 varying vec3 vViewPosition;
 varying vec2 vMaskMapUv;
 varying vec2 vMaskAlphaMapUv;
@@ -537,9 +569,17 @@ void main() {
     vMaskMapUv = (maskMapUvTransform * vec3(maskUv(maskMapChannel), 1.)).xy;
     vMaskAlphaMapUv = (maskAlphaMapUvTransform * vec3(maskUv(maskAlphaMapChannel), 1.)).xy;
     #include <skinbase_vertex>
+    #include <beginnormal_vertex>
+    #include <morphnormal_vertex>
+    #include <skinnormal_vertex>
     #include <begin_vertex>
     #include <morphtarget_vertex>
     #include <skinning_vertex>
+    // the displacement map of the material moves the vertices along the normal, as in the render
+    if (maskUseDisplacementMap > 0.5) {
+        vec2 dUv = (maskDisplacementMapUvTransform * vec3(maskUv(maskDisplacementMapChannel), 1.)).xy;
+        transformed += normalize(objectNormal) * (texture2D(maskDisplacementMap, dUv).x * maskDisplacementScale + maskDisplacementBias);
+    }
     #include <project_vertex>
     #include <clipping_planes_vertex>
     vViewPosition = - mvPosition.xyz;
@@ -576,20 +616,32 @@ void main() {
 }
 `
 
-const LINE_MASK_FRAG = /* glsl */`
+const LINE_MASK_PARS = /* glsl */`
 #include <packing>
 uniform vec2 cameraNearFar;
 uniform vec3 itemData;
 uniform float cameraOrtho;
-void main() {
+`
+
+const LINE_MASK_OUTPUT = /* glsl */`
     // the line shader has no view position varying: the depth comes from the fragment depth
-    float viewZ = cameraOrtho > 0.5 ?
+    float maskViewZ = cameraOrtho > 0.5 ?
         -orthographicDepthToViewZ(gl_FragCoord.z, cameraNearFar.x, cameraNearFar.y) :
         -perspectiveDepthToViewZ(gl_FragCoord.z, cameraNearFar.x, cameraNearFar.y);
-    float d = clamp((viewZ - cameraNearFar.x) / (cameraNearFar.y - cameraNearFar.x), 0., 1.);
-    gl_FragColor = vec4(itemData, d);
-}
+    float maskDepth = clamp((maskViewZ - cameraNearFar.x) / (cameraNearFar.y - cameraNearFar.x), 0., 1.);
+    gl_FragColor = vec4(itemData, maskDepth);
 `
+
+/**
+ * The fragment shader of the line mask: the line material's own, up to its coverage (as the line depth materials in
+ * `src/utils/line-material.ts`), then the mask output. A shader without that point gets the mask output alone.
+ */
+export function lineMaskFragment(lineFragment: string) {
+    const coverage = '#include <logdepthbuf_fragment>'
+    const [pars, main] = lineFragment.split('void main()')
+    if (main === undefined || !main.includes(coverage)) return LINE_MASK_PARS + 'void main() {' + LINE_MASK_OUTPUT + '}\n'
+    return pars + LINE_MASK_PARS + 'void main()' + main.split(coverage)[0] + LINE_MASK_OUTPUT + '}\n'
+}
 
 const OUTLINE_GLSL = /* glsl */`
 uniform sampler2D tSelectionMask;
