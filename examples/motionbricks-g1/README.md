@@ -1,7 +1,7 @@
 # MotionBricks G1
 
 Real-time generative motion in threepipe with [NVIDIA MotionBricks](https://github.com/NVlabs/motionbricks) ([paper](https://arxiv.org/abs/2604.24833)).
-The Unitree G1 model runs in the browser with ONNX Runtime Web, on WebGPU when available, otherwise WebAssembly.
+The Unitree G1 model runs in the browser with ONNX Runtime Web (WebAssembly), in a Web Worker so it never stalls the frames.
 Click the floor and the robot walks or runs there, or drive it with WASD or the arrow keys (relative to the camera, Shift to run). Every frame of motion comes from the model; there are no animation clips at runtime.
 
 The scene is lit by an HDR environment, a warm key light with soft shadows and a cool rim light, with the webgi plugins for screen-space reflections, screen-space GI, contact shadows, temporal AA (with a velocity buffer for the moving robot) and a light bloom. The Effects button, or `?fx=0`, turns them off for slower GPUs.
@@ -27,7 +27,8 @@ By default the example streams the original `mmm_v6_g1_fp32.onnx` (730 MB) and t
 
 - `?model=<url>` an original MotionBricks G1 `.onnx` file, or a folder (ending in `/`) with a pack from `tools/pack_model.py`
 - `?robot=<url>` the G1 MJCF file; meshes resolve against its `meshdir`
-- `?backend=wasm` to skip WebGPU
+- `?backend=webgpu` to try ONNX Runtime's WebGPU backend. With onnxruntime-web 1.30 it computes this model wrongly (the robot sinks, sprints, or walks away from its goal), so WebAssembly is the default
+- `?worker=0` to run the model on the page instead of a worker, which stalls rendering during each generation
 - `?environment=<url>` the HDR environment map
 - `?fx=0` to start with the screen-space effects off
 
@@ -42,7 +43,7 @@ python tools/pack_model.py mmm_v6_g1_fp32.onnx pack/
 
 ## Performance
 
-On one WebAssembly thread a generation takes about 0.5 s, and the controller hides it by generating ahead of playback. WebGPU is faster. The model needs about 1.5 GB of memory while the session is created, so this is a desktop demo.
+A generation takes about 0.2 to 0.6 s on one WebAssembly thread, depending on the CPU. It runs in `MotionBricksWorker.ts`, and the controller starts each one ahead of playback, so the robot never waits. On the page's own thread the same work would freeze rendering mid-stride on every generation, which reads as a limp. The model needs about 1.5 GB of memory while the session is created, so this is a desktop demo.
 
 ## Licenses
 

@@ -34,10 +34,10 @@ import {G1_BRICKS} from './G1Bricks'
 import {G1Stage, STAGE_STYLES, StageStyleName} from './G1Stage'
 
 // Real-time motion generation in the browser with NVIDIA MotionBricks (https://github.com/NVlabs/motionbricks).
-// ONNX Runtime Web runs the Unitree G1 model with WebGPU, or WebAssembly where WebGPU is unavailable.
+// ONNX Runtime Web runs the Unitree G1 model with WebAssembly, in a Web Worker.
 // Click the floor to send the robot there; the model generates every step on the way.
 // Pages can override the sources with window.MOTIONBRICKS_CONFIG, and URL parameters override both:
-// ?model=<folder with pack.json/ or .onnx url>&robot=<mjcf url>&backend=wasm&style=studio&fx=0
+// ?model=<folder with pack.json/ or .onnx url>&robot=<mjcf url>&backend=webgpu&style=studio&fx=0&ui=0&worker=0
 
 const NV = 'https://media.githubusercontent.com/media/NVlabs/motionbricks/main/motionbricks/assets'
 const config = {
@@ -62,8 +62,11 @@ const config = {
     ui: '1',
     /** Run the model in a Web Worker. 0 runs it on the page, which stalls rendering during each generation. */
     worker: '1',
-    /** webgpu, or wasm to skip WebGPU. */
-    backend: 'webgpu',
+    /**
+     * wasm, or webgpu to try ONNX Runtime's WebGPU backend. With onnxruntime-web 1.30 WebGPU computes this model
+     * wrongly (the robot sinks, sprints or walks away from the goal), and it is slower than WebAssembly here.
+     */
+    backend: 'wasm',
     ...(window as any).MOTIONBRICKS_CONFIG,
 }
 const params = new URLSearchParams(location.search)
@@ -333,7 +336,7 @@ async function init() {
     // The model: about 190 MB packed, or 730 MB as the original fp32 ONNX file. It runs in a worker, so
     // inference never stalls the frames (a stall mid-walk shows as a limp); without workers it runs here.
     setStatus('Loading ONNX Runtime…', 'loading', 0)
-    const useGpu = config.backend !== 'wasm' && 'gpu' in navigator
+    const useGpu = config.backend === 'webgpu' && 'gpu' in navigator
     const sessionOptions = {executionProviders: useGpu ? ['webgpu', 'wasm'] : ['wasm'], graphOptimizationLevel: 'all'}
     const progress = (loaded: number, total: number) => setStatus(
         `Downloading the model… ${Math.round(loaded / 1e6)} of ${Math.round(total / 1e6) || '?'} MB`, 'loading', total ? loaded / total : 0)
