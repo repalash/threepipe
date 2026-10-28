@@ -13,8 +13,14 @@ export type EditorFrameLayout = 'titlebar' | 'statusbar' | 'floating'
 /** The names of the layouts, for menus */
 export const EDITOR_FRAME_LAYOUTS: [EditorFrameLayout, string][] = [['titlebar', 'Title bar'], ['statusbar', 'Status bar'], ['floating', 'Floating panels']]
 
+/** The layout of the editor page: a frame layout, or `classic` for no frame (the mode tabs at the bottom) */
+export type EditorPageLayout = EditorFrameLayout | 'classic'
+
+/** The names of the page layouts, for menus */
+export const EDITOR_PAGE_LAYOUTS: [EditorPageLayout, string][] = [...EDITOR_FRAME_LAYOUTS, ['classic', 'Classic (no frame)']]
+
 export interface EditorFrameOptions {
-    /** The first layout. Default: the stored one, else `titlebar`. */
+    /** The first layout. Default: `titlebar`. */
     layout?: EditorFrameLayout
     /** The app name in the title bar */
     title?: string
@@ -22,8 +28,12 @@ export interface EditorFrameOptions {
     themePairs?: [string, string][]
     /** Reads and sets the Tweakpane color mode, for the light or dark toggle (`TweakpaneUiPlugin.colorMode`) */
     colorMode?: {get(): string, set(mode: string): void}
-    /** The `localStorage` key that keeps the layout, or `null` to not keep it. Default: `tpEditorFrameLayout` */
-    storageKey?: string | null
+    /**
+     * Called with the layout picked in the layout menu. When it is set, the menu also has `classic` (no frame), and the
+     * caller changes the layout (`TweakpaneEditorPlugin.layout` does this). Else the menu has the frame layouts, and a
+     * pick calls {@link EditorFrame.setLayout}.
+     */
+    onPickLayout?: (layout: EditorPageLayout) => void
 }
 
 const svg = (d: string) => `<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`
@@ -41,8 +51,9 @@ const ICONS = {
  * - Shift+T switches between the light and dark theme of the same family ({@link EditorFrameOptions.themePairs}).
  * - The panel has no title of its own: the mode bar names the open mode and hides the panel.
  *
- * Made by `TweakpaneEditorPlugin.setFrame()`. The layout applies at 920 px wide and more; below that, the page keeps
- * the editor's own layout. The floating layout has its actions in the mode bar.
+ * Made by `TweakpaneEditorPlugin` (its `layout`). The layout applies at 920 px wide and more; below that, the page keeps
+ * the editor's own layout. The floating layout has its actions in the mode bar. The body has the class `lay-frame` and
+ * `lay-<layout>`.
  */
 export class EditorFrame {
     /** The default theme pairs: Shift+T goes from one to the other */
@@ -57,22 +68,12 @@ export class EditorFrame {
     private _floatActions: HTMLDivElement
     private _menu?: HTMLDivElement
     private _themePairs: [string, string][]
-    private _storageKey: string | null
     private _styles?: HTMLStyleElement
 
     constructor(readonly viewer: ThreeViewer, editor: EditorModeBarHost, readonly options: EditorFrameOptions = {}) {
         this._styles = createStyles(styles)
         this._themePairs = options.themePairs ?? EditorFrame.ThemePairs
-        this._storageKey = options.storageKey === undefined ? 'tpEditorFrameLayout' : options.storageKey
-        let stored: string | null = null
-        if (this._storageKey) {
-            try {
-                stored = localStorage.getItem(this._storageKey)
-            } catch (e) {
-                // no storage: the default
-            }
-        }
-        this._layout = options.layout ?? (EDITOR_FRAME_LAYOUTS.some(([k]) => k === stored) ? stored as EditorFrameLayout : 'titlebar')
+        this._layout = options.layout ?? 'titlebar'
 
         this.modeBar = new EditorModeBar(editor, document.body, () => document.getElementById('tweakpaneUiContainer'))
 
@@ -86,7 +87,7 @@ export class EditorFrame {
         this._bottom.append(...this._actions())
         this._floatActions = document.createElement('div')
         this._floatActions.className = 'lay-float-actions'
-        this._floatActions.append(...this._actions())
+        this._floatActions.append(...this._actions(true))
 
         viewer.assetManager.addEventListener('loadAsset', this._onLoad)
         window.addEventListener('keydown', this._onKeyDown)
@@ -109,6 +110,7 @@ export class EditorFrame {
     setLayout(layout: EditorFrameLayout) {
         this._layout = layout
         const body = document.body
+        body.classList.add('lay-frame')
         for (const [k] of EDITOR_FRAME_LAYOUTS) body.classList.toggle('lay-' + k, k === layout)
         if (layout === 'titlebar') body.appendChild(this._top)
         else this._top.remove()
@@ -121,13 +123,6 @@ export class EditorFrame {
         const root = document.querySelector<HTMLElement>('#tweakpaneUiContainer .tp-rotv')
         if (root && !root.classList.contains('tp-rotv-expanded')) root.querySelector<HTMLElement>('.tp-rotv_b')?.click()
         this.fileName = this._fileName
-        if (this._storageKey) {
-            try {
-                localStorage.setItem(this._storageKey, layout)
-            } catch (e) {
-                // no storage: this page only
-            }
-        }
         // the canvas size follows the CSS; the viewer resizes on the window's resize
         window.dispatchEvent(new Event('resize'))
     }
@@ -145,6 +140,7 @@ export class EditorFrame {
         this.viewer.assetManager.removeEventListener('loadAsset', this._onLoad)
         window.removeEventListener('keydown', this._onKeyDown)
         for (const [k] of EDITOR_FRAME_LAYOUTS) document.body.classList.remove('lay-' + k)
+        document.body.classList.remove('lay-frame')
         this._top.remove()
         this._bottom.remove()
         this._floatActions.remove()
@@ -180,19 +176,29 @@ export class EditorFrame {
         return bar
     }
 
-    private _actions() {
+    /**
+     * The light or dark button and the layout button
+     * @param inModeBar - as buttons of the mode bar (the floating layout), with a name that the wide mode bar shows
+     */
+    private _actions(inModeBar = false) {
         const buttons: HTMLButtonElement[] = []
-        if (this.options.colorMode) buttons.push(this._button(ICONS.theme, 'Light or dark (Shift T)', () => this.toggleTheme()))
-        buttons.push(this._button(ICONS.layout, 'Layout of the page', b => this._layoutMenu(b)))
+        if (this.options.colorMode) buttons.push(this._button(ICONS.theme, 'Light or dark (Shift T)', 'Light / dark', inModeBar, () => this.toggleTheme()))
+        buttons.push(this._button(ICONS.layout, 'Layout of the page', 'Layout', inModeBar, b => this._layoutMenu(b)))
         return buttons
     }
 
-    private _button(icon: string, label: string, onClick: (b: HTMLButtonElement) => void) {
+    private _button(icon: string, tip: string, name: string, inModeBar: boolean, onClick: (b: HTMLButtonElement) => void) {
         const b = document.createElement('button')
-        b.className = 'lay-btn'
+        b.className = inModeBar ? 'mb-btn lay-float-btn' : 'lay-btn'
         b.innerHTML = icon
-        b.title = label
-        b.setAttribute('aria-label', label)
+        if (inModeBar) {
+            const label = document.createElement('span')
+            label.className = 'mb-label'
+            label.textContent = name
+            b.appendChild(label)
+        }
+        b.title = tip
+        b.setAttribute('aria-label', tip)
         b.addEventListener('click', () => onClick(b))
         return b
     }
@@ -202,14 +208,16 @@ export class EditorFrame {
         const m = document.createElement('div')
         m.className = 'lay-menu'
         m.setAttribute('role', 'menu')
-        for (const [k, label] of EDITOR_FRAME_LAYOUTS) {
+        const pick = this.options.onPickLayout
+        for (const [k, label] of pick ? EDITOR_PAGE_LAYOUTS : EDITOR_FRAME_LAYOUTS) {
             const it = document.createElement('button')
             it.setAttribute('role', 'menuitemradio')
             it.setAttribute('aria-checked', String(k === this._layout))
             it.textContent = label
             it.addEventListener('click', () => {
                 m.remove()
-                this.setLayout(k)
+                if (pick) pick(k)
+                else if (k !== 'classic') this.setLayout(k)
             })
             m.appendChild(it)
         }

@@ -54,19 +54,25 @@ editor.loadPlugins({
 })
 ```
 
-## Page frame and mode bar
+## Page layout, frame and mode bar
 
-`TweakpaneEditorPlugin.setFrame()` puts the editor in a page frame. The modes are then coloured icons on the right (`EditorModeBar`) instead of the tabs at the bottom.
+`TweakpaneEditorPlugin.layout` sets the layout of the page. The first three layouts put the editor in a page frame (`EditorFrame`). In a frame, the modes are coloured icons on the right (`EditorModeBar`) instead of the tabs at the bottom.
 
-- `'titlebar'`: a slim bar on top with the app name, the name of the last loaded file and the actions. The canvas and the panel are edge to edge below it.
+- `'titlebar'` (the default): a slim bar on top with the app name, the file name and the actions. The canvas and the panel are edge to edge below it.
 - `'statusbar'`: the same bar at the bottom, like a code editor.
 - `'floating'`: the canvas fills the window. The panel and the mode bar float over it, with the same gap on every side. The actions are in the mode bar.
+- `'classic'`: no frame. The page has the mode tabs at the bottom, as before.
 
 In the frame:
 - A click on a mode shows its panels. A click on the open mode hides the panel, and the canvas takes its room.
 - The button at the bottom of the mode bar shows or hides the mode names.
 - Shift+T switches between the light and the dark theme of the same family (`clean` and `clean-dark`, `light` and `dark`, `white` and `black`).
-- The layout button changes the layout. The layout and the names setting are kept in `localStorage`. `setFrame('auto')` opens the layout picked last (else the title bar); a named layout always opens that layout.
+- The layout button opens the layout menu, with Classic too.
+- The file name in the bar is the name of the last loaded file, `Untitled` before one loads. Set `editor.frame.fileName` to show another name.
+
+The plugin has a UI folder, `Editor`, with the page layout and the mode names. Add `TweakpaneEditorPlugin` to a mode (`loadPlugins`) to show it; it works in the classic layout too.
+
+The layout that the person picks (in the menu or the UI) is kept in `localStorage` (`TweakpaneEditorPlugin.LayoutStorageKey`), and so is the names setting of the mode bar. `TweakpaneEditorPlugin.DefaultLayout` is the layout when none is stored.
 
 The frame applies when the window is 920 px wide or more. In a narrower window, the page keeps the mode tabs and the editor's own layout.
 
@@ -76,20 +82,21 @@ import {EditorModeBar, TweakpaneEditorPlugin} from '@threepipe/plugin-tweakpane-
 
 viewer.addPluginSync(new TweakpaneUiPlugin(true))
 const editor = viewer.addPluginSync(new TweakpaneEditorPlugin())
+editor.frameOptions = {title: 'My app'} // before loadPlugins, which makes the frame
 editor.loadPlugins({
-    ['Viewer']: [ViewerUiConfigPlugin],
+    ['Viewer']: [ViewerUiConfigPlugin, TweakpaneEditorPlugin], // with the Editor folder
     ['Export']: [AssetExporterPlugin],
 })
 
-editor.setFrame('titlebar', {title: 'My app'})
-editor.frame?.setLayout('floating')
-editor.frame?.modeBar.setExpanded(false) // icons only
+editor.layout = 'floating'
+editor.modeNames = false // icons only
+editor.frame!.fileName = 'Ring.glb'
 
 // the colour and icon of a mode (an SVG string)
 EditorModeBar.Looks['My mode'] = {color: '#0d99ff', icon: '<svg ...></svg>'}
 
 // back to the mode tabs at the bottom
-editor.setFrame(undefined)
+editor.layout = 'classic'
 ```
 
-In the [Tweakpane Editor example](https://threepipe.org/examples/tweakpane-editor/), add `?frame=titlebar`, `?frame=statusbar`, `?frame=floating` or `?frame=auto` to the URL.
+In the [Tweakpane Editor example](https://threepipe.org/examples/tweakpane-editor/), add `?layout=titlebar`, `?layout=statusbar`, `?layout=floating` or `?layout=classic` to the URL.

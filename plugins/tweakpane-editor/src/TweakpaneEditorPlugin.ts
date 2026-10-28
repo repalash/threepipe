@@ -14,11 +14,14 @@ import styles from './TweakpaneEditorPlugin.css?inline'
 import tippy from 'tippy.js'
 import tippyStyles from 'tippy.js/dist/tippy.css?inline'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
-import {EditorFrame, EditorFrameLayout, EditorFrameOptions} from './frame/EditorFrame'
+import {UiObjectConfig} from 'uiconfig.js'
+import {EDITOR_PAGE_LAYOUTS, EditorFrame, EditorFrameOptions, EditorPageLayout} from './frame/EditorFrame'
 
 export class TweakpaneEditorPlugin extends AViewerPluginSync {
     public static readonly PluginType: string = 'TweakpaneEditorPlugin'
     enabled = true
+    // the page layout is a setting of the person (localStorage), not of the scene: nothing to save, reset or download
+    toJSON: any = undefined
 
     dependencies = [TweakpaneUiPlugin, FullScreenPlugin]
 
@@ -42,43 +45,101 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync {
     }
 
     onRemove(viewer: ThreeViewer) {
-        this.setFrame(undefined)
+        this._removeFrame()
         super.onRemove(viewer)
     }
 
-    /**
-     * The page frame, with the mode bar on the right instead of the mode tabs at the bottom. Set with {@link setFrame}.
-     */
-    frame?: EditorFrame
-    private _frameOptions?: EditorFrameOptions
+    /** The `localStorage` key that keeps the page layout the person picked, or `null` to not keep it */
+    static LayoutStorageKey: string | null = 'tpEditorLayout'
+    /** The page layout when none is stored */
+    static DefaultLayout: EditorPageLayout = 'titlebar'
 
     /**
-     * Puts the editor in a page frame: a title bar, a status bar or floating panels ({@link EditorFrameLayout}), with
-     * the modes as coloured icons on the right ({@link EditorModeBar}) and Shift+T for a light or dark theme.
-     * `undefined` removes the frame, and the page has the mode tabs at the bottom again.
-     * @param layout - the layout; `'auto'` for the layout the person picked last in the layout menu (kept in
-     * `localStorage`), else the title bar; `undefined` for no frame
-     * @param options - options of the frame, used when the frame is made
+     * The page frame, with the mode bar on the right instead of the mode tabs at the bottom. It is there when
+     * {@link layout} is not `classic`, after {@link loadPlugins}.
      */
-    setFrame(layout: EditorFrameLayout | 'auto' | undefined, options?: EditorFrameOptions) {
-        if (!layout) {
-            this.frame?.dispose()
-            this.frame = undefined
-            this._frameOptions = undefined
-            return
+    frame?: EditorFrame
+
+    /** Options of the page frame (the app name, the theme pairs), used when the frame is made */
+    frameOptions: Omit<EditorFrameOptions, 'layout' | 'onPickLayout'> = {}
+
+    private _layout: EditorPageLayout = readStoredLayout() ?? TweakpaneEditorPlugin.DefaultLayout
+
+    /**
+     * The layout of the page:
+     * - `titlebar`, `statusbar` or `floating`: the page frame ({@link EditorFrame}), with the modes as coloured icons on
+     *   the right ({@link EditorModeBar}) and Shift+T for a light or dark theme;
+     * - `classic`: no frame, the mode tabs at the bottom.
+     *
+     * A change is kept in `localStorage` ({@link TweakpaneEditorPlugin.LayoutStorageKey}) and applies at once, or at
+     * {@link loadPlugins}. The default is the stored layout, else {@link TweakpaneEditorPlugin.DefaultLayout}. The
+     * layout menu of the frame and the plugin's UI (Page layout) set it.
+     */
+    get layout(): EditorPageLayout {
+        return this._layout
+    }
+    set layout(layout: EditorPageLayout) {
+        if (!EDITOR_PAGE_LAYOUTS.some(([k]) => k === layout)) return
+        this._layout = layout
+        const key = TweakpaneEditorPlugin.LayoutStorageKey
+        if (key) {
+            try {
+                localStorage.setItem(key, layout)
+            } catch (e) {
+                // no storage: this page only
+            }
         }
-        if (this.frame) {
-            if (layout !== 'auto') this.frame.setLayout(layout)
-            return
-        }
-        if (!this._viewer) throw new Error('Plugin not added to viewer.')
+        if (this.modeKeys.length) this._applyLayout()
+        this.uiConfig.uiRefresh?.(true)
+    }
+
+    /** The names of the modes are shown next to their icons in the mode bar of the frame */
+    get modeNames() {
+        return this.frame?.modeBar.expanded ?? false
+    }
+    set modeNames(names: boolean) {
+        this.frame?.modeBar.setExpanded(names)
+    }
+
+    uiConfig: UiObjectConfig = {
+        type: 'folder',
+        label: 'Editor',
+        children: [
+            {
+                type: 'dropdown',
+                label: 'Page layout',
+                property: [this, 'layout'],
+                children: EDITOR_PAGE_LAYOUTS.map(([value, label]) => ({label, value})),
+            },
+            {
+                type: 'checkbox',
+                label: 'Mode names',
+                property: [this, 'modeNames'],
+                hidden: () => !this.frame,
+            },
+        ],
+    }
+
+    private _applyLayout() {
+        const layout = this._layout
+        if (layout === 'classic') return this._removeFrame()
+        if (this.frame) return this.frame.setLayout(layout)
+        if (!this._viewer) return
         const ui = this._viewer.getPlugin(TweakpaneUiPlugin)
-        this._frameOptions = {
+        this.frame = new EditorFrame(this._viewer, this, {
             colorMode: ui ? {get: () => ui.colorMode, set: (m) => ui.colorMode = m as TweakpaneUiPlugin['colorMode']} : undefined,
-            ...options,
-        }
-        this.frame = new EditorFrame(this._viewer, this, {...this._frameOptions, layout: layout === 'auto' ? undefined : layout})
+            ...this.frameOptions,
+            layout,
+            onPickLayout: (l) => this.layout = l,
+        })
         this.frame.modeBar.select(this._selectedMode)
+        // the mode bar keeps the names shown or hidden: the checkbox follows it
+        this.uiConfig.uiRefresh?.(true)
+    }
+
+    private _removeFrame() {
+        this.frame?.dispose()
+        this.frame = undefined
     }
 
     private _selectedMode = 0
@@ -121,13 +182,9 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync {
 
         this.setSelectedMode(0)
 
-        // the mode bar shows the modes of the frame: make it again with the new modes
-        if (this.frame) {
-            const layout = this.frame.layout
-            const options = this._frameOptions
-            this.setFrame(undefined)
-            this.setFrame(layout, options)
-        }
+        // the mode bar shows the modes: make the frame again with the new modes
+        this._removeFrame()
+        this._applyLayout()
     }
 
     setSelectedMode(mode: number) {
@@ -153,5 +210,17 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync {
         this.uiPlugin?.refreshPluginsEnabled()
 
         // todo: expand the ui if collapsed
+    }
+}
+
+/** The page layout kept in `localStorage` ({@link TweakpaneEditorPlugin.LayoutStorageKey}), if it is a known layout */
+function readStoredLayout(): EditorPageLayout | undefined {
+    const key = TweakpaneEditorPlugin.LayoutStorageKey
+    if (!key) return undefined
+    try {
+        const stored = localStorage.getItem(key)
+        return EDITOR_PAGE_LAYOUTS.find(([k]) => k === stored)?.[0]
+    } catch (e) {
+        return undefined // no storage
     }
 }

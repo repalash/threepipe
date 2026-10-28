@@ -3,6 +3,8 @@
     --mb-bg: #ffffff; --mb-line: #e6e6e6; --mb-hover: #f2f3f5;
     position: fixed; right: 0; top: 0; bottom: 0; width: 44px; z-index: 30; display: flex; flex-direction: column; align-items: center; gap: 4px;
     padding: 10px 0; background: var(--mb-bg); border-left: 1px solid var(--mb-line); box-sizing: border-box;
+    /* the size of the panel text: 13px, 12px in the clean themes (11px text) */
+    font: 500 13px/1 var(--tp-font-family, Inter, ui-sans-serif, system-ui, sans-serif); -webkit-font-smoothing: antialiased;
     /* a short window: the bar scrolls, so every mode and the buttons at the bottom stay reachable */
     overflow-x: hidden; overflow-y: auto; scrollbar-width: thin;
 }
@@ -10,23 +12,24 @@ body[class*="tpTheme-"] .mb-root {
     --mb-bg: var(--tp-base-background-color, #1c2026); --mb-line: var(--tp-container-border-color, rgba(255,255,255,.1));
     --mb-hover: var(--tp-button-background-color-hover, rgba(255,255,255,.08));
 }
+body.tpTheme-clean .mb-root, body.tpTheme-clean-dark .mb-root { font-size: 12px; }
 .mb-btn {
     position: relative; width: 34px; height: 34px; flex-shrink: 0; border: 0; border-radius: 5px; background: transparent; color: var(--mb-color); cursor: pointer;
-    display: flex; align-items: center; justify-content: center; padding: 0; transition: background-color .12s;
+    display: flex; align-items: center; justify-content: center; padding: 0; transition: background-color .12s; font: inherit;
 }
 .mb-btn:hover { background: var(--mb-hover); }
 .mb-btn.on { background: color-mix(in srgb, var(--mb-color) 16%, transparent); }
 .mb-btn.on::before { content: ''; position: absolute; left: -5px; top: 8px; bottom: 8px; width: 3px; border-radius: 2px; background: var(--mb-color); }
 .mb-btn:focus-visible { outline: 2px solid var(--mb-color, #0d99ff); outline-offset: 1px; }
-.mb-label { display: none; font: 500 12px/1 var(--tp-font-family, Inter, ui-sans-serif, system-ui, sans-serif); color: var(--tp-container-foreground-color, #1e1e1e); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mb-label { display: none; font: inherit; color: var(--tp-container-foreground-color, #1e1e1e); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mb-toggle { margin-top: auto; color: var(--tp-label-foreground-color, #8a8f98); }
 .mb-toggle svg { transition: transform .15s; }
 /* expanded: a sidebar with the names */
-.mb-root.mb-wide { width: 156px; align-items: stretch; padding: 10px 6px; }
+.mb-root.mb-wide { width: 168px; align-items: stretch; padding: 10px 6px; }
 .mb-wide .mb-btn { width: auto; justify-content: flex-start; gap: 10px; padding: 0 8px; }
 .mb-wide .mb-btn.on::before { left: -6px; }
 .mb-wide .mb-label { display: block; }
-.mb-wide .mb-toggle .mb-label { color: inherit; font-weight: 400; }
+.mb-wide .mb-toggle .mb-label, .mb-wide .lay-float-btn .mb-label { color: inherit; font-weight: 400; }
 .mb-wide .mb-toggle svg { transform: rotate(180deg); }
 .mb-tip {
     position: fixed; z-index: 1001; pointer-events: none; background: #1e1e1e; color: #fff; border-radius: 4px; padding: 5px 8px; white-space: nowrap;
@@ -45,15 +48,17 @@ body.lay-floating { --lay-top: 0px; --lay-bottom: 0px; --lay-gap: 12px; }
     body.mb-panel-hidden #tweakpaneUiContainer { visibility: visible !important; }
 }
 /* the page around the canvas in the clean themes (the Tweakpane theme styles only the panel) */
-body.lay-titlebar.tpTheme-clean, body.lay-statusbar.tpTheme-clean, body.lay-floating.tpTheme-clean { background-color: #f0f0f0 !important; }
-body.lay-titlebar.tpTheme-clean-dark, body.lay-statusbar.tpTheme-clean-dark, body.lay-floating.tpTheme-clean-dark { background-color: #1e1e1e !important; }
+body.lay-frame.tpTheme-clean { background-color: #f0f0f0 !important; }
+body.lay-frame.tpTheme-clean-dark { background-color: #1e1e1e !important; }
 .lay-bar {
     position: fixed; left: 0; right: 0; z-index: 40; display: flex; align-items: center; gap: 4px; padding: 0 8px 0 12px; box-sizing: border-box;
     background: var(--tp-base-background-color, #fff); color: var(--tp-container-foreground-color, #1e1e1e);
-    font: 400 12px/1 var(--tp-font-family, Inter, ui-sans-serif, system-ui, sans-serif); -webkit-font-smoothing: antialiased;
+    font: 400 13px/1 var(--tp-font-family, Inter, ui-sans-serif, system-ui, sans-serif); -webkit-font-smoothing: antialiased;
 }
+body.tpTheme-clean .lay-bar, body.tpTheme-clean-dark .lay-bar { font-size: 12px; }
 .lay-top { top: 0; height: 36px; border-bottom: 1px solid var(--tp-container-border-color, #e6e6e6); }
-.lay-bottom { bottom: 0; height: 26px; border-top: 1px solid var(--tp-container-border-color, #e6e6e6); font-size: 11px; padding-left: 10px; }
+.lay-bottom { bottom: 0; height: 26px; border-top: 1px solid var(--tp-container-border-color, #e6e6e6); font-size: 12px !important; padding-left: 10px; }
+body.tpTheme-clean .lay-bottom, body.tpTheme-clean-dark .lay-bottom { font-size: 11px !important; }
 .lay-app { display: flex; align-items: center; gap: 6px; }
 .lay-app b { font-weight: 600; }
 .lay-dim { color: var(--tp-label-foreground-color, #757575); }
@@ -69,6 +74,10 @@ body.lay-titlebar.tpTheme-clean-dark, body.lay-statusbar.tpTheme-clean-dark, bod
 .lay-btn:focus-visible { outline: 2px solid #0d99ff; outline-offset: 1px; }
 .lay-float-actions { display: flex; flex-direction: column; align-items: center; gap: 2px; margin-top: auto; color: var(--tp-label-foreground-color, #8a8f98); }
 .lay-float-actions + .mb-toggle { margin-top: 2px; }
+/* the wide bar: the actions are rows with their names, like the modes and the names toggle */
+.mb-wide .lay-float-actions { align-items: stretch; }
+/* the 16 px icons in the 20 px column of the mode icons */
+.lay-float-btn svg { margin: 0 2px; flex-shrink: 0; }
 .lay-menu {
     position: fixed; z-index: 2000; display: flex; flex-direction: column; padding: 4px; min-width: 160px; border-radius: 8px;
     background: var(--tp-base-background-color, #fff); color: var(--tp-container-foreground-color, #1e1e1e);
@@ -79,7 +88,20 @@ body.lay-titlebar.tpTheme-clean-dark, body.lay-statusbar.tpTheme-clean-dark, bod
 .lay-menu button[aria-checked="true"]::before { content: '✓'; position: absolute; left: 9px; }
 @media only screen and (min-width: 920px) {
     /* the mode bar replaces the mode tabs */
-    body.lay-titlebar .mode-buttons-container, body.lay-statusbar .mode-buttons-container, body.lay-floating .mode-buttons-container { display: none !important; }
+    body.lay-frame .mode-buttons-container { display: none !important; }
+    /* the panel: no padding around it, and the room of the scrollbar is kept, so the width does not change when a
+       folder opens or closes */
+    body.lay-frame #tweakpaneUiContainer {
+        padding: 0 !important; overflow-y: auto !important; scrollbar-gutter: stable; scrollbar-width: thin;
+        scrollbar-color: var(--tp-groove-foreground-color, rgba(128, 128, 128, .5)) transparent;
+    }
+    /* the sections of the panel: one line between them, no box, no gap above the first */
+    body.lay-frame #tweakpaneUiContainer .tp-rotv_c { padding-top: 0 !important; }
+    body.lay-frame #tweakpaneUiContainer .tp-rotv_c > .tp-fldv {
+        margin: 0 !important; border-radius: 0 !important;
+        border-style: solid !important; border-width: 1px 0 0 !important; border-color: var(--tp-container-border-color, #e6e6e6) !important;
+    }
+    body.lay-frame #tweakpaneUiContainer .tp-rotv_c > .tp-fldv:first-child { border-top-width: 0 !important; }
     /* title and status bar: the canvas and the panel edge to edge, between the bars */
     body.lay-titlebar #canvas-container, body.lay-statusbar #canvas-container {
         margin: 0 !important; left: 0; top: var(--lay-top) !important; border-radius: 0 !important; box-shadow: none !important;
@@ -89,14 +111,14 @@ body.lay-titlebar.tpTheme-clean-dark, body.lay-statusbar.tpTheme-clean-dark, bod
     body.lay-titlebar.mb-panel-hidden #canvas-container, body.lay-statusbar.mb-panel-hidden #canvas-container { width: calc(100% - var(--mb-width, 44px)) !important; }
     body.lay-titlebar #tweakpaneUiContainer, body.lay-statusbar #tweakpaneUiContainer {
         margin: 0 !important; top: var(--lay-top) !important; bottom: var(--lay-bottom) !important; height: auto !important; max-height: none !important;
-        right: var(--mb-width, 44px) !important; width: var(--tweakpane-ui-container-width, 300px) !important; overflow-y: auto;
+        right: var(--mb-width, 44px) !important; width: var(--tweakpane-ui-container-width, 300px) !important;
         background: var(--tp-base-background-color, #fff); border-left: 1px solid var(--tp-container-border-color, #e6e6e6); box-sizing: border-box;
     }
     body.lay-titlebar #tweakpaneUiContainer .tp-rotv, body.lay-statusbar #tweakpaneUiContainer .tp-rotv { border-radius: 0 !important; box-shadow: none !important; }
     /* no "Configuration" title: the mode bar names the open mode and hides the panel */
-    body.lay-titlebar #tweakpaneUiContainer .tp-rotv_b, body.lay-statusbar #tweakpaneUiContainer .tp-rotv_b, body.lay-floating #tweakpaneUiContainer .tp-rotv_b { display: none !important; }
+    body.lay-frame #tweakpaneUiContainer .tp-rotv_b { display: none !important; }
     body.lay-titlebar .mb-root, body.lay-statusbar .mb-root { top: var(--lay-top); bottom: var(--lay-bottom); }
-    body.lay-titlebar #mcanvas, body.lay-statusbar #mcanvas, body.lay-floating #mcanvas { border-radius: 0 !important; }
+    body.lay-frame #mcanvas { border-radius: 0 !important; }
 
     /* floating: the canvas fills the window, the panel and the mode bar are cards with the same gap on every side */
     body.lay-floating #canvas-container {
@@ -110,7 +132,7 @@ body.lay-titlebar.tpTheme-clean-dark, body.lay-statusbar.tpTheme-clean-dark, bod
     body.lay-floating #tweakpaneUiContainer {
         margin: 0 !important; top: var(--lay-gap) !important; bottom: var(--lay-gap) !important; height: auto !important; max-height: none !important;
         right: calc(var(--mb-width, 44px) + 2 * var(--lay-gap)) !important; width: var(--tweakpane-ui-container-width, 300px) !important;
-        overflow-y: auto; border-radius: 8px; background: var(--tp-base-background-color, #fff); box-shadow: 0 0 0 1px rgba(0,0,0,.06), 0 2px 10px rgba(0,0,0,.08);
+        border-radius: 8px; background: var(--tp-base-background-color, #fff); box-shadow: 0 0 0 1px rgba(0,0,0,.06), 0 2px 10px rgba(0,0,0,.08);
     }
     body.lay-floating #tweakpaneUiContainer .tp-rotv { box-shadow: none !important; }
 }

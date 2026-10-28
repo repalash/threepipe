@@ -44,7 +44,7 @@ export class EditorModeBar {
     }
 
     /** Width of the bar without and with the names, in px */
-    static Widths = {narrow: 44, wide: 156}
+    static Widths = {narrow: 44, wide: 168}
 
     readonly element: HTMLDivElement
     private _tip: HTMLDivElement

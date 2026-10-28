@@ -6,7 +6,8 @@ All notable changes to this plugin will be documented in this file.
 
 ## [Unreleased]
 
-- Add `TweakpaneEditorPlugin.setFrame()` and `frame`: a page frame (`titlebar`, `statusbar` or `floating`, class `EditorFrame`) with the modes as coloured icons on the right (`EditorModeBar`, names shown or hidden, a click on the open mode hides the panel) and Shift+T for a light or dark theme. Off by default: the page keeps the mode tabs. `setFrame('auto')` opens the layout picked last. In the tweakpane-editor example: `?frame=titlebar|statusbar|floating|auto`.
+- Add `TweakpaneEditorPlugin.layout`: the page layout, `titlebar` (the default), `statusbar`, `floating` or `classic`. The first three put the editor in a page frame (class `EditorFrame`) with the modes as coloured icons on the right (`EditorModeBar`, names shown or hidden, a click on the open mode hides the panel) and Shift+T for a light or dark theme. `classic` is the old page, with the mode tabs at the bottom. The layout picked in the frame's layout menu or in the plugin's UI is kept in `localStorage` (`TweakpaneEditorPlugin.LayoutStorageKey`); `TweakpaneEditorPlugin.DefaultLayout` sets the layout when none is stored, and `frameOptions` the app name and theme pairs. In the tweakpane-editor example: `?layout=titlebar|statusbar|floating|classic`.
+- `TweakpaneEditorPlugin` has a UI (`Editor` folder: Page layout, Mode names), shown in the Viewer mode of the tweakpane-editor example, also in the classic layout.
 - `HierarchyUiPlugin.treeView` is typed `any`: treejs is bundled from a git repository and not on npm, so its type could not resolve in consumer declarations.
 
 ## [0.6.0]
