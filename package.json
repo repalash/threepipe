@@ -39,7 +39,7 @@
   "packageManager": "npm@10.9.4",
   "scripts": {
     "vite": "NODE_ENV=development vite --config vite.examples.config.js",
-    "start": "npm run vite",
+    "start": "npm run vite --",
     "dev": "NODE_ENV=development vite build --watch",
     "build": "npm run update-version && npm run compile && vite build",
     "compile": "rimraf lib && npm run compile:esm",
