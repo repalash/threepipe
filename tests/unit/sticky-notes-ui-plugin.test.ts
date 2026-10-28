@@ -218,6 +218,23 @@ describe('StickyNotesUiPlugin', () => {
         expect([box.selectionStart, box.selectionEnd]).toEqual([3, 3])
     })
 
+    test('a click on the badge of another note opens the menu of that note; on the same badge, it closes it', () => {
+        const {notes, layer} = setup()
+        notes.addNote('a')
+        notes.addNote('b')
+        const [ca, cb] = cards(layer)
+        ca.find('snp-badge')[0].fire('click')
+        expect(layer.find('snp-menu')).toHaveLength(1)
+        cb.find('snp-badge')[0].fire('click')
+        expect(layer.find('snp-menu')).toHaveLength(1)
+        layer.find('snp-menu')[0].button('This browser').fire('click')
+        expect(notes.notes.find(n => n.text === 'b')!.store).toBe('browser')
+        expect(notes.notes.find(n => n.text === 'a')!.store).toBe('file')
+        ca.find('snp-badge')[0].fire('click')
+        ca.find('snp-badge')[0].fire('click')
+        expect(layer.find('snp-menu')).toHaveLength(0)
+    })
+
     test('+ Context inserts the context line at the cursor', () => {
         const {notes, layer} = setup()
         notes.contextProvider = () => 'Move tool'

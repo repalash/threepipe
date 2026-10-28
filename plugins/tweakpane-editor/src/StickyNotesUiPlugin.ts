@@ -111,6 +111,8 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
     private _arrangeButton: HTMLButtonElement
     private _layoutButton: HTMLButtonElement
     private _menu?: HTMLDivElement
+    /** The button that opened the menu: a click on it again closes the menu */
+    private _menuAnchor?: HTMLElement
     private _ready = false
     private _resizer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(entries => {
         for (const {target} of entries) this._cardResized(target as HTMLDivElement)
@@ -514,11 +516,10 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
     }
 
     private _openMenu(anchor: HTMLElement, title: string, choose: (store: string) => void, current?: string) {
-        const open = this._menu?.dataset.anchor === title + anchor.className
+        const open = !!this._menu && this._menuAnchor === anchor
         this._closeMenu()
         if (open) return
         const menu = el('div', 'snp-menu')
-        menu.dataset.anchor = title + anchor.className
         menu.appendChild(el('div', 'snp-menu-title', title))
         for (const store of this._notes?.stores ?? []) {
             const b = button(store.label, '', () => {
@@ -540,6 +541,7 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
             menu.style.top = Math.round(Math.max(0, top)) + 'px'
         }
         this._menu = menu
+        this._menuAnchor = anchor
         document.addEventListener('pointerdown', this._pointerOutside, true)
     }
 
@@ -547,6 +549,7 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         document.removeEventListener('pointerdown', this._pointerOutside, true)
         this._menu?.remove()
         this._menu = undefined
+        this._menuAnchor = undefined
     }
 
     /** A press outside the menu closes it, but not one on a button that opens a menu: its click toggles it */
