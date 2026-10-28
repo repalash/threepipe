@@ -1,0 +1,53 @@
+/*
+ * StickyNotesPlugin: a post-it over the canvas. The notes inside (the np- classes of NotesPlugin) take their colours
+ * from the --tp-* variables, so each colour of the note sets them here. `theme` keeps the Tweakpane theme.
+ */
+.snp-card {
+    position: absolute; left: 12px; bottom: 12px; z-index: 20; width: 260px; display: flex; flex-direction: column;
+    border-radius: 6px; overflow: hidden; background: var(--tp-base-background-color, #ffffff);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12), 0 6px 18px rgba(0, 0, 0, 0.16);
+    font: 11px/1.4 var(--tp-font-family, Inter, ui-sans-serif, system-ui, sans-serif);
+}
+.snp-card[data-color="yellow"] {
+    --tp-base-background-color: #fff8c5; --tp-container-foreground-color: #3b3418; --tp-label-foreground-color: #8a7d3c;
+    --tp-input-background-color: #f3e9a8; --tp-input-foreground-color: #3b3418; --tp-container-border-color: #e8dc96;
+    --tp-button-background-color: #fffdf0; --tp-button-background-color-hover: #ffffff; --tp-button-foreground-color: #3b3418;
+    --snp-line: #efe3a0;
+}
+.snp-card[data-color="pink"] {
+    --tp-base-background-color: #ffe4ec; --tp-container-foreground-color: #4a1f2c; --tp-label-foreground-color: #9a5a6c;
+    --tp-input-background-color: #fbd3df; --tp-input-foreground-color: #4a1f2c; --tp-container-border-color: #f2bfcf;
+    --tp-button-background-color: #fff5f8; --tp-button-background-color-hover: #ffffff; --tp-button-foreground-color: #4a1f2c;
+    --snp-line: #f7cfdb;
+}
+.snp-card[data-color="blue"] {
+    --tp-base-background-color: #e3f1ff; --tp-container-foreground-color: #17324d; --tp-label-foreground-color: #557a9e;
+    --tp-input-background-color: #d2e7fb; --tp-input-foreground-color: #17324d; --tp-container-border-color: #bcd8f2;
+    --tp-button-background-color: #f5faff; --tp-button-background-color-hover: #ffffff; --tp-button-foreground-color: #17324d;
+    --snp-line: #cfe3f7;
+}
+.snp-card[data-color="green"] {
+    --tp-base-background-color: #e5f7e1; --tp-container-foreground-color: #1f3a1a; --tp-label-foreground-color: #5a8550;
+    --tp-input-background-color: #d3efcc; --tp-input-foreground-color: #1f3a1a; --tp-container-border-color: #bfe2b6;
+    --tp-button-background-color: #f6fcf4; --tp-button-background-color-hover: #ffffff; --tp-button-foreground-color: #1f3a1a;
+    --snp-line: #cdeac6;
+}
+.snp-head {
+    display: flex; align-items: center; gap: 6px; padding: 7px 8px 3px 10px; cursor: grab; user-select: none; touch-action: none;
+    color: var(--tp-container-foreground-color, #1e1e1e);
+}
+.snp-head:active { cursor: grabbing; }
+.snp-head b { flex: 1; font-weight: 600; }
+.snp-collapse {
+    border: 0; background: transparent; color: var(--tp-label-foreground-color, #757575); cursor: pointer;
+    font: inherit; font-size: 14px; line-height: 1; padding: 0 4px;
+}
+.snp-collapsed .np-root { display: none; }
+.snp-collapsed .snp-head { padding-bottom: 7px; }
+/* the colours of the note: the text on ruled lines, like a paper note */
+.snp-card:not([data-color="theme"]) .np-root textarea {
+    background: transparent; padding: 0 2px; line-height: 22px; min-height: 132px;
+    background-image: linear-gradient(transparent 21px, var(--snp-line) 22px); background-size: 100% 22px;
+    background-attachment: local; /* the lines scroll with the text */
+}
+.snp-card:not([data-color="theme"]) .np-root textarea:focus { box-shadow: none; }

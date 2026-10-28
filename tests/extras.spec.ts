@@ -140,6 +140,7 @@ test('ssgi-ssr-plugin', async({page}) => expect(page).toHaveTitle('SSGI + SSR Pl
 test('ssreflection-plugin', async({page}) => expect(page).toHaveTitle('SSReflection Plugin'))
 test('sscontactshadows-plugin', async({page}) => expect(page).toHaveTitle('SS Contact Shadows Plugin'))
 test('stencil-picking-outline', async({page}) => expect(page).toHaveTitle('Stencil Picking Outline'))
+test('sticky-notes-plugin', async({page}) => expect(page).toHaveTitle('Sticky Notes Plugin'))
 test('svg-geometry-playground', async({page}) => expect(page).toHaveTitle('SVG Geometry Renderer'))
 test('switch-node-plugin', async({page}) => expect(page).toHaveTitle('Switch Node Plugin (Configurator)'))
 test('tailwind-css-cdn-plugin', async({page}) => expect(page).toHaveTitle('TailwindCSS CDN Plugin'))

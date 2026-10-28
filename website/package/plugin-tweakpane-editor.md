@@ -90,3 +90,37 @@ document.getElementById('side-panel')!.appendChild(notes.element)
 ```
 
 The notes use the colours of the Tweakpane theme (the `--tp-*` variables). Set `NotesPlugin.InjectStyles = false` before the plugin is made to style the `np-` classes yourself.
+
+## StickyNotesPlugin
+
+[Example](https://threepipe.org/examples/#sticky-notes-plugin/) &mdash;
+[Source Code](https://github.com/repalash/threepipe/blob/master/plugins/tweakpane-editor/src/StickyNotesPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/plugins/tweakpane-editor/docs/classes/StickyNotesPlugin.html)
+
+`StickyNotesPlugin` extends `NotesPlugin`: the same notes (the Scene and Page tabs, "+ Context", "Copy"), as a post-it over the canvas instead of in the panel.
+
+- Drag the note by its header. "–" collapses it to the header. Its place and the collapsed state are kept in `localStorage` (key `<pageKey>:sticky`).
+- The note stays inside the canvas when the window changes size.
+
+The plugin's UI folder, `Sticky Notes`, has the settings, not the notes:
+
+| Setting | Property | Saved in the file |
+|---|---|---|
+| Show | `shown` | no |
+| Colour: yellow, pink, blue, green, or `theme` (the Tweakpane theme) | `color` | yes |
+| Collapsed | `collapsed` | no (`localStorage`) |
+| Save in the file: the scene notes go into the viewer config and an exported .glb | `saveSceneNotes` | yes |
+| Reset position: the bottom left corner | `resetPosition()` | |
+| Clear scene notes | `sceneNotes = ''` | |
+
+```typescript
+import {StickyNotesPlugin} from '@threepipe/plugin-tweakpane-editor'
+
+const notes = viewer.addPluginSync(new StickyNotesPlugin({pageKey: 'my-app-notes'}))
+ui.setupPluginUi(StickyNotesPlugin) // the settings
+
+notes.color = 'blue'
+notes.saveSceneNotes = false // keep the notes out of exported files
+```
+
+`StickyNotesPlugin.InjectStyles = false` leaves the `snp-` classes to the page.

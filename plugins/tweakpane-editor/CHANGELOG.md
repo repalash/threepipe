@@ -8,7 +8,8 @@ All notable changes to this plugin will be documented in this file.
 
 ### Added
 
-- `NotesPlugin`: notes in the editor, in two tabs. Scene notes are serialized (saved in the viewer config and in an exported .glb); page notes are kept in `localStorage`, and on a server with `syncUrl`. "+ Context" adds the time and the names of the selected objects. Its UI folder is `Notes`; the `notes-plugin` example and the Extras mode of the tweakpane editor example show it.
+- `NotesPlugin`: notes in the editor, in two tabs. Scene notes are serialized (saved in the viewer config and in an exported .glb); page notes are kept in `localStorage`, and on a server with `syncUrl`. "+ Context" adds the time and the names of the selected objects. Its UI folder is `Notes`; the `notes-plugin` example shows it.
+- `StickyNotesPlugin` (extends `NotesPlugin`): the same notes as a post-it over the canvas, dragged by its header, collapsed with "–"; its place and the collapsed state are kept in `localStorage`. Its UI folder, `Sticky Notes`, has the settings: show, colour (yellow, pink, blue, green or the Tweakpane theme), collapsed, save the scene notes in the file, reset position, clear the scene notes. `color` and `saveSceneNotes` are serialized. The `sticky-notes-plugin` example and the Extras mode of the tweakpane editor example show it.
 
 ### Changed
 
