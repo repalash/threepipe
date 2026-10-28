@@ -134,6 +134,7 @@ export class StickyNotesPlugin extends NotesPlugin {
     private _collapsedChanged() {
         if (!this._collapseButton) return // the field initializer, before the card exists
         this._renderCollapsed()
+        this._place() // a note expanded near the bottom moves up, to stay inside the canvas
         this._writeState()
         this.uiConfig?.uiRefresh?.(true)
     }

@@ -188,6 +188,21 @@ describe('StickyNotesPlugin', () => {
         expect(JSON.parse(storage.get('k:sticky')!).x).toBeUndefined()
     })
 
+    test('a collapsed note dragged to the bottom moves up when it expands, to stay inside the canvas', () => {
+        const notes = new StickyNotesPlugin()
+        notes.onAdded(fakeViewer())
+        const {card: c, head, collapse} = card(notes)
+        collapse.fire('click')
+        c.offsetHeight = 30 // the header only
+        head.fire('pointerdown', {clientX: 20, clientY: 400})
+        head.fire('pointermove', {clientX: 20, clientY: 2000})
+        head.fire('pointerup')
+        expect(c.style.top).toBe('570px') // 600 - 30
+        c.offsetHeight = 200
+        collapse.fire('click')
+        expect(c.style.top).toBe('400px') // 600 - 200
+    })
+
     test('a press on the collapse button does not start a drag', () => {
         const notes = new StickyNotesPlugin()
         notes.onAdded(fakeViewer())
