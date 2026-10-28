@@ -1,242 +1,317 @@
-import {AViewerPluginSync, createStyles, IObject3D, onChange, PickingPlugin, serialize, ThreeViewer} from 'threepipe'
+import {AViewerPluginEventMap, AViewerPluginSync, IObject3D, PickingPlugin, serialize, ThreeViewer} from 'threepipe'
 import {UiObjectConfig} from 'uiconfig.js'
-import styles from './NotesPlugin.css?inline'
+
+/** One note */
+export interface NoteItem {
+    /** Unique in the plugin */
+    id: string
+    text: string
+    /** The {@link NotesStore.id} of the store that keeps the note */
+    store: string
+    /** When the note was made, in ms since 1970 */
+    created: number
+}
+
+/**
+ * Where notes are kept. {@link NotesPlugin} has two stores: `file` (in the viewer config, so in an exported .glb) and
+ * `browser` ({@link BrowserNotesStore}). An app adds others with {@link NotesPlugin.addStore}, for example a server
+ * ({@link HttpNotesStore}) or its own backend.
+ */
+export interface NotesStore {
+    /** Unique in the plugin, kept in {@link NoteItem.store} */
+    readonly id: string
+    /** The name in the UI, like "In the file" */
+    readonly label: string
+    /** The notes of this store. Called when the plugin is added to a viewer, or the store to the plugin. */
+    load(): NoteItem[] | Promise<NoteItem[]>
+    /** Keeps all the notes of this store. Called 600 ms after the last change of one of them. */
+    save(notes: NoteItem[]): void | Promise<void>
+}
+
+/** The state of a store: its notes are loading, saved, waiting to be saved, being saved, or it failed */
+export type NotesStoreStatus = 'loading' | 'saved' | 'changed' | 'saving' | 'error'
+
+/** Keeps notes in `localStorage`, in this browser only */
+export class BrowserNotesStore implements NotesStore {
+    constructor(readonly key = 'threepipe-notes', readonly id = 'browser', readonly label = 'This browser') {}
+
+    load(): NoteItem[] {
+        try {
+            const notes = JSON.parse(localStorage.getItem(this.key) || '[]')
+            return Array.isArray(notes) ? notes : []
+        } catch (e) {
+            return [] // no storage, or not JSON
+        }
+    }
+
+    save(notes: NoteItem[]) {
+        localStorage.setItem(this.key, JSON.stringify(notes))
+    }
+}
+
+/** Keeps notes on a server: GET {@link url} returns `{notes: NoteItem[]}`, POST {@link url} takes `{notes}` */
+export class HttpNotesStore implements NotesStore {
+    constructor(readonly url: string, readonly id = 'server', readonly label = 'Server') {}
+
+    async load(): Promise<NoteItem[]> {
+        const r = await fetch(this.url)
+        if (!r.ok) throw new Error('HttpNotesStore: GET ' + r.status)
+        const d = await r.json()
+        return Array.isArray(d?.notes) ? d.notes : []
+    }
+
+    async save(notes: NoteItem[]) {
+        const r = await fetch(this.url, {method: 'POST', headers: [['Content-Type', 'application/json']], body: JSON.stringify({notes})})
+        if (!r.ok) throw new Error('HttpNotesStore: POST ' + r.status)
+    }
+}
 
 export interface NotesPluginOptions {
-    /** The `localStorage` key of the page notes. Default: `threepipe-page-notes` */
-    pageKey?: string
-    /**
-     * An endpoint that also keeps the page notes, for another browser or device: GET returns `{text}`, POST takes
-     * `{text}`. Without it, the page notes stay in this browser.
-     */
-    syncUrl?: string
-    /** Extra text for the "+ Context" line, for example the current tool or mode */
+    /** The `file` store: notes saved in the viewer config, so in an exported .glb. Default: true */
+    file?: boolean
+    /** The `browser` store ({@link BrowserNotesStore}), or its `localStorage` key. Default: true (key `threepipe-notes`) */
+    browser?: boolean | string
+    /** More stores, after `file` and `browser` */
+    stores?: NotesStore[]
+    /** Extra text for {@link NotesPlugin.contextLine}, for example the current tool or mode */
     contextProvider?: () => string
 }
 
-type NotesTab = 'scene' | 'page'
+export interface NotesPluginEventMap extends AViewerPluginEventMap {
+    /** A note was added, changed or removed, or a store loaded its notes */
+    notesChanged: {change: 'add' | 'update' | 'remove' | 'load', note?: NoteItem}
+    /** The {@link NotesStoreStatus} of a store changed */
+    storeStatusChanged: {store: string, status: NotesStoreStatus}
+}
 
 /**
  * Notes Plugin
  *
- * Notes in the editor, in two tabs:
- * - **Scene**: {@link sceneNotes}, a serialized property, so the notes are saved in the viewer config, inside an
- *   exported .glb, and come back when the file loads.
- * - **Page**: kept in this browser (`localStorage`, {@link pageKey}), and also on a server with {@link syncUrl}.
- *   When both have notes, the longer text wins at the start, for example notes written on another device.
+ * A list of notes, each kept in a store:
+ * - `file`: {@link fileNotes}, a serialized property, so these notes are saved in the viewer config, inside an
+ *   exported .glb, and come back when the file loads;
+ * - `browser`: `localStorage` ({@link BrowserNotesStore});
+ * - any store the app adds ({@link addStore}), for example {@link HttpNotesStore} or its own.
  *
- * "+ Context" adds a line with the time, {@link contextProvider} and the names of the selected objects (from the
- * `PickingPlugin`). "Copy" copies the open tab. Keys typed in the notes do not reach the viewer's shortcuts.
+ * The plugin has no notes UI: a view shows {@link notes} and edits them with {@link addNote}, {@link updateNote} and
+ * {@link removeNote}, for example `StickyNotesUiPlugin` (post-its over the canvas). The `notesChanged` event tells the
+ * views to update. Changes are saved per store, 600 ms after the last one, and when the plugin is removed.
  *
- * The UI is {@link element}: in the plugin's UI folder (Notes), or mounted anywhere else.
+ * Its UI folder (Notes) has the settings: the store of new notes, and clear the notes in the file.
  *
  * @category Plugins
  */
-export class NotesPlugin extends AViewerPluginSync {
+export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
     static readonly PluginType = 'NotesPlugin'
-    /** Adds the stylesheet of the notes to the page when the first one is made. Off: the page styles the `np-` classes. */
-    static InjectStyles = true
-    private static _styles?: HTMLStyleElement
     enabled = true
 
-    /** Notes saved with the scene (in the viewer config, so in an exported .glb) */
+    /** The notes of the `file` store: saved in the viewer config, so in an exported .glb */
     @serialize()
-    @onChange(NotesPlugin.prototype._sceneNotesChanged)
-        sceneNotes = ''
+        fileNotes: NoteItem[] = []
 
-    /** The `localStorage` key of the page notes */
-    pageKey: string
-    /** An endpoint that also keeps the page notes ({@link NotesPluginOptions.syncUrl}) */
-    syncUrl?: string
-    /** Extra text for the "+ Context" line */
+    /** The store of a note made with {@link addNote} when it names none. Default: the first store. */
+    defaultStore = ''
+
+    /** Extra text for {@link contextLine} */
     contextProvider?: () => string
 
-    /** The notes UI: two tabs, the text, "+ Context", "Copy" and where the notes are kept */
-    readonly element: HTMLDivElement
-    private _text: HTMLTextAreaElement
-    private _status: HTMLSpanElement
-    private _tabButtons: Record<NotesTab, HTMLButtonElement>
-    private _tab: NotesTab = 'scene'
-    /** The person picked a tab: the plugin no longer picks the one that has notes */
-    private _tabChosen = false
-    private _pageNotes = ''
-    private _serverOk = false
+    private _notes: NoteItem[] = []
+    private _stores: NotesStore[] = []
+    private _status: Record<string, NotesStoreStatus> = {}
+    private _changed = new Set<string>()
     private _timer = 0
 
     uiConfig: UiObjectConfig = {
         type: 'folder',
         label: 'Notes',
-        children: [],
+        children: [
+            {
+                type: 'dropdown', label: 'New notes in', property: [this, 'defaultStore'],
+                children: () => this._stores.map(s => ({label: s.label, value: s.id})),
+            },
+            {type: 'button', label: 'Clear notes in the file', value: () => this.clear('file'), hidden: () => !this.getStore('file')},
+        ],
     }
 
     constructor(options: NotesPluginOptions = {}) {
         super()
-        this.pageKey = options.pageKey ?? 'threepipe-page-notes'
-        this.syncUrl = options.syncUrl
         this.contextProvider = options.contextProvider
-        if (NotesPlugin.InjectStyles && !NotesPlugin._styles?.isConnected) NotesPlugin._styles = createStyles(styles)
-
-        this.element = element('div', 'np-root')
-        const tabs = element('div', 'np-tabs')
-        this._tabButtons = {
-            scene: element('button', '', 'Scene · in the file', 'Saved inside the scene file (.glb) when you export it'),
-            page: element('button', '', 'Page · this browser', 'Saved in this browser'),
-        }
-        for (const tab of ['scene', 'page'] as const) {
-            const b = this._tabButtons[tab]
-            b.addEventListener('click', () => {
-                this._tabChosen = true
-                this.setTab(tab)
-            })
-            tabs.appendChild(b)
-        }
-        this._text = element('textarea', '')
-        this._text.spellcheck = true
-        this._text.addEventListener('input', this._onInput)
-        // typing (Ctrl+Z, Delete, the arrows) does not reach the viewer's shortcuts
-        this._text.addEventListener('keydown', e => e.stopPropagation())
-        const foot = element('div', 'np-foot')
-        const context = element('button', '', '+ Context', 'Add the time and the selection')
-        context.addEventListener('click', () => this.addContext())
-        const copy = element('button', '', 'Copy', 'Copy the notes of this tab')
-        copy.addEventListener('click', () => {
-            navigator.clipboard?.writeText(this._text.value).then(() => this._setStatus('copied'))
-        })
-        this._status = element('span', 'np-status')
-        foot.appendChild(context)
-        foot.appendChild(copy)
-        foot.appendChild(this._status)
-        this.element.appendChild(tabs)
-        this.element.appendChild(this._text)
-        this.element.appendChild(foot)
-        this.uiConfig.domChildren = [this.element]
-
-        try {
-            this._pageNotes = localStorage.getItem(this.pageKey) || ''
-        } catch (e) {
-            this._pageNotes = '' // no storage
-        }
-        this._pickTab()
+        if (options.file !== false) this._stores.push(this._fileStore)
+        if (options.browser !== false) this._stores.push(new BrowserNotesStore(typeof options.browser === 'string' ? options.browser : undefined))
+        this._stores.push(...options.stores ?? [])
+        this.defaultStore = this._stores[0]?.id ?? ''
+        // a loaded scene or config brings its own file notes
+        this.addEventListener('deserialize', () => this.getStore('file') && this._loadStore(this._fileStore))
     }
 
-    /** The open tab */
-    get tab(): NotesTab {
-        return this._tab
+    /** All the notes, in the order of the stores, then the order they were made */
+    get notes(): readonly NoteItem[] {
+        return this._notes
     }
 
-    /** The notes kept in this browser (and on the server, with {@link syncUrl}) */
-    get pageNotes() {
-        return this._pageNotes
+    get stores(): readonly NotesStore[] {
+        return this._stores
+    }
+
+    /** A store, by its id */
+    getStore(id: string): NotesStore | undefined {
+        return this._stores.find(s => s.id === id)
+    }
+
+    /** The state of a store */
+    storeStatus(id: string): NotesStoreStatus {
+        return this._status[id] ?? 'saved'
+    }
+
+    /** Adds a store, and loads its notes when the plugin is in a viewer. A store with the same id is replaced. */
+    addStore(store: NotesStore) {
+        const old = this._stores.findIndex(s => s.id === store.id)
+        if (old >= 0) this._stores[old] = store
+        else this._stores.push(store)
+        if (!this.defaultStore) this.defaultStore = store.id
+        this.uiConfig.uiRefresh?.(true)
+        if (this._viewer) this._loadStore(store)
     }
 
     onAdded(viewer: ThreeViewer) {
         super.onAdded(viewer)
-        if (!this.syncUrl) return
-        const before = this._pageNotes
-        fetch(this.syncUrl).then(async r => r.ok ? r.json() : Promise.reject(r.status)).then((d: {text?: string}) => {
-            this._serverOk = true
-            const server = typeof d.text === 'string' ? d.text : ''
-            // the longer notes win, but not over edits made while the server answered: then this browser's notes win
-            if (this._pageNotes === before && server.length > before.length) {
-                this._pageNotes = server
-                this._storeLocal()
-                this._pickTab()
-            } else if (this._pageNotes !== server) {
-                this._savePage() // keeps this browser's notes on the server
-            } else {
-                this._render()
-            }
-        }).catch(() => this._render())
+        for (const store of this._stores) this._loadStore(store)
     }
 
     onRemove(viewer: ThreeViewer) {
-        // the page notes typed in the last 600 ms
-        if (this._timer) this._savePage()
-        this.element.remove()
+        // the changes of the last 600 ms
+        if (this._timer) void this._saveChanged()
         super.onRemove(viewer)
     }
 
-    /** Opens a tab */
-    setTab(tab: NotesTab) {
-        this._tab = tab
-        this._render()
+    /** Makes a note, at the end of the notes of its store ({@link defaultStore} when none is named) */
+    addNote(text = '', store = this.defaultStore): NoteItem {
+        if (!this.getStore(store)) throw new Error('NotesPlugin: no store ' + store)
+        const note: NoteItem = {id: newId(), text, store, created: Date.now()}
+        this._notes.splice(this._endOfStore(store), 0, note)
+        this._changedStore(store)
+        this.dispatchEvent({type: 'notesChanged', change: 'add', note})
+        return note
     }
 
-    /** Inserts a line "[time · context · selected: …]" at the cursor of the open tab */
-    addContext() {
+    /** Changes the text of a note, or moves it to the end of the notes of another store */
+    updateNote(id: string, patch: Partial<Pick<NoteItem, 'text' | 'store'>>) {
+        const note = this._notes.find(n => n.id === id)
+        if (!note) return
+        if (patch.store !== undefined && patch.store !== note.store) {
+            if (!this.getStore(patch.store)) throw new Error('NotesPlugin: no store ' + patch.store)
+            this._changedStore(note.store)
+            this._notes.splice(this._notes.indexOf(note), 1)
+            note.store = patch.store
+            this._notes.splice(this._endOfStore(note.store), 0, note)
+        }
+        if (patch.text !== undefined) note.text = patch.text
+        this._changedStore(note.store)
+        this.dispatchEvent({type: 'notesChanged', change: 'update', note})
+    }
+
+    removeNote(id: string) {
+        const note = this._notes.find(n => n.id === id)
+        if (!note) return
+        this._notes.splice(this._notes.indexOf(note), 1)
+        this._changedStore(note.store)
+        this.dispatchEvent({type: 'notesChanged', change: 'remove', note})
+    }
+
+    /** Removes all the notes of a store */
+    clear(store: string) {
+        if (!this._notes.some(n => n.store === store)) return
+        this._notes = this._notes.filter(n => n.store !== store)
+        this._changedStore(store)
+        this.dispatchEvent({type: 'notesChanged', change: 'remove'})
+    }
+
+    /** A line "[time · context · selected: names]" for a note: the time, {@link contextProvider}, the selected objects */
+    contextLine(): string {
         const selected = (this._viewer?.getPlugin(PickingPlugin)?.getSelectedObjects() || []) as any[]
         const names = selected.map(o => (o as IObject3D)?.name || o?.type).filter(Boolean).join(', ')
         const extra = this.contextProvider?.() || ''
-        const t = this._text
-        const at = t.selectionStart ?? t.value.length
-        const line = `${at ? '\n' : ''}[${new Date().toLocaleString()}${extra ? ' · ' + extra : ''}${names ? ' · selected: ' + names : ''}]\n`
-        t.value = t.value.slice(0, at) + line + t.value.slice(at)
-        t.focus()
-        t.selectionStart = t.selectionEnd = at + line.length
-        this._onInput()
+        return `[${new Date().toLocaleString()}${extra ? ' · ' + extra : ''}${names ? ' · selected: ' + names : ''}]`
     }
 
-    /** Until the person picks a tab: the one that has notes, the scene first */
-    private _pickTab() {
-        if (this._tabChosen) return this._render()
-        this.setTab(!this.sceneNotes && this._pageNotes ? 'page' : 'scene')
+    /** Saves the changed stores now, instead of 600 ms after the last change */
+    async flush() {
+        await this._saveChanged()
     }
 
-    private _render() {
-        for (const tab of ['scene', 'page'] as const) this._tabButtons[tab].classList.toggle('on', tab === this._tab)
-        const v = this._tab === 'scene' ? this.sceneNotes : this._pageNotes
-        if (this._text.value !== v) this._text.value = v
-        this._text.placeholder = this._tab === 'scene' ?
-            'Notes about this scene. They are saved inside the .glb when you export it.' :
-            'Your notes for this page, kept in this browser. “+ Context” adds the time and the selection.'
-        this._setStatus(this._tab === 'scene' ? 'in the file' : this._serverOk ? 'browser + server' : 'this browser')
+    private _fileStore: NotesStore = {
+        id: 'file',
+        label: 'In the file',
+        load: () => this.fileNotes.map(n => ({...n})),
+        save: (notes) => {
+            this.fileNotes = notes
+        },
     }
 
-    private _setStatus(s: string) {
-        this._status.textContent = s
+    /** The index after the notes of a store: the first note of a later store */
+    private _endOfStore(store: string) {
+        const rank = (id: string) => this._stores.findIndex(s => s.id === id)
+        const r = rank(store)
+        const i = this._notes.findIndex(n => rank(n.store) > r)
+        return i < 0 ? this._notes.length : i
     }
 
-    private _sceneNotesChanged() {
-        if (!this._text) return // the field initializer, before the UI exists
-        if (document.activeElement !== this._text) this._pickTab()
+    private _setStatus(store: string, status: NotesStoreStatus) {
+        if (this._status[store] === status) return
+        this._status[store] = status
+        this.dispatchEvent({type: 'storeStatusChanged', store, status})
     }
 
-    private _onInput = () => {
-        if (this._tab === 'scene') {
-            this.sceneNotes = this._text.value
-            this._setStatus('in the file (export to save)')
-            return
-        }
-        this._pageNotes = this._text.value
-        this._setStatus('editing…')
+    private _loadStore(store: NotesStore) {
+        this._setStatus(store.id, 'loading')
+        Promise.resolve().then(async() => store.load()).then(loaded => {
+            if (this.getStore(store.id) !== store) return // replaced meanwhile
+            // notes made in this store while it loaded stay, after the loaded ones, and are saved
+            const made = this._changed.has(store.id) ? this._notes.filter(n => n.store === store.id) : []
+            const ids = new Set(made.map(n => n.id))
+            const notes = (Array.isArray(loaded) ? loaded : [])
+                .filter(n => n && typeof n.text === 'string' && !ids.has(n.id))
+                .map(n => ({id: String(n.id || newId()), text: n.text, store: store.id, created: Number(n.created) || Date.now()}))
+            this._notes = this._notes.filter(n => n.store !== store.id)
+            this._notes.splice(this._endOfStore(store.id), 0, ...notes, ...made)
+            this._setStatus(store.id, made.length ? 'changed' : 'saved')
+            this.dispatchEvent({type: 'notesChanged', change: 'load'})
+        }).catch(e => {
+            console.warn('NotesPlugin: could not load the notes of ' + store.id, e)
+            this._setStatus(store.id, 'error')
+        })
+    }
+
+    private _changedStore(store: string) {
+        this._changed.add(store)
+        this._setStatus(store, 'changed')
         clearTimeout(this._timer)
-        this._timer = window.setTimeout(this._savePage, 600)
+        this._timer = window.setTimeout(() => void this._saveChanged(), 600)
     }
 
-    private _storeLocal() {
-        try {
-            localStorage.setItem(this.pageKey, this._pageNotes)
-        } catch (e) {
-            // no storage: only the server copy, if any
-        }
-    }
-
-    private _savePage = () => {
+    private async _saveChanged() {
         clearTimeout(this._timer)
         this._timer = 0
-        this._storeLocal()
-        if (!this._serverOk || !this.syncUrl) return this._setStatus('this browser')
-        fetch(this.syncUrl, {method: 'POST', headers: [['Content-Type', 'application/json']], body: JSON.stringify({text: this._pageNotes})})
-            .then(r => this._setStatus(r.ok ? 'browser + server' : 'server failed, kept in browser'))
-            .catch(() => this._setStatus('server failed, kept in browser'))
+        const changed = [...this._changed]
+        this._changed.clear()
+        await Promise.all(changed.map(async id => {
+            const store = this.getStore(id)
+            if (!store) return
+            this._setStatus(id, 'saving')
+            try {
+                await store.save(this._notes.filter(n => n.store === id).map(n => ({...n})))
+                if (!this._changed.has(id)) this._setStatus(id, 'saved')
+            } catch (e) {
+                console.warn('NotesPlugin: could not save the notes of ' + id, e)
+                this._setStatus(id, 'error')
+            }
+        }))
     }
 }
 
-/** An element with a class, a text and a tooltip */
-function element<K extends keyof HTMLElementTagNameMap>(tag: K, className: string, text = '', title = ''): HTMLElementTagNameMap[K] {
-    const e = document.createElement(tag)
-    if (className) e.className = className
-    if (text) e.textContent = text
-    if (title) e.title = title
-    return e
+let lastId = 0
+
+/** An id unique in this page, and very likely across pages: the time, a counter and a random part */
+function newId() {
+    return Date.now().toString(36) + '-' + (++lastId).toString(36) + Math.random().toString(36).slice(2, 6)
 }

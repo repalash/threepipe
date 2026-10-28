@@ -8,8 +8,8 @@ All notable changes to this plugin will be documented in this file.
 
 ### Added
 
-- `NotesPlugin`: notes in the editor, in two tabs. Scene notes are serialized (saved in the viewer config and in an exported .glb); page notes are kept in `localStorage`, and on a server with `syncUrl`. "+ Context" adds the time and the names of the selected objects. Its UI folder is `Notes`; the `notes-plugin` example shows it.
-- `StickyNotesPlugin` (extends `NotesPlugin`): the same notes as a post-it over the canvas, dragged by its header, collapsed with "–"; its place and the collapsed state are kept in `localStorage`. Its UI folder, `Sticky Notes`, has the settings: show, colour (yellow, pink, blue, green or the Tweakpane theme), collapsed, save the scene notes in the file, reset position, clear the scene notes. `color` and `saveSceneNotes` are serialized. The `sticky-notes-plugin` example and the Extras mode of the tweakpane editor example show it.
+- `NotesPlugin`: a list of notes, each kept in a store: `file` (serialized, so saved in the viewer config and in an exported .glb), `browser` (`localStorage`, `BrowserNotesStore`), or a store of the app (`NotesStore`, `addStore`; `HttpNotesStore` for a server). Changes are saved per store 600 ms after the last one; notes made while a store loads are kept. Events `notesChanged` and `storeStatusChanged`; `contextLine()` gives the time, the context and the selected names. Its UI folder, `Notes`, has the settings.
+- `StickyNotesUiPlugin`: the notes as post-its over the canvas, in the `board` layout (a post-it per note, "Arrange") or the `stack` layout (one post-it); "+ Note" with a menu of the stores, a badge to move a note to another store, "+ Context", "Copy" and "×" per note; post-its are dragged by their bar and sized from their corner. The layout, the colour, the places and the sizes are kept in `localStorage`. Its UI folder, `Sticky Notes`, has the settings. The `notes-plugin` example and the Extras mode of the tweakpane editor example show both.
 
 ### Changed
 

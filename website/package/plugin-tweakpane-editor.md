@@ -54,73 +54,60 @@ editor.loadPlugins({
 })
 ```
 
-## NotesPlugin
+## NotesPlugin and StickyNotesUiPlugin
 
 [Example](https://threepipe.org/examples/#notes-plugin/) &mdash;
 [Source Code](https://github.com/repalash/threepipe/blob/master/plugins/tweakpane-editor/src/NotesPlugin.ts) &mdash;
 [API Reference](https://threepipe.org/plugins/tweakpane-editor/docs/classes/NotesPlugin.html)
 
-`NotesPlugin` adds notes to the editor, in a UI folder (`Notes`) with two tabs:
+`NotesPlugin` keeps a list of notes. Each note is kept in a store:
 
-- **Scene**: `sceneNotes` is a serialized property. The notes are saved in the viewer config, so in an exported .glb, and come back when the file loads.
-- **Page**: kept in this browser (`localStorage`, key `pageKey`). With `syncUrl`, they are also kept on a server: GET returns `{text}`, POST takes `{text}`. At the start, the longer text of the two wins.
+- `file`: the `fileNotes` property is serialized, so these notes are saved in the viewer config, inside an exported .glb, and come back when the file loads.
+- `browser`: `localStorage` (`BrowserNotesStore`).
+- A store of the app: any object with `id`, `label`, `load()` and `save(notes)` (`NotesStore`), added with `addStore()` or the `stores` option. `HttpNotesStore` is one for a server: GET returns `{notes}`, POST takes `{notes}`.
 
-"+ Context" adds a line with the time, the text of `contextProvider` and the names of the objects selected in `PickingPlugin`. "Copy" copies the open tab. Keys typed in the notes do not reach the viewer's shortcuts.
+Changes are saved per store, 600 ms after the last one, and when the plugin is removed. Notes made in a store while it loads are kept and saved. The plugin has no notes UI. Its UI folder (`Notes`) has the settings: the store of new notes, and clear the notes in the file.
+
+`StickyNotesUiPlugin` shows the notes as post-its over the canvas, in one of two layouts:
+
+- `board`: each note is its own post-it. "Arrange" puts them in columns. "Stack" switches to the other layout.
+- `stack`: one post-it with the notes one above the other. "Spread" switches back.
+
+In both layouts:
+
+- "+ Note" makes a note. With more than one store, a menu asks where to keep it.
+- The badge of a note shows its store; a click moves the note to another store.
+- Each note has "+ Context" (the time, `contextProvider` and the selected objects), "Copy" and "×".
+- Drag a post-it by its bar, and size it from its bottom right corner.
+
+The layout, the colour, and the places and sizes of the post-its are kept in `localStorage` (the `storageKey` of the plugin), not in the file. Its UI folder (`Sticky Notes`) has the settings: Show, Layout, Colour (yellow, pink, blue, green, or `theme` for the Tweakpane theme), Arrange and Reset places.
 
 ```typescript
 import {PickingPlugin, ThreeViewer} from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
-import {NotesPlugin} from '@threepipe/plugin-tweakpane-editor'
+import {HttpNotesStore, NotesPlugin, NotesStore, StickyNotesUiPlugin} from '@threepipe/plugin-tweakpane-editor'
 
 const viewer = new ThreeViewer({...})
 viewer.addPluginSync(PickingPlugin)
 const notes = viewer.addPluginSync(new NotesPlugin({
-    pageKey: 'my-app-notes', // default: 'threepipe-page-notes'
-    syncUrl: '/api/notes', // optional
+    browser: 'my-app-notes', // the localStorage key; false: no browser store
+    stores: [new HttpNotesStore('/api/notes')], // optional: a server
     contextProvider: () => 'Move tool', // optional, extra text for "+ Context"
 }))
+viewer.addPluginSync(new StickyNotesUiPlugin())
+
+// a store of the app
+const myStore: NotesStore = {
+    id: 'project', label: 'This project',
+    load: async() => (await api.getNotes()) ?? [],
+    save: async(list) => api.setNotes(list),
+}
+notes.addStore(myStore)
+notes.addNote('Check the prongs', 'file')
 
 const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
-ui.setupPluginUi(NotesPlugin, {expanded: true})
-
-notes.sceneNotes = 'Check the prongs' // saved with the scene
-
-// or mount the notes anywhere on the page, without the tweakpane UI
-document.getElementById('side-panel')!.appendChild(notes.element)
+ui.setupPluginUi(StickyNotesUiPlugin) // the settings
+ui.setupPluginUi(NotesPlugin)
 ```
 
-The notes use the colours of the Tweakpane theme (the `--tp-*` variables). Set `NotesPlugin.InjectStyles = false` before the plugin is made to style the `np-` classes yourself.
-
-## StickyNotesPlugin
-
-[Example](https://threepipe.org/examples/#sticky-notes-plugin/) &mdash;
-[Source Code](https://github.com/repalash/threepipe/blob/master/plugins/tweakpane-editor/src/StickyNotesPlugin.ts) &mdash;
-[API Reference](https://threepipe.org/plugins/tweakpane-editor/docs/classes/StickyNotesPlugin.html)
-
-`StickyNotesPlugin` extends `NotesPlugin`: the same notes (the Scene and Page tabs, "+ Context", "Copy"), as a post-it over the canvas instead of in the panel.
-
-- Drag the note by its header. "–" collapses it to the header. Its place and the collapsed state are kept in `localStorage` (key `<pageKey>:sticky`).
-- The note stays inside the canvas when the window changes size.
-
-The plugin's UI folder, `Sticky Notes`, has the settings, not the notes:
-
-| Setting | Property | Saved in the file |
-|---|---|---|
-| Show | `shown` | no |
-| Colour: yellow, pink, blue, green, or `theme` (the Tweakpane theme) | `color` | yes |
-| Collapsed | `collapsed` | no (`localStorage`) |
-| Save in the file: the scene notes go into the viewer config and an exported .glb | `saveSceneNotes` | yes |
-| Reset position: the bottom left corner | `resetPosition()` | |
-| Clear scene notes | `sceneNotes = ''` | |
-
-```typescript
-import {StickyNotesPlugin} from '@threepipe/plugin-tweakpane-editor'
-
-const notes = viewer.addPluginSync(new StickyNotesPlugin({pageKey: 'my-app-notes'}))
-ui.setupPluginUi(StickyNotesPlugin) // the settings
-
-notes.color = 'blue'
-notes.saveSceneNotes = false // keep the notes out of exported files
-```
-
-`StickyNotesPlugin.InjectStyles = false` leaves the `snp-` classes to the page.
+Another view can show the same notes: read `notes.notes`, listen to the `notesChanged` event, and change them with `addNote`, `updateNote` and `removeNote`. Set `StickyNotesUiPlugin.InjectStyles = false` before the plugin is made to style the `snp-` classes yourself.

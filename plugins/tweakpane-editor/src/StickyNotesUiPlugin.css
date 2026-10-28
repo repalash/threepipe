@@ -1,0 +1,95 @@
+/*
+ * StickyNotesUiPlugin: post-its over the canvas. Each colour sets the --tp-* variables that the notes read, so the
+ * `theme` colour keeps the Tweakpane theme.
+ */
+.snp-layer { position: absolute; inset: 0; z-index: 20; pointer-events: none; overflow: hidden; }
+.snp-layer > * { pointer-events: auto; }
+.snp-layer[data-color="yellow"] {
+    --tp-base-background-color: #fff8c5; --tp-container-foreground-color: #3b3418; --tp-label-foreground-color: #8a7d3c;
+    --tp-container-border-color: #e8dc96; --tp-button-background-color: #fffdf0; --tp-button-background-color-hover: #ffffff;
+    --snp-line: #efe3a0; --snp-badge: #f3e9a8;
+}
+.snp-layer[data-color="pink"] {
+    --tp-base-background-color: #ffe4ec; --tp-container-foreground-color: #4a1f2c; --tp-label-foreground-color: #9a5a6c;
+    --tp-container-border-color: #f2bfcf; --tp-button-background-color: #fff5f8; --tp-button-background-color-hover: #ffffff;
+    --snp-line: #f7cfdb; --snp-badge: #fbd3df;
+}
+.snp-layer[data-color="blue"] {
+    --tp-base-background-color: #e3f1ff; --tp-container-foreground-color: #17324d; --tp-label-foreground-color: #557a9e;
+    --tp-container-border-color: #bcd8f2; --tp-button-background-color: #f5faff; --tp-button-background-color-hover: #ffffff;
+    --snp-line: #cfe3f7; --snp-badge: #d2e7fb;
+}
+.snp-layer[data-color="green"] {
+    --tp-base-background-color: #e5f7e1; --tp-container-foreground-color: #1f3a1a; --tp-label-foreground-color: #5a8550;
+    --tp-container-border-color: #bfe2b6; --tp-button-background-color: #f6fcf4; --tp-button-background-color-hover: #ffffff;
+    --snp-line: #cdeac6; --snp-badge: #d3efcc;
+}
+.snp-layer {
+    font: 11px/1.4 var(--tp-font-family, Inter, ui-sans-serif, system-ui, sans-serif);
+    color: var(--tp-container-foreground-color, #1e1e1e);
+}
+.snp-layer button {
+    border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; padding: 2px 6px; border-radius: 4px;
+}
+.snp-layer button:hover { background: var(--tp-button-background-color-hover, rgba(0, 0, 0, 0.06)); }
+
+/* a post-it: sized from its bottom right corner */
+.snp-card {
+    position: absolute; display: flex; flex-direction: column; box-sizing: border-box; overflow: hidden; resize: both;
+    min-width: 160px; min-height: 64px; border-radius: 6px; background: var(--tp-base-background-color, #ffffff);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12), 0 6px 18px rgba(0, 0, 0, 0.16);
+}
+.snp-note-card { width: 220px; height: 150px; }
+.snp-stack { left: 12px; bottom: 12px; width: 280px; height: 320px; }
+.snp-stack.snp-collapsed { height: auto !important; min-height: 0; resize: none; }
+.snp-collapsed .snp-list { display: none; }
+
+/* the bar of a note, and the head of the stack: drag the post-it by it */
+.snp-head, .snp-note-card .snp-bar { cursor: grab; user-select: none; touch-action: none; }
+.snp-head:active, .snp-note-card .snp-bar:active { cursor: grabbing; }
+.snp-head { display: flex; align-items: center; gap: 4px; padding: 6px 6px 4px 10px; }
+.snp-head b { font-weight: 600; }
+.snp-count { color: var(--tp-label-foreground-color, #757575); }
+.snp-fill { flex: 1; }
+.snp-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding: 0 8px 8px; }
+.snp-empty { color: var(--tp-label-foreground-color, #757575); padding: 8px 2px; }
+
+/* a note: its bar and its text on ruled lines */
+.snp-note { display: flex; flex-direction: column; min-height: 0; }
+.snp-note-card .snp-note { flex: 1; }
+.snp-stack .snp-note { border-top: 1px solid var(--tp-container-border-color, #e6e6e6); padding-top: 4px; }
+.snp-stack .snp-note:first-child { border-top: 0; padding-top: 0; }
+.snp-bar { display: flex; align-items: center; gap: 2px; padding: 4px 4px 2px 6px; }
+.snp-stack .snp-bar { padding: 2px 0; }
+.snp-badge {
+    background: var(--snp-badge, rgba(0, 0, 0, 0.06)) !important; color: var(--tp-label-foreground-color, #757575) !important;
+    padding: 1px 6px !important; border-radius: 9px !important; font-size: 10px !important; white-space: nowrap;
+}
+.snp-badge[data-status="error"] { color: #c62828 !important; }
+.snp-badge[data-status="changed"]::after, .snp-badge[data-status="saving"]::after { content: ' ·'; }
+.snp-tool { color: var(--tp-label-foreground-color, #757575) !important; opacity: 0; transition: opacity .12s; }
+.snp-note:hover .snp-tool, .snp-note:focus-within .snp-tool { opacity: 1; }
+.snp-delete { font-size: 13px !important; line-height: 1 !important; }
+.snp-note textarea {
+    flex: 1; width: 100%; min-height: 44px; box-sizing: border-box; border: 0; outline: none; resize: none; margin: 0;
+    padding: 0 8px 6px; font: inherit; font-size: 12px; color: inherit; line-height: 22px;
+    background: transparent linear-gradient(transparent 21px, var(--snp-line, transparent) 22px) 0 0 / 100% 22px local;
+}
+.snp-stack .snp-note textarea { padding: 0 2px; field-sizing: content; max-height: 220px; }
+.snp-layer[data-color="theme"] .snp-note textarea { background-image: none; }
+
+/* the buttons on the canvas in the board layout */
+.snp-dock {
+    position: absolute; left: 12px; bottom: 12px; display: flex; gap: 2px; padding: 3px; border-radius: 8px;
+    background: var(--tp-base-background-color, #ffffff); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+.snp-dock button { padding: 4px 8px; }
+
+/* the stores of "+ Note" and of a badge */
+.snp-menu {
+    position: absolute; z-index: 1; display: flex; flex-direction: column; min-width: 140px; padding: 4px; border-radius: 8px;
+    background: var(--tp-base-background-color, #ffffff); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08), 0 6px 20px rgba(0, 0, 0, 0.14);
+}
+.snp-menu-title { padding: 4px 8px; color: var(--tp-label-foreground-color, #757575); font-size: 10px; }
+.snp-menu button { text-align: left; padding: 6px 8px 6px 22px; position: relative; }
+.snp-menu button.on::before { content: '✓'; position: absolute; left: 7px; }
