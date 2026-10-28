@@ -669,6 +669,23 @@ describe('converge mode stop', () => {
         await plugin.stopRecording()
         expect(captured).toEqual([4])
     })
+
+    test('a last pose that converges while the browser recorder still records a frame is captured once it is ready', async() => {
+        const {plugin, captured} = converging(4)
+        const rec = plugin._recorder
+        let busy = true // the browser recorder records the frame of the pose before
+        let loops = 0
+        rec.isBusy = () => busy
+        const doOnce = plugin._viewer.doOnce
+        plugin._viewer.doOnce = async() => {
+            await doOnce() // renders until the pose converges (the converged render comes while busy)
+            if (++loops > 5) busy = false // the recorder ends its frame
+            plugin._postFrame() // the loop ends: a still loop captures when the recorder is ready
+            plugin._pendingCapture?.()
+        }
+        await plugin.stopRecording()
+        expect(captured).toEqual([4]) // the final pose, once
+    })
 })
 
 describe('real-time recording (not converge mode)', () => {

@@ -203,8 +203,10 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
             if (!this._convergeNow || !progressive) {
                 // real time; or converge mode without ProgressivePlugin, where the animations run on the wall clock
                 this._requestRealtimeFrames()
-            } else if (progressive.isConverged(true) && this.canRecordFrame()) {
-                this._captureSoon()
+            } else if (progressive.isConverged(true)) {
+                // the browser recorder still records the last frame: a still loop (_postFrame) or the stop takes this one
+                this._uncapturedRender = !this.canRecordFrame()
+                if (!this._uncapturedRender) this._captureSoon()
             }
         }
         if (this._renderToScreenDisabled) {
@@ -216,6 +218,9 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
 
     /** A frame rendered in this animation loop */
     private _rendered = false
+
+    /** Converge mode: the last converged render came while the recorder still recorded a frame, and is not captured yet */
+    private _uncapturedRender = false
 
     /**
      * Converge mode: in an animation loop without a render (the scene stays converged, e.g. a pause between camera
@@ -236,6 +241,7 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
         // the animations stepped in this loop only if the recorder could take a frame (canRecordFrame)
         if (!progressive.isConverged(true) || !this.canRecordFrame()) return
         // after the other postFrame listeners, so the animations of this frame still step (a still scene: the same image)
+        this._uncapturedRender = false
         this._captureSoon()
     }
 
@@ -339,6 +345,7 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
         if (this.recorder?.isRecording() === false) {
             this._active = {convergeMode: this.convergeMode, videoFrameRate: this.videoFrameRate}
             this._nextFrameTime = 0
+            this._uncapturedRender = false
             this.recorder.options.stepMode = this.convergeMode
             this.recorder.start()
             return true
@@ -417,6 +424,11 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
                     const max = progressive.maxFrameCount + 2
                     for (let i = 0; i < max; i++) {
                         if (progressive.isConverged(true)) break
+                        await this._viewer.doOnce('postFrame')
+                    }
+                    // the last pose converged while the browser recorder still recorded a frame: a still loop takes it once
+                    // the recorder is ready
+                    for (let i = 0; i < max && this._uncapturedRender && this._recorder?.isRecording(); i++) {
                         await this._viewer.doOnce('postFrame')
                     }
                 }
