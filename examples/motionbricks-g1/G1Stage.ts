@@ -388,15 +388,15 @@ export class G1Stage {
                 {type: 'checkbox', label: 'Effects', property: [this, 'effectsEnabled'], onChange: () => this.setEffects(this.effectsEnabled)},
                 {type: 'slider', label: 'Environment', bounds: [0, 3], stepSize: 0.01, property: [this.viewer.scene, 'environmentIntensity'], onChange: dirty},
                 () => this._floorMaterial ? {type: 'folder', label: 'Floor', children: [(this._floorMaterial as any).uiConfig]} : undefined,
-                () => this._lights.map(({light, offset}, i) => ({
+                () => this._lights.map((entry, i) => ({
                     type: 'folder',
-                    label: `Light ${i + 1} (${light instanceof SpotLight2 ? 'spot' : 'directional'})`,
+                    label: `Light ${i + 1} (${entry.light instanceof SpotLight2 ? 'spot' : 'directional'})`,
                     children: [
-                        {type: 'color', label: 'Color', property: [light, 'color'], onChange: dirty},
-                        {type: 'slider', label: 'Intensity', bounds: [0, light instanceof SpotLight2 ? 600 : 10], property: [light, 'intensity'], onChange: dirty},
-                        {type: 'vec3', label: 'From robot', property: [offset], onChange: dirty},
-                        {type: 'checkbox', label: 'Shadow', property: [light, 'castShadow'], onChange: dirty},
-                        {type: 'slider', label: 'Shadow softness', bounds: [0, 12], property: [light.shadow, 'radius'], onChange: () => {
+                        {type: 'color', label: 'Color', property: [entry.light, 'color'], onChange: dirty},
+                        {type: 'slider', label: 'Intensity', bounds: [0, entry.light instanceof SpotLight2 ? 600 : 10], property: [entry.light, 'intensity'], onChange: dirty},
+                        {type: 'vec3', label: 'From robot', property: [entry, 'offset'], onChange: dirty},
+                        {type: 'checkbox', label: 'Shadow', property: [entry.light, 'castShadow'], onChange: dirty},
+                        {type: 'slider', label: 'Shadow softness', bounds: [0, 12], property: [entry.light.shadow, 'radius'], onChange: () => {
                             this.viewer.renderManager.resetShadows()
                             dirty()
                         }},
