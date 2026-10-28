@@ -206,8 +206,8 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
     onRemove(viewer: ThreeViewer) {
         window.removeEventListener('pagehide', this._savePending)
         document.removeEventListener('visibilitychange', this._savePending)
-        // the changes of the last 600 ms
-        if (this._timer) void this._saveChanged()
+        // the changes of the last 600 ms, and saves that failed
+        if (this._timer || this._changed.size) void this._saveChanged()
         super.onRemove(viewer)
     }
 
@@ -360,7 +360,7 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
 
     /** The page is left or hidden: the changes that wait for the 600 ms are saved now */
     private _savePending = (e: Event) => {
-        if (this._timer && (e.type === 'pagehide' || document.visibilityState === 'hidden')) void this._saveChanged()
+        if ((this._timer || this._changed.size) && (e.type === 'pagehide' || document.visibilityState === 'hidden')) void this._saveChanged()
     }
 
     private async _saveChanged() {
@@ -407,6 +407,8 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
             if (!this._changed.has(id) && !this._waiting.has(store)) this._setStatus(id, 'saved')
         } catch (e) {
             console.warn('NotesPlugin: could not save the notes of ' + id, e)
+            // still to save: the next flush, change, hidden page or removal tries again
+            this._changed.add(id)
             this._setStatus(id, 'error')
         }
     }

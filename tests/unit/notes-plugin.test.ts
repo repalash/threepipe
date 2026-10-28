@@ -266,6 +266,26 @@ describe('NotesPlugin', () => {
         warn.mockRestore()
     })
 
+    test('a failed save stays to do: flush() tries it again', async() => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+        let online = false
+        const saved: string[][] = []
+        const server: NotesStore = {id: 'server', label: 'Server', load: () => [], save: n => {
+            if (!online) throw new Error('offline')
+            saved.push(n.map(x => x.text))
+        }}
+        const notes = new NotesPlugin({file: false, browser: false, stores: [server]})
+        notes.onAdded(fakeViewer())
+        notes.addNote('kept')
+        await notes.flush()
+        expect(notes.storeStatus('server')).toBe('error')
+        online = true
+        await notes.flush()
+        expect(saved).toEqual([['kept']])
+        expect(notes.storeStatus('server')).toBe('saved')
+        warn.mockRestore()
+    })
+
     test('a store that fails keeps the notes, and shows the error', async() => {
         const bad: NotesStore = {id: 'bad', label: 'Bad', load: () => [], save: () => {
             throw new Error('offline')
