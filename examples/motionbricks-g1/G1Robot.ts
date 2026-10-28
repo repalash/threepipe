@@ -51,12 +51,13 @@ export class G1Robot {
         const material = (rgba: number[]) => {
             const key = rgba.join(' ')
             if (!materials.has(key)) {
-                // MJCF colors are sRGB: 0.2 for the dark joint housings, 0.7 for the shells.
+                // MJCF colors are sRGB: 0.2 for the dark joint housings, 0.7 for the shells. The shells are a
+                // light satin finish, so they read as the real robot under any lighting, bright or dark.
                 const dark = rgba[0] < 0.5
                 materials.set(key, new PhysicalMaterial({
-                    color: new Color().setRGB(rgba[0] * (dark ? 0.7 : 0.85), rgba[1] * (dark ? 0.7 : 0.85), rgba[2] * (dark ? 0.7 : 0.85), SRGBColorSpace),
-                    metalness: dark ? 0.2 : 0.65,
-                    roughness: dark ? 0.55 : 0.3,
+                    color: dark ? new Color().setRGB(0.12, 0.12, 0.13, SRGBColorSpace) : new Color().setRGB(0.8, 0.81, 0.83, SRGBColorSpace),
+                    metalness: dark ? 0.2 : 0.3,
+                    roughness: dark ? 0.5 : 0.38,
                 }))
             }
             return materials.get(key)!

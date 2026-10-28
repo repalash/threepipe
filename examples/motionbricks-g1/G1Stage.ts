@@ -6,6 +6,7 @@ import {
     HDRiGroundPlugin,
     ITexture,
     LatheGeometry,
+    SpotLight2,
     Mesh,
     MeshBasicMaterial,
     BackSide,
@@ -29,6 +30,8 @@ import {BloomPlugin, SSContactShadowsPlugin, SSGIPlugin, SSReflectionPlugin} fro
 // research viewers (MuJoCo, Newton), the Isaac Sim grid, a product studio, a launch stage, and a real space.
 
 export interface StageLight {
+    /** A directional light by default; a spot makes a pool of light around the robot. */
+    kind?: 'spot'
     color: string
     intensity: number
     /** Position relative to the robot, in threepipe space (Y up). The light aims at the robot. */
@@ -42,7 +45,7 @@ export interface StageStyle {
     sky: [string, string] | 'hdri'
     floor:
         | {kind: 'checker' | 'grid', base: string, line: string, roughness: number, metalness?: number}
-        | {kind: 'cove', color: string, roughness: number, metalness?: number}
+        | {kind: 'cove', color: string, roughness: number, metalness?: number, envIntensity?: number}
         | {kind: 'hdri', shadowOpacity: number}
     /** HDR file name for lighting and reflections, or '' for a gradient made from the sky colors. */
     environment: string
@@ -94,11 +97,11 @@ export const STAGE_STYLES = {
     stage: {
         label: 'Launch stage',
         sky: ['#0c0d0f', '#0c0d0f'],
-        floor: {kind: 'cove', color: '#0c0d0f', roughness: 0.2},
+        floor: {kind: 'cove', color: '#0c0d0f', roughness: 0.22, envIntensity: 0.12},
         environment: 'studio_small_09_1k.hdr',
         environmentIntensity: 0.3,
         lights: [
-            {color: '#ffffff', intensity: 3, offset: [0.5, 7, 2], shadow: true},
+            {kind: 'spot', color: '#ffffff', intensity: 160, offset: [0.4, 7, 1.2], shadow: true},
             {color: '#9fc4ff', intensity: 2.5, offset: [-4, 2.5, -3]},
             {color: '#ffb27a', intensity: 1.5, offset: [4, 2, -3]},
         ],
@@ -203,7 +206,7 @@ export class G1Stage {
     style: StageStyle = STAGE_STYLES.research
     effectsEnabled = true
     private _objects: Object3D[] = []
-    private _lights: {light: DirectionalLight2, offset: Vector3}[] = []
+    private _lights: {light: DirectionalLight2 | SpotLight2, offset: Vector3}[] = []
     private _follow: Object3D[] = []
     private _environments = new Map<string, Promise<ITexture | null>>()
     private _applyId = 0
@@ -279,6 +282,7 @@ export class G1Stage {
         } else if (floor.kind === 'cove') {
             const mesh = new Mesh(coveGeometry(), new PhysicalMaterial({
                 color: floor.color, roughness: floor.roughness, metalness: floor.metalness ?? 0, side: DoubleSide,
+                envMapIntensity: floor.envIntensity ?? 1,
             }))
             mesh.receiveShadow = true
             mesh.name = 'Cove'
@@ -292,14 +296,19 @@ export class G1Stage {
         }
 
         for (const l of style.lights) {
-            const light = new DirectionalLight2(l.color, l.intensity)
+            const light = l.kind === 'spot' ?
+                new SpotLight2(l.color, l.intensity, 0, 0.42, 0.65, 2) :
+                new DirectionalLight2(l.color, l.intensity)
             if (l.shadow) {
                 light.castShadow = true
                 light.shadowMapSize.setScalar(2048)
                 light.shadowNear = 0.5
                 light.shadowFar = 25
-                light.shadowFrustum = 6
+                if (light instanceof DirectionalLight2) light.shadowFrustum = 6
                 light.shadow.radius = 3
+                // Bias the lookup so a large, flat floor shows no acne rings at the shadow map's edge.
+                light.shadow.bias = -0.0004
+                light.shadow.normalBias = 0.03
             }
             add(light)
             this._lights.push({light, offset: new Vector3(...l.offset)})
@@ -341,7 +350,7 @@ export class G1Stage {
         this._target.copy(target)
         for (const {light, offset} of this._lights) {
             light.position.copy(target).add(offset)
-            // DirectionalLight2 shines along its own -Z (its target is a child), so aim it with lookAt.
+            // threepipe's lights shine along their own -Z (the target is a child), so aim them with lookAt.
             light.lookAt(target)
         }
         for (const o of this._follow) o.position.set(target.x, 0, target.z)
