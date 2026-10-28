@@ -92,3 +92,5 @@ Options:
 - `EditorCameraPlugin.ControlProps`: the orbit controls of the editor camera.
 
 The plugin is not saved with the viewer config (`serializeWithViewer = false`).
+
+The [Tweakpane Editor](https://threepipe.org/examples/#tweakpane-editor/) example has it in the Viewer tab.
