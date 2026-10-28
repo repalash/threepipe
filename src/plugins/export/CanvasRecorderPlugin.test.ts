@@ -989,6 +989,28 @@ describe('CanvasMediaRecorder', () => {
         }
     })
 
+    test('a native start that throws ends the start in the error state and stops the canvas capture', () => {
+        const mediaRecorder = class extends fakeMediaRecorder() {
+            start() {
+                throw new DOMException('the stream cannot be recorded', 'NotSupportedError')
+            }
+        }
+        vi.stubGlobal('window', {MediaRecorder: mediaRecorder})
+        vi.stubGlobal('MediaRecorder', mediaRecorder)
+        try {
+            const track = {stop: vi.fn()}
+            const canvas = {captureStream: () => ({getVideoTracks: () => [track]})} as any
+            const rec = new CanvasMediaRecorder(canvas, {mimeType: 'auto'}) as any
+            rec._console = {error: () => undefined, warn: () => undefined, log: () => undefined}
+            rec.start()
+            expect(rec.state).toBe('error')
+            expect(track.stop).toHaveBeenCalled()
+            expect(rec._recorder).toBeUndefined() // a new start makes a new recorder
+        } finally {
+            vi.unstubAllGlobals()
+        }
+    })
+
     test('without MediaRecorder, the start ends in the error state', () => {
         vi.stubGlobal('window', {})
         try {

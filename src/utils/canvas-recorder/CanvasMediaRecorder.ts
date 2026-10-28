@@ -81,17 +81,22 @@ export class CanvasMediaRecorder extends ACanvasRecorder {
         // }
         this._track = track
 
-        this._recorder = new window.MediaRecorder(stream, options)
-        this._recorder.onstop = this._onstop
-        this._recorder.ondataavailable = this._ondataavailable
-        this._recorder.onerror = this._onerror as any // todo see ts error without any
-        this._recorder.onresume = this._onresume
-        this._recorder.onstart = this._onstart
-        // this._recorder.onpause = this._onpause
-
         this.setState('starting')
-        if (this._recorder) {
-            this._recorder?.start()
+        // the browser can refuse the stream or its options: the start ends in the error state, and the next start makes a
+        // new recorder
+        try {
+            this._recorder = new window.MediaRecorder(stream, options)
+            this._recorder.onstop = this._onstop
+            this._recorder.ondataavailable = this._ondataavailable
+            this._recorder.onerror = this._onerror as any // todo see ts error without any
+            this._recorder.onresume = this._onresume
+            this._recorder.onstart = this._onstart
+            // this._recorder.onpause = this._onpause
+            this._recorder.start()
+        } catch (e) {
+            const recorder = this._recorder
+            if (recorder) recorder.onstart = recorder.onresume = recorder.onstop = recorder.ondataavailable = recorder.onerror = null
+            this._onerror(e)
         }
     }
 
