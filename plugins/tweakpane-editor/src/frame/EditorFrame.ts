@@ -91,6 +91,8 @@ export class EditorFrame {
 
         viewer.assetManager.addEventListener('loadAsset', this._onLoad)
         window.addEventListener('keydown', this._onKeyDown)
+        this._wide.addEventListener('change', this._onWideChange)
+        this.modeBar.element.addEventListener('click', this._onModeBarClick)
         this.setLayout(this._layout)
     }
 
@@ -119,9 +121,7 @@ export class EditorFrame {
         // above the names toggle of the mode bar
         if (layout === 'floating') this.modeBar.element.insertBefore(this._floatActions, this.modeBar.element.lastElementChild)
         else this._floatActions.remove()
-        // the panel has no title here (the mode bar hides and shows it): open it if it was folded
-        const root = document.querySelector<HTMLElement>('#tweakpaneUiContainer .tp-rotv')
-        if (root && !root.classList.contains('tp-rotv-expanded')) root.querySelector<HTMLElement>('.tp-rotv_b')?.click()
+        this._expandPanel()
         this.fileName = this._fileName
         // the canvas size follows the CSS; the viewer resizes on the window's resize
         window.dispatchEvent(new Event('resize'))
@@ -139,6 +139,8 @@ export class EditorFrame {
     dispose() {
         this.viewer.assetManager.removeEventListener('loadAsset', this._onLoad)
         window.removeEventListener('keydown', this._onKeyDown)
+        this._wide.removeEventListener('change', this._onWideChange)
+        this.modeBar.element.removeEventListener('click', this._onModeBarClick)
         for (const [k] of EDITOR_FRAME_LAYOUTS) document.body.classList.remove('lay-' + k)
         document.body.classList.remove('lay-frame')
         this._top.remove()
@@ -148,6 +150,27 @@ export class EditorFrame {
         this.modeBar.dispose()
         this._styles?.remove()
         window.dispatchEvent(new Event('resize'))
+    }
+
+    /** The window is wide enough for the frame (the media query of the CSS) */
+    private _wide = window.matchMedia('(min-width: 920px)')
+
+    /**
+     * The panel has no title in the frame (the mode bar hides and shows it), so it is opened if it was folded: when a
+     * layout applies, when the window becomes wide enough for the frame, and on a click in the mode bar. A narrow
+     * window shows the title, which can fold it.
+     */
+    private _expandPanel = () => {
+        const root = document.querySelector<HTMLElement>('#tweakpaneUiContainer .tp-rotv')
+        if (root && !root.classList.contains('tp-rotv-expanded')) root.querySelector<HTMLElement>('.tp-rotv_b')?.click()
+    }
+
+    private _onWideChange = (e: MediaQueryListEvent) => {
+        if (e.matches) this._expandPanel()
+    }
+
+    private _onModeBarClick = () => {
+        if (this._wide.matches) this._expandPanel()
     }
 
     private _onLoad = (e: {data?: any}) => {
