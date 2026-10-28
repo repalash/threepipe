@@ -398,7 +398,14 @@ export class SelectionMaskPass extends RenderPass implements IPipelinePass<'sele
         renderer.setRenderTarget(t, face, mip)
     }
 
-    private _lineMasks = new WeakMap<Material, ShaderMaterial>()
+    /** The mask of each line material; a mask is disposed with its line material, and all with the pass */
+    private _lineMasks = new Map<Material, ShaderMaterial>()
+
+    private _lineDisposed = (e: {target: Material}) => {
+        e.target.removeEventListener('dispose', this._lineDisposed)
+        this._lineMasks.get(e.target)?.dispose()
+        this._lineMasks.delete(e.target)
+    }
 
     /**
      * The line material's own shaders (thick quads; the dash gaps, the caps and the world-unit shaping discard the same
@@ -426,6 +433,7 @@ export class SelectionMaskPass extends RenderPass implements IPipelinePass<'sele
                 mask.uniformsNeedUpdate = true
             }
             this._lineMasks.set(lm, m)
+            lm.addEventListener('dispose', this._lineDisposed)
         }
         // the line's defines change with its options (dashed, world units, vertex colors): the mask follows them
         if (!sameDefines(m.defines, lm.defines)) {
@@ -440,6 +448,11 @@ export class SelectionMaskPass extends RenderPass implements IPipelinePass<'sele
         this.camera = undefined
         this._items.clear()
         this.overrideMaterial.dispose()
+        this._lineMasks.forEach((m, lm) => {
+            lm.removeEventListener('dispose', this._lineDisposed)
+            m.dispose()
+        })
+        this._lineMasks.clear()
         super.dispose?.()
     }
 }

@@ -221,6 +221,22 @@ describe('SelectionOutlinePlugin', () => {
         expect(mask.defines).toEqual({USE_DASH: ''})
     })
 
+    test('the line masks are disposed with their line material, and all with the pass', () => {
+        const pass = new SelectionMaskPass(() => ({}) as any, selectionMaskMaterial()) as any
+        const fragmentShader = 'void main() {\n#include <logdepthbuf_fragment>\n}'
+        const line1 = new ShaderMaterial({fragmentShader}), line2 = new ShaderMaterial({fragmentShader})
+        const mask1 = pass._lineMask(line1), mask2 = pass._lineMask(line2)
+        const disposed1 = vi.fn(), disposed2 = vi.fn()
+        mask1.addEventListener('dispose', disposed1)
+        mask2.addEventListener('dispose', disposed2)
+        line1.dispose()
+        expect(disposed1).toHaveBeenCalledOnce()
+        expect(pass._lineMask(line1)).not.toBe(mask1) // a new mask for a line material used again
+        pass.dispose()
+        expect(disposed2).toHaveBeenCalledOnce()
+        expect(pass._lineMasks.size).toBe(0)
+    })
+
     test('the mask material follows the displacement map of the material, as the render', () => {
         const material = selectionMaskMaterial()
         const pass = new SelectionMaskPass(() => ({}) as any, material) as any
