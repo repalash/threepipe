@@ -4,7 +4,7 @@
 // The targets follow the reference Scene Preview: a gait target placed one second of travel ahead
 // while far from the goal, then a standing target at the goal so the robot stops there.
 
-import {G1Pose, heading, lerpPose, MotionBricksG1, placePoses, SAMPLE_RATE, withSpeed} from './MotionBricksG1'
+import {G1Pose, heading, lerpPose, MotionGenerator, placePoses, SAMPLE_RATE, withSpeed} from './MotionBricksG1'
 
 export interface G1Bricks {
     /** Standing pose, one frame, at the ground origin facing +X. */
@@ -43,7 +43,7 @@ export interface G1ControllerStats {
 }
 
 export class G1Controller {
-    readonly engine: MotionBricksG1
+    readonly engine: MotionGenerator
     readonly bricks: G1Bricks
     /** The pose to show this frame, in G1 space. */
     readonly pose: G1Pose
@@ -62,7 +62,7 @@ export class G1Controller {
     private _dirty = false
     private _pending: {request: Request, poses: G1Pose[]} | null = null
 
-    constructor(engine: MotionBricksG1, bricks: G1Bricks, x = 0, y = 0, angle = 0) {
+    constructor(engine: MotionGenerator, bricks: G1Bricks, x = 0, y = 0, angle = 0) {
         this.engine = engine
         this.bricks = bricks
         this.pose = placePoses(bricks.rest, x, y, angle)[0]

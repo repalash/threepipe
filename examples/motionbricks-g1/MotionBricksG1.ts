@@ -129,6 +129,12 @@ export interface GeneratedMotion {
     inferenceMs: number
 }
 
+/** What G1Controller needs from an engine: MotionBricksG1 here, or MotionBricksRemote in a worker. */
+export interface MotionGenerator {
+    readonly backend: string
+    generate(context: ArrayLike<number>[], target: ArrayLike<number>[], options?: GenerateOptions): Promise<GeneratedMotion>
+}
+
 /** Manifest written by tools/pack_model.py. */
 export interface PackManifest {
     format: 'motionbricks-q8'
@@ -197,7 +203,7 @@ export function dequantizePack(manifest: PackManifest, q8: Uint8Array): Float32A
     return out
 }
 
-export class MotionBricksG1 {
+export class MotionBricksG1 implements MotionGenerator {
     readonly ort: OrtApi
     readonly session: any
     /** The execution provider the session was created with, such as webgpu or wasm. */

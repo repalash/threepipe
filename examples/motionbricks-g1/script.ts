@@ -26,7 +26,8 @@ import {
     VelocityBufferPlugin,
 } from '@threepipe/webgi-plugins'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
-import {MotionBricksG1, OrtApi} from './MotionBricksG1'
+import {MotionBricksG1, MotionGenerator, OrtApi} from './MotionBricksG1'
+import {MotionBricksRemote} from './MotionBricksRemote'
 import {G1Controller, G1Gait, GAIT_SPEEDS} from './G1Controller'
 import {G1Robot} from './G1Robot'
 import {G1_BRICKS} from './G1Bricks'
@@ -59,12 +60,14 @@ const config = {
     fx: '1',
     /** The Tweakpane panel for lighting and render options. 0 hides it. */
     ui: '1',
+    /** Run the model in a Web Worker. 0 runs it on the page, which stalls rendering during each generation. */
+    worker: '1',
     /** webgpu, or wasm to skip WebGPU. */
     backend: 'webgpu',
     ...(window as any).MOTIONBRICKS_CONFIG,
 }
 const params = new URLSearchParams(location.search)
-for (const key of ['model', 'robot', 'backend', 'style', 'fx', 'ui'] as const) if (params.get(key)) config[key] = params.get(key)!
+for (const key of ['model', 'robot', 'backend', 'style', 'fx', 'ui', 'worker'] as const) if (params.get(key)) config[key] = params.get(key)!
 
 const $ = (id: string) => document.getElementById(id)
 
@@ -327,17 +330,29 @@ async function init() {
         } else idleTime = 0
     })
 
-    // The model: about 190 MB packed, or 730 MB as the original fp32 ONNX file.
+    // The model: about 190 MB packed, or 730 MB as the original fp32 ONNX file. It runs in a worker, so
+    // inference never stalls the frames (a stall mid-walk shows as a limp); without workers it runs here.
     setStatus('Loading ONNX Runtime…', 'loading', 0)
-    const ort = await loadOrt()
     const useGpu = config.backend !== 'wasm' && 'gpu' in navigator
     const sessionOptions = {executionProviders: useGpu ? ['webgpu', 'wasm'] : ['wasm'], graphOptimizationLevel: 'all'}
     const progress = (loaded: number, total: number) => setStatus(
         `Downloading the model… ${Math.round(loaded / 1e6)} of ${Math.round(total / 1e6) || '?'} MB`, 'loading', total ? loaded / total : 0)
-    const engine = config.model.endsWith('/')
-        ? await MotionBricksG1.LoadPacked(ort, config.model, sessionOptions, progress)
-        : await MotionBricksG1.LoadOnnx(ort, config.model, sessionOptions, progress)
-    const backendLabel = engine.backend === 'webgpu' ? 'WebGPU' : 'WebAssembly'
+    let engine: MotionGenerator | null = null
+    if (config.worker !== '0') {
+        engine = await MotionBricksRemote.Load(new URL('./MotionBricksWorker.js', import.meta.url),
+            {ort: config.ort, wasm: config.wasm, model: config.model, sessionOptions}, progress)
+            .catch(e => {
+                console.warn('MotionBricks: the worker could not load the model, running it on the page instead', e)
+                return null
+            })
+    }
+    if (!engine) {
+        const ort = await loadOrt()
+        engine = config.model.endsWith('/')
+            ? await MotionBricksG1.LoadPacked(ort, config.model, sessionOptions, progress)
+            : await MotionBricksG1.LoadOnnx(ort, config.model, sessionOptions, progress)
+    }
+    const backendLabel = (engine.backend === 'webgpu' ? 'WebGPU' : 'WebAssembly') + (engine instanceof MotionBricksRemote ? ' (worker)' : '')
     if ($('mb-backend')) $('mb-backend')!.textContent = backendLabel
 
     // One warm-up generation compiles the kernels before the robot moves.
