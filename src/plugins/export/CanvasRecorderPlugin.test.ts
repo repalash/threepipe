@@ -845,7 +845,33 @@ describe('converge mode with several frames in one loop', () => {
             plugin._postFrame()
         }
         await new Promise(r => setTimeout(r, 10))
-        expect(captured).toEqual([10, 20])
+        expect(captured).toEqual([11, 21]) // the last render of each frame (the same pose)
+    })
+
+    test('a browser recorder: the capture of a frame with several renders still lets the animations step in it', () => {
+        const {plugin} = setup() // converge mode, the scene is converged (e.g. ProgressivePlugin(1))
+        let busy = false
+        let pose = 0 // the pose of the animations
+        let shown = -1 // the pose that the canvas shows
+        const captured: number[] = []
+        Object.assign(plugin._recorder, {requestFrame: () => {
+            captured.push(shown)
+            busy = true
+        }, isBusy: () => busy}) // a browser recorder
+        plugin._recorder.start()
+        plugin._viewer.renderManager = {composer: {renderToScreen: true}}
+        for (let loop = 0; loop < 3; loop++) {
+            if (shown !== pose) for (let j = 0; j < 2; j++) { // the pose changed: two renders (rendersPerFrame 2)
+                plugin._preRender()
+                shown = pose
+                plugin._postRender()
+            }
+            if (plugin.canRecordFrame()) pose++ // the animations step in postFrame (postFrameConvergedRecordingDelta)
+            plugin._postFrame()
+            plugin._pendingCapture?.() // the timeout of the capture, after the frame
+            busy = false // the browser recorder ends the frame before the next loop
+        }
+        expect(captured).toEqual([0, 1, 2]) // each pose once
     })
 })
 

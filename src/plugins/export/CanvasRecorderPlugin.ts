@@ -182,8 +182,10 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
     }
 
     private _preRender = () => {
-        // several frames can render in one animation loop (maxFramePerLoop): capture the last one before it is replaced
-        this._pendingCapture?.()
+        // several frames can render in one animation loop (maxFramePerLoop): capture the last one before it is replaced.
+        // A capture of this frame (rendersPerFrame above 1) waits for its timeout: the next render has the same pose, and
+        // the recorder must stay free until postFrame, so the animations still step for it.
+        if (!this._capturedInFrame) this._pendingCapture?.()
         if (this._convergeNow && this._recorder?.isRecording()) {
             const composer = this._viewer!.renderManager.composer
             const k = composer.renderToScreen
