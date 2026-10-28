@@ -164,6 +164,16 @@ export class CanvasMediaRecorder extends ACanvasRecorder {
     dispose() {
         this._stopTrack()
         if (!this._recorder) return
+        // a start that waits for the native start event does not start: its handlers are detached, the native recorder
+        // stops, and the start ends in the error state (a record() waiting for it settles)
+        if (this.state === 'starting') {
+            const recorder = this._recorder
+            recorder.onstart = recorder.onresume = recorder.onstop = recorder.ondataavailable = recorder.onerror = null
+            if (recorder.state !== 'inactive') recorder.stop()
+            this._recorder = undefined
+            this.setState('error', {error: new Error('CanvasMediaRecorder: disposed while starting')})
+            return
+        }
         // step mode: the frames that wait are dropped, and a stop that waits for a step stops now
         const stepping = this._stepping
         this._stepping = false

@@ -955,6 +955,40 @@ describe('CanvasMediaRecorder', () => {
         }
     }
 
+    test('a dispose before the native start ends the start in the error state and stops the native recorder', async() => {
+        const mediaRecorder = class extends fakeMediaRecorder() {
+            state = 'inactive'
+            start() {
+                this.state = 'recording'
+                setTimeout(() => this.onstart?.(new Event('start')), 1) // the start event comes later
+            }
+            stop() {
+                this.state = 'inactive'
+                super.stop()
+            }
+        }
+        vi.stubGlobal('window', {MediaRecorder: mediaRecorder})
+        vi.stubGlobal('MediaRecorder', mediaRecorder)
+        try {
+            const track = {stop: vi.fn()}
+            const canvas = {captureStream: () => ({getVideoTracks: () => [track]})} as any
+            const rec = new CanvasMediaRecorder(canvas, {mimeType: 'auto'}) as any
+            const states: string[] = []
+            rec.addEventListener('recording', () => states.push('recording'))
+            rec.addEventListener('error', () => states.push('error'))
+            rec.start()
+            const native = rec._recorder
+            expect(rec.state).toBe('starting')
+            rec.dispose() // e.g. the plugin is removed
+            await new Promise(r => setTimeout(r, 10))
+            expect(states).toEqual(['error'])
+            expect(native.state).toBe('inactive')
+            expect(track.stop).toHaveBeenCalled()
+        } finally {
+            vi.unstubAllGlobals()
+        }
+    })
+
     test('without MediaRecorder, the start ends in the error state', () => {
         vi.stubGlobal('window', {})
         try {
