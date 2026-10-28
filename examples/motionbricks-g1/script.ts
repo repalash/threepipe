@@ -10,6 +10,7 @@ import {
     Raycaster,
     RingGeometry,
     SSAAPlugin,
+    TonemapPlugin,
     ThreeViewer,
     UnlitMaterial,
     UnsignedByteType,
@@ -24,6 +25,7 @@ import {
     TemporalAAPlugin,
     VelocityBufferPlugin,
 } from '@threepipe/webgi-plugins'
+import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 import {MotionBricksG1, OrtApi} from './MotionBricksG1'
 import {G1Controller, G1Gait, GAIT_SPEEDS} from './G1Controller'
 import {G1Robot} from './G1Robot'
@@ -55,12 +57,14 @@ const config = {
     environmentSuffix: '',
     /** Screen-space reflections, GI, contact shadows, TAA and bloom. 0 turns them off. */
     fx: '1',
+    /** The Tweakpane panel for lighting and render options. 0 hides it. */
+    ui: '1',
     /** webgpu, or wasm to skip WebGPU. */
     backend: 'webgpu',
     ...(window as any).MOTIONBRICKS_CONFIG,
 }
 const params = new URLSearchParams(location.search)
-for (const key of ['model', 'robot', 'backend', 'style', 'fx'] as const) if (params.get(key)) config[key] = params.get(key)!
+for (const key of ['model', 'robot', 'backend', 'style', 'fx', 'ui'] as const) if (params.get(key)) config[key] = params.get(key)!
 
 const $ = (id: string) => document.getElementById(id)
 
@@ -116,24 +120,19 @@ async function init() {
     const stage = new G1Stage(viewer, name => config.environmentBase ?
         config.environmentBase + name + config.environmentSuffix :
         `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${name.match(/_(\d+k)\.hdr$/)?.[1] ?? '1k'}/${name}`)
-    const temporal = [viewer.getPlugin(TemporalAAPlugin)!, viewer.getPlugin(VelocityBufferPlugin)!]
-    const setEffects = (on: boolean) => {
-        stage.setEffects(on)
-        for (const p of temporal) p.enabled = on
-        $('mb-fx')?.setAttribute('aria-pressed', String(on))
+    // The page's Effects button and Scene menu, and the Tweakpane panel, all drive the stage and follow it.
+    const styleSelect = $('mb-style') as HTMLSelectElement | null
+    stage.onChange = () => {
+        $('mb-fx')?.setAttribute('aria-pressed', String(stage.effectsEnabled))
+        if (styleSelect) styleSelect.value = stage.styleName
     }
     stage.effectsEnabled = config.fx !== '0'
-    $('mb-fx')?.addEventListener('click', () => setEffects(!stage.effectsEnabled))
-    const styleName = (config.style in STAGE_STYLES ? config.style : 'research') as StageStyleName
-    const styleSelect = $('mb-style') as HTMLSelectElement | null
+    $('mb-fx')?.addEventListener('click', () => stage.setEffects(!stage.effectsEnabled))
     if (styleSelect) {
-        styleSelect.replaceChildren(...Object.entries(STAGE_STYLES).map(([k, st]) => new Option(st.label, k, false, k === styleName)))
-        styleSelect.addEventListener('change', () => {
-            stage.apply(STAGE_STYLES[styleSelect.value as StageStyleName]).then(() => setEffects(stage.effectsEnabled))
-        })
+        styleSelect.replaceChildren(...Object.entries(STAGE_STYLES).map(([k, st]) => new Option(st.label, k)))
+        styleSelect.addEventListener('change', async() => stage.setStyle(styleSelect.value as StageStyleName))
     }
-    await stage.apply(STAGE_STYLES[styleName])
-    setEffects(stage.effectsEnabled)
+    await stage.setStyle((config.style in STAGE_STYLES ? config.style : 'research') as StageStyleName)
 
     const goalMaterial = new UnlitMaterial({color: themeColor('--accent', '#e8590c'), transparent: true, opacity: 0.9, depthWrite: false})
     const goalMarker = new Mesh(new RingGeometry(0.16, 0.22, 48).rotateX(-Math.PI / 2), goalMaterial)
@@ -151,6 +150,15 @@ async function init() {
     const robot = await G1Robot.Load(config.robot, (n, total) => setStatus('Loading the robot…', 'loading', n / total))
     viewer.scene.addObject(robot.object)
     robot.setPose(G1_BRICKS.rest[0])
+
+    // A Tweakpane panel for the lighting and render options, in the clean theme that follows light or dark mode.
+    if (config.ui !== '0') {
+        const dark = (document.documentElement.dataset.theme ?? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')) === 'dark'
+        const ui = viewer.addPluginSync(new TweakpaneUiPlugin(!matchMedia('(max-width: 720px)').matches, true, undefined, dark ? 'clean-dark' : 'clean'))
+        ui.appendChild(stage.uiConfig)
+        ui.appendChild({type: 'folder', label: 'Robot', children: robot.materials.map(m => m.uiConfig)})
+        ui.setupPlugins(TonemapPlugin, SSGIPlugin, SSReflectionPlugin, SSContactShadowsPlugin, BloomPlugin, TemporalAAPlugin, HDRiGroundPlugin)
+    }
     viewer.setDirty()
     ;(window as any).motionbricks = {viewer, robot, stage}
 

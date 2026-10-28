@@ -21,10 +21,18 @@ import {
     SphereGeometry,
     SRGBColorSpace,
     ThreeViewer,
+    UiObjectConfig,
     Vector2,
     Vector3,
 } from 'threepipe'
-import {BloomPlugin, SSContactShadowsPlugin, SSGIPlugin, SSReflectionPlugin} from '@threepipe/webgi-plugins'
+import {
+    BloomPlugin,
+    SSContactShadowsPlugin,
+    SSGIPlugin,
+    SSReflectionPlugin,
+    TemporalAAPlugin,
+    VelocityBufferPlugin,
+} from '@threepipe/webgi-plugins'
 
 // Scene presets for the MotionBricks demo, after the looks robotics teams use for their demos:
 // research viewers (MuJoCo, Newton), the Isaac Sim grid, a product studio, a launch stage, and a real space.
@@ -203,8 +211,12 @@ export class G1Stage {
     readonly viewer: ThreeViewer
     /** Resolves an HDR file name from a style to a URL. */
     resolveAsset: (name: string) => string
+    styleName: StageStyleName = 'research'
     style: StageStyle = STAGE_STYLES.research
     effectsEnabled = true
+    /** Called after a style is applied or the effects are switched. */
+    onChange?: () => void
+    private _floorMaterial: PhysicalMaterial | ShadowMaterial | null = null
     private _objects: Object3D[] = []
     private _lights: {light: DirectionalLight2 | SpotLight2, offset: Vector3}[] = []
     private _follow: Object3D[] = []
@@ -227,6 +239,12 @@ export class G1Stage {
             this._environments.set(name, load.then(async m => this.viewer.assetManager.importer.importSingle<ITexture>(m)).then(t => t ?? null))
         }
         return this._environments.get(name)!
+    }
+
+    /** Apply one of the STAGE_STYLES by name. */
+    async setStyle(name: StageStyleName) {
+        this.styleName = name
+        await this.apply(STAGE_STYLES[name])
     }
 
     async apply(style: StageStyle) {
@@ -278,6 +296,7 @@ export class G1Stage {
             }))
             mesh.receiveShadow = true
             mesh.name = 'Floor'
+            this._floorMaterial = mesh.material
             add(mesh)
         } else if (floor.kind === 'cove') {
             const mesh = new Mesh(coveGeometry(), new PhysicalMaterial({
@@ -286,12 +305,14 @@ export class G1Stage {
             }))
             mesh.receiveShadow = true
             mesh.name = 'Cove'
+            this._floorMaterial = mesh.material
             add(mesh, true)
         } else if (floor.kind === 'hdri') {
             // The projected HDR is the floor; this plane only catches the robot's shadow.
             const mesh = new Mesh(new PlaneGeometry(30, 30).rotateX(-Math.PI / 2), new ShadowMaterial({opacity: floor.shadowOpacity}))
             mesh.receiveShadow = true
             mesh.name = 'Shadow catcher'
+            this._floorMaterial = mesh.material
             add(mesh, true)
         }
 
@@ -315,6 +336,7 @@ export class G1Stage {
         }
         this.update(this._target)
         this.setEffects(this.effectsEnabled)
+        this._uiConfig?.uiRefresh?.(true, 'postFrame')
         v.setDirty()
     }
 
@@ -342,7 +364,47 @@ export class G1Stage {
             bloom.pass.intensity = e.bloom
             bloom.pass.threshold = 1.4
         }
+        for (const p of [v.getPlugin(TemporalAAPlugin), v.getPlugin(VelocityBufferPlugin)]) if (p) p.enabled = on
         v.setDirty()
+        this.onChange?.()
+    }
+
+    private _uiConfig?: UiObjectConfig
+
+    /** Controls for the style, environment, floor and each light, for a uiconfig renderer such as Tweakpane. */
+    get uiConfig(): UiObjectConfig {
+        if (this._uiConfig) return this._uiConfig
+        const dirty = () => this.viewer.setDirty()
+        this._uiConfig = {
+            type: 'folder',
+            label: 'Scene',
+            expanded: true,
+            children: [
+                {
+                    type: 'dropdown', label: 'Style', property: [this, 'styleName'],
+                    children: Object.entries(STAGE_STYLES).map(([value, st]) => ({label: st.label, value})),
+                    onChange: async() => this.setStyle(this.styleName),
+                },
+                {type: 'checkbox', label: 'Effects', property: [this, 'effectsEnabled'], onChange: () => this.setEffects(this.effectsEnabled)},
+                {type: 'slider', label: 'Environment', bounds: [0, 3], stepSize: 0.01, property: [this.viewer.scene, 'environmentIntensity'], onChange: dirty},
+                () => this._floorMaterial ? {type: 'folder', label: 'Floor', children: [(this._floorMaterial as any).uiConfig]} : undefined,
+                () => this._lights.map(({light, offset}, i) => ({
+                    type: 'folder',
+                    label: `Light ${i + 1} (${light instanceof SpotLight2 ? 'spot' : 'directional'})`,
+                    children: [
+                        {type: 'color', label: 'Color', property: [light, 'color'], onChange: dirty},
+                        {type: 'slider', label: 'Intensity', bounds: [0, light instanceof SpotLight2 ? 600 : 10], property: [light, 'intensity'], onChange: dirty},
+                        {type: 'vec3', label: 'From robot', property: [offset], onChange: dirty},
+                        {type: 'checkbox', label: 'Shadow', property: [light, 'castShadow'], onChange: dirty},
+                        {type: 'slider', label: 'Shadow softness', bounds: [0, 12], property: [light.shadow, 'radius'], onChange: () => {
+                            this.viewer.renderManager.resetShadows()
+                            dirty()
+                        }},
+                    ],
+                })),
+            ],
+        }
+        return this._uiConfig
     }
 
     /** Keep the lights, cove and shadow catcher around the robot. */

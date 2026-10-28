@@ -18,13 +18,16 @@ export class G1Robot {
     readonly object = new Group()
     readonly pelvis: Object3D
     readonly joints: RobotJoint[]
+    /** The shell and joint housing materials, shared by every mesh. */
+    readonly materials: PhysicalMaterial[]
 
-    private constructor(pelvis: Object3D, joints: RobotJoint[]) {
+    private constructor(pelvis: Object3D, joints: RobotJoint[], materials: PhysicalMaterial[]) {
         this.object.name = 'Unitree G1'
         this.object.rotation.x = -Math.PI / 2
         this.object.add(pelvis)
         this.pelvis = pelvis
         this.joints = joints
+        this.materials = materials
     }
 
     /**
@@ -55,6 +58,7 @@ export class G1Robot {
                 // light satin finish, so they read as the real robot under any lighting, bright or dark.
                 const dark = rgba[0] < 0.5
                 materials.set(key, new PhysicalMaterial({
+                    name: dark ? 'Joint housings' : 'Shells',
                     color: dark ? new Color().setRGB(0.12, 0.12, 0.13, SRGBColorSpace) : new Color().setRGB(0.8, 0.81, 0.83, SRGBColorSpace),
                     metalness: dark ? 0.2 : 0.3,
                     roughness: dark ? 0.5 : 0.38,
@@ -96,7 +100,7 @@ export class G1Robot {
             if (!jointsByName[n]) throw new Error(`MJCF has no joint ${n}`)
             return jointsByName[n]
         })
-        return new G1Robot(pelvis, joints)
+        return new G1Robot(pelvis, joints, [...materials.values()])
     }
 
     /** Show a G1 pose: root XYZ, root XYZW quaternion, then the 29 joint angles. */
