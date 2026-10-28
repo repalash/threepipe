@@ -120,6 +120,17 @@ describe('NotesPlugin', () => {
         expect(texts(notes)).toEqual(['file:from an old export', 'browser:typed'])
     })
 
+    test('a note made right after the plugin is added stays: the file and the browser load at once', async() => {
+        storage.set('threepipe-notes', JSON.stringify([{id: 'b', text: 'from before', store: 'browser', created: 1}]))
+        const notes = new NotesPlugin()
+        notes.onAdded(fakeViewer())
+        expect(texts(notes)).toEqual(['browser:from before'])
+        notes.addNote('right away')
+        await new Promise(r => setTimeout(r, 10))
+        expect(texts(notes)).toEqual(['file:right away', 'browser:from before'])
+        expect(notes.fileNotes.map(n => n.text)).toEqual(['right away'])
+    })
+
     test('importing another scene replaces the notes in the file', async() => {
         const notes = new NotesPlugin()
         notes.onAdded(fakeViewer())

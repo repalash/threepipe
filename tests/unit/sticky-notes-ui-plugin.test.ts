@@ -226,9 +226,10 @@ describe('StickyNotesUiPlugin', () => {
     })
 
     test('board: the saved places of notes that load after the post-its are drawn are kept', async() => {
-        storage.set('threepipe-notes', JSON.stringify([{id: 'n1', text: 'loads later', store: 'browser', created: 1}]))
         storage.set('threepipe-sticky-notes', JSON.stringify({layout: 'board', board: {n1: {x: 300, y: 200, w: 260, h: 180}}}))
-        const {layer} = setup()
+        // a store that answers later, like a server
+        const server = {id: 'server', label: 'Server', save: () => {}, load: async() => [{id: 'n1', text: 'loads later', store: 'server', created: 1}]}
+        const {layer} = setup({stores: [server]})
         // the stores load after the first drawing
         expect(cards(layer)).toHaveLength(0)
         await vi.waitFor(() => expect(cards(layer)).toHaveLength(1))

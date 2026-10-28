@@ -276,41 +276,56 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
     }
 
     /** Loads the notes of a store. `replace`: the loaded notes replace the notes of the store (another scene). */
+    /**
+     * Loads the notes of a store: at once for a store that answers at once (the file, this browser), so notes made
+     * right after the plugin is added are not replaced. `replace`: the loaded notes replace the notes of the store
+     * (another scene).
+     */
     private _loadStore(store: NotesStore, replace = false) {
         this._setStatus(store.id, 'loading')
         this._loading.add(store.id)
-        Promise.resolve().then(async() => store.load()).then(loaded => {
-            if (this.getStore(store.id) !== store) return // replaced meanwhile
-            this._loading.delete(store.id)
-            // notes made in this store while it loaded stay, after the loaded ones, and are saved
-            const made = !replace && this._changed.has(store.id) ? this._notes.filter(n => n.store === store.id) : []
-            const ids = new Set(made.map(n => n.id))
-            // ids are unique in the plugin: a loaded note with the id of a note in another store (an old export of a
-            // note moved since) gets a new one, and the store is saved with it
-            const taken = new Set(this._notes.filter(n => n.store !== store.id).map(n => n.id))
-            let renamed = false
-            const notes = (Array.isArray(loaded) ? loaded : [])
-                .filter(n => n && typeof n.text === 'string' && !ids.has(n.id))
-                .map(n => {
-                    let id = String(n.id || '')
-                    if (!id || taken.has(id)) {
-                        renamed = renamed || !!id
-                        id = newId()
-                    }
-                    taken.add(id)
-                    return {id, text: n.text, store: store.id, created: Number(n.created) || Date.now()}
-                })
-            this._notes = this._notes.filter(n => n.store !== store.id)
-            this._notes.splice(this._endOfStore(store.id), 0, ...notes, ...made)
-            if (made.length || renamed) this._changedStore(store.id) // saved with the loaded notes
-            else this._setStatus(store.id, 'saved')
-            this.dispatchEvent({type: 'notesChanged', change: 'load'})
-        }).catch(e => {
+        const failed = (e: unknown) => {
             // the store stays in _loading, so its changes are not saved: a save without the notes that did not load
             // would replace them
             console.warn('NotesPlugin: could not load the notes of ' + store.id, e)
             this._setStatus(store.id, 'error')
-        })
+        }
+        let loaded: NoteItem[] | Promise<NoteItem[]>
+        try {
+            loaded = store.load()
+        } catch (e) {
+            return failed(e)
+        }
+        if (loaded instanceof Promise) loaded.then(l => this._mergeLoaded(store, l, replace), failed)
+        else this._mergeLoaded(store, loaded, replace)
+    }
+
+    private _mergeLoaded(store: NotesStore, loaded: NoteItem[], replace: boolean) {
+        if (this.getStore(store.id) !== store) return // replaced meanwhile
+        this._loading.delete(store.id)
+        // notes made in this store while it loaded stay, after the loaded ones, and are saved
+        const made = !replace && this._changed.has(store.id) ? this._notes.filter(n => n.store === store.id) : []
+        const ids = new Set(made.map(n => n.id))
+        // ids are unique in the plugin: a loaded note with the id of a note in another store (an old export of a
+        // note moved since) gets a new one, and the store is saved with it
+        const taken = new Set(this._notes.filter(n => n.store !== store.id).map(n => n.id))
+        let renamed = false
+        const notes = (Array.isArray(loaded) ? loaded : [])
+            .filter(n => n && typeof n.text === 'string' && !ids.has(n.id))
+            .map(n => {
+                let id = String(n.id || '')
+                if (!id || taken.has(id)) {
+                    renamed = renamed || !!id
+                    id = newId()
+                }
+                taken.add(id)
+                return {id, text: n.text, store: store.id, created: Number(n.created) || Date.now()}
+            })
+        this._notes = this._notes.filter(n => n.store !== store.id)
+        this._notes.splice(this._endOfStore(store.id), 0, ...notes, ...made)
+        if (made.length || renamed) this._changedStore(store.id) // saved with the loaded notes
+        else this._setStatus(store.id, 'saved')
+        this.dispatchEvent({type: 'notesChanged', change: 'load'})
     }
 
     private _changedStore(store: string) {
