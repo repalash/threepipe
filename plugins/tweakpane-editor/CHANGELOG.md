@@ -7,7 +7,7 @@ All notable changes to this plugin will be documented in this file.
 ## [Unreleased]
 
 - Add `UiConfigForm`: a small plain-DOM form for uiconfig.js configs (number with scrub, slider, checkbox, dropdown, vector, color, text, button, monitor, folders), for popups where a Tweakpane panel is too large. Optional undo (quick edits of one field are one step), `onChange` of the config and its folders, styles that follow the Tweakpane theme variables. Example `ui-config-form`.
-- `HierarchyUiPlugin.treeView` is typed `any`: treejs is bundled from a git repository and not on npm, so its type could not resolve in consumer declarations.
+- treejs comes from npm, `@repalash/treejs` 2.0.0 (the same code), instead of a git URL, which npm 12 refuses by default. `HierarchyUiPlugin.treeView` is typed `any`: treejs is bundled, so its type could not resolve in consumer declarations.
 
 ## [0.6.0]
 
