@@ -1,0 +1,47 @@
+# MotionBricks G1
+
+Real-time generative motion in threepipe with [NVIDIA MotionBricks](https://github.com/NVlabs/motionbricks) ([paper](https://arxiv.org/abs/2604.24833)).
+The Unitree G1 model runs in the browser with ONNX Runtime Web, on WebGPU when available, otherwise WebAssembly.
+Click the floor and the robot walks or runs there. Every frame of motion comes from the model; there are no animation clips at runtime.
+
+## How it works
+
+MotionBricks fills in the motion between four recent poses (the context) and one to four target poses, choosing a duration of 6 to 16 tokens (0.6 to 1.9 s at 30 Hz).
+Longer motion comes from chaining generations.
+
+| File | Role |
+| --- | --- |
+| `MotionBricksG1.ts` | The engine. Port of the reference runtime (`motionbricks/model/unitree_g1`): aligns the inputs to the last context pose, decodes the output into world space, smooths the root, and corrects the endpoints. It has no threepipe dependency. |
+| `G1Controller.ts` | Point-to-point locomotion. While far from the goal it places a gait target one second of travel ahead; near the goal it places a standing target on it. The next segment is generated ahead of time from frames that are already planned, so it takes over without a jump. |
+| `G1Bricks.ts` | The standing pose and four-frame walk and run targets, baked by `tools/make_bricks.py`. |
+| `G1Robot.ts` | Builds the robot from NVIDIA's MuJoCo description (MJCF) and STL meshes, and applies a pose: root transform plus 29 joint angles. |
+| `script.ts` | Viewer, floor picking, camera follow, and UI. |
+
+The engine's output matches NVIDIA's reference runtime (checked against a NumPy port, `tools/motionbricks_ref.py`, to within 0.001 degrees on the same ONNX file).
+
+## Model sources
+
+By default the example streams the original `mmm_v6_g1_fp32.onnx` (730 MB) and the robot from NVIDIA's GitHub LFS. Override them with URL parameters:
+
+- `?model=<url>` an original MotionBricks G1 `.onnx` file, or a folder (ending in `/`) with a pack from `tools/pack_model.py`
+- `?robot=<url>` the G1 MJCF file; meshes resolve against its `meshdir`
+- `?backend=wasm` to skip WebGPU
+
+Pages can set the same keys, plus `ort` and `wasm`, on `window.MOTIONBRICKS_CONFIG`.
+
+`tools/pack_model.py` shrinks the model to about 190 MB: large weights become int8 with an fp16 scale per 64 values, and the browser expands them back to fp32 external data before creating the session. It also stores a DOUBLE constant as FLOAT, because the WebGPU build of ONNX Runtime Web has no CPU kernel to cast it. 8-bit weights change some of the model's discrete token choices, so the motion differs from fp32 (as fp16 and TF32 also do), but it stays plausible.
+
+```bash
+pip install onnx onnxruntime numpy scipy
+python tools/pack_model.py mmm_v6_g1_fp32.onnx pack/
+```
+
+## Performance
+
+On one WebAssembly thread a generation takes about 0.5 s, and the controller hides it by generating ahead of playback. WebGPU is faster. The model needs about 1.5 GB of memory while the session is created, so this is a desktop demo.
+
+## Licenses
+
+- MotionBricks code: Apache 2.0. The ONNX models: [NVIDIA Open Model Agreement](https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-open-model-agreement/).
+- The G1 description and meshes keep their own license (see the MotionBricks repository's `licenses` folder).
+- `tools/make_bricks.py` seeds the gaits with NVIDIA's sample clips, which are under the NVIDIA Sample Data Evaluation License. The values in `G1Bricks.ts` are the model's own output after several chained generations, and no clip data ships with this example.

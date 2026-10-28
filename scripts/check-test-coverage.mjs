@@ -32,6 +32,8 @@ const excludedExamples = new Set([
     'video-load', 'shadertoy-player',
     // No _testFinish signal or not testable
     'flickity-carousel', 'html-js-sample', 'monkey-type-3d',
+    // Downloads a 730 MB ONNX model and needs WebGPU or WebAssembly inference
+    'motionbricks-g1',
 ])
 
 function checkTestCoverage(testDir, testFile, ignoredFolders, testingFile) {

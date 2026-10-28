@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>MotionBricks G1</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Import maps polyfill -->
+    <!-- Remove this when import maps will be widely supported -->
+    <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+
+    <script type="importmap">
+        {
+            "imports": {
+              "threepipe": "./../../dist/index.mjs",
+              "./MotionBricksG1": "./MotionBricksG1.js",
+              "./G1Controller": "./G1Controller.js",
+              "./G1Robot": "./G1Robot.js",
+              "./G1Bricks": "./G1Bricks.js"
+            }
+        }
+
+    </script>
+    <style id="example-style">
+        html, body, #canvas-container, #mcanvas {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+        }
+        #mb-panel {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            max-width: min(340px, calc(100% - 24px));
+            padding: 12px 14px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.88);
+            color: #1b1e22;
+            font: 13px/1.4 system-ui, sans-serif;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        #mb-panel h1 { font-size: 15px; margin: 0; }
+        #mb-panel .row { display: flex; gap: 6px; flex-wrap: wrap; }
+        #mb-panel button { font: inherit; padding: 4px 10px; border-radius: 6px; border: 1px solid #aab; background: #fff; cursor: pointer; }
+        #mb-panel button[aria-pressed="true"] { background: #1b1e22; color: #fff; }
+        #mb-progress { height: 4px; background: #dde; border-radius: 2px; overflow: hidden; }
+        #mb-progress::before { content: ""; display: block; height: 100%; width: calc(var(--progress, 0) * 100%); background: #e8590c; }
+        #mb-status[data-state="error"] { color: #c92a2a; }
+        dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 0; }
+        dt { color: #667; }
+        dd { margin: 0; font-variant-numeric: tabular-nums; }
+    </style>
+    <script type="module" src="../examples-utils/global-loading.mjs"></script>
+    <script type="module" src="../examples-utils/simple-code-preview.mjs"></script>
+    <script id="example-script" type="module" src="./script.js" data-scripts="./script.ts;./MotionBricksG1.ts;./G1Controller.ts;./G1Robot.ts"></script>
+</head>
+<body>
+<div id="canvas-container">
+    <canvas id="mcanvas"></canvas>
+</div>
+<div id="mb-panel">
+    <h1>MotionBricks · Unitree G1</h1>
+    <div id="mb-status" data-state="loading">Loading…</div>
+    <div id="mb-progress"></div>
+    <div class="row">
+        <button id="mb-walk" type="button">Walk</button>
+        <button id="mb-run" type="button">Run</button>
+        <button id="mb-wander" type="button">Wander</button>
+        <button id="mb-stop" type="button">Stop</button>
+    </div>
+    <dl>
+        <dt>Backend</dt><dd id="mb-backend">–</dd>
+        <dt>Inference</dt><dd id="mb-latency">–</dd>
+        <dt>Last segment</dt><dd id="mb-tokens">–</dd>
+        <dt>Generations</dt><dd id="mb-count">0</dd>
+    </dl>
+</div>
+</body>
+</html>
