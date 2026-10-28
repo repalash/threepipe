@@ -132,10 +132,20 @@ export class NotesPlugin extends AViewerPluginSync {
     onAdded(viewer: ThreeViewer) {
         super.onAdded(viewer)
         if (!this.syncUrl) return
+        const before = this._pageNotes
         fetch(this.syncUrl).then(async r => r.ok ? r.json() : Promise.reject(r.status)).then((d: {text?: string}) => {
             this._serverOk = true
-            if (typeof d.text === 'string' && d.text.length > this._pageNotes.length) this._pageNotes = d.text
-            this._pickTab()
+            const server = typeof d.text === 'string' ? d.text : ''
+            // the longer notes win, but not over edits made while the server answered: then this browser's notes win
+            if (this._pageNotes === before && server.length > before.length) {
+                this._pageNotes = server
+                this._storeLocal()
+                this._pickTab()
+            } else if (this._pageNotes !== server) {
+                this._savePage() // keeps this browser's notes on the server
+            } else {
+                this._render()
+            }
         }).catch(() => this._render())
     }
 
@@ -203,14 +213,18 @@ export class NotesPlugin extends AViewerPluginSync {
         this._timer = window.setTimeout(this._savePage, 600)
     }
 
-    private _savePage = () => {
-        clearTimeout(this._timer)
-        this._timer = 0
+    private _storeLocal() {
         try {
             localStorage.setItem(this.pageKey, this._pageNotes)
         } catch (e) {
             // no storage: only the server copy, if any
         }
+    }
+
+    private _savePage = () => {
+        clearTimeout(this._timer)
+        this._timer = 0
+        this._storeLocal()
         if (!this._serverOk || !this.syncUrl) return this._setStatus('this browser')
         fetch(this.syncUrl, {method: 'POST', headers: [['Content-Type', 'application/json']], body: JSON.stringify({text: this._pageNotes})})
             .then(r => this._setStatus(r.ok ? 'browser + server' : 'server failed, kept in browser'))

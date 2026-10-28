@@ -199,6 +199,42 @@ describe('NotesPlugin', () => {
         expect(fetch).toHaveBeenLastCalledWith('/notes', expect.objectContaining({method: 'POST', body: JSON.stringify({text: 'edited'})}))
     })
 
+    test('with syncUrl, the merged notes are kept in the browser and sent to the server without an edit', async() => {
+        const server = (text: string) => vi.fn(async(_url: string, init?: RequestInit) => ({ok: true, json: async() => init ? {} : {text}}))
+        // the server notes are longer: they are kept in this browser too
+        storage.set('threepipe-page-notes', 'short')
+        let fetch = server('longer notes from the server')
+        vi.stubGlobal('fetch', fetch)
+        new NotesPlugin({syncUrl: '/notes'}).onAdded(fakeViewer())
+        await vi.waitFor(() => expect(storage.get('threepipe-page-notes')).toBe('longer notes from the server'))
+        expect(fetch).toHaveBeenCalledTimes(1)
+
+        // the browser notes are longer: they are sent to the server
+        storage.set('threepipe-page-notes', 'longer notes from this browser')
+        fetch = server('short')
+        vi.stubGlobal('fetch', fetch)
+        new NotesPlugin({syncUrl: '/notes'}).onAdded(fakeViewer())
+        await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(2))
+        expect(fetch).toHaveBeenLastCalledWith('/notes', expect.objectContaining({method: 'POST', body: JSON.stringify({text: 'longer notes from this browser'})}))
+    })
+
+    test('with syncUrl, edits made while the server answers are not replaced by the server notes', async() => {
+        vi.useFakeTimers()
+        let answer!: (v: any) => void
+        const fetch = vi.fn(async(_url: string, init?: RequestInit) => init ? {ok: true, json: async() => ({})} : new Promise(r => answer = r))
+        vi.stubGlobal('fetch', fetch)
+        const notes = new NotesPlugin({syncUrl: '/notes'})
+        notes.onAdded(fakeViewer())
+        notes.setTab('page')
+        type(notes, 'typed now')
+        answer({ok: true, json: async() => ({text: 'much longer notes from the server'})})
+        await vi.waitFor(() => expect(fetch).toHaveBeenCalledTimes(2))
+        expect(notes.pageNotes).toBe('typed now')
+        expect(ui(notes).text.value).toBe('typed now')
+        expect(storage.get('threepipe-page-notes')).toBe('typed now')
+        expect(fetch).toHaveBeenLastCalledWith('/notes', expect.objectContaining({method: 'POST', body: JSON.stringify({text: 'typed now'})}))
+    })
+
     test('a server that fails keeps the notes in the browser only', async() => {
         vi.useFakeTimers()
         const fetch = vi.fn(async() => ({ok: false, json: async() => ({})}))
