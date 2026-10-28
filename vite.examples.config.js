@@ -5,6 +5,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import react from '@vitejs/plugin-react';
 import {glsl} from './scripts/vite-utils.mjs';
+import {execFileSync} from 'node:child_process';
 
 const isProd = process.env.NODE_ENV === 'production'
 const { name, version, author } = packageJson
@@ -30,7 +31,7 @@ const alias = {
     '@threepipe/plugin-3d-tiles-renderer': path.resolve(import.meta.dirname, './plugins/3d-tiles-renderer/src/index.ts'),
     '@threepipe/plugin-timeline-ui': path.resolve(import.meta.dirname, './plugins/timeline-ui/src/index.ts'),
     '@threepipe/plugin-troika-text': path.resolve(import.meta.dirname, './plugins/troika-text/src/index.ts'),
-    '@threepipe/webgi-plugins': 'https://unpkg.com/@threepipe/webgi-plugins@0.6.4/dist/index.mjs',
+    '@threepipe/webgi-plugins': path.resolve(import.meta.dirname, './plugins/webgi-plugins/src/index.ts'),
     'suspend-react': 'https://esm.sh/suspend-react',
     'react': 'https://esm.sh/react@19/',
     'react/jsx-runtime': 'https://esm.sh/react@19/jsx-runtime',
@@ -44,7 +45,11 @@ const alias = {
     'troika-three-text': 'https://esm.sh/troika-three-text?external=three',
     'uiconfig-tweakpane/lib/esm': 'uiconfig-tweakpane',
 }
-export default defineConfig(async ()=>{
+export default defineConfig(async ({command})=>{
+
+    // examples/globals.js (gitignored) holds the example env values. `npm run build-examples` writes it, but a fresh
+    // clone whose install stopped early has none, and the editor on examples/index.html fails to load without it.
+    if (command === 'serve') execFileSync(process.execPath, ['./scripts/generate-example-env.mjs'], {cwd: import.meta.dirname, stdio: 'inherit'})
 
     // we have to download remote libs and replace alias with local paths, otherwise local module resolution don't work...
     for (const [key, value] of Object.entries(alias)) {
@@ -68,7 +73,7 @@ export default defineConfig(async ()=>{
         optimizeDeps: {
             exclude: ['uiconfig.js',
                 'tweakpane',
-                'tweakpane-image-plugin',
+                '@threepipe/tweakpane-image-plugin',
                 'ts-browser-helpers',
                 'uiconfig-tweakpane',
                 ...Object.keys(alias)],
@@ -80,6 +85,18 @@ export default defineConfig(async ()=>{
             alias,
         },
         plugins: [
+            { // the server prints its root URL; the examples start at /examples/index.html
+                name: 'root-to-examples',
+                apply: 'serve',
+                configureServer (server) {
+                    server.middlewares.use((req, res, next) => {
+                        if (req.url !== '/' && req.url !== '/index.html') return next()
+                        res.statusCode = 302
+                        res.setHeader('Location', '/examples/index.html')
+                        res.end()
+                    })
+                },
+            },
             !isProd ? react({
                 jsxRuntime: 'classic',
             }) : react(),
@@ -163,6 +180,9 @@ export default defineConfig(async ()=>{
             },
         ],
         server: {
+            // npm start opens the examples in the browser, except in CI, over SSH and on Linux without a display
+            open: process.env.CI || process.env.SSH_CONNECTION ||
+                process.platform === 'linux' && !process.env.DISPLAY && !process.env.WAYLAND_DISPLAY ? false : '/examples/index.html',
             // This is the default value, and will add all files with node_modules
             // in their paths to the ignore list.
             // sourcemapIgnoreList (sourcePath, sourcemapPath) {

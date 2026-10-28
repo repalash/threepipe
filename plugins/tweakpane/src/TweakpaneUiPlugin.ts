@@ -1,4 +1,4 @@
-import * as TweakpaneImagePlugin from 'tweakpane-image-plugin'
+import * as TweakpaneImagePlugin from '@threepipe/tweakpane-image-plugin'
 import {UiConfigRendererTweakpane} from 'uiconfig-tweakpane/lib/esm'
 import {
     Class,
@@ -31,7 +31,7 @@ import {
 import styles from './tpTheme.css?inline'
 import {tpImageInputGenerator} from './tpImageInputGenerator'
 
-const themeColors = ['black', 'white', 'blue', 'light', 'dark'] as const
+const themeColors = ['black', 'white', 'blue', 'light', 'dark', 'clean', 'clean-dark'] as const
 type ThemeColors = typeof themeColors[number]
 
 @uiFolderContainer('Tweakpane UI')

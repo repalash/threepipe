@@ -69,7 +69,7 @@
         "compile:esm": "vite build --config vite.lib.config.js",
         "compile": "rimraf lib && npm run compile:esm",
         "build": "npm run compile && rimraf dist && vite build",
-        "dev": "NODE_ENV=development vite build --watch",
+        "watch": "NODE_ENV=development vite build --watch",
         "docs": "rimraf docs && npx typedoc --skipErrorChecking"
     },
     "author": "repalash <palash@shaders.app>",

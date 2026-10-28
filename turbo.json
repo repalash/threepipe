@@ -41,7 +41,7 @@
             ],
             "outputs": ["docs/**"]
         },
-        "dev": {
+        "watch": {
             "cache": false,
             "persistent": true
         }

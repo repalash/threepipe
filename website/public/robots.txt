@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://threepipe.org/sitemap.xml
+Sitemap: https://threepipe.org/docs/sitemap.xml

@@ -191,7 +191,7 @@ function proxySetValue(v: any, cc: any, config: UiObjectConfig, viewer: ThreeVie
     }
     if (cc === v || cc && (
         cc.image === v
-        || cc.image?.src === v.src
+        || cc.image?.src === v.src && v.src != null
         || cc.image?.tp_src === v.tp_src && v.tp_src != null
         || cc.image?.tp_src === v.src && v.src != null
         || cc.image?.src === v.tp_src && v.tp_src != null

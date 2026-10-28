@@ -3,7 +3,7 @@
     "description": "Tweakpane UI Plugin for ThreePipe",
     "version": "0.10.1",
     "devDependencies": {
-        "tweakpane-image-plugin": "https://pkg.threepipe.org/dep/tweakpane-image-plugin/-/v1.1.404/package.tgz",
+        "@threepipe/tweakpane-image-plugin": "^1.1.406",
         "uiconfig-tweakpane": "1.0.1",
         "tweakpane": "^3.1.10",
         "@pangenerator/tweakpane-textarea-plugin": "^1.0.4"
@@ -38,7 +38,7 @@
     "scripts": {
         "new:pack": "npm run build 1>&2 && npm run docs 1>&2 && clean-package && npm pack --silent && clean-package restore",
         "build": "rimraf dist && vite build",
-        "dev": "NODE_ENV=development vite build --watch",
+        "watch": "NODE_ENV=development vite build --watch",
         "docs": "rimraf docs && npx typedoc --skipErrorChecking"
     },
     "author": "repalash <palash@shaders.app>",

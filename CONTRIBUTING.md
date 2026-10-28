@@ -8,21 +8,49 @@ Requires Node.js `^20.19` or `>=22.12` (Vite 8) and npm 10 or newer.
 
 1. Clone the repository
 2. Run `npm install`
+3. Run `npm start`
 
-The repository is an npm workspace: one install at the root sets up the core and every package in `plugins/` (one `package-lock.json`, hoisted `node_modules`). Nothing is built during install.
+The repository is an npm workspace: one install at the root sets up the core and every package in `plugins/` (one `package-lock.json`, hoisted `node_modules`). Nothing is built during install, `npm start` runs the examples from the sources.
+
+With npm 12 or newer, run `npm install --allow-git=all` instead. npm 12 refuses dependencies from git repositories by
+default (`EALLOWGIT`), and `plugins/tweakpane-editor` still has one (treejs).
 
 ## Development
 
-The quickest way to try the examples needs no build at all:
+1. Run `npm start` (same as `npm run dev`). It starts the vite dev server and opens the examples at
+   http://localhost:5173/examples/index.html. No build is needed.
+2. Pick the example you are working on. The examples use the sources of the core and the plugins, so a change in
+   `src/`, `plugins/*/src` or `examples/` reloads the page.
 
-1. Run `npm start` (or `npm run vite`) to start the vite dev server, and navigate to http://localhost:5173/examples/index.html
-2. Test the examples and pick the one you are working on. The dev server loads the core and all plugins from their `src/` folders, so changes reload directly.
-
-To test against the built bundles instead (as the deployed site and the e2e tests do):
+OR, to work on the built files (as the deployed site and the e2e tests use them):
 1. Run `npm run build:all` once to build the core, all plugins and the examples.
-2. If changing the `src/` folder - Run `npm run dev` to rebuild the core in watch mode.
-3. If changing the `plugins/` folder - `cd` to the plugin directory and run `npm run dev` to rebuild the package in watch mode.
-4. Run `npm run dev-examples` to compile the examples in watch mode and `npm run serve` to start the static server, and navigate to http://localhost:9229/index.html
+2. If changing the `src/` folder - Run `npm run watch` to rebuild the core on every change
+3. If changing the `plugins/` folder - `cd` to the plugin directory and run `npm run watch` to rebuild the package on every change.
+4. Run `npm run watch-examples` to start the examples build in watch mode and run `npm run serve` to start the development server, and navigate to http://localhost:9229/index.html
+
+## Commands
+
+Run them in the repository root, unless the table says otherwise.
+
+| Command | What it does | When |
+|---|---|---|
+| `npm install` | Installs the dependencies of the core and of every plugin (npm workspace), builds nothing | After cloning, and after pulling changes to dependencies |
+| `npm start` / `npm run dev` | Examples dev server (vite) on http://localhost:5173, opens `/examples/index.html` | Day to day: run and edit the examples, the core and the plugins |
+| `npm run vite` | Same as `npm run dev` (the old name) | — |
+| `npm run watch` | Rebuilds the core bundle (`dist/`) on every change. In a plugin folder: rebuilds that plugin's `dist/` | When another project links this build |
+| `npm run build` | Builds the core into `dist/` and `lib/` | Before publishing, or to test the built files |
+| `npm run build-plugins` | Builds every plugin (turbo, in dependency order, cached) | To test the built plugins |
+| `npm run build:all` | Builds the core, every plugin and the examples (turbo, cached) | To test everything as it is deployed |
+| `npm run build-examples` / `npm run watch-examples` | Compiles the examples to JavaScript (once / on change), for `npm run serve` | To test the examples as they are deployed |
+| `npm run serve` | Static server for the built files on http://localhost:9229 | With `build:all`, `build-examples` or `watch-examples` |
+| `npm run test:unit` | Unit tests (vitest) | Before a pull request |
+| `npm run test:e2e` | Browser tests (playwright), against the built files | Before a pull request that changes rendering |
+| `npm run website:dev` | The website (vitepress) | Docs changes |
+| `npm run docs` / `npm run docs-all` | API docs of the core and the website build / the same plus the API docs of every plugin | Docs changes |
+
+Different from other projects:
+- `dev` starts the dev server (as in vite projects); the watch build of the library is `watch`. Before this change,
+  `dev` was the watch build and `vite` the dev server.
 
 For website(vitepress) development -
 - Run `npm run website:dev` to start the website server.
