@@ -94,8 +94,6 @@ export class CanvasMediaRecorder extends ACanvasRecorder {
             // this._recorder.onpause = this._onpause
             this._recorder.start()
         } catch (e) {
-            const recorder = this._recorder
-            if (recorder) recorder.onstart = recorder.onresume = recorder.onstop = recorder.ondataavailable = recorder.onerror = null
             this._onerror(e)
         }
     }
@@ -225,11 +223,15 @@ export class CanvasMediaRecorder extends ACanvasRecorder {
     }
 
     private _onerror: (event: any) => void = (event) => {
-        this._settleStop(undefined)
-        this.setState('error', {error: event})
-        this._console.error(event)
+        // the failed recording is released before the error event, whose listeners can start a new one at once; its
+        // handlers are detached, so its later events (the browser stops it after the error) do not reach the new one
+        const recorder = this._recorder
+        if (recorder) recorder.onstart = recorder.onresume = recorder.onstop = recorder.ondataavailable = recorder.onerror = null
         this._recorder = undefined
         this._stopTrack()
+        this._settleStop(undefined)
+        this._console.error(event)
+        this.setState('error', {error: event})
     }
 
     // https://stackoverflow.com/questions/41739837/all-mime-types-supported-by-mediarecorder-in-firefox-and-chrome

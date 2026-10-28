@@ -1031,6 +1031,39 @@ describe('CanvasMediaRecorder', () => {
         }
     })
 
+    test('a native error releases the failed recording before the error event, so a listener can start again at once', () => {
+        const mediaRecorder = fakeMediaRecorder()
+        vi.stubGlobal('window', {MediaRecorder: mediaRecorder})
+        vi.stubGlobal('MediaRecorder', mediaRecorder)
+        try {
+            const tracks: {stop: any}[] = []
+            const canvas = {captureStream: () => {
+                const track = {stop: vi.fn()}
+                tracks.push(track)
+                return {getVideoTracks: () => [track]}
+            }} as any
+            const rec = new CanvasMediaRecorder(canvas, {mimeType: 'auto'}) as any
+            rec._console = {error: () => undefined, warn: () => undefined, log: () => undefined}
+            rec.start()
+            const failed = rec._recorder
+            let retried = false
+            rec.addEventListener('error', () => { // e.g. an app that retries from the plugin's error event
+                if (retried) return
+                retried = true
+                rec.start()
+            })
+            failed.onerror?.(new Event('error'))
+            failed.onstop?.(new Event('stop')) // the browser stops the failed recorder after its error event
+            expect(rec.state).toBe('recording')
+            expect(rec._recorder).toBeDefined()
+            expect(rec._recorder).not.toBe(failed)
+            expect(tracks[0].stop).toHaveBeenCalled() // the canvas capture of the failed recording ends
+            expect(tracks[1].stop).not.toHaveBeenCalled() // the capture of the new recording runs
+        } finally {
+            vi.unstubAllGlobals()
+        }
+    })
+
     test('without MediaRecorder, the start ends in the error state', () => {
         vi.stubGlobal('window', {})
         try {
