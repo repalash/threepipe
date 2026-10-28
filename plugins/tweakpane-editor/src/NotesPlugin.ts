@@ -119,6 +119,8 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
     private _stores: NotesStore[] = []
     private _status: Record<string, NotesStoreStatus> = {}
     private _changed = new Set<string>()
+    /** Stores that load: their changes wait, as a save before the load would replace the notes not loaded yet */
+    private _loading = new Set<string>()
     private _timer = 0
     /** Per store, the running save: saves of a store run one after the other */
     private _running = new Map<string, Promise<void>>()
@@ -209,10 +211,12 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
         if (!note) return
         if (patch.store !== undefined && patch.store !== note.store) {
             if (!this.getStore(patch.store)) throw new Error('NotesPlugin: no store ' + patch.store)
-            this._changedStore(note.store)
+            const from = note.store
             this._notes.splice(this._notes.indexOf(note), 1)
             note.store = patch.store
             this._notes.splice(this._endOfStore(note.store), 0, note)
+            // after the move: the store it left is saved without it
+            this._changedStore(from)
         }
         if (patch.text !== undefined) note.text = patch.text
         this._changedStore(note.store)
@@ -274,8 +278,10 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
     /** Loads the notes of a store. `replace`: the loaded notes replace the notes of the store (another scene). */
     private _loadStore(store: NotesStore, replace = false) {
         this._setStatus(store.id, 'loading')
+        this._loading.add(store.id)
         Promise.resolve().then(async() => store.load()).then(loaded => {
             if (this.getStore(store.id) !== store) return // replaced meanwhile
+            this._loading.delete(store.id)
             // notes made in this store while it loaded stay, after the loaded ones, and are saved
             const made = !replace && this._changed.has(store.id) ? this._notes.filter(n => n.store === store.id) : []
             const ids = new Set(made.map(n => n.id))
@@ -284,9 +290,12 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
                 .map(n => ({id: String(n.id || newId()), text: n.text, store: store.id, created: Number(n.created) || Date.now()}))
             this._notes = this._notes.filter(n => n.store !== store.id)
             this._notes.splice(this._endOfStore(store.id), 0, ...notes, ...made)
-            this._setStatus(store.id, made.length ? 'changed' : 'saved')
+            if (made.length) this._changedStore(store.id) // saved with the loaded notes
+            else this._setStatus(store.id, 'saved')
             this.dispatchEvent({type: 'notesChanged', change: 'load'})
         }).catch(e => {
+            // the store stays in _loading, so its changes are not saved: a save without the notes that did not load
+            // would replace them
             console.warn('NotesPlugin: could not load the notes of ' + store.id, e)
             this._setStatus(store.id, 'error')
         })
@@ -300,7 +309,8 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
             return
         }
         this._changed.add(store)
-        this._setStatus(store, 'changed')
+        // a store that could not load stays in the error state: its changes are not saved
+        if (!(this._loading.has(store) && this.storeStatus(store) === 'error')) this._setStatus(store, 'changed')
         clearTimeout(this._timer)
         this._timer = window.setTimeout(() => void this._saveChanged(), 600)
     }
@@ -313,8 +323,8 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
     private async _saveChanged() {
         clearTimeout(this._timer)
         this._timer = 0
-        const changed = [...this._changed]
-        this._changed.clear()
+        const changed = [...this._changed].filter(id => !this._loading.has(id))
+        for (const id of changed) this._changed.delete(id)
         await Promise.all(changed.map(async id => this._saveStore(id)))
     }
 

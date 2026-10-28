@@ -80,6 +80,31 @@ describe('NotesPlugin', () => {
         expect(notes.toJSON().fileNotes).toEqual([])
     })
 
+    test('a note moved out of the file leaves the config at once', () => {
+        const notes = new NotesPlugin()
+        const n = notes.addNote('moving')
+        notes.updateNote(n.id, {store: 'browser'})
+        expect(notes.toJSON().fileNotes).toEqual([])
+        notes.updateNote(n.id, {store: 'file'})
+        expect(notes.toJSON().fileNotes.map((x: NoteItem) => x.text)).toEqual(['moving'])
+    })
+
+    test('a store is not saved before its notes are loaded: a save then would replace them', async() => {
+        let answer!: (n: NoteItem[]) => void
+        const saved: NoteItem[][] = []
+        const slow: NotesStore = {id: 'slow', label: 'Slow', load: async() => new Promise(r => answer = r), save: n => void saved.push(n)}
+        const notes = new NotesPlugin({file: false, browser: false, stores: [slow]})
+        notes.onAdded(fakeViewer())
+        notes.addNote('typed while it loads')
+        await notes.flush()
+        expect(saved).toEqual([])
+        await vi.waitFor(() => expect(answer).toBeTypeOf('function'))
+        answer([{id: 'old', text: 'on the server', store: 'slow', created: 1}])
+        await vi.waitFor(() => expect(texts(notes)).toEqual(['slow:on the server', 'slow:typed while it loads']))
+        await notes.flush()
+        expect(saved.map(n => n.map(x => x.text))).toEqual([['on the server', 'typed while it loads']])
+    })
+
     test('importing another scene replaces the notes in the file', async() => {
         const notes = new NotesPlugin()
         notes.onAdded(fakeViewer())
@@ -157,6 +182,23 @@ describe('NotesPlugin', () => {
         expect(saved.at(-1)!.map(n => n.text)).toEqual(['from before', 'typed now'])
     })
 
+    test('a store that cannot load is not saved, so its notes elsewhere are not replaced', async() => {
+        const saved: NoteItem[][] = []
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+        const offline: NotesStore = {id: 'off', label: 'Offline', load: () => {
+            throw new Error('offline')
+        }, save: n => void saved.push(n)}
+        const notes = new NotesPlugin({file: false, browser: false, stores: [offline]})
+        notes.onAdded(fakeViewer())
+        await vi.waitFor(() => expect(notes.storeStatus('off')).toBe('error'))
+        notes.addNote('kept here')
+        await notes.flush()
+        expect(saved).toEqual([])
+        expect(texts(notes)).toEqual(['off:kept here'])
+        expect(notes.storeStatus('off')).toBe('error')
+        warn.mockRestore()
+    })
+
     test('a store that fails keeps the notes, and shows the error', async() => {
         const bad: NotesStore = {id: 'bad', label: 'Bad', load: () => [], save: () => {
             throw new Error('offline')
@@ -170,11 +212,12 @@ describe('NotesPlugin', () => {
         warn.mockRestore()
     })
 
-    test('the changes of the last 600 ms are saved when the plugin is removed', () => {
+    test('the changes of the last 600 ms are saved when the plugin is removed', async() => {
         vi.useFakeTimers()
         const notes = new NotesPlugin()
         const viewer = fakeViewer()
         notes.onAdded(viewer)
+        await vi.waitFor(() => expect(notes.storeStatus('browser')).toBe('saved'))
         notes.addNote('last words', 'browser')
         notes.onRemove(viewer)
         expect(JSON.parse(storage.get('threepipe-notes')!).map((x: NoteItem) => x.text)).toEqual(['last words'])
@@ -205,13 +248,14 @@ describe('NotesPlugin', () => {
         expect(notes.storeStatus('slow')).toBe('saved')
     })
 
-    test('the changes of the last 600 ms are saved when the page is hidden or left', () => {
+    test('the changes of the last 600 ms are saved when the page is hidden or left', async() => {
         vi.useFakeTimers()
         const handlers: Record<string, (e: Event) => void> = {}
         vi.stubGlobal('addEventListener', (type: string, f: (e: Event) => void) => handlers[type] = f)
         vi.stubGlobal('removeEventListener', () => {})
         const notes = new NotesPlugin()
         notes.onAdded(fakeViewer())
+        await vi.waitFor(() => expect(notes.storeStatus('browser')).toBe('saved'))
         notes.addNote('typed just before leaving', 'browser')
         handlers.pagehide({type: 'pagehide'} as any)
         expect(JSON.parse(storage.get('threepipe-notes')!).map((x: NoteItem) => x.text)).toEqual(['typed just before leaving'])
