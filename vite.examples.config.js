@@ -100,8 +100,10 @@ export default defineConfig(async ({command})=>{
             { // the example import maps point at the built bundles (dist/, plugins/*/dist/), which a fresh clone does not
               // have, and esm.sh modules with `external=three` (troika-three-text, r3f) import `three` through them.
               // Serve a module that re-exports the sources, so those modules and the page share one threepipe.
+              // resolveId does the same for the imports vite resolves itself (inline <script type="module"> in examples).
                 name: 'dist-from-source',
                 apply: 'serve',
+                enforce: 'pre', // before vite's resolver, which would load a built dist/ next to the sources
                 configureServer (server) {
                     server.middlewares.use((req, res, next) => {
                         const m = req.url?.split('?')[0].match(/^\/(plugins\/[^/]+\/)?dist\/index\.m?js$/)
@@ -109,6 +111,24 @@ export default defineConfig(async ({command})=>{
                         res.setHeader('Content-Type', 'text/javascript')
                         res.end(`export * from '/${m[1] || ''}src/index.ts'\n`)
                     })
+                },
+                resolveId (id, importer, options) {
+                    // not for the dependency scan: it would parse all of src/ through the inline scripts
+                    if (options?.scan || !importer || !/\/dist\/index\.m?js$/.test(id)) return null
+                    const file = path.resolve(path.dirname(importer.split('?')[0]), id)
+                    const m = path.relative(import.meta.dirname, file).split(path.sep).join('/').match(/^(plugins\/[^/]+\/)?dist\/index\.m?js$/)
+                    return m ? path.resolve(import.meta.dirname, (m[1] || '') + 'src/index.ts') : null
+                },
+            },
+            { // the dev server compiles JSX with the classic runtime (React.createElement), so React must be in scope;
+              // plugin sources are written for the automatic runtime and may not import it (plugins/r3f)
+                name: 'plugin-jsx-react-in-scope',
+                apply: 'serve',
+                enforce: 'pre',
+                transform (code, id) {
+                    if (!/\/plugins\/[^/]+\/src\/.*\.[jt]sx$/.test(id.split('?')[0])) return null
+                    if (/^\s*import\s+(?:\*\s+as\s+)?React\b/m.test(code)) return null
+                    return {code: 'import React from \'react\';' + code, map: null}
                 },
             },
             !isProd ? react({
