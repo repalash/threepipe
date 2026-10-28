@@ -63,6 +63,8 @@ To add a dependency to a plugin, run `npm install <package> -w plugins/<plugin-n
 
 - `npm run test:unit` runs the unit tests (vitest), from source.
 - `npm run test:e2e` runs the example tests (playwright) against the built bundles, run `npm run build:all` first.
+  The screenshots it compares against are not in this repository. On a fresh clone the first run writes them to
+  `tests/snapshots/` and reports each test as failed; the next run compares against them.
 - `npm run test:types` type-checks the published declarations as a consumer, run `npm run build` first.
 
 ## Building
