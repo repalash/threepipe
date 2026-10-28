@@ -123,9 +123,9 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
     private _loading = new Set<string>()
     private _timer = 0
     /** Per store, the running save: saves of a store run one after the other */
-    private _running = new Map<string, Promise<void>>()
+    private _running = new Map<NotesStore, Promise<void>>()
     /** Per store, a save that waits for the running one: more changes join it */
-    private _waiting = new Map<string, Promise<void>>()
+    private _waiting = new Map<NotesStore, Promise<void>>()
 
     uiConfig: UiObjectConfig = {
         type: 'folder',
@@ -176,10 +176,12 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
             // the store it replaces keeps its last changes; its notes and changes do not go to the new store
             const prev = this._stores[old]
             const notes = this._notes.filter(n => n.store === store.id).map(n => ({...n}))
-            if (this._changed.has(store.id) && !this._loading.has(store.id)) {
-                Promise.resolve().then(async() => prev.save(notes))
+            // its changes, also a save queued behind a running one, are saved to it after that save
+            if ((this._changed.has(store.id) || this._waiting.has(prev)) && !this._loading.has(store.id)) {
+                (this._running.get(prev) ?? Promise.resolve()).then(async() => prev.save(notes))
                     .catch(e => console.warn('NotesPlugin: could not save the notes of the replaced ' + store.id, e))
             }
+            this._waiting.delete(prev)
             this._changed.delete(store.id)
             this._loading.delete(store.id)
             this._notes = this._notes.filter(n => n.store !== store.id)
@@ -366,39 +368,43 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
         this._timer = 0
         const changed = [...this._changed].filter(id => !this._loading.has(id))
         for (const id of changed) this._changed.delete(id)
-        await Promise.all(changed.map(async id => this._saveStore(id)))
+        await Promise.all(changed.map(async id => {
+            const store = this.getStore(id)
+            if (store) await this._saveStore(store)
+        }))
     }
 
     /**
      * Saves the notes of a store now, or after its running save, so an older save never ends after a newer one. The
      * notes are read when the save starts, so it saves the latest ones.
      */
-    private async _saveStore(id: string): Promise<void> {
-        const waiting = this._waiting.get(id)
+    private async _saveStore(store: NotesStore): Promise<void> {
+        const waiting = this._waiting.get(store)
         if (waiting) return waiting
-        const running = this._running.get(id)
+        const running = this._running.get(store)
         if (running) {
             const next = running.then(async() => {
-                this._waiting.delete(id)
-                return this._saveStore(id)
+                if (this._waiting.get(store) !== next) return // the store was replaced: addStore saved its changes
+                this._waiting.delete(store)
+                return this._saveStore(store)
             })
-            this._waiting.set(id, next)
+            this._waiting.set(store, next)
             return next
         }
         // started at once: a store that saves synchronously (localStorage) is saved before the page closes
-        const save = this._runSave(id)
-        this._running.set(id, save)
-        void save.then(() => this._running.get(id) === save && this._running.delete(id))
+        const save = this._runSave(store)
+        this._running.set(store, save)
+        void save.then(() => this._running.get(store) === save && this._running.delete(store))
         return save
     }
 
-    private async _runSave(id: string) {
-        const store = this.getStore(id)
-        if (!store) return
+    private async _runSave(store: NotesStore) {
+        const id = store.id
+        if (this.getStore(id) !== store) return // replaced: addStore saved its changes
         this._setStatus(id, 'saving')
         try {
             await store.save(this._notes.filter(n => n.store === id).map(n => ({...n})))
-            if (!this._changed.has(id) && !this._waiting.has(id)) this._setStatus(id, 'saved')
+            if (!this._changed.has(id) && !this._waiting.has(store)) this._setStatus(id, 'saved')
         } catch (e) {
             console.warn('NotesPlugin: could not save the notes of ' + id, e)
             this._setStatus(id, 'error')

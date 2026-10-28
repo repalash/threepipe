@@ -145,6 +145,33 @@ describe('NotesPlugin', () => {
         expect(a.saved.at(-1)!.map(n => n.text)).toEqual(['project A, edited'])
     })
 
+    test('a save queued behind a slow save goes to its own store, also when the store is replaced', async() => {
+        const answers: (() => void)[] = []
+        const aSaved: string[][] = []
+        const a: NotesStore = {id: 'project', label: 'A', load: () => [{id: 'a1', text: 'A', store: 'project', created: 1}], save: async n => {
+            aSaved.push(n.map(x => x.text))
+            await new Promise<void>(r => answers.push(r))
+        }}
+        let bLoad!: (n: NoteItem[]) => void
+        const bSaved: string[][] = []
+        const b: NotesStore = {id: 'project', label: 'B', load: async() => new Promise(r => bLoad = r), save: n => void bSaved.push(n.map(x => x.text))}
+        const notes = new NotesPlugin({file: false, browser: false, stores: [a]})
+        notes.onAdded(fakeViewer())
+        notes.updateNote('a1', {text: 'A1'})
+        void notes.flush() // running
+        notes.updateNote('a1', {text: 'A2'})
+        void notes.flush() // queued behind it
+        notes.addStore(b)
+        answers[0]()
+        await vi.waitFor(() => expect(aSaved.at(-1)).toEqual(['A2']))
+        answers.forEach(r => r())
+        await vi.waitFor(() => expect(bLoad).toBeTypeOf('function'))
+        bLoad([{id: 'b1', text: 'B', store: 'project', created: 1}])
+        await vi.waitFor(() => expect(texts(notes)).toEqual(['project:B']))
+        await notes.flush()
+        expect(bSaved).toEqual([])
+    })
+
     test('importing another scene replaces the notes in the file', async() => {
         const notes = new NotesPlugin()
         notes.onAdded(fakeViewer())
