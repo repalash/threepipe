@@ -552,6 +552,7 @@ function sameObjects(a: IObject3D[], b: IObject3D[]) {
 
 const MASK_VERT = /* glsl */`
 #include <common>
+#include <batching_pars_vertex>
 #include <morphtarget_pars_vertex>
 #include <skinning_pars_vertex>
 #include <clipping_planes_pars_vertex>
@@ -585,6 +586,8 @@ void main() {
     // the UV set and the transform of each texture, as in the material
     vMaskMapUv = (maskMapUvTransform * vec3(maskUv(maskMapChannel), 1.)).xy;
     vMaskAlphaMapUv = (maskAlphaMapUvTransform * vec3(maskUv(maskAlphaMapChannel), 1.)).xy;
+    // the transform of each object of a BatchedMesh, used by project_vertex
+    #include <batching_vertex>
     #include <skinbase_vertex>
     #include <beginnormal_vertex>
     #include <morphnormal_vertex>

@@ -237,6 +237,14 @@ describe('SelectionOutlinePlugin', () => {
         expect(pass._lineMasks.size).toBe(0)
     })
 
+    test('the mask material has the batching transforms, so a selected BatchedMesh compiles and is drawn', () => {
+        const vert = selectionMaskMaterial().vertexShader
+        expect(vert).toContain('#include <batching_pars_vertex>')
+        expect(vert).toContain('#include <batching_vertex>')
+        // batchingMatrix is declared before project_vertex uses it
+        expect(vert.indexOf('#include <batching_vertex>')).toBeLessThan(vert.indexOf('#include <project_vertex>'))
+    })
+
     test('the mask material follows the displacement map of the material, as the render', () => {
         const material = selectionMaskMaterial()
         const pass = new SelectionMaskPass(() => ({}) as any, material) as any
