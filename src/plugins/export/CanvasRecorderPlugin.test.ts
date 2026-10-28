@@ -819,13 +819,33 @@ describe('converge mode with several frames in one loop', () => {
         plugin._recorder.requestFrame = () => captured.push(shown)
         plugin._recorder.start()
         plugin._viewer.renderManager = {composer: {renderToScreen: true}}
-        for (const frame of [1, 2]) { // two renders in one animation loop (maxFramePerLoop 2)
+        for (const frame of [1, 2]) { // two frames in one animation loop (maxFramePerLoop 2), each with its postFrame
             plugin._preRender()
             shown = frame
             plugin._postRender()
+            plugin._postFrame()
         }
         await new Promise(r => setTimeout(r, 10))
         expect(captured).toEqual([1, 2])
+    })
+
+    test('several converged renders in one frame (rendersPerFrame 2) capture one frame, as the animations step once', async() => {
+        const {plugin} = setup() // converge mode, the scene is converged (e.g. ProgressivePlugin(1))
+        let shown = 0 // the frame that the canvas shows
+        const captured: number[] = []
+        plugin._recorder.requestFrame = () => captured.push(shown)
+        plugin._recorder.start()
+        plugin._viewer.renderManager = {composer: {renderToScreen: true}}
+        for (const step of [1, 2]) { // two animation steps
+            for (const render of [0, 1]) { // the renders of the frame, before its postFrame
+                plugin._preRender()
+                shown = step * 10 + render
+                plugin._postRender()
+            }
+            plugin._postFrame()
+        }
+        await new Promise(r => setTimeout(r, 10))
+        expect(captured).toEqual([10, 20])
     })
 })
 

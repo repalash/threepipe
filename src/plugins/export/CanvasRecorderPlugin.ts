@@ -203,10 +203,11 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
             if (!this._convergeNow || !progressive) {
                 // real time; or converge mode without ProgressivePlugin, where the animations run on the wall clock
                 this._requestRealtimeFrames()
-            } else if (progressive.isConverged(true)) {
+            } else if (!this._capturedInFrame && progressive.isConverged(true)) {
                 // the browser recorder still records the last frame: a still loop (_postFrame) or the stop takes this one
                 this._uncapturedRender = !this.canRecordFrame()
                 if (!this._uncapturedRender) this._captureSoon()
+                this._capturedInFrame = !this._uncapturedRender
             }
         }
         if (this._renderToScreenDisabled) {
@@ -218,6 +219,12 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
 
     /** A frame rendered in this animation loop */
     private _rendered = false
+
+    /**
+     * Converge mode: a render of this frame was captured. The animations step once per frame (postFrame), so the
+     * other renders of the frame (viewer.rendersPerFrame above 1) capture nothing: each step has one frame.
+     */
+    private _capturedInFrame = false
 
     /** Converge mode: the last converged render came while the recorder still recorded a frame, and is not captured yet */
     private _uncapturedRender = false
@@ -232,6 +239,7 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
     private _postFrame = () => {
         const rendered = this._rendered
         this._rendered = false
+        this._capturedInFrame = false
         if (rendered || !this._convergeNow || !this._recorder?.isRecording()) return
         const progressive = this._viewer?.getPlugin<ProgressivePlugin>('ProgressivePlugin')
         if (!progressive) {
