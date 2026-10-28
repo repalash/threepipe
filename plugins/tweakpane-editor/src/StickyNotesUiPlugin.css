@@ -39,7 +39,8 @@
     position: absolute; display: flex; flex-direction: column; box-sizing: border-box; overflow: hidden; resize: both;
     min-width: 160px; min-height: 72px; border-radius: 6px; background: var(--tp-base-background-color, #ffffff);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12), 0 6px 18px rgba(0, 0, 0, 0.14);
-    transition: left .16s ease-out, top .16s ease-out, width .16s ease-out, height .16s ease-out, transform .16s ease-out, box-shadow .12s;
+    /* not the size: a size in between would read as one the person gave (ResizeObserver) */
+    transition: left .16s ease-out, top .16s ease-out, transform .16s ease-out, box-shadow .12s;
 }
 .snp-instant .snp-card, .snp-dragging .snp-card { transition: none; }
 .snp-card.snp-lifted { box-shadow: 0 2px 4px rgba(0, 0, 0, 0.14), 0 14px 32px rgba(0, 0, 0, 0.22); }
