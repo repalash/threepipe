@@ -1090,6 +1090,33 @@ describe('CanvasMediaRecorder', () => {
         }
     })
 
+    test('step mode: the frame time of a failed recording does not end a step of the next one', async() => {
+        const mediaRecorder = fakeMediaRecorder()
+        vi.stubGlobal('window', {MediaRecorder: mediaRecorder})
+        vi.stubGlobal('MediaRecorder', mediaRecorder)
+        try {
+            const canvas = {captureStream: () => ({getVideoTracks: () => [{stop: vi.fn(), requestFrame: vi.fn()}]})} as any
+            const rec = new CanvasMediaRecorder(canvas, {mimeType: 'auto', frameRate: 100, stepMode: true}) as any // 10 ms per frame
+            rec._console = {error: () => undefined, warn: () => undefined, log: () => undefined}
+            rec.start()
+            const failed = rec._recorder
+            failed.resume = () => failed.onresume?.(new Event('resume'))
+            rec.requestFrame() // a step: its frame time ends in 10 ms
+            failed.onerror?.(new Event('error')) // the native recorder fails during the step
+            rec.start() // a retry before the frame time ends
+            const next = rec._recorder
+            next.pause = vi.fn()
+            next.resume = () => undefined // the resume event of the new step comes later
+            rec.requestFrame()
+            expect(rec.isBusy()).toBe(true)
+            await new Promise(r => setTimeout(r, 30)) // the frame time of the failed step passes
+            expect(rec.isBusy()).toBe(true) // the new step still waits for its resume
+            expect(next.pause).not.toHaveBeenCalled()
+        } finally {
+            vi.unstubAllGlobals()
+        }
+    })
+
     test('without MediaRecorder, the start ends in the error state', () => {
         vi.stubGlobal('window', {})
         try {

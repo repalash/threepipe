@@ -207,7 +207,10 @@ export class CanvasMediaRecorder extends ACanvasRecorder {
     private _onresume: EventListener = (_evt) => {
         if (this.state === 'paused' || this.state === 'starting' || this.state === 'stopped') this.setState('recording')
         if (!this.options.stepMode) return
+        const recorder = this._recorder
         const pse = () => {
+            // the recording of this step failed or was disposed: its frame time does not touch the next recording
+            if (this._recorder !== recorder) return
             this._stepping = false
             if (this._queuedFrames > 0 && (this.state === 'recording' || this.state === 'stopping')) {
                 this._queuedFrames--
