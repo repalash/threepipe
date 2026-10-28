@@ -97,10 +97,11 @@ export default defineConfig(async ({command})=>{
                     })
                 },
             },
-            { // the example import maps point at the built bundles (dist/, plugins/*/dist/), which a fresh clone does not
-              // have, and esm.sh modules with `external=three` (troika-three-text, r3f) import `three` through them.
-              // Serve a module that re-exports the sources, so those modules and the page share one threepipe.
-              // resolveId does the same for the imports vite resolves itself (inline <script type="module"> in examples).
+            // The example import maps point at the built bundles (dist/, plugins/*/dist/), which a fresh clone does not
+            // have, and esm.sh modules with `external=three` (troika-three-text, r3f) import `three` through them.
+            // Serve a module that re-exports the sources, so those modules and the page share one threepipe.
+            // resolveId does the same for the imports vite resolves itself (inline <script type="module"> in examples).
+            {
                 name: 'dist-from-source',
                 apply: 'serve',
                 enforce: 'pre', // before vite's resolver, which would load a built dist/ next to the sources
@@ -120,8 +121,9 @@ export default defineConfig(async ({command})=>{
                     return m ? path.resolve(import.meta.dirname, (m[1] || '') + 'src/index.ts') : null
                 },
             },
-            { // the dev server compiles JSX with the classic runtime (React.createElement), so React must be in scope;
-              // plugin sources are written for the automatic runtime and may not import it (plugins/r3f)
+            // The dev server compiles JSX with the classic runtime (React.createElement), so React must be in scope;
+            // plugin sources are written for the automatic runtime and may not import it (plugins/r3f).
+            {
                 name: 'plugin-jsx-react-in-scope',
                 apply: 'serve',
                 enforce: 'pre',
