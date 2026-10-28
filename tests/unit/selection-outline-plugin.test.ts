@@ -282,4 +282,30 @@ describe('SelectionOutlinePlugin', () => {
         expect(material.uniforms.maskUseMap.value).toBe(0)
         expect(material.uniforms.maskUseAlphaMap.value).toBe(0)
     })
+
+    test('the mask material: an alpha-tested material is cut with its opacity, as the render (not only when transparent)', () => {
+        const material = selectionMaskMaterial()
+        const pass = new SelectionMaskPass(() => ({}) as any, material) as any
+        const before = material.onBeforeRender as any
+        const alphaTested = new Mesh(new BoxGeometry(), new MeshBasicMaterial({alphaTest: 0.5, opacity: 0.2}))
+        const opaque = new Mesh(new BoxGeometry(), new MeshBasicMaterial({opacity: 0.2}))
+        pass._items = new Map([[alphaTested, new Vector3(1, 0, 0)], [opaque, new Vector3(2, 0, 0)]])
+        before(null, null, null, null, alphaTested, null)
+        expect(material.uniforms.maskOpacity.value).toBeCloseTo(0.2) // 0.2 < alphaTest 0.5: cut, as in the render
+        before(null, null, null, null, opaque, null)
+        expect(material.uniforms.maskOpacity.value).toBe(1) // opaque: the render ignores the opacity
+    })
+
+    test('the x-ray test gets the near and far of the camera, for a tolerance in view space', () => {
+        const {plugin, viewer} = setup() as any
+        Object.assign(viewer, {scene: {mainCamera: {near: 0.1, far: 2000}}})
+        Object.assign(viewer.renderManager, {renderScale: 1, screenPass: {material: {}}})
+        ;(plugin as any)._target = {texture: new Texture(), width: 4, height: 4}
+        ;(plugin as any)._preRender()
+        expect(plugin.extraUniforms.selNearFar.value.toArray()).toEqual([0.1, 2000])
+        // not a fixed bias on the depth normalized by far - near: 0.002 of 0.1..2000 is 4 world units
+        const glsl = plugin.parsFragmentSnippet() as string
+        expect(glsl).not.toContain('maskDepth - 0.002')
+        expect(glsl).toContain('selNearFar')
+    })
 })

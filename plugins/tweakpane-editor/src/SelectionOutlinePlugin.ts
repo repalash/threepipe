@@ -135,6 +135,7 @@ export class SelectionOutlinePlugin extends AScreenPassExtensionPlugin {
         selDim: {value: 0},
         selActive: {value: 0},
         selHasSel: {value: 0},
+        selNearFar: {value: new Vector2(0.1, 1000)},
     }
 
     /** After tonemapping and the other extensions, so the colors are exact */
@@ -304,6 +305,8 @@ if (selCoverage > 0.0) {
         u.selXray.value = this.xray ? 1 : 0
         u.selParts.value = this.parts ? 0.6 : 0
         u.selDim.value = this.dimOthers ? 0.55 : 0
+        const camera = this._viewer.scene.mainCamera
+        u.selNearFar.value.set(camera.near, camera.far)
         this._viewer.renderManager.screenPass.material.uniformsNeedUpdate = true
     }
 }
@@ -500,15 +503,16 @@ function maskAlphaUniforms() {
 }
 
 /**
- * The alpha of a material as in its own render (transparent or alpha test): `opacity` when transparent, times the
- * alpha of `map`, times the green channel of `alphaMap`, cut at `alphaTest` (or 0.5). Also its displacement map.
+ * The alpha of a material as in its own render (transparent or alpha test): `opacity`, times the alpha of `map`, times
+ * the green channel of `alphaMap`, cut at `alphaTest` (or 0.5). Also its displacement map.
  */
 function setMaskAlpha(mask: ShaderMaterial, material: Material | undefined) {
     const m = material as MeshPhysicalMaterial | undefined
     const u = mask.uniforms
     const cut = m?.alphaTest || 0
     const useAlpha = !!m && (m.transparent || cut > 0)
-    u.maskOpacity.value = useAlpha && m.transparent ? m.opacity : 1
+    // the render multiplies the alpha by the opacity before the alpha test too, also when not transparent
+    u.maskOpacity.value = useAlpha ? m.opacity : 1
     setMaskTexture(u.maskMap, u.maskUseMap, u.maskMapUvTransform, u.maskMapChannel, useAlpha ? m.map : null)
     setMaskTexture(u.maskAlphaMap, u.maskUseAlphaMap, u.maskAlphaMapUvTransform, u.maskAlphaMapChannel, useAlpha ? m.alphaMap : null)
     u.maskAlphaCut.value = cut > 0 ? cut : 0.5
@@ -669,6 +673,7 @@ uniform float selParts;
 uniform float selDim;
 uniform float selActive;
 uniform float selHasSel;
+uniform vec2 selNearFar;
 
 // the alpha of the outline at this pixel, set by selectionOutline
 float selCoverage = 0.0;
@@ -681,9 +686,13 @@ vec4 selOver(vec4 dst, vec3 c, float a) {
     return vec4((c * a + dst.rgb * dst.a * (1.0 - a)) / outA, outA);
 }
 
-// true when the masked surface at uv is hidden by another object in the scene
+// true when the masked surface at uv is hidden by another object in the scene. Both depths are
+// (viewZ - near) / (far - near). The tolerance is 0.5% of the view distance (the depth step of a sloped surface across
+// a pixel, and the precision of the two buffers), not of far - near, so a wide clipping range does not hide occlusion.
 float selHidden(vec2 uv, float maskDepth) {
-    return getDepth(uv) < maskDepth - 0.002 ? 1.0 : 0.0;
+    float range = selNearFar.y - selNearFar.x;
+    float viewZ = selNearFar.x + maskDepth * range;
+    return getDepth(uv) < maskDepth - 0.005 * abs(viewZ) / range ? 1.0 : 0.0;
 }
 
 vec4 selectionOutline(in vec4 color) {
