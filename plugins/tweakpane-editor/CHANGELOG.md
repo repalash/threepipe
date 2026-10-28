@@ -9,7 +9,7 @@ All notable changes to this plugin will be documented in this file.
 - Add `TweakpaneEditorPlugin.layout`: the page layout, `titlebar` (the default), `statusbar`, `floating` or `classic`. The first three put the editor in a page frame (class `EditorFrame`) with the modes as coloured icons on the right (`EditorModeBar`, names shown or hidden, a click on the open mode hides the panel) and Shift+T for a light or dark theme. `classic` is the old page, with the mode tabs at the bottom. The layout picked in the frame's layout menu or in the plugin's UI is kept in `localStorage` (`TweakpaneEditorPlugin.LayoutStorageKey`); `TweakpaneEditorPlugin.DefaultLayout` sets the layout when none is stored, and `frameOptions` the app name and theme pairs. In the tweakpane-editor example: `?layout=titlebar|statusbar|floating|classic`.
 - `TweakpaneEditorPlugin` has a UI (`Editor` folder: Page layout, Mode names), shown in the Viewer mode of the tweakpane-editor example, also in the classic layout.
 - The editor's tooltips (the bottom button bar, the fullscreen button, the mode bar and the frame buttons) share one tippy theme, `editor`: a small dark chip with its arrow, lighter in the dark themes. Before, the button bar tooltips took the panel colours, with a dark arrow in the light themes.
-- `HierarchyUiPlugin.treeView` is typed `any`: treejs is bundled from a git repository and not on npm, so its type could not resolve in consumer declarations.
+- treejs comes from npm, `@repalash/treejs` 2.0.0 (the same code), instead of a git URL, which npm 12 refuses by default. `HierarchyUiPlugin.treeView` is typed `any`: treejs is bundled, so its type could not resolve in consumer declarations.
 
 ## [0.6.0]
 
