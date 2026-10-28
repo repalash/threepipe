@@ -172,8 +172,22 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
     /** Adds a store, and loads its notes when the plugin is in a viewer. A store with the same id is replaced. */
     addStore(store: NotesStore) {
         const old = this._stores.findIndex(s => s.id === store.id)
-        if (old >= 0) this._stores[old] = store
-        else this._stores.push(store)
+        if (old >= 0) {
+            // the store it replaces keeps its last changes; its notes and changes do not go to the new store
+            const prev = this._stores[old]
+            const notes = this._notes.filter(n => n.store === store.id).map(n => ({...n}))
+            if (this._changed.has(store.id) && !this._loading.has(store.id)) {
+                Promise.resolve().then(async() => prev.save(notes))
+                    .catch(e => console.warn('NotesPlugin: could not save the notes of the replaced ' + store.id, e))
+            }
+            this._changed.delete(store.id)
+            this._loading.delete(store.id)
+            this._notes = this._notes.filter(n => n.store !== store.id)
+            this._stores[old] = store
+            if (notes.length) this.dispatchEvent({type: 'notesChanged', change: 'remove'})
+        } else {
+            this._stores.push(store)
+        }
         if (!this.defaultStore) this.defaultStore = store.id
         this.uiConfig.uiRefresh?.(true)
         if (this._viewer) this._loadStore(store)

@@ -207,6 +207,17 @@ describe('StickyNotesUiPlugin', () => {
         expect(cards(layer)).toHaveLength(0)
     })
 
+    test('a change of the text by the app shows in the note being typed in, with the cursor kept', () => {
+        const {notes, layer} = setup()
+        const n = notes.addNote('typed')
+        const box = text(cards(layer)[0])
+        box.focus()
+        box.selectionStart = box.selectionEnd = 3
+        notes.updateNote(n.id, {text: 'typed, and changed by the app'})
+        expect(box.value).toBe('typed, and changed by the app')
+        expect([box.selectionStart, box.selectionEnd]).toEqual([3, 3])
+    })
+
     test('+ Context inserts the context line at the cursor', () => {
         const {notes, layer} = setup()
         notes.contextProvider = () => 'Move tool'

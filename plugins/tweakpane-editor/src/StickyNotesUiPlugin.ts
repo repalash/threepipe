@@ -281,7 +281,15 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
                 if (note.id === added) c.card.classList.add('snp-new')
             }
             c.note = note
-            if (document.activeElement !== c.text && c.text.value !== note.text) c.text.value = note.text
+            // a change by the app (typing gives the same text): shown also while the note is typed in, cursor kept
+            if (c.text.value !== note.text) {
+                const t = c.text, focused = document.activeElement === t, from = t.selectionStart, to = t.selectionEnd
+                t.value = note.text
+                if (focused && from !== null) {
+                    t.selectionStart = Math.min(from, note.text.length)
+                    t.selectionEnd = Math.min(to ?? from, note.text.length)
+                }
+            }
             this._updateBadge(c)
         }
         // a note made now goes on top

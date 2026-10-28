@@ -131,6 +131,20 @@ describe('NotesPlugin', () => {
         expect(notes.fileNotes.map(n => n.text)).toEqual(['right away'])
     })
 
+    test('a store replaced by another with the same id gets none of the old notes; the old one keeps its last changes', async() => {
+        const a = memoryStore('project', [{id: 'a1', text: 'project A', created: 1}])
+        const b = memoryStore('project', [{id: 'b1', text: 'project B', created: 1}])
+        const notes = new NotesPlugin({file: false, browser: false, stores: [a]})
+        notes.onAdded(fakeViewer())
+        await vi.waitFor(() => expect(texts(notes)).toEqual(['project:project A']))
+        notes.updateNote('a1', {text: 'project A, edited'})
+        notes.addStore(b)
+        await vi.waitFor(() => expect(texts(notes)).toEqual(['project:project B']))
+        await notes.flush()
+        expect(b.saved).toEqual([])
+        expect(a.saved.at(-1)!.map(n => n.text)).toEqual(['project A, edited'])
+    })
+
     test('importing another scene replaces the notes in the file', async() => {
         const notes = new NotesPlugin()
         notes.onAdded(fakeViewer())
