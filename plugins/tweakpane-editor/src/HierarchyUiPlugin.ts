@@ -1,5 +1,5 @@
 import {createDiv, createStyles, css} from 'ts-browser-helpers'
-import Tree from 'treejs'
+import Tree from '@repalash/treejs'
 import {
     AViewerPluginSync,
     IObject3D,
@@ -17,7 +17,7 @@ export class HierarchyUiPlugin extends AViewerPluginSync {
 
     toJSON: any = undefined
 
-    // treejs is bundled from a git repository, not published on npm, so its type stays out of the declarations.
+    // treejs is bundled (a dev dependency), not a dependency of the package, so its type stays out of the declarations.
     treeView?: any = undefined
     private _lastPointerShift = false
     private _onPointerDown = (e: PointerEvent) => { this._lastPointerShift = e.shiftKey || e.ctrlKey || e.metaKey }
@@ -91,7 +91,6 @@ export class HierarchyUiPlugin extends AViewerPluginSync {
         // visible changed from outside
         if (e && e.object && e.change === 'visible' && this.treeView) {
             const nodeId = e.object.uuid
-            // @ts-expect-error no type
             const node = this.treeView.nodesById[nodeId] as TNode
             if (node && !!node.status !== e.object.visible) {
                 this.treeView.setValue(nodeId)
@@ -158,7 +157,7 @@ export class HierarchyUiPlugin extends AViewerPluginSync {
         if (!obj) return
         const visible = obj.children.reduce(this._findVisible, [])
         this.treeView?.emptyNodesCheckStatus()
-        this.treeView?.treeNodes.map(n=>refreshVisible(n, visible, this.treeView!))
+        this.treeView?.treeNodes.map((n: TNode)=>refreshVisible(n, visible, this.treeView!))
         this.treeView?.updateLiElements()
     }
 
@@ -258,7 +257,6 @@ export class HierarchyUiPlugin extends AViewerPluginSync {
             }
             obj.traverse((o)=>{
                 if (o === obj) return
-                // @ts-expect-error no type
                 const node = this.treeView.nodesById[o.uuid] as TNode|undefined
                 if (node) {
                     cAdd(o, !!node.status)
