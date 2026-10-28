@@ -1,5 +1,13 @@
-import {afterEach, beforeEach, describe, expect, test, vi} from 'vitest'
+import {afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi} from 'vitest'
 import {HttpNotesStore, NoteItem, NotesPlugin, NotesStore} from '../../plugins/tweakpane-editor/src/NotesPlugin'
+
+const doc = globalThis.document as any
+const saved = {addEventListener: doc.addEventListener, removeEventListener: doc.removeEventListener}
+beforeAll(() => {
+    doc.addEventListener = () => {}
+    doc.removeEventListener = () => {}
+})
+afterAll(() => Object.assign(doc, saved))
 
 let storage: Map<string, string>
 beforeEach(() => {
@@ -8,6 +16,8 @@ beforeEach(() => {
         getItem: (k: string) => storage.get(k) ?? null,
         setItem: (k: string, v: string) => storage.set(k, v),
     })
+    vi.stubGlobal('addEventListener', () => {})
+    vi.stubGlobal('removeEventListener', () => {})
 })
 afterEach(() => {
     vi.useRealTimers()
@@ -144,6 +154,43 @@ describe('NotesPlugin', () => {
         notes.addNote('last words', 'browser')
         notes.onRemove(viewer)
         expect(JSON.parse(storage.get('threepipe-notes')!).map((x: NoteItem) => x.text)).toEqual(['last words'])
+    })
+
+    test('one save at a time per store: a change made during a slow save is saved after it, with the latest notes', async() => {
+        const calls: string[][] = []
+        const answers: (() => void)[] = []
+        const slow: NotesStore = {id: 'slow', label: 'Slow', load: () => [], save: async n => {
+            calls.push(n.map(x => x.text))
+            await new Promise<void>(r => answers.push(r))
+        }}
+        const notes = new NotesPlugin({file: false, browser: false, stores: [slow]})
+        const n = notes.addNote('first')
+        const one = notes.flush()
+        notes.updateNote(n.id, {text: 'second'})
+        const two = notes.flush()
+        notes.updateNote(n.id, {text: 'third'})
+        const three = notes.flush()
+        await vi.waitFor(() => expect(calls).toHaveLength(1))
+        expect(notes.storeStatus('slow')).toBe('changed') // a newer change waits for the running save
+        answers[0]()
+        await vi.waitFor(() => expect(calls).toHaveLength(2))
+        answers[1]()
+        await Promise.all([one, two, three])
+        // the second and third changes are one save, after the first, with the latest text
+        expect(calls).toEqual([['first'], ['third']])
+        expect(notes.storeStatus('slow')).toBe('saved')
+    })
+
+    test('the changes of the last 600 ms are saved when the page is hidden or left', () => {
+        vi.useFakeTimers()
+        const handlers: Record<string, (e: Event) => void> = {}
+        vi.stubGlobal('addEventListener', (type: string, f: (e: Event) => void) => handlers[type] = f)
+        vi.stubGlobal('removeEventListener', () => {})
+        const notes = new NotesPlugin()
+        notes.onAdded(fakeViewer())
+        notes.addNote('typed just before leaving', 'browser')
+        handlers.pagehide({type: 'pagehide'} as any)
+        expect(JSON.parse(storage.get('threepipe-notes')!).map((x: NoteItem) => x.text)).toEqual(['typed just before leaving'])
     })
 
     test('the context line has the time, the context and the selected names', () => {

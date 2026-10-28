@@ -120,6 +120,10 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
     private _status: Record<string, NotesStoreStatus> = {}
     private _changed = new Set<string>()
     private _timer = 0
+    /** Per store, the running save: saves of a store run one after the other */
+    private _running = new Map<string, Promise<void>>()
+    /** Per store, a save that waits for the running one: more changes join it */
+    private _waiting = new Map<string, Promise<void>>()
 
     uiConfig: UiObjectConfig = {
         type: 'folder',
@@ -176,9 +180,14 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
     onAdded(viewer: ThreeViewer) {
         super.onAdded(viewer)
         for (const store of this._stores) this._loadStore(store)
+        // a reload, a closed tab or a hidden page: the changes of the last 600 ms are saved
+        window.addEventListener('pagehide', this._savePending)
+        document.addEventListener('visibilitychange', this._savePending)
     }
 
     onRemove(viewer: ThreeViewer) {
+        window.removeEventListener('pagehide', this._savePending)
+        document.removeEventListener('visibilitychange', this._savePending)
         // the changes of the last 600 ms
         if (this._timer) void this._saveChanged()
         super.onRemove(viewer)
@@ -289,23 +298,53 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
         this._timer = window.setTimeout(() => void this._saveChanged(), 600)
     }
 
+    /** The page is left or hidden: the changes that wait for the 600 ms are saved now */
+    private _savePending = (e: Event) => {
+        if (this._timer && (e.type === 'pagehide' || document.visibilityState === 'hidden')) void this._saveChanged()
+    }
+
     private async _saveChanged() {
         clearTimeout(this._timer)
         this._timer = 0
         const changed = [...this._changed]
         this._changed.clear()
-        await Promise.all(changed.map(async id => {
-            const store = this.getStore(id)
-            if (!store) return
-            this._setStatus(id, 'saving')
-            try {
-                await store.save(this._notes.filter(n => n.store === id).map(n => ({...n})))
-                if (!this._changed.has(id)) this._setStatus(id, 'saved')
-            } catch (e) {
-                console.warn('NotesPlugin: could not save the notes of ' + id, e)
-                this._setStatus(id, 'error')
-            }
-        }))
+        await Promise.all(changed.map(async id => this._saveStore(id)))
+    }
+
+    /**
+     * Saves the notes of a store now, or after its running save, so an older save never ends after a newer one. The
+     * notes are read when the save starts, so it saves the latest ones.
+     */
+    private async _saveStore(id: string): Promise<void> {
+        const waiting = this._waiting.get(id)
+        if (waiting) return waiting
+        const running = this._running.get(id)
+        if (running) {
+            const next = running.then(async() => {
+                this._waiting.delete(id)
+                return this._saveStore(id)
+            })
+            this._waiting.set(id, next)
+            return next
+        }
+        // started at once: a store that saves synchronously (localStorage) is saved before the page closes
+        const save = this._runSave(id)
+        this._running.set(id, save)
+        void save.then(() => this._running.get(id) === save && this._running.delete(id))
+        return save
+    }
+
+    private async _runSave(id: string) {
+        const store = this.getStore(id)
+        if (!store) return
+        this._setStatus(id, 'saving')
+        try {
+            await store.save(this._notes.filter(n => n.store === id).map(n => ({...n})))
+            if (!this._changed.has(id) && !this._waiting.has(id)) this._setStatus(id, 'saved')
+        } catch (e) {
+            console.warn('NotesPlugin: could not save the notes of ' + id, e)
+            this._setStatus(id, 'error')
+        }
     }
 }
 
