@@ -44,6 +44,6 @@ export default defineConfig({
     plugins: [
         isProd ? dts({tsconfigPath: './tsconfig.json', afterBuild: fixDtsImports}) : null,
         ...globalsReplacePlugin(globals, isProd),
-        ...commonPlugins(packageJson, path.resolve(import.meta.dirname || import.meta.dirname), isProd),
+        ...commonPlugins(packageJson, import.meta.dirname, isProd),
     ],
 })

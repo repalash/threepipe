@@ -97,6 +97,20 @@ export default defineConfig(async ({command})=>{
                     })
                 },
             },
+            { // the example import maps point at the built bundles (dist/, plugins/*/dist/), which a fresh clone does not
+              // have, and esm.sh modules with `external=three` (troika-three-text, r3f) import `three` through them.
+              // Serve a module that re-exports the sources, so those modules and the page share one threepipe.
+                name: 'dist-from-source',
+                apply: 'serve',
+                configureServer (server) {
+                    server.middlewares.use((req, res, next) => {
+                        const m = req.url?.split('?')[0].match(/^\/(plugins\/[^/]+\/)?dist\/index\.m?js$/)
+                        if (!m) return next()
+                        res.setHeader('Content-Type', 'text/javascript')
+                        res.end(`export * from '/${m[1] || ''}src/index.ts'\n`)
+                    })
+                },
+            },
             !isProd ? react({
                 jsxRuntime: 'classic',
             }) : react(),
