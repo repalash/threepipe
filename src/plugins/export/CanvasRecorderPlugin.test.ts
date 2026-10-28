@@ -709,6 +709,24 @@ describe('converge mode stop', () => {
         expect(captured).toEqual([4])
     })
 
+    test('the last frame of the end padding is captured before the recorder stops', async() => {
+        const {plugin, progressive} = setup()
+        const viewer = Object.assign(new EventDispatcher(), plugin._viewer)
+        plugin._viewer = viewer
+        Object.assign(progressive, {postFrameConvergedRecordingDelta: () => 1 / 30})
+        viewer.addEventListener('postFrame', plugin._postFrame) // the recorder listens before the wait
+        const rec = plugin._recorder
+        let captured = 0
+        rec.requestFrame = () => rec.isRecording() && captured++
+        plugin.endPaddingMs = 34 // one frame at 30 fps
+        rec.start()
+        const stop = plugin.stopRecording()
+        await new Promise(r => setTimeout(r, 5))
+        viewer.dispatchEvent({type: 'postFrame'}) // a still loop: its capture waits for a timeout, the padding ends
+        await stop
+        expect(captured).toBe(1)
+    })
+
     test('a last pose that converges while the browser recorder still records a frame is captured once it is ready', async() => {
         const {plugin, captured} = converging(4)
         const rec = plugin._recorder

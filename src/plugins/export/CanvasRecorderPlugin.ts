@@ -464,6 +464,8 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
             this._pendingCapture?.()
             // a removed plugin has no recording to pad
             if (this.endPaddingMs && this._viewer) await this.waitRecordingTime(this.endPaddingMs)
+            // the last frame of the padding waits for its capture too
+            this._pendingCapture?.()
             // the recorder failed (or stopped) during the waits above: its stop() would not call back
             const recorder = this.recorder
             if (!recorder || recorder.state === 'error' || recorder.state === 'stopped') return undefined
