@@ -39,17 +39,20 @@ export class ImageSequenceRecorder extends ACanvasRecorder {
         this._writeError = undefined
 
         this.setState('starting')
+        const startId = ++this._startId
         if (typeof window !== 'undefined' && (window as any).showDirectoryPicker) {
             (window as any)
                 .showDirectoryPicker()
                 .then(async(dir: FileSystemDirectoryHandle) => {
                     const imgDir = await dir?.getDirectoryHandle('i-' + Math.floor(Date.now()), {create: true})
+                    // disposed while the folder was picked: the recording does not start
+                    if (startId !== this._startId) return
                     this._imgDirectory = imgDir
                     this._frameCount = 0
                     this.setState('recording')
                 })
                 .catch((e: any) => {
-                    this._onerror({detail: e} as any)
+                    if (startId === this._startId) this._onerror({detail: e} as any)
                 })
         } else {
             // no folder to write to (the File System Access API is not in this browser)
@@ -58,6 +61,18 @@ export class ImageSequenceRecorder extends ACanvasRecorder {
     }
 
     private _imgDirectory?: FileSystemDirectoryHandle
+
+    /** The start that waits for the folder; a dispose cancels it */
+    private _startId = 0
+
+    dispose() {
+        // a start that waits for the folder does not start: it ends in the error state (a record() waiting for it settles)
+        if (this.state === 'starting') {
+            this._startId++
+            this.setState('error', {error: new Error('ImageSequenceRecorder: disposed while starting')})
+        }
+        super.dispose()
+    }
 
     requestFrame() {
         if (!super.requestFrame()) return false

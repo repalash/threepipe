@@ -454,8 +454,10 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
                         await this._nextFrame()
                     }
                     // the last pose converged while the browser recorder still recorded a frame: a still loop takes it once
-                    // the recorder is ready
-                    for (let i = 0; i < max && this._uncapturedRender && this._recorder?.isRecording(); i++) {
+                    // the recorder is ready. The recorder ends its frame within a frame time of the video, which fast loops
+                    // can pass in fewer than max loops.
+                    const readyBy = performance.now() + 2000 / (this._active ?? this).videoFrameRate
+                    for (let i = 0; this._uncapturedRender && this._recorder?.isRecording() && (i < max || performance.now() < readyBy); i++) {
                         await this._nextFrame()
                     }
                 }

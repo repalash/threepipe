@@ -353,6 +353,26 @@ describe('ImageSequenceRecorder start', () => {
         expect(rec.state).toBe('error')
         expect(states).toEqual(['error'])
     })
+
+    test('a dispose while the folder is picked ends the start in the error state; the recording does not start', async() => {
+        let pick!: (dir: any) => void
+        vi.stubGlobal('window', {showDirectoryPicker: async() => new Promise(r => pick = r)})
+        try {
+            const rec = new ImageSequenceRecorder({} as any, {mimeType: 'image/png'}) as any
+            const states: string[] = []
+            rec.addEventListener('recording', () => states.push('recording'))
+            rec.addEventListener('error', () => states.push('error'))
+            rec.start()
+            expect(rec.state).toBe('starting')
+            rec.dispose() // e.g. the plugin is removed while the picker is open
+            pick({getDirectoryHandle: async() => ({})}) // the folder is picked after that
+            await new Promise(r => setTimeout(r, 5))
+            expect(rec.state).toBe('error')
+            expect(states).toEqual(['error'])
+        } finally {
+            vi.unstubAllGlobals()
+        }
+    })
 })
 
 describe('FFMPEGRecorder stop', () => {
@@ -725,6 +745,23 @@ describe('converge mode stop', () => {
         viewer.dispatchEvent({type: 'postFrame'}) // a still loop: its capture waits for a timeout, the padding ends
         await stop
         expect(captured).toBe(1)
+    })
+
+    test('the last pose waits for the browser recorder for a frame time of the video, also when the loops are fast', async() => {
+        const {plugin, captured} = converging(4)
+        const rec = plugin._recorder
+        let busy = true // the browser recorder records the frame of the pose before, for a frame time (33 ms at 30 fps)
+        setTimeout(() => busy = false, 30)
+        rec.isBusy = () => busy
+        const doOnce = plugin._viewer.doOnce
+        plugin._viewer.doOnce = async() => {
+            await doOnce()
+            await new Promise(r => setTimeout(r, 1)) // a fast loop (a high refresh rate): 6 loops end before the recorder
+            plugin._postFrame()
+            plugin._pendingCapture?.()
+        }
+        await plugin.stopRecording()
+        expect(captured).toEqual([4])
     })
 
     test('a last pose that converges while the browser recorder still records a frame is captured once it is ready', async() => {
