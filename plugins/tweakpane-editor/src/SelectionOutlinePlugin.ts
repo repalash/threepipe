@@ -188,16 +188,7 @@ if (selCoverage > 0.0) {
             depthBuffer: true,
         })
         this._target.texture.name = 'selectionMask'
-        this._pass = new SelectionMaskPass(() => this._target, new ShaderMaterial({
-            uniforms: {
-                cameraNearFar: {value: new Vector2(0.1, 100)},
-                itemData: {value: new Vector3()},
-                ...maskAlphaUniforms(),
-            },
-            vertexShader: MASK_VERT,
-            fragmentShader: MASK_FRAG,
-            side: DoubleSide,
-        }))
+        this._pass = new SelectionMaskPass(() => this._target, selectionMaskMaterial())
         this._pass.getItems = () => this.maskItems()
         viewer.renderManager.registerPass(this._pass)
         viewer.addEventListener('preRender', this._preRender)
@@ -342,9 +333,11 @@ export class SelectionMaskPass extends RenderPass implements IPipelinePass<'sele
             if (d) material.uniforms.itemData.value.copy(d)
             // an object that is on the layer but not in the mask (not selected or hovered) writes nothing
             material.uniforms.maskSkip.value = d ? 0 : 1
-            // a mesh with a material array: the material of the geometry group drawn now
+            // a mesh with a material array: the material of the geometry group drawn now (three types this argument as
+            // a Group object, but the renderer passes the geometry group)
             const own = (object as Mesh).material
-            setMaskAlpha(material, Array.isArray(own) ? own[group?.materialIndex ?? 0] : own)
+            const index = (group as unknown as {materialIndex?: number} | null)?.materialIndex ?? 0
+            setMaskAlpha(material, Array.isArray(own) ? own[index] : own)
             material.uniformsNeedUpdate = true
         }
     }
@@ -442,6 +435,25 @@ export class SelectionMaskPass extends RenderPass implements IPipelinePass<'sele
     }
 }
 
+/**
+ * The material of the mask pass of meshes. It writes the item data and the linear depth, and is cut as the mesh is
+ * in its own render: by the global clipping planes of the renderer, and by the alpha of the mesh's material.
+ */
+export function selectionMaskMaterial() {
+    return new ShaderMaterial({
+        uniforms: {
+            cameraNearFar: {value: new Vector2(0.1, 100)},
+            itemData: {value: new Vector3()},
+            ...maskAlphaUniforms(),
+        },
+        vertexShader: MASK_VERT,
+        fragmentShader: MASK_FRAG,
+        side: DoubleSide,
+        // the renderer's clipping planes: a mesh cut in the render is cut in the mask
+        clipping: true,
+    })
+}
+
 /** Uniforms for the alpha of the object's own material, so a mesh that is cut by its texture is cut in the mask too */
 function maskAlphaUniforms() {
     return {
@@ -450,9 +462,11 @@ function maskAlphaUniforms() {
         maskMap: {value: null as Texture | null},
         maskUseMap: {value: 0},
         maskMapUvTransform: {value: new Matrix3()},
+        maskMapChannel: {value: 0},
         maskAlphaMap: {value: null as Texture | null},
         maskUseAlphaMap: {value: 0},
         maskAlphaMapUvTransform: {value: new Matrix3()},
+        maskAlphaMapChannel: {value: 0},
         maskAlphaCut: {value: 0.5},
     }
 }
@@ -467,18 +481,19 @@ function setMaskAlpha(mask: ShaderMaterial, material: Material | undefined) {
     const cut = m?.alphaTest || 0
     const useAlpha = !!m && (m.transparent || cut > 0)
     u.maskOpacity.value = useAlpha && m.transparent ? m.opacity : 1
-    setMaskTexture(u.maskMap, u.maskUseMap, u.maskMapUvTransform, useAlpha ? m.map : null)
-    setMaskTexture(u.maskAlphaMap, u.maskUseAlphaMap, u.maskAlphaMapUvTransform, useAlpha ? m.alphaMap : null)
+    setMaskTexture(u.maskMap, u.maskUseMap, u.maskMapUvTransform, u.maskMapChannel, useAlpha ? m.map : null)
+    setMaskTexture(u.maskAlphaMap, u.maskUseAlphaMap, u.maskAlphaMapUvTransform, u.maskAlphaMapChannel, useAlpha ? m.alphaMap : null)
     u.maskAlphaCut.value = cut > 0 ? cut : 0.5
 }
 
-/** Sets a texture of the mask alpha with its UV transform */
-function setMaskTexture(tex: {value: Texture | null}, use: {value: number}, uvTransform: {value: Matrix3}, t: Texture | null) {
+/** Sets a texture of the mask alpha with its UV transform and its UV set (`channel`: uv, uv1, uv2 or uv3) */
+function setMaskTexture(tex: {value: Texture | null}, use: {value: number}, uvTransform: {value: Matrix3}, channel: {value: number}, t: Texture | null) {
     tex.value = t
     use.value = t ? 1 : 0
     if (t) {
         if (t.matrixAutoUpdate) t.updateMatrix()
         uvTransform.value.copy(t.matrix)
+        channel.value = t.channel ?? 0
     }
 }
 
@@ -497,10 +512,30 @@ const MASK_VERT = /* glsl */`
 #include <morphtarget_pars_vertex>
 #include <skinning_pars_vertex>
 #include <clipping_planes_pars_vertex>
+// the UV sets that a texture can use (Texture.channel); this material does not define USE_UV1..3, so three does not declare them
+#ifndef USE_UV1
+attribute vec2 uv1;
+#endif
+#ifndef USE_UV2
+attribute vec2 uv2;
+#endif
+#ifndef USE_UV3
+attribute vec2 uv3;
+#endif
+uniform mat3 maskMapUvTransform;
+uniform float maskMapChannel;
+uniform mat3 maskAlphaMapUvTransform;
+uniform float maskAlphaMapChannel;
 varying vec3 vViewPosition;
-varying vec2 vMaskUv;
+varying vec2 vMaskMapUv;
+varying vec2 vMaskAlphaMapUv;
+vec2 maskUv(float channel) {
+    return channel < 0.5 ? uv : channel < 1.5 ? uv1 : channel < 2.5 ? uv2 : uv3;
+}
 void main() {
-    vMaskUv = uv;
+    // the UV set and the transform of each texture, as in the material
+    vMaskMapUv = (maskMapUvTransform * vec3(maskUv(maskMapChannel), 1.)).xy;
+    vMaskAlphaMapUv = (maskAlphaMapUvTransform * vec3(maskUv(maskAlphaMapChannel), 1.)).xy;
     #include <skinbase_vertex>
     #include <begin_vertex>
     #include <morphtarget_vertex>
@@ -512,26 +547,28 @@ void main() {
 `
 
 const MASK_FRAG = /* glsl */`
+#include <clipping_planes_pars_fragment>
 uniform vec2 cameraNearFar;
 uniform vec3 itemData;
 uniform float maskSkip;
 uniform float maskOpacity;
 uniform sampler2D maskMap;
 uniform float maskUseMap;
-uniform mat3 maskMapUvTransform;
 uniform sampler2D maskAlphaMap;
 uniform float maskUseAlphaMap;
-uniform mat3 maskAlphaMapUvTransform;
 uniform float maskAlphaCut;
 varying vec3 vViewPosition;
-varying vec2 vMaskUv;
+varying vec2 vMaskMapUv;
+varying vec2 vMaskAlphaMapUv;
 void main() {
     if (maskSkip > 0.5) discard;
+    // the renderer's clipping planes, as in the render
+    #include <clipping_planes_fragment>
     // the alpha of the object's own material: a mesh cut by its texture is cut here too
     // as in the material: the alpha of map times the green channel of alphaMap
     float alpha = maskOpacity;
-    if (maskUseMap > 0.5) alpha *= texture2D(maskMap, (maskMapUvTransform * vec3(vMaskUv, 1.)).xy).a;
-    if (maskUseAlphaMap > 0.5) alpha *= texture2D(maskAlphaMap, (maskAlphaMapUvTransform * vec3(vMaskUv, 1.)).xy).g;
+    if (maskUseMap > 0.5) alpha *= texture2D(maskMap, vMaskMapUv).a;
+    if (maskUseAlphaMap > 0.5) alpha *= texture2D(maskAlphaMap, vMaskAlphaMapUv).g;
     if (alpha < maskAlphaCut) discard;
     // same linear depth as the gbuffer: (viewZ - near) / (far - near)
     float d = clamp((vViewPosition.z - cameraNearFar.x) / (cameraNearFar.y - cameraNearFar.x), 0., 1.);

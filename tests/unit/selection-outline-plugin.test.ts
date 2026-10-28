@@ -1,7 +1,7 @@
 import {describe, expect, test, vi} from 'vitest'
-import {BoxGeometry, EventDispatcher, Group, Matrix3, Mesh, MeshBasicMaterial, Object3D, PerspectiveCamera, ShaderMaterial, Texture, Vector3} from 'three'
+import {BoxGeometry, EventDispatcher, Group, Mesh, MeshBasicMaterial, Object3D, PerspectiveCamera, ShaderMaterial, Texture, Vector3} from 'three'
 import {PickingPlugin} from 'threepipe'
-import {SelectionMaskPass, SelectionOutlinePlugin} from '../../plugins/tweakpane-editor/src/SelectionOutlinePlugin'
+import {SelectionMaskPass, selectionMaskMaterial, SelectionOutlinePlugin} from '../../plugins/tweakpane-editor/src/SelectionOutlinePlugin'
 
 const mesh = (name: string) => Object.assign(new Mesh(new BoxGeometry()), {name})
 
@@ -192,15 +192,19 @@ describe('SelectionOutlinePlugin', () => {
         expect(modes.transmissionRender).toBe(true)
     })
 
+    test('the mask material is cut by the clipping planes of the renderer, as the render', () => {
+        const material = selectionMaskMaterial()
+        expect(material.clipping).toBe(true) // the renderer passes the clipping planes uniform
+        expect(material.vertexShader).toContain('#include <clipping_planes_vertex>')
+        expect(material.fragmentShader).toContain('#include <clipping_planes_pars_fragment>')
+        expect(material.fragmentShader).toContain('#include <clipping_planes_fragment>')
+    })
+
     test('the mask material: objects outside the mask write nothing; a material array uses the group material', () => {
-        const u = (v: any) => ({value: v})
-        const material = new ShaderMaterial({uniforms: {
-            itemData: u(new Vector3()), maskSkip: u(0), maskOpacity: u(1),
-            maskMap: u(null), maskUseMap: u(0), maskMapUvTransform: u(new Matrix3()),
-            maskAlphaMap: u(null), maskUseAlphaMap: u(0), maskAlphaMapUvTransform: u(new Matrix3()), maskAlphaCut: u(0.5),
-        }})
+        const material = selectionMaskMaterial()
         const pass = new SelectionMaskPass(() => ({}) as any, material) as any
         const cutout = new MeshBasicMaterial({alphaTest: 0.3, map: new Texture(), alphaMap: new Texture()})
+        cutout.alphaMap!.channel = 2 // the alpha map on the third UV set
         const item = new Mesh(new BoxGeometry(), [new MeshBasicMaterial(), cutout])
         const other = mesh('other')
         pass._items = new Map([[item, new Vector3(1, 2, 0)]])
@@ -218,6 +222,9 @@ describe('SelectionOutlinePlugin', () => {
         expect(material.uniforms.maskAlphaMap.value).toBe(cutout.alphaMap)
         expect(material.uniforms.maskUseAlphaMap.value).toBe(1)
         expect(material.uniforms.maskAlphaCut.value).toBeCloseTo(0.3)
+        // each texture with its own UV set, as in the material
+        expect(material.uniforms.maskMapChannel.value).toBe(0)
+        expect(material.uniforms.maskAlphaMapChannel.value).toBe(2)
 
         before(null, null, null, null, item, {materialIndex: 0})
         expect(material.uniforms.maskUseMap.value).toBe(0)
