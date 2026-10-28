@@ -19,7 +19,6 @@ body.tpTheme-clean .mb-root, body.tpTheme-clean-dark .mb-root { font-size: 12px;
 }
 .mb-btn:hover { background: var(--mb-hover); }
 .mb-btn.on { background: color-mix(in srgb, var(--mb-color) 16%, transparent); }
-.mb-btn.on::before { content: ''; position: absolute; left: -5px; top: 8px; bottom: 8px; width: 3px; border-radius: 2px; background: var(--mb-color); }
 .mb-btn:focus-visible { outline: 2px solid var(--mb-color, #0d99ff); outline-offset: 1px; }
 .mb-label { display: none; font: inherit; color: var(--tp-container-foreground-color, #1e1e1e); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mb-toggle { margin-top: auto; color: var(--tp-label-foreground-color, #8a8f98); }
@@ -27,16 +26,10 @@ body.tpTheme-clean .mb-root, body.tpTheme-clean-dark .mb-root { font-size: 12px;
 /* expanded: a sidebar with the names */
 .mb-root.mb-wide { width: 168px; align-items: stretch; padding: 10px 6px; }
 .mb-wide .mb-btn { width: auto; justify-content: flex-start; gap: 10px; padding: 0 8px; }
-.mb-wide .mb-btn.on::before { left: -6px; }
 .mb-wide .mb-label { display: block; }
 .mb-wide .mb-toggle .mb-label, .mb-wide .lay-float-btn .mb-label { color: inherit; font-weight: 400; }
-.mb-wide .mb-toggle svg { transform: rotate(180deg); }
-.mb-tip {
-    position: fixed; z-index: 1001; pointer-events: none; background: #1e1e1e; color: #fff; border-radius: 4px; padding: 5px 8px; white-space: nowrap;
-    font: 500 11px/1 var(--tp-font-family, Inter, ui-sans-serif, system-ui, sans-serif); opacity: 0; transition: opacity .1s;
-    box-shadow: inset 3px 0 0 var(--mb-color);
-}
-.mb-tip.show { opacity: 1; }
+/* the bar opens to the left: ‹ expands, › collapses */
+.mb-root:not(.mb-wide) .mb-toggle svg { transform: rotate(180deg); }
 
 /* EditorFrame: the bars and the layouts */
 body.lay-titlebar { --lay-top: 36px; --lay-bottom: 0px; }
@@ -44,7 +37,7 @@ body.lay-statusbar { --lay-top: 0px; --lay-bottom: 26px; }
 body.lay-floating { --lay-top: 0px; --lay-bottom: 0px; --lay-gap: 12px; }
 /* below 920 px the page keeps the editor's own layout: no bars, no mode bar, the mode tabs and the panel stay */
 @media only screen and (max-width: 919.98px) {
-    .mb-root, .mb-tip, .lay-bar, .lay-menu { display: none !important; }
+    .mb-root, .lay-bar, .lay-menu { display: none !important; }
     body.mb-panel-hidden #tweakpaneUiContainer { visibility: visible !important; }
 }
 /* the page around the canvas in the clean themes (the Tweakpane theme styles only the panel) */
@@ -90,8 +83,10 @@ body.tpTheme-clean .lay-bottom, body.tpTheme-clean-dark .lay-bottom { font-size:
     /* the mode bar replaces the mode tabs */
     body.lay-frame .mode-buttons-container { display: none !important; }
     /* the panel: no padding around it, and the room of the scrollbar is kept, so the width does not change when a
-       folder opens or closes */
+       folder opens or closes. The container is the panel here (the Tweakpane theme lets pointer events through it, for
+       the empty part of its full-height column), so its scrollbar takes the pointer. */
     body.lay-frame #tweakpaneUiContainer {
+        pointer-events: auto !important;
         padding: 0 !important; overflow-y: auto !important; scrollbar-gutter: stable; scrollbar-width: thin;
         scrollbar-color: var(--tp-groove-foreground-color, rgba(128, 128, 128, .5)) transparent;
     }

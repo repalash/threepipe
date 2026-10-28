@@ -1,3 +1,5 @@
+import tippy, {createSingleton, CreateSingletonInstance, Instance} from 'tippy.js'
+
 /**
  * The look of a mode button in the {@link EditorModeBar}: its colour and its icon (an SVG string).
  */
@@ -24,7 +26,8 @@ const FALLBACK: EditorModeLook = {color: '#8a8f98', icon: svg('<circle cx="10" c
  * - Each mode has its own colour and icon ({@link EditorModeBar.Looks}), like the property tabs of Blender: a mode is
  *   quicker to find, and easy to name ("the green export tab").
  * - A click on a mode shows its panels. A click on the open mode hides the panel, and the canvas takes its room.
- * - The button at the bottom shows the names next to the icons, like a sidebar.
+ * - The button at the bottom (Expand / Collapse) shows the names next to the icons, like a sidebar.
+ * - Without the names, each button has a tooltip (tippy.js, the `editor` theme of the editor).
  *
  * The bar sets the CSS variable `--mb-width` on the root element, and the class `mb-panel-hidden` on the body when the
  * panel is hidden, for the page layout ({@link EditorFrame}).
@@ -47,8 +50,10 @@ export class EditorModeBar {
     static Widths = {narrow: 44, wide: 168}
 
     readonly element: HTMLDivElement
-    private _tip: HTMLDivElement
     private _buttons: HTMLButtonElement[]
+    /** The tooltips of the buttons; one at a time, moving between the buttons */
+    private _tips: Instance[] = []
+    private _tipGroup: CreateSingletonInstance
     private _toggle: HTMLButtonElement
     private _selected = 0
     private _open = true
@@ -67,8 +72,6 @@ export class EditorModeBar {
         bar.setAttribute('role', 'tablist')
         bar.setAttribute('aria-orientation', 'vertical')
         this.element = bar
-        this._tip = document.createElement('div')
-        this._tip.className = 'mb-tip'
         if (storageKey) {
             try {
                 this._expanded = localStorage.getItem(storageKey) !== '0'
@@ -84,12 +87,10 @@ export class EditorModeBar {
             b.addEventListener('click', () => i === this._selected ? this.setOpen(!this._open) : this.show(i))
             return b
         })
-        this._toggle = this._button(TOGGLE_ICON, 'Hide names', '', 'Show names')
+        this._toggle = this._button(TOGGLE_ICON, 'Collapse', '', 'Expand')
         this._toggle.classList.add('mb-toggle')
-        this._toggle.addEventListener('click', () => {
-            this._tip.classList.remove('show')
-            this.setExpanded(!this._expanded)
-        })
+        this._toggle.addEventListener('click', () => this.setExpanded(!this._expanded))
+        this._tipGroup = createSingleton(this._tips, {placement: 'left', moveTransition: 'transform .15s ease-out', delay: [300, 0], appendTo: () => document.body})
         host.appendChild(bar)
         this.setExpanded(this._expanded)
         this.select(0)
@@ -109,7 +110,10 @@ export class EditorModeBar {
     setExpanded(expanded: boolean) {
         this._expanded = expanded
         this.element.classList.toggle('mb-wide', expanded)
-        this._toggle.setAttribute('aria-label', expanded ? 'Hide the mode names' : 'Show the mode names')
+        // the names are on the buttons: no tooltips
+        if (expanded) this._tipGroup.disable()
+        else this._tipGroup.enable()
+        this._toggle.setAttribute('aria-label', expanded ? 'Collapse the mode bar' : 'Expand the mode bar')
         this._toggle.setAttribute('aria-expanded', String(expanded))
         document.documentElement.style.setProperty('--mb-width', (expanded ? EditorModeBar.Widths.wide : EditorModeBar.Widths.narrow) + 'px')
         if (this.storageKey) {
@@ -152,10 +156,17 @@ export class EditorModeBar {
         if (!this._open) this.setOpen(true)
     }
 
+    /** Adds a tooltip to a button of the bar (not a mode), shown with the others when the names are hidden */
+    addTooltip(button: HTMLElement, content: string) {
+        this._tips.push(tippy(button, {content}))
+        this._tipGroup.setInstances(this._tips)
+    }
+
     dispose() {
         if (!this._open) this.setOpen(true)
+        this._tipGroup.destroy()
+        this._tips.forEach(t => t.destroy())
         this.element.remove()
-        this._tip.remove()
         document.documentElement.style.removeProperty('--mb-width')
     }
 
@@ -165,22 +176,8 @@ export class EditorModeBar {
         if (color) b.style.setProperty('--mb-color', color)
         b.innerHTML = `${icon}<span class="mb-label"></span>`
         b.querySelector('.mb-label')!.textContent = label
-        b.addEventListener('pointerenter', () => this._showTip(b, tip, color || '#8a8f98'))
-        b.addEventListener('pointerleave', () => this._tip.classList.remove('show'))
+        this._tips.push(tippy(b, {content: tip}))
         this.element.appendChild(b)
         return b
-    }
-
-    private _showTip(b: HTMLElement, text: string, color: string) {
-        if (this._expanded) return // the name is on the button
-        const tip = this._tip
-        tip.textContent = text
-        tip.style.setProperty('--mb-color', color)
-        if (!tip.isConnected) document.body.appendChild(tip)
-        const r = b.getBoundingClientRect()
-        const tr = tip.getBoundingClientRect()
-        tip.style.left = r.left - tr.width - 8 + 'px'
-        tip.style.top = r.top + r.height / 2 - tr.height / 2 + 'px'
-        tip.classList.add('show')
     }
 }

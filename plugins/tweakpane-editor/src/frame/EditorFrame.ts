@@ -1,4 +1,5 @@
 import {createStyles, ThreeViewer} from 'threepipe'
+import tippy, {Instance} from 'tippy.js'
 import {EditorModeBar, EditorModeBarHost} from './EditorModeBar'
 import styles from './EditorFrame.css?inline'
 
@@ -67,6 +68,8 @@ export class EditorFrame {
     /** The actions in the mode bar, for the floating layout (it has no bar) */
     private _floatActions: HTMLDivElement
     private _menu?: HTMLDivElement
+    /** The tooltips of the buttons in the bars */
+    private _tips: Instance[] = []
     private _themePairs: [string, string][]
     private _styles?: HTMLStyleElement
 
@@ -81,13 +84,13 @@ export class EditorFrame {
         this._top = this._bar('lay-top')
         this._top.innerHTML = `<span class="lay-app">${ICONS.app}<b></b><span class="lay-dim">Editor</span></span><span class="lay-sep"></span><span class="lay-file"></span><span class="lay-fill"></span>`
         this._top.querySelector('b')!.textContent = title
-        this._top.append(...this._actions())
+        this._top.append(...this._actions('top'))
         this._bottom = this._bar('lay-bottom')
         this._bottom.innerHTML = '<span class="lay-file"></span><span class="lay-fill"></span>'
-        this._bottom.append(...this._actions())
+        this._bottom.append(...this._actions('bottom'))
         this._floatActions = document.createElement('div')
         this._floatActions.className = 'lay-float-actions'
-        this._floatActions.append(...this._actions(true))
+        this._floatActions.append(...this._actions('modeBar'))
 
         viewer.assetManager.addEventListener('loadAsset', this._onLoad)
         window.addEventListener('keydown', this._onKeyDown)
@@ -147,6 +150,7 @@ export class EditorFrame {
         this._bottom.remove()
         this._floatActions.remove()
         this._menu?.remove()
+        this._tips.forEach(t => t.destroy())
         this.modeBar.dispose()
         this._styles?.remove()
         window.dispatchEvent(new Event('resize'))
@@ -201,26 +205,29 @@ export class EditorFrame {
 
     /**
      * The light or dark button and the layout button
-     * @param inModeBar - as buttons of the mode bar (the floating layout), with a name that the wide mode bar shows
+     * @param where - the top or the bottom bar, or the mode bar (the floating layout): there they have a name that the
+     * wide mode bar shows, and the tooltips of the mode bar
      */
-    private _actions(inModeBar = false) {
+    private _actions(where: 'top' | 'bottom' | 'modeBar') {
         const buttons: HTMLButtonElement[] = []
-        if (this.options.colorMode) buttons.push(this._button(ICONS.theme, 'Light or dark (Shift T)', 'Light / dark', inModeBar, () => this.toggleTheme()))
-        buttons.push(this._button(ICONS.layout, 'Layout of the page', 'Layout', inModeBar, b => this._layoutMenu(b)))
+        if (this.options.colorMode) buttons.push(this._button(ICONS.theme, 'Light or dark (Shift T)', 'Light / dark', where, () => this.toggleTheme()))
+        buttons.push(this._button(ICONS.layout, 'Layout of the page', 'Layout', where, b => this._layoutMenu(b)))
         return buttons
     }
 
-    private _button(icon: string, tip: string, name: string, inModeBar: boolean, onClick: (b: HTMLButtonElement) => void) {
+    private _button(icon: string, tip: string, name: string, where: 'top' | 'bottom' | 'modeBar', onClick: (b: HTMLButtonElement) => void) {
         const b = document.createElement('button')
-        b.className = inModeBar ? 'mb-btn lay-float-btn' : 'lay-btn'
+        b.className = where === 'modeBar' ? 'mb-btn lay-float-btn' : 'lay-btn'
         b.innerHTML = icon
-        if (inModeBar) {
+        if (where === 'modeBar') {
             const label = document.createElement('span')
             label.className = 'mb-label'
             label.textContent = name
             b.appendChild(label)
+            this.modeBar.addTooltip(b, tip)
+        } else {
+            this._tips.push(tippy(b, {content: tip, placement: where === 'top' ? 'bottom' : 'top', appendTo: () => document.body}))
         }
-        b.title = tip
         b.setAttribute('aria-label', tip)
         b.addEventListener('click', () => onClick(b))
         return b
