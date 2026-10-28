@@ -28,6 +28,7 @@ class FakeElement {
     classList = {
         contains: (c: string) => this.className.split(' ').includes(c),
         add: (c: string) => this.classList.toggle(c, true),
+        remove: (c: string) => this.classList.toggle(c, false),
         toggle: (c: string, on: boolean) => {
             const rest = this.className.split(' ').filter(x => x && x !== c)
             this.className = (on ? [...rest, c] : rest).join(' ')
@@ -44,6 +45,13 @@ class FakeElement {
         c.remove()
         c.parent = this
         this.children.push(c)
+        return c
+    }
+    insertBefore(c: FakeElement, before: FakeElement) {
+        c.remove()
+        c.parent = this
+        const i = this.children.indexOf(before)
+        this.children.splice(i < 0 ? this.children.length : i, 0, c)
         return c
     }
     replaceChildren() {
@@ -135,63 +143,66 @@ function setup(options: ConstructorParameters<typeof NotesPlugin>[0] = {}) {
 const cards = (layer: FakeElement) => layer.find('snp-card')
 
 describe('StickyNotesUiPlugin', () => {
-    test('the layer is on the canvas; the UI folder has the settings, not the notes', () => {
+    const text = (c: FakeElement) => c.all().find(e => e.tagName === 'textarea')!
+    const place = (c: FakeElement) => [c.style.left, c.style.top]
+    const state = () => JSON.parse(storage.get('threepipe-sticky-notes')!)
+    /** Drags a post-it by its bar (the free part, not a button) */
+    const drag = (c: FakeElement, dx: number, dy: number) => {
+        const bar = c.find('snp-bar')[0]
+        const target = c.find('snp-fill')[0]
+        c.fire('pointerdown', {target})
+        bar.fire('pointerdown', {target, clientX: 20, clientY: 20})
+        bar.fire('pointermove', {clientX: 20 + dx / 2, clientY: 20 + dy / 2})
+        bar.fire('pointermove', {clientX: 20 + dx, clientY: 20 + dy})
+        bar.fire('pointerup')
+    }
+
+    test('the layer is on the canvas with the dock; the UI folder has the settings, not the notes', () => {
         const {sticky, viewer, layer} = setup()
         expect(viewer.container.children).toEqual([layer])
+        expect(layer.find('snp-dock')[0].all().map(b => b.textContent)).toEqual(['+ Note', '▾', 'Arrange', 'Stack'])
         expect(sticky.uiConfig.label).toBe('Sticky Notes')
         expect((sticky.uiConfig.children as any[]).map(c => c.label)).toEqual(['Show', 'Layout', 'Colour', 'Arrange', 'Reset places'])
         expect(sticky.toJSON).toBeUndefined()
     })
 
-    test('board: a post-it per note, the dock adds a note in the store picked in its menu', () => {
+    test('+ Note adds a note at once, on top and with the cursor in it; ▾ picks the store', () => {
         const {notes, layer} = setup()
-        expect(cards(layer)).toHaveLength(0)
         layer.button('+ Note').fire('click')
+        expect(notes.notes.map(n => n.store)).toEqual(['file'])
+        expect(cards(layer)).toHaveLength(1)
+        expect(doc.activeElement).toBe(text(cards(layer)[0]))
+        expect(cards(layer)[0].classList.contains('snp-new')).toBe(true)
+
+        layer.button('▾').fire('click')
         const menu = layer.find('snp-menu')[0]
         expect(menu.all().filter(e => e.tagName === 'button').map(b => b.textContent)).toEqual(['In the file', 'This browser'])
         menu.button('This browser').fire('click')
-        expect(notes.notes.map(n => n.store)).toEqual(['browser'])
+        expect(notes.notes.map(n => n.store)).toEqual(['file', 'browser'])
         expect(layer.find('snp-menu')).toHaveLength(0)
-        expect(cards(layer)).toHaveLength(1)
-        // the new note has the cursor
-        expect(doc.activeElement).toBe(cards(layer)[0].all().find(e => e.tagName === 'textarea'))
-        expect(cards(layer)[0].find('snp-badge')[0].textContent).toBe('This browser')
+        const top = cards(layer).find(c => c.style.zIndex === '2')!
+        expect(top.find('snp-badge')[0].textContent).toBe('This browser')
     })
 
-    test('the store menu opens above a button at the bottom, inside the canvas', () => {
-        const {layer} = setup()
-        layer.rect = {left: 0, top: 0, right: 800, bottom: 600}
-        const add = layer.button('+ Note')
-        add.rect = {left: 16, top: 560, right: 70, bottom: 588}
-        add.fire('click')
-        const menu = layer.find('snp-menu')[0]
-        // 150 high (the fake height): above the button, 4 px apart
-        expect([menu.style.left, menu.style.top]).toEqual(['16px', '406px'])
-    })
-
-    test('with one store, + Note adds at once', () => {
-        const {notes, layer} = setup({browser: false})
-        layer.button('+ Note').fire('click')
-        expect(notes.notes).toHaveLength(1)
-        expect(layer.find('snp-menu')).toHaveLength(0)
-    })
-
-    test('typing keeps the same text box; × deletes the note; the badge moves it to another store', () => {
+    test('typing keeps the same post-it and text box; × deletes the note; the badge moves it to another store', () => {
         const {notes, layer} = setup()
         notes.addNote('one')
-        const text = cards(layer)[0].all().find(e => e.tagName === 'textarea')!
-        text.focus()
-        text.value = 'one more'
-        text.fire('input')
+        const card = cards(layer)[0]
+        const box = text(card)
+        box.focus()
+        box.value = 'one more'
+        box.fire('input')
         expect(notes.notes[0].text).toBe('one more')
-        expect(cards(layer)[0].all().find(e => e.tagName === 'textarea')).toBe(text)
+        expect(cards(layer)[0]).toBe(card)
+        expect(text(cards(layer)[0])).toBe(box)
 
-        cards(layer)[0].find('snp-badge')[0].fire('click')
+        card.find('snp-badge')[0].fire('click')
         layer.find('snp-menu')[0].button('This browser').fire('click')
         expect(notes.notes[0].store).toBe('browser')
-        expect(cards(layer)[0].find('snp-badge')[0].textContent).toBe('This browser')
+        expect(cards(layer)[0]).toBe(card)
+        expect(card.find('snp-badge')[0].textContent).toBe('This browser')
 
-        cards(layer)[0].button('×').fire('click')
+        card.button('×').fire('click')
         expect(notes.notes).toHaveLength(0)
         expect(cards(layer)).toHaveLength(0)
     })
@@ -200,29 +211,85 @@ describe('StickyNotesUiPlugin', () => {
         const {notes, layer} = setup()
         notes.contextProvider = () => 'Move tool'
         notes.addNote('AB')
-        const text = cards(layer)[0].all().find(e => e.tagName === 'textarea')!
-        text.selectionStart = 1
+        const box = text(cards(layer)[0])
+        box.selectionStart = 1
         cards(layer)[0].button('+ Context').fire('click')
         expect(notes.notes[0].text).toMatch(/^A\n\[.+ · Move tool]\nB$/)
     })
 
-    test('board: new post-its go below each other; dragging one moves it and keeps the place; Arrange puts them in columns', () => {
+    test('board: new post-its go below each other; a drag moves one, ends on release and keeps the place; Arrange', () => {
         const {notes, sticky, layer} = setup()
         const [a, b] = [notes.addNote('a'), notes.addNote('b')]
         const [ca, cb] = cards(layer)
-        expect([ca.style.left, ca.style.top]).toEqual(['12px', '12px'])
-        expect([cb.style.left, cb.style.top]).toEqual(['12px', '174px']) // 12 + 150 + 12
+        expect(place(ca)).toEqual(['12px', '12px'])
+        expect(place(cb)).toEqual(['12px', '174px']) // 12 + 150 + 12
 
-        const bar = cb.find('snp-bar')[0]
-        bar.fire('pointerdown', {clientX: 20, clientY: 20})
-        bar.fire('pointermove', {clientX: 320, clientY: 220})
-        bar.fire('pointerup')
-        expect([cb.style.left, cb.style.top]).toEqual(['312px', '212px'])
-        expect(JSON.parse(storage.get('threepipe-sticky-notes')!).board[b.id]).toMatchObject({x: 312, y: 212})
+        drag(cb, 300, 200)
+        expect(place(cb)).toEqual(['312px', '374px'])
+        expect(state().board[b.id]).toMatchObject({x: 312, y: 374})
+        // after the release, the pointer moves the post-it no more
+        cb.find('snp-bar')[0].fire('pointermove', {clientX: 600, clientY: 500})
+        expect(place(cb)).toEqual(['312px', '374px'])
 
         sticky.arrange()
-        const state = JSON.parse(storage.get('threepipe-sticky-notes')!).board
-        expect([state[a.id].x, state[a.id].y, state[b.id].x, state[b.id].y]).toEqual([12, 12, 12, 174])
+        expect([state().board[a.id].y, state().board[b.id].y]).toEqual([12, 174])
+        expect(place(cb)).toEqual(['12px', '174px'])
+    })
+
+    test('a press on a post-it brings it up; on a button of its bar, it does not drag', () => {
+        const {notes, layer} = setup()
+        notes.addNote('a')
+        notes.addNote('b')
+        const [ca] = cards(layer)
+        expect([ca.style.zIndex, cards(layer)[1].style.zIndex]).toEqual(['1', '2'])
+        ca.fire('pointerdown', {target: ca})
+        expect([ca.style.zIndex, cards(layer)[1].style.zIndex]).toEqual(['2', '1'])
+
+        const bar = ca.find('snp-bar')[0]
+        bar.fire('pointerdown', {target: ca.button('Copy'), clientX: 20, clientY: 20})
+        bar.fire('pointermove', {clientX: 320, clientY: 220})
+        expect(place(ca)).toEqual(['12px', '12px'])
+    })
+
+    test('a drag the canvas does not hold keeps the post-it inside it', () => {
+        const {notes, layer} = setup()
+        notes.addNote('a')
+        drag(cards(layer)[0], 5000, 5000)
+        expect(place(cards(layer)[0])).toEqual(['580px', '450px']) // 800 - 220, 600 - 150
+    })
+
+    test('stack: the post-its lie on a pile with offsets; a click on one behind brings it up; the pile drags as one', () => {
+        const {notes, sticky, layer} = setup()
+        const [a, b, c] = [notes.addNote('a'), notes.addNote('b'), notes.addNote('c')]
+        layer.find('snp-dock')[0].offsetTop = 560
+        layer.button('Stack').fire('click')
+        expect(sticky.layout).toBe('stack')
+        const byId = (id: string) => cards(layer)[notes.notes.findIndex(n => n.id === id)]
+        // c on top at the corner of the pile (260 x 190 above the dock), b and a 8 px right and up each
+        expect(place(byId(c.id))).toEqual(['12px', '358px']) // above the dock: 560 - 190 - 12
+        expect(place(byId(b.id))).toEqual(['20px', '350px'])
+        expect(place(byId(a.id))).toEqual(['28px', '342px'])
+        expect(byId(a.id).classList.contains('snp-behind')).toBe(true)
+        expect(byId(c.id).classList.contains('snp-behind')).toBe(false)
+
+        byId(a.id).fire('pointerdown', {target: byId(a.id)})
+        expect(place(byId(a.id))).toEqual(['12px', '358px'])
+        expect(byId(c.id).classList.contains('snp-behind')).toBe(true)
+
+        drag(byId(a.id), 100, -100)
+        expect(place(byId(a.id))).toEqual(['112px', '258px'])
+        expect(place(byId(c.id))).toEqual(['120px', '250px'])
+        expect(state().stack).toMatchObject({x: 112, y: 258})
+
+        sticky.color = 'blue'
+        expect(layer.dataset.color).toBe('blue')
+        expect(state()).toMatchObject({layout: 'stack', color: 'blue'})
+        const again = new StickyNotesUiPlugin()
+        expect([again.layout, again.color]).toEqual(['stack', 'blue'])
+
+        layer.button('Spread').fire('click')
+        expect(sticky.layout).toBe('board')
+        expect(byId(c.id).classList.contains('snp-behind')).toBe(false)
     })
 
     test('board: the saved places of notes that load after the post-its are drawn are kept', async() => {
@@ -230,53 +297,30 @@ describe('StickyNotesUiPlugin', () => {
         // a store that answers later, like a server
         const server = {id: 'server', label: 'Server', save: () => {}, load: async() => [{id: 'n1', text: 'loads later', store: 'server', created: 1}]}
         const {layer} = setup({stores: [server]})
-        // the stores load after the first drawing
         expect(cards(layer)).toHaveLength(0)
         await vi.waitFor(() => expect(cards(layer)).toHaveLength(1))
-        expect([cards(layer)[0].style.left, cards(layer)[0].style.top, cards(layer)[0].style.width]).toEqual(['300px', '200px', '260px'])
-        expect(JSON.parse(storage.get('threepipe-sticky-notes')!).board.n1).toMatchObject({x: 300, y: 200})
+        const c = cards(layer)[0]
+        expect([c.style.left, c.style.top, c.style.width]).toEqual(['300px', '200px', '260px'])
+        expect(state().board.n1).toMatchObject({x: 300, y: 200})
     })
 
     test('board: a deleted note forgets its place', () => {
         const {notes, layer} = setup()
         const n = notes.addNote('a')
-        expect(JSON.parse(storage.get('threepipe-sticky-notes')!).board[n.id]).toBeTruthy()
+        expect(state().board[n.id]).toBeTruthy()
         cards(layer)[0].button('×').fire('click')
-        expect(JSON.parse(storage.get('threepipe-sticky-notes')!).board[n.id]).toBeUndefined()
+        expect(state().board[n.id]).toBeUndefined()
     })
 
-    test('a press on a button of the bar does not drag', () => {
-        const {notes, layer} = setup()
-        notes.addNote('a')
-        const card = cards(layer)[0]
-        const bar = card.find('snp-bar')[0]
-        bar.fire('pointerdown', {target: card.button('Copy'), clientX: 20, clientY: 20})
-        bar.fire('pointermove', {clientX: 320, clientY: 220})
-        expect(card.style.left).toBe('12px')
-    })
-
-    test('stack: one post-it with the notes; Spread goes back to the board; the layout and colour are kept', () => {
-        const {notes, sticky, layer} = setup()
-        notes.addNote('a')
-        notes.addNote('b', 'browser')
-        layer.button('Stack').fire('click')
-        expect(sticky.layout).toBe('stack')
-        expect(cards(layer)).toHaveLength(1)
-        expect(layer.find('snp-note')).toHaveLength(2)
-        expect(layer.find('snp-count')[0].textContent).toBe('2')
-
-        layer.button('–').fire('click')
-        expect(cards(layer)[0].classList.contains('snp-collapsed')).toBe(true)
-
-        sticky.color = 'blue'
-        expect(layer.dataset.color).toBe('blue')
-        expect(JSON.parse(storage.get('threepipe-sticky-notes')!)).toMatchObject({layout: 'stack', color: 'blue', stack: {collapsed: true}})
-        const again = new StickyNotesUiPlugin()
-        expect([again.layout, again.color]).toEqual(['stack', 'blue'])
-
-        layer.button('Spread').fire('click')
-        expect(sticky.layout).toBe('board')
-        expect(cards(layer)).toHaveLength(2)
+    test('the store menu opens above a button at the bottom, inside the canvas', () => {
+        const {layer} = setup()
+        layer.rect = {left: 0, top: 0, right: 800, bottom: 600}
+        const pick = layer.button('▾')
+        pick.rect = {left: 70, top: 560, right: 90, bottom: 588}
+        pick.fire('click')
+        const menu = layer.find('snp-menu')[0]
+        // 150 high (the fake height): above the button, 4 px apart
+        expect([menu.style.left, menu.style.top]).toEqual(['70px', '406px'])
     })
 
     test('Show hides the layer; removing the plugin removes it', () => {

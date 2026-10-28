@@ -71,14 +71,15 @@ Changes are saved per store, 600 ms after the last one, and when the plugin is r
 `StickyNotesUiPlugin` shows the notes as post-its over the canvas, in one of two layouts:
 
 - `board`: each note is its own post-it. "Arrange" puts them in columns. "Stack" switches to the other layout.
-- `stack`: one post-it with the notes one above the other. "Spread" switches back.
+- `stack`: the post-its lie on a pile, each one a little offset from the one above it. A click on a post-it behind brings it to the top; the pile is dragged and sized as one. "Spread" switches back.
 
 In both layouts:
 
-- "+ Note" makes a note. With more than one store, a menu asks where to keep it.
+- "+ Note" adds a note at once, in the store of new notes, with the cursor in it. "▾" next to it picks another store.
 - The badge of a note shows its store; a click moves the note to another store.
-- Each note has "+ Context" (the time, `contextProvider` and the selected objects), "Copy" and "×".
-- Drag a post-it by its bar, and size it from its bottom right corner.
+- Each note has "+ Context" (the time, `contextProvider` and the selected objects), "Copy" and "×". Escape leaves the note.
+- Drag a post-it by its bar, and size it from its bottom right corner. A click on a post-it brings it up.
+- The buttons are `dock`, at the bottom left of the canvas. When that corner is taken, place it with its style, e.g. `sticky.dock.style.bottom = '64px'`.
 
 The layout, the colour, and the places and sizes of the post-its are kept in `localStorage` (the `storageKey` of the plugin), not in the file. Its UI folder (`Sticky Notes`) has the settings: Show, Layout, Colour (yellow, pink, blue, green, or `theme` for the Tweakpane theme), Arrange and Reset places.
 
@@ -94,7 +95,8 @@ const notes = viewer.addPluginSync(new NotesPlugin({
     stores: [new HttpNotesStore('/api/notes')], // optional: a server
     contextProvider: () => 'Move tool', // optional, extra text for "+ Context"
 }))
-viewer.addPluginSync(new StickyNotesUiPlugin())
+const sticky = viewer.addPluginSync(new StickyNotesUiPlugin())
+sticky.layout = 'stack' // a pile; 'board': a post-it per note
 
 // a store of the app
 const myStore: NotesStore = {

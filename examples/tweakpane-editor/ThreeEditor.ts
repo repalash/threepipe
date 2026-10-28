@@ -207,6 +207,10 @@ export class ThreeEditor extends ThreeViewer {
         const fade = this.getPlugin(FrameFadePlugin)
         fade && (fade.isEditor = true)
 
+        // the buttons of the notes go above the logo at the bottom left of the canvas
+        const sticky = this.getPlugin(StickyNotesUiPlugin)
+        sticky && (sticky.dock.style.bottom = '64px')
+
         const taa = this.getPlugin(TemporalAAPlugin)
         taa && (taa.stableNoise = true)
 
