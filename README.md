@@ -52,7 +52,7 @@ To work on threepipe itself (the core, the plugins or the examples), with Node.j
 ```bash
 git clone https://github.com/repalash/threepipe.git
 cd threepipe
-npm install   # npm 12+: npm install --allow-git=all
+npm install
 npm start     # opens the examples at http://localhost:5173/examples/index.html
 ```
 

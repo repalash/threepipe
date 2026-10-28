@@ -12,9 +12,6 @@ Requires Node.js `^20.19` or `>=22.12` (Vite 8) and npm 10 or newer.
 
 The repository is an npm workspace: one install at the root sets up the core and every package in `plugins/` (one `package-lock.json`, hoisted `node_modules`). Nothing is built during install, `npm start` runs the examples from the sources.
 
-With npm 12 or newer, run `npm install --allow-git=all` instead. npm 12 refuses dependencies from git repositories by
-default (`EALLOWGIT`), and `plugins/tweakpane-editor` still has one (treejs).
-
 ## Development
 
 1. Run `npm start` (same as `npm run dev`). It starts the vite dev server and opens the examples at
