@@ -2,7 +2,9 @@
 
 Real-time generative motion in threepipe with [NVIDIA MotionBricks](https://github.com/NVlabs/motionbricks) ([paper](https://arxiv.org/abs/2604.24833)).
 The Unitree G1 model runs in the browser with ONNX Runtime Web, on WebGPU when available, otherwise WebAssembly.
-Click the floor and the robot walks or runs there. Every frame of motion comes from the model; there are no animation clips at runtime.
+Click the floor and the robot walks or runs there, or drive it with WASD or the arrow keys (relative to the camera, Shift to run). Every frame of motion comes from the model; there are no animation clips at runtime.
+
+The scene is lit by an HDR environment, a warm key light with soft shadows and a cool rim light, with the webgi plugins for screen-space reflections, screen-space GI, contact shadows, temporal AA (with a velocity buffer for the moving robot) and a light bloom. The Effects button, or `?fx=0`, turns them off for slower GPUs.
 
 ## How it works
 
@@ -15,7 +17,7 @@ Longer motion comes from chaining generations.
 | `G1Controller.ts` | Point-to-point locomotion. While far from the goal it places a gait target one second of travel ahead; near the goal it places a standing target on it. The next segment is generated ahead of time from frames that are already planned, so it takes over without a jump. |
 | `G1Bricks.ts` | The standing pose and four-frame walk and run targets, baked by `tools/make_bricks.py`. |
 | `G1Robot.ts` | Builds the robot from NVIDIA's MuJoCo description (MJCF) and STL meshes, and applies a pose: root transform plus 29 joint angles. |
-| `script.ts` | Viewer, floor picking, camera follow, and UI. |
+| `script.ts` | Viewer, lighting and render plugins, floor picking, WASD driving, camera follow, and UI. |
 
 The engine's output matches NVIDIA's reference runtime (checked against a NumPy port, `tools/motionbricks_ref.py`, to within 0.001 degrees on the same ONNX file).
 
@@ -26,6 +28,8 @@ By default the example streams the original `mmm_v6_g1_fp32.onnx` (730 MB) and t
 - `?model=<url>` an original MotionBricks G1 `.onnx` file, or a folder (ending in `/`) with a pack from `tools/pack_model.py`
 - `?robot=<url>` the G1 MJCF file; meshes resolve against its `meshdir`
 - `?backend=wasm` to skip WebGPU
+- `?environment=<url>` the HDR environment map
+- `?fx=0` to start with the screen-space effects off
 
 Pages can set the same keys, plus `ort` and `wasm`, on `window.MOTIONBRICKS_CONFIG`.
 

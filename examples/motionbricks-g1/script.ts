@@ -6,6 +6,7 @@ import {
     CanvasTexture,
     Color,
     DirectionalLight2,
+    GBufferPlugin,
     HemisphereLight2,
     Mesh,
     MeshBasicMaterial,
@@ -20,13 +21,23 @@ import {
     Scene,
     SphereGeometry,
     SRGBColorSpace,
+    SSAAPlugin,
     ThreeViewer,
     UnlitMaterial,
+    UnsignedByteType,
     Vector2,
     Vector3,
 } from 'threepipe'
+import {
+    BloomPlugin,
+    SSContactShadowsPlugin,
+    SSGIPlugin,
+    SSReflectionPlugin,
+    TemporalAAPlugin,
+    VelocityBufferPlugin,
+} from '@threepipe/webgi-plugins'
 import {MotionBricksG1, OrtApi} from './MotionBricksG1'
-import {G1Controller, G1Gait} from './G1Controller'
+import {G1Controller, G1Gait, GAIT_SPEEDS} from './G1Controller'
 import {G1Robot} from './G1Robot'
 import {G1_BRICKS} from './G1Bricks'
 
@@ -34,7 +45,7 @@ import {G1_BRICKS} from './G1Bricks'
 // ONNX Runtime Web runs the Unitree G1 model with WebGPU, or WebAssembly where WebGPU is unavailable.
 // Click the floor to send the robot there; the model generates every step on the way.
 // Pages can override the sources with window.MOTIONBRICKS_CONFIG, and URL parameters override both:
-// ?model=<folder with pack.json/ or .onnx url>&robot=<mjcf url>&backend=wasm
+// ?model=<folder with pack.json/ or .onnx url>&robot=<mjcf url>&backend=wasm&fx=0
 
 const FLOOR_SIZE = 200
 const NV = 'https://media.githubusercontent.com/media/NVlabs/motionbricks/main/motionbricks/assets'
@@ -49,12 +60,16 @@ const config = {
     /** A folder with pack.json from tools/pack_model.py, or an original MotionBricks G1 .onnx file. */
     model: NV + '/onnx/unitree_g1/mmm_v6_g1_fp32.onnx',
     robot: NV + '/robots/unitree_g1/g1_29dof_rev_1_0.xml',
+    /** HDR environment for the lighting and reflections. Files without an image extension are read as .hdr. */
+    environment: 'https://samples.threepipe.org/minimal/empty_warehouse_01_1k.hdr',
+    /** Screen-space reflections, GI, contact shadows, TAA and bloom. 0 turns them off. */
+    fx: '1',
     /** webgpu, or wasm to skip WebGPU. */
     backend: 'webgpu',
     ...(window as any).MOTIONBRICKS_CONFIG,
 }
 const params = new URLSearchParams(location.search)
-for (const key of ['model', 'robot', 'backend'] as const) if (params.get(key)) config[key] = params.get(key)!
+for (const key of ['model', 'robot', 'backend', 'environment', 'fx'] as const) if (params.get(key)) config[key] = params.get(key)!
 
 const $ = (id: string) => document.getElementById(id)
 
@@ -76,7 +91,7 @@ function themeColor(name: string, fallback: string) {
     return new Color(v || fallback)
 }
 
-/** A soft sky-to-floor gradient as the environment, so the robot's metal parts have something to reflect. */
+/** A soft sky-to-floor gradient, the environment when the HDR cannot load. */
 function makeEnvironment(viewer: ThreeViewer, sky: Color, floor: Color) {
     const scene = new Scene()
     const geometry = new SphereGeometry(10, 32, 16)
@@ -115,6 +130,13 @@ function makeGridTexture(ground: Color, line: Color) {
     return texture
 }
 
+async function loadEnvironment(viewer: ThreeViewer, url: string) {
+    const name = url.split(/[?#]/)[0]
+    const map = /\.(hdr|exr|png|jpe?g|webp|avif)$/i.test(name) ? url :
+        new File([await (await fetch(url)).arrayBuffer()], 'environment.hdr')
+    return viewer.setEnvironmentMap(map, {setBackground: false})
+}
+
 async function loadOrt(): Promise<OrtApi & {env: any}> {
     const ort = await import(/* @vite-ignore */ new URL(config.ort, location.href).href)
     ort.env.logLevel = 'error'
@@ -132,10 +154,36 @@ async function init() {
     const viewer = new ThreeViewer({
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
+        rgbm: true,
+        zPrepass: false,
         renderScale: 'auto',
+        maxRenderScale: 1.5,
         dropzone: false,
+        plugins: [GBufferPlugin, SSAAPlugin, TemporalAAPlugin, new VelocityBufferPlugin(UnsignedByteType, true),
+            SSReflectionPlugin, SSGIPlugin, SSContactShadowsPlugin, BloomPlugin],
     })
     viewer.renderManager.renderer.shadowMap.type = PCFSoftShadowMap
+    viewer.renderManager.stableNoise = true
+
+    // Soft screen-space GI and reflections on a polished floor; bloom only catches the brightest highlights.
+    const ssgi = viewer.getPlugin(SSGIPlugin)!
+    ssgi.pass.intensity = 1.4
+    ssgi.pass.stepCount = 8
+    const ssr = viewer.getPlugin(SSReflectionPlugin)!
+    ssr.pass.intensity = 0.7
+    const contact = viewer.getPlugin(SSContactShadowsPlugin)!
+    contact.intensity = 0.6
+    const bloom = viewer.getPlugin(BloomPlugin)!
+    bloom.pass.threshold = 1.6
+    bloom.pass.intensity = 0.25
+    const effects = [ssgi, ssr, contact, bloom, viewer.getPlugin(TemporalAAPlugin)!, viewer.getPlugin(VelocityBufferPlugin)!]
+    const setEffects = (on: boolean) => {
+        for (const p of effects) p.enabled = on
+        $('mb-fx')?.setAttribute('aria-pressed', String(on))
+        viewer.setDirty()
+    }
+    setEffects(config.fx !== '0')
+    $('mb-fx')?.addEventListener('click', () => setEffects($('mb-fx')?.getAttribute('aria-pressed') !== 'true'))
 
     const theme = () => ({
         background: themeColor('--scene-bg', '#e9ecef'),
@@ -143,7 +191,7 @@ async function init() {
         grid: themeColor('--scene-grid', '#b9c0c8'),
         accent: themeColor('--accent', '#e8590c'),
     })
-    const groundMaterial = new PhysicalMaterial({color: '#ffffff', roughness: 0.92, metalness: 0})
+    const groundMaterial = new PhysicalMaterial({color: '#ffffff', roughness: 0.42, metalness: 0})
     const ground = new Mesh(new PlaneGeometry(FLOOR_SIZE, FLOOR_SIZE).rotateX(-Math.PI / 2), groundMaterial)
     ground.receiveShadow = true
     ground.name = 'Floor'
@@ -163,21 +211,31 @@ async function init() {
         groundMaterial.map = makeGridTexture(t.ground, t.grid)
         groundMaterial.setDirty()
         goalMaterial.color.copy(t.accent)
-        viewer.scene.environment = makeEnvironment(viewer, t.background, t.ground) as any
+        if (!hdrLoaded) viewer.scene.environment = makeEnvironment(viewer, t.background, t.ground) as any
         viewer.setDirty()
     }
+    let hdrLoaded = false
     applyTheme()
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme)
     new MutationObserver(applyTheme).observe(document.documentElement, {attributes: true, attributeFilter: ['data-theme']})
 
-    viewer.scene.addObject(new HemisphereLight2(0xffffff, 0x8d8f91, 0.8))
-    const sun = viewer.scene.addObject(new DirectionalLight2(0xffffff, 2.6))
+    // Studio lighting: the HDR fills and reflects, a warm key casts the shadow, a cool rim outlines the robot.
+    loadEnvironment(viewer, config.environment).then(() => {
+        hdrLoaded = true
+        viewer.scene.environmentIntensity = 0.75
+        viewer.setDirty()
+    }).catch(e => console.warn('MotionBricks: environment map failed, using a gradient', e))
+    viewer.scene.addObject(new HemisphereLight2(0xf4f6ff, 0x6f675e, 0.35))
+    const sun = viewer.scene.addObject(new DirectionalLight2(0xfff1e0, 2.4))
     sun.castShadow = true
     sun.shadowMapSize.setScalar(2048)
     sun.shadowNear = 0.5
     sun.shadowFar = 20
     sun.shadowFrustum = 6
+    sun.shadow.radius = 3
     const sunOffset = new Vector3(3, 6, 4)
+    const rim = viewer.scene.addObject(new DirectionalLight2(0xcfe0ff, 1.4))
+    const rimOffset = new Vector3(-4, 3.5, -5)
 
     const camera = viewer.scene.mainCamera
     camera.position.set(3.2, 1.9, 4.2)
@@ -244,6 +302,58 @@ async function init() {
         controller.moveTo(...G1Robot.ToG1(hit), gait)
     })
 
+    // WASD or the arrow keys drive the robot relative to the camera; Shift runs while held.
+    const driveKeys: Record<string, [number, number]> = {
+        KeyW: [0, 1], ArrowUp: [0, 1], KeyS: [0, -1], ArrowDown: [0, -1],
+        KeyA: [-1, 0], ArrowLeft: [-1, 0], KeyD: [1, 0], ArrowRight: [1, 0],
+    }
+    const keys = new Set<string>()
+    let shift = false
+    window.addEventListener('keydown', e => {
+        if ((e.target as HTMLElement | null)?.closest?.('input, textarea, select, [contenteditable]')) return
+        shift = e.shiftKey
+        if (!driveKeys[e.code]) return
+        keys.add(e.code)
+        e.preventDefault()
+    })
+    window.addEventListener('keyup', e => {
+        shift = e.shiftKey
+        keys.delete(e.code)
+    })
+    window.addEventListener('blur', () => keys.clear())
+    const drive = {active: false, angle: 0, gait: 'walk' as G1Gait}
+    const viewDir = new Vector3()
+    const steer = (c: G1Controller) => {
+        let ix = 0, iy = 0
+        for (const k of keys) {
+            ix += driveKeys[k][0]
+            iy += driveKeys[k][1]
+        }
+        if (!ix && !iy) {
+            if (drive.active) c.stop()
+            drive.active = false
+            return
+        }
+        // The camera's forward and right on the ground, in G1 space (x, -z of threepipe space).
+        viewDir.copy(camera.target).sub(camera.position)
+        const [fx, fy] = G1Robot.ToG1(viewDir)
+        const f = Math.hypot(fx, fy) || 1
+        const angle = Math.atan2(iy * fy / f - ix * fx / f, iy * fx / f + ix * fy / f)
+        const g: G1Gait = shift ? 'run' : gait
+        const ahead = GAIT_SPEEDS[g] * c.lead + 4
+        const goalX = c.pose[0] + Math.cos(angle) * ahead, goalY = c.pose[1] + Math.sin(angle) * ahead
+        const turn = Math.abs(Math.atan2(Math.sin(angle - drive.angle), Math.cos(angle - drive.angle)))
+        if (!drive.active || g !== drive.gait || turn > 0.35) {
+            // A new direction or gait generates now; small changes steer the goal at the next transition.
+            Object.assign(drive, {active: true, angle, gait: g})
+            if (wander) {
+                wander = false
+                syncButtons()
+            }
+            c.moveTo(goalX, goalY, g)
+        } else c.goal = [goalX, goalY]
+    }
+
     // Follow the robot with the camera, keeping the user's orbit.
     const follow = new Vector3()
     let last = performance.now()
@@ -252,6 +362,7 @@ async function init() {
         const dt = Math.min((now - last) / 1000, 0.1)
         last = now
         if (!controller) return
+        steer(controller)
         controller.update(dt)
         robot.setPose(controller.pose)
         const goal = controller.goal
@@ -268,6 +379,8 @@ async function init() {
         // DirectionalLight2 shines along its own -Z (its target is a child), so aim it with lookAt.
         sun.position.copy(camera.target).add(sunOffset)
         sun.lookAt(camera.target)
+        rim.position.copy(camera.target).add(rimOffset)
+        rim.lookAt(camera.target)
         // threepipe redraws shadow maps only when the scene changes, and the robot moves every frame.
         viewer.renderManager.resetShadows()
         viewer.setDirty()

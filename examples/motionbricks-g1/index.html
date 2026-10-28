@@ -12,6 +12,7 @@
         {
             "imports": {
               "threepipe": "./../../dist/index.mjs",
+              "@threepipe/webgi-plugins": "./../../plugins/webgi-plugins/dist/index.mjs",
               "./MotionBricksG1": "./MotionBricksG1.js",
               "./G1Controller": "./G1Controller.js",
               "./G1Robot": "./G1Robot.js",
@@ -69,7 +70,9 @@
         <button id="mb-run" type="button">Run</button>
         <button id="mb-wander" type="button">Wander</button>
         <button id="mb-stop" type="button">Stop</button>
+        <button id="mb-fx" type="button">Effects</button>
     </div>
+    <div>Click the floor, or drive with WASD / arrow keys (Shift runs).</div>
     <dl>
         <dt>Backend</dt><dd id="mb-backend">–</dd>
         <dt>Inference</dt><dd id="mb-latency">–</dd>
