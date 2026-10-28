@@ -14,6 +14,8 @@
 .ucf-row input, .ucf-row select { font: inherit; color: var(--ucf-fg); background: var(--ucf-input); border: 1px solid transparent; border-radius: 4px; padding: 4px 6px; outline: none; min-width: 0; box-sizing: border-box; }
 .ucf-row input[type=number], .ucf-row input[type=text] { width: 74px; }
 .ucf-row input:focus, .ucf-row select:focus { border-color: var(--ucf-accent); }
+/* a typed number off the step is a valid value of the form */
+.ucf-row input:invalid { box-shadow: none; }
 .ucf-row input:disabled, .ucf-row select:disabled, .ucf-button:disabled { opacity: .5; }
 .ucf-row input[type=checkbox] { width: 14px; height: 14px; accent-color: var(--ucf-accent); }
 .ucf-row input[type=range] { flex: 1; min-width: 60px; padding: 0; background: none; accent-color: var(--ucf-accent); }

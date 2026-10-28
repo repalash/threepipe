@@ -322,7 +322,7 @@ export class UiConfigForm {
                     const v = isArray ? [...cur] : cur.clone()
                     v[a] = Math.min(max, Math.max(min, n))
                     this._set(c, parents, v)
-                }, () => (value() as any)?.[a])
+                }, () => (value() as any)?.[a], getOrCall(c.stepSize))
                 input.title = String(a)
                 wrap.appendChild(input)
                 return input
@@ -339,7 +339,7 @@ export class UiConfigForm {
             const {min, max, step} = UiConfigMethods.GetBounds(c, kind === 'number')
             const isInt = (this._options.isInteger ?? defaultIsInteger)(c, label)
             const clamp = (n: number) => Math.min(max, Math.max(min, isInt ? Math.round(n) : n))
-            const input = this._number(disabled, n => this._set(c, parents, clamp(n)), value)
+            const input = this._number(disabled, n => this._set(c, parents, clamp(n)), value, getOrCall(c.stepSize))
             if (kind === 'slider') {
                 const range = document.createElement('input')
                 range.type = 'range'
@@ -390,11 +390,13 @@ export class UiConfigForm {
     /**
      * A number field. After a committed edit (Enter, the spinner, a blur), it shows the value of the binding, which can
      * be clamped or rounded, also while it has the focus.
+     * @param step - the change of the arrow keys and the spinner: the `stepSize` of the config. A typed value off the
+     * step is kept. Without one, the field takes any value and the browser steps by 1.
      */
-    private _number(disabled: boolean, set: (n: number) => void, get: () => any) {
+    private _number(disabled: boolean, set: (n: number) => void, get: () => any, step?: number) {
         const input = document.createElement('input')
         input.type = 'number'
-        input.step = 'any'
+        input.step = step && step > 0 ? String(step) : 'any'
         input.disabled = disabled
         input.addEventListener('change', () => {
             const n = parseFloat(input.value)

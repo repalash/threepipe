@@ -563,6 +563,25 @@ describe('UiConfigForm', () => {
         expect(target.small).toBeCloseTo(0.005, 10)
     })
 
+    test('the arrow keys and the spinner of a number field step by the stepSize; without one, any value', () => {
+        const target = {bias: 0, size: 0.5, n: 0, offset: new Vector3()}
+        const form = new UiConfigForm([
+            {type: 'number', label: 'Bias', property: [target, 'bias'], bounds: [-0.001, 0.001], stepSize: 0.00001},
+            {type: 'slider', label: 'Size', property: [target, 'size'], bounds: [0, 1], stepSize: () => 0.05},
+            {type: 'number', label: 'N', property: [target, 'n']},
+            {type: 'vec3', label: 'Offset', property: [target, 'offset'], stepSize: 0.1},
+        ])
+        expect(row(form, 'Bias').inputs[0].step).toBe('0.00001')
+        expect(row(form, 'Size').inputs.map(i => i.step)).toEqual(['0.05', '0.05'])
+        expect(row(form, 'N').inputs[0].step).toBe('any')
+        expect(row(form, 'Offset').inputs.map(i => i.step)).toEqual(['0.1', '0.1', '0.1'])
+        // a typed value off the step is kept
+        const bias = row(form, 'Bias').inputs[0]
+        bias.value = '0.000015'
+        bias.fire('change')
+        expect(target.bias).toBe(0.000015)
+    })
+
     test('dispose removes the form', () => {
         const host = new FakeElement('div')
         const form = new UiConfigForm([])
