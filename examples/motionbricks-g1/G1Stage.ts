@@ -207,6 +207,7 @@ export class G1Stage {
     private _follow: Object3D[] = []
     private _environments = new Map<string, Promise<ITexture | null>>()
     private _applyId = 0
+    private _target = new Vector3(0, 0.75, 0)
 
     constructor(viewer: ThreeViewer, resolveAsset: (name: string) => string) {
         this.viewer = viewer
@@ -303,6 +304,7 @@ export class G1Stage {
             add(light)
             this._lights.push({light, offset: new Vector3(...l.offset)})
         }
+        this.update(this._target)
         this.setEffects(this.effectsEnabled)
         v.setDirty()
     }
@@ -336,6 +338,7 @@ export class G1Stage {
 
     /** Keep the lights, cove and shadow catcher around the robot. */
     update(target: Vector3) {
+        this._target.copy(target)
         for (const {light, offset} of this._lights) {
             light.position.copy(target).add(offset)
             // DirectionalLight2 shines along its own -Z (its target is a child), so aim it with lookAt.

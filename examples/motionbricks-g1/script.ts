@@ -267,6 +267,7 @@ async function init() {
         const now = performance.now()
         const dt = Math.min((now - last) / 1000, 0.1)
         last = now
+        stage.update(camera.target)
         if (!controller) return
         steer(controller)
         controller.update(dt)
@@ -282,7 +283,6 @@ async function init() {
         camera.target.add(delta)
         camera.position.add(delta)
         camera.setDirty()
-        stage.update(camera.target)
         // threepipe redraws shadow maps only when the scene changes, and the robot moves every frame.
         viewer.renderManager.resetShadows()
         viewer.setDirty()
