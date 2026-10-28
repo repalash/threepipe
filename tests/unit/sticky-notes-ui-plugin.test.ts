@@ -209,6 +209,25 @@ describe('StickyNotesUiPlugin', () => {
         expect([state[a.id].x, state[a.id].y, state[b.id].x, state[b.id].y]).toEqual([12, 12, 12, 174])
     })
 
+    test('board: the saved places of notes that load after the post-its are drawn are kept', async() => {
+        storage.set('threepipe-notes', JSON.stringify([{id: 'n1', text: 'loads later', store: 'browser', created: 1}]))
+        storage.set('threepipe-sticky-notes', JSON.stringify({layout: 'board', board: {n1: {x: 300, y: 200, w: 260, h: 180}}}))
+        const {layer} = setup()
+        // the stores load after the first drawing
+        expect(cards(layer)).toHaveLength(0)
+        await vi.waitFor(() => expect(cards(layer)).toHaveLength(1))
+        expect([cards(layer)[0].style.left, cards(layer)[0].style.top, cards(layer)[0].style.width]).toEqual(['300px', '200px', '260px'])
+        expect(JSON.parse(storage.get('threepipe-sticky-notes')!).board.n1).toMatchObject({x: 300, y: 200})
+    })
+
+    test('board: a deleted note forgets its place', () => {
+        const {notes, layer} = setup()
+        const n = notes.addNote('a')
+        expect(JSON.parse(storage.get('threepipe-sticky-notes')!).board[n.id]).toBeTruthy()
+        cards(layer)[0].button('×').fire('click')
+        expect(JSON.parse(storage.get('threepipe-sticky-notes')!).board[n.id]).toBeUndefined()
+    })
+
     test('a press on a button of the bar does not drag', () => {
         const {notes, layer} = setup()
         notes.addNote('a')

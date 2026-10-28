@@ -70,6 +70,30 @@ describe('NotesPlugin', () => {
         await vi.waitFor(() => expect(texts(loaded)).toEqual(['file:Check the prongs', 'browser:only here']))
     })
 
+    test('the notes in the file are in the config at once, for an export right after an edit', () => {
+        const notes = new NotesPlugin()
+        const n = notes.addNote('new')
+        expect(notes.toJSON().fileNotes.map((x: NoteItem) => x.text)).toEqual(['new'])
+        notes.updateNote(n.id, {text: 'edited'})
+        expect(notes.toJSON().fileNotes.map((x: NoteItem) => x.text)).toEqual(['edited'])
+        notes.removeNote(n.id)
+        expect(notes.toJSON().fileNotes).toEqual([])
+    })
+
+    test('importing another scene replaces the notes in the file', async() => {
+        const notes = new NotesPlugin()
+        notes.onAdded(fakeViewer())
+        const a = notes.addNote('scene A')
+        const other = new NotesPlugin()
+        const b = other.addNote('scene B')
+        const config = JSON.parse(JSON.stringify(other.toJSON()))
+        config.fileNotes.push({...config.fileNotes[0], id: a.id, text: 'scene B, same id'})
+        notes.fromJSON(config)
+        await vi.waitFor(() => expect(texts(notes)).toEqual(['file:scene B', 'file:scene B, same id']))
+        expect(notes.notes[0].id).toBe(b.id)
+        expect(notes.fileNotes.map(x => x.text)).toEqual(['scene B', 'scene B, same id'])
+    })
+
     test('the notes in this browser are saved 600 ms after the last change, and loaded when the plugin is added', async() => {
         vi.useFakeTimers()
         const notes = new NotesPlugin({browser: 'my-notes'})

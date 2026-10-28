@@ -145,7 +145,7 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
         this._stores.push(...options.stores ?? [])
         this.defaultStore = this._stores[0]?.id ?? ''
         // a loaded scene or config brings its own file notes
-        this.addEventListener('deserialize', () => this.getStore('file') && this._loadStore(this._fileStore))
+        this.addEventListener('deserialize', () => this.getStore('file') === this._fileStore && this._loadStore(this._fileStore, true))
     }
 
     /** All the notes, in the order of the stores, then the order they were made */
@@ -271,12 +271,13 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
         this.dispatchEvent({type: 'storeStatusChanged', store, status})
     }
 
-    private _loadStore(store: NotesStore) {
+    /** Loads the notes of a store. `replace`: the loaded notes replace the notes of the store (another scene). */
+    private _loadStore(store: NotesStore, replace = false) {
         this._setStatus(store.id, 'loading')
         Promise.resolve().then(async() => store.load()).then(loaded => {
             if (this.getStore(store.id) !== store) return // replaced meanwhile
             // notes made in this store while it loaded stay, after the loaded ones, and are saved
-            const made = this._changed.has(store.id) ? this._notes.filter(n => n.store === store.id) : []
+            const made = !replace && this._changed.has(store.id) ? this._notes.filter(n => n.store === store.id) : []
             const ids = new Set(made.map(n => n.id))
             const notes = (Array.isArray(loaded) ? loaded : [])
                 .filter(n => n && typeof n.text === 'string' && !ids.has(n.id))
@@ -292,6 +293,12 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
     }
 
     private _changedStore(store: string) {
+        if (this.getStore(store) === this._fileStore) {
+            // at once: the viewer config (an export) reads fileNotes
+            this.fileNotes = this._notes.filter(n => n.store === store).map(n => ({...n}))
+            this._setStatus(store, 'saved')
+            return
+        }
         this._changed.add(store)
         this._setStatus(store, 'changed')
         clearTimeout(this._timer)

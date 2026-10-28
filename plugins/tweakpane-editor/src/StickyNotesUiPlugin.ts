@@ -206,6 +206,12 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
     }
 
     private _onNotesChanged = (e: {change: string, note?: NoteItem}) => {
+        // a removed note forgets its place; notes that are not loaded yet keep theirs
+        if (e.change === 'remove' && this._state.board) {
+            const ids = new Set(this._notes?.notes.map(n => n.id))
+            for (const id of Object.keys(this._state.board)) if (e.note ? id === e.note.id : !ids.has(id)) delete this._state.board[id]
+            this._writeState()
+        }
         if (e.change === 'update' && e.note) {
             const view = this._views.get(e.note.id)
             // a note typed in keeps its text and cursor; a move to another store moves it in the stack too
@@ -263,9 +269,6 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
             })
             this._watchSize(card, box)
         }
-        // the places of removed notes
-        const ids = new Set(this._views.keys())
-        for (const id of Object.keys(board)) if (!ids.has(id)) delete board[id]
         if (placed) this._writeState()
 
         const dock = el('div', 'snp-dock')
