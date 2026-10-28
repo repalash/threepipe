@@ -96,7 +96,8 @@ body.tpTheme-clean .lay-bottom, body.tpTheme-clean-dark .lay-bottom { font-size:
         margin: 0 !important; border-radius: 0 !important;
         border-style: solid !important; border-width: 1px 0 0 !important; border-color: var(--tp-container-border-color, #e6e6e6) !important;
     }
-    body.lay-frame #tweakpaneUiContainer .tp-rotv_c > .tp-fldv:first-child { border-top-width: 0 !important; }
+    /* the first shown section: the hidden sections of the other modes come before it, so not :first-child */
+    body.lay-frame #tweakpaneUiContainer .tp-rotv_c > .tp-fldv.tp-v-vfst { border-top-width: 0 !important; }
     /* title and status bar: the canvas and the panel edge to edge, between the bars */
     body.lay-titlebar #canvas-container, body.lay-statusbar #canvas-container {
         margin: 0 !important; left: 0; top: var(--lay-top) !important; border-radius: 0 !important; box-shadow: none !important;
@@ -108,6 +109,7 @@ body.tpTheme-clean .lay-bottom, body.tpTheme-clean-dark .lay-bottom { font-size:
         margin: 0 !important; top: var(--lay-top) !important; bottom: var(--lay-bottom) !important; height: auto !important; max-height: none !important;
         right: var(--mb-width, 44px) !important; width: var(--tweakpane-ui-container-width, 300px) !important;
         background: var(--tp-base-background-color, #fff); border-left: 1px solid var(--tp-container-border-color, #e6e6e6); box-sizing: border-box;
+        border-radius: 0 !important;
     }
     body.lay-titlebar #tweakpaneUiContainer .tp-rotv, body.lay-statusbar #tweakpaneUiContainer .tp-rotv { border-radius: 0 !important; box-shadow: none !important; }
     /* no "Configuration" title: the mode bar names the open mode and hides the panel */
