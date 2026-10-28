@@ -22,6 +22,8 @@ class FakeElement {
     offsetTop = 12
     clientWidth = 800
     clientHeight = 600
+    /** The place on the page, for getBoundingClientRect */
+    rect = {left: 0, top: 0, right: 0, bottom: 0}
     private _listeners = new Map<string, ((e: any) => void)[]>()
     classList = {
         contains: (c: string) => this.className.split(' ').includes(c),
@@ -32,6 +34,9 @@ class FakeElement {
         },
     }
     constructor(readonly tagName: string) {}
+    getBoundingClientRect() {
+        return this.rect
+    }
     get parentElement() {
         return this.parent
     }
@@ -151,6 +156,17 @@ describe('StickyNotesUiPlugin', () => {
         // the new note has the cursor
         expect(doc.activeElement).toBe(cards(layer)[0].all().find(e => e.tagName === 'textarea'))
         expect(cards(layer)[0].find('snp-badge')[0].textContent).toBe('This browser')
+    })
+
+    test('the store menu opens above a button at the bottom, inside the canvas', () => {
+        const {layer} = setup()
+        layer.rect = {left: 0, top: 0, right: 800, bottom: 600}
+        const add = layer.button('+ Note')
+        add.rect = {left: 16, top: 560, right: 70, bottom: 588}
+        add.fire('click')
+        const menu = layer.find('snp-menu')[0]
+        // 150 high (the fake height): above the button, 4 px apart
+        expect([menu.style.left, menu.style.top]).toEqual(['16px', '406px'])
     })
 
     test('with one store, + Note adds at once', () => {

@@ -105,6 +105,21 @@ describe('NotesPlugin', () => {
         expect(saved.map(n => n.map(x => x.text))).toEqual([['on the server', 'typed while it loads']])
     })
 
+    test('a loaded note with the id of a note in another store gets a new id', async() => {
+        storage.set('threepipe-notes', JSON.stringify([{id: 'same', text: 'in the browser', store: 'browser', created: 1}]))
+        const notes = new NotesPlugin()
+        notes.onAdded(fakeViewer())
+        await vi.waitFor(() => expect(texts(notes)).toEqual(['browser:in the browser']))
+        notes.fromJSON({...notes.toJSON(), fileNotes: [{id: 'same', text: 'from an old export', store: 'file', created: 1}]})
+        await vi.waitFor(() => expect(texts(notes)).toEqual(['file:from an old export', 'browser:in the browser']))
+        const [file, browser] = notes.notes
+        expect(browser.id).toBe('same')
+        expect(file.id).not.toBe('same')
+        expect(notes.fileNotes[0].id).toBe(file.id)
+        notes.updateNote('same', {text: 'typed'})
+        expect(texts(notes)).toEqual(['file:from an old export', 'browser:typed'])
+    })
+
     test('importing another scene replaces the notes in the file', async() => {
         const notes = new NotesPlugin()
         notes.onAdded(fakeViewer())

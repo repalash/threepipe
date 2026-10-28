@@ -378,13 +378,17 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
             if (store.id === current) b.classList.add('on')
             menu.appendChild(b)
         }
+        this.element.appendChild(menu)
+        // below the button, or above it when there is no room below (the dock at the bottom); inside the canvas
         const r = anchor.getBoundingClientRect?.()
         const p = this.element.getBoundingClientRect?.()
         if (r && p) {
-            menu.style.left = Math.round(r.left - p.left) + 'px'
-            menu.style.top = Math.round(r.bottom - p.top + 4) + 'px'
+            const h = menu.offsetHeight, w = menu.offsetWidth
+            let top = r.bottom - p.top + 4
+            if (top + h > this.element.clientHeight) top = r.top - p.top - h - 4
+            menu.style.left = Math.round(Math.max(0, Math.min(r.left - p.left, this.element.clientWidth - w))) + 'px'
+            menu.style.top = Math.round(Math.max(0, top)) + 'px'
         }
-        this.element.appendChild(menu)
         this._menu = menu
         document.addEventListener('pointerdown', this._pointerOutside, true)
     }

@@ -285,12 +285,24 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
             // notes made in this store while it loaded stay, after the loaded ones, and are saved
             const made = !replace && this._changed.has(store.id) ? this._notes.filter(n => n.store === store.id) : []
             const ids = new Set(made.map(n => n.id))
+            // ids are unique in the plugin: a loaded note with the id of a note in another store (an old export of a
+            // note moved since) gets a new one, and the store is saved with it
+            const taken = new Set(this._notes.filter(n => n.store !== store.id).map(n => n.id))
+            let renamed = false
             const notes = (Array.isArray(loaded) ? loaded : [])
                 .filter(n => n && typeof n.text === 'string' && !ids.has(n.id))
-                .map(n => ({id: String(n.id || newId()), text: n.text, store: store.id, created: Number(n.created) || Date.now()}))
+                .map(n => {
+                    let id = String(n.id || '')
+                    if (!id || taken.has(id)) {
+                        renamed = renamed || !!id
+                        id = newId()
+                    }
+                    taken.add(id)
+                    return {id, text: n.text, store: store.id, created: Number(n.created) || Date.now()}
+                })
             this._notes = this._notes.filter(n => n.store !== store.id)
             this._notes.splice(this._endOfStore(store.id), 0, ...notes, ...made)
-            if (made.length) this._changedStore(store.id) // saved with the loaded notes
+            if (made.length || renamed) this._changedStore(store.id) // saved with the loaded notes
             else this._setStatus(store.id, 'saved')
             this.dispatchEvent({type: 'notesChanged', change: 'load'})
         }).catch(e => {
