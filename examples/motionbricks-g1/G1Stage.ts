@@ -97,13 +97,13 @@ export const STAGE_STYLES = {
     stage: {
         label: 'Launch stage',
         sky: ['#0c0d0f', '#0c0d0f'],
-        floor: {kind: 'cove', color: '#0c0d0f', roughness: 0.22, envIntensity: 0.12},
+        floor: {kind: 'cove', color: '#17191c', roughness: 0.36, envIntensity: 0.08},
         environment: 'studio_small_09_1k.hdr',
         environmentIntensity: 0.3,
         lights: [
-            {kind: 'spot', color: '#ffffff', intensity: 160, offset: [0.4, 7, 1.2], shadow: true},
-            {color: '#9fc4ff', intensity: 2.5, offset: [-4, 2.5, -3]},
-            {color: '#ffb27a', intensity: 1.5, offset: [4, 2, -3]},
+            {kind: 'spot', color: '#ffffff', intensity: 220, offset: [0.4, 7, 1.2], shadow: true},
+            {color: '#9fc4ff', intensity: 1.6, offset: [-4.5, 2.2, 1]},
+            {color: '#ffb27a', intensity: 1.0, offset: [4.5, 2, -1]},
         ],
         effects: {ssgi: 0.5, ssr: 1, contact: 0.6, bloom: 0.35},
     },
