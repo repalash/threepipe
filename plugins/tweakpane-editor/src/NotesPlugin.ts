@@ -181,9 +181,16 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
             const prev = this._stores[old]
             const notes = this._notes.filter(n => n.store === store.id).map(n => ({...n}))
             // its changes, also a save queued behind a running one, are saved to it after that save
+            let outgoing = this._running.get(prev)
             if ((this._changed.has(store.id) || this._waiting.has(prev)) && !this._loading.has(store.id)) {
-                (this._running.get(prev) ?? Promise.resolve()).then(async() => prev.save(notes))
+                outgoing = (outgoing ?? Promise.resolve()).then(async() => prev.save(notes))
                     .catch(e => console.warn('NotesPlugin: could not save the notes of the replaced ' + store.id, e))
+            }
+            // the new store can use the same backend (the same key, the same server): it loads and saves after that
+            if (outgoing) {
+                const last = outgoing
+                this._running.set(store, last)
+                void last.then(() => this._running.get(store) === last && this._running.delete(store))
             }
             this._waiting.delete(prev)
             this._changed.delete(store.id)

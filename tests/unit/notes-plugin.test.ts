@@ -271,6 +271,20 @@ describe('NotesPlugin', () => {
         expect(notes.storeStatus('slow')).toBe('saved')
     })
 
+    test('a store that replaces one on the same backend loads after the last save of the old one', async() => {
+        let backend: NoteItem[] = [{id: 'a', text: 'first', store: 'shared', created: 1}]
+        const makeStore = (): NotesStore => ({id: 'shared', label: 'Shared', load: () => backend.map(n => ({...n})), save: n => {
+            backend = n
+        }})
+        const notes = new NotesPlugin({file: false, browser: false, stores: [makeStore()]})
+        notes.onAdded(fakeViewer())
+        notes.updateNote('a', {text: 'latest'}) // waits for the 600 ms
+        notes.addStore(makeStore()) // the same key or server
+        await vi.waitFor(() => expect(notes.storeStatus('shared')).toBe('saved'))
+        expect(texts(notes)).toEqual(['shared:latest'])
+        expect(backend.map(n => n.text)).toEqual(['latest'])
+    })
+
     test('an add right after a remove loads the store after the save of the remove', async() => {
         let backend: NoteItem[] = [{id: 'a', text: 'first', store: 'server', created: 1}]
         let finish!: () => void
