@@ -354,7 +354,13 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
     }
 
     private _onPointerDown = (e: PointerEvent) => {
-        if (!this._active || e.isPrimary === false || e.target !== this._viewer!.canvas) return
+        if (e.isPrimary === false) {
+            // a second touch: a pinch or a two-finger pan of the camera, not a click; no hover until the release
+            this._state = null
+            this._pointerHeld = true
+            return
+        }
+        if (!this._active || e.target !== this._viewer!.canvas) return
         // the camera controls prevent the default, so a focused text field would keep the focus and the keys
         const ae = document.activeElement as HTMLElement | null
         if (ae && ae !== document.body && ae !== this._viewer!.canvas) ae.blur()

@@ -402,6 +402,16 @@ describe('SelectionUxPlugin', () => {
         expect(names()).toEqual([])
     })
 
+    test('a second touch (a pinch) cancels the press: the release of the first finger is not a click', () => {
+        const {canvas, at, leg1, lamp, names} = setup()
+        const p = at(leg1)
+        canvas.dispatchEvent(ev('pointerdown', p))
+        canvas.dispatchEvent(ev('pointerdown', {...at(lamp), isPrimary: false}))
+        window.dispatchEvent(ev('pointerup', {...at(lamp), isPrimary: false}))
+        window.dispatchEvent(ev('pointerup', p))
+        expect(names()).toEqual([])
+    })
+
     test('a short quick drag on empty space keeps the selection (the core picker takes it as a click)', () => {
         const {canvas, click, top, names} = setup()
         click(top)
