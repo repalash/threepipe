@@ -42,6 +42,7 @@ Run them in the repository root, unless the table says otherwise.
 | `npm run serve` | Static server for the built files on http://localhost:9229 | With `build:all`, `build-examples` or `watch-examples` |
 | `npm run test:unit` | Unit tests (vitest) | Before a pull request |
 | `npm run test:e2e` | Browser tests (playwright), against the built files | Before a pull request that changes rendering |
+| `npm run check-bundles` | Checks the built bundles: every import is declared, no package is bundled twice | After `build:all`, when a vite config or a dependency changes |
 | `npm run website:dev` | The website (vitepress) | Docs changes |
 | `npm run docs` / `npm run docs-all` | API docs of the core and the website build / the same plus the API docs of every plugin | Docs changes |
 
@@ -66,6 +67,13 @@ To add a dependency to a plugin, run `npm install <package> -w plugins/<plugin-n
   The screenshots it compares against are not in this repository. On a fresh clone the first run writes them to
   `tests/snapshots/` and reports each test as failed; the next run compares against them.
 - `npm run test:types` type-checks the published declarations as a consumer, run `npm run build` first.
+- `npm run check-bundles` checks the built bundles of the core and every plugin, run `npm run build:all` first. It fails
+  on an import that is not `threepipe` or a peerDependency (a bare `three` that the examples cannot resolve), and on a
+  package bundled twice from different `node_modules` folders (fix: `resolve.dedupe` in that plugin's vite config).
+  After a cache restore, a stale file from an earlier build can remain in `dist/`; `npx turbo run build --force` rebuilds.
+
+Every pull request runs `.github/workflows/pr-checks.yml`: `npm ci`, `test:unit`, `build:all` (with the turbo cache),
+`check-bundles` and `test:types`.
 
 ## Building
 

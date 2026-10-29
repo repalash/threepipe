@@ -52,6 +52,8 @@ jobs:
       env:
         DOT_ENV_CONTENT: ${{ secrets.examples_dot_env }} # todo well...
     - run: npm run build-site # builds to _site
+    - name: Prune the turbo cache # entries older than a week (a hit does not renew them), else the saved cache only grows
+      run: find .turbo/cache -type f -mtime +7 -delete 2>/dev/null || true
     - name: Upload artifact
       uses: actions/upload-pages-artifact@v3
       with:
