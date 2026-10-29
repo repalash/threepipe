@@ -214,7 +214,7 @@ export class MotionBricksCharacter {
         const [ox, oy] = G1Robot.ToG1(origin)
         const [dx, dy] = this._toG1(direction)
         const angle = Math.atan2(dy - oy, dx - ox)
-        const ahead = GAIT_SPEEDS[gait] * c.effectiveLead + 4
+        const ahead = GAIT_SPEEDS[gait] * c.lead + 4
         const goal: [number, number] = [c.pose[0] + Math.cos(angle) * ahead, c.pose[1] + Math.sin(angle) * ahead]
         const d = this._drive
         const turn = Math.abs(Math.atan2(Math.sin(angle - d.angle), Math.cos(angle - d.angle)))
