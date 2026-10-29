@@ -288,6 +288,46 @@ describe('NotesPlugin', () => {
         expect(saved).toEqual([['from before', 'typed while it loads']])
     })
 
+    test('a reload keeps only the notes edited meanwhile: the other notes come from the load', async() => {
+        const answers: ((n: NoteItem[]) => void)[] = []
+        const saved: string[][] = []
+        const slow: NotesStore = {id: 'slow', label: 'Slow', load: async() => new Promise(r => answers.push(r)), save: n => void saved.push(n.map(x => x.text))}
+        const notes = new NotesPlugin({file: false, browser: false, stores: [slow]})
+        const viewer = fakeViewer()
+        notes.onAdded(viewer)
+        await vi.waitFor(() => expect(answers).toHaveLength(1))
+        answers[0]([{id: 'a', text: 'A', store: 'slow', created: 1}, {id: 'b', text: 'B', store: 'slow', created: 2}])
+        await vi.waitFor(() => expect(texts(notes)).toEqual(['slow:A', 'slow:B']))
+        notes.onRemove(viewer)
+        notes.onAdded(viewer) // B changes on another device meanwhile
+        await vi.waitFor(() => expect(answers).toHaveLength(2))
+        notes.updateNote('a', {text: 'A edited here'})
+        const loaded = new Promise(r => notes.addEventListener('notesChanged', e => e.change === 'load' && r(e)))
+        answers[1]([{id: 'a', text: 'A', store: 'slow', created: 1}, {id: 'b', text: 'B edited there', store: 'slow', created: 2}])
+        await loaded
+        expect(texts(notes)).toEqual(['slow:A edited here', 'slow:B edited there'])
+        await notes.flush()
+        expect(saved.at(-1)).toEqual(['A edited here', 'B edited there'])
+    })
+
+    test('a store replaced while it loads gets the changes made meanwhile, with the notes it loads', async() => {
+        let backend: NoteItem[] = [{id: 'old', text: 'from before', store: 'project', created: 1}]
+        let loads = 0
+        // the first load (the plugin's) does not answer before the replace
+        const projectA: NotesStore = {id: 'project', label: 'A', load: async() => loads++ ? backend.map(n => ({...n})) : new Promise<NoteItem[]>(() => {}), save: n => {
+            backend = n
+        }}
+        const projectB = memoryStore('project', [], 'B')
+        const notes = new NotesPlugin({file: false, browser: false, stores: [projectA]})
+        notes.onAdded(fakeViewer())
+        notes.addNote('typed in A while it loads')
+        notes.addStore(projectB)
+        await vi.waitFor(() => expect(backend.map(n => n.text)).toEqual(['from before', 'typed in A while it loads']))
+        expect(texts(notes)).toEqual([])
+        await notes.flush()
+        expect(projectB.saved).toEqual([])
+    })
+
     test('a store that replaces one on the same backend loads after the last save of the old one', async() => {
         let backend: NoteItem[] = [{id: 'a', text: 'first', store: 'shared', created: 1}]
         const makeStore = (): NotesStore => ({id: 'shared', label: 'Shared', load: () => backend.map(n => ({...n})), save: n => {
