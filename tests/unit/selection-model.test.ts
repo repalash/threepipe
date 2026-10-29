@@ -385,6 +385,7 @@ function setup() {
         container: canvas,
         canvas,
         scene: {modelRoot: root, mainCamera: camera},
+        renderManager: {frameCount: 0},
         getPlugin: (p: any) => p?.PluginType === 'Picking' ? picking : undefined,
     }) as any
     document.elementFromPoint = () => canvas as any
@@ -709,6 +710,36 @@ describe('SelectionUxPlugin', () => {
         canvas.dispatchEvent(ev('pointerleave'))
         viewer.dispatchEvent({type: 'preFrame'})
         expect(ux.hovered).toBe(null)
+    })
+
+    test('hover follows a change of the view under a still pointer, but not while a button moves the camera', () => {
+        const {ux, viewer, canvas, camera, at, leg1} = setup()
+        const p = at(leg1) // the pointer stays here
+        canvas.dispatchEvent(ev('pointermove'))
+        window.dispatchEvent(ev('pointermove', p))
+        viewer.dispatchEvent({type: 'preFrame'})
+        expect(ux.hovered?.name).toBe('Table')
+        /** A frame after the view changed: the viewer resets the frame count before it renders */
+        const frame = (reset: boolean) => {
+            viewer.renderManager.frameCount = reset ? 0 : 3
+            viewer.dispatchEvent({type: 'preRender'})
+            viewer.dispatchEvent({type: 'preFrame'})
+        }
+        camera.position.x = -20 // a zoom, a camera view transition or the damping after a release: nothing under the pointer
+        camera.updateMatrixWorld(true)
+        frame(false) // a progressive frame of the same view
+        expect(ux.hovered?.name).toBe('Table')
+        frame(true)
+        expect(ux.hovered).toBe(null)
+        // an orbit with the button held: no raycast per frame
+        window.dispatchEvent(ev('pointermove', {...p, buttons: 1}))
+        camera.position.x = 0
+        camera.updateMatrixWorld(true)
+        frame(true)
+        expect(ux.hovered).toBe(null)
+        window.dispatchEvent(ev('pointerup', p))
+        frame(true)
+        expect(ux.hovered?.name).toBe('Table')
     })
 
     test('takes the clicks of the PickingPlugin while enabled', () => {
