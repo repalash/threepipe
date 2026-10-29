@@ -131,6 +131,7 @@
     "clean-package": "^2.2.0",
     "copyfiles": "^2.4.1",
     "dotenv": "^16.5.0",
+    "dts-js-extensions": "^0.1.0",
     "eslint": "^8.40.0",
     "eslint-import-resolver-typescript": "^3.5.5",
     "eslint-plugin-deprecation": "^1.4.1",
