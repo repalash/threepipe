@@ -121,6 +121,8 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
     private _changed = new Set<string>()
     /** Stores that load: their changes wait, as a save before the load would replace the notes not loaded yet */
     private _loading = new Set<string>()
+    /** Per store, its latest load: the answer of an older one (before a remove and add, a reload) is dropped */
+    private _loads = new Map<NotesStore, object>()
     private _timer = 0
     /** Per store, the running save: saves of a store run one after the other */
     private _running = new Map<NotesStore, Promise<void>>()
@@ -208,6 +210,8 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
         document.removeEventListener('visibilitychange', this._savePending)
         // the changes of the last 600 ms, and saves that failed
         if (this._timer || this._changed.size) void this._saveChanged()
+        // loads that did not answer yet: an add again loads the stores again
+        this._loads.clear()
         super.onRemove(viewer)
     }
 
@@ -291,7 +295,6 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
         this.dispatchEvent({type: 'storeStatusChanged', store, status})
     }
 
-    /** Loads the notes of a store. `replace`: the loaded notes replace the notes of the store (another scene). */
     /**
      * Loads the notes of a store: at once for a store that answers at once (the file, this browser), so notes made
      * right after the plugin is added are not replaced. `replace`: the loaded notes replace the notes of the store
@@ -300,7 +303,10 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
     private _loadStore(store: NotesStore, replace = false) {
         this._setStatus(store.id, 'loading')
         this._loading.add(store.id)
+        const load = {}
+        this._loads.set(store, load)
         const failed = (e: unknown) => {
+            if (this._loads.get(store) !== load) return
             // the store stays in _loading, so its changes are not saved: a save without the notes that did not load
             // would replace them
             console.warn('NotesPlugin: could not load the notes of ' + store.id, e)
@@ -312,7 +318,7 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
         } catch (e) {
             return failed(e)
         }
-        if (loaded instanceof Promise) loaded.then(l => this._mergeLoaded(store, l, replace), failed)
+        if (loaded instanceof Promise) loaded.then(l => this._loads.get(store) === load && this._mergeLoaded(store, l, replace), failed)
         else this._mergeLoaded(store, loaded, replace)
     }
 

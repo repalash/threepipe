@@ -249,6 +249,28 @@ describe('NotesPlugin', () => {
         expect(saved.at(-1)!.map(n => n.text)).toEqual(['from before', 'typed now'])
     })
 
+    test('the answer of a load from before a remove and add is dropped: it does not replace a later edit', async() => {
+        const answers: ((n: NoteItem[]) => void)[] = []
+        const saved: string[][] = []
+        const slow: NotesStore = {id: 'slow', label: 'Slow', load: async() => new Promise(r => answers.push(r)), save: n => void saved.push(n.map(x => x.text))}
+        const notes = new NotesPlugin({file: false, browser: false, stores: [slow]})
+        const viewer = fakeViewer()
+        notes.onAdded(viewer)
+        notes.onRemove(viewer)
+        notes.onAdded(viewer)
+        await vi.waitFor(() => expect(answers).toHaveLength(2))
+        const stale = [{id: 'a', text: 'old', store: 'slow', created: 1}]
+        answers[1](stale)
+        await vi.waitFor(() => expect(texts(notes)).toEqual(['slow:old']))
+        notes.updateNote('a', {text: 'edited'})
+        await notes.flush()
+        expect(saved).toEqual([['edited']])
+        answers[0](stale) // the first load answers last
+        await new Promise(r => setTimeout(r, 0))
+        expect(texts(notes)).toEqual(['slow:edited'])
+        expect(notes.storeStatus('slow')).toBe('saved')
+    })
+
     test('a store that cannot load is not saved, so its notes elsewhere are not replaced', async() => {
         const saved: NoteItem[][] = []
         const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
