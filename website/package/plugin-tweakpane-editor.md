@@ -66,7 +66,7 @@ editor.loadPlugins({
 - A click on the selected group keeps it. A double click selects one level deeper. When a part of a group is selected, a click on another part of that group selects that part.
 - A click again on the same spot (after a pause, not a double click) selects the next object behind it.
 - Shift+click adds or removes an object. Ctrl/Cmd+click selects the deepest object under the pointer.
-- Keys: Esc or Shift+Enter select the parent, Enter the children, Tab / Shift+Tab the next / previous sibling, Ctrl/Cmd+A all objects at the level of the selection. With nothing selected, Esc, Enter and Tab keep their usual use.
+- Keys: Esc or Shift+Enter select the parent, Enter the children, Tab / Shift+Tab the next / previous sibling, Ctrl/Cmd+A all objects at the level of the selection. With nothing selected, Esc, Enter and Tab keep their usual use, and so do Enter and Tab on a button or a link reached with the keyboard.
 - A drag is not a click: the camera controls keep it.
 - As in the `PickingPlugin`, a hidden object, an object with `userData.userSelectable = false` or `userData.bboxVisible = false`, and everything inside it are not selected: a click goes to the object behind, and Enter, Tab and Ctrl/Cmd+A skip them. A click on a mesh that the `PickingPlugin` cannot select selects its first parent that it can.
 - With Multi-Select off in the `PickingPlugin`, one object is selected: Shift+click is a click, Enter selects the first child, and Ctrl/Cmd+A does nothing.

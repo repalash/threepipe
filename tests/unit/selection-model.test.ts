@@ -684,6 +684,26 @@ describe('SelectionUxPlugin', () => {
         expect(names()).toEqual(['Table', 'Lamp', 'Wall'])
     })
 
+    test('a button reached with the keyboard keeps Tab and Enter; a button clicked with the mouse does not', () => {
+        const {ux, leg1, names} = setup()
+        ux.select([leg1])
+        let keyboard = true
+        const button = {tagName: 'BUTTON', isContentEditable: false, matches: (s: string) => s === ':focus-visible' && keyboard, closest: (s: string) => s.includes('button') ? button : null}
+        const press = (code: string, mods: Record<string, any> = {}) => {
+            const e = ev('keydown', {code, ...mods})
+            Object.defineProperty(e, 'target', {value: button})
+            window.dispatchEvent(e)
+            return e.defaultPrevented
+        }
+        expect(press('Tab')).toBe(false) // the focus moves to the next control
+        expect(press('Tab', {shiftKey: true})).toBe(false)
+        expect(press('Enter')).toBe(false) // presses the button
+        expect(names()).toEqual(['Leg 1'])
+        keyboard = false // the focus stays on a button after a mouse click: the keys go to the selection
+        expect(press('Tab')).toBe(true)
+        expect(names()).toEqual(['Leg 2'])
+    })
+
     test('each selection change is one undo step', () => {
         const {click, dblclick, key, leg1, lamp, undoManager, names} = setup()
         click(leg1)
