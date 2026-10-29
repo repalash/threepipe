@@ -418,7 +418,13 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
     }
 
     private _onPointerDown = (e: PointerEvent) => {
-        if (!this._active || e.isPrimary === false) return
+        if (e.isPrimary === false) {
+            // a second touch: a pinch or a two-finger pan of the camera, not a click; no hover until the release
+            this._state = null
+            this._pointerHeld = true
+            return
+        }
+        if (!this._active) return
         // a parent name in the name label of the overlay: select that parent
         const crumb = (e.target as Element | null)?.getAttribute?.('data-sux-crumb')
         if (crumb != null && e.button === 0) {
