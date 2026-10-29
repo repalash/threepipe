@@ -310,6 +310,22 @@ describe('NotesPlugin', () => {
         warn.mockRestore()
     })
 
+    test('a failed load of a replaced store does not show an error on the store that replaced it', async() => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+        let reject!: (e: Error) => void
+        const projectA: NotesStore = {id: 'project', label: 'A', load: async() => new Promise<NoteItem[]>((_, r) => reject = r), save: () => {}}
+        const notes = new NotesPlugin({file: false, browser: false, stores: [projectA]})
+        notes.onAdded(fakeViewer())
+        await vi.waitFor(() => expect(reject).toBeTypeOf('function'))
+        notes.addStore(memoryStore('project', [{id: 'b', text: 'in B'}], 'B'))
+        expect(notes.storeStatus('project')).toBe('saved')
+        reject(new Error('offline'))
+        await new Promise(r => setTimeout(r, 0))
+        expect(notes.storeStatus('project')).toBe('saved')
+        expect(texts(notes)).toEqual(['project:in B'])
+        warn.mockRestore()
+    })
+
     test('a failed save of a replaced store changes nothing in the store that replaced it', async() => {
         const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
         let fail!: () => void

@@ -203,6 +203,8 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
                 void last.then(() => this._running.get(store) === last && this._running.delete(store))
             }
             this._waiting.delete(prev)
+            // its load, when it answers or fails, is not the new store's
+            this._loads.delete(prev)
             this._changed.delete(store.id)
             this._loading.delete(store.id)
             this._made.delete(store.id)
