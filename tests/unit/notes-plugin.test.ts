@@ -310,6 +310,26 @@ describe('NotesPlugin', () => {
         warn.mockRestore()
     })
 
+    test('a failed save of a replaced store changes nothing in the store that replaced it', async() => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+        let fail!: () => void
+        const projectA: NotesStore = {id: 'project', label: 'A', load: () => [{id: 'same', text: 'in A', store: 'project', created: 1}],
+            save: async() => new Promise<void>((_, reject) => fail = () => reject(new Error('offline')))}
+        const projectB = memoryStore('project', [{id: 'same', text: 'in B', store: 'project', created: 1}], 'B')
+        const notes = new NotesPlugin({file: false, browser: false, stores: [projectA]})
+        notes.onAdded(fakeViewer())
+        notes.removeNote('same')
+        const saving = notes.flush() // A's save waits
+        notes.addStore(projectB) // loads after A's save
+        fail()
+        await saving
+        await vi.waitFor(() => expect(notes.storeStatus('project')).toBe('saved'))
+        await notes.flush()
+        expect(texts(notes)).toEqual(['project:in B'])
+        expect(projectB.saved).toEqual([])
+        warn.mockRestore()
+    })
+
     test('a reload keeps only the notes edited meanwhile: the other notes come from the load', async() => {
         const answers: ((n: NoteItem[]) => void)[] = []
         const saved: string[][] = []

@@ -474,6 +474,8 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
             if (!this._changed.has(id) && !this._waiting.has(store) && !this._loading.has(id)) this._setStatus(id, 'saved')
         } catch (e) {
             console.warn('NotesPlugin: could not save the notes of ' + id, e)
+            // replaced meanwhile: its changes are not the new store's
+            if (this.getStore(id) !== store) return
             // still to save: the next flush, change, hidden page or removal tries again, and a load keeps them
             this._changed.add(id)
             if (made) this._mark(this._made, id, made)
