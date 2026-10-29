@@ -218,10 +218,9 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
     onRemove(viewer: ThreeViewer) {
         window.removeEventListener('pagehide', this._savePending)
         document.removeEventListener('visibilitychange', this._savePending)
-        // the changes of the last 600 ms, and saves that failed
+        // the changes of the last 600 ms, and saves that failed; a store that still loads merges its answer and saves
+        // the changes made meanwhile after that (an add again loads it again, and drops that answer)
         if (this._timer || this._changed.size) void this._saveChanged()
-        // loads that did not answer yet: an add again loads the stores again
-        this._loads.clear()
         super.onRemove(viewer)
     }
 

@@ -271,6 +271,23 @@ describe('NotesPlugin', () => {
         expect(notes.storeStatus('slow')).toBe('saved')
     })
 
+    test('a note made while a store loads is saved also when the plugin is removed before the load answers', async() => {
+        let answer!: (n: NoteItem[]) => void
+        const saved: string[][] = []
+        const slow: NotesStore = {id: 'slow', label: 'Slow', load: async() => new Promise(r => answer = r), save: n => void saved.push(n.map(x => x.text))}
+        const notes = new NotesPlugin({file: false, browser: false, stores: [slow]})
+        const viewer = fakeViewer()
+        notes.onAdded(viewer)
+        notes.addNote('typed while it loads')
+        notes.onRemove(viewer) // the viewer is disposed
+        await vi.waitFor(() => expect(answer).toBeTypeOf('function'))
+        const loaded = new Promise(r => notes.addEventListener('notesChanged', e => e.change === 'load' && r(e)))
+        answer([{id: 'old', text: 'from before', store: 'slow', created: 1}])
+        await loaded
+        await notes.flush()
+        expect(saved).toEqual([['from before', 'typed while it loads']])
+    })
+
     test('a store that replaces one on the same backend loads after the last save of the old one', async() => {
         let backend: NoteItem[] = [{id: 'a', text: 'first', store: 'shared', created: 1}]
         const makeStore = (): NotesStore => ({id: 'shared', label: 'Shared', load: () => backend.map(n => ({...n})), save: n => {
