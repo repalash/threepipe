@@ -1,5 +1,5 @@
-import {Group, Vector3} from 'three'
-import {G1Robot, G1RobotOptions} from './G1Robot'
+import {Group, Object3D, Vector3} from 'three'
+import {G1Robot} from './G1Robot'
 import {G1Bricks, G1Controller, G1ControllerStats, G1Gait, GAIT_SPEEDS} from './G1Controller'
 import {G1_BRICKS} from './G1Bricks'
 import {heading, MotionBricksG1, MotionGenerator, OrtApi} from './MotionBricksG1'
@@ -7,19 +7,18 @@ import {MotionBricksRemote} from './MotionBricksRemote'
 
 const NVIDIA_ASSETS = 'https://media.githubusercontent.com/media/NVlabs/motionbricks/main/motionbricks/assets'
 
-/** Where the model, the robot and ONNX Runtime load from when the options do not say. */
+/** Where the model and ONNX Runtime load from when the options do not say, and where the robot model is. */
 export const MOTIONBRICKS_DEFAULTS = {
     /** NVIDIA's original fp32 model, 730 MB. A pack from tools/pack_model.py is about 190 MB. */
     model: NVIDIA_ASSETS + '/onnx/unitree_g1/mmm_v6_g1_fp32.onnx',
-    robot: NVIDIA_ASSETS + '/robots/unitree_g1/g1_29dof_rev_1_0.xml',
+    /** The robot, for your GLTFLoader: assets/unitree_g1.glb in this package (6 MB, BSD-3-Clause, Unitree). */
+    robot: 'https://cdn.jsdelivr.net/gh/repalash/three-motionbricks@v0.1.0/assets/unitree_g1.glb',
     ort: 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.30.0/dist/ort.min.mjs',
 }
 
 export interface MotionBricksCharacterOptions {
     /** A folder with pack.json from tools/pack_model.py (ending in /), or an original MotionBricks G1 .onnx file. */
     model?: string
-    /** The G1 MJCF file; its meshes resolve against its meshdir. */
-    robot?: string
     /** The onnxruntime-web module to import. */
     ort?: string
     /** Parts of the ORT .wasm file, joined in order, for hosts that limit file size. */
@@ -31,13 +30,13 @@ export interface MotionBricksCharacterOptions {
     backend?: 'wasm' | 'webgpu'
     /** Run the model in a Web Worker (default true). On the page, every generation stalls rendering. */
     worker?: boolean
-    /** Robot materials and shadows. */
-    robotOptions?: Omit<G1RobotOptions, 'onProgress'>
+    /** Make the robot's meshes cast and receive shadows. Default true. */
+    shadows?: boolean
     /** Standing, walk and run target poses. The default ones are baked from the model. */
     bricks?: G1Bricks
 }
 
-export type LoadStage = 'robot' | 'runtime' | 'model' | 'warmup'
+export type LoadStage = 'runtime' | 'model' | 'warmup'
 
 const tempA = new Vector3()
 
@@ -46,7 +45,9 @@ const tempA = new Vector3()
  * browser by NVIDIA MotionBricks. Add `object` to a three.js scene and call `update(dt)` every frame.
  *
  * ```ts
+ * const gltf = await new GLTFLoader().loadAsync(MOTIONBRICKS_DEFAULTS.robot)
  * const g1 = new MotionBricksCharacter()
+ * g1.setRobot(gltf.scene)
  * scene.add(g1.object)
  * await g1.load()
  * g1.moveTo(new Vector3(3, 0, -2))
@@ -73,10 +74,6 @@ export class MotionBricksCharacter {
         this.object.name = 'MotionBricks G1'
     }
 
-    /** The robot can be shown; the model may still be loading. */
-    get robotLoaded() {
-        return !!this.robot
-    }
 
     /** The model is loaded and the robot responds to moveTo and drive. */
     get ready() {
@@ -108,24 +105,24 @@ export class MotionBricksCharacter {
         return !!c && !c.moving && !c.generating && !c.goal
     }
 
-    /** Load the robot, then the model. The robot stands and shows while the model downloads. */
-    async load(onProgress?: (stage: LoadStage, loaded: number, total: number) => void) {
-        await this.loadRobot((l, t) => onProgress?.('robot', l, t))
-        await this.loadModel(onProgress)
-        return this
-    }
-
-    async loadRobot(onProgress?: (loaded: number, total: number) => void) {
-        if (this.robot) return this.robot
-        this.robot = await G1Robot.Load(this.options.robot ?? MOTIONBRICKS_DEFAULTS.robot, {...this.options.robotOptions, onProgress})
-        this.robot.setPose((this.options.bricks ?? G1_BRICKS).rest[0])
-        this.object.add(this.robot.object)
+    /**
+     * Use a loaded G1 model, such as `gltf.scene` of MOTIONBRICKS_DEFAULTS.robot, which then stands in its rest pose.
+     * Load it with whatever loader your project uses.
+     */
+    setRobot(root: Object3D) {
+        if (this.robot) this.object.remove(this.robot.object)
+        this.robot = G1Robot.FromObject(root, {shadows: this.options.shadows ?? true})
+        this.robot.setPose(this.controller?.pose ?? (this.options.bricks ?? G1_BRICKS).rest[0])
+        this.object.add(root)
         return this.robot
     }
 
-    /** Load ONNX Runtime and the model, in a worker unless `worker: false`, and warm it up. */
-    async loadModel(onProgress?: (stage: LoadStage, loaded: number, total: number) => void) {
-        if (this.controller) return
+    /**
+     * Load ONNX Runtime and the model, in a worker unless `worker: false`, and warm it up. The robot can be set
+     * before or after.
+     */
+    async load(onProgress?: (stage: LoadStage, loaded: number, total: number) => void) {
+        if (this.controller) return this
         const o = this.options
         const ortUrl = o.ort ?? MOTIONBRICKS_DEFAULTS.ort
         const model = o.model ?? MOTIONBRICKS_DEFAULTS.model
@@ -154,26 +151,18 @@ export class MotionBricksCharacter {
         const c = new G1Controller(engine, o.bricks ?? G1_BRICKS)
         c.gait = this.gait
         c.onError = e => this.onError ? this.onError(e) : console.error('MotionBricks: generation failed', e)
-        if (this.robot) c.pose.set(this._currentPose())
         this.controller = c
         if (this._pendingGoal) c.moveTo(...this._pendingGoal, this.gait)
         this._pendingGoal = null
-    }
-
-    private _currentPose() {
-        const p = this.robot!.pelvis
-        const pose = Float32Array.from((this.options.bricks ?? G1_BRICKS).rest[0])
-        pose[0] = p.position.x
-        pose[1] = p.position.y
-        return pose
+        return this
     }
 
     /** Advance the motion by dt seconds and pose the robot. Call it every frame. */
     update(dt: number) {
         const c = this.controller
-        if (!c || !this.robot) return
+        if (!c) return
         c.update(Math.min(dt, 0.1))
-        this.robot.setPose(c.pose)
+        this.robot?.setPose(c.pose)
     }
 
     /** Convert a world point to the character's G1 ground coordinates. */
@@ -246,7 +235,7 @@ export class MotionBricksCharacter {
         return p ? heading([p[3], p[4], p[5], p[6]]) : 0
     }
 
-    /** Stop the worker. The robot stays in the scene. */
+    /** Stop the worker. The robot stays in the scene, and load() starts the model again. */
     dispose() {
         if (this.engine instanceof MotionBricksRemote) this.engine.worker.terminate()
         this.engine = undefined

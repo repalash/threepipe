@@ -25,6 +25,7 @@
 <script type="module">
     import * as THREE from 'three'
     import {OrbitControls} from 'three/addons/controls/OrbitControls.js'
+    import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js'
     import {MotionBricksCharacter} from 'three-motionbricks'
 
     const params = new URLSearchParams(location.search)
@@ -57,12 +58,12 @@
     grid.position.y = 0.01
     scene.add(floor, grid)
 
-    // The character: the robot shows first, then the model loads in a worker.
-    const g1 = new MotionBricksCharacter({model: params.get('model') ?? undefined, robot: params.get('robot') ?? undefined})
+    // The character: load the robot with your own loader, then the model loads in a worker.
+    const g1 = new MotionBricksCharacter({model: params.get('model') ?? undefined})
     scene.add(g1.object)
-    g1.load((stage, loaded, total) => {
+    new GLTFLoader().loadAsync('../assets/unitree_g1.glb').then(gltf => g1.setRobot(gltf.scene)).then(() => g1.load((stage, loaded) => {
         status.textContent = stage === 'model' ? `Downloading the model… ${Math.round(loaded / 1e6)} MB` : `Loading the ${stage}…`
-    }).then(() => {
+    })).then(() => {
         status.textContent = 'Click the floor, or drive with WASD (Shift runs).'
     }).catch(e => {
         status.textContent = 'Could not start: ' + e.message

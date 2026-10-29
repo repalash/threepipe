@@ -21,7 +21,8 @@
     "files": [
         "dist",
         "src",
-        "tools"
+        "tools",
+        "assets"
     ],
     "scripts": {
         "new:pack": "npm run prepare 1>&2 && npm run docs 1>&2 && clean-package && npm pack --silent && clean-package restore",

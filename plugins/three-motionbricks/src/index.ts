@@ -1,7 +1,6 @@
 export {MotionBricksCharacter, MOTIONBRICKS_DEFAULTS, loadOrt} from './MotionBricksCharacter'
 export type {MotionBricksCharacterOptions, LoadStage} from './MotionBricksCharacter'
-export {G1Robot, parseSTL} from './G1Robot'
-export type {G1RobotOptions, G1RobotPart} from './G1Robot'
+export {G1Robot, G1_JOINT_BODIES} from './G1Robot'
 export {G1Controller, GAIT_SPEEDS} from './G1Controller'
 export type {G1Bricks, G1Gait, G1ControllerStats} from './G1Controller'
 export {G1_BRICKS} from './G1Bricks'

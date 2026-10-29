@@ -2,6 +2,7 @@ import {
     _testFinish,
     _testStart,
     Color,
+    IObject3D,
     GBufferPlugin,
     HDRiGroundPlugin,
     Mesh,
@@ -27,7 +28,7 @@ import {
     VelocityBufferPlugin,
 } from '@threepipe/webgi-plugins'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
-import {G1Gait, MotionBricksCharacter} from 'three-motionbricks'
+import {G1Gait, MOTIONBRICKS_DEFAULTS, MotionBricksCharacter} from 'three-motionbricks'
 import {G1Stage, STAGE_STYLES, StageStyleName} from './G1Stage'
 
 // Real-time motion generation in the browser with NVIDIA MotionBricks (https://github.com/NVlabs/motionbricks),
@@ -37,7 +38,7 @@ import {G1Stage, STAGE_STYLES, StageStyleName} from './G1Stage'
 // ?model=<folder with pack.json/ or .onnx url>&robot=<mjcf url>&backend=webgpu&style=studio&fx=0&ui=0&worker=0
 
 const config = {
-    /** onnxruntime-web module, model and robot. Empty uses the library's defaults (MOTIONBRICKS_DEFAULTS). */
+    /** onnxruntime-web module, model and robot GLB. Empty uses the library's defaults (MOTIONBRICKS_DEFAULTS). */
     ort: '',
     /** Optional parts of the ORT .wasm file, joined in order, for hosts that limit file size. */
     wasm: undefined as string[] | undefined,
@@ -128,26 +129,23 @@ async function init() {
     camera.target.set(0, 0.75, 0)
     camera.setDirty()
 
-    // The character from three-motionbricks, with threepipe's PhysicalMaterial so the panel can edit it.
+    // The character from three-motionbricks. threepipe loads its robot GLB like any model, with PhysicalMaterials
+    // the panel can edit. A host that renames files (to .wasm) gets the GLB as a File named .glb.
     const g1 = new MotionBricksCharacter({
         ort: config.ort || undefined,
         wasm: config.wasm,
         model: config.model || undefined,
-        robot: config.robot || undefined,
         backend: config.backend === 'webgpu' ? 'webgpu' : 'wasm',
         worker: config.worker !== '0',
-        robotOptions: {
-            material: (part, color) => new PhysicalMaterial({
-                name: part === 'joint' ? 'Joint housings' : 'Shells',
-                color,
-                metalness: part === 'joint' ? 0.2 : 0.3,
-                roughness: part === 'joint' ? 0.5 : 0.38,
-            }),
-        },
     })
     g1.onError = e => setStatus(`Generation failed: ${e instanceof Error ? e.message : e}`, 'error')
-    setStatus('Loading the robot…', 'loading', 0)
-    const robot = await g1.loadRobot((n, total) => setStatus('Loading the robot…', 'loading', n / total))
+    setStatus('Loading the robot…', 'loading')
+    const robotUrl = config.robot || MOTIONBRICKS_DEFAULTS.robot
+    const robotAsset = /\.(glb|gltf)$/i.test(robotUrl.split(/[?#]/)[0]) ? robotUrl :
+        new File([await (await fetch(robotUrl)).arrayBuffer()], 'unitree_g1.glb')
+    const robotModel = await viewer.import<IObject3D>(robotAsset)
+    if (!robotModel) throw new Error('Could not load the robot model')
+    const robot = g1.setRobot(robotModel)
     viewer.scene.addObject(g1.object)
 
     // A Tweakpane panel for the lighting and render options, in the clean theme that follows light or dark mode.
@@ -305,7 +303,7 @@ async function init() {
 
     // The model: about 190 MB packed, or 730 MB as the original fp32 ONNX file. The library runs it in a
     // worker, so inference never stalls the frames (a stall mid-walk shows as a limp).
-    await g1.loadModel((step, loaded, total) => {
+    await g1.load((step, loaded, total) => {
         if (step === 'model') setStatus(`Downloading the model… ${Math.round(loaded / 1e6)} of ${Math.round(total / 1e6) || '?'} MB`, 'loading', total ? loaded / total : 0)
         else if (step === 'runtime') setStatus('Loading ONNX Runtime…', 'loading', 0)
         else if (step === 'warmup') setStatus('Warming up…', 'loading')

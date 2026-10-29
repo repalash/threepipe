@@ -1,5 +1,5 @@
-import {BufferAttribute, BufferGeometry, Color, Group, Material, Mesh, MeshStandardMaterial, Object3D, Quaternion, SRGBColorSpace, Vector3} from 'three'
-import {G1_JOINT_NAMES, ROOT_SIZE} from './MotionBricksG1'
+import {Material, Mesh, Object3D, Quaternion, Vector3} from 'three'
+import {ROOT_SIZE} from './MotionBricksG1'
 
 interface RobotJoint {
     node: Object3D
@@ -7,139 +7,67 @@ interface RobotJoint {
     axis: Vector3
 }
 
-/** Dark joint housings, or the light shells. */
-export type G1RobotPart = 'joint' | 'shell'
-
-export interface G1RobotOptions {
-    /**
-     * Make the material for a part. Called once per part, and the material is shared by its meshes.
-     * The default is a MeshStandardMaterial: dark joint housings and light satin shells.
-     */
-    material?: (part: G1RobotPart, color: Color) => Material
-    /** Cast and receive shadows. Default true. */
-    shadows?: boolean
-    onProgress?: (loaded: number, total: number) => void
-}
+/**
+ * The body each of the 29 G1 joints turns, and its axis, in G1_JOINT_NAMES order (from Unitree's MJCF).
+ * A robot model needs nodes with these names, in MuJoCo's Z-up space under a `pelvis` node.
+ */
+export const G1_JOINT_BODIES: readonly [string, [number, number, number]][] = [
+    ['left_hip_pitch_link', [0, 1, 0]], ['left_hip_roll_link', [1, 0, 0]], ['left_hip_yaw_link', [0, 0, 1]],
+    ['left_knee_link', [0, 1, 0]], ['left_ankle_pitch_link', [0, 1, 0]], ['left_ankle_roll_link', [1, 0, 0]],
+    ['right_hip_pitch_link', [0, 1, 0]], ['right_hip_roll_link', [1, 0, 0]], ['right_hip_yaw_link', [0, 0, 1]],
+    ['right_knee_link', [0, 1, 0]], ['right_ankle_pitch_link', [0, 1, 0]], ['right_ankle_roll_link', [1, 0, 0]],
+    ['waist_yaw_link', [0, 0, 1]], ['waist_roll_link', [1, 0, 0]], ['torso_link', [0, 1, 0]],
+    ['left_shoulder_pitch_link', [0, 1, 0]], ['left_shoulder_roll_link', [1, 0, 0]], ['left_shoulder_yaw_link', [0, 0, 1]],
+    ['left_elbow_link', [0, 1, 0]], ['left_wrist_roll_link', [1, 0, 0]], ['left_wrist_pitch_link', [0, 1, 0]],
+    ['left_wrist_yaw_link', [0, 0, 1]],
+    ['right_shoulder_pitch_link', [0, 1, 0]], ['right_shoulder_roll_link', [1, 0, 0]], ['right_shoulder_yaw_link', [0, 0, 1]],
+    ['right_elbow_link', [0, 1, 0]], ['right_wrist_roll_link', [1, 0, 0]], ['right_wrist_pitch_link', [0, 1, 0]],
+    ['right_wrist_yaw_link', [0, 0, 1]],
+]
 
 const tempQuat = new Quaternion()
 
-/** Parse a binary or ASCII STL file into a non-indexed geometry with flat normals. */
-export function parseSTL(data: ArrayBuffer): BufferGeometry {
-    const view = new DataView(data)
-    const count = data.byteLength >= 84 ? view.getUint32(80, true) : 0
-    let positions: Float32Array
-    if (data.byteLength === 84 + count * 50) {
-        positions = new Float32Array(count * 9)
-        for (let i = 0; i < count; i++) {
-            for (let k = 0; k < 9; k++) positions[i * 9 + k] = view.getFloat32(84 + i * 50 + 12 + k * 4, true)
-        }
-    } else {
-        const text = new TextDecoder().decode(data)
-        const values = [...text.matchAll(/vertex\s+(\S+)\s+(\S+)\s+(\S+)/g)].flatMap(m => [+m[1], +m[2], +m[3]])
-        positions = new Float32Array(values)
-    }
-    const geometry = new BufferGeometry()
-    geometry.setAttribute('position', new BufferAttribute(positions, 3))
-    geometry.computeVertexNormals()
-    return geometry
-}
-
-function defaultMaterial(part: G1RobotPart, color: Color) {
-    return new MeshStandardMaterial({
-        name: part === 'joint' ? 'Joint housings' : 'Shells',
-        color,
-        metalness: part === 'joint' ? 0.2 : 0.3,
-        roughness: part === 'joint' ? 0.5 : 0.38,
-    })
-}
-
 /**
- * The Unitree G1 built from its MuJoCo description (MJCF) and STL meshes.
- * Bodies keep MuJoCo's Z-up space inside `object`, which is turned to three.js's Y-up.
+ * Poses a Unitree G1 model that you loaded, such as `gltf.scene` of the unitree_g1.glb that ships with
+ * this package. The model keeps MuJoCo's Z-up bodies under a node turned to three.js's Y-up.
  */
 export class G1Robot {
-    /** Add this to a scene. */
-    readonly object = new Group()
+    /** The model's root, as given. */
+    readonly object: Object3D
     readonly pelvis: Object3D
     readonly joints: RobotJoint[]
-    /** The joint housing and shell materials, shared by every mesh. */
+    /** Every material in the model, such as the joint housings and the shells. */
     readonly materials: Material[]
 
-    private constructor(pelvis: Object3D, joints: RobotJoint[], materials: Material[]) {
-        this.object.name = 'Unitree G1'
-        this.object.rotation.x = -Math.PI / 2
-        this.object.add(pelvis)
+    private constructor(object: Object3D, pelvis: Object3D, joints: RobotJoint[], materials: Material[]) {
+        this.object = object
         this.pelvis = pelvis
         this.joints = joints
         this.materials = materials
     }
 
     /**
-     * Load the robot from an MJCF file. Meshes resolve against its compiler meshdir.
+     * Wrap a loaded G1 model. Its meshes cast and receive shadows unless `shadows` is false.
      */
-    static async Load(xmlUrl: string, options: G1RobotOptions = {}) {
-        const base = new URL(xmlUrl, typeof location !== 'undefined' ? location.href : undefined)
-        const res = await fetch(base.href)
-        if (!res.ok) throw new Error(`Could not load the robot ${xmlUrl}: HTTP ${res.status}`)
-        const xml = new DOMParser().parseFromString(await res.text(), 'text/xml')
-        const meshDir = new URL((xml.querySelector('compiler')?.getAttribute('meshdir') ?? '.') + '/', base)
-        const files: Record<string, string> = {}
-        xml.querySelectorAll('asset > mesh').forEach(m => files[m.getAttribute('name')!] = m.getAttribute('file')!)
-
-        const names = Object.keys(files)
-        let loaded = 0
-        const geometries = Object.fromEntries(await Promise.all(names.map(async name => {
-            const r = await fetch(new URL(files[name], meshDir).href)
-            if (!r.ok) throw new Error(`Could not load mesh ${files[name]}: HTTP ${r.status}`)
-            const geometry = parseSTL(await r.arrayBuffer())
-            options.onProgress?.(++loaded, names.length)
-            return [name, geometry] as const
-        })))
-
-        // MJCF colors are sRGB: 0.2 for the dark joint housings, 0.7 for the shells. The shells get a light satin
-        // finish, so they read as the real robot under any lighting, bright or dark.
-        const make = options.material ?? defaultMaterial
-        const materials = {
-            joint: make('joint', new Color().setRGB(0.12, 0.12, 0.13, SRGBColorSpace)),
-            shell: make('shell', new Color().setRGB(0.8, 0.81, 0.83, SRGBColorSpace)),
-        }
-        const shadows = options.shadows ?? true
-        const nums = (s: string | null, d: string) => (s ?? d).trim().split(/\s+/).map(Number)
-        const jointsByName: Record<string, RobotJoint> = {}
-
-        const build = (body: Element): Object3D => {
-            const node = new Group()
-            node.name = body.getAttribute('name') ?? ''
-            node.position.fromArray(nums(body.getAttribute('pos'), '0 0 0'))
-            const [w, x, y, z] = nums(body.getAttribute('quat'), '1 0 0 0')
-            node.quaternion.set(x, y, z, w)
-            for (const child of Array.from(body.children)) {
-                if (child.tagName === 'joint' && child.getAttribute('type') !== 'free') {
-                    jointsByName[child.getAttribute('name')!] = {
-                        node,
-                        rest: node.quaternion.clone(),
-                        axis: new Vector3().fromArray(nums(child.getAttribute('axis'), '0 0 1')),
-                    }
-                } else if (child.tagName === 'geom' && child.getAttribute('type') === 'mesh' && child.getAttribute('contype') === '0') {
-                    // Visual geoms only; MJCF repeats each mesh as a collision geom.
-                    const rgba = nums(child.getAttribute('rgba'), '0.7 0.7 0.7 1')
-                    const mesh = new Mesh(geometries[child.getAttribute('mesh')!], rgba[0] < 0.5 ? materials.joint : materials.shell)
-                    mesh.position.fromArray(nums(child.getAttribute('pos'), '0 0 0'))
-                    mesh.castShadow = shadows
-                    mesh.receiveShadow = shadows
-                    node.add(mesh)
-                } else if (child.tagName === 'body') {
-                    node.add(build(child))
-                }
-            }
+    static FromObject(root: Object3D, {shadows = true} = {}) {
+        const find = (name: string) => {
+            const node = root.getObjectByName(name)
+            if (!node) throw new Error(`The robot model has no node named ${name}`)
             return node
         }
-        const pelvis = build(xml.querySelector('worldbody > body')!)
-        const joints = G1_JOINT_NAMES.map(n => {
-            if (!jointsByName[n]) throw new Error(`MJCF has no joint ${n}`)
-            return jointsByName[n]
+        const joints = G1_JOINT_BODIES.map(([body, axis]) => {
+            const node = find(body)
+            return {node, rest: node.quaternion.clone(), axis: new Vector3(...axis)}
         })
-        return new G1Robot(pelvis, joints, [materials.joint, materials.shell])
+        const materials = new Set<Material>()
+        root.traverse(o => {
+            const mesh = o as Mesh
+            if (!mesh.isMesh) return
+            mesh.castShadow = shadows
+            mesh.receiveShadow = shadows
+            for (const m of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) materials.add(m)
+        })
+        return new G1Robot(root, find('pelvis'), joints, [...materials])
     }
 
     /** Show a G1 pose: root XYZ, root XYZW quaternion, then the 29 joint angles. */
