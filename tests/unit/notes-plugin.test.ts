@@ -271,6 +271,31 @@ describe('NotesPlugin', () => {
         expect(notes.storeStatus('slow')).toBe('saved')
     })
 
+    test('a note deleted or moved out while its store loads again does not come back with the load', async() => {
+        const answers: ((n: NoteItem[]) => void)[] = []
+        const saved: string[][] = []
+        const slow: NotesStore = {id: 'slow', label: 'Slow', load: async() => new Promise(r => answers.push(r)), save: n => void saved.push(n.map(x => x.text))}
+        const other = memoryStore('other')
+        const notes = new NotesPlugin({file: false, browser: false, stores: [slow, other]})
+        const viewer = fakeViewer()
+        const before = [{id: 'a', text: 'deleted', store: 'slow', created: 1}, {id: 'b', text: 'moved', store: 'slow', created: 2}, {id: 'c', text: 'kept', store: 'slow', created: 3}]
+        notes.onAdded(viewer)
+        await vi.waitFor(() => expect(answers).toHaveLength(1))
+        answers[0](before)
+        await vi.waitFor(() => expect(texts(notes)).toEqual(['slow:deleted', 'slow:moved', 'slow:kept']))
+        notes.onRemove(viewer)
+        notes.onAdded(viewer) // the notes stay visible while the store loads again
+        await vi.waitFor(() => expect(answers).toHaveLength(2))
+        notes.removeNote('a')
+        notes.updateNote('b', {store: 'other'})
+        const loaded = new Promise(r => notes.addEventListener('notesChanged', e => e.change === 'load' && r(e)))
+        answers[1](before)
+        await loaded
+        expect(texts(notes)).toEqual(['slow:kept', 'other:moved'])
+        await notes.flush()
+        expect(saved.at(-1)).toEqual(['kept'])
+    })
+
     test('a store that cannot load is not saved, so its notes elsewhere are not replaced', async() => {
         const saved: NoteItem[][] = []
         const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})

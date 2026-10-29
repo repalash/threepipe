@@ -123,6 +123,8 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
     private _loading = new Set<string>()
     /** Per store, its latest load: the answer of an older one (before a remove and add, a reload) is dropped */
     private _loads = new Map<NotesStore, object>()
+    /** Per loading store, the ids of the notes deleted or moved out meanwhile: the load does not bring them back */
+    private _left = new Map<string, Set<string>>()
     private _timer = 0
     /** Per store, the running save: saves of a store run one after the other */
     private _running = new Map<NotesStore, Promise<void>>()
@@ -186,6 +188,7 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
             this._waiting.delete(prev)
             this._changed.delete(store.id)
             this._loading.delete(store.id)
+            this._left.delete(store.id)
             this._notes = this._notes.filter(n => n.store !== store.id)
             this._stores[old] = store
             if (notes.length) this.dispatchEvent({type: 'notesChanged', change: 'remove'})
@@ -232,6 +235,7 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
         if (patch.store !== undefined && patch.store !== note.store) {
             if (!this.getStore(patch.store)) throw new Error('NotesPlugin: no store ' + patch.store)
             const from = note.store
+            this._leave(from, [note.id])
             this._notes.splice(this._notes.indexOf(note), 1)
             note.store = patch.store
             this._notes.splice(this._endOfStore(note.store), 0, note)
@@ -246,6 +250,7 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
     removeNote(id: string) {
         const note = this._notes.find(n => n.id === id)
         if (!note) return
+        this._leave(note.store, [note.id])
         this._notes.splice(this._notes.indexOf(note), 1)
         this._changedStore(note.store)
         this.dispatchEvent({type: 'notesChanged', change: 'remove', note})
@@ -254,6 +259,7 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
     /** Removes all the notes of a store */
     clear(store: string) {
         if (!this._notes.some(n => n.store === store)) return
+        this._leave(store, this._notes.filter(n => n.store === store).map(n => n.id))
         this._notes = this._notes.filter(n => n.store !== store)
         this._changedStore(store)
         this.dispatchEvent({type: 'notesChanged', change: 'remove'})
@@ -287,6 +293,14 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
         const r = rank(store)
         const i = this._notes.findIndex(n => rank(n.store) > r)
         return i < 0 ? this._notes.length : i
+    }
+
+    /** Notes that leave a store (deleted, moved out): while it loads, its load must not bring them back */
+    private _leave(store: string, ids: string[]) {
+        if (!this._loading.has(store)) return
+        const left = this._left.get(store) ?? new Set<string>()
+        for (const id of ids) left.add(id)
+        this._left.set(store, left)
     }
 
     private _setStatus(store: string, status: NotesStoreStatus) {
@@ -328,6 +342,10 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
         // notes made in this store while it loaded stay, after the loaded ones, and are saved
         const made = !replace && this._changed.has(store.id) ? this._notes.filter(n => n.store === store.id) : []
         const ids = new Set(made.map(n => n.id))
+        // notes deleted or moved out while it loaded stay out, and the store is saved without them
+        const left = replace ? undefined : this._left.get(store.id)
+        this._left.delete(store.id)
+        for (const id of left ?? []) ids.add(id)
         // ids are unique in the plugin: a loaded note with the id of a note in another store (an old export of a
         // note moved since) gets a new one, and the store is saved with it
         const taken = new Set(this._notes.filter(n => n.store !== store.id).map(n => n.id))
@@ -345,7 +363,7 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
             })
         this._notes = this._notes.filter(n => n.store !== store.id)
         this._notes.splice(this._endOfStore(store.id), 0, ...notes, ...made)
-        if (made.length || renamed) this._changedStore(store.id) // saved with the loaded notes
+        if (made.length || renamed || left?.size) this._changedStore(store.id) // saved with the loaded notes
         else this._setStatus(store.id, 'saved')
         this.dispatchEvent({type: 'notesChanged', change: 'load'})
     }
