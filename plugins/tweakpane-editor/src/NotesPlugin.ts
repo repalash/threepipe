@@ -123,9 +123,9 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
     private _loading = new Set<string>()
     /** Per store, its latest load: the answer of an older one (before a remove and add, a reload) is dropped */
     private _loads = new Map<NotesStore, object>()
-    /** Per loading store, the ids of the notes added, edited or moved in meanwhile: they win over the loaded ones */
+    /** Per store, the ids of the notes added, edited or moved in since its last save: they win over a load */
     private _made = new Map<string, Set<string>>()
-    /** Per loading store, the ids of the notes deleted or moved out meanwhile: the load does not bring them back */
+    /** Per store, the ids of the notes deleted or moved out since its last save: a load does not bring them back */
     private _left = new Map<string, Set<string>>()
     private _timer = 0
     /** Per store, the running save: saves of a store run one after the other */
@@ -317,9 +317,8 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
         return i < 0 ? this._notes.length : i
     }
 
-    /** Notes made or changed in ({@link _made}), or gone from ({@link _left}), a store while it loads */
-    private _mark(map: Map<string, Set<string>>, store: string, ids: string[]) {
-        if (!this._loading.has(store)) return
+    /** Notes made or changed in ({@link _made}), or gone from ({@link _left}), a store since its last save */
+    private _mark(map: Map<string, Set<string>>, store: string, ids: Iterable<string>) {
         const set = map.get(store) ?? new Set<string>()
         for (const id of ids) set.add(id)
         map.set(store, set)
@@ -369,13 +368,12 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
     private _mergeLoaded(store: NotesStore, loaded: NoteItem[], replace: boolean) {
         if (this.getStore(store.id) !== store) return // replaced meanwhile
         this._loading.delete(store.id)
-        // notes edited while it loaded win over the loaded ones, in their place; notes made or moved in stay, after
+        // notes edited and not saved yet win over the loaded ones, in their place; notes made or moved in stay, after
         // them; notes deleted or moved out stay out. The other notes come from the load (a cached copy shown while it
         // loads again is replaced). The store is then saved with these changes.
+        // (they stay marked until the save of the store takes them)
         const madeIds = replace ? undefined : this._made.get(store.id)
         const left = replace ? undefined : this._left.get(store.id)
-        this._made.delete(store.id)
-        this._left.delete(store.id)
         const made = new Map(this._notes.filter(n => n.store === store.id && madeIds?.has(n.id)).map(n => [n.id, n]))
         const changed = made.size
         // ids are unique in the plugin: a loaded note with the id of a note in another store (an old export of a
@@ -410,6 +408,8 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
         if (this.getStore(store) === this._fileStore) {
             // at once: the viewer config (an export) reads fileNotes
             this.fileNotes = this._notes.filter(n => n.store === store).map(n => ({...n}))
+            this._made.delete(store)
+            this._left.delete(store)
             this._setStatus(store, 'saved')
             return
         }
@@ -464,14 +464,20 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
         const id = store.id
         if (this.getStore(id) !== store) return // replaced: addStore saved its changes
         this._setStatus(id, 'saving')
+        // the changes this save keeps; changes made during it stay marked for the next one
+        const made = this._made.get(id), left = this._left.get(id)
+        this._made.delete(id)
+        this._left.delete(id)
         try {
             await store.save(this._notes.filter(n => n.store === id).map(n => ({...n})))
             // a load that waits for this save sets the state when it ends
             if (!this._changed.has(id) && !this._waiting.has(store) && !this._loading.has(id)) this._setStatus(id, 'saved')
         } catch (e) {
             console.warn('NotesPlugin: could not save the notes of ' + id, e)
-            // still to save: the next flush, change, hidden page or removal tries again
+            // still to save: the next flush, change, hidden page or removal tries again, and a load keeps them
             this._changed.add(id)
+            if (made) this._mark(this._made, id, made)
+            if (left) this._mark(this._left, id, left)
             this._setStatus(id, 'error')
         }
     }

@@ -288,6 +288,28 @@ describe('NotesPlugin', () => {
         expect(saved).toEqual([['from before', 'typed while it loads']])
     })
 
+    test('an edit that a failed save could not keep stays over the reload after a remove and add', async() => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+        let backend: NoteItem[] = [{id: 'a', text: 'first', store: 'server', created: 1}, {id: 'b', text: 'other', store: 'server', created: 2}]
+        let online = false
+        const server: NotesStore = {id: 'server', label: 'Server', load: () => backend.map(n => ({...n})), save: async n => {
+            if (!online) throw new Error('offline')
+            backend = n
+        }}
+        const notes = new NotesPlugin({file: false, browser: false, stores: [server]})
+        const viewer = fakeViewer()
+        notes.onAdded(viewer)
+        notes.updateNote('a', {text: 'latest'})
+        notes.onRemove(viewer) // its save fails
+        notes.onAdded(viewer)
+        await vi.waitFor(() => expect(notes.storeStatus('server')).toBe('changed'))
+        expect(texts(notes)).toEqual(['server:latest', 'server:other'])
+        online = true
+        await notes.flush()
+        expect(backend.map(n => n.text)).toEqual(['latest', 'other'])
+        warn.mockRestore()
+    })
+
     test('a reload keeps only the notes edited meanwhile: the other notes come from the load', async() => {
         const answers: ((n: NoteItem[]) => void)[] = []
         const saved: string[][] = []
