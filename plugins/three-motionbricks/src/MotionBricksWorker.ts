@@ -1,9 +1,9 @@
 // Runs MotionBricksG1 in a module worker, so ONNX Runtime never blocks the page's frames.
 // ONNX Runtime's WebAssembly backend computes synchronously, and its WebGPU backend runs some
 // nodes on the CPU, so on the main thread every generation would freeze the robot mid-stride.
-// The import names the .js file because import maps do not apply inside workers.
+// The package build bundles this file with the engine into one worker script.
 
-import {GenerateOptions, MotionBricksG1} from './MotionBricksG1.js'
+import {GenerateOptions, MotionBricksG1} from './MotionBricksG1'
 
 export interface WorkerLoadOptions {
     /** Absolute URL of the onnxruntime-web module. */

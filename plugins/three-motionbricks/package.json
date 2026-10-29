@@ -1,0 +1,64 @@
+{
+    "name": "three-motionbricks",
+    "description": "NVIDIA MotionBricks for three.js: a Unitree G1 that walks and runs where you send it, with its motion generated in the browser",
+    "version": "0.1.0",
+    "devDependencies": {},
+    "peerDependencies": {
+        "three": ">=0.152.0"
+    },
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.mjs"
+        },
+        "./dist/": {
+            "import": "./dist/"
+        }
+    },
+    "type": "module",
+    "module": "dist/index.mjs",
+    "types": "dist/index.d.ts",
+    "files": [
+        "dist",
+        "src",
+        "tools"
+    ],
+    "scripts": {
+        "new:pack": "npm run prepare 1>&2 && npm run docs 1>&2 && clean-package && npm pack --silent && clean-package restore",
+        "prepare": "npm run build",
+        "build": "rimraf dist && NODE_ENV=production vite build",
+        "watch": "NODE_ENV=development vite build --watch",
+        "docs": "rimraf docs && npx typedoc --skipErrorChecking"
+    },
+    "author": "repalash <palash@shaders.app>",
+    "license": "Apache-2.0",
+    "keywords": [
+        "three",
+        "three.js",
+        "motionbricks",
+        "nvidia",
+        "unitree",
+        "g1",
+        "humanoid",
+        "motion generation",
+        "onnx"
+    ],
+    "bugs": {
+        "url": "https://github.com/repalash/threepipe/issues"
+    },
+    "homepage": "https://github.com/repalash/threepipe/tree/master/plugins/three-motionbricks#readme",
+    "repository": {
+        "type": "git",
+        "url": "git://github.com/repalash/threepipe.git",
+        "directory": "plugins/three-motionbricks"
+    },
+    "clean-package": {
+        "remove": [
+            "clean-package",
+            "scripts",
+            "devDependencies",
+            "overrides",
+            "//"
+        ]
+    }
+}

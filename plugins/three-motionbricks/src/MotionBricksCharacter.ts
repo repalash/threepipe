@@ -1,0 +1,269 @@
+import {Group, Vector3} from 'three'
+import {G1Robot, G1RobotOptions} from './G1Robot'
+import {G1Bricks, G1Controller, G1ControllerStats, G1Gait, GAIT_SPEEDS} from './G1Controller'
+import {G1_BRICKS} from './G1Bricks'
+import {heading, MotionBricksG1, MotionGenerator, OrtApi} from './MotionBricksG1'
+import {MotionBricksRemote} from './MotionBricksRemote'
+
+const NVIDIA_ASSETS = 'https://media.githubusercontent.com/media/NVlabs/motionbricks/main/motionbricks/assets'
+
+/** Where the model, the robot and ONNX Runtime load from when the options do not say. */
+export const MOTIONBRICKS_DEFAULTS = {
+    /** NVIDIA's original fp32 model, 730 MB. A pack from tools/pack_model.py is about 190 MB. */
+    model: NVIDIA_ASSETS + '/onnx/unitree_g1/mmm_v6_g1_fp32.onnx',
+    robot: NVIDIA_ASSETS + '/robots/unitree_g1/g1_29dof_rev_1_0.xml',
+    ort: 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.30.0/dist/ort.min.mjs',
+}
+
+export interface MotionBricksCharacterOptions {
+    /** A folder with pack.json from tools/pack_model.py (ending in /), or an original MotionBricks G1 .onnx file. */
+    model?: string
+    /** The G1 MJCF file; its meshes resolve against its meshdir. */
+    robot?: string
+    /** The onnxruntime-web module to import. */
+    ort?: string
+    /** Parts of the ORT .wasm file, joined in order, for hosts that limit file size. */
+    wasm?: string[]
+    /**
+     * 'wasm' (default) or 'webgpu'. With onnxruntime-web 1.30, WebGPU computes this model wrongly: the robot
+     * sinks, sprints or walks away from its goal. It is here for testing newer releases.
+     */
+    backend?: 'wasm' | 'webgpu'
+    /** Run the model in a Web Worker (default true). On the page, every generation stalls rendering. */
+    worker?: boolean
+    /** Robot materials and shadows. */
+    robotOptions?: Omit<G1RobotOptions, 'onProgress'>
+    /** Standing, walk and run target poses. The default ones are baked from the model. */
+    bricks?: G1Bricks
+}
+
+export type LoadStage = 'robot' | 'runtime' | 'model' | 'warmup'
+
+const tempA = new Vector3()
+
+/**
+ * A Unitree G1 that walks and runs where you send it, with every frame of motion generated in the
+ * browser by NVIDIA MotionBricks. Add `object` to a three.js scene and call `update(dt)` every frame.
+ *
+ * ```ts
+ * const g1 = new MotionBricksCharacter()
+ * scene.add(g1.object)
+ * await g1.load()
+ * g1.moveTo(new Vector3(3, 0, -2))
+ * renderer.setAnimationLoop(() => { g1.update(clock.getDelta()); renderer.render(scene, camera) })
+ * ```
+ *
+ * Positions are in the world space of `object`'s parent, on the ground plane y = 0 of `object`.
+ */
+export class MotionBricksCharacter {
+    readonly options: MotionBricksCharacterOptions
+    /** Holds the robot. Move or scale it to place the character in your scene. */
+    readonly object = new Group()
+    robot?: G1Robot
+    engine?: MotionGenerator
+    controller?: G1Controller
+    gait: G1Gait = 'walk'
+    /** Called when a generation fails. */
+    onError?: (e: unknown) => void
+    private _pendingGoal: [number, number] | null = null
+    private _drive = {active: false, angle: 0, gait: 'walk' as G1Gait}
+
+    constructor(options: MotionBricksCharacterOptions = {}) {
+        this.options = options
+        this.object.name = 'MotionBricks G1'
+    }
+
+    /** The robot can be shown; the model may still be loading. */
+    get robotLoaded() {
+        return !!this.robot
+    }
+
+    /** The model is loaded and the robot responds to moveTo and drive. */
+    get ready() {
+        return !!this.controller
+    }
+
+    /** 'wasm' or 'webgpu', once the model is loaded. */
+    get backend() {
+        return this.engine?.backend ?? ''
+    }
+
+    get stats(): G1ControllerStats | undefined {
+        return this.controller?.stats
+    }
+
+    /** The segment being played, for a progress display. */
+    get playback() {
+        return this.controller?.playback ?? null
+    }
+
+    /** The robot is walking or running. */
+    get moving() {
+        return !!this.controller?.moving
+    }
+
+    /** Standing still, with no goal and no generation running. */
+    get idle() {
+        const c = this.controller
+        return !!c && !c.moving && !c.generating && !c.goal
+    }
+
+    /** Load the robot, then the model. The robot stands and shows while the model downloads. */
+    async load(onProgress?: (stage: LoadStage, loaded: number, total: number) => void) {
+        await this.loadRobot((l, t) => onProgress?.('robot', l, t))
+        await this.loadModel(onProgress)
+        return this
+    }
+
+    async loadRobot(onProgress?: (loaded: number, total: number) => void) {
+        if (this.robot) return this.robot
+        this.robot = await G1Robot.Load(this.options.robot ?? MOTIONBRICKS_DEFAULTS.robot, {...this.options.robotOptions, onProgress})
+        this.robot.setPose((this.options.bricks ?? G1_BRICKS).rest[0])
+        this.object.add(this.robot.object)
+        return this.robot
+    }
+
+    /** Load ONNX Runtime and the model, in a worker unless `worker: false`, and warm it up. */
+    async loadModel(onProgress?: (stage: LoadStage, loaded: number, total: number) => void) {
+        if (this.controller) return
+        const o = this.options
+        const ortUrl = o.ort ?? MOTIONBRICKS_DEFAULTS.ort
+        const model = o.model ?? MOTIONBRICKS_DEFAULTS.model
+        const useGpu = o.backend === 'webgpu' && typeof navigator !== 'undefined' && 'gpu' in navigator
+        const sessionOptions = {executionProviders: useGpu ? ['webgpu', 'wasm'] : ['wasm'], graphOptimizationLevel: 'all'}
+        const progress = (l: number, t: number) => onProgress?.('model', l, t)
+        onProgress?.('runtime', 0, 1)
+        let engine: MotionGenerator | null = null
+        if (o.worker !== false) {
+            engine = await MotionBricksRemote.Load({ort: ortUrl, wasm: o.wasm, model, sessionOptions}, progress).catch(e => {
+                console.warn('MotionBricks: the worker could not load the model, running it on the page instead', e)
+                return null
+            })
+        }
+        if (!engine) {
+            const ort = await loadOrt(ortUrl, o.wasm)
+            engine = model.endsWith('/') ?
+                await MotionBricksG1.LoadPacked(ort, model, sessionOptions, progress) :
+                await MotionBricksG1.LoadOnnx(ort, model, sessionOptions, progress)
+        }
+        // One generation compiles the kernels before the robot moves.
+        onProgress?.('warmup', 0, 1)
+        const rest = Float32Array.from((o.bricks ?? G1_BRICKS).rest[0])
+        await engine.generate([rest, rest, rest, rest], [rest])
+        this.engine = engine
+        const c = new G1Controller(engine, o.bricks ?? G1_BRICKS)
+        c.gait = this.gait
+        c.onError = e => this.onError ? this.onError(e) : console.error('MotionBricks: generation failed', e)
+        if (this.robot) c.pose.set(this._currentPose())
+        this.controller = c
+        if (this._pendingGoal) c.moveTo(...this._pendingGoal, this.gait)
+        this._pendingGoal = null
+    }
+
+    private _currentPose() {
+        const p = this.robot!.pelvis
+        const pose = Float32Array.from((this.options.bricks ?? G1_BRICKS).rest[0])
+        pose[0] = p.position.x
+        pose[1] = p.position.y
+        return pose
+    }
+
+    /** Advance the motion by dt seconds and pose the robot. Call it every frame. */
+    update(dt: number) {
+        const c = this.controller
+        if (!c || !this.robot) return
+        c.update(Math.min(dt, 0.1))
+        this.robot.setPose(c.pose)
+    }
+
+    /** Convert a world point to the character's G1 ground coordinates. */
+    private _toG1(point: Vector3): [number, number] {
+        this.object.updateWorldMatrix(true, false)
+        return G1Robot.ToG1(this.object.worldToLocal(tempA.copy(point)))
+    }
+
+    /** Walk or run to a world point and stop there, facing the way it walked. */
+    moveTo(point: Vector3, gait: G1Gait = this.gait) {
+        this.gait = gait
+        this._drive.active = false
+        const g = this._toG1(point)
+        if (this.controller) this.controller.moveTo(g[0], g[1], gait)
+        else this._pendingGoal = g
+    }
+
+    /**
+     * Steer with a world direction on the ground (WASD, a joystick), or null to stop. Call it every frame
+     * while the input is held. The gait applies while driving; `gait` stays the default for moveTo. A new direction or gait generates at once; small changes steer the goal,
+     * kept a few metres ahead, from the next segment.
+     */
+    drive(direction: Vector3 | null, gait: G1Gait = this.gait) {
+        const c = this.controller
+        if (!c) return
+        if (!direction || direction.x === 0 && direction.z === 0) {
+            if (this._drive.active) c.stop()
+            this._drive.active = false
+            return
+        }
+        this.object.updateWorldMatrix(true, false)
+        const origin = this.object.worldToLocal(tempA.set(0, 0, 0))
+        const [ox, oy] = G1Robot.ToG1(origin)
+        const [dx, dy] = this._toG1(direction)
+        const angle = Math.atan2(dy - oy, dx - ox)
+        const ahead = GAIT_SPEEDS[gait] * c.lead + 4
+        const goal: [number, number] = [c.pose[0] + Math.cos(angle) * ahead, c.pose[1] + Math.sin(angle) * ahead]
+        const d = this._drive
+        const turn = Math.abs(Math.atan2(Math.sin(angle - d.angle), Math.cos(angle - d.angle)))
+        if (!d.active || gait !== d.gait || turn > 0.35) {
+            Object.assign(d, {active: true, angle, gait})
+            c.moveTo(goal[0], goal[1], gait)
+        } else c.goal = goal
+    }
+
+    /** Come to a stop a short way ahead. */
+    stop() {
+        this._drive.active = false
+        this.controller?.stop()
+    }
+
+    /** The robot's ground position, in world space. */
+    getPosition(target = new Vector3()) {
+        const pose = this.controller?.pose
+        if (pose) G1Robot.FromG1(pose[0], pose[1], 0, target)
+        else target.set(0, 0, 0)
+        return this.object.localToWorld(target)
+    }
+
+    /** The current goal, in world space, or null. */
+    getGoal(target = new Vector3()) {
+        const goal = this.controller?.goal ?? this._pendingGoal
+        if (!goal) return null
+        return this.object.localToWorld(G1Robot.FromG1(goal[0], goal[1], 0, target))
+    }
+
+    /** The direction the robot faces, as an angle around Y in the character's space (0 faces +X). */
+    get heading() {
+        const p = this.controller?.pose
+        return p ? heading([p[3], p[4], p[5], p[6]]) : 0
+    }
+
+    /** Stop the worker. The robot stays in the scene. */
+    dispose() {
+        if (this.engine instanceof MotionBricksRemote) this.engine.worker.terminate()
+        this.engine = undefined
+        this.controller = undefined
+    }
+}
+
+/** Import onnxruntime-web on the page, for when no worker is used. */
+export async function loadOrt(url: string, wasm?: string[]): Promise<OrtApi & {env: any}> {
+    const ort = await import(/* @vite-ignore */ new URL(url, location.href).href)
+    ort.env.logLevel = 'error'
+    ort.env.wasm.numThreads = self.crossOriginIsolated ? Math.min(4, navigator.hardwareConcurrency || 1) : 1
+    if (wasm?.length) {
+        const parts = await Promise.all(wasm.map(async u => new Uint8Array(await (await fetch(u)).arrayBuffer())))
+        const binary = new Uint8Array(parts.reduce((n, p) => n + p.length, 0))
+        parts.reduce((o, p) => (binary.set(p, o), o + p.length), 0)
+        ort.env.wasm.wasmBinary = binary.buffer
+    }
+    return ort
+}

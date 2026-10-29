@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>three-motionbricks</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Plain three.js, no threepipe: the library only needs three. -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.168.0/build/three.module.js",
+                "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.168.0/examples/jsm/",
+                "three-motionbricks": "../dist/index.mjs"
+            }
+        }
+    </script>
+    <style>
+        html, body { margin: 0; height: 100%; overflow: hidden; background: #e7e9ec; font: 13px/1.4 system-ui, sans-serif; }
+        canvas { display: block; }
+        #status { position: absolute; top: 12px; left: 12px; padding: 8px 12px; border-radius: 6px; background: rgba(255, 255, 255, 0.85); color: #1b1f24; }
+    </style>
+</head>
+<body>
+<div id="status">Loading the robot…</div>
+<script type="module">
+    import * as THREE from 'three'
+    import {OrbitControls} from 'three/addons/controls/OrbitControls.js'
+    import {MotionBricksCharacter} from 'three-motionbricks'
+
+    const params = new URLSearchParams(location.search)
+    const status = document.getElementById('status')
+
+    const renderer = new THREE.WebGLRenderer({antialias: true})
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2))
+    renderer.setSize(innerWidth, innerHeight)
+    renderer.shadowMap.enabled = true
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap
+    document.body.appendChild(renderer.domElement)
+
+    const scene = new THREE.Scene()
+    scene.background = new THREE.Color('#e7e9ec')
+    const camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 0.1, 200)
+    camera.position.set(3.2, 1.9, 4.2)
+    const controls = new OrbitControls(camera, renderer.domElement)
+    controls.target.set(0, 0.75, 0)
+
+    scene.add(new THREE.HemisphereLight('#f4f6ff', '#6f675e', 1.4))
+    const sun = new THREE.DirectionalLight('#fff4e8', 2.6)
+    sun.castShadow = true
+    sun.shadow.mapSize.setScalar(2048)
+    Object.assign(sun.shadow.camera, {left: -6, right: 6, top: 6, bottom: -6, near: 0.5, far: 25})
+    sun.shadow.bias = -0.0004
+    scene.add(sun, sun.target)
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(200, 200).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({color: '#dfe2e6', roughness: 0.9}))
+    floor.receiveShadow = true
+    const grid = new THREE.GridHelper(60, 60, '#b4bbc3', '#c6ccd3')
+    grid.position.y = 0.01
+    scene.add(floor, grid)
+
+    // The character: the robot shows first, then the model loads in a worker.
+    const g1 = new MotionBricksCharacter({model: params.get('model') ?? undefined, robot: params.get('robot') ?? undefined})
+    scene.add(g1.object)
+    g1.load((stage, loaded, total) => {
+        status.textContent = stage === 'model' ? `Downloading the model… ${Math.round(loaded / 1e6)} MB` : `Loading the ${stage}…`
+    }).then(() => {
+        status.textContent = 'Click the floor, or drive with WASD (Shift runs).'
+    }).catch(e => {
+        status.textContent = 'Could not start: ' + e.message
+    })
+
+    // Click the floor to walk there.
+    const raycaster = new THREE.Raycaster()
+    const down = new THREE.Vector2()
+    renderer.domElement.addEventListener('pointerdown', e => down.set(e.clientX, e.clientY))
+    renderer.domElement.addEventListener('pointerup', e => {
+        if (down.distanceTo(new THREE.Vector2(e.clientX, e.clientY)) > 6) return
+        raycaster.setFromCamera(new THREE.Vector2(e.clientX / innerWidth * 2 - 1, -e.clientY / innerHeight * 2 + 1), camera)
+        const hit = raycaster.intersectObject(floor)[0]
+        if (hit) g1.moveTo(hit.point)
+    })
+
+    // WASD drives relative to the camera.
+    const keys = new Set()
+    addEventListener('keydown', e => keys.add(e.code))
+    addEventListener('keyup', e => keys.delete(e.code))
+    const forward = new THREE.Vector3(), right = new THREE.Vector3(), dir = new THREE.Vector3()
+
+    const clock = new THREE.Clock()
+    const follow = new THREE.Vector3()
+    renderer.setAnimationLoop(() => {
+        const dt = clock.getDelta()
+        camera.getWorldDirection(forward).setY(0).normalize()
+        right.crossVectors(forward, camera.up)
+        dir.set(0, 0, 0)
+        if (keys.has('KeyW')) dir.add(forward)
+        if (keys.has('KeyS')) dir.sub(forward)
+        if (keys.has('KeyD')) dir.add(right)
+        if (keys.has('KeyA')) dir.sub(right)
+        g1.drive(keys.size ? dir : null, keys.has('ShiftLeft') || keys.has('ShiftRight') ? 'run' : 'walk')
+        g1.update(dt)
+
+        // Follow the robot, keeping the orbit; the sun follows too, so its shadow stays sharp.
+        const delta = g1.getPosition(follow).setY(0.75).sub(controls.target).multiplyScalar(1 - Math.exp(-dt * 2.5))
+        controls.target.add(delta)
+        camera.position.add(delta)
+        sun.position.copy(controls.target).add(new THREE.Vector3(3, 6, 4))
+        sun.target.position.copy(controls.target)
+        controls.update()
+        renderer.render(scene, camera)
+    })
+    addEventListener('resize', () => {
+        camera.aspect = innerWidth / innerHeight
+        camera.updateProjectionMatrix()
+        renderer.setSize(innerWidth, innerHeight)
+    })
+    window.g1 = g1
+</script>
+</body>
+</html>

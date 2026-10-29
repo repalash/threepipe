@@ -46,9 +46,12 @@ export class MotionBricksRemote implements MotionGenerator {
         })
     }
 
-    /** Start the worker and load the model in it. URLs are resolved against the page. */
-    static async Load(workerUrl: URL | string, options: WorkerLoadOptions, onProgress?: ProgressCallback) {
-        const remote = new MotionBricksRemote(new Worker(workerUrl, {type: 'module'}))
+    /**
+     * Start the worker and load the model in it. URLs are resolved against the page.
+     * @param worker a worker running MotionBricksWorker; the default is the one bundled with this package
+     */
+    static async Load(options: WorkerLoadOptions, onProgress?: ProgressCallback, worker?: Worker) {
+        const remote = new MotionBricksRemote(worker ?? new Worker(new URL('./MotionBricksWorker.ts', import.meta.url), {type: 'module'}))
         const abs = (u: string) => new URL(u, location.href).href
         try {
             const result = await remote._call<{backend: string}>({type: 'load', options: {

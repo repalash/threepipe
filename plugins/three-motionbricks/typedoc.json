@@ -1,0 +1,10 @@
+{
+    "extends": [
+        "../../typedoc.json"
+    ],
+    "entryPoints": [
+        "src/index.ts"
+    ],
+    "name": "three-motionbricks",
+    "readme": "none"
+}

@@ -6,6 +6,7 @@ import {
     HDRiGroundPlugin,
     Mesh,
     PCFSoftShadowMap,
+    PhysicalMaterial,
     Plane,
     Raycaster,
     RingGeometry,
@@ -26,31 +27,23 @@ import {
     VelocityBufferPlugin,
 } from '@threepipe/webgi-plugins'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
-import {MotionBricksG1, MotionGenerator, OrtApi} from './MotionBricksG1'
-import {MotionBricksRemote} from './MotionBricksRemote'
-import {G1Controller, G1Gait, GAIT_SPEEDS} from './G1Controller'
-import {G1Robot} from './G1Robot'
-import {G1_BRICKS} from './G1Bricks'
+import {G1Gait, MotionBricksCharacter} from 'three-motionbricks'
 import {G1Stage, STAGE_STYLES, StageStyleName} from './G1Stage'
 
-// Real-time motion generation in the browser with NVIDIA MotionBricks (https://github.com/NVlabs/motionbricks).
-// ONNX Runtime Web runs the Unitree G1 model with WebAssembly, in a Web Worker.
-// Click the floor to send the robot there; the model generates every step on the way.
+// Real-time motion generation in the browser with NVIDIA MotionBricks (https://github.com/NVlabs/motionbricks),
+// through the three-motionbricks library (plugins/three-motionbricks), which works with any three.js scene.
+// Click the floor to send the robot there, or drive it with WASD; the model generates every step on the way.
 // Pages can override the sources with window.MOTIONBRICKS_CONFIG, and URL parameters override both:
 // ?model=<folder with pack.json/ or .onnx url>&robot=<mjcf url>&backend=webgpu&style=studio&fx=0&ui=0&worker=0
 
-const NV = 'https://media.githubusercontent.com/media/NVlabs/motionbricks/main/motionbricks/assets'
 const config = {
-    /**
-     * onnxruntime-web module. The default build has WebGPU (JSEP) and every WebAssembly kernel the original
-     * model needs. ort.webgpu.min.mjs also works, with models from tools/pack_model.py only.
-     */
-    ort: 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.30.0/dist/ort.min.mjs',
+    /** onnxruntime-web module, model and robot. Empty uses the library's defaults (MOTIONBRICKS_DEFAULTS). */
+    ort: '',
     /** Optional parts of the ORT .wasm file, joined in order, for hosts that limit file size. */
     wasm: undefined as string[] | undefined,
     /** A folder with pack.json from tools/pack_model.py, or an original MotionBricks G1 .onnx file. */
-    model: NV + '/onnx/unitree_g1/mmm_v6_g1_fp32.onnx',
-    robot: NV + '/robots/unitree_g1/g1_29dof_rev_1_0.xml',
+    model: '',
+    robot: '',
     /** Scene style from G1Stage.ts: research, grid, studio, stage or hangar. */
     style: 'research',
     /** Where the styles' HDR files are, with a suffix for hosts that rename them. Poly Haven by default. */
@@ -62,10 +55,7 @@ const config = {
     ui: '1',
     /** Run the model in a Web Worker. 0 runs it on the page, which stalls rendering during each generation. */
     worker: '1',
-    /**
-     * wasm, or webgpu to try ONNX Runtime's WebGPU backend. With onnxruntime-web 1.30 WebGPU computes this model
-     * wrongly (the robot sinks, sprints or walks away from the goal), and it is slower than WebAssembly here.
-     */
+    /** wasm, or webgpu (with onnxruntime-web 1.30 WebGPU computes this model wrongly). */
     backend: 'wasm',
     ...(window as any).MOTIONBRICKS_CONFIG,
 }
@@ -90,19 +80,6 @@ function setStatus(text: string, state: 'loading' | 'ready' | 'error' = 'loading
 function themeColor(name: string, fallback: string) {
     const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim()
     return new Color(v || fallback)
-}
-
-async function loadOrt(): Promise<OrtApi & {env: any}> {
-    const ort = await import(/* @vite-ignore */ new URL(config.ort, location.href).href)
-    ort.env.logLevel = 'error'
-    ort.env.wasm.numThreads = self.crossOriginIsolated ? Math.min(4, navigator.hardwareConcurrency || 1) : 1
-    if (config.wasm?.length) {
-        const parts = await Promise.all(config.wasm.map(async(u: string) => new Uint8Array(await (await fetch(u)).arrayBuffer())))
-        const binary = new Uint8Array(parts.reduce((n, p) => n + p.length, 0))
-        parts.reduce((o, p) => (binary.set(p, o), o + p.length), 0)
-        ort.env.wasm.wasmBinary = binary.buffer
-    }
-    return ort
 }
 
 async function init() {
@@ -142,7 +119,6 @@ async function init() {
 
     const goalMaterial = new UnlitMaterial({color: themeColor('--accent', '#e8590c'), transparent: true, opacity: 0.9, depthWrite: false})
     const goalMarker = new Mesh(new RingGeometry(0.16, 0.22, 48).rotateX(-Math.PI / 2), goalMaterial)
-    goalMarker.position.y = 0.003
     goalMarker.visible = false
     goalMarker.name = 'Goal'
     viewer.scene.addObject(goalMarker)
@@ -152,26 +128,42 @@ async function init() {
     camera.target.set(0, 0.75, 0)
     camera.setDirty()
 
+    // The character from three-motionbricks, with threepipe's PhysicalMaterial so the panel can edit it.
+    const g1 = new MotionBricksCharacter({
+        ort: config.ort || undefined,
+        wasm: config.wasm,
+        model: config.model || undefined,
+        robot: config.robot || undefined,
+        backend: config.backend === 'webgpu' ? 'webgpu' : 'wasm',
+        worker: config.worker !== '0',
+        robotOptions: {
+            material: (part, color) => new PhysicalMaterial({
+                name: part === 'joint' ? 'Joint housings' : 'Shells',
+                color,
+                metalness: part === 'joint' ? 0.2 : 0.3,
+                roughness: part === 'joint' ? 0.5 : 0.38,
+            }),
+        },
+    })
+    g1.onError = e => setStatus(`Generation failed: ${e instanceof Error ? e.message : e}`, 'error')
     setStatus('Loading the robot…', 'loading', 0)
-    const robot = await G1Robot.Load(config.robot, (n, total) => setStatus('Loading the robot…', 'loading', n / total))
-    viewer.scene.addObject(robot.object)
-    robot.setPose(G1_BRICKS.rest[0])
+    const robot = await g1.loadRobot((n, total) => setStatus('Loading the robot…', 'loading', n / total))
+    viewer.scene.addObject(g1.object)
 
     // A Tweakpane panel for the lighting and render options, in the clean theme that follows light or dark mode.
     if (config.ui !== '0') {
         const dark = (document.documentElement.dataset.theme ?? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')) === 'dark'
         const ui = viewer.addPluginSync(new TweakpaneUiPlugin(!matchMedia('(max-width: 720px)').matches, true, undefined, dark ? 'clean-dark' : 'clean'))
         ui.appendChild(stage.uiConfig)
-        ui.appendChild({type: 'folder', label: 'Robot', children: robot.materials.map(m => m.uiConfig)})
+        ui.appendChild({type: 'folder', label: 'Robot', children: robot.materials.map(m => (m as PhysicalMaterial).uiConfig)})
         ui.setupPlugins(TonemapPlugin, SSGIPlugin, SSReflectionPlugin, SSContactShadowsPlugin, BloomPlugin, TemporalAAPlugin, HDRiGroundPlugin)
     }
     viewer.setDirty()
-    ;(window as any).motionbricks = {viewer, robot, stage}
+    ;(window as any).motionbricks = {viewer, g1, robot, stage}
 
-    let controller: G1Controller | null = null
-    let gait: G1Gait = 'walk'
     let wander = true
     let idleTime = 0
+    let gait: G1Gait = 'walk'
 
     const gaitButtons = {walk: $('mb-walk'), run: $('mb-run')}
     const wanderButton = $('mb-wander')
@@ -182,10 +174,9 @@ async function init() {
     syncButtons()
     const setGait = (g: G1Gait) => {
         gait = g
-        if (controller) {
-            controller.gait = g
-            if (controller.goal) controller.moveTo(controller.goal[0], controller.goal[1], g)
-        }
+        g1.gait = g
+        const goal = g1.getGoal()
+        if (goal && g1.ready) g1.moveTo(goal, g)
         syncButtons()
     }
     gaitButtons.walk?.addEventListener('click', () => setGait('walk'))
@@ -197,7 +188,7 @@ async function init() {
     })
     $('mb-stop')?.addEventListener('click', () => {
         wander = false
-        controller?.stop()
+        g1.stop()
         syncButtons()
     })
 
@@ -210,7 +201,7 @@ async function init() {
         downTime = performance.now()
     })
     canvas.addEventListener('pointerup', e => {
-        if (!controller || down.distanceTo(new Vector2(e.clientX, e.clientY)) > 6 || performance.now() - downTime > 500) return
+        if (!g1.ready || down.distanceTo(new Vector2(e.clientX, e.clientY)) > 6 || performance.now() - downTime > 500) return
         const rect = canvas.getBoundingClientRect()
         const ndc = new Vector2((e.clientX - rect.left) / rect.width * 2 - 1, -(e.clientY - rect.top) / rect.height * 2 + 1)
         const raycaster = new Raycaster()
@@ -219,7 +210,7 @@ async function init() {
         if (!hit) return
         wander = false
         syncButtons()
-        controller.moveTo(...G1Robot.ToG1(hit), gait)
+        g1.moveTo(hit, gait)
     })
 
     // WASD or the arrow keys drive the robot relative to the camera; Shift runs while held.
@@ -241,37 +232,22 @@ async function init() {
         keys.delete(e.code)
     })
     window.addEventListener('blur', () => keys.clear())
-    const drive = {active: false, angle: 0, gait: 'walk' as G1Gait}
-    const viewDir = new Vector3()
-    const steer = (c: G1Controller) => {
+    const forward = new Vector3(), right = new Vector3(), direction = new Vector3()
+    const steer = () => {
         let ix = 0, iy = 0
         for (const k of keys) {
             ix += driveKeys[k][0]
             iy += driveKeys[k][1]
         }
-        if (!ix && !iy) {
-            if (drive.active) c.stop()
-            drive.active = false
-            return
+        if (!ix && !iy) return g1.drive(null)
+        forward.copy(camera.target).sub(camera.position).setY(0).normalize()
+        right.crossVectors(forward, camera.up)
+        direction.copy(forward).multiplyScalar(iy).addScaledVector(right, ix)
+        if (wander) {
+            wander = false
+            syncButtons()
         }
-        // The camera's forward and right on the ground, in G1 space (x, -z of threepipe space).
-        viewDir.copy(camera.target).sub(camera.position)
-        const [fx, fy] = G1Robot.ToG1(viewDir)
-        const f = Math.hypot(fx, fy) || 1
-        const angle = Math.atan2(iy * fy / f - ix * fx / f, iy * fx / f + ix * fy / f)
-        const g: G1Gait = shift ? 'run' : gait
-        const ahead = GAIT_SPEEDS[g] * c.lead + 4
-        const goalX = c.pose[0] + Math.cos(angle) * ahead, goalY = c.pose[1] + Math.sin(angle) * ahead
-        const turn = Math.abs(Math.atan2(Math.sin(angle - drive.angle), Math.cos(angle - drive.angle)))
-        if (!drive.active || g !== drive.gait || turn > 0.35) {
-            // A new direction or gait generates now; small changes steer the goal at the next transition.
-            Object.assign(drive, {active: true, angle, gait: g})
-            if (wander) {
-                wander = false
-                syncButtons()
-            }
-            c.moveTo(goalX, goalY, g)
-        } else c.goal = [goalX, goalY]
+        g1.drive(direction, shift ? 'run' : gait)
     }
 
     // Follow the robot with the camera, keeping the user's orbit.
@@ -282,18 +258,16 @@ async function init() {
         const dt = Math.min((now - last) / 1000, 0.1)
         last = now
         stage.update(camera.target)
-        if (!controller) return
-        steer(controller)
-        controller.update(dt)
-        robot.setPose(controller.pose)
-        const goal = controller.goal
+        if (!g1.ready) return
+        steer()
+        g1.update(dt)
+        const goal = g1.getGoal(goalMarker.position)
         goalMarker.visible = !!goal
         if (goal) {
-            G1Robot.FromG1(goal[0], goal[1], 0.003, goalMarker.position)
+            goalMarker.position.y = 0.003
             goalMarker.scale.setScalar(1 + 0.12 * Math.sin(now / 220))
         }
-        G1Robot.FromG1(controller.pose[0], controller.pose[1], 0.75, follow)
-        const delta = follow.sub(camera.target).multiplyScalar(1 - Math.exp(-dt * 2.5))
+        const delta = g1.getPosition(follow).setY(0.75).sub(camera.target).multiplyScalar(1 - Math.exp(-dt * 2.5))
         camera.target.add(delta)
         camera.position.add(delta)
         camera.setDirty()
@@ -303,7 +277,7 @@ async function init() {
 
         // Optional strip of the segment being played: the playhead and where the next one takes over.
         const strip = $('mb-timeline')
-        const p = controller.playback
+        const p = g1.playback
         if (strip) {
             strip.dataset.active = String(!!p)
             if (p) {
@@ -314,66 +288,38 @@ async function init() {
             }
         }
 
-        if (!controller.moving && !controller.generating && !controller.goal) {
+        if (g1.idle) {
             idleTime += dt
             if (wander && idleTime > 1.2) {
                 idleTime = 0
-                const angle = Math.random() * Math.PI * 2
-                const [x, y] = [controller.pose[0], controller.pose[1]]
                 // Pick a point 2.5 to 6 m away that stays within 7 m of the origin.
-                let d = 2.5 + Math.random() * 3.5
-                let tx = x + Math.cos(angle) * d, ty = y + Math.sin(angle) * d
-                if (Math.hypot(tx, ty) > 7) {
-                    d = Math.hypot(x, y)
-                    tx = x - x / d * 4
-                    ty = y - y / d * 4
-                }
-                controller.moveTo(tx, ty, gait)
+                const at = g1.getPosition()
+                const angle = Math.random() * Math.PI * 2
+                const d = 2.5 + Math.random() * 3.5
+                const to = new Vector3(at.x + Math.cos(angle) * d, 0, at.z + Math.sin(angle) * d)
+                if (to.length() > 7) to.copy(at).setLength(Math.max(0, at.length() - 4))
+                g1.moveTo(to, gait)
             }
         } else idleTime = 0
     })
 
-    // The model: about 190 MB packed, or 730 MB as the original fp32 ONNX file. It runs in a worker, so
-    // inference never stalls the frames (a stall mid-walk shows as a limp); without workers it runs here.
-    setStatus('Loading ONNX Runtime…', 'loading', 0)
-    const useGpu = config.backend === 'webgpu' && 'gpu' in navigator
-    const sessionOptions = {executionProviders: useGpu ? ['webgpu', 'wasm'] : ['wasm'], graphOptimizationLevel: 'all'}
-    const progress = (loaded: number, total: number) => setStatus(
-        `Downloading the model… ${Math.round(loaded / 1e6)} of ${Math.round(total / 1e6) || '?'} MB`, 'loading', total ? loaded / total : 0)
-    let engine: MotionGenerator | null = null
-    if (config.worker !== '0') {
-        engine = await MotionBricksRemote.Load(new URL('./MotionBricksWorker.js', import.meta.url),
-            {ort: config.ort, wasm: config.wasm, model: config.model, sessionOptions}, progress)
-            .catch(e => {
-                console.warn('MotionBricks: the worker could not load the model, running it on the page instead', e)
-                return null
-            })
-    }
-    if (!engine) {
-        const ort = await loadOrt()
-        engine = config.model.endsWith('/')
-            ? await MotionBricksG1.LoadPacked(ort, config.model, sessionOptions, progress)
-            : await MotionBricksG1.LoadOnnx(ort, config.model, sessionOptions, progress)
-    }
-    const backendLabel = (engine.backend === 'webgpu' ? 'WebGPU' : 'WebAssembly') + (engine instanceof MotionBricksRemote ? ' (worker)' : '')
+    // The model: about 190 MB packed, or 730 MB as the original fp32 ONNX file. The library runs it in a
+    // worker, so inference never stalls the frames (a stall mid-walk shows as a limp).
+    await g1.loadModel((step, loaded, total) => {
+        if (step === 'model') setStatus(`Downloading the model… ${Math.round(loaded / 1e6)} of ${Math.round(total / 1e6) || '?'} MB`, 'loading', total ? loaded / total : 0)
+        else if (step === 'runtime') setStatus('Loading ONNX Runtime…', 'loading', 0)
+        else if (step === 'warmup') setStatus('Warming up…', 'loading')
+    })
+    const backendLabel = (g1.backend === 'webgpu' ? 'WebGPU' : 'WebAssembly') + ((g1.engine as any)?.worker ? ' (worker)' : '')
     if ($('mb-backend')) $('mb-backend')!.textContent = backendLabel
-
-    // One warm-up generation compiles the kernels before the robot moves.
-    setStatus(`Warming up ${backendLabel}…`, 'loading')
-    const rest = Float32Array.from(G1_BRICKS.rest[0])
-    await engine.generate([rest, rest, rest, rest], [rest])
-
-    controller = new G1Controller(engine, G1_BRICKS)
-    controller.gait = gait
-    controller.onError = e => setStatus(`Generation failed: ${e instanceof Error ? e.message : e}`, 'error')
     setStatus('Ready. Click the floor to send the robot there.', 'ready')
     setInterval(() => {
-        const s = controller!.stats
+        const s = g1.stats!
         if ($('mb-latency')) $('mb-latency')!.textContent = s.generations ? `${Math.round(s.averageInferenceMs)} ms` : '–'
         if ($('mb-tokens')) $('mb-tokens')!.textContent = s.generations ? `${(s.lastTokenCount * 4 / 30).toFixed(1)} s · ${s.lastTokenCount} tok` : '–'
         if ($('mb-count')) $('mb-count')!.textContent = String(s.generations)
     }, 250)
-    ;(window as any).motionbricks = {viewer, robot, stage, controller, engine}
+    ;(window as any).motionbricks = {viewer, g1, robot, stage, controller: g1.controller, engine: g1.engine}
 }
 
 _testStart()

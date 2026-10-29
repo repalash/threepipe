@@ -23,7 +23,8 @@
         "paths": {
             "@threepipe/plugin-*": ["../plugins/*/src"],
             "@threepipe/plugins-*": ["../plugins/*/src"],
-            "threepipe": ["../src/"]
+            "threepipe": ["../src/"],
+            "three-motionbricks": ["../plugins/three-motionbricks/src"]
         },
         "esModuleInterop": true,
         "target": "ES2020",
