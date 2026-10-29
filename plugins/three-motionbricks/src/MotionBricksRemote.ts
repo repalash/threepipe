@@ -1,10 +1,32 @@
+/// <reference path="./env.d.ts" />
 import type {GenerateOptions, GeneratedMotion, MotionGenerator, ProgressCallback} from './MotionBricksG1'
 import type {WorkerLoadOptions, WorkerRequest} from './MotionBricksWorker'
+import workerUrl from './MotionBricksWorker.ts?worker&url'
 
 interface Pending {
     resolve: (v: any) => void
     reject: (e: Error) => void
     progress?: ProgressCallback
+}
+
+/** The worker could not start or crashed, as opposed to an error from the model, which is passed on as it is. */
+export class MotionBricksWorkerError extends Error {
+    name = 'MotionBricksWorkerError'
+}
+
+/**
+ * Start the worker bundled with this package. A worker script must be same-origin, so when the package is
+ * served from a CDN, a same-origin blob worker imports it instead.
+ */
+function startWorker() {
+    const url = new URL(workerUrl, import.meta.url)
+    if (url.origin === location.origin) return new Worker(url, {type: 'module'})
+    const blob = new Blob([`import ${JSON.stringify(url.href)}`], {type: 'text/javascript'})
+    const blobUrl = URL.createObjectURL(blob)
+    const worker = new Worker(blobUrl, {type: 'module'})
+    // The worker fetches its import right away; the blob is not needed after that.
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 10000)
+    return worker
 }
 
 /** A WorkerRequest without its id, which _call adds. */
@@ -32,7 +54,7 @@ export class MotionBricksRemote implements MotionGenerator {
             else p.reject(new Error(m.message))
         }
         worker.onerror = (e: ErrorEvent) => {
-            const error = new Error(e.message || 'The MotionBricks worker failed to start')
+            const error = new MotionBricksWorkerError(e.message || 'The MotionBricks worker failed to start')
             for (const p of this._pending.values()) p.reject(error)
             this._pending.clear()
         }
@@ -47,11 +69,18 @@ export class MotionBricksRemote implements MotionGenerator {
     }
 
     /**
-     * Start the worker and load the model in it. URLs are resolved against the page.
+     * Start the worker and load the model in it. URLs are resolved against the page. It throws a
+     * MotionBricksWorkerError when the worker cannot run, and the model's own error when the model fails to load.
      * @param worker a worker running MotionBricksWorker; the default is the one bundled with this package
      */
     static async Load(options: WorkerLoadOptions, onProgress?: ProgressCallback, worker?: Worker) {
-        const remote = new MotionBricksRemote(worker ?? new Worker(new URL('./MotionBricksWorker.ts', import.meta.url), {type: 'module'}))
+        let w = worker
+        try {
+            w ??= startWorker()
+        } catch (e) {
+            throw new MotionBricksWorkerError(e instanceof Error ? e.message : String(e))
+        }
+        const remote = new MotionBricksRemote(w)
         const abs = (u: string) => new URL(u, location.href).href
         try {
             const result = await remote._call<{backend: string}>({type: 'load', options: {

@@ -3,7 +3,7 @@
 // nodes on the CPU, so on the main thread every generation would freeze the robot mid-stride.
 // The package build bundles this file with the engine into one worker script.
 
-import {GenerateOptions, MotionBricksG1} from './MotionBricksG1'
+import {GenerateOptions, MotionBricksG1, setupOrtWeb} from './MotionBricksG1'
 
 export interface WorkerLoadOptions {
     /** Absolute URL of the onnxruntime-web module. */
@@ -24,14 +24,7 @@ let engine: MotionBricksG1 | null = null
 
 async function load(id: number, o: WorkerLoadOptions) {
     const ort = await import(/* @vite-ignore */ o.ort)
-    ort.env.logLevel = 'error'
-    ort.env.wasm.numThreads = scope.crossOriginIsolated ? Math.min(4, navigator.hardwareConcurrency || 1) : 1
-    if (o.wasm?.length) {
-        const parts = await Promise.all(o.wasm.map(async u => new Uint8Array(await (await fetch(u)).arrayBuffer())))
-        const binary = new Uint8Array(parts.reduce((n, p) => n + p.length, 0))
-        parts.reduce((offset, p) => (binary.set(p, offset), offset + p.length), 0)
-        ort.env.wasm.wasmBinary = binary.buffer
-    }
+    await setupOrtWeb(ort, o.wasm)
     let last = 0
     const progress = (loaded: number, total: number) => {
         const now = performance.now()
@@ -39,9 +32,7 @@ async function load(id: number, o: WorkerLoadOptions) {
         last = now
         scope.postMessage({id, type: 'progress', loaded, total})
     }
-    engine = o.model.endsWith('/') ?
-        await MotionBricksG1.LoadPacked(ort, o.model, o.sessionOptions, progress) :
-        await MotionBricksG1.LoadOnnx(ort, o.model, o.sessionOptions, progress)
+    engine = await MotionBricksG1.Load(ort, o.model, o.sessionOptions, progress)
     return {backend: engine.backend}
 }
 

@@ -2,8 +2,8 @@ import {Group, Object3D, Vector3} from 'three'
 import {G1Robot} from './G1Robot'
 import {G1Bricks, G1Controller, G1ControllerStats, G1Gait, GAIT_SPEEDS} from './G1Controller'
 import {G1_BRICKS} from './G1Bricks'
-import {heading, MotionBricksG1, MotionGenerator, OrtApi} from './MotionBricksG1'
-import {MotionBricksRemote} from './MotionBricksRemote'
+import {heading, MotionBricksG1, MotionGenerator, OrtApi, setupOrtWeb} from './MotionBricksG1'
+import {MotionBricksRemote, MotionBricksWorkerError} from './MotionBricksRemote'
 
 const NVIDIA_ASSETS = 'https://media.githubusercontent.com/media/NVlabs/motionbricks/main/motionbricks/assets'
 
@@ -67,6 +67,9 @@ export class MotionBricksCharacter {
     /** Called when a generation fails. */
     onError?: (e: unknown) => void
     private _pendingGoal: [number, number] | null = null
+    private _loading?: Promise<this>
+    /** Where the robot stood when the model was disposed, so a new load continues from there. */
+    private _lastPose?: ArrayLike<number>
     private _drive = {active: false, angle: 0, gait: 'walk' as G1Gait}
 
     constructor(options: MotionBricksCharacterOptions = {}) {
@@ -119,10 +122,15 @@ export class MotionBricksCharacter {
 
     /**
      * Load ONNX Runtime and the model, in a worker unless `worker: false`, and warm it up. The robot can be set
-     * before or after.
+     * before or after. Calling it again while loading waits for the same load.
      */
-    async load(onProgress?: (stage: LoadStage, loaded: number, total: number) => void) {
+    async load(onProgress?: (stage: LoadStage, loaded: number, total: number) => void): Promise<this> {
         if (this.controller) return this
+        this._loading ??= this._load(onProgress).finally(() => this._loading = undefined)
+        return this._loading
+    }
+
+    private async _load(onProgress?: (stage: LoadStage, loaded: number, total: number) => void) {
         const o = this.options
         const ortUrl = o.ort ?? MOTIONBRICKS_DEFAULTS.ort
         const model = o.model ?? MOTIONBRICKS_DEFAULTS.model
@@ -132,23 +140,28 @@ export class MotionBricksCharacter {
         onProgress?.('runtime', 0, 1)
         let engine: MotionGenerator | null = null
         if (o.worker !== false) {
+            // Only a worker that cannot run falls back to the page; a model that fails to load would fail there too.
             engine = await MotionBricksRemote.Load({ort: ortUrl, wasm: o.wasm, model, sessionOptions}, progress).catch(e => {
-                console.warn('MotionBricks: the worker could not load the model, running it on the page instead', e)
+                if (!(e instanceof MotionBricksWorkerError)) throw e
+                console.warn('MotionBricks: the worker could not start, running the model on the page instead', e)
                 return null
             })
         }
-        if (!engine) {
-            const ort = await loadOrt(ortUrl, o.wasm)
-            engine = model.endsWith('/') ?
-                await MotionBricksG1.LoadPacked(ort, model, sessionOptions, progress) :
-                await MotionBricksG1.LoadOnnx(ort, model, sessionOptions, progress)
-        }
+        if (!engine) engine = await MotionBricksG1.Load(await loadOrt(ortUrl, o.wasm), model, sessionOptions, progress)
         // One generation compiles the kernels before the robot moves.
         onProgress?.('warmup', 0, 1)
         const rest = Float32Array.from((o.bricks ?? G1_BRICKS).rest[0])
-        await engine.generate([rest, rest, rest, rest], [rest])
+        try {
+            await engine.generate([rest, rest, rest, rest], [rest])
+        } catch (e) {
+            if (engine instanceof MotionBricksRemote) engine.worker.terminate()
+            throw e
+        }
         this.engine = engine
-        const c = new G1Controller(engine, o.bricks ?? G1_BRICKS)
+        const p = this._lastPose
+        const c = p ?
+            new G1Controller(engine, o.bricks ?? G1_BRICKS, p[0], p[1], heading([p[3], p[4], p[5], p[6]])) :
+            new G1Controller(engine, o.bricks ?? G1_BRICKS)
         c.gait = this.gait
         c.onError = e => this.onError ? this.onError(e) : console.error('MotionBricks: generation failed', e)
         this.controller = c
@@ -211,6 +224,7 @@ export class MotionBricksCharacter {
     /** Come to a stop a short way ahead. */
     stop() {
         this._drive.active = false
+        this._pendingGoal = null
         this.controller?.stop()
     }
 
@@ -235,8 +249,9 @@ export class MotionBricksCharacter {
         return p ? heading([p[3], p[4], p[5], p[6]]) : 0
     }
 
-    /** Stop the worker. The robot stays in the scene, and load() starts the model again. */
+    /** Stop the worker. The robot stays in the scene, and load() starts the model again from where it stands. */
     dispose() {
+        if (this.controller) this._lastPose = Float32Array.from(this.controller.pose)
         if (this.engine instanceof MotionBricksRemote) this.engine.worker.terminate()
         this.engine = undefined
         this.controller = undefined
@@ -246,13 +261,6 @@ export class MotionBricksCharacter {
 /** Import onnxruntime-web on the page, for when no worker is used. */
 export async function loadOrt(url: string, wasm?: string[]): Promise<OrtApi & {env: any}> {
     const ort = await import(/* @vite-ignore */ new URL(url, location.href).href)
-    ort.env.logLevel = 'error'
-    ort.env.wasm.numThreads = self.crossOriginIsolated ? Math.min(4, navigator.hardwareConcurrency || 1) : 1
-    if (wasm?.length) {
-        const parts = await Promise.all(wasm.map(async u => new Uint8Array(await (await fetch(u)).arrayBuffer())))
-        const binary = new Uint8Array(parts.reduce((n, p) => n + p.length, 0))
-        parts.reduce((o, p) => (binary.set(p, o), o + p.length), 0)
-        ort.env.wasm.wasmBinary = binary.buffer
-    }
+    await setupOrtWeb(ort, wasm)
     return ort
 }

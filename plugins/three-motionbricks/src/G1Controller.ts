@@ -30,7 +30,9 @@ interface Segment {
 
 interface Request {
     id: number
-    /** Frame of the current segment where the new motion starts. -1 when starting from rest. */
+    /** The segment the motion continues, or null when starting from rest. */
+    segment: Segment | null
+    /** Frame of that segment where the new motion starts. -1 when starting from rest. */
     startFrame: number
     stopping: boolean
 }
@@ -61,6 +63,8 @@ export class G1Controller {
     private _requestId = 0
     private _dirty = false
     private _pending: {request: Request, poses: G1Pose[]} | null = null
+    /** Seconds to wait before generating on its own again, after a failed generation. */
+    private _retryIn = 0
 
     constructor(engine: MotionGenerator, bricks: G1Bricks, x = 0, y = 0, angle = 0) {
         this.engine = engine
@@ -88,27 +92,34 @@ export class G1Controller {
     moveTo(x: number, y: number, gait: G1Gait = this.gait) {
         this.goal = [x, y]
         this.gait = gait
-        if (this._request) this._dirty = true
-        else this._generate(true)
+        this._regenerate()
     }
 
     /** Come to a stop a short way ahead. */
     stop() {
-        if (!this._segment) return
-        const a = heading([this.pose[3], this.pose[4], this.pose[5], this.pose[6]])
-        const ahead = 0.5 * GAIT_SPEEDS[this.gait]
-        this.goal = [this.pose[0] + Math.cos(a) * ahead, this.pose[1] + Math.sin(a) * ahead]
-        if (this._request) this._dirty = true
+        this.goal = null
+        if (this._segment || this._request || this._pending) this._regenerate()
+    }
+
+    /**
+     * Generate for the new goal now, or once the motion in flight is in place: a request's start frame
+     * belongs to the segment it was made from, so none is made while another waits to take over.
+     */
+    private _regenerate() {
+        if (this._request || this._pending) this._dirty = true
         else this._generate(true)
     }
 
     /** Advance playback by dt seconds and update pose. */
     update(dt: number) {
+        this._retryIn = Math.max(0, this._retryIn - dt)
         const seg = this._segment
         if (seg) {
-            this._frame += dt * SAMPLE_RATE
+            // Hold at the last frame while the next motion is late, so it starts from the pose shown.
+            this._frame = Math.min(this._frame + dt * SAMPLE_RATE, seg.poses.length - 1)
             if (this._pending && this._frame >= this._pending.request.startFrame) this._switch()
         } else if (this._pending) this._switch()
+        if (this._dirty && !this._request && !this._pending) this._generate(true)
         const current = this._segment
         if (!current) return
         const last = current.poses.length - 1
@@ -121,7 +132,7 @@ export class G1Controller {
             else if (this.goal) this._generate(true)
             return
         }
-        if (!this._request && !this._pending && !current.stopping) {
+        if (!this._request && !this._pending && !current.stopping && this._retryIn <= 0) {
             const transition = last - current.transitionEarly
             if (this._frame + this._latencyFrames() >= transition) this._generate(false)
         }
@@ -153,11 +164,14 @@ export class G1Controller {
     private _generate(now: boolean) {
         const {startFrame, context} = this._contextAt(now)
         const from = context[3]
-        const goal = this.goal ?? [from[0], from[1]]
+        const speed = GAIT_SPEEDS[this.gait]
+        const facing = heading([from[3], from[4], from[5], from[6]])
+        // With no goal, stop a short way ahead of where the new motion starts.
+        const stopAhead = this._segment ? 0.5 * speed : 0
+        const goal = this.goal ?? [from[0] + Math.cos(facing) * stopAhead, from[1] + Math.sin(facing) * stopAhead]
         const dx = goal[0] - from[0], dy = goal[1] - from[1]
         const distance = Math.hypot(dx, dy)
-        const speed = GAIT_SPEEDS[this.gait]
-        const angle = distance > 0.3 ? Math.atan2(dy, dx) : heading([from[3], from[4], from[5], from[6]])
+        const angle = distance > 0.3 ? Math.atan2(dy, dx) : facing
         let targets: G1Pose[]
         let stopping: boolean
         if (distance > speed * this.lead + 0.8) {
@@ -167,12 +181,13 @@ export class G1Controller {
         } else {
             if (!this._segment && distance < 0.35) {
                 this.goal = null
+                this._dirty = false
                 return
             }
             targets = placePoses(this.bricks.rest, goal[0], goal[1], angle)
             stopping = true
         }
-        const request: Request = {id: ++this._requestId, startFrame, stopping}
+        const request: Request = {id: ++this._requestId, segment: this._segment, startFrame, stopping}
         this._request = request
         this._dirty = false
         this.engine.generate(context, targets).then(motion => {
@@ -191,6 +206,7 @@ export class G1Controller {
             this.onGenerated?.(motion.poses, targets)
         }).catch(e => {
             this._request = null
+            this._retryIn = 1
             this.onError?.(e)
         })
     }
@@ -199,6 +215,11 @@ export class G1Controller {
         const {request, poses} = this._pending!
         this._pending = null
         const seg = this._segment
+        // Motion made from another segment, or from rest while a segment started since, no longer fits.
+        if (request.segment !== seg) {
+            this._dirty = true
+            return
+        }
         let prefix: G1Pose[]
         if (seg && request.startFrame >= 0) {
             const frames = [...seg.prefix, ...seg.poses]

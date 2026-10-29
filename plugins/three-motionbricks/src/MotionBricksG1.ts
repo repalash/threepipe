@@ -152,6 +152,20 @@ export interface PackManifest {
 
 export type ProgressCallback = (loaded: number, total: number) => void
 
+/**
+ * Quiet onnxruntime-web's logs, use up to four threads when the page is cross-origin isolated, and give it
+ * its .wasm file joined from `wasm` parts, for hosts that limit file size.
+ */
+export async function setupOrtWeb(ort: any, wasm?: string[]) {
+    ort.env.logLevel = 'error'
+    ort.env.wasm.numThreads = (globalThis as any).crossOriginIsolated ? Math.min(4, navigator.hardwareConcurrency || 1) : 1
+    if (!wasm?.length) return
+    const parts = await Promise.all(wasm.map(async u => fetchBytes(u)))
+    const binary = new Uint8Array(parts.reduce((n, p) => n + p.length, 0))
+    parts.reduce((offset, p) => (binary.set(p, offset), offset + p.length), 0)
+    ort.env.wasm.wasmBinary = binary.buffer
+}
+
 /** Download a file, into `target` at `offset` when given. */
 async function fetchBytes(url: string, onBytes?: (n: number) => void, target?: Uint8Array, offset = 0): Promise<Uint8Array> {
     const res = await fetch(url)
@@ -240,6 +254,13 @@ export class MotionBricksG1 implements MotionGenerator {
             ...sessionOptions,
             externalData: [{path: manifest.weights, data: new Uint8Array(weights.buffer)}],
         })
+    }
+
+    /** Load a pack folder from tools/pack_model.py (a URL ending in /) or an original .onnx file. */
+    static async Load(ort: OrtApi, model: string, sessionOptions: any = {}, onProgress?: ProgressCallback) {
+        return model.endsWith('/') ?
+            MotionBricksG1.LoadPacked(ort, model, sessionOptions, onProgress) :
+            MotionBricksG1.LoadOnnx(ort, model, sessionOptions, onProgress)
     }
 
     /** Load an original MotionBricks G1 .onnx file, such as mmm_v6_g1_fp32.onnx. */
