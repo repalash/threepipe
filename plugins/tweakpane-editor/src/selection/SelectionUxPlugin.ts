@@ -69,6 +69,8 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
     private _pointer = new Vector2()
     private _pointerInside = false
     private _pointerDirty = false
+    /** A button is held while the pointer moves: the camera controls move the view */
+    private _pointerHeld = false
     private _deepKey = false
     private _hover: IObject3D | null = null
     private _state: DragState | null = null
@@ -92,6 +94,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         window.addEventListener('keyup', this._onKeyUp, {capture: true})
         window.addEventListener('blur', this._onBlur)
         viewer.addEventListener('preFrame', this._onPreFrame)
+        viewer.addEventListener('preRender', this._onPreRender)
         this._picking.addEventListener('hitObject', this._onPickerHit)
         this._picking.addEventListener('selectedObjectChanged', this._onSelectionChanged)
     }
@@ -109,6 +112,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         window.removeEventListener('keyup', this._onKeyUp, {capture: true})
         window.removeEventListener('blur', this._onBlur)
         viewer.removeEventListener('preFrame', this._onPreFrame)
+        viewer.removeEventListener('preRender', this._onPreRender)
         this._picking?.removeEventListener('hitObject', this._onPickerHit)
         this._picking?.removeEventListener('selectedObjectChanged', this._onSelectionChanged)
         this._picking = undefined
@@ -374,6 +378,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         const p = this._local(e)
         this._pointer.copy(p)
         // a held button moves the camera: no hover while it moves (a raycast per frame costs frames on a big model)
+        this._pointerHeld = !!e.buttons
         if (!e.buttons) this._pointerDirty = true
         // a drag: the camera controls have it
         if (this._state && this._state.start.distanceTo(p) >= SelectionUxPlugin.ClickDistance) this._state = null
@@ -383,12 +388,14 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         if (e.isPrimary === false) return
         const s = this._state
         this._state = null
+        this._pointerHeld = false
         this._pointerDirty = true
         if (s && this._active) this._click(s)
     }
 
     private _onPointerCancel = () => {
         this._state = null
+        this._pointerHeld = false
     }
 
     private _onDblClick = (e: MouseEvent) => {
@@ -463,6 +470,12 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         // a heavy scene: hover less often, so the raycast does not take every frame
         const dt = performance.now() - t
         this._nextHoverAt = dt > 4 ? performance.now() + dt * 3 : 0
+    }
+
+    private _onPreRender = () => {
+        // the view changed under a still pointer (a zoom, a camera view transition, the damping after a release, a moved
+        // object): the viewer resets the frame count on a change, not on the progressive frames of the same view
+        if (this._pointerInside && !this._pointerHeld && this._viewer!.renderManager.frameCount === 0) this._pointerDirty = true
     }
 
     private _hoverTarget(): IObject3D | null {
