@@ -1,6 +1,6 @@
-/// <reference path="./env.d.ts" />
 import type {GenerateOptions, GeneratedMotion, MotionGenerator, ProgressCallback} from './MotionBricksG1'
 import type {WorkerLoadOptions, WorkerRequest} from './MotionBricksWorker'
+// @ts-expect-error a Vite import: the URL of the worker bundle, dist/motionbricks.worker.js
 import workerUrl from './MotionBricksWorker.ts?worker&url'
 
 interface Pending {

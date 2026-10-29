@@ -4,7 +4,7 @@
 // The targets follow the reference Scene Preview: a gait target placed one second of travel ahead
 // while far from the goal, then a standing target at the goal so the robot stops there.
 
-import {G1Pose, heading, lerpPose, MotionGenerator, placePoses, SAMPLE_RATE, withSpeed} from './MotionBricksG1'
+import {G1Pose, heading, lerpPose, MotionGenerator, placePoses, POSE_SIZE, SAMPLE_RATE, withSpeed} from './MotionBricksG1'
 
 export interface G1Bricks {
     /** Standing pose, one frame, at the ground origin facing +X. */
@@ -15,6 +15,9 @@ export interface G1Bricks {
 }
 
 export type G1Gait = 'walk' | 'run'
+
+// Frames over which a new segment fades in from the one it replaces.
+const FADE_FRAMES = 8
 
 // Target speeds in m/s, those of the clips the bricks were seeded with.
 export const GAIT_SPEEDS: Record<G1Gait, number> = {walk: 1.13, run: 3.43}
@@ -51,7 +54,7 @@ export class G1Controller {
     readonly pose: G1Pose
     goal: [number, number] | null = null
     gait: G1Gait = 'walk'
-    /** Seconds of travel between the robot and its gait target. */
+    /** Seconds of travel between the robot and its gait target, at least. Slow inference places it further. */
     lead = 1.0
     stats: G1ControllerStats = {generations: 0, lastInferenceMs: 0, averageInferenceMs: 0, lastTokenCount: 0}
     onGenerated?: (motion: G1Pose[], targets: G1Pose[]) => void
@@ -65,6 +68,13 @@ export class G1Controller {
     private _pending: {request: Request, poses: G1Pose[]} | null = null
     /** Seconds to wait before generating on its own again, after a failed generation. */
     private _retryIn = 0
+    /**
+     * The segment being replaced, still playing while the new one fades in. Motion that arrives late starts
+     * a few frames in, and the fade hides the difference from the frame shown.
+     */
+    private _fade: {segment: Segment, frame: number, t: number} | null = null
+    private _segmentPose = new Float32Array(POSE_SIZE)
+    private _fadePose = new Float32Array(POSE_SIZE)
 
     constructor(engine: MotionGenerator, bricks: G1Bricks, x = 0, y = 0, angle = 0) {
         this.engine = engine
@@ -114,6 +124,10 @@ export class G1Controller {
     update(dt: number) {
         this._retryIn = Math.max(0, this._retryIn - dt)
         const seg = this._segment
+        if (this._fade) {
+            this._fade.frame += dt * SAMPLE_RATE
+            this._fade.t += dt * SAMPLE_RATE
+        }
         if (seg) {
             // Hold at the last frame while the next motion is late, so it starts from the pose shown.
             this._frame = Math.min(this._frame + dt * SAMPLE_RATE, seg.poses.length - 1)
@@ -123,23 +137,39 @@ export class G1Controller {
         const current = this._segment
         if (!current) return
         const last = current.poses.length - 1
-        const f = Math.min(this._frame, last)
-        const i = Math.floor(f)
-        lerpPose(current.poses[i], current.poses[Math.min(i + 1, last)], f - i, this.pose)
+        samplePoses(current.poses, this._frame, this._segmentPose)
+        const fade = this._fade
+        if (fade) {
+            const w = Math.min(fade.t / FADE_FRAMES, 1)
+            samplePoses(fade.segment.poses, fade.frame, this._fadePose)
+            lerpPose(this._fadePose, this._segmentPose, w * w * (3 - 2 * w), this.pose)
+            if (w >= 1) this._fade = null
+        } else this.pose.set(this._segmentPose)
         if (current.stopping && this._frame >= last && !this._pending && !this._request) {
             this._segment = null
+            this._fade = null
             if (this.goal && this._distanceToGoal() < 0.35) this.goal = null
             else if (this.goal) this._generate(true)
             return
         }
         if (!this._request && !this._pending && !current.stopping && this._retryIn <= 0) {
             const transition = last - current.transitionEarly
-            if (this._frame + this._latencyFrames() >= transition) this._generate(false)
+            // Ask early, with room for a slow inference; the new motion still starts at the transition point.
+            if (this._frame + this._latencyFrames() * 1.5 >= transition) this._generate(false)
         }
     }
 
     private _latencyFrames() {
-        return Math.ceil((this.stats.averageInferenceMs || 400) / 1000 * SAMPLE_RATE) + 2
+        const s = this.stats
+        return Math.ceil(Math.max(s.averageInferenceMs || 400, s.lastInferenceMs) / 1000 * SAMPLE_RATE) + 2
+    }
+
+    /**
+     * Seconds of travel to the gait target. A segment lasts about that long, and the next one is generated while
+     * it plays, so it must outlast the inference with room to spare, or playback reaches its end first and waits.
+     */
+    get effectiveLead() {
+        return Math.min(Math.max(this.lead, (this._latencyFrames() + 10 + 8) / SAMPLE_RATE), 1.6)
     }
 
     private _distanceToGoal() {
@@ -174,8 +204,9 @@ export class G1Controller {
         const angle = distance > 0.3 ? Math.atan2(dy, dx) : facing
         let targets: G1Pose[]
         let stopping: boolean
-        if (distance > speed * this.lead + 0.8) {
-            const ahead = speed * this.lead
+        const lead = this.effectiveLead
+        if (distance > speed * lead + 0.8) {
+            const ahead = speed * lead
             targets = placePoses(withSpeed(this.bricks[this.gait], speed), from[0] + Math.cos(angle) * ahead, from[1] + Math.sin(angle) * ahead, angle)
             stopping = false
         } else {
@@ -225,11 +256,13 @@ export class G1Controller {
             const frames = [...seg.prefix, ...seg.poses]
             const end = request.startFrame + seg.prefix.length
             prefix = frames.slice(end - 3, end)
+            this._fade = {segment: seg, frame: this._frame, t: 0}
             this._frame = Math.max(0, this._frame - request.startFrame)
         } else {
             const p = Float32Array.from(poses[0])
             prefix = [p, p, p]
             this._frame = 0
+            this._fade = null
         }
         this._segment = {
             poses,
@@ -238,4 +271,12 @@ export class G1Controller {
             stopping: request.stopping,
         }
     }
+}
+
+/** The pose at a fractional frame, held at the last frame. */
+function samplePoses(poses: G1Pose[], frame: number, out: G1Pose) {
+    const last = poses.length - 1
+    const f = Math.min(Math.max(frame, 0), last)
+    const i = Math.floor(f)
+    return lerpPose(poses[i], poses[Math.min(i + 1, last)], f - i, out)
 }

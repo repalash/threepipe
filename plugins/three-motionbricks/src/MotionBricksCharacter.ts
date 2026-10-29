@@ -151,8 +151,9 @@ export class MotionBricksCharacter {
         // One generation compiles the kernels before the robot moves.
         onProgress?.('warmup', 0, 1)
         const rest = Float32Array.from((o.bricks ?? G1_BRICKS).rest[0])
+        let warmupMs = 0
         try {
-            await engine.generate([rest, rest, rest, rest], [rest])
+            warmupMs = (await engine.generate([rest, rest, rest, rest], [rest])).inferenceMs
         } catch (e) {
             if (engine instanceof MotionBricksRemote) engine.worker.terminate()
             throw e
@@ -163,6 +164,8 @@ export class MotionBricksCharacter {
             new G1Controller(engine, o.bricks ?? G1_BRICKS, p[0], p[1], heading([p[3], p[4], p[5], p[6]])) :
             new G1Controller(engine, o.bricks ?? G1_BRICKS)
         c.gait = this.gait
+        // The warm-up includes compiling the kernels, so it overestimates; the first real generation replaces it.
+        c.stats.averageInferenceMs = warmupMs
         c.onError = e => this.onError ? this.onError(e) : console.error('MotionBricks: generation failed', e)
         this.controller = c
         if (this._pendingGoal) c.moveTo(...this._pendingGoal, this.gait)
@@ -211,7 +214,7 @@ export class MotionBricksCharacter {
         const [ox, oy] = G1Robot.ToG1(origin)
         const [dx, dy] = this._toG1(direction)
         const angle = Math.atan2(dy - oy, dx - ox)
-        const ahead = GAIT_SPEEDS[gait] * c.lead + 4
+        const ahead = GAIT_SPEEDS[gait] * c.effectiveLead + 4
         const goal: [number, number] = [c.pose[0] + Math.cos(angle) * ahead, c.pose[1] + Math.sin(angle) * ahead]
         const d = this._drive
         const turn = Math.abs(Math.atan2(Math.sin(angle - d.angle), Math.cos(angle - d.angle)))
