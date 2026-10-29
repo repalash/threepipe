@@ -271,6 +271,26 @@ describe('NotesPlugin', () => {
         expect(notes.storeStatus('slow')).toBe('saved')
     })
 
+    test('an add right after a remove loads the store after the save of the remove', async() => {
+        let backend: NoteItem[] = [{id: 'a', text: 'first', store: 'server', created: 1}]
+        let finish!: () => void
+        const server: NotesStore = {id: 'server', label: 'Server', load: () => backend.map(n => ({...n})), save: async n => new Promise<void>(r => finish = () => {
+            backend = n
+            r()
+        })}
+        const notes = new NotesPlugin({file: false, browser: false, stores: [server]})
+        const viewer = fakeViewer()
+        notes.onAdded(viewer)
+        notes.updateNote('a', {text: 'latest'})
+        notes.onRemove(viewer) // saves the change, slowly
+        notes.onAdded(viewer)
+        expect(notes.storeStatus('server')).toBe('loading')
+        finish()
+        await vi.waitFor(() => expect(notes.storeStatus('server')).toBe('saved'))
+        expect(texts(notes)).toEqual(['server:latest'])
+        expect(backend.map(n => n.text)).toEqual(['latest'])
+    })
+
     test('a note deleted or moved out while its store loads again does not come back with the load', async() => {
         const answers: ((n: NoteItem[]) => void)[] = []
         const saved: string[][] = []

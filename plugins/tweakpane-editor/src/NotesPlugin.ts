@@ -319,6 +319,14 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
         this._loading.add(store.id)
         const load = {}
         this._loads.set(store, load)
+        // a save of the store still runs (the plugin was removed and added again): the load reads the store after it,
+        // so it gets the saved notes, not the ones from before
+        const saving = this._waiting.get(store) ?? this._running.get(store)
+        if (saving) void saving.then(() => this._loads.get(store) === load && this._readStore(store, load, replace))
+        else this._readStore(store, load, replace)
+    }
+
+    private _readStore(store: NotesStore, load: object, replace: boolean) {
         const failed = (e: unknown) => {
             if (this._loads.get(store) !== load) return
             // the store stays in _loading, so its changes are not saved: a save without the notes that did not load
@@ -428,7 +436,8 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
         this._setStatus(id, 'saving')
         try {
             await store.save(this._notes.filter(n => n.store === id).map(n => ({...n})))
-            if (!this._changed.has(id) && !this._waiting.has(store)) this._setStatus(id, 'saved')
+            // a load that waits for this save sets the state when it ends
+            if (!this._changed.has(id) && !this._waiting.has(store) && !this._loading.has(id)) this._setStatus(id, 'saved')
         } catch (e) {
             console.warn('NotesPlugin: could not save the notes of ' + id, e)
             // still to save: the next flush, change, hidden page or removal tries again
