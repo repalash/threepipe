@@ -137,7 +137,7 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
         children: [
             {
                 type: 'dropdown', label: 'New notes in', property: [this, 'defaultStore'],
-                children: () => this._stores.map(s => ({label: s.label, value: s.id})),
+                children: [() => this._stores.map(s => ({label: s.label, value: s.id}))],
             },
             {type: 'button', label: 'Clear notes in the file', value: () => this.clear('file'), hidden: () => !this.getStore('file')},
         ],
