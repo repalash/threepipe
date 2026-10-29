@@ -522,8 +522,9 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         const t = e.target as HTMLElement | null
         if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return
         const enter = e.code === 'Enter' || e.code === 'NumpadEnter'
-        // a control reached with the keyboard (a toolbar button, a menu item) presses with Enter itself
-        if (enter && t?.matches?.(':focus-visible') && t.closest?.('button, select, a[href], [role="menuitem"]')) return
+        // a control reached with the keyboard (a toolbar button, a menu item) presses with Enter itself, and Tab moves
+        // the focus on; after a mouse click the focus stays on the control, not visible: the keys go to the selection
+        if ((enter || e.code === 'Tab') && t?.matches?.(':focus-visible') && t.closest?.('button, select, a[href], [role="menuitem"]')) return
         const selectAll = (e.ctrlKey || e.metaKey) && e.code === 'KeyA'
         // with Multi-Select off, Ctrl/Cmd+A stays for the page
         if (selectAll && !this._multi) return
