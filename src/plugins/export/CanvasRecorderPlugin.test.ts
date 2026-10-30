@@ -842,6 +842,78 @@ describe('record indicator', () => {
             vi.unstubAllGlobals()
         }
     })
+
+    // a plugin with a real-time recording on an image recorder, removed and added again; the old recorder sends its
+    // events after its dispose (e.g. the native stop of a MediaRecorder, or the last writes of an image sequence)
+    function addedAgain() {
+        vi.stubGlobal('document', {createElement: () => ({style: {}, remove: () => undefined})})
+        const plugin = new CanvasRecorderPlugin() as any
+        plugin.refreshRecorderOptions = () => undefined // the recorders are set by the tests
+        plugin.endPaddingMs = 0
+        plugin.convergeMode = false
+        const listeners = {addEventListener: () => undefined, removeEventListener: () => undefined}
+        const viewer = {...listeners, renderManager: listeners, scene: listeners, canvas: {parentElement: null}, console,
+            getPlugin: () => undefined, doOnce: async() => undefined, setDirty: () => undefined}
+        plugin.onAdded(viewer)
+        const old = plugin._getRecorder('image')
+        old.dispose = () => undefined // its stopped event comes later
+        plugin._recorder = old
+        plugin._active = {convergeMode: false, videoFrameRate: 30}
+        old.setState('recording')
+        const dirtyBefore = plugin.dirty
+        plugin.onRemove(viewer)
+        plugin.onAdded(viewer)
+        return {plugin, old, dirtyBefore}
+    }
+
+    test('a removal ends the state of the recording, also when the stopped event of its recorder comes later', () => {
+        try {
+            const {plugin, dirtyBefore} = addedAgain()
+            expect(dirtyBefore).toBe(true)
+            expect(plugin.dirty).toBe(false) // the viewer does not render every frame for a recording that ended
+            expect(plugin.recordingSettings).toBeUndefined()
+        } finally {
+            vi.unstubAllGlobals()
+        }
+    })
+
+    test.each(['starting', 'recording', 'paused', 'stopped', 'error', 'encode-progress'])(
+        'the %s event of a recorder that a removal disposed does not reach the recording after an add again', (type) => {
+            try {
+                const {plugin, old} = addedAgain()
+                // the new recording
+                plugin._active = {convergeMode: false, videoFrameRate: 30}
+                plugin.dirty = true
+                plugin._showIndicator(true)
+                const dispatch = vi.spyOn(plugin, 'dispatchEvent')
+                old.dispatchEvent({type, progress: 1, frame: 1, totalFrames: 1})
+                expect(dispatch).not.toHaveBeenCalled()
+                expect(plugin.recordingSettings).toEqual({convergeMode: false, videoFrameRate: 30})
+                expect(plugin.dirty).toBe(true)
+                expect(plugin._recordIndicator.style.visibility).toBe('visible')
+            } finally {
+                vi.unstubAllGlobals()
+            }
+        })
+
+    test('a queued stop of a recorder that a removal disposed does not stop the start of record() after an add again', async() => {
+        try {
+            const {plugin, old} = addedAgain()
+            const rec = fakeRecorder(plugin)
+            const start = rec.start
+            rec.start = () => queueMicrotask(() => {
+                old.setState('stopped') // the native stop of the old recorder comes during the start of the new one
+                start()
+            })
+            plugin._recorder = rec
+            const action = vi.fn(async() => undefined)
+            const recording = plugin.record(action)
+            expect(await Promise.race([recording, new Promise(r => setTimeout(() => r('hung'), 100))])).toBeInstanceOf(Blob)
+            expect(action).toHaveBeenCalled()
+        } finally {
+            vi.unstubAllGlobals()
+        }
+    })
 })
 
 describe('converge mode hold', () => {

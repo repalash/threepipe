@@ -15,6 +15,9 @@ import {CanvasMediaRecorder} from '../../utils/canvas-recorder/CanvasMediaRecord
 import {FFMPEGRecorder} from '../../utils/canvas-recorder/FFMPEGRecorder'
 import {RemovalWaits} from '../../utils/canvas-recorder/RemovalWaits'
 
+/** A listener of {@link CanvasRecorderPlugin} on one of its recorders: the event type and the listener */
+type RecorderListener = [string, (e: any) => void]
+
 export interface CanvasRecorderPluginEventMap extends AViewerPluginEventMap {
     start: object
     stop: object
@@ -68,6 +71,8 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
         videoFrameRate = 30
 
     private _recorders: PartialRecord<'ffmpeg.js' | 'canvas-media' | 'image', ICanvasRecorder> = {}
+    /** The listeners of the plugin on each recorder that it made ({@link _getRecorder}) */
+    private _recorderListeners = new Map<ICanvasRecorder, RecorderListener[]>()
     private _recorder?: ICanvasRecorder
 
     /** A recorder option changed while a recording runs: applied when it stops */
@@ -280,10 +285,20 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
         // no frame, animation or recorder event comes after a removal (or a viewer dispose): the waits end now
         this._removalWaits.endAll()
         // each recorder once (the current one is one of them, unless a subclass made it)
-        new Set([this._recorder, ...Object.values(this._recorders)]).forEach(r => r?.dispose())
+        new Set([this._recorder, ...Object.values(this._recorders)]).forEach(r => {
+            if (!r) return
+            r.dispose()
+            // after the dispose, whose own events still come here: an event that the disposed recorder sends later
+            // (e.g. the native stop of a MediaRecorder) does not reach a recording after an add again
+            this._recorderListeners.get(r)?.forEach(([event, listener]) => r.removeEventListener(event, listener))
+        })
+        this._recorderListeners.clear()
         // a disposed recorder (an ended MP4 worker) is not used again: an add makes new ones
         this._recorders = {}
         this._recorder = undefined
+        // the recording ends with the removal, also when the stopped event of its recorder comes later
+        this._active = undefined
+        this.dirty = false
         // an add makes a new indicator
         this._recordIndicator?.remove()
         this._recordIndicator = undefined
@@ -783,33 +798,35 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
                 mimeType: this.mimeType,
             })
 
-        // todo: do we need to remove below listeners?
-        recorder.addEventListener('starting', () => this._stateChange(false))
-        recorder.addEventListener('recording', () => {
-            this._showIndicator(true)
-            this.dispatchEvent({type: 'start'})
-            this._stateChange(!this._convergeNow)
-        })
-        // an error ends the recording too: the indicator hides and the viewer stops rendering every frame for it
-        recorder.addEventListener('error', () => {
-            this._active = undefined
-            if (this._optionsPending) this.refreshRecorderOptions()
-            this._showIndicator(false)
-            this.dispatchEvent({type: 'error'})
-            this._stateChange(false)
-        })
-        recorder.addEventListener('paused', () => this._stateChange(false))
-        // recorder.addEventListener("resume", () => this._stateChange(!this.convergeMode));
-        recorder.addEventListener('stopped', () => {
-            this._active = undefined
-            if (this._optionsPending) this.refreshRecorderOptions()
-            this._showIndicator(false)
-            this.dispatchEvent({type: 'stop'})
-            this._stateChange(false)
-        })
-        recorder.addEventListener('encode-progress', (e) => {
-            this.dispatchEvent({...e} as any)
-        })
+        // onRemove detaches these listeners after it disposes the recorder
+        const listeners: RecorderListener[] = [
+            ['starting', () => this._stateChange(false)],
+            ['recording', () => {
+                this._showIndicator(true)
+                this.dispatchEvent({type: 'start'})
+                this._stateChange(!this._convergeNow)
+            }],
+            // an error ends the recording too: the indicator hides and the viewer stops rendering every frame for it
+            ['error', () => {
+                this._active = undefined
+                if (this._optionsPending) this.refreshRecorderOptions()
+                this._showIndicator(false)
+                this.dispatchEvent({type: 'error'})
+                this._stateChange(false)
+            }],
+            ['paused', () => this._stateChange(false)],
+            // ['resume', () => this._stateChange(!this.convergeMode)],
+            ['stopped', () => {
+                this._active = undefined
+                if (this._optionsPending) this.refreshRecorderOptions()
+                this._showIndicator(false)
+                this.dispatchEvent({type: 'stop'})
+                this._stateChange(false)
+            }],
+            ['encode-progress', (e) => this.dispatchEvent({...e} as any)],
+        ]
+        listeners.forEach(([event, listener]) => recorder.addEventListener(event, listener))
+        this._recorderListeners.set(recorder, listeners)
         this._recorders[type] = recorder
         return recorder
     }
