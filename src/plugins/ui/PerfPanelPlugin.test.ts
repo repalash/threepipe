@@ -333,6 +333,20 @@ describe('PerfPanelPlugin', () => {
         p.onRemove(viewer)
     })
 
+    test('removed under another wrapper of info.update, then added again: each draw counts once', () => {
+        const {viewer, info, renderFrame} = makeViewer()
+        const p = new PerfPanelPlugin()
+        p.onAdded(viewer)
+        const inner = info.update
+        info.update = (count: number, mode: number, instances: number) => inner(count, mode, instances) // another tool wraps it
+        p.onRemove(viewer) // the panel hook stays in the chain under the other wrapper
+        p.onAdded(viewer)
+        renderFrame(10)
+        expect(p.stats.drawCalls).toBe(1)
+        expect(p.stats.triangles).toBe(10)
+        p.onRemove(viewer)
+    })
+
     test('removed before the battery answers: no battery listeners', async() => {
         const battery = Object.assign(new FakeElement('battery'), {charging: false, level: 0.5})
         vi.stubGlobal('navigator', {getBattery: async() => battery})

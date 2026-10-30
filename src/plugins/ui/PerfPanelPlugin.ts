@@ -313,7 +313,8 @@ export class PerfPanelPlugin extends AViewerPluginSync<PerfPanelPluginEventMap> 
         const orig = info.update
         const render = info.render
         const hooked = (count: number, mode: number, instances: number) => {
-            if (!this._inRender) return orig(count, mode, instances)
+            // an old hook left under another wrapper (see _unhookInfo) only passes through, so a draw counts once
+            if (!this._inRender || this._hookedUpdate !== hooked) return orig(count, mode, instances)
             const t = render.triangles
             orig(count, mode, instances)
             this._calls++
