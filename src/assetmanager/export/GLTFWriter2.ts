@@ -193,6 +193,43 @@ export class GLTFWriter2 extends GLTFExporter.Utils.GLTFWriter {
         const hasRootPath = !map.isRenderTargetTexture && map.userData.rootPath && typeof map.userData.rootPath === 'string' &&
             isNonRelativeUrl(map.userData.rootPath)
 
+        // Fast path: preserved source bytes available — emit them directly and skip
+        // three.js's canvas re-encode (`ctx.drawImage` + `canvas.toBlob`). Deterministic
+        // across runs/Chromium builds, preserves original quality, avoids GPU readback.
+        // Only used when we're actually going to embed image bytes in the GLB —
+        // if the user asked for URL-reference export, fall through to the existing
+        // rootPath handling below.
+        // Also only when the source bytes are what the canvas would produce - the canvas path
+        // flips the pixels of flipY textures and resizes images larger than maxTextureSize.
+        const srcBuf = (map.source as any)?._sourceImgBuffer as ArrayBuffer | Uint8Array | undefined
+        const preferUriRef = hasRootPath && !this.options.exporterOptions.embedUrlImages
+        const fastMimeOk = mimeType === 'image/jpeg' || mimeType === 'image/png' || mimeType === 'image/jpg'
+        const maxSize = this.options.maxTextureSize ?? Infinity
+        const sameAsCanvas = !map.flipY && !!map.image && map.image.width <= maxSize && map.image.height <= maxSize
+        if (srcBuf && fastMimeOk && sameAsCanvas && !preferUriRef && !map.isRenderTargetTexture) {
+            if (!json.textures) json.textures = []
+            const fastMime = mimeType === 'image/jpg' ? 'image/jpeg' : mimeType
+            const blob = new Blob([srcBuf], {type: fastMime})
+            const sourceIndex = this.processImageBlob(blob, map)
+            const textureDef: any = {
+                sampler: this.processSampler(map),
+                source: sourceIndex,
+            }
+            if (map.name) textureDef.name = map.name
+            ;(this as any)._invokeAll((ext: any) => {
+                ext.writeTexture && ext.writeTexture(map, textureDef)
+            })
+            const index = json.textures.push(textureDef) - 1
+            cache.textures.set(map, index)
+            const imageDef = json.images ? json.images[sourceIndex] : null
+            if (imageDef) {
+                if (!imageDef.extras) imageDef.extras = {}
+                if (map.source) imageDef.extras.uuid = map.source.uuid
+                imageDef.extras.t_uuid = map.uuid
+            }
+            return index
+        }
+
         if (hasRootPath && !this.options.exporterOptions.embedUrlImages) {
             if (map.source.data) { // handled below in GLTFWriter2.processImage
                 if (!this.options.exporterOptions.embedUrlImagePreviews || (map as any).isDataTexture) map.source.data = null // todo make sure its only Texture, check for svg etc
