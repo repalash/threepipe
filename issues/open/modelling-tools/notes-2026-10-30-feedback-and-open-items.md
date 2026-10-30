@@ -86,27 +86,23 @@ Plan:
   - Assembly audit: clashes, floating parts, gaps.
   - Same-camera render vs. reference, with a pass / fail / degraded verdict before delivery.
 
-## threepipe-cloud: yes, built in this session
+## threepipe-cloud
 
-- `@threepipe/plugin-cloud`: Report a Problem / Send Feedback, error toasts, share uploads.
-- `services/cloud`: one Worker, one D1 database, one R2 bucket (reports, staff page, shares with md pages).
-- Both are merged in modelling-editor and tested (22 worker tests, feedback e2e).
-- Not deployed yet.
-- PR #53 has the deploy setup:
-  - `cloud.threepipe.org`
-  - `npm run provision`
-  - `CLOUDFLARE.md` with the infra inventory and commands
-- Your steps:
-  1. Run the commands in #53.
-  2. Make a Turnstile widget.
-  3. Add 2 lines to the `examples_dot_env` secret.
+- Built in this session: `@threepipe/plugin-cloud` (feedback dialog, toasts, redaction, Turnstile, shares) and `services/cloud` (Worker + D1 + R2).
+- Split out of #52 into its own PR, #104. Then #104 was closed (2026-10-30).
+- It is being redone on teenybase, in the threepipe-main session.
+  - Sign-in, uploads with permalinks, agent links, and a support platform.
+  - The #104 dialog, toasts, redaction and Turnstile get ported into the new `@threepipe/plugin-cloud`.
+- The `cloud` branch stays on GitHub as a reference.
+- The modelling editor finds the cloud plugin by name (`cloudOps.ts`) and does nothing without it.
+- When the new plugin API is fixed, update `cloudOps.ts` to match.
+- No join PR (editor feedback example, e2e, .env wiring) until then.
 
 ## Left open
 
 Needs you:
 - Refresh `GITHUB_TOKEN_THREEPIPE` (expired, so commit d43a6de4 isn't pushed).
 - PR #52 final check (modelling-editor → dev).
-- PR #53: deploy threepipe-cloud.
 - Review #47, #48, #54.
 - #49 waits for the three.js-modded #3 release.
 - webgi #85; webgi #86 (apply its release.yml edit first).
