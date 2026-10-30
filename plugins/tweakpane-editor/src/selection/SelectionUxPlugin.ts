@@ -386,6 +386,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         this._raycaster.setFromCamera(this._ndc.set(sx / w * 2 - 1, -(sy / h) * 2 + 1), this._viewer!.scene.mainCamera)
         const wpp = this._worldPerPixel(h)
         this._raycaster.params.Line.threshold = wpp * 5
+        this._raycaster.params.Points.threshold = wpp * 5
         const hits = this._raycaster.intersectObjects(this._rayRoots(), true)
         const tol = wpp * 12
         const depth = (hit: typeof hits[number]) => hit.distance - (isThin(hit.object) ? tol : 0)
