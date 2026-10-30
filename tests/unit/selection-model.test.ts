@@ -606,6 +606,26 @@ describe('SelectionUxPlugin', () => {
         expect(ux.hovered).toBe(null)
     })
 
+    test('hover: Ctrl/Cmd shows the deepest object; other keys do not raycast again', () => {
+        const {ux, viewer, canvas, at, leg1} = setup()
+        canvas.dispatchEvent(ev('pointermove'))
+        window.dispatchEvent(ev('pointermove', at(leg1)))
+        viewer.dispatchEvent({type: 'preFrame'})
+        expect(ux.hovered?.name).toBe('Table')
+        const raycasts = vi.spyOn(ux as any, '_intersect')
+        window.dispatchEvent(ev('keydown', {code: 'ControlLeft', ctrlKey: true}))
+        viewer.dispatchEvent({type: 'preFrame'})
+        expect(ux.hovered?.name).toBe('Leg 1')
+        window.dispatchEvent(ev('keyup', {code: 'ControlLeft'}))
+        viewer.dispatchEvent({type: 'preFrame'})
+        expect(ux.hovered?.name).toBe('Table')
+        expect(raycasts).toHaveBeenCalledTimes(2)
+        window.dispatchEvent(ev('keydown', {code: 'KeyX'})) // typing, in a text field or not
+        window.dispatchEvent(ev('keyup', {code: 'KeyX'}))
+        viewer.dispatchEvent({type: 'preFrame'})
+        expect(raycasts).toHaveBeenCalledTimes(2)
+    })
+
     test('hover follows a change of the view under a still pointer, but not while a button moves the camera', () => {
         const {ux, viewer, canvas, camera, at, leg1} = setup()
         const p = at(leg1) // the pointer stays here
