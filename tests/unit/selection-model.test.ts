@@ -985,6 +985,20 @@ describe('SelectionUxPlugin', () => {
         expect(toggle.property).toEqual([ux, 'enabled'])
     })
 
+    test('the overlay settings are in the UI folder, and a change there draws the overlay again', () => {
+        const {ux, lamp, lines} = setup()
+        const ui = ux.uiConfig as any
+        const items = ui.children.map((c: any) => typeof c === 'function' ? c() : c)
+        const props = items.map((c: any) => c.property?.[1])
+        expect(props).toEqual(['enabled', 'overlay', 'boxStyle', 'boxSpace', 'xray', 'showHover', 'showName', 'showSize', 'unit', 'accent'])
+        expect(items[2].children.map((c: any) => c.label)).toEqual(['rect', 'box', 'brackets'])
+        ux.select([lamp])
+        expect(lines()[0].tagName).toBe('rect')
+        const [obj, key] = items[2].property
+        obj[key] = 'brackets' // as the UI sets it
+        expect(lines()[0].tagName).toBe('path')
+    })
+
     test('onRemove removes the listeners', () => {
         const {ux, viewer, picking, click, key, leg1, lamp} = setup()
         ux.select([lamp])

@@ -7,7 +7,9 @@ import {
     PickingPlugin,
     Raycaster,
     ThreeViewer,
+    uiDropdown,
     uiFolderContainer,
+    uiInput,
     uiToggle,
     Vector2,
     Vector3,
@@ -90,30 +92,39 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
      * Draw the overlay over the canvas: the boxes of the selection and of the hovered object, the name and the size.
      * While it draws, the box and the hover box of the PickingPlugin are off (they come back when it stops).
      */
+    @uiToggle('Overlay')
     @onChange(SelectionUxPlugin.prototype.redrawOverlay)
         overlay = true
     /** How the box of the selection is drawn: a screen rectangle (as in Figma), the 3D box, or the corners of the 3D box */
+    @uiDropdown('Box style', ['rect', 'box', 'brackets'].map(label => ({label})))
     @onChange(SelectionUxPlugin.prototype.redrawOverlay)
         boxStyle: SelectionBoxStyle = 'rect'
     /** The box of one object turns with it (`local`) or follows the world axes (`world`); a box of several objects follows the world axes */
+    @uiDropdown('Box space', ['local', 'world'].map(label => ({label})))
     @onChange(SelectionUxPlugin.prototype.redrawOverlay)
         boxSpace: 'local' | 'world' = 'local'
     /** With the `box` style, draw the edges that face away from the camera dashed */
+    @uiToggle('X-ray')
     @onChange(SelectionUxPlugin.prototype.redrawOverlay)
         xray = true
     /** Draw the box of the hovered object (see {@link hovered}) */
+    @uiToggle('Show hover')
     @onChange(SelectionUxPlugin.prototype.redrawOverlay)
         showHover = true
     /** Show the name above the selection, after the names of its parent levels; a click on a parent name selects it */
+    @uiToggle('Show name')
     @onChange(SelectionUxPlugin.prototype.redrawOverlay)
         showName = true
     /** Show the size of the box below the selection, in scene units (see {@link unit}) */
+    @uiToggle('Show size')
     @onChange(SelectionUxPlugin.prototype.redrawOverlay)
         showSize = true
     /** The unit after the size, like `'cm'`; empty for none */
+    @uiInput('Unit')
     @onChange(SelectionUxPlugin.prototype.redrawOverlay)
         unit = ''
     /** The colour of the overlay, a CSS colour */
+    @uiInput('Accent')
     @onChange(SelectionUxPlugin.prototype.redrawOverlay)
         accent = '#0d99ff'
 
