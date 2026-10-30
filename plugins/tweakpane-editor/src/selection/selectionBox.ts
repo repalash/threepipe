@@ -158,6 +158,32 @@ export function screenRect(points: ScreenPoint[]): ScreenRect | null {
 }
 
 /**
+ * The screen rectangle of the part of a box in front of a camera's near plane, null when none of it is. A box that
+ * crosses the near plane (zoomed into, or around the camera) is clipped there: the rectangle encloses its corners in
+ * front of the plane and the points where its edges cross it, so it covers the whole cross-section, not only the front
+ * corners.
+ * @param corners - the 8 corners of the box ({@link BoxInfo.corners}: bit 0, 1, 2 of the index is the +x, +y, +z side)
+ * @param camera - its world matrix and projection matrix are up to date (as after a render); `near` of a perspective
+ * camera is the clip plane, an orthographic camera clips at its own plane (as {@link toScreen} decides "behind")
+ */
+export function boxScreenRect(corners: Vector3[], camera: {matrixWorldInverse: Matrix4, projectionMatrix: Matrix4, near?: number, isPerspectiveCamera?: boolean},
+    w: number, h: number): ScreenRect | null {
+    const near = camera.isPerspectiveCamera ? camera.near ?? 0 : 0
+    const cs = corners.map(c => c.clone().applyMatrix4(camera.matrixWorldInverse))
+    // the signed distance in front of the clip plane: > 0 in front
+    const d = cs.map(c => -c.z - near)
+    const points: ScreenPoint[] = []
+    const add = (c: Vector3) => {
+        const p = v4.set(c.x, c.y, c.z, 1).applyMatrix4(camera.projectionMatrix)
+        const iw = 1 / Math.abs(p.w || 1e-6)
+        points.push({x: (p.x * iw + 1) / 2 * w, y: (1 - p.y * iw) / 2 * h, behind: false})
+    }
+    cs.forEach((c, i) => d[i] >= 0 && add(c))
+    for (const [i, j] of BOX_EDGES) if (d[i] >= 0 !== d[j] >= 0) add(cs[i].clone().lerp(cs[j], d[i] / (d[i] - d[j])))
+    return screenRect(points)
+}
+
+/**
  * Which faces of the box face the camera; index axis * 2 + (1 for the + side, 0 for the - side)
  * @param eye - the camera position (a perspective camera: a face faces it when the camera is in front of the face)
  * @param viewDir - the view direction of an orthographic camera, whose rays are parallel: a face faces it when it

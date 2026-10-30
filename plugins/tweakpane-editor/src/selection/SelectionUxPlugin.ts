@@ -28,7 +28,7 @@ import {
     toggleSelected,
     wrappedChain,
 } from './selectionHierarchy'
-import {boxEdgesPath, boxInfo, BoxInfo, bracketsPath, frontFaces, ScreenPoint, screenRect, ScreenRect, toScreen} from './selectionBox'
+import {boxEdgesPath, boxInfo, BoxInfo, boxScreenRect, bracketsPath, frontFaces, ScreenPoint, ScreenRect, toScreen} from './selectionBox'
 import {ElementPool} from './ElementPool'
 
 export interface SelectionUxPluginEventMap extends AViewerPluginEventMap {
@@ -753,13 +753,13 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
     /** A thin box: the screen rectangle (`rect` style), else the edges of the 3D box that face the camera */
     private _drawBox(key: string, objs: IObject3D[], width: number, opacity: number, w: number, h: number) {
         const info = this.boxInfo(objs)
-        const sc = this._project(info.corners, w, h)
         const stroke = {fill: 'none', stroke: this.accent, strokeWidth: width, opacity}
         if (this.boxStyle !== 'rect') {
+            const sc = this._project(info.corners, w, h)
             this._lines!.get(key, 'path', {...stroke, strokeLinejoin: 'round', d: boxEdgesPath(sc, this._frontFaces(info), 'visible')})
             return
         }
-        const r = screenRect(sc)
+        const r = boxScreenRect(info.corners, this._viewer!.scene.mainCamera, w, h)
         if (r) this._lines!.get(key, 'rect', {...stroke, ...rectAttrs(r)})
     }
 
@@ -767,7 +767,8 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         const L = this._lines!
         const info = this.boxInfo(sel)
         const sc = this._project(info.corners, w, h)
-        const rect = screenRect(sc)
+        // clipped at the near plane: a selection that reaches behind the camera covers the screen, not its front corners
+        const rect = boxScreenRect(info.corners, this._viewer!.scene.mainCamera, w, h)
         if (!rect) return
         const stroke = {fill: 'none', stroke: this.accent}
         if (this.boxStyle === 'rect') L.get('sel', 'rect', {...stroke, strokeWidth: 1.5, ...rectAttrs(rect)})

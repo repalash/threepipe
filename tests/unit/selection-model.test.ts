@@ -15,7 +15,7 @@ import {
     toggleSelected,
 } from '../../plugins/tweakpane-editor/src/selection/selectionHierarchy'
 import {SelectionUxPlugin} from '../../plugins/tweakpane-editor/src/selection/SelectionUxPlugin'
-import {boxInfo, frontFaces, localBox, screenRect, toScreen} from '../../plugins/tweakpane-editor/src/selection/selectionBox'
+import {boxInfo, boxScreenRect, frontFaces, localBox, screenRect, toScreen} from '../../plugins/tweakpane-editor/src/selection/selectionBox'
 import {ElementPool} from '../../plugins/tweakpane-editor/src/selection/ElementPool'
 
 const geometry = new BoxGeometry(0.5, 0.5, 0.5)
@@ -301,6 +301,22 @@ describe('selection box', () => {
     test('the screen rectangle leaves out the points behind the camera', () => {
         expect(screenRect([{x: 1, y: 2, behind: false}, {x: 5, y: -1, behind: false}, {x: 100, y: 100, behind: true}])).toEqual({minX: 1, minY: -1, maxX: 5, maxY: 2})
         expect(screenRect([{x: 1, y: 2, behind: true}])).toBe(null)
+    })
+
+    test('the screen rectangle of a box that crosses the near plane encloses its cross-section there', () => {
+        const cam = new PerspectiveCamera(90, 1, 0.1, 100) // at the origin, looking down -z
+        cam.updateMatrixWorld(true)
+        const corners = (zMin: number, zMax: number) => Array.from({length: 8}, (_, i) => new Vector3(i & 1 ? 0.5 : -0.5, i & 2 ? 0.5 : -0.5, i & 4 ? zMax : zMin))
+        // in front: the rectangle of the projected corners (z -0.75 and -1.75 project to ±2/3 and ±2/7 of the half size)
+        const front = boxScreenRect(corners(-1.75, -0.75), cam, 300, 300)!
+        expect([front.minX, front.minY, front.maxX, front.maxY].map(v => +v.toFixed(3))).toEqual([50, 50, 250, 250])
+        // crossing: at the near plane (z -0.1) the box covers ±5 times the half size, more than the whole canvas
+        const crossing = boxScreenRect(corners(-0.75, 0.25), cam, 300, 300)!
+        expect([crossing.minX, crossing.minY, crossing.maxX, crossing.maxY].map(v => +v.toFixed(3))).toEqual([-600, -600, 900, 900])
+        expect(boxScreenRect(corners(0.25, 1), cam, 300, 300)).toBe(null) // all behind
+        // the plugin draws the selection rectangle and its labels from it
+        const old = screenRect(corners(-0.75, 0.25).map(c => toScreen(c, cam, 300, 300)))!
+        expect(old.maxX - old.minX).toBeCloseTo(200, 3) // the front corners only: two thirds of the canvas
     })
 
     test('the element pool keeps an element between redraws and removes the ones not drawn', () => {
@@ -866,6 +882,22 @@ describe('SelectionUxPlugin', () => {
         expect(+rect.getAttribute('y')!).toBeCloseTo(Math.min(...ys), 1)
         expect(+rect.getAttribute('width')!).toBeCloseTo(Math.max(...xs) - Math.min(...xs), 1)
         expect(+rect.getAttribute('height')!).toBeCloseTo(Math.max(...ys) - Math.min(...ys), 1)
+    })
+
+    test('overlay: the rectangle of a selection that reaches behind the camera covers its part in front of it', () => {
+        const {ux, table, camera, lines, labels} = setup()
+        const rod = new Mesh(new BoxGeometry(0.5, 0.5, 10), material) as any as IObject3D // z -5..5
+        rod.name = 'Rod'
+        table.parent!.add(rod)
+        rod.updateMatrixWorld(true)
+        camera.position.set(0, 0, 3) // inside the rod's length: its far end is behind the camera
+        camera.updateMatrixWorld(true)
+        ux.select([rod])
+        const rect = lines()[0]
+        // at the near plane the rod is far wider than the view; its front corners alone make a rectangle of 30 px
+        expect(+rect.getAttribute('x')!).toBeLessThan(0)
+        expect(+rect.getAttribute('width')!).toBeGreaterThan(SIZE)
+        expect(labels()).toHaveLength(2) // the name and the size
     })
 
     test('overlay: the name after the parent names, a click on a parent name selects it; the size', () => {
