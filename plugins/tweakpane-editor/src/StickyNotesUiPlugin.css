@@ -5,24 +5,22 @@
 /* above the overlays of the canvas (a logo, a view gizmo), below its buttons */
 .snp-layer { position: absolute; inset: 0; z-index: 150; pointer-events: none; overflow: hidden; }
 .snp-layer > * { pointer-events: auto; }
+/* the colours; `theme` keeps the ones of the page */
+.snp-layer:not([data-color="theme"]) { --tp-button-background-color-hover: rgba(0, 0, 0, 0.06); }
 .snp-layer[data-color="yellow"] {
     --tp-base-background-color: #fff8c5; --tp-container-foreground-color: #3b3418; --tp-label-foreground-color: #8a7d3c;
-    --tp-container-border-color: #e8dc96; --tp-button-background-color: #fffdf0; --tp-button-background-color-hover: rgba(0, 0, 0, 0.06);
     --snp-line: #efe3a0; --snp-badge: #f3e9a8;
 }
 .snp-layer[data-color="pink"] {
     --tp-base-background-color: #ffe4ec; --tp-container-foreground-color: #4a1f2c; --tp-label-foreground-color: #9a5a6c;
-    --tp-container-border-color: #f2bfcf; --tp-button-background-color: #fff5f8; --tp-button-background-color-hover: rgba(0, 0, 0, 0.06);
     --snp-line: #f7cfdb; --snp-badge: #fbd3df;
 }
 .snp-layer[data-color="blue"] {
     --tp-base-background-color: #e3f1ff; --tp-container-foreground-color: #17324d; --tp-label-foreground-color: #557a9e;
-    --tp-container-border-color: #bcd8f2; --tp-button-background-color: #f5faff; --tp-button-background-color-hover: rgba(0, 0, 0, 0.06);
     --snp-line: #cfe3f7; --snp-badge: #d2e7fb;
 }
 .snp-layer[data-color="green"] {
     --tp-base-background-color: #e5f7e1; --tp-container-foreground-color: #1f3a1a; --tp-label-foreground-color: #5a8550;
-    --tp-container-border-color: #bfe2b6; --tp-button-background-color: #f6fcf4; --tp-button-background-color-hover: rgba(0, 0, 0, 0.06);
     --snp-line: #cdeac6; --snp-badge: #d3efcc;
 }
 .snp-layer {
