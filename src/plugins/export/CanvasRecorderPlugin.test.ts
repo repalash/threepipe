@@ -522,8 +522,8 @@ describe('CanvasRecorderPlugin stop and remove', () => {
     })
 
     // a viewer dispose removes the plugin and ends the animation loop: no frame comes after it
-    function removable() {
-        const {plugin, progressive} = setup()
+    function removable(plugins: Record<string, any> = {}) {
+        const {plugin, progressive} = setup(plugins)
         const viewer = Object.assign(new EventDispatcher(), plugin._viewer, {
             renderManager: new EventDispatcher(),
             scene: Object.assign(new EventDispatcher(), plugin._viewer.scene),
@@ -557,6 +557,26 @@ describe('CanvasRecorderPlugin stop and remove', () => {
         await new Promise(r => setTimeout(r, 5))
         plugin.onRemove(viewer)
         expect(await Promise.race([stop, new Promise(r => setTimeout(() => r('hung'), 100))])).toBeUndefined()
+        expect(plugin._frameWaits.size).toBe(0)
+    })
+
+    test('a removal while a turntable recording turns settles it, restores maxFrameCount and gives the camera back', async() => {
+        // a viewer dispose ends the animation loop of PopmotionPlugin: the turn never ends
+        const popmotion = {animate: (o: any) => {
+            o.onUpdate(o.to)
+            return {promise: new Promise(() => undefined)}
+        }}
+        const {plugin, progressive, viewer} = removable({PopmotionPlugin: popmotion})
+        const camera = viewer.scene.mainCamera
+        const recording = plugin.recordCamera360(1, false, 90)
+        await new Promise(r => setTimeout(r, 5))
+        expect(plugin.isRecording()).toBe(true)
+        expect(progressive.maxFrameCount).toBe(16)
+        plugin.onRemove(viewer)
+        expect(await Promise.race([recording, new Promise(r => setTimeout(() => r('hung'), 100))])).toBeUndefined()
+        expect(progressive.maxFrameCount).toBe(32)
+        expect(camera.setInteractions).toHaveBeenLastCalledWith(true, CanvasRecorderPlugin.PluginType)
+        expect(camera.position.toArray()).toEqual([0, 0, 5])
         expect(plugin._frameWaits.size).toBe(0)
     })
 

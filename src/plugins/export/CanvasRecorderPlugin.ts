@@ -313,7 +313,9 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
                     listener2()
                     try {
                         onStart?.()
-                        await action()
+                        // a removal (or a viewer dispose) ends the animation loop that the action can wait for: it
+                        // ends the wait, and the stop below has no recording to stop
+                        await this._untilRemoved(action())
                         resolve()
                     } catch (e) {
                         reject(e)
@@ -438,21 +440,29 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
         if (n < steps && this.isRecording()) await timeout((steps - n) / fps * 1000)
     }
 
-    /** The ends of the frame waits of a stop; {@link onRemove} calls them, as no frame comes after it */
+    /**
+     * The ends of the frame waits of a stop and of the action of {@link record}; {@link onRemove} calls them, as no
+     * frame comes after it
+     */
     private _frameWaits = new Set<() => void>()
+
+    /** The promise, or the removal of the plugin (or a viewer dispose), whichever comes first */
+    private async _untilRemoved(promise: Promise<any>) {
+        let end!: () => void
+        const removed = new Promise<void>(resolve => end = resolve)
+        this._frameWaits.add(end)
+        try {
+            await Promise.race([promise, removed])
+        } finally {
+            this._frameWaits.delete(end)
+        }
+    }
 
     /** The next frame of the viewer, or the removal of the plugin (or a viewer dispose), whichever comes first */
     private async _nextFrame() {
         const viewer = this._viewer
         if (!viewer) return
-        let end!: () => void
-        const removed = new Promise<void>(resolve => end = resolve)
-        this._frameWaits.add(end)
-        try {
-            await Promise.race([viewer.doOnce('postFrame'), removed])
-        } finally {
-            this._frameWaits.delete(end)
-        }
+        await this._untilRemoved(viewer.doOnce('postFrame'))
     }
 
     private async _stop(): Promise<Blob | undefined> {
