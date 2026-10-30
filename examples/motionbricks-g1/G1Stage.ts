@@ -1,11 +1,15 @@
 import {
+    BoxGeometry,
+    BufferGeometry,
     CanvasTexture,
     Color,
     DirectionalLight2,
     DoubleSide,
+    Fog,
     HDRiGroundPlugin,
     ITexture,
     LatheGeometry,
+    mergeGeometries,
     SpotLight2,
     Mesh,
     MeshBasicMaterial,
@@ -34,8 +38,9 @@ import {
     VelocityBufferPlugin,
 } from '@threepipe/webgi-plugins'
 
-// Scene presets for the MotionBricks demo, after the looks robotics teams use for their demos:
-// research viewers (MuJoCo, Newton), the Isaac Sim grid, a product studio, a launch stage, and a real space.
+// Scene presets for the MotionBricks demo: a white block city after Mirror's Edge and Sixty Four, and the looks
+// robotics teams use for their demos: research viewers (MuJoCo, Newton), the Isaac Sim grid, a product studio,
+// a launch stage, and a real space.
 
 export interface StageLight {
     /** A directional light by default; a spot makes a pool of light around the robot. */
@@ -55,6 +60,7 @@ export interface StageStyle {
         | {kind: 'checker' | 'grid', base: string, line: string, roughness: number, metalness?: number}
         | {kind: 'cove', color: string, roughness: number, metalness?: number, envIntensity?: number}
         | {kind: 'hdri', shadowOpacity: number}
+        | {kind: 'plain', color: string, roughness: number}
     /** HDR file name for lighting and reflections, or '' for a gradient made from the sky colors. */
     environment: string
     environmentIntensity: number
@@ -63,9 +69,65 @@ export interface StageStyle {
     effects: {ssgi: number, ssr: number, contact: number, bloom: number}
     /** Height and ground radius of the HDR capture, for the projected ground. */
     hdriGround?: {tripodHeight: number, worldRadius: number}
+    /** Fog that fades the floor into the background, so the world has no horizon. */
+    fog?: {color: string, near: number, far: number}
+    /** Blocks around a clear plaza where the robot wanders. */
+    blocks?: BlockCity
+    /** Field of view, and the camera's position relative to the robot. */
+    camera?: {fov: number, offset: [number, number, number]}
+    /** Width of the area the shadow-casting light covers, in metres. */
+    shadowFrustum?: number
+}
+
+export interface BlockCity {
+    seed: number
+    /** Radius of the empty plaza in the middle, in metres. */
+    plaza: number
+    /** How far out the blocks go, in metres. */
+    extent: number
+    /** The material of most blocks. */
+    base: BlockMaterial
+    /** Accent materials, with how often each is picked for a cluster. */
+    accents: (BlockMaterial & {weight: number})[]
+}
+
+export interface BlockMaterial {
+    color: string
+    roughness: number
+    metalness?: number
 }
 
 export const STAGE_STYLES = {
+    city: {
+        label: 'White city',
+        // Mirror's Edge: an off-white world, red for what matters, a strong sun and colour bouncing off the walls.
+        // Sixty Four: a horizonless white plane, cubes in a few saturated colours, seen from high up.
+        sky: ['#f4f5f6', '#f4f5f6'],
+        floor: {kind: 'plain', color: '#efeeeb', roughness: 0.92},
+        environment: '',
+        environmentIntensity: 1.15,
+        fog: {color: '#f4f5f6', near: 18, far: 52},
+        lights: [
+            {color: '#fff3df', intensity: 3.4, offset: [5, 11, 3.5], shadow: true},
+            {color: '#cfdcff', intensity: 0.55, offset: [-4, 5, -6]},
+        ],
+        effects: {ssgi: 1.6, ssr: 0, contact: 0.9, bloom: 0.18},
+        blocks: {
+            seed: 64,
+            plaza: 9,
+            extent: 34,
+            base: {color: '#f2f1ee', roughness: 0.7},
+            accents: [
+                {color: '#ef3b36', roughness: 0.55, weight: 5},
+                {color: '#16171a', roughness: 0.4, weight: 3},
+                {color: '#6a3cf2', roughness: 0.45, weight: 1.2},
+                {color: '#9de02c', roughness: 0.5, weight: 0.8},
+                {color: '#f2a531', roughness: 0.5, weight: 0.8},
+            ],
+        },
+        camera: {fov: 30, offset: [7.2, 6.4, 9.6]},
+        shadowFrustum: 14,
+    },
     research: {
         label: 'Research viewer',
         sky: ['#3d5a7c', '#0e1218'],
@@ -130,6 +192,70 @@ export const STAGE_STYLES = {
 } satisfies Record<string, StageStyle>
 
 export type StageStyleName = keyof typeof STAGE_STYLES
+
+const DEFAULT_CAMERA = {fov: 45, offset: [3.2, 1.15, 4.2] as [number, number, number]}
+
+/** A small seeded random generator, so the city is the same on every load. */
+function random(seed: number) {
+    let a = seed >>> 0
+    return () => {
+        a = a + 0x6d2b79f5 >>> 0
+        let t = a
+        t = Math.imul(t ^ t >>> 15, t | 1)
+        t ^= t + Math.imul(t ^ t >>> 7, t | 61)
+        return ((t ^ t >>> 14) >>> 0) / 4294967296
+    }
+}
+
+/**
+ * Clusters of unit cubes, stacks and stepped platforms on a one-metre grid, outside the plaza. Most cubes are the
+ * base material; each cluster leans on one accent. Returns one merged geometry per material, base first.
+ */
+function blockCityGeometries(city: BlockCity) {
+    const rand = random(city.seed)
+    const parts: BufferGeometry[][] = [[], ...city.accents.map(() => [])]
+    const taken = new Set<string>()
+    const totalWeight = city.accents.reduce((n, a) => n + a.weight, 0)
+    const pickAccent = () => {
+        let r = rand() * totalWeight
+        for (let i = 0; i < city.accents.length; i++) if ((r -= city.accents[i].weight) <= 0) return i + 1
+        return city.accents.length
+    }
+    const box = (x: number, z: number, w: number, d: number, y: number, h: number, material: number) => {
+        // A hair smaller than the grid, so neighbouring cubes show a seam.
+        parts[material].push(new BoxGeometry(w - 0.04, h - 0.02, d - 0.04).translate(x + w / 2, y + h / 2, z + d / 2))
+    }
+    const clusters = Math.round(city.extent * city.extent * 0.11)
+    for (let c = 0; c < clusters; c++) {
+        const angle = rand() * Math.PI * 2
+        // More clusters near the plaza, thinning out towards the fog.
+        const radius = city.plaza + 1.5 + Math.pow(rand(), 0.8) * (city.extent - city.plaza - 1.5)
+        const cx = Math.round(Math.cos(angle) * radius), cz = Math.round(Math.sin(angle) * radius)
+        const accent = pickAccent()
+        const accentShare = 0.25 + rand() * 0.5
+        const kind = rand()
+        if (kind < 0.18) {
+            // A stepped platform, like a stair up to a rooftop.
+            const w = 2 + Math.floor(rand() * 3), steps = 2 + Math.floor(rand() * 4)
+            const material = rand() < accentShare * 0.6 ? accent : 0
+            for (let i = 0; i < steps; i++) box(cx + i, cz, 1, w, 0, 0.3 * (i + 1), material)
+            continue
+        }
+        const footprint = 2 + Math.floor(rand() * (kind < 0.6 ? 6 : 14))
+        let x = cx, z = cz
+        for (let i = 0; i < footprint; i++) {
+            const key = `${x},${z}`
+            if (!taken.has(key) && Math.hypot(x + 0.5, z + 0.5) > city.plaza + 1) {
+                taken.add(key)
+                const height = 1 + Math.floor(Math.pow(rand(), 2.2) * (kind < 0.6 ? 3 : 6))
+                for (let y = 0; y < height; y++) box(x, z, 1, 1, y, 1, rand() < accentShare ? accent : rand() < 0.08 ? pickAccent() : 0)
+            }
+            if (rand() < 0.5) x += rand() < 0.5 ? 1 : -1
+            else z += rand() < 0.5 ? 1 : -1
+        }
+    }
+    return parts.map(list => list.length ? mergeGeometries(list) : null)
+}
 
 const FLOOR_SIZE = 400
 
@@ -211,8 +337,8 @@ export class G1Stage {
     readonly viewer: ThreeViewer
     /** Resolves an HDR file name from a style to a URL. */
     resolveAsset: (name: string) => string
-    styleName: StageStyleName = 'research'
-    style: StageStyle = STAGE_STYLES.research
+    styleName: StageStyleName = 'city'
+    style: StageStyle = STAGE_STYLES.city
     effectsEnabled = true
     /** Called after a style is applied or the effects are switched. */
     onChange?: () => void
@@ -287,8 +413,18 @@ export class G1Stage {
             scene.background = gradientTexture(top, horizon) as any
         }
 
+        scene.fog = style.fog ? new Fog(style.fog.color, style.fog.near, style.fog.far) : null
+
         const floor = style.floor
-        if (floor.kind === 'checker' || floor.kind === 'grid') {
+        if (floor.kind === 'plain') {
+            const mesh = new Mesh(new PlaneGeometry(FLOOR_SIZE, FLOOR_SIZE).rotateX(-Math.PI / 2), new PhysicalMaterial({
+                color: floor.color, roughness: floor.roughness,
+            }))
+            mesh.receiveShadow = true
+            mesh.name = 'Floor'
+            this._floorMaterial = mesh.material
+            add(mesh)
+        } else if (floor.kind === 'checker' || floor.kind === 'grid') {
             const maxAnisotropy = v.renderManager.webglRenderer.capabilities.getMaxAnisotropy()
             const mesh = new Mesh(new PlaneGeometry(FLOOR_SIZE, FLOOR_SIZE).rotateX(-Math.PI / 2), new PhysicalMaterial({
                 map: floorTexture(floor.kind, floor.base, floor.line, maxAnisotropy),
@@ -316,6 +452,19 @@ export class G1Stage {
             add(mesh, true)
         }
 
+        if (style.blocks) {
+            const city = style.blocks
+            const materials = [city.base, ...city.accents]
+            blockCityGeometries(city).forEach((geometry, i) => {
+                if (!geometry) return
+                const m = materials[i]
+                const mesh = new Mesh(geometry, new PhysicalMaterial({color: m.color, roughness: m.roughness, metalness: m.metalness ?? 0}))
+                mesh.castShadow = mesh.receiveShadow = true
+                mesh.name = i ? `Blocks ${m.color}` : 'Blocks'
+                add(mesh)
+            })
+        }
+
         for (const l of style.lights) {
             const light = l.kind === 'spot' ?
                 new SpotLight2(l.color, l.intensity, 0, 0.42, 0.65, 2) :
@@ -325,7 +474,8 @@ export class G1Stage {
                 light.shadowMapSize.setScalar(2048)
                 light.shadowNear = 0.5
                 light.shadowFar = 25
-                if (light instanceof DirectionalLight2) light.shadowFrustum = 6
+                if (light instanceof DirectionalLight2) light.shadowFrustum = style.shadowFrustum ?? 6
+                if ((style.shadowFrustum ?? 6) > 8) light.shadowMapSize.setScalar(4096)
                 light.shadow.radius = 3
                 // Bias the lookup so a large, flat floor shows no acne rings at the shadow map's edge.
                 light.shadow.bias = -0.0004
@@ -334,6 +484,13 @@ export class G1Stage {
             add(light)
             this._lights.push({light, offset: new Vector3(...l.offset)})
         }
+        const view = style.camera ?? DEFAULT_CAMERA
+        const camera = v.scene.mainCamera
+        camera.fov = view.fov
+        camera.position.copy(this._target).add(new Vector3(...view.offset))
+        camera.target.copy(this._target)
+        camera.setDirty()
+
         this.update(this._target)
         this.setEffects(this.effectsEnabled)
         this._uiConfig?.uiRefresh?.(true, 'postFrame')

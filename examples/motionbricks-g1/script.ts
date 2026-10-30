@@ -35,7 +35,7 @@ import {G1Stage, STAGE_STYLES, StageStyleName} from './G1Stage'
 // through the three-motionbricks library (plugins/three-motionbricks), which works with any three.js scene.
 // Click the floor to send the robot there, or drive it with WASD; the model generates every step on the way.
 // Pages can override the sources with window.MOTIONBRICKS_CONFIG, and URL parameters override both:
-// ?model=<folder with pack.json/ or .onnx url>&robot=<mjcf url>&backend=webgpu&style=studio&fx=0&ui=0&worker=0
+// ?model=<folder with pack.json/ or .onnx url>&robot=<glb url>&backend=webgpu&style=city&fx=0&ui=0&worker=0
 
 const config = {
     /** onnxruntime-web module, model and robot GLB. Empty uses the library's defaults (MOTIONBRICKS_DEFAULTS). */
@@ -45,8 +45,8 @@ const config = {
     /** A folder with pack.json from tools/pack_model.py, or an original MotionBricks G1 .onnx file. */
     model: '',
     robot: '',
-    /** Scene style from G1Stage.ts: research, grid, studio, stage or hangar. */
-    style: 'research',
+    /** Scene style from G1Stage.ts: city, research, grid, studio, stage or hangar. */
+    style: 'city',
     /** Where the styles' HDR files are, with a suffix for hosts that rename them. Poly Haven by default. */
     environmentBase: '',
     environmentSuffix: '',
@@ -116,7 +116,7 @@ async function init() {
         styleSelect.replaceChildren(...Object.entries(STAGE_STYLES).map(([k, st]) => new Option(st.label, k)))
         styleSelect.addEventListener('change', async() => stage.setStyle(styleSelect.value as StageStyleName))
     }
-    await stage.setStyle((config.style in STAGE_STYLES ? config.style : 'research') as StageStyleName)
+    await stage.setStyle((config.style in STAGE_STYLES ? config.style : 'city') as StageStyleName)
 
     const goalMaterial = new UnlitMaterial({color: themeColor('--accent', '#e8590c'), transparent: true, opacity: 0.9, depthWrite: false})
     const goalMarker = new Mesh(new RingGeometry(0.16, 0.22, 48).rotateX(-Math.PI / 2), goalMaterial)
@@ -124,10 +124,8 @@ async function init() {
     goalMarker.name = 'Goal'
     viewer.scene.addObject(goalMarker)
 
+    // Each style places the camera (see G1Stage.ts); it then follows the robot, keeping the user's orbit.
     const camera = viewer.scene.mainCamera
-    camera.position.set(3.2, 1.9, 4.2)
-    camera.target.set(0, 0.75, 0)
-    camera.setDirty()
 
     // The character from three-motionbricks. threepipe loads its robot GLB like any model, with PhysicalMaterials
     // the panel can edit. A host that renames files (to .wasm) gets the GLB as a File named .glb.
