@@ -756,6 +756,10 @@ export class CameraViewPlugin extends AViewerPluginSync<CameraViewPluginEventMap
         let blob: Blob | undefined
         try {
             await this.resetToFirstView()
+            // a loop that ran ends after its view and pause; until then, animateAllViews() does not start its own. A
+            // removal (or a viewer dispose) ends the wait: nothing records then
+            while (this._animationLooping && this._viewer) await timeout(10)
+            if (!this._viewer) return
             // record() rejects when the start, onStart or the animation fails, and stops the recording
             blob = await recorder.record(async() => this.animateAllViews(), onStart)
         } finally {

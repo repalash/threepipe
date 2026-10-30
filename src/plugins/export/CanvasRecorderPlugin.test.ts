@@ -482,14 +482,54 @@ describe('CameraViewPlugin.recordAllViews', () => {
         views._cameraViews = [{}]
         views._animationLooping = true // the view loop itself does not run here
         views.viewLooping = true
-        views.resetToFirstView = async() => undefined
+        views.resetToFirstView = async() => {
+            views._animationLooping = false // the loop ends after the view it animates
+        }
         views.animateAllViews = async() => {
             expect(views.viewLooping).toBe(false)
+            views._animationLooping = true // its own loop, so the loop that viewLooping turns on again does not run here
             throw new Error('anim failed')
         }
         await expect(views.recordAllViews(undefined, false)).rejects.toThrow('anim failed')
         expect(recorder.isRecording()).toBe(false)
         expect(views.viewLooping).toBe(true)
+    })
+
+    test('a view loop that runs ends before the recording animates the views, so every view is recorded', async() => {
+        const {plugin: recorder} = setup()
+        recorder.waitRecordingTime = async() => undefined
+        const views = new CameraViewPlugin() as any
+        views._viewer = {getPlugin: (t: string) => t === 'CanvasRecorder' ? recorder : undefined}
+        views._cameraViews = [{name: 'a'}, {name: 'b'}]
+        const recorded: string[] = []
+        views.animateToView = async(v: any, duration?: number) => {
+            if (recorder.isRecording()) recorded.push(v.name)
+            await new Promise(r => setTimeout(r, duration ?? 0))
+        }
+        views.viewPauseTime = 200
+        views.viewLooping = true // the loop animates a view, then pauses for 202 ms
+        await new Promise(r => setTimeout(r, 20))
+        expect(views.animationLooping).toBe(true)
+        // the reset to the first view takes about 100 ms, less than the rest of the pause
+        await views.recordAllViews(undefined, false)
+        views.viewLooping = false // ends the loop that the record turned on again
+        expect(recorded).toEqual(['b', 'a'])
+    })
+
+    test('a removal while the record waits for the view loop to end settles it without a recording', async() => {
+        const {plugin: recorder} = setup()
+        const record = vi.spyOn(recorder, 'record')
+        const views = new CameraViewPlugin() as any
+        const viewer = {getPlugin: (t: string) => t === 'CanvasRecorder' ? recorder : undefined, removeEventListener: () => undefined}
+        views._viewer = viewer
+        views._cameraViews = [{}]
+        views._animationLooping = true // a loop whose view never ends: a viewer dispose ends the animations
+        views.resetToFirstView = async() => undefined
+        const recording = views.recordAllViews(undefined, false)
+        await new Promise(r => setTimeout(r, 5))
+        views.onRemove(viewer)
+        expect(await Promise.race([recording, new Promise(r => setTimeout(() => r('hung'), 100))])).toBeUndefined()
+        expect(record).not.toHaveBeenCalled()
     })
 })
 
