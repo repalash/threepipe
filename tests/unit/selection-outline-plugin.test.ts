@@ -261,6 +261,28 @@ describe('SelectionOutlinePlugin', () => {
         expect(pass.enabled).toBe(true)
     })
 
+    test('the x-ray near and far come from the camera of each render (a virtual camera too), not only the main camera', () => {
+        const plugin = new SelectionOutlinePlugin()
+        const material = {registerMaterialExtensions: vi.fn(), unregisterMaterialExtensions: vi.fn(), uniformsNeedUpdate: false}
+        const renderManager = Object.assign(new EventDispatcher<any>(), {
+            setDirty: vi.fn(), registerPass: vi.fn(), unregisterPass: vi.fn(), disposeTarget: vi.fn(), screenPass: {material},
+        })
+        const viewer = Object.assign(new EventDispatcher<any>(), {
+            renderManager, scene: {mainCamera: {near: 0.1, far: 2000}},
+            getPlugin: () => undefined, forPlugin: vi.fn(), addPluginListener: vi.fn(), removePluginListener: vi.fn(),
+        })
+        plugin.onAdded(viewer as any)
+        const render = (near: number, far: number) => renderManager.dispatchEvent({type: 'preRender', scene: {renderCamera: {near, far}}, renderToScreen: false})
+        render(1, 50) // VirtualCamerasPlugin renders its camera with renderManager.render
+        expect(plugin.extraUniforms.selNearFar.value.toArray()).toEqual([1, 50])
+        expect(material.uniformsNeedUpdate).toBe(true)
+        render(0.1, 2000) // then the main camera
+        expect(plugin.extraUniforms.selNearFar.value.toArray()).toEqual([0.1, 2000])
+        plugin.onRemove(viewer as any)
+        render(3, 30) // removed: not followed
+        expect(plugin.extraUniforms.selNearFar.value.toArray()).toEqual([0.1, 2000])
+    })
+
     test('the mask material is cut by the clipping planes of the renderer, as the render', () => {
         const material = selectionMaskMaterial()
         expect(material.clipping).toBe(true) // the renderer passes the clipping planes uniform
@@ -375,10 +397,8 @@ describe('SelectionOutlinePlugin', () => {
 
     test('the x-ray test gets the near and far of the camera, for a tolerance in view space', () => {
         const {plugin, viewer} = setup() as any
-        Object.assign(viewer, {scene: {mainCamera: {near: 0.1, far: 2000}}})
-        Object.assign(viewer.renderManager, {renderScale: 1, screenPass: {material: {}}})
-        ;(plugin as any)._target = {texture: new Texture(), width: 4, height: 4}
-        ;(plugin as any)._preRender()
+        Object.assign(viewer.renderManager, {screenPass: {material: {}}})
+        ;(plugin as any)._onRender({scene: {renderCamera: {near: 0.1, far: 2000}}})
         expect(plugin.extraUniforms.selNearFar.value.toArray()).toEqual([0.1, 2000])
         // not a fixed bias on the depth normalized by far - near: 0.002 of 0.1..2000 is 4 world units
         const glsl = plugin.parsFragmentSnippet() as string

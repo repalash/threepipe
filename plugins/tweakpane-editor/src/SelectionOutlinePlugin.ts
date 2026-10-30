@@ -190,6 +190,7 @@ if (selCoverage > 0.0) {
         this._pass.getItems = () => this.maskItems()
         viewer.renderManager.registerPass(this._pass)
         viewer.addEventListener('preRender', this._preRender)
+        viewer.renderManager.addEventListener('preRender', this._onRender)
         // the PickingPlugin can be added before or after this plugin, removed and replaced
         viewer.addPluginListener('add', this._onPickingAdded, PICKING_TYPE)
         viewer.addPluginListener('remove', this._onPickingRemoved, PICKING_TYPE)
@@ -201,6 +202,7 @@ if (selCoverage > 0.0) {
         viewer.removePluginListener('add', this._onPickingAdded)
         viewer.removePluginListener('remove', this._onPickingRemoved)
         viewer.removeEventListener('preRender', this._preRender)
+        viewer.renderManager.removeEventListener('preRender', this._onRender)
         if (this._pass) {
             viewer.renderManager.unregisterPass(this._pass)
             this._pass.dispose()
@@ -331,8 +333,15 @@ if (selCoverage > 0.0) {
         u.selXray.value = this.xray ? 1 : 0
         u.selParts.value = this.parts ? 0.6 : 0
         u.selDim.value = this.dimOthers ? 0.55 : 0
-        const camera = this._viewer.scene.mainCamera
-        u.selNearFar.value.set(camera.near, camera.far)
+        this._viewer.renderManager.screenPass.material.uniformsNeedUpdate = true
+    }
+
+    // each render of the render manager, also of a VirtualCamerasPlugin camera: the x-ray test uses the near and far of
+    // the camera that renders, as the mask depth and the gbuffer depth do
+    private _onRender = (e: {scene: IScene}) => {
+        const camera = e.scene.renderCamera
+        if (!camera || !this._viewer) return
+        this.extraUniforms.selNearFar.value.set(camera.near, camera.far)
         this._viewer.renderManager.screenPass.material.uniformsNeedUpdate = true
     }
 }
