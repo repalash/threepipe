@@ -588,6 +588,52 @@ describe('CanvasRecorderPlugin stop and remove', () => {
         expect(camera.position.toArray().map((v: number) => +v.toFixed(5))).toEqual([0, 0, 5])
     })
 
+    test('a removal while the turntable waits for the camera interactions settles it and leaves the camera alone', async() => {
+        const popmotion = {animate: vi.fn()}
+        const {plugin, viewer} = removable({PopmotionPlugin: popmotion})
+        const camera = viewer.scene.mainCamera
+        camera.interactionsEnabled = false // another animation has them
+        viewer.doOnce = async() => new Promise(() => undefined) // a viewer dispose: the frames never come
+        const recording = plugin.recordCamera360(1)
+        await new Promise(r => setTimeout(r, 5))
+        plugin.onRemove(viewer)
+        expect(await Promise.race([recording, new Promise(r => setTimeout(() => r('hung'), 100))])).toBeUndefined()
+        expect(camera.setInteractions).not.toHaveBeenCalled()
+        expect(popmotion.animate).not.toHaveBeenCalled()
+        expect(plugin._frameWaits.size).toBe(0)
+    })
+
+    test('a removal of the recorder while the turntable waits for the camera interactions: the next frame does not read the viewer', async() => {
+        const popmotion = {animate: vi.fn()}
+        const {plugin, viewer} = removable({PopmotionPlugin: popmotion})
+        const camera = viewer.scene.mainCamera
+        camera.interactionsEnabled = false
+        let frame!: () => void
+        viewer.doOnce = async() => new Promise<void>(r => frame = r)
+        const recording = plugin.recordCamera360(1)
+        await new Promise(r => setTimeout(r, 5))
+        plugin.onRemove(viewer)
+        frame() // the viewer still runs
+        expect(await Promise.race([recording, new Promise(r => setTimeout(() => r('hung'), 100))])).toBeUndefined()
+        expect(camera.setInteractions).not.toHaveBeenCalled()
+        expect(popmotion.animate).not.toHaveBeenCalled()
+    })
+
+    test('a removal before the recorder starts rejects record() without its action, also when the start event comes later', async() => {
+        const {plugin, viewer} = removable()
+        const rec = plugin._recorder
+        rec.start = () => undefined // a recorder that starts later (e.g. one of a subclass)
+        rec.dispose = () => undefined // and does not end the start when it is disposed
+        const action = vi.fn()
+        const recording = plugin.record(action)
+        await new Promise(r => setTimeout(r, 5))
+        plugin.onRemove(viewer)
+        await expect(Promise.race([recording, new Promise((_, r) => setTimeout(() => r(new Error('hung')), 100))])).rejects.toBeUndefined()
+        plugin.dispatchEvent({type: 'start'})
+        expect(action).not.toHaveBeenCalled()
+        expect(plugin._frameWaits.size).toBe(0)
+    })
+
     test('onRemove drops the disposed recorders, so an add makes new ones', () => {
         const {plugin} = setup()
         const dispose = vi.fn()

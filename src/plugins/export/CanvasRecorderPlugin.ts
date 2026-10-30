@@ -308,6 +308,7 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
                     this.removeEventListener('start', listenerStart)
                     this.removeEventListener('stop', listener2)
                     this.removeEventListener('error', listenerError)
+                    this._frameWaits.delete(listenerError)
                 }
                 const listenerStart = async() => {
                     listener2()
@@ -328,6 +329,8 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
                 this.addEventListener('start', listenerStart)
                 this.addEventListener('stop', listener2)
                 this.addEventListener('error', listenerError)
+                // a removal (or a viewer dispose) before the start ends it as a start error: the action does not run
+                this._frameWaits.add(listenerError)
                 if (!this.startRecording()) {
                     listener2()
                     reject(new Error('CanvasRecorderPlugin: the recording could not start'))
@@ -441,8 +444,8 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
     }
 
     /**
-     * The ends of the frame waits of a stop and of the action of {@link record}; {@link onRemove} calls them, as no
-     * frame comes after it
+     * The ends of the waits that a removal ends: the frame waits of a stop and of the turntable start, and the start
+     * and the action of {@link record}; {@link onRemove} calls them, as no frame comes after it
      */
     private _frameWaits = new Set<() => void>()
 
@@ -716,13 +719,16 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
             this._viewer.console.error('CanvasRecorderPlugin: PopmotionPlugin required to record the turntable')
             return
         }
-        const camera = this._viewer.scene.mainCamera
+        const viewer = this._viewer
+        const camera = viewer.scene.mainCamera
         let interactions = camera.interactionsEnabled
         let i = 0
         while (!interactions) { // by camera view/animation plugin
-            this._viewer.setDirty()
-            await this._viewer.doOnce('postFrame')
-            if (i % 30 === 0) this._viewer.console.warn('CanvasRecorderPlugin: interactions are already disabled by something, waiting...')
+            viewer.setDirty()
+            await this._untilRemoved(viewer.doOnce('postFrame'))
+            // removed (or the viewer disposed) during the wait: the camera is not changed yet, and nothing records
+            if (this._viewer !== viewer) return
+            if (i % 30 === 0) viewer.console.warn('CanvasRecorderPlugin: interactions are already disabled by something, waiting...')
             interactions = camera.interactionsEnabled
             if (i > 5000 / 30) break // 5 seconds (if 30fps)
             i++
