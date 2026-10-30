@@ -471,6 +471,23 @@ describe('StickyNotesUiPlugin', () => {
         expect(state().board.n1).toMatchObject({x: 300, y: 200})
     })
 
+    test('stack: a note added goes on top, and that order is saved, so a reload shows the same pile', () => {
+        const {notes, sticky, viewer} = setup()
+        sticky.layout = 'stack'
+        const f1 = notes.addNote('f1', 'file')
+        const b1 = notes.addNote('b1', 'browser')
+        const f2 = notes.addNote('f2', 'file')
+        expect(notes.notes.map(n => n.text)).toEqual(['f1', 'f2', 'b1']) // the order of the stores
+        expect(state().order).toEqual([f1.id, b1.id, f2.id])
+
+        // the page again: new post-its over the same notes
+        sticky.onRemove(viewer)
+        const again = new StickyNotesUiPlugin()
+        again.onAdded(viewer)
+        const top = cards(again.element as any as FakeElement).find(c => c.style.zIndex === '3')!
+        expect(text(top).value).toBe('f2')
+    })
+
     test('the saved order keeps the notes of a store that still loads, so the pile comes back as it was', async() => {
         storage.set('threepipe-sticky-notes', JSON.stringify({layout: 'stack', order: ['s1', 'm1']}))
         let answer!: (notes: NoteItem[]) => void

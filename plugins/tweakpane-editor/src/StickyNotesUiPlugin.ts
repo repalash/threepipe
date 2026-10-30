@@ -348,7 +348,8 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         // a note made now goes on top
         if (added) this._setOrder([...this._order().filter(o => o !== added), added])
         this._showCount()
-        this._layoutCards(!!added)
+        // the order with the new note on top is saved (in the stack layout, nothing else saves it)
+        if (!this._layoutCards(!!added) && added) this._writeState()
     }
 
     /** The number of notes on the button of the `minimized` layout */
@@ -398,10 +399,13 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         this._state.order = kept
     }
 
-    /** Sets the place, size and depth of every post-it for the layout. `animate`: they glide there. */
-    private _layoutCards(animate: boolean) {
+    /**
+     * Sets the place, size and depth of every post-it for the layout. `animate`: they glide there. Returns true when
+     * it saved the state (places for new post-its on the board).
+     */
+    private _layoutCards(animate: boolean): boolean {
         this.element.classList.toggle('snp-instant', !animate)
-        if (this.layout === 'minimized') return // off the canvas: laid out when they come back
+        if (this.layout === 'minimized') return false // off the canvas: laid out when they come back
         const order = this._order()
         // read once: a read after the style writes below would lay out the page again for each post-it
         const size = this._size()
@@ -432,8 +436,12 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
                 c.card.style.visibility = ''
                 c.card.classList.remove('snp-behind')
             })
-            if (columns) this._writeState()
+            if (columns) {
+                this._writeState()
+                return true
+            }
         }
+        return false
     }
 
     /** The lowest edge of a post-it placed on the board: above the dock */
