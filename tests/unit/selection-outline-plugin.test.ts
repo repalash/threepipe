@@ -1,5 +1,5 @@
 import {describe, expect, test, vi} from 'vitest'
-import {BoxGeometry, EventDispatcher, Group, Mesh, MeshBasicMaterial, Object3D, PerspectiveCamera, ShaderMaterial, Texture, Vector3} from 'three'
+import {BoxGeometry, CustomBlending, EventDispatcher, Group, MaxEquation, Mesh, MeshBasicMaterial, NoBlending, Object3D, PerspectiveCamera, ShaderMaterial, Texture, Vector3} from 'three'
 import {lineMaskFragment, SelectionMaskPass, selectionMaskMaterial, SelectionOutlinePlugin} from '../../plugins/tweakpane-editor/src/SelectionOutlinePlugin'
 
 const mesh = (name: string) => Object.assign(new Mesh(new BoxGeometry()), {name})
@@ -290,6 +290,37 @@ describe('SelectionOutlinePlugin', () => {
         for (const d of ['dSel', 'dHov', 'dPart']) expect(glsl).toContain(`${d} < selNoHit`)
     })
 
+    test('the hover is a second draw into its own channel: a hovered object in front of the selection does not hide it', () => {
+        const material = selectionMaskMaterial()
+        const pass = new SelectionMaskPass(() => ({width: 4, height: 4}) as any, material)
+        const selected = mesh('selected')
+        const hovered = mesh('hovered') // in front of the selected mesh, not selected
+        pass.getItems = () => new Map([[selected, new Vector3(1, 0, 0)], [hovered, new Vector3(0, 0, 1)]])
+        pass.scene = new Group() as any
+        pass.camera = new PerspectiveCamera() as any
+        const draws: any[] = []
+        const renderer: any = {
+            getRenderTarget: () => null, getActiveCubeFace: () => 0, getActiveMipmapLevel: () => 0, setRenderTarget: () => {},
+            renderWithModes: () => draws.push({
+                on: [selected, hovered].filter(o => o.layers.isEnabled(SelectionMaskPass.Layer)).map(o => o.name),
+                hover: material.uniforms.maskHover.value, blending: material.blending, equation: material.blendEquation,
+                depthTest: material.depthTest, depthWrite: material.depthWrite, clear: pass.clear,
+            }),
+        }
+        pass.render(renderer)
+        expect(draws).toEqual([
+            // the selection: ids and depth, depth tested
+            {on: ['selected'], hover: 0, blending: NoBlending, equation: material.blendEquation, depthTest: true, depthWrite: true, clear: true},
+            // the hover: the inverse of its depth in B, max blended, no depth test, so it keeps R, G and A of the selection
+            {on: ['hovered'], hover: 1, blending: CustomBlending, equation: MaxEquation, depthTest: false, depthWrite: false, clear: false},
+        ])
+        expect(pass.clear).toBe(true)
+        expect(material.fragmentShader).toContain('vec4(0., 0., 1. / (d + 1e-4), 0.)')
+        // the outline reads the hover depth from B, not the depth of the selection in A
+        const glsl = new SelectionOutlinePlugin().parsFragmentSnippet() as string
+        expect(glsl).toContain('nHov = vec3(uv, selHoverDepth(s.b))')
+    })
+
     test('the mask material is cut by the clipping planes of the renderer, as the render', () => {
         const material = selectionMaskMaterial()
         expect(material.clipping).toBe(true) // the renderer passes the clipping planes uniform
@@ -303,10 +334,10 @@ describe('SelectionOutlinePlugin', () => {
         const frag = lineMaskFragment(line)
         expect(frag).toContain('uniform float dashSize;')
         expect(frag).toContain('if (dash) discard;')
-        expect(frag).toContain('gl_FragColor = vec4(itemData, maskDepth);')
+        expect(frag).toContain('vec4(itemData.xy, 0., maskDepth)')
         expect(frag).not.toContain('gl_FragColor = vec4(diffuse') // the line's colour output is cut
         expect(frag.indexOf('discard')).toBeLessThan(frag.indexOf('vec4(itemData'))
-        expect(lineMaskFragment('void main() {}')).toContain('gl_FragColor = vec4(itemData, maskDepth);') // no coverage point
+        expect(lineMaskFragment('void main() {}')).toContain('vec4(itemData.xy, 0., maskDepth)') // no coverage point
     })
 
     test('the line mask follows the defines of the line (a line made dashed after its first mask)', () => {

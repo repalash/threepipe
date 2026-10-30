@@ -1,6 +1,7 @@
 import {
     AScreenPassExtensionPlugin,
     Color,
+    CustomBlending,
     DoubleSide,
     GBufferPlugin,
     HalfFloatType,
@@ -12,6 +13,7 @@ import {
     IWebGLRenderer,
     Material,
     Matrix3,
+    MaxEquation,
     Mesh,
     MeshPhysicalMaterial,
     NearestFilter,
@@ -42,7 +44,9 @@ const PICKING_TYPE = 'PickingPlugin'
  * Draws the outline of the selected and hovered objects in the render pipeline, as in Figma or Blender.
  *
  * 1. A {@link SelectionMaskPass} renders the meshes of the selected and hovered objects into a half-float mask, with its
- *    own depth buffer: R = selected item, G = part inside that item, B = hovered, A = linear depth.
+ *    own depth buffer: R = selected item, G = part inside that item, A = linear depth of the selection, B = the hover (the
+ *    inverse of its own linear depth, 0 = none). The hover is a second draw, so a hovered object in front of the
+ *    selection does not hide it, and the reverse.
  * 2. An extension of the screen pass reads the mask after tonemapping and draws an anti-aliased outer outline around
  *    each selected object and the hovered object. Options: thin lines between the parts of an item ({@link parts}),
  *    a dashed outline where the selection is behind other objects ({@link xray}), a fill tint ({@link fill}), and a dim
@@ -380,8 +384,9 @@ export class SelectionMaskPass extends RenderPass implements IPipelinePass<'sele
         material.onBeforeRender = (_r, _s, _c, _g, object, group) => {
             const d = this._items.get(object)
             if (d) material.uniforms.itemData.value.copy(d)
-            // an object that is on the layer but not in the mask (not selected or hovered) writes nothing
-            material.uniforms.maskSkip.value = d ? 0 : 1
+            // an object that is on the layer but not in this draw (not selected, or not hovered in the hover draw) writes
+            // nothing
+            material.uniforms.maskSkip.value = d && (this._hoverDraw ? d.z > 0 : d.x > 0) ? 0 : 1
             // a mesh with a material array: the material of the geometry group drawn now (three types this argument as
             // a Group object, but the renderer passes the geometry group)
             const own = (object as Mesh).material
@@ -422,36 +427,69 @@ export class SelectionMaskPass extends RenderPass implements IPipelinePass<'sele
             const layer = SelectionMaskPass.Layer
             // the layer masks before the pass: an object that is on the layer already keeps it
             const masks = new Map<Object3D, number>()
-            for (const o of this._items.keys()) {
-                masks.set(o, o.layers.mask)
-                o.layers.enable(layer)
-            }
+            for (const o of this._items.keys()) masks.set(o, o.layers.mask)
             // fat lines are instanced quads that only a line shader turns into lines: give them a line-shaped mask material
             const lines: Object3D[] = []
+            const materials: ShaderMaterial[] = [this.overrideMaterial]
             for (const o of this._items.keys()) {
                 const line = o as any
                 const lm = line.isLine2 || line.isLineSegments2 ? line.currentMaterial ?? line.material : null
                 if (!lm?.isLineMaterial) continue
                 line.forcedOverrideMaterial = this._lineMask(lm)
+                materials.push(line.forcedOverrideMaterial)
                 lines.push(o)
             }
             const mask = this.camera.layers.mask
             this.camera.layers.set(layer)
-            renderer.renderWithModes({
-                shadowMapRender: false,
-                backgroundRender: false,
-                opaqueRender: true,
-                transparentRender: true,
-                // glass (transmission > 0) is in the transmissive list: draw it with the mask material too.
-                // true, not undefined: the renderer draws the list without its transmission pre-pass
-                transmissionRender: true,
-                mainRenderPass: false,
-            }, () => super.render(renderer, writeBuffer as any, target, deltaTime as any, maskActive as any))
+            // the selection, then the hover: two draws, so neither hides the other where they overlap
+            let hasHover = false
+            for (const d of this._items.values()) hasHover = hasHover || d.z > 0
+            this._draw(renderer, masks, materials, false, () => super.render(renderer, writeBuffer as any, target, deltaTime as any, maskActive as any))
+            if (hasHover) this._draw(renderer, masks, materials, true, () => super.render(renderer, writeBuffer as any, target, deltaTime as any, maskActive as any))
             for (const [o, m] of masks) o.layers.mask = m
             for (const o of lines) delete (o as any).forcedOverrideMaterial
             this.camera.layers.mask = mask
         }
         renderer.setRenderTarget(t, face, mip)
+    }
+
+    // true during the hover draw
+    private _hoverDraw = false
+
+    /**
+     * One draw of the mask. The selection draw writes the item, the part and the depth, with the depth test. The hover
+     * draw writes only B, the inverse of the hover's depth, with max blending and no depth test: the nearest hover
+     * surface is the largest value, and R, G and A (0 in the hover output) keep the selection.
+     */
+    private _draw(renderer: IWebGLRenderer, masks: Map<Object3D, number>, materials: ShaderMaterial[], hover: boolean, render: () => void) {
+        const layer = SelectionMaskPass.Layer
+        for (const [o, m] of masks) {
+            const d = this._items.get(o)
+            o.layers.mask = m
+            if (d && (hover ? d.z > 0 : d.x > 0)) o.layers.enable(layer)
+            else o.layers.disable(layer)
+        }
+        for (const m of materials) {
+            if (m.uniforms.maskHover) m.uniforms.maskHover.value = hover ? 1 : 0
+            m.blending = hover ? CustomBlending : NoBlending
+            m.blendEquation = MaxEquation
+            m.depthTest = m.depthWrite = !hover
+        }
+        this._hoverDraw = hover
+        const clear = this.clear
+        if (hover) this.clear = false
+        renderer.renderWithModes({
+            shadowMapRender: false,
+            backgroundRender: false,
+            opaqueRender: true,
+            transparentRender: true,
+            // glass (transmission > 0) is in the transmissive list: draw it with the mask material too.
+            // true, not undefined: the renderer draws the list without its transmission pre-pass
+            transmissionRender: true,
+            mainRenderPass: false,
+        }, render)
+        this.clear = clear
+        this._hoverDraw = false
     }
 
     /** The mask of each line material; a mask is disposed with its line material, and all with the pass */
@@ -471,7 +509,7 @@ export class SelectionMaskPass extends RenderPass implements IPipelinePass<'sele
         let m = this._lineMasks.get(lm)
         if (!m) {
             m = new ShaderMaterial({
-                uniforms: {...lm.uniforms, itemData: {value: new Vector3()}, cameraNearFar: {value: new Vector2(0.1, 1000)}, cameraOrtho: {value: 0}},
+                uniforms: {...lm.uniforms, itemData: {value: new Vector3()}, cameraNearFar: {value: new Vector2(0.1, 1000)}, cameraOrtho: {value: 0}, maskHover: {value: 0}},
                 defines: {...lm.defines},
                 vertexShader: lm.vertexShader,
                 fragmentShader: lineMaskFragment(lm.fragmentShader),
@@ -523,6 +561,7 @@ export function selectionMaskMaterial() {
         uniforms: {
             cameraNearFar: {value: new Vector2(0.1, 100)},
             itemData: {value: new Vector3()},
+            maskHover: {value: 0},
             ...maskAlphaUniforms(),
         },
         vertexShader: MASK_VERT,
@@ -664,6 +703,7 @@ const MASK_FRAG = /* glsl */`
 #include <clipping_planes_pars_fragment>
 uniform vec2 cameraNearFar;
 uniform vec3 itemData;
+uniform float maskHover;
 uniform float maskSkip;
 uniform float maskOpacity;
 uniform sampler2D maskMap;
@@ -686,7 +726,8 @@ void main() {
     if (alpha < maskAlphaCut) discard;
     // same linear depth as the gbuffer: (viewZ - near) / (far - near)
     float d = clamp((vViewPosition.z - cameraNearFar.x) / (cameraNearFar.y - cameraNearFar.x), 0., 1.);
-    gl_FragColor = vec4(itemData, d);
+    // the hover draw (max blended): only B, the inverse of the depth, so the nearest surface is the largest
+    gl_FragColor = maskHover > 0.5 ? vec4(0., 0., 1. / (d + 1e-4), 0.) : vec4(itemData.xy, 0., d);
 }
 `
 
@@ -695,6 +736,7 @@ const LINE_MASK_PARS = /* glsl */`
 uniform vec2 cameraNearFar;
 uniform vec3 itemData;
 uniform float cameraOrtho;
+uniform float maskHover;
 `
 
 const LINE_MASK_OUTPUT = /* glsl */`
@@ -703,7 +745,7 @@ const LINE_MASK_OUTPUT = /* glsl */`
         -orthographicDepthToViewZ(gl_FragCoord.z, cameraNearFar.x, cameraNearFar.y) :
         -perspectiveDepthToViewZ(gl_FragCoord.z, cameraNearFar.x, cameraNearFar.y);
     float maskDepth = clamp((maskViewZ - cameraNearFar.x) / (cameraNearFar.y - cameraNearFar.x), 0., 1.);
-    gl_FragColor = vec4(itemData, maskDepth);
+    gl_FragColor = maskHover > 0.5 ? vec4(0., 0., 1. / (maskDepth + 1e-4), 0.) : vec4(itemData.xy, 0., maskDepth);
 `
 
 /**
@@ -749,6 +791,11 @@ vec4 selOver(vec4 dst, vec3 c, float a) {
 // true when the masked surface at uv is hidden by another object in the scene. Both depths are
 // (viewZ - near) / (far - near). The tolerance is 0.5% of the view distance (the depth step of a sloped surface across
 // a pixel, and the precision of the two buffers), not of far - near, so a wide clipping range does not hide occlusion.
+// the linear depth of the hover from the B channel of the mask (B > 0.5 where hovered)
+float selHoverDepth(float b) {
+    return 1.0 / b - 1e-4;
+}
+
 float selHidden(vec2 uv, float maskDepth) {
     float range = selNearFar.y - selNearFar.x;
     float viewZ = selNearFar.x + maskDepth * range;
@@ -761,7 +808,7 @@ vec4 selectionOutline(in vec4 color) {
     vec4 c = texture2D(tSelectionMask, vUv);
     float cSel = floor(c.r + 0.5);
     float cPart = floor(c.g + 0.5);
-    float cHov = floor(c.b + 0.5);
+    float cHov = step(0.5, c.b);
     vec4 col = color;
     float dash = mod(floor((gl_FragCoord.x + gl_FragCoord.y) / 3.0), 2.0);
 
@@ -792,7 +839,7 @@ vec4 selectionOutline(in vec4 color) {
             vec4 s = texture2D(tSelectionMask, uv);
             float sSel = floor(s.r + 0.5);
             float sPart = floor(s.g + 0.5);
-            float sHov = floor(s.b + 0.5);
+            float sHov = step(0.5, s.b);
             // outer outline of each selected item (one-sided where two items touch)
             if (sSel > 0.5 && sSel != cSel && (cSel < 0.5 || sSel > cSel) && r < dSel) {
                 dSel = r;
@@ -800,7 +847,7 @@ vec4 selectionOutline(in vec4 color) {
             }
             if (sHov > 0.5 && cHov < 0.5 && r < dHov) {
                 dHov = r;
-                nHov = vec3(uv, s.a);
+                nHov = vec3(uv, selHoverDepth(s.b));
             }
             // segmentation lines between parts of the same item
             if (ri == 0 && sSel == cSel && cSel > 0.5 && sPart != cPart && sPart > cPart) dPart = min(dPart, r);
