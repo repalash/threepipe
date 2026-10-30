@@ -52,6 +52,15 @@
         dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 0; }
         dt { color: #667; }
         dd { margin: 0; font-variant-numeric: tabular-nums; }
+        /* Phones: a compact sheet at the bottom, and the 3D view ends above it so the robot stays in sight. */
+        @media (max-width: 560px) {
+            #canvas-container { height: calc(100% - var(--sheet, 0px)); }
+            #mb-panel { top: auto; bottom: 0; left: 0; right: 0; max-width: none; border-radius: 12px 12px 0 0; padding: 10px 14px; gap: 6px; }
+            #mb-panel h1 { font-size: 14px; }
+            #mb-panel .row { flex-wrap: nowrap; overflow-x: auto; }
+            #mb-panel button { white-space: nowrap; }
+            #mb-hint, #mb-panel dl { display: none; }
+        }
     </style>
     <script type="module" src="../examples-utils/global-loading.mjs"></script>
     <script type="module" src="../examples-utils/simple-code-preview.mjs"></script>
@@ -72,7 +81,7 @@
         <button id="mb-stop" type="button">Stop</button>
         <button id="mb-fx" type="button">Effects</button>
     </div>
-    <div>Click the floor, or drive with WASD / arrow keys (Shift runs).</div>
+    <div id="mb-hint">Click the floor, or drive with WASD / arrow keys (Shift runs).</div>
     <dl>
         <dt>Backend</dt><dd id="mb-backend">–</dd>
         <dt>Inference</dt><dd id="mb-latency">–</dd>
@@ -80,5 +89,10 @@
         <dt>Generations</dt><dd id="mb-count">0</dd>
     </dl>
 </div>
+<script>
+    // The sheet's height on phones sets where the 3D view ends.
+    const mbPanel = document.getElementById('mb-panel')
+    new ResizeObserver(() => document.documentElement.style.setProperty('--sheet', mbPanel.offsetHeight + 'px')).observe(mbPanel)
+</script>
 </body>
 </html>

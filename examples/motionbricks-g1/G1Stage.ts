@@ -494,7 +494,11 @@ export class G1Stage {
         const view = style.camera ?? DEFAULT_CAMERA
         const camera = v.scene.mainCamera
         camera.fov = view.fov
-        camera.position.copy(this._target).add(new Vector3(...view.offset))
+        // The field of view is vertical, so a tall (phone) canvas sees a narrow slice; step back to keep the width.
+        const canvas = v.canvas
+        const aspect = canvas.clientWidth / Math.max(1, canvas.clientHeight)
+        const distance = aspect < 1 ? Math.min(1.9, Math.pow(1 / aspect, 0.75)) : 1
+        camera.position.copy(this._target).add(new Vector3(...view.offset).multiplyScalar(distance))
         camera.target.copy(this._target)
         camera.setDirty()
 
