@@ -4,8 +4,8 @@ prev:
     link: './RenderTargetPreviewPlugin'
 
 next:
-    text: 'TailwindCSSCDNPlugin'
-    link: './TailwindCSSCDNPlugin'
+    text: 'PerfPanelPlugin'
+    link: './PerfPanelPlugin'
 
 ---
 

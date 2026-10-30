@@ -38,6 +38,7 @@ import {
     Object3DWidgetsPlugin,
     ObjectConstraintsPlugin,
     ParallaxMappingPlugin,
+    PerfPanelPlugin,
     PickingPlugin,
     PLYLoadPlugin,
     PointerLockControlsPlugin,
@@ -63,7 +64,7 @@ import {
     VirtualCamerasPlugin,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
-import {HierarchyUiPlugin, TweakpaneEditorPlugin} from '@threepipe/plugin-tweakpane-editor'
+import {HierarchyUiPlugin, NotesPlugin, StickyNotesUiPlugin, TweakpaneEditorPlugin} from '@threepipe/plugin-tweakpane-editor'
 import {BlendLoadPlugin} from '@threepipe/plugin-blend-importer'
 import {extraImportPlugins} from '@threepipe/plugins-extra-importers'
 import {FontLibrary, GeometryGeneratorExtrasPlugin} from '@threepipe/plugin-geometry-generator'
@@ -135,6 +136,7 @@ export class ThreeEditor extends ThreeViewer {
         VirtualCamerasPlugin,
         // new SceneUiConfigPlugin(), // this is already in ViewerUiPlugin
         new RenderTargetPreviewPlugin(true),
+        PerfPanelPlugin,
         new FrameFadePlugin(),
         new HDRiGroundPlugin(false, true),
         new VignettePlugin(false),
@@ -174,6 +176,7 @@ export class ThreeEditor extends ThreeViewer {
         TroikaTextPlugin,
         new CascadedShadowsPlugin(false),
         DynamicImportPlugin,
+        NotesPlugin, StickyNotesUiPlugin,
     ]
 
     editorModes: Record<string, Class<IViewerPlugin<any>>[]> = {
@@ -184,8 +187,8 @@ export class ThreeEditor extends ThreeViewer {
         ['Export']: [AssetExporterPlugin, CanvasSnapshotPlugin, AWSClientPlugin, TransfrSharePlugin, AssimpJsPlugin, LoadingScreenPlugin],
         ['Configurator']: [MaterialConfiguratorPlugin, SwitchNodePlugin, GLTFKHRMaterialVariantsPlugin],
         ['Animation']: [TimelineUiPlugin, AnimationObjectPlugin, GLTFAnimationPlugin, CameraViewPlugin],
-        ['Extras']: [HDRiGroundPlugin, Rhino3dmLoadPlugin, ClearcoatTintPlugin, FragmentClippingExtensionPlugin, NoiseBumpMaterialPlugin, AnisotropyPlugin, CustomBumpMapPlugin, VirtualCamerasPlugin, TilesRendererPlugin, EntityComponentPlugin],
-        ['Debug']: [RenderTargetPreviewPlugin, DynamicImportPlugin],
+        ['Extras']: [HDRiGroundPlugin, Rhino3dmLoadPlugin, ClearcoatTintPlugin, FragmentClippingExtensionPlugin, NoiseBumpMaterialPlugin, AnisotropyPlugin, CustomBumpMapPlugin, VirtualCamerasPlugin, TilesRendererPlugin, EntityComponentPlugin, StickyNotesUiPlugin, NotesPlugin],
+        ['Debug']: [RenderTargetPreviewPlugin, PerfPanelPlugin, DynamicImportPlugin],
     }
 
     async init() {
@@ -205,6 +208,10 @@ export class ThreeEditor extends ThreeViewer {
         // disable fading on update
         const fade = this.getPlugin(FrameFadePlugin)
         fade && (fade.isEditor = true)
+
+        // the buttons of the notes go above the logo at the bottom left of the canvas
+        const sticky = this.getPlugin(StickyNotesUiPlugin)
+        sticky && (sticky.dock.style.bottom = '64px')
 
         const taa = this.getPlugin(TemporalAAPlugin)
         taa && (taa.stableNoise = true)
