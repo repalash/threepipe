@@ -176,6 +176,9 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         window.addEventListener('keydown', this._onKeyDown, {capture: true})
         window.addEventListener('keyup', this._onKeyUp, {capture: true})
         window.addEventListener('blur', this._onBlur)
+        // a scroll of any element (scroll does not bubble: the capture phase sees it) or a resize can move the canvas
+        window.addEventListener('scroll', this._onMoved, {capture: true, passive: true})
+        window.addEventListener('resize', this._onMoved)
         viewer.addEventListener('preFrame', this._onPreFrame)
         viewer.addEventListener('postFrame', this._onPostFrame)
         viewer.addEventListener('preRender', this._onPreRender)
@@ -211,6 +214,8 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         window.removeEventListener('keydown', this._onKeyDown, {capture: true})
         window.removeEventListener('keyup', this._onKeyUp, {capture: true})
         window.removeEventListener('blur', this._onBlur)
+        window.removeEventListener('scroll', this._onMoved, {capture: true})
+        window.removeEventListener('resize', this._onMoved)
         viewer.removeEventListener('preFrame', this._onPreFrame)
         viewer.removeEventListener('postFrame', this._onPostFrame)
         viewer.removeEventListener('preRender', this._onPreRender)
@@ -693,6 +698,11 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
             p.hoverEnabled = this._pickingSaved!.hover
             this._pickingSaved = undefined
         }
+    }
+
+    /** The canvas can move on the page without a render: place the overlay again on the next frame, when it is shown */
+    private _onMoved = () => {
+        if (this._overlayShown) this._overlayDirty = true
     }
 
     private _onPostFrame = () => {

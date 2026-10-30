@@ -1080,6 +1080,31 @@ describe('SelectionUxPlugin', () => {
         }
     })
 
+    test('overlay: a scroll of any element or a window resize that moves the canvas draws it again, at the new place', () => {
+        const {ux, viewer, canvas, frame} = setup()
+        // the canvas is in a static scrolling container; the offset parent of the overlay is outside it, at the origin
+        let left = 0, top = 0
+        canvas.getBoundingClientRect = () => ({left, top, width: SIZE, height: SIZE})
+        const root = canvas.children[0] as any
+        root.offsetParent = {getBoundingClientRect: () => ({left: 0, top: 0}), clientLeft: 0, clientTop: 0, scrollLeft: 0, scrollTop: 0}
+        frame()
+        expect([root.style.left, root.style.top]).toEqual(['0.0px', '0.0px'])
+        top = -30 // the container scrolls by 30 px
+        frame()
+        expect(root.style.top).toBe('0.0px') // no render, no change seen
+        // scroll does not bubble: the window sees the scroll of any element in the capture phase
+        window.dispatchEvent(new Event('scroll'))
+        frame()
+        expect(root.style.top).toBe('-30.0px')
+        left = 12 // a window resize moves the canvas, not its size: no render
+        window.dispatchEvent(new Event('resize'))
+        frame()
+        expect(root.style.left).toBe('12.0px')
+        const removed = vi.spyOn(globalThis, 'removeEventListener')
+        ux.onRemove(viewer)
+        for (const type of ['scroll', 'resize']) expect(removed.mock.calls.some(c => c[0] === type)).toBe(true)
+    })
+
     test('overlay: a hover box of the PickingPlugin shown when the overlay starts is cleared', () => {
         const {picking, lamp, frame} = setup()
         picking.picker.setHoverObject(lamp)
