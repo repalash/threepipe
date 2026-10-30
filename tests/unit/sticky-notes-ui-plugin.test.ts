@@ -146,6 +146,9 @@ function setup(options: ConstructorParameters<typeof NotesPlugin>[0] = {}, canva
 }
 
 const cards = (layer: FakeElement) => layer.find('snp-card')
+/** The layer of the menus, next to the layer of the post-its */
+const popups = (layer: FakeElement) => layer.parent!.children.find(e => e.classList.contains('snp-popups'))!
+const menus = (layer: FakeElement) => popups(layer).find('snp-menu')
 /** The texts of the buttons that show in the dock */
 const dockButtons = (layer: FakeElement) => layer.find('snp-dock')[0].all().filter(b => b.style.display !== 'none').map(b => b.textContent)
 /** What the ResizeObserver does when a post-it changes size */
@@ -168,7 +171,7 @@ describe('StickyNotesUiPlugin', () => {
 
     test('the layer is on the canvas with the dock; the UI folder has the settings, not the notes', () => {
         const {sticky, viewer, layer} = setup()
-        expect(viewer.container.children).toEqual([layer])
+        expect(viewer.container.children).toEqual([layer, popups(layer)])
         expect(dockButtons(layer)).toEqual(['+ Note', '▾', 'Arrange', 'Stack', 'Minimise'])
         expect(sticky.uiConfig.label).toBe('Sticky Notes')
         expect((sticky.uiConfig.children as any[]).map(c => c.label)).toEqual(['Show', 'Layout', 'Colour', 'Arrange', 'Reset places'])
@@ -184,11 +187,11 @@ describe('StickyNotesUiPlugin', () => {
         expect(cards(layer)[0].classList.contains('snp-new')).toBe(true)
 
         layer.button('▾').fire('click')
-        const menu = layer.find('snp-menu')[0]
+        const menu = menus(layer)[0]
         expect(menu.all().filter(e => e.tagName === 'button').map(b => b.textContent)).toEqual(['In the file', 'This browser'])
         menu.button('This browser').fire('click')
         expect(notes.notes.map(n => n.store)).toEqual(['file', 'browser'])
-        expect(layer.find('snp-menu')).toHaveLength(0)
+        expect(menus(layer)).toHaveLength(0)
         const top = cards(layer).find(c => c.style.zIndex === '2')!
         expect(top.find('snp-badge')[0].textContent).toBe('This browser')
     })
@@ -206,7 +209,7 @@ describe('StickyNotesUiPlugin', () => {
         expect(text(cards(layer)[0])).toBe(box)
 
         card.find('snp-badge')[0].fire('click')
-        layer.find('snp-menu')[0].button('This browser').fire('click')
+        menus(layer)[0].button('This browser').fire('click')
         expect(notes.notes[0].store).toBe('browser')
         expect(cards(layer)[0]).toBe(card)
         expect(card.find('snp-badge')[0].textContent).toBe('This browser')
@@ -251,15 +254,15 @@ describe('StickyNotesUiPlugin', () => {
         notes.addNote('b')
         const [ca, cb] = cards(layer)
         ca.find('snp-badge')[0].fire('click')
-        expect(layer.find('snp-menu')).toHaveLength(1)
+        expect(menus(layer)).toHaveLength(1)
         cb.find('snp-badge')[0].fire('click')
-        expect(layer.find('snp-menu')).toHaveLength(1)
-        layer.find('snp-menu')[0].button('This browser').fire('click')
+        expect(menus(layer)).toHaveLength(1)
+        menus(layer)[0].button('This browser').fire('click')
         expect(notes.notes.find(n => n.text === 'b')!.store).toBe('browser')
         expect(notes.notes.find(n => n.text === 'a')!.store).toBe('file')
         ca.find('snp-badge')[0].fire('click')
         ca.find('snp-badge')[0].fire('click')
-        expect(layer.find('snp-menu')).toHaveLength(0)
+        expect(menus(layer)).toHaveLength(0)
     })
 
     test('+ Context inserts the context line at the cursor', () => {
@@ -634,7 +637,7 @@ describe('StickyNotesUiPlugin', () => {
         const pick = layer.button('▾')
         pick.rect = {left: 70, top: 560, right: 90, bottom: 588}
         pick.fire('click')
-        const menu = layer.find('snp-menu')[0]
+        const menu = menus(layer)[0]
         // 150 high (the fake height): above the button, 4 px apart
         expect([menu.style.left, menu.style.top]).toEqual(['70px', '406px'])
     })
@@ -682,6 +685,26 @@ describe('StickyNotesUiPlugin', () => {
         } finally {
             vi.useRealTimers()
         }
+    })
+
+    test('the layers on the page: the post-its over the loading screen and under the bars of the editor; their menus with the popups', () => {
+        const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
+        const z = (css: string, selector: string) => Number(css.match(new RegExp(selector.replace(/[.#[\]"=]/g, '\\$&') + '\\s*{[^}]*z-index:\\s*(-?\\d+)'))?.[1])
+        const css = read('../../plugins/tweakpane-editor/src/StickyNotesUiPlugin.css')
+        const loading = z(read('../../src/plugins/interaction/LoadingScreenPlugin.css'), '#assetManagerLoadingScreen')
+        expect(loading).toBe(50)
+        expect(z(css, '.snp-layer')).toBeGreaterThan(loading)
+        expect(z(css, '.snp-layer')).toBeLessThan(200) // the bars of the editor
+        expect(z(css, '.snp-layer.snp-popups')).toBeGreaterThanOrEqual(2000) // the menu of EditorFrame
+        expect(z(css, '.snp-layer.snp-popups')).toBeLessThan(9999) // the context menu
+        // inside the layer, the dock is just above the post-its: no page-wide value
+        expect(z(css, '.snp-dock')).toBeLessThan(10)
+
+        // the menu opens in the layer of the popups, above the post-its and the dock
+        const {layer} = setup()
+        layer.button('▾').fire('click')
+        expect(menus(layer)).toHaveLength(1)
+        expect(layer.find('snp-menu')).toHaveLength(0)
     })
 
     test('on a touch screen the text of a note is 16 px, so a phone does not zoom in when it gets the cursor', () => {

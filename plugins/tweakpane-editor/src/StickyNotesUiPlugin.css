@@ -2,10 +2,19 @@
  * StickyNotesUiPlugin: post-its over the canvas. Each colour sets the --tp-* variables that the notes read, so the
  * `theme` colour keeps the Tweakpane theme.
  */
-/* above the overlays of the canvas (a logo, a view gizmo), below its buttons */
-/* clip, not hidden: the layer is not a box that scrolls, so a focus does not move the post-its */
+/*
+ * The layers on the page, in the viewer container. The post-its and the dock (.snp-layer, 150): above the loading
+ * screen (50) and the overlays of the canvas, below the bars and panels of the editor (200). Their menus
+ * (.snp-popups, 2000): at the level of the popups, like the menu of EditorFrame, below the context menu (9999).
+ * Clip, not hidden: the layer is not a box that scrolls, so a focus does not move the post-its.
+ */
 .snp-layer { position: absolute; inset: 0; z-index: 150; pointer-events: none; overflow: hidden; overflow: clip; }
+.snp-layer.snp-popups { z-index: 2000; }
 .snp-layer > * { pointer-events: auto; }
+/* in the layer: the post-its in their own box (each one's z-index is its place in the order), the dock above them */
+.snp-cards { position: absolute; inset: 0; z-index: 0; }
+.snp-layer > .snp-cards { pointer-events: none; }
+.snp-cards > * { pointer-events: auto; }
 /* the colours; `theme` keeps the ones of the page */
 .snp-layer:not([data-color="theme"]) { --tp-button-background-color-hover: rgba(0, 0, 0, 0.06); }
 .snp-layer[data-color="yellow"] {
@@ -80,7 +89,7 @@
 
 /* the buttons on the canvas */
 .snp-dock {
-    position: absolute; left: 12px; bottom: 12px; z-index: 100000; display: flex; gap: 2px; padding: 3px; border-radius: 8px;
+    position: absolute; left: 12px; bottom: 12px; z-index: 1; display: flex; gap: 2px; padding: 3px; border-radius: 8px;
     background: var(--tp-base-background-color, #ffffff); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.12);
 }
 .snp-dock button { padding: 4px 8px; }
@@ -89,7 +98,7 @@
 
 /* the stores of "▾" and of a badge */
 .snp-menu {
-    position: absolute; z-index: 100001; display: flex; flex-direction: column; min-width: 140px; padding: 4px; border-radius: 8px;
+    position: absolute; display: flex; flex-direction: column; min-width: 140px; padding: 4px; border-radius: 8px;
     background: var(--tp-base-background-color, #ffffff); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08), 0 6px 20px rgba(0, 0, 0, 0.14);
 }
 .snp-menu-title { padding: 4px 8px; color: var(--tp-label-foreground-color, #757575); font-size: 10px; }

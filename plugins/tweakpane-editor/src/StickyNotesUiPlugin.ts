@@ -90,7 +90,8 @@ const LAYER_STEP = 24
  *   the file.
  *
  * The post-its fill the nearest positioned ancestor of the layer, so the viewer container must be positioned (for
- * example `position: relative`) for the post-its to stay inside the canvas.
+ * example `position: relative`) for the post-its to stay inside the canvas. The post-its and the dock are above the
+ * loading screen and below the bars of the editor; their menus are in a second layer, with the popups of the page.
  *
  * The plugin's UI folder (Sticky Notes) has the settings: show, layout, colour, arrange, reset the places.
  *
@@ -120,7 +121,7 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
     /** The `localStorage` key of the layout, the colour, the places, the sizes and the order */
     readonly storageKey: string
 
-    /** The layer over the canvas that holds the post-its */
+    /** The layer over the canvas that holds the post-its and the dock */
     readonly element: HTMLDivElement
 
     /**
@@ -131,6 +132,10 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
     readonly dock: HTMLDivElement
 
     private _notes?: NotesPlugin
+    /** The box of the post-its in {@link element}: the dock is above all of them, however many there are */
+    private _cardsBox: HTMLDivElement
+    /** The layer of the menus, next to {@link element}: at the level of the popups of the page, above its bars */
+    private _popups: HTMLDivElement
     private _cards = new Map<string, NoteCard>()
     /** The post-it of each card element, for the ResizeObserver */
     private _byElement = new WeakMap<Element, NoteCard>()
@@ -185,6 +190,8 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         this.storageKey = storageKey
         if (StickyNotesUiPlugin.InjectStyles && !StickyNotesUiPlugin._styles?.isConnected) StickyNotesUiPlugin._styles = createStyles(styles)
         this.element = el('div', 'snp-layer')
+        this._cardsBox = el('div', 'snp-cards')
+        this._popups = el('div', 'snp-layer snp-popups')
         this.dock = el('div', 'snp-dock')
         const add = button('+ Note', 'Add a note', () => this.addNote(), 'snp-add')
         const pick = button('▾', 'Add a note in…', () => this._openMenu(pick, 'New note in', id => this.addNote(id), this._notes?.defaultStore), 'snp-add-to')
@@ -194,13 +201,16 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         this._restoreButton = button('', 'Put the post-its back on the canvas', () => this._restore(), 'snp-restore')
         this._openButtons = [add, pick, this._layoutButton, minimize]
         for (const b of [add, pick, this._arrangeButton, this._layoutButton, minimize, this._restoreButton]) this.dock.appendChild(b)
+        this.element.appendChild(this._cardsBox)
         this.element.appendChild(this.dock)
         // a focus (the cursor in a note, a phone keyboard) can scroll a box that hides its overflow: the post-its would
         // move away from their places and not come back
         this.element.addEventListener('scroll', () => this.element.scrollTop = this.element.scrollLeft = 0)
-        // the post-its and the dock keep their pointer and wheel from the viewer under them
-        this.element.addEventListener('pointerdown', e => e.stopPropagation())
-        this.element.addEventListener('wheel', e => e.stopPropagation())
+        // the post-its, the dock and the menus keep their pointer and wheel from the viewer under them
+        for (const layer of [this.element, this._popups]) {
+            layer.addEventListener('pointerdown', e => e.stopPropagation())
+            layer.addEventListener('wheel', e => e.stopPropagation())
+        }
         this._state = this._readState()
         this.layout = this._state.layout ?? this.layout
         this.color = this._state.color ?? this.color
@@ -216,6 +226,7 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         this._notes?.addEventListener('notesChanged', this._onNotesChanged)
         this._notes?.addEventListener('storeStatusChanged', this._onStatus)
         viewer.container.appendChild(this.element)
+        viewer.container.appendChild(this._popups)
         // the post-its stay inside the canvas when it changes size; without a ResizeObserver, on a window resize
         if (this._resizer) this._resizer.observe(this.element)
         else window.addEventListener('resize', this._onResize)
@@ -232,6 +243,7 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         for (const c of this._cards.values()) c.card.remove()
         this._cards.clear()
         this.element.remove()
+        this._popups.remove()
         this._notes = undefined
         super.onRemove(viewer)
     }
@@ -298,9 +310,9 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
 
     private _applyLook() {
         const minimized = this.layout === 'minimized'
-        this.element.dataset.color = this.color
+        this.element.dataset.color = this._popups.dataset.color = this.color
         this.element.dataset.layout = this.layout
-        this.element.style.display = this.shown ? '' : 'none'
+        this.element.style.display = this._popups.style.display = this.shown ? '' : 'none'
         for (const b of this._openButtons) b.style.display = minimized ? 'none' : ''
         this._restoreButton.style.display = minimized ? '' : 'none'
         this._showCount()
@@ -353,7 +365,7 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
             if (!c) {
                 c = this._makeCard(note)
                 this._cards.set(note.id, c)
-                this.element.insertBefore(c.card, this.dock)
+                this._cardsBox.appendChild(c.card)
                 if (note.id === added) c.card.classList.add('snp-new')
             }
             this._showNote(c, note)
@@ -701,7 +713,7 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
             if (store.id === current) b.classList.add('on')
             menu.appendChild(b)
         }
-        this.element.appendChild(menu)
+        this._popups.appendChild(menu)
         // below the button, or above it when there is no room below (the dock at the bottom); inside the canvas
         const r = anchor.getBoundingClientRect?.()
         const p = this.element.getBoundingClientRect?.()
