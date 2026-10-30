@@ -224,12 +224,16 @@ if (selCoverage > 0.0) {
         if (!this._isActive()) return items
         const sel = this.outlineSelected ? this._selected : []
         sel.forEach((o, i) => {
-            const parts = this.partsOf(o)
+            // the 1-based index of each part, so a mesh finds its part in the depth of the tree, not the count of parts
+            const parts = new Map<Object3D, number>()
+            this.partsOf(o).forEach((p, j) => {
+                if (!parts.has(p)) parts.set(p, j + 1)
+            })
             o.traverseVisible(m => {
                 if (!isMaskMesh(m)) return
                 let p: Object3D | null = m
-                while (p && p !== o && !parts.includes(p)) p = p.parent
-                const part = p && p !== o ? parts.indexOf(p) + 1 : 0
+                while (p && p !== o && !parts.has(p)) p = p.parent
+                const part = p && p !== o ? parts.get(p) ?? 0 : 0
                 items.set(m, new Vector3(i + 1, part, 0))
             })
         })
