@@ -273,6 +273,21 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
     }
 
     /**
+     * The raycast hits at a screen point, front to back as a click sees them: a line or a point is hit within a few
+     * pixels, and wins over a surface at about the same depth (a line on a surface is hit at about the surface's distance)
+     */
+    private _intersect(sx: number, sy: number) {
+        this._rayFromScreen(sx, sy)
+        const wpp = this._worldPerPixel((this._viewer!.scene.mainCamera as any).target ?? new Vector3())
+        this._raycaster.params.Line = {threshold: wpp * 5}
+        this._raycaster.params.Line2 = {threshold: 8} // fat lines: pixels added to the line width
+        const hits = this._raycaster.intersectObjects(this._rayRoots(), true)
+        const tol = wpp * 12
+        const depth = (h: typeof hits[number]) => h.distance - (isThin(h.object) ? tol : 0)
+        return hits.sort((a, b) => depth(a) - depth(b))
+    }
+
+    /**
      * The object that a press at a screen point is on. The selection wins over what is in front of it, like in Figma,
      * and a line or point wins over a surface at about the same depth. `handle` is set when the press is on a widget
      * handle (a curve point): the PickingPlugin selects it, so the transform gizmo can move it.
@@ -281,15 +296,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
      */
     raycastLeaf(sx: number, sy: number): {leaf: IObject3D, point: Vector3, handle?: Object3D} | null {
         if (!this._viewer || !this._picking?.picker) return null
-        this._rayFromScreen(sx, sy)
-        const wpp = this._worldPerPixel((this._viewer.scene.mainCamera as any).target ?? new Vector3())
-        this._raycaster.params.Line = {threshold: wpp * 5}
-        this._raycaster.params.Line2 = {threshold: 8} // fat lines: pixels added to the line width
-        const hits = this._raycaster.intersectObjects(this._rayRoots(), true)
-        // a line on a surface is hit at about the surface's distance: lines and points win within a few pixels of depth
-        const tol = wpp * 12
-        const depth = (h: typeof hits[number]) => h.distance - (isThin(h.object) ? tol : 0)
-        hits.sort((a, b) => depth(a) - depth(b))
+        const hits = this._intersect(sx, sy)
         const sel = this.selected
         const inSelection = (o: Object3D | null) => {
             for (let p = o; p; p = p.parent) if (sel.includes(p as IObject3D)) return true
@@ -314,9 +321,8 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
      */
     targetsAt(x: number, y: number, deep = false): IObject3D[] {
         if (!this._viewer || !this._picking?.picker) return []
-        this._rayFromScreen(x, y)
         const out: IObject3D[] = []
-        for (const hit of this._raycaster.intersectObjects(this._rayRoots(), true)) {
+        for (const hit of this._intersect(x, y)) {
             const leaf = this._hitLeaf(hit.object as IObject3D)
             const t = leaf && this.resolveTarget(leaf, deep, false)
             if (t && !out.includes(t)) out.push(t)

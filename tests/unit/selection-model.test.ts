@@ -1,5 +1,5 @@
 import {afterEach, beforeEach, describe, expect, test, vi} from 'vitest'
-import {BoxGeometry, DirectionalLight, EventDispatcher, Group, Mesh, MeshBasicMaterial, Object3D, PerspectiveCamera, Vector3} from 'three'
+import {BoxGeometry, BufferGeometry, DirectionalLight, EventDispatcher, Group, Line, LineBasicMaterial, Mesh, MeshBasicMaterial, Object3D, PerspectiveCamera, Vector3} from 'three'
 import {JSUndoManager} from 'ts-browser-helpers'
 import {IObject3D, ObjectPicker} from 'threepipe'
 import {
@@ -499,6 +499,23 @@ describe('SelectionUxPlugin', () => {
         viewer.container = {getBoundingClientRect: () => ({left: 0, top: 0, width: SIZE * 2, height: SIZE * 2})}
         click(lamp)
         expect(names()).toEqual(['Lamp'])
+    })
+
+    test('targetsAt lists the objects in the order a click picks them: a line on a surface first, within a few pixels', () => {
+        const {ux, wall, camera} = setup()
+        const line = (name: string, y: number) => {
+            const l = new Line(new BufferGeometry().setFromPoints([new Vector3(0.5, y, -2.02), new Vector3(2.5, y, -2.02)]), new LineBasicMaterial())
+            l.name = name
+            wall.parent!.add(l)
+            l.updateMatrixWorld(true)
+            return l
+        }
+        const onWall = line('On wall', 0.8) // just behind the front face of the wall
+        line('Far', 1.3) // 0.5 units off the ray: about 24 px away
+        const p = new Vector3(1.2, 0.8, -2.02).project(camera)
+        const x = (p.x + 1) / 2 * SIZE, y = (1 - p.y) / 2 * SIZE
+        expect(ux.targetsAt(x, y).map(o => o.name)).toEqual(['On wall', 'Wall']) // also before any raycastLeaf
+        expect(ux.raycastLeaf(x, y)?.leaf).toBe(onWall)
     })
 
     test('a hidden object is not selected: the click goes to the visible one behind it', () => {
