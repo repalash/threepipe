@@ -76,6 +76,8 @@ export default defineConfig({
               {text: 'KTXLoadPlugin', link: 'plugin/KTXLoadPlugin'},
               {text: 'USDZLoadPlugin', link: 'plugin/USDZLoadPlugin'},
               {text: 'GLTFMeshOptDecodePlugin', link: 'plugin/GLTFMeshOptDecodePlugin'},
+              {text: 'LUTCubeLoader2', link: 'plugin/LUTCubeLoader2'},
+              {text: 'TextureLoader2', link: 'plugin/TextureLoader2'},
             ],
           },
           {
@@ -85,6 +87,7 @@ export default defineConfig({
               {text: 'VignettePlugin', link: 'plugin/VignettePlugin'},
               {text: 'ChromaticAberrationPlugin', link: 'plugin/ChromaticAberrationPlugin'},
               {text: 'FilmicGrainPlugin', link: 'plugin/FilmicGrainPlugin'},
+              {text: 'LUTPlugin', link: 'plugin/LUTPlugin'},
             ],
           },
           {
@@ -191,6 +194,7 @@ export default defineConfig({
             items: [
               {text: 'RenderTargetPreviewPlugin', link: 'plugin/RenderTargetPreviewPlugin'},
               {text: 'GeometryUVPreviewPlugin', link: 'plugin/GeometryUVPreviewPlugin'},
+              {text: 'PerfPanelPlugin', link: 'plugin/PerfPanelPlugin'},
               {text: 'TailwindCSSCDNPlugin', link: 'plugin/TailwindCSSCDNPlugin'},
               // {text: 'SceneUiConfigPlugin', link: 'plugin/SceneUiConfigPlugin'},
               // {text: 'ViewerUiConfigPlugin', link: 'plugin/ViewerUiConfigPlugin'},

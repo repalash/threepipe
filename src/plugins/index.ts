@@ -23,6 +23,7 @@ export {SSAOPlugin, SSAOPluginPass, type SSAOPluginTarget} from './pipeline/SSAO
 // ui
 export {RenderTargetPreviewPlugin, type RenderTargetBlock} from './ui/RenderTargetPreviewPlugin'
 export {GeometryUVPreviewPlugin, type TargetBlock} from './ui/GeometryUVPreviewPlugin'
+export {PerfPanelPlugin, type PerfPanelOptions, type PerfPanelPosition, type PerfPanelPluginEventMap, type PerfStats, type PerfWarning, type PerfWarningId} from './ui/PerfPanelPlugin'
 export {ViewerUiConfigPlugin} from './ui/ViewerUiConfigPlugin'
 export {SceneUiConfigPlugin} from './ui/SceneUiConfigPlugin'
 
@@ -63,6 +64,7 @@ export {TonemapPlugin} from './postprocessing/TonemapPlugin'
 export {VignettePlugin} from './postprocessing/VignettePlugin'
 export {ChromaticAberrationPlugin} from './postprocessing/ChromaticAberrationPlugin'
 export {FilmicGrainPlugin} from './postprocessing/FilmicGrainPlugin'
+export {LUTPlugin} from './postprocessing/LUTPlugin'
 
 // animation
 export {GLTFAnimationPlugin} from './animation/GLTFAnimationPlugin'
