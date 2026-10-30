@@ -175,6 +175,7 @@ export class PerfPanelPlugin extends AViewerPluginSync<PerfPanelPluginEventMap> 
         if (v === this._enabled) return
         this._enabled = v
         this.setDirty()
+        this.uiConfig.uiRefresh?.(true)
     }
 
     get collapsed() {
@@ -202,6 +203,7 @@ export class PerfPanelPlugin extends AViewerPluginSync<PerfPanelPluginEventMap> 
         this.element.classList.remove('pp-' + this._position)
         this.element.classList.add('pp-' + position)
         this._position = position
+        this.uiConfig.uiRefresh?.(true)
     }
 
     /** Shows or hides the panel and starts or stops measuring, from {@link enabled}, {@link isDisabled} and the tab visibility */

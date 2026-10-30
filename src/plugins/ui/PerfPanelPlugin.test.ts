@@ -168,6 +168,18 @@ describe('PerfPanelPlugin', () => {
         expect(el(p).className).toBe('pp-root pp-collapsed pp-bottom-right')
     })
 
+    test('enabled, collapsed and position set in code refresh the plugin UI', () => {
+        const p = new PerfPanelPlugin()
+        const uiRefresh = vi.fn()
+        p.uiConfig.uiRefresh = uiRefresh
+        p.enabled = false
+        p.collapsed = false
+        p.position = 'top-left'
+        expect(uiRefresh).toHaveBeenCalledTimes(3)
+        p.position = 'top-left' // no change
+        expect(uiRefresh).toHaveBeenCalledTimes(3)
+    })
+
     test('added: in the container, measures each animation frame and sends update 4 times per second', () => {
         const {viewer} = makeViewer()
         const p = new PerfPanelPlugin()
