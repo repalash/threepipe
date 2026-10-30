@@ -1,4 +1,8 @@
 export {TweakpaneEditorPlugin} from './TweakpaneEditorPlugin'
 export {HierarchyUiPlugin} from './HierarchyUiPlugin'
+export {NotesPlugin, BrowserNotesStore, HttpNotesStore} from './NotesPlugin'
+export type {NoteItem, NotesStore, NotesStoreStatus, NotesPluginOptions, NotesPluginEventMap} from './NotesPlugin'
+export {StickyNotesUiPlugin} from './StickyNotesUiPlugin'
+export type {StickyNotesLayout, StickyNotesColor} from './StickyNotesUiPlugin'
 export {SelectionUxPlugin} from './selection/SelectionUxPlugin'
 export type {SelectionUxPluginEventMap} from './selection/SelectionUxPlugin'
