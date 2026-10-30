@@ -1,6 +1,5 @@
 import replace from '@rollup/plugin-replace';
-import glsl from 'rollup-plugin-glsl';
-import json from '@rollup/plugin-json';
+import rollupGlsl from 'rollup-plugin-glsl';
 import license from 'rollup-plugin-license';
 import path from 'node:path';
 import {existsSync} from 'node:fs';
@@ -29,13 +28,27 @@ export function globalsReplacePlugin (globals, isProd) {
     ]
 }
 
+/**
+ * rollup-plugin-glsl (`.glsl` files as compressed string modules), marked as JavaScript for Rolldown:
+ * Vite 8 needs `moduleType: 'js'` when a transform turns a non-JS file into JS.
+ */
+export function glsl (options) {
+    const plugin = rollupGlsl(options)
+    return {
+        ...plugin,
+        transform (code, id) {
+            const result = plugin.transform.call(this, code, id)
+            return result && {...result, moduleType: 'js'}
+        },
+    }
+}
+
 export function commonPlugins (packageJson, dirname, isProduction = false) {
     const { name, version, author } = packageJson;
     return [
         glsl({ // todo: minify glsl.
             include: 'src/**/*.glsl',
         }),
-        json(),
         // postcss({
         //     modules: false,
         //     autoModules: true,  // todo; issues with typescript import css, because inject is false

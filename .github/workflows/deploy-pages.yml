@@ -32,7 +32,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [22.x] # same as the build check in publish.yml; vite 7 needs ^20.19 or >=22.12
+        node-version: [22.x] # same as the build check in publish.yml; vite 8 needs ^20.19 or >=22.12
         # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
 
     steps:
@@ -41,11 +41,19 @@ jobs:
       with:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
-        cache-dependency-path: '**/package-lock.json' # https://github.com/actions/setup-node/blob/main/docs/advanced-usage.md#caching-packages-data
-    - run: npm ci # this will also run `npm run prepare` which will build # todo use --cache .npm
+    - run: npm ci # one install for core and every plugin (npm workspaces)
+    - name: Restore the turbo cache
+      uses: actions/cache@v4
+      with:
+        path: .turbo/cache
+        key: turbo-${{ runner.os }}-${{ github.sha }}
+        restore-keys: turbo-${{ runner.os }}-
+    - run: npm run build:all # core, plugins (turbo, cached) and examples
       env:
         DOT_ENV_CONTENT: ${{ secrets.examples_dot_env }} # todo well...
     - run: npm run build-site # builds to _site
+    - name: Prune the turbo cache # entries older than a week (a hit does not renew them), else the saved cache only grows
+      run: find .turbo/cache -type f -mtime +7 -delete 2>/dev/null || true
     - name: Upload artifact
       uses: actions/upload-pages-artifact@v3
       with:
