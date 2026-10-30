@@ -67,7 +67,7 @@ editor.loadPlugins({
 - a dashed outline where the selection is behind other objects (`xray`, needs the `GBufferPlugin`, which the plugin adds),
 - optionally, a fill tint (`fill`) and a dim of all other objects (`dimOthers`).
 
-The mask follows the alpha of each material (`opacity`, the alpha of `map`, `alphaMap`, `alphaTest`), so a mesh that its texture cuts has the same shape in the outline. A change of the selection or the hover renders one more frame. It does not restart the progressive render.
+The mask follows the alpha of each material (`opacity`, the alpha of `map`, `alphaMap`, `alphaTest`), so a mesh that its texture cuts has the same shape in the outline. A change of the selection or the hover renders one more frame. It does not restart the progressive render. The mask is drawn once after each change, not in each frame of the progressive render.
 
 ```typescript
 import {ThreeViewer, PickingPlugin} from 'threepipe'

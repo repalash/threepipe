@@ -6,7 +6,7 @@ All notable changes to this plugin will be documented in this file.
 
 ## [Unreleased]
 
-- Add `SelectionOutlinePlugin`: the outline of the selected and hovered objects in the render pipeline (a mask pass and a screen pass extension), with lines between parts, a dashed x-ray outline, fill and dim; follows the `PickingPlugin` or takes `selected` and `hovered`; the mask follows the material alpha. A selection or hover change renders one frame, without a progressive restart. Also `SelectionMaskPass`. Example `selection-outline-plugin`; also in the Interaction mode of the tweakpane-editor example, next to `OutlinePlugin` (its UI folder is `Selection Outline (Editor)`).
+- Add `SelectionOutlinePlugin`: the outline of the selected and hovered objects in the render pipeline (a mask pass and a screen pass extension), with lines between parts, a dashed x-ray outline, fill and dim; follows the `PickingPlugin` or takes `selected` and `hovered`; the mask follows the material alpha. A selection or hover change renders one frame, without a progressive restart. The mask is drawn again only after a change (selection, hover, settings, a render reset, another camera or a resize), not in each frame of the progressive render; its target is made at the first selection or hover. Also `SelectionMaskPass`. Example `selection-outline-plugin`; also in the Interaction mode of the tweakpane-editor example, next to `OutlinePlugin` (its UI folder is `Selection Outline (Editor)`).
 - treejs comes from npm, `@repalash/treejs` 2.0.0 (the same code), instead of a git URL, which npm 12 refuses by default. `HierarchyUiPlugin.treeView` is typed `any`: treejs is bundled, so its type could not resolve in consumer declarations.
 
 ## [0.6.0]
