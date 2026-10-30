@@ -125,9 +125,14 @@ afterEach(() => {
 })
 
 /** The notes and the post-its in a fake viewer */
-function setup(options: ConstructorParameters<typeof NotesPlugin>[0] = {}) {
+function setup(options: ConstructorParameters<typeof NotesPlugin>[0] = {}, canvas = {width: 800, height: 600}) {
     const notes = new NotesPlugin(options)
     const sticky = new StickyNotesUiPlugin()
+    // the canvas, and the dock at its bottom: 28 px high, 12 px above the bottom edge
+    const layer = sticky.element as any as FakeElement
+    layer.clientWidth = canvas.width
+    layer.clientHeight = canvas.height
+    ;(sticky.dock as any as FakeElement).offsetTop = canvas.height - 40
     const viewer = {
         container: new FakeElement('div'),
         addEventListener: () => {},
@@ -137,7 +142,6 @@ function setup(options: ConstructorParameters<typeof NotesPlugin>[0] = {}) {
     } as any
     notes.onAdded(viewer)
     sticky.onAdded(viewer)
-    const layer = sticky.element as any as FakeElement
     return {notes, sticky, viewer, layer}
 }
 
@@ -303,6 +307,47 @@ describe('StickyNotesUiPlugin', () => {
             ['324px', '12px'], ['324px', '174px'], ['324px', '336px'], // 12 + 300 + 12
             ['556px', '12px'], // 324 + 220 + 12
         ])
+    })
+
+    /** The place and size of each post-it, in px */
+    const boxes = (layer: FakeElement) => cards(layer).map(c => ['left', 'top', 'width', 'height'].map(k => parseFloat(c.style[k])))
+    const phone = {width: 390, height: 844}
+
+    test('board on a phone: each new post-it is inside the canvas and above the dock; a full canvas starts again a little lower', () => {
+        const {notes, layer} = setup({}, phone)
+        for (let i = 0; i < 12; i++) {
+            notes.addNote(String(i))
+            const [x, y, w, h] = boxes(layer)[i]
+            expect(x).toBeGreaterThanOrEqual(0)
+            expect(y).toBeGreaterThanOrEqual(0)
+            expect(x + w).toBeLessThanOrEqual(390)
+            expect(y + h).toBeLessThanOrEqual(804 - 12) // above the dock
+        }
+        // one column fits: 4 post-its (12, 174, 336, 498), then the column again 24 px right and down
+        expect(boxes(layer).slice(0, 6).map(([x, y]) => [x, y])).toEqual([[12, 12], [12, 174], [12, 336], [12, 498], [36, 36], [36, 198]])
+    })
+
+    test('stack on a phone: the pile, with each new post-it on top, is inside the canvas and above the dock', () => {
+        const {notes, sticky, layer} = setup({}, phone)
+        sticky.layout = 'stack'
+        for (let i = 0; i < 8; i++) {
+            notes.addNote(String(i))
+            for (const [x, y, w, h] of boxes(layer).filter((_, j) => cards(layer)[j].style.visibility !== 'hidden')) {
+                expect(x).toBeGreaterThanOrEqual(0)
+                expect(y).toBeGreaterThanOrEqual(0)
+                expect(x + w).toBeLessThanOrEqual(390)
+                expect(y + h).toBeLessThanOrEqual(804 - 12)
+            }
+        }
+    })
+
+    test('the layer does not scroll: a focus never moves the post-its away from their places', () => {
+        const {layer} = setup()
+        layer.button('+ Note').fire('click')
+        ;(layer as any).scrollTop = 120
+        ;(layer as any).scrollLeft = 40
+        layer.fire('scroll')
+        expect([(layer as any).scrollTop, (layer as any).scrollLeft]).toEqual([0, 0])
     })
 
     test('a press on a post-it brings it up; on a button of its bar, it does not drag', () => {

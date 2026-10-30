@@ -71,6 +71,8 @@ const PILE_STEP = 8
 const PILE_DEPTH = 4
 /** A press moves this far before it is a drag, in px: a click on the bar brings the post-it up without a move */
 const DRAG_START = 3
+/** When the board has no room for one more column, its columns start again this much lower and to the right, in px */
+const LAYER_STEP = 24
 
 /**
  * Sticky Notes UI Plugin
@@ -182,6 +184,9 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         this._openButtons = [add, pick, this._layoutButton, minimize]
         for (const b of [add, pick, this._arrangeButton, this._layoutButton, minimize, this._restoreButton]) this.dock.appendChild(b)
         this.element.appendChild(this.dock)
+        // a focus (the cursor in a note, a phone keyboard) can scroll a box that hides its overflow: the post-its would
+        // move away from their places and not come back
+        this.element.addEventListener('scroll', () => this.element.scrollTop = this.element.scrollLeft = 0)
         // the post-its and the dock keep their pointer and wheel from the viewer under them
         this.element.addEventListener('pointerdown', e => e.stopPropagation())
         this.element.addEventListener('wheel', e => e.stopPropagation())
@@ -223,7 +228,7 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         this._closeMenu()
         if (this.layout === 'minimized') this._restore()
         const note = this._notes?.addNote('', store)
-        if (note) this._cards.get(note.id)?.text.focus()
+        if (note) this._cards.get(note.id)?.text.focus({preventScroll: true})
         return note
     }
 
@@ -420,11 +425,13 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
             })
         } else {
             const board = this._state.board ??= {}
+            // new post-its go above the dock
+            const bottom = Math.min(size.height, this.dock.offsetTop || size.height) - GAP
             let columns: Map<number, Column> | undefined
             order.forEach((id, i) => {
                 const c = this._cards.get(id)
                 if (!c) return
-                if (!board[id]) board[id] = this._nextPlace(columns ??= this._columns(board), size)
+                if (!board[id]) board[id] = this._nextPlace(columns ??= this._columns(board), size.width, bottom)
                 this._setBox(c, this._clamp(board[id], size))
                 c.card.style.zIndex = String(i + 1)
                 c.card.style.transform = ''
@@ -631,18 +638,24 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
     }
 
     /**
-     * Where a new post-it goes on the board: below the lowest one in the first column with room, or a new column.
-     * `columns` ({@link _columns}) gets the new post-it, so the next one goes below it.
+     * Where a new post-it goes on the board, inside the canvas and above `bottom`: below the lowest one in the first
+     * column with room, or a new column. When no column has room, the columns start again {@link LAYER_STEP} lower and
+     * to the right, over the others (a phone has room for one column); when that has no room either, the top left
+     * corner. `columns` ({@link _columns}) gets the new post-it, so the next one goes below it.
      */
-    private _nextPlace(columns: Map<number, Column>, {height}: Size): Box {
-        let x = GAP, col = columns.get(x)
-        while (col && col.bottom + NOTE_H > height - GAP) {
-            x += col.w + GAP
-            col = columns.get(x)
+    private _nextPlace(columns: Map<number, Column>, width: number, bottom: number): Box {
+        for (let o = 0; o === 0 || GAP + o + NOTE_W <= width - GAP; o += LAYER_STEP) {
+            let x = GAP + o, col = columns.get(x)
+            while (col && col.bottom + NOTE_H > bottom) {
+                x += col.w + GAP
+                col = columns.get(x)
+            }
+            if (x > GAP + o && x + NOTE_W > width - GAP) continue // no room for this column
+            const box = {x, y: col ? col.bottom : GAP + o}
+            this._addToColumn(columns, box)
+            return box
         }
-        const box = {x, y: col ? col.bottom : GAP}
-        this._addToColumn(columns, box)
-        return box
+        return {x: GAP, y: GAP}
     }
 
     private _openMenu(anchor: HTMLElement, title: string, choose: (store: string) => void, current?: string) {

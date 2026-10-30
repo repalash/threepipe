@@ -3,7 +3,8 @@
  * `theme` colour keeps the Tweakpane theme.
  */
 /* above the overlays of the canvas (a logo, a view gizmo), below its buttons */
-.snp-layer { position: absolute; inset: 0; z-index: 150; pointer-events: none; overflow: hidden; }
+/* clip, not hidden: the layer is not a box that scrolls, so a focus does not move the post-its */
+.snp-layer { position: absolute; inset: 0; z-index: 150; pointer-events: none; overflow: hidden; overflow: clip; }
 .snp-layer > * { pointer-events: auto; }
 /* the colours; `theme` keeps the ones of the page */
 .snp-layer:not([data-color="theme"]) { --tp-button-background-color-hover: rgba(0, 0, 0, 0.06); }
