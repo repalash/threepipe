@@ -305,6 +305,23 @@ describe('PerfPanelPlugin', () => {
         p.onRemove(viewer)
     })
 
+    test('a warning whose text changes keeps its element (text selection, hover); a new warning builds the list again', () => {
+        const p = new PerfPanelPlugin({collapsed: false})
+        const warns = el(p).find('pp-warns')
+        const show = (...w: PerfPanelPlugin['stats']['warnings']) => {
+            p.stats.warnings = w
+            ;(p as any)._renderWarnings()
+        }
+        show({id: 'cpu-bound', text: 'CPU bound: 20.1 of 25.0 ms', hint: 'Heavy work'})
+        const div = warns.children[0]
+        show({id: 'cpu-bound', text: 'CPU bound: 21.3 of 26.0 ms', hint: 'Heavy work'})
+        expect(warns.children[0]).toBe(div)
+        expect(div.children[0].textContent).toBe('CPU bound: 21.3 of 26.0 ms')
+        show({id: 'cpu-bound', text: 'CPU bound: 21.3 of 26.0 ms', hint: 'Heavy work'}, {id: 'hidden', text: 'Tab hidden'})
+        expect(warns.children.map(c => c.dataset.w)).toEqual(['cpu-bound', 'hidden'])
+        expect(warns.children[0]).not.toBe(div)
+    })
+
     test('on battery: a warning that follows the battery events', async() => {
         const battery = Object.assign(new FakeElement('battery'), {charging: false, level: 0.5})
         vi.stubGlobal('navigator', {getBattery: async() => battery})

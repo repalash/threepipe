@@ -100,6 +100,7 @@ export class PerfPanelPlugin extends AViewerPluginSync<PerfPanelPluginEventMap> 
     private _warns: HTMLElement
     private _spark: HTMLCanvasElement
     private _warnKey = ''
+    private _warnTexts: HTMLElement[] = []
     private _sparkColors = {render: '#0d99ff', idle: '#c9ccd1', line: '#e9eaec', bad: '#f24822', text: '#8a8f97'}
     private _uiCount = 0
 
@@ -406,15 +407,22 @@ export class PerfPanelPlugin extends AViewerPluginSync<PerfPanelPluginEventMap> 
         this._drawSpark()
     }
 
+    /** Build the warning elements when the warnings or their hints change; else only write the texts (the numbers in them change each update) */
     private _renderWarnings() {
         const warnings = this.stats.warnings
-        const key = warnings.map(w => w.id + w.text + w.hint).join('\n')
-        if (key === this._warnKey) return
+        const key = warnings.map(w => w.id + '\t' + (w.hint ?? '')).join('\n')
+        if (key === this._warnKey) {
+            warnings.forEach((w, i) => setText(this._warnTexts[i], w.text))
+            return
+        }
         this._warnKey = key
+        this._warnTexts = []
         this._warns.replaceChildren(...warnings.map(w => {
             const div = h('div', 'pp-warn')
             div.dataset.w = w.id
-            h('span', '', div).textContent = w.text
+            const text = h('span', '', div)
+            text.textContent = w.text
+            this._warnTexts.push(text)
             if (w.hint) {
                 const small = h('small', '', div)
                 // chrome:// pages do not open from a link: show them as code that a click copies
