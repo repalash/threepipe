@@ -213,7 +213,7 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
     bringToTop(id: string) {
         const order = this._order()
         if (order[order.length - 1] === id) return
-        this._state.order = [...order.filter(o => o !== id), id]
+        this._setOrder([...order.filter(o => o !== id), id])
         this._writeState()
         this._layoutCards(true)
     }
@@ -274,10 +274,12 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
             if (this._showNote(c, e.note)) this._layoutCards(false)
             return
         }
-        if (e.change === 'remove' && this._state.board) {
-            // a removed note forgets its place; notes that are not loaded yet keep theirs
+        if (e.change === 'remove') {
+            // a removed note forgets its place and its depth; notes that are not loaded yet keep theirs
             const ids = new Set(this._notes?.notes.map(n => n.id))
-            for (const id of Object.keys(this._state.board)) if (e.note ? id === e.note.id : !ids.has(id)) delete this._state.board[id]
+            const gone = (id: string) => e.note ? id === e.note.id : !ids.has(id)
+            if (this._state.board) for (const id of Object.keys(this._state.board)) if (gone(id)) delete this._state.board[id]
+            if (this._state.order) this._state.order = this._state.order.filter(id => !gone(id))
             this._writeState()
         }
         this._sync(e.change === 'add' ? e.note?.id : undefined)
@@ -313,7 +315,7 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
             this._showNote(c, note)
         }
         // a note made now goes on top
-        if (added) this._state.order = [...this._order().filter(o => o !== added), added]
+        if (added) this._setOrder([...this._order().filter(o => o !== added), added])
         this._layoutCards(!!added)
     }
 
@@ -341,6 +343,22 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         const all = new Set(ids)
         const known = new Set((this._state.order ?? []).filter(id => all.has(id)))
         return [...known, ...ids.filter(id => !known.has(id))]
+    }
+
+    /**
+     * Keeps a new order of the loaded notes (from the bottom to the top). The ids of notes that are not loaded yet (a
+     * store that still loads) stay in their places among them, so the pile comes back as it was when they load.
+     */
+    private _setOrder(order: string[]) {
+        const loaded = new Set(this._notes?.notes.map(n => n.id))
+        const kept: string[] = []
+        let i = 0
+        for (const id of this._state.order ?? []) {
+            if (!loaded.has(id)) kept.push(id)
+            else if (i < order.length) kept.push(order[i++])
+        }
+        kept.push(...order.slice(i))
+        this._state.order = kept
     }
 
     /** Sets the place, size and depth of every post-it for the layout. `animate`: they glide there. */
@@ -639,7 +657,7 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
     private _writeState() {
         clearTimeout(this._writeTimer)
         this._writeTimer = 0
-        if (this._notes) this._state.order = this._order()
+        if (this._notes) this._setOrder(this._order())
         try {
             localStorage.setItem(this.storageKey, JSON.stringify(this._state))
         } catch (e) {

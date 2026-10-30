@@ -1,5 +1,5 @@
 import {afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi} from 'vitest'
-import {NotesPlugin} from '../../plugins/tweakpane-editor/src/NotesPlugin'
+import {NoteItem, NotesPlugin} from '../../plugins/tweakpane-editor/src/NotesPlugin'
 import {StickyNotesUiPlugin} from '../../plugins/tweakpane-editor/src/StickyNotesUiPlugin'
 
 // the node setup has no DOM: a small element with what the post-its use
@@ -368,6 +368,31 @@ describe('StickyNotesUiPlugin', () => {
         const c = cards(layer)[0]
         expect([c.style.left, c.style.top, c.style.width]).toEqual(['300px', '200px', '260px'])
         expect(state().board.n1).toMatchObject({x: 300, y: 200})
+    })
+
+    test('the saved order keeps the notes of a store that still loads, so the pile comes back as it was', async() => {
+        storage.set('threepipe-sticky-notes', JSON.stringify({layout: 'stack', order: ['s1', 'm1']}))
+        let answer!: (notes: NoteItem[]) => void
+        const server = {id: 'server', label: 'Server', save: () => {}, load: async() => new Promise<NoteItem[]>(r => answer = r)}
+        const mem = {id: 'mem', label: 'Memory', save: () => {}, load: () => [{id: 'm1', text: 'on top', store: 'mem', created: 1}]}
+        const {notes, sticky, layer} = setup({file: false, browser: false, stores: [mem, server]})
+        // while the server loads: settings and a press on a loaded note write the state
+        sticky.color = 'blue'
+        cards(layer)[0].fire('pointerdown', {target: cards(layer)[0]})
+        expect(state().order).toEqual(['s1', 'm1'])
+
+        answer([{id: 's1', text: 'below', store: 'server', created: 2}])
+        await vi.waitFor(() => expect(cards(layer)).toHaveLength(2))
+        const top = cards(layer).find(c => c.style.zIndex === '2')!
+        expect(text(top).value).toBe('on top')
+        expect(state().order).toEqual(['s1', 'm1'])
+
+        // a note made now goes on top; a deleted note leaves the order
+        const n = notes.addNote('new', 'mem')
+        sticky.color = 'green'
+        expect(state().order).toEqual(['s1', 'm1', n.id])
+        notes.removeNote('s1')
+        expect(state().order).toEqual(['m1', n.id])
     })
 
     test('board: a deleted note forgets its place', () => {
