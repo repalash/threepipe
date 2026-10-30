@@ -1,0 +1,25 @@
+{
+    "compilerOptions": {
+        "target": "ESNext",
+        "module": "ESNext",
+        "moduleResolution": "bundler",
+        "strict": true,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "types": [],
+        "paths": {
+            "virtual:teenybase": [
+                "./teenybase"
+            ]
+        },
+        "noEmit": true,
+        "lib": [
+            "ESNext"
+        ]
+    },
+    "include": [
+        "src/**/*.ts",
+        "teenybase.ts",
+        "worker-configuration.d.ts"
+    ]
+}
