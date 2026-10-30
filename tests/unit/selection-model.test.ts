@@ -231,6 +231,21 @@ describe('selection box', () => {
         expect(boxInfo([group('Empty')], 'local', point).size.toArray().map(v => +v.toFixed(5))).toEqual([0.1, 0.1, 0.1])
     })
 
+    test('the box of several objects encloses the cube of each selected light, camera or empty object, as their own boxes do', () => {
+        const size = (objs: IObject3D[]) => boxInfo(objs, 'world', point).size.toArray().map(v => +v.toFixed(5))
+        const light1 = new DirectionalLight() as any as IObject3D, light2 = new DirectionalLight() as any as IObject3D
+        light1.position.set(0, 0, 0) // a directional light starts at y 1
+        light2.position.set(2, 0, 0)
+        const empty = group('Empty')
+        empty.position.set(0, 0, 5)
+        const a = mesh('A')
+        group('G', light1, light2, empty, a)
+        expect(size([light1])).toEqual([0.1, 0.1, 0.1]) // the box of one light
+        expect(size([light1, light2])).toEqual([2.1, 0.1, 0.1]) // not flat
+        expect(size([light2, a])).toEqual([2.3, 0.5, 0.5]) // the light's cube reaches x 2.05
+        expect(size([empty, a])).toEqual([0.5, 0.5, 5.3]) // the empty object's cube reaches z 5.05
+    })
+
     test('the world box adds each part in the world: a rotated part in a rotated group', () => {
         const cube = new Mesh(new BoxGeometry(1, 1, 1), material) as any as IObject3D
         cube.rotation.z = -Math.PI / 4

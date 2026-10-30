@@ -82,16 +82,18 @@ export function localBox(obj: IObject3D, pointSize: (o: IObject3D) => number): B
  * The world box (aligned to the world axes) of what is drawn of objects: the boxes of their visible meshes, lines and
  * points, and a cube of `pointSize(o)` at each light or camera inside them. Helpers (widgets, a light's target) and an
  * object with `userData.bboxVisible === false` are left out, with all inside them. As in `Box3B.expandByObject`, an object with its own `boundingBox` (an instanced or a skinned mesh: the box
- * of all instances, or of the pose) uses it before the box of its geometry. An object with nothing drawn adds its
- * position.
+ * of all instances, or of the pose) uses it before the box of its geometry. Each of `objs` that is a light or a camera,
+ * or has nothing drawn, adds a cube of `pointSize(o)` at its position, as its own box has ({@link boxInfo}), so the box
+ * of several objects encloses the box of each.
  */
 export function worldBox(objs: IObject3D[], pointSize: (o: IObject3D) => number): Box3 {
     const box = new Box3()
     const identity = new Matrix4()
     for (const o of objs) {
         const b = contentBox(o, identity, pointSize)
-        if (b.isEmpty()) box.expandByPoint(o.getWorldPosition(new Vector3()))
-        else box.union(b)
+        // contentBox leaves out the cube of its root: here the root is a selected object
+        if (b.isEmpty() || o.isLight || o.isCamera) b.union(tmpBox.setFromCenterAndSize(o.getWorldPosition(tmpPos), tmpSize.setScalar(pointSize(o))))
+        box.union(b)
     }
     return box
 }
