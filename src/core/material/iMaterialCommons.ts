@@ -65,8 +65,8 @@ export const iMaterialCommons = {
             // bump map scale fix todo: move this to Material.fromJSON
             // https://github.com/repalash/three.js/commit/7b13bb515866f6a002928bd28d0a793cafeaeb1a
             const legacyBumpScale = (parameters as any)?.metadata && (parameters as any)?.metadata.version <= 4.6
-            if ((legacyBumpScale || this.userData.legacyBumpScale) && (this as any)?.bumpScale !== undefined && this?.bumpMap && this.defines) {
-                console.warn('MaterialManager: Old format material loaded, bump map might be incorrect.', parameters, (parameters as any).bumpScale)
+            // the define follows userData.legacyBumpScale even without a bump map yet (it can be assigned later), old JSON (metadata.version <= 4.6) only when it has a bump map
+            if ((legacyBumpScale && this?.bumpMap || this.userData.legacyBumpScale) && (this as any)?.bumpScale !== undefined && this.defines) {
                 this.defines.BUMP_MAP_SCALE_LEGACY = '1'
                 this.userData.legacyBumpScale = true
                 this.needsUpdate = true

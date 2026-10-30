@@ -494,6 +494,12 @@ export const iMaterialUI = {
                     hidden: ()=>!material.bumpMap,
                 },
                 {
+                    type: 'checkbox',
+                    label: 'Legacy Bump Scale',
+                    hidden: ()=>!material.bumpMap,
+                    property: [material, 'legacyBumpScale'],
+                },
+                {
                     type: 'image',
                     property: [material, 'bumpMap'],
                 },
