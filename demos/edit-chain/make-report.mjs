@@ -35,7 +35,7 @@ const report = {
         ['controls caught', `${S.controls.detected} / ${S.controls.steps}`, 'steps built to fail locality or manifold'],
         ['harness wall time', `${R.wallSeconds} s`, `${R.commands} commands incl. the scoring (inspect, undo, redo) - SwiftShader, local`],
     ],
-    metrics: [['agent (original demo)', '155 min', 'claude-opus-5-5 · 173 tool calls · 201k output / 98M input tokens']],
+    metrics: [['agent (original demo)', '155 min', 'claude-opus-5-5 · 173 tool calls · 179k output / 57M input tokens']],
     commandsNote: 'the 30 main-chain steps as filmed',
     checks: [['step', 'did', 'locality', 'manifold', 'undo', 'determinism'], ...main.map(s => [`${s.n}. ${s.title}`, st(s, 'did'), st(s, 'locality'), st(s, 'manifold'), st(s, 'undo'), st(s, 'determinism')])],
     how: `<p><code>chain.mjs</code> is the chain as data: each step a command (selections written as geometry queries, resolved per run), a claim of what it may touch, and expectations, with the Blender behaviour cited where it is not obvious. <code>run.mjs</code> runs every chain through a modelling session and scores it (<code>topology.mjs</code> diffs meshes bit for bit); <code>results.json</code> is its output, re-run on the current editor on ${R.generated.slice(0, 10)}. <code>record.mjs</code> films the main chain from the resolved commands in <code>results.json</code> on the GPU VM: a clay surface with the master mesh's edges drawn over it (hidden ones faint, as Blender's edit-mode overlay), each step's scores beside it.</p><p>Re-run: <code>npm run modelling:session -- demos/edit-chain/run.mjs --port 9479 --out tmp/edit-chain-session</code>, <code>node demos/edit-chain/record.mjs</code>, <code>node demos/edit-chain/make-report.mjs</code>.</p>`

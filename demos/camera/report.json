@@ -18,7 +18,7 @@
   ["build wall time", "4.9 s", "Node, on the GPU VM: the three generators 2.75 s + the geometry replayed in a fresh session 2.18 s (175 commands, validate PASS)"]
  ],
  "metrics": [
-  ["agent (original demo)", "189 min", "claude-opus-5-5 · 262 tool calls · 160k output / 129M input tokens (mostly cache reads)"],
+  ["agent (original demo)", "189 min", "claude-opus-5-5 · 262 tool calls · 147k output / 76M input tokens (mostly cache reads)"],
   ["agent (realism re-block)", "86 min", "161 tool calls · 165k output / 44M input tokens (16-realism.md §3.3)"],
   ["agent (parts, surfaces, prints)", "87 min", "191 tool calls · 168k output / 89M input tokens (§3.4); the final pass §3.5 is inside the realism track's 507 min / 1.22M output tokens"],
   ["this rebuild", "0 tokens", "scripts only: base-commands.json → camera-reblock.mjs → camera-dress.mjs, unchanged"]

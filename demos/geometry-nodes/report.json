@@ -47,7 +47,7 @@
   [
    "agent (track 2, the port)",
    "712 min",
-   "claude-opus-5-5 · 2,742 tool calls · 2.34M output / 2.5G input tokens (mostly cache reads)"
+   "claude-opus-5-5 · 2,742 tool calls · 2.3M output / 1.36G input tokens (mostly cache reads)"
   ]
  ],
  "checks": [

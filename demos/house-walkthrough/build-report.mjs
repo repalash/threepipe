@@ -190,7 +190,7 @@ Driver: <a href="drive.mjs">drive.mjs</a> · findings: <a href="ux-findings.md">
 H.264 (faststart); real time, with holds over 1.5 s cut. The cursor dot, key chips and title cards are overlays drawn by
 the driver, not part of the editor. Videos are not committed: run <code>drive.mjs</code> to make them.</p>
 <p class="sub">Agent that wrote the walkthrough and its findings: claude-opus-5-5, 261 active minutes, 333 tool calls,
-233k output / 180M input tokens (mostly cache reads).</p>
+217k output / 105M input tokens (mostly cache reads).</p>
 
 <h2>Result and glb round trip</h2>
 <table>

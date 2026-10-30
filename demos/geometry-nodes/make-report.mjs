@@ -38,7 +38,7 @@ const report = {
     metricsFirst: [line('buildify', 'Buildify update'), line('flowers', 'flower field update'), line('terrain', 'terrain update')].filter(Boolean),
     metrics: [
         ['parity (Blender 5.2.2)', `${exact(assets['buildify_1.0'])} / ${Object.keys(assets['buildify_1.0'] ?? {}).length}`, `buildify_1.0 objects bit-exact; flower field: ${assets.flower_scattering?.['EN-ground_plane_NEW'] ?? 'see the parity tests'}`],
-        ['agent (track 2, the port)', '712 min', 'claude-opus-5-5 · 2,742 tool calls · 2.34M output / 2.5G input tokens (mostly cache reads)'],
+        ['agent (track 2, the port)', '712 min', 'claude-opus-5-5 · 2,742 tool calls · 2.3M output / 1.36G input tokens (mostly cache reads)'],
     ],
     checks: [['asset', 'load ms', 'panel edit', 'updates (ms)', 'evaluated', 'drawn'], ...Object.entries(A).map(([k, a]) => [k, Math.round(a.loadMs), `${a.uiEdit.field} = ${a.uiEdit.value}: ${a.uiEdit.ms} ms`,
         a.runs.map(r => `${Object.entries(r.inputs).map(([x, v]) => `${x}=${v}`).join(',')}: ${Math.round(r.ms)}`).join('; '), `${a.verts.toLocaleString('en')} verts, ${a.faces.toLocaleString('en')} faces`,
