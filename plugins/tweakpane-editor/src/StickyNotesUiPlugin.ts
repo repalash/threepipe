@@ -267,7 +267,7 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         this._layoutButton.title = this.layout === 'board' ? 'Put the post-its on a pile' : 'A post-it per note on the board'
     }
 
-    private _onNotesChanged = (e: {change: string, note?: NoteItem}) => {
+    private _onNotesChanged = (e: {change: string, note?: NoteItem, notes?: NoteItem[]}) => {
         const c = e.change === 'update' && e.note ? this._cards.get(e.note.id) : undefined
         if (c && e.note) {
             // typing: only its post-it changes; a move to another store can change the order of the pile
@@ -275,9 +275,11 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
             return
         }
         if (e.change === 'remove') {
-            // a removed note forgets its place and its depth; notes that are not loaded yet keep theirs
-            const ids = new Set(this._notes?.notes.map(n => n.id))
-            const gone = (id: string) => e.note ? id === e.note.id : !ids.has(id)
+            // the removed notes forget their places and depths; notes that are not loaded yet keep theirs. An event
+            // that names no notes removes those of every note that is not there.
+            const removed = e.note ? [e.note] : e.notes
+            const ids = new Set((removed ?? this._notes?.notes ?? []).map(n => n.id))
+            const gone = removed ? (id: string) => ids.has(id) : (id: string) => !ids.has(id)
             if (this._state.board) for (const id of Object.keys(this._state.board)) if (gone(id)) delete this._state.board[id]
             if (this._state.order) this._state.order = this._state.order.filter(id => !gone(id))
             this._writeState()

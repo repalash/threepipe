@@ -395,6 +395,47 @@ describe('StickyNotesUiPlugin', () => {
         expect(state().order).toEqual(['m1', n.id])
     })
 
+    /** A store that answers when `answer` is called, like a server */
+    const slowStore = (id: string) => {
+        let answer!: (notes: NoteItem[]) => void
+        const store = {id, label: id, save: () => {}, load: async() => new Promise<NoteItem[]>(r => answer = r)}
+        return {store, answer: (notes: NoteItem[]) => answer(notes)}
+    }
+    const savedPlaces = () => storage.set('threepipe-sticky-notes', JSON.stringify({layout: 'board', board: {s1: {x: 300, y: 200, w: 260, h: 180}}, order: ['s1']}))
+
+    test('clear() of a store while another store loads keeps the places and the order of the notes that load', async() => {
+        savedPlaces()
+        const server = slowStore('server')
+        const {notes, layer} = setup({browser: false, stores: [server.store]})
+        notes.addNote('f1', 'file')
+        notes.addNote('f2', 'file')
+        notes.clear('file')
+        expect(cards(layer)).toHaveLength(0)
+        expect(state().board.s1).toMatchObject({x: 300, y: 200})
+        expect(state().order).toEqual(['s1'])
+
+        server.answer([{id: 's1', text: 'loads later', store: 'server', created: 1}])
+        await vi.waitFor(() => expect(cards(layer)).toHaveLength(1))
+        expect([cards(layer)[0].style.left, cards(layer)[0].style.top, cards(layer)[0].style.width]).toEqual(['300px', '200px', '260px'])
+    })
+
+    test('a store replaced with addStore while another store loads keeps the places and the order of the notes that load', async() => {
+        savedPlaces()
+        const server = slowStore('server')
+        const mem = {id: 'mem', label: 'Memory', save: () => {}, load: () => [{id: 'm1', text: 'm', store: 'mem', created: 1}]}
+        const {notes, layer} = setup({file: false, browser: false, stores: [mem, server.store]})
+        expect(state().board.m1).toBeTruthy()
+        notes.addStore({...mem, load: () => []})
+        expect(cards(layer)).toHaveLength(0)
+        expect(state().board.m1).toBeUndefined() // the notes of the replaced store are removed
+        expect(state().board.s1).toMatchObject({x: 300, y: 200})
+        expect(state().order).toEqual(['s1'])
+
+        server.answer([{id: 's1', text: 'loads later', store: 'server', created: 1}])
+        await vi.waitFor(() => expect(cards(layer)).toHaveLength(1))
+        expect([cards(layer)[0].style.left, cards(layer)[0].style.top]).toEqual(['300px', '200px'])
+    })
+
     test('board: a deleted note forgets its place', () => {
         const {notes, layer} = setup()
         const n = notes.addNote('a')

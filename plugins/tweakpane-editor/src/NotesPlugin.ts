@@ -78,8 +78,12 @@ export interface NotesPluginOptions {
 }
 
 export interface NotesPluginEventMap extends AViewerPluginEventMap {
-    /** A note was added, changed or removed, or a store loaded its notes */
-    notesChanged: {change: 'add' | 'update' | 'remove' | 'load', note?: NoteItem}
+    /**
+     * A note was added, changed or removed, or a store loaded its notes. `note`: the note added, changed or removed.
+     * `notes`: the notes a removal of many removed ({@link NotesPlugin.clear}, a store replaced with
+     * {@link NotesPlugin.addStore}).
+     */
+    notesChanged: {change: 'add' | 'update' | 'remove' | 'load', note?: NoteItem, notes?: NoteItem[]}
     /** The {@link NotesStoreStatus} of a store changed */
     storeStatusChanged: {store: string, status: NotesStoreStatus}
 }
@@ -181,7 +185,8 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
         if (old >= 0) {
             // the store it replaces keeps its last changes; its notes and changes do not go to the new store
             const prev = this._stores[old]
-            const notes = this._notes.filter(n => n.store === store.id).map(n => ({...n}))
+            const removed = this._notes.filter(n => n.store === store.id)
+            const notes = removed.map(n => ({...n}))
             // its changes, also a save queued behind a running one, are saved to it after that save
             let outgoing = this._running.get(prev)
             const made = this._made.get(store.id), left = this._left.get(store.id)
@@ -211,7 +216,7 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
             this._left.delete(store.id)
             this._notes = this._notes.filter(n => n.store !== store.id)
             this._stores[old] = store
-            if (notes.length) this.dispatchEvent({type: 'notesChanged', change: 'remove'})
+            if (removed.length) this.dispatchEvent({type: 'notesChanged', change: 'remove', notes: removed})
         } else {
             this._stores.push(store)
         }
@@ -282,11 +287,12 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
 
     /** Removes all the notes of a store */
     clear(store: string) {
-        if (!this._notes.some(n => n.store === store)) return
-        this._mark(this._left, store, this._notes.filter(n => n.store === store).map(n => n.id))
+        const notes = this._notes.filter(n => n.store === store)
+        if (!notes.length) return
+        this._mark(this._left, store, notes.map(n => n.id))
         this._notes = this._notes.filter(n => n.store !== store)
         this._changedStore(store)
-        this.dispatchEvent({type: 'notesChanged', change: 'remove'})
+        this.dispatchEvent({type: 'notesChanged', change: 'remove', notes})
     }
 
     /** A line "[time · context · selected: names]" for a note: the time, {@link contextProvider}, the selected objects */

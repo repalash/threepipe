@@ -566,6 +566,18 @@ describe('NotesPlugin', () => {
         expect(JSON.parse(storage.get('threepipe-notes')!).map((x: NoteItem) => x.text)).toEqual(['typed just before leaving'])
     })
 
+    test('a removal of many notes (clear, a store replaced) names the notes it removes in its event', () => {
+        const notes = new NotesPlugin({browser: false, stores: [memoryStore('mem', [{id: 'm1', text: 'm', store: 'mem', created: 1}])]})
+        notes.onAdded(fakeViewer())
+        const f1 = notes.addNote('f1', 'file')
+        const m2 = notes.addNote('m2', 'mem')
+        const removed: (string[] | undefined)[] = []
+        notes.addEventListener('notesChanged', e => e.change === 'remove' && removed.push(e.notes?.map(n => n.id)))
+        notes.clear('file')
+        notes.addStore(memoryStore('mem'))
+        expect(removed).toEqual([[f1.id], ['m1', m2.id]])
+    })
+
     test('the context line has the time, the context and the selected names', () => {
         const notes = new NotesPlugin({contextProvider: () => 'Move tool'})
         notes.onAdded(fakeViewer([{name: 'Ring'}, {name: '', type: 'Mesh'}]))
