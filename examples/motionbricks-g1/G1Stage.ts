@@ -226,12 +226,10 @@ function blockCityGeometries(city: BlockCity) {
         // A hair smaller than the grid, so neighbouring cubes show a seam.
         parts[material].push(new BoxGeometry(w - 0.04, h - 0.02, d - 0.04).translate(x + w / 2, y + h / 2, z + d / 2))
     }
-    // Mirror's Edge runner marks across the plaza: thin strips of the first accent, flush with the floor.
-    for (let i = 0; i < 3; i++) {
-        const a = rand() * Math.PI, offset = (rand() - 0.5) * city.plaza
-        const length = city.plaza * (1.2 + rand() * 0.6)
-        parts[1].push(new BoxGeometry(length, 0.012, 0.22)
-            .translate(0, 0.006, offset).rotateY(a))
+    // A Mirror's Edge runner lane across the plaza: two thin strips of the first accent, flush with the floor.
+    const laneAngle = rand() * Math.PI, laneOffset = (rand() - 0.5) * 3
+    for (const side of [-0.45, 0.45]) {
+        parts[1].push(new BoxGeometry(city.extent * 2, 0.012, 0.1).translate(0, 0.006, laneOffset + side).rotateY(laneAngle))
     }
     const clusters = Math.round(city.extent * city.extent * 0.11)
     for (let c = 0; c < clusters; c++) {
