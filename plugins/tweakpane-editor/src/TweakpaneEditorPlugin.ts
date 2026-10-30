@@ -133,7 +133,8 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync {
             onPickLayout: (l) => this.layout = l,
         })
         this.frame.modeBar.select(this._selectedMode)
-        // the mode bar keeps the names shown or hidden: the checkbox follows it
+        // the mode bar keeps the names shown or hidden (its toggle button, the stored state): the checkbox follows it
+        this.frame.modeBar.onExpandedChange = () => this.uiConfig.uiRefresh?.(true)
         this.uiConfig.uiRefresh?.(true)
     }
 

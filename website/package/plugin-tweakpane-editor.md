@@ -72,7 +72,7 @@ In the frame:
 
 The plugin has a UI folder, `Editor`, with the page layout and the mode names. Add `TweakpaneEditorPlugin` to a mode (`loadPlugins`) to show it; it works in the classic layout too.
 
-The layout that the person picks (in the menu or the UI) is kept in `localStorage` (`TweakpaneEditorPlugin.LayoutStorageKey`), and so is the names setting of the mode bar. `TweakpaneEditorPlugin.DefaultLayout` is the layout when none is stored.
+The layout that the person picks (in the menu or the UI) is kept in `localStorage` (`TweakpaneEditorPlugin.LayoutStorageKey`), and so is the names setting of the mode bar (`EditorModeBar.StorageKey`; set a key to `null` to not keep it). `TweakpaneEditorPlugin.DefaultLayout` is the layout when none is stored.
 
 The frame applies when the window is 920 px wide or more. In a narrower window, the page keeps the mode tabs and the editor's own layout.
 

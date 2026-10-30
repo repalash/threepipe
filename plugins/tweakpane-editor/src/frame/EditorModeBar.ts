@@ -49,6 +49,12 @@ export class EditorModeBar {
     /** Width of the bar without and with the names, in px */
     static Widths = {narrow: 44, wide: 168}
 
+    /** The default `localStorage` key that keeps the names shown or hidden, or `null` to not keep them */
+    static StorageKey: string | null = 'tpEditorModeBarExpanded'
+
+    /** Called when the names are shown or hidden, with the new state (the toggle button, or {@link setExpanded}) */
+    onExpandedChange?: (expanded: boolean) => void
+
     readonly element: HTMLDivElement
     private _buttons: HTMLButtonElement[]
     /** The tooltips of the buttons; one at a time, moving between the buttons */
@@ -64,9 +70,9 @@ export class EditorModeBar {
      * @param host - the element the bar is added to
      * @param panel - returns the element that is hidden when the open mode is clicked again (the Tweakpane container)
      * @param storageKey - the `localStorage` key that keeps the names shown or hidden, or `null` to not keep it.
-     * The names are shown at the first visit.
+     * Default: {@link EditorModeBar.StorageKey}. The names are shown at the first visit.
      */
-    constructor(readonly editor: EditorModeBarHost, host: HTMLElement, readonly panel?: () => HTMLElement | null, readonly storageKey: string | null = 'tpEditorModeBarExpanded') {
+    constructor(readonly editor: EditorModeBarHost, host: HTMLElement, readonly panel?: () => HTMLElement | null, readonly storageKey: string | null = EditorModeBar.StorageKey) {
         const bar = document.createElement('div')
         bar.className = 'mb-root'
         bar.setAttribute('role', 'tablist')
@@ -125,6 +131,7 @@ export class EditorModeBar {
         }
         // the canvas size follows the CSS; the viewer resizes on the window's resize
         window.dispatchEvent(new Event('resize'))
+        this.onExpandedChange?.(expanded)
     }
 
     /** Marks a mode as selected, when it changes elsewhere (the editor's setSelectedMode) */
