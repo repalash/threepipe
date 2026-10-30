@@ -39,6 +39,7 @@ import {
     Object3DWidgetsPlugin,
     ObjectConstraintsPlugin,
     ParallaxMappingPlugin,
+    PerfPanelPlugin,
     PickingPlugin,
     PLYLoadPlugin,
     PointerLockControlsPlugin,
@@ -137,6 +138,7 @@ export class ThreeEditor extends ThreeViewer {
         VirtualCamerasPlugin,
         // new SceneUiConfigPlugin(), // this is already in ViewerUiPlugin
         new RenderTargetPreviewPlugin(true),
+        PerfPanelPlugin,
         new FrameFadePlugin(),
         new HDRiGroundPlugin(false, true),
         new VignettePlugin(false),
@@ -188,7 +190,7 @@ export class ThreeEditor extends ThreeViewer {
         ['Configurator']: [MaterialConfiguratorPlugin, SwitchNodePlugin, GLTFKHRMaterialVariantsPlugin],
         ['Animation']: [TimelineUiPlugin, AnimationObjectPlugin, GLTFAnimationPlugin, CameraViewPlugin],
         ['Extras']: [HDRiGroundPlugin, Rhino3dmLoadPlugin, ClearcoatTintPlugin, FragmentClippingExtensionPlugin, NoiseBumpMaterialPlugin, AnisotropyPlugin, CustomBumpMapPlugin, VirtualCamerasPlugin, TilesRendererPlugin, EntityComponentPlugin],
-        ['Debug']: [RenderTargetPreviewPlugin, DynamicImportPlugin],
+        ['Debug']: [RenderTargetPreviewPlugin, PerfPanelPlugin, DynamicImportPlugin],
     }
 
     async init() {

@@ -6,6 +6,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- [`PerfPanelPlugin`](https://threepipe.org/plugin/PerfPanelPlugin.html): an opt-in FPS pill and performance card over the canvas (frame times, render CPU time, renders per second, draw calls and triangles of all passes, canvas, GPU, JS heap), with warnings for a capped frame rate (Chrome Energy Saver, Low Power Mode), CPU or GPU bound, battery, software rendering and a hidden tab. Stats in `stats` and the `update` event. Example: `examples/perf-panel-plugin`; also in the `tweakpane-editor` example (Debug tab)
+
 ### Changed
 
 - `npm run check-bundles` (`scripts/check-bundles.mjs`) checks the built bundles: it fails on an import in a built bundle that is not declared (a bare `three` in a plugin) and on a package bundled twice (two Reacts in blueprintjs). Run it after `build:all`
@@ -15,6 +19,7 @@ All notable changes to this project will be documented in this file.
 - Vite configs are native ES modules (`import.meta.dirname`, JSON import attributes), with `rolldownOptions` in place of `rollupOptions`, and without the no-op `commonjsOptions` and the redundant `@rollup/plugin-json`
 - `lib/index.js` keeps its `@license` banner (the old minifier removed it)
 - Remove the obsolete `prepare`, `copy:inlines` and `postcompile:esm` scripts, `scripts/each-plugin.mjs`, `scripts/build-plugins.mjs`, `scripts/fix-inline-imports.mjs` and the unused `copyfiles`, `hexer` and `proper-lockfile` dev dependencies
+
 
 ## [0.6.0] - 2026-10-23
 
