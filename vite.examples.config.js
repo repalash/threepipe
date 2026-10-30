@@ -25,6 +25,7 @@ const alias = {
     '@threepipe/plugin-gaussian-splatting': path.resolve(import.meta.dirname, './plugins/gaussian-splatting/src/index.ts'),
     '@threepipe/plugin-configurator': path.resolve(import.meta.dirname, './plugins/configurator/src/index.ts'),
     '@threepipe/plugin-gltf-transform': path.resolve(import.meta.dirname, './plugins/gltf-transform/src/index.ts'),
+    '@threepipe/plugin-draco-js': path.resolve(import.meta.dirname, './plugins/draco-js/src/index.ts'),
     '@threepipe/plugin-assimpjs': path.resolve(import.meta.dirname, './plugins/assimpjs/src/index.ts'),
     '@threepipe/plugin-r3f': path.resolve(import.meta.dirname, './plugins/r3f/src/index.ts'),
     '@threepipe/plugin-path-tracing': path.resolve(import.meta.dirname, './plugins/path-tracing/src/index.ts'),
