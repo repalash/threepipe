@@ -10,18 +10,19 @@ src=$root/.repos/threepipe-editor
 dst=$root/.repos/threepipe-$name
 git -C "$src" worktree add "$dst" -b "$name" "$base"
 ln -s "$(readlink -f "$src/node_modules")" "$dst/node_modules"
+# Only for plugins the new branch has (the source worktree can hold ignored leftovers of other branches).
 for p in "$src"/plugins/*/; do
-  n="$p/node_modules"; [ -e "$n" ] || continue
+  n="$p/node_modules"; [ -e "$n" ] && [ -d "$dst/plugins/$(basename "$p")" ] || continue
   ln -s "$(readlink -f "$n")" "$dst/plugins/$(basename "$p")/node_modules"
 done
 # The services have dependencies of their own too (services/cloud: marked); without them wrangler cannot bundle
-# the worker and the modelling-editor-feedback e2e has no server.
+# the worker and the cloud e2e has no server.
 for p in "$src"/services/*/; do
   n="$p/node_modules"; [ -e "$n" ] && [ -d "$dst/services/$(basename "$p")" ] || continue
   ln -s "$(readlink -f "$n")" "$dst/services/$(basename "$p")/node_modules"
 done
 for p in "$src"/plugins/*/; do
-  d="$p/dist"; [ -d "$d" ] || continue
+  d="$p/dist"; [ -d "$d" ] && [ -d "$dst/plugins/$(basename "$p")" ] || continue
   cp -r "$d" "$dst/plugins/$(basename "$p")/dist"
 done
 [ -d "$dst/tests/snapshots" ] || cp -r "$src/tests/snapshots" "$dst/tests/snapshots"
