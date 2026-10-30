@@ -186,14 +186,6 @@ if (selCoverage > 0.0) {
 
     onAdded(viewer: ThreeViewer) {
         super.onAdded(viewer)
-        this._target = viewer.renderManager.createTarget<WebGLRenderTarget>({
-            type: HalfFloatType,
-            minFilter: NearestFilter,
-            magFilter: NearestFilter,
-            generateMipmaps: false,
-            depthBuffer: true,
-        })
-        this._target.texture.name = 'selectionMask'
         this._pass = new SelectionMaskPass(() => this._target, selectionMaskMaterial())
         this._pass.getItems = () => this.maskItems()
         viewer.renderManager.registerPass(this._pass)
@@ -296,16 +288,34 @@ if (selCoverage > 0.0) {
         this.hovered = e.object ? [e.object] : []
     }
 
+    /**
+     * The mask target, a full size half-float target with a depth buffer. It is made in the first frame with a selection
+     * or a hover, so a viewer that has the plugin and never selects does not hold it.
+     */
+    private _createTarget(viewer: ThreeViewer) {
+        const target = viewer.renderManager.createTarget<WebGLRenderTarget>({
+            type: HalfFloatType,
+            minFilter: NearestFilter,
+            magFilter: NearestFilter,
+            generateMipmaps: false,
+            depthBuffer: true,
+        })
+        target.texture.name = 'selectionMask'
+        return target
+    }
+
     private _preRender = () => {
-        if (!this._target || !this._viewer) return
+        if (!this._viewer) return
         const u = this.extraUniforms
         const hasSel = this.outlineSelected && this._selected.length > 0
         const active = this._isActive() && (hasSel || this.outlineHover && this._hovered.length > 0)
+        if (active && !this._target) this._target = this._createTarget(this._viewer)
         if (this._pass) {
             // the frames in which the pass was off can have changed the scene without a redraw
             if (active && !this._pass.enabled) this._pass.needsUpdate = true
             this._pass.enabled = active
         }
+        if (!this._target) return
         u.selActive.value = active ? 1 : 0
         u.selHasSel.value = hasSel ? 1 : 0
         u.tSelectionMask.value = this._target.texture

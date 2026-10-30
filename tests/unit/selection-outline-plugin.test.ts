@@ -243,6 +243,24 @@ describe('SelectionOutlinePlugin', () => {
         expect(pass.needsUpdate).toBe(true)
     })
 
+    test('the mask target is made in the first frame with a selection or a hover, not when the plugin is added', () => {
+        const {plugin, viewer} = setup() as any
+        const target = {texture: new Texture(), width: 4, height: 4}
+        Object.assign(viewer, {scene: {mainCamera: {near: 0.1, far: 100}}})
+        Object.assign(viewer.renderManager, {renderScale: 1, screenPass: {material: {}}, createTarget: vi.fn(() => target)})
+        const pass = {enabled: true, needsUpdate: false}
+        plugin._pass = pass
+        plugin._preRender() // nothing selected
+        expect(viewer.renderManager.createTarget).not.toHaveBeenCalled()
+        expect(pass.enabled).toBe(false)
+        plugin.hovered = [mesh('a')]
+        plugin._preRender()
+        plugin._preRender()
+        expect(viewer.renderManager.createTarget).toHaveBeenCalledOnce()
+        expect(plugin.extraUniforms.tSelectionMask.value).toBe(target.texture)
+        expect(pass.enabled).toBe(true)
+    })
+
     test('the mask material is cut by the clipping planes of the renderer, as the render', () => {
         const material = selectionMaskMaterial()
         expect(material.clipping).toBe(true) // the renderer passes the clipping planes uniform
