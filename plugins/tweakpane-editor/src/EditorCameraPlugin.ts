@@ -1,4 +1,5 @@
 import {
+    AViewerPluginEventMap,
     AViewerPluginSync,
     ICamera,
     onChange,
@@ -56,6 +57,11 @@ function lookTargetOf(camera: ICamera, position: Vector3): Vector3 {
     return position.clone().addScaledVector(forward, distance > 1e-6 ? distance : 1)
 }
 
+export interface EditorCameraPluginEventMap extends AViewerPluginEventMap {
+    /** The view changed between Edit (`editing` true: the editor camera) and View (the start view) */
+    editingChange: {editing: boolean}
+}
+
 /**
  * Editor Camera Plugin
  *
@@ -66,6 +72,9 @@ function lookTargetOf(camera: ICamera, position: Vector3): Vector3 {
  * - **View** ({@link editing} `false`): the view is through the scene's default camera, the start view. This is what a
  *   visitor sees, with the controls of the file (orbit limits, damping).
  *
+ * The C key ({@link hotkey}) switches between Edit and View, and the `editingChange` event tells a UI (like the button
+ * of the `TweakpaneEditorPlugin` tool bar) when the view changes.
+ *
  * When a file with a viewer config loads, the editor camera takes its start view. {@link setStartViewFromEditor} moves
  * the start view to the editor view, as one undo step when the {@link UndoManagerPlugin} is present.
  *
@@ -74,7 +83,7 @@ function lookTargetOf(camera: ICamera, position: Vector3): Vector3 {
  * @category Plugins
  */
 @uiFolderContainer('Editor Camera')
-export class EditorCameraPlugin extends AViewerPluginSync {
+export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEventMap> {
     static readonly PluginType = 'EditorCameraPlugin'
     serializeWithViewer = false
 
@@ -128,6 +137,13 @@ export class EditorCameraPlugin extends AViewerPluginSync {
     @uiToggle('Edit (off: View)')
         editing = true
 
+    /**
+     * The key that switches between Edit and View, as a `KeyboardEvent.code` (`'KeyC'`: the C key). An empty string
+     * turns it off. The key does nothing in a text field, with Ctrl, Cmd, Alt or Shift, held down, or when another
+     * handler used it.
+     */
+    hotkey = 'KeyC'
+
     /** The value of {@link editing} that the cameras show now */
     private _shownEditing = false
     /** The start view when View started, to put it back (see {@link keepViewMoves}) */
@@ -167,6 +183,7 @@ export class EditorCameraPlugin extends AViewerPluginSync {
         viewer.scene.add(this.camera)
         viewer.scene.addEventListener('mainCameraChange', this._onMainCameraChange)
         viewer.assetManager.addEventListener('loadAsset', this._onLoad)
+        window.addEventListener('keydown', this._onKeyDown)
         this.copyStartView()
         this._refreshEditing()
         // added in View: the start view now is the one to put back
@@ -178,10 +195,13 @@ export class EditorCameraPlugin extends AViewerPluginSync {
         // the start view is the main camera again, where it is now; editing keeps its value for the next add.
         // Another main camera (made the main camera while in Edit) stays.
         if (viewer.scene.mainCamera === this.camera) viewer.scene.defaultCamera.activateMain()
+        const wasEditing = this._shownEditing
         this._shownEditing = false
         this._startPose = undefined
         viewer.scene.removeEventListener('mainCameraChange', this._onMainCameraChange)
         viewer.assetManager.removeEventListener('loadAsset', this._onLoad)
+        window.removeEventListener('keydown', this._onKeyDown)
+        if (wasEditing) this.dispatchEvent({type: 'editingChange', editing: false})
         this.camera.removeFromParent()
         super.onRemove(viewer)
     }
@@ -219,6 +239,16 @@ export class EditorCameraPlugin extends AViewerPluginSync {
             start.activateMain()
         }
         this.uiConfig?.uiRefresh?.(true)
+        this.dispatchEvent({type: 'editingChange', editing})
+    }
+
+    private _onKeyDown = (e: KeyboardEvent) => {
+        if (!this.hotkey || e.code !== this.hotkey || this.isDisabled()) return
+        if (e.defaultPrevented || e.repeat || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return
+        const target = e.target as HTMLElement | null
+        if (target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.tagName === 'SELECT' || target?.isContentEditable) return
+        e.preventDefault()
+        this.editing = !this.editing
     }
 
     /** In View: put the start view back to where it was when View started */

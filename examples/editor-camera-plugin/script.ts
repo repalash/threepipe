@@ -22,7 +22,7 @@ async function init() {
     startControls.maxAzimuthAngle = Math.PI / 3
 
     // Edit looks through the editor camera: 1:1 with the pointer, no limits, never saved.
-    // View looks through the start view. Ctrl+Z undoes a change to the start view.
+    // View looks through the start view. The C key switches them. Ctrl+Z undoes a change to the start view.
     const editorCamera = viewer.addPluginSync(EditorCameraPlugin)
 
     await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
@@ -32,7 +32,7 @@ async function init() {
     ui.setupPluginUi(EditorCameraPlugin, {expanded: true})
 
     createSimpleButtons({
-        ['Edit / View']: () => {
+        ['Edit / View (C)']: () => {
             editorCamera.editing = !editorCamera.editing
         },
         ['Set start view to this view']: () => {

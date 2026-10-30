@@ -1,4 +1,4 @@
-import {describe, expect, test, vi} from 'vitest'
+import {beforeEach, describe, expect, test, vi} from 'vitest'
 import {EventDispatcher, Object3D, PerspectiveCamera, Vector3} from 'three'
 import {EditorCameraPlugin} from '../../plugins/tweakpane-editor/src/EditorCameraPlugin'
 
@@ -45,7 +45,90 @@ function setup({undo = true} = {}) {
     return {plugin, scene, start, records, viewer}
 }
 
+// a key press on the window, with the fields the plugin reads
+function key(code: string, fields: Record<string, any> = {}) {
+    const e = Object.assign(new Event('keydown', {cancelable: true}), {code, repeat: false, ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, ...fields})
+    window.dispatchEvent(e)
+    return e
+}
+
 describe('EditorCameraPlugin', () => {
+    // the window of the node setup is globalThis, without events: a new event target for each test
+    beforeEach(() => {
+        const win = new EventTarget()
+        Object.assign(globalThis, {
+            addEventListener: win.addEventListener.bind(win),
+            removeEventListener: win.removeEventListener.bind(win),
+            dispatchEvent: win.dispatchEvent.bind(win),
+        })
+    })
+
+    test('the C key switches between Edit and View', () => {
+        const {plugin, scene, start} = setup()
+        const e = key('KeyC')
+        expect(e.defaultPrevented).toBe(true)
+        expect(plugin.editing).toBe(false)
+        expect(scene.mainCamera).toBe(start)
+        key('KeyC')
+        expect(plugin.editing).toBe(true)
+        expect(scene.mainCamera).toBe(plugin.camera)
+    })
+
+    test('the key does nothing with a modifier, held down, in a text field, after another handler, or for another key', () => {
+        const {plugin} = setup()
+        for (const fields of [{ctrlKey: true}, {metaKey: true}, {altKey: true}, {shiftKey: true}, {repeat: true}]) {
+            expect(key('KeyC', fields).defaultPrevented).toBe(false)
+        }
+        for (const tagName of ['INPUT', 'TEXTAREA', 'SELECT']) {
+            const e = Object.assign(new Event('keydown', {cancelable: true}), {code: 'KeyC'})
+            Object.defineProperty(e, 'target', {value: {tagName}})
+            window.dispatchEvent(e)
+        }
+        const editable = Object.assign(new Event('keydown', {cancelable: true}), {code: 'KeyC'})
+        Object.defineProperty(editable, 'target', {value: {tagName: 'DIV', isContentEditable: true}})
+        window.dispatchEvent(editable)
+        const used = Object.assign(new Event('keydown', {cancelable: true}), {code: 'KeyC'})
+        used.preventDefault()
+        window.dispatchEvent(used)
+        key('KeyV')
+        expect(plugin.editing).toBe(true)
+    })
+
+    test('hotkey sets the key or turns it off; a disabled plugin and a removed one do not take it', () => {
+        const {plugin, viewer} = setup()
+        plugin.hotkey = 'KeyK'
+        key('KeyC')
+        expect(plugin.editing).toBe(true)
+        key('KeyK')
+        expect(plugin.editing).toBe(false)
+        key('KeyK')
+        plugin.hotkey = ''
+        expect(key('KeyK').defaultPrevented).toBe(false)
+        expect(plugin.editing).toBe(true)
+
+        plugin.hotkey = 'KeyC'
+        plugin.enabled = false
+        expect(key('KeyC').defaultPrevented).toBe(false)
+        expect(plugin.editing).toBe(false)
+        plugin.enabled = true
+        plugin.onRemove(viewer)
+        expect(key('KeyC').defaultPrevented).toBe(false)
+        expect(plugin.editing).toBe(true)
+    })
+
+    test('editingChange tells when the view changes between Edit and View (the toggle, the key, disable, remove)', () => {
+        const {plugin, viewer} = setup()
+        const events: boolean[] = []
+        plugin.addEventListener('editingChange', e => events.push(e.editing))
+        plugin.editing = false
+        plugin.editing = false // no change
+        key('KeyC')
+        plugin.enabled = false
+        plugin.enabled = true
+        plugin.onRemove(viewer)
+        expect(events).toEqual([false, true, false, true, false])
+    })
+
     test('is not saved with the viewer config', () => {
         expect(new EditorCameraPlugin().serializeWithViewer).toBe(false)
     })

@@ -131,6 +131,8 @@ Another view can show the same notes: read `notes.notes`, listen to the `notesCh
 
 When a file with a viewer config loads, the editor camera takes its start view. `setStartViewFromEditor()` moves the start view to the editor view. With the `UndoManagerPlugin`, this is one undo step.
 
+The C key switches between Edit and View (`hotkey`, a `KeyboardEvent.code`; `''` turns it off). It does nothing in a text field, with Ctrl, Cmd, Alt or Shift, while held down, or when another handler used the key. The `editingChange` event tells a UI when the view changes, from the code, the key, the panel or a disable:
+
 ```typescript
 import {ThreeViewer, UndoManagerPlugin} from 'threepipe'
 import {EditorCameraPlugin} from '@threepipe/plugin-tweakpane-editor'
@@ -148,6 +150,13 @@ editorCamera.setStartViewFromEditor()
 
 // the editor camera takes the start view
 editorCamera.copyStartView()
+
+// a button that follows the view
+editorCamera.addEventListener('editingChange', ({editing}) => {
+    button.classList.toggle('on', editing)
+})
+// another key than C
+editorCamera.hotkey = 'KeyK'
 ```
 
 Options:
@@ -157,4 +166,4 @@ Options:
 
 The plugin is not saved with the viewer config (`serializeWithViewer = false`).
 
-The [Tweakpane Editor](https://threepipe.org/examples/#tweakpane-editor/) example has it in the Viewer tab.
+In the `TweakpaneEditorPlugin`, the tool bar at the bottom of the canvas has an Edit / View button (a video camera) when the plugin is added before `loadPlugins()`. It is on in Edit and follows the key and the panel. The [Tweakpane Editor](https://threepipe.org/examples/#tweakpane-editor/) example has the settings in the Viewer tab.

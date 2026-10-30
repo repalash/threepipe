@@ -14,6 +14,7 @@ import {
     autoRotateCC,
     collapse,
     download,
+    editorCamera,
     expand,
     focus,
     loopCamViews,
@@ -24,8 +25,24 @@ import {
     trash,
 } from './icons'
 import tippy, {createSingleton} from 'tippy.js'
+import type {EditorCameraPlugin} from './EditorCameraPlugin'
 
-export function createUtilButtons(viewer: ThreeViewer, allPlugins: Class<IViewerPlugin>[]) {
+export interface UtilButton {
+    id: string
+    icon: string
+    tooltip: string
+    /** The button shows an on state, flipped on each click (or read from {@link isOn}) */
+    toggle?: boolean
+    onclick: () => Promise<void>
+    /** The on state of a toggle, from the state it shows: read on setup and after a click */
+    isOn?: () => boolean
+    /** Calls `refresh` when the state of {@link isOn} changes elsewhere (a panel, a key), so the button follows it */
+    watch?: (refresh: () => void) => void
+}
+
+export function createUtilButtons(viewer: ThreeViewer, allPlugins: Class<IViewerPlugin>[]): UtilButton[] {
+    // by its type name: the tool bar does not bundle the plugin
+    const camera = viewer.getPlugin<EditorCameraPlugin>('EditorCameraPlugin')
     return [
         {
             id: 'reset-settings',
@@ -56,6 +73,18 @@ export function createUtilButtons(viewer: ThreeViewer, allPlugins: Class<IViewer
                 await viewer.fitToView(viewer.getPlugin(PickingPlugin)?.getSelectedObject() || undefined)
             },
         },
+        // only with the EditorCameraPlugin: on in Edit (the editor camera), off in View (the start view)
+        ...camera ? [{
+            id: 'editor-camera',
+            icon: editorCamera,
+            tooltip: 'Edit camera, off: View (C)',
+            toggle: true,
+            isOn: () => camera.editing,
+            watch: (refresh: () => void) => camera.addEventListener('editingChange', refresh),
+            onclick: async() => {
+                camera.editing = !camera.editing
+            },
+        }] : [],
         {
             id: 'loop-cam-views',
             icon: loopCamViews,
@@ -184,11 +213,16 @@ export function setupUtilButtonsBar(viewer: ThreeViewer, allPlugins: Class<IView
             addToBody: false,
         })
         button.dataset.tippyContent = utilButton.tooltip
-        button.onclick = () => {
-            if (utilButton.toggle) {
+        const isOn = utilButton.isOn
+        const refresh = () => isOn && button.classList.toggle('button-bar-selected-box', isOn())
+        refresh()
+        utilButton.watch?.(refresh)
+        button.onclick = async() => {
+            if (utilButton.toggle && !isOn) {
                 button.classList.toggle('button-bar-selected-box')
             }
-            utilButton.onclick()
+            await utilButton.onclick()
+            refresh()
         }
         utilButtonsContainer.appendChild(button)
     }
