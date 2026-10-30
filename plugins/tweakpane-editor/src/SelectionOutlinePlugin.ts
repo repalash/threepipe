@@ -116,11 +116,12 @@ export class SelectionOutlinePlugin extends AScreenPassExtensionPlugin {
      * The parts of a selected object, for the lines between parts. Default: the children, below any chain of groups
      * with one child (the objects that a click inside the selection selects next).
      */
-    partsOf: (object: IObject3D) => Object3D[] = (object) => {
-        let o: Object3D = object
-        while (o.children.length === 1) o = o.children[0]
-        return o.children
-    }
+    @onChange(SelectionOutlinePlugin.prototype.redraw)
+        partsOf: (object: IObject3D) => Object3D[] = (object) => {
+            let o: Object3D = object
+            while (o.children.length === 1) o = o.children[0]
+            return o.children
+        }
 
     readonly extraUniforms = {
         tSelectionMask: {value: null as Texture | null},
@@ -251,9 +252,10 @@ if (selCoverage > 0.0) {
 
     /**
      * Renders one more frame, without a restart of the progressive render: the outline is drawn over the final image.
-     * The plugin calls it when the selection, the hover or a setting changes.
+     * The mask is drawn again in that frame. The plugin calls it when the selection, the hover or a setting changes.
      */
     redraw() {
+        if (this._pass) this._pass.needsUpdate = true
         this._viewer?.renderManager.setDirty()
     }
 
@@ -291,7 +293,11 @@ if (selCoverage > 0.0) {
         const u = this.extraUniforms
         const hasSel = this.outlineSelected && this._selected.length > 0
         const active = this._isActive() && (hasSel || this.outlineHover && this._hovered.length > 0)
-        if (this._pass) this._pass.enabled = active
+        if (this._pass) {
+            // the frames in which the pass was off can have changed the scene without a redraw
+            if (active && !this._pass.enabled) this._pass.needsUpdate = true
+            this._pass.enabled = active
+        }
         u.selActive.value = active ? 1 : 0
         u.selHasSel.value = hasSel ? 1 : 0
         u.tSelectionMask.value = this._target.texture
@@ -314,6 +320,10 @@ if (selCoverage > 0.0) {
 /**
  * Renders the meshes of {@link SelectionOutlinePlugin} into its mask target, with their item data and linear depth.
  * The meshes are drawn on {@link SelectionMaskPass.Layer} during the pass.
+ *
+ * The mask is kept between frames: the pass draws it in the first frame after a reset of the render (a change of the
+ * scene or the camera), after {@link needsUpdate} is set, for another camera, or after a resize of the target. So the
+ * frames of a progressive render do not draw the meshes again, and the mask is the one of the frame without jitter.
  */
 export class SelectionMaskPass extends RenderPass implements IPipelinePass<'selectionMask'> {
     readonly passId = 'selectionMask'
@@ -321,11 +331,17 @@ export class SelectionMaskPass extends RenderPass implements IPipelinePass<'sele
     after = ['gbuffer']
     required = ['render']
     enabled = true
+    /** Draw the mask in the next render. Set it after a change that does not reset the render (the selection, the hover). */
+    needsUpdate = true
     declare scene?: IScene
     declare camera?: ICamera
     declare overrideMaterial: ShaderMaterial
     getItems: () => Map<Object3D, Vector3> = () => new Map()
     private _items = new Map<Object3D, Vector3>()
+    // the camera and the target size of the last mask
+    private _maskCamera?: ICamera
+    private _maskWidth = 0
+    private _maskHeight = 0
     /** The camera layer that the pass renders */
     static Layer = 7
 
@@ -345,15 +361,22 @@ export class SelectionMaskPass extends RenderPass implements IPipelinePass<'sele
         }
     }
 
-    beforeRender(scene: IScene, camera: ICamera, _: IRenderManager) {
+    beforeRender(scene: IScene, camera: ICamera, renderManager: IRenderManager) {
         this.scene = scene
         this.camera = camera
+        // the first frame after a reset: the scene or the camera changed
+        if (renderManager.frameCount === 0) this.needsUpdate = true
         camera.updateShaderProperties(this.overrideMaterial)
     }
 
     render(renderer: IWebGLRenderer, writeBuffer?: WebGLRenderTarget | null, _1?: WebGLRenderTarget, deltaTime?: number, maskActive?: boolean) {
         const target = this.target()
         if (!this.scene || !this.camera || !target) return
+        if (!this.needsUpdate && this.camera === this._maskCamera && target.width === this._maskWidth && target.height === this._maskHeight) return
+        this.needsUpdate = false
+        this._maskCamera = this.camera
+        this._maskWidth = target.width
+        this._maskHeight = target.height
         const t = renderer.getRenderTarget()
         const face = renderer.getActiveCubeFace()
         const mip = renderer.getActiveMipmapLevel()
@@ -449,6 +472,7 @@ export class SelectionMaskPass extends RenderPass implements IPipelinePass<'sele
     dispose() {
         this.scene = undefined
         this.camera = undefined
+        this._maskCamera = undefined
         this._items.clear()
         this.overrideMaterial.dispose()
         this._lineMasks.forEach((m, lm) => {

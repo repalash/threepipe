@@ -192,6 +192,58 @@ describe('SelectionOutlinePlugin', () => {
         expect(modes.transmissionRender).toBe(true)
     })
 
+    test('the mask pass keeps its mask on the progressive frames: it draws again after a change, a reset, another camera or a resize', () => {
+        const target = {width: 4, height: 4}
+        const pass = new SelectionMaskPass(() => target as any, selectionMaskMaterial())
+        pass.getItems = () => new Map([[mesh('a'), new Vector3(1, 0, 0)]])
+        const camera = Object.assign(new PerspectiveCamera(), {updateShaderProperties: () => {}}) as any
+        const other = Object.assign(new PerspectiveCamera(), {updateShaderProperties: () => {}}) as any
+        const renderManager = {frameCount: 0} as any
+        let draws = 0
+        const renderer: any = {
+            getRenderTarget: () => null, getActiveCubeFace: () => 0, getActiveMipmapLevel: () => 0, setRenderTarget: () => {},
+            renderWithModes: () => draws++,
+        }
+        const frame = (cam = camera) => {
+            pass.beforeRender(new Group() as any, cam, renderManager)
+            pass.render(renderer)
+            return draws
+        }
+        expect(frame()).toBe(1) // the first frame after a reset
+        renderManager.frameCount = 5
+        expect(frame()).toBe(1) // a progressive frame: nothing changed, the mask is kept
+        pass.needsUpdate = true // a change of the selection, the hover or a setting
+        expect(frame()).toBe(2)
+        expect(frame()).toBe(2)
+        expect(frame(other)).toBe(3) // another camera (VirtualCamerasPlugin) renders its own mask
+        expect(frame()).toBe(4) // and the main camera draws its mask again
+        target.width = 8 // a resize clears the target
+        expect(frame()).toBe(5)
+        renderManager.frameCount = 0 // the scene or the camera changed
+        expect(frame()).toBe(6)
+    })
+
+    test('the plugin asks the mask pass for a new mask after a change, and when the pass turns on again', () => {
+        const {plugin, viewer} = setup() as any
+        Object.assign(viewer, {scene: {mainCamera: {near: 0.1, far: 100}}})
+        Object.assign(viewer.renderManager, {renderScale: 1, screenPass: {material: {}}})
+        const pass = {enabled: false, needsUpdate: false}
+        plugin._pass = pass
+        plugin._target = {texture: new Texture(), width: 4, height: 4}
+        plugin._preRender() // nothing selected: the pass is off
+        expect(pass.enabled).toBe(false)
+        plugin.selected = [mesh('a')]
+        expect(pass.needsUpdate).toBe(true)
+        pass.needsUpdate = false
+        plugin._preRender() // on again: the frames that it skipped can have changed the scene
+        expect([pass.enabled, pass.needsUpdate]).toEqual([true, true])
+        pass.needsUpdate = false
+        plugin._preRender()
+        expect(pass.needsUpdate).toBe(false)
+        plugin.partsOf = (o: Object3D) => o.children
+        expect(pass.needsUpdate).toBe(true)
+    })
+
     test('the mask material is cut by the clipping planes of the renderer, as the render', () => {
         const material = selectionMaskMaterial()
         expect(material.clipping).toBe(true) // the renderer passes the clipping planes uniform
