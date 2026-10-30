@@ -13,6 +13,7 @@ import type {ICanvasRecorder} from '../../utils/canvas-recorder/ACanvasRecorder'
 import {ImageSequenceRecorder} from '../../utils/canvas-recorder/ImageSequenceRecorder'
 import {CanvasMediaRecorder} from '../../utils/canvas-recorder/CanvasMediaRecorder'
 import {FFMPEGRecorder} from '../../utils/canvas-recorder/FFMPEGRecorder'
+import {RemovalWaits} from '../../utils/canvas-recorder/RemovalWaits'
 
 export interface CanvasRecorderPluginEventMap extends AViewerPluginEventMap {
     start: object
@@ -276,9 +277,8 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
         viewer.removeEventListener('postRender', this._postRender)
         viewer.removeEventListener('postFrame', this._postFrame)
         viewer.scene.removeEventListener('addSceneObject', this._refreshUi)
-        // no frame comes after a removal (or a viewer dispose): the waits of a stop end now
-        ;[...this._frameWaits].forEach(end => end())
-        this._frameWaits.clear()
+        // no frame, animation or recorder event comes after a removal (or a viewer dispose): the waits end now
+        this._removalWaits.endAll()
         // each recorder once (the current one is one of them, unless a subclass made it)
         new Set([this._recorder, ...Object.values(this._recorders)]).forEach(r => r?.dispose())
         // a disposed recorder (an ended MP4 worker) is not used again: an add makes new ones
@@ -308,7 +308,7 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
                     this.removeEventListener('start', listenerStart)
                     this.removeEventListener('stop', listener2)
                     this.removeEventListener('error', listenerError)
-                    this._frameWaits.delete(listenerError)
+                    this._removalWaits.delete(listenerError)
                 }
                 const listenerStart = async() => {
                     listener2()
@@ -316,7 +316,7 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
                         onStart?.()
                         // a removal (or a viewer dispose) ends the animation loop that the action can wait for: it
                         // ends the wait, and the stop below has no recording to stop
-                        await this._untilRemoved(action())
+                        await this._removalWaits.race(action())
                         resolve()
                     } catch (e) {
                         reject(e)
@@ -330,7 +330,7 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
                 this.addEventListener('stop', listener2)
                 this.addEventListener('error', listenerError)
                 // a removal (or a viewer dispose) before the start ends it as a start error: the action does not run
-                this._frameWaits.add(listenerError)
+                this._removalWaits.add(listenerError)
                 if (!this.startRecording()) {
                     listener2()
                     reject(new Error('CanvasRecorderPlugin: the recording could not start'))
@@ -412,7 +412,7 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
         await new Promise<void>(resolve => {
             const end = () => {
                 viewer.removeEventListener('postFrame', step)
-                this._frameWaits.delete(end)
+                this._removalWaits.delete(end)
                 resolve()
             }
             const step = () => {
@@ -436,7 +436,7 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
             if (steps < 1) resolve()
             else {
                 viewer.addEventListener('postFrame', step)
-                this._frameWaits.add(end)
+                this._removalWaits.add(end)
             }
         })
         // the scene does not converge: the steps that are left, on the wall clock
@@ -444,28 +444,16 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
     }
 
     /**
-     * The ends of the waits that a removal ends: the frame waits of a stop and of the turntable start, and the start
-     * and the action of {@link record}; {@link onRemove} calls them, as no frame comes after it
+     * The waits of a recording that depend on frames, animations or recorder events (the start and the action of
+     * {@link record}, the frame waits and the recorder stop of a stop, the turntable start); {@link onRemove} ends them
      */
-    private _frameWaits = new Set<() => void>()
-
-    /** The promise, or the removal of the plugin (or a viewer dispose), whichever comes first */
-    private async _untilRemoved(promise: Promise<any>) {
-        let end!: () => void
-        const removed = new Promise<void>(resolve => end = resolve)
-        this._frameWaits.add(end)
-        try {
-            await Promise.race([promise, removed])
-        } finally {
-            this._frameWaits.delete(end)
-        }
-    }
+    private _removalWaits = new RemovalWaits()
 
     /** The next frame of the viewer, or the removal of the plugin (or a viewer dispose), whichever comes first */
     private async _nextFrame() {
         const viewer = this._viewer
         if (!viewer) return
-        await this._untilRemoved(viewer.doOnce('postFrame'))
+        await this._removalWaits.race(viewer.doOnce('postFrame'))
     }
 
     private async _stop(): Promise<Blob | undefined> {
@@ -498,7 +486,8 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
             // the recorder failed (or stopped) during the waits above: its stop() would not call back
             const recorder = this.recorder
             if (!recorder || recorder.state === 'error' || recorder.state === 'stopped') return undefined
-            return new Promise((resolve) => recorder.stop(resolve))
+            // a removal ends the wait for the recorder too: it disposes the recorder, and the recording is dropped
+            return this._removalWaits.race(new Promise<Blob | undefined>((resolve) => recorder.stop(resolve)))
         }
         return undefined
     }
@@ -725,7 +714,7 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
         let i = 0
         while (!interactions) { // by camera view/animation plugin
             viewer.setDirty()
-            await this._untilRemoved(viewer.doOnce('postFrame'))
+            await this._removalWaits.race(viewer.doOnce('postFrame'))
             // removed (or the viewer disposed) during the wait: the camera is not changed yet, and nothing records
             if (this._viewer !== viewer) return
             if (i % 30 === 0) viewer.console.warn('CanvasRecorderPlugin: interactions are already disabled by something, waiting...')

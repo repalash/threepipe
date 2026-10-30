@@ -11,6 +11,7 @@ import {InteractionPromptPlugin} from '../interaction/InteractionPromptPlugin'
 import {getFittingDistance} from '../../three/utils/camera'
 import type {CanvasRecorderPlugin} from '../export/CanvasRecorderPlugin'
 import type {FileTransferPlugin} from '../export/FileTransferPlugin'
+import {RemovalWaits} from '../../utils/canvas-recorder/RemovalWaits'
 
 export interface CameraViewPluginOptions{duration?: number, ease?: EasingFunctionType, interpolateMode?: 'spherical'|'linear'}
 
@@ -134,6 +135,8 @@ export class CameraViewPlugin extends AViewerPluginSync<CameraViewPluginEventMap
     }
 
     onRemove(viewer: ThreeViewer): void {
+        // no frame or animation comes after a removal (or a viewer dispose): the waits of recordAllViews end now
+        this._removalWaits.endAll()
 
         viewer.removeEventListener('postFrame', this._postFrame)
         // window.removeEventListener('wheel', this._wheel)
@@ -755,13 +758,14 @@ export class CameraViewPlugin extends AViewerPluginSync<CameraViewPluginEventMap
         }
         let blob: Blob | undefined
         try {
-            await this.resetToFirstView()
-            // a loop that ran ends after its view and pause; until then, animateAllViews() does not start its own. A
-            // removal (or a viewer dispose) ends the wait: nothing records then
+            // each wait ends at a removal (or a viewer dispose): the view animations need frames, which stop then
+            await this._removalWaits.race(this.resetToFirstView())
+            // a loop that ran ends after its view and pause; until then, animateAllViews() does not start its own
             while (this._animationLooping && this._viewer) await timeout(10)
+            // removed: nothing records
             if (!this._viewer) return
             // record() rejects when the start, onStart or the animation fails, and stops the recording
-            blob = await recorder.record(async() => this.animateAllViews(), onStart)
+            blob = await this._removalWaits.race(recorder.record(async() => this.animateAllViews(), onStart))
         } finally {
             // not on a removed plugin: the loop would run on it forever
             if (looping && this._viewer) this.viewLooping = true
@@ -774,6 +778,9 @@ export class CameraViewPlugin extends AViewerPluginSync<CameraViewPluginEventMap
         }
         return blob
     }
+
+    /** The waits of {@link recordAllViews} that depend on frames or animations; {@link onRemove} ends them */
+    private _removalWaits = new RemovalWaits()
 
     private async _downloadBlob(blob: Blob, name: string) {
         const tr = this._viewer?.getPlugin<FileTransferPlugin>('FileTransferPlugin')

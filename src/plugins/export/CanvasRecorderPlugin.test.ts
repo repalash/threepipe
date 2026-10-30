@@ -613,7 +613,7 @@ describe('CanvasRecorderPlugin stop and remove', () => {
         plugin.onRemove(viewer)
         expect(await Promise.race([stop, new Promise(r => setTimeout(() => r('hung'), 100))])).toBeUndefined()
         expect(plugin._stopping).toBeUndefined()
-        expect(plugin._frameWaits.size).toBe(0)
+        expect(plugin._removalWaits.size).toBe(0)
         expect(viewer._listeners?.postFrame ?? []).toHaveLength(0)
     })
 
@@ -626,7 +626,7 @@ describe('CanvasRecorderPlugin stop and remove', () => {
         await new Promise(r => setTimeout(r, 5))
         plugin.onRemove(viewer)
         expect(await Promise.race([stop, new Promise(r => setTimeout(() => r('hung'), 100))])).toBeUndefined()
-        expect(plugin._frameWaits.size).toBe(0)
+        expect(plugin._removalWaits.size).toBe(0)
     })
 
     test('a removal while a turntable recording turns settles it, restores maxFrameCount, stops the turn and gives the camera back', async() => {
@@ -651,7 +651,7 @@ describe('CanvasRecorderPlugin stop and remove', () => {
         expect(progressive.maxFrameCount).toBe(32)
         expect(camera.setInteractions).toHaveBeenLastCalledWith(true, CanvasRecorderPlugin.PluginType)
         expect(camera.position.toArray()).toEqual([0, 0, 5])
-        expect(plugin._frameWaits.size).toBe(0)
+        expect(plugin._removalWaits.size).toBe(0)
         // only the recorder is removed: PopmotionPlugin still runs, and a turn that was not stopped moves the camera again
         turn(Math.PI)
         expect(camera.position.toArray().map((v: number) => +v.toFixed(5))).toEqual([0, 0, 5])
@@ -669,7 +669,7 @@ describe('CanvasRecorderPlugin stop and remove', () => {
         expect(await Promise.race([recording, new Promise(r => setTimeout(() => r('hung'), 100))])).toBeUndefined()
         expect(camera.setInteractions).not.toHaveBeenCalled()
         expect(popmotion.animate).not.toHaveBeenCalled()
-        expect(plugin._frameWaits.size).toBe(0)
+        expect(plugin._removalWaits.size).toBe(0)
     })
 
     test('a removal of the recorder while the turntable waits for the camera interactions: the next frame does not read the viewer', async() => {
@@ -700,7 +700,87 @@ describe('CanvasRecorderPlugin stop and remove', () => {
         await expect(Promise.race([recording, new Promise((_, r) => setTimeout(() => r(new Error('hung')), 100))])).rejects.toBeUndefined()
         plugin.dispatchEvent({type: 'start'})
         expect(action).not.toHaveBeenCalled()
-        expect(plugin._frameWaits.size).toBe(0)
+        expect(plugin._removalWaits.size).toBe(0)
+    })
+
+    // every wait of a recording that depends on frames, animations or recorder events ends at a removal (or a viewer
+    // dispose): a frame, an animation or a recorder event that waits here never comes
+    const never = async() => new Promise<any>(() => undefined)
+    function views(record?: () => Promise<any>) {
+        const {plugin: recorder} = setup()
+        if (record) recorder.record = record
+        const plugin = new CameraViewPlugin() as any
+        const viewer = {getPlugin: (t: string) => t === 'CanvasRecorder' ? recorder : undefined, removeEventListener: () => undefined}
+        plugin._viewer = viewer
+        plugin._cameraViews = [{}]
+        plugin.resetToFirstView = async() => undefined
+        return {plugin, remove: () => plugin.onRemove(viewer)}
+    }
+    const waits: [string, () => {run: () => Promise<any>, remove: () => void}][] = [
+        ['record(): the start event', () => {
+            const {plugin, viewer} = removable()
+            plugin._recorder.start = () => undefined
+            plugin._recorder.dispose = () => undefined
+            return {run: () => plugin.record(vi.fn()), remove: () => plugin.onRemove(viewer)}
+        }],
+        ['record(): the action', () => {
+            const {plugin, viewer} = removable()
+            return {run: () => plugin.record(never), remove: () => plugin.onRemove(viewer)}
+        }],
+        ['stop: the next frame', () => {
+            const {plugin, viewer} = removable()
+            viewer.doOnce = never
+            return {run: () => plugin.record(async() => undefined), remove: () => plugin.onRemove(viewer)}
+        }],
+        ['stop: the last pose converges', () => {
+            const {plugin, progressive, viewer} = removable()
+            progressive.isConverged = () => false
+            let first = true
+            viewer.doOnce = async() => first ? (first = false, undefined) : never()
+            return {run: () => plugin.record(async() => undefined), remove: () => plugin.onRemove(viewer)}
+        }],
+        ['stop: the end padding (waitRecordingTime)', () => {
+            const {plugin, progressive, viewer} = removable()
+            Object.assign(progressive, {postFrameConvergedRecordingDelta: () => 1 / 30})
+            plugin.endPaddingMs = 500
+            return {run: () => plugin.record(async() => undefined), remove: () => plugin.onRemove(viewer)}
+        }],
+        ['stop: the recorder stop callback', () => {
+            const {plugin, viewer} = removable()
+            plugin._recorder.stop = () => undefined // a recorder that does not call back
+            return {run: () => plugin.record(async() => undefined), remove: () => plugin.onRemove(viewer)}
+        }],
+        ['recordCamera360: the camera interactions', () => {
+            const {plugin, viewer} = removable({PopmotionPlugin: {animate: vi.fn()}})
+            viewer.scene.mainCamera.interactionsEnabled = false
+            viewer.doOnce = never
+            return {run: () => plugin.recordCamera360(1), remove: () => plugin.onRemove(viewer)}
+        }],
+        ['recordCamera360: the turn', () => {
+            const {plugin, viewer} = removable({PopmotionPlugin: {animate: () => ({promise: never(), stop: () => undefined})}})
+            return {run: () => plugin.recordCamera360(1), remove: () => plugin.onRemove(viewer)}
+        }],
+        ['recordAllViews: the reset to the first view', () => {
+            const {plugin, remove} = views()
+            plugin.resetToFirstView = never
+            return {run: () => plugin.recordAllViews(undefined, false), remove}
+        }],
+        ['recordAllViews: the view loop that ran', () => {
+            const {plugin, remove} = views()
+            plugin._animationLooping = true
+            return {run: () => plugin.recordAllViews(undefined, false), remove}
+        }],
+        ['recordAllViews: the recording', () => {
+            const {plugin, remove} = views(never)
+            return {run: () => plugin.recordAllViews(undefined, false), remove}
+        }],
+    ]
+    test.each(waits)('a removal during the wait for %s settles the recording', async(_wait, make) => {
+        const {run, remove} = make()
+        const settled = run().then(() => 'settled', () => 'settled')
+        await new Promise(r => setTimeout(r, 5))
+        remove()
+        expect(await Promise.race([settled, new Promise(r => setTimeout(() => r('hung'), 100))])).toBe('settled')
     })
 
     test('onRemove drops the disposed recorders, so an add makes new ones', () => {
@@ -913,7 +993,7 @@ describe('recording time', () => {
                 time += 7
                 frame()
             }
-            expect(plugin._frameWaits.size).toBe(1) // the wait still counts the frames
+            expect(plugin._removalWaits.size).toBe(1) // the wait still counts the frames
             busy = false
             frame() // a step
             // a recorder that stays busy for longer than two frame times of the video counts
@@ -921,7 +1001,7 @@ describe('recording time', () => {
             frame()
             time += 100
             for (let i = 0; i < 4; i++) frame()
-            expect(plugin._frameWaits.size).toBe(0)
+            expect(plugin._removalWaits.size).toBe(0)
             plugin._recorder.stop(() => undefined) // the rest of the time on the wall clock ends with the recording
             await wait
         } finally {
