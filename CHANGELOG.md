@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 [//]: # (The format is based on [Keep a Changelog]&#40;https://keepachangelog.com/en/1.1.0/&#41;, and this project adheres to [Semantic Versioning]&#40;https://semver.org/spec/v2.0.0.html&#41;.)
 
+## [Unreleased]
+
+### Fixed
+
+- `LoadingScreenPlugin`: every file entry is one line on a narrow screen. Before, an entry with a long file name wrapped after the state (`downloading:` alone on its line, the name on the next) and a name wider than the screen pushed the list out of it. Each entry is now its own row: a long name is truncated with an ellipsis, and the state and the progress stay visible. The layout on wide screens does not change
+
 ## [0.6.0] - 2026-10-23
 
 ### Added
