@@ -47,17 +47,17 @@ View and edit the source code by pressing the code button on the top left of the
 
 ## Develop locally
 
-To work on threepipe itself (the core, the plugins or the examples), with Node.js 20.19+ or 22.12+ (vite 7):
+To work on threepipe itself (the core, the plugins or the examples), with Node.js 20.19+ or 22.12+ (vite 8):
 
 ```bash
 git clone https://github.com/repalash/threepipe.git
 cd threepipe
-npm install   # npm 12+: npm install --allow-git=all
+npm install
 npm start     # opens the examples at http://localhost:5173/examples/index.html
 ```
 
-`npm install` also builds the core, every plugin and the examples, so it takes a few minutes. Edit a file in `src/`,
-`plugins/*/src` or `examples/` and the page reloads. All commands, and what each one is for, are in
+`npm install` sets up the core and every plugin in one install and builds nothing; the examples run from the sources.
+Edit a file in `src/`, `plugins/*/src` or `examples/` and the page reloads. `npm run build:all` builds everything. All commands, and what each one is for, are in
 [CONTRIBUTING.md](CONTRIBUTING.md#commands).
 
 To use threepipe in your own project instead, see [Getting Started](#getting-started).
