@@ -97,6 +97,11 @@ describe('tweakpane editor frame on a phone', () => {
             const bar = declarations('.util-buttons-container', vp)
             expect(bar['flex-wrap']).toBe('nowrap')
             expect(bar['overflow-x']).toBe('auto')
+            // a bar wider than the canvas overflows to the end only, so scrolling reaches its first buttons: start aligned,
+            // and the auto margins of the first and last buttons center the buttons when they fit (0 when they overflow)
+            expect(bar['justify-content']).toBe('flex-start')
+            expect(declarations('.util-buttons-container > :first-child', vp)['margin-left']).toBe('auto')
+            expect(declarations('.util-buttons-container > :last-child', vp)['margin-right']).toBe('auto')
         }
     })
 
