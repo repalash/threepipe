@@ -283,6 +283,13 @@ describe('SelectionOutlinePlugin', () => {
         expect(plugin.extraUniforms.selNearFar.value.toArray()).toEqual([0.1, 2000])
     })
 
+    test('the outline is not cut at a fixed distance: a wide outline at a high render scale keeps its outer taps', () => {
+        const glsl = new SelectionOutlinePlugin().parsFragmentSnippet() as string
+        // width 6 at render scale 3: taps at 0.75, 6.67, 12.58 and 18.5 px, all inside the outline
+        expect(glsl).not.toMatch(/d(Sel|Hov|Part) < 10\.0/)
+        for (const d of ['dSel', 'dHov', 'dPart']) expect(glsl).toContain(`${d} < selNoHit`)
+    })
+
     test('the mask material is cut by the clipping planes of the renderer, as the render', () => {
         const material = selectionMaskMaterial()
         expect(material.clipping).toBe(true) // the renderer passes the clipping planes uniform

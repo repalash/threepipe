@@ -735,6 +735,9 @@ uniform vec2 selNearFar;
 // the alpha of the outline at this pixel, set by selectionOutline
 float selCoverage = 0.0;
 
+// the distance of no hit in the outline search: larger than any tap radius (the width times the render scale)
+const float selNoHit = 1.0e4;
+
 // paints a color with alpha a over dst (straight alpha), so the outline shows on a transparent background too
 vec4 selOver(vec4 dst, vec3 c, float a) {
     float outA = a + dst.a * (1.0 - a);
@@ -776,7 +779,7 @@ vec4 selectionOutline(in vec4 color) {
 
     // search around the pixel for the nearest different id. Rings of 12 taps.
     float maxR = max(selWidth, selHoverWidth) + 0.5;
-    float dSel = 100.0, dHov = 100.0, dPart = 100.0;
+    float dSel = selNoHit, dHov = selNoHit, dPart = selNoHit;
     // the uv and the mask depth of the nearest sample: the x-ray test (a depth read) is done once after the search,
     // not inside the unrolled loop
     vec3 nSel = vec3(0.0), nHov = vec3(0.0);
@@ -804,17 +807,17 @@ vec4 selectionOutline(in vec4 color) {
         }
     }
 
-    if (selParts > 0.0 && dPart < 10.0) {
+    if (selParts > 0.0 && dPart < selNoHit) {
         float hid = selHidden(vUv, c.a);
         float a = selParts * (hid > 0.5 ? 0.5 * selXray * dash : 1.0);
         col = selOver(col, selColor, a);
     }
-    if (dHov < 10.0) {
+    if (dHov < selNoHit) {
         float a = clamp(selHoverWidth + 0.5 - dHov, 0.0, 1.0);
         if (selHidden(nHov.xy, nHov.z) > 0.5) a *= selXray * dash * 0.8;
         col = selOver(col, selHoverColor, a);
     }
-    if (dSel < 10.0) {
+    if (dSel < selNoHit) {
         float a = clamp(selWidth + 0.5 - dSel, 0.0, 1.0);
         if (selHidden(nSel.xy, nSel.z) > 0.5) a *= selXray * dash;
         col = selOver(col, selColor, a);
