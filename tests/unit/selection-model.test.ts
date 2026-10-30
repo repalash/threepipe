@@ -1,5 +1,5 @@
 import {afterEach, beforeEach, describe, expect, test, vi} from 'vitest'
-import {BoxGeometry, DirectionalLight, EventDispatcher, Group, InstancedMesh, Matrix4, Mesh, MeshBasicMaterial, Object3D, OrthographicCamera, PerspectiveCamera, Vector3} from 'three'
+import {BoxGeometry, BufferGeometry, DirectionalLight, EventDispatcher, Group, InstancedMesh, Line, LineBasicMaterial, Matrix4, Mesh, MeshBasicMaterial, Object3D, OrthographicCamera, PerspectiveCamera, Vector3} from 'three'
 import {JSUndoManager} from 'ts-browser-helpers'
 import {IObject3D, ObjectPicker} from 'threepipe'
 import {
@@ -124,6 +124,17 @@ describe('selection hierarchy', () => {
         expect(isFrame(only.root, only.ring)).toBe(true)
         only.ring.remove(only.head)
         expect(isFrame(only.root, only.ring)).toBe(false) // one part only
+    })
+
+    test('a top-level group without meshes is not a frame, also when one other top-level object has meshes', () => {
+        const s = jewellery()
+        s.root.remove(s.watchScene, s.stand) // the ring is the only top-level object with meshes
+        const lights = group('Lights', new DirectionalLight() as any, new DirectionalLight() as any)
+        s.root.add(lights)
+        expect(isFrame(s.root, s.ring)).toBe(true)
+        expect(isFrame(s.root, lights)).toBe(false)
+        const light = lights.children[0] as IObject3D
+        expect(resolveTarget(s.root, [], light, false, false)).toBe(lights) // the group, not one light in it
     })
 
     test('resolveTarget: group first, deep, drill and siblings', () => {
@@ -654,6 +665,23 @@ describe('SelectionUxPlugin', () => {
         expect(names()).toEqual(['Lamp'])
     })
 
+    test('targetsAt lists the objects in the order a click picks them: a line on a surface first, within a few pixels', () => {
+        const {ux, wall, camera} = setup()
+        const line = (name: string, y: number) => {
+            const l = new Line(new BufferGeometry().setFromPoints([new Vector3(0.5, y, -2.02), new Vector3(2.5, y, -2.02)]), new LineBasicMaterial())
+            l.name = name
+            wall.parent!.add(l)
+            l.updateMatrixWorld(true)
+            return l
+        }
+        const onWall = line('On wall', 0.8) // just behind the front face of the wall
+        line('Far', 1.3) // 0.5 units off the ray: about 24 px away
+        const p = new Vector3(1.2, 0.8, -2.02).project(camera)
+        const x = (p.x + 1) / 2 * SIZE, y = (1 - p.y) / 2 * SIZE
+        expect(ux.targetsAt(x, y).map(o => o.name)).toEqual(['On wall', 'Wall']) // also before any raycastLeaf
+        expect(ux.raycastLeaf(x, y)?.leaf).toBe(onWall)
+    })
+
     test('a hidden object is not selected: the click goes to the visible one behind it', () => {
         const {click, lamp, names} = setup()
         lamp.visible = false
@@ -740,6 +768,26 @@ describe('SelectionUxPlugin', () => {
         canvas.dispatchEvent(ev('pointerleave'))
         viewer.dispatchEvent({type: 'preFrame'})
         expect(ux.hovered).toBe(null)
+    })
+
+    test('hover: Ctrl/Cmd shows the deepest object; other keys do not raycast again', () => {
+        const {ux, viewer, canvas, at, leg1} = setup()
+        canvas.dispatchEvent(ev('pointermove'))
+        window.dispatchEvent(ev('pointermove', at(leg1)))
+        viewer.dispatchEvent({type: 'preFrame'})
+        expect(ux.hovered?.name).toBe('Table')
+        const raycasts = vi.spyOn(ux as any, '_intersect')
+        window.dispatchEvent(ev('keydown', {code: 'ControlLeft', ctrlKey: true}))
+        viewer.dispatchEvent({type: 'preFrame'})
+        expect(ux.hovered?.name).toBe('Leg 1')
+        window.dispatchEvent(ev('keyup', {code: 'ControlLeft'}))
+        viewer.dispatchEvent({type: 'preFrame'})
+        expect(ux.hovered?.name).toBe('Table')
+        expect(raycasts).toHaveBeenCalledTimes(2)
+        window.dispatchEvent(ev('keydown', {code: 'KeyX'})) // typing, in a text field or not
+        window.dispatchEvent(ev('keyup', {code: 'KeyX'}))
+        viewer.dispatchEvent({type: 'preFrame'})
+        expect(raycasts).toHaveBeenCalledTimes(2)
     })
 
     test('hover follows a change of the view under a still pointer, but not while a button moves the camera', () => {
@@ -892,6 +940,16 @@ describe('SelectionUxPlugin', () => {
         expect(canvas.children).toEqual([])
         expect(picking.widgetEnabled).toBe(true)
         expect(picking.hoverEnabled).toBe(true)
+    })
+
+    test('an editor plugin: a UI toggle for enabled, a constructor flag, and not saved in the viewer config', () => {
+        const ux = new SelectionUxPlugin(false)
+        expect(ux.enabled).toBe(false)
+        expect(ux.toJSON).toBeUndefined()
+        const ui = ux.uiConfig as any
+        expect(ui.label).toBe('Selection UX')
+        const toggle = ui.children.map((c: any) => typeof c === 'function' ? c() : c).find((c: any) => c.type === 'checkbox')
+        expect(toggle.property).toEqual([ux, 'enabled'])
     })
 
     test('onRemove removes the listeners', () => {

@@ -28,18 +28,27 @@ export function isExcluded(o: IObject3D): boolean {
     return !o.visible || o.userData.userSelectable === false || o.userData.bboxVisible === false
 }
 
+/** A child that is not a helper ({@link isHelperObject}) and not excluded ({@link isExcluded}) */
+const isContentChild = (c: IObject3D) => !isHelperObject(c) && !isExcluded(c)
+
 /** The children of `o` that are not helpers ({@link isHelperObject}) and not excluded ({@link isExcluded}) */
 export function contentChildren(o: IObject3D): IObject3D[] {
-    return (o.children as IObject3D[]).filter(c => !isHelperObject(c) && !isExcluded(c))
+    return (o.children as IObject3D[]).filter(isContentChild)
 }
+
+/** Whether `o` or an object inside it passes `test`; it stops at the first one (`traverse` visits the whole tree) */
+function someInTree(o: IObject3D, test: (o: IObject3D) => boolean): boolean {
+    if (test(o)) return true
+    for (const c of o.children as IObject3D[]) if (someInTree(c, test)) return true
+    return false
+}
+
+const isContent = (o: IObject3D) => !!(o.geometry || o.isLight || o.isCamera)
+const isMesh = (o: IObject3D) => !!(o as any).isMesh
 
 /** Whether `o` or an object inside it has a geometry, or is a light or a camera */
 export function hasContent(o: IObject3D): boolean {
-    let has = false
-    o.traverse(c => {
-        if ((c as IObject3D).geometry || (c as IObject3D).isLight || (c as IObject3D).isCamera) has = true
-    })
-    return has
+    return someInTree(o, isContent)
 }
 
 /** The content children of `o` with content: what a click, Enter or Ctrl+A can select inside `o` */
@@ -55,8 +64,14 @@ export function levelTarget(level: SelectionLevel): IObject3D {
 /** The only child of a wrapper (a group with a single content child, merged with it into one level), else undefined */
 function wrappedChild(o: IObject3D): IObject3D | undefined {
     if (o.geometry) return undefined
-    const children = contentChildren(o)
-    return children.length === 1 ? children[0] : undefined
+    // stops at the second content child, so a wide group costs no more than a small one
+    let only: IObject3D | undefined
+    for (const c of o.children as IObject3D[]) {
+        if (!isContentChild(c)) continue
+        if (only) return undefined
+        only = c
+    }
+    return only
 }
 
 /** The innermost object of the level that `o` starts: `o`, or the end of its chain of single children */
@@ -114,18 +129,19 @@ export function selectionLevels(root: IObject3D, node: IObject3D): SelectionLeve
  * It is an imported file root (glTF scene), or the only top-level object with meshes, and it has two or more parts.
  */
 export function isFrame(root: IObject3D, o: IObject3D): boolean {
-    if (o.parent !== root) return false
-    if (selectableChildren(chainEnd(o)).length < 2) return false
+    // the counts stop at 2, so a frame check does not walk a whole wide group or a whole scene
+    if (o.parent !== root || countChildren(chainEnd(o), hasContent) < 2) return false
     const ud = o.userData
     if (ud.rootPath || ud.gltfAsset || ud.glTF2ExportSettings) return true
-    const hasMesh = (x: IObject3D) => {
-        let m = false
-        x.traverse(c => {
-            if ((c as any).isMesh) m = true
-        })
-        return m
-    }
-    return contentChildren(root).filter(hasMesh).length === 1
+    // the only top-level object with meshes: `o` is that object
+    return someInTree(o, isMesh) && countChildren(root, c => someInTree(c, isMesh)) === 1
+}
+
+/** How many content children ({@link contentChildren}) of `o` pass `test`, counted up to 2 */
+function countChildren(o: IObject3D, test: (c: IObject3D) => boolean): number {
+    let n = 0
+    for (const c of o.children as IObject3D[]) if (isContentChild(c) && test(c) && ++n >= 2) break
+    return n
 }
 
 /**

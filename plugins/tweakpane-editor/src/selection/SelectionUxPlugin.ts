@@ -6,10 +6,12 @@ import {
     PickingPlugin,
     Raycaster,
     ThreeViewer,
-    TransformControlsPlugin,
+    uiFolderContainer,
+    uiToggle,
     Vector2,
     Vector3,
 } from 'threepipe'
+import type {TransformControlsPlugin} from 'threepipe'
 import {
     childTargets,
     isFrame,
@@ -63,11 +65,17 @@ function isThin(o: any) {
  * The overlay ({@link overlay}) draws the selection over the canvas: its box ({@link boxStyle}), the boxes of the
  * objects of a multiple selection, the box of the hovered object, the name with its parent levels (a click on a parent
  * selects it) and the size. While it draws, the box and the hover box of the PickingPlugin are off.
+ *
+ * An editor setting: it is not saved in the viewer config.
  */
+@uiFolderContainer('Selection UX')
 export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventMap> {
     static readonly PluginType = 'SelectionUxPlugin'
-    enabled = true
+    /** Off: the PickingPlugin selects on click as without this plugin */
+    @uiToggle()
+        enabled = true
     dependencies = [PickingPlugin]
+    toJSON: any = undefined
 
     /** Pointer movement in pixels after which a press is a drag, not a click */
     static ClickDistance = 4
@@ -101,7 +109,9 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
 
     private _picking?: PickingPlugin
     private _raycaster = new Raycaster()
-    private _pointer = new Vector2()
+    private _ndc = new Vector2()
+    /** The last pointer position, in client pixels (no layout read per pointer move) */
+    private _client = new Vector2()
     private _pointerInside = false
     private _pointerDirty = false
     /** A button is held while the pointer moves: the camera controls move the view */
@@ -120,6 +130,12 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
     private _crumbs: IObject3D[] = []
     /** The box and hover settings of the PickingPlugin while the overlay draws, to restore them after */
     private _pickingSaved?: {widget: boolean, hover: boolean}
+
+    constructor(enabled = true) {
+        super()
+        this.enabled = enabled
+        this._raycaster.params.Line2 = {threshold: 8} // fat lines: pixels added to the line width
+    }
 
     onAdded(viewer: ThreeViewer) {
         super.onAdded(viewer)
@@ -304,17 +320,16 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         return {w: r.width, h: r.height, left: r.left, top: r.top}
     }
 
-    private _rayFromScreen(sx: number, sy: number) {
-        const {w, h} = this._size()
-        this._raycaster.setFromCamera(new Vector2(sx / w * 2 - 1, -(sy / h) * 2 + 1), this._viewer!.scene.mainCamera)
-    }
-
-    private _worldPerPixel(at: Vector3) {
+    /**
+     * The size of a pixel in world units at the camera target (the origin when the camera has none)
+     * @param h - the canvas height in pixels
+     */
+    private _worldPerPixel(h: number) {
         const cam = this._viewer!.scene.mainCamera
         const c = cam as any // orthographic or perspective
-        const {h} = this._size()
         if (c.isOrthographicCamera) return (c.top - c.bottom) / c.zoom / h
-        return 2 * cam.position.distanceTo(at) * Math.tan((c.fov || 45) * Math.PI / 360) / h
+        const dist = c.target ? cam.position.distanceTo(c.target) : cam.position.length()
+        return 2 * dist * Math.tan((c.fov || 45) * Math.PI / 360) / h
     }
 
     /** The objects to raycast: the model, and the widget roots of the PickingPlugin (a widget stands for its object) */
@@ -337,6 +352,20 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
     }
 
     /**
+     * The raycast hits at a screen point, front to back as a click sees them: a line or a point is hit within a few
+     * pixels, and wins over a surface at about the same depth (a line on a surface is hit at about the surface's distance)
+     */
+    private _intersect(sx: number, sy: number, {w, h}: {w: number, h: number}) {
+        this._raycaster.setFromCamera(this._ndc.set(sx / w * 2 - 1, -(sy / h) * 2 + 1), this._viewer!.scene.mainCamera)
+        const wpp = this._worldPerPixel(h)
+        this._raycaster.params.Line.threshold = wpp * 5
+        const hits = this._raycaster.intersectObjects(this._rayRoots(), true)
+        const tol = wpp * 12
+        const depth = (hit: typeof hits[number]) => hit.distance - (isThin(hit.object) ? tol : 0)
+        return hits.sort((a, b) => depth(a) - depth(b))
+    }
+
+    /**
      * The object that a press at a screen point is on. The selection wins over what is in front of it, like in Figma,
      * and a line or point wins over a surface at about the same depth. `handle` is set when the press is on a widget
      * handle (a curve point): the PickingPlugin selects it, so the transform gizmo can move it.
@@ -345,18 +374,15 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
      */
     raycastLeaf(sx: number, sy: number): {leaf: IObject3D, point: Vector3, handle?: Object3D} | null {
         if (!this._viewer || !this._picking?.picker) return null
-        this._rayFromScreen(sx, sy)
-        const wpp = this._worldPerPixel((this._viewer.scene.mainCamera as any).target ?? new Vector3())
-        this._raycaster.params.Line = {threshold: wpp * 5}
-        this._raycaster.params.Line2 = {threshold: 8} // fat lines: pixels added to the line width
-        const hits = this._raycaster.intersectObjects(this._rayRoots(), true)
-        // a line on a surface is hit at about the surface's distance: lines and points win within a few pixels of depth
-        const tol = wpp * 12
-        const depth = (h: typeof hits[number]) => h.distance - (isThin(h.object) ? tol : 0)
-        hits.sort((a, b) => depth(a) - depth(b))
-        const sel = this.selected
+        return this._raycastLeaf(sx, sy, this._size(), this.selected)
+    }
+
+    /** {@link raycastLeaf} with the canvas size and the selection, read once by the caller */
+    private _raycastLeaf(sx: number, sy: number, size: {w: number, h: number}, sel: IObject3D[]) {
+        const hits = this._intersect(sx, sy, size)
+        const selSet = new Set<Object3D>(sel)
         const inSelection = (o: Object3D | null) => {
-            for (let p = o; p; p = p.parent) if (sel.includes(p as IObject3D)) return true
+            for (let p = o; p; p = p.parent) if (selSet.has(p)) return true
             return false
         }
         let first: {leaf: IObject3D, point: Vector3, handle?: Object3D} | null = null
@@ -378,11 +404,11 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
      */
     targetsAt(x: number, y: number, deep = false): IObject3D[] {
         if (!this._viewer || !this._picking?.picker) return []
-        this._rayFromScreen(x, y)
         const out: IObject3D[] = []
-        for (const hit of this._raycaster.intersectObjects(this._rayRoots(), true)) {
+        const sel = this.selected
+        for (const hit of this._intersect(x, y, this._size())) {
             const leaf = this._hitLeaf(hit.object as IObject3D)
-            const t = leaf && this.resolveTarget(leaf, deep, false)
+            const t = leaf && resolveTarget(this._modelRoot, sel, leaf, deep, false)
             if (t && !out.includes(t)) out.push(t)
         }
         return out
@@ -442,10 +468,10 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         // the second press of a double click: the click behind of the first one does not happen
         this._cancelClickBehind()
         // the transform gizmo gets the press when the pointer is on one of its axes
-        const tc = this._viewer!.getPlugin(TransformControlsPlugin)
+        const tc = this._viewer!.getPlugin<TransformControlsPlugin>('TransformControlsPlugin')
         if (tc && !tc.isDisabled() && tc.transformControls?.axis) return
         const p = this._local(e)
-        this._pointer.copy(p)
+        this._client.set(e.clientX, e.clientY)
         const hit = this.raycastLeaf(p.x, p.y)
         // a widget handle (a curve point): the PickingPlugin selects it with its intersection, for the transform gizmo
         if (hit?.handle) return
@@ -454,14 +480,13 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
 
     private _onPointerMove = (e: PointerEvent) => {
         if (!this._active || e.isPrimary === false) return
-        this._deepKey = e.ctrlKey || e.metaKey
-        const p = this._local(e)
-        this._pointer.copy(p)
+        this._setDeepKey(e.ctrlKey || e.metaKey)
+        this._client.set(e.clientX, e.clientY)
         // a held button moves the camera: no hover while it moves (a raycast per frame costs frames on a big model)
         this._pointerHeld = !!e.buttons
         if (!e.buttons) this._pointerDirty = true
         // a drag: the camera controls have it
-        if (this._state && this._state.start.distanceTo(p) >= SelectionUxPlugin.ClickDistance) this._state = null
+        if (this._state && this._state.start.distanceTo(this._local(e)) >= SelectionUxPlugin.ClickDistance) this._state = null
     }
 
     private _onPointerUp = (e: PointerEvent) => {
@@ -559,15 +584,17 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
     }
 
     private _hoverTarget(): IObject3D | null {
-        if (!this._pointerInside) return null
+        if (!this._pointerInside || !this._picking?.picker) return null
         // over a panel or a button on top of the canvas
-        const {left, top} = this._size()
-        if (document.elementFromPoint(this._pointer.x + left, this._pointer.y + top) !== this._viewer!.canvas) return null
-        const hit = this.raycastLeaf(this._pointer.x, this._pointer.y)
+        const {x, y} = this._client
+        if (document.elementFromPoint(x, y) !== this._viewer!.canvas) return null
+        const size = this._size()
+        const sel = this.selected
+        const hit = this._raycastLeaf(x - size.left, y - size.top, size, sel)
         if (!hit) return null
-        const tgt = this.resolveTarget(hit.leaf, this._deepKey, false)
+        const tgt = resolveTarget(this._modelRoot, sel, hit.leaf, this._deepKey, false)
         // inside a selected group: the part that a double click selects
-        return tgt && this.selected.includes(tgt) ? this.resolveTarget(hit.leaf, false, true) : tgt
+        return tgt && sel.includes(tgt) ? resolveTarget(this._modelRoot, sel, hit.leaf, false, true) : tgt
     }
 
     private _setHover(h: IObject3D | null) {
@@ -738,18 +765,23 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
 
     // region keyboard
 
+    /** Ctrl/Cmd is down: the hover shows the deepest object. A change updates the hover, other keys do not raycast. */
+    private _setDeepKey(deep: boolean) {
+        if (deep === this._deepKey) return
+        this._deepKey = deep
+        this._pointerDirty = true
+    }
+
     private _onBlur = () => {
-        this._deepKey = false
+        this._setDeepKey(false)
     }
 
     private _onKeyUp = (e: KeyboardEvent) => {
-        this._deepKey = e.ctrlKey || e.metaKey
-        this._pointerDirty = true
+        this._setDeepKey(e.ctrlKey || e.metaKey)
     }
 
     private _onKeyDown = (e: KeyboardEvent) => {
-        this._deepKey = e.ctrlKey || e.metaKey
-        this._pointerDirty = true
+        this._setDeepKey(e.ctrlKey || e.metaKey)
         if (!this._active) return
         const t = e.target as HTMLElement | null
         if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return
