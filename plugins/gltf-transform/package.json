@@ -65,8 +65,7 @@
         "src", "README.md", "CHANGELOG.md", "docs", "tsconfig.json"
     ],
     "scripts": {
-        "new:pack": "npm run prepare 1>&2 && npm run docs 1>&2 && clean-package && npm pack --silent && clean-package restore",
-        "prepare": "npm run build",
+        "new:pack": "npm run build 1>&2 && npm run docs 1>&2 && clean-package && npm pack --silent && clean-package restore",
         "compile:esm": "vite build --config vite.lib.config.js",
         "compile": "rimraf lib && npm run compile:esm",
         "build": "npm run compile && rimraf dist && vite build",

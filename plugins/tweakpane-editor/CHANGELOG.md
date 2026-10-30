@@ -6,7 +6,14 @@ All notable changes to this plugin will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- `NotesPlugin`: a list of notes, each kept in a store: `file` (serialized, so saved in the viewer config and in an exported .glb), `browser` (`localStorage`, `BrowserNotesStore`), or a store of the app (`NotesStore`, `addStore`; `HttpNotesStore` for a server). Changes are saved per store 600 ms after the last one; notes made while a store loads are kept. Events `notesChanged` (with the note, or the notes that `clear` or a replaced store removed) and `storeStatusChanged`; `contextLine()` gives the time, the context and the selected names. Its UI folder, `Notes`, has the settings.
+- `StickyNotesUiPlugin`: the notes as post-its over the canvas, in the `board` layout (a post-it per note; new ones, and "Arrange", inside the canvas and above the dock, also on a phone) or the `stack` layout (a pile that goes to the left and up; a click brings a post-it up), or `minimized` (off the canvas; one button with the number of notes brings back the layout from before). "+ Note" adds a note at once ("▾" picks the store), a badge moves a note to another store, "+ Context", "Copy" and "×" per note (the text is 16 px on a touch screen, so a phone does not zoom in on it); post-its are dragged by their bar and sized from their corner, and glide between layouts. The layout, the colour, the places, the sizes and the order are kept in `localStorage`. Its UI folder, `Sticky Notes`, has the settings; `dock` holds its buttons. The post-its show above the loading screen, and their menus with the popups of the page. The `notes-plugin` example and the Extras mode of the tweakpane editor example show both.
 - Add `SelectionOutlinePlugin`: the outline of the selected and hovered objects in the render pipeline (a mask pass and a screen pass extension), with lines between parts, a dashed x-ray outline, fill and dim; follows the `PickingPlugin` or takes `selected` and `hovered`; the mask follows the material alpha. A selection or hover change renders one frame, without a progressive restart. The mask is drawn again only after a change (selection, hover, settings, a render reset, another camera or a resize), not in each frame of the progressive render; its target is made at the first selection or hover. Also `SelectionMaskPass`. Example `selection-outline-plugin`; also in the Interaction mode of the tweakpane-editor example, next to `OutlinePlugin` (its UI folder is `Selection Outline (Editor)`).
+
+### Changed
+
 - treejs comes from npm, `@repalash/treejs` 2.0.0 (the same code), instead of a git URL, which npm 12 refuses by default. `HierarchyUiPlugin.treeView` is typed `any`: treejs is bundled, so its type could not resolve in consumer declarations.
 
 ## [0.6.0]

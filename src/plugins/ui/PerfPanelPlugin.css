@@ -1,0 +1,59 @@
+.pp-root {
+  --pp-bg: #ffffff; --pp-fg: #1e1e1e; --pp-dim: #8a8f97; --pp-line: #e9eaec; --pp-hover: #f2f3f5;
+  --pp-accent: #0d99ff; --pp-good: #14ae5c; --pp-amber: #f5a524; --pp-bad: #f24822; --pp-spark-idle: #c9ccd1;
+  --pp-warn-bg: #fff4e0; --pp-warn-fg: #7a4b00;
+  --pp-shadow: 0 0 0 1px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.06), 0 6px 20px rgba(0,0,0,.10);
+  position: absolute; z-index: 12; color: var(--pp-fg); user-select: none;
+  font: 500 11px/1.35 var(--tp-font-family, Inter, ui-sans-serif, system-ui, sans-serif);
+  font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased;
+}
+.pp-dark.pp-root {
+  --pp-bg: #2c2c2c; --pp-fg: #f0f0f0; --pp-dim: #9a9a9a; --pp-line: #3d3d3d; --pp-hover: #383838; --pp-spark-idle: #5a5a5a;
+  --pp-warn-bg: rgba(245,165,36,.14); --pp-warn-fg: #ffc965;
+  --pp-shadow: 0 0 0 1px rgba(0,0,0,.4), 0 6px 20px rgba(0,0,0,.35);
+}
+/* with the tweakpane UI on the page, take its theme colours (body.tpTheme-black / dark / blue / light / white / clean / clean-dark) */
+body[class*="tpTheme-"] .pp-root {
+  --pp-bg: var(--tp-base-background-color, #1c2026); --pp-fg: var(--tp-container-foreground-color, #f0f0f0);
+  --pp-dim: var(--tp-monitor-foreground-color, #9a9a9a); --pp-line: var(--tp-container-border-color, rgba(255,255,255,.14));
+  --pp-hover: var(--tp-button-background-color-hover, rgba(255,255,255,.09)); --pp-spark-idle: var(--tp-label-foreground-color, #8a8f97);
+}
+body.tpTheme-black .pp-root, body.tpTheme-dark .pp-root, body.tpTheme-blue .pp-root, body.tpTheme-clean-dark .pp-root {
+  --pp-warn-bg: rgba(245,165,36,.14); --pp-warn-fg: #ffc965; --pp-shadow: 0 0 0 1px rgba(0,0,0,.35), 0 6px 20px rgba(0,0,0,.3);
+}
+.pp-top-left { top: 10px; left: 10px; }
+.pp-top-right { top: 10px; right: 10px; }
+.pp-bottom-left { bottom: 10px; left: 10px; }
+.pp-bottom-right { bottom: 10px; right: 10px; }
+.pp-pill {
+  position: relative; display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px; border: 0; border-radius: 6px;
+  background: var(--pp-bg); color: var(--pp-fg); box-shadow: var(--pp-shadow); font: inherit; cursor: pointer;
+}
+.pp-pill:hover { background: var(--pp-hover); }
+.pp-pill:focus-visible, .pp-x:focus-visible { outline: 2px solid var(--pp-accent); outline-offset: 1px; }
+/* a warning: an amber dot on the corner */
+.pp-pill.pp-has-warn::after {
+  content: ''; position: absolute; top: -2px; right: -2px; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--pp-amber); box-shadow: 0 0 0 1.5px var(--pp-bg);
+}
+.pp-dot { flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--pp-dim); }
+.pp-dot.pp-good { background: var(--pp-good); }
+.pp-dot.pp-amber { background: var(--pp-amber); }
+.pp-dot.pp-red { background: var(--pp-bad); }
+.pp-card { width: 248px; box-sizing: border-box; padding: 8px 10px 10px; border-radius: 6px; background: var(--pp-bg); box-shadow: var(--pp-shadow); }
+.pp-collapsed .pp-card, .pp-root:not(.pp-collapsed) .pp-pill { display: none; }
+.pp-head { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.pp-big { font-size: 14px; font-weight: 600; }
+.pp-sub { flex: 1; color: var(--pp-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pp-x { border: 0; background: transparent; color: var(--pp-dim); font: inherit; font-size: 14px; line-height: 1; padding: 0 2px; border-radius: 4px; cursor: pointer; }
+.pp-x:hover { color: var(--pp-fg); background: var(--pp-hover); }
+.pp-spark { display: block; width: 100%; height: 34px; margin: 7px 0 6px; }
+.pp-rows { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 3px 10px; margin: 0; }
+.pp-rows dt { color: var(--pp-dim); white-space: nowrap; }
+.pp-rows dd { margin: 0; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; user-select: text; }
+.pp-warns { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+.pp-warns:empty { display: none; }
+.pp-warn { padding: 5px 7px; border-radius: 4px; background: var(--pp-warn-bg); color: var(--pp-warn-fg); user-select: text; }
+.pp-warn small { display: block; margin-top: 2px; font-size: 10.5px; font-weight: 400; opacity: .9; }
+.pp-warn code { font: inherit; font-weight: 500; text-decoration: underline dotted; cursor: copy; }
+.pp-warn code.pp-copied::after { content: ' ✓'; }
