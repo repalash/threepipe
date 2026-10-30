@@ -1,5 +1,5 @@
 import {describe, expect, test, vi} from 'vitest'
-import {BoxGeometry, CustomBlending, EventDispatcher, Group, MaxEquation, Mesh, MeshBasicMaterial, NoBlending, Object3D, PerspectiveCamera, ShaderMaterial, Texture, Vector3} from 'three'
+import {BoxGeometry, CustomBlending, DataUtils, EventDispatcher, Group, MaxEquation, Mesh, MeshBasicMaterial, NoBlending, Object3D, PerspectiveCamera, ShaderMaterial, Texture, Vector3} from 'three'
 import {lineMaskFragment, SelectionMaskPass, selectionMaskMaterial, SelectionOutlinePlugin} from '../../plugins/tweakpane-editor/src/SelectionOutlinePlugin'
 
 const mesh = (name: string) => Object.assign(new Mesh(new BoxGeometry()), {name})
@@ -80,6 +80,26 @@ describe('SelectionOutlinePlugin', () => {
         plugin.outlineSelected = true
         plugin.enabled = false
         expect(plugin.maskItems().size).toBe(0)
+    })
+
+    test('mask items: the ids stay exact in the half-float mask past 2048 parts or items, and the next id differs', () => {
+        const {plugin} = setup()
+        const many = (n: number) => Array.from({length: n}, (_, i) => mesh('m' + i))
+        const halfExact = (v: number) => DataUtils.fromHalfFloat(DataUtils.toHalfFloat(v)) === v
+        // one item with 2050 parts
+        const assembly = new Group()
+        assembly.add(...many(2050))
+        plugin.selected = [assembly as any]
+        const parts = [...plugin.maskItems().values()].map(v => v.y)
+        expect(parts.every(halfExact)).toBe(true)
+        expect(parts.every(p => p > 0)).toBe(true)
+        parts.slice(1).forEach((p, i) => expect(p).not.toBe(parts[i]))
+        // 2050 selected items
+        plugin.selected = many(2050) as any
+        const items = [...plugin.maskItems().values()].map(v => v.x)
+        expect(items.every(halfExact)).toBe(true)
+        expect(items.every(s => s > 0)).toBe(true)
+        items.slice(1).forEach((s, i) => expect(s).not.toBe(items[i]))
     })
 
     test('partsOf can be replaced', () => {

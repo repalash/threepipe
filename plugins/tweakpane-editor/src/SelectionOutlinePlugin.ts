@@ -219,7 +219,9 @@ if (selCoverage > 0.0) {
 
     /**
      * The meshes in the mask and their data: x = selected item (1-based, 0 = not selected), y = part inside the item
-     * (1-based, 0 = none), z = 1 when hovered.
+     * (1-based, 0 = none), z = 1 when hovered. The ids count from 1 to 2048 and start again at 1, as the half-float mask
+     * holds integers exactly up to 2048: two parts or items next in order always differ, and two with the same id are
+     * 2048 apart.
      */
     maskItems(): Map<Object3D, Vector3> {
         const items = new Map<Object3D, Vector3>()
@@ -229,14 +231,14 @@ if (selCoverage > 0.0) {
             // the 1-based index of each part, so a mesh finds its part in the depth of the tree, not the count of parts
             const parts = new Map<Object3D, number>()
             this.partsOf(o).forEach((p, j) => {
-                if (!parts.has(p)) parts.set(p, j + 1)
+                if (!parts.has(p)) parts.set(p, maskId(j))
             })
             o.traverseVisible(m => {
                 if (!isMaskMesh(m)) return
                 let p: Object3D | null = m
                 while (p && p !== o && !parts.has(p)) p = p.parent
                 const part = p && p !== o ? parts.get(p) ?? 0 : 0
-                items.set(m, new Vector3(i + 1, part, 0))
+                items.set(m, new Vector3(maskId(i), part, 0))
             })
         })
         const hovers = this.outlineHover ? this._hovered : []
@@ -625,6 +627,11 @@ function setMaskTexture(tex: {value: Texture | null}, use: {value: number}, uvTr
         uvTransform.value.copy(t.matrix)
         channel.value = t.channel ?? 0
     }
+}
+
+/** The mask id (1 to 2048, then 1 again) of a 0-based index: a half float holds the integers exactly up to 2048 */
+function maskId(index: number) {
+    return index % 2048 + 1
 }
 
 /** A mesh with a geometry: the objects that the mask pass draws */
