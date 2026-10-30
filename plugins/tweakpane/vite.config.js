@@ -1,6 +1,6 @@
 import {defineConfig} from 'vite'
 import dts from 'vite-plugin-dts'
-import packageJson from './package.json';
+import packageJson from './package.json' with {type: 'json'};
 import {commonPlugins, globalsReplacePlugin, fixDtsImports} from '../../scripts/vite-utils.mjs';
 
 const isProd = process.env.NODE_ENV === 'production'
@@ -38,10 +38,7 @@ export default defineConfig({
         },
         outDir: 'dist',
         emptyOutDir: isProd,
-        commonjsOptions: {
-            exclude: [/uiconfig.js/, /ts-browser-helpers/],
-        },
-        rollupOptions: {
+        rolldownOptions: {
             output: {
                 // inlineDynamicImports: false,
                 globals,
@@ -52,6 +49,6 @@ export default defineConfig({
     plugins: [
         isProd ? dts({tsconfigPath: './tsconfig.json', afterBuild: fixDtsImports}) : null,
         ...globalsReplacePlugin(globals, isProd),
-        ...commonPlugins(packageJson, __dirname, isProd),
+        ...commonPlugins(packageJson, import.meta.dirname, isProd),
     ],
 })

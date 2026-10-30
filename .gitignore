@@ -40,8 +40,8 @@ bower_components
 # Compiled binary addons (https://nodejs.org/api/addons.html)
 build/Release
 
-# Dependency directories
-node_modules/
+# Dependency directories (no trailing slash: it also matches a node_modules symlink)
+node_modules
 jspm_packages/
 
 # TypeScript v1 declaration files
@@ -91,3 +91,4 @@ compose.dev.yaml
 tests/snapshots/
 tests/download-file-hashes.json.lock
 
+.turbo
