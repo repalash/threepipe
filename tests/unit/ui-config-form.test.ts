@@ -39,7 +39,7 @@ class FakeElement {
     }
     setPointerCapture() {}
     fire(type: string, e: any = {}) {
-        for (const f of this._listeners.get(type) ?? []) f({preventDefault: () => {}, pointerId: 1, clientX: 0, ...e})
+        for (const f of this._listeners.get(type) ?? []) f({preventDefault: () => {}, pointerId: 1, clientX: 0, button: 0, ...e})
     }
     /** The elements below this one with one of the tag names of a selector like 'input, select' */
     querySelectorAll(selector: string) {
@@ -607,6 +607,16 @@ describe('UiConfigForm', () => {
         } finally {
             now.mockRestore()
         }
+    })
+
+    test('a drag with another button than the main one is not a scrub', () => {
+        const target = {width: 1}
+        const form = new UiConfigForm([{type: 'number', label: 'Width', property: [target, 'width']}])
+        const name = row(form, 'Width').row.children[0]
+        name.fire('pointerdown', {clientX: 0, button: 2}) // the right button: the page can show its menu
+        name.fire('pointermove', {clientX: 50})
+        name.fire('pointerup')
+        expect(target.width).toBe(1)
     })
 
     test('a scrub moves by the stepSize per pixel, else by at most 1% of the bounds', () => {

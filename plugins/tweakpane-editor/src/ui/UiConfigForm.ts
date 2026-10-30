@@ -232,7 +232,8 @@ export class UiConfigForm {
             h.textContent = label
             f.appendChild(h)
             host.appendChild(f)
-            for (const ch of this._children(c)) this._render(ch, f, [...parents, c])
+            const path = [...parents, c]
+            for (const ch of this._children(c)) this._render(ch, f, path)
             return
         }
         if (type === 'button') {
@@ -409,15 +410,14 @@ export class UiConfigForm {
         return input
     }
 
-    /** Drag the name left or right to change the number, Shift for 10x */
     /**
-     * Drag on the handle to change the number
+     * Drag the handle (the name) left or right with the main button to change the number, Shift for 10x
      * @param step - the change per pixel, or a function of the value at the start of the drag
      */
     private _scrub(handle: HTMLElement, isDisabled: () => boolean, get: () => number, step: number | ((v: number) => number), set: (n: number) => void, end: () => void) {
         handle.style.cursor = 'ew-resize'
         handle.addEventListener('pointerdown', e => {
-            if (isDisabled()) return
+            if (e.button !== 0 || isDisabled()) return
             e.preventDefault()
             handle.setPointerCapture(e.pointerId)
             const x0 = e.clientX
