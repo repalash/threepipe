@@ -5,4 +5,5 @@ export type {NoteItem, NotesStore, NotesStoreStatus, NotesPluginOptions, NotesPl
 export {StickyNotesUiPlugin} from './StickyNotesUiPlugin'
 export type {StickyNotesLayout, StickyNotesColor} from './StickyNotesUiPlugin'
 export {SelectionUxPlugin} from './selection/SelectionUxPlugin'
-export type {SelectionUxPluginEventMap} from './selection/SelectionUxPlugin'
+export type {SelectionUxPluginEventMap, SelectionBoxStyle} from './selection/SelectionUxPlugin'
+export type {BoxInfo, ScreenPoint, ScreenRect} from './selection/selectionBox'
