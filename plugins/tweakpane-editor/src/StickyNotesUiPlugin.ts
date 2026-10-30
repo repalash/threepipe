@@ -121,6 +121,10 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
 
     private _notes?: NotesPlugin
     private _cards = new Map<string, NoteCard>()
+    /** The post-it of each card element, for the ResizeObserver */
+    private _byElement = new WeakMap<Element, NoteCard>()
+    /** A write of the state that waits for the end of a size change from a corner */
+    private _writeTimer = 0
     private _state: StickyState
     private _arrangeButton: HTMLButtonElement
     private _layoutButton: HTMLButtonElement
@@ -129,7 +133,10 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
     private _menuAnchor?: HTMLElement
     private _ready = false
     private _resizer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(entries => {
-        for (const {target} of entries) this._cardResized(target as HTMLDivElement)
+        for (const {target} of entries) {
+            const c = this._byElement.get(target)
+            if (c) this._cardResized(c)
+        }
     })
 
     uiConfig: UiObjectConfig = {
@@ -184,6 +191,7 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         this._notes?.removeEventListener('notesChanged', this._onNotesChanged)
         this._notes?.removeEventListener('storeStatusChanged', this._onStatus)
         window.removeEventListener('resize', this._onResize)
+        if (this._writeTimer) this._writeState()
         this._closeMenu()
         this._resizer?.disconnect()
         for (const c of this._cards.values()) c.card.remove()
@@ -436,6 +444,7 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         })
         card.addEventListener('animationend', () => card.classList.remove('snp-new'))
         this._draggable(c)
+        this._byElement.set(card, c)
         this._resizer?.observe(card)
         this._updateBadge(c)
         return c
@@ -477,7 +486,8 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
             e.preventDefault()
             this._closeMenu()
             const stack = this.layout === 'stack'
-            const start = stack ? this._pileBox() : this._clamp(this._state.board?.[c.note.id] ?? {})
+            const size = this._size()
+            const start = stack ? this._pileBox(size) : this._clamp(this._state.board?.[c.note.id] ?? {}, size)
             const sx = e.clientX, sy = e.clientY
             let moving = false
             bar.setPointerCapture?.(e.pointerId)
@@ -490,9 +500,14 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
                     c.card.classList.add('snp-lifted')
                 }
                 const x = (start.x ?? 0) + dx, y = (start.y ?? 0) + dy
-                if (stack) this._state.stack = {...this._state.stack, x, y}
-                else (this._state.board ??= {})[c.note.id] = {...this._state.board?.[c.note.id], x, y}
-                this._layoutCards(false)
+                if (stack) {
+                    this._state.stack = {...this._state.stack, x, y}
+                    this._layoutCards(false)
+                } else {
+                    // only this post-it moves: it is on top already (the press brought it up)
+                    const box = (this._state.board ??= {})[c.note.id] = {...this._state.board?.[c.note.id], x, y}
+                    this._setBox(c, this._clamp(box, size))
+                }
             }
             const end = () => {
                 bar.removeEventListener('pointermove', move)
@@ -518,18 +533,26 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         })
     }
 
-    /** The person sized a post-it from its corner: its box (the pile's, in the stack layout) keeps the size */
-    private _cardResized(card: HTMLDivElement) {
-        const c = [...this._cards.values()].find(x => x.card === card)
-        if (!c) return
-        const w = card.offsetWidth, h = card.offsetHeight
+    /**
+     * The person sized a post-it from its corner: its box (the pile's, in the stack layout) keeps the size. This runs
+     * for each frame of the sizing; the state is written once, after it.
+     */
+    private _cardResized(c: NoteCard) {
+        const w = c.card.offsetWidth, h = c.card.offsetHeight
         if (!w || !h) return // hidden (Show off, or the canvas hidden): not a size the person gave
         if (Math.abs(w - c.size[0]) < 2 && Math.abs(h - c.size[1]) < 2) return // the size the layout gave it
         c.size = [w, h]
-        if (this.layout === 'stack') this._state.stack = {...this._state.stack, w, h}
-        else (this._state.board ??= {})[c.note.id] = {...this._state.board?.[c.note.id], w, h}
-        this._writeState()
-        this._layoutCards(false)
+        if (this.layout === 'stack') {
+            this._state.stack = {...this._state.stack, w, h}
+            this._layoutCards(false)
+        } else {
+            // only this post-it changes; it is not moved back inside the canvas with a glide
+            this.element.classList.add('snp-instant')
+            const box = (this._state.board ??= {})[c.note.id] = {...this._state.board?.[c.note.id], w, h}
+            this._setBox(c, this._clamp(box))
+        }
+        clearTimeout(this._writeTimer)
+        this._writeTimer = window.setTimeout(() => this._writeState(), 300)
     }
 
     /** The columns of the board: the post-its with the same left edge, by that edge */
@@ -613,6 +636,8 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
     }
 
     private _writeState() {
+        clearTimeout(this._writeTimer)
+        this._writeTimer = 0
         if (this._notes) this._state.order = this._order()
         try {
             localStorage.setItem(this.storageKey, JSON.stringify(this._state))

@@ -141,6 +141,8 @@ function setup(options: ConstructorParameters<typeof NotesPlugin>[0] = {}) {
 }
 
 const cards = (layer: FakeElement) => layer.find('snp-card')
+/** What the ResizeObserver does when a post-it changes size */
+const resized = (sticky: StickyNotesUiPlugin, card: FakeElement) => (sticky as any)._cardResized((sticky as any)._byElement.get(card))
 
 describe('StickyNotesUiPlugin', () => {
     const text = (c: FakeElement) => c.all().find(e => e.tagName === 'textarea')!
@@ -270,8 +272,11 @@ describe('StickyNotesUiPlugin', () => {
         expect(place(ca)).toEqual(['12px', '12px'])
         expect(place(cb)).toEqual(['12px', '174px']) // 12 + 150 + 12
 
+        ca.style.left = 'untouched'
         drag(cb, 300, 200)
         expect(place(cb)).toEqual(['312px', '374px'])
+        expect(ca.style.left).toBe('untouched') // only the post-it dragged moves
+        ca.style.left = '12px'
         expect(state().board[b.id]).toMatchObject({x: 312, y: 374})
         // after the release, the pointer moves the post-it no more
         cb.find('snp-bar')[0].fire('pointermove', {clientX: 600, clientY: 500})
@@ -287,7 +292,7 @@ describe('StickyNotesUiPlugin', () => {
         notes.addNote('wide')
         const wide = cards(layer)[0]
         wide.offsetWidth = 300
-        ;(sticky as any)._cardResized(wide)
+        resized(sticky, wide)
         for (let i = 0; i < 6; i++) notes.addNote(String(i))
         // 600 px high: three post-its in a column (12, 174, 336), as 498 + 150 is more than 600 - 12
         expect(cards(layer).map(place)).toEqual([
@@ -384,18 +389,49 @@ describe('StickyNotesUiPlugin', () => {
         expect([menu.style.left, menu.style.top]).toEqual(['70px', '406px'])
     })
 
-    test('a size from the corner is kept; a hidden post-it (size 0) changes no size', () => {
-        const {notes, sticky, layer} = setup()
-        const n = notes.addNote('a')
-        const card = cards(layer)[0]
-        card.offsetWidth = 300
-        card.offsetHeight = 200
-        ;(sticky as any)._cardResized(card)
-        expect(state().board[n.id]).toMatchObject({w: 300, h: 200})
-        sticky.shown = false
-        card.offsetWidth = card.offsetHeight = 0
-        ;(sticky as any)._cardResized(card)
-        expect(state().board[n.id]).toMatchObject({w: 300, h: 200})
+    test('a size from the corner is kept, written once after the sizing; a hidden post-it (size 0) changes no size', () => {
+        vi.useFakeTimers()
+        try {
+            const {notes, sticky, layer} = setup()
+            const n = notes.addNote('a')
+            const card = cards(layer)[0]
+            let writes = 0
+            const set = localStorage.setItem
+            vi.stubGlobal('localStorage', {...localStorage, setItem: (k: string, v: string) => (writes++, set(k, v))})
+            // the frames of a size change: the post-it follows, the state is written after the last one
+            for (const w of [240, 270, 300]) {
+                card.offsetWidth = w
+                card.offsetHeight = 200
+                resized(sticky, card)
+            }
+            expect([card.style.width, card.style.height]).toEqual(['300px', '200px'])
+            expect(writes).toBe(0)
+            vi.advanceTimersByTime(300)
+            expect(writes).toBe(1)
+            expect(state().board[n.id]).toMatchObject({w: 300, h: 200})
+            sticky.shown = false
+            card.offsetWidth = card.offsetHeight = 0
+            resized(sticky, card)
+            vi.advanceTimersByTime(300)
+            expect(state().board[n.id]).toMatchObject({w: 300, h: 200})
+        } finally {
+            vi.useRealTimers()
+        }
+    })
+
+    test('a size change that waits to be written is written when the plugin is removed', () => {
+        vi.useFakeTimers()
+        try {
+            const {notes, sticky, viewer, layer} = setup()
+            const n = notes.addNote('a')
+            const card = cards(layer)[0]
+            card.offsetWidth = 300
+            resized(sticky, card)
+            sticky.onRemove(viewer)
+            expect(state().board[n.id]).toMatchObject({w: 300})
+        } finally {
+            vi.useRealTimers()
+        }
     })
 
     test('Show hides the layer; removing the plugin removes it', () => {
