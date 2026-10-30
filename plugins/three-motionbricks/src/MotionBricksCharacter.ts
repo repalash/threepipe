@@ -1,5 +1,6 @@
 import {Group, Object3D, Vector3} from 'three'
 import {G1Robot} from './G1Robot'
+import {CHARACTER_RIGS, CharacterRig, RetargetedCharacter} from './RetargetedCharacter'
 import {G1Bricks, G1Controller, G1ControllerStats, G1Gait, GAIT_SPEEDS} from './G1Controller'
 import {G1_BRICKS} from './G1Bricks'
 import {heading, MotionBricksG1, MotionGenerator, OrtApi, setupOrtWeb} from './MotionBricksG1'
@@ -7,14 +8,32 @@ import {MotionBricksRemote, MotionBricksWorkerError} from './MotionBricksRemote'
 
 const NVIDIA_ASSETS = 'https://media.githubusercontent.com/media/NVlabs/motionbricks/main/motionbricks/assets'
 
+const ASSETS = 'https://cdn.jsdelivr.net/gh/repalash/three-motionbricks@v0.2.0/assets/'
+
 /** Where the model and ONNX Runtime load from when the options do not say, and where the robot model is. */
 export const MOTIONBRICKS_DEFAULTS = {
     /** NVIDIA's original fp32 model, 730 MB. A pack from tools/pack_model.py is about 190 MB. */
     model: NVIDIA_ASSETS + '/onnx/unitree_g1/mmm_v6_g1_fp32.onnx',
+    /** This package's assets/ folder on jsDelivr: the robot and the other characters (see MOTIONBRICKS_CHARACTERS). */
+    assets: ASSETS,
     /** The robot, for your GLTFLoader: assets/unitree_g1.glb in this package (6 MB, BSD-3-Clause, Unitree). */
-    robot: 'https://cdn.jsdelivr.net/gh/repalash/three-motionbricks@v0.1.0/assets/unitree_g1.glb',
+    robot: ASSETS + 'unitree_g1.glb',
     ort: 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.30.0/dist/ort.min.mjs',
 }
+
+/**
+ * The models in assets/: the G1 the motion is made for, and others it is retargeted to with a rig from
+ * CHARACTER_RIGS. Each `file` is relative to MOTIONBRICKS_DEFAULTS.assets.
+ */
+export const MOTIONBRICKS_CHARACTERS = [
+    {id: 'g1', label: 'Unitree G1', file: 'unitree_g1.glb'},
+    {id: 'h1', label: 'Unitree H1', file: 'robots/unitree_h1.glb', rig: 'unitreeH1'},
+    {id: 't1', label: 'Booster T1', file: 'robots/booster_t1.glb', rig: 'boosterT1'},
+    {id: 'op3', label: 'Robotis OP3', file: 'robots/robotis_op3.glb', rig: 'robotisOP3'},
+    {id: 'robot-expressive', label: 'RobotExpressive', file: 'characters/robot_expressive.glb', rig: 'robotExpressive'},
+    {id: 'astronaut', label: 'Astronaut', file: 'characters/astronaut.glb', rig: 'mixamo'},
+    {id: 'polybot', label: 'Polybot', file: 'characters/polybot.glb', rig: 'mixamo'},
+] as const satisfies readonly {id: string, label: string, file: string, rig?: keyof typeof CHARACTER_RIGS}[]
 
 export interface MotionBricksCharacterOptions {
     /** A folder with pack.json from tools/pack_model.py (ending in /), or an original MotionBricks G1 .onnx file. */
@@ -60,7 +79,8 @@ export class MotionBricksCharacter {
     readonly options: MotionBricksCharacterOptions
     /** Holds the robot. Move or scale it to place the character in your scene. */
     readonly object = new Group()
-    robot?: G1Robot
+    /** The model being posed: the G1 itself, or another model the motion is retargeted to. */
+    robot?: G1Robot | RetargetedCharacter
     engine?: MotionGenerator
     controller?: G1Controller
     gait: G1Gait = 'walk'
@@ -118,6 +138,19 @@ export class MotionBricksCharacter {
         this.robot.setPose(this.controller?.pose ?? (this.options.bricks ?? G1_BRICKS).rest[0])
         this.object.add(root)
         return this.robot
+    }
+
+    /**
+     * Use another model, such as a robot from assets/robots or a character with a Mixamo skeleton: the G1's motion
+     * is retargeted to it with a rig from CHARACTER_RIGS (or your own). It replaces the current robot.
+     */
+    setCharacter(root: Object3D, rig: CharacterRig, options: {matchSize?: boolean} = {}) {
+        if (this.robot) this.object.remove(this.robot.object)
+        const character = new RetargetedCharacter(root, rig, {shadows: this.options.shadows ?? true, ...options})
+        this.robot = character
+        character.setPose(this.controller?.pose ?? (this.options.bricks ?? G1_BRICKS).rest[0])
+        this.object.add(character.object)
+        return character
     }
 
     /**

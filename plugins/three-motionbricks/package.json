@@ -1,7 +1,7 @@
 {
     "name": "three-motionbricks",
     "description": "NVIDIA MotionBricks for three.js: a Unitree G1 that walks and runs where you send it, with its motion generated in the browser",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "devDependencies": {},
     "peerDependencies": {
         "three": ">=0.152.0"

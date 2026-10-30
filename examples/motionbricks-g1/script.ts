@@ -28,7 +28,7 @@ import {
     VelocityBufferPlugin,
 } from '@threepipe/webgi-plugins'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
-import {G1Gait, MOTIONBRICKS_DEFAULTS, MotionBricksCharacter} from 'three-motionbricks'
+import {CHARACTER_RIGS, G1Gait, MOTIONBRICKS_CHARACTERS, MOTIONBRICKS_DEFAULTS, MotionBricksCharacter} from 'three-motionbricks'
 import {G1Stage, STAGE_STYLES, StageStyleName} from './G1Stage'
 
 // Real-time motion generation in the browser with NVIDIA MotionBricks (https://github.com/NVlabs/motionbricks),
@@ -45,6 +45,11 @@ const config = {
     /** A folder with pack.json from tools/pack_model.py, or an original MotionBricks G1 .onnx file. */
     model: '',
     robot: '',
+    /** The model the motion plays on, from MOTIONBRICKS_CHARACTERS: g1, h1, t1, op3, robot-expressive, astronaut, polybot. */
+    character: 'g1',
+    /** Where the characters' files are (the library's assets/ folder), with a suffix for hosts that rename them. */
+    assetBase: '',
+    assetSuffix: '',
     /** Scene style from G1Stage.ts: city, research, grid, studio, stage or hangar. */
     style: 'city',
     /** Where the styles' HDR files are, with a suffix for hosts that rename them. Poly Haven by default. */
@@ -61,7 +66,7 @@ const config = {
     ...(window as any).MOTIONBRICKS_CONFIG,
 }
 const params = new URLSearchParams(location.search)
-for (const key of ['model', 'robot', 'backend', 'style', 'fx', 'ui', 'worker'] as const) if (params.get(key)) config[key] = params.get(key)!
+for (const key of ['model', 'robot', 'character', 'backend', 'style', 'fx', 'ui', 'worker'] as const) if (params.get(key)) config[key] = params.get(key)!
 
 const $ = (id: string) => document.getElementById(id)
 
@@ -137,13 +142,42 @@ async function init() {
         worker: config.worker !== '0',
     })
     g1.onError = e => setStatus(`Generation failed: ${e instanceof Error ? e.message : e}`, 'error')
+    // The model the motion plays on: the G1 itself, or another robot or character it is retargeted to.
+    // threepipe loads each GLB like any model, with PhysicalMaterials the panel can edit. A host that renames files
+    // (to .wasm) gets them as Files named .glb.
+    const importGlb = async(url: string) => {
+        const asset = /\.(glb|gltf)$/i.test(url.split(/[?#]/)[0]) ? url :
+            new File([await (await fetch(url)).arrayBuffer()], 'model.glb')
+        const model = await viewer.import<IObject3D>(asset)
+        if (!model) throw new Error(`Could not load ${url}`)
+        return model
+    }
+    const characterUrl = (c: typeof MOTIONBRICKS_CHARACTERS[number]) => c.id === 'g1' && config.robot ? config.robot :
+        (config.assetBase || MOTIONBRICKS_DEFAULTS.assets) + c.file + config.assetSuffix
+    let characterId = MOTIONBRICKS_CHARACTERS.some(c => c.id === config.character) ? config.character : 'g1'
+    const robotFolder = {type: 'folder', label: 'Robot', children: [] as any[], uiRefresh: undefined as any}
+    const setCharacter = async(id: string) => {
+        const c = MOTIONBRICKS_CHARACTERS.find(x => x.id === id) ?? MOTIONBRICKS_CHARACTERS[0]
+        const model = await importGlb(characterUrl(c))
+        const robot = 'rig' in c ? g1.setCharacter(model, CHARACTER_RIGS[c.rig]) : g1.setRobot(model)
+        characterId = c.id
+        robotFolder.label = c.label
+        robotFolder.children = robot.materials.map(m => (m as PhysicalMaterial).uiConfig)
+        robotFolder.uiRefresh?.(true, 'postFrame')
+        if (characterSelect) characterSelect.value = c.id
+        ;(window as any).motionbricks.robot = robot
+        viewer.renderManager.resetShadows()
+        viewer.setDirty()
+        return robot
+    }
+    const characterSelect = $('mb-character') as HTMLSelectElement | null
+    if (characterSelect) {
+        characterSelect.replaceChildren(...MOTIONBRICKS_CHARACTERS.map(c => new Option(c.label, c.id)))
+        characterSelect.addEventListener('change', async() => setCharacter(characterSelect.value))
+    }
+    (window as any).motionbricks = {viewer, g1, stage}
     setStatus('Loading the robot…', 'loading')
-    const robotUrl = config.robot || MOTIONBRICKS_DEFAULTS.robot
-    const robotAsset = /\.(glb|gltf)$/i.test(robotUrl.split(/[?#]/)[0]) ? robotUrl :
-        new File([await (await fetch(robotUrl)).arrayBuffer()], 'unitree_g1.glb')
-    const robotModel = await viewer.import<IObject3D>(robotAsset)
-    if (!robotModel) throw new Error('Could not load the robot model')
-    const robot = g1.setRobot(robotModel)
+    const robot = await setCharacter(characterId)
     viewer.scene.addObject(g1.object)
 
     // A Tweakpane panel for the lighting and render options, in the clean theme that follows light or dark mode.
@@ -151,11 +185,18 @@ async function init() {
         const dark = (document.documentElement.dataset.theme ?? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')) === 'dark'
         const ui = viewer.addPluginSync(new TweakpaneUiPlugin(!matchMedia('(max-width: 720px)').matches, true, undefined, dark ? 'clean-dark' : 'clean'))
         ui.appendChild(stage.uiConfig)
-        ui.appendChild({type: 'folder', label: 'Robot', children: robot.materials.map(m => (m as PhysicalMaterial).uiConfig)})
+        ui.appendChild({
+            type: 'folder', label: 'Character', expanded: true,
+            children: [{
+                type: 'dropdown', label: 'Model', property: [{get id() { return characterId }, set id(v: string) { void setCharacter(v) }}, 'id'],
+                children: MOTIONBRICKS_CHARACTERS.map(c => ({label: c.label, value: c.id})),
+            }],
+        })
+        ui.appendChild(robotFolder)
         ui.setupPlugins(TonemapPlugin, SSGIPlugin, SSReflectionPlugin, SSContactShadowsPlugin, BloomPlugin, TemporalAAPlugin, HDRiGroundPlugin)
     }
     viewer.setDirty()
-    ;(window as any).motionbricks = {viewer, g1, robot, stage}
+    Object.assign((window as any).motionbricks, {robot})
 
     let wander = true
     let idleTime = 0
@@ -315,7 +356,7 @@ async function init() {
         if ($('mb-tokens')) $('mb-tokens')!.textContent = s.generations ? `${(s.lastTokenCount * 4 / 30).toFixed(1)} s · ${s.lastTokenCount} tok` : '–'
         if ($('mb-count')) $('mb-count')!.textContent = String(s.generations)
     }, 250)
-    ;(window as any).motionbricks = {viewer, g1, robot, stage, controller: g1.controller, engine: g1.engine}
+    Object.assign((window as any).motionbricks, {controller: g1.controller, engine: g1.engine})
 }
 
 _testStart()
