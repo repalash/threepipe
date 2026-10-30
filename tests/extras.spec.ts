@@ -107,6 +107,7 @@ test('model-viewer', async({page}) => expect(page).toHaveTitle('Model Viewer Sam
 test('msaa-ssaa', async({page}) => expect(page).toHaveTitle('MSAA + SSAA'))
 test('multi-viewer-test', async({page}) => expect(page).toHaveTitle('Multiple Viewers Test'))
 test('noise-bump-material-plugin', async({page}) => expect(page).toHaveTitle('SparkleBump(NoiseBump) Material Plugin'))
+test('notes-plugin', async({page}) => expect(page).toHaveTitle('Notes Plugin'))
 test('object-constraints-plugin', async({page}) => expect(page).toHaveTitle('Object Constraints Plugin'))
 test('object3d-generator-plugin', async({page}) => expect(page).toHaveTitle('Object3D Generator Plugin'))
 test('object3d-widgets-plugin', async({page}) => expect(page).toHaveTitle('Object3D Widgets Plugin'))
