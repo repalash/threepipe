@@ -16,6 +16,10 @@ Read `issues/open/modelling-tools/15-procedural-on-kernel.md` first. Blender sou
 - Values are immutable. Copy a geometry before writing (`params.geometry(id)` already returns a copy; use
   `meshForWrite()` etc.). Never mutate an input field, array or attribute.
 - No DOM, no threepipe imports: the package runs in Node.
+- Blender porting: ALWAYS port from Blender C++ source code. NEVER claim an algorithm "can't be reproduced in TS." If the source exists, port it exactly. Never pre-bake/hardcode output data as a shortcut — graphs must be reactive (changing inputs must change outputs)
+- BufferGeometry and all three.js types are Node.js-safe with polyfill. The `/graph` subpath can export anything using three.js types. Only actual browser APIs (document, canvas, WebGL) are not Node-safe. Do NOT tell agents that three.js types can't be used in Node.js
+- When spawning agents for Blender ports: reference skill.md, do NOT override its rules in the prompt. The skill says "port from Blender source" — follow it. Do NOT give agents permission to skip or approximate nodes — if something isn't ported, the agent must flag it as a blocker
+- When reviewing agent work: verify ALL node trees are accounted for, not just instance counts. "0 instances in GT" means the tree produces geometry, not that it's optional
 
 ## Shapes
 
