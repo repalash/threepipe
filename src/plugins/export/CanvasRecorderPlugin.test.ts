@@ -96,11 +96,22 @@ describe('CanvasRecorderPlugin', () => {
         const {plugin} = setup()
         const exportFile = vi.fn()
         let promptDefault = ''
-        plugin._viewer.dialog = {prompt: async(_m: string, def: string) => (promptDefault = def, null)}
+        plugin._viewer.dialog = {prompt: async(_m: string, def: string) => (promptDefault = def, '')} // an empty name
         plugin._viewer.getPlugin = (t: string) => t === 'FileTransferPlugin' ? {exportFile} : undefined
         await plugin._downloadBlob(new Blob([]), 'webm')
         expect(promptDefault).toBe('recording.webm')
         expect(exportFile).toHaveBeenCalledWith(expect.any(Blob), 'recording.webm')
+    })
+
+    test('a cancelled save prompt after a recording (here a turntable) exports nothing', async() => {
+        const popmotion = {animate: () => ({promise: Promise.resolve(), stop: () => undefined})}
+        const {plugin} = setup({PopmotionPlugin: popmotion})
+        const exportFile = vi.fn()
+        const getPlugin = plugin._viewer.getPlugin
+        plugin._viewer.getPlugin = (t: string) => t === 'FileTransferPlugin' ? {exportFile} : getPlugin(t)
+        plugin._viewer.dialog = {prompt: async() => null} // the user cancels
+        await plugin.download360Recording(1)
+        expect(exportFile).not.toHaveBeenCalled()
     })
 
     test('no new recording while the last one still stops (an MP4 encodes)', () => {
@@ -1363,6 +1374,21 @@ describe('CameraViewPlugin.recordAllViews download', () => {
         await views.recordAllViews(undefined, true)
         expect(promptDefault).toBe('recording.webm')
         expect(exportFile).toHaveBeenCalledWith(expect.any(Blob), 'recording.webm')
+    })
+
+    test('a cancelled save prompt exports nothing', async() => {
+        const {plugin: recorder} = setup()
+        recorder.record = async() => new Blob([], {type: 'video/mp4'})
+        const views = new CameraViewPlugin() as any
+        const exportFile = vi.fn()
+        views._viewer = {
+            getPlugin: (t: string) => t === 'CanvasRecorder' ? recorder : t === 'FileTransferPlugin' ? {exportFile} : undefined,
+            dialog: {prompt: async() => null},
+        }
+        views._cameraViews = [{}]
+        views.resetToFirstView = async() => undefined
+        await views.recordAllViews(undefined, true)
+        expect(exportFile).not.toHaveBeenCalled()
     })
 })
 

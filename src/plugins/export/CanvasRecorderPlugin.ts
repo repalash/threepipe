@@ -535,6 +535,8 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
         // the extension of the recorded format (webm for a MediaRecorder recording in Chrome)
         const fileName = 'recording.' + (ext || 'mp4')
         const name = await this._viewer?.dialog.prompt('Canvas Recorder: Save file as', fileName, false)
+        // cancelled: no file (an empty name keeps the default name)
+        if (name === null) return
         const tr = this._viewer?.getPlugin<FileTransferPlugin>('FileTransferPlugin')
         if (!tr) {
             this._viewer?.console.error('FileTransferPlugin required to export/download file')
