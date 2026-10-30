@@ -138,6 +138,9 @@ body.lay-floating #tweakpaneUiContainer .tp-rotv { box-shadow: none !important; 
     body.lay-floating.mb-panel-hidden #canvas-container { --lay-right-inset: calc(var(--mb-width, 44px) + 2 * var(--lay-gap)); }
     /* the buttons on the right of the canvas keep to the part that the panels do not cover */
     body.lay-floating #fsToggle, body.lay-floating .util-buttons-container { right: calc(var(--lay-right-inset) + 1.25rem - var(--lay-gap)) !important; }
+    /* and the tool bar is not wider than that part (its own max-width less the move to the left), so in a narrow window
+       it scrolls inside it instead of going past the left edge of the window */
+    body.lay-floating .util-buttons-container { max-width: calc(100% - var(--lay-right-inset) + var(--lay-gap) - 3.5rem); }
     body.lay-floating #tweakpaneUiContainer { top: var(--lay-gap) !important; width: var(--tweakpane-ui-container-width, 300px) !important; }
 }
 

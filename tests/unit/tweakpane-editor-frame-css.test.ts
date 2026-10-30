@@ -105,6 +105,36 @@ describe('tweakpane editor frame on a phone', () => {
         }
     })
 
+    it('keeps the floating tool bar in the part of the canvas that the panels do not cover', () => {
+        // the floating canvas is the whole window and the bar moves left of the panels: its max-width must leave the
+        // panels out, or a narrow window puts its first buttons left of the window, out of the bar's scroll
+        const evaluate = (expr: string, vp: Viewport, vars: Record<string, string>): number => {
+            let e = expr
+            for (let i = 0; i < 5; i++) e = e.replace(/var\((--[\w-]+)(?:,\s*([^()]+))?\)/g, (_, k, fb) => vars[k] ?? fb ?? 'NaN')
+            const js = e.replace(/calc/g, '').replace(/(-?[\d.]+)rem/g, '($1*16)').replace(/(-?[\d.]+)px/g, '($1)').replace(/(-?[\d.]+)%/g, `($1*${vp.width}/100)`)
+            if (!/^[\d\s.+\-*/()]+$/.test(js)) throw new Error('Cannot evaluate: ' + expr)
+            return Function(`return (${js})`)() as number
+        }
+        // the left and right padding of a padding shorthand (1 to 4 values)
+        const sidePad = (v: string) => {
+            const p = v.split(/\s+/).map(x => evaluate(x, phone, {}))
+            return (p[1] ?? p[0]) + (p[3] ?? p[1] ?? p[0])
+        }
+        for (const vp of [{width: 568, height: 320}, {width: 844, height: 390}, desktop]) {
+            for (const mb of ['44px', '168px']) {
+                const vars: Record<string, string> = {'--mb-width': mb, '--tweakpane-ui-container-width': '300px', '--lay-gap': '12px'}
+                vars['--lay-right-inset'] = declarations('body.lay-floating #canvas-container', vp)['--lay-right-inset']
+                const bar = {...declarations('.util-buttons-container', vp), ...declarations('body.lay-floating .util-buttons-container', vp)}
+                const sidePadding = sidePad(bar.padding ?? declarations('.button-bar', vp).padding)
+                const right = evaluate(bar.right, vp, vars)
+                const width = Math.max(0, evaluate(bar['max-width'], vp, vars)) + sidePadding
+                const panelLeft = vp.width - evaluate(vars['--lay-right-inset'], vp, vars) + 12 // the panel card's left edge
+                expect(vp.width - right - width, `${vp.width} px, mode bar ${mb}: left edge`).toBeGreaterThanOrEqual(0)
+                expect(vp.width - right, `${vp.width} px, mode bar ${mb}: right edge`).toBeLessThanOrEqual(panelLeft)
+            }
+        }
+    })
+
     it('keeps the side by side frame in a wide window', () => {
         const canvas = declarations('body.lay-titlebar #canvas-container', desktop)
         const panel = declarations('body.lay-titlebar #tweakpaneUiContainer', desktop)
