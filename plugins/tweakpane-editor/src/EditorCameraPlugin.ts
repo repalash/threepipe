@@ -175,8 +175,9 @@ export class EditorCameraPlugin extends AViewerPluginSync {
     }
 
     onRemove(viewer: ThreeViewer) {
-        // the start view is the main camera again, where it is now; editing keeps its value for the next add
-        if (this._shownEditing) viewer.scene.defaultCamera.activateMain()
+        // the start view is the main camera again, where it is now; editing keeps its value for the next add.
+        // Another main camera (made the main camera while in Edit) stays.
+        if (viewer.scene.mainCamera === this.camera) viewer.scene.defaultCamera.activateMain()
         this._shownEditing = false
         this._startPose = undefined
         viewer.scene.removeEventListener('mainCameraChange', this._onMainCameraChange)

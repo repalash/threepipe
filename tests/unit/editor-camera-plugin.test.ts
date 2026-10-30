@@ -347,4 +347,12 @@ describe('EditorCameraPlugin', () => {
         expect(plugin.camera.parent).toBeNull()
         expect(plugin.editing).toBe(true) // kept for the next add
     })
+
+    test('on remove, another main camera (set in Edit) stays the main camera', () => {
+        const {plugin, scene, viewer} = setup()
+        const other = new PerspectiveCamera()
+        scene.mainCamera = other // e.g. a camera of the file, made the main camera in the UI
+        plugin.onRemove(viewer)
+        expect(scene.mainCamera).toBe(other)
+    })
 })
