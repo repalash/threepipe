@@ -16,12 +16,13 @@ body[class*="tpTheme-"] .mb-root {
     --mb-hover: var(--tp-button-background-color-hover, rgba(255,255,255,.08));
 }
 .mb-btn {
-    position: relative; width: 34px; height: 34px; flex-shrink: 0; border: 0; border-radius: 5px; background: transparent; color: var(--mb-color); cursor: pointer;
+    position: relative; width: 28px; height: 28px; flex-shrink: 0; border: 0; border-radius: 5px; background: transparent; color: var(--mb-color); cursor: pointer;
     display: flex; align-items: center; justify-content: center; padding: 0; transition: background-color .12s; font: inherit;
 }
 .mb-btn:hover { background: var(--mb-hover); }
 .mb-btn.on { background: color-mix(in srgb, var(--mb-color) 16%, transparent); }
 .mb-btn:focus-visible { outline: 2px solid var(--mb-color, #0d99ff); outline-offset: 1px; }
+.mb-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
 .mb-label { display: none; font: inherit; color: var(--tp-container-foreground-color, #1e1e1e); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mb-toggle { margin-top: auto; color: var(--tp-label-foreground-color, #8a8f98); }
 .mb-toggle svg { transition: transform .15s; }
@@ -60,12 +61,21 @@ body.lay-frame.tpTheme-clean-dark { background-color: #1e1e1e !important; }
 .lay-bottom .lay-btn { width: 22px; height: 22px; }
 .lay-btn:hover { opacity: 1; background: var(--tp-button-background-color-hover, #f2f3f5); }
 .lay-btn:focus-visible { outline: 2px solid #0d99ff; outline-offset: 1px; }
+/* the tool bar on the canvas: the icon buttons of the bars and the mode bar (28 px, a 16 px icon, the same hover and
+   on states), not the larger buttons with dividers of the classic page */
+body.lay-frame .util-buttons-container { gap: 2px; padding: 4px; }
+body.lay-frame .util-buttons-container > .util-button {
+    /* the icons fill the button (an inline 100% size): the padding leaves 16 px */
+    width: 28px; height: 28px; padding: 6px; box-sizing: border-box !important; border-radius: 5px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; color: var(--tp-container-foreground-color, #1e1e1e); opacity: .75;
+}
+body.lay-frame .util-buttons-container > .util-button:hover { opacity: 1; background: var(--tp-button-background-color-hover, #f2f3f5); }
+body.lay-frame .util-buttons-container > .util-button.button-bar-selected-box { opacity: 1; color: #0d99ff; background: color-mix(in srgb, #0d99ff 16%, transparent); }
+body.lay-frame .util-buttons-container > .button-bar-button::after { display: none; }
 .lay-float-actions { display: flex; flex-direction: column; align-items: center; gap: 2px; margin-top: auto; color: var(--tp-label-foreground-color, #8a8f98); }
 .lay-float-actions + .mb-toggle { margin-top: 2px; }
 /* the wide bar: the actions are rows with their names, like the modes and the names toggle */
 .mb-wide .lay-float-actions { align-items: stretch; }
-/* the 16 px icons in the 20 px column of the mode icons */
-.lay-float-btn svg { margin: 0 2px; flex-shrink: 0; }
 .lay-menu {
     position: fixed; z-index: 2000; display: flex; flex-direction: column; padding: 4px; min-width: 160px; border-radius: 8px;
     background: var(--tp-base-background-color, #fff); color: var(--tp-container-foreground-color, #1e1e1e);

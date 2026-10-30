@@ -248,6 +248,10 @@ export class EditorFrame {
         document.body.appendChild(m)
         this._menu = m
         this._menuAnchor = anchor
+        // the tooltip of the button would cover the first item: off while the menu is open
+        const tip = (anchor as {_tippy?: Instance})._tippy
+        tip?.hide()
+        tip?.disable()
         const r = anchor.getBoundingClientRect()
         const mr = m.getBoundingClientRect()
         m.style.left = Math.min(innerWidth - mr.width - 8, r.left) + 'px'
@@ -259,6 +263,7 @@ export class EditorFrame {
 
     private _closeMenu() {
         if (!this._menu) return
+        ;(this._menuAnchor as {_tippy?: Instance} | undefined)?._tippy?.enable()
         this._menu.remove()
         this._menu = this._menuAnchor = undefined
         document.removeEventListener('pointerdown', this._onMenuPointerDown, true)

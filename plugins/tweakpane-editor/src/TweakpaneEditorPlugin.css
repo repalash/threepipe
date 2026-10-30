@@ -121,11 +121,12 @@
 }
 /* one row: in a canvas too narrow for the buttons, the bar scrolls sideways instead of wrapping. It overflows at the end
    only (centered, it would overflow at both sides, and the first buttons would be out of the scroll's reach); the auto
-   margins of the first and last buttons center the buttons when they fit, and are 0 when they overflow. */
+   margins of the first and last buttons center the buttons when they fit, and are 0 when they overflow. Its width
+   leaves room for the logo at the bottom left: its left, its width, a gap, the right and the side padding of the bar. */
 .util-buttons-container{
     flex-wrap: nowrap;
     justify-content: flex-start;
-    max-width: calc(100% - 3.5rem);
+    max-width: calc(100% - 10.75rem);
     overflow-x: auto;
     scrollbar-width: none;
 }
@@ -308,7 +309,7 @@ body.tpTheme-black .tippy-box[data-theme~='editor'], body.tpTheme-blue .tippy-bo
         right: 0.75rem;
         bottom: 0.75rem;
         padding: 0.25rem 0.25rem 0.5rem;
-        max-width: calc(100% - 2rem);
+        max-width: calc(100% - 7.5rem);
     }
     .util-buttons-container > .util-button {
         padding: 0.35rem 0.25rem;
@@ -316,10 +317,11 @@ body.tpTheme-black .tippy-box[data-theme~='editor'], body.tpTheme-blue .tippy-bo
     .util-buttons-container > .button-bar-button:not(:last-child)::after {
         right: -2px;
     }
-    /* the logo: smaller, above the tool bar, which takes the width of a phone */
+    /* the logo: smaller, at the bottom left as on a desktop, with the side space of the tool bar; its centre is level
+       with the centre of the tool bar of the frame */
     #webgi-logo {
         left: 0.75rem;
-        bottom: 3.75rem;
+        bottom: 1rem;
         width: 5rem;
         height: 1.75rem;
     }
