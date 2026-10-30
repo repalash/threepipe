@@ -137,6 +137,11 @@ export class CameraViewPlugin extends AViewerPluginSync<CameraViewPluginEventMap
     onRemove(viewer: ThreeViewer): void {
         // no frame or animation comes after a removal (or a viewer dispose): the waits of recordAllViews end now
         this._removalWaits.endAll()
+        // the view animations stop (they settle), and a loop of animateAllViews (a recording) has no view left, so the
+        // loop and its state (animationLooping, animating) end, also after a dispose; viewLooping stays as it is
+        this._popAnimations.forEach(a => a?.stop?.())
+        this._popAnimations = []
+        this._viewQueue = []
 
         viewer.removeEventListener('postFrame', this._postFrame)
         // window.removeEventListener('wheel', this._wheel)
@@ -757,18 +762,20 @@ export class CameraViewPlugin extends AViewerPluginSync<CameraViewPluginEventMap
             this.viewLooping = false
         }
         let blob: Blob | undefined
+        // after a removal, the state of the plugin can be of a later add
+        const removed = this._removalWaits.watch()
         try {
             // each wait ends at a removal (or a viewer dispose): the view animations need frames, which stop then
             await this._removalWaits.race(this.resetToFirstView())
             // a loop that ran ends after its view and pause; until then, animateAllViews() does not start its own
-            while (this._animationLooping && this._viewer) await timeout(10)
+            while (this._animationLooping && !removed()) await timeout(10)
             // removed: nothing records
-            if (!this._viewer) return
+            if (removed()) return
             // record() rejects when the start, onStart or the animation fails, and stops the recording
             blob = await this._removalWaits.race(recorder.record(async() => this.animateAllViews(), onStart))
         } finally {
             // not on a removed plugin: the loop would run on it forever
-            if (looping && this._viewer) this.viewLooping = true
+            if (looping && !removed()) this.viewLooping = true
         }
         if (downloadOnEnd && blob) {
             // the extension of the recorded format (webm for a MediaRecorder recording in Chrome)

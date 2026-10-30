@@ -4,6 +4,8 @@
  */
 export class RemovalWaits {
     private _ends = new Set<() => void>()
+    /** Counts the calls of {@link endAll}: one per removal */
+    private _removals = 0
 
     /** The number of waits that run */
     get size(): number {
@@ -22,8 +24,18 @@ export class RemovalWaits {
 
     /** Ends every wait that runs: the plugin is removed */
     endAll(): void {
-        [...this._ends].forEach(end => end())
+        this._removals++
+        ;[...this._ends].forEach(end => end())
         this._ends.clear()
+    }
+
+    /**
+     * A check of whether the waits ended (the plugin was removed) after this call. An async step checks it after each
+     * wait, so it does not act on the state of a later add of the plugin.
+     */
+    watch(): () => boolean {
+        const removals = this._removals
+        return () => this._removals !== removals
     }
 
     /**

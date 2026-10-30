@@ -532,6 +532,19 @@ describe('CameraViewPlugin.recordAllViews', () => {
         expect(record).not.toHaveBeenCalled()
     })
 
+    test('a removal stops the view animations and empties the view queue, so a recording loop ends', () => {
+        const views = new CameraViewPlugin() as any
+        const viewer = {removeEventListener: () => undefined}
+        views._viewer = viewer
+        const animation = {stop: vi.fn()}
+        views._popAnimations = [animation]
+        views._viewQueue = [{}, {}]
+        views.onRemove(viewer)
+        expect(animation.stop).toHaveBeenCalled()
+        expect(views._popAnimations).toEqual([])
+        expect(views._viewQueue).toEqual([])
+    })
+
     test('a removal during the record leaves the view loop off, so the loop does not run on the removed plugin', async() => {
         vi.useFakeTimers()
         try {
@@ -701,6 +714,26 @@ describe('CanvasRecorderPlugin stop and remove', () => {
         plugin.dispatchEvent({type: 'start'})
         expect(action).not.toHaveBeenCalled()
         expect(plugin._removalWaits.size).toBe(0)
+    })
+
+    test('a stop that a removal ends does not act on the recording of an add again, and maxFrameCount is restored at the removal', async() => {
+        const {plugin, progressive, viewer} = removable()
+        viewer.doOnce = async() => new Promise(() => undefined) // the stop waits for a frame that never comes
+        const recording = plugin.record(async() => undefined)
+        await new Promise(r => setTimeout(r, 5))
+        expect(progressive.maxFrameCount).toBe(16)
+        plugin.onRemove(viewer)
+        expect(progressive.maxFrameCount).toBe(32) // before a recording of the next add reads it
+        // added again in the same task, and a new recording starts
+        plugin._viewer = viewer
+        viewer.doOnce = async() => undefined
+        const next = fakeRecorder(plugin)
+        plugin._recorder = next
+        expect(plugin.startRecording()).toBe(true)
+        expect(await Promise.race([recording, new Promise(r => setTimeout(() => r('hung'), 100))])).toBeUndefined()
+        expect(next.isRecording()).toBe(true) // the stop of the old recording did not stop it
+        expect(plugin.recordingSettings).toBeDefined()
+        expect(progressive.maxFrameCount).toBe(32)
     })
 
     // every wait of a recording that depends on frames, animations or recorder events ends at a removal (or a viewer
@@ -910,6 +943,47 @@ describe('record indicator', () => {
             const recording = plugin.record(action)
             expect(await Promise.race([recording, new Promise(r => setTimeout(() => r('hung'), 100))])).toBeInstanceOf(Blob)
             expect(action).toHaveBeenCalled()
+        } finally {
+            vi.unstubAllGlobals()
+        }
+    })
+
+    test('a removal drops the deferred capture and the frame state, so the recording after an add again captures its first converged frame', async() => {
+        vi.stubGlobal('document', {createElement: () => ({style: {}, remove: () => undefined})})
+        try {
+            const plugin = new CanvasRecorderPlugin() as any
+            plugin.refreshRecorderOptions = () => undefined // the recorders are set below
+            const progressive = {maxFrameCount: 32, isConverged: () => true}
+            const listeners = {addEventListener: () => undefined, removeEventListener: () => undefined}
+            const viewer = {...listeners, renderManager: listeners, scene: listeners, canvas: {parentElement: null}, console,
+                getPlugin: (t: string) => t === 'ProgressivePlugin' ? progressive : undefined, setDirty: () => undefined}
+            const recorder = (requestFrame: () => void) => ({isRecording: () => true, requestFrame, dispose: () => undefined})
+            plugin.onAdded(viewer)
+            const oldFrames = vi.fn()
+            plugin._recorder = recorder(oldFrames)
+            plugin._postRender() // a converged render: its capture waits for a timeout, and the frame counts as captured
+            plugin._uncapturedRender = true
+            plugin._nextFrameTime = 1
+            plugin._optionsPending = true
+            plugin._stopping = Promise.resolve()
+            plugin.onRemove(viewer)
+            expect({
+                pendingCapture: plugin._pendingCapture, pendingFrames: plugin._pendingFrames, capturedInFrame: plugin._capturedInFrame,
+                uncapturedRender: plugin._uncapturedRender, rendered: plugin._rendered, nextFrameTime: plugin._nextFrameTime,
+                optionsPending: plugin._optionsPending, stopping: plugin._stopping, active: plugin._active, dirty: plugin.dirty,
+            }).toEqual({
+                pendingCapture: undefined, pendingFrames: 0, capturedInFrame: false, uncapturedRender: false, rendered: false,
+                nextFrameTime: 0, optionsPending: false, stopping: undefined, active: undefined, dirty: false,
+            })
+            plugin.onAdded(viewer)
+            const frames = vi.fn()
+            plugin._recorder = recorder(frames)
+            await new Promise(r => setTimeout(r, 5)) // the timeout of the deferred capture passes
+            expect(frames).not.toHaveBeenCalled()
+            expect(oldFrames).not.toHaveBeenCalled()
+            plugin._postRender() // the first converged render of the new recording
+            await new Promise(r => setTimeout(r, 5))
+            expect(frames).toHaveBeenCalledTimes(1)
         } finally {
             vi.unstubAllGlobals()
         }
