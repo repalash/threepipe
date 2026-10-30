@@ -101,6 +101,7 @@ Checklist
 - Inherit from `AViewerPluginSync`
 - Set a unique `PluginType`
 - Write plugin
+- If the plugin adds DOM UI over the canvas, pick its `z-index` from [UI layers](#ui-layers-z-index)
 - Add jsdoc comments to the class
 - Export classes, functions in `./src/plugins/index.ts`
 - Optionally, use plugin in `./examples/tweakpane-editor/script.ts`
@@ -115,6 +116,22 @@ Checklist
 - Add entry to sidebar in `./website/.vitepress/config.ts`
 - Update CHANGELOG.md
 
+## UI layers (z-index)
+
+Plugins that add DOM elements over the canvas use these layers, so the UI stacks the same way with any set of plugins. Use the lowest layer that fits, and do not go above the menu layer.
+
+| z-index | Layer | Examples |
+|---|---|---|
+| `auto` to 49 | Overlays drawn on the canvas | selection overlay, `PerfPanelPlugin` (12) |
+| 50 | Loading screen | `LoadingScreenPlugin` |
+| 100 to 199 | Viewer UI over the scene | `GridItemList` (100), sticky notes (150) |
+| 200 to 999 | Panels and bars | tweakpane editor `.button-bar` (200) |
+| 1000 to 1999 | Floating tools | `TimelineUiPlugin`, `RenderTargetPreviewPlugin`, `GeometryUVPreviewPlugin` (1000) |
+| 2000 to 9998 | Popups and dropdown menus | editor layout menu (2000) |
+| 9999 and up | Context menus | `CustomContextMenu` |
+
+A layer counts only between elements in the same stacking context: an element inside a parent with its own `z-index` (or `transform`, `filter`, `opacity` below 1) stacks inside that parent.
+
 ## Creating a Package/Plugin package
 
 Checklist
@@ -125,6 +142,7 @@ Checklist
 - Update link in plugin's `CHANGELOG.md` and `README.md`
 - Check `globals` in `vite.config.js`
 - Write plugin/package
+- If the plugin adds DOM UI over the canvas, pick its `z-index` from [UI layers](#ui-layers-z-index)
 - Add jsdoc comments to the classes
 - Export classes, functions in `index.ts`
 - Optionally, use plugin in `./examples/tweakpane-editor/script.ts`
