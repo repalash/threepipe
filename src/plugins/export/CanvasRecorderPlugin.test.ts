@@ -531,6 +531,35 @@ describe('CameraViewPlugin.recordAllViews', () => {
         expect(await Promise.race([recording, new Promise(r => setTimeout(() => r('hung'), 100))])).toBeUndefined()
         expect(record).not.toHaveBeenCalled()
     })
+
+    test('a removal during the record leaves the view loop off, so the loop does not run on the removed plugin', async() => {
+        vi.useFakeTimers()
+        try {
+            const {plugin: recorder} = setup()
+            const views = new CameraViewPlugin() as any
+            const viewer = {getPlugin: (t: string) => t === 'CanvasRecorder' ? recorder : undefined, removeEventListener: () => undefined}
+            views._viewer = viewer
+            views._cameraViews = [{}, {}]
+            views.animateToView = vi.fn(async() => undefined)
+            views.resetToFirstView = async() => undefined
+            views.viewPauseTime = 200
+            views.viewLooping = true // the loop animates a view, then pauses for 202 ms
+            await vi.advanceTimersByTimeAsync(20)
+            const recording = views.recordAllViews(undefined, false) // waits for the loop to end
+            await vi.advanceTimersByTimeAsync(20)
+            views.onRemove(viewer)
+            await vi.advanceTimersByTimeAsync(20)
+            expect(await recording).toBeUndefined()
+            expect(views.viewLooping).toBe(false)
+            const calls = views.animateToView.mock.calls.length
+            await vi.advanceTimersByTimeAsync(2000) // the pause ends: the loop sees viewLooping off and ends
+            expect(views.animateToView).toHaveBeenCalledTimes(calls)
+            expect(views.animationLooping).toBe(false)
+            expect(vi.getTimerCount()).toBe(0)
+        } finally {
+            vi.useRealTimers()
+        }
+    })
 })
 
 describe('CanvasRecorderPlugin stop and remove', () => {

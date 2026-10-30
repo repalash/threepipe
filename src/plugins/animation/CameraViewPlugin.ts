@@ -763,7 +763,8 @@ export class CameraViewPlugin extends AViewerPluginSync<CameraViewPluginEventMap
             // record() rejects when the start, onStart or the animation fails, and stops the recording
             blob = await recorder.record(async() => this.animateAllViews(), onStart)
         } finally {
-            if (looping) this.viewLooping = true
+            // not on a removed plugin: the loop would run on it forever
+            if (looping && this._viewer) this.viewLooping = true
         }
         if (downloadOnEnd && blob) {
             // the extension of the recorded format (webm for a MediaRecorder recording in Chrome)
