@@ -125,8 +125,6 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
             frameRate: this.videoFrameRate,
             mimeType: this.mimeType,
             stepMode: this.convergeMode,
-            // @ts-expect-error todo type only for ffmpeg recorder
-            internalMimeType: this.internalMimeType,
         })
         this.uiConfig.uiRefresh?.(true, 'postFrame')
     }
