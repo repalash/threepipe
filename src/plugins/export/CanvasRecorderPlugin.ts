@@ -386,7 +386,8 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
      * Waits for a time of the video: in a converge-mode recording, for the steps of the recording (one frame each, as
      * the animations step), so a pause has its length in the video; else for the wall time. A scene that does not
      * converge (no step in `maxFrameCount` frames, e.g. a plugin that stays dirty) waits the rest on the wall clock.
-     * It ends early when the recording ends.
+     * The frames in which a browser recorder still records a frame ({@link canRecordFrame}) do not count as such for
+     * two frame times of the video. It ends early when the recording ends.
      * @param ms - the time in milliseconds
      */
     async waitRecordingTime(ms: number): Promise<void> {
@@ -400,6 +401,8 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
         const steps = Math.round(ms / 1000 * fps)
         let n = 0
         let noStep = 0
+        /** The wall time until which a busy browser recorder does not count as a frame without a step */
+        let busyUntil = 0
         // a listener, not doOnce: with maxFramePerLoop above 1, several frames come in one animation loop
         await new Promise<void>(resolve => {
             const end = () => {
@@ -411,7 +414,17 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
                 if (progressive.postFrameConvergedRecordingDelta() > 0) {
                     n++
                     noStep = 0
-                } else noStep++
+                    busyUntil = 0
+                } else if (!this.canRecordFrame()) {
+                    // the browser recorder records a frame for a frame time of the video, which fast loops pass in more
+                    // than maxFrameCount frames: the scene is converged
+                    const t = performance.now()
+                    if (!busyUntil) busyUntil = t + 2000 / fps
+                    else if (t > busyUntil) noStep++
+                } else {
+                    busyUntil = 0
+                    noStep++
+                }
                 if (n < steps && this.isRecording() && noStep <= progressive.maxFrameCount + 2) return
                 end()
             }

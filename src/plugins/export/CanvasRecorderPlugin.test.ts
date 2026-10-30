@@ -713,6 +713,42 @@ describe('recording time', () => {
         expect(done).toBe(true)
     })
 
+    test('a browser recorder that records a frame does not count as a scene that does not converge', async() => {
+        const {plugin, progressive} = setup()
+        const viewer = Object.assign(new EventDispatcher(), plugin._viewer)
+        plugin._viewer = viewer
+        progressive.maxFrameCount = 1 // the wall-clock fallback after 3 frames without a step
+        let busy = false
+        Object.assign(plugin._recorder, {isBusy: () => busy}) // a browser recorder
+        Object.assign(progressive, {postFrameConvergedRecordingDelta: () => plugin.canRecordFrame() ? 1 / 30 : 0})
+        let time = 1000
+        const now = vi.spyOn(performance, 'now').mockImplementation(() => time)
+        try {
+            plugin._recorder.start()
+            const wait = plugin.waitRecordingTime(100) // 3 frames at 30 fps
+            const frame = () => viewer.dispatchEvent({type: 'postFrame'})
+            frame() // a step
+            busy = true // the frame records for a frame time of the video (33 ms), which fast loops pass in 5 frames
+            for (let i = 0; i < 5; i++) {
+                time += 7
+                frame()
+            }
+            expect(plugin._frameWaits.size).toBe(1) // the wait still counts the frames
+            busy = false
+            frame() // a step
+            // a recorder that stays busy for longer than two frame times of the video counts
+            busy = true
+            frame()
+            time += 100
+            for (let i = 0; i < 4; i++) frame()
+            expect(plugin._frameWaits.size).toBe(0)
+            plugin._recorder.stop(() => undefined) // the rest of the time on the wall clock ends with the recording
+            await wait
+        } finally {
+            now.mockRestore()
+        }
+    })
+
     test('the pause between camera views waits for recording time while a recording runs', async() => {
         const views = new CameraViewPlugin() as any
         const waitRecordingTime = vi.fn(async() => {
