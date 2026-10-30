@@ -8,6 +8,10 @@ All notable changes to this plugin will be documented in this file.
 
 ### Added
 
+- `tpImageInputGenerator`: 3D LUT (`.cube`) thumbnail previews — renders a 3-band reference strip (grayscale luminance ramp, desaturated midtone rainbow, saturated rainbow) trilinearly sampled through the LUT voxel grid so distinct LUTs produce visibly distinct thumbnails. Supports `Uint8`/`Float32` voxel data and both `.texture3D` and legacy `.texture` 2D-fallback wrappers.
+- `tpImageInputGenerator`: per-input extension override — `params.extensions` now honours `config.extensions` (e.g. `@uiImage('LUT', {extensions: ['.cube']})`) before falling back to the default image extensions list.
+- `tpImageInputGenerator`: `.cube`-only slot guard in `setterTex` that rejects non-LUT values via `renderer.alert(...)`. Catches drag-drop, which bypasses the file-picker accept list.
+- `tpImageInputGenerator.proxyGetValue`: generic `staticData.textureMap[ret] = cc` registration so non-`Texture` wrappers (e.g. `LUTCubeTextureWrapper`) survive inter-slot drag-drop recovery in `tweakpane-image-plugin@1.1.404+`, which transfers only the source `<img>`'s `src`/`id`.
 - Color modes `clean` and `clean-dark` (`TweakpaneUiPlugin.colorMode`): a property-panel look with Inter at 11px, 24px fields on a grey fill, grey labels, sections split by thin lines with a chevron, 14px checkboxes filled with the accent, a thin slider track with a round knob, and outlined buttons.
 
 ### Changed

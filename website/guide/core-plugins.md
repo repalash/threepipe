@@ -73,6 +73,7 @@ Check packages for more advanced post-processing effects.
 - [VignettePlugin](../plugin/VignettePlugin) - Add Vignette effect  by patching the final screen pass
 - [ChromaticAberrationPlugin](../plugin/ChromaticAberrationPlugin) - Add Chromatic Aberration effect  by patching the final screen pass
 - [FilmicGrainPlugin](../plugin/FilmicGrainPlugin) - Add Filmic Grain effect  by patching the final screen pass
+- [LUTPlugin](../plugin/LUTPlugin) - Apply color-grading via up to 3 `.cube` 3D LUTs with per-material slot selection; patches the final screen pass
 
 ## Interaction
 
@@ -141,6 +142,7 @@ Plugins related UI, plugins creating UI element. Check the [packages](./threepip
 
 - [RenderTargetPreviewPlugin](../plugin/RenderTargetPreviewPlugin) - Preview any render target in a UI panel over the canvas
 - [GeometryUVPreviewPlugin](../plugin/GeometryUVPreviewPlugin) - Preview UVs of any geometry in a UI panel over the canvas
+- [PerfPanelPlugin](../plugin/PerfPanelPlugin) - FPS pill and performance card over the canvas: frame times, render time, draw calls, and warnings for a capped frame rate, CPU/GPU bound, battery and software rendering
 - [TailwindCSSCDNPlugin](../plugin/TailwindCSSCDNPlugin) - Dynamically loads Tailwind CSS from a CDN to enable rapid UI development with utility classes
 - [SceneUiConfigPlugin](https://threepipe.org/docs/classes/SceneUiConfigPlugin.html) - A dummy plugin to show only the scene ui config using any UI plugin
 - [ViewerUiConfigPlugin](https://threepipe.org/docs/classes/ViewerUiConfigPlugin.html) - A dummy plugin to show only the viewer ui config using any UI plugin
