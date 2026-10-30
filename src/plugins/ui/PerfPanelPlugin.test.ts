@@ -241,6 +241,23 @@ describe('PerfPanelPlugin', () => {
         p.onRemove(viewer)
     })
 
+    test('while not measuring, renders and draws are not counted', () => {
+        const {viewer, info, renderFrame} = makeViewer()
+        const p = new PerfPanelPlugin()
+        p.onAdded(viewer)
+        renderFrame(10, 10)
+        expect(p.stats.drawCalls).toBe(2)
+        p.enabled = false
+        renderFrame(5)
+        expect(p.stats.drawCalls).toBe(2)
+        expect((p as any)._tickRenders).toBe(1)
+        expect(info.render.calls).toBe(3) // three.js still counts it
+        p.enabled = true
+        renderFrame(5)
+        expect(p.stats.drawCalls).toBe(1)
+        p.onRemove(viewer)
+    })
+
     test('a hidden tab pauses measuring and shows the hidden warning', () => {
         const {viewer} = makeViewer()
         const p = new PerfPanelPlugin({collapsed: false})

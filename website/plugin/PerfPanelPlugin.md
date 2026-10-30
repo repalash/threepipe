@@ -82,6 +82,6 @@ perf.addEventListener('update', ({stats}) => {
 - It runs its own `requestAnimationFrame` loop while it is added, enabled and the tab is visible. It never calls `setDirty`, so an idle viewer stays idle.
 - The render time and the renders come from the viewer `preRender` and `postRender` events.
 - The draw calls and triangles: `renderer.info` resets on each `renderer.render()` call, so it holds only the last pass. The plugin wraps `renderer.info.update` while it is added, and counts every draw between `preRender` and `postRender`. `onRemove` restores it.
-- `enabled = false`, `disable(key)` and `onRemove` stop the loop. `onRemove` also removes the element, its stylesheet and all listeners.
+- `enabled = false`, `disable(key)` and a hidden tab stop the loop and the counting of renders and draws (the `renderer.info.update` wrap then only passes the call on). `onRemove` also removes the element, its stylesheet and all listeners.
 
 The plugin is not saved with the viewer config (`serializeWithViewer = false`). It imports no other plugin: it finds `ProgressivePlugin` with `viewer.getPlugin('ProgressivePlugin')`, so an import of it adds nothing else to a bundle.

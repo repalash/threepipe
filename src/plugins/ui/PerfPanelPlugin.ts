@@ -283,6 +283,7 @@ export class PerfPanelPlugin extends AViewerPluginSync<PerfPanelPluginEventMap> 
     }
 
     private _onPreRender = () => {
+        if (!this._raf) return // not measuring: the draw hook only passes through
         const info = this._viewer?.renderManager.webglRenderer.info as RendererInfoLike | undefined
         if (info !== this._info) this._hookInfo() // a restored WebGL context makes a new info object
         this._calls = 0
