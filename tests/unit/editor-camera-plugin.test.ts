@@ -34,7 +34,7 @@ function setup({undo = true} = {}) {
     const viewer = Object.assign(new EventDispatcher<any>(), {
         scene,
         assetManager: new EventDispatcher<any>(),
-        getPlugin: (p: any) => undo && p?.PluginType === 'UndoManagerPlugin' ? undoPlugin : undefined,
+        getPlugin: (p: any) => undo && (p === 'UndoManagerPlugin' || p?.PluginType === 'UndoManagerPlugin') ? undoPlugin : undefined,
     }) as any
 
     const plugin = new EditorCameraPlugin()

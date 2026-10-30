@@ -9,9 +9,9 @@ import {
     uiFolderContainer,
     uiToggle,
     Quaternion,
-    UndoManagerPlugin,
     Vector3,
 } from 'threepipe'
+import type {UndoManagerPlugin} from 'threepipe'
 
 /**
  * A pose of the start view. The rotation is kept too: a camera without controls can look away from its target. The zoom
@@ -280,7 +280,7 @@ export class EditorCameraPlugin extends AViewerPluginSync {
 
     private _recordStartView(before: StartPose, after: StartPose) {
         if (samePose(before, after)) return
-        this._viewer?.getPlugin(UndoManagerPlugin)?.undoManager?.record({
+        this._viewer?.getPlugin<UndoManagerPlugin>('UndoManagerPlugin')?.undoManager?.record({
             undo: () => this._moveStartView(before),
             redo: () => this._moveStartView(after),
         })
