@@ -1235,4 +1235,24 @@ describe('CanvasMediaRecorder', () => {
             vi.unstubAllGlobals()
         }
     })
+
+    test('the first supported type is found without a probe of every other type', () => {
+        const isTypeSupported = vi.fn((t: string) => t.startsWith('video/webm'))
+        vi.stubGlobal('window', {MediaRecorder: {isTypeSupported}})
+        vi.stubGlobal('MediaRecorder', {isTypeSupported})
+        try {
+            expect(CanvasMediaRecorder.GetSupportedMimeTypes([], ['h264'], true)).toBe('video/webm;codecs=h264')
+            expect(isTypeSupported).toHaveBeenCalledTimes(1)
+            isTypeSupported.mockClear()
+            // the full list is the same as before
+            const all = CanvasMediaRecorder.GetSupportedMimeTypes([], ['vp9', 'h264']) as string[]
+            expect(all).toEqual([
+                'video/webm;codecs=vp9', 'video/webm;codecs:vp9', 'video/webm;codecs=VP9', 'video/webm;codecs:VP9', 'video/webm',
+                'video/webm;codecs=h264', 'video/webm;codecs:h264', 'video/webm;codecs=H264', 'video/webm;codecs:H264', 'video/webm',
+            ])
+            expect(isTypeSupported).toHaveBeenCalledTimes(40)
+        } finally {
+            vi.unstubAllGlobals()
+        }
+    })
 })

@@ -262,9 +262,9 @@ export class CanvasMediaRecorder extends ACanvasRecorder {
         ].filter((value) => !codecs || codecs.length < 1 || codecs.includes(value))
 
         const supportedTypes: string[] = []
-        VIDEO_TYPES.forEach((videoType) => {
+        for (const videoType of VIDEO_TYPES) {
             const type = `video/${videoType}`
-            VIDEO_CODECS.forEach((codec) => {
+            for (const codec of VIDEO_CODECS) {
                 const variations = [
                     `${type};codecs=${codec}`,
                     `${type};codecs:${codec}`,
@@ -272,12 +272,14 @@ export class CanvasMediaRecorder extends ACanvasRecorder {
                     `${type};codecs:${codec.toUpperCase()}`,
                     `${type}`,
                 ]
-                variations.forEach((variation) => {
-                    if (MediaRecorder.isTypeSupported(variation)) supportedTypes.push(variation)
-                })
-            })
-        })
-        if (firstOnly) return supportedTypes.length > 0 ? supportedTypes[0] : undefined
-        return supportedTypes
+                for (const variation of variations) {
+                    if (!MediaRecorder.isTypeSupported(variation)) continue
+                    // the first one is enough: the other types are not probed
+                    if (firstOnly) return variation
+                    supportedTypes.push(variation)
+                }
+            }
+        }
+        return firstOnly ? undefined : supportedTypes
     }
 }
