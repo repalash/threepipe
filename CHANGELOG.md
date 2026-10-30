@@ -42,20 +42,6 @@ All notable changes to this project will be documented in this file.
 - Fix `Iterator.forEach()` — use `Array.from()` for Map.keys() iteration (pre-node22 compat)
 - Keep GBuffer `unpackNormal` finite for finite encodings outside the valid disk (including quantization at its boundary), preventing NaNs from the square root from propagating into screen-space filters. Valid encodings are unchanged; out-of-range results are not necessarily unit normals
 - Fix `npm run build-examples` on a fresh clone without `examples/.env`: `generate-example-env` now exports every key of `examples/sample.env` (empty when unset), so examples importing `CESIUM_ION_API_TOKEN` and others type-check
-- Add `TextureLoader2` ([docs](./website/plugin/TextureLoader2.md)) — subclass of three.js `TextureLoader` that can keep the source bytes of loaded images on `texture.source._sourceImgBuffer`. It is used in place of `TextureLoader` in `AssetManager`, and behaves the same unless enabled
-  - Enable with `TextureLoader2.SAVE_SOURCE_BLOBS = true` (global) or `loader.saveSourceBlobs = true` (per instance). Off by default since every texture keeps a copy of its source file in memory
-  - Not used for `data:` / `blob:` urls and urls without a known image extension
-- `GLTFWriter2.processTexture` writes the source bytes of jpeg/png textures as is when available, instead of re-encoding the image with a canvas — same bytes in every browser, no quality loss and faster export. The canvas is still used for textures with `flipY`, images larger than `maxTextureSize`, and images exported as a url reference
-  - Enabled in the `tweakpane-editor` example along with `KTX2LoadPlugin.SAVE_SOURCE_BLOBS`
-- **Breaking**: `__sourceBlob`, `__sourceBuffer` and `__needsSourceBuffer` moved from `userData` to the asset itself (`IImportResultUserData` → `ImportResultExtras`). `AssetImporter.processRaw` sets `asset.__sourceBlob` / `asset.__sourceBuffer`, and loaders request the buffer with `asset.__needsSourceBuffer = true`. `serializeTextureInExtras` already read `texture.__sourceBuffer`, so the buffer saved in `userData` was never used
-- Fix a crash when serializing textures and render targets with a `meta` that has no `textures` / `extras`
-- Add `LUTPlugin` ([docs](./website/plugin/LUTPlugin.md), [example](./examples/lut-plugin/)) — ported from webgi. Applies `.cube` 3D LUTs to the final frame as a `ScreenPass` extension, after tonemapping (priority `-150`)
-  - Up to three LUT slots (`lutMap`, `lutMap1`, `lutMap2`) with `intensity` and `lutBackground`. Materials pick a slot or opt out with `lutPlugin.setMaterialLUT(material, {slot, enable})` or from the material UI, saved in `userData.LUTPlugin1` (same as webgi)
-  - Per-material slots need `GBufferPlugin` with the flags texture. Without it the LUT in slot 0 is applied to everything
-  - `Enable on all materials` / `Disable on all materials` buttons
-- Add `LUTCubeLoader2` and `LUTCubeTextureWrapper` ([docs](./website/plugin/LUTCubeLoader2.md)) — `.cube` files can be loaded with `viewer.load` and are saved with the viewer config
-- **Breaking**: `FilmicGrainPlugin.priority` changed from `-50` to `-200`, the grain is now applied after tonemapping and the LUT instead of before tonemapping
-- Fix gbuffer flags being read off by one for some values in `getGBufferFlags` (`GBufferPlugin.unpack.glsl`) because of float precision, the value is now rounded
 
 ### Fixed
 
@@ -65,12 +51,6 @@ All notable changes to this project will be documented in this file.
 - `Importer.onCtor` is a method signature, so importer plugins (`STLLoadPlugin`, `KTX2LoadPlugin`, ...) type-check in consumers with `strict` and `skipLibCheck: false`
 - Add `npm run test:types`: a static check of the built declarations of core and every plugin (`.js` on relative imports, `exports` `types` first and present, a plugin's declarations import only its dependencies, optional peers or threepipe's); it also packs threepipe and `@threepipe/plugin-tweakpane` and type-checks a consumer project under TypeScript 5.0, 5.8, 6.0 and 7.0 with `bundler`, `node16`, `nodenext` and `node` resolution; the publish workflow runs it before every publish
 - Fix `CascadedShadowsPlugin` shadows not rendering (regression from v0.3.0) — `refreshAttachedLight` was picking up a cascade light as the source due to `_lightAutoAttached` being set after `@onChange` fired synchronously; added re-entrancy guard to `refreshLights`; removed stale uniform upload optimization that skipped re-upload after shader recompilation
-- Legacy bump scale detection when importing glTF (`GLTFMaterialExtrasExtension`) — every glTF 2.0 file with a bump map was flagged as legacy (the check compared `asset.version`, which is always `2.0`). Detection priority is now: per-material `normalizedScale` in the `WEBGI_materials_bumpmap` extension → `userData.legacyBumpScale` from material extras → file-level fallback (`asset.subversion`, else the `WEBGI_viewer` config version when `metadata.generator` is `WebGiViewerApp`, legacy before `0.12.0`). Files from other generators are not legacy. A stale `userData.legacyBumpScale` / `BUMP_MAP_SCALE_LEGACY` define is cleared when `normalizedScale` is `true`
-  - Add a `Legacy Bump Scale` checkbox in the material UI (shown when the material has a bump map) to toggle it manually
-  - `GLTFMaterialsBumpMapExtension` export writes `normalizedScale` and always writes `bumpScale`, same as webgi (the exporter is still not registered in `GLTFExporter2`, bump maps are exported as `EXT_materials_bump`)
-- Fix the map being dropped on glTF export when `displacementScale` or `lightMapIntensity` is `0` but a map is set (`GLTFMaterialsDisplacementMapExtension`, `GLTFMaterialsLightMapExtension`)
-- Fix empty `WEBGI_materials_alphamap` / `WEBGI_materials_lightmap` / `WEBGI_materials_displacementmap` extensions being written to every material on glTF export
-- `GLTFDracoExportPlugin`(plugin-gltf-transform): register `EXT_materials_bump`, the bump map was dropped from materials in the glTF-Transform round-trip (draco export)
 - `DRACOLoader2`: enable WASM decoder by default
   - Removed `setDecoderConfig({type: 'js'})` hack from constructor — decoder now uses WASM build when available, auto-falls back to JS via three.js's built-in `typeof WebAssembly !== 'object'` check
   - Fixed `initDecoder()` / `initEncoder()` to pass loader config (including `wasmBinary`) and await the `onModuleLoaded` emscripten callback before resolving — required for async WASM init; previously the WASM branch was dead code because the config was never forwarded to the module factory

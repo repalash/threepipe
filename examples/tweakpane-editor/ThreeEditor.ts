@@ -16,7 +16,6 @@ import {
     DynamicImportPlugin,
     EditorViewWidgetPlugin, EntityComponentPlugin,
     FilmicGrainPlugin,
-    LUTPlugin,
     GeometryGeneratorPlugin,
     FragmentClippingExtensionPlugin,
     FrameFadePlugin,
@@ -50,7 +49,6 @@ import {
     SSAAPlugin,
     SSAOPlugin,
     STLLoadPlugin,
-    TextureLoader2,
     ThreeFirstPersonControlsPlugin,
     ThreeViewer,
     TonemapPlugin,
@@ -66,7 +64,7 @@ import {
     VirtualCamerasPlugin,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
-import {HierarchyUiPlugin, TweakpaneEditorPlugin} from '@threepipe/plugin-tweakpane-editor'
+import {HierarchyUiPlugin, NotesPlugin, StickyNotesUiPlugin, TweakpaneEditorPlugin} from '@threepipe/plugin-tweakpane-editor'
 import {BlendLoadPlugin} from '@threepipe/plugin-blend-importer'
 import {extraImportPlugins} from '@threepipe/plugins-extra-importers'
 import {FontLibrary, GeometryGeneratorExtrasPlugin} from '@threepipe/plugin-geometry-generator'
@@ -144,7 +142,6 @@ export class ThreeEditor extends ThreeViewer {
         new VignettePlugin(false),
         new ChromaticAberrationPlugin(false),
         new FilmicGrainPlugin(false),
-        new LUTPlugin(false),
         new SSAOPlugin(UnsignedByteType, 1),
         SSReflectionPlugin, new SSContactShadowsPlugin(false),
         new DepthOfFieldPlugin(false), BloomPlugin,
@@ -179,17 +176,18 @@ export class ThreeEditor extends ThreeViewer {
         TroikaTextPlugin,
         new CascadedShadowsPlugin(false),
         DynamicImportPlugin,
+        NotesPlugin, StickyNotesUiPlugin,
     ]
 
     editorModes: Record<string, Class<IViewerPlugin<any>>[]> = {
         ['Viewer']: [ViewerUiConfigPlugin, DropzonePlugin, BaseGroundPlugin, ContactShadowGroundPlugin, TweakpaneUiPlugin, InteractionPromptPlugin, ThreeGpuPathTracerPlugin, FullScreenPlugin],
         ['Interaction']: [HierarchyUiPlugin, TransformControlsPlugin, PivotControlsPlugin, PivotEditPlugin, PickingPlugin, OutlinePlugin, Object3DGeneratorPlugin, GeometryGeneratorPlugin, EditorViewWidgetPlugin, ObjectConstraintsPlugin, Object3DWidgetsPlugin, MeshOptSimplifyModifierPlugin],
         ['Buffers']: [GBufferPlugin, DepthBufferPlugin, NormalBufferPlugin, CascadedShadowsPlugin],
-        ['Post-processing']: [TonemapPlugin, ProgressivePlugin, SSAAPlugin, SSAOPlugin, SSReflectionPlugin, BloomPlugin, DepthOfFieldPlugin, SSGIPlugin, FrameFadePlugin, VignettePlugin, ChromaticAberrationPlugin, FilmicGrainPlugin, LUTPlugin, TemporalAAPlugin, VelocityBufferPlugin, SSContactShadowsPlugin],
+        ['Post-processing']: [TonemapPlugin, ProgressivePlugin, SSAAPlugin, SSAOPlugin, SSReflectionPlugin, BloomPlugin, DepthOfFieldPlugin, SSGIPlugin, FrameFadePlugin, VignettePlugin, ChromaticAberrationPlugin, FilmicGrainPlugin, TemporalAAPlugin, VelocityBufferPlugin, SSContactShadowsPlugin],
         ['Export']: [AssetExporterPlugin, CanvasSnapshotPlugin, AWSClientPlugin, TransfrSharePlugin, AssimpJsPlugin, LoadingScreenPlugin],
         ['Configurator']: [MaterialConfiguratorPlugin, SwitchNodePlugin, GLTFKHRMaterialVariantsPlugin],
         ['Animation']: [TimelineUiPlugin, AnimationObjectPlugin, GLTFAnimationPlugin, CameraViewPlugin],
-        ['Extras']: [HDRiGroundPlugin, Rhino3dmLoadPlugin, ClearcoatTintPlugin, FragmentClippingExtensionPlugin, NoiseBumpMaterialPlugin, AnisotropyPlugin, CustomBumpMapPlugin, VirtualCamerasPlugin, TilesRendererPlugin, EntityComponentPlugin],
+        ['Extras']: [HDRiGroundPlugin, Rhino3dmLoadPlugin, ClearcoatTintPlugin, FragmentClippingExtensionPlugin, NoiseBumpMaterialPlugin, AnisotropyPlugin, CustomBumpMapPlugin, VirtualCamerasPlugin, TilesRendererPlugin, EntityComponentPlugin, StickyNotesUiPlugin, NotesPlugin],
         ['Debug']: [RenderTargetPreviewPlugin, PerfPanelPlugin, DynamicImportPlugin],
     }
 
@@ -197,7 +195,6 @@ export class ThreeEditor extends ThreeViewer {
         await this.addPlugins(this.editorPlugins)
 
         KTX2LoadPlugin.SAVE_SOURCE_BLOBS = true // so that ktx files can be exported.
-        TextureLoader2.SAVE_SOURCE_BLOBS = true // so raster images (jpeg/png) export without canvas re-encode.
 
         // to show more details in the UI and allow to edit changes in title etc.
         const mat = this.getPlugin(MaterialConfiguratorPlugin)
@@ -211,6 +208,10 @@ export class ThreeEditor extends ThreeViewer {
         // disable fading on update
         const fade = this.getPlugin(FrameFadePlugin)
         fade && (fade.isEditor = true)
+
+        // the buttons of the notes go above the logo at the bottom left of the canvas
+        const sticky = this.getPlugin(StickyNotesUiPlugin)
+        sticky && (sticky.dock.style.bottom = '64px')
 
         const taa = this.getPlugin(TemporalAAPlugin)
         taa && (taa.stableNoise = true)
