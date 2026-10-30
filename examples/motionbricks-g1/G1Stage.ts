@@ -112,7 +112,8 @@ export const STAGE_STYLES = {
             {color: '#fff1d9', intensity: 4.2, offset: [7, 8, 2.5], shadow: true},
             {color: '#c9d8ff', intensity: 0.45, offset: [-4, 5, -6]},
         ],
-        effects: {ssgi: 1.6, ssr: 0, contact: 0.9, bloom: 0.18},
+        // Strong GI also darkens the floor just behind the legs (a screen-space limit), so it stays moderate.
+        effects: {ssgi: 1.0, ssr: 0, contact: 0.9, bloom: 0.18},
         blocks: {
             seed: 64,
             plaza: 8,
