@@ -1,4 +1,4 @@
-import {createStyles, ThreeViewer} from 'threepipe'
+import {createDiv, createStyles, ThreeViewer} from 'threepipe'
 import tippy, {Instance} from 'tippy.js'
 import {EditorModeBar, EditorModeBarHost} from './EditorModeBar'
 import styles from './EditorFrame.css?inline'
@@ -67,7 +67,9 @@ export class EditorFrame {
     private _bottom: HTMLDivElement
     /** The actions in the mode bar, for the floating layout (it has no bar) */
     private _floatActions: HTMLDivElement
+    /** The open layout menu, and the button that opened it */
     private _menu?: HTMLDivElement
+    private _menuAnchor?: HTMLElement
     /** The tooltips of the buttons in the bars */
     private _tips: Instance[] = []
     private _themePairs: [string, string][]
@@ -88,8 +90,7 @@ export class EditorFrame {
         this._bottom = this._bar('lay-bottom')
         this._bottom.innerHTML = '<span class="lay-file"></span><span class="lay-fill"></span>'
         this._bottom.append(...this._actions('bottom'))
-        this._floatActions = document.createElement('div')
-        this._floatActions.className = 'lay-float-actions'
+        this._floatActions = createDiv({classList: ['lay-float-actions'], addToBody: false})
         this._floatActions.append(...this._actions('modeBar'))
 
         viewer.assetManager.addEventListener('loadAsset', this._onLoad)
@@ -114,6 +115,8 @@ export class EditorFrame {
 
     setLayout(layout: EditorFrameLayout) {
         this._layout = layout
+        // the menu shows the old layout, and its button can leave the page
+        this._closeMenu()
         const body = document.body
         body.classList.add('lay-frame')
         for (const [k] of EDITOR_FRAME_LAYOUTS) body.classList.toggle('lay-' + k, k === layout)
@@ -149,7 +152,7 @@ export class EditorFrame {
         this._top.remove()
         this._bottom.remove()
         this._floatActions.remove()
-        this._menu?.remove()
+        this._closeMenu()
         this._tips.forEach(t => t.destroy())
         this.modeBar.dispose()
         this._styles?.remove()
@@ -198,9 +201,7 @@ export class EditorFrame {
     }
 
     private _bar(cls: string) {
-        const bar = document.createElement('div')
-        bar.className = 'lay-bar ' + cls
-        return bar
+        return createDiv({classList: ['lay-bar', cls], addToBody: false})
     }
 
     /**
@@ -211,14 +212,12 @@ export class EditorFrame {
     private _actions(where: 'top' | 'bottom' | 'modeBar') {
         const buttons: HTMLButtonElement[] = []
         if (this.options.colorMode) buttons.push(this._button(ICONS.theme, 'Light or dark (Shift T)', 'Light / dark', where, () => this.toggleTheme()))
-        buttons.push(this._button(ICONS.layout, 'Layout of the page', 'Layout', where, b => this._layoutMenu(b)))
+        buttons.push(this._button(ICONS.layout, 'Layout of the page', 'Layout', where, b => this._toggleLayoutMenu(b)))
         return buttons
     }
 
     private _button(icon: string, tip: string, name: string, where: 'top' | 'bottom' | 'modeBar', onClick: (b: HTMLButtonElement) => void) {
-        const b = document.createElement('button')
-        b.className = where === 'modeBar' ? 'mb-btn lay-float-btn' : 'lay-btn'
-        b.innerHTML = icon
+        const b = createDiv({elementTag: 'button', innerHTML: icon, classList: where === 'modeBar' ? ['mb-btn', 'lay-float-btn'] : ['lay-btn'], addToBody: false})
         if (where === 'modeBar') {
             const label = document.createElement('span')
             label.className = 'mb-label'
@@ -233,19 +232,24 @@ export class EditorFrame {
         return b
     }
 
-    private _layoutMenu(anchor: HTMLElement) {
-        this._menu?.remove()
-        const m = document.createElement('div')
-        m.className = 'lay-menu'
+    /** Opens the layout menu at its button, or closes it when that button opened it */
+    private _toggleLayoutMenu(anchor: HTMLElement) {
+        const wasOpen = this._menuAnchor === anchor
+        this._closeMenu()
+        if (!wasOpen) this._openLayoutMenu(anchor)
+    }
+
+    private _openLayoutMenu(anchor: HTMLElement) {
+        const m = createDiv({classList: ['lay-menu'], addToBody: false})
         m.setAttribute('role', 'menu')
         const pick = this.options.onPickLayout
         for (const [k, label] of pick ? EDITOR_PAGE_LAYOUTS : EDITOR_FRAME_LAYOUTS) {
-            const it = document.createElement('button')
+            const it = createDiv({elementTag: 'button', addToBody: false})
             it.setAttribute('role', 'menuitemradio')
             it.setAttribute('aria-checked', String(k === this._layout))
             it.textContent = label
             it.addEventListener('click', () => {
-                m.remove()
+                this._closeMenu()
                 if (pick) pick(k)
                 else if (k !== 'classic') this.setLayout(k)
             })
@@ -253,10 +257,30 @@ export class EditorFrame {
         }
         document.body.appendChild(m)
         this._menu = m
+        this._menuAnchor = anchor
         const r = anchor.getBoundingClientRect()
         const mr = m.getBoundingClientRect()
         m.style.left = Math.min(innerWidth - mr.width - 8, r.left) + 'px'
         m.style.top = (r.bottom + mr.height + 8 > innerHeight ? r.top - mr.height - 4 : r.bottom + 4) + 'px'
-        setTimeout(() => document.addEventListener('pointerdown', ev => !m.contains(ev.target as Node) && m.remove(), {once: true}))
+        // the press that opened the menu is over: the next press outside the menu and its button closes it, as Escape
+        document.addEventListener('pointerdown', this._onMenuPointerDown, true)
+        document.addEventListener('keydown', this._onMenuKeyDown, true)
+    }
+
+    private _closeMenu() {
+        if (!this._menu) return
+        this._menu.remove()
+        this._menu = this._menuAnchor = undefined
+        document.removeEventListener('pointerdown', this._onMenuPointerDown, true)
+        document.removeEventListener('keydown', this._onMenuKeyDown, true)
+    }
+
+    private _onMenuPointerDown = (e: PointerEvent) => {
+        const t = e.target as Node
+        if (!this._menu?.contains(t) && !this._menuAnchor?.contains(t)) this._closeMenu()
+    }
+
+    private _onMenuKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') this._closeMenu()
     }
 }
