@@ -96,12 +96,13 @@ describe('NotesPlugin', () => {
         const notes = new NotesPlugin({file: false, browser: false, stores: [slow]})
         notes.onAdded(fakeViewer())
         notes.addNote('typed while it loads')
-        await notes.flush()
-        expect(saved).toEqual([])
+        // flush() waits for the load, and saves after it
+        const flushing = notes.flush()
         await vi.waitFor(() => expect(answer).toBeTypeOf('function'))
+        expect(saved).toEqual([])
         answer([{id: 'old', text: 'on the server', store: 'slow', created: 1}])
-        await vi.waitFor(() => expect(texts(notes)).toEqual(['slow:on the server', 'slow:typed while it loads']))
-        await notes.flush()
+        await flushing
+        expect(texts(notes)).toEqual(['slow:on the server', 'slow:typed while it loads'])
         expect(saved.map(n => n.map(x => x.text))).toEqual([['on the server', 'typed while it loads']])
     })
 
@@ -206,6 +207,35 @@ describe('NotesPlugin', () => {
         finish()
         await flushing
         expect(saved).toEqual([['kept']])
+    })
+
+    test('flush() waits for a store that still loads and has changes: its load, then the save of the changes', async() => {
+        vi.useFakeTimers()
+        let answer!: (notes: NoteItem[]) => void
+        const saved: string[][] = []
+        const server: NotesStore = {
+            id: 'server', label: 'Server',
+            load: async() => new Promise<NoteItem[]>(r => answer = r),
+            save: async n => void saved.push(n.map(x => x.text)),
+        }
+        const notes = new NotesPlugin({file: false, browser: false, stores: [server]})
+        notes.onAdded(fakeViewer())
+        notes.addNote('made while it loads')
+        let flushed = false
+        const flushing = notes.flush().then(() => flushed = true)
+        await vi.advanceTimersByTimeAsync(0)
+        expect(flushed).toBe(false)
+        answer([{id: 'r1', text: 'remote', store: 'server', created: 1}])
+        await flushing
+        expect(saved).toEqual([['remote', 'made while it loads']])
+        expect(notes.storeStatus('server')).toBe('saved')
+
+        // a store that cannot load keeps its changes unsaved: flush() does not wait for it
+        const broken: NotesStore = {id: 'broken', label: 'Broken', load: async() => Promise.reject(new Error('down')), save: async() => {}}
+        notes.addStore(broken)
+        notes.addNote('kept here', 'broken')
+        await notes.flush()
+        expect(notes.storeStatus('broken')).toBe('error')
     })
 
     test('the notes in this browser are saved 600 ms after the last change, and loaded when the plugin is added', async() => {

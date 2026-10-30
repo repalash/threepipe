@@ -132,7 +132,7 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
     /** Stores that load: their changes wait, as a save before the load would replace the notes not loaded yet */
     private _loading = new Set<string>()
     /** Per store, its latest load: the answer of an older one (before a remove and add, a reload) is dropped */
-    private _loads = new Map<NotesStore, object>()
+    private _loads = new Map<NotesStore, StoreLoad>()
     /** Per store, the ids of the notes added, edited or moved in since its last save: they win over a load */
     private _made = new Map<string, Set<string>>()
     /** Per store, the ids of the notes deleted or moved out since its last save: a load does not bring them back */
@@ -309,9 +309,20 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
         return `[${new Date().toLocaleString()}${extra ? ' · ' + extra : ''}${names ? ' · selected: ' + names : ''}]`
     }
 
-    /** Saves the changed stores now, instead of 600 ms after the last change, and waits for all the saves that run */
+    /**
+     * Saves the changed stores now, instead of 600 ms after the last change, and waits for all the saves that run. A
+     * store that still loads and has changes is saved after its load; one that cannot load keeps its changes.
+     */
     async flush() {
+        // the loads that merge changes made meanwhile
+        const loads = [...this._loads].filter(([s]) =>
+            this._loading.has(s.id) && this._changed.has(s.id) && this.getStore(s.id) === s)
+        // started at once, as without loads
         await this._saveChanged()
+        if (loads.length) {
+            await Promise.all(loads.map(async([, l]) => l.done))
+            await this._saveChanged()
+        }
         // and the saves that already run (one the 600 ms timer started) or wait behind them
         await Promise.all([...this._running.values(), ...this._waiting.values()])
     }
@@ -354,16 +365,18 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
     private _loadStore(store: NotesStore, replace = false) {
         this._setStatus(store.id, 'loading')
         this._loading.add(store.id)
-        const load = {}
+        const load: StoreLoad = {}
         this._loads.set(store, load)
         // a save of the store still runs (the plugin was removed and added again): the load reads the store after it,
         // so it gets the saved notes, not the ones from before
         const saving = this._waiting.get(store) ?? this._running.get(store)
-        if (saving) void saving.then(() => this._loads.get(store) === load && this._readStore(store, load, replace))
-        else this._readStore(store, load, replace)
+        load.done = saving ?
+            saving.then(async() => this._loads.get(store) === load ? this._readStore(store, load, replace) : undefined) :
+            this._readStore(store, load, replace)
     }
 
-    private _readStore(store: NotesStore, load: object, replace: boolean) {
+    /** Reads a store and merges its notes (at once for a store that answers at once); ends when that is done or failed */
+    private async _readStore(store: NotesStore, load: StoreLoad, replace: boolean): Promise<void> {
         const failed = (e: unknown) => {
             if (this._loads.get(store) !== load) return
             // the store stays in _loading, so its changes are not saved: a save without the notes that did not load
@@ -377,8 +390,8 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
         } catch (e) {
             return failed(e)
         }
-        if (loaded instanceof Promise) loaded.then(l => this._loads.get(store) === load && this._mergeLoaded(store, l, replace), failed)
-        else this._mergeLoaded(store, loaded, replace)
+        if (loaded instanceof Promise) return loaded.then(l => void (this._loads.get(store) === load && this._mergeLoaded(store, l, replace)), failed)
+        this._mergeLoaded(store, loaded, replace)
     }
 
     private _mergeLoaded(store: NotesStore, loaded: NoteItem[], replace: boolean) {
@@ -499,6 +512,11 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
             this._setStatus(id, 'error')
         }
     }
+}
+
+/** A load of a store: its token in {@link NotesPlugin._loads}, and when it ends (merged, failed or dropped) */
+interface StoreLoad {
+    done?: Promise<void>
 }
 
 let lastId = 0
