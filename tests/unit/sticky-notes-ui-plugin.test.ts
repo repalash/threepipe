@@ -356,6 +356,38 @@ describe('StickyNotesUiPlugin', () => {
         }
     })
 
+    test('a canvas that changes size without a window resize keeps the post-its inside it; removing the plugin stops watching', () => {
+        // a ResizeObserver that the test triggers
+        const observers: {targets: Set<unknown>, callback: (entries: {target: unknown}[]) => void}[] = []
+        vi.stubGlobal('ResizeObserver', class {
+            targets = new Set<unknown>()
+            constructor(public callback: (entries: {target: unknown}[]) => void) {
+                observers.push(this)
+            }
+            observe(t: unknown) {
+                this.targets.add(t)
+            }
+            unobserve(t: unknown) {
+                this.targets.delete(t)
+            }
+            disconnect() {
+                this.targets.clear()
+            }
+        })
+        const {notes, sticky, viewer, layer} = setup()
+        notes.addNote('a')
+        drag(cards(layer)[0], 548, 0)
+        expect(place(cards(layer)[0])).toEqual(['560px', '12px'])
+
+        // the canvas gets narrower (a panel opens, a CSS width): no window resize
+        layer.clientWidth = 400
+        for (const o of observers) if (o.targets.has(layer)) o.callback([{target: layer}])
+        expect(place(cards(layer)[0])).toEqual(['180px', '12px']) // 400 - 220
+
+        sticky.onRemove(viewer)
+        expect(observers.some(o => o.targets.size)).toBe(false)
+    })
+
     test('the layer does not scroll: a focus never moves the post-its away from their places', () => {
         const {layer} = setup()
         layer.button('+ Note').fire('click')

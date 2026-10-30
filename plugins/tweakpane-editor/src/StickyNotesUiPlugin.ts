@@ -144,8 +144,16 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
     /** The button that opened the menu: a click on it again closes the menu */
     private _menuAnchor?: HTMLElement
     private _ready = false
+    /**
+     * Watches the layer (the canvas changes size, also without a window resize) and each post-it (a size from its
+     * corner)
+     */
     private _resizer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(entries => {
         for (const {target} of entries) {
+            if (target === this.element) {
+                this._onResize()
+                continue
+            }
             const c = this._byElement.get(target)
             if (c) this._cardResized(c)
         }
@@ -205,7 +213,9 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         this._notes?.addEventListener('notesChanged', this._onNotesChanged)
         this._notes?.addEventListener('storeStatusChanged', this._onStatus)
         viewer.container.appendChild(this.element)
-        window.addEventListener('resize', this._onResize)
+        // the post-its stay inside the canvas when it changes size; without a ResizeObserver, on a window resize
+        if (this._resizer) this._resizer.observe(this.element)
+        else window.addEventListener('resize', this._onResize)
         this._sync()
     }
 
