@@ -667,6 +667,16 @@ describe('SelectionUxPlugin', () => {
         expect(hit2.intersects.consumed).toBeUndefined()
     })
 
+    test('an editor plugin: a UI toggle for enabled, a constructor flag, and not saved in the viewer config', () => {
+        const ux = new SelectionUxPlugin(false)
+        expect(ux.enabled).toBe(false)
+        expect(ux.toJSON).toBeUndefined()
+        const ui = ux.uiConfig as any
+        expect(ui.label).toBe('Selection UX')
+        const toggle = ui.children.map((c: any) => typeof c === 'function' ? c() : c).find((c: any) => c.type === 'checkbox')
+        expect(toggle.property).toEqual([ux, 'enabled'])
+    })
+
     test('onRemove removes the listeners', () => {
         const {ux, viewer, picking, click, key, leg1, lamp} = setup()
         ux.select([lamp])

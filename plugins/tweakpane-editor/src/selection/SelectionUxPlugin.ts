@@ -6,10 +6,12 @@ import {
     PickingPlugin,
     Raycaster,
     ThreeViewer,
-    TransformControlsPlugin,
+    uiFolderContainer,
+    uiToggle,
     Vector2,
     Vector3,
 } from 'threepipe'
+import type {TransformControlsPlugin} from 'threepipe'
 import {
     childTargets,
     isFrame,
@@ -50,11 +52,17 @@ function isThin(o: any) {
  * The selection is the selection of the {@link PickingPlugin} (added as a dependency): its events, its undo steps and its
  * box widget stay as they are. While enabled, this plugin takes over the clicks and keys that select.
  * Each selection change is one undo step, when the viewer has an `UndoManagerPlugin`.
+ *
+ * An editor setting: it is not saved in the viewer config.
  */
+@uiFolderContainer('Selection UX')
 export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventMap> {
     static readonly PluginType = 'SelectionUxPlugin'
-    enabled = true
+    /** Off: the PickingPlugin selects on click as without this plugin */
+    @uiToggle()
+        enabled = true
     dependencies = [PickingPlugin]
+    toJSON: any = undefined
 
     /** Pointer movement in pixels after which a press is a drag, not a click */
     static ClickDistance = 4
@@ -81,8 +89,9 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
     private _clickBehind?: ReturnType<typeof setTimeout>
     private _nextHoverAt = 0
 
-    constructor() {
+    constructor(enabled = true) {
         super()
+        this.enabled = enabled
         this._raycaster.params.Line2 = {threshold: 8} // fat lines: pixels added to the line width
     }
 
@@ -288,7 +297,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         this._raycaster.params.Line.threshold = wpp * 5
         const hits = this._raycaster.intersectObjects(this._rayRoots(), true)
         const tol = wpp * 12
-        const depth = (h: typeof hits[number]) => h.distance - (isThin(h.object) ? tol : 0)
+        const depth = (hit: typeof hits[number]) => hit.distance - (isThin(hit.object) ? tol : 0)
         return hits.sort((a, b) => depth(a) - depth(b))
     }
 
@@ -385,7 +394,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         // the second press of a double click: the click behind of the first one does not happen
         this._cancelClickBehind()
         // the transform gizmo gets the press when the pointer is on one of its axes
-        const tc = this._viewer!.getPlugin(TransformControlsPlugin)
+        const tc = this._viewer!.getPlugin<TransformControlsPlugin>('TransformControlsPlugin')
         if (tc && !tc.isDisabled() && tc.transformControls?.axis) return
         const p = this._local(e)
         this._client.set(e.clientX, e.clientY)
