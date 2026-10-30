@@ -908,6 +908,39 @@ describe('SelectionUxPlugin', () => {
         expect(lines().map(l => edges(l.getAttribute('d')))).toEqual([24]) // 3 strokes at each corner
     })
 
+    test('overlay: a frame without a change does not draw; a render of a changed view, the selection or a setting does', () => {
+        const {ux, viewer, canvas, camera, lamp, table, frame, lines, labels} = setup()
+        ux.select([lamp])
+        const x0 = lines()[0].getAttribute('x')
+        const reads = vi.spyOn(canvas, 'getBoundingClientRect')
+        frame()
+        frame()
+        expect(reads).not.toHaveBeenCalled() // no layout read and no DOM write while nothing changes
+        camera.position.x = 1
+        camera.updateMatrixWorld(true)
+        const render = (frameCount: number) => {
+            viewer.renderManager.frameCount = frameCount
+            viewer.dispatchEvent({type: 'preRender'})
+        }
+        render(3) // a progressive frame of the same view
+        frame()
+        expect(reads).not.toHaveBeenCalled()
+        render(0) // the first frame of a changed view
+        expect(lines()[0].getAttribute('x')).not.toBe(x0)
+        // the offset parent and the canvas (the same element here) are measured once per draw, not once per box corner
+        expect(reads).toHaveBeenCalledTimes(2)
+        reads.mockClear()
+        ux.select([table])
+        frame()
+        expect(reads).toHaveBeenCalledTimes(2)
+        ux.unit = 'cm'
+        expect(labels()[1].textContent).toBe('1.70 × 1.50 × 0.50 cm')
+        table.name = 'Desk' // a change the overlay does not see, until redrawOverlay
+        expect(labels()[0].children.map(c => c.textContent)).toEqual(['Table'])
+        ux.redrawOverlay()
+        expect(labels()[0].children.map(c => c.textContent)).toEqual(['Desk'])
+    })
+
     test('overlay: placed over the canvas in the scrolled content of its offset parent', () => {
         const {canvas, frame} = setup()
         Object.assign(canvas, {scrollLeft: 30, scrollTop: 20})

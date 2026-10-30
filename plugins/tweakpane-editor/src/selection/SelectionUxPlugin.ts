@@ -3,6 +3,7 @@ import {
     AViewerPluginSync,
     IObject3D,
     Object3D,
+    onChange,
     PickingPlugin,
     Raycaster,
     ThreeViewer,
@@ -89,23 +90,32 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
      * Draw the overlay over the canvas: the boxes of the selection and of the hovered object, the name and the size.
      * While it draws, the box and the hover box of the PickingPlugin are off (they come back when it stops).
      */
-    overlay = true
+    @onChange(SelectionUxPlugin.prototype.redrawOverlay)
+        overlay = true
     /** How the box of the selection is drawn: a screen rectangle (as in Figma), the 3D box, or the corners of the 3D box */
-    boxStyle: SelectionBoxStyle = 'rect'
+    @onChange(SelectionUxPlugin.prototype.redrawOverlay)
+        boxStyle: SelectionBoxStyle = 'rect'
     /** The box of one object turns with it (`local`) or follows the world axes (`world`); a box of several objects follows the world axes */
-    boxSpace: 'local' | 'world' = 'local'
+    @onChange(SelectionUxPlugin.prototype.redrawOverlay)
+        boxSpace: 'local' | 'world' = 'local'
     /** With the `box` style, draw the edges that face away from the camera dashed */
-    xray = true
+    @onChange(SelectionUxPlugin.prototype.redrawOverlay)
+        xray = true
     /** Draw the box of the hovered object (see {@link hovered}) */
-    showHover = true
+    @onChange(SelectionUxPlugin.prototype.redrawOverlay)
+        showHover = true
     /** Show the name above the selection, after the names of its parent levels; a click on a parent name selects it */
-    showName = true
+    @onChange(SelectionUxPlugin.prototype.redrawOverlay)
+        showName = true
     /** Show the size of the box below the selection, in scene units (see {@link unit}) */
-    showSize = true
+    @onChange(SelectionUxPlugin.prototype.redrawOverlay)
+        showSize = true
     /** The unit after the size, like `'cm'`; empty for none */
-    unit = ''
+    @onChange(SelectionUxPlugin.prototype.redrawOverlay)
+        unit = ''
     /** The colour of the overlay, a CSS colour */
-    accent = '#0d99ff'
+    @onChange(SelectionUxPlugin.prototype.redrawOverlay)
+        accent = '#0d99ff'
 
     private _picking?: PickingPlugin
     private _raycaster = new Raycaster()
@@ -130,6 +140,10 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
     private _crumbs: IObject3D[] = []
     /** The box and hover settings of the PickingPlugin while the overlay draws, to restore them after */
     private _pickingSaved?: {widget: boolean, hover: boolean}
+    /** The overlay draws on the next frame: the view, the selection, the hover or a setting changed */
+    private _overlayDirty = true
+    /** The overlay is on the screen */
+    private _overlayShown = false
 
     constructor(enabled = true) {
         super()
@@ -426,6 +440,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
     private _onSelectionChanged = () => {
         // the hover target depends on the selection (inside a selected group: the part a double click selects)
         this._pointerDirty = true
+        this._overlayDirty = true
         this._emit('selection')
     }
 
@@ -580,7 +595,9 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
     private _onPreRender = () => {
         // the view changed under a still pointer (a zoom, a camera view transition, the damping after a release, a moved
         // object): the viewer resets the frame count on a change, not on the progressive frames of the same view
-        if (this._pointerInside && !this._pointerHeld && this._viewer!.renderManager.frameCount === 0) this._pointerDirty = true
+        if (this._viewer!.renderManager.frameCount !== 0) return
+        if (this._pointerInside && !this._pointerHeld) this._pointerDirty = true
+        this._overlayDirty = true
     }
 
     private _hoverTarget(): IObject3D | null {
@@ -600,6 +617,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
     private _setHover(h: IObject3D | null) {
         if (h === this._hover) return
         this._hover = h
+        this._overlayDirty = true
         this._emit('hover')
     }
 
@@ -668,8 +686,14 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         if (!root) return
         const on = this.overlay && this._active
         this._takeOverPickingBox(on)
-        root.style.display = on ? '' : 'none'
-        if (!on) return
+        if (on !== this._overlayShown) {
+            this._overlayShown = on
+            root.style.display = on ? '' : 'none'
+            this._overlayDirty = true
+        }
+        // a frame with no change (a progressive frame, or no render) leaves the overlay as it is: no layout read, no DOM write
+        if (!on || !this._overlayDirty) return
+        this._overlayDirty = false
         // over the canvas, which can be smaller than the container or offset in it (from the box the root is placed in,
         // in its scrolled content)
         const base = root.offsetParent as HTMLElement | null ?? this._viewer!.container
@@ -678,28 +702,45 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         root.style.top = px(r.top - c.top - (base.clientTop || 0) + (base.scrollTop || 0))
         root.style.width = px(r.width)
         root.style.height = px(r.height)
-        this._draw()
+        this._draw(r.width, r.height)
     }
 
-    private _draw() {
+    /**
+     * Draw the overlay on the next frame. It draws by itself when the view renders after a change, the selection or the
+     * hover changes, or a setting of the overlay changes; call this after a change that it does not see, like the name of
+     * a selected object.
+     */
+    redrawOverlay() {
+        this._overlayDirty = true
+    }
+
+    /**
+     * The canvas points of box corners, for a canvas of `w`×`h` pixels (measured once per draw, see {@link toScreen})
+     */
+    private _project(corners: Vector3[], w: number, h: number) {
+        const cam = this._viewer!.scene.mainCamera
+        return corners.map(c => toScreen(c, cam, w, h))
+    }
+
+    private _draw(w: number, h: number) {
         const L = this._lines!, T = this._labels!
         L.begin()
         T.begin()
         this._crumbs = []
         const sel = this.selected
         const hover = this._hover
-        if (hover && this.showHover && !sel.includes(hover)) this._drawBox('hover', [hover], 1, 1)
+        if (hover && this.showHover && !sel.includes(hover)) this._drawBox('hover', [hover], 1, 1, w, h)
         // each object of a multiple selection in a thin box
-        if (sel.length > 1) sel.forEach((o, i) => this._drawBox('part' + i, [o], 1, 0.55))
-        if (sel.length) this._drawSelection(sel)
+        if (sel.length > 1) sel.forEach((o, i) => this._drawBox('part' + i, [o], 1, 0.55, w, h))
+        if (sel.length) this._drawSelection(sel, w, h)
         L.end()
         T.end()
     }
 
     /** A thin box: the screen rectangle (`rect` style), else the edges of the 3D box that face the camera */
-    private _drawBox(key: string, objs: IObject3D[], width: number, opacity: number) {
+    private _drawBox(key: string, objs: IObject3D[], width: number, opacity: number, w: number, h: number) {
         const info = this.boxInfo(objs)
-        const sc = info.corners.map(c => this.toScreen(c))
+        const sc = this._project(info.corners, w, h)
         const stroke = {fill: 'none', stroke: this.accent, strokeWidth: width, opacity}
         if (this.boxStyle !== 'rect') {
             this._lines!.get(key, 'path', {...stroke, strokeLinejoin: 'round', d: boxEdgesPath(sc, this._frontFaces(info), 'visible')})
@@ -709,10 +750,10 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         if (r) this._lines!.get(key, 'rect', {...stroke, ...rectAttrs(r)})
     }
 
-    private _drawSelection(sel: IObject3D[]) {
+    private _drawSelection(sel: IObject3D[], w: number, h: number) {
         const L = this._lines!
         const info = this.boxInfo(sel)
-        const sc = info.corners.map(c => this.toScreen(c))
+        const sc = this._project(info.corners, w, h)
         const rect = screenRect(sc)
         if (!rect) return
         const stroke = {fill: 'none', stroke: this.accent}
