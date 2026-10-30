@@ -63,7 +63,6 @@ export {TonemapPlugin} from './postprocessing/TonemapPlugin'
 export {VignettePlugin} from './postprocessing/VignettePlugin'
 export {ChromaticAberrationPlugin} from './postprocessing/ChromaticAberrationPlugin'
 export {FilmicGrainPlugin} from './postprocessing/FilmicGrainPlugin'
-export {LUTPlugin} from './postprocessing/LUTPlugin'
 
 // animation
 export {GLTFAnimationPlugin} from './animation/GLTFAnimationPlugin'
