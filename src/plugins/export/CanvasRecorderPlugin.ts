@@ -5,7 +5,7 @@ import {AViewerPluginEventMap, AViewerPluginSync, type ThreeViewer} from '../../
 import type {IConvergedCanvasRecorder, ProgressivePlugin} from '../pipeline/ProgressivePlugin'
 import type {CameraViewPlugin} from '../animation/CameraViewPlugin'
 import type {GLTFAnimationPlugin} from '../animation/GLTFAnimationPlugin'
-import type {PopmotionPlugin} from '../animation/PopmotionPlugin'
+import type {AnimationResult, PopmotionPlugin} from '../animation/PopmotionPlugin'
 import type {AnimationObjectPlugin} from '../animation/AnimationObjectPlugin'
 import type {FileTransferPlugin} from './FileTransferPlugin'
 import {type Easing, EasingFunctions} from '../../utils/animation'
@@ -736,8 +736,9 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
         const lastAutoLookAt = camera.userData.autoLookAtTarget
         camera.userData.autoLookAtTarget = true
         const initial = current.theta
+        let turn: AnimationResult | undefined
         try {
-            return await this.record(async() => popmotion.animate({
+            return await this.record(async() => (turn = popmotion.animate({
                 from: initial,
                 to: initial + (ccw ? -1 : 1) * angle * Math.PI / 180,
                 duration: durationNum * 1000,
@@ -749,8 +750,11 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
                 },
                 // the end pose stays while the recording stops (the last frames and the end padding); the camera goes
                 // back in the finally below
-            }).promise, onStart)
+            })).promise, onStart)
         } finally {
+            // a removal of the plugin ends the recording before the turn ends: the turn stops, so it does not move the
+            // camera after it goes back
+            turn?.stop()
             // also when the recording failed: the camera goes back and can be used again
             camera.userData.autoLookAtTarget = lastAutoLookAt
             camera.position.copy(cameraPos).add(cameraTarget)

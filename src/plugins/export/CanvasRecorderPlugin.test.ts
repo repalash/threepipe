@@ -176,7 +176,7 @@ describe('CanvasRecorderPlugin', () => {
     test('Record turntable + GLTF + VAnimation: a recording that fails stops the animations it started', async() => {
         const gltf = {animationState: 'stopped', playAnimation: vi.fn(), stopAnimation: vi.fn()}
         const animation = {animate: vi.fn(), stop: vi.fn()}
-        const popmotion = {animate: () => ({promise: Promise.reject(new Error('the turn failed'))})}
+        const popmotion = {animate: () => ({promise: Promise.reject(new Error('the turn failed')), stop: () => undefined})}
         const {plugin} = setup({GLTFAnimation: gltf, AnimationObjectPlugin: {animation}, PopmotionPlugin: popmotion})
         const button = plugin.uiConfig.children.find((c: any) => c.label === 'Record turntable + GLTF + VAnimation')
         await expect(button.value()).rejects.toThrow('the turn failed')
@@ -211,7 +211,7 @@ describe('CanvasRecorderPlugin', () => {
         const popmotion = {animate: (o: any) => {
             o.onUpdate(o.to)
             o.onComplete?.()
-            return {promise: Promise.resolve()}
+            return {promise: Promise.resolve(), stop: () => undefined}
         }}
         const {plugin, camera} = setup({PopmotionPlugin: popmotion})
         let atStop: number[] = []
@@ -226,7 +226,7 @@ describe('CanvasRecorderPlugin', () => {
     })
 
     test('recordCamera360: a failing recording still gives the camera back', async() => {
-        const popmotion = {animate: () => ({promise: Promise.reject(new Error('anim failed'))})}
+        const popmotion = {animate: () => ({promise: Promise.reject(new Error('anim failed')), stop: () => undefined})}
         const {plugin, camera} = setup({PopmotionPlugin: popmotion})
         await expect(plugin.recordCamera360(1)).rejects.toThrow('anim failed')
         expect(camera.setInteractions).toHaveBeenLastCalledWith(true, CanvasRecorderPlugin.PluginType)
@@ -560,11 +560,16 @@ describe('CanvasRecorderPlugin stop and remove', () => {
         expect(plugin._frameWaits.size).toBe(0)
     })
 
-    test('a removal while a turntable recording turns settles it, restores maxFrameCount and gives the camera back', async() => {
+    test('a removal while a turntable recording turns settles it, restores maxFrameCount, stops the turn and gives the camera back', async() => {
         // a viewer dispose ends the animation loop of PopmotionPlugin: the turn never ends
+        let stopped = false
+        let turn!: (v: number) => void
         const popmotion = {animate: (o: any) => {
-            o.onUpdate(o.to)
-            return {promise: new Promise(() => undefined)}
+            turn = (v: number) => {
+                if (!stopped) o.onUpdate(v)
+            }
+            turn(o.to)
+            return {promise: new Promise(() => undefined), stop: () => stopped = true}
         }}
         const {plugin, progressive, viewer} = removable({PopmotionPlugin: popmotion})
         const camera = viewer.scene.mainCamera
@@ -578,6 +583,9 @@ describe('CanvasRecorderPlugin stop and remove', () => {
         expect(camera.setInteractions).toHaveBeenLastCalledWith(true, CanvasRecorderPlugin.PluginType)
         expect(camera.position.toArray()).toEqual([0, 0, 5])
         expect(plugin._frameWaits.size).toBe(0)
+        // only the recorder is removed: PopmotionPlugin still runs, and a turn that was not stopped moves the camera again
+        turn(Math.PI)
+        expect(camera.position.toArray().map((v: number) => +v.toFixed(5))).toEqual([0, 0, 5])
     })
 
     test('onRemove drops the disposed recorders, so an add makes new ones', () => {
