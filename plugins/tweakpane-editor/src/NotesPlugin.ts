@@ -297,9 +297,11 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
         return `[${new Date().toLocaleString()}${extra ? ' · ' + extra : ''}${names ? ' · selected: ' + names : ''}]`
     }
 
-    /** Saves the changed stores now, instead of 600 ms after the last change */
+    /** Saves the changed stores now, instead of 600 ms after the last change, and waits for all the saves that run */
     async flush() {
         await this._saveChanged()
+        // and the saves that already run (one the 600 ms timer started) or wait behind them
+        await Promise.all([...this._running.values(), ...this._waiting.values()])
     }
 
     private _fileStore: NotesStore = {

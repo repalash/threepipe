@@ -186,6 +186,28 @@ describe('NotesPlugin', () => {
         expect(notes.fileNotes.map(x => x.text)).toEqual(['scene B', 'scene B, same id'])
     })
 
+    test('flush() also waits for a save that the 600 ms timer already started', async() => {
+        vi.useFakeTimers()
+        let finish!: () => void
+        const saved: string[][] = []
+        const server: NotesStore = {id: 'server', label: 'Server', load: () => [], save: async n => new Promise<void>(r => finish = () => {
+            saved.push(n.map(x => x.text))
+            r()
+        })}
+        const notes = new NotesPlugin({file: false, browser: false, stores: [server]})
+        notes.onAdded(fakeViewer())
+        notes.addNote('kept')
+        await vi.advanceTimersByTimeAsync(600) // the save starts and waits for the server
+        expect(notes.storeStatus('server')).toBe('saving')
+        let flushed = false
+        const flushing = notes.flush().then(() => flushed = true)
+        await vi.advanceTimersByTimeAsync(0)
+        expect(flushed).toBe(false)
+        finish()
+        await flushing
+        expect(saved).toEqual([['kept']])
+    })
+
     test('the notes in this browser are saved 600 ms after the last change, and loaded when the plugin is added', async() => {
         vi.useFakeTimers()
         const notes = new NotesPlugin({browser: 'my-notes'})
