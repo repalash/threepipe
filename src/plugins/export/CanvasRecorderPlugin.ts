@@ -1,6 +1,6 @@
 import {Spherical} from 'three'
 import {getOrCall, onChange, PartialRecord, serialize, timeout} from 'ts-browser-helpers'
-import {generateUiConfig, uiSlider, UiObjectConfig} from 'uiconfig.js'
+import {generateUiConfig, UiObjectConfig} from 'uiconfig.js'
 import {AViewerPluginEventMap, AViewerPluginSync, type ThreeViewer} from '../../viewer'
 import type {IConvergedCanvasRecorder, ProgressivePlugin} from '../pipeline/ProgressivePlugin'
 import type {CameraViewPlugin} from '../animation/CameraViewPlugin'
@@ -157,8 +157,6 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
         this.refreshRecorderOptions()
     }
 
-    private _renderToScreenDisabled = false
-
     /** The capture of the frames that wait for their timeout ({@link _captureSoon}) */
     private _pendingCapture?: () => void
     /** The frames that the pending capture requests */
@@ -189,14 +187,10 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
         // the recorder must stay free until postFrame, so the animations still step for it.
         if (!this._capturedInFrame) this._pendingCapture?.()
         if (this._convergeNow && this._recorder?.isRecording()) {
-            const composer = this._viewer!.renderManager.composer
-            const k = composer.renderToScreen
-            // without ProgressivePlugin there is nothing to converge: every frame is final
+            // without ProgressivePlugin there is nothing to converge: every frame is final. The render manager sets
+            // renderToScreen back to true after the render.
             const progressive = this._viewer?.getPlugin<ProgressivePlugin>('ProgressivePlugin')
-            composer.renderToScreen = progressive ? progressive.isConverged() : true
-            if (k && !composer.renderToScreen) {
-                this._renderToScreenDisabled = true // set back to true post render
-            }
+            this._viewer!.renderManager.composer.renderToScreen = progressive ? progressive.isConverged() : true
         }
     }
 
@@ -213,9 +207,6 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
                 if (!this._uncapturedRender) this._captureSoon()
                 this._capturedInFrame = !this._uncapturedRender
             }
-        }
-        if (this._renderToScreenDisabled) {
-            this._viewer!.renderManager.composer.renderToScreen = true
         }
     }
     /** The time of the next frame of a real-time recording, in ms (0: the recording starts) */
@@ -279,7 +270,7 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
     private _stateChange(d: boolean) {
         this.dirty = d
         this._viewer?.setDirty()
-        this.uiConfig.children?.map(value => getOrCall(value)).flat(2).forEach(v => v?.uiRefresh?.())
+        this._refreshUi()
     }
 
     onRemove(viewer: ThreeViewer): void {
@@ -290,10 +281,8 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
         // no frame comes after a removal (or a viewer dispose): the waits of a stop end now
         ;[...this._frameWaits].forEach(end => end())
         this._frameWaits.clear()
-        this._recorder?.dispose()
-        Object.values(this._recorders).forEach(r => {
-            r?.dispose()
-        })
+        // each recorder once (the current one is one of them, unless a subclass made it)
+        new Set([this._recorder, ...Object.values(this._recorders)]).forEach(r => r?.dispose())
         // a disposed recorder (an ended MP4 worker) is not used again: an add makes new ones
         this._recorders = {}
         this._recorder = undefined
@@ -372,8 +361,7 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
     }
 
     // @serialize()
-    @uiSlider('End padding (MS)', [0, 1000], 1)
-        endPaddingMs = 500
+    endPaddingMs = 500
 
     private _stopping?: Promise<Blob | undefined>
 
@@ -697,7 +685,7 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
         // before the camera is changed: without it nothing records, and the camera must stay usable
         const popmotion = this._viewer.getPlugin<PopmotionPlugin>('PopmotionPlugin')
         if (!popmotion) {
-            console.error('Popmotion plugin not found')
+            this._viewer.console.error('CanvasRecorderPlugin: PopmotionPlugin required to record the turntable')
             return
         }
         const camera = this._viewer.scene.mainCamera
