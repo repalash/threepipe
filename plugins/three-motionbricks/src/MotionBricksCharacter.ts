@@ -3,7 +3,7 @@ import {G1Robot} from './G1Robot'
 import {CHARACTER_RIGS, CharacterRig, RetargetedCharacter} from './RetargetedCharacter'
 import {G1Bricks, G1Controller, G1ControllerStats, G1Gait, GAIT_SPEEDS} from './G1Controller'
 import {G1_BRICKS} from './G1Bricks'
-import {heading, MotionBricksG1, MotionGenerator, OrtApi, setupOrtWeb} from './MotionBricksG1'
+import {heading, MOTIONBRICKS_CACHE, MotionBricksG1, MotionGenerator, OrtApi, setupOrtWeb} from './MotionBricksG1'
 import {MotionBricksRemote, MotionBricksWorkerError} from './MotionBricksRemote'
 
 const NVIDIA_ASSETS = 'https://media.githubusercontent.com/media/NVlabs/motionbricks/main/motionbricks/assets'
@@ -18,7 +18,10 @@ export const MOTIONBRICKS_DEFAULTS = {
     assets: ASSETS,
     /** The robot, for your GLTFLoader: assets/unitree_g1.glb in this package (6 MB, BSD-3-Clause, Unitree). */
     robot: ASSETS + 'unitree_g1.glb',
-    ort: 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.30.0/dist/ort.min.mjs',
+    /** onnxruntime-web's WebAssembly-only build: half the size of the full one, and what the default backend uses. */
+    ort: 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.30.0/dist/ort.wasm.min.mjs',
+    /** The build with WebGPU, for `backend: 'webgpu'`. */
+    ortWebGpu: 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.30.0/dist/ort.webgpu.min.mjs',
 }
 
 /**
@@ -45,7 +48,7 @@ export interface MotionBricksCharacterOptions {
     liteModel?: string
     /** Use `liteModel`: always, never, or 'auto' (default) on phones, tablets and devices with 4 GB or less. */
     lite?: boolean | 'auto'
-    /** The onnxruntime-web module to import. */
+    /** The onnxruntime-web module to import. The default is MOTIONBRICKS_DEFAULTS.ort, or ortWebGpu for WebGPU. */
     ort?: string
     /** Parts of the ORT .wasm file, joined in order, for hosts that limit file size. */
     wasm?: string[]
@@ -56,6 +59,11 @@ export interface MotionBricksCharacterOptions {
     backend?: 'wasm' | 'webgpu'
     /** Run the model in a Web Worker (default true). On the page, every generation stalls rendering. */
     worker?: boolean
+    /**
+     * Keep model packs in the browser's Cache Storage, so they download once rather than on every visit and
+     * page (default true). A string names the cache; the default is MOTIONBRICKS_CACHE.
+     */
+    cache?: boolean | string
     /** Make the robot's meshes cast and receive shadows. Default true. */
     shadows?: boolean
     /** Standing, walk and run target poses. The default ones are baked from the model. */
@@ -172,25 +180,29 @@ export class MotionBricksCharacter {
 
     private async _load(onProgress?: (stage: LoadStage, loaded: number, total: number) => void) {
         const o = this.options
-        const ortUrl = o.ort ?? MOTIONBRICKS_DEFAULTS.ort
         const useLite = !!o.liteModel && (o.lite === true || (o.lite ?? 'auto') === 'auto' && isLowMemoryDevice())
         const model = useLite ? o.liteModel! : o.model ?? MOTIONBRICKS_DEFAULTS.model
         const useGpu = o.backend === 'webgpu' && typeof navigator !== 'undefined' && 'gpu' in navigator
+        const ortUrl = o.ort ?? (useGpu ? MOTIONBRICKS_DEFAULTS.ortWebGpu : MOTIONBRICKS_DEFAULTS.ort)
+        const cache = o.cache === false ? false : typeof o.cache === 'string' ? o.cache : MOTIONBRICKS_CACHE
         const sessionOptions = {executionProviders: useGpu ? ['webgpu', 'wasm'] : ['wasm'], graphOptimizationLevel: 'all'}
         const progress = (l: number, t: number) => onProgress?.('model', l, t)
         onProgress?.('runtime', 0, 1)
         let engine: MotionGenerator | null = null
         if (o.worker !== false) {
             // Only a worker that cannot run falls back to the page; a model that fails to load would fail there too.
-            engine = await MotionBricksRemote.Load({ort: ortUrl, wasm: o.wasm, model, sessionOptions}, progress).catch(e => {
+            engine = await MotionBricksRemote.Load({ort: ortUrl, wasm: o.wasm, model, sessionOptions, cache}, progress).catch(e => {
                 if (!(e instanceof MotionBricksWorkerError)) throw e
                 console.warn('MotionBricks: the worker could not start, running the model on the page instead', e)
                 return null
             })
         }
-        if (!engine) engine = await MotionBricksG1.Load(await loadOrt(ortUrl, o.wasm), model, sessionOptions, progress)
-        // One generation compiles the kernels before the robot moves.
+        if (!engine) engine = await MotionBricksG1.Load(await loadOrt(ortUrl, o.wasm), model, sessionOptions, progress, cache)
+        // One generation compiles the kernels before the robot moves. Where memory is short, wait for the
+        // downloaded weights to be collected first: the first generation's buffers on top of them lift the peak
+        // by about 150 MB, which is enough for a phone to close the tab.
         onProgress?.('warmup', 0, 1)
+        if (useLite) await new Promise(resolve => setTimeout(resolve, 2000))
         const rest = Float32Array.from((o.bricks ?? G1_BRICKS).rest[0])
         let warmupMs = 0
         try {

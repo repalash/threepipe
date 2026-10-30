@@ -6,7 +6,10 @@
   a fixed segment length to match. The left/right step timing went from 32% apart to under 5% when running, and
   from 22% to 2-3% when walking (`tools/make_cycles.py` bakes the cycles).
 - Stopping from a run allows only segments long enough to slow down, so the last metres are not rushed.
-- A lite model pack for phones (`tools/pack_lite.py`, `liteModel`, `lite: 'auto'`).
+- A lite model pack for phones (`tools/pack_lite.py`, `liteModel`, `lite: 'auto'`). On phones the page's peak
+  memory while loading is about 25% lower than before: onnxruntime-web's WebAssembly-only build by default, and a
+  pause before the first generation so the downloaded weights are collected first.
+- Model packs are kept in Cache Storage (`cache`, default on), so they download once per browser.
 - The GitHub Pages site (`site/`, `tools/build_site.sh`).
 
 ## 0.1.0

@@ -180,9 +180,10 @@ export async function setupOrtWeb(ort: any, wasm?: string[]) {
     ort.env.wasm.wasmBinary = binary.buffer
 }
 
-/** Download a file, into `target` at `offset` when given. */
-async function fetchBytes(url: string, onBytes?: (n: number) => void, target?: Uint8Array, offset = 0): Promise<Uint8Array> {
-    const res = await fetch(url)
+/** Download a file, into `target` at `offset` when given, or read it from `cache` and store it there. */
+async function fetchBytes(url: string, onBytes?: (n: number) => void, target?: Uint8Array, offset = 0, cache?: PackCache | null): Promise<Uint8Array> {
+    const hit = cache ? await cache.match(url) : undefined
+    const res = hit ?? await fetch(url)
     if (!res.ok || !res.body) throw new Error(`Could not download ${url}: HTTP ${res.status}`)
     const reader = res.body.getReader()
     const parts: Uint8Array[] = []
@@ -195,15 +196,84 @@ async function fetchBytes(url: string, onBytes?: (n: number) => void, target?: U
         size += value.length
         onBytes?.(value.length)
     }
-    if (target) return target.subarray(offset, offset + size)
-    const out = new Uint8Array(size)
-    let o = 0
-    for (const p of parts) {
-        out.set(p, o)
-        o += p.length
+    let out: Uint8Array
+    if (target) out = target.subarray(offset, offset + size)
+    else {
+        out = new Uint8Array(size)
+        let o = 0
+        for (const p of parts) {
+            out.set(p, o)
+            o += p.length
+        }
     }
+    if (cache && !hit) cache.store(url, out)
     return out
 }
+
+/**
+ * A model pack in Cache Storage, so it downloads once per browser rather than on every visit and page. pack.json
+ * always comes from the network when it can; when it differs from the cached one, the cached files of that pack
+ * are dropped. It is stored last, once every file is in, so a pack cut off halfway is not taken as complete.
+ */
+class PackCache {
+    private _writes: Promise<unknown> = Promise.resolve()
+
+    private constructor(private _cache: Cache, private _base: string) {}
+
+    static async Open(name: string, base: string, manifestText: string) {
+        try {
+            if (typeof caches === 'undefined') return null
+            const cache = await caches.open(name)
+            const stored = await cache.match(base + 'pack.json')
+            if (stored && await stored.text() !== manifestText) {
+                for (const key of await cache.keys()) if (key.url.startsWith(base)) await cache.delete(key)
+            }
+            return new PackCache(cache, base)
+        } catch {
+            // No Cache Storage here (an insecure page, a private window, storage turned off): download as before.
+            return null
+        }
+    }
+
+    async match(url: string) {
+        return this._cache.match(url).catch(() => undefined)
+    }
+
+    /**
+     * Store a downloaded file from the buffer it was read into, one at a time, rather than teeing the download:
+     * a tee holds whatever the disk has not taken yet, which on a phone can be the whole pack. A full disk only
+     * means it downloads again next time.
+     */
+    store(url: string, bytes: Uint8Array) {
+        this._writes = this._writes.then(async() => this._cache.put(url, new Response(bytes as Uint8Array<ArrayBuffer>)).catch(() => undefined))
+    }
+
+    /** Wait for the stores, before the weights are handed to the session and can be collected. */
+    async flush() {
+        return this._writes
+    }
+
+    async complete(manifestText: string) {
+        await this._writes
+        await this._cache.put(this._base + 'pack.json', new Response(manifestText, {headers: [['content-type', 'application/json']]})).catch(() => undefined)
+    }
+}
+
+/** pack.json from the network, or from the cache when offline. */
+async function fetchManifest(base: string, cacheName: string | false) {
+    try {
+        const res = await fetch(base + 'pack.json', {cache: 'no-cache'})
+        if (res.ok) return await res.text()
+        throw new Error(`Could not download ${base}pack.json: HTTP ${res.status}`)
+    } catch (e) {
+        const stored = cacheName && typeof caches !== 'undefined' ? await caches.open(cacheName).then(async c => c.match(base + 'pack.json')).catch(() => undefined) : undefined
+        if (stored) return stored.text()
+        throw e
+    }
+}
+
+/** The Cache Storage name model packs are kept under, unless a load says otherwise. */
+export const MOTIONBRICKS_CACHE = 'three-motionbricks'
 
 function halfToFloat(h: number) {
     const s = h & 0x8000 ? -1 : 1
@@ -247,10 +317,20 @@ export class MotionBricksG1 implements MotionGenerator {
     /**
      * Load a model packed by tools/pack_model.py: a graph, a manifest, and int8 weight shards.
      * @param baseUrl folder that holds pack.json, ending with a slash
+     * @param cacheName Cache Storage to keep the pack in, so it downloads once per browser; false to always download
      */
-    static async LoadPacked(ort: OrtApi, baseUrl: string, sessionOptions: any = {}, onProgress?: ProgressCallback) {
-        const manifest: PackManifest | LitePackManifest = await (await fetch(baseUrl + 'pack.json')).json()
-        if (manifest.format === 'motionbricks-external') return MotionBricksG1._loadLite(ort, baseUrl, manifest, sessionOptions, onProgress)
+    static async LoadPacked(ort: OrtApi, baseUrl: string, sessionOptions: any = {}, onProgress?: ProgressCallback, cacheName: string | false = MOTIONBRICKS_CACHE) {
+        const manifestText = await fetchManifest(baseUrl, cacheName)
+        const manifest: PackManifest | LitePackManifest = JSON.parse(manifestText)
+        const cache = cacheName ? await PackCache.Open(cacheName, baseUrl, manifestText) : null
+        const engine = manifest.format === 'motionbricks-external' ?
+            await MotionBricksG1._loadLite(ort, baseUrl, manifest, sessionOptions, onProgress, cache) :
+            await MotionBricksG1._loadQ8(ort, baseUrl, manifest, sessionOptions, onProgress, cache)
+        await cache?.complete(manifestText)
+        return engine
+    }
+
+    private static async _loadQ8(ort: OrtApi, baseUrl: string, manifest: PackManifest, sessionOptions: any, onProgress?: ProgressCallback, cache?: PackCache | null) {
         if (manifest.format !== 'motionbricks-q8') throw new Error('Unknown model pack format')
         let loaded = 0
         const total = manifest.q8Length
@@ -261,9 +341,10 @@ export class MotionBricksG1 implements MotionGenerator {
         // Shards stream straight into one buffer, so no second copy of the weights is made.
         const q8 = new Uint8Array(manifest.q8Length)
         const [graph] = await Promise.all([
-            fetchBytes(baseUrl + (manifest.graph ?? 'graph.onnx')),
-            ...manifest.shards.map(async(s, i) => fetchBytes(baseUrl + s, count, q8, i * manifest.shardBytes)),
+            fetchBytes(baseUrl + (manifest.graph ?? 'graph.onnx'), undefined, undefined, 0, cache),
+            ...manifest.shards.map(async(s, i) => fetchBytes(baseUrl + s, count, q8, i * manifest.shardBytes, cache)),
         ])
+        await cache?.flush()
         const weights = dequantizePack(manifest, q8)
         return MotionBricksG1._create(ort, graph, {
             ...sessionOptions,
@@ -272,14 +353,15 @@ export class MotionBricksG1 implements MotionGenerator {
     }
 
     /** A pack from tools/pack_lite.py: the weights go to the session as they are, with no fp32 copy. */
-    private static async _loadLite(ort: OrtApi, baseUrl: string, manifest: LitePackManifest, sessionOptions: any, onProgress?: ProgressCallback) {
+    private static async _loadLite(ort: OrtApi, baseUrl: string, manifest: LitePackManifest, sessionOptions: any, onProgress?: ProgressCallback, cache?: PackCache | null) {
         let loaded = 0
         const count = (n: number) => onProgress?.(loaded += n, manifest.bytes)
         const data = new Uint8Array(manifest.bytes)
         const [graph] = await Promise.all([
-            fetchBytes(baseUrl + manifest.graph),
-            ...manifest.shards.map(async(s, i) => fetchBytes(baseUrl + s, count, data, i * manifest.shardBytes)),
+            fetchBytes(baseUrl + manifest.graph, undefined, undefined, 0, cache),
+            ...manifest.shards.map(async(s, i) => fetchBytes(baseUrl + s, count, data, i * manifest.shardBytes, cache)),
         ])
+        await cache?.flush()
         // No memory arena or patterns: they keep peak buffers around, and memory is why this pack exists.
         return MotionBricksG1._create(ort, graph, {
             enableCpuMemArena: false,
@@ -289,10 +371,13 @@ export class MotionBricksG1 implements MotionGenerator {
         })
     }
 
-    /** Load a pack folder from tools/pack_model.py or tools/pack_lite.py (a URL ending in /), or an original .onnx file. */
-    static async Load(ort: OrtApi, model: string, sessionOptions: any = {}, onProgress?: ProgressCallback) {
+    /**
+     * Load a pack folder from tools/pack_model.py or tools/pack_lite.py (a URL ending in /), or an original .onnx
+     * file. Packs are kept in Cache Storage under `cacheName` (false: always download); .onnx files are not.
+     */
+    static async Load(ort: OrtApi, model: string, sessionOptions: any = {}, onProgress?: ProgressCallback, cacheName: string | false = MOTIONBRICKS_CACHE) {
         return model.endsWith('/') ?
-            MotionBricksG1.LoadPacked(ort, model, sessionOptions, onProgress) :
+            MotionBricksG1.LoadPacked(ort, model, sessionOptions, onProgress, cacheName) :
             MotionBricksG1.LoadOnnx(ort, model, sessionOptions, onProgress)
     }
 

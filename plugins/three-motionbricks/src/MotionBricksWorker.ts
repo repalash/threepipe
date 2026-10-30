@@ -13,6 +13,8 @@ export interface WorkerLoadOptions {
     /** Absolute URL: a folder with pack.json (ending in /) or a .onnx file. */
     model: string
     sessionOptions: any
+    /** Cache Storage name for model packs, or false to always download. */
+    cache?: string | false
 }
 
 export type WorkerRequest =
@@ -32,7 +34,7 @@ async function load(id: number, o: WorkerLoadOptions) {
         last = now
         scope.postMessage({id, type: 'progress', loaded, total})
     }
-    engine = await MotionBricksG1.Load(ort, o.model, o.sessionOptions, progress)
+    engine = await MotionBricksG1.Load(ort, o.model, o.sessionOptions, progress, o.cache)
     return {backend: engine.backend}
 }
 
