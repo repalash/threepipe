@@ -1,5 +1,5 @@
 import {afterEach, beforeEach, describe, expect, test, vi} from 'vitest'
-import {BoxGeometry, BufferGeometry, DirectionalLight, EventDispatcher, Group, InstancedMesh, Line, LineBasicMaterial, Matrix4, Mesh, MeshBasicMaterial, Object3D, OrthographicCamera, PerspectiveCamera, Vector3} from 'three'
+import {Box3, BoxGeometry, BufferGeometry, DirectionalLight, EventDispatcher, Group, InstancedMesh, Line, LineBasicMaterial, Matrix4, Mesh, MeshBasicMaterial, Object3D, OrthographicCamera, PerspectiveCamera, Vector3} from 'three'
 import {JSUndoManager} from 'ts-browser-helpers'
 import {IObject3D, ObjectPicker} from 'threepipe'
 import {
@@ -244,6 +244,28 @@ describe('selection box', () => {
         expect(size([light1, light2])).toEqual([2.1, 0.1, 0.1]) // not flat
         expect(size([light2, a])).toEqual([2.3, 0.5, 0.5]) // the light's cube reaches x 2.05
         expect(size([empty, a])).toEqual([0.5, 0.5, 5.3]) // the empty object's cube reaches z 5.05
+    })
+
+    test('the cube of a light or an empty object under a scaled parent is pointSize in world units, in each space', () => {
+        const one = () => 1
+        const size = (objs: IObject3D[], space: 'local' | 'world') => boxInfo(objs, space, one).size.toArray().map(v => +v.toFixed(5))
+        const light = new DirectionalLight() as any as IObject3D
+        light.position.set(0, 0, 0)
+        const empty = group('Empty')
+        empty.position.set(1, 0, 0)
+        const parent = group('Scaled', light, empty)
+        parent.scale.setScalar(10)
+        for (const o of [light, empty]) {
+            expect(size([o], 'local')).toEqual([1, 1, 1])
+            expect(size([o], 'world')).toEqual([1, 1, 1]) // the size label does not change with the box space
+        }
+        // the box of both encloses the box of each
+        const both = new Box3().setFromPoints(boxInfo([light, empty], 'world', one).corners).expandByScalar(1e-9)
+        for (const o of [light, empty]) for (const c of boxInfo([o], 'local', one).corners) expect(both.containsPoint(c)).toBe(true)
+        parent.scale.set(2, 10, 5) // each axis
+        expect(size([empty], 'local')).toEqual([1, 1, 1])
+        parent.scale.set(0, 10, 5) // flat: no division by zero
+        expect(size([empty], 'local')).toEqual([0, 1, 1])
     })
 
     test('the world box adds each part in the world: a rotated part in a rotated group', () => {

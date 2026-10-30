@@ -110,7 +110,15 @@ export function boxInfo(objs: IObject3D[], space: 'local' | 'world', pointSize: 
     if (objs.length === 1 && space === 'local') {
         const o = objs[0]
         const lb = localBox(o, pointSize)
-        if (lb.isEmpty()) lb.setFromCenterAndSize(new Vector3(), new Vector3().setScalar(pointSize(o)))
+        if (lb.isEmpty()) {
+            // pointSize is in world units: divide by the world length of each axis of the object (0 when flat)
+            const s = new Vector3().setScalar(pointSize(o))
+            for (let i = 0; i < 3; i++) {
+                const l = tmpSize.setFromMatrixColumn(o.matrixWorld, i).length()
+                if (l > 0) s.setComponent(i, s.getComponent(i) / l)
+            }
+            lb.setFromCenterAndSize(new Vector3(), s)
+        }
         const size = lb.getSize(new Vector3()).max(minSize)
         m.copy(o.matrixWorld).multiply(new Matrix4().compose(lb.getCenter(new Vector3()), new Quaternion(), size))
     } else {
