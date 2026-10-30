@@ -1,4 +1,5 @@
 import {
+    ChangeEvent,
     clonePrimitive,
     copyPrimitive,
     createStyles,
@@ -200,15 +201,15 @@ export class UiConfigForm {
     }
 
     /**
-     * `onChange` of the config, then of each parent (what Tweakpane does with `parentOnChange`)
+     * `onChange` of the config, then of each parent folder in the form, then `parentOnChange` of the top one: the same
+     * handlers, once each and with the same events, as an edit in a Tweakpane panel (which sets `parentOnChange` on the
+     * children that it draws)
      * @param replay - an undo or redo: the fields show the values also when they have the focus
      */
     private _dispatch(c: UiObjectConfig, parents: UiObjectConfig[], last: boolean, replay = false) {
-        UiConfigMethods.DispatchOnChangeSync(c, {last})
-        for (let i = parents.length - 1; i >= 0; i--) {
-            const p = parents[i]
-            if (typeof p.onChange === 'function') (p.onChange as any)({type: 'change', last, config: c, target: p})
-        }
+        const path = [...parents, c]
+        for (let i = path.length - 1; i > 0; i--) callOnChange(path[i], {type: 'change', last, config: c, configPath: path.slice(i), target: path[i]})
+        UiConfigMethods.DispatchOnChangeSync(path[0], {last, config: c, configPath: path.slice(1)})
         this._options.onChange?.(c)
         // after a rebuild (onStructureChange), the replay of an older edit shows in the form made in place of this one
         this._live.refresh(replay)
@@ -437,6 +438,13 @@ export class UiConfigForm {
 
 /** The field types that the form draws as they are; any other type is drawn by the type of its value */
 const FIELD_TYPES = new Set(['checkbox', 'toggle', 'dropdown', 'color', 'vec', 'vec2', 'vec3', 'vec4', 'number', 'slider', 'monitor'])
+
+/** `onChange` of a config, a function or a list of functions, without its `parentOnChange` */
+function callOnChange(config: UiObjectConfig, ev: ChangeEvent) {
+    const on = config.onChange
+    if (typeof on === 'function') on(ev)
+    else if (Array.isArray(on)) on.flat().forEach(f => typeof f === 'function' && f(ev))
+}
 
 /** A number with 12 significant digits: no float noise (0.30000000000000004), and small steps (0.00001) stay */
 function fmt(v: any) {

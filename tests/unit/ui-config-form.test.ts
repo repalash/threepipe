@@ -1,6 +1,6 @@
 import {afterAll, beforeAll, describe, expect, test, vi} from 'vitest'
 import {Color, Vector3} from 'three'
-import {JSUndoManager, UiObjectConfig} from 'threepipe'
+import {JSUndoManager, UiConfigMethods, UiObjectConfig} from 'threepipe'
 import {isIntegerName, UiConfigForm} from '../../plugins/tweakpane-editor/src/ui/UiConfigForm'
 
 // the node setup has no DOM: a small element with what the form uses
@@ -97,6 +97,39 @@ describe('UiConfigForm', () => {
         expect(parent).toHaveBeenCalledTimes(1)
         expect(onChange).toHaveBeenCalledWith(field)
         expect(input.value).toBe('10')
+    })
+
+    test('a folder\'s onChange can be a list of functions', () => {
+        const target = {radius: 1}
+        const parent = vi.fn()
+        const form = new UiConfigForm([{type: 'folder', label: 'Shape', onChange: [parent], children: [
+            {type: 'number', label: 'Radius', property: [target, 'radius']},
+        ]}])
+        const [input] = row(form, 'Radius').inputs
+        input.value = '2'
+        input.fire('change')
+        expect(parent).toHaveBeenCalledTimes(1)
+    })
+
+    test('configs that a Tweakpane panel also draws: each onChange is called once, with the path of the change', () => {
+        const target = {radius: 1}
+        const outer = vi.fn()
+        const parent = vi.fn()
+        const field: UiObjectConfig = {type: 'number', label: 'Radius', property: [target, 'radius']}
+        const folder: UiObjectConfig = {type: 'folder', label: 'Shape', children: [field], onChange: parent}
+        const object: UiObjectConfig = {type: 'folder', label: 'Object', children: [folder], onChange: outer}
+        // what the Tweakpane renderer sets on the children of a folder that it draws (tpFolderGenerator)
+        for (const [p, ch] of [[object, folder], [folder, field]]) {
+            ch.parentOnChange = (ev, ...args) => UiConfigMethods.DispatchOnChangeSync(p, {...ev}, ...args)
+        }
+        const form = new UiConfigForm([folder]) // the form draws the children of the object
+        const [input] = row(form, 'Radius').inputs
+        input.value = '2'
+        input.fire('change')
+        expect(parent).toHaveBeenCalledTimes(1)
+        expect(parent.mock.calls[0][0]).toMatchObject({config: field, target: folder, configPath: [folder, field], last: true})
+        expect(outer).toHaveBeenCalledTimes(1)
+        expect(outer.mock.calls[0][0]).toMatchObject({config: field, target: object, configPath: [object, folder, field]})
     })
 
     test('a count takes whole numbers', () => {
