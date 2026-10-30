@@ -33,6 +33,7 @@ import {
     KTXLoadPlugin,
     LoadingScreenPlugin,
     MeshOptSimplifyModifierPlugin,
+    MultiLayerRoughnessPlugin,
     NoiseBumpMaterialPlugin,
     NormalBufferPlugin,
     Object3DGeneratorPlugin,
@@ -128,6 +129,7 @@ export class ThreeEditor extends ThreeViewer {
         EditorViewWidgetPlugin,
         ViewerUiConfigPlugin,
         ClearcoatTintPlugin,
+        MultiLayerRoughnessPlugin,
         FragmentClippingExtensionPlugin,
         NoiseBumpMaterialPlugin,
         CustomBumpMapPlugin,
@@ -187,7 +189,7 @@ export class ThreeEditor extends ThreeViewer {
         ['Export']: [AssetExporterPlugin, CanvasSnapshotPlugin, AWSClientPlugin, TransfrSharePlugin, AssimpJsPlugin, LoadingScreenPlugin],
         ['Configurator']: [MaterialConfiguratorPlugin, SwitchNodePlugin, GLTFKHRMaterialVariantsPlugin],
         ['Animation']: [TimelineUiPlugin, AnimationObjectPlugin, GLTFAnimationPlugin, CameraViewPlugin],
-        ['Extras']: [HDRiGroundPlugin, Rhino3dmLoadPlugin, ClearcoatTintPlugin, FragmentClippingExtensionPlugin, NoiseBumpMaterialPlugin, AnisotropyPlugin, CustomBumpMapPlugin, VirtualCamerasPlugin, TilesRendererPlugin, EntityComponentPlugin],
+        ['Extras']: [HDRiGroundPlugin, Rhino3dmLoadPlugin, ClearcoatTintPlugin, MultiLayerRoughnessPlugin, FragmentClippingExtensionPlugin, NoiseBumpMaterialPlugin, AnisotropyPlugin, CustomBumpMapPlugin, VirtualCamerasPlugin, TilesRendererPlugin, EntityComponentPlugin],
         ['Debug']: [RenderTargetPreviewPlugin, DynamicImportPlugin],
     }
 
