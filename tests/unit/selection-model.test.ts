@@ -713,6 +713,25 @@ describe('SelectionUxPlugin', () => {
         expect(ux.raycastLeaf(x, y)?.leaf).toBe(onWall)
     })
 
+    test('the line tolerance stays a few pixels when the perspective camera is zoomed (FoV zoom)', () => {
+        const {ux, wall, camera} = setup()
+        camera.zoom = 10
+        camera.updateProjectionMatrix()
+        const px = (v: Vector3) => {
+            const p = v.clone().project(camera)
+            return {x: (p.x + 1) / 2 * SIZE, y: (1 - p.y) / 2 * SIZE}
+        }
+        const at = new Vector3(1.2, 0.8, -2.02)
+        const perUnit = px(at).y - px(at.clone().setY(at.y + 1)).y // screen px per world unit up, at the wall
+        const dy = 20 / perUnit // 20 px above the pointer: a click there must not hit the line
+        const l = new Line(new BufferGeometry().setFromPoints([new Vector3(0.5, at.y + dy, -2.02), new Vector3(2.5, at.y + dy, -2.02)]), new LineBasicMaterial())
+        l.name = 'Above'
+        wall.parent!.add(l)
+        l.updateMatrixWorld(true)
+        const {x, y} = px(at)
+        expect(ux.targetsAt(x, y).map(o => o.name)).toEqual(['Wall'])
+    })
+
     test('a hidden object is not selected: the click goes to the visible one behind it', () => {
         const {click, lamp, names} = setup()
         lamp.visible = false

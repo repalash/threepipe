@@ -356,7 +356,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         const c = cam as any // orthographic or perspective
         if (c.isOrthographicCamera) return (c.top - c.bottom) / c.zoom / h
         const dist = c.target ? cam.position.distanceTo(c.target) : cam.position.length()
-        return 2 * dist * Math.tan((c.fov || 45) * Math.PI / 360) / h
+        return 2 * dist * Math.tan((c.fov || 45) * Math.PI / 360) / (c.zoom || 1) / h
     }
 
     /** The objects to raycast: the model, and the widget roots of the PickingPlugin (a widget stands for its object) */
