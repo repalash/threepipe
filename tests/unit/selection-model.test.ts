@@ -1,5 +1,5 @@
 import {afterEach, beforeEach, describe, expect, test, vi} from 'vitest'
-import {BoxGeometry, BufferGeometry, DirectionalLight, EventDispatcher, Group, Line, LineBasicMaterial, Mesh, MeshBasicMaterial, Object3D, PerspectiveCamera, Vector3} from 'three'
+import {BoxGeometry, BufferGeometry, DirectionalLight, EventDispatcher, Group, Line, LineBasicMaterial, Mesh, MeshBasicMaterial, Object3D, PerspectiveCamera, Points, PointsMaterial, Vector3} from 'three'
 import {JSUndoManager} from 'ts-browser-helpers'
 import {IObject3D, ObjectPicker} from 'threepipe'
 import {
@@ -516,6 +516,22 @@ describe('SelectionUxPlugin', () => {
         const x = (p.x + 1) / 2 * SIZE, y = (1 - p.y) / 2 * SIZE
         expect(ux.targetsAt(x, y).map(o => o.name)).toEqual(['On wall', 'Wall']) // also before any raycastLeaf
         expect(ux.raycastLeaf(x, y)?.leaf).toBe(onWall)
+    })
+
+    test('a point is hit within a few pixels too, not within the default world-space radius', () => {
+        const {ux, wall, camera} = setup()
+        const px = (v: Vector3) => {
+            const p = v.clone().project(camera)
+            return {x: (p.x + 1) / 2 * SIZE, y: (1 - p.y) / 2 * SIZE}
+        }
+        const at = new Vector3(1.2, 0.8, -2.02)
+        const perUnit = px(at).y - px(at.clone().setY(at.y + 1)).y // screen px per world unit up, at the wall
+        const pts = new Points(new BufferGeometry().setFromPoints([at.clone().setY(at.y + 20 / perUnit)]), new PointsMaterial())
+        pts.name = 'Above' // a point 20 px above the pointer: a click there must not hit it
+        wall.parent!.add(pts)
+        pts.updateMatrixWorld(true)
+        const {x, y} = px(at)
+        expect(ux.targetsAt(x, y).map(o => o.name)).toEqual(['Wall'])
     })
 
     test('the line tolerance stays a few pixels when the perspective camera is zoomed (FoV zoom)', () => {
