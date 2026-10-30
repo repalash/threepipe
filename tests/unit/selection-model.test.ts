@@ -372,7 +372,15 @@ class FakeElement {
     textContent = ''
     style: Record<string, string> = {}
     attributes = new Map<string, string>()
+    /** Where the containing block of the element is on the screen, and its scale (a CSS transform) */
+    layout = {left: 0, top: 0, scale: 1}
     constructor(readonly tagName: string) {}
+    /** The box on the screen of an element placed with `left`, `top`, `width` and `height` in its containing block */
+    getBoundingClientRect() {
+        const n = (k: string) => parseFloat(this.style[k] || '0')
+        const {left, top, scale} = this.layout
+        return {left: left + n('left') * scale, top: top + n('top') * scale, width: n('width') * scale, height: n('height') * scale}
+    }
     setAttribute(k: string, v: string) {
         this.attributes.set(k, v)
     }
@@ -427,6 +435,8 @@ function setup() {
     const canvas = Object.assign(new EventTarget(), {
         style: {},
         children: [] as FakeElement[],
+        // the layout box of the canvas in its containing block (CSS px), and its box on the screen
+        offsetLeft: 0, offsetTop: 0, offsetWidth: SIZE, offsetHeight: SIZE,
         getBoundingClientRect: () => ({left: 0, top: 0, width: SIZE, height: SIZE}),
         appendChild(c: FakeElement) {
             c.parent = canvas
@@ -1016,10 +1026,11 @@ describe('SelectionUxPlugin', () => {
         const {ux, viewer, canvas, camera, lamp, table, frame, lines, labels} = setup()
         ux.select([lamp])
         const x0 = lines()[0].getAttribute('x')
-        const reads = vi.spyOn(canvas, 'getBoundingClientRect')
+        const reads = vi.spyOn(canvas, 'getBoundingClientRect'), rootReads = vi.spyOn(frame(), 'getBoundingClientRect')
         frame()
         frame()
         expect(reads).not.toHaveBeenCalled() // no layout read and no DOM write while nothing changes
+        expect(rootReads).not.toHaveBeenCalled()
         camera.position.x = 1
         camera.updateMatrixWorld(true)
         const render = (frameCount: number) => {
@@ -1031,12 +1042,13 @@ describe('SelectionUxPlugin', () => {
         expect(reads).not.toHaveBeenCalled()
         render(0) // the first frame of a changed view
         expect(lines()[0].getAttribute('x')).not.toBe(x0)
-        // the offset parent and the canvas (the same element here) are measured once per draw, not once per box corner
-        expect(reads).toHaveBeenCalledTimes(2)
+        // the canvas and the overlay are measured once per draw, not once per box corner
+        expect([reads.mock.calls.length, rootReads.mock.calls.length]).toEqual([1, 1])
         reads.mockClear()
+        rootReads.mockClear()
         ux.select([table])
         frame()
-        expect(reads).toHaveBeenCalledTimes(2)
+        expect([reads.mock.calls.length, rootReads.mock.calls.length]).toEqual([1, 1])
         ux.unit = 'cm'
         expect(labels()[1].textContent).toBe('1.70 × 1.50 × 0.50 cm')
         table.name = 'Desk' // a change the overlay does not see, until redrawOverlay
@@ -1045,48 +1057,53 @@ describe('SelectionUxPlugin', () => {
         expect(labels()[0].children.map(c => c.textContent)).toEqual(['Desk'])
     })
 
-    test('overlay: placed over the canvas in the scrolled content of its offset parent', () => {
-        const {canvas, frame} = setup()
-        Object.assign(canvas, {scrollLeft: 30, scrollTop: 20})
-        const root = frame()
-        expect([root.style.left, root.style.top]).toEqual(['30.0px', '20.0px'])
-    })
+    /**
+     * Layouts of the page, as a browser reports them: where the containing block of the overlay is on the screen and its
+     * scale, the layout box of the canvas (`offsetLeft`, `offsetTop`, `offsetWidth`, `offsetHeight`), and the box of the
+     * canvas on the screen (`getBoundingClientRect`)
+     */
+    const layouts = [
+        // the parent at (20, 20) on the screen, scrolled by (30, 70); the canvas at (40, 120) in its content
+        {name: 'a scrolled positioned parent', block: {left: -10, top: -50, scale: 1}, offset: [40, 120, SIZE, SIZE], rect: [30, 70, SIZE, SIZE]},
+        // the page scrolled by (5, 40); the body has a margin; the canvas at (58, 108) on the page: the offset of the
+        // canvas and the containing block of the overlay are the page
+        {name: 'a static body with a margin', block: {left: -5, top: -40, scale: 1}, offset: [58, 108, SIZE, SIZE], rect: [53, 68, SIZE, SIZE]},
+        // the positioned parent at (10, 10); a static container in it scrolled by 70, the canvas at (8, 120) in that
+        // container: the offset of the canvas does not count the scroll, and the overlay is not in the scrolled content
+        {name: 'a scrolled ancestor that is not the offset parent', block: {left: 10, top: 10, scale: 1}, offset: [8, 120, SIZE, SIZE], rect: [18, 60, SIZE, SIZE]},
+        // an ancestor at (20, 20) with transform: scale(0.5); the canvas at (50, 50) in it
+        {name: 'a scale transform on an ancestor', block: {left: 20, top: 20, scale: 0.5}, offset: [50, 50, SIZE, SIZE], rect: [45, 45, SIZE / 2, SIZE / 2]},
+        // the positioned parent at (20, 20); the canvas at (25, 25) in a static table cell at (15, 15) in that parent:
+        // the cell is the offset parent of the canvas, not the containing block of the overlay
+        {name: 'a static table cell', block: {left: 20, top: 20, scale: 1}, offset: [25, 25, SIZE, SIZE], rect: [60, 60, SIZE, SIZE]},
+    ]
 
-    test('overlay: with no positioned ancestor, placed at the page position of the canvas, not from the margin of the body', () => {
-        const {ux, canvas, frame} = setup()
-        const root = canvas.children[0] as any
-        // the page scrolled by (5, 40); the body has a margin of 8 px; the canvas is at (58, 108) on the page
-        const doc = document as any, body0 = doc.body
-        const body = {getBoundingClientRect: () => ({left: 8 - 5, top: 8 - 40}), clientLeft: 0, clientTop: 0, scrollLeft: 0, scrollTop: 0}
-        let position = 'static'
-        doc.body = body
-        root.offsetParent = body
-        canvas.getBoundingClientRect = () => ({left: 58 - 5, top: 108 - 40, width: SIZE, height: SIZE})
-        vi.stubGlobal('scrollX', 5)
-        vi.stubGlobal('scrollY', 40)
-        vi.stubGlobal('getComputedStyle', (e: any) => ({position: e === body ? position : 'static'}))
-        try {
-            // a static body is not the containing block: the root is placed from the page origin
-            frame()
-            expect([root.style.left, root.style.top]).toEqual(['58.0px', '108.0px'])
-            // a positioned body is: from its box, as any positioned parent
-            position = 'relative'
-            ux.redrawOverlay()
-            frame()
-            expect([root.style.left, root.style.top]).toEqual(['50.0px', '100.0px'])
-        } finally {
-            doc.body = body0
-            vi.unstubAllGlobals()
+    test.each(layouts)('overlay: over the canvas, drawn in the CSS px of the canvas, with $name', ({block, offset, rect}) => {
+        const drawn = () => {
+            const s = setup()
+            s.ux.select([s.lamp])
+            return s
         }
+        // the lines of the default layout: the canvas at the origin, no scale
+        const expected = drawn().lines().map(l => l.getAttribute('x'))
+        const {canvas, frame, lines} = drawn()
+        const [offsetLeft, offsetTop, offsetWidth, offsetHeight] = offset, [left, top, width, height] = rect
+        Object.assign(canvas, {offsetLeft, offsetTop, offsetWidth, offsetHeight, getBoundingClientRect: () => ({left, top, width, height})})
+        const root = canvas.children[0]
+        root.layout = block
+        frame()
+        const r = root.getBoundingClientRect()
+        expect([r.left, r.top, r.width, r.height].map(v => +v.toFixed(1))).toEqual(rect) // on the canvas on the screen
+        expect([root.style.width, root.style.height]).toEqual([`${SIZE}.0px`, `${SIZE}.0px`])
+        expect(lines().map(l => l.getAttribute('x'))).toEqual(expected) // the same box in the CSS px of the canvas
     })
 
     test('overlay: a scroll of any element or a window resize that moves the canvas draws it again, at the new place', () => {
         const {ux, viewer, canvas, frame} = setup()
-        // the canvas is in a static scrolling container; the offset parent of the overlay is outside it, at the origin
+        // the canvas is in a static scrolling container; the containing block of the overlay is outside it, at the origin
         let left = 0, top = 0
         canvas.getBoundingClientRect = () => ({left, top, width: SIZE, height: SIZE})
-        const root = canvas.children[0] as any
-        root.offsetParent = {getBoundingClientRect: () => ({left: 0, top: 0}), clientLeft: 0, clientTop: 0, scrollLeft: 0, scrollTop: 0}
+        const root = canvas.children[0]
         frame()
         expect([root.style.left, root.style.top]).toEqual(['0.0px', '0.0px'])
         top = -30 // the container scrolls by 30 px
@@ -1096,7 +1113,7 @@ describe('SelectionUxPlugin', () => {
         window.dispatchEvent(new Event('scroll'))
         frame()
         expect(root.style.top).toBe('-30.0px')
-        left = 12 // a window resize moves the canvas, not its size: no render
+        left = canvas.offsetLeft = 12 // a window resize moves the canvas, not its size: no render
         window.dispatchEvent(new Event('resize'))
         frame()
         expect(root.style.left).toBe('12.0px')

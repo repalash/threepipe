@@ -176,7 +176,8 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         window.addEventListener('keydown', this._onKeyDown, {capture: true})
         window.addEventListener('keyup', this._onKeyUp, {capture: true})
         window.addEventListener('blur', this._onBlur)
-        // a scroll of any element (scroll does not bubble: the capture phase sees it) or a resize can move the canvas
+        // a scroll of any element (scroll does not bubble: the capture phase sees it) or a resize can move the canvas in
+        // the containing block of the overlay (a scrolled container between them), with no render
         window.addEventListener('scroll', this._onMoved, {capture: true, passive: true})
         window.addEventListener('resize', this._onMoved)
         viewer.addEventListener('preFrame', this._onPreFrame)
@@ -196,7 +197,10 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         labels.setAttribute('style', 'position:absolute;inset:0;')
         root.appendChild(svg)
         root.appendChild(labels)
-        c.appendChild(root)
+        // next to the canvas: the same containing block, transforms and clip as the canvas
+        const canvas = viewer.canvas
+        if (canvas.parentElement) canvas.parentElement.insertBefore(root, canvas.nextSibling)
+        else c.appendChild(root)
         this._root = root
         this._lines = new ElementPool(svg, t => document.createElementNS(SVG_NS, t) as SVGElement)
         this._labels = new ElementPool(labels, t => document.createElement(t))
@@ -718,24 +722,23 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         // a frame with no change (a progressive frame, or no render) leaves the overlay as it is: no layout read, no DOM write
         if (!on || !this._overlayDirty) return
         this._overlayDirty = false
-        // over the canvas, which can be smaller than the container or offset in it (from the box the root is placed in,
-        // in its scrolled content)
-        const parent = root.offsetParent as HTMLElement | null
-        const r = this._viewer!.canvas.getBoundingClientRect()
-        if (parent && parent === document.body && getComputedStyle(parent).position === 'static') {
-            // no positioned ancestor: the root is placed from the page origin (the initial containing block), not from
-            // the box of the body, which has a margin
-            root.style.left = px(r.left + window.scrollX)
-            root.style.top = px(r.top + window.scrollY)
-        } else {
-            const base = parent ?? this._viewer!.container
-            const c = base.getBoundingClientRect()
-            root.style.left = px(r.left - c.left - (base.clientLeft || 0) + (base.scrollLeft || 0))
-            root.style.top = px(r.top - c.top - (base.clientTop || 0) + (base.scrollTop || 0))
+        // over the canvas, in its CSS px (they do not change with a transform). The layout box of the canvas places the
+        // overlay in most pages (a scrolled parent, a static body, a transform), as they are siblings. A container
+        // between the overlay and its containing block can still move the canvas (a scrolled container, a table cell):
+        // the difference of their boxes on the screen, in the scale of the overlay, corrects that.
+        const canvas = this._viewer!.canvas
+        const w = canvas.offsetWidth, h = canvas.offsetHeight
+        root.style.left = px(canvas.offsetLeft)
+        root.style.top = px(canvas.offsetTop)
+        root.style.width = px(w)
+        root.style.height = px(h)
+        const c = canvas.getBoundingClientRect(), r = root.getBoundingClientRect()
+        const dx = (c.left - r.left) / (r.width / w || 1), dy = (c.top - r.top) / (r.height / h || 1)
+        if (Math.abs(dx) > 0.05 || Math.abs(dy) > 0.05) {
+            root.style.left = px(canvas.offsetLeft + dx)
+            root.style.top = px(canvas.offsetTop + dy)
         }
-        root.style.width = px(r.width)
-        root.style.height = px(r.height)
-        this._draw(r.width, r.height)
+        this._draw(w, h)
     }
 
     /**
