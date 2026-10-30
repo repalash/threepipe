@@ -237,7 +237,6 @@ export default defineConfig({
           {text: 'Modelling Editor', link: 'package/plugin-modelling-editor'},
           {text: 'Modelling CLI', link: 'package/modelling-cli'},
           {text: 'Modelling MCP Server', link: 'package/modelling-mcp'},
-          {text: 'Cloud Plugin (feedback, share)', link: 'package/plugin-cloud'},
         ]
       },
     ],

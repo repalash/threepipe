@@ -15,15 +15,40 @@ import type {ThreeViewer} from 'threepipe'
 import type {EditorEngine, OperatorDescriptor} from '@threepipe/plugin-editor-engine'
 import {Command, CommandResult, ModellingPlugin} from '@threepipe/plugin-modelling'
 import {MeshEditPlugin} from '@threepipe/plugin-mesh-edit'
-import type {Problem, ReportCause, ThreepipeCloudPlugin} from '@threepipe/plugin-cloud'
+
+/**
+ * The part of `@threepipe/plugin-cloud`'s ThreepipeCloudPlugin the editor uses. The editor finds the plugin by its
+ * type name when the app adds it and does not depend on the package; these types follow its API.
+ */
+export interface CloudProblem {
+    kind: string
+    /** One line, redacted. */
+    message: string
+    frame?: string
+    ext?: string
+}
+interface CloudFeedback {
+    surface: string
+    toasts: boolean
+    theme: 'light' | 'dark' | 'auto' | (() => 'light' | 'dark')
+    log: {push(level: string, text: string): void}
+    redactJson(value: unknown): unknown
+    addContext(name: string, provider: {label: string, collect?(): unknown, file?(): {name: string, blob: Blob} | null}): () => void
+    open(o: {type?: 'bug' | 'question' | 'idea', cause?: {kind: string, message?: string, frame?: string, ext?: string}}): Promise<string | null>
+}
+export interface CloudPlugin {
+    feedback: CloudFeedback
+    addEventListener(type: 'problem', listener: (e: {problem: CloudProblem, notify: boolean}) => void): void
+    removeEventListener(type: 'problem', listener: (e: {problem: CloudProblem, notify: boolean}) => void): void
+}
 
 /** The transcript keeps the last this many commands. */
 const TRANSCRIPT_MAX = 1000
 const HISTORY_IN_CONTEXT = 30
 
 /** The cloud plugin, when the app added it. */
-export function cloudOf(viewer: ThreeViewer): ThreepipeCloudPlugin | undefined {
-    return viewer.getPlugin<ThreepipeCloudPlugin>('ThreepipeCloudPlugin')
+export function cloudOf(viewer: ThreeViewer): CloudPlugin | undefined {
+    return viewer.getPlugin('ThreepipeCloudPlugin') as CloudPlugin | undefined
 }
 
 export function registerCloudOperators(engine: EditorEngine): () => void {
@@ -39,7 +64,7 @@ export function registerCloudOperators(engine: EditorEngine): () => void {
     modelling?.addEventListener('commandRun', onCommand as never)
 
     let unmount: (() => void) | null = null
-    const mount = (cloud: ThreepipeCloudPlugin) => {
+    const mount = (cloud: CloudPlugin) => {
         const fb = cloud.feedback
         if (fb.surface === 'app') fb.surface = 'modelling-editor'
         // The editor's own (Blueprint) toasts tell the person; see ModellingEditorApp.
@@ -77,7 +102,7 @@ export function registerCloudOperators(engine: EditorEngine): () => void {
         engine.addEventListener('message', onMessage as never)
 
         const open = (props: Record<string, unknown> | undefined, type: 'bug' | 'idea') => {
-            const cause = props?.cause as ReportCause | Problem | undefined
+            const cause = props?.cause as CloudProblem | undefined
             // The dialog owns the keyboard while it is open; the editor's keys stand down.
             engine.input.suspend('cloud-feedback')
             void fb.open({type: cause ? 'bug' : type, cause}).finally(() => engine.input.resume('cloud-feedback'))
@@ -103,7 +128,7 @@ export function registerCloudOperators(engine: EditorEngine): () => void {
             unmount = null
         }
     }
-    viewer.forPlugin<ThreepipeCloudPlugin>('ThreepipeCloudPlugin', mount, () => unmount?.())
+    viewer.forPlugin('ThreepipeCloudPlugin', p => mount(p as unknown as CloudPlugin), () => unmount?.())
     return () => {
         unmount?.()
         modelling?.removeEventListener('commandRun', onCommand as never)

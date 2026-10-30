@@ -28,8 +28,7 @@ import {Welcome} from './Welcome'
 import {Hints} from './Hints'
 import {EmptyState} from './EmptyState'
 import {HistoryPanel} from './HistoryList'
-import {cloudOf} from '../ops/cloudOps'
-import type {Problem} from '@threepipe/plugin-cloud'
+import {cloudOf, CloudProblem} from '../ops/cloudOps'
 
 export interface ModellingEditorAppProps {
     value: EditorContextValue
@@ -131,7 +130,7 @@ function Shell({title}: {title?: string}) {
     useEffect(() => {
         const cloud = cloudOf(engine.viewer)
         if (!cloud) return
-        const onProblem = (e: {problem: Problem, notify: boolean}) => {
+        const onProblem = (e: {problem: CloudProblem, notify: boolean}) => {
             if (!e.notify) return
             AppToaster().show({
                 message: `Something went wrong: ${e.problem.message}`,
@@ -139,8 +138,8 @@ function Shell({title}: {title?: string}) {
                 action: {text: 'Report', onClick: () => void engine.run('help.report_problem', {cause: e.problem})},
             })
         }
-        cloud.addEventListener('problem', onProblem as never)
-        return () => cloud.removeEventListener('problem', onProblem as never)
+        cloud.addEventListener('problem', onProblem)
+        return () => cloud.removeEventListener('problem', onProblem)
     }, [engine])
     useEngineEvent('uiRequest', e => {
         if (e.request === 'palette') setPalette(p => !p)
