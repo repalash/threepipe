@@ -82,6 +82,7 @@ In both layouts:
 - Each note has "+ Context" (the time, `contextProvider` and the selected objects), "Copy" and "×". Escape leaves the note. On a touch screen the text is 16 px, so a phone does not zoom in when the note gets the cursor.
 - Drag a post-it by its bar, and size it from its bottom right corner. A click on a post-it brings it up.
 - The buttons are `dock`, at the bottom left of the canvas. When that corner is taken, place it with its style, e.g. `sticky.dock.style.bottom = '64px'`.
+- The post-its fill the nearest positioned ancestor, so the viewer container must be positioned (for example `position: relative`) for the post-its to stay inside the canvas.
 
 The layout, the colour, and the places and sizes of the post-its are kept in `localStorage` (the `storageKey` of the plugin), not in the file. Its UI folder (`Sticky Notes`) has the settings: Show, Layout, Colour (yellow, pink, blue, green, or `theme` for the Tweakpane theme), Arrange and Reset places.
 

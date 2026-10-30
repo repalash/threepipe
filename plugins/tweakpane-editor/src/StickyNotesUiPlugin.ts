@@ -89,6 +89,9 @@ const LAYER_STEP = 24
  * - The places, the sizes, the order, the layout and the colour are kept in `localStorage` ({@link storageKey}), not in
  *   the file.
  *
+ * The post-its fill the nearest positioned ancestor of the layer, so the viewer container must be positioned (for
+ * example `position: relative`) for the post-its to stay inside the canvas.
+ *
  * The plugin's UI folder (Sticky Notes) has the settings: show, layout, colour, arrange, reset the places.
  *
  * @category Plugins
