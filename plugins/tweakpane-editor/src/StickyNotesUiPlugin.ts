@@ -35,8 +35,8 @@ interface StickyState {
 
 /** The size of the canvas, in px */
 interface Size {
-    W: number
-    H: number
+    width: number
+    height: number
 }
 
 /** A column of the board: the bottom of its lowest post-it with the gap under it, and its widest post-it */
@@ -269,9 +269,9 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
 
     private _onNotesChanged = (e: {change: string, note?: NoteItem}) => {
         const c = e.change === 'update' && e.note ? this._cards.get(e.note.id) : undefined
-        if (c) {
+        if (c && e.note) {
             // typing: only its post-it changes; a move to another store can change the order of the pile
-            if (this._showNote(c, e.note!)) this._layoutCards(false)
+            if (this._showNote(c, e.note)) this._layoutCards(false)
             return
         }
         if (e.change === 'remove' && this._state.board) {
@@ -381,7 +381,7 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
 
     /** The size of the canvas, in px */
     private _size(): Size {
-        return {W: this.element.clientWidth || 800, H: this.element.clientHeight || 600}
+        return {width: this.element.clientWidth || 800, height: this.element.clientHeight || 600}
     }
 
     /** The place and size of the pile: its corner above the dock, or where the person put it */
@@ -389,17 +389,17 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         const s = this._state.stack ?? {}
         const w = s.w ?? NOTE_W + 40, h = s.h ?? NOTE_H + 40
         // above the dock, where it is
-        const dockTop = this.dock.offsetTop || size.H - 40
+        const dockTop = this.dock.offsetTop || size.height - 40
         return this._clamp({x: s.x ?? GAP, y: s.y ?? dockTop - h - GAP, w, h}, size) as Required<Box>
     }
 
     /** A box kept inside the canvas */
-    private _clamp(box: Box, {W, H} = this._size()): Box {
+    private _clamp(box: Box, {width, height} = this._size()): Box {
         const w = box.w ?? NOTE_W, h = box.h ?? NOTE_H
         return {
             ...box,
-            x: Math.min(Math.max(0, box.x ?? GAP), Math.max(0, W - w)),
-            y: Math.min(Math.max(0, box.y ?? GAP), Math.max(0, H - h)),
+            x: Math.min(Math.max(0, box.x ?? GAP), Math.max(0, width - w)),
+            y: Math.min(Math.max(0, box.y ?? GAP), Math.max(0, height - h)),
         }
     }
 
@@ -522,7 +522,8 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
                     const pile = this._pileBox()
                     this._state.stack = {...this._state.stack, x: pile.x, y: pile.y}
                 } else {
-                    this._state.board![c.note.id] = this._clamp(this._state.board![c.note.id])
+                    const board = this._state.board ??= {}
+                    board[c.note.id] = this._clamp(board[c.note.id] ?? {})
                 }
                 this._writeState()
             }
@@ -572,9 +573,9 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
      * Where a new post-it goes on the board: below the lowest one in the first column with room, or a new column.
      * `columns` ({@link _columns}) gets the new post-it, so the next one goes below it.
      */
-    private _nextPlace(columns: Map<number, Column>, {H}: Size): Box {
+    private _nextPlace(columns: Map<number, Column>, {height}: Size): Box {
         let x = GAP, col = columns.get(x)
-        while (col && col.bottom + NOTE_H > H - GAP) {
+        while (col && col.bottom + NOTE_H > height - GAP) {
             x += col.w + GAP
             col = columns.get(x)
         }
