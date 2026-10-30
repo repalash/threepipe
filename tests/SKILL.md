@@ -374,6 +374,8 @@ different rendering output. The config auto-detects Alpine and adjusts launch ar
 - **Update mode "failures"**: Running `--update-snapshots` reports tests as "failed" when
   it creates new baselines where none existed before. This is expected Playwright behavior.
 
+- tsx doesnt produce output with inline script, write to a file and execute that
+
 ## Reference files
 
 - `issues/open/test-snapshot-audit.md` -- latest comprehensive audit of all snapshots
