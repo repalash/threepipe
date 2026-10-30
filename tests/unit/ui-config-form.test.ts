@@ -394,6 +394,37 @@ describe('UiConfigForm', () => {
         expect(camera.near).not.toBe(0.5)
     })
 
+    test('a refresh with no change writes nothing to the DOM', () => {
+        const target = {n: 1, on: true, side: 0, color: new Color('#ff0000'), name: 'Box', size: 0.5, p: new Vector3(), tris: 12}
+        const form = new UiConfigForm([
+            {type: 'number', label: 'N', property: [target, 'n'], disabled: () => false},
+            {type: 'checkbox', label: 'On', property: [target, 'on']},
+            {type: 'dropdown', label: 'Side', property: [target, 'side'], children: [{label: 'Front', value: 0}, {label: 'Back', value: 1}]},
+            {type: 'color', label: 'Color', property: [target, 'color']},
+            {type: 'input', label: 'Name', property: [target, 'name']},
+            {type: 'slider', label: 'Size', property: [target, 'size']},
+            {type: 'vec3', label: 'P', property: [target, 'p']},
+            {type: 'monitor', label: 'Tris', property: [target, 'tris']},
+            {type: 'button', label: 'Go', onClick: () => {}},
+        ])
+        const writes: string[] = []
+        for (const el of (form.element as any as FakeElement).all()) {
+            for (const key of ['value', 'checked', 'disabled', 'textContent'] as const) {
+                let v = el[key]
+                Object.defineProperty(el, key, {get: () => v, set: (x) => {
+                    writes.push(key)
+                    v = x
+                }})
+            }
+        }
+        form.refresh()
+        form.refresh(true)
+        expect(writes).toEqual([])
+        target.tris = 14
+        form.refresh()
+        expect(writes).toEqual(['textContent'])
+    })
+
     test('the undo result of an onClick is one undo step', async() => {
         const target = {count: 0}
         const undoManager = new JSUndoManager({limit: 100, debug: false, bindHotKeys: false})

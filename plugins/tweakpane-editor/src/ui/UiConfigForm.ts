@@ -224,7 +224,6 @@ export class UiConfigForm {
         const label = UiConfigMethods.GetLabel(c).replace(/([a-z])([A-Z])/g, '$1 $2')
         // disabled and readOnly can change (a callback): refresh() applies them again
         const isDisabled = () => !!(getOrCall(c.disabled) || getOrCall(c.readOnly))
-        const disabled = isDisabled()
         if (type === 'folder' || type === 'panel') {
             const f = document.createElement('div')
             f.className = 'ucf-folder'
@@ -240,7 +239,7 @@ export class UiConfigForm {
             const b = document.createElement('button')
             b.className = 'ucf-button'
             b.textContent = label
-            b.disabled = disabled
+            b.disabled = isDisabled()
             b.addEventListener('click', async() => {
                 const [obj, key] = UiConfigMethods.GetBinding(c, false)
                 const fn = obj ? obj[key] ?? obj.value : undefined
@@ -251,7 +250,8 @@ export class UiConfigForm {
             })
             host.appendChild(b)
             this._rows.push({config: c, update: () => {
-                b.disabled = isDisabled()
+                const d = isDisabled()
+                if (b.disabled !== d) b.disabled = d
             }})
             return
         }
@@ -274,15 +274,14 @@ export class UiConfigForm {
         if (kind === 'checkbox' || kind === 'toggle') {
             const input = document.createElement('input')
             input.type = 'checkbox'
-            input.disabled = disabled
             input.addEventListener('change', () => this._set(c, parents, input.checked))
             row.appendChild(input)
             this._rows.push({config: c, update: () => {
-                input.checked = !!value()
+                const v = !!value()
+                if (input.checked !== v) input.checked = v
             }})
         } else if (kind === 'dropdown') {
             const sel = document.createElement('select')
-            sel.disabled = disabled
             const opts = this._children(c).map(o => ({label: UiConfigMethods.GetLabel(o), value: (o as any).value ?? UiConfigMethods.GetLabel(o)}))
             opts.forEach((o, i) => sel.appendChild(Object.assign(document.createElement('option'), {value: String(i), textContent: o.label})))
             sel.addEventListener('change', () => this._set(c, parents, opts[+sel.value].value, true, true))
@@ -290,12 +289,11 @@ export class UiConfigForm {
             this._rows.push({config: c, update: () => {
                 const v = value()
                 const i = opts.findIndex(o => o.value === v || equalsPrimitive(o.value, v))
-                if (i >= 0) sel.value = String(i)
+                if (i >= 0) writeValue(sel, String(i))
             }})
         } else if (kind === 'color') {
             const input = document.createElement('input')
             input.type = 'color'
-            input.disabled = disabled
             input.addEventListener('input', () => {
                 const cur = value() as any
                 if (cur?.isColor) this._set(c, parents, cur.clone().set(input.value), false)
@@ -306,7 +304,7 @@ export class UiConfigForm {
             row.appendChild(input)
             this._rows.push({config: c, update: (force) => {
                 const v = value() as any
-                if (force || document.activeElement !== input) input.value = v?.isColor ? '#' + v.getHexString() : typeof v === 'number' ? '#' + v.toString(16).padStart(6, '0') : String(v ?? '#000000')
+                if (force || document.activeElement !== input) writeValue(input, v?.isColor ? '#' + v.getHexString() : typeof v === 'number' ? '#' + v.toString(16).padStart(6, '0') : String(v ?? '#000000'))
             }})
         } else if (kind === 'vec' || kind === 'vec2' || kind === 'vec3' || kind === 'vec4') {
             const v0 = value() as any
@@ -318,7 +316,7 @@ export class UiConfigForm {
             const wrap = document.createElement('span')
             wrap.className = 'ucf-vec'
             const inputs = axes.map(a => {
-                const input = this._number(disabled, n => {
+                const input = this._number(n => {
                     const cur = value() as any
                     const v = isArray ? [...cur] : cur.clone()
                     v[a] = Math.min(max, Math.max(min, n))
@@ -333,32 +331,31 @@ export class UiConfigForm {
             this._rows.push({config: c, update: (force) => {
                 const v = value() as any
                 axes.forEach((a, i) => {
-                    if (force || document.activeElement !== inputs[i]) inputs[i].value = fmt(v?.[a])
+                    if (force || document.activeElement !== inputs[i]) writeValue(inputs[i], fmt(v?.[a]))
                 })
             }})
         } else if (kind === 'number' || kind === 'slider') {
             const {min, max, step} = UiConfigMethods.GetBounds(c, kind === 'number')
             const isInt = (this._options.isInteger ?? defaultIsInteger)(c, label)
             const clamp = (n: number) => Math.min(max, Math.max(min, isInt ? Math.round(n) : n))
-            const input = this._number(disabled, n => this._set(c, parents, clamp(n)), value, getOrCall(c.stepSize))
+            const input = this._number(n => this._set(c, parents, clamp(n)), value, getOrCall(c.stepSize))
             if (kind === 'slider') {
                 const range = document.createElement('input')
                 range.type = 'range'
                 range.min = String(min)
                 range.max = String(max)
                 range.step = String(step)
-                range.disabled = disabled
                 range.addEventListener('input', () => this._set(c, parents, clamp(+range.value), false))
                 // the slider is released
                 range.addEventListener('change', () => this._end(c, parents))
                 row.appendChild(range)
                 this._rows.push({config: c, update: () => {
-                    range.value = String(value())
+                    writeValue(range, String(value()))
                 }})
             }
             row.appendChild(input)
             this._rows.push({config: c, update: (force) => {
-                if (force || document.activeElement !== input) input.value = fmt(value())
+                if (force || document.activeElement !== input) writeValue(input, fmt(value()))
             }})
             // per pixel: the stepSize of the config (as in Tweakpane), else 1% of the value, and at most 1% of the bounds
             const scrubStep = isInt ? 0.25 : getOrCall(c.stepSize) || ((v: number) => Math.min(Math.max(0.001, Math.abs(v) * 0.01 || 0.01), (max - min) / 100))
@@ -368,21 +365,27 @@ export class UiConfigForm {
             out.className = 'ucf-monitor'
             row.appendChild(out)
             this._rows.push({config: c, update: () => {
-                out.textContent = String(value())
+                const v = String(value())
+                if (out.textContent !== v) out.textContent = v
             }})
         } else { // input and any other type: text
             const input = document.createElement('input')
             input.type = 'text'
-            input.disabled = disabled
             input.addEventListener('change', () => this._set(c, parents, input.value))
             row.appendChild(input)
             this._rows.push({config: c, update: (force) => {
-                if (force || document.activeElement !== input) input.value = String(value() ?? '')
+                if (force || document.activeElement !== input) writeValue(input, String(value() ?? ''))
             }})
         }
+        // the fields of the row, found once: a refresh (on each change, e.g. each move of a scrub) touches the DOM only
+        // when a value or the disabled state changes
+        const controls = row.querySelectorAll<HTMLInputElement | HTMLSelectElement>('input, select')
+        let disabled: boolean | undefined
         this._rows.push({config: c, update: () => {
             const d = isDisabled()
-            row.querySelectorAll<HTMLInputElement | HTMLSelectElement>('input, select').forEach(el => el.disabled = d)
+            if (d === disabled) return
+            disabled = d
+            controls.forEach(el => el.disabled = d)
         }})
         // the first values of the fields of this config (a slider has two)
         for (let i = firstRow; i < this._rows.length; i++) this._rows[i].update()
@@ -394,11 +397,10 @@ export class UiConfigForm {
      * @param step - the change of the arrow keys and the spinner: the `stepSize` of the config. A typed value off the
      * step is kept. Without one, the field takes any value and the browser steps by 1.
      */
-    private _number(disabled: boolean, set: (n: number) => void, get: () => any, step?: number) {
+    private _number(set: (n: number) => void, get: () => any, step?: number) {
         const input = document.createElement('input')
         input.type = 'number'
         input.step = step && step > 0 ? String(step) : 'any'
-        input.disabled = disabled
         input.addEventListener('change', () => {
             const n = parseFloat(input.value)
             if (isFinite(n)) set(n)
@@ -444,6 +446,11 @@ function callOnChange(config: UiObjectConfig, ev: ChangeEvent) {
     const on = config.onChange
     if (typeof on === 'function') on(ev)
     else if (Array.isArray(on)) on.flat().forEach(f => typeof f === 'function' && f(ev))
+}
+
+/** Sets the value of a field only when it changes: no DOM write (and no new style or layout) for the same value */
+function writeValue(el: {value: string}, v: string) {
+    if (el.value !== v) el.value = v
 }
 
 /** A number with 12 significant digits: no float noise (0.30000000000000004), and small steps (0.00001) stay */
