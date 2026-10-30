@@ -16,6 +16,7 @@ import {
     DynamicImportPlugin,
     EditorViewWidgetPlugin, EntityComponentPlugin,
     FilmicGrainPlugin,
+    LUTPlugin,
     GeometryGeneratorPlugin,
     FragmentClippingExtensionPlugin,
     FrameFadePlugin,
@@ -38,6 +39,7 @@ import {
     Object3DWidgetsPlugin,
     ObjectConstraintsPlugin,
     ParallaxMappingPlugin,
+    PerfPanelPlugin,
     PickingPlugin,
     PLYLoadPlugin,
     PointerLockControlsPlugin,
@@ -48,6 +50,7 @@ import {
     SSAAPlugin,
     SSAOPlugin,
     STLLoadPlugin,
+    TextureLoader2,
     ThreeFirstPersonControlsPlugin,
     ThreeViewer,
     TonemapPlugin,
@@ -135,11 +138,13 @@ export class ThreeEditor extends ThreeViewer {
         VirtualCamerasPlugin,
         // new SceneUiConfigPlugin(), // this is already in ViewerUiPlugin
         new RenderTargetPreviewPlugin(true),
+        PerfPanelPlugin,
         new FrameFadePlugin(),
         new HDRiGroundPlugin(false, true),
         new VignettePlugin(false),
         new ChromaticAberrationPlugin(false),
         new FilmicGrainPlugin(false),
+        new LUTPlugin(false),
         new SSAOPlugin(UnsignedByteType, 1),
         SSReflectionPlugin, new SSContactShadowsPlugin(false),
         new DepthOfFieldPlugin(false), BloomPlugin,
@@ -181,18 +186,19 @@ export class ThreeEditor extends ThreeViewer {
         ['Viewer']: [ViewerUiConfigPlugin, DropzonePlugin, BaseGroundPlugin, ContactShadowGroundPlugin, TweakpaneUiPlugin, InteractionPromptPlugin, ThreeGpuPathTracerPlugin, FullScreenPlugin],
         ['Interaction']: [HierarchyUiPlugin, TransformControlsPlugin, PivotControlsPlugin, PivotEditPlugin, PickingPlugin, OutlinePlugin, Object3DGeneratorPlugin, GeometryGeneratorPlugin, EditorViewWidgetPlugin, ObjectConstraintsPlugin, Object3DWidgetsPlugin, MeshOptSimplifyModifierPlugin],
         ['Buffers']: [GBufferPlugin, DepthBufferPlugin, NormalBufferPlugin, CascadedShadowsPlugin],
-        ['Post-processing']: [TonemapPlugin, ProgressivePlugin, SSAAPlugin, SSAOPlugin, SSReflectionPlugin, BloomPlugin, DepthOfFieldPlugin, SSGIPlugin, FrameFadePlugin, VignettePlugin, ChromaticAberrationPlugin, FilmicGrainPlugin, TemporalAAPlugin, VelocityBufferPlugin, SSContactShadowsPlugin],
+        ['Post-processing']: [TonemapPlugin, ProgressivePlugin, SSAAPlugin, SSAOPlugin, SSReflectionPlugin, BloomPlugin, DepthOfFieldPlugin, SSGIPlugin, FrameFadePlugin, VignettePlugin, ChromaticAberrationPlugin, FilmicGrainPlugin, LUTPlugin, TemporalAAPlugin, VelocityBufferPlugin, SSContactShadowsPlugin],
         ['Export']: [AssetExporterPlugin, CanvasSnapshotPlugin, AWSClientPlugin, TransfrSharePlugin, AssimpJsPlugin, LoadingScreenPlugin],
         ['Configurator']: [MaterialConfiguratorPlugin, SwitchNodePlugin, GLTFKHRMaterialVariantsPlugin],
         ['Animation']: [TimelineUiPlugin, AnimationObjectPlugin, GLTFAnimationPlugin, CameraViewPlugin],
         ['Extras']: [HDRiGroundPlugin, Rhino3dmLoadPlugin, ClearcoatTintPlugin, FragmentClippingExtensionPlugin, NoiseBumpMaterialPlugin, AnisotropyPlugin, CustomBumpMapPlugin, VirtualCamerasPlugin, TilesRendererPlugin, EntityComponentPlugin, StickyNotesUiPlugin, NotesPlugin],
-        ['Debug']: [RenderTargetPreviewPlugin, DynamicImportPlugin],
+        ['Debug']: [RenderTargetPreviewPlugin, PerfPanelPlugin, DynamicImportPlugin],
     }
 
     async init() {
         await this.addPlugins(this.editorPlugins)
 
         KTX2LoadPlugin.SAVE_SOURCE_BLOBS = true // so that ktx files can be exported.
+        TextureLoader2.SAVE_SOURCE_BLOBS = true // so raster images (jpeg/png) export without canvas re-encode.
 
         // to show more details in the UI and allow to edit changes in title etc.
         const mat = this.getPlugin(MaterialConfiguratorPlugin)
