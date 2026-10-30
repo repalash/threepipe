@@ -468,8 +468,8 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
     }
 
     /**
-     * The place and size of the top post-it of the pile: above the dock, or where the person put it. The post-its under
-     * it lie toward -x and -y, so it keeps room for them inside the canvas.
+     * The place and size of the top post-it of the pile, as shown: above the dock, or where the person put it. The
+     * post-its under it lie toward -x and -y, so it keeps room for them inside the canvas.
      */
     private _pileBox(size = this._size()): Required<Box> {
         const s = this._state.stack ?? {}
@@ -477,17 +477,23 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         const spread = Math.min(Math.max(this._cards.size - 1, 0), PILE_DEPTH) * PILE_STEP
         // above the dock, where it is; the post-it at the bottom of the pile at the left edge of the dock
         const dockTop = this.dock.offsetTop || size.height - 40
-        const box = this._clamp({x: s.x ?? GAP + spread, y: s.y ?? dockTop - h - GAP, w, h}, size)
-        return {x: Math.max(box.x ?? 0, spread), y: Math.max(box.y ?? 0, spread), w, h}
+        // the pile without its spread is kept inside the canvas less the spread
+        const inner = {width: size.width - spread, height: size.height - spread}
+        const box = this._clamp({x: (s.x ?? GAP + spread) - spread, y: (s.y ?? dockTop - h - GAP) - spread, w, h}, inner)
+        return {x: (box.x ?? 0) + spread, y: (box.y ?? 0) + spread, w: box.w ?? w, h: box.h ?? h}
     }
 
-    /** A box kept inside the canvas */
+    /**
+     * A box as shown inside the canvas: no larger than the canvas, and moved inside it. The size kept in the state
+     * stays the one the person gave, so a larger canvas shows it again.
+     */
     private _clamp(box: Box, {width, height} = this._size()): Box {
-        const w = box.w ?? NOTE_W, h = box.h ?? NOTE_H
+        const w = Math.min(box.w ?? NOTE_W, width), h = Math.min(box.h ?? NOTE_H, height)
         return {
             ...box,
             x: Math.min(Math.max(0, box.x ?? GAP), Math.max(0, width - w)),
             y: Math.min(Math.max(0, box.y ?? GAP), Math.max(0, height - h)),
+            w, h,
         }
     }
 
@@ -611,7 +617,9 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
                     this._state.stack = {...this._state.stack, x: pile.x, y: pile.y}
                 } else {
                     const board = this._state.board ??= {}
-                    board[c.note.id] = this._clamp(board[c.note.id] ?? {})
+                    // the place kept is the one shown, the size the one the person gave
+                    const {x, y} = this._clamp(board[c.note.id] ?? {})
+                    board[c.note.id] = {...board[c.note.id], x, y}
                 }
                 this._writeState()
             }

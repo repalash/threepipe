@@ -388,6 +388,40 @@ describe('StickyNotesUiPlugin', () => {
         expect(observers.some(o => o.targets.size)).toBe(false)
     })
 
+    test('a post-it larger than the canvas is shown at the size of the canvas; its own size comes back on a larger canvas', () => {
+        const {notes, sticky, layer} = setup()
+        const n = notes.addNote('a')
+        const card = cards(layer)[0]
+        card.offsetWidth = 500
+        card.offsetHeight = 300
+        resized(sticky, card)
+        const resize = (width: number, height: number) => {
+            layer.clientWidth = width
+            layer.clientHeight = height
+            ;(sticky.dock as any as FakeElement).offsetTop = height - 40
+            ;(sticky as any)._onResize()
+        }
+        resize(400, 250)
+        expect(boxes(layer)[0]).toEqual([0, 0, 400, 250])
+        expect((sticky as any)._state.board[n.id]).toMatchObject({w: 500, h: 300}) // the size the person gave is kept
+        resize(800, 600)
+        expect(boxes(layer)[0]).toEqual([12, 12, 500, 300]) // its place and size again
+
+        // the pile, with the post-its under the top one, stays inside too
+        notes.addNote('b')
+        notes.addNote('c')
+        sticky.layout = 'stack'
+        const top = cards(layer).find(c => !c.classList.contains('snp-behind'))!
+        top.offsetWidth = 700
+        top.offsetHeight = 500
+        resized(sticky, top)
+        resize(400, 250)
+        for (const [x, y, w, h] of boxes(layer)) {
+            expect(Math.min(x, y)).toBeGreaterThanOrEqual(0)
+            expect([x + w <= 400, y + h <= 250]).toEqual([true, true])
+        }
+    })
+
     test('the layer does not scroll: a focus never moves the post-its away from their places', () => {
         const {layer} = setup()
         layer.button('+ Note').fire('click')
