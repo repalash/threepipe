@@ -5,7 +5,7 @@ export {RetargetedCharacter, CHARACTER_RIGS, G1_PARTS} from './RetargetedCharact
 export type {CharacterRig, G1Part} from './RetargetedCharacter'
 export {G1_BODY_TREE} from './G1Kinematics'
 export {G1Controller, GAIT_SPEEDS} from './G1Controller'
-export type {G1Bricks, G1Gait, G1ControllerStats} from './G1Controller'
+export type {G1Bricks, G1Gait, G1ControllerStats, G1StrideCycle} from './G1Controller'
 export {G1_BRICKS} from './G1Bricks'
 export {MotionBricksRemote, MotionBricksWorkerError} from './MotionBricksRemote'
 export type {WorkerLoadOptions} from './MotionBricksWorker'

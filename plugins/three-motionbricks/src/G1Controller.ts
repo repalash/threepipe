@@ -2,9 +2,10 @@
 // It plays generated motion at 30 Hz and generates the next segment ahead of time, from frames
 // that are already planned, so the new motion takes over without a jump.
 // The targets follow the reference Scene Preview: a gait target placed one second of travel ahead
-// while far from the goal, then a standing target at the goal so the robot stops there.
+// while far from the goal, then a standing target at the goal so the robot stops there. The gait
+// target is the pose of the stride the robot will be at when it arrives, so the steps stay even.
 
-import {G1Pose, heading, lerpPose, MotionGenerator, placePoses, POSE_SIZE, SAMPLE_RATE, withSpeed} from './MotionBricksG1'
+import {BOUNDARY_FRAMES, DEFAULT_TOKEN_COUNTS, G1Pose, GenerateOptions, heading, lerpPose, MotionGenerator, placePoses, POSE_SIZE, POSES_PER_TOKEN, SAMPLE_RATE, withSpeed} from './MotionBricksG1'
 
 export interface G1Bricks {
     /** Standing pose, one frame, at the ground origin facing +X. */
@@ -12,6 +13,18 @@ export interface G1Bricks {
     /** Four consecutive frames of each gait, starting at the ground origin, travelling along +X. */
     walk: number[][]
     run: number[][]
+    /**
+     * One steady stride of each gait, footfall to the same foot's next footfall, starting at the ground origin and
+     * travelling along +X, with the ground travel over the whole stride. With these, gait targets are taken from the
+     * point of the stride the robot will reach when it gets there, so no step is squeezed or stretched to fit.
+     */
+    cycles?: Partial<Record<G1Gait, G1StrideCycle>>
+}
+
+/** One stride of a gait: its frames from a footfall, and the ground travel over the whole stride. */
+export interface G1StrideCycle {
+    frames: number[][]
+    travel: number[]
 }
 
 export type G1Gait = 'walk' | 'run'
@@ -56,8 +69,9 @@ export class G1Controller {
     goal: [number, number] | null = null
     gait: G1Gait = 'walk'
     /**
-     * Seconds of travel between the robot and its gait target. The gait bricks were baked with 1 s, so the
-     * stride's phase at the target matches it; other values make the model squeeze or stretch steps to fit.
+     * Seconds of travel between the robot and its gait target. With stride cycles in the bricks, the target is
+     * the pose the stride reaches by then and the segment length is fixed to match. Without them, the single gait
+     * brick was baked with 1 s; other values make the model squeeze or stretch steps to fit.
      */
     lead = 1.0
     stats: G1ControllerStats = {generations: 0, lastInferenceMs: 0, averageInferenceMs: 0, lastTokenCount: 0}
@@ -169,11 +183,13 @@ export class G1Controller {
     }
 
     /**
-     * Frames before a gait segment's end where the next one takes over. A run keeps its natural cadence with 10, a
-     * walk with 2. Slow inference also gets 2 when running: more time to generate, for a slightly quicker cadence.
+     * Frames before a gait segment's end where the next one takes over. With stride cycles, a run hands over 6
+     * frames early and a walk 2, so the hand-overs fall on alternate feet rather than always on the same step.
+     * Without them, a run keeps its cadence with 10. Slow inference gets 2: more time to generate.
      */
     private _transitionEarly(gait: G1Gait) {
-        return gait === 'run' && Math.max(this.stats.averageInferenceMs, this.stats.lastInferenceMs) < 600 ? 10 : 2
+        if (gait !== 'run' || Math.max(this.stats.averageInferenceMs, this.stats.lastInferenceMs) >= 600) return 2
+        return this.bricks.cycles?.run ? 6 : 10
     }
 
     private _distanceToGoal() {
@@ -208,8 +224,19 @@ export class G1Controller {
         const angle = distance > 0.3 ? Math.atan2(dy, dx) : facing
         let targets: G1Pose[]
         let stopping: boolean
+        let options: GenerateOptions | undefined
         const lead = this.lead
-        if (distance > speed * lead + 0.8) {
+        const cycle = this.bricks.cycles?.[this.gait]
+        if (distance > speed * lead + 0.8 && cycle && this._segment && !this._segment.stopping) {
+            // A fixed length, the travel for it at gait speed, and the pose of the stride the robot reaches by then.
+            const tokens = Math.round((lead * SAMPLE_RATE + POSES_PER_TOKEN + BOUNDARY_FRAMES) / POSES_PER_TOKEN)
+            const frames = Math.round(segmentSeconds(tokens) * SAMPLE_RATE)
+            const ahead = speed * frames / SAMPLE_RATE
+            const window = cycleWindow(cycle, cyclePhase(cycle, context) + frames)
+            targets = placePoses(withSpeed(window, speed), from[0] + Math.cos(angle) * ahead, from[1] + Math.sin(angle) * ahead, angle)
+            options = {tokens: [tokens]}
+            stopping = false
+        } else if (distance > speed * lead + 0.8) {
             const ahead = speed * lead
             targets = placePoses(withSpeed(this.bricks[this.gait], speed), from[0] + Math.cos(angle) * ahead, from[1] + Math.sin(angle) * ahead, angle)
             stopping = false
@@ -221,11 +248,17 @@ export class G1Controller {
             }
             targets = placePoses(this.bricks.rest, goal[0], goal[1], angle)
             stopping = true
+            // Slowing down evenly takes twice as long as the distance at speed: allow only lengths near that,
+            // or the model may rush the last metres and lurch.
+            const moving = this._segment && !this._segment.stopping
+            const need = moving ? Math.min(2 * distance / speed, segmentSeconds(DEFAULT_TOKEN_COUNTS[DEFAULT_TOKEN_COUNTS.length - 1])) * 0.8 : 0
+            const tokens = DEFAULT_TOKEN_COUNTS.filter(t => segmentSeconds(t) >= need)
+            if (tokens.length < DEFAULT_TOKEN_COUNTS.length) options = {tokens}
         }
         const request: Request = {id: ++this._requestId, segment: this._segment, startFrame, stopping, gait: this.gait}
         this._request = request
         this._dirty = false
-        this.engine.generate(context, targets).then(motion => {
+        this.engine.generate(context, targets, options).then(motion => {
             const s = this.stats
             s.generations++
             s.lastInferenceMs = motion.inferenceMs
@@ -275,6 +308,44 @@ export class G1Controller {
             stopping: request.stopping,
         }
     }
+}
+
+/** Seconds from the last context pose to the first target pose in a generation of this many tokens. */
+function segmentSeconds(tokens: number) {
+    return (tokens * POSES_PER_TOKEN - POSES_PER_TOKEN - BOUNDARY_FRAMES) / SAMPLE_RATE
+}
+
+/** The frame of a stride cycle that the last two context poses match best. */
+function cyclePhase(cycle: G1StrideCycle, context: G1Pose[]) {
+    const frames = cycle.frames, n = frames.length
+    let best = 0, bestError = Infinity
+    for (let i = 0; i < n; i++) {
+        let error = 0
+        for (let c = 0; c < 2; c++) {
+            const a = context[2 + c], b = frames[(i - 1 + c + n) % n]
+            for (let k = POSE_SIZE - 29; k < POSE_SIZE; k++) error += (a[k] - b[k]) ** 2
+        }
+        if (error < bestError) [best, bestError] = [i, error]
+    }
+    return best
+}
+
+/** Four frames of a stride cycle from a frame (wrapping into the next stride), moved to the ground origin. */
+function cycleWindow(cycle: G1StrideCycle, start: number) {
+    const n = cycle.frames.length
+    const window = [0, 1, 2, 3].map(f => {
+        const i = start + f, stride = Math.floor(i / n)
+        const p = cycle.frames[(i % n + n) % n].slice()
+        p[0] += stride * cycle.travel[0]
+        p[1] += stride * cycle.travel[1]
+        return p
+    })
+    const [x, y] = window[0]
+    for (const p of window) {
+        p[0] -= x
+        p[1] -= y
+    }
+    return window
 }
 
 /** The pose at a fractional frame, held at the last frame. */
