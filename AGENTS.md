@@ -27,12 +27,7 @@
 - Work in worktrees in .claude unless required/asked to edit the main copy.
 - three.js-modded source code is at ./three.js-modded/ - its a separate repository(not submodule), clone it if its not there.
 - Always use the commands defined in package.json scripts (npm run ...), never ad-hoc equivalents (e.g. no raw `npx vite build` or `npx tsc` with guessed configs - they can pick the wrong tsconfig/mode). If a script needs a custom param (like running a specific test), still go through the script and pass the param, e.g. `npm run test:e2e -- --grep "example-name"`. If no script exists for something genuinely needed, add one instead of running ad-hoc commands
-
-## threepipe cloud
-
-- threepipe cloud is at https://cloud.threepipe.org (worker in `services/cloud`, client plugin `@threepipe/plugin-cloud`, infra and runbook in `CLOUDFLARE.md`).
-- Share files while working (renders, screenshots, reports, html pages) to get a quick link: `scripts/share.sh [-s slug] [-P dir] file...` prints the share URL (`TP_SHARE_TOKEN` in `.env`). Reuse the same slug to update a share in place. `-a` uploads write-once assets.
-- Feedback and problem reports sent from apps (Report a Problem, `examples/cloud-feedback`) are on the staff page https://cloud.threepipe.org/staff. Check it when working on a reported issue.
+- Read CONTRIBUTING.md when contributing or making PRs
 
 ## Testing
 
