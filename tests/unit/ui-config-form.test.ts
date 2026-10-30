@@ -609,6 +609,25 @@ describe('UiConfigForm', () => {
         }
     })
 
+    test('a scrub shows the value in the number field also when the field has the focus', () => {
+        const target = {width: 1}
+        const form = new UiConfigForm([{type: 'number', label: 'Width', property: [target, 'width']}])
+        const {row: r, inputs: [input]} = row(form, 'Width')
+        const name = r.children[0]
+        doc.activeElement = input // the scrub prevents the default of the pointer down: the focus stays
+        try {
+            name.fire('pointerdown', {clientX: 0})
+            name.fire('pointermove', {clientX: 50})
+            expect(input.value).toBe(String(target.width))
+            name.fire('pointermove', {clientX: 100})
+            name.fire('pointerup')
+            expect(target.width).toBeCloseTo(2)
+            expect(input.value).toBe(String(target.width))
+        } finally {
+            doc.activeElement = null
+        }
+    })
+
     test('a drag with another button than the main one is not a scrub', () => {
         const target = {width: 1}
         const form = new UiConfigForm([{type: 'number', label: 'Width', property: [target, 'width']}])

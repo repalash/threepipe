@@ -360,7 +360,12 @@ export class UiConfigForm {
             }})
             // per pixel: the stepSize of the config (as in Tweakpane), else 1% of the value, and at most 1% of the bounds
             const scrubStep = isInt ? 0.25 : getOrCall(c.stepSize) || ((v: number) => Math.min(Math.max(0.001, Math.abs(v) * 0.01 || 0.01), (max - min) / 100))
-            this._scrub(name, isDisabled, () => +(value() as any), scrubStep, n => this._set(c, parents, clamp(n), false), () => this._end(c, parents))
+            // a scrub edits this field: it shows the value also when it has the focus, which the scrub keeps
+            const scrubSet = (n: number) => {
+                this._set(c, parents, clamp(n), false)
+                writeValue(input, fmt(value()))
+            }
+            this._scrub(name, isDisabled, () => +(value() as any), scrubStep, scrubSet, () => this._end(c, parents))
         } else if (kind === 'monitor') {
             const out = document.createElement('span')
             out.className = 'ucf-monitor'
