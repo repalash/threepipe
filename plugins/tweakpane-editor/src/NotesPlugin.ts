@@ -49,7 +49,10 @@ export class BrowserNotesStore implements NotesStore {
     }
 }
 
-/** Keeps notes on a server: GET {@link url} returns `{notes: NoteItem[]}`, POST {@link url} takes `{notes}` */
+/**
+ * Keeps notes on a server: GET {@link url} returns `{notes: NoteItem[]}`, POST {@link url} takes `{notes}`. A save
+ * under 64 KiB is a `keepalive` request, so the save of the last changes when the page closes still reaches the server.
+ */
 export class HttpNotesStore implements NotesStore {
     constructor(readonly url: string, readonly id = 'server', readonly label = 'Server') {}
 
@@ -61,7 +64,10 @@ export class HttpNotesStore implements NotesStore {
     }
 
     async save(notes: NoteItem[]) {
-        const r = await fetch(this.url, {method: 'POST', headers: [['Content-Type', 'application/json']], body: JSON.stringify({notes})})
+        const body = JSON.stringify({notes})
+        // keepalive: the request ends also when the page closes; browsers refuse it for a body over 64 KiB
+        const keepalive = new TextEncoder().encode(body).length < 64 * 1024
+        const r = await fetch(this.url, {method: 'POST', headers: [['Content-Type', 'application/json']], body, keepalive})
         if (!r.ok) throw new Error('HttpNotesStore: POST ' + r.status)
     }
 }

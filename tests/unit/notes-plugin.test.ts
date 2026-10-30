@@ -593,4 +593,15 @@ describe('NotesPlugin', () => {
         expect(fetch).toHaveBeenLastCalledWith('/api/notes', expect.objectContaining({method: 'POST'}))
         expect(JSON.parse(fetch.mock.calls.at(-1)![1]!.body as string).notes[0].text).toBe('changed')
     })
+
+    test('HttpNotesStore: a save under 64 KiB is a keepalive request, so it ends also when the page closes', async() => {
+        const fetch = vi.fn(async(_url: string, _init?: RequestInit) => ({ok: true, json: async() => ({})}))
+        vi.stubGlobal('fetch', fetch)
+        const store = new HttpNotesStore('/api/notes')
+        await store.save([{id: 'h', text: 'small', store: 'server', created: 1}])
+        expect(fetch.mock.calls.at(-1)![1]!.keepalive).toBe(true)
+        // the browser refuses a keepalive body over 64 KiB: a larger save is a normal request
+        await store.save([{id: 'h', text: 'é'.repeat(33 * 1024), store: 'server', created: 1}]) // 66 KiB in UTF-8
+        expect(fetch.mock.calls.at(-1)![1]!.keepalive).toBe(false)
+    })
 })
