@@ -162,6 +162,43 @@ describe('CanvasRecorderPlugin', () => {
         expect(plugin.recordingSettings).toBeUndefined()
     })
 
+    test('Record GLTF Anim: a recording that fails to start turns the animation loop back on', async() => {
+        const animPlugin = {loopAnimations: true, animations: [{}], playAnimation: vi.fn()}
+        const {plugin} = setup({GLTFAnimation: animPlugin})
+        // the start fails, e.g. the folder picker of an image sequence is cancelled
+        plugin._recorder.start = () => plugin.dispatchEvent({type: 'error'})
+        const button = plugin.uiConfig.children.find((c: any) => c.label === 'Record GLTF Anim')
+        await expect(button.value()).rejects.toBeUndefined()
+        expect(animPlugin.playAnimation).not.toHaveBeenCalled()
+        expect(animPlugin.loopAnimations).toBe(true)
+    })
+
+    test('Record turntable + GLTF + VAnimation: a recording that fails stops the animations it started', async() => {
+        const gltf = {animationState: 'stopped', playAnimation: vi.fn(), stopAnimation: vi.fn()}
+        const animation = {animate: vi.fn(), stop: vi.fn()}
+        const popmotion = {animate: () => ({promise: Promise.reject(new Error('the turn failed'))})}
+        const {plugin} = setup({GLTFAnimation: gltf, AnimationObjectPlugin: {animation}, PopmotionPlugin: popmotion})
+        const button = plugin.uiConfig.children.find((c: any) => c.label === 'Record turntable + GLTF + VAnimation')
+        await expect(button.value()).rejects.toThrow('the turn failed')
+        expect(gltf.playAnimation).toHaveBeenCalled()
+        expect(gltf.stopAnimation).toHaveBeenCalled()
+        expect(animation.stop).toHaveBeenCalled()
+    })
+
+    test('Record Camera Views + GLTF + VAnimation: a recording that fails stops the animations it started', async() => {
+        const gltf = {animationState: 'stopped', playAnimation: vi.fn(), stopAnimation: vi.fn()}
+        const animation = {animate: vi.fn(), stop: vi.fn()}
+        const views = {recordAllViews: async(onStart: () => void) => {
+            onStart()
+            throw new Error('the views failed')
+        }}
+        const {plugin} = setup({GLTFAnimation: gltf, AnimationObjectPlugin: {animation}, CameraViews: views})
+        const button = plugin.uiConfig.children.find((c: any) => c.label === 'Record Camera Views + GLTF + VAnimation')
+        await expect(button.value()).rejects.toThrow('the views failed')
+        expect(gltf.stopAnimation).toHaveBeenCalled()
+        expect(animation.stop).toHaveBeenCalled()
+    })
+
     test('recordCamera360 without PopmotionPlugin leaves the camera interactions alone', async() => {
         const {plugin, camera} = setup()
         const error = vi.spyOn(console, 'error').mockImplementation(() => undefined)

@@ -598,12 +598,13 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
                 type: 'button',
                 label: 'Record Camera Views + GLTF + VAnimation',
                 disabled: () => this.isRecording() || !this._viewer?.getPlugin<CameraViewPlugin>('CameraViews'),
-                value: () => {
+                value: async() => {
                     const isPlaying = this._viewer?.getPlugin<GLTFAnimationPlugin>('GLTFAnimation')?.animationState === 'playing'
-                    this._viewer?.getPlugin<CameraViewPlugin>('CameraViews')?.recordAllViews(() => {
+                    // the animations stop also when the recording fails
+                    await this._viewer?.getPlugin<CameraViewPlugin>('CameraViews')?.recordAllViews(() => {
                         this._viewer?.getPlugin<GLTFAnimationPlugin>('GLTFAnimation')?.playAnimation()
                         this._viewer?.getPlugin<AnimationObjectPlugin>('AnimationObjectPlugin')?.animation.animate()
-                    }).then(() => {
+                    }).finally(() => {
                         if (!isPlaying)
                             this._viewer?.getPlugin<GLTFAnimationPlugin>('GLTFAnimation')?.stopAnimation()
                         this._viewer?.getPlugin<AnimationObjectPlugin>('AnimationObjectPlugin')?.animation.stop()
@@ -621,8 +622,13 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
                     let lastLoop = false
                     if (animPlugin.loopAnimations) lastLoop = true
                     if (lastLoop) animPlugin.loopAnimations = false
-                    const b = await this.record(async() => animPlugin.playAnimation())
-                    if (lastLoop) animPlugin.loopAnimations = true
+                    let b: Blob | undefined
+                    try {
+                        b = await this.record(async() => animPlugin.playAnimation())
+                    } finally {
+                        // also when the recording fails to start or the animation fails
+                        if (lastLoop) animPlugin.loopAnimations = true
+                    }
                     if (b) {
                         // console.log(b)
                         const ext = b.type.split(';')[0].split('/').pop() || 'mp4'
@@ -667,14 +673,15 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
                 type: 'button',
                 label: 'Record turntable + GLTF + VAnimation',
                 disabled: () => this.isRecording(),
-                value: () => {
+                value: async() => {
                     const isPlaying = this._viewer?.getPlugin<GLTFAnimationPlugin>('GLTFAnimation')?.animationState === 'playing'
-                    this.download360Recording(
+                    // the animations stop also when the recording fails
+                    await this.download360Recording(
                         this._turntableAnimationDuration, this._turntableAnimationCCW,
                         this._turntableAnimationAngle, EasingFunctions[this._turntableAnimationEasing], () => {
                             this._viewer?.getPlugin<GLTFAnimationPlugin>('GLTFAnimation')?.playAnimation()
                             this._viewer?.getPlugin<AnimationObjectPlugin>('AnimationObjectPlugin')?.animation.animate()
-                        }).then(() => {
+                        }).finally(() => {
                         if (!isPlaying)
                             this._viewer?.getPlugin<GLTFAnimationPlugin>('GLTFAnimation')?.stopAnimation()
                         this._viewer?.getPlugin<AnimationObjectPlugin>('AnimationObjectPlugin')?.animation.stop()
