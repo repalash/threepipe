@@ -94,6 +94,8 @@ For core and for each package -
 - Update the package version in `package.json` and add a `## [<version>]` entry to its `CHANGELOG.md`.
 - Merge to `master` on github. The "Publish packages to npm" workflow builds and checks every package whose version is not on npm, waits for the `npm-publish` environment approval, publishes, and pushes the release tags (`v0.0.1` for core, `@threepipe/plugin-name-0.0.1` for a plugin).
 
+See [the Publishing guide](./website/guide/publishing.md) ([live](https://threepipe.org/guide/publishing.html)) for what the workflow does, trusted publishing and common pitfalls.
+
 ## Creating a Core Plugin
 
 Checklist 
