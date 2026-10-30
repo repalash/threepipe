@@ -124,6 +124,17 @@ describe('selection hierarchy', () => {
         expect(isFrame(only.root, only.ring)).toBe(false) // one part only
     })
 
+    test('a top-level group without meshes is not a frame, also when one other top-level object has meshes', () => {
+        const s = jewellery()
+        s.root.remove(s.watchScene, s.stand) // the ring is the only top-level object with meshes
+        const lights = group('Lights', new DirectionalLight() as any, new DirectionalLight() as any)
+        s.root.add(lights)
+        expect(isFrame(s.root, s.ring)).toBe(true)
+        expect(isFrame(s.root, lights)).toBe(false)
+        const light = lights.children[0] as IObject3D
+        expect(resolveTarget(s.root, [], light, false, false)).toBe(lights) // the group, not one light in it
+    })
+
     test('resolveTarget: group first, deep, drill and siblings', () => {
         const s = jewellery()
         const r = (leaf: IObject3D, selected: IObject3D[], deep = false, drill = false) => resolveTarget(s.root, selected, leaf, deep, drill)

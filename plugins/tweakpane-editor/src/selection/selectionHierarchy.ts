@@ -126,7 +126,8 @@ export function isFrame(root: IObject3D, o: IObject3D): boolean {
     if (o.parent !== root || countChildren(chainEnd(o), hasContent) < 2) return false
     const ud = o.userData
     if (ud.rootPath || ud.gltfAsset || ud.glTF2ExportSettings) return true
-    return countChildren(root, c => someInTree(c, isMesh)) === 1
+    // the only top-level object with meshes: `o` is that object
+    return someInTree(o, isMesh) && countChildren(root, c => someInTree(c, isMesh)) === 1
 }
 
 /** How many content children ({@link contentChildren}) of `o` pass `test`, counted up to 2 */
