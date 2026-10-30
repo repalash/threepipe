@@ -12,14 +12,13 @@ import {beforeAll, describe, expect, it} from 'vitest'
 // dependencies that only resolve once the graph is fully loaded (same pattern as dracojs-adapter.test.ts).
 let createGenericExtensionClass: typeof import('../../plugins/gltf-transform/src/GLTFDracoExporterBase').createGenericExtensionClass
 let GLTFMaterialsBumpMapExtension: typeof import('threepipe').GLTFMaterialsBumpMapExtension
-// @gltf-transform is only installed under plugins/gltf-transform, deep-import it from there.
 let NodeIO: any, ALL_EXTENSIONS: any
 beforeAll(async() => {
     const threepipe = await import('threepipe') // initialize the core module graph in canonical order first (avoids circular static-init)
     GLTFMaterialsBumpMapExtension = threepipe.GLTFMaterialsBumpMapExtension;
     ({createGenericExtensionClass} = await import('../../plugins/gltf-transform/src/GLTFDracoExporterBase'));
-    ({NodeIO} = await import('../../plugins/gltf-transform/node_modules/@gltf-transform/core/dist/index.modern.js') as any);
-    ({ALL_EXTENSIONS} = await import('../../plugins/gltf-transform/node_modules/@gltf-transform/extensions/dist/index.modern.js') as any)
+    ({NodeIO} = await import('@gltf-transform/core') as any);
+    ({ALL_EXTENSIONS} = await import('@gltf-transform/extensions') as any)
 })
 
 // A minimal glTF with a bump-mapped material, shaped like the three.js GLTFExporter output
