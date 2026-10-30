@@ -7,9 +7,11 @@ import styles from './StickyNotesUiPlugin.css?inline'
  * How the post-its are laid out over the canvas:
  * - `board`: each note is its own post-it, moved and sized on its own; "Arrange" puts them in columns;
  * - `stack`: the post-its lie on a pile, each one a little to the left of and above the one on it; a click on one
- *   behind brings it to the top, and the pile moves and sizes as one.
+ *   behind brings it to the top, and the pile moves and sizes as one;
+ * - `minimized`: the post-its are off the canvas; one button with the number of notes stays in the dock, and a click
+ *   on it brings back the layout from before.
  */
-export type StickyNotesLayout = 'board' | 'stack'
+export type StickyNotesLayout = 'board' | 'stack' | 'minimized'
 export type StickyNotesColor = 'yellow' | 'pink' | 'blue' | 'green' | 'theme'
 
 /** A place and size on the canvas, in px */
@@ -23,6 +25,8 @@ interface Box {
 /** What the person set, kept in `localStorage` ({@link StickyNotesUiPlugin.storageKey}) */
 interface StickyState {
     layout?: StickyNotesLayout
+    /** The layout that the button of `minimized` brings back */
+    open?: Exclude<StickyNotesLayout, 'minimized'>
     color?: StickyNotesColor
     shown?: boolean
     /** The place and size of the pile */
@@ -72,8 +76,9 @@ const DRAG_START = 3
  * Sticky Notes UI Plugin
  *
  * Shows the notes of {@link NotesPlugin} as post-its over the canvas, in one of two layouts
- * ({@link StickyNotesLayout}): `board` (a post-it per note) or `stack` (a pile). The buttons at the bottom left add
- * a note, arrange the board and switch the layout.
+ * ({@link StickyNotesLayout}): `board` (a post-it per note) or `stack` (a pile); `minimized` takes them off the
+ * canvas. The buttons at the bottom left add a note, arrange the board, switch the layout and minimise; when minimised,
+ * one button with the number of notes brings them back.
  *
  * - "+ Note" adds a note at once, in the store of new notes ({@link NotesPlugin.defaultStore}); "▾" picks another
  *   store. The badge on a note shows its store; a click moves the note to another store.
@@ -114,7 +119,8 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
     readonly element: HTMLDivElement
 
     /**
-     * The buttons at the bottom left of the canvas: "+ Note", "▾", "Arrange" and the layout. Place it with its style
+     * The buttons at the bottom left of the canvas: "+ Note", "▾", "Arrange", the layout and "Minimise" (in the
+     * `minimized` layout, the button that brings the post-its back). Place it with its style
      * when the corner is taken, e.g. `dock.style.bottom = '64px'`; the pile starts above it.
      */
     readonly dock: HTMLDivElement
@@ -128,6 +134,10 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
     private _state: StickyState
     private _arrangeButton: HTMLButtonElement
     private _layoutButton: HTMLButtonElement
+    /** The buttons of the dock that show when the post-its are on the canvas */
+    private _openButtons: HTMLButtonElement[]
+    /** The button of the `minimized` layout: the number of notes; a click brings back the layout from before */
+    private _restoreButton: HTMLButtonElement
     private _menu?: HTMLDivElement
     /** The button that opened the menu: a click on it again closes the menu */
     private _menuAnchor?: HTMLElement
@@ -144,7 +154,10 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         label: 'Sticky Notes',
         children: [
             {type: 'checkbox', label: 'Show', property: [this, 'shown']},
-            {type: 'dropdown', label: 'Layout', property: [this, 'layout'], children: [{label: 'Board: a post-it per note', value: 'board'}, {label: 'Stack: a pile', value: 'stack'}]},
+            {
+                type: 'dropdown', label: 'Layout', property: [this, 'layout'],
+                children: [{label: 'Board: a post-it per note', value: 'board'}, {label: 'Stack: a pile', value: 'stack'}, {label: 'Minimised: off the canvas', value: 'minimized'}],
+            },
             {
                 type: 'dropdown', label: 'Colour', property: [this, 'color'],
                 children: (['yellow', 'pink', 'blue', 'green', 'theme'] as const).map(c => ({label: c[0].toUpperCase() + c.slice(1), value: c})),
@@ -164,7 +177,10 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         const pick = button('▾', 'Add a note in…', () => this._openMenu(pick, 'New note in', id => this.addNote(id), this._notes?.defaultStore), 'snp-add-to')
         this._arrangeButton = button('Arrange', 'Put the post-its in columns', () => this.arrange())
         this._layoutButton = button('', '', () => this.layout = this.layout === 'board' ? 'stack' : 'board')
-        for (const b of [add, pick, this._arrangeButton, this._layoutButton]) this.dock.appendChild(b)
+        const minimize = button('Minimise', 'Take the post-its off the canvas', () => this.layout = 'minimized', 'snp-min')
+        this._restoreButton = button('', 'Put the post-its back on the canvas', () => this._restore(), 'snp-restore')
+        this._openButtons = [add, pick, this._layoutButton, minimize]
+        for (const b of [add, pick, this._arrangeButton, this._layoutButton, minimize, this._restoreButton]) this.dock.appendChild(b)
         this.element.appendChild(this.dock)
         // the post-its and the dock keep their pointer and wheel from the viewer under them
         this.element.addEventListener('pointerdown', e => e.stopPropagation())
@@ -173,6 +189,7 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         this.layout = this._state.layout ?? this.layout
         this.color = this._state.color ?? this.color
         this.shown = this._state.shown ?? this.shown
+        if (this.layout !== 'minimized') this._state.open = this.layout
         this._ready = true
         this._applyLook()
     }
@@ -204,6 +221,7 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
     /** Makes a note on top, with the cursor in it ({@link NotesPlugin.defaultStore} when no store is named) */
     addNote(store?: string) {
         this._closeMenu()
+        if (this.layout === 'minimized') this._restore()
         const note = this._notes?.addNote('', store)
         if (note) this._cards.get(note.id)?.text.focus()
         return note
@@ -249,6 +267,8 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
 
     private _settingChanged() {
         if (!this._ready) return // the field initializers and the constructor
+        if (this.layout === 'minimized') this._closeMenu()
+        else this._state.open = this.layout
         this._state.layout = this.layout
         this._state.color = this.color
         this._state.shown = this.shown
@@ -258,10 +278,19 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         this.uiConfig.uiRefresh?.(true)
     }
 
+    /** The layout from before `minimized` */
+    private _restore() {
+        this.layout = this._state.open ?? 'board'
+    }
+
     private _applyLook() {
+        const minimized = this.layout === 'minimized'
         this.element.dataset.color = this.color
         this.element.dataset.layout = this.layout
         this.element.style.display = this.shown ? '' : 'none'
+        for (const b of this._openButtons) b.style.display = minimized ? 'none' : ''
+        this._restoreButton.style.display = minimized ? '' : 'none'
+        this._showCount()
         this._arrangeButton.style.display = this.layout === 'board' ? '' : 'none'
         this._layoutButton.textContent = this.layout === 'board' ? 'Stack' : 'Spread'
         this._layoutButton.title = this.layout === 'board' ? 'Put the post-its on a pile' : 'A post-it per note on the board'
@@ -318,7 +347,13 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         }
         // a note made now goes on top
         if (added) this._setOrder([...this._order().filter(o => o !== added), added])
+        this._showCount()
         this._layoutCards(!!added)
+    }
+
+    /** The number of notes on the button of the `minimized` layout */
+    private _showCount() {
+        this._restoreButton.textContent = 'Notes · ' + (this._notes?.notes.length ?? 0)
     }
 
     /** Shows the text and the store of a note on its post-it. Returns true when the note moved to another store. */
@@ -366,6 +401,7 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
     /** Sets the place, size and depth of every post-it for the layout. `animate`: they glide there. */
     private _layoutCards(animate: boolean) {
         this.element.classList.toggle('snp-instant', !animate)
+        if (this.layout === 'minimized') return // off the canvas: laid out when they come back
         const order = this._order()
         // read once: a read after the style writes below would lay out the page again for each post-it
         const size = this._size()

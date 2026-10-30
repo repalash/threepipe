@@ -73,6 +73,8 @@ Changes are saved per store, 600 ms after the last one, and when the plugin is r
 - `board`: each note is its own post-it. "Arrange" puts them in columns. "Stack" switches to the other layout.
 - `stack`: the post-its lie on a pile, each one a little to the left of and above the one on it, so the pile stays on the canvas. A click on a post-it behind brings it to the top; the pile is dragged and sized as one. "Spread" switches back.
 
+"Minimise" (the `minimized` layout) takes the post-its off the canvas. Only one button stays in the dock, with the number of notes; a click on it brings back the layout from before.
+
 In both layouts:
 
 - "+ Note" adds a note at once, in the store of new notes, with the cursor in it. "▾" next to it picks another store.
@@ -96,7 +98,7 @@ const notes = viewer.addPluginSync(new NotesPlugin({
     contextProvider: () => 'Move tool', // optional, extra text for "+ Context"
 }))
 const sticky = viewer.addPluginSync(new StickyNotesUiPlugin())
-sticky.layout = 'stack' // a pile; 'board': a post-it per note
+sticky.layout = 'stack' // a pile; 'board': a post-it per note; 'minimized': off the canvas
 
 // a store of the app
 const myStore: NotesStore = {

@@ -44,6 +44,8 @@
 .snp-card.snp-lifted { box-shadow: 0 2px 4px rgba(0, 0, 0, 0.14), 0 14px 32px rgba(0, 0, 0, 0.22); }
 .snp-card.snp-new { animation: snp-in .14s ease-out; }
 @keyframes snp-in { from { opacity: 0; transform: scale(.94); } }
+/* minimised: the post-its are off the canvas, the dock has one button */
+.snp-layer[data-layout="minimized"] .snp-card { display: none; }
 /* the pile: the post-its under the top one show their edge; a click brings one up, nothing in it reacts before */
 .snp-card.snp-behind { cursor: pointer; resize: none; }
 .snp-card.snp-behind > * { pointer-events: none; }

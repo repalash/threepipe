@@ -141,6 +141,8 @@ function setup(options: ConstructorParameters<typeof NotesPlugin>[0] = {}) {
 }
 
 const cards = (layer: FakeElement) => layer.find('snp-card')
+/** The texts of the buttons that show in the dock */
+const dockButtons = (layer: FakeElement) => layer.find('snp-dock')[0].all().filter(b => b.style.display !== 'none').map(b => b.textContent)
 /** What the ResizeObserver does when a post-it changes size */
 const resized = (sticky: StickyNotesUiPlugin, card: FakeElement) => (sticky as any)._cardResized((sticky as any)._byElement.get(card))
 
@@ -162,7 +164,7 @@ describe('StickyNotesUiPlugin', () => {
     test('the layer is on the canvas with the dock; the UI folder has the settings, not the notes', () => {
         const {sticky, viewer, layer} = setup()
         expect(viewer.container.children).toEqual([layer])
-        expect(layer.find('snp-dock')[0].all().map(b => b.textContent)).toEqual(['+ Note', '▾', 'Arrange', 'Stack'])
+        expect(dockButtons(layer)).toEqual(['+ Note', '▾', 'Arrange', 'Stack', 'Minimise'])
         expect(sticky.uiConfig.label).toBe('Sticky Notes')
         expect((sticky.uiConfig.children as any[]).map(c => c.label)).toEqual(['Show', 'Layout', 'Colour', 'Arrange', 'Reset places'])
         expect(sticky.toJSON).toBeUndefined()
@@ -361,6 +363,39 @@ describe('StickyNotesUiPlugin', () => {
         layer.button('Spread').fire('click')
         expect(sticky.layout).toBe('board')
         expect(byId(c.id).classList.contains('snp-behind')).toBe(false)
+    })
+
+    test('minimized: the post-its leave the canvas, a button with the count stays; a click on it brings back the last layout', () => {
+        const {notes, sticky, layer} = setup()
+        notes.addNote('a')
+        notes.addNote('b')
+        layer.button('Stack').fire('click')
+        layer.button('Minimise').fire('click')
+        expect(sticky.layout).toBe('minimized')
+        expect(layer.dataset.layout).toBe('minimized') // the stylesheet hides the post-its
+        expect(dockButtons(layer)).toEqual(['Notes · 2'])
+        expect(state()).toMatchObject({layout: 'minimized', open: 'stack'})
+        notes.addNote('c')
+        expect(dockButtons(layer)).toEqual(['Notes · 3'])
+        expect(new StickyNotesUiPlugin().layout).toBe('minimized')
+
+        layer.button('Notes · 3').fire('click')
+        expect(sticky.layout).toBe('stack')
+        expect(dockButtons(layer)).toEqual(['+ Note', '▾', 'Spread', 'Minimise'])
+        expect(state()).toMatchObject({layout: 'stack', open: 'stack'})
+
+        // the setting has the mode too; a note added from the plugin brings the post-its back
+        const layout = (sticky.uiConfig.children as any[]).find(c => c.label === 'Layout')
+        expect(layout.children.map((o: any) => o.value)).toEqual(['board', 'stack', 'minimized'])
+        sticky.layout = 'minimized'
+        sticky.addNote()
+        expect(sticky.layout).toBe('stack')
+        // a layout kept from before minimises and comes back
+        storage.set('threepipe-sticky-notes', JSON.stringify({layout: 'stack'}))
+        const again = new StickyNotesUiPlugin()
+        again.layout = 'minimized'
+        ;(again.dock as any as FakeElement).find('snp-restore')[0].fire('click')
+        expect(again.layout).toBe('stack')
     })
 
     test('board: the saved places of notes that load after the post-its are drawn are kept', async() => {
