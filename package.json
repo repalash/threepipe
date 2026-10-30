@@ -61,6 +61,7 @@
     "test:e2e:list": "npx playwright test --list",
     "check-test-coverage": "node scripts/check-test-coverage.mjs",
     "test:types": "node scripts/check-consumer-types.mjs",
+    "check-bundles": "node scripts/check-bundles.mjs",
     "test": "npm run test:unit && npm run test:e2e",
     "docs": "npx typedoc --skipErrorChecking --hostedBaseUrl https://threepipe.org/docs/ && npm run website:build",
     "docs-plugins": "turbo run docs --filter=./plugins/*",
