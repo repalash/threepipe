@@ -973,6 +973,10 @@ describe('SelectionUxPlugin', () => {
         expect(canvas.children).toEqual([])
         expect(picking.widgetEnabled).toBe(true)
         expect(picking.hoverEnabled).toBe(true)
+        // added again: the overlay shows again
+        ux.onAdded(viewer)
+        expect(frame().style.display).toBe('')
+        expect(picking.widgetEnabled).toBe(false)
     })
 
     test('an editor plugin: a UI toggle for enabled, a constructor flag, and not saved in the viewer config', () => {

@@ -219,6 +219,8 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         this._takeOverPickingBox(false)
         this._root?.remove()
         this._root = this._lines = this._labels = undefined
+        this._overlayShown = false
+        this._overlayDirty = true
         this._crumbs = []
         this._picking = undefined
         this._state = null
