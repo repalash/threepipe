@@ -18,7 +18,6 @@ import {
     NoBlending,
     Object3D,
     onChange,
-    PickingPlugin,
     RenderPass,
     ShaderMaterial,
     Texture,
@@ -31,6 +30,11 @@ import {
     Vector3,
     WebGLRenderTarget,
 } from 'threepipe'
+import type {PickingPlugin} from 'threepipe'
+
+// the PickingPlugin is looked up by its type name (the viewer has it as 'Picking' and 'PickingPlugin'), so this plugin
+// does not import it, and a bundle without picking does not include it
+const PICKING_TYPE = 'PickingPlugin'
 
 /**
  * Selection Outline Plugin
@@ -195,8 +199,8 @@ if (selCoverage > 0.0) {
         viewer.renderManager.registerPass(this._pass)
         viewer.addEventListener('preRender', this._preRender)
         // the PickingPlugin can be added before or after this plugin, removed and replaced
-        viewer.addPluginListener('add', this._onPickingAdded, PickingPlugin.PluginType)
-        viewer.addPluginListener('remove', this._onPickingRemoved, PickingPlugin.PluginType)
+        viewer.addPluginListener('add', this._onPickingAdded, PICKING_TYPE)
+        viewer.addPluginListener('remove', this._onPickingRemoved, PICKING_TYPE)
         this._refreshPicking()
     }
 
@@ -264,7 +268,7 @@ if (selCoverage > 0.0) {
     }
 
     private _refreshPicking() {
-        this._setPicking(this.followPicking ? this._viewer?.getPlugin(PickingPlugin) : undefined)
+        this._setPicking(this.followPicking ? this._viewer?.getPlugin<PickingPlugin>(PICKING_TYPE) : undefined)
     }
 
     private _setPicking(picking: PickingPlugin | undefined) {

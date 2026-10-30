@@ -1,6 +1,5 @@
 import {describe, expect, test, vi} from 'vitest'
 import {BoxGeometry, EventDispatcher, Group, Mesh, MeshBasicMaterial, Object3D, PerspectiveCamera, ShaderMaterial, Texture, Vector3} from 'three'
-import {PickingPlugin} from 'threepipe'
 import {lineMaskFragment, SelectionMaskPass, selectionMaskMaterial, SelectionOutlinePlugin} from '../../plugins/tweakpane-editor/src/SelectionOutlinePlugin'
 
 const mesh = (name: string) => Object.assign(new Mesh(new BoxGeometry()), {name})
@@ -17,12 +16,12 @@ function watch() {
     return {root, wrapper, caseGroup, hands}
 }
 
-// a plugin with a fake viewer: render manager, and a PickingPlugin when given
+// a plugin with a fake viewer: render manager, and a PickingPlugin when given (looked up by its type name)
 function setup(picking?: any) {
     const plugin = new SelectionOutlinePlugin()
     const viewer = {
         renderManager: {setDirty: vi.fn(), screenPass: {setDirty: vi.fn()}},
-        getPlugin: (p: any) => p === PickingPlugin ? picking : undefined,
+        getPlugin: (p: any) => p === 'PickingPlugin' ? picking : undefined,
     }
     ;(plugin as any)._viewer = viewer
     return {plugin, viewer}
@@ -111,7 +110,7 @@ describe('SelectionOutlinePlugin', () => {
         const plugin = new SelectionOutlinePlugin()
         const viewer = Object.assign(new EventDispatcher<any>(), {
             renderManager: {setDirty: vi.fn(), screenPass: {setDirty: vi.fn()}},
-            getPlugin: (p: any) => p === PickingPlugin ? picking : undefined,
+            getPlugin: (p: any) => p === 'PickingPlugin' ? picking : undefined,
             addPluginListener: (t: string, l: () => void) => listeners[t].push(l),
             removePluginListener: vi.fn(),
         })
