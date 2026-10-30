@@ -33,6 +33,18 @@ interface StickyState {
     order?: string[]
 }
 
+/** The size of the canvas, in px */
+interface Size {
+    W: number
+    H: number
+}
+
+/** A column of the board: the bottom of its lowest post-it with the gap under it, and its widest post-it */
+interface Column {
+    bottom: number
+    w: number
+}
+
 /** The post-it of one note */
 interface NoteCard {
     note: NoteItem
@@ -302,16 +314,19 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
     /** The note ids from the bottom to the top, with the notes not in the stored order on top */
     private _order() {
         const ids = this._notes?.notes.map(n => n.id) ?? []
-        const known = (this._state.order ?? []).filter(id => ids.includes(id))
-        return [...known, ...ids.filter(id => !known.includes(id))]
+        const all = new Set(ids)
+        const known = new Set((this._state.order ?? []).filter(id => all.has(id)))
+        return [...known, ...ids.filter(id => !known.has(id))]
     }
 
     /** Sets the place, size and depth of every post-it for the layout. `animate`: they glide there. */
     private _layoutCards(animate: boolean) {
         this.element.classList.toggle('snp-instant', !animate)
         const order = this._order()
+        // read once: a read after the style writes below would lay out the page again for each post-it
+        const size = this._size()
         if (this.layout === 'stack') {
-            const pile = this._pileBox()
+            const pile = this._pileBox(size)
             order.forEach((id, i) => {
                 const c = this._cards.get(id)
                 if (!c) return
@@ -325,38 +340,38 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
             })
         } else {
             const board = this._state.board ??= {}
-            let placed = false
+            let columns: Map<number, Column> | undefined
             order.forEach((id, i) => {
                 const c = this._cards.get(id)
                 if (!c) return
-                if (!board[id]) {
-                    board[id] = this._nextPlace()
-                    placed = true
-                }
-                this._setBox(c, this._clamp(board[id]))
+                if (!board[id]) board[id] = this._nextPlace(columns ??= this._columns(board), size)
+                this._setBox(c, this._clamp(board[id], size))
                 c.card.style.zIndex = String(i + 1)
                 c.card.style.transform = ''
                 c.card.style.visibility = ''
                 c.card.classList.remove('snp-behind')
             })
-            if (placed) this._writeState()
+            if (columns) this._writeState()
         }
     }
 
+    /** The size of the canvas, in px */
+    private _size(): Size {
+        return {W: this.element.clientWidth || 800, H: this.element.clientHeight || 600}
+    }
+
     /** The place and size of the pile: its corner above the dock, or where the person put it */
-    private _pileBox(): Required<Box> {
+    private _pileBox(size = this._size()): Required<Box> {
         const s = this._state.stack ?? {}
         const w = s.w ?? NOTE_W + 40, h = s.h ?? NOTE_H + 40
-        const H = this.element.clientHeight || 600
         // above the dock, where it is
-        const dockTop = this.dock.offsetTop || H - 40
-        return this._clamp({x: s.x ?? GAP, y: s.y ?? dockTop - h - GAP, w, h}) as Required<Box>
+        const dockTop = this.dock.offsetTop || size.H - 40
+        return this._clamp({x: s.x ?? GAP, y: s.y ?? dockTop - h - GAP, w, h}, size) as Required<Box>
     }
 
     /** A box kept inside the canvas */
-    private _clamp(box: Box): Box {
+    private _clamp(box: Box, {W, H} = this._size()): Box {
         const w = box.w ?? NOTE_W, h = box.h ?? NOTE_H
-        const W = this.element.clientWidth || 800, H = this.element.clientHeight || 600
         return {
             ...box,
             x: Math.min(Math.max(0, box.x ?? GAP), Math.max(0, W - w)),
@@ -499,20 +514,32 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         this._layoutCards(false)
     }
 
-    /** Where a new post-it goes on the board: below the lowest one in the first column with room, or a new column */
-    private _nextPlace(): Box {
-        const boxes = Object.values(this._state.board ?? {})
-        const height = this.element.clientHeight || 600
-        const columnAt = (cx: number) => boxes.filter(b => (b.x ?? 0) === cx)
-        let x = GAP
-        let column = columnAt(x)
-        while (column.length) {
-            const y = Math.max(...column.map(b => (b.y ?? 0) + (b.h ?? NOTE_H) + GAP))
-            if (y + NOTE_H <= height - GAP) return {x, y}
-            x += Math.max(...column.map(b => b.w ?? NOTE_W)) + GAP
-            column = columnAt(x)
+    /** The columns of the board: the post-its with the same left edge, by that edge */
+    private _columns(board: Record<string, Box>) {
+        const columns = new Map<number, Column>()
+        for (const b of Object.values(board)) this._addToColumn(columns, b)
+        return columns
+    }
+
+    private _addToColumn(columns: Map<number, Column>, b: Box) {
+        const x = b.x ?? 0, col = columns.get(x)
+        const bottom = (b.y ?? 0) + (b.h ?? NOTE_H) + GAP, w = b.w ?? NOTE_W
+        columns.set(x, col ? {bottom: Math.max(col.bottom, bottom), w: Math.max(col.w, w)} : {bottom, w})
+    }
+
+    /**
+     * Where a new post-it goes on the board: below the lowest one in the first column with room, or a new column.
+     * `columns` ({@link _columns}) gets the new post-it, so the next one goes below it.
+     */
+    private _nextPlace(columns: Map<number, Column>, {H}: Size): Box {
+        let x = GAP, col = columns.get(x)
+        while (col && col.bottom + NOTE_H > H - GAP) {
+            x += col.w + GAP
+            col = columns.get(x)
         }
-        return {x, y: GAP}
+        const box = {x, y: col ? col.bottom : GAP}
+        this._addToColumn(columns, box)
+        return box
     }
 
     private _openMenu(anchor: HTMLElement, title: string, choose: (store: string) => void, current?: string) {

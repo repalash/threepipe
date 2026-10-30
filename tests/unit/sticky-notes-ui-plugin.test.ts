@@ -264,6 +264,21 @@ describe('StickyNotesUiPlugin', () => {
         expect(place(cb)).toEqual(['12px', '174px'])
     })
 
+    test('board: a column that is full starts the next one, beside its widest post-it', () => {
+        const {notes, sticky, layer} = setup()
+        notes.addNote('wide')
+        const wide = cards(layer)[0]
+        wide.offsetWidth = 300
+        ;(sticky as any)._cardResized(wide)
+        for (let i = 0; i < 6; i++) notes.addNote(String(i))
+        // 600 px high: three post-its in a column (12, 174, 336), as 498 + 150 is more than 600 - 12
+        expect(cards(layer).map(place)).toEqual([
+            ['12px', '12px'], ['12px', '174px'], ['12px', '336px'],
+            ['324px', '12px'], ['324px', '174px'], ['324px', '336px'], // 12 + 300 + 12
+            ['556px', '12px'], // 324 + 220 + 12
+        ])
+    })
+
     test('a press on a post-it brings it up; on a button of its bar, it does not drag', () => {
         const {notes, layer} = setup()
         notes.addNote('a')
