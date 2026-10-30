@@ -119,6 +119,16 @@
     gap: 8px;
     padding: 0.25rem;
 }
+/* one row: in a canvas too narrow for the buttons, the bar scrolls sideways instead of wrapping */
+.util-buttons-container{
+    flex-wrap: nowrap;
+    max-width: calc(100% - 3.5rem);
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+.util-buttons-container::-webkit-scrollbar{
+    display: none;
+}
 .util-button{
     position: relative;
     width: auto;
@@ -274,9 +284,35 @@ body.tpTheme-black .tippy-box[data-theme~='editor'], body.tpTheme-blue .tippy-bo
 /*}*/
 
 @media only screen and (max-width: 920px) {
+    /* the panel is as tall as its content, up to the room above the tool bar. It takes the touches, so a finger scrolls
+       it (iOS does not scroll a container with pointer-events: none, which the Tweakpane theme sets), and the scroll
+       stops at its ends, without moving the page. */
     #tweakpaneUiContainer {
-        height: calc(100% - 12.5rem) !important;
+        height: auto !important;
         max-height: calc(100% - 12.5rem) !important;
+        pointer-events: auto !important;
+        overscroll-behavior: contain;
+    }
+    /* the tool bar: smaller gaps and side padding, so its buttons fit in one row on a phone */
+    .util-buttons-container {
+        gap: 2px;
+        right: 0.75rem;
+        bottom: 0.75rem;
+        padding: 0.25rem 0.25rem 0.5rem;
+        max-width: calc(100% - 2rem);
+    }
+    .util-buttons-container > .util-button {
+        padding: 0.35rem 0.25rem;
+    }
+    .util-buttons-container > .button-bar-button:not(:last-child)::after {
+        right: -2px;
+    }
+    /* the logo: smaller, above the tool bar, which takes the width of a phone */
+    #webgi-logo {
+        left: 0.75rem;
+        bottom: 3.75rem;
+        width: 5rem;
+        height: 1.75rem;
     }
 }
 #mcanvas {

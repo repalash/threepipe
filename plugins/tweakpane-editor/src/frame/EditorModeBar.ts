@@ -49,6 +49,9 @@ export class EditorModeBar {
     /** Width of the bar without and with the names, in px */
     static Widths = {narrow: 44, wide: 168}
 
+    /** The media query of a window wide enough to show the names at the first visit (nothing stored) */
+    static WideQuery = '(min-width: 920px)'
+
     /** The default `localStorage` key that keeps the names shown or hidden, or `null` to not keep them */
     static StorageKey: string | null = 'tpEditorModeBarExpanded'
 
@@ -70,7 +73,8 @@ export class EditorModeBar {
      * @param host - the element the bar is added to
      * @param panel - returns the element that is hidden when the open mode is clicked again (the Tweakpane container)
      * @param storageKey - the `localStorage` key that keeps the names shown or hidden, or `null` to not keep it.
-     * Default: {@link EditorModeBar.StorageKey}. The names are shown at the first visit.
+     * Default: {@link EditorModeBar.StorageKey}. At the first visit, the names are shown in a window 920 px wide or more
+     * ({@link EditorModeBar.WideQuery}); a narrower window (a phone) has no room for them.
      */
     constructor(readonly editor: EditorModeBarHost, host: HTMLElement, readonly panel?: () => HTMLElement | null, readonly storageKey: string | null = EditorModeBar.StorageKey) {
         const bar = document.createElement('div')
@@ -78,11 +82,13 @@ export class EditorModeBar {
         bar.setAttribute('role', 'tablist')
         bar.setAttribute('aria-orientation', 'vertical')
         this.element = bar
+        this._expanded = window.matchMedia?.(EditorModeBar.WideQuery).matches ?? true
         if (storageKey) {
             try {
-                this._expanded = localStorage.getItem(storageKey) !== '0'
+                const stored = localStorage.getItem(storageKey)
+                if (stored !== null) this._expanded = stored !== '0'
             } catch (e) {
-                // no storage: names shown
+                // no storage: the default
             }
         }
         this._buttons = editor.modeKeys.map((key, i) => {

@@ -52,9 +52,12 @@ const ICONS = {
  * - Shift+T switches between the light and dark theme of the same family ({@link EditorFrameOptions.themePairs}).
  * - The panel has no title of its own: the mode bar names the open mode and hides the panel.
  *
- * Made by `TweakpaneEditorPlugin` (its `layout`). The layout applies at 920 px wide and more; below that, the page keeps
- * the editor's own layout. The floating layout has its actions in the mode bar. The body has the class `lay-frame` and
- * `lay-<layout>`.
+ * Made by `TweakpaneEditorPlugin` (its `layout`). The floating layout has its actions in the mode bar. The body has the
+ * class `lay-frame` and `lay-<layout>`.
+ *
+ * In a wide or a landscape window, the canvas, the panel and the mode bar are side by side. In a portrait window under
+ * 920 px wide (a phone), the layout keeps its bars and cards, and the panel is below the canvas (the CSS variable
+ * `--lay-split` on the body is the part of the height for the canvas, `0.45`).
  */
 export class EditorFrame {
     /** The default theme pairs: Shift+T goes from one to the other */
@@ -95,8 +98,7 @@ export class EditorFrame {
 
         viewer.assetManager.addEventListener('loadAsset', this._onLoad)
         window.addEventListener('keydown', this._onKeyDown)
-        this._wide.addEventListener('change', this._onWideChange)
-        this.modeBar.element.addEventListener('click', this._onModeBarClick)
+        this.modeBar.element.addEventListener('click', this._expandPanel)
         this.setLayout(this._layout)
     }
 
@@ -145,8 +147,7 @@ export class EditorFrame {
     dispose() {
         this.viewer.assetManager.removeEventListener('loadAsset', this._onLoad)
         window.removeEventListener('keydown', this._onKeyDown)
-        this._wide.removeEventListener('change', this._onWideChange)
-        this.modeBar.element.removeEventListener('click', this._onModeBarClick)
+        this.modeBar.element.removeEventListener('click', this._expandPanel)
         for (const [k] of EDITOR_FRAME_LAYOUTS) document.body.classList.remove('lay-' + k)
         document.body.classList.remove('lay-frame')
         this._top.remove()
@@ -159,25 +160,13 @@ export class EditorFrame {
         window.dispatchEvent(new Event('resize'))
     }
 
-    /** The window is wide enough for the frame (the media query of the CSS) */
-    private _wide = window.matchMedia('(min-width: 920px)')
-
     /**
-     * The panel has no title in the frame (the mode bar hides and shows it), so it is opened if it was folded: when a
-     * layout applies, when the window becomes wide enough for the frame, and on a click in the mode bar. A narrow
-     * window shows the title, which can fold it.
+     * The panel has no title in the frame (the mode bar hides and shows it), so it is opened if it was folded (the
+     * Tweakpane UI starts folded on a phone): when a layout applies, and on a click in the mode bar.
      */
     private _expandPanel = () => {
         const root = document.querySelector<HTMLElement>('#tweakpaneUiContainer .tp-rotv')
         if (root && !root.classList.contains('tp-rotv-expanded')) root.querySelector<HTMLElement>('.tp-rotv_b')?.click()
-    }
-
-    private _onWideChange = (e: MediaQueryListEvent) => {
-        if (e.matches) this._expandPanel()
-    }
-
-    private _onModeBarClick = () => {
-        if (this._wide.matches) this._expandPanel()
     }
 
     private _onLoad = (e: {data?: any}) => {

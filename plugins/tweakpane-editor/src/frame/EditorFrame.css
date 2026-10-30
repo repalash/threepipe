@@ -36,11 +36,6 @@ body[class*="tpTheme-"] .mb-root {
 body.lay-titlebar { --lay-top: 36px; --lay-bottom: 0px; }
 body.lay-statusbar { --lay-top: 0px; --lay-bottom: 26px; }
 body.lay-floating { --lay-top: 0px; --lay-bottom: 0px; --lay-gap: 12px; --lay-card-shadow: 0 0 0 1px rgba(0,0,0,.06), 0 2px 10px rgba(0,0,0,.08); }
-/* below 920 px the page keeps the editor's own layout: no bars, no mode bar, the mode tabs and the panel stay */
-@media only screen and (max-width: 919.98px) {
-    .mb-root, .lay-bar, .lay-menu { display: none !important; }
-    body.mb-panel-hidden #tweakpaneUiContainer { visibility: visible !important; }
-}
 /* the page around the canvas in the clean themes (the Tweakpane theme styles only the panel) */
 body.lay-frame.tpTheme-clean { background-color: #f0f0f0 !important; }
 body.lay-frame.tpTheme-clean-dark { background-color: #1e1e1e !important; }
@@ -78,57 +73,98 @@ body.lay-frame.tpTheme-clean-dark { background-color: #1e1e1e !important; }
 .lay-menu button { text-align: left; border: 0; background: transparent; color: inherit; font: inherit; padding: 8px 10px 8px 26px; border-radius: 5px; cursor: pointer; position: relative; }
 .lay-menu button:hover { background: var(--tp-button-background-color-hover, #f2f3f5); }
 .lay-menu button[aria-checked="true"]::before { content: '✓'; position: absolute; left: 9px; }
-@media only screen and (min-width: 920px) {
-    /* the mode bar replaces the mode tabs */
-    body.lay-frame .mode-buttons-container { display: none !important; }
-    /* the panel: no padding around it, and the room of the scrollbar is kept, so the width does not change when a
-       folder opens or closes. The container is the panel here (the Tweakpane theme lets pointer events through it, for
-       the empty part of its full-height column), so its scrollbar takes the pointer. */
-    body.lay-frame #tweakpaneUiContainer {
-        pointer-events: auto !important;
-        padding: 0 !important; overflow-y: auto !important; scrollbar-gutter: stable; scrollbar-width: thin;
-        scrollbar-color: var(--tp-groove-foreground-color, rgba(128, 128, 128, .5)) transparent;
-    }
-    /* the sections of the panel: one line between them, no box, no gap above the first */
-    body.lay-frame #tweakpaneUiContainer .tp-rotv_c { padding-top: 0 !important; }
-    body.lay-frame #tweakpaneUiContainer .tp-rotv_c > .tp-fldv {
-        margin: 0 !important; border-radius: 0 !important;
-        border-style: solid !important; border-width: 1px 0 0 !important; border-color: var(--tp-container-border-color, #e6e6e6) !important;
-    }
-    /* the first shown section: the hidden sections of the other modes come before it, so not :first-child */
-    body.lay-frame #tweakpaneUiContainer .tp-rotv_c > .tp-fldv.tp-v-vfst { border-top-width: 0 !important; }
-    /* title and status bar: the canvas and the panel edge to edge, between the bars */
+/* the frame in every window size: the geometry of the canvas and the panel is below, side by side or stacked */
+/* the mode bar replaces the mode tabs */
+body.lay-frame .mode-buttons-container { display: none !important; }
+/* the panel: no padding around it, and the room of the scrollbar is kept, so the width does not change when a folder
+   opens or closes. The container is the panel here (the Tweakpane theme lets pointer events through it, for the empty
+   part of its full-height column), so its scrollbar takes the pointer, and a finger scrolls it: iOS does not scroll a
+   container with pointer-events: none. The scroll stops at its ends, without moving the page. */
+body.lay-frame #tweakpaneUiContainer {
+    pointer-events: auto !important; overscroll-behavior: contain;
+    padding: 0 !important; overflow-y: auto !important; scrollbar-gutter: stable; scrollbar-width: thin;
+    scrollbar-color: var(--tp-groove-foreground-color, rgba(128, 128, 128, .5)) transparent;
+}
+/* the sections of the panel: one line between them, no box, no gap above the first */
+body.lay-frame #tweakpaneUiContainer .tp-rotv_c { padding-top: 0 !important; }
+body.lay-frame #tweakpaneUiContainer .tp-rotv_c > .tp-fldv {
+    margin: 0 !important; border-radius: 0 !important;
+    border-style: solid !important; border-width: 1px 0 0 !important; border-color: var(--tp-container-border-color, #e6e6e6) !important;
+}
+/* the first shown section: the hidden sections of the other modes come before it, so not :first-child */
+body.lay-frame #tweakpaneUiContainer .tp-rotv_c > .tp-fldv.tp-v-vfst { border-top-width: 0 !important; }
+/* title and status bar: the canvas and the panel edge to edge, between the bars */
+body.lay-titlebar #canvas-container, body.lay-statusbar #canvas-container {
+    margin: 0 !important; left: 0; top: var(--lay-top) !important; border-radius: 0 !important; box-shadow: none !important;
+}
+body.lay-titlebar #tweakpaneUiContainer, body.lay-statusbar #tweakpaneUiContainer {
+    margin: 0 !important; bottom: var(--lay-bottom) !important; height: auto !important; max-height: none !important;
+    right: var(--mb-width, 44px) !important;
+    background: var(--tp-base-background-color, #fff); box-sizing: border-box;
+    border-radius: 0 !important;
+}
+body.lay-titlebar #tweakpaneUiContainer .tp-rotv, body.lay-statusbar #tweakpaneUiContainer .tp-rotv { border-radius: 0 !important; box-shadow: none !important; }
+/* no "Configuration" title: the mode bar names the open mode and hides the panel */
+body.lay-frame #tweakpaneUiContainer .tp-rotv_b { display: none !important; }
+body.lay-titlebar .mb-root, body.lay-statusbar .mb-root { top: var(--lay-top); bottom: var(--lay-bottom); }
+body.lay-frame #mcanvas { border-radius: 0 !important; }
+/* floating: the panel and the mode bar are cards with the same gap on every side */
+body.lay-floating #canvas-container { margin: 0 !important; box-shadow: none !important; }
+body.lay-floating .mb-root { top: var(--lay-gap); bottom: var(--lay-gap); right: var(--lay-gap); border-radius: 8px; border: 0; box-shadow: var(--lay-card-shadow); }
+body.lay-floating #tweakpaneUiContainer {
+    margin: 0 !important; bottom: var(--lay-gap) !important; height: auto !important; max-height: none !important;
+    right: calc(var(--mb-width, 44px) + 2 * var(--lay-gap)) !important;
+    border-radius: 8px; background: var(--tp-base-background-color, #fff); box-shadow: var(--lay-card-shadow);
+}
+body.lay-floating #tweakpaneUiContainer .tp-rotv { box-shadow: none !important; }
+
+/* a wide or a landscape window: the canvas, then the panel, then the mode bar, side by side */
+@media only screen and (min-width: 920px), only screen and (orientation: landscape) {
     body.lay-titlebar #canvas-container, body.lay-statusbar #canvas-container {
-        margin: 0 !important; left: 0; top: var(--lay-top) !important; border-radius: 0 !important; box-shadow: none !important;
         height: calc(100% - var(--lay-top) - var(--lay-bottom)) !important;
         width: calc(100% - var(--mb-width, 44px) - var(--tweakpane-ui-container-width, 300px)) !important;
     }
     body.lay-titlebar.mb-panel-hidden #canvas-container, body.lay-statusbar.mb-panel-hidden #canvas-container { width: calc(100% - var(--mb-width, 44px)) !important; }
     body.lay-titlebar #tweakpaneUiContainer, body.lay-statusbar #tweakpaneUiContainer {
-        margin: 0 !important; top: var(--lay-top) !important; bottom: var(--lay-bottom) !important; height: auto !important; max-height: none !important;
-        right: var(--mb-width, 44px) !important; width: var(--tweakpane-ui-container-width, 300px) !important;
-        background: var(--tp-base-background-color, #fff); border-left: 1px solid var(--tp-container-border-color, #e6e6e6); box-sizing: border-box;
-        border-radius: 0 !important;
+        top: var(--lay-top) !important; width: var(--tweakpane-ui-container-width, 300px) !important;
+        border-left: 1px solid var(--tp-container-border-color, #e6e6e6);
     }
-    body.lay-titlebar #tweakpaneUiContainer .tp-rotv, body.lay-statusbar #tweakpaneUiContainer .tp-rotv { border-radius: 0 !important; box-shadow: none !important; }
-    /* no "Configuration" title: the mode bar names the open mode and hides the panel */
-    body.lay-frame #tweakpaneUiContainer .tp-rotv_b { display: none !important; }
-    body.lay-titlebar .mb-root, body.lay-statusbar .mb-root { top: var(--lay-top); bottom: var(--lay-bottom); }
-    body.lay-frame #mcanvas { border-radius: 0 !important; }
 
-    /* floating: the canvas fills the window, the panel and the mode bar are cards with the same gap on every side */
+    /* floating: the canvas fills the window, the cards float over it */
     body.lay-floating #canvas-container {
-        margin: 0 !important; inset: 0 !important; width: 100% !important; height: 100% !important; border-radius: 0 !important; box-shadow: none !important;
+        inset: 0 !important; width: 100% !important; height: 100% !important; border-radius: 0 !important;
         --lay-right-inset: calc(var(--tweakpane-ui-container-width, 300px) + var(--mb-width, 44px) + 3 * var(--lay-gap));
     }
     body.lay-floating.mb-panel-hidden #canvas-container { --lay-right-inset: calc(var(--mb-width, 44px) + 2 * var(--lay-gap)); }
     /* the buttons on the right of the canvas keep to the part that the panels do not cover */
     body.lay-floating #fsToggle, body.lay-floating .util-buttons-container { right: calc(var(--lay-right-inset) + 1.25rem - var(--lay-gap)) !important; }
-    body.lay-floating .mb-root { top: var(--lay-gap); bottom: var(--lay-gap); right: var(--lay-gap); border-radius: 8px; border: 0; box-shadow: var(--lay-card-shadow); }
-    body.lay-floating #tweakpaneUiContainer {
-        margin: 0 !important; top: var(--lay-gap) !important; bottom: var(--lay-gap) !important; height: auto !important; max-height: none !important;
-        right: calc(var(--mb-width, 44px) + 2 * var(--lay-gap)) !important; width: var(--tweakpane-ui-container-width, 300px) !important;
-        border-radius: 8px; background: var(--tp-base-background-color, #fff); box-shadow: var(--lay-card-shadow);
+    body.lay-floating #tweakpaneUiContainer { top: var(--lay-gap) !important; width: var(--tweakpane-ui-container-width, 300px) !important; }
+}
+
+/* a narrow portrait window (a phone): the canvas on top, the panel below it, the mode bar on the right; the panel takes
+   the rest of the height under the canvas (--lay-split: the part of the height for the canvas), so the tool bar of the
+   canvas never covers it. When the panel is hidden, the canvas takes its room. */
+@media only screen and (max-width: 919.98px) and (orientation: portrait) {
+    body.lay-frame { --lay-split: 0.45; }
+    body.lay-titlebar #canvas-container, body.lay-statusbar #canvas-container {
+        width: calc(100% - var(--mb-width, 44px)) !important;
+        height: calc((100% - var(--lay-top) - var(--lay-bottom)) * var(--lay-split)) !important;
     }
-    body.lay-floating #tweakpaneUiContainer .tp-rotv { box-shadow: none !important; }
+    body.lay-titlebar.mb-panel-hidden #canvas-container, body.lay-statusbar.mb-panel-hidden #canvas-container { height: calc(100% - var(--lay-top) - var(--lay-bottom)) !important; }
+    body.lay-titlebar #tweakpaneUiContainer, body.lay-statusbar #tweakpaneUiContainer {
+        top: calc(var(--lay-top) + (100% - var(--lay-top) - var(--lay-bottom)) * var(--lay-split)) !important; left: 0; width: auto !important;
+        border-top: 1px solid var(--tp-container-border-color, #e6e6e6);
+    }
+
+    /* floating: the canvas is a card too, above the panel card */
+    body.lay-floating #canvas-container {
+        inset: var(--lay-gap) auto auto var(--lay-gap) !important; border-radius: 8px !important;
+        width: calc(100% - var(--mb-width, 44px) - 3 * var(--lay-gap)) !important;
+        height: calc((100% - 3 * var(--lay-gap)) * var(--lay-split)) !important;
+    }
+    body.lay-floating.mb-panel-hidden #canvas-container { height: calc(100% - 2 * var(--lay-gap)) !important; }
+    body.lay-floating #mcanvas { border-radius: 8px !important; }
+    body.lay-floating #tweakpaneUiContainer {
+        top: calc(2 * var(--lay-gap) + (100% - 3 * var(--lay-gap)) * var(--lay-split)) !important; left: var(--lay-gap); width: auto !important;
+    }
 }
