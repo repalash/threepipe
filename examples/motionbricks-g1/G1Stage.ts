@@ -105,16 +105,17 @@ export const STAGE_STYLES = {
         sky: ['#f4f5f6', '#f4f5f6'],
         floor: {kind: 'plain', color: '#efeeeb', roughness: 0.92},
         environment: '',
-        environmentIntensity: 1.15,
-        fog: {color: '#f4f5f6', near: 18, far: 52},
+        environmentIntensity: 0.8,
+        fog: {color: '#f4f5f6', near: 16, far: 46},
         lights: [
-            {color: '#fff3df', intensity: 3.4, offset: [5, 11, 3.5], shadow: true},
-            {color: '#cfdcff', intensity: 0.55, offset: [-4, 5, -6]},
+            // A low warm sun for long, crisp shadows, and a faint cool sky from the other side.
+            {color: '#fff1d9', intensity: 4.2, offset: [7, 8, 2.5], shadow: true},
+            {color: '#c9d8ff', intensity: 0.45, offset: [-4, 5, -6]},
         ],
         effects: {ssgi: 1.6, ssr: 0, contact: 0.9, bloom: 0.18},
         blocks: {
             seed: 64,
-            plaza: 9,
+            plaza: 8,
             extent: 34,
             base: {color: '#f2f1ee', roughness: 0.7},
             accents: [
@@ -125,8 +126,8 @@ export const STAGE_STYLES = {
                 {color: '#f2a531', roughness: 0.5, weight: 0.8},
             ],
         },
-        camera: {fov: 30, offset: [7.2, 6.4, 9.6]},
-        shadowFrustum: 14,
+        camera: {fov: 30, offset: [4.4, 3.4, 6]},
+        shadowFrustum: 32,
     },
     research: {
         label: 'Research viewer',
@@ -224,6 +225,13 @@ function blockCityGeometries(city: BlockCity) {
     const box = (x: number, z: number, w: number, d: number, y: number, h: number, material: number) => {
         // A hair smaller than the grid, so neighbouring cubes show a seam.
         parts[material].push(new BoxGeometry(w - 0.04, h - 0.02, d - 0.04).translate(x + w / 2, y + h / 2, z + d / 2))
+    }
+    // Mirror's Edge runner marks across the plaza: thin strips of the first accent, flush with the floor.
+    for (let i = 0; i < 3; i++) {
+        const a = rand() * Math.PI, offset = (rand() - 0.5) * city.plaza
+        const length = city.plaza * (1.2 + rand() * 0.6)
+        parts[1].push(new BoxGeometry(length, 0.012, 0.22)
+            .translate(0, 0.006, offset).rotateY(a))
     }
     const clusters = Math.round(city.extent * city.extent * 0.11)
     for (let c = 0; c < clusters; c++) {
