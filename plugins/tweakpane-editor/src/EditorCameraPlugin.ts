@@ -83,8 +83,11 @@ export class EditorCameraPlugin extends AViewerPluginSync {
     @uiToggle('Enabled')
         enabled = true
 
-    /** The editor camera. It is never saved. */
-    readonly camera = new PerspectiveCamera2('orbit')
+    /**
+     * The editor camera. It is never saved.
+     * Its orbit controls are made in {@link onAdded}, on the canvas of the viewer.
+     */
+    readonly camera = new PerspectiveCamera2()
 
     /**
      * The controls of the editor camera, set each time it becomes the main camera.
@@ -135,7 +138,7 @@ export class EditorCameraPlugin extends AViewerPluginSync {
         const c = this.camera
         c.name = 'Editor camera'
         c.userData.disableWidgets = true
-        // made without a canvas, so the aspect does not follow it by itself
+        // made without a canvas (it gets the viewer canvas in onAdded), so the aspect does not follow it by itself
         c.autoAspect = true
         // the ground's camera limit is for visitors
         c.userData.disableGroundLimit = true
@@ -155,6 +158,10 @@ export class EditorCameraPlugin extends AViewerPluginSync {
 
     onAdded(viewer: ThreeViewer) {
         super.onAdded(viewer)
+        // the orbit controls listen on the viewer canvas. A camera made with them and without a canvas makes them on
+        // document.body (which then gets a tabIndex)
+        this.camera.setCanvas(viewer.canvas, false)
+        if (!this.camera.controlsMode) this.camera.controlsMode = 'orbit'
         // not addObject: the camera is not a scene object (no addSceneObject event, not in the model root, not saved)
         // eslint-disable-next-line deprecation/deprecation
         viewer.scene.add(this.camera)

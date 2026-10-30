@@ -2,10 +2,11 @@ import {describe, expect, test, vi} from 'vitest'
 import {EventDispatcher, Object3D, PerspectiveCamera, Vector3} from 'three'
 import {EditorCameraPlugin} from '../../plugins/tweakpane-editor/src/EditorCameraPlugin'
 
-// the editor camera makes its orbit controls on document.body, which the node setup does not have
-const doc = globalThis.document as any
-const listeners = {addEventListener: () => {}, removeEventListener: () => {}}
-if (!doc.body?.addEventListener) doc.body = {style: {}, ...listeners, getRootNode: () => listeners}
+// a viewer canvas for the orbit controls of the editor camera (the node setup has no DOM)
+function makeCanvas() {
+    const listeners = {addEventListener: () => {}, removeEventListener: () => {}}
+    return {style: {}, tabIndex: 0, ownerDocument: globalThis.document, ...listeners, getRootNode: () => listeners} as any
+}
 
 // a viewer config with a start view, as a file brings it
 const viewerConfig = {assetType: 'config', type: 'ThreeViewer', scene: {defaultCamera: {}}}
@@ -33,6 +34,7 @@ function setup({undo = true} = {}) {
     const undoPlugin = {undoManager: {record: (r: any) => records.push(r)}}
     const viewer = Object.assign(new EventDispatcher<any>(), {
         scene,
+        canvas: makeCanvas(),
         assetManager: new EventDispatcher<any>(),
         getPlugin: (p: any) => undo && (p === 'UndoManagerPlugin' || p?.PluginType === 'UndoManagerPlugin') ? undoPlugin : undefined,
     }) as any
@@ -46,6 +48,13 @@ function setup({undo = true} = {}) {
 describe('EditorCameraPlugin', () => {
     test('is not saved with the viewer config', () => {
         expect(new EditorCameraPlugin().serializeWithViewer).toBe(false)
+    })
+
+    test('the orbit controls of the editor camera are made on the viewer canvas, not before the add on document.body', () => {
+        const plugin = new EditorCameraPlugin()
+        expect(plugin.camera.controls).toBeUndefined()
+        const {plugin: added, viewer} = setup()
+        expect((added.camera.controls as any)?.domElement).toBe(viewer.canvas)
     })
 
     test('on add, the editor camera takes the start view and becomes the main camera', () => {
