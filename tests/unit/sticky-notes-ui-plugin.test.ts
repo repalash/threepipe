@@ -327,6 +327,21 @@ describe('StickyNotesUiPlugin', () => {
         expect(boxes(layer).slice(0, 6).map(([x, y]) => [x, y])).toEqual([[12, 12], [12, 174], [12, 336], [12, 498], [36, 36], [36, 198]])
     })
 
+    test('Arrange on a phone: the post-its are inside the canvas and above the dock; a full canvas starts again a little lower', () => {
+        const {notes, sticky, layer} = setup({}, phone)
+        for (let i = 0; i < 8; i++) notes.addNote(String(i))
+        drag(cards(layer)[0], 150, 400)
+        sticky.arrange()
+        // one column fits: 4 post-its (12, 174, 336, 498), then the column again 24 px right and down
+        const expected = [[12, 12], [12, 174], [12, 336], [12, 498], [36, 36], [36, 198], [36, 360], [36, 522]]
+        const order = state().order as string[]
+        expect(order.map(id => [state().board[id].x, state().board[id].y])).toEqual(expected)
+        for (const [x, y, w, h] of boxes(layer)) {
+            expect(x + w).toBeLessThanOrEqual(390)
+            expect(y + h).toBeLessThanOrEqual(804 - 12) // above the dock
+        }
+    })
+
     test('stack on a phone: the pile, with each new post-it on top, is inside the canvas and above the dock', () => {
         const {notes, sticky, layer} = setup({}, phone)
         sticky.layout = 'stack'

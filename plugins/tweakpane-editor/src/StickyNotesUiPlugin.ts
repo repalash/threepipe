@@ -241,22 +241,17 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         this._layoutCards(true)
     }
 
-    /** Puts the post-its of the board in columns from the top left corner, from the bottom one to the top one */
+    /**
+     * Puts the post-its of the board in columns from the top left corner, from the bottom one to the top one, inside
+     * the canvas and above the dock, as new post-its are placed
+     */
     arrange() {
         const board: Record<string, Box> = {}
-        const height = this.element.clientHeight || 600
-        let x = GAP, y = GAP, colW = 0
+        const size = this._size(), bottom = this._boardBottom(size)
+        const columns = new Map<number, Column>()
         for (const id of this._order()) {
             const old = this._state.board?.[id] ?? {}
-            const w = old.w ?? NOTE_W, h = old.h ?? NOTE_H
-            if (y > GAP && y + h > height - GAP) {
-                x += colW + GAP
-                y = GAP
-                colW = 0
-            }
-            board[id] = {...old, x, y}
-            y += h + GAP
-            colW = Math.max(colW, w)
+            board[id] = {...old, ...this._nextPlace(columns, size.width, bottom, old.w, old.h)}
         }
         this._state.board = board
         this._writeState()
@@ -425,8 +420,7 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
             })
         } else {
             const board = this._state.board ??= {}
-            // new post-its go above the dock
-            const bottom = Math.min(size.height, this.dock.offsetTop || size.height) - GAP
+            const bottom = this._boardBottom(size)
             let columns: Map<number, Column> | undefined
             order.forEach((id, i) => {
                 const c = this._cards.get(id)
@@ -440,6 +434,11 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
             })
             if (columns) this._writeState()
         }
+    }
+
+    /** The lowest edge of a post-it placed on the board: above the dock */
+    private _boardBottom(size: Size) {
+        return Math.min(size.height, this.dock.offsetTop || size.height) - GAP
     }
 
     /** The size of the canvas, in px */
@@ -638,22 +637,23 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
     }
 
     /**
-     * Where a new post-it goes on the board, inside the canvas and above `bottom`: below the lowest one in the first
-     * column with room, or a new column. When no column has room, the columns start again {@link LAYER_STEP} lower and
-     * to the right, over the others (a phone has room for one column); when that has no room either, the top left
-     * corner. `columns` ({@link _columns}) gets the new post-it, so the next one goes below it.
+     * Where a post-it of size `w` × `h` goes on the board (a new one, or one that "Arrange" places), inside the canvas
+     * and above `bottom`: below the lowest one in the first column with room, or a new column. When no column has
+     * room, the columns start again {@link LAYER_STEP} lower and to the right, over the others (a phone has room for
+     * one column); when that has no room either, the top left corner. `columns` ({@link _columns}) gets the post-it,
+     * so the next one goes below it.
      */
-    private _nextPlace(columns: Map<number, Column>, width: number, bottom: number): Box {
-        for (let o = 0; o === 0 || GAP + o + NOTE_W <= width - GAP; o += LAYER_STEP) {
+    private _nextPlace(columns: Map<number, Column>, width: number, bottom: number, w = NOTE_W, h = NOTE_H): Box {
+        for (let o = 0; o === 0 || GAP + o + w <= width - GAP; o += LAYER_STEP) {
             let x = GAP + o, col = columns.get(x)
-            while (col && col.bottom + NOTE_H > bottom) {
+            while (col && col.bottom + h > bottom) {
                 x += col.w + GAP
                 col = columns.get(x)
             }
-            if (x > GAP + o && x + NOTE_W > width - GAP) continue // no room for this column
-            const box = {x, y: col ? col.bottom : GAP + o}
-            this._addToColumn(columns, box)
-            return box
+            if (x > GAP + o && x + w > width - GAP) continue // no room for this column
+            const y = col ? col.bottom : GAP + o
+            this._addToColumn(columns, {x, y, w, h})
+            return {x, y}
         }
         return {x: GAP, y: GAP}
     }
