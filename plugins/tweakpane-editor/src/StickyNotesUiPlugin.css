@@ -72,6 +72,10 @@
     background: transparent linear-gradient(transparent 21px, var(--snp-line, transparent) 22px) 0 0 / 100% 22px local;
 }
 .snp-layer[data-color="theme"] .snp-card textarea { background-image: none; }
+/* a phone zooms in on a text field under 16px when it gets the cursor, and does not zoom out after */
+@media (pointer: coarse) {
+    .snp-card textarea { font-size: 16px; }
+}
 
 /* the buttons on the canvas */
 .snp-dock {

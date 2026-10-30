@@ -1,6 +1,7 @@
 import {afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi} from 'vitest'
 import {NoteItem, NotesPlugin} from '../../plugins/tweakpane-editor/src/NotesPlugin'
 import {StickyNotesUiPlugin} from '../../plugins/tweakpane-editor/src/StickyNotesUiPlugin'
+import {readFileSync} from 'node:fs'
 
 // the node setup has no DOM: a small element with what the post-its use
 class FakeElement {
@@ -538,6 +539,13 @@ describe('StickyNotesUiPlugin', () => {
         } finally {
             vi.useRealTimers()
         }
+    })
+
+    test('on a touch screen the text of a note is 16 px, so a phone does not zoom in when it gets the cursor', () => {
+        // the test setup leaves CSS imports empty: the file itself
+        const css = readFileSync(new URL('../../plugins/tweakpane-editor/src/StickyNotesUiPlugin.css', import.meta.url), 'utf8')
+        const touch = css.match(/@media \(pointer: coarse\)\s*{([^{}]*{[^{}]*})*\s*}/)?.[0] ?? ''
+        expect(touch).toMatch(/\.snp-card textarea\s*{[^}]*font-size:\s*16px/)
     })
 
     test('Show hides the layer; removing the plugin removes it', () => {

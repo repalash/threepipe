@@ -79,7 +79,7 @@ In both layouts:
 
 - "+ Note" adds a note at once, in the store of new notes, with the cursor in it. "▾" next to it picks another store.
 - The badge of a note shows its store; a click moves the note to another store.
-- Each note has "+ Context" (the time, `contextProvider` and the selected objects), "Copy" and "×". Escape leaves the note.
+- Each note has "+ Context" (the time, `contextProvider` and the selected objects), "Copy" and "×". Escape leaves the note. On a touch screen the text is 16 px, so a phone does not zoom in when the note gets the cursor.
 - Drag a post-it by its bar, and size it from its bottom right corner. A click on a post-it brings it up.
 - The buttons are `dock`, at the bottom left of the canvas. When that corner is taken, place it with its style, e.g. `sticky.dock.style.bottom = '64px'`.
 
