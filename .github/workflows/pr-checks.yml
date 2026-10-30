@@ -1,0 +1,51 @@
+# Builds and tests every pull request: unit tests, the core, plugins and examples (turbo, cached), the built
+# bundles (scripts/check-bundles.mjs) and the published declarations as a consumer sees them.
+# Pushes to dev run it too, so pull requests into dev start from its turbo cache.
+
+name: PR checks
+
+on:
+  pull_request:
+  push:
+    branches: ["dev"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A new push to the same pull request cancels the run that is still going
+concurrency:
+  group: pr-checks-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  TURBO_TELEMETRY_DISABLED: 1
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22' # same as the other workflows; vite 8 needs ^20.19 or >=22.12
+          cache: 'npm'
+      - run: npm ci # also prints the help (prepare), builds nothing
+      - name: Unit tests
+        run: npm run test:unit
+      - name: Restore the turbo cache
+        uses: actions/cache@v4
+        with:
+          path: .turbo/cache
+          key: turbo-${{ runner.os }}-${{ github.sha }}
+          restore-keys: turbo-${{ runner.os }}-
+      - name: Build the core, plugins and examples
+        run: npm run build:all
+      - name: Check the bundles (imports, packages bundled twice)
+        run: npm run check-bundles
+      - name: Check the published declarations as a consumer
+        run: npm run test:types
+      - name: Prune the turbo cache # entries older than a week (a hit does not renew them), else the saved cache only grows
+        if: always()
+        run: find .turbo/cache -type f -mtime +7 -delete 2>/dev/null || true

@@ -12,10 +12,21 @@ All notable changes to this project will be documented in this file.
 - `CameraViewPlugin.recordAllViews()` (and its UI button) records the animation through all the camera views with the `CanvasRecorderPlugin`
 - `ProgressivePlugin.postFrameConvergedRecordingDelta()` returns the recording delta of a `CanvasRecorderPlugin` (it was a stub that returned -1)
 
+### Changed
+
+- CI: every pull request runs `.github/workflows/pr-checks.yml` (unit tests, `build:all` with the turbo cache, `npm run check-bundles` and `test:types`). `scripts/check-bundles.mjs` fails on an import in a built bundle that is not declared (a bare `three` in a plugin) and on a package bundled twice (two Reacts in blueprintjs)
+- Repository setup: the core and the packages in `plugins/` are now one npm workspace, installed by a single `npm install` (one `package-lock.json`, the per-plugin lockfiles are removed). `npm install` no longer builds anything; `npm start` runs the examples from source without a build, `npm run build:all` builds everything
+- Builds run through [Turborepo](https://turborepo.com) (`turbo.json`): the core and plugins build in parallel in dependency order and unchanged packages are restored from the cache. The pages workflow keeps the turbo cache between runs
+- Upgrade the build to Vite 8 (Rolldown and Oxc) and `@vitejs/plugin-react` 6. The published bundles keep the same declarations and bundled dependency versions; Vite 8 targets Chrome/Edge 111, Firefox 114 and Safari 16.4 by default (was Chrome/Edge 107, Firefox 104, Safari 16)
+- Vite configs are native ES modules (`import.meta.dirname`, JSON import attributes), with `rolldownOptions` in place of `rollupOptions`, and without the no-op `commonjsOptions` and the redundant `@rollup/plugin-json`
+- `lib/index.js` keeps its `@license` banner (the old minifier removed it)
+- Remove the obsolete `prepare`, `copy:inlines` and `postcompile:esm` scripts, `scripts/each-plugin.mjs`, `scripts/build-plugins.mjs`, `scripts/fix-inline-imports.mjs` and the unused `copyfiles`, `hexer` and `proper-lockfile` dev dependencies
+
 ### Fixed
 
 - `ViewerTimeline` read the recording delta in milliseconds, but it is in seconds, so the timeline advanced 1000x too slowly in a converge-mode recording
 - `GLTFAnimationPlugin` applies `animationSpeed` (and the scroll and drag factors) to the converge-mode recording step too; it replaced the speed-adjusted step, so with the recording delta now active a speed of 2 would record at half speed
+
 
 ## [0.6.0] - 2026-10-23
 
