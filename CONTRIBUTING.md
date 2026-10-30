@@ -72,8 +72,8 @@ To add a dependency to a plugin, run `npm install <package> -w plugins/<plugin-n
   package bundled twice from different `node_modules` folders (fix: `resolve.dedupe` in that plugin's vite config).
   After a cache restore, a stale file from an earlier build can remain in `dist/`; `npx turbo run build --force` rebuilds.
 
-Every pull request runs `.github/workflows/pr-checks.yml`: `npm ci`, `test:unit`, `build:all` (with the turbo cache),
-`check-bundles` and `test:types`.
+No workflow runs on pull requests. Before a pull request, run `test:unit`, and for build or dependency changes
+`build:all`, `check-bundles` and `test:types`.
 
 ## Building
 
