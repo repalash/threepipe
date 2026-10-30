@@ -253,6 +253,8 @@ if (selCoverage > 0.0) {
     /**
      * Renders one more frame, without a restart of the progressive render: the outline is drawn over the final image.
      * The mask is drawn again in that frame. The plugin calls it when the selection, the hover or a setting changes.
+     * Call it after a change of the selected objects that renders without a reset of the render (`viewer.setDirty()` and
+     * the `setDirty` of an object reset it), else the mask of the last change stays until the next reset.
      */
     redraw() {
         if (this._pass) this._pass.needsUpdate = true
@@ -341,7 +343,8 @@ if (selCoverage > 0.0) {
  *
  * The mask is kept between frames: the pass draws it in the first frame after a reset of the render (a change of the
  * scene or the camera), after {@link needsUpdate} is set, for another camera, or after a resize of the target. So the
- * frames of a progressive render do not draw the meshes again, and the mask is the one of the frame without jitter.
+ * frames of a progressive render do not draw the meshes again, and after a reset the mask is the one of the first
+ * frame, which the SSAAPlugin does not jitter.
  */
 export class SelectionMaskPass extends RenderPass implements IPipelinePass<'selectionMask'> {
     readonly passId = 'selectionMask'
