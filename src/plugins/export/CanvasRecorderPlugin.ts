@@ -140,16 +140,18 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
         viewer.addEventListener('postFrame', this._postFrame)
         viewer.scene.addEventListener('addSceneObject', this._refreshUi)
 
-        // add record indicator
+        // add record indicator (onRemove takes it out of the page)
         this._recordIndicator = document.createElement('div')
-        this._recordIndicator.style.width = '20px'
-        this._recordIndicator.style.height = '20px'
-        this._recordIndicator.style.backgroundColor = 'red'
-        this._recordIndicator.style.top = '10px'
-        this._recordIndicator.style.left = '10px'
-        this._recordIndicator.style.position = 'absolute'
-        this._recordIndicator.style.borderRadius = '100%'
-        this._recordIndicator.style.visibility = 'hidden'
+        Object.assign(this._recordIndicator.style, {
+            width: '20px',
+            height: '20px',
+            backgroundColor: 'red',
+            top: '10px',
+            left: '10px',
+            position: 'absolute',
+            borderRadius: '100%',
+            visibility: 'hidden',
+        })
         viewer.canvas.parentElement?.appendChild(this._recordIndicator)
 
         this.refreshRecorderOptions()
@@ -295,6 +297,9 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
         // a disposed recorder (an ended MP4 worker) is not used again: an add makes new ones
         this._recorders = {}
         this._recorder = undefined
+        // an add makes a new indicator
+        this._recordIndicator?.remove()
+        this._recordIndicator = undefined
         return super.onRemove(viewer)
     }
 
@@ -738,6 +743,11 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
         }
     }
 
+    /** A recorder event can come after a removal (a recording that a dispose stops): there is no indicator then */
+    private _showIndicator(visible: boolean) {
+        if (this._recordIndicator) this._recordIndicator.style.visibility = visible ? 'visible' : 'hidden'
+    }
+
     protected _getRecorder(type: 'ffmpeg.js' | 'canvas-media' | 'image') {
         if (!this._viewer) throw new Error('No viewer')
         if (this._recorders[type]) return this._recorders[type]
@@ -761,8 +771,7 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
         // todo: do we need to remove below listeners?
         recorder.addEventListener('starting', () => this._stateChange(false))
         recorder.addEventListener('recording', () => {
-            this._recordIndicator!.style.visibility = 'visible'
-            this._recordIndicator!.style.backgroundColor = 'red'
+            this._showIndicator(true)
             this.dispatchEvent({type: 'start'})
             this._stateChange(!this._convergeNow)
         })
@@ -770,7 +779,7 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
         recorder.addEventListener('error', () => {
             this._active = undefined
             if (this._optionsPending) this.refreshRecorderOptions()
-            this._recordIndicator!.style.visibility = 'hidden'
+            this._showIndicator(false)
             this.dispatchEvent({type: 'error'})
             this._stateChange(false)
         })
@@ -779,7 +788,7 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
         recorder.addEventListener('stopped', () => {
             this._active = undefined
             if (this._optionsPending) this.refreshRecorderOptions()
-            this._recordIndicator!.style.visibility = 'hidden'
+            this._showIndicator(false)
             this.dispatchEvent({type: 'stop'})
             this._stateChange(false)
         })

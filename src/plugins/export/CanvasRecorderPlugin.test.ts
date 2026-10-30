@@ -554,6 +554,36 @@ describe('recorder failure', () => {
     })
 })
 
+describe('record indicator', () => {
+    test('a removal takes the indicator out of the page, so an add again has one indicator', () => {
+        const parent = {
+            children: [] as any[],
+            appendChild(c: any) {
+                this.children.push(c)
+            },
+        }
+        vi.stubGlobal('document', {createElement: () => ({style: {}, remove(this: any) {
+            parent.children.splice(parent.children.indexOf(this), 1)
+        }})})
+        try {
+            const plugin = new CanvasRecorderPlugin() as any
+            plugin.refreshRecorderOptions = () => undefined // no recorder (an MP4 recorder starts a worker)
+            const listeners = {addEventListener: () => undefined, removeEventListener: () => undefined}
+            const viewer = {...listeners, renderManager: listeners, scene: listeners, canvas: {parentElement: parent}, console}
+            plugin.onAdded(viewer)
+            const rec = plugin._getRecorder('image')
+            plugin.onRemove(viewer)
+            expect(parent.children).toHaveLength(0)
+            // a recorder event after the removal (a recording that the dispose stops) finds no indicator
+            expect(() => rec.setState('stopped')).not.toThrow()
+            plugin.onAdded(viewer)
+            expect(parent.children).toHaveLength(1)
+        } finally {
+            vi.unstubAllGlobals()
+        }
+    })
+})
+
 describe('converge mode hold', () => {
     test('each still loop of a converged scene adds one frame, as the animations step one frame per loop', () => {
         const {plugin, progressive} = setup() // converge mode, the scene is converged
