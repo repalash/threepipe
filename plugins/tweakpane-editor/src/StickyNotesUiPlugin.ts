@@ -53,6 +53,8 @@ interface NoteCard {
     bar: HTMLDivElement
     badge: HTMLButtonElement
     text: HTMLTextAreaElement
+    /** The store of the note when it was last shown: a change is a move */
+    store: string
     /** The size given to the post-it, to tell it from a size the person gives it from its corner */
     size: [number, number]
 }
@@ -258,6 +260,12 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
     }
 
     private _onNotesChanged = (e: {change: string, note?: NoteItem}) => {
+        const c = e.change === 'update' && e.note ? this._cards.get(e.note.id) : undefined
+        if (c) {
+            // typing: only its post-it changes; a move to another store can change the order of the pile
+            if (this._showNote(c, e.note!)) this._layoutCards(false)
+            return
+        }
         if (e.change === 'remove' && this._state.board) {
             // a removed note forgets its place; notes that are not loaded yet keep theirs
             const ids = new Set(this._notes?.notes.map(n => n.id))
@@ -267,8 +275,8 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         this._sync(e.change === 'add' ? e.note?.id : undefined)
     }
 
-    private _onStatus = () => {
-        for (const c of this._cards.values()) this._updateBadge(c)
+    private _onStatus = (e: {store: string}) => {
+        for (const c of this._cards.values()) if (c.note.store === e.store) this._updateBadge(c)
     }
 
     private _onResize = () => this._layoutCards(false)
@@ -294,21 +302,29 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
                 this.element.insertBefore(c.card, this.dock)
                 if (note.id === added) c.card.classList.add('snp-new')
             }
-            c.note = note
-            // a change by the app (typing gives the same text): shown also while the note is typed in, cursor kept
-            if (c.text.value !== note.text) {
-                const t = c.text, focused = document.activeElement === t, from = t.selectionStart, to = t.selectionEnd
-                t.value = note.text
-                if (focused && from !== null) {
-                    t.selectionStart = Math.min(from, note.text.length)
-                    t.selectionEnd = Math.min(to ?? from, note.text.length)
-                }
-            }
-            this._updateBadge(c)
+            this._showNote(c, note)
         }
         // a note made now goes on top
         if (added) this._state.order = [...this._order().filter(o => o !== added), added]
         this._layoutCards(!!added)
+    }
+
+    /** Shows the text and the store of a note on its post-it. Returns true when the note moved to another store. */
+    private _showNote(c: NoteCard, note: NoteItem) {
+        const moved = c.store !== note.store
+        c.note = note
+        c.store = note.store
+        // a change by the app (typing gives the same text): shown also while the note is typed in, cursor kept
+        if (c.text.value !== note.text) {
+            const t = c.text, focused = document.activeElement === t, from = t.selectionStart, to = t.selectionEnd
+            t.value = note.text
+            if (focused && from !== null) {
+                t.selectionStart = Math.min(from, note.text.length)
+                t.selectionEnd = Math.min(to ?? from, note.text.length)
+            }
+        }
+        this._updateBadge(c)
+        return moved
     }
 
     /** The note ids from the bottom to the top, with the notes not in the stored order on top */
@@ -394,7 +410,7 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         const bar = el('div', 'snp-bar')
         const badge = el('button', 'snp-badge') as HTMLButtonElement
         const text = el('textarea', '') as HTMLTextAreaElement
-        const c: NoteCard = {note, card, bar, badge, text, size: [NOTE_W, NOTE_H]}
+        const c: NoteCard = {note, card, bar, badge, text, store: note.store, size: [NOTE_W, NOTE_H]}
         badge.addEventListener('click', () => this._openMenu(badge, 'Keep in', id => this._notes?.updateNote(c.note.id, {store: id}), c.note.store))
         bar.appendChild(badge)
         bar.appendChild(el('span', 'snp-fill'))
@@ -440,11 +456,13 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         return this._notes?.getStore(store)?.label ?? store
     }
 
+    /** Shows the store of the note and its state on the badge; writes to the page only what changed */
     private _updateBadge(c: NoteCard) {
-        const status = this._notes?.storeStatus(c.note.store)
-        c.badge.textContent = this._storeLabel(c.note.store)
+        const status = this._notes?.storeStatus(c.note.store) ?? '', label = this._storeLabel(c.note.store)
+        if (c.badge.textContent === label && c.badge.dataset.status === status) return
+        c.badge.textContent = label
         c.badge.title = 'Where the note is kept' + (status === 'error' ? ': it could not be saved or loaded' : '') + '. Click to move it.'
-        c.badge.dataset.status = status ?? ''
+        c.badge.dataset.status = status
     }
 
     /**

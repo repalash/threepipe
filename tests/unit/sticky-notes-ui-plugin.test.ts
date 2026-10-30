@@ -207,6 +207,24 @@ describe('StickyNotesUiPlugin', () => {
         expect(cards(layer)).toHaveLength(0)
     })
 
+    test('typing changes only its post-it; a move to another store lays the post-its out again', () => {
+        const {notes, layer} = setup()
+        notes.addNote('a')
+        notes.addNote('b')
+        const [ca, cb] = cards(layer)
+        cb.style.left = 'untouched'
+        cb.find('snp-badge')[0].title = 'untouched'
+        const box = text(ca)
+        box.value = 'a, typed'
+        box.fire('input')
+        expect(notes.notes[0].text).toBe('a, typed')
+        expect([cb.style.left, cb.find('snp-badge')[0].title]).toEqual(['untouched', 'untouched'])
+
+        notes.updateNote(notes.notes[0].id, {store: 'browser'})
+        expect(ca.find('snp-badge')[0].textContent).toBe('This browser')
+        expect(cb.style.left).toBe('12px')
+    })
+
     test('a change of the text by the app shows in the note being typed in, with the cursor kept', () => {
         const {notes, layer} = setup()
         const n = notes.addNote('typed')
