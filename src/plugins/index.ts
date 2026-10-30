@@ -63,6 +63,7 @@ export {TonemapPlugin} from './postprocessing/TonemapPlugin'
 export {VignettePlugin} from './postprocessing/VignettePlugin'
 export {ChromaticAberrationPlugin} from './postprocessing/ChromaticAberrationPlugin'
 export {FilmicGrainPlugin} from './postprocessing/FilmicGrainPlugin'
+export {LUTPlugin} from './postprocessing/LUTPlugin'
 
 // animation
 export {GLTFAnimationPlugin} from './animation/GLTFAnimationPlugin'
@@ -75,6 +76,10 @@ export {AnimationObjectPlugin, type AnimationObjectPluginEventMap} from './anima
 export {ClearcoatTintPlugin, clearCoatTintGLTFExtension} from './material/ClearcoatTintPlugin'
 export {NoiseBumpMaterialPlugin, noiseBumpMaterialGLTFExtension} from './material/NoiseBumpMaterialPlugin'
 export {CustomBumpMapPlugin, customBumpMapGLTFExtension} from './material/CustomBumpMapPlugin'
+export {MultiLayerRoughnessPlugin, multiLayerRoughnessGLTFExtension} from './material/MultiLayerRoughnessPlugin'
+export type {MultiLayerRoughnessLayer, MultiLayerRoughnessBlendMode} from './material/MultiLayerRoughnessPlugin'
+export {RoughnessMaskPlugin} from './material/RoughnessMaskPlugin'
+export type {RoughnessMaskChannel} from './material/RoughnessMaskPlugin'
 export {ParallaxMappingPlugin} from './material/ParallaxMappingPlugin'
 export {FragmentClippingExtensionPlugin, FragmentClippingMode, fragmentClippingGLTFExtension} from './material/FragmentClippingExtensionPlugin'
 

@@ -42,6 +42,7 @@ export default defineConfig({
           {text: 'Plugin System', link: 'guide/plugin-system'},
           {text: 'Material Extension', link: 'guide/material-extension'},
           {text: 'Screen Pass Shaders', link: 'guide/screen-pass'},
+          {text: 'Publishing', link: 'guide/publishing'},
         ]
       },
       {
@@ -73,6 +74,8 @@ export default defineConfig({
               {text: 'KTXLoadPlugin', link: 'plugin/KTXLoadPlugin'},
               {text: 'USDZLoadPlugin', link: 'plugin/USDZLoadPlugin'},
               {text: 'GLTFMeshOptDecodePlugin', link: 'plugin/GLTFMeshOptDecodePlugin'},
+              {text: 'LUTCubeLoader2', link: 'plugin/LUTCubeLoader2'},
+              {text: 'TextureLoader2', link: 'plugin/TextureLoader2'},
             ],
           },
           {
@@ -82,6 +85,7 @@ export default defineConfig({
               {text: 'VignettePlugin', link: 'plugin/VignettePlugin'},
               {text: 'ChromaticAberrationPlugin', link: 'plugin/ChromaticAberrationPlugin'},
               {text: 'FilmicGrainPlugin', link: 'plugin/FilmicGrainPlugin'},
+              {text: 'LUTPlugin', link: 'plugin/LUTPlugin'},
             ],
           },
           {
@@ -148,6 +152,7 @@ export default defineConfig({
               {text: 'NoiseBumpMaterialPlugin', link: 'plugin/NoiseBumpMaterialPlugin'},
               {text: 'CustomBumpMapPlugin', link: 'plugin/CustomBumpMapPlugin'},
               {text: 'ClearcoatTintPlugin', link: 'plugin/ClearcoatTintPlugin'},
+              {text: 'MultiLayerRoughnessPlugin', link: 'plugin/MultiLayerRoughnessPlugin'},
               {text: 'FragmentClippingExtensionPlugin', link: 'plugin/FragmentClippingExtensionPlugin'},
               {text: 'ParallaxMappingPlugin', link: 'plugin/ParallaxMappingPlugin'},
             ],
@@ -215,6 +220,7 @@ export default defineConfig({
           {text: 'Configurator Plugins', link: 'package/plugin-configurator'},
           {text: 'Geometry Generator Plugin', link: 'package/plugin-geometry-generator'},
           {text: 'glTF Transform Plugin', link: 'package/plugin-gltf-transform'},
+          {text: 'Draco.js Decode Plugin', link: 'package/plugin-draco-js'},
           {text: 'Extra Importers Plugins', link: 'package/plugins-extra-importers'},
           {text: 'Network Plugin', link: 'package/plugin-network'},
           {text: 'Blend Importer Plugin', link: 'package/plugin-blend-importer'},

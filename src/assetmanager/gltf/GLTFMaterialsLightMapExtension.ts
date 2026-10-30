@@ -87,7 +87,7 @@ class GLTFMaterialsLightMapExtensionExport {
 
     writeMaterial(material: MeshStandardMaterial, materialDef: any) {
 
-        if (!material.isMeshStandardMaterial || material.lightMapIntensity === 0) return
+        if (!material.isMeshStandardMaterial || material.lightMapIntensity === 0 && !material.lightMap) return
 
         const writer = this.writer
         const extensionsUsed = writer.extensionsUsed

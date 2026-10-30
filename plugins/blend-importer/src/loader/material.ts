@@ -110,26 +110,58 @@ function applyWrap(tex: Texture | null, imageNode: any): Texture | null {
     tex.needsUpdate = true
     return tex
 }
-function imageNodeTexture(imageNode: any, srgb: boolean, ctx: Ctx): Texture | null {
+// Apply a Mapping node feeding the Image Texture's "Vector" input to the texture's UV transform. Blender's
+// Mapping (Point) composes scale → rotate → translate(location) around the origin, which is exactly three.js's
+// UV matrix (repeat → rotation → offset, center 0): repeat = Scale.xy, offset = Location.xy, rotation =
+// Rotation.z. Previously the Mapping node was ignored, so tiled/offset/rotated materials rendered at 1:1.
+function applyMapping(tex: Texture | null, imageNode: any, links: any[]): Texture | null {
+    if (!tex || !links) return tex
+    const src = nodeFeeding(links, socketByName(inputsOf(imageNode), 'Vector'))
+    if (!src || !idnameOf(src).includes('Mapping')) return tex
+    const inp = inputsOf(src)
+    const scl = socketConst(socketByName(inp, 'Scale')), loc = socketConst(socketByName(inp, 'Location')), rot = socketConst(socketByName(inp, 'Rotation'))
+    if (scl && scl.length >= 2) tex.repeat.set(num(scl[0]) ?? 1, num(scl[1]) ?? 1)
+    if (loc && loc.length >= 2) tex.offset.set(num(loc[0]) ?? 0, num(loc[1]) ?? 0)
+    if (rot && rot.length >= 3) tex.rotation = num(rot[2]) ?? 0
+    tex.needsUpdate = true
+    return tex
+}
+function imageNodeTexture(imageNode: any, srgb: boolean, ctx: Ctx, links: any[] = []): Texture | null {
     const packed = packedTexture(imageNode, srgb)
-    if (packed) return applyWrap(packed, imageNode)
+    if (packed) return applyMapping(applyWrap(packed, imageNode), imageNode, links)
     const img = imageNode && imageNode.id
     if (img && img.source !== IMA_SRC_GENERATED && img.source !== IMA_SRC_VIEWER
         && typeof img.name === 'string' && img.name && ctx.loadExternalTexture) {
-        return applyWrap(ctx.loadExternalTexture(img.name, srgb), imageNode)
+        return applyMapping(applyWrap(ctx.loadExternalTexture(img.name, srgb), imageNode), imageNode, links)
     }
     return null
 }
-// The Image Texture node feeding a socket (directly, or through a Normal Map node for normals), or null.
-function imageNodeFeeding(links: any[], socket: any): any {
-    let src = nodeFeeding(links, socket)
-    if (src && idnameOf(src).includes('NormalMap')) src = nodeFeeding(links, socketByName(inputsOf(src), 'Color'))
-    return src && idnameOf(src).includes('TexImage') ? src : null
+// Pass-through nodes whose linked inputs we follow when hunting for the Image Texture feeding a socket.
+// (The exporter's get_texture_node_from_socket walks the graph; these cover the common colour/value relays:
+// Normal Map, Separate Color/RGB/XYZ, Mix/MixRGB, Math/MapRange, Gamma/Bright-Contrast/Hue-Sat/Invert/Curves,
+// Color Ramp.) Tracing through Separate Color back to a packed ORM image and assigning it as
+// roughnessMap/metalnessMap is correct because three.js samples roughness from .g and metalness from .b.
+const PASS_THROUGH_NODES = ['NormalMap', 'SeparateColor', 'SeparateRGB', 'SeparateXYZ', 'MixRGB', 'Mix',
+    'Math', 'MapRange', 'Gamma', 'BrightContrast', 'HueSaturation', 'Invert', 'RGBCurve', 'CurveRGB', 'ValToRGB']
+
+// The Image Texture node feeding a socket — directly, or through the pass-through relays above (recursively).
+// Was: only hopped a single Normal Map node, so packed-ORM, mix and group-relayed textures were missed.
+function imageNodeFeeding(links: any[], socket: any, depth = 0): any {
+    if (depth > 10) return null
+    const src = nodeFeeding(links, socket)
+    if (!src) return null
+    const id = idnameOf(src)
+    if (id.includes('TexImage')) return src
+    if (!PASS_THROUGH_NODES.some(p => id.includes(p))) return null // unknown node → stop (don't grab a stray image)
+    for (const link of links) {
+        if (link.tonode === src) { const r = imageNodeFeeding(links, link.tosock, depth + 1); if (r) return r }
+    }
+    return null
 }
 // Trace a socket to its Image Texture node and load it.
 function textureFromSocket(links: any[], socket: any, srgb: boolean, ctx: Ctx): Texture | null {
     const src = imageNodeFeeding(links, socket)
-    return src ? imageNodeTexture(src, srgb, ctx) : null
+    return src ? imageNodeTexture(src, srgb, ctx, links) : null
 }
 
 // ── Surface shader resolution ───────────────────────────────────────
@@ -180,7 +212,7 @@ export function createMaterial(mat: any, ctx: Ctx) {
         // Base color: texture takes precedence; factor (clamped) otherwise. (pbr_metallic_roughness.py:73)
         const baseSock = socketByName(inp, 'Base Color', 'BaseColor')
         const baseImgNode = imageNodeFeeding(links, baseSock)
-        const baseTex = baseImgNode ? imageNodeTexture(baseImgNode, true, ctx) : null
+        const baseTex = baseImgNode ? imageNodeTexture(baseImgNode, true, ctx, links) : null
         if (baseTex) {
             material.map = baseTex
             material.color.setRGB(1, 1, 1)
@@ -225,7 +257,7 @@ export function createMaterial(mat: any, ctx: Ctx) {
         // (three.js samples alphaMap.g), giving wrong cutouts — so only use a distinct alphaMap when the
         // alpha image differs from the base image.
         const alphaFromBase = !!(alphaImgNode && baseImgNode && alphaImgNode === baseImgNode)
-        const alphaTex = (alphaImgNode && !alphaFromBase) ? imageNodeTexture(alphaImgNode, false, ctx) : null
+        const alphaTex = (alphaImgNode && !alphaFromBase) ? imageNodeTexture(alphaImgNode, false, ctx, links) : null
         const alphaC = num(socketConst(alphaSock))
         const hasAlpha = !!alphaTex || alphaFromBase || (alphaC !== undefined && alphaC < 1.0)
         if (alphaTex) material.alphaMap = alphaTex

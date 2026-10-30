@@ -90,6 +90,84 @@ function readFaceMaterialIndex(meshData: any, faceCount: number): number[] | nul
     }
     return null
 }
+// Per-face flat-shading flag — Blender's `sharp_face` bool attribute (Face domain; default false = smooth;
+// the inverted legacy `ME_SMOOTH`). A face with sharp_face=true is flat-shaded (all its corners take the
+// face normal). Stored exactly like `material_index`: a `pdata` CD_PROP_BOOL layer in 4.x, or an
+// `attribute_storage` Bool attribute in 5.0. Returns null when absent → caller keeps the smooth path.
+const ATTR_TYPE_BOOL = 50 // CD_PROP_BOOL
+function readFaceSharp(meshData: any, faceCount: number): boolean[] | null {
+    const toBool = (e: any) => !!((e && typeof e === 'object') ? (e.i ?? e.value ?? e.b ?? 0) : e)
+    // 4.x / legacy: named pdata layer.
+    const pd = meshData.pdata
+    if (pd && pd.layers && pd.totlayer) {
+        for (let i = 0; i < pd.totlayer; i++) {
+            const l = getLayer(pd.layers, i)
+            if (l && l.name === 'sharp_face' && l.data) {
+                const data = Array.isArray(l.data) ? l.data : (l.data.length !== undefined ? Array.from(l.data) : null)
+                if (!data) break
+                const out = new Array(faceCount)
+                for (let f = 0; f < faceCount; f++) out[f] = toBool(data[f])
+                return out
+            }
+        }
+    }
+    // 5.0: attribute_storage Bool attribute on the Face domain.
+    const attr = findAttribute(getAttributes(meshData), 'sharp_face', ATTR_TYPE_BOOL)
+    if (attr && attrSize(attr) >= faceCount) {
+        const raw = readAttrArray(attr, Uint8Array, faceCount)
+        if (raw) { const out = new Array(faceCount); for (let f = 0; f < faceCount; f++) out[f] = !!raw[f]; return out }
+    }
+    return null
+}
+// Split a triangulated indexed geometry's normals per Blender's sharp_face: each flat face's corners take
+// its (area-weighted) face normal, smooth corners take the vertex normal averaged over SMOOTH faces only.
+// Vertices are welded by (original vertex, quantized normal) so smooth regions stay shared and seams split
+// at flat/smooth boundaries (the same weld pattern used for UV seams). Triangle order/count is preserved,
+// so existing material groups (index-offset ranges) stay valid. Mutates `geometry` in place.
+export function applySharpFaceNormals(geometry: any, ctx: Ctx, triFace: number[], sharpFace: boolean[]) {
+    const pos = geometry.attributes.position.array as Float32Array
+    const uv = geometry.attributes.uv ? geometry.attributes.uv.array as Float32Array : null
+    const index = geometry.index.array as Uint32Array | Uint16Array
+    const triCount = index.length / 3
+    const vCount = pos.length / 3
+    const faceN = new Map<number, number[]>()       // face -> accumulated (area-weighted) normal
+    const smoothVN = new Float32Array(vCount * 3)    // smooth-only per-vertex accumulation
+    for (let ti = 0; ti < triCount; ti++) {
+        const a = index[ti * 3], b = index[ti * 3 + 1], c = index[ti * 3 + 2]
+        const e1x = pos[b * 3] - pos[a * 3], e1y = pos[b * 3 + 1] - pos[a * 3 + 1], e1z = pos[b * 3 + 2] - pos[a * 3 + 2]
+        const e2x = pos[c * 3] - pos[a * 3], e2y = pos[c * 3 + 1] - pos[a * 3 + 1], e2z = pos[c * 3 + 2] - pos[a * 3 + 2]
+        const nx = e1y * e2z - e1z * e2y, ny = e1z * e2x - e1x * e2z, nz = e1x * e2y - e1y * e2x // area-weighted cross
+        const f = triFace[ti]
+        let fn = faceN.get(f); if (!fn) { fn = [0, 0, 0]; faceN.set(f, fn) }
+        fn[0] += nx; fn[1] += ny; fn[2] += nz
+        if (!sharpFace[f]) for (const v of [a, b, c]) { smoothVN[v * 3] += nx; smoothVN[v * 3 + 1] += ny; smoothVN[v * 3 + 2] += nz }
+    }
+    const norm = (x: number, y: number, z: number): [number, number, number] => { const l = Math.hypot(x, y, z) || 1; return [x / l, y / l, z / l] }
+    for (const [f, fn] of faceN) faceN.set(f, norm(fn[0], fn[1], fn[2]))
+    const newPos: number[] = [], newUv: number[] = [], newNrm: number[] = [], newIdx: number[] = []
+    const remap = new Map<string, number>()
+    for (let ti = 0; ti < triCount; ti++) {
+        const f = triFace[ti], flat = sharpFace[f], fn = faceN.get(f)!
+        for (let k = 0; k < 3; k++) {
+            const vi = index[ti * 3 + k]
+            const n = flat ? fn : norm(smoothVN[vi * 3], smoothVN[vi * 3 + 1], smoothVN[vi * 3 + 2])
+            const key = vi + '|' + Math.round(n[0] * 1e4) + ',' + Math.round(n[1] * 1e4) + ',' + Math.round(n[2] * 1e4)
+            let ni = remap.get(key)
+            if (ni === undefined) {
+                ni = newPos.length / 3
+                newPos.push(pos[vi * 3], pos[vi * 3 + 1], pos[vi * 3 + 2])
+                if (uv) newUv.push(uv[vi * 2], uv[vi * 2 + 1])
+                newNrm.push(n[0], n[1], n[2])
+                remap.set(key, ni)
+            }
+            newIdx.push(ni)
+        }
+    }
+    geometry.setAttribute('position', new ctx.BufferAttribute(new Float32Array(newPos), 3))
+    if (uv) geometry.setAttribute('uv', new ctx.BufferAttribute(new Float32Array(newUv), 2))
+    geometry.setAttribute('normal', new ctx.BufferAttribute(new Float32Array(newNrm), 3))
+    geometry.setIndex(new ctx.BufferAttribute(newPos.length / 3 > 65535 ? new Uint32Array(newIdx) : new Uint16Array(newIdx), 1))
+}
 
 // Build geometry from Blender 5.0 attribute_storage. Returns null if positions aren't available
 // (so the caller can fall back to the vdata/ldata path).
@@ -362,6 +440,11 @@ export function createBufferGeometry(meshData: any, ctx: Ctx) {
         geometry.setAttribute('position', new ctx.BufferAttribute(positions, 3))
     }
 
+    // Per-face flat-shading (sharp_face). `triFace` records which original face each output triangle came
+    // from; built ONLY when the mesh actually has flat faces, so smooth meshes (all current fixtures) take
+    // the unchanged path with zero overhead. Applied after UVs are set (below).
+    let triFace: number[] | null = null
+    let sharpFace: boolean[] | null = null
     if (indicesData && indicesData.length > 0 && verticesData?.length) {
         const faceSize = meshData.totloop / meshData.totpoly
         if (faceIndices.length > 0) {
@@ -379,6 +462,8 @@ export function createBufferGeometry(meshData: any, ctx: Ctx) {
             // Per-face material slot -> groups (only when >1 slot). material_index lives in the `pdata` layer.
             const faceMat = (meshData.totcol || 0) > 1 ? readFaceMaterialIndex(meshData, faceCount) : null
             const groupRuns: GroupRun[] = []
+            const fs = readFaceSharp(meshData, faceCount)
+            if (fs && fs.some(s => s)) { sharpFace = fs; triFace = [] }
 
             for (let i = 0; i < faceCount; i++) {
                 const faceStart = faceIndices[i]
@@ -393,6 +478,7 @@ export function createBufferGeometry(meshData: any, ctx: Ctx) {
                         indexes[t++] = firstVert
                         indexes[t++] = vAt(faceStart + k)
                         indexes[t++] = vAt(faceStart + k + 1)
+                        if (triFace) triFace.push(i)
                     }
                 } else {
                     // debugger
@@ -440,9 +526,40 @@ export function createBufferGeometry(meshData: any, ctx: Ctx) {
         geometry.setAttribute('uv', new ctx.BufferAttribute(expandedUv, 2))
     }
 
+    // Flat shading (sharp_face): split + assign face normals where Blender marks faces flat. Sets the normal
+    // attribute itself, so the computeVertexNormals fallback below is skipped. Only runs when flat faces exist.
+    if (sharpFace && triFace && geometry.index && geometry.attributes.position)
+        applySharpFaceNormals(geometry, ctx, triFace, sharpFace)
+
     // compute stuff not present
     if (geometry.attributes.position && !geometry.attributes.normal)
         geometry.computeVertexNormals()
+
+    // Catmull-Clark cage: the un-triangulated n-gon faces + per-corner UVs, kept on userData so a Subsurf
+    // (subdivType==0) can be done as faithful Catmull-Clark (which needs the quad topology this triangulated
+    // geometry has thrown away). mesh.ts subdivides this cage and re-triangulates. Mid path only.
+    if (faceIndices.length > 1 && indicesData && verticesData && verticesData.length) {
+        const cagePositions: number[][] = []
+        for (const vd of verticesData) { const c = vco(vd); cagePositions.push([c[0], c[2], -c[1]]) } // Z-up→Y-up
+        const cageFaces: number[][] = []
+        const cageUVs: number[][][] | null = uvLayerData ? [] : null
+        // Per-face material slot (only when >1 slot) — carried alongside the faces so the CC subdivider can
+        // re-emit geometry groups (each cage face → a contiguous run of output quads of the same slot).
+        const faceMat = (meshData.totcol || 0) > 1 ? readFaceMaterialIndex(meshData, faceIndices.length - 1) : null
+        const cageMats: number[] | null = faceMat ? [] : null
+        for (let i = 0; i < faceIndices.length - 1; i++) {
+            const face: number[] = [], fuv: number[][] = []
+            for (let l = faceIndices[i]; l < faceIndices[i + 1]; l++) {
+                const v = indicesData[l]?.i
+                if (v >= 0 && v < cagePositions.length) {
+                    face.push(v)
+                    if (cageUVs && uvLayerData) { const e = uvLayerData[l]; fuv.push([e?.x || 0, e?.y || 0]) }
+                }
+            }
+            if (face.length >= 3) { cageFaces.push(face); if (cageUVs) cageUVs.push(fuv); if (cageMats && faceMat) cageMats.push(faceMat[i] || 0) }
+        }
+        if (cageFaces.length) { geometry.userData = geometry.userData || {}; geometry.userData.__cage = {positions: cagePositions, faces: cageFaces, uvs: cageUVs, materialIndices: cageMats} }
+    }
 
     // if (meshData.loc) { // maybe this is the bbox center?
     //     geometry.translate(meshData.loc[0], meshData.loc[2], -meshData.loc[1])

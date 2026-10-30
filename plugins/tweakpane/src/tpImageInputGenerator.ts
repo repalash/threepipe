@@ -23,6 +23,7 @@ import {
 } from 'threepipe'
 import type {UiObjectConfig} from 'uiconfig.js'
 import {TweakpaneUiPlugin} from './TweakpaneUiPlugin'
+import {lutPreviewDataUrl} from './lutPreview'
 
 export const makeTextSvg2 = (text: string): string => {
     return `data:image/svg+xml,%3Csvg width='16' height='16' viewBox='0 0 30 30' xmlns='http://www.w3.org/2000/svg'%3E%3Ctext style='font: 8px "Roboto Mono", "Source Code Pro", Menlo, Courier, monospace; fill: white;' x='9' y='18'%3E${text}%3C/text%3E%3C/svg%3E%0A`
@@ -102,14 +103,15 @@ function proxyGetValue(cc: any, viewer: ThreeViewer, config: UiObjectConfig) {
         if (cc.tp_src) ret = cc.tp_src
     } else if (typeof cc === 'string') {
         ret = cc
-    } else if (cc.domainMin) { // for lut CUBE files.
-        // ret = cc.texture
-        const image = cc.texture.image
+    } else if (cc.domainMin) { // for lut CUBE files (LUTCubeTextureWrapper or similar).
+        // Wrapper may expose `.texture3D` (current threepipe wrapper) and/or `.texture`
+        // (legacy webgi wrapper with 2D-LUT fallback). Prefer whichever is present.
+        const image = cc.texture3D?.image || cc.texture?.image
         if (image) {
-            // todo this will always show placeholder, we need to snapshot data texture
-            if (!image.tp_src) {
-                image.tp_src = staticData.lutCubeTexImage
-            }
+            // Render a rainbow gradient through the LUT once — distinctive per-LUT
+            // thumbnail so slots are recognizable at a glance. Falls back to the
+            // generic "CUBE Texture" placeholder if voxel data isn't available.
+            if (!image.tp_src) image.tp_src = lutPreviewDataUrl(cc) ?? staticData.lutCubeTexImage
             const uid = image.tp_src_uuid as string
             ret = uid ? staticData.imageMap[uid] : undefined
             if (!ret) ret = image.tp_src || image.src
@@ -124,10 +126,24 @@ function proxyGetValue(cc: any, viewer: ThreeViewer, config: UiObjectConfig) {
         staticData.tempMap[ret] = uuid
     }
     ret = staticData.imageMap[ret] ?? ret // Note: this will be a bottleneck if the length of src is too long.
+    // Generic registration for inter-slot drag-drop recovery: tweakpane v1.1.404+ transfers the
+    // source panel <img>'s src/id on drag; we look that key up in textureMap to recover the
+    // original underlying value (Texture, LUTCubeTextureWrapper, etc.). The setter side already
+    // registers Textures here; this also covers wrappers (LUT, etc.) that aren't Textures.
+    if (cc && typeof cc === 'object' && typeof ret === 'string' && !staticData.textureMap[ret]) {
+        staticData.textureMap[ret] = cc
+    }
     return ret
 }
 
 const setterTex = (v1: any, config: UiObjectConfig, renderer: TweakpaneUiPlugin)=>{
+    // LUT slot guard: if this input only accepts .cube (e.g. @uiImage('LUT', {extensions: ['.cube']})),
+    // reject anything that isn't a LUT wrapper. Catches drag-drop, which bypasses the file-picker accept list.
+    const exts = (config as any).extensions as string[] | undefined
+    if (exts?.length === 1 && exts[0] === '.cube' && v1 && typeof v1 === 'object' && !(v1 as any).domainMin) {
+        renderer.alert?.('Only .cube LUT files are supported for this input.')
+        return
+    }
     if (v1 && v1.isTexture) {
         if (!v1.isDataTexture) {
             const key = renderer.methods.getBinding(config)[1] + ''
@@ -189,9 +205,13 @@ function proxySetValue(v: any, cc: any, config: UiObjectConfig, viewer: ThreeVie
         setterTex(iMapKey, config, renderer)
         return
     }
+    // The `&& v.src != null` on the second branch matches the null guards already present on the
+    // tp_src branches. Without it, dropping a non-image `File` (no `.src`) onto a slot that holds
+    // a wrapper (no top-level `.image`) would produce `cc.image?.src === v.src` → `undefined === undefined`
+    // → false-positive identity hit → silent no-op.
     if (cc === v || cc && (
         cc.image === v
-        || cc.image?.src === v.src
+        || cc.image?.src === v.src && v.src != null
         || cc.image?.tp_src === v.tp_src && v.tp_src != null
         || cc.image?.tp_src === v.src && v.src != null
         || cc.image?.src === v.tp_src && v.tp_src != null
@@ -380,7 +400,8 @@ export const tpImageInputGenerator: (viewer: ThreeViewer) => (parent: any, confi
     config.__proxy.value_ = renderer.methods.getRawValue(config)
 
     params = params ?? {}
-    params.extensions = allowedImageExtensions
+    // allow per-input extension override via decorator/config (e.g. @uiImage('LUT', {extensions: ['.cube']}))
+    params.extensions = (config as any).extensions ?? allowedImageExtensions
     if (typeof params.imageFit === 'undefined') params.imageFit = 'contain'
     if (typeof params.clickCallback === 'undefined') params.clickCallback = (ev: MouseEvent, inp: HTMLInputElement) => {
         const target = ev?.target as HTMLElement

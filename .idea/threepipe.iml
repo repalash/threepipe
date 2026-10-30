@@ -33,7 +33,23 @@
       <excludeFolder url="file://$MODULE_DIR$/experiments" />
       <excludeFolder url="file://$MODULE_DIR$/plugins/r3f/docs" />
       <excludeFolder url="file://$MODULE_DIR$/plugins/troika-text/docs" />
+      <excludeFolder url="file://$MODULE_DIR$/experiments/shader-flow-editor" />
+      <excludeFolder url="file://$MODULE_DIR$/.archived" />
+      <excludeFolder url="file://$MODULE_DIR$/.repos" />
+      <excludeFolder url="file://$MODULE_DIR$/issues/.repos" />
+      <excludeFolder url="file://$MODULE_DIR$/.claude/worktrees" />
+      <excludeFolder url="file://$MODULE_DIR$/test-results" />
+      <excludeFolder url="file://$MODULE_DIR$/tests/example.spec.ts-downloads" />
+      <excludeFolder url="file://$MODULE_DIR$/tests/example.spec.ts-snapshots" />
+      <excludeFolder url="file://$MODULE_DIR$/tests/snapshots" />
+      <excludeFolder url="file://$MODULE_DIR$/playwright-report" />
+      <excludeFolder url="file://$MODULE_DIR$/plugins/gltf-transform/lib" />
+      <excludeFolder url="file://$MODULE_DIR$/experiments/threepipe-webgi/docs" />
+      <excludeFolder url="file://$MODULE_DIR$/experiments/threepipe-webgi/lib" />
     </content>
+    <content url="file://$MODULE_DIR$/experiments/shader-flow-editor" />
+    <content url="file://$MODULE_DIR$/experiments/threepipe-webgi" />
+    <content url="file://$MODULE_DIR$/experiments/tweakpane-image-plugin" />
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>

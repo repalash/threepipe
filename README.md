@@ -524,9 +524,11 @@ Many features will be added but the core API will not change significantly in fu
   - [VignettePlugin](https://threepipe.org/plugin/VignettePlugin.html) - Add Vignette effect  by patching the final screen pass
   - [ChromaticAberrationPlugin](https://threepipe.org/plugin/ChromaticAberrationPlugin.html) - Add [Chromatic Aberration](https://en.wikipedia.org/wiki/Chromatic_aberration) effect  by patching the final screen pass
   - [FilmicGrainPlugin](https://threepipe.org/plugin/FilmicGrainPlugin.html) - Add [Filmic Grain](https://en.wikipedia.org/wiki/Film_grain) effect  by patching the final screen pass
+  - [LUTPlugin](https://threepipe.org/plugin/LUTPlugin.html) - Color-grade with up to 3 `.cube` 3D LUTs, with per-material slot selection via GBuffer flags
   - [NoiseBumpMaterialPlugin](https://threepipe.org/plugin/NoiseBumpMaterialPlugin.html) - Sparkle Bump/Noise Bump material extension for PhysicalMaterial
   - [CustomBumpMapPlugin](https://threepipe.org/plugin/CustomBumpMapPlugin.html) - Adds multiple bump map support and bicubic filtering material extension for PhysicalMaterial
   - [ClearcoatTintPlugin](https://threepipe.org/plugin/ClearcoatTintPlugin.html) - Clearcoat Tint material extension for PhysicalMaterial
+  - [MultiLayerRoughnessPlugin](https://threepipe.org/plugin/MultiLayerRoughnessPlugin.html) - Multi-lobe specular roughness blending (reflection tail-off) material extension for PhysicalMaterial
   - [FragmentClippingExtensionPlugin](https://threepipe.org/plugin/FragmentClippingExtensionPlugin.html) - Fragment/SDF Clipping material extension for PhysicalMaterial
   - [ParallaxMappingPlugin](https://threepipe.org/plugin/ParallaxMappingPlugin.html) - Relief Parallax Bump Mapping extension for PhysicalMaterial
   - [HDRiGroundPlugin](https://threepipe.org/plugin/HDRiGroundPlugin.html) - Add support for ground projected hdri/skybox to the webgl background shader.
@@ -559,6 +561,7 @@ Many features will be added but the core API will not change significantly in fu
   - [@threepipe/plugin-tweakpane-editor](https://threepipe.org/package/plugin-tweakpane-editor.html) - Editor Plugin using Tweakpane for plugin UI
   - [@threepipe/plugin-configurator](https://threepipe.org/package/plugin-configurator.html) - Provides `MaterialConfiguratorPlugin` and `SwitchNodePlugin` to allow users to select variations
   - [@threepipe/plugin-gltf-transform](https://threepipe.org/package/plugin-gltf-transform.html) - Plugin to transform glTF models (draco compression)
+  - [@threepipe/plugin-draco-js](https://threepipe.org/package/plugin-draco-js.html) - Decode Draco meshes with the pure-JS [draco.js](https://github.com/mrdoob/draco.js) decoder (no wasm/worker, smaller, Node-safe) with WASM fallback
   - [@threepipe/plugins-extra-importers](https://threepipe.org/package/plugins-extra-importers.html) - Plugin for loading more file types supported by loaders in three.js
   - [@threepipe/plugin-blend-importer](https://threepipe.org/package/plugin-blend-importer.html) - Add support for loading .blend file. (Partial/WIP) ([Blender](https://www.blender.org/))
   - [@threepipe/plugin-geometry-generator](https://threepipe.org/package/plugin-geometry-generator.html) - Text geometry generator and FontLibrary. All other generators are in core threepipe.

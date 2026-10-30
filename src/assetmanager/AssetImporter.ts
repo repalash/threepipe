@@ -24,6 +24,7 @@ import {escapeRegExp, getOrCall, parseFileExtension} from 'ts-browser-helpers'
 import {AssetManagerOptions, ImportAddOptions} from './AssetManager'
 import {overrideThreeCache} from '../three'
 import {IGeometry, LineMaterial2, UnlitLineMaterial, UnlitMaterial} from '../core'
+import {LUTCubeLoader2} from './import/LUTCubeLoader2'
 
 // export type IAssetImporterEvent = Event&{
 //     type: IAssetImporterEventTypes,
@@ -111,7 +112,7 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
     readonly importers: IImporter[] = [
         new Importer(FileLoader, ['txt'], ['text/plain'], false),
         // new Importer(RGBEPNGLoader, ['rgbe.png', 'hdr.png', 'hdrpng'], ['image/png+rgbe'], false), // todo: not working on windows?
-        // new Importer(LUTCubeLoader2, ['cube'], false),
+        new Importer(LUTCubeLoader2, ['cube'], [], false),
     ]
 
     constructor(logging = false, {simpleCache = false, storage}: AssetManagerOptions = {}) {
@@ -546,12 +547,14 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
                 userData.rootPath = rootPath
                 if (rootPathOptions) userData.rootPathOptions = rootPathOptions
             }
-            if (rootBlob) {
-                userData.__sourceBlob = rootBlob
-                if (userData.__needsSourceBuffer) { // set __sourceBuffer here if required during serialize later on, __needsSourceBuffer can be set in asset loaders
-                    userData.__sourceBuffer = await rootBlob.arrayBuffer()
-                    delete userData.__needsSourceBuffer
-                }
+        }
+        if (rootBlob) {
+            // Source bytes / blob live at top level on the asset (ImportResultExtras), not in userData.
+            // userData is for user-facing string config — internal byte buffers don't belong there.
+            res.__sourceBlob = rootBlob
+            if (res.__needsSourceBuffer) { // can be set in asset loaders to request raw-byte caching for serialization/re-export
+                res.__sourceBuffer = await rootBlob.arrayBuffer()
+                delete res.__needsSourceBuffer
             }
         }
 

@@ -81,7 +81,7 @@ class GLTFMaterialsDisplacementMapExtensionExport {
 
     writeMaterial(material: MeshStandardMaterial, materialDef: any) {
 
-        if (!material.isMeshStandardMaterial || material.displacementScale === 0) return
+        if (!material.isMeshStandardMaterial || material.displacementScale === 0 && !material.displacementMap) return
 
         const writer = this.writer
         const extensionsUsed = writer.extensionsUsed

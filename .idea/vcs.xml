@@ -2,5 +2,9 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="$PROJECT_DIR$" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/experiments/threepipe-webgi" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/experiments/tweakpane-image-plugin" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/three.js-modded" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/three-ts-types" vcs="Git" />
   </component>
 </project>
