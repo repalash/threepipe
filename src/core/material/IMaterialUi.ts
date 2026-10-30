@@ -497,20 +497,7 @@ export const iMaterialUI = {
                     type: 'checkbox',
                     label: 'Legacy Bump Scale',
                     hidden: ()=>!material.bumpMap,
-                    getValue: ()=>!!material.userData.legacyBumpScale,
-                    setValue: (v: boolean)=>{
-                        if (!!v === !!material.userData.legacyBumpScale) return
-                        if (!(material as any).defines) return
-                        if (v) {
-                            material.userData.legacyBumpScale = true
-                            ;(material as any).defines.BUMP_MAP_SCALE_LEGACY = '1'
-                        } else {
-                            delete material.userData.legacyBumpScale
-                            delete (material as any).defines.BUMP_MAP_SCALE_LEGACY
-                        }
-                        material.needsUpdate = true
-                        material.setDirty?.()
-                    },
+                    property: [material, 'legacyBumpScale'],
                 },
                 {
                     type: 'image',

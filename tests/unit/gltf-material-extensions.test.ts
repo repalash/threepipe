@@ -18,6 +18,12 @@ afterEach(() => {
 describe('legacy bump scale detection on import', () => {
     interface Params {
         subversion?: number
+        /** asset.version, default '2.0' */
+        version?: string
+        /** asset.generator */
+        generator?: string
+        /** legacyBumpScale in WEBGI_material_extras */
+        extFlag?: boolean
         /** WEBGI_viewer scene extension */
         viewer?: any
         /** WEBGI_materials_bumpmap material extension */
@@ -28,10 +34,10 @@ describe('legacy bump scale detection on import', () => {
         define?: boolean
         bumpMap?: boolean
     }
-    async function load({subversion, viewer, bumpExt, extrasFlag, define, bumpMap = true}: Params) {
+    async function load({subversion, version: assetVersion = '2.0', generator, extFlag, viewer, bumpExt, extrasFlag, define, bumpMap = true}: Params) {
         vi.spyOn(console, 'warn').mockImplementation(() => {})
         const material = new MeshStandardMaterial()
-        material.userData.gltfExtensions = {[tp.GLTFMaterialExtrasExtension.WebGiMaterialExtrasExtension]: {}}
+        material.userData.gltfExtensions = {[tp.GLTFMaterialExtrasExtension.WebGiMaterialExtrasExtension]: extFlag !== undefined ? {legacyBumpScale: extFlag} : {}}
         if (bumpMap) material.bumpMap = new Texture()
         if (extrasFlag) material.userData.legacyBumpScale = true
         if (define) material.defines!.BUMP_MAP_SCALE_LEGACY = '1'
@@ -39,7 +45,7 @@ describe('legacy bump scale detection on import', () => {
         scene.add(new Mesh(undefined, material))
         const parser = {
             json: {
-                asset: {version: '2.0', ...subversion !== undefined ? {subversion} : {}},
+                asset: {version: assetVersion, ...generator ? {generator} : {}, ...subversion !== undefined ? {subversion} : {}},
                 scenes: [viewer ? {extensions: {['WEBGI_viewer']: viewer}} : {}],
                 materials: [bumpExt ? {extensions: {[tp.GLTFMaterialsBumpMapExtension.WebGiMaterialsBumpMapExtension]: bumpExt}} : {}],
             },
@@ -66,13 +72,32 @@ describe('legacy bump scale detection on import', () => {
         expect((await load({viewer: webgi('0.11.9')})).legacy).toBe(true)
         expect((await load({viewer: webgi('0.9.20')})).legacy).toBe(true) // numeric compare, not lexicographic
         expect((await load({viewer: webgi('0.12.0-dev.1')})).legacy).toBe(true)
+        expect((await load({viewer: webgi('0.12.0-dev.4')})).legacy).toBe(true)
+        expect((await load({viewer: webgi('0.12.0-dev.5')})).legacy).toBe(false) // first webgi build with three r158
+        expect((await load({viewer: webgi('0.12.0-dev.10')})).legacy).toBe(false) // numeric pre-release compare
         expect((await load({viewer: webgi()})).legacy).toBe(true)
         expect((await load({viewer: webgi('0.12.0')})).legacy).toBe(false)
         expect((await load({viewer: webgi('0.21.5')})).legacy).toBe(false)
+        // webgi files from before May 2023 have no metadata.generator
+        expect((await load({viewer: {type: 'ViewerApp', version: '0.4.2'}})).legacy).toBe(true)
     })
 
-    it('is not legacy for threepipe and unknown files without a subversion', async() => {
-        expect((await load({viewer: {type: 'ThreeViewer', version: '0.0.1', metadata: {generator: 'ThreePipe'}}})).legacy).toBe(false)
+    it('uses the threepipe version in the viewer config (three r157 until 0.0.43)', async() => {
+        const tp3 = (version: string) => ({type: 'ThreeViewer', version, metadata: {generator: 'ThreePipe'}})
+        expect((await load({viewer: tp3('0.0.1')})).legacy).toBe(true)
+        expect((await load({viewer: tp3('0.0.43')})).legacy).toBe(true)
+        expect((await load({viewer: tp3('0.0.44')})).legacy).toBe(false)
+        expect((await load({viewer: tp3('0.6.0')})).legacy).toBe(false)
+        expect((await load({viewer: {version: '1.0.0', metadata: {generator: 'SomeOtherApp'}}})).legacy).toBe(false)
+    })
+
+    it('uses asset.version and asset.generator without a subversion or viewer config', async() => {
+        // "2.001" was written by the r158 builds of both forks until asset.subversion replaced it (June 2025)
+        expect((await load({version: '2.001', generator: 'THREE.GLTFExporter'})).legacy).toBe(false)
+        // written by three.js GLTFExporter before r158
+        expect((await load({generator: 'THREE.GLTFExporter'})).legacy).toBe(true)
+        // re-written by another tool (draco / glTF-Transform drops asset.subversion), or unknown
+        expect((await load({generator: 'glTF-Transform v4.1.0'})).legacy).toBe(false)
         expect((await load({})).legacy).toBe(false)
     })
 
@@ -80,15 +105,61 @@ describe('legacy bump scale detection on import', () => {
         expect(await load({subversion: 1, extrasFlag: true})).toEqual({legacy: true, define: '1', updated: true})
     })
 
-    it('normalizedScale in the bump extension has the highest priority', async() => {
+    it('legacyBumpScale in WEBGI_material_extras has the highest priority', async() => {
+        expect(await load({generator: 'THREE.GLTFExporter', extFlag: false})).toEqual({legacy: false, define: undefined, updated: false})
+        expect(await load({subversion: 1, extFlag: true})).toEqual({legacy: true, define: '1', updated: true})
+        expect(await load({subversion: 1, bumpExt: {normalizedScale: false}, extFlag: false})).toEqual({legacy: false, define: undefined, updated: false})
+        // stale flag and define are cleared, and the material is recompiled
+        expect(await load({extFlag: false, extrasFlag: true, define: true})).toEqual({legacy: false, define: undefined, updated: true})
+    })
+
+    it('normalizedScale in the bump extension comes next', async() => {
         expect(await load({subversion: 1, bumpExt: {normalizedScale: false}})).toEqual({legacy: true, define: '1', updated: true})
         expect(await load({subversion: 0, bumpExt: {normalizedScale: true}})).toEqual({legacy: false, define: undefined, updated: false})
-        // stale flag and define are cleared, and the material is recompiled
         expect(await load({bumpExt: {normalizedScale: true}, extrasFlag: true, define: true})).toEqual({legacy: false, define: undefined, updated: true})
     })
 
     it('ignores materials without a bump map', async() => {
         expect(await load({subversion: 0, bumpMap: false})).toEqual({legacy: false, define: undefined, updated: false})
+    })
+})
+
+describe('legacy bump scale flag on export', () => {
+    function writeExtras(props: Partial<MeshStandardMaterial>, legacy?: boolean) {
+        const writer = {extensionsUsed: {} as Record<string, boolean>, options: {}}
+        const material = Object.assign(new MeshStandardMaterial(), props)
+        if (legacy) material.userData.legacyBumpScale = true
+        const materialDef: any = {}
+        tp.GLTFMaterialExtrasExtension.Export(writer as any).writeMaterial!(material, materialDef)
+        return materialDef.extensions?.[tp.GLTFMaterialExtrasExtension.WebGiMaterialExtrasExtension]?.legacyBumpScale
+    }
+
+    it('writes legacyBumpScale in WEBGI_material_extras for every bump mapped material', () => {
+        expect(writeExtras({bumpMap: new Texture()})).toBe(false)
+        expect(writeExtras({bumpMap: new Texture()}, true)).toBe(true)
+        expect(writeExtras({})).toBe(undefined)
+    })
+})
+
+describe('PhysicalMaterial.legacyBumpScale', () => {
+    it('sets the flag and the define together, and survives copy', () => {
+        const m = new tp.PhysicalMaterial()
+        m.legacyBumpScale = true
+        expect(m.userData.legacyBumpScale).toBe(true)
+        expect(m.defines!.BUMP_MAP_SCALE_LEGACY).toBe('1')
+        const c = new tp.PhysicalMaterial()
+        c.copy(m)
+        expect(c.legacyBumpScale).toBe(true)
+        expect(c.defines!.BUMP_MAP_SCALE_LEGACY).toBe('1')
+        m.legacyBumpScale = false
+        expect(m.userData.legacyBumpScale).toBe(undefined)
+        expect(m.defines!.BUMP_MAP_SCALE_LEGACY).toBe(undefined)
+    })
+
+    it('setValues applies the define from userData even before a bump map is set', () => {
+        const m = new tp.PhysicalMaterial()
+        m.setValues({userData: {legacyBumpScale: true}} as any)
+        expect(m.defines!.BUMP_MAP_SCALE_LEGACY).toBe('1')
     })
 })
 

@@ -3,6 +3,10 @@ prev:
   text: 'Widget Handle Picking'
   link: './widget-handle-picking'
 
+next:
+  text: 'Legacy Bump Scale'
+  link: './legacy-bump-scale'
+
 aside: false
 ---
 
