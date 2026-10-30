@@ -1,0 +1,49 @@
+{
+    "$schema": "https://turborepo.com/schema.json",
+    "ui": "stream",
+    "globalDependencies": ["scripts/vite-utils.mjs", "typedoc.json"],
+    "tasks": {
+        "//#build": {
+            "inputs": [
+                "src/**",
+                "vite.config.js",
+                "vite.lib.config.js",
+                "tsconfig.json",
+                "scripts/update-version.mjs"
+            ],
+            "outputs": ["dist/**", "lib/**"],
+            "env": ["NODE_ENV"]
+        },
+        "build": {
+            "dependsOn": ["^build"],
+            "inputs": [
+                "$TURBO_DEFAULT$",
+                "$TURBO_ROOT$/src/**",
+                "!dist/**",
+                "!lib/**",
+                "!docs/**"
+            ],
+            "outputs": ["dist/**", "lib/**"],
+            "env": ["NODE_ENV"]
+        },
+        "//#docs": {
+            "inputs": ["$TURBO_DEFAULT$", "!examples/**", "!tests/**"],
+            "outputs": ["docs/**", "website/.vitepress/dist/**"]
+        },
+        "docs": {
+            "dependsOn": ["^build"],
+            "inputs": [
+                "$TURBO_DEFAULT$",
+                "$TURBO_ROOT$/src/**",
+                "!dist/**",
+                "!lib/**",
+                "!docs/**"
+            ],
+            "outputs": ["docs/**"]
+        },
+        "watch": {
+            "cache": false,
+            "persistent": true
+        }
+    }
+}

@@ -191,6 +191,7 @@ export default defineConfig({
             items: [
               {text: 'RenderTargetPreviewPlugin', link: 'plugin/RenderTargetPreviewPlugin'},
               {text: 'GeometryUVPreviewPlugin', link: 'plugin/GeometryUVPreviewPlugin'},
+              {text: 'PerfPanelPlugin', link: 'plugin/PerfPanelPlugin'},
               {text: 'TailwindCSSCDNPlugin', link: 'plugin/TailwindCSSCDNPlugin'},
               // {text: 'SceneUiConfigPlugin', link: 'plugin/SceneUiConfigPlugin'},
               // {text: 'ViewerUiConfigPlugin', link: 'plugin/ViewerUiConfigPlugin'},
