@@ -99,6 +99,7 @@ export class PerfPanelPlugin extends AViewerPluginSync<PerfPanelPluginEventMap> 
     private _rows = {} as Record<RowKey, HTMLElement>
     private _warns: HTMLElement
     private _spark: HTMLCanvasElement
+    private _sparkCtx?: CanvasRenderingContext2D
     private _warnKey = ''
     private _warnTexts: HTMLElement[] = []
     private _sparkColors = {render: '#0d99ff', idle: '#c9ccd1', line: '#e9eaec', bad: '#f24822', text: '#8a8f97'}
@@ -457,12 +458,15 @@ export class PerfPanelPlugin extends AViewerPluginSync<PerfPanelPluginEventMap> 
         const w = Math.round(cv.clientWidth * dpr)
         const hgt = Math.round(cv.clientHeight * dpr)
         if (!w || !hgt) return
-        if (cv.width !== w || cv.height !== hgt) {
-            cv.width = w
+        let ctx = this._sparkCtx
+        if (!ctx || cv.width !== w || cv.height !== hgt) {
+            cv.width = w // resets the context state: set the font again
             cv.height = hgt
+            ctx = this._sparkCtx = cv.getContext('2d') ?? undefined
+            if (!ctx) return
+            ctx.font = `${Math.round(9 * dpr)}px ui-sans-serif, system-ui, sans-serif`
+            ctx.textAlign = 'right'
         }
-        const ctx = cv.getContext('2d')
-        if (!ctx) return
         const c = this._sparkColors
         ctx.clearRect(0, 0, w, hgt)
         const y = (ms: number) => hgt - Math.min(ms, SPARK_MAX) / SPARK_MAX * hgt
@@ -471,8 +475,6 @@ export class PerfPanelPlugin extends AViewerPluginSync<PerfPanelPluginEventMap> 
         ctx.fillRect(0, Math.round(y(1000 / 60)), w, lw)
         ctx.fillRect(0, Math.round(y(1000 / 30)), w, lw)
         ctx.fillStyle = c.text
-        ctx.font = `${Math.round(9 * dpr)}px ui-sans-serif, system-ui, sans-serif`
-        ctx.textAlign = 'right'
         ctx.fillText('16', w - 1, y(1000 / 60) - 2 * dpr)
         ctx.fillText('33', w - 1, y(1000 / 30) - 2 * dpr)
         const pw = w - Math.round(18 * dpr) // the labels keep the right edge, with a gap to the bars
