@@ -6,8 +6,8 @@ import styles from './StickyNotesUiPlugin.css?inline'
 /**
  * How the post-its are laid out over the canvas:
  * - `board`: each note is its own post-it, moved and sized on its own; "Arrange" puts them in columns;
- * - `stack`: the post-its lie on a pile, each one a little offset from the one above it; a click on one behind brings
- *   it to the top, and the pile moves and sizes as one.
+ * - `stack`: the post-its lie on a pile, each one a little to the left of and above the one on it; a click on one
+ *   behind brings it to the top, and the pile moves and sizes as one.
  */
 export type StickyNotesLayout = 'board' | 'stack'
 export type StickyNotesColor = 'yellow' | 'pink' | 'blue' | 'green' | 'theme'
@@ -376,7 +376,7 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
                 if (!c) return
                 const depth = order.length - 1 - i
                 const d = Math.min(depth, PILE_DEPTH)
-                this._setBox(c, {x: pile.x + d * PILE_STEP, y: pile.y - d * PILE_STEP, w: pile.w, h: pile.h})
+                this._setBox(c, {x: pile.x - d * PILE_STEP, y: pile.y - d * PILE_STEP, w: pile.w, h: pile.h})
                 c.card.style.zIndex = String(i + 1)
                 c.card.style.transform = depth ? `rotate(${depth % 2 ? 1.2 : -0.9}deg)` : ''
                 c.card.style.visibility = depth > PILE_DEPTH ? 'hidden' : ''
@@ -404,13 +404,18 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         return {width: this.element.clientWidth || 800, height: this.element.clientHeight || 600}
     }
 
-    /** The place and size of the pile: its corner above the dock, or where the person put it */
+    /**
+     * The place and size of the top post-it of the pile: above the dock, or where the person put it. The post-its under
+     * it lie toward -x and -y, so it keeps room for them inside the canvas.
+     */
     private _pileBox(size = this._size()): Required<Box> {
         const s = this._state.stack ?? {}
         const w = s.w ?? NOTE_W + 40, h = s.h ?? NOTE_H + 40
-        // above the dock, where it is
+        const spread = Math.min(Math.max(this._cards.size - 1, 0), PILE_DEPTH) * PILE_STEP
+        // above the dock, where it is; the post-it at the bottom of the pile at the left edge of the dock
         const dockTop = this.dock.offsetTop || size.height - 40
-        return this._clamp({x: s.x ?? GAP, y: s.y ?? dockTop - h - GAP, w, h}, size) as Required<Box>
+        const box = this._clamp({x: s.x ?? GAP + spread, y: s.y ?? dockTop - h - GAP, w, h}, size)
+        return {x: Math.max(box.x ?? 0, spread), y: Math.max(box.y ?? 0, spread), w, h}
     }
 
     /** A box kept inside the canvas */

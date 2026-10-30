@@ -71,7 +71,7 @@ Changes are saved per store, 600 ms after the last one, and when the plugin is r
 `StickyNotesUiPlugin` shows the notes as post-its over the canvas, in one of two layouts:
 
 - `board`: each note is its own post-it. "Arrange" puts them in columns. "Stack" switches to the other layout.
-- `stack`: the post-its lie on a pile, each one a little offset from the one above it. A click on a post-it behind brings it to the top; the pile is dragged and sized as one. "Spread" switches back.
+- `stack`: the post-its lie on a pile, each one a little to the left of and above the one on it, so the pile stays on the canvas. A click on a post-it behind brings it to the top; the pile is dragged and sized as one. "Spread" switches back.
 
 In both layouts:
 

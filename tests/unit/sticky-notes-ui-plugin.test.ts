@@ -331,21 +331,26 @@ describe('StickyNotesUiPlugin', () => {
         layer.button('Stack').fire('click')
         expect(sticky.layout).toBe('stack')
         const byId = (id: string) => cards(layer)[notes.notes.findIndex(n => n.id === id)]
-        // c on top at the corner of the pile (260 x 190 above the dock), b and a 8 px right and up each
-        expect(place(byId(c.id))).toEqual(['12px', '358px']) // above the dock: 560 - 190 - 12
+        // c on top at the corner of the pile (260 x 190 above the dock), b and a 8 px left and up each: the pile goes
+        // toward -x, and its last post-it is at the left edge of the dock
+        expect(place(byId(c.id))).toEqual(['28px', '358px']) // above the dock: 560 - 190 - 12
         expect(place(byId(b.id))).toEqual(['20px', '350px'])
-        expect(place(byId(a.id))).toEqual(['28px', '342px'])
+        expect(place(byId(a.id))).toEqual(['12px', '342px'])
         expect(byId(a.id).classList.contains('snp-behind')).toBe(true)
         expect(byId(c.id).classList.contains('snp-behind')).toBe(false)
 
         byId(a.id).fire('pointerdown', {target: byId(a.id)})
-        expect(place(byId(a.id))).toEqual(['12px', '358px'])
+        expect(place(byId(a.id))).toEqual(['28px', '358px'])
         expect(byId(c.id).classList.contains('snp-behind')).toBe(true)
 
         drag(byId(a.id), 100, -100)
-        expect(place(byId(a.id))).toEqual(['112px', '258px'])
+        expect(place(byId(a.id))).toEqual(['128px', '258px'])
         expect(place(byId(c.id))).toEqual(['120px', '250px'])
-        expect(state().stack).toMatchObject({x: 112, y: 258})
+        expect(state().stack).toMatchObject({x: 128, y: 258})
+
+        // dragged against the left edge, the post-its under the top one stay on the canvas
+        drag(byId(a.id), -500, 0)
+        expect(cards(layer).map(c => parseFloat(c.style.left)).sort((x, y) => x - y)).toEqual([0, 8, 16])
 
         sticky.color = 'blue'
         expect(layer.dataset.color).toBe('blue')
