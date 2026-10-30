@@ -48,7 +48,6 @@ import {
     SSAAPlugin,
     SSAOPlugin,
     STLLoadPlugin,
-    TextureLoader2,
     ThreeFirstPersonControlsPlugin,
     ThreeViewer,
     TonemapPlugin,
@@ -193,7 +192,6 @@ export class ThreeEditor extends ThreeViewer {
         await this.addPlugins(this.editorPlugins)
 
         KTX2LoadPlugin.SAVE_SOURCE_BLOBS = true // so that ktx files can be exported.
-        TextureLoader2.SAVE_SOURCE_BLOBS = true // so raster images (jpeg/png) export without canvas re-encode.
 
         // to show more details in the UI and allow to edit changes in title etc.
         const mat = this.getPlugin(MaterialConfiguratorPlugin)
