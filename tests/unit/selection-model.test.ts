@@ -1052,6 +1052,34 @@ describe('SelectionUxPlugin', () => {
         expect([root.style.left, root.style.top]).toEqual(['30.0px', '20.0px'])
     })
 
+    test('overlay: with no positioned ancestor, placed at the page position of the canvas, not from the margin of the body', () => {
+        const {ux, canvas, frame} = setup()
+        const root = canvas.children[0] as any
+        // the page scrolled by (5, 40); the body has a margin of 8 px; the canvas is at (58, 108) on the page
+        const doc = document as any, body0 = doc.body
+        const body = {getBoundingClientRect: () => ({left: 8 - 5, top: 8 - 40}), clientLeft: 0, clientTop: 0, scrollLeft: 0, scrollTop: 0}
+        let position = 'static'
+        doc.body = body
+        root.offsetParent = body
+        canvas.getBoundingClientRect = () => ({left: 58 - 5, top: 108 - 40, width: SIZE, height: SIZE})
+        vi.stubGlobal('scrollX', 5)
+        vi.stubGlobal('scrollY', 40)
+        vi.stubGlobal('getComputedStyle', (e: any) => ({position: e === body ? position : 'static'}))
+        try {
+            // a static body is not the containing block: the root is placed from the page origin
+            frame()
+            expect([root.style.left, root.style.top]).toEqual(['58.0px', '108.0px'])
+            // a positioned body is: from its box, as any positioned parent
+            position = 'relative'
+            ux.redrawOverlay()
+            frame()
+            expect([root.style.left, root.style.top]).toEqual(['50.0px', '100.0px'])
+        } finally {
+            doc.body = body0
+            vi.unstubAllGlobals()
+        }
+    })
+
     test('overlay: a hover box of the PickingPlugin shown when the overlay starts is cleared', () => {
         const {picking, lamp, frame} = setup()
         picking.picker.setHoverObject(lamp)

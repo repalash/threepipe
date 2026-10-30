@@ -710,10 +710,19 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         this._overlayDirty = false
         // over the canvas, which can be smaller than the container or offset in it (from the box the root is placed in,
         // in its scrolled content)
-        const base = root.offsetParent as HTMLElement | null ?? this._viewer!.container
-        const c = base.getBoundingClientRect(), r = this._viewer!.canvas.getBoundingClientRect()
-        root.style.left = px(r.left - c.left - (base.clientLeft || 0) + (base.scrollLeft || 0))
-        root.style.top = px(r.top - c.top - (base.clientTop || 0) + (base.scrollTop || 0))
+        const parent = root.offsetParent as HTMLElement | null
+        const r = this._viewer!.canvas.getBoundingClientRect()
+        if (parent && parent === document.body && getComputedStyle(parent).position === 'static') {
+            // no positioned ancestor: the root is placed from the page origin (the initial containing block), not from
+            // the box of the body, which has a margin
+            root.style.left = px(r.left + window.scrollX)
+            root.style.top = px(r.top + window.scrollY)
+        } else {
+            const base = parent ?? this._viewer!.container
+            const c = base.getBoundingClientRect()
+            root.style.left = px(r.left - c.left - (base.clientLeft || 0) + (base.scrollLeft || 0))
+            root.style.top = px(r.top - c.top - (base.clientTop || 0) + (base.scrollTop || 0))
+        }
         root.style.width = px(r.width)
         root.style.height = px(r.height)
         this._draw(r.width, r.height)
