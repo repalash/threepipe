@@ -78,6 +78,35 @@ describe('tweakpane editor frame on a phone', () => {
         expect(declarations('body.lay-titlebar #canvas-container', phone).top).toBe('var(--lay-top)')
     })
 
+    it('puts the mode bar beside the panel only in a narrow portrait window, and in a row at the bottom when the panel is hidden', () => {
+        for (const layout of ['titlebar', 'statusbar', 'floating']) {
+            const bar = declarations(`body.lay-${layout} .mb-root`, phone)
+            const panel = declarations(`body.lay-${layout} #tweakpaneUiContainer`, phone)
+            // the same top and bottom as the panel, so the canvas takes the full width above them
+            expect(bar.top, layout).toBe(panel.top.replace(/\s*!important$/, ''))
+            expect(bar.bottom, layout).toBe(panel.bottom)
+            expect(declarations(`body.lay-${layout} #canvas-container`, phone).width, layout)
+                .toBe(layout === 'floating' ? 'calc(100% - 2 * var(--lay-gap))' : '100%')
+            // the panel hidden: the canvas leaves a 44 px row at the bottom for the mode bar
+            expect(declarations(`body.lay-${layout}.mb-panel-hidden #canvas-container`, phone).height, layout).toContain('44px')
+        }
+        const hidden = declarations('body.lay-frame.mb-panel-hidden .mb-root', phone)
+        expect(hidden['flex-direction']).toBe('row')
+        expect(hidden.top).toBe('auto')
+        expect(hidden.height).toBe('44px')
+        expect(hidden['overflow-x']).toBe('auto')
+        // a mode bar taller than its room scrolls, without moving the page
+        const mb = declarations('.mb-root', phone)
+        expect(mb['overflow-y']).toBe('auto')
+        expect(mb['overscroll-behavior']).toBe('contain')
+        // landscape and wide windows keep the full-height mode bar, also with the panel hidden
+        for (const vp of [phoneLandscape, desktop]) {
+            expect(declarations('body.lay-titlebar .mb-root', vp).top).toBe('var(--lay-top)')
+            expect(declarations('body.lay-floating .mb-root', vp).top).toBe('var(--lay-gap)')
+            expect(declarations('body.lay-frame.mb-panel-hidden .mb-root', vp)['flex-direction']).toBeUndefined()
+        }
+    })
+
     it('lets the panel scroll with touch', () => {
         for (const vp of [phone, phoneLandscape, desktop]) {
             const panel = declarations('body.lay-frame #tweakpaneUiContainer', vp)

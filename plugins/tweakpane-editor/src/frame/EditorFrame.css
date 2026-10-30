@@ -7,8 +7,9 @@ body.tpTheme-clean, body.tpTheme-clean-dark { --lay-font-size: 12px; }
     position: fixed; right: 0; top: 0; bottom: 0; width: 44px; z-index: 30; display: flex; flex-direction: column; align-items: center; gap: 4px;
     padding: 10px 0; background: var(--mb-bg); border-left: 1px solid var(--mb-line); box-sizing: border-box;
     font: 500 var(--lay-font-size, 13px)/1 var(--tp-font-family, Inter, ui-sans-serif, system-ui, sans-serif); -webkit-font-smoothing: antialiased;
-    /* a short window: the bar scrolls, so every mode and the buttons at the bottom stay reachable */
-    overflow-x: hidden; overflow-y: auto; scrollbar-width: thin;
+    /* a short window: the bar scrolls, so every mode and the buttons at the bottom stay reachable; the scroll stops at
+       its ends, without moving the page */
+    overflow-x: hidden; overflow-y: auto; scrollbar-width: thin; overscroll-behavior: contain;
 }
 body[class*="tpTheme-"] .mb-root {
     --mb-bg: var(--tp-base-background-color, #1c2026); --mb-line: var(--tp-container-border-color, rgba(255,255,255,.1));
@@ -144,30 +145,47 @@ body.lay-floating #tweakpaneUiContainer .tp-rotv { box-shadow: none !important; 
     body.lay-floating #tweakpaneUiContainer { top: var(--lay-gap) !important; width: var(--tweakpane-ui-container-width, 300px) !important; }
 }
 
-/* a narrow portrait window (a phone): the canvas on top, the panel below it, the mode bar on the right; the panel takes
-   the rest of the height under the canvas (--lay-split: the part of the height for the canvas), so the tool bar of the
-   canvas never covers it. When the panel is hidden, the canvas takes its room. */
+/* a narrow portrait window (a phone): the canvas on top, full width; the panel below it, and the mode bar beside the
+   panel, with the same top and bottom (--lay-split: the part of the height for the canvas), so the tool bar of the canvas
+   never covers the panel. A mode bar taller than its room scrolls. When the panel is hidden, the mode bar is a row at
+   the bottom (44 px, it scrolls sideways), where a tap on a mode brings the panel back, and the canvas takes the rest. */
 @media only screen and (max-width: 919.98px) and (orientation: portrait) {
     body.lay-frame { --lay-split: 0.45; }
     body.lay-titlebar #canvas-container, body.lay-statusbar #canvas-container {
-        width: calc(100% - var(--mb-width, 44px)) !important;
+        width: 100% !important;
         height: calc((100% - var(--lay-top) - var(--lay-bottom)) * var(--lay-split)) !important;
     }
-    body.lay-titlebar.mb-panel-hidden #canvas-container, body.lay-statusbar.mb-panel-hidden #canvas-container { height: calc(100% - var(--lay-top) - var(--lay-bottom)) !important; }
+    body.lay-titlebar.mb-panel-hidden #canvas-container, body.lay-statusbar.mb-panel-hidden #canvas-container { height: calc(100% - var(--lay-top) - var(--lay-bottom) - 44px) !important; }
     body.lay-titlebar #tweakpaneUiContainer, body.lay-statusbar #tweakpaneUiContainer {
         top: calc(var(--lay-top) + (100% - var(--lay-top) - var(--lay-bottom)) * var(--lay-split)) !important; left: 0; width: auto !important;
         border-top: 1px solid var(--tp-container-border-color, #e6e6e6);
     }
+    body.lay-titlebar .mb-root, body.lay-statusbar .mb-root {
+        top: calc(var(--lay-top) + (100% - var(--lay-top) - var(--lay-bottom)) * var(--lay-split)); bottom: var(--lay-bottom);
+        border-top: 1px solid var(--mb-line);
+    }
 
-    /* floating: the canvas is a card too, above the panel card */
+    /* floating: the canvas is a card too, above the panel card and the mode bar card */
     body.lay-floating #canvas-container {
         inset: var(--lay-gap) auto auto var(--lay-gap) !important; border-radius: 8px !important;
-        width: calc(100% - var(--mb-width, 44px) - 3 * var(--lay-gap)) !important;
+        width: calc(100% - 2 * var(--lay-gap)) !important;
         height: calc((100% - 3 * var(--lay-gap)) * var(--lay-split)) !important;
     }
-    body.lay-floating.mb-panel-hidden #canvas-container { height: calc(100% - 2 * var(--lay-gap)) !important; }
+    body.lay-floating.mb-panel-hidden #canvas-container { height: calc(100% - 3 * var(--lay-gap) - 44px) !important; }
     body.lay-floating #mcanvas { border-radius: 8px !important; }
     body.lay-floating #tweakpaneUiContainer {
         top: calc(2 * var(--lay-gap) + (100% - 3 * var(--lay-gap)) * var(--lay-split)) !important; left: var(--lay-gap); width: auto !important;
     }
+    body.lay-floating .mb-root { top: calc(2 * var(--lay-gap) + (100% - 3 * var(--lay-gap)) * var(--lay-split)); bottom: var(--lay-gap); }
+
+    /* the panel hidden: the mode bar is a row at the bottom, the actions and the names toggle at its end */
+    body.lay-frame.mb-panel-hidden .mb-root {
+        top: auto; left: 0; width: auto; height: 44px; flex-direction: row; align-items: center; padding: 0 6px;
+        overflow-x: auto; overflow-y: hidden; border-left: 0;
+    }
+    body.lay-titlebar.mb-panel-hidden .mb-root, body.lay-statusbar.mb-panel-hidden .mb-root { bottom: var(--lay-bottom); }
+    body.lay-floating.mb-panel-hidden .mb-root { left: var(--lay-gap); bottom: var(--lay-gap); }
+    body.lay-frame.mb-panel-hidden .mb-root > .mb-toggle { margin: 0 0 0 auto; }
+    body.lay-frame.mb-panel-hidden .mb-root > .lay-float-actions { flex-direction: row; margin: 0 0 0 auto; }
+    body.lay-frame.mb-panel-hidden .mb-root > .lay-float-actions + .mb-toggle { margin-left: 2px; }
 }

@@ -56,8 +56,9 @@ const ICONS = {
  * class `lay-frame` and `lay-<layout>`.
  *
  * In a wide or a landscape window, the canvas, the panel and the mode bar are side by side. In a portrait window under
- * 920 px wide (a phone), the layout keeps its bars and cards, and the panel is below the canvas (the CSS variable
- * `--lay-split` on the body is the part of the height for the canvas, `0.45`).
+ * 920 px wide (a phone), the layout keeps its bars and cards; the canvas is on top at full width, and the panel and the
+ * mode bar are below it, with the same height (the CSS variable `--lay-split` on the body is the part of the height for
+ * the canvas, `0.45`). When the panel is hidden there, the mode bar is a row at the bottom.
  */
 export class EditorFrame {
     /** The default theme pairs: Shift+T goes from one to the other */
