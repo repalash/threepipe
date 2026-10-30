@@ -755,7 +755,9 @@ vec4 selectionOutline(in vec4 color) {
     // search around the pixel for the nearest different id. Rings of 12 taps.
     float maxR = max(selWidth, selHoverWidth) + 0.5;
     float dSel = 100.0, dHov = 100.0, dPart = 100.0;
-    float hidSel = 0.0, hidHov = 0.0;
+    // the uv and the mask depth of the nearest sample: the x-ray test (a depth read) is done once after the search,
+    // not inside the unrolled loop
+    vec3 nSel = vec3(0.0), nHov = vec3(0.0);
     for (int ri = 0; ri < 4; ri++) {
         float r = 0.75 + float(ri) * (maxR - 0.75) / 3.0;
         for (int i = 0; i < 12; i++) {
@@ -769,11 +771,11 @@ vec4 selectionOutline(in vec4 color) {
             // outer outline of each selected item (one-sided where two items touch)
             if (sSel > 0.5 && sSel != cSel && (cSel < 0.5 || sSel > cSel) && r < dSel) {
                 dSel = r;
-                hidSel = selHidden(uv, s.a);
+                nSel = vec3(uv, s.a);
             }
             if (sHov > 0.5 && cHov < 0.5 && r < dHov) {
                 dHov = r;
-                hidHov = selHidden(uv, s.a);
+                nHov = vec3(uv, s.a);
             }
             // segmentation lines between parts of the same item
             if (ri == 0 && sSel == cSel && cSel > 0.5 && sPart != cPart && sPart > cPart) dPart = min(dPart, r);
@@ -787,12 +789,12 @@ vec4 selectionOutline(in vec4 color) {
     }
     if (dHov < 10.0) {
         float a = clamp(selHoverWidth + 0.5 - dHov, 0.0, 1.0);
-        if (hidHov > 0.5) a *= selXray * dash * 0.8;
+        if (selHidden(nHov.xy, nHov.z) > 0.5) a *= selXray * dash * 0.8;
         col = selOver(col, selHoverColor, a);
     }
     if (dSel < 10.0) {
         float a = clamp(selWidth + 0.5 - dSel, 0.0, 1.0);
-        if (hidSel > 0.5) a *= selXray * dash;
+        if (selHidden(nSel.xy, nSel.z) > 0.5) a *= selXray * dash;
         col = selOver(col, selColor, a);
     }
     return col;
