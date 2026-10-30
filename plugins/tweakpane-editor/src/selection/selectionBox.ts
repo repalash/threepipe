@@ -32,6 +32,9 @@ const UNIT_CUBE: Vector3[] = Array.from({length: 8}, (_, i) => new Vector3((i & 
 const BOX_EDGES: [number, number][] = []
 for (let i = 0; i < 8; i++) for (const b of [1, 2, 4]) if (!(i & b)) BOX_EDGES.push([i, i | b])
 
+// scratch objects of contentBox, so a box of many parts does not allocate per part
+const tmpMatrix = new Matrix4(), tmpBox = new Box3(), tmpPos = new Vector3(), tmpSize = new Vector3()
+
 /**
  * The box of what is drawn of `obj` in a frame: the boxes of its visible meshes, lines and points, and a cube of
  * `pointSize(o)` at each light or camera inside it. Helpers (widgets, a light's target) and an object with
@@ -43,7 +46,6 @@ for (let i = 0; i < 8; i++) for (const b of [1, 2, 4]) if (!(i & b)) BOX_EDGES.p
 function contentBox(obj: IObject3D, frame: Matrix4, pointSize: (o: IObject3D) => number): Box3 {
     const box = new Box3()
     obj.updateWorldMatrix(true, true)
-    const m = new Matrix4()
     const visit = (o: IObject3D) => {
         const c = o as IObject3D & {boundingBox?: Box3 | null, computeBoundingBox?: () => void}
         if (!c.visible || c.userData.bboxVisible === false || isHelperObject(c)) return
@@ -57,14 +59,14 @@ function contentBox(obj: IObject3D, frame: Matrix4, pointSize: (o: IObject3D) =>
             b = c.geometry.boundingBox
         } else {
             if (c !== obj && (c.isLight || c.isCamera)) {
-                const p = c.getWorldPosition(new Vector3())
-                box.union(new Box3().setFromCenterAndSize(p, new Vector3().setScalar(pointSize(c))).applyMatrix4(frame))
+                const p = c.getWorldPosition(tmpPos)
+                box.union(tmpBox.setFromCenterAndSize(p, tmpSize.setScalar(pointSize(c))).applyMatrix4(frame))
             }
             return
         }
         if (!b) return
-        m.multiplyMatrices(frame, c.matrixWorld)
-        box.union(b.clone().applyMatrix4(m))
+        tmpMatrix.multiplyMatrices(frame, c.matrixWorld)
+        box.union(tmpBox.copy(b).applyMatrix4(tmpMatrix))
     }
     visit(obj)
     return box
