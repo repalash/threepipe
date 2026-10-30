@@ -709,10 +709,19 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         if (this._overlayShown) this._overlayDirty = true
     }
 
+    /**
+     * An element without the overlay is fullscreen (the canvas itself, as `FullScreenPlugin.enter()` does): the page
+     * shows only that element, so the overlay cannot show and the box of the PickingPlugin draws the selection instead
+     */
+    private _fullscreenHides(root: HTMLElement) {
+        const fs = document.fullscreenElement || (document as any).webkitFullscreenElement as Element | null | undefined
+        return !!fs && !fs.contains(root)
+    }
+
     private _onPostFrame = () => {
         const root = this._root
         if (!root) return
-        const on = this.overlay && this._active
+        const on = this.overlay && this._active && !this._fullscreenHides(root)
         this._takeOverPickingBox(on)
         if (on !== this._overlayShown) {
             this._overlayShown = on

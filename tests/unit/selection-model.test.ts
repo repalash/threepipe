@@ -1129,6 +1129,30 @@ describe('SelectionUxPlugin', () => {
         expect(picking.picker.hoverObject).toBe(null)
     })
 
+    test('overlay: off while an element without it is fullscreen (the canvas itself), then the box of the PickingPlugin is back', () => {
+        const {ux, picking, canvas, frame} = setup()
+        let fullscreen: any = null
+        Object.defineProperty(document, 'fullscreenElement', {configurable: true, get: () => fullscreen})
+        try {
+            frame()
+            expect(picking.widgetEnabled).toBe(false)
+            // FullScreenPlugin.enter() with no element: the canvas, not its overlay
+            fullscreen = {contains: () => false}
+            expect(frame().style.display).toBe('none')
+            expect(picking.widgetEnabled).toBe(true)
+            expect(picking.hoverEnabled).toBe(true)
+            // a container of the overlay (the viewer container): the overlay shows
+            fullscreen = {contains: (n: any) => n === canvas.children[0]}
+            expect(frame().style.display).toBe('')
+            expect(picking.widgetEnabled).toBe(false)
+            fullscreen = null
+            expect(frame().style.display).toBe('')
+            expect(ux.overlay).toBe(true)
+        } finally {
+            delete (document as any).fullscreenElement
+        }
+    })
+
     test('overlay: off with the plugin or with `overlay` false, then the box of the PickingPlugin is back; onRemove removes it', () => {
         const {ux, picking, viewer, canvas, frame} = setup()
         frame()
