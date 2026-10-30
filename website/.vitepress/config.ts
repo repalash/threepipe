@@ -221,6 +221,7 @@ export default defineConfig({
           {text: 'glTF Transform Plugin', link: 'package/plugin-gltf-transform'},
           {text: 'Extra Importers Plugins', link: 'package/plugins-extra-importers'},
           {text: 'Network Plugin', link: 'package/plugin-network'},
+          {text: 'Cloud Plugin (feedback, share)', link: 'package/plugin-cloud'},
           {text: 'Blend Importer Plugin', link: 'package/plugin-blend-importer'},
           {text: 'Gaussian Splatting Plugin', link: 'package/plugin-gaussian-splatting'},
           {text: 'svg-renderer Plugin', link: 'package/plugin-svg-renderer'},

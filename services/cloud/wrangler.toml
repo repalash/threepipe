@@ -1,0 +1,50 @@
+# threepipe-cloud: reports and file sharing for threepipe (README.md). One Worker, one D1 database, one R2 bucket.
+# Deploy: CLOUDFLARE.md at the repository root (npm run provision -- --apply, then npm run deploy, from services/cloud).
+# database_id is filled in by `npm run provision -- --apply` when it creates the D1 database.
+name = "threepipe-cloud"
+account_id = "3c4cf55a12810e878be2349f1411ca08"
+main = "src/worker.ts"
+compatibility_date = "2026-03-01"
+workers_dev = true
+
+# The custom domain on the threepipe.org zone (same account): wrangler deploy creates its DNS record and certificate.
+routes = [{ pattern = "cloud.threepipe.org", custom_domain = true }]
+
+# The staff page's script is served as text (src/routes/staff.ts); .html is Text by default.
+rules = [{ type = "Text", globs = ["**/*.client.js"], fallthrough = true }]
+
+[observability]
+enabled = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "threepipe-cloud"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+# Private: no public access, no r2.dev URL. Only this Worker reads it.
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "threepipe-cloud"
+
+[vars]
+# The pages that may send a report or upload a share from a browser, each with the env tag its reports get.
+# Local origins (localhost, *.localhost, 127.0.0.1) are always allowed and tagged 'local'.
+ORIGINS = "https://threepipe.org=prod,https://editor.threepipe.org=prod"
+# The hostnames a Turnstile pass may come from (siteverify `hostname`). Empty: any hostname of the widget.
+TURNSTILE_HOSTNAMES = "threepipe.org,editor.threepipe.org"
+# The daily caps, over the last 24 hours: reports per sender (a keyed hash of the IP, its /64 for IPv6); reports in
+# total; attached bytes in total.
+REPORTS_DAILY_CAP = "20"
+REPORTS_DAILY_CAP_ALL = "500"
+REPORTS_DAILY_FILE_BYTES_ALL = "2147483648"
+# On the Discord card: where staff open a report.
+STAFF_URL = "https://cloud.threepipe.org/staff"
+# Where a browser visit to the workers.dev name is sent.
+CANONICAL_HOST = "cloud.threepipe.org"
+
+# Secrets (wrangler secret put <NAME>), never in this file:
+#   TURNSTILE_SECRET   the secret key of the Turnstile widget
+#   STAFF_TOKENS       'name=token,…' for /staff (tokens of 16+ characters)
+#   SHARE_TOKENS       'name=token,…' for POST /share
+#   DISCORD_WEBHOOK    optional: the webhook of the channel that gets a card per report

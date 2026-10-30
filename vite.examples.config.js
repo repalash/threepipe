@@ -16,6 +16,7 @@ const alias = {
     'three': path.resolve(__dirname, './node_modules/three/'),
     'threepipe': path.resolve(__dirname, './src/index.ts'),
     '@threepipe/plugin-network': path.resolve(__dirname, './plugins/network/src/index.ts'),
+    '@threepipe/plugin-cloud': path.resolve(__dirname, './plugins/cloud/src/index.ts'),
     '@threepipe/plugin-tweakpane': path.resolve(__dirname, './plugins/tweakpane/src/index.ts'),
     '@threepipe/plugin-blueprintjs': path.resolve(__dirname, './plugins/blueprintjs/src/index.ts'),
     '@threepipe/plugin-svg-renderer': path.resolve(__dirname, './plugins/svg-renderer/src/index.ts'),
