@@ -87,6 +87,7 @@ export const CHARACTER_RIGS = {
         root: 'Body',
         forward: '+z',
         // Its feet are IK targets under the root: they follow the shins' ends, which also mark the ankles.
+        // eslint-disable-next-line @typescript-eslint/naming-convention
         attach: {'Foot.L': 'LowerLeg.L_end', 'Foot.R': 'LowerLeg.R_end'},
         ends: {leftShin: 'LowerLeg.L_end', rightShin: 'LowerLeg.R_end', leftForearm: 'Palm2.L', rightForearm: 'Palm2.R'},
     },
@@ -156,7 +157,7 @@ function g1Skeleton() {
 
 /** Node names as three.js loaders store them: GLTFLoader drops `[ ] . : /` and turns spaces into underscores. */
 function sanitize(name: string) {
-    return name.replace(/\s/g, '_').replace(/[\[\].:/]/g, '')
+    return name.replace(/\s/g, '_').replace(/[[\].:/]/g, '')
 }
 
 const tq = new Quaternion(), tq2 = new Quaternion(), tv = new Vector3(), tv2 = new Vector3()
@@ -225,6 +226,7 @@ export class RetargetedCharacter {
         }
 
         // Face +X, like the G1.
+        // eslint-disable-next-line @typescript-eslint/naming-convention
         const yaw = {'+x': 0, '-x': Math.PI, '+z': Math.PI / 2, '-z': -Math.PI / 2}[rig.forward]
         holder.quaternion.setFromAxisAngle(new Vector3(0, 1, 0), yaw)
         this.object.updateMatrixWorld(true)

@@ -44,6 +44,10 @@ const config = {
     wasm: undefined as string[] | undefined,
     /** A folder with pack.json from tools/pack_model.py, or an original MotionBricks G1 .onnx file. */
     model: '',
+    /** A pack from tools/pack_lite.py, used on phones and low-memory devices (or always with ?lite=1). */
+    liteModel: '',
+    /** auto, 1 or 0: when to use liteModel. */
+    lite: 'auto',
     robot: '',
     /** The model the motion plays on, from MOTIONBRICKS_CHARACTERS: g1, h1, t1, op3, robot-expressive, astronaut, polybot. */
     character: 'g1',
@@ -66,7 +70,7 @@ const config = {
     ...(window as any).MOTIONBRICKS_CONFIG,
 }
 const params = new URLSearchParams(location.search)
-for (const key of ['model', 'robot', 'character', 'backend', 'style', 'fx', 'ui', 'worker'] as const) if (params.get(key)) config[key] = params.get(key)!
+for (const key of ['model', 'liteModel', 'lite', 'robot', 'character', 'backend', 'style', 'fx', 'ui', 'worker'] as const) if (params.get(key)) config[key] = params.get(key)!
 
 const $ = (id: string) => document.getElementById(id)
 
@@ -138,6 +142,8 @@ async function init() {
         ort: config.ort || undefined,
         wasm: config.wasm,
         model: config.model || undefined,
+        liteModel: config.liteModel || undefined,
+        lite: config.lite === '1' ? true : config.lite === '0' ? false : 'auto',
         backend: config.backend === 'webgpu' ? 'webgpu' : 'wasm',
         worker: config.worker !== '0',
     })

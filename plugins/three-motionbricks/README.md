@@ -1,12 +1,32 @@
 # three-motionbricks
 
+![The Unitree G1 running down a red lane through a white block city](docs/hero.jpg)
+
 [NVIDIA MotionBricks](https://github.com/NVlabs/motionbricks) for three.js: a Unitree G1 robot that walks and runs where you send it, with every frame of its motion generated in the browser by the model. No animation clips play at runtime.
 
-It needs only `three`. ONNX Runtime Web is imported at runtime from a URL, and the model runs in a Web Worker, so inference never stalls rendering.
+<p align="center"><img src="docs/run.webp" width="640" alt="The robot running, with the camera following it"></p>
+
+It needs only `three`, and works with any three.js setup (plain three.js, react-three-fiber, [threepipe](https://github.com/repalash/threepipe)). ONNX Runtime Web is imported at runtime from a URL, and the model runs in a Web Worker, so inference never stalls rendering.
+
+```bash
+npm i three-motionbricks
+```
+
+Or without a bundler, from jsDelivr in an import map:
+
+```html
+<script type="importmap">
+{"imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.168.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.168.0/examples/jsm/",
+  "three-motionbricks": "https://cdn.jsdelivr.net/gh/repalash/three-motionbricks@v0.1.0/dist/index.mjs"
+}}
+</script>
+```
 
 ```js
 import * as THREE from 'three'
-import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js'
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js'
 import {MotionBricksCharacter, MOTIONBRICKS_DEFAULTS} from 'three-motionbricks'
 
 const g1 = new MotionBricksCharacter()
@@ -25,11 +45,28 @@ g1.update(clock.getDelta())
 
 `example/index.html` is a complete plain three.js page: click the floor, or drive with WASD.
 
+## Motion, frame by frame
+
+The model is given four recent poses and a target pose, and fills in 0.6 to 1.9 s of motion between them. The controller asks for the next stretch while the current one plays, from frames that are already planned, so the new motion takes over without a seam.
+
+A chronophotograph, after Étienne-Jules Marey: the robot every 0.2 s of one run, laid on a single plate.
+
+![Exposures of the robot running left to right on one image](docs/chronophotograph.jpg)
+
+A plate after Eadweard Muybridge's *Animal Locomotion*: 24 consecutive frames, 1/30 s apart, as the model generated them.
+
+![24 numbered frames of the running robot in a grid](docs/stride-plate.jpg)
+
+And when each foot is on the ground, recorded in Chromium in real time. The dotted lines are where each newly generated segment took over; the gait runs through them.
+
+![Gait diagram: stance bars for the left and right foot while running and walking, with segment switches](docs/gait.png)
+
 ## Options
 
 | Option | Default |
 | --- | --- |
 | `model` | NVIDIA's original `mmm_v6_g1_fp32.onnx` (730 MB). A folder (ending in `/`) with a pack from `tools/pack_model.py` is about 190 MB. |
+| `liteModel`, `lite` | A pack from `tools/pack_lite.py` (194 MB), whose weights stay 8-bit in memory: the session settles near 0.5 GB instead of 1.5 GB or more, so it fits on phones; generation takes about 0.8 s on one thread instead of 0.5 s. `lite: 'auto'` (default) uses it on phones, tablets and devices with 4 GB or less. |
 | `ort` | onnxruntime-web 1.30.0 from jsDelivr. |
 | `backend` | `'wasm'`. `'webgpu'` is for testing: with onnxruntime-web 1.30 it computes this model wrongly. |
 | `worker` | `true`. With `false` the model runs on the page and each generation stalls rendering. |
@@ -49,7 +86,19 @@ g1.update(clock.getDelta())
 | `G1Controller` | Point-to-point locomotion that generates each segment ahead of playback. |
 | `G1Robot` | Poses a loaded G1 model from 36 joint coordinates. |
 
-`tools/` holds the scripts that build the robot GLB (`build_g1_glb.mjs`), pack the model (`pack_model.py`), bake the gait targets (`make_bricks.py`), and the NumPy reference the engine was checked against (`motionbricks_ref.py`, to within 0.001°).
+The images here are rendered with [threepipe](https://github.com/repalash/threepipe) from poses recorded in the browser, in the White city scene of its [MotionBricks example](https://github.com/repalash/threepipe/tree/master/examples/motionbricks-g1).
+
+`tools/` holds the scripts that build the robot GLBs (`build_g1_glb.mjs`, and `build_robot_glb.mjs` for any MJCF), pack the model (`pack_model.py`, and `pack_lite.py` for phones), bake the gait targets (`make_bricks.py`), and the NumPy reference the engine was checked against (`motionbricks_ref.py`, to within 0.001°).
+
+## Development
+
+```bash
+npm install
+npm run build     # dist/index.mjs, dist/motionbricks.worker.js and the .d.ts files
+npm run serve     # opens example/
+```
+
+`dist/` is committed so tagged versions load from jsDelivr's GitHub CDN.
 
 ## Licenses
 

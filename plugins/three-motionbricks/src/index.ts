@@ -1,4 +1,4 @@
-export {MotionBricksCharacter, MOTIONBRICKS_DEFAULTS, MOTIONBRICKS_CHARACTERS, loadOrt} from './MotionBricksCharacter'
+export {MotionBricksCharacter, MOTIONBRICKS_DEFAULTS, MOTIONBRICKS_CHARACTERS, loadOrt, isLowMemoryDevice} from './MotionBricksCharacter'
 export type {MotionBricksCharacterOptions, LoadStage} from './MotionBricksCharacter'
 export {G1Robot, G1_JOINT_BODIES} from './G1Robot'
 export {RetargetedCharacter, CHARACTER_RIGS, G1_PARTS} from './RetargetedCharacter'

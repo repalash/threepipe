@@ -29,6 +29,7 @@ The motion comes from the [three-motionbricks](../../plugins/three-motionbricks)
 By default the example streams the original `mmm_v6_g1_fp32.onnx` (730 MB) from NVIDIA's GitHub LFS, and the robot GLB that ships with three-motionbricks. Override them with URL parameters:
 
 - `?model=<url>` an original MotionBricks G1 `.onnx` file, or a folder (ending in `/`) with a pack from `tools/pack_model.py`
+- `?liteModel=<url>` a folder with a pack from `tools/pack_lite.py`, whose weights stay 8-bit in memory (about 0.5 GB instead of 1.5 GB or more); it is used on phones and low-memory devices, or always with `?lite=1` (`?lite=0` never)
 - `?robot=<url>` a G1 GLB with the MJCF body names, such as the library's `assets/unitree_g1.glb`
 - `?style=city|studio|stage|hangar|grid|research` the scene style
 - `?backend=webgpu` to try ONNX Runtime's WebGPU backend. With onnxruntime-web 1.30 it computes this model wrongly (the robot sinks, sprints, or walks away from its goal), so WebAssembly is the default

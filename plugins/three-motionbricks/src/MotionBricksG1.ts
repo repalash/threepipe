@@ -135,6 +135,20 @@ export interface MotionGenerator {
     generate(context: ArrayLike<number>[], target: ArrayLike<number>[], options?: GenerateOptions): Promise<GeneratedMotion>
 }
 
+/**
+ * Manifest written by tools/pack_lite.py: a graph whose weights stay 8-bit in memory (MatMulNBits and int8
+ * convolutions), with its ONNX external data in shards.
+ */
+export interface LitePackManifest {
+    format: 'motionbricks-external'
+    graph: string
+    /** The external data file name the graph refers to. */
+    weights: string
+    bytes: number
+    shardBytes: number
+    shards: string[]
+}
+
 /** Manifest written by tools/pack_model.py. */
 export interface PackManifest {
     format: 'motionbricks-q8'
@@ -235,7 +249,8 @@ export class MotionBricksG1 implements MotionGenerator {
      * @param baseUrl folder that holds pack.json, ending with a slash
      */
     static async LoadPacked(ort: OrtApi, baseUrl: string, sessionOptions: any = {}, onProgress?: ProgressCallback) {
-        const manifest: PackManifest = await (await fetch(baseUrl + 'pack.json')).json()
+        const manifest: PackManifest | LitePackManifest = await (await fetch(baseUrl + 'pack.json')).json()
+        if (manifest.format === 'motionbricks-external') return MotionBricksG1._loadLite(ort, baseUrl, manifest, sessionOptions, onProgress)
         if (manifest.format !== 'motionbricks-q8') throw new Error('Unknown model pack format')
         let loaded = 0
         const total = manifest.q8Length
@@ -256,7 +271,25 @@ export class MotionBricksG1 implements MotionGenerator {
         })
     }
 
-    /** Load a pack folder from tools/pack_model.py (a URL ending in /) or an original .onnx file. */
+    /** A pack from tools/pack_lite.py: the weights go to the session as they are, with no fp32 copy. */
+    private static async _loadLite(ort: OrtApi, baseUrl: string, manifest: LitePackManifest, sessionOptions: any, onProgress?: ProgressCallback) {
+        let loaded = 0
+        const count = (n: number) => onProgress?.(loaded += n, manifest.bytes)
+        const data = new Uint8Array(manifest.bytes)
+        const [graph] = await Promise.all([
+            fetchBytes(baseUrl + manifest.graph),
+            ...manifest.shards.map(async(s, i) => fetchBytes(baseUrl + s, count, data, i * manifest.shardBytes)),
+        ])
+        // No memory arena or patterns: they keep peak buffers around, and memory is why this pack exists.
+        return MotionBricksG1._create(ort, graph, {
+            enableCpuMemArena: false,
+            enableMemPattern: false,
+            ...sessionOptions,
+            externalData: [{path: manifest.weights, data}],
+        })
+    }
+
+    /** Load a pack folder from tools/pack_model.py or tools/pack_lite.py (a URL ending in /), or an original .onnx file. */
     static async Load(ort: OrtApi, model: string, sessionOptions: any = {}, onProgress?: ProgressCallback) {
         return model.endsWith('/') ?
             MotionBricksG1.LoadPacked(ort, model, sessionOptions, onProgress) :

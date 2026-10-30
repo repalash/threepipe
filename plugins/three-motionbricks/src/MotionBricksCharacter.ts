@@ -38,6 +38,13 @@ export const MOTIONBRICKS_CHARACTERS = [
 export interface MotionBricksCharacterOptions {
     /** A folder with pack.json from tools/pack_model.py (ending in /), or an original MotionBricks G1 .onnx file. */
     model?: string
+    /**
+     * A pack from tools/pack_lite.py, whose weights stay 8-bit in memory: about 0.5 GB in the browser against
+     * 1.5 GB or more, with slower generation. Used instead of `model` where `lite` says.
+     */
+    liteModel?: string
+    /** Use `liteModel`: always, never, or 'auto' (default) on phones, tablets and devices with 4 GB or less. */
+    lite?: boolean | 'auto'
     /** The onnxruntime-web module to import. */
     ort?: string
     /** Parts of the ORT .wasm file, joined in order, for hosts that limit file size. */
@@ -166,7 +173,8 @@ export class MotionBricksCharacter {
     private async _load(onProgress?: (stage: LoadStage, loaded: number, total: number) => void) {
         const o = this.options
         const ortUrl = o.ort ?? MOTIONBRICKS_DEFAULTS.ort
-        const model = o.model ?? MOTIONBRICKS_DEFAULTS.model
+        const useLite = !!o.liteModel && (o.lite === true || (o.lite ?? 'auto') === 'auto' && isLowMemoryDevice())
+        const model = useLite ? o.liteModel! : o.model ?? MOTIONBRICKS_DEFAULTS.model
         const useGpu = o.backend === 'webgpu' && typeof navigator !== 'undefined' && 'gpu' in navigator
         const sessionOptions = {executionProviders: useGpu ? ['webgpu', 'wasm'] : ['wasm'], graphOptimizationLevel: 'all'}
         const progress = (l: number, t: number) => onProgress?.('model', l, t)
@@ -292,6 +300,15 @@ export class MotionBricksCharacter {
         this.engine = undefined
         this.controller = undefined
     }
+}
+
+/** A phone, a tablet, or a device reporting 4 GB of memory or less, where the full model does not fit. */
+export function isLowMemoryDevice() {
+    if (typeof navigator === 'undefined') return false
+    const memory = (navigator as any).deviceMemory as number | undefined
+    if (memory && memory <= 4) return true
+    // iPadOS reports itself as a Mac, with touch.
+    return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || navigator.platform.includes('Mac') && navigator.maxTouchPoints > 1
 }
 
 /** Import onnxruntime-web on the page, for when no worker is used. */
