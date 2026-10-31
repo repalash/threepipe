@@ -329,15 +329,18 @@ export async function createReport(o: CreateOptions): Promise<Result> {
         db.prepare('SELECT COUNT(*) AS n FROM reports WHERE project_id = ?1 AND created_at >= ?2').bind(project.id, since),
         db.prepare('SELECT COUNT(*) AS n, COALESCE(SUM(files_bytes), 0) AS b FROM reports WHERE created_at >= ?1').bind(since),
     ]) as D1Result<{n: number, b: number}>[]
+    // Checked here before anything is uploaded, and again by the INSERT itself (requests at the same time all pass here)
+    const caps = {sender: o.user ? reportsDaily(env, o.user) : dailyCap(env, 'perSender'), project: dailyCap(env, 'perProject'),
+        all: dailyCap(env, 'all'), fileBytes: dailyCap(env, 'fileBytes')}
     const tooMany = {status: 429, body: {error: 'too many reports today, try again tomorrow'}}
-    if ((mine.results[0]?.n ?? 0) >= (o.user ? reportsDaily(env, o.user) : dailyCap(env, 'perSender'))) return tooMany
-    if ((proj.results[0]?.n ?? 0) >= dailyCap(env, 'perProject')) return tooMany
-    if ((all.results[0]?.n ?? 0) >= dailyCap(env, 'all')) {
-        logError('reports: the daily cap for all reports is reached', {cap: dailyCap(env, 'all')})
+    if ((mine.results[0]?.n ?? 0) >= caps.sender) return tooMany
+    if ((proj.results[0]?.n ?? 0) >= caps.project) return tooMany
+    if ((all.results[0]?.n ?? 0) >= caps.all) {
+        logError('reports: the daily cap for all reports is reached', {cap: caps.all})
         return tooMany
     }
     const bytes = files.reduce((n, f) => n + f.bytes.byteLength, 0)
-    if (bytes && (all.results[0]?.b ?? 0) + bytes > dailyCap(env, 'fileBytes')) {
+    if (bytes && (all.results[0]?.b ?? 0) + bytes > caps.fileBytes) {
         return {status: 429, body: {error: 'too many file bytes today: send the report without the files, or try again tomorrow'}}
     }
 
@@ -372,17 +375,25 @@ export async function createReport(o: CreateOptions): Promise<Result> {
             const text = JSON.stringify(bundle)
             await env.CLOUD_BUCKET.put(bundleKey(key), text, {httpMetadata: {contentType: 'application/json'}})
             if (!written.includes(bundleKey(key))) written.push(bundleKey(key))
+            let inserted: D1Result
             try {
-                await db.batch([
+                // One statement: the row goes in only while every cap still has room, so a burst of requests that all
+                // passed the checks above cannot get past them; the report's files only with its row.
+                [inserted] = await db.batch([
                     db.prepare(`INSERT INTO reports
                         (id, project_id, key, client_key, created_at, origin, type, surface, email, user_id, rate_key, summary, cause,
                          versions_json, has_image, bundle_bytes, files_count, files_bytes)
-                        VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18)`)
+                        SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18
+                        WHERE (SELECT COUNT(*) FROM reports WHERE rate_key = ?11 AND created_at >= ?19) < ?20
+                          AND (SELECT COUNT(*) FROM reports WHERE project_id = ?2 AND created_at >= ?19) < ?21
+                          AND (SELECT COUNT(*) FROM reports WHERE created_at >= ?19) < ?22
+                          AND (?18 = 0 OR (SELECT COALESCE(SUM(files_bytes), 0) FROM reports WHERE created_at >= ?19) + ?18 <= ?23)`)
                         .bind(id, project.id, key, clientKey, now, origin, p.type, p.surface, p.email ?? null, userId ?? null, sender,
                             p.text.slice(0, SUMMARY_MAX) || null, p.cause?.kind ?? null, JSON.stringify(p.versions),
-                            imageName ? 1 : 0, new TextEncoder().encode(text).byteLength, files.length, bytes),
+                            imageName ? 1 : 0, new TextEncoder().encode(text).byteLength, files.length, bytes,
+                            since, caps.sender, caps.project, caps.all, caps.fileBytes),
                     ...files.map((f, idx) => db.prepare(`INSERT INTO report_files (id, report_id, idx, name, size, state)
-                        VALUES (?1, ?2, ?3, ?4, ?5, 'done')`).bind(crypto.randomUUID(), id, idx, f.name, f.bytes.byteLength)),
+                        SELECT ?1, ?2, ?3, ?4, ?5, 'done' WHERE EXISTS (SELECT 1 FROM reports WHERE id = ?2)`).bind(crypto.randomUUID(), id, idx, f.name, f.bytes.byteLength)),
                 ])
             } catch (e: any) {
                 const msg = String(e?.message || e)
@@ -393,6 +404,10 @@ export async function createReport(o: CreateOptions): Promise<Result> {
                     return raced && raced.rate_key === sender ? {status: 200, body: {id: raced.id, repeat: true}} : {status: 409, body: {error: 'try again'}}
                 }
                 throw e
+            }
+            if (!inserted.meta.changes) {
+                await cleanup(env, written)
+                return tooMany
             }
             const row: CardRow = {id, project: project.slug, origin, type: p.type, surface: p.surface, cause: p.cause?.kind ?? null, ext: p.cause?.ext ?? null,
                 versions: p.versions, files_count: files.length, files_bytes: bytes, has_image: !!imageName, log_lines: p.log.length, signed_in: !!userId}

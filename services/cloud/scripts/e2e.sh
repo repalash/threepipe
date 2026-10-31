@@ -100,7 +100,7 @@ curl -s -H "$H0" "$A/api/v1/drive/items/$LID" | grep -q '"files_count":2' && ok 
 SURL=$(curl -s -X POST -H "$H0" "$A/api/v1/drive/items/$LID/sign" | j "['url']")
 curl -s "${SURL}scene.gltf" | grep -q asset && [ "$(curl -s "${SURL}tex/scene.bin")" = "bin" ] && ok "signed item URL serves the entry and its relative files" || bad "signed item: $SURL"
 [ "$(code "${SURL%$LID/}$ITEM/chair.glb")" = "403" ] && ok "a signature covers one item only" || bad "signature scope"
-[ "$(code "$(echo "$SURL" | sed -E 's#(/t/[0-9]+\.)[A-Za-z0-9_-]#\1x#')scene.gltf")" = "403" ] && ok "tampered signature -> 403" || bad "tampered"
+[ "$(code "$(echo "$SURL" | sed -E 's#(/t/[0-9]+\.)x#\1y#; t; s#(/t/[0-9]+\.)[A-Za-z0-9_-]#\1x#')scene.gltf")" = "403" ] && ok "tampered signature -> 403" || bad "tampered"
 LURL=$(curl -s -X PATCH -H "$H0" -H 'content-type: application/json' -d '{"visibility":"link"}' "$A/api/v1/drive/items/$LID" | j "['url']")
 [ "$(code "$LURL")" = "200" ] && [ "$(curl -s "${LURL%scene.gltf}tex/scene.bin")" = "bin" ] && ok "link: anyone with the item URL" || bad "link: $LURL"
 curl -s -o /dev/null -X PATCH -H "$H0" -H 'content-type: application/json' -d '{"visibility":"private"}' "$A/api/v1/drive/items/$LID"
@@ -221,6 +221,15 @@ R=$(curl -s -X POST -H "Authorization: Bearer $T2" -H 'content-type: application
 admin user_limits/insert "{\"values\":{\"user_id\":\"$UID2\",\"reports_daily\":1}}" > /dev/null
 [ "$(code -X POST -H "Authorization: Bearer $T2" -H 'content-type: application/json' -H "Idempotency-Key: k-$U-limited" -d "$RJ" "$A/api/v1/projects/$P/reports")" = "429" ] && ok "a user's own daily report cap (user_limits)" || bad "user report cap"
 admin user_limits/delete "{\"where\":\"user_id == '$UID2'\"}" > /dev/null
+SID=$(curl -s -H "Authorization: Bearer $TS" "$A/api/v1/table/users/select?select=id" | j "[0]['id']")
+admin user_limits/insert "{\"values\":{\"user_id\":\"$SID\",\"reports_daily\":1}}" > /dev/null
+curl -s -o /dev/null -X POST -H "$H0" -H 'content-type: application/json' -d "{\"slug\":\"$P-burst\"}" "$A/api/v1/projects"
+# big files: their uploads keep the requests between the checks and the INSERT long enough to overlap
+head -c 3000000 /dev/urandom > $TMP/big.glb; echo '{"type":"bug","surface":"examples","text":"burst"}' > $TMP/burst.json
+PIDS=""; for i in 1 2 3 4; do curl -s -o $TMP/burst-body.$i -w '%{http_code}\n' -X POST -H "Authorization: Bearer $TS" -H "Idempotency-Key: k-$U-burst-$i" -F "report=<$TMP/burst.json" \
+    -F "file=@$TMP/big.glb;filename=a.glb" -F "file=@$TMP/big.glb;filename=b.glb" -F "file=@$TMP/big.glb;filename=c.glb" "$A/api/v1/projects/$P-burst/reports" > $TMP/burst.$i & PIDS="$PIDS $!"; done; wait $PIDS
+[ "$(cat $TMP/burst.[0-9] | grep -c 201)" = "1" ] && [ "$(cat $TMP/burst.[0-9] | grep -c 429)" = "3" ] && ok "a burst of reports at the same time: the cap holds (one of four)" || bad "report burst: $(cat $TMP/burst.[0-9] | tr '\n' ' ') $(cat $TMP/burst-body.1)"
+admin user_limits/delete "{\"where\":\"user_id == '$SID'\"}" > /dev/null
 curl -s -X POST -H "Authorization: Bearer $T2" -H 'content-type: application/json' -H "Idempotency-Key: k-$U-2" -d '{"type":"idea","surface":"editor"}' "$A/api/v1/projects/$P/reports" | grep -q '"repeat":true' && ok "same Idempotency-Key -> the same report" || bad "idempotency"
 echo "$RJ" > $TMP/report.json
 R=$(curl -s -X POST -H "Authorization: Bearer $T2" -H "Idempotency-Key: k-$U-3" -F "report=<$TMP/report.json" -F "file=@$TMP/a.txt;filename=scene.glb" "$A/api/v1/projects/$P/reports"); RID3=$(echo "$R" | j "['id']") && ok "multipart report with a file" || bad "multipart: $R"
@@ -237,4 +246,6 @@ curl -s -X DELETE -H "$H0" "$A/api/v1/projects/$P/reports/$RID2" | grep -q delet
 [ "$(code -H "$H0" "$A/api/v1/projects/p-none-$U/reports")" = "404" ] && ok "unknown project -> 404" || bad "unknown project"
 curl -sI "$A/reports" | grep -qi "content-security-policy: default-src 'none'; script-src 'self'" && [ "$(code "$A/reports/page.js")" = "200" ] && ok "reports page" || bad "reports page"
 echo "failures: $FAILS"
+# what the worker logged, to see why a check failed
+[ $FAILS -eq 0 ] || grep -E '\[cloud\]|ERROR|Error' "$TMP/dev.log" | tail -20
 [ $FAILS -eq 0 ]
