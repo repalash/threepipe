@@ -8,6 +8,7 @@ import styles from './EditorFrame.css?inline'
  * - `titlebar`: a slim bar on top (app, file name, actions); the canvas and the panel are edge to edge below it.
  * - `statusbar`: no title; a slim bar at the bottom (file name, actions), like a code editor.
  * - `floating`: the canvas fills the window; the panel and the mode bar float over it, with the same gap on every side.
+ *   No bar, so no file name ({@link EditorFrame.documentName}); the actions are in the mode bar.
  */
 export type EditorFrameLayout = 'titlebar' | 'statusbar' | 'floating'
 

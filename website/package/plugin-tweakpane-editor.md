@@ -61,7 +61,7 @@ editor.loadPlugins({
 
 - `'titlebar'` (the default): a slim bar on top with the app name, the file name and the actions. The canvas and the panel are edge to edge below it.
 - `'statusbar'`: the same bar at the bottom, like a code editor.
-- `'floating'`: the canvas fills the window. The panel and the mode bar float over it as one card (side by side, with a line between them), with the same gap to the window on every side (no gap on a phone in portrait, where the room is small). The actions are in the mode bar.
+- `'floating'`: the canvas fills the window. The panel and the mode bar float over it as one card (side by side, with a line between them), with the same gap to the window on every side (no gap on a phone in portrait, where the room is small). The actions are in the mode bar. It has no bar, so it does not show the file name.
 - `'classic'`: no frame. The page has the mode tabs at the bottom, as before.
 
 In the frame:
@@ -85,9 +85,12 @@ viewer.addPluginSync(new TweakpaneUiPlugin(true))
 // TweakpaneEditorPlugin.DefaultLayout = 'classic' // before the plugin is made: the layout when none is stored
 const editor = viewer.addPluginSync(new TweakpaneEditorPlugin())
 editor.frameOptions = {title: 'My app'} // before loadPlugins, which makes the frame
+// the colour and icon of a mode (an SVG string), also before loadPlugins, which makes the mode bar
+EditorModeBar.Looks['My mode'] = {color: '#0d99ff', icon: '<svg ...></svg>'}
 editor.loadPlugins({
     ['Viewer']: [ViewerUiConfigPlugin, TweakpaneEditorPlugin], // with the Editor folder
     ['Export']: [AssetExporterPlugin],
+    ['My mode']: [MyPlugin],
 })
 
 editor.layout = 'floating'
@@ -95,9 +98,6 @@ editor.modeNames = false // icons only
 editor.documentName = 'Ring.glb'
 // a rename in the bar, or a change from the code
 editor.addEventListener('documentNameChange', ({name}) => console.log('name', name))
-
-// the colour and icon of a mode (an SVG string)
-EditorModeBar.Looks['My mode'] = {color: '#0d99ff', icon: '<svg ...></svg>'}
 
 // back to the mode tabs at the bottom
 editor.layout = 'classic'

@@ -37,7 +37,10 @@ const FALLBACK: EditorModeLook = {color: '#8a8f98', icon: svg('<circle cx="10" c
  * panel is hidden, for the page layout ({@link EditorFrame}).
  */
 export class EditorModeBar {
-    /** The colour and icon of each mode name. A mode that is not here gets a grey dot. */
+    /**
+     * The colour and icon of each mode name. A mode that is not here gets a grey dot. Read when the bar is made: set it
+     * before `TweakpaneEditorPlugin.loadPlugins`.
+     */
     static Looks: Record<string, EditorModeLook> = {
         'Viewer': {color: '#0d99ff', icon: svg('<rect x="2.5" y="4" width="15" height="10" rx="1.5"/><path d="M7 17h6M10 14v3"/>')},
         'Interaction': {color: '#f97316', icon: svg('<path d="M6 3l9 5.5-4 1 2.5 5-2 1-2.5-5L6 13z"/>')},
