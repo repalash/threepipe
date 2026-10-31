@@ -38,7 +38,8 @@ only; a new username is signed up on the first try).
 | `POST /api/v1/drive/items`, `PUT /api/v1/drive/items/<id>/<path>` | owner / app key | a folder item (gltf + bin + textures), file by file |
 | `GET/PATCH/DELETE /api/v1/drive/items/<id>` `{name?, folder?, visibility?}` | owner / app key | read, rename, move, share (`link`) or hide (`private`), delete |
 | `POST /api/v1/drive/items/<id>/sign` `{ttl?}`, `…/new-id` | owner / app key | signed URL of the whole item; a new id (old URLs stop working) |
-| `/drive` | browser | the drive page |
+| `/drive`, `/reports` | browser | the drive and reports pages (one look, `src/page/ui.css`: the clean mode of the tweakpane plugin, light and dark) |
+| `GET /api/v1/me` | signed in (not app keys) | handle, name, role, drive use and quota (the pages' side bar) |
 | `GET /api/v1/connect?return=<app url>` | browser | "Sign in with threepipe" for apps (below) |
 | `PUT /api/v1/buckets/<samples\|e2e>/<path>` + `x-content-sha256` | staff | write-once upload to the samples / e2e snapshot bucket (R2 serves them on `SAMPLES_URL` / `E2E_URL`); e2e paths are `blobs/<sha256><ext>` |
 | `POST /api/v1/buckets/<samples\|e2e>/missing` `{paths}` | staff | which of up to 500 paths are not there yet |

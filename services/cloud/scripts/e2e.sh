@@ -120,13 +120,15 @@ NL=$(curl -s -X POST -H "$H0" "$A/api/v1/drive/items/$LID/new-id" | j "['id']")
 [ "$(code -X PUT -H "$H0" --data-binary @$TMP/a.txt "$A/api/v1/drive/files?name=over.txt")" = "413" ] && ok "drive quota -> 413" || bad "quota"
 admin files/delete "{\"where\":\"path == 'd/$U/big'\"}" > /dev/null
 curl -sI "$A/drive" | grep -qi "content-security-policy: default-src 'none'; script-src 'self'" && [ "$(code "$A/drive/page.js")" = "200" ] && ok "drive page" || bad "drive page"
+[ "$(curl -s -o /dev/null -w '%{http_code} %{content_type}' "$A/ui.css")" = "200 text/css; charset=utf-8" ] && [ "$(code "$A/ui.js")" = "200" ] && ok "the pages' look (/ui.css, /ui.js)" || bad "ui.css"
+R=$(curl -s -H "$H0" "$A/api/v1/me"); [ "$(echo "$R" | j "['username']")" = "$U" ] && [ "$(echo "$R" | j "['drive']['quota']")" = "1073741824" ] && ok "me: the handle and the drive quota" || bad "me: $R"
 [ "$(code -X DELETE -H "$H0" "$A/api/v1/drive/items/$ITEM")" = "200" ] && [ "$(code -H "$H0" "$A/api/v1/drive/items/$ITEM")" = "404" ] && ok "delete an item" || bad "delete item"
 
 # --- app sign-in (connect) ---
 CK="Cookie: tp_cloud_auth=$TOK"
 APP="$A/_files/p/$U-page/index.html"
 CON="$A/api/v1/connect?return=$(enc "$APP")"
-curl -s "$CON" | grep -q "Sign in with GitHub" && ok "connect: signed out -> sign-in page" || bad "connect signed out"
+curl -s "$CON" | grep -q "Continue with GitHub" && ok "connect: signed out -> sign-in page" || bad "connect signed out"
 curl -s -H "$CK" "$CON" | grep -q "Connect p/$U-page" && ok "connect: consent page" || bad "connect consent"
 [ "$(code -X POST -H "$CK" --data-urlencode "return=$APP" "$A/api/v1/connect")" = "403" ] && ok "connect: cookie post without our Origin -> 403" || bad "connect csrf"
 LOC=$(curl -s -o /dev/null -w '%{redirect_url}' -X POST -H "$CK" -H "Origin: $A" --data-urlencode "return=$APP" "$A/api/v1/connect")
@@ -139,6 +141,7 @@ HA="Authorization: Bearer $AK"
 [ "$(code -X PUT -H "$HA" --data-binary @$TMP/a.txt "$A/api/v1/uploads/s/$U-app/a.txt")" = "403" ] && ok "app key: s/ -> 403" || bad "app key s/"
 [ "$(code -H "$HA" "$A/api/v1/table/files/select")" = "403" ] && ok "app key: teenybase routes -> 403" || bad "app key teenybase"
 [ "$(code -X POST -H "$HA" "$A/api/v1/access-links")" = "403" ] && ok "app key: no access links" || bad "app key access links"
+[ "$(code -H "$HA" "$A/api/v1/me")" = "403" ] && ok "app key: no me" || bad "app key me"
 R=$(curl -s -H "$HA" "$A/api/v1/drive"); echo "$R" | grep -q save.txt && ! echo "$R" | grep -q 'Möbel' && ok "app key lists only its folder" || bad "app key list: $R"
 curl -s -o /dev/null -X PATCH -H "$H0" -H 'content-type: application/json' -d '{"name":"My page app"}' "$A/api/v1/drive/folders/$AF"
 [ "$(code -X PUT -H "$HA" --data-binary @$TMP/a.txt "$A/api/v1/drive/files?name=after-rename.txt")" = "201" ] && ok "the user renames the app's folder, the app still works" || bad "app folder rename"

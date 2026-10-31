@@ -1,0 +1,293 @@
+/* The look of the threepipe cloud pages (/ui.css, src/page.ts): the clean colour mode of @threepipe/plugin-tweakpane
+   (plugins/tweakpane/src/tpTheme.css, tpTheme-clean / tpTheme-clean-dark), like the panels of a design tool: Inter,
+   11-12px text, 24-28px fields on a grey fill, grey labels, sections split by thin lines, outlined buttons, one blue accent.
+   Light and dark follow the system unless <html data-theme="light|dark"> (the switch in the side bar, ui.client.js). */
+:root {
+    color-scheme: light dark;
+    --bg: light-dark(#ffffff, #2c2c2c);
+    --canvas: light-dark(#f5f5f5, #1e1e1e);
+    --fg: light-dark(#1e1e1e, #ffffff);
+    --muted: light-dark(#757575, #b3b3b3);
+    --faint: light-dark(#b3b3b3, #757575);
+    --line: light-dark(#e6e6e6, #444444);
+    --field: light-dark(#f5f5f5, #383838);
+    --field-hover: light-dark(#ededed, #404040);
+    --hover: light-dark(#f5f5f5, #383838);
+    --active: light-dark(#ebebeb, #444444);
+    --accent: #0d99ff;
+    --accent-fg: #ffffff;
+    --accent-hover: #0b87e0;
+    --selected: light-dark(#e5f4ff, rgba(13, 153, 255, .22));
+    --danger: light-dark(#e03e1a, #ff7262);
+    --success: light-dark(#14ae5c, #3dd68c);
+    --warning: light-dark(#b86200, #ffcd29);
+    --info: light-dark(#0c8ce9, #7cc4fa);
+    --shadow: 0 0 0 1px light-dark(rgba(0, 0, 0, .06), rgba(0, 0, 0, .4)), 0 2px 10px light-dark(rgba(0, 0, 0, .08), rgba(0, 0, 0, .3));
+    --shadow-pop: 0 0 0 1px light-dark(rgba(0, 0, 0, .08), rgba(0, 0, 0, .5)), 0 10px 28px light-dark(rgba(0, 0, 0, .14), rgba(0, 0, 0, .5));
+    --radius: 5px;
+    --font: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+:root[data-theme="light"] { color-scheme: light }
+:root[data-theme="dark"] { color-scheme: dark }
+
+* { box-sizing: border-box }
+html, body { height: 100% }
+body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 12px/1.45 var(--font); letter-spacing: .005em;
+    -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+}
+[hidden] { display: none !important }
+a { color: var(--accent); text-decoration: none }
+a:hover { text-decoration: underline }
+h1, h2, h3 { margin: 0; font-weight: 600 }
+p { margin: 0 0 8px }
+code { font: 11px var(--mono); background: var(--field); padding: 1px 4px; border-radius: 3px; overflow-wrap: anywhere }
+svg.i { width: 16px; height: 16px; flex: 0 0 16px; fill: none; stroke: currentColor; stroke-width: 1.25; stroke-linecap: round; stroke-linejoin: round }
+.muted { color: var(--muted) }
+.err { color: var(--danger) }
+.grow { flex: 1 }
+
+/* ---------- controls ---------- */
+button, .btn, input, select, textarea { font: inherit; color: inherit; letter-spacing: inherit }
+button, .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    height: 24px; padding: 0 8px; border: 0; border-radius: var(--radius);
+    background: transparent; box-shadow: inset 0 0 0 1px var(--line);
+    font-size: 11px; font-weight: 500; white-space: nowrap; cursor: pointer; text-decoration: none; color: var(--fg);
+}
+button:hover, .btn:hover { background: var(--hover); text-decoration: none }
+button:active, .btn:active { background: var(--active) }
+button:focus-visible, .btn:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px }
+button[disabled] { opacity: .45; cursor: default; background: transparent }
+button.primary, .btn.primary { background: var(--accent); color: var(--accent-fg); box-shadow: none }
+button.primary:hover, .btn.primary:hover { background: var(--accent-hover) }
+button.dark, .btn.dark { background: var(--fg); color: var(--bg); box-shadow: none }
+button.dark:hover, .btn.dark:hover { opacity: .88; background: var(--fg) }
+button.danger { color: var(--danger) }
+button.ghost, .btn.ghost { box-shadow: none }
+button.icon { width: 24px; padding: 0; box-shadow: none; color: var(--muted) }
+button.icon:hover { color: var(--fg) }
+button.lg, .btn.lg { height: 32px; padding: 0 14px; font-size: 12px }
+
+input, select, textarea {
+    height: 24px; padding: 0 8px; border: 0; border-radius: var(--radius);
+    background: var(--field); font-size: 11px; min-width: 0;
+}
+textarea { height: auto; padding: 6px 8px; resize: vertical; line-height: 1.45 }
+input:hover, select:hover, textarea:hover { box-shadow: inset 0 0 0 1px var(--line) }
+input:focus, select:focus, textarea:focus { outline: none; background: var(--bg); box-shadow: inset 0 0 0 1px var(--accent) }
+input::placeholder, textarea::placeholder { color: var(--faint) }
+select { cursor: pointer; appearance: none; padding-right: 22px }
+/* a select's chevron: CSS, since the page's CSP allows no data: images */
+.sel { position: relative; display: inline-flex }
+.sel select { flex: 1 }
+.sel::after { content: ""; position: absolute; right: 9px; top: 50%; width: 4px; height: 4px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: translateY(-75%) rotate(45deg); opacity: .5; pointer-events: none }
+input.lg { height: 32px; font-size: 12px; padding: 0 10px }
+label.check { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; cursor: pointer; user-select: none }
+input[type="checkbox"] {
+    appearance: none; width: 14px; height: 14px; padding: 0; margin: 0; border-radius: 3px; cursor: pointer;
+    background: transparent; box-shadow: inset 0 0 0 1px light-dark(rgba(0, 0, 0, .5), rgba(255, 255, 255, .5)); display: inline-grid; place-content: center;
+}
+input[type="checkbox"]:checked { background: var(--accent); box-shadow: none }
+input[type="checkbox"]:checked::after { content: ""; width: 7px; height: 4px; border: 1.75px solid #fff; border-top: 0; border-right: 0; transform: translateY(-1px) rotate(-45deg) }
+
+/* segmented control: a grey track, the chosen one raised */
+.seg { display: inline-flex; padding: 2px; gap: 2px; border-radius: 6px; background: var(--field) }
+.seg button { height: 20px; box-shadow: none; color: var(--muted); border-radius: 4px }
+.seg button:hover { background: transparent; color: var(--fg) }
+.seg button.on { background: var(--bg); color: var(--fg); box-shadow: 0 0 0 1px var(--line), 0 1px 2px rgba(0, 0, 0, .06) }
+
+.pill {
+    display: inline-flex; align-items: center; gap: 4px; height: 18px; padding: 0 6px; border-radius: 4px;
+    background: var(--field); color: var(--muted); font-size: 10.5px; font-weight: 500; white-space: nowrap;
+}
+.pill.accent { background: var(--selected); color: var(--accent) }
+.dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 8px; background: var(--faint) }
+.c-new { --c: var(--muted) } .c-in_progress { --c: var(--accent) } .c-waiting_reporter { --c: var(--warning) } .c-closed { --c: var(--success) } .c-spam { --c: var(--danger) }
+.c-bug { --c: var(--danger) } .c-question { --c: var(--info) } .c-idea { --c: var(--success) }
+.dot[class*="c-"] { background: var(--c, var(--faint)) }
+.pill[class*="c-"] { color: var(--c, var(--muted)) }
+.pill .dot { width: 6px; height: 6px; flex-basis: 6px }
+
+/* ---------- the frame: side bar, main, properties panel ---------- */
+.frame { display: grid; grid-template-columns: 240px minmax(0, 1fr) auto; height: 100vh }
+#side { border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; overflow-y: auto }
+.brand { display: flex; align-items: center; gap: 8px; height: 48px; padding: 0 16px; font-size: 12px; font-weight: 600; flex: 0 0 auto }
+.brand .mark { width: 20px; height: 20px; border-radius: 5px; background: var(--fg); color: var(--bg); display: grid; place-items: center }
+.brand .mark svg { width: 14px; height: 14px; stroke-width: 1.6 }
+.nav { padding: 4px 8px; display: flex; flex-direction: column; gap: 1px }
+.nav-h { padding: 12px 8px 4px; font-size: 11px; font-weight: 600; color: var(--muted) }
+.nav a {
+    display: flex; align-items: center; gap: 8px; height: 28px; padding: 0 8px; border-radius: var(--radius);
+    color: var(--fg); font-size: 12px; text-decoration: none; cursor: pointer; min-width: 0;
+}
+.nav a span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.nav a .i { color: var(--muted) }
+.nav a:hover { background: var(--hover) }
+.nav a.on { background: var(--selected); color: var(--fg); font-weight: 500 }
+.nav a.on .i { color: var(--accent) }
+.nav a.sub { padding-left: 32px; font-size: 11.5px }
+.side-foot { margin-top: auto; padding: 12px 16px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 10px }
+.me { display: flex; align-items: center; gap: 8px; min-width: 0 }
+.avatar { width: 24px; height: 24px; border-radius: 50%; background: var(--accent); color: #fff; display: grid; place-items: center; font-size: 11px; font-weight: 600; flex: 0 0 24px; text-transform: uppercase }
+.me .who { min-width: 0; flex: 1; line-height: 1.25 }
+.me .who b { display: block; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.me .who span { font-size: 11px; color: var(--muted) }
+.usage { font-size: 11px; color: var(--muted) }
+.bar { height: 4px; border-radius: 2px; background: var(--field); overflow: hidden; margin-top: 4px }
+.bar i { display: block; height: 100%; background: var(--accent); border-radius: 2px }
+.bar.full i { background: var(--danger) }
+
+main { display: flex; flex-direction: column; min-width: 0; min-height: 0 }
+.toolbar {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-height: 48px; padding: 8px 16px;
+    border-bottom: 1px solid var(--line); flex: 0 0 auto;
+}
+.toolbar h1 { font-size: 13px; margin-right: 4px }
+.crumbs { display: flex; align-items: center; gap: 2px; font-size: 13px; min-width: 0; flex-wrap: wrap }
+.crumbs a { color: var(--muted); padding: 2px 4px; border-radius: 4px; cursor: pointer; text-decoration: none }
+.crumbs a:hover { background: var(--hover); color: var(--fg) }
+.crumbs a:last-child { color: var(--fg); font-weight: 600 }
+.crumbs .sep { color: var(--faint) }
+.status { font-size: 11px; color: var(--muted) }
+.scroll { flex: 1; overflow-y: auto; min-height: 0; position: relative }
+.scroll.drop::after { content: "Drop to upload here"; position: absolute; inset: 8px; border: 1.5px dashed var(--accent); border-radius: 8px; background: color-mix(in srgb, var(--accent) 6%, transparent); display: grid; place-items: center; color: var(--accent); font-weight: 500; pointer-events: none }
+.intro { padding: 12px 16px 0; color: var(--muted); font-size: 11px }
+
+/* the list: a table with a sticky header, rows 36px, hover grey, selected blue */
+table.list { width: 100%; border-collapse: collapse; table-layout: fixed }
+.list th {
+    position: sticky; top: 0; z-index: 1; background: var(--bg); height: 32px; padding: 0 8px; text-align: left;
+    font-size: 11px; font-weight: 500; color: var(--muted); border-bottom: 1px solid var(--line);
+}
+.list th:first-child, .list td:first-child { padding-left: 16px }
+.list th:last-child, .list td:last-child { padding-right: 16px }
+.list td { height: 40px; padding: 0 8px; border-bottom: 1px solid var(--line); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--muted); font-size: 11.5px }
+.list tbody tr { cursor: pointer }
+.list tbody tr:hover td { background: var(--hover) }
+.list tbody tr.on td { background: var(--selected) }
+.list tbody tr.gone td { opacity: .5 }
+.list .name { display: flex; align-items: center; gap: 10px; min-width: 0; color: var(--fg) }
+.list .name .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500 }
+.list .name .s { font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.list .name > div { min-width: 0 }
+.list .ft { width: 28px; height: 28px; border-radius: 6px; display: grid; place-items: center; flex: 0 0 28px; background: var(--field); color: var(--muted) }
+.list .ft.folder { color: var(--accent); background: var(--selected) }
+.list .acts { text-align: right; overflow: visible }
+.list .acts button { opacity: 0 }
+.list tr:hover .acts button, .list tr.on .acts button, .list .acts button:focus-visible { opacity: 1 }
+.list .pills { display: flex; gap: 4px; justify-content: flex-end; overflow: hidden }
+.w80 { width: 80px } .w90 { width: 90px } .w96 { width: 96px } .w110 { width: 110px } .w130 { width: 130px } .w160 { width: 160px } .w200 { width: 200px }
+.more { display: flex; justify-content: center; padding: 12px }
+
+.empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center; padding: 64px 24px; color: var(--muted) }
+.empty .big { width: 48px; height: 48px; border-radius: 12px; background: var(--field); display: grid; place-items: center; color: var(--faint) }
+.empty .big svg { width: 24px; height: 24px }
+.empty b { color: var(--fg); font-weight: 600; font-size: 13px }
+.empty .row { display: flex; gap: 8px }
+
+/* the properties panel: sections like the tweakpane folders, a line above, a chevron, label / value rows */
+#panel { width: 300px; border-left: 1px solid var(--line); overflow-y: auto; min-height: 0; background: var(--bg) }
+#panel.wide { width: min(420px, 40vw) }
+/* columns that make room when the panel is open */
+.frame:has(#panel:not(:empty)) .hide-panel { display: none }
+#panel:empty { display: none }
+.ph { display: flex; align-items: center; gap: 8px; min-height: 48px; padding: 8px 8px 8px 16px; position: sticky; top: 0; background: var(--bg); z-index: 1; border-bottom: 1px solid var(--line) }
+.ph h2 { font-size: 12px; flex: 1; min-width: 0; overflow-wrap: anywhere; line-height: 1.3 }
+.ph .sub { display: block; font-size: 11px; color: var(--muted); font-weight: 400 }
+details.sec, .sec { border-top: 1px solid var(--line) }
+.ph + .sec, .ph + details.sec { border-top: 0 }
+details.sec > summary, .sec > .sh {
+    list-style: none; display: flex; align-items: center; gap: 6px; height: 36px; padding: 0 16px 0 10px;
+    font-size: 11px; font-weight: 600; cursor: pointer; user-select: none;
+}
+.sec > .sh { cursor: default; padding-left: 16px }
+details.sec > summary::-webkit-details-marker { display: none }
+details.sec > summary::before {
+    content: ""; width: 5px; height: 5px; margin: 0 4px 0 2px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor;
+    opacity: .45; transform: rotate(-45deg); transition: transform .12s;
+}
+details.sec[open] > summary::before { transform: translateY(-1px) rotate(45deg) }
+details.sec > summary:hover::before { opacity: .9 }
+details.sec > summary .n, .sec > .sh .n { color: var(--muted); font-weight: 400 }
+.sb { padding: 0 16px 12px; display: flex; flex-direction: column; gap: 6px }
+.kv { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 8px; align-items: baseline; font-size: 11px; min-height: 20px }
+.kv.w { grid-template-columns: 140px minmax(0, 1fr) }
+.kv b { color: var(--muted); font-weight: 400; overflow-wrap: anywhere }
+.kv span { overflow-wrap: anywhere }
+.sb.pad { padding-top: 12px }
+.acts-row { display: flex; flex-wrap: wrap; gap: 6px }
+.acts-row.fill > * { flex: 1 }
+.field { display: flex; gap: 6px }
+.field input { flex: 1 }
+.text { white-space: pre-wrap; word-break: break-word; font-size: 12px; line-height: 1.5 }
+.note { font-size: 11px; color: var(--muted) }
+pre { margin: 0; max-height: 320px; overflow: auto; white-space: pre-wrap; word-break: break-word; font: 10.5px/1.55 var(--mono); background: var(--field); border-radius: var(--radius); padding: 8px 10px }
+img.shot { display: block; max-width: 100%; max-height: 280px; border-radius: var(--radius); box-shadow: 0 0 0 1px var(--line); background: var(--canvas) }
+.files a { cursor: pointer }
+.share { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 6px; background: var(--field) }
+.share .i { color: var(--muted) }
+.share.on .i { color: var(--success) }
+.share div { flex: 1; min-width: 0; font-size: 11px; line-height: 1.35 }
+.share div b { display: block; font-weight: 500; font-size: 11.5px }
+
+/* ---------- the sign-in page and the cards (consent, local sign-in) ---------- */
+.center { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: var(--canvas) }
+.card { width: 100%; max-width: 360px; background: var(--bg); border-radius: 12px; box-shadow: var(--shadow); padding: 28px }
+.card.wide { max-width: 440px }
+.card .brand { padding: 0; height: auto; margin-bottom: 20px }
+.card h1 { font-size: 15px; margin-bottom: 6px }
+.card p { color: var(--muted); font-size: 12px; line-height: 1.5 }
+.card p b { color: var(--fg); font-weight: 600 }
+.card .stack { display: flex; flex-direction: column; gap: 8px; margin-top: 18px }
+.card .stack > * { width: 100% }
+.card .row { display: flex; gap: 8px; margin-top: 20px }
+.card .row > * { flex: 1 }
+.card .scope { margin: 14px 0; padding: 10px 12px; border-radius: 8px; background: var(--field); font-size: 12px; display: flex; gap: 10px; align-items: flex-start }
+.card .scope .i { color: var(--accent); margin-top: 1px }
+.card .scope.all .i { color: var(--warning) }
+.card .foot { margin-top: 16px; font-size: 11px; color: var(--muted) }
+.card form { margin: 0 }
+
+/* ---------- dialogs and toasts (ui.client.js) ---------- */
+dialog {
+    border: 0; padding: 0; border-radius: 12px; background: var(--bg); color: var(--fg); box-shadow: var(--shadow-pop);
+    width: min(380px, calc(100vw - 32px));
+}
+dialog::backdrop { background: rgba(0, 0, 0, .32) }
+dialog form { padding: 16px; display: flex; flex-direction: column; gap: 12px; margin: 0 }
+dialog h2 { font-size: 13px }
+dialog p { color: var(--muted); margin: 0; font-size: 12px }
+dialog input { height: 28px; font-size: 12px }
+dialog .row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px }
+dialog .row button { height: 28px; padding: 0 12px }
+.picker { max-height: 260px; overflow-y: auto; border-radius: 6px; box-shadow: inset 0 0 0 1px var(--line); padding: 4px }
+.picker a { display: flex; align-items: center; gap: 8px; height: 28px; padding: 0 8px; border-radius: 4px; color: var(--fg); cursor: pointer; text-decoration: none; font-size: 12px }
+.picker a:hover { background: var(--hover) }
+.picker a .i { color: var(--accent) }
+.picker a.up .i { color: var(--muted) }
+.picker .none { padding: 8px; color: var(--muted); font-size: 11px }
+#toasts { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); display: flex; flex-direction: column; gap: 8px; align-items: center; z-index: 10; pointer-events: none }
+.toast {
+    background: light-dark(#1e1e1e, #ffffff); color: light-dark(#ffffff, #1e1e1e); border-radius: 8px; padding: 8px 14px; font-size: 12px;
+    box-shadow: var(--shadow-pop); max-width: min(520px, calc(100vw - 32px)); animation: toast-in .16s ease-out; pointer-events: auto;
+}
+.toast.error { background: var(--danger); color: #fff }
+@keyframes toast-in { from { opacity: 0; transform: translateY(6px) } }
+@media (prefers-reduced-motion: reduce) { .toast { animation: none } details.sec > summary::before { transition: none } }
+
+/* ---------- narrow screens: the side bar on top, the panel over the list ---------- */
+@media (max-width: 760px) {
+    .frame { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); height: 100dvh }
+    #side { border-right: 0; border-bottom: 1px solid var(--line); flex-direction: row; align-items: center; overflow-x: auto; overflow-y: hidden }
+    #side .brand { padding: 0 12px }
+    #side .brand span:last-child { display: none }
+    #side .nav { flex-direction: row; padding: 0 4px; align-items: center }
+    #side .nav-h, #side .nav a.sub { display: none }
+    #side .side-foot { margin: 0 0 0 auto; border: 0; padding: 0 12px; flex-direction: row; align-items: center }
+    #side .usage, #side .me .who { display: none }
+    #panel, #panel.wide { position: fixed; inset: 0; width: auto; z-index: 5 }
+    .hide-sm { display: none }
+}

@@ -30,7 +30,7 @@
         "REPORTS_DAILY_FILE_BYTES_ALL": "2147483648"
     },
     // the pages and their scripts are imported as strings (src/page.ts)
-    "rules": [{ "type": "Text", "globs": ["**/*.html", "**/*.client.js"], "fallthrough": true }],
+    "rules": [{ "type": "Text", "globs": ["**/*.html", "**/*.client.js", "**/*.css"], "fallthrough": true }],
     "triggers": { "crons": ["17 3 * * *"] }, // daily: delete expired files (src/cron.ts)
     "r2_buckets": [
         { "binding": "CLOUD_BUCKET", "bucket_name": "threepipe-cloud" },
