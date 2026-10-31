@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 ### Added
 
 - [`PerfPanelPlugin`](https://threepipe.org/plugin/PerfPanelPlugin.html): an opt-in FPS pill and performance card over the canvas (frame times, render CPU time, renders per second, draw calls and triangles of all passes, canvas, GPU, JS heap), with warnings for a capped frame rate (Chrome Energy Saver, Low Power Mode), CPU or GPU bound, battery, software rendering and a hidden tab. Stats in `stats` and the `update` event. Example: `examples/perf-panel-plugin`; also in the `tweakpane-editor` example (Debug tab)
+- `PerfPanelPlugin`: drag the pill or the card header to move the panel; it stays inside the container (also on a resize), a press that moves less than 3 px is still a click, and setting `position` (the Position dropdown) puts it back in a corner. The dragged place is runtime only. The open card is above other widgets of its corner (`z-index` 160, viewer UI in the CONTRIBUTING layers table), so the dock of the sticky notes no longer covers it; the pill stays at 12
 
 ### Changed
 

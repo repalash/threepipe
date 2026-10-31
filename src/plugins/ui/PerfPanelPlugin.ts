@@ -31,6 +31,8 @@ const UI_INTERVAL = 250
 const SPARK_MAX = 50
 /** A longer gap between two animation frames is a pause (a debugger, a frozen tab), not a frame */
 const MAX_FRAME_GAP = 10000
+/** A press on the pill or the card header moves this far before it is a drag, in px: a click opens or collapses the card */
+const DRAG_START = 3
 const POSITIONS: PerfPanelPosition[] = ['top-left', 'top-right', 'bottom-left', 'bottom-right']
 
 interface BatteryLike extends EventTarget {
@@ -50,7 +52,13 @@ type RowKey = 'frame' | 'render' | 'renders' | 'draws' | 'canvas' | 'gpu' | 'hea
  * Collapsed, it is a pill "60 fps" with a status dot (green, amber, red), and an amber corner dot when a warning is on.
  * A click opens the card: a sparkline of the frame times (last 3 s; accent bars rendered, grey bars idle), frame time
  * avg / p95 / max, CPU render time, renders per second, draw calls and triangles, canvas size, GPU and JS heap.
- * A click on the card header collapses it again.
+ * A click on the card header collapses it again. Drag the pill or the card header to move the panel; it stays inside the
+ * container, also when the container gets smaller. Setting {@link position} (the Position dropdown) puts it back in a
+ * corner. The dragged place is kept while the page is open, not saved.
+ *
+ * Collapsed, the pill is an overlay on the canvas (z-index 12, under the loading screen). The open card is viewer UI
+ * (z-index 160, see UI layers in CONTRIBUTING.md): above other widgets in the same corner, such as the dock of the
+ * sticky notes (150), and below the bars of the editor (200).
  *
  * Warnings (also in {@link stats}.warnings): frame rate capped at ~30 fps (Chrome Energy Saver, Low Power Mode),
  * CPU or GPU bound, on battery, software rendering, tab hidden.
@@ -89,6 +97,12 @@ export class PerfPanelPlugin extends AViewerPluginSync<PerfPanelPluginEventMap> 
     private _position: PerfPanelPosition
     private _meter = new PerfMeter()
     private _stylesheet?: HTMLStyleElement
+    /** The move from the corner that the person dragged the panel to, in px; undefined: in the corner */
+    private _offset?: {x: number, y: number}
+    /** The last press was a drag: the click after its release does not open or collapse the card */
+    private _dragged = false
+    /** Keeps a dragged panel inside the container when the container changes size */
+    private _resizer?: ResizeObserver
 
     private _pill: HTMLButtonElement
     private _pillText: HTMLElement
@@ -159,8 +173,10 @@ export class PerfPanelPlugin extends AViewerPluginSync<PerfPanelPluginEventMap> 
 
         this._warns = h('div', 'pp-warns', card)
 
-        this._pill.addEventListener('click', () => this.collapsed = false)
-        head.addEventListener('click', () => this.collapsed = true)
+        this._pill.addEventListener('click', () => this._dragged || (this.collapsed = false))
+        head.addEventListener('click', () => this._dragged || (this.collapsed = true))
+        this._pill.addEventListener('pointerdown', this._onPress)
+        head.addEventListener('pointerdown', this._onPress)
     }
 
     /** Live numbers, updated in place 4 times per second while measuring (see the `update` event) */
@@ -188,6 +204,7 @@ export class PerfPanelPlugin extends AViewerPluginSync<PerfPanelPluginEventMap> 
     set collapsed(v: boolean) {
         if (v === this.collapsed) return
         this.element.classList.toggle('pp-collapsed', v)
+        this._place() // the card has another size than the pill
         if (!v) {
             this._readColors()
             this._render()
@@ -199,8 +216,10 @@ export class PerfPanelPlugin extends AViewerPluginSync<PerfPanelPluginEventMap> 
         return this._position
     }
 
-    /** Corner of the container */
+    /** Corner of the container. Setting it, also to the same corner, puts back a panel that the person dragged. */
     set position(position: PerfPanelPosition) {
+        this._offset = undefined
+        this._place()
         if (position === this._position) return
         this.element.classList.remove('pp-' + this._position)
         this.element.classList.add('pp-' + position)
@@ -216,7 +235,12 @@ export class PerfPanelPlugin extends AViewerPluginSync<PerfPanelPluginEventMap> 
     onAdded(viewer: ThreeViewer) {
         super.onAdded(viewer)
         this._stylesheet = createStyles(styles, viewer.container)
-        ;(this._options.container ?? viewer.container).appendChild(this.element)
+        const container = this._options.container ?? viewer.container
+        container.appendChild(this.element)
+        if (typeof ResizeObserver !== 'undefined') {
+            this._resizer = new ResizeObserver(this._place)
+            this._resizer.observe(container)
+        } else window.addEventListener('resize', this._place)
         viewer.addEventListener('preRender', this._onPreRender)
         viewer.addEventListener('postRender', this._onPostRender)
         document.addEventListener('visibilitychange', this._sync)
@@ -231,6 +255,9 @@ export class PerfPanelPlugin extends AViewerPluginSync<PerfPanelPluginEventMap> 
         viewer.removeEventListener('preRender', this._onPreRender)
         viewer.removeEventListener('postRender', this._onPostRender)
         document.removeEventListener('visibilitychange', this._sync)
+        this._resizer?.disconnect()
+        this._resizer = undefined
+        window.removeEventListener('resize', this._place)
         this._battery?.removeEventListener('chargingchange', this._onBattery)
         this._battery?.removeEventListener('levelchange', this._onBattery)
         this._battery = undefined
@@ -252,6 +279,7 @@ export class PerfPanelPlugin extends AViewerPluginSync<PerfPanelPluginEventMap> 
     private _sync = () => {
         const show = !this.isDisabled()
         this.element.style.display = show ? '' : 'none'
+        if (show) this._place()
         const run = !!this._viewer && show && !this._isHidden()
         if (run && !this._raf) {
             this._last = 0 // the gap while stopped is not a frame
@@ -361,6 +389,53 @@ export class PerfPanelPlugin extends AViewerPluginSync<PerfPanelPluginEventMap> 
     // endregion
 
     // region view
+
+    /**
+     * A press on the pill or the card header: after {@link DRAG_START} px it drags the panel. The pointer is captured
+     * on the pressed element, so the panel follows it also outside, until the release, a cancel or a lost capture.
+     */
+    private _onPress = (e: PointerEvent) => {
+        this._dragged = false
+        if (e.button !== 0) return
+        const handle = e.currentTarget as HTMLElement
+        const start = this._place() ?? {x: 0, y: 0}
+        const sx = e.clientX, sy = e.clientY
+        handle.setPointerCapture?.(e.pointerId)
+        const move = (ev: PointerEvent) => {
+            const dx = ev.clientX - sx, dy = ev.clientY - sy
+            if (!this._dragged && Math.abs(dx) + Math.abs(dy) < DRAG_START) return
+            this._dragged = true
+            this._offset = {x: start.x + dx, y: start.y + dy}
+            this._place()
+        }
+        const end = () => {
+            handle.removeEventListener('pointermove', move)
+            handle.removeEventListener('pointerup', end)
+            handle.removeEventListener('pointercancel', end)
+            handle.removeEventListener('lostpointercapture', end)
+            if (this._dragged) this._offset = this._place() // the place kept is the one shown
+        }
+        handle.addEventListener('pointermove', move)
+        handle.addEventListener('pointerup', end)
+        handle.addEventListener('pointercancel', end)
+        handle.addEventListener('lostpointercapture', end)
+    }
+
+    /**
+     * Moves the panel from its corner by the dragged offset, kept inside the container (the offset itself stays, so
+     * the pill comes back to its place when the card collapses). Returns the move shown, or undefined in the corner.
+     */
+    private _place = () => {
+        const el = this.element, o = this._offset, parent = el.parentElement
+        if (!o || !parent) {
+            el.style.transform = ''
+            return undefined
+        }
+        const x = within(o.x, -el.offsetLeft, parent.clientWidth - el.offsetWidth - el.offsetLeft)
+        const y = within(o.y, -el.offsetTop, parent.clientHeight - el.offsetHeight - el.offsetTop)
+        el.style.transform = `translate(${x}px, ${y}px)`
+        return {x, y}
+    }
 
     private _render() {
         const s = this.stats
@@ -498,6 +573,11 @@ function h<K extends keyof HTMLElementTagNameMap>(tag: K, className: string, par
     if (title) el.title = title
     parent?.appendChild(el)
     return el
+}
+
+/** v between min and max; min when the range is empty (a panel larger than the container keeps its top left inside) */
+function within(v: number, min: number, max: number) {
+    return Math.max(min, Math.min(max, v))
 }
 
 /** One decimal under 100: 16.7, 117 */
