@@ -38,6 +38,3 @@ export const pivotEdit = '<svg xmlns="http://www.w3.org/2000/svg" style="width:1
     '  <circle cx="12" cy="12" r="3" />\n' +
     '  <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M12 2v6m0 8v6M2 12h6m8 0h6" />\n' +
     '</svg>'
-export const editorCamera = '<svg xmlns="http://www.w3.org/2000/svg" style="width:100%; height:100%;" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">\n' +
-    '  <path stroke-linecap="round" stroke-linejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />\n' +
-    '</svg>'
