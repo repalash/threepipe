@@ -31,8 +31,8 @@ body[class*="tpTheme-"] .mb-root {
 .mb-wide .mb-btn { width: auto; justify-content: flex-start; gap: 10px; padding: 0 8px; }
 .mb-wide .mb-label { display: block; }
 .mb-wide .mb-toggle .mb-label, .mb-wide .lay-float-btn .mb-label { color: inherit; font-weight: 400; }
-/* the bar opens to the left: ‹ expands, › collapses */
-.mb-root:not(.mb-wide) .mb-toggle svg { transform: rotate(180deg); }
+/* the arrow names the next step: › hides the names or the panel, ‹ shows them again (the panel hidden) */
+body.mb-panel-hidden .mb-toggle svg { transform: rotate(180deg); }
 
 /* EditorFrame: the bars and the layouts */
 body.lay-titlebar { --lay-top: 36px; --lay-bottom: 0px; }

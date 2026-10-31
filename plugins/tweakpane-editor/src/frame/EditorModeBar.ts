@@ -26,7 +26,9 @@ const FALLBACK: EditorModeLook = {color: '#8a8f98', icon: svg('<circle cx="10" c
  * - Each mode has its own colour and icon ({@link EditorModeBar.Looks}), like the property tabs of Blender: a mode is
  *   quicker to find, and easy to name ("the green export tab").
  * - A click on a mode shows its panels. A click on the open mode hides the panel, and the canvas takes its room.
- * - The button at the bottom (Expand / Collapse) shows the names next to the icons, like a sidebar.
+ * - The button at the bottom steps through three states ({@link cycle}): the names next to the icons (like a sidebar)
+ *   and the panel; the icons and the panel; the icons only, the panel hidden. Ctrl+\ (Cmd+\) does the same (in
+ *   {@link EditorFrame}).
  * - Without the names, each button has a tooltip (tippy.js, the `editor` theme of the editor).
  *
  * The bar sets the CSS variable `--mb-width` on the root element, and the class `mb-panel-hidden` on the body when the
@@ -64,6 +66,9 @@ export class EditorModeBar {
     private _tips: Instance[] = []
     private _tipGroup: CreateSingletonInstance
     private _toggle: HTMLButtonElement
+    private _toggleTip: Instance
+    /** The key of {@link cycle}, for the tooltip */
+    private _key: string
     private _selected = 0
     private _open = true
     private _expanded = true
@@ -101,10 +106,12 @@ export class EditorModeBar {
         })
         // Ctrl+\ (Cmd+\ on a Mac) does the same: the key is in EditorFrame
         const mac = /Mac|iPhone|iPad/.test(navigator.userAgent)
-        this._toggle = this._button(TOGGLE_ICON, 'Collapse', '', `Expand (${mac ? '⌘' : 'Ctrl '}\\)`)
+        this._key = mac ? '⌘\\' : 'Ctrl \\'
+        this._toggle = this._button(TOGGLE_ICON, 'Collapse', '')
+        this._toggleTip = this._tips[this._tips.length - 1]
         this._toggle.setAttribute('aria-keyshortcuts', mac ? 'Meta+Backslash' : 'Control+Backslash')
         this._toggle.classList.add('mb-toggle')
-        this._toggle.addEventListener('click', () => this.setExpanded(!this._expanded))
+        this._toggle.addEventListener('click', () => this.cycle())
         this._tipGroup = createSingleton(this._tips, {placement: 'left', moveTransition: 'transform .15s ease-out', delay: [300, 0], appendTo: () => document.body})
         host.appendChild(bar)
         this.setExpanded(this._expanded)
@@ -121,6 +128,23 @@ export class EditorModeBar {
         return this._open
     }
 
+    /**
+     * One step of the collapse states, as the button at the bottom and Ctrl+\ do: the names and the panel → the icons
+     * and the panel → the icons only (the panel hidden) → the names and the panel again. A window without room for the
+     * names ({@link EditorModeBar.WideQuery}) skips the names. A click on the open mode still hides or shows the panel.
+     */
+    cycle() {
+        const roomForNames = window.matchMedia?.(EditorModeBar.WideQuery).matches ?? true
+        if (!this._open) {
+            this.setOpen(true)
+            if (roomForNames) this.setExpanded(true)
+        } else if (this._expanded) {
+            this.setExpanded(false)
+        } else {
+            this.setOpen(false)
+        }
+    }
+
     /** Shows or hides the names next to the icons */
     setExpanded(expanded: boolean) {
         this._expanded = expanded
@@ -128,8 +152,7 @@ export class EditorModeBar {
         // the names are on the buttons: no tooltips
         if (expanded) this._tipGroup.disable()
         else this._tipGroup.enable()
-        this._toggle.setAttribute('aria-label', expanded ? 'Collapse the mode bar' : 'Expand the mode bar')
-        this._toggle.setAttribute('aria-expanded', String(expanded))
+        this._refreshToggle()
         document.documentElement.style.setProperty('--mb-width', (expanded ? EditorModeBar.Widths.wide : EditorModeBar.Widths.narrow) + 'px')
         if (this.storageKey) {
             try {
@@ -159,6 +182,7 @@ export class EditorModeBar {
         if (p) p.style.visibility = open ? '' : 'hidden'
         document.body.classList.toggle('mb-panel-hidden', !open)
         this.select(this._selected)
+        this._refreshToggle()
         window.dispatchEvent(new Event('resize'))
     }
 
@@ -170,6 +194,16 @@ export class EditorModeBar {
             this.select(i)
         }
         if (!this._open) this.setOpen(true)
+    }
+
+    /** The label, the tooltip and the arrow of the button at the bottom name its next step ({@link cycle}) */
+    private _refreshToggle() {
+        if (!this._toggle) return // made after the first setExpanded of the constructor
+        const next = !this._open ? 'Show the panel' : this._expanded ? 'Hide the names' : 'Hide the panel'
+        this._toggle.querySelector('.mb-label')!.textContent = !this._open ? 'Expand' : 'Collapse'
+        this._toggleTip.setContent(`${next} (${this._key})`)
+        this._toggle.setAttribute('aria-label', next)
+        this._toggle.setAttribute('aria-expanded', String(this._open))
     }
 
     /** Adds a tooltip to a button of the bar (not a mode), shown with the others when the names are hidden */

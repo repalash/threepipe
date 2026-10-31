@@ -65,7 +65,7 @@ editor.loadPlugins({
 
 In the frame:
 - A click on a mode shows its panels. A click on the open mode hides the panel, and the canvas takes its room.
-- The button at the bottom of the mode bar shows or hides the mode names, and so does Ctrl+\\ (Cmd+\\ on a Mac).
+- The button at the bottom of the mode bar steps through three states: the mode names and the panel, the icons and the panel, the icons only (the panel hidden), then back. Ctrl+\\ (Cmd+\\ on a Mac) does the same. Its tooltip names the next step. A window without room for the names skips them. A click on the open mode still hides or shows the panel.
 - Shift+T switches between the light and the dark theme of the same family (`clean` and `clean-dark`, `light` and `dark`, `white` and `black`).
 - The layout button opens the layout menu, with Classic too.
 - The bar has a slot for the name of the open file or project: the app sets it with `editor.documentName` (empty: no name), and it is kept when the frame is made again. The plugin does not follow the loads; the tweakpane-editor example shows `Untitled`, then the name of the last loaded model or viewer config file (a URL or a dropped file; when several files are dropped, the last one).

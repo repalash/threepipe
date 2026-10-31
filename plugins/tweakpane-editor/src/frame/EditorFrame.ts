@@ -175,7 +175,7 @@ export class EditorFrame {
     }
 
 
-    /** Shift+T: the light or dark theme. Ctrl+\ (Cmd+\ on a Mac): the mode names shown or hidden. */
+    /** Shift+T: the light or dark theme. Ctrl+\ (Cmd+\ on a Mac): the next collapse state of the mode bar and the panel. */
     private _onKeyDown = (e: KeyboardEvent) => {
         if (e.altKey || e.repeat || e.defaultPrevented) return
         const mod = e.ctrlKey || e.metaKey
@@ -186,7 +186,7 @@ export class EditorFrame {
         if (t?.closest?.('input, textarea, select, [contenteditable]')) return
         e.preventDefault()
         if (theme) this.toggleTheme()
-        else this.modeBar.setExpanded(!this.modeBar.expanded)
+        else this.modeBar.cycle()
     }
 
     private _bar(cls: string) {
