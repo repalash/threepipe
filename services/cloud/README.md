@@ -20,11 +20,22 @@ Files are served under `/_files/` locally; set `FILES_HOST` (wrangler vars) for 
 Without a GitHub OAuth app, sign in at `/login` with any username and password (`DEV_LOGIN=true` in `.dev.vars`, local
 only; a new username is signed up on the first try).
 
+## Sign-in
+
+- GitHub (`GITHUB_CLIENT_ID`/`_SECRET`) and Google (`GOOGLE_CLIENT_ID`/`_SECRET`; the Google button shows only when it is
+  set). OAuth callback URLs: `https://cloud.threepipe.org/api/v1/table/users/auth/oauth/<github|google>/callback`.
+  A Google sign-in with the email of an existing account signs in to that account.
+- The handle (`users.username`, in every `d/<handle>/` URL) never changes. GitHub gives the login; a new Google account
+  has none, so it picks one on its first visit ("Choose your handle", `POST /api/v1/handle`); until then every route but
+  `/api/v1/me` answers 403 `{handle: true}` (`src/handle.ts`).
+- Not Cloudflare yet: its profile has no email-verified flag, and accounts are linked by email.
+
 ## API
 
 | Route | Who | What |
 |---|---|---|
-| `/api/v1/table/users/auth/...` | anyone | sign-up / login (password, local) and GitHub sign-in (`/api/v1/table/users/auth/oauth/github`) |
+| `/api/v1/table/users/auth/...` | anyone | sign-up / login (password, local), GitHub and Google sign-in (`/api/v1/table/users/auth/oauth/<github\|google>`) |
+| `GET /api/v1/sign-in-options`, `POST /api/v1/handle` `{handle}` | anyone / a new Google account | the sign-in buttons; pick the handle once |
 | `POST /api/v1/access-links` `{name?}` | signed in | → `{id, name, url}`; the url is `/api/v1/access/<code>/agents.md` |
 | `GET /api/v1/access/<code>/agents.md` | the link | instructions and the API for agents |
 | `GET /api/v1/access/<code>/key` | the link | the user's JWT with `meta.link` (30 days); deleting the link revokes it |
@@ -58,7 +69,7 @@ that username (it can't be changed). Roles (`member`, `staff`, `admin`) are set 
 
 Report a Problem / feedback for any threepipe app (`src/projects.ts`, `src/reports.ts` from #104). Any member creates up
 to 5 projects (slugs starting with `threepipe` are for staff) and adds members as `reader` or `manager`. Members read the
-reports on `/reports` (GitHub sign-in) or through the API.
+reports on `/reports` (signed in) or through the API.
 
 | Route | Who | What |
 |---|---|---|
@@ -116,7 +127,7 @@ is developed can save to the user's drive. There is nothing to register: the app
 
 1. The app sends the user to `/api/v1/connect?return=<its page url>` (`&access=drive` asks for the whole drive).
    `localhost` and `*.localhost` pages are allowed too, for development.
-2. Signed out: the page offers GitHub sign-in. The first time: a consent page names the app, who serves it, and the folder.
+2. Signed out: the page offers GitHub or Google sign-in. The first time: a consent page names the app, who serves it, and the folder.
 3. On Allow, the user comes back to `<return>#tp_cloud_key=…&tp_cloud_user=…&tp_cloud_folder=…&tp_cloud_api=…`.
    Once allowed, step 1 redirects straight back with a new key (no screen).
 4. The key (24 h) works only on the drive routes, inside the app's folder `Apps/<app>` (made on the first approval;

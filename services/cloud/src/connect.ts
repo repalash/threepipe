@@ -5,6 +5,7 @@ import {BUCKET, filesOrigin, prefixRange, randomCode, sha256Hex} from './env'
 import {APP_KEY_SECONDS} from './limits'
 import {cardPage, esc, ICONS} from './page'
 import {CloudUser, mintKey, requireUser} from './auth'
+import {HandlePending} from './handle'
 import {appFolder, appLabel, grantFolder} from './appFolders'
 
 /** App keys are short: the app gets a new one on every page load (no screen once approved). */
@@ -31,6 +32,8 @@ export function connectRoutes(app: Hono<CloudEnv>) {
             user = await requireUser(c)
         } catch (e) {
             if (e instanceof HTTPException && e.status === 401) return cardPage(c, signInPage(c, target), {wide: true})
+            // a new Google account picks its handle first (src/handle.ts), then comes back here
+            if (e instanceof HandlePending) return c.redirect(`/account?next=${encodeURIComponent(new URL(c.req.url).pathname + new URL(c.req.url).search)}`)
             throw e
         }
         if (user.link) throw new HTTPException(403, {message: 'approve apps in the browser, signed in to threepipe cloud'})
@@ -140,10 +143,11 @@ async function redirectWithKey(c: Context<CloudEnv>, t: AppTarget, user: CloudUs
 function signInPage(c: Context<CloudEnv>, t: AppTarget) {
     const back = new URL(c.req.url)
     const github = `/api/v1/table/users/auth/oauth/github?redirect=${encodeURIComponent(back.pathname + back.search)}`
+    const google = c.env.GOOGLE_CLIENT_ID ? `<a class="btn lg" href="${esc(`/api/v1/table/users/auth/oauth/google?redirect=${encodeURIComponent(back.pathname + back.search)}`)}">${ICONS.google}Continue with Google</a>` : ''
     const dev = c.env.DEV_LOGIN === 'true' ? `<a class="btn lg" href="${esc(`/login?redirect=${encodeURIComponent(back.pathname + back.search)}`)}">Local sign-in (development)</a>` : ''
     return `<h1>Sign in to continue</h1>
 <p><code>${esc(t.app)}</code> wants to use your threepipe cloud drive. Sign in first.</p>
-<div class="stack"><a class="btn dark lg" href="${esc(github)}">${ICONS.github}Continue with GitHub</a>${dev}
+<div class="stack"><a class="btn dark lg" href="${esc(github)}">${ICONS.github}Continue with GitHub</a>${google}${dev}
 <a class="btn ghost lg" href="${esc(t.returnUrl + '#tp_cloud_error=denied')}">Cancel</a></div>`
 }
 

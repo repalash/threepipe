@@ -138,6 +138,16 @@ admin files/delete "{\"where\":\"path == 'd/$U/big'\"}" > /dev/null
 curl -sI "$A/drive" | grep -qi "content-security-policy: default-src 'none'; script-src 'self'" && [ "$(code "$A/drive/page.js")" = "200" ] && ok "drive page" || bad "drive page"
 [ "$(curl -s -o /dev/null -w '%{http_code} %{content_type}' "$A/ui.css")" = "200 text/css; charset=utf-8" ] && [ "$(code "$A/ui.js")" = "200" ] && ok "the pages' look (/ui.css, /ui.js)" || bad "ui.css"
 R=$(curl -s -H "$H0" "$A/api/v1/me"); [ "$(echo "$R" | j "['username']")" = "$U" ] && [ "$(echo "$R" | j "['drive']['quota']")" = "1073741824" ] && echo "$R" | grep -q '"feedback":' && ok "me: the handle, the drive quota, the feedback project" || bad "me: $R"
+# a Google sign-up: teenybase made a username from the email and handle_set is empty (only SQL can clear it)
+GU=g$RANDOM; GT=$(curl -s -X POST $A/api/v1/table/users/auth/sign-up -H 'content-type: application/json' -d "{\"username\":\"$GU\",\"email\":\"$GU@x.test\",\"password\":\"pass12345\",\"passwordConfirm\":\"pass12345\",\"name\":\"$GU\"}" | j "['token']")
+npx wrangler d1 execute threepipe-cloud --local --persist-to .local-persist --command "UPDATE users SET handle_set = NULL WHERE username = '$GU'" > /dev/null 2>&1 || bad "fixture: a Google sign-up"
+HG="Authorization: Bearer $GT"
+[ "$(curl -s -H "$HG" "$A/api/v1/me" | j "['handle_pending']")" = "True" ] && [ "$(curl -s -H "$HG" "$A/api/v1/drive" | j "['handle']")" = "True" ] && ok "a Google sign-up picks its handle first: the drive answers 403 {handle}" || bad "handle pending"
+hset() { code -X POST -H "$HG" -H 'content-type: application/json' -d "{\"handle\":\"$1\"}" "$A/api/v1/handle"; }
+[ "$(hset 'Bad name')" = "400" ] && [ "$(hset threepipe-me)" = "400" ] && [ "$(hset "$U")" = "409" ] && ok "handle: checked, reserved names, taken" || bad "handle checks"
+[ "$(code -H "Cookie: tp_cloud_auth=$GT" "$A/api/v1/connect?return=$(enc "http://localhost:5173/app/")")" = "302" ] && ok "connect: a pending handle goes to the handle card first" || bad "connect pending handle"
+[ "$(hset "h$GU")" = "200" ] && [ "$(curl -s -H "$HG" "$A/api/v1/me" | j "['username']")" = "h$GU" ] && [ "$(code -H "$HG" "$A/api/v1/drive")" = "200" ] && [ "$(hset "x$GU")" = "409" ] && ok "handle set once, then the drive works" || bad "handle set"
+[ "$(curl -s "$A/api/v1/sign-in-options" | j "['google']")" = "False" ] && ok "sign-in options (no Google OAuth app locally)" || bad "sign-in options"
 [ "$(code -X DELETE -H "$H0" "$A/api/v1/drive/items/$ITEM")" = "200" ] && [ "$(code -H "$H0" "$A/api/v1/drive/items/$ITEM")" = "404" ] && ok "delete an item" || bad "delete item"
 
 # --- app sign-in (connect) ---

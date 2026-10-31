@@ -3,10 +3,15 @@ import {baseFields, authFields, createdTrigger, updatedTrigger} from 'teenybase/
 import {sqlValue} from 'teenybase'
 
 // The username is the handle: the user's drive is `d/<username>/`, so it is picked once and never changes.
-const userFields = authFields.map(f => f.name === 'username' ? {...f, noUpdate: true} : f)
+// `handle_set`: when it was picked (src/handle.ts). GitHub gives its login and a password sign-up names it; a Google
+// sign-up has none (teenybase makes one from the email), so the user picks it on the first visit. Only the Worker writes it.
+const userFields = [
+    ...authFields.map(f => f.name === 'username' ? {...f, noUpdate: true} : f),
+    {name: 'handle_set', type: 'text', sqlType: 'text', noInsert: true, noUpdate: true},
+]
 
 /**
- * threepipe cloud: users (GitHub sign-in), access links for agents and scripts, and the registry of uploaded files.
+ * threepipe cloud: users (GitHub or Google sign-in), access links for agents and scripts, and the registry of uploaded files.
  * The files themselves are in R2 and served without a database read (src/files.ts); the routes that write them are in src/uploads.ts.
  * `role` is 'member' (default), 'staff' or 'admin', set by an admin. `username` is the handle (account prefix).
  * `users.meta` is writable by the user and goes into their session JWT: only use JWT meta to restrict a token, never to grant.
@@ -18,6 +23,8 @@ export default {
     authCookie: {name: 'tp_cloud_auth'}, // host-only on cloud.threepipe.org, never on the parent domain
     authProviders: [
         {name: 'github', clientId: '$GITHUB_CLIENT_ID', clientSecret: '$GITHUB_CLIENT_SECRET'},
+        // Google: links to an account with the same (verified) email; a new user picks a handle first (src/handle.ts)
+        {name: 'google', clientId: '$GOOGLE_CLIENT_ID', clientSecret: '$GOOGLE_CLIENT_SECRET'},
     ],
     tables: [{
         name: 'users',

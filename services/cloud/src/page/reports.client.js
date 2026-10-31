@@ -62,7 +62,11 @@ async function api(path, init) {
     const r = await fetch(path, {...init, credentials: 'same-origin'})
     if (r.status === 401) { signOut(''); throw new Error('signed out') }
     const ct = r.headers.get('content-type') || ''
-    if (!r.ok) { const j = ct.includes('json') ? await r.json().catch(() => ({})) : {}; throw new Error(j.error || j.message || ('HTTP ' + r.status)) }
+    if (!r.ok) {
+        const j = ct.includes('json') ? await r.json().catch(() => ({})) : {}
+        if (UI.handleGate(r.status, j)) throw new Error('signed out')
+        throw new Error(j.error || j.message || ('HTTP ' + r.status))
+    }
     return ct.includes('json') ? r.json() : r.blob()
 }
 const send = (method, path, body) => api(path, {method, headers: body ? {'content-type': 'application/json'} : {}, body: body ? JSON.stringify(body) : undefined})

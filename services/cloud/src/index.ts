@@ -10,6 +10,7 @@ import {connectRoutes} from './connect'
 import {bucketRoutes} from './buckets'
 import {devLoginRoutes} from './devLogin'
 import {projectRoutes} from './projects'
+import {handleRoutes, markHandleSet} from './handle'
 import {pageRoutes} from './page'
 import {guardRequest} from './auth'
 import {deleteExpired} from './cron'
@@ -30,6 +31,7 @@ app.use('*', async (c, next) => {
     logError(signIn ? 'sign-in failed' : 'server error', {status, method: c.req.method, path: c.req.path, error: body.slice(0, 500),
         exception: status >= 500 && c.error ? String(c.error.stack || c.error) : undefined, ray: c.req.header('cf-ray')})
 })
+app.use('*', markHandleSet)
 app.use('*', filesHost) // before teenybase: file reads never touch the database
 
 teenyHono<CloudEnv>(async (c) => {
@@ -46,6 +48,7 @@ connectRoutes(app)
 bucketRoutes(app)
 devLoginRoutes(app)
 projectRoutes(app)
+handleRoutes(app)
 pageRoutes(app)
 
 export default {

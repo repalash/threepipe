@@ -247,6 +247,7 @@ img.shot { display: block; max-width: 100%; max-height: 280px; border-radius: va
 .card h1 { font-size: 15px; margin-bottom: 6px }
 .card p { color: var(--muted); font-size: 12px; line-height: 1.5 }
 .card p b { color: var(--fg); font-weight: 600 }
+.card p.err { color: var(--danger) }
 .card .stack { display: flex; flex-direction: column; gap: 8px; margin-top: 18px }
 .card .stack > * { width: 100% }
 .card .row { display: flex; gap: 8px; margin-top: 20px }

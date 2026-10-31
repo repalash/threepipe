@@ -14,6 +14,7 @@ async function api(path, init) {
     const r = await fetch('/api/v1/drive' + path, {...init, credentials: 'same-origin'})
     if (r.status === 401) { signedOut(); throw new Error('signed out') }
     const j = await r.json().catch(() => ({}))
+    if (UI.handleGate(r.status, j)) throw new Error('signed out')
     if (!r.ok) throw new Error(j.message || j.error || ('HTTP ' + r.status))
     return j
 }
