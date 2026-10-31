@@ -103,6 +103,9 @@ const doc = globalThis.document as any
 const saved = {createElement: doc.createElement, activeElement: doc.activeElement}
 /** The listeners on the window (keys and clicks) */
 let windowListeners: Map<string, (e: any) => void>
+/** The ResizeObservers the plugins made: `resized(el)` calls the ones that watch `el` */
+let observers: {targets: Set<any>, cb: (entries: any[]) => void}[]
+const resized = (el: FakeElement) => observers.filter(o => o.targets.has(el)).forEach(o => o.cb([{target: el}]))
 beforeAll(() => {
     AnnotationsPlugin.InjectStyles = false
     doc.createElement = (tag: string) => new FakeElement(tag)
@@ -119,6 +122,22 @@ beforeEach(() => {
     // no frame loop: the tests call the screen update themselves
     vi.stubGlobal('requestAnimationFrame', () => 0)
     vi.stubGlobal('cancelAnimationFrame', noop)
+    observers = []
+    vi.stubGlobal('ResizeObserver', class {
+        targets = new Set<any>()
+        constructor(readonly cb: (entries: any[]) => void) {
+            observers.push(this)
+        }
+        observe(t: any) {
+            this.targets.add(t)
+        }
+        unobserve(t: any) {
+            this.targets.delete(t)
+        }
+        disconnect() {
+            this.targets.clear()
+        }
+    })
 })
 afterEach(() => {
     vi.unstubAllGlobals()
@@ -580,8 +599,34 @@ describe('AnnotationsPlugin', () => {
         c.offsetHeight = 300
         textIn.value = 'Some text\nand more lines'
         textIn.fire('input')
+        resized(c)
         update()
         expect(bottom()).toBeLessThanOrEqual(592)
+    })
+
+    test('the card stays inside the viewer when it changes size for any reason: a narrower viewer wraps the text (read-only)', () => {
+        const {plugin, layer, box, group, viewer} = setup(false)
+        group.position.y = -1.8
+        group.updateMatrixWorld()
+        const a = plugin.add(box as any, front, normal, null, {text: 'A text that wraps in a narrow card'})
+        const update = () => (plugin as any)._updateScreen()
+        update()
+        plugin.goTo(a.id, {fly: false})
+        const c = card(layer)
+        const bottom = () => Number(c.style.transform.match(/[-\d.]+/g)![1]) + c.offsetHeight
+        expect(bottom()).toBeLessThanOrEqual(592)
+        // the viewer gets narrower: the text wraps and the card gets taller
+        layer.clientWidth = 300
+        c.offsetHeight = 300
+        resized(c)
+        update()
+        expect(bottom()).toBeLessThanOrEqual(592)
+        // watched only while open, and not after the plugin is removed
+        plugin.close()
+        expect(observers.some(o => o.targets.has(c))).toBe(false)
+        plugin.goTo(a.id, {fly: false})
+        plugin.onRemove(viewer)
+        expect(observers.some(o => o.targets.size)).toBe(false)
     })
 
     test('editable: startAdding, then a click on a surface places an annotation there and opens it; Esc cancels', () => {

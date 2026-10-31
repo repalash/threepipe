@@ -178,7 +178,13 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
     private _down: {x: number, y: number, canvas: boolean} | null = null
     private _drag: {id: string, pointerId: number, x: number, y: number, moved: boolean, before: AnnotationAnchor} | null = null
     private _tour = 0
+    /** The size of the card, measured again when it changes (see `_resizer`), not on every frame */
     private _cardSize = {w: 0, h: 0}
+    /** Watches the open card: a text that grows or wraps in a narrower viewer changes its size, then it is placed again */
+    private _resizer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(() => {
+        this._cardSize.w = 0
+        this._positionCard()
+    })
 
     constructor(options: AnnotationsPluginOptions = {}) {
         super()
@@ -243,6 +249,7 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         window.removeEventListener('pointerup', this._onWindowUp, {capture: true})
         viewer.scene.removeEventListener('sceneUpdate', this._onSceneUpdate)
         viewer.scene.removeEventListener('addSceneObject', this._onHierarchy)
+        this._resizer?.disconnect()
         this._layer?.remove()
         this._layer = undefined
         this._card = undefined
@@ -409,6 +416,7 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         this._renderCard()
         this._syncMarkers()
         this._positionCard(true)
+        if (this._card) this._resizer?.observe(this._card)
         if (options.fly !== false && a.view) this._flyTo(a.view)
         else this._stopAnim() // a flight to the annotation before ends here
         if (this._card) {
@@ -441,6 +449,7 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
     close() {
         if (!this._openId) return
         this._commitEdit()
+        if (this._card) this._resizer?.unobserve(this._card)
         this._openId = null
         this._renderCard()
         this._syncMarkers()
@@ -929,9 +938,6 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         const t = this._cardEls.textIn
         t.style.height = 'auto'
         t.style.height = Math.min(240, t.scrollHeight + 2) + 'px'
-        // the card changed size: measure it again, so it stays inside the viewer
-        this._cardSize.w = 0
-        this._positionCard()
     }
 
     private _renderCard() {
