@@ -879,6 +879,23 @@ describe('EditorCameraPlugin', () => {
         expect(plugin.editing).toBe(false) // kept for the next add
     })
 
+    test('on remove, the plugin stops listening to the controls of the preview camera and refreshes its UI', () => {
+        const {plugin, preview, viewer} = setup({orbit: true})
+        plugin.editing = false
+        const controls = preview.controls as OrbitControls3
+        const onStart = (plugin as any)._onDragStart
+        expect(controls.hasEventListener('start', onStart)).toBe(true)
+        const uiRefresh = vi.fn()
+        Object.defineProperty(plugin, 'uiConfig', {value: {uiRefresh}, configurable: true})
+        plugin.onRemove(viewer)
+        expect(controls.hasEventListener('start', onStart)).toBe(false)
+        expect(controls.hasEventListener('end', (plugin as any)._onDragEnd)).toBe(false)
+        expect(uiRefresh).toHaveBeenCalled()
+        // added again in View: it listens again
+        plugin.onAdded(viewer)
+        expect((preview.controls as OrbitControls3).hasEventListener('start', onStart)).toBe(true)
+    })
+
     test('on remove, another main camera (set in Edit) stays the main camera', () => {
         const {plugin, scene, viewer} = setup()
         const other = new PerspectiveCamera()

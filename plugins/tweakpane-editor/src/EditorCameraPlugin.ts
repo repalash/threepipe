@@ -340,11 +340,13 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
         viewer.scene.defaultCamera.removeEventListener('cameraUpdate', this._onStartUpdate)
         this._preview?.removeEventListener('cameraUpdate', this._onPreviewUpdate)
         window.removeEventListener('keydown', this._onKeyDown)
+        this._watchPreviewControls(undefined)
         this._undoManager = undefined
         if (wasEditing) this.dispatchEvent({type: 'editingChange', editing: false})
         this._checkMoved()
         this.camera.removeFromParent()
         this._preview?.removeFromParent()
+        this.uiConfig?.uiRefresh?.(true)
         super.onRemove(viewer)
     }
 
