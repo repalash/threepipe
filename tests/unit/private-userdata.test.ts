@@ -1,6 +1,7 @@
 /**
- * userData keys that start with `_` or `__` are private: they are not saved by `toJSON`, and the cameras do not
- * load them in `fromJSON`. See the note on `IObject3D.userData`.
+ * userData keys that start with `__` are runtime state: they are not saved by `toJSON`, and the cameras do not load
+ * them in `fromJSON`. Keys that start with `_` are kept on clone and in JSON, and left out only in glTF.
+ * See the note on `IObject3D.userData`.
  */
 import {beforeAll, describe, expect, test} from 'vitest'
 import {LoadingManager, Mesh, Object3D} from 'three'
@@ -20,12 +21,12 @@ function allKeys(value: any, keys: string[] = []): string[] {
     }
     return keys
 }
-const privateKeys = (json: any) => allKeys(JSON.parse(JSON.stringify(json))).filter(k => k.startsWith('_'))
+const runtimeKeys = (json: any) => allKeys(JSON.parse(JSON.stringify(json))).filter(k => k.startsWith('__'))
 
 const userData = () => ({
     keep: 'value',
     nested: {a: 1, _b: 2, __c: 3},
-    _private: 'kept on clone',
+    _private: 'kept on clone and in JSON',
     __runtime: 'not kept on clone',
 })
 
@@ -42,14 +43,15 @@ describe.each([
         return camera
     }
 
-    test('toJSON of a main camera has no private key, and keeps the other keys', () => {
+    test('toJSON of a main camera has no __ key, and keeps the other keys (_ keys too)', () => {
         const camera = mainCamera()
         const json = camera.toJSON()
-        expect(privateKeys(json)).toEqual([])
-        expect(json.userData.keep).toBe('value')
-        expect(json.userData.nested).toEqual({a: 1})
-        expect(json.object.userData.keep).toBe('value')
-        expect(json.object.userData.nested).toEqual({a: 1})
+        expect(runtimeKeys(json)).toEqual([])
+        for (const ud of [json.userData, json.object.userData]) {
+            expect(ud.keep).toBe('value')
+            expect(ud._private).toBe('kept on clone and in JSON')
+            expect(ud.nested).toEqual({a: 1, _b: 2})
+        }
     })
 
     test('toJSON does not change the camera', () => {
@@ -59,11 +61,11 @@ describe.each([
         expect(camera.userData).toBe(ud)
         expect(camera.isMainCamera).toBe(true)
         expect(camera.userData.__lastScale).toBeDefined()
-        expect(camera.userData._private).toBe('kept on clone')
+        expect(camera.userData._private).toBe('kept on clone and in JSON')
         expect(camera.userData.nested).toEqual({a: 1, _b: 2, __c: 3})
     })
 
-    test('fromJSON does not make a camera the main camera', () => {
+    test('fromJSON does not make a camera the main camera, and loads the _ keys', () => {
         const data = mainCamera().toJSON()
         // files saved before the fix carry the private keys
         data.userData = {...data.userData, __isMainCamera: true, __lastScale: {x: 2, y: 2, z: 2, isVector3: true}, _private: 'old'}
@@ -72,7 +74,7 @@ describe.each([
         camera.fromJSON(data)
         expect(camera.isMainCamera).toBe(false)
         expect(camera.userData.__lastScale).toBeUndefined()
-        expect(camera.userData._private).toBeUndefined()
+        expect(camera.userData._private).toBe('old')
         expect(camera.userData.keep).toBe('value')
     })
 
@@ -85,25 +87,26 @@ describe.each([
         camera.fromJSON(data)
         expect(camera.isMainCamera).toBe(true)
         expect(camera.userData.__lastScale).toBe(lastScale)
-        expect(camera.userData._private).toBe('kept on clone')
+        expect(camera.userData._private).toBe('kept on clone and in JSON')
         expect(camera.userData.keep).toBe('new')
     })
 })
 
 describe('Object3D toJSON userData', () => {
-    test('a light does not save private keys', () => {
+    test('a light does not save __ keys, and saves _ keys', () => {
         const light = new tp.DirectionalLight2()
         Object.assign(light.userData, userData())
         expect(light.userData.__autoBubbleToParentEvents).toBeDefined() // set by upgradeObject3D
 
         const json = light.toJSON()
-        expect(privateKeys(json.object.userData)).toEqual([])
+        expect(runtimeKeys(json.object.userData)).toEqual([])
         expect(json.object.userData.keep).toBe('value')
-        expect(json.object.userData.nested).toEqual({a: 1})
+        expect(json.object.userData._private).toBe('kept on clone and in JSON')
+        expect(json.object.userData.nested).toEqual({a: 1, _b: 2})
         expect(light.userData.__runtime).toBe('not kept on clone')
     })
 
-    test('a mesh and its children do not save private keys', () => {
+    test('a mesh and its children do not save __ keys', () => {
         const mesh = new Mesh()
         tp.iObjectCommons.upgradeObject3D.call(mesh as any)
         Object.assign(mesh.userData, userData())
@@ -112,10 +115,9 @@ describe('Object3D toJSON userData', () => {
         mesh.add(child) // upgraded when added
 
         const json = mesh.toJSON()
-        expect(privateKeys(json.object.userData)).toEqual([])
-        expect(privateKeys(json.object.children[0].userData)).toEqual([])
-        expect(json.object.userData).toEqual({keep: 'value', nested: {a: 1}})
-        expect(json.object.children[0].userData).toEqual({keep: 'value', nested: {a: 1}})
+        const saved = {keep: 'value', nested: {a: 1, _b: 2}, _private: 'kept on clone and in JSON'}
+        expect(json.object.userData).toEqual(saved)
+        expect(json.object.children[0].userData).toEqual(saved)
         expect(mesh.userData).toMatchObject(userData())
     })
 
@@ -132,7 +134,7 @@ describe('Object3D toJSON userData', () => {
         expect(json.object.userData).toMatchObject(named)
     })
 
-    test('an object without public keys saves no userData', () => {
+    test('an object with only __ keys saves no userData', () => {
         const object = new tp.Object3D2()
         object.userData.__runtime = true
         expect(object.toJSON().object.userData).toBeUndefined()
@@ -142,7 +144,7 @@ describe('Object3D toJSON userData', () => {
         const object = new tp.Object3D2()
         Object.assign(object.userData, userData())
         const clone = object.clone()
-        expect(clone.userData._private).toBe('kept on clone')
+        expect(clone.userData._private).toBe('kept on clone and in JSON')
         expect(clone.userData.__runtime).toBeUndefined()
         expect(clone.userData.nested).toEqual({a: 1, _b: 2})
     })
@@ -188,7 +190,7 @@ describe('GLTFLoader2 extras', () => {
 })
 
 describe('GLTFLightExtrasExtension shadow camera', () => {
-    test('private keys of the shadow camera userData are not written or read', async() => {
+    test('_ and __ keys of the shadow camera userData are not written or read (glTF)', async() => {
         const light = new tp.DirectionalLight2()
         Object.assign(light.shadow.camera.userData, userData())
         const nodeDef: any = {}

@@ -505,7 +505,7 @@ export class ThreeSerialization {
  * @param dest
  * @param source
  * @param ignoredKeysInRoot - keys to ignore in the root object
- * @param privatePrefix - keys that start with this are not copied. Default `'__'` (the keys that are not kept on clone). `'_'` also skips the `_` keys, see {@link copyPublicUserData}.
+ * @param privatePrefix - keys that start with this are not copied. Default `'__'` (the keys that are not kept on clone or in JSON). `'_'` also skips the `_` keys, as in glTF, see {@link copyPublicUserData}.
  */
 export function copyUserData(dest: any, source: any, ignoredKeysInRoot: (string|symbol)[] = [], privatePrefix = '__'): any {
     if (!source) return dest
@@ -566,9 +566,8 @@ export function copyObject3DUserData(dest: any, source: any, ignoredKeysInRoot =
 
 /**
  * Deep copy/clone from source to dest without the private keys, the keys that start with `_` or `__`, at every depth.
- * This is the userData of an Object3D that is saved: `_` keys are kept on clone but not saved, `__` keys are neither kept on clone nor saved (see {@link IObject3D.userData}).
- * Used in `toJSON` of every upgraded Object3D (see `iObjectCommons.toJSON`), and in `fromJSON` of the cameras to ignore the private keys in files saved before.
- * @note Materials and textures save the `_` keys, see {@link copyMaterialUserData} and {@link copyTextureUserData}.
+ * This is the userData that is saved in glTF: `_` keys are kept on clone and in JSON but not in glTF, `__` keys are kept nowhere (see {@link IObject3D.userData}).
+ * Used for the shadow camera in `GLTFLightExtrasExtension`. For JSON (`toJSON`, `fromJSON`) use {@link copyUserData}, which skips only the `__` keys.
  * @param dest
  * @param source
  */

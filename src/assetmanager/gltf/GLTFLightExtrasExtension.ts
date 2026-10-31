@@ -67,7 +67,7 @@ export class GLTFLightExtrasExtension {
 }
 
 /**
- * Returns the shadow camera json without the private userData keys (`_` and `__`, see {@link copyPublicUserData}).
+ * Returns the shadow camera json without the private userData keys (`_` and `__`, as for all the userData in glTF, see {@link copyPublicUserData}).
  * The shadow camera is not upgraded, so its `toJSON` writes every userData key, and files saved before can have them.
  * @param camera - camera json from `LightShadow.toJSON`, it is not changed.
  */

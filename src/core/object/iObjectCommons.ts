@@ -2,7 +2,7 @@ import {Event, Matrix4, Mesh, Vector3} from 'three'
 import {IMaterial} from '../IMaterial'
 import {IEvent, objectHasOwn} from 'ts-browser-helpers'
 import {IObject3D, IObject3DEventMap, IObjectSetDirtyOptions} from '../IObject'
-import {copyObject3DUserData, copyPublicUserData} from '../../utils/serialization'
+import {copyObject3DUserData, copyUserData} from '../../utils/serialization'
 import {getPropDesc} from '../../utils/browser-helpers'
 import {IGeometry, IGeometryEventMap} from '../IGeometry'
 import {Box3B, checkTexMapReference} from '../../three'
@@ -519,18 +519,19 @@ export const iObjectCommons = {
             return this
         },
     /**
-     * Wraps `toJSON` so that the private userData keys are not saved: the keys that start with `_` (kept on clone)
-     * and `__` (not kept on clone), at every depth. See {@link IObject3D.userData}.
+     * Wraps `toJSON` so that the userData keys that start with `__` (runtime state, like `__isMainCamera`) are not
+     * saved, at every depth, like on clone. The keys that start with `_` are saved in JSON (they are left out only in
+     * glTF, see `GLTFWriter2`). See {@link IObject3D.userData}.
      *
-     * During the original `toJSON`, `userData` is replaced with the copy from {@link copyPublicUserData}, so every
-     * part of the output that comes from `userData` has only the public keys: `object.userData` from three.js
-     * `Object3D.toJSON`, and `userData` from `@serialize` (like in `PerspectiveCamera2`). Children are
-     * saved through their own `toJSON`. The object keeps its `userData` object.
+     * During the original `toJSON`, `userData` is replaced with the copy from {@link copyUserData}, so every part of
+     * the output that comes from `userData` has no `__` keys: `object.userData` from three.js `Object3D.toJSON`, and
+     * `userData` from `@serialize` (like in `PerspectiveCamera2`). Children are saved through their own `toJSON`.
+     * The object keeps its `userData` object.
      */
     toJSON: (superToJSON: IObject3D['toJSON']): IObject3D['toJSON'] =>
         function(this: IObject3D, ...args): any {
             const userData = this.userData
-            this.userData = copyPublicUserData({}, userData)
+            this.userData = copyUserData({}, userData)
             try {
                 return superToJSON.call(this, ...args)
             } finally {

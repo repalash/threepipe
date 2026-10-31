@@ -15,7 +15,7 @@ import {ICameraSetDirtyOptions} from '../ICamera'
 import type {ICameraControls, TControlsCtor} from './ICameraControls'
 import {OrbitControls3} from '../../three/controls/OrbitControls3'
 import {IObject3D} from '../IObject'
-import {copyPublicUserData, ThreeSerialization} from '../../utils'
+import {copyUserData, ThreeSerialization} from '../../utils'
 import {iCameraCommons} from '../object/iCameraCommons'
 import {bindToValue} from '../../three/utils/decorators'
 import {makeICameraCommonUiConfig, objectExtensionsUiConfig} from '../object/IObjectUi'
@@ -358,8 +358,8 @@ export class PerspectiveCamera2<TE extends ICameraEventMap = ICameraEventMap> ex
         // if (data.cameraObject) this._camera.fromJSON(data.cameraObject)
         // todo: add check for OrbitControls being not deserialized(inited properly) if it doesn't exist yet (if it is not inited properly)
         // console.log(JSON.parse(JSON.stringify(data)))
-        // private userData keys are not loaded, the camera keeps its own (like __isMainCamera). Files saved before the toJSON filter have them.
-        if (data.userData) data = {...data, userData: copyPublicUserData({}, data.userData)}
+        // __ userData keys (runtime state) are not loaded, the camera keeps its own (like __isMainCamera). Files saved before the toJSON filter have them.
+        if (data.userData) data = {...data, userData: copyUserData({}, data.userData)}
         ThreeSerialization.Deserialize(data, this, meta, true)
         this.refreshAspect(false)
         this.setDirty({change: 'deserialize'})
