@@ -1,6 +1,7 @@
 import type {GLTF, GLTFLoaderPlugin, GLTFParser} from 'three/examples/jsm/loaders/GLTFLoader.js'
 import {ObjectLoader} from 'three'
 import type {GLTFExporterPlugin, GLTFWriter} from 'three/examples/jsm/exporters/GLTFExporter.js'
+import {copyPublicUserData} from '../../utils/serialization'
 
 export class GLTFLightExtrasExtension {
     static readonly WebGiLightExtrasExtension = 'WEBGI_light_extras'
@@ -32,7 +33,7 @@ export class GLTFLightExtrasExtension {
                         if (ext.shadow.radius !== undefined) o.shadow.radius = ext.shadow.radius
                         if (ext.shadow.mapSize !== undefined) o.shadow.mapSize.fromArray(ext.shadow.mapSize)
                         if (ext.shadow.camera !== undefined) {
-                            o.shadow.camera = new ObjectLoader().parseObject(ext.shadow.camera, {}, {}, {}, {})
+                            o.shadow.camera = new ObjectLoader().parseObject(publicUserData(ext.shadow.camera), {}, {}, {}, {})
                         }
                     }
 
@@ -52,6 +53,7 @@ export class GLTFLightExtrasExtension {
             const dat: any = {}
             if (object.shadow) { // castShadow is in GLTFObject3DExtrasExtension
                 dat.shadow = object.shadow.toJSON()
+                if (dat.shadow.camera) dat.shadow.camera = publicUserData(dat.shadow.camera)
             }
             if (Object.keys(dat).length > 0) {
                 nodeDef.extensions[this.WebGiLightExtrasExtension] = dat
@@ -62,4 +64,18 @@ export class GLTFLightExtrasExtension {
 
     // see GLTFDracoExportPlugin
     static Textures: Record<string, string|number>|undefined = undefined
+}
+
+/**
+ * Returns the shadow camera json without the private userData keys (`_` and `__`, see {@link copyPublicUserData}).
+ * The shadow camera is not upgraded, so its `toJSON` writes every userData key, and files saved before can have them.
+ * @param camera - camera json from `LightShadow.toJSON`, it is not changed.
+ */
+function publicUserData(camera: any) {
+    if (!camera?.userData) return camera
+    const userData = copyPublicUserData({}, camera.userData)
+    const res = {...camera}
+    if (Object.keys(userData).length) res.userData = userData
+    else delete res.userData
+    return res
 }

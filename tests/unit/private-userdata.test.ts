@@ -3,7 +3,7 @@
  * load them in `fromJSON`. See the note on `IObject3D.userData`.
  */
 import {beforeAll, describe, expect, test} from 'vitest'
-import {Mesh, Object3D} from 'three'
+import {LoadingManager, Mesh, Object3D} from 'three'
 
 // Deferred import — threepipe core has circular static-init dependencies that only resolve once the graph is fully loaded.
 let tp: typeof import('threepipe')
@@ -132,5 +132,61 @@ describe('Object3D toJSON userData', () => {
         expect(clone.userData._private).toBe('kept on clone')
         expect(clone.userData.__runtime).toBeUndefined()
         expect(clone.userData.nested).toEqual({a: 1, _b: 2})
+    })
+})
+
+describe('GLTFLoader2 extras', () => {
+    const viewer: any = { // only what the loader plugin uses
+        assetManager: {importer: {
+            addURLModifier: () => {}, removeURLModifier: () => {},
+            registerFile: () => undefined, unregisterFile: () => {},
+        }},
+    }
+    const extras = () => ({keep: 'value', nested: {__a: 1}, _private: 1, __isMainCamera: true})
+
+    test('__ keys in the extras are not put into userData', async() => {
+        const loader = new tp.GLTFLoader2(new LoadingManager())
+        loader.register(loader.gltfViewerParser(viewer))
+        const gltf = await loader.parseAsync(JSON.stringify({
+            asset: {version: '2.0'},
+            extras: extras(),
+            scene: 0,
+            scenes: [{nodes: [0, 1], extras: extras()}],
+            nodes: [{name: 'camera', camera: 0, extras: extras()}, {name: 'light', extensions: {KHR_lights_punctual: {light: 0}}}],
+            cameras: [{type: 'perspective', perspective: {yfov: 1, znear: 0.1}, extras: extras()}],
+            materials: [{name: 'material', extras: extras()}],
+            extensionsUsed: ['KHR_lights_punctual'],
+            extensions: {KHR_lights_punctual: {lights: [{type: 'point', extras: extras()}]}},
+        }), '')
+        const material = await gltf.parser.getDependency('material', 0)
+
+        const camera = gltf.scene.getObjectByName('camera') as any
+        const light = gltf.scene.getObjectByName('light') as any // a node with only a light is the light
+        for (const ud of [gltf.userData, gltf.scene.userData, camera.userData, light.userData, material.userData]) {
+            expect(ud.__isMainCamera).toBeUndefined()
+            expect(ud.keep).toBe('value')
+            expect(ud._private).toBe(1)
+            expect(ud.nested).toEqual({__a: 1}) // only the keys at the root of extras
+        }
+        expect(camera.isCamera).toBe(true)
+        expect(camera.isMainCamera).toBe(false)
+        expect(light.isLight).toBe(true)
+    })
+})
+
+describe('GLTFLightExtrasExtension shadow camera', () => {
+    test('private keys of the shadow camera userData are not written or read', async() => {
+        const light = new tp.DirectionalLight2()
+        Object.assign(light.shadow.camera.userData, userData())
+        const nodeDef: any = {}
+        tp.GLTFLightExtrasExtension.Export({extensionsUsed: {}} as any).writeNode!(light, nodeDef)
+        const camera = nodeDef.extensions[tp.GLTFLightExtrasExtension.WebGiLightExtrasExtension].shadow.camera
+        expect(camera.userData).toEqual({keep: 'value', nested: {a: 1}})
+        expect(light.shadow.camera.userData).toMatchObject(userData())
+
+        const light2 = new tp.DirectionalLight2()
+        light2.userData.gltfExtensions = {[tp.GLTFLightExtrasExtension.WebGiLightExtrasExtension]: {shadow: {camera: {...camera, userData: userData()}}}}
+        await tp.GLTFLightExtrasExtension.Import({} as any).afterRoot!({scenes: [light2]} as any)
+        expect(light2.shadow.camera.userData).toEqual({keep: 'value', nested: {a: 1}})
     })
 })
