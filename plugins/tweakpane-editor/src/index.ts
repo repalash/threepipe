@@ -5,3 +5,5 @@ export type {NoteItem, NotesStore, NotesStoreStatus, NotesPluginOptions, NotesPl
 export {StickyNotesUiPlugin} from './StickyNotesUiPlugin'
 export type {StickyNotesLayout, StickyNotesColor} from './StickyNotesUiPlugin'
 export {EditorCameraPlugin} from './EditorCameraPlugin'
+export type {EditorCameraPluginEventMap} from './EditorCameraPlugin'
+export {setupEditorCameraLabel} from './editor-camera-label'

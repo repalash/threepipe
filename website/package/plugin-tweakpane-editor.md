@@ -162,8 +162,13 @@ editorCamera.hotkey = 'KeyK'
 Options:
 - `smooth`: a light damping on the editor camera. Off: 1:1 with the pointer.
 - `keepViewMoves`: in View, the camera moves change the start view when Edit starts again (one undo step). Off: the start view goes back to where it was when View started. `resetStartView()` puts it back at any time in View.
+- `startViewMoved`: in View, the start view was moved from where it was when View started. `saveStartView()` keeps the move as the start view (one undo step); `resetStartView()` puts it back. The `startViewMovedChange` event (`{moved}`) tells a UI when it changes.
 - `EditorCameraPlugin.ControlProps`: the orbit controls of the editor camera.
 
 The plugin is not saved with the viewer config (`serializeWithViewer = false`).
 
-In the `TweakpaneEditorPlugin`, the tool bar at the bottom of the canvas has an Edit / View button (a video camera) when the plugin is added before `loadPlugins()`. It is on in Edit and follows the key and the panel. The [Tweakpane Editor](https://threepipe.org/examples/#tweakpane-editor/) example has the settings in the Viewer tab.
+In the `TweakpaneEditorPlugin`, when the plugin is added before `loadPlugins()`:
+- A label at the top centre of the canvas names the camera: "Editor camera", or "Start view · what visitors see" in blue, with a blue frame around the canvas. A click on it switches Edit and View, as the C key.
+- In Edit, the label has "Set as start view" (`setStartViewFromEditor()`). In View, after a move, it has "Save as start view" and "Reset" (`saveStartView()`, `resetStartView()`). Ctrl+Z undoes them.
+- The tool bar at the bottom of the canvas has an Edit / View button (a video camera). It is on in Edit and follows the key and the panel.
+- `setupEditorCameraLabel(viewer, plugin)` adds the label and the frame in another app. The [Tweakpane Editor](https://threepipe.org/examples/#tweakpane-editor/) example has the settings in the Viewer tab.

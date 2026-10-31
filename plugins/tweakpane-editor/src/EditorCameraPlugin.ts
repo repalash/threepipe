@@ -60,6 +60,8 @@ function lookTargetOf(camera: ICamera, position: Vector3): Vector3 {
 export interface EditorCameraPluginEventMap extends AViewerPluginEventMap {
     /** The view changed between Edit (`editing` true: the editor camera) and View (the start view) */
     editingChange: {editing: boolean}
+    /** {@link EditorCameraPlugin.startViewMoved} changed: in View, the start view was moved, saved or put back */
+    startViewMovedChange: {moved: boolean}
 }
 
 /**
@@ -146,6 +148,8 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
 
     /** The value of {@link editing} that the cameras show now */
     private _shownEditing = false
+    /** The last value of {@link startViewMoved} that was sent in `startViewMovedChange` */
+    private _moved = false
     /** The start view when View started, to put it back (see {@link keepViewMoves}) */
     private _startPose?: StartPose
 
@@ -167,6 +171,16 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
         return this._viewer?.scene.defaultCamera
     }
 
+    /**
+     * In View: the start view was moved from where it was when View started (a look around, as a visitor).
+     * {@link saveStartView} keeps the move, {@link resetStartView} puts it back, and Edit puts it back unless
+     * {@link keepViewMoves} is on. Always `false` in Edit.
+     */
+    get startViewMoved(): boolean {
+        const start = this.startCamera
+        return !!this._startPose && !!start && !samePose(this._startPose, poseOf(start))
+    }
+
     /** The camera that Edit or View looks through: the editor camera in Edit, else the start view */
     get homeCamera(): ICamera | undefined {
         return this._shownEditing ? this.camera : this.startCamera
@@ -183,6 +197,7 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
         viewer.scene.add(this.camera)
         viewer.scene.addEventListener('mainCameraChange', this._onMainCameraChange)
         viewer.assetManager.addEventListener('loadAsset', this._onLoad)
+        viewer.scene.defaultCamera.addEventListener('cameraUpdate', this._checkMoved)
         window.addEventListener('keydown', this._onKeyDown)
         this.copyStartView()
         this._refreshEditing()
@@ -200,6 +215,7 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
         this._startPose = undefined
         viewer.scene.removeEventListener('mainCameraChange', this._onMainCameraChange)
         viewer.assetManager.removeEventListener('loadAsset', this._onLoad)
+        viewer.scene.defaultCamera.removeEventListener('cameraUpdate', this._checkMoved)
         window.removeEventListener('keydown', this._onKeyDown)
         if (wasEditing) this.dispatchEvent({type: 'editingChange', editing: false})
         this.camera.removeFromParent()
@@ -240,6 +256,15 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
         }
         this.uiConfig?.uiRefresh?.(true)
         this.dispatchEvent({type: 'editingChange', editing})
+        this._checkMoved()
+    }
+
+    /** Sends `startViewMovedChange` when {@link startViewMoved} changed */
+    private _checkMoved = () => {
+        const moved = this.startViewMoved
+        if (moved === this._moved) return
+        this._moved = moved
+        this.dispatchEvent({type: 'startViewMovedChange', moved})
     }
 
     private _onKeyDown = (e: KeyboardEvent) => {
@@ -255,6 +280,26 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
     @uiButton('Reset start view', {sendArgs: false})
     resetStartView() {
         if (this._startPose) this._setStartView(this._startPose)
+        this._checkMoved()
+    }
+
+    /**
+     * In View: the start view stays where it was moved (one undo step), as the view that visitors see. It does nothing
+     * in Edit, or when the start view did not move ({@link startViewMoved}).
+     */
+    @uiButton('Save start view (in View)', {sendArgs: false})
+    saveStartView() {
+        const start = this.startCamera
+        const before = this._startPose
+        if (!start || !before) return
+        // a glide after the drag would move it on after the save
+        const controls = start.controls as OrbitControls3 | undefined
+        controls?.stopDamping?.()
+        const after = poseOf(start)
+        if (samePose(before, after)) return
+        this._startPose = after
+        this._recordStartView(before, after)
+        this._checkMoved()
     }
 
     /**
@@ -345,5 +390,6 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
         // in View, the start view of the new file is the one to put back
         const start = this.startCamera
         if (start && this._startPose) this._startPose = poseOf(start)
+        this._checkMoved()
     }
 }

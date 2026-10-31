@@ -176,6 +176,55 @@ describe('EditorCameraPlugin', () => {
         expect(start.position.toArray()).toEqual([4, 1, 0])
     })
 
+    test('in View, startViewMoved after a look around; saveStartView keeps it as one undo step, and Edit keeps it', () => {
+        const {plugin, start, records} = setup()
+        expect(plugin.startViewMoved).toBe(false) // in Edit
+        plugin.editing = false
+        expect(plugin.startViewMoved).toBe(false)
+        start.position.set(4, 1, 0)
+        expect(plugin.startViewMoved).toBe(true)
+        plugin.saveStartView()
+        expect(start.controls.stopDamping).toHaveBeenCalled()
+        expect(plugin.startViewMoved).toBe(false)
+        expect(records).toHaveLength(1)
+        plugin.editing = true // keepViewMoves is off: the saved view stays
+        expect(start.position.toArray()).toEqual([4, 1, 0])
+        expect(records).toHaveLength(1)
+        records[0].undo()
+        expect(start.position.toArray()).toEqual([0, 1, 6])
+        records[0].redo()
+        expect(start.position.toArray()).toEqual([4, 1, 0])
+    })
+
+    test('saveStartView does nothing in Edit, or when the start view did not move', () => {
+        const {plugin, start, records} = setup()
+        plugin.saveStartView()
+        plugin.editing = false
+        plugin.saveStartView()
+        expect(records).toHaveLength(0)
+        expect(start.position.toArray()).toEqual([0, 1, 6])
+    })
+
+    test('startViewMovedChange tells when the moved state changes: a move, a save, a reset, Edit', () => {
+        const {plugin, start} = setup()
+        const events: boolean[] = []
+        plugin.addEventListener('startViewMovedChange', e => events.push(e.moved))
+        plugin.editing = false
+        start.position.set(4, 1, 0)
+        start.dispatchEvent({type: 'cameraUpdate'})
+        start.position.set(3, 1, 0)
+        start.dispatchEvent({type: 'cameraUpdate'}) // still moved: no event
+        plugin.saveStartView()
+        start.position.set(0, 2, 6)
+        start.dispatchEvent({type: 'cameraUpdate'})
+        plugin.resetStartView()
+        start.dispatchEvent({type: 'cameraUpdate'})
+        start.position.set(1, 1, 6)
+        start.dispatchEvent({type: 'cameraUpdate'})
+        plugin.editing = true // the look around is put back
+        expect(events).toEqual([true, false, true, false, true, false])
+    })
+
     test('resetStartView puts the start view back while in View', () => {
         const {plugin, start} = setup()
         plugin.editing = false

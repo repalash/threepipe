@@ -10,6 +10,8 @@ import {
 } from 'threepipe'
 import {setupFullscreenButton, setupUtilButtonsBar} from './util-buttons'
 import {setupWebGiLogo} from './logo'
+import {setupEditorCameraLabel} from './editor-camera-label'
+import type {EditorCameraPlugin} from './EditorCameraPlugin'
 import styles from './TweakpaneEditorPlugin.css?inline'
 import tippy from 'tippy.js'
 import tippyStyles from 'tippy.js/dist/tippy.css?inline'
@@ -50,6 +52,9 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync {
     loadPlugins(plugins: Record<string, Class<IViewerPlugin<any>>[]> = {}) {
         if (!this._viewer) throw new Error('Plugin not added to viewer.')
         setupUtilButtonsBar(this._viewer, Object.values(plugins).flat())
+        // by its type name: the editor does not bundle the plugin
+        const editorCamera = this._viewer.getPlugin<EditorCameraPlugin>('EditorCameraPlugin')
+        if (editorCamera) setupEditorCameraLabel(this._viewer, editorCamera)
 
         // this.picking = viewer.getPlugin(PickingPlugin)
         this.uiPlugin = this._viewer.getPlugin(TweakpaneUiPlugin)!
