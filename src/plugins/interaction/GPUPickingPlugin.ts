@@ -21,7 +21,7 @@ import {IObject3D} from '../../core'
 export interface GPUPickResult {
     /** The front-most mesh under the point */
     object: IObject3D
-    /** World position of the hit */
+    /** World position of the hit, at the centre of the pixel under the point */
     point: Vector3
     /** Distance along the camera ray, as `Raycaster.setFromCamera` makes it (from the camera, or its plane for an orthographic camera) */
     distance: number
@@ -41,7 +41,8 @@ export interface GPUPickResult {
  *
  * - Skinned, morphed and instanced meshes are drawn in their current pose.
  * - Transparent meshes are hit like opaque ones, and so are the parts that alpha test cuts away.
- * - Fat lines (Line2), points, lines and objects outside the model root are not drawn.
+ * - Fat lines (Line2), points, lines, objects outside the model root and meshes on layers that the main camera does not
+ *   see are not drawn.
  *
  * @category Plugins
  */
@@ -129,7 +130,7 @@ void main() { gl_FragColor = vec4(objectId, vViewZ, 0., 1.); }`,
         const added: Object3D[] = []
         scene.modelRoot.traverseVisible(o => {
             const m = o as Object3D as Mesh & {isLine2?: boolean, isLineSegments2?: boolean}
-            if (!m.isMesh || m.isLine2 || m.isLineSegments2 || filter && !filter(o)) return
+            if (!m.isMesh || m.isLine2 || m.isLineSegments2 || !o.layers.test(cam.layers) || filter && !filter(o)) return
             this._objects.push(o)
             this._ids.set(o, this._objects.length)
             if (!o.layers.isEnabled(layer)) {
@@ -139,6 +140,7 @@ void main() { gl_FragColor = vec4(objectId, vViewZ, 0., 1.); }`,
         })
 
         // a camera that sees only the pixel under the point
+        const px = Math.floor(x), py = Math.floor(y)
         const pc = cam.isPerspectiveCamera ? this._perspective : this._ortho
         if (cam.isPerspectiveCamera) {
             const p = pc as PerspectiveCamera
@@ -158,7 +160,12 @@ void main() { gl_FragColor = vec4(objectId, vViewZ, 0., 1.); }`,
         pc.matrixAutoUpdate = false
         pc.matrixWorld.copy(cam.matrixWorld)
         pc.matrixWorldInverse.copy(cam.matrixWorldInverse)
-        pc.setViewOffset(w, h, Math.floor(x), Math.floor(y), 1, 1)
+        pc.setViewOffset(w, h, px, py, 1, 1)
+        if (cam.isPerspectiveCamera) {
+            // setViewOffset sets the aspect to w / h: keep the aspect of the camera (a fixed aspect shows stretched)
+            (pc as PerspectiveCamera).aspect = cam.aspect
+            pc.updateProjectionMatrix()
+        }
         pc.layers.set(layer)
 
         const renderer = viewer.renderManager.renderer
@@ -195,10 +202,10 @@ void main() { gl_FragColor = vec4(objectId, vViewZ, 0., 1.); }`,
         this.uiConfig?.uiRefresh?.(false, 'postFrame')
         if (!object) return null
 
-        // the hit point: along the camera ray, at the depth that was drawn. The ray of an orthographic camera starts in
-        // the plane of the camera, so its distance is the view depth.
+        // the hit point: along the camera ray through the centre of the pixel, at the depth that was drawn there. The ray
+        // of an orthographic camera starts in the plane of the camera, so its distance is the view depth.
         const viewZ = this._pixel[1]
-        this._raycaster.setFromCamera(new Vector2(x / w * 2 - 1, -(y / h) * 2 + 1), cam)
+        this._raycaster.setFromCamera(new Vector2((px + 0.5) / w * 2 - 1, -((py + 0.5) / h) * 2 + 1), cam)
         const ray = this._raycaster.ray
         const forward = new Vector3(0, 0, -1).transformDirection(cam.matrixWorld)
         const distance = cam.isPerspectiveCamera ? viewZ / ray.direction.dot(forward) : viewZ

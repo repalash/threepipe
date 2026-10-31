@@ -38,7 +38,7 @@ const hit = gpuPicking.pick(x, y, (object) => object.userData.userSelectable !==
 
 `pick(x, y, filter?)` returns `{object, point, distance}` or `null`:
 - `object` - the front-most mesh under the point
-- `point` - the world position of the hit
+- `point` - the world position of the hit, at the centre of the canvas pixel under the point
 - `distance` - the distance along the camera ray, as `Raycaster.setFromCamera` makes it (from the camera, or from the plane of an orthographic camera)
 
 `lastPickMs` (in the UI) is the time of the last pick.
@@ -48,6 +48,6 @@ const hit = gpuPicking.pick(x, y, (object) => object.userData.userSelectable !==
 - Only the front-most mesh, and only along camera rays. For other rays, all the hits along a ray, or many queries in a frame, use the `Raycaster` (with a BVH on big meshes).
 - The read-back waits for the GPU to finish the draw (a GPU stall). Pick on pointer events, not many times per frame.
 - Transparent meshes are hit like opaque ones, and so are the parts that alpha test cuts away.
-- Fat lines (`Line2`), lines, points and objects outside the model root are not drawn.
+- Fat lines (`Line2`), lines, points, objects outside the model root and meshes on layers that the main camera does not see are not drawn.
 - The meshes go on `GPUPickingPlugin.Layer` (29) during a pick. Do not use that layer for other renders.
 - Skinned, morphed and instanced meshes are drawn in their current pose. An instanced mesh is one object (no instance id).

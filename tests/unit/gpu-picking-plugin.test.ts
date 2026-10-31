@@ -49,6 +49,7 @@ function setup(camera: Camera) {
             const meshes = modelRoot.children.filter(o => o.layers.test(cam.layers)) as Mesh[]
             state.layerMeshes = meshes.map(m => m.name)
             const rc = new Raycaster()
+            rc.layers.mask = cam.layers.mask // what the picking camera draws
             rc.setFromCamera(new Vector2(0, 0), cam) // the centre of the 1×1 view
             const hit = rc.intersectObjects(meshes, false)[0]
             renderer.pixel = [0, 0, 0, 0]
@@ -120,5 +121,40 @@ describe('GPUPickingPlugin', () => {
         plugin.enabled = false
         expect(plugin.pick(100.5, 50.5)).toBeNull()
         expect(state.renders).toBe(0)
+    })
+
+    test('a mesh on layers that the main camera does not see is not picked and does not hide others', () => {
+        const {plugin, near, far} = setup(new PerspectiveCamera(50, W / H, 0.1, 100))
+        near.layers.set(2) // the camera sees layer 0
+        expect(plugin.pick(100.5, 50.5)?.object).toBe(far)
+        expect(near.layers.mask).toBe(1 << 2)
+    })
+
+    test('the point is at the centre of the picked pixel, also for coordinates inside a pixel (sloped surface)', () => {
+        const {plugin, near, far, camera} = setup(new PerspectiveCamera(50, W / H, 0.1, 100))
+        near.rotation.set(0.5, 0.7, 0)
+        near.updateMatrixWorld(true)
+        for (const [x, y] of [[100.2, 50.8], [101.9, 49.05], [98.7, 52.3]]) {
+            const result = plugin.pick(x, y)
+            const ref = raycast(camera, [near, far], Math.floor(x) + 0.5, Math.floor(y) + 0.5)
+            expect(result?.object).toBe(near)
+            expect(ref?.object).toBe(near)
+            expect(result!.distance).toBeCloseTo(ref!.distance, 5)
+            expect(result!.point.distanceTo(ref!.point)).toBeLessThan(1e-5)
+        }
+    })
+
+    test('a camera with a fixed aspect that differs from the canvas: the pick sees what the canvas shows', () => {
+        const {plugin, near, far, camera} = setup(new PerspectiveCamera(50, 1, 0.1, 100)) // canvas 2:1
+        const picked = new Set<Object3D | null>()
+        for (let x = 4.5; x < W; x += 8) for (let y = 4.5; y < H; y += 8) {
+            const result = plugin.pick(x, y)
+            const ref = raycast(camera, [near, far], x, y)
+            expect(result?.object ?? null).toBe(ref?.object ?? null)
+            if (result && ref) expect(result.point.distanceTo(ref.point)).toBeLessThan(1e-5)
+            picked.add(result?.object ?? null)
+        }
+        expect(picked).toEqual(new Set([near, far, null]))
+        expect((camera as PerspectiveCamera).aspect).toBe(1)
     })
 })
