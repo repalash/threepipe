@@ -73,6 +73,8 @@ class FakeElement {
     blur() {
         if (doc.activeElement !== this) return
         doc.activeElement = null
+        // a browser fires change on the blur of a changed field; the plugin ignores a change with the same value
+        if (this.tagName === 'input' || this.tagName === 'textarea') this.fire('change')
         this.fire('blur')
     }
     setPointerCapture = noop
@@ -118,8 +120,11 @@ afterEach(() => {
     vi.unstubAllGlobals()
 })
 
-/** A box of size 1 at the origin in a fake viewer, the camera at z = 5 looking at it; the canvas is 800x600 */
-function setup(editable = true) {
+/**
+ * A box of size 1 at the origin in a fake viewer, the camera at z = 5 looking at it; the canvas is 800x600.
+ * `popmotion`: the PopmotionPlugin of the viewer (none: camera moves end at once)
+ */
+function setup(editable = true, popmotion?: any) {
     const plugin = new AnnotationsPlugin({editable})
     const box = new Mesh(new BoxGeometry(1, 1, 1), new MeshBasicMaterial())
     box.name = 'Box'
@@ -148,7 +153,7 @@ function setup(editable = true) {
         scene,
         addEventListener: noop,
         removeEventListener: noop,
-        getPlugin: (c: any) => c === UndoManagerPlugin ? {undoManager: {record: (cmd: any) => undo.push(cmd)}} : undefined,
+        getPlugin: (c: any) => c === UndoManagerPlugin ? {undoManager: {record: (cmd: any) => undo.push(cmd)}} : c === PopmotionPlugin ? popmotion : undefined,
         console,
     } as any
     plugin.onAdded(viewer)
@@ -300,6 +305,61 @@ describe('AnnotationsPlugin', () => {
         expect(plugin.openId).toBe(null)
         expect(c.classList.contains('anp-open')).toBe(false)
         expect(selected).toEqual(['One', 'Two', 'One', 'Two', undefined])
+    })
+
+    test('opening an annotation without a camera move stops the flight of the one before', () => {
+        // a flight that runs until it is stopped
+        const flights: {stop: ReturnType<typeof vi.fn>}[] = []
+        const popmotion = {animate: (o: any) => {
+            const f = {stop: vi.fn(() => o.onStop?.())}
+            flights.push(f)
+            return f
+        }}
+        const {plugin, box, camera} = setup(false, popmotion)
+        plugin.add(box as any, front, normal, {position: [3, 0, 0], target: [0, 0, 0], quaternion: [0, 0, 0, 1], zoom: 1})
+        const b = plugin.add(box as any, front, normal, null)
+        const c = plugin.add(box as any, front, normal, {position: [0, 3, 0.1], target: [0, 0, 0], quaternion: [0, 0, 0, 1], zoom: 1})
+        plugin.goTo(0)
+        expect(flights).toHaveLength(1)
+        expect(camera.setInteractions).toHaveBeenLastCalledWith(false, 'AnnotationsPlugin')
+        // no view: the camera stays, the flight ends and the camera is free
+        plugin.goTo(b.id)
+        expect(flights[0].stop).toHaveBeenCalled()
+        expect(camera.setInteractions).toHaveBeenLastCalledWith(true, 'AnnotationsPlugin')
+        // fly: false, the same
+        plugin.goTo(0)
+        plugin.goTo(c.id, {fly: false})
+        expect(flights).toHaveLength(2)
+        expect(flights[1].stop).toHaveBeenCalled()
+        expect(camera.setInteractions).toHaveBeenLastCalledWith(true, 'AnnotationsPlugin')
+    })
+
+    test('editable: a click on another marker while a field is focused ends the edit first; typing then edits the new one', () => {
+        const {plugin, layer, box, undo} = setup()
+        const a = plugin.add(box as any, front, normal, null, {title: 'A'})
+        const b = plugin.add(box as any, front, normal, null, {title: 'B'})
+        plugin.goTo(a.id, {focusTitle: true})
+        const input = card(layer).find('anp-title-in')[0]
+        undo.length = 0
+        input.value = 'A2'
+        input.fire('input')
+        // the marker keeps the focus where it is (preventDefault on pointerdown)
+        const m = markers(layer)[1]
+        m.fire('pointerdown')
+        m.fire('pointerup')
+        expect(plugin.openId).toBe(b.id)
+        expect(doc.activeElement).not.toBe(input)
+        expect(input.value).toBe('B')
+        expect(plugin.get(a.id)!.title).toBe('A2')
+        expect(undo).toHaveLength(1) // the edit of A, one step
+        undo[0].undo()
+        expect(plugin.get(a.id)!.title).toBe('A')
+        undo[0].redo()
+        input.focus()
+        input.value = 'B2'
+        input.fire('input')
+        expect(plugin.get(b.id)!.title).toBe('B2')
+        expect(plugin.get(a.id)!.title).toBe('A2')
     })
 
     test('keys: ← → go through the annotations while a card is open, Esc closes; typing in a field is left alone', () => {

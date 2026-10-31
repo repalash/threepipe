@@ -384,11 +384,13 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
     goTo(indexOrId: number | string, options: {fly?: boolean, focusTitle?: boolean} = {}) {
         const a = this.get(indexOrId)
         if (!a) return
+        if (a.id !== this._openId) this._commitEdit() // the field edits the annotation it was focused for
         this._openId = a.id
         this._renderCard()
         this._syncMarkers()
         this._positionCard(true)
         if (options.fly !== false && a.view) this._flyTo(a.view)
+        else this._stopAnim() // a flight to the annotation before ends here
         if (this._card) {
             if (options.focusTitle && this._editable) {
                 this._cardEls.titleIn.focus({preventScroll: true})
@@ -418,8 +420,7 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
     /** Close the card */
     close() {
         if (!this._openId) return
-        const active = document.activeElement as HTMLElement | null
-        if (active && this._card?.contains(active)) active.blur() // commits an edit in progress
+        this._commitEdit()
         this._openId = null
         this._renderCard()
         this._syncMarkers()
@@ -877,6 +878,12 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
                 this._card?.focus({preventScroll: true})
             }
         })
+    }
+
+    /** Ends an edit in the card: the blur commits it as one undo step */
+    private _commitEdit() {
+        const active = document.activeElement as HTMLElement | null
+        if (active && this._card?.contains(active)) active.blur()
     }
 
     private _autosize() {
