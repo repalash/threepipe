@@ -341,7 +341,7 @@ export class EditorFrame {
         else tip?.enable()
     }
 
-        private _onMenuPointerDown = (e: PointerEvent) => {
+    private _onMenuPointerDown = (e: PointerEvent) => {
         const t = e.target as Node
         if (!this._menu?.contains(t) && !this._menuAnchor?.contains(t)) this._closeMenu()
     }
