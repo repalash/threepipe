@@ -103,6 +103,7 @@ export {LineGeometryGenerator, type LineGeometryGeneratorParams} from './geometr
 export {createShapeFromPreset, reverseShapeWinding} from './geometry/helpers/ShapePresets'
 export {curveUiConfigs, createCurveTypeDropdown, createCurvePropertyUi, type CurveUiEntry, type SupportedCurveTypes} from './geometry/helpers/CurveUiHelper'
 export {ShapeTubeExtrudePlugin} from './geometry/ShapeTubeExtrudePlugin'
+export {PenToolPlugin, type PenToolOptions, type PenToolPluginEventMap} from './geometry/PenToolPlugin'
 
 // extras
 export {HDRiGroundPlugin} from './extras/HDRiGroundPlugin'
