@@ -1,4 +1,4 @@
-import {AViewerPluginEventMap, AViewerPluginSync, IObject3D, PickingPlugin, serialize, ThreeViewer} from 'threepipe'
+import {AViewerPluginEventMap, AViewerPluginSync, IObject3D, onChange, PickingPlugin, serialize, ThreeViewer} from 'threepipe'
 import {UiObjectConfig} from 'uiconfig.js'
 
 /** One note */
@@ -92,6 +92,8 @@ export interface NotesPluginEventMap extends AViewerPluginEventMap {
     notesChange: {change: 'add' | 'update' | 'remove' | 'load', note?: NoteItem, notes?: NoteItem[]}
     /** The {@link NotesStoreStatus} of a store changed */
     storeStatusChange: {store: string, status: NotesStoreStatus}
+    /** {@link NotesPlugin.defaultStore} changed */
+    defaultStoreChange: {store: string}
 }
 
 /**
@@ -120,7 +122,8 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
         fileNotes: NoteItem[] = []
 
     /** The store of a note made with {@link addNote} when it names none. Default: the first store. */
-    defaultStore = ''
+    @onChange(NotesPlugin.prototype._defaultStoreChanged)
+        defaultStore = ''
 
     /** Extra text for {@link contextLine} */
     contextProvider?: () => string
@@ -164,6 +167,11 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
         this.defaultStore = this._stores[0]?.id ?? ''
         // a loaded scene or config brings its own file notes
         this.addEventListener('deserialize', () => this.getStore('file') === this._fileStore && this._loadStore(this._fileStore, true))
+    }
+
+    private _defaultStoreChanged() {
+        this.dispatchEvent({type: 'defaultStoreChange', store: this.defaultStore})
+        this.uiConfig?.uiRefresh?.(true)
     }
 
     /** All the notes, in the order of the stores, then the order they were made */

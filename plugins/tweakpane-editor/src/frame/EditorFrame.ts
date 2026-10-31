@@ -1,6 +1,7 @@
 import {createDiv, createStyles} from 'threepipe'
 import tippy, {Instance} from 'tippy.js'
 import {EditorModeBar, EditorModeBarHost} from './EditorModeBar'
+import {isTextTarget} from '../dom-utils'
 import styles from './EditorFrame.css?inline'
 
 /**
@@ -250,8 +251,7 @@ export class EditorFrame {
         // the key (a layout with \ elsewhere), or its place (a layout where it types another character)
         const names = (e.key === '\\' || e.code === 'Backslash') && mod && !e.shiftKey
         if (!theme && !names) return
-        const t = e.target as HTMLElement | null
-        if (t?.closest?.('input, textarea, select, [contenteditable]')) return
+        if (isTextTarget(e.target)) return
         e.preventDefault()
         if (theme) this.toggleTheme()
         else this.modeBar.cycle()

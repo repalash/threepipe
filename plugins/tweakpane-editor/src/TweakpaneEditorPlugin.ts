@@ -14,10 +14,11 @@ import {setupEditorCameraUi} from './editor-camera-ui'
 import type {EditorCameraPlugin} from './EditorCameraPlugin'
 import styles from './TweakpaneEditorPlugin.css?inline'
 import tippy from 'tippy.js'
-import tippyStyles from 'tippy.js/dist/tippy.css?inline'
+import {addTooltipStyles, EDITOR_TOOLTIP_PROPS} from './tooltips'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 import {UiObjectConfig} from 'uiconfig.js'
 import {EDITOR_PAGE_LAYOUTS, EditorFrame, EditorFrameLayout, EditorFrameOptions, EditorPageLayout} from './frame/EditorFrame'
+import {readStored, writeStored} from './dom-utils'
 
 export interface TweakpaneEditorPluginEventMap extends AViewerPluginEventMap {
     /** {@link TweakpaneEditorPlugin.documentName} changed: set by the app, or renamed in the bar of the frame */
@@ -38,15 +39,13 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
     onAdded(viewer: ThreeViewer) {
         super.onAdded(viewer)
         createStyles(styles)
-        createStyles(tippyStyles)
+        addTooltipStyles()
 
         tippy.setDefaultProps({
-            theme: 'editor',
+            ...EDITOR_TOOLTIP_PROPS,
             duration: 300,
             arrow: true,
             appendTo: () => viewer.container, // for fullscreen
-            // a touch screen: a tap shows a tooltip until the next tap anywhere; show it on a long press only
-            touch: ['hold', 500],
         })
 
         setupFullscreenButton(viewer)
@@ -141,12 +140,7 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
     private _pickLayout(layout: EditorPageLayout) {
         this.layout = layout
         const key = TweakpaneEditorPlugin.LayoutStorageKey
-        if (!key) return
-        try {
-            localStorage.setItem(key, this._layout)
-        } catch (e) {
-            // no storage: this page only
-        }
+        if (key) writeStored(key, this._layout)
     }
 
     /**
@@ -297,11 +291,6 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
 /** The page layout kept in `localStorage` ({@link TweakpaneEditorPlugin.LayoutStorageKey}), if it is a known layout */
 function readStoredLayout(): EditorPageLayout | undefined {
     const key = TweakpaneEditorPlugin.LayoutStorageKey
-    if (!key) return undefined
-    try {
-        const stored = localStorage.getItem(key)
-        return EDITOR_PAGE_LAYOUTS.find(([k]) => k === stored)?.[0]
-    } catch (e) {
-        return undefined // no storage
-    }
+    const stored = key ? readStored(key) : null
+    return EDITOR_PAGE_LAYOUTS.find(([k]) => k === stored)?.[0]
 }

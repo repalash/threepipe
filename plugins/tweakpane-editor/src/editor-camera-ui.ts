@@ -1,6 +1,7 @@
 import {createStyles} from 'threepipe'
 import type {ThreeViewer} from 'threepipe'
 import tippy from 'tippy.js'
+import {addTooltipStyles, EDITOR_TOOLTIP_PROPS} from './tooltips'
 import type {EditorCameraPlugin} from './EditorCameraPlugin'
 import styles from './editor-camera-ui.css?inline'
 
@@ -128,7 +129,8 @@ export function setupEditorCameraUi(viewer: ThreeViewer, camera: EditorCameraPlu
     save.addEventListener('click', () => camera.saveStartView())
     reset.addEventListener('click', () => camera.resetStartView())
 
-    const tip = (target: HTMLElement, content: string) => tippy(target, {placement: 'bottom', content, touch: false})
+    addTooltipStyles()
+    const tip = (target: HTMLElement, content: string) => tippy(target, {...EDITOR_TOOLTIP_PROPS, placement: 'bottom', content, touch: false})
     const tips = [
         tip(pin, ''),
         tip(setStart, 'The start view (what visitors see first) takes this view. Ctrl+Z undoes it.'),

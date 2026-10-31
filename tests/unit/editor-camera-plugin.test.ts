@@ -6,8 +6,11 @@ import {setupEditorCameraUi} from '../../plugins/tweakpane-editor/src/editor-cam
 import {TweakpaneEditorPlugin} from '../../plugins/tweakpane-editor/src/TweakpaneEditorPlugin'
 
 // the UI tests: tooltips, the buttons and the tweakpane plugin need a page, the UI does not use them.
-// tippy.js is a dependency of the editor package only (installed in its node_modules)
-vi.mock('../../plugins/tweakpane-editor/node_modules/tippy.js', () => ({default: Object.assign(vi.fn(() => ({setContent: vi.fn(), destroy: vi.fn()})), {setDefaultProps: vi.fn()})}))
+// tippy.js is a dependency of the plugin, mocked by the file that Node resolves from the plugin's folder: in the
+// workspace's node_modules (hoisted) or in the plugin's own (a nested or linked install)
+const tippyPath = vi.hoisted(() => process.getBuiltinModule('node:module')
+    .createRequire(new URL('../../plugins/tweakpane-editor/package.json', import.meta.url)).resolve('tippy.js'))
+vi.mock(tippyPath, () => ({default: Object.assign(vi.fn(() => ({setContent: vi.fn(), destroy: vi.fn()})), {setDefaultProps: vi.fn()})}))
 vi.mock('../../plugins/tweakpane-editor/src/util-buttons', () => ({setupFullscreenButton: vi.fn(), setupUtilButtonsBar: vi.fn()}))
 vi.mock('@threepipe/plugin-tweakpane', () => ({TweakpaneUiPlugin: class {static PluginType = 'TweakpaneUiPlugin'}}))
 
@@ -128,7 +131,7 @@ describe('EditorCameraPlugin', () => {
         }
         for (const tagName of ['INPUT', 'TEXTAREA', 'SELECT']) {
             const e = Object.assign(new Event('keydown', {cancelable: true}), {code: 'KeyC'})
-            Object.defineProperty(e, 'target', {value: {tagName}})
+            Object.defineProperty(e, 'target', {value: {tagName, closest: (s: string) => s.split(', ').includes(tagName.toLowerCase()) ? {} : null}})
             window.dispatchEvent(e)
         }
         const editable = Object.assign(new Event('keydown', {cancelable: true}), {code: 'KeyC'})

@@ -212,7 +212,7 @@ export class ThreeEditor extends ThreeViewer {
 
         // the buttons of the notes go above the perf pill at the bottom left of the canvas
         const sticky = this.getPlugin(StickyNotesUiPlugin)
-        sticky && (sticky.dock.style.bottom = '64px')
+        sticky && (sticky.dock.style.bottom = '56px')
 
         const taa = this.getPlugin(TemporalAAPlugin)
         taa && (taa.stableNoise = true)
