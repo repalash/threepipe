@@ -43,7 +43,7 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
 
         tippy.setDefaultProps({
             ...EDITOR_TOOLTIP_PROPS,
-            duration: 300,
+            duration: 200, // a short fade: tooltips and popovers take 160 to 220 ms
             arrow: true,
             appendTo: () => viewer.container, // for fullscreen
         })

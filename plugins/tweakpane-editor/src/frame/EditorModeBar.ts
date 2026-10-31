@@ -17,7 +17,7 @@ export interface EditorModeBarHost {
     setSelectedMode(i: number): void
 }
 
-const svg = (d: string) => `<svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`
+const svg = (d: string) => `<svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`
 
 const TOGGLE_ICON = svg('<path d="M8 6l4 4-4 4"/>')
 const FALLBACK: EditorModeLook = {color: '#8a8f98', icon: svg('<circle cx="10" cy="10" r="3.5" fill="currentColor"/>')}
