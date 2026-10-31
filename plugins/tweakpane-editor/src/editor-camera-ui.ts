@@ -68,9 +68,11 @@ body.tpTheme-black .ecu-root, body.tpTheme-dark .ecu-root, body.tpTheme-blue .ec
 .ecu-seg button:hover { color: var(--ecu-fg); }
 .ecu-acts { display: flex; gap: 6px; }
 .ecu-acts button { flex: 1; height: 24px; border-radius: 5px; background: var(--ecu-hover); }
-.ecu-acts button:hover { filter: brightness(.96); }
+.ecu-acts button:hover:not(:disabled) { filter: brightness(.96); }
+/* Save and Reset stay in View, off when there is no move to save: the card keeps its size */
+.ecu-acts button:disabled { opacity: .45; cursor: default; }
 .ecu-acts .ecu-primary { background: var(--ecu-view); color: #fff; }
-.ecu-hint { color: var(--ecu-dim); font-weight: 400; padding: 0 2px; }
+.ecu-hint { color: var(--ecu-dim); font-weight: 400; padding: 0 2px; line-height: 1.35; min-height: 2.7em; } /* two lines, for every text */
 .ecu-frame { position: absolute; inset: 0; z-index: 40; pointer-events: none; box-shadow: inset 0 0 0 3px var(--ecu-frame, #0d99ff); display: none; }
 .ecu-frame.ecu-on { display: block; }
 .ecu-frame.ecu-sync { --ecu-frame: #14ae5c; }
@@ -112,8 +114,9 @@ const SHOT_INTERVAL = 200
  * - a Sync toggle over the picture ({@link EditorCameraPlugin.syncStartView}): moves in View change the start view.
  * - an Edit / View toggle ({@link EditorCameraPlugin.editing}, also the C key; a click on the pill with a mouse does
  *   the same).
- * - "Set as start view" in Edit ({@link EditorCameraPlugin.setStartViewFromEditor}), "Save" and "Reset" in View after a
- *   move that is not saved ({@link EditorCameraPlugin.saveStartView}, {@link EditorCameraPlugin.resetStartView}).
+ * - "Set as start view" in Edit ({@link EditorCameraPlugin.setStartViewFromEditor}); "Save" and "Reset" in View, on
+ *   after a move that is not saved ({@link EditorCameraPlugin.saveStartView}, {@link EditorCameraPlugin.resetStartView}).
+ *   They stay in the card when off, so the card keeps its size.
  *
  * The `TweakpaneEditorPlugin` adds it when the plugin is added before `loadPlugins()`.
  * @returns a function that removes it
@@ -273,8 +276,8 @@ export function setupEditorCameraUi(viewer: ThreeViewer, camera: EditorCameraPlu
         shotBox.classList.toggle('ecu-stale', hasShot && stale && !camera.showsStartView)
         empty.style.display = hasShot ? 'none' : ''
         setStart.style.display = editing ? '' : 'none'
-        save.style.display = reset.style.display = !editing && moved ? '' : 'none'
-        acts.style.display = editing || moved ? '' : 'none'
+        save.style.display = reset.style.display = editing ? 'none' : ''
+        save.disabled = reset.disabled = !moved
         hint.textContent = editing ? 'Visitors see the start view first.' :
             sync ? 'Sync is on: your moves change the start view.' :
                 moved ? 'This view is not saved.' : 'Moves here are a preview. Sync saves them.'

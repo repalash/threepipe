@@ -15,9 +15,9 @@ const viewerConfig = {assetType: 'config', type: 'ThreeViewer', scene: {defaultC
 /**
  * A start view (the scene's default camera) and a scene that tracks the main camera. By default the start camera has
  * mock controls (`orbit` false); with `orbit` it has orbit controls on the viewer canvas, as the default camera of a
- * viewer.
+ * viewer. `syncStartView` is off unless `sync` (the tests of the preview need it off; its default is on).
  */
-function setup({undo = true, orbit = false, ortho = false} = {}) {
+function setup({undo = true, orbit = false, ortho = false, sync = false} = {}) {
     const canvas = makeCanvas()
     const scene = new EventDispatcher<any>() as any
     const start = (ortho ? new OrthographicCamera2(orbit ? 'orbit' : '', canvas) : new PerspectiveCamera2(orbit ? 'orbit' : '', orbit ? canvas : undefined)) as any
@@ -46,6 +46,7 @@ function setup({undo = true, orbit = false, ortho = false} = {}) {
     }) as any
 
     const plugin = new EditorCameraPlugin()
+    plugin.syncStartView = sync
     plugin.camera.activateMain = activate(plugin.camera) as any
     plugin.onAdded(viewer)
     const preview = plugin.previewCamera as PerspectiveCamera2
@@ -238,6 +239,10 @@ describe('EditorCameraPlugin', () => {
         const json = start.toJSON()
         expect(json.position).toEqual(expect.objectContaining({x: 0, y: 1, z: 6}))
         expect(json.uuid ?? json.object?.uuid).not.toBe(preview.uuid)
+    })
+
+    test('syncStartView is on by default', () => {
+        expect(new EditorCameraPlugin().syncStartView).toBe(true)
     })
 
     test('syncStartView: a move in View changes the start view at once, as one undo step until it ends', () => {

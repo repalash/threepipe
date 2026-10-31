@@ -176,13 +176,13 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
         smooth = false
 
     /**
-     * In View: each move of the view changes the saved start view at once (one undo step per move).
+     * In View: each move of the view changes the saved start view at once (one undo step per move). On by default.
      * Off: a move in View is a preview only, kept with {@link saveStartView}.
      * Turned on in View after a move, it saves the view.
      */
     @onChange(EditorCameraPlugin.prototype._syncChanged)
     @uiToggle('Sync start view (in View)')
-        syncStartView = false
+        syncStartView = true
 
     /**
      * Edit (`true`) looks through the editor camera, View (`false`) through the preview of the start view.

@@ -22,9 +22,9 @@ async function init() {
     startControls.maxAzimuthAngle = Math.PI / 3
 
     // Edit looks through the editor camera: 1:1 with the pointer, no limits, never saved.
-    // View looks through a preview of the start view, with its controls: a move there changes the start view only
-    // with Save, or as it happens with syncStartView. The C key switches Edit and View. Ctrl+Z undoes a change to
-    // the start view.
+    // View looks through a preview of the start view, with its controls: a move there changes the start view as it
+    // happens (syncStartView, on by default); with Sync off it is a preview, kept with Save. The C key switches Edit
+    // and View. Ctrl+Z undoes a change to the start view.
     const editorCamera = viewer.addPluginSync(EditorCameraPlugin)
 
     await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
