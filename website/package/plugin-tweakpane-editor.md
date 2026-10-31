@@ -120,7 +120,7 @@ Changes are saved per store, 600 ms after the last one, and when the plugin is r
 - `board`: each note is its own post-it. A new post-it goes below the last one in its column, inside the canvas and above the dock; when no column has room (a phone has room for one), the columns start again a little lower and to the right. "Arrange" puts all of them in columns by the same rule. "Stack" switches to the other layout.
 - `stack`: the post-its lie on a pile, each one a little to the left of and above the one on it, so the pile stays on the canvas. A click on a post-it behind brings it to the top; the pile is dragged and sized as one. "Spread" switches back.
 
-"Minimise" (the `minimized` layout) takes the post-its off the canvas. Only one button stays in the dock, with the number of notes; a click on it brings back the layout from before.
+"Minimise" (the `minimized` layout) takes the post-its off the canvas. Only one button stays in the dock, with the number of notes; a click on it brings back the layout from before. The post-its start minimized on each page load, so they do not cover the canvas; the button brings back the layout set last. `new StickyNotesUiPlugin(storageKey, false)` starts in that layout instead.
 
 In both layouts:
 

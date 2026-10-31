@@ -125,9 +125,10 @@ afterEach(() => {
 })
 
 /** The notes and the post-its in a fake viewer */
-function setup(options: ConstructorParameters<typeof NotesPlugin>[0] = {}, canvas = {width: 800, height: 600}) {
+function setup(options: ConstructorParameters<typeof NotesPlugin>[0] = {}, canvas = {width: 800, height: 600}, startMinimized = false) {
     const notes = new NotesPlugin(options)
-    const sticky = new StickyNotesUiPlugin()
+    // the tests start from the stored layout; one test checks the default (minimized on a page load)
+    const sticky = new StickyNotesUiPlugin(undefined, startMinimized)
     // the canvas, and the dock at its bottom: 28 px high, 12 px above the bottom edge
     const layer = sticky.element as any as FakeElement
     layer.clientWidth = canvas.width
@@ -168,6 +169,22 @@ describe('StickyNotesUiPlugin', () => {
         bar.fire('pointermove', {clientX: 20 + dx, clientY: 20 + dy})
         bar.fire('pointerup')
     }
+
+    test('starts minimized on a page load (StartMinimized), and the button brings back the stored layout', () => {
+        storage.set('threepipe-sticky-notes', JSON.stringify({layout: 'stack', open: 'stack'}))
+        const {sticky, layer} = setup({}, undefined, true)
+        expect(sticky.layout).toBe('minimized')
+        expect(state().layout).toBe('stack') // the stored layout is kept for the next load
+        expect(dockButtons(layer)).toEqual(['Notes · 0']) // only the button that brings them back
+        ;(sticky as any)._restore()
+        expect(sticky.layout).toBe('stack')
+        // nothing stored: minimized too; the button brings the board
+        storage.delete('threepipe-sticky-notes')
+        const fresh = setup({}, undefined, true).sticky
+        expect(fresh.layout).toBe('minimized')
+        ;(fresh as any)._restore()
+        expect(fresh.layout).toBe('board')
+    })
 
     test('the layer is on the canvas with the dock; the UI folder has the settings, not the notes', () => {
         const {sticky, viewer, layer} = setup()
@@ -487,7 +504,7 @@ describe('StickyNotesUiPlugin', () => {
         sticky.color = 'blue'
         expect(layer.dataset.color).toBe('blue')
         expect(state()).toMatchObject({layout: 'stack', color: 'blue'})
-        const again = new StickyNotesUiPlugin()
+        const again = new StickyNotesUiPlugin(undefined, false)
         expect([again.layout, again.color]).toEqual(['stack', 'blue'])
 
         layer.button('Spread').fire('click')
@@ -522,7 +539,7 @@ describe('StickyNotesUiPlugin', () => {
         expect(sticky.layout).toBe('stack')
         // a layout kept from before minimises and comes back
         storage.set('threepipe-sticky-notes', JSON.stringify({layout: 'stack'}))
-        const again = new StickyNotesUiPlugin()
+        const again = new StickyNotesUiPlugin(undefined, false)
         again.layout = 'minimized'
         ;(again.dock as any as FakeElement).find('snp-restore')[0].fire('click')
         expect(again.layout).toBe('stack')
@@ -551,7 +568,7 @@ describe('StickyNotesUiPlugin', () => {
 
         // the page again: new post-its over the same notes
         sticky.onRemove(viewer)
-        const again = new StickyNotesUiPlugin()
+        const again = new StickyNotesUiPlugin(undefined, false)
         again.onAdded(viewer)
         const top = cards(again.element as any as FakeElement).find(c => c.style.zIndex === '3')!
         expect(text(top).value).toBe('f2')

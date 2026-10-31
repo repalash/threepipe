@@ -185,7 +185,12 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         ],
     }
 
-    constructor(storageKey = 'threepipe-sticky-notes') {
+    /**
+     * @param storageKey - the `localStorage` key of the layout, the colour, the places, the sizes and the order
+     * @param startMinimized - the post-its start minimized on each page load, so they do not cover the canvas; the button
+     * of the dock brings back the layout that the person set last. `false`: they start in that layout.
+     */
+    constructor(storageKey = 'threepipe-sticky-notes', startMinimized = true) {
         super()
         this.storageKey = storageKey
         if (StickyNotesUiPlugin.InjectStyles && !StickyNotesUiPlugin._styles?.isConnected) StickyNotesUiPlugin._styles = createStyles(styles)
@@ -216,6 +221,8 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         this.color = this._state.color ?? this.color
         this.shown = this._state.shown ?? this.shown
         if (this.layout !== 'minimized') this._state.open = this.layout
+        // this load only: the stored layout stays for the button of the dock (no state write before _ready)
+        if (startMinimized) this.layout = 'minimized'
         this._ready = true
         this._applyLook()
     }
