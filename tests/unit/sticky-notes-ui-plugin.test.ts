@@ -3,13 +3,29 @@ import {NoteItem, NotesPlugin} from '../../plugins/tweakpane-editor/src/NotesPlu
 import {StickyNotesUiPlugin} from '../../plugins/tweakpane-editor/src/StickyNotesUiPlugin'
 import {readFileSync} from 'node:fs'
 
+// tippy.js is a dependency of the plugin (in its node_modules, which can be a link), mocked by its real path: the
+// layer's delegate of the tooltips, with its props
+const tippyPath = vi.hoisted(() => process.getBuiltinModule('node:fs')
+    .realpathSync(new URL('../../plugins/tweakpane-editor/node_modules/tippy.js/dist/tippy.cjs.js', import.meta.url)))
+const delegates = vi.hoisted(() => [] as {target: any, props: any, destroyed: boolean}[])
+vi.mock(tippyPath, () => ({
+    default: Object.assign(() => ({}), {setDefaultProps: () => {}}),
+    delegate: (target: any, props: any) => {
+        const d = {target, props, destroyed: false}
+        delegates.push(d)
+        return {destroy: () => d.destroyed = true}
+    },
+}))
+
 // the node setup has no DOM: a small element with what the post-its use
 class FakeElement {
     children: FakeElement[] = []
     parent?: FakeElement
     className = ''
     textContent = ''
+    innerHTML = ''
     title = ''
+    attributes: Record<string, string> = {}
     value = ''
     placeholder = ''
     spellcheck = false
@@ -76,6 +92,9 @@ class FakeElement {
         doc.activeElement = this
     }
     setPointerCapture() {}
+    setAttribute(name: string, value: string) {
+        this.attributes[name] = value
+    }
     addEventListener(type: string, f: (e: any) => void) {
         this._listeners.set(type, [...this._listeners.get(type) ?? [], f])
     }
@@ -92,8 +111,9 @@ class FakeElement {
     find(cls: string) {
         return this.all().filter(e => e.classList.contains(cls))
     }
-    button(text: string) {
-        return this.all().find(e => e.tagName === 'button' && e.textContent === text)!
+    /** A button by its tooltip (the icon buttons) or its text (the menus) */
+    button(tipOrText: string) {
+        return this.all().find(e => e.tagName === 'button' && (e.dataset.tip === tipOrText || e.textContent === tipOrText))!
     }
 }
 
@@ -150,8 +170,13 @@ const cards = (layer: FakeElement) => layer.find('snp-card')
 /** The layer of the menus, next to the layer of the post-its */
 const popups = (layer: FakeElement) => layer.parent!.children.find(e => e.classList.contains('snp-popups'))!
 const menus = (layer: FakeElement) => popups(layer).find('snp-menu')
-/** The texts of the buttons that show in the dock */
-const dockButtons = (layer: FakeElement) => layer.find('snp-dock')[0].all().filter(b => b.style.display !== 'none').map(b => b.textContent)
+/** The tooltips of the buttons that show in the dock */
+const dockButtons = (layer: FakeElement) => layer.find('snp-dock')[0].children.filter(b => b.style.display !== 'none').map(b => b.dataset.tip)
+/** The number of notes on the button of the minimised layout */
+const count = (layer: FakeElement) => layer.find('snp-count')[0].textContent
+/** A third store, so a store button opens a menu */
+const serverStore = {id: 'server', label: 'The server', load: () => [], save: () => {}}
+const badge = (card: FakeElement) => card.find('snp-badge')[0]
 /** What the ResizeObserver does when a post-it changes size */
 const resized = (sticky: StickyNotesUiPlugin, card: FakeElement) => (sticky as any)._cardResized((sticky as any)._byElement.get(card))
 
@@ -175,7 +200,8 @@ describe('StickyNotesUiPlugin', () => {
         const {sticky, layer} = setup({}, undefined, true)
         expect(sticky.layout).toBe('minimized')
         expect(state().layout).toBe('stack') // the stored layout is kept for the next load
-        expect(dockButtons(layer)).toEqual(['Notes · 0']) // only the button that brings them back
+        expect(dockButtons(layer)).toEqual(['Show the notes']) // only the button that brings them back
+        expect(count(layer)).toBe('0')
         ;(sticky as any)._restore()
         expect(sticky.layout).toBe('stack')
         // nothing stored: minimized too; the button brings the board
@@ -189,28 +215,79 @@ describe('StickyNotesUiPlugin', () => {
     test('the layer is on the canvas with the dock; the UI folder has the settings, not the notes', () => {
         const {sticky, viewer, layer} = setup()
         expect(viewer.container.children).toEqual([layer, popups(layer)])
-        expect(dockButtons(layer)).toEqual(['+ Note', '▾', 'Arrange', 'Stack', 'Minimise'])
+        expect(dockButtons(layer)).toEqual(['Add a note', 'New notes: In the file (click: This browser)', 'Arrange the post-its in columns',
+            'Stack: put the post-its on a pile', 'Minimise: take the post-its off the canvas'])
         expect(sticky.uiConfig.label).toBe('Sticky Notes')
         expect((sticky.uiConfig.children as any[]).map(c => c.label)).toEqual(['Show', 'Layout', 'Colour', 'Arrange', 'Reset places'])
         expect(sticky.toJSON).toBeUndefined()
     })
 
-    test('+ Note adds a note at once, on top and with the cursor in it; ▾ picks the store', () => {
+    test('Add a note adds a note at once, on top and with the cursor in it; the store button switches the store of new notes', () => {
         const {notes, layer} = setup()
-        layer.button('+ Note').fire('click')
+        layer.button('Add a note').fire('click')
         expect(notes.notes.map(n => n.store)).toEqual(['file'])
         expect(cards(layer)).toHaveLength(1)
         expect(doc.activeElement).toBe(text(cards(layer)[0]))
         expect(cards(layer)[0].classList.contains('snp-new')).toBe(true)
 
-        layer.button('▾').fire('click')
-        const menu = menus(layer)[0]
-        expect(menu.all().filter(e => e.tagName === 'button').map(b => b.textContent)).toEqual(['In the file', 'This browser'])
-        menu.button('This browser').fire('click')
-        expect(notes.notes.map(n => n.store)).toEqual(['file', 'browser'])
+        // two stores: a click switches to the other one, with no menu; the button shows the store
+        const store = layer.find('snp-store')[0]
+        expect(store.attributes['aria-label']).toBe('New notes: In the file (click: This browser)')
+        store.fire('click')
+        expect(notes.defaultStore).toBe('browser')
         expect(menus(layer)).toHaveLength(0)
+        expect(store.dataset.tip).toBe('New notes: This browser (click: In the file)')
+        layer.button('Add a note').fire('click')
+        expect(notes.notes.map(n => n.store)).toEqual(['file', 'browser'])
         const top = cards(layer).find(c => c.style.zIndex === '2')!
-        expect(top.find('snp-badge')[0].textContent).toBe('This browser')
+        expect(badge(top).dataset.tip).toBe('Kept: This browser (click: In the file)')
+
+        // a change from the settings panel shows on the button too
+        notes.defaultStore = 'file'
+        expect(store.dataset.tip).toBe('New notes: In the file (click: This browser)')
+    })
+
+    test('with more than two stores, the store buttons open a menu; with one store, the dock has no store button', () => {
+        const {notes, layer} = setup({stores: [serverStore]})
+        const store = layer.find('snp-store')[0]
+        expect(store.dataset.tip).toBe('New notes: In the file (click to pick)')
+        store.fire('click')
+        const menu = menus(layer)[0]
+        expect(menu.all().filter(e => e.tagName === 'button').map(b => b.textContent)).toEqual(['In the file', 'This browser', 'The server'])
+        menu.button('The server').fire('click')
+        expect(notes.defaultStore).toBe('server')
+        expect(menus(layer)).toHaveLength(0)
+        notes.addNote('a')
+        badge(cards(layer)[0]).fire('click')
+        menus(layer)[0].button('This browser').fire('click')
+        expect(notes.notes[0].store).toBe('browser')
+
+        const single = setup({browser: false}).layer
+        expect(dockButtons(single)).not.toContain('New notes: In the file')
+        expect(single.find('snp-store')[0].style.display).toBe('none')
+    })
+
+    test('the tooltips: one delegate on the layer reads data-tip when one shows, not during a drag; removed with the plugin', () => {
+        delegates.length = 0
+        const {sticky, viewer, layer} = setup()
+        expect(delegates).toHaveLength(1)
+        const {target, props} = delegates[0]
+        expect(target).toBe(layer)
+        expect(props.target).toBe('[data-tip]')
+        expect(props.theme).toBe('editor')
+        expect(props.appendTo()).toBe(viewer.container)
+        expect(props.popperOptions.modifiers[0].options.boundary).toBe(viewer.container)
+        const shown: string[] = []
+        const tip = (reference: FakeElement) => props.onShow({reference, setContent: (t: string) => shown.push(t)})
+        const layoutButton = layer.button('Stack: put the post-its on a pile')
+        expect(tip(layoutButton)).toBeUndefined()
+        layoutButton.fire('click')
+        expect(tip(layoutButton)).toBeUndefined()
+        expect(shown).toEqual(['Stack: put the post-its on a pile', 'Spread: a post-it per note on the board'])
+        layer.classList.add('snp-dragging')
+        expect(tip(layoutButton)).toBe(false)
+        sticky.onRemove(viewer)
+        expect(delegates[0].destroyed).toBe(true)
     })
 
     test('typing keeps the same post-it and text box; × deletes the note; the badge moves it to another store', () => {
@@ -225,13 +302,12 @@ describe('StickyNotesUiPlugin', () => {
         expect(cards(layer)[0]).toBe(card)
         expect(text(cards(layer)[0])).toBe(box)
 
-        card.find('snp-badge')[0].fire('click')
-        menus(layer)[0].button('This browser').fire('click')
+        badge(card).fire('click')
         expect(notes.notes[0].store).toBe('browser')
         expect(cards(layer)[0]).toBe(card)
-        expect(card.find('snp-badge')[0].textContent).toBe('This browser')
+        expect(badge(card).dataset.tip).toBe('Kept: This browser (click: In the file)')
 
-        card.button('×').fire('click')
+        card.button('Delete the note').fire('click')
         expect(notes.notes).toHaveLength(0)
         expect(cards(layer)).toHaveLength(0)
     })
@@ -242,15 +318,15 @@ describe('StickyNotesUiPlugin', () => {
         notes.addNote('b')
         const [ca, cb] = cards(layer)
         cb.style.left = 'untouched'
-        cb.find('snp-badge')[0].title = 'untouched'
+        badge(cb).dataset.tip = 'untouched'
         const box = text(ca)
         box.value = 'a, typed'
         box.fire('input')
         expect(notes.notes[0].text).toBe('a, typed')
-        expect([cb.style.left, cb.find('snp-badge')[0].title]).toEqual(['untouched', 'untouched'])
+        expect([cb.style.left, badge(cb).dataset.tip]).toEqual(['untouched', 'untouched'])
 
         notes.updateNote(notes.notes[0].id, {store: 'browser'})
-        expect(ca.find('snp-badge')[0].textContent).toBe('This browser')
+        expect(badge(ca).dataset.tip).toBe('Kept: This browser (click: In the file)')
         expect(cb.style.left).toBe('12px')
     })
 
@@ -266,7 +342,7 @@ describe('StickyNotesUiPlugin', () => {
     })
 
     test('a click on the badge of another note opens the menu of that note; on the same badge, it closes it', () => {
-        const {notes, layer} = setup()
+        const {notes, layer} = setup({stores: [serverStore]})
         notes.addNote('a')
         notes.addNote('b')
         const [ca, cb] = cards(layer)
@@ -288,7 +364,7 @@ describe('StickyNotesUiPlugin', () => {
         notes.addNote('AB')
         const box = text(cards(layer)[0])
         box.selectionStart = 1
-        cards(layer)[0].button('+ Context').fire('click')
+        cards(layer)[0].button('Add the time and the selection').fire('click')
         expect(notes.notes[0].text).toMatch(/^A\n\[.+ · Move tool]\nB$/)
     })
 
@@ -444,7 +520,7 @@ describe('StickyNotesUiPlugin', () => {
 
     test('the layer does not scroll: a focus never moves the post-its away from their places', () => {
         const {layer} = setup()
-        layer.button('+ Note').fire('click')
+        layer.button('Add a note').fire('click')
         ;(layer as any).scrollTop = 120
         ;(layer as any).scrollLeft = 40
         layer.fire('scroll')
@@ -461,7 +537,7 @@ describe('StickyNotesUiPlugin', () => {
         expect([ca.style.zIndex, cards(layer)[1].style.zIndex]).toEqual(['2', '1'])
 
         const bar = ca.find('snp-bar')[0]
-        bar.fire('pointerdown', {target: ca.button('Copy'), clientX: 20, clientY: 20})
+        bar.fire('pointerdown', {target: ca.button('Copy the note'), clientX: 20, clientY: 20})
         bar.fire('pointermove', {clientX: 320, clientY: 220})
         expect(place(ca)).toEqual(['12px', '12px'])
     })
@@ -477,7 +553,7 @@ describe('StickyNotesUiPlugin', () => {
         const {notes, sticky, layer} = setup()
         const [a, b, c] = [notes.addNote('a'), notes.addNote('b'), notes.addNote('c')]
         layer.find('snp-dock')[0].offsetTop = 560
-        layer.button('Stack').fire('click')
+        layer.button('Stack: put the post-its on a pile').fire('click')
         expect(sticky.layout).toBe('stack')
         const byId = (id: string) => cards(layer)[notes.notes.findIndex(n => n.id === id)]
         // c on top at the corner of the pile (260 x 190 above the dock), b and a 8 px left and up each: the pile goes
@@ -507,7 +583,7 @@ describe('StickyNotesUiPlugin', () => {
         const again = new StickyNotesUiPlugin(undefined, false)
         expect([again.layout, again.color]).toEqual(['stack', 'blue'])
 
-        layer.button('Spread').fire('click')
+        layer.button('Spread: a post-it per note on the board').fire('click')
         expect(sticky.layout).toBe('board')
         expect(byId(c.id).classList.contains('snp-behind')).toBe(false)
     })
@@ -516,19 +592,21 @@ describe('StickyNotesUiPlugin', () => {
         const {notes, sticky, layer} = setup()
         notes.addNote('a')
         notes.addNote('b')
-        layer.button('Stack').fire('click')
-        layer.button('Minimise').fire('click')
+        layer.button('Stack: put the post-its on a pile').fire('click')
+        layer.button('Minimise: take the post-its off the canvas').fire('click')
         expect(sticky.layout).toBe('minimized')
         expect(layer.dataset.layout).toBe('minimized') // the stylesheet hides the post-its
-        expect(dockButtons(layer)).toEqual(['Notes · 2'])
+        expect(dockButtons(layer)).toEqual(['Show the notes'])
+        expect(count(layer)).toBe('2')
         expect(state()).toMatchObject({layout: 'minimized', open: 'stack'})
         notes.addNote('c')
-        expect(dockButtons(layer)).toEqual(['Notes · 3'])
+        expect(count(layer)).toBe('3')
         expect(new StickyNotesUiPlugin().layout).toBe('minimized')
 
-        layer.button('Notes · 3').fire('click')
+        layer.button('Show the notes').fire('click')
         expect(sticky.layout).toBe('stack')
-        expect(dockButtons(layer)).toEqual(['+ Note', '▾', 'Spread', 'Minimise'])
+        expect(dockButtons(layer)).toEqual(['Add a note', 'New notes: In the file (click: This browser)', 'Spread: a post-it per note on the board',
+            'Minimise: take the post-its off the canvas'])
         expect(state()).toMatchObject({layout: 'stack', open: 'stack'})
 
         // the setting has the mode too; a note added from the plugin brings the post-its back
@@ -644,14 +722,14 @@ describe('StickyNotesUiPlugin', () => {
         const {notes, layer} = setup()
         const n = notes.addNote('a')
         expect(state().board[n.id]).toBeTruthy()
-        cards(layer)[0].button('×').fire('click')
+        cards(layer)[0].button('Delete the note').fire('click')
         expect(state().board[n.id]).toBeUndefined()
     })
 
     test('the store menu opens above a button at the bottom, inside the canvas', () => {
-        const {layer} = setup()
+        const {layer} = setup({stores: [serverStore]})
         layer.rect = {left: 0, top: 0, right: 800, bottom: 600}
-        const pick = layer.button('▾')
+        const pick = layer.find('snp-store')[0]
         pick.rect = {left: 70, top: 560, right: 90, bottom: 588}
         pick.fire('click')
         const menu = menus(layer)[0]
@@ -718,8 +796,8 @@ describe('StickyNotesUiPlugin', () => {
         expect(z(css, '.snp-dock')).toBeLessThan(10)
 
         // the menu opens in the layer of the popups, above the post-its and the dock
-        const {layer} = setup()
-        layer.button('▾').fire('click')
+        const {layer} = setup({stores: [serverStore]})
+        layer.find('snp-store')[0].fire('click')
         expect(menus(layer)).toHaveLength(1)
         expect(layer.find('snp-menu')).toHaveLength(0)
     })

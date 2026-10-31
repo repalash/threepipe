@@ -128,7 +128,7 @@ describe('EditorCameraPlugin', () => {
         }
         for (const tagName of ['INPUT', 'TEXTAREA', 'SELECT']) {
             const e = Object.assign(new Event('keydown', {cancelable: true}), {code: 'KeyC'})
-            Object.defineProperty(e, 'target', {value: {tagName}})
+            Object.defineProperty(e, 'target', {value: {tagName, closest: (s: string) => s.split(', ').includes(tagName.toLowerCase()) ? {} : null}})
             window.dispatchEvent(e)
         }
         const editable = Object.assign(new Event('keydown', {cancelable: true}), {code: 'KeyC'})

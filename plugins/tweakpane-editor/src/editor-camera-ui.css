@@ -71,7 +71,7 @@ body.tpTheme-black .ecu-root, body.tpTheme-dark .ecu-root, body.tpTheme-blue .ec
 @media (hover: none) { .ecu-pill kbd { display: none; } }
 @media (pointer: coarse) { .ecu-pill { height: 28px; padding: 0 10px; } .ecu-seg button, .ecu-acts button { height: 30px; } .ecu-pin { height: 26px; } }
 /* the classic page on a tablet: its mode tabs are over the top of the canvas */
-@media (max-width: 920px) { body:not(.lay-frame) .ecu-root { top: 4.25rem; } }
+@media (max-width: 919.98px) { body:not(.lay-frame) .ecu-root { top: 4.25rem; } }
 /* the classic page on a phone: the settings panel is under the mode tabs, across the canvas. Under its title bar, on the
    right: the view widget is on the left */
 @media (max-width: 480px) {

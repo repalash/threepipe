@@ -1,4 +1,5 @@
 import tippy, {createSingleton, CreateSingletonInstance, Instance} from 'tippy.js'
+import {readStored, writeStored} from '../dom-utils'
 
 /**
  * The look of a mode button in the {@link EditorModeBar}: its colour and its icon (an SVG string).
@@ -95,14 +96,8 @@ export class EditorModeBar {
         bar.setAttribute('aria-orientation', 'vertical')
         this.element = bar
         this._expanded = window.matchMedia?.(EditorModeBar.WideQuery).matches ?? true
-        if (storageKey) {
-            try {
-                const stored = localStorage.getItem(storageKey)
-                if (stored !== null) this._expanded = stored !== '0'
-            } catch (e) {
-                // no storage: the default
-            }
-        }
+        const stored = storageKey ? readStored(storageKey) : null
+        if (stored !== null) this._expanded = stored !== '0'
         this._buttons = editor.modeKeys.map((key, i) => {
             const look = EditorModeBar.Looks[key] ?? FALLBACK
             const b = this._button(look.icon, key, look.color)
@@ -164,13 +159,7 @@ export class EditorModeBar {
         this._refreshTips()
         this._refreshToggle()
         document.documentElement.style.setProperty('--mb-width', (expanded ? EditorModeBar.Widths.wide : EditorModeBar.Widths.narrow) + 'px')
-        if (keep && this.storageKey) {
-            try {
-                localStorage.setItem(this.storageKey, expanded ? '1' : '0')
-            } catch (e) {
-                // no storage: this page only
-            }
-        }
+        if (keep && this.storageKey) writeStored(this.storageKey, expanded ? '1' : '0')
         this.onExpandedChange?.(expanded)
     }
 

@@ -68,10 +68,6 @@
     background-color: var(--tp-container-background-color-active, #413762);
 }
 
-.button-bar-selected {
-    /*background-color: #2c2c2eaa;*/
-    /*outline: 1px solid #ccccccaa;*/
-}
 .button-bar-button:before {
     left: 50%;
     width: 0;
@@ -112,18 +108,16 @@
     color: white;
 }
 
+/* one row: in a canvas too narrow for the buttons, the bar scrolls sideways instead of wrapping. It overflows at the end
+   only (centered, it would overflow at both sides, and the first buttons would be out of the scroll's reach). Its width
+   leaves the same space on its left as on its right, its side padding, and the room of what is at the bottom left
+   (--util-left-room: the perf pill in the frame). */
 .util-buttons-container{
     bottom: 1.25rem;
     right: 1.25rem;
     position: absolute;
     gap: 8px;
     padding: 0.25rem;
-}
-/* one row: in a canvas too narrow for the buttons, the bar scrolls sideways instead of wrapping. It overflows at the end
-   only (centered, it would overflow at both sides, and the first buttons would be out of the scroll's reach). Its width
-   leaves the same space on its left as on its right, its side padding, and the room of what is at the bottom left
-   (--util-left-room: the perf pill in the frame). */
-.util-buttons-container{
     flex-wrap: nowrap;
     justify-content: flex-start;
     max-width: calc(100% - 3rem - var(--util-left-room, 0px));
@@ -185,30 +179,6 @@
     top: 1.25rem;
     color: var(--tp-container-foreground-color, #dddddd);
 }
-/*#modesToggle{*/
-/*    top: 0;*/
-/*    left: 0;*/
-/*    width: auto;*/
-/*    height: auto;*/
-/*    padding: 0.5rem;*/
-/*    position: absolute;*/
-/*    border-radius: 0.375rem;*/
-/*    color: white;*/
-/*    z-index: 250;*/
-/*    font-weight: 400;*/
-/*    background: var(--tp-base-background-color);*/
-/*    font-size: 0.75rem;*/
-/*    cursor: pointer;*/
-/*    user-select: none;*/
-/*}*/
-/*#modesToggle:hover{*/
-/*    font-weight: 800;*/
-/*}*/
-/*.hidden{*/
-/*    visibility: hidden;*/
-/*    opacity: 0;*/
-/*}*/
-
 #assetManagerPopup {
     position: absolute;
     margin: auto;
@@ -242,23 +212,6 @@
 ::-webkit-scrollbar-corner {background: rgba(0,0,0,0.5);}
 
 
-/* the tooltips of the editor (the button bars, the mode bar, the frame): a small dark chip with the arrow in its colour */
-.tippy-box[data-theme~='editor'] {
-    --tt-bg: #1e1e1e;
-    background-color: var(--tt-bg); color: #ffffff; border-radius: 5px;
-    font: 500 12px/1.35 var(--tp-font-family, Inter, ui-sans-serif, system-ui, sans-serif); letter-spacing: 0.01em; white-space: nowrap;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
-}
-.tippy-box[data-theme~='editor'] > .tippy-content { padding: 4px 8px; }
-.tippy-box[data-theme~='editor'] > .tippy-arrow { color: var(--tt-bg); }
-/* dark themes: a lighter chip with a thin ring, so it stands off the dark page */
-body.tpTheme-dark .tippy-box[data-theme~='editor'], body.tpTheme-clean-dark .tippy-box[data-theme~='editor'],
-body.tpTheme-black .tippy-box[data-theme~='editor'], body.tpTheme-blue .tippy-box[data-theme~='editor'] {
-    --tt-bg: #3a3a3a;
-    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1), 0 2px 8px rgba(0, 0, 0, 0.4);
-}
-
-
 #tweakpaneUiContainer {
     margin-top: 3.5rem;
 }
@@ -268,7 +221,7 @@ body.tpTheme-black .tippy-box[data-theme~='editor'], body.tpTheme-blue .tippy-bo
 /*    }*/
 /*}*/
 
-@media only screen and (max-width: 920px) {
+@media only screen and (max-width: 919.98px) {
     /* the panel is as tall as its content, up to the room above the tool bar. It takes the touches, so a finger scrolls
        it (iOS does not scroll a container with pointer-events: none, which the Tweakpane theme sets), and the scroll
        stops at its ends, without moving the page. */
@@ -278,8 +231,6 @@ body.tpTheme-black .tippy-box[data-theme~='editor'], body.tpTheme-blue .tippy-bo
         pointer-events: auto !important;
         overscroll-behavior: contain;
     }
-}
-@media only screen and (max-width: 919.98px) {
     /* the tool bar: smaller gaps and side padding, so its buttons fit in one row on a phone */
     .util-buttons-container {
         gap: 2px;

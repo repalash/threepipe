@@ -128,11 +128,12 @@ Changes are saved per store, 600 ms after the last one, and when the plugin is r
 
 In both layouts:
 
-- "+ Note" adds a note at once, in the store of new notes, with the cursor in it. "▾" next to it picks another store.
-- The badge of a note shows its store; a click moves the note to another store.
-- Each note has "+ Context" (the time, `contextProvider` and the selected objects), "Copy" and "×". Escape leaves the note. On a touch screen the text is 16 px, so a phone does not zoom in when the note gets the cursor.
+- The buttons are icons with a tooltip each (tippy.js, the `editor` theme; the plugin adds their CSS).
+- "Add a note" (+) adds a note at once, in the store of new notes (`NotesPlugin.defaultStore`), with the cursor in it. The button next to it shows the icon of that store (a file, a browser window, or a cloud for a store of the app); a click switches it to the other store, or opens a menu when there are more than two.
+- The icon at the top left of a note shows its store; a click moves the note to the other store (a menu with more than two).
+- Each note has "Add the time and the selection" (the time, `contextProvider` and the selected objects), "Copy the note" and "Delete the note". Escape leaves the note. On a touch screen the text is 16 px, so a phone does not zoom in when the note gets the cursor.
 - Drag a post-it by its bar, and size it from its bottom right corner. A click on a post-it brings it up.
-- The buttons are `dock`, at the bottom left of the canvas. When that corner is taken, place it with its style, e.g. `sticky.dock.style.bottom = '64px'`.
+- The buttons are `dock`, at the bottom left of the canvas. When that corner is taken, place it with its style, e.g. `sticky.dock.style.bottom = '56px'`.
 - The post-its fill the nearest positioned ancestor, so the viewer container must be positioned (for example `position: relative`) for the post-its to stay inside the canvas.
 - The post-its and the dock are above the loading screen and the overlays of the canvas (`z-index` 150), below the bars of the editor; their menus are with the popups (2000).
 
@@ -167,7 +168,7 @@ ui.setupPluginUi(StickyNotesUiPlugin) // the settings
 ui.setupPluginUi(NotesPlugin)
 ```
 
-Another view can show the same notes: read `notes.notes`, listen to the `notesChange` event (`change` is `add`, `update`, `remove` or `load`; `note` is the note added, changed or removed, and `notes` the notes that `clear` or a store replaced with `addStore` removed), and change them with `addNote`, `updateNote` and `removeNote`. Set `StickyNotesUiPlugin.InjectStyles = false` before the plugin is made to style the `snp-` classes yourself.
+Another view can show the same notes: read `notes.notes`, listen to the `notesChange` event (`change` is `add`, `update`, `remove` or `load`; `note` is the note added, changed or removed, and `notes` the notes that `clear` or a store replaced with `addStore` removed) and the `defaultStoreChange` event (the store of new notes changed), and change them with `addNote`, `updateNote` and `removeNote`. Set `StickyNotesUiPlugin.InjectStyles = false` before the plugin is made to style the `snp-` classes yourself.
 
 ## EditorCameraPlugin
 
@@ -235,4 +236,4 @@ In the `TweakpaneEditorPlugin`, while the plugin is added (before or after the e
 - A card under the pill opens on hover (with a mouse), on a tap on a touch screen or on keyboard focus, and stays open until a press outside it or Escape. It shows a picture of the saved start view. A click on the picture looks through the start view; in View after a move, it goes back to it. The Sync toggle over the picture is `syncStartView`. Under it: an Edit / View toggle; "Set as start view" in Edit; "Save" and "Reset" in View, on after a move that is not saved (they stay in the card when off, so it keeps its size). Ctrl+Z undoes a change of the start view.
 - The picture is taken from the canvas right after a render, when the view shows the saved start view (`showsStartView`): after a load, in View before a move, after a save, a sync or "Set as start view". It is a small copy of the canvas (448 px wide); it is taken again when the render ends (progressive rendering), and shows faded while it is out of date.
 - On the classic page on a phone, the pill is on the right, under the title bar of the settings panel, so it does not cover the view widget.
-- `setupEditorCameraUi(viewer, plugin)` adds the pill, the card, the frame and their styles in another app (the tooltips use tippy.js, and need its CSS). It returns a function that removes them. The [Tweakpane Editor](https://threepipe.org/examples/#tweakpane-editor/) example has the settings in the Viewer tab.
+- `setupEditorCameraUi(viewer, plugin)` adds the pill, the card, the frame and their styles in another app (and the CSS of the tooltips). It returns a function that removes them. The [Tweakpane Editor](https://threepipe.org/examples/#tweakpane-editor/) example has the settings in the Viewer tab.

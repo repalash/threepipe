@@ -41,6 +41,13 @@
     border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; padding: 2px 6px; border-radius: 4px;
 }
 .snp-layer button:hover { background: var(--tp-button-background-color-hover, rgba(0, 0, 0, 0.06)); }
+/* the icon buttons, with a tooltip each: a 16 px icon in a 28 px button, as the buttons of the editor frame */
+.snp-layer .snp-icon {
+    display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; box-sizing: border-box;
+    width: 28px; height: 28px; padding: 6px; border-radius: 5px;
+}
+.snp-icon svg { display: block; width: 100%; height: 100%; }
+.snp-layer .snp-icon:focus-visible { outline: 2px solid #0d99ff; outline-offset: 1px; }
 
 /* a post-it: it glides to its place (layout changes, Arrange, a card brought up); not while it is dragged or sized */
 .snp-card {
@@ -65,15 +72,16 @@
 .snp-bar { display: flex; align-items: center; gap: 2px; padding: 5px 4px 2px 6px; cursor: grab; user-select: none; touch-action: none; }
 .snp-dragging, .snp-dragging * { cursor: grabbing !important; }
 .snp-fill { flex: 1; align-self: stretch; }
-.snp-badge {
-    background: var(--snp-badge, rgba(0, 0, 0, 0.06)) !important; color: var(--tp-label-foreground-color, #757575) !important;
-    padding: 1px 7px !important; border-radius: 9px !important; font-size: 10px !important; white-space: nowrap;
+/* the buttons of the bar: a 14 px icon in a 22 px button; the store of the note on its own background */
+.snp-bar .snp-icon { width: 22px; height: 22px; padding: 4px; color: var(--tp-label-foreground-color, #757575); }
+.snp-layer .snp-badge { position: relative; background: var(--snp-badge, rgba(0, 0, 0, 0.06)); }
+.snp-layer .snp-badge[data-status="error"] { color: #c62828; }
+/* not saved yet: a dot on the corner */
+.snp-badge[data-status="changed"]::after, .snp-badge[data-status="saving"]::after {
+    content: ''; position: absolute; top: 2px; right: 2px; width: 5px; height: 5px; border-radius: 50%; background: currentColor;
 }
-.snp-badge[data-status="error"] { color: #c62828 !important; }
-.snp-badge[data-status="changed"]::after, .snp-badge[data-status="saving"]::after { content: ' ·'; }
-.snp-tool { color: var(--tp-label-foreground-color, #757575) !important; opacity: 0; transition: opacity .1s; }
+.snp-tool { opacity: 0; transition: opacity .1s; }
 .snp-card:hover .snp-tool, .snp-card:focus-within .snp-tool { opacity: 1; }
-.snp-delete { font-size: 14px !important; line-height: 1 !important; }
 
 /* the text on ruled lines */
 .snp-card textarea {
@@ -92,9 +100,9 @@
     position: absolute; left: 12px; bottom: 12px; z-index: 1; display: flex; gap: 2px; padding: 3px; border-radius: 8px;
     background: var(--tp-base-background-color, #ffffff); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.12);
 }
-.snp-dock button { padding: 4px 8px; }
-.snp-dock .snp-add { font-weight: 600; }
-.snp-dock .snp-add-to { padding: 4px 5px; margin-left: -2px; }
+/* minimised: the notes icon and their number */
+.snp-dock .snp-restore { width: auto; gap: 6px; padding: 6px 8px; }
+.snp-count { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
 
 /* the stores of "▾" and of a badge */
 .snp-menu {

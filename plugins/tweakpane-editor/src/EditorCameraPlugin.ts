@@ -14,6 +14,7 @@ import {
     Vector3,
 } from 'threepipe'
 import type {UndoManagerPlugin} from 'threepipe'
+import {isTextTarget} from './dom-utils'
 
 /**
  * A pose of the start view. The rotation is kept too: a camera without controls can look away from its target. The zoom
@@ -627,8 +628,7 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
     private _onKeyDown = (e: KeyboardEvent) => {
         if (!this.hotkey || e.code !== this.hotkey || this.isDisabled()) return
         if (e.defaultPrevented || e.repeat || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return
-        const target = e.target as HTMLElement | null
-        if (target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.tagName === 'SELECT' || target?.isContentEditable) return
+        if (isTextTarget(e.target)) return
         e.preventDefault()
         this.editing = !this.editing
     }
