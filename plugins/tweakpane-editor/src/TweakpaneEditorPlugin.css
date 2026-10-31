@@ -285,6 +285,8 @@ body.tpTheme-black .tippy-box[data-theme~='editor'], body.tpTheme-blue .tippy-bo
         pointer-events: auto !important;
         overscroll-behavior: contain;
     }
+}
+@media only screen and (max-width: 919.98px) {
     /* the tool bar: smaller gaps and side padding, so its buttons fit in one row on a phone */
     .util-buttons-container {
         gap: 2px;

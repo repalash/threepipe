@@ -134,6 +134,20 @@ describe('tweakpane editor frame on a phone', () => {
         }
     })
 
+    it('splits a phone from a wide window at 920 px, as the frame does', () => {
+        // 920 px wide is a wide window: the side by side frame, the tool bar and the perf pill of a desktop
+        const pill = 'body.lay-frame .pp-root.pp-bottom-left .pp-pill'
+        for (const vp of [{width: 920, height: 900}, {width: 920, height: 1200}]) {
+            expect(declarations('body.lay-titlebar #tweakpaneUiContainer', vp).top, `${vp.width}x${vp.height}`).toBe('var(--lay-top)')
+            expect(declarations(pill, vp).height).toBeUndefined()
+            expect(declarations('.util-buttons-container', vp).gap).toBe('8px')
+        }
+        const narrow = {width: 919, height: 1200}
+        expect(declarations('body.lay-titlebar #tweakpaneUiContainer', narrow).top).toContain('var(--lay-split)')
+        expect(declarations(pill, narrow).height).toBe('32px')
+        expect(declarations('.util-buttons-container', narrow).gap).toBe('2px')
+    })
+
     it('lays out floating on a phone as the other layouts: no gap, round corners or shadows', () => {
         expect(declarations('body.lay-floating', phone)['--lay-gap']).toBe('0px')
         for (const sel of ['body.lay-floating #tweakpaneUiContainer', 'body.lay-floating .mb-root', 'body.lay-floating.mb-panel-hidden .mb-root']) {
