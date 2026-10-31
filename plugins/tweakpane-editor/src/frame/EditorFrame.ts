@@ -1,4 +1,4 @@
-import {createDiv, createStyles, ThreeViewer} from 'threepipe'
+import {createDiv, createStyles} from 'threepipe'
 import tippy, {Instance} from 'tippy.js'
 import {EditorModeBar, EditorModeBarHost} from './EditorModeBar'
 import styles from './EditorFrame.css?inline'
@@ -86,7 +86,11 @@ export class EditorFrame {
     private _themePairs: [string, string][]
     private _styles?: HTMLStyleElement
 
-    constructor(readonly viewer: ThreeViewer, editor: EditorModeBarHost, readonly options: EditorFrameOptions = {}) {
+    /**
+     * @param editor - the editor with the modes, for the mode bar (`TweakpaneEditorPlugin`)
+     * @param options - the layout, the app name, the theme and the callbacks
+     */
+    constructor(editor: EditorModeBarHost, readonly options: EditorFrameOptions = {}) {
         this._styles = createStyles(styles)
         this._themePairs = options.themePairs ?? EditorFrame.ThemePairs
         this._layout = options.layout ?? 'titlebar'

@@ -149,7 +149,7 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
         if (this.frame) return this.frame.setLayout(layout)
         if (!this._viewer) return
         const ui = this._viewer.getPlugin(TweakpaneUiPlugin)
-        this.frame = new EditorFrame(this._viewer, this, {
+        this.frame = new EditorFrame(this, {
             colorMode: ui ? {get: () => ui.colorMode, set: (m) => ui.colorMode = m as TweakpaneUiPlugin['colorMode']} : undefined,
             ...this.frameOptions,
             layout,
