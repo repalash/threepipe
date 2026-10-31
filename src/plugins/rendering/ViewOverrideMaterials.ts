@@ -4,10 +4,10 @@ import {
     Camera,
     Color,
     ColorManagement,
-    FrontSide,
     Group,
     MeshBasicMaterial,
     NoBlending,
+    NormalBlending,
     Object3D,
     Scene,
     SRGBTransfer,
@@ -44,17 +44,35 @@ function resetCurrentMaterial(renderer: WebGLRenderer) {
     (renderer as WebGLRenderer & {resetCurrentMaterial?: () => void}).resetCurrentMaterial?.()
 }
 
-/** Copies the side, wireframe and alpha settings of the mesh material */
+/*
+ * What the per-mesh override materials copy from the material of each mesh (checked against MeshBasicMaterial and
+ * Material of three.js):
+ * - All of them ({@link copyCommon}): which pixels draw and how they blend: opacity, transparent, alphaMap, alphaTest,
+ *   alphaHash, alphaToCoverage, premultipliedAlpha, blending and the blend factors, side, wireframe,
+ *   wireframeLinewidth, depthTest, depthWrite, polygonOffset (factor, units), clippingPlanes, clipIntersection.
+ * - Unlit (UnlitOverrideMaterial._copyFrom): the surface colour without lights: color, map, aoMap and its intensity,
+ *   lightMap and its intensity, vertexColors, fog.
+ * - Not copied: envMap, combine, reflectivity, refractionRatio and specularMap (environment reflection, which is
+ *   lighting; specularMap only scales it), flatShading (no effect without lights), dithering and toneMapped (output
+ *   settings, not the surface), the lit-only maps and values of other materials (normal, roughness, emissive, ...).
+ * The texture transforms (offset, repeat, rotation, channel) come with each copied texture.
+ */
+
+/** The common settings that are copied as they are, and reset to the values of a new MeshBasicMaterial */
+const COMMON_SETTINGS = [
+    'opacity', 'transparent', 'alphaMap', 'alphaHash', 'alphaToCoverage', 'premultipliedAlpha',
+    'blending', 'blendSrc', 'blendDst', 'blendEquation', 'blendSrcAlpha', 'blendDstAlpha', 'blendEquationAlpha',
+    'side', 'wireframe', 'wireframeLinewidth', 'depthTest', 'depthWrite',
+    'polygonOffset', 'polygonOffsetFactor', 'polygonOffsetUnits', 'clippingPlanes', 'clipIntersection',
+] as const
+const BASIC_DEFAULTS = new MeshBasicMaterial()
+
+/** Copies the settings of the mesh material that decide which pixels draw and how they blend (see the list above) */
 function copyCommon(target: MeshBasicMaterial, material: SourceMaterial) {
-    if (material.opacity !== undefined) target.opacity = material.opacity
-    if (material.transparent !== undefined) target.transparent = material.transparent
-    if (material.alphaMap !== undefined) target.alphaMap = material.alphaMap
+    const t = target as unknown as Record<string, unknown>, m = material as unknown as Record<string, unknown>
+    for (const k of COMMON_SETTINGS) if (m[k] !== undefined) t[k] = m[k]
     // never 0 (also in reset), so the alpha test define (and the material version) does not change between meshes
     if (material.alphaTest !== undefined) target.alphaTest = material.alphaTest < 1e-4 ? 1e-4 : material.alphaTest
-    if (material.alphaHash !== undefined) target.alphaHash = material.alphaHash
-    if (material.side !== undefined) target.side = material.side
-    if (material.wireframe !== undefined) target.wireframe = material.wireframe
-    if (material.wireframeLinewidth !== undefined) target.wireframeLinewidth = material.wireframeLinewidth
 }
 
 /** The program parameters of a texture slot: the map is set, and its UV set (`texture.channel`) */
@@ -90,11 +108,14 @@ abstract class PerObjectBasicMaterial extends MeshBasicMaterial {
      * The values that three.js makes program parameters from (`WebGLPrograms.getParameters`), for the settings that
      * {@link copyCommon} and {@link _copyFrom} copy from the mesh material. It must list every copied setting that is a
      * program parameter: a missing one keeps the program of the previous mesh. The other copied settings (color,
-     * opacity, intensities, wireframe) are uniforms or render state.
+     * opacity, intensities, wireframe, depth, polygon offset, the blend factors) are uniforms or render state, and three.js
+     * checks the clipping planes itself on each draw.
      */
     protected _programKey(object: Object3D, geometry: BufferGeometry): unknown[] {
         return [
-            this.transparent, // opaque
+            !this.transparent && this.blending === NormalBlending && !this.alphaToCoverage, // opaque
+            this.alphaToCoverage, // alphaToCoverage
+            this.premultipliedAlpha, // premultipliedAlpha
             this.side, // doubleSided, flipSided
             this.alphaTest > 0, // alphaTest
             this.alphaHash, // alphaHash
@@ -115,14 +136,9 @@ abstract class PerObjectBasicMaterial extends MeshBasicMaterial {
     /** Resets what {@link copyCommon} and {@link _copyFrom} set */
     reset() {
         this.color.setHex(0xffffff)
-        this.opacity = 1
-        this.transparent = false
-        this.alphaMap = null
+        const t = this as unknown as Record<string, unknown>, d = BASIC_DEFAULTS as unknown as Record<string, unknown>
+        for (const k of COMMON_SETTINGS) t[k] = d[k]
         this.alphaTest = 1e-4
-        this.alphaHash = false
-        this.side = FrontSide
-        this.wireframe = false
-        this.wireframeLinewidth = 1
     }
 }
 
@@ -135,6 +151,8 @@ export class UnlitOverrideMaterial extends PerObjectBasicMaterial {
 
     protected _copyFrom(material: SourceMaterial) {
         if (material.color !== undefined) this.color.copy(material.color)
+        if (material.vertexColors !== undefined) this.vertexColors = material.vertexColors
+        if (material.fog !== undefined) this.fog = material.fog
         if (material.map !== undefined) this.map = material.map
         if (material.aoMap !== undefined) this.aoMap = material.aoMap
         if (material.aoMapIntensity !== undefined) this.aoMapIntensity = material.aoMapIntensity
@@ -151,11 +169,16 @@ export class UnlitOverrideMaterial extends PerObjectBasicMaterial {
                 ColorManagement.getTransfer(map.colorSpace) === SRGBTransfer, // decodeVideoTexture
             ...textureKey(this.aoMap), // aoMap, aoMapUv
             ...textureKey(this.lightMap), // lightMap, lightMapUv
+            this.vertexColors, // vertexColors
+            this.vertexColors && geometry.attributes.color?.itemSize === 4, // vertexAlphas
+            this.fog, // useFog
         ]
     }
 
     reset() {
         super.reset()
+        this.vertexColors = false
+        this.fog = true
         this.map = null
         this.aoMap = null
         this.aoMapIntensity = 1

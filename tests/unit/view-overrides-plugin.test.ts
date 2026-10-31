@@ -476,4 +476,52 @@ describe('ViewOverridesPlugin', {timeout}, () => {
         // no group (a draw of the whole mesh): the first material
         expect(drawGroup(unlit, null).color).toBe(0xff0000)
     })
+
+    test('the unlit view keeps vertex colors, the blend, depth, clipping and fog settings of each material', () => {
+        const {plugin} = setup()
+        const renderer = {resetCurrentMaterial: vi.fn()} as any
+        const camera = new PerspectiveCamera()
+        const unlit = (plugin as any)._materials.unlit
+        const props = ['vertexColors', 'alphaToCoverage', 'premultipliedAlpha', 'blending', 'blendSrc', 'blendDst', 'depthTest',
+            'depthWrite', 'polygonOffset', 'polygonOffsetFactor', 'polygonOffsetUnits', 'clippingPlanes', 'clipIntersection', 'fog']
+        /** The version and the copied settings while the override draws the mesh */
+        const draw = (m: any) => {
+            unlit.onBeforeRender(renderer, null, camera, m.geometry, m, null)
+            const state: any = {version: unlit.version}
+            for (const k of props) state[k] = unlit[k]
+            unlit.onAfterRender(renderer, null, camera, m.geometry, m, null)
+            return state
+        }
+        const colored = (itemSize: number) => {
+            const g = new tp.BoxGeometry()
+            g.setAttribute('color', new tp.BufferAttribute(new Float32Array(g.attributes.position.count * itemSize).fill(0.5), itemSize))
+            return new Mesh(g, new MeshBasicMaterial({vertexColors: true})) // as PLYLoadPlugin and STLLoadPlugin make them
+        }
+        const plain = new Mesh(new tp.BoxGeometry(), new MeshBasicMaterial())
+        const p0 = draw(plain)
+        const rgb = draw(colored(3))
+        expect(rgb.vertexColors).toBe(true)
+        expect(rgb.version).not.toBe(p0.version) // vertexColors
+        expect(unlit.vertexColors).toBe(false) // reset after the draw
+        const rgba = draw(colored(4))
+        expect(rgba.version).not.toBe(rgb.version) // vertexAlphas
+        expect(draw(colored(4)).version).toBe(rgba.version)
+        const p1 = draw(plain)
+        expect(p1.version).not.toBe(rgba.version)
+
+        const planes = [new tp.Plane()]
+        const special = new Mesh(new tp.BoxGeometry(), new MeshBasicMaterial({
+            alphaToCoverage: true, premultipliedAlpha: true, blending: tp.CustomBlending, blendSrc: tp.OneFactor, blendDst: tp.OneFactor,
+            depthTest: false, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2,
+            clippingPlanes: planes, clipIntersection: true, fog: false,
+        }))
+        const s = draw(special)
+        expect(s).toMatchObject({alphaToCoverage: true, premultipliedAlpha: true, blending: tp.CustomBlending, blendSrc: tp.OneFactor,
+            blendDst: tp.OneFactor, depthTest: false, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1,
+            polygonOffsetUnits: -2, clippingPlanes: planes, clipIntersection: true, fog: false})
+        expect(s.version).not.toBe(p1.version) // opaque, alphaToCoverage, premultipliedAlpha, useFog
+        const after = draw(plain)
+        const defaults = new MeshBasicMaterial() as any
+        for (const k of props) expect(after[k]).toEqual(k === 'vertexColors' ? false : defaults[k])
+    })
 })
