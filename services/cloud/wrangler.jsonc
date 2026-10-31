@@ -22,6 +22,9 @@
     // Custom domains cloud.threepipe.org (API and pages) and files.threepipe.org (FILES_HOST) are attached to the Worker
     // once, after the first deploy (README, Deploy), not listed as routes here: with routes, `wrangler dev` rewrites the
     // local request URL to the route's host, and `teeny dev` cannot turn that off (issues: teenybase).
+    // only the custom domains: no <name>.<subdomain>.workers.dev address and no preview URLs
+    "workers_dev": false,
+    "preview_urls": false,
     "logpush": true,
     "upload_source_maps": true,
     // Keep "false" in production: "true" adds internal error details to API responses.
@@ -55,7 +58,7 @@
         {
             "binding": "PRIMARY_DB",
             "database_name": "threepipe-cloud",
-            "database_id": "TEENY_AUTO_CREATE",
+            "database_id": "4e1e4c21-81fe-4f1d-89b0-d56f8aa87231",
             "migrations_dir": "migrations"
         }
     ]

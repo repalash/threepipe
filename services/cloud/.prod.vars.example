@@ -21,6 +21,5 @@ GITHUB_CLIENT_SECRET=
 # optional: the Google button shows only when set
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
-RESPOND_WITH_ERRORS=false
 # Not a Worker secret (stays a comment): a project's Discord webhook is set on the project (/reports, Settings).
 # THREEPIPE_PROJECT_DISCORD_WEBHOOK=
