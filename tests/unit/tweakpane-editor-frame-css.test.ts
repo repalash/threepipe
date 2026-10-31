@@ -85,8 +85,7 @@ describe('tweakpane editor frame on a phone', () => {
             // the same top and bottom as the panel, so the canvas takes the full width above them
             expect(bar.top, layout).toBe(panel.top.replace(/\s*!important$/, ''))
             expect(bar.bottom, layout).toBe(panel.bottom)
-            expect(declarations(`body.lay-${layout} #canvas-container`, phone).width, layout)
-                .toBe(layout === 'floating' ? 'calc(100% - 2 * var(--lay-gap))' : '100%')
+            expect(declarations(`body.lay-${layout} #canvas-container`, phone).width, layout).toBe('100%')
             // the panel hidden: the canvas leaves a row at the bottom for the mode bar
             expect(declarations(`body.lay-${layout}.mb-panel-hidden #canvas-container`, phone).height, layout).toContain('var(--mb-row-height)')
         }
@@ -132,6 +131,17 @@ describe('tweakpane editor frame on a phone', () => {
             expect(bar['justify-content']).toBe('flex-start')
             expect(declarations('.util-buttons-container > :first-child', vp)['margin-left']).toBe('auto')
             expect(declarations('.util-buttons-container > :last-child', vp)['margin-right']).toBe('auto')
+        }
+    })
+
+    it('lays out floating on a phone as the other layouts: no gap, round corners or shadows', () => {
+        expect(declarations('body.lay-floating', phone)['--lay-gap']).toBe('0px')
+        for (const sel of ['body.lay-floating #tweakpaneUiContainer', 'body.lay-floating .mb-root', 'body.lay-floating.mb-panel-hidden .mb-root']) {
+            const d = declarations(sel, phone)
+            expect([d['border-radius'], d['box-shadow'], d['clip-path']], sel).toEqual(['0', 'none', 'none'])
+        }
+        for (const prop of ['width', 'height']) {
+            expect(declarations('body.lay-floating #canvas-container', phone)[prop], prop).toBe(declarations('body.lay-titlebar #canvas-container', phone)[prop])
         }
     })
 

@@ -358,6 +358,12 @@ body.tpTheme-white{
 body.tpTheme-black{
     background-color: #48495d;
 }
+body.tpTheme-clean{
+    background-color: #f0f0f0;
+}
+body.tpTheme-clean-dark{
+    background-color: #1e1e1e;
+}
 
 
 html, body {
