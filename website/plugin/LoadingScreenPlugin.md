@@ -1,7 +1,7 @@
 ---
 prev:
-    text: 'PickingPlugin'
-    link: './PickingPlugin'
+    text: 'BVHPlugin'
+    link: './BVHPlugin'
 
 next:
     text: 'FullScreenPlugin'

@@ -4,8 +4,8 @@ prev:
     link: './DropzonePlugin'
 
 next:
-    text: 'LoadingScreenPlugin'
-    link: './LoadingScreenPlugin'
+    text: 'BVHPlugin'
+    link: './BVHPlugin'
 
 ---
 
