@@ -87,13 +87,14 @@ describe('tweakpane editor frame on a phone', () => {
             expect(bar.bottom, layout).toBe(panel.bottom)
             expect(declarations(`body.lay-${layout} #canvas-container`, phone).width, layout)
                 .toBe(layout === 'floating' ? 'calc(100% - 2 * var(--lay-gap))' : '100%')
-            // the panel hidden: the canvas leaves a 44 px row at the bottom for the mode bar
-            expect(declarations(`body.lay-${layout}.mb-panel-hidden #canvas-container`, phone).height, layout).toContain('44px')
+            // the panel hidden: the canvas leaves a row at the bottom for the mode bar
+            expect(declarations(`body.lay-${layout}.mb-panel-hidden #canvas-container`, phone).height, layout).toContain('var(--mb-row-height)')
         }
+        expect(declarations('body.lay-frame', phone)['--mb-row-height']).toBe('44px')
         const hidden = declarations('body.lay-frame.mb-panel-hidden .mb-root', phone)
         expect(hidden['flex-direction']).toBe('row')
         expect(hidden.top).toBe('auto')
-        expect(hidden.height).toBe('44px')
+        expect(hidden.height).toBe('var(--mb-row-height)')
         expect(hidden['overflow-x']).toBe('auto')
         // a mode bar taller than its room scrolls, without moving the page
         const mb = declarations('.mb-root', phone)
@@ -134,7 +135,9 @@ describe('tweakpane editor frame on a phone', () => {
         }
     })
 
-    it('stacks the bars in the panels and bars layer', () => {
+    it('sizes the mode bar from --mb-width, and stacks the bars in the panels and bars layer', () => {
+        expect(declarations('.mb-root', desktop).width).toBe('var(--mb-width, 44px)')
+        expect(declarations('.mb-root.mb-wide', desktop).width).toBeUndefined()
         // CONTRIBUTING, UI layers: panels and bars 200 to 999, below the layout menu (popups and dropdown menus)
         const z = (sel: string) => Number(declarations(sel, desktop)['z-index'])
         for (const sel of ['.mb-root', '.lay-bar']) {
