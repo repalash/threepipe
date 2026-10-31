@@ -288,4 +288,33 @@ describe('BVHPlugin', () => {
         plugin.enabled = false
         expect(helperRoot.children.length).toBe(0)
     })
+
+    test('a change of the groups rebuilds the tree: the triangles that they add are hit', () => {
+        const {add, frame} = setup()
+        const m = add(200, 32)
+        m.material = [new MeshBasicMaterial(), new MeshBasicMaterial()] as any // three.js raycasts only the groups with an array
+        const g = m.geometry!
+        g.addGroup(0, 3000, 0) // the first 1000 triangles
+        frame()
+        const tree = g.boundsTree
+        expect(tree).toBeDefined()
+        const brute = (r: Raycaster) => {
+            const list: Intersection[] = []
+            Mesh.prototype.raycast.call(m, r, list)
+            return list.sort((a, b) => a.distance - b.distance)
+                .map(h => ({distance: +h.distance.toFixed(6), faceIndex: h.faceIndex, object: h.object}))
+        }
+        expect(rays().map(r => hits(m, r))).toEqual(rays().map(brute))
+        const hitsBefore = rays().map(r => hits(m, r)).flat().length
+
+        g.clearGroups()
+        g.addGroup(0, 3000, 0)
+        g.addGroup(3000, g.index!.count - 3000, 1) // the same triangle count and draw range, more triangles in groups
+        g.setDirty()
+        frame()
+        expect(g.boundsTree).not.toBe(tree)
+        const expected = rays().map(brute)
+        expect(expected.flat().length).toBeGreaterThan(hitsBefore)
+        expect(rays().map(r => hits(m, r))).toEqual(expected)
+    })
 })

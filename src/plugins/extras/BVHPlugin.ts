@@ -52,12 +52,15 @@ type BVHGeometry = IGeometry & {boundsTree?: IMeshBVH}
 
 interface BVHStats {
     triangles: number
-    // the draw range at build time: the tree has only the triangles in it
-    drawStart: number
-    drawCount: number
+    // what the tree was built from (buildKey): a refit cannot change which triangles are in it
+    key: string
     bytes: number
     ms: number
 }
+
+// the options of every tree. indirect: the index keeps its order. setBoundingBox false: a box from a tree of part of
+// the geometry (draw range, groups) would cull the raycasts of three.js later.
+const buildOptions = {indirect: true, setBoundingBox: false}
 
 /**
  * BVH Plugin
@@ -71,7 +74,8 @@ interface BVHStats {
  * - Trees are built after the frame, within {@link buildBudget} ms per frame, and kept in `geometry.boundsTree`.
  *   The geometry is not changed (`indirect` trees: the index keeps its order).
  * - A mesh with a tree raycasts with `acceleratedRaycast`. The Raycaster API does not change.
- * - A geometry update refits the tree when the triangle count and the draw range are the same, else builds it again.
+ * - A geometry update refits the tree when it would have the same triangles (the same index or position count, draw
+ *   range and groups), else builds it again.
  * - A mesh that gets a geometry with a tree raycasts with that tree.
  * - Not for skinned or morphed meshes, instanced or batched meshes, or meshes with their own raycast (fat lines).
  *
@@ -353,13 +357,12 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
         })
     }
 
-    // a geometry changed: refit when the triangle count and the draw range are the same (vertices moved), else build again
+    // a geometry changed: refit when the tree would have the same triangles (vertices moved), else build again
     private _geometryUpdate(e: {geometry?: BVHGeometry}) {
         const g = e.geometry
         if (!g) return
         const s = this._stats.get(g)
-        if (g.boundsTree && s && triangleCount(g) === s.triangles &&
-            g.drawRange.start === s.drawStart && g.drawRange.count === s.drawCount) {
+        if (g.boundsTree && s && buildKey(g) === s.key) {
             g.boundsTree.refit()
             return
         }
@@ -381,12 +384,11 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
     private _build(g: BVHGeometry) {
         if (!g.attributes.position || !this.lib) return
         const t = performance.now()
-        // setBoundingBox false: a box from a tree of part of the draw range would cull the raycasts of three.js later
-        const bvh = new this.lib.MeshBVH(g, {indirect: true, setBoundingBox: false})
+        const bvh = new this.lib.MeshBVH(g, buildOptions)
         const ms = performance.now() - t
         g.boundsTree = bvh as BVHGeometry['boundsTree']
         this._stats.set(g, {
-            triangles: triangleCount(g), drawStart: g.drawRange.start, drawCount: g.drawRange.count,
+            triangles: triangleCount(g), key: buildKey(g),
             bytes: this.lib.estimateMemoryInBytes(bvh), ms,
         })
         g.addEventListener('geometryUpdate', this._geometryUpdate)
@@ -412,6 +414,17 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
             else if (Object.prototype.hasOwnProperty.call(o, 'raycast')) delete (o as Partial<IObject3D>).raycast
         }
     }
+}
+
+/**
+ * What a tree reads from a geometry when it is built (three-mesh-bvh 0.9: GeometryBVH.init, getRootPrimitiveRanges and
+ * generateIndirectBuffer): whether there is an index, the index or position count, the draw range, the groups' ranges,
+ * and the options. A refit only moves the bounds, so a tree with another key must be built again.
+ */
+function buildKey(g: BufferGeometry) {
+    const count = g.index ? g.index.count : g.attributes.position?.count ?? 0
+    const groups = g.groups.map(gr => gr.start + ':' + gr.count).join(',')
+    return [g.index ? 'index' : 'positions', count, g.drawRange.start, g.drawRange.count, groups, buildOptions.indirect].join('|')
 }
 
 /** The number of triangles of a geometry (its index or its positions) */
