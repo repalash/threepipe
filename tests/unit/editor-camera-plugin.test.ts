@@ -2,6 +2,11 @@ import {afterEach, beforeEach, describe, expect, test, vi} from 'vitest'
 import {EventDispatcher, Object3D, PerspectiveCamera, Vector3} from 'three'
 import {OrbitControls3, OrthographicCamera2, PerspectiveCamera2} from 'threepipe'
 import {EditorCameraPlugin} from '../../plugins/tweakpane-editor/src/EditorCameraPlugin'
+import {setupEditorCameraUi} from '../../plugins/tweakpane-editor/src/editor-camera-ui'
+
+// the UI tests: tooltips need a page, the UI does not use them.
+// tippy.js is a dependency of the editor package only (installed in its node_modules)
+vi.mock('../../plugins/tweakpane-editor/node_modules/tippy.js', () => ({default: Object.assign(vi.fn(() => ({setContent: vi.fn(), destroy: vi.fn()})), {setDefaultProps: vi.fn()})}))
 
 // a viewer canvas for the orbit controls of the cameras (the node setup has no DOM)
 function makeCanvas() {
@@ -979,4 +984,128 @@ describe('EditorCameraPlugin View and main camera plugins', () => {
             plugin.editing = true
         }
     })
+})
+
+// the node setup has no DOM: a small element with what the start view UI uses
+class FakeElement {
+    children: FakeElement[] = []
+    parent?: FakeElement
+    className = ''
+    textContent = ''
+    innerHTML = ''
+    innerText = ''
+    type = ''
+    disabled = false
+    width = 0
+    height = 0
+    style: Record<string, string> = {}
+    attributes: Record<string, string> = {}
+    listeners: Record<string, any[]> = {}
+    classList = {
+        contains: (c: string) => this.className.split(' ').includes(c),
+        toggle: (c: string, on = !this.classList.contains(c)) => {
+            const rest = this.className.split(' ').filter(x => x && x !== c)
+            this.className = (on ? [...rest, c] : rest).join(' ')
+        },
+    }
+    constructor(readonly tagName: string) {}
+    appendChild(c: FakeElement) {
+        c.remove()
+        c.parent = this
+        this.children.push(c)
+        return c
+    }
+    remove() {
+        if (this.parent) this.parent.children.splice(this.parent.children.indexOf(this), 1)
+        this.parent = undefined
+    }
+    contains(e: FakeElement): boolean {
+        return e === this || this.children.some(c => c.contains(e))
+    }
+    setAttribute(k: string, v: string) {
+        this.attributes[k] = String(v)
+    }
+    getAttribute(k: string) {
+        return this.attributes[k]
+    }
+    addEventListener(type: string, l: any) {
+        (this.listeners[type] ??= []).push(l)
+    }
+    removeEventListener(type: string, l: any) {
+        this.listeners[type] = (this.listeners[type] ?? []).filter(x => x !== l)
+    }
+    getContext() {
+        return null
+    }
+    /** The elements under this one (and this one) with the class */
+    find(cls: string): FakeElement[] {
+        return [...(this.classList.contains(cls) ? [this] : []), ...this.children.flatMap(c => c.find(cls))]
+    }
+}
+
+/** The settings of the EditorCameraPlugin that the UI reads, and its events */
+class FakeEditorCamera extends EventDispatcher<any> {
+    static readonly PluginType = 'EditorCameraPlugin'
+    editing = true
+    syncStartView = true
+    startViewMoved = false
+    showsStartView = false
+    hotkey = 'KeyC'
+    disabled = false
+    isDisabled = () => this.disabled
+    onAdded() {}
+    onRemove() {}
+    /** The UI updates on these events */
+    changed() {
+        this.dispatchEvent({type: 'editingChange', editing: this.editing})
+    }
+}
+
+/** A viewer with what the UI uses */
+function uiViewer() {
+    return Object.assign(new EventDispatcher<any>(), {
+        container: new FakeElement('DIV'),
+        canvas: {width: 0, height: 0},
+        renderManager: {needsRender: false},
+    }) as any
+}
+
+describe('EditorCameraPlugin start view UI', () => {
+    let doc: any
+    const oldDocument = globalThis.document
+    beforeEach(() => {
+        doc = {
+            head: new FakeElement('HEAD'),
+            body: new FakeElement('BODY'),
+            createElement: (tag: string) => new FakeElement(tag.toUpperCase()),
+            listeners: {} as Record<string, any[]>,
+            addEventListener: FakeElement.prototype.addEventListener,
+            removeEventListener: FakeElement.prototype.removeEventListener,
+        }
+        globalThis.document = doc
+    })
+    afterEach(() => {
+        globalThis.document = oldDocument
+    })
+
+    const kbdOf = (viewer: any) => viewer.container.find('ecu-pill')[0].children.find((c: FakeElement) => c.tagName === 'KBD') as FakeElement
+    const pillOf = (viewer: any) => viewer.container.find('ecu-pill')[0] as FakeElement
+
+    test('each UI adds its styles, and its remover removes them', () => {
+        const viewer = uiViewer()
+        const camera = new FakeEditorCamera()
+        const remove1 = setupEditorCameraUi(viewer, camera as any)
+        const remove2 = setupEditorCameraUi(viewer, camera as any)
+        // (vitest gives an empty string for the css file)
+        const styles = () => doc.head.children.filter((c: FakeElement) => c.tagName === 'STYLE')
+        expect(styles()).toHaveLength(2)
+        remove1()
+        expect(styles()).toHaveLength(1) // the other UI keeps its styles
+        remove2()
+        expect(styles()).toHaveLength(0)
+        expect(viewer.container.children).toHaveLength(0)
+        expect(doc.listeners.pointerdown ?? []).toHaveLength(0)
+        expect((camera as any)._listeners?.editingChange ?? []).toHaveLength(0)
+    })
+
 })
