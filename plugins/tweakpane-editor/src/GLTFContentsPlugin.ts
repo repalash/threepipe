@@ -128,11 +128,14 @@ export class GLTFContentsPlugin extends AViewerPluginSync {
             onChange: () => this.uiConfig.uiRefresh?.(true, 'postFrame'),
         }] : []
         const s = this.shownSummary
-        if (this.status || !s) return [...show, {type: 'button', label: this.status || 'Check the export, or load a glTF file', readOnly: true}]
+        // the state or error of the export check, above the summary shown (a loaded file stays listed)
+        const status: UiObjectConfig[] = this.status ? [{type: 'button', label: this.status, readOnly: true}] : []
+        if (!s) return [...show, ...status.length ? status : [{type: 'button', label: 'Check the export, or load a glTF file', readOnly: true}]]
         const c = s.counts
         const n = (v: number) => v.toLocaleString('en-US')
         const ui: UiObjectConfig[] = [
             ...show,
+            ...status,
             row('File', s.name),
             row('Size', formatBytes(s.fileBytes)),
             row('JSON', formatBytes(s.jsonBytes)),

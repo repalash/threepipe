@@ -187,6 +187,16 @@ describe('GLTFContentsPlugin', () => {
         expect(none.status).toBe('Add the AssetExporterPlugin to check the export')
     })
 
+    test('a failed export check shows its message above the loaded file, which stays listed', async () => {
+        const {plugin, load} = setup()
+        await load({assetType: 'model', __rootBlob: Object.assign(new Blob([glb(sample, 0)]), {name: 'ring.glb'})})
+        await plugin.checkExport() // no exporter
+        const labels = (plugin as any)._summaryUi().map((c: any) => c.label)
+        expect(labels[0]).toBe('Add the AssetExporterPlugin to check the export')
+        expect(labels).toContain('File')
+        expect(labels).toContain('Size')
+    })
+
     test('removing the plugin stops reading loads', async () => {
         const {plugin, viewer, load} = setup()
         plugin.onRemove(viewer)
