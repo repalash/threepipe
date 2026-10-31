@@ -275,6 +275,8 @@ describe('EditorModeBar', () => {
     test('show selects a mode once and opens the panel', () => {
         const editor = host()
         const bar = new EditorModeBar(editor, body() as any, undefined, null)
+        // as TweakpaneEditorPlugin: it marks the mode in the bar
+        editor.setSelectedMode.mockImplementation((i: number) => bar.select(i))
         bar.setOpen(false)
         bar.show(1)
         expect(editor.setSelectedMode).toHaveBeenCalledTimes(1)

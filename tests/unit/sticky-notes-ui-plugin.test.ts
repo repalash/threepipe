@@ -170,7 +170,7 @@ describe('StickyNotesUiPlugin', () => {
         bar.fire('pointerup')
     }
 
-    test('starts minimized on a page load (StartMinimized), and the button brings back the stored layout', () => {
+    test('starts minimized on a page load (the startMinimized argument), and the button brings back the stored layout', () => {
         storage.set('threepipe-sticky-notes', JSON.stringify({layout: 'stack', open: 'stack'}))
         const {sticky, layer} = setup({}, undefined, true)
         expect(sticky.layout).toBe('minimized')

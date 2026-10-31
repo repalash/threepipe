@@ -10,7 +10,9 @@ export interface EditorModeLook {
 
 /** The part of the editor that the mode bar uses */
 export interface EditorModeBarHost {
+    /** The names of the modes, a button for each */
     modeKeys: string[]
+    /** Shows the panels of a mode, and marks it in the mode bar ({@link EditorModeBar.select}), as `TweakpaneEditorPlugin` does */
     setSelectedMode(i: number): void
 }
 
@@ -189,16 +191,12 @@ export class EditorModeBar {
     /** Opens a mode's panel (and shows the panel if it was hidden), like a click on its button */
     show(i: number) {
         if (i < 0 || i >= this._buttons.length) return
-        if (i !== this._selected) {
-            this.editor.setSelectedMode(i)
-            this.select(i)
-        }
+        if (i !== this._selected) this.editor.setSelectedMode(i) // it calls select
         if (!this._open) this.setOpen(true)
     }
 
     /** The label, the tooltip and the arrow of the button at the bottom name its next step ({@link cycle}) */
     private _refreshToggle() {
-        if (!this._toggle) return // made after the first setExpanded of the constructor
         const next = !this._open ? 'Show the panel' : this._expanded ? 'Hide the names' : 'Hide the panel'
         this._toggle.querySelector('.mb-label')!.textContent = !this._open ? 'Expand' : 'Collapse'
         this._toggleTip.setContent(`${next} (${this._key})`)
@@ -239,13 +237,13 @@ export class EditorModeBar {
         document.documentElement.style.removeProperty('--mb-width')
     }
 
-    private _button(icon: string, label: string, color: string, tip = label) {
+    private _button(icon: string, label: string, color: string) {
         const b = document.createElement('button')
         b.className = 'mb-btn'
         if (color) b.style.setProperty('--mb-color', color)
         b.innerHTML = `${icon}<span class="mb-label"></span>`
         b.querySelector('.mb-label')!.textContent = label
-        this._tips.push(tippy(b, {content: tip}))
+        this._tips.push(tippy(b, {content: label}))
         this.element.appendChild(b)
         return b
     }
