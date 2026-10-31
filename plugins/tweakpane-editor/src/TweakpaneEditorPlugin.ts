@@ -66,8 +66,11 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
      */
     frame?: EditorFrame
 
-    /** Options of the page frame (the app name, the theme pairs), used when the frame is made */
-    frameOptions: Omit<EditorFrameOptions, 'layout' | 'onPickLayout'> = {}
+    /**
+     * Options of the page frame (the app name, the theme pairs), used when the frame is made. The plugin sets the layout
+     * and the callbacks (`documentName`, `documentNameChange`).
+     */
+    frameOptions: Omit<EditorFrameOptions, 'layout' | 'onPickLayout' | 'onRename'> = {}
 
     private _documentName = ''
     /**
