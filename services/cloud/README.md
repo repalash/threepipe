@@ -81,6 +81,11 @@ All in `src/limits.ts`: constants (a change is a deploy), except the daily repor
 `wrangler.jsonc`; the constants are their defaults). agents.md quotes them; `@threepipe/plugin-cloud` keeps a copy of
 the report limits (`LIMITS`).
 
+One user can have other limits: an admin adds a row to `user_limits` (admin panel, or `POST /api/v1/table/user_limits/insert`
+with the admin token) with `user_id` and any of `drive_quota` (bytes), `projects` and `reports_daily`; a column left
+empty keeps the role's limit, and `note` says why. Users can't read or change the table (it is not in `users`, whose
+rows they can edit).
+
 | What | Limit |
 |---|---|
 | A file upload (uploads, drive, staff buckets) | 90 MB per request |

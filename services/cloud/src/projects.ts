@@ -7,7 +7,7 @@ import {checkTurnstile} from './turnstile'
 import {
     createReport, deleteReport, getFile, getImage, getReport, listReports, normalizeReportId, Project, SentFile, STATUSES, TYPES, updateReport,
 } from './reports'
-import {PROJECTS_MAX, REPORT_BODY_MAX, REPORT_FILES_MAX, REPORT_MAX, REPORTS_LIST_MAX} from './limits'
+import {projectsMax, REPORT_BODY_MAX, REPORT_FILES_MAX, REPORT_MAX, REPORTS_LIST_MAX} from './limits'
 
 /**
  * Projects: where an app's reports go. Any member creates up to PROJECTS_MAX and adds members; our own apps report
@@ -104,7 +104,8 @@ export function projectRoutes(app: Hono<CloudEnv>) {
         if (slug.startsWith('threepipe') && !isStaff(user)) throw new HTTPException(403, {message: 'slugs starting with threepipe are for threepipe apps'})
         const name = (typeof body.name === 'string' && body.name.trim() ? body.name.trim() : slug).slice(0, 100)
         const owned = await c.env.PRIMARY_DB.prepare('SELECT COUNT(*) AS n FROM projects WHERE owner_id = ?').bind(user.id).first<{n: number}>()
-        if (!isStaff(user) && (owned?.n ?? 0) >= PROJECTS_MAX) throw new HTTPException(403, {message: `at most ${PROJECTS_MAX} projects`})
+        const max = projectsMax(user)
+        if ((owned?.n ?? 0) >= max) throw new HTTPException(403, {message: `at most ${max} projects`})
         try {
             await c.env.PRIMARY_DB.prepare('INSERT INTO projects (id, slug, name, owner_id) VALUES (?, ?, ?, ?)').bind(crypto.randomUUID(), slug, name, user.id).run()
         } catch (e) {
@@ -181,9 +182,8 @@ export function projectRoutes(app: Hono<CloudEnv>) {
         // signed in (any key or the cookie): no check; a bad or revoked key is a 401, not a fallback to the check
         const cookieName = c.get('$db').settings.authCookie?.name
         const authed = !!(c.req.header('Authorization') || c.req.header('X-Authorization') || cookieName && getCookie(c, cookieName))
-        let userId: string | undefined
-        if (authed) userId = (await requireUser(c)).id
-        else {
+        const sender = authed ? await requireUser(c) : undefined
+        if (!sender) {
             const gate = await checkTurnstile(c.env, c.req.raw)
             if (!gate.ok) throw new HTTPException(gate.status as 401, {message: gate.error})
         }
@@ -211,7 +211,7 @@ export function projectRoutes(app: Hono<CloudEnv>) {
             try { report = JSON.parse(new TextDecoder().decode(raw)) } catch { throw new HTTPException(400, {message: 'body must be JSON'}) }
         }
         const reportsUrl = `${new URL(c.req.url).origin}/reports#${project.slug}`
-        const r = await createReport({env: c.env, req: c.req.raw, project, userId, clientKey, report, files, reportsUrl, ctx: c.executionCtx})
+        const r = await createReport({env: c.env, req: c.req.raw, project, user: sender, clientKey, report, files, reportsUrl, ctx: c.executionCtx})
         return out(c, r)
     })
 

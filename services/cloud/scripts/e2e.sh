@@ -118,6 +118,10 @@ NL=$(curl -s -X POST -H "$H0" "$A/api/v1/drive/items/$LID/new-id" | j "['id']")
 [ -n "$NL" ] && [ "$NL" != "$LID" ] && [ "$(code "${SURL}scene.gltf")" = "404" ] && curl -s "$(curl -s -X POST -H "$H0" "$A/api/v1/drive/items/$NL/sign" | j "['url']")tex/scene.bin" | grep -q bin && ok "new id: the old URLs stop working, the item stays" || bad "new id: $NL"
 [ "$(admin files/insert "{\"values\":{\"owner_id\":\"$UID1\",\"bucket\":\"cloud\",\"prefix\":\"d\",\"path\":\"d/$U/big\",\"size\":1073741824}}")" = "200" ] || bad "fixture: big file"
 [ "$(code -X PUT -H "$H0" --data-binary @$TMP/a.txt "$A/api/v1/drive/files?name=over.txt")" = "413" ] && ok "drive quota -> 413" || bad "quota"
+[ "$(admin user_limits/insert "{\"values\":{\"user_id\":\"$UID1\",\"drive_quota\":2147483648,\"note\":\"e2e\"}}")" = "200" ] || bad "fixture: user limits"
+[ "$(code -X PUT -H "$H0" --data-binary @$TMP/a.txt "$A/api/v1/drive/files?name=over.txt")" = "201" ] && [ "$(curl -s -H "$H0" "$A/api/v1/me" | j "['drive']['quota']")" = "2147483648" ] && ok "a user's own drive quota (user_limits)" || bad "user quota"
+[ "$(code -H "$H0" "$A/api/v1/table/user_limits/list")" = "403" ] && [ "$(code -X POST -H "$H0" -H 'content-type: application/json' -d "{\"values\":{\"user_id\":\"$UID1\",\"projects\":99}}" "$A/api/v1/table/user_limits/insert")" = "403" ] && ok "users cannot read or set their limits" || bad "user_limits rules"
+admin user_limits/delete "{\"where\":\"user_id == '$UID1'\"}" > /dev/null
 admin files/delete "{\"where\":\"path == 'd/$U/big'\"}" > /dev/null
 curl -sI "$A/drive" | grep -qi "content-security-policy: default-src 'none'; script-src 'self'" && [ "$(code "$A/drive/page.js")" = "200" ] && ok "drive page" || bad "drive page"
 [ "$(curl -s -o /dev/null -w '%{http_code} %{content_type}' "$A/ui.css")" = "200 text/css; charset=utf-8" ] && [ "$(code "$A/ui.js")" = "200" ] && ok "the pages' look (/ui.css, /ui.js)" || bad "ui.css"
@@ -182,12 +186,18 @@ P=p-$U
 [ "$(code -X POST -H "$H0" -H 'content-type: application/json' -d "{\"slug\":\"$P\"}" "$A/api/v1/projects")" = "409" ] && ok "slug taken -> 409" || bad "slug taken"
 [ "$(code -X POST -H "Authorization: Bearer $T2" -H 'content-type: application/json' -d '{"slug":"threepipe-x"}' "$A/api/v1/projects")" = "403" ] && ok "threepipe* slugs are for staff" || bad "threepipe slug"
 curl -s -H "$H0" "$A/api/v1/projects" | grep -q "\"$P\"" && ok "list my projects" || bad "list projects"
+admin user_limits/insert "{\"values\":{\"user_id\":\"$UID2\",\"projects\":0}}" > /dev/null
+[ "$(code -X POST -H "Authorization: Bearer $T2" -H 'content-type: application/json' -d "{\"slug\":\"$P-limited\"}" "$A/api/v1/projects")" = "403" ] && ok "a user's own project limit (user_limits)" || bad "user project limit"
+admin user_limits/delete "{\"where\":\"user_id == '$UID2'\"}" > /dev/null
 R=$(curl -s -H "$H0" "$A/api/v1/projects/$P"); echo "$R" | grep -q '"role":"manager"' && echo "$R" | grep -q '"discord_webhook":false' && echo "$R" | grep -q "\"owner\":\"$U\"" && ok "a project's settings" || bad "project get: $R"
 [ "$(code -H "Authorization: Bearer $T2" "$A/api/v1/projects/$P")" = "404" ] && ok "non-members: no such project" || bad "project get non-member"
 RJ='{"type":"bug","surface":"examples","text":"it broke","email":"me@x.test","log":["GET https://a.test/x?token=abcdefgh12345678 failed","at /Users/jane/app.js:1:2"],"versions":{"threepipe":"0.4.0"}}'
 [ "$(code -X POST -H 'content-type: application/json' -H "Idempotency-Key: k-$U-0" -d "$RJ" "$A/api/v1/projects/$P/reports")" = "401" ] && ok "anonymous report without Turnstile -> 401" || bad "no turnstile"
 R=$(curl -s -X POST -H 'content-type: application/json' -H "Idempotency-Key: k-$U-1" -H 'cf-turnstile-response: test' -H "Origin: https://files.threepipe.org" -d "$RJ" "$A/api/v1/projects/$P/reports"); RID=$(echo "$R" | j "['id']") && ok "anonymous report with Turnstile -> $RID" || bad "anon report: $R"
 R=$(curl -s -X POST -H "Authorization: Bearer $T2" -H 'content-type: application/json' -H "Idempotency-Key: k-$U-2" -d '{"type":"idea","surface":"editor","text":"signed in","image":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="}' "$A/api/v1/projects/$P/reports"); RID2=$(echo "$R" | j "['id']") && ok "signed-in report, no Turnstile -> $RID2" || bad "signed-in report: $R"
+admin user_limits/insert "{\"values\":{\"user_id\":\"$UID2\",\"reports_daily\":1}}" > /dev/null
+[ "$(code -X POST -H "Authorization: Bearer $T2" -H 'content-type: application/json' -H "Idempotency-Key: k-$U-limited" -d "$RJ" "$A/api/v1/projects/$P/reports")" = "429" ] && ok "a user's own daily report cap (user_limits)" || bad "user report cap"
+admin user_limits/delete "{\"where\":\"user_id == '$UID2'\"}" > /dev/null
 curl -s -X POST -H "Authorization: Bearer $T2" -H 'content-type: application/json' -H "Idempotency-Key: k-$U-2" -d '{"type":"idea","surface":"editor"}' "$A/api/v1/projects/$P/reports" | grep -q '"repeat":true' && ok "same Idempotency-Key -> the same report" || bad "idempotency"
 echo "$RJ" > $TMP/report.json
 R=$(curl -s -X POST -H "Authorization: Bearer $T2" -H "Idempotency-Key: k-$U-3" -F "report=<$TMP/report.json" -F "file=@$TMP/a.txt;filename=scene.glb" "$A/api/v1/projects/$P/reports"); RID3=$(echo "$R" | j "['id']") && ok "multipart report with a file" || bad "multipart: $R"

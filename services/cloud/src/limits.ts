@@ -2,6 +2,7 @@
  * Every limit of threepipe cloud, in one place. They are constants in the code (a change is a deploy), except the
  * daily report caps, which are wrangler vars (REPORTS_DAILY_*, wrangler.jsonc) so they can be raised without a code
  * change; the values here are their defaults. agents.md (src/access.ts) and the README quote these.
+ * An admin can give one user other limits in the user_limits table (teenybase.ts): see {@link UserLimits}.
  */
 
 const MB = 1024 * 1024
@@ -76,6 +77,22 @@ export function dailyCap(env: CloudflareBindings, cap: keyof typeof REPORTS_DAIL
     const n = parseInt(String(env[REPORTS_DAILY[cap].variable] ?? ''), 10)
     return Number.isInteger(n) && n > 0 ? n : REPORTS_DAILY[cap].default
 }
+
+// ---- per user ----
+/** A user's row of user_limits (set by an admin): each one set replaces the role's limit. */
+export interface UserLimits {
+    /** bytes, instead of DRIVE_QUOTA */
+    drive_quota?: number
+    /** projects they may own, instead of PROJECTS_MAX (or no limit for staff) */
+    projects?: number
+    /** reports they may send in 24 hours, instead of the per-sender cap */
+    reports_daily?: number
+}
+interface LimitedUser {role: keyof typeof DRIVE_QUOTA, limits: UserLimits}
+
+export const driveQuota = (u: LimitedUser) => u.limits.drive_quota ?? DRIVE_QUOTA[u.role]
+export const projectsMax = (u: LimitedUser) => u.limits.projects ?? (u.role === 'member' ? PROJECTS_MAX : Infinity)
+export const reportsDaily = (env: CloudflareBindings, u: LimitedUser) => u.limits.reports_daily ?? dailyCap(env, 'perSender')
 
 /** `90 MB`, `1 GB`: a limit in bytes for messages. */
 export const sizeText = (bytes: number) => bytes >= GB ? `${+(bytes / GB).toFixed(2)} GB` : `${Math.round(bytes / MB)} MB`

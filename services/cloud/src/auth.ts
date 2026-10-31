@@ -2,6 +2,7 @@ import type {Context} from 'hono'
 import {getCookie} from 'hono/cookie'
 import {HTTPException} from 'hono/http-exception'
 import type {CloudEnv} from './env'
+import type {UserLimits} from './limits'
 
 export type Role = 'member' | 'staff' | 'admin'
 
@@ -10,6 +11,8 @@ export interface CloudUser {
     username: string
     email: string
     role: Role
+    /** the user's own limits (user_limits), where an admin set them */
+    limits: UserLimits
     /** id of the access link when the request uses an access key (src/access.ts) or an app key (src/connect.ts) */
     link?: string
     /** app keys only: the app (`p/<name>`, `localhost:5173`, ...) */
@@ -42,10 +45,14 @@ export async function requireUser(c: Context<CloudEnv>): Promise<CloudUser> {
         scope = row.scope ?? undefined
         c.executionCtx.waitUntil(c.env.PRIMARY_DB.prepare('UPDATE access_links SET last_used = ? WHERE id = ?').bind(new Date().toISOString(), link).run())
     }
-    const row = await c.env.PRIMARY_DB.prepare('SELECT id, username, email, role FROM users WHERE id = ?').bind(auth.uid).first<{id: string, username: string, email: string, role: string | null}>()
+    const row = await c.env.PRIMARY_DB.prepare(`SELECT u.id, u.username, u.email, u.role, l.drive_quota, l.projects, l.reports_daily
+            FROM users u LEFT JOIN user_limits l ON l.user_id = u.id WHERE u.id = ?`).bind(auth.uid)
+        .first<{id: string, username: string, email: string, role: string | null} & {[k in keyof UserLimits]: number | null}>()
     if (!row) throw new HTTPException(401, {message: 'unknown user'})
     const role: Role = row.role === 'admin' || row.role === 'staff' ? row.role : 'member'
-    const user: CloudUser = {id: row.id, username: row.username, email: row.email, role, link, app, scope}
+    const limits: UserLimits = {}
+    for (const k of ['drive_quota', 'projects', 'reports_daily'] as const) if (row[k] !== null) limits[k] = row[k]
+    const user: CloudUser = {id: row.id, username: row.username, email: row.email, role, limits, link, app, scope}
     c.set('cloudUser', user)
     return user
 }

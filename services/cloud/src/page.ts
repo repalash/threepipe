@@ -2,7 +2,7 @@ import type {Context, Hono} from 'hono'
 import type {CloudEnv} from './env'
 import {assertScope, requireUser} from './auth'
 import {driveUsage} from './drive'
-import {DRIVE_QUOTA} from './limits'
+import {driveQuota} from './limits'
 import UI_CSS from './page/ui.css'
 import UI_SCRIPT from './page/ui.client.js'
 import DRIVE from './page/drive.html'
@@ -51,7 +51,7 @@ export function pageRoutes(app: Hono<CloudEnv>) {
             driveUsage(c, user.id),
         ])
         return c.json({username: user.username, name: row?.name || user.username, role: user.role,
-            drive: {used, quota: DRIVE_QUOTA[user.role]}, feedback: feedback ? FEEDBACK_PROJECT : null})
+            drive: {used, quota: driveQuota(user)}, feedback: feedback ? FEEDBACK_PROJECT : null})
     })
 }
 

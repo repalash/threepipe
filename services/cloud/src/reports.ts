@@ -19,10 +19,11 @@
  * - NOTHING DELETES A ROW. A delete (by a project manager) removes the R2 objects and clears the personal columns; the
  *   row stays as a tombstone.
  */
+import type {CloudUser} from './auth'
 import {hex} from './env'
 import {
     dailyCap, REPORT_CONTEXT_MAX, REPORT_ENVIRONMENT_MAX, REPORT_FILES_BYTES_MAX, REPORT_FILES_MAX, REPORT_IMAGE_MAX, REPORT_LOG_LINE_MAX,
-    REPORT_LOG_LINES_MAX, REPORT_NOTE_MAX, REPORT_TEXT_MAX, REPORT_VERSIONS_MAX, REPORTS_LIST_MAX, sizeText,
+    REPORT_LOG_LINES_MAX, REPORT_NOTE_MAX, REPORT_TEXT_MAX, REPORT_VERSIONS_MAX, REPORTS_LIST_MAX, reportsDaily, sizeText,
 } from './limits'
 
 export const TYPES = ['bug', 'question', 'idea'] as const
@@ -293,7 +294,7 @@ export interface CreateOptions {
     req: Request
     project: Project
     /** the signed-in sender, if any (no Turnstile for them) */
-    userId?: string
+    user?: CloudUser
     clientKey: string
     report: unknown
     files: SentFile[]
@@ -305,13 +306,14 @@ export interface CreateOptions {
 /** POST /api/v1/projects/<slug>/reports, after the gate (signed in, or a Turnstile pass). */
 export async function createReport(o: CreateOptions): Promise<Result> {
     const {env, req, project, clientKey, files} = o
+    const userId = o.user?.id
     const db = env.PRIMARY_DB
     const parsed = parseReport(o.report)
     if (!parsed.ok) return {status: parsed.status, body: {error: parsed.error, field: parsed.field}}
     const bad = checkFiles(files)
     if (bad) return {status: bad.status, body: {error: bad.error, field: 'files'}}
     const p = parsed.report
-    const sender = await senderOf(env, req, o.userId)
+    const sender = await senderOf(env, req, userId)
 
     // A retry of the same dialog (its response was lost): the same report, never a second. Only the
     // same sender learns the id.
@@ -327,7 +329,7 @@ export async function createReport(o: CreateOptions): Promise<Result> {
         db.prepare('SELECT COUNT(*) AS n, COALESCE(SUM(files_bytes), 0) AS b FROM reports WHERE created_at >= ?1').bind(since),
     ]) as D1Result<{n: number, b: number}>[]
     const tooMany = {status: 429, body: {error: 'too many reports today, try again tomorrow'}}
-    if ((mine.results[0]?.n ?? 0) >= dailyCap(env, 'perSender')) return tooMany
+    if ((mine.results[0]?.n ?? 0) >= (o.user ? reportsDaily(env, o.user) : dailyCap(env, 'perSender'))) return tooMany
     if ((proj.results[0]?.n ?? 0) >= dailyCap(env, 'perProject')) return tooMany
     if ((all.results[0]?.n ?? 0) >= dailyCap(env, 'all')) {
         console.error('reports: the daily cap for all reports is reached')
@@ -358,7 +360,7 @@ export async function createReport(o: CreateOptions): Promise<Result> {
         for (let attempt = 0; ; attempt++) {
             const id = newReportId()
             const bundle = {
-                v: 1, id, project: project.slug, created_at: now, origin: req.headers.get('origin'), user_id: o.userId ?? null,
+                v: 1, id, project: project.slug, created_at: now, origin: req.headers.get('origin'), user_id: userId ?? null,
                 type: p.type, surface: p.surface, route: p.route, text: p.text, email: p.email ?? null,
                 cause: p.cause ?? null, versions: p.versions, environment: p.environment, context: p.context,
                 log: p.log,
@@ -375,7 +377,7 @@ export async function createReport(o: CreateOptions): Promise<Result> {
                         (id, project_id, key, client_key, created_at, origin, type, surface, email, user_id, rate_key, summary, cause,
                          versions_json, has_image, bundle_bytes, files_count, files_bytes)
                         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18)`)
-                        .bind(id, project.id, key, clientKey, now, origin, p.type, p.surface, p.email ?? null, o.userId ?? null, sender,
+                        .bind(id, project.id, key, clientKey, now, origin, p.type, p.surface, p.email ?? null, userId ?? null, sender,
                             p.text.slice(0, SUMMARY_MAX) || null, p.cause?.kind ?? null, JSON.stringify(p.versions),
                             imageName ? 1 : 0, new TextEncoder().encode(text).byteLength, files.length, bytes),
                     ...files.map((f, idx) => db.prepare(`INSERT INTO report_files (id, report_id, idx, name, size, state)
@@ -392,7 +394,7 @@ export async function createReport(o: CreateOptions): Promise<Result> {
                 throw e
             }
             const row: CardRow = {id, project: project.slug, origin, type: p.type, surface: p.surface, cause: p.cause?.kind ?? null, ext: p.cause?.ext ?? null,
-                versions: p.versions, files_count: files.length, files_bytes: bytes, has_image: !!imageName, log_lines: p.log.length, signed_in: !!o.userId}
+                versions: p.versions, files_count: files.length, files_bytes: bytes, has_image: !!imageName, log_lines: p.log.length, signed_in: !!userId}
             const send = postCard(project.discord_webhook, row, o.reportsUrl).then(state => db.prepare('UPDATE reports SET discord_state = ?1 WHERE id = ?2').bind(state, id).run())
                 .catch(e => console.error('report card', id, e?.stack || e))
             if (o.ctx) o.ctx.waitUntil(send)

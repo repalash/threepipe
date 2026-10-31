@@ -172,6 +172,28 @@ export default {
             deleteRule: null,
         } as TableRulesExtensionData],
     }, {
+        // A user's own limits, above (or below) their role's (src/limits.ts). Set by an admin (admin panel or the admin
+        // API); not in users, whose rows the user can edit. A NULL column keeps the role's limit.
+        name: 'user_limits',
+        autoSetUid: true,
+        fields: [
+            ...baseFields,
+            {name: 'user_id', type: 'relation', sqlType: 'text', notNull: true, unique: true, foreignKey: {table: 'users', column: 'id'}},
+            {name: 'drive_quota', type: 'integer', sqlType: 'integer'}, // bytes
+            {name: 'projects', type: 'integer', sqlType: 'integer'}, // projects they may own
+            {name: 'reports_daily', type: 'integer', sqlType: 'integer'}, // reports they may send in 24 hours
+            {name: 'note', type: 'text', sqlType: 'text'}, // why, for the next admin
+        ],
+        triggers: [createdTrigger, updatedTrigger],
+        extensions: [{
+            name: 'rules',
+            listRule: null,
+            viewRule: null,
+            createRule: null,
+            updateRule: null,
+            deleteRule: null,
+        } as TableRulesExtensionData],
+    }, {
         // Projects: where an app's reports go (src/projects.ts). Read and changed only through those routes.
         name: 'projects',
         autoSetUid: true,

@@ -5,7 +5,7 @@ import {base64url, BUCKET, cleanSegments, filesOrigin, keyUrl, randomCode} from 
 import {CloudUser, requireUser} from './auth'
 import {contentTypeFor, putStreamed, uploadSize} from './uploads'
 import {grantFolder} from './appFolders'
-import {DRIVE_LIST_MAX, DRIVE_QUOTA, FOLDER_DEPTH_MAX, ITEM_REWRITE_FILES_MAX, SIGN_DEFAULT_SECONDS, SIGN_MAX_SECONDS, sizeText} from './limits'
+import {DRIVE_LIST_MAX, driveQuota, FOLDER_DEPTH_MAX, ITEM_REWRITE_FILES_MAX, SIGN_DEFAULT_SECONDS, SIGN_MAX_SECONDS, sizeText} from './limits'
 
 /**
  * The drive: each user's files, saved by apps (the editor) or uploaded.
@@ -155,7 +155,7 @@ export async function driveUsage(c: Context<CloudEnv>, userId: string, key = '')
 /** Before writing a file: 413 when it would go over the quota. */
 async function checkQuota(c: Context<CloudEnv>, user: CloudUser, key: string, size: number) {
     const {used, old} = await driveUsage(c, user.id, key)
-    const quota = DRIVE_QUOTA[user.role]
+    const quota = driveQuota(user)
     if (used - old + size > quota) throw new HTTPException(413, {message: `drive quota: ${sizeText(quota)} (${sizeText(used)} used)`})
 }
 
