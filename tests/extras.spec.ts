@@ -95,6 +95,7 @@ test('gltf-transmission-test-msaa-zprepass', async({page}) => expect(page).toHav
 test('hdri-ground-plugin', async({page}) => expect(page).toHaveTitle('HDRi Ground Plugin'))
 test('hemisphere-light', async({page}) => expect(page).toHaveTitle('Hemisphere Light'))
 test('hierarchy-ui-plugin', async({page}) => expect(page).toHaveTitle('Hierarchy UI Plugin'))
+test('selection-outline-plugin', async({page}) => expect(page).toHaveTitle('Selection Outline Plugin'))
 // test('html-js-sample', async({page}) => expect(page).toHaveTitle('Threepipe HTML/JS Sample')) // sample - no testFinish
 test('i3dm-load', async({page}) => expect(page).toHaveTitle('I3DM (Instanced 3D Model, OGC Tiles) Load'))
 test('interaction-prompt-plugin', async({page}) => expect(page).toHaveTitle('Interaction Prompt Plugin'))
