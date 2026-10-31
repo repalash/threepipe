@@ -14,8 +14,8 @@
 // https://cloud.threepipe.org, see services/cloud/README.md). The API: TP_CLOUD_API, default https://cloud.threepipe.org.
 //
 // Never uploaded: dotfiles and dot folders (.git, .env), node_modules, and, for a folder git tracks, what .gitignore
-// excludes (a folder that is itself ignored, like a build output, is uploaded as it is). In a build,
-// examples/globals.js gets empty values instead of the ones from your examples/.env.
+// excludes (a folder that is itself ignored, like a build output, is uploaded as it is). A build (--preview) uploads
+// all of its files, gitignored outputs too (examples/*/script.js); its examples/globals.js gets empty values.
 
 import fs from 'node:fs'
 import path from 'node:path'
@@ -93,19 +93,23 @@ function buildFiles(prefix) {
         .filter(d => fs.existsSync(path.join(root, d)))
     if (!fs.existsSync(path.join(root, 'dist/index.mjs')) || !fs.existsSync(path.join(root, 'examples/globals.js')))
         usage('build first: npm run build:all')
-    const out = dirs.flatMap(d => listFiles(path.join(root, d), `${prefix}${d}/`))
+    // a build: everything in it, also what .gitignore excludes (examples/*/script.js are build outputs)
+    const out = dirs.flatMap(d => listFiles(path.join(root, d), `${prefix}${d}/`, {gitignore: false}))
     const globals = out.find(f => f.remote === `${prefix}examples/globals.js`)
     if (globals) globals.content = Buffer.from(fs.readFileSync(globals.local, 'utf8')
         .replace(/^export const (\w+) = .*$/gm, (_, k) => `export const ${k} = ${JSON.stringify(k === 'DUMMY' ? '1' : '')}`))
     return out
 }
 
-/** A file to `remote`, or every file of a folder under `remote` (which then ends with /), without what is never uploaded. */
-function listFiles(local, remote) {
+/**
+ * A file to `remote`, or every file of a folder under `remote` (which then ends with /), without what is never uploaded:
+ * dotfiles, node_modules and, unless `gitignore: false` (a build), what .gitignore excludes.
+ */
+function listFiles(local, remote, {gitignore = true} = {}) {
     if (!fs.existsSync(local)) usage(`${local} does not exist`)
     if (fs.statSync(local).isFile()) return [{local, remote: remote.endsWith('/') ? remote + path.basename(local) : remote}]
     if (!remote.endsWith('/')) usage('a folder goes under a remote path ending with /')
-    const ignored = gitIgnored(local)
+    const ignored = gitignore ? gitIgnored(local) : new Set()
     return fs.readdirSync(local, {recursive: true}).map(String)
         .filter(rel => !rel.split(path.sep).some(s => s.startsWith('.') || s === 'node_modules'))
         .filter(rel => !ignored.has(rel.split(path.sep).join('/')) && fs.statSync(path.join(local, rel)).isFile())

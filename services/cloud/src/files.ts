@@ -27,7 +27,9 @@ export async function filesHost(c: Context<CloudEnv>, next: Next) {
     if (c.req.method !== 'GET' && c.req.method !== 'HEAD') return c.text('method not allowed', 405)
     // the files host's own address has no file: the cloud's pages
     if (c.env.FILES_HOST && path === '/') return c.redirect(`${config.appUrl}/drive`, 302)
-    const notFound = () => c.text('not found', 404)
+    // with the CORS header too: a sandboxed page (origin null) then sees the 404 itself, not a CORS error
+    const plain = (text: string, status: 404 | 410) => c.text(text, status, {'access-control-allow-origin': '*'})
+    const notFound = () => plain('not found', 404)
     let key: string
     try {
         key = decodeURIComponent(path).normalize('NFC').replace(/^\/+/, '')
@@ -57,8 +59,8 @@ export async function filesHost(c: Context<CloudEnv>, next: Next) {
     }
     if (!obj) return notFound()
     const meta = obj.customMetadata || {}
-    if (meta.deleted) return c.text('gone: ' + meta.deleted, 410)
-    if (meta.expires && Date.parse(meta.expires) < Date.now()) return c.text('expired', 410)
+    if (meta.deleted) return plain('gone: ' + meta.deleted, 410)
+    if (meta.expires && Date.parse(meta.expires) < Date.now()) return plain('expired', 410)
     if (!allowed(meta)) return notFound()
 
     const headers = new Headers()
