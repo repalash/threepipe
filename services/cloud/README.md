@@ -2,7 +2,7 @@
 
 Accounts, access links for agents, uploads and the files host. [teenybase](https://github.com/teenybase/teenybase)
 (`teenybase.ts`: users, auth, rules, admin panel, migrations) plus Hono routes (`src/`), on one Cloudflare Worker with
-D1 and R2. Plan: `issues/open/threepipe-cloud-plan.md`.
+D1 and R2.
 
 ## Run locally
 
