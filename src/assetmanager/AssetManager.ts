@@ -92,7 +92,11 @@ export interface ImportAddOptions extends ImportAssetOptions, AddAssetOptions{}
 export interface AddRawOptions extends ProcessRawOptions, AddAssetOptions{}
 
 export interface AssetManagerEventMap{
-    /** An asset was loaded and added. `options` are the options of the load, e.g. `importConfig: false` when a viewer config in the asset was not imported */
+    /**
+     * An asset was loaded and added. `options` are the add options given to {@link AssetManager.loadImported}, without
+     * `autoSetEnvironment` and `autoSetBackground`. A listener can read `importConfig: false` there: a viewer config in
+     * the asset was not imported.
+     */
     loadAsset: {data: ImportResult, options?: AddAssetOptions}
     processStateUpdate: object
 }
