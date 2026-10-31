@@ -45,7 +45,12 @@ export class BrowserNotesStore implements NotesStore {
     }
 
     save(notes: NoteItem[]) {
-        localStorage.setItem(this.key, JSON.stringify(notes))
+        try {
+            localStorage.setItem(this.key, JSON.stringify(notes))
+        } catch (e) {
+            // a sandboxed page has no storage (any access throws), and a full one refuses: the notes last until reload
+            console.warn('NotesPlugin: the notes could not be kept in this browser', e)
+        }
     }
 }
 
