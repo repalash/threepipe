@@ -40,7 +40,7 @@ function copyCommon(target: MeshBasicMaterial, material: SourceMaterial) {
     if (material.opacity !== undefined) target.opacity = material.opacity
     if (material.transparent !== undefined) target.transparent = material.transparent
     if (material.alphaMap !== undefined) target.alphaMap = material.alphaMap
-    // never 0, so the alpha test define (and the program) does not change from one mesh to the next
+    // never 0 (also in reset), so the alpha test define (and the material version) does not change between meshes
     if (material.alphaTest !== undefined) target.alphaTest = material.alphaTest < 1e-4 ? 1e-4 : material.alphaTest
     if (material.alphaHash !== undefined) target.alphaHash = material.alphaHash
     if (material.side !== undefined) target.side = material.side
@@ -48,15 +48,33 @@ function copyCommon(target: MeshBasicMaterial, material: SourceMaterial) {
     if (material.wireframeLinewidth !== undefined) target.wireframeLinewidth = material.wireframeLinewidth
 }
 
-/** A MeshBasicMaterial that takes the common settings of each mesh material before it draws it */
+/**
+ * A MeshBasicMaterial that takes the common settings of each mesh material before it draws it.
+ *
+ * One material draws every mesh, and three.js picks its program again only when its version changes. So when the
+ * settings that are program defines differ from those of the last program ({@link _programKey}), it sets needsUpdate
+ * (the program comes from the program cache). The comparison is with the last program, not with the reset state.
+ */
 abstract class PerObjectBasicMaterial extends MeshBasicMaterial {
+    private _lastProgramKey = ''
+
     onBeforeRender(renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D, group: Group) {
         super.onBeforeRender(renderer, scene, camera, geometry, object, group)
         const material = sourceMaterial(object)
         if (!material) return
         copyCommon(this, material)
         this._copyFrom(material, geometry)
+        const key = this._programKey()
+        if (key !== this._lastProgramKey) {
+            this._lastProgramKey = key
+            this.needsUpdate = true
+        }
         resetCurrentMaterial(renderer)
+    }
+
+    /** The settings copied from the mesh material that change the program (its defines) */
+    protected _programKey() {
+        return !!this.alphaMap + ',' + this.alphaHash + ',' + this.side
     }
 
     onAfterRender(renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D, group: Group) {
@@ -73,7 +91,7 @@ abstract class PerObjectBasicMaterial extends MeshBasicMaterial {
         this.opacity = 1
         this.transparent = false
         this.alphaMap = null
-        this.alphaTest = 0
+        this.alphaTest = 1e-4
         this.alphaHash = false
         this.side = FrontSide
         this.wireframe = false
@@ -90,18 +108,15 @@ export class UnlitOverrideMaterial extends PerObjectBasicMaterial {
 
     protected _copyFrom(material: SourceMaterial) {
         if (material.color !== undefined) this.color.copy(material.color)
-        // the program depends on the presence of these maps, so get it again (from the program cache) when it changes
-        const maps = this._maps()
         if (material.map !== undefined) this.map = material.map
         if (material.aoMap !== undefined) this.aoMap = material.aoMap
         if (material.aoMapIntensity !== undefined) this.aoMapIntensity = material.aoMapIntensity
         if (material.lightMap !== undefined) this.lightMap = material.lightMap
         if (material.lightMapIntensity !== undefined) this.lightMapIntensity = material.lightMapIntensity
-        if (maps !== this._maps()) this.needsUpdate = true
     }
 
-    private _maps() {
-        return !!this.map + ',' + !!this.aoMap + ',' + !!this.lightMap
+    protected _programKey() {
+        return super._programKey() + ',' + !!this.map + ',' + !!this.aoMap + ',' + !!this.lightMap
     }
 
     reset() {

@@ -377,4 +377,40 @@ describe('ViewOverridesPlugin', {timeout}, () => {
         expect(directions[0].dot(directions[2])).toBeLessThan(0.99)
         expect(directions[1].dot(directions[2])).toBeLessThan(0.99)
     })
+
+    test('the shared override materials get a new program exactly when the program state of the next mesh differs', () => {
+        const {plugin} = setup()
+        const renderer = {resetCurrentMaterial: vi.fn()} as any
+        const camera = new PerspectiveCamera()
+        const mesh = (params: any = {}) => new Mesh(new tp.BoxGeometry(), new MeshBasicMaterial(params))
+        // three.js picks the program again only when the material version changed since the last draw
+        const draw = (material: any, m: any) => {
+            material.onBeforeRender(renderer, m.parent, camera, m.geometry, m, null)
+            const version = material.version
+            material.onAfterRender(renderer, m.parent, camera, m.geometry, m, null)
+            return version
+        }
+        const textured = mesh({map: new Texture()}), plain = mesh(), plain2 = mesh()
+        const unlit = (plugin as any)._materials.unlit
+        const v1 = draw(unlit, textured)
+        const v2 = draw(unlit, plain)
+        expect(v2).not.toBe(v1) // no map: the program without the map define
+        expect(draw(unlit, plain2)).toBe(v2) // the same program state: no new program
+        expect(draw(unlit, textured)).not.toBe(v2)
+
+        // alpha map, alpha hash and side are program defines too, for each per-mesh override material
+        for (const key of ['unlit', 'materialId', 'uv']) {
+            const material = (plugin as any)._materials[key]
+            const a = draw(material, plain)
+            const b = draw(material, mesh({alphaMap: new Texture()}))
+            expect(b).not.toBe(a)
+            const c = draw(material, mesh({side: tp.DoubleSide}))
+            expect(c).not.toBe(b)
+            const d = draw(material, mesh({alphaHash: true}))
+            expect(d).not.toBe(c)
+            const e = draw(material, plain)
+            expect(e).not.toBe(d)
+            expect(draw(material, plain2)).toBe(e)
+        }
+    })
 })
