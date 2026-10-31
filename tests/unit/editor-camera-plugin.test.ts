@@ -742,4 +742,44 @@ describe('EditorCameraPlugin View and main camera plugins', () => {
             plugin.editing = true
         }
     })
+
+    // as BaseGroundPlugin with limitCameraAboveGround: the orbit controls of the main camera get a max polar angle
+    function groundLimit(scene: any) {
+        scene.addEventListener('mainCameraChange', () => {
+            const orbit = scene.mainCamera.controls as OrbitControls3 | undefined
+            if (orbit?.maxPolarAngle !== undefined) orbit.maxPolarAngle = Math.PI / 2
+        })
+    }
+
+    test('the limit stays on the preview when a viewer config loads in View', () => {
+        const {plugin, scene, start, viewer} = setup({orbit: true})
+        groundLimit(scene)
+        plugin.editing = false
+        ;(start.controls as OrbitControls3).maxPolarAngle = Math.PI // the start camera of the new file
+        viewer.assetManager.dispatchEvent({type: 'loadAsset', data: viewerConfig})
+        expect(scene.mainCamera).toBe(plugin.previewCamera)
+        expect(plugin.editing).toBe(false)
+        expect((plugin.previewCamera!.controls as OrbitControls3).maxPolarAngle).toBe(Math.PI / 2)
+    })
+
+    test('the preview gets the controls of a mode that a controls plugin gives the main camera only', () => {
+        const {plugin, scene, start} = setup({orbit: true})
+        // as ACameraControlsPlugin: the controls constructor of its mode is on the main camera only
+        const ctor = (object: any, dom: any) => new OrbitControls3(object, dom)
+        const register = (cam: any) => cam?.setControlsCtor?.('test', ctor, true)
+        scene.addEventListener('mainCameraChange', (e: any) => {
+            e.lastCamera?.removeControlsCtor?.('test')
+            register(scene.mainCamera)
+        })
+        register(start)
+        start.controlsMode = 'test'
+        expect(start.controls).toBeInstanceOf(OrbitControls3)
+        start.removeControlsCtor('test') // it is not the main camera
+        for (let i = 0; i < 2; i++) {
+            plugin.editing = false
+            expect(plugin.previewCamera!.controlsMode).toBe('test')
+            expect(plugin.previewCamera!.controls).toBeInstanceOf(OrbitControls3)
+            plugin.editing = true
+        }
+    })
 })

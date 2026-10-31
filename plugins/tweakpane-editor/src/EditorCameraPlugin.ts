@@ -362,11 +362,7 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
         }
     }
 
-    /**
-     * The preview camera takes the start camera: its controls, projection and settings, and its pose. When View
-     * starts, this runs before the preview becomes the main camera, and again after it if a controls plugin (as
-     * `ACameraControlsPlugin`) made the controls of its mode for the preview then.
-     */
+    /** The preview camera takes the start camera: its controls, projection and settings, and its pose. */
     private _copyStartToPreview() {
         const start = this.startCamera
         const preview = this._preview
@@ -381,6 +377,30 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
             setPose(preview, poseOf(start))
         })
         this._watchPreviewControls(preview.controls as OrbitControls3 | undefined)
+    }
+
+    /**
+     * The preview takes the start camera and becomes the main camera, when View starts or a start view loads in View.
+     *
+     * The copy runs before the main camera changes, so what plugins set on the main camera change (like the ground
+     * limit of BaseGroundPlugin) applies over it. A preview that is the main camera already (a load in View) changes
+     * to the editor camera and back for that. A controls plugin (as `ACameraControlsPlugin`) gives the constructor of
+     * its mode to the main camera only: for such a mode the copy, which makes the controls, runs after the change.
+     */
+    private _showPreview() {
+        const start = this.startCamera
+        const preview = this._preview
+        if (!start || !preview) return
+        const mode = start.controlsMode ?? ''
+        // the preview can have the controls of the mode before it is the main camera
+        const ready = () => !mode || preview.controlsMode === mode && !!preview.controls || !!preview.controlsCtors?.has(mode)
+        this._apply(() => {
+            if (preview.isMainCamera) this.camera.activateMain()
+            const copied = ready()
+            if (copied) this._copyStartToPreview()
+            preview.activateMain()
+            if (!copied || mode && !preview.controls) this._copyStartToPreview()
+        })
     }
 
     private _setPreviewPose(pose: StartPose) {
@@ -407,16 +427,8 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
         if (mode === 'edit') {
             this.camera.activateMain()
         } else if (mode === 'view') {
-            // the settings of the start camera first (they may have changed since the last View), then the main camera:
-            // what plugins set on the main camera change (like the ground limit of BaseGroundPlugin) applies over them
-            this._apply(() => {
-                const preview = this._preview
-                this._copyStartToPreview()
-                const controls = preview?.controls
-                preview?.activateMain()
-                // a controls plugin (as ACameraControlsPlugin) makes the controls of its mode only for the main camera
-                if (preview && preview.controls !== controls) this._copyStartToPreview()
-            })
+            // the settings of the start camera may have changed since the last View
+            this._showPreview()
         } else {
             viewer.scene.defaultCamera.activateMain()
         }
@@ -632,7 +644,7 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
         if (e.options?.importConfig === false || !hasStartView(e.data)) return
         this.copyStartView()
         // in View, the view is the start view of the new file, with its controls
-        if (this._mode === 'view') this._copyStartToPreview()
+        if (this._mode === 'view') this._showPreview()
         this._onStartUpdate()
         this._checkMoved()
     }
