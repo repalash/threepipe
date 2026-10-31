@@ -69,7 +69,8 @@ export async function filesHost(c: Context<CloudEnv>, next: Next) {
     if (key.startsWith('d/')) headers.set('referrer-policy', 'no-referrer') // the item id and the signature are the secret part of the URL
     const type = headers.get('content-type') || ''
     if (type.startsWith('text/html') || type.startsWith('image/svg')) headers.set('content-security-policy', HTML_SANDBOX)
-    if (!('body' in obj)) return new Response(null, {status: 304, headers})
+    // R2 answers a failed precondition without a body: If-None-Match/If-Modified-Since → 304, If-Match/If-Unmodified-Since → 412
+    if (!('body' in obj)) return new Response(null, {status: c.req.header('if-match') || c.req.header('if-unmodified-since') ? 412 : 304, headers})
     // R2 reports a range even when none was asked for: only a request with a Range header gets a 206
     if (c.req.header('range') && obj.range && 'offset' in obj.range) {
         const offset = obj.range.offset ?? 0

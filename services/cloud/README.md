@@ -18,17 +18,52 @@ npm run typecheck
 
 Files are served under `/_files/` locally; set `FILES_HOST` (wrangler vars) for `files.threepipe.org`.
 Without a GitHub OAuth app, sign in at `/login` with any username and password (`DEV_LOGIN=true` in `.dev.vars`, local
-only; a new username is signed up on the first try).
+only; a new username is signed up on the first try). teenybase's password routes (sign-up, login, change and reset
+password) answer 404 without DEV_LOGIN: a password account with someone's email would be signed in to by their Google
+or GitHub sign-in.
+
+## Deploy
+
+On threepipe's account (`account_id` in `wrangler.jsonc`), or your own after changing `account_id`, `routes`, the
+bucket names and the URLs in `vars`:
+
+```bash
+npx wrangler login               # or CLOUDFLARE_API_TOKEN
+npm run init-infra               # the R2 buckets of wrangler.jsonc that do not exist yet
+cp .prod.vars.example .prod.vars # fill it in (secrets, OAuth apps, Turnstile)
+npm run secrets-upload           # .prod.vars -> Worker secrets
+npm run deploy                   # the first one creates the D1 database: commit the database_id it writes
+```
+
+- Domains: after the first deploy, attach `cloud.threepipe.org` (API and pages) and `files.threepipe.org` (files host,
+  `FILES_HOST`) as custom domains of the Worker (Workers > threepipe-cloud > Settings > Domains & Routes). They are not
+  `routes` in `wrangler.jsonc`: with routes, `wrangler dev` rewrites the local request URL to the route's host. The samples bucket is served by R2 on `samples.threepipe.org` and
+  `asset-samples.threepipe.org`, the e2e bucket on `e2e-snapshots.threepipe.org` (R2 custom domains, set in the dashboard).
+- After the first deploy, migrations go through the Worker (`teeny deploy` calls its admin API with
+  `ADMIN_SERVICE_TOKEN`), so later deploys need a token for this Worker only, no D1 access.
+- Logs: Workers Logs and traces, and logpush to the account's Workers Logpush job; what needs a person is a
+  `console.error` line starting with `[cloud]`.
+
+## Sign-in
+
+- GitHub (`GITHUB_CLIENT_ID`/`_SECRET`) and Google (`GOOGLE_CLIENT_ID`/`_SECRET`; the Google button shows only when it is
+  set). OAuth callback URLs: `https://cloud.threepipe.org/api/v1/table/users/auth/oauth/<github|google>/callback`.
+  A Google sign-in with the email of an existing account signs in to that account.
+- The handle (`users.username`, in every `d/<handle>/` URL) never changes. GitHub gives the login; a new Google account
+  has none, so it picks one on its first visit ("Choose your handle", `POST /api/v1/handle`); until then every route but
+  `/api/v1/me` answers 403 `{handle: true}` (`src/handle.ts`).
+- Not Cloudflare yet: its profile has no email-verified flag, and accounts are linked by email.
 
 ## API
 
 | Route | Who | What |
 |---|---|---|
-| `/api/v1/table/users/auth/...` | anyone | sign-up / login (password, local) and GitHub sign-in (`/api/v1/table/users/auth/oauth/github`) |
+| `/api/v1/table/users/auth/...` | anyone | sign-up / login (password, local), GitHub and Google sign-in (`/api/v1/table/users/auth/oauth/<github\|google>`) |
+| `GET /api/v1/sign-in-options`, `POST /api/v1/handle` `{handle}` | anyone / a new Google account | the sign-in buttons; pick the handle once |
 | `POST /api/v1/access-links` `{name?}` | signed in | → `{id, name, url}`; the url is `/api/v1/access/<code>/agents.md` |
 | `GET /api/v1/access/<code>/agents.md` | the link | instructions and the API for agents |
 | `GET /api/v1/access/<code>/key` | the link | the user's JWT with `meta.link` (30 days); deleting the link revokes it |
-| `POST /api/v1/table/access_links/delete` `{where}` | owner | revoke a link (teenybase) |
+| `GET /api/v1/access-links`, `DELETE /api/v1/access-links/<id>` | signed in (not with a key) | your agents' links and connected apps; revoke one (its keys stop at once). teenybase's `/api/v1/table/access_links/…` works too |
 | `PUT /api/v1/uploads/<prefix>/<path>` | signed in / key | upload one file (body), max 90 MB → `{url, path, size, sha256, expires_at}` |
 | `DELETE /api/v1/uploads/<prefix>/<path>` | owner (`s b p`), staff (all) | the path then answers 410 |
 | `GET /api/v1/table/files/select` | owner | the user's files (teenybase) |
@@ -38,7 +73,8 @@ only; a new username is signed up on the first try).
 | `POST /api/v1/drive/items`, `PUT /api/v1/drive/items/<id>/<path>` | owner / app key | a folder item (gltf + bin + textures), file by file |
 | `GET/PATCH/DELETE /api/v1/drive/items/<id>` `{name?, folder?, visibility?}` | owner / app key | read, rename, move, share (`link`) or hide (`private`), delete |
 | `POST /api/v1/drive/items/<id>/sign` `{ttl?}`, `…/new-id` | owner / app key | signed URL of the whole item; a new id (old URLs stop working) |
-| `/drive` | browser | the drive page |
+| `/drive`, `/reports`, `/account` | browser | the drive, reports (with project settings) and Apps & keys pages (one look, `src/page/ui.css`: the clean mode of the tweakpane plugin, light and dark) |
+| `GET /api/v1/me` | signed in (not app keys) | handle, name, role, drive use and quota (the pages' side bar) |
 | `GET /api/v1/connect?return=<app url>` | browser | "Sign in with threepipe" for apps (below) |
 | `PUT /api/v1/buckets/<samples\|e2e>/<path>` + `x-content-sha256` | staff | write-once upload to the samples / e2e snapshot bucket (R2 serves them on `SAMPLES_URL` / `E2E_URL`); e2e paths are `blobs/<sha256><ext>` |
 | `POST /api/v1/buckets/<samples\|e2e>/missing` `{paths}` | staff | which of up to 500 paths are not there yet |
@@ -52,6 +88,52 @@ only; a new username is signed up on the first try).
 
 The first segment (`b`: `<repo>/<ref>`) belongs to whoever uploads there first; `d/<handle>` belongs to the user with
 that username (it can't be changed). Roles (`member`, `staff`, `admin`) are set by an admin on `users.role`.
+
+## Projects and reports
+
+Report a Problem / feedback for any threepipe app (`src/projects.ts`, `src/reports.ts`). Any member creates up
+to 5 projects (slugs starting with `threepipe` are for staff) and adds members as `reader` or `manager`. Members read the
+reports on `/reports` (signed in) or through the API.
+
+| Route | Who | What |
+|---|---|---|
+| `POST /api/v1/projects` `{slug, name}`, `GET /api/v1/projects` | signed in | create, list mine |
+| `GET /api/v1/projects/<slug>` | reader | name, your role, owner, whether a Discord webhook is set |
+| `PATCH /api/v1/projects/<slug>` `{name?, discord_webhook?}` | manager | a Discord card per report (no user text on it) |
+| `GET/POST /api/v1/projects/<slug>/members`, `DELETE …/members/<username>` | reader / manager | members |
+| `POST /api/v1/projects/<slug>/reports` | anyone | `Idempotency-Key`; signed in (cookie or key) or `cf-turnstile-response`; JSON or multipart (`report` + up to 3 `file`s) → `{id}` (`R-XXXXXX`) |
+| `GET …/reports?status=&type=&q=&before=`, `GET …/reports/<id>`, `…/image`, `…/files/<i>` | reader | list, read |
+| `PATCH …/reports/<id>` `{status?, note?}`, `DELETE …/reports/<id>` | manager | the row stays as a tombstone |
+
+The server redacts every field again (query strings, tokens, home-folder user names, other emails). Daily caps per sender
+(user id, or a keyed hash of the IP), per project and in total (`REPORTS_*` vars). Anonymous reports need Turnstile
+(`TURNSTILE_SECRET`, solved on `TURNSTILE_HOSTNAMES`); signed-in senders skip it.
+
+## Limits
+
+All in `src/limits.ts`: constants (a change is a deploy), except the daily report caps, which are wrangler vars
+(`REPORTS_DAILY_CAP`, `REPORTS_DAILY_CAP_PROJECT`, `REPORTS_DAILY_CAP_ALL`, `REPORTS_DAILY_FILE_BYTES_ALL` in
+`wrangler.jsonc`; the constants are their defaults). agents.md quotes them; `@threepipe/plugin-cloud` keeps a copy of
+the report limits (`LIMITS`).
+
+One user can have other limits: an admin adds a row to `user_limits` (admin panel, or `POST /api/v1/table/user_limits/insert`
+with the admin token) with `user_id` and any of `drive_quota` (bytes), `projects` and `reports_daily`; a column left
+empty keeps the role's limit, and `note` says why. Users can't read or change the table (it is not in `users`, whose
+rows they can edit).
+
+| What | Limit |
+|---|---|
+| A file upload (uploads, drive, staff buckets) | 90 MB per request |
+| `s/` share | 7 days, `?ttl=` up to 30 |
+| `b/` build | 30 days after its last upload |
+| Drive quota | 1 GB members, 50 GB staff and admins |
+| Signed drive URL | 1 hour by default, up to 7 days |
+| Files per item | 500 (share, unshare and new id rewrite each one) |
+| Listing a folder | 1000 folders and 1000 items |
+| Access key / app key | 30 days / 24 hours |
+| Projects a member owns | 5 (staff: any) |
+| A report | JSON 5 MB, screenshot 3 MB, text 10 000 characters, log 500 lines of 1000, environment 8 KB, context 16 KB, 3 files and 10 MB together |
+| Reports in 24 hours | 20 per sender, 300 per project, 1000 in all, 2 GB of files in all |
 
 ## Uploading from the repository
 
@@ -69,7 +151,7 @@ is developed can save to the user's drive. There is nothing to register: the app
 
 1. The app sends the user to `/api/v1/connect?return=<its page url>` (`&access=drive` asks for the whole drive).
    `localhost` and `*.localhost` pages are allowed too, for development.
-2. Signed out: the page offers GitHub sign-in. The first time: a consent page names the app, who serves it, and the folder.
+2. Signed out: the page offers GitHub or Google sign-in. The first time: a consent page names the app, who serves it, and the folder.
 3. On Allow, the user comes back to `<return>#tp_cloud_key=…&tp_cloud_user=…&tp_cloud_folder=…&tp_cloud_api=…`.
    Once allowed, step 1 redirects straight back with a new key (no screen).
 4. The key (24 h) works only on the drive routes, inside the app's folder `Apps/<app>` (made on the first approval;

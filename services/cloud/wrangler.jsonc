@@ -2,40 +2,63 @@
     // Deploy, migrate and run the dev server with 'npx teenybase' (it wraps wrangler: generates migrations, creates the D1 database, uploads secrets). 'npx wrangler login' / 'whoami' are fine to run directly.
     "$schema": "node_modules/wrangler/config-schema.json",
     "name": "threepipe-cloud",
+    "account_id": "3c4cf55a12810e878be2349f1411ca08",
     "main": "src/index.ts",
     "compatibility_date": "2026-10-30",
     "compatibility_flags": ["nodejs_compat"],
+    // Workers Logs (7 days in the dashboard) and traces; logpush sends the trace events (console.error lines and
+    // exceptions included) to the account's Workers Logpush job, kept in its bucket. Failures that need a person
+    // (sign-in provider errors, Discord, Turnstile, cron, 5xx) are console.error lines starting with "[cloud]".
     "observability": {
         "enabled": true,
         "logs": {
             "invocation_logs": true,
             "head_sampling_rate": 1
+        },
+        "traces": {
+            "enabled": true
         }
     },
+    // Custom domains cloud.threepipe.org (API and pages) and files.threepipe.org (FILES_HOST) are attached to the Worker
+    // once, after the first deploy (README, Deploy), not listed as routes here: with routes, `wrangler dev` rewrites the
+    // local request URL to the route's host, and `teeny dev` cannot turn that off (issues: teenybase).
+    // only the custom domains: no <name>.<subdomain>.workers.dev address and no preview URLs
+    "workers_dev": false,
+    "preview_urls": false,
+    "logpush": true,
+    "upload_source_maps": true,
     // Keep "false" in production: "true" adds internal error details to API responses.
     // For local debugging, set RESPOND_WITH_ERRORS=true in .dev.vars instead (local dev only).
     "vars": {
         "RESPOND_WITH_ERRORS": "false",
-        // Host that serves uploaded files (src/files.ts). Unset: files are served under /_files/ on the API host (local dev).
-        "FILES_HOST": "",
+        // Host that serves uploaded files (src/files.ts). Empty (.dev.vars locally): served under /_files/ on the API host.
+        "FILES_HOST": "files.threepipe.org",
         // public URLs of the staff buckets (src/buckets.ts); R2 serves them on these domains
         "SAMPLES_URL": "https://samples.threepipe.org",
-        "E2E_URL": "https://e2e-snapshots.threepipe.org"
+        "E2E_URL": "https://e2e-snapshots.threepipe.org",
+        // anonymous reports: the hostnames our Turnstile widget is solved on (src/turnstile.ts)
+        "TURNSTILE_HOSTNAMES": "threepipe.org,files.threepipe.org,cloud.threepipe.org,editor.threepipe.org",
+        // reports in 24 hours: per sender, per project, in total, and attached bytes in total (src/reports.ts)
+        "REPORTS_DAILY_CAP": "20",
+        "REPORTS_DAILY_CAP_PROJECT": "300",
+        "REPORTS_DAILY_CAP_ALL": "1000",
+        "REPORTS_DAILY_FILE_BYTES_ALL": "2147483648"
     },
     // the pages and their scripts are imported as strings (src/page.ts)
-    "rules": [{ "type": "Text", "globs": ["**/*.html", "**/*.client.js"], "fallthrough": true }],
+    "rules": [{ "type": "Text", "globs": ["**/*.html", "**/*.client.js", "**/*.css"], "fallthrough": true }],
     "triggers": { "crons": ["17 3 * * *"] }, // daily: delete expired files (src/cron.ts)
     "r2_buckets": [
         { "binding": "CLOUD_BUCKET", "bucket_name": "threepipe-cloud" },
-        // TODO confirm the bucket name behind samples.threepipe.org before deploying
-        { "binding": "SAMPLES_BUCKET", "bucket_name": "threepipe-samples" },
+        // served by R2 on samples.threepipe.org and asset-samples.threepipe.org (SAMPLES_URL)
+        { "binding": "SAMPLES_BUCKET", "bucket_name": "threepipe-sample-assets-1" },
+        // served by R2 on e2e-snapshots.threepipe.org (E2E_URL)
         { "binding": "E2E_BUCKET", "bucket_name": "threepipe-e2e-snapshots" }
     ],
     "d1_databases": [
         {
             "binding": "PRIMARY_DB",
             "database_name": "threepipe-cloud",
-            "database_id": "TEENY_AUTO_CREATE",
+            "database_id": "4e1e4c21-81fe-4f1d-89b0-d56f8aa87231",
             "migrations_dir": "migrations"
         }
     ]

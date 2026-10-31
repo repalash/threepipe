@@ -1,0 +1,24 @@
+<!-- The account page of threepipe cloud (src/page.ts): the apps you connected and your agents' access links (src/access.ts). Look: /ui.css. -->
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Apps & keys · threepipe cloud</title>
+<link rel="stylesheet" href="/ui.css">
+<script src="/ui.js" defer></script>
+<script src="/account/page.js" type="module"></script>
+</head>
+<body>
+<div id="login" class="center" hidden></div>
+<div id="app" class="frame" hidden>
+  <nav id="side"></nav>
+  <main>
+    <div class="toolbar"><h1>Apps & keys</h1><span class="grow"></span><button class="primary" data-new-link></button></div>
+    <div class="scroll" id="list"></div>
+  </main>
+  <aside id="panel"></aside>
+</div>
+</body>
+</html>

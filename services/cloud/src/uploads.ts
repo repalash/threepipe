@@ -1,18 +1,14 @@
 import type {Context, Hono} from 'hono'
 import {HTTPException} from 'hono/http-exception'
 import type {CloudEnv} from './env'
-import {BUCKET, cleanSegments, filesOrigin, hex, keyUrl, prefixRange} from './env'
+import {BUCKET, cleanSegments, fileUrl, hex, prefixRange} from './env'
 import {assertScope, CloudUser, isStaff, requireUser} from './auth'
+import {BUILD_DAYS, DAY, SHARE_DEFAULT_DAYS, SHARE_MAX_DAYS, sizeText, UPLOAD_MAX_BYTES} from './limits'
 
-/** Per file, through the Worker. Bigger builds are split into files anyway (one PUT per file). */
-export const MAX_UPLOAD_BYTES = 90 * 1024 * 1024
-const DAY = 24 * 60 * 60 * 1000
-const SHARE_DEFAULT_DAYS = 7
-const SHARE_MAX_DAYS = 30
-const BUILD_DAYS = 30
+const DAY_MS = DAY * 1000
 
 // the drive (d/) has its own routes: src/drive.ts
-export type Prefix = 's' | 'a' | 'b' | 'p'
+type Prefix = 's' | 'a' | 'b' | 'p'
 const PREFIXES: Prefix[] = ['s', 'a', 'b', 'p']
 
 const MIME: Record<string, string> = {
@@ -44,13 +40,13 @@ function target(prefix: Prefix, segs: string[], c: Context<CloudEnv>, user: Clou
         if (segs.length < 2) throw new HTTPException(400, {message: 's/<slug>/<file path>'})
         const days = c.req.query('ttl') ? Number(c.req.query('ttl')) : SHARE_DEFAULT_DAYS
         if (!Number.isFinite(days) || days <= 0 || days > SHARE_MAX_DAYS) throw new HTTPException(400, {message: `ttl is a number of days, 1 to ${SHARE_MAX_DAYS}`})
-        return {key: 's/' + segs.join('/'), scope: 's/' + segs[0], expiresAt: new Date(now + days * DAY).toISOString()}
+        return {key: 's/' + segs.join('/'), scope: 's/' + segs[0], expiresAt: new Date(now + days * DAY_MS).toISOString()}
     }
     case 'b':
         if (segs.length < 3) throw new HTTPException(400, {message: 'b/<repo>/<pr-123 or sha>/<file path>'})
-        return {key: 'b/' + segs.join('/'), scope: `b/${segs[0]}/${segs[1]}`, expiresAt: new Date(now + BUILD_DAYS * DAY).toISOString()}
+        return {key: 'b/' + segs.join('/'), scope: `b/${segs[0]}/${segs[1]}`, expiresAt: new Date(now + BUILD_DAYS * DAY_MS).toISOString()}
     case 'p':
-        if (segs.length < 1) throw new HTTPException(400, {message: 'p/<name>/<file path>'})
+        if (segs.length < 2) throw new HTTPException(400, {message: 'p/<name>/<file path>'})
         return {key: 'p/' + segs.join('/'), scope: 'p/' + segs[0], expiresAt: null}
     case 'a': {
         if (segs.length !== 1) throw new HTTPException(400, {message: 'a/<file name>'})
@@ -62,7 +58,7 @@ function target(prefix: Prefix, segs: string[], c: Context<CloudEnv>, user: Clou
 }
 
 /** `<prefix>/<path>` of a request to /api/v1/uploads/:prefix/:path, checked. */
-export function requestKey(c: Context<CloudEnv>): {prefix: Prefix, segs: string[], key: string} {
+function requestKey(c: Context<CloudEnv>): {prefix: Prefix, segs: string[], key: string} {
     const prefix = c.req.param('prefix') as Prefix
     if (!PREFIXES.includes(prefix)) throw new HTTPException(404, {message: `prefix is one of ${PREFIXES.join(', ')}`})
     const segs = cleanSegments((c.req.param('path') || ''))
@@ -86,7 +82,7 @@ export async function putStreamed(bucket: R2Bucket, key: string, body: ReadableS
 export function uploadSize(c: Context<CloudEnv>): number {
     const size = Number(c.req.header('content-length'))
     if (!Number.isInteger(size) || size <= 0) throw new HTTPException(411, {message: 'send the file as the request body, with Content-Length'})
-    if (size > MAX_UPLOAD_BYTES) throw new HTTPException(413, {message: `max ${MAX_UPLOAD_BYTES / 1024 / 1024} MB per file`})
+    if (size > UPLOAD_MAX_BYTES) throw new HTTPException(413, {message: `max ${sizeText(UPLOAD_MAX_BYTES)} per file`})
     return size
 }
 
@@ -114,7 +110,7 @@ export function uploadRoutes(app: Hono<CloudEnv>) {
         const {prefix, segs} = requestKey(c)
         const size = uploadSize(c)
         const t = target(prefix, segs, c, user)
-        assertScope(user, t.key)
+        assertScope(user)
         if (t.scope) await claimScope(c.env, t.scope, user)
         const contentType = contentTypeFor(t.key, c.req.header('content-type'))
         const body = c.req.raw.body
@@ -123,8 +119,9 @@ export function uploadRoutes(app: Hono<CloudEnv>) {
         if (prefix === 'a') {
             const existing = await c.env.CLOUD_BUCKET.head(t.key)
             if (existing) {
+                if (existing.customMetadata?.deleted) throw new HTTPException(410, {message: `removed: ${existing.customMetadata.deleted}`})
                 if (existing.customMetadata?.sha256 !== t.sha256) throw new HTTPException(409, {message: 'another file has the same short hash and name; rename the file'})
-                return c.json({url: keyUrl(filesOrigin(c.env, new URL(c.req.url).origin), t.key), path: t.key, size: existing.size, sha256: t.sha256, expires_at: null, existed: true})
+                return c.json({url: fileUrl(c, t.key), path: t.key, size: existing.size, sha256: t.sha256, expires_at: null, existed: true})
             }
         }
 
@@ -149,16 +146,16 @@ export function uploadRoutes(app: Hono<CloudEnv>) {
         // a new upload to a build keeps the whole build alive; at most once a day, not on every file of an upload
         if (prefix === 'b' && t.scope) {
             await c.env.PRIMARY_DB.prepare(`UPDATE files SET expires_at = ? WHERE bucket = ? AND path >= ? AND path < ? AND deleted_at IS NULL AND expires_at < ?`)
-                .bind(t.expiresAt, BUCKET, ...prefixRange(t.scope + '/'), new Date(Date.now() + (BUILD_DAYS - 1) * DAY).toISOString()).run()
+                .bind(t.expiresAt, BUCKET, ...prefixRange(t.scope + '/'), new Date(Date.now() + (BUILD_DAYS - 1) * DAY_MS).toISOString()).run()
         }
-        return c.json({url: keyUrl(filesOrigin(c.env, new URL(c.req.url).origin), t.key), path: t.key, size, sha256, expires_at: t.expiresAt})
+        return c.json({url: fileUrl(c, t.key), path: t.key, size, sha256, expires_at: t.expiresAt})
     })
 
 
     app.delete('/api/v1/uploads/:prefix/:path{.+}', async (c) => {
         const user = await requireUser(c)
         const {key} = requestKey(c)
-        assertScope(user, key)
+        assertScope(user)
         const row = await c.env.PRIMARY_DB.prepare('SELECT owner_id, prefix FROM files WHERE bucket = ? AND path = ? AND deleted_at IS NULL')
             .bind(BUCKET, key).first<{owner_id: string, prefix: Prefix}>()
         if (!row) throw new HTTPException(404, {message: 'not found'})
