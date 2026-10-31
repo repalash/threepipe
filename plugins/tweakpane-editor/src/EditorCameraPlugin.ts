@@ -69,6 +69,8 @@ function setPose(camera: ICamera, pose: StartPose) {
     camera.target.copy(pose.target)
     // a camera without controls or autoLookAtTarget does not turn by itself: its rotation is part of the pose
     camera.quaternion.copy(pose.quaternion)
+    // controls that keep their own look angles (FirstPersonControls2) take the new rotation
+    ;(controls as {setOrientation?: () => void} | undefined)?.setOrientation?.()
     camera.setDirty()
 }
 
@@ -242,8 +244,6 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
     private _dragging = false
     /** A user gesture moved the preview since View started, or since the last save, reset, undo or load, and the move is not saved */
     private _userMoved = false
-    /** The undo manager of the {@link UndoManagerPlugin}, while it is added */
-    private _undoManager?: UndoManagerPlugin['undoManager']
 
     constructor() {
         super()
@@ -317,12 +317,6 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
         start.addEventListener('cameraUpdate', this._onStartUpdate)
         preview.addEventListener('cameraUpdate', this._onPreviewUpdate)
         window.addEventListener('keydown', this._onKeyDown)
-        // by its type name, as the PickingPlugin: the plugin works without it
-        viewer.forPlugin<UndoManagerPlugin>('UndoManagerPlugin', (um) => {
-            this._undoManager = um.undoManager
-        }, () => {
-            this._undoManager = undefined
-        }, this)
         this._lastStart = poseOf(start)
         this.copyStartView()
         this._refreshEditing()
@@ -343,7 +337,6 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
         this._preview?.removeEventListener('cameraUpdate', this._onPreviewUpdate)
         window.removeEventListener('keydown', this._onKeyDown)
         this._watchPreviewControls(undefined)
-        this._undoManager = undefined
         if (wasOn) this.dispatchEvent({type: 'editingChange', editing: false})
         this._checkMoved()
         this.camera.removeFromParent()
@@ -713,8 +706,10 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
 
     /** Records an undo step (with the {@link UndoManagerPlugin}). Its `after` can change until it is undone. */
     private _recordStartView(before: StartPose, after: StartPose): StartMove | undefined {
-        const undoManager = this._undoManager
-        if (!undoManager || samePose(before, after)) return undefined
+        if (samePose(before, after)) return undefined
+        // by its type name, as the PickingPlugin: the plugin works without it, and it can be added or removed any time
+        const undoManager = this._viewer?.getPlugin<UndoManagerPlugin>('UndoManagerPlugin')?.undoManager
+        if (!undoManager) return undefined
         const move: StartMove = {before, after}
         undoManager.record({
             undo: () => this._moveStartView(move.before),

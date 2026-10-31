@@ -48,20 +48,11 @@ function setup({undo = true, orbit = false, ortho = false, sync = false} = {}) {
 
     const records: {undo: () => void, redo: () => void}[] = []
     const undoPlugin = {undoManager: {record: (r: any) => records.push(r)}}
-    // the subscriptions of forPlugin: mounted at once when the plugin is there; unmount for a remove of the plugin
-    const subscriptions: {type: string, mount: (p: any) => void, unmount?: (p: any) => void}[] = []
     const viewer = Object.assign(new EventDispatcher<any>(), {
         scene,
         canvas,
         assetManager: new EventDispatcher<any>(),
         getPlugin: (p: any) => undo && (p === 'UndoManagerPlugin' || p?.PluginType === 'UndoManagerPlugin') ? undoPlugin : undefined,
-        forPlugin: (type: string, mount: (p: any) => void, unmount?: (p: any) => void) => {
-            subscriptions.push({type, mount, unmount})
-            const p = viewer.getPlugin(type)
-            if (p) mount(p)
-        },
-        subscriptions,
-        undoPlugin,
     }) as any
 
     const plugin = new EditorCameraPlugin()
@@ -419,6 +410,33 @@ describe('EditorCameraPlugin', () => {
         plugin.editing = false
         expect(preview.controls).toBeInstanceOf(FirstPersonControls2)
         expect(preview.controls!.enabled).toBe(true)
+    })
+
+    test('first-person controls of the preview look in the direction of the start view after a copy or a reset', () => {
+        const {plugin, scene, start, preview} = setup({orbit: true})
+        const ctor = (object: any, dom: any) => new FirstPersonControls2(object, dom)
+        scene.addEventListener('mainCameraChange', () => scene.mainCamera?.setControlsCtor?.('fp', ctor, true))
+        start.setControlsCtor('fp', ctor, true)
+        start.controlsMode = 'fp'
+        start.removeControlsCtor('fp')
+        start.lookAt(start.position.clone().add(new Vector3(1, 0, 0))) // the start view looks along +x
+        start.setDirty()
+        preview.activateMain = (() => {
+            scene.mainCamera = preview
+            preview.userData.__isMainCamera = true
+            scene.dispatchEvent({type: 'mainCameraChange'})
+            preview.refreshCameraControls(false)
+        }) as any
+        const direction = (c: any) => new Vector3(0, 0, -1).applyQuaternion(c.quaternion)
+        plugin.editing = false
+        ;(preview.controls as FirstPersonControls2).update()
+        expect(direction(preview).distanceTo(direction(start))).toBeLessThan(1e-3)
+        // another direction, then a reset
+        preview.lookAt(preview.position.clone().add(new Vector3(0, 0, 1)))
+        ;(preview.controls as FirstPersonControls2).setOrientation()
+        plugin.resetStartView()
+        ;(preview.controls as FirstPersonControls2).update()
+        expect(direction(preview).distanceTo(direction(start))).toBeLessThan(1e-3)
     })
 
     test('syncStartView: an auto rotation of the preview does not keep a gesture on after the pointer is up', () => {
@@ -875,22 +893,20 @@ describe('EditorCameraPlugin', () => {
         expect(records).toHaveLength(1)
     })
 
-    test('the UndoManagerPlugin is looked up once (forPlugin), not on each record; after its remove, there are no records', () => {
-        vi.useFakeTimers()
-        const {plugin, start, preview, records, viewer} = setup({sync: true})
-        const getPlugin = vi.spyOn(viewer, 'getPlugin')
-        plugin.editing = false
-        gesture(preview, () => {
-            for (let i = 0; i < 5; i++) move(preview, i + 1, 1, 0) // each frame of a synced move
-        })
+    test('the UndoManagerPlugin is found when a step is recorded: none after its remove, and again after it is added back', () => {
+        const {plugin, start, records, viewer} = setup()
+        const getPlugin = viewer.getPlugin
         plugin.camera.position.set(2, 3, 4)
         plugin.setStartViewFromEditor()
-        expect(records).toHaveLength(2)
-        expect(getPlugin).not.toHaveBeenCalled()
-        for (const s of viewer.subscriptions) if (s.type === 'UndoManagerPlugin') s.unmount?.(viewer.undoPlugin)
+        expect(records).toHaveLength(1)
+        viewer.getPlugin = () => undefined // removed
         plugin.camera.position.set(1, 3, 4)
         plugin.setStartViewFromEditor()
         expect(start.position.toArray()).toEqual([1, 3, 4])
+        expect(records).toHaveLength(1)
+        viewer.getPlugin = getPlugin // added back
+        plugin.camera.position.set(0, 3, 4)
+        plugin.setStartViewFromEditor()
         expect(records).toHaveLength(2)
     })
 
@@ -1131,7 +1147,7 @@ class FakeEditorCamera extends EventDispatcher<any> {
     }
 }
 
-/** A viewer with the plugin listeners of ThreeViewer (forPlugin), and what the UI uses */
+/** A viewer with the plugin listeners of ThreeViewer, and what the UI uses */
 function uiViewer() {
     const plugins: Record<string, any> = {}
     const listeners = (type: 'add' | 'remove', p: any) => viewer._pluginListeners[type]
@@ -1142,7 +1158,6 @@ function uiViewer() {
         renderManager: {needsRender: false},
         _pluginListeners: {add: [], remove: []},
         getPlugin: (t: any) => plugins[typeof t === 'string' ? t : t.PluginType],
-        forPlugin: ThreeViewer.prototype.forPlugin,
         addPluginListener: ThreeViewer.prototype.addPluginListener,
         removePluginListener: ThreeViewer.prototype.removePluginListener,
         add(p: any) {
