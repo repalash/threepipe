@@ -34,6 +34,7 @@ import {TweakpaneEditorPlugin} from '@threepipe/plugin-tweakpane-editor'
 const viewer = new ThreeViewer({...})
 
 viewer.addPluginSync(new TweakpaneUiPlugin(true))
+// TweakpaneEditorPlugin.DefaultLayout = 'classic' // before the plugin is made: the layout when none is stored
 const editor = viewer.addPluginSync(new TweakpaneEditorPlugin())
 
 // Add some plugins to the viewer
@@ -54,6 +55,56 @@ editor.loadPlugins({
 })
 ```
 
+## Page layout, frame and mode bar
+
+`TweakpaneEditorPlugin.layout` sets the layout of the page. The first three layouts put the editor in a page frame (`EditorFrame`). In a frame, the modes are coloured icons on the right (`EditorModeBar`) instead of the tabs at the bottom.
+
+- `'titlebar'` (the default): a slim bar on top with the app name, the file name and the actions. The canvas and the panel are edge to edge below it.
+- `'statusbar'`: the same bar at the bottom, like a code editor.
+- `'floating'`: the canvas fills the window. The panel and the mode bar float over it as one card (side by side, with a line between them), with the same gap to the window on every side (no gap on a phone in portrait, where the room is small). The actions are in the mode bar. It has no bar, so it does not show the file name.
+- `'classic'`: no frame. The page has the mode tabs at the bottom, as before.
+
+In the frame:
+- A click on a mode shows its panels. A click on the open mode hides the panel, and the canvas takes its room.
+- The button at the bottom of the mode bar steps through three states: the mode names and the panel, the icons and the panel, the icons only (the panel hidden), then back. Ctrl+\\ (Cmd+\\ on a Mac) does the same. Its tooltip names the next step. A window without room for the names skips them. A click on the open mode still hides or shows the panel.
+- Shift+T switches between the light and the dark theme of the same family (`clean` and `clean-dark`, `light` and `dark`, `white` and `black`).
+- The layout button opens the layout menu, with Classic too.
+- The bar has a slot for the name of the open file or project: the app sets it with `editor.documentName` (empty: no name), and it is kept when the frame is made again. A click on the name in the bar renames it (Enter or a click outside keeps it, Escape goes back). Each change sends the `documentNameChange` event (`{name}`), so the app can use the name elsewhere. The plugin does not follow the loads. The tweakpane-editor example shows `Untitled`, then the name of the first loaded model or viewer config file (a URL or a dropped file); later files, or a name that the person typed, do not change it. The example also names the exported file with it (`AssetExporterPlugin.exportOptions.name`).
+
+The plugin has a UI folder, `Editor`, with the page layout and the mode names. Add `TweakpaneEditorPlugin` to a mode (`loadPlugins`) to show it; it works in the classic layout too.
+
+The layout that the person picks (in the menu or the UI) is kept in `localStorage` (`TweakpaneEditorPlugin.LayoutStorageKey`), and so is the names setting that the person picks in the mode bar (`EditorModeBar.StorageKey`; set a key to `null` to not keep it). A layout or a names setting set from code (`editor.layout = 'floating'`, `editor.modeNames = false`) applies, but is not kept, so the person's pick is back at the next visit. `TweakpaneEditorPlugin.DefaultLayout` is the layout when none is stored. The plugin reads the stored layout when it is made, so set `TweakpaneEditorPlugin.LayoutStorageKey` and `TweakpaneEditorPlugin.DefaultLayout` before `new TweakpaneEditorPlugin()`. For the old page with the mode tabs at the bottom in an app, set `TweakpaneEditorPlugin.DefaultLayout = 'classic'`, or `editor.layout = 'classic'` (this one also replaces a layout that the person picked).
+
+The frame applies in every window size. In a wide or a landscape window, the canvas, the panel and the mode bar are side by side. In a portrait window under 920 px wide (a phone), the layout keeps its bars (floating has no gap there). The canvas is on top at full width, and the panel and the mode bar are below it, with the same height. The CSS variable `--lay-split` is the part of the height for the canvas: `0.45`, set on `body.lay-frame`. To change it, use a more specific rule, like `html body.lay-frame { --lay-split: 0.5; }`. A mode bar taller than its room scrolls. When the panel is hidden, the mode bar is a row at the bottom, and a tap on a mode brings the panel back. The mode names are hidden at the first visit in a window under 920 px wide (`EditorModeBar.WideQuery`).
+
+```typescript
+import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
+import {EditorModeBar, TweakpaneEditorPlugin} from '@threepipe/plugin-tweakpane-editor'
+
+viewer.addPluginSync(new TweakpaneUiPlugin(true))
+// TweakpaneEditorPlugin.DefaultLayout = 'classic' // before the plugin is made: the layout when none is stored
+const editor = viewer.addPluginSync(new TweakpaneEditorPlugin())
+editor.frameOptions = {title: 'My app'} // before loadPlugins, which makes the frame
+// the colour and icon of a mode (an SVG string), also before loadPlugins, which makes the mode bar
+EditorModeBar.Looks['My mode'] = {color: '#0d99ff', icon: '<svg ...></svg>'}
+editor.loadPlugins({
+    ['Viewer']: [ViewerUiConfigPlugin, TweakpaneEditorPlugin], // with the Editor folder
+    ['Export']: [AssetExporterPlugin],
+    ['My mode']: [MyPlugin],
+})
+
+editor.layout = 'floating'
+editor.modeNames = false // icons only
+editor.documentName = 'Ring.glb'
+// a rename in the bar, or a change from the code
+editor.addEventListener('documentNameChange', ({name}) => console.log('name', name))
+
+// back to the mode tabs at the bottom
+editor.layout = 'classic'
+```
+
+In the [Tweakpane Editor example](https://threepipe.org/examples/tweakpane-editor/), add `?layout=titlebar`, `?layout=statusbar`, `?layout=floating` or `?layout=classic` to the URL.
+
 ## NotesPlugin and StickyNotesUiPlugin
 
 [Example](https://threepipe.org/examples/#notes-plugin/) &mdash;
@@ -73,7 +124,7 @@ Changes are saved per store, 600 ms after the last one, and when the plugin is r
 - `board`: each note is its own post-it. A new post-it goes below the last one in its column, inside the canvas and above the dock; when no column has room (a phone has room for one), the columns start again a little lower and to the right. "Arrange" puts all of them in columns by the same rule. "Stack" switches to the other layout.
 - `stack`: the post-its lie on a pile, each one a little to the left of and above the one on it, so the pile stays on the canvas. A click on a post-it behind brings it to the top; the pile is dragged and sized as one. "Spread" switches back.
 
-"Minimise" (the `minimized` layout) takes the post-its off the canvas. Only one button stays in the dock, with the number of notes; a click on it brings back the layout from before.
+"Minimise" (the `minimized` layout) takes the post-its off the canvas. Only one button stays in the dock, with the number of notes; a click on it brings back the layout from before. The post-its start minimized on each page load, so they do not cover the canvas; the button brings back the layout set last. `new StickyNotesUiPlugin(storageKey, false)` starts in that layout instead.
 
 In both layouts:
 

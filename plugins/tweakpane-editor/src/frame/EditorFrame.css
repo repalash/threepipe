@@ -1,0 +1,219 @@
+/* the text of the bars: the size of the panel text, 13px, 12px in the clean themes (11px text); the status bar 1px less */
+body.tpTheme-clean, body.tpTheme-clean-dark { --lay-font-size: 12px; }
+
+/* EditorModeBar: the mode buttons on the right. The bar sets its width, --mb-width (EditorModeBar.Widths: 44 px, 168 px
+   with the names). z-index: the panels and bars layer of the UI layers in CONTRIBUTING.md (200 to 999), as the title and
+   status bar (210) */
+.mb-root {
+    --mb-bg: #ffffff; --mb-line: #e6e6e6; --mb-hover: #f2f3f5;
+    position: fixed; right: 0; top: 0; bottom: 0; width: var(--mb-width, 44px); z-index: 200; display: flex; flex-direction: column; align-items: center; gap: 4px;
+    padding: 10px 0; background: var(--mb-bg); border-left: 1px solid var(--mb-line); box-sizing: border-box;
+    font: 500 var(--lay-font-size, 13px)/1 var(--tp-font-family, Inter, ui-sans-serif, system-ui, sans-serif); -webkit-font-smoothing: antialiased;
+    /* a short window: the bar scrolls, so every mode and the buttons at the bottom stay reachable; the scroll stops at
+       its ends, without moving the page */
+    overflow-x: hidden; overflow-y: auto; scrollbar-width: thin; overscroll-behavior: contain;
+}
+body[class*="tpTheme-"] .mb-root {
+    --mb-bg: var(--tp-base-background-color, #1c2026); --mb-line: var(--tp-container-border-color, rgba(255,255,255,.1));
+    --mb-hover: var(--tp-button-background-color-hover, rgba(255,255,255,.08));
+}
+.mb-btn {
+    position: relative; width: 28px; height: 28px; flex-shrink: 0; border: 0; border-radius: 5px; background: transparent; color: var(--mb-color); cursor: pointer;
+    display: flex; align-items: center; justify-content: center; padding: 0; transition: background-color .12s; font: inherit;
+}
+.mb-btn:hover { background: var(--mb-hover); }
+.mb-btn.on { background: color-mix(in srgb, var(--mb-color) 16%, transparent); }
+.mb-btn:focus-visible { outline: 2px solid var(--mb-color, #0d99ff); outline-offset: 1px; }
+.mb-btn svg { width: 20px; height: 20px; flex-shrink: 0; } /* the size the mode icons are drawn for (20 px viewBox, stroke 1.6); the 16 px frame action icons scale to about the same stroke */
+.mb-label { display: none; font: inherit; color: var(--tp-container-foreground-color, #1e1e1e); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mb-toggle { margin-top: auto; color: var(--tp-label-foreground-color, #8a8f98); }
+.mb-toggle svg { transition: transform .15s; }
+/* expanded: a sidebar with the names */
+.mb-root.mb-wide { align-items: stretch; padding: 10px 6px; }
+.mb-wide .mb-btn { width: auto; justify-content: flex-start; gap: 10px; padding: 0 8px; }
+.mb-wide .mb-label { display: block; }
+.mb-wide .mb-toggle .mb-label, .mb-wide .lay-float-btn .mb-label { color: inherit; font-weight: 400; }
+/* the arrow names the next step: › hides the names or the panel, ‹ shows them again (the panel hidden) */
+body.mb-panel-hidden .mb-toggle svg { transform: rotate(180deg); }
+
+/* EditorFrame: the bars and the layouts */
+body.lay-titlebar { --lay-top: 36px; --lay-bottom: 0px; }
+body.lay-statusbar { --lay-top: 0px; --lay-bottom: 26px; }
+body.lay-floating { --lay-top: 0px; --lay-bottom: 0px; --lay-gap: 12px; --lay-card-shadow: 0 0 0 1px rgba(0,0,0,.06), 0 2px 10px rgba(0,0,0,.08); }
+.lay-bar {
+    position: fixed; left: 0; right: 0; z-index: 210; display: flex; align-items: center; gap: 4px; padding: 0 8px 0 12px; box-sizing: border-box;
+    background: var(--tp-base-background-color, #fff); color: var(--tp-container-foreground-color, #1e1e1e);
+    font: 400 var(--lay-font-size, 13px)/1 var(--tp-font-family, Inter, ui-sans-serif, system-ui, sans-serif); -webkit-font-smoothing: antialiased;
+}
+.lay-top { top: 0; height: 36px; border-bottom: 1px solid var(--tp-container-border-color, #e6e6e6); }
+.lay-bottom { bottom: 0; height: 26px; border-top: 1px solid var(--tp-container-border-color, #e6e6e6); font-size: calc(var(--lay-font-size, 13px) - 1px); padding-left: 10px; }
+.lay-app { display: flex; align-items: center; gap: 6px; }
+.lay-app b { font-weight: 600; }
+.lay-dim { color: var(--tp-label-foreground-color, #757575); }
+.lay-sep { width: 1px; height: 14px; background: var(--tp-container-border-color, #e6e6e6); margin: 0 8px; }
+.lay-file { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40vw; }
+/* the name, when the app lets the person rename it (onRename): a click edits it in place */
+.lay-file.lay-editable { cursor: text; padding: 3px 5px; margin: 0 -5px; border-radius: 4px; outline: none; }
+.lay-file.lay-editable:hover { background: var(--tp-button-background-color-hover, rgba(0,0,0,.06)); }
+.lay-file.lay-editable:focus-visible, .lay-file.lay-editable[contenteditable] { box-shadow: inset 0 0 0 1px #0d99ff; background: var(--tp-input-background-color, transparent); text-overflow: clip; }
+.lay-fill { flex: 1; }
+/* no name set by the app: no name and no separator */
+.lay-noname .lay-sep, .lay-noname .lay-file { display: none; }
+.lay-btn {
+    width: 28px; height: 28px; border: 0; border-radius: 5px; background: transparent; color: inherit; cursor: pointer; padding: 0;
+    display: flex; align-items: center; justify-content: center; opacity: .75; flex-shrink: 0;
+}
+.lay-bottom .lay-btn { width: 22px; height: 22px; }
+.lay-btn:hover { opacity: 1; background: var(--tp-button-background-color-hover, #f2f3f5); }
+.lay-btn:focus-visible { outline: 2px solid #0d99ff; outline-offset: 1px; }
+/* the tool bar on the canvas: icon buttons with the hover and on states of the bars and the mode bar, not the larger
+   buttons with dividers of the classic page */
+body.lay-frame .util-buttons-container { gap: 2px; padding: 2px; }
+body.lay-frame .util-buttons-container > .util-button {
+    /* 28 px, as the buttons of the title bar. The icons fill the button (an inline 100% size): the padding leaves
+       16 px. The bar is 32 px tall (2 px bar padding), as the perf pill on a phone */
+    width: 28px; height: 28px; padding: 6px; box-sizing: border-box !important; border-radius: 5px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; color: var(--tp-container-foreground-color, #1e1e1e); opacity: .75;
+}
+body.lay-frame .util-buttons-container > .util-button:hover { opacity: 1; background: var(--tp-button-background-color-hover, #f2f3f5); }
+body.lay-frame .util-buttons-container > .util-button.button-bar-selected-box { opacity: 1; color: #0d99ff; background: color-mix(in srgb, #0d99ff 16%, transparent); }
+body.lay-frame .util-buttons-container > .button-bar-button::after { display: none; }
+/* the perf pill (PerfPanelPlugin at the bottom left): at the side space of the tool bar, in the middle of its height
+   (its own size, 22 px, on a desktop). The tool bar leaves room for it (--util-left-room, read by its max-width in
+   every layout). The bar of the sticky notes above it (StickyNotesUiPlugin) keeps the same left edge (--lay-corner-left) */
+body.lay-frame { --lay-corner-left: 1.25rem; }
+body.lay-frame .pp-root.pp-bottom-left { left: var(--lay-corner-left); bottom: calc(1.25rem + 5px); }
+body.lay-frame .snp-dock { left: var(--lay-corner-left); }
+body.lay-frame #canvas-container:has(.pp-root.pp-bottom-left) { --util-left-room: 84px; }
+@media only screen and (max-width: 919.98px) {
+    /* a phone: as tall as the tool bar, a larger target (its fixed width keeps the row still as the numbers change) */
+    body.lay-frame { --lay-corner-left: 0.75rem; }
+    body.lay-frame .pp-root.pp-bottom-left { bottom: 0.75rem; }
+    body.lay-frame .pp-root.pp-bottom-left .pp-pill { height: 32px; min-width: 76px; justify-content: center; font-variant-numeric: tabular-nums; padding: 0 8px; border-radius: 8px; font-size: 12px; }
+}
+.lay-float-actions { display: flex; flex-direction: column; align-items: center; gap: 2px; margin-top: auto; color: var(--tp-label-foreground-color, #8a8f98); }
+.lay-float-actions + .mb-toggle { margin-top: 2px; }
+/* the wide bar: the actions are rows with their names, like the modes and the names toggle */
+.mb-wide .lay-float-actions { align-items: stretch; }
+.lay-menu {
+    position: fixed; z-index: 2000; display: flex; flex-direction: column; padding: 4px; min-width: 160px; border-radius: 8px;
+    background: var(--tp-base-background-color, #fff); color: var(--tp-container-foreground-color, #1e1e1e);
+    box-shadow: 0 0 0 1px rgba(0,0,0,.08), 0 6px 20px rgba(0,0,0,.14); font: 400 12px/1 var(--tp-font-family, Inter, ui-sans-serif, system-ui, sans-serif);
+}
+.lay-menu button { text-align: left; border: 0; background: transparent; color: inherit; font: inherit; padding: 8px 10px 8px 26px; border-radius: 5px; cursor: pointer; position: relative; }
+.lay-menu button:hover { background: var(--tp-button-background-color-hover, #f2f3f5); }
+.lay-menu button[aria-checked="true"]::before { content: '✓'; position: absolute; left: 9px; }
+/* the frame in every window size: the geometry of the canvas and the panel is below, side by side or stacked */
+/* the mode bar replaces the mode tabs */
+body.lay-frame .mode-buttons-container { display: none; }
+/* the panel: no padding around it, and the room of the scrollbar is kept, so the width does not change when a folder
+   opens or closes. The container is the panel here (the Tweakpane theme lets pointer events through it, for the empty
+   part of its full-height column), so its scrollbar takes the pointer, and a finger scrolls it: iOS does not scroll a
+   container with pointer-events: none. The scroll stops at its ends, without moving the page. */
+body.lay-frame #tweakpaneUiContainer {
+    pointer-events: auto; overscroll-behavior: contain;
+    padding: 0; overflow-y: auto; scrollbar-gutter: stable; scrollbar-width: thin;
+    scrollbar-color: var(--tp-groove-foreground-color, rgba(128, 128, 128, .5)) transparent;
+}
+/* the sections of the panel: one line between them, no box, no gap above the first */
+body.lay-frame #tweakpaneUiContainer .tp-rotv_c { padding-top: 0 !important; }
+body.lay-frame #tweakpaneUiContainer .tp-rotv_c > .tp-fldv {
+    margin: 0 !important; border-radius: 0 !important;
+    border-style: solid !important; border-width: 1px 0 0 !important; border-color: var(--tp-container-border-color, #e6e6e6) !important;
+}
+/* the first shown section: the hidden sections of the other modes come before it, so not :first-child */
+body.lay-frame #tweakpaneUiContainer .tp-rotv_c > .tp-fldv.tp-v-vfst { border-top-width: 0 !important; }
+/* title and status bar: the canvas and the panel edge to edge, between the bars */
+body.lay-titlebar #canvas-container, body.lay-statusbar #canvas-container {
+    margin: 0 !important; left: 0; top: var(--lay-top); border-radius: 0; box-shadow: none;
+}
+body.lay-titlebar #tweakpaneUiContainer, body.lay-statusbar #tweakpaneUiContainer {
+    margin: 0 !important; bottom: var(--lay-bottom); height: auto !important; max-height: none !important;
+    right: var(--mb-width, 44px);
+    background: var(--tp-base-background-color, #fff); box-sizing: border-box;
+    border-radius: 0;
+}
+body.lay-titlebar #tweakpaneUiContainer .tp-rotv, body.lay-statusbar #tweakpaneUiContainer .tp-rotv { border-radius: 0; box-shadow: none; }
+/* no "Configuration" title: the mode bar names the open mode and hides the panel */
+body.lay-frame #tweakpaneUiContainer .tp-rotv_b { display: none; }
+body.lay-titlebar .mb-root, body.lay-statusbar .mb-root { top: var(--lay-top); bottom: var(--lay-bottom); }
+body.lay-frame #mcanvas { border-radius: 0; }
+/* floating: the panel and the mode bar are one card (as in the other layouts, side by side with a line between them),
+   with the same gap to the window on every side. Each part clips its shadow at the join, so the shadows do not overlap
+   there. With the panel hidden, the mode bar is the whole card. */
+body.lay-floating #canvas-container { margin: 0 !important; box-shadow: none; }
+body.lay-floating .mb-root {
+    top: var(--lay-gap); bottom: var(--lay-gap); right: var(--lay-gap); border: 0; box-shadow: var(--lay-card-shadow);
+    border-radius: 0 8px 8px 0; border-left: 1px solid var(--mb-line); clip-path: inset(-20px -20px -20px 0);
+}
+body.lay-floating.mb-panel-hidden .mb-root { border-radius: 8px; border-left: 0; clip-path: none; }
+body.lay-floating #tweakpaneUiContainer {
+    margin: 0 !important; bottom: var(--lay-gap); height: auto !important; max-height: none !important;
+    right: calc(var(--mb-width, 44px) + var(--lay-gap));
+    border-radius: 8px 0 0 8px; background: var(--tp-base-background-color, #fff); box-shadow: var(--lay-card-shadow);
+    clip-path: inset(-20px 0 -20px -20px);
+}
+body.lay-floating #tweakpaneUiContainer .tp-rotv { box-shadow: none; }
+
+/* a wide or a landscape window: the canvas, then the panel, then the mode bar, side by side */
+@media only screen and (min-width: 920px), only screen and (orientation: landscape) {
+    body.lay-titlebar #canvas-container, body.lay-statusbar #canvas-container {
+        height: calc(100% - var(--lay-top) - var(--lay-bottom));
+        width: calc(100% - var(--mb-width, 44px) - var(--tweakpane-ui-container-width, 300px)) !important;
+    }
+    body.lay-titlebar.mb-panel-hidden #canvas-container, body.lay-statusbar.mb-panel-hidden #canvas-container { width: calc(100% - var(--mb-width, 44px)) !important; }
+    body.lay-titlebar #tweakpaneUiContainer, body.lay-statusbar #tweakpaneUiContainer {
+        top: var(--lay-top); width: var(--tweakpane-ui-container-width, 300px);
+        border-left: 1px solid var(--tp-container-border-color, #e6e6e6);
+    }
+
+    /* floating: the canvas fills the window, the cards float over it */
+    body.lay-floating #canvas-container {
+        inset: 0; width: 100% !important; height: 100%; border-radius: 0;
+        --lay-right-inset: calc(var(--tweakpane-ui-container-width, 300px) + var(--mb-width, 44px) + 2 * var(--lay-gap));
+    }
+    body.lay-floating.mb-panel-hidden #canvas-container { --lay-right-inset: calc(var(--mb-width, 44px) + 2 * var(--lay-gap)); }
+    /* the buttons on the right of the canvas keep to the part that the panels do not cover */
+    body.lay-floating #fsToggle, body.lay-floating .util-buttons-container { right: calc(var(--lay-right-inset) + 1.25rem - var(--lay-gap)); }
+    /* and the tool bar is not wider than that part (its own max-width less the move to the left), so in a narrow window
+       it scrolls inside it instead of going past the left edge of the window */
+    body.lay-floating .util-buttons-container { max-width: calc(100% - var(--lay-right-inset) + var(--lay-gap) - 3.5rem - var(--util-left-room, 0px)); }
+    body.lay-floating #tweakpaneUiContainer { top: var(--lay-gap); width: var(--tweakpane-ui-container-width, 300px); }
+}
+
+/* a narrow portrait window (a phone): the canvas on top, full width; the panel below it, and the mode bar beside the
+   panel, with the same top and bottom (--lay-split: the part of the height for the canvas), so the tool bar of the canvas
+   never covers the panel. A mode bar taller than its room scrolls. When the panel is hidden, the mode bar is a row at
+   the bottom (--mb-row-height, it scrolls sideways), where a tap on a mode brings the panel back, and the canvas takes the
+   rest. Floating has no gap around the parts here (it only takes room), so no round corners or shadows either: it is
+   laid out as the other layouts, with lines between the parts. */
+@media only screen and (max-width: 919.98px) and (orientation: portrait) {
+    body.lay-frame { --lay-split: 0.45; --mb-row-height: 44px; }
+    body.lay-floating { --lay-gap: 0px; }
+    body.lay-titlebar #canvas-container, body.lay-statusbar #canvas-container, body.lay-floating #canvas-container {
+        width: 100% !important;
+        height: calc((100% - var(--lay-top) - var(--lay-bottom)) * var(--lay-split)) !important;
+    }
+    body.lay-titlebar.mb-panel-hidden #canvas-container, body.lay-statusbar.mb-panel-hidden #canvas-container,
+    body.lay-floating.mb-panel-hidden #canvas-container { height: calc(100% - var(--lay-top) - var(--lay-bottom) - var(--mb-row-height)) !important; }
+    body.lay-titlebar #tweakpaneUiContainer, body.lay-statusbar #tweakpaneUiContainer, body.lay-floating #tweakpaneUiContainer {
+        top: calc(var(--lay-top) + (100% - var(--lay-top) - var(--lay-bottom)) * var(--lay-split)) !important; left: 0; width: auto !important;
+        bottom: var(--lay-bottom); border-top: 1px solid var(--tp-container-border-color, #e6e6e6);
+    }
+    body.lay-titlebar .mb-root, body.lay-statusbar .mb-root, body.lay-floating .mb-root {
+        top: calc(var(--lay-top) + (100% - var(--lay-top) - var(--lay-bottom)) * var(--lay-split)); bottom: var(--lay-bottom);
+        border-top: 1px solid var(--mb-line);
+    }
+    body.lay-floating #tweakpaneUiContainer, body.lay-floating .mb-root, body.lay-floating.mb-panel-hidden .mb-root {
+        border-radius: 0; box-shadow: none; clip-path: none;
+    }
+
+    /* the panel hidden: the mode bar is a row at the bottom, the actions and the names toggle at its end */
+    body.lay-frame.mb-panel-hidden .mb-root {
+        top: auto; left: 0; width: auto; height: var(--mb-row-height); flex-direction: row; align-items: center; padding: 0 6px;
+        overflow-x: auto; overflow-y: hidden; border-left: 0;
+    }
+    body.lay-frame.mb-panel-hidden .mb-root > .mb-toggle { margin: 0 0 0 auto; }
+    body.lay-frame.mb-panel-hidden .mb-root > .lay-float-actions { flex-direction: row; margin: 0 0 0 auto; }
+    body.lay-frame.mb-panel-hidden .mb-root > .lay-float-actions + .mb-toggle { margin-left: 2px; }
+}

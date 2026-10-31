@@ -5,10 +5,9 @@ import {EditorCameraPlugin} from '../../plugins/tweakpane-editor/src/EditorCamer
 import {setupEditorCameraUi} from '../../plugins/tweakpane-editor/src/editor-camera-ui'
 import {TweakpaneEditorPlugin} from '../../plugins/tweakpane-editor/src/TweakpaneEditorPlugin'
 
-// the UI tests: tooltips, the logo, the buttons and the tweakpane plugin need a page, the UI does not use them.
+// the UI tests: tooltips, the buttons and the tweakpane plugin need a page, the UI does not use them.
 // tippy.js is a dependency of the editor package only (installed in its node_modules)
 vi.mock('../../plugins/tweakpane-editor/node_modules/tippy.js', () => ({default: Object.assign(vi.fn(() => ({setContent: vi.fn(), destroy: vi.fn()})), {setDefaultProps: vi.fn()})}))
-vi.mock('../../plugins/tweakpane-editor/src/logo', () => ({setupWebGiLogo: vi.fn()}))
 vi.mock('../../plugins/tweakpane-editor/src/util-buttons', () => ({setupFullscreenButton: vi.fn(), setupUtilButtonsBar: vi.fn()}))
 vi.mock('@threepipe/plugin-tweakpane', () => ({TweakpaneUiPlugin: class {static PluginType = 'TweakpaneUiPlugin'}}))
 

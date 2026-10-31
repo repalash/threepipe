@@ -17,7 +17,8 @@ async function init() {
         contextProvider: () => 'Notes example', // extra text for the "+ Context" line
     }))
     // The notes as post-its over the canvas: a post-it per note (board), or one post-it with all of them (stack)
-    viewer.addPluginSync(new StickyNotesUiPlugin('threepipe-example-sticky-notes'))
+    // false: show the post-its at once (the plugin starts them minimized by default)
+    viewer.addPluginSync(new StickyNotesUiPlugin('threepipe-example-sticky-notes', false))
 
     // the settings of the notes and of the post-its
     const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
