@@ -20,6 +20,14 @@ All notable changes to this project will be documented in this file.
 - `lib/index.js` keeps its `@license` banner (the old minifier removed it)
 - Remove the obsolete `prepare`, `copy:inlines` and `postcompile:esm` scripts, `scripts/each-plugin.mjs`, `scripts/build-plugins.mjs`, `scripts/fix-inline-imports.mjs` and the unused `copyfiles`, `hexer` and `proper-lockfile` dev dependencies
 
+### Fixed
+
+- Runtime `userData` keys are no longer saved with objects. The rule: keys that start with `_` are kept on clone and in JSON but not in glTF; keys that start with `__` are kept nowhere (not on clone, not in JSON, not in glTF). `toJSON` of every threepipe object (meshes, lights, cameras, groups) now leaves out the `__` keys, at every depth, in `object.userData` and in the camera `userData`, like clone does. New `copyPublicUserData` helper for the glTF filter (`_` and `__`)
+- `copyUserData` (and clone) keeps public keys named like `Object.prototype` methods, such as `toString`
+- A camera from a loaded file or viewer config no longer becomes the main camera. Files saved while the camera was the main camera carry `userData.__isMainCamera`; loading such a file into a viewer with another main camera (like an editor camera) marked the default camera as main, and its controls stayed disabled when it later became the main camera. `PerspectiveCamera2.fromJSON` and `OrthographicCamera2.fromJSON` now ignore the `__` `userData` keys in the data and keep their own
+- glTF import: keys that start with `__` in the `extras` of a glTF file (from other tools) are not put into `userData`
+- glTF light extras: the shadow camera `userData` is written and read without the private keys
+
 
 ## [0.6.0] - 2026-10-23
 

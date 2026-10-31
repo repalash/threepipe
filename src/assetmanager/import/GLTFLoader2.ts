@@ -316,6 +316,7 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
     gltfViewerParser = (viewer: ThreeViewer): (p: GLTFParser)=>GLTFLoaderPlugin => {
 
         return (parser: GLTFParser) => { // this is called when the parser is created
+            if (parser.json) removePrivateExtras(parser.json) // before three.js puts the extras into userData
             this._resPathUrlModifier.newResourcePath = parser.options.path
             this._resPathUrlModifier.oldResourcePath = parser.json?.extras?.resourcePath
             // in url modifier, see if an asset being loaded starts with userData.resourcePath, if yes, replace it with current resourcePath
@@ -465,6 +466,37 @@ declare module 'three/examples/jsm/loaders/GLTFLoader.js'{
     export interface GLTFParser {
         importOptions?: ImportAddOptions
         // getDependency(type: string, index: number): Promise<Object3D|Texture|Line|LineSegments|LineLoop>
+    }
+}
+
+/**
+ * Removes the keys that start with `__` from the `extras` of the glTF root and of every definition in it (nodes,
+ * meshes and their primitives, materials, images, cameras, lights in extensions etc.), so that three.js
+ * GLTFLoader does not put them into `userData`.
+ *
+ * `__` userData keys are runtime state that is neither kept on clone nor saved (like `__isMainCamera`, see
+ * {@link IObject3D.userData}). GLTFWriter2 does not write any `_` key, so only files from other tools can have them.
+ * The extras are changed here and not the userData, because the loader also sets `__` keys in userData (like
+ * `__sourceBlob` of textures). Only the keys at the root of each `extras` object are checked.
+ * @param json - the parsed glTF json, changed in place.
+ */
+function removePrivateExtras(json: any) {
+    const removeKeys = (def: any) => {
+        const extras = def?.extras
+        if (!extras || typeof extras !== 'object') return
+        for (const key of Object.keys(extras)) if (key.startsWith('__')) delete extras[key]
+    }
+    const removeInDefs = (defs: any) => {
+        if (!Array.isArray(defs)) return
+        for (const def of defs) {
+            removeKeys(def)
+            if (Array.isArray(def?.primitives)) for (const primitive of def.primitives) removeKeys(primitive)
+        }
+    }
+    removeKeys(json)
+    for (const defs of Object.values(json)) removeInDefs(defs)
+    for (const ext of Object.values(json.extensions || {})) { // like KHR_lights_punctual.lights
+        if (ext && typeof ext === 'object') for (const defs of Object.values(ext)) removeInDefs(defs)
     }
 }
 
