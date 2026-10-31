@@ -163,8 +163,6 @@ export class EditorModeBar {
                 // no storage: this page only
             }
         }
-        // the canvas size follows the CSS; the viewer resizes on the window's resize
-        window.dispatchEvent(new Event('resize'))
         this.onExpandedChange?.(expanded)
     }
 
@@ -185,7 +183,6 @@ export class EditorModeBar {
         document.body.classList.toggle('mb-panel-hidden', !open)
         this.select(this._selected)
         this._refreshToggle()
-        window.dispatchEvent(new Event('resize'))
     }
 
     /** Opens a mode's panel (and shows the panel if it was hidden), like a click on its button */

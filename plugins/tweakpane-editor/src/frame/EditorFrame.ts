@@ -60,7 +60,8 @@ const ICONS = {
  * - The panel has no title of its own: the mode bar names the open mode and hides the panel.
  *
  * Made by `TweakpaneEditorPlugin` (its `layout`). The floating layout has its actions in the mode bar. The body has the
- * class `lay-frame` and `lay-<layout>`.
+ * class `lay-frame` and `lay-<layout>`. The canvas size follows the CSS of the layout, and the viewer follows the canvas
+ * size (the ResizeObserver of `ThreeViewer`).
  *
  * In a wide or a landscape window, the canvas, the panel and the mode bar are side by side. In a portrait window under
  * 920 px wide (a phone), the layout keeps its bars and cards; the canvas is on top at full width, and the panel and the
@@ -196,8 +197,6 @@ export class EditorFrame {
         else this._floatActions.remove()
         this._expandPanel()
         this.documentName = this._documentName
-        // the canvas size follows the CSS; the viewer resizes on the window's resize
-        window.dispatchEvent(new Event('resize'))
     }
 
     /** Switches between the light and the dark theme of the same family, when the current theme is in a pair */
@@ -221,7 +220,6 @@ export class EditorFrame {
         this._tips.forEach(t => t.destroy())
         this.modeBar.dispose()
         this._styles?.remove()
-        window.dispatchEvent(new Event('resize'))
     }
 
     /**

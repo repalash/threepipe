@@ -229,7 +229,6 @@ beforeEach(() => {
     vi.stubGlobal('matchMedia', () => ({matches: wide}))
     vi.stubGlobal('addEventListener', (t: string, f: any) => win.addEventListener(t, f))
     vi.stubGlobal('removeEventListener', (t: string, f: any) => win.removeEventListener(t, f))
-    vi.stubGlobal('dispatchEvent', () => true)
     vi.stubGlobal('getSelection', () => ({selectAllChildren: () => {}}))
     vi.stubGlobal('innerWidth', 1440)
     vi.stubGlobal('innerHeight', 900)
