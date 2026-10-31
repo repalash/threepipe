@@ -3,6 +3,8 @@ import tippy from 'tippy.js'
 import type {EditorCameraPlugin} from './EditorCameraPlugin'
 
 const pinIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 17v5"/><path d="M9 10.8a2 2 0 0 1-1.1 1.8l-1.8.9A2 2 0 0 0 5 15.2v.8a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.8a2 2 0 0 0-1.1-1.8l-1.8-.9a2 2 0 0 1-1.1-1.8V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></svg>'
+// a camera, in the stroke style of the pin
+const cameraIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="13" r="3"/></svg>'
 
 // the look of the PerfPanelPlugin pill and card (src/plugins/ui/PerfPanelPlugin.css): size, font, radius, colours, and
 // the colours of the tweakpane theme when it is on the page.
@@ -35,14 +37,15 @@ body.tpTheme-black .ecu-root, body.tpTheme-dark .ecu-root, body.tpTheme-blue .ec
   content: ''; position: absolute; top: -2px; right: -2px; width: 7px; height: 7px; border-radius: 50%;
   background: var(--ecu-amber); box-shadow: 0 0 0 1.5px var(--ecu-bg);
 }
-.ecu-dot { flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--ecu-dim); }
-.ecu-view .ecu-dot { background: var(--ecu-view); }
-.ecu-view.ecu-sync .ecu-dot { background: var(--ecu-sync); }
+/* the camera icon: grey in Edit, blue in View, green in View with sync */
+.ecu-icon { flex: none; display: flex; color: var(--ecu-dim); }
+.ecu-icon svg { width: 14px; height: 14px; }
+.ecu-view .ecu-icon { color: var(--ecu-view); }
+.ecu-view.ecu-sync .ecu-icon { color: var(--ecu-sync); }
 .ecu-pill kbd { font: inherit; font-size: 10px; line-height: 14px; padding: 0 4px; border-radius: 3px; color: var(--ecu-dim); background: var(--ecu-hover); }
-/* the card under the pill: on hover, on keyboard focus, and open (a tap on a touch screen) */
+/* the card under the pill: open (a hover with a mouse, a tap on a touch screen) or on keyboard focus */
 .ecu-drop { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); padding-top: 6px; visibility: hidden; opacity: 0;
-  transition: opacity .12s ease .15s, visibility 0s linear .27s; }
-@media (hover: hover) { .ecu-root:hover .ecu-drop { visibility: visible; opacity: 1; transition-delay: .06s, 0s; } }
+  transition: opacity .12s ease, visibility 0s linear .12s; }
 .ecu-root:has(:focus-visible) .ecu-drop, .ecu-open .ecu-drop { visibility: visible; opacity: 1; transition-delay: 0s, 0s; }
 .ecu-card { width: 224px; max-width: calc(100vw - 16px); box-sizing: border-box; padding: 6px; border-radius: 6px; background: var(--ecu-bg); box-shadow: var(--ecu-shadow);
   display: flex; flex-direction: column; gap: 6px; }
@@ -88,16 +91,20 @@ let styleEl: HTMLStyleElement | undefined
 
 /** The width of the picture of the start view, in pixels (for a card of 224 CSS pixels on a 2x screen) */
 const SHOT_WIDTH = 448
+/** How long the mouse stays on the pill or the card before the card opens, in ms */
+const HOVER_DELAY = 150
 /** While the picture is out of date: the shortest time between two pictures, in ms (the last one waits for the render to end) */
 const SHOT_INTERVAL = 200
 
 /**
  * The start view UI of the {@link EditorCameraPlugin}: a pill at the top centre of the canvas, in the style of the
- * `PerfPanelPlugin` pill, that names the camera (a grey dot in Edit, blue in View, green in View with
- * {@link EditorCameraPlugin.syncStartView}; an amber corner when a move in View is not saved), and a frame around the
+ * `PerfPanelPlugin` pill, that names the camera ("Editor camera" or "Scene camera", with a camera icon: grey in Edit,
+ * blue in View, green in View with {@link EditorCameraPlugin.syncStartView}; an amber corner when a move in View is not
+ * saved), and a frame around the
  * canvas in View.
  *
- * On hover, on keyboard focus, or after a tap on a touch screen, a card under the pill shows:
+ * A card under the pill opens on hover (a moment on the pill or the card, with a mouse), on a tap on a touch screen or
+ * on keyboard focus, and stays open until a press outside it or Escape. It shows:
  * - a picture of the saved start view (what visitors see first). A click on it looks through the start view (View); in
  *   View after a move, it goes back to it ({@link EditorCameraPlugin.resetStartView}). The picture is taken from the
  *   canvas when the view shows the saved start view ({@link EditorCameraPlugin.showsStartView}): after a load, in View
@@ -129,7 +136,7 @@ export function setupEditorCameraUi(viewer: ThreeViewer, camera: EditorCameraPlu
     const pill = el('button', 'ecu-pill', root)
     pill.setAttribute('aria-haspopup', 'true')
     pill.setAttribute('aria-expanded', 'false')
-    el('i', 'ecu-dot', pill)
+    el('span', 'ecu-icon', pill).innerHTML = cameraIcon
     const name = el('span', 'ecu-name', pill)
     el('kbd', '', pill).textContent = 'C'
 
@@ -161,10 +168,19 @@ export function setupEditorCameraUi(viewer: ThreeViewer, camera: EditorCameraPlu
 
     // a tap opens the card (a touch screen has no hover); a click with a mouse switches Edit and View, as the C key
     let touch = false
+    let hoverTimer = 0
     const setOpen = (open: boolean) => {
+        window.clearTimeout(hoverTimer)
         root.classList.toggle('ecu-open', open)
         pill.setAttribute('aria-expanded', String(open))
     }
+    // a hover opens the card after a moment (not when the pointer only passes over it); it stays open until a press
+    // outside it or Escape, so it does not close when the pointer leaves it for a moment
+    root.addEventListener('pointerenter', e => {
+        if (e.pointerType !== 'mouse' || root.classList.contains('ecu-open')) return
+        hoverTimer = window.setTimeout(() => setOpen(true), HOVER_DELAY)
+    })
+    root.addEventListener('pointerleave', () => window.clearTimeout(hoverTimer))
     pill.addEventListener('pointerdown', e => touch = e.pointerType === 'touch')
     pill.addEventListener('click', e => {
         // e.detail is 0 for Enter or Space: a keyboard switches, as a mouse
@@ -175,6 +191,10 @@ export function setupEditorCameraUi(viewer: ThreeViewer, camera: EditorCameraPlu
         if (!root.contains(e.target as Node)) setOpen(false)
     }
     document.addEventListener('pointerdown', onOutside, true)
+    const onKey = (e: KeyboardEvent) => {
+        if (e.key === 'Escape' && root.classList.contains('ecu-open')) setOpen(false)
+    }
+    document.addEventListener('keydown', onKey)
 
     shotButton.addEventListener('click', () => {
         if (camera.editing) camera.editing = false
@@ -190,7 +210,6 @@ export function setupEditorCameraUi(viewer: ThreeViewer, camera: EditorCameraPlu
     const tip = (target: HTMLElement, content: string) => tippy(target, {placement: 'bottom', content, touch: false})
     const tips = [
         tip(pin, ''),
-        tip(shotButton, ''),
         tip(setStart, 'The start view (what visitors see first) takes this view. Ctrl+Z undoes it.'),
         tip(save, 'Keep this view as the start view. Ctrl+Z undoes it.'),
         tip(reset, 'Back to the saved start view'),
@@ -241,14 +260,13 @@ export function setupEditorCameraUi(viewer: ThreeViewer, camera: EditorCameraPlu
         root.classList.toggle('ecu-moved', moved)
         frame.classList.toggle('ecu-on', !editing)
         frame.classList.toggle('ecu-sync', sync)
-        name.textContent = editing ? 'Editor camera' : 'Start view'
-        pill.setAttribute('aria-label', (editing ? 'Editor camera' : 'Start view, what visitors see') + (moved ? ', moved, not saved' : '') + '. C switches.')
+        name.textContent = editing ? 'Editor camera' : 'Scene camera'
+        pill.setAttribute('aria-label', (editing ? 'Editor camera' : 'Scene camera, what visitors see') + (moved ? ', moved, not saved' : '') + '. C switches.')
         editButton.setAttribute('aria-pressed', String(editing))
         viewButton.setAttribute('aria-pressed', String(!editing))
         pin.setAttribute('aria-pressed', String(sync))
         pin.setAttribute('aria-label', 'Sync the start view with the moves in View')
         tips[0].setContent(sync ? 'Sync is on: moves in View change the start view' : 'Sync: moves in View change the start view. Off: moves in View are a preview')
-        tips[1].setContent(editing ? 'Look through the start view (C)' : moved ? 'Back to the saved start view' : 'The saved start view')
         shotButton.setAttribute('aria-label', editing ? 'Look through the start view' : 'Back to the saved start view')
         shotButton.style.cursor = editing || moved ? '' : 'default'
         // out of date until the view shows the start view again
@@ -277,6 +295,8 @@ export function setupEditorCameraUi(viewer: ThreeViewer, camera: EditorCameraPlu
         camera.removeEventListener('startViewChange', onStartViewChange)
         camera.removeEventListener('syncStartViewChange', update)
         document.removeEventListener('pointerdown', onOutside, true)
+        document.removeEventListener('keydown', onKey)
+        window.clearTimeout(hoverTimer)
         tips.forEach(t => t.destroy())
         root.remove()
         frame.remove()
