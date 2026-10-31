@@ -122,11 +122,12 @@
 /* one row: in a canvas too narrow for the buttons, the bar scrolls sideways instead of wrapping. It overflows at the end
    only (centered, it would overflow at both sides, and the first buttons would be out of the scroll's reach); the auto
    margins of the first and last buttons center the buttons when they fit, and are 0 when they overflow. Its width
-   leaves room for the logo at the bottom left: its left, its width, a gap, the right and the side padding of the bar. */
+   leaves the same space on its left as on its right, its side padding, and the room of what is at the bottom left
+   (--util-left-room: the perf pill in the frame). */
 .util-buttons-container{
     flex-wrap: nowrap;
     justify-content: flex-start;
-    max-width: calc(100% - 10.75rem);
+    max-width: calc(100% - 3rem - var(--util-left-room, 0px));
     overflow-x: auto;
     scrollbar-width: none;
 }
@@ -183,25 +184,6 @@
 }
 .mode-button:hover {
     /*background-color: var(--tp-container-background-color-hover);*/
-}
-
-#webgi-logo{
-    background-image: url("https://static.webgi.xyz/logo.svg");
-    background-size: contain;
-    background-repeat: no-repeat;
-    background-position: center;
-    bottom: 1.25rem;
-    left: 1rem;
-    z-index: 100;
-    width: 7.5rem;
-    height: 2.5rem;
-    position: absolute;
-    cursor: pointer;
-    /*background-color: white;*/
-    /*border-radius: 1.25rem;*/
-}
-#webgi-logo:hover{
-    filter: grayscale(100%);
 }
 
 #fsToggle{
@@ -309,21 +291,13 @@ body.tpTheme-black .tippy-box[data-theme~='editor'], body.tpTheme-blue .tippy-bo
         right: 0.75rem;
         bottom: 0.75rem;
         padding: 0.25rem 0.25rem 0.5rem;
-        max-width: calc(100% - 7.5rem);
+        max-width: calc(100% - 2rem - var(--util-left-room, 0px));
     }
     .util-buttons-container > .util-button {
         padding: 0.35rem 0.25rem;
     }
     .util-buttons-container > .button-bar-button:not(:last-child)::after {
         right: -2px;
-    }
-    /* the logo: smaller, at the bottom left as on a desktop, with the side space of the tool bar; its centre is level
-       with the centre of the tool bar of the frame */
-    #webgi-logo {
-        left: 0.75rem;
-        bottom: 1rem;
-        width: 5rem;
-        height: 1.75rem;
     }
 }
 #mcanvas {

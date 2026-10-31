@@ -79,15 +79,15 @@ body.lay-frame .util-buttons-container > .util-button {
 body.lay-frame .util-buttons-container > .util-button:hover { opacity: 1; background: var(--tp-button-background-color-hover, #f2f3f5); }
 body.lay-frame .util-buttons-container > .util-button.button-bar-selected-box { opacity: 1; color: #0d99ff; background: color-mix(in srgb, #0d99ff 16%, transparent); }
 body.lay-frame .util-buttons-container > .button-bar-button::after { display: none; }
-/* the perf pill (PerfPanelPlugin at the bottom left): next to the logo, in the middle of the tool bar's height (its own
-   size, 22 px, on a desktop); the tool bar leaves room for it */
-body.lay-frame .pp-root.pp-bottom-left { left: calc(1rem + 7.5rem + 8px); bottom: calc(1.25rem + 5px); }
-body.lay-frame #canvas-container:has(.pp-root.pp-bottom-left) .util-buttons-container { max-width: calc(100% - 10.75rem - 84px); }
+/* the perf pill (PerfPanelPlugin at the bottom left): at the side space of the tool bar, in the middle of its height
+   (its own size, 22 px, on a desktop). The tool bar leaves room for it (--util-left-room, read by its max-width in
+   every layout) */
+body.lay-frame .pp-root.pp-bottom-left { left: 1.25rem; bottom: calc(1.25rem + 5px); }
+body.lay-frame #canvas-container:has(.pp-root.pp-bottom-left) { --util-left-room: 84px; }
 @media only screen and (max-width: 920px) {
     /* a phone: as tall as the tool bar, a larger target (its fixed width keeps the row still as the numbers change) */
-    body.lay-frame .pp-root.pp-bottom-left { left: calc(0.75rem + 5rem + 8px); bottom: 0.75rem; }
+    body.lay-frame .pp-root.pp-bottom-left { left: 0.75rem; bottom: 0.75rem; }
     body.lay-frame .pp-root.pp-bottom-left .pp-pill { height: 32px; min-width: 76px; justify-content: center; font-variant-numeric: tabular-nums; padding: 0 8px; border-radius: 8px; font-size: 12px; }
-    body.lay-frame #canvas-container:has(.pp-root.pp-bottom-left) .util-buttons-container { max-width: calc(100% - 7.5rem - 84px); }
 }
 .lay-float-actions { display: flex; flex-direction: column; align-items: center; gap: 2px; margin-top: auto; color: var(--tp-label-foreground-color, #8a8f98); }
 .lay-float-actions + .mb-toggle { margin-top: 2px; }
@@ -175,7 +175,7 @@ body.lay-floating #tweakpaneUiContainer .tp-rotv { box-shadow: none !important; 
     body.lay-floating #fsToggle, body.lay-floating .util-buttons-container { right: calc(var(--lay-right-inset) + 1.25rem - var(--lay-gap)) !important; }
     /* and the tool bar is not wider than that part (its own max-width less the move to the left), so in a narrow window
        it scrolls inside it instead of going past the left edge of the window */
-    body.lay-floating .util-buttons-container { max-width: calc(100% - var(--lay-right-inset) + var(--lay-gap) - 3.5rem); }
+    body.lay-floating .util-buttons-container { max-width: calc(100% - var(--lay-right-inset) + var(--lay-gap) - 3.5rem - var(--util-left-room, 0px)); }
     body.lay-floating #tweakpaneUiContainer { top: var(--lay-gap) !important; width: var(--tweakpane-ui-container-width, 300px) !important; }
 }
 

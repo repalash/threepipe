@@ -149,17 +149,31 @@ describe('tweakpane editor frame on a phone', () => {
             const p = v.split(/\s+/).map(x => evaluate(x, phone, {}))
             return (p[1] ?? p[0]) + (p[3] ?? p[1] ?? p[0])
         }
+        // the rules of the bar, in the order of their specificity (a later one wins): with the perf pill at the bottom
+        // left (PerfPanelPlugin, in the example), the rules for it apply too
+        const pillContainer = 'body.lay-frame #canvas-container:has(.pp-root.pp-bottom-left)'
+        const barRules = (pill: boolean) => ['.util-buttons-container', 'body.lay-frame .util-buttons-container', 'body.lay-floating .util-buttons-container',
+            ...pill ? [pillContainer + ' .util-buttons-container'] : []]
         for (const vp of [{width: 568, height: 320}, {width: 844, height: 390}, desktop]) {
             for (const mb of ['44px', '168px']) {
-                const vars: Record<string, string> = {'--mb-width': mb, '--tweakpane-ui-container-width': '300px', '--lay-gap': '12px'}
-                vars['--lay-right-inset'] = declarations('body.lay-floating #canvas-container', vp)['--lay-right-inset']
-                const bar = {...declarations('.util-buttons-container', vp), ...declarations('body.lay-floating .util-buttons-container', vp)}
-                const sidePadding = sidePad(bar.padding ?? declarations('.button-bar', vp).padding)
-                const right = evaluate(bar.right, vp, vars)
-                const width = Math.max(0, evaluate(bar['max-width'], vp, vars)) + sidePadding
-                const panelLeft = vp.width - evaluate(vars['--lay-right-inset'], vp, vars) + 12 // the panel card's left edge
-                expect(vp.width - right - width, `${vp.width} px, mode bar ${mb}: left edge`).toBeGreaterThanOrEqual(0)
-                expect(vp.width - right, `${vp.width} px, mode bar ${mb}: right edge`).toBeLessThanOrEqual(panelLeft)
+                for (const pill of [false, true]) {
+                    const vars: Record<string, string> = {'--mb-width': mb, '--tweakpane-ui-container-width': '300px', '--lay-gap': '12px'}
+                    vars['--lay-right-inset'] = declarations('body.lay-floating #canvas-container', vp)['--lay-right-inset']
+                    if (pill) Object.assign(vars, declarations(pillContainer, vp))
+                    const bar = Object.assign({}, ...barRules(pill).map(r => declarations(r, vp)))
+                    const sidePadding = sidePad(bar.padding ?? declarations('.button-bar', vp).padding)
+                    const right = evaluate(bar.right, vp, vars)
+                    const maxWidth = evaluate(bar['max-width'], vp, vars)
+                    const width = Math.max(0, maxWidth) + sidePadding
+                    const panelLeft = vp.width - evaluate(vars['--lay-right-inset'], vp, vars) + 12 // the panel card's left edge
+                    // the right edge of the pill: its left and its widest (the 76 px of a phone). When the canvas left of
+                    // the panels has no room for the pill and a button (568 px with the mode names, which a narrow window
+                    // hides at the first visit), the bar has no width and only the window edge is checked
+                    const pillRight = pill && maxWidth > 0 ? evaluate(declarations('body.lay-frame .pp-root.pp-bottom-left', vp).left, vp, vars) + 76 : 0
+                    const at = `${vp.width} px, mode bar ${mb}${pill ? ', perf pill' : ''}`
+                    expect(vp.width - right - width, `${at}: left edge`).toBeGreaterThanOrEqual(pillRight)
+                    expect(vp.width - right, `${at}: right edge`).toBeLessThanOrEqual(panelLeft)
+                }
             }
         }
     })

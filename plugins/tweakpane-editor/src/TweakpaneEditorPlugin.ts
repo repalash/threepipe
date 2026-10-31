@@ -10,7 +10,6 @@ import {
     ThreeViewer,
 } from 'threepipe'
 import {setupFullscreenButton, setupUtilButtonsBar} from './util-buttons'
-import {setupWebGiLogo} from './logo'
 import styles from './TweakpaneEditorPlugin.css?inline'
 import tippy from 'tippy.js'
 import tippyStyles from 'tippy.js/dist/tippy.css?inline'
@@ -48,7 +47,6 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
             touch: ['hold', 500],
         })
 
-        setupWebGiLogo(viewer)
         setupFullscreenButton(viewer)
     }
 
