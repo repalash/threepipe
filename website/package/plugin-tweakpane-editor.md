@@ -129,9 +129,9 @@ Changes are saved per store, 600 ms after the last one, and when the plugin is r
 In both layouts:
 
 - The buttons are icons with a tooltip each (tippy.js, the `editor` theme; the plugin adds their CSS).
-- "Add a note" (+) adds a note at once, in the store of new notes (`NotesPlugin.defaultStore`), with the cursor in it. The button next to it shows the icon of that store (a file, a browser window, or a cloud for a store of the app); a click switches it to the other store, or opens a menu when there are more than two.
-- The icon at the top left of a note shows its store; a click moves the note to the other store (a menu with more than two).
-- Each note has "Add the time and the selection" (the time, `contextProvider` and the selected objects), "Copy the note" and "Delete the note". Escape leaves the note. On a touch screen the text is 16 px, so a phone does not zoom in when the note gets the cursor.
+- "Add a note" (+) adds a note at once, in the store of new notes (`NotesPlugin.defaultStore`), with the cursor in it. The button next to it shows the icon of that store (a file, a browser window, or a cloud for a store of the app); a click opens a menu of the stores.
+- The icon at the top left of a note shows its store; a click opens the same menu, to move the note.
+- Each note has "Add the time and the selection" (the time, `contextProvider` and the objects selected in the `PickingPlugin`), "Copy the text" (the icon shows a check and "Copied" for a moment) and "Delete the note". Escape leaves the note. On a touch screen the text is 16 px, so a phone does not zoom in when the note gets the cursor.
 - Drag a post-it by its bar, and size it from its bottom right corner. A click on a post-it brings it up.
 - The buttons are `dock`, at the bottom left of the canvas. When that corner is taken, place it with its style, e.g. `sticky.dock.style.bottom = '56px'`.
 - The post-its fill the nearest positioned ancestor, so the viewer container must be positioned (for example `position: relative`) for the post-its to stay inside the canvas.

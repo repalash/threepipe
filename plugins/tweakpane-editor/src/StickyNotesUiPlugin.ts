@@ -76,9 +76,11 @@ const PILE_DEPTH = 4
 const DRAG_START = 3
 /** When the board has no room for one more column, its columns start again this much lower and to the right, in px */
 const LAYER_STEP = 24
+/** How long the copy button shows that the text was copied, in ms */
+const COPIED_TIME = 1500
 
-/** The icons of the buttons (24 px grid, drawn with the text colour) */
-const svg = (d: string) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`
+/** The icons of the buttons (24 px grid, drawn with the text colour; shown at 14 px, a 1.3 px line as the frame's icons) */
+const svg = (d: string) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`
 const ICONS = {
     add: svg('<path d="M5 12h14"/><path d="M12 5v14"/>'),
     arrange: svg('<rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/>'),
@@ -87,7 +89,8 @@ const ICONS = {
     minimize: svg('<path d="M5 12h14"/>'),
     notes: svg('<path d="M16 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8z"/><path d="M15 3v4a2 2 0 0 0 2 2h4"/>'),
     context: svg('<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>'),
-    copy: svg('<rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2"/>'),
+    copy: svg('<rect width="8" height="4" x="8" y="2" rx="1"/><path d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/><path d="M16 4h2a2 2 0 0 1 2 2v4"/><path d="M21 14H11"/><path d="m15 10-4 4 4 4"/>'),
+    copied: svg('<path d="M20 6 9 17l-5-5"/>'),
     delete: svg('<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>'),
 }
 /** The icon of a store: `file`, `browser`, or a store of the app (a cloud) */
@@ -106,10 +109,11 @@ const STORE_ICONS: Record<string, string> = {
  * the board, switch the layout and minimise; when minimised, one button with the number of notes brings them back.
  *
  * - "Add a note" adds a note at once, in the store of new notes ({@link NotesPlugin.defaultStore}). The button next
- *   to it shows the icon of that store (a file, a browser window, a cloud for a store of the app); a click switches it
- *   to the other store, or opens a menu when there are more than two.
- * - The icon on a note shows its store; a click moves the note to the other store (a menu with more than two).
- * - Each note has "Add the time and the selection" ({@link NotesPlugin.contextLine}), "Copy" and "Delete".
+ *   to it shows the icon of that store (a file, a browser window, a cloud for a store of the app); a click opens a menu
+ *   of the stores.
+ * - The icon on a note shows its store; a click opens the same menu, to move the note.
+ * - Each note has "Add the time and the selection" ({@link NotesPlugin.contextLine}), "Copy the text" (the icon shows a
+ *   check for a moment) and "Delete".
  * - Drag a post-it by its bar, and size it from its bottom right corner. A click on a post-it brings it up.
  * - The places, the sizes, the order, the layout and the colour are kept in `localStorage` ({@link storageKey}), not in
  *   the file.
@@ -238,7 +242,7 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         this._popups = el('div', 'snp-layer snp-popups')
         this.dock = el('div', 'snp-dock')
         const add = button(ICONS.add, 'Add a note', () => this.addNote(), 'snp-add')
-        this._storeButton = button('', '', () => this._pickStore(this._storeButton, 'New notes in', this._notes?.defaultStore, id => this._setDefaultStore(id)), 'snp-store')
+        this._storeButton = button('', '', () => this._openMenu(this._storeButton, 'Save new notes in', id => this._setDefaultStore(id), this._notes?.defaultStore), 'snp-store')
         this._arrangeButton = button(ICONS.arrange, 'Arrange the post-its in columns', () => this.arrange())
         this._layoutButton = button('', '', () => this.layout = this.layout === 'board' ? 'stack' : 'board')
         const minimize = button(ICONS.minimize, 'Minimise: take the post-its off the canvas', () => this.layout = 'minimized', 'snp-min')
@@ -391,28 +395,8 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
     private _showStore() {
         const stores = this._notes?.stores ?? [], store = this._notes?.defaultStore ?? ''
         this._storeButton.innerHTML = storeIcon(store)
-        setTip(this._storeButton, 'New notes: ' + this._storeLabel(store) + this._nextStoreTip(store))
+        setTip(this._storeButton, 'New notes: ' + this._storeLabel(store))
         if (this.layout !== 'minimized') this._storeButton.style.display = stores.length > 1 ? '' : 'none'
-    }
-
-    /** What a click on a store button does: the other store, or a menu */
-    private _nextStoreTip(store: string) {
-        const stores = this._notes?.stores ?? []
-        if (stores.length < 2) return ''
-        if (stores.length > 2) return ' (click to pick)'
-        return ' (click: ' + (stores.find(s => s.id !== store)?.label ?? '') + ')'
-    }
-
-    /**
-     * A click on a store button: with two stores, `choose` gets the other one; with more, a menu at `anchor` lists
-     * them
-     */
-    private _pickStore(anchor: HTMLElement, title: string, current: string | undefined, choose: (store: string) => void) {
-        const stores = this._notes?.stores ?? []
-        if (stores.length > 2) return this._openMenu(anchor, title, choose, current)
-        const other = stores.find(s => s.id !== current)
-        this._closeMenu()
-        if (other) choose(other.id)
     }
 
     private _setDefaultStore(id: string) {
@@ -626,11 +610,11 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         const badge = el('button', 'snp-icon snp-badge') as HTMLButtonElement
         const text = el('textarea', '') as HTMLTextAreaElement
         const c: NoteCard = {note, card, bar, badge, text, store: note.store, size: [NOTE_W, NOTE_H]}
-        badge.addEventListener('click', () => this._pickStore(badge, 'Keep in', c.note.store, id => this._notes?.updateNote(c.note.id, {store: id})))
+        badge.addEventListener('click', () => this._openMenu(badge, 'Keep this note in', id => this._notes?.updateNote(c.note.id, {store: id}), c.note.store))
         bar.appendChild(badge)
         bar.appendChild(el('span', 'snp-fill'))
         bar.appendChild(button(ICONS.context, 'Add the time and the selection', () => this._addContext(c), 'snp-tool'))
-        bar.appendChild(button(ICONS.copy, 'Copy the note', () => void navigator.clipboard?.writeText(text.value), 'snp-tool'))
+        const copy = bar.appendChild(button(ICONS.copy, 'Copy the text', () => this._copy(c, copy), 'snp-tool'))
         bar.appendChild(button(ICONS.delete, 'Delete the note', () => this._notes?.removeNote(c.note.id), 'snp-tool snp-delete'))
         text.value = note.text
         text.placeholder = 'A note…'
@@ -657,6 +641,28 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         return c
     }
 
+    /**
+     * Copies the text of a note. The button shows a check and the tooltip "Copied" for {@link COPIED_TIME}: a click
+     * hides a tooltip, and the copy has no other sign.
+     */
+    private _copy(c: NoteCard, b: HTMLButtonElement) {
+        void navigator.clipboard?.writeText(c.text.value)
+        b.innerHTML = ICONS.copied
+        setTip(b, 'Copied')
+        // the tooltip of the delegate, made on the first hover; shown after the click that hides it
+        const tip = (b as {_tippy?: {setContent(t: string): void, show(): void}})._tippy
+        setTimeout(() => {
+            tip?.setContent('Copied')
+            tip?.show()
+        })
+        clearTimeout(Number(b.dataset.timer))
+        b.dataset.timer = String(setTimeout(() => {
+            b.innerHTML = ICONS.copy
+            setTip(b, 'Copy the text')
+            tip?.setContent('Copy the text')
+        }, COPIED_TIME))
+    }
+
     private _addContext(c: NoteCard) {
         const t = c.text
         const line = this._notes?.contextLine() ?? ''
@@ -677,7 +683,7 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         const store = c.note.store, status = this._notes?.storeStatus(store) ?? ''
         if (c.badge.dataset.store === store && c.badge.dataset.status === status) return
         c.badge.innerHTML = storeIcon(store)
-        setTip(c.badge, 'Kept: ' + this._storeLabel(store) + (status === 'error' ? ', it could not be saved or loaded' : '') + this._nextStoreTip(store))
+        setTip(c.badge, 'This note: ' + this._storeLabel(store) + (status === 'error' ? ' (it could not be saved or loaded)' : ''))
         c.badge.dataset.store = store
         c.badge.dataset.status = status
     }
@@ -808,10 +814,12 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         const menu = el('div', 'snp-menu')
         menu.appendChild(el('div', 'snp-menu-title', title))
         for (const store of this._notes?.stores ?? []) {
-            const b = textButton(store.label, () => {
+            const b = textButton('', () => {
                 this._closeMenu()
                 choose(store.id)
             })
+            b.innerHTML = storeIcon(store.id)
+            b.appendChild(el('span', '', store.label))
             if (store.id === current) b.classList.add('on')
             menu.appendChild(b)
         }
