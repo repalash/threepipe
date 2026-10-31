@@ -359,4 +359,22 @@ describe('ViewOverridesPlugin', {timeout}, () => {
         // no world normal from the object normal and the model matrix (wrong for a non-uniform scale)
         expect(shader.vertexShader).toBe(vertexShader)
     })
+
+    test('the preset directional lights point from their position to the scene centre', async() => {
+        const {plugin} = setup()
+        await plugin.setLighting('lights-studio')
+        plugin.lightsRoot.updateMatrixWorld(true)
+        const lights = plugin.lightsRoot.children.filter((l: any) => l.isDirectionalLight) as any[]
+        expect(lights.length).toBe(3) // key, fill, back
+        const directions = lights.map(l => {
+            const from = l.getWorldPosition(new tp.Vector3())
+            const direction = l.target.getWorldPosition(new tp.Vector3()).sub(from).normalize()
+            // towards the origin
+            expect(direction.dot(from.clone().negate().normalize())).toBeCloseTo(1, 5)
+            return direction
+        })
+        expect(directions[0].dot(directions[1])).toBeLessThan(0.99)
+        expect(directions[0].dot(directions[2])).toBeLessThan(0.99)
+        expect(directions[1].dot(directions[2])).toBeLessThan(0.99)
+    })
 })

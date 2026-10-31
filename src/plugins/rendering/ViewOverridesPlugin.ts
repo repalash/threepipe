@@ -44,6 +44,8 @@ function defaultLightingPresets(): ViewOverrideLightingPreset[] {
     const dir = (color: number, intensity: number, x: number, y: number, z: number) => {
         const l = new DirectionalLight2(color, intensity)
         l.position.set(x, y, z)
+        // its target is a child at (0, 0, -1): turn the light to the scene centre (as Object3DGeneratorPlugin does)
+        l.lookAt(0, 0, 0)
         l.castShadow = false
         return l
     }
