@@ -1,5 +1,6 @@
 import {DatabaseSettings, TableAuthExtensionData, TableRulesExtensionData} from 'teenybase'
 import {baseFields, authFields, createdTrigger, updatedTrigger} from 'teenybase/scaffolds/fields'
+import {sqlValue} from 'teenybase'
 
 // The username is the handle: the user's drive is `d/<username>/`, so it is picked once and never changes.
 const userFields = authFields.map(f => f.name === 'username' ? {...f, noUpdate: true} : f)
@@ -82,8 +83,8 @@ export default {
             {name: 'sha256', type: 'text', sqlType: 'text'},
             {name: 'content_type', type: 'text', sqlType: 'text'},
             {name: 'expires_at', type: 'text', sqlType: 'text'},
-            // drive (d/) only: private, link, public
-            {name: 'visibility', type: 'text', sqlType: 'text'},
+            // drive (d/) only: the item the file belongs to
+            {name: 'item_id', type: 'text', sqlType: 'text'},
             {name: 'deleted_at', type: 'text', sqlType: 'text'},
             {name: 'deleted_by', type: 'text', sqlType: 'text'},
             {name: 'deleted_reason', type: 'text', sqlType: 'text'},
@@ -91,6 +92,7 @@ export default {
         indexes: [
             {fields: ['bucket', 'path'], unique: true},
             {fields: ['owner_id', 'prefix']},
+            {fields: 'item_id', where: {q: 'item_id IS NOT NULL'}},
             {fields: 'expires_at', where: {q: 'expires_at IS NOT NULL AND deleted_at IS NULL'}},
         ],
         triggers: [createdTrigger, updatedTrigger],
@@ -122,16 +124,44 @@ export default {
             deleteRule: null,
         } as TableRulesExtensionData],
     }, {
-        // Share links to drive files and folders: files…/f/<id>/… Served from a pointer object `f/<id>` in R2 (no
-        // database read); this table is for listing. Created and deleted by /api/v1/drive-links (src/drive.ts).
-        name: 'drive_links',
+        // Drive folders (src/drive.ts): the name is a label, the id never changes, so renaming or moving a folder is one row.
+        // parent_id '' is the root. `app` marks the folder made for an app on connect (src/connect.ts), to find it again.
+        name: 'drive_folders',
         autoSetUid: true,
         fields: [
             ...baseFields,
             {name: 'owner_id', type: 'relation', sqlType: 'text', notNull: true, foreignKey: {table: 'users', column: 'id'}},
-            {name: 'path', type: 'text', sqlType: 'text', notNull: true},
+            {name: 'parent_id', type: 'text', sqlType: 'text', notNull: true},
+            {name: 'name', type: 'text', sqlType: 'text', notNull: true},
+            {name: 'app', type: 'text', sqlType: 'text'},
         ],
-        indexes: [{fields: ['owner_id']}],
+        indexes: [{fields: ['owner_id', 'parent_id', 'name'], unique: true}, {fields: ['owner_id', 'app']}],
+        triggers: [createdTrigger, updatedTrigger],
+        extensions: [{
+            name: 'rules',
+            listRule: 'auth.uid == owner_id',
+            viewRule: 'auth.uid == owner_id',
+            createRule: null,
+            updateRule: null,
+            deleteRule: null,
+        } as TableRulesExtensionData],
+    }, {
+        // Drive items: one upload, a file or a folder of files that belong together. The id is in the R2 keys
+        // (d/<handle>/<id>/<name at upload or relative path>) and never changes; name and folder are labels here.
+        // visibility: private (signed URLs) | link (anyone with the item URL). entry: the file the item URL opens.
+        name: 'drive_items',
+        autoSetUid: false,
+        fields: [
+            baseFields[0], baseFields[1], baseFields[2],
+            {name: 'owner_id', type: 'relation', sqlType: 'text', notNull: true, foreignKey: {table: 'users', column: 'id'}},
+            {name: 'folder_id', type: 'text', sqlType: 'text', notNull: true},
+            {name: 'name', type: 'text', sqlType: 'text', notNull: true},
+            {name: 'entry', type: 'text', sqlType: 'text'},
+            {name: 'visibility', type: 'text', sqlType: 'text', notNull: true, default: sqlValue('private')},
+            {name: 'size', type: 'integer', sqlType: 'integer', notNull: true, default: sqlValue(0)},
+            {name: 'files_count', type: 'integer', sqlType: 'integer', notNull: true, default: sqlValue(0)},
+        ],
+        indexes: [{fields: ['owner_id', 'folder_id', 'name'], unique: true}],
         triggers: [createdTrigger, updatedTrigger],
         extensions: [{
             name: 'rules',

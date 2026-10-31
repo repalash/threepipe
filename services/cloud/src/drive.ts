@@ -1,22 +1,42 @@
 import type {Context, Hono} from 'hono'
 import {HTTPException} from 'hono/http-exception'
 import type {CloudEnv} from './env'
-import {base64url, BUCKET, cleanSegments, filesOrigin, keyUrl, prefixRange, randomCode} from './env'
-import {assertScope, CloudUser, isStaff, requireUser} from './auth'
+import {base64url, BUCKET, cleanSegments, filesOrigin, keyUrl, randomCode} from './env'
+import {CloudUser, requireUser} from './auth'
+import {contentTypeFor, putStreamed, uploadSize} from './uploads'
 
 /**
- * The drive: `d/<handle>/…`, files that belong to one user (saved by apps like the editor, or uploaded).
+ * The drive: each user's files, saved by apps (the editor) or uploaded.
  *
- * - Private by default: only the owner reads them, through the API (`GET /api/v1/uploads/d/…`) or a signed URL.
- * - `public`: served at `files…/d/<handle>/<path>`.
- * - Share links: `files…/f/<id>/…` for a file or a folder, until the link is deleted.
+ * - An **item** is one upload: a file, or a folder of files that belong together (a .gltf with its .bin and textures,
+ *   a small site). Its random id is in the R2 keys, `d/<handle>/<item id>/<name at upload or relative path>`, which never
+ *   change. So relative references inside an item work, and serving never reads the database.
+ * - **Folders** and the names of items are labels in D1 (`drive_folders`, `drive_items`): renaming or moving is one row.
+ *   A path like `/furniture/chair.glb` is resolved with one recursive query (API and page only).
+ * - **Visibility** per item: `private`, read through a signed URL that covers the whole item
+ *   (`files…/t/<exp>.<sig>/d/<handle>/<item>/…`), or `link`, the item URL works for anyone (the id cannot be guessed).
+ *   It is on each object's metadata too, so the files host decides without D1 (src/files.ts).
  *
- * Serving never reads the database: visibility is on the object, a share link is a small pointer object `f/<id>`,
- * and a signed URL carries its own HMAC (src/files.ts).
+ *   GET    /api/v1/drive?folder=<id>                 → {folder, path, folders, items}   ('' or none: the root)
+ *   GET    /api/v1/drive/resolve?path=/a/b/name      → {folder} or {item}
+ *   POST   /api/v1/drive/folders {name, parent?}     → folder
+ *   PATCH  /api/v1/drive/folders/<id> {name?, parent?}
+ *   DELETE /api/v1/drive/folders/<id>                 (empty folders only)
+ *   PUT    /api/v1/drive/files?folder=<id>&name=<name>   body: the file → a new item with that one file
+ *   POST   /api/v1/drive/items {name, folder?, entry?}   → an empty item, for a folder upload (then PUT each file)
+ *   PUT    /api/v1/drive/items/<id>/<relative path>  body: one file of the item (overwrites)
+ *   GET    /api/v1/drive/items/<id>                  → the item and its files
+ *   GET    /api/v1/drive/items/<id>/<relative path>  → the file (owner)
+ *   PATCH  /api/v1/drive/items/<id> {name?, folder?, visibility?, entry?}
+ *   DELETE /api/v1/drive/items/<id>
+ *   POST   /api/v1/drive/items/<id>/sign {ttl?}      → {url, expires_at}: the item's base URL, signed (ends with /)
+ *   POST   /api/v1/drive/items/<id>/new-id           → the item under a new id: every old URL of it stops working
+ *
+ * App keys (src/connect.ts) only reach their folder and what is below it.
  */
 
-export type Visibility = 'private' | 'public'
-const VISIBILITIES: Visibility[] = ['private', 'public']
+export type Visibility = 'private' | 'link'
+const VISIBILITIES: Visibility[] = ['private', 'link']
 
 const GB = 1024 * 1024 * 1024
 /** Drive quota per role (sum of file sizes in d/). */
@@ -24,89 +44,153 @@ export const DRIVE_QUOTA: Record<CloudUser['role'], number> = {member: 1 * GB, s
 
 const SIGN_DEFAULT_SECONDS = 60 * 60
 const SIGN_MAX_SECONDS = 7 * 24 * 60 * 60
+/** Changing visibility or the id rewrites each file of the item (R2 has no metadata update or rename). */
+const ITEM_FILES_MAX = 500
+const LIST_MAX = 1000
+const ROOT = ''
+
+interface Folder {id: string, name: string, parent_id: string}
+interface Item {id: string, name: string, folder_id: string, entry: string | null, visibility: Visibility, size: number, files_count: number, created: string, updated: string}
+const ITEM_COLUMNS = 'id, name, folder_id, entry, visibility, size, files_count, created, updated'
 
 const json = <T>(c: Context<CloudEnv>) => c.req.json<T>().catch(() => ({} as Partial<T>))
+const db = (c: Context<CloudEnv>) => c.env.PRIMARY_DB
 
-/** The drive path a request names (`d/<handle>/…`, a folder ends with `/`), checked against the user and an app key's folder. */
-function drivePath(user: CloudUser, path: unknown): string {
-    if (typeof path !== 'string') throw new HTTPException(400, {message: 'path: d/<your username>/<file or folder/>'})
-    const folder = path.endsWith('/')
-    const segs = cleanSegments(folder ? path.slice(0, -1) : path)
-    if (!segs || segs[0] !== 'd' || segs.length < (folder ? 2 : 3)) throw new HTTPException(400, {message: 'path: d/<your username>/<file or folder/>'})
-    if (segs[1] !== user.username) throw new HTTPException(403, {message: `your drive is d/${user.username}/`})
-    const p = segs.join('/') + (folder ? '/' : '')
-    assertScope(user, p)
-    return p
+/** A name for a folder or an item: any language, no `/`, `\` or control characters, 1 to 255 bytes. */
+function label(name: unknown): string {
+    const n = typeof name === 'string' ? name.normalize('NFC').trim() : ''
+    if (!n || n === '.' || n === '..' || new TextEncoder().encode(n).length > 255 || /[\p{Cc}\p{Cf}/\\]/u.test(n))
+        throw new HTTPException(400, {message: 'name: 1 to 255 bytes, no / \\ or control characters'})
+    return n
 }
 
-/** Before a drive upload: the quota (an overwrite counts its new size only) and the visibility of the new file. */
-export async function checkDrive(c: Context<CloudEnv>, user: CloudUser, key: string, size: number): Promise<Visibility> {
-    const asked = c.req.query('visibility') as Visibility | undefined
-    if (asked !== undefined && !VISIBILITIES.includes(asked)) throw new HTTPException(400, {message: `visibility is one of ${VISIBILITIES.join(', ')}`})
-    const r = await c.env.PRIMARY_DB.prepare(`SELECT COALESCE(SUM(size), 0) AS used, COALESCE(SUM(CASE WHEN path = ? THEN size END), 0) AS old,
-            MAX(CASE WHEN path = ? THEN visibility END) AS vis FROM files WHERE owner_id = ? AND prefix = 'd' AND deleted_at IS NULL`)
-        .bind(key, key, user.id).first<{used: number, old: number, vis: Visibility | null}>()
+/** The item's base key, `d/<handle>/<id>/`. */
+const itemBase = (user: CloudUser, id: string) => `d/${user.username}/${id}/`
+const itemOut = (c: Context<CloudEnv>, user: CloudUser, item: Item) =>
+    ({...item, url: keyUrl(filesOrigin(c.env, new URL(c.req.url).origin), itemBase(user, item.id) + (item.entry ?? ''))})
+
+// ---- folders and scope ----
+
+/** The folders from the root down to `id`, inclusive ([] for the root), or 404. One recursive query. */
+async function chain(c: Context<CloudEnv>, user: CloudUser, id: string): Promise<Folder[]> {
+    if (id === ROOT) return []
+    const {results} = await db(c).prepare(`WITH RECURSIVE up(id, name, parent_id, depth) AS (
+            SELECT id, name, parent_id, 0 FROM drive_folders WHERE id = ?1 AND owner_id = ?2
+            UNION ALL SELECT f.id, f.name, f.parent_id, up.depth + 1 FROM drive_folders f JOIN up ON f.id = up.parent_id AND f.owner_id = ?2 WHERE up.depth < 64)
+        SELECT id, name, parent_id FROM up ORDER BY depth DESC`).bind(id, user.id).all<Folder>()
+    if (!results.length) throw new HTTPException(404, {message: 'no such folder'})
+    return results
+}
+
+/** The chain to folder `id`, or 403 when an app key may not use it (only its own folder and below). */
+async function scopedChain(c: Context<CloudEnv>, user: CloudUser, id: string): Promise<Folder[]> {
+    const ch = await chain(c, user, id)
+    if (user.scope && user.scope !== '*' && !ch.some(f => f.id === user.scope)) throw new HTTPException(403, {message: 'this app key can only use its own folder'})
+    return ch
+}
+
+/** 409 when the folder already has a folder or an item with that name (a path must name one thing). */
+async function assertFree(c: Context<CloudEnv>, user: CloudUser, folder: string, name: string, except?: string) {
+    const taken = await db(c).prepare(`SELECT id FROM drive_folders WHERE owner_id = ?1 AND parent_id = ?2 AND name = ?3 AND id != ?4
+            UNION ALL SELECT id FROM drive_items WHERE owner_id = ?1 AND folder_id = ?2 AND name = ?3 AND id != ?4 LIMIT 1`)
+        .bind(user.id, folder, name, except ?? '').first()
+    if (taken) throw new HTTPException(409, {message: `'${name}' exists in this folder`})
+}
+
+/** `name`, or `name (2).ext`, `name (3).ext`…: the first one free in the folder. */
+async function freeName(c: Context<CloudEnv>, user: CloudUser, folder: string, name: string): Promise<string> {
+    const dot = name.lastIndexOf('.')
+    const [stem, ext] = dot > 0 ? [name.slice(0, dot), name.slice(dot)] : [name, '']
+    for (let i = 1; i < 100; i++) {
+        const n = i === 1 ? name : `${stem} (${i})${ext}`
+        try {
+            await assertFree(c, user, folder, n)
+            return n
+        } catch (e) {
+            if (!(e instanceof HTTPException) || e.status !== 409) throw e
+        }
+    }
+    throw new HTTPException(409, {message: `too many items named '${name}' here`})
+}
+
+async function folderOf(c: Context<CloudEnv>, user: CloudUser, id: string): Promise<Folder> {
+    const f = await db(c).prepare('SELECT id, name, parent_id FROM drive_folders WHERE id = ? AND owner_id = ?').bind(id, user.id).first<Folder>()
+    if (!f) throw new HTTPException(404, {message: 'no such folder'})
+    return f
+}
+
+/** The user's item, or 404; for an app key only inside its folder. */
+async function itemOf(c: Context<CloudEnv>, user: CloudUser, id: string): Promise<Item> {
+    const it = await db(c).prepare(`SELECT ${ITEM_COLUMNS} FROM drive_items WHERE id = ? AND owner_id = ?`).bind(id, user.id).first<Item>()
+    if (!it) throw new HTTPException(404, {message: 'no such item'})
+    await scopedChain(c, user, it.folder_id)
+    return it
+}
+
+/** Where an app key starts (its folder), else the root. */
+const startFolder = (user: CloudUser) => user.scope && user.scope !== '*' ? user.scope : ROOT
+
+/** Creates the folder `name` under `parent` (the folder made for an app on connect too, marked with `app`). */
+export async function createFolder(c: Context<CloudEnv>, ownerId: string, parent: string, name: string, app?: string): Promise<Folder> {
+    const id = randomCode(12)
+    await db(c).prepare('INSERT INTO drive_folders (id, owner_id, parent_id, name, app) VALUES (?, ?, ?, ?, ?)').bind(id, ownerId, parent, name, app ?? null).run()
+    return {id, name, parent_id: parent}
+}
+
+// ---- files ----
+
+/** Before writing a file: the quota (an overwrite counts its new size only). */
+async function checkQuota(c: Context<CloudEnv>, user: CloudUser, key: string, size: number) {
+    const r = await db(c).prepare(`SELECT COALESCE(SUM(size), 0) AS used, COALESCE(SUM(CASE WHEN path = ?1 THEN size END), 0) AS old
+            FROM files WHERE owner_id = ?2 AND prefix = 'd' AND deleted_at IS NULL`).bind(key, user.id).first<{used: number, old: number}>()
     const quota = DRIVE_QUOTA[user.role]
     if ((r?.used ?? 0) - (r?.old ?? 0) + size > quota)
         throw new HTTPException(413, {message: `drive quota: ${quota / GB} GB (${Math.round((r?.used ?? 0) / 1024 / 1024)} MB used)`})
-    return asked ?? r?.vis ?? 'private'
 }
 
-/** The owner's own drive file, through the API (Authorization header or cookie). */
-export async function driveRead(c: Context<CloudEnv>) {
-    const user = await requireUser(c)
-    const key = drivePath(user, 'd/' + (c.req.param('path') || ''))
-    const obj = await c.env.CLOUD_BUCKET.get(key)
-    if (!obj || obj.customMetadata?.owner !== user.id || obj.customMetadata?.deleted) throw new HTTPException(404, {message: 'not found'})
-    const headers = new Headers()
-    obj.writeHttpMetadata(headers)
-    headers.set('etag', obj.httpEtag)
-    headers.set('content-length', String(obj.size))
-    headers.set('cache-control', 'private, no-store')
-    headers.set('x-content-type-options', 'nosniff')
-    headers.set('content-security-policy', 'sandbox')
-    return new Response(obj.body, {headers})
+const updateCounts = (c: Context<CloudEnv>, id: string, entry: string | null) => db(c).prepare(`UPDATE drive_items SET entry = COALESCE(entry, ?1),
+        size = (SELECT COALESCE(SUM(size), 0) FROM files WHERE item_id = ?2 AND deleted_at IS NULL),
+        files_count = (SELECT COUNT(*) FROM files WHERE item_id = ?2 AND deleted_at IS NULL) WHERE id = ?2`).bind(entry, id)
+
+/** Streams the request body into the item as `rel`, registers it, and updates the item's size and count. */
+async function writeFile(c: Context<CloudEnv>, user: CloudUser, item: Item, rel: string) {
+    const segs = cleanSegments(rel)
+    if (!segs) throw new HTTPException(400, {message: 'bad file path (no \\ ? # %, control characters or dot files)'})
+    rel = segs.join('/')
+    const key = itemBase(user, item.id) + rel
+    const size = uploadSize(c)
+    await checkQuota(c, user, key, size)
+    const body = c.req.raw.body
+    if (!body) throw new HTTPException(400, {message: 'empty body'})
+    const contentType = contentTypeFor(key, c.req.header('content-type'))
+    const {stored, sha256} = await putStreamed(c.env.CLOUD_BUCKET, key, body, size, {
+        httpMetadata: {contentType},
+        customMetadata: {owner: user.id, item: item.id, visibility: item.visibility},
+    })
+    if (!stored) throw new HTTPException(409, {message: 'the file was written by another request at the same time; retry'})
+    await db(c).batch([
+        db(c).prepare(`INSERT INTO files (id, owner_id, bucket, prefix, path, size, sha256, content_type, item_id) VALUES (?, ?, ?, 'd', ?, ?, ?, ?, ?)
+                ON CONFLICT (bucket, path) DO UPDATE SET size = excluded.size, sha256 = excluded.sha256, content_type = excluded.content_type,
+                deleted_at = NULL, deleted_by = NULL, deleted_reason = NULL`)
+            .bind(crypto.randomUUID(), user.id, BUCKET, key, size, sha256, contentType, item.id),
+        updateCounts(c, item.id, rel),
+    ])
+    return {path: rel, size, sha256}
 }
 
-/**
- * `PATCH /api/v1/uploads/d/<path>` `{visibility?, move_to?}`: make a file public or private, or move/rename it.
- * R2 cannot change metadata or rename in place, so both copy the object (streamed).
- */
-export async function drivePatch(c: Context<CloudEnv>) {
-    const user = await requireUser(c)
-    const key = drivePath(user, 'd/' + (c.req.param('path') || ''))
-    if (key.endsWith('/')) throw new HTTPException(400, {message: 'one file at a time'})
-    const body = await json<{visibility?: Visibility, move_to?: string}>(c)
-    if (body.visibility !== undefined && !VISIBILITIES.includes(body.visibility)) throw new HTTPException(400, {message: `visibility is one of ${VISIBILITIES.join(', ')}`})
-    const to = body.move_to !== undefined ? drivePath(user, body.move_to) : key
-    if (to.endsWith('/')) throw new HTTPException(400, {message: 'move_to is a file path'})
-    const db = c.env.PRIMARY_DB
-    const row = await db.prepare(`SELECT id, visibility FROM files WHERE bucket = ? AND path = ? AND owner_id = ? AND deleted_at IS NULL`)
-        .bind(BUCKET, key, user.id).first<{id: string, visibility: Visibility | null}>()
-    if (!row) throw new HTTPException(404, {message: 'not found'})
-    const visibility = body.visibility ?? row.visibility ?? 'private'
-    if (to === key && visibility === row.visibility) return c.json({path: key, visibility})
-    if (to !== key && await db.prepare('SELECT 1 FROM files WHERE bucket = ? AND path = ? AND deleted_at IS NULL').bind(BUCKET, to).first())
-        throw new HTTPException(409, {message: `${to} exists; delete it first`})
-
-    const obj = await c.env.CLOUD_BUCKET.get(key)
-    if (!obj) throw new HTTPException(404, {message: 'not found'})
-    await c.env.CLOUD_BUCKET.put(to, obj.body, {httpMetadata: obj.httpMetadata, customMetadata: {...obj.customMetadata, visibility}})
-    if (to !== key) {
-        await c.env.CLOUD_BUCKET.delete(key)
-        // a deleted row at the new path (from an earlier delete by staff) would block the update on the unique index
-        await db.prepare('DELETE FROM files WHERE bucket = ? AND path = ? AND deleted_at IS NOT NULL').bind(BUCKET, to).run()
-    }
-    await db.prepare('UPDATE files SET path = ?, visibility = ? WHERE id = ?').bind(to, visibility, row.id).run()
-    return c.json({path: to, visibility, url: keyUrl(filesOrigin(c.env, new URL(c.req.url).origin), to)})
+async function itemFiles(c: Context<CloudEnv>, item: Item) {
+    const {results} = await db(c).prepare(`SELECT path, size, content_type FROM files WHERE item_id = ? AND deleted_at IS NULL ORDER BY path LIMIT ${ITEM_FILES_MAX + 1}`)
+        .bind(item.id).all<{path: string, size: number, content_type: string}>()
+    return results
 }
 
-/** The owner deletes a drive file: the object and its registry row are removed (no tombstone). */
-export async function driveDelete(c: Context<CloudEnv>, key: string) {
-    await c.env.CLOUD_BUCKET.delete(key)
-    await c.env.PRIMARY_DB.prepare('DELETE FROM files WHERE bucket = ? AND path = ?').bind(BUCKET, key).run()
-    return c.json({deleted: key})
+async function rewritableFiles(c: Context<CloudEnv>, item: Item) {
+    const files = await itemFiles(c, item)
+    if (files.length > ITEM_FILES_MAX) throw new HTTPException(413, {message: `items of more than ${ITEM_FILES_MAX} files cannot be rewritten yet`})
+    return files
 }
+
+// ---- signed URLs ----
 
 async function hmac(env: CloudflareBindings, data: string): Promise<string> {
     if (!env.FILES_URL_SECRET) throw new HTTPException(500, {message: 'FILES_URL_SECRET is not set'})
@@ -114,79 +198,230 @@ async function hmac(env: CloudflareBindings, data: string): Promise<string> {
     return base64url(await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(data)))
 }
 
-/**
- * Signed URL path `t/<exp>.<depth>.<sig>/<path>`: valid until `exp` (unix seconds) for the file, or the folder, made of
- * the first `depth` segments of the path. A signed folder keeps relative links working (a .gltf next to its .bin).
- */
-export async function signPath(env: CloudflareBindings, path: string, exp: number): Promise<string> {
-    const depth = path.replace(/\/$/, '').split('/').length
-    return `t/${exp}.${depth}.${await hmac(env, `${exp}.${path}`)}/${path}`
+/** `t/<exp>.<sig>/d/<handle>/<item>/`: until `exp` (unix seconds), every file of the item. */
+export async function signItem(env: CloudflareBindings, base: string, exp: number): Promise<string> {
+    return `t/${exp}.${await hmac(env, `${exp}.${base}`)}/${base}`
 }
 
-/** Whether `token` (the `<exp>.<depth>.<sig>` of a signed URL) allows reading `key`. */
+/** Whether `token` (`<exp>.<sig>` of a signed URL) allows reading `key` (`d/<handle>/<item>/<file>`). */
 export async function verifySigned(env: CloudflareBindings, token: string, key: string): Promise<boolean> {
-    const [e, d, sig] = token.split('.')
-    const exp = Number(e), depth = Number(d)
-    if (!sig || !Number.isInteger(exp) || exp * 1000 < Date.now() || !Number.isInteger(depth) || depth < 2) return false
+    const [e, sig] = token.split('.')
+    const exp = Number(e)
     const segs = key.split('/')
-    if (depth > segs.length) return false
-    const signed = depth === segs.length ? key : segs.slice(0, depth).join('/') + '/'
-    const expected = new TextEncoder().encode(await hmac(env, `${exp}.${signed}`))
+    if (!sig || !Number.isInteger(exp) || exp * 1000 < Date.now() || segs[0] !== 'd' || segs.length < 4) return false
+    const expected = new TextEncoder().encode(await hmac(env, `${exp}.${segs.slice(0, 3).join('/')}/`))
     const given = new TextEncoder().encode(sig)
     return expected.length === given.length && crypto.subtle.timingSafeEqual(expected, given)
 }
 
-/**
- *   GET    /api/v1/drive?folder=d/<handle>/…/&after=<path>   → {files: [{path, size, content_type, visibility, updated}], next}
- *   POST   /api/v1/drive/sign {path, ttl?}                     → {url, expires_at}   (ttl in seconds, default 1 h, max 7 days)
- *   POST   /api/v1/drive-links {path}                          → {id, path, url}     (a file, or a folder ending with /)
- *   DELETE /api/v1/drive-links/<id>
- * Listing links: /api/v1/table/drive_links/… (teenybase, owner only).
- */
+// ---- routes ----
+
+const folderOut = (f: Folder) => ({id: f.id, name: f.name, parent: f.parent_id})
+
 export function driveRoutes(app: Hono<CloudEnv>) {
     app.get('/api/v1/drive', async (c) => {
         const user = await requireUser(c)
-        const folder = drivePath(user, c.req.query('folder') || user.scope || `d/${user.username}/`)
-        if (!folder.endsWith('/')) throw new HTTPException(400, {message: 'folder ends with /'})
-        const after = c.req.query('after') || ''
-        const limit = 1000
-        const {results} = await c.env.PRIMARY_DB.prepare(`SELECT path, size, content_type, visibility, updated FROM files
-                WHERE bucket = ? AND path >= ? AND path < ? AND path > ? AND owner_id = ? AND deleted_at IS NULL ORDER BY path LIMIT ?`)
-            .bind(BUCKET, ...prefixRange(folder), after, user.id, limit + 1).all()
-        const more = results.length > limit
-        const files = results.slice(0, limit)
-        return c.json({files, next: more ? (files[files.length - 1] as {path: string}).path : null})
+        const id = c.req.query('folder') ?? startFolder(user)
+        const path = await scopedChain(c, user, id)
+        const [folders, items] = await db(c).batch([
+            db(c).prepare('SELECT id, name, parent_id FROM drive_folders WHERE owner_id = ? AND parent_id = ? ORDER BY name LIMIT ?').bind(user.id, id, LIST_MAX),
+            db(c).prepare(`SELECT ${ITEM_COLUMNS} FROM drive_items WHERE owner_id = ? AND folder_id = ? ORDER BY name LIMIT ?`).bind(user.id, id, LIST_MAX),
+        ]) as [D1Result<Folder>, D1Result<Item>]
+        return c.json({
+            folder: id === ROOT ? {id: ROOT, name: '', parent: null} : folderOut(path[path.length - 1]),
+            path: path.map(f => ({id: f.id, name: f.name})),
+            folders: folders.results.map(folderOut),
+            items: items.results.map(it => itemOut(c, user, it)),
+        })
     })
 
-    app.post('/api/v1/drive/sign', async (c) => {
+    app.get('/api/v1/drive/resolve', async (c) => {
         const user = await requireUser(c)
-        const body = await json<{path?: string, ttl?: number}>(c)
-        const path = drivePath(user, body.path)
-        const ttl = body.ttl ?? SIGN_DEFAULT_SECONDS
+        const parts = (c.req.query('path') || '').normalize('NFC').split('/').filter(Boolean)
+        if (!parts.length) return c.json({folder: {id: ROOT, name: '', parent: null}})
+        // down the folders by name, as far as they go: one query
+        const deepest = await db(c).prepare(`WITH RECURSIVE walk(id, depth) AS (SELECT '', 0
+                UNION ALL SELECT f.id, walk.depth + 1 FROM drive_folders f JOIN walk ON f.parent_id = walk.id
+                WHERE f.owner_id = ?1 AND walk.depth < ?3 AND f.name = json_extract(?2, '$[' || walk.depth || ']'))
+            SELECT id, depth FROM walk ORDER BY depth DESC LIMIT 1`).bind(user.id, JSON.stringify(parts), parts.length).first<{id: string, depth: number}>()
+        const at = deepest ?? {id: ROOT, depth: 0}
+        if (at.depth === parts.length) {
+            await scopedChain(c, user, at.id)
+            return c.json({folder: folderOut(await folderOf(c, user, at.id))})
+        }
+        if (at.depth === parts.length - 1) {
+            const it = await db(c).prepare('SELECT id FROM drive_items WHERE owner_id = ? AND folder_id = ? AND name = ?').bind(user.id, at.id, parts[parts.length - 1]).first<{id: string}>()
+            if (it) return c.json({item: itemOut(c, user, await itemOf(c, user, it.id))})
+        }
+        throw new HTTPException(404, {message: 'not found'})
+    })
+
+    app.post('/api/v1/drive/folders', async (c) => {
+        const user = await requireUser(c)
+        const body = await json<{name?: string, parent?: string}>(c)
+        const parent = body.parent ?? startFolder(user)
+        await scopedChain(c, user, parent)
+        const name = label(body.name)
+        await assertFree(c, user, parent, name)
+        return c.json(folderOut(await createFolder(c, user.id, parent, name)), 201)
+    })
+
+    app.patch('/api/v1/drive/folders/:id', async (c) => {
+        const user = await requireUser(c)
+        const f = await folderOf(c, user, c.req.param('id'))
+        await scopedChain(c, user, f.id)
+        if (user.scope === f.id) throw new HTTPException(403, {message: 'an app cannot rename or move its own folder'})
+        const body = await json<{name?: string, parent?: string}>(c)
+        const name = body.name !== undefined ? label(body.name) : f.name
+        const parent = body.parent ?? f.parent_id
+        if (parent !== f.parent_id && (await scopedChain(c, user, parent)).some(x => x.id === f.id))
+            throw new HTTPException(400, {message: 'a folder cannot move into itself'})
+        await assertFree(c, user, parent, name, f.id)
+        await db(c).prepare('UPDATE drive_folders SET name = ?, parent_id = ? WHERE id = ?').bind(name, parent, f.id).run()
+        return c.json(folderOut({id: f.id, name, parent_id: parent}))
+    })
+
+    app.delete('/api/v1/drive/folders/:id', async (c) => {
+        const user = await requireUser(c)
+        const f = await folderOf(c, user, c.req.param('id'))
+        await scopedChain(c, user, f.id)
+        if (user.scope === f.id) throw new HTTPException(403, {message: 'an app cannot delete its own folder'})
+        const inside = await db(c).prepare('SELECT 1 FROM drive_folders WHERE parent_id = ?1 AND owner_id = ?2 UNION ALL SELECT 1 FROM drive_items WHERE folder_id = ?1 AND owner_id = ?2 LIMIT 1')
+            .bind(f.id, user.id).first()
+        if (inside) throw new HTTPException(409, {message: 'the folder is not empty'})
+        await db(c).prepare('DELETE FROM drive_folders WHERE id = ?').bind(f.id).run()
+        return c.json({deleted: f.id})
+    })
+
+    // A new item with one file: the usual save. The name is the label; the stored file name is the same, made safe.
+    app.put('/api/v1/drive/files', async (c) => {
+        const user = await requireUser(c)
+        const folder = c.req.query('folder') ?? startFolder(user)
+        await scopedChain(c, user, folder)
+        const name = await freeName(c, user, folder, label(c.req.query('name')))
+        const rel = name.replace(/[\\?#%]/g, '_').replace(/^\./, '_')
+        const item: Item = {id: randomCode(16), name, folder_id: folder, entry: null, visibility: 'private', size: 0, files_count: 0, created: '', updated: ''}
+        await db(c).prepare('INSERT INTO drive_items (id, owner_id, folder_id, name) VALUES (?, ?, ?, ?)').bind(item.id, user.id, folder, name).run()
+        try {
+            await writeFile(c, user, item, rel)
+        } catch (e) {
+            await db(c).prepare('DELETE FROM drive_items WHERE id = ?').bind(item.id).run()
+            throw e
+        }
+        return c.json(itemOut(c, user, await itemOf(c, user, item.id)), 201)
+    })
+
+    app.post('/api/v1/drive/items', async (c) => {
+        const user = await requireUser(c)
+        const body = await json<{name?: string, folder?: string, entry?: string}>(c)
+        const folder = body.folder ?? startFolder(user)
+        await scopedChain(c, user, folder)
+        const name = await freeName(c, user, folder, label(body.name))
+        let entry: string | null = null
+        if (body.entry !== undefined) {
+            entry = cleanSegments(String(body.entry))?.join('/') ?? null
+            if (!entry) throw new HTTPException(400, {message: 'bad entry'})
+        }
+        const id = randomCode(16)
+        await db(c).prepare('INSERT INTO drive_items (id, owner_id, folder_id, name, entry) VALUES (?, ?, ?, ?, ?)').bind(id, user.id, folder, name, entry).run()
+        return c.json(itemOut(c, user, await itemOf(c, user, id)), 201)
+    })
+
+    app.put('/api/v1/drive/items/:id/:path{.+}', async (c) => {
+        const user = await requireUser(c)
+        const item = await itemOf(c, user, c.req.param('id'))
+        return c.json(await writeFile(c, user, item, c.req.param('path')))
+    })
+
+    app.get('/api/v1/drive/items/:id', async (c) => {
+        const user = await requireUser(c)
+        const item = await itemOf(c, user, c.req.param('id'))
+        const base = itemBase(user, item.id)
+        return c.json({...itemOut(c, user, item), files: (await itemFiles(c, item)).map(f => ({...f, path: f.path.slice(base.length)}))})
+    })
+
+    app.get('/api/v1/drive/items/:id/:path{.+}', async (c) => {
+        const user = await requireUser(c)
+        const item = await itemOf(c, user, c.req.param('id'))
+        const segs = cleanSegments(c.req.param('path'))
+        const obj = segs ? await c.env.CLOUD_BUCKET.get(itemBase(user, item.id) + segs.join('/')) : null
+        if (!obj || obj.customMetadata?.owner !== user.id) throw new HTTPException(404, {message: 'not found'})
+        const headers = new Headers()
+        obj.writeHttpMetadata(headers)
+        headers.set('etag', obj.httpEtag)
+        headers.set('content-length', String(obj.size))
+        headers.set('cache-control', 'private, no-store')
+        headers.set('x-content-type-options', 'nosniff')
+        headers.set('content-security-policy', 'sandbox')
+        return new Response(obj.body, {headers})
+    })
+
+    app.patch('/api/v1/drive/items/:id', async (c) => {
+        const user = await requireUser(c)
+        const item = await itemOf(c, user, c.req.param('id'))
+        const body = await json<{name?: string, folder?: string, visibility?: Visibility, entry?: string}>(c)
+        const name = body.name !== undefined ? label(body.name) : item.name
+        const folder = body.folder ?? item.folder_id
+        if (folder !== item.folder_id) await scopedChain(c, user, folder)
+        if (name !== item.name || folder !== item.folder_id) await assertFree(c, user, folder, name, item.id)
+        if (body.visibility !== undefined && !VISIBILITIES.includes(body.visibility)) throw new HTTPException(400, {message: `visibility is one of ${VISIBILITIES.join(', ')}`})
+        const visibility = body.visibility ?? item.visibility
+        let entry = item.entry
+        if (body.entry !== undefined) {
+            entry = cleanSegments(String(body.entry))?.join('/') ?? null
+            if (!entry) throw new HTTPException(400, {message: 'bad entry'})
+        }
+        if (visibility !== item.visibility) {
+            // R2 cannot change metadata in place: each file is written again with the new visibility (streamed)
+            for (const f of await rewritableFiles(c, item)) {
+                const obj = await c.env.CLOUD_BUCKET.get(f.path)
+                if (obj) await c.env.CLOUD_BUCKET.put(f.path, obj.body, {httpMetadata: obj.httpMetadata, customMetadata: {...obj.customMetadata, visibility}})
+            }
+        }
+        await db(c).prepare('UPDATE drive_items SET name = ?, folder_id = ?, visibility = ?, entry = ? WHERE id = ?').bind(name, folder, visibility, entry, item.id).run()
+        return c.json(itemOut(c, user, await itemOf(c, user, item.id)))
+    })
+
+    // A new id for the item: its files are copied under the new id and the old ones deleted, so every URL of the item
+    // given out before (links, signed URLs) stops working. Name, folder and visibility stay.
+    app.post('/api/v1/drive/items/:id/new-id', async (c) => {
+        const user = await requireUser(c)
+        const item = await itemOf(c, user, c.req.param('id'))
+        const files = await rewritableFiles(c, item)
+        const oldBase = itemBase(user, item.id), id = randomCode(16), newBase = itemBase(user, id)
+        await db(c).prepare(`INSERT INTO drive_items (id, owner_id, folder_id, name, entry, visibility, size, files_count, created)
+                SELECT ?, owner_id, folder_id, name || ' ', entry, visibility, size, files_count, created FROM drive_items WHERE id = ?`).bind(id, item.id).run()
+        for (const f of files) {
+            const obj = await c.env.CLOUD_BUCKET.get(f.path)
+            if (obj) await c.env.CLOUD_BUCKET.put(newBase + f.path.slice(oldBase.length), obj.body, {httpMetadata: obj.httpMetadata, customMetadata: {...obj.customMetadata, item: id}})
+        }
+        await db(c).batch([
+            db(c).prepare(`UPDATE files SET item_id = ?1, path = ?2 || substr(path, ?3) WHERE item_id = ?4`).bind(id, newBase, oldBase.length + 1, item.id),
+            db(c).prepare('DELETE FROM drive_items WHERE id = ?').bind(item.id),
+            db(c).prepare('UPDATE drive_items SET name = ? WHERE id = ?').bind(item.name, id),
+        ])
+        for (let i = 0; i < files.length; i += 1000) await c.env.CLOUD_BUCKET.delete(files.slice(i, i + 1000).map(f => f.path))
+        return c.json(itemOut(c, user, await itemOf(c, user, id)))
+    })
+
+    app.delete('/api/v1/drive/items/:id', async (c) => {
+        const user = await requireUser(c)
+        const item = await itemOf(c, user, c.req.param('id'))
+        const {results} = await db(c).prepare('SELECT path FROM files WHERE item_id = ?').bind(item.id).all<{path: string}>()
+        for (let i = 0; i < results.length; i += 1000) await c.env.CLOUD_BUCKET.delete(results.slice(i, i + 1000).map(r => r.path))
+        await db(c).batch([
+            db(c).prepare('DELETE FROM files WHERE item_id = ?').bind(item.id),
+            db(c).prepare('DELETE FROM drive_items WHERE id = ?').bind(item.id),
+        ])
+        return c.json({deleted: item.id})
+    })
+
+    app.post('/api/v1/drive/items/:id/sign', async (c) => {
+        const user = await requireUser(c)
+        const item = await itemOf(c, user, c.req.param('id'))
+        const ttl = (await json<{ttl?: number}>(c)).ttl ?? SIGN_DEFAULT_SECONDS
         if (!Number.isInteger(ttl) || ttl <= 0 || ttl > SIGN_MAX_SECONDS) throw new HTTPException(400, {message: `ttl is seconds, 1 to ${SIGN_MAX_SECONDS}`})
         const exp = Math.floor(Date.now() / 1000) + ttl
-        return c.json({url: keyUrl(filesOrigin(c.env, new URL(c.req.url).origin), await signPath(c.env, path, exp)), expires_at: new Date(exp * 1000).toISOString()})
-    })
-
-    app.post('/api/v1/drive-links', async (c) => {
-        const user = await requireUser(c)
-        const path = drivePath(user, (await json<{path?: string}>(c)).path)
-        const id = randomCode(16)
-        await c.env.CLOUD_BUCKET.put(`f/${id}`, '', {customMetadata: {target: path, owner: user.id}})
-        await c.env.PRIMARY_DB.prepare('INSERT INTO drive_links (id, owner_id, path) VALUES (?, ?, ?)').bind(id, user.id, path).run()
-        // a file link ends with the file name, so loaders that look at the extension work
-        const tail = path.endsWith('/') ? '' : path.split('/').pop()
-        return c.json({id, path, url: keyUrl(filesOrigin(c.env, new URL(c.req.url).origin), `f/${id}/${tail}`)})
-    })
-
-    app.delete('/api/v1/drive-links/:id', async (c) => {
-        const user = await requireUser(c)
-        const id = c.req.param('id')
-        const row = await c.env.PRIMARY_DB.prepare('SELECT owner_id, path FROM drive_links WHERE id = ?').bind(id).first<{owner_id: string, path: string}>()
-        if (!row || row.owner_id !== user.id && !isStaff(user)) throw new HTTPException(404, {message: 'not found'})
-        assertScope(user, row.path)
-        await c.env.CLOUD_BUCKET.delete(`f/${id}`)
-        await c.env.PRIMARY_DB.prepare('DELETE FROM drive_links WHERE id = ?').bind(id).run()
-        return c.json({deleted: id})
+        return c.json({url: keyUrl(filesOrigin(c.env, new URL(c.req.url).origin), await signItem(c.env, itemBase(user, item.id), exp)), expires_at: new Date(exp * 1000).toISOString()})
     })
 }

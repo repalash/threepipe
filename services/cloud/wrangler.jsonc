@@ -22,6 +22,8 @@
         "SAMPLES_URL": "https://samples.threepipe.org",
         "E2E_URL": "https://e2e-snapshots.threepipe.org"
     },
+    // the pages and their scripts are imported as strings (src/page.ts)
+    "rules": [{ "type": "Text", "globs": ["**/*.html", "**/*.client.js"], "fallthrough": true }],
     "triggers": { "crons": ["17 3 * * *"] }, // daily: delete expired files (src/cron.ts)
     "r2_buckets": [
         { "binding": "CLOUD_BUCKET", "bucket_name": "threepipe-cloud" },

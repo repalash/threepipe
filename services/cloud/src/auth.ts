@@ -14,7 +14,7 @@ export interface CloudUser {
     link?: string
     /** app keys only: the app (`p/<name>`, `localhost:5173`, ...) */
     app?: string
-    /** app keys only: the drive folder (`d/<handle>/…/`) the key may use; it cannot use anything else */
+    /** app keys only: the id of the drive folder the key may use (and below it), or `*` for the whole drive; nothing else */
     scope?: string
 }
 
@@ -50,10 +50,9 @@ export async function requireUser(c: Context<CloudEnv>): Promise<CloudUser> {
     return user
 }
 
-/** 403 unless the user may use `path` (a file or a folder ending in `/`): app keys only inside their folder. */
-export function assertScope(user: CloudUser, path: string) {
-    if (user.scope && !path.startsWith(user.scope) && path + '/' !== user.scope)
-        throw new HTTPException(403, {message: `this app key can only use ${user.scope}`})
+/** 403 for an app key outside the drive routes (they check the folder themselves, src/drive.ts). */
+export function assertScope(user: CloudUser, _path: string) {
+    if (user.scope) throw new HTTPException(403, {message: 'an app key can only use the drive'})
 }
 
 /** A key that acts as the user while the access link `linkId` exists (src/access.ts, src/connect.ts). */
@@ -64,7 +63,7 @@ export async function mintKey(c: Context<CloudEnv>, user: {id: string, email: st
 }
 
 /** Our routes: they call requireUser and check scopes themselves. Everything else under /api/ is teenybase. */
-const OWN_ROUTES = /^\/api\/v1\/(uploads|access|access-links|connect|drive|drive-links|buckets)(\/|$)/
+const OWN_ROUTES = /^\/api\/v1\/(uploads|access|access-links|connect|drive|buckets)(\/|$)/
 
 /**
  * Runs before every route (teenybase's onRequest hook):
@@ -85,6 +84,6 @@ export async function guardRequest(c: Context<CloudEnv>): Promise<Response | und
     await db.initAuth()
     if (typeof db.auth?.meta?.link !== 'string') return
     const user = await requireUser(c)
-    if (user.scope) throw new HTTPException(403, {message: 'an app key can only use the drive routes (/api/v1/uploads/d/…, /api/v1/drive…)'})
+    if (user.scope) throw new HTTPException(403, {message: 'an app key can only use the drive routes (/api/v1/drive…)'})
     return
 }

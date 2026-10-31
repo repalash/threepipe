@@ -70,7 +70,6 @@ Download your key from ${api}/api/v1/access/${code}/key and save it as \`TP_CLOU
 | \`a\` | permanent assets (docs images, videos) | permanent | never | \`a/<file name>\`, send \`x-content-sha256: <hex sha256 of the file>\` |
 | \`b\` | builds and previews of a PR or commit | 30 days after the last upload | yes, owner | \`b/<repo>/<pr-123 or sha>/<file path>\` |
 | \`p\` | permanent named pages | permanent | yes, owner | \`p/<name>/<file path>\` |
-| \`d\` | your drive (private by default) | permanent, quota | yes, owner | \`d/${username}/<file path>\`, \`?visibility=public\` to publish |
 
 The first part of the path after \`s\`, \`p\` (and \`<repo>/<ref>\` after \`b\`) belongs to whoever uploads there first.
 Files are served at \`${files}/<prefix>/<path>\`; a folder URL ending in \`/\` serves its \`index.html\`.
@@ -83,17 +82,21 @@ curl -sS -X PUT -H "Authorization: Bearer $TP_CLOUD_KEY" -H "x-content-sha256: $
 
 ## Delete a file
 
-\`DELETE ${api}/api/v1/uploads/<prefix>/<path>\` (your own \`s\`, \`b\`, \`p\`, \`d\` files).
+\`DELETE ${api}/api/v1/uploads/<prefix>/<path>\` (your own \`s\`, \`b\`, \`p\` files).
 
 ## Drive
 
-- Read a private file: \`GET ${api}/api/v1/uploads/d/${username}/<path>\`. List: \`GET ${api}/api/v1/drive?folder=d/${username}/<folder>/\`.
-- Publish or hide, move: \`PATCH ${api}/api/v1/uploads/d/${username}/<path>\` with JSON \`{"visibility": "public" | "private"}\` or \`{"move_to": "d/${username}/<new path>"}\`.
-- Signed URL (expires; a folder URL ending in \`/\` also serves the files in it): \`POST ${api}/api/v1/drive/sign\` \`{"path": "d/${username}/<file or folder/>", "ttl": <seconds>}\`.
-- Share link (until deleted): \`POST ${api}/api/v1/drive-links\` \`{"path": …}\`; \`DELETE ${api}/api/v1/drive-links/<id>\`.
+Your own files, private unless you share them (quota). Each upload is an **item** (a file, or a folder of files that belong together) with a fixed id; folders and names are labels you can change.
+
+- Save a file: \`PUT ${api}/api/v1/drive/files?name=<name>&folder=<folder id>\` with the file as the body (no folder: the top). The answer is the item.
+- A folder of files (a .gltf with its .bin and textures): \`POST ${api}/api/v1/drive/items\` \`{"name": "lamp", "entry": "lamp.gltf"}\`, then \`PUT ${api}/api/v1/drive/items/<id>/<relative path>\` for each file.
+- List: \`GET ${api}/api/v1/drive?folder=<id>\`. By path: \`GET ${api}/api/v1/drive/resolve?path=/folder/name\`. New folder: \`POST ${api}/api/v1/drive/folders\` \`{"name", "parent"}\`.
+- Rename, move, share: \`PATCH ${api}/api/v1/drive/items/<id>\` \`{"name"?, "folder"?, "visibility": "link" | "private"}\`. With \`link\`, the item's \`url\` works for anyone.
+- Read a private item: \`POST ${api}/api/v1/drive/items/<id>/sign\` \`{"ttl": <seconds>}\` gives a URL ending in \`/\`; add the file path (relative files load too).
+- Delete: \`DELETE ${api}/api/v1/drive/items/<id>\`. New id (old URLs stop working): \`POST ${api}/api/v1/drive/items/<id>/new-id\`.
 
 ## Your files
 
-\`GET ${api}/api/v1/table/files/select?select=path,size,expires_at&where=deleted_at%20%3D%3D%20null\`
+\`GET ${api}/api/v1/table/files/select?select=path,size,expires_at&where=deleted_at%20%3D%3D%20null\` (drive items: \`GET ${api}/api/v1/drive\`)
 `
 }

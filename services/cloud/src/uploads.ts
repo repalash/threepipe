@@ -3,7 +3,6 @@ import {HTTPException} from 'hono/http-exception'
 import type {CloudEnv} from './env'
 import {BUCKET, cleanSegments, filesOrigin, hex, keyUrl, prefixRange} from './env'
 import {assertScope, CloudUser, isStaff, requireUser} from './auth'
-import {checkDrive, driveDelete, drivePatch, driveRead, Visibility} from './drive'
 
 /** Per file, through the Worker. Bigger builds are split into files anyway (one PUT per file). */
 export const MAX_UPLOAD_BYTES = 90 * 1024 * 1024
@@ -12,8 +11,9 @@ const SHARE_DEFAULT_DAYS = 7
 const SHARE_MAX_DAYS = 30
 const BUILD_DAYS = 30
 
-export type Prefix = 's' | 'a' | 'b' | 'p' | 'd'
-const PREFIXES: Prefix[] = ['s', 'a', 'b', 'p', 'd']
+// the drive (d/) has its own routes: src/drive.ts
+export type Prefix = 's' | 'a' | 'b' | 'p'
+const PREFIXES: Prefix[] = ['s', 'a', 'b', 'p']
 
 const MIME: Record<string, string> = {
     html: 'text/html; charset=utf-8', htm: 'text/html; charset=utf-8', js: 'text/javascript; charset=utf-8', mjs: 'text/javascript; charset=utf-8',
@@ -31,7 +31,7 @@ export function contentTypeFor(path: string, given?: string | null): string {
 
 interface Target {
     key: string
-    /** the part of the key that belongs to one owner: `s/<slug>`, `b/<repo>/<ref>`, `p/<name>`; none for `a/` and `d/` */
+    /** the part of the key that belongs to one owner: `s/<slug>`, `b/<repo>/<ref>`, `p/<name>`; none for `a/` */
     scope?: string
     expiresAt: string | null
     sha256?: string
@@ -58,11 +58,6 @@ function target(prefix: Prefix, segs: string[], c: Context<CloudEnv>, user: Clou
         if (!/^[0-9a-f]{64}$/.test(sha)) throw new HTTPException(400, {message: 'send x-content-sha256: <hex sha256 of the file>'})
         return {key: `a/${sha.slice(0, 8)}/${segs[0]}`, expiresAt: null, sha256: sha}
     }
-    case 'd':
-        // the drive: d/<handle>/ belongs to the user with that username (picked once, never changes)
-        if (segs.length < 2) throw new HTTPException(400, {message: 'd/<your username>/<file path>'})
-        if (segs[0] !== user.username) throw new HTTPException(403, {message: `your drive is d/${user.username}/`})
-        return {key: 'd/' + segs.join('/'), expiresAt: null}
     }
 }
 
@@ -109,8 +104,8 @@ async function claimScope(env: CloudflareBindings, scope: string, user: CloudUse
 }
 
 /**
- * Uploads (`PUT`) and deletes (`DELETE`) of files in the cloud bucket; drive files (`d/`) can also be read (`GET`) and
- * changed (`PATCH`, src/drive.ts). Keys are the URL paths; the owner, expiry and visibility are also on the R2 object
+ * Uploads (`PUT`) and deletes (`DELETE`) of files in the cloud bucket (the drive is src/drive.ts). Keys are the URL
+ * paths; the owner and expiry are also on the R2 object
  * (src/files.ts serves without a database read). The `files` table is the registry.
  */
 export function uploadRoutes(app: Hono<CloudEnv>) {
@@ -121,8 +116,6 @@ export function uploadRoutes(app: Hono<CloudEnv>) {
         const t = target(prefix, segs, c, user)
         assertScope(user, t.key)
         if (t.scope) await claimScope(c.env, t.scope, user)
-        // drive: quota, and the visibility (kept on overwrite unless ?visibility= is given)
-        const visibility: Visibility | undefined = prefix === 'd' ? await checkDrive(c, user, t.key, size) : undefined
         const contentType = contentTypeFor(t.key, c.req.header('content-type'))
         const body = c.req.raw.body
         if (!body) throw new HTTPException(400, {message: 'empty body'})
@@ -139,7 +132,7 @@ export function uploadRoutes(app: Hono<CloudEnv>) {
             httpMetadata: {contentType},
             // s/ shares carry their expiry (410 right on time); a b/ build is kept alive by later uploads, so its expiry
             // is only in the registry and the daily cron deletes it
-            customMetadata: {owner: user.id, ...prefix === 's' && t.expiresAt ? {expires: t.expiresAt} : {}, ...t.sha256 ? {sha256: t.sha256} : {}, ...visibility ? {visibility} : {}},
+            customMetadata: {owner: user.id, ...prefix === 's' && t.expiresAt ? {expires: t.expiresAt} : {}, ...t.sha256 ? {sha256: t.sha256} : {}},
             ...prefix === 'a' ? {onlyIf: new Headers({'if-none-match': '*'})} : {},
         })
         if (!stored) throw new HTTPException(409, {message: 'the file was written by another request at the same time; retry'})
@@ -148,21 +141,19 @@ export function uploadRoutes(app: Hono<CloudEnv>) {
             throw new HTTPException(400, {message: 'x-content-sha256 does not match the uploaded bytes'})
         }
 
-        await c.env.PRIMARY_DB.prepare(`INSERT INTO files (id, owner_id, bucket, prefix, path, size, sha256, content_type, expires_at, visibility)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        await c.env.PRIMARY_DB.prepare(`INSERT INTO files (id, owner_id, bucket, prefix, path, size, sha256, content_type, expires_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT (bucket, path) DO UPDATE SET owner_id = excluded.owner_id, size = excluded.size, sha256 = excluded.sha256, content_type = excluded.content_type,
-                expires_at = excluded.expires_at, visibility = excluded.visibility, deleted_at = NULL, deleted_by = NULL, deleted_reason = NULL`)
-            .bind(crypto.randomUUID(), user.id, BUCKET, prefix, t.key, size, sha256, contentType, t.expiresAt, visibility ?? null).run()
+                expires_at = excluded.expires_at, deleted_at = NULL, deleted_by = NULL, deleted_reason = NULL`)
+            .bind(crypto.randomUUID(), user.id, BUCKET, prefix, t.key, size, sha256, contentType, t.expiresAt).run()
         // a new upload to a build keeps the whole build alive; at most once a day, not on every file of an upload
         if (prefix === 'b' && t.scope) {
             await c.env.PRIMARY_DB.prepare(`UPDATE files SET expires_at = ? WHERE bucket = ? AND path >= ? AND path < ? AND deleted_at IS NULL AND expires_at < ?`)
                 .bind(t.expiresAt, BUCKET, ...prefixRange(t.scope + '/'), new Date(Date.now() + (BUILD_DAYS - 1) * DAY).toISOString()).run()
         }
-        return c.json({url: keyUrl(filesOrigin(c.env, new URL(c.req.url).origin), t.key), path: t.key, size, sha256, expires_at: t.expiresAt, ...visibility ? {visibility} : {}})
+        return c.json({url: keyUrl(filesOrigin(c.env, new URL(c.req.url).origin), t.key), path: t.key, size, sha256, expires_at: t.expiresAt})
     })
 
-    app.get('/api/v1/uploads/d/:path{.+}', driveRead)
-    app.patch('/api/v1/uploads/d/:path{.+}', drivePatch)
 
     app.delete('/api/v1/uploads/:prefix/:path{.+}', async (c) => {
         const user = await requireUser(c)
@@ -174,8 +165,6 @@ export function uploadRoutes(app: Hono<CloudEnv>) {
         // owners delete their s/ b/ p/ files; a/ stays permanent unless staff removes it (copyright, abuse, storage)
         const mayDelete = isStaff(user) || row.owner_id === user.id && row.prefix !== 'a'
         if (!mayDelete) throw new HTTPException(403, {message: row.prefix === 'a' ? 'permanent assets are removed by staff only' : 'not your file'})
-        // the owner's own drive files are deleted for real (no tombstone: the drive is private storage)
-        if (row.prefix === 'd' && row.owner_id === user.id) return driveDelete(c, key)
         const reason = (c.req.query('reason') || (row.owner_id === user.id ? 'deleted by owner' : 'removed by staff')).slice(0, 200)
         const now = new Date().toISOString()
         // a small tombstone object at the path, so the link answers 410 without a database read

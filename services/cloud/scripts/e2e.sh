@@ -1,6 +1,6 @@
 #!/bin/bash
 # End-to-end test of the local worker: sign-up, access link, agents.md, key, uploads (s a b p), serving, ownership,
-# deletes, staff removal, expiry (cron), revoking, the drive (d/, signed URLs, share links, quota) and app sign-in (connect). Starts `teeny dev` (port 8787) and stops it at the end.
+# deletes, staff removal, expiry (cron), revoking, the drive (items, folders, signed URLs, links, quota) and app sign-in (connect). Starts `teeny dev` (port 8787) and stops it at the end.
 # Usage: npm test
 set -u
 cd "$(dirname "$0")/.."
@@ -84,39 +84,43 @@ echo "$R" | grep -q "aaaa" && ! echo "$R" | grep -q "$BSHA" && ok "missing blobs
 [ "$(admin files/update "{\"where\":\"path == 'b/threepipe/pr-$U/examples/a.txt'\",\"setValues\":{\"expires_at\":\"2000-01-01T00:00:00.000Z\"}}")" = "200" ] || bad "fixture: backdate build"
 curl -s -o /dev/null "$A/cdn-cgi/handler/scheduled?cron=17+3+*+*+*"; sleep 1
 [ "$(curl -s -o /dev/null -w '%{http_code}' "$A/_files/b/threepipe/pr-$U/examples/a.txt")" = "404" ] && ok "cron deletes expired build" || bad "cron"
-# --- drive ---
+# --- drive (items, folders) ---
 H0="Authorization: Bearer $TOK"
 UID1=$(echo "$SIGN" | j "['record']['id']")
 echo '{"asset":{"version":"2.0"}}' > $TMP/scene.gltf; echo "bin" > $TMP/scene.bin
-R=$(curl -s -X PUT -H "$H0" --data-binary @$TMP/scene.gltf "$A/api/v1/uploads/d/$U/proj/scene.gltf"); echo "$R" | grep -q '"visibility":"private"' && ok "drive upload, private by default" || bad "drive upload: $R"
-curl -s -o /dev/null -X PUT -H "$H0" --data-binary @$TMP/scene.bin "$A/api/v1/uploads/d/$U/proj/scene.bin"
-[ "$(code "$A/_files/d/$U/proj/scene.gltf")" = "404" ] && ok "private drive file is not served" || bad "private drive file served"
-[ "$(code -X PUT -H "$H0" --data-binary @$TMP/a.txt "$A/api/v1/uploads/d/$U2/x.txt")" = "403" ] && ok "cannot write another user's drive" || bad "other drive write"
-[ "$(code -X POST -H "$H0" -H 'content-type: application/json' -d "{\"username\":\"$U-new\"}" "$A/api/v1/table/users/edit/$UID1")" != "200" ] && ok "username cannot change" || bad "username changed"
-curl -s -H "$H0" "$A/api/v1/uploads/d/$U/proj/scene.gltf" | grep -q asset && ok "owner reads drive file through the API" || bad "drive API read"
-R=$(curl -s -X POST -H "$H0" -H 'content-type: application/json' -d "{\"path\":\"d/$U/proj/\"}" "$A/api/v1/drive/sign"); FS=$(echo "$R" | j "['url']") || bad "sign folder: $R"
-[ "$(curl -s "${FS}scene.bin")" = "bin" ] && curl -s "${FS}scene.gltf" | grep -q asset && ok "signed folder URL serves the folder (relative links work)" || bad "signed folder: $FS"
-R=$(curl -s -X POST -H "$H0" -H 'content-type: application/json' -d "{\"path\":\"d/$U/proj/scene.gltf\"}" "$A/api/v1/drive/sign"); FF=$(echo "$R" | j "['url']")
-[ "$(code "$FF")" = "200" ] && [ "$(code "${FF%scene.gltf}scene.bin")" = "403" ] && ok "signed file URL serves only that file" || bad "signed file: $FF"
-TAMPER=$(echo "$FS" | sed -E 's#(/t/[0-9]+\.[0-9]+\.)[A-Za-z0-9_-]#\1x#')
-[ "$(code "${TAMPER}scene.bin")" = "403" ] && ok "tampered signature -> 403" || bad "tampered: $TAMPER"
-curl -s -o /dev/null -X PATCH -H "$H0" -H 'content-type: application/json' -d '{"visibility":"public"}' "$A/api/v1/uploads/d/$U/proj/scene.gltf"
-[ "$(code "$A/_files/d/$U/proj/scene.gltf")" = "200" ] && ok "public drive file served at its path" || bad "public drive file"
-curl -s -o /dev/null -X PATCH -H "$H0" -H 'content-type: application/json' -d '{"visibility":"private"}' "$A/api/v1/uploads/d/$U/proj/scene.gltf"
-[ "$(code "$A/_files/d/$U/proj/scene.gltf")" = "404" ] && ok "private again" || bad "private again"
-R=$(curl -s -X POST -H "$H0" -H 'content-type: application/json' -d "{\"path\":\"d/$U/proj/\"}" "$A/api/v1/drive-links"); FL=$(echo "$R" | j "['url']"); FLID=$(echo "$R" | j "['id']")
-[ "$(curl -s "${FL}scene.bin")" = "bin" ] && ok "folder share link" || bad "folder share link: $R"
-R=$(curl -s -X POST -H "$H0" -H 'content-type: application/json' -d "{\"path\":\"d/$U/proj/scene.gltf\"}" "$A/api/v1/drive-links"); FL2=$(echo "$R" | j "['url']")
-case "$FL2" in *scene.gltf) [ "$(code "$FL2")" = "200" ] && ok "file share link ends with the file name" || bad "file link: $FL2";; *) bad "file link url: $R";; esac
-curl -s -o /dev/null -X DELETE -H "$H0" "$A/api/v1/drive-links/$FLID"
-[ "$(code "${FL}scene.bin")" = "404" ] && ok "deleted share link -> 404" || bad "deleted share link"
-R=$(curl -s -X PATCH -H "$H0" -H 'content-type: application/json' -d "{\"move_to\":\"d/$U/proj2/scene.gltf\"}" "$A/api/v1/uploads/d/$U/proj/scene.gltf")
-[ "$(code -H "$H0" "$A/api/v1/uploads/d/$U/proj/scene.gltf")" = "404" ] && curl -s -H "$H0" "$A/api/v1/uploads/d/$U/proj2/scene.gltf" | grep -q asset && ok "move a drive file" || bad "move: $R"
-curl -s -H "$H0" "$A/api/v1/drive" | grep -q "d/$U/proj2/scene.gltf" && ok "list the drive" || bad "list drive"
+R=$(curl -s -X PUT -H "$H0" --data-binary @$TMP/a.txt "$A/api/v1/drive/files?name=chair.glb"); ITEM=$(echo "$R" | j "['id']"); IURL=$(echo "$R" | j "['url']")
+echo "$R" | grep -q '"visibility":"private"' && ok "save a file: a private item" || bad "save: $R"
+[ "$(code "$IURL")" = "404" ] && ok "a private item is not served" || bad "private served: $IURL"
+R=$(curl -s -X PUT -H "$H0" --data-binary @$TMP/a.txt "$A/api/v1/drive/files?name=chair.glb"); echo "$R" | grep -q '"name":"chair (2).glb"' && ok "same name in a folder -> chair (2).glb" || bad "free name: $R"
+FID=$(curl -s -X POST -H "$H0" -H 'content-type: application/json' -d '{"name":"furniture"}' "$A/api/v1/drive/folders" | j "['id']")
+LID=$(curl -s -X POST -H "$H0" -H 'content-type: application/json' -d "{\"name\":\"lamp\",\"entry\":\"scene.gltf\",\"folder\":\"$FID\"}" "$A/api/v1/drive/items" | j "['id']")
+curl -s -o /dev/null -X PUT -H "$H0" --data-binary @$TMP/scene.gltf "$A/api/v1/drive/items/$LID/scene.gltf"
+curl -s -o /dev/null -X PUT -H "$H0" --data-binary @$TMP/scene.bin "$A/api/v1/drive/items/$LID/tex/scene.bin"
+curl -s -H "$H0" "$A/api/v1/drive/items/$LID" | grep -q '"files_count":2' && ok "a folder item with 2 files" || bad "folder item"
+SURL=$(curl -s -X POST -H "$H0" "$A/api/v1/drive/items/$LID/sign" | j "['url']")
+curl -s "${SURL}scene.gltf" | grep -q asset && [ "$(curl -s "${SURL}tex/scene.bin")" = "bin" ] && ok "signed item URL serves the entry and its relative files" || bad "signed item: $SURL"
+[ "$(code "${SURL%$LID/}$ITEM/chair.glb")" = "403" ] && ok "a signature covers one item only" || bad "signature scope"
+[ "$(code "$(echo "$SURL" | sed -E 's#(/t/[0-9]+\.)[A-Za-z0-9_-]#\1x#')scene.gltf")" = "403" ] && ok "tampered signature -> 403" || bad "tampered"
+LURL=$(curl -s -X PATCH -H "$H0" -H 'content-type: application/json' -d '{"visibility":"link"}' "$A/api/v1/drive/items/$LID" | j "['url']")
+[ "$(code "$LURL")" = "200" ] && [ "$(curl -s "${LURL%scene.gltf}tex/scene.bin")" = "bin" ] && ok "link: anyone with the item URL" || bad "link: $LURL"
+curl -s -o /dev/null -X PATCH -H "$H0" -H 'content-type: application/json' -d '{"visibility":"private"}' "$A/api/v1/drive/items/$LID"
+[ "$(code "$LURL")" = "404" ] && ok "private again" || bad "private again"
+R=$(curl -s -X PATCH -H "$H0" -H 'content-type: application/json' -d "{\"name\":\"armchair.glb\",\"folder\":\"$FID\"}" "$A/api/v1/drive/items/$ITEM")
+[ "$(echo "$R" | j "['url']")" = "$IURL" ] && curl -s -H "$H0" "$A/api/v1/drive?folder=$FID" | grep -q armchair.glb && ok "rename and move: only the label changes, the URL stays" || bad "rename: $R"
+[ "$(curl -s -H "$H0" "$A/api/v1/drive/resolve?path=/furniture/armchair.glb" | j "['item']['id']")" = "$ITEM" ] && ok "resolve a path" || bad "resolve"
+curl -s -o /dev/null -X PATCH -H "$H0" -H 'content-type: application/json' -d '{"name":"Möbel 2"}' "$A/api/v1/drive/folders/$FID"
+[ "$(curl -s -H "$H0" "$A/api/v1/drive/resolve?path=$(enc '/Möbel 2/lamp')" | j "['item']['id']")" = "$LID" ] && ok "rename a folder (one row), paths follow" || bad "folder rename"
+SUB=$(curl -s -X POST -H "$H0" -H 'content-type: application/json' -d "{\"name\":\"sub\",\"parent\":\"$FID\"}" "$A/api/v1/drive/folders" | j "['id']")
+[ "$(code -X PATCH -H "$H0" -H 'content-type: application/json' -d "{\"parent\":\"$SUB\"}" "$A/api/v1/drive/folders/$FID")" = "400" ] && ok "a folder cannot move into itself" || bad "folder cycle"
+[ "$(code -X DELETE -H "$H0" "$A/api/v1/drive/folders/$FID")" = "409" ] && ok "a folder that is not empty is not deleted" || bad "delete non-empty"
+[ "$(code -H "Authorization: Bearer $T2" "$A/api/v1/drive/items/$ITEM")" = "404" ] && [ "$(code -X PUT -H "Authorization: Bearer $T2" --data-binary @$TMP/a.txt "$A/api/v1/drive/items/$ITEM/x.txt")" = "404" ] && ok "another user's items do not exist for you" || bad "other user item"
+NL=$(curl -s -X POST -H "$H0" "$A/api/v1/drive/items/$LID/new-id" | j "['id']")
+[ -n "$NL" ] && [ "$NL" != "$LID" ] && [ "$(code "${SURL}scene.gltf")" = "404" ] && curl -s "$(curl -s -X POST -H "$H0" "$A/api/v1/drive/items/$NL/sign" | j "['url']")tex/scene.bin" | grep -q bin && ok "new id: the old URLs stop working, the item stays" || bad "new id: $NL"
 [ "$(admin files/insert "{\"values\":{\"owner_id\":\"$UID1\",\"bucket\":\"cloud\",\"prefix\":\"d\",\"path\":\"d/$U/big\",\"size\":1073741824}}")" = "200" ] || bad "fixture: big file"
-[ "$(code -X PUT -H "$H0" --data-binary @$TMP/a.txt "$A/api/v1/uploads/d/$U/over.txt")" = "413" ] && ok "drive quota -> 413" || bad "quota"
+[ "$(code -X PUT -H "$H0" --data-binary @$TMP/a.txt "$A/api/v1/drive/files?name=over.txt")" = "413" ] && ok "drive quota -> 413" || bad "quota"
 admin files/delete "{\"where\":\"path == 'd/$U/big'\"}" > /dev/null
-[ "$(code -X DELETE -H "$H0" "$A/api/v1/uploads/d/$U/proj/scene.bin")" = "200" ] && [ "$(code -H "$H0" "$A/api/v1/uploads/d/$U/proj/scene.bin")" = "404" ] && ok "delete a drive file" || bad "drive delete"
+curl -sI "$A/drive" | grep -qi "content-security-policy: default-src 'none'; script-src 'self'" && [ "$(code "$A/drive/page.js")" = "200" ] && ok "drive page" || bad "drive page"
+[ "$(code -X DELETE -H "$H0" "$A/api/v1/drive/items/$ITEM")" = "200" ] && [ "$(code -H "$H0" "$A/api/v1/drive/items/$ITEM")" = "404" ] && ok "delete an item" || bad "delete item"
 
 # --- app sign-in (connect) ---
 CK="Cookie: tp_cloud_auth=$TOK"
@@ -127,14 +131,17 @@ curl -s -H "$CK" "$CON" | grep -q "Connect p/$U-page" && ok "connect: consent pa
 [ "$(code -X POST -H "$CK" --data-urlencode "return=$APP" "$A/api/v1/connect")" = "403" ] && ok "connect: cookie post without our Origin -> 403" || bad "connect csrf"
 LOC=$(curl -s -o /dev/null -w '%{redirect_url}' -X POST -H "$CK" -H "Origin: $A" --data-urlencode "return=$APP" "$A/api/v1/connect")
 AK=$(python3 -c "import sys,urllib.parse as u;print(u.parse_qs(sys.argv[1].split('#',1)[1])['tp_cloud_key'][0])" "$LOC" 2>/dev/null) && ok "connect: approve -> back to the app with a key" || bad "connect approve: $LOC"
-echo "$LOC" | grep -q "tp_cloud_folder=d%2F$U%2Fapps%2F$U%2Fp%2F$U-page%2F" && ok "connect: folder d/$U/apps/$U/p/$U-page/" || bad "connect folder: $LOC"
+AF=$(python3 -c "import sys,urllib.parse as u;print(u.parse_qs(sys.argv[1].split('#',1)[1])['tp_cloud_folder'][0])" "$LOC" 2>/dev/null)
+[ -n "$AF" ] && [ "$AF" != "*" ] && curl -s -H "$H0" "$A/api/v1/drive?folder=$AF" | grep -q '"name":"Apps"' && ok "connect: the app's folder Apps/<app>" || bad "connect folder: $LOC"
 HA="Authorization: Bearer $AK"
-[ "$(code -X PUT -H "$HA" --data-binary @$TMP/a.txt "$A/api/v1/uploads/d/$U/apps/$U/p/$U-page/save.txt")" = "200" ] && ok "app key writes its folder" || bad "app key write"
-[ "$(code -X PUT -H "$HA" --data-binary @$TMP/a.txt "$A/api/v1/uploads/d/$U/other.txt")" = "403" ] && ok "app key: rest of the drive -> 403" || bad "app key outside folder"
+[ "$(code -X PUT -H "$HA" --data-binary @$TMP/a.txt "$A/api/v1/drive/files?name=save.txt")" = "201" ] && ok "app key saves in its folder" || bad "app key write"
+[ "$(code -X PUT -H "$HA" --data-binary @$TMP/a.txt "$A/api/v1/drive/files?name=x.txt&folder=")" = "403" ] && [ "$(code -H "$HA" "$A/api/v1/drive/items/$NL")" = "403" ] && ok "app key: the rest of the drive -> 403" || bad "app key outside folder"
 [ "$(code -X PUT -H "$HA" --data-binary @$TMP/a.txt "$A/api/v1/uploads/s/$U-app/a.txt")" = "403" ] && ok "app key: s/ -> 403" || bad "app key s/"
 [ "$(code -H "$HA" "$A/api/v1/table/files/select")" = "403" ] && ok "app key: teenybase routes -> 403" || bad "app key teenybase"
 [ "$(code -X POST -H "$HA" "$A/api/v1/access-links")" = "403" ] && ok "app key: no access links" || bad "app key access links"
-R=$(curl -s -H "$HA" "$A/api/v1/drive"); echo "$R" | grep -q save.txt && ! echo "$R" | grep -q proj2 && ok "app key lists only its folder" || bad "app key list: $R"
+R=$(curl -s -H "$HA" "$A/api/v1/drive"); echo "$R" | grep -q save.txt && ! echo "$R" | grep -q 'Möbel' && ok "app key lists only its folder" || bad "app key list: $R"
+curl -s -o /dev/null -X PATCH -H "$H0" -H 'content-type: application/json' -d '{"name":"My page app"}' "$A/api/v1/drive/folders/$AF"
+[ "$(code -X PUT -H "$HA" --data-binary @$TMP/a.txt "$A/api/v1/drive/files?name=after-rename.txt")" = "201" ] && ok "the user renames the app's folder, the app still works" || bad "app folder rename"
 LOC2=$(curl -s -o /dev/null -w '%{redirect_url}' -H "$CK" "$CON"); echo "$LOC2" | grep -q "#tp_cloud_key=" && ok "connect: approved before -> straight back with a key" || bad "connect silent: $LOC2"
 UID2=$(curl -s -H "Authorization: Bearer $T2" "$A/api/v1/table/users/select?select=id" | python3 -c "import json,sys;print(json.load(sys.stdin)[0]['id'])")
 admin scopes/update "{\"where\":\"scope == 'p/$U-page'\",\"setValues\":{\"owner_id\":\"$UID2\"}}" > /dev/null
@@ -142,16 +149,18 @@ curl -s -H "$CK" "$CON" | grep -q "@$U2" && ok "connect: app with a new owner ->
 admin scopes/update "{\"where\":\"scope == 'p/$U-page'\",\"setValues\":{\"owner_id\":\"$UID1\"}}" > /dev/null
 [ "$(code -H "$CK" "$A/api/v1/connect?return=$(enc "$A/_files/p/none-$U/")")" = "400" ] && ok "connect: unknown app -> 400" || bad "connect unknown app"
 [ "$(code -H "$CK" "$A/api/v1/connect?return=$(enc "https://example.com/app/")")" = "400" ] && ok "connect: other sites -> 400" || bad "connect other site"
-curl -s -H "$CK" "$A/api/v1/connect?return=$(enc "http://localhost:5173/")" | grep -q "localhost/5173" && ok "connect: localhost app folder" || bad "connect localhost"
-curl -s -H "$CK" "$A/api/v1/connect?return=$(enc "http://5173.me.aibox.localhost/x/")" | grep -q "apps/localhost/5173.me.aibox.localhost/80/" && ok "connect: *.localhost app folder" || bad "connect *.localhost"
+curl -s -H "$CK" "$A/api/v1/connect?return=$(enc "http://localhost:5173/")" | grep -q "Apps/localhost:5173" && ok "connect: localhost app" || bad "connect localhost"
+curl -s -H "$CK" "$A/api/v1/connect?return=$(enc "http://5173.me.aibox.localhost/x/")" | grep -q "Apps/5173.me.aibox.localhost:80" && ok "connect: *.localhost app" || bad "connect *.localhost"
 curl -s -o /dev/null -X POST -H "$H0" -H 'content-type: application/json' -d "{\"where\":\"app == 'p/$U-page'\"}" "$A/api/v1/table/access_links/delete"
-[ "$(code -X PUT -H "$HA" --data-binary @$TMP/a.txt "$A/api/v1/uploads/d/$U/apps/$U/p/$U-page/save.txt")" = "401" ] && ok "revoked app -> 401" || bad "revoked app"
+[ "$(code -X PUT -H "$HA" --data-binary @$TMP/a.txt "$A/api/v1/drive/files?name=late.txt")" = "401" ] && ok "revoked app -> 401" || bad "revoked app"
+LOC3=$(curl -s -o /dev/null -w '%{redirect_url}' -X POST -H "$CK" -H "Origin: $A" --data-urlencode "return=$APP" "$A/api/v1/connect")
+echo "$LOC3" | grep -q "tp_cloud_folder=$AF" && ok "approved again: the same folder" || bad "re-approve folder: $LOC3"
 # --- local sign-in (DEV_LOGIN) ---
 DU=dev$RANDOM
 R=$(curl -s -o /dev/null -D - -X POST --data-urlencode "username=$DU" --data-urlencode "password=pass12345" --data-urlencode "redirect=/api/v1/drive" "$A/login")
 echo "$R" | grep -qi "set-cookie: tp_cloud_auth=" && echo "$R" | grep -qi "location: /api/v1/drive" && ok "local sign-in signs up and sets the session cookie" || bad "dev login: $R"
 DCK=$(echo "$R" | grep -i "set-cookie: tp_cloud_auth=" | sed -E 's/.*tp_cloud_auth=([^;]*).*/\1/' | tr -d '\r')
-curl -s -H "Cookie: tp_cloud_auth=$DCK" "$A/api/v1/drive" | grep -q '"files"' && ok "the cookie signs in" || bad "dev cookie"
+curl -s -H "Cookie: tp_cloud_auth=$DCK" "$A/api/v1/drive" | grep -q '"items"' && ok "the cookie signs in" || bad "dev cookie"
 [ "$(code -X POST --data-urlencode "username=$DU" --data-urlencode "password=wrongpass1" "$A/login")" = "303" ] && curl -s -o /dev/null -w '%{redirect_url}' -X POST --data-urlencode "username=$DU" --data-urlencode "password=wrongpass1" "$A/login" | grep -q "wrong%20password" && ok "wrong password" || bad "dev login wrong password"
 LOCR=$(curl -s -o /dev/null -w '%{redirect_url}' -X POST --data-urlencode "username=$DU" --data-urlencode "password=pass12345" --data-urlencode "redirect=//evil.example/" "$A/login")
 [ "$LOCR" = "$A/reports" ] && ok "redirect stays on this host" || bad "dev login redirect: $LOCR"
