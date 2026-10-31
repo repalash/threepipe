@@ -34,16 +34,16 @@ export async function checkTurnstile(env: CloudflareBindings, req: Request): Pro
     if (token.length > 2048) return {ok: false, status: 403, error: 'check failed'}
     const test = TEST_SECRETS[env.TURNSTILE_SECRET]
     if (test) return test.success ? {ok: true} : {ok: false, status: 403, error: 'check failed'}
-    const form = new FormData()
-    form.set('secret', env.TURNSTILE_SECRET)
-    form.set('response', token)
+    const form = new URLSearchParams({secret: env.TURNSTILE_SECRET, response: token})
     const ip = req.headers.get('cf-connecting-ip')
     if (ip) form.set('remoteip', ip)
     let data: any
     try {
-        const res = await fetch(SITEVERIFY, {method: 'POST', body: form})
+        const res = await fetch(SITEVERIFY, {method: 'POST', body: form, signal: AbortSignal.timeout(10_000)})
+        if (!res.ok) throw new Error(`siteverify answered ${res.status}`)
         data = await res.json()
-    } catch {
+    } catch (e) {
+        logError('turnstile: siteverify failed', {error: String((e as Error)?.message ?? e)})
         return {ok: false, status: 503, error: 'could not run the check'}
     }
     if (!data?.success) {

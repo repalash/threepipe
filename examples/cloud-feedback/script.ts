@@ -29,7 +29,8 @@ async function init() {
         endpoint: getUrlQueryParam('cloud') || undefined,
         project: getUrlQueryParam('project') || undefined,
         surface: 'cloud-feedback-example',
-        turnstileSiteKey: '1x00000000000000000000AA',
+        // threepipe cloud's widget on threepipe.org hosts (its hostnames); Cloudflare's test key, which always passes, elsewhere
+        turnstileSiteKey: /(^|\.)threepipe\.org$/.test(location.hostname) ? '0x4AAAAAAFuUZfUeibtFpAEr' : '1x00000000000000000000AA',
         versions: {app: '0.1.0'},
     }))
 
