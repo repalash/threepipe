@@ -443,4 +443,37 @@ describe('ViewOverridesPlugin', {timeout}, () => {
             expect(draw(material, mesh({alphaMap: texture(2), transparent: true}))).toBe(c)
         }
     })
+
+    test('a mesh with geometry groups: each group draw takes the material of its group', () => {
+        const {plugin} = setup()
+        const renderer = {resetCurrentMaterial: vi.fn()} as any
+        const camera = new PerspectiveCamera()
+        const geometry = new tp.PlaneGeometry()
+        geometry.clearGroups()
+        geometry.addGroup(0, 3, 0)
+        geometry.addGroup(3, 3, 1)
+        const map = new Texture()
+        const red = new MeshBasicMaterial({color: 0xff0000, map})
+        const blue = new MeshBasicMaterial({color: 0x0000ff, transparent: true, opacity: 0.5})
+        const mesh = new Mesh(geometry, [red, blue])
+        /** The state of the override material while it draws one group (three.js calls the material with the group) */
+        const drawGroup = (material: any, group: any) => {
+            material.onBeforeRender(renderer, null, camera, geometry, mesh, group)
+            const state = {color: material.color.getHex(), map: material.map, opacity: material.opacity, transparent: material.transparent}
+            material.onAfterRender(renderer, null, camera, geometry, mesh, group)
+            return state
+        }
+        const [g0, g1] = geometry.groups
+        const unlit = (plugin as any)._materials.unlit
+        expect(drawGroup(unlit, g0)).toEqual({color: 0xff0000, map, opacity: 1, transparent: false})
+        expect(drawGroup(unlit, g1)).toEqual({color: 0x0000ff, map: null, opacity: 0.5, transparent: true})
+
+        const ids = (plugin as any)._materials.materialId
+        const c0 = drawGroup(ids, g0).color, c1 = drawGroup(ids, g1).color
+        expect(c0).not.toBe(c1)
+        expect(c0).toBe(ids.colorFor(red.id).getHex())
+        expect(c1).toBe(ids.colorFor(blue.id).getHex())
+        // no group (a draw of the whole mesh): the first material
+        expect(drawGroup(unlit, null).color).toBe(0xff0000)
+    })
 })

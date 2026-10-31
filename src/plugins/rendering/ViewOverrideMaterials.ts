@@ -27,10 +27,16 @@ import {MeshNormalMaterialOverride} from '../pipeline/NormalBufferPlugin'
 
 type SourceMaterial = IMaterial & Partial<PhysicalMaterial>
 
-/** The material of a mesh (the first one of a multi-material mesh) */
-function sourceMaterial(object: Object3D): SourceMaterial | undefined {
+/**
+ * The material that the override replaces in this draw: for a material array, the one of the geometry group that
+ * three.js draws (`group.materialIndex`), the first one when it draws the whole mesh
+ */
+function sourceMaterial(object: Object3D, group: Group | null): SourceMaterial | undefined {
     const m = (object as Object3D & {material?: SourceMaterial | SourceMaterial[]}).material
-    return Array.isArray(m) ? m[0] : m
+    if (!Array.isArray(m)) return m
+    // the type of the group argument is wrong in three's types: it is a geometry group, {start, count, materialIndex}
+    const index = (group as unknown as {materialIndex?: number} | null)?.materialIndex
+    return m[index ?? 0]
 }
 
 /** The same material draws every mesh: make the renderer upload its uniforms again for the next one */
@@ -68,7 +74,7 @@ abstract class PerObjectBasicMaterial extends MeshBasicMaterial {
 
     onBeforeRender(renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D, group: Group) {
         super.onBeforeRender(renderer, scene, camera, geometry, object, group)
-        const material = sourceMaterial(object)
+        const material = sourceMaterial(object, group)
         if (!material) return
         copyCommon(this, material)
         this._copyFrom(material, geometry)
