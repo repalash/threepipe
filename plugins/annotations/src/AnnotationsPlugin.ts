@@ -7,6 +7,7 @@ import {
     EasingFunctions,
     ICamera,
     ICameraView,
+    Intersection,
     IObject3D,
     ISerializedConfig,
     MathUtils,
@@ -98,7 +99,8 @@ interface Hit {
  *   `viewer.exportScene({viewerConfig: true})` (the .glb) hold it, and loading them restores it.
  * - Markers are attached to an object (local point + normal), so they follow the object when it moves or animates.
  * - Markers behind geometry or on a surface that faces away are dimmed. The occlusion test casts a few rays per frame,
- *   only after the camera, an anchor or the scene changed.
+ *   only after the camera, an anchor or the scene changed, and while frames render (an animation) at most every
+ *   {@link occlusionRecheckInterval} ms.
  * - {@link editable}: {@link startAdding} (then click a surface), edit the title and the text in the card, "Update
  *   view", "Delete", and drag a marker to another surface point. All edits are undoable with {@link UndoManagerPlugin}.
  * - Tour: {@link goTo}, {@link next}, {@link prev}, {@link playTour}; events `annotationChange` and `annotationSelect`
@@ -125,6 +127,11 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
     animDuration = 900
     /** Max rays per frame for the occlusion test (it also stops after ~2 ms) */
     occlusionRaysPerFrame = 8
+    /**
+     * After rendered frames, the occlusion test runs again at most this often (ms), for geometry that moves without a
+     * scene update (an animation). No frames: no test.
+     */
+    occlusionRecheckInterval = 200
 
     uiConfig: UiObjectConfig = {
         type: 'folder',
@@ -157,6 +164,10 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
     private _occlQueue: string[] = []
     /** A sum of the camera matrices and the anchor positions: a change starts a new occlusion test */
     private _lastKey = NaN
+    /** A frame was rendered after the last occlusion test started */
+    private _rendered = false
+    /** When the last occlusion test started (performance.now) */
+    private _occlTime = -Infinity
     private _ray = new Raycaster()
     private _nm = new Matrix3()
     private _down: {x: number, y: number, canvas: boolean} | null = null
@@ -259,6 +270,9 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
     protected _viewerListeners = {
         // markers in sync with the rendered frame (the rAF loop covers the frames that are not rendered)
         postFrame: () => this._updateScreen(),
+        postRender: () => {
+            this._rendered = true
+        },
     }
 
     private _onSceneUpdate = (e: {hierarchyChanged?: boolean}) => {
@@ -603,10 +617,11 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         return false
     }
 
-    /** A visible mesh that is not a shadow catcher: it can hold an annotation and hide one */
-    private _solid(o: any) {
+    /** A hit on a visible mesh, and a face that is not hidden or a shadow catcher: it can hold an annotation and hide one */
+    private _solid(hit: Intersection) {
+        const o = hit.object as any
         if (!o?.isMesh) return false
-        const m = Array.isArray(o.material) ? o.material[0] : o.material
+        const m = Array.isArray(o.material) ? o.material[hit.face?.materialIndex ?? 0] : o.material
         if (!m || m.type === 'ShadowMaterial' || m.visible === false) return false
         for (let p = o; p; p = p.parent) if (!p.visible) return false
         return true
@@ -622,7 +637,7 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         ray.setFromCamera(ndc, v.scene.mainCamera)
         ray.near = 0
         ray.far = Infinity
-        const h = ray.intersectObject(v.scene.modelRoot, true).find(x => this._solid(x.object))
+        const h = ray.intersectObject(v.scene.modelRoot, true).find(x => this._solid(x))
         if (!h || h.object.userData.userSelectable === false) return null // nothing, or the ground
         const object = h.object as IObject3D
         object.updateWorldMatrix(true, false)
@@ -725,8 +740,11 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
     private _updateOcclusion() {
         const v = this._viewer
         if (!v) return
+        if (this._rendered && performance.now() - this._occlTime >= this.occlusionRecheckInterval) this._occlDirty = true
         if (this._occlDirty && !this._occlQueue.length) {
             this._occlDirty = false
+            this._rendered = false
+            this._occlTime = performance.now()
             this._occlQueue = this.annotations.map(a => a.id)
         }
         if (!this._occlQueue.length) return
@@ -741,7 +759,7 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
             const dist = ray.ray.origin.distanceTo(st.world)
             ray.near = 0
             ray.far = Math.max(0, dist - Math.max(1e-4, dist * 0.004))
-            st.occluded = ray.intersectObject(v.scene.modelRoot, true).some(hh => this._solid(hh.object))
+            st.occluded = ray.intersectObject(v.scene.modelRoot, true).some(hh => this._solid(hh))
             st.el.classList.toggle('anp-dim', st.occluded || !st.facing)
         }
     }

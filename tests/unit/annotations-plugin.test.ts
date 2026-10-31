@@ -264,6 +264,70 @@ describe('AnnotationsPlugin', () => {
         expect(markers(layer)[0].classList.contains('anp-dim')).toBe(false)
     })
 
+    test('a multi-material mesh: the material of the face that is hit decides, for placing and for the occlusion', () => {
+        const {plugin, layer, box, viewer} = setup()
+        // a box has a group per side: +x, -x, +y, -y, +z (the front, index 4), -z; the material of +x is hidden
+        const sides = () => Array.from({length: 6}, (_, i) => new MeshBasicMaterial({visible: i !== 0}))
+        box.material = sides()
+        plugin.startAdding()
+        const place = layer.find('anp-place')[0]
+        place.fire('pointerdown', {clientX: 400, clientY: 300})
+        place.fire('pointerup', {clientX: 400, clientY: 300})
+        expect(plugin.getAnnotations()).toHaveLength(1)
+        expect(plugin.get(0)!.anchor.normal).toEqual([0, 0, 1])
+        // a wall in front with the same materials: its front face is visible and hides the marker
+        const wall = new Mesh(new BoxGeometry(2, 2, 0.1), sides())
+        wall.position.z = 2
+        viewer.scene.modelRoot.add(wall)
+        viewer.scene.modelRoot.updateMatrixWorld(true)
+        const occlusion = () => {
+            const p = plugin as any
+            p._occlDirty = true
+            p._updateScreen()
+            p._updateOcclusion()
+            return markers(layer)[0].classList.contains('anp-dim')
+        }
+        expect(occlusion()).toBe(true)
+        // its front and back faces hidden: the marker shows
+        ;(wall.material as MeshBasicMaterial[])[4].visible = false
+        ;(wall.material as MeshBasicMaterial[])[5].visible = false
+        expect(occlusion()).toBe(false)
+    })
+
+    test('the occlusion is tested again after rendered frames (an animation moves an occluder), at most every occlusionRecheckInterval ms', () => {
+        const {plugin, layer, box, viewer} = setup()
+        let now = 0
+        vi.spyOn(performance, 'now').mockImplementation(() => now)
+        try {
+            plugin.add(box as any, front, normal, null)
+            // behind the box: hides nothing
+            const wall = new Mesh(new BoxGeometry(2, 2, 0.1), new MeshBasicMaterial())
+            wall.position.z = -3
+            viewer.scene.modelRoot.add(wall)
+            viewer.scene.modelRoot.updateMatrixWorld(true)
+            const tick = (t: number, rendered = false) => {
+                now = t
+                if (rendered) (plugin as any)._onViewerEvent({eType: 'postRender'})
+                ;(plugin as any)._tick()
+                return markers(layer)[0].classList.contains('anp-dim')
+            }
+            expect(tick(0)).toBe(false)
+            // the wall moves in front, without a scene update
+            wall.position.z = 2
+            wall.updateMatrixWorld()
+            expect(tick(100)).toBe(false) // no frame rendered
+            expect(tick(150, true)).toBe(false) // a frame, but too soon after the last test
+            expect(tick(250)).toBe(true)
+            // no more frames: no more tests
+            wall.position.z = -3
+            wall.updateMatrixWorld()
+            expect(tick(1000)).toBe(true)
+            expect(tick(1300, true)).toBe(false)
+        } finally {
+            vi.restoreAllMocks()
+        }
+    })
+
     test('a click on a marker opens the card and flies the camera to the view; prev/next wrap; a click on the canvas closes', () => {
         const {plugin, layer, box, camera, canvas} = setup(false)
         const view = {position: [3, 0, 0], target: [0, 0, 0], quaternion: [0, 0, 0, 1], zoom: 1, fov: 40}
