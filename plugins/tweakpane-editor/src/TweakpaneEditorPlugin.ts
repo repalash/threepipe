@@ -168,7 +168,13 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
     private _makeFrame(layout: EditorFrameLayout) {
         const ui = this._viewer?.getPlugin(TweakpaneUiPlugin)
         this.frame = new EditorFrame(this, {
-            colorMode: ui ? {get: () => ui.colorMode, set: (m) => ui.colorMode = m as TweakpaneUiPlugin['colorMode']} : undefined,
+            colorMode: ui ? {
+                get: () => ui.colorMode,
+                set: (m) => {
+                    ui.colorMode = m as TweakpaneUiPlugin['colorMode']
+                    ui.uiConfig?.uiRefresh?.(true) // its Color Mode dropdown, which does not follow a change from code
+                },
+            } : undefined,
             // the container of the Tweakpane UI (uiconfig-tweakpane gives it this id; the plugin has no getter for it)
             panel: () => document.getElementById('tweakpaneUiContainer'),
             ...this.frameOptions,

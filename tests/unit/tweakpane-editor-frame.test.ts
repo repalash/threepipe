@@ -409,4 +409,14 @@ describe('TweakpaneEditorPlugin.layout', () => {
         expect(p.frame?.layout).toBe('floating')
         expect(storage.get('tpEditorLayout')).toBe('floating')
     })
+
+    test('the light or dark toggle sets the color mode of the Tweakpane UI, and its Color Mode dropdown follows', () => {
+        const p = plugin()
+        const ui = {colorMode: 'clean', uiConfig: {uiRefresh: vi.fn()}}
+        ;(p as any)._viewer = {getPlugin: () => ui}
+        p.layout = 'titlebar'
+        win.fire('keydown', {key: 'T', code: 'KeyT', shiftKey: true, target: body()})
+        expect(ui.colorMode).toBe('clean-dark')
+        expect(ui.uiConfig.uiRefresh).toHaveBeenCalled()
+    })
 })
