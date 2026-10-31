@@ -1,5 +1,5 @@
 import {describe, test, expect} from 'vitest'
-import {copyUserData} from './serialization'
+import {copyPublicUserData, copyUserData} from './serialization'
 
 describe('copyUserData', () => {
     test('copies primitive values', () => {
@@ -150,5 +150,24 @@ describe('copyUserData', () => {
         expect(dest.visible).toBe(true)
         // Symbol-keyed properties are never copied because Object.keys() doesn't return them
         expect(dest[sym]).toBeUndefined()
+    })
+})
+
+describe('copyPublicUserData', () => {
+    test('skips _ and __ keys at every depth, keeps the others', () => {
+        const source = {
+            keep: 1, _private: 2, __runtime: 3, uuid: 'u',
+            nested: {a: 1, _b: 2, __c: 3, deeper: {d: 1, _e: 2}},
+            list: [{f: 1, __g: 2}],
+        }
+        const dest = copyPublicUserData({}, source)
+        expect(dest).toEqual({keep: 1, uuid: 'u', nested: {a: 1, deeper: {d: 1}}, list: [{f: 1}]})
+        expect(dest.nested).not.toBe(source.nested)
+        expect(source.nested._b).toBe(2) // source is not changed
+    })
+
+    test('copyUserData still keeps the _ keys at every depth', () => {
+        const dest = copyUserData({}, {_a: 1, __b: 2, nested: {_c: 1, __d: 2}})
+        expect(dest).toEqual({_a: 1, nested: {_c: 1}})
     })
 })
