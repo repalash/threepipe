@@ -38,6 +38,8 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync {
             duration: 300,
             arrow: true,
             appendTo: () => viewer.container, // for fullscreen
+            // a touch screen: a tap shows a tooltip until the next tap anywhere; show it on a long press only
+            touch: ['hold', 500],
         })
 
         setupWebGiLogo(viewer)

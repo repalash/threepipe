@@ -65,9 +65,10 @@ body.lay-frame.tpTheme-clean-dark { background-color: #1e1e1e !important; }
 .lay-btn:focus-visible { outline: 2px solid #0d99ff; outline-offset: 1px; }
 /* the tool bar on the canvas: the icon buttons of the bars and the mode bar (28 px, a 16 px icon, the same hover and
    on states), not the larger buttons with dividers of the classic page */
-body.lay-frame .util-buttons-container { gap: 2px; padding: 4px; }
+body.lay-frame .util-buttons-container { gap: 2px; padding: 2px; }
 body.lay-frame .util-buttons-container > .util-button {
-    /* the icons fill the button (an inline 100% size): the padding leaves 16 px */
+    /* the icons fill the button (an inline 100% size): the padding leaves 16 px. The bar is 32 px tall, the icons 8 px
+       from its sides (2 px bar padding and 6 px button padding), as the text of the perf pill */
     width: 28px; height: 28px; padding: 6px; box-sizing: border-box !important; border-radius: 5px; flex-shrink: 0;
     display: flex; align-items: center; justify-content: center; color: var(--tp-container-foreground-color, #1e1e1e); opacity: .75;
 }
@@ -77,7 +78,7 @@ body.lay-frame .util-buttons-container > .button-bar-button::after { display: no
 /* the perf pill (PerfPanelPlugin at the bottom left): next to the logo, level with the tool bar and as tall (its fixed
    width keeps the row still as the numbers change); the tool bar leaves room for it */
 body.lay-frame .pp-root.pp-bottom-left { left: calc(1rem + 7.5rem + 8px); bottom: 1.25rem; }
-body.lay-frame .pp-root.pp-bottom-left .pp-pill { height: 36px; width: 76px; justify-content: center; padding: 0 8px; border-radius: 8px; font-size: 12px; }
+body.lay-frame .pp-root.pp-bottom-left .pp-pill { height: 32px; min-width: 76px; justify-content: flex-start; padding: 0 8px; border-radius: 8px; font-size: 12px; }
 body.lay-frame #canvas-container:has(.pp-root.pp-bottom-left) .util-buttons-container { max-width: calc(100% - 10.75rem - 84px); }
 @media only screen and (max-width: 920px) {
     body.lay-frame .pp-root.pp-bottom-left { left: calc(0.75rem + 5rem + 8px); bottom: 0.75rem; }
