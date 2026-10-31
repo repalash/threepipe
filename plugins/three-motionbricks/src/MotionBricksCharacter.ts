@@ -277,9 +277,10 @@ export class MotionBricksCharacter {
         if (useLite) await new Promise(resolve => setTimeout(resolve, 2000))
         let warmupMs = await time(engine)
         if (auto && engine.backend === 'webgpu') {
-            // The first run compiles shaders; the second shows the GPU's speed.
-            warmupMs = await time(engine)
-            if (warmupMs > (o.gpuLimitMs ?? 300)) {
+            // The first run compiles shaders; the second shows the GPU's speed, unless the first was already far too slow.
+            const limit = o.gpuLimitMs ?? 300
+            if (warmupMs < limit * 10) warmupMs = await time(engine)
+            if (warmupMs > limit) {
                 console.info(`MotionBricks: WebGPU took ${Math.round(warmupMs)} ms a generation, using WebAssembly`)
                 stop(engine)
                 engine = await create(false)
