@@ -204,6 +204,15 @@ body.lay-floating #tweakpaneUiContainer .tp-rotv { box-shadow: none !important; 
     }
     body.lay-titlebar.mb-panel-hidden .mb-root, body.lay-statusbar.mb-panel-hidden .mb-root { bottom: var(--lay-bottom); }
     body.lay-floating.mb-panel-hidden .mb-root { left: var(--lay-gap); bottom: var(--lay-gap); }
+    /* floating on a phone: no gap around the parts (it only takes room), so no round corners or shadows either; lines
+       between the parts, as in the other layouts */
+    body.lay-floating { --lay-gap: 0px; }
+    body.lay-floating #canvas-container, body.lay-floating #mcanvas { border-radius: 0 !important; }
+    body.lay-floating #tweakpaneUiContainer, body.lay-floating .mb-root, body.lay-floating.mb-panel-hidden .mb-root {
+        border-radius: 0; box-shadow: none; clip-path: none;
+    }
+    body.lay-floating #tweakpaneUiContainer { border-top: 1px solid var(--tp-container-border-color, #e6e6e6); }
+    body.lay-floating .mb-root { border-top: 1px solid var(--mb-line); }
     body.lay-frame.mb-panel-hidden .mb-root > .mb-toggle { margin: 0 0 0 auto; }
     body.lay-frame.mb-panel-hidden .mb-root > .lay-float-actions { flex-direction: row; margin: 0 0 0 auto; }
     body.lay-frame.mb-panel-hidden .mb-root > .lay-float-actions + .mb-toggle { margin-left: 2px; }
