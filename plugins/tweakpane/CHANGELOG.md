@@ -12,6 +12,8 @@ All notable changes to this plugin will be documented in this file.
 
 ### Changed
 
+- The context menu of a panel's ⋮ button (download/upload preset, reset defaults; `CustomContextMenu` of threepipe core) and of the image input use the colours and font of the color mode, and the panel menu opens below the button inside the panel. Before, it was always dark with a monospace font, and it opened past the right edge of the panel.
+- The default color mode, when none is stored, is `clean` (`clean-dark` when the system prefers dark), in every app with `TweakpaneUiPlugin`. Before, it was `light` (or `dark`). An app sets another one with `colorMode` (or the constructor argument).
 - Use [@threepipe/tweakpane-image-plugin](https://www.npmjs.com/package/@threepipe/tweakpane-image-plugin) 1.1.406 from npm in `devDependencies`, replacing the `tweakpane-image-plugin` 1.1.404 release tarball. A dropped file that is not an image (like `.hdr`, `.cube`) is now passed on as a `File` and loaded by the asset importer, instead of being set as a broken image texture.
 
 ### Fixed

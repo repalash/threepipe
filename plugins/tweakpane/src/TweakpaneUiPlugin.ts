@@ -201,7 +201,7 @@ export class TweakpaneUiPlugin extends UiConfigRendererTweakpane implements IVie
 function getThemeColor(): ThemeColors {
     const c = localStorage ? localStorage.getItem('tpTheme') as ThemeColors : undefined
     if (c && themeColors.includes(c)) return c
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'clean-dark' : 'clean'
 }
 function setThemeColor(color: ThemeColors) {
     document.body.classList.remove(...themeColors.map(t=>'tpTheme-' + t))

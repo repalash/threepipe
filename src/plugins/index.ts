@@ -23,6 +23,7 @@ export {SSAOPlugin, SSAOPluginPass, type SSAOPluginTarget} from './pipeline/SSAO
 // ui
 export {RenderTargetPreviewPlugin, type RenderTargetBlock} from './ui/RenderTargetPreviewPlugin'
 export {GeometryUVPreviewPlugin, type TargetBlock} from './ui/GeometryUVPreviewPlugin'
+export {PerfPanelPlugin, type PerfPanelOptions, type PerfPanelPosition, type PerfPanelPluginEventMap, type PerfStats, type PerfWarning, type PerfWarningId} from './ui/PerfPanelPlugin'
 export {ViewerUiConfigPlugin} from './ui/ViewerUiConfigPlugin'
 export {SceneUiConfigPlugin} from './ui/SceneUiConfigPlugin'
 
@@ -31,7 +32,7 @@ export {DropzonePlugin, type DropzonePluginOptions} from './interaction/Dropzone
 export {FullScreenPlugin} from './interaction/FullScreenPlugin'
 export {LoadingScreenPlugin} from './interaction/LoadingScreenPlugin'
 export {InteractionPromptPlugin} from './interaction/InteractionPromptPlugin'
-export {PickingPlugin, type PickingPluginEventMap} from './interaction/PickingPlugin'
+export {PickingPlugin, isPickable, type PickingPluginEventMap} from './interaction/PickingPlugin'
 export {GPUPickingPlugin, type GPUPickResult} from './interaction/GPUPickingPlugin'
 export {DuplicateTracker, type DuplicateMode} from './interaction/DuplicateTracker'
 export {ObjectClipboard, type ClipboardState, type ClipboardMode} from './interaction/ObjectClipboard'

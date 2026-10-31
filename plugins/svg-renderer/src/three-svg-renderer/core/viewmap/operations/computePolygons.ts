@@ -12,7 +12,7 @@
  * Licence: Licence.md
  */
 
-import Arrangement2D from 'arrangement-2d-js';
+import Arrangement2D from '@threepipe/arrangement-2d-js';
 import {Vector2} from 'three';
 import {ChainVisibility} from '../Chain';
 import {Polygon} from '../Polygon';

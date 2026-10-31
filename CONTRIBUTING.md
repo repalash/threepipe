@@ -4,18 +4,51 @@ We welcome contributions to Threepipe. Please read the following guidelines to s
 
 ## Setting up the project
 
+Requires Node.js `^20.19` or `>=22.12` (Vite 8) and npm 10 or newer.
+
 1. Clone the repository
 2. Run `npm install`
+3. Run `npm start`
+
+The repository is an npm workspace: one install at the root sets up the core and every package in `plugins/` (one `package-lock.json`, hoisted `node_modules`). Nothing is built during install, `npm start` runs the examples from the sources.
 
 ## Development
 
-1. Run `npm run vite` to run vite dev server and navigate to http://localhost:5173/examples/index.html
-2. Test the examples and pick the one you are working on.
+1. Run `npm start` (same as `npm run dev`). It starts the vite dev server and opens the examples at
+   http://localhost:5173/examples/index.html. No build is needed.
+2. Pick the example you are working on. The examples use the sources of the core and the plugins, so a change in
+   `src/`, `plugins/*/src` or `examples/` reloads the page.
 
-OR
-1. If changing the `src/` folder - Run `npm run dev` to start the development in watch mode
-2. If changing the `plugins/` folder - `cd` to the plugin directory and run `npm run dev` to start the development in watch mode for the package.
-3. Run `npm run dev-examples` to start the examples build in watch mode and run `npm run serve` to start the development server, and navigate to http://localhost:9229/index.html
+OR, to work on the built files (as the deployed site and the e2e tests use them):
+1. Run `npm run build:all` once to build the core, all plugins and the examples.
+2. If changing the `src/` folder - Run `npm run watch` to rebuild the core on every change
+3. If changing the `plugins/` folder - `cd` to the plugin directory and run `npm run watch` to rebuild the package on every change.
+4. Run `npm run watch-examples` to start the examples build in watch mode and run `npm run serve` to start the development server, and navigate to http://localhost:9229/index.html
+
+## Commands
+
+Run them in the repository root, unless the table says otherwise.
+
+| Command | What it does | When |
+|---|---|---|
+| `npm install` | Installs the dependencies of the core and of every plugin (npm workspace), builds nothing | After cloning, and after pulling changes to dependencies |
+| `npm start` / `npm run dev` | Examples dev server (vite) on http://localhost:5173, opens `/examples/index.html` | Day to day: run and edit the examples, the core and the plugins |
+| `npm run vite` | Same as `npm run dev` (the old name) | — |
+| `npm run watch` | Rebuilds the core bundle (`dist/`) on every change. In a plugin folder: rebuilds that plugin's `dist/` | When another project links this build |
+| `npm run build` | Builds the core into `dist/` and `lib/` | Before publishing, or to test the built files |
+| `npm run build-plugins` | Builds every plugin (turbo, in dependency order, cached) | To test the built plugins |
+| `npm run build:all` | Builds the core, every plugin and the examples (turbo, cached) | To test everything as it is deployed |
+| `npm run build-examples` / `npm run watch-examples` | Compiles the examples to JavaScript (once / on change), for `npm run serve` | To test the examples as they are deployed |
+| `npm run serve` | Static server for the built files on http://localhost:9229 | With `build:all`, `build-examples` or `watch-examples` |
+| `npm run test:unit` | Unit tests (vitest) | Before a pull request |
+| `npm run test:e2e` | Browser tests (playwright), against the built files | Before a pull request that changes rendering |
+| `npm run check-bundles` | Checks the built bundles: every import is declared, no package is bundled twice | After `build:all`, when a vite config or a dependency changes |
+| `npm run website:dev` | The website (vitepress) | Docs changes |
+| `npm run docs` / `npm run docs-all` | API docs of the core and the website build / the same plus the API docs of every plugin | Docs changes |
+
+Different from other projects:
+- `dev` starts the dev server (as in vite projects); the watch build of the library is `watch`. Before this change,
+  `dev` was the watch build and `vite` the dev server.
 
 For website(vitepress) development -
 - Run `npm run website:dev` to start the website server.
@@ -25,18 +58,35 @@ For website(vitepress) development -
 Some examples requires env variables.
 - Run `cp examples/sample.env examples/.env` and set the required tokens/keys in the `examples/.env` file, and build the examples again.
 
+To add a dependency to a plugin, run `npm install <package> -w plugins/<plugin-name>` from the root (`-D` for a devDependency).
+
 ## Testing
 
-TBD
+- `npm run test:unit` runs the unit tests (vitest), from source.
+- `npm run test:e2e` runs the example tests (playwright) against the built bundles, run `npm run build:all` first.
+  The screenshots it compares against are not in this repository. On a fresh clone the first run writes them to
+  `tests/snapshots/` and reports each test as failed; the next run compares against them.
+- `npm run test:types` type-checks the published declarations as a consumer, run `npm run build` first.
+- `npm run check-bundles` checks the built bundles of the core and every plugin, run `npm run build:all` first. It fails
+  on an import that is not `threepipe` or a peerDependency (a bare `three` that the examples cannot resolve), and on a
+  package bundled twice from different `node_modules` folders (fix: `resolve.dedupe` in that plugin's vite config).
+  After a cache restore, a stale file from an earlier build can remain in `dist/`; `npx turbo run build --force` rebuilds.
+
+No workflow runs on pull requests. Before a pull request, run `test:unit`, and for build or dependency changes
+`build:all`, `check-bundles` and `test:types`.
 
 ## Building
 
-1. Run `npm run build` to build the project, or in a specific package directory to build the package
-2. Run `npm run build-examples` to build the examples
-3. Run `npm run website:build` to build the website
-4. Run `npm run docs` to build only the API docs
-5. Run `npm run prepare` to build the project, examples and plugins
-6. Run `npm run docs-all` to build API docs and website
+Builds run through [Turborepo](https://turborepo.com): packages build in parallel in dependency order, and a package whose inputs did not change is restored from the cache in `.turbo/` instead of being built again.
+
+1. Run `npm run build` to build the core (`dist/` and `lib/`), or in a specific package directory to build the package
+2. Run `npm run build-plugins` to build all the plugins
+3. Run `npm run build-examples` to compile the examples (`tsc`, against the built bundles)
+4. Run `npm run build:all` to build the core, plugins and examples
+5. Run `npm run website:build` to build the website
+6. Run `npm run docs` to build the API docs and the website, `npm run docs-all` to also build the API docs of every plugin
+
+Turbo options can be passed through, for example `npx turbo run build --filter=@threepipe/plugin-tweakpane` builds one plugin and what it depends on, `--force` ignores the cache.
 
 ## Publishing
 
@@ -51,6 +101,7 @@ Checklist
 - Inherit from `AViewerPluginSync`
 - Set a unique `PluginType`
 - Write plugin
+- If the plugin adds DOM UI over the canvas, pick its `z-index` from [UI layers](#ui-layers-z-index)
 - Add jsdoc comments to the class
 - Export classes, functions in `./src/plugins/index.ts`
 - Optionally, use plugin in `./examples/tweakpane-editor/script.ts`
@@ -65,15 +116,33 @@ Checklist
 - Add entry to sidebar in `./website/.vitepress/config.ts`
 - Update CHANGELOG.md
 
+## UI layers (z-index)
+
+Plugins that add DOM elements over the canvas use these layers, so the UI stacks the same way with any set of plugins. Use the lowest layer that fits, and do not go above the menu layer.
+
+| z-index | Layer | Examples |
+|---|---|---|
+| `auto` to 49 | Overlays drawn on the canvas | selection overlay, `PerfPanelPlugin` (12), editor camera frame (40) |
+| 50 | Loading screen | `LoadingScreenPlugin` |
+| 100 to 199 | Viewer UI over the scene | `GridItemList` (100), editor camera pill and card (120), sticky notes (150) |
+| 200 to 999 | Panels and bars | tweakpane editor `.button-bar` (200), editor frame mode bar (200) and title or status bar (210) |
+| 1000 to 1999 | Floating tools | `TimelineUiPlugin`, `RenderTargetPreviewPlugin`, `GeometryUVPreviewPlugin` (1000) |
+| 2000 to 9998 | Popups and dropdown menus | editor layout menu (2000), sticky notes menus (2000) |
+| 9999 and up | Context menus | `CustomContextMenu` |
+
+A layer counts only between elements in the same stacking context: an element inside a parent with its own `z-index` (or `transform`, `filter`, `opacity` below 1) stacks inside that parent.
+
 ## Creating a Package/Plugin package
 
 Checklist
 - Duplicate a template plugin from `plugins/` folder - `plugin-template-vite`
 - Change `name`, `description`, `repository.directory`, `dependencies` and any other relevant fields in `package.json`
+- Run `npm install` at the root, every folder in `plugins/` (except `plugin-template-*`) is a workspace package
 - Change `name` in `typedoc.json`
 - Update link in plugin's `CHANGELOG.md` and `README.md`
 - Check `globals` in `vite.config.js`
 - Write plugin/package
+- If the plugin adds DOM UI over the canvas, pick its `z-index` from [UI layers](#ui-layers-z-index)
 - Add jsdoc comments to the classes
 - Export classes, functions in `index.ts`
 - Optionally, use plugin in `./examples/tweakpane-editor/script.ts`
