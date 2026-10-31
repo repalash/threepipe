@@ -15,12 +15,16 @@ const HOVER_DELAY = 150
 /** While the picture is out of date: the shortest time between two pictures, in ms (the last one waits for the render to end) */
 const SHOT_INTERVAL = 200
 
+/** The label of a key from its `KeyboardEvent.code`: `KeyC` is C, `Digit1` is 1, other codes (`F2`, `Space`) as they are */
+function keyLabel(code: string) {
+    return code.replace(/^(Key|Digit)(.)$/, '$2')
+}
+
 /**
  * The start view UI of the {@link EditorCameraPlugin}: a pill at the top centre of the canvas, in the style of the
  * `PerfPanelPlugin` pill, that names the camera ("Editor camera" or "Scene camera", with a camera icon: grey in Edit,
  * blue in View, green in View with {@link EditorCameraPlugin.syncStartView}; an amber corner when a move in View is not
- * saved), and a frame around the
- * canvas in View.
+ * saved) and shows the key of {@link EditorCameraPlugin.hotkey}, and a frame around the canvas in View.
  *
  * A card under the pill opens on hover (a moment on the pill or the card, with a mouse), on a tap on a touch screen or
  * on keyboard focus, and stays open until a press outside it or Escape. It shows:
@@ -29,8 +33,8 @@ const SHOT_INTERVAL = 200
  *   canvas when the view shows the saved start view ({@link EditorCameraPlugin.showsStartView}): after a load, in View
  *   before a move, after a save, a sync or "Set as start view".
  * - a Sync toggle over the picture ({@link EditorCameraPlugin.syncStartView}): moves in View change the start view.
- * - an Edit / View toggle ({@link EditorCameraPlugin.editing}, also the C key; a click on the pill with a mouse does
- *   the same).
+ * - an Edit / View toggle ({@link EditorCameraPlugin.editing}, also the key of {@link EditorCameraPlugin.hotkey}; a click
+ *   on the pill with a mouse does the same).
  * - "Set as start view" in Edit ({@link EditorCameraPlugin.setStartViewFromEditor}); "Save" and "Reset" in View, on
  *   after a move that is not saved ({@link EditorCameraPlugin.saveStartView}, {@link EditorCameraPlugin.resetStartView}).
  *   They stay in the card when off, so the card keeps its size.
@@ -55,7 +59,7 @@ export function setupEditorCameraUi(viewer: ThreeViewer, camera: EditorCameraPlu
     pill.setAttribute('aria-expanded', 'false')
     el('span', 'ecu-icon', pill).innerHTML = cameraIcon
     const name = el('span', 'ecu-name', pill)
-    el('kbd', '', pill).textContent = 'C'
+    const kbd = el('kbd', '', pill)
 
     const card = el('div', 'ecu-card', el('div', 'ecu-drop', root))
     const shotBox = el('div', 'ecu-shot-box', card)
@@ -172,13 +176,16 @@ export function setupEditorCameraUi(viewer: ThreeViewer, camera: EditorCameraPlu
         const editing = camera.editing
         const sync = camera.syncStartView
         const moved = camera.startViewMoved
+        const key = camera.hotkey ? keyLabel(camera.hotkey) : ''
         root.classList.toggle('ecu-view', !editing)
         root.classList.toggle('ecu-sync', sync)
         root.classList.toggle('ecu-moved', moved)
         frame.classList.toggle('ecu-on', !editing)
         frame.classList.toggle('ecu-sync', sync)
         name.textContent = editing ? 'Editor camera' : 'Scene camera'
-        pill.setAttribute('aria-label', (editing ? 'Editor camera' : 'Scene camera, what visitors see') + (moved ? ', moved, not saved' : '') + '. C switches.')
+        kbd.textContent = key
+        kbd.style.display = key ? '' : 'none'
+        pill.setAttribute('aria-label', (editing ? 'Editor camera' : 'Scene camera, what visitors see') + (moved ? ', moved, not saved' : '') + (key ? `. ${key} switches.` : '.'))
         editButton.setAttribute('aria-pressed', String(editing))
         viewButton.setAttribute('aria-pressed', String(!editing))
         pin.setAttribute('aria-pressed', String(sync))

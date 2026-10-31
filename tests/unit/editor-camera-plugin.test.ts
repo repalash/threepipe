@@ -1091,6 +1091,25 @@ describe('EditorCameraPlugin start view UI', () => {
     const kbdOf = (viewer: any) => viewer.container.find('ecu-pill')[0].children.find((c: FakeElement) => c.tagName === 'KBD') as FakeElement
     const pillOf = (viewer: any) => viewer.container.find('ecu-pill')[0] as FakeElement
 
+    test('the pill shows the key of hotkey, and no key when hotkey is empty', () => {
+        const viewer = uiViewer()
+        const camera = new FakeEditorCamera()
+        camera.hotkey = 'KeyK'
+        setupEditorCameraUi(viewer, camera as any)
+        expect(kbdOf(viewer).textContent).toBe('K')
+        expect(pillOf(viewer).getAttribute('aria-label')).toContain('K switches.')
+        for (const [code, label] of [['Digit1', '1'], ['KeyC', 'C'], ['F2', 'F2'], ['Space', 'Space']]) {
+            camera.hotkey = code
+            camera.changed()
+            expect(kbdOf(viewer).textContent).toBe(label)
+            expect(kbdOf(viewer).style.display).not.toBe('none')
+        }
+        camera.hotkey = ''
+        camera.changed()
+        expect(kbdOf(viewer).style.display).toBe('none')
+        expect(pillOf(viewer).getAttribute('aria-label')).not.toContain('switches')
+    })
+
     test('each UI adds its styles, and its remover removes them', () => {
         const viewer = uiViewer()
         const camera = new FakeEditorCamera()
