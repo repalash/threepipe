@@ -100,7 +100,7 @@ curl -s -H "$H0" "$A/api/v1/drive/items/$LID" | grep -q '"files_count":2' && ok 
 SURL=$(curl -s -X POST -H "$H0" "$A/api/v1/drive/items/$LID/sign" | j "['url']")
 curl -s "${SURL}scene.gltf" | grep -q asset && [ "$(curl -s "${SURL}tex/scene.bin")" = "bin" ] && ok "signed item URL serves the entry and its relative files" || bad "signed item: $SURL"
 [ "$(code "${SURL%$LID/}$ITEM/chair.glb")" = "403" ] && ok "a signature covers one item only" || bad "signature scope"
-[ "$(code "$(echo "$SURL" | sed -E 's#(/t/[0-9]+\.)[A-Za-z0-9_-]#\1x#')scene.gltf")" = "403" ] && ok "tampered signature -> 403" || bad "tampered"
+[ "$(code "$(echo "$SURL" | sed -E 's#(/t/[0-9]+\.)x#\1y#; t; s#(/t/[0-9]+\.)[A-Za-z0-9_-]#\1x#')scene.gltf")" = "403" ] && ok "tampered signature -> 403" || bad "tampered"
 LURL=$(curl -s -X PATCH -H "$H0" -H 'content-type: application/json' -d '{"visibility":"link"}' "$A/api/v1/drive/items/$LID" | j "['url']")
 [ "$(code "$LURL")" = "200" ] && [ "$(curl -s "${LURL%scene.gltf}tex/scene.bin")" = "bin" ] && ok "link: anyone with the item URL" || bad "link: $LURL"
 curl -s -o /dev/null -X PATCH -H "$H0" -H 'content-type: application/json' -d '{"visibility":"private"}' "$A/api/v1/drive/items/$LID"
@@ -182,4 +182,6 @@ curl -s -H "Cookie: tp_cloud_auth=$DCK" "$A/api/v1/drive" | grep -q '"items"' &&
 LOCR=$(curl -s -o /dev/null -w '%{redirect_url}' -X POST --data-urlencode "username=$DU" --data-urlencode "password=pass12345" --data-urlencode "redirect=//evil.example/" "$A/login")
 [ "$LOCR" = "$A/reports" ] && ok "redirect stays on this host" || bad "dev login redirect: $LOCR"
 echo "failures: $FAILS"
+# what the worker logged, to see why a check failed
+[ $FAILS -eq 0 ] || grep -E '\[cloud\]|ERROR|Error' "$TMP/dev.log" | tail -20
 [ $FAILS -eq 0 ]
