@@ -39,11 +39,20 @@ function setup({undo = true, orbit = false, ortho = false, sync = false} = {}) {
 
     const records: {undo: () => void, redo: () => void}[] = []
     const undoPlugin = {undoManager: {record: (r: any) => records.push(r)}}
+    // the subscriptions of forPlugin: mounted at once when the plugin is there; unmount for a remove of the plugin
+    const subscriptions: {type: string, mount: (p: any) => void, unmount?: (p: any) => void}[] = []
     const viewer = Object.assign(new EventDispatcher<any>(), {
         scene,
         canvas,
         assetManager: new EventDispatcher<any>(),
         getPlugin: (p: any) => undo && (p === 'UndoManagerPlugin' || p?.PluginType === 'UndoManagerPlugin') ? undoPlugin : undefined,
+        forPlugin: (type: string, mount: (p: any) => void, unmount?: (p: any) => void) => {
+            subscriptions.push({type, mount, unmount})
+            const p = viewer.getPlugin(type)
+            if (p) mount(p)
+        },
+        subscriptions,
+        undoPlugin,
     }) as any
 
     const plugin = new EditorCameraPlugin()
@@ -791,6 +800,25 @@ describe('EditorCameraPlugin', () => {
         expect(start.position.toArray()).toEqual([2, 3, 4])
         expect(start.zoom).toBe(3)
         expect(records).toHaveLength(1)
+    })
+
+    test('the UndoManagerPlugin is looked up once (forPlugin), not on each record; after its remove, there are no records', () => {
+        vi.useFakeTimers()
+        const {plugin, start, preview, records, viewer} = setup({sync: true})
+        const getPlugin = vi.spyOn(viewer, 'getPlugin')
+        plugin.editing = false
+        gesture(preview, () => {
+            for (let i = 0; i < 5; i++) move(preview, i + 1, 1, 0) // each frame of a synced move
+        })
+        plugin.camera.position.set(2, 3, 4)
+        plugin.setStartViewFromEditor()
+        expect(records).toHaveLength(2)
+        expect(getPlugin).not.toHaveBeenCalled()
+        for (const s of viewer.subscriptions) if (s.type === 'UndoManagerPlugin') s.unmount?.(viewer.undoPlugin)
+        plugin.camera.position.set(1, 3, 4)
+        plugin.setStartViewFromEditor()
+        expect(start.position.toArray()).toEqual([1, 3, 4])
+        expect(records).toHaveLength(2)
     })
 
     test('setStartViewFromEditor works without the UndoManagerPlugin', () => {
