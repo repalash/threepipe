@@ -144,22 +144,27 @@ export class EditorModeBar {
         const roomForNames = window.matchMedia?.(EditorModeBar.WideQuery).matches ?? true
         if (!this._open) {
             this.setOpen(true)
-            if (roomForNames) this.setExpanded(true)
+            if (roomForNames) this.setExpanded(true, true)
         } else if (this._expanded) {
-            this.setExpanded(false)
+            this.setExpanded(false, true)
         } else {
             this.setOpen(false)
         }
     }
 
-    /** Shows or hides the names next to the icons */
-    setExpanded(expanded: boolean) {
+    /**
+     * Shows or hides the names next to the icons
+     * @param expanded - the names are shown
+     * @param keep - the person picked it (the toggle, Ctrl+\, a UI): it is kept in `localStorage` ({@link storageKey}).
+     * A change from code is not, so the person's pick, or the default of the window width, comes back at the next visit.
+     */
+    setExpanded(expanded: boolean, keep = false) {
         this._expanded = expanded
         this.element.classList.toggle('mb-wide', expanded)
         this._refreshTips()
         this._refreshToggle()
         document.documentElement.style.setProperty('--mb-width', (expanded ? EditorModeBar.Widths.wide : EditorModeBar.Widths.narrow) + 'px')
-        if (this.storageKey) {
+        if (keep && this.storageKey) {
             try {
                 localStorage.setItem(this.storageKey, expanded ? '1' : '0')
             } catch (e) {

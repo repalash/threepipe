@@ -272,6 +272,26 @@ describe('EditorModeBar', () => {
         expect([bar.expanded, bar.open]).toEqual([false, true])
     })
 
+    test('the names are kept only when the person picks them (the toggle, Ctrl+\\, the UI), not at the first build or from code', () => {
+        wide = false // the first visit in a narrow window: no names
+        let bar = new EditorModeBar(host(), body() as any, undefined, 'names')
+        expect(bar.expanded).toBe(false)
+        expect(storage.has('names')).toBe(false)
+        bar.setExpanded(true) // from code
+        expect(storage.has('names')).toBe(false)
+        bar.setExpanded(false, true) // the person's pick
+        expect(storage.get('names')).toBe('0')
+        wide = true
+        bar.cycle() // the toggle button and Ctrl+\: the panel hidden
+        bar.cycle() // the names and the panel
+        expect(storage.get('names')).toBe('1')
+        // a wide window later, nothing picked: the names, from the window
+        storage.clear()
+        bar = new EditorModeBar(host(), body() as any, undefined, 'names')
+        expect(bar.expanded).toBe(true)
+        expect(storage.has('names')).toBe(false)
+    })
+
     test('show selects a mode once and opens the panel', () => {
         const editor = host()
         const bar = new EditorModeBar(editor, body() as any, undefined, null)

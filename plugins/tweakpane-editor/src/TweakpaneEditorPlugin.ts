@@ -127,7 +127,10 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
         }
     }
 
-    /** The names of the modes are shown next to their icons in the mode bar of the frame */
+    /**
+     * The names of the modes are shown next to their icons in the mode bar of the frame. A change from code is not kept
+     * in `localStorage`; the person's pick (the toggle of the mode bar, Ctrl+\, the Mode names checkbox) is.
+     */
     get modeNames() {
         return this.frame?.modeBar.expanded ?? false
     }
@@ -150,7 +153,9 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
             {
                 type: 'checkbox',
                 label: 'Mode names',
-                property: [this, 'modeNames'],
+                // the person's pick is kept, as for the page layout
+                getValue: () => this.modeNames,
+                setValue: (names: boolean) => this.frame?.modeBar.setExpanded(names, true),
                 hidden: () => !this.frame,
             },
         ],
