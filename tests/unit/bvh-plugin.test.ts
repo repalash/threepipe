@@ -16,11 +16,12 @@ beforeAll(async() => {
 /** A viewer with the parts the plugin uses: the object manager, the model root and the postFrame event */
 function setup(options: ConstructorParameters<typeof tp.BVHPlugin>[1] = {lib: threeMeshBVH}) {
     const modelRoot = new Object3D()
+    const helperRoot = new Object3D() // where scene.addObject puts the BVH helpers (addToRoot)
     const object3dManager = new tp.Object3DManager()
     const viewer = Object.assign(new EventDispatcher<any>(), {
         object3dManager,
         // the model root is the scene here: the object events that bubble to the scene reach it
-        scene: Object.assign(modelRoot, {modelRoot}),
+        scene: Object.assign(modelRoot, {modelRoot, addObject: (o: Object3D) => helperRoot.add(o) && o}),
         console: {error: vi.fn(), warn: vi.fn(), log: vi.fn()},
         setDirty: vi.fn(),
     }) as any
@@ -33,7 +34,7 @@ function setup(options: ConstructorParameters<typeof tp.BVHPlugin>[1] = {lib: th
         return m
     }
     const frame = () => viewer.dispatchEvent({type: 'postFrame'})
-    return {viewer, plugin, add, frame}
+    return {viewer, plugin, add, frame, helperRoot}
 }
 
 /** Rays from around the knot towards its centre */
@@ -216,5 +217,27 @@ describe('BVHPlugin', () => {
         small.geometry = new TorusKnotGeometry(1, 0.3, 20, 8) as any
         await Promise.resolve()
         expect(small.raycast).toBe(Mesh.prototype.raycast)
+    })
+
+    test('Show boxes: the helper goes when its mesh switches geometry, and all helpers go when the plugin is removed', async() => {
+        const {viewer, plugin, add, frame, helperRoot} = setup()
+        const big = add(200, 32)
+        const small = add(20, 8)
+        frame()
+        plugin.showHelper(big, true)
+        expect(helperRoot.children.length).toBe(1)
+
+        big.geometry = small.geometry
+        await Promise.resolve()
+        expect(helperRoot.children.length).toBe(0)
+
+        // a tree that the plugin did not build (not in its stats)
+        const other = add(20, 8)
+        other.geometry!.boundsTree = new threeMeshBVH.MeshBVH(other.geometry!)
+        plugin.showHelper(other, true)
+        plugin.showHelper(big, true)
+        expect(helperRoot.children.length).toBe(2)
+        plugin.onRemove(viewer)
+        expect(helperRoot.children.length).toBe(0)
     })
 })

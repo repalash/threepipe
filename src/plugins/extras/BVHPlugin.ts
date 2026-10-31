@@ -134,7 +134,8 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
     private _load: () => Promise<ThreeMeshBVH>
     private _queue = new Set<BVHGeometry>()
     private _stats = new Map<BVHGeometry, BVHStats>()
-    private _helpers = new Map<IObject3D, Object3D & {dispose(): void}>()
+    // the helper of each mesh, with the geometry that it was made for
+    private _helpers = new Map<IObject3D, {helper: Object3D & {dispose(): void}, geometry: IGeometry}>()
 
     constructor(enabled = true, options: BVHPluginOptions = {}) {
         super()
@@ -207,6 +208,7 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
         viewer.scene.removeEventListener('geometryChanged', this._objectGeometryChanged)
         viewer.removeEventListener('postFrame', this._postFrame)
         for (const g of [...this._stats.keys()]) this._dispose(g)
+        for (const o of [...this._helpers.keys()]) this._removeHelper(o)
         this._queue.clear()
         super.onRemove(viewer)
     }
@@ -281,19 +283,23 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
 
     /** Show the boxes of an object's tree (a BVHHelper in the scene, not saved) */
     showHelper(o: IObject3D, show: boolean) {
-        const old = this._helpers.get(o)
-        if (old) {
-            old.removeFromParent()
-            old.dispose()
-            this._helpers.delete(o)
-        }
+        this._removeHelper(o)
         const bvh = show ? this.getBVH(o) : undefined
-        if (bvh && this.lib && this._viewer) {
+        if (bvh && o.geometry && this.lib && this._viewer) {
             const h = new this.lib.BVHHelper(o, 10)
             h.userData.userSelectable = false
             this._viewer.scene.addObject(h, {addToRoot: true, autoScale: false, autoCenter: false})
-            this._helpers.set(o, h)
+            this._helpers.set(o, {helper: h, geometry: o.geometry})
         }
+        this._viewer?.setDirty()
+    }
+
+    private _removeHelper(o: IObject3D) {
+        const entry = this._helpers.get(o)
+        if (!entry) return
+        entry.helper.removeFromParent()
+        entry.helper.dispose()
+        this._helpers.delete(o)
         this._viewer?.setDirty()
     }
 
@@ -318,6 +324,7 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
     private _objectGeometryChanged = (e: {object?: IObject3D}) => {
         const o = e.object
         if (!o?.isMesh) return
+        if (this._helpers.get(o)?.geometry !== o.geometry) this._removeHelper(o) // made for the old geometry
         queueMicrotask(() => {
             const g: BVHGeometry | undefined = o.geometry
             if (g?.boundsTree) this._setRaycast(g)
@@ -374,11 +381,7 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
         g.boundsTree = undefined
         this._stats.delete(g)
         this._setRaycast(g)
-        for (const [o, h] of this._helpers) if (o.geometry === g) {
-            h.removeFromParent()
-            h.dispose()
-            this._helpers.delete(o)
-        }
+        for (const [o, entry] of [...this._helpers]) if (entry.geometry === g) this._removeHelper(o)
         this.dispatchEvent({type: 'bvhDisposed', geometry: g})
     }
 
