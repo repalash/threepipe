@@ -64,7 +64,7 @@ import {
     VirtualCamerasPlugin,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
-import {EditorCameraPlugin, HierarchyUiPlugin, NotesPlugin, StickyNotesUiPlugin, TweakpaneEditorPlugin} from '@threepipe/plugin-tweakpane-editor'
+import {EditorCameraPlugin, GLTFContentsPlugin, HierarchyUiPlugin, NotesPlugin, StickyNotesUiPlugin, TweakpaneEditorPlugin} from '@threepipe/plugin-tweakpane-editor'
 import {BlendLoadPlugin} from '@threepipe/plugin-blend-importer'
 import {extraImportPlugins} from '@threepipe/plugins-extra-importers'
 import {FontLibrary, GeometryGeneratorExtrasPlugin} from '@threepipe/plugin-geometry-generator'
@@ -178,6 +178,7 @@ export class ThreeEditor extends ThreeViewer {
         new CascadedShadowsPlugin(false),
         DynamicImportPlugin,
         NotesPlugin, StickyNotesUiPlugin,
+        GLTFContentsPlugin,
     ]
 
     editorModes: Record<string, Class<IViewerPlugin<any>>[]> = {
@@ -189,7 +190,7 @@ export class ThreeEditor extends ThreeViewer {
         ['Configurator']: [MaterialConfiguratorPlugin, SwitchNodePlugin, GLTFKHRMaterialVariantsPlugin],
         ['Animation']: [TimelineUiPlugin, AnimationObjectPlugin, GLTFAnimationPlugin, CameraViewPlugin],
         ['Extras']: [HDRiGroundPlugin, Rhino3dmLoadPlugin, ClearcoatTintPlugin, FragmentClippingExtensionPlugin, NoiseBumpMaterialPlugin, AnisotropyPlugin, CustomBumpMapPlugin, VirtualCamerasPlugin, TilesRendererPlugin, EntityComponentPlugin, StickyNotesUiPlugin, NotesPlugin],
-        ['Debug']: [RenderTargetPreviewPlugin, PerfPanelPlugin, DynamicImportPlugin],
+        ['Debug']: [GLTFContentsPlugin, RenderTargetPreviewPlugin, PerfPanelPlugin, DynamicImportPlugin],
     }
 
     async init() {

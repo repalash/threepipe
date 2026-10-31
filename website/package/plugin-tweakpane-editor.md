@@ -237,3 +237,28 @@ In the `TweakpaneEditorPlugin`, while the plugin is added (before or after the e
 - The picture is taken from the canvas right after a render, when the view shows the saved start view (`showsStartView`): after a load, in View before a move, after a save, a sync or "Set as start view". It is a small copy of the canvas (448 px wide); it is taken again when the render ends (progressive rendering), and shows faded while it is out of date.
 - On the classic page on a phone, the pill is on the right, under the title bar of the settings panel, so it does not cover the view widget.
 - `setupEditorCameraUi(viewer, plugin)` adds the pill, the card, the frame and their styles in another app (and the CSS of the tooltips). It returns a function that removes them. The [Tweakpane Editor](https://threepipe.org/examples/#tweakpane-editor/) example has the settings in the Viewer tab.
+
+## GLTFContentsPlugin
+
+[Source Code](https://github.com/repalash/threepipe/blob/master/plugins/tweakpane-editor/src/GLTFContentsPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/plugins/tweakpane-editor/docs/classes/GLTFContentsPlugin.html)
+
+`GLTFContentsPlugin` shows what a glTF file holds, in its UI folder (`glTF Contents`, in the Debug mode of the [Tweakpane Editor](https://threepipe.org/examples/#tweakpane-editor/) example).
+
+- **Check the export** makes the file that `AssetExporterPlugin` would download, with its export options, and lists what is in it, without a download: the models of the scene, and the viewer config with the settings of each plugin (the notes of `NotesPlugin`, the camera views, ...), so you see what all the dropped files and settings add to the file.
+- **Loaded files**: each glTF or GLB file that is loaded (dropped, picked or from a URL) is read again from its file and listed. `Show` picks the export or a file.
+
+For each file: the size of the file, its JSON and binary parts and the part in images; the generator; the counts of nodes, meshes and primitives, triangles, vertices, materials, textures, animations, cameras and lights; the viewer config (`WEBGI_viewer`), each plugin with the size of its settings (the largest first) and the resources by kind; and lists of the meshes (triangles, vertices), materials (their extensions), images (type, size), animations (channels, duration) and the extensions used.
+
+```typescript
+import {AssetExporterPlugin, ThreeViewer} from 'threepipe'
+import {GLTFContentsPlugin} from '@threepipe/plugin-tweakpane-editor'
+
+const viewer = new ThreeViewer({...plugins: [AssetExporterPlugin]})
+const contents = viewer.addPluginSync(GLTFContentsPlugin)
+
+const summary = await contents.checkExport()
+console.log(summary?.counts.triangles, summary?.viewerConfig?.plugins)
+```
+
+The summary is `summarizeGLTF(name, parseGLTFBuffer(buffer), fileBytes)`, which an app can call for any glTF or GLB buffer. The plugin is not saved with the viewer config.
