@@ -51,6 +51,8 @@ function isVisible(o: Object3D | null): boolean {
 const CLOSE_DISTANCE = 10
 /** A drag shorter than this makes a corner, px */
 const CORNER_DRAG = 4
+/** Points per curve segment in the overlay */
+const CURVE_SAMPLES = 20
 
 /**
  * PenToolPlugin is a pen tool like the one of Figma or Illustrator, for 3D paths.
@@ -433,23 +435,37 @@ export class PenToolPlugin extends AViewerPluginSync<PenToolPluginEventMap> {
         const viewport = this._viewport()
         const S = (p: Vector3) => this._toScreen(p, viewport)
         const f = (n: number) => n.toFixed(1)
-        const as = this._anchors
-        let d = ''
-        for (let i = 0; i < as.length; i++) {
-            const a = S(as[i].p)
-            if (i === 0) {
-                d += `M${f(a.x)} ${f(a.y)}`
-                continue
-            }
-            const c1 = S(as[i - 1].hOut), c2 = S(as[i].hIn)
-            d += `C${f(c1.x)} ${f(c1.y)} ${f(c2.x)} ${f(c2.y)} ${f(a.x)} ${f(a.y)}`
+        const move = (p: Vector3) => {
+            const q = S(p)
+            return `M${f(q.x)} ${f(q.y)}`
         }
+        // A perspective projection of a 3D cubic is not the SVG cubic through the projected control points (the
+        // perspective division is not linear), so the 3D curve is sampled and drawn as a polyline. A segment
+        // without handles is a straight line, also in the projection.
+        const curve = new CubicBezierCurve3()
+        const pt = new Vector3()
+        const segment = (p0: Vector3, h0: Vector3, h1: Vector3, p1: Vector3) => {
+            const straight = h0.equals(p0) && h1.equals(p1)
+            curve.v0.copy(p0)
+            curve.v1.copy(h0)
+            curve.v2.copy(h1)
+            curve.v3.copy(p1)
+            let d = ''
+            for (let i = straight ? CURVE_SAMPLES : 1; i <= CURVE_SAMPLES; i++) {
+                const q = S(curve.getPoint(i / CURVE_SAMPLES, pt))
+                d += `L${f(q.x)} ${f(q.y)}`
+            }
+            return d
+        }
+        const as = this._anchors
+        let d = as.length ? move(as[0].p) : ''
+        for (let i = 1; i < as.length; i++) d += segment(as[i - 1].p, as[i - 1].hOut, as[i].hIn, as[i].p)
         const hov = this._hover && !this._drag ? S(this._hover) : null
         // the next segment, to the pointer
         let preview = ''
         if (as.length && hov) {
-            const last = as[as.length - 1], a = S(last.p), c1 = S(last.hOut)
-            preview = `M${f(a.x)} ${f(a.y)}C${f(c1.x)} ${f(c1.y)} ${f(hov.x)} ${f(hov.y)} ${f(hov.x)} ${f(hov.y)}`
+            const last = as[as.length - 1]
+            preview = move(last.p) + segment(last.p, last.hOut, this._hover!, this._hover!)
         }
         let handles = ''
         let dots = ''

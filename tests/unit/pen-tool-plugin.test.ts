@@ -385,4 +385,39 @@ describe('PenToolPlugin', {timeout}, () => {
         expect(close(pen.points[1], [0, 1, 0])).toBe(true)
         pen.cancel()
     })
+
+    test('the overlay draws the projected 3D curve, also between points at different depths', () => {
+        const {pen, viewer, container, containerRect, canvas, camera, click, drag, ev, screen} = setup()
+        const svg = container.children.find(c => c.tagName === 'svg')!
+        pen.start()
+        click(-3, 0, -3) // far, a corner
+        drag([3, 0, 4], [5, 0, 4]) // near, its in handle at (1, 0, 4)
+        win.fire('pointermove', ev(screen(-4, 0, 2))) // the preview to the pointer
+        viewer.dispatchEvent({type: 'postFrame'})
+
+        const cr = canvas.getBoundingClientRect()
+        const toOverlay = (p: any) => {
+            const v = p.clone().project(camera)
+            return [cr.left - containerRect.left + (v.x + 1) / 2 * cr.width, cr.top - containerRect.top + (1 - v.y) / 2 * cr.height]
+        }
+        /** The polyline of an SVG path of M and L commands only */
+        const polyline = (cls: string) => {
+            const d = svg.innerHTML.match(new RegExp(`<path d="([^"]*)" class="${cls}"`))![1]
+            expect(d).toMatch(/^M[-\d. L]+$/)
+            return d.slice(1).split('L').map(pt => pt.trim().split(' ').map(Number))
+        }
+        const distance = (q: number[], line: number[][]) => Math.min(...line.slice(1).map((b, i) => {
+            const a = line[i], dx = b[0] - a[0], dy = b[1] - a[1]
+            const t = Math.max(0, Math.min(1, ((q[0] - a[0]) * dx + (q[1] - a[1]) * dy) / (dx * dx + dy * dy || 1)))
+            return Math.hypot(a[0] + t * dx - q[0], a[1] + t * dy - q[1])
+        }))
+        const V = (x: number, y: number, z: number) => new tp.Vector3(x, y, z)
+        const segment = new tp.CubicBezierCurve3(V(-3, 0, -3), V(-3, 0, -3), V(1, 0, 4), V(3, 0, 4))
+        const preview = new tp.CubicBezierCurve3(V(3, 0, 4), V(5, 0, 4), V(-4, 0, 2), V(-4, 0, 2))
+        for (const [curve, cls] of [[segment, 'pen-path'], [preview, 'pen-preview']] as const) {
+            const line = polyline(cls)
+            for (let t = 0; t <= 1; t += 0.05) expect(distance(toOverlay(curve.getPoint(t)), line)).toBeLessThan(0.5)
+        }
+        pen.cancel()
+    })
 })
