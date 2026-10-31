@@ -9,11 +9,13 @@ import {ACCESS_KEY_SECONDS, BUILD_DAYS, SHARE_DEFAULT_DAYS, SHARE_MAX_DAYS, size
  * Access links: a signed-in user creates one per agent/machine and copies its URL. The agent reads agents.md from it,
  * which says where to get the key. The key is the user's JWT with `meta.link`; deleting the link revokes it (src/auth.ts).
  *
- *   POST /api/v1/access-links {name?}   → {id, name, url}            (signed in)
+ *   POST   /api/v1/access-links {name?}   → {id, name, url}         (signed in, not with a key)
+ *   GET    /api/v1/access-links           → {links}: agents' links and the apps you connected (src/connect.ts)
+ *   DELETE /api/v1/access-links/<id>      revokes it: its keys stop working at once
  *   GET  /api/v1/access/<code>/agents.md                              (the code is the credential)
  *   GET  /api/v1/access/<code>/key      → the key, text/plain
  *
- * Listing and deleting links: /api/v1/table/access_links/… (teenybase, owner only).
+ * The /account page lists and revokes them. (teenybase's /api/v1/table/access_links/… works too, owner only.)
  */
 export function accessRoutes(app: Hono<CloudEnv>) {
     app.post('/api/v1/access-links', async (c) => {
@@ -26,6 +28,25 @@ export function accessRoutes(app: Hono<CloudEnv>) {
         await c.env.PRIMARY_DB.prepare('INSERT INTO access_links (id, owner_id, name, code_hash) VALUES (?, ?, ?, ?)')
             .bind(id, user.id, name, await sha256Hex(code)).run()
         return c.json({id, name, url: `${new URL(c.req.url).origin}/api/v1/access/${code}/agents.md`})
+    })
+
+    app.get('/api/v1/access-links', async (c) => {
+        const user = await requireUser(c)
+        if (user.link) throw new HTTPException(403, {message: 'an access key cannot list access links'})
+        const {results} = await c.env.PRIMARY_DB.prepare(`SELECT l.id, l.name, l.app, l.scope, l.created, l.last_used, o.username AS app_owner, f.name AS folder_name
+                FROM access_links l LEFT JOIN users o ON o.id = l.app_owner LEFT JOIN drive_folders f ON f.id = l.scope AND f.owner_id = l.owner_id
+                WHERE l.owner_id = ? ORDER BY l.created DESC`).bind(user.id)
+            .all<{id: string, name: string | null, app: string | null, scope: string | null, created: string, last_used: string | null, app_owner: string | null, folder_name: string | null}>()
+        return c.json({links: results.map(l => ({id: l.id, name: l.name || '', created: l.created, last_used: l.last_used,
+            ...l.app ? {app: l.app, app_owner: l.app_owner, access: l.scope === '*' ? 'drive' : 'folder', folder: l.scope === '*' ? null : {id: l.scope, name: l.folder_name}} : {}}))})
+    })
+
+    app.delete('/api/v1/access-links/:id', async (c) => {
+        const user = await requireUser(c)
+        if (user.link) throw new HTTPException(403, {message: 'an access key cannot revoke access links'})
+        const r = await c.env.PRIMARY_DB.prepare('DELETE FROM access_links WHERE id = ? AND owner_id = ?').bind(c.req.param('id'), user.id).run()
+        if (!r.meta.changes) throw new HTTPException(404, {message: 'no such access link'})
+        return c.json({deleted: c.req.param('id')})
     })
 
     app.get('/api/v1/access/:code/agents.md', async (c) => {

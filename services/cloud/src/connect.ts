@@ -156,7 +156,7 @@ function consentPage(t: AppTarget, user: CloudUser, owner: {id: string, username
     return `<h1>Connect ${esc(t.app)}?</h1>
 <p>The app ${who} wants to read, write, share and delete:</p>
 <div class="scope${t.access === 'drive' ? ' all' : ''}">${ICONS.folder}<span>${what}</span></div>
-<p>It cannot use anything else in your account. Remove access any time from your access links.</p>
+<p>It cannot use anything else in your account. Remove access any time in <a href="/account">Apps &amp; keys</a>.</p>
 <form method="post" action="/api/v1/connect"><input type="hidden" name="return" value="${esc(t.returnUrl)}"><input type="hidden" name="access" value="${t.access}">
 <div class="row"><a class="btn lg" href="${esc(t.returnUrl + '#tp_cloud_error=denied')}">Cancel</a><button type="submit" class="primary lg">Allow</button></div></form>
 <p class="foot">Signed in as @${esc(user.username)}</p>`

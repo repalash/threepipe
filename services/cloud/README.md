@@ -28,7 +28,7 @@ only; a new username is signed up on the first try).
 | `POST /api/v1/access-links` `{name?}` | signed in | → `{id, name, url}`; the url is `/api/v1/access/<code>/agents.md` |
 | `GET /api/v1/access/<code>/agents.md` | the link | instructions and the API for agents |
 | `GET /api/v1/access/<code>/key` | the link | the user's JWT with `meta.link` (30 days); deleting the link revokes it |
-| `POST /api/v1/table/access_links/delete` `{where}` | owner | revoke a link (teenybase) |
+| `GET /api/v1/access-links`, `DELETE /api/v1/access-links/<id>` | signed in (not with a key) | your agents' links and connected apps; revoke one (its keys stop at once). teenybase's `/api/v1/table/access_links/…` works too |
 | `PUT /api/v1/uploads/<prefix>/<path>` | signed in / key | upload one file (body), max 90 MB → `{url, path, size, sha256, expires_at}` |
 | `DELETE /api/v1/uploads/<prefix>/<path>` | owner (`s b p`), staff (all) | the path then answers 410 |
 | `GET /api/v1/table/files/select` | owner | the user's files (teenybase) |
@@ -38,7 +38,7 @@ only; a new username is signed up on the first try).
 | `POST /api/v1/drive/items`, `PUT /api/v1/drive/items/<id>/<path>` | owner / app key | a folder item (gltf + bin + textures), file by file |
 | `GET/PATCH/DELETE /api/v1/drive/items/<id>` `{name?, folder?, visibility?}` | owner / app key | read, rename, move, share (`link`) or hide (`private`), delete |
 | `POST /api/v1/drive/items/<id>/sign` `{ttl?}`, `…/new-id` | owner / app key | signed URL of the whole item; a new id (old URLs stop working) |
-| `/drive`, `/reports` | browser | the drive and reports pages (one look, `src/page/ui.css`: the clean mode of the tweakpane plugin, light and dark) |
+| `/drive`, `/reports`, `/account` | browser | the drive, reports (with project settings) and Apps & keys pages (one look, `src/page/ui.css`: the clean mode of the tweakpane plugin, light and dark) |
 | `GET /api/v1/me` | signed in (not app keys) | handle, name, role, drive use and quota (the pages' side bar) |
 | `GET /api/v1/connect?return=<app url>` | browser | "Sign in with threepipe" for apps (below) |
 | `PUT /api/v1/buckets/<samples\|e2e>/<path>` + `x-content-sha256` | staff | write-once upload to the samples / e2e snapshot bucket (R2 serves them on `SAMPLES_URL` / `E2E_URL`); e2e paths are `blobs/<sha256><ext>` |
@@ -63,6 +63,7 @@ reports on `/reports` (GitHub sign-in) or through the API.
 | Route | Who | What |
 |---|---|---|
 | `POST /api/v1/projects` `{slug, name}`, `GET /api/v1/projects` | signed in | create, list mine |
+| `GET /api/v1/projects/<slug>` | reader | name, your role, owner, whether a Discord webhook is set |
 | `PATCH /api/v1/projects/<slug>` `{name?, discord_webhook?}` | manager | a Discord card per report (no user text on it) |
 | `GET/POST /api/v1/projects/<slug>/members`, `DELETE …/members/<username>` | reader / manager | members |
 | `POST /api/v1/projects/<slug>/reports` | anyone | `Idempotency-Key`; signed in (cookie or key) or `cf-turnstile-response`; JSON or multipart (`report` + up to 3 `file`s) → `{id}` (`R-XXXXXX`) |

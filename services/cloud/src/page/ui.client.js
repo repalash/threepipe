@@ -60,6 +60,8 @@ const UI = (() => {
         theme: '<circle cx="8" cy="8" r="5.5"/><path d="M8 2.5v11a5.5 5.5 0 0 0 0-11z" fill="currentColor"/>',
         image: '<rect x="2.5" y="3" width="11" height="10" rx="1"/><circle cx="6" cy="6.5" r="1"/><path d="M13.5 10.5 10 7.5l-6 5.5"/>',
         flag: '<path d="M3.5 14V2.5M3.5 3h8.5l-2 3 2 3H3.5"/>',
+        grid: '<rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="9" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="2.5" y="9" width="4.5" height="4.5" rx="1"/><rect x="9" y="9" width="4.5" height="4.5" rx="1"/>',
+        settings: '<path d="M2.5 4.5h7M12.5 4.5h1M2.5 11.5h1M6.5 11.5h7"/><circle cx="11" cy="4.5" r="1.5"/><circle cx="5" cy="11.5" r="1.5"/>',
         key: '<circle cx="5.5" cy="10.5" r="3"/><path d="M7.7 8.3 13.5 2.5M11.5 4.5l1.5 1.5"/>',
         github: '<path fill="currentColor" stroke="none" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>',
     }
@@ -73,7 +75,7 @@ const UI = (() => {
         if (!r.ok) throw new Error('HTTP ' + r.status)
         return r.json()
     }
-    /* the side bar of `page` ('drive' | 'reports'); `project` is the open project's slug. Fresh data with `reload`. */
+    /* the side bar of `page` ('drive' | 'reports' | 'account'); `project` is the open project's slug. Fresh data with `reload`. */
     async function side(pageName, project, reload) {
         page = pageName
         if (reload) { me = null; projects = null }
@@ -83,7 +85,7 @@ const UI = (() => {
         const a = (href, ic, label, on, cls) => '<a href="' + esc(href) + '" class="' + (on ? 'on ' : '') + (cls || '') + '">' + icon(ic) + '<span>' + esc(label) + '</span></a>'
         const d = me.drive || {}, pct = d.quota ? Math.min(100, Math.round(d.used / d.quota * 1000) / 10) : 0
         el('side').innerHTML = brand()
-            + '<div class="nav">' + a('/drive', 'cloud', 'Drive', page === 'drive') + a('/reports', 'inbox', 'Reports', page === 'reports' && !project) + '</div>'
+            + '<div class="nav">' + a('/drive', 'cloud', 'Drive', page === 'drive') + a('/reports', 'inbox', 'Reports', page === 'reports' && !project) + a('/account', 'grid', 'Apps & keys', page === 'account') + '</div>'
             + (projects.length ? '<div class="nav"><div class="nav-h">Projects</div>' + projects.map(p => a('/reports#' + p.slug, 'hash', p.name || p.slug, page === 'reports' && project === p.slug, 'sub')).join('') + '</div>' : '')
             + '<div class="side-foot">'
             + (me.feedback ? '<div class="nav flat"><a data-report-problem>' + icon('flag') + '<span>Report a problem</span></a></div>' : '')

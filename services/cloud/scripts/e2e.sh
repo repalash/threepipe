@@ -159,7 +159,11 @@ admin scopes/update "{\"where\":\"scope == 'p/$U-page'\",\"setValues\":{\"owner_
 [ "$(code -H "$CK" "$A/api/v1/connect?return=$(enc "https://example.com/app/")")" = "400" ] && ok "connect: other sites -> 400" || bad "connect other site"
 curl -s -H "$CK" "$A/api/v1/connect?return=$(enc "http://localhost:5173/")" | grep -q "Apps/localhost:5173" && ok "connect: localhost app" || bad "connect localhost"
 curl -s -H "$CK" "$A/api/v1/connect?return=$(enc "http://5173.me.aibox.localhost/x/")" | grep -q "Apps/5173.me.aibox.localhost:80" && ok "connect: *.localhost app" || bad "connect *.localhost"
-curl -s -o /dev/null -X POST -H "$H0" -H 'content-type: application/json' -d "{\"where\":\"app == 'p/$U-page'\"}" "$A/api/v1/table/access_links/delete"
+R=$(curl -s -H "$H0" "$A/api/v1/access-links"); GID=$(echo "$R" | python3 -c "import json,sys;print([l for l in json.load(sys.stdin)['links'] if l.get('app')=='p/$U-page'][0]['id'])" 2>/dev/null)
+[ -n "$GID" ] && echo "$R" | grep -q '"access":"folder"' && ok "access links list the connected app and its folder" || bad "list access links: $R"
+[ "$(code -H "$HA" "$A/api/v1/access-links")" = "403" ] && [ "$(code -X DELETE -H "$HA" "$A/api/v1/access-links/$GID")" = "403" ] && ok "app key: cannot list or revoke links" || bad "app key links"
+[ "$(code -X DELETE -H "Authorization: Bearer $T2" "$A/api/v1/access-links/$GID")" = "404" ] && ok "revoke someone else's link -> 404" || bad "revoke other"
+[ "$(code -X DELETE -H "$H0" "$A/api/v1/access-links/$GID")" = "200" ] && ok "revoke the app (DELETE /api/v1/access-links/<id>)" || bad "revoke app"
 [ "$(code -X PUT -H "$HA" --data-binary @$TMP/a.txt "$A/api/v1/drive/files?name=late.txt")" = "401" ] && ok "revoked app -> 401" || bad "revoked app"
 LOC3=$(curl -s -o /dev/null -w '%{redirect_url}' -X POST -H "$CK" -H "Origin: $A" --data-urlencode "return=$APP" "$A/api/v1/connect")
 echo "$LOC3" | grep -q "tp_cloud_folder=$AF" && ok "approved again: the same folder" || bad "re-approve folder: $LOC3"
@@ -178,6 +182,8 @@ P=p-$U
 [ "$(code -X POST -H "$H0" -H 'content-type: application/json' -d "{\"slug\":\"$P\"}" "$A/api/v1/projects")" = "409" ] && ok "slug taken -> 409" || bad "slug taken"
 [ "$(code -X POST -H "Authorization: Bearer $T2" -H 'content-type: application/json' -d '{"slug":"threepipe-x"}' "$A/api/v1/projects")" = "403" ] && ok "threepipe* slugs are for staff" || bad "threepipe slug"
 curl -s -H "$H0" "$A/api/v1/projects" | grep -q "\"$P\"" && ok "list my projects" || bad "list projects"
+R=$(curl -s -H "$H0" "$A/api/v1/projects/$P"); echo "$R" | grep -q '"role":"manager"' && echo "$R" | grep -q '"discord_webhook":false' && echo "$R" | grep -q "\"owner\":\"$U\"" && ok "a project's settings" || bad "project get: $R"
+[ "$(code -H "Authorization: Bearer $T2" "$A/api/v1/projects/$P")" = "404" ] && ok "non-members: no such project" || bad "project get non-member"
 RJ='{"type":"bug","surface":"examples","text":"it broke","email":"me@x.test","log":["GET https://a.test/x?token=abcdefgh12345678 failed","at /Users/jane/app.js:1:2"],"versions":{"threepipe":"0.4.0"}}'
 [ "$(code -X POST -H 'content-type: application/json' -H "Idempotency-Key: k-$U-0" -d "$RJ" "$A/api/v1/projects/$P/reports")" = "401" ] && ok "anonymous report without Turnstile -> 401" || bad "no turnstile"
 R=$(curl -s -X POST -H 'content-type: application/json' -H "Idempotency-Key: k-$U-1" -H 'cf-turnstile-response: test' -H "Origin: https://files.threepipe.org" -d "$RJ" "$A/api/v1/projects/$P/reports"); RID=$(echo "$R" | j "['id']") && ok "anonymous report with Turnstile -> $RID" || bad "anon report: $R"

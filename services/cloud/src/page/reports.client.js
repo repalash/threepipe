@@ -15,7 +15,7 @@ const REP_STATUSES = Object.keys(REP_STATUS)
 const REP_TYPE = {bug: 'Bug', question: 'Question', idea: 'Idea'}
 const REP_PAGE = 50
 const REP_FLAT_MAX = 200
-const S = {project: '', role: '', projects: null, reps: null, repsErr: '', repsBusy: false, repSeq: 0, f: {status: '', type: '', q: '', deleted: false}, rep: null}
+const S = {project: '', role: '', projects: null, reps: null, repsErr: '', repsBusy: false, repSeq: 0, f: {status: '', type: '', q: '', deleted: false}, rep: null, settings: null}
 
 const {el, esc, icon, stamp} = UI
 /* a value of one of the maps above for an API string, never an inherited property ('constructor') */
@@ -62,7 +62,7 @@ async function api(path, init) {
     const r = await fetch(path, {...init, credentials: 'same-origin'})
     if (r.status === 401) { signOut(''); throw new Error('signed out') }
     const ct = r.headers.get('content-type') || ''
-    if (!r.ok) { const j = ct.includes('json') ? await r.json().catch(() => ({})) : {}; throw new Error(j.error || ('HTTP ' + r.status)) }
+    if (!r.ok) { const j = ct.includes('json') ? await r.json().catch(() => ({})) : {}; throw new Error(j.error || j.message || ('HTTP ' + r.status)) }
     return ct.includes('json') ? r.json() : r.blob()
 }
 const send = (method, path, body) => api(path, {method, headers: body ? {'content-type': 'application/json'} : {}, body: body ? JSON.stringify(body) : undefined})
@@ -75,7 +75,7 @@ function signOut(msg) {
 }
 /* the hash names the project; no hash: the list of your projects */
 async function route() {
-    repRelease(); drawReport()
+    repRelease(); S.settings = null; drawReport()
     const slug = slugOf(decodeURIComponent(location.hash.slice(1)))
     const fresh = !S.projects
     if (fresh) {
@@ -136,7 +136,8 @@ function repRow(r) {
 function renderFrame(p) {
     el('main').innerHTML = '<div class="toolbar"><div class="crumbs"><a data-home>Projects</a><span class="sep">/</span><a>' + esc(p.name || p.slug) + '</a></div><span class="grow"></span>'
         + '<input data-q type="search" placeholder="Report id or email, then Enter" autocomplete="off" class="w200">'
-        + '<button class="icon" data-reload title="Reload" aria-label="Reload">' + icon('refresh') + '</button></div>'
+        + '<button class="icon" data-reload title="Reload" aria-label="Reload">' + icon('refresh') + '</button>'
+        + '<button data-settings title="Members, Discord, name">' + icon('settings') + '<span class="hide-sm">Settings</span></button></div>'
         + '<div class="toolbar" id="filters"></div><div class="scroll" id="list"></div>'
 }
 function renderFilters() {
@@ -187,7 +188,7 @@ const kv = (k, v) => v === undefined || v === null || v === '' ? '' : '<div clas
 const box = (title, body, open, n) => '<details class="sec"' + (open === false ? '' : ' open') + '><summary>' + esc(title) + (n !== undefined ? ' <span class="n">' + esc(n) + '</span>' : '') + '</summary><div class="sb">' + body + '</div></details>'
 async function openReport(id) {
     id = repId(id); if (!id) return
-    repRelease()
+    repRelease(); S.settings = null
     S.rep = {id, busy: true, err: '', row: null, files: [], report: null, img: ''}
     drawReport(); markRow()
     await repLoad()
@@ -214,7 +215,7 @@ async function repLoad() {
 function repRelease() { const r = S.rep; S.rep = null; if (r && r.img) URL.revokeObjectURL(r.img) }
 function drawReport() {
     const r = S.rep
-    if (!r) { el('panel').innerHTML = ''; markRow(); return }
+    if (!r) { if (S.settings) drawSettings(); else el('panel').innerHTML = ''; markRow(); return }
     const row = r.row || {}, rep = r.report || {}, gone = !!row.deleted_at
     let h = '<div class="ph"><h2>Report ' + esc(r.id) + (row.created_at ? '<span class="sub">Sent ' + esc(stamp(row.created_at)) + '</span>' : '') + '</h2><button class="icon" data-close title="Close" aria-label="Close">' + icon('x') + '</button></div>'
     if (r.busy) { el('panel').innerHTML = h + '<div class="sec"><div class="sb pad muted">Reading the report…</div></div>'; return }
@@ -248,6 +249,50 @@ function drawReport() {
     h += box('Request', kv('Cloudflare ray', q.ray) + kv('Country', q.country) + kv('Browser', q.user_agent) + kv('Page origin', rep.origin) + kv('Discord card', row.discord_state), false)
     el('panel').innerHTML = h
 }
+/* ---------- the project's settings, in the panel: name, members, Discord ---------- */
+const pbase = () => '/api/v1/projects/' + encodeURIComponent(S.project)
+async function openSettings() {
+    repRelease(); markRow()
+    S.settings = {busy: true, err: '', project: null, members: []}
+    drawSettings()
+    const st = S.settings
+    try {
+        const [p, m] = await Promise.all([api(pbase()), api(pbase() + '/members')])
+        if (S.settings !== st) return
+        st.project = p; st.members = Array.isArray(m.members) ? m.members : []
+    } catch (e) { if (S.settings === st) st.err = String(e && e.message || e) }
+    st.busy = false
+    if (S.settings === st) drawSettings()
+}
+const ROLE_LABEL = {owner: 'Owner', manager: 'Manager', reader: 'Reader'}
+function drawSettings() {
+    const st = S.settings
+    let h = '<div class="ph"><h2>Settings<span class="sub">' + esc(S.project) + '</span></h2><button class="icon" data-close title="Close" aria-label="Close">' + icon('x') + '</button></div>'
+    if (st.busy) { el('panel').innerHTML = h + '<div class="sec"><div class="sb pad muted">Reading…</div></div>'; return }
+    if (st.err) { el('panel').innerHTML = h + '<div class="sec"><div class="sb pad err">' + esc(st.err) + '</div></div>'; return }
+    const p = st.project, manager = p.role === 'manager'
+    h += box('Project', manager
+        ? '<div class="field"><input data-project-name maxlength="100" value="' + esc(p.name) + '"><button data-save-name>Save</button></div>'
+        : kv('Name', p.name))
+    const rows = st.members.map(m => '<div class="member"><span class="avatar">' + esc(String(m.username || '?').slice(0, 1)) + '</span><span class="grow">@' + esc(m.username) + '</span>'
+        + (m.role === 'owner' || !manager ? '<span class="muted">' + esc(ROLE_LABEL[m.role] || m.role) + '</span>'
+            : '<span class="sel"><select data-member-role="' + esc(m.username) + '">' + ['reader', 'manager'].map(r => '<option value="' + r + '"' + (r === m.role ? ' selected' : '') + '>' + ROLE_LABEL[r] + '</option>').join('') + '</select></span>'
+              + '<button class="icon" data-member-remove="' + esc(m.username) + '" title="Remove" aria-label="Remove @' + esc(m.username) + '">' + icon('x') + '</button>')
+        + '</div>').join('')
+    h += box('Members', rows + (manager ? '<div class="field"><input data-member-new placeholder="Username" autocomplete="off" spellcheck="false"><span class="sel"><select data-member-new-role><option value="reader">Reader</option><option value="manager">Manager</option></select></span><button data-member-add>Add</button></div>'
+        + '<p class="note">Readers see the reports; managers also change their status, add notes, delete them and edit this.</p>' : ''), true, st.members.length)
+    h += box('Discord', '<p class="note">' + (p.discord_webhook ? 'Each new report posts a card to your Discord channel.' : 'Off. With a webhook, each new report posts a card to a Discord channel.') + '</p>'
+        + (manager ? '<div class="field"><input data-webhook placeholder="https://discord.com/api/webhooks/…" autocomplete="off" spellcheck="false"><button data-save-webhook>' + (p.discord_webhook ? 'Replace' : 'Save') + '</button></div>'
+            + (p.discord_webhook ? '<div><button class="danger" data-clear-webhook>Turn off</button></div>' : '') + '<p class="note">The URL is a secret: it is kept, never shown again.</p>' : ''))
+    el('panel').innerHTML = h
+}
+/* a settings change: `f` calls the API; then the panel and the side bar (a new name) read again */
+async function settingsChange(label, f, done) {
+    try { await f(); if (done) UI.toast(done) } catch (e) { if (e.message !== 'signed out') UI.toast(label + ' failed: ' + e.message, true); return }
+    if (S.settings) await openSettings()
+}
+const field = sel => String((document.querySelector(sel) || {}).value || '').trim()
+
 /* PATCH {status} or {note}; the answer is the report as GET gives it. The actor is the member's username, set by the worker. */
 async function repPatch(body) {
     const r = S.rep; if (!r) return
@@ -280,7 +325,7 @@ async function repDelete() {
 
 /* ---------- events: by data attributes, never an API string in a handler ---------- */
 document.addEventListener('click', e => {
-    const t = e.target.closest('[data-open],[data-status],[data-reload],[data-more],[data-close],[data-save-note],[data-delete],[data-file],[data-project],[data-create],[data-home]')
+    const t = e.target.closest('[data-open],[data-status],[data-reload],[data-more],[data-close],[data-save-note],[data-delete],[data-file],[data-project],[data-create],[data-home],[data-settings],[data-save-name],[data-member-add],[data-member-remove],[data-save-webhook],[data-clear-webhook]')
     if (!t || t.closest('dialog')) return
     if (t.hasAttribute('data-project')) location.hash = '#' + slugOf(t.getAttribute('data-project'))
     else if (t.hasAttribute('data-home')) { e.preventDefault(); location.hash = '' }
@@ -289,7 +334,16 @@ document.addEventListener('click', e => {
     else if (t.hasAttribute('data-status')) { const v = t.getAttribute('data-status'); S.f.status = REP_STATUSES.includes(v) ? v : ''; repReload() }
     else if (t.hasAttribute('data-reload')) repReload()
     else if (t.hasAttribute('data-more')) { if (!S.repsBusy && S.reps && S.reps.next) loadReports(true) }
-    else if (t.hasAttribute('data-close')) { repRelease(); drawReport() }
+    else if (t.hasAttribute('data-close')) { repRelease(); S.settings = null; drawReport() }
+    else if (t.hasAttribute('data-settings')) openSettings()
+    else if (t.hasAttribute('data-save-name')) { const name = field('[data-project-name]'); if (name) settingsChange('Renaming', () => send('PATCH', pbase(), {name}), 'Renamed').then(() => {
+        const crumb = document.querySelector('.crumbs a:last-child'); if (crumb) crumb.textContent = name
+        S.projects = null; UI.side('reports', S.project, true); api('/api/v1/projects').then(j => { S.projects = j.projects || [] }, () => undefined)
+    }) }
+    else if (t.hasAttribute('data-member-add')) { const username = field('[data-member-new]'); if (username) settingsChange('Adding', () => send('POST', pbase() + '/members', {username, role: field('[data-member-new-role]') === 'manager' ? 'manager' : 'reader'}), '@' + username + ' added') }
+    else if (t.hasAttribute('data-member-remove')) { const u = t.getAttribute('data-member-remove'); UI.confirm('Remove @' + u + '?', 'They stop seeing the reports of ' + S.project + '.', {ok: 'Remove'}).then(ok => ok && settingsChange('Removing', () => send('DELETE', pbase() + '/members/' + encodeURIComponent(u)), '@' + u + ' removed')) }
+    else if (t.hasAttribute('data-save-webhook')) { const hook = field('[data-webhook]'); if (hook) settingsChange('Saving the webhook', () => send('PATCH', pbase(), {discord_webhook: hook}), 'Discord cards on') }
+    else if (t.hasAttribute('data-clear-webhook')) settingsChange('Turning Discord off', () => send('PATCH', pbase(), {discord_webhook: null}), 'Discord cards off')
     else if (t.hasAttribute('data-save-note')) { const v = el('repNote').value.trim(); repPatch({note: v || null}) }
     else if (t.hasAttribute('data-delete')) repDelete()
     else if (t.hasAttribute('data-file')) repFileGet(Number(t.getAttribute('data-file')))
@@ -299,6 +353,7 @@ document.addEventListener('change', e => {
     if (t.matches('[data-type-filter]')) { S.f.type = repOwn(REP_TYPE, t.value) ? t.value : ''; repReload() }
     else if (t.matches('[data-deleted]')) { S.f.deleted = t.checked; repReload() }
     else if (t.matches('[data-set-status]') && REP_STATUSES.includes(t.value)) repPatch({status: t.value})
+    else if (t.matches('[data-member-role]')) { const u = t.getAttribute('data-member-role'); settingsChange('Changing the role', () => send('POST', pbase() + '/members', {username: u, role: t.value === 'manager' ? 'manager' : 'reader'}), '@' + u + ' is now a ' + (t.value === 'manager' ? 'manager' : 'reader')) }
 })
 document.addEventListener('keydown', e => {
     if (e.key !== 'Enter') return

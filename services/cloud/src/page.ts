@@ -9,6 +9,8 @@ import DRIVE from './page/drive.html'
 import DRIVE_SCRIPT from './page/drive.client.js'
 import REPORTS from './page/reports.html'
 import REPORTS_SCRIPT from './page/reports.client.js'
+import ACCOUNT from './page/account.html'
+import ACCOUNT_SCRIPT from './page/account.client.js'
 
 /** The project the pages' own "Report a problem" goes to (made by staff; the button shows once it exists). */
 export const FEEDBACK_PROJECT = 'threepipe'
@@ -25,8 +27,8 @@ const js = {'content-type': 'text/javascript; charset=utf-8', ...HEADERS}
 const css = {'content-type': 'text/css; charset=utf-8', ...HEADERS}
 
 /**
- * The pages on the API host, with the session cookie: the drive (src/drive.ts) and the reports of your projects
- * (src/projects.ts, from #104's staff page). One look for all of them, also the server-rendered cards (the consent page,
+ * The pages on the API host, with the session cookie: the drive (src/drive.ts), the reports of your projects
+ * (src/projects.ts, from #104's staff page) and the account (connected apps and access links, src/access.ts). One look for all of them, also the server-rendered cards (the consent page,
  * src/connect.ts, and the local sign-in, src/devLogin.ts): /ui.css, the clean colour mode of @threepipe/plugin-tweakpane.
  */
 export function pageRoutes(app: Hono<CloudEnv>) {
@@ -36,6 +38,8 @@ export function pageRoutes(app: Hono<CloudEnv>) {
     app.get('/drive/page.js', c => c.body(DRIVE_SCRIPT, 200, js))
     app.get('/reports', c => c.body(REPORTS, 200, html))
     app.get('/reports/page.js', c => c.body(REPORTS_SCRIPT, 200, js))
+    app.get('/account', c => c.body(ACCOUNT, 200, html))
+    app.get('/account/page.js', c => c.body(ACCOUNT_SCRIPT, 200, js))
 
     /** The signed-in user, for the pages' side bar: handle, name, role, the drive's use of its quota, where feedback goes. */
     app.get('/api/v1/me', async c => {

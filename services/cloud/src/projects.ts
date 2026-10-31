@@ -15,6 +15,7 @@ import {PROJECTS_MAX, REPORT_BODY_MAX, REPORT_FILES_MAX, REPORT_MAX, REPORTS_LIS
  *
  *   POST   /api/v1/projects {slug, name}                           signed in (not an app key)
  *   GET    /api/v1/projects                                        mine → {projects: [{slug, name, role}]}
+ *   GET    /api/v1/projects/<slug>                                 reader → {slug, name, role, owner, discord_webhook: bool}
  *   PATCH  /api/v1/projects/<slug> {name?, discord_webhook?}       manager
  *   GET    /api/v1/projects/<slug>/members                         reader
  *   POST   /api/v1/projects/<slug>/members {username, role}        manager; role: reader, manager
@@ -120,6 +121,12 @@ export function projectRoutes(app: Hono<CloudEnv>) {
                 FROM projects p LEFT JOIN project_members m ON m.project_id = p.id AND m.user_id = ?1
                 WHERE p.owner_id = ?1 OR m.user_id = ?1 ORDER BY p.slug`).bind(user.id).all()
         return c.json({projects: results})
+    })
+
+    app.get('/api/v1/projects/:slug', async (c) => {
+        const {project, role} = await member(c, 'reader')
+        const owner = await c.env.PRIMARY_DB.prepare('SELECT username FROM users WHERE id = ?').bind(project.owner_id).first<{username: string}>()
+        return c.json({slug: project.slug, name: project.name, role, owner: owner?.username ?? null, discord_webhook: !!project.discord_webhook})
     })
 
     app.patch('/api/v1/projects/:slug', async (c) => {
