@@ -149,7 +149,7 @@ const UI = (() => {
     }
 
     /* ---------- "Report a problem": a report of these pages to the threepipe project (src/page.ts FEEDBACK_PROJECT) ---------- */
-    const TYPES = {bug: 'Bug', question: 'Question', idea: 'Idea'}
+    const TYPES = {bug: 'Bug', question: 'Question', idea: 'Idea', other: 'Other'}
     function reportProblem() {
         if (!me || !me.feedback) return
         let type = 'bug'

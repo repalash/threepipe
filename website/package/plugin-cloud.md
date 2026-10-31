@@ -11,7 +11,7 @@ aside: false
 threepipe cloud for any threepipe app (`https://cloud.threepipe.org`; `services/cloud` in the repository, a
 Cloudflare Worker with D1 and R2):
 
-- `cloud.feedback` — **Report a Problem / Send Feedback**: a small dialog (bug, question or idea, the text, an
+- `cloud.feedback` — **Report a Problem / Send Feedback**: a small dialog (bug, question, idea or other, the text, an
   optional email), what goes with the report (a screenshot, the page's warnings and errors, the browser and
   graphics card, the app's own context and files, the scene as `.glb` if asked), and a toast with **Report**
   when something goes wrong in the page.

@@ -40,18 +40,20 @@ interface Snapshot {
     contexts: {name: string, label: string, value: unknown, file: ReportFile | null, checked: boolean}[]
 }
 
-const TITLES: Record<ReportType, string> = {bug: 'Report a problem', question: 'Ask a question', idea: 'Send feedback'}
+const TITLES: Record<ReportType, string> = {bug: 'Report a problem', question: 'Ask a question', idea: 'Send feedback', other: 'Send a message'}
+const LABELS: Record<ReportType, string> = {bug: 'Bug', question: 'Question', idea: 'Idea', other: 'Other'}
 const PLACEHOLDERS: Record<ReportType, string> = {
     bug: 'What happened, and what did you expect? The steps to get there help most.',
     question: 'What would you like to know?',
     idea: 'What would make this better?',
+    other: 'What would you like to tell us?',
 }
 const SCREENSHOT_MAX_SIDE = 1600
 
 /**
  * `cloud.feedback`: Report a Problem / Send Feedback for any threepipe app.
  *
- * - `open()` shows the dialog: the type (bug, question, idea), the text, an optional email, and checkboxes
+ * - `open()` shows the dialog: the type (bug, question, idea, other), the text, an optional email, and checkboxes
  *   for what goes with it (screenshot, log, environment, each app context, the scene as .glb — off by
  *   default, its size shown), the Turnstile check (not for a signed-in person), Send; then the report's public id to copy.
  * - The page's warnings and errors are kept in a redacted ring buffer (`log`); uncaught errors, unhandled
@@ -82,6 +84,8 @@ export class CloudFeedback {
     private _contexts = new Map<string, FeedbackContextProvider>()
     private _viewer?: ThreeViewer
     private _dialog: HTMLElement | null = null
+    /** Settles the open dialog's open() promise (once): close() calls it too. */
+    private _settle: (() => void) | null = null
     private _listeners: (() => void)[] = []
 
     constructor(private _target: () => FeedbackTarget | undefined, private _emit: (e: {type: 'problem', problem: Problem, notify: boolean} | {type: 'reportSent', id: string, report: ReportJson}) => void) {}
@@ -233,8 +237,11 @@ export class CloudFeedback {
 
     /** Closes the dialog, if one is open. */
     close(): void {
+        const settle = this._settle
+        this._settle = null
         this._dialog?.remove()
         this._dialog = null
+        settle?.()
     }
 
     get isOpen(): boolean {
@@ -258,17 +265,22 @@ export class CloudFeedback {
         // signed in when the dialog opens: the key goes with the report and no Turnstile check is shown
         const signedIn = !!this._target()?.key
         let sending = false
-        let done = false
+        let exporting = false
+        let sentId: string | null = null
 
-        const finish = (id: string | null) => {
+        // Every way the dialog goes away settles open(): Cancel, Close, Escape, close(), another open(), removing the plugin.
+        let settled = false
+        const settle = () => {
+            if (settled) return
+            settled = true
             turnstile?.remove()
-            this.close()
-            resolve(id)
+            resolve(sentId)
         }
+        const finish = () => this.close()
 
         // --- the form -------------------------------------------------------------------------
         const title = h('h2', {id: 'tpc-title'}, o.title ?? TITLES[type])
-        const typeButtons = REPORT_TYPES.map(t => h('button', {type: 'button', 'data-tpc-type': t, 'aria-pressed': String(t === type)}, t === 'bug' ? 'Bug' : t === 'question' ? 'Question' : 'Idea'))
+        const typeButtons = REPORT_TYPES.map(t => h('button', {type: 'button', 'data-tpc-type': t, 'aria-pressed': String(t === type)}, LABELS[t]))
         const text = h('textarea', {id: 'tpc-text', 'data-tpc-text': true, maxlength: '10000', placeholder: PLACEHOLDERS[type]})
         text.value = o.text ?? ''
         const email = h('input', {id: 'tpc-email', type: 'email', 'data-tpc-email': true, autocomplete: 'email', placeholder: 'you@example.com'})
@@ -307,6 +319,7 @@ export class CloudFeedback {
         const root = h('div', {class: 'tpc-root tpc-backdrop'}, dialog)
         root.classList.toggle('tpc-dark', resolveTheme(this.theme) === 'dark')
         this._dialog = root
+        this._settle = settle
         document.body.appendChild(root)
         text.focus()
 
@@ -323,9 +336,9 @@ export class CloudFeedback {
             const p = payload()
             const problem = p ? checkPayload(p) : null
             const needsCheck = !signedIn && !!this.turnstileSiteKey && !turnstile?.token
-            send.disabled = sending || !snap || !!problem || !this._target() || needsCheck || (!text.value.trim() && !cause)
+            send.disabled = sending || exporting || !snap || !!problem || !this._target() || needsCheck || (!text.value.trim() && !cause)
             send.title = !this._target() ? 'Reports are not set up on this page: Download saves the report instead'
-                : !snap ? 'Collecting…' : problem ?? (needsCheck ? 'Waiting for the check below' : '')
+                : !snap ? 'Collecting…' : exporting ? 'Exporting the scene…' : problem ?? (needsCheck ? 'Waiting for the check below' : '')
             if (preview.open && p) {
                 const {image, ...rest} = p.report
                 previewPre.textContent = JSON.stringify({...rest, image: image ? `(${sizeLabel(Math.floor(image.length * 3 / 4))} JPEG)` : undefined,
@@ -347,6 +360,8 @@ export class CloudFeedback {
             if (!sceneC.input.checked || scene) { note.textContent = scene ? sizeLabel(scene.blob.size) : 'Off by default: the model goes with the report.'; refresh(); return }
             note.textContent = 'Exporting…'
             sceneC.input.disabled = true
+            exporting = true
+            refresh()
             try {
                 scene = await this.sceneFile()
                 note.textContent = scene ? sizeLabel(scene.blob.size) : 'Nothing to export.'
@@ -356,13 +371,14 @@ export class CloudFeedback {
                 sceneC.input.checked = false
             }
             sceneC.input.disabled = false
+            exporting = false
             refresh()
         })
-        cancel.addEventListener('click', () => finish(null))
-        root.addEventListener('mousedown', e => { if (e.target === root && !sending) finish(null) })
+        cancel.addEventListener('click', finish)
+        root.addEventListener('mousedown', e => { if (e.target === root && !sending) finish() })
         root.addEventListener('keydown', e => {
             e.stopPropagation() // the app's shortcuts stay out of the text fields
-            if (e.key === 'Escape' && !sending) finish(null)
+            if (e.key === 'Escape' && !sending) finish()
         })
         download.addEventListener('click', () => {
             const p = payload(); if (!p) return
@@ -373,14 +389,14 @@ export class CloudFeedback {
         })
         send.addEventListener('click', async() => {
             const p = payload(), target = this._target()
-            if (!p || !target || sending || done) return
+            if (!p || !target || sending || sentId) return
             sending = true
             send.textContent = 'Sending…'
             showError(null)
             refresh()
             try {
                 const r = await sendReport(target.url, p, {idempotencyKey, key: signedIn ? target.key : undefined, turnstileToken: turnstile?.token ?? undefined})
-                done = true
+                sentId = r.id
                 this._emit({type: 'reportSent', id: r.id, report: p.report})
                 showSent(r.id)
             } catch (e) {
@@ -390,14 +406,14 @@ export class CloudFeedback {
             } finally {
                 sending = false
                 send.textContent = 'Send'
-                if (!done) refresh()
+                if (!sentId) refresh()
             }
         })
         const showSent = (id: string) => {
             const copy = h('button', {type: 'button', 'data-tpc-copy': true}, 'Copy id')
             const close = h('button', {type: 'button', class: 'tpc-primary', 'data-tpc-close': true}, 'Close')
             copy.addEventListener('click', () => { void navigator.clipboard?.writeText(id).then(() => { copy.textContent = 'Copied' }) })
-            close.addEventListener('click', () => finish(id))
+            close.addEventListener('click', finish)
             turnstile?.remove()
             turnstile = null
             form.replaceWith(h('div', {class: 'tpc-done', 'data-tpc-sent': true},

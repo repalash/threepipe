@@ -20,15 +20,16 @@
  *   row stays as a tombstone.
  */
 import type {CloudUser} from './auth'
-import {hex} from './env'
+import {hex, logError} from './env'
 import {
     dailyCap, REPORT_CONTEXT_MAX, REPORT_ENVIRONMENT_MAX, REPORT_FILES_BYTES_MAX, REPORT_FILES_MAX, REPORT_IMAGE_MAX, REPORT_LOG_LINE_MAX,
     REPORT_LOG_LINES_MAX, REPORT_NOTE_MAX, REPORT_TEXT_MAX, REPORT_VERSIONS_MAX, REPORTS_LIST_MAX, reportsDaily, sizeText,
 } from './limits'
 
-export const TYPES = ['bug', 'question', 'idea'] as const
+export const TYPES = ['bug', 'question', 'idea', 'other'] as const
 export const STATUSES = ['new', 'in_progress', 'waiting_reporter', 'closed', 'spam'] as const
 export type ReportType = typeof TYPES[number]
+const CARD_COLORS: Record<ReportType, number> = {bug: 0xd9534f, question: 0x5bc0de, idea: 0x5cb85c, other: 0x999999}
 
 // The limits are in src/limits.ts; these two only shorten what is stored.
 const SUMMARY_MAX = 200
@@ -332,7 +333,7 @@ export async function createReport(o: CreateOptions): Promise<Result> {
     if ((mine.results[0]?.n ?? 0) >= (o.user ? reportsDaily(env, o.user) : dailyCap(env, 'perSender'))) return tooMany
     if ((proj.results[0]?.n ?? 0) >= dailyCap(env, 'perProject')) return tooMany
     if ((all.results[0]?.n ?? 0) >= dailyCap(env, 'all')) {
-        console.error('reports: the daily cap for all reports is reached')
+        logError('reports: the daily cap for all reports is reached', {cap: dailyCap(env, 'all')})
         return tooMany
     }
     const bytes = files.reduce((n, f) => n + f.bytes.byteLength, 0)
@@ -396,7 +397,7 @@ export async function createReport(o: CreateOptions): Promise<Result> {
             const row: CardRow = {id, project: project.slug, origin, type: p.type, surface: p.surface, cause: p.cause?.kind ?? null, ext: p.cause?.ext ?? null,
                 versions: p.versions, files_count: files.length, files_bytes: bytes, has_image: !!imageName, log_lines: p.log.length, signed_in: !!userId}
             const send = postCard(project.discord_webhook, row, o.reportsUrl).then(state => db.prepare('UPDATE reports SET discord_state = ?1 WHERE id = ?2').bind(state, id).run())
-                .catch(e => console.error('report card', id, e?.stack || e))
+                .catch(e => logError('report card', {id, exception: String(e?.stack || e)}))
             if (o.ctx) o.ctx.waitUntil(send)
             else await send
             console.log('report', JSON.stringify({id, project: project.slug, bytes: text.length, image: !!imageName, files: files.length, ray: req.headers.get('cf-ray')}))
@@ -459,7 +460,7 @@ export function card(r: CardRow, reportsUrl: string): object {
         embeds: [{
             title: `${r.id} · ${r.project} · ${r.type} · ${r.surface}`,
             description: `Open it: ${reportsUrl}`,
-            color: r.type === 'bug' ? 0xd9534f : r.type === 'question' ? 0x5bc0de : 0x5cb85c,
+            color: CARD_COLORS[r.type as ReportType] ?? CARD_COLORS.other,
             fields,
         }],
     }
@@ -469,10 +470,10 @@ async function postCard(hook: string | null, r: CardRow, reportsUrl: string): Pr
     if (!hook) return 'off'
     try {
         const res = await fetch(hook, {method: 'POST', headers: {'content-type': 'application/json'}, body: JSON.stringify(card(r, reportsUrl))})
-        if (!res.ok) console.error('report card', r.id, res.status)
+        if (!res.ok) logError('discord webhook failed', {id: r.id, project: r.project, status: res.status})
         return res.ok ? 'sent' : 'failed'
     } catch (e: any) {
-        console.error('report card', r.id, e?.message || e)
+        logError('discord webhook failed', {id: r.id, project: r.project, error: String(e?.message || e)})
         return 'failed'
     }
 }

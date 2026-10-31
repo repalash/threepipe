@@ -106,7 +106,7 @@ input[type="checkbox"]:checked::after { content: ""; width: 7px; height: 4px; bo
 .pill.accent { background: var(--selected); color: var(--accent) }
 .dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 8px; background: var(--faint) }
 .c-new { --c: var(--muted) } .c-in_progress { --c: var(--accent) } .c-waiting_reporter { --c: var(--warning) } .c-closed { --c: var(--success) } .c-spam { --c: var(--danger) }
-.c-bug { --c: var(--danger) } .c-question { --c: var(--info) } .c-idea { --c: var(--success) }
+.c-bug { --c: var(--danger) } .c-question { --c: var(--info) } .c-idea { --c: var(--success) } .c-other { --c: var(--muted) }
 .dot[class*="c-"] { background: var(--c, var(--faint)) }
 .pill[class*="c-"] { color: var(--c, var(--muted)) }
 .pill .dot { width: 6px; height: 6px; flex-basis: 6px }

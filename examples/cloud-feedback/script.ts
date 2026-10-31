@@ -4,7 +4,7 @@ import {ThreepipeCloudPlugin} from '@threepipe/plugin-cloud'
 /**
  * Report a Problem, Send Feedback and Sign in with threepipe in a plain threepipe viewer, with `@threepipe/plugin-cloud`.
  *
- * The first two buttons open the plugin's dialog: bug, question or idea, the text, an optional email, and what the
+ * The first two buttons open the plugin's dialog: bug, question, idea or other, the text, an optional email, and what the
  * report carries (a screenshot, the page's redacted warnings and errors, the browser and graphics card, the app's own
  * context, the scene as .glb if asked). An uncaught error shows the plugin's own toast with Report. Reports go to a
  * project on threepipe cloud: `?project=<slug>` (create one at <cloud>/reports). Without a project the dialog can only

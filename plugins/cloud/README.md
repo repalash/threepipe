@@ -3,7 +3,7 @@
 threepipe's cloud features for any threepipe app, against one threepipe-cloud worker
 ([`services/cloud`](../../services/cloud)):
 
-- `cloud.feedback` — Report a Problem / Send Feedback: a plain-DOM dialog (bug, question or idea, the text, an
+- `cloud.feedback` — Report a Problem / Send Feedback: a plain-DOM dialog (bug, question, idea or other, the text, an
   optional email), a screenshot, the page's redacted warnings and errors, the environment, the app's own
   context and files, the scene as `.glb` if asked; toasts with Report for uncaught errors, rejections, a lost
   WebGL context and `reportError`. Nothing is sent without the person pressing Send.

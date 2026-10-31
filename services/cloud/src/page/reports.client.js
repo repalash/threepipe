@@ -12,7 +12,7 @@
 'use strict'
 const REP_STATUS = {new: 'New', in_progress: 'In progress', waiting_reporter: 'Waiting on reporter', closed: 'Closed', spam: 'Spam'}
 const REP_STATUSES = Object.keys(REP_STATUS)
-const REP_TYPE = {bug: 'Bug', question: 'Question', idea: 'Idea'}
+const REP_TYPE = {bug: 'Bug', question: 'Question', idea: 'Idea', other: 'Other'}
 const REP_PAGE = 50
 const REP_FLAT_MAX = 200
 const S = {project: '', role: '', projects: null, reps: null, repsErr: '', repsBusy: false, repSeq: 0, f: {status: '', type: '', q: '', deleted: false}, rep: null, settings: null}
@@ -82,7 +82,9 @@ async function route() {
         try { S.projects = (await api('/api/v1/projects')).projects || [] } catch (e) { if (String(e.message) !== 'signed out') signOut('Could not read your projects: ' + e.message); return }
     }
     show('app')
-    const p = slug && S.projects.find(x => x.slug === slug)
+    let p = slug && S.projects.find(x => x.slug === slug)
+    // not in your list: staff manage every project; anyone else gets a 404
+    if (slug && !p) p = await api('/api/v1/projects/' + encodeURIComponent(slug)).catch(() => null)
     UI.side('reports', p ? p.slug : '', fresh)
     if (!p) { S.project = ''; renderProjects(slug); return }
     S.project = p.slug; S.role = p.role; S.f = {status: '', type: '', q: '', deleted: false}

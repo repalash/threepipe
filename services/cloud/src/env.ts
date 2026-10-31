@@ -51,3 +51,11 @@ export const keyUrl = (origin: string, key: string) => `${origin}/${key.split('/
 export function prefixRange(prefix: string): [string, string] {
     return [prefix, prefix.slice(0, -1) + String.fromCharCode(prefix.charCodeAt(prefix.length - 1) + 1)]
 }
+
+/**
+ * Something a person has to fix: one JSON console.error line with `"alert": "[cloud] <what>"`, in Workers Logs and the
+ * logpush bucket (wrangler.jsonc). Search for `[cloud]` to see what broke since the last look.
+ */
+export function logError(what: string, data: Record<string, unknown> = {}) {
+    console.error(JSON.stringify({alert: `[cloud] ${what}`, ...data}))
+}

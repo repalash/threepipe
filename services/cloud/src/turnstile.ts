@@ -11,6 +11,8 @@
  * siteverify.
  */
 
+import {logError} from './env'
+
 /** The action the widget is rendered with (`@threepipe/plugin-cloud`). */
 export const TURNSTILE_ACTION = 'threepipe-report'
 const SITEVERIFY = 'https://challenges.cloudflare.com/turnstile/v0/siteverify'
@@ -46,7 +48,12 @@ export async function checkTurnstile(env: CloudflareBindings, req: Request): Pro
     } catch {
         return {ok: false, status: 503, error: 'could not run the check'}
     }
-    if (!data?.success) return {ok: false, status: 403, error: 'check failed'}
+    if (!data?.success) {
+        // a bad or missing secret fails every check: the reports form is shut until someone fixes it
+        const codes: string[] = data?.['error-codes'] ?? []
+        if (codes.some(code => code.includes('secret') || code === 'internal-error')) logError('turnstile', {codes})
+        return {ok: false, status: 403, error: 'check failed'}
+    }
     // The site key is bound to our hostnames by Cloudflare. These two checks keep a token that was
     // solved for another widget or another form from passing here.
     if (data.action !== TURNSTILE_ACTION) return {ok: false, status: 403, error: 'check failed'}

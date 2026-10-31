@@ -246,7 +246,7 @@ export default {
             {name: 'client_key', type: 'text', sqlType: 'text', notNull: true}, // the dialog's Idempotency-Key
             {name: 'created_at', type: 'text', sqlType: 'text', notNull: true}, // ISO 8601 UTC
             {name: 'origin', type: 'text', sqlType: 'text'}, // host of the Origin header
-            {name: 'type', type: 'text', sqlType: 'text', notNull: true}, // bug | question | idea
+            {name: 'type', type: 'text', sqlType: 'text', notNull: true}, // bug | question | idea | other
             {name: 'surface', type: 'text', sqlType: 'text', notNull: true}, // where the dialog opened: modelling-editor, examples, …
             {name: 'email', type: 'text', sqlType: 'text'}, // as typed, not verified
             {name: 'user_id', type: 'text', sqlType: 'text'}, // the signed-in sender
