@@ -145,6 +145,16 @@ describe('tweakpane editor frame on a phone', () => {
         expect(declarations('.util-buttons-container', narrow).gap).toBe('2px')
     })
 
+    it('keeps the perf pill and the bar of the sticky notes above it at one left edge', () => {
+        for (const vp of [phone, phoneLandscape, desktop]) {
+            const left = declarations('body.lay-frame .pp-root.pp-bottom-left', vp).left
+            expect(left, `${vp.width}x${vp.height}`).toBe('var(--lay-corner-left)')
+            expect(declarations('body.lay-frame .snp-dock', vp).left, `${vp.width}x${vp.height}`).toBe(left)
+        }
+        expect(declarations('body.lay-frame', desktop)['--lay-corner-left']).toBe('1.25rem')
+        expect(declarations('body.lay-frame', phone)['--lay-corner-left']).toBe('0.75rem')
+    })
+
     it('lays out floating on a phone as the other layouts: no gap, round corners or shadows', () => {
         expect(declarations('body.lay-floating', phone)['--lay-gap']).toBe('0px')
         for (const sel of ['body.lay-floating #tweakpaneUiContainer', 'body.lay-floating .mb-root', 'body.lay-floating.mb-panel-hidden .mb-root']) {
@@ -193,7 +203,7 @@ describe('tweakpane editor frame on a phone', () => {
                 for (const pill of [false, true]) {
                     const vars: Record<string, string> = {'--mb-width': mb, '--tweakpane-ui-container-width': '300px', '--lay-gap': '12px'}
                     vars['--lay-right-inset'] = declarations('body.lay-floating #canvas-container', vp)['--lay-right-inset']
-                    if (pill) Object.assign(vars, declarations(pillContainer, vp))
+                    if (pill) Object.assign(vars, declarations('body.lay-frame', vp), declarations(pillContainer, vp))
                     const bar = Object.assign({}, ...barRules(pill).map(r => declarations(r, vp)))
                     const sidePadding = sidePad(bar.padding ?? declarations('.button-bar', vp).padding)
                     const right = evaluate(bar.right, vp, vars)
