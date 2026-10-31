@@ -201,7 +201,8 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
      * make, like a clamp of the orbit limits (a start view outside them) or an animation of the camera by another
      * plugin, is not synced. The keyboard pan of `OrbitControls` sends no `start` and `end` events, so it is not a move
      * either. Other controls (first person, pointer lock) send no gesture events: each change of the view is a move,
-     * and a move ends when the view is still for {@link SyncGestureDelay}.
+     * and a move ends when the view is still for {@link SyncGestureDelay}. Without controls (`controlsMode` `''`), no
+     * change is a move.
      */
     @onChange(EditorCameraPlugin.prototype._syncChanged)
     @uiToggle('Sync start view (in View)')
@@ -506,8 +507,9 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
         if (this._mode !== 'view' || this._applying || !this._preview) return
         const start = this.startCamera
         // controls without gesture events (FirstPersonControls2, pointer lock): each change is the user's, and a
-        // gesture goes on until the view is still for a while
-        if (!this._gesture && start && !(this._previewControls instanceof OrbitControls3)) {
+        // gesture goes on until the view is still for a while. Without controls, no change is the user's.
+        const controls = this._previewControls
+        if (!this._gesture && start && controls && !(controls instanceof OrbitControls3)) {
             this._gesture = true
             this._endSyncMove()
         }

@@ -464,6 +464,19 @@ describe('EditorCameraPlugin', () => {
         expect(start.position.toArray()).toEqual([4, 1, 5])
     })
 
+    test('a start camera without controls: a change of the view in View (an animation of another plugin) is not a move', () => {
+        const {plugin, start, preview, records} = setup({orbit: true, sync: true})
+        start.controlsMode = ''
+        plugin.editing = false
+        expect(preview.controls).toBeUndefined()
+        move(preview, 4, 1, 0) // as CameraViewPlugin.animateToView
+        expect(start.position.toArray()).toEqual([0, 1, 6])
+        expect(records).toHaveLength(0)
+        plugin.syncStartView = false
+        move(preview, 5, 1, 0)
+        expect(plugin.startViewMoved).toBe(false)
+    })
+
     test('syncStartView: an auto rotation of the preview does not keep a gesture on after the pointer is up', () => {
         vi.useFakeTimers()
         const {plugin, start, preview, records, viewer} = setup({orbit: true})
