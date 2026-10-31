@@ -687,9 +687,9 @@ describe('EditorCameraPlugin', () => {
         const events: boolean[] = []
         plugin.addEventListener('startViewMovedChange', e => events.push(e.moved))
         plugin.editing = false
-        plugin.camera.position.set(5, 0, 0)
-        plugin.setStartViewFromEditor()
-        expect(preview.position.toArray()).toEqual([5, 0, 0])
+        drag(preview, 5, 0, 0)
+        plugin.setStartViewFromEditor() // the view that is seen
+        expect(start.position.toArray()).toEqual([5, 0, 0])
         records[0].undo()
         expect(preview.position.toArray()).toEqual([0, 1, 6])
         expect(plugin.startViewMoved).toBe(false)
@@ -988,6 +988,20 @@ describe('EditorCameraPlugin', () => {
         plugin.camera.position.set(0, 3, 4)
         plugin.setStartViewFromEditor()
         expect(records).toHaveLength(2)
+    })
+
+    test('in View, setStartViewFromEditor takes the view that is seen (the preview), not the editor camera', () => {
+        const {plugin, start, preview, records} = setup({orbit: true})
+        plugin.camera.position.set(9, 9, 9) // the editor camera, not seen in View
+        plugin.editing = false
+        drag(preview, 4, 1, 0)
+        plugin.setStartViewFromEditor()
+        expect(start.position.toArray()).toEqual([4, 1, 0])
+        expect(records).toHaveLength(1)
+        expect(plugin.startViewMoved).toBe(false)
+        move(preview, 3, 1, 0) // a clamp of the orbit limits, not a user move: the button still takes it
+        plugin.setStartViewFromEditor()
+        expect(start.position.toArray()).toEqual([3, 1, 0])
     })
 
     test('setStartViewFromEditor works without the UndoManagerPlugin', () => {

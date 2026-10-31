@@ -690,14 +690,24 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
     }
 
     /**
-     * The start view takes the editor view: one undo step when the {@link UndoManagerPlugin} is present. An
-     * orthographic start camera keeps its zoom (the editor camera is perspective).
+     * The start view takes the view that is seen: one undo step when the {@link UndoManagerPlugin} is present.
+     * In Edit, the editor view (an orthographic start camera keeps its zoom: the editor camera is perspective). In View,
+     * the view of the preview camera, also a change that the user did not make (as a clamp of the orbit limits).
      */
     @uiButton('Set start view to this view', {sendArgs: false})
     setStartViewFromEditor() {
         const start = this.startCamera
         if (!start) return
         const before = poseOf(start)
+        const preview = this._preview
+        if (this._mode === 'view' && preview) {
+            // a glide after a drag would move it on
+            ;(preview.controls as OrbitControls3 | undefined)?.stopDamping?.()
+            const after = poseOf(preview)
+            this._moveStartView(after)
+            this._recordStartView(before, after)
+            return
+        }
         const same = sameProjection(start, this.camera)
         // the start view is a child of the scene, so the world pose of the editor camera is its local pose
         const after: StartPose = {

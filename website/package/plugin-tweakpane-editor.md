@@ -131,7 +131,7 @@ Another view can show the same notes: read `notes.notes`, listen to the `notesCh
 
 The editor camera and the preview camera are added to the scene outside the model root, so they are not saved in a file or exported. The preview camera is made again from the start camera each time View starts, so a change of the start camera settings in Edit is in the next View.
 
-When a file with a viewer config loads, the editor camera takes its start view (in View, the view does too). `setStartViewFromEditor()` moves the start view to the editor view. With the `UndoManagerPlugin`, each change of the start view is one undo step.
+When a file with a viewer config loads, the editor camera takes its start view (in View, the view does too). `setStartViewFromEditor()` moves the start view to the view that is seen: the editor view in Edit, the preview in View. With the `UndoManagerPlugin`, each change of the start view is one undo step.
 
 The C key switches between Edit and View (`hotkey`, a `KeyboardEvent.code`; `''` turns it off; the `hotkeyChange` event tells a UI when it changes). It does nothing in a text field, with Ctrl, Cmd, Alt or Shift, while held down, or when another handler used the key. The `editingChange` event tells a UI when the view changes, from the code, the key or the panel, and when the plugin is turned off or on (`enabled`, `disable(key)` / `enable(key)`, a remove; `editing` is `false` while it is off):
 
@@ -154,7 +154,7 @@ editorCamera.resetStartView()
 // back to the editor camera
 editorCamera.editing = true
 
-// the start view takes the editor view (Ctrl+Z undoes it)
+// the start view takes the view that is seen, here the editor view (Ctrl+Z undoes it)
 editorCamera.setStartViewFromEditor()
 
 // the editor camera takes the start view
