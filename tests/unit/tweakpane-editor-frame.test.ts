@@ -343,3 +343,37 @@ describe('EditorFrame', () => {
         expect(onRename).toHaveBeenCalledTimes(1)
     })
 })
+
+describe('TweakpaneEditorPlugin.layout', () => {
+    /** The plugin with modes in a fake viewer, so a layout makes the frame */
+    const plugin = () => {
+        const p = new TweakpaneEditorPlugin()
+        ;(p as any)._viewer = {getPlugin: () => undefined}
+        p.modeKeys = ['Viewer', 'Export']
+        return p
+    }
+
+    test('a layout set from code applies, and is not kept', () => {
+        const p = plugin()
+        p.layout = 'floating'
+        expect(p.frame?.layout).toBe('floating')
+        p.layout = 'classic'
+        expect(p.frame).toBeUndefined()
+        expect(storage.has('tpEditorLayout')).toBe(false)
+    })
+
+    test('the layout picked in the layout menu or the UI dropdown is kept', () => {
+        const p = plugin()
+        p.layout = 'titlebar'
+        body().find('lay-top')[0].find('lay-btn').pop()!.click()
+        const items = body().find('lay-menu')[0].children
+        items.find(i => i.textContent === 'Status bar')!.click()
+        expect(p.layout).toBe('statusbar')
+        expect(storage.get('tpEditorLayout')).toBe('statusbar')
+        const dropdown = (p.uiConfig.children as any[]).find(c => c.label === 'Page layout')
+        expect(dropdown.getValue()).toBe('statusbar')
+        dropdown.setValue('floating')
+        expect(p.frame?.layout).toBe('floating')
+        expect(storage.get('tpEditorLayout')).toBe('floating')
+    })
+})

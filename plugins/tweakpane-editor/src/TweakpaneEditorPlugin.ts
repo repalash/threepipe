@@ -15,7 +15,7 @@ import tippy from 'tippy.js'
 import tippyStyles from 'tippy.js/dist/tippy.css?inline'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 import {UiObjectConfig} from 'uiconfig.js'
-import {EDITOR_PAGE_LAYOUTS, EditorFrame, EditorFrameOptions, EditorPageLayout} from './frame/EditorFrame'
+import {EDITOR_PAGE_LAYOUTS, EditorFrame, EditorFrameLayout, EditorFrameOptions, EditorPageLayout} from './frame/EditorFrame'
 
 export interface TweakpaneEditorPluginEventMap extends AViewerPluginEventMap {
     /** {@link TweakpaneEditorPlugin.documentName} changed: set by the app, or renamed in the bar of the frame */
@@ -55,9 +55,12 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
         super.onRemove(viewer)
     }
 
-    /** The `localStorage` key that keeps the page layout the person picked, or `null` to not keep it */
+    /**
+     * The `localStorage` key that keeps the page layout the person picked, or `null` to not keep it. Set it before the
+     * plugin is made: the plugin reads the stored layout when it is made.
+     */
     static LayoutStorageKey: string | null = 'tpEditorLayout'
-    /** The page layout when none is stored */
+    /** The page layout when none is stored. Set it before the plugin is made, as {@link LayoutStorageKey}. */
     static DefaultLayout: EditorPageLayout = 'titlebar'
 
     /**
@@ -67,8 +70,8 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
     frame?: EditorFrame
 
     /**
-     * Options of the page frame (the app name, the theme pairs), used when the frame is made. The plugin sets the layout
-     * and the callbacks (`documentName`, `documentNameChange`).
+     * Options of the page frame (the app name, the theme pairs), used when the frame is made. The plugin sets the layout,
+     * the pick in the layout menu ({@link layout}) and the rename ({@link documentName}).
      */
     frameOptions: Omit<EditorFrameOptions, 'layout' | 'onPickLayout' | 'onRename'> = {}
 
@@ -97,9 +100,10 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
      *   the right ({@link EditorModeBar}) and Shift+T for a light or dark theme;
      * - `classic`: no frame, the mode tabs at the bottom.
      *
-     * A change is kept in `localStorage` ({@link TweakpaneEditorPlugin.LayoutStorageKey}) and applies at once, or at
-     * {@link loadPlugins}. The default is the stored layout, else {@link TweakpaneEditorPlugin.DefaultLayout}. The
-     * layout menu of the frame and the plugin's UI (Page layout) set it.
+     * A change applies at once, or at {@link loadPlugins}. The default is the stored layout, else
+     * {@link TweakpaneEditorPlugin.DefaultLayout}. Only the layout that the person picks (in the layout menu of the frame
+     * or in the plugin's UI, Page layout) is kept in `localStorage` ({@link TweakpaneEditorPlugin.LayoutStorageKey}); a
+     * layout set from code is not, so the person's pick is back at the next visit.
      */
     get layout(): EditorPageLayout {
         return this._layout
@@ -107,16 +111,20 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
     set layout(layout: EditorPageLayout) {
         if (!EDITOR_PAGE_LAYOUTS.some(([k]) => k === layout)) return
         this._layout = layout
-        const key = TweakpaneEditorPlugin.LayoutStorageKey
-        if (key) {
-            try {
-                localStorage.setItem(key, layout)
-            } catch (e) {
-                // no storage: this page only
-            }
-        }
         if (this.modeKeys.length) this._applyLayout()
-        this.uiConfig.uiRefresh?.(true)
+        else this.uiConfig.uiRefresh?.(true)
+    }
+
+    /** The layout that the person picked in the layout menu or the UI: it applies, and is kept in `localStorage` */
+    private _pickLayout(layout: EditorPageLayout) {
+        this.layout = layout
+        const key = TweakpaneEditorPlugin.LayoutStorageKey
+        if (!key) return
+        try {
+            localStorage.setItem(key, this._layout)
+        } catch (e) {
+            // no storage: this page only
+        }
     }
 
     /** The names of the modes are shown next to their icons in the mode bar of the frame */
@@ -134,7 +142,9 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
             {
                 type: 'dropdown',
                 label: 'Page layout',
-                property: [this, 'layout'],
+                // the person's pick is kept. Not onChange: it also comes when the UI refreshes after a change from code
+                getValue: () => this.layout,
+                setValue: (layout: EditorPageLayout) => this._pickLayout(layout),
                 children: EDITOR_PAGE_LAYOUTS.map(([value, label]) => ({label, value})),
             },
             {
@@ -146,24 +156,28 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
         ],
     }
 
+    /** Makes, changes or removes the frame for {@link layout}, and refreshes the UI (the dropdown, the checkbox) */
     private _applyLayout() {
         const layout = this._layout
-        if (layout === 'classic') return this._removeFrame()
-        if (this.frame) return this.frame.setLayout(layout)
-        if (!this._viewer) return
-        const ui = this._viewer.getPlugin(TweakpaneUiPlugin)
+        if (layout === 'classic') this._removeFrame()
+        else if (this.frame) this.frame.setLayout(layout)
+        else if (this._viewer) this._makeFrame(layout)
+        this.uiConfig.uiRefresh?.(true)
+    }
+
+    private _makeFrame(layout: EditorFrameLayout) {
+        const ui = this._viewer?.getPlugin(TweakpaneUiPlugin)
         this.frame = new EditorFrame(this, {
             colorMode: ui ? {get: () => ui.colorMode, set: (m) => ui.colorMode = m as TweakpaneUiPlugin['colorMode']} : undefined,
             ...this.frameOptions,
             layout,
-            onPickLayout: (l) => this.layout = l,
+            onPickLayout: (l) => this._pickLayout(l),
             onRename: (name) => this.documentName = name,
         })
         this.frame.modeBar.select(this._selectedMode)
         this.frame.documentName = this._documentName
         // the mode bar keeps the names shown or hidden (its toggle button, the stored state): the checkbox follows it
         this.frame.modeBar.onExpandedChange = () => this.uiConfig.uiRefresh?.(true)
-        this.uiConfig.uiRefresh?.(true)
     }
 
     private _removeFrame() {

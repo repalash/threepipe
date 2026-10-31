@@ -31,8 +31,9 @@ async function init() {
     })
     await viewer.init()
 
-    // ?layout=titlebar | statusbar | floating | classic: the page layout (TweakpaneEditorPlugin.layout). Without it, the
-    // layout picked last in the layout menu, else the title bar.
+    // ?layout=titlebar | statusbar | floating | classic: the page layout (TweakpaneEditorPlugin.layout), for this visit
+    // only (a layout set from code is not kept). Without it, the layout picked last in the layout menu or the UI, else
+    // the title bar.
     const layout = getUrlQueryParam('layout') as EditorPageLayout | null
     const editor = viewer.getPlugin(TweakpaneEditorPlugin)
     if (layout && editor) editor.layout = layout
