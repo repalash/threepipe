@@ -165,8 +165,10 @@ describe('GLTFContentsPlugin', () => {
             const {plugin, load} = setup()
             await load({assetType: 'model', __rootPath: 'https://example.com/ring.glb', __rootPathOptions: {queryString: 'token=abc'}})
             await load({assetType: 'model', __rootPath: 'https://example.com/two.glb?v=2'})
-            expect(urls).toEqual(['https://example.com/ring.glb?token=abc', 'https://example.com/two.glb?v=2'])
-            expect(plugin.files.map(f => f.name)).toEqual(['two.glb', 'ring.glb'])
+            // a path without an extension, loaded with fileExtension
+            await load({assetType: 'model', __rootPath: 'https://example.com/model', __rootPathOptions: {fileExtension: 'glb'}})
+            expect(urls).toEqual(['https://example.com/ring.glb?token=abc', 'https://example.com/two.glb?v=2', 'https://example.com/model'])
+            expect(plugin.files.map(f => f.name)).toEqual(['model', 'two.glb', 'ring.glb'])
         } finally {
             globalThis.fetch = saved
         }
