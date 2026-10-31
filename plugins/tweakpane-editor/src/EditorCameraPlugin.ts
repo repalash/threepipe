@@ -343,6 +343,8 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
     private _moveStartView(pose: StartPose) {
         this._setStartView(pose)
         if (this._startPose) this._startPose = pose
+        // the camera update of the move compared it with the old pose to put back
+        this._checkMoved()
     }
 
     private _setStartView(pose: StartPose) {

@@ -205,6 +205,23 @@ describe('EditorCameraPlugin', () => {
         expect(start.position.toArray()).toEqual([0, 1, 6])
     })
 
+    test('in View, undo and redo of a start view change end with startViewMoved false, and the last event says so', () => {
+        const {plugin, start, records} = setup()
+        // as the real camera: setDirty sends cameraUpdate, at once
+        start.setDirty = () => start.dispatchEvent({type: 'cameraUpdate'})
+        const events: boolean[] = []
+        plugin.addEventListener('startViewMovedChange', e => events.push(e.moved))
+        plugin.editing = false
+        plugin.camera.position.set(5, 0, 0)
+        plugin.setStartViewFromEditor()
+        records[0].undo()
+        expect(plugin.startViewMoved).toBe(false)
+        expect(events.at(-1) ?? false).toBe(false)
+        records[0].redo()
+        expect(plugin.startViewMoved).toBe(false)
+        expect(events.at(-1) ?? false).toBe(false)
+    })
+
     test('startViewMovedChange tells when the moved state changes: a move, a save, a reset, Edit', () => {
         const {plugin, start} = setup()
         const events: boolean[] = []
