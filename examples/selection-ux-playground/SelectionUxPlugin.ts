@@ -32,7 +32,8 @@ import {
     WireframeGeometry,
 } from 'threepipe'
 import {UiConfigForm} from './UiConfigForm'
-import {EditorCameraPlugin} from './EditorCameraPlugin'
+import {EditorCameraPlugin} from '@threepipe/plugin-tweakpane-editor'
+import {editorCamera} from './editorCamera'
 
 /**
  * Prototype of a Figma-like selection UX for threepipe.
@@ -2375,7 +2376,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
 
     /** The camera the editor goes back to: the editor camera (EditorCameraPlugin), else the scene's default camera */
     private get _homeCamera() {
-        return this._viewer?.getPlugin(EditorCameraPlugin)?.homeCamera ?? this._viewer?.scene.defaultCamera
+        return (this._viewer && editorCamera(this._viewer)) ?? this._viewer?.scene.defaultCamera
     }
 
     /** The scene camera the view looks through, or null for the editor camera (and when the plugin is off: View mode) */

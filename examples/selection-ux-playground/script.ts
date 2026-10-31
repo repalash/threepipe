@@ -28,7 +28,7 @@ import {showSplash, splashAtStartup} from './splash'
 import {PerfPanelPlugin} from './PerfPanelPlugin'
 import {PenToolPlugin} from './PenToolPlugin'
 import {CameraPathPlugin} from './CameraPathPlugin'
-import {EditorCameraPlugin} from './EditorCameraPlugin'
+import {EditorCameraPlugin} from '@threepipe/plugin-tweakpane-editor'
 import {TimelineBarPlugin} from './TimelineBarPlugin'
 
 async function init() {

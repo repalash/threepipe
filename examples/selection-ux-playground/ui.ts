@@ -245,13 +245,13 @@ export function setupModeMenu(host: HTMLElement, viewer: ThreeViewer, ux: Select
 /**
  * Floating side panel with the layers on top and the sticky notes below. The layers header drags the whole panel.
  */
-export function setupSidePanel(host: HTMLElement, layers: LayersPanelPlugin, notes: NotesPlugin, storageKey: string) {
+export function setupSidePanel(host: HTMLElement, layers: LayersPanelPlugin, notes: NotesPlugin | undefined, storageKey: string) {
     injectUiStyles()
     const side = document.createElement('div')
     side.className = 'sux-side'
     host.appendChild(side)
     side.appendChild(layers.element)
-    side.appendChild(notes.element)
+    if (notes) side.appendChild(notes.element)
     layers.makeMovable(side, storageKey)
     return side
 }

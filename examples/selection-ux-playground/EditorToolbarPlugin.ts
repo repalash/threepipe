@@ -23,7 +23,8 @@ import {PenToolPlugin} from './PenToolPlugin'
 import {TimelineBarPlugin} from './TimelineBarPlugin'
 import {CameraPathPlugin} from './CameraPathPlugin'
 import {confirmBox} from './motionUi'
-import {EditorCameraPlugin} from './EditorCameraPlugin'
+import {EditorCameraPlugin} from '@threepipe/plugin-tweakpane-editor'
+import {editorCamera} from './editorCamera'
 
 export interface EditorToolbarOptions {
     /** Add a floor grid the toolbar can show and hide */
@@ -354,7 +355,8 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
         }
         ux?.applySettings()
         // View looks through the start view with its own controls (limits, damping); Edit through the editor camera
-        viewer.getPlugin(EditorCameraPlugin)?.setActive(!view)
+        const edCam = viewer.getPlugin(EditorCameraPlugin)
+        if (edCam) edCam.editing = !view
         this._renderViewHud()
         const notes = viewer.getPlugin(AnnotationsPlugin)
         if (notes) notes.editable = !view
@@ -391,14 +393,14 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
         const label = document.createElement('span')
         label.textContent = 'Start view'
         const keep = document.createElement('button')
-        keep.className = 'tb-viewhud-btn' + (edCam.keepViewMoves ? ' on' : '')
-        keep.textContent = edCam.keepViewMoves ? 'Keeping camera moves' : 'Keep camera moves'
-        keep.title = edCam.keepViewMoves ?
+        keep.className = 'tb-viewhud-btn' + (edCam.syncStartView ? ' on' : '')
+        keep.textContent = edCam.syncStartView ? 'Keeping camera moves' : 'Keep camera moves'
+        keep.title = edCam.syncStartView ?
             'On: when you go back to Edit, the start view stays where you left the camera (undo puts it back)' :
             'Off: looking around does not change the start view. On: it moves where you leave the camera'
-        keep.setAttribute('aria-pressed', String(edCam.keepViewMoves))
+        keep.setAttribute('aria-pressed', String(edCam.syncStartView))
         keep.addEventListener('click', () => {
-            edCam.keepViewMoves = !edCam.keepViewMoves
+            edCam.syncStartView = !edCam.syncStartView
             this._renderViewHud()
         })
         const reset = document.createElement('button')
@@ -917,7 +919,7 @@ export class EditorToolbarPlugin extends AViewerPluginSync {
         const main = viewer.scene.mainCamera
         const ux = viewer.getPlugin(SelectionUxPlugin)
         const edCam = viewer.getPlugin(EditorCameraPlugin)
-        const home = edCam?.homeCamera ?? viewer.scene.defaultCamera
+        const home = editorCamera(viewer) ?? viewer.scene.defaultCamera
         const items: ([string, () => void, boolean?] | string)[] = ['#Editor', ['Editor camera <kbd>0</kbd>', () => home.activateMain(), main === home]]
         // with an editor camera, the default camera is the start view: what a visitor sees first, saved in the file
         const start = edCam?.startCamera as IObject3D | undefined

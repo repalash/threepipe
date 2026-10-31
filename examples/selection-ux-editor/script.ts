@@ -1,29 +1,25 @@
 import {BVHPlugin, GPUPickingPlugin, _testFinish, _testStart, EditorViewWidgetPlugin, GBufferPlugin, HemisphereLight, IViewerPlugin, Class, PickingPlugin, ThreeViewer, TransformControlsPlugin} from 'threepipe'
-import {HierarchyUiPlugin, TweakpaneEditorPlugin} from '@threepipe/plugin-tweakpane-editor'
-import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
+import {EDITOR_PAGE_LAYOUTS, HierarchyUiPlugin, TweakpaneEditorPlugin} from '@threepipe/plugin-tweakpane-editor'
 import {OutlinePlugin} from '@threepipe/webgi-plugins'
 import {ThreeEditor} from '../tweakpane-editor/ThreeEditor'
 import {SelectionUxPlugin} from '../selection-ux-playground/SelectionUxPlugin'
 import {SelectionOutlinePlugin} from '../selection-ux-playground/SelectionOutlinePlugin'
 import {LayersPanelPlugin} from '../selection-ux-playground/LayersPanelPlugin'
-import {NotesPlugin} from '../selection-ux-playground/NotesPlugin'
-import {applyModeFromUrl, setupHints, setupModeMenu, setupSidePanel, modeContext, toggleHelp} from '../selection-ux-playground/ui'
+import {applyModeFromUrl, setupHints, setupModeMenu, setupSidePanel} from '../selection-ux-playground/ui'
 import {buildExtras, buildScene, demoAnnotations, splashSamples} from '../selection-ux-playground/scene'
 import {AnnotationsPlugin} from '../selection-ux-playground/AnnotationsPlugin'
 import {EditorToolbarPlugin} from '../selection-ux-playground/EditorToolbarPlugin'
 import {showReport, showReportIfNew} from '../selection-ux-playground/report'
 import {showSplash, splashAtStartup} from '../selection-ux-playground/splash'
-import {PerfPanelPlugin} from '../selection-ux-playground/PerfPanelPlugin'
 import {PenToolPlugin} from '../selection-ux-playground/PenToolPlugin'
 import {CameraPathPlugin} from '../selection-ux-playground/CameraPathPlugin'
 import {TimelineBarPlugin} from '../selection-ux-playground/TimelineBarPlugin'
-import {EditorCameraPlugin} from '../selection-ux-playground/EditorCameraPlugin'
-import {setupModeBar} from '../selection-ux-playground/ModeBar'
-import {EDITOR_LAYOUTS, setupLayout} from './layout'
 import {VariationsBarPlugin} from '../selection-ux-playground/VariationsBarPlugin'
 
 // The tweakpane editor with the new selection UX: SelectionUxPlugin + the pipeline outline instead of OutlinePlugin,
-// and LayersPanelPlugin instead of the treejs HierarchyUiPlugin.
+// and LayersPanelPlugin instead of the treejs HierarchyUiPlugin. What is merged in the packages comes from them (with
+// ThreeEditor): the page frame and mode bar, EditorCameraPlugin, PerfPanelPlugin, the notes (NotesPlugin and the
+// sticky notes) and GLTFContentsPlugin (Debug mode).
 async function init() {
     const viewer = new ThreeEditor({
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
@@ -47,6 +43,8 @@ async function init() {
     if (!viewer.getPlugin(GBufferPlugin)) console.warn('GBufferPlugin missing, the outline needs it')
 
     const ux = viewer.getPlugin(SelectionUxPlugin)!
+    // the page frame (title bar, mode bar, Shift+T, the layout menu) and the mode tabs of the classic layout
+    const editor = viewer.getPlugin(TweakpaneEditorPlugin)
     const tc = viewer.getPlugin(TransformControlsPlugin)
     if (tc) tc.enabled = false // the selection UX moves things; the toolbar turns the gizmo on (W/E/R)
 
@@ -54,10 +52,6 @@ async function init() {
     hemiLight.name = 'Hemisphere Light'
 
     viewer.addPluginSync(new AnnotationsPlugin({editable: true}))
-    // the editor's own camera (free, no damping, never saved); the scene's default camera is the start view
-    viewer.addPluginSync(new EditorCameraPlugin())
-    // FPS, frame and render times, draw calls; warns about a capped frame rate (Chrome Energy Saver), battery, software GL
-    viewer.addPluginSync(new PerfPanelPlugin({position: 'bottom-right'}))
     // P: draw a path point by point, like Figma's pen
     viewer.addPluginSync(new PenToolPlugin())
     // camera along a path, the timeline bar with Record (adds VideoRecorderPlugin)
@@ -71,8 +65,7 @@ async function init() {
     // the material variations and switch node options of the selection, in a bar over it
     viewer.addPluginSync(new VariationsBarPlugin())
     const layers = viewer.addPluginSync(new LayersPanelPlugin('light'))
-    const notes = viewer.addPluginSync(new NotesPlugin({pageKey: 'selection-ux-playground-notes', syncUrl: '/api/notes', contextProvider: modeContext(ux)}))
-    setupSidePanel(viewer.container, layers, notes, 'sux-side-pos-editor')
+    setupSidePanel(viewer.container, layers, undefined, 'sux-side-pos-editor')
     applyModeFromUrl(ux)
     const toolbar = viewer.addPluginSync(new EditorToolbarPlugin({
         grid: true,
@@ -80,7 +73,7 @@ async function init() {
         viewHides: () => [document.querySelector<HTMLElement>('.sux-side')!],
         extra: [[REPORT_ICON, 'Open a file or sample…', () => openSplash()], [REPORT_ICON, 'Report: what changed and what to try', () => showReport()]],
         // the frames have their own layout button only when they have a bar: the floating one has none
-        moreItems: () => ['#Page layout', ...EDITOR_LAYOUTS.map(([k, label]) => [label, () => layout.set(k), layout.current === k] as [string, () => void, boolean])],
+        moreItems: () => ['#Page layout', ...EDITOR_PAGE_LAYOUTS.map(([k, label]) => [label, () => editor && (editor.layout = k), editor?.layout === k] as [string, () => void, boolean])],
     }))
     viewer.container.appendChild(toolbar.element)
     setupModeMenu(viewer.container, viewer, ux, {buttonHost: toolbar.slot, links: [['Open the playground ↗', '../selection-ux-playground/index.html']]})
@@ -90,51 +83,25 @@ async function init() {
     const gizmo = viewer.getPlugin(EditorViewWidgetPlugin)?.widget?.domContainer
     // (the floating layout keeps it out from under the panel: --lay-right-inset)
     if (gizmo) Object.assign(gizmo.style, {top: '56px', left: '', right: 'calc(var(--lay-right-inset, 0px) + 4px)', bottom: '', transform: 'scale(.72)', transformOrigin: '100% 0'})
-    const editor = viewer.getPlugin(TweakpaneEditorPlugin)
-    const modeBar = editor ? setupModeBar(editor, document.body, () => document.getElementById('tweakpaneUiContainer')) : undefined
     // like webgi: a selection opens its properties (object, material, geometry) in the panel: the Interaction mode,
     // whose Picking folder shows the selected object
     ux.addEventListener('uxUpdate', e => {
-        if (e.reason !== 'selection' || !ux.selected.length || !editor || !modeBar) return
-        modeBar.show(editor.modeKeys.indexOf('Interaction'))
+        if (e.reason !== 'selection' || !ux.selected.length || !editor) return
+        const mode = editor.modeKeys.indexOf('Interaction')
+        if (editor.frame) editor.frame.modeBar.show(mode)
+        else editor.setSelectedMode(mode)
         const picking = viewer.getPlugin(PickingPlugin)
         if (picking?.uiConfig && !picking.uiConfig.expanded) {
             picking.uiConfig.expanded = true
             picking.uiConfig.uiRefresh?.(false, 'postFrame')
         }
     })
-    // once: the clean tweakpane theme, light or dark like the theme in use (Color Mode in the Tweakpane UI folder changes it)
-    const tp = viewer.getPlugin(TweakpaneUiPlugin)
-    try {
-        if (tp && !localStorage.getItem('sux-clean-theme')) {
-            tp.colorMode = ['dark', 'black', 'blue'].includes(tp.colorMode) ? 'clean-dark' : 'clean'
-            localStorage.setItem('sux-clean-theme', '1')
-        }
-    } catch (e) {
-        // private mode: keep the theme
-    }
-    // Shift+T: light or dark, the same theme family
-    const themePairs = [['clean', 'clean-dark'], ['light', 'dark'], ['white', 'black'], ['clean', 'blue']]
-    const otherTheme = (t: string) => themePairs.map(([a, b]) => t === a ? b : t === b ? a : '').find(Boolean)
-    const toggleTheme = () => {
-        const next = tp && otherTheme(tp.colorMode)
-        if (tp && next) tp.colorMode = next as typeof tp.colorMode
-    }
-    window.addEventListener('keydown', e => {
-        if (e.code !== 'KeyT' || !e.shiftKey || e.ctrlKey || e.metaKey || e.altKey || e.repeat || e.defaultPrevented) return
-        const t = e.target as HTMLElement | null
-        if (t?.closest?.('input, textarea, select, [contenteditable], [data-own-keys]')) return
-        e.preventDefault()
-        toggleTheme()
-    })
-    // the frame around the editor: title bar, status bar, floating panels or the old cards (?layout=, or the layout button)
-    const layout = setupLayout(viewer, {open: () => openSplash(), shortcuts: () => toggleHelp(true), toggleTheme, report: () => showReport()})
     Object.assign(window, {viewer, ux})
 
     buildScene(viewer)
     buildExtras(viewer)
     demoAnnotations(viewer)
-    layout.setFileName('Jewellery demo')
+    if (editor) editor.documentName = 'Jewellery demo'
     viewer.scene.mainCamera.position.set(7, 7, 11)
     viewer.scene.mainCamera.target.set(0, 0.8, 0)
     viewer.scene.mainCamera.setDirty()

@@ -16,7 +16,8 @@ import {
 } from 'threepipe'
 import {SelectionUxPlugin} from './SelectionUxPlugin'
 import {PenToolPlugin} from './PenToolPlugin'
-import {EditorCameraPlugin} from './EditorCameraPlugin'
+import {EditorCameraPlugin} from '@threepipe/plugin-tweakpane-editor'
+import {editorCamera} from './editorCamera'
 import {button, fmtSec, injectMotionStyles, MO_ICONS, numberInput, row, segmented, select} from './motionUi'
 
 /** Where the camera looks while it moves: the scene's centre, ahead along the path, or its own target as it is */
@@ -220,7 +221,7 @@ export class CameraPathPlugin extends AViewerPluginSync<CameraPathEventMap> {
             this._refresh(obj)
             if (addTo) {
                 // looking through the camera that goes away: back to the editor camera
-                if (viewer.scene.mainCamera === obj as any) (viewer.getPlugin(EditorCameraPlugin)?.homeCamera ?? viewer.scene.defaultCamera).activateMain()
+                if (viewer.scene.mainCamera === obj as any) (editorCamera(viewer) ?? viewer.scene.defaultCamera).activateMain()
                 obj.removeFromParent()
                 viewer.scene.setDirty({refreshScene: true})
             }

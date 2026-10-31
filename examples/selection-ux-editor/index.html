@@ -43,23 +43,15 @@
             width: 100%;
             height: 100%;
         }
-        /* the side panel (ui.ts) starts below the toolbar and ends above the webgi logo */
-        #canvas-container .sux-side { top: 60px; bottom: 60px; }
+        /* the side panel (ui.ts) starts below the toolbar and ends above the sticky notes bar and the perf pill */
+        #canvas-container .sux-side { top: 60px; bottom: 104px; }
+        /* the camera pill of EditorCameraPlugin below the toolbar, not over it */
+        body .ecu-root { top: 64px; }
         /* the toolbar has Expand */
         #fsToggle { display: none !important; }
         #canvas-container .sux-hint { bottom: 16px; }
-        /* the modes are a coloured icon bar on the right (ModeBar.ts), the bottom buttons are in the toolbar */
-        .mode-buttons-container, .util-buttons-container { display: none !important; }
-        @media only screen and (min-width: 920px) {
-            body #canvas-container {
-                width: calc(100% - 3rem - var(--mb-width, 44px) - max(var(--tweakpane-ui-container-width, 300px), 3rem)) !important;
-                height: calc(100% - 3rem);
-                margin: 1.5rem 1.5rem 1.5rem 1.5rem !important;
-            }
-            body #tweakpaneUiContainer { margin-top: 0 !important; right: calc(var(--mb-width, 44px) + 12px) !important; }
-            /* the panel hidden from the mode bar: the canvas takes its room */
-            body.mb-panel-hidden #canvas-container { width: calc(100% - 3rem - var(--mb-width, 44px)) !important; }
-        }
+        /* the bottom buttons are in the toolbar; the page frame, the mode bar and the panel come from TweakpaneEditorPlugin */
+        .util-buttons-container { display: none !important; }
     </style>
     <script type="module" src="../examples-utils/global-loading.mjs"></script>
     <script id="example-script" type="module" src="./script.js" data-scripts="./script.ts;./script.js"></script>
