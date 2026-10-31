@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- The SOMA human model: `rig: 'soma'`, `MotionBricksSOMA` (validated against NVIDIA's kernels), `SOMA_SKELETON`,
+  `SOMA_BRICKS` with stride cycles, `SOMAMannequin`, retargeting from SOMA (`SOMA_PARTS`), and NVIDIA's SOMA
+  Smart Primitives. G1Controller now takes a `PoseRig` (`G1_RIG`, `SOMA_RIG`) for the skeleton's poses.
+- Under slow inference, gait segments lengthen just enough for the next one to be ready (no stalls at 900 ms).
 - Jumps, vaults, ducking and sitting with NVIDIA's Smart Primitives: `loadPrimitive`, `setObstacles`, `sit`,
   `standUp` (`G1Primitives.ts`). Pivot alignment and sequence playback follow NVIDIA's runtime; the documents and
   clips load from NVIDIA's repository.

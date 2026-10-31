@@ -1,11 +1,15 @@
 import {Group, Object3D, Quaternion, Vector3} from 'three'
 import {G1Robot} from './G1Robot'
 import {CHARACTER_RIGS, CharacterRig, RetargetedCharacter} from './RetargetedCharacter'
-import {G1Bricks, G1Controller, G1ControllerStats, G1Gait, GAIT_SPEEDS} from './G1Controller'
+import {G1Bricks, G1Controller, G1ControllerStats, G1Gait} from './G1Controller'
 import {G1_BRICKS} from './G1Bricks'
-import {heading, MOTIONBRICKS_CACHE, MotionBricksG1, MotionGenerator, OrtApi, setupOrtWeb} from './MotionBricksG1'
+import {SOMA_BRICKS} from './SOMABricks'
+import {MotionBricksSOMA} from './MotionBricksSOMA'
+import {SOMAMannequin} from './SOMAMannequin'
+import {G1_RIG, SOMA_RIG} from './PoseRig'
+import {MOTIONBRICKS_CACHE, MotionBricksG1, MotionGenerator, OrtApi, setupOrtWeb} from './MotionBricksG1'
 import {MotionBricksRemote, MotionBricksWorkerError} from './MotionBricksRemote'
-import {G1_PRIMITIVE_SOURCES, G1Primitive, loadG1Primitive} from './G1Primitives'
+import {G1_PRIMITIVE_SOURCES, G1Primitive, loadPrimitive} from './G1Primitives'
 
 const NVIDIA_ASSETS = 'https://media.githubusercontent.com/media/NVlabs/motionbricks/main/motionbricks/assets'
 
@@ -15,6 +19,8 @@ const ASSETS = 'https://cdn.jsdelivr.net/gh/repalash/three-motionbricks@v0.2.0/a
 export const MOTIONBRICKS_DEFAULTS = {
     /** NVIDIA's original fp32 model, 730 MB. A pack from tools/pack_model.py is about 190 MB. */
     model: NVIDIA_ASSETS + '/onnx/unitree_g1/mmm_v6_g1_fp32.onnx',
+    /** NVIDIA's original fp32 SOMA (human) model, 758 MB, for `rig: 'soma'`. A pack is about 195 MB. */
+    somaModel: NVIDIA_ASSETS + '/onnx/soma/mmm_v6_soma_fp32.onnx',
     /** This package's assets/ folder on jsDelivr: the robot and the other characters (see MOTIONBRICKS_CHARACTERS). */
     assets: ASSETS,
     /** The robot, for your GLTFLoader: assets/unitree_g1.glb in this package (6 MB, BSD-3-Clause, Unitree). */
@@ -40,6 +46,11 @@ export const MOTIONBRICKS_CHARACTERS = [
 ] as const satisfies readonly {id: string, label: string, file: string, rig?: keyof typeof CHARACTER_RIGS}[]
 
 export interface MotionBricksCharacterOptions {
+    /**
+     * The model: 'g1' (default) for the Unitree G1, or 'soma' for NVIDIA's SOMA human model, which drives a
+     * mannequin (setMannequin) or a humanoid character.
+     */
+    rig?: 'g1' | 'soma'
     /** A folder with pack.json from tools/pack_model.py (ending in /), or an original MotionBricks G1 .onnx file. */
     model?: string
     /**
@@ -109,7 +120,7 @@ export class MotionBricksCharacter {
     /** Holds the robot. Move or scale it to place the character in your scene. */
     readonly object = new Group()
     /** The model being posed: the G1 itself, or another model the motion is retargeted to. */
-    robot?: G1Robot | RetargetedCharacter
+    robot?: G1Robot | RetargetedCharacter | SOMAMannequin
     engine?: MotionGenerator
     controller?: G1Controller
     gait: G1Gait = 'walk'
@@ -126,6 +137,24 @@ export class MotionBricksCharacter {
         this.object.name = 'MotionBricks G1'
     }
 
+
+    private get _rig() {
+        return this.options.rig === 'soma' ? SOMA_RIG : G1_RIG
+    }
+
+    private get _bricks() {
+        return this.options.bricks ?? (this.options.rig === 'soma' ? SOMA_BRICKS : G1_BRICKS)
+    }
+
+    /** For `rig: 'soma'`: show the motion on a mannequin built on the SOMA skeleton. It replaces the current model. */
+    setMannequin(options: {color?: string, accent?: string} = {}) {
+        if (this.robot) this.object.remove(this.robot.object)
+        const mannequin = new SOMAMannequin({shadows: this.options.shadows ?? true, ...options})
+        this.robot = mannequin
+        mannequin.setPose(this.controller?.pose ?? this._bricks.rest[0])
+        this.object.add(mannequin.object)
+        return mannequin
+    }
 
     /** The model is loaded and the robot responds to moveTo and drive. */
     get ready() {
@@ -164,7 +193,7 @@ export class MotionBricksCharacter {
     setRobot(root: Object3D) {
         if (this.robot) this.object.remove(this.robot.object)
         this.robot = G1Robot.FromObject(root, {shadows: this.options.shadows ?? true})
-        this.robot.setPose(this.controller?.pose ?? (this.options.bricks ?? G1_BRICKS).rest[0])
+        this.robot.setPose(this.controller?.pose ?? this._bricks.rest[0])
         this.object.add(root)
         return this.robot
     }
@@ -175,9 +204,9 @@ export class MotionBricksCharacter {
      */
     setCharacter(root: Object3D, rig: CharacterRig, options: {matchSize?: boolean} = {}) {
         if (this.robot) this.object.remove(this.robot.object)
-        const character = new RetargetedCharacter(root, rig, {shadows: this.options.shadows ?? true, ...options})
+        const character = new RetargetedCharacter(root, rig, {shadows: this.options.shadows ?? true, source: this.options.rig === 'soma' ? 'soma' : 'g1', ...options})
         this.robot = character
-        character.setPose(this.controller?.pose ?? (this.options.bricks ?? G1_BRICKS).rest[0])
+        character.setPose(this.controller?.pose ?? this._bricks.rest[0])
         this.object.add(character.object)
         return character
     }
@@ -195,7 +224,8 @@ export class MotionBricksCharacter {
     private async _load(onProgress?: (stage: LoadStage, loaded: number, total: number) => void) {
         const o = this.options
         const useLite = !!o.liteModel && (o.lite === true || (o.lite ?? 'auto') === 'auto' && isLowMemoryDevice())
-        const model = useLite ? o.liteModel! : o.model ?? MOTIONBRICKS_DEFAULTS.model
+        const soma = o.rig === 'soma'
+        const model = useLite ? o.liteModel! : o.model ?? (soma ? MOTIONBRICKS_DEFAULTS.somaModel : MOTIONBRICKS_DEFAULTS.model)
         const useGpu = o.backend === 'webgpu' && typeof navigator !== 'undefined' && 'gpu' in navigator
         const ortUrl = o.ort ?? (useGpu ? MOTIONBRICKS_DEFAULTS.ortWebGpu : MOTIONBRICKS_DEFAULTS.ort)
         const cache = o.cache === false ? false : typeof o.cache === 'string' ? o.cache : MOTIONBRICKS_CACHE
@@ -205,19 +235,19 @@ export class MotionBricksCharacter {
         let engine: MotionGenerator | null = null
         if (o.worker !== false) {
             // Only a worker that cannot run falls back to the page; a model that fails to load would fail there too.
-            engine = await MotionBricksRemote.Load({ort: ortUrl, wasm: o.wasm, model, sessionOptions, cache}, progress).catch(e => {
+            engine = await MotionBricksRemote.Load({ort: ortUrl, wasm: o.wasm, model, sessionOptions, cache, rig: soma ? 'soma' : 'g1'}, progress).catch(e => {
                 if (!(e instanceof MotionBricksWorkerError)) throw e
                 console.warn('MotionBricks: the worker could not start, running the model on the page instead', e)
                 return null
             })
         }
-        if (!engine) engine = await MotionBricksG1.Load(await loadOrt(ortUrl, o.wasm), model, sessionOptions, progress, cache)
+        if (!engine) engine = await (soma ? MotionBricksSOMA : MotionBricksG1).Load(await loadOrt(ortUrl, o.wasm), model, sessionOptions, progress, cache)
         // One generation compiles the kernels before the robot moves. Where memory is short, wait for the
         // downloaded weights to be collected first: the first generation's buffers on top of them lift the peak
         // by about 150 MB, which is enough for a phone to close the tab.
         onProgress?.('warmup', 0, 1)
         if (useLite) await new Promise(resolve => setTimeout(resolve, 2000))
-        const rest = Float32Array.from((o.bricks ?? G1_BRICKS).rest[0])
+        const rest = Float32Array.from(this._bricks.rest[0])
         let warmupMs = 0
         try {
             warmupMs = (await engine.generate([rest, rest, rest, rest], [rest])).inferenceMs
@@ -228,8 +258,8 @@ export class MotionBricksCharacter {
         this.engine = engine
         const p = this._lastPose
         const c = p ?
-            new G1Controller(engine, o.bricks ?? G1_BRICKS, p[0], p[1], heading([p[3], p[4], p[5], p[6]])) :
-            new G1Controller(engine, o.bricks ?? G1_BRICKS)
+            new G1Controller(engine, this._bricks, ...this._rig.ground(p), this._rig.heading(p), this._rig) :
+            new G1Controller(engine, this._bricks, 0, 0, 0, this._rig)
         c.gait = this.gait
         // The warm-up includes compiling the kernels, so it overestimates; the first real generation replaces it.
         c.stats.averageInferenceMs = warmupMs
@@ -250,11 +280,12 @@ export class MotionBricksCharacter {
     }
 
     /**
-     * Load one of NVIDIA's G1 Smart Primitives: 'jump_0_5m' (a box 0.55 m wide and 0.39 m high), 'jump_0_75m' (a
-     * wall 1.57 m long and 0.64 m high), and others. Its clips download from NVIDIA's repository.
+     * Load one of NVIDIA's Smart Primitives for this model: 'jump_0_5m' (a box), 'jump_0_75m' (a wall), 'avoidance'
+     * (a bar to duck under) or 'sit' (a stool); primitive.box.size gives its size. Its clips download from NVIDIA's
+     * repository.
      */
     async loadPrimitive(name: string) {
-        return loadG1Primitive(name, this.options.primitives)
+        return loadPrimitive(name, {rig: this.options.rig === 'soma' ? 'soma' : 'g1', sources: this.options.primitives})
     }
 
     /** The obstacles the robot jumps or vaults over on its way, replacing any set before. */
@@ -330,7 +361,9 @@ export class MotionBricksCharacter {
         const [ox, oy] = G1Robot.ToG1(origin)
         const [dx, dy] = this._toG1(direction)
         const angle = Math.atan2(dy - oy, dx - ox)
-        const ahead = GAIT_SPEEDS[gait] * c.lead + 4
+        // Far enough that the goal stays beyond stopping distance from where the next motion starts (a second or
+        // more ahead of the robot), even at a sprint.
+        const ahead = c.speedOf(gait) * (2 * c.lead + 0.5) + 3
         const goal: [number, number] = [c.pose[0] + Math.cos(angle) * ahead, c.pose[1] + Math.sin(angle) * ahead]
         const d = this._drive
         const turn = Math.abs(Math.atan2(Math.sin(angle - d.angle), Math.cos(angle - d.angle)))
@@ -351,7 +384,7 @@ export class MotionBricksCharacter {
     /** The robot's ground position, in world space. */
     getPosition(target = new Vector3()) {
         const pose = this.controller?.pose
-        if (pose) G1Robot.FromG1(pose[0], pose[1], 0, target)
+        if (pose) G1Robot.FromG1(...this._rig.ground(pose), 0, target)
         else target.set(0, 0, 0)
         return this.object.localToWorld(target)
     }
@@ -366,7 +399,7 @@ export class MotionBricksCharacter {
     /** The direction the robot faces, as an angle around Y in the character's space (0 faces +X). */
     get heading() {
         const p = this.controller?.pose
-        return p ? heading([p[3], p[4], p[5], p[6]]) : 0
+        return p ? this._rig.heading(p) : 0
     }
 
     /** Stop the worker. The robot stays in the scene, and load() starts the model again from where it stands. */

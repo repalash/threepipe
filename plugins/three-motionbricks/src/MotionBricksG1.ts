@@ -324,8 +324,8 @@ export class MotionBricksG1 implements MotionGenerator {
         const manifest: PackManifest | LitePackManifest = JSON.parse(manifestText)
         const cache = cacheName ? await PackCache.Open(cacheName, baseUrl, manifestText) : null
         const engine = manifest.format === 'motionbricks-external' ?
-            await MotionBricksG1._loadLite(ort, baseUrl, manifest, sessionOptions, onProgress, cache) :
-            await MotionBricksG1._loadQ8(ort, baseUrl, manifest, sessionOptions, onProgress, cache)
+            await this._loadLite(ort, baseUrl, manifest, sessionOptions, onProgress, cache) :
+            await this._loadQ8(ort, baseUrl, manifest, sessionOptions, onProgress, cache)
         await cache?.complete(manifestText)
         return engine
     }
@@ -346,7 +346,7 @@ export class MotionBricksG1 implements MotionGenerator {
         ])
         await cache?.flush()
         const weights = dequantizePack(manifest, q8)
-        return MotionBricksG1._create(ort, graph, {
+        return this._create(ort, graph, {
             ...sessionOptions,
             externalData: [{path: manifest.weights, data: new Uint8Array(weights.buffer)}],
         })
@@ -363,7 +363,7 @@ export class MotionBricksG1 implements MotionGenerator {
         ])
         await cache?.flush()
         // No memory arena or patterns: they keep peak buffers around, and memory is why this pack exists.
-        return MotionBricksG1._create(ort, graph, {
+        return this._create(ort, graph, {
             enableCpuMemArena: false,
             enableMemPattern: false,
             ...sessionOptions,
@@ -377,8 +377,8 @@ export class MotionBricksG1 implements MotionGenerator {
      */
     static async Load(ort: OrtApi, model: string, sessionOptions: any = {}, onProgress?: ProgressCallback, cacheName: string | false = MOTIONBRICKS_CACHE) {
         return model.endsWith('/') ?
-            MotionBricksG1.LoadPacked(ort, model, sessionOptions, onProgress, cacheName) :
-            MotionBricksG1.LoadOnnx(ort, model, sessionOptions, onProgress)
+            this.LoadPacked(ort, model, sessionOptions, onProgress, cacheName) :
+            this.LoadOnnx(ort, model, sessionOptions, onProgress)
     }
 
     /** Load an original MotionBricks G1 .onnx file, such as mmm_v6_g1_fp32.onnx. */
@@ -387,7 +387,7 @@ export class MotionBricksG1 implements MotionGenerator {
         const res = await fetch(url, {method: 'HEAD'}).catch(() => null)
         const total = Number(res?.headers.get('content-length')) || 0
         const bytes = await fetchBytes(url, n => onProgress?.(loaded += n, total))
-        return MotionBricksG1._create(ort, bytes, sessionOptions)
+        return this._create(ort, bytes, sessionOptions)
     }
 
     /**
@@ -399,7 +399,8 @@ export class MotionBricksG1 implements MotionGenerator {
         for (let i = 0; ; i++) {
             try {
                 const session = await ort.InferenceSession.create(model, {...sessionOptions, executionProviders: [providers[i]]})
-                return new MotionBricksG1(ort, session, providers[i])
+                // `this`, so a subclass for another rig (MotionBricksSOMA) loads as itself.
+                return new this(ort, session, providers[i])
             } catch (e) {
                 if (i >= providers.length - 1) throw e
                 console.warn(`MotionBricks: ${providers[i]} failed, trying ${providers[i + 1]}`, e)

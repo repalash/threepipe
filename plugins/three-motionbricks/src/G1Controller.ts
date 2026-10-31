@@ -6,7 +6,8 @@
 // target is the pose of the stride the robot will be at when it arrives, so the steps stay even.
 
 import {G1Obstacle, placeSequence, probeHits, G1PrimitiveStep} from './G1Primitives'
-import {BOUNDARY_FRAMES, DEFAULT_TOKEN_COUNTS, G1Pose, GenerateOptions, heading, lerpPose, MotionGenerator, placePoses, POSE_SIZE, POSES_PER_TOKEN, SAMPLE_RATE, withSpeed} from './MotionBricksG1'
+import {BOUNDARY_FRAMES, DEFAULT_TOKEN_COUNTS, G1Pose, GenerateOptions, MotionGenerator, POSES_PER_TOKEN, SAMPLE_RATE} from './MotionBricksG1'
+import {G1_RIG, PoseRig} from './PoseRig'
 
 export interface G1Bricks {
     /** Standing pose, one frame, at the ground origin facing +X. */
@@ -20,6 +21,8 @@ export interface G1Bricks {
      * point of the stride the robot will reach when it gets there, so no step is squeezed or stretched to fit.
      */
     cycles?: Partial<Record<G1Gait, G1StrideCycle>>
+    /** Walk and run speeds in m/s, when not GAIT_SPEEDS (another skeleton's clips). */
+    speeds?: Record<G1Gait, number>
 }
 
 /** One stride of a gait: its frames from a footfall, and the ground travel over the whole stride. */
@@ -54,6 +57,8 @@ interface Sequence {
     hold?: boolean
     /** The obstacle being sat on, for a Sit sequence. */
     seat?: G1Obstacle
+    /** The obstacle the sequence is played at. */
+    obstacle?: G1Obstacle
 }
 
 interface Request {
@@ -112,13 +117,23 @@ export class G1Controller {
      * a few frames in, and the fade hides the difference from the frame shown.
      */
     private _fade: {segment: Segment, frame: number, t: number} | null = null
-    private _segmentPose = new Float32Array(POSE_SIZE)
-    private _fadePose = new Float32Array(POSE_SIZE)
+    private _segmentPose: Float32Array
+    private _fadePose: Float32Array
+    /** The skeleton's poses: G1_RIG, or SOMA_RIG for the SOMA model. */
+    readonly rig: PoseRig
 
-    constructor(engine: MotionGenerator, bricks: G1Bricks, x = 0, y = 0, angle = 0) {
+    constructor(engine: MotionGenerator, bricks: G1Bricks, x = 0, y = 0, angle = 0, rig: PoseRig = G1_RIG) {
         this.engine = engine
         this.bricks = bricks
-        this.pose = placePoses(bricks.rest, x, y, angle)[0]
+        this.rig = rig
+        this._segmentPose = new Float32Array(rig.poseSize)
+        this._fadePose = new Float32Array(rig.poseSize)
+        this.pose = rig.place(bricks.rest, x, y, angle)[0]
+    }
+
+    /** Walk or run speed in m/s. */
+    speedOf(gait: G1Gait) {
+        return (this.bricks.speeds ?? GAIT_SPEEDS)[gait]
     }
 
     get moving() {
@@ -127,6 +142,12 @@ export class G1Controller {
 
     get generating() {
         return this._request !== null
+    }
+
+    /** The Smart Primitive being played (a jump, a vault, sitting down), or null. */
+    get action() {
+        const seq = this._segment?.sequence
+        return seq ? {primitive: seq.obstacle?.primitive ?? null, step: seq.steps[seq.next - 1]?.name ?? ''} : null
     }
 
     /** The segment being played: its length and transition point in frames, and the playhead. */
@@ -151,10 +172,11 @@ export class G1Controller {
     sit(o: G1Obstacle) {
         const sequence = o.primitive.sequences.find(q => q.name === 'Sit')
         if (!sequence || this.seat) return
-        const angle = Math.atan2(o.y - this.pose[1], o.x - this.pose[0])
-        const steps = placeSequence(o, sequence, this.pose[0], this.pose[1], angle, GAIT_SPEEDS.walk)
+        const [px, py] = this.rig.ground(this.pose)
+        const angle = Math.atan2(o.y - py, o.x - px)
+        const steps = placeSequence(o, sequence, px, py, angle, this.speedOf('walk'))
         this.goal = null
-        this._action = {steps, next: 0, hold: true, seat: o}
+        this._action = {steps, next: 0, hold: true, seat: o, obstacle: o}
         if (!this._request && !this._pending) this._generate(true)
     }
 
@@ -164,7 +186,8 @@ export class G1Controller {
         const sequence = o?.primitive.sequences.find(q => q.name === 'Stand')
         if (!o || !sequence) return
         this.goal = null
-        this._action = {steps: placeSequence(o, sequence, this.pose[0], this.pose[1], 0, 0), next: 0, hold: true}
+        const [px, py] = this.rig.ground(this.pose)
+        this._action = {steps: placeSequence(o, sequence, px, py, 0, 0), next: 0, hold: true}
         if (!this._request && !this._pending) this._generate(true)
     }
 
@@ -203,12 +226,12 @@ export class G1Controller {
         const current = this._segment
         if (!current) return
         const last = current.poses.length - 1
-        samplePoses(current.poses, this._frame, this._segmentPose)
+        samplePoses(this.rig, current.poses, this._frame, this._segmentPose)
         const fade = this._fade
         if (fade) {
             const w = Math.min(fade.t / FADE_FRAMES, 1)
-            samplePoses(fade.segment.poses, fade.frame, this._fadePose)
-            lerpPose(this._fadePose, this._segmentPose, w * w * (3 - 2 * w), this.pose)
+            samplePoses(this.rig, fade.segment.poses, fade.frame, this._fadePose)
+            this.rig.lerp(this._fadePose, this._segmentPose, w * w * (3 - 2 * w), this.pose)
             if (w >= 1) this._fade = null
         } else this.pose.set(this._segmentPose)
         if (current.stopping && this._frame >= last && !this._pending && !this._request) {
@@ -248,24 +271,30 @@ export class G1Controller {
     private _findJump(from: G1Pose, angle: number, speed: number, distance: number): Sequence | undefined {
         let best: Sequence | undefined, bestAhead = Infinity
         const cos = Math.cos(angle), sin = Math.sin(angle)
-        const ahead = (p: G1Pose) => (p[0] - from[0]) * cos + (p[1] - from[1]) * sin
+        const [fx, fy] = this.rig.ground(from)
+        const ahead = (p: G1Pose) => {
+            const [x, y] = this.rig.ground(p)
+            return (x - fx) * cos + (y - fy) * sin
+        }
         for (const o of this.obstacles) {
-            if (o.primitive.kind !== 'pass' || !probeHits(o, from[0], from[1], angle, speed, speed * this.lead + 3)) continue
+            if (o.primitive.kind !== 'pass' || !probeHits(o, fx, fy, angle, speed, speed * this.lead + 3)) continue
             const sequence = o.primitive.sequences.reduce((a, b) => Math.abs(b.startSpeed - speed) < Math.abs(a.startSpeed - speed) ? b : a)
-            const steps = placeSequence(o, sequence, from[0], from[1], angle, speed)
+            const steps = placeSequence(o, sequence, fx, fy, angle, speed)
             const entry = ahead(steps[0].window[0])
             if (entry > speed * this.lead + 0.3 || entry >= bestAhead) continue
             const first = steps.findIndex(s => ahead(s.window[0]) > 0.3)
             // Skip it when the goal comes before the landing.
             if (first < 0 || ahead(steps[steps.length - 1].window[0]) > distance + 0.5) continue
-            best = {steps, next: first}
+            best = {steps, next: first, obstacle: o}
             bestAhead = entry
         }
         return best
     }
 
     private _distanceToGoal() {
-        return this.goal ? Math.hypot(this.goal[0] - this.pose[0], this.goal[1] - this.pose[1]) : 0
+        if (!this.goal) return 0
+        const [x, y] = this.rig.ground(this.pose)
+        return Math.hypot(this.goal[0] - x, this.goal[1] - y)
     }
 
     /** The frame of the current segment where new motion can start, and the four context poses ending there. */
@@ -286,12 +315,13 @@ export class G1Controller {
     private _generate(now: boolean) {
         const {startFrame, context} = this._contextAt(now)
         const from = context[3]
-        const speed = GAIT_SPEEDS[this.gait]
-        const facing = heading([from[3], from[4], from[5], from[6]])
+        const speed = this.speedOf(this.gait)
+        const [fx, fy] = this.rig.ground(from)
+        const facing = this.rig.heading(from)
         // With no goal, stop a short way ahead of where the new motion starts.
         const stopAhead = this._segment ? 0.5 * speed : 0
-        const goal = this.goal ?? [from[0] + Math.cos(facing) * stopAhead, from[1] + Math.sin(facing) * stopAhead]
-        const dx = goal[0] - from[0], dy = goal[1] - from[1]
+        const goal = this.goal ?? [fx + Math.cos(facing) * stopAhead, fy + Math.sin(facing) * stopAhead]
+        const dx = goal[0] - fx, dy = goal[1] - fy
         const distance = Math.hypot(dx, dy)
         const angle = distance > 0.3 ? Math.atan2(dy, dx) : facing
         let targets: G1Pose[]
@@ -309,7 +339,7 @@ export class G1Controller {
         // Seated with somewhere to go: stand up first, then go on.
         if (!jump && this.seat && this.goal) {
             const stand = this.seat.primitive.sequences.find(q => q.name === 'Stand')
-            if (stand) jump = {steps: placeSequence(this.seat, stand, from[0], from[1], 0, 0), next: 0}
+            if (stand) jump = {steps: placeSequence(this.seat, stand, fx, fy, 0, 0), next: 0}
         }
         if (!jump && this._segment && !this._segment.stopping && distance > 1) jump = this._findJump(from, angle, speed, distance)
         if (jump) {
@@ -321,16 +351,20 @@ export class G1Controller {
             stopping = !!jump.hold && jump.next === jump.steps.length - 1
         } else if (distance > speed * lead + 0.8 && cycle && this._segment && !this._segment.stopping) {
             // A fixed length, the travel for it at gait speed, and the pose of the stride the robot reaches by then.
-            const tokens = Math.round((lead * SAMPLE_RATE + POSES_PER_TOKEN + BOUNDARY_FRAMES) / POSES_PER_TOKEN)
+            // About `lead` seconds, or longer when generating is slow, so the next one is ready before this one ends.
+            const room = this._latencyFrames() + this._transitionEarly(this.gait) + 2
+            const tokens = Math.min(DEFAULT_TOKEN_COUNTS[DEFAULT_TOKEN_COUNTS.length - 1], Math.max(
+                Math.round((lead * SAMPLE_RATE + POSES_PER_TOKEN + BOUNDARY_FRAMES) / POSES_PER_TOKEN),
+                Math.ceil((room + POSES_PER_TOKEN + BOUNDARY_FRAMES) / POSES_PER_TOKEN)))
             const frames = Math.round(segmentSeconds(tokens) * SAMPLE_RATE)
             const ahead = speed * frames / SAMPLE_RATE
-            const window = cycleWindow(cycle, cyclePhase(cycle, context) + frames)
-            targets = placePoses(withSpeed(window, speed), from[0] + Math.cos(angle) * ahead, from[1] + Math.sin(angle) * ahead, angle)
+            const window = cycleWindow(this.rig, cycle, cyclePhase(this.rig, cycle, context) + frames)
+            targets = this.rig.place(this.rig.withSpeed(window, speed), fx + Math.cos(angle) * ahead, fy + Math.sin(angle) * ahead, angle)
             options = {tokens: [tokens]}
             stopping = false
         } else if (distance > speed * lead + 0.8) {
             const ahead = speed * lead
-            targets = placePoses(withSpeed(this.bricks[this.gait], speed), from[0] + Math.cos(angle) * ahead, from[1] + Math.sin(angle) * ahead, angle)
+            targets = this.rig.place(this.rig.withSpeed(this.bricks[this.gait], speed), fx + Math.cos(angle) * ahead, fy + Math.sin(angle) * ahead, angle)
             stopping = false
         } else {
             if (!this._segment && distance < 0.35) {
@@ -338,7 +372,7 @@ export class G1Controller {
                 this._dirty = false
                 return
             }
-            targets = placePoses(this.bricks.rest, goal[0], goal[1], angle)
+            targets = this.rig.place(this.bricks.rest, goal[0], goal[1], angle)
             stopping = true
             // Slowing down evenly takes twice as long as the distance at speed: allow only lengths near that,
             // or the model may rush the last metres and lurch.
@@ -414,42 +448,35 @@ function segmentSeconds(tokens: number) {
 }
 
 /** The frame of a stride cycle that the last two context poses match best. */
-function cyclePhase(cycle: G1StrideCycle, context: G1Pose[]) {
+function cyclePhase(rig: PoseRig, cycle: G1StrideCycle, context: G1Pose[]) {
     const frames = cycle.frames, n = frames.length
     let best = 0, bestError = Infinity
     for (let i = 0; i < n; i++) {
         let error = 0
-        for (let c = 0; c < 2; c++) {
-            const a = context[2 + c], b = frames[(i - 1 + c + n) % n]
-            for (let k = POSE_SIZE - 29; k < POSE_SIZE; k++) error += (a[k] - b[k]) ** 2
-        }
+        for (let c = 0; c < 2; c++) error += rig.distance(context[2 + c], frames[(i - 1 + c + n) % n])
         if (error < bestError) [best, bestError] = [i, error]
     }
     return best
 }
 
 /** Four frames of a stride cycle from a frame (wrapping into the next stride), moved to the ground origin. */
-function cycleWindow(cycle: G1StrideCycle, start: number) {
+function cycleWindow(rig: PoseRig, cycle: G1StrideCycle, start: number) {
     const n = cycle.frames.length
     const window = [0, 1, 2, 3].map(f => {
         const i = start + f, stride = Math.floor(i / n)
-        const p = cycle.frames[(i % n + n) % n].slice()
-        p[0] += stride * cycle.travel[0]
-        p[1] += stride * cycle.travel[1]
+        const p = Float32Array.from(cycle.frames[(i % n + n) % n])
+        rig.translate(p, stride * cycle.travel[0], stride * cycle.travel[1])
         return p
     })
-    const [x, y] = window[0]
-    for (const p of window) {
-        p[0] -= x
-        p[1] -= y
-    }
+    const [x, y] = rig.ground(window[0])
+    for (const p of window) rig.translate(p, -x, -y)
     return window
 }
 
 /** The pose at a fractional frame, held at the last frame. */
-function samplePoses(poses: G1Pose[], frame: number, out: G1Pose) {
+function samplePoses(rig: PoseRig, poses: G1Pose[], frame: number, out: G1Pose) {
     const last = poses.length - 1
     const f = Math.min(Math.max(frame, 0), last)
     const i = Math.floor(f)
-    return lerpPose(poses[i], poses[Math.min(i + 1, last)], f - i, out)
+    return rig.lerp(poses[i], poses[Math.min(i + 1, last)], f - i, out)
 }

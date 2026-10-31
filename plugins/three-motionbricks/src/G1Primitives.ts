@@ -5,6 +5,8 @@
 // Placement and pivot alignment follow motionbricks/runtime/smart_primitive.py and pivot.py.
 
 import {G1Pose, POSE_SIZE, POSES_PER_TOKEN, SAMPLE_RATE} from './MotionBricksG1'
+import {parseSOMABvh, SOMA_SKELETON_INFO} from './MotionBricksSOMA'
+import {SOMA_RIG} from './PoseRig'
 
 type Vec3 = [number, number, number]
 type Quat = [number, number, number, number]
@@ -19,6 +21,14 @@ export const G1_PRIMITIVE_SOURCES = {
     /** Clips are in Git LFS, so they come from GitHub's media host; documents name them relative to this folder. */
     clips: NVIDIA_LFS + 'smart_primitives/unitree_g1/',
 }
+
+/** The same for the SOMA (human) model's primitives, whose clips are BVH. */
+export const SOMA_PRIMITIVE_SOURCES = {
+    documents: NVIDIA_REPO + 'smart_primitives/soma/',
+    clips: NVIDIA_LFS + 'smart_primitives/soma/',
+}
+
+export type PrimitiveRig = 'g1' | 'soma'
 
 export interface G1PrimitiveStep {
     name: string
@@ -60,6 +70,8 @@ export interface G1PrimitiveSequence {
 
 export interface G1Primitive {
     name: string
+    /** The model whose poses the targets are: 'g1' or 'soma'. */
+    rig: PrimitiveRig
     /**
      * 'pass' for primitives the robot goes through on its way (jumps, vaults, ducking), which start by themselves;
      * 'sit' for one with Sit and Stand sequences, which start on request (G1Controller.sit).
@@ -117,12 +129,16 @@ function placePose(t: Xform, pose: ArrayLike<number>): G1Pose {
 // ---- clips ----
 const clipCache = new Map<string, Promise<Float32Array[]>>()
 
-/** A G1 clip CSV at 120 Hz: centimetres, XYZ Euler degrees and joint degrees, as poses in metres and radians. */
-async function loadClip(url: string) {
+/**
+ * A clip at 120 Hz: a G1 CSV (centimetres, XYZ Euler degrees and joint degrees) as G1 poses in metres and radians,
+ * or a SOMA BVH as SOMA poses.
+ */
+async function loadClip(url: string, rig: PrimitiveRig = 'g1') {
     let clip = clipCache.get(url)
     if (!clip) {
         clip = fetch(url).then(async r => {
             if (!r.ok) throw new Error(`Could not download ${url}: HTTP ${r.status}`)
+            if (rig === 'soma') return parseSOMABvh(await r.text(), SOMA_SKELETON_INFO, 120)
             const rows = (await r.text()).trim().split('\n').slice(1)
             return rows.map(row => {
                 const v = row.split(',').map(Number)
@@ -142,9 +158,10 @@ async function loadClip(url: string) {
     return clip
 }
 
-function sampleClip(frames: Float32Array[], seconds: number): G1Pose {
+function sampleClip(frames: Float32Array[], seconds: number, rig: PrimitiveRig = 'g1'): G1Pose {
     const f = Math.min(Math.max(seconds * 120, 0), frames.length - 1)
     const i = Math.min(Math.floor(f), frames.length - 2), t = f - i
+    if (rig === 'soma') return SOMA_RIG.lerp(frames[i], frames[i + 1], t, new Float32Array(frames[i].length))
     const a = frames[i], b = frames[i + 1], out = new Float32Array(POSE_SIZE)
     for (let k = 0; k < POSE_SIZE; k++) out[k] = a[k] * (1 - t) + b[k] * t
     let qa: Quat = [a[3], a[4], a[5], a[6]], qb: Quat = [b[3], b[4], b[5], b[6]]
@@ -163,11 +180,22 @@ interface DocNode {
     children?: DocNode[]
 }
 
-/**
- * Load one of NVIDIA's G1 Smart Primitives, such as 'jump_0_5m', 'jump_0_75m', 'sit' or 'avoidance', with the
- * clip frames its targets use.
- */
+// SOMA poses are Y up and the primitives' space is Z up: NVIDIA's runtime turns clip roots by +90 degrees about X
+// (its MuJoCo convention), which maps SOMA ground (x, z) to (x, -z), the controller's ground too.
+const Y_TO_Z: Xform = {p: [0, 0, 0], q: [Math.SQRT1_2, 0, 0, Math.SQRT1_2]}
+const Z_TO_Y: Xform = {p: [0, 0, 0], q: [-Math.SQRT1_2, 0, 0, Math.SQRT1_2]}
+
+/** One of NVIDIA's G1 Smart Primitives, such as 'jump_0_5m', 'jump_0_75m', 'sit' or 'avoidance'. */
 export async function loadG1Primitive(name: string, sources = G1_PRIMITIVE_SOURCES): Promise<G1Primitive> {
+    return loadPrimitive(name, {rig: 'g1', sources})
+}
+
+/**
+ * Load one of NVIDIA's Smart Primitives for the G1 or SOMA, such as 'jump_0_5m', 'jump_0_75m', 'sit' or
+ * 'avoidance', with the clip frames its targets use.
+ */
+export async function loadPrimitive(name: string, {rig = 'g1', sources}: {rig?: PrimitiveRig, sources?: typeof G1_PRIMITIVE_SOURCES} = {}): Promise<G1Primitive> {
+    sources ??= rig === 'soma' ? SOMA_PRIMITIVE_SOURCES : G1_PRIMITIVE_SOURCES
     const res = await fetch(sources.documents + name + '.smart_primitive.json')
     if (!res.ok) throw new Error(`Could not download the ${name} Smart Primitive: HTTP ${res.status}`)
     const doc = await res.json()
@@ -211,11 +239,13 @@ export async function loadG1Primitive(name: string, sources = G1_PRIMITIVE_SOURC
         const steps = await Promise.all(s.node_ids.map(async(id: number): Promise<G1PrimitiveStep> => {
             const {node, world} = nodes.get(id)!
             const c = node.components.find(x => x.type === 'target_pose')
-            const frames = await loadClip(new URL(c.clip, sources.clips).href)
+            const frames = await loadClip(new URL(c.clip, sources!.clips).href, rig)
             const start = c.playback_mode === 'frames' ? c.frame_index / 120 : c.sample_time_seconds
             const count = Math.min(Math.max(c.num_poses_to_use ?? POSES_PER_TOKEN, 1), POSES_PER_TOKEN)
             const toLocal = tmul(toPivot, world)
-            const window = Array.from({length: count}, (_, k) => placePose(toLocal, sampleClip(frames, start + k / SAMPLE_RATE)))
+            // A SOMA clip's root turns into the primitive's Z up space first; placing turns it back (placeSequence).
+            const place = rig === 'soma' ? tmul(toLocal, Y_TO_Z) : toLocal
+            const window = Array.from({length: count}, (_, k) => placePose(place, sampleClip(frames, start + k / SAMPLE_RATE, rig)))
             const tokens: number[] = []
             for (let t = c.min_tokens ?? 6; t <= (c.max_tokens ?? 14); t++) tokens.push(t)
             return {name: node.name, window, transitionEarly: c.transition_early_by_frames ?? 8, tokens}
@@ -225,7 +255,7 @@ export async function loadG1Primitive(name: string, sources = G1_PRIMITIVE_SOURC
         return {name: s.name, startSpeed, steps, pivot, pivotId, aligns: own >= 0}
     }))
     const names = sequences.map(q => q.name)
-    return {name, kind: names.includes('Sit') && names.includes('Stand') ? 'sit' : 'pass', box, sequences}
+    return {name, rig, kind: names.includes('Sit') && names.includes('Stand') ? 'sit' : 'pass', box, sequences}
 }
 
 // ---- placing a primitive at an obstacle ----
@@ -328,7 +358,8 @@ export function placeSequence(o: G1Obstacle, sequence: G1PrimitiveSequence, x: n
         pivot = alignedPivot(sequence.pivot, authored, [x, y, 0], [Math.cos(angle), Math.sin(angle), 0], speed)
         ;(o.pivots ??= new Map()).set(sequence.pivotId, pivot)
     }
-    return sequence.steps.map(step => ({...step, window: step.window.map(pose => placePose(pivot, pose))}))
+    const place = o.primitive.rig === 'soma' ? tmul(Z_TO_Y, pivot) : pivot
+    return sequence.steps.map(step => ({...step, window: step.window.map(pose => placePose(place, pose))}))
 }
 
 /**

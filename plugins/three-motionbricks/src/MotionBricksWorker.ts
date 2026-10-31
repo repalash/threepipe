@@ -4,6 +4,7 @@
 // The package build bundles this file with the engine into one worker script.
 
 import {GenerateOptions, MotionBricksG1, setupOrtWeb} from './MotionBricksG1'
+import {MotionBricksSOMA} from './MotionBricksSOMA'
 
 export interface WorkerLoadOptions {
     /** Absolute URL of the onnxruntime-web module. */
@@ -15,6 +16,8 @@ export interface WorkerLoadOptions {
     sessionOptions: any
     /** Cache Storage name for model packs, or false to always download. */
     cache?: string | false
+    /** The model's skeleton: 'g1' (default) or 'soma'. */
+    rig?: 'g1' | 'soma'
 }
 
 export type WorkerRequest =
@@ -34,7 +37,7 @@ async function load(id: number, o: WorkerLoadOptions) {
         last = now
         scope.postMessage({id, type: 'progress', loaded, total})
     }
-    engine = await MotionBricksG1.Load(ort, o.model, o.sessionOptions, progress, o.cache)
+    engine = await (o.rig === 'soma' ? MotionBricksSOMA : MotionBricksG1).Load(ort, o.model, o.sessionOptions, progress, o.cache)
     return {backend: engine.backend}
 }
 

@@ -2,6 +2,7 @@ import {Euler, Group, Material, Mesh, Object3D, Quaternion, Vector3} from 'three
 import {G1_BODY_TREE} from './G1Kinematics'
 import {G1Robot} from './G1Robot'
 import {G1_JOINT_NAMES, POSE_SIZE} from './MotionBricksG1'
+import {SOMA_SKELETON_INFO} from './MotionBricksSOMA'
 
 /** The body parts a rig maps, each driven by one G1 body. */
 export const G1_PARTS = {
@@ -22,6 +23,25 @@ export const G1_PARTS = {
 } as const
 
 export type G1Part = keyof typeof G1_PARTS
+
+/** The SOMA joint that drives each part, when the motion comes from the SOMA (human) model. */
+export const SOMA_PARTS: Record<G1Part, string> = {
+    pelvis: 'Hips', torso: 'Chest',
+    leftThigh: 'LeftLeg', leftShin: 'LeftShin', leftFoot: 'LeftFoot',
+    rightThigh: 'RightLeg', rightShin: 'RightShin', rightFoot: 'RightFoot',
+    leftUpperArm: 'LeftArm', leftForearm: 'LeftForeArm', leftHand: 'LeftHand',
+    rightUpperArm: 'RightArm', rightForearm: 'RightForeArm', rightHand: 'RightHand',
+}
+
+/** The skeleton the motion comes from: posed by its own poses, with a node for each part. */
+interface MotionSource {
+    root: Object3D
+    setPose(pose: ArrayLike<number>): void
+    part(part: G1Part): Object3D
+    reference: ArrayLike<number>
+    /** The way the source faces in its reference pose, on the ground (x, z). */
+    facing: [number, number]
+}
 
 /**
  * How a model's nodes follow the G1. The G1's reference is standing straight with the arms hanging; `rest`
@@ -155,6 +175,31 @@ function g1Skeleton() {
     return {root, robot: G1Robot.FromObject(root, {shadows: false})}
 }
 
+function g1Source(): MotionSource {
+    const g1 = g1Skeleton()
+    return {
+        root: g1.root,
+        setPose: pose => g1.robot.setPose(pose),
+        part: part => g1.root.getObjectByName(G1_PARTS[part])!,
+        reference: referencePose(),
+        facing: [1, 0],
+    }
+}
+
+/** A SOMA skeleton without meshes, posed from SOMA poses (local transforms, Y up like three.js). */
+function somaSource(): MotionSource {
+    const k = SOMA_SKELETON_INFO, root = new Group()
+    const joints = k.names.map(name => Object.assign(new Object3D(), {name}))
+    k.parents.forEach((p, j) => (p < 0 ? root : joints[p]).add(joints[j]))
+    const setPose = (pose: ArrayLike<number>) => joints.forEach((o, j) => {
+        o.position.set(pose[j * 7], pose[j * 7 + 1], pose[j * 7 + 2])
+        o.quaternion.set(pose[j * 7 + 3], pose[j * 7 + 4], pose[j * 7 + 5], pose[j * 7 + 6])
+    })
+    const reference = k.referencePose()
+    const heading = k.heading(reference)
+    return {root, setPose, part: part => joints[k.index(SOMA_PARTS[part])], reference, facing: [Math.sin(heading), Math.cos(heading)]}
+}
+
 /** Node names as three.js loaders store them: GLTFLoader drops `[ ] . : /` and turns spaces into underscores. */
 function sanitize(name: string) {
     return name.replace(/\s/g, '_').replace(/[[\].:/]/g, '')
@@ -169,9 +214,10 @@ function depth(o: Object3D) {
 }
 
 /**
- * Plays G1 poses on another model: a robot with different proportions, or a skinned character. Each mapped node
- * takes the world rotation its G1 part has turned through since the reference pose; the root moves with the
- * G1's pelvis. `setPose` takes the same 36 joint coordinates as G1Robot.
+ * Plays G1 poses, or SOMA poses with `source: 'soma'`, on another model: a robot with different proportions, or a
+ * skinned character. Each mapped node takes the world rotation its part has turned through since the source's
+ * reference pose; the root moves with the source's pelvis. `setPose` takes the source's poses: the 36 joint
+ * coordinates of G1Robot, or SOMA local transforms.
  */
 export class RetargetedCharacter {
     /** Holds the model: add this to the scene, or to MotionBricksCharacter.object. */
@@ -181,7 +227,7 @@ export class RetargetedCharacter {
     readonly materials: Material[]
     /** The model's scale, so its legs are as long as the G1's and its steps land. */
     readonly scale: number
-    private _g1 = g1Skeleton()
+    private _src: MotionSource
     private _parts: {node: Object3D, g1: Object3D, g1Rest: Quaternion, rest: Quaternion}[] = []
     private _root: Object3D
     private _pelvis: Object3D
@@ -193,11 +239,13 @@ export class RetargetedCharacter {
     /**
      * @param model the loaded model, such as `gltf.scene`
      * @param rig one of CHARACTER_RIGS, or your own mapping
-     * @param matchSize scale the model so its legs match the G1's (default true); otherwise its steps slide
+     * @param matchSize scale the model so its legs match the source's (default true); otherwise its steps slide
+     * @param source the skeleton the motion comes from: 'g1' (default) or 'soma'
      */
-    constructor(model: Object3D, rig: CharacterRig, {shadows = true, matchSize = true} = {}) {
+    constructor(model: Object3D, rig: CharacterRig, {shadows = true, matchSize = true, source = 'g1' as 'g1' | 'soma'} = {}) {
         this.model = model
         this.rig = rig
+        this._src = source === 'soma' ? somaSource() : g1Source()
         // Exact names first, then as a loader stores them, then without a namespace prefix (`mixamorig:`).
         const lookup = (name: string) => {
             let node = model.getObjectByName(name)
@@ -225,16 +273,19 @@ export class RetargetedCharacter {
             node.updateMatrixWorld(true)
         }
 
-        // Face +X, like the G1.
+        // Face the way the source faces in its reference: +X for the G1.
         // eslint-disable-next-line @typescript-eslint/naming-convention
-        const yaw = {'+x': 0, '-x': Math.PI, '+z': Math.PI / 2, '-z': -Math.PI / 2}[rig.forward]
+        const authored = {'+x': [1, 0], '-x': [-1, 0], '+z': [0, 1], '-z': [0, -1]}[rig.forward]
+        const [fx, fz] = this._src.facing
+        // The turn about +Y that brings the authored forward (x, z) onto the facing.
+        const yaw = Math.atan2(fx, fz) - Math.atan2(authored[0], authored[1])
         holder.quaternion.setFromAxisAngle(new Vector3(0, 1, 0), yaw)
         this.object.updateMatrixWorld(true)
 
-        const g1 = this._g1
-        g1.robot.setPose(referencePose())
-        g1.root.updateMatrixWorld(true)
-        const g1Part = (part: G1Part) => g1.root.getObjectByName(G1_PARTS[part])!
+        const src = this._src
+        src.setPose(src.reference)
+        src.root.updateMatrixWorld(true)
+        const g1Part = (part: G1Part) => src.part(part)
         const bones = rig.bones as Record<G1Part, string | undefined>
         // Parts the model has; hands, feet and the torso may be missing.
         const nodes: Partial<Record<G1Part, Object3D>> = {}
@@ -284,7 +335,7 @@ export class RetargetedCharacter {
         this._parts.sort((a, b) => depth(a.node) - depth(b.node))
         this._pelvis = nodes.pelvis!
         this._root = rig.root ? find(rig.root) : this._pelvis
-        this._g1Pelvis = g1.root.getObjectByName('pelvis')!
+        this._g1Pelvis = src.part('pelvis')
         this._localPosition(this._pelvis, this._pelvisRest)
         this._g1Pelvis.getWorldPosition(this._g1PelvisRest)
         for (const [name, target] of Object.entries(rig.attach ?? {})) this._attach.push([find(name), find(target)])
@@ -312,9 +363,8 @@ export class RetargetedCharacter {
 
     /** Show a G1 pose: root XYZ, root XYZW quaternion, then the 29 joint angles. */
     setPose(pose: ArrayLike<number>) {
-        const g1 = this._g1
-        g1.robot.setPose(pose)
-        g1.root.updateMatrixWorld(true)
+        this._src.setPose(pose)
+        this._src.root.updateMatrixWorld(true)
         const objectRotation = this.object.getWorldQuaternion(new Quaternion())
         for (const part of this._parts) {
             // The G1 part's turn since the reference, applied to the node's rest rotation, in the space of `object`.
