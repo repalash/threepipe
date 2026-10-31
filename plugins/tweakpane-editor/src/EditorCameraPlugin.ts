@@ -405,6 +405,8 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
             if (preview.controlsMode !== mode) preview.controlsMode = mode
             // not the uuid or the name
             preview.fromJSON(start.toJSON())
+            // not serialized: the frustum size of an orthographic camera (0: none, the bounds are set by hand)
+            if (start instanceof OrthographicCamera2 && preview instanceof OrthographicCamera2) preview.frustumSize = start.frustumSize
             preview.userData.disableWidgets = true
             setPose(preview, poseOf(start))
         })

@@ -275,6 +275,20 @@ describe('EditorCameraPlugin', () => {
         expect(preview.zoom).toBe(2)
     })
 
+    test('the preview of an orthographic start camera has its frustum size, also none (bounds set by hand)', () => {
+        const {plugin, preview, start} = setup({ortho: true})
+        start.frustumSize = 10
+        plugin.editing = false
+        expect((preview as any).frustumSize).toBe(10)
+        expect([preview.left, preview.right, preview.top, preview.bottom]).toEqual([start.left, start.right, start.top, start.bottom])
+        plugin.editing = true
+        start.frustumSize = 0 // the bounds are set by hand
+        start.left = -3; start.right = 3; start.top = 2; start.bottom = -2
+        plugin.editing = false
+        expect((preview as any).frustumSize).toBe(0)
+        expect([preview.left, preview.right, preview.top, preview.bottom]).toEqual([-3, 3, 2, -2])
+    })
+
     test('an export in View after a move that was not saved has the saved start view (the default camera is what a viewer config saves)', () => {
         const {plugin, start, preview} = setup({orbit: true})
         plugin.editing = false
