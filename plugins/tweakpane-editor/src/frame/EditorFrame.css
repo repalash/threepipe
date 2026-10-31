@@ -74,6 +74,15 @@ body.lay-frame .util-buttons-container > .util-button {
 body.lay-frame .util-buttons-container > .util-button:hover { opacity: 1; background: var(--tp-button-background-color-hover, #f2f3f5); }
 body.lay-frame .util-buttons-container > .util-button.button-bar-selected-box { opacity: 1; color: #0d99ff; background: color-mix(in srgb, #0d99ff 16%, transparent); }
 body.lay-frame .util-buttons-container > .button-bar-button::after { display: none; }
+/* the perf pill (PerfPanelPlugin at the bottom left): next to the logo, level with the tool bar and as tall (its fixed
+   width keeps the row still as the numbers change); the tool bar leaves room for it */
+body.lay-frame .pp-root.pp-bottom-left { left: calc(1rem + 7.5rem + 8px); bottom: 1.25rem; }
+body.lay-frame .pp-root.pp-bottom-left .pp-pill { height: 36px; width: 76px; justify-content: center; padding: 0 8px; border-radius: 8px; font-size: 12px; }
+body.lay-frame #canvas-container:has(.pp-root.pp-bottom-left) .util-buttons-container { max-width: calc(100% - 10.75rem - 84px); }
+@media only screen and (max-width: 920px) {
+    body.lay-frame .pp-root.pp-bottom-left { left: calc(0.75rem + 5rem + 8px); bottom: 0.75rem; }
+    body.lay-frame #canvas-container:has(.pp-root.pp-bottom-left) .util-buttons-container { max-width: calc(100% - 7.5rem - 84px); }
+}
 .lay-float-actions { display: flex; flex-direction: column; align-items: center; gap: 2px; margin-top: auto; color: var(--tp-label-foreground-color, #8a8f98); }
 .lay-float-actions + .mb-toggle { margin-top: 2px; }
 /* the wide bar: the actions are rows with their names, like the modes and the names toggle */
