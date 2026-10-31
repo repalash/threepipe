@@ -409,6 +409,9 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
             if (start instanceof OrthographicCamera2 && preview instanceof OrthographicCamera2) preview.frustumSize = start.frustumSize
             preview.userData.disableWidgets = true
             setPose(preview, poseOf(start))
+            // the settings can have `enabled` of the controls (FirstPersonControls2 saves it), false on the start camera
+            // that is not the main camera: on as the main camera, off else
+            preview.refreshCameraControls(false)
         })
         this._watchPreviewControls(preview.controls as OrbitControls3 | undefined)
     }
