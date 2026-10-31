@@ -9,6 +9,7 @@ All notable changes to this project will be documented in this file.
 ### Added
 
 - [`PerfPanelPlugin`](https://threepipe.org/plugin/PerfPanelPlugin.html): an opt-in FPS pill and performance card over the canvas (frame times, render CPU time, renders per second, draw calls and triangles of all passes, canvas, GPU, JS heap), with warnings for a capped frame rate (Chrome Energy Saver, Low Power Mode), CPU or GPU bound, battery, software rendering and a hidden tab. Stats in `stats` and the `update` event. Example: `examples/perf-panel-plugin`; also in the `tweakpane-editor` example (Debug tab)
+- [`ViewOverridesPlugin`](https://threepipe.org/plugin/ViewOverridesPlugin.html): view the scene with one debug material (unlit, linear depth, view or world normals, material ID, UV sets) or with preset lights or another environment map, applied only while rendering, so the scene, its materials and lights do not change. Fat lines keep their own material. Example: `examples/view-overrides-plugin`
 
 ### Changed
 

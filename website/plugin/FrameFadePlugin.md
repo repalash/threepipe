@@ -4,8 +4,8 @@ prev:
     link: './CascadedShadowsPlugin'
 
 next:
-    text: '@threepipe/webgi-plugins'
-    link: '../package/webgi-plugins'
+    text: 'ViewOverridesPlugin'
+    link: './ViewOverridesPlugin'
 
 aside: false
 ---

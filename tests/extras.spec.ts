@@ -158,6 +158,7 @@ test('troika-text-shadow', async({page}) => expect(page).toHaveTitle('Troika Thr
 test('tweakpane-ui-plugin', async({page}) => expect(page).toHaveTitle('Tweakpane Ui Plugin'))
 test('velocity-buffer-plugin', async({page}) => expect(page).toHaveTitle('Velocity Buffer Plugin'))
 test('viewer-render-size', async({page}) => expect(page).toHaveTitle('Viewer Render Size'))
+test('view-overrides-plugin', async({page}) => expect(page).toHaveTitle('View Overrides Plugin'))
 test('vignette-plugin', async({page}) => expect(page).toHaveTitle('Vignette Plugin'))
 test('virtual-camera', async({page}) => expect(page).toHaveTitle('Virtual Camera'))
 test('virtual-cameras-plugin', async({page}) => expect(page).toHaveTitle('Virtual Cameras Plugin'))

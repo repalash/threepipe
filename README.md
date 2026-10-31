@@ -542,6 +542,7 @@ Many features will be added but the core API will not change significantly in fu
   - [PerfPanelPlugin](https://threepipe.org/plugin/PerfPanelPlugin.html) - FPS pill and performance card over the canvas: frame times, render time, draw calls, and warnings for a capped frame rate, CPU/GPU bound, battery and software rendering
   - [TailwindCSSCDNPlugin](https://threepipe.org/plugin/TailwindCSSCDNPlugin.html) - Dynamically loads Tailwind CSS from a CDN to enable rapid UI development with utility classes
   - [FrameFadePlugin](https://threepipe.org/plugin/FrameFadePlugin.html) - Post-render pass to smoothly fade to a new rendered frame over time
+  - [ViewOverridesPlugin](https://threepipe.org/plugin/ViewOverridesPlugin.html) - Show the scene with a debug material (unlit, depth, normals, material ID, UV) or with preset lights or another environment map, without changing the scene
   - [VignettePlugin](https://threepipe.org/plugin/VignettePlugin.html) - Add Vignette effect  by patching the final screen pass
   - [ChromaticAberrationPlugin](https://threepipe.org/plugin/ChromaticAberrationPlugin.html) - Add [Chromatic Aberration](https://en.wikipedia.org/wiki/Chromatic_aberration) effect  by patching the final screen pass
   - [FilmicGrainPlugin](https://threepipe.org/plugin/FilmicGrainPlugin.html) - Add [Filmic Grain](https://en.wikipedia.org/wiki/Film_grain) effect  by patching the final screen pass
