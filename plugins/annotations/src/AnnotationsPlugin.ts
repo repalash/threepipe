@@ -1013,10 +1013,22 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         const travel = camPos.distanceTo(cv.position) + cam.target.distanceTo(cv.target)
         const size = Math.max(camPos.distanceTo(cam.target), 0.1)
         const duration = Math.max(250, this.animDuration * Math.min(1, travel / size))
-        const pop = v.getPlugin(PopmotionPlugin)
-        if (!pop || travel < 1e-5) {
+        // the animation turns the camera to the target. A camera without controls (that would turn it back) and without
+        // autoLookAtTarget gets the rotation of the view at the end, so a roll in the view is kept
+        const keepRoll = !cam.userData.autoLookAtTarget && !(cam.controls && (cam.controls as any).enabled !== false)
+        const complete = () => {
             anim.onComplete?.()
             setFov(1)
+            if (!keepRoll) return
+            const q = cv.quaternion.clone() // world space
+            if (cam.parent) q.premultiply(cam.parent.getWorldQuaternion(new Quaternion()).invert())
+            if (q.angleTo(cam.quaternion) < 1e-6) return
+            cam.quaternion.copy(q)
+            cam.setDirty()
+        }
+        const pop = v.getPlugin(PopmotionPlugin)
+        if (!pop || travel < 1e-5) {
+            complete()
             return
         }
         cam.setInteractions(false, AnnotationsPlugin.PluginType)
@@ -1035,8 +1047,7 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
                 setFov(t)
             },
             onComplete: () => {
-                anim.onComplete?.()
-                setFov(1)
+                complete()
                 done()
             },
             onStop: done,

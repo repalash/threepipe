@@ -462,6 +462,33 @@ describe('AnnotationsPlugin', () => {
         expect(selected).toEqual(['One', 'Two', 'One', 'Two', undefined])
     })
 
+    describe('the roll of a saved view', () => {
+        // a view from x = 3 at the origin, turned 0.5 rad around the view axis
+        const eye = new Vector3(3, 0, 0)
+        const level = new Quaternion().setFromRotationMatrix(new Matrix4().lookAt(eye, new Vector3(), new Vector3(0, 1, 0)))
+        const rolled = level.clone().multiply(new Quaternion().setFromAxisAngle(new Vector3(0, 0, 1), 0.5))
+        const view = {position: eye.toArray(), target: [0, 0, 0], quaternion: rolled.toArray(), zoom: 1}
+
+        test('a camera without controls keeps the roll of the view, also when it is at the view already', () => {
+            const {plugin, box, camera} = setup()
+            plugin.add(box as any, front, normal, view)
+            plugin.goTo(0)
+            expect(camera.quaternion.angleTo(rolled)).toBeLessThan(1e-6)
+            camera.quaternion.copy(level)
+            plugin.close()
+            plugin.goTo(0)
+            expect(camera.quaternion.angleTo(rolled)).toBeLessThan(1e-6)
+        })
+
+        test('a camera with orbit controls looks at the target, as before (the controls own its rotation)', () => {
+            const {plugin, box, camera} = setup()
+            ;(camera as any).controls = {enabled: true}
+            plugin.add(box as any, front, normal, view)
+            plugin.goTo(0)
+            expect(camera.quaternion.angleTo(level)).toBeLessThan(1e-6)
+        })
+    })
+
     test('opening an annotation without a camera move stops the flight of the one before', () => {
         // a flight that runs until it is stopped
         const flights: {stop: ReturnType<typeof vi.fn>}[] = []
