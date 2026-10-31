@@ -8,6 +8,9 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- [`CanvasRecorderPlugin`](https://threepipe.org/plugin/CanvasRecorderPlugin.html), ported from webgi: records the canvas to MP4 (ffmpeg.js, `FFMPEGRecorder.LIBRARY_PATH`), to the browser's `MediaRecorder` format (`mimeType: 'auto'`) or to an image sequence. Converge mode captures a frame after the `ProgressivePlugin` converges and steps the animations by `1 / videoFrameRate` per frame. A recording keeps the format, frame rate and converge mode it started with (`recordingSettings`). Also `record(action)`, `recordCamera360`, `download360Recording`, the recorders `FFMPEGRecorder`, `CanvasMediaRecorder`, `ImageSequenceRecorder` and `ACanvasRecorder`, and an example
+- `CameraViewPlugin.recordAllViews()` (and its UI button) records the animation through all the camera views with the `CanvasRecorderPlugin`
+- `ProgressivePlugin.postFrameConvergedRecordingDelta()` returns the recording delta of a `CanvasRecorderPlugin` (it was a stub that returned -1)
 - [`PerfPanelPlugin`](https://threepipe.org/plugin/PerfPanelPlugin.html): an opt-in FPS pill and performance card over the canvas (frame times, render CPU time, renders per second, draw calls and triangles of all passes, canvas, GPU, JS heap), with warnings for a capped frame rate (Chrome Energy Saver, Low Power Mode), CPU or GPU bound, battery, software rendering and a hidden tab. Stats in `stats` and the `update` event. Example: `examples/perf-panel-plugin`; also in the `tweakpane-editor` example (Debug tab)
 
 ### Changed
@@ -19,6 +22,11 @@ All notable changes to this project will be documented in this file.
 - Vite configs are native ES modules (`import.meta.dirname`, JSON import attributes), with `rolldownOptions` in place of `rollupOptions`, and without the no-op `commonjsOptions` and the redundant `@rollup/plugin-json`
 - `lib/index.js` keeps its `@license` banner (the old minifier removed it)
 - Remove the obsolete `prepare`, `copy:inlines` and `postcompile:esm` scripts, `scripts/each-plugin.mjs`, `scripts/build-plugins.mjs`, `scripts/fix-inline-imports.mjs` and the unused `copyfiles`, `hexer` and `proper-lockfile` dev dependencies
+
+### Fixed
+
+- `ViewerTimeline` read the recording delta in milliseconds, but it is in seconds, so the timeline advanced 1000x too slowly in a converge-mode recording
+- `GLTFAnimationPlugin` applies `animationSpeed` (and the scroll and drag factors) to the converge-mode recording step too; it replaced the speed-adjusted step, so with the recording delta now active a speed of 2 would record at half speed
 
 
 ## [0.6.0] - 2026-10-23

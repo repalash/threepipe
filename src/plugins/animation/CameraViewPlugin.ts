@@ -9,6 +9,9 @@ import {CameraView, createCameraPath, ICamera, ICameraView, IGeometry, IMaterial
 import {AnimationResult, PopmotionPlugin} from './PopmotionPlugin'
 import {InteractionPromptPlugin} from '../interaction/InteractionPromptPlugin'
 import {getFittingDistance} from '../../three/utils/camera'
+import type {CanvasRecorderPlugin} from '../export/CanvasRecorderPlugin'
+import type {FileTransferPlugin} from '../export/FileTransferPlugin'
+import {RemovalWaits} from '../../utils/canvas-recorder/RemovalWaits'
 
 export interface CameraViewPluginOptions{duration?: number, ease?: EasingFunctionType, interpolateMode?: 'spherical'|'linear'}
 
@@ -43,7 +46,7 @@ export class CameraViewPlugin extends AViewerPluginSync<CameraViewPluginEventMap
         this.addCurrentView = this.addCurrentView.bind(this)
         this.resetToFirstView = this.resetToFirstView.bind(this)
         this.animateAllViews = this.animateAllViews.bind(this)
-        // this.recordAllViews = this.recordAllViews.bind(this)
+        this.recordAllViews = this.recordAllViews.bind(this)
         // this._wheel = this._wheel.bind(this)
         // this._pointerMove = this._pointerMove.bind(this)
         this._postFrame = this._postFrame.bind(this)
@@ -132,6 +135,13 @@ export class CameraViewPlugin extends AViewerPluginSync<CameraViewPluginEventMap
     }
 
     onRemove(viewer: ThreeViewer): void {
+        // no frame or animation comes after a removal (or a viewer dispose): the waits of recordAllViews end now
+        this._removalWaits.endAll()
+        // the view animations stop (they settle), and a loop of animateAllViews (a recording) has no view left, so the
+        // loop and its state (animationLooping, animating) end, also after a dispose; viewLooping stays as it is
+        this._popAnimations.forEach(a => a?.stop?.())
+        this._popAnimations = []
+        this._viewQueue = []
 
         viewer.removeEventListener('postFrame', this._postFrame)
         // window.removeEventListener('wheel', this._wheel)
@@ -490,7 +500,9 @@ export class CameraViewPlugin extends AViewerPluginSync<CameraViewPluginEventMap
                 else break
             }
             await this.animateToView(this._viewQueue.shift()!)
-            await timeout(2 + this.viewPauseTime) // ms delay
+            // a time of the video while a converge-mode recording runs (frames do not follow the wall clock there)
+            const recorder = this._viewer?.getPlugin<CanvasRecorderPlugin>('CanvasRecorder')
+            await (recorder?.isRecording() ? recorder.waitRecordingTime(2 + this.viewPauseTime) : timeout(2 + this.viewPauseTime)) // ms delay
         }
         this._animationLooping = false
     }
@@ -734,62 +746,57 @@ export class CameraViewPlugin extends AViewerPluginSync<CameraViewPluginEventMap
     //     }
     // }
 
-    // @uiButton('Record All Views')
-    // public async recordAllViews(onStart?: ()=>void, downloadOnEnd = true) {
-    //     if (this.isDisabled()) return
-    //     const recorder = this._viewer?.getPluginByType<CanvasRecorderPlugin>('CanvasRecorder')
-    //     if (!recorder || !recorder.enabled) return
-    //     if (this._cameraViews.length < 1) return
-    //     if (recorder.isRecording()) {
-    //         console.error('CanvasRecorderPlugin is already recording')
-    //         return
-    //     }
-    //     let looping = false
-    //     if (this.viewLooping) {
-    //         looping = true
-    //         this.viewLooping = false
-    //     }
-    // await this.resetToFirstView()
-    //     return new Promise<Blob|undefined>((resolve, reject) => {
-    //         const listener2 = ()=>{
-    //             recorder.removeEventListener('start', listenerStart)
-    //             recorder.removeEventListener('stop', listener2)
-    //             recorder.removeEventListener('error', listenerError)
-    //         }
-    //         const listenerStart = async() => {
-    //             listener2()
-    //             onStart?.()
-    //             await this.animateAllViews()
-    //             const blob = await recorder.stopRecording()
-    //             if (looping) this.viewLooping = true
-    //             if (downloadOnEnd) {
-    //                 const name = await this._viewer?.prompt('Canvas Recorder: Save file as', 'recording.mp4')
-    //                 if (name !== null && blob) await this._downloadBlob(blob, name || 'recording.mp4')
-    //             }
-    //             resolve(blob)
-    //         }
-    //         const listenerError = async() => {
-    //             listener2()
-    //             reject()
-    //         }
-    //         recorder.addEventListener('start', listenerStart)
-    //         recorder.addEventListener('stop', listener2)
-    //         recorder.addEventListener('error', listenerError)
-    //         if (!recorder.startRecording()) {
-    //             console.error('cannot start recording')
-    //             return
-    //         }
-    //     })
-    // }
+    @uiButton('Record All Views', {sendArgs: false})
+    public async recordAllViews(onStart?: ()=>void, downloadOnEnd = true) {
+        if (this.isDisabled()) return
+        const recorder = this._viewer?.getPlugin<CanvasRecorderPlugin>('CanvasRecorder')
+        if (!recorder || !recorder.enabled) return
+        if (this._cameraViews.length < 1) return
+        if (recorder.isRecording()) {
+            console.error('CanvasRecorderPlugin is already recording')
+            return
+        }
+        let looping = false
+        if (this.viewLooping) {
+            looping = true
+            this.viewLooping = false
+        }
+        let blob: Blob | undefined
+        // after a removal, the state of the plugin can be of a later add
+        const removed = this._removalWaits.watch()
+        try {
+            // each wait ends at a removal (or a viewer dispose): the view animations need frames, which stop then
+            await this._removalWaits.race(this.resetToFirstView())
+            // a loop that ran ends after its view and pause; until then, animateAllViews() does not start its own
+            while (this._animationLooping && !removed()) await timeout(10)
+            // removed: nothing records
+            if (removed()) return
+            // record() rejects when the start, onStart or the animation fails, and stops the recording
+            blob = await this._removalWaits.race(recorder.record(async() => this.animateAllViews(), onStart))
+        } finally {
+            // not on a removed plugin: the loop would run on it forever
+            if (looping && !removed()) this.viewLooping = true
+        }
+        if (downloadOnEnd && blob) {
+            // the extension of the recorded format (webm for a MediaRecorder recording in Chrome)
+            const fileName = 'recording.' + (blob.type.split(';')[0].split('/').pop() || 'mp4')
+            const name = await this._viewer?.dialog.prompt('Canvas Recorder: Save file as', fileName)
+            if (name !== null) await this._downloadBlob(blob, name || fileName)
+        }
+        return blob
+    }
 
-    // private async _downloadBlob(blob: Blob, name: string) {
-    //     const tr = this._viewer?.getPluginByType<FileTransferPlugin>('FileTransferPlugin')
-    //     if (!tr) {
-    //         this._viewer?.console.error('FileTransferPlugin required to export/download file')
-    //         return
-    //     }
-    //     await tr.exportFile(blob, name)
-    // }
+    /** The waits of {@link recordAllViews} that depend on frames or animations; {@link onRemove} ends them */
+    private _removalWaits = new RemovalWaits()
+
+    private async _downloadBlob(blob: Blob, name: string) {
+        const tr = this._viewer?.getPlugin<FileTransferPlugin>('FileTransferPlugin')
+        if (!tr) {
+            this._viewer?.console.error('FileTransferPlugin required to export/download file')
+            return
+        }
+        await tr.exportFile(blob, name)
+    }
 
     // endregion
 }

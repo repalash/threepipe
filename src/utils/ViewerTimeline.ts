@@ -136,9 +136,10 @@ export class ViewerTimeline extends EventDispatcher<ViewerTimelineEventMap> {
         }
         const d = viewer.getPlugin<ProgressivePlugin>('ProgressivePlugin')?.postFrameConvergedRecordingDelta()
         if (d && d > 0) {
-            // recorded frame
-            this.delta = d / 1000
-            this._clock.oldTime += d
+            // recorded frame, d is in seconds (1 / videoFrameRate). The clock keeps the wall time (ms), so the first
+            // frame after the recording does not add the time the recording took.
+            this.delta = d
+            this._clock.oldTime = performance.now()
             this._clock.elapsedTime += this.delta
             this._time = this._clock.elapsedTime
             // viewer.setDirty(this) // for next frame
@@ -146,6 +147,7 @@ export class ViewerTimeline extends EventDispatcher<ViewerTimelineEventMap> {
         } else if (d !== undefined && d === 0) {
             // recording, not converged yet.
             this.delta = 0
+            this._clock.oldTime = performance.now()
             this._time = this._clock.elapsedTime
         } else if (d === undefined || d < 0) {
             // not recording
