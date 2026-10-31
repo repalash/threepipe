@@ -126,7 +126,10 @@ export class ViewOverridesPlugin extends AViewerPluginSync<ViewOverridesPluginEv
      */
     lightsKeepEnvironment = false
 
-    /** Holds the preset lights, in the scene root (not in the model root), so they are not selectable or exported */
+    /**
+     * Holds the preset lights, in the scene root (not in the model root), so they are not selectable or exported.
+     * Visible only during a render with a lighting preset on.
+     */
     readonly lightsRoot = new Group2()
 
     uiConfig: UiObjectConfig = {
@@ -325,9 +328,9 @@ export class ViewOverridesPlugin extends AViewerPluginSync<ViewOverridesPluginEv
             light.userData.userSelectable = false
             this.lightsRoot.add(light)
         }
-        this.lightsRoot.visible = true
         this._environment = environment
         this._lighting = key
+        this._loading = null // a lights preset can replace an environment map that is loading
         this._material = null
         this._changed()
     }
@@ -345,7 +348,6 @@ export class ViewOverridesPlugin extends AViewerPluginSync<ViewOverridesPluginEv
         this._lighting = null
         this._environment = null
         this._disposeLights()
-        this.lightsRoot.visible = false
     }
 
     private _disposeLights() {
@@ -399,6 +401,7 @@ export class ViewOverridesPlugin extends AViewerPluginSync<ViewOverridesPluginEv
         if (lighting) {
             this._savedEnvironment = scene.overrideRenderEnvironment
             if (this._environment) scene.overrideRenderEnvironment = this._environment
+            this.lightsRoot.visible = true
         }
 
         const walk = (o: Object3D) => {
@@ -438,6 +441,7 @@ export class ViewOverridesPlugin extends AViewerPluginSync<ViewOverridesPluginEv
             viewer.scene.overrideRenderEnvironment = this._savedEnvironment
             this._savedEnvironment = undefined
         }
+        this.lightsRoot.visible = false
         for (const [o, mask] of this._hiddenLights) o.layers.mask = mask
         this._hiddenLights.length = 0
         for (const m of this._linesKeptOut) m.allowOverride = true

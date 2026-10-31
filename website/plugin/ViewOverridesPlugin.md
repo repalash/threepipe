@@ -24,7 +24,7 @@ Material views (`setMaterial`):
 | `unlit` | The base color, color map, AO map and light map of each mesh, without lights |
 | `depth` | Linear view depth, white at the front of the models and black at the back (the range fits the models in each frame) |
 | `normal` | View-space normals |
-| `normalWorld` | World-space normals |
+| `normalWorld` | World-space normals: the normal of the `normal` view (with normal maps, skinning and morphs) in world space |
 | `materialId` | One flat color for each material |
 | `uv` | U in red and V in green for the UV set `uvChannel` (0 for `uv`, 1 to 3 for `uv1` to `uv3`). Magenta where a mesh has no such UV set |
 
@@ -77,7 +77,7 @@ The overrides apply only while the viewer renders, between its `preRender` and `
 - Fat line materials (`Line2`, `MeshLine`) keep their own material: they are quads that only their own shader draws as lines. Their `allowOverride` is false during the render and true again after it.
 - The scene lights are hidden with their layers mask (0), and their mask is restored after the render. The `visible` flag does not change, so progressive rendering does not restart in each frame.
 - The environment map is `scene.overrideRenderEnvironment`, restored after the render.
-- The preset lights are in a group in the scene root (`lightsRoot`, not in the model root), which is not selectable, has no bounding box and is not exported.
+- The preset lights are in a group in the scene root (`lightsRoot`, not in the model root), which is not selectable, has no bounding box and is not exported. The group is visible only during a render with a lighting preset on.
 
 Outside a render, the scene, its materials and its lights are as the user left them, so an export, the scene UI and the light toggles see the real scene. `clear()`, `enabled = false` and removing the plugin show the scene as before. On remove, the plugin also removes its lights group and disposes the environment maps that it loaded and that the scene does not use.
 

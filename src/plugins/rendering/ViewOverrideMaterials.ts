@@ -219,7 +219,10 @@ export class NormalOverrideMaterial extends MeshNormalMaterialOverride {
     }
 }
 
-/** World-space normals */
+/**
+ * World-space normals: the view-space normal of the normal view (after skinning, morphs, the normal matrix, the back
+ * face flip and the normal and bump maps) turned to world space with the view matrix
+ */
 export class NormalWorldOverrideMaterial extends NormalOverrideMaterial {
     customProgramCacheKey() {
         return 'view-override-normal-world'
@@ -227,13 +230,9 @@ export class NormalWorldOverrideMaterial extends NormalOverrideMaterial {
 
     onBeforeCompile(shader: any) {
         super.onBeforeCompile(shader)
-        shader.vertexShader = shaderReplaceString(shader.vertexShader, '#include <common>', '\nvarying vec3 vWorldNormal;', {append: true})
-        shader.vertexShader = shaderReplaceString(shader.vertexShader, '#include <beginnormal_vertex>',
-            '\nvWorldNormal = normalize((modelMatrix * vec4(objectNormal, 0.0)).xyz);', {append: true})
-        shader.fragmentShader = shaderReplaceString(shader.fragmentShader, 'uniform float opacity;', '\nvarying vec3 vWorldNormal;', {append: true})
         shader.fragmentShader = shaderReplaceString(shader.fragmentShader,
             'gl_FragColor = vec4( packNormalToRGB( normal ), diffuseColor.a );',
-            'gl_FragColor = vec4( packNormalToRGB( normalize( vWorldNormal ) ), diffuseColor.a );')
+            'gl_FragColor = vec4( packNormalToRGB( normalize( ( vec4( normal, 0.0 ) * viewMatrix ).xyz ) ), diffuseColor.a );')
     }
 }
 

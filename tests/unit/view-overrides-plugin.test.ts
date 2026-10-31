@@ -313,4 +313,50 @@ describe('ViewOverridesPlugin', {timeout}, () => {
         expect(plugin.lighting).toBe('lights-night')
         expect(lighting.getValue()).toBe('lights-night')
     })
+
+    test('the preset lights are hidden outside a render, and while the plugin is disabled', async() => {
+        const {plugin, render} = setup()
+        await plugin.setLighting('lights-studio')
+        expect(plugin.lightsRoot.visible).toBe(false)
+        expect(render().lightsRootVisible).toBe(true)
+        expect(plugin.lightsRoot.visible).toBe(false)
+        plugin.enabled = false
+        const during = render()
+        expect(during.lightsRootVisible).toBe(false)
+        expect(during.sceneLightMask).toBe(1)
+        plugin.enabled = true
+        expect(render().lightsRootVisible).toBe(true)
+    })
+
+    test('a lights preset chosen while an environment map loads clears the loading state', async() => {
+        let resolve!: (t: Texture) => void
+        const {plugin, render} = setup(() => new Promise(r => resolve = r))
+        const env = plugin.setLighting('env-night')
+        expect(plugin.loading).toBe('env-night')
+        await plugin.setLighting('lights-day')
+        expect(plugin.loading).toBe(null)
+        expect(plugin.lighting).toBe('lights-day')
+        const lighting = (plugin.uiConfig.children as any[]).find(c => c.label === 'Lighting')
+        expect(lighting.getValue()).toBe('lights-day')
+        resolve(new Texture())
+        await env
+        expect(plugin.loading).toBe(null)
+        expect(plugin.lighting).toBe('lights-day')
+        expect(render().presetLights).toBe(2)
+    })
+
+    test('the world normal view converts the final view-space normal of the normal view to world space', () => {
+        const {plugin, render} = setup()
+        plugin.setMaterial('normalWorld')
+        const material = render().overrideMaterial as any
+        const vertexShader = tp.ShaderLib.normal.vertexShader
+        const fragmentShader = tp.ShaderLib.normal.fragmentShader
+        const shader = {uniforms: {}, vertexShader, fragmentShader}
+        material.onBeforeCompile(shader)
+        // the normal after the normal and bump maps, the back face flip, skinning, morphs and the normal matrix
+        expect(shader.fragmentShader).toContain('gl_FragColor = vec4( packNormalToRGB( normalize( ( vec4( normal, 0.0 ) * viewMatrix ).xyz ) ), diffuseColor.a );')
+        expect(shader.fragmentShader.indexOf('viewMatrix ).xyz')).toBeGreaterThan(shader.fragmentShader.indexOf('#include <normal_fragment_maps>'))
+        // no world normal from the object normal and the model matrix (wrong for a non-uniform scale)
+        expect(shader.vertexShader).toBe(vertexShader)
+    })
 })
