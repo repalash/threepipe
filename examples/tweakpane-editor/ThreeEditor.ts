@@ -239,14 +239,21 @@ export class ThreeEditor extends ThreeViewer {
         // exported file takes the name, also after a load: a file with a viewer config brings its own exportOptions.
         // A project system could set editor.documentName instead.
         const exporter = this.getPlugin(AssetExporterPlugin)
+        // the extension of the file that named the document: the exporter adds its own, and a dot in a typed name stays
+        let fileExt = ''
         const exportName = () => {
-            if (exporter) exporter.exportOptions.name = editor.documentName.replace(/\.[^.]+$/, '') // the exporter adds the extension
+            const name = editor.documentName
+            const ext = fileExt && name.toLowerCase().endsWith(fileExt) ? fileExt : ''
+            if (exporter) exporter.exportOptions.name = name.slice(0, name.length - ext.length)
         }
         editor.addEventListener('documentNameChange', exportName)
         editor.documentName = 'Untitled'
         this.assetManager.addEventListener('loadAsset', ({data}) => {
             const name = editor.documentName === 'Untitled' ? loadedFileName(data) : '' // not named by a file before, or by the person
-            if (name) editor.documentName = name
+            if (name) {
+                fileExt = name.match(/\.[^.]+$/)?.[0].toLowerCase() ?? ''
+                editor.documentName = name
+            }
             exportName()
         })
 
