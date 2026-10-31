@@ -4,7 +4,7 @@
  * https://developers.cloudflare.com/turnstile/get-started/client-side-rendering/
  */
 
-/** The action the worker expects (services/cloud/src/common/turnstile.ts). */
+/** The action the worker expects (services/cloud/src/turnstile.ts). */
 export const TURNSTILE_ACTION = 'threepipe-report'
 export const TURNSTILE_SCRIPT = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit'
 

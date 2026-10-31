@@ -18,10 +18,19 @@ export const appLabel = (app: string, owner: AppOwner) => owner ? `${app} (@${ow
 export async function appFolder(c: Context<CloudEnv>, userId: string, app: string, owner: AppOwner): Promise<string> {
     const db = c.env.PRIMARY_DB
     const find = (mark: string) => db.prepare('SELECT id FROM drive_folders WHERE owner_id = ? AND app = ?').bind(userId, mark).first<{id: string}>()
-    const found = await find(appMark(app, owner))
-    if (found) return found.id
-    const apps = (await find('apps'))?.id ?? (await createFolder(c, userId, '', await freeName(c, userId, '', 'Apps', false), 'apps')).id
-    return (await createFolder(c, userId, apps, await freeName(c, userId, apps, appLabel(app, owner), false), appMark(app, owner))).id
+    // made here, or found: an approval at the same time may have made it first (the name is then taken: 409)
+    const make = async (parent: string, label: string, mark: string) => {
+        const found = await find(mark)
+        if (found) return found.id
+        try {
+            return (await createFolder(c, userId, parent, await freeName(c, userId, parent, label, false), mark)).id
+        } catch (e) {
+            const made = await find(mark)
+            if (made) return made.id
+            throw e
+        }
+    }
+    return make(await make('', 'Apps', 'apps'), appLabel(app, owner), appMark(app, owner))
 }
 
 /**

@@ -1,6 +1,7 @@
 import type {Hono} from 'hono'
 import {setCookie} from 'hono/cookie'
 import type {CloudEnv} from './env'
+import {DAY} from './limits'
 import {cardPage, esc} from './page'
 
 /**
@@ -35,7 +36,7 @@ export function devLoginRoutes(app: Hono<CloudEnv>) {
             if (!res.ok) return back(`sign-up failed: ${((await res.json().catch(() => ({}))) as {message?: string}).message ?? res.status}`)
         }
         const {token} = await res.json() as {token: string}
-        setCookie(c, c.get('$db').settings.authCookie!.name, token, {httpOnly: true, secure: true, sameSite: 'Lax', path: '/', maxAge: 24 * 60 * 60})
+        setCookie(c, c.get('$db').settings.authCookie!.name, token, {httpOnly: true, secure: true, sameSite: 'Lax', path: '/', maxAge: DAY})
         return c.redirect(redirect, 303)
     })
 }

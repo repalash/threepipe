@@ -8,7 +8,8 @@
 const MB = 1024 * 1024
 const GB = 1024 * MB
 const HOUR = 60 * 60
-const DAY = 24 * HOUR
+/** Seconds in a day. */
+export const DAY = 24 * HOUR
 
 // ---- uploads (src/uploads.ts, src/drive.ts, src/buckets.ts) ----
 /** One file per request, streamed through the Worker. A folder is one PUT per file. */
@@ -33,12 +34,17 @@ export const DRIVE_QUOTA: Record<'member' | 'staff' | 'admin', number> = {member
 /** Signed URLs of private items: the default and the longest. */
 export const SIGN_DEFAULT_SECONDS = HOUR
 export const SIGN_MAX_SECONDS = 7 * DAY
-/** Changing an item's visibility or id rewrites each of its files (R2 has no metadata update or rename). */
-export const ITEM_REWRITE_FILES_MAX = 500
+/** Files per item: changing its visibility or id rewrites each of them (R2 has no metadata update or rename). */
+export const ITEM_FILES_MAX = 500
+/** `name (2)` … `name (99)`: the free names tried for a new folder or item. */
+export const NAME_COPIES_MAX = 100
 /** Folders and items listed per folder. */
 export const DRIVE_LIST_MAX = 1000
 /** Folder depth followed when resolving a path. */
 export const FOLDER_DEPTH_MAX = 64
+
+/** Names people give a project or an access link: characters kept. */
+export const LABEL_MAX = 100
 
 // ---- projects and reports (src/projects.ts, src/reports.ts) ----
 /** Projects a member owns (staff: no limit). */

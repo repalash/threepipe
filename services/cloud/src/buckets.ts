@@ -1,7 +1,7 @@
 import type {Context, Hono} from 'hono'
 import {HTTPException} from 'hono/http-exception'
 import type {CloudEnv} from './env'
-import {cleanSegments, keyUrl} from './env'
+import {cleanSegments, jsonBody, keyUrl} from './env'
 import {assertScope, isStaff, requireUser} from './auth'
 import {contentTypeFor, putStreamed, uploadSize} from './uploads'
 import {MISSING_PATHS_MAX} from './limits'
@@ -42,7 +42,7 @@ function checkPath(name: BucketName, path: string): string {
 export function bucketRoutes(app: Hono<CloudEnv>) {
     app.post('/api/v1/buckets/:bucket/missing', async (c) => {
         const {name, bucket} = await staffBucket(c)
-        const body = await c.req.json<{paths?: unknown}>().catch(() => ({} as {paths?: unknown}))
+        const body = await jsonBody<{paths?: unknown}>(c)
         if (!Array.isArray(body.paths) || body.paths.length > MISSING_PATHS_MAX || body.paths.some(p => typeof p !== 'string'))
             throw new HTTPException(400, {message: `paths: up to ${MISSING_PATHS_MAX} paths`})
         const paths = (body.paths as string[]).map(p => checkPath(name, p))

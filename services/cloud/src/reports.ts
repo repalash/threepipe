@@ -1,6 +1,3 @@
-// From #104 (services/cloud/src/reports.ts), itself copied from ijewel-mono services/ops-worker/src/support.ts @ 54d43285
-// (IJ-564). Changed for threepipe cloud: reports go to a project (src/projects.ts), signed-in senders skip Turnstile,
-// project members read them (/reports page) instead of staff tokens.
 /**
  * Reports: feedback and problem reports from threepipe apps. A person sends one from the modelling
  * editor's Help > Report a Problem…, an error toast's Report, or any app with `@threepipe/plugin-cloud`,
@@ -20,20 +17,22 @@
  *   row stays as a tombstone.
  */
 import type {CloudUser} from './auth'
-import {hex, logError} from './env'
+import {hex, hmacSha256, logError} from './env'
 import {
-    dailyCap, REPORT_CONTEXT_MAX, REPORT_ENVIRONMENT_MAX, REPORT_FILES_BYTES_MAX, REPORT_FILES_MAX, REPORT_IMAGE_MAX, REPORT_LOG_LINE_MAX,
+    DAY, dailyCap, REPORT_CONTEXT_MAX, REPORT_ENVIRONMENT_MAX, REPORT_FILES_BYTES_MAX, REPORT_FILES_MAX, REPORT_IMAGE_MAX, REPORT_LOG_LINE_MAX,
     REPORT_LOG_LINES_MAX, REPORT_NOTE_MAX, REPORT_TEXT_MAX, REPORT_VERSIONS_MAX, REPORTS_LIST_MAX, reportsDaily, sizeText,
 } from './limits'
 
 export const TYPES = ['bug', 'question', 'idea', 'other'] as const
 export const STATUSES = ['new', 'in_progress', 'waiting_reporter', 'closed', 'spam'] as const
-export type ReportType = typeof TYPES[number]
+type ReportType = typeof TYPES[number]
 const CARD_COLORS: Record<ReportType, number> = {bug: 0xd9534f, question: 0x5bc0de, idea: 0x5cb85c, other: 0x999999}
 
-// The limits are in src/limits.ts; these two only shorten what is stored.
+/** The text's start kept on the row, for the list. */
 const SUMMARY_MAX = 200
+/** A sent file's name (the plugin names its files; a longer one is refused). */
 const NAME_MAX = 200
+const DAY_MS = DAY * 1000
 
 /** A surface or a cause kind: a short lower-case word. */
 const WORD = /^[a-z][a-z0-9-]{0,31}$/
@@ -50,7 +49,7 @@ const CARD_VERSION_KEYS = ['threepipe', 'app']
 // Crockford base32: no I, L, O or U, so an id read aloud or retyped survives.
 const ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ'
 
-export function newReportId(): string {
+function newReportId(): string {
     const b = crypto.getRandomValues(new Uint8Array(6))
     return 'R-' + [...b].map(x => ALPHABET[x % 32]).join('')
 }
@@ -104,7 +103,7 @@ function redactHomePaths(s: string): string {
  * first; this pass catches what a client of another version, or a page that logs something new,
  * lets through. `keep` is the sender's own email.
  */
-export function redact(s: string, keep?: string): string {
+function redact(s: string, keep?: string): string {
     return redactTokens(redactHomePaths(s.replace(/\b(?:https?|file):\/\/[^\s"'<>)\]]+/gi, redactUrl)))
         .replace(/\b[0-9a-f]{32,}\b/gi, '<token>')
         .replace(/\b[\w-]{40,}\b/g, m => UUID.test(m) || !(/[a-z]/.test(m) && /[A-Z]/.test(m) && /\d/.test(m)) ? m : '<token>')
@@ -122,9 +121,9 @@ function redactDeep(v: unknown, keep?: string, depth = 0): unknown {
 }
 
 // ---- the report ---------------------------------------------------------------
-export interface Cause {kind: string, message?: string, ext?: string, frame?: string}
+interface Cause {kind: string, message?: string, ext?: string, frame?: string}
 
-export interface ParsedReport {
+interface ParsedReport {
     type: ReportType
     surface: string
     route: string
@@ -160,7 +159,7 @@ function decodeImage(s: string): ParsedReport['image'] | null {
 }
 
 /** Checks the report JSON of POST /reports and redacts it. */
-export function parseReport(body: any): Parsed {
+function parseReport(body: any): Parsed {
     if (!body || typeof body !== 'object' || Array.isArray(body)) return fail('body', 'the report is a JSON object')
     if (!TYPES.includes(body.type)) return fail('type', `type is one of ${TYPES.join(', ')}`)
     if (typeof body.surface !== 'string' || !WORD.test(body.surface)) return fail('surface', 'surface is a short lower-case word')
@@ -224,10 +223,10 @@ export function parseReport(body: any): Parsed {
 export interface SentFile {name: string, bytes: Uint8Array}
 
 /** Checks the files of a multipart report. */
-export function checkFiles(files: SentFile[]): {error: string, status: number} | null {
+function checkFiles(files: SentFile[]): {error: string, status: number} | null {
     if (files.length > REPORT_FILES_MAX) return {error: `at most ${REPORT_FILES_MAX} files`, status: 400}
     for (const f of files) {
-        if (!f.name.trim() || f.name.length > NAME_MAX) return {error: 'each file has a name', status: 400}
+        if (!f.name.trim() || f.name.length > NAME_MAX) return {error: `each file has a name of 1 to ${NAME_MAX} characters`, status: 400}
         if (!f.bytes.byteLength) return {error: `the file ${safeName(f.name)} is empty`, status: 400}
     }
     if (files.reduce((n, f) => n + f.bytes.byteLength, 0) > REPORT_FILES_BYTES_MAX) return {error: `the files are at most ${sizeText(REPORT_FILES_BYTES_MAX)} together`, status: 413}
@@ -236,13 +235,10 @@ export function checkFiles(files: SentFile[]): {error: string, status: number} |
 
 // ---- small helpers --------------------------------------------------------------
 
-async function hmac(key: string, msg: string): Promise<string> {
-    const k = await crypto.subtle.importKey('raw', new TextEncoder().encode(key), {name: 'HMAC', hash: 'SHA-256'}, false, ['sign'])
-    return hex(await crypto.subtle.sign('HMAC', k, new TextEncoder().encode(msg)))
-}
+const hmac = async (key: string, msg: string) => hex(await hmacSha256(key, msg))
 
 /** The /64 of an IPv6 address — one home or one server gets that much — or the IPv4 address. */
-export function ipSender(ip: string): string {
+function ipSender(ip: string): string {
     if (!ip.includes(':')) return ip
     const [head, tail = ''] = ip.split('::')
     const left = head ? head.split(':') : []
@@ -257,7 +253,7 @@ export function ipSender(ip: string): string {
  * is derived from REPORTS_RATE_SECRET; rotating it resets the counts. A delete keeps it, so deleting spam
  * does not refill the sender's quota.
  */
-export async function senderOf(env: CloudflareBindings, req: Request, userId?: string): Promise<string> {
+async function senderOf(env: CloudflareBindings, req: Request, userId?: string): Promise<string> {
     if (userId) return `u:${userId}`
     if (!env.REPORTS_RATE_SECRET) throw new Error('REPORTS_RATE_SECRET is not set')
     const k = await hmac(env.REPORTS_RATE_SECRET, 'reports-rate-key')
@@ -265,7 +261,7 @@ export async function senderOf(env: CloudflareBindings, req: Request, userId?: s
 }
 
 /** A file name with no path, quotes or control characters: for the object key and the download. */
-export function safeName(name: string): string {
+function safeName(name: string): string {
     return name.replace(/[^\w. -]+/g, '_').replace(/^[. ]+/, '').slice(-120) || 'file'
 }
 
@@ -275,7 +271,7 @@ const imageKey = (key: string, ext: string) => `reports/${key}/image.${ext}`
 const IMAGE_EXTS = ['jpg', 'png', 'webp']
 
 type Row = Record<string, any>
-export type Result = {status: number, body: unknown}
+type Result = {status: number, body: unknown}
 
 /** A project's report: reports are only ever looked up inside their project. */
 async function rowById(env: CloudflareBindings, project: string, id: string): Promise<Row | null> {
@@ -290,7 +286,7 @@ async function filesOf(env: CloudflareBindings, id: string): Promise<Row[]> {
 
 export interface Project {id: string, slug: string, name: string, discord_webhook: string | null}
 
-export interface CreateOptions {
+interface CreateOptions {
     env: CloudflareBindings
     req: Request
     project: Project
@@ -301,7 +297,7 @@ export interface CreateOptions {
     files: SentFile[]
     /** where to open the report, for the Discord card */
     reportsUrl: string
-    ctx?: {waitUntil(p: Promise<unknown>): void}
+    ctx: {waitUntil(p: Promise<unknown>): void}
 }
 
 /** POST /api/v1/projects/<slug>/reports, after the gate (signed in, or a Turnstile pass). */
@@ -323,7 +319,7 @@ export async function createReport(o: CreateOptions): Promise<Result> {
 
     // The caps over the last 24 hours: reports per sender, reports per project and in total (a flood of
     // Turnstile passes or accounts cannot fill the store), and attached bytes in total.
-    const since = new Date(Date.now() - 86_400_000).toISOString()
+    const since = new Date(Date.now() - DAY_MS).toISOString()
     const [mine, proj, all] = await db.batch([
         db.prepare('SELECT COUNT(*) AS n FROM reports WHERE rate_key = ?1 AND created_at >= ?2').bind(sender, since),
         db.prepare('SELECT COUNT(*) AS n FROM reports WHERE project_id = ?1 AND created_at >= ?2').bind(project.id, since),
@@ -393,7 +389,7 @@ export async function createReport(o: CreateOptions): Promise<Result> {
                             imageName ? 1 : 0, new TextEncoder().encode(text).byteLength, files.length, bytes,
                             since, caps.sender, caps.project, caps.all, caps.fileBytes),
                     ...files.map((f, idx) => db.prepare(`INSERT INTO report_files (id, report_id, idx, name, size, state)
-                        SELECT ?1, ?2, ?3, ?4, ?5, 'done' WHERE EXISTS (SELECT 1 FROM reports WHERE id = ?2)`).bind(crypto.randomUUID(), id, idx, f.name, f.bytes.byteLength)),
+                        SELECT ?1, ?2, ?3, ?4, ?5, 'done' WHERE EXISTS (SELECT 1 FROM reports WHERE id = ?2 AND key = ?6)`).bind(crypto.randomUUID(), id, idx, f.name, f.bytes.byteLength, key)),
                 ])
             } catch (e: any) {
                 const msg = String(e?.message || e)
@@ -413,8 +409,7 @@ export async function createReport(o: CreateOptions): Promise<Result> {
                 versions: p.versions, files_count: files.length, files_bytes: bytes, has_image: !!imageName, log_lines: p.log.length, signed_in: !!userId}
             const send = postCard(project.discord_webhook, row, o.reportsUrl).then(state => db.prepare('UPDATE reports SET discord_state = ?1 WHERE id = ?2').bind(state, id).run())
                 .catch(e => logError('report card', {id, exception: String(e?.stack || e)}))
-            if (o.ctx) o.ctx.waitUntil(send)
-            else await send
+            o.ctx.waitUntil(send)
             console.log('report', JSON.stringify({id, project: project.slug, bytes: text.length, image: !!imageName, files: files.length, ray: req.headers.get('cf-ray')}))
             return {status: 201, body: {id}}
         }
@@ -442,7 +437,7 @@ async function cleanup(env: CloudflareBindings, written: string[]) {
 
 // ---- the Discord card -----------------------------------------------------------
 
-export interface CardRow {
+interface CardRow {
     id: string, project: string, origin: string | null, type: string, surface: string,
     cause: string | null, ext: string | null, versions: Record<string, string>,
     files_count: number, files_bytes: number, has_image: boolean,
@@ -452,12 +447,12 @@ export interface CardRow {
 }
 
 /** A size in decimal units: 21 B, 2 KB, 73 MB. */
-export const sizeLabel = (bytes: number) =>
+const sizeLabel = (bytes: number) =>
     bytes < 1e3 ? `${bytes} B` : bytes < 1e6 ? `${Math.round(bytes / 1e3)} KB` : `${Math.round(bytes / 1e6)} MB`
 
 /** The card for the project's channel. Every value on it is an enum, a validated short string or a
  *  number; `allowed_mentions` is empty, so nothing on it can ping anyone. */
-export function card(r: CardRow, reportsUrl: string): object {
+function card(r: CardRow, reportsUrl: string): object {
     const versions = CARD_VERSION_KEYS.filter(k => r.versions[k]).map(k => `${k} ${r.versions[k]}`).join(' · ') || 'none sent'
     const attached = [
         r.has_image ? 'screenshot' : '',
@@ -499,7 +494,7 @@ async function postCard(hook: string | null, r: CardRow, reportsUrl: string): Pr
 const LIST_COLUMNS = `id, created_at, origin, type, surface, email, user_id, summary, cause, versions_json, has_image, bundle_bytes,
     files_count, files_bytes, status, status_by, status_at, note, discord_state, deleted_at, deleted_by`
 
-export interface ListQuery {status?: string, type?: string, q?: string, deleted?: boolean, limit?: number, before?: string}
+interface ListQuery {status?: string, type?: string, q?: string, deleted?: boolean, limit?: number, before?: string}
 
 function rowOut(r: Row) {
     const {versions_json, has_image, ...rest} = r

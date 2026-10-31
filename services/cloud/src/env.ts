@@ -1,3 +1,4 @@
+import type {Context} from 'hono'
 import type {$Env} from 'teenybase/worker'
 import type {CloudUser} from './auth'
 
@@ -18,6 +19,18 @@ export const base64url = (buf: ArrayBuffer | Uint8Array) =>
 export function randomCode(bytes = 24): string {
     return base64url(crypto.getRandomValues(new Uint8Array(bytes)))
 }
+
+/** The request's JSON body, or `{}` when there is none (every field is then checked as missing). */
+export const jsonBody = <T>(c: Context<CloudEnv>) => c.req.json<T>().catch(() => ({} as Partial<T>))
+
+/** HMAC-SHA256 of `data` with `secret`. */
+export async function hmacSha256(secret: string, data: string): Promise<ArrayBuffer> {
+    const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), {name: 'HMAC', hash: 'SHA-256'}, false, ['sign'])
+    return crypto.subtle.sign('HMAC', key, new TextEncoder().encode(data))
+}
+
+/** This API's origin (https://cloud.threepipe.org). */
+export const apiOrigin = (c: Context<CloudEnv>) => new URL(c.req.url).origin
 
 /** The origin files are served from: FILES_HOST, or `<api origin>/_files` when it is not set (local dev). */
 export function filesOrigin(env: CloudflareBindings, apiOrigin: string): string {
@@ -43,6 +56,9 @@ export function cleanSegments(path: string): string[] | null {
 
 /** The public URL of a key: each part percent-encoded (spaces, other languages). */
 export const keyUrl = (origin: string, key: string) => `${origin}/${key.split('/').map(encodeURIComponent).join('/')}`
+
+/** The URL of a key on the files host. */
+export const fileUrl = (c: Context<CloudEnv>, key: string) => keyUrl(filesOrigin(c.env, apiOrigin(c)), key)
 
 /**
  * `[from, to)` of the paths that start with `prefix`, for `path >= ? AND path < ?`. Unlike LIKE, a range uses the

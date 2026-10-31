@@ -138,12 +138,30 @@ const UI = (() => {
             else location.reload()
         })
     }
-    /** For the pages' API calls: a 403 that says the handle is pending shows the card. */
-    function handleGate(status, body) {
-        if (status !== 403 || !body || !body.handle) return false
-        chooseHandle(el('login'), {next: new URLSearchParams(location.search).get('next') || ''})
-        return true
+    /* ---------- the pages' API calls: same origin, the session cookie ---------- */
+    /**
+     * JSON, or a blob for anything else. A 401 calls `signedOut` and a pending handle shows its card; both throw
+     * 'signed out', which the pages do not show as an error. Any other refusal throws the server's message.
+     */
+    async function api(path, init, signedOut) {
+        const r = await fetch(path, {...init, credentials: 'same-origin'})
+        if (r.status === 401) { signedOut(); throw new Error('signed out') }
+        const ct = r.headers.get('content-type') || ''
+        if (!r.ok) {
+            const j = ct.includes('json') ? await r.json().catch(() => ({})) : {}
+            if (r.status === 403 && j.handle) {
+                chooseHandle(el('login'), {next: new URLSearchParams(location.search).get('next') || ''})
+                throw new Error('signed out')
+            }
+            throw new Error(j.message || j.error || ('HTTP ' + r.status))
+        }
+        return ct.includes('json') ? r.json() : r.blob()
     }
+    /** `api` with a JSON body. */
+    const send = (method, path, body, signedOut) =>
+        api(path, {method, headers: body ? {'content-type': 'application/json'} : {}, body: body ? JSON.stringify(body) : undefined}, signedOut)
+    /** An id from the API or the URL, safe in an attribute; '' when it is not one. */
+    const idOf = s => /^[\w-]{1,64}$/.test(String(s || '')) ? String(s) : ''
     async function signOut() {
         await fetch('/api/v1/table/users/auth/logout', {method: 'POST', credentials: 'same-origin'}).catch(() => undefined)
         location.reload()
@@ -226,5 +244,5 @@ const UI = (() => {
         applyTheme(current); t.title = 'Theme: ' + current; toast('Theme: ' + current)
     })
 
-    return {el, esc, bytes, when, stamp, short, icon, side, login, chooseHandle, handleGate, dialog, prompt, confirm, toast}
+    return {el, esc, bytes, when, stamp, short, icon, idOf, api, send, side, login, chooseHandle, dialog, prompt, confirm, toast}
 })()

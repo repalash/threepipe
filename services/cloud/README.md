@@ -18,7 +18,9 @@ npm run typecheck
 
 Files are served under `/_files/` locally; set `FILES_HOST` (wrangler vars) for `files.threepipe.org`.
 Without a GitHub OAuth app, sign in at `/login` with any username and password (`DEV_LOGIN=true` in `.dev.vars`, local
-only; a new username is signed up on the first try).
+only; a new username is signed up on the first try). teenybase's password routes (sign-up, login, change and reset
+password) answer 404 without DEV_LOGIN: a password account with someone's email would be signed in to by their Google
+or GitHub sign-in.
 
 ## Sign-in
 
@@ -67,7 +69,7 @@ that username (it can't be changed). Roles (`member`, `staff`, `admin`) are set 
 
 ## Projects and reports
 
-Report a Problem / feedback for any threepipe app (`src/projects.ts`, `src/reports.ts` from #104). Any member creates up
+Report a Problem / feedback for any threepipe app (`src/projects.ts`, `src/reports.ts`). Any member creates up
 to 5 projects (slugs starting with `threepipe` are for staff) and adds members as `reader` or `manager`. Members read the
 reports on `/reports` (signed in) or through the API.
 
@@ -104,7 +106,7 @@ rows they can edit).
 | `b/` build | 30 days after its last upload |
 | Drive quota | 1 GB members, 50 GB staff and admins |
 | Signed drive URL | 1 hour by default, up to 7 days |
-| Item rewrite (share, unshare, new id) | 500 files |
+| Files per item | 500 (share, unshare and new id rewrite each one) |
 | Listing a folder | 1000 folders and 1000 items |
 | Access key / app key | 30 days / 24 hours |
 | Projects a member owns | 5 (staff: any) |

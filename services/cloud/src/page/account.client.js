@@ -2,18 +2,10 @@
    agents (src/access.ts), from /api/v1/access-links; revoking one stops its keys at once. Names and app addresses are
    user input: every one goes through esc(); events are bound by data attributes. Loaded as a module. */
 'use strict'
-const {el, esc, icon, toast, stamp, short} = UI
+const {el, esc, icon, toast, stamp, short, idOf} = UI
 const S = {links: null, err: ''}
-const idOf = s => /^[\w-]{1,64}$/.test(String(s || '')) ? String(s) : ''
 
-async function api(path, init) {
-    const r = await fetch('/api/v1/access-links' + path, {...init, credentials: 'same-origin'})
-    if (r.status === 401) { signedOut(); throw new Error('signed out') }
-    const j = await r.json().catch(() => ({}))
-    if (UI.handleGate(r.status, j)) throw new Error('signed out')
-    if (!r.ok) throw new Error(j.message || j.error || ('HTTP ' + r.status))
-    return j
-}
+const api = (path, init) => UI.api('/api/v1/access-links' + path, init, signedOut)
 function signedOut() {
     el('app').hidden = true; el('login').hidden = false
     UI.login(el('login'), {title: 'Sign in to your account', text: 'The apps you connected to threepipe cloud, and the access links of your agents.', redirect: '/account'})
@@ -50,9 +42,8 @@ async function newLink() {
     const name = await UI.prompt('New access link', '', {placeholder: 'Name: laptop, CI, …', ok: 'Create', text: 'Anyone with the link can act as you; give it only to your own agents.'})
     if (name === null) return
     let link
-    try { link = await fetch('/api/v1/access-links', {method: 'POST', credentials: 'same-origin', headers: {'content-type': 'application/json'}, body: JSON.stringify({name})})
-        .then(async r => { const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.message || 'HTTP ' + r.status); return j }) }
-    catch (e) { toast('Could not create the link: ' + e.message, true); return }
+    try { link = await UI.send('POST', '/api/v1/access-links', {name}, signedOut) }
+    catch (e) { if (e.message !== 'signed out') toast('Could not create the link: ' + e.message, true); return }
     await load()
     // the link is shown once: only its hash is stored
     await UI.dialog({title: 'Copy the link now', text: 'It is shown only once. Give it to your agent: it reads the instructions there.', ok: 'Done',

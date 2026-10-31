@@ -52,7 +52,7 @@ export class CloudAuth {
         location.assign(`${this._endpoint().replace(/\/+$/, '')}/api/v1/connect?${q}`)
     }
 
-    /** Forgets the key on this page. To remove the app's access for good, delete it from your access links. */
+    /** Forgets the key on this page. To remove the app's access for good, revoke it in Apps & keys (<endpoint>/account). */
     signOut(): void {
         this._s = null
         try { sessionStorage.removeItem(STORAGE_KEY) } catch { /* no storage */ }

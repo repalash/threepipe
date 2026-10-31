@@ -28,7 +28,7 @@ const css = {'content-type': 'text/css; charset=utf-8', ...HEADERS}
 
 /**
  * The pages on the API host, with the session cookie: the drive (src/drive.ts), the reports of your projects
- * (src/projects.ts, from #104's staff page) and the account (connected apps and access links, src/access.ts). One look for all of them, also the server-rendered cards (the consent page,
+ * (src/projects.ts) and the account (connected apps and access links, src/access.ts). One look for all of them, also the server-rendered cards (the consent page,
  * src/connect.ts, and the local sign-in, src/devLogin.ts): /ui.css, the clean colour mode of @threepipe/plugin-tweakpane.
  */
 export function pageRoutes(app: Hono<CloudEnv>) {

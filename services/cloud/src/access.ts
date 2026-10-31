@@ -1,9 +1,9 @@
 import type {Hono} from 'hono'
 import {HTTPException} from 'hono/http-exception'
 import type {CloudEnv} from './env'
-import {filesOrigin, randomCode, sha256Hex} from './env'
+import {apiOrigin, filesOrigin, jsonBody, randomCode, sha256Hex} from './env'
 import {mintKey, requireUser} from './auth'
-import {ACCESS_KEY_SECONDS, BUILD_DAYS, SHARE_DEFAULT_DAYS, SHARE_MAX_DAYS, sizeText, UPLOAD_MAX_BYTES} from './limits'
+import {ACCESS_KEY_SECONDS, BUILD_DAYS, DAY, LABEL_MAX, SHARE_DEFAULT_DAYS, SHARE_MAX_DAYS, sizeText, UPLOAD_MAX_BYTES} from './limits'
 
 /**
  * Access links: a signed-in user creates one per agent/machine and copies its URL. The agent reads agents.md from it,
@@ -21,13 +21,13 @@ export function accessRoutes(app: Hono<CloudEnv>) {
     app.post('/api/v1/access-links', async (c) => {
         const user = await requireUser(c)
         if (user.link) throw new HTTPException(403, {message: 'an access key cannot create access links'})
-        const body = await c.req.json<{name?: unknown}>().catch(() => ({} as {name?: unknown}))
-        const name = typeof body.name === 'string' ? body.name.slice(0, 100) : ''
+        const body = await jsonBody<{name?: unknown}>(c)
+        const name = typeof body.name === 'string' ? body.name.slice(0, LABEL_MAX) : ''
         const code = randomCode()
         const id = crypto.randomUUID()
         await c.env.PRIMARY_DB.prepare('INSERT INTO access_links (id, owner_id, name, code_hash) VALUES (?, ?, ?, ?)')
             .bind(id, user.id, name, await sha256Hex(code)).run()
-        return c.json({id, name, url: `${new URL(c.req.url).origin}/api/v1/access/${code}/agents.md`})
+        return c.json({id, name, url: `${apiOrigin(c)}/api/v1/access/${code}/agents.md`})
     })
 
     app.get('/api/v1/access-links', async (c) => {
@@ -51,7 +51,7 @@ export function accessRoutes(app: Hono<CloudEnv>) {
 
     app.get('/api/v1/access/:code/agents.md', async (c) => {
         const link = await findLink(c.env, c.req.param('code'))
-        const origin = new URL(c.req.url).origin
+        const origin = apiOrigin(c)
         return c.text(agentsMd(origin, filesOrigin(c.env, origin), c.req.param('code'), link.username), 200, {
             'content-type': 'text/markdown; charset=utf-8',
             'cache-control': 'no-store',
@@ -75,7 +75,7 @@ async function findLink(env: CloudflareBindings, code: string) {
 function agentsMd(api: string, files: string, code: string, username: string): string {
     return `# threepipe cloud
 
-Download your key from ${api}/api/v1/access/${code}/key and save it as \`TP_CLOUD_KEY=<key>\` in \`/tmp/.env\`. Send it with every request as \`Authorization: Bearer $TP_CLOUD_KEY\`. The key acts as the user \`${username}\` and is valid for ${ACCESS_KEY_SECONDS / 86400} days; fetch it again from the same URL when it expires.
+Download your key from ${api}/api/v1/access/${code}/key and save it as \`TP_CLOUD_KEY=<key>\` in \`/tmp/.env\`. Send it with every request as \`Authorization: Bearer $TP_CLOUD_KEY\`. The key acts as the user \`${username}\` and is valid for ${ACCESS_KEY_SECONDS / DAY} days; fetch it again from the same URL when it expires.
 
 ## Upload a file
 

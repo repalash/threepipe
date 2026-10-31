@@ -1,14 +1,12 @@
 import type {Context, Hono} from 'hono'
 import {HTTPException} from 'hono/http-exception'
 import type {CloudEnv} from './env'
-import {BUCKET, filesOrigin, prefixRange, randomCode, sha256Hex} from './env'
+import {apiOrigin, BUCKET, filesOrigin, prefixRange, randomCode, sha256Hex} from './env'
 import {APP_KEY_SECONDS} from './limits'
 import {cardPage, esc, ICONS} from './page'
-import {CloudUser, mintKey, requireUser} from './auth'
+import {CloudUser, mintKey, requireUser, touchLink} from './auth'
 import {HandlePending} from './handle'
-import {appFolder, appLabel, grantFolder} from './appFolders'
-
-/** App keys are short: the app gets a new one on every page load (no screen once approved). */
+import {appFolder, appLabel, AppOwner, grantFolder} from './appFolders'
 
 /**
  * "Sign in with threepipe" for apps hosted on the files host (or running on localhost while being developed).
@@ -85,7 +83,7 @@ function appTarget(c: Context<CloudEnv>, ret: unknown, access: unknown): AppTarg
     }
     u.hash = ''
     const returnUrl = u.href
-    const files = filesOrigin(c.env, new URL(c.req.url).origin) + '/'
+    const files = filesOrigin(c.env, apiOrigin(c)) + '/'
     let app: string, scope: string | undefined
     if (returnUrl.startsWith(files)) {
         let segs: string[]
@@ -112,7 +110,7 @@ function appTarget(c: Context<CloudEnv>, ret: unknown, access: unknown): AppTarg
  * The user who serves the app (who uploaded to its scope), or 400 for an unknown app. Localhost: none.
  * A scope can change hands once its files are gone (the cron releases it): grants are tied to this owner (findGrant).
  */
-async function appOwner(c: Context<CloudEnv>, t: AppTarget): Promise<{id: string, username: string} | null> {
+async function appOwner(c: Context<CloudEnv>, t: AppTarget): Promise<AppOwner> {
     if (!t.scope) return null
     const row = t.scope.startsWith('d/')
         ? await c.env.PRIMARY_DB.prepare(`SELECT u.id, u.username FROM files f JOIN users u ON u.id = f.owner_id
@@ -133,8 +131,8 @@ async function findGrant(c: Context<CloudEnv>, user: CloudUser, t: AppTarget, ow
 
 async function redirectWithKey(c: Context<CloudEnv>, t: AppTarget, user: CloudUser, grant: string, folder: string, status: 302 | 303 = 302) {
     const key = await mintKey(c, user, grant, APP_KEY_SECONDS)
-    c.executionCtx.waitUntil(c.env.PRIMARY_DB.prepare('UPDATE access_links SET last_used = ? WHERE id = ?').bind(new Date().toISOString(), grant).run())
-    const hash = new URLSearchParams({tp_cloud_key: key, tp_cloud_user: user.username, tp_cloud_folder: folder, tp_cloud_api: new URL(c.req.url).origin})
+    touchLink(c, grant)
+    const hash = new URLSearchParams({tp_cloud_key: key, tp_cloud_user: user.username, tp_cloud_folder: folder, tp_cloud_api: apiOrigin(c)})
     c.header('cache-control', 'no-store')
     c.header('referrer-policy', 'no-referrer')
     return c.redirect(`${t.returnUrl}#${hash}`, status)
@@ -151,7 +149,7 @@ function signInPage(c: Context<CloudEnv>, t: AppTarget) {
 <a class="btn ghost lg" href="${esc(t.returnUrl + '#tp_cloud_error=denied')}">Cancel</a></div>`
 }
 
-function consentPage(t: AppTarget, user: CloudUser, owner: {id: string, username: string} | null) {
+function consentPage(t: AppTarget, user: CloudUser, owner: AppOwner) {
     const folder = t.access === 'drive' ? 'your whole drive' : `Apps/${appLabel(t.app, owner)}`
     const who = owner ? `served by <b>@${esc(owner.username)}</b> at <code>${esc(t.returnUrl)}</code>` : `running on your computer at <code>${esc(t.returnUrl)}</code>`
     const what = t.access === 'drive'

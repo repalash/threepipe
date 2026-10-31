@@ -1,7 +1,6 @@
-// From #104 (services/cloud/src/common/turnstile.ts), copied from ijewel-mono services/ops-worker/src/lib/reporter.ts
-// @ 54d43285 (IJ-564). Only anonymous reports go through it: signed-in senders skip it (src/projects.ts).
 /**
- * The gate of POST /reports: a Cloudflare Turnstile pass in `cf-turnstile-response`, checked once
+ * The gate of an anonymous POST /reports (signed-in senders skip it, src/projects.ts): a Cloudflare Turnstile pass in
+ * `cf-turnstile-response`, checked once
  * with siteverify. A Turnstile token is valid for 300 s and only once.
  *
  * Cloudflare documents three test secrets (developers.cloudflare.com/turnstile/troubleshooting/testing/):
@@ -14,10 +13,10 @@
 import {logError} from './env'
 
 /** The action the widget is rendered with (`@threepipe/plugin-cloud`). */
-export const TURNSTILE_ACTION = 'threepipe-report'
+const TURNSTILE_ACTION = 'threepipe-report'
 const SITEVERIFY = 'https://challenges.cloudflare.com/turnstile/v0/siteverify'
 
-export const TEST_SECRETS: Record<string, {success: boolean, 'error-codes': string[]}> = {
+const TEST_SECRETS: Record<string, {success: boolean, 'error-codes': string[]}> = {
     '1x0000000000000000000000000000000AA': {success: true, 'error-codes': []},
     '2x0000000000000000000000000000000AA': {success: false, 'error-codes': ['invalid-input-response']},
     '3x0000000000000000000000000000000AA': {success: false, 'error-codes': ['timeout-or-duplicate']},
@@ -25,7 +24,7 @@ export const TEST_SECRETS: Record<string, {success: boolean, 'error-codes': stri
 
 const list = (s: string | undefined) => String(s || '').split(',').map(x => x.trim()).filter(Boolean)
 
-export type TurnstileCheck = {ok: true} | {ok: false, status: number, error: string}
+type TurnstileCheck = {ok: true} | {ok: false, status: number, error: string}
 
 /** Never throws; a failed upstream is a 503 the page can retry. */
 export async function checkTurnstile(env: CloudflareBindings, req: Request): Promise<TurnstileCheck> {
@@ -40,7 +39,6 @@ export async function checkTurnstile(env: CloudflareBindings, req: Request): Pro
     form.set('response', token)
     const ip = req.headers.get('cf-connecting-ip')
     if (ip) form.set('remoteip', ip)
-    form.set('idempotency_key', crypto.randomUUID())
     let data: any
     try {
         const res = await fetch(SITEVERIFY, {method: 'POST', body: form})

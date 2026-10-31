@@ -241,7 +241,7 @@ export default {
             deleteRule: null,
         } as TableRulesExtensionData],
     }, {
-        // Reports (src/reports.ts, from #104). The row holds what the list shows and what the caps count; the report
+        // Reports (src/reports.ts). The row holds what the list shows and what the caps count; the report
         // itself is reports/<key>/report.json in R2, the screenshot and files beside it. R2 keys use `key`, never the
         // public id. Nothing deletes a row: a delete removes the R2 objects and clears the personal columns.
         name: 'reports',

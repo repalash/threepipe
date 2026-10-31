@@ -57,7 +57,7 @@ export interface ReportPayload {
     files: ReportFile[]
 }
 
-const SLUG = /^[a-z][a-z0-9-]{0,31}$/
+const WORD = /^[a-z][a-z0-9-]{0,31}$/
 const EMAIL = /^[a-z0-9._+-]{1,64}@[a-z0-9.-]{1,190}\.[a-z]{2,24}$/i
 const jsonBytes = (v: unknown) => new TextEncoder().encode(JSON.stringify(v ?? null)).byteLength
 
@@ -79,10 +79,10 @@ export function redactReport(r: ReportJson): ReportJson {
 export function checkPayload(p: ReportPayload): string | null {
     const r = p.report
     if (!REPORT_TYPES.includes(r.type)) return `The type is one of ${REPORT_TYPES.join(', ')}.`
-    if (!SLUG.test(r.surface)) return 'The surface is a short lower-case word.'
+    if (!WORD.test(r.surface)) return 'The surface is a short lower-case word.'
     if (r.text.length > LIMITS.text) return `The text is at most ${LIMITS.text} characters.`
     if (r.email && !EMAIL.test(r.email.trim())) return 'The email address does not look like one.'
-    if (r.cause && !SLUG.test(r.cause.kind)) return 'The cause is a short lower-case word.'
+    if (r.cause && !WORD.test(r.cause.kind)) return 'The cause is a short lower-case word.'
     if (r.environment && jsonBytes(r.environment) > LIMITS.environmentBytes) return 'The environment is too large.'
     if (r.context && jsonBytes(r.context) > LIMITS.contextBytes) return 'The app context is too large.'
     if (r.image) {

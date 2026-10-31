@@ -3,22 +3,14 @@
    events by data attributes, never with an API string in a handler. Shared parts (side bar, dialogs, icons): ui.client.js.
    Loaded as a module: its names stay out of window (a top-level function open() would replace window.open). */
 'use strict'
-const {el, esc, bytes, icon, toast, stamp, short} = UI
+const {el, esc, bytes, icon, toast, stamp, short, idOf} = UI
 /* `sel`: the selected row, {kind: 'folder' | 'item', id}; `item`: the selected item as GET /items/<id> gives it (with its
    files); `inside`: what the selected folder holds. One click selects and shows it in the panel, a double click opens. */
 const S = {folder: '', data: null, err: '', sel: null, item: null, inside: null}
-const idOf = s => /^[\w-]{1,64}$/.test(String(s || '')) ? String(s) : ''
 
-/* ---------- the API (same origin, the session cookie) ---------- */
-async function api(path, init) {
-    const r = await fetch('/api/v1/drive' + path, {...init, credentials: 'same-origin'})
-    if (r.status === 401) { signedOut(); throw new Error('signed out') }
-    const j = await r.json().catch(() => ({}))
-    if (UI.handleGate(r.status, j)) throw new Error('signed out')
-    if (!r.ok) throw new Error(j.message || j.error || ('HTTP ' + r.status))
-    return j
-}
-const send = (method, path, body) => api(path, {method, headers: {'content-type': 'application/json'}, body: JSON.stringify(body || {})})
+/* ---------- the API ---------- */
+const api = (path, init) => UI.api('/api/v1/drive' + path, init, signedOut)
+const send = (method, path, body) => UI.send(method, '/api/v1/drive' + path, body, signedOut)
 const status = s => { el('status').textContent = s || '' }
 
 function signedOut() {

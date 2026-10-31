@@ -1,6 +1,5 @@
-// From #104's staff page, copied from ijewel-mono crm/index.html @ 54d43285 (the Support → Reports view, IJ-564).
-// Changed for threepipe cloud: the session cookie (GitHub sign-in) instead of a staff token, and one project at a time
-// (the URL hash is its slug); the projects you are a member of are listed first.
+// The reports page: one project at a time (the URL hash is its slug), with the session cookie; with no hash, the
+// projects you own or are a member of.
 /* The reports of a project, read from /api/v1/projects/<slug>/reports (src/projects.ts). The list is read
    one page at a time, newest first (`next` is the cursor for `before`); one report is read when its
    drawer opens.
@@ -57,19 +56,9 @@ function repQuery(f, before) {
     return base() + '?' + p.join('&')
 }
 
-/* ---------- the API: the session cookie (same origin) ---------- */
-async function api(path, init) {
-    const r = await fetch(path, {...init, credentials: 'same-origin'})
-    if (r.status === 401) { signOut(''); throw new Error('signed out') }
-    const ct = r.headers.get('content-type') || ''
-    if (!r.ok) {
-        const j = ct.includes('json') ? await r.json().catch(() => ({})) : {}
-        if (UI.handleGate(r.status, j)) throw new Error('signed out')
-        throw new Error(j.error || j.message || ('HTTP ' + r.status))
-    }
-    return ct.includes('json') ? r.json() : r.blob()
-}
-const send = (method, path, body) => api(path, {method, headers: body ? {'content-type': 'application/json'} : {}, body: body ? JSON.stringify(body) : undefined})
+/* ---------- the API ---------- */
+const api = (path, init) => UI.api(path, init, () => signOut(''))
+const send = (method, path, body) => UI.send(method, path, body, () => signOut(''))
 
 /* ---------- sign-in and projects ---------- */
 function show(id) { for (const x of ['login', 'app']) el(x).hidden = x !== id }

@@ -1,13 +1,12 @@
 import type {Context, Hono} from 'hono'
-import {getCookie} from 'hono/cookie'
 import {HTTPException} from 'hono/http-exception'
-import type {CloudEnv} from './env'
-import {CloudUser, isStaff, requireUser} from './auth'
+import {apiOrigin, CloudEnv, jsonBody} from './env'
+import {CloudUser, hasSession, isStaff, requireUser} from './auth'
 import {checkTurnstile} from './turnstile'
 import {
     createReport, deleteReport, getFile, getImage, getReport, listReports, normalizeReportId, Project, SentFile, STATUSES, TYPES, updateReport,
 } from './reports'
-import {projectsMax, REPORT_BODY_MAX, REPORT_FILES_MAX, REPORT_MAX, REPORTS_LIST_MAX} from './limits'
+import {LABEL_MAX, projectsMax, REPORT_BODY_MAX, REPORT_FILES_MAX, REPORT_MAX, REPORTS_LIST_MAX} from './limits'
 
 /**
  * Projects: where an app's reports go. Any member creates up to PROJECTS_MAX and adds members; our own apps report
@@ -36,7 +35,6 @@ const SLUG = /^[a-z][a-z0-9-]{1,39}$/
 const ROLES = ['reader', 'manager'] as const
 type Role = typeof ROLES[number]
 
-const json = <T>(c: Context<CloudEnv>) => c.req.json<T>().catch(() => ({} as Partial<T>))
 
 async function projectBySlug(c: Context<CloudEnv>, slug: string): Promise<Project & {owner_id: string}> {
     const p = await c.env.PRIMARY_DB.prepare('SELECT id, slug, name, owner_id, discord_webhook FROM projects WHERE slug = ?').bind(slug)
@@ -60,7 +58,7 @@ async function member(c: Context<CloudEnv>, need: Role): Promise<{user: CloudUse
     return {user, project, role}
 }
 
-/** The body as bytes, or null when it is larger than `max` — also without Content-Length. (From #104.) */
+/** The body as bytes, or null when it is larger than `max` — also without Content-Length. */
 async function readCapped(req: Request, max: number): Promise<Uint8Array | null> {
     if (Number(req.headers.get('content-length') || 0) > max) return null
     if (!req.body) return new Uint8Array(0)
@@ -84,9 +82,7 @@ async function readCapped(req: Request, max: number): Promise<Uint8Array | null>
 }
 
 const reportId = (c: Context<CloudEnv>) => {
-    let raw = c.req.param('id')!
-    try { raw = decodeURIComponent(raw) } catch { /* not encoded */ }
-    const id = normalizeReportId(raw)
+    const id = normalizeReportId(c.req.param('id')!)
     if (!id) throw new HTTPException(400, {message: 'not a report id'})
     return id
 }
@@ -98,20 +94,23 @@ export function projectRoutes(app: Hono<CloudEnv>) {
     app.post('/api/v1/projects', async (c) => {
         const user = await requireUser(c)
         if (user.scope) throw new HTTPException(403, {message: 'an app key cannot create projects'})
-        const body = await json<{slug?: string, name?: string}>(c)
+        const body = await jsonBody<{slug?: string, name?: string}>(c)
         const slug = typeof body.slug === 'string' ? body.slug.trim() : ''
         if (!SLUG.test(slug)) throw new HTTPException(400, {message: 'slug: 2 to 40 lower-case letters, digits and -, starting with a letter'})
         if (slug.startsWith('threepipe') && !isStaff(user)) throw new HTTPException(403, {message: 'slugs starting with threepipe are for threepipe apps'})
-        const name = (typeof body.name === 'string' && body.name.trim() ? body.name.trim() : slug).slice(0, 100)
-        const owned = await c.env.PRIMARY_DB.prepare('SELECT COUNT(*) AS n FROM projects WHERE owner_id = ?').bind(user.id).first<{n: number}>()
+        const name = (typeof body.name === 'string' && body.name.trim() ? body.name.trim() : slug).slice(0, LABEL_MAX)
         const max = projectsMax(user)
-        if ((owned?.n ?? 0) >= max) throw new HTTPException(403, {message: `at most ${max} projects`})
+        let added: D1Result
         try {
-            await c.env.PRIMARY_DB.prepare('INSERT INTO projects (id, slug, name, owner_id) VALUES (?, ?, ?, ?)').bind(crypto.randomUUID(), slug, name, user.id).run()
+            // only while the user owns fewer than `max`: two requests at the same time cannot both pass
+            added = await c.env.PRIMARY_DB.prepare(`INSERT INTO projects (id, slug, name, owner_id) SELECT ?1, ?2, ?3, ?4
+                    WHERE (SELECT COUNT(*) FROM projects WHERE owner_id = ?4) < ?5`)
+                .bind(crypto.randomUUID(), slug, name, user.id, Number.isFinite(max) ? max : Number.MAX_SAFE_INTEGER).run()
         } catch (e) {
             if (/UNIQUE/.test(String(e))) throw new HTTPException(409, {message: `${slug} is taken`})
             throw e
         }
+        if (!added.meta.changes) throw new HTTPException(403, {message: `at most ${max} projects`})
         return c.json({slug, name, role: 'manager'}, 201)
     })
 
@@ -132,8 +131,8 @@ export function projectRoutes(app: Hono<CloudEnv>) {
 
     app.patch('/api/v1/projects/:slug', async (c) => {
         const {project} = await member(c, 'manager')
-        const body = await json<{name?: string, discord_webhook?: string | null}>(c)
-        const name = typeof body.name === 'string' && body.name.trim() ? body.name.trim().slice(0, 100) : project.name
+        const body = await jsonBody<{name?: string, discord_webhook?: string | null}>(c)
+        const name = typeof body.name === 'string' && body.name.trim() ? body.name.trim().slice(0, LABEL_MAX) : project.name
         let hook = project.discord_webhook
         if (body.discord_webhook !== undefined) {
             if (body.discord_webhook !== null && body.discord_webhook !== '' &&
@@ -155,7 +154,7 @@ export function projectRoutes(app: Hono<CloudEnv>) {
 
     app.post('/api/v1/projects/:slug/members', async (c) => {
         const {project} = await member(c, 'manager')
-        const body = await json<{username?: string, role?: Role}>(c)
+        const body = await jsonBody<{username?: string, role?: Role}>(c)
         if (!ROLES.includes(body.role as Role)) throw new HTTPException(400, {message: `role is one of ${ROLES.join(', ')}`})
         const u = await c.env.PRIMARY_DB.prepare('SELECT id FROM users WHERE username = ?').bind(String(body.username || '')).first<{id: string}>()
         if (!u) throw new HTTPException(404, {message: 'no such user'})
@@ -180,9 +179,7 @@ export function projectRoutes(app: Hono<CloudEnv>) {
         const clientKey = (c.req.header('idempotency-key') || '').trim()
         if (!/^[\w-]{8,100}$/.test(clientKey)) throw new HTTPException(400, {message: 'Idempotency-Key header required: one value per dialog, the same value on a retry'})
         // signed in (any key or the cookie): no check; a bad or revoked key is a 401, not a fallback to the check
-        const cookieName = c.get('$db').settings.authCookie?.name
-        const authed = !!(c.req.header('Authorization') || c.req.header('X-Authorization') || cookieName && getCookie(c, cookieName))
-        const sender = authed ? await requireUser(c) : undefined
+        const sender = hasSession(c) ? await requireUser(c) : undefined
         if (!sender) {
             const gate = await checkTurnstile(c.env, c.req.raw)
             if (!gate.ok) throw new HTTPException(gate.status as 401, {message: gate.error})
@@ -210,7 +207,7 @@ export function projectRoutes(app: Hono<CloudEnv>) {
         } else {
             try { report = JSON.parse(new TextDecoder().decode(raw)) } catch { throw new HTTPException(400, {message: 'body must be JSON'}) }
         }
-        const reportsUrl = `${new URL(c.req.url).origin}/reports#${project.slug}`
+        const reportsUrl = `${apiOrigin(c)}/reports#${project.slug}`
         const r = await createReport({env: c.env, req: c.req.raw, project, user: sender, clientKey, report, files, reportsUrl, ctx: c.executionCtx})
         return out(c, r)
     })

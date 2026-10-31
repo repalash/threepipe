@@ -1,7 +1,7 @@
 import type {Context, Hono, Next} from 'hono'
 import {HTTPException} from 'hono/http-exception'
 import {requireUser} from './auth'
-import type {CloudEnv} from './env'
+import {CloudEnv, jsonBody} from './env'
 
 /**
  * The handle (`users.username`) is in every drive URL (`d/<handle>/…`), so it is picked once, by the user:
@@ -14,7 +14,7 @@ import type {CloudEnv} from './env'
  *   GET  /api/v1/sign-in-options       → {google, dev}: the buttons of the sign-in cards
  */
 
-export const HANDLE = /^[a-z][a-z0-9_-]{2,31}$/
+const HANDLE = /^[a-z][a-z0-9_-]{2,31}$/
 /** Names that would look like ours: anything starting with threepipe, and a few exact ones. */
 const RESERVED = /^(threepipe.*|admin|staff|root|api|www|cloud|files|support|help|null|undefined)$/
 
@@ -65,7 +65,7 @@ export function handleRoutes(app: Hono<CloudEnv>) {
         const user = await requireUser(c)
         if (user.scope || user.link) throw new HTTPException(403, {message: 'sign in on the page to choose your handle'})
         if (!user.handlePending) throw new HTTPException(409, {message: 'your handle is set; it cannot change'})
-        const body = await c.req.json<{handle?: string}>().catch(() => ({} as {handle?: string}))
+        const body = await jsonBody<{handle?: string}>(c)
         const handle = String(body.handle ?? '').trim()
         if (!HANDLE.test(handle)) throw new HTTPException(400, {message: '3 to 32 lower-case letters, digits, - or _, starting with a letter'})
         if (RESERVED.test(handle)) throw new HTTPException(400, {message: `${handle} is reserved`})

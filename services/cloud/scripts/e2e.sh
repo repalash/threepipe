@@ -57,10 +57,12 @@ R=$(curl -s -o /dev/null -w '%{http_code}' -X DELETE -H "$H" "$A/api/v1/uploads/
 [ "$(curl -s -o /dev/null -w '%{http_code}' "$SURL")" = "410" ] && ok "deleted -> 410" || bad "deleted status"
 # another user cannot write into the first user's scope
 U2=v$RANDOM
-T2=$(curl -s -X POST $A/api/v1/table/users/auth/sign-up -H 'content-type: application/json' -d "{\"username\":\"$U2\",\"email\":\"$U2@x.test\",\"password\":\"pass12345\",\"passwordConfirm\":\"pass12345\",\"name\":\"$U2\"}" | j "['token']")
+T2RAW=$(curl -s -X POST $A/api/v1/table/users/auth/sign-up -H 'content-type: application/json' -d "{\"username\":\"$U2\",\"email\":\"$U2@x.test\",\"password\":\"pass12345\",\"passwordConfirm\":\"pass12345\",\"name\":\"$U2\"}"); T2=$(echo "$T2RAW" | j "['token']" 2>/dev/null) || bad "fixture: second user: ${T2RAW:0:300}"
 R=$(curl -s -o /dev/null -w '%{http_code}' -X PUT -H "Authorization: Bearer $T2" --data-binary @$TMP/a.txt "$A/api/v1/uploads/p/$U-page/x.txt"); [ "$R" = "403" ] && ok "scope owned by first uploader" || bad "scope check: $R"
 # list own files through teenybase
 R=$(curl -s -H "$H" "$A/api/v1/table/files/select?select=path,size"); echo "$R" | grep -q "$U-page" && ok "list own files" || bad "list: $R"
+[ "$(code -X POST -H "$H" -H 'content-type: application/json' -d '{"password":"other12345","passwordConfirm":"other12345"}' "$A/api/v1/table/users/auth/change-password")" = "403" ] && [ "$(code -X POST -H "$H" -H 'content-type: application/json' -d "{\"where\":\"id == '$LID'\"}" "$A/api/v1/table/access_links/delete")" = "403" ] && ok "an access key only reads its files on teenybase routes" || bad "key on teenybase routes"
+[ "$(code -X PUT -H "$H" --data-binary @$TMP/a.txt "$A/api/v1/uploads/p/$U-one")" = "400" ] && ok "p/ needs a name and a file path" || bad "p/ one segment"
 # revoke the link: the key stops working
 R=$(curl -s -X POST -H "Authorization: Bearer $TOK" -H 'content-type: application/json' -d "{\"where\":\"id == '$LID'\",\"returning\":[\"id\"]}" "$A/api/v1/table/access_links/delete"); echo "$R" | grep -q "$LID" && ok "revoke link (teenybase delete)" || bad "revoke: $R"
 R=$(curl -s -o /dev/null -w '%{http_code}' -X PUT -H "$H" --data-binary @$TMP/a.txt "$A/api/v1/uploads/s/$U-share2/a.txt"); [ "$R" = "401" ] && ok "revoked key -> 401" || bad "revoked key: $R"
@@ -72,6 +74,7 @@ TS=$(curl -s -X POST $A/api/v1/table/users/auth/sign-up -H 'content-type: applic
 [ "$(admin users/update "{\"where\":\"username == '$STAFF'\",\"setValues\":{\"role\":\"staff\"}}")" = "200" ] || bad "fixture: make staff"
 R=$(curl -s -X DELETE -H "Authorization: Bearer $TS" "$A/api/v1/uploads/${AURL#*/_files/}?reason=copyright"); echo "$R" | grep -q copyright && ok "staff removes a/" || bad "staff delete: $R"
 [ "$(curl -s -o /dev/null -w '%{http_code}' "$AURL")" = "410" ] && ok "removed a/ -> 410" || bad "removed a/ status"
+[ "$(code -X PUT -H "Authorization: Bearer $TOK" -H "x-content-sha256: $SHA" --data-binary @$TMP/a.txt "$A/api/v1/uploads/a/$U.txt")" = "410" ] && ok "a removed a/ cannot be uploaded again -> 410" || bad "a/ over a removal"
 # staff buckets (write-once, content-addressed for e2e)
 BSHA=$(sha256sum $TMP/a.txt | cut -d' ' -f1)
 R=$(curl -s -X PUT -H "Authorization: Bearer $TS" -H "x-content-sha256: $BSHA" --data-binary @$TMP/a.txt "$A/api/v1/buckets/e2e/blobs/$BSHA.txt"); echo "$R" | grep -q "e2e-snapshots.threepipe.org/blobs/$BSHA.txt" && ok "staff uploads an e2e blob" || bad "e2e blob: $R"
@@ -124,6 +127,8 @@ curl -s -o /dev/null -X PATCH -H "$H0" -H 'content-type: application/json' -d '{
 [ "$(curl -s -H "$H0" "$A/api/v1/drive/resolve?path=$(enc '/Möbel 2/lamp')" | j "['item']['id']")" = "$LID" ] && ok "rename a folder (one row), paths follow" || bad "folder rename"
 SUB=$(curl -s -X POST -H "$H0" -H 'content-type: application/json' -d "{\"name\":\"sub\",\"parent\":\"$FID\"}" "$A/api/v1/drive/folders" | j "['id']")
 [ "$(code -X PATCH -H "$H0" -H 'content-type: application/json' -d "{\"parent\":\"$SUB\"}" "$A/api/v1/drive/folders/$FID")" = "400" ] && ok "a folder cannot move into itself" || bad "folder cycle"
+PIDS=""; for i in 1 2 3 4; do { code -X POST -H "$H0" -H 'content-type: application/json' -d '{"name":"race"}' "$A/api/v1/drive/folders"; echo; } > $TMP/frace.$i & PIDS="$PIDS $!"; done; wait $PIDS
+[ "$(cat $TMP/frace.* | grep -c 201)" = "1" ] && [ "$(cat $TMP/frace.* | grep -c 409)" = "3" ] && ok "the same folder name at the same time: one made, the others 409 (no 500)" || bad "folder race: $(cat $TMP/frace.* | tr '\n' ' ')"
 [ "$(code -X DELETE -H "$H0" "$A/api/v1/drive/folders/$FID")" = "409" ] && ok "a folder that is not empty is not deleted" || bad "delete non-empty"
 [ "$(code -H "Authorization: Bearer $T2" "$A/api/v1/drive/items/$ITEM")" = "404" ] && [ "$(code -X PUT -H "Authorization: Bearer $T2" --data-binary @$TMP/a.txt "$A/api/v1/drive/items/$ITEM/x.txt")" = "404" ] && ok "another user's items do not exist for you" || bad "other user item"
 NL=$(curl -s -X POST -H "$H0" "$A/api/v1/drive/items/$LID/new-id" | j "['id']")
@@ -169,6 +174,7 @@ HA="Authorization: Bearer $AK"
 [ "$(code -X POST -H "$HA" "$A/api/v1/access-links")" = "403" ] && ok "app key: no access links" || bad "app key access links"
 [ "$(code -H "$HA" "$A/api/v1/me")" = "403" ] && ok "app key: no me" || bad "app key me"
 R=$(curl -s -H "$HA" "$A/api/v1/drive"); echo "$R" | grep -q save.txt && ! echo "$R" | grep -q 'Möbel' && ok "app key lists only its folder" || bad "app key list: $R"
+[ "$(code -H "$HA" "$A/api/v1/drive/resolve?path=%2FM%C3%B6bel")" = "404" ] && ok "app key: a folder outside its own resolves to 404 (no probing)" || bad "app key resolve outside"
 curl -s -o /dev/null -X PATCH -H "$H0" -H 'content-type: application/json' -d '{"name":"My page app"}' "$A/api/v1/drive/folders/$AF"
 [ "$(code -X PUT -H "$HA" --data-binary @$TMP/a.txt "$A/api/v1/drive/files?name=after-rename.txt")" = "201" ] && ok "the user renames the app's folder, the app still works" || bad "app folder rename"
 # the user empties and deletes the app's folder: the app's next save makes it again (same key)
@@ -203,10 +209,16 @@ curl -s -H "Cookie: tp_cloud_auth=$DCK" "$A/api/v1/drive" | grep -q '"items"' &&
 LOCR=$(curl -s -o /dev/null -w '%{redirect_url}' -X POST --data-urlencode "username=$DU" --data-urlencode "password=pass12345" --data-urlencode "redirect=//evil.example/" "$A/login")
 [ "$LOCR" = "$A/reports" ] && ok "redirect stays on this host" || bad "dev login redirect: $LOCR"
 # --- projects and reports ---
+# the local database keeps earlier runs' reports (same IP): they no longer count towards today's caps
+[ "$(admin reports/update '{"where":"id != null","setValues":{"created_at":"2000-01-01T00:00:00.000Z"}}')" = "200" ] || bad "fixture: older reports"
 P=p-$U
 [ "$(code -X POST -H "$H0" -H 'content-type: application/json' -d "{\"slug\":\"$P\",\"name\":\"My app\"}" "$A/api/v1/projects")" = "201" ] && ok "create a project" || bad "create project"
 [ "$(code -X POST -H "$H0" -H 'content-type: application/json' -d "{\"slug\":\"$P\"}" "$A/api/v1/projects")" = "409" ] && ok "slug taken -> 409" || bad "slug taken"
 [ "$(code -X POST -H "Authorization: Bearer $T2" -H 'content-type: application/json' -d '{"slug":"threepipe-x"}' "$A/api/v1/projects")" = "403" ] && ok "threepipe* slugs are for staff" || bad "threepipe slug"
+admin user_limits/insert "{\"values\":{\"user_id\":\"$UID2\",\"projects\":1}}" > /dev/null
+PIDS=""; for i in 1 2 3; do { code -X POST -H "Authorization: Bearer $T2" -H 'content-type: application/json' -d "{\"slug\":\"$P-race$i\"}" "$A/api/v1/projects"; echo; } > $TMP/prace.$i & PIDS="$PIDS $!"; done; wait $PIDS
+[ "$(cat $TMP/prace.* | grep -c 201)" = "1" ] && [ "$(cat $TMP/prace.* | grep -c 403)" = "2" ] && ok "projects created at the same time: the cap holds" || bad "project race: $(cat $TMP/prace.* | tr '\n' ' ')"
+admin user_limits/delete "{\"where\":\"user_id == '$UID2'\"}" > /dev/null
 curl -s -H "$H0" "$A/api/v1/projects" | grep -q "\"$P\"" && ok "list my projects" || bad "list projects"
 admin user_limits/insert "{\"values\":{\"user_id\":\"$UID2\",\"projects\":0}}" > /dev/null
 [ "$(code -X POST -H "Authorization: Bearer $T2" -H 'content-type: application/json' -d "{\"slug\":\"$P-limited\"}" "$A/api/v1/projects")" = "403" ] && ok "a user's own project limit (user_limits)" || bad "user project limit"
