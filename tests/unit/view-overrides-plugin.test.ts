@@ -413,4 +413,34 @@ describe('ViewOverridesPlugin', {timeout}, () => {
             expect(draw(material, plain2)).toBe(e)
         }
     })
+
+    test('the texture UV channels, transparent and the other copied program parameters select the program too', () => {
+        const {plugin} = setup()
+        const renderer = {resetCurrentMaterial: vi.fn()} as any
+        const camera = new PerspectiveCamera()
+        const draw = (material: any, m: any) => {
+            material.onBeforeRender(renderer, m.parent, camera, m.geometry, m, null)
+            const version = material.version
+            material.onAfterRender(renderer, m.parent, camera, m.geometry, m, null)
+            return version
+        }
+        const texture = (channel: number) => Object.assign(new Texture(), {channel})
+        const mesh = (params: any = {}) => new Mesh(new tp.BoxGeometry(), new MeshBasicMaterial(params))
+        const unlit = (plugin as any)._materials.unlit
+        for (const name of ['map', 'aoMap', 'lightMap', 'alphaMap']) {
+            const a = draw(unlit, mesh({[name]: texture(0)}))
+            const b = draw(unlit, mesh({[name]: texture(1)})) // the same maps, another UV set
+            expect(b).not.toBe(a)
+            expect(draw(unlit, mesh({[name]: texture(1)}))).toBe(b)
+        }
+        for (const key of ['materialId', 'uv']) {
+            const material = (plugin as any)._materials[key]
+            const a = draw(material, mesh({alphaMap: texture(0)}))
+            const b = draw(material, mesh({alphaMap: texture(2)}))
+            expect(b).not.toBe(a)
+            const c = draw(material, mesh({alphaMap: texture(2), transparent: true})) // the opaque parameter
+            expect(c).not.toBe(b)
+            expect(draw(material, mesh({alphaMap: texture(2), transparent: true}))).toBe(c)
+        }
+    })
 })

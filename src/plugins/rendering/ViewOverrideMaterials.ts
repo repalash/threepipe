@@ -3,12 +3,15 @@ import {
     BufferGeometry,
     Camera,
     Color,
+    ColorManagement,
     FrontSide,
     Group,
     MeshBasicMaterial,
     NoBlending,
     Object3D,
     Scene,
+    SRGBTransfer,
+    Texture,
     WebGLRenderer,
 } from 'three'
 import {IMaterial, PhysicalMaterial} from '../../core'
@@ -48,11 +51,16 @@ function copyCommon(target: MeshBasicMaterial, material: SourceMaterial) {
     if (material.wireframeLinewidth !== undefined) target.wireframeLinewidth = material.wireframeLinewidth
 }
 
+/** The program parameters of a texture slot: the map is set, and its UV set (`texture.channel`) */
+function textureKey(texture: Texture | null): [boolean, number | false] {
+    return [!!texture, !!texture && texture.channel]
+}
+
 /**
  * A MeshBasicMaterial that takes the common settings of each mesh material before it draws it.
  *
  * One material draws every mesh, and three.js picks its program again only when its version changes. So when the
- * settings that are program defines differ from those of the last program ({@link _programKey}), it sets needsUpdate
+ * settings that are program parameters differ from those of the last program ({@link _programKey}), it sets needsUpdate
  * (the program comes from the program cache). The comparison is with the last program, not with the reset state.
  */
 abstract class PerObjectBasicMaterial extends MeshBasicMaterial {
@@ -64,7 +72,7 @@ abstract class PerObjectBasicMaterial extends MeshBasicMaterial {
         if (!material) return
         copyCommon(this, material)
         this._copyFrom(material, geometry)
-        const key = this._programKey()
+        const key = this._programKey(object, geometry).join(',')
         if (key !== this._lastProgramKey) {
             this._lastProgramKey = key
             this.needsUpdate = true
@@ -72,9 +80,22 @@ abstract class PerObjectBasicMaterial extends MeshBasicMaterial {
         resetCurrentMaterial(renderer)
     }
 
-    /** The settings copied from the mesh material that change the program (its defines) */
-    protected _programKey() {
-        return !!this.alphaMap + ',' + this.alphaHash + ',' + this.side
+    /**
+     * The values that three.js makes program parameters from (`WebGLPrograms.getParameters`), for the settings that
+     * {@link copyCommon} and {@link _copyFrom} copy from the mesh material. It must list every copied setting that is a
+     * program parameter: a missing one keeps the program of the previous mesh. The other copied settings (color,
+     * opacity, intensities, wireframe) are uniforms or render state.
+     */
+    protected _programKey(object: Object3D, geometry: BufferGeometry): unknown[] {
+        return [
+            this.transparent, // opaque
+            this.side, // doubleSided, flipSided
+            this.alphaTest > 0, // alphaTest
+            this.alphaHash, // alphaHash
+            ...textureKey(this.alphaMap), // alphaMap, alphaMapUv
+            // pointsUvs
+            (object as Object3D & {isPoints?: boolean}).isPoints === true && !!geometry.attributes.uv && (!!this.map || !!this.alphaMap),
+        ]
     }
 
     onAfterRender(renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D, group: Group) {
@@ -115,8 +136,16 @@ export class UnlitOverrideMaterial extends PerObjectBasicMaterial {
         if (material.lightMapIntensity !== undefined) this.lightMapIntensity = material.lightMapIntensity
     }
 
-    protected _programKey() {
-        return super._programKey() + ',' + !!this.map + ',' + !!this.aoMap + ',' + !!this.lightMap
+    protected _programKey(object: Object3D, geometry: BufferGeometry): unknown[] {
+        const map = this.map
+        return [
+            ...super._programKey(object, geometry),
+            ...textureKey(map), // map, mapUv
+            !!map && (map as Texture & {isVideoTexture?: boolean}).isVideoTexture === true &&
+                ColorManagement.getTransfer(map.colorSpace) === SRGBTransfer, // decodeVideoTexture
+            ...textureKey(this.aoMap), // aoMap, aoMapUv
+            ...textureKey(this.lightMap), // lightMap, lightMapUv
+        ]
     }
 
     reset() {
