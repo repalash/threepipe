@@ -1,25 +1,31 @@
-import {beforeEach, describe, expect, test, vi} from 'vitest'
+import {afterEach, beforeEach, describe, expect, test, vi} from 'vitest'
 import {EventDispatcher, Object3D, PerspectiveCamera, Vector3} from 'three'
+import {OrbitControls3, OrthographicCamera2, PerspectiveCamera2} from 'threepipe'
 import {EditorCameraPlugin} from '../../plugins/tweakpane-editor/src/EditorCameraPlugin'
 
-// a viewer canvas for the orbit controls of the editor camera (the node setup has no DOM)
+// a viewer canvas for the orbit controls of the cameras (the node setup has no DOM)
 function makeCanvas() {
     const listeners = {addEventListener: () => {}, removeEventListener: () => {}}
-    return {style: {}, tabIndex: 0, ownerDocument: globalThis.document, ...listeners, getRootNode: () => listeners} as any
+    return {style: {}, tabIndex: 0, clientWidth: 400, clientHeight: 300, ownerDocument: globalThis.document, ...listeners, getRootNode: () => listeners} as any
 }
 
 // a viewer config with a start view, as a file brings it
 const viewerConfig = {assetType: 'config', type: 'ThreeViewer', scene: {defaultCamera: {}}}
 
-// a start view (the scene's default camera) and a scene that tracks the main camera
-function setup({undo = true} = {}) {
+/**
+ * A start view (the scene's default camera) and a scene that tracks the main camera. By default the start camera has
+ * mock controls (`orbit` false); with `orbit` it has orbit controls on the viewer canvas, as the default camera of a
+ * viewer.
+ */
+function setup({undo = true, orbit = false, ortho = false} = {}) {
+    const canvas = makeCanvas()
     const scene = new EventDispatcher<any>() as any
-    const start = new PerspectiveCamera() as any
-    start.target = new Vector3(0, 0, 0)
+    const start = (ortho ? new OrthographicCamera2(orbit ? 'orbit' : '', canvas) : new PerspectiveCamera2(orbit ? 'orbit' : '', orbit ? canvas : undefined)) as any
+    start.name = 'Default Camera'
+    start.target.set(0, 0, 0)
     start.position.set(0, 1, 6)
     start.lookAt(start.target) // the controls of the start view do this
-    start.setDirty = vi.fn()
-    start.controls = {stopDamping: vi.fn()}
+    if (!orbit) Object.defineProperty(start, 'controls', {value: {stopDamping: vi.fn()}, writable: true, configurable: true})
     const activate = (cam: any) => () => {
         scene.mainCamera = cam
         scene.dispatchEvent({type: 'mainCameraChange'})
@@ -34,7 +40,7 @@ function setup({undo = true} = {}) {
     const undoPlugin = {undoManager: {record: (r: any) => records.push(r)}}
     const viewer = Object.assign(new EventDispatcher<any>(), {
         scene,
-        canvas: makeCanvas(),
+        canvas,
         assetManager: new EventDispatcher<any>(),
         getPlugin: (p: any) => undo && (p === 'UndoManagerPlugin' || p?.PluginType === 'UndoManagerPlugin') ? undoPlugin : undefined,
     }) as any
@@ -42,7 +48,22 @@ function setup({undo = true} = {}) {
     const plugin = new EditorCameraPlugin()
     plugin.camera.activateMain = activate(plugin.camera) as any
     plugin.onAdded(viewer)
-    return {plugin, scene, start, records, viewer}
+    const preview = plugin.previewCamera as PerspectiveCamera2
+    preview.activateMain = activate(preview) as any
+    return {plugin, scene, start, preview, records, viewer}
+}
+
+// a move of the view in View, as the controls make it
+function move(camera: any, x: number, y: number, z: number) {
+    camera.position.set(x, y, z)
+    camera.setDirty()
+}
+
+// frames of the viewer for a while: a synced move ends after a time and frames without a move
+function wait(viewer: any, ms: number, frames = 3) {
+    for (let i = 0; i < frames; i++) viewer.dispatchEvent({type: 'postFrame'})
+    vi.advanceTimersByTime(ms)
+    viewer.dispatchEvent({type: 'postFrame'})
 }
 
 // a key press on the window, with the fields the plugin reads
@@ -62,13 +83,16 @@ describe('EditorCameraPlugin', () => {
             dispatchEvent: win.dispatchEvent.bind(win),
         })
     })
+    afterEach(() => {
+        vi.useRealTimers()
+    })
 
     test('the C key switches between Edit and View', () => {
-        const {plugin, scene, start} = setup()
+        const {plugin, scene, preview} = setup()
         const e = key('KeyC')
         expect(e.defaultPrevented).toBe(true)
         expect(plugin.editing).toBe(false)
-        expect(scene.mainCamera).toBe(start)
+        expect(scene.mainCamera).toBe(preview)
         key('KeyC')
         expect(plugin.editing).toBe(true)
         expect(scene.mainCamera).toBe(plugin.camera)
@@ -136,37 +160,223 @@ describe('EditorCameraPlugin', () => {
     test('the orbit controls of the editor camera are made on the viewer canvas, not before the add on document.body', () => {
         const plugin = new EditorCameraPlugin()
         expect(plugin.camera.controls).toBeUndefined()
+        expect(plugin.previewCamera).toBeUndefined()
         const {plugin: added, viewer} = setup()
         expect((added.camera.controls as any)?.domElement).toBe(viewer.canvas)
     })
 
-    test('on add, the editor camera takes the start view and becomes the main camera', () => {
-        const {plugin, scene, start} = setup()
+    test('on add, the editor camera takes the start view and becomes the main camera; both cameras are in the scene, not in the model root', () => {
+        const {plugin, scene, start, preview} = setup()
         expect(scene.children).toContain(plugin.camera)
+        expect(scene.children).toContain(preview)
         expect(scene.mainCamera).toBe(plugin.camera)
         expect(plugin.homeCamera).toBe(plugin.camera)
         expect(plugin.camera.position.toArray()).toEqual(start.position.toArray())
         expect(plugin.camera.target.toArray()).toEqual(start.target.toArray())
     })
 
-    test('View looks through the start view; Edit puts the start view back', () => {
-        const {plugin, scene, start, records} = setup()
+    test('View looks through the preview camera at the start view; a move there does not change the start view', () => {
+        const {plugin, scene, start, preview, records} = setup()
         plugin.editing = false
-        expect(scene.mainCamera).toBe(start)
-        expect(plugin.homeCamera).toBe(start)
+        expect(scene.mainCamera).toBe(preview)
+        expect(plugin.homeCamera).toBe(preview)
+        expect(preview.position.toArray()).toEqual([0, 1, 6])
+        expect(preview.quaternion.equals(start.quaternion)).toBe(true)
 
-        start.position.set(4, 1, 0) // a look around in View
+        move(preview, 4, 1, 0) // a look around in View
+        expect(start.position.toArray()).toEqual([0, 1, 6])
+        expect(plugin.startViewMoved).toBe(true)
         plugin.editing = true
         expect(scene.mainCamera).toBe(plugin.camera)
         expect(start.position.toArray()).toEqual([0, 1, 6])
         expect(records).toHaveLength(0)
+        // the next View starts at the start view again
+        plugin.editing = false
+        expect(preview.position.toArray()).toEqual([0, 1, 6])
+        expect(plugin.startViewMoved).toBe(false)
     })
 
-    test('keepViewMoves: the moves in View stay, as one undo step', () => {
-        const {plugin, start, records} = setup()
-        plugin.keepViewMoves = true
+    test('the preview camera has the controls, projection and settings of the start camera, not its uuid or name', () => {
+        const {plugin, start, preview, viewer} = setup({orbit: true})
+        const controls = start.controls as OrbitControls3
+        controls.minDistance = 3
+        controls.enableDamping = true
+        start.fov = 30
+        start.userData.label = 'start'
         plugin.editing = false
-        start.position.set(4, 1, 0)
+        const pc = preview.controls as OrbitControls3
+        expect(preview.controlsMode).toBe('orbit')
+        expect(pc.domElement).toBe(viewer.canvas)
+        expect(pc.minDistance).toBe(3)
+        expect(pc.enableDamping).toBe(true)
+        expect(preview.fov).toBe(30)
+        expect(preview.userData.label).toBe('start')
+        expect(preview.userData.disableWidgets).toBe(true)
+        expect(start.userData.disableWidgets).toBeUndefined()
+        expect(preview.uuid).not.toBe(start.uuid)
+        expect(preview.name).not.toBe(start.name)
+
+        // a change of the start camera settings in Edit is in the next View
+        plugin.editing = true
+        controls.minDistance = 5
+        plugin.editing = false
+        expect((preview.controls as OrbitControls3).minDistance).toBe(5)
+    })
+
+    test('the preview camera of an orthographic start camera is orthographic', () => {
+        const {plugin, preview, start} = setup({ortho: true})
+        expect((preview as any).isOrthographicCamera).toBe(true)
+        start.zoom = 2
+        plugin.editing = false
+        expect(preview.zoom).toBe(2)
+    })
+
+    test('an export in View after a move that was not saved has the saved start view (the default camera is what a viewer config saves)', () => {
+        const {plugin, start, preview} = setup({orbit: true})
+        plugin.editing = false
+        move(preview, 4, 1, 0)
+        const json = start.toJSON()
+        expect(json.position).toEqual(expect.objectContaining({x: 0, y: 1, z: 6}))
+        expect(json.uuid ?? json.object?.uuid).not.toBe(preview.uuid)
+    })
+
+    test('syncStartView: a move in View changes the start view at once, as one undo step until it ends', () => {
+        vi.useFakeTimers()
+        const {plugin, start, preview, records, viewer} = setup()
+        const changes: number[] = []
+        const syncs: boolean[] = []
+        plugin.addEventListener('startViewChange', () => changes.push(start.position.x))
+        plugin.addEventListener('syncStartViewChange', e => syncs.push(e.sync))
+        plugin.syncStartView = true
+        expect(syncs).toEqual([true])
+        plugin.editing = false
+        move(preview, 4, 1, 0)
+        move(preview, 3, 1, 0)
+        expect(start.position.toArray()).toEqual([3, 1, 0])
+        expect(changes).toEqual([4, 3])
+        expect(plugin.startViewMoved).toBe(false)
+        expect(records).toHaveLength(1)
+        wait(viewer, EditorCameraPlugin.SyncGestureDelay - 1)
+        move(preview, 3.5, 1, 0) // not ended yet: the same step
+        expect(records).toHaveLength(1)
+        wait(viewer, EditorCameraPlugin.SyncGestureDelay)
+        move(preview, 2, 1, 0) // the next move
+        expect(records).toHaveLength(2)
+        wait(viewer, EditorCameraPlugin.SyncGestureDelay)
+
+        records[1].undo()
+        expect(start.position.toArray()).toEqual([3.5, 1, 0])
+        expect(preview.position.toArray()).toEqual([3.5, 1, 0]) // the view goes there too
+        records[0].undo()
+        expect(start.position.toArray()).toEqual([0, 1, 6])
+        records[0].redo()
+        expect(start.position.toArray()).toEqual([3.5, 1, 0])
+        expect(records).toHaveLength(2) // an undo is not a move
+    })
+
+    test('syncStartView: a drag is one move while the pointer is down, also when it stops for a while', () => {
+        vi.useFakeTimers()
+        const {plugin, start, preview, records, viewer} = setup({orbit: true})
+        plugin.syncStartView = true
+        plugin.editing = false
+        const controls = preview.controls as OrbitControls3
+        controls.dispatchEvent({type: 'start'})
+        move(preview, 4, 1, 0)
+        wait(viewer, 2000) // held still
+        move(preview, 3, 1, 0)
+        controls.dispatchEvent({type: 'end'})
+        move(preview, 2.9, 1, 0) // the glide of damping
+        expect(records).toHaveLength(1)
+        // wheel steps close together: one step
+        controls.dispatchEvent({type: 'start'})
+        move(preview, 2.5, 1, 0)
+        controls.dispatchEvent({type: 'end'})
+        expect(records).toHaveLength(1)
+        records[0].undo()
+        expect(start.position.toArray()).toEqual([0, 1, 6])
+        records[0].redo()
+        expect(start.position.toArray()).toEqual([2.5, 1, 0])
+        move(preview, 2.4, 1, 0) // after an undo or a redo: a new step
+        expect(records).toHaveLength(2)
+        // a drag later is a new step, also during the glide of the last one
+        controls.dispatchEvent({type: 'end'})
+        vi.advanceTimersByTime(EditorCameraPlugin.SyncGestureDelay)
+        move(preview, 2.3, 1, 0)
+        controls.dispatchEvent({type: 'start'})
+        move(preview, 2, 1, 0)
+        expect(records).toHaveLength(3)
+    })
+
+    test('syncStartView: at a slow frame rate, the glide of damping is part of the move', () => {
+        vi.useFakeTimers()
+        const {plugin, preview, records, viewer} = setup()
+        plugin.syncStartView = true
+        plugin.editing = false
+        // a frame each 500 ms, each one moves the view a little
+        for (const x of [4, 3.5, 3.2, 3.1]) {
+            move(preview, x, 1, 0)
+            vi.advanceTimersByTime(500)
+            viewer.dispatchEvent({type: 'postFrame'})
+        }
+        expect(records).toHaveLength(1)
+        wait(viewer, 0) // frames without a move
+        move(preview, 3, 1, 0)
+        expect(records).toHaveLength(2)
+        records[1].undo()
+        records[0].undo()
+        expect(preview.position.toArray()).toEqual([0, 1, 6])
+        records[0].redo()
+        expect(preview.position.toArray()).toEqual([3.1, 1, 0])
+    })
+
+    test('syncStartView off: a move in View does not touch the start view or send startViewChange', () => {
+        vi.useFakeTimers()
+        const {plugin, start, preview, records, viewer} = setup()
+        const changes = vi.fn()
+        plugin.addEventListener('startViewChange', changes)
+        plugin.editing = false
+        move(preview, 4, 1, 0)
+        wait(viewer, 1000)
+        expect(start.position.toArray()).toEqual([0, 1, 6])
+        expect(changes).not.toHaveBeenCalled()
+        expect(records).toHaveLength(0)
+    })
+
+    test('syncStartView turned on after a move in View saves the view; Edit and sync off end a move at once', () => {
+        vi.useFakeTimers()
+        const {plugin, start, preview, records, viewer} = setup()
+        plugin.editing = false
+        move(preview, 4, 1, 0)
+        plugin.syncStartView = true
+        expect(start.position.toArray()).toEqual([4, 1, 0])
+        expect(records).toHaveLength(1)
+
+        move(preview, 3, 1, 0)
+        plugin.editing = true // ends the move
+        expect(records).toHaveLength(2)
+        plugin.editing = false
+        move(preview, 2, 1, 0)
+        plugin.syncStartView = false // ends the move
+        expect(records).toHaveLength(3)
+        wait(viewer, 1000)
+        expect(records).toHaveLength(3)
+        move(preview, 1, 1, 0) // a preview only now
+        expect(start.position.toArray()).toEqual([2, 1, 0])
+    })
+
+    test('in View, saveStartView keeps the move as one undo step, and Edit keeps it', () => {
+        const {plugin, start, preview, records} = setup({orbit: true})
+        expect(plugin.startViewMoved).toBe(false) // in Edit
+        plugin.editing = false
+        const stop = vi.spyOn(preview.controls as OrbitControls3, 'stopDamping')
+        expect(plugin.startViewMoved).toBe(false)
+        move(preview, 4, 1, 0)
+        expect(plugin.startViewMoved).toBe(true)
+        plugin.saveStartView()
+        expect(stop).toHaveBeenCalled()
+        expect(start.position.toArray()).toEqual([4, 1, 0])
+        expect(plugin.startViewMoved).toBe(false)
+        expect(records).toHaveLength(1)
         plugin.editing = true
         expect(start.position.toArray()).toEqual([4, 1, 0])
         expect(records).toHaveLength(1)
@@ -176,27 +386,7 @@ describe('EditorCameraPlugin', () => {
         expect(start.position.toArray()).toEqual([4, 1, 0])
     })
 
-    test('in View, startViewMoved after a look around; saveStartView keeps it as one undo step, and Edit keeps it', () => {
-        const {plugin, start, records} = setup()
-        expect(plugin.startViewMoved).toBe(false) // in Edit
-        plugin.editing = false
-        expect(plugin.startViewMoved).toBe(false)
-        start.position.set(4, 1, 0)
-        expect(plugin.startViewMoved).toBe(true)
-        plugin.saveStartView()
-        expect(start.controls.stopDamping).toHaveBeenCalled()
-        expect(plugin.startViewMoved).toBe(false)
-        expect(records).toHaveLength(1)
-        plugin.editing = true // keepViewMoves is off: the saved view stays
-        expect(start.position.toArray()).toEqual([4, 1, 0])
-        expect(records).toHaveLength(1)
-        records[0].undo()
-        expect(start.position.toArray()).toEqual([0, 1, 6])
-        records[0].redo()
-        expect(start.position.toArray()).toEqual([4, 1, 0])
-    })
-
-    test('saveStartView does nothing in Edit, or when the start view did not move', () => {
+    test('saveStartView does nothing in Edit, or when the view did not move', () => {
         const {plugin, start, records} = setup()
         plugin.saveStartView()
         plugin.editing = false
@@ -205,49 +395,49 @@ describe('EditorCameraPlugin', () => {
         expect(start.position.toArray()).toEqual([0, 1, 6])
     })
 
-    test('in View, undo and redo of a start view change end with startViewMoved false, and the last event says so', () => {
-        const {plugin, start, records} = setup()
-        // as the real camera: setDirty sends cameraUpdate, at once
-        start.setDirty = () => start.dispatchEvent({type: 'cameraUpdate'})
+    test('in View, undo and redo of a start view change move the view there too, with startViewMoved false', () => {
+        const {plugin, start, preview, records} = setup()
         const events: boolean[] = []
         plugin.addEventListener('startViewMovedChange', e => events.push(e.moved))
         plugin.editing = false
         plugin.camera.position.set(5, 0, 0)
         plugin.setStartViewFromEditor()
+        expect(preview.position.toArray()).toEqual([5, 0, 0])
         records[0].undo()
+        expect(preview.position.toArray()).toEqual([0, 1, 6])
         expect(plugin.startViewMoved).toBe(false)
         expect(events.at(-1) ?? false).toBe(false)
+        move(preview, 4, 1, 0) // a move that is not saved: the redo replaces it
         records[0].redo()
+        expect(start.position.toArray()).toEqual([5, 0, 0])
+        expect(preview.position.toArray()).toEqual([5, 0, 0])
         expect(plugin.startViewMoved).toBe(false)
-        expect(events.at(-1) ?? false).toBe(false)
+        expect(events.at(-1)).toBe(false)
     })
 
     test('startViewMovedChange tells when the moved state changes: a move, a save, a reset, Edit', () => {
-        const {plugin, start} = setup()
+        const {plugin, preview} = setup()
         const events: boolean[] = []
         plugin.addEventListener('startViewMovedChange', e => events.push(e.moved))
         plugin.editing = false
-        start.position.set(4, 1, 0)
-        start.dispatchEvent({type: 'cameraUpdate'})
-        start.position.set(3, 1, 0)
-        start.dispatchEvent({type: 'cameraUpdate'}) // still moved: no event
+        move(preview, 4, 1, 0)
+        move(preview, 3, 1, 0) // still moved: no event
         plugin.saveStartView()
-        start.position.set(0, 2, 6)
-        start.dispatchEvent({type: 'cameraUpdate'})
+        move(preview, 0, 2, 6)
         plugin.resetStartView()
-        start.dispatchEvent({type: 'cameraUpdate'})
-        start.position.set(1, 1, 6)
-        start.dispatchEvent({type: 'cameraUpdate'})
-        plugin.editing = true // the look around is put back
+        move(preview, 1, 1, 6)
+        plugin.editing = true // the look around is dropped
         expect(events).toEqual([true, false, true, false, true, false])
     })
 
-    test('resetStartView puts the start view back while in View', () => {
-        const {plugin, start} = setup()
+    test('resetStartView takes the view back to the saved start view while in View', () => {
+        const {plugin, start, preview} = setup()
         plugin.editing = false
-        start.position.set(4, 1, 0)
+        move(preview, 4, 1, 0)
         plugin.resetStartView()
+        expect(preview.position.toArray()).toEqual([0, 1, 6])
         expect(start.position.toArray()).toEqual([0, 1, 6])
+        expect(plugin.startViewMoved).toBe(false)
     })
 
     test('setStartViewFromEditor moves the start view to the editor view, as one undo step', () => {
@@ -263,26 +453,51 @@ describe('EditorCameraPlugin', () => {
         expect(start.target.toArray()).toEqual([0, 0, 0])
     })
 
-    test('in View, undo of setStartViewFromEditor is kept when Edit starts again', () => {
-        const {plugin, start, records} = setup()
-        plugin.editing = false
+    test('startViewChange tells when the start view changes, also from outside (the camera panel); in View a view that was not moved follows it', () => {
+        const {plugin, start, preview} = setup()
+        const changes = vi.fn()
+        plugin.addEventListener('startViewChange', changes)
         plugin.camera.position.set(2, 3, 4)
         plugin.setStartViewFromEditor()
-        records[0].undo()
-        plugin.editing = true
-        expect(start.position.toArray()).toEqual([0, 1, 6])
+        expect(changes).toHaveBeenCalledTimes(1)
+        start.setDirty() // no change of the pose
+        expect(changes).toHaveBeenCalledTimes(1)
+
         plugin.editing = false
-        records[0].redo()
-        plugin.resetStartView()
-        expect(start.position.toArray()).toEqual([2, 3, 4])
+        move(start, 1, 1, 1) // the camera panel
+        expect(changes).toHaveBeenCalledTimes(2)
+        expect(preview.position.toArray()).toEqual([1, 1, 1])
+        move(preview, 4, 1, 0)
+        move(start, 2, 2, 2)
+        expect(preview.position.toArray()).toEqual([4, 1, 0]) // a move that is not saved stays
+        expect(plugin.startViewMoved).toBe(true)
     })
 
-    test('in View, a file with a viewer config sets the start view to put back', () => {
-        const {plugin, viewer, start} = setup()
+    test('showsStartView: the view is at the saved start view', () => {
+        const {plugin, preview} = setup()
+        expect(plugin.showsStartView).toBe(true) // the editor camera took the start view
+        plugin.camera.position.set(9, 0, 0)
+        expect(plugin.showsStartView).toBe(false)
         plugin.editing = false
+        expect(plugin.showsStartView).toBe(true)
+        move(preview, 4, 1, 0)
+        expect(plugin.showsStartView).toBe(false)
+        plugin.saveStartView()
+        expect(plugin.showsStartView).toBe(true)
+        plugin.enabled = false
+        expect(plugin.showsStartView).toBe(true) // the default camera is the main camera
+    })
+
+    test('in View, a file with a viewer config shows its start view, with its controls', () => {
+        const {plugin, viewer, start, preview} = setup({orbit: true})
+        plugin.editing = false
+        move(preview, 4, 1, 0) // a look around
         start.position.set(1, 2, 3) // the imported start view
+        ;(start.controls as OrbitControls3).minDistance = 2
         viewer.assetManager.dispatchEvent({type: 'loadAsset', data: {importedViewerConfig: viewerConfig}})
-        start.position.set(4, 1, 0) // a look around
+        expect(preview.position.toArray()).toEqual([1, 2, 3])
+        expect((preview.controls as OrbitControls3).minDistance).toBe(2)
+        expect(plugin.startViewMoved).toBe(false)
         plugin.editing = true
         expect(start.position.toArray()).toEqual([1, 2, 3])
     })
@@ -295,28 +510,28 @@ describe('EditorCameraPlugin', () => {
     })
 
     test('a plugin preset (a config without a start view) leaves the cameras as they are', () => {
-        const {plugin, viewer, start} = setup()
+        const {plugin, viewer, start, preview} = setup()
         plugin.camera.position.set(9, 0, 0) // the editor view
         plugin.editing = false
-        start.position.set(4, 1, 0) // a look around in View
+        move(preview, 4, 1, 0) // a look around in View
         viewer.assetManager.dispatchEvent({type: 'loadAsset', data: {assetType: 'config', type: 'TonemapPlugin'}})
         expect(plugin.camera.position.toArray()).toEqual([9, 0, 0])
-        plugin.editing = true
-        expect(start.position.toArray()).toEqual([0, 1, 6]) // the look around is not kept
+        expect(preview.position.toArray()).toEqual([4, 1, 0])
+        expect(start.position.toArray()).toEqual([0, 1, 6])
     })
 
-    test('added in View: Edit puts back the start view of the add', () => {
-        const {plugin, scene, start, viewer} = setup()
+    test('added in View: the view is the start view', () => {
+        const {plugin, scene, start, preview, viewer} = setup()
         plugin.onRemove(viewer)
+        expect(scene.mainCamera).toBe(start)
         plugin.editing = false
         plugin.onAdded(viewer)
-        expect(scene.mainCamera).toBe(start)
-        start.position.set(4, 1, 0) // a look around
+        expect(plugin.previewCamera).toBe(preview) // kept for the next add
+        expect(scene.mainCamera).toBe(preview)
+        expect(preview.position.toArray()).toEqual([0, 1, 6])
+        move(preview, 4, 1, 0)
         plugin.resetStartView()
-        expect(start.position.toArray()).toEqual([0, 1, 6])
-        start.position.set(4, 1, 0)
-        plugin.editing = true
-        expect(start.position.toArray()).toEqual([0, 1, 6])
+        expect(preview.position.toArray()).toEqual([0, 1, 6])
     })
 
     test('setStartViewFromEditor gives a start camera without controls the editor rotation; undo the old one', () => {
@@ -333,12 +548,13 @@ describe('EditorCameraPlugin', () => {
         expect(back.z).toBeLessThan(-0.9) // looks from (0, 1, 6) to the origin again
     })
 
-    test('View and back to Edit keep a rotation that does not look at the target', () => {
-        const {plugin, start} = setup()
+    test('View shows, and Edit keeps, a rotation that does not look at the target', () => {
+        const {plugin, start, preview} = setup()
         start.controls = undefined
         start.rotation.set(0.3, 0.2, 0) // set in the camera UI, independent of the target
         const q = start.quaternion.clone()
         plugin.editing = false
+        expect(preview.quaternion.angleTo(q)).toBeCloseTo(0)
         plugin.editing = true
         expect(start.quaternion.equals(q)).toBe(true)
     })
@@ -360,20 +576,15 @@ describe('EditorCameraPlugin', () => {
         expect(plugin.camera.target.toArray()).toEqual(start.target.toArray())
     })
 
-    test('the zoom is part of the start view: put back in Edit, one undo step with keepViewMoves', () => {
-        const {plugin, start, records} = setup()
+    test('the zoom is part of the start view: a zoom in View is a move, saved as one undo step', () => {
+        const {plugin, start, preview, records} = setup()
         plugin.editing = false
-        start.zoom = 2 // a zoom in View (an orthographic camera)
+        preview.zoom = 2 // a zoom in View (an orthographic camera)
+        expect(plugin.startViewMoved).toBe(true)
         plugin.resetStartView()
-        expect(start.zoom).toBe(1)
-        start.zoom = 2
-        plugin.editing = true
-        expect(start.zoom).toBe(1)
-
-        plugin.keepViewMoves = true
-        plugin.editing = false
-        start.zoom = 3 // only the zoom changes
-        plugin.editing = true
+        expect(preview.zoom).toBe(1)
+        preview.zoom = 3 // only the zoom changes
+        plugin.saveStartView()
         expect(start.zoom).toBe(3)
         expect(records.length).toBe(1)
         records[0].undo()
@@ -398,19 +609,23 @@ describe('EditorCameraPlugin', () => {
         expect(start.fov).toBe(50)
     })
 
-    test('dispose disposes the editor camera (its controls)', () => {
-        const {plugin, viewer} = setup()
+    test('dispose disposes the editor camera and the preview camera (their controls)', () => {
+        const {plugin, viewer, preview} = setup()
         const dispose = vi.spyOn(plugin.camera, 'dispose')
+        const disposePreview = vi.spyOn(preview, 'dispose')
         plugin.onRemove(viewer)
         expect(dispose).not.toHaveBeenCalled() // a removed plugin can be added again
+        expect(disposePreview).not.toHaveBeenCalled()
         plugin.dispose()
         expect(dispose).toHaveBeenCalledTimes(1)
+        expect(disposePreview).toHaveBeenCalledTimes(1)
+        expect(plugin.previewCamera).toBeUndefined()
     })
 
     test('undo restores the position also when a FOV change dollies the start view (dollyFov)', () => {
         const {plugin, start, records} = setup()
         let fov = 50
-        Object.defineProperty(start, 'fov', {get: () => fov, set: (v: number) => {
+        Object.defineProperty(start, 'fov', {configurable: true, get: () => fov, set: (v: number) => {
             fov = v
             start.position.set(99, 99, 99) // the dolly of RootScene on a FOV change
         }})
@@ -451,10 +666,12 @@ describe('EditorCameraPlugin', () => {
         expect(start.position.toArray()).toEqual([2, 3, 4])
     })
 
-    test('disabled: the view goes to the start view and Edit stays off', () => {
+    test('disabled: the view goes to the scene\'s default camera and Edit stays off', () => {
         const {plugin, scene, start} = setup()
+        plugin.editing = false
         plugin.enabled = false
         expect(scene.mainCamera).toBe(start)
+        expect(plugin.homeCamera).toBe(start)
         plugin.editing = true
         expect(plugin.editing).toBe(false)
         expect(scene.mainCamera).toBe(start)
@@ -487,14 +704,17 @@ describe('EditorCameraPlugin', () => {
         expect(plugin.camera.position.toArray()).toEqual([1, 2, 3])
     })
 
-    test('on remove, the start view is the main camera and the editor camera leaves the scene', () => {
-        const {plugin, scene, start, viewer} = setup()
+    test('on remove, the start view is the main camera and the editor and preview cameras leave the scene', () => {
+        const {plugin, scene, start, preview, viewer} = setup()
+        plugin.editing = false
         scene.children = []
         start.add(plugin.camera) // any parent: removeFromParent takes it out
+        start.add(preview)
         plugin.onRemove(viewer)
         expect(scene.mainCamera).toBe(start)
         expect(plugin.camera.parent).toBeNull()
-        expect(plugin.editing).toBe(true) // kept for the next add
+        expect(preview.parent).toBeNull()
+        expect(plugin.editing).toBe(false) // kept for the next add
     })
 
     test('on remove, another main camera (set in Edit) stays the main camera', () => {
