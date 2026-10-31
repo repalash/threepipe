@@ -16,13 +16,17 @@ const CSS = `
 .ecl-sub { opacity: .75; font-weight: 400; }
 .ecl-mode kbd { font: inherit; font-size: 11px; padding: 3px 5px; border-radius: 4px; background: rgba(127,127,127,.18); color: inherit; }
 .ecl-act { padding: 0 11px; }
+.ecl-acts { display: flex; gap: 6px; }
 .ecl-root.ecl-view .ecl-mode, .ecl-root.ecl-view .ecl-primary { background: ${ACCENT}; color: #fff; }
 .ecl-root.ecl-view .ecl-dot { background: #fff; }
 .ecl-root.ecl-view .ecl-mode kbd { background: rgba(255,255,255,.25); }
 .ecl-short { display: none; }
 .ecl-frame { position: absolute; inset: 0; z-index: 40; pointer-events: none; box-shadow: inset 0 0 0 3px ${ACCENT}; display: none; }
 .ecl-frame.ecl-on { display: block; }
-@media (max-width: 480px) { .ecl-sub, .ecl-long { display: none; } .ecl-short { display: inline; } }
+/* a phone: the actions under the name, so the label fits between the view widget and the fullscreen button */
+@media (max-width: 480px) { .ecl-sub, .ecl-long { display: none; } .ecl-short { display: inline; } .ecl-root { flex-direction: column; } .ecl-act { padding: 0 8px; } }
+/* no keyboard on a touch screen: no key hint */
+@media (hover: none) { .ecl-mode kbd { display: none; } .ecl-mode { padding-right: 10px; } }
 /* the classic page on a phone: its mode tabs are over the top of the canvas */
 @media (max-width: 920px) { body:not(.lay-frame) .ecl-root { top: 4.25rem; } }
 `
@@ -52,14 +56,17 @@ export function setupEditorCameraLabel(viewer: ThreeViewer, camera: EditorCamera
     const frame = document.createElement('div')
     frame.className = 'ecl-frame'
 
-    const button = (cls: string, onClick: () => void) => {
+    const acts = document.createElement('div')
+    acts.className = 'ecl-acts'
+    const button = (cls: string, onClick: () => void, parent: HTMLElement = acts) => {
         const b = document.createElement('button')
         b.className = cls
         b.addEventListener('click', onClick)
-        root.appendChild(b)
+        parent.appendChild(b)
         return b
     }
-    const mode = button('ecl-mode', () => camera.editing = !camera.editing)
+    const mode = button('ecl-mode', () => camera.editing = !camera.editing, root)
+    root.appendChild(acts)
     const setStart = button('ecl-act', () => camera.setStartViewFromEditor())
     setStart.innerHTML = '<span class="ecl-long">Set as start view</span><span class="ecl-short">Set start</span>'
     const save = button('ecl-act ecl-primary', () => camera.saveStartView())
@@ -84,6 +91,7 @@ export function setupEditorCameraLabel(viewer: ThreeViewer, camera: EditorCamera
         tips[0].setContent(editing ? 'Look through the start view, as a visitor (C)' : 'Back to the editor camera (C)')
         setStart.style.display = editing ? '' : 'none'
         save.style.display = reset.style.display = !editing && moved ? '' : 'none'
+        acts.style.display = editing || moved ? '' : 'none'
     }
 
     viewer.container.appendChild(frame)
