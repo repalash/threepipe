@@ -20,6 +20,10 @@ All notable changes to this project will be documented in this file.
 - `lib/index.js` keeps its `@license` banner (the old minifier removed it)
 - Remove the obsolete `prepare`, `copy:inlines` and `postcompile:esm` scripts, `scripts/each-plugin.mjs`, `scripts/build-plugins.mjs`, `scripts/fix-inline-imports.mjs` and the unused `copyfiles`, `hexer` and `proper-lockfile` dev dependencies
 
+### Fixed
+
+- `LoadingScreenPlugin`: every file entry is one line on a narrow screen. Before, an entry with a long file name wrapped after the state (`downloading:` alone on its line, the name on the next) and a name wider than the screen pushed the list out of it. Each entry is now its own row: a long name is truncated with an ellipsis, and the state and the progress stay visible. The layout on wide screens does not change
+
 
 ## [0.6.0] - 2026-10-23
 
