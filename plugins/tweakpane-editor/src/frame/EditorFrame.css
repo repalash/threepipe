@@ -24,7 +24,7 @@ body[class*="tpTheme-"] .mb-root {
 .mb-btn:hover { background: var(--mb-hover); }
 .mb-btn.on { background: color-mix(in srgb, var(--mb-color) 16%, transparent); }
 .mb-btn:focus-visible { outline: 2px solid var(--mb-color, #0d99ff); outline-offset: 1px; }
-.mb-btn svg { width: 20px; height: 20px; flex-shrink: 0; } /* the size the mode icons are drawn for (20 px viewBox, stroke 1.6); the 16 px frame action icons scale to about the same stroke */
+.mb-btn svg { width: 20px; height: 20px; flex-shrink: 0; } /* the size the mode icons are drawn for (20 px viewBox). Every editor icon has a 1.3 px line: these, the frame's (16 px), the notes' and the camera pill's */
 .mb-label { display: none; font: inherit; color: var(--tp-container-foreground-color, #1e1e1e); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mb-toggle { margin-top: auto; color: var(--tp-label-foreground-color, #8a8f98); }
 .mb-toggle svg { transition: transform .15s; }

@@ -102,7 +102,7 @@
 }
 /* minimised: the notes icon and their number */
 .snp-dock .snp-restore { width: auto; gap: 6px; padding: 6px 8px; }
-.snp-count { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.snp-count { font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums; }
 
 /* the stores of "▾" and of a badge */
 .snp-menu {

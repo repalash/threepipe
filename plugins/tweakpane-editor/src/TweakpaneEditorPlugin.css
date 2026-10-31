@@ -20,7 +20,7 @@
     line-height: 130%;
     font-family: Inter, "Roboto Mono", "Source Code Pro", Menlo, Courier, monospace;
     opacity: 1;
-    transition: all 0.25s;
+    transition: opacity 0.25s;
 }
 
 .button-bar-button {
@@ -48,11 +48,6 @@
     color: var(--tp-label-foreground-color, #eeeeee);
     /*background-color: #2c2c2eaa;*/
     /*outline: 1px solid #ccccccaa;*/
-}
-
-.button-bar-selected-box {
-    color: var(--tp-label-foreground-color, #eeeeee);
-    /*color: white;*/
 }
 
 /*Divider*/
@@ -87,9 +82,10 @@
     /*outline: 1px solid #ccccccaa;*/
 }
 .button-bar-selected-box {
+    color: var(--tp-label-foreground-color, #eeeeee);
     background-color: #eeeeee55;
     border-radius: 0.25rem;
-    transition: all 0.25s;
+    transition: color 0.25s, background-color 0.25s;
 }
 
 .round-button{
@@ -101,7 +97,7 @@
     color: #cccccc;
     cursor: pointer;
     box-shadow: 0 2px 4px var(--tp-base-shadow-color);
-    transition: all 0.25s;
+    transition: color 0.25s, background-color 0.25s;
     box-sizing: content-box !important;
 }
 .round-button:hover{
