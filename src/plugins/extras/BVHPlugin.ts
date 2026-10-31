@@ -192,6 +192,7 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
         viewer.object3dManager.registerObjectExtension(this._extension)
         viewer.object3dManager.addEventListener('geometryAdd', this._geometryAdd)
         viewer.object3dManager.addEventListener('geometryRemove', this._geometryRemove)
+        viewer.object3dManager.addEventListener('objectRemove', this._objectRemove)
         viewer.scene.addEventListener('geometryChanged', this._objectGeometryChanged)
         viewer.addEventListener('postFrame', this._postFrame)
         if (!this.lib) this._load().then(lib => {
@@ -205,6 +206,7 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
         viewer.object3dManager.unregisterObjectExtension(this._extension)
         viewer.object3dManager.removeEventListener('geometryAdd', this._geometryAdd)
         viewer.object3dManager.removeEventListener('geometryRemove', this._geometryRemove)
+        viewer.object3dManager.removeEventListener('objectRemove', this._objectRemove)
         viewer.scene.removeEventListener('geometryChanged', this._objectGeometryChanged)
         viewer.removeEventListener('postFrame', this._postFrame)
         for (const g of [...this._stats.keys()]) this._dispose(g)
@@ -267,6 +269,7 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
         if (!viewer) return
         for (const g of [...this._stats.keys()]) if (!this.wants(g)) this._dispose(g)
         viewer.scene.modelRoot.traverse(o => this._queueObject(o as IObject3D))
+        this._pruneHelpers()
         this.uiConfig?.uiRefresh?.(true, 'postFrame')
     }
 
@@ -278,13 +281,18 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
             this._dispose(g)
             this._setRaycast(g)
         } else this._queueObject(o)
+        this._pruneHelpers()
         o.uiConfig?.uiRefresh?.(true, 'postFrame')
     }
 
-    /** Show the boxes of an object's tree (a BVHHelper in the scene, not saved) */
+    /**
+     * Show the boxes of an object's tree (a BVHHelper in the scene, not saved). The helper belongs to the mesh: it goes
+     * when the mesh leaves the scene, gets another geometry, is `off` or not supported, when the tree is dropped, and
+     * when the plugin is disabled or removed.
+     */
     showHelper(o: IObject3D, show: boolean) {
         this._removeHelper(o)
-        const bvh = show ? this.getBVH(o) : undefined
+        const bvh = show && !this.isDisabled() && this.canUse(o) && this.modeOf(o) !== 'off' ? this.getBVH(o) : undefined
         if (bvh && o.geometry && this.lib && this._viewer) {
             const h = new this.lib.BVHHelper(o, 10)
             h.userData.userSelectable = false
@@ -293,6 +301,17 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
         }
         this._viewer?.setDirty()
     }
+
+    // removes the helpers whose mesh does not show its tree any more
+    private _pruneHelpers() {
+        for (const [o, {geometry}] of [...this._helpers]) {
+            const valid = !this.isDisabled() && o.geometry === geometry && !!(geometry as BVHGeometry).boundsTree &&
+                this.canUse(o) && this.modeOf(o) !== 'off'
+            if (!valid) this._removeHelper(o)
+        }
+    }
+
+    private _objectRemove = (e: {object: IObject3D}) => this._removeHelper(e.object)
 
     private _removeHelper(o: IObject3D) {
         const entry = this._helpers.get(o)
@@ -324,7 +343,7 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
     private _objectGeometryChanged = (e: {object?: IObject3D}) => {
         const o = e.object
         if (!o?.isMesh) return
-        if (this._helpers.get(o)?.geometry !== o.geometry) this._removeHelper(o) // made for the old geometry
+        this._pruneHelpers() // a helper made for the old geometry
         queueMicrotask(() => {
             const g: BVHGeometry | undefined = o.geometry
             if (g?.boundsTree) this._setRaycast(g)
@@ -381,7 +400,7 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
         g.boundsTree = undefined
         this._stats.delete(g)
         this._setRaycast(g)
-        for (const [o, entry] of [...this._helpers]) if (entry.geometry === g) this._removeHelper(o)
+        this._pruneHelpers()
         this.dispatchEvent({type: 'bvhDisposed', geometry: g})
     }
 

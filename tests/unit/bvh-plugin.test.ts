@@ -240,4 +240,52 @@ describe('BVHPlugin', () => {
         plugin.onRemove(viewer)
         expect(helperRoot.children.length).toBe(0)
     })
+
+    test('Show boxes: a helper belongs to its mesh; it goes when the mesh leaves, is off or unsupported, or the plugin is disabled', () => {
+        const {viewer, plugin, add, frame, helperRoot} = setup()
+        const a = add(200, 32)
+        const shared = new Mesh(a.geometry as any, a.material as any) as any as import('threepipe').IObject3D
+        viewer.scene.modelRoot.add(shared)
+        viewer.object3dManager.registerObject(shared)
+        frame()
+        const tree = a.geometry!.boundsTree
+        expect(tree).toBeDefined()
+
+        // the mesh with the helper leaves the scene; the geometry keeps its other mesh and its tree
+        plugin.showHelper(a, true)
+        expect(helperRoot.children.length).toBe(1)
+        viewer.scene.modelRoot.remove(a)
+        viewer.object3dManager.unregisterObject(a)
+        expect(helperRoot.children.length).toBe(0)
+        expect(shared.geometry!.boundsTree).toBe(tree)
+        expect(shared.raycast).toBe(threeMeshBVH.acceleratedRaycast)
+
+        // userData.bvh off on the mesh
+        plugin.showHelper(shared, true)
+        expect(helperRoot.children.length).toBe(1)
+        shared.userData.bvh = 'off'
+        plugin.refreshObject(shared)
+        expect(helperRoot.children.length).toBe(0)
+        plugin.showHelper(shared, true) // no helper for a mesh that is off
+        expect(helperRoot.children.length).toBe(0)
+        shared.userData.bvh = 'auto'
+        plugin.refreshObject(shared)
+        frame()
+
+        // unsupported (an own raycast), noticed on refreshAll
+        plugin.showHelper(shared, true)
+        expect(helperRoot.children.length).toBe(1)
+        shared.raycast = () => undefined
+        plugin.refreshAll()
+        expect(helperRoot.children.length).toBe(0)
+        delete (shared as any).raycast
+
+        // disabled: also the helper of a tree that the plugin did not build
+        const other = add(20, 8)
+        other.geometry!.boundsTree = new threeMeshBVH.MeshBVH(other.geometry!)
+        plugin.showHelper(other, true)
+        expect(helperRoot.children.length).toBe(1)
+        plugin.enabled = false
+        expect(helperRoot.children.length).toBe(0)
+    })
 })
