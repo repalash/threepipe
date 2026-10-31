@@ -12,6 +12,7 @@ import {
     ISerializedConfig,
     MathUtils,
     Matrix3,
+    Matrix4,
     PopmotionPlugin,
     Quaternion,
     Raycaster,
@@ -46,6 +47,8 @@ export interface AnnotationAnchor {
     name: string
     point: number[]
     normal: number[]
+    /** An instance of an InstancedMesh: `point` and `normal` are then in that instance's space, so it moves with the instance */
+    instanceId?: number
 }
 
 export interface Annotation {
@@ -87,6 +90,7 @@ interface Hit {
     object: IObject3D
     localPoint: Vector3
     localNormal: Vector3
+    instanceId?: number
 }
 
 /**
@@ -170,6 +174,7 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
     private _occlTime = -Infinity
     private _ray = new Raycaster()
     private _nm = new Matrix3()
+    private _am = new Matrix4()
     private _down: {x: number, y: number, canvas: boolean} | null = null
     private _drag: {id: string, pointerId: number, x: number, y: number, moved: boolean, before: AnnotationAnchor} | null = null
     private _tour = 0
@@ -323,14 +328,15 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
 
     /**
      * Add an annotation on `object` at a point and normal in its local space. `view` defaults to the current camera view.
+     * `content.instanceId`: an instance of an InstancedMesh, the point and the normal are then in that instance's space.
      * Undoable. Returns the new annotation.
      */
-    add(object: IObject3D, localPoint: Vector3, localNormal: Vector3, view?: AnnotationView | null, content: {title?: string, text?: string} = {}): Annotation {
+    add(object: IObject3D, localPoint: Vector3, localNormal: Vector3, view?: AnnotationView | null, content: {title?: string, text?: string, instanceId?: number} = {}): Annotation {
         const a: Annotation = {
             id: MathUtils.generateUUID(),
             title: content.title ?? '',
             text: content.text ?? '',
-            anchor: this._makeAnchor(object, localPoint, localNormal),
+            anchor: this._makeAnchor(object, localPoint, localNormal, content.instanceId),
             view: view === undefined ? this.captureView() : view,
         }
         const index = this.annotations.length
@@ -492,7 +498,7 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
                 return
             }
             this.cancelAdding()
-            const a = this.add(hit.object, hit.localPoint, hit.localNormal)
+            const a = this.add(hit.object, hit.localPoint, hit.localNormal, undefined, {instanceId: hit.instanceId})
             this.goTo(a.id, {fly: false, focusTitle: true})
         })
         // keep zooming possible while placing
@@ -573,16 +579,27 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
 
     // region objects and picking
 
-    private _makeAnchor(object: IObject3D, localPoint: Vector3, localNormal: Vector3): AnnotationAnchor {
+    private _makeAnchor(object: IObject3D, localPoint: Vector3, localNormal: Vector3, instanceId?: number): AnnotationAnchor {
         const n = localNormal.clone()
         if (n.lengthSq() < 1e-12) n.set(0, 1, 0)
-        return {
+        const anchor: AnnotationAnchor = {
             uuid: object.uuid,
             path: this._pathOf(object),
             name: object.name || object.type,
             point: localPoint.toArray(),
             normal: n.normalize().toArray(),
         }
+        if (instanceId !== undefined) anchor.instanceId = instanceId
+        return anchor
+    }
+
+    /** The world matrix of an anchor's space: the object's, times the instance's for an instance of an InstancedMesh */
+    private _anchorMatrix(o: IObject3D, anchor: AnnotationAnchor, target: Matrix4) {
+        const mesh = o as any
+        const id = anchor.instanceId
+        if (id === undefined || !mesh.isInstancedMesh || id >= mesh.count) return target.copy(o.matrixWorld)
+        mesh.getMatrixAt(id, target)
+        return target.premultiply(o.matrixWorld)
     }
 
     private _pathOf(object: IObject3D) {
@@ -641,15 +658,18 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         if (!h || h.object.userData.userSelectable === false) return null // nothing, or the ground
         const object = h.object as IObject3D
         object.updateWorldMatrix(true, false)
-        const localPoint = object.worldToLocal(h.point.clone())
+        // an instance of an InstancedMesh: the point and the normal in the instance's space (face.normal is in it)
+        const instanceId = (object as any).isInstancedMesh ? h.instanceId : undefined
+        const toLocal = this._anchorMatrix(object, {instanceId} as AnnotationAnchor, new Matrix4()).invert()
+        const localPoint = h.point.clone().applyMatrix4(toLocal)
         let localNormal: Vector3
         if (h.face) {
             localNormal = h.face.normal.clone()
         } else {
             const toCam = ray.ray.direction.clone().negate()
-            localNormal = toCam.transformDirection(object.matrixWorld.clone().invert())
+            localNormal = toCam.transformDirection(toLocal)
         }
-        return {object, localPoint, localNormal}
+        return {object, localPoint, localNormal, instanceId}
     }
 
     // endregion
@@ -708,7 +728,7 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
             let visible = !!o
             if (o) for (let p: any = o; p; p = p.parent) if (!p.visible) visible = false
             if (o && visible) {
-                st.world.fromArray(a.anchor.point).applyMatrix4(o.matrixWorld)
+                st.world.fromArray(a.anchor.point).applyMatrix4(this._anchorMatrix(o, a.anchor, this._am))
                 ndc.copy(st.world).project(cam)
                 visible = ndc.z > -1 && ndc.z < 1 && Math.abs(ndc.x) < 1.2 && Math.abs(ndc.y) < 1.2
                 st.ndc.set(ndc.x, ndc.y)
@@ -721,7 +741,7 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
             }
             st.x = ox + (ndc.x + 1) / 2 * w
             st.y = oy + (1 - ndc.y) / 2 * h
-            n.fromArray(a.anchor.normal).applyMatrix3(this._nm.getNormalMatrix(o!.matrixWorld)).normalize()
+            n.fromArray(a.anchor.normal).applyMatrix3(this._nm.getNormalMatrix(this._am)).normalize()
             toCam.copy(viewDir || toCam.subVectors(camPos, st.world))
             st.facing = n.dot(toCam) > 0
             st.onScreen = true
@@ -788,7 +808,7 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         const a = this.get(d.id)
         if (!hit || !a) return
         // live move without an event or an undo step; the pointer up records one step
-        a.anchor = this._makeAnchor(hit.object, hit.localPoint, hit.localNormal)
+        a.anchor = this._makeAnchor(hit.object, hit.localPoint, hit.localNormal, hit.instanceId)
         this._objCache.delete(a.id)
         this._occlDirty = true
     }

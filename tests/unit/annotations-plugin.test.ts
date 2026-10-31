@@ -1,5 +1,5 @@
 import {afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi} from 'vitest'
-import {BoxGeometry, Mesh, MeshBasicMaterial, Object3D, PerspectiveCamera, Quaternion, Vector3} from 'three'
+import {BoxGeometry, InstancedMesh, Matrix4, Mesh, MeshBasicMaterial, Object3D, PerspectiveCamera, Quaternion, Vector3} from 'three'
 import {PopmotionPlugin, UndoManagerPlugin} from 'threepipe'
 import {AnnotationsPlugin} from '../../plugins/annotations/src/AnnotationsPlugin'
 import {renderAnnotationText} from '../../plugins/annotations/src/render-text'
@@ -330,6 +330,74 @@ describe('AnnotationsPlugin', () => {
         } finally {
             vi.restoreAllMocks()
         }
+    })
+
+    describe('an InstancedMesh', () => {
+        /** Two boxes of size 1: instance 0 far away, instance 1 at x = 1 */
+        const instanced = (viewer: any) => {
+            const mesh = new InstancedMesh(new BoxGeometry(1, 1, 1), new MeshBasicMaterial(), 2)
+            mesh.setMatrixAt(0, new Matrix4().makeTranslation(-50, 0, 0))
+            mesh.setMatrixAt(1, new Matrix4().makeTranslation(1, 0, 0))
+            viewer.scene.modelRoot.add(mesh)
+            viewer.scene.modelRoot.updateMatrixWorld(true)
+            return mesh
+        }
+        /** The place of a world point on the 800x600 canvas */
+        const screen = (camera: PerspectiveCamera, p: Vector3) => {
+            const n = p.clone().project(camera)
+            return {x: (n.x + 1) / 2 * 800, y: (1 - n.y) / 2 * 600}
+        }
+        const at = (m: FakeElement) => m.style.transform.match(/[-\d.]+/g)!.map(Number)
+
+        test('a placed annotation keeps the instance, in its space; the marker follows when the instance moves', () => {
+            const {plugin, layer, box, viewer, camera} = setup()
+            box.visible = false
+            const mesh = instanced(viewer)
+            plugin.startAdding()
+            const place = layer.find('anp-place')[0]
+            const p = screen(camera, new Vector3(1, 0, 0.5))
+            place.fire('pointerdown', {clientX: p.x, clientY: p.y})
+            place.fire('pointerup', {clientX: p.x, clientY: p.y})
+            const a = plugin.get(0)!
+            expect(a.anchor.instanceId).toBe(1)
+            expect(a.anchor.point.map(v => +v.toFixed(5) + 0)).toEqual([0, 0, 0.5])
+            expect(a.anchor.normal.map(v => v + 0)).toEqual([0, 0, 1]) // + 0: -0 is 0
+            // the instance moves up
+            mesh.setMatrixAt(1, new Matrix4().makeTranslation(1, 1, 0))
+            ;(plugin as any)._updateScreen()
+            const q = screen(camera, new Vector3(1, 1, 0.5))
+            expect(at(markers(layer)[0])).toEqual([+q.x.toFixed(1), +q.y.toFixed(1)])
+        })
+
+        test('the normal of a rotated instance: its front faces away when the instance is turned around', () => {
+            const {plugin, layer, box, viewer} = setup()
+            box.visible = false
+            const mesh = instanced(viewer)
+            mesh.setMatrixAt(0, new Matrix4())
+            plugin.add(mesh as any, front, normal, null, {instanceId: 0})
+            const dim = () => {
+                (plugin as any)._updateScreen()
+                return markers(layer)[0].classList.contains('anp-dim')
+            }
+            expect(dim()).toBe(false)
+            mesh.setMatrixAt(0, new Matrix4().makeRotationY(Math.PI))
+            expect(dim()).toBe(true)
+        })
+
+        test('an anchor without instanceId (an older file) uses the mesh transform, as before', () => {
+            const {plugin, layer, box, viewer} = setup()
+            box.visible = false
+            const mesh = instanced(viewer)
+            const a = plugin.add(mesh as any, front, normal, null)
+            expect('instanceId' in a.anchor).toBe(false)
+            ;(plugin as any)._updateScreen()
+            expect(at(markers(layer)[0])).toEqual([400, 300])
+            // saved and loaded: an anchor with an instance keeps it
+            plugin.add(mesh as any, front, normal, null, {instanceId: 1})
+            const other = new AnnotationsPlugin()
+            other.fromJSON(JSON.parse(JSON.stringify(plugin.toJSON())))
+            expect(other.getAnnotations().map(x => x.anchor.instanceId)).toEqual([undefined, 1])
+        })
     })
 
     test('a click on a marker opens the card and flies the camera to the view; prev/next wrap; a click on the canvas closes', () => {
