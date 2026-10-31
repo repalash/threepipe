@@ -10,6 +10,8 @@ import {
 } from 'threepipe'
 import {setupFullscreenButton, setupUtilButtonsBar} from './util-buttons'
 import {setupWebGiLogo} from './logo'
+import {setupEditorCameraUi} from './editor-camera-ui'
+import type {EditorCameraPlugin} from './EditorCameraPlugin'
 import styles from './TweakpaneEditorPlugin.css?inline'
 import tippy from 'tippy.js'
 import tippyStyles from 'tippy.js/dist/tippy.css?inline'
@@ -38,9 +40,35 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync {
 
         setupWebGiLogo(viewer)
         setupFullscreenButton(viewer)
+
+        // the start view UI while the EditorCameraPlugin is added (before or after this plugin, and again after a
+        // remove). By its type name, with a type-only import: the editor works without it, and this module does not load it.
+        this._addEditorCameraUi()
+        viewer.addPluginListener('add', this._addEditorCameraUi, 'EditorCameraPlugin')
+        viewer.addPluginListener('remove', this._removeEditorCameraUi, 'EditorCameraPlugin')
+    }
+
+    onRemove(viewer: ThreeViewer) {
+        viewer.removePluginListener('add', this._addEditorCameraUi)
+        viewer.removePluginListener('remove', this._removeEditorCameraUi)
+        this._removeEditorCameraUi()
+        super.onRemove(viewer)
+    }
+
+    private _addEditorCameraUi = () => {
+        this._removeEditorCameraUi()
+        const camera = this._viewer?.getPlugin<EditorCameraPlugin>('EditorCameraPlugin')
+        if (camera && this._viewer) this._editorCameraUi = setupEditorCameraUi(this._viewer, camera)
+    }
+
+    private _removeEditorCameraUi = () => {
+        this._editorCameraUi?.()
+        this._editorCameraUi = undefined
     }
 
     private _selectedMode = 0
+    /** Removes the start view UI of the EditorCameraPlugin */
+    private _editorCameraUi?: () => void
     modeKeys: string[] = []
     modePlugins: Class<IViewerPlugin>[][] = []
     modeDivs: (HTMLDivElement | undefined)[] = []

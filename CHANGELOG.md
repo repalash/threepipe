@@ -12,6 +12,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- The `loadAsset` event of `AssetManager` has `options`: the add options given to `loadImported` (without `autoSetEnvironment` and `autoSetBackground`), so a listener can tell that a viewer config in the asset was not imported (`importConfig: false`)
 - `npm run check-bundles` (`scripts/check-bundles.mjs`) checks the built bundles: it fails on an import in a built bundle that is not declared (a bare `three` in a plugin) and on a package bundled twice (two Reacts in blueprintjs). Run it after `build:all`
 - Repository setup: the core and the packages in `plugins/` are now one npm workspace, installed by a single `npm install` (one `package-lock.json`, the per-plugin lockfiles are removed). `npm install` no longer builds anything; `npm start` runs the examples from source without a build, `npm run build:all` builds everything
 - Builds run through [Turborepo](https://turborepo.com) (`turbo.json`): the core and plugins build in parallel in dependency order and unchanged packages are restored from the cache. The pages workflow keeps the turbo cache between runs
