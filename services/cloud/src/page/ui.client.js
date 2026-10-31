@@ -83,13 +83,14 @@ const UI = (() => {
         try {
             [me, projects] = await Promise.all([me || getJson('/api/v1/me'), projects || getJson('/api/v1/projects').then(j => j.projects || [])])
         } catch (e) { return }
-        const a = (href, ic, label, on, cls) => '<a href="' + esc(href) + '" class="' + (on ? 'on ' : '') + (cls || '') + '">' + icon(ic) + '<span>' + esc(label) + '</span></a>'
+        // the label is also the link's name: on a phone the bar shows the icons only
+        const a = (href, ic, label, on, cls) => '<a href="' + esc(href) + '" class="' + (on ? 'on ' : '') + (cls || '') + '" aria-label="' + esc(label) + '" title="' + esc(label) + '">' + icon(ic) + '<span>' + esc(label) + '</span></a>'
         const d = me.drive || {}, pct = d.quota ? Math.min(100, Math.round(d.used / d.quota * 1000) / 10) : 0
         el('side').innerHTML = brand()
             + '<div class="nav">' + a('/drive', 'cloud', 'Drive', page === 'drive') + a('/reports', 'inbox', 'Reports', page === 'reports' && !project) + a('/account', 'grid', 'Apps & keys', page === 'account') + '</div>'
             + (projects.length ? '<div class="nav"><div class="nav-h">Projects</div>' + projects.map(p => a('/reports#' + p.slug, 'hash', p.name || p.slug, page === 'reports' && project === p.slug, 'sub')).join('') + '</div>' : '')
             + '<div class="side-foot">'
-            + (me.feedback ? '<div class="nav flat"><a data-report-problem>' + icon('flag') + '<span>Report a problem</span></a></div>' : '')
+            + (me.feedback ? '<div class="nav flat"><a data-report-problem role="button" tabindex="0" aria-label="Report a problem" title="Report a problem">' + icon('flag') + '<span>Report a problem</span></a></div>' : '')
             + (d.quota ? '<div class="usage">' + esc(bytes(d.used)) + ' of ' + esc(bytes(d.quota)) + ' used<div class="bar' + (pct >= 95 ? ' full' : '') + '"><i data-pct="' + pct + '"></i></div></div>' : '')
             + '<div class="me"><span class="avatar">' + esc(String(me.username || '?').slice(0, 1)) + '</span><div class="who"><b>' + esc(me.name || me.username) + '</b><span>@' + esc(me.username) + (me.role && me.role !== 'member' ? ' · ' + esc(me.role) : '') + '</span></div>'
             + '<button class="icon" data-theme-next title="Theme: ' + esc(current) + '" aria-label="Theme">' + icon('theme') + '</button>'
@@ -243,6 +244,10 @@ const UI = (() => {
         current = THEMES[(THEMES.indexOf(current) + 1) % THEMES.length]
         try { localStorage.setItem(THEME_KEY, current) } catch (err) { /* no storage: this page only */ }
         applyTheme(current); t.title = 'Theme: ' + current; toast('Theme: ' + current)
+    })
+    // Report a problem is a link-shaped button: Enter and Space open it too
+    document.addEventListener('keydown', e => {
+        if ((e.key === 'Enter' || e.key === ' ') && e.target.closest && e.target.closest('[data-report-problem]')) { e.preventDefault(); reportProblem() }
     })
 
     return {el, esc, bytes, when, stamp, short, icon, idOf, api, send, side, login, chooseHandle, dialog, prompt, confirm, toast}
