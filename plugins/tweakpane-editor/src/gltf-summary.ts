@@ -25,8 +25,12 @@ export interface GLTFSummary {
     materials: {name: string, extensions: string[]}[]
     images: {name: string, mimeType: string, bytes?: number}[]
     animations: {name: string, channels: number, duration?: number}[]
-    /** The viewer config in the first scene (`WEBGI_viewer`): the serialized plugins and resources, with their JSON sizes */
+    /**
+     * The viewer config in the first scene (`WEBGI_viewer`): the serialized plugins and resources, with their JSON sizes.
+     * The exporter can keep the resources in `extras.BundledResources` instead of in the config; they are counted too.
+     */
     viewerConfig?: {
+        /** The config and its resources */
         bytes: number
         plugins: {type: string, bytes: number}[]
         /** The resources of the config (materials, textures, ...): their number by kind */
@@ -125,10 +129,12 @@ export function summarizeGLTF(name: string, parsed: {json: any, jsonBytes: numbe
 
     const scene = json.scenes?.[json.scene ?? 0]
     const config = scene?.extensions?.WEBGI_viewer
+    // with serialization metadata the exporter moves the resources of the config here (GLTFExporter2)
+    const bundled = config?.resources ? undefined : json.extras?.BundledResources
     const viewerConfig = config ? {
-        bytes: jsonSize(config),
+        bytes: jsonSize(config) + jsonSize(bundled),
         plugins: (config.plugins ?? []).map((p: any) => ({type: String(p?.type ?? '?'), bytes: jsonSize(p)})),
-        resources: Object.fromEntries(Object.entries(config.resources ?? {})
+        resources: Object.fromEntries(Object.entries(config.resources ?? bundled ?? {})
             .filter(([k, v]) => !k.startsWith('__') && v && typeof v === 'object')
             .map(([k, v]) => [k, Object.keys(v as object).length])
             .filter(([, n]) => n as number > 0)) as Record<string, number>,

@@ -101,6 +101,15 @@ describe('gltf-summary', () => {
         expect(summarizeGLTF('a', {json: {}, jsonBytes: 2, binBytes: 0}).viewerConfig).toBeUndefined()
     })
 
+    test('counts the resources that the exporter bundles in extras (an export with serialization metadata)', () => {
+        const config = {type: 'ThreeViewer', plugins: [{type: 'Tonemap'}]}
+        const resources = {materials: {m1: {}}, textures: {t1: {}, t2: {}}, images: {}}
+        const json = {asset: {version: '2.0'}, scene: 0, scenes: [{extensions: {WEBGI_viewer: config}}], extras: {BundledResources: resources}}
+        const s = summarizeGLTF('export.glb', parseGLTFBuffer(glb(json, 0)))
+        expect(s.viewerConfig?.resources).toEqual({materials: 1, textures: 2})
+        expect(s.viewerConfig?.bytes).toBe(JSON.stringify(config).length + JSON.stringify(resources).length)
+    })
+
     test('formats sizes', () => {
         expect(formatBytes(undefined)).toBe('?')
         expect(formatBytes(512)).toBe('512 B')
