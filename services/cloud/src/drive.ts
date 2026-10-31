@@ -210,11 +210,19 @@ async function dropFile(c: Context<CloudEnv>, key: string, itemId: string) {
     if (r.meta.changes) await c.env.CLOUD_BUCKET.delete(key)
 }
 
-/** Writes the object again with this visibility (R2 cannot change metadata in place), unless it has it already. */
+/**
+ * Writes the object again with this visibility (R2 cannot change metadata in place), unless it has it already. Only over
+ * the version it read: when an upload replaced the file meanwhile, its bytes stay and the new version is looked at.
+ */
 async function setVisibility(c: Context<CloudEnv>, key: string, visibility: Visibility) {
-    const obj = await c.env.CLOUD_BUCKET.get(key)
-    if (obj && obj.customMetadata?.visibility !== visibility)
-        await c.env.CLOUD_BUCKET.put(key, obj.body, {httpMetadata: obj.httpMetadata, customMetadata: {...obj.customMetadata, visibility}})
+    for (let attempt = 0; attempt < 5; attempt++) {
+        const obj = await c.env.CLOUD_BUCKET.get(key)
+        if (!obj || obj.customMetadata?.visibility === visibility) return
+        const put = await c.env.CLOUD_BUCKET.put(key, obj.body, {httpMetadata: obj.httpMetadata, customMetadata: {...obj.customMetadata, visibility},
+            onlyIf: {etagMatches: obj.etag}})
+        if (put) return
+    }
+    throw new HTTPException(409, {message: 'the file kept changing during the visibility change; try again'})
 }
 
 async function itemFiles(c: Context<CloudEnv>, item: Item) {
