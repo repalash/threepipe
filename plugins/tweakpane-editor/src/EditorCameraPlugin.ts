@@ -41,13 +41,19 @@ function poseOf(camera: ICamera): StartPose {
 
 /**
  * The poses are the same, but for rounding: the orbit controls compute the position again on each update, so a camera
- * that did not move can differ in the last digits
+ * that did not move can differ in the last digits. The FoV is compared only when both poses have one (an orthographic
+ * camera has none).
  */
 function samePose(a: StartPose, b: StartPose) {
     const eps = 1e-6 * Math.max(1, a.position.length(), a.target.length())
     return a.position.distanceTo(b.position) <= eps && a.target.distanceTo(b.target) <= eps &&
         a.quaternion.angleTo(b.quaternion) <= 1e-4 && Math.abs(a.zoom - b.zoom) <= 1e-9 &&
-        (a.fov === undefined ? b.fov === undefined : b.fov !== undefined && Math.abs(a.fov - b.fov) <= 1e-9)
+        (a.fov === undefined || b.fov === undefined || Math.abs(a.fov - b.fov) <= 1e-9)
+}
+
+/** The zoom (and the FoV) of one camera means the same for the other: both are perspective, or both orthographic */
+function sameProjection(a: ICamera, b: ICamera) {
+    return !!(a as any).isOrthographicCamera === !!(b as any).isOrthographicCamera
 }
 
 /** Sets the pose of a camera that is a child of the scene */
@@ -611,7 +617,8 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
 
     /**
      * The editor camera takes the start view. It looks in the same direction, also when the start view looks away from
-     * its target. The editor camera stays upright: a roll of the start view is not copied.
+     * its target. The editor camera stays upright: a roll of the start view is not copied. The FoV and the zoom are
+     * copied from a perspective start camera only (the editor camera is perspective).
      */
     @uiButton('Editor camera to start view', {sendArgs: false})
     copyStartView() {
@@ -625,24 +632,30 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
         c.target.copy(lookTargetOf(start, position))
         // the orbit controls turn the camera only while it is the main camera: in View, turn it here
         c.lookAt(c.target)
-        if ((start as PerspectiveCamera2).fov) c.fov = (start as PerspectiveCamera2).fov
-        c.zoom = start.zoom
+        if (sameProjection(start, c)) {
+            c.fov = (start as PerspectiveCamera2).fov
+            c.zoom = start.zoom
+        }
         c.setDirty()
     }
 
-    /** The start view takes the editor view: one undo step when the {@link UndoManagerPlugin} is present */
+    /**
+     * The start view takes the editor view: one undo step when the {@link UndoManagerPlugin} is present. An
+     * orthographic start camera keeps its zoom (the editor camera is perspective).
+     */
     @uiButton('Set start view to this view', {sendArgs: false})
     setStartViewFromEditor() {
         const start = this.startCamera
         if (!start) return
         const before = poseOf(start)
+        const same = sameProjection(start, this.camera)
         // the start view is a child of the scene, so the world pose of the editor camera is its local pose
         const after: StartPose = {
             position: this.camera.getWorldPosition(new Vector3()),
             target: this.camera.target.clone(),
             quaternion: this.camera.getWorldQuaternion(new Quaternion()),
-            zoom: this.camera.zoom,
-            fov: this.camera.fov,
+            zoom: same ? this.camera.zoom : start.zoom,
+            fov: same ? this.camera.fov : undefined,
         }
         this._moveStartView(after)
         this._recordStartView(before, after)

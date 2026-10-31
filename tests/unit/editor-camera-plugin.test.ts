@@ -771,6 +771,28 @@ describe('EditorCameraPlugin', () => {
         expect(plugin.camera.zoom).toBe(1.5)
     })
 
+    test('an orthographic start camera: copyStartView does not copy its zoom into the perspective editor camera', () => {
+        const {plugin, start} = setup({ortho: true})
+        start.zoom = 3 // the framing of the orthographic camera
+        plugin.camera.zoom = 1.2
+        plugin.copyStartView()
+        expect(plugin.camera.zoom).toBe(1.2)
+        expect(plugin.camera.position.toArray()).toEqual(start.position.toArray())
+    })
+
+    test('an orthographic start camera: setStartViewFromEditor keeps its zoom, and the same view is no undo step', () => {
+        const {plugin, start, records} = setup({ortho: true})
+        start.zoom = 3
+        plugin.camera.zoom = 1.2
+        plugin.setStartViewFromEditor() // the editor camera is at the start view (the add copied it)
+        expect(records).toHaveLength(0)
+        plugin.camera.position.set(2, 3, 4)
+        plugin.setStartViewFromEditor()
+        expect(start.position.toArray()).toEqual([2, 3, 4])
+        expect(start.zoom).toBe(3)
+        expect(records).toHaveLength(1)
+    })
+
     test('setStartViewFromEditor works without the UndoManagerPlugin', () => {
         const {plugin, start} = setup({undo: false})
         plugin.camera.position.set(2, 3, 4)
