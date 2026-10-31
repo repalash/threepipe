@@ -321,6 +321,20 @@ describe('EditorFrame', () => {
         })
     }
 
+    test('the mode bar hides the panel of the options, and the frame opens it when it is folded', () => {
+        const panel = new FakeElement('div')
+        panel.innerHTML = '<div class="tp-rotv"><button class="tp-rotv_b"></button></div>'
+        const fold = vi.fn()
+        panel.querySelector('.tp-rotv_b')!.addEventListener('click', fold)
+        const f = new EditorFrame(host(), {layout: 'titlebar', panel: () => panel as any})
+        expect(fold).toHaveBeenCalledTimes(1) // folded (a phone): opened when the layout applies
+        panel.querySelector('.tp-rotv')!.classList.add('tp-rotv-expanded')
+        f.modeBar.setOpen(false)
+        expect(panel.style.visibility).toBe('hidden')
+        f.setLayout('floating')
+        expect(fold).toHaveBeenCalledTimes(1) // open already
+    })
+
     test('Ctrl+\\ and Cmd+\\ step the mode bar, by the key or by the key code', () => {
         const f = frame('titlebar', true)
         keydown('\\', 'Backslash', {ctrlKey: true})

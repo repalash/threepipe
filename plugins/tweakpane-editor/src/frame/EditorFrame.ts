@@ -41,6 +41,11 @@ export interface EditorFrameOptions {
      * and sends `documentNameChange`).
      */
     onRename?: (name: string) => void
+    /**
+     * Returns the panel: the mode bar hides and shows it, and the frame opens its root folder when it is folded.
+     * `TweakpaneEditorPlugin` passes the container of the Tweakpane UI. Without it, the mode bar hides no panel.
+     */
+    panel?: () => HTMLElement | null
 }
 
 const svg = (d: string) => `<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`
@@ -96,7 +101,7 @@ export class EditorFrame {
         this._themePairs = options.themePairs ?? EditorFrame.ThemePairs
         this._layout = options.layout ?? 'titlebar'
 
-        this.modeBar = new EditorModeBar(editor, document.body, () => document.getElementById('tweakpaneUiContainer'))
+        this.modeBar = new EditorModeBar(editor, document.body, options.panel)
 
         const title = options.title ?? 'threepipe'
         this._top = this._bar('lay-top')
@@ -227,7 +232,7 @@ export class EditorFrame {
      * Tweakpane UI starts folded on a phone): when a layout applies, and on a click in the mode bar.
      */
     private _expandPanel = () => {
-        const root = document.querySelector<HTMLElement>('#tweakpaneUiContainer .tp-rotv')
+        const root = this.options.panel?.()?.querySelector<HTMLElement>('.tp-rotv')
         if (root && !root.classList.contains('tp-rotv-expanded')) root.querySelector<HTMLElement>('.tp-rotv_b')?.click()
     }
 
