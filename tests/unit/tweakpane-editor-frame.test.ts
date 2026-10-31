@@ -43,9 +43,10 @@ function fakeTippy(reference: any, props: Record<string, any> = {}): FakeTip {
     if (reference) reference._tippy = t
     return t
 }
-// tippy.js is a dependency of the plugin (in its node_modules, which can be a link), mocked by its real path
-const tippyPath = vi.hoisted(() => process.getBuiltinModule('node:fs')
-    .realpathSync(new URL('../../plugins/tweakpane-editor/node_modules/tippy.js/dist/tippy.cjs.js', import.meta.url)))
+// tippy.js is a dependency of the plugin, mocked by the file that Node resolves from the plugin's folder: in the
+// workspace's node_modules (hoisted) or in the plugin's own (a nested or linked install)
+const tippyPath = vi.hoisted(() => process.getBuiltinModule('node:module')
+    .createRequire(new URL('../../plugins/tweakpane-editor/package.json', import.meta.url)).resolve('tippy.js'))
 vi.mock(tippyPath, () => ({
     default: Object.assign((ref: any, props: any) => fakeTippy(ref, props), {setDefaultProps: () => {}}),
     // as tippy: the tooltips of a singleton are disabled, the singleton shows their content at their button

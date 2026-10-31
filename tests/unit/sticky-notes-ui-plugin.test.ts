@@ -3,10 +3,10 @@ import {NoteItem, NotesPlugin} from '../../plugins/tweakpane-editor/src/NotesPlu
 import {StickyNotesUiPlugin} from '../../plugins/tweakpane-editor/src/StickyNotesUiPlugin'
 import {readFileSync} from 'node:fs'
 
-// tippy.js is a dependency of the plugin (in its node_modules, which can be a link), mocked by its real path: the
-// layer's delegate of the tooltips, with its props
-const tippyPath = vi.hoisted(() => process.getBuiltinModule('node:fs')
-    .realpathSync(new URL('../../plugins/tweakpane-editor/node_modules/tippy.js/dist/tippy.cjs.js', import.meta.url)))
+// tippy.js is a dependency of the plugin, mocked by the file that Node resolves from the plugin's folder: in the
+// workspace's node_modules (hoisted) or in the plugin's own (a nested or linked install)
+const tippyPath = vi.hoisted(() => process.getBuiltinModule('node:module')
+    .createRequire(new URL('../../plugins/tweakpane-editor/package.json', import.meta.url)).resolve('tippy.js'))
 const delegates = vi.hoisted(() => [] as {target: any, props: any, destroyed: boolean}[])
 vi.mock(tippyPath, () => ({
     default: Object.assign(() => ({}), {setDefaultProps: () => {}}),
