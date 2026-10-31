@@ -42,8 +42,9 @@ const CSS = `
 .tpc-id{display:inline-block;font:600 20px/1.2 ui-monospace,Menlo,Consolas,monospace;letter-spacing:.06em;padding:6px 12px;border:1px dashed var(--tpc-line);border-radius:var(--tpc-radius);margin:8px 0;user-select:all}
 .tpc-turnstile{min-height:0;margin:6px 0}
 .tpc-toasts{position:fixed;right:16px;bottom:16px;z-index:2147483001;display:flex;flex-direction:column;gap:8px;max-width:min(420px,calc(100vw - 32px))}
-.tpc-toast{display:flex;gap:10px;align-items:center;background:var(--tpc-bg);border:1px solid var(--tpc-line);border-left:3px solid var(--tpc-danger);border-radius:var(--tpc-radius);box-shadow:0 6px 20px rgba(0,0,0,.25);padding:8px 10px}
+.tpc-toast{display:flex;gap:10px;align-items:center;background:var(--tpc-bg);border:1px solid var(--tpc-line);border-radius:var(--tpc-radius);box-shadow:0 6px 20px rgba(0,0,0,.25);padding:8px 10px}
 .tpc-toast span{flex:1;min-width:0;overflow-wrap:anywhere}
+.tpc-toast .tpc-toast-mark{flex:0 0 auto;width:16px;height:16px;border-radius:50%;background:var(--tpc-danger);color:#fff;font:700 11px/16px system-ui,sans-serif;text-align:center}
 `
 
 let styled = false
@@ -93,7 +94,7 @@ export function showToast(message: string, theme: Theme, onReport?: () => void, 
     const close = () => el.remove()
     const report = onReport ? h('button', {type: 'button', 'data-tpc-toast-report': true}, 'Report') : null
     const x = h('button', {type: 'button', 'aria-label': 'Close'}, '✕')
-    const el = h('div', {class: 'tpc-toast', role: 'alert', 'data-tpc-toast': true}, h('span', {}, message), report, x)
+    const el = h('div', {class: 'tpc-toast', role: 'alert', 'data-tpc-toast': true}, h('span', {class: 'tpc-toast-mark', 'aria-hidden': 'true'}, '!'), h('span', {}, message), report, x)
     report?.addEventListener('click', () => { close(); onReport!() })
     x.addEventListener('click', close)
     toastHost.appendChild(el)
