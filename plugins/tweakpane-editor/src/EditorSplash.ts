@@ -1,4 +1,4 @@
-import {createStyles} from 'threepipe'
+import {createStyles, Dropzone} from 'threepipe'
 import tippy, {Instance} from 'tippy.js'
 import {addTooltipStyles, EDITOR_TOOLTIP_PROPS} from './tooltips'
 import {isTextTarget, readStored, writeStored} from './dom-utils'
@@ -34,8 +34,11 @@ export interface EditorSplashOptions {
     /**
      * Opens the files that the person picked (Open file…, Ctrl+O) or dropped on the splash. When it is set, the Start
      * part has "Open file…", and a drop anywhere on the page opens the files. It loads like {@link EditorSplashSample.load}.
+     * The files come by their paths, as threepipe's `Dropzone` gives them to `DropzonePlugin`: a dropped folder keeps
+     * the relative paths of its files (`/helmet/scene.gltf`, `/helmet/scene.bin`), so the map goes to
+     * `AssetImporter.importFiles` as it is.
      */
-    onFiles?: (files: File[]) => unknown
+    onFiles?: (files: Map<string, File>) => unknown
     /** The file types of the file picker, as the `accept` attribute of a file input (`.glb,.gltf`). Default: any file. */
     accept?: string
     /**
@@ -82,7 +85,7 @@ const ICONS = {
  *     title: 'My Editor',
  *     samples: [{title: 'Helmet', text: 'A glTF with PBR textures', load: () => viewer.load(url)}],
  *     onNew: () => viewer.scene.disposeSceneModels(),
- *     onFiles: files => viewer.assetManager.addAsset(files),
+ *     onFiles: async files => viewer.assetManager.loadImported([...(await viewer.assetManager.importer.importFiles(files)).values()].flat()),
  * })
  * if (splash.showAtStartup) splash.open()
  * ```
@@ -94,6 +97,8 @@ export class EditorSplash {
     private _root?: HTMLDivElement
     private _status?: HTMLElement
     private _input?: HTMLInputElement
+    /** The drop and the file picker of the open splash, with the folder traversal of threepipe's `Dropzone` */
+    private _dropzone?: Dropzone
     private _tip?: Instance
     /** The element that had the focus before the splash opened: it gets it back after */
     private _returnFocus?: HTMLElement
@@ -192,13 +197,13 @@ export class EditorSplash {
             this._input.hidden = true
             if (o.accept) this._input.accept = o.accept
             const input = this._input
-            input.addEventListener('change', () => {
-                const files = Array.from(input.files ?? [])
+            root.appendChild(input)
+            // as a drop on the canvas (DropzonePlugin): the files of a dropped folder keep their relative paths
+            this._dropzone = new Dropzone(root, input, {drop: data => {
                 input.value = '' // the same file picked again (after a failed import) is a change again
-                void this._openFiles(files)
-            })
-            root.appendChild(this._input)
-            this._setupDrop(root)
+                if (data?.files) void this._openFiles(data.files)
+            }})
+            this._setupDropArea(root)
         }
         $('esp-start-heading').hidden = !start.children.length
 
@@ -238,6 +243,8 @@ export class EditorSplash {
         const root = this._root
         if (!root) return
         this._root = this._status = this._input = undefined
+        this._dropzone?.destroy()
+        this._dropzone = undefined
         this._tip?.destroy()
         this._tip = undefined
         root.remove()
@@ -286,10 +293,10 @@ export class EditorSplash {
         })
     }
 
-    private async _openFiles(files: File[]) {
+    private async _openFiles(files: Map<string, File>) {
         const onFiles = this.options.onFiles
-        if (!files.length || !onFiles) return
-        await this._run(files.map(f => f.name).join(', '), undefined, () => onFiles(files))
+        if (!files.size || !onFiles) return
+        await this._run([...files.values()].map(f => f.name).join(', '), undefined, () => onFiles(files))
     }
 
     /**
@@ -334,8 +341,8 @@ export class EditorSplash {
         this._status.classList.toggle('esp-error', error)
     }
 
-    /** Files dropped anywhere on the splash open; the drop area shows while a file is over it */
-    private _setupDrop(root: HTMLDivElement) {
+    /** The drop area shows while a file is over the splash (the `Dropzone` opens the dropped files) */
+    private _setupDropArea(root: HTMLDivElement) {
         let depth = 0
         const leave = () => {
             depth = 0
@@ -346,15 +353,10 @@ export class EditorSplash {
             depth++
             root.classList.add('esp-over')
         })
-        root.addEventListener('dragover', e => e.preventDefault())
         root.addEventListener('dragleave', () => {
             if (--depth <= 0) leave()
         })
-        root.addEventListener('drop', e => {
-            e.preventDefault()
-            leave()
-            void this._openFiles(Array.from(e.dataTransfer?.files ?? []))
-        })
+        root.addEventListener('drop', leave)
     }
 
     private _addRecent(title: string) {

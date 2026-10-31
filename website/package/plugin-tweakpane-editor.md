@@ -111,7 +111,7 @@ In the [Tweakpane Editor example](https://threepipe.org/examples/tweakpane-edito
 - Start: "New empty scene" (`onNew`) and "Open file…" (`onFiles`, also Ctrl+O or Cmd+O in the open splash).
 - Recent: the samples that the person opened last (`recent`, at most `EditorSplash.MaxRecent`, 5).
 - Samples: a card for each sample of the app, with a title, a short text, an icon and a load function.
-- "Drop a file anywhere to open it" (with `onFiles`) and a "Show at startup" box (`showAtStartup`).
+- "Drop a file anywhere to open it" (with `onFiles`; a dropped folder works, as on the canvas) and a "Show at startup" box (`showAtStartup`).
 
 The app gives the samples and the callbacks, and calls `open()`. A sample or a file shows that it loads, then the splash closes. When the load throws, the splash stays open with a message. One load runs at a time: when the splash closes and opens again while a load runs, it shows that load and refuses another one until it ends. Escape, × or a click outside the card closes it. While it is open, it has the focus: Tab stays in the dialog, and the keys do not reach the editor shortcuts behind it. When it is closed, Ctrl+O (Cmd+O) outside a text field opens it again (`shortcut: false` turns this off).
 
@@ -133,9 +133,11 @@ const splash = new EditorSplash({
         },
     }],
     onNew: () => viewer.scene.disposeSceneModels(),
+    // the files by their paths (a dropped folder keeps the relative paths of its files), as AssetImporter.importFiles takes them
     onFiles: async files => {
+        const imported = await viewer.assetManager.importer.importFiles(files)
         viewer.scene.disposeSceneModels()
-        await viewer.assetManager.addAsset(files)
+        await viewer.assetManager.loadImported([...imported.values()].flat())
     },
     accept: '.glb,.gltf,.fbx,.obj', // optional: the file types of the picker
 })

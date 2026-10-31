@@ -397,7 +397,8 @@ describe('EditorSplash', () => {
         input.files = [a, b]
         input.value = 'C:\\fakepath\\a.gltf'
         input.fire('change')
-        expect(onFiles).toHaveBeenCalledWith([a, b])
+        // by their paths, as AssetImporter.importFiles takes them
+        expect(onFiles).toHaveBeenCalledWith(new Map([['a.gltf', a], ['a.bin', b]]))
         // the picker is cleared, so the same file picked again (after a failed import) is a change again
         expect(input.value).toBe('')
         expect(one(s, 'esp-status').textContent).toBe('Opening a.gltf, a.bin…')
@@ -416,12 +417,34 @@ describe('EditorSplash', () => {
         const drop = r2.fire('drop', {dataTransfer: {files: [a]}})
         expect(drop.defaultPrevented).toBe(true)
         expect(r2.classList.contains('esp-over')).toBe(false)
-        expect(onFiles).toHaveBeenLastCalledWith([a])
+        expect(onFiles).toHaveBeenLastCalledWith(new Map([['a.gltf', a]]))
         // a drop of no files does nothing
         await flush()
         s.open()
         root(s).fire('drop', {dataTransfer: {files: []}})
         expect(onFiles).toHaveBeenCalledTimes(2)
+    })
+
+    test('a dropped folder opens with the relative paths of its files (a .gltf with its .bin), as a drop on the canvas', async() => {
+        const onFiles = vi.fn()
+        const s = new EditorSplash({onFiles})
+        s.open()
+        const gltf = {name: 'scene.gltf'} as File
+        const bin = {name: 'scene.bin'} as File
+        // FileSystemEntry objects, as webkitGetAsEntry gives them: a folder with two files; its reader gives them once
+        const file = (f: File, fullPath: string) => ({isFile: true, isDirectory: false, fullPath, file: (ok: (f: File) => void) => ok(f)})
+        const children = [file(gltf, '/helmet/scene.gltf'), file(bin, '/helmet/scene.bin')]
+        const folder = {isFile: false, isDirectory: true, fullPath: '/helmet', createReader: () => ({
+            readEntries: (ok: (e: any[]) => void) => ok(children.splice(0)),
+        })}
+        root(s).fire('drop', {dataTransfer: {files: [], items: [{webkitGetAsEntry: () => folder}]}})
+        expect(onFiles).toHaveBeenCalledTimes(1)
+        const files: Map<string, File> = onFiles.mock.calls[0][0]
+        expect([...files.keys()].sort()).toEqual(['/helmet/scene.bin', '/helmet/scene.gltf'])
+        expect(files.get('/helmet/scene.gltf')).toBe(gltf)
+        expect(one(s, 'esp-status').textContent).toMatch(/^Opening scene\.(bin|gltf), scene\.(bin|gltf)…$/)
+        await flush()
+        expect(s.isOpen).toBe(false)
     })
 
     test('the "Show at startup" box is kept in localStorage, under storageKey', () => {
