@@ -20,6 +20,9 @@ All notable changes to this project will be documented in this file.
 - `lib/index.js` keeps its `@license` banner (the old minifier removed it)
 - Remove the obsolete `prepare`, `copy:inlines` and `postcompile:esm` scripts, `scripts/each-plugin.mjs`, `scripts/build-plugins.mjs`, `scripts/fix-inline-imports.mjs` and the unused `copyfiles`, `hexer` and `proper-lockfile` dev dependencies
 
+### Fixed
+
+- `CameraViewPlugin.animateToView` and `InteractionPromptPlugin` turn the user interactions back on for the camera they animated. Before, they turned them on for the main camera at the end, so a camera that stopped being the main camera during the animation stayed locked (its controls off), for example after a switch to an editor camera. `animateToView` with a `camera` argument that is not the main camera had the same problem. A new main camera now stops the interaction prompt, which puts its camera back.
 
 ## [0.6.0] - 2026-10-23
 
