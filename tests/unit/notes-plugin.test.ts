@@ -333,7 +333,7 @@ describe('NotesPlugin', () => {
         notes.addNote('typed while it loads')
         notes.onRemove(viewer) // the viewer is disposed
         await vi.waitFor(() => expect(answer).toBeTypeOf('function'))
-        const loaded = new Promise(r => notes.addEventListener('notesChanged', e => e.change === 'load' && r(e)))
+        const loaded = new Promise(r => notes.addEventListener('notesChange', e => e.change === 'load' && r(e)))
         answer([{id: 'old', text: 'from before', store: 'slow', created: 1}])
         await loaded
         await notes.flush()
@@ -412,7 +412,7 @@ describe('NotesPlugin', () => {
         notes.onAdded(viewer) // B changes on another device meanwhile
         await vi.waitFor(() => expect(answers).toHaveLength(2))
         notes.updateNote('a', {text: 'A edited here'})
-        const loaded = new Promise(r => notes.addEventListener('notesChanged', e => e.change === 'load' && r(e)))
+        const loaded = new Promise(r => notes.addEventListener('notesChange', e => e.change === 'load' && r(e)))
         answers[1]([{id: 'a', text: 'A', store: 'slow', created: 1}, {id: 'b', text: 'B edited there', store: 'slow', created: 2}])
         await loaded
         expect(texts(notes)).toEqual(['slow:A edited here', 'slow:B edited there'])
@@ -489,7 +489,7 @@ describe('NotesPlugin', () => {
         await vi.waitFor(() => expect(answers).toHaveLength(2))
         notes.removeNote('a')
         notes.updateNote('b', {store: 'other'})
-        const loaded = new Promise(r => notes.addEventListener('notesChanged', e => e.change === 'load' && r(e)))
+        const loaded = new Promise(r => notes.addEventListener('notesChange', e => e.change === 'load' && r(e)))
         answers[1](before)
         await loaded
         expect(texts(notes)).toEqual(['slow:kept', 'other:moved'])
@@ -602,7 +602,7 @@ describe('NotesPlugin', () => {
         const f1 = notes.addNote('f1', 'file')
         const m2 = notes.addNote('m2', 'mem')
         const removed: (string[] | undefined)[] = []
-        notes.addEventListener('notesChanged', e => e.change === 'remove' && removed.push(e.notes?.map(n => n.id)))
+        notes.addEventListener('notesChange', e => e.change === 'remove' && removed.push(e.notes?.map(n => n.id)))
         notes.clear('file')
         notes.addStore(memoryStore('mem'))
         expect(removed).toEqual([[f1.id], ['m1', m2.id]])
