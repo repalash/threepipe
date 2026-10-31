@@ -375,6 +375,15 @@ describe('EditorFrame', () => {
         expect(name.textContent).toBe('New ring')
         expect(onRename).toHaveBeenCalledTimes(1)
     })
+
+    test('the Enter that ends a composition in Safari (isComposing false, keyCode 229) is for the text', () => {
+        const f = frame('titlebar', true, (name) => f.documentName = name)
+        f.documentName = 'Ring.glb'
+        const name = body().find('lay-top')[0].find('lay-file')[0]
+        name.click()
+        expect(name.fire('keydown', {key: 'Enter', isComposing: false, keyCode: 229}).defaultPrevented).toBe(false)
+        expect(name.isContentEditable).toBe(true)
+    })
 })
 
 describe('TweakpaneEditorPlugin.layout', () => {
