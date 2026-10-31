@@ -38,6 +38,7 @@ export function pageRoutes(app: Hono<CloudEnv>) {
     app.get('/drive/page.js', c => c.body(DRIVE_SCRIPT, 200, js))
     app.get('/reports', c => c.body(REPORTS, 200, html))
     app.get('/reports/page.js', c => c.body(REPORTS_SCRIPT, 200, js))
+    app.get('/', c => c.redirect('/drive', 302))
     app.get('/account', c => c.body(ACCOUNT, 200, html))
     app.get('/account/page.js', c => c.body(ACCOUNT_SCRIPT, 200, js))
 

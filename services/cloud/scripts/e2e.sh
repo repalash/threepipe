@@ -26,7 +26,7 @@ trap 'kill -- -$DEV 2>/dev/null; rm -rf "$TMP"' EXIT
 for i in $(seq 1 60); do curl -s -o /dev/null "$A/api/v1/health" && break; sleep 1; done
 curl -s -o /dev/null "$A/api/v1/health" || { echo "dev server did not start"; cat "$TMP/dev.log"; exit 1; }
 
-U=u$RANDOM
+U=u$RANDOM$RANDOM
 SIGN=$(curl -s -X POST $A/api/v1/table/users/auth/sign-up -H 'content-type: application/json' -d "{\"username\":\"$U\",\"email\":\"$U@x.test\",\"password\":\"pass12345\",\"passwordConfirm\":\"pass12345\",\"name\":\"$U\"}")
 TOK=$(echo "$SIGN" | j "['token']" 2>/dev/null) && ok "sign-up" || { bad "sign-up: $SIGN"; exit 1; }
 LINK=$(curl -s -X POST $A/api/v1/access-links -H "Authorization: Bearer $TOK" -H 'content-type: application/json' -d '{"name":"laptop"}')
@@ -142,6 +142,7 @@ NL=$(curl -s -X POST -H "$H0" "$A/api/v1/drive/items/$LID/new-id" | j "['id']")
 [ "$(code -H "$H0" "$A/api/v1/table/user_limits/list")" = "403" ] && [ "$(code -X POST -H "$H0" -H 'content-type: application/json' -d "{\"values\":{\"user_id\":\"$UID1\",\"projects\":99}}" "$A/api/v1/table/user_limits/insert")" = "403" ] && ok "users cannot read or set their limits" || bad "user_limits rules"
 admin user_limits/delete "{\"where\":\"user_id == '$UID1'\"}" > /dev/null
 admin files/delete "{\"where\":\"path == 'd/$U/big'\"}" > /dev/null
+[ "$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' "$A/")" = "302 $A/drive" ] && ok "the home page opens the drive" || bad "home page: $(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' "$A/")"
 curl -sI "$A/drive" | grep -qi "content-security-policy: default-src 'none'; script-src 'self'" && [ "$(code "$A/drive/page.js")" = "200" ] && ok "drive page" || bad "drive page"
 [ "$(curl -s -o /dev/null -w '%{http_code} %{content_type}' "$A/ui.css")" = "200 text/css; charset=utf-8" ] && [ "$(code "$A/ui.js")" = "200" ] && ok "the pages' look (/ui.css, /ui.js)" || bad "ui.css"
 R=$(curl -s -H "$H0" "$A/api/v1/me"); [ "$(echo "$R" | j "['username']")" = "$U" ] && [ "$(echo "$R" | j "['drive']['quota']")" = "1073741824" ] && echo "$R" | grep -q '"feedback":' && ok "me: the handle, the drive quota, the feedback project" || bad "me: $R"
@@ -229,24 +230,24 @@ R=$(curl -s -H "$H0" "$A/api/v1/projects/$P"); echo "$R" | grep -q '"role":"mana
 [ "$(code -H "Authorization: Bearer $T2" "$A/api/v1/projects/$P")" = "404" ] && ok "non-members: no such project" || bad "project get non-member"
 curl -s -H "Authorization: Bearer $TS" "$A/api/v1/projects/$P" | grep -q '"role":"manager"' && ok "staff open any project (the reports page's #slug)" || bad "staff project get"
 RJ='{"type":"bug","surface":"examples","text":"it broke","email":"me@x.test","log":["GET https://a.test/x?token=abcdefgh12345678 failed","at /Users/jane/app.js:1:2"],"versions":{"threepipe":"0.4.0"}}'
-[ "$(code -X POST -H 'content-type: application/json' -H "Idempotency-Key: k-$U-0" -d "$RJ" "$A/api/v1/projects/$P/reports")" = "401" ] && ok "anonymous report without Turnstile -> 401" || bad "no turnstile"
-R=$(curl -s -X POST -H 'content-type: application/json' -H "Idempotency-Key: k-$U-1" -H 'cf-turnstile-response: test' -H "Origin: https://files.threepipe.org" -d "$RJ" "$A/api/v1/projects/$P/reports"); RID=$(echo "$R" | j "['id']") && ok "anonymous report with Turnstile -> $RID" || bad "anon report: $R"
-R=$(curl -s -X POST -H "Authorization: Bearer $T2" -H 'content-type: application/json' -H "Idempotency-Key: k-$U-2" -d '{"type":"other","surface":"editor","text":"signed in","image":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="}' "$A/api/v1/projects/$P/reports"); RID2=$(echo "$R" | j "['id']") && ok "signed-in report (type other), no Turnstile -> $RID2" || bad "signed-in report: $R"
+[ "$(code -X POST -H 'content-type: application/json' -H "Idempotency-Key: key-$U-0" -d "$RJ" "$A/api/v1/projects/$P/reports")" = "401" ] && ok "anonymous report without Turnstile -> 401" || bad "no turnstile"
+R=$(curl -s -X POST -H 'content-type: application/json' -H "Idempotency-Key: key-$U-1" -H 'cf-turnstile-response: test' -H "Origin: https://files.threepipe.org" -d "$RJ" "$A/api/v1/projects/$P/reports"); RID=$(echo "$R" | j "['id']") && ok "anonymous report with Turnstile -> $RID" || bad "anon report: $R"
+R=$(curl -s -X POST -H "Authorization: Bearer $T2" -H 'content-type: application/json' -H "Idempotency-Key: key-$U-2" -d '{"type":"other","surface":"editor","text":"signed in","image":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="}' "$A/api/v1/projects/$P/reports"); RID2=$(echo "$R" | j "['id']") && ok "signed-in report (type other), no Turnstile -> $RID2" || bad "signed-in report: $R"
 admin user_limits/insert "{\"values\":{\"user_id\":\"$UID2\",\"reports_daily\":1}}" > /dev/null
-[ "$(code -X POST -H "Authorization: Bearer $T2" -H 'content-type: application/json' -H "Idempotency-Key: k-$U-limited" -d "$RJ" "$A/api/v1/projects/$P/reports")" = "429" ] && ok "a user's own daily report cap (user_limits)" || bad "user report cap"
+[ "$(code -X POST -H "Authorization: Bearer $T2" -H 'content-type: application/json' -H "Idempotency-Key: key-$U-limited" -d "$RJ" "$A/api/v1/projects/$P/reports")" = "429" ] && ok "a user's own daily report cap (user_limits)" || bad "user report cap"
 admin user_limits/delete "{\"where\":\"user_id == '$UID2'\"}" > /dev/null
 SID=$(curl -s -H "Authorization: Bearer $TS" "$A/api/v1/table/users/select?select=id" | j "[0]['id']")
 admin user_limits/insert "{\"values\":{\"user_id\":\"$SID\",\"reports_daily\":1}}" > /dev/null
 curl -s -o /dev/null -X POST -H "$H0" -H 'content-type: application/json' -d "{\"slug\":\"$P-burst\"}" "$A/api/v1/projects"
 # big files: their uploads keep the requests between the checks and the INSERT long enough to overlap
 head -c 3000000 /dev/urandom > $TMP/big.glb; echo '{"type":"bug","surface":"examples","text":"burst"}' > $TMP/burst.json
-PIDS=""; for i in 1 2 3 4; do curl -s -o $TMP/burst-body.$i -w '%{http_code}\n' -X POST -H "Authorization: Bearer $TS" -H "Idempotency-Key: k-$U-burst-$i" -F "report=<$TMP/burst.json" \
+PIDS=""; for i in 1 2 3 4; do curl -s -o $TMP/burst-body.$i -w '%{http_code}\n' -X POST -H "Authorization: Bearer $TS" -H "Idempotency-Key: key-$U-burst-$i" -F "report=<$TMP/burst.json" \
     -F "file=@$TMP/big.glb;filename=a.glb" -F "file=@$TMP/big.glb;filename=b.glb" -F "file=@$TMP/big.glb;filename=c.glb" "$A/api/v1/projects/$P-burst/reports" > $TMP/burst.$i & PIDS="$PIDS $!"; done; wait $PIDS
 [ "$(cat $TMP/burst.[0-9] | grep -c 201)" = "1" ] && [ "$(cat $TMP/burst.[0-9] | grep -c 429)" = "3" ] && ok "a burst of reports at the same time: the cap holds (one of four)" || bad "report burst: $(cat $TMP/burst.[0-9] | tr '\n' ' ') $(cat $TMP/burst-body.1)"
 admin user_limits/delete "{\"where\":\"user_id == '$SID'\"}" > /dev/null
-curl -s -X POST -H "Authorization: Bearer $T2" -H 'content-type: application/json' -H "Idempotency-Key: k-$U-2" -d '{"type":"idea","surface":"editor"}' "$A/api/v1/projects/$P/reports" | grep -q '"repeat":true' && ok "same Idempotency-Key -> the same report" || bad "idempotency"
+curl -s -X POST -H "Authorization: Bearer $T2" -H 'content-type: application/json' -H "Idempotency-Key: key-$U-2" -d '{"type":"idea","surface":"editor"}' "$A/api/v1/projects/$P/reports" | grep -q '"repeat":true' && ok "same Idempotency-Key -> the same report" || bad "idempotency"
 echo "$RJ" > $TMP/report.json
-R=$(curl -s -X POST -H "Authorization: Bearer $T2" -H "Idempotency-Key: k-$U-3" -F "report=<$TMP/report.json" -F "file=@$TMP/a.txt;filename=scene.glb" "$A/api/v1/projects/$P/reports"); RID3=$(echo "$R" | j "['id']") && ok "multipart report with a file" || bad "multipart: $R"
+R=$(curl -s -X POST -H "Authorization: Bearer $T2" -H "Idempotency-Key: key-$U-3" -F "report=<$TMP/report.json" -F "file=@$TMP/a.txt;filename=scene.glb" "$A/api/v1/projects/$P/reports"); RID3=$(echo "$R" | j "['id']") && ok "multipart report with a file" || bad "multipart: $R"
 [ "$(code -H "Authorization: Bearer $T2" "$A/api/v1/projects/$P/reports")" = "404" ] && ok "non-members cannot read reports" || bad "non-member read"
 R=$(curl -s -H "$H0" "$A/api/v1/projects/$P/reports"); [ "$(echo "$R" | python3 -c "import json,sys;print(len(json.load(sys.stdin)['rows']))")" = "3" ] && ok "owner lists 3 reports" || bad "list: $R"
 R=$(curl -s -H "$H0" "$A/api/v1/projects/$P/reports/$RID"); echo "$R" | grep -q 'https://a.test/x failed' && echo "$R" | grep -q '/Users/<user>' && ! echo "$R" | grep -q abcdefgh12345678 && ok "log redacted on the server (query strings, home folders)" || bad "redaction: $R"

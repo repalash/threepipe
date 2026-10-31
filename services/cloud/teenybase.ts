@@ -18,7 +18,8 @@ const userFields = [
  */
 export default {
     appName: 'threepipe cloud',
-    appUrl: '$APP_URL',
+    // a literal URL: teenybase resolves $NAME only in secret fields (an OAuth sign-in returns here when no redirect is given)
+    appUrl: 'https://cloud.threepipe.org',
     jwtSecret: '$JWT_SECRET',
     authCookie: {name: 'tp_cloud_auth'}, // host-only on cloud.threepipe.org, never on the parent domain
     authProviders: [

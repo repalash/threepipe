@@ -1,6 +1,5 @@
 # Copy to .prod.vars and fill in, then `npm run secrets-upload` (Worker secrets) before `npm run deploy`.
 # Never commit .prod.vars. Random values: `openssl rand -base64 32`. Keep a copy of ADMIN_SERVICE_TOKEN (deploys and CI use it).
-APP_URL=https://cloud.threepipe.org
 JWT_SECRET=
 JWT_SECRET_USERS=
 ADMIN_JWT_SECRET=
@@ -15,7 +14,7 @@ FILES_URL_SECRET=
 REPORTS_RATE_SECRET=
 # the Turnstile widget's secret (anonymous reports); its site key goes in the apps (@threepipe/plugin-cloud)
 TURNSTILE_SECRET=
-# OAuth apps, callback https://<APP_URL host>/api/v1/table/users/auth/oauth/<github|google>/callback
+# OAuth apps, callback https://cloud.threepipe.org/api/v1/table/users/auth/oauth/<github|google>/callback
 GITHUB_CLIENT_ID=
 GITHUB_CLIENT_SECRET=
 # optional: the Google button shows only when set

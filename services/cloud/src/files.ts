@@ -1,6 +1,7 @@
 import type {Context, Next} from 'hono'
 import type {CloudEnv} from './env'
 import {verifySigned} from './drive'
+import config from 'virtual:teenybase'
 
 const HTML_SANDBOX = 'sandbox allow-scripts allow-forms allow-popups allow-modals allow-downloads allow-pointer-lock allow-presentation'
 
@@ -24,6 +25,8 @@ export async function filesHost(c: Context<CloudEnv>, next: Next) {
         path = url.pathname.slice('/_files'.length)
     }
     if (c.req.method !== 'GET' && c.req.method !== 'HEAD') return c.text('method not allowed', 405)
+    // the files host's own address has no file: the cloud's pages
+    if (c.env.FILES_HOST && path === '/') return c.redirect(`${config.appUrl}/drive`, 302)
     const notFound = () => c.text('not found', 404)
     let key: string
     try {
