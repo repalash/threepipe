@@ -32,7 +32,7 @@ export {DropzonePlugin, type DropzonePluginOptions} from './interaction/Dropzone
 export {FullScreenPlugin} from './interaction/FullScreenPlugin'
 export {LoadingScreenPlugin} from './interaction/LoadingScreenPlugin'
 export {InteractionPromptPlugin} from './interaction/InteractionPromptPlugin'
-export {PickingPlugin, type PickingPluginEventMap} from './interaction/PickingPlugin'
+export {PickingPlugin, isPickable, type PickingPluginEventMap} from './interaction/PickingPlugin'
 export {DuplicateTracker, type DuplicateMode} from './interaction/DuplicateTracker'
 export {ObjectClipboard, type ClipboardState, type ClipboardMode} from './interaction/ObjectClipboard'
 export {TransformControlsPlugin, TransformControls2} from './interaction/TransformControlsPlugin'
