@@ -5,6 +5,7 @@
 // while far from the goal, then a standing target at the goal so the robot stops there. The gait
 // target is the pose of the stride the robot will be at when it arrives, so the steps stay even.
 
+import {G1Obstacle, placeSequence, probeHits, G1PrimitiveStep} from './G1Primitives'
 import {BOUNDARY_FRAMES, DEFAULT_TOKEN_COUNTS, G1Pose, GenerateOptions, heading, lerpPose, MotionGenerator, placePoses, POSE_SIZE, POSES_PER_TOKEN, SAMPLE_RATE, withSpeed} from './MotionBricksG1'
 
 export interface G1Bricks {
@@ -42,6 +43,17 @@ interface Segment {
     /** Frames before the end where the next segment takes over. */
     transitionEarly: number
     stopping: boolean
+    /** A Smart Primitive sequence being played (a jump): its placed steps, and the next one to generate. */
+    sequence?: Sequence
+}
+
+interface Sequence {
+    steps: G1PrimitiveStep[]
+    next: number
+    /** Hold the last step's pose at the end (sitting down, standing up) instead of walking on. */
+    hold?: boolean
+    /** The obstacle being sat on, for a Sit sequence. */
+    seat?: G1Obstacle
 }
 
 interface Request {
@@ -52,6 +64,9 @@ interface Request {
     startFrame: number
     stopping: boolean
     gait: G1Gait
+    sequence?: Sequence
+    /** The step's own transition point, for a sequence step. */
+    transitionEarly?: number
 }
 
 export interface G1ControllerStats {
@@ -68,6 +83,12 @@ export class G1Controller {
     readonly pose: G1Pose
     goal: [number, number] | null = null
     gait: G1Gait = 'walk'
+    /** Obstacles with a Smart Primitive (see G1Primitives), which the robot jumps or vaults on its way. */
+    obstacles: G1Obstacle[] = []
+    /** The obstacle the robot sits on, or null. */
+    seat: G1Obstacle | null = null
+    /** An action asked for (sit, stand up), to start at the next generation. */
+    private _action: Sequence | null = null
     /**
      * Seconds of travel between the robot and its gait target. With stride cycles in the bricks, the target is
      * the pose the stride reaches by then and the segment length is fixed to match. Without them, the single gait
@@ -123,6 +144,30 @@ export class G1Controller {
         this._regenerate()
     }
 
+    /**
+     * Sit on a 'sit' obstacle: walk the last metre to it, turn and sit, then stay seated. Start within about two
+     * metres of it. Moving again stands up first.
+     */
+    sit(o: G1Obstacle) {
+        const sequence = o.primitive.sequences.find(q => q.name === 'Sit')
+        if (!sequence || this.seat) return
+        const angle = Math.atan2(o.y - this.pose[1], o.x - this.pose[0])
+        const steps = placeSequence(o, sequence, this.pose[0], this.pose[1], angle, GAIT_SPEEDS.walk)
+        this.goal = null
+        this._action = {steps, next: 0, hold: true, seat: o}
+        if (!this._request && !this._pending) this._generate(true)
+    }
+
+    /** Stand up from the seat and stay there. */
+    standUp() {
+        const o = this.seat
+        const sequence = o?.primitive.sequences.find(q => q.name === 'Stand')
+        if (!o || !sequence) return
+        this.goal = null
+        this._action = {steps: placeSequence(o, sequence, this.pose[0], this.pose[1], 0, 0), next: 0, hold: true}
+        if (!this._request && !this._pending) this._generate(true)
+    }
+
     /** Come to a stop a short way ahead. */
     stop() {
         this.goal = null
@@ -134,6 +179,9 @@ export class G1Controller {
      * belongs to the segment it was made from, so none is made while another waits to take over.
      */
     private _regenerate() {
+        // A jump plays to its end; the new goal applies after it.
+        const seq = this._pending?.request.sequence ?? this._request?.sequence ?? this._segment?.sequence
+        if (seq && seq.next < seq.steps.length) return
         if (this._request || this._pending) this._dirty = true
         else this._generate(true)
     }
@@ -192,6 +240,30 @@ export class G1Controller {
         return this.bricks.cycles?.run ? 6 : 10
     }
 
+    /**
+     * A jump to start now: the nearest obstacle the probe meets whose first target is no more than `lead` seconds of
+     * travel ahead, with its steps placed for this approach. When the robot is already past the first target, it
+     * starts at the next one still ahead.
+     */
+    private _findJump(from: G1Pose, angle: number, speed: number, distance: number): Sequence | undefined {
+        let best: Sequence | undefined, bestAhead = Infinity
+        const cos = Math.cos(angle), sin = Math.sin(angle)
+        const ahead = (p: G1Pose) => (p[0] - from[0]) * cos + (p[1] - from[1]) * sin
+        for (const o of this.obstacles) {
+            if (o.primitive.kind !== 'pass' || !probeHits(o, from[0], from[1], angle, speed, speed * this.lead + 3)) continue
+            const sequence = o.primitive.sequences.reduce((a, b) => Math.abs(b.startSpeed - speed) < Math.abs(a.startSpeed - speed) ? b : a)
+            const steps = placeSequence(o, sequence, from[0], from[1], angle, speed)
+            const entry = ahead(steps[0].window[0])
+            if (entry > speed * this.lead + 0.3 || entry >= bestAhead) continue
+            const first = steps.findIndex(s => ahead(s.window[0]) > 0.3)
+            // Skip it when the goal comes before the landing.
+            if (first < 0 || ahead(steps[steps.length - 1].window[0]) > distance + 0.5) continue
+            best = {steps, next: first}
+            bestAhead = entry
+        }
+        return best
+    }
+
     private _distanceToGoal() {
         return this.goal ? Math.hypot(this.goal[0] - this.pose[0], this.goal[1] - this.pose[1]) : 0
     }
@@ -225,9 +297,29 @@ export class G1Controller {
         let targets: G1Pose[]
         let stopping: boolean
         let options: GenerateOptions | undefined
+        let sequence: Sequence | undefined
         const lead = this.lead
         const cycle = this.bricks.cycles?.[this.gait]
-        if (distance > speed * lead + 0.8 && cycle && this._segment && !this._segment.stopping) {
+        const playing = this._segment?.sequence
+        let jump = playing && playing.next < playing.steps.length ? playing : undefined
+        if (!jump && this._action) {
+            jump = this._action
+            this._action = null
+        }
+        // Seated with somewhere to go: stand up first, then go on.
+        if (!jump && this.seat && this.goal) {
+            const stand = this.seat.primitive.sequences.find(q => q.name === 'Stand')
+            if (stand) jump = {steps: placeSequence(this.seat, stand, from[0], from[1], 0, 0), next: 0}
+        }
+        if (!jump && this._segment && !this._segment.stopping && distance > 1) jump = this._findJump(from, angle, speed, distance)
+        if (jump) {
+            const step = jump.steps[jump.next]
+            targets = step.window
+            options = {tokens: step.tokens}
+            sequence = {...jump, next: jump.next + 1}
+            // The last step of a held sequence ends the motion there, like a stop.
+            stopping = !!jump.hold && jump.next === jump.steps.length - 1
+        } else if (distance > speed * lead + 0.8 && cycle && this._segment && !this._segment.stopping) {
             // A fixed length, the travel for it at gait speed, and the pose of the stride the robot reaches by then.
             const tokens = Math.round((lead * SAMPLE_RATE + POSES_PER_TOKEN + BOUNDARY_FRAMES) / POSES_PER_TOKEN)
             const frames = Math.round(segmentSeconds(tokens) * SAMPLE_RATE)
@@ -255,7 +347,10 @@ export class G1Controller {
             const tokens = DEFAULT_TOKEN_COUNTS.filter(t => segmentSeconds(t) >= need)
             if (tokens.length < DEFAULT_TOKEN_COUNTS.length) options = {tokens}
         }
-        const request: Request = {id: ++this._requestId, segment: this._segment, startFrame, stopping, gait: this.gait}
+        const request: Request = {
+            id: ++this._requestId, segment: this._segment, startFrame, stopping, gait: this.gait,
+            sequence, transitionEarly: sequence ? sequence.steps[sequence.next - 1].transitionEarly : undefined,
+        }
         this._request = request
         this._dirty = false
         this.engine.generate(context, targets, options).then(motion => {
@@ -288,6 +383,8 @@ export class G1Controller {
             this._dirty = true
             return
         }
+        // A sequence's first step takes the robot off the seat; a Sit sequence's puts it on.
+        if (request.sequence && request.sequence.next === 1) this.seat = request.sequence.seat ?? null
         let prefix: G1Pose[]
         if (seg && request.startFrame >= 0) {
             const frames = [...seg.prefix, ...seg.poses]
@@ -304,8 +401,9 @@ export class G1Controller {
         this._segment = {
             poses,
             prefix,
-            transitionEarly: request.stopping ? 0 : this._transitionEarly(request.gait),
+            transitionEarly: request.stopping ? 0 : request.transitionEarly ?? this._transitionEarly(request.gait),
             stopping: request.stopping,
+            sequence: request.sequence,
         }
     }
 }

@@ -1,10 +1,11 @@
-import {Group, Object3D, Vector3} from 'three'
+import {Group, Object3D, Quaternion, Vector3} from 'three'
 import {G1Robot} from './G1Robot'
 import {CHARACTER_RIGS, CharacterRig, RetargetedCharacter} from './RetargetedCharacter'
 import {G1Bricks, G1Controller, G1ControllerStats, G1Gait, GAIT_SPEEDS} from './G1Controller'
 import {G1_BRICKS} from './G1Bricks'
 import {heading, MOTIONBRICKS_CACHE, MotionBricksG1, MotionGenerator, OrtApi, setupOrtWeb} from './MotionBricksG1'
 import {MotionBricksRemote, MotionBricksWorkerError} from './MotionBricksRemote'
+import {G1_PRIMITIVE_SOURCES, G1Primitive, loadG1Primitive} from './G1Primitives'
 
 const NVIDIA_ASSETS = 'https://media.githubusercontent.com/media/NVlabs/motionbricks/main/motionbricks/assets'
 
@@ -68,6 +69,19 @@ export interface MotionBricksCharacterOptions {
     shadows?: boolean
     /** Standing, walk and run target poses. The default ones are baked from the model. */
     bricks?: G1Bricks
+    /** Where Smart Primitives and their clips load from (loadPrimitive). The default is NVIDIA's repository. */
+    primitives?: typeof G1_PRIMITIVE_SOURCES
+}
+
+/**
+ * Something the robot jumps or vaults over: a Smart Primitive placed in the world. `position` is the centre of
+ * the primitive's box on the ground, and `rotation` turns it about Y. The box measures `primitive.box.size`:
+ * width along the obstacle's X, depth along its Z, height up.
+ */
+export interface MotionBricksObstacle {
+    primitive: G1Primitive
+    position: Vector3
+    rotation?: number
 }
 
 export type LoadStage = 'runtime' | 'model' | 'warmup'
@@ -221,6 +235,7 @@ export class MotionBricksCharacter {
         c.stats.averageInferenceMs = warmupMs
         c.onError = e => this.onError ? this.onError(e) : console.error('MotionBricks: generation failed', e)
         this.controller = c
+        this._syncObstacles()
         if (this._pendingGoal) c.moveTo(...this._pendingGoal, this.gait)
         this._pendingGoal = null
         return this
@@ -232,6 +247,54 @@ export class MotionBricksCharacter {
         if (!c) return
         c.update(Math.min(dt, 0.1))
         this.robot?.setPose(c.pose)
+    }
+
+    /**
+     * Load one of NVIDIA's G1 Smart Primitives: 'jump_0_5m' (a box 0.55 m wide and 0.39 m high), 'jump_0_75m' (a
+     * wall 1.57 m long and 0.64 m high), and others. Its clips download from NVIDIA's repository.
+     */
+    async loadPrimitive(name: string) {
+        return loadG1Primitive(name, this.options.primitives)
+    }
+
+    /** The obstacles the robot jumps or vaults over on its way, replacing any set before. */
+    setObstacles(obstacles: MotionBricksObstacle[]) {
+        this._obstacles = obstacles
+        this._syncObstacles()
+    }
+
+    private _obstacles: MotionBricksObstacle[] = []
+
+    /** Sit on an obstacle whose primitive is 'sit' (one of setObstacles'), from within about two metres. */
+    sit(obstacle: MotionBricksObstacle) {
+        const i = this._obstacles.indexOf(obstacle)
+        const o = this.controller?.obstacles[i]
+        if (i < 0 || !o) return
+        this._drive.active = false
+        this.controller!.sit(o)
+    }
+
+    /** Stand up from the seat. Moving with moveTo or drive also stands up first. */
+    standUp() {
+        this.controller?.standUp()
+    }
+
+    /** The robot is sitting, or sitting down. */
+    get seated() {
+        return !!this.controller?.seat
+    }
+
+    private _syncObstacles() {
+        const c = this.controller
+        if (!c) return
+        this.object.updateWorldMatrix(true, false)
+        const turn = this.object.getWorldQuaternion(new Quaternion())
+        const objectYaw = Math.atan2(2 * (turn.w * turn.y + turn.x * turn.z), 1 - 2 * (turn.y * turn.y + turn.z * turn.z))
+        c.obstacles = this._obstacles.map(o => {
+            const [x, y] = this._toG1(o.position)
+            // A turn about Y in three.js is the same angle about Z in G1 space.
+            return {primitive: o.primitive, x, y, yaw: (o.rotation ?? 0) - objectYaw}
+        })
     }
 
     /** Convert a world point to the character's G1 ground coordinates. */
@@ -271,7 +334,8 @@ export class MotionBricksCharacter {
         const goal: [number, number] = [c.pose[0] + Math.cos(angle) * ahead, c.pose[1] + Math.sin(angle) * ahead]
         const d = this._drive
         const turn = Math.abs(Math.atan2(Math.sin(angle - d.angle), Math.cos(angle - d.angle)))
-        if (!d.active || gait !== d.gait || turn > 0.35) {
+        // Steering by more than 15 degrees generates at once, as a keyboard needs; smaller changes steer the goal.
+        if (!d.active || gait !== d.gait || turn > 0.26) {
             Object.assign(d, {active: true, angle, gait})
             c.moveTo(goal[0], goal[1], gait)
         } else c.goal = goal

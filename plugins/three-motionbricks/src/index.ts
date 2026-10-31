@@ -1,5 +1,7 @@
 export {MotionBricksCharacter, MOTIONBRICKS_DEFAULTS, MOTIONBRICKS_CHARACTERS, loadOrt, isLowMemoryDevice} from './MotionBricksCharacter'
-export type {MotionBricksCharacterOptions, LoadStage} from './MotionBricksCharacter'
+export type {MotionBricksCharacterOptions, LoadStage, MotionBricksObstacle} from './MotionBricksCharacter'
+export {loadG1Primitive, G1_PRIMITIVE_SOURCES} from './G1Primitives'
+export type {G1Primitive, G1PrimitiveSequence, G1PrimitiveStep, G1Obstacle} from './G1Primitives'
 export {G1Robot, G1_JOINT_BODIES} from './G1Robot'
 export {RetargetedCharacter, CHARACTER_RIGS, G1_PARTS} from './RetargetedCharacter'
 export type {CharacterRig, G1Part} from './RetargetedCharacter'

@@ -1,6 +1,7 @@
 import {
     _testFinish,
     _testStart,
+    BoxGeometry,
     Color,
     IObject3D,
     GBufferPlugin,
@@ -18,6 +19,7 @@ import {
     UnsignedByteType,
     Vector2,
     Vector3,
+    Object3D,
 } from 'threepipe'
 import {
     BloomPlugin,
@@ -27,7 +29,8 @@ import {
     VelocityBufferPlugin,
 } from '@threepipe/webgi-plugins'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
-import {CHARACTER_RIGS, G1Gait, MOTIONBRICKS_CHARACTERS, MOTIONBRICKS_DEFAULTS, MotionBricksCharacter} from 'three-motionbricks'
+import {CHARACTER_RIGS, G1Gait, G1Primitive, GAIT_SPEEDS, MOTIONBRICKS_CHARACTERS, MOTIONBRICKS_DEFAULTS, MotionBricksCharacter, MotionBricksObstacle} from 'three-motionbricks'
+import {CityNav, PathFollower} from './CityNav'
 import {G1Stage, STAGE_STYLES, StageStyleName} from './G1Stage'
 
 // Real-time motion generation in the browser with NVIDIA MotionBricks (https://github.com/NVlabs/motionbricks),
@@ -114,10 +117,19 @@ async function init() {
         `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/${name.match(/_(\d+k)\.hdr$/)?.[1] ?? '1k'}/${name}`)
     // The page's Effects button and Scene menu, and the Tweakpane panel, all drive the stage and follow it.
     const styleSelect = $('mb-style') as HTMLSelectElement | null
+    // The cubes are solid: clicks and wandering go around them, and the keys cannot drive into them.
+    let nav = new CityNav(new Set(), 40)
+    const follower = new PathFollower()
     stage.onChange = () => {
         $('mb-fx')?.setAttribute('aria-pressed', String(stage.effectsEnabled))
         if (styleSelect) styleSelect.value = stage.styleName
+        if (nav.blocked !== stage.blocked) {
+            nav = new CityNav(stage.blocked, 40)
+            follower.clear()
+            placeHurdles?.()
+        }
     }
+    let placeHurdles: (() => void) | undefined
     stage.effectsEnabled = config.fx !== '0'
     $('mb-fx')?.addEventListener('click', () => stage.setEffects(!stage.effectsEnabled))
     if (styleSelect) {
@@ -218,7 +230,8 @@ async function init() {
         gait = g
         g1.gait = g
         const goal = g1.getGoal()
-        if (goal && g1.ready) g1.moveTo(goal, g)
+        // A path being followed picks the gait up on its next step.
+        if (goal && g1.ready && !follower.active) g1.moveTo(goal, g)
         syncButtons()
     }
     gaitButtons.walk?.addEventListener('click', () => setGait('walk'))
@@ -230,6 +243,7 @@ async function init() {
     })
     $('mb-stop')?.addEventListener('click', () => {
         wander = false
+        follower.clear()
         g1.stop()
         syncButtons()
     })
@@ -252,8 +266,17 @@ async function init() {
         if (!hit) return
         wander = false
         syncButtons()
-        g1.moveTo(hit, gait)
+        goTo(hit)
     })
+
+    // Go to a point around the cubes: straight there when nothing is in the way, else along a path.
+    const goTo = (point: Vector3) => {
+        const path = nav.path(g1.getPosition(), point)
+        if (!path || path.length === 1) {
+            follower.clear()
+            g1.moveTo(path?.[0] ?? point, gait)
+        } else follower.set(path)
+    }
 
     // WASD or the arrow keys drive the robot relative to the camera; Shift runs while held.
     const driveKeys: Record<string, [number, number]> = {
@@ -275,21 +298,43 @@ async function init() {
     })
     window.addEventListener('blur', () => keys.clear())
     const forward = new Vector3(), right = new Vector3(), direction = new Vector3()
+    let keyDriving = false
+    /** Drive with the keys; returns whether they are held. Releasing them stops the robot. */
     const steer = () => {
         let ix = 0, iy = 0
         for (const k of keys) {
             ix += driveKeys[k][0]
             iy += driveKeys[k][1]
         }
-        if (!ix && !iy) return g1.drive(null)
+        if (!ix && !iy) {
+            if (keyDriving) g1.drive(null)
+            keyDriving = false
+            return false
+        }
+        keyDriving = true
+        follower.clear()
         forward.copy(camera.target).sub(camera.position).setY(0).normalize()
         right.crossVectors(forward, camera.up)
-        direction.copy(forward).multiplyScalar(iy).addScaledVector(right, ix)
+        direction.copy(forward).multiplyScalar(iy).addScaledVector(right, ix).normalize()
         if (wander) {
             wander = false
             syncButtons()
         }
+        // Into a cube, slide along it; into a corner, stop.
+        const at = g1.getPosition(), ahead = 0.8
+        const freeAlong = (d: Vector3) => nav.free(at.x + d.x * ahead, at.z + d.z * ahead)
+        if (!freeAlong(direction)) {
+            const sx = new Vector3(Math.sign(direction.x), 0, 0), sz = new Vector3(0, 0, Math.sign(direction.z))
+            const slide = Math.abs(direction.x) > Math.abs(direction.z) ? [sx, sz] : [sz, sx]
+            const way = slide.find(d => d.lengthSq() > 0 && freeAlong(d))
+            if (!way) {
+                g1.drive(null)
+                return true
+            }
+            direction.copy(way)
+        }
         g1.drive(direction, shift ? 'run' : gait)
+        return true
     }
 
     // Follow the robot with the camera, keeping the user's orbit.
@@ -301,9 +346,14 @@ async function init() {
         last = now
         stage.update(camera.target)
         if (!g1.ready) return
-        steer()
+        if (!steer()) {
+            const run = gait === 'run'
+            const step = follower.update(g1.getPosition(), GAIT_SPEEDS[gait] * 1.0 + 1.2, run ? 2.5 : 1.5)
+            if (step === 'finish') g1.moveTo(follower.path[follower.path.length - 1], gait)
+            else if (step) g1.drive(step, gait)
+        }
         g1.update(dt)
-        const goal = g1.getGoal(goalMarker.position)
+        const goal = follower.active ? goalMarker.position.copy(follower.path[follower.path.length - 1]) : g1.getGoal(goalMarker.position)
         goalMarker.visible = !!goal
         if (goal) {
             goalMarker.position.y = 0.003
@@ -330,7 +380,7 @@ async function init() {
             }
         }
 
-        if (g1.idle) {
+        if (g1.idle && !follower.active) {
             idleTime += dt
             if (wander && idleTime > 1.2) {
                 idleTime = 0
@@ -340,7 +390,7 @@ async function init() {
                 const d = 2.5 + Math.random() * 3.5
                 const to = new Vector3(at.x + Math.cos(angle) * d, 0, at.z + Math.sin(angle) * d)
                 if (to.length() > 7) to.copy(at).setLength(Math.max(0, at.length() - 4))
-                g1.moveTo(to, gait)
+                goTo(to)
             }
         } else idleTime = 0
     })
@@ -352,6 +402,41 @@ async function init() {
         else if (step === 'runtime') setStatus('Loading ONNX Runtime…', 'loading', 0)
         else if (step === 'warmup') setStatus('Warming up…', 'loading')
     })
+    // Low boxes and walls in the plaza, which the robot jumps and vaults: NVIDIA's Smart Primitives, whose clips
+    // download from NVIDIA's repository. They stand only in the block city.
+    const hurdles: {kind: 'box' | 'wall', x: number, z: number, rotation: number}[] = [
+        {kind: 'box', x: 2.6, z: 1.8, rotation: 0}, {kind: 'box', x: -3.2, z: -1.6, rotation: 0.4},
+        {kind: 'box', x: 0.4, z: -4.4, rotation: 0}, {kind: 'box', x: 4.6, z: -2.2, rotation: 0.8},
+        {kind: 'wall', x: -2.4, z: 3.2, rotation: 0.3}, {kind: 'wall', x: 3.4, z: 4.8, rotation: Math.PI / 2},
+        {kind: 'wall', x: -5.2, z: 1.2, rotation: Math.PI / 2 + 0.2},
+    ]
+    const hurdleMeshes: Object3D[] = []
+    Promise.all([g1.loadPrimitive('jump_0_5m'), g1.loadPrimitive('jump_0_75m')]).then(([box, wall]) => {
+        const primitives: Record<'box' | 'wall', G1Primitive> = {box, wall}
+        const materials = {box: new PhysicalMaterial({color: '#ef3b36', roughness: 0.55}), wall: new PhysicalMaterial({color: '#16171a', roughness: 0.45})}
+        placeHurdles = () => {
+            for (const m of hurdleMeshes.splice(0)) m.removeFromParent()
+            const obstacles: MotionBricksObstacle[] = []
+            if (stage.styleName === 'city') {
+                for (const h of hurdles) {
+                    const [w, d, height] = primitives[h.kind].box.size
+                    const mesh = new Mesh(new BoxGeometry(w, height, d), materials[h.kind])
+                    mesh.position.set(h.x, height / 2, h.z)
+                    mesh.rotation.y = h.rotation
+                    mesh.castShadow = mesh.receiveShadow = true
+                    mesh.name = h.kind === 'box' ? 'Hurdle box' : 'Hurdle wall'
+                    viewer.scene.addObject(mesh)
+                    hurdleMeshes.push(mesh)
+                    obstacles.push({primitive: primitives[h.kind], position: new Vector3(h.x, 0, h.z), rotation: h.rotation})
+                }
+            }
+            g1.setObstacles(obstacles)
+            viewer.renderManager.resetShadows()
+            viewer.setDirty()
+        }
+        placeHurdles()
+    }).catch(e => console.warn('MotionBricks: no hurdles, the jump primitives did not load', e))
+
     const backendLabel = (g1.backend === 'webgpu' ? 'WebGPU' : 'WebAssembly') + ((g1.engine as any)?.worker ? ' (worker)' : '')
     if ($('mb-backend')) $('mb-backend')!.textContent = backendLabel
     setStatus('Ready. Click the floor to send the robot there.', 'ready')
@@ -361,7 +446,7 @@ async function init() {
         if ($('mb-tokens')) $('mb-tokens')!.textContent = s.generations ? `${(s.lastTokenCount * 4 / 30).toFixed(1)} s · ${s.lastTokenCount} tok` : '–'
         if ($('mb-count')) $('mb-count')!.textContent = String(s.generations)
     }, 250)
-    Object.assign((window as any).motionbricks, {controller: g1.controller, engine: g1.engine})
+    Object.assign((window as any).motionbricks, {controller: g1.controller, engine: g1.engine, goTo, follower, nav: () => nav})
 }
 
 _testStart()

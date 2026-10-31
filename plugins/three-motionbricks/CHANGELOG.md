@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Jumps, vaults, ducking and sitting with NVIDIA's Smart Primitives: `loadPrimitive`, `setObstacles`, `sit`,
+  `standUp` (`G1Primitives.ts`). Pivot alignment and sequence playback follow NVIDIA's runtime; the documents and
+  clips load from NVIDIA's repository.
+- Keyboard steering regenerates at 15 degrees of change instead of 20.
 - Even steps: gait targets come from a symmetric stride cycle, at the point of the stride the robot reaches, with
   a fixed segment length to match. The left/right step timing went from 32% apart to under 5% when running, and
   from 22% to 2-3% when walking (`tools/make_cycles.py` bakes the cycles).

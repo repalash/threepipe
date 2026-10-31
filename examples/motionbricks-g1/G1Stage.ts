@@ -210,7 +210,8 @@ function random(seed: number) {
 
 /**
  * Clusters of unit cubes, stacks and stepped platforms on a one-metre grid, outside the plaza. Most cubes are the
- * base material; each cluster leans on one accent. Returns one merged geometry per material, base first.
+ * base material; each cluster leans on one accent. Returns one merged geometry per material, base first, and the
+ * cells the blocks stand on.
  */
 function blockCityGeometries(city: BlockCity) {
     const rand = random(city.seed)
@@ -241,9 +242,14 @@ function blockCityGeometries(city: BlockCity) {
         const accentShare = 0.25 + rand() * 0.5
         const kind = rand()
         if (kind < 0.18) {
-            // A stepped platform, like a stair up to a rooftop.
+            // A stepped platform, like a stair up to a rooftop. Its cells must all be free: blocks that overlap show
+            // coincident faces, which flicker.
             const w = 2 + Math.floor(rand() * 3), steps = 2 + Math.floor(rand() * 4)
             const material = rand() < accentShare * 0.6 ? accent : 0
+            const cells: string[] = []
+            for (let i = 0; i < steps; i++) for (let j = 0; j < w; j++) cells.push(`${cx + i},${cz + j}`)
+            if (cells.some(k => taken.has(k)) || Math.hypot(cx + 0.5, cz + 0.5) <= city.plaza + 1) continue
+            cells.forEach(k => taken.add(k))
             for (let i = 0; i < steps; i++) box(cx + i, cz, 1, w, 0, 0.3 * (i + 1), material)
             continue
         }
@@ -260,7 +266,7 @@ function blockCityGeometries(city: BlockCity) {
             else z += rand() < 0.5 ? 1 : -1
         }
     }
-    return parts.map(list => list.length ? mergeGeometries(list) : null)
+    return {geometries: parts.map(list => list.length ? mergeGeometries(list) : null), cells: taken}
 }
 
 const FLOOR_SIZE = 400
@@ -346,6 +352,8 @@ export class G1Stage {
     styleName: StageStyleName = 'city'
     style: StageStyle = STAGE_STYLES.city
     effectsEnabled = true
+    /** The ground cells the city's blocks stand on, as "x,z" for the cell from (x, z) to (x + 1, z + 1). */
+    blocked = new Set<string>()
     /** Called after a style is applied or the effects are switched. */
     onChange?: () => void
     private _floorMaterial: PhysicalMaterial | ShadowMaterial | null = null
@@ -458,10 +466,13 @@ export class G1Stage {
             add(mesh, true)
         }
 
+        this.blocked = new Set()
         if (style.blocks) {
             const city = style.blocks
             const materials = [city.base, ...city.accents]
-            blockCityGeometries(city).forEach((geometry, i) => {
+            const {geometries, cells} = blockCityGeometries(city)
+            this.blocked = cells
+            geometries.forEach((geometry, i) => {
                 if (!geometry) return
                 const m = materials[i]
                 const mesh = new Mesh(geometry, new PhysicalMaterial({color: m.color, roughness: m.roughness, metalness: m.metalness ?? 0}))
