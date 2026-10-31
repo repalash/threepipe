@@ -172,7 +172,8 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
                 get: () => ui.colorMode,
                 set: (m) => {
                     ui.colorMode = m as TweakpaneUiPlugin['colorMode']
-                    ui.uiConfig?.uiRefresh?.(true) // its Color Mode dropdown, which does not follow a change from code
+                    // its Color Mode dropdown, which does not follow a change from code (the UI that setupPluginUi made)
+                    ;(ui as IViewerPlugin).uiConfig?.uiRefresh?.(true)
                 },
             } : undefined,
             // the container of the Tweakpane UI (uiconfig-tweakpane gives it this id; the plugin has no getter for it)
