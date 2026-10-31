@@ -103,6 +103,25 @@ export default {
             deleteRule: null,
         } as TableRulesExtensionData],
     }, {
+        // Who owns a scope (`s/<slug>`, `p/<name>`, `b/<repo>/<ref>`): claimed atomically by the first upload (the unique
+        // index), released by the daily cron once the scope has no files left (src/uploads.ts, src/cron.ts).
+        name: 'scopes',
+        autoSetUid: true,
+        fields: [
+            ...baseFields,
+            {name: 'scope', type: 'text', sqlType: 'text', notNull: true, unique: true},
+            {name: 'owner_id', type: 'relation', sqlType: 'text', notNull: true, foreignKey: {table: 'users', column: 'id'}},
+        ],
+        triggers: [createdTrigger, updatedTrigger],
+        extensions: [{
+            name: 'rules',
+            listRule: 'auth.uid == owner_id',
+            viewRule: 'auth.uid == owner_id',
+            createRule: null,
+            updateRule: null,
+            deleteRule: null,
+        } as TableRulesExtensionData],
+    }, {
         // Share links to drive files and folders: files…/f/<id>/… Served from a pointer object `f/<id>` in R2 (no
         // database read); this table is for listing. Created and deleted by /api/v1/drive-links (src/drive.ts).
         name: 'drive_links',

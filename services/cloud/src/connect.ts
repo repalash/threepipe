@@ -10,7 +10,7 @@ export const APP_KEY_SECONDS = 24 * 60 * 60
 /**
  * "Sign in with threepipe" for apps hosted on the files host (or running on localhost while being developed).
  * No app registration: the app is identified by where it is served from, `s/<slug>`, `b/<repo>/<ref>`, `p/<name>`,
- * `d/<handle>/<app>` (owned by whoever uploaded there) or `localhost:<port>`.
+ * `d/<handle>/<app>` (owned by whoever uploaded there), `localhost:<port>` or `<name>.localhost:<port>`.
  *
  *   GET  /api/v1/connect?return=<app page url>[&access=drive][&prompt=consent]
  *        signed out → sign-in page; approved before → redirect back with a key; else → consent page
@@ -75,7 +75,10 @@ interface AppTarget {
  */
 function appFolder(t: AppTarget, handle: string, owner: {username: string} | null): string {
     if (t.access === 'drive') return `d/${handle}/`
-    return owner ? `d/${handle}/apps/${owner.username}/${t.scope}/` : `d/${handle}/apps/${t.app.replace(':', '/')}/`
+    if (owner) return `d/${handle}/apps/${owner.username}/${t.scope}/`
+    // localhost:5173 → apps/localhost/5173/; 5173.x.localhost:80 → apps/localhost/5173.x.localhost/80/
+    const [host, port] = t.app.split(':')
+    return host === 'localhost' ? `d/${handle}/apps/localhost/${port}/` : `d/${handle}/apps/localhost/${host}/${port}/`
 }
 
 function appTarget(c: Context<CloudEnv>, ret: unknown, access: unknown): AppTarget {
@@ -99,6 +102,9 @@ function appTarget(c: Context<CloudEnv>, ret: unknown, access: unknown): AppTarg
         app = scope = segs.slice(0, n).join('/')
     } else if (u.protocol === 'http:' && (u.hostname === 'localhost' || u.hostname === '127.0.0.1')) {
         app = `localhost:${u.port || '80'}`
+    } else if ((u.protocol === 'http:' || u.protocol === 'https:') && u.hostname.endsWith('.localhost')) {
+        // *.localhost always resolves to this machine (RFC 6761), e.g. a dev server behind a local proxy
+        app = `${u.hostname}:${u.port || (u.protocol === 'https:' ? '443' : '80')}`
     } else {
         throw new HTTPException(400, {message: `return must be a page on ${files} or on localhost`})
     }
@@ -107,13 +113,16 @@ function appTarget(c: Context<CloudEnv>, ret: unknown, access: unknown): AppTarg
 
 /**
  * The user who serves the app (who uploaded to its scope), or 400 for an unknown app. Localhost: none.
- * A scope can change hands once its files are gone (s/ expires): grants are tied to this owner (findGrant).
+ * A scope can change hands once its files are gone (the cron releases it): grants are tied to this owner (findGrant).
  */
 async function appOwner(c: Context<CloudEnv>, t: AppTarget): Promise<{id: string, username: string} | null> {
     if (!t.scope) return null
-    const row = await c.env.PRIMARY_DB.prepare(`SELECT u.id, u.username FROM files f JOIN users u ON u.id = f.owner_id
+    const row = t.scope.startsWith('d/')
+        ? await c.env.PRIMARY_DB.prepare(`SELECT u.id, u.username FROM files f JOIN users u ON u.id = f.owner_id
             WHERE f.bucket = ? AND f.path >= ? AND f.path < ? AND f.deleted_at IS NULL LIMIT 1`)
-        .bind(BUCKET, ...prefixRange(t.scope + '/')).first<{id: string, username: string}>()
+            .bind(BUCKET, ...prefixRange(t.scope + '/')).first<{id: string, username: string}>()
+        : await c.env.PRIMARY_DB.prepare('SELECT u.id, u.username FROM scopes s JOIN users u ON u.id = s.owner_id WHERE s.scope = ?')
+            .bind(t.scope).first<{id: string, username: string}>()
     if (!row) throw new HTTPException(400, {message: `no app at ${t.scope}`})
     return row
 }
@@ -154,9 +163,10 @@ a.btn.secondary{background:#fff;color:#222}.note{color:#666;font-size:.875rem}
 function signInPage(c: Context<CloudEnv>, t: AppTarget) {
     const back = new URL(c.req.url)
     const github = `/api/v1/table/users/auth/oauth/github?redirect=${encodeURIComponent(back.pathname + back.search)}`
+    const dev = c.env.DEV_LOGIN === 'true' ? `<a class="btn secondary" href="${esc(`/login?redirect=${encodeURIComponent(back.pathname + back.search)}`)}">Local sign-in</a>` : ''
     return `<h1>Sign in to threepipe cloud</h1>
 <p><code>${esc(t.app)}</code> wants to use your threepipe cloud drive. Sign in first.</p>
-<div class="row"><a class="btn" href="${esc(github)}">Sign in with GitHub</a>
+<div class="row"><a class="btn" href="${esc(github)}">Sign in with GitHub</a>${dev}
 <a class="btn secondary" href="${esc(t.returnUrl + '#tp_cloud_error=denied')}">Cancel</a></div>`
 }
 

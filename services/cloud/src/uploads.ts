@@ -95,11 +95,17 @@ export function uploadSize(c: Context<CloudEnv>): number {
     return size
 }
 
-/** 403 when another user already has files in this scope. */
-async function checkScope(env: CloudflareBindings, scope: string, user: CloudUser) {
-    const other = await env.PRIMARY_DB.prepare(`SELECT owner_id FROM files WHERE bucket = ? AND (path = ? OR path >= ? AND path < ?) AND owner_id != ? AND deleted_at IS NULL LIMIT 1`)
-        .bind(BUCKET, scope, ...prefixRange(scope + '/'), user.id).first()
-    if (other) throw new HTTPException(403, {message: `'${scope}' belongs to another user`})
+/**
+ * Claims the scope for the user, or 403 when another user has it. The claim is one INSERT on a unique column, so two
+ * first uploads at the same time cannot both get it. Released by the cron when the scope has no files left.
+ */
+async function claimScope(env: CloudflareBindings, scope: string, user: CloudUser) {
+    const db = env.PRIMARY_DB
+    const [, owner] = await db.batch([
+        db.prepare('INSERT INTO scopes (id, scope, owner_id) VALUES (?, ?, ?) ON CONFLICT (scope) DO NOTHING').bind(crypto.randomUUID(), scope, user.id),
+        db.prepare('SELECT owner_id FROM scopes WHERE scope = ?').bind(scope),
+    ]) as D1Result<{owner_id: string}>[]
+    if (owner.results[0]?.owner_id !== user.id) throw new HTTPException(403, {message: `'${scope}' belongs to another user`})
 }
 
 /**
@@ -114,7 +120,7 @@ export function uploadRoutes(app: Hono<CloudEnv>) {
         const size = uploadSize(c)
         const t = target(prefix, segs, c, user)
         assertScope(user, t.key)
-        if (t.scope) await checkScope(c.env, t.scope, user)
+        if (t.scope) await claimScope(c.env, t.scope, user)
         // drive: quota, and the visibility (kept on overwrite unless ?visibility= is given)
         const visibility: Visibility | undefined = prefix === 'd' ? await checkDrive(c, user, t.key, size) : undefined
         const contentType = contentTypeFor(t.key, c.req.header('content-type'))

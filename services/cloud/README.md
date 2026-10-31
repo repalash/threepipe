@@ -17,6 +17,8 @@ npm run typecheck
 ```
 
 Files are served under `/_files/` locally; set `FILES_HOST` (wrangler vars) for `files.threepipe.org`.
+Without a GitHub OAuth app, sign in at `/login` with any username and password (`DEV_LOGIN=true` in `.dev.vars`, local
+only; a new username is signed up on the first try).
 
 ## API
 
@@ -62,6 +64,7 @@ An app served from the files host (`p/<name>/`, `d/<handle>/<app>/`, `b/…`, `s
 is developed can save to the user's drive. There is nothing to register: the app is identified by where it is served from.
 
 1. The app sends the user to `/api/v1/connect?return=<its page url>` (`&access=drive` asks for the whole drive).
+   `localhost` and `*.localhost` pages are allowed too, for development.
 2. Signed out: the page offers GitHub sign-in. The first time: a consent page names the app, who serves it, and the folder.
 3. On Allow, the user comes back to `<return>#tp_cloud_key=…&tp_cloud_user=…&tp_cloud_folder=…&tp_cloud_api=…`.
    Once allowed, step 1 redirects straight back with a new key (no screen).
@@ -84,7 +87,9 @@ else location.href = 'https://cloud.threepipe.org/api/v1/connect?return=' + enco
   R2 read and never touches D1 (`src/files.ts`). HTML and SVG get a `sandbox` CSP.
 - Drive: private files are served only through a signed URL `files…/t/<exp>.<depth>.<hmac>/d/…` (checked with
   `FILES_URL_SECRET`, no lookup) or a share link `files…/f/<id>/…` (a pointer object `f/<id>` in R2, then the file).
-- `files` (D1) is the registry: listing, ownership checks, quotas, the daily expiry cron (`src/cron.ts`).
+- `files` (D1) is the registry: listing, quotas, the daily expiry cron (`src/cron.ts`). `scopes` holds who owns
+  `s/<slug>`, `p/<name>`, `b/<repo>/<ref>`: claimed by one INSERT on a unique column (two first uploads cannot both
+  get it), released by the cron once empty.
 - Deleting writes a tombstone object at the path (410). The owner's own drive files are deleted for real.
 - Requests with the session cookie that change something must come from the API's own origin (CSRF; `src/auth.ts`).
   Access and app keys are checked against their link on every route, teenybase's included; app keys can only use the drive.

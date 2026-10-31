@@ -6,15 +6,16 @@ set -u
 cd "$(dirname "$0")/.."
 A=http://127.0.0.1:8787
 TMP=$(mktemp -d)
-PERSIST=.local-persist
 j() { python3 -c "import json,sys;d=json.load(sys.stdin);print(d$1)"; }
 enc() { python3 -c "import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1],safe=''))" "$1"; }
 code() { curl -s -o /dev/null -w '%{http_code}' "$@"; }
 ok() { echo "OK   $1"; }; bad() { echo "FAIL $1"; FAILS=$((FAILS+1)); }; FAILS=0
-d1() { npx wrangler d1 execute threepipe-cloud --local --persist-to $PERSIST "$@" 2>/dev/null; }
+# fixtures through teenybase's admin API (ADMIN_SERVICE_TOKEN of .dev.vars): admin <table>/<insert|update|delete> <json>
+admin() { curl -s -o /dev/null -w '%{http_code}' -X POST -H "Authorization: Bearer $ADMIN_TOKEN" -H 'content-type: application/json' -d "$2" "$A/api/v1/table/$1"; }
 
 if curl -s -o /dev/null "$A/api/v1/health"; then echo "port 8787 is in use: stop the other dev server first"; exit 1; fi
 [ -f .dev.vars ] || cp .dev.vars.example .dev.vars
+ADMIN_TOKEN=$(grep '^ADMIN_SERVICE_TOKEN=' .dev.vars | cut -d= -f2-)
 npx teenybase deploy --local --yes > "$TMP/migrate.log" 2>&1 || { cat "$TMP/migrate.log"; exit 1; }
 # its own process group, so the cleanup stops teenybase, wrangler and workerd together
 setsid npx teenybase dev > "$TMP/dev.log" 2>&1 &
@@ -63,7 +64,7 @@ R=$(curl -s -o /dev/null -w '%{http_code}' -X PUT -H "$H" --data-binary @$TMP/a.
 # staff removes a permanent asset
 STAFF=st$RANDOM
 TS=$(curl -s -X POST $A/api/v1/table/users/auth/sign-up -H 'content-type: application/json' -d "{\"username\":\"$STAFF\",\"email\":\"$STAFF@x.test\",\"password\":\"pass12345\",\"passwordConfirm\":\"pass12345\",\"name\":\"$STAFF\"}" | j "['token']")
-d1 --command "UPDATE users SET role='staff' WHERE username='$STAFF'" > /dev/null
+[ "$(admin users/update "{\"where\":\"username == '$STAFF'\",\"setValues\":{\"role\":\"staff\"}}")" = "200" ] || bad "fixture: make staff"
 R=$(curl -s -X DELETE -H "Authorization: Bearer $TS" "$A/api/v1/uploads/${AURL#*/_files/}?reason=copyright"); echo "$R" | grep -q copyright && ok "staff removes a/" || bad "staff delete: $R"
 [ "$(curl -s -o /dev/null -w '%{http_code}' "$AURL")" = "410" ] && ok "removed a/ -> 410" || bad "removed a/ status"
 # staff buckets (write-once, content-addressed for e2e)
@@ -75,7 +76,7 @@ curl -s -X PUT -H "Authorization: Bearer $TS" -H "x-content-sha256: $BSHA" --dat
 R=$(curl -s -X POST -H "Authorization: Bearer $TS" -H 'content-type: application/json' -d "{\"paths\":[\"blobs/$BSHA.txt\",\"blobs/$(printf 'a%.0s' {1..64}).png\"]}" "$A/api/v1/buckets/e2e/missing")
 echo "$R" | grep -q "aaaa" && ! echo "$R" | grep -q "$BSHA" && ok "missing blobs" || bad "missing: $R"
 # expiry: backdate the b/ build, run the cron
-d1 --command "UPDATE files SET expires_at='2000-01-01T00:00:00.000Z' WHERE path LIKE 'b/threepipe/pr-$U/%'" > /dev/null
+[ "$(admin files/update "{\"where\":\"path == 'b/threepipe/pr-$U/examples/a.txt'\",\"setValues\":{\"expires_at\":\"2000-01-01T00:00:00.000Z\"}}")" = "200" ] || bad "fixture: backdate build"
 curl -s -o /dev/null "$A/cdn-cgi/handler/scheduled?cron=17+3+*+*+*"; sleep 1
 [ "$(curl -s -o /dev/null -w '%{http_code}' "$A/_files/b/threepipe/pr-$U/examples/a.txt")" = "404" ] && ok "cron deletes expired build" || bad "cron"
 # --- drive ---
@@ -107,9 +108,9 @@ curl -s -o /dev/null -X DELETE -H "$H0" "$A/api/v1/drive-links/$FLID"
 R=$(curl -s -X PATCH -H "$H0" -H 'content-type: application/json' -d "{\"move_to\":\"d/$U/proj2/scene.gltf\"}" "$A/api/v1/uploads/d/$U/proj/scene.gltf")
 [ "$(code -H "$H0" "$A/api/v1/uploads/d/$U/proj/scene.gltf")" = "404" ] && curl -s -H "$H0" "$A/api/v1/uploads/d/$U/proj2/scene.gltf" | grep -q asset && ok "move a drive file" || bad "move: $R"
 curl -s -H "$H0" "$A/api/v1/drive" | grep -q "d/$U/proj2/scene.gltf" && ok "list the drive" || bad "list drive"
-d1 --command "INSERT INTO files (id, owner_id, bucket, prefix, path, size) VALUES ('q$U', '$UID1', 'cloud', 'd', 'd/$U/big', 1073741824)" > /dev/null
+[ "$(admin files/insert "{\"values\":{\"owner_id\":\"$UID1\",\"bucket\":\"cloud\",\"prefix\":\"d\",\"path\":\"d/$U/big\",\"size\":1073741824}}")" = "200" ] || bad "fixture: big file"
 [ "$(code -X PUT -H "$H0" --data-binary @$TMP/a.txt "$A/api/v1/uploads/d/$U/over.txt")" = "413" ] && ok "drive quota -> 413" || bad "quota"
-d1 --command "DELETE FROM files WHERE id = 'q$U'" > /dev/null
+admin files/delete "{\"where\":\"path == 'd/$U/big'\"}" > /dev/null
 [ "$(code -X DELETE -H "$H0" "$A/api/v1/uploads/d/$U/proj/scene.bin")" = "200" ] && [ "$(code -H "$H0" "$A/api/v1/uploads/d/$U/proj/scene.bin")" = "404" ] && ok "delete a drive file" || bad "drive delete"
 
 # --- app sign-in (connect) ---
@@ -130,13 +131,24 @@ HA="Authorization: Bearer $AK"
 [ "$(code -X POST -H "$HA" "$A/api/v1/access-links")" = "403" ] && ok "app key: no access links" || bad "app key access links"
 R=$(curl -s -H "$HA" "$A/api/v1/drive"); echo "$R" | grep -q save.txt && ! echo "$R" | grep -q proj2 && ok "app key lists only its folder" || bad "app key list: $R"
 LOC2=$(curl -s -o /dev/null -w '%{redirect_url}' -H "$CK" "$CON"); echo "$LOC2" | grep -q "#tp_cloud_key=" && ok "connect: approved before -> straight back with a key" || bad "connect silent: $LOC2"
-d1 --command "UPDATE files SET owner_id = (SELECT id FROM users WHERE username = '$U2') WHERE path LIKE 'p/$U-page/%'" > /dev/null
+UID2=$(curl -s -H "Authorization: Bearer $T2" "$A/api/v1/table/users/select?select=id" | python3 -c "import json,sys;print(json.load(sys.stdin)[0]['id'])")
+admin scopes/update "{\"where\":\"scope == 'p/$U-page'\",\"setValues\":{\"owner_id\":\"$UID2\"}}" > /dev/null
 curl -s -H "$CK" "$CON" | grep -q "@$U2" && ok "connect: app with a new owner -> consent again" || bad "connect new owner"
-d1 --command "UPDATE files SET owner_id = '$UID1' WHERE path LIKE 'p/$U-page/%'" > /dev/null
+admin scopes/update "{\"where\":\"scope == 'p/$U-page'\",\"setValues\":{\"owner_id\":\"$UID1\"}}" > /dev/null
 [ "$(code -H "$CK" "$A/api/v1/connect?return=$(enc "$A/_files/p/none-$U/")")" = "400" ] && ok "connect: unknown app -> 400" || bad "connect unknown app"
 [ "$(code -H "$CK" "$A/api/v1/connect?return=$(enc "https://example.com/app/")")" = "400" ] && ok "connect: other sites -> 400" || bad "connect other site"
 curl -s -H "$CK" "$A/api/v1/connect?return=$(enc "http://localhost:5173/")" | grep -q "localhost/5173" && ok "connect: localhost app folder" || bad "connect localhost"
+curl -s -H "$CK" "$A/api/v1/connect?return=$(enc "http://5173.me.aibox.localhost/x/")" | grep -q "apps/localhost/5173.me.aibox.localhost/80/" && ok "connect: *.localhost app folder" || bad "connect *.localhost"
 curl -s -o /dev/null -X POST -H "$H0" -H 'content-type: application/json' -d "{\"where\":\"app == 'p/$U-page'\"}" "$A/api/v1/table/access_links/delete"
 [ "$(code -X PUT -H "$HA" --data-binary @$TMP/a.txt "$A/api/v1/uploads/d/$U/apps/$U/p/$U-page/save.txt")" = "401" ] && ok "revoked app -> 401" || bad "revoked app"
+# --- local sign-in (DEV_LOGIN) ---
+DU=dev$RANDOM
+R=$(curl -s -o /dev/null -D - -X POST --data-urlencode "username=$DU" --data-urlencode "password=pass12345" --data-urlencode "redirect=/api/v1/drive" "$A/login")
+echo "$R" | grep -qi "set-cookie: tp_cloud_auth=" && echo "$R" | grep -qi "location: /api/v1/drive" && ok "local sign-in signs up and sets the session cookie" || bad "dev login: $R"
+DCK=$(echo "$R" | grep -i "set-cookie: tp_cloud_auth=" | sed -E 's/.*tp_cloud_auth=([^;]*).*/\1/' | tr -d '\r')
+curl -s -H "Cookie: tp_cloud_auth=$DCK" "$A/api/v1/drive" | grep -q '"files"' && ok "the cookie signs in" || bad "dev cookie"
+[ "$(code -X POST --data-urlencode "username=$DU" --data-urlencode "password=wrongpass1" "$A/login")" = "303" ] && curl -s -o /dev/null -w '%{redirect_url}' -X POST --data-urlencode "username=$DU" --data-urlencode "password=wrongpass1" "$A/login" | grep -q "wrong%20password" && ok "wrong password" || bad "dev login wrong password"
+LOCR=$(curl -s -o /dev/null -w '%{redirect_url}' -X POST --data-urlencode "username=$DU" --data-urlencode "password=pass12345" --data-urlencode "redirect=//evil.example/" "$A/login")
+[ "$LOCR" = "$A/reports" ] && ok "redirect stays on this host" || bad "dev login redirect: $LOCR"
 echo "failures: $FAILS"
 [ $FAILS -eq 0 ]

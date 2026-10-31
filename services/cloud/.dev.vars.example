@@ -11,3 +11,5 @@ FILES_URL_SECRET=dev-files-url-secret
 GITHUB_CLIENT_ID=
 GITHUB_CLIENT_SECRET=
 RESPOND_WITH_ERRORS=true
+# /login with a username and password instead of GitHub (src/devLogin.ts). Never in .prod.vars
+DEV_LOGIN=true

@@ -8,6 +8,7 @@ import {uploadRoutes} from './uploads'
 import {driveRoutes} from './drive'
 import {connectRoutes} from './connect'
 import {bucketRoutes} from './buckets'
+import {devLoginRoutes} from './devLogin'
 import {guardRequest} from './auth'
 import {deleteExpired} from './cron'
 
@@ -30,6 +31,7 @@ uploadRoutes(app)
 driveRoutes(app)
 connectRoutes(app)
 bucketRoutes(app)
+devLoginRoutes(app)
 
 export default {
     fetch: app.fetch,

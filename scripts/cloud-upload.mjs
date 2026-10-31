@@ -12,12 +12,14 @@
 // The key: TP_CLOUD_KEY from the environment or /tmp/.env. Get one from an access link (signed in at
 // https://cloud.threepipe.org, see services/cloud/README.md). The API: TP_CLOUD_API, default https://cloud.threepipe.org.
 //
-// Never uploaded: dotfiles and dot folders. In a build, examples/globals.js gets empty values instead of the ones
-// from your examples/.env.
+// Never uploaded: dotfiles and dot folders (.git, .env), node_modules, and, for a folder git tracks, what .gitignore
+// excludes (a folder that is itself ignored, like a build output, is uploaded as it is). In a build,
+// examples/globals.js gets empty values instead of the ones from your examples/.env.
 
 import fs from 'node:fs'
 import path from 'node:path'
 import crypto from 'node:crypto'
+import {execFileSync} from 'node:child_process'
 
 const root = path.resolve(import.meta.dirname, '..')
 const args = process.argv.slice(2)
@@ -85,15 +87,30 @@ function buildFiles(prefix) {
     return out
 }
 
-/** A file to `remote`, or every file of a folder under `remote` (which then ends with /). Skips dotfiles and dot folders. */
+/** A file to `remote`, or every file of a folder under `remote` (which then ends with /), without what is never uploaded. */
 function listFiles(local, remote) {
     if (!fs.existsSync(local)) usage(`${local} does not exist`)
     if (fs.statSync(local).isFile()) return [{local, remote: remote.endsWith('/') ? remote + path.basename(local) : remote}]
     if (!remote.endsWith('/')) usage('a folder goes under a remote path ending with /')
+    const ignored = gitIgnored(local)
     return fs.readdirSync(local, {recursive: true}).map(String)
-        .filter(rel => !rel.split(path.sep).some(s => s.startsWith('.')) && fs.statSync(path.join(local, rel)).isFile())
+        .filter(rel => !rel.split(path.sep).some(s => s.startsWith('.') || s === 'node_modules'))
+        .filter(rel => !ignored.has(rel.split(path.sep).join('/')) && fs.statSync(path.join(local, rel)).isFile())
         .sort()
         .map(rel => ({local: path.join(local, rel), remote: remote + rel.split(path.sep).join('/')}))
+}
+
+/** The files under `dir` that .gitignore excludes, relative to it; none when git does not track `dir` or ignores it as a whole. */
+function gitIgnored(dir) {
+    const git = (...a) => execFileSync('git', ['-C', dir, ...a], {encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore']})
+    try {
+        git('rev-parse', '--is-inside-work-tree')
+    } catch { return new Set() }
+    try {
+        git('check-ignore', '-q', '.')
+        return new Set() // the folder itself is ignored (a build output): upload all of it
+    } catch { /* not ignored: exit code 1 */ }
+    return new Set(git('ls-files', '--others', '--ignored', '--exclude-standard', '-z', '.').split('\0').filter(Boolean))
 }
 
 async function upload(f) {
