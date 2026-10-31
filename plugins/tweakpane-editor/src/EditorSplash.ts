@@ -191,7 +191,12 @@ export class EditorSplash {
             this._input.multiple = true
             this._input.hidden = true
             if (o.accept) this._input.accept = o.accept
-            this._input.addEventListener('change', () => void this._openFiles(Array.from(this._input?.files ?? [])))
+            const input = this._input
+            input.addEventListener('change', () => {
+                const files = Array.from(input.files ?? [])
+                input.value = '' // the same file picked again (after a failed import) is a change again
+                void this._openFiles(files)
+            })
             root.appendChild(this._input)
             this._setupDrop(root)
         }

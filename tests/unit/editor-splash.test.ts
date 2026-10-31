@@ -30,6 +30,7 @@ class FakeElement {
     accept = ''
     multiple = false
     files: File[] | null = null
+    value = ''
     private _attrs = new Map<string, string>()
     private _listeners = new Map<string, ((e: any) => void)[]>()
     style: Record<string, string> = {}
@@ -394,8 +395,11 @@ describe('EditorSplash', () => {
         const a = {name: 'a.gltf'} as File
         const b = {name: 'a.bin'} as File
         input.files = [a, b]
+        input.value = 'C:\\fakepath\\a.gltf'
         input.fire('change')
         expect(onFiles).toHaveBeenCalledWith([a, b])
+        // the picker is cleared, so the same file picked again (after a failed import) is a change again
+        expect(input.value).toBe('')
         expect(one(s, 'esp-status').textContent).toBe('Opening a.gltf, a.bin…')
         await flush()
         expect(s.isOpen).toBe(false)
