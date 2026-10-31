@@ -231,6 +231,7 @@ export default defineConfig({
           {text: 'Timeline UI Plugin', link: 'package/plugin-timeline-ui'},
           {text: 'React Three Fiber (r3f)', link: 'package/plugin-r3f'},
           {text: 'Troika Text Plugin (2D)', link: 'package/plugin-troika-text'},
+          {text: 'Annotations Plugin', link: 'package/plugin-annotations'},
         ]
       },
     ],

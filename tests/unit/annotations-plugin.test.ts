@@ -1,0 +1,518 @@
+import {afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi} from 'vitest'
+import {BoxGeometry, Mesh, MeshBasicMaterial, Object3D, PerspectiveCamera, Quaternion, Vector3} from 'three'
+import {PopmotionPlugin, UndoManagerPlugin} from 'threepipe'
+import {AnnotationsPlugin} from '../../plugins/annotations/src/AnnotationsPlugin'
+import {renderAnnotationText} from '../../plugins/annotations/src/render-text'
+
+type Listener = (e: any) => void
+const noop = () => undefined
+
+// the node setup has no DOM: a small element with what the markers and the card use
+class FakeElement {
+    children: FakeElement[] = []
+    parent?: FakeElement
+    className = ''
+    textContent = ''
+    innerHTML = ''
+    title = ''
+    value = ''
+    disabled = false
+    style: Record<string, string> = {}
+    dataset: Record<string, string> = {}
+    offsetWidth = 260
+    offsetHeight = 120
+    clientWidth = 800
+    clientHeight = 600
+    scrollHeight = 40
+    rect = {left: 0, top: 0, width: 800, height: 600, right: 800, bottom: 600}
+    private _listeners = new Map<string, Listener[]>()
+    classList = {
+        contains: (c: string) => this.className.split(' ').includes(c),
+        add: (c: string) => this.classList.toggle(c, true),
+        remove: (c: string) => this.classList.toggle(c, false),
+        toggle: (c: string, on: boolean) => {
+            const rest = this.className.split(' ').filter(x => x && x !== c)
+            this.className = (on ? [...rest, c] : rest).join(' ')
+        },
+    }
+    constructor(readonly tagName: string) {}
+    getBoundingClientRect() {
+        return this.rect
+    }
+    appendChild(c: FakeElement) {
+        c.remove()
+        c.parent = this
+        this.children.push(c)
+        return c
+    }
+    insertBefore(c: FakeElement, before: FakeElement) {
+        c.remove()
+        c.parent = this
+        const i = this.children.indexOf(before)
+        this.children.splice(i < 0 ? this.children.length : i, 0, c)
+        return c
+    }
+    remove() {
+        if (!this.parent) return
+        this.parent.children = this.parent.children.filter(x => x !== this)
+        this.parent = undefined
+    }
+    contains(e: FakeElement) {
+        return e === this || this.all().includes(e)
+    }
+    /** tags, comma separated */
+    closest(selector: string): FakeElement | null {
+        const tags = selector.split(',').map(s => s.trim())
+        if (tags.includes(this.tagName)) return this
+        return this.parent?.closest(selector) ?? null
+    }
+    focus() {
+        doc.activeElement = this
+        this.fire('focus')
+    }
+    blur() {
+        if (doc.activeElement !== this) return
+        doc.activeElement = null
+        this.fire('blur')
+    }
+    setPointerCapture = noop
+    addEventListener(type: string, f: Listener) {
+        this._listeners.set(type, [...this._listeners.get(type) ?? [], f])
+    }
+    removeEventListener(type: string, f: Listener) {
+        this._listeners.set(type, (this._listeners.get(type) ?? []).filter(x => x !== f))
+    }
+    fire(type: string, e: any = {}) {
+        for (const f of this._listeners.get(type) ?? []) f({target: this, currentTarget: this, button: 0, pointerId: 1, clientX: 0, clientY: 0, preventDefault: noop, stopPropagation: noop, ...e})
+    }
+    all(): FakeElement[] {
+        return this.children.flatMap(c => [c, ...c.all()])
+    }
+    find(cls: string) {
+        return this.all().filter(e => e.classList.contains(cls))
+    }
+}
+
+const doc = globalThis.document as any
+const saved = {createElement: doc.createElement, activeElement: doc.activeElement}
+/** The listeners on the window (keys and clicks) */
+let windowListeners: Map<string, (e: any) => void>
+beforeAll(() => {
+    AnnotationsPlugin.InjectStyles = false
+    doc.createElement = (tag: string) => new FakeElement(tag)
+})
+afterAll(() => {
+    Object.assign(doc, saved)
+    AnnotationsPlugin.InjectStyles = true
+})
+beforeEach(() => {
+    doc.activeElement = null
+    windowListeners = new Map()
+    vi.stubGlobal('addEventListener', (type: string, f: any) => windowListeners.set(type, f))
+    vi.stubGlobal('removeEventListener', (type: string) => windowListeners.delete(type))
+    // no frame loop: the tests call the screen update themselves
+    vi.stubGlobal('requestAnimationFrame', () => 0)
+    vi.stubGlobal('cancelAnimationFrame', noop)
+})
+afterEach(() => {
+    vi.unstubAllGlobals()
+})
+
+/** A box of size 1 at the origin in a fake viewer, the camera at z = 5 looking at it; the canvas is 800x600 */
+function setup(editable = true) {
+    const plugin = new AnnotationsPlugin({editable})
+    const box = new Mesh(new BoxGeometry(1, 1, 1), new MeshBasicMaterial())
+    box.name = 'Box'
+    const group = new Object3D()
+    group.name = 'Model'
+    group.add(box)
+    const modelRoot = new Object3D()
+    modelRoot.add(group)
+    const scene = Object.assign(new Object3D(), {modelRoot, mainCamera: null as any})
+    scene.add(modelRoot)
+    const camera = Object.assign(new PerspectiveCamera(50, 800 / 600, 0.1, 100), {
+        target: new Vector3(),
+        setDirty: noop,
+        setInteractions: vi.fn(),
+        getView: () => ({position: camera.position.clone(), target: camera.target.clone(), quaternion: camera.quaternion.clone(), zoom: camera.zoom}),
+    })
+    camera.position.set(0, 0, 5)
+    camera.lookAt(0, 0, 0)
+    camera.updateMatrixWorld()
+    scene.mainCamera = camera
+    const undo: {undo: () => void, redo: () => void}[] = []
+    const canvas = new FakeElement('canvas')
+    const viewer = {
+        container: new FakeElement('div'),
+        canvas,
+        scene,
+        addEventListener: noop,
+        removeEventListener: noop,
+        getPlugin: (c: any) => c === UndoManagerPlugin ? {undoManager: {record: (cmd: any) => undo.push(cmd)}} : undefined,
+        console,
+    } as any
+    plugin.onAdded(viewer)
+    const layer = viewer.container.children[0] as FakeElement
+    return {plugin, viewer, layer, box, group, camera, undo, canvas}
+}
+
+const markers = (layer: FakeElement) => layer.find('anp-marker')
+const card = (layer: FakeElement) => layer.find('anp-card')[0]
+const front = new Vector3(0, 0, 0.5)
+const normal = new Vector3(0, 0, 1)
+
+describe('AnnotationsPlugin', () => {
+    test('adds a layer with the card to the viewer container; markers are numbered in tour order, with the title as tooltip', () => {
+        const {plugin, layer, box, viewer} = setup()
+        expect(viewer.container.children).toEqual([layer])
+        expect(layer.classList.contains('anp-editable')).toBe(true)
+        expect(card(layer).classList.contains('anp-open')).toBe(false)
+        const a = plugin.add(box as any, front, normal, null, {title: 'Front'})
+        plugin.add(box as any, new Vector3(0.5, 0, 0), new Vector3(1, 0, 0), null)
+        expect(markers(layer).map(m => m.textContent)).toEqual(['1', '2'])
+        expect(markers(layer).map(m => m.title)).toEqual(['Front', 'Annotation 2'])
+        expect(a.anchor).toEqual({uuid: box.uuid, path: 'Model#0/Box#0', name: 'Box', point: [0, 0, 0.5], normal: [0, 0, 1]})
+        // the card is the last child: markers go before it
+        expect(layer.children.at(-1)).toBe(card(layer))
+        plugin.move(a.id, 1)
+        // the markers stay, their numbers change
+        expect(markers(layer).map(m => [m.textContent, m.title])).toEqual([['2', 'Front'], ['1', 'Annotation 1']])
+    })
+
+    test('add, update, move, remove and clear are undoable; events tell the reason', () => {
+        const {plugin, box, undo} = setup()
+        const reasons: string[] = []
+        plugin.addEventListener('annotationChange', e => reasons.push(e.reason))
+        const a = plugin.add(box as any, front, normal, null, {title: 'A'})
+        const b = plugin.add(box as any, front, normal, null, {title: 'B'})
+        plugin.update(a.id, {title: 'A2', text: 'x'})
+        plugin.move(b.id, 0)
+        plugin.remove(a.id)
+        plugin.clear()
+        expect(reasons).toEqual(['add', 'add', 'update', 'reorder', 'remove', 'clear'])
+        expect(undo).toHaveLength(6)
+        const titles = () => plugin.getAnnotations().map(x => x.title)
+        undo[5].undo()
+        expect(titles()).toEqual(['B'])
+        undo[4].undo()
+        expect(titles()).toEqual(['B', 'A2'])
+        undo[3].undo()
+        expect(titles()).toEqual(['A2', 'B'])
+        undo[2].undo()
+        expect(plugin.get(a.id)).toMatchObject({title: 'A', text: ''})
+        undo[2].redo()
+        expect(plugin.get(a.id)).toMatchObject({title: 'A2', text: 'x'})
+        undo[1].undo()
+        undo[0].undo()
+        expect(titles()).toEqual([])
+    })
+
+    test('the view defaults to the current camera view, with the fov of a perspective camera', () => {
+        const {plugin, box, camera} = setup()
+        const a = plugin.add(box as any, front, normal)
+        expect(a.view).toEqual({position: [0, 0, 5], target: [0, 0, 0], quaternion: camera.quaternion.toArray(), zoom: 1, fov: 50})
+    })
+
+    test('the markers follow the object: projected to the canvas, hidden when the object is hidden or off screen', () => {
+        const {plugin, layer, box, group} = setup()
+        plugin.add(box as any, front, normal, null)
+        const m = markers(layer)[0]
+        const update = () => (plugin as any)._updateScreen()
+        update()
+        expect(m.style.display).toBe('')
+        expect(m.style.transform).toBe('translate(400.0px, 300.0px)')
+        group.position.x = 1
+        group.updateMatrixWorld()
+        update()
+        const x = parseFloat(m.style.transform.slice('translate('.length))
+        expect(x).toBeGreaterThan(450)
+        expect(m.classList.contains('anp-dim')).toBe(false)
+        // turned away from the camera: dimmed
+        group.rotation.y = Math.PI
+        group.updateMatrixWorld()
+        update()
+        expect(m.classList.contains('anp-dim')).toBe(true)
+        group.visible = false
+        update()
+        expect(m.style.display).toBe('none')
+        group.visible = true
+        group.position.x = 50
+        group.updateMatrixWorld()
+        update()
+        expect(m.style.display).toBe('none')
+    })
+
+    test('the occlusion test dims a marker behind another mesh', () => {
+        const {plugin, layer, box, viewer} = setup()
+        plugin.add(box as any, front, normal, null)
+        const wall = new Mesh(new BoxGeometry(2, 2, 0.1), new MeshBasicMaterial())
+        wall.position.z = 2
+        viewer.scene.modelRoot.add(wall)
+        viewer.scene.modelRoot.updateMatrixWorld(true)
+        ;(plugin as any)._updateScreen()
+        ;(plugin as any)._updateOcclusion()
+        expect(markers(layer)[0].classList.contains('anp-dim')).toBe(true)
+        wall.visible = false
+        ;(plugin as any)._occlDirty = true
+        ;(plugin as any)._updateScreen()
+        ;(plugin as any)._updateOcclusion()
+        expect(markers(layer)[0].classList.contains('anp-dim')).toBe(false)
+    })
+
+    test('a click on a marker opens the card and flies the camera to the view; prev/next wrap; a click on the canvas closes', () => {
+        const {plugin, layer, box, camera, canvas} = setup(false)
+        const view = {position: [3, 0, 0], target: [0, 0, 0], quaternion: [0, 0, 0, 1], zoom: 1, fov: 40}
+        plugin.add(box as any, front, normal, view, {title: 'One', text: '**bold**'})
+        plugin.add(box as any, front, normal, null, {title: 'Two'})
+        const selected: (string | undefined)[] = []
+        plugin.addEventListener('annotationSelect', e => selected.push(e.annotation?.title))
+        ;(plugin as any)._updateScreen()
+        const m = markers(layer)[0]
+        m.fire('pointerdown')
+        m.fire('pointerup')
+        const c = card(layer)
+        expect(c.classList.contains('anp-open')).toBe(true)
+        expect(c.classList.contains('anp-edit')).toBe(false)
+        expect(c.find('anp-title')[0].textContent).toBe('One')
+        expect(c.find('anp-text')[0].innerHTML).toBe('<b>bold</b>')
+        expect(c.find('anp-pos')[0].textContent).toBe('1 / 2')
+        expect(m.classList.contains('anp-on')).toBe(true)
+        // no PopmotionPlugin: the camera is at the view at once
+        expect(camera.position.toArray().map(v => +v.toFixed(5))).toEqual([3, 0, 0])
+        expect(camera.fov).toBe(40)
+        expect(doc.activeElement).toBe(c)
+        // the card is next to the marker
+        expect(c.style.transform).toBe('translate(422px, 282px)')
+
+        c.find('anp-next')[0].fire('click')
+        expect(plugin.openId).toBe(plugin.get(1)!.id)
+        c.find('anp-next')[0].fire('click')
+        expect(plugin.openId).toBe(plugin.get(0)!.id)
+        c.find('anp-prev')[0].fire('click')
+        expect(plugin.openId).toBe(plugin.get(1)!.id)
+
+        // a drag on the canvas (orbit) keeps the card, a click closes it
+        windowListeners.get('pointerdown')!({target: canvas, clientX: 10, clientY: 10})
+        windowListeners.get('pointerup')!({target: canvas, clientX: 40, clientY: 10})
+        expect(plugin.openId).not.toBe(null)
+        windowListeners.get('pointerdown')!({target: canvas, clientX: 10, clientY: 10})
+        windowListeners.get('pointerup')!({target: canvas, clientX: 11, clientY: 10})
+        expect(plugin.openId).toBe(null)
+        expect(c.classList.contains('anp-open')).toBe(false)
+        expect(selected).toEqual(['One', 'Two', 'One', 'Two', undefined])
+    })
+
+    test('keys: ← → go through the annotations while a card is open, Esc closes; typing in a field is left alone', () => {
+        const {plugin, box} = setup()
+        plugin.add(box as any, front, normal, null)
+        plugin.add(box as any, front, normal, null)
+        const key = (k: string, target: any = doc.body) => {
+            const e = {key: k, target, preventDefault: vi.fn(), stopImmediatePropagation: vi.fn()}
+            windowListeners.get('keydown')!(e)
+            return e
+        }
+        expect(key('ArrowRight').preventDefault).not.toHaveBeenCalled() // no card open
+        plugin.goTo(0, {fly: false})
+        key('ArrowRight')
+        expect(plugin.openId).toBe(plugin.get(1)!.id)
+        key('ArrowLeft', new FakeElement('input'))
+        expect(plugin.openId).toBe(plugin.get(1)!.id)
+        key('ArrowLeft')
+        expect(plugin.openId).toBe(plugin.get(0)!.id)
+        expect(key('Escape').stopImmediatePropagation).toHaveBeenCalled()
+        expect(plugin.openId).toBe(null)
+    })
+
+    test('editable: the title field edits live and records one undo step per edit; Delete and Update view', () => {
+        const {plugin, layer, box, undo, camera} = setup()
+        const a = plugin.add(box as any, front, normal, null, {title: 'Old'})
+        plugin.goTo(a.id, {focusTitle: true})
+        const c = card(layer)
+        expect(c.classList.contains('anp-edit')).toBe(true)
+        const input = c.find('anp-title-in')[0]
+        expect(doc.activeElement).toBe(input)
+        expect(input.value).toBe('Old')
+        // no view yet: Update view stands out
+        expect(c.find('anp-view')[0].classList.contains('anp-noview')).toBe(true)
+        undo.length = 0
+        input.value = 'New'
+        input.fire('input')
+        expect(plugin.get(a.id)!.title).toBe('New')
+        expect(markers(layer)[0].title).toBe('New')
+        input.fire('change')
+        expect(undo).toHaveLength(1)
+        undo[0].undo()
+        expect(plugin.get(a.id)!.title).toBe('Old')
+        undo[0].redo()
+
+        // the text: raw while typing, formatted after the edit
+        expect(c.classList.contains('anp-text-empty')).toBe(true)
+        const textIn = c.find('anp-text-in')[0]
+        textIn.focus()
+        textIn.value = '**b**'
+        textIn.fire('input')
+        textIn.fire('change')
+        textIn.blur()
+        expect(c.classList.contains('anp-text-empty')).toBe(false)
+        expect(c.find('anp-text')[0].innerHTML).toBe('<b>b</b>')
+        expect(plugin.get(a.id)!.text).toBe('**b**')
+
+        c.find('anp-view')[0].fire('click')
+        expect(plugin.get(a.id)!.view!.position).toEqual(camera.position.toArray())
+        expect(c.find('anp-view')[0].classList.contains('anp-noview')).toBe(false)
+        c.find('anp-del')[0].fire('click')
+        expect(plugin.getAnnotations()).toHaveLength(0)
+        expect(markers(layer)).toHaveLength(0)
+        expect(plugin.openId).toBe(null)
+    })
+
+    test('editable: startAdding, then a click on a surface places an annotation there and opens it; Esc cancels', () => {
+        const {plugin, layer} = setup()
+        const adding: boolean[] = []
+        plugin.addEventListener('addingChange', e => adding.push(e.adding))
+        expect(plugin.startAdding()).toBe(true)
+        expect(plugin.adding).toBe(true)
+        const place = layer.find('anp-place')[0]
+        // a miss (the corner of the canvas): no annotation, the hint shakes
+        place.fire('pointerdown', {clientX: 2, clientY: 2})
+        place.fire('pointerup', {clientX: 2, clientY: 2})
+        expect(plugin.getAnnotations()).toHaveLength(0)
+        expect(place.classList.contains('anp-miss')).toBe(true)
+        // the middle of the canvas is the front face of the box
+        place.fire('pointerdown', {clientX: 400, clientY: 300})
+        place.fire('pointerup', {clientX: 400, clientY: 300})
+        expect(plugin.adding).toBe(false)
+        expect(layer.find('anp-place')).toHaveLength(0)
+        const a = plugin.get(0)!
+        expect(a.anchor.point.map(v => +v.toFixed(5))).toEqual([0, 0, 0.5])
+        expect(a.anchor.normal).toEqual([0, 0, 1])
+        expect(a.view).not.toBe(null)
+        expect(plugin.openId).toBe(a.id)
+
+        plugin.startAdding()
+        windowListeners.get('keydown')!({key: 'Escape', target: doc.body, preventDefault: noop, stopImmediatePropagation: noop})
+        expect(plugin.adding).toBe(false)
+        expect(adding).toEqual([true, false, true, false])
+    })
+
+    test('not editable: no placing, no dragging, no edit tools; turning editable off cancels placing', () => {
+        const {plugin, layer, box} = setup(false)
+        expect(plugin.startAdding()).toBe(false)
+        plugin.add(box as any, front, normal, null)
+        ;(plugin as any)._updateScreen()
+        const m = markers(layer)[0]
+        m.fire('pointerdown', {clientX: 400, clientY: 300})
+        m.fire('pointermove', {clientX: 300, clientY: 300})
+        m.fire('pointerup', {clientX: 300, clientY: 300})
+        expect(plugin.get(0)!.anchor.point).toEqual([0, 0, 0.5]) // not moved, it opened instead
+        expect(plugin.openId).toBe(plugin.get(0)!.id)
+        plugin.editable = true
+        expect(card(layer).classList.contains('anp-edit')).toBe(true)
+        plugin.startAdding()
+        plugin.editable = false
+        expect(plugin.adding).toBe(false)
+        expect(layer.classList.contains('anp-editable')).toBe(false)
+    })
+
+    test('editable: dragging a marker moves it to the surface under the pointer, as one undo step', () => {
+        const {plugin, layer, box, undo} = setup()
+        const a = plugin.add(box as any, front, normal, null)
+        ;(plugin as any)._updateScreen()
+        undo.length = 0
+        const m = markers(layer)[0]
+        m.fire('pointerdown', {clientX: 400, clientY: 300})
+        m.fire('pointermove', {clientX: 420, clientY: 300})
+        m.fire('pointermove', {clientX: 440, clientY: 300})
+        m.fire('pointerup', {clientX: 440, clientY: 300})
+        expect(plugin.openId).toBe(null) // a drag does not open it
+        const x = plugin.get(a.id)!.anchor.point[0]
+        expect(x).toBeGreaterThan(0.05)
+        expect(undo).toHaveLength(1)
+        undo[0].undo()
+        expect(plugin.get(a.id)!.anchor.point).toEqual([0, 0, 0.5])
+    })
+
+    test('serialization: toJSON has the annotations; fromJSON replaces them, drops broken ones and fills defaults', () => {
+        const {plugin, box} = setup()
+        plugin.add(box as any, front, normal, {position: [1, 2, 3], target: [0, 0, 0], quaternion: new Quaternion().toArray(), zoom: 1}, {title: 'Saved', text: 'Text'})
+        const json = JSON.parse(JSON.stringify(plugin.toJSON()))
+        expect(json.type).toBe('AnnotationsPlugin')
+        expect(json.annotations).toHaveLength(1)
+
+        const other = new AnnotationsPlugin()
+        const loads: string[] = []
+        other.addEventListener('annotationChange', e => loads.push(e.reason))
+        other.fromJSON(json)
+        expect(other.getAnnotations()).toEqual(plugin.getAnnotations())
+        expect(loads).toEqual(['load'])
+
+        // a load replaces the list (no extra items kept); broken items are dropped, missing fields get defaults
+        const broken = {...json, annotations: [
+            {id: 'x', anchor: {uuid: 'u', path: '', name: '', point: [0, 0, 0]}},
+            {id: 'y'},
+            null,
+        ]}
+        other.fromJSON(broken)
+        expect(other.getAnnotations()).toEqual([{id: 'x', title: '', text: '', view: null, anchor: {uuid: 'u', path: '', name: '', point: [0, 0, 0], normal: [0, 1, 0]}}])
+        expect(other.fromJSON({...json, type: 'OtherPlugin'})).toBe(null)
+        expect(other.getAnnotations()).toHaveLength(1)
+    })
+
+    test('finds the object by uuid, or by its path of names after a reload with new uuids', () => {
+        const {plugin, box, group, viewer} = setup()
+        const a = plugin.add(box as any, front, normal, null)
+        expect(plugin.getObject(a)).toBe(box)
+        // the model is loaded again: same names, new uuids
+        group.removeFromParent()
+        const box2 = new Mesh(new BoxGeometry(1, 1, 1), new MeshBasicMaterial())
+        box2.name = 'Box'
+        const group2 = new Object3D()
+        group2.name = 'Model'
+        group2.add(box2)
+        viewer.scene.modelRoot.add(group2)
+        ;(plugin as any)._onHierarchy()
+        expect(plugin.getObject(a)).toBe(box2)
+        group2.removeFromParent()
+        ;(plugin as any)._onHierarchy()
+        expect(plugin.getObject(a)).toBe(null)
+    })
+
+    test('the tour opens the next annotation on a timer; onRemove takes the layer and the listeners away', () => {
+        vi.useFakeTimers()
+        try {
+            const {plugin, box, viewer} = setup()
+            plugin.add(box as any, front, normal, null)
+            plugin.add(box as any, front, normal, null)
+            plugin.playTour(1000)
+            expect(plugin.touring).toBe(true)
+            expect(plugin.openId).toBe(plugin.get(0)!.id)
+            vi.advanceTimersByTime(1000)
+            expect(plugin.openId).toBe(plugin.get(1)!.id)
+            plugin.onRemove(viewer)
+            expect(plugin.touring).toBe(false)
+            expect(viewer.container.children).toEqual([])
+            expect([...windowListeners.keys()]).toEqual([])
+            // the data stays
+            expect(plugin.getAnnotations()).toHaveLength(2)
+        } finally {
+            vi.useRealTimers()
+        }
+    })
+
+    test('the plugin depends on PopmotionPlugin for the camera animation', () => {
+        expect(new AnnotationsPlugin().dependencies).toEqual([PopmotionPlugin])
+    })
+})
+
+describe('renderAnnotationText', () => {
+    test('escapes HTML and formats bold, italic, links, bullets and line breaks', () => {
+        expect(renderAnnotationText('<img src=x onerror=alert(1)>')).toBe('&lt;img src=x onerror=alert(1)&gt;')
+        expect(renderAnnotationText('**b** and *i*')).toBe('<b>b</b> and <i>i</i>')
+        expect(renderAnnotationText('see [docs](https://threepipe.org/a?b=1&c=2).'))
+            .toBe('see <a href="https://threepipe.org/a?b=1&amp;c=2" target="_blank" rel="noopener noreferrer">docs</a>.')
+        expect(renderAnnotationText('at https://threepipe.org, ok'))
+            .toBe('at <a href="https://threepipe.org" target="_blank" rel="noopener noreferrer">https://threepipe.org</a>, ok')
+        expect(renderAnnotationText('a\n- one\n- two')).toBe('a<br><span class="anp-li">one</span><br><span class="anp-li">two</span>')
+        expect(renderAnnotationText('[x](javascript:alert(1))')).toBe('[x](javascript:alert(1))')
+    })
+})
