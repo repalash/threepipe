@@ -929,6 +929,9 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         const t = this._cardEls.textIn
         t.style.height = 'auto'
         t.style.height = Math.min(240, t.scrollHeight + 2) + 'px'
+        // the card changed size: measure it again, so it stays inside the viewer
+        this._cardSize.w = 0
+        this._positionCard()
     }
 
     private _renderCard() {

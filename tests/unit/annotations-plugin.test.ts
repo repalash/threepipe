@@ -562,6 +562,28 @@ describe('AnnotationsPlugin', () => {
         expect(plugin.openId).toBe(null)
     })
 
+    test('editable: the card stays inside the viewer when the text field grows, near the bottom edge', () => {
+        const {plugin, layer, box, group} = setup()
+        // the marker near the bottom of the 600px canvas
+        group.position.y = -1.8
+        group.updateMatrixWorld()
+        const a = plugin.add(box as any, front, normal, null, {text: 'Some text'})
+        const update = () => (plugin as any)._updateScreen()
+        update()
+        plugin.goTo(a.id, {fly: false})
+        const c = card(layer)
+        const bottom = () => Number(c.style.transform.match(/[-\d.]+/g)![1]) + c.offsetHeight
+        expect(bottom()).toBeLessThanOrEqual(592)
+        // typing makes the field and the card taller
+        const textIn = c.find('anp-text-in')[0]
+        textIn.focus()
+        c.offsetHeight = 300
+        textIn.value = 'Some text\nand more lines'
+        textIn.fire('input')
+        update()
+        expect(bottom()).toBeLessThanOrEqual(592)
+    })
+
     test('editable: startAdding, then a click on a surface places an annotation there and opens it; Esc cancels', () => {
         const {plugin, layer} = setup()
         const adding: boolean[] = []
