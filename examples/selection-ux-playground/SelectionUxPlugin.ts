@@ -1815,7 +1815,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         } else if (e.code === 'Digit0' || e.code === 'Numpad0') {
             own()
             if (ctrl && e.altKey) this.alignCameraToView()
-            else if (this.viewCamera) this.exitCameraView()
+            else if (this._awayFromHome) this.exitCameraView()
             else this.lookThrough()
         } else if (e.code === 'KeyL' && !ctrl && this.viewCamera) {
             own()
@@ -2379,10 +2379,16 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         return (this._viewer && editorCamera(this._viewer)) ?? this._viewer?.scene.defaultCamera
     }
 
-    /** The scene camera the view looks through, or null for the editor camera (and when the plugin is off: View mode) */
+    /**
+     * The scene camera the view looks through, or null for the editor camera (and when the plugin is off: View mode).
+     * The start view of EditorCameraPlugin is not one: that plugin shows it (its pill, Save / Reset) and keeps its controls.
+     */
     get viewCamera(): IObject3D | null {
         const scene = this._viewer?.scene
-        return scene && this.enabled && scene.mainCamera !== this._homeCamera ? scene.mainCamera as IObject3D : null
+        const cam = scene?.mainCamera
+        if (!scene || !this.enabled || cam === this._homeCamera) return null
+        if (cam === this._viewer?.getPlugin(EditorCameraPlugin)?.startCamera) return null
+        return cam as IObject3D
     }
 
     /** While looking through a camera, orbit and zoom move that camera (Blender's "lock camera to view") */
@@ -2419,9 +2425,15 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         if (cam !== this.viewCamera) (cam as any).activateMain()
     }
 
-    /** Back to the editor camera */
+    /** The view is not the editor camera: a scene camera, or the start view of EditorCameraPlugin */
+    private get _awayFromHome() {
+        const scene = this._viewer?.scene
+        return !!scene && this.enabled && scene.mainCamera !== this._homeCamera
+    }
+
+    /** Back to the editor camera (also from the start view) */
     exitCameraView() {
-        if (this.viewCamera) this._homeCamera?.activateMain()
+        if (this._awayFromHome) this._homeCamera?.activateMain()
     }
 
     /** Lock: orbit and zoom move the camera you look through. The moves are one undo step, made when you unlock or exit. */
