@@ -77,8 +77,9 @@ bvh.enabled = false // drops all trees, raycasts work without them
 ## Building and updating
 
 - Trees are built after a frame (the viewer `postFrame` event), for at most `buildBudget` ms per frame (default 6). A geometry that takes longer is still built in one go.
-- A tree is kept in `geometry.boundsTree`. The trees are `indirect`: the index of the geometry keeps its order, the geometry is not changed.
-- After a geometry update (`geometry.setDirty()`), the plugin refits the tree when the triangle count is the same (moved vertices), else it builds the tree again.
+- A tree is kept in `geometry.boundsTree`. The trees are `indirect`: the index of the geometry keeps its order, the geometry is not changed (the plugin does not set `geometry.boundingBox` either).
+- After a geometry update (`geometry.setDirty()`), the plugin refits the tree when the triangle count and the draw range are the same (moved vertices), else it builds the tree again.
+- A mesh that gets another geometry (`mesh.geometry = ...`) raycasts with the tree of that geometry, if it has one.
 - A removed geometry loses its tree.
 
 The plugin UI shows the number of geometries with a tree, their memory and the build time.

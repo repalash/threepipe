@@ -19,7 +19,8 @@ function setup(options: ConstructorParameters<typeof tp.BVHPlugin>[1] = {lib: th
     const object3dManager = new tp.Object3DManager()
     const viewer = Object.assign(new EventDispatcher<any>(), {
         object3dManager,
-        scene: {modelRoot, add: (o: Object3D) => modelRoot.add(o)},
+        // the model root is the scene here: the object events that bubble to the scene reach it
+        scene: Object.assign(modelRoot, {modelRoot}),
         console: {error: vi.fn(), warn: vi.fn(), log: vi.fn()},
         setDirty: vi.fn(),
     }) as any
@@ -171,5 +172,49 @@ describe('BVHPlugin', () => {
         const failed = setup({load: async() => Promise.reject(new Error('not installed'))})
         await vi.waitFor(() => expect(failed.viewer.console.error).toHaveBeenCalled())
         expect(failed.plugin.lib).toBeUndefined()
+    })
+
+    test('a draw range change rebuilds the tree: the triangles that it adds are hit', () => {
+        const {add, frame} = setup()
+        const m = add(200, 32)
+        const g = m.geometry!
+        g.setDrawRange(0, 3000) // the first 1000 triangles
+        frame()
+        const tree = g.boundsTree
+        expect(tree).toBeDefined()
+        const brute = (r: Raycaster) => {
+            const list: Intersection[] = []
+            Mesh.prototype.raycast.call(m, r, list)
+            return list.sort((a, b) => a.distance - b.distance)
+                .map(h => ({distance: +h.distance.toFixed(6), faceIndex: h.faceIndex, object: h.object}))
+        }
+        expect(rays().map(r => hits(m, r))).toEqual(rays().map(brute))
+
+        g.setDrawRange(0, Infinity)
+        g.setDirty()
+        frame()
+        expect(g.boundsTree).not.toBe(tree)
+        const expected = rays().map(brute)
+        expect(expected.flat().length).toBeGreaterThan(0)
+        expect(rays().map(r => hits(m, r))).toEqual(expected)
+    })
+
+    test('a mesh that switches to a geometry with a tree raycasts with it', async() => {
+        const {add, frame} = setup()
+        const big = add(200, 32)
+        const small = add(20, 8)
+        frame()
+        expect(big.geometry!.boundsTree).toBeDefined()
+        expect(small.raycast).toBe(Mesh.prototype.raycast)
+
+        small.geometry = big.geometry
+        await Promise.resolve()
+        expect(small.raycast).toBe(threeMeshBVH.acceleratedRaycast)
+        const r = new Raycaster(new Vector3(0, 0, 5), new Vector3(0, 0, -1))
+        expect(hits(small, r).map(h => h.distance)).toEqual(hits(big, r).map(h => h.distance))
+
+        small.geometry = new TorusKnotGeometry(1, 0.3, 20, 8) as any
+        await Promise.resolve()
+        expect(small.raycast).toBe(Mesh.prototype.raycast)
     })
 })

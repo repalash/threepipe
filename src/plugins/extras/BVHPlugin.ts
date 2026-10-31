@@ -22,7 +22,7 @@ export interface IMeshBVH {
  * threepipe does not depend on three-mesh-bvh, its types included.
  */
 export interface ThreeMeshBVH {
-    MeshBVH: new (geometry: BufferGeometry, options?: {indirect?: boolean}) => IMeshBVH
+    MeshBVH: new (geometry: BufferGeometry, options?: {indirect?: boolean, setBoundingBox?: boolean}) => IMeshBVH
     acceleratedRaycast: Mesh['raycast']
     estimateMemoryInBytes(bvh: IMeshBVH): number
     /** Shows the boxes of `mesh.geometry.boundsTree`, to `depth` levels */
@@ -52,6 +52,9 @@ type BVHGeometry = IGeometry & {boundsTree?: IMeshBVH}
 
 interface BVHStats {
     triangles: number
+    // the draw range at build time: the tree has only the triangles in it
+    drawStart: number
+    drawCount: number
     bytes: number
     ms: number
 }
@@ -68,7 +71,8 @@ interface BVHStats {
  * - Trees are built after the frame, within {@link buildBudget} ms per frame, and kept in `geometry.boundsTree`.
  *   The geometry is not changed (`indirect` trees: the index keeps its order).
  * - A mesh with a tree raycasts with `acceleratedRaycast`. The Raycaster API does not change.
- * - A geometry update refits the tree when the triangle count is the same, else builds it again.
+ * - A geometry update refits the tree when the triangle count and the draw range are the same, else builds it again.
+ * - A mesh that gets a geometry with a tree raycasts with that tree.
  * - Not for skinned or morphed meshes, instanced or batched meshes, or meshes with their own raycast (fat lines).
  *
  * threepipe does not depend on three-mesh-bvh: install it (`npm i three-mesh-bvh`, 0.9.5 or newer) and give it to the
@@ -187,6 +191,7 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
         viewer.object3dManager.registerObjectExtension(this._extension)
         viewer.object3dManager.addEventListener('geometryAdd', this._geometryAdd)
         viewer.object3dManager.addEventListener('geometryRemove', this._geometryRemove)
+        viewer.scene.addEventListener('geometryChanged', this._objectGeometryChanged)
         viewer.addEventListener('postFrame', this._postFrame)
         if (!this.lib) this._load().then(lib => {
             this.lib = lib
@@ -199,6 +204,7 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
         viewer.object3dManager.unregisterObjectExtension(this._extension)
         viewer.object3dManager.removeEventListener('geometryAdd', this._geometryAdd)
         viewer.object3dManager.removeEventListener('geometryRemove', this._geometryRemove)
+        viewer.scene.removeEventListener('geometryChanged', this._objectGeometryChanged)
         viewer.removeEventListener('postFrame', this._postFrame)
         for (const g of [...this._stats.keys()]) this._dispose(g)
         this._queue.clear()
@@ -307,12 +313,27 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
         this._dispose(e.geometry)
     }
 
-    // a geometry changed: refit when the triangle count is the same (vertices moved), else build again
+    // a mesh got another geometry, maybe one that has a tree already (geometryAdd is only for new geometries).
+    // The event bubbles to the scene before Object3DManager moves the mesh to the new geometry, so after it.
+    private _objectGeometryChanged = (e: {object?: IObject3D}) => {
+        const o = e.object
+        if (!o?.isMesh) return
+        queueMicrotask(() => {
+            const g: BVHGeometry | undefined = o.geometry
+            if (g?.boundsTree) this._setRaycast(g)
+            else if (g && this.wants(g)) this._queue.add(g)
+            if (!g?.boundsTree && Object.prototype.hasOwnProperty.call(o, 'raycast') && o.raycast === this.lib?.acceleratedRaycast)
+                delete (o as Partial<IObject3D>).raycast
+        })
+    }
+
+    // a geometry changed: refit when the triangle count and the draw range are the same (vertices moved), else build again
     private _geometryUpdate(e: {geometry?: BVHGeometry}) {
         const g = e.geometry
         if (!g) return
         const s = this._stats.get(g)
-        if (g.boundsTree && s && triangleCount(g) === s.triangles) {
+        if (g.boundsTree && s && triangleCount(g) === s.triangles &&
+            g.drawRange.start === s.drawStart && g.drawRange.count === s.drawCount) {
             g.boundsTree.refit()
             return
         }
@@ -334,10 +355,14 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
     private _build(g: BVHGeometry) {
         if (!g.attributes.position || !this.lib) return
         const t = performance.now()
-        const bvh = new this.lib.MeshBVH(g, {indirect: true})
+        // setBoundingBox false: a box from a tree of part of the draw range would cull the raycasts of three.js later
+        const bvh = new this.lib.MeshBVH(g, {indirect: true, setBoundingBox: false})
         const ms = performance.now() - t
         g.boundsTree = bvh as BVHGeometry['boundsTree']
-        this._stats.set(g, {triangles: triangleCount(g), bytes: this.lib.estimateMemoryInBytes(bvh), ms})
+        this._stats.set(g, {
+            triangles: triangleCount(g), drawStart: g.drawRange.start, drawCount: g.drawRange.count,
+            bytes: this.lib.estimateMemoryInBytes(bvh), ms,
+        })
         g.addEventListener('geometryUpdate', this._geometryUpdate)
         this._setRaycast(g)
         this.dispatchEvent({type: 'bvhBuilt', geometry: g, bvh, ms})
