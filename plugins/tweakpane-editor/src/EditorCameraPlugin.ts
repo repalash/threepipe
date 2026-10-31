@@ -119,8 +119,9 @@ export interface EditorCameraPluginEventMap extends AViewerPluginEventMap {
  *   and has no orbit limits.
  * - **View** ({@link editing} `false`): the view is through the {@link previewCamera}, a copy of the scene's default
  *   camera (the start view, saved in the file). This is what a visitor sees, with the controls of the file (orbit
- *   limits, damping). A move in View is a preview: the start view changes only with {@link saveStartView}, or on each
- *   move when {@link syncStartView} is on. So an export in View always has the saved start view.
+ *   limits, damping). With {@link syncStartView} (on by default), each move in View changes the start view as it
+ *   happens (one undo step per move). With it off, a move in View is a preview: {@link saveStartView} keeps it,
+ *   {@link resetStartView} goes back. So an export in View always has the saved start view.
  *
  * The editor camera and the preview camera are added to the scene outside the model root: they are not saved in a file
  * or exported.
@@ -297,11 +298,6 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
         return main === start
     }
 
-    /** The camera that Edit or View looks through: the editor camera in Edit, the preview camera in View, else the start camera */
-    get homeCamera(): ICamera | undefined {
-        return this._mode === 'edit' ? this.camera : this._mode === 'view' ? this._preview : this.startCamera
-    }
-
     onAdded(viewer: ThreeViewer) {
         super.onAdded(viewer)
         // the orbit controls listen on the viewer canvas. A camera made with them and without a canvas makes them on
@@ -379,7 +375,7 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
             this._watchPreviewControls(undefined)
             old.dispose()
         }
-        // no controls yet: they are made in View, when it is the main camera (see _copyStartToPreview)
+        // no controls yet: _copyStartToPreview gives it the controls mode of the start camera each time View starts
         const preview = ortho ? new OrthographicCamera2('', canvas) : new PerspectiveCamera2('', canvas)
         preview.name = 'Start view (preview)'
         preview.userData.disableWidgets = true
@@ -431,6 +427,8 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
         // the preview can have the controls of the mode before it is the main camera
         const ready = () => !mode || preview.controlsMode === mode && !!preview.controls || !!preview.controlsCtors?.has(mode)
         this._apply(() => {
+            // a load in View: the preview is the main camera already. It changes to the editor camera and back, so that
+            // what plugins set on a main camera change (like a ground limit) applies over the controls of the new file
             if (preview.isMainCamera) this.camera.activateMain()
             const copied = ready()
             if (copied) this._copyStartToPreview()
@@ -736,6 +734,5 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
         // in View, the view is the start view of the new file, with its controls
         if (this._mode === 'view') this._showPreview()
         this._onStartUpdate()
-        this._checkMoved()
     }
 }

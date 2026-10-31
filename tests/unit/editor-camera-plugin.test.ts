@@ -216,7 +216,6 @@ describe('EditorCameraPlugin', () => {
         expect(scene.children).toContain(plugin.camera)
         expect(scene.children).toContain(preview)
         expect(scene.mainCamera).toBe(plugin.camera)
-        expect(plugin.homeCamera).toBe(plugin.camera)
         expect(plugin.camera.position.toArray()).toEqual(start.position.toArray())
         expect(plugin.camera.target.toArray()).toEqual(start.target.toArray())
     })
@@ -225,7 +224,6 @@ describe('EditorCameraPlugin', () => {
         const {plugin, scene, start, preview, records} = setup()
         plugin.editing = false
         expect(scene.mainCamera).toBe(preview)
-        expect(plugin.homeCamera).toBe(preview)
         expect(preview.position.toArray()).toEqual([0, 1, 6])
         expect(preview.quaternion.equals(start.quaternion)).toBe(true)
 
@@ -641,13 +639,6 @@ describe('EditorCameraPlugin', () => {
         expect(start.position.toArray()).toEqual([1, 2, 3])
     })
 
-    test('a viewer config file sets the editor camera to its start view', () => {
-        const {plugin, viewer, start} = setup()
-        start.position.set(1, 2, 3)
-        viewer.assetManager.dispatchEvent({type: 'loadAsset', data: viewerConfig})
-        expect(plugin.camera.position.toArray()).toEqual([1, 2, 3])
-    })
-
     test('a plugin preset (a config without a start view) leaves the cameras as they are', () => {
         const {plugin, viewer, start, preview} = setup()
         plugin.camera.position.set(9, 0, 0) // the editor view
@@ -855,7 +846,6 @@ describe('EditorCameraPlugin', () => {
         plugin.editing = false
         plugin.enabled = false
         expect(scene.mainCamera).toBe(start)
-        expect(plugin.homeCamera).toBe(start)
         plugin.editing = true
         expect(plugin.editing).toBe(false)
         expect(scene.mainCamera).toBe(start)
@@ -897,13 +887,16 @@ describe('EditorCameraPlugin', () => {
         expect(scene.mainCamera).toBe(plugin.camera)
     })
 
-    test('a file with a viewer config sets the editor camera to its start view', () => {
+    test('a file with a viewer config (in a model, or a viewer config file) sets the editor camera to its start view', () => {
         const {plugin, viewer, start} = setup()
         start.position.set(1, 2, 3)
         viewer.assetManager.dispatchEvent({type: 'loadAsset', data: {}})
         expect(plugin.camera.position.toArray()).toEqual([0, 1, 6])
         viewer.assetManager.dispatchEvent({type: 'loadAsset', data: {importedViewerConfig: viewerConfig}})
         expect(plugin.camera.position.toArray()).toEqual([1, 2, 3])
+        start.position.set(3, 2, 1)
+        viewer.assetManager.dispatchEvent({type: 'loadAsset', data: viewerConfig})
+        expect(plugin.camera.position.toArray()).toEqual([3, 2, 1])
     })
 
     test('on remove, the start view is the main camera and the editor and preview cameras leave the scene', () => {

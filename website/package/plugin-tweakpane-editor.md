@@ -127,7 +127,7 @@ Another view can show the same notes: read `notes.notes`, listen to the `notesCh
 `EditorCameraPlugin` gives an editor its own camera, separate from the scene's camera.
 
 - **Edit** (`editing = true`, the default): the view is through the editor camera. It moves 1:1 with the pointer (no damping) and has no orbit limits or ground limit.
-- **View** (`editing = false`): the view is through `previewCamera`, a copy of the scene's default camera (the start view, saved in the file) with its controls (orbit limits, damping). This is what a visitor sees. A move in View is a preview: the start view changes only with `saveStartView()`, or on each move when `syncStartView` is on. So an export in View (`exportConfig()`, `exportScene()`) always has the saved start view.
+- **View** (`editing = false`): the view is through `previewCamera`, a copy of the scene's default camera (the start view, saved in the file) with its controls (orbit limits, damping). This is what a visitor sees. With `syncStartView` (on by default), each move in View changes the start view as it happens (one undo step per move). With it off, a move in View is a preview: `saveStartView()` keeps it, `resetStartView()` goes back. So an export in View (`exportConfig()`, `exportScene()`) always has the saved start view, never a preview that is not saved.
 
 The editor camera and the preview camera are added to the scene outside the model root, so they are not saved in a file or exported. The preview camera is made again from the start camera each time View starts, so a change of the start camera settings in Edit is in the next View.
 
@@ -142,14 +142,15 @@ import {EditorCameraPlugin} from '@threepipe/plugin-tweakpane-editor'
 const viewer = new ThreeViewer({...plugins: [UndoManagerPlugin]})
 const editorCamera = viewer.addPluginSync(EditorCameraPlugin)
 
-// look through the start view, as a visitor
+// look through the start view, as a visitor. Each move here changes the start view (syncStartView is on by default;
+// Ctrl+Z undoes a move)
 editorCamera.editing = false
-// a move in View is a preview; keep it as the start view (Ctrl+Z undoes it)
+// or make a move in View a preview only
+editorCamera.syncStartView = false
+// after a move: keep the view as the start view (Ctrl+Z undoes it)
 editorCamera.saveStartView()
 // or go back to the saved start view
 editorCamera.resetStartView()
-// or save each move in View as it happens (one undo step per move)
-editorCamera.syncStartView = true
 // back to the editor camera
 editorCamera.editing = true
 
