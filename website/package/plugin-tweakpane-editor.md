@@ -116,7 +116,7 @@ ui.setupPluginUi(StickyNotesUiPlugin) // the settings
 ui.setupPluginUi(NotesPlugin)
 ```
 
-Another view can show the same notes: read `notes.notes`, listen to the `notesChanged` event (`change` is `add`, `update`, `remove` or `load`; `note` is the note added, changed or removed, and `notes` the notes that `clear` or a store replaced with `addStore` removed), and change them with `addNote`, `updateNote` and `removeNote`. Set `StickyNotesUiPlugin.InjectStyles = false` before the plugin is made to style the `snp-` classes yourself.
+Another view can show the same notes: read `notes.notes`, listen to the `notesChange` event (`change` is `add`, `update`, `remove` or `load`; `note` is the note added, changed or removed, and `notes` the notes that `clear` or a store replaced with `addStore` removed), and change them with `addNote`, `updateNote` and `removeNote`. Set `StickyNotesUiPlugin.InjectStyles = false` before the plugin is made to style the `snp-` classes yourself.
 
 ## EditorCameraPlugin
 
