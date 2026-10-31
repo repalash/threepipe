@@ -125,7 +125,7 @@ Plugins that add DOM elements over the canvas use these layers, so the UI stacks
 | `auto` to 49 | Overlays drawn on the canvas | selection overlay, `PerfPanelPlugin` (12) |
 | 50 | Loading screen | `LoadingScreenPlugin` |
 | 100 to 199 | Viewer UI over the scene | `GridItemList` (100), sticky notes (150) |
-| 200 to 999 | Panels and bars | tweakpane editor `.button-bar` (200) |
+| 200 to 999 | Panels and bars | tweakpane editor `.button-bar` (200), editor frame mode bar (200) and title or status bar (210) |
 | 1000 to 1999 | Floating tools | `TimelineUiPlugin`, `RenderTargetPreviewPlugin`, `GeometryUVPreviewPlugin` (1000) |
 | 2000 to 9998 | Popups and dropdown menus | editor layout menu (2000) |
 | 9999 and up | Context menus | `CustomContextMenu` |

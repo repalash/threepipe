@@ -134,6 +134,16 @@ describe('tweakpane editor frame on a phone', () => {
         }
     })
 
+    it('stacks the bars in the panels and bars layer', () => {
+        // CONTRIBUTING, UI layers: panels and bars 200 to 999, below the layout menu (popups and dropdown menus)
+        const z = (sel: string) => Number(declarations(sel, desktop)['z-index'])
+        for (const sel of ['.mb-root', '.lay-bar']) {
+            expect(z(sel), sel).toBeGreaterThanOrEqual(200)
+            expect(z(sel), sel).toBeLessThan(1000)
+        }
+        expect(z('.lay-menu')).toBeGreaterThanOrEqual(2000)
+    })
+
     it('keeps the floating tool bar in the part of the canvas that the panels do not cover', () => {
         // the floating canvas is the whole window and the bar moves left of the panels: its max-width must leave the
         // panels out, or a narrow window puts its first buttons left of the window, out of the bar's scroll

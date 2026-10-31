@@ -1,10 +1,11 @@
 /* the text of the bars: the size of the panel text, 13px, 12px in the clean themes (11px text); the status bar 1px less */
 body.tpTheme-clean, body.tpTheme-clean-dark { --lay-font-size: 12px; }
 
-/* EditorModeBar: the mode buttons on the right */
+/* EditorModeBar: the mode buttons on the right. z-index: the panels and bars layer of the UI layers in CONTRIBUTING.md
+   (200 to 999), as the title and status bar (210) */
 .mb-root {
     --mb-bg: #ffffff; --mb-line: #e6e6e6; --mb-hover: #f2f3f5;
-    position: fixed; right: 0; top: 0; bottom: 0; width: 44px; z-index: 30; display: flex; flex-direction: column; align-items: center; gap: 4px;
+    position: fixed; right: 0; top: 0; bottom: 0; width: 44px; z-index: 200; display: flex; flex-direction: column; align-items: center; gap: 4px;
     padding: 10px 0; background: var(--mb-bg); border-left: 1px solid var(--mb-line); box-sizing: border-box;
     font: 500 var(--lay-font-size, 13px)/1 var(--tp-font-family, Inter, ui-sans-serif, system-ui, sans-serif); -webkit-font-smoothing: antialiased;
     /* a short window: the bar scrolls, so every mode and the buttons at the bottom stay reachable; the scroll stops at
@@ -42,7 +43,7 @@ body.lay-floating { --lay-top: 0px; --lay-bottom: 0px; --lay-gap: 12px; --lay-ca
 body.lay-frame.tpTheme-clean { background-color: #f0f0f0 !important; }
 body.lay-frame.tpTheme-clean-dark { background-color: #1e1e1e !important; }
 .lay-bar {
-    position: fixed; left: 0; right: 0; z-index: 40; display: flex; align-items: center; gap: 4px; padding: 0 8px 0 12px; box-sizing: border-box;
+    position: fixed; left: 0; right: 0; z-index: 210; display: flex; align-items: center; gap: 4px; padding: 0 8px 0 12px; box-sizing: border-box;
     background: var(--tp-base-background-color, #fff); color: var(--tp-container-foreground-color, #1e1e1e);
     font: 400 var(--lay-font-size, 13px)/1 var(--tp-font-family, Inter, ui-sans-serif, system-ui, sans-serif); -webkit-font-smoothing: antialiased;
 }
