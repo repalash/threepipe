@@ -110,6 +110,13 @@ describe('gltf-summary', () => {
         expect(s.viewerConfig?.bytes).toBe(JSON.stringify(config).length + JSON.stringify(resources).length)
     })
 
+    test('marks an encrypted container (its JSON holds only the encryption metadata)', () => {
+        const json = {asset: {version: '2.0', encryption: {type: 'aesgcm', version: '1'}}, buffers: [{byteLength: 100}]}
+        const s = summarizeGLTF('locked.glb', parseGLTFBuffer(glb(json, 100)))
+        expect(s.encrypted).toEqual({type: 'aesgcm', version: '1'})
+        expect(summarizeGLTF('ring.glb', parseGLTFBuffer(glb(sample, 0))).encrypted).toBeUndefined()
+    })
+
     test('formats sizes', () => {
         expect(formatBytes(undefined)).toBe('?')
         expect(formatBytes(512)).toBe('512 B')
@@ -147,6 +154,22 @@ describe('GLTFContentsPlugin', () => {
         expect(plugin.files.map(f => f.name)).toEqual(['ring.glb'])
         expect(plugin.shownSummary?.counts.triangles).toBe(212)
         expect(plugin.shownSummary?.fileBytes).toBe(file.size)
+    })
+
+    test('a model from a URL is fetched again with the query string the importer added', async () => {
+        const urls: string[] = []
+        const fetchMock = async (url: string) => (urls.push(url), {arrayBuffer: async () => glb(sample, 0)})
+        const saved = globalThis.fetch
+        globalThis.fetch = fetchMock as any
+        try {
+            const {plugin, load} = setup()
+            await load({assetType: 'model', __rootPath: 'https://example.com/ring.glb', __rootPathOptions: {queryString: 'token=abc'}})
+            await load({assetType: 'model', __rootPath: 'https://example.com/two.glb?v=2'})
+            expect(urls).toEqual(['https://example.com/ring.glb?token=abc', 'https://example.com/two.glb?v=2'])
+            expect(plugin.files.map(f => f.name)).toEqual(['two.glb', 'ring.glb'])
+        } finally {
+            globalThis.fetch = saved
+        }
     })
 
     test('Check the export makes the file of the exporter and shows it first; without an exporter it says so', async () => {

@@ -15,6 +15,11 @@ export interface GLTFSummary {
     imageBytes: number
     generator?: string
     version?: string
+    /**
+     * Set when the file is an encrypted container (the exporter's Encrypt option): its JSON holds only the encryption
+     * metadata, so the counts and lists are of the container, not of the scene
+     */
+    encrypted?: {type?: string, version?: string}
     extensionsUsed: string[]
     extensionsRequired: string[]
     counts: {
@@ -144,6 +149,7 @@ export function summarizeGLTF(name: string, parsed: {json: any, jsonBytes: numbe
         name, fileBytes,
         jsonBytes: parsed.jsonBytes, binBytes: parsed.binBytes, imageBytes,
         generator: json.asset?.generator, version: json.asset?.version,
+        encrypted: json.asset?.encryption ? {type: json.asset.encryption.type, version: json.asset.encryption.version} : undefined,
         extensionsUsed: json.extensionsUsed ?? [], extensionsRequired: json.extensionsRequired ?? [],
         counts: {
             scenes: json.scenes?.length ?? 0, nodes: json.nodes?.length ?? 0, meshes: meshes.length, primitives, triangles, vertices,
