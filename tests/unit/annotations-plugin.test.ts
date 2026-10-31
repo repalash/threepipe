@@ -748,11 +748,11 @@ describe('AnnotationsPlugin', () => {
         expect(other.getAnnotations()).toHaveLength(1)
     })
 
-    test('finds the object by uuid, or by its path of names after a reload with new uuids', () => {
+    test('finds the object by uuid, or after a load by its path of names (a model with new uuids)', () => {
         const {plugin, box, group, viewer} = setup()
         const a = plugin.add(box as any, front, normal, null)
         expect(plugin.getObject(a)).toBe(box)
-        // the model is loaded again: same names, new uuids
+        // the model is loaded again: same names, new uuids; then the annotations are loaded (a viewer config)
         group.removeFromParent()
         const box2 = new Mesh(new BoxGeometry(1, 1, 1), new MeshBasicMaterial())
         box2.name = 'Box'
@@ -761,10 +761,40 @@ describe('AnnotationsPlugin', () => {
         group2.add(box2)
         viewer.scene.modelRoot.add(group2)
         ;(plugin as any)._onHierarchy()
-        expect(plugin.getObject(a)).toBe(box2)
+        plugin.fromJSON(JSON.parse(JSON.stringify(plugin.toJSON())))
+        const loaded = plugin.get(0)!
+        expect(plugin.getObject(loaded)).toBe(box2)
         group2.removeFromParent()
         ;(plugin as any)._onHierarchy()
+        expect(plugin.getObject(loaded)).toBe(null)
+    })
+
+    test('an annotation stays on its object: removed, it hides and does not move to a sibling with the same name; added back, it shows again', () => {
+        const {plugin, layer, box, group, viewer} = setup()
+        // two unnamed boxes: the path of both is "#0" among the unnamed ones, so the path cannot tell them apart
+        box.name = ''
+        const sibling = new Mesh(new BoxGeometry(1, 1, 1), new MeshBasicMaterial())
+        sibling.position.x = 1.5
+        group.add(sibling)
+        viewer.scene.modelRoot.updateMatrixWorld(true)
+        const a = plugin.add(box as any, front, normal, null)
+        expect(a.anchor.path).toBe('Model#0/#0')
+        const m = markers(layer)[0]
+        const update = () => (plugin as any)._updateScreen()
+        update()
+        expect(m.style.transform).toBe('translate(400.0px, 300.0px)')
+        box.removeFromParent()
+        ;(plugin as any)._onHierarchy()
         expect(plugin.getObject(a)).toBe(null)
+        update()
+        expect(m.style.display).toBe('none')
+        // back in the scene: on the same box again
+        group.add(box)
+        ;(plugin as any)._onHierarchy()
+        expect(plugin.getObject(a)).toBe(box)
+        update()
+        expect(m.style.display).toBe('')
+        expect(m.style.transform).toBe('translate(400.0px, 300.0px)')
     })
 
     test('the tour opens the next annotation on a timer; onRemove takes the layer and the listeners away', () => {

@@ -536,14 +536,20 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         this.dispatchEvent({type: 'addingChange', adding: false})
     }
 
-    /** The object an annotation is on, or null when it is not in the scene */
+    /**
+     * The object an annotation is on, or null when it is not in the scene. Found by uuid, or by the path of names on the
+     * first look up (after a load, where the uuids can be new). Once found, the annotation stays on that object: when
+     * it leaves the scene, the marker hides (an object with the same path, like an unnamed sibling, does not take it),
+     * and it shows again when the object, or one with its uuid, is back.
+     */
     getObject(a: Annotation): IObject3D | null {
         const c = this._objCache.get(a.id)
-        if (c && c.obj && this._inScene(c.obj)) return c.obj
-        if (c && !c.obj && c.gen === this._cacheGen) return null
+        if (c?.obj && this._inScene(c.obj)) return c.obj
+        if (c && c.gen === this._cacheGen) return null // looked up since the last hierarchy change
         const root = this._viewer?.scene.modelRoot
-        const obj = (root?.getObjectByProperty('uuid', a.anchor.uuid) as IObject3D | undefined) || this._byPath(a.anchor.path) || null
-        this._objCache.set(a.id, {obj, gen: this._cacheGen})
+        const byUuid = root?.getObjectByProperty('uuid', a.anchor.uuid) as IObject3D | undefined
+        const obj = byUuid || (c?.obj ? null : this._byPath(a.anchor.path))
+        this._objCache.set(a.id, {obj: obj || c?.obj || null, gen: this._cacheGen})
         return obj
     }
 
