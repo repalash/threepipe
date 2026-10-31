@@ -171,5 +171,114 @@ export default {
             updateRule: null,
             deleteRule: null,
         } as TableRulesExtensionData],
+    }, {
+        // Projects: where an app's reports go (src/projects.ts). Read and changed only through those routes.
+        name: 'projects',
+        autoSetUid: true,
+        fields: [
+            ...baseFields,
+            {name: 'slug', type: 'text', sqlType: 'text', notNull: true, unique: true},
+            {name: 'name', type: 'text', sqlType: 'text', notNull: true},
+            {name: 'owner_id', type: 'relation', sqlType: 'text', notNull: true, foreignKey: {table: 'users', column: 'id'}},
+            {name: 'discord_webhook', type: 'text', sqlType: 'text', noSelect: true},
+        ],
+        indexes: [{fields: ['owner_id']}],
+        triggers: [createdTrigger, updatedTrigger],
+        extensions: [{
+            name: 'rules',
+            listRule: null,
+            viewRule: null,
+            createRule: null,
+            updateRule: null,
+            deleteRule: null,
+        } as TableRulesExtensionData],
+    }, {
+        name: 'project_members',
+        autoSetUid: true,
+        fields: [
+            ...baseFields,
+            {name: 'project_id', type: 'relation', sqlType: 'text', notNull: true, foreignKey: {table: 'projects', column: 'id'}},
+            {name: 'user_id', type: 'relation', sqlType: 'text', notNull: true, foreignKey: {table: 'users', column: 'id'}},
+            {name: 'role', type: 'text', sqlType: 'text', notNull: true}, // reader | manager (the owner is projects.owner_id)
+        ],
+        indexes: [{fields: ['project_id', 'user_id'], unique: true}, {fields: ['user_id']}],
+        triggers: [createdTrigger, updatedTrigger],
+        extensions: [{
+            name: 'rules',
+            listRule: null,
+            viewRule: null,
+            createRule: null,
+            updateRule: null,
+            deleteRule: null,
+        } as TableRulesExtensionData],
+    }, {
+        // Reports (src/reports.ts, from #104). The row holds what the list shows and what the caps count; the report
+        // itself is reports/<key>/report.json in R2, the screenshot and files beside it. R2 keys use `key`, never the
+        // public id. Nothing deletes a row: a delete removes the R2 objects and clears the personal columns.
+        name: 'reports',
+        autoSetUid: false,
+        fields: [
+            baseFields[0], // id: the public 'R-' + 6 Crockford base32 characters
+            {name: 'project_id', type: 'relation', sqlType: 'text', notNull: true, foreignKey: {table: 'projects', column: 'id'}},
+            {name: 'key', type: 'text', sqlType: 'text', notNull: true}, // random uuid; the R2 keys use it
+            {name: 'client_key', type: 'text', sqlType: 'text', notNull: true}, // the dialog's Idempotency-Key
+            {name: 'created_at', type: 'text', sqlType: 'text', notNull: true}, // ISO 8601 UTC
+            {name: 'origin', type: 'text', sqlType: 'text'}, // host of the Origin header
+            {name: 'type', type: 'text', sqlType: 'text', notNull: true}, // bug | question | idea
+            {name: 'surface', type: 'text', sqlType: 'text', notNull: true}, // where the dialog opened: modelling-editor, examples, …
+            {name: 'email', type: 'text', sqlType: 'text'}, // as typed, not verified
+            {name: 'user_id', type: 'text', sqlType: 'text'}, // the signed-in sender
+            {name: 'rate_key', type: 'text', sqlType: 'text', notNull: true}, // u:<user id>, or ip:<keyed hash of the IP>; the daily caps count it
+            {name: 'summary', type: 'text', sqlType: 'text'}, // the first 200 characters of the text
+            {name: 'cause', type: 'text', sqlType: 'text'},
+            {name: 'versions_json', type: 'text', sqlType: 'text', notNull: true},
+            {name: 'has_image', type: 'integer', sqlType: 'integer', notNull: true, default: sqlValue(0)},
+            {name: 'bundle_bytes', type: 'integer', sqlType: 'integer', notNull: true},
+            {name: 'files_count', type: 'integer', sqlType: 'integer', notNull: true, default: sqlValue(0)},
+            {name: 'files_bytes', type: 'integer', sqlType: 'integer', notNull: true, default: sqlValue(0)},
+            {name: 'status', type: 'text', sqlType: 'text', notNull: true, default: sqlValue('new')}, // new | in_progress | waiting_reporter | closed | spam
+            {name: 'status_by', type: 'text', sqlType: 'text'},
+            {name: 'status_at', type: 'text', sqlType: 'text'},
+            {name: 'note', type: 'text', sqlType: 'text'},
+            {name: 'discord_state', type: 'text', sqlType: 'text'}, // sent | failed | off
+            {name: 'deleted_at', type: 'text', sqlType: 'text'},
+            {name: 'deleted_by', type: 'text', sqlType: 'text'},
+        ],
+        indexes: [
+            {fields: ['key'], unique: true},
+            {fields: ['project_id', 'client_key'], unique: true},
+            {fields: ['project_id', 'created_at']},
+            {fields: ['project_id', 'status', 'created_at']},
+            {fields: ['rate_key', 'created_at']},
+            {fields: ['created_at']},
+        ],
+        extensions: [{
+            name: 'rules',
+            listRule: null,
+            viewRule: null,
+            createRule: null,
+            updateRule: null,
+            deleteRule: null,
+        } as TableRulesExtensionData],
+    }, {
+        name: 'report_files',
+        autoSetUid: true,
+        fields: [
+            baseFields[0],
+            {name: 'report_id', type: 'relation', sqlType: 'text', notNull: true, foreignKey: {table: 'reports', column: 'id'}},
+            {name: 'idx', type: 'integer', sqlType: 'integer', notNull: true}, // 0-based, the order they were attached
+            {name: 'name', type: 'text', sqlType: 'text'}, // as sent; NULL after a delete
+            {name: 'size', type: 'integer', sqlType: 'integer', notNull: true},
+            {name: 'state', type: 'text', sqlType: 'text', notNull: true}, // done | deleted
+        ],
+        indexes: [{fields: ['report_id', 'idx'], unique: true}],
+        extensions: [{
+            name: 'rules',
+            listRule: null,
+            viewRule: null,
+            createRule: null,
+            updateRule: null,
+            deleteRule: null,
+        } as TableRulesExtensionData],
     }],
 } satisfies DatabaseSettings

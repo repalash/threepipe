@@ -9,6 +9,7 @@ import {driveRoutes} from './drive'
 import {connectRoutes} from './connect'
 import {bucketRoutes} from './buckets'
 import {devLoginRoutes} from './devLogin'
+import {projectRoutes} from './projects'
 import {pageRoutes} from './page'
 import {guardRequest} from './auth'
 import {deleteExpired} from './cron'
@@ -33,6 +34,7 @@ driveRoutes(app)
 connectRoutes(app)
 bucketRoutes(app)
 devLoginRoutes(app)
+projectRoutes(app)
 pageRoutes(app)
 
 export default {

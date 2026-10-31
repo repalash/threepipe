@@ -63,7 +63,7 @@ export async function mintKey(c: Context<CloudEnv>, user: {id: string, email: st
 }
 
 /** Our routes: they call requireUser and check scopes themselves. Everything else under /api/ is teenybase. */
-const OWN_ROUTES = /^\/api\/v1\/(uploads|access|access-links|connect|drive|buckets)(\/|$)/
+const OWN_ROUTES = /^\/api\/v1\/(uploads|access|access-links|connect|drive|buckets|projects)(\/|$)/
 
 /**
  * Runs before every route (teenybase's onRequest hook):

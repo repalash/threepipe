@@ -20,7 +20,14 @@
         "FILES_HOST": "",
         // public URLs of the staff buckets (src/buckets.ts); R2 serves them on these domains
         "SAMPLES_URL": "https://samples.threepipe.org",
-        "E2E_URL": "https://e2e-snapshots.threepipe.org"
+        "E2E_URL": "https://e2e-snapshots.threepipe.org",
+        // anonymous reports: the hostnames our Turnstile widget is solved on (src/turnstile.ts)
+        "TURNSTILE_HOSTNAMES": "threepipe.org,files.threepipe.org,cloud.threepipe.org,editor.threepipe.org",
+        // reports in 24 hours: per sender, per project, in total, and attached bytes in total (src/reports.ts)
+        "REPORTS_DAILY_CAP": "20",
+        "REPORTS_DAILY_CAP_PROJECT": "300",
+        "REPORTS_DAILY_CAP_ALL": "1000",
+        "REPORTS_DAILY_FILE_BYTES_ALL": "2147483648"
     },
     // the pages and their scripts are imported as strings (src/page.ts)
     "rules": [{ "type": "Text", "globs": ["**/*.html", "**/*.client.js"], "fallthrough": true }],

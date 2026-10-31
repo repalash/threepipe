@@ -169,5 +169,30 @@ curl -s -H "Cookie: tp_cloud_auth=$DCK" "$A/api/v1/drive" | grep -q '"items"' &&
 [ "$(code -X POST --data-urlencode "username=$DU" --data-urlencode "password=wrongpass1" "$A/login")" = "303" ] && curl -s -o /dev/null -w '%{redirect_url}' -X POST --data-urlencode "username=$DU" --data-urlencode "password=wrongpass1" "$A/login" | grep -q "wrong%20password" && ok "wrong password" || bad "dev login wrong password"
 LOCR=$(curl -s -o /dev/null -w '%{redirect_url}' -X POST --data-urlencode "username=$DU" --data-urlencode "password=pass12345" --data-urlencode "redirect=//evil.example/" "$A/login")
 [ "$LOCR" = "$A/reports" ] && ok "redirect stays on this host" || bad "dev login redirect: $LOCR"
+# --- projects and reports ---
+P=p-$U
+[ "$(code -X POST -H "$H0" -H 'content-type: application/json' -d "{\"slug\":\"$P\",\"name\":\"My app\"}" "$A/api/v1/projects")" = "201" ] && ok "create a project" || bad "create project"
+[ "$(code -X POST -H "$H0" -H 'content-type: application/json' -d "{\"slug\":\"$P\"}" "$A/api/v1/projects")" = "409" ] && ok "slug taken -> 409" || bad "slug taken"
+[ "$(code -X POST -H "Authorization: Bearer $T2" -H 'content-type: application/json' -d '{"slug":"threepipe-x"}' "$A/api/v1/projects")" = "403" ] && ok "threepipe* slugs are for staff" || bad "threepipe slug"
+curl -s -H "$H0" "$A/api/v1/projects" | grep -q "\"$P\"" && ok "list my projects" || bad "list projects"
+RJ='{"type":"bug","surface":"examples","text":"it broke","email":"me@x.test","log":["GET https://a.test/x?token=abcdefgh12345678 failed","at /Users/jane/app.js:1:2"],"versions":{"threepipe":"0.4.0"}}'
+[ "$(code -X POST -H 'content-type: application/json' -H "Idempotency-Key: k-$U-0" -d "$RJ" "$A/api/v1/projects/$P/reports")" = "401" ] && ok "anonymous report without Turnstile -> 401" || bad "no turnstile"
+R=$(curl -s -X POST -H 'content-type: application/json' -H "Idempotency-Key: k-$U-1" -H 'cf-turnstile-response: test' -H "Origin: https://files.threepipe.org" -d "$RJ" "$A/api/v1/projects/$P/reports"); RID=$(echo "$R" | j "['id']") && ok "anonymous report with Turnstile -> $RID" || bad "anon report: $R"
+R=$(curl -s -X POST -H "Authorization: Bearer $T2" -H 'content-type: application/json' -H "Idempotency-Key: k-$U-2" -d '{"type":"idea","surface":"editor","text":"signed in","image":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="}' "$A/api/v1/projects/$P/reports"); RID2=$(echo "$R" | j "['id']") && ok "signed-in report, no Turnstile -> $RID2" || bad "signed-in report: $R"
+curl -s -X POST -H "Authorization: Bearer $T2" -H 'content-type: application/json' -H "Idempotency-Key: k-$U-2" -d '{"type":"idea","surface":"editor"}' "$A/api/v1/projects/$P/reports" | grep -q '"repeat":true' && ok "same Idempotency-Key -> the same report" || bad "idempotency"
+echo "$RJ" > $TMP/report.json
+R=$(curl -s -X POST -H "Authorization: Bearer $T2" -H "Idempotency-Key: k-$U-3" -F "report=<$TMP/report.json" -F "file=@$TMP/a.txt;filename=scene.glb" "$A/api/v1/projects/$P/reports"); RID3=$(echo "$R" | j "['id']") && ok "multipart report with a file" || bad "multipart: $R"
+[ "$(code -H "Authorization: Bearer $T2" "$A/api/v1/projects/$P/reports")" = "404" ] && ok "non-members cannot read reports" || bad "non-member read"
+R=$(curl -s -H "$H0" "$A/api/v1/projects/$P/reports"); [ "$(echo "$R" | python3 -c "import json,sys;print(len(json.load(sys.stdin)['rows']))")" = "3" ] && ok "owner lists 3 reports" || bad "list: $R"
+R=$(curl -s -H "$H0" "$A/api/v1/projects/$P/reports/$RID"); echo "$R" | grep -q 'https://a.test/x failed' && echo "$R" | grep -q '/Users/<user>' && ! echo "$R" | grep -q abcdefgh12345678 && ok "log redacted on the server (query strings, home folders)" || bad "redaction: $R"
+[ "$(curl -s -o /dev/null -w '%{http_code} %{content_type}' -H "$H0" "$A/api/v1/projects/$P/reports/$RID2/image")" = "200 image/png" ] && ok "screenshot" || bad "screenshot"
+curl -s -D - -o /dev/null -H "$H0" "$A/api/v1/projects/$P/reports/$RID3/files/0" | grep -qi 'attachment; filename="scene.glb"' && ok "attached file download" || bad "file download"
+curl -s -o /dev/null -X POST -H "$H0" -H 'content-type: application/json' -d "{\"username\":\"$U2\",\"role\":\"reader\"}" "$A/api/v1/projects/$P/members"
+[ "$(code -H "Authorization: Bearer $T2" "$A/api/v1/projects/$P/reports")" = "200" ] && ok "reader lists reports" || bad "reader list"
+[ "$(code -X PATCH -H "Authorization: Bearer $T2" -H 'content-type: application/json' -d '{"status":"closed"}' "$A/api/v1/projects/$P/reports/$RID")" = "403" ] && ok "reader cannot change a report" || bad "reader patch"
+curl -s -X PATCH -H "$H0" -H 'content-type: application/json' -d '{"status":"in_progress","note":"looking"}' "$A/api/v1/projects/$P/reports/$RID" | grep -q "\"status_by\":\"$U\"" && ok "manager sets status" || bad "manager patch"
+curl -s -X DELETE -H "$H0" "$A/api/v1/projects/$P/reports/$RID2" | grep -q deleted_at && [ "$(code -H "$H0" "$A/api/v1/projects/$P/reports/$RID2/image")" = "404" ] && ok "delete a report (tombstone)" || bad "delete report"
+[ "$(code -H "$H0" "$A/api/v1/projects/p-none-$U/reports")" = "404" ] && ok "unknown project -> 404" || bad "unknown project"
+curl -sI "$A/reports" | grep -qi "content-security-policy: default-src 'none'; script-src 'self'" && [ "$(code "$A/reports/page.js")" = "200" ] && ok "reports page" || bad "reports page"
 echo "failures: $FAILS"
 [ $FAILS -eq 0 ]

@@ -8,6 +8,10 @@ POCKET_UI_VIEWER_PASSWORD=viewer
 POCKET_UI_EDITOR_PASSWORD=editor
 # signs private drive URLs (src/drive.ts)
 FILES_URL_SECRET=dev-files-url-secret
+# reports (src/reports.ts): keys the hash of an anonymous sender's IP for the daily caps
+REPORTS_RATE_SECRET=dev-reports-rate-secret
+# Cloudflare's test secret that always passes (anonymous reports locally); a real one in .prod.vars
+TURNSTILE_SECRET=1x0000000000000000000000000000000AA
 GITHUB_CLIENT_ID=
 GITHUB_CLIENT_SECRET=
 RESPOND_WITH_ERRORS=true

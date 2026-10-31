@@ -53,6 +53,25 @@ only; a new username is signed up on the first try).
 The first segment (`b`: `<repo>/<ref>`) belongs to whoever uploads there first; `d/<handle>` belongs to the user with
 that username (it can't be changed). Roles (`member`, `staff`, `admin`) are set by an admin on `users.role`.
 
+## Projects and reports
+
+Report a Problem / feedback for any threepipe app (`src/projects.ts`, `src/reports.ts` from #104). Any member creates up
+to 5 projects (slugs starting with `threepipe` are for staff) and adds members as `reader` or `manager`. Members read the
+reports on `/reports` (GitHub sign-in) or through the API.
+
+| Route | Who | What |
+|---|---|---|
+| `POST /api/v1/projects` `{slug, name}`, `GET /api/v1/projects` | signed in | create, list mine |
+| `PATCH /api/v1/projects/<slug>` `{name?, discord_webhook?}` | manager | a Discord card per report (no user text on it) |
+| `GET/POST /api/v1/projects/<slug>/members`, `DELETE …/members/<username>` | reader / manager | members |
+| `POST /api/v1/projects/<slug>/reports` | anyone | `Idempotency-Key`; signed in (cookie or key) or `cf-turnstile-response`; JSON or multipart (`report` + up to 3 `file`s) → `{id}` (`R-XXXXXX`) |
+| `GET …/reports?status=&type=&q=&before=`, `GET …/reports/<id>`, `…/image`, `…/files/<i>` | reader | list, read |
+| `PATCH …/reports/<id>` `{status?, note?}`, `DELETE …/reports/<id>` | manager | the row stays as a tombstone |
+
+The server redacts every field again (query strings, tokens, home-folder user names, other emails). Daily caps per sender
+(user id, or a keyed hash of the IP), per project and in total (`REPORTS_*` vars). Anonymous reports need Turnstile
+(`TURNSTILE_SECRET`, solved on `TURNSTILE_HOSTNAMES`); signed-in senders skip it.
+
 ## Uploading from the repository
 
 - `npm run cloud:upload -- <file or folder> <remote path>`: any file or folder (skips dotfiles, `node_modules` and what
