@@ -196,10 +196,12 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
      * Off: a move in View is a preview only, kept with {@link saveStartView}.
      * Turned on in View after a move, it saves the view.
      *
-     * Only a user gesture on the controls of the preview camera is a move: from their `start` event to their `end`
-     * event, and the glide after it (see {@link SyncGestureDelay}). A change that the user did not make, like a clamp of
-     * the orbit limits (a start view outside them) or an animation of the camera by another plugin, is not synced.
-     * The keyboard pan of `OrbitControls` sends no `start` and `end` events, so it is not a move either.
+     * With orbit controls, only a user gesture on the controls of the preview camera is a move: from their `start`
+     * event to their `end` event, and the glide after it (see {@link SyncGestureDelay}). A change that the user did not
+     * make, like a clamp of the orbit limits (a start view outside them) or an animation of the camera by another
+     * plugin, is not synced. The keyboard pan of `OrbitControls` sends no `start` and `end` events, so it is not a move
+     * either. Other controls (first person, pointer lock) send no gesture events: each change of the view is a move,
+     * and a move ends when the view is still for {@link SyncGestureDelay}.
      */
     @onChange(EditorCameraPlugin.prototype._syncChanged)
     @uiToggle('Sync start view (in View)')
@@ -503,6 +505,12 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
     private _onPreviewUpdate = () => {
         if (this._mode !== 'view' || this._applying || !this._preview) return
         const start = this.startCamera
+        // controls without gesture events (FirstPersonControls2, pointer lock): each change is the user's, and a
+        // gesture goes on until the view is still for a while
+        if (!this._gesture && start && !(this._previewControls instanceof OrbitControls3)) {
+            this._gesture = true
+            this._endSyncMove()
+        }
         if (this._gesture && start) {
             // the glide of damping after the pointer is up keeps the gesture on; an auto rotation does not (it does not
             // stop), so the gesture ends after the delay

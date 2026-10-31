@@ -439,6 +439,31 @@ describe('EditorCameraPlugin', () => {
         expect(direction(preview).distanceTo(direction(start))).toBeLessThan(1e-3)
     })
 
+    test('controls without gesture events (FirstPersonControls2): a change of the view is a move, synced as steps, or saved', () => {
+        vi.useFakeTimers()
+        const {plugin, scene, start, preview, records, viewer} = setup({orbit: true, sync: true})
+        const ctor = (object: any, dom: any) => new FirstPersonControls2(object, dom)
+        scene.addEventListener('mainCameraChange', () => scene.mainCamera?.setControlsCtor?.('fp', ctor, true))
+        start.setControlsCtor('fp', ctor, true)
+        start.controlsMode = 'fp'
+        start.removeControlsCtor('fp')
+        plugin.editing = false
+        expect(preview.controls).toBeInstanceOf(FirstPersonControls2)
+        move(preview, 1, 1, 5) // a walk: only change events
+        expect(start.position.toArray()).toEqual([1, 1, 5])
+        move(preview, 2, 1, 5)
+        expect(records).toHaveLength(1) // one step while it goes on
+        wait(viewer, EditorCameraPlugin.SyncGestureDelay)
+        move(preview, 3, 1, 5)
+        expect(records).toHaveLength(2) // a new step after a pause
+        // sync off: a move that Save keeps
+        plugin.syncStartView = false
+        move(preview, 4, 1, 5)
+        expect(plugin.startViewMoved).toBe(true)
+        plugin.saveStartView()
+        expect(start.position.toArray()).toEqual([4, 1, 5])
+    })
+
     test('syncStartView: an auto rotation of the preview does not keep a gesture on after the pointer is up', () => {
         vi.useFakeTimers()
         const {plugin, start, preview, records, viewer} = setup({orbit: true})
@@ -500,7 +525,7 @@ describe('EditorCameraPlugin', () => {
     })
 
     test.each([true, false])('a change of the view in View out of a user gesture (a clamp of the orbit limits, an animation) is not a move, with sync %s', (sync) => {
-        const {plugin, start, preview, records} = setup({sync})
+        const {plugin, start, preview, records} = setup({sync, orbit: true}) // orbit controls: gesture events
         const changes = vi.fn()
         const moved = vi.fn()
         plugin.addEventListener('startViewChange', changes)
@@ -523,7 +548,7 @@ describe('EditorCameraPlugin', () => {
 
     test.each([true, false])('a change after the end of a gesture, or after a reset, an undo or a load in its glide, is not a move, with sync %s', (sync) => {
         vi.useFakeTimers()
-        const {plugin, start, preview, records, viewer} = setup({sync})
+        const {plugin, start, preview, records, viewer} = setup({sync, orbit: true}) // orbit controls: gesture events
         plugin.editing = false
         drag(preview, 4, 1, 0)
         move(preview, 3.9, 1, 0) // the glide of damping is part of the gesture
