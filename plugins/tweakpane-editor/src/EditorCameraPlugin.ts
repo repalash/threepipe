@@ -572,6 +572,8 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
         const start = this.startCamera
         if (!start) return
         const c = this.camera
+        // a glide of the editor camera (smooth) would move it on from the start view
+        ;(c.controls as OrbitControls3 | undefined)?.stopDamping?.()
         const position = start.getWorldPosition(new Vector3())
         c.position.copy(position)
         c.target.copy(lookTargetOf(start, position))

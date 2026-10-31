@@ -241,6 +241,14 @@ describe('EditorCameraPlugin', () => {
         expect(json.uuid ?? json.object?.uuid).not.toBe(preview.uuid)
     })
 
+    test('copyStartView stops the glide of the editor camera (smooth), so it does not move on from the start view', () => {
+        const {plugin} = setup({orbit: true})
+        plugin.smooth = true
+        const stop = vi.spyOn(plugin.camera.controls as OrbitControls3, 'stopDamping')
+        plugin.copyStartView()
+        expect(stop).toHaveBeenCalled()
+    })
+
     test('syncStartView is on by default', () => {
         expect(new EditorCameraPlugin().syncStartView).toBe(true)
     })
