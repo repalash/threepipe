@@ -120,8 +120,7 @@
     padding: 0.25rem;
 }
 /* one row: in a canvas too narrow for the buttons, the bar scrolls sideways instead of wrapping. It overflows at the end
-   only (centered, it would overflow at both sides, and the first buttons would be out of the scroll's reach); the auto
-   margins of the first and last buttons center the buttons when they fit, and are 0 when they overflow. Its width
+   only (centered, it would overflow at both sides, and the first buttons would be out of the scroll's reach). Its width
    leaves the same space on its left as on its right, its side padding, and the room of what is at the bottom left
    (--util-left-room: the perf pill in the frame). */
 .util-buttons-container{
@@ -130,12 +129,6 @@
     max-width: calc(100% - 3rem - var(--util-left-room, 0px));
     overflow-x: auto;
     scrollbar-width: none;
-}
-.util-buttons-container > :first-child{
-    margin-left: auto;
-}
-.util-buttons-container > :last-child{
-    margin-right: auto;
 }
 .util-buttons-container::-webkit-scrollbar{
     display: none;

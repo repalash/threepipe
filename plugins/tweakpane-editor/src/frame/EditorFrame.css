@@ -66,12 +66,12 @@ body.lay-floating { --lay-top: 0px; --lay-bottom: 0px; --lay-gap: 12px; --lay-ca
 .lay-bottom .lay-btn { width: 22px; height: 22px; }
 .lay-btn:hover { opacity: 1; background: var(--tp-button-background-color-hover, #f2f3f5); }
 .lay-btn:focus-visible { outline: 2px solid #0d99ff; outline-offset: 1px; }
-/* the tool bar on the canvas: the icon buttons of the bars and the mode bar (28 px, a 16 px icon, the same hover and
-   on states), not the larger buttons with dividers of the classic page */
+/* the tool bar on the canvas: icon buttons with the hover and on states of the bars and the mode bar, not the larger
+   buttons with dividers of the classic page */
 body.lay-frame .util-buttons-container { gap: 2px; padding: 2px; }
 body.lay-frame .util-buttons-container > .util-button {
-    /* the icons fill the button (an inline 100% size): the padding leaves 16 px. The bar is 32 px tall, the icons 8 px
-       from its sides (2 px bar padding and 6 px button padding), as the text of the perf pill */
+    /* 28 px, as the buttons of the title bar. The icons fill the button (an inline 100% size): the padding leaves
+       16 px. The bar is 32 px tall (2 px bar padding), as the perf pill on a phone */
     width: 28px; height: 28px; padding: 6px; box-sizing: border-box !important; border-radius: 5px; flex-shrink: 0;
     display: flex; align-items: center; justify-content: center; color: var(--tp-container-foreground-color, #1e1e1e); opacity: .75;
 }
