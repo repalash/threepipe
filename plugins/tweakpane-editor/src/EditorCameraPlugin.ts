@@ -234,6 +234,11 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
     private _previewControls?: OrbitControls3
     /** The preview camera is set by the plugin: not a move */
     private _applying = false
+    /**
+     * The pose of the preview at its last change: an update without a change of the pose is not a change of the view
+     * (FirstPersonControls2 sends a change event on each frame)
+     */
+    private _lastPreview?: StartPose
     /** With {@link syncStartView}: the undo step of the current gesture */
     private _syncMove?: StartMove
     /** A user gesture on the controls of the preview goes on: from their start event to the end of the glide after their end event */
@@ -504,7 +509,11 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
      * the orbit limits, an animation by another plugin) is neither.
      */
     private _onPreviewUpdate = () => {
-        if (this._mode !== 'view' || this._applying || !this._preview) return
+        if (this._mode !== 'view' || !this._preview) return
+        const pose = poseOf(this._preview)
+        if (!this._applying && this._lastPreview && samePose(this._lastPreview, pose)) return
+        this._lastPreview = pose
+        if (this._applying) return
         const start = this.startCamera
         // controls without gesture events (FirstPersonControls2, pointer lock): each change is the user's, and a
         // gesture goes on until the view is still for a while. Without controls, no change is the user's.
@@ -520,7 +529,6 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
                 this._gestureChangeTime = Date.now()
                 this._gestureQuietFrames = 0
             }
-            const pose = poseOf(this._preview)
             const saved = poseOf(start)
             if (this.syncStartView) {
                 if (!samePose(pose, saved)) {

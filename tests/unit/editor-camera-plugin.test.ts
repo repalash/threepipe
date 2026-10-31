@@ -464,6 +464,40 @@ describe('EditorCameraPlugin', () => {
         expect(start.position.toArray()).toEqual([4, 1, 5])
     })
 
+    test('first-person controls: their change event on each frame without a change of the view does not keep a move on', () => {
+        vi.useFakeTimers()
+        const {plugin, scene, start, preview, records, viewer} = setup({orbit: true, sync: true})
+        const ctor = (object: any, dom: any) => new FirstPersonControls2(object, dom)
+        scene.addEventListener('mainCameraChange', () => scene.mainCamera?.setControlsCtor?.('fp', ctor, true))
+        start.setControlsCtor('fp', ctor, true)
+        start.controlsMode = 'fp'
+        start.removeControlsCtor('fp')
+        // the real activateMain: the controls are on, and update the camera on each frame (as the viewer does)
+        preview.activateMain = (() => {
+            scene.mainCamera = preview
+            preview.userData.__isMainCamera = true
+            scene.dispatchEvent({type: 'mainCameraChange'})
+            preview.refreshCameraControls(false)
+        }) as any
+        plugin.editing = false
+        const controls = preview.controls as FirstPersonControls2
+        controls.activeLook = false // a walk with the keys only
+        const frames = (n: number) => {
+            for (let i = 0; i < n; i++) {
+                controls.update()
+                viewer.dispatchEvent({type: 'postFrame'})
+                vi.advanceTimersByTime(50)
+            }
+        }
+        frames(3)
+        move(preview, 1, 1, 5) // a walk
+        expect(records).toHaveLength(1)
+        frames(Math.ceil(EditorCameraPlugin.SyncGestureDelay / 50) + 3) // still, the controls send change events
+        move(preview, 2, 1, 5)
+        expect(records).toHaveLength(2) // a new step after the pause
+        expect(start.position.toArray()).toEqual([2, 1, 5])
+    })
+
     test('a start camera without controls: a change of the view in View (an animation of another plugin) is not a move', () => {
         const {plugin, start, preview, records} = setup({orbit: true, sync: true})
         start.controlsMode = ''
