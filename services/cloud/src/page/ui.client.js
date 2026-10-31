@@ -175,7 +175,7 @@ const UI = (() => {
             d.innerHTML = '<form method="dialog"><h2>' + esc(title) + '</h2>' + (text ? '<p>' + esc(text) + '</p>' : '')
                 + (input ? '<input name="v" autocomplete="off" spellcheck="false" value="' + esc(value || '') + '" placeholder="' + esc(placeholder || '') + '">' : '')
                 + (body || '')
-                + '<div class="row"><button value="" formnovalidate data-cancel>Cancel</button><button value="ok" class="' + (danger ? 'danger' : 'primary') + '">' + esc(ok || 'OK') + '</button></div></form>'
+                + '<div class="row"><button type="button" data-cancel>Cancel</button><button value="ok" class="' + (danger ? 'danger' : 'primary') + '">' + esc(ok || 'OK') + '</button></div></form>'
             document.body.appendChild(d)
             let done = false
             const finish = v => { if (done) return; done = true; d.close(); d.remove(); resolve(v) }
