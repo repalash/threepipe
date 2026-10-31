@@ -557,6 +557,7 @@ Many features will be added but the core API will not change significantly in fu
   - [Object3DGeneratorPlugin](https://threepipe.org/plugin/Object3DGeneratorPlugin.html) - Provides an API and UI to create scene objects like lights, cameras, meshes, etc.
   - [GeometryGeneratorPlugin](https://threepipe.org/plugin/GeometryGeneratorPlugin.html) - Generate parametric geometries (plane, box, sphere, circle, torus, cylinder, tube, shape, tubeShape, line) that can be re-generated from UI/API.
   - [ShapeTubeExtrudePlugin](https://threepipe.org/plugin/ShapeTubeExtrudePlugin.html) - Interactive extrusion of flat geometry along a curve path, with configurable cross-sections and multi-material splits.
+  - [PenToolPlugin](https://threepipe.org/plugin/PenToolPlugin.html) - Draw 3D paths like the pen of Figma or Illustrator: click points, drag Bezier handles, close the path; the result is an editable GeometryGenerator line.
   - [DeviceOrientationControlsPlugin](https://threepipe.org/plugin/DeviceOrientationControlsPlugin.html) - Adds a `controlsMode` to the `mainCamera` for device orientation controls(gyroscope rotation control).
   - [PointerLockControlsPlugin](https://threepipe.org/plugin/PointerLockControlsPlugin.html) - Adds a `controlsMode` to the `mainCamera` for pointer lock controls.
   - [ThreeFirstPersonControlsPlugin](https://threepipe.org/plugin/ThreeFirstPersonControlsPlugin.html) - Adds a `controlsMode` to the `mainCamera` for first person controls from threejs.
