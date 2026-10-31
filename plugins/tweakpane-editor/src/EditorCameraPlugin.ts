@@ -642,6 +642,8 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
     private _onLoad = (e: {data?: any, options?: {importConfig?: boolean}}) => {
         // loaded with importConfig false: the viewer config of the file was not imported, the start view did not change
         if (e.options?.importConfig === false || !hasStartView(e.data)) return
+        // a synced move that goes on is a new undo step from the new start view
+        this._endSyncMove()
         this.copyStartView()
         // in View, the view is the start view of the new file, with its controls
         if (this._mode === 'view') this._showPreview()

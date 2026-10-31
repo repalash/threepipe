@@ -274,6 +274,25 @@ describe('EditorCameraPlugin', () => {
         expect(records).toHaveLength(2) // an undo is not a move
     })
 
+    test('syncStartView: a start view that loads during a move ends the move; the next move is a new step from it', () => {
+        vi.useFakeTimers()
+        const {plugin, start, preview, records, viewer} = setup({orbit: true})
+        plugin.syncStartView = true
+        plugin.editing = false
+        const controls = preview.controls as OrbitControls3
+        controls.dispatchEvent({type: 'start'})
+        move(preview, 4, 1, 0)
+        expect(records).toHaveLength(1)
+        // the file's start view, imported before loadAsset
+        start.position.set(0, 2, 8)
+        start.setDirty()
+        viewer.assetManager.dispatchEvent({type: 'loadAsset', data: viewerConfig})
+        move(preview, 1, 2, 7) // the drag goes on
+        expect(records).toHaveLength(2)
+        records[1].undo()
+        expect(start.position.toArray()).toEqual([0, 2, 8])
+    })
+
     test('syncStartView: a drag is one move while the pointer is down, also when it stops for a while', () => {
         vi.useFakeTimers()
         const {plugin, start, preview, records, viewer} = setup({orbit: true})
