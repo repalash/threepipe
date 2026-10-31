@@ -179,7 +179,7 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
     /**
      * A user gesture on the controls of the preview camera (in View) goes on after the pointer is up, for the glide of
      * damping: it ends after this time in ms without a change, with the pointer up (and at least three frames, for a
-     * slow frame rate). With {@link syncStartView}, a gesture is one undo step, recorded when it starts and changed while
+     * slow frame rate). With `autoRotate` on the controls, it ends this time after the pointer is up. With {@link syncStartView}, a gesture is one undo step, recorded when it starts and changed while
      * it goes on. A drag that starts this time or later after the last one is a new step.
      */
     static SyncGestureDelay = 300
@@ -508,8 +508,12 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
         if (this._mode !== 'view' || this._applying || !this._preview) return
         const start = this.startCamera
         if (this._gesture && start) {
-            this._gestureChangeTime = Date.now()
-            this._gestureQuietFrames = 0
+            // the glide of damping after the pointer is up keeps the gesture on; an auto rotation does not (it does not
+            // stop), so the gesture ends after the delay
+            if (this._dragging || !this._previewControls?.autoRotate) {
+                this._gestureChangeTime = Date.now()
+                this._gestureQuietFrames = 0
+            }
             const pose = poseOf(this._preview)
             const saved = poseOf(start)
             if (this.syncStartView) {

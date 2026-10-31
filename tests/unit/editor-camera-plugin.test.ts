@@ -399,6 +399,30 @@ describe('EditorCameraPlugin', () => {
         expect(records).toHaveLength(3)
     })
 
+    test('syncStartView: an auto rotation of the preview does not keep a gesture on after the pointer is up', () => {
+        vi.useFakeTimers()
+        const {plugin, start, preview, records, viewer} = setup({orbit: true})
+        plugin.syncStartView = true
+        plugin.editing = false
+        const controls = preview.controls as OrbitControls3
+        controls.autoRotate = true // from the start camera of the file
+        controls.dispatchEvent({type: 'start'})
+        move(preview, 4, 1, 0)
+        controls.dispatchEvent({type: 'end'})
+        // the auto rotation moves the view on each frame, without an end
+        for (let i = 0; i < 10; i++) {
+            move(preview, 4, 1, i * 0.1 + 0.1)
+            vi.advanceTimersByTime(100)
+            viewer.dispatchEvent({type: 'postFrame'})
+        }
+        const saved = start.position.toArray()
+        move(preview, 3, 1, 3)
+        viewer.dispatchEvent({type: 'postFrame'})
+        expect(start.position.toArray()).toEqual(saved) // the gesture ended: the start view stays
+        expect(records).toHaveLength(1)
+        expect(plugin.startViewMoved).toBe(false)
+    })
+
     test('syncStartView: at a slow frame rate, the glide of damping is part of the move', () => {
         vi.useFakeTimers()
         const {plugin, preview, records, viewer} = setup()
