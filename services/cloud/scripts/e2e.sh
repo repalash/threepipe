@@ -30,7 +30,7 @@ TOK=$(echo "$SIGN" | j "['token']" 2>/dev/null) && ok "sign-up" || { bad "sign-u
 LINK=$(curl -s -X POST $A/api/v1/access-links -H "Authorization: Bearer $TOK" -H 'content-type: application/json' -d '{"name":"laptop"}')
 URL=$(echo "$LINK" | j "['url']") && ok "access link: $URL" || bad "access link: $LINK"
 LID=$(echo "$LINK" | j "['id']")
-MD=$(curl -s "$URL"); echo "$MD" | head -1 | grep -q "threepipe cloud" && ok "agents.md" || bad "agents.md: $MD"
+MD=$(curl -s "$URL"); echo "$MD" | head -1 | grep -q "threepipe cloud" && echo "$MD" | grep -q "valid for 30 days" && echo "$MD" | grep -q "max 90 MB per file" && ok "agents.md (limits from src/limits.ts)" || bad "agents.md: $MD"
 KEYURL=$(echo "$MD" | grep -o "http[^ ]*/key" | head -1)
 KEY=$(curl -s "$KEYURL"); [ ${#KEY} -gt 50 ] && ok "key (${#KEY} chars)" || bad "key: $KEY"
 H="Authorization: Bearer $KEY"
@@ -121,7 +121,7 @@ NL=$(curl -s -X POST -H "$H0" "$A/api/v1/drive/items/$LID/new-id" | j "['id']")
 admin files/delete "{\"where\":\"path == 'd/$U/big'\"}" > /dev/null
 curl -sI "$A/drive" | grep -qi "content-security-policy: default-src 'none'; script-src 'self'" && [ "$(code "$A/drive/page.js")" = "200" ] && ok "drive page" || bad "drive page"
 [ "$(curl -s -o /dev/null -w '%{http_code} %{content_type}' "$A/ui.css")" = "200 text/css; charset=utf-8" ] && [ "$(code "$A/ui.js")" = "200" ] && ok "the pages' look (/ui.css, /ui.js)" || bad "ui.css"
-R=$(curl -s -H "$H0" "$A/api/v1/me"); [ "$(echo "$R" | j "['username']")" = "$U" ] && [ "$(echo "$R" | j "['drive']['quota']")" = "1073741824" ] && ok "me: the handle and the drive quota" || bad "me: $R"
+R=$(curl -s -H "$H0" "$A/api/v1/me"); [ "$(echo "$R" | j "['username']")" = "$U" ] && [ "$(echo "$R" | j "['drive']['quota']")" = "1073741824" ] && echo "$R" | grep -q '"feedback":' && ok "me: the handle, the drive quota, the feedback project" || bad "me: $R"
 [ "$(code -X DELETE -H "$H0" "$A/api/v1/drive/items/$ITEM")" = "200" ] && [ "$(code -H "$H0" "$A/api/v1/drive/items/$ITEM")" = "404" ] && ok "delete an item" || bad "delete item"
 
 # --- app sign-in (connect) ---

@@ -5,9 +5,9 @@ import type {CloudEnv} from './env'
 import {CloudUser, isStaff, requireUser} from './auth'
 import {checkTurnstile} from './turnstile'
 import {
-    BODY_MAX, createReport, deleteReport, FILES_MAX, getFile, getImage, getReport, LIST_MAX, listReports, normalizeReportId,
-    Project, REPORT_MAX, SentFile, STATUSES, TYPES, updateReport,
+    createReport, deleteReport, getFile, getImage, getReport, listReports, normalizeReportId, Project, SentFile, STATUSES, TYPES, updateReport,
 } from './reports'
+import {PROJECTS_MAX, REPORT_BODY_MAX, REPORT_FILES_MAX, REPORT_MAX, REPORTS_LIST_MAX} from './limits'
 
 /**
  * Projects: where an app's reports go. Any member creates up to PROJECTS_MAX and adds members; our own apps report
@@ -31,7 +31,6 @@ import {
  *   PATCH  /api/v1/projects/<slug>/reports/<id> {status?, note?}   manager
  *   DELETE /api/v1/projects/<slug>/reports/<id>                    manager; the row stays as a tombstone
  */
-export const PROJECTS_MAX = 5
 const SLUG = /^[a-z][a-z0-9-]{1,39}$/
 const ROLES = ['reader', 'manager'] as const
 type Role = typeof ROLES[number]
@@ -186,7 +185,7 @@ export function projectRoutes(app: Hono<CloudEnv>) {
         const type = c.req.header('content-type') || ''
         const multipart = type.toLowerCase().startsWith('multipart/form-data')
         // Capped while it is read: a chunked body has no Content-Length to check first.
-        const raw = await readCapped(c.req.raw, multipart ? BODY_MAX : REPORT_MAX)
+        const raw = await readCapped(c.req.raw, multipart ? REPORT_BODY_MAX : REPORT_MAX)
         if (raw === null) throw new HTTPException(413, {message: 'body too large'})
         let report: unknown
         const files: SentFile[] = []
@@ -212,7 +211,7 @@ export function projectRoutes(app: Hono<CloudEnv>) {
     app.get('/api/v1/projects/:slug/reports', async (c) => {
         const {project} = await member(c, 'reader')
         const limit = c.req.query('limit') ? parseInt(c.req.query('limit')!, 10) : undefined
-        if (c.req.query('limit') && (!Number.isInteger(limit) || (limit as number) <= 0)) throw new HTTPException(400, {message: `limit is a positive integer, at most ${LIST_MAX}`})
+        if (c.req.query('limit') && (!Number.isInteger(limit) || (limit as number) <= 0)) throw new HTTPException(400, {message: `limit is a positive integer, at most ${REPORTS_LIST_MAX}`})
         const status = c.req.query('status') || undefined
         if (status && !(STATUSES as readonly string[]).includes(status)) throw new HTTPException(400, {message: `status is one of ${STATUSES.join(', ')}`})
         const type = c.req.query('type') || undefined
@@ -233,7 +232,7 @@ export function projectRoutes(app: Hono<CloudEnv>) {
     app.get('/api/v1/projects/:slug/reports/:id/files/:idx', async (c) => {
         const {project, user} = await member(c, 'reader')
         const idx = Number(c.req.param('idx'))
-        if (!Number.isInteger(idx) || idx < 0 || idx >= FILES_MAX) throw new HTTPException(404, {message: 'no such file'})
+        if (!Number.isInteger(idx) || idx < 0 || idx >= REPORT_FILES_MAX) throw new HTTPException(404, {message: 'no such file'})
         const id = reportId(c)
         const r = await getFile(c.env, project.id, id, idx)
         if (r instanceof Response) console.log('report file', JSON.stringify({id, file: idx, by: user.username}))

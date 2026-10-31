@@ -17,7 +17,7 @@ const REP_PAGE = 50
 const REP_FLAT_MAX = 200
 const S = {project: '', role: '', projects: null, reps: null, repsErr: '', repsBusy: false, repSeq: 0, f: {status: '', type: '', q: '', deleted: false}, rep: null}
 
-const {el, esc, icon} = UI
+const {el, esc, icon, stamp} = UI
 /* a value of one of the maps above for an API string, never an inherited property ('constructor') */
 const repOwn = (m, k) => Object.prototype.hasOwnProperty.call(m, String(k)) ? m[String(k)] : undefined
 /* a project slug as the server makes it, else '' */
@@ -29,13 +29,6 @@ const repId = s => /^R-[0-9A-Z]{6}$/.test(String(s || '')) ? String(s) : ''
 const repEmail = s => /^[a-z0-9._+-]{1,64}@[a-z0-9.-]{1,190}\.[a-z]{2,24}$/i.test(String(s || '')) ? String(s) : ''
 /* the first line of the user's text that has words in it */
 function repFirstLine(s) { return (String(s || '').split(/\r?\n/).map(x => x.trim()).find(Boolean) || '').slice(0, 160) }
-function repBytes(n) {
-    n = Math.max(0, Math.round(Number(n) || 0))
-    if (n < 1000) return n + ' B'
-    if (n < 999500) return Math.round(n / 1e3) + ' KB'
-    if (n < 9.95e6) return (n / 1e6).toFixed(1) + ' MB'
-    return Math.round(n / 1e6) + ' MB'
-}
 /* any JSON value as one line of text (the caller escapes it) */
 function repVal(v) {
     if (v === null || v === undefined) return ''
@@ -63,7 +56,6 @@ function repQuery(f, before) {
     add('before', before)
     return base() + '?' + p.join('&')
 }
-const stamp = s => { const t = Date.parse(s); return isNaN(t) ? '' : new Date(t).toLocaleString() }
 
 /* ---------- the API: the session cookie (same origin) ---------- */
 async function api(path, init) {
@@ -110,10 +102,10 @@ function renderProjects(missing) {
 async function createProject() {
     const v = await UI.dialog({title: 'New project', text: 'Reports from your apps go to a project. The slug is in the app\'s config and cannot change.', ok: 'Create',
         body: '<input data-new-slug placeholder="Slug: my-editor" autocomplete="off" spellcheck="false"><input data-new-name placeholder="Name: My editor" autocomplete="off"><p class="err" data-err></p>',
-        result: d => {
+        result: (d, finish) => {
             const slug = String(d.querySelector('[data-new-slug]').value || '').trim(), name = String(d.querySelector('[data-new-name]').value || '').trim()
             send('POST', '/api/v1/projects', {slug, name}).then(() => {
-                d.querySelector('[data-cancel]').click(); S.projects = null
+                finish(true); S.projects = null
                 if (location.hash === '#' + slug) route(); else location.hash = '#' + slug
             },
                 e => { d.querySelector('[data-err]').textContent = e.message })
@@ -137,7 +129,7 @@ function repRow(r) {
         + (!gone && r.email ? ' · ' + esc(r.email) + ' (not verified)' : '') + '</div></div></div></td>'
         + '<td>' + repTypePill(r.type) + '</td>'
         + '<td class="hide-sm hide-panel"><div class="pills">' + repOriginPill(r.origin) + (r.user_id ? '<span class="pill">Signed in</span>' : '') + (r.has_image ? '<span class="pill" title="Screenshot">' + icon('image') + '</span>' : '')
-        + (n ? '<span class="pill">' + icon('file') + n + ' · ' + esc(repBytes(r.files_bytes)) + '</span>' : '') + '</div></td>'
+        + (n ? '<span class="pill">' + icon('file') + n + ' · ' + esc(UI.bytes(r.files_bytes)) + '</span>' : '') + '</div></td>'
         + '<td>' + repStatusPill(st) + '</td></tr>'
 }
 /* the frame of one project: the title bar and the filters (rendered once; renderFilters marks the chosen ones) */
@@ -244,7 +236,7 @@ function drawReport() {
     const c = rep.cause && typeof rep.cause === 'object' ? rep.cause : {}
     if (c.kind) h += box('Cause', kv('Kind', c.kind) + kv('File type', c.ext ? '.' + c.ext : '') + kv('Message', c.message) + kv('Top frame', c.frame))
     h += box('Screenshot', r.img ? '<img class="shot" alt="The screenshot the sender attached" src="' + esc(r.img) + '">' : '<p class="note">' + (row.has_image ? 'Reading the screenshot…' : 'No screenshot came with this report.') + '</p>')
-    h += box('Files', r.files.length ? r.files.map(f => '<div class="kv w"><b>' + esc(f.name || '(name removed)') + '</b><span>' + esc(repBytes(f.size)) + ' · ' + esc(f.state)
+    h += box('Files', r.files.length ? r.files.map(f => '<div class="kv w"><b>' + esc(f.name || '(name removed)') + '</b><span>' + esc(UI.bytes(f.size)) + ' · ' + esc(f.state)
         + (f.state === 'done' ? ' <button class="ghost" data-file="' + Number(f.idx) + '">' + icon('download') + 'Download</button>' : '') + '</span></div>').join('') : '<p class="note">No files came with this report.</p>', true, r.files.length)
     const log = Array.isArray(rep.log) ? rep.log : []
     h += box('Log', log.length ? '<pre data-log>' + esc(log.map(repVal).join('\n')) + '</pre>' : '<p class="note">No log lines.</p>', log.length > 0, log.length)

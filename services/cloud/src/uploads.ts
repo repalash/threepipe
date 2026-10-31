@@ -3,13 +3,9 @@ import {HTTPException} from 'hono/http-exception'
 import type {CloudEnv} from './env'
 import {BUCKET, cleanSegments, filesOrigin, hex, keyUrl, prefixRange} from './env'
 import {assertScope, CloudUser, isStaff, requireUser} from './auth'
+import {BUILD_DAYS, SHARE_DEFAULT_DAYS, SHARE_MAX_DAYS, sizeText, UPLOAD_MAX_BYTES} from './limits'
 
-/** Per file, through the Worker. Bigger builds are split into files anyway (one PUT per file). */
-export const MAX_UPLOAD_BYTES = 90 * 1024 * 1024
 const DAY = 24 * 60 * 60 * 1000
-const SHARE_DEFAULT_DAYS = 7
-const SHARE_MAX_DAYS = 30
-const BUILD_DAYS = 30
 
 // the drive (d/) has its own routes: src/drive.ts
 export type Prefix = 's' | 'a' | 'b' | 'p'
@@ -86,7 +82,7 @@ export async function putStreamed(bucket: R2Bucket, key: string, body: ReadableS
 export function uploadSize(c: Context<CloudEnv>): number {
     const size = Number(c.req.header('content-length'))
     if (!Number.isInteger(size) || size <= 0) throw new HTTPException(411, {message: 'send the file as the request body, with Content-Length'})
-    if (size > MAX_UPLOAD_BYTES) throw new HTTPException(413, {message: `max ${MAX_UPLOAD_BYTES / 1024 / 1024} MB per file`})
+    if (size > UPLOAD_MAX_BYTES) throw new HTTPException(413, {message: `max ${sizeText(UPLOAD_MAX_BYTES)} per file`})
     return size
 }
 
@@ -114,7 +110,7 @@ export function uploadRoutes(app: Hono<CloudEnv>) {
         const {prefix, segs} = requestKey(c)
         const size = uploadSize(c)
         const t = target(prefix, segs, c, user)
-        assertScope(user, t.key)
+        assertScope(user)
         if (t.scope) await claimScope(c.env, t.scope, user)
         const contentType = contentTypeFor(t.key, c.req.header('content-type'))
         const body = c.req.raw.body
@@ -158,7 +154,7 @@ export function uploadRoutes(app: Hono<CloudEnv>) {
     app.delete('/api/v1/uploads/:prefix/:path{.+}', async (c) => {
         const user = await requireUser(c)
         const {key} = requestKey(c)
-        assertScope(user, key)
+        assertScope(user)
         const row = await c.env.PRIMARY_DB.prepare('SELECT owner_id, prefix FROM files WHERE bucket = ? AND path = ? AND deleted_at IS NULL')
             .bind(BUCKET, key).first<{owner_id: string, prefix: Prefix}>()
         if (!row) throw new HTTPException(404, {message: 'not found'})

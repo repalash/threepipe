@@ -51,7 +51,7 @@ export async function requireUser(c: Context<CloudEnv>): Promise<CloudUser> {
 }
 
 /** 403 for an app key outside the drive routes (they check the folder themselves, src/drive.ts). */
-export function assertScope(user: CloudUser, _path: string) {
+export function assertScope(user: CloudUser) {
     if (user.scope) throw new HTTPException(403, {message: 'an app key can only use the drive'})
 }
 

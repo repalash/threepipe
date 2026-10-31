@@ -2,11 +2,12 @@ import type {Context, Hono} from 'hono'
 import {HTTPException} from 'hono/http-exception'
 import type {CloudEnv} from './env'
 import {BUCKET, filesOrigin, prefixRange, randomCode, sha256Hex} from './env'
+import {APP_KEY_SECONDS} from './limits'
+import {cardPage, esc, ICONS} from './page'
 import {CloudUser, mintKey, requireUser} from './auth'
 import {appFolder, appLabel, grantFolder} from './appFolders'
 
 /** App keys are short: the app gets a new one on every page load (no screen once approved). */
-export const APP_KEY_SECONDS = 24 * 60 * 60
 
 /**
  * "Sign in with threepipe" for apps hosted on the files host (or running on localhost while being developed).
@@ -29,7 +30,7 @@ export function connectRoutes(app: Hono<CloudEnv>) {
         try {
             user = await requireUser(c)
         } catch (e) {
-            if (e instanceof HTTPException && e.status === 401) return page(c, signInPage(c, target))
+            if (e instanceof HTTPException && e.status === 401) return cardPage(c, signInPage(c, target), {wide: true})
             throw e
         }
         if (user.link) throw new HTTPException(403, {message: 'approve apps in the browser, signed in to threepipe cloud'})
@@ -38,7 +39,7 @@ export function connectRoutes(app: Hono<CloudEnv>) {
             const grant = await findGrant(c, user, target, owner)
             if (grant) return redirectWithKey(c, target, user, grant.id, await grantFolder(c, user.id, grant.id))
         }
-        return page(c, consentPage(target, user, owner))
+        return cardPage(c, consentPage(target, user, owner), {wide: true})
     })
 
     app.post('/api/v1/connect', async (c) => {
@@ -136,33 +137,13 @@ async function redirectWithKey(c: Context<CloudEnv>, t: AppTarget, user: CloudUs
     return c.redirect(`${t.returnUrl}#${hash}`, status)
 }
 
-const esc = (s: string) => s.replace(/[&<>"']/g, ch => `&#${ch.charCodeAt(0)};`)
-
-/** A card in the look of the other pages (/ui.css, src/page.ts). */
-function page(c: Context<CloudEnv>, body: string) {
-    return c.html(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>threepipe cloud</title><link rel="stylesheet" href="/ui.css"></head>
-<body><div class="center"><div class="card wide">${BRAND}${body}</div></div></body></html>`, 200, {
-        'cache-control': 'no-store',
-        'x-frame-options': 'DENY',
-        'content-security-policy': "default-src 'none'; style-src 'self'; frame-ancestors 'none'; base-uri 'none'",
-        // same-origin, not no-referrer: with no-referrer the browser sends `Origin: null` on the form post, and guardRequest rejects it
-        'referrer-policy': 'same-origin',
-    })
-}
-
-const icon = (paths: string) => `<svg class="i" viewBox="0 0 16 16" aria-hidden="true">${paths}</svg>`
-const BRAND = `<div class="brand"><span class="mark">${icon('<path d="M8 1.8 13.5 5v6L8 14.2 2.5 11V5z"/><path d="M2.5 5 8 8.2 13.5 5M8 8.2v6"/>')}</span>threepipe cloud</div>`
-const FOLDER = icon('<path d="M2 4.5c0-.8.7-1.5 1.5-1.5h3l1.5 1.5h4.5c.8 0 1.5.7 1.5 1.5v5.5c0 .8-.7 1.5-1.5 1.5h-9c-.8 0-1.5-.7-1.5-1.5z"/>')
-const GITHUB = icon('<path fill="currentColor" stroke="none" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>')
-
 function signInPage(c: Context<CloudEnv>, t: AppTarget) {
     const back = new URL(c.req.url)
     const github = `/api/v1/table/users/auth/oauth/github?redirect=${encodeURIComponent(back.pathname + back.search)}`
     const dev = c.env.DEV_LOGIN === 'true' ? `<a class="btn lg" href="${esc(`/login?redirect=${encodeURIComponent(back.pathname + back.search)}`)}">Local sign-in (development)</a>` : ''
     return `<h1>Sign in to continue</h1>
 <p><code>${esc(t.app)}</code> wants to use your threepipe cloud drive. Sign in first.</p>
-<div class="stack"><a class="btn dark lg" href="${esc(github)}">${GITHUB}Continue with GitHub</a>${dev}
+<div class="stack"><a class="btn dark lg" href="${esc(github)}">${ICONS.github}Continue with GitHub</a>${dev}
 <a class="btn ghost lg" href="${esc(t.returnUrl + '#tp_cloud_error=denied')}">Cancel</a></div>`
 }
 
@@ -174,7 +155,7 @@ function consentPage(t: AppTarget, user: CloudUser, owner: {id: string, username
         : `The files in <b>${esc(folder)}</b>`
     return `<h1>Connect ${esc(t.app)}?</h1>
 <p>The app ${who} wants to read, write, share and delete:</p>
-<div class="scope${t.access === 'drive' ? ' all' : ''}">${FOLDER}<span>${what}</span></div>
+<div class="scope${t.access === 'drive' ? ' all' : ''}">${ICONS.folder}<span>${what}</span></div>
 <p>It cannot use anything else in your account. Remove access any time from your access links.</p>
 <form method="post" action="/api/v1/connect"><input type="hidden" name="return" value="${esc(t.returnUrl)}"><input type="hidden" name="access" value="${t.access}">
 <div class="row"><a class="btn lg" href="${esc(t.returnUrl + '#tp_cloud_error=denied')}">Cancel</a><button type="submit" class="primary lg">Allow</button></div></form>

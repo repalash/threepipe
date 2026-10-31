@@ -73,6 +73,27 @@ The server redacts every field again (query strings, tokens, home-folder user na
 (user id, or a keyed hash of the IP), per project and in total (`REPORTS_*` vars). Anonymous reports need Turnstile
 (`TURNSTILE_SECRET`, solved on `TURNSTILE_HOSTNAMES`); signed-in senders skip it.
 
+## Limits
+
+All in `src/limits.ts`: constants (a change is a deploy), except the daily report caps, which are wrangler vars
+(`REPORTS_DAILY_CAP`, `REPORTS_DAILY_CAP_PROJECT`, `REPORTS_DAILY_CAP_ALL`, `REPORTS_DAILY_FILE_BYTES_ALL` in
+`wrangler.jsonc`; the constants are their defaults). agents.md quotes them; `@threepipe/plugin-cloud` keeps a copy of
+the report limits (`LIMITS`).
+
+| What | Limit |
+|---|---|
+| A file upload (uploads, drive, staff buckets) | 90 MB per request |
+| `s/` share | 7 days, `?ttl=` up to 30 |
+| `b/` build | 30 days after its last upload |
+| Drive quota | 1 GB members, 50 GB staff and admins |
+| Signed drive URL | 1 hour by default, up to 7 days |
+| Item rewrite (share, unshare, new id) | 500 files |
+| Listing a folder | 1000 folders and 1000 items |
+| Access key / app key | 30 days / 24 hours |
+| Projects a member owns | 5 (staff: any) |
+| A report | JSON 5 MB, screenshot 3 MB, text 10 000 characters, log 500 lines of 1000, environment 8 KB, context 16 KB, 3 files and 10 MB together |
+| Reports in 24 hours | 20 per sender, 300 per project, 1000 in all, 2 GB of files in all |
+
 ## Uploading from the repository
 
 - `npm run cloud:upload -- <file or folder> <remote path>`: any file or folder (skips dotfiles, `node_modules` and what

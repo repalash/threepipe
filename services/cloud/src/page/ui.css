@@ -130,6 +130,7 @@ input[type="checkbox"]:checked::after { content: ""; width: 7px; height: 4px; bo
 .nav a.on .i { color: var(--accent) }
 .nav a.sub { padding-left: 32px; font-size: 11.5px }
 .side-foot { margin-top: auto; padding: 12px 16px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 10px }
+.nav.flat { padding: 0; margin: 0 -8px }
 .me { display: flex; align-items: center; gap: 8px; min-width: 0 }
 .avatar { width: 24px; height: 24px; border-radius: 50%; background: var(--accent); color: #fff; display: grid; place-items: center; font-size: 11px; font-weight: 600; flex: 0 0 24px; text-transform: uppercase }
 .me .who { min-width: 0; flex: 1; line-height: 1.25 }
@@ -175,9 +176,9 @@ table.list { width: 100%; border-collapse: collapse; table-layout: fixed }
 .list .name > div { min-width: 0 }
 .list .ft { width: 28px; height: 28px; border-radius: 6px; display: grid; place-items: center; flex: 0 0 28px; background: var(--field); color: var(--muted) }
 .list .ft.folder { color: var(--accent); background: var(--selected) }
-.list .acts { text-align: right; overflow: visible }
-.list .acts button { opacity: 0 }
-.list tr:hover .acts button, .list tr.on .acts button, .list .acts button:focus-visible { opacity: 1 }
+.list tbody tr:focus-visible { outline: 0 }
+.list tbody tr:focus-visible td { box-shadow: inset 0 1px 0 var(--accent), inset 0 -1px 0 var(--accent) }
+.list tbody tr { user-select: none }
 .list .pills { display: flex; gap: 4px; justify-content: flex-end; overflow: hidden }
 .w80 { width: 80px } .w90 { width: 90px } .w96 { width: 96px } .w110 { width: 110px } .w130 { width: 130px } .w160 { width: 160px } .w200 { width: 200px }
 .more { display: flex; justify-content: center; padding: 12px }
@@ -260,7 +261,9 @@ dialog::backdrop { background: rgba(0, 0, 0, .32) }
 dialog form { padding: 16px; display: flex; flex-direction: column; gap: 12px; margin: 0 }
 dialog h2 { font-size: 13px }
 dialog p { color: var(--muted); margin: 0; font-size: 12px }
-dialog input { height: 28px; font-size: 12px }
+dialog input:not([type="checkbox"]) { height: 28px; font-size: 12px }
+dialog textarea { font-size: 12px }
+dialog .seg { align-self: flex-start }
 dialog .row { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px }
 dialog .row button { height: 28px; padding: 0 12px }
 .picker { max-height: 260px; overflow-y: auto; border-radius: 6px; box-shadow: inset 0 0 0 1px var(--line); padding: 4px }

@@ -4,13 +4,14 @@ import type {CloudEnv} from './env'
 import {cleanSegments, keyUrl} from './env'
 import {assertScope, isStaff, requireUser} from './auth'
 import {contentTypeFor, putStreamed, uploadSize} from './uploads'
+import {MISSING_PATHS_MAX} from './limits'
 
 /**
  * Staff buckets: sample assets and e2e snapshot baselines. R2 serves them on their own domains (no Worker on reads);
  * the Worker only writes, so staff and CI need an access key instead of an S3 key. Write-once: a path never changes.
  *
  *   PUT  /api/v1/buckets/<samples|e2e>/<path>      staff, with x-content-sha256; same content again → `existed`, other → 409
- *   POST /api/v1/buckets/<samples|e2e>/missing {paths: [...]}  staff → {missing: [...]}  (up to 500 paths per call)
+ *   POST /api/v1/buckets/<samples|e2e>/missing {paths: [...]}  staff → {missing: [...]}  (up to MISSING_PATHS_MAX paths per call)
  *
  * e2e paths are content-addressed, `blobs/<sha256><ext>` (scripts/snapshots-r2.mjs), and the bytes must match the name.
  * Uploads are registered in `files` with bucket = samples / e2e.
@@ -20,13 +21,12 @@ const BUCKETS = {
     e2e: (env: CloudflareBindings) => ({bucket: env.E2E_BUCKET, url: env.E2E_URL}),
 }
 type BucketName = keyof typeof BUCKETS
-const MISSING_MAX = 500
 
 async function staffBucket(c: Context<CloudEnv>) {
     const user = await requireUser(c)
     const name = c.req.param('bucket') as BucketName
     if (!(name in BUCKETS)) throw new HTTPException(404, {message: `bucket is one of ${Object.keys(BUCKETS).join(', ')}`})
-    assertScope(user, `buckets/${name}/`) // app keys: never
+    assertScope(user) // app keys: never
     if (!isStaff(user)) throw new HTTPException(403, {message: 'staff only'})
     return {user, name, ...BUCKETS[name](c.env)}
 }
@@ -43,8 +43,8 @@ export function bucketRoutes(app: Hono<CloudEnv>) {
     app.post('/api/v1/buckets/:bucket/missing', async (c) => {
         const {name, bucket} = await staffBucket(c)
         const body = await c.req.json<{paths?: unknown}>().catch(() => ({} as {paths?: unknown}))
-        if (!Array.isArray(body.paths) || body.paths.length > MISSING_MAX || body.paths.some(p => typeof p !== 'string'))
-            throw new HTTPException(400, {message: `paths: up to ${MISSING_MAX} paths`})
+        if (!Array.isArray(body.paths) || body.paths.length > MISSING_PATHS_MAX || body.paths.some(p => typeof p !== 'string'))
+            throw new HTTPException(400, {message: `paths: up to ${MISSING_PATHS_MAX} paths`})
         const paths = (body.paths as string[]).map(p => checkPath(name, p))
         const heads = await Promise.all(paths.map(p => bucket.head(p)))
         return c.json({missing: paths.filter((_, i) => !heads[i])})

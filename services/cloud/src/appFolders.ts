@@ -1,6 +1,6 @@
 import type {Context} from 'hono'
 import type {CloudEnv} from './env'
-import {createFolder} from './drive'
+import {createFolder, freeName} from './drive'
 
 /** Who serves an app (src/connect.ts): its owner's id and handle; none for localhost. */
 export type AppOwner = {id: string, username: string} | null
@@ -20,8 +20,8 @@ export async function appFolder(c: Context<CloudEnv>, userId: string, app: strin
     const find = (mark: string) => db.prepare('SELECT id FROM drive_folders WHERE owner_id = ? AND app = ?').bind(userId, mark).first<{id: string}>()
     const found = await find(appMark(app, owner))
     if (found) return found.id
-    const apps = (await find('apps'))?.id ?? (await createFolder(c, userId, '', await freeLabel(c, userId, '', 'Apps'), 'apps')).id
-    return (await createFolder(c, userId, apps, await freeLabel(c, userId, apps, appLabel(app, owner)), appMark(app, owner))).id
+    const apps = (await find('apps'))?.id ?? (await createFolder(c, userId, '', await freeName(c, userId, '', 'Apps', false), 'apps')).id
+    return (await createFolder(c, userId, apps, await freeName(c, userId, apps, appLabel(app, owner), false), appMark(app, owner))).id
 }
 
 /**
@@ -38,14 +38,4 @@ export async function grantFolder(c: Context<CloudEnv>, userId: string, grantId:
     const id = await appFolder(c, userId, g.app, g.owner_id ? {id: g.owner_id, username: g.owner_name!} : null)
     await db.prepare('UPDATE access_links SET scope = ? WHERE id = ?').bind(id, grantId).run()
     return id
-}
-
-/** `name`, or `name (2)`, …: free among the folders and items of `parent`. */
-async function freeLabel(c: Context<CloudEnv>, userId: string, parent: string, name: string): Promise<string> {
-    for (let i = 1; ; i++) {
-        const n = i === 1 ? name : `${name} (${i})`
-        const taken = await c.env.PRIMARY_DB.prepare(`SELECT 1 FROM drive_folders WHERE owner_id = ?1 AND parent_id = ?2 AND name = ?3
-                UNION ALL SELECT 1 FROM drive_items WHERE owner_id = ?1 AND folder_id = ?2 AND name = ?3 LIMIT 1`).bind(userId, parent, n).first()
-        if (!taken) return n
-    }
 }

@@ -3,10 +3,7 @@ import {HTTPException} from 'hono/http-exception'
 import type {CloudEnv} from './env'
 import {filesOrigin, randomCode, sha256Hex} from './env'
 import {mintKey, requireUser} from './auth'
-import {MAX_UPLOAD_BYTES} from './uploads'
-
-/** How long an access key is valid. Fetching the key again from the link gives a new one. */
-export const KEY_DURATION_SECONDS = 30 * 24 * 60 * 60
+import {ACCESS_KEY_SECONDS, BUILD_DAYS, SHARE_DEFAULT_DAYS, SHARE_MAX_DAYS, sizeText, UPLOAD_MAX_BYTES} from './limits'
 
 /**
  * Access links: a signed-in user creates one per agent/machine and copies its URL. The agent reads agents.md from it,
@@ -42,7 +39,7 @@ export function accessRoutes(app: Hono<CloudEnv>) {
 
     app.get('/api/v1/access/:code/key', async (c) => {
         const link = await findLink(c.env, c.req.param('code'))
-        const key = await mintKey(c, {id: link.owner_id, email: link.email}, link.id, KEY_DURATION_SECONDS)
+        const key = await mintKey(c, {id: link.owner_id, email: link.email}, link.id, ACCESS_KEY_SECONDS)
         return c.text(key, 200, {'cache-control': 'no-store'})
     })
 }
@@ -55,20 +52,19 @@ async function findLink(env: CloudflareBindings, code: string) {
 }
 
 function agentsMd(api: string, files: string, code: string, username: string): string {
-    const mb = MAX_UPLOAD_BYTES / 1024 / 1024
     return `# threepipe cloud
 
-Download your key from ${api}/api/v1/access/${code}/key and save it as \`TP_CLOUD_KEY=<key>\` in \`/tmp/.env\`. Send it with every request as \`Authorization: Bearer $TP_CLOUD_KEY\`. The key acts as the user \`${username}\` and is valid for 30 days; fetch it again from the same URL when it expires.
+Download your key from ${api}/api/v1/access/${code}/key and save it as \`TP_CLOUD_KEY=<key>\` in \`/tmp/.env\`. Send it with every request as \`Authorization: Bearer $TP_CLOUD_KEY\`. The key acts as the user \`${username}\` and is valid for ${ACCESS_KEY_SECONDS / 86400} days; fetch it again from the same URL when it expires.
 
 ## Upload a file
 
-\`PUT ${api}/api/v1/uploads/<prefix>/<path>\` with the file as the request body (max ${mb} MB per file). Upload a folder as one PUT per file. The answer is JSON with the public \`url\`.
+\`PUT ${api}/api/v1/uploads/<prefix>/<path>\` with the file as the request body (max ${sizeText(UPLOAD_MAX_BYTES)} per file). Upload a folder as one PUT per file. The answer is JSON with the public \`url\`.
 
 | prefix | for | lifetime | overwrite | path |
 |---|---|---|---|---|
-| \`s\` | temporary shares | 7 days, \`?ttl=<days>\` up to 30 | yes, owner | \`s/<slug>/<file path>\` |
+| \`s\` | temporary shares | ${SHARE_DEFAULT_DAYS} days, \`?ttl=<days>\` up to ${SHARE_MAX_DAYS} | yes, owner | \`s/<slug>/<file path>\` |
 | \`a\` | permanent assets (docs images, videos) | permanent | never | \`a/<file name>\`, send \`x-content-sha256: <hex sha256 of the file>\` |
-| \`b\` | builds and previews of a PR or commit | 30 days after the last upload | yes, owner | \`b/<repo>/<pr-123 or sha>/<file path>\` |
+| \`b\` | builds and previews of a PR or commit | ${BUILD_DAYS} days after the last upload | yes, owner | \`b/<repo>/<pr-123 or sha>/<file path>\` |
 | \`p\` | permanent named pages | permanent | yes, owner | \`p/<name>/<file path>\` |
 
 The first part of the path after \`s\`, \`p\` (and \`<repo>/<ref>\` after \`b\`) belongs to whoever uploads there first.

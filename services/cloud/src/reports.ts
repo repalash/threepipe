@@ -20,35 +20,21 @@
  *   row stays as a tombstone.
  */
 import {hex} from './env'
+import {
+    dailyCap, REPORT_CONTEXT_MAX, REPORT_ENVIRONMENT_MAX, REPORT_FILES_BYTES_MAX, REPORT_FILES_MAX, REPORT_IMAGE_MAX, REPORT_LOG_LINE_MAX,
+    REPORT_LOG_LINES_MAX, REPORT_NOTE_MAX, REPORT_TEXT_MAX, REPORT_VERSIONS_MAX, REPORTS_LIST_MAX, sizeText,
+} from './limits'
 
 export const TYPES = ['bug', 'question', 'idea'] as const
 export const STATUSES = ['new', 'in_progress', 'waiting_reporter', 'closed', 'spam'] as const
 export type ReportType = typeof TYPES[number]
 
-/** The report JSON, with the screenshot inline as a data URL. */
-export const REPORT_MAX = 5 * 1024 * 1024
-/** Files sent with a report (multipart/form-data), and their bytes together. */
-export const FILES_MAX = 3
-export const FILES_BYTES_MAX = 10 * 1024 * 1024
-/** The whole request: the report and the files, with room for the multipart framing. */
-export const BODY_MAX = REPORT_MAX + FILES_BYTES_MAX + 64 * 1024
-const IMAGE_MAX = 3 * 1024 * 1024
-const TEXT_MAX = 10_000
-const LOG_LINES_MAX = 500
-const LOG_LINE_MAX = 1000
-const ENVIRONMENT_MAX = 8 * 1024
-const CONTEXT_MAX = 16 * 1024
+// The limits are in src/limits.ts; these two only shorten what is stored.
 const SUMMARY_MAX = 200
-const NOTE_MAX = 2000
 const NAME_MAX = 200
-const VERSIONS_MAX = 24
-// Defaults of the REPORTS_* caps (wrangler.jsonc vars).
-const DAILY_CAP = 20
-const DAILY_CAP_PROJECT = 300
-const DAILY_CAP_ALL = 1000
-const DAILY_FILE_BYTES_ALL = 2 * 1024 * 1024 * 1024
 
-const SLUG = /^[a-z][a-z0-9-]{0,31}$/
+/** A surface or a cause kind: a short lower-case word. */
+const WORD = /^[a-z][a-z0-9-]{0,31}$/
 const VERSION = /^[\w.+-]{1,40}$/
 /** A version key: 'threepipe', 'app', 'plugin-modelling', … */
 const VERSION_KEY = /^[a-z][a-z0-9-]{0,39}$/
@@ -161,7 +147,7 @@ function decodeImage(s: string): ParsedReport['image'] | null {
     if (!m) return null
     let bin: string
     try { bin = atob(m[2]) } catch { return null }
-    if (bin.length > IMAGE_MAX) return null
+    if (bin.length > REPORT_IMAGE_MAX) return null
     const bytes = Uint8Array.from(bin, c => c.charCodeAt(0))
     // The declared type must match the bytes, so a stored "image" is one.
     const magic = m[1] === 'jpeg' ? bytes[0] === 0xFF && bytes[1] === 0xD8
@@ -175,9 +161,9 @@ function decodeImage(s: string): ParsedReport['image'] | null {
 export function parseReport(body: any): Parsed {
     if (!body || typeof body !== 'object' || Array.isArray(body)) return fail('body', 'the report is a JSON object')
     if (!TYPES.includes(body.type)) return fail('type', `type is one of ${TYPES.join(', ')}`)
-    if (typeof body.surface !== 'string' || !SLUG.test(body.surface)) return fail('surface', 'surface is a short lower-case word')
+    if (typeof body.surface !== 'string' || !WORD.test(body.surface)) return fail('surface', 'surface is a short lower-case word')
     if (body.text !== undefined && typeof body.text !== 'string') return fail('text', 'text is a string')
-    if ((body.text || '').length > TEXT_MAX) return fail('text', `text is at most ${TEXT_MAX} characters`)
+    if ((body.text || '').length > REPORT_TEXT_MAX) return fail('text', `text is at most ${REPORT_TEXT_MAX} characters`)
 
     let email: string | undefined
     if (body.email !== undefined && body.email !== '' && body.email !== null) {
@@ -188,7 +174,7 @@ export function parseReport(body: any): Parsed {
     let cause: Cause | undefined
     if (body.cause !== undefined && body.cause !== null) {
         const c = body.cause
-        if (typeof c !== 'object' || typeof c.kind !== 'string' || !SLUG.test(c.kind)) return fail('cause', 'cause.kind is a short lower-case word')
+        if (typeof c !== 'object' || typeof c.kind !== 'string' || !WORD.test(c.kind)) return fail('cause', 'cause.kind is a short lower-case word')
         cause = {kind: c.kind}
         if (typeof c.message === 'string' && c.message) cause.message = redact(c.message.slice(0, 300), email)
         if (typeof c.ext === 'string' && EXT.test(c.ext.toLowerCase())) cause.ext = c.ext.toLowerCase()
@@ -198,22 +184,22 @@ export function parseReport(body: any): Parsed {
     // The card shows some versions, so anything that is not a plain version is dropped.
     if (body.versions !== undefined && (typeof body.versions !== 'object' || body.versions === null || Array.isArray(body.versions))) return fail('versions', 'versions is an object')
     const versions: Record<string, string> = {}
-    for (const [k, v] of Object.entries(body.versions ?? {}).slice(0, VERSIONS_MAX)) {
+    for (const [k, v] of Object.entries(body.versions ?? {}).slice(0, REPORT_VERSIONS_MAX)) {
         if (VERSION_KEY.test(k) && typeof v === 'string' && VERSION.test(v)) versions[k] = v
     }
 
-    for (const [field, max] of [['environment', ENVIRONMENT_MAX], ['context', CONTEXT_MAX]] as const) {
+    for (const [field, max] of [['environment', REPORT_ENVIRONMENT_MAX], ['context', REPORT_CONTEXT_MAX]] as const) {
         const v = body[field]
         if (v !== undefined && (typeof v !== 'object' || v === null || Array.isArray(v))) return fail(field, `${field} is an object`)
         if (jsonBytes(v) > max) return fail(field, `${field} is at most ${max} bytes of JSON`, 413)
     }
     if (body.log !== undefined && (!Array.isArray(body.log) || body.log.some((l: unknown) => typeof l !== 'string'))) return fail('log', 'log is an array of strings')
-    const log = ((body.log || []) as string[]).slice(-LOG_LINES_MAX).map(l => redact(l.slice(0, LOG_LINE_MAX), email))
+    const log = ((body.log || []) as string[]).slice(-REPORT_LOG_LINES_MAX).map(l => redact(l.slice(0, REPORT_LOG_LINE_MAX), email))
 
     let image: ParsedReport['image']
     if (body.image !== undefined && body.image !== null) {
         const img = typeof body.image === 'string' ? decodeImage(body.image) : null
-        if (!img) return fail('image', `image is a JPEG, PNG or WebP data URL of at most ${IMAGE_MAX} bytes`)
+        if (!img) return fail('image', `image is a JPEG, PNG or WebP data URL of at most ${sizeText(REPORT_IMAGE_MAX)}`)
         image = img
     }
 
@@ -237,12 +223,12 @@ export interface SentFile {name: string, bytes: Uint8Array}
 
 /** Checks the files of a multipart report. */
 export function checkFiles(files: SentFile[]): {error: string, status: number} | null {
-    if (files.length > FILES_MAX) return {error: `at most ${FILES_MAX} files`, status: 400}
+    if (files.length > REPORT_FILES_MAX) return {error: `at most ${REPORT_FILES_MAX} files`, status: 400}
     for (const f of files) {
         if (!f.name.trim() || f.name.length > NAME_MAX) return {error: 'each file has a name', status: 400}
         if (!f.bytes.byteLength) return {error: `the file ${safeName(f.name)} is empty`, status: 400}
     }
-    if (files.reduce((n, f) => n + f.bytes.byteLength, 0) > FILES_BYTES_MAX) return {error: `the files are at most ${FILES_BYTES_MAX / 1024 / 1024} MB together`, status: 413}
+    if (files.reduce((n, f) => n + f.bytes.byteLength, 0) > REPORT_FILES_BYTES_MAX) return {error: `the files are at most ${sizeText(REPORT_FILES_BYTES_MAX)} together`, status: 413}
     return null
 }
 
@@ -341,14 +327,14 @@ export async function createReport(o: CreateOptions): Promise<Result> {
         db.prepare('SELECT COUNT(*) AS n, COALESCE(SUM(files_bytes), 0) AS b FROM reports WHERE created_at >= ?1').bind(since),
     ]) as D1Result<{n: number, b: number}>[]
     const tooMany = {status: 429, body: {error: 'too many reports today, try again tomorrow'}}
-    if ((mine.results[0]?.n ?? 0) >= capOf(env.REPORTS_DAILY_CAP, DAILY_CAP)) return tooMany
-    if ((proj.results[0]?.n ?? 0) >= capOf(env.REPORTS_DAILY_CAP_PROJECT, DAILY_CAP_PROJECT)) return tooMany
-    if ((all.results[0]?.n ?? 0) >= capOf(env.REPORTS_DAILY_CAP_ALL, DAILY_CAP_ALL)) {
+    if ((mine.results[0]?.n ?? 0) >= dailyCap(env, 'perSender')) return tooMany
+    if ((proj.results[0]?.n ?? 0) >= dailyCap(env, 'perProject')) return tooMany
+    if ((all.results[0]?.n ?? 0) >= dailyCap(env, 'all')) {
         console.error('reports: the daily cap for all reports is reached')
         return tooMany
     }
     const bytes = files.reduce((n, f) => n + f.bytes.byteLength, 0)
-    if (bytes && (all.results[0]?.b ?? 0) + bytes > capOf(env.REPORTS_DAILY_FILE_BYTES_ALL, DAILY_FILE_BYTES_ALL)) {
+    if (bytes && (all.results[0]?.b ?? 0) + bytes > dailyCap(env, 'fileBytes')) {
         return {status: 429, body: {error: 'too many file bytes today: send the report without the files, or try again tomorrow'}}
     }
 
@@ -418,11 +404,6 @@ export async function createReport(o: CreateOptions): Promise<Result> {
         await cleanup(env, written)
         throw e
     }
-}
-
-const capOf = (v: string | undefined, d: number) => {
-    const n = parseInt(v || '', 10)
-    return Number.isInteger(n) && n > 0 ? n : d
 }
 
 /** The host of the Origin header, validated: it is shown on the card. */
@@ -499,7 +480,6 @@ async function postCard(hook: string | null, r: CardRow, reportsUrl: string): Pr
 /** The columns the list shows. Never the keys or the rate key. */
 const LIST_COLUMNS = `id, created_at, origin, type, surface, email, user_id, summary, cause, versions_json, has_image, bundle_bytes,
     files_count, files_bytes, status, status_by, status_at, note, discord_state, deleted_at, deleted_by`
-export const LIST_MAX = 200
 
 export interface ListQuery {status?: string, type?: string, q?: string, deleted?: boolean, limit?: number, before?: string}
 
@@ -528,7 +508,7 @@ export async function listReports(env: CloudflareBindings, project: string, q: L
         args.push(at, id || '')
         where.push(`(created_at < ?${args.length - 1} OR (created_at = ?${args.length - 1} AND id < ?${args.length}))`)
     }
-    const limit = Math.min(Math.max(1, q.limit || 50), LIST_MAX)
+    const limit = Math.min(Math.max(1, q.limit || 50), REPORTS_LIST_MAX)
     args.push(limit + 1)
     const sql = `SELECT ${LIST_COLUMNS} FROM reports WHERE ${where.join(' AND ')} ORDER BY created_at DESC, id DESC LIMIT ?${args.length}`
     const {results} = await env.PRIMARY_DB.prepare(sql).bind(...args).all<Row>()
@@ -587,7 +567,7 @@ export async function updateReport(env: CloudflareBindings, project: string, id:
         sets.push(`status = ?${args.length - 2}`, `status_by = ?${args.length - 1}`, `status_at = ?${args.length}`)
     }
     if (body?.note !== undefined) {
-        if (body.note !== null && (typeof body.note !== 'string' || body.note.length > NOTE_MAX)) return {status: 400, body: {error: `note is at most ${NOTE_MAX} characters`}}
+        if (body.note !== null && (typeof body.note !== 'string' || body.note.length > REPORT_NOTE_MAX)) return {status: 400, body: {error: `note is at most ${REPORT_NOTE_MAX} characters`}}
         args.push(body.note || null)
         sets.push(`note = ?${args.length}`)
     }

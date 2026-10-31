@@ -24,7 +24,7 @@ export function filesOrigin(env: CloudflareBindings, apiOrigin: string): string 
     return env.FILES_HOST ? `https://${env.FILES_HOST}` : `${apiOrigin}/_files`
 }
 
-/** The bucket name in the `files` registry for the cloud R2 bucket (samples and e2e buckets come later). */
+/** The bucket name in the `files` registry for the cloud R2 bucket (src/buckets.ts registers `samples` and `e2e`). */
 export const BUCKET = 'cloud'
 
 /**

@@ -5,6 +5,7 @@ import {base64url, BUCKET, cleanSegments, filesOrigin, keyUrl, randomCode} from 
 import {CloudUser, requireUser} from './auth'
 import {contentTypeFor, putStreamed, uploadSize} from './uploads'
 import {grantFolder} from './appFolders'
+import {DRIVE_LIST_MAX, DRIVE_QUOTA, FOLDER_DEPTH_MAX, ITEM_REWRITE_FILES_MAX, SIGN_DEFAULT_SECONDS, SIGN_MAX_SECONDS, sizeText} from './limits'
 
 /**
  * The drive: each user's files, saved by apps (the editor) or uploaded.
@@ -39,15 +40,6 @@ import {grantFolder} from './appFolders'
 export type Visibility = 'private' | 'link'
 const VISIBILITIES: Visibility[] = ['private', 'link']
 
-const GB = 1024 * 1024 * 1024
-/** Drive quota per role (sum of file sizes in d/). */
-export const DRIVE_QUOTA: Record<CloudUser['role'], number> = {member: 1 * GB, staff: 50 * GB, admin: 50 * GB}
-
-const SIGN_DEFAULT_SECONDS = 60 * 60
-const SIGN_MAX_SECONDS = 7 * 24 * 60 * 60
-/** Changing visibility or the id rewrites each file of the item (R2 has no metadata update or rename). */
-const ITEM_FILES_MAX = 500
-const LIST_MAX = 1000
 const ROOT = ''
 
 interface Folder {id: string, name: string, parent_id: string}
@@ -77,7 +69,7 @@ async function chain(c: Context<CloudEnv>, user: CloudUser, id: string): Promise
     if (id === ROOT) return []
     const {results} = await db(c).prepare(`WITH RECURSIVE up(id, name, parent_id, depth) AS (
             SELECT id, name, parent_id, 0 FROM drive_folders WHERE id = ?1 AND owner_id = ?2
-            UNION ALL SELECT f.id, f.name, f.parent_id, up.depth + 1 FROM drive_folders f JOIN up ON f.id = up.parent_id AND f.owner_id = ?2 WHERE up.depth < 64)
+            UNION ALL SELECT f.id, f.name, f.parent_id, up.depth + 1 FROM drive_folders f JOIN up ON f.id = up.parent_id AND f.owner_id = ?2 WHERE up.depth < ${FOLDER_DEPTH_MAX})
         SELECT id, name, parent_id FROM up ORDER BY depth DESC`).bind(id, user.id).all<Folder>()
     if (!results.length) throw new HTTPException(404, {message: 'no such folder'})
     return results
@@ -91,26 +83,27 @@ async function scopedChain(c: Context<CloudEnv>, user: CloudUser, id: string): P
     return ch
 }
 
-/** 409 when the folder already has a folder or an item with that name (a path must name one thing). */
-async function assertFree(c: Context<CloudEnv>, user: CloudUser, folder: string, name: string, except?: string) {
-    const taken = await db(c).prepare(`SELECT id FROM drive_folders WHERE owner_id = ?1 AND parent_id = ?2 AND name = ?3 AND id != ?4
+/** Whether the folder has a folder or an item named `name` (other than `except`): a path must name one thing. */
+async function taken(c: Context<CloudEnv>, ownerId: string, folder: string, name: string, except = ''): Promise<boolean> {
+    return !!await db(c).prepare(`SELECT id FROM drive_folders WHERE owner_id = ?1 AND parent_id = ?2 AND name = ?3 AND id != ?4
             UNION ALL SELECT id FROM drive_items WHERE owner_id = ?1 AND folder_id = ?2 AND name = ?3 AND id != ?4 LIMIT 1`)
-        .bind(user.id, folder, name, except ?? '').first()
-    if (taken) throw new HTTPException(409, {message: `'${name}' exists in this folder`})
+        .bind(ownerId, folder, name, except).first()
 }
 
-/** `name`, or `name (2).ext`, `name (3).ext`…: the first one free in the folder. */
-async function freeName(c: Context<CloudEnv>, user: CloudUser, folder: string, name: string): Promise<string> {
-    const dot = name.lastIndexOf('.')
-    const [stem, ext] = dot > 0 ? [name.slice(0, dot), name.slice(dot)] : [name, '']
+async function assertFree(c: Context<CloudEnv>, user: CloudUser, folder: string, name: string, except?: string) {
+    if (await taken(c, user.id, folder, name, except)) throw new HTTPException(409, {message: `'${name}' exists in this folder`})
+}
+
+/**
+ * `name`, or `name (2)`, `name (3)`…: the first one free in the folder. A file name keeps its extension last
+ * (`chair (2).glb`); a folder name (`ext: false`) is numbered at the end, dots and all.
+ */
+export async function freeName(c: Context<CloudEnv>, ownerId: string, folder: string, name: string, ext = true): Promise<string> {
+    const dot = ext ? name.lastIndexOf('.') : -1
+    const [stem, end] = dot > 0 ? [name.slice(0, dot), name.slice(dot)] : [name, '']
     for (let i = 1; i < 100; i++) {
-        const n = i === 1 ? name : `${stem} (${i})${ext}`
-        try {
-            await assertFree(c, user, folder, n)
-            return n
-        } catch (e) {
-            if (!(e instanceof HTTPException) || e.status !== 409) throw e
-        }
+        const n = i === 1 ? name : `${stem} (${i})${end}`
+        if (!await taken(c, ownerId, folder, n)) return n
     }
     throw new HTTPException(409, {message: `too many items named '${name}' here`})
 }
@@ -152,13 +145,18 @@ export async function createFolder(c: Context<CloudEnv>, ownerId: string, parent
 
 // ---- files ----
 
-/** Before writing a file: the quota (an overwrite counts its new size only). */
-async function checkQuota(c: Context<CloudEnv>, user: CloudUser, key: string, size: number) {
+/** The bytes of the user's drive files, and of the one at `key` (an overwrite counts its new size only). */
+export async function driveUsage(c: Context<CloudEnv>, userId: string, key = ''): Promise<{used: number, old: number}> {
     const r = await db(c).prepare(`SELECT COALESCE(SUM(size), 0) AS used, COALESCE(SUM(CASE WHEN path = ?1 THEN size END), 0) AS old
-            FROM files WHERE owner_id = ?2 AND prefix = 'd' AND deleted_at IS NULL`).bind(key, user.id).first<{used: number, old: number}>()
+            FROM files WHERE owner_id = ?2 AND prefix = 'd' AND deleted_at IS NULL`).bind(key, userId).first<{used: number, old: number}>()
+    return {used: r?.used ?? 0, old: r?.old ?? 0}
+}
+
+/** Before writing a file: 413 when it would go over the quota. */
+async function checkQuota(c: Context<CloudEnv>, user: CloudUser, key: string, size: number) {
+    const {used, old} = await driveUsage(c, user.id, key)
     const quota = DRIVE_QUOTA[user.role]
-    if ((r?.used ?? 0) - (r?.old ?? 0) + size > quota)
-        throw new HTTPException(413, {message: `drive quota: ${quota / GB} GB (${Math.round((r?.used ?? 0) / 1024 / 1024)} MB used)`})
+    if (used - old + size > quota) throw new HTTPException(413, {message: `drive quota: ${sizeText(quota)} (${sizeText(used)} used)`})
 }
 
 const updateCounts = (c: Context<CloudEnv>, id: string, entry: string | null) => db(c).prepare(`UPDATE drive_items SET entry = COALESCE(entry, ?1),
@@ -192,14 +190,14 @@ async function writeFile(c: Context<CloudEnv>, user: CloudUser, item: Item, rel:
 }
 
 async function itemFiles(c: Context<CloudEnv>, item: Item) {
-    const {results} = await db(c).prepare(`SELECT path, size, content_type FROM files WHERE item_id = ? AND deleted_at IS NULL ORDER BY path LIMIT ${ITEM_FILES_MAX + 1}`)
+    const {results} = await db(c).prepare(`SELECT path, size, content_type FROM files WHERE item_id = ? AND deleted_at IS NULL ORDER BY path LIMIT ${ITEM_REWRITE_FILES_MAX + 1}`)
         .bind(item.id).all<{path: string, size: number, content_type: string}>()
     return results
 }
 
 async function rewritableFiles(c: Context<CloudEnv>, item: Item) {
     const files = await itemFiles(c, item)
-    if (files.length > ITEM_FILES_MAX) throw new HTTPException(413, {message: `items of more than ${ITEM_FILES_MAX} files cannot be rewritten yet`})
+    if (files.length > ITEM_REWRITE_FILES_MAX) throw new HTTPException(413, {message: `items of more than ${ITEM_REWRITE_FILES_MAX} files cannot be rewritten yet`})
     return files
 }
 
@@ -238,8 +236,8 @@ export function driveRoutes(app: Hono<CloudEnv>) {
         const id = c.req.query('folder') ?? start
         const path = await scopedChain(c, user, id)
         const [folders, items] = await db(c).batch([
-            db(c).prepare('SELECT id, name, parent_id FROM drive_folders WHERE owner_id = ? AND parent_id = ? ORDER BY name LIMIT ?').bind(user.id, id, LIST_MAX),
-            db(c).prepare(`SELECT ${ITEM_COLUMNS} FROM drive_items WHERE owner_id = ? AND folder_id = ? ORDER BY name LIMIT ?`).bind(user.id, id, LIST_MAX),
+            db(c).prepare('SELECT id, name, parent_id FROM drive_folders WHERE owner_id = ? AND parent_id = ? ORDER BY name LIMIT ?').bind(user.id, id, DRIVE_LIST_MAX),
+            db(c).prepare(`SELECT ${ITEM_COLUMNS} FROM drive_items WHERE owner_id = ? AND folder_id = ? ORDER BY name LIMIT ?`).bind(user.id, id, DRIVE_LIST_MAX),
         ]) as [D1Result<Folder>, D1Result<Item>]
         return c.json({
             folder: id === ROOT ? {id: ROOT, name: '', parent: null} : folderOut(path[path.length - 1]),
@@ -314,7 +312,7 @@ export function driveRoutes(app: Hono<CloudEnv>) {
         const start = await startFolder(c, user)
         const folder = c.req.query('folder') ?? start
         await scopedChain(c, user, folder)
-        const name = await freeName(c, user, folder, label(c.req.query('name')))
+        const name = await freeName(c, user.id, folder, label(c.req.query('name')))
         const rel = name.replace(/[\\?#%]/g, '_').replace(/^\./, '_')
         const item: Item = {id: randomCode(16), name, folder_id: folder, entry: null, visibility: 'private', size: 0, files_count: 0, created: '', updated: ''}
         await db(c).prepare('INSERT INTO drive_items (id, owner_id, folder_id, name) VALUES (?, ?, ?, ?)').bind(item.id, user.id, folder, name).run()
@@ -333,7 +331,7 @@ export function driveRoutes(app: Hono<CloudEnv>) {
         const start = await startFolder(c, user)
         const folder = body.folder ?? start
         await scopedChain(c, user, folder)
-        const name = await freeName(c, user, folder, label(body.name))
+        const name = await freeName(c, user.id, folder, label(body.name))
         let entry: string | null = null
         if (body.entry !== undefined) {
             entry = cleanSegments(String(body.entry))?.join('/') ?? null

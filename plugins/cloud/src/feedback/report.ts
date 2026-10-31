@@ -7,7 +7,7 @@ import {redact, redactDeep, redactTokens} from './redact'
 export const REPORT_TYPES = ['bug', 'question', 'idea'] as const
 export type ReportType = typeof REPORT_TYPES[number]
 
-/** The worker's limits (services/cloud/src/reports.ts). */
+/** The worker's limits (services/cloud/src/limits.ts): keep them the same. */
 export const LIMITS = {
     text: 10_000,
     logLines: 500,

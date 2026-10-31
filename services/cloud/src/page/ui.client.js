@@ -1,5 +1,5 @@
-/* Shared by the cloud pages (/ui.js, loaded before the page's own script; src/page.ts): escaping, icons, the side bar,
-   the sign-in card, dialogs instead of prompt/confirm, toasts, and the light / dark switch. Every API string goes through
+/* Shared by the cloud pages (/ui.js, loaded before the page's own script; src/page.ts): escaping, sizes and dates, icons,
+   the side bar, the sign-in card, dialogs instead of prompt/confirm, toasts, "Report a problem", and the light / dark switch. Every API string goes through
    esc(); events are bound by data attributes, never with an API string in a handler. */
 'use strict'
 const UI = (() => {
@@ -14,6 +14,23 @@ const UI = (() => {
     const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]))
     /* binary units, like the quota (1 GB = 1024³ bytes, src/drive.ts) */
     const bytes = n => { n = Number(n) || 0; const k = 1024; return n < k ? n + ' B' : n < k ** 2 ? Math.round(n / k) + ' KB' : n < k ** 3 ? (n / k ** 2).toFixed(1) + ' MB' : +(n / k ** 3).toFixed(2) + ' GB' }
+    /* a time from the API, ISO or SQLite's `YYYY-MM-DD HH:MM:SS` (UTC), as a Date; null when it is not one */
+    const when = s => { s = String(s || ''); const t = Date.parse(/^\d{4}-\d\d-\d\d \d/.test(s) ? s.replace(' ', 'T') + 'Z' : s); return isNaN(t) ? null : new Date(t) }
+    const stamp = s => { const d = when(s); return d ? d.toLocaleString() : '' }
+    /* "Today 14:05", "Yesterday", "12 Oct", "12 Oct 2025": short dates for lists */
+    function short(s) {
+        const d = when(s); if (!d) return ''
+        const now = new Date(), days = Math.round((new Date(now.toDateString()) - new Date(d.toDateString())) / 864e5)
+        if (days === 0) return 'Today ' + d.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})
+        if (days === 1) return 'Yesterday'
+        return d.toLocaleDateString([], d.getFullYear() === now.getFullYear() ? {day: 'numeric', month: 'short'} : {day: 'numeric', month: 'short', year: 'numeric'})
+    }
+
+    /* the page's recent errors, for "Report a problem": uncaught ones and the failures shown in toasts */
+    const errors = []
+    const logError = s => { errors.push(new Date().toISOString() + ' ' + String(s).slice(0, 500)); if (errors.length > 50) errors.shift() }
+    window.addEventListener('error', e => logError('error: ' + (e.message || e.error)))
+    window.addEventListener('unhandledrejection', e => logError('unhandled rejection: ' + (e.reason && e.reason.message || e.reason)))
 
     /* 16px line icons, drawn for this page */
     const ICONS = {
@@ -42,6 +59,7 @@ const UI = (() => {
         signout: '<path d="M6.5 13.5h-3a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1h3M10.5 11l3-3-3-3M13.5 8h-7"/>',
         theme: '<circle cx="8" cy="8" r="5.5"/><path d="M8 2.5v11a5.5 5.5 0 0 0 0-11z" fill="currentColor"/>',
         image: '<rect x="2.5" y="3" width="11" height="10" rx="1"/><circle cx="6" cy="6.5" r="1"/><path d="M13.5 10.5 10 7.5l-6 5.5"/>',
+        flag: '<path d="M3.5 14V2.5M3.5 3h8.5l-2 3 2 3H3.5"/>',
         key: '<circle cx="5.5" cy="10.5" r="3"/><path d="M7.7 8.3 13.5 2.5M11.5 4.5l1.5 1.5"/>',
         github: '<path fill="currentColor" stroke="none" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/>',
     }
@@ -49,14 +67,15 @@ const UI = (() => {
     const brand = () => '<div class="brand"><span class="mark">' + icon('cube') + '</span><span>threepipe cloud</span></div>'
 
     /* ---------- the signed-in user and their projects, for the side bar ---------- */
-    let me = null, projects = null
+    let me = null, projects = null, page = ''
     async function getJson(path) {
         const r = await fetch(path, {credentials: 'same-origin'})
         if (!r.ok) throw new Error('HTTP ' + r.status)
         return r.json()
     }
     /* the side bar of `page` ('drive' | 'reports'); `project` is the open project's slug. Fresh data with `reload`. */
-    async function side(page, project, reload) {
+    async function side(pageName, project, reload) {
+        page = pageName
         if (reload) { me = null; projects = null }
         try {
             [me, projects] = await Promise.all([me || getJson('/api/v1/me'), projects || getJson('/api/v1/projects').then(j => j.projects || [])])
@@ -67,6 +86,7 @@ const UI = (() => {
             + '<div class="nav">' + a('/drive', 'cloud', 'Drive', page === 'drive') + a('/reports', 'inbox', 'Reports', page === 'reports' && !project) + '</div>'
             + (projects.length ? '<div class="nav"><div class="nav-h">Projects</div>' + projects.map(p => a('/reports#' + p.slug, 'hash', p.name || p.slug, page === 'reports' && project === p.slug, 'sub')).join('') + '</div>' : '')
             + '<div class="side-foot">'
+            + (me.feedback ? '<div class="nav flat"><a data-report-problem>' + icon('flag') + '<span>Report a problem</span></a></div>' : '')
             + (d.quota ? '<div class="usage">' + esc(bytes(d.used)) + ' of ' + esc(bytes(d.quota)) + ' used<div class="bar' + (pct >= 95 ? ' full' : '') + '"><i data-pct="' + pct + '"></i></div></div>' : '')
             + '<div class="me"><span class="avatar">' + esc(String(me.username || '?').slice(0, 1)) + '</span><div class="who"><b>' + esc(me.name || me.username) + '</b><span>@' + esc(me.username) + (me.role && me.role !== 'member' ? ' · ' + esc(me.role) : '') + '</span></div>'
             + '<button class="icon" data-theme-next title="Theme: ' + esc(current) + '" aria-label="Theme">' + icon('theme') + '</button>'
@@ -89,7 +109,8 @@ const UI = (() => {
         location.reload()
     }
 
-    /* ---------- dialogs: a promise of the input's value (prompt), true (confirm) or `value()` (custom); null when cancelled ---------- */
+    /* ---------- dialogs: a promise of the input's value (prompt), true (confirm) or what `result(dialog, finish)` gives
+       (custom: undefined keeps it open, then finish(value) closes it); null when cancelled ---------- */
     function dialog({title, text, input, value, placeholder, ok, danger, body, mount, result}) {
         return new Promise(resolve => {
             const d = document.createElement('dialog')
@@ -104,7 +125,7 @@ const UI = (() => {
             d.addEventListener('cancel', e => { e.preventDefault(); finish(null) })
             d.querySelector('form').addEventListener('submit', e => {
                 e.preventDefault()
-                if (result) { const v = result(d); if (v !== undefined) finish(v); return }
+                if (result) { const v = result(d, finish); if (v !== undefined) finish(v); return }
                 finish(input ? d.querySelector('input[name="v"]').value.trim() : true)
             })
             if (mount) mount(d)
@@ -120,18 +141,50 @@ const UI = (() => {
         if (!box) { box = document.createElement('div'); box.id = 'toasts'; box.setAttribute('role', 'status'); document.body.appendChild(box) }
         const t = document.createElement('div')
         t.className = 'toast' + (error ? ' error' : ''); t.textContent = msg
+        if (error) logError('shown: ' + msg)
         box.appendChild(t)
         setTimeout(() => t.remove(), error ? 6000 : 2500)
     }
 
+    /* ---------- "Report a problem": a report of these pages to the threepipe project (src/page.ts FEEDBACK_PROJECT) ---------- */
+    const TYPES = {bug: 'Bug', question: 'Question', idea: 'Idea'}
+    function reportProblem() {
+        if (!me || !me.feedback) return
+        let type = 'bug'
+        const key = 'cloud-' + (crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random().toString(36).slice(2))
+        return dialog({title: 'Report a problem', ok: 'Send',
+            body: '<div class="seg" data-types>' + Object.keys(TYPES).map(t => '<button type="button" data-type="' + t + '" class="' + (t === type ? 'on' : '') + '">' + TYPES[t] + '</button>').join('') + '</div>'
+                + '<textarea data-text rows="5" maxlength="10000" placeholder="What happened, and what did you expect?"></textarea>'
+                + (errors.length ? '<label class="check"><input type="checkbox" data-errors checked>Include the page\'s recent errors (' + errors.length + ')</label>' : '')
+                + '<p>It goes to the threepipe team with the page address and your browser, as @' + esc(me.username) + '.</p><p class="err" data-err></p>',
+            mount: d => d.querySelector('[data-types]').addEventListener('click', e => {
+                const b = e.target.closest('[data-type]'); if (!b) return
+                type = b.dataset.type
+                for (const x of d.querySelectorAll('[data-type]')) x.classList.toggle('on', x === b)
+            }),
+            result: (d, finish) => {
+                const text = d.querySelector('[data-text]').value.trim(), withErrors = d.querySelector('[data-errors]')?.checked
+                if (!text) { d.querySelector('[data-err]').textContent = 'Write what happened first.'; return }
+                const send = d.querySelector('button.primary'); send.disabled = true
+                fetch('/api/v1/projects/' + encodeURIComponent(me.feedback) + '/reports', {method: 'POST', credentials: 'same-origin',
+                    headers: {'content-type': 'application/json', 'Idempotency-Key': key},
+                    body: JSON.stringify({type, surface: 'cloud-' + page, text, route: location.pathname, log: withErrors ? errors.slice() : [],
+                        environment: {userAgent: navigator.userAgent, language: navigator.language, viewport: innerWidth + 'x' + innerHeight, theme: current}})})
+                    .then(async r => { const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || j.message || 'HTTP ' + r.status); return j })
+                    .then(j => { finish(true); toast('Sent: report ' + j.id + '. Thank you.') },
+                        e => { send.disabled = false; d.querySelector('[data-err]').textContent = 'Could not send: ' + e.message })
+            }})
+    }
+
     document.addEventListener('click', e => {
-        const t = e.target.closest('[data-theme-next],[data-signout]')
+        const t = e.target.closest('[data-theme-next],[data-signout],[data-report-problem]')
         if (!t) return
         if (t.hasAttribute('data-signout')) { signOut(); return }
+        if (t.hasAttribute('data-report-problem')) { reportProblem(); return }
         current = THEMES[(THEMES.indexOf(current) + 1) % THEMES.length]
         try { localStorage.setItem(THEME_KEY, current) } catch (err) { /* no storage: this page only */ }
         applyTheme(current); t.title = 'Theme: ' + current; toast('Theme: ' + current)
     })
 
-    return {el, esc, bytes, icon, side, login, dialog, prompt, confirm, toast}
+    return {el, esc, bytes, when, stamp, short, icon, side, login, dialog, prompt, confirm, toast}
 })()
