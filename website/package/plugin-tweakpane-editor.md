@@ -174,7 +174,7 @@ Options and state:
 - With orbit controls, only a user gesture on the controls of the preview camera is a move: from their `start` event to their `end` event, and the glide after it (with `autoRotate`, it ends `EditorCameraPlugin.SyncGestureDelay` ms after the `end` event). A change that the user did not make is not synced and does not count as a move: a clamp of the orbit limits (a start view outside them), an animation of the camera by another plugin. The keyboard pan of `OrbitControls` sends no `start` and `end` events, so it is not a move either. Other controls (first person, pointer lock) send no gesture events: each change of the view is a move, and a move ends when the view is still for `SyncGestureDelay` ms.
 - `startViewMoved`: in View, a user gesture moved the view away from the saved start view and the move is not saved. `saveStartView()` keeps it (one undo step), `resetStartView()` goes back. The `startViewMovedChange` event (`{moved}`) tells a UI when it changes.
 - The `startViewChange` event (`{camera}`): the saved start view changed (a save, a sync, an undo, a load, a change in the camera panel).
-- `showsStartView`: the view shows the saved start view now (in View before a move; in Edit when the editor camera is at the start view). A UI can take a picture of the start view from the canvas then.
+- `showsStartView`: the view shows the saved start view now (in View before a move; in Edit when the editor camera is at the start view and the start camera is perspective, as the editor camera). A UI can take a picture of the start view from the canvas then.
 - `EditorCameraPlugin.ControlProps`: the orbit controls of the editor camera.
 
 The plugin is not saved with the viewer config (`serializeWithViewer = false`).

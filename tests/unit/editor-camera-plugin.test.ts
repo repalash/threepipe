@@ -728,6 +728,14 @@ describe('EditorCameraPlugin', () => {
         expect(plugin.showsStartView).toBe(true) // the default camera is the main camera
     })
 
+    test('showsStartView: in Edit, the perspective editor camera does not show an orthographic start view', () => {
+        const {plugin} = setup({ortho: true})
+        plugin.setStartViewFromEditor() // the same position, rotation and zoom
+        expect(plugin.showsStartView).toBe(false)
+        plugin.editing = false
+        expect(plugin.showsStartView).toBe(true)
+    })
+
     test('in View, a file with a viewer config shows its start view, with its controls', () => {
         const {plugin, viewer, start, preview} = setup({orbit: true})
         plugin.editing = false
