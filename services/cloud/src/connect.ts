@@ -96,7 +96,12 @@ function appTarget(c: Context<CloudEnv>, ret: unknown, access: unknown): AppTarg
     const files = filesOrigin(c.env, new URL(c.req.url).origin) + '/'
     let app: string, scope: string | undefined
     if (returnUrl.startsWith(files)) {
-        const segs = decodeURIComponent(u.pathname.slice(new URL(files).pathname.length)).split('/')
+        let segs: string[]
+        try {
+            segs = decodeURIComponent(u.pathname.slice(new URL(files).pathname.length)).normalize('NFC').split('/')
+        } catch {
+            throw new HTTPException(400, {message: 'return is not a valid URL'})
+        }
         const n = {s: 2, p: 2, b: 3, d: 3}[segs[0]]
         if (!n || segs.length <= n - 1 || segs.slice(0, n).some(s => !s || s.startsWith('.'))) throw new HTTPException(400, {message: 'return must be an app page under s/, p/, b/ or d/ on the files host'})
         app = scope = segs.slice(0, n).join('/')

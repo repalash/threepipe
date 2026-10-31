@@ -1,7 +1,7 @@
 import type {Context, Hono} from 'hono'
 import {HTTPException} from 'hono/http-exception'
 import type {CloudEnv} from './env'
-import {cleanSegments} from './env'
+import {cleanSegments, keyUrl} from './env'
 import {assertScope, isStaff, requireUser} from './auth'
 import {contentTypeFor, putStreamed, uploadSize} from './uploads'
 
@@ -52,14 +52,14 @@ export function bucketRoutes(app: Hono<CloudEnv>) {
 
     app.put('/api/v1/buckets/:bucket/:path{.+}', async (c) => {
         const {user, name, bucket, url} = await staffBucket(c)
-        const path = checkPath(name, decodeURIComponent(c.req.param('path')))
+        const path = checkPath(name, (c.req.param('path')))
         const size = uploadSize(c)
         const expected = (c.req.header('x-content-sha256') || '').toLowerCase()
         if (!/^[0-9a-f]{64}$/.test(expected)) throw new HTTPException(400, {message: 'send x-content-sha256: <hex sha256 of the file>'})
         if (name === 'e2e' && !path.startsWith(`blobs/${expected}`)) throw new HTTPException(400, {message: 'x-content-sha256 does not match the path'})
         const existing = await bucket.head(path)
         if (existing) {
-            if (existing.customMetadata?.sha256 === expected) return c.json({url: `${url}/${path}`, path, size: existing.size, existed: true})
+            if (existing.customMetadata?.sha256 === expected) return c.json({url: keyUrl(url, path), path, size: existing.size, existed: true})
             throw new HTTPException(409, {message: `${name}/${path} exists; paths are write-once`})
         }
         const body = c.req.raw.body
@@ -78,6 +78,6 @@ export function bucketRoutes(app: Hono<CloudEnv>) {
         await c.env.PRIMARY_DB.prepare(`INSERT INTO files (id, owner_id, bucket, prefix, path, size, sha256, content_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT (bucket, path) DO NOTHING`)
             .bind(crypto.randomUUID(), user.id, name, path.split('/')[0], path, size, sha256, contentType).run()
-        return c.json({url: `${url}/${path}`, path, size, sha256})
+        return c.json({url: keyUrl(url, path), path, size, sha256})
     })
 }

@@ -27,13 +27,22 @@ export function filesOrigin(env: CloudflareBindings, apiOrigin: string): string 
 /** The bucket name in the `files` registry for the cloud R2 bucket (samples and e2e buckets come later). */
 export const BUCKET = 'cloud'
 
-/** Relative path segments without empty, '.', '..' or dotfile parts. */
+/**
+ * Relative path segments, any language, NFC-normalized (macOS sends decomposed accents: `café` would be two keys).
+ * Not allowed: empty, `.`, `..` and dotfile parts; control and invisible format characters (a right-to-left override
+ * makes `exe.png` read `gnp.exe`); `\ ? # %`, which break URLs. R2 takes keys up to 1024 bytes; a part up to 255.
+ */
 export function cleanSegments(path: string): string[] | null {
-    if (!path || path.length > 512) return null
+    if (!path) return null
+    path = path.normalize('NFC')
+    if (new TextEncoder().encode(path).length > 1000) return null
     const segs = path.split('/')
-    if (segs.some(s => !s || s === '.' || s === '..' || s.startsWith('.') || !/^[\w\-.()+@ ]+$/.test(s))) return null
+    if (segs.some(s => !s || s.startsWith('.') || new TextEncoder().encode(s).length > 255 || /[\p{Cc}\p{Cf}\\?#%]/u.test(s))) return null
     return segs
 }
+
+/** The public URL of a key: each part percent-encoded (spaces, other languages). */
+export const keyUrl = (origin: string, key: string) => `${origin}/${key.split('/').map(encodeURIComponent).join('/')}`
 
 /**
  * `[from, to)` of the paths that start with `prefix`, for `path >= ? AND path < ?`. Unlike LIKE, a range uses the

@@ -2,8 +2,8 @@
 // drive folder, or (staff) sample assets and e2e snapshot blobs.
 //
 //   npm run cloud:upload -- <local file or folder> <remote path>   one file to that path, or a folder under it (path ends with /)
-//   npm run cloud:upload-build -- <pr-123 or commit sha>         the built examples (after `npm run build:all`) to
-//                                                                b/threepipe/<ref>/, prints the link for the pull request
+//   npm run cloud:upload-preview -- <pr-123 or commit sha>       uploads what `npm run build:all` built (dist/, examples/,
+//                                                                plugins/*/dist/) to b/threepipe/<ref>/ and prints the link
 //
 // Remote paths: s/<slug>/…  p/<name>/…  b/<repo>/<ref>/…  d/<your username>/…  a/<name>   (PUT /api/v1/uploads/…)
 //               samples/<path>  e2e/blobs/<sha256><ext>                                    (staff, PUT /api/v1/buckets/…)
@@ -35,7 +35,7 @@ const api = (env.TP_CLOUD_API || 'https://cloud.threepipe.org').replace(/\/+$/, 
 const key = env.TP_CLOUD_KEY
 
 let files // [{local, remote, content?}]
-if (flag('--build')) {
+if (flag('--preview')) {
     const ref = positional[0]
     if (!ref || !/^[\w.-]+$/.test(ref)) usage('give the pull request (pr-123) or the commit sha')
     files = buildFiles(`b/threepipe/${ref}/`)
@@ -67,7 +67,7 @@ await parallel(files, async f => {
     }
 })
 console.log(`${done} uploaded, ${failed} failed`)
-if (flag('--build') && !failed) {
+if (flag('--preview') && !failed) {
     console.log(`\nExamples of this build: ${base}${files[0].remote.split('/').slice(0, 3).join('/')}/examples/index.html`)
 }
 process.exit(failed ? 1 : 0)

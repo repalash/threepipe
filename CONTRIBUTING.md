@@ -75,10 +75,14 @@ To add a dependency to a plugin, run `npm install <package> -w plugins/<plugin-n
 No workflow runs on pull requests. Before a pull request, run `test:unit`, and for build or dependency changes
 `build:all`, `check-bundles` and `test:types`.
 
-For a pull request that changes the examples or rendering, add a link to its build: after `npm run build:all`, run
-`npm run cloud:upload-build -- pr-<number>` and put the printed link in the pull request. It needs a threepipe cloud key
-(`TP_CLOUD_KEY`): sign in at https://cloud.threepipe.org with GitHub, create an access link, and follow it. A build
-stays for 30 days after its last upload. See `services/cloud/README.md`.
+For a pull request that changes the examples or rendering, add a link to a preview of it. Two separate steps:
+
+1. `npm run build:all`: builds the core, the plugins and the examples (nothing is uploaded).
+2. `npm run cloud:upload-preview -- pr-<number>`: uploads what step 1 built (`dist/`, `examples/`, `plugins/*/dist/`)
+   to threepipe cloud and prints the link; put it in the pull request. The preview stays for 30 days after its last upload.
+
+Step 2 needs a threepipe cloud key (`TP_CLOUD_KEY`): sign in at https://cloud.threepipe.org with GitHub, create an access
+link, and follow it. See `services/cloud/README.md`.
 
 ## Building
 

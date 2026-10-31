@@ -63,7 +63,7 @@
     "test:types": "node scripts/check-consumer-types.mjs",
     "check-bundles": "node scripts/check-bundles.mjs",
     "cloud:upload": "node scripts/cloud-upload.mjs",
-    "cloud:upload-build": "node scripts/cloud-upload.mjs --build",
+    "cloud:upload-preview": "node scripts/cloud-upload.mjs --preview",
     "test": "npm run test:unit && npm run test:e2e",
     "docs": "npx typedoc --skipErrorChecking --hostedBaseUrl https://threepipe.org/docs/ && npm run website:build",
     "docs-plugins": "turbo run docs --filter=./plugins/*",

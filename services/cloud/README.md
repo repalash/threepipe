@@ -54,9 +54,12 @@ that username (it can't be changed). Roles (`member`, `staff`, `admin`) are set 
 
 ## Uploading from the repository
 
-`npm run cloud:upload -- <file or folder> <remote path>` and, for a pull request, `npm run cloud:upload-build -- pr-<n>`
-(after `npm run build:all`: `dist/`, `examples/`, `plugins/*/dist/` to `b/threepipe/pr-<n>/`, link printed). Key:
-`TP_CLOUD_KEY` from the environment or `/tmp/.env`; API: `TP_CLOUD_API`. See `scripts/cloud-upload.mjs`.
+- `npm run cloud:upload -- <file or folder> <remote path>`: any file or folder (skips dotfiles, `node_modules` and what
+  `.gitignore` excludes).
+- `npm run cloud:upload-preview -- pr-<n>`: uploads an already built tree (run `npm run build:all` first; that one only
+  builds) to `b/threepipe/pr-<n>/` and prints the link.
+
+Key: `TP_CLOUD_KEY` from the environment or `/tmp/.env`; API: `TP_CLOUD_API`. See `scripts/cloud-upload.mjs`.
 
 ## Sign in with threepipe (apps)
 

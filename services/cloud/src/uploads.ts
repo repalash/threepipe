@@ -1,7 +1,7 @@
 import type {Context, Hono} from 'hono'
 import {HTTPException} from 'hono/http-exception'
 import type {CloudEnv} from './env'
-import {BUCKET, cleanSegments, filesOrigin, hex, prefixRange} from './env'
+import {BUCKET, cleanSegments, filesOrigin, hex, keyUrl, prefixRange} from './env'
 import {assertScope, CloudUser, isStaff, requireUser} from './auth'
 import {checkDrive, driveDelete, drivePatch, driveRead, Visibility} from './drive'
 
@@ -70,7 +70,7 @@ function target(prefix: Prefix, segs: string[], c: Context<CloudEnv>, user: Clou
 export function requestKey(c: Context<CloudEnv>): {prefix: Prefix, segs: string[], key: string} {
     const prefix = c.req.param('prefix') as Prefix
     if (!PREFIXES.includes(prefix)) throw new HTTPException(404, {message: `prefix is one of ${PREFIXES.join(', ')}`})
-    const segs = cleanSegments(decodeURIComponent(c.req.param('path') || ''))
+    const segs = cleanSegments((c.req.param('path') || ''))
     if (!segs) throw new HTTPException(400, {message: 'bad path'})
     return {prefix, segs, key: prefix + '/' + segs.join('/')}
 }
@@ -131,7 +131,7 @@ export function uploadRoutes(app: Hono<CloudEnv>) {
             const existing = await c.env.CLOUD_BUCKET.head(t.key)
             if (existing) {
                 if (existing.customMetadata?.sha256 !== t.sha256) throw new HTTPException(409, {message: 'another file has the same short hash and name; rename the file'})
-                return c.json({url: `${filesOrigin(c.env, new URL(c.req.url).origin)}/${t.key}`, path: t.key, size: existing.size, sha256: t.sha256, expires_at: null, existed: true})
+                return c.json({url: keyUrl(filesOrigin(c.env, new URL(c.req.url).origin), t.key), path: t.key, size: existing.size, sha256: t.sha256, expires_at: null, existed: true})
             }
         }
 
@@ -158,7 +158,7 @@ export function uploadRoutes(app: Hono<CloudEnv>) {
             await c.env.PRIMARY_DB.prepare(`UPDATE files SET expires_at = ? WHERE bucket = ? AND path >= ? AND path < ? AND deleted_at IS NULL AND expires_at < ?`)
                 .bind(t.expiresAt, BUCKET, ...prefixRange(t.scope + '/'), new Date(Date.now() + (BUILD_DAYS - 1) * DAY).toISOString()).run()
         }
-        return c.json({url: `${filesOrigin(c.env, new URL(c.req.url).origin)}/${t.key}`, path: t.key, size, sha256, expires_at: t.expiresAt, ...visibility ? {visibility} : {}})
+        return c.json({url: keyUrl(filesOrigin(c.env, new URL(c.req.url).origin), t.key), path: t.key, size, sha256, expires_at: t.expiresAt, ...visibility ? {visibility} : {}})
     })
 
     app.get('/api/v1/uploads/d/:path{.+}', driveRead)

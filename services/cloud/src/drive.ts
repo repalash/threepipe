@@ -1,7 +1,7 @@
 import type {Context, Hono} from 'hono'
 import {HTTPException} from 'hono/http-exception'
 import type {CloudEnv} from './env'
-import {base64url, BUCKET, cleanSegments, filesOrigin, prefixRange, randomCode} from './env'
+import {base64url, BUCKET, cleanSegments, filesOrigin, keyUrl, prefixRange, randomCode} from './env'
 import {assertScope, CloudUser, isStaff, requireUser} from './auth'
 
 /**
@@ -55,7 +55,7 @@ export async function checkDrive(c: Context<CloudEnv>, user: CloudUser, key: str
 /** The owner's own drive file, through the API (Authorization header or cookie). */
 export async function driveRead(c: Context<CloudEnv>) {
     const user = await requireUser(c)
-    const key = drivePath(user, 'd/' + decodeURIComponent(c.req.param('path') || ''))
+    const key = drivePath(user, 'd/' + (c.req.param('path') || ''))
     const obj = await c.env.CLOUD_BUCKET.get(key)
     if (!obj || obj.customMetadata?.owner !== user.id || obj.customMetadata?.deleted) throw new HTTPException(404, {message: 'not found'})
     const headers = new Headers()
@@ -74,7 +74,7 @@ export async function driveRead(c: Context<CloudEnv>) {
  */
 export async function drivePatch(c: Context<CloudEnv>) {
     const user = await requireUser(c)
-    const key = drivePath(user, 'd/' + decodeURIComponent(c.req.param('path') || ''))
+    const key = drivePath(user, 'd/' + (c.req.param('path') || ''))
     if (key.endsWith('/')) throw new HTTPException(400, {message: 'one file at a time'})
     const body = await json<{visibility?: Visibility, move_to?: string}>(c)
     if (body.visibility !== undefined && !VISIBILITIES.includes(body.visibility)) throw new HTTPException(400, {message: `visibility is one of ${VISIBILITIES.join(', ')}`})
@@ -98,7 +98,7 @@ export async function drivePatch(c: Context<CloudEnv>) {
         await db.prepare('DELETE FROM files WHERE bucket = ? AND path = ? AND deleted_at IS NOT NULL').bind(BUCKET, to).run()
     }
     await db.prepare('UPDATE files SET path = ?, visibility = ? WHERE id = ?').bind(to, visibility, row.id).run()
-    return c.json({path: to, visibility, url: `${filesOrigin(c.env, new URL(c.req.url).origin)}/${to}`})
+    return c.json({path: to, visibility, url: keyUrl(filesOrigin(c.env, new URL(c.req.url).origin), to)})
 }
 
 /** The owner deletes a drive file: the object and its registry row are removed (no tombstone). */
@@ -165,7 +165,7 @@ export function driveRoutes(app: Hono<CloudEnv>) {
         const ttl = body.ttl ?? SIGN_DEFAULT_SECONDS
         if (!Number.isInteger(ttl) || ttl <= 0 || ttl > SIGN_MAX_SECONDS) throw new HTTPException(400, {message: `ttl is seconds, 1 to ${SIGN_MAX_SECONDS}`})
         const exp = Math.floor(Date.now() / 1000) + ttl
-        return c.json({url: `${filesOrigin(c.env, new URL(c.req.url).origin)}/${await signPath(c.env, path, exp)}`, expires_at: new Date(exp * 1000).toISOString()})
+        return c.json({url: keyUrl(filesOrigin(c.env, new URL(c.req.url).origin), await signPath(c.env, path, exp)), expires_at: new Date(exp * 1000).toISOString()})
     })
 
     app.post('/api/v1/drive-links', async (c) => {
@@ -176,7 +176,7 @@ export function driveRoutes(app: Hono<CloudEnv>) {
         await c.env.PRIMARY_DB.prepare('INSERT INTO drive_links (id, owner_id, path) VALUES (?, ?, ?)').bind(id, user.id, path).run()
         // a file link ends with the file name, so loaders that look at the extension work
         const tail = path.endsWith('/') ? '' : path.split('/').pop()
-        return c.json({id, path, url: `${filesOrigin(c.env, new URL(c.req.url).origin)}/f/${id}/${tail}`})
+        return c.json({id, path, url: keyUrl(filesOrigin(c.env, new URL(c.req.url).origin), `f/${id}/${tail}`)})
     })
 
     app.delete('/api/v1/drive-links/:id', async (c) => {

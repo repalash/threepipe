@@ -37,6 +37,11 @@ H="Authorization: Bearer $KEY"
 echo "hello share" > $TMP/a.txt
 R=$(curl -s -X PUT -H "$H" --data-binary @$TMP/a.txt "$A/api/v1/uploads/s/$U-share/a.txt"); SURL=$(echo "$R" | j "['url']") && ok "upload s/ -> $SURL" || bad "upload s/: $R"
 [ "$(curl -s "$SURL")" = "hello share" ] && ok "serve s/" || bad "serve s/"
+# names in any language: NFC-normalized (here the é comes decomposed, as macOS sends it), URLs percent-encoded
+NFD=$(python3 -c "import urllib.parse;print(urllib.parse.quote('cafe\u0301 モデル.txt'))")
+R=$(curl -s -X PUT -H "$H" --data-binary @$TMP/a.txt "$A/api/v1/uploads/s/$U-uni/$NFD"); UURL=$(echo "$R" | j "['url']")
+[ "$(curl -s "$UURL")" = "hello share" ] && [ "$(curl -s "$A/_files/s/$U-uni/$(python3 -c "import urllib.parse;print(urllib.parse.quote('caf\u00e9 モデル.txt'))")")" = "hello share" ] && ok "unicode file names (NFC)" || bad "unicode: $R"
+[ "$(code -X PUT -H "$H" --data-binary @$TMP/a.txt "$A/api/v1/uploads/s/$U-uni/$(python3 -c "import urllib.parse;print(urllib.parse.quote('x\u202egnp.exe'))")")" = "400" ] && [ "$(code -X PUT -H "$H" --data-binary @$TMP/a.txt "$A/api/v1/uploads/s/$U-uni/a%23b.txt")" = "400" ] && ok "control/format characters and # are refused" || bad "bad names"
 [ "$(code "$SURL")" = "200" ] && [ "$(code -H 'Range: bytes=0-4' "$SURL")" = "206" ] && [ "$(curl -s -H 'Range: bytes=0-4' "$SURL")" = "hello" ] && ok "200, and 206 for a Range request" || bad "status / range"
 printf '<h1>page</h1>' > $TMP/index.html
 R=$(curl -s -X PUT -H "$H" -H 'content-type: text/html' --data-binary @$TMP/index.html "$A/api/v1/uploads/p/$U-page/index.html"); PURL=$(echo "$R" | j "['url']") && ok "upload p/" || bad "upload p/: $R"

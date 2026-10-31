@@ -26,7 +26,12 @@ export async function filesHost(c: Context<CloudEnv>, next: Next) {
     }
     if (c.req.method !== 'GET' && c.req.method !== 'HEAD') return c.text('method not allowed', 405)
     const notFound = () => c.text('not found', 404)
-    let key = decodeURIComponent(path).replace(/^\/+/, '')
+    let key: string
+    try {
+        key = decodeURIComponent(path).normalize('NFC').replace(/^\/+/, '')
+    } catch {
+        return notFound() // a malformed %-escape
+    }
     if (key.split('/').some(s => s === '..' || s.startsWith('.'))) return notFound()
 
     // how a drive file may be read: signed URL, share link, or public
