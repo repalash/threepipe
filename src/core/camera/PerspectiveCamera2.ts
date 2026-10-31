@@ -329,10 +329,12 @@ export class PerspectiveCamera2<TE extends ICameraEventMap = ICameraEventMap> ex
             ...ThreeSerialization.Serialize(this, meta, true), // this will serialize the properties of this class(like defined with @serialize and @serialize attribute)
         }
         // todo add camOptions for backwards compatibility?
-        return ThreeSerialization.Serialize(this, meta, false) // this will call toJSON again, but with _internal=true, that's why we set isThis to false.
+        // this will call toJSON again, but with _internal=true, that's why we set isThis to false.
+        return iCameraCommons.withoutRuntimeUserData(ThreeSerialization.Serialize(this, meta, false))
     }
 
     fromJSON(data: any, meta?: any): this | null {
+        data = iCameraCommons.withoutRuntimeUserData(data)
         if (data.camOptions || data.aspect === 'auto')
             data = {...data}
         if (data.camOptions) {

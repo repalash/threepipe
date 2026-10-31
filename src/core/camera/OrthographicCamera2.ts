@@ -348,10 +348,12 @@ export class OrthographicCamera2<TE extends ICameraEventMap = ICameraEventMap> e
             ...super.toJSON(meta),
             ...ThreeSerialization.Serialize(this, meta, true), // this will serialize the properties of this class(like defined with @serialize and @serialize attribute)
         }
-        return ThreeSerialization.Serialize(this, meta, false) // this will call toJSON again, but with _internal=true, that's why we set isThis to false.
+        // this will call toJSON again, but with _internal=true, that's why we set isThis to false.
+        return iCameraCommons.withoutRuntimeUserData(ThreeSerialization.Serialize(this, meta, false))
     }
 
     fromJSON(data: any, meta?: any): this | null {
+        data = iCameraCommons.withoutRuntimeUserData(data)
         ThreeSerialization.Deserialize(data, this, meta, true)
         this.setDirty({change: 'deserialize'})
         return this

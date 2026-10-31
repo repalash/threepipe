@@ -6,6 +6,20 @@ import {Box3B} from '../../three/math/Box3B'
 import {getFittingDistance} from '../../three/utils/camera'
 
 export const iCameraCommons = {
+    /**
+     * Keys of a camera's `userData` that hold its state at runtime (it is the main camera, its scale before that).
+     * A camera does not save them, and a load does not change them: a file saved with the main camera would else make
+     * a camera that is not the main camera think it is, and its controls would stay off when it becomes the main camera.
+     */
+    runtimeUserDataKeys: ['__isMainCamera', '__lastScale'] as string[],
+    /** The serialized camera data without the {@link runtimeUserDataKeys}: a copy when its `userData` has one */
+    withoutRuntimeUserData: function<T extends {userData?: Record<string, any>}>(data: T): T {
+        const ud = data?.userData
+        if (!ud || !iCameraCommons.runtimeUserDataKeys.some(k => k in ud)) return data
+        const userData = {...ud}
+        for (const k of iCameraCommons.runtimeUserDataKeys) delete userData[k]
+        return {...data, userData}
+    },
     setDirty: function(this: ICamera, options?: ICameraSetDirtyOptions): void {
         if (!this._positionWorld) return // not initialized yet
 
