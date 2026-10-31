@@ -295,7 +295,8 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
     }
 
     /**
-     * The view shows the saved start view now: in View when it was not moved, in Edit when the editor camera is at the
+     * The view shows the saved start view now: in View when the preview is at it (not after a move, an auto rotation or a
+     * clamp of the orbit limits), in Edit when the editor camera is at the
      * start view (after a load, {@link copyStartView} or {@link setStartViewFromEditor}) and the start camera is
      * perspective, as the editor camera. A UI can take a picture of the start view from the canvas then.
      */
@@ -304,7 +305,8 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
         const start = this.startCamera
         if (!viewer || !start) return false
         const main = viewer.scene.mainCamera
-        if (this._mode === 'view') return main === this._preview && !this.startViewMoved
+        // the same pose: a change that is not a move (auto rotation, a clamp of the orbit limits) is not the start view
+        if (this._mode === 'view') return main === this._preview && !!this._preview && samePose(poseOf(this._preview), poseOf(start))
         if (this._mode === 'edit') return main === this.camera && sameProjection(this.camera, start) && samePose(poseOf(this.camera), poseOf(start))
         return main === start
     }

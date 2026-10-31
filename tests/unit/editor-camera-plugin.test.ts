@@ -775,6 +775,17 @@ describe('EditorCameraPlugin', () => {
         expect(plugin.showsStartView).toBe(true) // the default camera is the main camera
     })
 
+    test('showsStartView: in View, false after a change that is not a move (auto rotation, a clamp), so no picture of it is taken', () => {
+        const {plugin, preview} = setup({orbit: true, sync: true})
+        plugin.editing = false
+        expect(plugin.showsStartView).toBe(true)
+        move(preview, 3, 1, 4) // autoRotate of the start camera's controls: not a user move
+        expect(plugin.startViewMoved).toBe(false)
+        expect(plugin.showsStartView).toBe(false)
+        plugin.resetStartView()
+        expect(plugin.showsStartView).toBe(true)
+    })
+
     test('showsStartView: in Edit, the perspective editor camera does not show an orthographic start view', () => {
         const {plugin} = setup({ortho: true})
         plugin.setStartViewFromEditor() // the same position, rotation and zoom
