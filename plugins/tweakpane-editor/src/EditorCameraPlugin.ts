@@ -110,6 +110,8 @@ export interface EditorCameraPluginEventMap extends AViewerPluginEventMap {
     startViewChange: {camera: ICamera}
     /** {@link EditorCameraPlugin.syncStartView} changed (in the code, a panel, a UI) */
     syncStartViewChange: {sync: boolean}
+    /** {@link EditorCameraPlugin.hotkey} changed: a UI that shows the key updates it */
+    hotkeyChange: {hotkey: string}
 }
 
 /**
@@ -219,9 +221,10 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
     /**
      * The key that switches between Edit and View, as a `KeyboardEvent.code` (`'KeyC'`: the C key). An empty string
      * turns it off. The key does nothing in a text field, with Ctrl, Cmd, Alt or Shift, held down, or when another
-     * handler used it.
+     * handler used it. The `hotkeyChange` event tells a UI when it changes.
      */
-    hotkey = 'KeyC'
+    @onChange(EditorCameraPlugin.prototype._hotkeyChanged)
+        hotkey = 'KeyC'
 
     /** What the cameras show now: Edit, View, or nothing (not added, or disabled: the default camera is the main camera) */
     private _mode?: 'edit' | 'view'
@@ -613,6 +616,10 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
         else this._endSyncMove()
         this.uiConfig?.uiRefresh?.(true)
         this.dispatchEvent({type: 'syncStartViewChange', sync: this.syncStartView})
+    }
+
+    private _hotkeyChanged() {
+        this.dispatchEvent({type: 'hotkeyChange', hotkey: this.hotkey})
     }
 
     private _onKeyDown = (e: KeyboardEvent) => {

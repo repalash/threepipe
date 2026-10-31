@@ -1295,6 +1295,16 @@ describe('EditorCameraPlugin start view UI', () => {
         expect(pillOf(viewer).getAttribute('aria-label')).not.toContain('switches')
     })
 
+    test('the pill shows the new key when hotkey changes after the UI is set up', () => {
+        const viewer = uiViewer()
+        const camera = new EditorCameraPlugin()
+        setupEditorCameraUi(viewer, camera)
+        expect(kbdOf(viewer).textContent).toBe('C')
+        camera.hotkey = 'KeyK'
+        expect(kbdOf(viewer).textContent).toBe('K')
+        expect(pillOf(viewer).getAttribute('aria-label')).toContain('K switches.')
+    })
+
     test('the pill and the frame hide while the plugin is disabled', () => {
         const viewer = uiViewer()
         const camera = new FakeEditorCamera()

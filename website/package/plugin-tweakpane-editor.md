@@ -133,7 +133,7 @@ The editor camera and the preview camera are added to the scene outside the mode
 
 When a file with a viewer config loads, the editor camera takes its start view (in View, the view does too). `setStartViewFromEditor()` moves the start view to the editor view. With the `UndoManagerPlugin`, each change of the start view is one undo step.
 
-The C key switches between Edit and View (`hotkey`, a `KeyboardEvent.code`; `''` turns it off). It does nothing in a text field, with Ctrl, Cmd, Alt or Shift, while held down, or when another handler used the key. The `editingChange` event tells a UI when the view changes, from the code, the key or the panel, and when the plugin is turned off or on (`enabled`, `disable(key)` / `enable(key)`, a remove; `editing` is `false` while it is off):
+The C key switches between Edit and View (`hotkey`, a `KeyboardEvent.code`; `''` turns it off; the `hotkeyChange` event tells a UI when it changes). It does nothing in a text field, with Ctrl, Cmd, Alt or Shift, while held down, or when another handler used the key. The `editingChange` event tells a UI when the view changes, from the code, the key or the panel, and when the plugin is turned off or on (`enabled`, `disable(key)` / `enable(key)`, a remove; `editing` is `false` while it is off):
 
 ```typescript
 import {ThreeViewer, UndoManagerPlugin} from 'threepipe'

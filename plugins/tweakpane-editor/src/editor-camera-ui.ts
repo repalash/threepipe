@@ -213,6 +213,7 @@ export function setupEditorCameraUi(viewer: ThreeViewer, camera: EditorCameraPlu
     camera.addEventListener('startViewMovedChange', update)
     camera.addEventListener('startViewChange', onStartViewChange)
     camera.addEventListener('syncStartViewChange', update)
+    camera.addEventListener('hotkeyChange', update)
     update()
     return () => {
         viewer.removeEventListener('postRender', onPostRender)
@@ -220,6 +221,7 @@ export function setupEditorCameraUi(viewer: ThreeViewer, camera: EditorCameraPlu
         camera.removeEventListener('startViewMovedChange', update)
         camera.removeEventListener('startViewChange', onStartViewChange)
         camera.removeEventListener('syncStartViewChange', update)
+        camera.removeEventListener('hotkeyChange', update)
         document.removeEventListener('pointerdown', onOutside, true)
         document.removeEventListener('keydown', onKey)
         window.clearTimeout(hoverTimer)
