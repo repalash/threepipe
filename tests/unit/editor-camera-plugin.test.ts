@@ -1,6 +1,6 @@
 import {afterEach, beforeEach, describe, expect, test, vi} from 'vitest'
 import {EventDispatcher, Object3D, PerspectiveCamera, Vector3} from 'three'
-import {OrbitControls3, OrthographicCamera2, PerspectiveCamera2, ThreeViewer} from 'threepipe'
+import {FirstPersonControls2, OrbitControls3, OrthographicCamera2, PerspectiveCamera2, ThreeViewer} from 'threepipe'
 import {EditorCameraPlugin} from '../../plugins/tweakpane-editor/src/EditorCameraPlugin'
 import {setupEditorCameraUi} from '../../plugins/tweakpane-editor/src/editor-camera-ui'
 import {TweakpaneEditorPlugin} from '../../plugins/tweakpane-editor/src/TweakpaneEditorPlugin'
@@ -397,6 +397,28 @@ describe('EditorCameraPlugin', () => {
         controls.dispatchEvent({type: 'start'})
         move(preview, 2, 1, 0)
         expect(records).toHaveLength(3)
+    })
+
+    test('the controls of the preview are on in View, also when the copied settings of the start camera have enabled false (FirstPersonControls2)', () => {
+        const {plugin, scene, start, preview} = setup({orbit: true})
+        // as ThreeFirstPersonControlsPlugin: the constructor of its mode is on the main camera only, and its controls
+        // save `enabled` (false on the start camera, which is not the main camera)
+        const ctor = (object: any, dom: any) => new FirstPersonControls2(object, dom)
+        scene.addEventListener('mainCameraChange', () => scene.mainCamera?.setControlsCtor?.('fp', ctor, true))
+        start.setControlsCtor('fp', ctor, true)
+        start.controlsMode = 'fp'
+        start.controls!.enabled = false
+        start.removeControlsCtor('fp')
+        // the real activateMain: the camera is the main camera, and its controls take the user's input
+        preview.activateMain = (() => {
+            scene.mainCamera = preview
+            preview.userData.__isMainCamera = true
+            scene.dispatchEvent({type: 'mainCameraChange'})
+            preview.refreshCameraControls(false)
+        }) as any
+        plugin.editing = false
+        expect(preview.controls).toBeInstanceOf(FirstPersonControls2)
+        expect(preview.controls!.enabled).toBe(true)
     })
 
     test('syncStartView: an auto rotation of the preview does not keep a gesture on after the pointer is up', () => {
@@ -1214,7 +1236,7 @@ describe('EditorCameraPlugin start view UI', () => {
         expect((camera as any)._listeners?.editingChange ?? []).toHaveLength(0)
     })
 
-    test('the TweakpaneEditorPlugin sets up the UI while the EditorCameraPlugin is added, also when it is added later', () => {
+    test('the TweakpaneEditorPlugin sets up the UI while the EditorCameraPlugin is added, also when it is added later or again', () => {
         const viewer = uiViewer()
         const editor = viewer.add(new TweakpaneEditorPlugin())
         expect(viewer.container.find('ecu-root')).toHaveLength(0)
@@ -1223,6 +1245,11 @@ describe('EditorCameraPlugin start view UI', () => {
         viewer.remove(camera)
         expect(viewer.container.find('ecu-root')).toHaveLength(0)
         expect((camera as any)._listeners?.editingChange ?? []).toHaveLength(0)
+        // added again: the UI comes back, once
+        const again = viewer.add(new FakeEditorCamera())
+        expect(viewer.container.find('ecu-root')).toHaveLength(1)
+        viewer.remove(again)
+        expect(viewer.container.find('ecu-root')).toHaveLength(0)
 
         // the camera plugin first; the editor removed
         const viewer2 = uiViewer()

@@ -41,20 +41,27 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync {
         setupWebGiLogo(viewer)
         setupFullscreenButton(viewer)
 
-        // the start view UI while the EditorCameraPlugin is added (before or after this plugin). By its type name, with
-        // a type-only import: the editor works without it, and this module does not load it.
-        viewer.forPlugin<EditorCameraPlugin>('EditorCameraPlugin', (camera) => {
-            this._removeEditorCameraUi()
-            this._editorCameraUi = setupEditorCameraUi(viewer, camera)
-        }, () => this._removeEditorCameraUi(), this)
+        // the start view UI while the EditorCameraPlugin is added (before or after this plugin, and again after a
+        // remove). By its type name, with a type-only import: the editor works without it, and this module does not load it.
+        this._addEditorCameraUi()
+        viewer.addPluginListener('add', this._addEditorCameraUi, 'EditorCameraPlugin')
+        viewer.addPluginListener('remove', this._removeEditorCameraUi, 'EditorCameraPlugin')
     }
 
     onRemove(viewer: ThreeViewer) {
+        viewer.removePluginListener('add', this._addEditorCameraUi)
+        viewer.removePluginListener('remove', this._removeEditorCameraUi)
         this._removeEditorCameraUi()
         super.onRemove(viewer)
     }
 
-    private _removeEditorCameraUi() {
+    private _addEditorCameraUi = () => {
+        this._removeEditorCameraUi()
+        const camera = this._viewer?.getPlugin<EditorCameraPlugin>('EditorCameraPlugin')
+        if (camera && this._viewer) this._editorCameraUi = setupEditorCameraUi(this._viewer, camera)
+    }
+
+    private _removeEditorCameraUi = () => {
         this._editorCameraUi?.()
         this._editorCameraUi = undefined
     }
