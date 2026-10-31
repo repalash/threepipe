@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- [`GPUPickingPlugin`](https://threepipe.org/plugin/GPUPickingPlugin.html): `pick(x, y, filter?)` finds the front-most mesh under a point of the canvas by rendering object ids and depth into a 1×1 float target (the camera narrowed to that pixel), with the hit point and distance. One small draw, no triangle tests and no tree in memory; for hover and clicks on what is visible. Perspective and orthographic cameras, skinned, morphed and instanced meshes. Example: `examples/gpu-picking-plugin`
 - [`PerfPanelPlugin`](https://threepipe.org/plugin/PerfPanelPlugin.html): an opt-in FPS pill and performance card over the canvas (frame times, render CPU time, renders per second, draw calls and triangles of all passes, canvas, GPU, JS heap), with warnings for a capped frame rate (Chrome Energy Saver, Low Power Mode), CPU or GPU bound, battery, software rendering and a hidden tab. Stats in `stats` and the `update` event. Example: `examples/perf-panel-plugin`; also in the `tweakpane-editor` example (Debug tab)
 
 ### Changed
