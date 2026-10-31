@@ -166,6 +166,12 @@ describe('copyPublicUserData', () => {
         expect(source.nested._b).toBe(2) // source is not changed
     })
 
+    test('keeps public keys named like Object.prototype methods (toString, constructor), at every depth', () => {
+        const source = {toString: 'label', constructor: 2, valueOf: true, nested: {hasOwnProperty: 'x'}, list: [{toString: 'y'}]}
+        expect(copyPublicUserData({}, source)).toEqual(source)
+        expect(copyUserData({}, source)).toEqual(source)
+    })
+
     test('copyUserData still keeps the _ keys at every depth', () => {
         const dest = copyUserData({}, {_a: 1, __b: 2, nested: {_c: 1, __d: 2}})
         expect(dest).toEqual({_a: 1, nested: {_c: 1}})

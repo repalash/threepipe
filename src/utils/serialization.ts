@@ -513,7 +513,9 @@ export function copyUserData(dest: any, source: any, ignoredKeysInRoot: (string|
         if (ignoredKeysInRoot.includes(key)) continue
         if (key.startsWith(privatePrefix)) continue // private key
         const src = source[key]
-        if (typeof dest[key] === 'function' || typeof src === 'function') continue
+        if (typeof src === 'function') continue
+        // a function in dest is kept, but not one inherited from Object.prototype: a public key can be named toString or constructor
+        if (typeof dest[key] === 'function' && dest[key] !== (Object.prototype as any)[key]) continue
         const skipClone = !src || src.isTexture || src.isObject3D || src.isMaterial || src.isBufferGeometry || src.userDataSkipClone
         if (!skipClone && typeof src.clone === 'function')
             dest[key] = src.clone()

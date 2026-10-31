@@ -119,6 +119,19 @@ describe('Object3D toJSON userData', () => {
         expect(mesh.userData).toMatchObject(userData())
     })
 
+    test('public keys named like Object.prototype methods are saved', () => {
+        const named = {toString: 'label', valueOf: 2, nested: {hasOwnProperty: true}}
+        const object = new tp.Object3D2()
+        Object.assign(object.userData, named)
+        expect(object.toJSON().object.userData).toEqual(named)
+
+        const camera = new tp.PerspectiveCamera2()
+        Object.assign(camera.userData, named)
+        const json = camera.toJSON()
+        expect(json.userData).toMatchObject(named)
+        expect(json.object.userData).toMatchObject(named)
+    })
+
     test('an object without public keys saves no userData', () => {
         const object = new tp.Object3D2()
         object.userData.__runtime = true
