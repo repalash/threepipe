@@ -29,6 +29,7 @@ All notable changes to this project will be documented in this file.
 - glTF import: keys that start with `__` in the `extras` of a glTF file (from other tools) are not put into `userData`
 - glTF light extras: the shadow camera `userData` is written and read without the private keys
 - `CameraViewPlugin.animateToView` and `InteractionPromptPlugin` turn the user interactions back on for the camera they animated. Before, they turned them on for the main camera at the end, so a camera that stopped being the main camera during the animation stayed locked (its controls off), for example after a switch to an editor camera. `animateToView` with a `camera` argument that is not the main camera had the same problem. A new main camera now stops the interaction prompt, which puts its camera back.
+- `PickingPlugin`: `userData.userSelectable = false`, `userData.bboxVisible = false` and `visible = false` on a picked object or on one of its parents keep it out of the selection again. The selection condition walked to the scene root before it checked them, so it only checked the root: the ground mesh of `BaseGroundPlugin` could be selected, and a click on a Troika text selected its inner text mesh instead of the text wrapper. The condition is exported as `isPickable`
 
 
 ## [0.6.0] - 2026-10-23
