@@ -3,10 +3,10 @@ import {NoteItem, NotesPlugin} from '../../plugins/tweakpane-editor/src/NotesPlu
 import {StickyNotesUiPlugin} from '../../plugins/tweakpane-editor/src/StickyNotesUiPlugin'
 import {readFileSync} from 'node:fs'
 
-// tippy.js is a dependency of the plugin (in its node_modules, which can be a link), mocked by its real path: the
-// layer's delegate of the tooltips, with its props
-const tippyPath = vi.hoisted(() => process.getBuiltinModule('node:fs')
-    .realpathSync(new URL('../../plugins/tweakpane-editor/node_modules/tippy.js/dist/tippy.cjs.js', import.meta.url)))
+// tippy.js is a dependency of the plugin, mocked by the file that Node resolves from the plugin's folder: in the
+// workspace's node_modules (hoisted) or in the plugin's own (a nested or linked install)
+const tippyPath = vi.hoisted(() => process.getBuiltinModule('node:module')
+    .createRequire(new URL('../../plugins/tweakpane-editor/package.json', import.meta.url)).resolve('tippy.js'))
 const delegates = vi.hoisted(() => [] as {target: any, props: any, destroyed: boolean}[])
 vi.mock(tippyPath, () => ({
     default: Object.assign(() => ({}), {setDefaultProps: () => {}}),
@@ -276,7 +276,7 @@ describe('StickyNotesUiPlugin', () => {
         expect(single.find('snp-store')[0].style.display).toBe('none')
     })
 
-    test('Copy the text copies it and shows a check and "Copied" for a moment', () => {
+    test('Copy the text copies it and shows a check and "Copied" for a moment; without clipboard access it says so', async () => {
         vi.useFakeTimers()
         try {
             const written: string[] = []
@@ -288,14 +288,25 @@ describe('StickyNotesUiPlugin', () => {
             const shown: string[] = []
             ;(copy as any)._tippy = {setContent: (t: string) => shown.push(t), show: () => shown.push('show')}
             copy.fire('click')
+            await vi.advanceTimersByTimeAsync(1)
             expect(written).toEqual(['one'])
             expect(copy.dataset.tip).toBe('Copied')
             expect(copy.innerHTML).not.toBe(icon)
-            vi.advanceTimersByTime(1)
             expect(shown).toEqual(['Copied', 'show'])
-            vi.advanceTimersByTime(1500)
+            await vi.advanceTimersByTimeAsync(1500)
             expect(copy.dataset.tip).toBe('Copy the text')
             expect(copy.innerHTML).toBe(icon)
+
+            // a denied write, and no clipboard at all: no check, the tooltip says it could not copy
+            for (const nav of [{clipboard: {writeText: async () => Promise.reject(new Error('denied'))}}, {}]) {
+                vi.stubGlobal('navigator', nav)
+                copy.fire('click')
+                await vi.advanceTimersByTimeAsync(1)
+                expect(copy.dataset.tip).toBe('Could not copy: no clipboard access')
+                expect(copy.innerHTML).toBe(icon)
+                await vi.advanceTimersByTimeAsync(1500)
+                expect(copy.dataset.tip).toBe('Copy the text')
+            }
         } finally {
             vi.useRealTimers()
         }

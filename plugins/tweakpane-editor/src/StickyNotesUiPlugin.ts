@@ -614,7 +614,7 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         bar.appendChild(badge)
         bar.appendChild(el('span', 'snp-fill'))
         bar.appendChild(button(ICONS.context, 'Add the time and the selection', () => this._addContext(c), 'snp-tool'))
-        const copy = bar.appendChild(button(ICONS.copy, 'Copy the text', () => this._copy(c, copy), 'snp-tool'))
+        const copy = bar.appendChild(button(ICONS.copy, 'Copy the text', () => void this._copy(c, copy), 'snp-tool'))
         bar.appendChild(button(ICONS.delete, 'Delete the note', () => this._notes?.removeNote(c.note.id), 'snp-tool snp-delete'))
         text.value = note.text
         text.placeholder = 'A note…'
@@ -642,24 +642,36 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
     }
 
     /**
-     * Copies the text of a note. The button shows a check and the tooltip "Copied" for {@link COPIED_TIME}: a click
-     * hides a tooltip, and the copy has no other sign.
+     * Copies the text of a note. After the write, the button shows a check and the tooltip "Copied" for
+     * {@link COPIED_TIME} (a click hides a tooltip, and the copy has no other sign); when the page has no clipboard
+     * access (an insecure page, a denied permission), it says that instead.
      */
-    private _copy(c: NoteCard, b: HTMLButtonElement) {
-        void navigator.clipboard?.writeText(c.text.value)
-        b.innerHTML = ICONS.copied
-        setTip(b, 'Copied')
-        // the tooltip of the delegate, made on the first hover; shown after the click that hides it
-        const tip = (b as {_tippy?: {setContent(t: string): void, show(): void}})._tippy
+    private async _copy(c: NoteCard, b: HTMLButtonElement) {
+        try {
+            if (!navigator.clipboard) throw new Error('No clipboard')
+            await navigator.clipboard.writeText(c.text.value)
+        } catch (e) {
+            this._flash(b, ICONS.copy, 'Could not copy: no clipboard access')
+            return
+        }
+        this._flash(b, ICONS.copied, 'Copied')
+    }
+
+    /** Shows an icon and a tooltip on a copy button for {@link COPIED_TIME}, then its own again */
+    private _flash(b: HTMLButtonElement, icon: string, tip: string) {
+        b.innerHTML = icon
+        setTip(b, tip)
+        // the tooltip of the delegate, made on the first hover; shown after the click that hid it
+        const tippy = (b as {_tippy?: {setContent(t: string): void, show(): void}})._tippy
         setTimeout(() => {
-            tip?.setContent('Copied')
-            tip?.show()
+            tippy?.setContent(tip)
+            tippy?.show()
         })
         clearTimeout(Number(b.dataset.timer))
         b.dataset.timer = String(setTimeout(() => {
             b.innerHTML = ICONS.copy
             setTip(b, 'Copy the text')
-            tip?.setContent('Copy the text')
+            tippy?.setContent('Copy the text')
         }, COPIED_TIME))
     }
 
