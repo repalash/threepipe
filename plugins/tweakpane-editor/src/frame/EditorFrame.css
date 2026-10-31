@@ -22,7 +22,7 @@ body[class*="tpTheme-"] .mb-root {
 .mb-btn:hover { background: var(--mb-hover); }
 .mb-btn.on { background: color-mix(in srgb, var(--mb-color) 16%, transparent); }
 .mb-btn:focus-visible { outline: 2px solid var(--mb-color, #0d99ff); outline-offset: 1px; }
-.mb-btn svg { width: 16px; height: 16px; flex-shrink: 0; }
+.mb-btn svg { width: 20px; height: 20px; flex-shrink: 0; } /* the size the mode icons are drawn for (20 px viewBox, stroke 1.6); the 16 px frame action icons scale to about the same stroke */
 .mb-label { display: none; font: inherit; color: var(--tp-container-foreground-color, #1e1e1e); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mb-toggle { margin-top: auto; color: var(--tp-label-foreground-color, #8a8f98); }
 .mb-toggle svg { transition: transform .15s; }
@@ -78,7 +78,7 @@ body.lay-frame .util-buttons-container > .button-bar-button::after { display: no
 /* the perf pill (PerfPanelPlugin at the bottom left): next to the logo, level with the tool bar and as tall (its fixed
    width keeps the row still as the numbers change); the tool bar leaves room for it */
 body.lay-frame .pp-root.pp-bottom-left { left: calc(1rem + 7.5rem + 8px); bottom: 1.25rem; }
-body.lay-frame .pp-root.pp-bottom-left .pp-pill { height: 32px; min-width: 76px; justify-content: flex-start; padding: 0 8px; border-radius: 8px; font-size: 12px; }
+body.lay-frame .pp-root.pp-bottom-left .pp-pill { height: 32px; min-width: 76px; justify-content: center; font-variant-numeric: tabular-nums; padding: 0 8px; border-radius: 8px; font-size: 12px; }
 body.lay-frame #canvas-container:has(.pp-root.pp-bottom-left) .util-buttons-container { max-width: calc(100% - 10.75rem - 84px); }
 @media only screen and (max-width: 920px) {
     body.lay-frame .pp-root.pp-bottom-left { left: calc(0.75rem + 5rem + 8px); bottom: 0.75rem; }
