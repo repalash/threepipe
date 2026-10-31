@@ -236,16 +236,18 @@ export class ThreeEditor extends ThreeViewer {
 
         // the name in the page frame: the first loaded model or viewer config file (not a texture or an environment
         // map) names the document, and a click on the name renames it; the files dropped after it do not change it. The
-        // exported file takes the name. A project system could set editor.documentName instead.
+        // exported file takes the name, also after a load: a file with a viewer config brings its own exportOptions.
+        // A project system could set editor.documentName instead.
         const exporter = this.getPlugin(AssetExporterPlugin)
-        editor.addEventListener('documentNameChange', ({name}) => {
-            if (exporter) exporter.exportOptions.name = name.replace(/\.[^.]+$/, '') // the exporter adds the extension
-        })
+        const exportName = () => {
+            if (exporter) exporter.exportOptions.name = editor.documentName.replace(/\.[^.]+$/, '') // the exporter adds the extension
+        }
+        editor.addEventListener('documentNameChange', exportName)
         editor.documentName = 'Untitled'
         this.assetManager.addEventListener('loadAsset', ({data}) => {
-            if (editor.documentName !== 'Untitled') return // named by a file before, or by the person
-            const name = loadedFileName(data)
+            const name = editor.documentName === 'Untitled' ? loadedFileName(data) : '' // not named by a file before, or by the person
             if (name) editor.documentName = name
+            exportName()
         })
 
         await FontLibrary.Init // required for text geometry generation. todo add to other editors?
