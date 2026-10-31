@@ -1,4 +1,5 @@
 export {TweakpaneEditorPlugin} from './TweakpaneEditorPlugin'
+export type {TweakpaneEditorPluginEventMap} from './TweakpaneEditorPlugin'
 export {HierarchyUiPlugin} from './HierarchyUiPlugin'
 export {NotesPlugin, BrowserNotesStore, HttpNotesStore} from './NotesPlugin'
 export type {NoteItem, NotesStore, NotesStoreStatus, NotesPluginOptions, NotesPluginEventMap} from './NotesPlugin'

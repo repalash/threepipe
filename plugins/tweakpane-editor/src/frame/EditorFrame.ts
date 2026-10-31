@@ -35,6 +35,12 @@ export interface EditorFrameOptions {
      * pick calls {@link EditorFrame.setLayout}.
      */
     onPickLayout?: (layout: EditorPageLayout) => void
+    /**
+     * Called with a new name typed in the bars. When it is set, a click on the name edits it: Enter or a click outside
+     * keeps it, Escape goes back. The caller sets {@link EditorFrame.documentName} (`TweakpaneEditorPlugin` does this,
+     * and sends `documentNameChange`).
+     */
+    onRename?: (name: string) => void
 }
 
 const svg = (d: string) => `<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`
@@ -48,7 +54,8 @@ const ICONS = {
  * The frame of the page around the editor: the layout of the canvas, the Tweakpane panel and the {@link EditorModeBar},
  * with a title bar or a status bar ({@link EditorFrameLayout}).
  *
- * - The bars show the app name and the name of the last loaded file, a light or dark button and a layout menu.
+ * - The bars show the app name, the name of the open file or project ({@link documentName}; a click edits it with
+ *   {@link EditorFrameOptions.onRename}), a light or dark button and a layout menu.
  * - Shift+T switches between the light and dark theme of the same family ({@link EditorFrameOptions.themePairs}).
  * - The panel has no title of its own: the mode bar names the open mode and hides the panel.
  *
@@ -94,6 +101,7 @@ export class EditorFrame {
         this._bottom = this._bar('lay-bottom')
         this._bottom.innerHTML = '<span class="lay-file"></span><span class="lay-fill"></span>'
         this._bottom.append(...this._actions('bottom'))
+        if (options.onRename) for (const bar of [this._top, this._bottom]) this._editableName(bar.querySelector('.lay-file')!)
         this._floatActions = createDiv({classList: ['lay-float-actions'], addToBody: false})
         this._floatActions.append(...this._actions('modeBar'))
 
@@ -119,6 +127,52 @@ export class EditorFrame {
             el.querySelector('.lay-file')!.textContent = name
             el.classList.toggle('lay-noname', !name)
         }
+    }
+
+    /** A click on the name edits it in place (contenteditable): Enter or a blur keeps it, Escape goes back */
+    private _editableName(el: HTMLElement) {
+        el.classList.add('lay-editable')
+        el.tabIndex = 0
+        el.title = 'Rename'
+        el.setAttribute('role', 'textbox')
+        el.setAttribute('aria-label', 'Name')
+        let cancel = false
+        const edit = () => {
+            if (el.isContentEditable) return
+            cancel = false
+            try {
+                el.contentEditable = 'plaintext-only'
+            } catch (e) {
+                el.contentEditable = 'true' // no plaintext-only (an older browser)
+            }
+            el.focus()
+            getSelection()?.selectAllChildren(el)
+        }
+        el.addEventListener('click', edit)
+        el.addEventListener('keydown', e => {
+            // the keys are for the text, not for the editor (Shift+T, Ctrl+\, the C key, undo)
+            e.stopPropagation()
+            if (!el.isContentEditable) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    edit()
+                }
+                return
+            }
+            if (e.key === 'Enter' || e.key === 'Escape') {
+                e.preventDefault()
+                cancel = e.key === 'Escape'
+                el.blur()
+            }
+        })
+        el.addEventListener('blur', () => {
+            if (!el.isContentEditable) return
+            el.removeAttribute('contenteditable')
+            const name = (el.textContent ?? '').replace(/\s+/g, ' ').trim()
+            if (!cancel && name && name !== this._documentName) this.options.onRename?.(name)
+            // the name that is set (back to the old one after Escape, an empty name, or a caller that keeps it)
+            this.documentName = this._documentName
+        })
     }
 
     setLayout(layout: EditorFrameLayout) {

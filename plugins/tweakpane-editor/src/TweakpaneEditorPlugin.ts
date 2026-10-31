@@ -1,4 +1,5 @@
 import {
+    AViewerPluginEventMap,
     AViewerPluginSync,
     Class,
     createDiv,
@@ -17,7 +18,12 @@ import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 import {UiObjectConfig} from 'uiconfig.js'
 import {EDITOR_PAGE_LAYOUTS, EditorFrame, EditorFrameOptions, EditorPageLayout} from './frame/EditorFrame'
 
-export class TweakpaneEditorPlugin extends AViewerPluginSync {
+export interface TweakpaneEditorPluginEventMap extends AViewerPluginEventMap {
+    /** {@link TweakpaneEditorPlugin.documentName} changed: set by the app, or renamed in the bar of the frame */
+    documentNameChange: {name: string}
+}
+
+export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPluginEventMap> {
     public static readonly PluginType: string = 'TweakpaneEditorPlugin'
     enabled = true
     // the page layout is a setting of the person (localStorage), not of the scene: nothing to save, reset or download
@@ -68,14 +74,18 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync {
     private _documentName = ''
     /**
      * The name in the bars of the page frame: the open file or project. The app sets it, for example the name of the
-     * last loaded file (as the tweakpane-editor example does). Empty: no name. It is kept when the frame is made again.
+     * first loaded file (as the tweakpane-editor example does), and a click on it in the bar renames it. Empty: no
+     * name. Each change sends `documentNameChange`, so the app can use the name elsewhere (the example names the
+     * exported file with it). It is kept when the frame is made again.
      */
     get documentName() {
         return this._documentName
     }
     set documentName(name: string) {
+        if (name === this._documentName) return
         this._documentName = name
         if (this.frame) this.frame.documentName = name
+        this.dispatchEvent({type: 'documentNameChange', name})
     }
 
     private _layout: EditorPageLayout = readStoredLayout() ?? TweakpaneEditorPlugin.DefaultLayout
@@ -146,6 +156,7 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync {
             ...this.frameOptions,
             layout,
             onPickLayout: (l) => this.layout = l,
+            onRename: (name) => this.documentName = name,
         })
         this.frame.modeBar.select(this._selectedMode)
         this.frame.documentName = this._documentName

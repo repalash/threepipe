@@ -68,7 +68,7 @@ In the frame:
 - The button at the bottom of the mode bar steps through three states: the mode names and the panel, the icons and the panel, the icons only (the panel hidden), then back. Ctrl+\\ (Cmd+\\ on a Mac) does the same. Its tooltip names the next step. A window without room for the names skips them. A click on the open mode still hides or shows the panel.
 - Shift+T switches between the light and the dark theme of the same family (`clean` and `clean-dark`, `light` and `dark`, `white` and `black`).
 - The layout button opens the layout menu, with Classic too.
-- The bar has a slot for the name of the open file or project: the app sets it with `editor.documentName` (empty: no name), and it is kept when the frame is made again. The plugin does not follow the loads; the tweakpane-editor example shows `Untitled`, then the name of the last loaded model or viewer config file (a URL or a dropped file; when several files are dropped, the last one).
+- The bar has a slot for the name of the open file or project: the app sets it with `editor.documentName` (empty: no name), and it is kept when the frame is made again. A click on the name in the bar renames it (Enter or a click outside keeps it, Escape goes back). Each change sends the `documentNameChange` event (`{name}`), so the app can use the name elsewhere. The plugin does not follow the loads. The tweakpane-editor example shows `Untitled`, then the name of the first loaded model or viewer config file (a URL or a dropped file); later files, or a name that the person typed, do not change it. The example also names the exported file with it (`AssetExporterPlugin.exportOptions.name`).
 
 The plugin has a UI folder, `Editor`, with the page layout and the mode names. Add `TweakpaneEditorPlugin` to a mode (`loadPlugins`) to show it; it works in the classic layout too.
 
@@ -91,6 +91,8 @@ editor.loadPlugins({
 editor.layout = 'floating'
 editor.modeNames = false // icons only
 editor.documentName = 'Ring.glb'
+// a rename in the bar, or a change from the code
+editor.addEventListener('documentNameChange', ({name}) => console.log('name', name))
 
 // the colour and icon of a mode (an SVG string)
 EditorModeBar.Looks['My mode'] = {color: '#0d99ff', icon: '<svg ...></svg>'}

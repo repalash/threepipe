@@ -234,10 +234,16 @@ export class ThreeEditor extends ThreeViewer {
 
         editor.loadPlugins(this.editorModes)
 
-        // the page frame shows the name of the last loaded model or viewer config file (not of a texture or an
-        // environment map). A project system could set editor.documentName instead.
+        // the name in the page frame: the first loaded model or viewer config file (not a texture or an environment
+        // map) names the document, and a click on the name renames it; the files dropped after it do not change it. The
+        // exported file takes the name. A project system could set editor.documentName instead.
+        const exporter = this.getPlugin(AssetExporterPlugin)
+        editor.addEventListener('documentNameChange', ({name}) => {
+            if (exporter) exporter.exportOptions.name = name.replace(/\.[^.]+$/, '') // the exporter adds the extension
+        })
         editor.documentName = 'Untitled'
         this.assetManager.addEventListener('loadAsset', ({data}) => {
+            if (editor.documentName !== 'Untitled') return // named by a file before, or by the person
             const name = loadedFileName(data)
             if (name) editor.documentName = name
         })

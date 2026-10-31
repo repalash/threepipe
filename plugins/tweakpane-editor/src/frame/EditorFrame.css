@@ -53,6 +53,10 @@ body.lay-frame.tpTheme-clean-dark { background-color: #1e1e1e !important; }
 .lay-dim { color: var(--tp-label-foreground-color, #757575); }
 .lay-sep { width: 1px; height: 14px; background: var(--tp-container-border-color, #e6e6e6); margin: 0 8px; }
 .lay-file { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40vw; }
+/* the name, when the app lets the person rename it (onRename): a click edits it in place */
+.lay-file.lay-editable { cursor: text; padding: 3px 5px; margin: 0 -5px; border-radius: 4px; outline: none; }
+.lay-file.lay-editable:hover { background: var(--tp-button-background-color-hover, rgba(0,0,0,.06)); }
+.lay-file.lay-editable:focus-visible, .lay-file.lay-editable[contenteditable] { box-shadow: inset 0 0 0 1px #0d99ff; background: var(--tp-input-background-color, transparent); text-overflow: clip; }
 .lay-fill { flex: 1; }
 /* no name set by the app: no name and no separator */
 .lay-noname .lay-sep, .lay-noname .lay-file { display: none; }
