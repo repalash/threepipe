@@ -702,7 +702,8 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
         const preview = this._preview
         if (this._mode === 'view' && preview) {
             // a glide after a drag would move it on
-            ;(preview.controls as OrbitControls3 | undefined)?.stopDamping?.()
+            const controls = preview.controls as OrbitControls3 | undefined
+            controls?.stopDamping?.()
             const after = poseOf(preview)
             this._moveStartView(after)
             this._recordStartView(before, after)
