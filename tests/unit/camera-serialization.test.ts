@@ -11,12 +11,13 @@ describe.each([
     ['PerspectiveCamera2', () => new PerspectiveCamera2()],
     ['OrthographicCamera2', () => new OrthographicCamera2()],
 ])('%s serialization', (_name, make) => {
-    test('the main camera state is not saved', () => {
+    test('the private userData keys (__, the main camera state among them) are not saved; the others are', () => {
         const camera = mainCamera(make())
+        camera.userData.label = 'start'
         expect(camera.isMainCamera).toBe(true)
         const json = camera.toJSON()
-        expect(json.userData.__isMainCamera).toBeUndefined()
-        expect(json.userData.__lastScale).toBeUndefined()
+        expect(Object.keys(json.userData).filter(k => k.startsWith('__'))).toEqual([])
+        expect(json.userData.label).toBe('start')
         expect(camera.isMainCamera).toBe(true) // the camera keeps it
     })
 
@@ -25,9 +26,11 @@ describe.each([
         // a file saved before the fix: the camera was the main camera then
         saved.userData = {...saved.userData, __isMainCamera: true, __lastScale: {isVector3: true, x: 2, y: 2, z: 2}}
         const camera = make()
+        saved.userData.label = 'start'
         camera.fromJSON(saved)
         expect(camera.isMainCamera).toBe(false)
         expect(camera.userData.__lastScale).toBeUndefined()
+        expect(camera.userData.label).toBe('start')
 
         // and the main camera stays the main camera when the data says it is not
         const main = mainCamera(make())

@@ -23,7 +23,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
-- `PerspectiveCamera2` and `OrthographicCamera2` no longer save their runtime state in `userData` (`__isMainCamera`, `__lastScale`), and a load (`fromJSON`, a viewer config in a file) keeps the camera's own state. A file saved with its default camera as the main camera made that camera think it was the main camera while another one was; its controls then stayed off when it became the main camera (the start view of the `EditorCameraPlugin` did not turn)
+- `PerspectiveCamera2` and `OrthographicCamera2` no longer save the private keys of their `userData` (those that start with `__`, as `copyUserData` skips them: `__isMainCamera`, `__lastScale`, the setup flags), and a load (`fromJSON`, a viewer config in a file) does not set them. A file saved with its default camera as the main camera made that camera think it was the main camera while another one was; its controls then stayed off when it became the main camera (the start view of the `EditorCameraPlugin` did not turn)
 
 
 ## [0.6.0] - 2026-10-23

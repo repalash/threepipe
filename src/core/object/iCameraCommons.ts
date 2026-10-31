@@ -7,17 +7,17 @@ import {getFittingDistance} from '../../three/utils/camera'
 
 export const iCameraCommons = {
     /**
-     * Keys of a camera's `userData` that hold its state at runtime (it is the main camera, its scale before that).
-     * A camera does not save them, and a load does not change them: a file saved with the main camera would else make
-     * a camera that is not the main camera think it is, and its controls would stay off when it becomes the main camera.
+     * The serialized camera data without the private keys of its `userData` (a copy when it has one). As in
+     * `copyUserData`, keys that start with `__` are runtime state (`__isMainCamera`, `__lastScale`, the setup
+     * flags): a camera does not save them, and a load does not set them. A file saved with the main camera would else
+     * make a camera that is not the main camera think it is, and its controls would stay off when it becomes the main
+     * camera.
      */
-    runtimeUserDataKeys: ['__isMainCamera', '__lastScale'] as string[],
-    /** The serialized camera data without the {@link runtimeUserDataKeys}: a copy when its `userData` has one */
-    withoutRuntimeUserData: function<T extends {userData?: Record<string, any>}>(data: T): T {
+    withoutPrivateUserData: function<T extends {userData?: Record<string, any>}>(data: T): T {
         const ud = data?.userData
-        if (!ud || !iCameraCommons.runtimeUserDataKeys.some(k => k in ud)) return data
-        const userData = {...ud}
-        for (const k of iCameraCommons.runtimeUserDataKeys) delete userData[k]
+        if (!ud || !Object.keys(ud).some(k => k.startsWith('__'))) return data
+        const userData: Record<string, any> = {}
+        for (const [k, v] of Object.entries(ud)) if (!k.startsWith('__')) userData[k] = v
         return {...data, userData}
     },
     setDirty: function(this: ICamera, options?: ICameraSetDirtyOptions): void {

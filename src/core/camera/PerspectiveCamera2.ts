@@ -330,11 +330,11 @@ export class PerspectiveCamera2<TE extends ICameraEventMap = ICameraEventMap> ex
         }
         // todo add camOptions for backwards compatibility?
         // this will call toJSON again, but with _internal=true, that's why we set isThis to false.
-        return iCameraCommons.withoutRuntimeUserData(ThreeSerialization.Serialize(this, meta, false))
+        return iCameraCommons.withoutPrivateUserData(ThreeSerialization.Serialize(this, meta, false))
     }
 
     fromJSON(data: any, meta?: any): this | null {
-        data = iCameraCommons.withoutRuntimeUserData(data)
+        data = iCameraCommons.withoutPrivateUserData(data)
         if (data.camOptions || data.aspect === 'auto')
             data = {...data}
         if (data.camOptions) {
