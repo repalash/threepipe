@@ -173,6 +173,7 @@ export class EditorFrame {
             }
             // an IME uses Enter and Escape to end or drop the text it composes (Safari sends that key after the
             // composition ends, with the key code 229)
+            // eslint-disable-next-line deprecation/deprecation
             if ((e.key === 'Enter' || e.key === 'Escape') && !e.isComposing && e.keyCode !== 229) {
                 e.preventDefault()
                 cancel = e.key === 'Escape'
