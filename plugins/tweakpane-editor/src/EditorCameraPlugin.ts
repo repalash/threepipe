@@ -139,7 +139,10 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
     static readonly PluginType = 'EditorCameraPlugin'
     serializeWithViewer = false
 
-    /** Off: the view goes to the scene's default camera (as without the plugin), and {@link editing} cannot be turned on */
+    /**
+     * Off: the view goes to the scene's default camera (as without the plugin), and {@link editing} cannot be turned on.
+     * `disable(key)` does the same until `enable(key)`, as for the other plugins: the plugin is off while `isDisabled()`.
+     */
     @onChange(EditorCameraPlugin.prototype._enabledChanged)
     @uiToggle('Enabled')
         enabled = true
@@ -198,7 +201,7 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
 
     /**
      * Edit (`true`) looks through the editor camera, View (`false`) through the preview of the start view.
-     * It stays `false` while the plugin is disabled.
+     * It stays `false` while the plugin is disabled (`isDisabled()`).
      */
     @onChange(EditorCameraPlugin.prototype._refreshEditing)
     @uiToggle('Edit (off: View)')
@@ -439,14 +442,15 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
     }
 
     private _refreshEditing() {
+        const disabled = this.isDisabled()
         // this sets editing again, and the second call applies it
-        if (this.editing && !this.enabled) {
+        if (this.editing && disabled) {
             this.editing = false
             return
         }
         const viewer = this._viewer
         if (!viewer) return
-        const mode = !this.enabled ? undefined : this.editing ? 'edit' : 'view'
+        const mode = disabled ? undefined : this.editing ? 'edit' : 'view'
         if (this._mode === mode) {
             this._checkMoved()
             return
@@ -571,9 +575,16 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
         this._endGesture()
     }
 
+    /** `enabled` or `disable(key)` / `enable(key)` changed: Edit when the plugin is on again, off while it is disabled */
     private _enabledChanged() {
-        if (this.editing !== this.enabled) this.editing = this.enabled
+        const enabled = !this.isDisabled()
+        if (this.editing !== enabled) this.editing = enabled
         else this._refreshEditing()
+    }
+
+    /** Called by `disable(key)` and `enable(key)`: applies {@link isDisabled}, as a change of {@link enabled} */
+    setDirty() {
+        this._enabledChanged()
     }
 
     private _syncChanged() {

@@ -841,6 +841,24 @@ describe('EditorCameraPlugin', () => {
         expect(scene.mainCamera).toBe(plugin.camera)
     })
 
+    test('disable(key), as enabled false: the view goes to the scene\'s default camera until enable(key); editingChange tells it', () => {
+        const {plugin, scene, start} = setup()
+        const events: boolean[] = []
+        plugin.addEventListener('editingChange', e => events.push(e.editing))
+        plugin.disable('test')
+        expect(plugin.isDisabled()).toBe(true)
+        expect(scene.mainCamera).toBe(start)
+        expect(plugin.editing).toBe(false)
+        plugin.editing = true
+        expect(plugin.editing).toBe(false)
+        expect(key('KeyC').defaultPrevented).toBe(false)
+        expect(scene.mainCamera).toBe(start)
+        plugin.enable('test')
+        expect(scene.mainCamera).toBe(plugin.camera)
+        expect(plugin.editing).toBe(true)
+        expect(events).toEqual([false, true])
+    })
+
     test('the editor camera gets ControlProps when it becomes the main camera; smooth adds damping', () => {
         const {plugin, scene, start} = setup()
         plugin.editing = false
