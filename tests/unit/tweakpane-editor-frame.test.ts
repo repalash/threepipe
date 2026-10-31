@@ -294,6 +294,32 @@ describe('EditorFrame', () => {
         (f.modeBar.element as any as FakeElement).find('lay-float-btn').pop()! :
         body().find('lay-top')[0].find('lay-btn').pop()!
 
+    for (const [layout, expanded] of [['titlebar', true], ['floating', false], ['floating', true]] as const) {
+        test(`the tooltip of the layout button hides while its menu is open, and never doubles (${layout}, names ${expanded ? 'shown' : 'hidden'})`, () => {
+            const f = frame(layout, expanded)
+            const b = layoutButton(f)
+            const before = tipsOnHover(b)
+            expect(before).toBe(layout === 'floating' && expanded ? 0 : 1)
+            b.click()
+            expect(body().find('lay-menu')).toHaveLength(1)
+            expect(tipsOnHover(b)).toBe(0)
+            b.click() // closes it
+            expect(body().find('lay-menu')).toHaveLength(0)
+            expect(tipsOnHover(b)).toBe(before)
+            b.click()
+            docEvents.fire('keydown', {key: 'Escape'})
+            expect(body().find('lay-menu')).toHaveLength(0)
+            expect(tipsOnHover(b)).toBe(before)
+            b.click()
+            f.setLayout(layout) // closes it too
+            expect(body().find('lay-menu')).toHaveLength(0)
+            expect(tipsOnHover(b)).toBe(before)
+            // the other buttons of the mode bar
+            const mode = (f.modeBar.element as any as FakeElement).find('mb-btn')[0]
+            expect(tipsOnHover(mode)).toBe(expanded ? 0 : 1)
+        })
+    }
+
     test('a click on the name renames it: Enter keeps it, Escape goes back', () => {
         const onRename = vi.fn()
         const f = frame('titlebar', true, (name) => {

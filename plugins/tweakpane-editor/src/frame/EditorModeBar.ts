@@ -72,6 +72,8 @@ export class EditorModeBar {
     private _selected = 0
     private _open = true
     private _expanded = true
+    /** The tooltips are off while a menu of a button of the bar is open ({@link holdTooltips}) */
+    private _tipsHeld = false
 
     /**
      * @param editor - the editor with the modes
@@ -149,9 +151,7 @@ export class EditorModeBar {
     setExpanded(expanded: boolean) {
         this._expanded = expanded
         this.element.classList.toggle('mb-wide', expanded)
-        // the names are on the buttons: no tooltips
-        if (expanded) this._tipGroup.disable()
-        else this._tipGroup.enable()
+        this._refreshTips()
         this._refreshToggle()
         document.documentElement.style.setProperty('--mb-width', (expanded ? EditorModeBar.Widths.wide : EditorModeBar.Widths.narrow) + 'px')
         if (this.storageKey) {
@@ -204,6 +204,25 @@ export class EditorModeBar {
         this._toggleTip.setContent(`${next} (${this._key})`)
         this._toggle.setAttribute('aria-label', next)
         this._toggle.setAttribute('aria-expanded', String(this._open))
+    }
+
+    /**
+     * Hides the tooltips of the bar and keeps them off while `held` is true, for a menu that a button of the bar opened
+     * (the layout menu of {@link EditorFrame}): the tooltip would cover the menu. Then they show again, when the names
+     * are hidden.
+     */
+    holdTooltips(held: boolean) {
+        this._tipsHeld = held
+        this._refreshTips()
+    }
+
+    /**
+     * One tooltip at a time, from the singleton (its tooltips stay disabled, else a button would show two). Off when the
+     * names are on the buttons, and while held. Disabling it also hides it.
+     */
+    private _refreshTips() {
+        if (this._expanded || this._tipsHeld) this._tipGroup.disable()
+        else this._tipGroup.enable()
     }
 
     /** Adds a tooltip to a button of the bar (not a mode), shown with the others when the names are hidden */
