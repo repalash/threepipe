@@ -725,3 +725,21 @@ describe('EditorCameraPlugin', () => {
         expect(scene.mainCamera).toBe(other)
     })
 })
+
+describe('EditorCameraPlugin View and main camera plugins', () => {
+    test('a limit that a plugin sets on the main camera change (like the ground limit) applies to the preview in View', () => {
+        const {plugin, scene, start} = setup({orbit: true})
+        // as BaseGroundPlugin with limitCameraAboveGround: the orbit controls of the main camera get a max polar angle
+        scene.addEventListener('mainCameraChange', () => {
+            const orbit = scene.mainCamera.controls as OrbitControls3 | undefined
+            if (orbit?.maxPolarAngle !== undefined) orbit.maxPolarAngle = Math.PI / 2
+        })
+        ;(start.controls as OrbitControls3).maxPolarAngle = Math.PI // the start camera is not limited while it is not the main camera
+        for (let i = 0; i < 2; i++) { // the first View and a later one
+            plugin.editing = false
+            expect(plugin.previewCamera?.controls).toBeInstanceOf(OrbitControls3)
+            expect((plugin.previewCamera!.controls as OrbitControls3).maxPolarAngle).toBe(Math.PI / 2)
+            plugin.editing = true
+        }
+    })
+})

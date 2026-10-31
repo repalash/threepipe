@@ -363,8 +363,9 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
     }
 
     /**
-     * The preview camera takes the start camera: its controls, projection and settings, and its pose. In View, it is
-     * the main camera, so a controls plugin (as `ACameraControlsPlugin`) has given it the controls of its mode.
+     * The preview camera takes the start camera: its controls, projection and settings, and its pose. When View
+     * starts, this runs before the preview becomes the main camera, and again after it if a controls plugin (as
+     * `ACameraControlsPlugin`) made the controls of its mode for the preview then.
      */
     private _copyStartToPreview() {
         const start = this.startCamera
@@ -406,11 +407,15 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
         if (mode === 'edit') {
             this.camera.activateMain()
         } else if (mode === 'view') {
-            // the main camera first, for the controls of its mode. The settings of the start camera may have changed
-            // since the last View
+            // the settings of the start camera first (they may have changed since the last View), then the main camera:
+            // what plugins set on the main camera change (like the ground limit of BaseGroundPlugin) applies over them
             this._apply(() => {
-                this._preview?.activateMain()
+                const preview = this._preview
                 this._copyStartToPreview()
+                const controls = preview?.controls
+                preview?.activateMain()
+                // a controls plugin (as ACameraControlsPlugin) makes the controls of its mode only for the main camera
+                if (preview && preview.controls !== controls) this._copyStartToPreview()
             })
         } else {
             viewer.scene.defaultCamera.activateMain()
