@@ -126,10 +126,12 @@ Another view can show the same notes: read `notes.notes`, listen to the `notesCh
 
 `EditorCameraPlugin` gives an editor its own camera, separate from the scene's camera.
 
-- **Edit** (`editing = true`, the default): the view is through the editor camera. It moves 1:1 with the pointer (no damping) and has no orbit limits or ground limit. It is added to the scene outside the model root, so it is not saved in a file or exported.
-- **View** (`editing = false`): the view is through the scene's default camera, the start view. This is what a visitor sees, with the controls of the file (orbit limits, damping).
+- **Edit** (`editing = true`, the default): the view is through the editor camera. It moves 1:1 with the pointer (no damping) and has no orbit limits or ground limit.
+- **View** (`editing = false`): the view is through `previewCamera`, a copy of the scene's default camera (the start view, saved in the file) with its controls (orbit limits, damping). This is what a visitor sees. A move in View is a preview: the start view changes only with `saveStartView()`, or on each move when `syncStartView` is on. So an export in View (`exportConfig()`, `exportScene()`) always has the saved start view.
 
-When a file with a viewer config loads, the editor camera takes its start view. `setStartViewFromEditor()` moves the start view to the editor view. With the `UndoManagerPlugin`, this is one undo step.
+The editor camera and the preview camera are added to the scene outside the model root, so they are not saved in a file or exported. The preview camera is made again from the start camera each time View starts, so a change of the start camera settings in Edit is in the next View.
+
+When a file with a viewer config loads, the editor camera takes its start view (in View, the view does too). `setStartViewFromEditor()` moves the start view to the editor view. With the `UndoManagerPlugin`, each change of the start view is one undo step.
 
 The C key switches between Edit and View (`hotkey`, a `KeyboardEvent.code`; `''` turns it off). It does nothing in a text field, with Ctrl, Cmd, Alt or Shift, while held down, or when another handler used the key. The `editingChange` event tells a UI when the view changes, from the code, the key, the panel or a disable:
 
@@ -142,6 +144,12 @@ const editorCamera = viewer.addPluginSync(EditorCameraPlugin)
 
 // look through the start view, as a visitor
 editorCamera.editing = false
+// a move in View is a preview; keep it as the start view (Ctrl+Z undoes it)
+editorCamera.saveStartView()
+// or go back to the saved start view
+editorCamera.resetStartView()
+// or save each move in View as it happens (one undo step per move)
+editorCamera.syncStartView = true
 // back to the editor camera
 editorCamera.editing = true
 
@@ -159,16 +167,19 @@ editorCamera.addEventListener('editingChange', ({editing}) => {
 editorCamera.hotkey = 'KeyK'
 ```
 
-Options:
+Options and state:
 - `smooth`: a light damping on the editor camera. Off: 1:1 with the pointer.
-- `keepViewMoves`: in View, the camera moves change the start view when Edit starts again (one undo step). Off: the start view goes back to where it was when View started. `resetStartView()` puts it back at any time in View.
-- `startViewMoved`: in View, the start view was moved from where it was when View started. `saveStartView()` keeps the move as the start view (one undo step); `resetStartView()` puts it back. The `startViewMovedChange` event (`{moved}`) tells a UI when it changes.
+- `syncStartView`: in View, each move changes the start view at once. A move (with the glide of damping, or wheel steps close together) is one undo step; `EditorCameraPlugin.SyncGestureDelay` (ms) is the pause that ends it. Turned on in View after a move, it saves the view. Off (the default): a move in View is a preview only. The `syncStartViewChange` event (`{sync}`) tells a UI when it changes.
+- `startViewMoved`: in View, the view was moved away from the saved start view and the move is not saved. `saveStartView()` keeps it (one undo step), `resetStartView()` goes back. The `startViewMovedChange` event (`{moved}`) tells a UI when it changes.
+- The `startViewChange` event (`{camera}`): the saved start view changed (a save, a sync, an undo, a load, a change in the camera panel).
+- `showsStartView`: the view shows the saved start view now (in View before a move; in Edit when the editor camera is at the start view). A UI can take a picture of the start view from the canvas then.
 - `EditorCameraPlugin.ControlProps`: the orbit controls of the editor camera.
 
 The plugin is not saved with the viewer config (`serializeWithViewer = false`).
 
 In the `TweakpaneEditorPlugin`, when the plugin is added before `loadPlugins()`:
-- A label at the top centre of the canvas names the camera: "Editor camera", or "Start view · what visitors see" in blue, with a blue frame around the canvas. A click on it switches Edit and View, as the C key.
-- In Edit, the label has "Set as start view" (`setStartViewFromEditor()`). In View, after a move, it has "Save as start view" and "Reset" (`saveStartView()`, `resetStartView()`). Ctrl+Z undoes them.
-- The tool bar at the bottom of the canvas has an Edit / View button (a video camera). It is on in Edit and follows the key and the panel.
-- `setupEditorCameraLabel(viewer, plugin)` adds the label and the frame in another app. The [Tweakpane Editor](https://threepipe.org/examples/#tweakpane-editor/) example has the settings in the Viewer tab.
+- A pill at the top centre of the canvas, in the style of the `PerfPanelPlugin` pill, names the camera: "Editor camera" (a grey dot) or "Start view" (a blue dot; green when `syncStartView` is on). An amber corner tells that a move in View is not saved. In View, a frame in the same colour is around the canvas. A click on the pill switches Edit and View, as the C key.
+- On hover, on keyboard focus, or after a tap on a touch screen, a card under the pill shows a picture of the saved start view. A click on the picture looks through the start view; in View after a move, it goes back to it. The Sync toggle over the picture is `syncStartView`. Under it: an Edit / View toggle; "Set as start view" in Edit; "Save" and "Reset" in View after a move that is not saved. Ctrl+Z undoes a change of the start view.
+- The picture is taken from the canvas right after a render, when the view shows the saved start view (`showsStartView`): after a load, in View before a move, after a save, a sync or "Set as start view". It is a small copy of the canvas (448 px wide); it is taken again when the render ends (progressive rendering), and shows faded while it is out of date.
+- On the classic page on a phone, the pill is on the right, under the title bar of the settings panel, so it does not cover the view widget.
+- `setupEditorCameraUi(viewer, plugin)` adds the pill, the card and the frame in another app (the tooltips use tippy.js, and need its CSS). The [Tweakpane Editor](https://threepipe.org/examples/#tweakpane-editor/) example has the settings in the Viewer tab.
