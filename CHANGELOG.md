@@ -22,7 +22,13 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- Runtime `userData` keys are no longer saved with objects. The rule: keys that start with `_` are kept on clone and in JSON but not in glTF; keys that start with `__` are kept nowhere (not on clone, not in JSON, not in glTF). `toJSON` of every threepipe object (meshes, lights, cameras, groups) now leaves out the `__` keys, at every depth, in `object.userData` and in the camera `userData`, like clone does. New `copyPublicUserData` helper for the glTF filter (`_` and `__`)
+- `copyUserData` (and clone) keeps public keys named like `Object.prototype` methods, such as `toString`
+- A camera from a loaded file or viewer config no longer becomes the main camera. Files saved while the camera was the main camera carry `userData.__isMainCamera`; loading such a file into a viewer with another main camera (like an editor camera) marked the default camera as main, and its controls stayed disabled when it later became the main camera. `PerspectiveCamera2.fromJSON` and `OrthographicCamera2.fromJSON` now ignore the `__` `userData` keys in the data and keep their own
+- glTF import: keys that start with `__` in the `extras` of a glTF file (from other tools) are not put into `userData`
+- glTF light extras: the shadow camera `userData` is written and read without the private keys
 - `CameraViewPlugin.animateToView` and `InteractionPromptPlugin` turn the user interactions back on for the camera they animated. Before, they turned them on for the main camera at the end, so a camera that stopped being the main camera during the animation stayed locked (its controls off), for example after a switch to an editor camera. `animateToView` with a `camera` argument that is not the main camera had the same problem. A new main camera now stops the interaction prompt, which puts its camera back.
+
 
 ## [0.6.0] - 2026-10-23
 
