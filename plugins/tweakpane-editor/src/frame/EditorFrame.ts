@@ -66,7 +66,7 @@ export class EditorFrame {
 
     readonly modeBar: EditorModeBar
     private _layout: EditorFrameLayout
-    private _fileName = 'Untitled'
+    private _documentName = ''
     private _top: HTMLDivElement
     private _bottom: HTMLDivElement
     /** The actions in the mode bar, for the floating layout (it has no bar) */
@@ -97,7 +97,6 @@ export class EditorFrame {
         this._floatActions = createDiv({classList: ['lay-float-actions'], addToBody: false})
         this._floatActions.append(...this._actions('modeBar'))
 
-        viewer.assetManager.addEventListener('loadAsset', this._onLoad)
         window.addEventListener('keydown', this._onKeyDown)
         this.modeBar.element.addEventListener('click', this._expandPanel)
         this.setLayout(this._layout)
@@ -107,13 +106,19 @@ export class EditorFrame {
         return this._layout
     }
 
-    /** The file name in the bars. It is set to the name of each loaded file. */
-    get fileName() {
-        return this._fileName
+    /**
+     * The name in the bars: the open file or project. The app sets it (the frame does not follow the loads); empty, the
+     * bars show no name. `TweakpaneEditorPlugin.documentName` sets it and keeps it when the frame is made again.
+     */
+    get documentName() {
+        return this._documentName
     }
-    set fileName(name: string) {
-        this._fileName = name
-        for (const el of [this._top, this._bottom]) el.querySelector('.lay-file')!.textContent = name
+    set documentName(name: string) {
+        this._documentName = name
+        for (const el of [this._top, this._bottom]) {
+            el.querySelector('.lay-file')!.textContent = name
+            el.classList.toggle('lay-noname', !name)
+        }
     }
 
     setLayout(layout: EditorFrameLayout) {
@@ -131,7 +136,7 @@ export class EditorFrame {
         if (layout === 'floating') this.modeBar.element.insertBefore(this._floatActions, this.modeBar.element.lastElementChild)
         else this._floatActions.remove()
         this._expandPanel()
-        this.fileName = this._fileName
+        this.documentName = this._documentName
         // the canvas size follows the CSS; the viewer resizes on the window's resize
         window.dispatchEvent(new Event('resize'))
     }
@@ -146,7 +151,6 @@ export class EditorFrame {
     }
 
     dispose() {
-        this.viewer.assetManager.removeEventListener('loadAsset', this._onLoad)
         window.removeEventListener('keydown', this._onKeyDown)
         this.modeBar.element.removeEventListener('click', this._expandPanel)
         for (const [k] of EDITOR_FRAME_LAYOUTS) document.body.classList.remove('lay-' + k)
@@ -170,21 +174,6 @@ export class EditorFrame {
         if (root && !root.classList.contains('tp-rotv-expanded')) root.querySelector<HTMLElement>('.tp-rotv_b')?.click()
     }
 
-    private _onLoad = (e: {data?: any}) => {
-        // a dropped or picked file has its name on the blob (its path is a blob: URL, or none); a URL load has a path
-        const d = e.data
-        const blob = d?.__rootBlob
-        let path: string | undefined = blob?.filePath || blob?.name || d?.userData?.rootPath || d?.__rootPath
-        if (path?.startsWith('blob:') || path?.startsWith('data:')) path = undefined
-        const base = path ? path.split(/[?#]/)[0].split('/').pop() || '' : ''
-        let name = base
-        try {
-            name = decodeURIComponent(base)
-        } catch (decodeError) {
-            // a local file name is not URI-encoded ("100% model.glb"): show it as it is
-        }
-        if (name) this.fileName = name
-    }
 
     /** Shift+T: the light or dark theme. Ctrl+\ (Cmd+\ on a Mac): the mode names shown or hidden. */
     private _onKeyDown = (e: KeyboardEvent) => {

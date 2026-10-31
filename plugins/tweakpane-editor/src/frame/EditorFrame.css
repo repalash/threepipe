@@ -54,6 +54,8 @@ body.lay-frame.tpTheme-clean-dark { background-color: #1e1e1e !important; }
 .lay-sep { width: 1px; height: 14px; background: var(--tp-container-border-color, #e6e6e6); margin: 0 8px; }
 .lay-file { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40vw; }
 .lay-fill { flex: 1; }
+/* no name set by the app: no name and no separator */
+.lay-noname .lay-sep, .lay-noname .lay-file { display: none; }
 .lay-btn {
     width: 28px; height: 28px; border: 0; border-radius: 5px; background: transparent; color: inherit; cursor: pointer; padding: 0;
     display: flex; align-items: center; justify-content: center; opacity: .75; flex-shrink: 0;

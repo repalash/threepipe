@@ -234,7 +234,30 @@ export class ThreeEditor extends ThreeViewer {
 
         editor.loadPlugins(this.editorModes)
 
+        // the page frame shows the name of the last loaded model or viewer config file (not of a texture or an
+        // environment map). A project system could set editor.documentName instead.
+        editor.documentName = 'Untitled'
+        this.assetManager.addEventListener('loadAsset', ({data}) => {
+            const name = loadedFileName(data)
+            if (name) editor.documentName = name
+        })
+
         await FontLibrary.Init // required for text geometry generation. todo add to other editors?
 
+    }
+}
+
+/** The file name of a loaded model or viewer config: a dropped or picked file has it on its blob, a URL load in its path */
+function loadedFileName(data: any): string {
+    if (data?.assetType !== 'model' && data?.assetType !== 'config') return ''
+    const blob = data.__rootBlob
+    if (blob) return blob.filePath?.split('/').pop() || blob.name || ''
+    const path: string | undefined = data.userData?.rootPath || data.__rootPath
+    if (!path || path.startsWith('blob:') || path.startsWith('data:')) return ''
+    const base = path.split(/[?#]/)[0].split('/').pop() || ''
+    try {
+        return decodeURIComponent(base)
+    } catch (e) {
+        return base
     }
 }

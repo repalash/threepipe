@@ -63,6 +63,19 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync {
     /** Options of the page frame (the app name, the theme pairs), used when the frame is made */
     frameOptions: Omit<EditorFrameOptions, 'layout' | 'onPickLayout'> = {}
 
+    private _documentName = ''
+    /**
+     * The name in the bars of the page frame: the open file or project. The app sets it, for example the name of the
+     * last loaded file (as the tweakpane-editor example does). Empty: no name. It is kept when the frame is made again.
+     */
+    get documentName() {
+        return this._documentName
+    }
+    set documentName(name: string) {
+        this._documentName = name
+        if (this.frame) this.frame.documentName = name
+    }
+
     private _layout: EditorPageLayout = readStoredLayout() ?? TweakpaneEditorPlugin.DefaultLayout
 
     /**
@@ -133,6 +146,7 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync {
             onPickLayout: (l) => this.layout = l,
         })
         this.frame.modeBar.select(this._selectedMode)
+        this.frame.documentName = this._documentName
         // the mode bar keeps the names shown or hidden (its toggle button, the stored state): the checkbox follows it
         this.frame.modeBar.onExpandedChange = () => this.uiConfig.uiRefresh?.(true)
         this.uiConfig.uiRefresh?.(true)

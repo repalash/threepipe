@@ -68,7 +68,7 @@ In the frame:
 - The button at the bottom of the mode bar shows or hides the mode names, and so does Ctrl+\\ (Cmd+\\ on a Mac).
 - Shift+T switches between the light and the dark theme of the same family (`clean` and `clean-dark`, `light` and `dark`, `white` and `black`).
 - The layout button opens the layout menu, with Classic too.
-- The file name in the bar is the name of the last loaded file (from its URL, or a dropped or picked file), `Untitled` before one loads. Set `editor.frame.fileName` to show another name.
+- The bar has a slot for the name of the open file or project: the app sets it with `editor.documentName` (empty: no name), and it is kept when the frame is made again. The plugin does not follow the loads; the tweakpane-editor example shows `Untitled`, then the name of the last loaded model or viewer config file (a URL or a dropped file; when several files are dropped, the last one).
 
 The plugin has a UI folder, `Editor`, with the page layout and the mode names. Add `TweakpaneEditorPlugin` to a mode (`loadPlugins`) to show it; it works in the classic layout too.
 
@@ -90,7 +90,7 @@ editor.loadPlugins({
 
 editor.layout = 'floating'
 editor.modeNames = false // icons only
-editor.frame!.fileName = 'Ring.glb'
+editor.documentName = 'Ring.glb'
 
 // the colour and icon of a mode (an SVG string)
 EditorModeBar.Looks['My mode'] = {color: '#0d99ff', icon: '<svg ...></svg>'}
