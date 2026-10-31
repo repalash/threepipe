@@ -2,6 +2,8 @@
 
 ![The Unitree G1 running through the White city scene](city.jpg)
 
+**[Open the live demo](https://repalash.com/three-motionbricks/city/)**, or see [all the examples](https://repalash.com/three-motionbricks/).
+
 Real-time generative motion in threepipe with [NVIDIA MotionBricks](https://github.com/NVlabs/motionbricks) ([paper](https://arxiv.org/abs/2604.24833)).
 The Unitree G1 model runs in the browser with ONNX Runtime Web (WebAssembly), in a Web Worker so it never stalls the frames.
 Click the floor and the robot walks or runs there, or drive it with WASD or the arrow keys (relative to the camera, Shift to run). Every frame of motion comes from the model; there are no animation clips at runtime.
@@ -10,7 +12,7 @@ The default scene, White city, is after Mirror's Edge and Sixty Four: an off-whi
 
 ![The six scene styles](styles.jpg)
 
-The webgi plugins add screen-space reflections, screen-space GI, contact shadows, temporal AA (with a velocity buffer for the moving robot) and a light bloom, at strengths set by each style. The Effects button, or `?fx=0`, turns them off for slower GPUs.
+The webgi plugins add screen-space reflections, screen-space GI, temporal AA (with a velocity buffer for the moving robot) and a light bloom, at strengths set by each style. The Effects button, or `?fx=0`, turns them off for slower GPUs.
 
 ## How it works
 

@@ -21,7 +21,6 @@ import {
 } from 'threepipe'
 import {
     BloomPlugin,
-    SSContactShadowsPlugin,
     SSGIPlugin,
     SSReflectionPlugin,
     TemporalAAPlugin,
@@ -59,7 +58,7 @@ const config = {
     /** Where the styles' HDR files are, with a suffix for hosts that rename them. Poly Haven by default. */
     environmentBase: '',
     environmentSuffix: '',
-    /** Screen-space reflections, GI, contact shadows, TAA and bloom. 0 turns them off. */
+    /** Screen-space reflections, GI, TAA and bloom. 0 turns them off. */
     fx: '1',
     /** The Tweakpane panel for lighting and render options. 0 hides it. */
     ui: '1',
@@ -102,7 +101,7 @@ async function init() {
         maxRenderScale: 1.5,
         dropzone: false,
         plugins: [GBufferPlugin, SSAAPlugin, TemporalAAPlugin, new VelocityBufferPlugin(UnsignedByteType, true),
-            SSReflectionPlugin, SSGIPlugin, SSContactShadowsPlugin, BloomPlugin, HDRiGroundPlugin],
+            SSReflectionPlugin, SSGIPlugin, BloomPlugin, HDRiGroundPlugin],
     })
     viewer.renderManager.renderer.shadowMap.type = PCFSoftShadowMap
     viewer.renderManager.stableNoise = true
@@ -199,7 +198,7 @@ async function init() {
             }],
         })
         ui.appendChild(robotFolder)
-        ui.setupPlugins(TonemapPlugin, SSGIPlugin, SSReflectionPlugin, SSContactShadowsPlugin, BloomPlugin, TemporalAAPlugin, HDRiGroundPlugin)
+        ui.setupPlugins(TonemapPlugin, SSGIPlugin, SSReflectionPlugin, BloomPlugin, TemporalAAPlugin, HDRiGroundPlugin)
     }
     viewer.setDirty()
     Object.assign((window as any).motionbricks, {robot})

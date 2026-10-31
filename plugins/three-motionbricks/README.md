@@ -1,6 +1,8 @@
 # three-motionbricks
 
-![The Unitree G1 running down a red lane through a white block city](docs/hero.jpg)
+[![The Unitree G1 running down a red lane through a white block city](docs/hero.jpg)](https://repalash.com/three-motionbricks/city/)
+
+**[Try it live](https://repalash.com/three-motionbricks/)**: [White city](https://repalash.com/three-motionbricks/city/) · [Seven bodies](https://repalash.com/three-motionbricks/bodies/) · [Plain three.js](https://repalash.com/three-motionbricks/plain/). The model downloads once (194 MB on phones, 190 MB on desktops) and is cached after that.
 
 [NVIDIA MotionBricks](https://github.com/NVlabs/motionbricks) for three.js: a Unitree G1 robot that walks and runs where you send it, with every frame of its motion generated in the browser by the model. No animation clips play at runtime.
 

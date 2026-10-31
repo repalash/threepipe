@@ -31,7 +31,6 @@ import {
 } from 'threepipe'
 import {
     BloomPlugin,
-    SSContactShadowsPlugin,
     SSGIPlugin,
     SSReflectionPlugin,
     TemporalAAPlugin,
@@ -66,7 +65,7 @@ export interface StageStyle {
     environmentIntensity: number
     lights: StageLight[]
     /** Intensity of each screen-space effect; 0 turns it off. */
-    effects: {ssgi: number, ssr: number, contact: number, bloom: number}
+    effects: {ssgi: number, ssr: number, bloom: number}
     /** Height and ground radius of the HDR capture, for the projected ground. */
     hdriGround?: {tripodHeight: number, worldRadius: number}
     /** Fog that fades the floor into the background, so the world has no horizon. */
@@ -113,7 +112,7 @@ export const STAGE_STYLES = {
             {color: '#c9d8ff', intensity: 0.45, offset: [-4, 5, -6]},
         ],
         // Strong GI also darkens the floor just behind the legs (a screen-space limit), so it stays moderate.
-        effects: {ssgi: 1.0, ssr: 0, contact: 0.9, bloom: 0.18},
+        effects: {ssgi: 1.0, ssr: 0, bloom: 0.18},
         blocks: {
             seed: 64,
             plaza: 8,
@@ -140,7 +139,7 @@ export const STAGE_STYLES = {
             {color: '#ffffff', intensity: 2.4, offset: [2, 6, 3], shadow: true},
             {color: '#9db7d9', intensity: 0.5, offset: [-3, 3, -3]},
         ],
-        effects: {ssgi: 0.6, ssr: 0, contact: 0.5, bloom: 0},
+        effects: {ssgi: 0.6, ssr: 0, bloom: 0},
     },
     grid: {
         label: 'Sim grid',
@@ -152,7 +151,7 @@ export const STAGE_STYLES = {
             {color: '#ffffff', intensity: 2.2, offset: [2.5, 6, 3], shadow: true},
             {color: '#dfe6f0', intensity: 0.6, offset: [-3, 3, -4]},
         ],
-        effects: {ssgi: 0.6, ssr: 0.25, contact: 0.5, bloom: 0},
+        effects: {ssgi: 0.6, ssr: 0.25, bloom: 0},
     },
     studio: {
         label: 'Product studio',
@@ -164,7 +163,7 @@ export const STAGE_STYLES = {
             {color: '#fff6ec', intensity: 1.8, offset: [-2.5, 5, 3], shadow: true},
             {color: '#e4eeff', intensity: 1.5, offset: [-3, 3, -4]},
         ],
-        effects: {ssgi: 1.2, ssr: 0, contact: 0.8, bloom: 0},
+        effects: {ssgi: 1.2, ssr: 0, bloom: 0},
     },
     stage: {
         label: 'Launch stage',
@@ -177,7 +176,7 @@ export const STAGE_STYLES = {
             {color: '#9fc4ff', intensity: 1.6, offset: [-4.5, 2.2, 1]},
             {color: '#ffb27a', intensity: 1.0, offset: [4.5, 2, -1]},
         ],
-        effects: {ssgi: 0.5, ssr: 1, contact: 0.6, bloom: 0.35},
+        effects: {ssgi: 0.5, ssr: 1, bloom: 0.35},
     },
     hangar: {
         label: 'Real space',
@@ -188,7 +187,7 @@ export const STAGE_STYLES = {
         lights: [
             {color: '#fff4e6', intensity: 1.4, offset: [1.5, 7, 2.5], shadow: true},
         ],
-        effects: {ssgi: 0.8, ssr: 0, contact: 0.8, bloom: 0},
+        effects: {ssgi: 0.8, ssr: 0, bloom: 0},
         hdriGround: {tripodHeight: 1.7, worldRadius: 40},
     },
 } satisfies Record<string, StageStyle>
@@ -514,7 +513,7 @@ export class G1Stage {
         const e = this.style.effects
         const v = this.viewer
         const ssgi = v.getPlugin(SSGIPlugin), ssr = v.getPlugin(SSReflectionPlugin)
-        const contact = v.getPlugin(SSContactShadowsPlugin), bloom = v.getPlugin(BloomPlugin)
+        const bloom = v.getPlugin(BloomPlugin)
         if (ssgi?.pass) {
             ssgi.enabled = on && e.ssgi > 0
             ssgi.pass.intensity = e.ssgi
@@ -522,10 +521,6 @@ export class G1Stage {
         if (ssr?.pass) {
             ssr.enabled = on && e.ssr > 0
             ssr.pass.intensity = e.ssr
-        }
-        if (contact) {
-            contact.enabled = on && e.contact > 0
-            contact.intensity = e.contact
         }
         if (bloom?.pass) {
             bloom.enabled = on && e.bloom > 0
