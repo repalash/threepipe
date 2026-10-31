@@ -1,0 +1,71 @@
+/* AnnotationsPlugin: the layer over the canvas with the markers, the card and the placing overlay */
+.anp-layer { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 110;
+  --anp-bg: #ffffff; --anp-fg: #1e1e1e; --anp-dim: #757575; --anp-line: #e6e6e6; --anp-hover: #f5f5f5; --anp-accent: #0d99ff;
+  --anp-mk-bg: rgba(255,255,255,.95); --anp-mk-fg: #1e1e1e; --anp-mk-ring: rgba(0,0,0,.18);
+  font: 12px/1.45 Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; color: var(--anp-fg); }
+/* with the tweakpane UI on the page, take the colours of its dark themes */
+body.tpTheme-dark .anp-layer, body.tpTheme-black .anp-layer, body.tpTheme-blue .anp-layer, body.tpTheme-clean-dark .anp-layer {
+  --anp-bg: #2c2c2c; --anp-fg: #f0f0f0; --anp-dim: #a0a0a0; --anp-line: #444; --anp-hover: #383838;
+  --anp-mk-bg: rgba(30,30,30,.92); --anp-mk-fg: #fff; --anp-mk-ring: rgba(255,255,255,.35); }
+body.tpTheme-black .anp-layer { --anp-bg: #141414; --anp-line: #333; --anp-hover: #222; }
+body.tpTheme-blue .anp-layer { --anp-bg: #1f2a3a; --anp-line: #34465e; --anp-hover: #2a3a50; }
+
+.anp-marker { position: absolute; left: 0; top: 0; width: 24px; height: 24px; margin: -12px 0 0 -12px; box-sizing: border-box;
+  border-radius: 50%; background: var(--anp-mk-bg); color: var(--anp-mk-fg); box-shadow: 0 0 0 1.5px var(--anp-mk-ring), 0 1px 4px rgba(0,0,0,.3);
+  display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 11px; cursor: pointer;
+  pointer-events: auto; user-select: none; touch-action: none; transition: opacity .2s, box-shadow .12s, background .12s; }
+.anp-marker:hover { box-shadow: 0 0 0 2px var(--anp-accent), 0 1px 5px rgba(0,0,0,.35); }
+.anp-marker.anp-on { background: var(--anp-accent); color: #fff; box-shadow: 0 0 0 2px #fff, 0 0 0 3.5px var(--anp-accent), 0 1px 6px rgba(0,0,0,.35); z-index: 1; }
+.anp-marker.anp-dim { opacity: .38; }
+.anp-marker.anp-dim:hover, .anp-marker.anp-on.anp-dim { opacity: .75; }
+.anp-editable .anp-marker { cursor: grab; }
+.anp-dragging, .anp-dragging .anp-marker { cursor: grabbing !important; }
+.anp-dragging .anp-marker { transition: none; }
+.anp-adding .anp-marker { pointer-events: none; }
+
+.anp-card { position: absolute; left: 0; top: 0; width: 260px; max-width: calc(100% - 16px); box-sizing: border-box; display: none;
+  background: var(--anp-bg); color: var(--anp-fg); border: 1px solid var(--anp-line); border-radius: 6px;
+  box-shadow: 0 4px 18px rgba(0,0,0,.18); pointer-events: auto; outline: none; user-select: text; z-index: 2; }
+.anp-card.anp-open { display: block; }
+.anp-head { display: flex; align-items: center; gap: 8px; padding: 10px 6px 4px 10px; }
+.anp-num { flex: none; width: 20px; height: 20px; border-radius: 50%; background: var(--anp-accent); color: #fff; font-size: 11px; font-weight: 600;
+  display: flex; align-items: center; justify-content: center; }
+.anp-title, .anp-title-in { flex: 1; min-width: 0; font: inherit; font-weight: 600; font-size: 13px; color: inherit; }
+.anp-title { overflow-wrap: anywhere; }
+.anp-title-in, .anp-text-in { display: none; border: 1px solid transparent; background: transparent; border-radius: 4px; outline: none; padding: 2px 4px; margin: -3px 0; }
+.anp-title-in:hover, .anp-text-in:hover { border-color: var(--anp-line); }
+.anp-title-in:focus, .anp-text-in:focus { border-color: var(--anp-accent); background: var(--anp-bg); }
+.anp-x { flex: none; border: 0; background: transparent; color: var(--anp-dim); font-size: 16px; line-height: 1; width: 24px; height: 24px; border-radius: 4px; cursor: pointer; }
+.anp-x:hover { background: var(--anp-hover); color: var(--anp-fg); }
+.anp-text { padding: 2px 12px 8px 38px; color: var(--anp-fg); overflow-wrap: anywhere; max-height: 240px; overflow: auto; }
+.anp-text a { color: var(--anp-accent); }
+.anp-li { display: inline-block; padding-left: 12px; text-indent: -12px; }
+.anp-li::before { content: "• "; }
+.anp-text-in { box-sizing: border-box; width: calc(100% - 44px); margin: 0 6px 6px 34px; font: inherit; color: inherit; resize: none; min-height: 40px; }
+.anp-tools { display: none; gap: 6px; padding: 0 10px 8px 38px; }
+.anp-edit .anp-title { display: none; }
+.anp-edit .anp-title-in { display: block; }
+/* the text reads formatted; a click turns it into the raw editor (empty text: the editor with its placeholder) */
+.anp-edit .anp-text { cursor: text; }
+.anp-edit.anp-text-editing .anp-text-in, .anp-edit.anp-text-empty .anp-text-in { display: block; }
+.anp-edit.anp-text-editing .anp-text { display: none !important; }
+.anp-edit .anp-tools { display: flex; }
+.anp-btn { font: inherit; font-size: 11px; color: var(--anp-fg); background: transparent; border: 1px solid var(--anp-line);
+  border-radius: 4px; padding: 3px 8px; cursor: pointer; }
+.anp-btn:hover:not(:disabled) { background: var(--anp-hover); }
+.anp-btn.anp-del:hover { color: #e5484d; border-color: #e5484d; }
+/* no saved view yet: Update view stands out */
+.anp-btn.anp-noview { border-color: var(--anp-accent); color: var(--anp-accent); }
+.anp-nav { display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--anp-line); padding: 4px 6px; color: var(--anp-dim); font-size: 11px; }
+.anp-nav .anp-btn { border: 0; font-size: 15px; line-height: 1; padding: 2px 10px; }
+.anp-nav .anp-btn:disabled { opacity: .35; cursor: default; }
+
+.anp-place { position: absolute; inset: 0; pointer-events: auto; cursor: crosshair; z-index: 3; outline: none; }
+.anp-ghost { position: absolute; left: 0; top: 0; width: 24px; height: 24px; margin: -12px 0 0 -12px; border-radius: 50%; box-sizing: border-box;
+  border: 1.5px dashed var(--anp-accent); background: rgba(13,153,255,.15); color: var(--anp-accent); display: none;
+  align-items: center; justify-content: center; font-weight: 600; pointer-events: none; }
+.anp-hint { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); max-width: calc(100% - 32px); box-sizing: border-box;
+  background: var(--anp-bg); color: var(--anp-fg); border: 1px solid var(--anp-line); border-radius: 6px; padding: 6px 10px;
+  box-shadow: 0 2px 10px rgba(0,0,0,.15); font-size: 11px; pointer-events: none; text-align: center; }
+.anp-miss .anp-hint { animation: anp-shake .3s; border-color: #e5484d; }
+@keyframes anp-shake { 25% { margin-left: -4px } 75% { margin-left: 4px } }

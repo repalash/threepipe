@@ -30,6 +30,7 @@ const alias = {
     '@threepipe/plugin-path-tracing': path.resolve(import.meta.dirname, './plugins/path-tracing/src/index.ts'),
     '@threepipe/plugin-3d-tiles-renderer': path.resolve(import.meta.dirname, './plugins/3d-tiles-renderer/src/index.ts'),
     '@threepipe/plugin-timeline-ui': path.resolve(import.meta.dirname, './plugins/timeline-ui/src/index.ts'),
+    '@threepipe/plugin-annotations': path.resolve(import.meta.dirname, './plugins/annotations/src/index.ts'),
     '@threepipe/plugin-troika-text': path.resolve(import.meta.dirname, './plugins/troika-text/src/index.ts'),
     '@threepipe/webgi-plugins': path.resolve(import.meta.dirname, './plugins/webgi-plugins/src/index.ts'),
     'suspend-react': 'https://esm.sh/suspend-react',
