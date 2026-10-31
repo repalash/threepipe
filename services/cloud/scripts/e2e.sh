@@ -142,6 +142,11 @@ HA="Authorization: Bearer $AK"
 R=$(curl -s -H "$HA" "$A/api/v1/drive"); echo "$R" | grep -q save.txt && ! echo "$R" | grep -q 'Möbel' && ok "app key lists only its folder" || bad "app key list: $R"
 curl -s -o /dev/null -X PATCH -H "$H0" -H 'content-type: application/json' -d '{"name":"My page app"}' "$A/api/v1/drive/folders/$AF"
 [ "$(code -X PUT -H "$HA" --data-binary @$TMP/a.txt "$A/api/v1/drive/files?name=after-rename.txt")" = "201" ] && ok "the user renames the app's folder, the app still works" || bad "app folder rename"
+# the user empties and deletes the app's folder: the app's next save makes it again (same key)
+for it in $(curl -s -H "$H0" "$A/api/v1/drive?folder=$AF" | python3 -c "import json,sys;print(' '.join(i['id'] for i in json.load(sys.stdin)['items']))"); do curl -s -o /dev/null -X DELETE -H "$H0" "$A/api/v1/drive/items/$it"; done
+[ "$(code -X DELETE -H "$H0" "$A/api/v1/drive/folders/$AF")" = "200" ] || bad "fixture: delete the app's folder"
+R=$(curl -s -X PUT -H "$HA" --data-binary @$TMP/a.txt "$A/api/v1/drive/files?name=again.txt"); echo "$R" | grep -q '"name":"again.txt"' && [ "$(echo "$R" | j "['folder_id']")" != "$AF" ] && ok "the app's folder was deleted: made again on the next save" || bad "app folder recreate: $R"
+AF=$(echo "$R" | j "['folder_id']")
 LOC2=$(curl -s -o /dev/null -w '%{redirect_url}' -H "$CK" "$CON"); echo "$LOC2" | grep -q "#tp_cloud_key=" && ok "connect: approved before -> straight back with a key" || bad "connect silent: $LOC2"
 UID2=$(curl -s -H "Authorization: Bearer $T2" "$A/api/v1/table/users/select?select=id" | python3 -c "import json,sys;print(json.load(sys.stdin)[0]['id'])")
 admin scopes/update "{\"where\":\"scope == 'p/$U-page'\",\"setValues\":{\"owner_id\":\"$UID2\"}}" > /dev/null

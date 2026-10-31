@@ -3,7 +3,7 @@ import {HTTPException} from 'hono/http-exception'
 import type {CloudEnv} from './env'
 import {BUCKET, filesOrigin, prefixRange, randomCode, sha256Hex} from './env'
 import {CloudUser, mintKey, requireUser} from './auth'
-import {createFolder} from './drive'
+import {appFolder, appLabel, grantFolder} from './appFolders'
 
 /** App keys are short: the app gets a new one on every page load (no screen once approved). */
 export const APP_KEY_SECONDS = 24 * 60 * 60
@@ -36,7 +36,7 @@ export function connectRoutes(app: Hono<CloudEnv>) {
         const owner = await appOwner(c, target)
         if (c.req.query('prompt') !== 'consent') {
             const grant = await findGrant(c, user, target, owner)
-            if (grant) return redirectWithKey(c, target, user, grant.id, grant.scope)
+            if (grant) return redirectWithKey(c, target, user, grant.id, await grantFolder(c, user.id, grant.id))
         }
         return page(c, consentPage(target, user, owner))
     })
@@ -50,12 +50,12 @@ export function connectRoutes(app: Hono<CloudEnv>) {
         const owner = await appOwner(c, target)
         let grant = await findGrant(c, user, target, owner)
         if (!grant) {
-            grant = {id: crypto.randomUUID(), scope: target.access === 'drive' ? '*' : await appFolder(c, user, target, owner)}
+            grant = {id: crypto.randomUUID(), scope: target.access === 'drive' ? '*' : await appFolder(c, user.id, target.app, owner)}
             // code_hash is required and unique; app grants have no link to copy, so it is the hash of a code nobody keeps
             await c.env.PRIMARY_DB.prepare('INSERT INTO access_links (id, owner_id, name, code_hash, app, scope, app_owner) VALUES (?, ?, ?, ?, ?, ?, ?)')
                 .bind(grant.id, user.id, `app ${target.app}`, await sha256Hex(randomCode()), target.app, grant.scope, owner?.id ?? null).run()
         }
-        return redirectWithKey(c, target, user, grant.id, grant.scope, 303)
+        return redirectWithKey(c, target, user, grant.id, await grantFolder(c, user.id, grant.id), 303)
     })
 }
 
@@ -67,34 +67,6 @@ interface AppTarget {
     /** the return URL without its fragment */
     returnUrl: string
     access: 'app' | 'drive'
-}
-
-/** What marks an app's folder: the app and who serves it, so a new owner of the same scope never gets the old app's folder. */
-const appMark = (t: AppTarget, owner: {id: string} | null) => `${owner?.id ?? 'local'} ${t.app}`
-/** The label of an app's folder, under Apps/. */
-const appLabel = (t: AppTarget, owner: {username: string} | null) => owner ? `${t.app} (@${owner.username})` : t.app
-
-/**
- * The id of the drive folder an app's key may use: `Apps/<app>` in the user's drive, made on the first approval and
- * found again by its mark after a revoke and a new approval. Names are labels: the user may rename or move it.
- */
-async function appFolder(c: Context<CloudEnv>, user: CloudUser, t: AppTarget, owner: {id: string, username: string} | null): Promise<string> {
-    const db = c.env.PRIMARY_DB
-    const find = (mark: string) => db.prepare('SELECT id FROM drive_folders WHERE owner_id = ? AND app = ?').bind(user.id, mark).first<{id: string}>()
-    const found = await find(appMark(t, owner))
-    if (found) return found.id
-    const apps = (await find('apps'))?.id ?? (await createFolder(c, user.id, '', await freeLabel(c, user, '', 'Apps'), 'apps')).id
-    return (await createFolder(c, user.id, apps, await freeLabel(c, user, apps, appLabel(t, owner)), appMark(t, owner))).id
-}
-
-/** `name`, or `name (2)`, …: free among the folders and items of `parent`. */
-async function freeLabel(c: Context<CloudEnv>, user: CloudUser, parent: string, name: string): Promise<string> {
-    for (let i = 1; ; i++) {
-        const n = i === 1 ? name : `${name} (${i})`
-        const taken = await c.env.PRIMARY_DB.prepare(`SELECT 1 FROM drive_folders WHERE owner_id = ?1 AND parent_id = ?2 AND name = ?3
-                UNION ALL SELECT 1 FROM drive_items WHERE owner_id = ?1 AND folder_id = ?2 AND name = ?3 LIMIT 1`).bind(user.id, parent, n).first()
-        if (!taken) return n
-    }
 }
 
 function appTarget(c: Context<CloudEnv>, ret: unknown, access: unknown): AppTarget {
@@ -192,8 +164,8 @@ function signInPage(c: Context<CloudEnv>, t: AppTarget) {
 <a class="btn secondary" href="${esc(t.returnUrl + '#tp_cloud_error=denied')}">Cancel</a></div>`
 }
 
-function consentPage(t: AppTarget, user: CloudUser, owner: {username: string} | null) {
-    const folder = t.access === 'drive' ? 'your whole drive' : `Apps/${appLabel(t, owner)}`
+function consentPage(t: AppTarget, user: CloudUser, owner: {id: string, username: string} | null) {
+    const folder = t.access === 'drive' ? 'your whole drive' : `Apps/${appLabel(t.app, owner)}`
     const who = owner ? `served by <b>@${esc(owner.username)}</b> at <code>${esc(t.returnUrl)}</code>` : `running on your computer at <code>${esc(t.returnUrl)}</code>`
     const what = t.access === 'drive'
         ? `<b>all files in your drive</b>, including the files of other apps`

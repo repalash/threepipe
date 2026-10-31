@@ -4,6 +4,7 @@ import type {CloudEnv} from './env'
 import {base64url, BUCKET, cleanSegments, filesOrigin, keyUrl, randomCode} from './env'
 import {CloudUser, requireUser} from './auth'
 import {contentTypeFor, putStreamed, uploadSize} from './uploads'
+import {grantFolder} from './appFolders'
 
 /**
  * The drive: each user's files, saved by apps (the editor) or uploaded.
@@ -84,6 +85,7 @@ async function chain(c: Context<CloudEnv>, user: CloudUser, id: string): Promise
 
 /** The chain to folder `id`, or 403 when an app key may not use it (only its own folder and below). */
 async function scopedChain(c: Context<CloudEnv>, user: CloudUser, id: string): Promise<Folder[]> {
+    await startFolder(c, user)
     const ch = await chain(c, user, id)
     if (user.scope && user.scope !== '*' && !ch.some(f => f.id === user.scope)) throw new HTTPException(403, {message: 'this app key can only use its own folder'})
     return ch
@@ -127,8 +129,19 @@ async function itemOf(c: Context<CloudEnv>, user: CloudUser, id: string): Promis
     return it
 }
 
-/** Where an app key starts (its folder), else the root. */
-const startFolder = (user: CloudUser) => user.scope && user.scope !== '*' ? user.scope : ROOT
+/**
+ * Where a request starts: an app key's folder (made again if the user deleted it, src/appFolders.ts), else the root.
+ * Every drive route calls it first, so `user.scope` is a folder that exists when the scope checks run.
+ */
+async function startFolder(c: Context<CloudEnv>, user: CloudUser): Promise<string> {
+    if (!user.scope || user.scope === '*' || !user.link) return ROOT
+    if (!checked.has(user)) {
+        user.scope = await grantFolder(c, user.id, user.link)
+        checked.add(user)
+    }
+    return user.scope === '*' ? ROOT : user.scope
+}
+const checked = new WeakSet<CloudUser>()
 
 /** Creates the folder `name` under `parent` (the folder made for an app on connect too, marked with `app`). */
 export async function createFolder(c: Context<CloudEnv>, ownerId: string, parent: string, name: string, app?: string): Promise<Folder> {
@@ -221,7 +234,8 @@ const folderOut = (f: Folder) => ({id: f.id, name: f.name, parent: f.parent_id})
 export function driveRoutes(app: Hono<CloudEnv>) {
     app.get('/api/v1/drive', async (c) => {
         const user = await requireUser(c)
-        const id = c.req.query('folder') ?? startFolder(user)
+        const start = await startFolder(c, user)
+        const id = c.req.query('folder') ?? start
         const path = await scopedChain(c, user, id)
         const [folders, items] = await db(c).batch([
             db(c).prepare('SELECT id, name, parent_id FROM drive_folders WHERE owner_id = ? AND parent_id = ? ORDER BY name LIMIT ?').bind(user.id, id, LIST_MAX),
@@ -259,7 +273,8 @@ export function driveRoutes(app: Hono<CloudEnv>) {
     app.post('/api/v1/drive/folders', async (c) => {
         const user = await requireUser(c)
         const body = await json<{name?: string, parent?: string}>(c)
-        const parent = body.parent ?? startFolder(user)
+        const start = await startFolder(c, user)
+        const parent = body.parent ?? start
         await scopedChain(c, user, parent)
         const name = label(body.name)
         await assertFree(c, user, parent, name)
@@ -296,7 +311,8 @@ export function driveRoutes(app: Hono<CloudEnv>) {
     // A new item with one file: the usual save. The name is the label; the stored file name is the same, made safe.
     app.put('/api/v1/drive/files', async (c) => {
         const user = await requireUser(c)
-        const folder = c.req.query('folder') ?? startFolder(user)
+        const start = await startFolder(c, user)
+        const folder = c.req.query('folder') ?? start
         await scopedChain(c, user, folder)
         const name = await freeName(c, user, folder, label(c.req.query('name')))
         const rel = name.replace(/[\\?#%]/g, '_').replace(/^\./, '_')
@@ -314,7 +330,8 @@ export function driveRoutes(app: Hono<CloudEnv>) {
     app.post('/api/v1/drive/items', async (c) => {
         const user = await requireUser(c)
         const body = await json<{name?: string, folder?: string, entry?: string}>(c)
-        const folder = body.folder ?? startFolder(user)
+        const start = await startFolder(c, user)
+        const folder = body.folder ?? start
         await scopedChain(c, user, folder)
         const name = await freeName(c, user, folder, label(body.name))
         let entry: string | null = null
