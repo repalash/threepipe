@@ -78,6 +78,10 @@ class FakeElement {
         this.fire('blur')
     }
     setPointerCapture = noop
+    attributes: Record<string, string> = {}
+    setAttribute(name: string, value: string) {
+        this.attributes[name] = value
+    }
     addEventListener(type: string, f: Listener) {
         this._listeners.set(type, [...this._listeners.get(type) ?? [], f])
     }
@@ -351,7 +355,7 @@ describe('AnnotationsPlugin', () => {
         expect(camera.fov).toBe(40)
         expect(doc.activeElement).toBe(c)
         // the card is next to the marker
-        expect(c.style.transform).toBe('translate(422px, 282px)')
+        expect(c.style.transform).toBe('translate(422px, 279px)')
 
         c.find('anp-next')[0].fire('click')
         expect(plugin.openId).toBe(plugin.get(1)!.id)

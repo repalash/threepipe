@@ -824,19 +824,20 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         const titleIn = el('input', 'anp-title-in', head)
         titleIn.placeholder = 'Title'
         titleIn.spellcheck = true
-        button(head, 'anp-x', '×', 'Close (Esc)', () => this.close())
+        button(head, 'anp-btn anp-x', ICONS.close, 'Close (Esc)', () => this.close())
         const text = el('div', 'anp-text', card)
         const textIn = el('textarea', 'anp-text-in', card)
         textIn.rows = 2
         textIn.placeholder = 'Description. **bold**, *italic*, [link](https://…)'
         textIn.spellcheck = true
-        const tools = el('div', 'anp-tools', card)
-        const view = button(tools, 'anp-btn anp-view', 'Update view', 'Save the current camera view in this annotation', () => this.updateView())
-        button(tools, 'anp-btn anp-del', 'Delete', 'Delete this annotation', () => this._openId && this.remove(this._openId))
+        // the bar at the bottom: ‹ 1 / 3 › and, editable, the tools on the right
         const nav = el('div', 'anp-nav', card)
-        const prev = button(nav, 'anp-btn anp-prev', '‹', 'Previous (←)', () => this.prev())
+        const prev = button(nav, 'anp-btn anp-prev', ICONS.prev, 'Previous (←)', () => this.prev())
         const pos = el('span', 'anp-pos', nav)
-        const next = button(nav, 'anp-btn anp-next', '›', 'Next (→)', () => this.next())
+        const next = button(nav, 'anp-btn anp-next', ICONS.next, 'Next (→)', () => this.next())
+        const tools = el('div', 'anp-tools', nav)
+        const view = button(tools, 'anp-btn anp-view', ICONS.view + '<span>Update view</span>', 'Save the current camera view in this annotation', () => this.updateView())
+        button(tools, 'anp-btn anp-del', ICONS.delete, 'Delete this annotation', () => this._openId && this.remove(this._openId))
         this._cardEls = {num, title, titleIn, text, textIn, view, pos, prev, next}
         card.addEventListener('pointerdown', e => {
             e.stopPropagation()
@@ -948,7 +949,8 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         let x = st.x + 22
         if (x + w > W - 8) x = st.x - 22 - w
         x = Math.max(8, Math.min(W - w - 8, x))
-        const y = Math.max(8, Math.min(H - h - 8, st.y - 18))
+        // the head of the card (1px border + 8px padding + half of its 24px row) level with the marker
+        const y = Math.max(8, Math.min(H - h - 8, st.y - 21))
         card.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`
     }
 
@@ -1055,6 +1057,16 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
     // endregion
 }
 
+/** The icons of the card (24 px grid, drawn with the text colour, shown at 14 px as the icons of the editor) */
+const svg = (d: string) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`
+const ICONS = {
+    close: svg('<path d="M18 6 6 18"/><path d="m6 6 12 12"/>'),
+    prev: svg('<path d="m15 18-6-6 6-6"/>'),
+    next: svg('<path d="m9 18 6-6-6-6"/>'),
+    view: svg('<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="13" r="3"/>'),
+    delete: svg('<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>'),
+}
+
 /** A new element with a class, added to `parent` */
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className: string, parent?: HTMLElement): HTMLElementTagNameMap[K] {
     const e = document.createElement(tag)
@@ -1063,12 +1075,13 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, className: string, pa
     return e
 }
 
-/** A button with a text, a tooltip and a click action */
-function button(parent: HTMLElement, className: string, label: string, title: string, onClick: () => void) {
+/** A button with an icon (and a label), a tooltip and a click action */
+function button(parent: HTMLElement, className: string, html: string, title: string, onClick: () => void) {
     const b = el('button', className, parent)
     b.type = 'button'
-    b.textContent = label
+    b.innerHTML = html
     b.title = title
+    b.setAttribute('aria-label', title)
     b.addEventListener('click', onClick)
     return b
 }

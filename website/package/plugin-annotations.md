@@ -59,5 +59,5 @@ annotations.addEventListener('annotationSelect', e => console.log('open', e.anno
 ## Notes
 
 - The markers and the card are in a layer over the canvas (`z-index: 110`), in the viewer container. The container must be positioned (for example `position: relative`) for the layer to cover only the canvas.
-- The styles use the `anp-` classes. `AnnotationsPlugin.InjectStyles = false` before adding the plugin leaves the styling to the page. With the tweakpane UI on the page, the card takes the colours of its dark themes.
+- The styles use the `anp-` classes. `AnnotationsPlugin.InjectStyles = false` before adding the plugin leaves the styling to the page. The markers and the card take their colours from the `--tp-*` variables of the Tweakpane theme on the page (light or dark), like the editor's notes; without them, they are light.
 - The plugin UI (with `TweakpaneUiPlugin`: `ui.setupPluginUi(AnnotationsPlugin)`) has Editable, Add annotation, Play tour and Remove all.
