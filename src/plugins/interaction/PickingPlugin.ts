@@ -31,12 +31,39 @@ import {ObjectClipboard} from './ObjectClipboard'
 export interface PickingPluginEventMap extends AViewerPluginEventMap, ObjectPickerEventMap{
 }
 
+/**
+ * The widget that `selected` belongs to (itself or a parent with `assetType` `'widget'`), or the first object on the way
+ * up with `userData.allowPicking`; `selected` itself when there is neither.
+ */
 function getRootIfWidget(selected: IObject3D) {
-    while (selected.parent && selected.assetType !== 'widget') {
-        if (selected.userData.allowPicking) break // this is diff from userSelectable, its for widgets
-        selected = selected.parent
+    for (let o: IObject3D | null = selected; o; o = o.parent as IObject3D | null) {
+        if (o.assetType === 'widget') return o
+        if (o.userData.allowPicking) return o // this is diff from userSelectable, its for widgets
     }
     return selected
+}
+
+/**
+ * Whether the {@link PickingPlugin} can select `obj` (the selection condition of its {@link ObjectPicker}): an object
+ * with a material (or with `userData.userSelectable` set to true), in a model or a light, and neither it nor a parent
+ * (from its widget, if it belongs to one) is hidden, has `userData.userSelectable === false` or has
+ * `userData.bboxVisible === false`.
+ */
+export function isPickable(obj: IObject3D): boolean {
+    const hasMat = obj.material
+    if (!hasMat && !obj.userData.userSelectable) return false
+    let o: IObject3D | null = getRootIfWidget(obj)
+    let ret = false
+    while (o) {
+        if (!o.visible) return false
+        if (o.assetType === 'model' || o.assetType === 'light') ret = true
+        // else if (o.assetType === 'widget' && o !== obj) return false // only select widget if itself is selected (not its children)
+        if (o.userData.userSelectable === false) return false
+        if (o.userData.bboxVisible === false) return false
+        // todo colorwrite?
+        o = o.parent as IObject3D | null
+    }
+    return ret
 }
 
 export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
@@ -516,23 +543,7 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
     onAdded(viewer: ThreeViewer): void {
         super.onAdded(viewer)
         this.setDirty()
-        this._picker = new ObjectPicker(viewer.scene.modelRoot, viewer.canvas, viewer.scene.mainCamera, (obj)=>{
-            const hasMat = obj.material
-            if (!hasMat && !obj.userData.userSelectable) return false
-            let o: IObject3D|null = obj
-            o = getRootIfWidget(o)
-            let ret = false
-            while (o) {
-                if (!o.visible) return false
-                if (o.assetType === 'model' || o.assetType === 'light') ret = true
-                // else if (o.assetType === 'widget' && o !== obj) return false // only select widget if itself is selected (not its children)
-                if (o.userData.userSelectable === false) return false
-                if (o.userData.bboxVisible === false) return false
-                // todo colorwrite?
-                o = o.parent
-            }
-            return ret
-        })
+        this._picker = new ObjectPicker(viewer.scene.modelRoot, viewer.canvas, viewer.scene.mainCamera, isPickable)
 
         this._picker.extraObjects.push(...viewer.scene.children.filter(r=>r.userData.isWidgetRoot))
         this._viewer?.scene.addEventListener('addSceneObject', this._addSceneObject)

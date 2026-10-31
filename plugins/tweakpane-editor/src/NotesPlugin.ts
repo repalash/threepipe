@@ -1,4 +1,4 @@
-import {AViewerPluginEventMap, AViewerPluginSync, IObject3D, PickingPlugin, serialize, ThreeViewer} from 'threepipe'
+import {AViewerPluginEventMap, AViewerPluginSync, IObject3D, onChange, PickingPlugin, serialize, ThreeViewer} from 'threepipe'
 import {UiObjectConfig} from 'uiconfig.js'
 
 /** One note */
@@ -45,7 +45,12 @@ export class BrowserNotesStore implements NotesStore {
     }
 
     save(notes: NoteItem[]) {
-        localStorage.setItem(this.key, JSON.stringify(notes))
+        try {
+            localStorage.setItem(this.key, JSON.stringify(notes))
+        } catch (e) {
+            // a sandboxed page has no storage (any access throws), and a full one refuses: the notes last until reload
+            console.warn('NotesPlugin: the notes could not be kept in this browser', e)
+        }
     }
 }
 
@@ -89,9 +94,11 @@ export interface NotesPluginEventMap extends AViewerPluginEventMap {
      * `notes`: the notes a removal of many removed ({@link NotesPlugin.clear}, a store replaced with
      * {@link NotesPlugin.addStore}).
      */
-    notesChanged: {change: 'add' | 'update' | 'remove' | 'load', note?: NoteItem, notes?: NoteItem[]}
+    notesChange: {change: 'add' | 'update' | 'remove' | 'load', note?: NoteItem, notes?: NoteItem[]}
     /** The {@link NotesStoreStatus} of a store changed */
-    storeStatusChanged: {store: string, status: NotesStoreStatus}
+    storeStatusChange: {store: string, status: NotesStoreStatus}
+    /** {@link NotesPlugin.defaultStore} changed */
+    defaultStoreChange: {store: string}
 }
 
 /**
@@ -104,7 +111,7 @@ export interface NotesPluginEventMap extends AViewerPluginEventMap {
  * - any store the app adds ({@link addStore}), for example {@link HttpNotesStore} or its own.
  *
  * The plugin has no notes UI: a view shows {@link notes} and edits them with {@link addNote}, {@link updateNote} and
- * {@link removeNote}, for example `StickyNotesUiPlugin` (post-its over the canvas). The `notesChanged` event tells the
+ * {@link removeNote}, for example `StickyNotesUiPlugin` (post-its over the canvas). The `notesChange` event tells the
  * views to update. Changes are saved per store, 600 ms after the last one, and when the plugin is removed.
  *
  * Its UI folder (Notes) has the settings: the store of new notes, and clear the notes in the file.
@@ -120,7 +127,8 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
         fileNotes: NoteItem[] = []
 
     /** The store of a note made with {@link addNote} when it names none. Default: the first store. */
-    defaultStore = ''
+    @onChange(NotesPlugin.prototype._defaultStoreChanged)
+        defaultStore = ''
 
     /** Extra text for {@link contextLine} */
     contextProvider?: () => string
@@ -164,6 +172,11 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
         this.defaultStore = this._stores[0]?.id ?? ''
         // a loaded scene or config brings its own file notes
         this.addEventListener('deserialize', () => this.getStore('file') === this._fileStore && this._loadStore(this._fileStore, true))
+    }
+
+    private _defaultStoreChanged() {
+        this.dispatchEvent({type: 'defaultStoreChange', store: this.defaultStore})
+        this.uiConfig?.uiRefresh?.(true)
     }
 
     /** All the notes, in the order of the stores, then the order they were made */
@@ -222,7 +235,7 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
             this._left.delete(store.id)
             this._notes = this._notes.filter(n => n.store !== store.id)
             this._stores[old] = store
-            if (removed.length) this.dispatchEvent({type: 'notesChanged', change: 'remove', notes: removed})
+            if (removed.length) this.dispatchEvent({type: 'notesChange', change: 'remove', notes: removed})
         } else {
             this._stores.push(store)
         }
@@ -255,7 +268,7 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
         this._mark(this._made, store, [note.id])
         this._notes.splice(this._endOfStore(store), 0, note)
         this._changedStore(store)
-        this.dispatchEvent({type: 'notesChanged', change: 'add', note})
+        this.dispatchEvent({type: 'notesChange', change: 'add', note})
         return note
     }
 
@@ -279,7 +292,7 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
             this._mark(this._made, note.store, [note.id])
         }
         this._changedStore(note.store)
-        this.dispatchEvent({type: 'notesChanged', change: 'update', note})
+        this.dispatchEvent({type: 'notesChange', change: 'update', note})
     }
 
     removeNote(id: string) {
@@ -288,7 +301,7 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
         this._mark(this._left, note.store, [note.id])
         this._notes.splice(this._notes.indexOf(note), 1)
         this._changedStore(note.store)
-        this.dispatchEvent({type: 'notesChanged', change: 'remove', note})
+        this.dispatchEvent({type: 'notesChange', change: 'remove', note})
     }
 
     /** Removes all the notes of a store */
@@ -298,7 +311,7 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
         this._mark(this._left, store, notes.map(n => n.id))
         this._notes = this._notes.filter(n => n.store !== store)
         this._changedStore(store)
-        this.dispatchEvent({type: 'notesChanged', change: 'remove', notes})
+        this.dispatchEvent({type: 'notesChange', change: 'remove', notes})
     }
 
     /** A line "[time · context · selected: names]" for a note: the time, {@link contextProvider}, the selected objects */
@@ -354,7 +367,7 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
     private _setStatus(store: string, status: NotesStoreStatus) {
         if (this._status[store] === status) return
         this._status[store] = status
-        this.dispatchEvent({type: 'storeStatusChanged', store, status})
+        this.dispatchEvent({type: 'storeStatusChange', store, status})
     }
 
     /**
@@ -430,7 +443,7 @@ export class NotesPlugin extends AViewerPluginSync<NotesPluginEventMap> {
         this._notes.splice(this._endOfStore(store.id), 0, ...notes, ...made.values())
         if (changed || renamed || left?.size) this._changedStore(store.id) // saved with the loaded notes
         else this._setStatus(store.id, 'saved')
-        this.dispatchEvent({type: 'notesChanged', change: 'load'})
+        this.dispatchEvent({type: 'notesChange', change: 'load'})
     }
 
     private _changedStore(store: string) {
