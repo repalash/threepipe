@@ -60,7 +60,7 @@ editor.loadPlugins({
 
 - `'titlebar'` (the default): a slim bar on top with the app name, the file name and the actions. The canvas and the panel are edge to edge below it.
 - `'statusbar'`: the same bar at the bottom, like a code editor.
-- `'floating'`: the canvas fills the window. The panel and the mode bar float over it, with the same gap on every side. The actions are in the mode bar.
+- `'floating'`: the canvas fills the window. The panel and the mode bar float over it as one card (side by side, with a line between them), with the same gap to the window on every side. The actions are in the mode bar.
 - `'classic'`: no frame. The page has the mode tabs at the bottom, as before.
 
 In the frame:

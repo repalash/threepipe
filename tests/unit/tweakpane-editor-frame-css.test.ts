@@ -171,6 +171,12 @@ describe('tweakpane editor frame on a phone', () => {
         expect(canvas.height).toBe('calc(100% - var(--lay-top) - var(--lay-bottom))')
         expect(panel.top).toBe('var(--lay-top)')
         expect(panel.width).toBe('var(--tweakpane-ui-container-width, 300px)')
-        expect(declarations('body.lay-floating #tweakpaneUiContainer', desktop).right).toBe('calc(var(--mb-width, 44px) + 2 * var(--lay-gap))')
+        // floating: the panel and the mode bar are one card, joined without a gap or round corners at the join
+        const floatPanel = declarations('body.lay-floating #tweakpaneUiContainer', desktop)
+        const floatBar = declarations('body.lay-floating .mb-root', desktop)
+        expect(floatPanel.right).toBe('calc(var(--mb-width, 44px) + var(--lay-gap))')
+        expect(floatPanel['border-radius']).toBe('8px 0 0 8px')
+        expect(floatBar['border-radius']).toBe('0 8px 8px 0')
+        expect(declarations('body.lay-floating.mb-panel-hidden .mb-root', desktop)['border-radius']).toBe('8px')
     })
 })

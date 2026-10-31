@@ -121,13 +121,20 @@ body.lay-titlebar #tweakpaneUiContainer .tp-rotv, body.lay-statusbar #tweakpaneU
 body.lay-frame #tweakpaneUiContainer .tp-rotv_b { display: none !important; }
 body.lay-titlebar .mb-root, body.lay-statusbar .mb-root { top: var(--lay-top); bottom: var(--lay-bottom); }
 body.lay-frame #mcanvas { border-radius: 0 !important; }
-/* floating: the panel and the mode bar are cards with the same gap on every side */
+/* floating: the panel and the mode bar are one card (as in the other layouts, side by side with a line between them),
+   with the same gap to the window on every side. Each part clips its shadow at the join, so the shadows do not overlap
+   there. With the panel hidden, the mode bar is the whole card. */
 body.lay-floating #canvas-container { margin: 0 !important; box-shadow: none !important; }
-body.lay-floating .mb-root { top: var(--lay-gap); bottom: var(--lay-gap); right: var(--lay-gap); border-radius: 8px; border: 0; box-shadow: var(--lay-card-shadow); }
+body.lay-floating .mb-root {
+    top: var(--lay-gap); bottom: var(--lay-gap); right: var(--lay-gap); border: 0; box-shadow: var(--lay-card-shadow);
+    border-radius: 0 8px 8px 0; border-left: 1px solid var(--mb-line); clip-path: inset(-20px -20px -20px 0);
+}
+body.lay-floating.mb-panel-hidden .mb-root { border-radius: 8px; border-left: 0; clip-path: none; }
 body.lay-floating #tweakpaneUiContainer {
     margin: 0 !important; bottom: var(--lay-gap) !important; height: auto !important; max-height: none !important;
-    right: calc(var(--mb-width, 44px) + 2 * var(--lay-gap)) !important;
-    border-radius: 8px; background: var(--tp-base-background-color, #fff); box-shadow: var(--lay-card-shadow);
+    right: calc(var(--mb-width, 44px) + var(--lay-gap)) !important;
+    border-radius: 8px 0 0 8px; background: var(--tp-base-background-color, #fff); box-shadow: var(--lay-card-shadow);
+    clip-path: inset(-20px 0 -20px -20px);
 }
 body.lay-floating #tweakpaneUiContainer .tp-rotv { box-shadow: none !important; }
 
@@ -146,7 +153,7 @@ body.lay-floating #tweakpaneUiContainer .tp-rotv { box-shadow: none !important; 
     /* floating: the canvas fills the window, the cards float over it */
     body.lay-floating #canvas-container {
         inset: 0 !important; width: 100% !important; height: 100% !important; border-radius: 0 !important;
-        --lay-right-inset: calc(var(--tweakpane-ui-container-width, 300px) + var(--mb-width, 44px) + 3 * var(--lay-gap));
+        --lay-right-inset: calc(var(--tweakpane-ui-container-width, 300px) + var(--mb-width, 44px) + 2 * var(--lay-gap));
     }
     body.lay-floating.mb-panel-hidden #canvas-container { --lay-right-inset: calc(var(--mb-width, 44px) + 2 * var(--lay-gap)); }
     /* the buttons on the right of the canvas keep to the part that the panels do not cover */
