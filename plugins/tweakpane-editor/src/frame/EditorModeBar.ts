@@ -99,7 +99,10 @@ export class EditorModeBar {
             b.addEventListener('click', () => i === this._selected ? this.setOpen(!this._open) : this.show(i))
             return b
         })
-        this._toggle = this._button(TOGGLE_ICON, 'Collapse', '', 'Expand')
+        // Ctrl+\ (Cmd+\ on a Mac) does the same: the key is in EditorFrame
+        const mac = /Mac|iPhone|iPad/.test(navigator.userAgent)
+        this._toggle = this._button(TOGGLE_ICON, 'Collapse', '', `Expand (${mac ? '⌘' : 'Ctrl '}\\)`)
+        this._toggle.setAttribute('aria-keyshortcuts', mac ? 'Meta+Backslash' : 'Control+Backslash')
         this._toggle.classList.add('mb-toggle')
         this._toggle.addEventListener('click', () => this.setExpanded(!this._expanded))
         this._tipGroup = createSingleton(this._tips, {placement: 'left', moveTransition: 'transform .15s ease-out', delay: [300, 0], appendTo: () => document.body})

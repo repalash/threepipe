@@ -65,10 +65,10 @@ editor.loadPlugins({
 
 In the frame:
 - A click on a mode shows its panels. A click on the open mode hides the panel, and the canvas takes its room.
-- The button at the bottom of the mode bar shows or hides the mode names.
+- The button at the bottom of the mode bar shows or hides the mode names, and so does Ctrl+\\ (Cmd+\\ on a Mac).
 - Shift+T switches between the light and the dark theme of the same family (`clean` and `clean-dark`, `light` and `dark`, `white` and `black`).
 - The layout button opens the layout menu, with Classic too.
-- The file name in the bar is the name of the last loaded file, `Untitled` before one loads. Set `editor.frame.fileName` to show another name.
+- The file name in the bar is the name of the last loaded file (from its URL, or a dropped or picked file), `Untitled` before one loads. Set `editor.frame.fileName` to show another name.
 
 The plugin has a UI folder, `Editor`, with the page layout and the mode names. Add `TweakpaneEditorPlugin` to a mode (`loadPlugins`) to show it; it works in the classic layout too.
 

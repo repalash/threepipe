@@ -171,7 +171,11 @@ export class EditorFrame {
     }
 
     private _onLoad = (e: {data?: any}) => {
-        const path: string | undefined = e.data?.userData?.rootPath || e.data?.__rootPath
+        // a dropped or picked file has its name on the blob (its path is a blob: URL, or none); a URL load has a path
+        const d = e.data
+        const blob = d?.__rootBlob
+        let path: string | undefined = blob?.filePath || blob?.name || d?.userData?.rootPath || d?.__rootPath
+        if (path?.startsWith('blob:') || path?.startsWith('data:')) path = undefined
         const base = path ? path.split(/[?#]/)[0].split('/').pop() || '' : ''
         let name = base
         try {
@@ -182,12 +186,18 @@ export class EditorFrame {
         if (name) this.fileName = name
     }
 
+    /** Shift+T: the light or dark theme. Ctrl+\ (Cmd+\ on a Mac): the mode names shown or hidden. */
     private _onKeyDown = (e: KeyboardEvent) => {
-        if (e.code !== 'KeyT' || !e.shiftKey || e.ctrlKey || e.metaKey || e.altKey || e.repeat || e.defaultPrevented) return
+        if (e.altKey || e.repeat || e.defaultPrevented) return
+        const mod = e.ctrlKey || e.metaKey
+        const theme = e.code === 'KeyT' && e.shiftKey && !mod
+        const names = e.code === 'Backslash' && mod && !e.shiftKey
+        if (!theme && !names) return
         const t = e.target as HTMLElement | null
         if (t?.closest?.('input, textarea, select, [contenteditable]')) return
         e.preventDefault()
-        this.toggleTheme()
+        if (theme) this.toggleTheme()
+        else this.modeBar.setExpanded(!this.modeBar.expanded)
     }
 
     private _bar(cls: string) {
