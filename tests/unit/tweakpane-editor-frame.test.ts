@@ -72,6 +72,7 @@ class FakeElement {
     textContent = ''
     title = ''
     tabIndex = -1
+    scrollLeft = 0
     _tippy?: FakeTip
     private _attrs = new Map<string, string>()
     private _listeners = new Map<string, ((e: any) => void)[]>()
@@ -383,6 +384,17 @@ describe('EditorFrame', () => {
         name.click()
         expect(name.fire('keydown', {key: 'Enter', isComposing: false, keyCode: 229}).defaultPrevented).toBe(false)
         expect(name.isContentEditable).toBe(true)
+    })
+
+    test('a long name typed in the bar shows from its start after the rename (the edit scrolled it)', () => {
+        const f = frame('titlebar', true, (name) => f.documentName = name)
+        f.documentName = 'Ring.glb'
+        const name = body().find('lay-top')[0].find('lay-file')[0]
+        name.click()
+        name.textContent = 'A very long name of a ring that goes on and on'
+        name.scrollLeft = 193 // the caret at the end of the text
+        name.fire('keydown', {key: 'Enter'})
+        expect(name.scrollLeft).toBe(0)
     })
 })
 

@@ -186,6 +186,7 @@ export class EditorFrame {
             if (!cancel && name && name !== this._documentName) this.options.onRename?.(name)
             // the name that is set (back to the old one after Escape, an empty name, or a caller that keeps it)
             this.documentName = this._documentName
+            el.scrollLeft = 0 // the edit scrolled a long name to the caret: show its start, with the ellipsis
         })
     }
 
