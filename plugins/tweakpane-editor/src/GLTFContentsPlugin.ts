@@ -91,10 +91,13 @@ export class GLTFContentsPlugin extends AViewerPluginSync {
         if (!data || data.assetType !== 'model') return
         const blob: File | Blob | undefined = (data as any).__rootBlob
         const path: string = blob ? (blob as any).filePath || (blob as File).name || '' : (data as any).__rootPath || data.userData?.rootPath || ''
+        // the query string the importer added to the request (LoadFileOptions.queryString, e.g. a token)
+        const query: string | undefined = (data as any).__rootPathOptions?.queryString ?? data.userData?.rootPathOptions?.queryString
+        const url = query ? path + (path.includes('?') ? '&' : '?') + query : path
         const ext = path.split('?')[0].split('.').pop()?.toLowerCase()
         if (ext !== 'glb' && ext !== 'gltf') return
         try {
-            const buffer = blob ? await blob.arrayBuffer() : await (await fetch(path)).arrayBuffer()
+            const buffer = blob ? await blob.arrayBuffer() : await (await fetch(url)).arrayBuffer()
             const name = path.split('?')[0].split('/').pop() || path
             this.files.unshift(summarizeGLTF(name, parseGLTFBuffer(buffer), buffer.byteLength))
             this.files.length = Math.min(this.files.length, GLTFContentsPlugin.MaxFiles)
@@ -137,6 +140,12 @@ export class GLTFContentsPlugin extends AViewerPluginSync {
             row('Images', formatBytes(s.imageBytes) + (s.binBytes ? ' (' + Math.round(s.imageBytes / s.binBytes * 100) + '% of the binary)' : '')),
         ]
         if (s.generator) ui.push(row('Generator', s.generator + (s.version ? ' · glTF ' + s.version : '')))
+        if (s.encrypted) {
+            // the JSON is of the container: no scene to list without the key
+            ui.push(row('Encrypted', (s.encrypted.type || 'yes') + (s.encrypted.version ? ' ' + s.encrypted.version : '')),
+                {type: 'button', label: 'The contents are encrypted and not listed', readOnly: true})
+            return ui
+        }
         ui.push(folder('Scene', [
             row('Nodes', n(c.nodes) + (c.scenes > 1 ? ' in ' + c.scenes + ' scenes' : '')),
             row('Meshes', n(c.meshes) + ' (' + n(c.primitives) + ' primitives)'),

@@ -261,4 +261,6 @@ const summary = await contents.checkExport()
 console.log(summary?.counts.triangles, summary?.viewerConfig?.plugins)
 ```
 
+An encrypted file (the exporter's Encrypt option) shows as encrypted, without counts: its JSON holds only the encryption metadata. A model loaded from a URL is fetched again with the same `queryString` as the importer.
+
 The summary is `summarizeGLTF(name, parseGLTFBuffer(buffer), fileBytes)`, which an app can call for any glTF or GLB buffer. The plugin is not saved with the viewer config.
