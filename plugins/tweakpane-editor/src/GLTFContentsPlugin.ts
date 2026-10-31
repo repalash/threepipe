@@ -91,10 +91,12 @@ export class GLTFContentsPlugin extends AViewerPluginSync {
         if (!data || data.assetType !== 'model') return
         const blob: File | Blob | undefined = (data as any).__rootBlob
         const path: string = blob ? (blob as any).filePath || (blob as File).name || '' : (data as any).__rootPath || data.userData?.rootPath || ''
-        // the query string the importer added to the request (LoadFileOptions.queryString, e.g. a token)
-        const query: string | undefined = (data as any).__rootPathOptions?.queryString ?? data.userData?.rootPathOptions?.queryString
+        // the load options the importer kept: the query string it added to the request (e.g. a token), and the file
+        // extension given for a path without one
+        const options = (data as any).__rootPathOptions ?? data.userData?.rootPathOptions
+        const query: string | undefined = options?.queryString
         const url = query ? path + (path.includes('?') ? '&' : '?') + query : path
-        const ext = path.split('?')[0].split('.').pop()?.toLowerCase()
+        const ext = String(options?.fileExtension || path.split('?')[0].split('.').pop() || '').replace(/^\./, '').toLowerCase()
         if (ext !== 'glb' && ext !== 'gltf') return
         try {
             const buffer = blob ? await blob.arrayBuffer() : await (await fetch(url)).arrayBuffer()
