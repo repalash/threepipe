@@ -345,6 +345,7 @@
     <script src="https://unpkg.com/monaco-tm@0.1.0/dist/index.global.js"></script>
 
     <script type="module">
+        import {exampleStorage} from './_index/editor/fileStore.mjs'
         import {setupCodeEditor} from "./_index/editor/setup.mjs";
 
         window.addEventListener('DOMContentLoaded', () => {
@@ -354,7 +355,7 @@
             const iframe = document.querySelector('#example-iframe');
             const filterInput = document.querySelector('#filterInput');
             // todo listen to customExample changes and create tab accordingly
-            const customExamples = JSON.parse(localStorage.getItem('tp-examples-custom')) ?? []
+            const customExamples = JSON.parse(exampleStorage.getItem('tp-examples-custom')) ?? []
             let urlParams = new URLSearchParams(window.location.search);
             let searchTerm = urlParams.get('q');
             let allExamples = []
@@ -402,8 +403,8 @@
                     ev.stopPropagation();
                     const customId = ev.target.parentElement.customIdLi;
                     customExamples.splice(customExamples.findIndex(e => e.id === customId), 1);
-                    localStorage.setItem('tp-examples-custom', JSON.stringify(customExamples));
-                    localStorage.removeItem(`tp-examples-custom-${customId}`);
+                    exampleStorage.setItem('tp-examples-custom', JSON.stringify(customExamples));
+                    exampleStorage.removeItem(`tp-examples-custom-${customId}`);
                     ev.target.parentElement.remove();
                     updateSearch()
                 }
@@ -413,8 +414,8 @@
             }
             function addExample(example, content) {
                 customExamples.push(example)
-                localStorage.setItem('tp-examples-custom', JSON.stringify(customExamples));
-                localStorage.setItem(`tp-examples-custom-${example.id}`, content);
+                exampleStorage.setItem('tp-examples-custom', JSON.stringify(customExamples));
+                exampleStorage.setItem(`tp-examples-custom-${example.id}`, content);
                 const a = createExample(example)
                 a.onclick = (ev) => {
                     ev.preventDefault();
@@ -430,7 +431,7 @@
                     console.warn(`Example with id ${exampleId} not found.`);
                     return;
                 }
-                localStorage.setItem(`tp-examples-custom-${example.id}`, content);
+                exampleStorage.setItem(`tp-examples-custom-${example.id}`, content);
             }
 
             const isMobile = window.matchMedia("only screen and (max-width: 768px)").matches;
@@ -455,7 +456,7 @@
                 }
                 if(!updateFrame) return;
                 const custom = !!target.dataset.customId
-                const customContent = custom ? localStorage.getItem(`tp-examples-custom-${target.dataset.customId}`) : null
+                const customContent = custom ? exampleStorage.getItem(`tp-examples-custom-${target.dataset.customId}`) : null
                 if(!custom) {
                     if (iframe.srcdoc) iframe.removeAttribute('srcdoc');
                     if (iframe.src !== target.href) iframe.src = target.href;
