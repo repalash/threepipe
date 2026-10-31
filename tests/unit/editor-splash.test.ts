@@ -447,6 +447,24 @@ describe('EditorSplash', () => {
         expect(s.isOpen).toBe(false)
     })
 
+    test('a folder whose files are read after the splash closed and opened again does not open in the new splash', async() => {
+        const onFiles = vi.fn()
+        const s = new EditorSplash({onFiles})
+        s.open()
+        // the browser reads the file of the entry later
+        let read!: () => void
+        const entry = {isFile: true, isDirectory: false, fullPath: '/helmet/scene.glb', file: (ok: (f: File) => void) => {
+            read = () => ok({name: 'scene.glb'} as File)
+        }}
+        root(s).fire('drop', {dataTransfer: {files: [], items: [{webkitGetAsEntry: () => entry}]}})
+        s.close()
+        s.open()
+        read()
+        await flush()
+        expect(onFiles).not.toHaveBeenCalled()
+        expect(root(s).classList.contains('esp-busy')).toBe(false)
+    })
+
     test('the "Show at startup" box is kept in localStorage, under storageKey', () => {
         const s = new EditorSplash({storageKey: 'app'})
         expect(s.showAtStartup).toBe(true)

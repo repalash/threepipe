@@ -201,7 +201,8 @@ export class EditorSplash {
             // as a drop on the canvas (DropzonePlugin): the files of a dropped folder keep their relative paths
             this._dropzone = new Dropzone(root, input, {drop: data => {
                 input.value = '' // the same file picked again (after a failed import) is a change again
-                if (data?.files) void this._openFiles(data.files)
+                // the files of a folder come after the browser read them: not into a splash closed (and opened) since
+                if (data?.files && this._root === root) void this._openFiles(data.files)
             }})
             this._setupDropArea(root)
         }
