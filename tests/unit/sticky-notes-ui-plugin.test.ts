@@ -276,7 +276,7 @@ describe('StickyNotesUiPlugin', () => {
         expect(single.find('snp-store')[0].style.display).toBe('none')
     })
 
-    test('Copy the text copies it and shows a check and "Copied" for a moment', () => {
+    test('Copy the text copies it and shows a check and "Copied" for a moment; without clipboard access it says so', async () => {
         vi.useFakeTimers()
         try {
             const written: string[] = []
@@ -288,14 +288,25 @@ describe('StickyNotesUiPlugin', () => {
             const shown: string[] = []
             ;(copy as any)._tippy = {setContent: (t: string) => shown.push(t), show: () => shown.push('show')}
             copy.fire('click')
+            await vi.advanceTimersByTimeAsync(1)
             expect(written).toEqual(['one'])
             expect(copy.dataset.tip).toBe('Copied')
             expect(copy.innerHTML).not.toBe(icon)
-            vi.advanceTimersByTime(1)
             expect(shown).toEqual(['Copied', 'show'])
-            vi.advanceTimersByTime(1500)
+            await vi.advanceTimersByTimeAsync(1500)
             expect(copy.dataset.tip).toBe('Copy the text')
             expect(copy.innerHTML).toBe(icon)
+
+            // a denied write, and no clipboard at all: no check, the tooltip says it could not copy
+            for (const nav of [{clipboard: {writeText: async () => Promise.reject(new Error('denied'))}}, {}]) {
+                vi.stubGlobal('navigator', nav)
+                copy.fire('click')
+                await vi.advanceTimersByTimeAsync(1)
+                expect(copy.dataset.tip).toBe('Could not copy: no clipboard access')
+                expect(copy.innerHTML).toBe(icon)
+                await vi.advanceTimersByTimeAsync(1500)
+                expect(copy.dataset.tip).toBe('Copy the text')
+            }
         } finally {
             vi.useRealTimers()
         }
