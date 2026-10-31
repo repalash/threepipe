@@ -163,7 +163,8 @@ export class EditorFrame {
                 }
                 return
             }
-            if (e.key === 'Enter' || e.key === 'Escape') {
+            // an IME uses Enter and Escape to end or drop the text it composes
+            if ((e.key === 'Enter' || e.key === 'Escape') && !e.isComposing) {
                 e.preventDefault()
                 cancel = e.key === 'Escape'
                 el.blur()
@@ -238,7 +239,8 @@ export class EditorFrame {
         if (e.altKey || e.repeat || e.defaultPrevented) return
         const mod = e.ctrlKey || e.metaKey
         const theme = e.code === 'KeyT' && e.shiftKey && !mod
-        const names = e.code === 'Backslash' && mod && !e.shiftKey
+        // the key (a layout with \ elsewhere), or its place (a layout where it types another character)
+        const names = (e.key === '\\' || e.code === 'Backslash') && mod && !e.shiftKey
         if (!theme && !names) return
         const t = e.target as HTMLElement | null
         if (t?.closest?.('input, textarea, select, [contenteditable]')) return

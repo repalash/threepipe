@@ -320,7 +320,20 @@ describe('EditorFrame', () => {
         })
     }
 
-    test('a click on the name renames it: Enter keeps it, Escape goes back', () => {
+    test('Ctrl+\\ and Cmd+\\ step the mode bar, by the key or by the key code', () => {
+        const f = frame('titlebar', true)
+        keydown('\\', 'Backslash', {ctrlKey: true})
+        expect(f.modeBar.expanded).toBe(false)
+        // a keyboard layout where the key is not at the Backslash position
+        keydown('\\', 'IntlBackslash', {metaKey: true})
+        expect(f.modeBar.open).toBe(false)
+        keydown('\\', 'Backslash')
+        expect(f.modeBar.open).toBe(false)
+        keydown('T', 'KeyT', {shiftKey: true, ctrlKey: true})
+        expect(f.modeBar.open).toBe(false)
+    })
+
+    test('a click on the name renames it: Enter keeps it, Escape goes back, not while an IME composes', () => {
         const onRename = vi.fn()
         const f = frame('titlebar', true, (name) => {
             onRename(name)
@@ -332,12 +345,17 @@ describe('EditorFrame', () => {
         name.click()
         expect(name.isContentEditable).toBe(true)
         name.textContent = '  New   ring '
+        // Enter that ends a composition (IME) is for the text
+        expect(name.fire('keydown', {key: 'Enter', isComposing: true}).defaultPrevented).toBe(false)
+        expect(name.isContentEditable).toBe(true)
         name.fire('keydown', {key: 'Enter'})
         expect(name.isContentEditable).toBe(false)
         expect(onRename).toHaveBeenCalledWith('New ring')
         expect(name.textContent).toBe('New ring')
         name.click()
         name.textContent = 'Other'
+        name.fire('keydown', {key: 'Escape', isComposing: true})
+        expect(name.isContentEditable).toBe(true)
         name.fire('keydown', {key: 'Escape'})
         expect(name.textContent).toBe('New ring')
         expect(onRename).toHaveBeenCalledTimes(1)
