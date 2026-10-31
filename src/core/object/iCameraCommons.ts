@@ -6,20 +6,6 @@ import {Box3B} from '../../three/math/Box3B'
 import {getFittingDistance} from '../../three/utils/camera'
 
 export const iCameraCommons = {
-    /**
-     * The serialized camera data without the private keys of its `userData` (a copy when it has one). As in
-     * `copyUserData`, keys that start with `__` are runtime state (`__isMainCamera`, `__lastScale`, the setup
-     * flags): a camera does not save them, and a load does not set them. A file saved with the main camera would else
-     * make a camera that is not the main camera think it is, and its controls would stay off when it becomes the main
-     * camera.
-     */
-    withoutPrivateUserData: function<T extends {userData?: Record<string, any>}>(data: T): T {
-        const ud = data?.userData
-        if (!ud || !Object.keys(ud).some(k => k.startsWith('__'))) return data
-        const userData: Record<string, any> = {}
-        for (const [k, v] of Object.entries(ud)) if (!k.startsWith('__')) userData[k] = v
-        return {...data, userData}
-    },
     setDirty: function(this: ICamera, options?: ICameraSetDirtyOptions): void {
         if (!this._positionWorld) return // not initialized yet
 
