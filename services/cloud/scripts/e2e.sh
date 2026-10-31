@@ -3,6 +3,8 @@
 # deletes, staff removal, expiry (cron), revoking, the drive (items, folders, signed URLs, links, quota) and app sign-in (connect). Starts `teeny dev` (port 8787) and stops it at the end.
 # Usage: npm test
 set -u
+# the local environment of wrangler.jsonc (no custom-domain routes)
+export CLOUDFLARE_ENV=local
 cd "$(dirname "$0")/.."
 A=http://127.0.0.1:8787
 TMP=$(mktemp -d)

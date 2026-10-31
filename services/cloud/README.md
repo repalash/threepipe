@@ -35,10 +35,12 @@ npm run secrets-upload           # .prod.vars -> Worker secrets
 npm run deploy                   # the first one creates the D1 database: commit the database_id it writes
 ```
 
-- Domains: after the first deploy, attach `cloud.threepipe.org` (API and pages) and `files.threepipe.org` (files host,
-  `FILES_HOST`) as custom domains of the Worker (Workers > threepipe-cloud > Settings > Domains & Routes). They are not
-  `routes` in `wrangler.jsonc`: with routes, `wrangler dev` rewrites the local request URL to the route's host. The samples bucket is served by R2 on `samples.threepipe.org` and
-  `asset-samples.threepipe.org`, the e2e bucket on `e2e-snapshots.threepipe.org` (R2 custom domains, set in the dashboard).
+- Domains: `cloud.threepipe.org` (API and pages) and `files.threepipe.org` (files host, `FILES_HOST`) are custom-domain
+  `routes` in `wrangler.jsonc`, made and kept by every deploy. Local dev and the e2e use its `local` environment
+  (`CLOUDFLARE_ENV=local` in the scripts), which has no routes: with routes, `wrangler dev` makes the Worker see every
+  request as the route's host. wrangler does not inherit vars and bindings into an environment, so `env.local` repeats
+  them; keep both the same. The samples bucket is served by R2 on `samples.threepipe.org` and `asset-samples.threepipe.org`,
+  the e2e bucket on `e2e-snapshots.threepipe.org` (R2 custom domains, set in the dashboard).
 - After the first deploy, migrations go through the Worker (`teeny deploy` calls its admin API with
   `ADMIN_SERVICE_TOKEN`), so later deploys need a token for this Worker only, no D1 access.
 - Logs: Workers Logs and traces, and logpush to the account's Workers Logpush job; what needs a person is a
