@@ -24,7 +24,8 @@ function keyLabel(code: string) {
  * The start view UI of the {@link EditorCameraPlugin}: a pill at the top centre of the canvas, in the style of the
  * `PerfPanelPlugin` pill, that names the camera ("Editor camera" or "Scene camera", with a camera icon: grey in Edit,
  * blue in View, green in View with {@link EditorCameraPlugin.syncStartView}; an amber corner when a move in View is not
- * saved) and shows the key of {@link EditorCameraPlugin.hotkey}, and a frame around the canvas in View.
+ * saved) and shows the key of {@link EditorCameraPlugin.hotkey}, and a frame around the canvas in View. The pill and
+ * the frame are hidden while the plugin is disabled.
  *
  * A card under the pill opens on hover (a moment on the pill or the card, with a mouse), on a tap on a touch screen or
  * on keyboard focus, and stays open until a press outside it or Escape. It shows:
@@ -39,8 +40,7 @@ function keyLabel(code: string) {
  *   after a move that is not saved ({@link EditorCameraPlugin.saveStartView}, {@link EditorCameraPlugin.resetStartView}).
  *   They stay in the card when off, so the card keeps its size.
  *
- * The `TweakpaneEditorPlugin` adds it when the plugin is added before `loadPlugins()`. Each call adds its own style
- * element.
+ * The `TweakpaneEditorPlugin` adds it while the plugin is added to its viewer. Each call adds its own style element.
  * @returns a function that removes it, with its style element
  */
 export function setupEditorCameraUi(viewer: ThreeViewer, camera: EditorCameraPlugin): () => void {
@@ -177,10 +177,12 @@ export function setupEditorCameraUi(viewer: ThreeViewer, camera: EditorCameraPlu
         const sync = camera.syncStartView
         const moved = camera.startViewMoved
         const key = camera.hotkey ? keyLabel(camera.hotkey) : ''
+        // disabled: the default camera is the main camera, neither the editor camera nor the start view
+        root.style.display = camera.isDisabled() ? 'none' : ''
         root.classList.toggle('ecu-view', !editing)
         root.classList.toggle('ecu-sync', sync)
         root.classList.toggle('ecu-moved', moved)
-        frame.classList.toggle('ecu-on', !editing)
+        frame.classList.toggle('ecu-on', !editing && !camera.isDisabled())
         frame.classList.toggle('ecu-sync', sync)
         name.textContent = editing ? 'Editor camera' : 'Scene camera'
         kbd.textContent = key

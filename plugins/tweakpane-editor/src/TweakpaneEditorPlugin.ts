@@ -40,9 +40,28 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync {
 
         setupWebGiLogo(viewer)
         setupFullscreenButton(viewer)
+
+        // the start view UI while the EditorCameraPlugin is added (before or after this plugin). By its type name, with
+        // a type-only import: the editor works without it, and this module does not load it.
+        viewer.forPlugin<EditorCameraPlugin>('EditorCameraPlugin', (camera) => {
+            this._removeEditorCameraUi()
+            this._editorCameraUi = setupEditorCameraUi(viewer, camera)
+        }, () => this._removeEditorCameraUi(), this)
+    }
+
+    onRemove(viewer: ThreeViewer) {
+        this._removeEditorCameraUi()
+        super.onRemove(viewer)
+    }
+
+    private _removeEditorCameraUi() {
+        this._editorCameraUi?.()
+        this._editorCameraUi = undefined
     }
 
     private _selectedMode = 0
+    /** Removes the start view UI of the EditorCameraPlugin */
+    private _editorCameraUi?: () => void
     modeKeys: string[] = []
     modePlugins: Class<IViewerPlugin>[][] = []
     modeDivs: (HTMLDivElement | undefined)[] = []
@@ -52,9 +71,6 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync {
     loadPlugins(plugins: Record<string, Class<IViewerPlugin<any>>[]> = {}) {
         if (!this._viewer) throw new Error('Plugin not added to viewer.')
         setupUtilButtonsBar(this._viewer, Object.values(plugins).flat())
-        // by its type name: the editor does not bundle the plugin
-        const editorCamera = this._viewer.getPlugin<EditorCameraPlugin>('EditorCameraPlugin')
-        if (editorCamera) setupEditorCameraUi(this._viewer, editorCamera)
 
         // this.picking = viewer.getPlugin(PickingPlugin)
         this.uiPlugin = this._viewer.getPlugin(TweakpaneUiPlugin)!

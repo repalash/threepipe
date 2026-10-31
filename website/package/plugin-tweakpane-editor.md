@@ -133,7 +133,7 @@ The editor camera and the preview camera are added to the scene outside the mode
 
 When a file with a viewer config loads, the editor camera takes its start view (in View, the view does too). `setStartViewFromEditor()` moves the start view to the editor view. With the `UndoManagerPlugin`, each change of the start view is one undo step.
 
-The C key switches between Edit and View (`hotkey`, a `KeyboardEvent.code`; `''` turns it off). It does nothing in a text field, with Ctrl, Cmd, Alt or Shift, while held down, or when another handler used the key. The `editingChange` event tells a UI when the view changes, from the code, the key, the panel or a disable:
+The C key switches between Edit and View (`hotkey`, a `KeyboardEvent.code`; `''` turns it off). It does nothing in a text field, with Ctrl, Cmd, Alt or Shift, while held down, or when another handler used the key. The `editingChange` event tells a UI when the view changes, from the code, the key or the panel, and when the plugin is turned off or on (`enabled`, `disable(key)` / `enable(key)`, a remove; `editing` is `false` while it is off):
 
 ```typescript
 import {ThreeViewer, UndoManagerPlugin} from 'threepipe'
@@ -178,8 +178,8 @@ Options and state:
 
 The plugin is not saved with the viewer config (`serializeWithViewer = false`).
 
-In the `TweakpaneEditorPlugin`, when the plugin is added before `loadPlugins()`:
-- A pill at the top centre of the canvas, in the style of the `PerfPanelPlugin` pill, names the camera: "Editor camera" (a grey camera icon) or "Scene camera" (a blue icon; green when `syncStartView` is on). An amber corner tells that a move in View is not saved. In View, a frame in the same colour is around the canvas. The pill shows the key of `hotkey` (none when it is `''`), and a click on it switches Edit and View, as the key.
+In the `TweakpaneEditorPlugin`, while the plugin is added (before or after the editor):
+- A pill at the top centre of the canvas, in the style of the `PerfPanelPlugin` pill, names the camera: "Editor camera" (a grey camera icon) or "Scene camera" (a blue icon; green when `syncStartView` is on). An amber corner tells that a move in View is not saved. In View, a frame in the same colour is around the canvas. The pill shows the key of `hotkey` (none when it is `''`), and a click on it switches Edit and View, as the key. The pill and the frame are hidden while the plugin is disabled.
 - A card under the pill opens on hover (with a mouse), on a tap on a touch screen or on keyboard focus, and stays open until a press outside it or Escape. It shows a picture of the saved start view. A click on the picture looks through the start view; in View after a move, it goes back to it. The Sync toggle over the picture is `syncStartView`. Under it: an Edit / View toggle; "Set as start view" in Edit; "Save" and "Reset" in View, on after a move that is not saved (they stay in the card when off, so it keeps its size). Ctrl+Z undoes a change of the start view.
 - The picture is taken from the canvas right after a render, when the view shows the saved start view (`showsStartView`): after a load, in View before a move, after a save, a sync or "Set as start view". It is a small copy of the canvas (448 px wide); it is taken again when the render ends (progressive rendering), and shows faded while it is out of date.
 - On the classic page on a phone, the pill is on the right, under the title bar of the settings panel, so it does not cover the view widget.

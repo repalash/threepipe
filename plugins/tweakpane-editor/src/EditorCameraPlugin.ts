@@ -94,7 +94,10 @@ function lookTargetOf(camera: ICamera, position: Vector3): Vector3 {
 }
 
 export interface EditorCameraPluginEventMap extends AViewerPluginEventMap {
-    /** The view changed between Edit (`editing` true: the editor camera) and View (the start view) */
+    /**
+     * The view changed between Edit (`editing` true: the editor camera) and View (the start view), or the plugin was
+     * turned off or on (disabled, enabled, added, removed; `editing` is false while it is off)
+     */
     editingChange: {editing: boolean}
     /** {@link EditorCameraPlugin.startViewMoved} changed: in View, the view was moved away from the start view, saved or put back */
     startViewMovedChange: {moved: boolean}
@@ -335,7 +338,7 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
         // Another main camera (made the main camera while in Edit) stays.
         const main = viewer.scene.mainCamera
         if (main === this.camera || main === this._preview) viewer.scene.defaultCamera.activateMain()
-        const wasEditing = this._mode === 'edit'
+        const wasOn = !!this._mode
         this._mode = undefined
         viewer.scene.removeEventListener('mainCameraChange', this._onMainCameraChange)
         viewer.assetManager.removeEventListener('loadAsset', this._onLoad)
@@ -345,7 +348,7 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
         window.removeEventListener('keydown', this._onKeyDown)
         this._watchPreviewControls(undefined)
         this._undoManager = undefined
-        if (wasEditing) this.dispatchEvent({type: 'editingChange', editing: false})
+        if (wasOn) this.dispatchEvent({type: 'editingChange', editing: false})
         this._checkMoved()
         this.camera.removeFromParent()
         this._preview?.removeFromParent()
@@ -455,7 +458,6 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
             this._checkMoved()
             return
         }
-        const wasEditing = this._mode === 'edit'
         this._stopGesture()
         this._userMoved = false
         this._mode = mode
@@ -468,7 +470,8 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
             viewer.scene.defaultCamera.activateMain()
         }
         this.uiConfig?.uiRefresh?.(true)
-        if (wasEditing !== (mode === 'edit')) this.dispatchEvent({type: 'editingChange', editing: mode === 'edit'})
+        // also from View to off and back: a UI hides while the plugin is off
+        this.dispatchEvent({type: 'editingChange', editing: mode === 'edit'})
         this._checkMoved()
     }
 

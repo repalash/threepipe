@@ -1,12 +1,16 @@
 import {afterEach, beforeEach, describe, expect, test, vi} from 'vitest'
 import {EventDispatcher, Object3D, PerspectiveCamera, Vector3} from 'three'
-import {OrbitControls3, OrthographicCamera2, PerspectiveCamera2} from 'threepipe'
+import {OrbitControls3, OrthographicCamera2, PerspectiveCamera2, ThreeViewer} from 'threepipe'
 import {EditorCameraPlugin} from '../../plugins/tweakpane-editor/src/EditorCameraPlugin'
 import {setupEditorCameraUi} from '../../plugins/tweakpane-editor/src/editor-camera-ui'
+import {TweakpaneEditorPlugin} from '../../plugins/tweakpane-editor/src/TweakpaneEditorPlugin'
 
-// the UI tests: tooltips need a page, the UI does not use them.
+// the UI tests: tooltips, the logo, the buttons and the tweakpane plugin need a page, the UI does not use them.
 // tippy.js is a dependency of the editor package only (installed in its node_modules)
 vi.mock('../../plugins/tweakpane-editor/node_modules/tippy.js', () => ({default: Object.assign(vi.fn(() => ({setContent: vi.fn(), destroy: vi.fn()})), {setDefaultProps: vi.fn()})}))
+vi.mock('../../plugins/tweakpane-editor/src/logo', () => ({setupWebGiLogo: vi.fn()}))
+vi.mock('../../plugins/tweakpane-editor/src/util-buttons', () => ({setupFullscreenButton: vi.fn(), setupUtilButtonsBar: vi.fn()}))
+vi.mock('@threepipe/plugin-tweakpane', () => ({TweakpaneUiPlugin: class {static PluginType = 'TweakpaneUiPlugin'}}))
 
 // a viewer canvas for the orbit controls of the cameras (the node setup has no DOM)
 function makeCanvas() {
@@ -180,6 +184,19 @@ describe('EditorCameraPlugin', () => {
         plugin.enabled = true
         plugin.onRemove(viewer)
         expect(events).toEqual([false, true, false, true, false])
+    })
+
+    test('editingChange is also sent when the plugin is disabled or removed in View, so a UI can hide', () => {
+        const {plugin, viewer} = setup()
+        plugin.editing = false
+        const events: boolean[] = []
+        plugin.addEventListener('editingChange', e => events.push(e.editing))
+        plugin.enabled = false
+        expect(events).toEqual([false])
+        plugin.enabled = true // Edit
+        plugin.editing = false
+        plugin.onRemove(viewer)
+        expect(events).toEqual([false, true, false, false])
     })
 
     test('is not saved with the viewer config', () => {
@@ -1061,13 +1078,33 @@ class FakeEditorCamera extends EventDispatcher<any> {
     }
 }
 
-/** A viewer with what the UI uses */
+/** A viewer with the plugin listeners of ThreeViewer (forPlugin), and what the UI uses */
 function uiViewer() {
-    return Object.assign(new EventDispatcher<any>(), {
+    const plugins: Record<string, any> = {}
+    const listeners = (type: 'add' | 'remove', p: any) => viewer._pluginListeners[type]
+        .filter((l: any) => !l.p.length || l.p.includes(p.constructor.PluginType)).forEach((l: any) => l.l({type, plugin: p}))
+    const viewer: any = Object.assign(new EventDispatcher<any>(), {
         container: new FakeElement('DIV'),
         canvas: {width: 0, height: 0},
         renderManager: {needsRender: false},
-    }) as any
+        _pluginListeners: {add: [], remove: []},
+        getPlugin: (t: any) => plugins[typeof t === 'string' ? t : t.PluginType],
+        forPlugin: ThreeViewer.prototype.forPlugin,
+        addPluginListener: ThreeViewer.prototype.addPluginListener,
+        removePluginListener: ThreeViewer.prototype.removePluginListener,
+        add(p: any) {
+            plugins[p.constructor.PluginType] = p
+            p.onAdded(viewer)
+            listeners('add', p)
+            return p
+        },
+        remove(p: any) {
+            p.onRemove(viewer)
+            listeners('remove', p)
+            delete plugins[p.constructor.PluginType]
+        },
+    })
+    return viewer
 }
 
 describe('EditorCameraPlugin start view UI', () => {
@@ -1110,6 +1147,25 @@ describe('EditorCameraPlugin start view UI', () => {
         expect(pillOf(viewer).getAttribute('aria-label')).not.toContain('switches')
     })
 
+    test('the pill and the frame hide while the plugin is disabled', () => {
+        const viewer = uiViewer()
+        const camera = new FakeEditorCamera()
+        setupEditorCameraUi(viewer, camera as any)
+        const root = viewer.container.find('ecu-root')[0] as FakeElement
+        const frame = viewer.container.find('ecu-frame')[0] as FakeElement
+        camera.editing = false
+        camera.changed()
+        expect(frame.classList.contains('ecu-on')).toBe(true)
+        camera.disabled = true
+        camera.changed()
+        expect(root.style.display).toBe('none')
+        expect(frame.classList.contains('ecu-on')).toBe(false)
+        camera.disabled = false
+        camera.changed()
+        expect(root.style.display).toBe('')
+        expect(frame.classList.contains('ecu-on')).toBe(true)
+    })
+
     test('each UI adds its styles, and its remover removes them', () => {
         const viewer = uiViewer()
         const camera = new FakeEditorCamera()
@@ -1127,4 +1183,24 @@ describe('EditorCameraPlugin start view UI', () => {
         expect((camera as any)._listeners?.editingChange ?? []).toHaveLength(0)
     })
 
+    test('the TweakpaneEditorPlugin sets up the UI while the EditorCameraPlugin is added, also when it is added later', () => {
+        const viewer = uiViewer()
+        const editor = viewer.add(new TweakpaneEditorPlugin())
+        expect(viewer.container.find('ecu-root')).toHaveLength(0)
+        const camera = viewer.add(new FakeEditorCamera())
+        expect(viewer.container.find('ecu-root')).toHaveLength(1)
+        viewer.remove(camera)
+        expect(viewer.container.find('ecu-root')).toHaveLength(0)
+        expect((camera as any)._listeners?.editingChange ?? []).toHaveLength(0)
+
+        // the camera plugin first; the editor removed
+        const viewer2 = uiViewer()
+        const camera2 = viewer2.add(new FakeEditorCamera())
+        const editor2 = viewer2.add(new TweakpaneEditorPlugin())
+        expect(viewer2.container.find('ecu-root')).toHaveLength(1)
+        viewer2.remove(editor2)
+        expect(viewer2.container.find('ecu-root')).toHaveLength(0)
+        expect((camera2 as any)._listeners?.editingChange ?? []).toHaveLength(0)
+        expect(editor).toBeTruthy()
+    })
 })
