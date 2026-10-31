@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- WebGPU: `backend: 'auto'` (the default) uses it where available and fast enough. Tested against WebAssembly on
+  a GPU with both models and both packs: the same motion to 0.01 mm and 0.05 degrees.
 - The SOMA human model: `rig: 'soma'`, `MotionBricksSOMA` (validated against NVIDIA's kernels), `SOMA_SKELETON`,
   `SOMA_BRICKS` with stride cycles, `SOMAMannequin`, retargeting from SOMA (`SOMA_PARTS`), and NVIDIA's SOMA
   Smart Primitives. G1Controller now takes a `PoseRig` (`G1_RIG`, `SOMA_RIG`) for the skeleton's poses.

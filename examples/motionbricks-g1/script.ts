@@ -67,8 +67,8 @@ const config = {
     ui: '1',
     /** Run the model in a Web Worker. 0 runs it on the page, which stalls rendering during each generation. */
     worker: '1',
-    /** wasm, or webgpu (with onnxruntime-web 1.30 WebGPU computes this model wrongly). */
-    backend: 'wasm',
+    /** '' (auto: WebGPU when it is available and fast enough), wasm or webgpu. */
+    backend: '',
     ...(window as any).MOTIONBRICKS_CONFIG,
 }
 const params = new URLSearchParams(location.search)
@@ -155,7 +155,7 @@ async function init() {
         model: config.model || undefined,
         liteModel: config.liteModel || undefined,
         lite: config.lite === '1' ? true : config.lite === '0' ? false : 'auto',
-        backend: config.backend === 'webgpu' ? 'webgpu' : 'wasm',
+        backend: config.backend === 'webgpu' || config.backend === 'wasm' ? config.backend : 'auto',
         worker: config.worker !== '0',
     })
     g1.onError = e => setStatus(`Generation failed: ${e instanceof Error ? e.message : e}`, 'error')
