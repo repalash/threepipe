@@ -20,6 +20,10 @@ All notable changes to this project will be documented in this file.
 - `lib/index.js` keeps its `@license` banner (the old minifier removed it)
 - Remove the obsolete `prepare`, `copy:inlines` and `postcompile:esm` scripts, `scripts/each-plugin.mjs`, `scripts/build-plugins.mjs`, `scripts/fix-inline-imports.mjs` and the unused `copyfiles`, `hexer` and `proper-lockfile` dev dependencies
 
+### Fixed
+
+- `ObjectPicker`: a `hitObject` listener can now also consume a click on empty space (`HitIntersects.consumed`). Before, the flag was lost on a miss, and the click cleared the selection
+
 
 ## [0.6.0] - 2026-10-23
 
