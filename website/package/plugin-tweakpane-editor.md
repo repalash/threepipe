@@ -117,3 +117,40 @@ ui.setupPluginUi(NotesPlugin)
 ```
 
 Another view can show the same notes: read `notes.notes`, listen to the `notesChanged` event (`change` is `add`, `update`, `remove` or `load`; `note` is the note added, changed or removed, and `notes` the notes that `clear` or a store replaced with `addStore` removed), and change them with `addNote`, `updateNote` and `removeNote`. Set `StickyNotesUiPlugin.InjectStyles = false` before the plugin is made to style the `snp-` classes yourself.
+
+## UiConfigForm
+
+[Example](https://threepipe.org/examples/#ui-config-form/) &mdash;
+[Source Code](https://github.com/repalash/threepipe/blob/master/plugins/tweakpane-editor/src/ui/UiConfigForm.ts) &mdash;
+[API Reference](https://threepipe.org/plugins/tweakpane-editor/docs/classes/UiConfigForm.html)
+
+`UiConfigForm` draws a list of uiconfig.js configs (the same configs that the Tweakpane panels use) as a small plain-DOM form. Use it for a popup or a card next to an object, where a Tweakpane panel is too large.
+
+- Fields: number (drag the name to scrub, Shift for 10x), slider, checkbox, dropdown, vector, color, text, button, monitor, and folders (always open). An `input` bound to a boolean or a number gets a checkbox or a number field.
+- A button's function can return an undo function or `{action, undo, redo}`, as in uiconfig.js: the action runs, and with an `undoManager` it is one undo step.
+- A change sets the value through the binding of the config, then calls `onChange` of the config and of each parent folder (a function or a list of functions), as the Tweakpane renderer does. When a Tweakpane panel also draws the configs, each handler runs once, and the change goes on to the folders above the form.
+- A scrub, the slider and the colour picker send changes with `last: false` while they move, and a final change with `last: true` when they end, as Tweakpane does. A config that waits for the final change (e.g. to rebuild a geometry) gets it.
+- With an `undoManager`, each edit is one undo step. Quick edits of the same field (a scrub, the slider) merge into one step.
+- A number field takes whole numbers when its `stepSize` is a whole number of 1 or more, or when its name is a count (segments, sides, steps...). Change this with the `isInteger` option.
+- The form adds its stylesheet once (`UiConfigForm.InjectStyles`). The colours follow the Tweakpane theme variables (`--tp-...`) when the page sets them.
+
+```typescript
+import {UiConfigMethods, UndoManagerPlugin} from 'threepipe'
+import {UiConfigForm} from '@threepipe/plugin-tweakpane-editor'
+
+const undo = viewer.addPluginSync(UndoManagerPlugin)
+
+// the fields of the material, in a popup
+const form = new UiConfigForm(UiConfigMethods.GetChildren(material.uiConfig), {
+    undoManager: undo.undoManager,
+    onChange: () => viewer.setDirty(),
+    // a dropdown or a button can change which fields there are: make the form again (in this call)
+    onStructureChange: () => {/* form.dispose(); make a new form */},
+})
+popup.appendChild(form.element)
+
+// after a change from elsewhere
+form.refresh()
+```
+
+The form does not watch the values: call `refresh()` after a change from elsewhere (code, another panel). Its own undo and redo steps refresh it. A form made in `onStructureChange` takes the place of the old one: the undo and redo of edits made in the old form refresh the new one. A config that is `hidden` when the form is made is not drawn.
