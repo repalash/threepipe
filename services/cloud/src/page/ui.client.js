@@ -133,8 +133,9 @@ const UI = (() => {
             const r = await fetch('/api/v1/handle', {method: 'POST', credentials: 'same-origin', headers: {'content-type': 'application/json'}, body: JSON.stringify({handle: input.value.trim()})})
             const j = await r.json().catch(() => ({}))
             if (!r.ok) { err.textContent = j.message || ('HTTP ' + r.status); err.hidden = false; return }
-            // back to where the user was going: a path on this host only
-            if (next && next.startsWith('/') && !next.startsWith('//')) location.href = next
+            // back to where the user was going: a page on this host only
+            const to = next ? new URL(next, location.origin) : null // `/\\x` and `//x` resolve to another origin
+            if (to && to.origin === location.origin) location.href = to.pathname + to.search + to.hash
             else location.reload()
         })
     }
