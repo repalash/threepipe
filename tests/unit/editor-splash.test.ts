@@ -269,6 +269,50 @@ describe('EditorSplash', () => {
         expect(labels(one(s2, 'esp-recent').children)).toEqual(['Helmet', 'Watch'])
     })
 
+    test('a load goes on after Escape: the reopened splash shows it, refuses a second one, and closes when it ends', async() => {
+        const d = deferred()
+        const load = vi.fn(() => d.promise)
+        const onNew = vi.fn()
+        const s = new EditorSplash({samples: samples(load), onNew})
+        s.open()
+        find(s, 'esp-card-btn')[0].click()
+        key('Escape')
+        expect(s.isOpen).toBe(false)
+        s.open()
+        const r = root(s)
+        expect(r.classList.contains('esp-busy')).toBe(true)
+        expect(r.getAttribute('aria-busy')).toBe('true')
+        expect(one(s, 'esp-status').textContent).toBe('Opening “Helmet”…')
+        // no second operation while the first one runs
+        find(s, 'esp-card-btn')[1].click()
+        one(s, 'esp-start').children[0].click() // New empty scene
+        expect(load).toHaveBeenCalledTimes(1)
+        expect(onNew).not.toHaveBeenCalled()
+        // nor a close by a click on the dimmed page
+        r.fire('pointerdown')
+        expect(s.isOpen).toBe(true)
+        d.resolve()
+        await flush()
+        expect(s.isOpen).toBe(false)
+        expect(s.recent).toEqual(['Helmet'])
+        // a load that fails while the reopened splash is open: it says so there
+        const d2 = deferred()
+        load.mockImplementationOnce(() => d2.promise)
+        s.open()
+        find(s, 'esp-card-btn')[1].click()
+        key('Escape')
+        s.open()
+        d2.reject(new Error('404'))
+        await flush()
+        expect(s.isOpen).toBe(true)
+        expect(root(s).classList.contains('esp-busy')).toBe(false)
+        expect(one(s, 'esp-status').textContent).toBe('Could not open “Watch”. Pick a sample, or open a file.')
+        onNew.mockClear()
+        one(s, 'esp-start').children[0].click()
+        await flush()
+        expect(onNew).toHaveBeenCalledTimes(1)
+    })
+
     test('a sample that fails keeps the splash open with a message, and is not recent', async() => {
         const load = vi.fn(async() => {
             throw new Error('404')

@@ -98,6 +98,8 @@ export class EditorSplash {
     /** The element that had the focus before the splash opened: it gets it back after */
     private _returnFocus?: HTMLElement
     private _startup: boolean
+    /** The name of the sample or files that load, also after the splash closed and opened again: one load at a time */
+    private _loading?: string
     private _recent: string[]
     private _styles?: HTMLStyleElement
 
@@ -217,11 +219,12 @@ export class EditorSplash {
 
         // a click on the dimmed page closes it, as Escape
         root.addEventListener('pointerdown', e => {
-            if (e.target === root && !root.classList.contains('esp-busy')) this.close()
+            if (e.target === root && this._loading === undefined) this.close()
         })
         root.addEventListener('keydown', this._onRootKeyDown)
         document.body.appendChild(root)
         this._root = root
+        this._showBusy() // a load from before Escape still runs
         root.focus({preventScroll: true})
     }
 
@@ -240,7 +243,7 @@ export class EditorSplash {
 
     /** Opens the file picker of the open splash (Open file…, Ctrl+O), when {@link EditorSplashOptions.onFiles} is set */
     openFilePicker() {
-        if (this._input && !this._root?.classList.contains('esp-busy')) this._input.click()
+        if (this._input && this._loading === undefined) this._input.click()
     }
 
     /** Closes the splash, and removes its styles and its Ctrl+O shortcut */
@@ -285,16 +288,15 @@ export class EditorSplash {
     }
 
     /**
-     * Runs a load: the splash shows that it loads (one at a time), then closes. When the load fails, it stays open with
-     * a message. A splash closed while it loads stays closed.
+     * Runs a load: the splash shows that it loads, then closes. When the load fails, it stays open with a message. One
+     * load at a time, also when the splash closes and opens again while it loads: the open splash shows it, and closes
+     * or shows the message when it ends. A splash closed while it loads stays closed.
      */
     private async _run(name: string, button: HTMLElement | undefined, load: () => unknown) {
-        const root = this._root
-        if (!root || root.classList.contains('esp-busy')) return
-        root.classList.add('esp-busy')
-        root.setAttribute('aria-busy', 'true')
+        if (!this._root || this._loading !== undefined) return
+        this._loading = name
         button?.classList.add('esp-loading')
-        this._setStatus(`Opening ${name}…`)
+        this._showBusy()
         let ok = true
         try {
             await load()
@@ -302,12 +304,23 @@ export class EditorSplash {
             console.error(e)
             ok = false
         }
-        if (this._root !== root) return
-        root.classList.remove('esp-busy')
-        root.removeAttribute('aria-busy')
+        this._loading = undefined
         button?.classList.remove('esp-loading')
+        if (!this._root) return
+        this._showBusy()
         if (ok) this.close()
         else this._setStatus(`Could not open ${name}. Pick a sample, or open a file.`, true)
+    }
+
+    /** The open splash shows the load that runs (`_loading`): dimmed buttons, `aria-busy` and its name */
+    private _showBusy() {
+        const root = this._root
+        if (!root) return
+        const busy = this._loading !== undefined
+        root.classList.toggle('esp-busy', busy)
+        if (busy) root.setAttribute('aria-busy', 'true')
+        else root.removeAttribute('aria-busy')
+        if (busy) this._setStatus(`Opening ${this._loading}…`)
     }
 
     private _setStatus(text: string, error = false) {

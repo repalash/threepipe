@@ -113,7 +113,7 @@ In the [Tweakpane Editor example](https://threepipe.org/examples/tweakpane-edito
 - Samples: a card for each sample of the app, with a title, a short text, an icon and a load function.
 - "Drop a file anywhere to open it" (with `onFiles`) and a "Show at startup" box (`showAtStartup`).
 
-The app gives the samples and the callbacks, and calls `open()`. A sample or a file shows that it loads, then the splash closes. When the load throws, the splash stays open with a message. Escape, × or a click outside the card closes it. While it is open, it has the focus: Tab stays in the dialog, and the keys do not reach the editor shortcuts behind it. When it is closed, Ctrl+O (Cmd+O) outside a text field opens it again (`shortcut: false` turns this off).
+The app gives the samples and the callbacks, and calls `open()`. A sample or a file shows that it loads, then the splash closes. When the load throws, the splash stays open with a message. One load runs at a time: when the splash closes and opens again while a load runs, it shows that load and refuses another one until it ends. Escape, × or a click outside the card closes it. While it is open, it has the focus: Tab stays in the dialog, and the keys do not reach the editor shortcuts behind it. When it is closed, Ctrl+O (Cmd+O) outside a text field opens it again (`shortcut: false` turns this off).
 
 The "Show at startup" box and the recent samples are kept in `localStorage`, under `<storageKey>Startup` and `<storageKey>Recent` (default `tpEditorSplash`; `null` keeps nothing). The splash takes the colours of the Tweakpane theme (light or dark), and its z-index (5000) is in the popups layer.
 

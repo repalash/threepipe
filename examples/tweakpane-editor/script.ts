@@ -78,11 +78,15 @@ async function init() {
             sample('Variants shoe', 'Material variants (Configurator mode)', SAMPLE_ICONS.shoe, 'https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets/Models/MaterialsVariantsShoe/glTF/MaterialsVariantsShoe.gltf'),
         ],
         onNew: newScene,
-        // as a drop on the canvas, with the options of the DropzonePlugin (a .gltf with its .bin and textures together)
+        // as a drop on the canvas, with the options of the DropzonePlugin (a .gltf with its .bin and textures together).
+        // The importer logs a file it cannot read and gives nothing for it: with nothing imported, the scene stays and
+        // the splash says so; else the new scene gets what was imported.
         onFiles: async files => {
-            newScene()
             const imported = await viewer.assetManager.importer.importFiles(new Map(files.map(f => [f.name, f])), dropzone?.importOptions)
-            await viewer.assetManager.loadImported([...imported.values()].flat(2).filter(Boolean), dropzone?.addOptions)
+            const assets = [...imported.values()].flat(2).filter(Boolean)
+            if (!assets.length) throw new Error('Could not import ' + files.map(f => f.name).join(', '))
+            newScene()
+            await viewer.assetManager.loadImported(assets, dropzone?.addOptions)
         },
     })
     if (splash.showAtStartup && !model && !new URLSearchParams(location.search).has('nosplash')) splash.open()
