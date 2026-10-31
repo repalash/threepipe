@@ -6,6 +6,8 @@ ADMIN_JWT_SECRET=dev-admin-secret
 ADMIN_SERVICE_TOKEN=dev-admin-service-token
 POCKET_UI_VIEWER_PASSWORD=viewer
 POCKET_UI_EDITOR_PASSWORD=editor
+# signs private drive URLs (src/drive.ts)
+FILES_URL_SECRET=dev-files-url-secret
 GITHUB_CLIENT_ID=
 GITHUB_CLIENT_SECRET=
 RESPOND_WITH_ERRORS=true

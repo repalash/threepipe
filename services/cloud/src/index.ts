@@ -5,6 +5,9 @@ import type {CloudEnv} from './env'
 import {filesHost} from './files'
 import {accessRoutes} from './access'
 import {uploadRoutes} from './uploads'
+import {driveRoutes} from './drive'
+import {connectRoutes} from './connect'
+import {guardRequest} from './auth'
 import {deleteExpired} from './cron'
 
 /**
@@ -19,10 +22,12 @@ teenyHono<CloudEnv>(async (c) => {
     db.extensions.push(new OpenApiExtension(db, true))
     db.extensions.push(new PocketUIExtension(db))
     return db
-}, app)
+}, app, {logger: true, cors: true}, guardRequest)
 
 accessRoutes(app)
 uploadRoutes(app)
+driveRoutes(app)
+connectRoutes(app)
 
 export default {
     fetch: app.fetch,

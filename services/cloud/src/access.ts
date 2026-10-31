@@ -2,7 +2,7 @@ import type {Hono} from 'hono'
 import {HTTPException} from 'hono/http-exception'
 import type {CloudEnv} from './env'
 import {filesOrigin, randomCode, sha256Hex} from './env'
-import {requireUser} from './auth'
+import {mintKey, requireUser} from './auth'
 import {MAX_UPLOAD_BYTES} from './uploads'
 
 /** How long an access key is valid. Fetching the key again from the link gives a new one. */
@@ -42,21 +42,13 @@ export function accessRoutes(app: Hono<CloudEnv>) {
 
     app.get('/api/v1/access/:code/key', async (c) => {
         const link = await findLink(c.env, c.req.param('code'))
-        const db = c.get('$db')
-        const secret = await db.secretResolver.resolve('$JWT_SECRET_USERS')
-        const key = await db.jwt.createJwtToken({
-            id: link.owner_id,
-            sub: link.email,
-            cid: 'users',
-            verified: true,
-            meta: {link: link.id},
-        }, secret, KEY_DURATION_SECONDS)
+        const key = await mintKey(c, {id: link.owner_id, email: link.email}, link.id, KEY_DURATION_SECONDS)
         return c.text(key, 200, {'cache-control': 'no-store'})
     })
 }
 
 async function findLink(env: CloudflareBindings, code: string) {
-    const link = await env.PRIMARY_DB.prepare(`SELECT l.id, l.owner_id, u.email, u.username FROM access_links l JOIN users u ON u.id = l.owner_id WHERE l.code_hash = ?`)
+    const link = await env.PRIMARY_DB.prepare(`SELECT l.id, l.owner_id, u.email, u.username FROM access_links l JOIN users u ON u.id = l.owner_id WHERE l.code_hash = ? AND l.app IS NULL`)
         .bind(await sha256Hex(code)).first<{id: string, owner_id: string, email: string, username: string}>()
     if (!link) throw new HTTPException(404, {message: 'unknown or revoked access link'})
     return link
@@ -78,6 +70,7 @@ Download your key from ${api}/api/v1/access/${code}/key and save it as \`TP_CLOU
 | \`a\` | permanent assets (docs images, videos) | permanent | never | \`a/<file name>\`, send \`x-content-sha256: <hex sha256 of the file>\` |
 | \`b\` | builds and previews of a PR or commit | 30 days after the last upload | yes, owner | \`b/<repo>/<pr-123 or sha>/<file path>\` |
 | \`p\` | permanent named pages | permanent | yes, owner | \`p/<name>/<file path>\` |
+| \`d\` | your drive (private by default) | permanent, quota | yes, owner | \`d/${username}/<file path>\`, \`?visibility=public\` to publish |
 
 The first part of the path after \`s\`, \`p\` (and \`<repo>/<ref>\` after \`b\`) belongs to whoever uploads there first.
 Files are served at \`${files}/<prefix>/<path>\`; a folder URL ending in \`/\` serves its \`index.html\`.
@@ -90,7 +83,14 @@ curl -sS -X PUT -H "Authorization: Bearer $TP_CLOUD_KEY" -H "x-content-sha256: $
 
 ## Delete a file
 
-\`DELETE ${api}/api/v1/uploads/<prefix>/<path>\` (your own \`s\`, \`b\`, \`p\` files).
+\`DELETE ${api}/api/v1/uploads/<prefix>/<path>\` (your own \`s\`, \`b\`, \`p\`, \`d\` files).
+
+## Drive
+
+- Read a private file: \`GET ${api}/api/v1/uploads/d/${username}/<path>\`. List: \`GET ${api}/api/v1/drive?folder=d/${username}/<folder>/\`.
+- Publish or hide, move: \`PATCH ${api}/api/v1/uploads/d/${username}/<path>\` with JSON \`{"visibility": "public" | "private"}\` or \`{"move_to": "d/${username}/<new path>"}\`.
+- Signed URL (expires; a folder URL ending in \`/\` also serves the files in it): \`POST ${api}/api/v1/drive/sign\` \`{"path": "d/${username}/<file or folder/>", "ttl": <seconds>}\`.
+- Share link (until deleted): \`POST ${api}/api/v1/drive-links\` \`{"path": …}\`; \`DELETE ${api}/api/v1/drive-links/<id>\`.
 
 ## Your files
 

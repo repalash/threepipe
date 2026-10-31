@@ -1,8 +1,9 @@
 import type {Context, Hono} from 'hono'
 import {HTTPException} from 'hono/http-exception'
 import type {CloudEnv} from './env'
-import {filesOrigin, hex} from './env'
-import {CloudUser, isStaff, requireUser} from './auth'
+import {BUCKET, cleanSegments, filesOrigin, hex, likePrefix} from './env'
+import {assertScope, CloudUser, isStaff, requireUser} from './auth'
+import {checkDrive, driveDelete, drivePatch, driveRead, Visibility} from './drive'
 
 /** Per file, through the Worker. Bigger builds are split into files anyway (one PUT per file). */
 export const MAX_UPLOAD_BYTES = 90 * 1024 * 1024
@@ -10,10 +11,9 @@ const DAY = 24 * 60 * 60 * 1000
 const SHARE_DEFAULT_DAYS = 7
 const SHARE_MAX_DAYS = 30
 const BUILD_DAYS = 30
-const BUCKET = 'cloud'
 
-export type Prefix = 's' | 'a' | 'b' | 'p'
-const PREFIXES: Prefix[] = ['s', 'a', 'b', 'p']
+export type Prefix = 's' | 'a' | 'b' | 'p' | 'd'
+const PREFIXES: Prefix[] = ['s', 'a', 'b', 'p', 'd']
 
 const MIME: Record<string, string> = {
     html: 'text/html; charset=utf-8', htm: 'text/html; charset=utf-8', js: 'text/javascript; charset=utf-8', mjs: 'text/javascript; charset=utf-8',
@@ -29,23 +29,15 @@ export function contentTypeFor(path: string, given?: string | null): string {
     return MIME[ext] || (given && !given.startsWith('application/octet-stream') && !given.startsWith('application/x-www-form-urlencoded') ? given : 'application/octet-stream')
 }
 
-/** Relative path segments without empty, '.', '..' or dotfile parts. */
-function cleanSegments(path: string): string[] | null {
-    if (!path || path.length > 512) return null
-    const segs = path.split('/')
-    if (segs.some(s => !s || s === '.' || s === '..' || s.startsWith('.') || !/^[\w\-.()+@ ]+$/.test(s))) return null
-    return segs
-}
-
 interface Target {
     key: string
-    /** the part of the key that belongs to one owner: `s/<slug>`, `b/<repo>/<ref>`, `p/<name>`; none for `a/` */
+    /** the part of the key that belongs to one owner: `s/<slug>`, `b/<repo>/<ref>`, `p/<name>`; none for `a/` and `d/` */
     scope?: string
     expiresAt: string | null
     sha256?: string
 }
 
-function target(prefix: Prefix, segs: string[], c: Context<CloudEnv>): Target {
+function target(prefix: Prefix, segs: string[], c: Context<CloudEnv>, user: CloudUser): Target {
     const now = Date.now()
     switch (prefix) {
     case 's': {
@@ -66,32 +58,47 @@ function target(prefix: Prefix, segs: string[], c: Context<CloudEnv>): Target {
         if (!/^[0-9a-f]{64}$/.test(sha)) throw new HTTPException(400, {message: 'send x-content-sha256: <hex sha256 of the file>'})
         return {key: `a/${sha.slice(0, 8)}/${segs[0]}`, expiresAt: null, sha256: sha}
     }
+    case 'd':
+        // the drive: d/<handle>/ belongs to the user with that username (picked once, never changes)
+        if (segs.length < 2) throw new HTTPException(400, {message: 'd/<your username>/<file path>'})
+        if (segs[0] !== user.username) throw new HTTPException(403, {message: `your drive is d/${user.username}/`})
+        return {key: 'd/' + segs.join('/'), expiresAt: null}
     }
+}
+
+/** `<prefix>/<path>` of a request to /api/v1/uploads/:prefix/:path, checked. */
+export function requestKey(c: Context<CloudEnv>): {prefix: Prefix, segs: string[], key: string} {
+    const prefix = c.req.param('prefix') as Prefix
+    if (!PREFIXES.includes(prefix)) throw new HTTPException(404, {message: `prefix is one of ${PREFIXES.join(', ')}`})
+    const segs = cleanSegments(decodeURIComponent(c.req.param('path') || ''))
+    if (!segs) throw new HTTPException(400, {message: 'bad path'})
+    return {prefix, segs, key: prefix + '/' + segs.join('/')}
 }
 
 /** 403 when another user already has files in this scope. */
 async function checkScope(env: CloudflareBindings, scope: string, user: CloudUser) {
-    const other = await env.PRIMARY_DB.prepare('SELECT owner_id FROM files WHERE bucket = ? AND (path = ? OR path LIKE ?) AND owner_id != ? AND deleted_at IS NULL LIMIT 1')
-        .bind(BUCKET, scope, scope.replace(/[%_]/g, '\\$&') + '/%', user.id).first()
+    const other = await env.PRIMARY_DB.prepare(`SELECT owner_id FROM files WHERE bucket = ? AND (path = ? OR path LIKE ? ESCAPE '\\') AND owner_id != ? AND deleted_at IS NULL LIMIT 1`)
+        .bind(BUCKET, scope, likePrefix(scope + '/'), user.id).first()
     if (other) throw new HTTPException(403, {message: `'${scope}' belongs to another user`})
 }
 
 /**
- * Uploads (`PUT`) and deletes (`DELETE`) of files in the cloud bucket. Keys are the URL paths; the owner and expiry are
- * also on the R2 object (src/files.ts serves without a database read). The `files` table is the registry.
+ * Uploads (`PUT`) and deletes (`DELETE`) of files in the cloud bucket; drive files (`d/`) can also be read (`GET`) and
+ * changed (`PATCH`, src/drive.ts). Keys are the URL paths; the owner, expiry and visibility are also on the R2 object
+ * (src/files.ts serves without a database read). The `files` table is the registry.
  */
 export function uploadRoutes(app: Hono<CloudEnv>) {
     app.put('/api/v1/uploads/:prefix/:path{.+}', async (c) => {
         const user = await requireUser(c)
-        const prefix = c.req.param('prefix') as Prefix
-        if (!PREFIXES.includes(prefix)) throw new HTTPException(404, {message: `prefix is one of ${PREFIXES.join(', ')}`})
-        const segs = cleanSegments(decodeURIComponent(c.req.param('path')))
-        if (!segs) throw new HTTPException(400, {message: 'bad path'})
+        const {prefix, segs} = requestKey(c)
         const size = Number(c.req.header('content-length'))
         if (!Number.isInteger(size) || size <= 0) throw new HTTPException(411, {message: 'send the file as the request body, with Content-Length'})
         if (size > MAX_UPLOAD_BYTES) throw new HTTPException(413, {message: `max ${MAX_UPLOAD_BYTES / 1024 / 1024} MB per file`})
-        const t = target(prefix, segs, c)
+        const t = target(prefix, segs, c, user)
+        assertScope(user, t.key)
         if (t.scope) await checkScope(c.env, t.scope, user)
+        // drive: quota, and the visibility (kept on overwrite unless ?visibility= is given)
+        const visibility: Visibility | undefined = prefix === 'd' ? await checkDrive(c, user, t.key, size) : undefined
         const contentType = contentTypeFor(t.key, c.req.header('content-type'))
         const body = c.req.raw.body
         if (!body) throw new HTTPException(400, {message: 'empty body'})
@@ -112,7 +119,7 @@ export function uploadRoutes(app: Hono<CloudEnv>) {
         const piped = toR2.pipeTo(fixed.writable)
         const stored = await c.env.CLOUD_BUCKET.put(t.key, fixed.readable, {
             httpMetadata: {contentType},
-            customMetadata: {owner: user.id, ...t.expiresAt ? {expires: t.expiresAt} : {}, ...t.sha256 ? {sha256: t.sha256} : {}},
+            customMetadata: {owner: user.id, ...t.expiresAt ? {expires: t.expiresAt} : {}, ...t.sha256 ? {sha256: t.sha256} : {}, ...visibility ? {visibility} : {}},
             ...prefix === 'a' ? {onlyIf: new Headers({'if-none-match': '*'})} : {},
         })
         await Promise.all([piped, digested])
@@ -123,28 +130,34 @@ export function uploadRoutes(app: Hono<CloudEnv>) {
             throw new HTTPException(400, {message: 'x-content-sha256 does not match the uploaded bytes'})
         }
 
-        await c.env.PRIMARY_DB.prepare(`INSERT INTO files (id, owner_id, bucket, prefix, path, size, sha256, content_type, expires_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        await c.env.PRIMARY_DB.prepare(`INSERT INTO files (id, owner_id, bucket, prefix, path, size, sha256, content_type, expires_at, visibility)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT (bucket, path) DO UPDATE SET owner_id = excluded.owner_id, size = excluded.size, sha256 = excluded.sha256, content_type = excluded.content_type,
-                expires_at = excluded.expires_at, deleted_at = NULL, deleted_by = NULL, deleted_reason = NULL`)
-            .bind(crypto.randomUUID(), user.id, BUCKET, prefix, t.key, size, sha256, contentType, t.expiresAt).run()
+                expires_at = excluded.expires_at, visibility = excluded.visibility, deleted_at = NULL, deleted_by = NULL, deleted_reason = NULL`)
+            .bind(crypto.randomUUID(), user.id, BUCKET, prefix, t.key, size, sha256, contentType, t.expiresAt, visibility ?? null).run()
         // a new upload to a build keeps the whole build alive
         if (prefix === 'b' && t.scope) {
-            await c.env.PRIMARY_DB.prepare('UPDATE files SET expires_at = ? WHERE bucket = ? AND path LIKE ? AND deleted_at IS NULL')
-                .bind(t.expiresAt, BUCKET, t.scope.replace(/[%_]/g, '\\$&') + '/%').run()
+            await c.env.PRIMARY_DB.prepare(`UPDATE files SET expires_at = ? WHERE bucket = ? AND path LIKE ? ESCAPE '\\' AND deleted_at IS NULL`)
+                .bind(t.expiresAt, BUCKET, likePrefix(t.scope + '/')).run()
         }
-        return c.json({url: `${filesOrigin(c.env, new URL(c.req.url).origin)}/${t.key}`, path: t.key, size, sha256, expires_at: t.expiresAt})
+        return c.json({url: `${filesOrigin(c.env, new URL(c.req.url).origin)}/${t.key}`, path: t.key, size, sha256, expires_at: t.expiresAt, ...visibility ? {visibility} : {}})
     })
+
+    app.get('/api/v1/uploads/d/:path{.+}', driveRead)
+    app.patch('/api/v1/uploads/d/:path{.+}', drivePatch)
 
     app.delete('/api/v1/uploads/:prefix/:path{.+}', async (c) => {
         const user = await requireUser(c)
-        const key = `${c.req.param('prefix')}/${decodeURIComponent(c.req.param('path'))}`
+        const {key} = requestKey(c)
+        assertScope(user, key)
         const row = await c.env.PRIMARY_DB.prepare('SELECT owner_id, prefix FROM files WHERE bucket = ? AND path = ? AND deleted_at IS NULL')
             .bind(BUCKET, key).first<{owner_id: string, prefix: Prefix}>()
         if (!row) throw new HTTPException(404, {message: 'not found'})
         // owners delete their s/ b/ p/ files; a/ stays permanent unless staff removes it (copyright, abuse, storage)
         const mayDelete = isStaff(user) || row.owner_id === user.id && row.prefix !== 'a'
         if (!mayDelete) throw new HTTPException(403, {message: row.prefix === 'a' ? 'permanent assets are removed by staff only' : 'not your file'})
+        // the owner's own drive files are deleted for real (no tombstone: the drive is private storage)
+        if (row.prefix === 'd' && row.owner_id === user.id) return driveDelete(c, key)
         const reason = (c.req.query('reason') || (row.owner_id === user.id ? 'deleted by owner' : 'removed by staff')).slice(0, 200)
         const now = new Date().toISOString()
         // a small tombstone object at the path, so the link answers 410 without a database read
