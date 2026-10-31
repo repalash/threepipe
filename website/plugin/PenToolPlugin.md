@@ -64,7 +64,7 @@ The plugin UI (`uiConfig`) has Enabled, a Draw Path / Finish Path button, Color 
 
 - The object is at the centre of its points, named `Path 1`, `Path 2`, ... It is added to the model root, in its space, so it stays on the drawn points when the root is moved or scaled (`modelRootScale`).
 - Each segment is a `CubicBezierCurve3`. Neighbouring segments share their end point (the same `Vector3`), so moving a point in the geometry editor keeps them joined.
-- The line has 32 segments per curve (48 to 400).
+- The line has 32 divisions for each curve (`samplePerCurve` of the line generator), so every point of the path is a vertex and corners stay sharp.
 - The material is the default material of the line generator (`LineMaterial2`, or a basic line material with `LineGeometryGenerator.UseMeshLines = false`), with `color` and `linewidth`.
 - With `UndoManagerPlugin`, adding the path is one undo step. With `PickingPlugin`, the path is selected, without an undo step of its own.
 

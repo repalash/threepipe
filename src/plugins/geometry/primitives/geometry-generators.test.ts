@@ -307,6 +307,26 @@ describe('LineGeometryGenerator', () => {
         expect((geometry as any)._maxInstanceCount).toBeUndefined()
     })
 
+    test('samplePerCurve: segments divisions for each curve of a path, so each joint is a vertex', async() => {
+        const curves = await import('../../../three/utils/curve')
+        const three = await import('three')
+        const v = (x: number, y: number, z: number) => new three.Vector3(x, y, z)
+        const path = new curves.CurvePath3()
+        path.add(new three.LineCurve3(v(-4, 0, 0), v(0, 0, 0)))
+        path.add(new three.LineCurve3(v(0, 0, 0), v(0.1, 0, 0.1)))
+        path.add(new three.CubicBezierCurve3(v(0.1, 0, 0.1), v(1, 0, 2), v(3, 0, 4), v(4, 0, 3)))
+        const d = gen(LineGen, {curve: path, segments: 8, samplePerCurve: true})
+        const points: number[][] = []
+        for (let i = 0; i < d.positions.length; i += 3) points.push(d.positions.slice(i, i + 3))
+        // a line is one division, the cubic 8; the shared joints once
+        expect(points.length).toBe(1 + 1 + 1 + 8)
+        expect(points.slice(0, 3)).toEqual([[-4, 0, 0], [0, 0, 0], [0.1, 0, 0.1]])
+        expect(points[points.length - 1]).toEqual([4, 0, 3])
+        // without it: `segments` points over the whole path, by arc length (the joints are not kept)
+        const spaced = gen(LineGen, {curve: path, segments: 8})
+        expect(spaced.positions.length / 3).toBe(8)
+    })
+
     test('throws when no curve provided and no default curve', () => {
         const g = new LineGen()
         g.defaultParams.curve = undefined

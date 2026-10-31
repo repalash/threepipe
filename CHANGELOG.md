@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file.
 
 - [`PerfPanelPlugin`](https://threepipe.org/plugin/PerfPanelPlugin.html): an opt-in FPS pill and performance card over the canvas (frame times, render CPU time, renders per second, draw calls and triangles of all passes, canvas, GPU, JS heap), with warnings for a capped frame rate (Chrome Energy Saver, Low Power Mode), CPU or GPU bound, battery, software rendering and a hidden tab. Stats in `stats` and the `update` event. Example: `examples/perf-panel-plugin`; also in the `tweakpane-editor` example (Debug tab)
 - [`PenToolPlugin`](https://threepipe.org/plugin/PenToolPlugin.html): a pen for 3D paths like the one of Figma or Illustrator. Click to add points (on the surface under the pointer, else the ground; Shift keeps the height), drag to pull out smooth Bezier handles, click the first point to close, Enter or double-click to finish, Backspace removes the last point, Esc cancels. The path is a `GeometryGeneratorPlugin` line with a `CurvePath3` of cubic Beziers, so it stays editable and saves in a glb; one undo step with `UndoManagerPlugin`. Example: `examples/pen-tool-plugin`
+- `LineGeometryGenerator`: the `samplePerCurve` parameter samples each curve of a path with `segments` divisions, so the joints between curves are vertices (opt-in; the default arc-length sampling is unchanged)
 
 ### Changed
 

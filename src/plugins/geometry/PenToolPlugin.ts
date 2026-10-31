@@ -399,8 +399,8 @@ export class PenToolPlugin extends AViewerPluginSync<PenToolPluginEventMap> {
             // neighbouring segments share their end point, so moving it in the geometry editor keeps them joined
             path.add(new CubicBezierCurve3(a.p, a.hOut, b.hIn, b.p))
         }
-        const segments = Math.min(400, Math.max(48, n * 32))
-        const obj = gen.generateObject('line', {curve: path, segments}) as IObject3D
+        // 32 divisions for each curve, so every point of the path is a vertex of the line
+        const obj = gen.generateObject('line', {curve: path, segments: 32, samplePerCurve: true}) as IObject3D
         // the default line material: LineMaterial2 (fat lines), or a basic line material with `UseMeshLines` false
         const material = obj.material as {color?: Color, linewidth?: number} | undefined
         material?.color?.set(this.color)

@@ -420,4 +420,26 @@ describe('PenToolPlugin', {timeout}, () => {
         }
         pen.cancel()
     })
+
+    test('every point of the path is a vertex of the line, also a sharp corner next to a short segment', () => {
+        const {pen, click, drag} = setup()
+        pen.start()
+        click(-4, 0, 0)
+        click(0, 0, 0) // a sharp corner
+        click(0.15, 0, 0.1) // a short segment
+        drag([4, 0, 3], [5, 0, 1]) // a long curve
+        const drawn = pen.points
+        const obj = pen.finish()!
+        const geometry = obj.geometry as any
+        const vertices: number[][] = []
+        for (const name of ['instanceStart', 'instanceEnd']) {
+            const a = geometry.getAttribute(name)
+            for (let i = 0; i < a.count; i++) vertices.push([a.getX(i), a.getY(i), a.getZ(i)])
+        }
+        for (const p of drawn) {
+            const local = p.clone().sub(obj.position)
+            const nearest = Math.min(...vertices.map(v => Math.hypot(v[0] - local.x, v[1] - local.y, v[2] - local.z)))
+            expect(nearest).toBeLessThan(1e-6)
+        }
+    })
 })
