@@ -103,7 +103,7 @@ rows they can edit).
 ## Uploading from the repository
 
 - `npm run cloud:upload -- <file or folder> <remote path>`: any file or folder (skips dotfiles, `node_modules` and what
-  `.gitignore` excludes).
+  `.gitignore` excludes). `drive:/<folder>/` as the remote path makes it one private item in that folder of your drive.
 - `npm run cloud:upload-preview -- pr-<n>`: uploads an already built tree (run `npm run build:all` first; that one only
   builds) to `b/threepipe/pr-<n>/` and prints the link.
 

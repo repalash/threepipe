@@ -5,8 +5,9 @@
 //   npm run cloud:upload-preview -- <pr-123 or commit sha>       uploads what `npm run build:all` built (dist/, examples/,
 //                                                                plugins/*/dist/) to b/threepipe/<ref>/ and prints the link
 //
-// Remote paths: s/<slug>/…  p/<name>/…  b/<repo>/<ref>/…  d/<your username>/…  a/<name>   (PUT /api/v1/uploads/…)
-//               samples/<path>  e2e/blobs/<sha256><ext>                                    (staff, PUT /api/v1/buckets/…)
+// Remote paths: s/<slug>/…  p/<name>/…  b/<repo>/<ref>/…  a/<name>                  (PUT /api/v1/uploads/…)
+//               drive:/<folder>/   the file or folder becomes one private item there  (/api/v1/drive/items)
+//               samples/<path>  e2e/blobs/<sha256><ext>                              (staff, PUT /api/v1/buckets/…)
 // Options: --ttl <days> (s/, default 7), --dry-run, --concurrency <n> (default 6)
 //
 // The key: TP_CLOUD_KEY from the environment or /tmp/.env. Get one from an access link (signed in at
@@ -35,6 +36,7 @@ const api = (env.TP_CLOUD_API || 'https://cloud.threepipe.org').replace(/\/+$/, 
 const key = env.TP_CLOUD_KEY
 
 let files // [{local, remote, content?}]
+let drive // drive:/<folder>: {folder, name}, and the item's id once made
 if (flag('--preview')) {
     const ref = positional[0]
     if (!ref || !/^[\w.-]+$/.test(ref)) usage('give the pull request (pr-123) or the commit sha')
@@ -42,7 +44,11 @@ if (flag('--preview')) {
 } else {
     const [local, remote] = positional
     if (!local || !remote) usage()
-    files = listFiles(path.resolve(local), remote)
+    if (remote.startsWith('drive:')) {
+        // the item's files are its relative paths (a file: its name)
+        drive = {folder: remote.slice('drive:'.length), name: path.basename(path.resolve(local))}
+        files = listFiles(path.resolve(local), '/').map(f => ({...f, remote: f.remote.slice(1)}))
+    } else files = listFiles(path.resolve(local), remote)
 }
 if (!files.length) usage('no files to upload')
 if (!key && !dryRun) usage('TP_CLOUD_KEY is not set (environment or /tmp/.env)')
@@ -55,11 +61,17 @@ if (dryRun) {
     process.exit(0)
 }
 
+if (drive) {
+    const at = await call('GET', `/api/v1/drive/resolve?path=${encodeURIComponent(drive.folder)}`)
+    if (!at.folder) usage(`${drive.folder} is not a folder in your drive`)
+    drive.id = (await call('POST', '/api/v1/drive/items', {name: drive.name, folder: at.folder.id})).id
+}
+
 let done = 0, failed = 0, base = ''
 await parallel(files, async f => {
     try {
         const res = await upload(f)
-        if (!base) base = res.url.slice(0, res.url.length - res.path.length) // the files host
+        if (!base && res.url) base = res.url.slice(0, res.url.length - res.path.length) // the files host
         if (++done % 100 === 0) console.log(`  ${done} / ${files.length}`)
     } catch (e) {
         failed++
@@ -67,6 +79,7 @@ await parallel(files, async f => {
     }
 })
 console.log(`${done} uploaded, ${failed} failed`)
+if (drive) console.log(`\nThe item: ${api}/drive (${drive.folder}, ${drive.name}; private until you share it)`)
 if (flag('--preview') && !failed) {
     console.log(`\nExamples of this build: ${base}${files[0].remote.split('/').slice(0, 3).join('/')}/examples/index.html`)
 }
@@ -116,7 +129,9 @@ function gitIgnored(dir) {
 async function upload(f) {
     const body = f.content ?? fs.readFileSync(f.local)
     const staff = /^(samples|e2e)\//.test(f.remote)
-    const url = `${api}/api/v1/${staff ? 'buckets' : 'uploads'}/${f.remote.split('/').map(encodeURIComponent).join('/')}${ttl && f.remote.startsWith('s/') ? `?ttl=${ttl}` : ''}`
+    const remote = f.remote.split('/').map(encodeURIComponent).join('/')
+    const url = drive ? `${api}/api/v1/drive/items/${drive.id}/${remote}`
+        : `${api}/api/v1/${staff ? 'buckets' : 'uploads'}/${remote}${ttl && f.remote.startsWith('s/') ? `?ttl=${ttl}` : ''}`
     const headers = {authorization: `Bearer ${key}`}
     if (staff || f.remote.startsWith('a/')) headers['x-content-sha256'] = crypto.createHash('sha256').update(body).digest('hex')
     for (let attempt = 0; ; attempt++) {
@@ -132,6 +147,13 @@ async function upload(f) {
         const text = await res.text()
         throw new Error(`HTTP ${res.status} ${text.slice(0, 200)}`)
     }
+}
+
+/** One JSON call to the API with the key. */
+async function call(method, route, body) {
+    const res = await fetch(api + route, {method, headers: {authorization: `Bearer ${key}`, ...(body ? {'content-type': 'application/json'} : {})}, body: body ? JSON.stringify(body) : undefined})
+    if (!res.ok) usage(`${method} ${route}: HTTP ${res.status} ${(await res.text()).slice(0, 200)}`)
+    return res.json()
 }
 
 function size(f) {
@@ -159,6 +181,6 @@ function readEnv() {
 
 function usage(message) {
     if (message) console.error(message + '\n')
-    console.error(fs.readFileSync(import.meta.filename, 'utf8').split('\n').filter(l => l.startsWith('//')).slice(0, 13).map(l => l.slice(3)).join('\n'))
+    console.error(fs.readFileSync(import.meta.filename, 'utf8').split('\n').filter(l => l.startsWith('//')).slice(0, 14).map(l => l.slice(3)).join('\n'))
     process.exit(1)
 }

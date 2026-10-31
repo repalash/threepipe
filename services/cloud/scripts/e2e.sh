@@ -105,6 +105,18 @@ LURL=$(curl -s -X PATCH -H "$H0" -H 'content-type: application/json' -d '{"visib
 [ "$(code "$LURL")" = "200" ] && [ "$(curl -s "${LURL%scene.gltf}tex/scene.bin")" = "bin" ] && ok "link: anyone with the item URL" || bad "link: $LURL"
 curl -s -o /dev/null -X PATCH -H "$H0" -H 'content-type: application/json' -d '{"visibility":"private"}' "$A/api/v1/drive/items/$LID"
 [ "$(code "$LURL")" = "404" ] && ok "private again" || bad "private again"
+# uploads that stream while the item changes (writeFile reads the item again after registering the file)
+head -c 800000 /dev/urandom > $TMP/slow.bin
+slow() { curl -s -o /dev/null -w '%{http_code}' --limit-rate 200k -X PUT -H "$H0" --data-binary @$TMP/slow.bin "$A/api/v1/drive/items/$1/slow.bin"; }
+RL=$(curl -s -X POST -H "$H0" -H 'content-type: application/json' -d '{"name":"race","entry":"slow.bin"}' "$A/api/v1/drive/items" | j "['id']")
+RURL=$(curl -s -X PATCH -H "$H0" -H 'content-type: application/json' -d '{"visibility":"link"}' "$A/api/v1/drive/items/$RL" | j "['url']")
+slow "$RL" > $TMP/slow.code & SLOW=$!; sleep 1.5
+curl -s -o /dev/null -X PATCH -H "$H0" -H 'content-type: application/json' -d '{"visibility":"private"}' "$A/api/v1/drive/items/$RL"; wait $SLOW
+[ "$(cat $TMP/slow.code)" = "200" ] && [ "$(code "$RURL")" = "404" ] && ok "made private during an upload: the new file is private too" || bad "visibility race: $(cat $TMP/slow.code) $(code "$RURL")"
+curl -s -o /dev/null -X PATCH -H "$H0" -H 'content-type: application/json' -d '{"visibility":"link"}' "$A/api/v1/drive/items/$RL"
+slow "$RL" > $TMP/slow.code & SLOW=$!; sleep 1.5
+curl -s -o /dev/null -X DELETE -H "$H0" "$A/api/v1/drive/items/$RL"; wait $SLOW
+[ "$(cat $TMP/slow.code)" = "409" ] && [ "$(code "$RURL")" = "404" ] && [ "$(curl -s -H "Authorization: Bearer $ADMIN_TOKEN" "$A/api/v1/table/files/select?where=item_id%20%3D%3D%20'$RL'")" = "[]" ] && ok "deleted during an upload: nothing of it stays" || bad "delete race: $(cat $TMP/slow.code) $(code "$RURL")"
 R=$(curl -s -X PATCH -H "$H0" -H 'content-type: application/json' -d "{\"name\":\"armchair.glb\",\"folder\":\"$FID\"}" "$A/api/v1/drive/items/$ITEM")
 [ "$(echo "$R" | j "['url']")" = "$IURL" ] && curl -s -H "$H0" "$A/api/v1/drive?folder=$FID" | grep -q armchair.glb && ok "rename and move: only the label changes, the URL stays" || bad "rename: $R"
 [ "$(curl -s -H "$H0" "$A/api/v1/drive/resolve?path=/furniture/armchair.glb" | j "['item']['id']")" = "$ITEM" ] && ok "resolve a path" || bad "resolve"

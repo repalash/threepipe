@@ -152,7 +152,7 @@ export async function driveUsage(c: Context<CloudEnv>, userId: string, key = '')
     return {used: r?.used ?? 0, old: r?.old ?? 0}
 }
 
-/** Before writing a file: 413 when it would go over the quota. */
+/** Before writing a file: 413 when it would go over the quota (an overwrite counts its new size only). writeFile checks the total again after. */
 async function checkQuota(c: Context<CloudEnv>, user: CloudUser, key: string, size: number) {
     const {used, old} = await driveUsage(c, user.id, key)
     const quota = driveQuota(user)
@@ -186,7 +186,35 @@ async function writeFile(c: Context<CloudEnv>, user: CloudUser, item: Item, rel:
             .bind(crypto.randomUUID(), user.id, BUCKET, key, size, sha256, contentType, item.id),
         updateCounts(c, item.id, rel),
     ])
+    // While the file streamed, the item may have been deleted, got a new id or another visibility. Those routes change
+    // D1 first and then only touch the rows they changed, so the row of the item now says what this object must be.
+    const now = await db(c).prepare('SELECT visibility FROM drive_items WHERE id = ?').bind(item.id).first<{visibility: Visibility}>()
+    if (!now) {
+        await dropFile(c, key, item.id) // gone, unless the new id took this row along (then it copies the object)
+        throw new HTTPException(409, {message: 'the item was deleted or got a new id during the upload'})
+    }
+    if (now.visibility !== item.visibility) await setVisibility(c, key, now.visibility)
+    // Uploads at the same time all pass checkQuota; the total after them is what counts.
+    const {used} = await driveUsage(c, user.id)
+    if (used > driveQuota(user)) {
+        await dropFile(c, key, item.id)
+        await updateCounts(c, item.id, null).run()
+        throw new HTTPException(413, {message: `drive quota: ${sizeText(driveQuota(user))} (other uploads at the same time used it)`})
+    }
     return {path: rel, size, sha256}
+}
+
+/** Deletes a file this request wrote, if its row is still that item's (a new id moves rows, and their objects with them). */
+async function dropFile(c: Context<CloudEnv>, key: string, itemId: string) {
+    const r = await db(c).prepare('DELETE FROM files WHERE bucket = ? AND path = ? AND item_id = ?').bind(BUCKET, key, itemId).run()
+    if (r.meta.changes) await c.env.CLOUD_BUCKET.delete(key)
+}
+
+/** Writes the object again with this visibility (R2 cannot change metadata in place), unless it has it already. */
+async function setVisibility(c: Context<CloudEnv>, key: string, visibility: Visibility) {
+    const obj = await c.env.CLOUD_BUCKET.get(key)
+    if (obj && obj.customMetadata?.visibility !== visibility)
+        await c.env.CLOUD_BUCKET.put(key, obj.body, {httpMetadata: obj.httpMetadata, customMetadata: {...obj.customMetadata, visibility}})
 }
 
 async function itemFiles(c: Context<CloudEnv>, item: Item) {
@@ -386,14 +414,11 @@ export function driveRoutes(app: Hono<CloudEnv>) {
             entry = cleanSegments(String(body.entry))?.join('/') ?? null
             if (!entry) throw new HTTPException(400, {message: 'bad entry'})
         }
-        if (visibility !== item.visibility) {
-            // R2 cannot change metadata in place: each file is written again with the new visibility (streamed)
-            for (const f of await rewritableFiles(c, item)) {
-                const obj = await c.env.CLOUD_BUCKET.get(f.path)
-                if (obj) await c.env.CLOUD_BUCKET.put(f.path, obj.body, {httpMetadata: obj.httpMetadata, customMetadata: {...obj.customMetadata, visibility}})
-            }
-        }
+        if (body.visibility !== undefined) await rewritableFiles(c, item) // too many files: refused before anything changes
+        // D1 first: an upload that streams meanwhile reads it after registering its file (writeFile)
         await db(c).prepare('UPDATE drive_items SET name = ?, folder_id = ?, visibility = ?, entry = ? WHERE id = ?').bind(name, folder, visibility, entry, item.id).run()
+        // then each file that does not have it yet (sending the same visibility again repairs a change cut short)
+        if (body.visibility !== undefined) for (const f of await itemFiles(c, item)) await setVisibility(c, f.path, visibility)
         return c.json(itemOut(c, user, await itemOf(c, user, item.id)))
     })
 
@@ -402,32 +427,36 @@ export function driveRoutes(app: Hono<CloudEnv>) {
     app.post('/api/v1/drive/items/:id/new-id', async (c) => {
         const user = await requireUser(c)
         const item = await itemOf(c, user, c.req.param('id'))
-        const files = await rewritableFiles(c, item)
+        await rewritableFiles(c, item) // too many files: refused before anything changes
         const oldBase = itemBase(user, item.id), id = randomCode(16), newBase = itemBase(user, id)
-        await db(c).prepare(`INSERT INTO drive_items (id, owner_id, folder_id, name, entry, visibility, size, files_count, created)
-                SELECT ?, owner_id, folder_id, name || ' ', entry, visibility, size, files_count, created FROM drive_items WHERE id = ?`).bind(id, item.id).run()
-        for (const f of files) {
-            const obj = await c.env.CLOUD_BUCKET.get(f.path)
-            if (obj) await c.env.CLOUD_BUCKET.put(newBase + f.path.slice(oldBase.length), obj.body, {httpMetadata: obj.httpMetadata, customMetadata: {...obj.customMetadata, item: id}})
-        }
-        await db(c).batch([
-            db(c).prepare(`UPDATE files SET item_id = ?1, path = ?2 || substr(path, ?3) WHERE item_id = ?4`).bind(id, newBase, oldBase.length + 1, item.id),
+        // D1 first, in one batch: the new item takes the rows, the old one is gone. An upload to the old id that
+        // registers after this cleans up after itself (writeFile); one that registered before is moved here.
+        const [, moved] = await db(c).batch([
+            db(c).prepare(`INSERT INTO drive_items (id, owner_id, folder_id, name, entry, visibility, size, files_count, created)
+                    SELECT ?, owner_id, folder_id, name || ' ', entry, visibility, size, files_count, created FROM drive_items WHERE id = ?`).bind(id, item.id),
+            db(c).prepare(`UPDATE files SET item_id = ?1, path = ?2 || substr(path, ?3) WHERE item_id = ?4 RETURNING path`).bind(id, newBase, oldBase.length + 1, item.id),
             db(c).prepare('DELETE FROM drive_items WHERE id = ?').bind(item.id),
             db(c).prepare('UPDATE drive_items SET name = ? WHERE id = ?').bind(item.name, id),
-        ])
-        for (let i = 0; i < files.length; i += 1000) await c.env.CLOUD_BUCKET.delete(files.slice(i, i + 1000).map(f => f.path))
+        ]) as D1Result<{path: string}>[]
+        const olds = moved.results.map(r => oldBase + r.path.slice(newBase.length))
+        for (const old of olds) {
+            const obj = await c.env.CLOUD_BUCKET.get(old)
+            if (obj) await c.env.CLOUD_BUCKET.put(newBase + old.slice(oldBase.length), obj.body, {httpMetadata: obj.httpMetadata, customMetadata: {...obj.customMetadata, item: id}})
+        }
+        for (let i = 0; i < olds.length; i += 1000) await c.env.CLOUD_BUCKET.delete(olds.slice(i, i + 1000))
         return c.json(itemOut(c, user, await itemOf(c, user, id)))
     })
 
     app.delete('/api/v1/drive/items/:id', async (c) => {
         const user = await requireUser(c)
         const item = await itemOf(c, user, c.req.param('id'))
-        const {results} = await db(c).prepare('SELECT path FROM files WHERE item_id = ?').bind(item.id).all<{path: string}>()
-        for (let i = 0; i < results.length; i += 1000) await c.env.CLOUD_BUCKET.delete(results.slice(i, i + 1000).map(r => r.path))
-        await db(c).batch([
-            db(c).prepare('DELETE FROM files WHERE item_id = ?').bind(item.id),
+        // D1 first (an upload that registers after this cleans up after itself, see writeFile), then the objects of the rows
+        const [rows] = await db(c).batch([
+            db(c).prepare('DELETE FROM files WHERE item_id = ? RETURNING path').bind(item.id),
             db(c).prepare('DELETE FROM drive_items WHERE id = ?').bind(item.id),
-        ])
+        ]) as D1Result<{path: string}>[]
+        const paths = rows.results.map(r => r.path)
+        for (let i = 0; i < paths.length; i += 1000) await c.env.CLOUD_BUCKET.delete(paths.slice(i, i + 1000))
         return c.json({deleted: item.id})
     })
 
