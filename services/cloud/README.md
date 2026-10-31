@@ -36,6 +36,8 @@ Files are served under `/_files/` locally; set `FILES_HOST` (wrangler vars) for 
 | `POST /api/v1/drive/sign` `{path, ttl?}` | owner / app key | signed URL for a file or a folder (`…/`), 1 h default, 7 days max |
 | `POST /api/v1/drive-links` `{path}`, `DELETE /api/v1/drive-links/<id>` | owner / app key | share link `files…/f/<id>/…` |
 | `GET /api/v1/connect?return=<app url>` | browser | "Sign in with threepipe" for apps (below) |
+| `PUT /api/v1/buckets/<samples\|e2e>/<path>` + `x-content-sha256` | staff | write-once upload to the samples / e2e snapshot bucket (R2 serves them on `SAMPLES_URL` / `E2E_URL`); e2e paths are `blobs/<sha256><ext>` |
+| `POST /api/v1/buckets/<samples\|e2e>/missing` `{paths}` | staff | which of up to 500 paths are not there yet |
 
 | Prefix | Lifetime | Overwrite | Path |
 |---|---|---|---|
@@ -47,6 +49,12 @@ Files are served under `/_files/` locally; set `FILES_HOST` (wrangler vars) for 
 
 The first segment (`b`: `<repo>/<ref>`) belongs to whoever uploads there first; `d/<handle>` belongs to the user with
 that username (it can't be changed). Roles (`member`, `staff`, `admin`) are set by an admin on `users.role`.
+
+## Uploading from the repository
+
+`npm run cloud:upload -- <file or folder> <remote path>` and, for a pull request, `npm run cloud:upload-build -- pr-<n>`
+(after `npm run build:all`: `dist/`, `examples/`, `plugins/*/dist/` to `b/threepipe/pr-<n>/`, link printed). Key:
+`TP_CLOUD_KEY` from the environment or `/tmp/.env`; API: `TP_CLOUD_API`. See `scripts/cloud-upload.mjs`.
 
 ## Sign in with threepipe (apps)
 

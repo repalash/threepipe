@@ -66,6 +66,14 @@ TS=$(curl -s -X POST $A/api/v1/table/users/auth/sign-up -H 'content-type: applic
 d1 --command "UPDATE users SET role='staff' WHERE username='$STAFF'" > /dev/null
 R=$(curl -s -X DELETE -H "Authorization: Bearer $TS" "$A/api/v1/uploads/${AURL#*/_files/}?reason=copyright"); echo "$R" | grep -q copyright && ok "staff removes a/" || bad "staff delete: $R"
 [ "$(curl -s -o /dev/null -w '%{http_code}' "$AURL")" = "410" ] && ok "removed a/ -> 410" || bad "removed a/ status"
+# staff buckets (write-once, content-addressed for e2e)
+BSHA=$(sha256sum $TMP/a.txt | cut -d' ' -f1)
+R=$(curl -s -X PUT -H "Authorization: Bearer $TS" -H "x-content-sha256: $BSHA" --data-binary @$TMP/a.txt "$A/api/v1/buckets/e2e/blobs/$BSHA.txt"); echo "$R" | grep -q "e2e-snapshots.threepipe.org/blobs/$BSHA.txt" && ok "staff uploads an e2e blob" || bad "e2e blob: $R"
+curl -s -X PUT -H "Authorization: Bearer $TS" -H "x-content-sha256: $BSHA" --data-binary @$TMP/a.txt "$A/api/v1/buckets/e2e/blobs/$BSHA.txt" | grep -q '"existed":true' && ok "same blob again -> existed" || bad "e2e blob again"
+[ "$(code -X PUT -H "Authorization: Bearer $TS" -H "x-content-sha256: $BSHA" --data-binary @$TMP/a.txt "$A/api/v1/buckets/e2e/blobs/$(printf '1%.0s' {1..64}).txt")" = "400" ] && ok "e2e blob name must be its sha256" || bad "e2e blob name"
+[ "$(code -X PUT -H "Authorization: Bearer $T2" -H "x-content-sha256: $BSHA" --data-binary @$TMP/a.txt "$A/api/v1/buckets/samples/x/a.txt")" = "403" ] && ok "members cannot write staff buckets" || bad "member staff bucket"
+R=$(curl -s -X POST -H "Authorization: Bearer $TS" -H 'content-type: application/json' -d "{\"paths\":[\"blobs/$BSHA.txt\",\"blobs/$(printf 'a%.0s' {1..64}).png\"]}" "$A/api/v1/buckets/e2e/missing")
+echo "$R" | grep -q "aaaa" && ! echo "$R" | grep -q "$BSHA" && ok "missing blobs" || bad "missing: $R"
 # expiry: backdate the b/ build, run the cron
 d1 --command "UPDATE files SET expires_at='2000-01-01T00:00:00.000Z' WHERE path LIKE 'b/threepipe/pr-$U/%'" > /dev/null
 curl -s -o /dev/null "$A/cdn-cgi/handler/scheduled?cron=17+3+*+*+*"; sleep 1

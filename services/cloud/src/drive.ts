@@ -1,7 +1,7 @@
 import type {Context, Hono} from 'hono'
 import {HTTPException} from 'hono/http-exception'
 import type {CloudEnv} from './env'
-import {base64url, BUCKET, cleanSegments, filesOrigin, likePrefix, randomCode} from './env'
+import {base64url, BUCKET, cleanSegments, filesOrigin, prefixRange, randomCode} from './env'
 import {assertScope, CloudUser, isStaff, requireUser} from './auth'
 
 /**
@@ -151,8 +151,8 @@ export function driveRoutes(app: Hono<CloudEnv>) {
         const after = c.req.query('after') || ''
         const limit = 1000
         const {results} = await c.env.PRIMARY_DB.prepare(`SELECT path, size, content_type, visibility, updated FROM files
-                WHERE owner_id = ? AND prefix = 'd' AND deleted_at IS NULL AND path LIKE ? ESCAPE '\\' AND path > ? ORDER BY path LIMIT ?`)
-            .bind(user.id, likePrefix(folder), after, limit + 1).all()
+                WHERE bucket = ? AND path >= ? AND path < ? AND path > ? AND owner_id = ? AND deleted_at IS NULL ORDER BY path LIMIT ?`)
+            .bind(BUCKET, ...prefixRange(folder), after, user.id, limit + 1).all()
         const more = results.length > limit
         const files = results.slice(0, limit)
         return c.json({files, next: more ? (files[files.length - 1] as {path: string}).path : null})

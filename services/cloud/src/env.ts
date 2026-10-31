@@ -35,5 +35,10 @@ export function cleanSegments(path: string): string[] | null {
     return segs
 }
 
-/** A LIKE pattern for paths starting with `prefix`; use with `ESCAPE '\\'`. */
-export const likePrefix = (prefix: string) => prefix.replace(/[%_\\]/g, '\\$&') + '%'
+/**
+ * `[from, to)` of the paths that start with `prefix`, for `path >= ? AND path < ?`. Unlike LIKE, a range uses the
+ * (bucket, path) index, so it reads only the matching rows.
+ */
+export function prefixRange(prefix: string): [string, string] {
+    return [prefix, prefix.slice(0, -1) + String.fromCharCode(prefix.charCodeAt(prefix.length - 1) + 1)]
+}

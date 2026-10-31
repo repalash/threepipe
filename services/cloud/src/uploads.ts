@@ -1,7 +1,7 @@
 import type {Context, Hono} from 'hono'
 import {HTTPException} from 'hono/http-exception'
 import type {CloudEnv} from './env'
-import {BUCKET, cleanSegments, filesOrigin, hex, likePrefix} from './env'
+import {BUCKET, cleanSegments, filesOrigin, hex, prefixRange} from './env'
 import {assertScope, CloudUser, isStaff, requireUser} from './auth'
 import {checkDrive, driveDelete, drivePatch, driveRead, Visibility} from './drive'
 
@@ -75,10 +75,30 @@ export function requestKey(c: Context<CloudEnv>): {prefix: Prefix, segs: string[
     return {prefix, segs, key: prefix + '/' + segs.join('/')}
 }
 
+/** Streams a request body of `size` bytes into R2 through a SHA-256 digest; nothing is buffered. `stored` is null when `onlyIf` failed. */
+export async function putStreamed(bucket: R2Bucket, key: string, body: ReadableStream, size: number, options: R2PutOptions) {
+    const digest = new crypto.DigestStream('SHA-256')
+    const fixed = new FixedLengthStream(size)
+    const [toDigest, toR2] = body.tee()
+    const digested = toDigest.pipeTo(digest)
+    const piped = toR2.pipeTo(fixed.writable)
+    const stored = await bucket.put(key, fixed.readable, options)
+    await Promise.all([piped, digested])
+    return {stored, sha256: hex(await digest.digest)}
+}
+
+/** The size of an upload from its Content-Length, checked against the cap. */
+export function uploadSize(c: Context<CloudEnv>): number {
+    const size = Number(c.req.header('content-length'))
+    if (!Number.isInteger(size) || size <= 0) throw new HTTPException(411, {message: 'send the file as the request body, with Content-Length'})
+    if (size > MAX_UPLOAD_BYTES) throw new HTTPException(413, {message: `max ${MAX_UPLOAD_BYTES / 1024 / 1024} MB per file`})
+    return size
+}
+
 /** 403 when another user already has files in this scope. */
 async function checkScope(env: CloudflareBindings, scope: string, user: CloudUser) {
-    const other = await env.PRIMARY_DB.prepare(`SELECT owner_id FROM files WHERE bucket = ? AND (path = ? OR path LIKE ? ESCAPE '\\') AND owner_id != ? AND deleted_at IS NULL LIMIT 1`)
-        .bind(BUCKET, scope, likePrefix(scope + '/'), user.id).first()
+    const other = await env.PRIMARY_DB.prepare(`SELECT owner_id FROM files WHERE bucket = ? AND (path = ? OR path >= ? AND path < ?) AND owner_id != ? AND deleted_at IS NULL LIMIT 1`)
+        .bind(BUCKET, scope, ...prefixRange(scope + '/'), user.id).first()
     if (other) throw new HTTPException(403, {message: `'${scope}' belongs to another user`})
 }
 
@@ -91,9 +111,7 @@ export function uploadRoutes(app: Hono<CloudEnv>) {
     app.put('/api/v1/uploads/:prefix/:path{.+}', async (c) => {
         const user = await requireUser(c)
         const {prefix, segs} = requestKey(c)
-        const size = Number(c.req.header('content-length'))
-        if (!Number.isInteger(size) || size <= 0) throw new HTTPException(411, {message: 'send the file as the request body, with Content-Length'})
-        if (size > MAX_UPLOAD_BYTES) throw new HTTPException(413, {message: `max ${MAX_UPLOAD_BYTES / 1024 / 1024} MB per file`})
+        const size = uploadSize(c)
         const t = target(prefix, segs, c, user)
         assertScope(user, t.key)
         if (t.scope) await checkScope(c.env, t.scope, user)
@@ -111,19 +129,13 @@ export function uploadRoutes(app: Hono<CloudEnv>) {
             }
         }
 
-        // stream to R2 through a digest: nothing is buffered
-        const digest = new crypto.DigestStream('SHA-256')
-        const fixed = new FixedLengthStream(size)
-        const [toDigest, toR2] = body.tee()
-        const digested = toDigest.pipeTo(digest)
-        const piped = toR2.pipeTo(fixed.writable)
-        const stored = await c.env.CLOUD_BUCKET.put(t.key, fixed.readable, {
+        const {stored, sha256} = await putStreamed(c.env.CLOUD_BUCKET, t.key, body, size, {
             httpMetadata: {contentType},
-            customMetadata: {owner: user.id, ...t.expiresAt ? {expires: t.expiresAt} : {}, ...t.sha256 ? {sha256: t.sha256} : {}, ...visibility ? {visibility} : {}},
+            // s/ shares carry their expiry (410 right on time); a b/ build is kept alive by later uploads, so its expiry
+            // is only in the registry and the daily cron deletes it
+            customMetadata: {owner: user.id, ...prefix === 's' && t.expiresAt ? {expires: t.expiresAt} : {}, ...t.sha256 ? {sha256: t.sha256} : {}, ...visibility ? {visibility} : {}},
             ...prefix === 'a' ? {onlyIf: new Headers({'if-none-match': '*'})} : {},
         })
-        await Promise.all([piped, digested])
-        const sha256 = hex(await digest.digest)
         if (!stored) throw new HTTPException(409, {message: 'the file was written by another request at the same time; retry'})
         if (t.sha256 && sha256 !== t.sha256) {
             await c.env.CLOUD_BUCKET.delete(t.key)
@@ -135,10 +147,10 @@ export function uploadRoutes(app: Hono<CloudEnv>) {
             ON CONFLICT (bucket, path) DO UPDATE SET owner_id = excluded.owner_id, size = excluded.size, sha256 = excluded.sha256, content_type = excluded.content_type,
                 expires_at = excluded.expires_at, visibility = excluded.visibility, deleted_at = NULL, deleted_by = NULL, deleted_reason = NULL`)
             .bind(crypto.randomUUID(), user.id, BUCKET, prefix, t.key, size, sha256, contentType, t.expiresAt, visibility ?? null).run()
-        // a new upload to a build keeps the whole build alive
+        // a new upload to a build keeps the whole build alive; at most once a day, not on every file of an upload
         if (prefix === 'b' && t.scope) {
-            await c.env.PRIMARY_DB.prepare(`UPDATE files SET expires_at = ? WHERE bucket = ? AND path LIKE ? ESCAPE '\\' AND deleted_at IS NULL`)
-                .bind(t.expiresAt, BUCKET, likePrefix(t.scope + '/')).run()
+            await c.env.PRIMARY_DB.prepare(`UPDATE files SET expires_at = ? WHERE bucket = ? AND path >= ? AND path < ? AND deleted_at IS NULL AND expires_at < ?`)
+                .bind(t.expiresAt, BUCKET, ...prefixRange(t.scope + '/'), new Date(Date.now() + (BUILD_DAYS - 1) * DAY).toISOString()).run()
         }
         return c.json({url: `${filesOrigin(c.env, new URL(c.req.url).origin)}/${t.key}`, path: t.key, size, sha256, expires_at: t.expiresAt, ...visibility ? {visibility} : {}})
     })

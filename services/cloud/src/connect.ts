@@ -1,7 +1,7 @@
 import type {Context, Hono} from 'hono'
 import {HTTPException} from 'hono/http-exception'
 import type {CloudEnv} from './env'
-import {BUCKET, filesOrigin, likePrefix, randomCode, sha256Hex} from './env'
+import {BUCKET, filesOrigin, prefixRange, randomCode, sha256Hex} from './env'
 import {CloudUser, mintKey, requireUser} from './auth'
 
 /** App keys are short: the app gets a new one on every page load (no screen once approved). */
@@ -112,8 +112,8 @@ function appTarget(c: Context<CloudEnv>, ret: unknown, access: unknown): AppTarg
 async function appOwner(c: Context<CloudEnv>, t: AppTarget): Promise<{id: string, username: string} | null> {
     if (!t.scope) return null
     const row = await c.env.PRIMARY_DB.prepare(`SELECT u.id, u.username FROM files f JOIN users u ON u.id = f.owner_id
-            WHERE f.bucket = ? AND f.path LIKE ? ESCAPE '\\' AND f.deleted_at IS NULL LIMIT 1`)
-        .bind(BUCKET, likePrefix(t.scope + '/')).first<{id: string, username: string}>()
+            WHERE f.bucket = ? AND f.path >= ? AND f.path < ? AND f.deleted_at IS NULL LIMIT 1`)
+        .bind(BUCKET, ...prefixRange(t.scope + '/')).first<{id: string, username: string}>()
     if (!row) throw new HTTPException(400, {message: `no app at ${t.scope}`})
     return row
 }
