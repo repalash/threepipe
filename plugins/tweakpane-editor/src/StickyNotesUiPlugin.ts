@@ -230,8 +230,8 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
     onAdded(viewer: ThreeViewer) {
         super.onAdded(viewer)
         this._notes = viewer.getPlugin(NotesPlugin)
-        this._notes?.addEventListener('notesChanged', this._onNotesChanged)
-        this._notes?.addEventListener('storeStatusChanged', this._onStatus)
+        this._notes?.addEventListener('notesChange', this._onNotesChanged)
+        this._notes?.addEventListener('storeStatusChange', this._onStatus)
         viewer.container.appendChild(this.element)
         viewer.container.appendChild(this._popups)
         // the post-its stay inside the canvas when it changes size; without a ResizeObserver, on a window resize
@@ -241,8 +241,8 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
     }
 
     onRemove(viewer: ThreeViewer) {
-        this._notes?.removeEventListener('notesChanged', this._onNotesChanged)
-        this._notes?.removeEventListener('storeStatusChanged', this._onStatus)
+        this._notes?.removeEventListener('notesChange', this._onNotesChanged)
+        this._notes?.removeEventListener('storeStatusChange', this._onStatus)
         window.removeEventListener('resize', this._onResize)
         if (this._writeTimer) this._writeState()
         this._closeMenu()
