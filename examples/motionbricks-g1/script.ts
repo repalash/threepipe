@@ -337,6 +337,22 @@ async function init() {
         return true
     }
 
+    // Pause with P: shared with the site's world switcher, which draws a button for it, when that loaded first.
+    const shared = window as any
+    const pause: {paused: boolean, toggle: (v?: boolean) => void} = shared.motionbricksPause ??= (() => {
+        const api = {
+            paused: false,
+            toggle(value = !api.paused) {
+                api.paused = shared.motionbricksPaused = value
+                window.dispatchEvent(new CustomEvent('motionbricks:pause', {detail: value}))
+            },
+        }
+        window.addEventListener('keydown', e => {
+            if (e.code === 'KeyP' && !e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey && !/^(INPUT|TEXTAREA|SELECT)$/.test((e.target as HTMLElement).tagName)) api.toggle()
+        })
+        return api
+    })()
+
     // Follow the robot with the camera, keeping the user's orbit.
     const follow = new Vector3()
     let last = performance.now()
@@ -346,6 +362,11 @@ async function init() {
         last = now
         stage.update(camera.target)
         if (!g1.ready) return
+        // Paused (P, or the site's pause button): the robot holds its pose and the camera still orbits.
+        if (pause.paused) {
+            viewer.setDirty()
+            return
+        }
         if (!steer()) {
             const run = gait === 'run'
             const step = follower.update(g1.getPosition(), GAIT_SPEEDS[gait] * 1.0 + 1.2, run ? 2.5 : 1.5)

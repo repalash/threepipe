@@ -51,6 +51,8 @@ interface Segment {
 }
 
 interface Sequence {
+    /** What the sequence is: a primitive's sequence name, or the name given to perform(). */
+    name?: string
     steps: G1PrimitiveStep[]
     next: number
     /** Hold the last step's pose at the end (sitting down, standing up) instead of walking on. */
@@ -144,10 +146,34 @@ export class G1Controller {
         return this._request !== null
     }
 
-    /** The Smart Primitive being played (a jump, a vault, sitting down), or null. */
+    /**
+     * The sequence being played (a jump, a vault, sitting down, or one given to perform), or null: its name, primitive,
+     * the step whose motion is playing, and that step's index.
+     */
     get action() {
         const seq = this._segment?.sequence
-        return seq ? {primitive: seq.obstacle?.primitive ?? null, step: seq.steps[seq.next - 1]?.name ?? ''} : null
+        return seq ? {name: seq.name ?? '', primitive: seq.obstacle?.primitive ?? null, step: seq.steps[seq.next - 1]?.name ?? '', index: seq.next - 1} : null
+    }
+
+    /** Whether a sequence is asked for, generating or playing, so that new goals wait for it. */
+    get busy() {
+        const seq = this._pending?.request.sequence ?? this._request?.sequence ?? this._segment?.sequence
+        return !!this._action || !!seq && (seq.next < seq.steps.length || !!seq.hold && this._segment?.sequence === seq && this._frame < this._segment.poses.length - 1)
+    }
+
+    /**
+     * Play target steps in controller space, one generation each: poses authored at the origin facing +X and placed
+     * with rig.place, such as the human's kick or reach (SOMAActions). With `hold`, the motion ends on the last step
+     * and stays there; otherwise the robot goes on to its goal, or stops, after it. The steps start from the next
+     * generation, so the motion already planned plays into them.
+     */
+    perform(steps: G1PrimitiveStep[], {name = '', hold = true}: {name?: string, hold?: boolean} = {}) {
+        this.goal = null
+        this._action = {name, steps, next: 0, hold}
+        const playing = this._segment?.sequence
+        // A held sequence that has finished playing is done with; one still going plays on first.
+        if (this._request || this._pending) this._dirty = true
+        else if (!playing || playing.next >= playing.steps.length) this._generate(true)
     }
 
     /** The segment being played: its length and transition point in frames, and the playhead. */
@@ -204,7 +230,7 @@ export class G1Controller {
     private _regenerate() {
         // A jump plays to its end; the new goal applies after it.
         const seq = this._pending?.request.sequence ?? this._request?.sequence ?? this._segment?.sequence
-        if (seq && seq.next < seq.steps.length) return
+        if (seq && seq.next < seq.steps.length || this._action) return
         if (this._request || this._pending) this._dirty = true
         else this._generate(true)
     }

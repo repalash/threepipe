@@ -136,6 +136,38 @@ export interface MotionGenerator {
 }
 
 /**
+ * An engine shared by several controllers (several characters on one model): generations run one after another, and
+ * each reports its time from the call, waiting included, so every controller plans for the delay it sees.
+ */
+export class SharedEngine implements MotionGenerator {
+    readonly engine: MotionGenerator
+    private _tail: Promise<unknown> = Promise.resolve()
+    /** Generations asked for and not yet finished. */
+    waiting = 0
+
+    constructor(engine: MotionGenerator) {
+        this.engine = engine
+    }
+
+    get backend() {
+        return this.engine.backend
+    }
+
+    async generate(context: ArrayLike<number>[], target: ArrayLike<number>[], options?: GenerateOptions): Promise<GeneratedMotion> {
+        const start = performance.now()
+        this.waiting++
+        const run = this._tail.then(async() => this.engine.generate(context, target, options))
+        this._tail = run.catch(() => undefined)
+        try {
+            const motion = await run
+            return {...motion, inferenceMs: performance.now() - start}
+        } finally {
+            this.waiting--
+        }
+    }
+}
+
+/**
  * Manifest written by tools/pack_lite.py: a graph whose weights stay 8-bit in memory (MatMulNBits and int8
  * convolutions), with its ONNX external data in shards.
  */

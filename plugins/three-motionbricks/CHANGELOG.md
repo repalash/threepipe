@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Interactions for the human: `kick`, `pickUp`, `throwAt`, `putDown`, with `onPickUp`, `onRelease`, `carrying`,
+  `kicking`, `interaction`, `jointPosition` and `jointVelocity`. Their target poses are authored with IK
+  (`SOMAActions.ts`, `SOMAPoseEditor`); `G1Controller.perform` plays any authored steps.
+- `loadFrom` shares one loaded model between characters (`SharedEngine` queues their generations).
+- Two new demos: Park (football with a keeper and a teammate, a hoop, crates to stack) and Tag (you against the G1
+  across a yard of jumps). Every demo pauses with P or the pause button, to orbit round a pose.
 - WebGPU: `backend: 'auto'` (the default) uses it where available and fast enough. Tested against WebAssembly on
   a GPU with both models and both packs: the same motion to 0.01 mm and 0.05 degrees.
 - The SOMA human model: `rig: 'soma'`, `MotionBricksSOMA` (validated against NVIDIA's kernels), `SOMA_SKELETON`,

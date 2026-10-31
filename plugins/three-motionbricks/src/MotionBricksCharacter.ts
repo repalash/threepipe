@@ -4,12 +4,14 @@ import {CHARACTER_RIGS, CharacterRig, RetargetedCharacter} from './RetargetedCha
 import {G1Bricks, G1Controller, G1ControllerStats, G1Gait} from './G1Controller'
 import {G1_BRICKS} from './G1Bricks'
 import {SOMA_BRICKS} from './SOMABricks'
-import {MotionBricksSOMA} from './MotionBricksSOMA'
+import {MotionBricksSOMA, SOMA_SKELETON_INFO} from './MotionBricksSOMA'
 import {SOMAMannequin} from './SOMAMannequin'
 import {G1_RIG, SOMA_RIG} from './PoseRig'
-import {MOTIONBRICKS_CACHE, MotionBricksG1, MotionGenerator, OrtApi, setupOrtWeb} from './MotionBricksG1'
+import {MOTIONBRICKS_CACHE, MotionBricksG1, MotionGenerator, OrtApi, setupOrtWeb, SharedEngine} from './MotionBricksG1'
 import {MotionBricksRemote, MotionBricksWorkerError} from './MotionBricksRemote'
-import {G1_PRIMITIVE_SOURCES, G1Primitive, loadPrimitive} from './G1Primitives'
+import {G1_PRIMITIVE_SOURCES, G1Primitive, G1PrimitiveStep, loadPrimitive} from './G1Primitives'
+import {carryHands, carryPoses, kickPoses, reachPoses, Side, standPoses, throwPoses} from './SOMAActions'
+import {SOMAPoseEditor, v3} from './SOMAPoseEdit'
 
 const NVIDIA_ASSETS = 'https://media.githubusercontent.com/media/NVlabs/motionbricks/main/motionbricks/assets'
 
@@ -100,7 +102,58 @@ export interface MotionBricksObstacle {
 
 export type LoadStage = 'runtime' | 'model' | 'warmup'
 
+/**
+ * Something the human picks up, carries and throws or puts down. `position` is its centre in world space, kept up to
+ * date by you while it lies about and by the character while it is carried; `object`, when given, is moved with it.
+ */
+export interface MotionBricksItem {
+    position: Vector3
+    /** Its size across, in metres: up to about 0.2 is held in one hand, more in two. Default 0.12. */
+    size?: number
+    /** 'one' or 'two' hands; by default from the size. */
+    hands?: 'one' | 'two'
+    object?: Object3D
+}
+
+/** What the human is doing: the interaction under way, and its stage. */
+export interface MotionBricksInteraction {
+    kind: 'kick' | 'pick' | 'throw' | 'put'
+    /** 'approach' while walking up to it, then the step playing ('Kick', 'Reach', 'Lift', 'Throw', 'Recover'). */
+    stage: string
+    /** The item picked up or put down. */
+    item?: MotionBricksItem
+}
+
+interface Task {
+    kind: MotionBricksInteraction['kind']
+    stage: string
+    /** Where it happens and the way the body faces there, in controller space. */
+    at: [number, number]
+    angle: number
+    /** Distance at which the action starts, and the approach point when the body must line up first. */
+    trigger: number
+    via?: [number, number]
+    item?: MotionBricksItem
+    target?: Vector3
+    power: number
+    foot: Side
+    /** For putting down: the height of the item's centre where it goes, in the character's space. */
+    height?: number
+    done?: boolean
+}
+
+const range = (a: number, b: number) => Array.from({length: b - a + 1}, (_, i) => a + i)
+
 const tempA = new Vector3()
+const tempB = new Vector3()
+
+/** The launch velocity that carries a thrown item from `from` to `to` in a flight time that grows with distance. */
+export function ballistic(from: Vector3, to: Vector3, gravity = 9.81) {
+    const d = to.clone().sub(from)
+    const flat = Math.hypot(d.x, d.z)
+    const t = 0.35 + flat * 0.07
+    return new Vector3(d.x / t, (d.y + 0.5 * gravity * t * t) / t, d.z / t)
+}
 
 /**
  * A Unitree G1 that walks and runs where you send it, with every frame of motion generated in the
@@ -134,6 +187,19 @@ export class MotionBricksCharacter {
     /** Where the robot stood when the model was disposed, so a new load continues from there. */
     private _lastPose?: ArrayLike<number>
     private _drive = {active: false, angle: 0, gait: 'walk' as G1Gait}
+    /** The interaction under way (kick, pick up, throw, put down). */
+    private _task: Task | null = null
+    /** What the human holds, and how far the carrying arms are blended in (0 to 1). */
+    private _carry: {item: MotionBricksItem, hands: 'one' | 'two', side: Side, blend: number} | null = null
+    /** The pose shown: the controller's, with the carrying arms on top. */
+    private _shown?: Float32Array
+    private _shownWorld = new Float32Array(SOMA_SKELETON_INFO.J * 7)
+    private _lastWorld = new Float32Array(SOMA_SKELETON_INFO.J * 7)
+    private _lastDt = 1 / 60
+    /** Called when the human picks an item up. */
+    onPickUp?: (item: MotionBricksItem) => void
+    /** Called when the human lets go of an item: thrown (with the velocity to give it, m/s in world space) or put down. */
+    onRelease?: (item: MotionBricksItem, velocity: Vector3) => void
 
     constructor(options: MotionBricksCharacterOptions = {}) {
         this.options = options
@@ -287,7 +353,26 @@ export class MotionBricksCharacter {
                 warmupMs = await time(engine)
             }
         }
-        this.engine = engine
+        this.engine = new SharedEngine(engine)
+        this._startController(warmupMs)
+        return this
+    }
+
+    /**
+     * Share another character's model instead of loading one: several characters, one download and one worker. Their
+     * generations take turns, so each waits a little longer as more share it. Both must use the same rig.
+     */
+    async loadFrom(other: MotionBricksCharacter): Promise<this> {
+        if (this.controller) return this
+        if ((other.options.rig ?? 'g1') !== (this.options.rig ?? 'g1')) throw new Error('MotionBricks: loadFrom needs a character with the same rig')
+        await other.load()
+        this.engine = other.engine
+        this._startController(other.controller?.stats.averageInferenceMs ?? 400)
+        return this
+    }
+
+    private _startController(warmupMs: number) {
+        const engine = this.engine!
         const p = this._lastPose
         const c = p ?
             new G1Controller(engine, this._bricks, ...this._rig.ground(p), this._rig.heading(p), this._rig) :
@@ -300,15 +385,291 @@ export class MotionBricksCharacter {
         this._syncObstacles()
         if (this._pendingGoal) c.moveTo(...this._pendingGoal, this.gait)
         this._pendingGoal = null
-        return this
     }
 
     /** Advance the motion by dt seconds and pose the robot. Call it every frame. */
     update(dt: number) {
         const c = this.controller
         if (!c) return
-        c.update(Math.min(dt, 0.1))
-        this.robot?.setPose(c.pose)
+        dt = Math.min(dt, 0.1)
+        if (this._task) this._updateTask()
+        c.update(dt)
+        let pose = c.pose
+        if (this.options.rig === 'soma') {
+            pose = this._carryPose(pose, dt)
+            this._lastWorld.set(this._shownWorld)
+            SOMA_SKELETON_INFO.world(pose, this._shownWorld)
+            this._lastDt = dt
+            if (this._carry) this._placeCarried()
+        }
+        this.robot?.setPose(pose)
+    }
+
+    // ---- interactions (the human, rig: 'soma') ----
+
+    /** The interaction under way, or null. */
+    get interaction(): MotionBricksInteraction | null {
+        return this._task ? {kind: this._task.kind, stage: this._task.stage, item: this._task.item} : null
+    }
+
+    /** The item being carried, or null. */
+    get carrying() {
+        return this._carry?.item ?? null
+    }
+
+    /**
+     * While a kick is under way, the way the ball should go (a world direction on the ground) and how hard (1 is a
+     * firm pass): for your ball physics, which detects the foot meeting the ball with jointPosition.
+     */
+    get kicking(): {direction: Vector3, power: number, foot: Side} | null {
+        const t = this._task
+        if (!t || t.kind !== 'kick' || t.stage === 'approach') return null
+        const direction = this._fromG1Direction(t.angle)
+        return {direction, power: t.power, foot: t.foot}
+    }
+
+    /** A SOMA joint's position in world space as shown, such as 'RightToeBase', 'LeftFoot' or 'RightHand'. */
+    jointPosition(name: string, target = new Vector3()) {
+        const j = SOMA_SKELETON_INFO.index(name)
+        if (this.options.rig !== 'soma' || j < 0) return null
+        const w = this._shownWorld
+        return this.object.localToWorld(target.set(w[j * 7], w[j * 7 + 1], w[j * 7 + 2]))
+    }
+
+    /** A SOMA joint's velocity in world space, m/s, over the last frame. */
+    jointVelocity(name: string, target = new Vector3()) {
+        const j = SOMA_SKELETON_INFO.index(name)
+        if (this.options.rig !== 'soma' || j < 0) return null
+        const a = this._shownWorld, b = this._lastWorld, o = j * 7
+        const now = this.object.localToWorld(target.set(a[o], a[o + 1], a[o + 2]))
+        const before = this.object.localToWorld(tempB.set(b[o], b[o + 1], b[o + 2]))
+        return now.sub(before).divideScalar(this._lastDt)
+    }
+
+    /**
+     * Kick a ball at a world point: walk up to it (lining up first when it is to the side) and swing through it.
+     * `direction` is where it should go (by default straight on from the human); `power` 0.5 to 2.
+     */
+    kick(ball: Vector3, {direction, power = 1, foot = 'Right'}: {direction?: Vector3, power?: number, foot?: Side} = {}) {
+        if (!this._canInteract()) return false
+        const at = this._toG1(ball)
+        const [x, y] = this._rig.ground(this.controller!.pose)
+        const angle = direction ? this._toG1Direction(direction) : Math.atan2(at[1] - y, at[0] - x)
+        const speed = this.controller!.speedOf(this._drive.active ? this._drive.gait : this.gait)
+        this._startTask({kind: 'kick', stage: 'approach', at, angle, trigger: Math.min(4, speed * 0.9 + 1.0), power, foot}, 1.6)
+        return true
+    }
+
+    /** Walk to an item, crouch and pick it up; it is then carried until thrown or put down. */
+    pickUp(item: MotionBricksItem) {
+        if (!this._canInteract() || this._carry) return false
+        const at = this._toG1(item.position)
+        const [x, y] = this._rig.ground(this.controller!.pose)
+        const angle = Math.atan2(at[1] - y, at[0] - x)
+        this._startTask({kind: 'pick', stage: 'approach', at, angle, trigger: 2.0, item, power: 1, foot: 'Right'}, 0)
+        return true
+    }
+
+    /** Throw the carried item at a world point, turning to face it. onRelease gives the velocity that lands it there. */
+    throwAt(target: Vector3, {power = 1}: {power?: number} = {}) {
+        if (!this._canInteract() || !this._carry) return false
+        const [x, y] = this._rig.ground(this.controller!.pose)
+        const g = this._toG1(target)
+        const angle = Math.atan2(g[1] - y, g[0] - x)
+        this._task = {kind: 'throw', stage: 'Throw', at: [x, y], angle, trigger: 0, target: target.clone(), power, foot: 'Right'}
+        this._drive.active = false
+        const th = throwPoses({power})
+        const ahead = 0.1
+        this.controller!.perform([
+            {name: 'Throw', window: this._rig.place(th.poses, x + Math.cos(angle) * ahead, y + Math.sin(angle) * ahead, angle), transitionEarly: 2, tokens: range(6, 9)},
+            {name: 'Recover', window: this._rig.place(standPoses(), x + Math.cos(angle) * 0.35, y + Math.sin(angle) * 0.35, angle), transitionEarly: 0, tokens: range(6, 9)},
+        ], {name: 'throw'})
+        return true
+    }
+
+    /**
+     * Put the carried item down at a world point (by default on the ground just ahead), crouching to it. A point above
+     * the ground, such as the top of a stack, puts the item's centre there.
+     */
+    putDown(at?: Vector3) {
+        if (!this._canInteract() || !this._carry) return false
+        const [x, y] = this._rig.ground(this.controller!.pose)
+        const h = this.heading
+        const g = at ? this._toG1(at) : [x + Math.cos(h) * 0.7, y + Math.sin(h) * 0.7] as [number, number]
+        const angle = Math.hypot(g[0] - x, g[1] - y) > 0.3 ? Math.atan2(g[1] - y, g[0] - x) : h
+        const size = this._carry.item.size ?? 0.12
+        const height = at ? Math.max(size / 2 + 0.02, this.object.worldToLocal(tempA.copy(at)).y) : size / 2 + 0.02
+        this._startTask({kind: 'put', stage: 'approach', at: g, angle, trigger: 2.0, item: this._carry.item, power: 1, foot: 'Right', height}, 0)
+        return true
+    }
+
+    /** Stop the interaction under way, if it has not started its motion. */
+    cancelInteraction() {
+        if (this._task?.stage === 'approach') this._task = null
+    }
+
+    private _canInteract() {
+        if (this.options.rig !== 'soma') {
+            console.warn('MotionBricks: interactions are for the human model (rig: \'soma\')')
+            return false
+        }
+        const c = this.controller
+        return !!c && !c.busy && !this.seated
+    }
+
+    private _startTask(task: Task, lineUp: number) {
+        const c = this.controller!
+        const [x, y] = this._rig.ground(c.pose)
+        // Off to the side of the line it should go along: walk round to behind it first.
+        const dx = task.at[0] - x, dy = task.at[1] - y
+        const off = Math.abs(Math.atan2(Math.sin(Math.atan2(dy, dx) - task.angle), Math.cos(Math.atan2(dy, dx) - task.angle)))
+        if (lineUp && off > 0.6 && Math.hypot(dx, dy) > 0.5) task.via = [task.at[0] - Math.cos(task.angle) * lineUp, task.at[1] - Math.sin(task.angle) * lineUp]
+        this._task = task
+        this._drive.active = false
+        if (task.via) c.moveTo(task.via[0], task.via[1], this.gait)
+        else this._approach(task)
+        this._updateTask()
+    }
+
+    /** Walk toward the task's spot, aiming a little short of it so that a late generation never steps onto it. */
+    private _approach(task: Task) {
+        const c = this.controller!
+        const [x, y] = this._rig.ground(c.pose)
+        const dx = task.at[0] - x, dy = task.at[1] - y, d = Math.hypot(dx, dy)
+        if (d <= task.trigger) return
+        const short = Math.min(0.6, d)
+        c.moveTo(task.at[0] - dx / d * short, task.at[1] - dy / d * short, this.gait)
+    }
+
+    private _updateTask() {
+        const t = this._task!, c = this.controller!
+        if (t.stage === 'approach') {
+            const [x, y] = this._rig.ground(c.pose)
+            if (t.via) {
+                if (Math.hypot(t.via[0] - x, t.via[1] - y) > 0.6) return
+                t.via = undefined
+                this._approach(t)
+            }
+            if (Math.hypot(t.at[0] - x, t.at[1] - y) > t.trigger || c.busy) return
+            this._act(t)
+            return
+        }
+        const a = c.action
+        if (a?.name === t.kind) t.stage = a.step
+        const p = c.playback
+        if (t.kind === 'pick' && !this._carry && t.item) {
+            // Take hold when the hand gets there, or at the end of the reach.
+            const hand = this._handHold(t.item)
+            if (hand.distanceTo(t.item.position) < (t.item.size ?? 0.12) * 0.5 + 0.08 || t.stage === 'Lift' || a?.step === 'Reach' && p && p.frame >= p.transition) {
+                this._carry = {item: t.item, hands: this._hands(t.item), side: 'Right', blend: 0}
+                this.onPickUp?.(t.item)
+            }
+        }
+        if ((t.kind === 'throw' || t.kind === 'put') && this._carry && !t.done) {
+            const release = t.kind === 'throw' ? t.stage === 'Recover' || a?.step === 'Throw' && p && p.frame >= p.transition :
+                t.stage === 'Lift' || a?.step === 'Reach' && p && p.frame >= p.transition
+            if (release) {
+                t.done = true
+                const item = this._carry.item
+                this._carry = null
+                this.onRelease?.(item, t.kind === 'throw' && t.target ? ballistic(item.position, t.target) : new Vector3())
+            }
+        }
+        if (!c.busy && !a) this._task = null
+    }
+
+    private _act(t: Task) {
+        const c = this.controller!, rig = this._rig
+        const [x, y] = rig.ground(c.pose)
+        const back = (d: number): [number, number] => [t.at[0] - Math.cos(t.angle) * d, t.at[1] - Math.sin(t.angle) * d]
+        let steps: G1PrimitiveStep[]
+        if (t.kind === 'kick') {
+            const [fx, fy] = [t.at[0] + Math.cos(t.angle) * 0.45, t.at[1] + Math.sin(t.angle) * 0.45]
+            steps = [
+                {name: 'Kick', window: rig.place(kickPoses({foot: t.foot, power: t.power}), t.at[0], t.at[1], t.angle), transitionEarly: 4, tokens: range(6, 12)},
+                {name: 'Recover', window: rig.place(standPoses(), fx, fy, t.angle), transitionEarly: 0, tokens: range(6, 10)},
+            ]
+        } else {
+            // Face the item from where the body is now.
+            if (Math.hypot(t.at[0] - x, t.at[1] - y) > 0.3) t.angle = Math.atan2(t.at[1] - y, t.at[0] - x)
+            const item = t.item!
+            const hands = this._hands(item), size = item.size ?? 0.12
+            const height = t.kind === 'pick' ? Math.max(0.03, this.object.worldToLocal(tempA.copy(item.position)).y - (hands === 'two' ? 0 : size * 0.3)) :
+                (t.height ?? size / 2 + 0.02) - (hands === 'two' ? 0 : size * 0.3)
+            const [sx, sy] = back(0.3)
+            steps = [
+                {name: 'Reach', window: rig.place(reachPoses({height, hands, width: size}), t.at[0], t.at[1], t.angle), transitionEarly: 2, tokens: range(6, 12)},
+                {name: 'Lift', window: rig.place(t.kind === 'pick' ? carryPoses({hands, width: size}) : standPoses(), sx, sy, t.angle), transitionEarly: 0, tokens: range(6, 9)},
+            ]
+        }
+        t.stage = steps[0].name
+        c.perform(steps, {name: t.kind})
+    }
+
+    private _hands(item: MotionBricksItem) {
+        return item.hands ?? ((item.size ?? 0.12) > 0.22 ? 'two' : 'one')
+    }
+
+    /** Where the hand (or hands) hold an item, in world space. */
+    private _handHold(item: MotionBricksItem, target = new Vector3()) {
+        const w = this._shownWorld, k = SOMA_SKELETON_INFO
+        const at = (name: string) => tempB.set(w[k.index(name) * 7], w[k.index(name) * 7 + 1], w[k.index(name) * 7 + 2])
+        if (this._hands(item) === 'two') target.copy(at('RightHand')).add(at('LeftHand')).multiplyScalar(0.5)
+        else {
+            // Against the palm: a little past the knuckles, and below the hand by the item's half size.
+            const hand = at('RightHand').clone(), knuckle = at('RightHandMiddle1').clone()
+            target.copy(hand).lerp(knuckle, 1.1)
+            target.y -= (item.size ?? 0.12) * 0.35
+        }
+        return this.object.localToWorld(target)
+    }
+
+    private _placeCarried() {
+        const item = this._carry!.item
+        this._handHold(item, item.position)
+        if (item.object) {
+            const parent = item.object.parent
+            if (parent) parent.worldToLocal(item.object.position.copy(item.position))
+            else item.object.position.copy(item.position)
+        }
+    }
+
+    /** The controller's pose with the arms holding the carried item, blended in over a third of a second. */
+    private _carryPose(pose: Float32Array, dt: number) {
+        const carry = this._carry
+        if (!carry) return pose
+        carry.blend = Math.min(1, carry.blend + dt * 3)
+        // Not while an action of its own moves the arms (the lift, throw or put down plays as generated).
+        const a = this.controller?.action
+        if (a && (a.name === 'throw' || a.name === 'put' || a.name === 'pick' && a.step === 'Reach')) return pose
+        const e = new SOMAPoseEditor(pose)
+        const hips = e.position('Hips'), f = e.forward(), l = e.left()
+        const at = carryHands(carry.hands, carry.item.size ?? 0.3, carry.side)
+        const w = carry.blend * carry.blend * (3 - 2 * carry.blend)
+        for (const side of ['Left', 'Right'] as Side[]) {
+            const p = at[side]
+            if (!p) continue
+            // carryHands is at the origin facing +X with the hips at standing height; follow the hips and heading.
+            const target = v3.add([hips[0], hips[1] - 0.993, hips[2]], v3.add(v3.scale(f, p[0]), v3.add([0, p[1], 0], v3.scale(l, -p[2]))))
+            const now = e.position(side + 'Hand')
+            e.arm(side, v3.lerp(now, target, w), v3.add(v3.scale(f, -0.3), [0, -1, 0]))
+        }
+        this._shown ??= new Float32Array(pose.length)
+        this._shown.set(e.pose)
+        return this._shown
+    }
+
+    private _toG1Direction(direction: Vector3) {
+        this.object.updateWorldMatrix(true, false)
+        const o = this.object.worldToLocal(tempA.set(0, 0, 0)).clone()
+        const d = this.object.worldToLocal(tempB.copy(direction)).sub(o)
+        return Math.atan2(-d.z, d.x)
+    }
+
+    private _fromG1Direction(angle: number) {
+        this.object.updateWorldMatrix(true, false)
+        const d = new Vector3(Math.cos(angle), 0, -Math.sin(angle))
+        return d.transformDirection(this.object.matrixWorld)
     }
 
     /**
@@ -368,6 +729,7 @@ export class MotionBricksCharacter {
 
     /** Walk or run to a world point and stop there, facing the way it walked. */
     moveTo(point: Vector3, gait: G1Gait = this.gait) {
+        this.cancelInteraction()
         this.gait = gait
         this._drive.active = false
         const g = this._toG1(point)
@@ -383,6 +745,7 @@ export class MotionBricksCharacter {
     drive(direction: Vector3 | null, gait: G1Gait = this.gait) {
         const c = this.controller
         if (!c) return
+        if (direction && (direction.x !== 0 || direction.z !== 0)) this.cancelInteraction()
         if (!direction || direction.x === 0 && direction.z === 0) {
             if (this._drive.active) c.stop()
             this._drive.active = false
@@ -437,7 +800,8 @@ export class MotionBricksCharacter {
     /** Stop the worker. The robot stays in the scene, and load() starts the model again from where it stands. */
     dispose() {
         if (this.controller) this._lastPose = Float32Array.from(this.controller.pose)
-        if (this.engine instanceof MotionBricksRemote) this.engine.worker.terminate()
+        const raw = this.engine instanceof SharedEngine ? this.engine.engine : this.engine
+        if (raw instanceof MotionBricksRemote) raw.worker.terminate()
         this.engine = undefined
         this.controller = undefined
     }

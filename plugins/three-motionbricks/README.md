@@ -2,7 +2,7 @@
 
 [![The Unitree G1 running down a red lane through a white block city](docs/hero.jpg)](https://repalash.com/three-motionbricks/city/)
 
-**[Try it live](https://repalash.com/three-motionbricks/)**: [White city](https://repalash.com/three-motionbricks/city/) · [Seven bodies](https://repalash.com/three-motionbricks/bodies/) · [Playground](https://repalash.com/three-motionbricks/playground/) · [Plain three.js](https://repalash.com/three-motionbricks/plain/). The model downloads once (194 MB on phones, 190 MB on desktops) and is cached after that.
+**[Try it live](https://repalash.com/three-motionbricks/)**: [White city](https://repalash.com/three-motionbricks/city/) · [Seven bodies](https://repalash.com/three-motionbricks/bodies/) · [Playground](https://repalash.com/three-motionbricks/playground/) · [Park](https://repalash.com/three-motionbricks/park/) · [Tag](https://repalash.com/three-motionbricks/tag/) · [Plain three.js](https://repalash.com/three-motionbricks/plain/). The model downloads once (194 MB on phones, 190 MB on desktops) and is cached after that. <kbd>P</kbd> pauses any of them, to orbit round a pose.
 
 [NVIDIA MotionBricks](https://github.com/NVlabs/motionbricks) for three.js: a Unitree G1 robot that walks and runs where you send it, with every frame of its motion generated in the browser by the model. No animation clips play at runtime.
 
@@ -105,6 +105,27 @@ g1.setObstacles([
 ```
 
 `position` is the centre of the primitive's box (`primitive.box.size` is its width, depth and height), and `rotation` turns it about Y; a wall's long side runs along its X. When the robot heads at an obstacle, the controller picks the sequence whose starting speed is closest to the robot's, turns and slides it to the approach the way NVIDIA's runtime does, and generates through its steps. The documents and the clip frames the targets come from load from [NVIDIA's repository](https://github.com/NVlabs/motionbricks) (`G1_PRIMITIVE_SOURCES`): the clips are under NVIDIA's Sample Data Evaluation License, so this package ships none of them.
+
+## Kicking, picking up, carrying and throwing (the human)
+
+The human model also kicks a ball, picks things up, carries them, throws them and puts them down. NVIDIA's sample data has no clips for these, so their target poses are authored here from the model's own standing pose with two-bone IK (`SOMAActions.ts`, `SOMAPoseEditor`); the model generates everything between them, the walk up included.
+
+```js
+human.kick(ball.position, {direction, power: 1.5})   // walks up (lining up first if needed) and swings through it
+human.pickUp({position: crate.position, size: 0.36, object: crate})   // crouches to it; one hand under 0.22 m, else two
+human.throwAt(hoop.position)                          // onRelease gets the velocity that lands it there
+human.putDown(spot)                                   // a point above the ground, such as a stack's top, works too
+human.onPickUp = item => { /* stop simulating it */ }
+human.onRelease = (item, velocity) => { /* simulate it again from item.position with velocity */ }
+```
+
+While an item is carried the character moves `item.position` (and `item.object`) with the hands, and holds the arms on it with IK over the walk and run. For your physics, `jointPosition('RightToeBase')` and `jointVelocity(name)` give any SOMA joint as shown, and `kicking` gives the direction and power of a kick under way. `interaction` names the one under way and its stage. In NVIDIA's model these reach their targets well: in tests the toe met a ball at about 7 m/s and the hand came within 6 cm of an item on the floor.
+
+The same `perform(steps)` on `G1Controller` plays any steps you author: each is up to four poses placed with `rig.place`, the token counts allowed and the frames of hand-over.
+
+### Several characters on one model
+
+`other.loadFrom(character)` shares a loaded model instead of downloading another: their generations take turns (`SharedEngine`), and each controller plans for the wait it sees. The Park demo runs three people on one model; on a laptop GPU a generation takes about 60 ms.
 
 ## The robot
 
