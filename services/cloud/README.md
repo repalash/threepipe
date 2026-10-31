@@ -22,6 +22,28 @@ only; a new username is signed up on the first try). teenybase's password routes
 password) answer 404 without DEV_LOGIN: a password account with someone's email would be signed in to by their Google
 or GitHub sign-in.
 
+## Deploy
+
+On threepipe's account (`account_id` in `wrangler.jsonc`), or your own after changing `account_id`, `routes`, the
+bucket names and the URLs in `vars`:
+
+```bash
+npx wrangler login               # or CLOUDFLARE_API_TOKEN
+npm run init-infra               # the R2 buckets of wrangler.jsonc that do not exist yet
+cp .prod.vars.example .prod.vars # fill it in (secrets, OAuth apps, Turnstile)
+npm run secrets-upload           # .prod.vars -> Worker secrets
+npm run deploy                   # the first one creates the D1 database: commit the database_id it writes
+```
+
+- Domains: after the first deploy, attach `cloud.threepipe.org` (API and pages) and `files.threepipe.org` (files host,
+  `FILES_HOST`) as custom domains of the Worker (Workers > threepipe-cloud > Settings > Domains & Routes). They are not
+  `routes` in `wrangler.jsonc`: with routes, `wrangler dev` rewrites the local request URL to the route's host. The samples bucket is served by R2 on `samples.threepipe.org` and
+  `asset-samples.threepipe.org`, the e2e bucket on `e2e-snapshots.threepipe.org` (R2 custom domains, set in the dashboard).
+- After the first deploy, migrations go through the Worker (`teeny deploy` calls its admin API with
+  `ADMIN_SERVICE_TOKEN`), so later deploys need a token for this Worker only, no D1 access.
+- Logs: Workers Logs and traces, and logpush to the account's Workers Logpush job; what needs a person is a
+  `console.error` line starting with `[cloud]`.
+
 ## Sign-in
 
 - GitHub (`GITHUB_CLIENT_ID`/`_SECRET`) and Google (`GOOGLE_CLIENT_ID`/`_SECRET`; the Google button shows only when it is

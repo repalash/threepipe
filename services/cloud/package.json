@@ -4,6 +4,7 @@
     "scripts": {
         "dev": "teeny dev --local",
         "migrate": "teeny deploy --local",
+        "init-infra": "bash scripts/init-infra.sh",
         "deploy": "teeny deploy --remote",
         "secrets-upload": "teeny secrets --remote --upload",
         "cf-typegen": "wrangler types --env-interface CloudflareBindings",

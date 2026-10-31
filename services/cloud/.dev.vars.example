@@ -1,5 +1,7 @@
 # Copy to .dev.vars for local development (npm run dev). Never commit .dev.vars or .prod.vars.
 APP_URL=http://localhost:8787
+# no files host locally: files are served under /_files/ on this worker (wrangler.jsonc sets files.threepipe.org)
+FILES_HOST=
 JWT_SECRET=dev-main-secret
 JWT_SECRET_USERS=dev-users-secret
 ADMIN_JWT_SECRET=dev-admin-secret

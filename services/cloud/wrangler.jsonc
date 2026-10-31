@@ -19,14 +19,17 @@
             "enabled": true
         }
     },
+    // Custom domains cloud.threepipe.org (API and pages) and files.threepipe.org (FILES_HOST) are attached to the Worker
+    // once, after the first deploy (README, Deploy), not listed as routes here: with routes, `wrangler dev` rewrites the
+    // local request URL to the route's host, and `teeny dev` cannot turn that off (issues: teenybase).
     "logpush": true,
     "upload_source_maps": true,
     // Keep "false" in production: "true" adds internal error details to API responses.
     // For local debugging, set RESPOND_WITH_ERRORS=true in .dev.vars instead (local dev only).
     "vars": {
         "RESPOND_WITH_ERRORS": "false",
-        // Host that serves uploaded files (src/files.ts). Unset: files are served under /_files/ on the API host (local dev).
-        "FILES_HOST": "",
+        // Host that serves uploaded files (src/files.ts). Empty (.dev.vars locally): served under /_files/ on the API host.
+        "FILES_HOST": "files.threepipe.org",
         // public URLs of the staff buckets (src/buckets.ts); R2 serves them on these domains
         "SAMPLES_URL": "https://samples.threepipe.org",
         "E2E_URL": "https://e2e-snapshots.threepipe.org",
@@ -43,8 +46,9 @@
     "triggers": { "crons": ["17 3 * * *"] }, // daily: delete expired files (src/cron.ts)
     "r2_buckets": [
         { "binding": "CLOUD_BUCKET", "bucket_name": "threepipe-cloud" },
-        // TODO confirm the bucket name behind samples.threepipe.org before deploying
-        { "binding": "SAMPLES_BUCKET", "bucket_name": "threepipe-samples" },
+        // served by R2 on samples.threepipe.org and asset-samples.threepipe.org (SAMPLES_URL)
+        { "binding": "SAMPLES_BUCKET", "bucket_name": "threepipe-sample-assets-1" },
+        // served by R2 on e2e-snapshots.threepipe.org (E2E_URL)
         { "binding": "E2E_BUCKET", "bucket_name": "threepipe-e2e-snapshots" }
     ],
     "d1_databases": [

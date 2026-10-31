@@ -1,0 +1,26 @@
+# Copy to .prod.vars and fill in, then `npm run secrets-upload` (Worker secrets) before `npm run deploy`.
+# Never commit .prod.vars. Random values: `openssl rand -base64 32`. Keep a copy of ADMIN_SERVICE_TOKEN (deploys and CI use it).
+APP_URL=https://cloud.threepipe.org
+JWT_SECRET=
+JWT_SECRET_USERS=
+ADMIN_JWT_SECRET=
+# teenybase's admin API and `teeny deploy` (migrations go through the Worker with it)
+ADMIN_SERVICE_TOKEN=
+# the admin panel (/api/v1/pocket/)
+POCKET_UI_VIEWER_PASSWORD=
+POCKET_UI_EDITOR_PASSWORD=
+# signs private drive URLs (src/drive.ts)
+FILES_URL_SECRET=
+# keys the hash of an anonymous sender's IP for the daily report caps (src/reports.ts)
+REPORTS_RATE_SECRET=
+# the Turnstile widget's secret (anonymous reports); its site key goes in the apps (@threepipe/plugin-cloud)
+TURNSTILE_SECRET=
+# OAuth apps, callback https://<APP_URL host>/api/v1/table/users/auth/oauth/<github|google>/callback
+GITHUB_CLIENT_ID=
+GITHUB_CLIENT_SECRET=
+# optional: the Google button shows only when set
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+RESPOND_WITH_ERRORS=false
+# Not a Worker secret (stays a comment): a project's Discord webhook is set on the project (/reports, Settings).
+# THREEPIPE_PROJECT_DISCORD_WEBHOOK=
