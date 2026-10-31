@@ -1,4 +1,4 @@
-import {Color, CubicBezierCurve3, Plane, Ray, Raycaster, Vector2, Vector3} from 'three'
+import {Color, CubicBezierCurve3, Object3D, Plane, Ray, Raycaster, Vector2, Vector3} from 'three'
 import {createStyles} from 'ts-browser-helpers'
 import type {UiObjectConfig} from 'uiconfig.js'
 import {AViewerPluginEventMap, AViewerPluginSync, ThreeViewer} from '../../viewer'
@@ -40,6 +40,12 @@ const SVG_NS = 'http://www.w3.org/2000/svg'
 function onPlane(ray: Ray, plane: Plane): Vector3 | null {
     if (Math.abs(plane.distanceToPoint(ray.origin)) < 1e-6) return null
     return ray.intersectPlane(plane, new Vector3())
+}
+
+/** True when the object and all its parents are visible (a raycast also hits the children of a hidden group) */
+function isVisible(o: Object3D | null): boolean {
+    for (; o; o = o.parent) if (!o.visible) return false
+    return true
 }
 /** A click closer than this to the first point closes the path, px */
 const CLOSE_DISTANCE = 10
@@ -314,11 +320,24 @@ export class PenToolPlugin extends AViewerPluginSync<PenToolPluginEventMap> {
         return new Vector2(e.clientX - r.left, e.clientY - r.top)
     }
 
+    /**
+     * The canvas rectangle in the container, in which the overlay positions are. The canvas can be smaller than the
+     * container, e.g. with `viewer.setRenderSize(size, 'contain')`.
+     */
+    private _viewport() {
+        const viewer = this._viewer!
+        const c = viewer.container.getBoundingClientRect()
+        const r = viewer.canvas.getBoundingClientRect()
+        return {x: r.left - c.left, y: r.top - c.top, width: r.width || 1, height: r.height || 1}
+    }
+
+    /** The ray through a point in the container */
     private _rayAt(s: Vector2) {
         const viewer = this._viewer!
-        const r = viewer.container.getBoundingClientRect()
+        const v = this._viewport()
+        const ndc = new Vector2((s.x - v.x) / v.width * 2 - 1, -((s.y - v.y) / v.height) * 2 + 1)
         // setFromCamera also sets the raycaster camera, which fat lines need to raycast
-        this._ray.setFromCamera(new Vector2(s.x / r.width * 2 - 1, -(s.y / r.height) * 2 + 1), viewer.scene.mainCamera)
+        this._ray.setFromCamera(ndc, viewer.scene.mainCamera)
         return this._ray
     }
 
@@ -332,7 +351,7 @@ export class PenToolPlugin extends AViewerPluginSync<PenToolPluginEventMap> {
         const last = this._anchors[this._anchors.length - 1]
         if (!(keepHeight && last)) {
             const hit = ray.intersectObject(viewer.scene.modelRoot, true)
-                .find(h => (h.object as any).isMesh && !(h.object as any).isLine2 && h.object.visible)
+                .find(h => (h.object as any).isMesh && !(h.object as any).isLine2 && isVisible(h.object))
             if (hit) return hit.point.clone()
             const ground = onPlane(ray.ray, new Plane(new Vector3(0, 1, 0), 0))
             if (ground) return ground
@@ -340,11 +359,10 @@ export class PenToolPlugin extends AViewerPluginSync<PenToolPluginEventMap> {
         return onPlane(ray.ray, new Plane(new Vector3(0, 1, 0), -(last?.p.y ?? 0)))
     }
 
-    private _toScreen(p: Vector3) {
-        const viewer = this._viewer!
-        const r = viewer.container.getBoundingClientRect()
-        const v = p.clone().project(viewer.scene.mainCamera)
-        return {x: (v.x + 1) / 2 * r.width, y: (1 - v.y) / 2 * r.height, behind: v.z > 1}
+    /** The position of a world point in the container */
+    private _toScreen(p: Vector3, viewport = this._viewport()) {
+        const v = p.clone().project(this._viewer!.scene.mainCamera)
+        return {x: viewport.x + (v.x + 1) / 2 * viewport.width, y: viewport.y + (1 - v.y) / 2 * viewport.height, behind: v.z > 1}
     }
 
     private _near(p: Vector3, s: Vector2) {
@@ -355,7 +373,7 @@ export class PenToolPlugin extends AViewerPluginSync<PenToolPluginEventMap> {
     /** World size of one screen pixel at `p` */
     private _worldPerPixel(p: Vector3) {
         const cam = this._viewer!.scene.mainCamera as any
-        const h = this._viewer!.container.clientHeight || 1
+        const h = this._viewport().height
         if (cam.isOrthographicCamera) return (cam.top - cam.bottom) / (cam.zoom || 1) / h
         return 2 * cam.getWorldPosition(new Vector3()).distanceTo(p) * Math.tan((cam.fov || 45) * Math.PI / 360) / h
     }
@@ -364,10 +382,14 @@ export class PenToolPlugin extends AViewerPluginSync<PenToolPluginEventMap> {
         const viewer = this._viewer
         const gen = viewer?.getPlugin(GeometryGeneratorPlugin)
         if (!viewer || !gen) return undefined
+        // the points are in world space; the path goes in the model root, which can be moved or scaled (modelRootScale)
+        const root = viewer.scene.modelRoot
+        root.updateWorldMatrix(true, false)
+        const toRoot = (v: Vector3) => root.worldToLocal(v.clone())
+        const inRoot = anchors.map(a => ({p: toRoot(a.p), hIn: toRoot(a.hIn), hOut: toRoot(a.hOut)}))
         // the object sits at the centre of its points; the curve is in its local space
-        const center = anchors.reduce((c, a) => c.add(a.p), new Vector3()).divideScalar(anchors.length)
-        const loc = (v: Vector3) => v.clone().sub(center)
-        const pts = anchors.map(a => ({p: loc(a.p), hIn: loc(a.hIn), hOut: loc(a.hOut)}))
+        const center = inRoot.reduce((c, a) => c.add(a.p), new Vector3()).divideScalar(inRoot.length)
+        const pts = inRoot.map(a => ({p: a.p.sub(center), hIn: a.hIn.sub(center), hOut: a.hOut.sub(center)}))
         const path = new CurvePath3()
         const n = closed ? pts.length : pts.length - 1
         for (let i = 0; i < n; i++) {
@@ -383,7 +405,6 @@ export class PenToolPlugin extends AViewerPluginSync<PenToolPluginEventMap> {
         if (material?.linewidth !== undefined) material.linewidth = this.linewidth
         obj.name = `Path ${++this._count}`
         obj.position.copy(center)
-        const root = viewer.scene.modelRoot
         const add = () => {
             root.add(obj)
             viewer.scene.setDirty({refreshScene: true})
@@ -409,7 +430,8 @@ export class PenToolPlugin extends AViewerPluginSync<PenToolPluginEventMap> {
             if (svg.childNodes.length) svg.innerHTML = ''
             return
         }
-        const S = (p: Vector3) => this._toScreen(p)
+        const viewport = this._viewport()
+        const S = (p: Vector3) => this._toScreen(p, viewport)
         const f = (n: number) => n.toFixed(1)
         const as = this._anchors
         let d = ''

@@ -29,7 +29,7 @@ After `start()` (or `toggle()`), on the canvas:
 | <kbd>Esc</kbd> | Cancel |
 | <kbd>Shift</kbd> while clicking | Keep the height of the previous point (draw in the air) |
 
-A point goes on the surface of a model under the pointer, else on the ground (y = 0), else (above the horizon) on the level plane through the previous point. A drag pulls the handles on a level plane through the point, or on a plane facing the camera when the camera looks along the ground. While drawing, the pen takes the left mouse button on the canvas: no selection and no orbit. The wheel still zooms. Keys in a text field are ignored.
+A point goes on the visible surface of a model under the pointer (the pointer position in the canvas, also when the canvas is smaller than the container), else on the ground (y = 0), else (above the horizon) on the level plane through the previous point. A drag pulls the handles on a level plane through the point, or on a plane facing the camera when the camera looks along the ground. While drawing, the pen takes the left mouse button on the canvas: no selection and no orbit. The wheel still zooms. Keys in a text field are ignored.
 
 An overlay shows the points, the handles, the curve and a dashed preview of the next segment, with a hint at the bottom of the viewer.
 
@@ -62,7 +62,7 @@ The plugin UI (`uiConfig`) has Enabled, a Draw Path / Finish Path button, Color 
 
 ## The path
 
-- The object is at the centre of its points, named `Path 1`, `Path 2`, ... It is added to the model root.
+- The object is at the centre of its points, named `Path 1`, `Path 2`, ... It is added to the model root, in its space, so it stays on the drawn points when the root is moved or scaled (`modelRootScale`).
 - Each segment is a `CubicBezierCurve3`. Neighbouring segments share their end point (the same `Vector3`), so moving a point in the geometry editor keeps them joined.
 - The line has 32 segments per curve (48 to 400).
 - The material is the default material of the line generator (`LineMaterial2`, or a basic line material with `LineGeometryGenerator.UseMeshLines = false`), with `color` and `linewidth`.

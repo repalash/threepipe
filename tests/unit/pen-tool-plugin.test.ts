@@ -81,15 +81,25 @@ beforeEach(() => {
 })
 afterEach(() => vi.unstubAllGlobals())
 
-/** A viewer with what the pen uses: a canvas in a container, a camera above the ground looking at it, a model root */
-function setup() {
+interface Rect {left: number, top: number, width: number, height: number}
+
+/**
+ * A viewer with what the pen uses: a canvas in a container, a camera above the ground looking at it, a model root.
+ * `canvasRect`: the canvas smaller than the container (`setRenderSize(..., 'contain')`), default the container rect.
+ */
+function setup({canvasRect}: {canvasRect?: Rect} = {}) {
+    const containerRect: Rect = {left: 20, top: 10, width: W, height: H}
+    const cr = canvasRect ?? containerRect
     const container = Object.assign(new FakeElement('div'), {
         clientHeight: H,
-        getBoundingClientRect: () => ({left: 0, top: 0, width: W, height: H}),
+        getBoundingClientRect: () => containerRect,
     })
-    const canvas = new FakeElement('canvas')
+    const canvas = Object.assign(new FakeElement('canvas'), {
+        clientHeight: cr.height,
+        getBoundingClientRect: () => cr,
+    })
     container.appendChild(canvas)
-    const camera = new PerspectiveCamera(45, W / H, 0.1, 100)
+    const camera = new PerspectiveCamera(45, cr.width / cr.height, 0.1, 100)
     camera.position.set(0, 10, 10)
     camera.lookAt(0, 0, 0)
     camera.updateMatrixWorld()
@@ -107,10 +117,10 @@ function setup() {
     const pen = new tp.PenToolPlugin()
     pen.onAdded(viewer)
 
-    /** Screen position of a world point */
+    /** Client (page) position of a world point, in the canvas */
     const screen = (x: number, y: number, z: number) => {
         const v = new tp.Vector3(x, y, z).project(camera)
-        return {clientX: (v.x + 1) / 2 * W, clientY: (1 - v.y) / 2 * H}
+        return {clientX: cr.left + (v.x + 1) / 2 * cr.width, clientY: cr.top + (1 - v.y) / 2 * cr.height}
     }
     const ev = (pos: {clientX: number, clientY: number}, extra: any = {}) => ({
         target: canvas, button: 0, shiftKey: false, stopPropagation: vi.fn(), stopImmediatePropagation: vi.fn(), preventDefault: vi.fn(), ...pos, ...extra,
@@ -133,7 +143,7 @@ function setup() {
         win.fire('keydown', e)
         return e
     }
-    return {pen, viewer, container, canvas, camera, modelRoot, undoManager, picking, click, drag, key, screen, ev}
+    return {pen, viewer, container, containerRect, canvas, camera, modelRoot, undoManager, picking, click, drag, key, screen, ev}
 }
 
 const close = (a: {x: number, y: number, z: number}, b: number[], d = 1e-3) =>
@@ -320,5 +330,59 @@ describe('PenToolPlugin', {timeout}, () => {
         expect(container.children.map(c => c.tagName)).toEqual(['canvas'])
         expect(container.classList.contains('pen-drawing')).toBe(false)
         expect(pen.serializeWithViewer).toBe(false)
+    })
+
+    test('the path is in the model root space: a scaled and moved model root keeps it on the drawn points', () => {
+        const {pen, modelRoot, click} = setup()
+        modelRoot.scale.setScalar(2) // ThreeViewer modelRootScale
+        modelRoot.position.set(1, 0, 0)
+        modelRoot.updateMatrixWorld(true)
+        pen.start()
+        click(-2, 0, 0)
+        click(0, 0, 2)
+        click(2, 0, 0)
+        const obj = pen.finish()!
+        obj.updateMatrixWorld(true)
+        const curves = (obj.geometry as any).userData.generationParams.curve.curves
+        const world = (v: any) => v.clone().applyMatrix4(obj.matrixWorld)
+        expect(close(world(curves[0].v0), [-2, 0, 0])).toBe(true)
+        expect(close(world(curves[0].v3), [0, 0, 2])).toBe(true)
+        expect(close(world(curves[1].v3), [2, 0, 0])).toBe(true)
+    })
+
+    test('a canvas smaller than the container (render size contain): points under the pointer, overlay on them', () => {
+        const canvasRect = {left: 120, top: 160, width: 600, height: 300}
+        const {pen, viewer, container, containerRect, click, camera} = setup({canvasRect})
+        pen.start()
+        click(-2, 0, 0)
+        click(2, 0, 1)
+        expect(close(pen.points[0], [-2, 0, 0])).toBe(true)
+        expect(close(pen.points[1], [2, 0, 1])).toBe(true)
+        viewer.dispatchEvent({type: 'postFrame'})
+        const svg = container.children.find(c => c.tagName === 'svg')!
+        const rect = svg.innerHTML.match(/<rect x="([-\d.]+)" y="([-\d.]+)"/)!
+        // the overlay fills the container: the point at the canvas offset plus its canvas position (rect is 8 px, centred)
+        const v = new tp.Vector3(-2, 0, 0).project(camera)
+        const x = canvasRect.left - containerRect.left + (v.x + 1) / 2 * canvasRect.width
+        const y = canvasRect.top - containerRect.top + (1 - v.y) / 2 * canvasRect.height
+        expect(Math.abs(+rect[1] + 4 - x)).toBeLessThan(0.1)
+        expect(Math.abs(+rect[2] + 4 - y)).toBeLessThan(0.1)
+        pen.cancel()
+    })
+
+    test('surfaces under a hidden parent take no points', () => {
+        const {pen, modelRoot, click} = setup()
+        const group = new Object3D()
+        group.visible = false
+        group.add(new Mesh(new PlaneGeometry(4, 4).rotateX(-Math.PI / 2).translate(0, 1, 0), new MeshBasicMaterial()))
+        modelRoot.add(group)
+        modelRoot.updateMatrixWorld(true)
+        pen.start()
+        click(0, 0, 0) // over the hidden plane at y = 1: the ground
+        expect(close(pen.points[0], [0, 0, 0])).toBe(true)
+        group.visible = true
+        click(0, 1, 0)
+        expect(close(pen.points[1], [0, 1, 0])).toBe(true)
+        pen.cancel()
     })
 })
