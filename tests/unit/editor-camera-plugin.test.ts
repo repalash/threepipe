@@ -14,8 +14,9 @@ const viewerConfig = {assetType: 'config', type: 'ThreeViewer', scene: {defaultC
 
 /**
  * A start view (the scene's default camera) and a scene that tracks the main camera. By default the start camera has
- * mock controls (`orbit` false); with `orbit` it has orbit controls on the viewer canvas, as the default camera of a
- * viewer. `syncStartView` is off unless `sync` (the tests of the preview need it off; its default is on).
+ * mock controls (`orbit` false), and the preview camera mock controls that send the start and end events of a drag;
+ * with `orbit` both have orbit controls on the viewer canvas, as the default camera of a viewer. `syncStartView` is off
+ * unless `sync` (the tests of the preview need it off; its default is on).
  */
 function setup({undo = true, orbit = false, ortho = false, sync = false} = {}) {
     const canvas = makeCanvas()
@@ -51,13 +52,26 @@ function setup({undo = true, orbit = false, ortho = false, sync = false} = {}) {
     plugin.onAdded(viewer)
     const preview = plugin.previewCamera as PerspectiveCamera2
     preview.activateMain = activate(preview) as any
+    if (!orbit) Object.defineProperty(preview, 'controls', {value: Object.assign(new EventDispatcher<any>(), {stopDamping: vi.fn()}), writable: true, configurable: true})
     return {plugin, scene, start, preview, records, viewer}
 }
 
-// a move of the view in View, as the controls make it
+// a change of the pose of a camera: in View, out of a gesture, as a clamp of the orbit limits or an animation makes it
 function move(camera: any, x: number, y: number, z: number) {
     camera.position.set(x, y, z)
     camera.setDirty()
+}
+
+// a user gesture on the preview, as its controls send it: the start event, the changes, the end event
+function gesture(preview: any, change: () => void) {
+    preview.controls.dispatchEvent({type: 'start'})
+    change()
+    preview.controls.dispatchEvent({type: 'end'})
+}
+
+// a drag of the user in View: a move in a gesture
+function drag(preview: any, x: number, y: number, z: number) {
+    gesture(preview, () => move(preview, x, y, z))
 }
 
 // frames of the viewer for a while: a synced move ends after a time and frames without a move
@@ -184,7 +198,7 @@ describe('EditorCameraPlugin', () => {
         expect(preview.position.toArray()).toEqual([0, 1, 6])
         expect(preview.quaternion.equals(start.quaternion)).toBe(true)
 
-        move(preview, 4, 1, 0) // a look around in View
+        drag(preview, 4, 1, 0) // a look around in View
         expect(start.position.toArray()).toEqual([0, 1, 6])
         expect(plugin.startViewMoved).toBe(true)
         plugin.editing = true
@@ -235,7 +249,7 @@ describe('EditorCameraPlugin', () => {
     test('an export in View after a move that was not saved has the saved start view (the default camera is what a viewer config saves)', () => {
         const {plugin, start, preview} = setup({orbit: true})
         plugin.editing = false
-        move(preview, 4, 1, 0)
+        drag(preview, 4, 1, 0)
         const json = start.toJSON()
         expect(json.position).toEqual(expect.objectContaining({x: 0, y: 1, z: 6}))
         expect(json.uuid ?? json.object?.uuid).not.toBe(preview.uuid)
@@ -263,17 +277,19 @@ describe('EditorCameraPlugin', () => {
         plugin.syncStartView = true
         expect(syncs).toEqual([true])
         plugin.editing = false
-        move(preview, 4, 1, 0)
-        move(preview, 3, 1, 0)
+        gesture(preview, () => {
+            move(preview, 4, 1, 0)
+            move(preview, 3, 1, 0)
+        })
         expect(start.position.toArray()).toEqual([3, 1, 0])
         expect(changes).toEqual([4, 3])
         expect(plugin.startViewMoved).toBe(false)
         expect(records).toHaveLength(1)
         wait(viewer, EditorCameraPlugin.SyncGestureDelay - 1)
-        move(preview, 3.5, 1, 0) // not ended yet: the same step
+        move(preview, 3.5, 1, 0) // the glide: not ended yet, the same step
         expect(records).toHaveLength(1)
         wait(viewer, EditorCameraPlugin.SyncGestureDelay)
-        move(preview, 2, 1, 0) // the next move
+        drag(preview, 2, 1, 0) // the next move
         expect(records).toHaveLength(2)
         wait(viewer, EditorCameraPlugin.SyncGestureDelay)
 
@@ -328,6 +344,7 @@ describe('EditorCameraPlugin', () => {
         expect(start.position.toArray()).toEqual([0, 1, 6])
         records[0].redo()
         expect(start.position.toArray()).toEqual([2.5, 1, 0])
+        controls.dispatchEvent({type: 'start'})
         move(preview, 2.4, 1, 0) // after an undo or a redo: a new step
         expect(records).toHaveLength(2)
         // a drag later is a new step, also during the glide of the last one
@@ -344,15 +361,16 @@ describe('EditorCameraPlugin', () => {
         const {plugin, preview, records, viewer} = setup()
         plugin.syncStartView = true
         plugin.editing = false
-        // a frame each 500 ms, each one moves the view a little
+        // a frame each 500 ms, each one moves the view a little: the drag, then the glide
         for (const x of [4, 3.5, 3.2, 3.1]) {
-            move(preview, x, 1, 0)
+            if (x === 4) drag(preview, x, 1, 0)
+            else move(preview, x, 1, 0)
             vi.advanceTimersByTime(500)
             viewer.dispatchEvent({type: 'postFrame'})
         }
         expect(records).toHaveLength(1)
         wait(viewer, 0) // frames without a move
-        move(preview, 3, 1, 0)
+        drag(preview, 3, 1, 0)
         expect(records).toHaveLength(2)
         records[1].undo()
         records[0].undo()
@@ -367,32 +385,90 @@ describe('EditorCameraPlugin', () => {
         const changes = vi.fn()
         plugin.addEventListener('startViewChange', changes)
         plugin.editing = false
-        move(preview, 4, 1, 0)
+        drag(preview, 4, 1, 0)
         wait(viewer, 1000)
         expect(start.position.toArray()).toEqual([0, 1, 6])
         expect(changes).not.toHaveBeenCalled()
         expect(records).toHaveLength(0)
     })
 
+    test.each([true, false])('a change of the view in View out of a user gesture (a clamp of the orbit limits, an animation) is not a move, with sync %s', (sync) => {
+        const {plugin, start, preview, records} = setup({sync})
+        const changes = vi.fn()
+        const moved = vi.fn()
+        plugin.addEventListener('startViewChange', changes)
+        plugin.addEventListener('startViewMovedChange', moved)
+        plugin.editing = false
+        move(preview, 0, 1, 5) // the orbit controls clamp a start view that is outside their limits
+        expect(records).toHaveLength(0)
+        expect(start.position.toArray()).toEqual([0, 1, 6])
+        expect(plugin.startViewMoved).toBe(false)
+        plugin.saveStartView() // nothing to save
+        plugin.syncStartView = true // turned on: no move to save
+        expect(start.position.toArray()).toEqual([0, 1, 6])
+        expect(records).toHaveLength(0)
+        expect(changes).not.toHaveBeenCalled()
+        expect(moved).not.toHaveBeenCalled()
+        // the start view changes in the camera panel: the view, that the user did not move, follows it
+        move(start, 1, 1, 1)
+        expect(preview.position.toArray()).toEqual([1, 1, 1])
+    })
+
+    test.each([true, false])('a change after the end of a gesture, or after a reset, an undo or a load in its glide, is not a move, with sync %s', (sync) => {
+        vi.useFakeTimers()
+        const {plugin, start, preview, records, viewer} = setup({sync})
+        plugin.editing = false
+        drag(preview, 4, 1, 0)
+        move(preview, 3.9, 1, 0) // the glide of damping is part of the gesture
+        expect(plugin.startViewMoved).toBe(!sync)
+        expect(start.position.toArray()).toEqual(sync ? [3.9, 1, 0] : [0, 1, 6])
+        wait(viewer, EditorCameraPlugin.SyncGestureDelay)
+        move(preview, 3.5, 1, 0) // an animation of another plugin, after the gesture
+        expect(start.position.toArray()).toEqual(sync ? [3.9, 1, 0] : [0, 1, 6])
+        expect(records).toHaveLength(sync ? 1 : 0)
+
+        // the plugin sets the view (a reset, an undo, a load) in the time of the glide of a gesture, then the controls clamp it
+        const actions: Record<string, () => void> = {
+            reset: () => plugin.resetStartView(),
+            undo: () => records.at(-1)?.undo(),
+            load: () => viewer.assetManager.dispatchEvent({type: 'loadAsset', data: viewerConfig}),
+        }
+        for (const [name, action] of Object.entries(actions)) {
+            if (name === 'undo') { // a step to undo, also without sync
+                plugin.camera.position.set(1, 1, 5)
+                plugin.setStartViewFromEditor()
+            }
+            drag(preview, 2, 1, 0)
+            const count = records.length
+            action()
+            const saved = start.position.toArray()
+            move(preview, 2.5, 1, 0)
+            expect(plugin.startViewMoved, name).toBe(false)
+            expect(records, name).toHaveLength(count)
+            expect(start.position.toArray(), name).toEqual(saved)
+            wait(viewer, EditorCameraPlugin.SyncGestureDelay)
+        }
+    })
+
     test('syncStartView turned on after a move in View saves the view; Edit and sync off end a move at once', () => {
         vi.useFakeTimers()
         const {plugin, start, preview, records, viewer} = setup()
         plugin.editing = false
-        move(preview, 4, 1, 0)
+        drag(preview, 4, 1, 0)
         plugin.syncStartView = true
         expect(start.position.toArray()).toEqual([4, 1, 0])
         expect(records).toHaveLength(1)
 
-        move(preview, 3, 1, 0)
+        drag(preview, 3, 1, 0)
         plugin.editing = true // ends the move
         expect(records).toHaveLength(2)
         plugin.editing = false
-        move(preview, 2, 1, 0)
+        drag(preview, 2, 1, 0)
         plugin.syncStartView = false // ends the move
         expect(records).toHaveLength(3)
         wait(viewer, 1000)
         expect(records).toHaveLength(3)
-        move(preview, 1, 1, 0) // a preview only now
+        drag(preview, 1, 1, 0) // a preview only now
         expect(start.position.toArray()).toEqual([2, 1, 0])
     })
 
@@ -402,7 +478,7 @@ describe('EditorCameraPlugin', () => {
         plugin.editing = false
         const stop = vi.spyOn(preview.controls as OrbitControls3, 'stopDamping')
         expect(plugin.startViewMoved).toBe(false)
-        move(preview, 4, 1, 0)
+        drag(preview, 4, 1, 0)
         expect(plugin.startViewMoved).toBe(true)
         plugin.saveStartView()
         expect(stop).toHaveBeenCalled()
@@ -439,7 +515,7 @@ describe('EditorCameraPlugin', () => {
         expect(preview.position.toArray()).toEqual([0, 1, 6])
         expect(plugin.startViewMoved).toBe(false)
         expect(events.at(-1) ?? false).toBe(false)
-        move(preview, 4, 1, 0) // a move that is not saved: the redo replaces it
+        drag(preview, 4, 1, 0) // a move that is not saved: the redo replaces it
         records[0].redo()
         expect(start.position.toArray()).toEqual([5, 0, 0])
         expect(preview.position.toArray()).toEqual([5, 0, 0])
@@ -452,12 +528,12 @@ describe('EditorCameraPlugin', () => {
         const events: boolean[] = []
         plugin.addEventListener('startViewMovedChange', e => events.push(e.moved))
         plugin.editing = false
-        move(preview, 4, 1, 0)
-        move(preview, 3, 1, 0) // still moved: no event
+        drag(preview, 4, 1, 0)
+        drag(preview, 3, 1, 0) // still moved: no event
         plugin.saveStartView()
-        move(preview, 0, 2, 6)
+        drag(preview, 0, 2, 6)
         plugin.resetStartView()
-        move(preview, 1, 1, 6)
+        drag(preview, 1, 1, 6)
         plugin.editing = true // the look around is dropped
         expect(events).toEqual([true, false, true, false, true, false])
     })
@@ -465,7 +541,7 @@ describe('EditorCameraPlugin', () => {
     test('resetStartView takes the view back to the saved start view while in View', () => {
         const {plugin, start, preview} = setup()
         plugin.editing = false
-        move(preview, 4, 1, 0)
+        drag(preview, 4, 1, 0)
         plugin.resetStartView()
         expect(preview.position.toArray()).toEqual([0, 1, 6])
         expect(start.position.toArray()).toEqual([0, 1, 6])
@@ -499,7 +575,7 @@ describe('EditorCameraPlugin', () => {
         move(start, 1, 1, 1) // the camera panel
         expect(changes).toHaveBeenCalledTimes(2)
         expect(preview.position.toArray()).toEqual([1, 1, 1])
-        move(preview, 4, 1, 0)
+        drag(preview, 4, 1, 0)
         move(start, 2, 2, 2)
         expect(preview.position.toArray()).toEqual([4, 1, 0]) // a move that is not saved stays
         expect(plugin.startViewMoved).toBe(true)
@@ -512,7 +588,7 @@ describe('EditorCameraPlugin', () => {
         expect(plugin.showsStartView).toBe(false)
         plugin.editing = false
         expect(plugin.showsStartView).toBe(true)
-        move(preview, 4, 1, 0)
+        drag(preview, 4, 1, 0)
         expect(plugin.showsStartView).toBe(false)
         plugin.saveStartView()
         expect(plugin.showsStartView).toBe(true)
@@ -523,7 +599,7 @@ describe('EditorCameraPlugin', () => {
     test('in View, a file with a viewer config shows its start view, with its controls', () => {
         const {plugin, viewer, start, preview} = setup({orbit: true})
         plugin.editing = false
-        move(preview, 4, 1, 0) // a look around
+        drag(preview, 4, 1, 0) // a look around
         start.position.set(1, 2, 3) // the imported start view
         ;(start.controls as OrbitControls3).minDistance = 2
         viewer.assetManager.dispatchEvent({type: 'loadAsset', data: {importedViewerConfig: viewerConfig}})
@@ -545,7 +621,7 @@ describe('EditorCameraPlugin', () => {
         const {plugin, viewer, start, preview} = setup()
         plugin.camera.position.set(9, 0, 0) // the editor view
         plugin.editing = false
-        move(preview, 4, 1, 0) // a look around in View
+        drag(preview, 4, 1, 0) // a look around in View
         viewer.assetManager.dispatchEvent({type: 'loadAsset', data: {assetType: 'config', type: 'TonemapPlugin'}})
         expect(plugin.camera.position.toArray()).toEqual([9, 0, 0])
         expect(preview.position.toArray()).toEqual([4, 1, 0])
@@ -561,7 +637,7 @@ describe('EditorCameraPlugin', () => {
         expect(plugin.previewCamera).toBe(preview) // kept for the next add
         expect(scene.mainCamera).toBe(preview)
         expect(preview.position.toArray()).toEqual([0, 1, 6])
-        move(preview, 4, 1, 0)
+        drag(preview, 4, 1, 0)
         plugin.resetStartView()
         expect(preview.position.toArray()).toEqual([0, 1, 6])
     })
@@ -611,11 +687,15 @@ describe('EditorCameraPlugin', () => {
     test('the zoom is part of the start view: a zoom in View is a move, saved as one undo step', () => {
         const {plugin, start, preview, records} = setup()
         plugin.editing = false
-        preview.zoom = 2 // a zoom in View (an orthographic camera)
+        const zoom = (z: number) => gesture(preview, () => {
+            preview.zoom = z
+            preview.setDirty()
+        })
+        zoom(2) // a zoom in View (an orthographic camera)
         expect(plugin.startViewMoved).toBe(true)
         plugin.resetStartView()
         expect(preview.zoom).toBe(1)
-        preview.zoom = 3 // only the zoom changes
+        zoom(3) // only the zoom changes
         plugin.saveStartView()
         expect(start.zoom).toBe(3)
         expect(records.length).toBe(1)

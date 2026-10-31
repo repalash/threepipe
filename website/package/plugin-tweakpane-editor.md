@@ -170,7 +170,8 @@ editorCamera.hotkey = 'KeyK'
 Options and state:
 - `smooth`: a light damping on the editor camera. Off: 1:1 with the pointer.
 - `syncStartView`: in View, each move changes the start view at once. A move (with the glide of damping, or wheel steps close together) is one undo step; `EditorCameraPlugin.SyncGestureDelay` (ms) is the pause that ends it. On by default. Turned on in View after a move, it saves the view. Off: a move in View is a preview only. The `syncStartViewChange` event (`{sync}`) tells a UI when it changes.
-- `startViewMoved`: in View, the view was moved away from the saved start view and the move is not saved. `saveStartView()` keeps it (one undo step), `resetStartView()` goes back. The `startViewMovedChange` event (`{moved}`) tells a UI when it changes.
+- Only a user gesture on the controls of the preview camera is a move: from their `start` event to their `end` event, and the glide after it. A change that the user did not make is not synced and does not count as a move: the orbit controls clamp a start view that is outside their limits (or under the ground limit) when View starts, or another plugin animates the camera (`fitToView`, camera views). The keyboard pan of `OrbitControls` sends no `start` and `end` events, so it is not a move either.
+- `startViewMoved`: in View, a user gesture moved the view away from the saved start view and the move is not saved. `saveStartView()` keeps it (one undo step), `resetStartView()` goes back. The `startViewMovedChange` event (`{moved}`) tells a UI when it changes.
 - The `startViewChange` event (`{camera}`): the saved start view changed (a save, a sync, an undo, a load, a change in the camera panel).
 - `showsStartView`: the view shows the saved start view now (in View before a move; in Edit when the editor camera is at the start view). A UI can take a picture of the start view from the canvas then.
 - `EditorCameraPlugin.ControlProps`: the orbit controls of the editor camera.

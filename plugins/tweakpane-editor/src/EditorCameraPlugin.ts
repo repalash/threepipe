@@ -164,9 +164,10 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
     }
 
     /**
-     * With {@link syncStartView}: a move is one undo step, recorded when it starts and changed while it goes on (also
-     * the glide of damping). It ends after this time in ms without a change, with the pointer up (and at least three
-     * frames, for a slow frame rate). A drag that starts this time or later after the last one is a new step.
+     * A user gesture on the controls of the preview camera (in View) goes on after the pointer is up, for the glide of
+     * damping: it ends after this time in ms without a change, with the pointer up (and at least three frames, for a
+     * slow frame rate). With {@link syncStartView}, a gesture is one undo step, recorded when it starts and changed while
+     * it goes on. A drag that starts this time or later after the last one is a new step.
      */
     static SyncGestureDelay = 300
 
@@ -179,6 +180,11 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
      * In View: each move of the view changes the saved start view at once (one undo step per move). On by default.
      * Off: a move in View is a preview only, kept with {@link saveStartView}.
      * Turned on in View after a move, it saves the view.
+     *
+     * Only a user gesture on the controls of the preview camera is a move: from their `start` event to their `end`
+     * event, and the glide after it (see {@link SyncGestureDelay}). A change that the user did not make, like a clamp of
+     * the orbit limits (a start view outside them) or an animation of the camera by another plugin, is not synced.
+     * The keyboard pan of `OrbitControls` sends no `start` and `end` events, so it is not a move either.
      */
     @onChange(EditorCameraPlugin.prototype._syncChanged)
     @uiToggle('Sync start view (in View)')
@@ -210,14 +216,19 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
     private _previewControls?: OrbitControls3
     /** The preview camera is set by the plugin: not a move */
     private _applying = false
-    /** With {@link syncStartView}: the undo step of the current move, the time of its last change (`Date.now()`) and the frames without a change since */
+    /** With {@link syncStartView}: the undo step of the current gesture */
     private _syncMove?: StartMove
-    private _syncChangeTime = 0
-    private _syncQuietFrames = 0
+    /** A user gesture on the controls of the preview goes on: from their start event to the end of the glide after their end event */
+    private _gesture = false
+    /** The time of the last change of the preview in the gesture (`Date.now()`) and the frames without a change since */
+    private _gestureChangeTime = 0
+    private _gestureQuietFrames = 0
     /** The time of the last end event of the controls of the preview camera (`Date.now()`) */
     private _dragEndTime = 0
-    /** With {@link syncStartView}: the pointer is down on the preview (between the start and end events of its controls) */
+    /** The pointer is down on the preview (between the start and end events of its controls) */
     private _dragging = false
+    /** A user gesture moved the preview since View started, or since the last save, reset, undo or load, and the move is not saved */
+    private _userMoved = false
 
     constructor() {
         super()
@@ -247,12 +258,14 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
     }
 
     /**
-     * In View: the view was moved away from the saved start view, and the move is not saved ({@link syncStartView} is
-     * off). {@link saveStartView} keeps the move, {@link resetStartView} goes back. Always `false` in Edit.
+     * In View: a user gesture moved the view away from the saved start view, and the move is not saved
+     * ({@link syncStartView} is off). {@link saveStartView} keeps the move, {@link resetStartView} goes back. Always
+     * `false` in Edit. A change that the user did not make (a clamp of the orbit limits, an animation of the camera by
+     * another plugin) is not a move, see {@link syncStartView}.
      */
     get startViewMoved(): boolean {
         const start = this.startCamera
-        return this._mode === 'view' && !!this._preview && !!start && !samePose(poseOf(this._preview), poseOf(start))
+        return this._mode === 'view' && this._userMoved && !!this._preview && !!start && !samePose(poseOf(this._preview), poseOf(start))
     }
 
     /**
@@ -300,7 +313,7 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
     }
 
     onRemove(viewer: ThreeViewer) {
-        this._endSyncMove()
+        this._stopGesture()
         // the start view is the main camera again; editing keeps its value for the next add.
         // Another main camera (made the main camera while in Edit) stays.
         const main = viewer.scene.mainCamera
@@ -322,7 +335,7 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
 
     /** Disposes the editor camera and the preview camera, with their orbit controls (their pointer listeners on the canvas) */
     dispose() {
-        this._endSyncMove()
+        this._stopGesture()
         this.camera.dispose()
         this._watchPreviewControls(undefined)
         this._preview?.dispose()
@@ -422,7 +435,8 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
             return
         }
         const wasEditing = this._mode === 'edit'
-        this._endSyncMove()
+        this._stopGesture()
+        this._userMoved = false
         this._mode = mode
         if (mode === 'edit') {
             this.camera.activateMain()
@@ -447,7 +461,7 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
 
     /**
      * The start camera changed (by the plugin, the camera panel, a load): sends `startViewChange` when its pose did.
-     * In View, a view that showed the start view follows it.
+     * In View, a view that the user did not move follows it.
      */
     private _onStartUpdate = () => {
         const start = this.startCamera
@@ -456,31 +470,42 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
         const last = this._lastStart
         if (last && samePose(last, pose)) return this._checkMoved()
         this._lastStart = pose
-        if (this._mode === 'view' && this._preview && last && samePose(poseOf(this._preview), last)) this._setPreviewPose(pose)
+        if (this._mode === 'view' && !this._gesture && !this._userMoved) this._setPreviewPose(pose)
         this.dispatchEvent({type: 'startViewChange', camera: start})
         this._checkMoved()
     }
 
-    /** The preview camera changed. With sync, a move changes the start view at once, and ends as one undo step. */
+    /**
+     * The preview camera changed. Only a change in a user gesture is a move: with sync, it changes the start view at
+     * once (the gesture is one undo step); without, it is a move that is not saved. A change out of a gesture (a clamp of
+     * the orbit limits, an animation by another plugin) is neither.
+     */
     private _onPreviewUpdate = () => {
         if (this._mode !== 'view' || this._applying || !this._preview) return
         const start = this.startCamera
-        if (start && this.syncStartView) {
+        if (this._gesture && start) {
+            this._gestureChangeTime = Date.now()
+            this._gestureQuietFrames = 0
             const pose = poseOf(this._preview)
             const saved = poseOf(start)
-            if (!samePose(pose, saved)) {
-                this._setStartView(pose)
-                if (this._syncMove) this._syncMove.after = pose
-                else this._syncMove = this._recordStartView(saved, pose)
-                this._syncChangeTime = Date.now()
-                this._syncQuietFrames = 0
-            }
+            if (this.syncStartView) {
+                if (!samePose(pose, saved)) {
+                    this._setStartView(pose)
+                    if (this._syncMove) this._syncMove.after = pose
+                    else this._syncMove = this._recordStartView(saved, pose)
+                }
+                // saved
+                this._userMoved = false
+            } else if (!samePose(pose, saved)) this._userMoved = true
         }
         this._checkMoved()
     }
 
     private _onDragStart = () => {
         this._dragging = true
+        this._gesture = true
+        this._gestureChangeTime = Date.now()
+        this._gestureQuietFrames = 0
         // a new drag is a new step, also during the glide of the last one; wheel steps (a start and an end each) close
         // together are one
         if (Date.now() - this._dragEndTime >= EditorCameraPlugin.SyncGestureDelay) this._endSyncMove()
@@ -488,14 +513,14 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
 
     private _onDragEnd = () => {
         this._dragging = false
-        this._syncChangeTime = this._dragEndTime = Date.now()
+        this._gestureChangeTime = this._dragEndTime = Date.now()
     }
 
-    /** After each frame: a synced move ends when the pointer is up and the view did not move for a while */
+    /** After each frame: a gesture (and its synced move) ends when the pointer is up and the view did not move for a while */
     private _onPostFrame = () => {
-        if (!this._syncMove || this._dragging) return
-        this._syncQuietFrames++
-        if (this._syncQuietFrames > 2 && Date.now() - this._syncChangeTime >= EditorCameraPlugin.SyncGestureDelay) this._endSyncMove()
+        if (!this._gesture || this._dragging) return
+        this._gestureQuietFrames++
+        if (this._gestureQuietFrames > 2 && Date.now() - this._gestureChangeTime >= EditorCameraPlugin.SyncGestureDelay) this._endGesture()
     }
 
     private _watchPreviewControls(controls?: OrbitControls3) {
@@ -506,12 +531,27 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
         controls?.addEventListener?.('start', this._onDragStart)
         controls?.addEventListener?.('end', this._onDragEnd)
         this._previewControls = controls
-        this._dragging = false
+        this._stopGesture()
     }
 
     /** Ends a synced move: the next change of the start view is a new undo step */
     private _endSyncMove() {
         this._syncMove = undefined
+    }
+
+    /**
+     * The plugin set the view (a reset, an undo, a load) or stopped its glide (a save): the gesture ends, unless the
+     * pointer is still down. A clamp of the orbit limits after it is not a move.
+     */
+    private _endGesture() {
+        this._gesture = this._dragging
+        this._endSyncMove()
+    }
+
+    /** The gesture ends, also with the pointer down: View ends, or the controls of the preview change */
+    private _stopGesture() {
+        this._dragging = false
+        this._endGesture()
     }
 
     private _enabledChanged() {
@@ -539,25 +579,31 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
     @uiButton('Back to start view (in View)', {sendArgs: false})
     resetStartView() {
         const start = this.startCamera
-        if (this._mode === 'view' && start) this._setPreviewPose(poseOf(start))
+        if (this._mode === 'view' && start) {
+            this._endGesture()
+            this._userMoved = false
+            this._setPreviewPose(poseOf(start))
+        }
         this._checkMoved()
     }
 
     /**
      * In View: the start view takes the view (one undo step), as the view that visitors see. It does nothing in Edit, or
-     * when the view was not moved ({@link startViewMoved}).
+     * when the view was not moved ({@link startViewMoved}: a change that the user did not make, like a clamp of the orbit
+     * limits, is not saved).
      */
     @uiButton('Save start view (in View)', {sendArgs: false})
     saveStartView() {
         const start = this.startCamera
         const preview = this._preview
-        if (this._mode !== 'view' || !start || !preview) return
+        if (!this.startViewMoved || !start || !preview) return
         // a glide after the drag would move it on after the save
         const controls = preview.controls as OrbitControls3 | undefined
         controls?.stopDamping?.()
+        this._endGesture()
         const before = poseOf(start)
         const after = poseOf(preview)
-        if (samePose(before, after)) return
+        this._userMoved = false
         this._setStartView(after)
         this._recordStartView(before, after)
         this._checkMoved()
@@ -605,7 +651,8 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
     /** Moves the start view (an undo, a redo, set from the editor). In View, the view goes there too. */
     private _moveStartView(pose: StartPose) {
         // a synced move ends, and its glide stops (setPose)
-        this._endSyncMove()
+        this._endGesture()
+        this._userMoved = false
         this._setStartView(pose)
         if (this._mode === 'view') this._setPreviewPose(pose)
         this._checkMoved()
@@ -645,7 +692,8 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
         // loaded with importConfig false: the viewer config of the file was not imported, the start view did not change
         if (e.options?.importConfig === false || !hasStartView(e.data)) return
         // a synced move that goes on is a new undo step from the new start view
-        this._endSyncMove()
+        this._endGesture()
+        this._userMoved = false
         this.copyStartView()
         // in View, the view is the start view of the new file, with its controls
         if (this._mode === 'view') this._showPreview()
