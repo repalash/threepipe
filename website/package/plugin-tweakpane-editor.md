@@ -34,6 +34,7 @@ import {TweakpaneEditorPlugin} from '@threepipe/plugin-tweakpane-editor'
 const viewer = new ThreeViewer({...})
 
 viewer.addPluginSync(new TweakpaneUiPlugin(true))
+// TweakpaneEditorPlugin.DefaultLayout = 'classic' // before the plugin is made: the layout when none is stored
 const editor = viewer.addPluginSync(new TweakpaneEditorPlugin())
 
 // Add some plugins to the viewer
@@ -72,15 +73,16 @@ In the frame:
 
 The plugin has a UI folder, `Editor`, with the page layout and the mode names. Add `TweakpaneEditorPlugin` to a mode (`loadPlugins`) to show it; it works in the classic layout too.
 
-The layout that the person picks (in the menu or the UI) is kept in `localStorage` (`TweakpaneEditorPlugin.LayoutStorageKey`), and so is the names setting of the mode bar (`EditorModeBar.StorageKey`; set a key to `null` to not keep it). A layout set from code (`editor.layout = 'floating'`) applies, but is not kept, so the person's pick is back at the next visit. `TweakpaneEditorPlugin.DefaultLayout` is the layout when none is stored.
+The layout that the person picks (in the menu or the UI) is kept in `localStorage` (`TweakpaneEditorPlugin.LayoutStorageKey`), and so is the names setting of the mode bar (`EditorModeBar.StorageKey`; set a key to `null` to not keep it). A layout set from code (`editor.layout = 'floating'`) applies, but is not kept, so the person's pick is back at the next visit. `TweakpaneEditorPlugin.DefaultLayout` is the layout when none is stored. The plugin reads the stored layout when it is made, so set `TweakpaneEditorPlugin.LayoutStorageKey` and `TweakpaneEditorPlugin.DefaultLayout` before `new TweakpaneEditorPlugin()`. For the old page with the mode tabs at the bottom in an app, set `TweakpaneEditorPlugin.DefaultLayout = 'classic'`, or `editor.layout = 'classic'` (this one also replaces a layout that the person picked).
 
-The frame applies in every window size. In a wide or a landscape window, the canvas, the panel and the mode bar are side by side. In a portrait window under 920 px wide (a phone), the layout keeps its bars or cards. The canvas is on top at full width, and the panel and the mode bar are below it, with the same height; the CSS variable `--lay-split` (default `0.45`) is the part of the height for the canvas. A mode bar taller than its room scrolls. When the panel is hidden, the mode bar is a row at the bottom, and a tap on a mode brings the panel back. The mode names are hidden at the first visit in a window under 920 px wide (`EditorModeBar.WideQuery`).
+The frame applies in every window size. In a wide or a landscape window, the canvas, the panel and the mode bar are side by side. In a portrait window under 920 px wide (a phone), the layout keeps its bars (floating has no gap there). The canvas is on top at full width, and the panel and the mode bar are below it, with the same height. The CSS variable `--lay-split` is the part of the height for the canvas: `0.45`, set on `body.lay-frame`. To change it, use a more specific rule, like `html body.lay-frame { --lay-split: 0.5; }`. A mode bar taller than its room scrolls. When the panel is hidden, the mode bar is a row at the bottom, and a tap on a mode brings the panel back. The mode names are hidden at the first visit in a window under 920 px wide (`EditorModeBar.WideQuery`).
 
 ```typescript
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 import {EditorModeBar, TweakpaneEditorPlugin} from '@threepipe/plugin-tweakpane-editor'
 
 viewer.addPluginSync(new TweakpaneUiPlugin(true))
+// TweakpaneEditorPlugin.DefaultLayout = 'classic' // before the plugin is made: the layout when none is stored
 const editor = viewer.addPluginSync(new TweakpaneEditorPlugin())
 editor.frameOptions = {title: 'My app'} // before loadPlugins, which makes the frame
 editor.loadPlugins({
