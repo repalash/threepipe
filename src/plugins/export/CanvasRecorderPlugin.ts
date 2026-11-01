@@ -134,7 +134,7 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
      * Waits for the promise, or until rendering stops during the recording ({@link _renderingStopped}).
      * @returns true when rendering stopped first
      */
-    private _untilRenderingStops(promise: Promise<unknown>): Promise<boolean> {
+    private async _untilRenderingStops(promise: Promise<unknown>): Promise<boolean> {
         return new Promise<boolean>((resolve, reject) => {
             if (!this._rendering()) {
                 resolve(true)
@@ -556,20 +556,11 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
     private _removalWaits = new RemovalWaits()
 
     /**
-     * The next frame of the viewer, the viewer disabled ({@link ThreeViewer.enabled}: no frame comes then), or the removal
-     * of the plugin (or a viewer dispose), whichever comes first
+     * The next frame of the viewer ({@link ThreeViewer.nextFrame}: it also ends when the viewer is disabled or disposed,
+     * as no frame comes then), or the removal of the plugin, whichever comes first
      */
     private async _nextFrame() {
-        const viewer = this._viewer
-        if (!viewer || !viewer.enabled) return
-        let disabled!: () => void
-        const disable = new Promise<void>(resolve => disabled = resolve)
-        viewer.addEventListener('viewerDisabled', disabled)
-        try {
-            await this._removalWaits.race(Promise.race([viewer.doOnce('postFrame'), disable]))
-        } finally {
-            viewer.removeEventListener('viewerDisabled', disabled)
-        }
+        if (this._viewer) await this._removalWaits.race(this._viewer.nextFrame())
     }
 
     private async _stop(): Promise<Blob | undefined> {

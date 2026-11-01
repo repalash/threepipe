@@ -43,6 +43,22 @@ function setup(plugins: Record<string, any> = {}) {
         renderEnabled: true,
         getPlugin: (t: string) => t === 'ProgressivePlugin' ? progressive : plugins[t],
         doOnce: async() => undefined,
+        // as ThreeViewer.nextFrame, with the frame of doOnce('postFrame'), which the tests replace: false when the viewer
+        // is disabled (also before the frame, at viewerDisabled)
+        async nextFrame(this: any): Promise<boolean> {
+            if (!this.enabled) return false
+            return new Promise(resolve => {
+                const stop = () => {
+                    this.removeEventListener('viewerDisabled', stop)
+                    resolve(false)
+                }
+                this.addEventListener('viewerDisabled', stop)
+                this.doOnce('postFrame').then(() => {
+                    this.removeEventListener('viewerDisabled', stop)
+                    resolve(true)
+                })
+            })
+        },
         setDirty: () => undefined,
         scene: {mainCamera: camera},
         console,
@@ -905,7 +921,7 @@ describe('record indicator', () => {
         plugin.convergeMode = false
         const listeners = {addEventListener: () => undefined, removeEventListener: () => undefined}
         const viewer = {...listeners, renderManager: listeners, scene: listeners, canvas: {parentElement: null}, console,
-            enabled: true, renderEnabled: true, getPlugin: () => undefined, doOnce: async() => undefined, setDirty: () => undefined}
+            enabled: true, renderEnabled: true, getPlugin: () => undefined, nextFrame: async() => true, setDirty: () => undefined}
         plugin.onAdded(viewer)
         const old = plugin._getRecorder('image')
         old.dispose = () => undefined // its stopped event comes later
