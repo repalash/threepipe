@@ -248,17 +248,20 @@ async function itemFiles(c: Context<CloudEnv>, item: Item) {
 }
 
 
-/** Copies `from` to `to` for the item `itemId` (a try again on a failure); false when it could not. */
-async function copyObject(c: Context<CloudEnv>, from: string, to: string, itemId: string): Promise<boolean> {
+/**
+ * Copies `from` to `to` for the item `itemId` (a try again on a failure). → the etag of the object it copied, null when
+ * there is no object at `from`, undefined when the copy failed.
+ */
+async function copyObject(c: Context<CloudEnv>, from: string, to: string, itemId: string): Promise<string | null | undefined> {
     for (let attempt = 0; attempt < 2; attempt++) {
         try {
             const obj = await c.env.CLOUD_BUCKET.get(from)
-            if (!obj) return false
+            if (!obj) return null
             await c.env.CLOUD_BUCKET.put(to, obj.body, {httpMetadata: obj.httpMetadata, customMetadata: {...obj.customMetadata, item: itemId}})
-            return true
+            return obj.etag
         } catch { /* once more */ }
     }
-    return false
+    return undefined
 }
 
 // ---- signed URLs ----
@@ -467,21 +470,40 @@ export function driveRoutes(app: Hono<CloudEnv>) {
         const user = await requireUser(c)
         const item = await itemOf(c, user, c.req.param('id'))
         const oldBase = itemBase(user, item.id), id = randomCode(16), newBase = itemBase(user, id)
-        // D1 first, in one batch: the item and its rows take the new id. An upload to the old id that registers after
-        // this cleans up after itself (writeFile); one that registered before is moved here.
-        const db = c.env.PRIMARY_DB
+        const db = c.env.PRIMARY_DB, bucket = c.env.CLOUD_BUCKET
+        const deleteKeys = async (keys: string[]) => { for (let i = 0; i < keys.length; i += 1000) await bucket.delete(keys.slice(i, i + 1000)) }
+        // 1. The objects first, under the new id: until every one is there the item does not change (a failure leaves it as it was).
+        const {results: rows} = await db.prepare('SELECT path FROM files WHERE item_id = ?').bind(item.id).all<{path: string}>()
+        const copied = new Map<string, string>() // file → the etag of the object copied
+        for (const {path} of rows) {
+            const rel = path.slice(oldBase.length)
+            const etag = await copyObject(c, path, newBase + rel, id)
+            if (etag === undefined) {
+                await deleteKeys([...copied.keys()].map(r => newBase + r))
+                throw new HTTPException(503, {message: 'a file could not be copied; the item did not change, try again'})
+            }
+            if (etag) copied.set(rel, etag)
+        }
+        // 2. D1 in one batch: the item and its rows take the new id. An upload to the old id that registers after this
+        // cleans up after itself (writeFile) and gets a 409.
         const [, moved] = await db.batch([
             db.prepare('UPDATE drive_items SET id = ? WHERE id = ?').bind(id, item.id),
             db.prepare(`UPDATE files SET item_id = ?1, path = ?2 || substr(path, ?3) WHERE item_id = ?4 RETURNING path`).bind(id, newBase, oldBase.length + 1, item.id),
         ]) as D1Result<{path: string}>[]
-        // then the objects; an old one is deleted only once its copy is written
-        const copied: string[] = []
-        for (const {path} of moved.results) {
-            const old = oldBase + path.slice(newBase.length)
-            if (await copyObject(c, old, path, id)) copied.push(old)
-            else logError('new id: a file was not copied', {item: id, key: old})
+        // 3. A file an upload replaced or added while 1 ran (it registered before 2) is copied again: its old object is newer.
+        const rels = moved.results.map(r => r.path.slice(newBase.length))
+        const failed: string[] = []
+        for (const rel of rels) {
+            const now = await bucket.head(oldBase + rel)
+            if (now && now.etag !== copied.get(rel) && await copyObject(c, oldBase + rel, newBase + rel, id) === undefined) failed.push(rel)
         }
-        for (let i = 0; i < copied.length; i += 1000) await c.env.CLOUD_BUCKET.delete(copied.slice(i, i + 1000))
+        // 4. The old objects go, but those of files not copied again; copies of files deleted while 1 ran go too.
+        const keep = new Set(failed), kept = new Set(rels)
+        await deleteKeys([...rels.filter(r => !keep.has(r)).map(r => oldBase + r), ...[...copied.keys()].filter(r => !kept.has(r)).map(r => newBase + r)])
+        if (failed.length) {
+            logError('new id: files changed during the change were not copied again; their old objects stay', {item: id, from: oldBase, to: newBase, files: failed})
+            throw new HTTPException(500, {message: `the item got the new id ${id}, but ${failed.length} file(s) uploaded during the change were not copied; upload them again`})
+        }
         return c.json(itemOut(c, user, await itemOf(c, user, id)))
     })
 

@@ -49,6 +49,8 @@ const PLACEHOLDERS: Record<ReportType, string> = {
     other: 'What would you like to tell us?',
 }
 const SCREENSHOT_MAX_SIDE = 1600
+/** How long the screenshot waits for the next frame (a viewer that stopped rendering never sends one). */
+const SCREENSHOT_TIMEOUT_MS = 3000
 
 /**
  * `cloud.feedback`: Report a Problem / Send Feedback for any threepipe app.
@@ -162,9 +164,17 @@ export class CloudFeedback {
     /** The screenshot of the canvas as a JPEG data URL, at most 1600 px on its long side. */
     async screenshot(): Promise<string | null> {
         const v = this._viewer
-        if (!v) return null
+        // a disabled viewer (also after a lost WebGL context) renders no frame, and getScreenshotDataUrl waits for one
+        if (!v || !v.enabled) return null
         try {
-            const url = await v.getScreenshotDataUrl({mimeType: 'image/jpeg', quality: 0.85})
+            let timer: ReturnType<typeof setTimeout> | undefined
+            const url = await Promise.race([
+                v.getScreenshotDataUrl({mimeType: 'image/jpeg', quality: 0.85}),
+                new Promise<null>(resolve => timer = setTimeout(() => {
+                    this.log.push('warn', 'feedback: no frame for the screenshot in time')
+                    resolve(null)
+                }, SCREENSHOT_TIMEOUT_MS)),
+            ]).finally(() => clearTimeout(timer))
             if (!url) return null
             const img = new Image()
             img.src = url

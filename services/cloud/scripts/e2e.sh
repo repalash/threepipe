@@ -49,6 +49,8 @@ printf '<h1>page</h1>' > $TMP/index.html
 R=$(curl -s -X PUT -H "$H" -H 'content-type: text/html' --data-binary @$TMP/index.html "$A/api/v1/uploads/p/$U-page/index.html"); PURL=$(echo "$R" | j "['url']") && ok "upload p/" || bad "upload p/: $R"
 HDR=$(curl -sI "${PURL%index.html}"); echo "$HDR" | grep -qi "content-security-policy: sandbox" && ok "p/ folder serves index.html with sandbox CSP" || bad "p/ headers: $HDR"
 [ "$(curl -s -o /dev/null -w '%{http_code}' "${PURL%/index.html}")" = "301" ] && ok "folder without slash redirects" || bad "folder redirect"
+R=$(curl -s -X PUT -H "$H" -H 'content-type: Text/HTML' --data-binary @$TMP/index.html "$A/api/v1/uploads/p/$U-page/noext"); NURL=$(echo "$R" | j "['url']")
+HDR=$(curl -sI "$NURL"); echo "$HDR" | grep -qi "content-security-policy: sandbox" && ! curl -sI "$SURL" | grep -qi "content-security-policy" && ok "a type given at upload (Text/HTML, no extension) gets the sandbox; text/plain does not" || bad "given type sandbox: $HDR"
 SHA=$(sha256sum $TMP/a.txt | cut -d' ' -f1)
 R=$(curl -s -X PUT -H "$H" -H "x-content-sha256: $SHA" --data-binary @$TMP/a.txt "$A/api/v1/uploads/a/$U.txt"); AURL=$(echo "$R" | j "['url']") && ok "upload a/ -> $AURL" || bad "upload a/: $R"
 curl -sI "$AURL" | grep -qi "immutable" && ok "a/ cached immutable" || bad "a/ cache header"
@@ -229,7 +231,7 @@ admin user_limits/delete "{\"where\":\"user_id == '$UID2'\"}" > /dev/null
 R=$(curl -s -H "$H0" "$A/api/v1/projects/$P"); echo "$R" | grep -q '"role":"manager"' && echo "$R" | grep -q '"discord_webhook":false' && echo "$R" | grep -q "\"owner\":\"$U\"" && ok "a project's settings" || bad "project get: $R"
 [ "$(code -H "Authorization: Bearer $T2" "$A/api/v1/projects/$P")" = "404" ] && ok "non-members: no such project" || bad "project get non-member"
 curl -s -H "Authorization: Bearer $TS" "$A/api/v1/projects/$P" | grep -q '"role":"manager"' && ok "staff open any project (the reports page's #slug)" || bad "staff project get"
-RJ='{"type":"bug","surface":"examples","text":"it broke","email":"me@x.test","log":["GET https://a.test/x?token=abcdefgh12345678 failed","at /Users/jane/app.js:1:2"],"versions":{"threepipe":"0.4.0"}}'
+RJ='{"type":"bug","surface":"examples","text":"it broke","email":"me@x.test","log":["GET https://a.test/x?token=abcdefgh12345678 failed","at /Users/jane/app.js:1:2"],"versions":{"threepipe":"0.4.0"},"context":{"auth":{"access_token":"abcdef123456","password":"correct-horse-battery"}}}'
 [ "$(code -X POST -H 'content-type: application/json' -H "Idempotency-Key: key-$U-0" -d "$RJ" "$A/api/v1/projects/$P/reports")" = "401" ] && ok "anonymous report without Turnstile -> 401" || bad "no turnstile"
 R=$(curl -s -X POST -H 'content-type: application/json' -H "Idempotency-Key: key-$U-1" -H 'cf-turnstile-response: test' -H "Origin: https://files.threepipe.org" -d "$RJ" "$A/api/v1/projects/$P/reports"); RID=$(echo "$R" | j "['id']") && ok "anonymous report with Turnstile -> $RID" || bad "anon report: $R"
 R=$(curl -s -X POST -H "Authorization: Bearer $T2" -H 'content-type: application/json' -H "Idempotency-Key: key-$U-2" -d '{"type":"other","surface":"editor","text":"signed in","image":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="}' "$A/api/v1/projects/$P/reports"); RID2=$(echo "$R" | j "['id']") && ok "signed-in report (type other), no Turnstile -> $RID2" || bad "signed-in report: $R"
@@ -250,7 +252,7 @@ echo "$RJ" > $TMP/report.json
 R=$(curl -s -X POST -H "Authorization: Bearer $T2" -H "Idempotency-Key: key-$U-3" -F "report=<$TMP/report.json" -F "file=@$TMP/a.txt;filename=scene.glb" "$A/api/v1/projects/$P/reports"); RID3=$(echo "$R" | j "['id']") && ok "multipart report with a file" || bad "multipart: $R"
 [ "$(code -H "Authorization: Bearer $T2" "$A/api/v1/projects/$P/reports")" = "404" ] && ok "non-members cannot read reports" || bad "non-member read"
 R=$(curl -s -H "$H0" "$A/api/v1/projects/$P/reports"); [ "$(echo "$R" | python3 -c "import json,sys;print(len(json.load(sys.stdin)['rows']))")" = "3" ] && ok "owner lists 3 reports" || bad "list: $R"
-R=$(curl -s -H "$H0" "$A/api/v1/projects/$P/reports/$RID"); echo "$R" | grep -q 'https://a.test/x failed' && echo "$R" | grep -q '/Users/<user>' && ! echo "$R" | grep -q abcdefgh12345678 && ok "log redacted on the server (query strings, home folders)" || bad "redaction: $R"
+R=$(curl -s -H "$H0" "$A/api/v1/projects/$P/reports/$RID"); echo "$R" | grep -q 'https://a.test/x failed' && echo "$R" | grep -q '/Users/<user>' && ! echo "$R" | grep -q abcdefgh12345678 && ! echo "$R" | grep -q -e abcdef123456 -e correct-horse && ok "redacted on the server (query strings, home folders, secret-named context values)" || bad "redaction: $R"
 [ "$(curl -s -o /dev/null -w '%{http_code} %{content_type}' -H "$H0" "$A/api/v1/projects/$P/reports/$RID2/image")" = "200 image/png" ] && ok "screenshot" || bad "screenshot"
 curl -s -D - -o /dev/null -H "$H0" "$A/api/v1/projects/$P/reports/$RID3/files/0" | grep -qi 'attachment; filename="scene.glb"' && ok "attached file download" || bad "file download"
 curl -s -o /dev/null -X POST -H "$H0" -H 'content-type: application/json' -d "{\"username\":\"$U2\",\"role\":\"reader\"}" "$A/api/v1/projects/$P/members"

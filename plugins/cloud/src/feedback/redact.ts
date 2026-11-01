@@ -50,11 +50,18 @@ export function redact(s: string, keep?: string): string {
             NOT_A_TLD.test(tld) ? m : own && m.toLowerCase() === own ? m : '<email>')
 }
 
-/** Every string inside a JSON value, keys too, redacted. Deeper than `maxDepth` levels (default 4, as the worker) becomes null. */
+/** A property whose name ends in a secret word (access_token, password, x-api-key, authorization, …): its value goes. Same list as the worker. */
+const SECRET_KEY = /(?:token|secret|password|passwd|session|cookie|api[_-]?key|auth|authorization|credential)s?$/i
+
+/**
+ * Every string inside a JSON value, keys too, redacted, and the value of a secret-named property replaced (when it is a
+ * string or a number). Deeper than `maxDepth` levels (default 4, as the worker) becomes null.
+ */
 export function redactDeep(v: unknown, keep?: string, depth = 0, maxDepth = 4): unknown {
     if (typeof v === 'string') return redact(v, keep)
     if (depth > maxDepth) return null
     if (Array.isArray(v)) return v.map(x => redactDeep(x, keep, depth + 1, maxDepth))
-    if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).map(([k, x]) => [redact(k.slice(0, 64), keep), redactDeep(x, keep, depth + 1, maxDepth)]))
+    if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).map(([k, x]) => [redact(k.slice(0, 64), keep),
+        SECRET_KEY.test(k) && (typeof x === 'string' && x || typeof x === 'number') ? '<token>' : redactDeep(x, keep, depth + 1, maxDepth)]))
     return typeof v === 'number' || typeof v === 'boolean' || v === null ? v : null
 }

@@ -7,8 +7,11 @@ export type AppOwner = {id: string, username: string} | null
 
 /** What marks an app's folder: the app and who serves it, so a new owner of the same scope never gets the old app's folder. */
 const appMark = (app: string, owner: AppOwner) => `${owner?.id ?? 'local'} ${app}`
-/** The label of an app's folder, under Apps/. */
-export const appLabel = (app: string, owner: AppOwner) => owner ? `${app} (@${owner.username})` : app
+/** The label of an app's folder, under Apps/: one path segment (`p/demo` → `p-demo`), so the drive finds it by its path. */
+export const appLabel = (app: string, owner: AppOwner) => {
+    const name = app.replace(/\//g, '-')
+    return owner ? `${name} (@${owner.username})` : name
+}
 
 /**
  * The id of the drive folder an app's key may use: `Apps/<app>` in the user's drive, made on the first approval and

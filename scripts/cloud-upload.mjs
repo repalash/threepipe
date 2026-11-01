@@ -8,7 +8,8 @@
 // Remote paths: s/<slug>/…  p/<name>/…  b/<repo>/<ref>/…  a/<name>                  (PUT /api/v1/uploads/…)
 //               drive:/<folder>/   the file or folder becomes one private item there  (/api/v1/drive/items)
 //               samples/<path>  e2e/blobs/<sha256><ext>                              (staff, PUT /api/v1/buckets/…)
-// Options: --ttl <days> (s/, default 7), --dry-run, --concurrency <n> (default 6)
+// Options: --ttl <days> (s/, default 7), --dry-run, --concurrency <n> (default 6),
+//          --entry <file> (drive:/, the file the item opens; default index.html, else the model, else the first file)
 //
 // The key: TP_CLOUD_KEY from the environment or /tmp/.env. Get one from an access link (signed in at
 // https://cloud.threepipe.org, see services/cloud/README.md). The API: TP_CLOUD_API, default https://cloud.threepipe.org.
@@ -26,10 +27,12 @@ const root = path.resolve(import.meta.dirname, '..')
 const args = process.argv.slice(2)
 const flag = name => args.includes(name)
 const option = (name, fallback) => args.includes(name) ? args[args.indexOf(name) + 1] : fallback
-const positional = args.filter((a, i) => !a.startsWith('--') && !['--ttl', '--concurrency'].includes(args[i - 1]))
+const positional = args.filter((a, i) => !a.startsWith('--') && !['--ttl', '--concurrency', '--entry'].includes(args[i - 1]))
 const dryRun = flag('--dry-run')
 const concurrency = Number(option('--concurrency', 6))
 const ttl = option('--ttl')
+/** Files a drive item opens as a model (its entry, before textures and buffers) */
+const MODEL = /\.(?:glb|gltf|vjson|usdz|fbx|obj|ply|stl|3dm|drc|3ds|dae)$/i
 
 const env = readEnv()
 const api = (env.TP_CLOUD_API || 'https://cloud.threepipe.org').replace(/\/+$/, '')
@@ -64,7 +67,12 @@ if (dryRun) {
 if (drive) {
     const at = await call('GET', `/api/v1/drive/resolve?path=${encodeURIComponent(drive.folder)}`)
     if (!at.folder) usage(`${drive.folder} is not a folder in your drive`)
-    drive.id = (await call('POST', '/api/v1/drive/items', {name: drive.name, folder: at.folder.id})).id
+    // the file the item opens (its link, Open on the drive page): index.html, else the model, else the first file
+    const names = files.map(f => f.remote).sort()
+    const entry = option('--entry') ?? (names.find(n => n === 'index.html') ?? names.find(n => !n.includes('/') && MODEL.test(n)) ??
+        names.find(n => MODEL.test(n)) ?? names[0])
+    if (!names.includes(entry)) usage(`--entry ${entry} is not one of the files`)
+    drive.id = (await call('POST', '/api/v1/drive/items', {name: drive.name, folder: at.folder.id, entry})).id
 }
 
 let done = 0, failed = 0, base = ''

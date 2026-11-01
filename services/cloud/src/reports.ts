@@ -111,12 +111,16 @@ function redact(s: string, keep?: string): string {
             NOT_A_TLD.test(tld) ? m : keep && m.toLowerCase() === keep ? m : '<email>')
 }
 
-/** Every string inside a JSON value, keys too, redacted. */
+/** A property whose name ends in a secret word (access_token, password, x-api-key, authorization, …): its value goes. Same list as the plugin. */
+const SECRET_KEY = /(?:token|secret|password|passwd|session|cookie|api[_-]?key|auth|authorization|credential)s?$/i
+
+/** Every string inside a JSON value, keys too, redacted, and the value of a secret-named property replaced (a string or a number). */
 function redactDeep(v: unknown, keep?: string, depth = 0): unknown {
     if (typeof v === 'string') return redact(v, keep)
     if (depth > 4) return null
     if (Array.isArray(v)) return v.map(x => redactDeep(x, keep, depth + 1))
-    if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).map(([k, x]) => [redact(k.slice(0, 64), keep), redactDeep(x, keep, depth + 1)]))
+    if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).map(([k, x]) => [redact(k.slice(0, 64), keep),
+        SECRET_KEY.test(k) && (typeof x === 'string' && x || typeof x === 'number') ? '<token>' : redactDeep(x, keep, depth + 1)]))
     return typeof v === 'number' || typeof v === 'boolean' || v === null ? v : null
 }
 

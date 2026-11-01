@@ -22,7 +22,8 @@ const MIME: Record<string, string> = {
 
 export function contentTypeFor(path: string, given?: string | null): string {
     const ext = path.includes('.') ? path.split('.').pop()!.toLowerCase() : ''
-    return MIME[ext] || (given && !given.startsWith('application/octet-stream') && !given.startsWith('application/x-www-form-urlencoded') ? given : 'application/octet-stream')
+    const type = given?.trim().toLowerCase()
+    return MIME[ext] || (type && !type.startsWith('application/octet-stream') && !type.startsWith('application/x-www-form-urlencoded') ? type : 'application/octet-stream')
 }
 
 interface Target {
