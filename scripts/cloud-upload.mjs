@@ -11,7 +11,7 @@
 // Options: --ttl <days> (s/, default 7), --dry-run, --concurrency <n> (default 6),
 //          --entry <file> (drive:/, the file the item opens; default index.html, else the model, else the first file)
 //
-// The key: TP_CLOUD_KEY from the environment or /tmp/.env. Get one from an access link (signed in at
+// The key: TP_CLOUD_KEY from the environment or ~/.config/threepipe-cloud/.env. Get one from an access link (signed in at
 // https://cloud.threepipe.org, see services/cloud/README.md). The API: TP_CLOUD_API, default https://cloud.threepipe.org.
 //
 // Never uploaded: dotfiles and dot folders (.git, .env), node_modules, and, for a folder git tracks, what .gitignore
@@ -20,10 +20,12 @@
 
 import fs from 'node:fs'
 import path from 'node:path'
+import os from 'node:os'
 import crypto from 'node:crypto'
 import {execFileSync} from 'node:child_process'
 
 const root = path.resolve(import.meta.dirname, '..')
+const ENV_FILE = path.join(os.homedir(), '.config/threepipe-cloud/.env')
 const args = process.argv.slice(2)
 const flag = name => args.includes(name)
 const option = (name, fallback) => args.includes(name) ? args[args.indexOf(name) + 1] : fallback
@@ -54,7 +56,7 @@ if (flag('--preview')) {
     } else files = listFiles(path.resolve(local), remote)
 }
 if (!files.length) usage('no files to upload')
-if (!key && !dryRun) usage('TP_CLOUD_KEY is not set (environment or /tmp/.env)')
+if (!key && !dryRun) usage(`TP_CLOUD_KEY is not set (environment or ${ENV_FILE})`)
 
 const total = files.reduce((n, f) => n + size(f), 0)
 console.log(`${files.length} files, ${(total / 1024 / 1024).toFixed(1)} MB → ${api}`)
@@ -179,11 +181,11 @@ async function parallel(items, fn) {
     }))
 }
 
-/** TP_CLOUD_* from the environment, else from /tmp/.env (where the access link's agents.md says to save the key). */
+/** TP_CLOUD_* from the environment, else from ENV_FILE (where the access link's agents.md says to save the key). */
 function readEnv() {
     const out = {TP_CLOUD_KEY: process.env.TP_CLOUD_KEY, TP_CLOUD_API: process.env.TP_CLOUD_API}
-    if (fs.existsSync('/tmp/.env')) {
-        for (const line of fs.readFileSync('/tmp/.env', 'utf8').split('\n')) {
+    if (fs.existsSync(ENV_FILE)) {
+        for (const line of fs.readFileSync(ENV_FILE, 'utf8').split('\n')) {
             const m = line.match(/^\s*(TP_CLOUD_\w+)\s*=\s*(.*?)\s*$/)
             if (m && !out[m[1]]) out[m[1]] = m[2].replace(/^(['"])(.*)\1$/, '$2')
         }
@@ -193,6 +195,6 @@ function readEnv() {
 
 function usage(message) {
     if (message) console.error(message + '\n')
-    console.error(fs.readFileSync(import.meta.filename, 'utf8').split('\n').filter(l => l.startsWith('//')).slice(0, 14).map(l => l.slice(3)).join('\n'))
+    console.error(fs.readFileSync(import.meta.filename, 'utf8').split('\n').filter(l => l.startsWith('//')).slice(0, 15).map(l => l.slice(3)).join('\n'))
     process.exit(1)
 }

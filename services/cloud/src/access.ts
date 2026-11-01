@@ -75,7 +75,7 @@ async function findLink(env: CloudflareBindings, code: string) {
 function agentsMd(api: string, files: string, code: string, username: string): string {
     return `# threepipe cloud
 
-Download your key from ${api}/api/v1/access/${code}/key and save it as \`TP_CLOUD_KEY=<key>\` in \`/tmp/.env\`. Send it with every request as \`Authorization: Bearer $TP_CLOUD_KEY\`. The key acts as the user \`${username}\` and is valid for ${ACCESS_KEY_SECONDS / DAY} days; fetch it again from the same URL when it expires.
+Download your key from ${api}/api/v1/access/${code}/key and save it as \`TP_CLOUD_KEY=<key>\` in \`~/.config/threepipe-cloud/.env\`, readable only by you (\`chmod 600\`). This URL and the key are credentials: never print them, commit them or put them in shared folders like \`/tmp\`. Send it with every request as \`Authorization: Bearer $TP_CLOUD_KEY\`. The key acts as the user \`${username}\` and is valid for ${ACCESS_KEY_SECONDS / DAY} days; fetch it again from the same URL when it expires.
 
 ## Upload a file
 
@@ -92,7 +92,7 @@ The first part of the path after \`s\`, \`p\` (and \`<repo>/<ref>\` after \`b\`)
 Files are served at \`${files}/<prefix>/<path>\`; a folder URL ending in \`/\` serves its \`index.html\`.
 
 \`\`\`bash
-set -a; . /tmp/.env; set +a
+set -a; . ~/.config/threepipe-cloud/.env; set +a
 curl -sS -X PUT -H "Authorization: Bearer $TP_CLOUD_KEY" --data-binary @render.png ${api}/api/v1/uploads/s/my-render/render.png
 curl -sS -X PUT -H "Authorization: Bearer $TP_CLOUD_KEY" -H "x-content-sha256: $(sha256sum diagram.png | cut -d' ' -f1)" --data-binary @diagram.png ${api}/api/v1/uploads/a/diagram.png
 \`\`\`

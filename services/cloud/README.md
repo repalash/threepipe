@@ -144,7 +144,7 @@ rows they can edit).
 - `npm run cloud:upload-preview -- pr-<n>`: uploads an already built tree (run `npm run build:all` first; that one only
   builds) to `b/threepipe/pr-<n>/` and prints the link.
 
-Key: `TP_CLOUD_KEY` from the environment or `/tmp/.env`; API: `TP_CLOUD_API`. See `scripts/cloud-upload.mjs`.
+Key: `TP_CLOUD_KEY` from the environment or `~/.config/threepipe-cloud/.env` (where agents.md says to save it); API: `TP_CLOUD_API`. See `scripts/cloud-upload.mjs`.
 
 ## Sign in with threepipe (apps)
 
