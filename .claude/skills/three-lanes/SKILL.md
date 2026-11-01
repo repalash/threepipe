@@ -33,6 +33,11 @@ One session owns one lane. Attach the repositories it does not have with `add_re
 - Everything that goes to npm waits for approval and review the same way as a stable release (the
   `npm-publish` environment with the Claude review); webgi builds wait for the deploy gate. An rc is no
   exception. Ask for the approval and say what to check; never work around it.
+- Never merge a pull request, in any repository, including the lane's own and the final release. Open
+  it, say what it needs, and the person merges it.
+- Few releases. An rc is for a set of changes that is done and passes its checks, not for each fix: batch
+  the fixes, keep at most one rc per repository waiting for approval, and say in the lane PR what the new
+  rc has that the last one did not. Never publish again just to retry or to see if something works.
 - A lane changes only its own branches. A fix that belongs to several lanes is made in the lowest lane
   and merged up (see Fixes across lanes).
 - Each repository's own CLAUDE.md, AGENTS.md and CONTRIBUTING.md still apply (commit style, checks,
@@ -73,8 +78,10 @@ Order inside a lane: three.js-modded, then threepipe, then webgi. Each one pins 
 1. `three` = the fork rc (needs webgi on npm three-modded, ijewel3d/webgi#86).
 2. Fix the build, `version` `<next minor>-dev.NNN.N`, a `## <version>` entry in `Changelog.md`.
 3. `npm run lint`, `npm run build-runtime-local`.
-4. Push, then `npm run release` (from a cloud session it needs ijewel3d/webgi#98). Ask for the approval
-   on the deploy gate.
+4. Push the branch, then ask the person to run the release: agent sessions cannot push tags (a Claude
+   Code cloud session gets HTTP 403, an ijewelOS host accepts only branches). Give the commit and the
+   commands: `git fetch origin && git checkout <commit> && npm run release`. Then they approve it on
+   the deploy gate.
 
 Then add the rc row to each lane PR.
 
@@ -98,8 +105,8 @@ Then add the rc row to each lane PR.
 ## Final release (the target revision)
 
 1. three.js-modded: `release/three-modded-0.NNN.10001` from the latest `master`, the merge commit as in
-   the Rules, `version` `0.NNN.10001` without `publishConfig.tag`. PR, merged with "Create a merge
-   commit". It publishes on `master`.
+   the Rules, `version` `0.NNN.10001` without `publishConfig.tag`. Open the PR; the person merges it
+   with "Create a merge commit", and it publishes on `master`.
 2. threepipe: pin the released fork, release versions, PR `lane/rNNN` -> `dev`.
 3. webgi: pin it, a release version, PR to `master`, release as webgi's CLAUDE.md says.
 4. Close the other lanes' PRs.
@@ -119,5 +126,5 @@ Then add the rc row to each lane PR.
   the threepipe build includes three), the editor setup from `examples/tweakpane-editor`, the webgi
   viewer from `releases.ijewel3d.com/libs/webgi-v0/viewer-<v>.js`, a list of test files, and a side by
   side mode. Deployed with the site from `master`, once.
-- webgi: ijewel3d/webgi#86 (three from npm) and ijewel3d/webgi#98 (`npm run release` from a cloud
-  session) merged. Its release workflow already accepts `-dev` tags from any branch.
+- webgi: ijewel3d/webgi#86 (three from npm) merged. Its release workflow already accepts `-dev` tags
+  from any branch.
