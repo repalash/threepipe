@@ -145,6 +145,7 @@
     "rollup-plugin-glsl": "^1.3.0",
     "rollup-plugin-license": "^3.0.1",
     "three": "npm:three-modded@0.168.10008",
+    "three-mesh-bvh": "^0.9.16",
     "tslib": "^2.5.0",
     "turbo": "^2.11.8",
     "typedoc": "^0.28.10",
@@ -167,7 +168,13 @@
     "uiconfig.js": ">=0.4.1"
   },
   "peerDependencies": {
-    "three": "npm:three-modded@0.168.10008"
+    "three": "npm:three-modded@0.168.10008",
+    "three-mesh-bvh": ">=0.9.5"
+  },
+  "peerDependenciesMeta": {
+    "three-mesh-bvh": {
+      "optional": true
+    }
   },
   "overrides": {
     "ts-browser-helpers": "$ts-browser-helpers",

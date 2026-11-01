@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- [`BVHPlugin`](https://threepipe.org/plugin/BVHPlugin.html): fast raycasts (picking, hover) on big meshes. It builds [three-mesh-bvh](https://github.com/gkjohnson/three-mesh-bvh) trees for the mesh geometries after the frame, within a time budget, and the meshes raycast with `acceleratedRaycast` (same hits). Meshes from `autoMinTriangles` triangles get a tree; `userData.bvh` (`auto`, `on`, `off`) sets it per object. A geometry update refits or rebuilds the tree. `getBVH` gives the trees to other code. three-mesh-bvh is not a dependency of threepipe (an optional peer dependency, `>=0.9.5`): pass it with the `load` or `lib` option, or map it in an import map. Example: `examples/bvh-plugin`
 - [`PerfPanelPlugin`](https://threepipe.org/plugin/PerfPanelPlugin.html): an opt-in FPS pill and performance card over the canvas (frame times, render CPU time, renders per second, draw calls and triangles of all passes, canvas, GPU, JS heap), with warnings for a capped frame rate (Chrome Energy Saver, Low Power Mode), CPU or GPU bound, battery, software rendering and a hidden tab. Stats in `stats` and the `update` event. Example: `examples/perf-panel-plugin`; also in the `tweakpane-editor` example (Debug tab)
 
 ### Changed
