@@ -1,67 +1,20 @@
 import {ImportAssetOptions, ImportResult, ProcessRawOptions, RootSceneImportResult} from './IAssetImporter'
-import {
-    BaseEvent,
-    Camera,
-    EventDispatcher,
-    Light,
-    LinearFilter,
-    LinearMipmapLinearFilter,
-    LoadingManager,
-    Object3D,
-    TextureLoader,
-} from 'three'
+import {BaseEvent, EventDispatcher, Object3D} from 'three'
 import {ISerializedConfig, IViewerPlugin, type ThreeViewer} from '../viewer'
-import {AssetImporter, IAssetImporterEventMap} from './AssetImporter'
-import {getTextureDataType} from '../three'
+import {AssetImporter} from './AssetImporter'
 import {IAsset} from './IAsset'
-import {
-    AddObjectOptions,
-    AmbientLight2,
-    DirectionalLight2,
-    HemisphereLight2,
-    ICamera,
-    iCameraCommons,
-    ILight,
-    iLightCommons,
-    IMaterial,
-    iMaterialCommons,
-    IObject3D,
-    iObjectCommons,
-    ISceneEventMap,
-    ITexture,
-    OrthographicCamera2,
-    PerspectiveCamera2,
-    PointLight2,
-    RectAreaLight2,
-    SpotLight2,
-    upgradeTexture,
-} from '../core'
-import {Importer} from './Importer'
+import {AddObjectOptions, IMaterial, IObject3D, ISceneEventMap, ITexture} from '../core'
 import {MaterialManager} from './MaterialManager'
-import {
-    DRACOLoader2,
-    FBXLoader2,
-    GLTFLoader2,
-    JSONMaterialLoader,
-    MTLLoader2,
-    OBJLoader2,
-    SimpleJSONLoader,
-    SVGTextureLoader,
-    VideoTextureLoader,
-    ZipLoader,
-} from './import'
-import {RGBELoader} from 'three/examples/jsm/loaders/RGBELoader.js'
-import {EXRLoader} from 'three/examples/jsm/loaders/EXRLoader.js'
-import {Class, getOrCall, ValOrArr} from 'ts-browser-helpers'
-import {ILoader} from './IImporter'
+import {GLTFLoader2, JSONMaterialLoader} from './import'
+import {ValOrArr} from 'ts-browser-helpers'
 import {AssetExporter} from './AssetExporter'
 import {IExporter} from './IExporter'
 import {GLTFExporter2, GLTFWriter2} from './export'
 import {legacySeparateMapSamplerUVFix} from '../utils/legacy'
 import type {GLTFLoaderPlugin, GLTFParser} from 'three/examples/jsm/loaders/GLTFLoader.js'
 import {GLTFExporterPlugin} from 'three/examples/jsm/exporters/GLTFExporter.js'
-import {ThreeSerialization} from '../utils'
-import {PolyhavenMaterialGLTFLoader} from './import/PolyhavenMaterialGLTFLoader'
+import {defaultAssetFormats} from './formats'
+import {upgradeImportedAsset} from './upgradeImportedAsset'
 
 // todo rename to AssetImporterCacheOptions
 export interface AssetManagerOptions{
@@ -295,83 +248,7 @@ export class AssetManager extends EventDispatcher<AssetManagerEventMap> {
     protected _addImporters() {
         const viewer = this.viewer
         if (!viewer) return
-        const importer = this.importer
-
-        // todo fix - loading manager getHandler matches backwards?
-        const importers: Importer[] = [
-            new Importer(class extends SimpleJSONLoader {
-                async parseAsync(json: Record<string, any>): Promise<any> {
-                    if (json.assetType === 'config') return json // process later
-                    // When a file with .json extension and a .type is imported, we can forward it to other loaders inheriting SimpleJSONLoader that support that type like JSONMaterialLoader
-                    // getOrCall ensures we get all materials registered at runtime
-                    const type = json.type || json.metadata?.type
-                    const imps = importer.importers.filter(i=>{
-                        const t = ((i as Importer).cls as typeof SimpleJSONLoader)?.SupportedJSONTypes
-                        if (t) return getOrCall(t)?.includes(type)
-                    })
-                    for (const imp of imps) {
-                        if (!imp) continue
-                        const loader = imp.ctor(importer) as SimpleJSONLoader
-                        const res = await loader.parseAsync(json)
-                        ;(loader as ILoader).dispose && (loader as ILoader).dispose!()
-                        if (res) return res // loader can return undefined if they don't want to support this file
-                    }
-                    if (json.serializableClassId) { // todo check json.type also as its supported in Serialization? or just do it anyway for any object because it could have nested serialized objects?
-                        const resources = json.resources
-                        if (json.resources) delete json.resources
-                        const meta = resources ? await viewer.loadConfigResources(resources) : undefined
-                        const res = ThreeSerialization.Deserialize(json, undefined, meta)
-                        if (meta) json.resources = meta
-                        if (res) return res
-                    }
-                    return super.parseAsync(json)
-                }
-            }, ['json', 'vjson'], ['application/json'], false),
-
-            new Importer(SVGTextureLoader, ['svg', 'data:image/svg'], ['image/svg+xml'], false), // todo: use ImageBitmapLoader if supported (better performance)
-
-            new Importer(TextureLoader, ['webp', 'png', 'jpeg', 'jpg', 'ico', 'data:image', 'avif', 'bmp', 'gif', 'tiff'], [
-                'image/webp', 'image/png', 'image/jpeg', 'image/gif', 'image/bmp', 'image/tiff', 'image/x-icon', 'image/avif',
-            ], false), // todo: use ImageBitmapLoader if supported (better performance)
-
-            new Importer<JSONMaterialLoader>(JSONMaterialLoader,
-                JSONMaterialLoader.SupportedJSONExtensions,
-                [], false, (loader) => {
-                    if (loader) loader.viewer = this.viewer
-                    return loader
-                }),
-
-            new Importer(class extends RGBELoader {
-                constructor(manager: LoadingManager) {
-                    super(manager)
-                    this.setDataType(getTextureDataType(viewer.renderManager.renderer))
-                }
-            }, ['hdr'], ['image/vnd.radiance'], false),
-
-            new Importer(class extends EXRLoader {
-                constructor(manager: LoadingManager) {
-                    super(manager)
-                    this.setDataType(getTextureDataType(viewer.renderManager.renderer))
-                }
-            }, ['exr'], ['image/x-exr'], false),
-
-            new Importer(FBXLoader2, ['fbx'], ['model/fbx'], true),
-            new Importer(ZipLoader, ['zip', 'glbz', 'gltfz'], ['application/zip', 'model/gltf+zip', 'model/zip'], true), // gltfz and glbz are invented zip files with gltf/glb inside along with resources
-
-            new Importer(OBJLoader2 as any as Class<ILoader>, ['obj'], ['model/obj'], true),
-            new Importer(MTLLoader2 as any as Class<ILoader>, ['mtl'], ['model/mtl'], false),
-
-            new Importer<GLTFLoader2>(GLTFLoader2, ['gltf', 'glb', 'data:model/gltf', 'data:model/glb'], ['model/gltf', 'model/gltf+json', 'model/gltf-binary', 'model/glb'], true, (l, _, i) => l?.setup(this.viewer, i.extensions)),
-
-            new Importer(DRACOLoader2, ['drc'], ['model/mesh+draco', 'model/drc'], true),
-
-            new Importer(VideoTextureLoader, ['mp4', 'ogg', 'mov', 'webm', 'data:video'], ['video/mp4', 'video/ogg', 'video/quicktime', 'video/webm'], true),
-
-            new Importer(PolyhavenMaterialGLTFLoader, ['phmatgltf'], [], true),
-        ]
-
-        this.importer.addImporter(...importers)
-
+        this.importer.addImporter(...defaultAssetFormats.map(f => f(viewer)))
     }
 
     private _gltfExporter = {
@@ -404,7 +281,7 @@ export class AssetManager extends EventDispatcher<AssetManagerEventMap> {
             }
         })
 
-        this.importer.addEventListener('processRawStart', (e)=>processRawStartHook(e, this))
+        this.importer.addEventListener('processRawStart', (e)=>upgradeImportedAsset(e, {materials: this.materials, importer: this.importer, canvas: this.viewer.canvas}))
     }
 
     protected _setupObjectExport() {
@@ -703,113 +580,4 @@ export class AssetManager extends EventDispatcher<AssetManagerEventMap> {
     static readonly PluginType = 'AssetManager'
     // endregion
 
-}
-
-const processRawStartHook = (event: IAssetImporterEventMap['processRawStart'], manager: AssetManager) => {
-    // console.log('preprocess mat', mat)
-    const res = event.data!
-    const options = event.options! as ProcessRawOptions
-    // if (!res.assetType) {
-    //     if (res.isBufferGeometry) { // for eg stl todo
-    //         res = new Mesh(res, new MeshStandardMaterial())
-    //     }
-    //     if (res.isObject3D) {
-    //     }
-    // }
-    if (res.isObject3D) {
-        const cameras: Camera[] = []
-        const lights: Light[] = []
-        res.traverse((obj: any) => {
-            if (obj.material) {
-                const materials = Array.isArray(obj.material) ? obj.material : [obj.material]
-                const newMaterials = []
-                const textures = []
-                for (const material of materials) {
-                    const mat = manager.materials.convertToIMaterial(material, {createFromTemplate: options.replaceMaterials !== false}) || material
-                    mat.uuid = material.uuid
-                    mat.userData.uuid = material.uuid
-                    newMaterials.push(mat)
-                    const maps: Map<string, ITexture> = iMaterialCommons.getMapsForMaterial.call(mat)
-                    textures.push(...Array.from(maps.values()))
-                }
-                if (Array.isArray(obj.material)) obj.material = newMaterials
-                else obj.material = newMaterials[0]
-                new Set(textures).forEach(t => {
-                    if (typeof t.userData.rootPath === 'string' && t.userData.rootPath.startsWith('blob:')) { // because we are not checking when setting inside three.js fork
-                        delete t.userData.rootPath
-                    }
-                    // embedded texture loaded inside some other loader.
-                    if (t.userData.rootPath && !(t as ImportResult).__rootPath) {
-                        (t as ImportResult).__rootPath = t.userData.rootPath
-                        // todo we are ignoring the promise from process raw
-                        manager.importer.processRawSingle(t, {})
-                    } else {
-                        upgradeTexture.call(t)
-                    }
-                })
-            }
-            if (obj.isCamera) cameras.push(obj)
-            if (obj.isLight) lights.push(obj)
-        })
-        for (const camera of cameras) {
-            if ((camera as Partial<ICamera>).assetType === 'camera') continue
-            // todo: OrthographicCamera
-            if (!camera.parent || options.replaceCameras === false) {
-                iCameraCommons.upgradeCamera.call(camera)
-            } else {
-                const newCamera: ICamera = (camera as any).iCamera ??
-                !(camera as Partial<ICamera>).isOrthographicCamera ?
-                    new PerspectiveCamera2('', manager.viewer.canvas) :
-                    new OrthographicCamera2('', manager.viewer.canvas)
-                if (camera === newCamera) continue
-                camera.parent.children.splice(camera.parent.children.indexOf(camera), 1, newCamera)
-                newCamera.parent = camera.parent as any
-                newCamera.copy(camera as any)
-                camera.parent = null
-                ;(newCamera as any).uuid = camera.uuid
-                newCamera.userData.uuid = camera.uuid
-                ;(camera as any).iCamera = newCamera
-                // console.log('replacing camera', camera, newCamera)
-            }
-        }
-        for (const light of lights) {
-            if ((light as ILight).assetType === 'light') continue
-            if (!light.parent || options.replaceLights === false) {
-                iLightCommons.upgradeLight.call(light)
-            } else {
-                const newLight: ILight | undefined = (light as any).iLight ??
-                (light as any).isDirectionalLight ? new DirectionalLight2() :
-                    (light as any).isPointLight ? new PointLight2() :
-                        (light as any).isSpotLight ? new SpotLight2() :
-                            (light as any).isAmbientLight ? new AmbientLight2() :
-                                (light as any).isHemisphereLight ? new HemisphereLight2() :
-                                    (light as any).isRectAreaLight ? new RectAreaLight2() :
-                                        undefined
-                if (light === newLight || !newLight) continue
-                light.parent.children.splice(light.parent.children.indexOf(light), 1, newLight)
-                newLight.parent = light.parent as any
-                newLight.copy(light as any)
-                light.parent = null
-                ;(newLight as any).uuid = light.uuid
-                newLight.userData.uuid = light.uuid
-                ;(light as any).iLight = newLight
-            }
-        }
-
-        iObjectCommons.upgradeObject3D.call(res)
-    } else if (res.isMaterial) {
-        if (!res.assetType) iMaterialCommons.upgradeMaterial.call(res)
-        // todo update res by generating new material?
-    } else if (res.isTexture) {
-        upgradeTexture.call(res)
-
-        if (event?.options?.generateMipmaps !== undefined)
-            res.generateMipmaps = event?.options.generateMipmaps
-        if (!res.generateMipmaps && !res.isRenderTargetTexture) { // todo: do we need to check more?
-            res.minFilter = res.minFilter === LinearMipmapLinearFilter ? LinearFilter : res.minFilter
-            res.magFilter = res.magFilter === LinearMipmapLinearFilter ? LinearFilter : res.magFilter
-        }
-
-    }
-    // todo other asset/object types?
 }

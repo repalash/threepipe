@@ -374,3 +374,40 @@ const mat = await viewer.load<PhysicalMaterial>('https://example.com/file.ext')
 ::: tip
 For a plugin-based approach with automatic lifecycle management (register on add, unregister on remove), see [BaseImporterPlugin](../plugin/BaseImporterPlugin) which provides a base class for creating importer plugins.
 :::
+
+## Loading without a viewer
+
+The loaders work without a `ThreeViewer`, for example to load models into a plain three.js scene, or to load and
+export files in a tool or a script. The one-shot functions use a shared context that loads every format the viewer
+loads:
+
+```typescript
+import {exportAsset, loadAsset, loadModel, loadTexture} from 'threepipe'
+
+const model = await loadModel('https://example.com/model.glb') // a three.js Object3D, with threepipe materials
+scene.add(model)
+const environment = await loadTexture('https://example.com/studio.hdr')
+const everything = await loadAsset(['https://example.com/scene.zip', droppedFile]) // objects, textures, materials, configs
+const glb = await exportAsset(model) // Blob, glb by default
+```
+
+To pick the formats, or for options, create an `AssetContext`. Only the formats in the list are registered:
+
+```typescript
+import {assetFormats, createAssetContext, STLLoadPlugin} from 'threepipe'
+
+const assets = createAssetContext({
+    formats: [assetFormats.gltf, assetFormats.images, assetFormats.hdr], // default: every format in `assetFormats`
+    renderer, // optional, picks the data type of HDR and EXR textures for this renderer
+    upgrade: true, // convert materials, cameras and lights to threepipe's, like the viewer (default)
+})
+assets.addFormat(new STLLoadPlugin().importer) // the format of an importer plugin, or any `Importer`
+const model = await assets.loadModel('https://example.com/model.glb')
+await assets.export(model, {exportExt: 'glb'})
+assets.dispose()
+```
+
+A viewer config embedded in a glTF file is imported but not applied: it is in `model.importedViewerConfig`.
+In Node.js, polyfill the browser APIs the loaders use (like `FileReader` and `ProgressEvent`) first, see `tests/setup.ts`.
+
+See the example [Load Without a Viewer](https://threepipe.org/examples/#load-without-viewer/).

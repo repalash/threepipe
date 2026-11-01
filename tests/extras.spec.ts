@@ -26,6 +26,7 @@ test('image-load', async({page}) => expect(page).toHaveTitle('Image Load'))
 test('import-test', async({page}) => expect(page).toHaveTitle('Basic Lib Import Test'))
 test('ktx-load', async({page}) => expect(page).toHaveTitle('KTX Texture Load'))
 test('ktx2-load', async({page}) => expect(page).toHaveTitle('KTX2 Texture Load'))
+test('load-without-viewer', async({page}) => expect(page).toHaveTitle('Load Without a Viewer'))
 test('material-uiconfig', async({page}) => expect(page).toHaveTitle('Material UiConfig'))
 // obj-mtl-load, obj-to-glb — covered by interactive tests
 test('object-uiconfig', async({page}) => expect(page).toHaveTitle('Object UiConfig'))

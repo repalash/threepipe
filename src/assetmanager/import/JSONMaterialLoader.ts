@@ -1,5 +1,5 @@
 import {SimpleJSONLoader} from './SimpleJSONLoader'
-import {ThreeViewer} from '../../viewer'
+import type {IAssetHost} from '../IAssetHost'
 import {getEmptyMeta, SerializationMetaType, ThreeSerialization} from '../../utils/serialization'
 import {IMaterial} from '../../core'
 
@@ -8,7 +8,7 @@ export class JSONMaterialLoader extends SimpleJSONLoader {
     static SupportedJSONTypes = ()=>['Material', ...[...ThreeSerialization.SerializableMaterials.values()].flatMap(t => [t.TYPE, ...t.TypeAlias || []])]
     static SupportedJSONExtensions = ()=>['mat', ...[...ThreeSerialization.SerializableMaterials.values()].map(t => t.TypeSlug)]
 
-    viewer?: ThreeViewer
+    viewer?: IAssetHost
 
     /**
      * Find any existing material with the same uuid and update it instead of creating a new one
@@ -22,12 +22,12 @@ export class JSONMaterialLoader extends SimpleJSONLoader {
         let mat = undefined
         if (JSONMaterialLoader.FindExistingMaterial && json.uuid && this.viewer) {
             // find any existing mat with the same uuid.
-            mat = this.viewer.materialManager.findMaterial(json.uuid)
+            mat = this.viewer.assetManager.materials.findMaterial(json.uuid)
         }
         return await JSONMaterialLoader.DeserializeMaterialJSON(json, this.viewer, undefined, mat)
     }
 
-    static async DeserializeMaterialJSON(json: any, viewer: ThreeViewer, meta?: SerializationMetaType, obj?: IMaterial|IMaterial[]) {
+    static async DeserializeMaterialJSON(json: any, viewer: IAssetHost, meta?: SerializationMetaType, obj?: IMaterial|IMaterial[]) {
         meta = meta || getEmptyMeta()
         const json2 = {...json}
         if (json.images) {
