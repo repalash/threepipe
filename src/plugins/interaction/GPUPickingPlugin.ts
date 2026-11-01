@@ -2,6 +2,7 @@ import {
     Color,
     DoubleSide,
     FloatType,
+    Material,
     Mesh,
     NearestFilter,
     Object3D,
@@ -25,6 +26,40 @@ export interface GPUPickResult {
     point: Vector3
     /** Distance along the camera ray, as `Raycaster.setFromCamera` makes it (from the camera, or its plane for an orthographic camera) */
     distance: number
+    /**
+     * World-space unit normal of the surface at the hit, on the side that the camera sees (flipped on a back face). It
+     * is the interpolated vertex normal (with skinning, morph targets and instancing), or the flat face normal for a
+     * flat-shaded material or a geometry without normals. Normal and bump maps are not applied.
+     */
+    normal: Vector3
+}
+
+/**
+ * A GPU picker: finds the front-most mesh under a point of the canvas, with the hit point and normal, by reading what
+ * the GPU drew under that point instead of testing triangles.
+ *
+ * Each implementation is a separate plugin with this one interface:
+ * - {@link GPUPickingPlugin} draws the ids, depth and normals into a 1×1 target on each pick.
+ * - A future `GBufferPickingPlugin` (deferred, depends on `GBufferPlugin`) reads the ids, depth and normals of the
+ *   frame that the G-buffer already has, with no extra draw.
+ *
+ * A consumer (for example a future GPU hover in `PickingPlugin`) does not depend on one of them. It looks up any added
+ * plugin that is a GPU picker:
+ * ```ts
+ * const picker = Object.values(viewer.plugins).find((p): p is IGPUPicker & IViewerPlugin => !!(p as Partial<IGPUPicker>).isGPUPicker)
+ * const hit = picker?.pick(x, y)
+ * ```
+ */
+export interface IGPUPicker {
+    /** Always true: the runtime mark to find a GPU picker among the plugins */
+    readonly isGPUPicker: true
+    /**
+     * The front-most mesh under a point of the canvas, with the hit point and normal, or null.
+     * @param x - CSS pixels from the left edge of the canvas
+     * @param y - CSS pixels from the top edge of the canvas
+     * @param filter - which meshes take part
+     */
+    pick(x: number, y: number, filter?: (o: IObject3D) => boolean): GPUPickResult | null
 }
 
 /**
@@ -32,8 +67,10 @@ export interface GPUPickResult {
  *
  * Finds the front-most mesh under a point of the canvas by rendering object ids instead of testing triangles. The meshes
  * of the model root draw into a 1×1 float target, with the camera's view narrowed to that pixel (one draw of the scene
- * in a tiny viewport). Then one pixel is read back, with the object id and the depth. There is no tree to build or to
- * keep in memory, and the cost does not grow with the triangle count.
+ * in a tiny viewport). Then one pixel is read back, with the object id, the depth and the surface normal. There is no
+ * tree to build or to keep in memory, and the cost does not grow with the triangle count.
+ *
+ * It implements {@link IGPUPicker}, the interface that consumers of GPU picking look up.
  *
  * Use it for hover and clicks on what is visible: call {@link pick} with the pointer position. It finds only the
  * front-most mesh (not the ones behind it), along camera rays only, and the read-back waits for the GPU. For other rays,
@@ -47,8 +84,10 @@ export interface GPUPickResult {
  * @category Plugins
  */
 @uiFolderContainer('GPU Picking')
-export class GPUPickingPlugin extends AViewerPluginSync {
+export class GPUPickingPlugin extends AViewerPluginSync implements IGPUPicker {
     public static readonly PluginType = 'GPUPickingPlugin'
+
+    readonly isGPUPicker = true
 
     @uiToggle('Enabled')
         enabled = true
@@ -70,34 +109,69 @@ export class GPUPickingPlugin extends AViewerPluginSync {
     private _ortho = new OrthographicCamera()
     private _raycaster = new Raycaster()
     private _clearColor = new Color()
-    // the id in red and the view depth in green, for each mesh
+    /**
+     * For each mesh: the id in red, the view depth in green, and the view-space normal in blue and alpha.
+     *
+     * The normal is octahedral-encoded: every unit vector maps to one point of [-1, 1]², so no sign is lost. Two channels
+     * with x and y and z rebuilt toward the camera would not work: with a perspective camera a visible face can have a
+     * view-space normal with z < 0 (near the edges of the view). In a float target the encoding loses about 1e-7 rad.
+     */
     private _material = new ShaderMaterial({
-        uniforms: {objectId: {value: 0}},
+        uniforms: {objectId: {value: 0}, flatNormal: {value: false}},
         vertexShader: `
 #include <common>
 #include <morphtarget_pars_vertex>
 #include <skinning_pars_vertex>
-varying float vViewZ;
+varying vec3 vViewPosition;
+varying vec3 vViewNormal;
 void main() {
+#include <beginnormal_vertex>
+#include <morphnormal_vertex>
 #include <skinbase_vertex>
+#include <skinnormal_vertex>
+#include <defaultnormal_vertex>
 #include <begin_vertex>
 #include <morphtarget_vertex>
 #include <skinning_vertex>
 #include <project_vertex>
-    vViewZ = -mvPosition.z;
+    vViewPosition = mvPosition.xyz;
+    vViewNormal = transformedNormal;
 }`,
         fragmentShader: `
 uniform float objectId;
-varying float vViewZ;
-void main() { gl_FragColor = vec4(objectId, vViewZ, 0., 1.); }`,
+uniform bool flatNormal;
+varying vec3 vViewPosition;
+varying vec3 vViewNormal;
+vec2 octEncode(vec3 n) {
+    n /= abs(n.x) + abs(n.y) + abs(n.z);
+    return n.z >= 0. ? n.xy : (1. - abs(n.yx)) * vec2(n.x >= 0. ? 1. : -1., n.y >= 0. ? 1. : -1.);
+}
+void main() {
+    vec3 n;
+    if (flatNormal) {
+        // the face normal, as three's flat shading makes it, turned toward the camera
+        n = normalize(cross(dFdx(vViewPosition), dFdy(vViewPosition)));
+        if (dot(n, vViewPosition) > 0.) n = -n;
+    } else {
+        // the interpolated normal, flipped on a back face, as three's double-sided shading does
+        n = normalize(vViewNormal) * (gl_FrontFacing ? 1. : -1.);
+    }
+    gl_FragColor = vec4(objectId, -vViewPosition.z, octEncode(n));
+}`,
         side: DoubleSide,
     })
 
     constructor(enabled = true) {
         super()
         this.enabled = enabled
-        this._material.onBeforeRender = (_r, _s, _c, _g, object) => {
-            this._material.uniforms.objectId.value = this._ids.get(object) ?? 0
+        this._material.onBeforeRender = (_r, _s, _c, geometry, object, group) => {
+            const uniforms = this._material.uniforms
+            uniforms.objectId.value = this._ids.get(object) ?? 0
+            // three passes the geometry group (with materialIndex) of a multi-material mesh, or null
+            const m = (object as Mesh).material
+            const index = (group as unknown as {materialIndex?: number} | null)?.materialIndex ?? 0
+            const material = (Array.isArray(m) ? m[index] : m) as Material & {flatShading?: boolean} | undefined
+            uniforms.flatNormal.value = !geometry.attributes.normal || !!material?.flatShading
             this._material.uniformsNeedUpdate = true
         }
     }
@@ -109,12 +183,12 @@ void main() { gl_FragColor = vec4(objectId, vViewZ, 0., 1.); }`,
     }
 
     /**
-     * The front-most mesh under a point of the canvas, or null.
+     * The front-most mesh under a point of the canvas, with the hit point and the world normal, or null.
      * @param x - CSS pixels from the left edge of the canvas
      * @param y - CSS pixels from the top edge of the canvas
      * @param filter - which meshes take part. Default: the visible meshes in the model root, without fat lines.
      */
-    pick(x: number, y: number, filter?: (o: Object3D) => boolean): GPUPickResult | null {
+    pick(x: number, y: number, filter?: (o: IObject3D) => boolean): GPUPickResult | null {
         const viewer = this._viewer
         if (!viewer || this.isDisabled()) return null
         const t0 = performance.now()
@@ -130,7 +204,7 @@ void main() { gl_FragColor = vec4(objectId, vViewZ, 0., 1.); }`,
         const added: Object3D[] = []
         scene.modelRoot.traverseVisible(o => {
             const m = o as Object3D as Mesh & {isLine2?: boolean, isLineSegments2?: boolean}
-            if (!m.isMesh || m.isLine2 || m.isLineSegments2 || !o.layers.test(cam.layers) || filter && !filter(o)) return
+            if (!m.isMesh || m.isLine2 || m.isLineSegments2 || !o.layers.test(cam.layers) || filter && !filter(o as IObject3D)) return
             this._objects.push(o)
             this._ids.set(o, this._objects.length)
             if (!o.layers.isEnabled(layer)) {
@@ -209,6 +283,15 @@ void main() { gl_FragColor = vec4(objectId, vViewZ, 0., 1.); }`,
         const ray = this._raycaster.ray
         const forward = new Vector3(0, 0, -1).transformDirection(cam.matrixWorld)
         const distance = cam.isPerspectiveCamera ? viewZ / ray.direction.dot(forward) : viewZ
-        return {object, point: ray.at(distance, new Vector3()), distance}
+
+        // the normal: octahedral decoding, then from the view space of the camera to world space
+        const ex = this._pixel[2], ey = this._pixel[3]
+        const normal = new Vector3(ex, ey, 1 - Math.abs(ex) - Math.abs(ey))
+        const fold = Math.max(-normal.z, 0)
+        normal.x += normal.x >= 0 ? -fold : fold
+        normal.y += normal.y >= 0 ? -fold : fold
+        normal.transformDirection(cam.matrixWorld) // normalizes
+
+        return {object, point: ray.at(distance, new Vector3()), distance, normal}
     }
 }

@@ -1,11 +1,30 @@
 /**
  * GPUPickingPlugin.pick: the camera narrowed to the pixel under the point, the object ids, the hit point from the read
- * depth (perspective and orthographic cameras), the filter, and the renderer and layer state put back after a pick.
- * The renderer is a stand-in: its render() raycasts through the centre of the picking camera's view and writes the id
- * and the view depth of the front hit, as the GPU would.
+ * depth and the normal (perspective and orthographic cameras), the filter, and the renderer and layer state put back
+ * after a pick. The renderer is a stand-in: its render() raycasts through the centre of the picking camera's view and
+ * writes what the GPU would for the front hit: the id, the view depth, and the view-space normal (normal matrix,
+ * flipped on a back face) octahedral-encoded in blue and alpha.
  */
 import {beforeAll, describe, expect, test} from 'vitest'
-import {BoxGeometry, Camera, Color, Mesh, MeshBasicMaterial, Object3D, OrthographicCamera, PerspectiveCamera, Raycaster, Vector2} from 'three'
+import {
+    BoxGeometry,
+    BufferGeometry,
+    Camera,
+    Color,
+    DoubleSide,
+    Intersection,
+    Matrix3,
+    Matrix4,
+    Mesh,
+    MeshBasicMaterial,
+    Object3D,
+    OrthographicCamera,
+    PerspectiveCamera,
+    PlaneGeometry,
+    Raycaster,
+    Vector2,
+    Vector3,
+} from 'three'
 
 // Deferred import: threepipe core has circular static-init dependencies that only resolve once the graph is loaded.
 let tp: typeof import('threepipe')
@@ -14,6 +33,14 @@ beforeAll(async() => {
 })
 
 const W = 200, H = 100
+
+/** Octahedral encoding of a unit vector into [-1, 1]², as the fragment shader of the plugin writes it */
+function octEncode(n: Vector3): [number, number] {
+    const s = Math.abs(n.x) + Math.abs(n.y) + Math.abs(n.z)
+    const x = n.x / s, y = n.y / s
+    if (n.z >= 0) return [x, y]
+    return [(1 - Math.abs(y)) * (x >= 0 ? 1 : -1), (1 - Math.abs(x)) * (y >= 0 ? 1 : -1)]
+}
 
 function setup(camera: Camera) {
     const modelRoot = new Object3D()
@@ -30,7 +57,7 @@ function setup(camera: Camera) {
 
     const scene = {modelRoot, mainCamera: camera, overrideMaterial: null as any}
     const clearColor = new Color(0x336699)
-    const state = {target: 'screen' as any, clearAlpha: 0.5, renders: 0, layerMeshes: [] as string[]}
+    const state = {target: 'screen' as any, clearAlpha: 0.5, renders: 0, layerMeshes: [] as string[], flatNormal: null as boolean | null}
     const renderer = {
         userData: {} as any,
         getRenderTarget: () => state.target,
@@ -55,9 +82,15 @@ function setup(camera: Camera) {
             renderer.pixel = [0, 0, 0, 0]
             if (!hit) return
             const mat = scene.overrideMaterial
-            mat.onBeforeRender(renderer, scene, cam, (hit.object as Mesh).geometry, hit.object)
+            mat.onBeforeRender(renderer, scene, cam, (hit.object as Mesh).geometry, hit.object, null)
+            state.flatNormal = mat.uniforms.flatNormal.value
             const viewZ = -hit.point.clone().applyMatrix4(cam.matrixWorldInverse).z
-            renderer.pixel = [mat.uniforms.objectId.value, viewZ, 0, 1]
+            // the vertex shader: normalMatrix (of the model-view matrix) times the object normal; the fragment shader
+            // flips it on a back face (gl_FrontFacing)
+            const modelView = new Matrix4().multiplyMatrices(cam.matrixWorldInverse, hit.object.matrixWorld)
+            const n = hit.face!.normal.clone().applyMatrix3(new Matrix3().getNormalMatrix(modelView)).normalize()
+            if (n.dot(rc.ray.direction.clone().transformDirection(cam.matrixWorldInverse)) > 0) n.negate()
+            renderer.pixel = [mat.uniforms.objectId.value, viewZ, ...octEncode(n)]
         },
         readRenderTargetPixels: (_t: any, _x: number, _y: number, _w: number, _h: number, out: Float32Array) => out.set(renderer.pixel),
     }
@@ -71,7 +104,20 @@ function setup(camera: Camera) {
 function raycast(camera: Camera, meshes: Object3D[], x: number, y: number) {
     const rc = new Raycaster()
     rc.setFromCamera(new Vector2(x / W * 2 - 1, -(y / H) * 2 + 1), camera)
-    return rc.intersectObjects(meshes, false)[0]
+    const hit = rc.intersectObjects(meshes, false)[0] as Intersection | undefined
+    return hit && {...hit, ray: rc.ray.direction.clone()}
+}
+
+/**
+ * The world normal of the raycast face, from its corners in world space (not from a normal matrix), toward the ray's
+ * origin side: the face as the camera sees it.
+ */
+function faceNormal(hit: NonNullable<ReturnType<typeof raycast>>) {
+    const pos = ((hit.object as Mesh).geometry as BufferGeometry).attributes.position
+    const [a, b, c] = [hit.face!.a, hit.face!.b, hit.face!.c].map(i => new Vector3().fromBufferAttribute(pos, i).applyMatrix4(hit.object.matrixWorld))
+    const n = new Vector3().crossVectors(b.clone().sub(a), c.clone().sub(a)).normalize()
+    if (n.dot(hit.ray) > 0) n.negate()
+    return n
 }
 
 describe('GPUPickingPlugin', () => {
@@ -90,10 +136,66 @@ describe('GPUPickingPlugin', () => {
                 if (!result || !ref) continue
                 expect(result.distance).toBeCloseTo(ref.distance, 5)
                 expect(result.point.distanceTo(ref.point)).toBeLessThan(1e-5)
+                expect(result.normal.angleTo(faceNormal(ref))).toBeLessThan(1e-5)
             }
             expect(picked).toEqual(new Set([near, far, null]))
         })
+
+        test(`${name}: the world normal of a rotated, non-uniformly scaled mesh is the raycast face normal`, () => {
+            const {plugin, near, far, camera} = setup(make())
+            near.rotation.set(0.5, 0.7, 0.2)
+            near.scale.set(1.6, 2.5, 0.6)
+            near.updateMatrixWorld(true)
+            const normals = new Set<string>()
+            for (let x = 70.5; x < 130; x += 3) for (let y = 25.5; y < 75; y += 3) {
+                const result = plugin.pick(x, y)
+                const ref = raycast(camera, [near, far], x, y)
+                expect(result?.object ?? null).toBe(ref?.object ?? null)
+                if (result?.object !== near || !ref) continue
+                expect(result.normal.length()).toBeCloseTo(1, 6)
+                expect(result.normal.angleTo(faceNormal(ref))).toBeLessThan(1e-5)
+                normals.add(result.normal.toArray().map(v => v.toFixed(3)).join())
+            }
+            expect(normals.size).toBe(3) // three faces of the box are seen
+        })
+
+        test(`${name}: a back face of a double-sided mesh gives the normal toward the camera`, () => {
+            const {plugin, near, far, camera} = setup(make())
+            near.geometry = new PlaneGeometry(2, 2)
+            ;(near.material as MeshBasicMaterial).side = DoubleSide
+            near.rotation.set(0.3, Math.PI * 0.8, 0) // its +z side faces away from the camera
+            near.updateMatrixWorld(true)
+            const front = new Vector3(0, 0, 1).transformDirection(near.matrixWorld)
+            for (const [x, y] of [[100.5, 50.5], [95.5, 47.5], [104.5, 53.5]]) {
+                const result = plugin.pick(x, y)
+                const ref = raycast(camera, [near, far], x, y)
+                expect(result?.object).toBe(near)
+                expect(ref?.object).toBe(near)
+                expect(result!.normal.angleTo(faceNormal(ref!))).toBeLessThan(1e-5)
+                expect(result!.normal.angleTo(front.clone().negate())).toBeLessThan(1e-5)
+                expect(result!.normal.dot(ref!.ray)).toBeLessThan(0)
+            }
+        })
     }
+
+    test('flat normals (from the screen derivatives of the position) for flat-shaded materials and meshes without normals', () => {
+        const {plugin, near, state} = setup(new PerspectiveCamera(50, W / H, 0.1, 100))
+        plugin.pick(100.5, 50.5)
+        expect(state.flatNormal).toBe(false)
+        ;(near.material as MeshBasicMaterial).flatShading = true
+        plugin.pick(100.5, 50.5)
+        expect(state.flatNormal).toBe(true)
+        ;(near.material as MeshBasicMaterial).flatShading = false
+        near.geometry = near.geometry.clone().deleteAttribute('normal')
+        plugin.pick(100.5, 50.5)
+        expect(state.flatNormal).toBe(true)
+    })
+
+    test('the plugin is a GPU picker (IGPUPicker), found by isGPUPicker', () => {
+        const {plugin} = setup(new PerspectiveCamera(50, W / H, 0.1, 100))
+        const picker: import('threepipe').IGPUPicker = plugin
+        expect(picker.isGPUPicker).toBe(true)
+    })
 
     test('the filter leaves meshes out; hidden meshes and meshes outside the model root are not drawn', () => {
         const {plugin, near, far, state} = setup(new PerspectiveCamera(50, W / H, 0.1, 100))

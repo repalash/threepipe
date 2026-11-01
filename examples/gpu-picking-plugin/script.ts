@@ -1,7 +1,10 @@
 import {
     _testFinish, _testStart,
     BoxGeometry,
+    ConeGeometry,
+    CylinderGeometry,
     GPUPickingPlugin,
+    Group,
     LoadingScreenPlugin,
     Mesh,
     PhysicalMaterial,
@@ -9,6 +12,7 @@ import {
     ThreeViewer,
     TorusKnotGeometry,
     UnlitMaterial,
+    Vector3,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 
@@ -41,16 +45,35 @@ async function init() {
     const marker = viewer.scene.addObject(new Mesh(new SphereGeometry(0.04, 16, 8), new UnlitMaterial({color: '#ffffff'})), {addToRoot: true})
     marker.visible = false
 
+    // an arrow along the picked normal, from the picked point (+Y in the group), a tenth of the scene size long. It is
+    // drawn over everything, so the surface does not hide its base.
+    const arrowLength = viewer.scene.getBounds().getSize(new Vector3()).length() * 0.1
+    const arrowMaterial = new UnlitMaterial({color: '#ffe14d', depthTest: false, depthWrite: false})
+    const shaft = new Mesh(new CylinderGeometry(arrowLength * 0.025, arrowLength * 0.025, arrowLength * 0.75, 12), arrowMaterial)
+    shaft.position.y = arrowLength * 0.375
+    const head = new Mesh(new ConeGeometry(arrowLength * 0.08, arrowLength * 0.25, 16), arrowMaterial)
+    head.position.y = arrowLength * 0.875
+    const arrow = new Group()
+    arrow.add(shaft, head)
+    shaft.renderOrder = head.renderOrder = 10
+    viewer.scene.addObject(arrow, {addToRoot: true})
+    arrow.visible = false
+    const up = new Vector3(0, 1, 0)
+
     const info = document.getElementById('pick-info') as HTMLDivElement
     viewer.canvas.addEventListener('pointermove', (ev) => {
         const rect = viewer.canvas.getBoundingClientRect()
         // CSS pixels from the top-left corner of the canvas
         const hit = gpuPicking.pick(ev.clientX - rect.left, ev.clientY - rect.top)
-        marker.visible = !!hit
-        if (hit) marker.position.copy(hit.point)
+        marker.visible = arrow.visible = !!hit
+        if (hit) {
+            marker.position.copy(hit.point)
+            arrow.position.copy(hit.point)
+            arrow.quaternion.setFromUnitVectors(up, hit.normal)
+        }
         marker.setDirty()
         info.textContent = hit ?
-            `${hit.object.name}, distance ${hit.distance.toFixed(2)}, ${gpuPicking.lastPickMs} ms` :
+            `${hit.object.name}, distance ${hit.distance.toFixed(2)}, normal (${hit.normal.toArray().map(v => v.toFixed(2)).join(', ')}), ${gpuPicking.lastPickMs} ms` :
             `Nothing, ${gpuPicking.lastPickMs} ms`
     })
 
