@@ -101,13 +101,21 @@ function setup(camera: Camera) {
                 const front = n.dot(rayView) < 0
                 if (mat.side === FrontSide && !front || mat.side === BackSide && front) continue // culled
                 state.flatNormal = mat.uniforms.flatNormal.value
-                const viewZ = -hit.point.clone().applyMatrix4(cam.matrixWorldInverse).z
-                // gl_FrontFacing: three draws a back-sided material with the front-face winding turned (setFlipSided), so
-                // its visible faces are front facing there. The fragment shader flips the normal by gl_FrontFacing and the
-                // flipSided uniform.
-                const frontFacing = front !== (mat.side === BackSide)
-                if (!frontFacing) n.negate()
-                if (mat.uniforms.flipSided.value) n.negate()
+                const hitView = hit.point.clone().applyMatrix4(cam.matrixWorldInverse)
+                const viewZ = -hitView.z
+                if (state.flatNormal) {
+                    // the flat normal (screen derivatives give the face normal, in either orientation), turned against
+                    // the view ray: along -z for an orthographic camera (three sets the isOrthographic uniform), else
+                    // toward the point
+                    if (n.dot((cam as OrthographicCamera).isOrthographicCamera ? new Vector3(0, 0, -1) : hitView) > 0) n.negate()
+                } else {
+                    // gl_FrontFacing: three draws a back-sided material with the front-face winding turned
+                    // (setFlipSided), so its visible faces are front facing there. The fragment shader flips the normal
+                    // by gl_FrontFacing and the flipSided uniform.
+                    const frontFacing = front !== (mat.side === BackSide)
+                    if (!frontFacing) n.negate()
+                    if (mat.uniforms.flipSided.value) n.negate()
+                }
                 renderer.pixel = [mat.uniforms.objectId.value, viewZ, ...octEncode(n)]
                 return
             }
@@ -194,6 +202,31 @@ describe('GPUPickingPlugin', () => {
                 expect(result!.normal.angleTo(faceNormal(ref!))).toBeLessThan(1e-5)
                 expect(result!.normal.angleTo(front.clone().negate())).toBeLessThan(1e-5)
                 expect(result!.normal.dot(ref!.ray)).toBeLessThan(0)
+            }
+        })
+
+        test(`${name}: the flat normal of an off-axis face (flat shading, no normal attribute) faces the camera`, () => {
+            const {plugin, near, far, camera} = setup(make())
+            near.geometry = new PlaneGeometry(1, 1)
+            // orthographic: view position (3, 0, -1), and the normal (0.866, 0, 0.5) faces the camera (the rays go along
+            // -z) but points away from the view position. Perspective: a place in the view, the same normal.
+            near.position.set(...(camera instanceof PerspectiveCamera ? [1.5, 0, 5] as const : [3, 0, 9] as const))
+            near.rotation.set(0, Math.PI / 3, 0)
+            near.updateMatrixWorld(true)
+            const centre = near.position.clone().project(camera) // the pixel of the plane centre
+            const px = Math.floor((centre.x + 1) / 2 * W) + 0.5, py = Math.floor((1 - centre.y) / 2 * H) + 0.5
+            for (const flat of ['flatShading', 'no normals'] as const) {
+                if (flat === 'flatShading') (near.material as MeshBasicMaterial).flatShading = true
+                else {
+                    (near.material as MeshBasicMaterial).flatShading = false
+                    near.geometry = near.geometry.clone().deleteAttribute('normal')
+                }
+                const result = plugin.pick(px, py)
+                const ref = raycast(camera, [near, far], px, py)
+                expect(ref?.object).toBe(near)
+                expect(result?.object).toBe(near)
+                expect(result!.normal.dot(ref!.ray)).toBeLessThan(0)
+                expect(result!.normal.angleTo(faceNormal(ref!))).toBeLessThan(1e-5)
             }
         })
 

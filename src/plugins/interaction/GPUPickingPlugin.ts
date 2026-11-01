@@ -158,9 +158,10 @@ vec2 octEncode(vec3 n) {
 void main() {
     vec3 n;
     if (flatNormal) {
-        // the face normal, as three's flat shading makes it, turned toward the camera
+        // the face normal, as three's flat shading makes it, turned against the view ray (isOrthographic: three's
+        // uniform; the rays of an orthographic camera are parallel to -z, not toward the point)
         n = normalize(cross(dFdx(vViewPosition), dFdy(vViewPosition)));
-        if (dot(n, vViewPosition) > 0.) n = -n;
+        if (dot(n, isOrthographic ? vec3(0., 0., -1.) : vViewPosition) > 0.) n = -n;
     } else {
         // the interpolated normal toward the camera, as three shades it: flipped on a back face of a double-sided
         // material, and for a back-sided one (three draws it with the front-face winding turned, so gl_FrontFacing is
