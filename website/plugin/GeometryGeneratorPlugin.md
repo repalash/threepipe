@@ -24,7 +24,7 @@ Built-in geometry generators:
 * tube — circular cross-section along a curve
 * shape — flat 2D shapes (rectangle, circle, polygon)
 * tubeShape — arbitrary shape cross-section extruded along a curve
-* line — curve/path visualization with interactive control point handles
+* line — curve/path visualization with interactive control point handles. With `samplePerCurve: true`, a path of curves (`CurvePath3`) gets `segments` divisions for each curve, so the joints between curves are vertices (default: `segments` points over the whole path, by arc length)
 
 Additional `text` geometry is available through `GeometryGeneratorExtrasPlugin` in the [`@threepipe/plugin-geometry-generator`](../package/plugin-geometry-generator) package.
 

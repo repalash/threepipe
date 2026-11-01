@@ -16,6 +16,12 @@ export interface LineGeometryGeneratorParams {
     curve?: SupportedCurveTypes | Curve<Vector2> | Curve<Vector3>
     segments?: number
     closePath?: boolean
+    /**
+     * For a path of curves (`CurvePath`, `CurvePath3`): `segments` divisions for each of its curves (one for a straight
+     * line curve), so the end point of every curve is a vertex and corners stay sharp. Default `false`: `segments`
+     * points over the whole curve, spaced by arc length. No effect on a single curve.
+     */
+    samplePerCurve?: boolean
 }
 
 export class LineGeometryGenerator extends AGeometryGenerator<LineGeometryGeneratorParams> {
@@ -53,9 +59,10 @@ export class LineGeometryGenerator extends AGeometryGenerator<LineGeometryGenera
         const closePath = params.closePath || false
 
         curve.updateArcLengths()
-        const points = curve.getSpacedPoints(segments - 1)
+        const perCurve = !!params.samplePerCurve && 'curves' in curve
+        const points = perCurve ? curve.getPoints(segments) : curve.getSpacedPoints(segments - 1)
 
-        if (points.length !== segments) {
+        if (!perCurve && points.length !== segments) {
             console.error(`LineGeometryGenerator: Curve points length (${points.length}) does not match segments (${segments}).`)
         }
 
