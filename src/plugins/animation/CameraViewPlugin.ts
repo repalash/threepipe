@@ -796,7 +796,27 @@ export class CameraViewPlugin extends AViewerPluginSync<CameraViewPluginEventMap
             // from here, record() ends its own waits when the viewer is disabled
             viewer.removeEventListener('viewerDisabled', onDisabled)
             // record() rejects when the start, onStart or the animation fails, and stops the recording
-            blob = await this._removalWaits.race(recorder.record(async() => this.animateAllViews(), onStart))
+            let touring = false
+            let toured = false
+            blob = await this._removalWaits.race(recorder.record(async() => {
+                touring = true
+                try {
+                    await this.animateAllViews()
+                } finally {
+                    toured = true
+                }
+            }, onStart))
+            // record() resolved before the tour ended: rendering stopped (the viewer is disabled, or rendering is paused
+            // or failed), so the rest of the tour is not recorded. The tour ends: no view is left, and the running view
+            // animation stops (also one that starts after the first stop), so its view change gives the camera
+            // interactions back. viewLooping turns on again only after it, as a running loop does not start a new one.
+            if (touring && !toured && !removed()) {
+                this._viewQueue = []
+                while (!toured && !removed()) {
+                    this._popAnimations.forEach(a=>a?.stop && a.stop())
+                    await timeout(10)
+                }
+            }
         } finally {
             viewer.removeEventListener('viewerDisabled', onDisabled)
             // not on a removed plugin: the loop would run on it forever

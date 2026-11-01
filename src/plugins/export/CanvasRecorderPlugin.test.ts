@@ -1920,6 +1920,30 @@ describe('a viewer that renders no frame', () => {
         expect(viewerDisabledListeners(viewer)).toBe(0)
     })
 
+    test('recordAllViews: a recording that ends early (rendering stopped) ends the view tour and gives the camera interactions back', async() => {
+        // camera animations that step with the frames: each one ends only when it is stopped
+        const popmotion = {animateCameraAsync: vi.fn(async(_c: any, _v: any, _s: any, _o: any, animations: any[]) =>
+            new Promise<void>(resolve => animations.push({stop: resolve})))}
+        const {views, camera, record} = cameraViews(popmotion)
+        views._cameraViews = [{name: 'a'}, {name: 'b'}, {name: 'c'}]
+        views.resetToFirstView = async() => undefined
+        views.viewPauseTime = 0
+        // record() resolves without waiting for the action, as it does when rendering stops during the recording
+        record.mockImplementation(async(action: () => Promise<void>) => {
+            void action()
+            await new Promise(r => setTimeout(r, 5))
+            return new Blob([])
+        })
+        await expect(views.recordAllViews(undefined, false)).resolves.toBeInstanceOf(Blob)
+        expect(views.animationLooping).toBe(false)
+        expect(views._animating).toBe(false)
+        expect(camera.setInteractions).toHaveBeenLastCalledWith(true, CameraViewPlugin.PluginType)
+        const calls = popmotion.animateCameraAsync.mock.calls.length
+        expect(calls).toBe(1) // the first view only: the rest of the tour is not animated
+        await new Promise(r => setTimeout(r, 30))
+        expect(popmotion.animateCameraAsync).toHaveBeenCalledTimes(calls)
+    })
+
     test('recordAllViews: a viewer disabled during the recording leaves the views to record()', async() => {
         const {views, viewer, record} = cameraViews()
         views.resetToFirstView = async() => undefined
