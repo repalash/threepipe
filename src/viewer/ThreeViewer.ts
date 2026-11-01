@@ -706,14 +706,14 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
     /**
      * Returns a blob with the screenshot of the canvas.
      * If {@link CanvasSnapshotPlugin} is added, it will be used, otherwise canvas.toBlob will be used directly.
-     * When the viewer is disabled ({@link enabled} false, also after a lost WebGL context) no frame is rendered, so the
-     * canvas is read as it is.
+     * When rendering is paused ({@link renderEnabled} false) or the viewer is disabled ({@link enabled} false, also after a
+     * lost WebGL context), no frame is rendered, so the canvas is read as it is (also with the plugin added).
      * @param mimeType default image/jpeg
      * @param quality between 0 and 100
      */
     async getScreenshotBlob({mimeType = 'image/jpeg', quality = 90} = {}): Promise<Blob | null | undefined> {
         const plugin = this.getPlugin<CanvasSnapshotPlugin>('CanvasSnapshotPlugin')
-        if (plugin && this.enabled) {
+        if (plugin && this.enabled && this.renderEnabled) {
             return plugin.getFile('snapshot.' + mimeType.split('/')[1], {mimeType, quality, waitForProgressive: true})
         }
         const blobPromise = async()=> new Promise<Blob|null>((resolve) => {
