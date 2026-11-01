@@ -17,6 +17,10 @@ next:
 
 PerfPanelPlugin shows a small performance panel over the canvas, in plain DOM. It starts as a pill like `60 fps` with a status dot (green from 50 fps, amber from 25 fps, red below). An amber dot on the corner of the pill shows that a warning is on. A click on the pill opens the card, and a click on the card header collapses it again.
 
+Drag the pill or the card header to move the panel out of the way (a press that moves less than 3 px is still a click). The panel stays inside the container, also when the container gets smaller, and a dragged pill comes back to its place when the card collapses. Setting `position` (the Position dropdown in the plugin UI), also to the same corner, puts it back in a corner. The dragged place is kept while the page is open, not saved.
+
+Layers (`z-index`, see UI layers in `CONTRIBUTING.md`): the pill is an overlay on the canvas (12), under the loading screen. The open card is viewer UI (150 and up), below the bars of the editor (200). With other panels of that layer, such as the sticky notes of the tweakpane editor, the one pressed last is in front (`raiseOnPress`); opening the card is a press.
+
 The card shows:
 - A sparkline of the frame times of the last 3 seconds. Accent bars are frames that rendered, grey bars are idle frames, red bars are slower than 50 ms. Lines mark 16.7 ms and 33.3 ms.
 - Frame ms: the time between frames over the last second (average, 95th percentile, maximum).
@@ -41,7 +45,7 @@ const perf = viewer.addPluginSync(new PerfPanelPlugin({
 }))
 
 perf.collapsed = false // open the card
-perf.position = 'top-left'
+perf.position = 'top-left' // also puts back a panel that was dragged
 perf.enabled = false // hide the panel and stop measuring
 
 // the numbers in code, 4 times per second
