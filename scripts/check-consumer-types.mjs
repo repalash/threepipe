@@ -66,13 +66,13 @@ for (const dir of [root, ...fs.readdirSync(path.join(root, 'plugins')).map(d => 
         const text = fs.readFileSync(file, 'utf8')
         for (const m of text.matchAll(relativeSpecRE)) {
             const line = text.slice(text.lastIndexOf('\n', m.index) + 1, m.index)
-            if (!/^\s*(\*|\/\/)/.test(line) && !m[3].endsWith('.js')) staticErrors.push(`${path.relative(root, file)}: '${m[3]}' needs .js (add afterBuild: fixDtsImports to its dts() call)`)
+            if (!/^\s*(\/\*|\*|\/\/)/.test(line) && !m[3].endsWith('.js')) staticErrors.push(`${path.relative(root, file)}: '${m[3]}' needs .js (add afterBuild: fixDtsImports to its dts() call)`)
         }
         if (!declared) continue
         for (const m of text.matchAll(bareSpecRE)) {
             const line = text.slice(text.lastIndexOf('\n', m.index) + 1, m.index)
             const name = m[3].startsWith('@') ? m[3].split('/').slice(0, 2).join('/') : m[3].split('/')[0]
-            if (!/^\s*(\*|\/\/)/.test(line) && !name.includes('*') && !declared.has(name) && !declared.has('@types/' + name))
+            if (!/^\s*(\/\*|\*|\/\/)/.test(line) && !name.includes('*') && !declared.has(name) && !declared.has('@types/' + name))
                 staticErrors.push(`${path.relative(root, file)}: '${m[3]}' is not a dependency or peerDependency of ${pkg.name} (declare it, optional if it is bundled)`)
         }
     }
