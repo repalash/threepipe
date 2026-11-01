@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>View Overrides Plugin</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Import maps polyfill -->
+    <!-- Remove this when import maps will be widely supported -->
+    <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+
+    <script type="importmap">
+    {
+        "imports": {
+          "threepipe": "./../../dist/index.mjs",
+          "@threepipe/plugin-tweakpane": "./../../plugins/tweakpane/dist/index.mjs"
+        }
+    }
+
+    </script>
+    <style id="example-style">
+        html, body, #canvas-container, #mcanvas {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+        }
+    </style>
+    <script type="module" src="../examples-utils/global-loading.mjs"></script>
+    <script type="module" src="../examples-utils/simple-code-preview.mjs"></script>
+    <script id="example-script" type="module" src="./script.js" data-scripts="./script.ts;./script.js"></script>
+</head>
+<body>
+<div id="canvas-container">
+    <canvas id="mcanvas"></canvas>
+</div>
+<div id="note" style="position: absolute; left: 12px; bottom: 12px; max-width: 360px; padding: 8px 10px; border-radius: 6px; background: rgba(255,255,255,.85); font: 12px/1.4 Inter, system-ui, sans-serif; color: #333; pointer-events: none;">
+    Click an object, then move or rotate it with the gizmo. The orange ring is a fat line: it stays a line in the
+    material views, with the depth ramp in Depth, its material colour in Material ID, grey in the normal views, magenta
+    in UV and its own colour in Unlit. Lights Keep Env: with a Lights preset, keep the
+    environment map (reflections) on with the preset lights.
+</div>
+
+</body>

@@ -46,13 +46,32 @@ export class GBufferRenderPass<TP extends IPassID=IPassID, T extends WebGLRender
         }
     }
 
+    private _savedForcedMaterials = new Map<IObject3D, IObject3D['forcedOverrideMaterial']>()
+
+    /**
+     * Sets `object.forcedOverrideMaterial` for the render of this pass, and saves the one that the object had: a plugin
+     * can set one for the whole frame, as ViewOverridesPlugin does for fat lines. {@link restoreObjectMaterial} puts it back.
+     */
+    forceObjectMaterial(object: IObject3D, material: Material) {
+        if (!this._savedForcedMaterials.has(object)) this._savedForcedMaterials.set(object, object.forcedOverrideMaterial)
+        object.forcedOverrideMaterial = material
+    }
+
+    /** Puts back the `forcedOverrideMaterial` that the object had before {@link forceObjectMaterial} */
+    restoreObjectMaterial(object: IObject3D) {
+        if (!this._savedForcedMaterials.has(object)) return
+        const saved = this._savedForcedMaterials.get(object)
+        this._savedForcedMaterials.delete(object)
+        if (saved === undefined) delete object.forcedOverrideMaterial
+        else object.forcedOverrideMaterial = saved
+    }
+
     preprocessObject = (object: IObject3D) => {
         if (object.customDepthMaterial) {
             const mat = object.customDepthMaterial
             mat.allowOverride = false
-            // todo save the current forcedOverrideMaterial to restore it later?
             const current = object.material
-            object.forcedOverrideMaterial = mat
+            this.forceObjectMaterial(object, mat)
             const current0 = Array.isArray(current) ? current[0] : current
             if (current0) {
                 mat.userData.renderToGBuffer = current0.userData.renderToGBuffer
@@ -67,9 +86,7 @@ export class GBufferRenderPass<TP extends IPassID=IPassID, T extends WebGLRender
     }
 
     postprocessObject = (object: IObject3D) => {
-        if (object.customDepthMaterial) {
-            delete object.forcedOverrideMaterial
-        }
+        this.restoreObjectMaterial(object)
     }
 
     /**

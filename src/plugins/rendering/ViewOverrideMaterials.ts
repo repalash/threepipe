@@ -1,0 +1,444 @@
+import {
+    BasicDepthPacking,
+    BufferGeometry,
+    Camera,
+    Color,
+    ColorManagement,
+    Group,
+    IUniform,
+    MeshBasicMaterial,
+    NoBlending,
+    NormalBlending,
+    Object3D,
+    Scene,
+    SRGBTransfer,
+    Texture,
+    Vector2,
+    WebGLRenderer,
+} from 'three'
+import type {LineMaterial} from 'three/examples/jsm/lines/LineMaterial.js'
+import {IMaterial, PhysicalMaterial} from '../../core'
+import {shaderReplaceString} from '../../utils'
+import {mergeLineShader} from '../../utils/line-material'
+import {MeshDepthMaterialOverride} from '../pipeline/DepthBufferPlugin'
+import {MeshNormalMaterialOverride} from '../pipeline/NormalBufferPlugin'
+
+/*
+ * The materials of ViewOverridesPlugin. Each one is set as the override material of the main render pass, so it draws
+ * every mesh. The unlit, material ID and UV materials copy what they need from the material of each mesh in
+ * onBeforeRender and reset it in onAfterRender, like MeshDepthMaterialOverride and MeshNormalMaterialOverride.
+ * Fat lines draw with a LineOverrideMaterial of their line material instead (at the end of this file).
+ */
+
+type SourceMaterial = IMaterial & Partial<PhysicalMaterial>
+
+/**
+ * The material that the override replaces in this draw: for a material array, the one of the geometry group that
+ * three.js draws (`group.materialIndex`), the first one when it draws the whole mesh
+ */
+function sourceMaterial(object: Object3D, group: Group | null): SourceMaterial | undefined {
+    const m = (object as Object3D & {material?: SourceMaterial | SourceMaterial[]}).material
+    if (!Array.isArray(m)) return m
+    // the type of the group argument is wrong in three's types: it is a geometry group, {start, count, materialIndex}
+    const index = (group as unknown as {materialIndex?: number} | null)?.materialIndex
+    return m[index ?? 0]
+}
+
+/** The same material draws every mesh: make the renderer upload its uniforms again for the next one */
+function resetCurrentMaterial(renderer: WebGLRenderer) {
+    (renderer as WebGLRenderer & {resetCurrentMaterial?: () => void}).resetCurrentMaterial?.()
+}
+
+/*
+ * What the per-mesh override materials copy from the material of each mesh (checked against MeshBasicMaterial and
+ * Material of three.js):
+ * - All of them ({@link copyCommon}): which pixels draw and how they blend: opacity, transparent, alphaMap, alphaTest,
+ *   alphaHash, alphaToCoverage, premultipliedAlpha, blending and the blend factors, side, wireframe,
+ *   wireframeLinewidth, depthTest, depthWrite, polygonOffset (factor, units), clippingPlanes, clipIntersection.
+ * - Unlit (UnlitOverrideMaterial._copyFrom): the surface colour without lights: color, map, aoMap and its intensity,
+ *   lightMap and its intensity, vertexColors, fog.
+ * - Not copied: envMap, combine, reflectivity, refractionRatio and specularMap (environment reflection, which is
+ *   lighting; specularMap only scales it), flatShading (no effect without lights), dithering and toneMapped (output
+ *   settings, not the surface), the lit-only maps and values of other materials (normal, roughness, emissive, ...).
+ * The texture transforms (offset, repeat, rotation, channel) come with each copied texture.
+ */
+
+/** The common settings that are copied as they are, and reset to the values of a new MeshBasicMaterial */
+const COMMON_SETTINGS = [
+    'opacity', 'transparent', 'alphaMap', 'alphaHash', 'alphaToCoverage', 'premultipliedAlpha',
+    'blending', 'blendSrc', 'blendDst', 'blendEquation', 'blendSrcAlpha', 'blendDstAlpha', 'blendEquationAlpha',
+    'side', 'wireframe', 'wireframeLinewidth', 'depthTest', 'depthWrite',
+    'polygonOffset', 'polygonOffsetFactor', 'polygonOffsetUnits', 'clippingPlanes', 'clipIntersection',
+] as const
+const BASIC_DEFAULTS = new MeshBasicMaterial()
+
+/** Copies the settings of the mesh material that decide which pixels draw and how they blend (see the list above) */
+function copyCommon(target: MeshBasicMaterial, material: SourceMaterial) {
+    const t = target as unknown as Record<string, unknown>, m = material as unknown as Record<string, unknown>
+    for (const k of COMMON_SETTINGS) if (m[k] !== undefined) t[k] = m[k]
+    // never 0 (also in reset), so the alpha test define (and the material version) does not change between meshes
+    if (material.alphaTest !== undefined) target.alphaTest = material.alphaTest < 1e-4 ? 1e-4 : material.alphaTest
+}
+
+/** The program parameters of a texture slot: the map is set, and its UV set (`texture.channel`) */
+function textureKey(texture: Texture | null): [boolean, number | false] {
+    return [!!texture, !!texture && texture.channel]
+}
+
+/**
+ * A MeshBasicMaterial that takes the common settings of each mesh material before it draws it.
+ *
+ * One material draws every mesh, and three.js picks its program again only when its version changes. So when the
+ * settings that are program parameters differ from those of the last program ({@link _programKey}), it sets needsUpdate
+ * (the program comes from the program cache). The comparison is with the last program, not with the reset state.
+ */
+abstract class PerObjectBasicMaterial extends MeshBasicMaterial {
+    private _lastProgramKey = ''
+
+    onBeforeRender(renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D, group: Group) {
+        super.onBeforeRender(renderer, scene, camera, geometry, object, group)
+        const material = sourceMaterial(object, group)
+        if (!material) return
+        copyCommon(this, material)
+        this._copyFrom(material, geometry)
+        const key = this._programKey(object, geometry).join(',')
+        if (key !== this._lastProgramKey) {
+            this._lastProgramKey = key
+            this.needsUpdate = true
+        }
+        resetCurrentMaterial(renderer)
+    }
+
+    /**
+     * The values that three.js makes program parameters from (`WebGLPrograms.getParameters`), for the settings that
+     * {@link copyCommon} and {@link _copyFrom} copy from the mesh material. It must list every copied setting that is a
+     * program parameter: a missing one keeps the program of the previous mesh. The other copied settings (color,
+     * opacity, intensities, wireframe, depth, polygon offset, the blend factors) are uniforms or render state, and three.js
+     * checks the clipping planes itself on each draw.
+     */
+    protected _programKey(object: Object3D, geometry: BufferGeometry): unknown[] {
+        return [
+            !this.transparent && this.blending === NormalBlending && !this.alphaToCoverage, // opaque
+            this.alphaToCoverage, // alphaToCoverage
+            this.premultipliedAlpha, // premultipliedAlpha
+            this.side, // doubleSided, flipSided
+            this.alphaTest > 0, // alphaTest
+            this.alphaHash, // alphaHash
+            ...textureKey(this.alphaMap), // alphaMap, alphaMapUv
+            // pointsUvs
+            (object as Object3D & {isPoints?: boolean}).isPoints === true && !!geometry.attributes.uv && (!!this.map || !!this.alphaMap),
+        ]
+    }
+
+    onAfterRender(renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D, group: Group) {
+        super.onAfterRender(renderer, scene, camera, geometry, object, group)
+        this.reset()
+    }
+
+    /** Takes the settings of this override from the mesh material, after the common ones */
+    protected abstract _copyFrom(material: SourceMaterial, geometry: BufferGeometry): void
+
+    /** Resets what {@link copyCommon} and {@link _copyFrom} set */
+    reset() {
+        this.color.setHex(0xffffff)
+        const t = this as unknown as Record<string, unknown>, d = BASIC_DEFAULTS as unknown as Record<string, unknown>
+        for (const k of COMMON_SETTINGS) t[k] = d[k]
+        this.alphaTest = 1e-4
+    }
+}
+
+/** Unlit: the base color, color map, AO map and light map of each mesh, no lights */
+export class UnlitOverrideMaterial extends PerObjectBasicMaterial {
+    constructor() {
+        super()
+        this.reset()
+    }
+
+    protected _copyFrom(material: SourceMaterial) {
+        if (material.color !== undefined) this.color.copy(material.color)
+        if (material.vertexColors !== undefined) this.vertexColors = material.vertexColors
+        if (material.fog !== undefined) this.fog = material.fog
+        if (material.map !== undefined) this.map = material.map
+        if (material.aoMap !== undefined) this.aoMap = material.aoMap
+        if (material.aoMapIntensity !== undefined) this.aoMapIntensity = material.aoMapIntensity
+        if (material.lightMap !== undefined) this.lightMap = material.lightMap
+        if (material.lightMapIntensity !== undefined) this.lightMapIntensity = material.lightMapIntensity
+    }
+
+    protected _programKey(object: Object3D, geometry: BufferGeometry): unknown[] {
+        const map = this.map
+        return [
+            ...super._programKey(object, geometry),
+            ...textureKey(map), // map, mapUv
+            !!map && (map as Texture & {isVideoTexture?: boolean}).isVideoTexture === true &&
+                ColorManagement.getTransfer(map.colorSpace) === SRGBTransfer, // decodeVideoTexture
+            ...textureKey(this.aoMap), // aoMap, aoMapUv
+            ...textureKey(this.lightMap), // lightMap, lightMapUv
+            this.vertexColors, // vertexColors
+            this.vertexColors && geometry.attributes.color?.itemSize === 4, // vertexAlphas
+            this.fog, // useFog
+        ]
+    }
+
+    reset() {
+        super.reset()
+        this.vertexColors = false
+        this.fog = true
+        this.map = null
+        this.aoMap = null
+        this.aoMapIntensity = 1
+        this.lightMap = null
+        this.lightMapIntensity = 1
+    }
+}
+
+/** Material ID: one flat color for each material, golden-ratio hues from the material id */
+export class MaterialIdOverrideMaterial extends PerObjectBasicMaterial {
+    private _colors = new Map<number, Color>()
+
+    constructor() {
+        super()
+        this.reset()
+    }
+
+    /** The color of the material with this `id` */
+    colorFor(id: number): Color {
+        let c = this._colors.get(id)
+        if (!c) {
+            c = new Color().setHSL(id * 0.618033988749895 % 1, 1, 0.5)
+            this._colors.set(id, c)
+        }
+        return c
+    }
+
+    protected _copyFrom(material: SourceMaterial) {
+        this.color.copy(this.colorFor(material.id ?? 0))
+    }
+}
+
+/** UV: U in red and V in green for the UV set {@link uvChannel} (0-3), magenta when the mesh has no such UV set */
+export class UvOverrideMaterial extends PerObjectBasicMaterial {
+    uvChannel: 0 | 1 | 2 | 3 = 0
+    // set for each mesh before it draws: a missing attribute reads as 0, black, which looks like a UV value
+    private _uvMissing = {value: 0}
+
+    constructor() {
+        super()
+        this.reset()
+    }
+
+    customProgramCacheKey() {
+        return 'view-override-uv-' + this.uvChannel
+    }
+
+    onBeforeCompile(shader: any) {
+        shader.defines = shader.defines ?? {}
+        shader.defines.USE_UV = ''
+        shader.uniforms.uvMissing = this._uvMissing
+        // declares the uv1-uv3 attributes and defines USE_UV1-USE_UV3 (three's program parameters)
+        shader.vertexUv1s = true
+        shader.vertexUv2s = true
+        shader.vertexUv3s = true
+        const varyings = `
+#ifdef USE_UV1
+    varying vec2 vUv1;
+#endif
+#ifdef USE_UV2
+    varying vec2 vUv2;
+#endif
+#ifdef USE_UV3
+    varying vec2 vUv3;
+#endif
+`
+        shader.vertexShader = shaderReplaceString(shader.vertexShader, '#include <common>', varyings, {append: true})
+        shader.vertexShader = shaderReplaceString(shader.vertexShader, '#include <uv_vertex>', `
+#ifdef USE_UV1
+    vUv1 = uv1;
+#endif
+#ifdef USE_UV2
+    vUv2 = uv2;
+#endif
+#ifdef USE_UV3
+    vUv3 = uv3;
+#endif
+`, {append: true})
+        shader.fragmentShader = shaderReplaceString(shader.fragmentShader, 'uniform float opacity;', '\nuniform float uvMissing;\n#define vUv0 vUv\n' + varyings, {append: true})
+        shader.fragmentShader = shaderReplaceString(shader.fragmentShader, '#include <opaque_fragment>', `
+    gl_FragColor = uvMissing > 0.5 ? vec4( 1.0, 0.0, 1.0, diffuseColor.a ) : vec4( fract(vUv${this.uvChannel}.x), fract(vUv${this.uvChannel}.y), 0.0, diffuseColor.a );
+`)
+    }
+
+    protected _copyFrom(_: SourceMaterial, geometry: BufferGeometry) {
+        this._uvMissing.value = geometry.attributes[this.uvChannel ? 'uv' + this.uvChannel : 'uv'] ? 0 : 1
+    }
+}
+
+/**
+ * three's MeshNormalMaterial and MeshDepthMaterial write gl_FragColor without the output encoding. threepipe renders
+ * to an RGBM target by default (`rgbm: true`), so their raw values decode as very bright colors and the meshes show
+ * white. Add the encoding at the end of main(), as the other built-in materials do.
+ */
+function encodeOutput(shader: any) {
+    shader.fragmentShader = shaderReplaceString(shader.fragmentShader, /}\s*$/, '\n#include <colorspace_fragment>\n}\n')
+}
+
+/** View-space normals */
+export class NormalOverrideMaterial extends MeshNormalMaterialOverride {
+    constructor() {
+        super({blending: NoBlending})
+    }
+
+    customProgramCacheKey() {
+        return 'view-override-normal'
+    }
+
+    onBeforeCompile(shader: any) {
+        encodeOutput(shader)
+    }
+}
+
+/**
+ * World-space normals: the view-space normal of the normal view (after skinning, morphs, the normal matrix, the back
+ * face flip and the normal and bump maps) turned to world space with the view matrix
+ */
+export class NormalWorldOverrideMaterial extends NormalOverrideMaterial {
+    customProgramCacheKey() {
+        return 'view-override-normal-world'
+    }
+
+    onBeforeCompile(shader: any) {
+        super.onBeforeCompile(shader)
+        shader.fragmentShader = shaderReplaceString(shader.fragmentShader,
+            'gl_FragColor = vec4( packNormalToRGB( normal ), diffuseColor.a );',
+            'gl_FragColor = vec4( packNormalToRGB( normalize( ( vec4( normal, 0.0 ) * viewMatrix ).xyz ) ), diffuseColor.a );')
+    }
+}
+
+/**
+ * Depth: linear view depth from {@link depthNear} (white) to {@link depthFar} (black). A linear range in the shader
+ * does not change the camera (threepipe cameras set their near and far planes themselves with autoNearFar).
+ */
+export class LinearDepthOverrideMaterial extends MeshDepthMaterialOverride {
+    readonly depthNear = {value: 0.1}
+    readonly depthFar = {value: 100}
+
+    constructor() {
+        super({depthPacking: BasicDepthPacking, blending: NoBlending})
+    }
+
+    customProgramCacheKey() {
+        return 'view-override-linear-depth'
+    }
+
+    onBeforeCompile(shader: any) {
+        shader.uniforms.depthNear = this.depthNear
+        shader.uniforms.depthFar = this.depthFar
+        shader.vertexShader = shaderReplaceString(shader.vertexShader, '#include <common>', '\nvarying float vViewOverrideZ;', {append: true})
+        shader.vertexShader = shaderReplaceString(shader.vertexShader, '#include <project_vertex>', '\nvViewOverrideZ = -mvPosition.z;', {append: true})
+        shader.fragmentShader = shaderReplaceString(shader.fragmentShader, 'varying vec2 vHighPrecisionZW;',
+            '\nvarying float vViewOverrideZ;\nuniform float depthNear;\nuniform float depthFar;', {append: true})
+        shader.fragmentShader = shaderReplaceString(shader.fragmentShader,
+            'float fragCoordZ = 0.5 * vHighPrecisionZW[0] / vHighPrecisionZW[1] + 0.5;',
+            'float fragCoordZ = clamp((vViewOverrideZ - depthNear) / max(depthFar - depthNear, 1e-6), 0., 1.);')
+        encodeOutput(shader)
+    }
+}
+
+/** The linear depth range of {@link LinearDepthOverrideMaterial}, which the line variant of the depth view shares */
+export interface LinearDepthRange {
+    readonly depthNear: IUniform<number>
+    readonly depthFar: IUniform<number>
+}
+
+/**
+ * Draws the fat lines (LineSegments2, Line2, MeshLine) of one line material in a material view of ViewOverridesPlugin.
+ * The debug materials of the meshes cannot draw them: a fat line is a set of instanced quads that the vertex shader of
+ * its LineMaterial turns into a line. This material keeps the shaders of the line material ({@link mergeLineShader}),
+ * so the line width, the dashes and the world units stay those of the line; only the colour changes:
+ * - depth (made with a {@link LinearDepthRange}): the linear depth ramp of {@link LinearDepthOverrideMaterial}, with its
+ *   uniforms, so the line and the meshes use the same range in each frame.
+ * - else the flat {@link color}, which ViewOverridesPlugin sets for the view (the material ID colour, or a colour for
+ *   "no data" in the normal and UV views).
+ *
+ * {@link update} takes the draw settings of the line material before each frame. Set as the `forcedOverrideMaterial`
+ * of the line object during a render, with `allowOverride` false so the override material of the render pass does not
+ * replace it.
+ */
+export class LineOverrideMaterial extends MeshBasicMaterial {
+    readonly isLineOverrideMaterial = true
+    /** The viewport size for the line width in pixels: set before each draw, as LineMaterial2 sets its own */
+    readonly resolution: IUniform<Vector2> = {value: new Vector2(1, 1)}
+    private _definesKey = ''
+    private _programKey = ''
+
+    constructor(readonly lineMaterial: LineMaterial, readonly depthRange?: LinearDepthRange) {
+        super()
+        this.name = 'View Override Line'
+        this.allowOverride = false
+        this.fog = false
+    }
+
+    customProgramCacheKey() {
+        // the defines of the line material are added in onBeforeCompile, so three.js does not see them in its own key
+        return 'view-override-line-' + (this.depthRange ? 'depth' : 'color') + '-' + this._definesKey
+    }
+
+    onBeforeCompile(shader: any) {
+        mergeLineShader(shader, this.lineMaterial, this.depthRange ? {
+            parsVert: '\nvarying float vViewOverrideZ;\n',
+            mainVert: '\nvViewOverrideZ = -mvPosition.z;\n',
+            parsFrag: '\nvarying float vViewOverrideZ;\nuniform float depthNear;\nuniform float depthFar;\n',
+            // the output of LinearDepthOverrideMaterial, with the alpha of the line (its caps and edges)
+            mainFrag: `
+    float viewOverrideDepth = clamp( ( vViewOverrideZ - depthNear ) / max( depthFar - depthNear, 1e-6 ), 0., 1. );
+    gl_FragColor = vec4( vec3( 1.0 - viewOverrideDepth ), alpha );
+    #include <colorspace_fragment>
+}
+`,
+        } : {})
+        shader.uniforms.resolution = this.resolution
+        if (this.depthRange) {
+            shader.uniforms.depthNear = this.depthRange.depthNear
+            shader.uniforms.depthFar = this.depthRange.depthFar
+        }
+    }
+
+    /**
+     * Takes the settings of the line material: which pixels draw and how they blend (as the per-mesh override materials
+     * take them from each mesh material), `visible` and `colorWrite`, and the defines of the line (dashes, world units,
+     * alpha to coverage). Sets needsUpdate when a program parameter changed.
+     * @param opaque - no blending, as the depth and normal materials of the meshes draw
+     */
+    update(opaque: boolean) {
+        const line = this.lineMaterial
+        copyCommon(this, line as unknown as SourceMaterial)
+        this.visible = line.visible
+        this.colorWrite = line.colorWrite
+        if (opaque) {
+            this.blending = NoBlending
+            this.transparent = false
+            this.opacity = 1
+        }
+        // the GBuffer passes read these from object.material for the line material that they set for the line
+        const ud = line.userData
+        this.userData.renderToGBuffer = ud.renderToGBuffer
+        this.userData.renderToDepth = ud.renderToDepth
+        this.userData.pluginsDisabled = ud.pluginsDisabled
+
+        const defines = line.defines ?? {}
+        this._definesKey = Object.keys(defines).sort().map(k => k + '=' + defines[k]).join(',')
+        // as PerObjectBasicMaterial._programKey, for the settings copied here
+        const key = [this._definesKey, this.transparent, this.blending, this.alphaToCoverage, this.premultipliedAlpha, this.side, this.alphaHash].join()
+        if (key !== this._programKey) {
+            this._programKey = key
+            this.needsUpdate = true
+        }
+    }
+
+    onBeforeRender(renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D, group: Group) {
+        super.onBeforeRender(renderer, scene, camera, geometry, object, group)
+        const line = this.lineMaterial as LineMaterial & {autoUpdateResolution?: boolean}
+        if (line.autoUpdateResolution) renderer.getSize(this.resolution.value)
+        else this.resolution.value.copy(line.resolution)
+    }
+}
