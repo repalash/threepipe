@@ -203,13 +203,17 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
     /** A note that is made now comes from "Add a note": its post-it opens by the dock */
     private _addAtDock = false
     /**
-     * Watches the layer (the canvas changes size, also without a window resize) and each post-it (a size from its
-     * corner)
+     * Watches the layer (the canvas changes size, also without a window resize), the dock (a button shows or hides, so
+     * a dragged dock can go past the edge) and each post-it (a size from its corner)
      */
     private _resizer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(entries => {
         for (const {target} of entries) {
             if (target === this.element) {
                 this._onResize()
+                continue
+            }
+            if (target === this.dock) {
+                this._placeDock()
                 continue
             }
             const c = this._byElement.get(target)
@@ -307,7 +311,10 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
             },
         })
         // the post-its stay inside the canvas when it changes size; without a ResizeObserver, on a window resize
-        if (this._resizer) this._resizer.observe(this.element)
+        if (this._resizer) {
+            this._resizer.observe(this.element)
+            this._resizer.observe(this.dock)
+        }
         else window.addEventListener('resize', this._onResize)
         this._showStore()
         this._placeDock()

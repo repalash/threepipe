@@ -585,6 +585,36 @@ describe('StickyNotesUiPlugin', () => {
         }
     })
 
+    test('a dragged dock that gets wider (a button shows) is moved back inside the canvas', () => {
+        const observers: {targets: Set<unknown>, callback: (entries: {target: unknown}[]) => void}[] = []
+        vi.stubGlobal('ResizeObserver', class {
+            targets = new Set<unknown>()
+            constructor(public callback: (entries: {target: unknown}[]) => void) {
+                observers.push(this)
+            }
+            observe(t: unknown) {
+                this.targets.add(t)
+            }
+            unobserve(t: unknown) {
+                this.targets.delete(t)
+            }
+            disconnect() {
+                this.targets.clear()
+            }
+        })
+        const {sticky, viewer, layer} = setup()
+        const dock = layer.find('snp-dock')[0], grip = layer.find('snp-grip')[0]
+        dock.fire('pointerdown', {target: grip, clientX: 20, clientY: 20})
+        dock.fire('pointermove', {clientX: 5020, clientY: 20})
+        dock.fire('pointerup')
+        expect(dock.style.transform).toBe('translate(628px, 0px)') // 800 - 160 - 12: at the right edge
+        // a store button shows: the dock is 40 px wider, and its new button would be past the edge
+        dock.offsetWidth = 200
+        for (const o of observers) if (o.targets.has(dock)) o.callback([{target: dock}])
+        expect(dock.style.transform).toBe('translate(588px, 0px)') // 800 - 200 - 12
+        sticky.onRemove(viewer)
+    })
+
     test('a canvas that changes size without a window resize keeps the post-its inside it; removing the plugin stops watching', () => {
         // a ResizeObserver that the test triggers
         const observers: {targets: Set<unknown>, callback: (entries: {target: unknown}[]) => void}[] = []
