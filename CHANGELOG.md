@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- New package [`@threepipe/plugin-annotations`](https://threepipe.org/package/plugin-annotations.html): `AnnotationsPlugin`, 3D annotations like Sketchfab's. Numbered markers on objects with a title, a text and a saved camera view; a click flies the camera to the view. Editable mode to add, edit, move and delete (undoable). Saved in the viewer config and in the exported .glb. Example: `examples/annotations-plugin`
 - [`PerfPanelPlugin`](https://threepipe.org/plugin/PerfPanelPlugin.html): an opt-in FPS pill and performance card over the canvas (frame times, render CPU time, renders per second, draw calls and triangles of all passes, canvas, GPU, JS heap), with warnings for a capped frame rate (Chrome Energy Saver, Low Power Mode), CPU or GPU bound, battery, software rendering and a hidden tab. Stats in `stats` and the `update` event. Example: `examples/perf-panel-plugin`; also in the `tweakpane-editor` example (Debug tab)
 
 ### Changed

@@ -592,6 +592,7 @@ Many features will be added but the core API will not change significantly in fu
   - [@threepipe/plugin-timeline-ui](https://threepipe.org/package/plugin-timeline-ui.html) - A timeline UI component and plugin to manage global viewer timeline and animations
   - [@threepipe/plugin-r3f](https://threepipe.org/package/plugin-r3f.html) - React Three Fiber integration. Provides React components for declarative 3D experiences with ThreePipe viewer context
   - [@threepipe/plugin-troika-text](https://threepipe.org/package/plugin-troika-text.html) - [troika-three-text](https://protectwise.github.io/troika/troika-three-text/) integration plugin that provides high performance SDF Text
+  - [@threepipe/plugin-annotations](https://threepipe.org/package/plugin-annotations.html) - 3D annotations (hotspots): numbered markers on objects with a title, a text and a camera view, saved in the scene
 
 ## Documentation
 

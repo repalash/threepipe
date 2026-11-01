@@ -3,7 +3,9 @@ prev:
   text: '@threepipe/plugin-r3f'
   link: './plugin-r3f'
 
-next: false
+next:
+  text: '@threepipe/plugin-annotations'
+  link: './plugin-annotations'
 
 aside: false
 ---

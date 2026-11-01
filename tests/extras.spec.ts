@@ -8,6 +8,7 @@ setupTestHooks()
 // The beforeEach hook handles all of this — the test body just verifies the page title.
 
 test('3d-tiles-renderer', async({page}) => expect(page).toHaveTitle('3d Tiles Renderer'))
+test('annotations-plugin', async({page}) => expect(page).toHaveTitle('Annotations Plugin'))
 test('directional-light', async({page}) => expect(page).toHaveTitle('Directional Light'))
 test('drc-load', async({page}) => expect(page).toHaveTitle('DRACO(DRC) Load'))
 test('dropzone-plugin', async({page}) => expect(page).toHaveTitle('Dropzone Plugin'))
