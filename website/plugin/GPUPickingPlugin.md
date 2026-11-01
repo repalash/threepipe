@@ -40,7 +40,7 @@ const hit = gpuPicking.pick(x, y, (object) => object.userData.userSelectable !==
 - `object` - the front-most mesh under the point
 - `point` - the world position of the hit, at the centre of the canvas pixel under the point
 - `distance` - the distance along the camera ray, as `Raycaster.setFromCamera` makes it (from the camera, or from the plane of an orthographic camera)
-- `normal` - the world-space unit normal of the surface at the hit, on the side that the camera sees (flipped on a back face of a double-sided material and for a back-sided material, as three's shading does). It is the interpolated vertex normal, with skinning, morph targets and instancing. For a flat-shaded material or a geometry without normals, it is the flat face normal.
+- `normal` - the world-space unit normal of the surface at the hit, on the side that the camera sees (flipped on a back face of a double-sided material and for a back-sided material, as three's shading does). It is the interpolated vertex normal, with skinning, morph targets, instancing and batching. For a flat-shaded material or a geometry without normals, it is the flat face normal.
 
 The example draws the normal as an arrow at the picked point.
 
@@ -69,5 +69,5 @@ const hit = picker?.pick(x, y)
 - Transparent meshes are hit like opaque ones, and so are the parts that alpha test cuts away.
 - Fat lines (`Line2`), lines, points, objects outside the model root and meshes on layers that the main camera does not see are not drawn.
 - The meshes go on `GPUPickingPlugin.Layer` (29) during a pick. Do not use that layer for other renders.
-- Skinned, morphed and instanced meshes are drawn in their current pose. An instanced mesh is one object (no instance id).
+- Skinned, morphed (also per instance), instanced and batched meshes are drawn in their current pose. An instanced or batched mesh is one object (no instance id).
 - The normal does not include normal maps, bump maps or displacement.

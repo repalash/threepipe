@@ -29,9 +29,9 @@ export interface GPUPickResult {
     distance: number
     /**
      * World-space unit normal of the surface at the hit, on the side that the camera sees (flipped on the back face of a
-     * double-sided or back-sided material). It is the interpolated vertex normal (with skinning, morph targets and
-     * instancing), or the flat face normal for a flat-shaded material or a geometry without normals. Normal and bump maps
-     * are not applied.
+     * double-sided or back-sided material). It is the interpolated vertex normal (with skinning, morph targets,
+     * instancing and batching), or the flat face normal for a flat-shaded material or a geometry without normals. Normal
+     * and bump maps are not applied.
      */
     normal: Vector3
 }
@@ -78,7 +78,7 @@ export interface IGPUPicker {
  * front-most mesh (not the ones behind it), along camera rays only, and the read-back waits for the GPU. For other rays,
  * all the hits, or many queries in a frame, use the Raycaster (with a BVH on big meshes).
  *
- * - Skinned, morphed and instanced meshes are drawn in their current pose.
+ * - Skinned, morphed, instanced and batched meshes are drawn in their current pose (one object, no instance id).
  * - Each mesh (each geometry group of a multi-material mesh) draws with the side of its material, so a face that a
  *   render culls is not hit.
  * - Transparent meshes are hit like opaque ones, and so are the parts that alpha test cuts away.
@@ -124,11 +124,14 @@ export class GPUPickingPlugin extends AViewerPluginSync implements IGPUPicker {
         uniforms: {objectId: {value: 0}, flatNormal: {value: false}, flipSided: {value: false}},
         vertexShader: `
 #include <common>
+#include <batching_pars_vertex>
 #include <morphtarget_pars_vertex>
 #include <skinning_pars_vertex>
 varying vec3 vViewPosition;
 varying vec3 vViewNormal;
 void main() {
+#include <morphinstance_vertex>
+#include <batching_vertex>
 #include <beginnormal_vertex>
 #include <morphnormal_vertex>
 #include <skinbase_vertex>
@@ -236,6 +239,8 @@ void main() {
             p.fov = cam.fov
             p.aspect = cam.aspect
             p.zoom = cam.zoom
+            p.filmGauge = cam.filmGauge
+            p.filmOffset = cam.filmOffset
         } else {
             const o = pc as OrthographicCamera
             o.left = cam.left
