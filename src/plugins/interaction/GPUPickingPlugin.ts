@@ -1,7 +1,8 @@
 import {
+    BackSide,
     Color,
-    DoubleSide,
     FloatType,
+    FrontSide,
     Material,
     Mesh,
     NearestFilter,
@@ -27,9 +28,10 @@ export interface GPUPickResult {
     /** Distance along the camera ray, as `Raycaster.setFromCamera` makes it (from the camera, or its plane for an orthographic camera) */
     distance: number
     /**
-     * World-space unit normal of the surface at the hit, on the side that the camera sees (flipped on a back face). It
-     * is the interpolated vertex normal (with skinning, morph targets and instancing), or the flat face normal for a
-     * flat-shaded material or a geometry without normals. Normal and bump maps are not applied.
+     * World-space unit normal of the surface at the hit, on the side that the camera sees (flipped on the back face of a
+     * double-sided or back-sided material). It is the interpolated vertex normal (with skinning, morph targets and
+     * instancing), or the flat face normal for a flat-shaded material or a geometry without normals. Normal and bump maps
+     * are not applied.
      */
     normal: Vector3
 }
@@ -77,6 +79,8 @@ export interface IGPUPicker {
  * all the hits, or many queries in a frame, use the Raycaster (with a BVH on big meshes).
  *
  * - Skinned, morphed and instanced meshes are drawn in their current pose.
+ * - Each mesh (each geometry group of a multi-material mesh) draws with the side of its material, so a face that a
+ *   render culls is not hit.
  * - Transparent meshes are hit like opaque ones, and so are the parts that alpha test cuts away.
  * - Fat lines (Line2), points, lines, objects outside the model root and meshes on layers that the main camera does not
  *   see are not drawn.
@@ -117,7 +121,7 @@ export class GPUPickingPlugin extends AViewerPluginSync implements IGPUPicker {
      * view-space normal with z < 0 (near the edges of the view). In a float target the encoding loses about 1e-7 rad.
      */
     private _material = new ShaderMaterial({
-        uniforms: {objectId: {value: 0}, flatNormal: {value: false}},
+        uniforms: {objectId: {value: 0}, flatNormal: {value: false}, flipSided: {value: false}},
         vertexShader: `
 #include <common>
 #include <morphtarget_pars_vertex>
@@ -130,6 +134,10 @@ void main() {
 #include <skinbase_vertex>
 #include <skinnormal_vertex>
 #include <defaultnormal_vertex>
+#ifdef FLIP_SIDED
+    // undo it: the side changes per draw without a new program, the fragment shader flips by the flipSided uniform
+    transformedNormal = - transformedNormal;
+#endif
 #include <begin_vertex>
 #include <morphtarget_vertex>
 #include <skinning_vertex>
@@ -140,6 +148,7 @@ void main() {
         fragmentShader: `
 uniform float objectId;
 uniform bool flatNormal;
+uniform bool flipSided;
 varying vec3 vViewPosition;
 varying vec3 vViewNormal;
 vec2 octEncode(vec3 n) {
@@ -153,12 +162,13 @@ void main() {
         n = normalize(cross(dFdx(vViewPosition), dFdy(vViewPosition)));
         if (dot(n, vViewPosition) > 0.) n = -n;
     } else {
-        // the interpolated normal, flipped on a back face, as three's double-sided shading does
-        n = normalize(vViewNormal) * (gl_FrontFacing ? 1. : -1.);
+        // the interpolated normal toward the camera, as three shades it: flipped on a back face of a double-sided
+        // material, and for a back-sided one (three draws it with the front-face winding turned, so gl_FrontFacing is
+        // true on its visible faces)
+        n = normalize(vViewNormal) * (gl_FrontFacing ? 1. : -1.) * (flipSided ? -1. : 1.);
     }
     gl_FragColor = vec4(objectId, -vViewPosition.z, octEncode(n));
 }`,
-        side: DoubleSide,
     })
 
     constructor(enabled = true) {
@@ -172,6 +182,10 @@ void main() {
             const index = (group as unknown as {materialIndex?: number} | null)?.materialIndex ?? 0
             const material = (Array.isArray(m) ? m[index] : m) as Material & {flatShading?: boolean} | undefined
             uniforms.flatNormal.value = !geometry.attributes.normal || !!material?.flatShading
+            // the faces that a render draws: three culls by this side at the draw (state.setMaterial). It does not build a
+            // new program for it (the side does not change the material version), so the shaders do not use FLIP_SIDED.
+            this._material.side = material?.side ?? FrontSide
+            uniforms.flipSided.value = this._material.side === BackSide
             this._material.uniformsNeedUpdate = true
         }
     }

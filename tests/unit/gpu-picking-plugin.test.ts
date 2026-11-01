@@ -3,16 +3,20 @@
  * depth and the normal (perspective and orthographic cameras), the filter, and the renderer and layer state put back
  * after a pick. The renderer is a stand-in: its render() raycasts through the centre of the picking camera's view and
  * writes what the GPU would for the front hit: the id, the view depth, and the view-space normal (normal matrix,
- * flipped on a back face) octahedral-encoded in blue and alpha.
+ * flipped on a back face) octahedral-encoded in blue and alpha. Like the GPU, it culls each draw (mesh, or geometry
+ * group of a multi-material mesh) by the `side` that the override material has after its onBeforeRender.
  */
 import {beforeAll, describe, expect, test} from 'vitest'
 import {
+    BackSide,
     BoxGeometry,
     BufferGeometry,
     Camera,
     Color,
     DoubleSide,
+    FrontSide,
     Intersection,
+    Material,
     Matrix3,
     Matrix4,
     Mesh,
@@ -33,6 +37,7 @@ beforeAll(async() => {
 })
 
 const W = 200, H = 100
+const doubleSided = new MeshBasicMaterial({side: DoubleSide})
 
 /** Octahedral encoding of a unit vector into [-1, 1]², as the fragment shader of the plugin writes it */
 function octEncode(n: Vector3): [number, number] {
@@ -78,19 +83,34 @@ function setup(camera: Camera) {
             const rc = new Raycaster()
             rc.layers.mask = cam.layers.mask // what the picking camera draws
             rc.setFromCamera(new Vector2(0, 0), cam) // the centre of the 1×1 view
-            const hit = rc.intersectObjects(meshes, false)[0]
+            // all the faces along the ray, both sides (the meshes' own materials swapped for double-sided ones)
+            const own = meshes.map(m => m.material)
+            meshes.forEach(m => m.material = Array.isArray(m.material) ? m.material.map(() => doubleSided) : doubleSided)
+            const hits = rc.intersectObjects(meshes, false)
+            meshes.forEach((m, i) => m.material = own[i])
             renderer.pixel = [0, 0, 0, 0]
-            if (!hit) return
             const mat = scene.overrideMaterial
-            mat.onBeforeRender(renderer, scene, cam, (hit.object as Mesh).geometry, hit.object, null)
-            state.flatNormal = mat.uniforms.flatNormal.value
-            const viewZ = -hit.point.clone().applyMatrix4(cam.matrixWorldInverse).z
-            // the vertex shader: normalMatrix (of the model-view matrix) times the object normal; the fragment shader
-            // flips it on a back face (gl_FrontFacing)
-            const modelView = new Matrix4().multiplyMatrices(cam.matrixWorldInverse, hit.object.matrixWorld)
-            const n = hit.face!.normal.clone().applyMatrix3(new Matrix3().getNormalMatrix(modelView)).normalize()
-            if (n.dot(rc.ray.direction.clone().transformDirection(cam.matrixWorldInverse)) > 0) n.negate()
-            renderer.pixel = [mat.uniforms.objectId.value, viewZ, ...octEncode(n)]
+            const rayView = rc.ray.direction.clone().transformDirection(cam.matrixWorldInverse)
+            for (const hit of hits) {
+                const mesh = hit.object as Mesh
+                // three passes the geometry group of a multi-material mesh, else null
+                mat.onBeforeRender(renderer, scene, cam, mesh.geometry, mesh, Array.isArray(mesh.material) ? {materialIndex: hit.face!.materialIndex} : null)
+                // the vertex shader: normalMatrix (of the model-view matrix) times the object normal
+                const modelView = new Matrix4().multiplyMatrices(cam.matrixWorldInverse, mesh.matrixWorld)
+                const n = hit.face!.normal.clone().applyMatrix3(new Matrix3().getNormalMatrix(modelView)).normalize()
+                const front = n.dot(rayView) < 0
+                if (mat.side === FrontSide && !front || mat.side === BackSide && front) continue // culled
+                state.flatNormal = mat.uniforms.flatNormal.value
+                const viewZ = -hit.point.clone().applyMatrix4(cam.matrixWorldInverse).z
+                // gl_FrontFacing: three draws a back-sided material with the front-face winding turned (setFlipSided), so
+                // its visible faces are front facing there. The fragment shader flips the normal by gl_FrontFacing and the
+                // flipSided uniform.
+                const frontFacing = front !== (mat.side === BackSide)
+                if (!frontFacing) n.negate()
+                if (mat.uniforms.flipSided.value) n.negate()
+                renderer.pixel = [mat.uniforms.objectId.value, viewZ, ...octEncode(n)]
+                return
+            }
         },
         readRenderTargetPixels: (_t: any, _x: number, _y: number, _w: number, _h: number, out: Float32Array) => out.set(renderer.pixel),
     }
@@ -175,6 +195,61 @@ describe('GPUPickingPlugin', () => {
                 expect(result!.normal.angleTo(front.clone().negate())).toBeLessThan(1e-5)
                 expect(result!.normal.dot(ref!.ray)).toBeLessThan(0)
             }
+        })
+
+        test(`${name}: an unseen back face of a front-sided mesh does not hide the mesh behind it`, () => {
+            const {plugin, near, far, camera} = setup(make())
+            near.geometry = new PlaneGeometry(2, 2) // FrontSide (the default)
+            near.rotation.set(0.3, Math.PI * 0.8, 0) // its front faces away from the camera
+            near.updateMatrixWorld(true)
+            for (const [x, y] of [[100.5, 50.5], [95.5, 47.5], [104.5, 53.5]]) {
+                const result = plugin.pick(x, y)
+                const ref = raycast(camera, [near, far], x, y)
+                expect(ref?.object).toBe(far)
+                expect(result?.object).toBe(far)
+                expect(result!.point.distanceTo(ref!.point)).toBeLessThan(1e-5)
+                expect(result!.normal.angleTo(faceNormal(ref!))).toBeLessThan(1e-5)
+            }
+        })
+
+        test(`${name}: a back-sided mesh is hit on its far side, with the normal toward the camera`, () => {
+            const {plugin, near, far, camera} = setup(make())
+            ;(near.material as MeshBasicMaterial).side = BackSide
+            for (const [x, y] of [[100.5, 50.5], [97.5, 48.5], [102.5, 51.5]]) {
+                const result = plugin.pick(x, y)
+                const ref = raycast(camera, [near, far], x, y)
+                expect(ref?.object).toBe(near)
+                expect(result?.object).toBe(near)
+                expect(result!.point.z).toBeCloseTo(0.5, 5) // the inside of the far face of the box
+                expect(result!.point.distanceTo(ref!.point)).toBeLessThan(1e-5)
+                expect(result!.normal.angleTo(faceNormal(ref!))).toBeLessThan(1e-5)
+                expect(result!.normal.angleTo(new Vector3(0, 0, 1))).toBeLessThan(1e-5)
+            }
+        })
+
+        test(`${name}: each geometry group of a multi-material mesh is culled by the side of its own material`, () => {
+            const {plugin, near, far, camera} = setup(make())
+            // the box groups: 0..5 = +x, -x, +y, -y, +z (toward the camera), -z
+            const sides = (front: Material['side'], back: Material['side']) => {
+                near.material = [0, 1, 2, 3, 4, 5].map(i => new MeshBasicMaterial({side: i === 4 ? front : i === 5 ? back : FrontSide}))
+            }
+            const check = (object: Mesh, z: number) => {
+                for (const [x, y] of [[100.5, 50.5], [98.5, 49.5]]) {
+                    const result = plugin.pick(x, y)
+                    const ref = raycast(camera, [near, far], x, y)
+                    expect(ref?.object).toBe(object)
+                    expect(result?.object).toBe(object)
+                    expect(result!.point.z).toBeCloseTo(z, 5)
+                    expect(result!.normal.angleTo(faceNormal(ref!))).toBeLessThan(1e-5)
+                    expect(result!.normal.angleTo(new Vector3(0, 0, 1))).toBeLessThan(1e-5)
+                }
+            }
+            sides(BackSide, DoubleSide) // the near face is culled, the far face is seen from inside
+            check(near, 0.5)
+            sides(BackSide, FrontSide) // both culled: the box behind
+            check(far, -2.5)
+            sides(FrontSide, BackSide) // the near face
+            check(near, 1.5)
         })
     }
 
