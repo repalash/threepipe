@@ -1,4 +1,4 @@
-import {AViewerPluginSync, createStyles, onChange, ThreeViewer} from 'threepipe'
+import {AViewerPluginSync, createStyles, onChange, raiseOnPress, ThreeViewer} from 'threepipe'
 import {UiObjectConfig} from 'uiconfig.js'
 import {delegate, DelegateInstance} from 'tippy.js'
 import {NoteItem, NotesPlugin} from './NotesPlugin'
@@ -38,6 +38,8 @@ interface StickyState {
     board?: Record<string, Box>
     /** The note ids from the bottom to the top: the order of the board and of the pile */
     order?: string[]
+    /** The move of the dock from its corner, where the person dragged it, in px */
+    dock?: {x: number, y: number}
 }
 
 /** The size of the canvas, in px */
@@ -114,9 +116,13 @@ const STORE_ICONS: Record<string, string> = {
  * - The icon on a note shows its store; a click opens the same menu, to move the note.
  * - Each note has "Add the time and the selection" ({@link NotesPlugin.contextLine}), "Copy the text" (the icon shows a
  *   check for a moment) and "Delete".
+ * - "Add a note" opens the post-it by the dock: above it, or below it when the dock is at the top of the canvas. Notes
+ *   added in code ({@link NotesPlugin.addNote}) go in the columns of {@link arrange}.
  * - Drag a post-it by its bar, and size it from its bottom right corner. A click on a post-it brings it up.
- * - The places, the sizes, the order, the layout and the colour are kept in `localStorage` ({@link storageKey}), not in
- *   the file.
+ * - Drag the dock by its handle (the dots at its left) or its free part, to move it out of the way; a double click there
+ *   puts it back in its corner, as does "Reset places". The board and the pile keep their places above the corner.
+ * - The places, the sizes, the order, the layout, the colour and the place of the dock are kept in `localStorage`
+ *   ({@link storageKey}), not in the file.
  *
  * The post-its fill the nearest positioned ancestor of the layer, so the viewer container must be positioned (for
  * example `position: relative`) for the post-its to stay inside the canvas. The post-its and the dock are above the
@@ -160,9 +166,10 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
     readonly element: HTMLDivElement
 
     /**
-     * The buttons at the bottom left of the canvas: add a note, the store of new notes, arrange, the layout and
-     * minimise (in the `minimized` layout, the button that brings the post-its back). Place it with its style
-     * when the corner is taken, e.g. `dock.style.bottom = '56px'`; the pile starts above it.
+     * The buttons at the bottom left of the canvas, after a drag handle: add a note, the store of new notes, arrange,
+     * the layout and minimise (in the `minimized` layout, the button that brings the post-its back). Place it with its
+     * style when the corner is taken, e.g. `dock.style.bottom = '56px'`; the pile starts above it. The person can drag
+     * it elsewhere: that move is its `transform`, so do not set one.
      */
     readonly dock: HTMLDivElement
 
@@ -171,6 +178,7 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
     private _cardsBox: HTMLDivElement
     /** The layer of the menus, next to {@link element}: at the level of the popups of the page, above its bars */
     private _popups: HTMLDivElement
+    private _unraise?: () => void
     private _cards = new Map<string, NoteCard>()
     /** The post-it of each card element, for the ResizeObserver */
     private _byElement = new WeakMap<Element, NoteCard>()
@@ -192,14 +200,20 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
     /** The button that opened the menu: a click on it again closes the menu */
     private _menuAnchor?: HTMLElement
     private _ready = false
+    /** A note that is made now comes from "Add a note": its post-it opens by the dock */
+    private _addAtDock = false
     /**
-     * Watches the layer (the canvas changes size, also without a window resize) and each post-it (a size from its
-     * corner)
+     * Watches the layer (the canvas changes size, also without a window resize), the dock (a button shows or hides, so
+     * a dragged dock can go past the edge) and each post-it (a size from its corner)
      */
     private _resizer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(entries => {
         for (const {target} of entries) {
             if (target === this.element) {
                 this._onResize()
+                continue
+            }
+            if (target === this.dock) {
+                this._placeDock()
                 continue
             }
             const c = this._byElement.get(target)
@@ -241,6 +255,8 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         this._cardsBox = el('div', 'snp-cards')
         this._popups = el('div', 'snp-layer snp-popups')
         this.dock = el('div', 'snp-dock')
+        const grip = this.dock.appendChild(el('div', 'snp-grip'))
+        grip.dataset.tip = 'Drag to move the buttons; double-click to put them back'
         const add = button(ICONS.add, 'Add a note', () => this.addNote(), 'snp-add')
         this._storeButton = button('', '', () => this._openMenu(this._storeButton, 'Save new notes in', id => this._setDefaultStore(id), this._notes?.defaultStore), 'snp-store')
         this._arrangeButton = button(ICONS.arrange, 'Arrange the post-its in columns', () => this.arrange())
@@ -252,6 +268,7 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         for (const b of [add, this._storeButton, this._arrangeButton, this._layoutButton, minimize, this._restoreButton]) this.dock.appendChild(b)
         this.element.appendChild(this._cardsBox)
         this.element.appendChild(this.dock)
+        this._draggableDock()
         // a focus (the cursor in a note, a phone keyboard) can scroll a box that hides its overflow: the post-its would
         // move away from their places and not come back
         this.element.addEventListener('scroll', () => this.element.scrollTop = this.element.scrollLeft = 0)
@@ -279,6 +296,8 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         this._notes?.addEventListener('defaultStoreChange', this._onDefaultStore)
         viewer.container.appendChild(this.element)
         viewer.container.appendChild(this._popups)
+        // a press on a post-it or the dock brings the notes above other panels (the open perf card)
+        this._unraise = raiseOnPress(this.element)
         // one tooltip for each button with a data-tip, read when it shows (the layout and store buttons change it);
         // in the viewer container, so it shows in full screen too, and inside it (the buttons of a post-it at the top
         // of the canvas show theirs below, not under the bars of the page)
@@ -292,9 +311,13 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
             },
         })
         // the post-its stay inside the canvas when it changes size; without a ResizeObserver, on a window resize
-        if (this._resizer) this._resizer.observe(this.element)
+        if (this._resizer) {
+            this._resizer.observe(this.element)
+            this._resizer.observe(this.dock)
+        }
         else window.addEventListener('resize', this._onResize)
         this._showStore()
+        this._placeDock()
         this._sync()
     }
 
@@ -310,17 +333,28 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         this._resizer?.disconnect()
         for (const c of this._cards.values()) c.card.remove()
         this._cards.clear()
+        this._unraise?.()
+        this._unraise = undefined
         this.element.remove()
         this._popups.remove()
         this._notes = undefined
         super.onRemove(viewer)
     }
 
-    /** Makes a note on top, with the cursor in it ({@link NotesPlugin.defaultStore} when no store is named) */
+    /**
+     * Makes a note on top, with the cursor in it ({@link NotesPlugin.defaultStore} when no store is named). On the
+     * board, its post-it opens by the dock (above it, or below it when the dock is at the top), inside the canvas.
+     */
     addNote(store?: string) {
         this._closeMenu()
         if (this.layout === 'minimized') this._restore()
-        const note = this._notes?.addNote('', store)
+        this._addAtDock = true
+        let note: NoteItem | undefined
+        try {
+            note = this._notes?.addNote('', store)
+        } finally {
+            this._addAtDock = false
+        }
         if (note) this._cards.get(note.id)?.text.focus({preventScroll: true})
         return note
     }
@@ -351,10 +385,12 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         this._layoutCards(true)
     }
 
-    /** Forgets the places and sizes: the board is arranged again, the pile goes back to its corner */
+    /** Forgets the places and sizes: the board is arranged again, the pile and the dock go back to their corner */
     resetPlaces() {
         this._state.stack = {}
         this._state.board = {}
+        this._state.dock = undefined
+        this._placeDock()
         this.arrange()
     }
 
@@ -389,6 +425,7 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         this._layoutButton.innerHTML = board ? ICONS.stack : ICONS.spread
         setTip(this._layoutButton, board ? 'Stack: put the post-its on a pile' : 'Spread: a post-it per note on the board')
         this._showStore()
+        this._placeDock() // another number of buttons: another width
     }
 
     /** The icon and tooltip of the store of new notes; hidden with one store */
@@ -430,7 +467,10 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
 
     private _onDefaultStore = () => this._showStore()
 
-    private _onResize = () => this._layoutCards(false)
+    private _onResize = () => {
+        this._placeDock()
+        this._layoutCards(false)
+    }
 
     /**
      * Makes the post-its of new notes, removes those of removed notes and updates the others, then lays them out. A
@@ -455,8 +495,9 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
             }
             this._showNote(c, note)
         }
-        // a note made now goes on top
+        // a note made now goes on top; from "Add a note", on the board, by the dock
         if (added) this._setOrder([...this._order().filter(o => o !== added), added])
+        if (added && this._addAtDock && this.layout === 'board') (this._state.board ??= {})[added] = this._placeByDock()
         this._showCount()
         // the order with the new note on top is saved (in the stack layout, nothing else saves it)
         if (!this._layoutCards(!!added) && added) this._writeState()
@@ -552,6 +593,63 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
             }
         }
         return false
+    }
+
+    /**
+     * Where a post-it from "Add a note" goes: at the left edge of the dock as shown (dragged or not), above it, or below
+     * it when there is no room above; inside the canvas
+     */
+    private _placeByDock(): Box {
+        const d = this.dock, move = this._placeDock(), size = this._size()
+        const left = d.offsetLeft + move.x, top = d.offsetTop + move.y
+        const above = top - GAP - NOTE_H
+        const {x, y} = this._clamp({x: left, y: above >= 0 ? above : top + d.offsetHeight + GAP}, size)
+        return {x, y}
+    }
+
+    /**
+     * Moves the dock from its corner to where the person dragged it ({@link StickyState.dock}), inside the canvas (the
+     * kept move stays, so a larger canvas shows it there again). Returns the move shown.
+     */
+    private _placeDock() {
+        const d = this.dock, move = this._state.dock
+        if (!move) {
+            d.style.transform = ''
+            return {x: 0, y: 0}
+        }
+        const {width, height} = this._size()
+        const x = within(move.x, -d.offsetLeft, width - d.offsetWidth - d.offsetLeft)
+        const y = within(move.y, -d.offsetTop, height - d.offsetHeight - d.offsetTop)
+        d.style.transform = `translate(${x}px, ${y}px)`
+        return {x, y}
+    }
+
+    /**
+     * Drags the dock by its handle or its free part (a press on a button is a click), after {@link DRAG_START} px. A
+     * double click there puts it back in its corner.
+     */
+    private _draggableDock() {
+        const dock = this.dock
+        const onButton = (e: Event) => !!(e.target as HTMLElement).closest?.('button')
+        dock.addEventListener('pointerdown', (e: PointerEvent) => {
+            if (e.button !== 0 || onButton(e)) return
+            e.preventDefault()
+            this._closeMenu()
+            const start = this._placeDock()
+            trackDrag(dock, e, (dx, dy) => {
+                this._state.dock = {x: start.x + dx, y: start.y + dy}
+                this._placeDock()
+            }, () => {
+                this._state.dock = this._placeDock() // the place kept is the one shown
+                this._writeState()
+            }, this.element)
+        })
+        dock.addEventListener('dblclick', (e: MouseEvent) => {
+            if (onButton(e)) return
+            this._state.dock = undefined
+            this._placeDock()
+            this._writeState()
+        })
     }
 
     /** The lowest edge of a post-it placed on the board: above the dock */
@@ -700,10 +798,7 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         c.badge.dataset.status = status
     }
 
-    /**
-     * Drags a post-it by its bar (the pile, in the stack layout). The pointer is captured on the bar, so the post-it
-     * follows it also outside the bar, and the drag ends on release, cancel or a lost capture.
-     */
+    /** Drags a post-it by its bar (the pile, in the stack layout), after {@link DRAG_START} px */
     private _draggable(c: NoteCard) {
         const bar = c.bar
         bar.addEventListener('pointerdown', (e: PointerEvent) => {
@@ -714,17 +809,8 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
             const stack = this.layout === 'stack'
             const size = this._size()
             const start = stack ? this._pileBox(size) : this._clamp(this._state.board?.[c.note.id] ?? {}, size)
-            const sx = e.clientX, sy = e.clientY
-            let moving = false
-            bar.setPointerCapture?.(e.pointerId)
-            const move = (ev: PointerEvent) => {
-                const dx = ev.clientX - sx, dy = ev.clientY - sy
-                if (!moving && Math.abs(dx) + Math.abs(dy) < DRAG_START) return
-                if (!moving) {
-                    moving = true
-                    this.element.classList.add('snp-dragging')
-                    c.card.classList.add('snp-lifted')
-                }
+            trackDrag(bar, e, (dx, dy) => {
+                c.card.classList.add('snp-lifted')
                 const x = (start.x ?? 0) + dx, y = (start.y ?? 0) + dy
                 if (stack) {
                     this._state.stack = {...this._state.stack, x, y}
@@ -734,15 +820,7 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
                     const box = (this._state.board ??= {})[c.note.id] = {...this._state.board?.[c.note.id], x, y}
                     this._setBox(c, this._clamp(box, size))
                 }
-            }
-            const end = () => {
-                bar.removeEventListener('pointermove', move)
-                bar.removeEventListener('pointerup', end)
-                bar.removeEventListener('pointercancel', end)
-                bar.removeEventListener('lostpointercapture', end)
-                this.element.classList.remove('snp-dragging')
-                c.card.classList.remove('snp-lifted')
-                if (!moving) return
+            }, () => {
                 // the place kept is the one inside the canvas
                 if (stack) {
                     const pile = this._pileBox()
@@ -754,11 +832,7 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
                     board[c.note.id] = {...board[c.note.id], x, y}
                 }
                 this._writeState()
-            }
-            bar.addEventListener('pointermove', move)
-            bar.addEventListener('pointerup', end)
-            bar.addEventListener('pointercancel', end)
-            bar.addEventListener('lostpointercapture', end)
+            }, this.element, () => c.card.classList.remove('snp-lifted'))
         })
     }
 
@@ -879,6 +953,43 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         if (this._notes) this._setOrder(this._order())
         writeStored(this.storageKey, JSON.stringify(this._state))
     }
+}
+
+/**
+ * Follows a press on `handle` that moves at least {@link DRAG_START} px: `move` gets the distance from the press each
+ * time, `end` runs after a drag (not after a click), `release` after any press. The pointer is captured on the handle, so
+ * the drag goes on outside it, and it ends on release, cancel or a lost capture. `layer` has `snp-dragging` during a
+ * drag (the grabbing cursor, no tooltips).
+ */
+function trackDrag(handle: HTMLElement, e: PointerEvent, move: (dx: number, dy: number) => void, end: () => void, layer: HTMLElement, release?: () => void) {
+    const sx = e.clientX, sy = e.clientY
+    let moving = false
+    handle.setPointerCapture?.(e.pointerId)
+    const onMove = (ev: PointerEvent) => {
+        const dx = ev.clientX - sx, dy = ev.clientY - sy
+        if (!moving && Math.abs(dx) + Math.abs(dy) < DRAG_START) return
+        if (!moving) layer.classList.add('snp-dragging')
+        moving = true
+        move(dx, dy)
+    }
+    const onEnd = () => {
+        handle.removeEventListener('pointermove', onMove)
+        handle.removeEventListener('pointerup', onEnd)
+        handle.removeEventListener('pointercancel', onEnd)
+        handle.removeEventListener('lostpointercapture', onEnd)
+        layer.classList.remove('snp-dragging')
+        release?.()
+        if (moving) end()
+    }
+    handle.addEventListener('pointermove', onMove)
+    handle.addEventListener('pointerup', onEnd)
+    handle.addEventListener('pointercancel', onEnd)
+    handle.addEventListener('lostpointercapture', onEnd)
+}
+
+/** v between min and max; min when the range is empty (a dock wider than the canvas keeps its left edge inside) */
+function within(v: number, min: number, max: number) {
+    return Math.max(min, Math.min(max, v))
 }
 
 /** An element with a class and a text */
