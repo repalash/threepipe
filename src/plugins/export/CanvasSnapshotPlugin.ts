@@ -60,6 +60,11 @@ export class CanvasSnapshotPlugin extends AViewerPluginSync {
     }
 
     private async _getFile(filename: string, options: CanvasSnapshotPluginOptions = {}): Promise<File|string|string[]|undefined> {
+        // a disabled viewer (viewer.enabled false, also after a lost WebGL context) renders no frame to wait for
+        if (this._viewer && !this._viewer.enabled) {
+            this._viewer.console.warn('CanvasSnapshotPlugin: the viewer is disabled, no frame to capture')
+            return undefined
+        }
         await this._viewer?.doOnce('postFrame')
         const viewer = this._viewer
         const canvas = this._viewer?.canvas
