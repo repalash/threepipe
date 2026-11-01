@@ -247,6 +247,62 @@ describe('PerfPanelPlugin', () => {
         expect(observed.size).toBe(0)
     })
 
+    test('after a drag, Enter or Space (a click without a press) still opens and collapses the panel', () => {
+        const {viewer} = makeViewer()
+        Object.assign(viewer.container, {clientWidth: 800, clientHeight: 600})
+        const p = new PerfPanelPlugin()
+        p.onAdded(viewer)
+        const root = el(p), pill = root.find('pp-pill'), head = root.find('pp-head')
+        Object.assign(root, {offsetLeft: 10, offsetTop: 568, offsetWidth: 60, offsetHeight: 22})
+        // a drag that ends outside the pill: the browser sends no click, so nothing clears the drag
+        pill.fire('pointerdown', {clientX: 100, clientY: 100})
+        pill.fire('pointermove', {clientX: 300, clientY: 0})
+        pill.fire('pointerup')
+        expect(p.collapsed).toBe(true)
+        pill.fire('click', {detail: 0}) // Enter on the focused pill
+        expect(p.collapsed).toBe(false)
+        head.fire('click', {detail: 0}) // Space on the focused header
+        expect(p.collapsed).toBe(true)
+        // the click that ends a drag still does nothing
+        pill.fire('pointerdown', {clientX: 100, clientY: 100})
+        pill.fire('pointermove', {clientX: 150, clientY: 100})
+        pill.fire('pointerup')
+        pill.fire('click', {detail: 1})
+        expect(p.collapsed).toBe(true)
+        p.onRemove(viewer)
+    })
+
+    test('a dragged panel that grows (a new warning, the open card) is moved back inside', () => {
+        type Callback = () => void
+        const observed = new Map<unknown, Callback>()
+        vi.stubGlobal('ResizeObserver', class {
+            constructor(public callback: Callback) {}
+            observe(t: unknown) {
+                observed.set(t, this.callback)
+            }
+            disconnect() {
+                observed.clear()
+            }
+        })
+        const {viewer} = makeViewer()
+        Object.assign(viewer.container, {clientWidth: 800, clientHeight: 600})
+        const p = new PerfPanelPlugin({collapsed: false})
+        p.onAdded(viewer)
+        const root = el(p), head = root.find('pp-head')
+        // the open card at the bottom left, dragged to the top edge
+        Object.assign(root, {offsetLeft: 10, offsetTop: 321, offsetWidth: 248, offsetHeight: 269})
+        head.fire('pointerdown', {clientX: 100, clientY: 100})
+        head.fire('pointermove', {clientX: 100, clientY: -5000})
+        head.fire('pointerup')
+        expect(root.style.transform).toBe('translate(0px, -321px)')
+        // a warning makes it 60 px taller: it grows up from the bottom corner, so its top would go out
+        Object.assign(root, {offsetTop: 261, offsetHeight: 329})
+        expect(observed.has(root)).toBe(true)
+        observed.get(root)!()
+        expect(root.style.transform).toBe('translate(0px, -261px)')
+        p.onRemove(viewer)
+    })
+
     test('enabled, collapsed and position set in code refresh the plugin UI', () => {
         const p = new PerfPanelPlugin()
         const uiRefresh = vi.fn()

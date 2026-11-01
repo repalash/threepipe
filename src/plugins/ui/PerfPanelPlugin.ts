@@ -173,8 +173,8 @@ export class PerfPanelPlugin extends AViewerPluginSync<PerfPanelPluginEventMap> 
 
         this._warns = h('div', 'pp-warns', card)
 
-        this._pill.addEventListener('click', () => this._dragged || (this.collapsed = false))
-        head.addEventListener('click', () => this._dragged || (this.collapsed = true))
+        this._pill.addEventListener('click', this._onClick(() => this.collapsed = false))
+        head.addEventListener('click', this._onClick(() => this.collapsed = true))
         this._pill.addEventListener('pointerdown', this._onPress)
         head.addEventListener('pointerdown', this._onPress)
     }
@@ -240,6 +240,8 @@ export class PerfPanelPlugin extends AViewerPluginSync<PerfPanelPluginEventMap> 
         if (typeof ResizeObserver !== 'undefined') {
             this._resizer = new ResizeObserver(this._place)
             this._resizer.observe(container)
+            // the panel too: a warning or the open card makes it taller, which can move a dragged panel out
+            this._resizer.observe(this.element)
         } else window.addEventListener('resize', this._place)
         viewer.addEventListener('preRender', this._onPreRender)
         viewer.addEventListener('postRender', this._onPostRender)
@@ -389,6 +391,16 @@ export class PerfPanelPlugin extends AViewerPluginSync<PerfPanelPluginEventMap> 
     // endregion
 
     // region view
+
+    /**
+     * A click on the pill or the card header, except the click that ends a drag. A click from the keyboard (Enter or
+     * Space, `detail` 0) always counts: it has no press, so it would otherwise see the flag of an earlier drag.
+     */
+    private _onClick = (action: () => void) => (e: MouseEvent) => {
+        const endsDrag = this._dragged && e.detail !== 0
+        this._dragged = false
+        if (!endsDrag) action()
+    }
 
     /**
      * A press on the pill or the card header: after {@link DRAG_START} px it drags the panel. The pointer is captured
