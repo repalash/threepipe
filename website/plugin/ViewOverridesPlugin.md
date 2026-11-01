@@ -50,7 +50,7 @@ overrides.setMaterial('uv')
 overrides.uvChannel = 1 // the uv1 set
 
 await overrides.setLighting('env-studio') // resolves when the map is loaded and applied
-overrides.lightsKeepEnvironment = true // for the next lights preset
+overrides.lightsKeepEnvironment = true // keep the environment map (reflections) with the lights preset that is on
 await overrides.setLighting('lights-night')
 
 overrides.clear() // the scene as it is

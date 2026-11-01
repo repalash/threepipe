@@ -138,6 +138,22 @@ describe('ViewOverridesPlugin', {timeout}, () => {
         expect(during.presetLights).toBe(2)
     })
 
+    test('lightsKeepEnvironment changed while a lights preset is on applies at once; an env preset keeps its map', async() => {
+        const tex = new Texture()
+        const {plugin, render} = setup(async() => tex)
+        await plugin.setLighting('lights-studio')
+        expect(render().overrideEnvironment?.name).toBe('View Override No Environment')
+        plugin.lightsKeepEnvironment = true
+        expect(render().overrideEnvironment).toBe(null) // the scene environment, with the preset lights
+        expect(render().presetLights).toBe(4)
+        plugin.lightsKeepEnvironment = false
+        expect(render().overrideEnvironment?.name).toBe('View Override No Environment')
+        // an env preset replaces the environment: the flag does not change it
+        await plugin.setLighting('env-studio')
+        plugin.lightsKeepEnvironment = true
+        expect(render().overrideEnvironment).toBe(tex)
+    })
+
     test('an env preset loads its map once, shows loading, and is applied when loaded', async() => {
         const tex = new Texture()
         const {plugin, viewer, render, real} = setup(async() => tex)

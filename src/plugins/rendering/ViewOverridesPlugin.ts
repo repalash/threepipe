@@ -124,9 +124,21 @@ export class ViewOverridesPlugin extends AViewerPluginSync<ViewOverridesPluginEv
 
     /**
      * False (default): the 'lights' presets also turn off the environment map, so the image shows only the preset
-     * lights. True: the scene environment stays on with the preset lights. Applies to the next {@link setLighting}.
+     * lights. True: the scene environment stays on with the preset lights. A change applies at once to the 'lights'
+     * preset that is on (no effect on the 'env' presets, which replace the environment).
      */
-    lightsKeepEnvironment = false
+    get lightsKeepEnvironment() {
+        return this._keepEnvironment
+    }
+    set lightsKeepEnvironment(keep: boolean) {
+        if (keep === this._keepEnvironment) return
+        this._keepEnvironment = keep
+        const preset = this._lighting ? this.lightingPresets.find(p => p.key === this._lighting) : undefined
+        if (!preset || preset.url) return
+        this._environment = keep ? null : this._black
+        this._changed()
+    }
+    private _keepEnvironment = false
 
     /**
      * Holds the preset lights, in the scene root (not in the model root), so they are not selectable or exported.
