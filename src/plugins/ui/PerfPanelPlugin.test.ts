@@ -9,7 +9,15 @@ class FakeElement {
     children: FakeElement[] = []
     parent?: FakeElement
     className = ''
-    style: Record<string, string> = {}
+    // the inline style, with setProperty / removeProperty for custom properties (raiseOnPress sets --ui-raise)
+    style: Record<string, any> = {
+        setProperty(k: string, v: string) {
+            this[k] = v
+        },
+        removeProperty(k: string) {
+            delete this[k]
+        },
+    }
     dataset: Record<string, string> = {}
     textContent = ''
     title = ''

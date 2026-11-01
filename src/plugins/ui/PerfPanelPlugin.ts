@@ -4,6 +4,7 @@ import {createStyles} from 'ts-browser-helpers'
 import type {UiObjectConfig} from 'uiconfig.js'
 import styles from './PerfPanelPlugin.css?inline'
 import {gpuName, PERF_WINDOW, PerfMeter, PerfStats} from './PerfMeter'
+import {raiseOnPress} from '../../utils/raiseOnPress'
 
 export type {PerfStats, PerfWarning, PerfWarningId} from './PerfMeter'
 
@@ -57,8 +58,8 @@ type RowKey = 'frame' | 'render' | 'renders' | 'draws' | 'canvas' | 'gpu' | 'hea
  * corner. The dragged place is kept while the page is open, not saved.
  *
  * Collapsed, the pill is an overlay on the canvas (z-index 12, under the loading screen). The open card is viewer UI
- * (z-index 160, see UI layers in CONTRIBUTING.md): above other widgets in the same corner, such as the dock of the
- * sticky notes (150), and below the bars of the editor (200).
+ * (z-index 150 and up, see UI layers in CONTRIBUTING.md), below the bars of the editor (200). With other panels of that
+ * layer, such as the sticky notes, the one pressed last is in front ({@link raiseOnPress}); opening the card is a press.
  *
  * Warnings (also in {@link stats}.warnings): frame rate capped at ~30 fps (Chrome Energy Saver, Low Power Mode),
  * CPU or GPU bound, on battery, software rendering, tab hidden.
@@ -103,6 +104,7 @@ export class PerfPanelPlugin extends AViewerPluginSync<PerfPanelPluginEventMap> 
     private _dragged = false
     /** Keeps a dragged panel inside the container when the container changes size */
     private _resizer?: ResizeObserver
+    private _unraise?: () => void
 
     private _pill: HTMLButtonElement
     private _pillText: HTMLElement
@@ -237,6 +239,7 @@ export class PerfPanelPlugin extends AViewerPluginSync<PerfPanelPluginEventMap> 
         this._stylesheet = createStyles(styles, viewer.container)
         const container = this._options.container ?? viewer.container
         container.appendChild(this.element)
+        this._unraise = raiseOnPress(this.element)
         if (typeof ResizeObserver !== 'undefined') {
             this._resizer = new ResizeObserver(this._place)
             this._resizer.observe(container)
@@ -259,6 +262,8 @@ export class PerfPanelPlugin extends AViewerPluginSync<PerfPanelPluginEventMap> 
         document.removeEventListener('visibilitychange', this._sync)
         this._resizer?.disconnect()
         this._resizer = undefined
+        this._unraise?.()
+        this._unraise = undefined
         window.removeEventListener('resize', this._place)
         this._battery?.removeEventListener('chargingchange', this._onBattery)
         this._battery?.removeEventListener('levelchange', this._onBattery)

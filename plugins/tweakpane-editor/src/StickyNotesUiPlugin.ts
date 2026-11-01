@@ -1,4 +1,4 @@
-import {AViewerPluginSync, createStyles, onChange, ThreeViewer} from 'threepipe'
+import {AViewerPluginSync, createStyles, onChange, raiseOnPress, ThreeViewer} from 'threepipe'
 import {UiObjectConfig} from 'uiconfig.js'
 import {delegate, DelegateInstance} from 'tippy.js'
 import {NoteItem, NotesPlugin} from './NotesPlugin'
@@ -178,6 +178,7 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
     private _cardsBox: HTMLDivElement
     /** The layer of the menus, next to {@link element}: at the level of the popups of the page, above its bars */
     private _popups: HTMLDivElement
+    private _unraise?: () => void
     private _cards = new Map<string, NoteCard>()
     /** The post-it of each card element, for the ResizeObserver */
     private _byElement = new WeakMap<Element, NoteCard>()
@@ -291,6 +292,8 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         this._notes?.addEventListener('defaultStoreChange', this._onDefaultStore)
         viewer.container.appendChild(this.element)
         viewer.container.appendChild(this._popups)
+        // a press on a post-it or the dock brings the notes above other panels (the open perf card)
+        this._unraise = raiseOnPress(this.element)
         // one tooltip for each button with a data-tip, read when it shows (the layout and store buttons change it);
         // in the viewer container, so it shows in full screen too, and inside it (the buttons of a post-it at the top
         // of the canvas show theirs below, not under the bars of the page)
@@ -323,6 +326,8 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         this._resizer?.disconnect()
         for (const c of this._cards.values()) c.card.remove()
         this._cards.clear()
+        this._unraise?.()
+        this._unraise = undefined
         this.element.remove()
         this._popups.remove()
         this._notes = undefined

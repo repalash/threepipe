@@ -8,7 +8,8 @@
  * (.snp-popups, 2000): at the level of the popups, like the menu of EditorFrame, below the context menu (9999).
  * Clip, not hidden: the layer is not a box that scrolls, so a focus does not move the post-its.
  */
-.snp-layer { position: absolute; inset: 0; z-index: 150; pointer-events: none; overflow: hidden; overflow: clip; }
+/* viewer UI (CONTRIBUTING.md, UI layers); with the other panels of the layer, the one pressed last is in front (raiseOnPress) */
+.snp-layer { position: absolute; inset: 0; z-index: calc(150 + var(--ui-raise, 0)); pointer-events: none; overflow: hidden; overflow: clip; }
 .snp-layer.snp-popups { z-index: 2000; }
 .snp-layer > * { pointer-events: auto; }
 /* in the layer: the post-its in their own box (each one's z-index is its place in the order), the dock above them */

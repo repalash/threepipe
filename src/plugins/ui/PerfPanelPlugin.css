@@ -7,9 +7,10 @@
   font: 500 11px/1.35 var(--tp-font-family, Inter, ui-sans-serif, system-ui, sans-serif);
   font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased;
 }
-/* the open card is viewer UI (CONTRIBUTING.md, UI layers): above the other widgets of its corner, e.g. the dock of the
-   sticky notes (150), below the bars of the editor (200); the pill stays an overlay of the canvas, under the loading screen */
-.pp-root:not(.pp-collapsed) { z-index: 160; }
+/* the open card is viewer UI (CONTRIBUTING.md, UI layers), below the bars of the editor (200). It stacks with the other
+   panels of that layer (e.g. the sticky notes) in the order of the last press (raiseOnPress, --ui-raise); the pill stays
+   an overlay of the canvas, under the loading screen */
+.pp-root:not(.pp-collapsed) { z-index: calc(150 + var(--ui-raise, 0)); }
 .pp-dark.pp-root {
   --pp-bg: #2c2c2c; --pp-fg: #f0f0f0; --pp-dim: #9a9a9a; --pp-line: #3d3d3d; --pp-hover: #383838; --pp-spark-idle: #5a5a5a;
   --pp-warn-bg: rgba(245,165,36,.14); --pp-warn-fg: #ffc965;

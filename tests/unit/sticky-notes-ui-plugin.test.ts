@@ -31,7 +31,15 @@ class FakeElement {
     spellcheck = false
     selectionStart: number | null = null
     selectionEnd: number | null = null
-    style: Record<string, string> = {}
+    // the inline style, with setProperty / removeProperty for custom properties (raiseOnPress sets --ui-raise)
+    style: Record<string, any> = {
+        setProperty(k: string, v: string) {
+            this[k] = v
+        },
+        removeProperty(k: string) {
+            delete this[k]
+        },
+    }
     dataset: Record<string, string> = {}
     offsetWidth = 220
     offsetHeight = 150
@@ -909,7 +917,7 @@ describe('StickyNotesUiPlugin', () => {
 
     test('the layers on the page: the post-its over the loading screen and under the bars of the editor; their menus with the popups', () => {
         const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
-        const z = (css: string, selector: string) => Number(css.match(new RegExp(selector.replace(/[.#[\]"=:()]/g, '\\$&') + '\\s*{[^}]*z-index:\\s*(-?\\d+)'))?.[1])
+        const z = (css: string, selector: string) => Number(css.match(new RegExp(selector.replace(/[.#[\]"=:()]/g, '\\$&') + '\\s*{[^}]*z-index:\\s*(?:calc\\()?(-?\\d+)'))?.[1])
         const css = read('../../plugins/tweakpane-editor/src/StickyNotesUiPlugin.css')
         const loading = z(read('../../src/plugins/interaction/LoadingScreenPlugin.css'), '#assetManagerLoadingScreen')
         expect(loading).toBe(50)
@@ -919,11 +927,12 @@ describe('StickyNotesUiPlugin', () => {
         expect(z(css, '.snp-layer.snp-popups')).toBeLessThan(9999) // the context menu
         // inside the layer, the dock is just above the post-its: no page-wide value
         expect(z(css, '.snp-dock')).toBeLessThan(10)
-        // the open card of the perf panel, in the same corner in the editor, is above the dock; its pill under it
+        // the open card of the perf panel, in the same corner in the editor, is in the same layer: the one pressed last
+        // is in front (raiseOnPress adds --ui-raise to the base); its pill stays under the loading screen
         const perf = read('../../src/plugins/ui/PerfPanelPlugin.css')
         expect(z(perf, '.pp-root')).toBeLessThan(loading)
-        expect(z(perf, '.pp-root:not(.pp-collapsed)')).toBeGreaterThan(z(css, '.snp-layer'))
-        expect(z(perf, '.pp-root:not(.pp-collapsed)')).toBeLessThan(200)
+        expect(z(perf, '.pp-root:not(.pp-collapsed)')).toBe(z(css, '.snp-layer'))
+        expect(css).toMatch(/\.snp-layer\s*{[^}]*z-index:\s*calc\(150 \+ var\(--ui-raise, 0\)\)/)
 
         // the menu opens in the layer of the popups, above the post-its and the dock
         const {layer} = setup({stores: [serverStore]})
