@@ -725,13 +725,12 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         })
         // the animation loop sends no postFrame while the viewer is disabled
         if (!this.renderEnabled || !this.enabled) return blobPromise()
-        return await this._onNextFrame(async(frame) => {
-            if (!frame || !this.renderEnabled) return blobPromise()
-            this.renderEnabled = false
-            const blob = await blobPromise()
-            this.renderEnabled = true
-            return blob
-        })
+        // no frame came (the viewer was disabled or disposed while waiting), or rendering was paused: the canvas as it is
+        if (!await this.nextFrame() || !this.renderEnabled) return blobPromise()
+        this.renderEnabled = false
+        const blob = await blobPromise()
+        this.renderEnabled = true
+        return blob
     }
 
     /**
@@ -743,26 +742,28 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
      */
     async getScreenshotDataUrl({mimeType = 'image/jpeg', quality = 0.9} = {}): Promise<string | null | undefined> {
         if (!this.renderEnabled || !this.enabled) return this._canvas.toDataURL(mimeType, quality)
-        return await this._onNextFrame(() => this._canvas.toDataURL(mimeType, quality))
+        await this.nextFrame()
+        return this._canvas.toDataURL(mimeType, quality)
     }
 
     /**
-     * Calls `fn` in the next postFrame, or when the viewer is disabled ({@link enabled}, also when the WebGL context is
-     * lost) or disposed before it: the animation loop sends no postFrame then, so `fn` reads the canvas as it is.
-     * @param fn - gets `true` in a postFrame
+     * Waits for the next frame (the `postFrame` event). The wait also ends when the viewer is disabled ({@link enabled},
+     * also when the WebGL context is lost) or disposed before the frame, since the animation loop sends no `postFrame`
+     * then. A viewer that is disabled already does not wait.
+     *
+     * The code after the `await` runs in the same animation frame, before the browser shows it, so it can read the canvas
+     * of that frame. A frame can come while rendering is paused ({@link renderEnabled}): check it to know if the frame
+     * rendered.
+     * @returns `true` after a frame, `false` when the wait ended without one
      */
-    private async _onNextFrame<T>(fn: (frame: boolean) => T): Promise<Awaited<T>> {
-        if (!this.enabled) return await fn(false)
-        return new Promise((resolve, reject) => {
+    async nextFrame(): Promise<boolean> {
+        if (!this.enabled) return false
+        return new Promise<boolean>(resolve => {
             const end = (frame: boolean) => () => {
                 this.removeEventListener('postFrame', onFrame)
                 this.removeEventListener('viewerDisabled', onStop)
                 this.removeEventListener('dispose', onStop)
-                try {
-                    Promise.resolve(fn(frame)).then(resolve, reject)
-                } catch (e) {
-                    reject(e)
-                }
+                resolve(frame)
             }
             const onFrame = end(true)
             const onStop = end(false)

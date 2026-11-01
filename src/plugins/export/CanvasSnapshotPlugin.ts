@@ -158,24 +158,12 @@ export class CanvasSnapshotPlugin extends AViewerPluginSync {
     }
 
     /**
-     * Waits for the next frame (postFrame) and resolves whether the viewer still renders: `false` when rendering is paused
-     * ({@link ThreeViewer.renderEnabled}, also after a render error), or when the viewer is disabled
-     * ({@link ThreeViewer.enabled}, also when the WebGL context is lost) or disposed before the frame, which sends no postFrame then.
+     * Waits for the next frame ({@link ThreeViewer.nextFrame}) and resolves whether it rendered: `false` when the viewer
+     * is disabled or disposed before it, or when rendering is paused ({@link ThreeViewer.renderEnabled}, also after a
+     * render error)
      */
     private async _nextFrame(viewer: ThreeViewer): Promise<boolean> {
-        // disabled already (e.g. during options.timeout): no viewerDisabled comes again
-        if (!viewer.enabled) return false
-        return new Promise<boolean>(resolve => {
-            const end = () => {
-                viewer.removeEventListener('postFrame', end)
-                viewer.removeEventListener('viewerDisabled', end)
-                viewer.removeEventListener('dispose', end)
-                resolve(viewer.enabled && viewer.renderEnabled)
-            }
-            viewer.addEventListener('postFrame', end)
-            viewer.addEventListener('viewerDisabled', end)
-            viewer.addEventListener('dispose', end)
-        })
+        return await viewer.nextFrame() && viewer.renderEnabled
     }
 
     @uiInput('Filename')
