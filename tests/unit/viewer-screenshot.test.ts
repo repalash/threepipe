@@ -17,7 +17,7 @@ function fakeViewer(o: {enabled: boolean, renderEnabled: boolean, plugin?: unkno
             toBlob: vi.fn((cb: (b: Blob) => void) => cb(new Blob(['x']))),
         },
         canvas: {},
-        _onNextFrame: (tp.ThreeViewer.prototype as any)._onNextFrame,
+        nextFrame: tp.ThreeViewer.prototype.nextFrame,
         getPlugin: (t: any) => (t === 'ProgressivePlugin' || t?.PluginType === 'ProgressivePlugin') ? o.progressive : o.plugin,
         console: {warn: vi.fn()},
         setDirty: vi.fn(),
@@ -149,6 +149,36 @@ describe('screenshot of a viewer that renders no frame', () => {
         // renderEnabled is not toggled when no frame came
         expect(v.renderEnabled).toBe(true)
         expect(v.listeners()).toBe(0)
+    })
+})
+
+describe('ThreeViewer.nextFrame', () => {
+    it('resolves true after the next frame', async() => {
+        const v = fakeViewer({enabled: true, renderEnabled: true})
+        let frame: boolean | undefined
+        void tp.ThreeViewer.prototype.nextFrame.call(v as any).then(f => frame = f)
+        await tick()
+        expect(frame).toBeUndefined()
+        v.frame()
+        await tick()
+        expect(frame).toBe(true)
+        expect(v.listeners()).toBe(0)
+    })
+
+    it('resolves false when the viewer is disabled or disposed before the frame, and at once on a disabled viewer', async() => {
+        const disabled = fakeViewer({enabled: true, renderEnabled: true})
+        const a = tp.ThreeViewer.prototype.nextFrame.call(disabled as any)
+        disabled.setEnabled(false)
+        await expect(a).resolves.toBe(false)
+        expect(disabled.listeners()).toBe(0)
+        await expect(tp.ThreeViewer.prototype.nextFrame.call(disabled as any)).resolves.toBe(false)
+        expect(disabled.listeners()).toBe(0)
+
+        const disposed = fakeViewer({enabled: true, renderEnabled: true})
+        const b = tp.ThreeViewer.prototype.nextFrame.call(disposed as any)
+        disposed.dispatchEvent({type: 'dispose'})
+        await expect(b).resolves.toBe(false)
+        expect(disposed.listeners()).toBe(0)
     })
 })
 
