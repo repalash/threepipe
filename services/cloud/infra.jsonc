@@ -1,0 +1,4 @@
+{
+  // where `teeny deploy` reaches the deployed Worker (migrations go through its admin API)
+  "apiRoute": "https://cloud.threepipe.org"
+}

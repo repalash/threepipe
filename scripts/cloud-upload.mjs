@@ -8,28 +8,33 @@
 // Remote paths: s/<slug>/…  p/<name>/…  b/<repo>/<ref>/…  a/<name>                  (PUT /api/v1/uploads/…)
 //               drive:/<folder>/   the file or folder becomes one private item there  (/api/v1/drive/items)
 //               samples/<path>  e2e/blobs/<sha256><ext>                              (staff, PUT /api/v1/buckets/…)
-// Options: --ttl <days> (s/, default 7), --dry-run, --concurrency <n> (default 6)
+// Options: --ttl <days> (s/, default 7), --dry-run, --concurrency <n> (default 6),
+//          --entry <file> (drive:/, the file the item opens; default index.html, else the model, else the first file)
 //
-// The key: TP_CLOUD_KEY from the environment or /tmp/.env. Get one from an access link (signed in at
+// The key: TP_CLOUD_KEY from the environment or ~/.config/threepipe-cloud/.env. Get one from an access link (signed in at
 // https://cloud.threepipe.org, see services/cloud/README.md). The API: TP_CLOUD_API, default https://cloud.threepipe.org.
 //
 // Never uploaded: dotfiles and dot folders (.git, .env), node_modules, and, for a folder git tracks, what .gitignore
-// excludes (a folder that is itself ignored, like a build output, is uploaded as it is). In a build,
-// examples/globals.js gets empty values instead of the ones from your examples/.env.
+// excludes (a folder that is itself ignored, like a build output, is uploaded as it is). A build (--preview) uploads
+// all of its files, gitignored outputs too (examples/*/script.js); its examples/globals.js gets empty values.
 
 import fs from 'node:fs'
 import path from 'node:path'
+import os from 'node:os'
 import crypto from 'node:crypto'
 import {execFileSync} from 'node:child_process'
 
 const root = path.resolve(import.meta.dirname, '..')
+const ENV_FILE = path.join(os.homedir(), '.config/threepipe-cloud/.env')
 const args = process.argv.slice(2)
 const flag = name => args.includes(name)
 const option = (name, fallback) => args.includes(name) ? args[args.indexOf(name) + 1] : fallback
-const positional = args.filter((a, i) => !a.startsWith('--') && !['--ttl', '--concurrency'].includes(args[i - 1]))
+const positional = args.filter((a, i) => !a.startsWith('--') && !['--ttl', '--concurrency', '--entry'].includes(args[i - 1]))
 const dryRun = flag('--dry-run')
 const concurrency = Number(option('--concurrency', 6))
 const ttl = option('--ttl')
+/** Files a drive item opens as a model (its entry, before textures and buffers) */
+const MODEL = /\.(?:glb|gltf|vjson|usdz|fbx|obj|ply|stl|3dm|drc|3ds|dae)$/i
 
 const env = readEnv()
 const api = (env.TP_CLOUD_API || 'https://cloud.threepipe.org').replace(/\/+$/, '')
@@ -51,7 +56,7 @@ if (flag('--preview')) {
     } else files = listFiles(path.resolve(local), remote)
 }
 if (!files.length) usage('no files to upload')
-if (!key && !dryRun) usage('TP_CLOUD_KEY is not set (environment or /tmp/.env)')
+if (!key && !dryRun) usage(`TP_CLOUD_KEY is not set (environment or ${ENV_FILE})`)
 
 const total = files.reduce((n, f) => n + size(f), 0)
 console.log(`${files.length} files, ${(total / 1024 / 1024).toFixed(1)} MB → ${api}`)
@@ -64,7 +69,12 @@ if (dryRun) {
 if (drive) {
     const at = await call('GET', `/api/v1/drive/resolve?path=${encodeURIComponent(drive.folder)}`)
     if (!at.folder) usage(`${drive.folder} is not a folder in your drive`)
-    drive.id = (await call('POST', '/api/v1/drive/items', {name: drive.name, folder: at.folder.id})).id
+    // the file the item opens (its link, Open on the drive page): index.html, else the model, else the first file
+    const names = files.map(f => f.remote).sort()
+    const entry = option('--entry') ?? (names.find(n => n === 'index.html') ?? names.find(n => !n.includes('/') && MODEL.test(n)) ??
+        names.find(n => MODEL.test(n)) ?? names[0])
+    if (!names.includes(entry)) usage(`--entry ${entry} is not one of the files`)
+    drive.id = (await call('POST', '/api/v1/drive/items', {name: drive.name, folder: at.folder.id, entry})).id
 }
 
 let done = 0, failed = 0, base = ''
@@ -93,19 +103,23 @@ function buildFiles(prefix) {
         .filter(d => fs.existsSync(path.join(root, d)))
     if (!fs.existsSync(path.join(root, 'dist/index.mjs')) || !fs.existsSync(path.join(root, 'examples/globals.js')))
         usage('build first: npm run build:all')
-    const out = dirs.flatMap(d => listFiles(path.join(root, d), `${prefix}${d}/`))
+    // a build: everything in it, also what .gitignore excludes (examples/*/script.js are build outputs)
+    const out = dirs.flatMap(d => listFiles(path.join(root, d), `${prefix}${d}/`, {gitignore: false}))
     const globals = out.find(f => f.remote === `${prefix}examples/globals.js`)
     if (globals) globals.content = Buffer.from(fs.readFileSync(globals.local, 'utf8')
         .replace(/^export const (\w+) = .*$/gm, (_, k) => `export const ${k} = ${JSON.stringify(k === 'DUMMY' ? '1' : '')}`))
     return out
 }
 
-/** A file to `remote`, or every file of a folder under `remote` (which then ends with /), without what is never uploaded. */
-function listFiles(local, remote) {
+/**
+ * A file to `remote`, or every file of a folder under `remote` (which then ends with /), without what is never uploaded:
+ * dotfiles, node_modules and, unless `gitignore: false` (a build), what .gitignore excludes.
+ */
+function listFiles(local, remote, {gitignore = true} = {}) {
     if (!fs.existsSync(local)) usage(`${local} does not exist`)
     if (fs.statSync(local).isFile()) return [{local, remote: remote.endsWith('/') ? remote + path.basename(local) : remote}]
     if (!remote.endsWith('/')) usage('a folder goes under a remote path ending with /')
-    const ignored = gitIgnored(local)
+    const ignored = gitignore ? gitIgnored(local) : new Set()
     return fs.readdirSync(local, {recursive: true}).map(String)
         .filter(rel => !rel.split(path.sep).some(s => s.startsWith('.') || s === 'node_modules'))
         .filter(rel => !ignored.has(rel.split(path.sep).join('/')) && fs.statSync(path.join(local, rel)).isFile())
@@ -167,11 +181,11 @@ async function parallel(items, fn) {
     }))
 }
 
-/** TP_CLOUD_* from the environment, else from /tmp/.env (where the access link's agents.md says to save the key). */
+/** TP_CLOUD_* from the environment, else from ENV_FILE (where the access link's agents.md says to save the key). */
 function readEnv() {
     const out = {TP_CLOUD_KEY: process.env.TP_CLOUD_KEY, TP_CLOUD_API: process.env.TP_CLOUD_API}
-    if (fs.existsSync('/tmp/.env')) {
-        for (const line of fs.readFileSync('/tmp/.env', 'utf8').split('\n')) {
+    if (fs.existsSync(ENV_FILE)) {
+        for (const line of fs.readFileSync(ENV_FILE, 'utf8').split('\n')) {
             const m = line.match(/^\s*(TP_CLOUD_\w+)\s*=\s*(.*?)\s*$/)
             if (m && !out[m[1]]) out[m[1]] = m[2].replace(/^(['"])(.*)\1$/, '$2')
         }
@@ -181,6 +195,6 @@ function readEnv() {
 
 function usage(message) {
     if (message) console.error(message + '\n')
-    console.error(fs.readFileSync(import.meta.filename, 'utf8').split('\n').filter(l => l.startsWith('//')).slice(0, 14).map(l => l.slice(3)).join('\n'))
+    console.error(fs.readFileSync(import.meta.filename, 'utf8').split('\n').filter(l => l.startsWith('//')).slice(0, 15).map(l => l.slice(3)).join('\n'))
     process.exit(1)
 }

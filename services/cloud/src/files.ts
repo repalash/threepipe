@@ -1,13 +1,17 @@
 import type {Context, Next} from 'hono'
 import type {CloudEnv} from './env'
 import {verifySigned} from './drive'
+import config from 'virtual:teenybase'
 
 const HTML_SANDBOX = 'sandbox allow-scripts allow-forms allow-popups allow-modals allow-downloads allow-pointer-lock allow-presentation'
+/** Types a browser shows without running anything (a PDF viewer does not work sandboxed); every other type gets the sandbox. */
+const PASSIVE = /^(?:image\/(?:png|jpeg|gif|webp|avif|x-icon|ktx2)|video\/|audio\/|font\/|model\/|application\/(?:pdf|json|wasm|zip|octet-stream)|text\/(?:javascript|css|plain|markdown))\s*(?:;|$)/
 
 /**
  * Serves the cloud bucket on FILES_HOST (or under /_files/ on the API host when FILES_HOST is not set): one R2 read per
  * request, no database. Owner, expiry, deletion and visibility are read from the object's metadata.
- * HTML and SVG get a sandbox CSP: their scripts run in an opaque origin, away from the API host's sessions.
+ * Everything but passive types (HTML, SVG, XHTML, a type given at upload) gets a sandbox CSP: its scripts run in an
+ * opaque origin, away from the API host's sessions.
  *
  *   /<s|a|b|p>/<path>                  public
  *   /d/<handle>/<item>/<file>          a drive item shared as `link` (src/drive.ts)
@@ -24,7 +28,11 @@ export async function filesHost(c: Context<CloudEnv>, next: Next) {
         path = url.pathname.slice('/_files'.length)
     }
     if (c.req.method !== 'GET' && c.req.method !== 'HEAD') return c.text('method not allowed', 405)
-    const notFound = () => c.text('not found', 404)
+    // the files host's own address has no file: the cloud's pages
+    if (c.env.FILES_HOST && path === '/') return c.redirect(`${config.appUrl}/drive`, 302)
+    // with the CORS header too: a sandboxed page (origin null) then sees the 404 itself, not a CORS error
+    const plain = (text: string, status: 404 | 410) => c.text(text, status, {'access-control-allow-origin': '*'})
+    const notFound = () => plain('not found', 404)
     let key: string
     try {
         key = decodeURIComponent(path).normalize('NFC').replace(/^\/+/, '')
@@ -54,8 +62,8 @@ export async function filesHost(c: Context<CloudEnv>, next: Next) {
     }
     if (!obj) return notFound()
     const meta = obj.customMetadata || {}
-    if (meta.deleted) return c.text('gone: ' + meta.deleted, 410)
-    if (meta.expires && Date.parse(meta.expires) < Date.now()) return c.text('expired', 410)
+    if (meta.deleted) return plain('gone: ' + meta.deleted, 410)
+    if (meta.expires && Date.parse(meta.expires) < Date.now()) return plain('expired', 410)
     if (!allowed(meta)) return notFound()
 
     const headers = new Headers()
@@ -67,9 +75,9 @@ export async function filesHost(c: Context<CloudEnv>, next: Next) {
     headers.set('cache-control', key.startsWith('a/') ? 'public, max-age=31536000, immutable' :
         key.startsWith('d/') ? 'private, max-age=60' : 'public, max-age=60, must-revalidate')
     if (key.startsWith('d/')) headers.set('referrer-policy', 'no-referrer') // the item id and the signature are the secret part of the URL
-    const type = headers.get('content-type') || ''
-    if (type.startsWith('text/html') || type.startsWith('image/svg')) headers.set('content-security-policy', HTML_SANDBOX)
-    if (!('body' in obj)) return new Response(null, {status: 304, headers})
+    if (!PASSIVE.test((headers.get('content-type') || '').toLowerCase())) headers.set('content-security-policy', HTML_SANDBOX)
+    // R2 answers a failed precondition without a body: If-None-Match/If-Modified-Since → 304, If-Match/If-Unmodified-Since → 412
+    if (!('body' in obj)) return new Response(null, {status: c.req.header('if-match') || c.req.header('if-unmodified-since') ? 412 : 304, headers})
     // R2 reports a range even when none was asked for: only a request with a Range header gets a 206
     if (c.req.header('range') && obj.range && 'offset' in obj.range) {
         const offset = obj.range.offset ?? 0

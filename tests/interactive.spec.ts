@@ -1,4 +1,5 @@
 import {test, expect} from '@playwright/test'
+import {readFile} from 'node:fs/promises'
 import {setupTestHooks, screenshotMatch, downloadFileMatch, btnClick} from './helpers'
 
 setupTestHooks()
@@ -2460,3 +2461,53 @@ test('hdr-to-exr', async({page}, testInfo) => {
         async() => page.getByRole('button', {name: 'Download .exr'}).click())
 })
 
+test('cloud-feedback', async({page}) => {
+    await expect(page).toHaveTitle('Cloud Feedback')
+    const dialog = page.locator('[data-tpc-dialog]')
+
+    // No project on the page: the dialog collects the report, Send is off, Download saves it
+    await page.getByRole('button', {name: 'Report a problem'}).click()
+    await expect(dialog).toBeVisible()
+    await expect(dialog.locator('[data-tpc-shot]')).toBeVisible() // the screenshot of the canvas
+    await dialog.locator('[data-tpc-text]').fill('The cube is too blue')
+    await expect(dialog.locator('[data-tpc-send]')).toBeDisabled()
+    const [download] = await Promise.all([page.waitForEvent('download'), dialog.locator('[data-tpc-download]').click()])
+    const report = JSON.parse(await readFile(await download.path(), 'utf8'))
+    expect(report.type).toBe('bug')
+    expect(report.text).toBe('The cube is too blue')
+    expect(report.surface).toBe('cloud-feedback-example')
+    expect(report.context.app.selected).toBe('Cube') // feedback.addContext('app', …) in the example
+    expect(report.image).toBeTruthy()
+    await dialog.locator('[data-tpc-cancel]').click()
+    await expect(dialog).toHaveCount(0)
+
+    // An uncaught error: the plugin's toast, and its Report opens the dialog about that error
+    await page.evaluate(() => setTimeout(() => { throw new Error('boom from the test') }))
+    await page.locator('[data-tpc-toast-report]').click()
+    await expect(dialog.locator('[data-tpc-cause]')).toContainText('boom from the test')
+    await dialog.locator('[data-tpc-cancel]').click()
+
+    // Signed in (a session as Sign in with threepipe leaves it) with a project: Send posts the report with the key, no
+    // Turnstile, and shows the id. The cloud is mocked.
+    let posted: {auth?: string, body: string} | undefined
+    await page.route('http://cloud.test/**', async route => {
+        const r = route.request()
+        if (r.method() === 'POST' && new URL(r.url()).pathname === '/api/v1/projects/demo/reports') {
+            posted = {auth: r.headers().authorization, body: r.postDataBuffer()?.toString('utf8') ?? ''}
+            return route.fulfill({status: 201, json: {id: 'R-TEST01'}})
+        }
+        return route.fulfill({status: 404, json: {error: 'not mocked'}})
+    })
+    await page.addInitScript(() => sessionStorage.setItem('threepipeCloudSession',
+        JSON.stringify({key: 'test-key', user: 'tester', folder: '*', api: 'http://cloud.test', exp: 4102444800})))
+    await page.goto(new URL('?cloud=http://cloud.test&project=demo', page.url()).href)
+    await page.waitForSelector('body._testFinish', {state: 'attached'})
+    await expect(page.locator('#sign-in')).toHaveText('Signed in as tester')
+    await page.getByRole('button', {name: 'Send feedback'}).click()
+    await dialog.locator('[data-tpc-text]').fill('Love the cube')
+    await expect(dialog.locator('[data-tpc-send]')).toBeEnabled()
+    await dialog.locator('[data-tpc-send]').click()
+    await expect(dialog).toContainText('R-TEST01')
+    expect(posted?.auth).toBe('Bearer test-key')
+    expect(posted?.body).toContain('Love the cube')
+})
