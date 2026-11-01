@@ -30,6 +30,18 @@ Material views (`setMaterial`):
 
 The unlit, material ID and UV views keep the side, opacity, alpha map, alpha test and wireframe of the mesh material.
 
+Fat lines (`LineSegments2`, `Line2`, `MeshLine` with a `LineMaterial`) stay lines in every view: their width (in pixels or world units), dashes and alpha to coverage do not change.
+
+| View | Fat line |
+|---|---|
+| `unlit` | Its own material: a fat line is unlit |
+| `depth` | The depth ramp of the meshes, with the same range |
+| `materialId` | The color of its material, as a mesh with that material |
+| `normal`, `normalWorld` | Neutral grey (0.5 in each channel, the color of a zero normal): a line has no surface normal |
+| `uv` | Magenta, as a mesh without the UV set: a line has no UV set |
+
+A line material with `allowOverride` false keeps its own material in every view.
+
 Lighting presets (`setLighting`, the list is in `lightingPresets`):
 
 | Key | Lighting |
@@ -74,7 +86,7 @@ The plugin UI (`uiConfig`) has a Material and a Lighting dropdown, the UV set (i
 
 The overrides apply only while the viewer renders, between its `preRender` and `postRender` events:
 - The override material of the main render pass (`renderManager.renderPass.overrideMaterial`) is the material of the view. An override material that the app set is restored after each render.
-- Fat line materials (`Line2`, `MeshLine`) keep their own material: they are quads that only their own shader draws as lines. Their `allowOverride` is false during the render and true again after it.
+- Fat lines are quads that only a line shader draws as lines, so the debug materials of the meshes cannot draw them. In the depth, material ID, normal and UV views, each line object gets a line variant of its line material as `forcedOverrideMaterial`: a material that keeps the shader of the line material (the shared `mergeLineShader`, as the depth and GBuffer line materials of threepipe) and changes only the output color. The forced material that the object had is restored after the render. The variants are cached for each line material, disposed when no line in the scene uses that material and when the plugin is removed. In the unlit view, the line material keeps `allowOverride` false during the render. A line object that is not a threepipe object (it has no `forcedOverrideMaterial`) keeps its own material in every view.
 - The scene lights are hidden with their layers mask (0), and their mask is restored after the render. The `visible` flag does not change, so progressive rendering does not restart in each frame.
 - The environment map is `scene.overrideRenderEnvironment`, restored after the render.
 - The preset lights are in a group in the scene root (`lightsRoot`, not in the model root), which is not selectable, has no bounding box and is not exported. The group is visible only during a render with a lighting preset on.

@@ -1,10 +1,23 @@
-import {DataTexture, EquirectangularReflectionMapping, Light, Material, Object3D, RGBAFormat, UVMapping, Vector3} from 'three'
+import {
+    Color,
+    DataTexture,
+    EquirectangularReflectionMapping,
+    Light,
+    LinearSRGBColorSpace,
+    Material,
+    Object3D,
+    RGBAFormat,
+    UVMapping,
+    Vector3,
+} from 'three'
+import type {LineMaterial} from 'three/examples/jsm/lines/LineMaterial.js'
 import type {UiObjectConfig} from 'uiconfig.js'
 import {AViewerPluginEventMap, AViewerPluginSync, ThreeViewer} from '../../viewer'
-import {AmbientLight2, DirectionalLight2, Group2, HemisphereLight2, ITexture} from '../../core'
+import {AmbientLight2, DirectionalLight2, Group2, HemisphereLight2, IObject3D, ITexture} from '../../core'
 import {Box3B} from '../../three'
 import {
     LinearDepthOverrideMaterial,
+    LineOverrideMaterial,
     MaterialIdOverrideMaterial,
     NormalOverrideMaterial,
     NormalWorldOverrideMaterial,
@@ -38,6 +51,28 @@ export interface ViewOverridesPluginEventMap extends AViewerPluginEventMap {
 }
 
 const ENV_BASE = 'https://threejs.org/examples/textures/equirectangular/'
+
+/** The colour of a fat line in the normal views: the colour of a zero normal there (0.5 in each channel), no direction */
+const LINE_NORMAL_COLOR = new Color().setRGB(0.5, 0.5, 0.5, LinearSRGBColorSpace)
+/** The colour of a fat line in the UV view: the colour of a mesh without the UV set */
+const LINE_UV_COLOR = new Color(1, 0, 1)
+
+const FORCED_PROBE: Material[] = []
+
+/** True when `material` returns `forcedOverrideMaterial`, as for threepipe objects (upgraded with iObjectCommons) */
+function supportsForcedMaterial(object: IObject3D) {
+    const saved = object.forcedOverrideMaterial
+    object.forcedOverrideMaterial = FORCED_PROBE
+    const supported = object.material === FORCED_PROBE
+    if (saved === undefined) delete object.forcedOverrideMaterial
+    else object.forcedOverrideMaterial = saved
+    return supported
+}
+
+/** A fat line material (LineMaterial, LineMaterial2) that the override material would replace */
+function isOverriddenLine(m: Material | undefined): m is LineMaterial {
+    return !!m && (m as Material & {isLineMaterial?: boolean}).isLineMaterial === true && m.allowOverride
+}
 
 /** The default lighting presets: preset lights, then environment maps */
 function defaultLightingPresets(): ViewOverrideLightingPreset[] {
@@ -81,6 +116,12 @@ function defaultLightingPresets(): ViewOverrideLightingPreset[] {
  * view-space normals, world-space normals, material ID (one color per material) and UV (U red, V green, for the UV set
  * {@link uvChannel}; magenta where a mesh has no such set).
  *
+ * Fat lines (LineSegments2, Line2, MeshLine with a LineMaterial) keep their line shader, so their width, dashes and world
+ * units do not change: the unlit view draws them with their own material (a fat line is unlit), the depth view with the
+ * depth ramp of the meshes (the same range), the material ID view in the colour of their material, the normal views in
+ * a neutral grey (the colour of a zero normal: a line has no surface normal) and the UV view in magenta (a line has no
+ * UV set). A line material with `allowOverride` false keeps its own material in every view, as other materials.
+ *
  * Lighting presets ({@link setLighting}, {@link lightingPresets}): 'lights-*' replace the scene lights (and by default
  * the environment, see {@link lightsKeepEnvironment}) with preset lights; 'env-*' replace them with another
  * environment map, loaded once and cached.
@@ -89,7 +130,8 @@ function defaultLightingPresets(): ViewOverrideLightingPreset[] {
  * unlit, so lights do not change them).
  *
  * Everything is applied only while the viewer renders (`preRender` to `postRender`): the override material of the
- * main render pass, the hidden scene lights, the override environment, and fat lines kept out of the override. Outside
+ * main render pass, the hidden scene lights, the override environment, and the line materials of the fat lines
+ * (`forcedOverrideMaterial` of the line object, or `allowOverride` false on the line material in the unlit view). Outside
  * a render the scene and the render pass are as the user left them, so an export, the scene UI and the light toggles
  * see the real scene. Turning an override off, disabling the plugin or removing it shows the scene as before.
  * The state is not saved with the viewer config.
@@ -206,6 +248,13 @@ export class ViewOverridesPlugin extends AViewerPluginSync<ViewOverridesPluginEv
     private _savedEnvironment?: ITexture | null
     private _hiddenLights: [Object3D, number][] = []
     private _linesKeptOut: Material[] = []
+    private _linesForced: [IObject3D, Material | Material[] | undefined][] = []
+    /**
+     * The materials that draw fat lines in the material views, for each line material. Made on the first use, disposed
+     * when no line in the scene uses the line material in a render, and on remove.
+     */
+    private _lineVariants = new Map<LineMaterial, {depth?: LineOverrideMaterial, color?: LineOverrideMaterial}>()
+    private _linesSeen = new Set<LineMaterial>()
 
     constructor() {
         super()
@@ -277,7 +326,7 @@ export class ViewOverridesPlugin extends AViewerPluginSync<ViewOverridesPluginEv
         viewer.addEventListener('postRender', this._postRender)
     }
 
-    /** Turns the overrides off, and disposes the loaded environment maps that the scene does not use */
+    /** Turns the overrides off, and disposes the line materials and the loaded environment maps that the scene does not use */
     onRemove(viewer: ThreeViewer) {
         this._postRender() // in case it is removed during a render
         this.clear()
@@ -287,11 +336,13 @@ export class ViewOverridesPlugin extends AViewerPluginSync<ViewOverridesPluginEv
         const scene = viewer.scene
         for (const p of this._envCache.values()) p.then(t => t && t !== scene.environment && t !== scene.background && t.dispose())
         this._envCache.clear()
+        this._disposeLineVariants()
         super.onRemove(viewer)
     }
 
     /** Disposes the override materials */
     dispose() {
+        this._disposeLineVariants()
         for (const m of Object.values(this._materials)) m.dispose()
         this._black.dispose()
         super.dispose()
@@ -420,17 +471,7 @@ export class ViewOverridesPlugin extends AViewerPluginSync<ViewOverridesPluginEv
 
         const walk = (o: Object3D) => {
             if (o === this.lightsRoot) return
-            // Fat lines (Line2, MeshLine) are instanced quads that only their own shader turns into lines; drawn with
-            // an override material they show as big rectangles. They keep their own material.
-            if (material) {
-                const mats = (o as Object3D & {material?: Material | Material[]}).material
-                for (const m of Array.isArray(mats) ? mats : mats ? [mats] : []) {
-                    if ((m as Material & {isLineMaterial?: boolean}).isLineMaterial && m.allowOverride) {
-                        m.allowOverride = false
-                        this._linesKeptOut.push(m)
-                    }
-                }
-            }
+            if (material) this._overrideLine(o, material)
             // Hide the scene lights with the layers mask, not `visible`: threepipe lights call setDirty when `visible`
             // changes, which would restart progressive rendering every frame. three.js skips lights (and their
             // shadows) that fail the camera layers test.
@@ -441,6 +482,7 @@ export class ViewOverridesPlugin extends AViewerPluginSync<ViewOverridesPluginEv
             for (const c of o.children) walk(c)
         }
         walk(scene)
+        if (material && material !== 'unlit') this._pruneLineVariants()
     }
 
     private _postRender = () => {
@@ -460,6 +502,77 @@ export class ViewOverridesPlugin extends AViewerPluginSync<ViewOverridesPluginEv
         this._hiddenLights.length = 0
         for (const m of this._linesKeptOut) m.allowOverride = true
         this._linesKeptOut.length = 0
+        for (const [o, saved] of this._linesForced) {
+            if (saved === undefined) delete o.forcedOverrideMaterial
+            else o.forcedOverrideMaterial = saved
+        }
+        this._linesForced.length = 0
+    }
+
+    /**
+     * Fat lines are instanced quads that only a line shader turns into lines: drawn with the override material they show
+     * as big rectangles. In the unlit view they keep their own material (a fat line is unlit). In the other views they draw
+     * with the {@link LineOverrideMaterial} of their line material, set as `forcedOverrideMaterial` of the object for this
+     * render. An object that is not a threepipe object (no `forcedOverrideMaterial`) keeps its own material.
+     */
+    private _overrideLine(o: Object3D, view: ViewOverrideMaterialType) {
+        const object = o as IObject3D
+        const mats = object.material
+        const list = Array.isArray(mats) ? mats : mats ? [mats] : []
+        if (!list.some(isOverriddenLine)) return
+        const saved = object.forcedOverrideMaterial
+        if (view !== 'unlit' && supportsForcedMaterial(object)) {
+            const variants = list.map(m => isOverriddenLine(m) ? this._lineVariant(m, view) : m)
+            object.forcedOverrideMaterial = Array.isArray(mats) ? variants : variants[0]
+            this._linesForced.push([object, saved])
+            return
+        }
+        for (const m of list) {
+            if (!isOverriddenLine(m)) continue
+            m.allowOverride = false
+            this._linesKeptOut.push(m)
+        }
+    }
+
+    /** The material that draws the fat lines of this line material in the view, updated for this frame */
+    private _lineVariant(line: LineMaterial, view: Exclude<ViewOverrideMaterialType, 'unlit'>) {
+        this._linesSeen.add(line)
+        let variants = this._lineVariants.get(line)
+        if (!variants) this._lineVariants.set(line, variants = {})
+        let variant: LineOverrideMaterial
+        if (view === 'depth') {
+            variant = variants.depth ??= new LineOverrideMaterial(line, this._materials.depth)
+        } else {
+            variant = variants.color ??= new LineOverrideMaterial(line)
+            variant.color.copy(view === 'materialId' ? this._materials.materialId.colorFor(line.id) :
+                view === 'uv' ? LINE_UV_COLOR : LINE_NORMAL_COLOR)
+        }
+        // the material ID and UV materials of the meshes keep the blend settings of each material, the others do not
+        variant.update(view !== 'materialId' && view !== 'uv')
+        return variant
+    }
+
+    /**
+     * Disposes the variants of the line materials that no line in the scene uses in this render (the line was removed,
+     * or its material changed). A hidden line is still in the scene and keeps its variants.
+     */
+    private _pruneLineVariants() {
+        for (const [line, variants] of this._lineVariants) {
+            if (this._linesSeen.has(line)) continue
+            variants.depth?.dispose()
+            variants.color?.dispose()
+            this._lineVariants.delete(line)
+        }
+        this._linesSeen.clear()
+    }
+
+    private _disposeLineVariants() {
+        for (const variants of this._lineVariants.values()) {
+            variants.depth?.dispose()
+            variants.color?.dispose()
+        }
+        this._lineVariants.clear()
+        this._linesSeen.clear()
     }
 
     private _box = new Box3B()

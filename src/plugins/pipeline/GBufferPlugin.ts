@@ -215,9 +215,8 @@ export class GBufferPlugin
             if (object.customGBufferMaterial) {
                 const mat = object.customGBufferMaterial
                 mat.allowOverride = false
-                // todo save the current forcedOverrideMaterial to restore it later?
                 const current = object.material
-                object.forcedOverrideMaterial = mat
+                pass.forceObjectMaterial(object, mat)
                 const current0 = Array.isArray(current) ? current[0] : current
                 if (current0) {
                     mat.userData.renderToGBuffer = current0.userData.renderToGBuffer
@@ -234,9 +233,7 @@ export class GBufferPlugin
 
         // const postprocessObject = pass.postprocessObject
         pass.postprocessObject = (object: IObject3D) => {
-            if (object.customGBufferMaterial) {
-                delete object.forcedOverrideMaterial
-            }
+            pass.restoreObjectMaterial(object)
             // postprocessObject(object)
         }
 

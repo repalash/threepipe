@@ -42,7 +42,7 @@ async function init() {
     light.position.set(2, 3, 2)
     viewer.scene.addObject(light)
 
-    // a fat line around the model: it keeps its own material in the material views
+    // a fat line around the model: it stays a line in the material views (the depth ramp, its material ID colour, ...)
     const ring = viewer.getPlugin(GeometryGeneratorPlugin)!.generateObject('line', {
         curve: new EllipseCurve(0, 0, 1.3, 1.3, 0, Math.PI * 2),
         segments: 96,

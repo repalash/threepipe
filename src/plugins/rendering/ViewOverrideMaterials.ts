@@ -5,6 +5,7 @@ import {
     Color,
     ColorManagement,
     Group,
+    IUniform,
     MeshBasicMaterial,
     NoBlending,
     NormalBlending,
@@ -12,10 +13,13 @@ import {
     Scene,
     SRGBTransfer,
     Texture,
+    Vector2,
     WebGLRenderer,
 } from 'three'
+import type {LineMaterial} from 'three/examples/jsm/lines/LineMaterial.js'
 import {IMaterial, PhysicalMaterial} from '../../core'
 import {shaderReplaceString} from '../../utils'
+import {mergeLineShader} from '../../utils/line-material'
 import {MeshDepthMaterialOverride} from '../pipeline/DepthBufferPlugin'
 import {MeshNormalMaterialOverride} from '../pipeline/NormalBufferPlugin'
 
@@ -23,6 +27,7 @@ import {MeshNormalMaterialOverride} from '../pipeline/NormalBufferPlugin'
  * The materials of ViewOverridesPlugin. Each one is set as the override material of the main render pass, so it draws
  * every mesh. The unlit, material ID and UV materials copy what they need from the material of each mesh in
  * onBeforeRender and reset it in onAfterRender, like MeshDepthMaterialOverride and MeshNormalMaterialOverride.
+ * Fat lines draw with a LineOverrideMaterial of their line material instead (at the end of this file).
  */
 
 type SourceMaterial = IMaterial & Partial<PhysicalMaterial>
@@ -336,5 +341,104 @@ export class LinearDepthOverrideMaterial extends MeshDepthMaterialOverride {
             'float fragCoordZ = 0.5 * vHighPrecisionZW[0] / vHighPrecisionZW[1] + 0.5;',
             'float fragCoordZ = clamp((vViewOverrideZ - depthNear) / max(depthFar - depthNear, 1e-6), 0., 1.);')
         encodeOutput(shader)
+    }
+}
+
+/** The linear depth range of {@link LinearDepthOverrideMaterial}, which the line variant of the depth view shares */
+export interface LinearDepthRange {
+    readonly depthNear: IUniform<number>
+    readonly depthFar: IUniform<number>
+}
+
+/**
+ * Draws the fat lines (LineSegments2, Line2, MeshLine) of one line material in a material view of ViewOverridesPlugin.
+ * The debug materials of the meshes cannot draw them: a fat line is a set of instanced quads that the vertex shader of
+ * its LineMaterial turns into a line. This material keeps the shaders of the line material ({@link mergeLineShader}),
+ * so the line width, the dashes and the world units stay those of the line; only the colour changes:
+ * - depth (made with a {@link LinearDepthRange}): the linear depth ramp of {@link LinearDepthOverrideMaterial}, with its
+ *   uniforms, so the line and the meshes use the same range in each frame.
+ * - else the flat {@link color}, which ViewOverridesPlugin sets for the view (the material ID colour, or a colour for
+ *   "no data" in the normal and UV views).
+ *
+ * {@link update} takes the draw settings of the line material before each frame. Set as the `forcedOverrideMaterial`
+ * of the line object during a render, with `allowOverride` false so the override material of the render pass does not
+ * replace it.
+ */
+export class LineOverrideMaterial extends MeshBasicMaterial {
+    readonly isLineOverrideMaterial = true
+    /** The viewport size for the line width in pixels: set before each draw, as LineMaterial2 sets its own */
+    readonly resolution: IUniform<Vector2> = {value: new Vector2(1, 1)}
+    private _definesKey = ''
+    private _programKey = ''
+
+    constructor(readonly lineMaterial: LineMaterial, readonly depthRange?: LinearDepthRange) {
+        super()
+        this.name = 'View Override Line'
+        this.allowOverride = false
+        this.fog = false
+    }
+
+    customProgramCacheKey() {
+        // the defines of the line material are added in onBeforeCompile, so three.js does not see them in its own key
+        return 'view-override-line-' + (this.depthRange ? 'depth' : 'color') + '-' + this._definesKey
+    }
+
+    onBeforeCompile(shader: any) {
+        mergeLineShader(shader, this.lineMaterial, this.depthRange ? {
+            parsVert: '\nvarying float vViewOverrideZ;\n',
+            mainVert: '\nvViewOverrideZ = -mvPosition.z;\n',
+            parsFrag: '\nvarying float vViewOverrideZ;\nuniform float depthNear;\nuniform float depthFar;\n',
+            // the output of LinearDepthOverrideMaterial, with the alpha of the line (its caps and edges)
+            mainFrag: `
+    float viewOverrideDepth = clamp( ( vViewOverrideZ - depthNear ) / max( depthFar - depthNear, 1e-6 ), 0., 1. );
+    gl_FragColor = vec4( vec3( 1.0 - viewOverrideDepth ), alpha );
+    #include <colorspace_fragment>
+}
+`,
+        } : {})
+        shader.uniforms.resolution = this.resolution
+        if (this.depthRange) {
+            shader.uniforms.depthNear = this.depthRange.depthNear
+            shader.uniforms.depthFar = this.depthRange.depthFar
+        }
+    }
+
+    /**
+     * Takes the settings of the line material: which pixels draw and how they blend (as the per-mesh override materials
+     * take them from each mesh material), `visible` and `colorWrite`, and the defines of the line (dashes, world units,
+     * alpha to coverage). Sets needsUpdate when a program parameter changed.
+     * @param opaque - no blending, as the depth and normal materials of the meshes draw
+     */
+    update(opaque: boolean) {
+        const line = this.lineMaterial
+        copyCommon(this, line as unknown as SourceMaterial)
+        this.visible = line.visible
+        this.colorWrite = line.colorWrite
+        if (opaque) {
+            this.blending = NoBlending
+            this.transparent = false
+            this.opacity = 1
+        }
+        // the GBuffer passes read these from object.material for the line material that they set for the line
+        const ud = line.userData
+        this.userData.renderToGBuffer = ud.renderToGBuffer
+        this.userData.renderToDepth = ud.renderToDepth
+        this.userData.pluginsDisabled = ud.pluginsDisabled
+
+        const defines = line.defines ?? {}
+        this._definesKey = Object.keys(defines).sort().map(k => k + '=' + defines[k]).join(',')
+        // as PerObjectBasicMaterial._programKey, for the settings copied here
+        const key = [this._definesKey, this.transparent, this.blending, this.alphaToCoverage, this.premultipliedAlpha, this.side, this.alphaHash].join()
+        if (key !== this._programKey) {
+            this._programKey = key
+            this.needsUpdate = true
+        }
+    }
+
+    onBeforeRender(renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D, group: Group) {
+        super.onBeforeRender(renderer, scene, camera, geometry, object, group)
+        const line = this.lineMaterial as LineMaterial & {autoUpdateResolution?: boolean}
+        if (line.autoUpdateResolution) renderer.getSize(this.resolution.value)
+        else this.resolution.value.copy(line.resolution)
     }
 }
