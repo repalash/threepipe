@@ -457,8 +457,15 @@ export function driveRoutes(app: Hono<CloudEnv>) {
             entry = cleanSegments(String(body.entry))?.join('/') ?? null
             if (!entry) throw new HTTPException(400, {message: 'bad entry'})
         }
-        // D1 first: an upload that streams meanwhile reads it after registering its file (writeFile)
-        await naming(name, c.env.PRIMARY_DB.prepare('UPDATE drive_items SET name = ?, folder_id = ?, visibility = ?, entry = ? WHERE id = ?').bind(name, folder, visibility, entry, item.id).run())
+        // D1 first: an upload that streams meanwhile reads it after registering its file (writeFile). Only the fields this
+        // request gives: a rename at the same time as a visibility change must not write the visibility it read back.
+        const set: [string, string | null][] = []
+        if (body.name !== undefined) set.push(['name', name])
+        if (body.folder !== undefined) set.push(['folder_id', folder])
+        if (body.visibility !== undefined) set.push(['visibility', visibility])
+        if (body.entry !== undefined) set.push(['entry', entry])
+        if (set.length) await naming(name, c.env.PRIMARY_DB.prepare(`UPDATE drive_items SET ${set.map(([k]) => k + ' = ?').join(', ')} WHERE id = ?`)
+            .bind(...set.map(([, v]) => v), item.id).run())
         // then each file that does not have it yet (sending the same visibility again repairs a change cut short)
         if (body.visibility !== undefined) for (const f of await itemFiles(c, item)) await setVisibility(c, f.path, visibility)
         return c.json(itemOut(c, user, await itemOf(c, user, item.id)))
