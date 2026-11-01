@@ -37,13 +37,15 @@ function setup(plugins: Record<string, any> = {}) {
         setDirty: () => undefined,
         setInteractions: vi.fn(),
     })
-    plugin._viewer = {
+    plugin._viewer = Object.assign(new EventDispatcher(), {
+        enabled: true,
+        renderEnabled: true,
         getPlugin: (t: string) => t === 'ProgressivePlugin' ? progressive : plugins[t],
         doOnce: async() => undefined,
         setDirty: () => undefined,
         scene: {mainCamera: camera},
         console,
-    }
+    })
     plugin._recorder = fakeRecorder(plugin)
     plugin.endPaddingMs = 0
     return {plugin, progressive, camera}
@@ -897,7 +899,7 @@ describe('record indicator', () => {
         plugin.convergeMode = false
         const listeners = {addEventListener: () => undefined, removeEventListener: () => undefined}
         const viewer = {...listeners, renderManager: listeners, scene: listeners, canvas: {parentElement: null}, console,
-            getPlugin: () => undefined, doOnce: async() => undefined, setDirty: () => undefined}
+            enabled: true, renderEnabled: true, getPlugin: () => undefined, doOnce: async() => undefined, setDirty: () => undefined}
         plugin.onAdded(viewer)
         const old = plugin._getRecorder('image')
         old.dispose = () => undefined // its stopped event comes later
@@ -967,7 +969,7 @@ describe('record indicator', () => {
             const progressive = {maxFrameCount: 32, isConverged: () => true}
             const listeners = {addEventListener: () => undefined, removeEventListener: () => undefined}
             const viewer = {...listeners, renderManager: listeners, scene: listeners, canvas: {parentElement: null}, console,
-                getPlugin: (t: string) => t === 'ProgressivePlugin' ? progressive : undefined, setDirty: () => undefined}
+                enabled: true, renderEnabled: true, getPlugin: (t: string) => t === 'ProgressivePlugin' ? progressive : undefined, setDirty: () => undefined}
             const recorder = (requestFrame: () => void) => ({isRecording: () => true, requestFrame, dispose: () => undefined})
             plugin.onAdded(viewer)
             const oldFrames = vi.fn()
@@ -1719,6 +1721,130 @@ describe('CanvasMediaRecorder', () => {
                 'video/webm;codecs=h264', 'video/webm;codecs:h264', 'video/webm;codecs=H264', 'video/webm;codecs:H264', 'video/webm',
             ])
             expect(isTypeSupported).toHaveBeenCalledTimes(40)
+        } finally {
+            vi.unstubAllGlobals()
+        }
+    })
+})
+
+// A disabled viewer (viewer.enabled false, also while the WebGL context is lost) sends no postFrame; with rendering paused
+// or failed (renderEnabled false) postFrame comes but nothing renders. A wait for frames then never ended.
+describe('a viewer that renders no frame', () => {
+    const never = async() => new Promise<void>(() => undefined)
+    const settles = async(p: Promise<unknown>) => Promise.race([p.then(() => 'settled', () => 'settled'), new Promise(r => setTimeout(() => r('hung'), 1000))])
+    function disable(viewer: any) {
+        viewer.enabled = false
+        viewer.dispatchEvent({type: 'viewerDisabled'})
+    }
+    // setup() does not call onAdded: its viewerDisabled listener, as onAdded adds it
+    function setupListening() {
+        const r = setup()
+        r.plugin._viewer.addEventListener('viewerDisabled', r.plugin._renderingStopped)
+        return r
+    }
+
+    test('no recording starts on a disabled viewer or with rendering paused', async() => {
+        for (const state of [{enabled: false}, {renderEnabled: false}]) {
+            const {plugin} = setup()
+            Object.assign(plugin._viewer, state)
+            const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+            expect(plugin.startRecording()).toBe(false)
+            expect(warn).toHaveBeenCalled()
+            const action = vi.fn()
+            await expect(plugin.record(action)).rejects.toThrow('could not start')
+            expect(action).not.toHaveBeenCalled()
+            warn.mockRestore()
+        }
+    })
+
+    test('a stop that waits for a frame ends when the viewer is disabled, with the recording', async() => {
+        const {plugin} = setup()
+        plugin.endPaddingMs = 500
+        plugin._viewer.doOnce = never // no frame comes
+        expect(plugin.startRecording()).toBe(true)
+        const stop = plugin.stopRecording()
+        disable(plugin._viewer)
+        await expect(stop).resolves.toBeInstanceOf(Blob)
+        expect(plugin.isRecording()).toBe(false)
+    })
+
+    test('a stop after the viewer was disabled does not wait for frames or the end padding', async() => {
+        const {plugin} = setupListening()
+        plugin.endPaddingMs = 500
+        expect(plugin.startRecording()).toBe(true)
+        plugin._viewer.doOnce = never
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+        disable(plugin._viewer)
+        expect(warn).toHaveBeenCalledTimes(1)
+        warn.mockRestore()
+        const t = performance.now()
+        await expect(plugin.stopRecording()).resolves.toBeInstanceOf(Blob)
+        expect(performance.now() - t).toBeLessThan(400)
+    })
+
+    test('record(): the viewer disabled during the action ends the recording with what it recorded', async() => {
+        const {plugin} = setupListening()
+        plugin._viewer.doOnce = never
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+        let started!: () => void
+        const running = new Promise<void>(r => started = r)
+        // an animation that steps with the frames: it does not end while no frame comes
+        const rec = plugin.record(async() => {
+            started()
+            return never()
+        })
+        await running
+        disable(plugin._viewer)
+        expect(await settles(rec)).toBe('settled')
+        await expect(rec).resolves.toBeInstanceOf(Blob)
+        expect(plugin.isRecording()).toBe(false)
+        warn.mockRestore()
+    })
+
+    test('record(): rendering paused or failed during the action ends the recording with what it recorded', async() => {
+        const {plugin} = setup()
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+        let started!: () => void
+        const running = new Promise<void>(r => started = r)
+        const rec = plugin.record(async() => {
+            started()
+            return never()
+        })
+        await running
+        // a render error: the viewer sets renderEnabled false, and its loop still sends postFrame
+        plugin._viewer.renderEnabled = false
+        plugin._postFrame()
+        await expect(rec).resolves.toBeInstanceOf(Blob)
+        warn.mockRestore()
+    })
+
+    test('converge mode with rendering paused: no frame is captured and the animations do not step', () => {
+        const {plugin} = setup()
+        const requestFrame = vi.fn()
+        plugin._recorder = {...fakeRecorder(plugin), requestFrame, isRecording: () => true}
+        plugin._active = {convergeMode: true, videoFrameRate: 30}
+        expect(plugin.canRecordFrame()).toBe(true)
+        plugin._viewer.renderEnabled = false
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+        plugin._postFrame() // a still loop of a converged scene would capture the last frame again
+        warn.mockRestore()
+        expect(plugin._pendingCapture).toBeUndefined()
+        expect(plugin.canRecordFrame()).toBe(false)
+        expect(requestFrame).not.toHaveBeenCalled()
+    })
+
+    test('the viewerDisabled listener is removed with the plugin', () => {
+        const {plugin} = setup()
+        const viewer = plugin._viewer
+        Object.assign(viewer, {renderManager: new EventDispatcher(), scene: Object.assign(new EventDispatcher(), {mainCamera: viewer.scene.mainCamera}), canvas: {parentElement: null}})
+        vi.stubGlobal('document', {createElement: () => ({style: {}, remove: () => undefined})})
+        try {
+            plugin.refreshRecorderOptions = () => undefined
+            plugin._recorder.dispose = () => undefined
+            plugin.onAdded(viewer)
+            expect(viewer.hasEventListener('viewerDisabled', plugin._renderingStopped)).toBe(true)
+            plugin.onRemove(viewer)
+            expect(viewer.hasEventListener('viewerDisabled', plugin._renderingStopped)).toBe(false)
         } finally {
             vi.unstubAllGlobals()
         }

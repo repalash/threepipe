@@ -29,6 +29,8 @@ function setup(maxFrameCount = 4, options: {convergeMode?: boolean, videoFrameRa
         plugins: {[tp.ProgressivePlugin.PluginType]: progressive, [tp.CanvasRecorderPlugin.PluginType]: recorder},
         getPlugin(type: string) { return this.plugins[type] },
         renderManager: {frameCount: 0},
+        enabled: true,
+        renderEnabled: true,
     }
     progressive._viewer = viewer
     recorder._viewer = viewer
@@ -85,5 +87,16 @@ describe('ProgressivePlugin.postFrameConvergedRecordingDelta', () => {
         expect(progressive.postFrameConvergedRecordingDelta()).toBe(0)
         busy = false
         expect(progressive.postFrameConvergedRecordingDelta()).toBeCloseTo(1 / 30)
+    })
+
+    test('converged, but no frame renders (rendering paused or failed, or the viewer disabled): 0, the animations wait', () => {
+        const {progressive, viewer, setRecording} = setup(4)
+        setRecording(true)
+        viewer.renderManager.frameCount = 4
+        viewer.renderEnabled = false
+        expect(progressive.postFrameConvergedRecordingDelta()).toBe(0)
+        viewer.renderEnabled = true
+        viewer.enabled = false
+        expect(progressive.postFrameConvergedRecordingDelta()).toBe(0)
     })
 })

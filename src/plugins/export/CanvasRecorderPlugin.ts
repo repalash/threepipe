@@ -95,7 +95,55 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
      * ({@link ProgressivePlugin.postFrameConvergedRecordingDelta}), so each pose gets its own frame.
      */
     canRecordFrame(): boolean {
-        return !this._recorder?.isBusy?.()
+        // no frame renders (disabled, or rendering paused or failed): nothing to capture, so the animations wait too
+        return this._rendering() && !this._recorder?.isBusy?.()
+    }
+
+    /**
+     * The viewer renders frames: it is enabled ({@link ThreeViewer.enabled}, false also while the WebGL context is lost)
+     * and rendering is not paused ({@link ThreeViewer.renderEnabled}, false also after a render error)
+     */
+    private _rendering(): boolean {
+        const viewer = this._viewer
+        return !!(viewer?.enabled && viewer.renderEnabled)
+    }
+
+    /** The ends of the waits for the action of a {@link record}, which end when rendering stops during the recording */
+    private _renderingStopEnds = new Set<() => void>()
+
+    /** Rendering stopped during this recording, and the warning was shown */
+    private _renderingStopWarned = false
+
+    /**
+     * Rendering stopped during a recording: the viewer was disabled (no postFrame comes then), or a postFrame came with
+     * rendering paused or failed. No frame is captured until it renders again, and a {@link record} stops waiting for
+     * its action, which would not end (its animations step with the captured frames) or would record nothing.
+     */
+    private _renderingStopped = () => {
+        if (!this._recorder?.isRecording()) return
+        if (!this._renderingStopWarned) {
+            this._renderingStopWarned = true
+            this._viewer?.console.warn('CanvasRecorderPlugin: rendering stopped during the recording (the viewer is disabled, or rendering is paused or failed), no frames are recorded until it renders again')
+        }
+        const ends = [...this._renderingStopEnds]
+        this._renderingStopEnds.clear()
+        ends.forEach(end => end())
+    }
+
+    /**
+     * Waits for the promise, or until rendering stops during the recording ({@link _renderingStopped}).
+     * @returns true when rendering stopped first
+     */
+    private _untilRenderingStops(promise: Promise<unknown>): Promise<boolean> {
+        return new Promise<boolean>((resolve, reject) => {
+            if (!this._rendering()) {
+                resolve(true)
+                return
+            }
+            const end = () => resolve(true)
+            this._renderingStopEnds.add(end)
+            promise.then(() => resolve(false), reject).then(() => this._renderingStopEnds.delete(end))
+        })
     }
 
     /** The converge mode of the running recording, else the setting */
@@ -142,6 +190,7 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
         viewer.renderManager.addEventListener('preRender', this._preRender)
         viewer.addEventListener('postRender', this._postRender)
         viewer.addEventListener('postFrame', this._postFrame)
+        viewer.addEventListener('viewerDisabled', this._renderingStopped)
         viewer.scene.addEventListener('addSceneObject', this._refreshUi)
 
         // add record indicator (onRemove takes it out of the page)
@@ -239,6 +288,11 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
         const rendered = this._rendered
         this._rendered = false
         this._capturedInFrame = false
+        // rendering is paused or failed (the loop still sends postFrame): no frame to capture
+        if (!this._viewer?.renderEnabled) {
+            this._renderingStopped()
+            return
+        }
         if (rendered || !this._convergeNow || !this._recorder?.isRecording()) return
         const progressive = this._viewer?.getPlugin<ProgressivePlugin>('ProgressivePlugin')
         if (!progressive) {
@@ -281,6 +335,7 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
         viewer.renderManager.removeEventListener('preRender', this._preRender)
         viewer.removeEventListener('postRender', this._postRender)
         viewer.removeEventListener('postFrame', this._postFrame)
+        viewer.removeEventListener('viewerDisabled', this._renderingStopped)
         viewer.scene.removeEventListener('addSceneObject', this._refreshUi)
         // no frame, animation or recorder event comes after a removal (or a viewer dispose): the waits end now
         this._removalWaits.endAll()
@@ -346,8 +401,10 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
                     try {
                         onStart?.()
                         // a removal (or a viewer dispose) ends the animation loop that the action can wait for: it
-                        // ends the wait, and the stop below has no recording to stop
-                        await this._removalWaits.race(action())
+                        // ends the wait, and the stop below has no recording to stop. When rendering stops, the action
+                        // would not end (its animations step with the captured frames): the recording stops then.
+                        if (await this._removalWaits.race(this._untilRenderingStops(action())))
+                            this._viewer?.console.warn('CanvasRecorderPlugin: the recording ends with the frames recorded before rendering stopped')
                         resolve()
                     } catch (e) {
                         reject(e)
@@ -383,8 +440,13 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
         if (!this.enabled) return false
         // the last recording is not done yet (an MP4 encodes while it stops): its end would stop the new one
         if (this._recorderBusy()) return false
+        if (!this._rendering()) {
+            this._viewer?.console.warn(`CanvasRecorderPlugin: ${this._viewer?.enabled === false ? 'the viewer is disabled' : 'rendering is paused (renderEnabled false)'}, nothing to record`)
+            return false
+        }
         if (this.recorder?.isRecording() === false) {
             this._active = {convergeMode: this.convergeMode, videoFrameRate: this.videoFrameRate}
+            this._renderingStopWarned = false
             this._nextFrameTime = 0
             this._uncapturedRender = false
             this.recorder.options.stepMode = this.convergeMode
@@ -436,6 +498,8 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
             await timeout(ms)
             return
         }
+        // no frame renders: the video gets no frames for this time
+        if (!this._rendering()) return
         const fps = (this._active ?? this).videoFrameRate
         const steps = Math.round(ms / 1000 * fps)
         let n = 0
@@ -446,10 +510,16 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
         await new Promise<void>(resolve => {
             const end = () => {
                 viewer.removeEventListener('postFrame', step)
+                viewer.removeEventListener('viewerDisabled', end)
                 this._removalWaits.delete(end)
                 resolve()
             }
             const step = () => {
+                // rendering stopped (paused or failed): no frame comes for the steps that are left
+                if (!this._rendering()) {
+                    end()
+                    return
+                }
                 if (progressive.postFrameConvergedRecordingDelta() > 0) {
                     n++
                     noStep = 0
@@ -470,11 +540,13 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
             if (steps < 1) resolve()
             else {
                 viewer.addEventListener('postFrame', step)
+                // a disabled viewer sends no postFrame
+                viewer.addEventListener('viewerDisabled', end)
                 this._removalWaits.add(end)
             }
         })
         // the scene does not converge: the steps that are left, on the wall clock
-        if (n < steps && this.isRecording()) await timeout((steps - n) / fps * 1000)
+        if (n < steps && this.isRecording() && this._rendering()) await timeout((steps - n) / fps * 1000)
     }
 
     /**
@@ -483,11 +555,21 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
      */
     private _removalWaits = new RemovalWaits()
 
-    /** The next frame of the viewer, or the removal of the plugin (or a viewer dispose), whichever comes first */
+    /**
+     * The next frame of the viewer, the viewer disabled ({@link ThreeViewer.enabled}: no frame comes then), or the removal
+     * of the plugin (or a viewer dispose), whichever comes first
+     */
     private async _nextFrame() {
         const viewer = this._viewer
-        if (!viewer) return
-        await this._removalWaits.race(viewer.doOnce('postFrame'))
+        if (!viewer || !viewer.enabled) return
+        let disabled!: () => void
+        const disable = new Promise<void>(resolve => disabled = resolve)
+        viewer.addEventListener('viewerDisabled', disabled)
+        try {
+            await this._removalWaits.race(Promise.race([viewer.doOnce('postFrame'), disable]))
+        } finally {
+            viewer.removeEventListener('viewerDisabled', disabled)
+        }
     }
 
     private async _stop(): Promise<Blob | undefined> {
@@ -496,13 +578,14 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
             const removed = this._removalWaits.watch()
             await this._nextFrame()
             if (removed()) return undefined
-            if (this._convergeNow) {
+            // no frame renders (the viewer is disabled, or rendering is paused or failed): no last pose to wait for
+            if (this._convergeNow && this._rendering()) {
                 const progressive = this._viewer?.getPlugin<ProgressivePlugin>('ProgressivePlugin')
                 if (progressive) {
                     // the last pose converges in maxFrameCount frames; the cap ends the wait in a scene that never converges
                     const max = progressive.maxFrameCount + 2
                     for (let i = 0; i < max; i++) {
-                        if (progressive.isConverged(true)) break
+                        if (progressive.isConverged(true) || !this._rendering()) break
                         await this._nextFrame()
                         if (removed()) return undefined
                     }
@@ -510,7 +593,7 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
                     // the recorder is ready. The recorder ends its frame within a frame time of the video, which fast loops
                     // can pass in fewer than max loops.
                     const readyBy = performance.now() + 2000 / (this._active ?? this).videoFrameRate
-                    for (let i = 0; this._uncapturedRender && this._recorder?.isRecording() && (i < max || performance.now() < readyBy); i++) {
+                    for (let i = 0; this._uncapturedRender && this._rendering() && this._recorder?.isRecording() && (i < max || performance.now() < readyBy); i++) {
                         await this._nextFrame()
                         if (removed()) return undefined
                     }
@@ -518,7 +601,7 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
             }
             // the capture of the last converged frame waits for a timeout: take it before the recorder stops
             this._pendingCapture?.()
-            if (this.endPaddingMs) await this.waitRecordingTime(this.endPaddingMs)
+            if (this.endPaddingMs && this._rendering()) await this.waitRecordingTime(this.endPaddingMs)
             if (removed()) return undefined
             // the last frame of the padding waits for its capture too
             this._pendingCapture?.()
@@ -755,8 +838,10 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
         let interactions = camera.interactionsEnabled
         let i = 0
         while (!interactions) { // by camera view/animation plugin
+            // no frame comes (the viewer is disabled): the record below does not start
+            if (!this._viewer?.enabled) break
             viewer.setDirty()
-            await this._removalWaits.race(viewer.doOnce('postFrame'))
+            await this._nextFrame()
             // removed (or the viewer disposed) during the wait: the camera is not changed yet, and nothing records
             if (removed()) return
             if (i % 30 === 0) viewer.console.warn('CanvasRecorderPlugin: interactions are already disabled by something, waiting...')

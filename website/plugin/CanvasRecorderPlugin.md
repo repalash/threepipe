@@ -55,6 +55,8 @@ const turntable = await recorder.recordCamera360(5)
 
 `record()` rejects when the action fails. The recording then stops and its result is dropped.
 
+A recording needs rendered frames. `startRecording()` (and so `record()`) does not start on a disabled viewer (`viewer.enabled` false, also while the WebGL context is lost) or with rendering paused (`renderEnabled` false). When rendering stops during a recording (also after a render error), no frame is captured and the animations of a converge-mode recording do not step. `record()` then stops waiting for its action and resolves with the frames recorded so far, and `stopRecording()` does not wait for frames.
+
 Use `startRecording()` and `stopRecording()` to start and stop a recording yourself. The plugin dispatches the `start`, `stop`, `error` and `encode-progress` events.
 
 With converge mode off (or without the `ProgressivePlugin`, where the animations run on the wall clock), the frames follow `videoFrameRate`, not the render rate: a faster render captures fewer frames, a slower one repeats the last image, so the video keeps the speed of the animation. A recording keeps the format, the frame rate and the converge mode that it started with (`recordingSettings`). A change of `mimeType`, `videoFrameRate` or `convergeMode` during a recording applies to the next one. A new recording cannot start while the last one still stops (an MP4 encodes while it stops). When the MP4 encode fails, `stopRecording()` resolves with no blob and the recorder is in the `error` state. In a browser without `MediaRecorder`, a recording with `mimeType: 'auto'` does not start (the `error` state); use an image sequence there.
