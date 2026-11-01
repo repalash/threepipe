@@ -81,6 +81,10 @@ export interface IGPUPicker {
  * - Skinned, morphed, instanced and batched meshes are drawn in their current pose (one object, no instance id).
  * - Each mesh (each geometry group of a multi-material mesh) draws with the side of its material, so a face that a
  *   render culls is not hit.
+ * - A wireframe material is hit only on its lines (and its line width), as it draws.
+ * - The global clipping planes of the renderer (`renderer.clippingPlanes`) cut the pick. The clipping planes of a
+ *   material (`material.clippingPlanes`) do not: the meshes share one picking material, and three keeps one projected
+ *   copy of a material's planes per camera.
  * - Transparent meshes are hit like opaque ones, and so are the parts that alpha test cuts away.
  * - Fat lines (Line2), points, lines, objects outside the model root and meshes on layers that the main camera does not
  *   see are not drawn.
@@ -121,12 +125,15 @@ export class GPUPickingPlugin extends AViewerPluginSync implements IGPUPicker {
      * view-space normal with z < 0 (near the edges of the view). In a float target the encoding loses about 1e-7 rad.
      */
     private _material = new ShaderMaterial({
+        // the global clipping planes of the renderer (renderer.clippingPlanes) cut the pick as they cut the render
+        clipping: true,
         uniforms: {objectId: {value: 0}, flatNormal: {value: false}, flipSided: {value: false}},
         vertexShader: `
 #include <common>
 #include <batching_pars_vertex>
 #include <morphtarget_pars_vertex>
 #include <skinning_pars_vertex>
+#include <clipping_planes_pars_vertex>
 varying vec3 vViewPosition;
 varying vec3 vViewNormal;
 void main() {
@@ -145,6 +152,7 @@ void main() {
 #include <morphtarget_vertex>
 #include <skinning_vertex>
 #include <project_vertex>
+#include <clipping_planes_vertex>
     vViewPosition = mvPosition.xyz;
     vViewNormal = transformedNormal;
 }`,
@@ -154,11 +162,13 @@ uniform bool flatNormal;
 uniform bool flipSided;
 varying vec3 vViewPosition;
 varying vec3 vViewNormal;
+#include <clipping_planes_pars_fragment>
 vec2 octEncode(vec3 n) {
     n /= abs(n.x) + abs(n.y) + abs(n.z);
     return n.z >= 0. ? n.xy : (1. - abs(n.yx)) * vec2(n.x >= 0. ? 1. : -1., n.y >= 0. ? 1. : -1.);
 }
 void main() {
+#include <clipping_planes_fragment>
     vec3 n;
     if (flatNormal) {
         // the face normal, as three's flat shading makes it, turned against the view ray (isOrthographic: three's
@@ -190,6 +200,10 @@ void main() {
             // new program for it (the side does not change the material version), so the shaders do not use FLIP_SIDED.
             this._material.side = material?.side ?? FrontSide
             uniforms.flipSided.value = this._material.side === BackSide
+            // a wireframe covers only its edges: three draws the lines of the wireframe index at the draw
+            // (renderBufferDirect), after this callback, without a new program
+            this._material.wireframe = !!(material as Material & {wireframe?: boolean} | undefined)?.wireframe
+            this._material.wireframeLinewidth = (material as Material & {wireframeLinewidth?: number} | undefined)?.wireframeLinewidth ?? 1
             this._material.uniformsNeedUpdate = true
         }
     }

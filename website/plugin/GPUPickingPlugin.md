@@ -66,6 +66,8 @@ const hit = picker?.pick(x, y)
 - Only the front-most mesh, and only along camera rays. For other rays, all the hits along a ray, or many queries in a frame, use the `Raycaster` (with a BVH on big meshes).
 - The read-back waits for the GPU to finish the draw (a GPU stall). Pick on pointer events, not many times per frame.
 - Each mesh draws with the `side` of its material (of each geometry group, for a multi-material mesh), so a face that a render culls is not hit. The unseen back of a front-sided plane does not hide what is behind it.
+- A wireframe material is hit only on its lines, as it draws.
+- The global clipping planes of the renderer (`renderer.clippingPlanes`) cut the pick. The clipping planes of a material (`material.clippingPlanes`) do not: the meshes share one picking material, and three keeps one projected copy of a material's planes per camera.
 - Transparent meshes are hit like opaque ones, and so are the parts that alpha test cuts away.
 - Fat lines (`Line2`), lines, points, objects outside the model root and meshes on layers that the main camera does not see are not drawn.
 - The meshes go on `GPUPickingPlugin.Layer` (29) during a pick. Do not use that layer for other renders.

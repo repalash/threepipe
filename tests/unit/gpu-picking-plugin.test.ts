@@ -24,6 +24,7 @@ import {
     Object3D,
     OrthographicCamera,
     PerspectiveCamera,
+    Plane,
     PlaneGeometry,
     Raycaster,
     Vector2,
@@ -76,6 +77,8 @@ function setup(camera: Camera) {
         clear: () => undefined,
         renderWithModes: (_ud: any, fn: () => void) => fn(),
         pixel: [0, 0, 0, 0],
+        /** three's global clipping planes: they cut a draw whose material has clipping on */
+        clippingPlanes: [] as Plane[],
         render: (_s: any, cam: PerspectiveCamera | OrthographicCamera) => {
             state.renders++
             const meshes = modelRoot.children.filter(o => o.layers.test(cam.layers)) as Mesh[]
@@ -100,6 +103,10 @@ function setup(camera: Camera) {
                 const n = hit.face!.normal.clone().applyMatrix3(new Matrix3().getNormalMatrix(modelView)).normalize()
                 const front = n.dot(rayView) < 0
                 if (mat.side === FrontSide && !front || mat.side === BackSide && front) continue // culled
+                // a wireframe draws only its edge lines, and the centre of a face is not on them
+                if (mat.wireframe) continue
+                // three discards the negative side of a clipping plane
+                if (mat.clipping && renderer.clippingPlanes.some(p => p.distanceToPoint(hit.point) < 0)) continue
                 state.flatNormal = mat.uniforms.flatNormal.value
                 const hitView = hit.point.clone().applyMatrix4(cam.matrixWorldInverse)
                 const viewZ = -hitView.z
@@ -303,6 +310,29 @@ describe('GPUPickingPlugin', () => {
         const {plugin} = setup(new PerspectiveCamera(50, W / H, 0.1, 100))
         const picker: import('threepipe').IGPUPicker = plugin
         expect(picker.isGPUPicker).toBe(true)
+    })
+
+    test('a wireframe mesh is hit only on its lines: inside a face the pick goes to the mesh behind; the next solid mesh draws filled', () => {
+        const {plugin, near, far} = setup(new PerspectiveCamera(50, W / H, 0.1, 100))
+        const wire = new MeshBasicMaterial({wireframe: true, wireframeLinewidth: 3})
+        near.material = wire
+        expect(plugin.pick(100.5, 50.5)?.object).toBe(far)
+        near.material = new MeshBasicMaterial()
+        expect(plugin.pick(100.5, 50.5)?.object).toBe(near)
+        // per geometry group: only the wireframe faces let the pick through
+        near.material = [0, 1, 2, 3, 4, 5].map(i => i === 4 ? wire : new MeshBasicMaterial()) // 4: the +z face
+        expect(plugin.pick(100.5, 50.5)?.object).toBe(far) // through the wire; the -z face points away and is culled
+        near.material = [0, 1, 2, 3, 4, 5].map(i => i === 4 ? wire : new MeshBasicMaterial({side: i === 5 ? DoubleSide : FrontSide}))
+        expect(plugin.pick(100.5, 50.5)?.object).toBe(near) // the double-sided -z face, seen through the wire
+    })
+
+    test('the global clipping planes of the renderer cut the pick', () => {
+        const {plugin, near, far, renderer} = setup(new PerspectiveCamera(50, W / H, 0.1, 100))
+        expect(plugin.pick(100.5, 50.5)?.object).toBe(near)
+        renderer.clippingPlanes = [new Plane(new Vector3(0, 0, -1), 0)] // cuts away z > 0: the near box
+        expect(plugin.pick(100.5, 50.5)?.object).toBe(far)
+        renderer.clippingPlanes = []
+        expect(plugin.pick(100.5, 50.5)?.object).toBe(near)
     })
 
     test('the filter leaves meshes out; hidden meshes and meshes outside the model root are not drawn', () => {
