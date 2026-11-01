@@ -30,8 +30,9 @@ One session owns one lane. Attach the repositories it does not have with `add_re
   dist-tag or a range.
 - Never move `latest`: a lane publishes only prerelease versions with its dist-tag `three-rNNN`.
 - After an rc is published from a lane branch, only add commits to it: no rebase or force push.
-- Every publish waits for a person (the `npm-publish` environment, or the webgi deploy gate). Ask for it
-  and say what to check. Never work around it.
+- Everything that goes to npm waits for approval and review the same way as a stable release (the
+  `npm-publish` environment with the Claude review); webgi builds wait for the deploy gate. An rc is no
+  exception. Ask for the approval and say what to check; never work around it.
 - A lane changes only its own branches. A fix that belongs to several lanes is made in the lowest lane
   and merged up (see Fixes across lanes).
 - Each repository's own CLAUDE.md, AGENTS.md and CONTRIBUTING.md still apply (commit style, checks,
@@ -72,7 +73,8 @@ Order inside a lane: three.js-modded, then threepipe, then webgi. Each one pins 
 1. `three` = the fork rc (needs webgi on npm three-modded, ijewel3d/webgi#86).
 2. Fix the build, `version` `<next minor>-dev.NNN.N`, a `## <version>` entry in `Changelog.md`.
 3. `npm run lint`, `npm run build-runtime-local`.
-4. Push, then `npm run release`. Ask for the approval on the deploy gate.
+4. Push, then `npm run release` (from a cloud session it needs ijewel3d/webgi#98). Ask for the approval
+   on the deploy gate.
 
 Then add the rc row to each lane PR.
 
@@ -117,4 +119,5 @@ Then add the rc row to each lane PR.
   the threepipe build includes three), the editor setup from `examples/tweakpane-editor`, the webgi
   viewer from `releases.ijewel3d.com/libs/webgi-v0/viewer-<v>.js`, a list of test files, and a side by
   side mode. Deployed with the site from `master`, once.
-- webgi: ijewel3d/webgi#86 merged. Its release workflow already accepts `-dev` tags from any branch.
+- webgi: ijewel3d/webgi#86 (three from npm) and ijewel3d/webgi#98 (`npm run release` from a cloud
+  session) merged. Its release workflow already accepts `-dev` tags from any branch.
