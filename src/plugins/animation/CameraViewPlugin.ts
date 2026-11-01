@@ -750,11 +750,17 @@ export class CameraViewPlugin extends AViewerPluginSync<CameraViewPluginEventMap
     @uiButton('Record All Views', {sendArgs: false})
     public async recordAllViews(onStart?: ()=>void, downloadOnEnd = true) {
         if (this.isDisabled()) return
-        const recorder = this._viewer?.getPlugin<CanvasRecorderPlugin>('CanvasRecorder')
-        if (!recorder || !recorder.enabled) return
+        const viewer = this._viewer
+        const recorder = viewer?.getPlugin<CanvasRecorderPlugin>('CanvasRecorder')
+        if (!viewer || !recorder || !recorder.enabled) return
         if (this._cameraViews.length < 1) return
         if (recorder.isRecording()) {
             console.error('CanvasRecorderPlugin is already recording')
+            return
+        }
+        // a disabled viewer (also while the WebGL context is lost) renders no frame, so the reset to the first view would not end
+        if (!viewer.enabled) {
+            viewer.console.warn('CameraViewPlugin: the viewer is disabled, nothing to record')
             return
         }
         let looping = false
@@ -765,16 +771,34 @@ export class CameraViewPlugin extends AViewerPluginSync<CameraViewPluginEventMap
         let blob: Blob | undefined
         // after a removal, the state of the plugin can be of a later add
         const removed = this._removalWaits.watch()
+        // the viewer disabled before the recording starts: the view animations wait for frames, which do not come then
+        let disabled = false
+        let endDisabledWait!: () => void
+        const disabledWait = new Promise<void>(resolve => endDisabledWait = resolve)
+        const onDisabled = () => {
+            disabled = true
+            // a stopped view animation ends at once, and its view change gives the camera interactions back
+            this._popAnimations.forEach(a=>a?.stop && a.stop())
+            endDisabledWait()
+        }
+        viewer.addEventListener('viewerDisabled', onDisabled)
         try {
             // each wait ends at a removal (or a viewer dispose): the view animations need frames, which stop then
-            await this._removalWaits.race(this.resetToFirstView())
+            await this._removalWaits.race(Promise.race([this.resetToFirstView(), disabledWait]))
             // a loop that ran ends after its view and pause; until then, animateAllViews() does not start its own
-            while (this._animationLooping && !removed()) await timeout(10)
+            while (this._animationLooping && !removed() && !disabled) await timeout(10)
             // removed: nothing records
             if (removed()) return
+            if (disabled) {
+                viewer.console.warn('CameraViewPlugin: the viewer was disabled, nothing recorded')
+                return
+            }
+            // from here, record() ends its own waits when the viewer is disabled
+            viewer.removeEventListener('viewerDisabled', onDisabled)
             // record() rejects when the start, onStart or the animation fails, and stops the recording
             blob = await this._removalWaits.race(recorder.record(async() => this.animateAllViews(), onStart))
         } finally {
+            viewer.removeEventListener('viewerDisabled', onDisabled)
             // not on a removed plugin: the loop would run on it forever
             if (looping && !removed()) this.viewLooping = true
         }

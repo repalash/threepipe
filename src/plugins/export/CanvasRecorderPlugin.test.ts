@@ -6,6 +6,7 @@ import {FFMPEGRecorder} from '../../utils/canvas-recorder/FFMPEGRecorder'
 import {CanvasMediaRecorder} from '../../utils/canvas-recorder/CanvasMediaRecorder'
 import {CameraViewPlugin} from '../animation/CameraViewPlugin'
 import {ProgressivePlugin} from '../pipeline/ProgressivePlugin'
+import {PopmotionPlugin} from '../animation/PopmotionPlugin'
 
 // a recorder that starts at once and stops with an empty blob
 function fakeRecorder(plugin: CanvasRecorderPlugin) {
@@ -49,6 +50,11 @@ function setup(plugins: Record<string, any> = {}) {
     plugin._recorder = fakeRecorder(plugin)
     plugin.endPaddingMs = 0
     return {plugin, progressive, camera}
+}
+
+// the viewer of a CameraViewPlugin: enabled, with the events of ThreeViewer (viewerDisabled)
+function viewsViewer(props: Record<string, any>): any {
+    return Object.assign(new EventDispatcher(), {enabled: true, console}, props)
 }
 
 describe('CanvasRecorderPlugin', () => {
@@ -491,7 +497,7 @@ describe('CameraViewPlugin.recordAllViews', () => {
     test('a failing animation rejects, stops the recording and turns the view loop back on', async() => {
         const {plugin: recorder} = setup()
         const views = new CameraViewPlugin() as any
-        views._viewer = {getPlugin: (t: string) => t === 'CanvasRecorder' ? recorder : undefined}
+        views._viewer = viewsViewer({getPlugin: (t: string) => t === 'CanvasRecorder' ? recorder : undefined})
         views._cameraViews = [{}]
         views._animationLooping = true // the view loop itself does not run here
         views.viewLooping = true
@@ -512,7 +518,7 @@ describe('CameraViewPlugin.recordAllViews', () => {
         const {plugin: recorder} = setup()
         recorder.waitRecordingTime = async() => undefined
         const views = new CameraViewPlugin() as any
-        views._viewer = {getPlugin: (t: string) => t === 'CanvasRecorder' ? recorder : undefined}
+        views._viewer = viewsViewer({getPlugin: (t: string) => t === 'CanvasRecorder' ? recorder : undefined})
         views._cameraViews = [{name: 'a'}, {name: 'b'}]
         const recorded: string[] = []
         views.animateToView = async(v: any, duration?: number) => {
@@ -533,7 +539,7 @@ describe('CameraViewPlugin.recordAllViews', () => {
         const {plugin: recorder} = setup()
         const record = vi.spyOn(recorder, 'record')
         const views = new CameraViewPlugin() as any
-        const viewer = {getPlugin: (t: string) => t === 'CanvasRecorder' ? recorder : undefined, removeEventListener: () => undefined}
+        const viewer = viewsViewer({getPlugin: (t: string) => t === 'CanvasRecorder' ? recorder : undefined})
         views._viewer = viewer
         views._cameraViews = [{}]
         views._animationLooping = true // a loop whose view never ends: a viewer dispose ends the animations
@@ -563,7 +569,7 @@ describe('CameraViewPlugin.recordAllViews', () => {
         try {
             const {plugin: recorder} = setup()
             const views = new CameraViewPlugin() as any
-            const viewer = {getPlugin: (t: string) => t === 'CanvasRecorder' ? recorder : undefined, removeEventListener: () => undefined}
+            const viewer = viewsViewer({getPlugin: (t: string) => t === 'CanvasRecorder' ? recorder : undefined})
             views._viewer = viewer
             views._cameraViews = [{}, {}]
             views.animateToView = vi.fn(async() => undefined)
@@ -756,7 +762,7 @@ describe('CanvasRecorderPlugin stop and remove', () => {
         const {plugin: recorder} = setup()
         if (record) recorder.record = record
         const plugin = new CameraViewPlugin() as any
-        const viewer = {getPlugin: (t: string) => t === 'CanvasRecorder' ? recorder : undefined, removeEventListener: () => undefined}
+        const viewer = viewsViewer({getPlugin: (t: string) => t === 'CanvasRecorder' ? recorder : undefined})
         plugin._viewer = viewer
         plugin._cameraViews = [{}]
         plugin.resetToFirstView = async() => undefined
@@ -1367,10 +1373,10 @@ describe('CameraViewPlugin.recordAllViews download', () => {
         const views = new CameraViewPlugin() as any
         let promptDefault = ''
         const exportFile = vi.fn()
-        views._viewer = {
+        views._viewer = viewsViewer({
             getPlugin: (t: string) => t === 'CanvasRecorder' ? recorder : t === 'FileTransferPlugin' ? {exportFile} : undefined,
             dialog: {prompt: async(_m: string, def: string) => (promptDefault = def, '')},
-        }
+        })
         views._cameraViews = [{}]
         views.resetToFirstView = async() => undefined
         await views.recordAllViews(undefined, true)
@@ -1383,10 +1389,10 @@ describe('CameraViewPlugin.recordAllViews download', () => {
         recorder.record = async() => new Blob([], {type: 'video/mp4'})
         const views = new CameraViewPlugin() as any
         const exportFile = vi.fn()
-        views._viewer = {
+        views._viewer = viewsViewer({
             getPlugin: (t: string) => t === 'CanvasRecorder' ? recorder : t === 'FileTransferPlugin' ? {exportFile} : undefined,
             dialog: {prompt: async() => null},
-        }
+        })
         views._cameraViews = [{}]
         views.resetToFirstView = async() => undefined
         await views.recordAllViews(undefined, true)
@@ -1848,5 +1854,82 @@ describe('a viewer that renders no frame', () => {
         } finally {
             vi.unstubAllGlobals()
         }
+    })
+
+    // a CameraViewPlugin on a viewer with the given recorder and PopmotionPlugin
+    function cameraViews(popmotion?: any) {
+        const {plugin: recorder, camera} = setup()
+        const record = vi.spyOn(recorder, 'record')
+        camera.userData = {autoLookAtTarget: true}
+        const views = new CameraViewPlugin() as any
+        const viewer = viewsViewer({
+            getPlugin: (t: any) => t === 'CanvasRecorder' ? recorder : t === PopmotionPlugin ? popmotion : undefined,
+            scene: {mainCamera: camera},
+            setDirty: () => undefined,
+        })
+        views._viewer = viewer
+        views._cameraViews = [{name: 'a'}]
+        return {views, viewer, camera, record}
+    }
+    const viewerDisabledListeners = (viewer: any) => viewer._listeners?.viewerDisabled?.length ?? 0
+
+    test('recordAllViews on a disabled viewer does not move the camera and does not record', async() => {
+        const {views, viewer, record} = cameraViews()
+        viewer.enabled = false
+        const reset = vi.fn(async() => undefined)
+        views.resetToFirstView = reset
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+        expect(await settles(views.recordAllViews(undefined, false))).toBe('settled')
+        expect(warn).toHaveBeenCalled()
+        warn.mockRestore()
+        expect(reset).not.toHaveBeenCalled()
+        expect(record).not.toHaveBeenCalled()
+    })
+
+    test('recordAllViews: the viewer disabled during the reset to the first view stops it and gives the camera interactions back', async() => {
+        // a camera animation that steps with the frames: it ends only when it is stopped
+        const popmotion = {animateCameraAsync: async(_c: any, _v: any, _s: any, _o: any, animations: any[]) =>
+            new Promise<void>(resolve => animations.push({stop: resolve}))}
+        const {views, viewer, camera, record} = cameraViews(popmotion)
+        const recording = views.recordAllViews(undefined, false)
+        await new Promise(r => setTimeout(r, 5))
+        expect(camera.setInteractions).toHaveBeenLastCalledWith(false, CameraViewPlugin.PluginType)
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+        disable(viewer)
+        expect(await settles(recording)).toBe('settled')
+        expect(warn).toHaveBeenCalled()
+        warn.mockRestore()
+        await new Promise(r => setTimeout(r, 30)) // the end of the stopped view change (timeouts, no frames)
+        expect(camera.setInteractions).toHaveBeenLastCalledWith(true, CameraViewPlugin.PluginType)
+        expect(views._animating).toBe(false)
+        expect(record).not.toHaveBeenCalled()
+        expect(viewerDisabledListeners(viewer)).toBe(0)
+    })
+
+    test('recordAllViews: the viewer disabled while the record waits for the view loop to end settles it without a recording', async() => {
+        const {views, viewer, record} = cameraViews()
+        views._animationLooping = true // a loop whose view animation waits for frames
+        views.resetToFirstView = async() => undefined
+        const recording = views.recordAllViews(undefined, false)
+        await new Promise(r => setTimeout(r, 5))
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
+        disable(viewer)
+        expect(await settles(recording)).toBe('settled')
+        warn.mockRestore()
+        expect(record).not.toHaveBeenCalled()
+        expect(viewerDisabledListeners(viewer)).toBe(0)
+    })
+
+    test('recordAllViews: a viewer disabled during the recording leaves the views to record()', async() => {
+        const {views, viewer, record} = cameraViews()
+        views.resetToFirstView = async() => undefined
+        const stop = vi.fn()
+        views._popAnimations = [{stop}]
+        record.mockImplementation(async() => {
+            expect(viewerDisabledListeners(viewer)).toBe(0) // record() ends its own waits on viewerDisabled
+            return new Blob([])
+        })
+        await expect(views.recordAllViews(undefined, false)).resolves.toBeInstanceOf(Blob)
+        expect(stop).not.toHaveBeenCalled()
     })
 })
