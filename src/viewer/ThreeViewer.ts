@@ -80,8 +80,8 @@ import {AViewerPlugin} from './AViewerPlugin'
 
 // todo make proper event map
 export interface IViewerEvent extends BaseEvent, Partial<IAnimationLoopEvent> {
-    type: '*'|'update'|'preRender'|'postRender'|'preFrame'|'postFrame'|'dispose'|'addPlugin'|'removePlugin'|'renderEnabled'|'renderDisabled'|'renderError'
-    eType?: '*'|'update'|'preRender'|'postRender'|'preFrame'|'postFrame'|'dispose'|'addPlugin'|'removePlugin'|'renderEnabled'|'renderDisabled'|'renderError'
+    type: '*'|'update'|'preRender'|'postRender'|'preFrame'|'postFrame'|'dispose'|'addPlugin'|'removePlugin'|'renderEnabled'|'renderDisabled'|'renderError'|'viewerEnabled'|'viewerDisabled'
+    eType?: '*'|'update'|'preRender'|'postRender'|'preFrame'|'postFrame'|'dispose'|'addPlugin'|'removePlugin'|'renderEnabled'|'renderDisabled'|'renderError'|'viewerEnabled'|'viewerDisabled'
     [p: string]: any
 }
 export type IViewerEventTypes = IViewerEvent['type']
@@ -332,8 +332,10 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
 
     /**
      * If the viewer is enabled. Set this `false` to disable RAF loop.
+     * It is also false while the WebGL context is lost. A change dispatches `viewerEnabled` or `viewerDisabled`.
      */
-    enabled = true
+    @onChange(ThreeViewer.prototype._enabledChanged)
+        enabled = true
 
     /**
      * Enable or disable all rendering.
@@ -723,7 +725,8 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         })
         // the animation loop sends no postFrame while the viewer is disabled
         if (!this.renderEnabled || !this.enabled) return blobPromise()
-        return await this.doOnce('postFrame', async() => {
+        return await this._onNextFrame(async(frame) => {
+            if (!frame || !this.renderEnabled) return blobPromise()
             this.renderEnabled = false
             const blob = await blobPromise()
             this.renderEnabled = true
@@ -734,13 +737,39 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
     /**
      * Returns a data URL with the screenshot of the canvas, after the next frame. When rendering is paused
      * ({@link renderEnabled}) or the viewer is disabled ({@link enabled}, also after a lost WebGL context), the canvas is
-     * read as it is.
+     * read as it is, also when the viewer is disabled before the next frame.
      * @param mimeType default image/jpeg
      * @param quality between 0 and 1
      */
     async getScreenshotDataUrl({mimeType = 'image/jpeg', quality = 0.9} = {}): Promise<string | null | undefined> {
         if (!this.renderEnabled || !this.enabled) return this._canvas.toDataURL(mimeType, quality)
-        return await this.doOnce('postFrame', () => this._canvas.toDataURL(mimeType, quality))
+        return await this._onNextFrame(() => this._canvas.toDataURL(mimeType, quality))
+    }
+
+    /**
+     * Calls `fn` in the next postFrame, or when the viewer is disabled ({@link enabled}, also when the WebGL context is
+     * lost) or disposed before it: the animation loop sends no postFrame then, so `fn` reads the canvas as it is.
+     * @param fn - gets `true` in a postFrame
+     */
+    private async _onNextFrame<T>(fn: (frame: boolean) => T): Promise<Awaited<T>> {
+        if (!this.enabled) return await fn(false)
+        return new Promise((resolve, reject) => {
+            const end = (frame: boolean) => () => {
+                this.removeEventListener('postFrame', onFrame)
+                this.removeEventListener('viewerDisabled', onStop)
+                this.removeEventListener('dispose', onStop)
+                try {
+                    Promise.resolve(fn(frame)).then(resolve, reject)
+                } catch (e) {
+                    reject(e)
+                }
+            }
+            const onFrame = end(true)
+            const onStop = end(false)
+            this.addEventListener('postFrame', onFrame)
+            this.addEventListener('viewerDisabled', onStop)
+            this.addEventListener('dispose', onStop)
+        })
     }
 
     /**
@@ -1610,6 +1639,10 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
             }
         } else p = plugin as T
         return p
+    }
+
+    private _enabledChanged(): void {
+        this.dispatchEvent({type: this.enabled ? 'viewerEnabled' : 'viewerDisabled'})
     }
 
     private _renderEnabledChanged(): void {
