@@ -3,7 +3,8 @@
     "description": "Path tracing plugin interfaces for Threepipe",
     "version": "0.2.0",
     "devDependencies": {
-        "three-gpu-pathtracer": "^0.0.23"
+        "three-gpu-pathtracer": "^0.0.23",
+        "three-mesh-bvh": "^0.9.16"
     },
     "dependencies": {
         "threepipe": "file:./../../src/"

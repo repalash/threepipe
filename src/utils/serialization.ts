@@ -89,7 +89,7 @@ export class ThreeSerialization {
             if (!obj?.isTexture) throw new Error('Expected a texture')
             if (obj.isRenderTargetTexture) return undefined // todo: support render targets
             // if (obj.isRenderTargetTexture && !obj.userData?.serializableRenderTarget) return undefined
-            if (meta?.textures?.[obj.uuid]) return {uuid: obj.uuid, resource: 'textures'}
+            if (meta?.textures[obj.uuid]) return {uuid: obj.uuid, resource: 'textures'}
             const imgData = obj.source.data
             const hasRootPath = !obj.isRenderTargetTexture && obj.userData.rootPath && typeof obj.userData.rootPath === 'string' &&
                 isNonRelativeUrl(obj.userData.rootPath)
@@ -364,7 +364,7 @@ export class ThreeSerialization {
         isType: (obj: any) => obj.isWebGLRenderTarget || obj.metadata?.type === 'RenderTarget',
         serialize: (obj: IRenderTarget, meta?: SerializationMetaType) => {
             if (!obj?.isWebGLRenderTarget || !obj.uuid) throw new Error('Expected a IRenderTarget')
-            if (meta?.extras?.[obj.uuid]) return {uuid: obj.uuid, resource: 'extras'}
+            if (meta?.extras[obj.uuid]) return {uuid: obj.uuid, resource: 'extras'}
 
             // This is for the class implementing IRenderTarget, check {@link RenderTargetManager} for class implementation
             const tex = Array.isArray(obj.texture) ? obj.texture[0] : obj.texture
@@ -500,24 +500,28 @@ export class ThreeSerialization {
 /**
  * Deep copy/clone from source to dest, assuming both are userData objects for three.js objects/materials/textures etc.
  * This will clone any property that can be cloned (apart from Object3D, Texture, Material) and deep copy the objects and arrays.
+ * Keys that start with `privatePrefix` are skipped at every depth.
  * @note Keep synced with copyMaterialUserData in three.js -> Material.js todo: merge these functions? by putting this inside three.js?
  * @param dest
  * @param source
  * @param ignoredKeysInRoot - keys to ignore in the root object
+ * @param privatePrefix - keys that start with this are not copied. Default `'__'` (the keys that are not kept on clone or in JSON). `'_'` also skips the `_` keys, as in glTF, see {@link copyPublicUserData}.
  */
-export function copyUserData(dest: any, source: any, ignoredKeysInRoot: (string|symbol)[] = []): any {
+export function copyUserData(dest: any, source: any, ignoredKeysInRoot: (string|symbol)[] = [], privatePrefix = '__'): any {
     if (!source) return dest
     for (const key of Object.keys(source)) {
         if (ignoredKeysInRoot.includes(key)) continue
-        if (key.startsWith('__')) continue // double underscore
+        if (key.startsWith(privatePrefix)) continue // private key
         const src = source[key]
-        if (typeof dest[key] === 'function' || typeof src === 'function') continue
+        if (typeof src === 'function') continue
+        // a function in dest is kept, but not one inherited from Object.prototype: a public key can be named toString or constructor
+        if (typeof dest[key] === 'function' && dest[key] !== (Object.prototype as any)[key]) continue
         const skipClone = !src || src.isTexture || src.isObject3D || src.isMaterial || src.isBufferGeometry || src.userDataSkipClone
         if (!skipClone && typeof src.clone === 'function')
             dest[key] = src.clone()
         // else if (!skipClone && (typeof src === 'object' || Array.isArray(src)))
         else if (!skipClone && (src.constructor === Object || Array.isArray(src)))
-            dest[key] = copyUserData(Array.isArray(src) ? [] : {}, src, [])
+            dest[key] = copyUserData(Array.isArray(src) ? [] : {}, src, [], privatePrefix)
         else
             dest[key] = src
     }
@@ -558,6 +562,17 @@ export function copyMaterialUserData(dest: any, source: any, ignoredKeysInRoot =
  */
 export function copyObject3DUserData(dest: any, source: any, ignoredKeysInRoot = ['uuid']): any {
     return copyUserData(dest, source, ignoredKeysInRoot)
+}
+
+/**
+ * Deep copy/clone from source to dest without the private keys, the keys that start with `_` or `__`, at every depth.
+ * This is the userData that is saved in glTF: `_` keys are kept on clone and in JSON but not in glTF, `__` keys are kept nowhere (see {@link IObject3D.userData}).
+ * Used for the shadow camera in `GLTFLightExtrasExtension`. For JSON (`toJSON`, `fromJSON`) use {@link copyUserData}, which skips only the `__` keys.
+ * @param dest
+ * @param source
+ */
+export function copyPublicUserData(dest: any, source: any): any {
+    return copyUserData(dest, source, [], '_')
 }
 
 /**
@@ -942,7 +957,7 @@ export function jsonToBlob(json: any): BlobExt {
  * @param mime
  */
 export function serializeTextureInExtras(texture: ITexture & ImportResultExtras, meta: any, name?: string, mime?: string) {
-    if (meta?.extras?.[texture.uuid]) return {uuid: texture.uuid, resource: 'extras'}
+    if (meta?.extras[texture.uuid]) return {uuid: texture.uuid, resource: 'extras'}
 
     let url: any = ''
     if (texture.source?._sourceImgBuffer || texture.__sourceBuffer) {
@@ -953,7 +968,7 @@ export function serializeTextureInExtras(texture: ITexture & ImportResultExtras,
         url = {
             data: Array.from(data), // texture need to be a normal array, not a typed array.
             type: data.constructor.name,
-            path: texture.__sourceBlob?.name || texture.userData.rootPath || 'file.' + mimeType.split('/')[1],
+            path: texture.userData.__sourceBlob?.name || texture.userData.rootPath || 'file.' + mimeType.split('/')[1],
         }
         if (mimeType) url.mimeType = mimeType
     } else if (texture.userData.rootPath) {

@@ -60,6 +60,13 @@ export class CanvasSnapshotPlugin extends AViewerPluginSync {
     }
 
     private async _getFile(filename: string, options: CanvasSnapshotPluginOptions = {}): Promise<File|string|string[]|undefined> {
+        // No frame can be rendered for the snapshot: a disabled viewer (viewer.enabled false, also after a lost WebGL
+        // context) sends no postFrame, and with renderEnabled false (paused, or after a render error) the progressive
+        // frames never come and a pixel ratio change would leave an empty canvas.
+        if (this._viewer && (!this._viewer.enabled || !this._viewer.renderEnabled)) {
+            this._viewer.console.warn(`CanvasSnapshotPlugin: ${!this._viewer.enabled ? 'the viewer is disabled' : 'rendering is paused (renderEnabled false)'}, no frame to capture`)
+            return undefined
+        }
         await this._viewer?.doOnce('postFrame')
         const viewer = this._viewer
         const canvas = this._viewer?.canvas
@@ -89,6 +96,8 @@ export class CanvasSnapshotPlugin extends AViewerPluginSync {
             await viewer.doOnce('postFrame')
 
             while (!progressive.isConverged(true)) {
+                // rendering stopped while waiting (a render error, or paused): the frames would never come
+                if (!viewer.renderEnabled) break
                 await viewer.doOnce('postFrame')
                 // console.log(`rendering ${ 100 * this._viewer!.renderer.frameCount / progressive.maxFrameCount }%`)
             }
@@ -111,7 +120,9 @@ export class CanvasSnapshotPlugin extends AViewerPluginSync {
         // }
 
         let file
-        if (options.tileRows && options.tileRows > 1 || options.tileColumns && options.tileColumns > 1) {
+        if (!viewer.renderEnabled) {
+            viewer.console.warn('CanvasSnapshotPlugin: rendering stopped during the snapshot, no frame to capture')
+        } else if (options.tileRows && options.tileRows > 1 || options.tileColumns && options.tileColumns > 1) {
             const res = await CanvasSnapshot.GetTiledFiles(canvas, filename, Math.max(1, options.tileRows || 1), Math.max(1, options.tileColumns || 1), options)
             if (Array.isArray(res)) {
                 if (res.length === 1) file = res[0]

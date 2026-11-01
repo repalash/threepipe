@@ -706,12 +706,14 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
     /**
      * Returns a blob with the screenshot of the canvas.
      * If {@link CanvasSnapshotPlugin} is added, it will be used, otherwise canvas.toBlob will be used directly.
+     * When rendering is paused ({@link renderEnabled} false) or the viewer is disabled ({@link enabled} false, also after a
+     * lost WebGL context), no frame is rendered, so the canvas is read as it is (also with the plugin added).
      * @param mimeType default image/jpeg
      * @param quality between 0 and 100
      */
     async getScreenshotBlob({mimeType = 'image/jpeg', quality = 90} = {}): Promise<Blob | null | undefined> {
         const plugin = this.getPlugin<CanvasSnapshotPlugin>('CanvasSnapshotPlugin')
-        if (plugin) {
+        if (plugin && this.enabled && this.renderEnabled) {
             return plugin.getFile('snapshot.' + mimeType.split('/')[1], {mimeType, quality, waitForProgressive: true})
         }
         const blobPromise = async()=> new Promise<Blob|null>((resolve) => {
@@ -719,7 +721,8 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
                 resolve(blob)
             }, mimeType, quality)
         })
-        if (!this.renderEnabled) return blobPromise()
+        // the animation loop sends no postFrame while the viewer is disabled
+        if (!this.renderEnabled || !this.enabled) return blobPromise()
         return await this.doOnce('postFrame', async() => {
             this.renderEnabled = false
             const blob = await blobPromise()
@@ -728,8 +731,15 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         })
     }
 
+    /**
+     * Returns a data URL with the screenshot of the canvas, after the next frame. When rendering is paused
+     * ({@link renderEnabled}) or the viewer is disabled ({@link enabled}, also after a lost WebGL context), the canvas is
+     * read as it is.
+     * @param mimeType default image/jpeg
+     * @param quality between 0 and 1
+     */
     async getScreenshotDataUrl({mimeType = 'image/jpeg', quality = 0.9} = {}): Promise<string | null | undefined> {
-        if (!this.renderEnabled) return this._canvas.toDataURL(mimeType, quality)
+        if (!this.renderEnabled || !this.enabled) return this._canvas.toDataURL(mimeType, quality)
         return await this.doOnce('postFrame', () => this._canvas.toDataURL(mimeType, quality))
     }
 

@@ -352,7 +352,8 @@ export class CameraViewPlugin extends AViewerPluginSync<CameraViewPluginEventMap
                 if (throwOnStop) throw e
             })
 
-        this._viewer?.scene.mainCamera.setInteractions(true, CameraViewPlugin.PluginType)
+        // the camera that was animated: the main camera can be another one now
+        camera.setInteractions && camera.setInteractions(true, CameraViewPlugin.PluginType)
         this._animating = false
 
         this._viewer?.setDirty()

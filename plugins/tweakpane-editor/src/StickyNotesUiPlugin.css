@@ -1,0 +1,123 @@
+/*
+ * StickyNotesUiPlugin: post-its over the canvas. Each colour sets the --tp-* variables that the notes read, so the
+ * `theme` colour keeps the Tweakpane theme.
+ */
+/*
+ * The layers on the page, in the viewer container. The post-its and the dock (.snp-layer, 150): above the loading
+ * screen (50) and the overlays of the canvas, below the bars and panels of the editor (200). Their menus
+ * (.snp-popups, 2000): at the level of the popups, like the menu of EditorFrame, below the context menu (9999).
+ * Clip, not hidden: the layer is not a box that scrolls, so a focus does not move the post-its.
+ */
+/* viewer UI (CONTRIBUTING.md, UI layers); with the other panels of the layer, the one pressed last is in front (raiseOnPress) */
+.snp-layer { position: absolute; inset: 0; z-index: calc(150 + var(--ui-raise, 0)); pointer-events: none; overflow: hidden; overflow: clip; }
+.snp-layer.snp-popups { z-index: 2000; }
+.snp-layer > * { pointer-events: auto; }
+/* in the layer: the post-its in their own box (each one's z-index is its place in the order), the dock above them */
+.snp-cards { position: absolute; inset: 0; z-index: 0; }
+.snp-layer > .snp-cards { pointer-events: none; }
+.snp-cards > * { pointer-events: auto; }
+/* the colours; `theme` keeps the ones of the page */
+.snp-layer:not([data-color="theme"]) { --tp-button-background-color-hover: rgba(0, 0, 0, 0.06); }
+.snp-layer[data-color="yellow"] {
+    --tp-base-background-color: #fff8c5; --tp-container-foreground-color: #3b3418; --tp-label-foreground-color: #8a7d3c;
+    --snp-line: #efe3a0; --snp-badge: #f3e9a8;
+}
+.snp-layer[data-color="pink"] {
+    --tp-base-background-color: #ffe4ec; --tp-container-foreground-color: #4a1f2c; --tp-label-foreground-color: #9a5a6c;
+    --snp-line: #f7cfdb; --snp-badge: #fbd3df;
+}
+.snp-layer[data-color="blue"] {
+    --tp-base-background-color: #e3f1ff; --tp-container-foreground-color: #17324d; --tp-label-foreground-color: #557a9e;
+    --snp-line: #cfe3f7; --snp-badge: #d2e7fb;
+}
+.snp-layer[data-color="green"] {
+    --tp-base-background-color: #e5f7e1; --tp-container-foreground-color: #1f3a1a; --tp-label-foreground-color: #5a8550;
+    --snp-line: #cdeac6; --snp-badge: #d3efcc;
+}
+.snp-layer {
+    font: 11px/1.4 var(--tp-font-family, Inter, ui-sans-serif, system-ui, sans-serif);
+    color: var(--tp-container-foreground-color, #1e1e1e);
+}
+.snp-layer button {
+    border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; padding: 2px 6px; border-radius: 4px;
+}
+.snp-layer button:hover { background: var(--tp-button-background-color-hover, rgba(0, 0, 0, 0.06)); }
+/* the icon buttons, with a tooltip each: a 14 px icon in a 28 px button, as large as the icons of the editor frame */
+.snp-layer .snp-icon {
+    display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; box-sizing: border-box;
+    width: 28px; height: 28px; padding: 7px; border-radius: 5px;
+}
+.snp-icon svg { display: block; width: 100%; height: 100%; }
+.snp-layer .snp-icon:focus-visible { outline: 2px solid #0d99ff; outline-offset: 1px; }
+
+/* a post-it: it glides to its place (layout changes, Arrange, a card brought up); not while it is dragged or sized */
+.snp-card {
+    position: absolute; display: flex; flex-direction: column; box-sizing: border-box; overflow: hidden; resize: both;
+    min-width: 160px; min-height: 72px; border-radius: 6px; background: var(--tp-base-background-color, #ffffff);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12), 0 6px 18px rgba(0, 0, 0, 0.14);
+    /* not the size: a size in between would read as one the person gave (ResizeObserver) */
+    transition: left .16s ease-out, top .16s ease-out, transform .16s ease-out, box-shadow .12s;
+}
+.snp-instant .snp-card, .snp-dragging .snp-card { transition: none; }
+.snp-card.snp-lifted { box-shadow: 0 2px 4px rgba(0, 0, 0, 0.14), 0 14px 32px rgba(0, 0, 0, 0.22); }
+.snp-card.snp-new { animation: snp-in .14s ease-out; }
+@keyframes snp-in { from { opacity: 0; transform: scale(.94); } }
+/* minimised: the post-its are off the canvas, the dock has one button */
+.snp-layer[data-layout="minimized"] .snp-card { display: none; }
+/* the pile: the post-its under the top one show their edge; a click brings one up, nothing in it reacts before */
+.snp-card.snp-behind { cursor: pointer; resize: none; }
+.snp-card.snp-behind > * { pointer-events: none; }
+.snp-card.snp-behind:hover { filter: brightness(1.03); }
+
+/* the bar of a note: drag the post-it by it */
+.snp-bar { display: flex; align-items: center; gap: 2px; padding: 5px 4px 2px 6px; cursor: grab; user-select: none; touch-action: none; }
+.snp-dragging, .snp-dragging * { cursor: grabbing !important; }
+.snp-fill { flex: 1; align-self: stretch; }
+/* the buttons of the bar: a 14 px icon in a 22 px button; the store of the note on its own background */
+.snp-bar .snp-icon { width: 22px; height: 22px; padding: 4px; color: var(--tp-label-foreground-color, #757575); }
+.snp-layer .snp-badge { position: relative; background: var(--snp-badge, rgba(0, 0, 0, 0.06)); }
+.snp-layer .snp-badge[data-status="error"] { color: #c62828; }
+/* not saved yet: a dot on the corner */
+.snp-badge[data-status="changed"]::after, .snp-badge[data-status="saving"]::after {
+    content: ''; position: absolute; top: 2px; right: 2px; width: 5px; height: 5px; border-radius: 50%; background: currentColor;
+}
+.snp-tool { opacity: 0; transition: opacity .1s; }
+.snp-card:hover .snp-tool, .snp-card:focus-within .snp-tool { opacity: 1; }
+
+/* the text on ruled lines */
+.snp-card textarea {
+    flex: 1; width: 100%; min-height: 0; box-sizing: border-box; border: 0; outline: none; resize: none; margin: 0;
+    padding: 0 10px 8px; font: inherit; font-size: 12px; color: inherit; line-height: 22px;
+    background: transparent linear-gradient(transparent 21px, var(--snp-line, transparent) 22px) 0 0 / 100% 22px local;
+}
+.snp-layer[data-color="theme"] .snp-card textarea { background-image: none; }
+/* a phone zooms in on a text field under 16px when it gets the cursor, and does not zoom out after */
+@media (pointer: coarse) {
+    .snp-card textarea { font-size: 16px; }
+}
+
+/* the buttons on the canvas */
+.snp-dock {
+    position: absolute; left: 12px; bottom: 12px; z-index: 1; display: flex; gap: 2px; padding: 3px; border-radius: 8px;
+    background: var(--tp-base-background-color, #ffffff); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+/* the dock drags by its handle (two columns of dots) and its free part, also on a touch screen; its buttons click */
+.snp-dock { cursor: grab; touch-action: none; }
+.snp-grip {
+    flex: none; box-sizing: border-box; width: 12px; padding: 8px 2px; margin-right: -2px; opacity: .45;
+    background: radial-gradient(circle, currentColor 1px, transparent 1.5px) 0 0 / 4px 4px content-box;
+}
+.snp-grip:hover { opacity: .8; }
+/* minimised: the notes icon and their number */
+.snp-dock .snp-restore { width: auto; gap: 6px; padding: 6px 8px; }
+.snp-count { font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums; }
+
+/* the stores of "▾" and of a badge */
+.snp-menu {
+    position: absolute; display: flex; flex-direction: column; min-width: 140px; padding: 4px; border-radius: 8px;
+    background: var(--tp-base-background-color, #ffffff); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08), 0 6px 20px rgba(0, 0, 0, 0.14);
+}
+.snp-menu-title { padding: 4px 8px; color: var(--tp-label-foreground-color, #757575); font-size: 10px; }
+.snp-menu button { display: flex; align-items: center; gap: 8px; text-align: left; padding: 6px 8px 6px 22px; position: relative; }
+.snp-menu button svg { width: 14px; height: 14px; flex-shrink: 0; color: var(--tp-label-foreground-color, #757575); }
+.snp-menu button.on::before { content: '✓'; position: absolute; left: 7px; }
