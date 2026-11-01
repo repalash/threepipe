@@ -81,8 +81,8 @@ async function init() {
     }
 
     // "Huge scene": 400 knots of 50k triangles each (20M triangles), in a block of 10 × 8 × 5 behind the row. The GPU
-    // pick draws only what the 1-pixel view sees, so its time does not grow with the scene; a Raycaster without a BVH
-    // tests every triangle of each mesh whose bounding sphere the ray crosses (up to 5 knots deep here).
+    // pick draws only the knots whose bounds cover the pixel (the 1-pixel view culls the others); a Raycaster without a
+    // BVH tests every triangle of each mesh whose bounding sphere the ray crosses (up to 5 knots deep here).
     const hugeGeometry = new TorusKnotGeometry(0.3, 0.09, 250, 100)
     const huge: Mesh[] = []
     const setHuge = (on: boolean) => {
