@@ -7,6 +7,14 @@ export abstract class BaseImporterPlugin implements IViewerPluginSync {
 
     protected abstract _importer: Importer
 
+    /**
+     * The file format this plugin adds. It works without a viewer too, as a format of an {@link AssetContext}:
+     * `createAssetContext().addFormat(new STLLoadPlugin().importer)`
+     */
+    get importer(): Importer {
+        return this._importer
+    }
+
     toJSON: any = null // disable serialization
 
     onAdded(viewer: ThreeViewer) {
