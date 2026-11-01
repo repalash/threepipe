@@ -121,7 +121,7 @@ Changes are saved per store, 600 ms after the last one, and when the plugin is r
 
 `StickyNotesUiPlugin` shows the notes as post-its over the canvas, in one of two layouts:
 
-- `board`: each note is its own post-it. A new post-it goes below the last one in its column, inside the canvas and above the dock; when no column has room (a phone has room for one), the columns start again a little lower and to the right. "Arrange" puts all of them in columns by the same rule. "Stack" switches to the other layout.
+- `board`: each note is its own post-it. A post-it from "Add a note" opens by the dock, where the + button is: above it, or below it when the dock is at the top of the canvas, and inside the canvas. A note added in code (`notes.addNote`) goes below the last post-it in its column, inside the canvas and above the dock; when no column has room (a phone has room for one), the columns start again a little lower and to the right. "Arrange" puts all of them in columns by the same rule. "Stack" switches to the other layout.
 - `stack`: the post-its lie on a pile, each one a little to the left of and above the one on it, so the pile stays on the canvas. A click on a post-it behind brings it to the top; the pile is dragged and sized as one. "Spread" switches back.
 
 "Minimise" (the `minimized` layout) takes the post-its off the canvas. Only one button stays in the dock, with the number of notes; a click on it brings back the layout from before. The post-its start minimized on each page load, so they do not cover the canvas; the button brings back the layout set last. `new StickyNotesUiPlugin(storageKey, false)` starts in that layout instead.
@@ -134,10 +134,11 @@ In both layouts:
 - Each note has "Add the time and the selection" (the time, `contextProvider` and the objects selected in the `PickingPlugin`), "Copy the text" (the icon shows a check and "Copied" for a moment) and "Delete the note". Escape leaves the note. On a touch screen the text is 16 px, so a phone does not zoom in when the note gets the cursor.
 - Drag a post-it by its bar, and size it from its bottom right corner. A click on a post-it brings it up.
 - The buttons are `dock`, at the bottom left of the canvas. When that corner is taken, place it with its style, e.g. `sticky.dock.style.bottom = '56px'`.
+- Drag the dock by its handle (the dots at its left) or its free part to move it out of the way; its buttons still click (a press that moves less than 3 px is a click). It stays inside the canvas, also when the canvas gets smaller. A double click on the handle, or Reset places, puts it back in its corner. The board and the pile keep their places above the corner. The move is the dock's `transform`, so do not set one on it.
 - The post-its fill the nearest positioned ancestor, so the viewer container must be positioned (for example `position: relative`) for the post-its to stay inside the canvas.
-- The post-its and the dock are above the loading screen and the overlays of the canvas (`z-index` 150), below the bars of the editor; their menus are with the popups (2000).
+- The post-its and the dock are above the loading screen and the overlays of the canvas (`z-index` 150), below the bars of the editor; their menus are with the popups (2000). With the open card of `PerfPanelPlugin` in the same layer, the one pressed last is in front (`raiseOnPress`): a press on a post-it or the dock brings the notes forward, opening or pressing the perf card brings it forward.
 
-The layout, the colour, and the places and sizes of the post-its are kept in `localStorage` (the `storageKey` of the plugin), not in the file. Its UI folder (`Sticky Notes`) has the settings: Show, Layout, Colour (yellow, pink, blue, green, or `theme` for the Tweakpane theme), Arrange and Reset places.
+The layout, the colour, the places and sizes of the post-its and the place of the dock are kept in `localStorage` (the `storageKey` of the plugin), not in the file. Its UI folder (`Sticky Notes`) has the settings: Show, Layout, Colour (yellow, pink, blue, green, or `theme` for the Tweakpane theme), Arrange and Reset places.
 
 ```typescript
 import {PickingPlugin, ThreeViewer} from 'threepipe'
