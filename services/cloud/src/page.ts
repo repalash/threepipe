@@ -11,6 +11,7 @@ import REPORTS from './page/reports.html'
 import REPORTS_SCRIPT from './page/reports.client.js'
 import ACCOUNT from './page/account.html'
 import ACCOUNT_SCRIPT from './page/account.client.js'
+import FAVICON from './page/favicon.svg' // the threepipe logo (website/public/logo.svg)
 
 /** The project the pages' own "Report a problem" goes to (made by staff; the button shows once it exists). */
 export const FEEDBACK_PROJECT = 'threepipe'
@@ -20,7 +21,7 @@ const HEADERS = {
     'x-content-type-options': 'nosniff',
     'referrer-policy': 'no-referrer',
     'x-frame-options': 'DENY',
-    'content-security-policy': "default-src 'none'; script-src 'self'; style-src 'self'; img-src blob:; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    'content-security-policy': "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' blob:; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
 }
 const html = {'content-type': 'text/html; charset=utf-8', ...HEADERS}
 const js = {'content-type': 'text/javascript; charset=utf-8', ...HEADERS}
@@ -34,6 +35,8 @@ const css = {'content-type': 'text/css; charset=utf-8', ...HEADERS}
 export function pageRoutes(app: Hono<CloudEnv>) {
     app.get('/ui.css', c => c.body(UI_CSS, 200, css))
     app.get('/ui.js', c => c.body(UI_SCRIPT, 200, js))
+    app.get('/favicon.svg', c => c.body(FAVICON, 200, {'content-type': 'image/svg+xml', 'cache-control': 'public, max-age=86400', 'x-content-type-options': 'nosniff'}))
+    app.get('/favicon.ico', c => c.redirect('/favicon.svg', 301)) // what a browser asks for on a page without an icon link (the API's JSON)
     app.get('/drive', c => c.body(DRIVE, 200, html))
     app.get('/drive/page.js', c => c.body(DRIVE_SCRIPT, 200, js))
     app.get('/reports', c => c.body(REPORTS, 200, html))
@@ -77,11 +80,11 @@ export const ICONS = {
  */
 export function cardPage(c: Context<CloudEnv>, body: string, o: {wide?: boolean, formAction?: string} = {}) {
     return c.html(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>threepipe cloud</title><link rel="stylesheet" href="/ui.css"></head>
+<title>threepipe cloud</title><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/ui.css"></head>
 <body><div class="center"><div class="card${o.wide ? ' wide' : ''}"><div class="brand"><span class="mark">${ICONS.cube}</span>threepipe cloud</div>${body}</div></div></body></html>`, 200, {
         'cache-control': 'no-store',
         'x-frame-options': 'DENY',
-        'content-security-policy': `default-src 'none'; style-src 'self'; frame-ancestors 'none'; base-uri 'none'${o.formAction ? `; form-action ${o.formAction}` : ''}`,
+        'content-security-policy': `default-src 'none'; style-src 'self'; img-src 'self'; frame-ancestors 'none'; base-uri 'none'${o.formAction ? `; form-action ${o.formAction}` : ''}`,
         'referrer-policy': 'same-origin',
     })
 }

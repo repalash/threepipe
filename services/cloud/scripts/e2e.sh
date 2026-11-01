@@ -147,6 +147,7 @@ admin files/delete "{\"where\":\"path == 'd/$U/big'\"}" > /dev/null
 [ "$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' "$A/")" = "302 $A/drive" ] && ok "the home page opens the drive" || bad "home page: $(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' "$A/")"
 curl -sI "$A/drive" | grep -qi "content-security-policy: default-src 'none'; script-src 'self'" && [ "$(code "$A/drive/page.js")" = "200" ] && ok "drive page" || bad "drive page"
 [ "$(curl -s -o /dev/null -w '%{http_code} %{content_type}' "$A/ui.css")" = "200 text/css; charset=utf-8" ] && [ "$(code "$A/ui.js")" = "200" ] && ok "the pages' look (/ui.css, /ui.js)" || bad "ui.css"
+[ "$(curl -s -o /dev/null -w '%{http_code} %{content_type}' "$A/favicon.svg")" = "200 image/svg+xml" ] && [ "$(code "$A/favicon.ico")" = "301" ] && curl -s "$A/drive" | grep -q 'rel="icon" href="/favicon.svg"' && ok "favicon" || bad "favicon"
 R=$(curl -s -H "$H0" "$A/api/v1/me"); [ "$(echo "$R" | j "['username']")" = "$U" ] && [ "$(echo "$R" | j "['drive']['quota']")" = "1073741824" ] && echo "$R" | grep -q '"feedback":' && ok "me: the handle, the drive quota, the feedback project" || bad "me: $R"
 # a Google sign-up: teenybase made a username from the email and handle_set is empty (only SQL can clear it)
 GU=g$RANDOM; GT=$(curl -s -X POST $A/api/v1/table/users/auth/sign-up -H 'content-type: application/json' -d "{\"username\":\"$GU\",\"email\":\"$GU@x.test\",\"password\":\"pass12345\",\"passwordConfirm\":\"pass12345\",\"name\":\"$GU\"}" | j "['token']")
