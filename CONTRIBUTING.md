@@ -127,7 +127,7 @@ Plugins that add DOM elements over the canvas use these layers, so the UI stacks
 | 100 to 199 | Viewer UI over the scene | `GridItemList` (100), editor camera pill and card (120), sticky notes (150) |
 | 200 to 999 | Panels and bars | tweakpane editor `.button-bar` (200), editor frame mode bar (200) and title or status bar (210) |
 | 1000 to 1999 | Floating tools | `TimelineUiPlugin`, `RenderTargetPreviewPlugin`, `GeometryUVPreviewPlugin` (1000) |
-| 2000 to 9998 | Popups and dropdown menus | editor layout menu (2000), sticky notes menus (2000) |
+| 2000 to 9998 | Popups and dropdown menus | editor layout menu (2000), sticky notes menus (2000), editor start screen `EditorSplash` (5000) |
 | 9999 and up | Context menus | `CustomContextMenu` |
 
 A layer counts only between elements in the same stacking context: an element inside a parent with its own `z-index` (or `transform`, `filter`, `opacity` below 1) stacks inside that parent.

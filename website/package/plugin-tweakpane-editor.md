@@ -105,6 +105,48 @@ editor.layout = 'classic'
 
 In the [Tweakpane Editor example](https://threepipe.org/examples/tweakpane-editor/), add `?layout=titlebar`, `?layout=statusbar`, `?layout=floating` or `?layout=classic` to the URL.
 
+## EditorSplash (start screen)
+
+`EditorSplash` is the start screen of the editor, like the splash of a desktop app. It is a dialog over the dimmed page with:
+- Start: "New empty scene" (`onNew`) and "Open file…" (`onFiles`, also Ctrl+O or Cmd+O in the open splash).
+- Recent: the samples that the person opened last (`recent`, at most `EditorSplash.MaxRecent`, 5).
+- Samples: a card for each sample of the app, with a title, a short text, an icon and a load function.
+- "Drop a file anywhere to open it" (with `onFiles`; a dropped folder works, as on the canvas) and a "Show at startup" box (`showAtStartup`).
+
+The app gives the samples and the callbacks, and calls `open()`. A sample or a file shows that it loads, then the splash closes. When the load throws, the splash stays open with a message. One load runs at a time: when the splash closes and opens again while a load runs, it shows that load and refuses another one until it ends. Escape, × or a click outside the card closes it. While it is open, it has the focus: Tab stays in the dialog, and the keys do not reach the editor shortcuts behind it. When it is closed, Ctrl+O (Cmd+O) outside a text field opens it again (`shortcut: false` turns this off).
+
+The "Show at startup" box and the recent samples are kept in `localStorage`, under `<storageKey>Startup` and `<storageKey>Recent` (default `tpEditorSplash`; `null` keeps nothing). The splash takes the colours of the Tweakpane theme (light or dark), and its z-index (5000) is in the popups layer.
+
+```typescript
+import {EditorSplash} from '@threepipe/plugin-tweakpane-editor'
+
+const splash = new EditorSplash({
+    title: 'My Editor',
+    version: 'v1.0.0',
+    samples: [{
+        title: 'Damaged helmet',
+        text: 'The glTF sample with PBR textures',
+        icon: '<svg viewBox="0 0 24 24" ...></svg>', // stroke="currentColor"; optional
+        load: async() => {
+            viewer.scene.disposeSceneModels()
+            await viewer.load('https://samples.threepipe.org/minimal/DamagedHelmet/glTF/DamagedHelmet.gltf', {autoScale: true, autoCenter: true})
+        },
+    }],
+    onNew: () => viewer.scene.disposeSceneModels(),
+    // the files by their paths (a dropped folder keeps the relative paths of its files), as AssetImporter.importFiles takes them
+    onFiles: async files => {
+        const imported = await viewer.assetManager.importer.importFiles(files)
+        viewer.scene.disposeSceneModels()
+        await viewer.assetManager.loadImported([...imported.values()].flat())
+    },
+    accept: '.glb,.gltf,.fbx,.obj', // optional: the file types of the picker
+})
+// at the page load, unless the person turned it off
+if (splash.showAtStartup) splash.open()
+```
+
+The [Tweakpane Editor example](https://threepipe.org/examples/tweakpane-editor/) opens it at the page load with four samples. Add `?nosplash` to the URL to skip it, or uncheck "Show at startup". A model in the URL (`?m=`) also skips it.
+
 ## NotesPlugin and StickyNotesUiPlugin
 
 [Example](https://threepipe.org/examples/#notes-plugin/) &mdash;
