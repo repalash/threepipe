@@ -40,6 +40,10 @@ One session owns one lane. Attach the repositories it does not have with `add_re
   rc has that the last one did not. Never publish again just to retry or to see if something works.
 - A lane changes only its own branches. A fix that belongs to several lanes is made in the lowest lane
   and merged up (see Fixes across lanes).
+- Nothing extra in the repositories (threepipe and three.js-modded are public): no session names or
+  URLs, no personal details (names, emails, machines, local paths), and no metadata that does not serve
+  the change, in code, code comments, commit messages, PR bodies, changelogs or release notes. No GitHub
+  comments either. Only when the person asks for one of these.
 - Each repository's own CLAUDE.md, AGENTS.md and CONTRIBUTING.md still apply (commit style, checks,
   `npm run` scripts only).
 
@@ -78,9 +82,8 @@ Order inside a lane: three.js-modded, then threepipe, then webgi. Each one pins 
 1. `three` = the fork rc (needs webgi on npm three-modded, ijewel3d/webgi#86).
 2. Fix the build, `version` `<next minor>-dev.NNN.N`, a `## <version>` entry in `Changelog.md`.
 3. `npm run lint`, `npm run build-runtime-local`.
-4. Push the branch, then ask the person to run the release: agent sessions cannot push tags (a Claude
-   Code cloud session gets HTTP 403, an ijewelOS host accepts only branches). Give the commit and the
-   commands: `git fetch origin && git checkout <commit> && npm run release`. Then they approve it on
+4. Push the branch, then ask the person to run the release (agent sessions cannot push tags). Give the
+   commit and the commands: `git fetch origin && git checkout <commit> && npm run release`. Then they approve it on
    the deploy gate.
 
 Then add the rc row to each lane PR.
