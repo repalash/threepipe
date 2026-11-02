@@ -230,6 +230,8 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
         const m = o as Mesh & {isSkinnedMesh?: boolean, isInstancedMesh?: boolean, isBatchedMesh?: boolean}
         return !!m.isMesh && !!m.geometry && !m.isSkinnedMesh && !m.isInstancedMesh && !m.isBatchedMesh &&
             !Object.keys(m.geometry.morphAttributes).length &&
+            // a tree covers only the groups, but three.js raycasts the whole draw range of a mesh with one material
+            (Array.isArray(m.material) || !groupsLeaveGaps(m.geometry)) &&
             (m.raycast === Mesh.prototype.raycast || !!this.lib && m.raycast === this.lib.acceleratedRaycast)
     }
 
@@ -248,7 +250,7 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
     statusOf(o: IObject3D) {
         const g = o.geometry
         if (!g) return 'No geometry'
-        if (!this.canUse(o)) return 'Not supported (skinned, morphed, instanced or own raycast)'
+        if (!this.canUse(o)) return 'Not supported (skinned, morphed, instanced, own raycast, or one material with groups that leave out triangles)'
         const s = this._stats.get(g)
         if (s) return `${s.triangles.toLocaleString()} triangles · ${(s.bytes / 1e6).toFixed(2)} MB · built in ${s.ms.toFixed(1)} ms`
         if (this._queue.has(g)) return this.lib ? 'Queued' : 'Loading three-mesh-bvh…'
@@ -406,14 +408,34 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
         this.dispatchEvent({type: 'bvhDisposed', geometry: g})
     }
 
-    // meshes of a geometry with a tree raycast with it, the others get the default back
+    // meshes of a geometry with a tree raycast with it, the others get the default back (also a mesh that can no
+    // longer use the tree, e.g. its groups now leave out triangles)
     private _setRaycast(g: BVHGeometry) {
+        const accelerated = this.lib?.acceleratedRaycast
         for (const o of g.appliedMeshes ?? []) {
-            if (!this.canUse(o)) continue
-            if (g.boundsTree && this.lib && this.modeOf(o) !== 'off') o.raycast = this.lib.acceleratedRaycast
-            else if (Object.prototype.hasOwnProperty.call(o, 'raycast')) delete (o as Partial<IObject3D>).raycast
+            if (g.boundsTree && accelerated && this.canUse(o) && this.modeOf(o) !== 'off') o.raycast = accelerated
+            else if (Object.prototype.hasOwnProperty.call(o, 'raycast') && o.raycast === accelerated) delete (o as Partial<IObject3D>).raycast
         }
     }
+}
+
+/**
+ * Whether the groups of a geometry leave out triangles of its draw range. A tree has only the triangles in the groups
+ * (three-mesh-bvh 0.9: getRootPrimitiveRanges), and three.js raycasts only the groups of a mesh with a material array,
+ * but the whole draw range of a mesh with one material.
+ */
+function groupsLeaveGaps(g: BufferGeometry) {
+    if (!g.groups.length) return false
+    const count = g.index ? g.index.count : g.attributes.position?.count ?? 0
+    const start = Math.max(0, g.drawRange.start)
+    const end = Math.min(count, g.drawRange.start + g.drawRange.count)
+    let covered = start
+    for (const gr of [...g.groups].sort((a, b) => a.start - b.start)) {
+        if (covered >= end) break
+        if (gr.start > covered) return true
+        covered = Math.max(covered, gr.start + gr.count)
+    }
+    return covered < end
 }
 
 /**

@@ -317,4 +317,36 @@ describe('BVHPlugin', () => {
         expect(expected.flat().length).toBeGreaterThan(hitsBefore)
         expect(rays().map(r => hits(m, r))).toEqual(expected)
     })
+
+    test('a mesh with one material whose groups leave out triangles keeps the raycast of three.js, which ignores the groups', () => {
+        const {plugin, add, frame} = setup()
+        const m = add(200, 32)
+        const g = m.geometry!
+        // a tree covers only the groups; three.js raycasts the whole draw range of a mesh with one material
+        g.addGroup(0, 3000, 0)
+        const expected = rays().map(r => hits(m, r))
+        frame()
+        expect(plugin.canUse(m)).toBe(false)
+        expect(plugin.statusOf(m)).toContain('Not supported')
+        expect(m.raycast).toBe(Mesh.prototype.raycast)
+        expect(rays().map(r => hits(m, r))).toEqual(expected)
+
+        // groups that cover the draw range: the tree has every triangle
+        const m2 = add(200, 32)
+        const g2 = m2.geometry!
+        g2.addGroup(0, 3000, 0)
+        g2.addGroup(3000, Infinity, 0)
+        const expected2 = rays().map(r => hits(m2, r))
+        frame()
+        expect(m2.raycast).toBe(threeMeshBVH.acceleratedRaycast)
+        expect(rays().map(r => hits(m2, r))).toEqual(expected2)
+
+        // an update that leaves a gap: the tree is dropped and the mesh gets the raycast of three.js back
+        g2.clearGroups()
+        g2.addGroup(0, 3000, 0)
+        g2.setDirty()
+        frame()
+        expect(Object.prototype.hasOwnProperty.call(m2, 'raycast')).toBe(false)
+        expect(rays().map(r => hits(m2, r))).toEqual(expected2)
+    })
 })
