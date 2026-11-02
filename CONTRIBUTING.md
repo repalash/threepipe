@@ -40,6 +40,8 @@ Run them in the repository root, unless the table says otherwise.
 | `npm run build:all` | Builds the core, every plugin and the examples (turbo, cached) | To test everything as it is deployed |
 | `npm run build-examples` / `npm run watch-examples` | Compiles the examples to JavaScript (once / on change), for `npm run serve` | To test the examples as they are deployed |
 | `npm run serve` | Static server for the built files on http://localhost:9229 | With `build:all`, `build-examples` or `watch-examples` |
+| `npm run lint` | Oxlint with the rules in `.oxlintrc.json` (every rule is an error, the code passes them all) | Before a pull request |
+| `npm run typecheck` | Type-checks the core (TypeScript 7) | Before a pull request |
 | `npm run test:unit` | Unit tests (vitest) | Before a pull request |
 | `npm run test:e2e` | Browser tests (playwright), against the built files | Before a pull request that changes rendering |
 | `npm run check-bundles` | Checks the built bundles: every import is declared, no package is bundled twice | After `build:all`, when a vite config or a dependency changes |
