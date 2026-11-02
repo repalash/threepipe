@@ -869,21 +869,35 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         this._setDeepKey(e.ctrlKey || e.metaKey)
     }
 
-    // Escape goes to the page first (window, bubble phase): an open menu or popover that closes on it marks it as used
-    // (preventDefault), and the selection is left as it is. The other keys come first (window, capture phase).
+    // Escape goes to the page first: an open menu or popover that closes on it stops it (stopPropagation), and the
+    // selection is left as it is. The selection changes in the bubble phase of the window, for an Escape that got there.
+    // It is marked as used in the capture phase already, so the PickingPlugin (window, bubble phase, a dependency, so
+    // its listener comes first) does not clear the selection before. The other keys are handled in the capture phase.
     private _onKeyDown = (e: KeyboardEvent) => {
         this._setDeepKey(e.ctrlKey || e.metaKey)
-        if (e.code !== 'Escape') this._onKey(e)
+        if (e.code !== 'Escape') {
+            this._onKey(e)
+            return
+        }
+        this._escape = undefined
+        if (!this._active || !this.selected.length || isTextField(e.target)) return
+        e.preventDefault()
+        this._escape = e
     }
 
     private _onKeyDownLate = (e: KeyboardEvent) => {
-        if (e.code === 'Escape' && !e.defaultPrevented) this._onKey(e)
+        if (e.code !== 'Escape' || this._escape !== e) return
+        this._escape = undefined
+        this._onKey(e)
     }
+
+    /** The Escape that the capture phase took for the selection, until it reaches the bubble phase of the window */
+    private _escape?: KeyboardEvent
 
     private _onKey(e: KeyboardEvent) {
         if (!this._active) return
         const t = e.target as HTMLElement | null
-        if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return
+        if (isTextField(t)) return
         const enter = e.code === 'Enter' || e.code === 'NumpadEnter'
         // a control reached with the keyboard (a toolbar button, a menu item) presses with Enter itself, and Tab moves
         // the focus on; after a mouse click the focus stays on the control, not visible: the keys go to the selection
@@ -927,4 +941,10 @@ function span(text: string, style: string) {
     s.textContent = text
     if (style) s.setAttribute('style', style)
     return s
+}
+
+/** A text field, where the keys are typing */
+function isTextField(target: EventTarget | null): boolean {
+    const t = target as HTMLElement | null
+    return !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || !!t.isContentEditable)
 }
