@@ -555,6 +555,24 @@ describe('AnnotationsPlugin', () => {
         expect(camera.setInteractions).toHaveBeenLastCalledWith(true, 'AnnotationsPlugin')
     })
 
+    test('loading a config (fromJSON) stops the flight, so it does not move the camera of the loaded config', () => {
+        // a flight that runs until it is stopped
+        const flights: {stop: ReturnType<typeof vi.fn>}[] = []
+        const popmotion = {animate: (o: any) => {
+            const f = {stop: vi.fn(() => o.onStop?.())}
+            flights.push(f)
+            return f
+        }}
+        const {plugin, box, camera} = setup(false, popmotion)
+        plugin.add(box as any, front, normal, {position: [3, 0, 0], target: [0, 0, 0], quaternion: [0, 0, 0, 1], zoom: 1})
+        const config = plugin.toJSON()
+        plugin.goTo(0)
+        expect(flights).toHaveLength(1)
+        plugin.fromJSON(config)
+        expect(flights[0].stop).toHaveBeenCalled()
+        expect(camera.setInteractions).toHaveBeenLastCalledWith(true, 'AnnotationsPlugin')
+    })
+
     test('editable: a click on another marker while a field is focused ends the edit first; typing then edits the new one', () => {
         const {plugin, layer, box, undo} = setup()
         const a = plugin.add(box as any, front, normal, null, {title: 'A'})

@@ -273,6 +273,8 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
             view: a.view && Array.isArray(a.view.position) ? a.view : null,
         }))
         this.stopTour()
+        // ThreeViewer.fromJSON loads the plugins before the scene: a flight would move the camera of the loaded config
+        this._stopAnim()
         if (this._openId) this.close()
         this._objCache.clear()
         this._changed('load')
