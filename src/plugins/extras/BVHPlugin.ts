@@ -138,6 +138,9 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
     private _load: () => Promise<ThreeMeshBVH>
     private _queue = new Set<BVHGeometry>()
     private _stats = new Map<BVHGeometry, BVHStats>()
+    // the geometries whose updates the plugin follows: every geometry of the scene, with a tree or not, so an update can
+    // also give a geometry a tree (it grows past autoMinTriangles, the gaps in its groups close)
+    private _watched = new Set<BVHGeometry>()
     // the helper of each mesh, with the geometry that it was made for
     private _helpers = new Map<IObject3D, {helper: Object3D & {dispose(): void}, geometry: IGeometry}>()
 
@@ -216,6 +219,7 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
         viewer.scene.removeEventListener('materialChanged', this._objectMaterialChanged)
         viewer.removeEventListener('postFrame', this._postFrame)
         for (const g of [...this._stats.keys()]) this._dispose(g)
+        for (const g of [...this._watched]) this._unwatch(g)
         for (const o of [...this._helpers.keys()]) this._removeHelper(o)
         this._queue.clear()
         super.onRemove(viewer)
@@ -333,17 +337,31 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
     private _queueObject(o: IObject3D) {
         const g: BVHGeometry | undefined = o.geometry
         if (!g || !o.isMesh) return
+        this._watch(g)
         if (g.boundsTree) this._setRaycast(g)
         else if (this.wants(g)) this._queue.add(g)
     }
 
     private _geometryAdd = (e: {geometry: IGeometry}) => {
+        this._watch(e.geometry)
         if (this.wants(e.geometry)) this._queue.add(e.geometry)
     }
 
     private _geometryRemove = (e: {geometry: IGeometry}) => {
         this._queue.delete(e.geometry)
         this._dispose(e.geometry)
+        this._unwatch(e.geometry)
+    }
+
+    private _watch(g: BVHGeometry) {
+        if (this._watched.has(g)) return
+        this._watched.add(g)
+        g.addEventListener('geometryUpdate', this._geometryUpdate)
+    }
+
+    private _unwatch(g: BVHGeometry) {
+        if (!this._watched.delete(g)) return
+        g.removeEventListener('geometryUpdate', this._geometryUpdate)
     }
 
     // a mesh got another geometry, maybe one that has a tree already (geometryAdd is only for new geometries).
@@ -354,6 +372,7 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
         this._pruneHelpers() // a helper made for the old geometry
         queueMicrotask(() => {
             const g: BVHGeometry | undefined = o.geometry
+            if (g) this._watch(g)
             if (g?.boundsTree) this._setRaycast(g)
             else if (g && this.wants(g)) this._queue.add(g)
             if (!g?.boundsTree && Object.prototype.hasOwnProperty.call(o, 'raycast') && o.raycast === this.lib?.acceleratedRaycast)
@@ -368,7 +387,8 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
         if (o?.isMesh && o.geometry) this.refreshObject(o)
     }
 
-    // a geometry changed: refit when the tree would have the same triangles (vertices moved), else build again
+    // a geometry changed: refit when the tree would have the same triangles (vertices moved), else drop it, and build a
+    // tree when the geometry wants one (also one that had none)
     private _geometryUpdate(e: {geometry?: BVHGeometry}) {
         const g = e.geometry
         if (!g) return
@@ -402,14 +422,13 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
             triangles: triangleCount(g), key: buildKey(g),
             bytes: this.lib.estimateMemoryInBytes(bvh), ms,
         })
-        g.addEventListener('geometryUpdate', this._geometryUpdate)
+        this._watch(g) // also a geometry outside the scene (getBVH)
         this._setRaycast(g)
         this.dispatchEvent({type: 'bvhBuilt', geometry: g, bvh, ms})
     }
 
     private _dispose(g: BVHGeometry) {
         if (!this._stats.has(g)) return
-        g.removeEventListener('geometryUpdate', this._geometryUpdate)
         g.boundsTree = undefined
         this._stats.delete(g)
         this._setRaycast(g)

@@ -365,4 +365,37 @@ describe('BVHPlugin', () => {
         frame()
         expect(m.raycast).toBe(threeMeshBVH.acceleratedRaycast)
     })
+
+    test('a geometry update can give a tree to a geometry that had none: it grows past autoMinTriangles, or a gap in its groups closes, also after it lost its tree', () => {
+        const {add, frame, plugin} = setup()
+        // small: no tree in auto mode
+        const small = add(10, 4)
+        frame()
+        expect(small.geometry!.boundsTree).toBeUndefined()
+        small.geometry!.copy(new TorusKnotGeometry(1, 0.3, 200, 32))
+        small.geometry!.setDirty()
+        frame()
+        expect(small.geometry!.boundsTree).toBeInstanceOf(threeMeshBVH.MeshBVH)
+        expect(small.raycast).toBe(threeMeshBVH.acceleratedRaycast)
+
+        // one material on groups with a gap: no tree; the gap closes: a tree; it opens again and closes again: a tree
+        const m = add(200, 32)
+        const g = m.geometry!
+        const groups = (full: boolean) => {
+            g.clearGroups()
+            g.addGroup(0, 3000, 0)
+            if (full) g.addGroup(3000, Infinity, 0)
+            g.setDirty()
+            frame()
+        }
+        groups(false)
+        expect(m.raycast).toBe(Mesh.prototype.raycast)
+        groups(true)
+        expect(m.raycast).toBe(threeMeshBVH.acceleratedRaycast)
+        groups(false)
+        expect(m.raycast).toBe(Mesh.prototype.raycast)
+        groups(true)
+        expect(m.raycast).toBe(threeMeshBVH.acceleratedRaycast)
+        expect(plugin.builtCount).toBe(2)
+    })
 })
