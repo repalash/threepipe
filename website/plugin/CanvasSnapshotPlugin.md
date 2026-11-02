@@ -4,8 +4,8 @@ prev:
     link: './ParallaxMappingPlugin'
 
 next:
-    text: 'AssetExporterPlugin'
-    link: './AssetExporterPlugin'
+    text: 'CanvasRecorderPlugin'
+    link: './CanvasRecorderPlugin'
 
 ---
 
