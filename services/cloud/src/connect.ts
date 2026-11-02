@@ -9,9 +9,10 @@ import {HandlePending} from './handle'
 import {appFolder, appLabel, AppOwner, grantFolder} from './appFolders'
 
 /**
- * "Sign in with threepipe" for apps hosted on the files host (or running on localhost while being developed).
+ * "Sign in with threepipe" for apps hosted on the files host, our own apps on *.threepipe.org (the editor), or apps
+ * running on localhost while being developed. Other domains: not yet.
  * No app registration: the app is identified by where it is served from, `s/<slug>`, `b/<repo>/<ref>`, `p/<name>`,
- * `d/<handle>/<app>` (owned by whoever uploaded there), `localhost:<port>` or `<name>.localhost:<port>`.
+ * `d/<handle>/<app>` (owned by whoever uploaded there), `<name>.threepipe.org`, `localhost:<port>` or `<name>.localhost:<port>`.
  *
  *   GET  /api/v1/connect?return=<app page url>[&access=drive][&prompt=consent][&state=<random>]
  *        signed out → sign-in page; approved before → redirect back with a key; else → consent page
@@ -103,11 +104,14 @@ function appTarget(c: Context<CloudEnv>, ret: unknown, access: unknown, state?: 
         app = scope = segs.slice(0, n).join('/')
     } else if (u.protocol === 'http:' && (u.hostname === 'localhost' || u.hostname === '127.0.0.1')) {
         app = `localhost:${u.port || '80'}`
+    } else if (u.protocol === 'https:' && (u.hostname === 'threepipe.org' || u.hostname.endsWith('.threepipe.org')) && u.origin !== apiOrigin(c)) {
+        // our own apps (the editor, the website); user content is only on the files host, handled above
+        app = u.host
     } else if ((u.protocol === 'http:' || u.protocol === 'https:') && u.hostname.endsWith('.localhost')) {
         // *.localhost always resolves to this machine (RFC 6761), e.g. a dev server behind a local proxy
         app = `${u.hostname}:${u.port || (u.protocol === 'https:' ? '443' : '80')}`
     } else {
-        throw new HTTPException(400, {message: `return must be a page on ${files} or on localhost`})
+        throw new HTTPException(400, {message: `return must be a page on ${files}, on threepipe.org or on localhost`})
     }
     return {app, scope, returnUrl, access: acc, state: typeof state === 'string' && state ? state : undefined}
 }

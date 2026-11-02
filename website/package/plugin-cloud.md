@@ -103,8 +103,9 @@ cookies, storage or history.
 - `cloud.feedback`: `open(o)`, `close()`, `addContext(name, provider)`, `reportError(error, {kind?, operation?, ext?})`,
   `log` (a `LogBuffer`), `problems`, `gate`, `screenshot()`, `sceneFile()`, `buildPayload(…)`, `redactJson(v)`.
 - `cloud.auth`: `signIn({access?, prompt?, returnUrl?})`, `signOut()`, `signedIn`, `key`, `user`, `folder` (the app's
-  folder id, or `*` with `access: 'drive'`). Pages on files.threepipe.org run sandboxed without storage: call `signIn()`
-  on load there; once approved it comes straight back.
+  folder id, or `*` with `access: 'drive'`). Sign-in works for apps on files.threepipe.org (`s/`, `p/`, `b/`, `d/`), on
+  `*.threepipe.org`, and on `localhost` / `*.localhost` while developing; other domains are not supported yet. Pages on
+  files.threepipe.org run sandboxed without storage: call `signIn()` on load there; once approved it comes straight back.
 - `cloud.drive`: `save(name, blob, {folder?})`, `saveFolder(name, files, {folder?, entry?})`, `list(folder?)`, `resolve(path)`,
   `item(id)`, `read(id, path?)`, `rename`, `move`, `remove`, `share` / `unshare`, `newId` (every old URL stops working),
   `fileUrl(id, path?, ttl?)`, `newFolder(name, parent?)`. Each upload is an item with a fixed URL; names and folders are labels.

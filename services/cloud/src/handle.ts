@@ -5,7 +5,9 @@ import {CloudEnv, jsonBody} from './env'
 
 /**
  * The handle (`users.username`) is in every drive URL (`d/<handle>/…`), so it is picked once, by the user:
- * - GitHub gives its login, and a password account named it at sign-up: `handle_set` is written when they sign in.
+ * - GitHub gives its login: it is the handle (in lower case) of an account the GitHub sign-in made, when it is not
+ *   reserved or taken in another case; else the user chooses one, as below. A password account (local development)
+ *   named it at sign-up: `handle_set` is written when they sign in.
  * - A Google sign-up has no username (teenybase makes one from the email). Until the user picks one (`handle_set`
  *   empty), every route but these answers 403 `{handle: true}` and the pages show "Choose your handle":
  *
@@ -33,6 +35,7 @@ export class HandlePending extends HTTPException {
  * the one typed at sign-up). The user is read from the session token this response just made.
  */
 export async function markHandleSet(c: Context<CloudEnv>, next: Next) {
+    const started = new Date().toISOString().slice(0, 19).replace('T', ' ') // users.created: CURRENT_TIMESTAMP, UTC to the second
     await next()
     const path = c.req.path
     const github = /\/auth\/oauth\/github\/callback$/.test(path) && c.res.status === 302
@@ -44,7 +47,25 @@ export async function markHandleSet(c: Context<CloudEnv>, next: Next) {
         token = c.res.headers.getSetCookie().map(s => s.split(';')[0]).find(s => s.startsWith(name + '='))?.slice(name!.length + 1)
     } else token = (await c.res.clone().json().catch(() => ({})) as {token?: string}).token
     const id = token && jwtId(token)
-    if (id) await c.env.PRIMARY_DB.prepare('UPDATE users SET handle_set = ? WHERE id = ? AND handle_set IS NULL').bind(new Date().toISOString(), id).run()
+    if (!id) return
+    const db = c.env.PRIMARY_DB
+    if (github) {
+        // The GitHub login becomes the handle only for an account this sign-in made (a Google account that has not
+        // chosen yet keeps choosing), and under the rules of /handle: lower case, not reserved, not taken in another
+        // case. Otherwise the user chooses one on the handle card.
+        const row = await db.prepare('SELECT username, created FROM users WHERE id = ? AND handle_set IS NULL').bind(id).first<{username: string, created: string}>()
+        if (!row || row.created < started) return
+        const handle = row.username.toLowerCase()
+        if (!HANDLE.test(handle) || RESERVED.test(handle)) return
+        if (await db.prepare('SELECT 1 FROM users WHERE lower(username) = ? AND id != ?').bind(handle, id).first()) return
+        try {
+            await db.prepare('UPDATE users SET username = ?, handle_set = ? WHERE id = ? AND handle_set IS NULL').bind(handle, new Date().toISOString(), id).run()
+        } catch (e) {
+            if (!/UNIQUE/.test(String(e))) throw e // taken meanwhile: the user chooses one
+        }
+        return
+    }
+    await db.prepare('UPDATE users SET handle_set = ? WHERE id = ? AND handle_set IS NULL').bind(new Date().toISOString(), id).run()
 }
 
 /** The `id` of a JWT this worker issued (read only, it was made in this request). */

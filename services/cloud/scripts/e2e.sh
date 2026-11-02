@@ -205,6 +205,8 @@ curl -s -H "$CK" "$CON" | grep -q "@$U2" && ok "connect: app with a new owner ->
 admin scopes/update "{\"where\":\"scope == 'p/$U-page'\",\"setValues\":{\"owner_id\":\"$UID1\"}}" > /dev/null
 [ "$(code -H "$CK" "$A/api/v1/connect?return=$(enc "$A/_files/p/none-$U/")")" = "400" ] && ok "connect: unknown app -> 400" || bad "connect unknown app"
 [ "$(code -H "$CK" "$A/api/v1/connect?return=$(enc "https://example.com/app/")")" = "400" ] && ok "connect: other sites -> 400" || bad "connect other site"
+curl -s -H "$CK" "$A/api/v1/connect?return=$(enc "https://editor.threepipe.org/")" | grep -q "Apps/editor.threepipe.org" && ok "connect: our apps on threepipe.org" || bad "connect threepipe.org"
+[ "$(code -H "$CK" "$A/api/v1/connect?return=$(enc "http://editor.threepipe.org/")")" = "400" ] && [ "$(code -H "$CK" "$A/api/v1/connect?return=$(enc "https://threepipe.org.evil.example/")")" = "400" ] && ok "connect: http or look-alike threepipe.org -> 400" || bad "connect threepipe.org look-alike"
 curl -s -H "$CK" "$A/api/v1/connect?return=$(enc "http://localhost:5173/")" | grep -q "Apps/localhost:5173" && ok "connect: localhost app" || bad "connect localhost"
 curl -s -H "$CK" "$A/api/v1/connect?return=$(enc "http://5173.me.aibox.localhost/x/")" | grep -q "Apps/5173.me.aibox.localhost:80" && ok "connect: *.localhost app" || bad "connect *.localhost"
 R=$(curl -s -H "$H0" "$A/api/v1/access-links"); GID=$(echo "$R" | python3 -c "import json,sys;print([l for l in json.load(sys.stdin)['links'] if l.get('app')=='p/$U-page'][0]['id'])" 2>/dev/null)

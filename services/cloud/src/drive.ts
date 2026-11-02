@@ -467,7 +467,25 @@ export function driveRoutes(app: Hono<CloudEnv>) {
         if (set.length) await naming(name, c.env.PRIMARY_DB.prepare(`UPDATE drive_items SET ${set.map(([k]) => k + ' = ?').join(', ')} WHERE id = ?`)
             .bind(...set.map(([, v]) => v), item.id).run())
         // then each file that does not have it yet (sending the same visibility again repairs a change cut short)
-        if (body.visibility !== undefined) for (const f of await itemFiles(c, item)) await setVisibility(c, f.path, visibility)
+        if (body.visibility !== undefined) {
+            const files = await itemFiles(c, item)
+            let done = 0
+            try {
+                for (const f of files) {
+                    await setVisibility(c, f.path, visibility)
+                    done++
+                }
+            } catch (e) {
+                // cut short (an R2 error, a limit): the row goes back, so the page shows the item as it still mostly is
+                // and the same button tries again (sending a visibility again finishes the files left)
+                logError('drive visibility: cut short', {item: item.id, visibility, done, files: files.length, error: String(e)})
+                if (item.visibility !== visibility) await c.env.PRIMARY_DB.prepare('UPDATE drive_items SET visibility = ? WHERE id = ? AND visibility = ?')
+                    .bind(item.visibility, item.id, visibility).run()
+                throw new HTTPException(503, {message: visibility === 'private'
+                    ? `It is still shared: ${files.length - done} of ${files.length} file(s) could not be made private. Try again.`
+                    : `It is not shared yet: ${files.length - done} of ${files.length} file(s) could not be shared. Try again.`})
+            }
+        }
         return c.json(itemOut(c, user, await itemOf(c, user, item.id)))
     })
 
