@@ -31,7 +31,15 @@ class FakeElement {
     spellcheck = false
     selectionStart: number | null = null
     selectionEnd: number | null = null
-    style: Record<string, string> = {}
+    // the inline style, with setProperty / removeProperty for custom properties (raiseOnPress sets --ui-raise)
+    style: Record<string, any> = {
+        setProperty(k: string, v: string) {
+            this[k] = v
+        },
+        removeProperty(k: string) {
+            delete this[k]
+        },
+    }
     dataset: Record<string, string> = {}
     offsetWidth = 220
     offsetHeight = 150
@@ -153,11 +161,11 @@ function setup(options: ConstructorParameters<typeof NotesPlugin>[0] = {}, canva
     const notes = new NotesPlugin(options)
     // the tests start from the stored layout; one test checks the default (minimized on a page load)
     const sticky = new StickyNotesUiPlugin(undefined, startMinimized)
-    // the canvas, and the dock at its bottom: 28 px high, 12 px above the bottom edge
+    // the canvas, and the dock at its bottom left: 160 x 28 px, 12 px from the left and bottom edges
     const layer = sticky.element as any as FakeElement
     layer.clientWidth = canvas.width
     layer.clientHeight = canvas.height
-    ;(sticky.dock as any as FakeElement).offsetTop = canvas.height - 40
+    Object.assign(sticky.dock, {offsetTop: canvas.height - 40, offsetLeft: 12, offsetWidth: 160, offsetHeight: 28})
     const viewer = {
         container: new FakeElement('div'),
         addEventListener: () => {},
@@ -175,7 +183,7 @@ const cards = (layer: FakeElement) => layer.find('snp-card')
 const popups = (layer: FakeElement) => layer.parent!.children.find(e => e.classList.contains('snp-popups'))!
 const menus = (layer: FakeElement) => popups(layer).find('snp-menu')
 /** The tooltips of the buttons that show in the dock */
-const dockButtons = (layer: FakeElement) => layer.find('snp-dock')[0].children.filter(b => b.style.display !== 'none').map(b => b.dataset.tip)
+const dockButtons = (layer: FakeElement) => layer.find('snp-dock')[0].children.filter(b => b.tagName === 'button' && b.style.display !== 'none').map(b => b.dataset.tip)
 /** The number of notes on the button of the minimised layout */
 const count = (layer: FakeElement) => layer.find('snp-count')[0].textContent
 /** A third store, so a store button opens a menu */
@@ -436,6 +444,85 @@ describe('StickyNotesUiPlugin', () => {
         expect(place(cb)).toEqual(['12px', '174px'])
     })
 
+    test('Add a note opens the post-it above the dock, or below it at the top, inside the canvas; API notes go in columns', () => {
+        const {notes, sticky, layer} = setup()
+        layer.button('Add a note').fire('click')
+        expect(place(cards(layer)[0])).toEqual(['12px', '398px']) // 560 - 12 - 150
+        expect(state().board[notes.notes[0].id]).toEqual({x: 12, y: 398})
+        // a note made by the app goes in the columns, beside the one by the dock (its column is full)
+        notes.addNote('api')
+        expect(place(cards(layer)[1])).toEqual(['244px', '12px'])
+
+        // the dock dragged to the top right: the new post-it below it, inside the canvas
+        ;(sticky as any)._state.dock = {x: 5000, y: -5000}
+        ;(sticky as any)._onResize()
+        layer.button('Add a note').fire('click')
+        expect(place(cards(layer)[2])).toEqual(['580px', '40px']) // 800 - 220; 0 + 28 + 12
+    })
+
+    test('stack: Add a note puts the post-it on top of the pile, as before', () => {
+        const {notes, sticky, layer} = setup()
+        sticky.layout = 'stack'
+        notes.addNote('a')
+        const pile = place(cards(layer)[0])
+        expect(pile).toEqual(['12px', '358px']) // above the dock: 560 - 190 - 12
+        layer.button('Add a note').fire('click')
+        // on top; the pile keeps room for the post-it under it at the left edge of the dock
+        const top = cards(layer).find(c => c.style.zIndex === '2')!
+        expect(place(top)).toEqual(['20px', '358px'])
+        expect(state().board?.[notes.notes[1].id]).toBeUndefined()
+    })
+
+    test('the dock drags by its handle or its free part, not by a button; inside the canvas; kept; a double click puts it back', () => {
+        const first = setup()
+        let {sticky, layer} = first
+        let dock = layer.find('snp-dock')[0], grip = layer.find('snp-grip')[0]
+        expect(grip.dataset.tip).toBe('Drag to move the buttons; double-click to put them back')
+        const dragDock = (target: FakeElement, dx: number, dy: number) => {
+            dock.fire('pointerdown', {target, clientX: 20, clientY: 20})
+            dock.fire('pointermove', {clientX: 21, clientY: 21}) // under the drag threshold
+            dock.fire('pointermove', {clientX: 20 + dx, clientY: 20 + dy})
+            dock.fire('pointerup')
+        }
+        dragDock(grip, 300, -200)
+        expect(dock.style.transform).toBe('translate(300px, -200px)')
+        expect(state().dock).toEqual({x: 300, y: -200})
+        // after the release, the pointer moves it no more
+        dock.fire('pointermove', {clientX: 0, clientY: 0})
+        expect(dock.style.transform).toBe('translate(300px, -200px)')
+        // a press on a button does not drag
+        dragDock(layer.button('Add a note'), 50, 50)
+        expect(dock.style.transform).toBe('translate(300px, -200px)')
+        // the free part of the dock drags too; the dock stays inside the canvas
+        dragDock(dock, 5000, -5000)
+        expect(dock.style.transform).toBe('translate(628px, -560px)') // 800 - 160 - 12; to the top edge
+        expect(state().dock).toEqual({x: 628, y: -560})
+
+        // kept for the next page load
+        sticky.onRemove(first.viewer)
+        ;({sticky, layer} = setup())
+        dock = layer.find('snp-dock')[0]
+        grip = layer.find('snp-grip')[0]
+        expect(dock.style.transform).toBe('translate(628px, -560px)')
+
+        // a narrower canvas keeps it inside
+        layer.clientWidth = 400
+        ;(sticky as any)._onResize()
+        expect(dock.style.transform).toBe('translate(228px, -560px)') // 400 - 160 - 12
+
+        // a double click on the handle puts it back in its corner, not one on a button
+        dock.fire('dblclick', {target: layer.button('Add a note')})
+        expect(dock.style.transform).not.toBe('')
+        dock.fire('dblclick', {target: grip})
+        expect(dock.style.transform).toBe('')
+        expect(state().dock).toBeUndefined()
+        // Reset places too
+        dragDock(grip, 100, 0)
+        sticky.resetPlaces()
+        expect(dock.style.transform).toBe('')
+        expect(state().dock).toBeUndefined()
+    })
+
     test('board: a column that is full starts the next one, beside its widest post-it', () => {
         const {notes, sticky, layer} = setup()
         notes.addNote('wide')
@@ -496,6 +583,36 @@ describe('StickyNotesUiPlugin', () => {
                 expect(y + h).toBeLessThanOrEqual(804 - 12)
             }
         }
+    })
+
+    test('a dragged dock that gets wider (a button shows) is moved back inside the canvas', () => {
+        const observers: {targets: Set<unknown>, callback: (entries: {target: unknown}[]) => void}[] = []
+        vi.stubGlobal('ResizeObserver', class {
+            targets = new Set<unknown>()
+            constructor(public callback: (entries: {target: unknown}[]) => void) {
+                observers.push(this)
+            }
+            observe(t: unknown) {
+                this.targets.add(t)
+            }
+            unobserve(t: unknown) {
+                this.targets.delete(t)
+            }
+            disconnect() {
+                this.targets.clear()
+            }
+        })
+        const {sticky, viewer, layer} = setup()
+        const dock = layer.find('snp-dock')[0], grip = layer.find('snp-grip')[0]
+        dock.fire('pointerdown', {target: grip, clientX: 20, clientY: 20})
+        dock.fire('pointermove', {clientX: 5020, clientY: 20})
+        dock.fire('pointerup')
+        expect(dock.style.transform).toBe('translate(628px, 0px)') // 800 - 160 - 12: at the right edge
+        // a store button shows: the dock is 40 px wider, and its new button would be past the edge
+        dock.offsetWidth = 200
+        for (const o of observers) if (o.targets.has(dock)) o.callback([{target: dock}])
+        expect(dock.style.transform).toBe('translate(588px, 0px)') // 800 - 200 - 12
+        sticky.onRemove(viewer)
     })
 
     test('a canvas that changes size without a window resize keeps the post-its inside it; removing the plugin stops watching', () => {
@@ -830,7 +947,7 @@ describe('StickyNotesUiPlugin', () => {
 
     test('the layers on the page: the post-its over the loading screen and under the bars of the editor; their menus with the popups', () => {
         const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
-        const z = (css: string, selector: string) => Number(css.match(new RegExp(selector.replace(/[.#[\]"=]/g, '\\$&') + '\\s*{[^}]*z-index:\\s*(-?\\d+)'))?.[1])
+        const z = (css: string, selector: string) => Number(css.match(new RegExp(selector.replace(/[.#[\]"=:()]/g, '\\$&') + '\\s*{[^}]*z-index:\\s*(?:calc\\()?(-?\\d+)'))?.[1])
         const css = read('../../plugins/tweakpane-editor/src/StickyNotesUiPlugin.css')
         const loading = z(read('../../src/plugins/interaction/LoadingScreenPlugin.css'), '#assetManagerLoadingScreen')
         expect(loading).toBe(50)
@@ -840,6 +957,12 @@ describe('StickyNotesUiPlugin', () => {
         expect(z(css, '.snp-layer.snp-popups')).toBeLessThan(9999) // the context menu
         // inside the layer, the dock is just above the post-its: no page-wide value
         expect(z(css, '.snp-dock')).toBeLessThan(10)
+        // the open card of the perf panel, in the same corner in the editor, is in the same layer: the one pressed last
+        // is in front (raiseOnPress adds --ui-raise to the base); its pill stays under the loading screen
+        const perf = read('../../src/plugins/ui/PerfPanelPlugin.css')
+        expect(z(perf, '.pp-root')).toBeLessThan(loading)
+        expect(z(perf, '.pp-root:not(.pp-collapsed)')).toBe(z(css, '.snp-layer'))
+        expect(css).toMatch(/\.snp-layer\s*{[^}]*z-index:\s*calc\(150 \+ var\(--ui-raise, 0\)\)/)
 
         // the menu opens in the layer of the popups, above the post-its and the dock
         const {layer} = setup({stores: [serverStore]})

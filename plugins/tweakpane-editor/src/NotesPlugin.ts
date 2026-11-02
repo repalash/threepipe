@@ -45,6 +45,8 @@ export class BrowserNotesStore implements NotesStore {
     }
 
     save(notes: NoteItem[]) {
+        // throws when the browser refuses (no storage on a sandboxed page, or a full one): NotesPlugin keeps the change
+        // pending, shows the error status and tries again on the next save
         localStorage.setItem(this.key, JSON.stringify(notes))
     }
 }
