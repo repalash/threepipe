@@ -459,4 +459,21 @@ describe('BVHPlugin', () => {
         expect(Object.prototype.hasOwnProperty.call(o2, 'raycast')).toBe(false)
         expect(o2.geometry!.boundsTree).toBe(t2)
     })
+
+    test('a mesh that leaves the scene gets the raycast of three.js back, also when its geometry keeps the tree; added again, it uses the tree', async() => {
+        const {viewer, add, frame} = setup()
+        const a = add(200, 32)
+        const b = add(20, 8)
+        b.geometry = a.geometry // the two meshes share the geometry and its tree
+        await Promise.resolve() // the geometry switch acts in a microtask
+        frame()
+        expect(b.raycast).toBe(threeMeshBVH.acceleratedRaycast)
+        viewer.scene.modelRoot.remove(b)
+        viewer.object3dManager.unregisterObject(b)
+        expect(Object.prototype.hasOwnProperty.call(b, 'raycast')).toBe(false)
+        expect(a.raycast).toBe(threeMeshBVH.acceleratedRaycast)
+        viewer.scene.modelRoot.add(b)
+        viewer.object3dManager.registerObject(b)
+        expect(b.raycast).toBe(threeMeshBVH.acceleratedRaycast)
+    })
 })

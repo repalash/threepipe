@@ -203,6 +203,7 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
         viewer.object3dManager.addEventListener('geometryAdd', this._geometryAdd)
         viewer.object3dManager.addEventListener('geometryRemove', this._geometryRemove)
         viewer.object3dManager.addEventListener('objectRemove', this._objectRemove)
+        viewer.object3dManager.addEventListener('objectAdd', this._objectAdd)
         viewer.scene.addEventListener('geometryChanged', this._objectGeometryChanged)
         viewer.scene.addEventListener('materialChanged', this._objectMaterialChanged)
         viewer.addEventListener('postFrame', this._postFrame)
@@ -218,6 +219,7 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
         viewer.object3dManager.removeEventListener('geometryAdd', this._geometryAdd)
         viewer.object3dManager.removeEventListener('geometryRemove', this._geometryRemove)
         viewer.object3dManager.removeEventListener('objectRemove', this._objectRemove)
+        viewer.object3dManager.removeEventListener('objectAdd', this._objectAdd)
         viewer.scene.removeEventListener('geometryChanged', this._objectGeometryChanged)
         viewer.scene.removeEventListener('materialChanged', this._objectMaterialChanged)
         viewer.removeEventListener('postFrame', this._postFrame)
@@ -330,7 +332,17 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
         }
     }
 
-    private _objectRemove = (e: {object: IObject3D}) => this._removeHelper(e.object)
+    // a mesh that leaves the scene: its helper goes, and it gets the raycast of three.js back. The plugin no longer keeps
+    // its tree up to date for it (its geometry can keep the tree for other meshes). Added again, objectAdd sets it again.
+    // every registration, also a mesh added again: the extension's onRegister runs only the first time (Object3DManager
+    // keeps the extension on the object when it is unregistered)
+    private _objectAdd = (e: {object: IObject3D}) => this._queueObject(e.object)
+
+    private _objectRemove = (e: {object: IObject3D}) => {
+        const o = e.object
+        this._removeHelper(o)
+        if (Object.prototype.hasOwnProperty.call(o, 'raycast') && o.raycast === this.lib?.acceleratedRaycast) delete (o as Partial<IObject3D>).raycast
+    }
 
     private _removeHelper(o: IObject3D) {
         const entry = this._helpers.get(o)
