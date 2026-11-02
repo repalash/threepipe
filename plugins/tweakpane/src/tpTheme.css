@@ -538,3 +538,20 @@
     font-size: 13px !important;
 }
 
+
+/*
+ * CustomContextMenu of threepipe core (the preset menu of a panel, the image input menu): the colours and font of the
+ * theme, like the panel. The core menu adds its own dark style later in the page, so these rules are more specific.
+ */
+body[class*="tpTheme-"] #customContextMenu {
+    background: var(--tp-base-background-color); color: var(--tp-container-foreground-color);
+    border: 0; padding: 4px; border-radius: 8px; min-width: 140px; backdrop-filter: none;
+    box-shadow: 0 0 0 1px var(--tp-container-border-color), 0 6px 20px rgba(0, 0, 0, 0.14);
+}
+body[class*="tpTheme-"] .customContextMenuItems {
+    color: inherit; font: 400 12px/1 var(--tp-font-family); padding: 8px 10px; border-radius: 5px; transition: none;
+}
+body.tpTheme-clean .customContextMenuItems, body.tpTheme-clean-dark .customContextMenuItems { font-size: 11px; }
+body[class*="tpTheme-"] .customContextMenuItems:hover { color: inherit; background: var(--tp-button-background-color-hover); }
+/* the menu of a panel's ⋮ button: below the button, inside the panel (it opened 120px from the right, past the edge) */
+body[class*="tpTheme-"] .tp-fldv > #customContextMenu { left: auto !important; right: 4px; top: calc(var(--tp-blade-unit-size) + 6px) !important; }

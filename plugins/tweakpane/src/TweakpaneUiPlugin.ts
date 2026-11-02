@@ -198,14 +198,24 @@ export class TweakpaneUiPlugin extends UiConfigRendererTweakpane implements IVie
 
 }
 
+/**
+ * localStorage, or undefined where the page has none: a sandboxed document (an opaque origin, like a page served with
+ * `CSP: sandbox`) throws a SecurityError on any read of the global.
+ */
+function themeStorage(): Storage | undefined {
+    try {
+        return typeof localStorage !== 'undefined' ? localStorage : undefined
+    } catch {
+        return undefined
+    }
+}
 function getThemeColor(): ThemeColors {
-    const c = localStorage ? localStorage.getItem('tpTheme') as ThemeColors : undefined
+    const c = themeStorage()?.getItem('tpTheme') as ThemeColors | null | undefined
     if (c && themeColors.includes(c)) return c
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'clean-dark' : 'clean'
 }
 function setThemeColor(color: ThemeColors) {
     document.body.classList.remove(...themeColors.map(t=>'tpTheme-' + t))
     document.body.classList.add('tpTheme-' + color)
-    if (!localStorage) return
-    localStorage.setItem('tpTheme', color)
+    themeStorage()?.setItem('tpTheme', color)
 }

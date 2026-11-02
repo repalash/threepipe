@@ -14,18 +14,18 @@ import {Color, Material, Mesh, Vector3} from 'three';
 import {HalfedgeDS} from '../../three-mesh-halfedge';
 import {
   acceleratedRaycast,
+  BVHOptions,
   CENTER,
   computeBoundsTree,
   disposeBoundsTree,
-  MeshBVH,
-  MeshBVHOptions
+  MeshBVH
 } from 'three-mesh-bvh';
 import {computeMorphedGeometry, disposeMesh} from '../utils/buffergeometry';
 
 type ColorMaterial = Material & {color: Color};
 
 export interface SVGMeshOptions {
-  bvhOptions?: MeshBVHOptions;
+  bvhOptions?: BVHOptions;
 }
 
 /**
@@ -62,7 +62,7 @@ export class SVGMesh {
   readonly sourceMesh: Mesh;
   readonly threeMesh = new Mesh();
   readonly hes: HalfedgeDS;
-  readonly bvhOptions: MeshBVHOptions;
+  readonly bvhOptions: BVHOptions;
   bvh: MeshBVH;
   drawFills = true;
   drawVisibleContours = true;
@@ -94,7 +94,7 @@ export class SVGMesh {
 
     // Setup BVH
     const bvhOptions = {
-      maxLeafTris: 1,
+      targetLeafSize: 1,
       strategy: CENTER,
       ...options?.bvhOptions
     }
