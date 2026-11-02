@@ -1,6 +1,9 @@
-import {AViewerPluginSync, createStyles, onChange, ThreeViewer} from 'threepipe'
+import {AViewerPluginSync, createStyles, onChange, raiseOnPress, ThreeViewer} from 'threepipe'
 import {UiObjectConfig} from 'uiconfig.js'
+import {delegate, DelegateInstance} from 'tippy.js'
 import {NoteItem, NotesPlugin} from './NotesPlugin'
+import {addTooltipStyles, EDITOR_TOOLTIP_PROPS} from './tooltips'
+import {readStored, writeStored} from './dom-utils'
 import styles from './StickyNotesUiPlugin.css?inline'
 
 /**
@@ -35,6 +38,8 @@ interface StickyState {
     board?: Record<string, Box>
     /** The note ids from the bottom to the top: the order of the board and of the pile */
     order?: string[]
+    /** The move of the dock from its corner, where the person dragged it, in px */
+    dock?: {x: number, y: number}
 }
 
 /** The size of the canvas, in px */
@@ -73,25 +78,58 @@ const PILE_DEPTH = 4
 const DRAG_START = 3
 /** When the board has no room for one more column, its columns start again this much lower and to the right, in px */
 const LAYER_STEP = 24
+/** How long the copy button shows that the text was copied, in ms */
+const COPIED_TIME = 1500
+
+/** The icons of the buttons (24 px grid, drawn with the text colour; shown at 14 px, a 1.3 px line as the frame's icons) */
+const svg = (d: string) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`
+const ICONS = {
+    add: svg('<path d="M5 12h14"/><path d="M12 5v14"/>'),
+    arrange: svg('<rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/>'),
+    stack: svg('<path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z"/><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65"/><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65"/>'),
+    spread: svg('<rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/>'),
+    minimize: svg('<path d="M5 12h14"/>'),
+    notes: svg('<path d="M16 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V8z"/><path d="M15 3v4a2 2 0 0 0 2 2h4"/>'),
+    context: svg('<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>'),
+    copy: svg('<rect width="8" height="4" x="8" y="2" rx="1"/><path d="M8 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/><path d="M16 4h2a2 2 0 0 1 2 2v4"/><path d="M21 14H11"/><path d="m15 10-4 4 4 4"/>'),
+    copied: svg('<path d="M20 6 9 17l-5-5"/>'),
+    delete: svg('<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>'),
+}
+/** The icon of a store: `file`, `browser`, or a store of the app (a cloud) */
+const STORE_ICONS: Record<string, string> = {
+    file: svg('<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/>'),
+    browser: svg('<rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 8h20"/><path d="M6 4v4"/><path d="M10 4v4"/>'),
+    other: svg('<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9z"/>'),
+}
 
 /**
  * Sticky Notes UI Plugin
  *
  * Shows the notes of {@link NotesPlugin} as post-its over the canvas, in one of two layouts
  * ({@link StickyNotesLayout}): `board` (a post-it per note) or `stack` (a pile); `minimized` takes them off the
- * canvas. The buttons at the bottom left add a note, arrange the board, switch the layout and minimise; when minimised,
- * one button with the number of notes brings them back.
+ * canvas. The icon buttons at the bottom left (each with a tooltip) add a note, pick the store of new notes, arrange
+ * the board, switch the layout and minimise; when minimised, one button with the number of notes brings them back.
  *
- * - "+ Note" adds a note at once, in the store of new notes ({@link NotesPlugin.defaultStore}); "▾" picks another
- *   store. The badge on a note shows its store; a click moves the note to another store.
- * - Each note has "+ Context" (the time and the selection, {@link NotesPlugin.contextLine}), "Copy" and "×".
+ * - "Add a note" adds a note at once, in the store of new notes ({@link NotesPlugin.defaultStore}). The button next
+ *   to it shows the icon of that store (a file, a browser window, a cloud for a store of the app); a click opens a menu
+ *   of the stores.
+ * - The icon on a note shows its store; a click opens the same menu, to move the note.
+ * - Each note has "Add the time and the selection" ({@link NotesPlugin.contextLine}), "Copy the text" (the icon shows a
+ *   check for a moment) and "Delete".
+ * - "Add a note" opens the post-it by the dock: above it, or below it when the dock is at the top of the canvas. Notes
+ *   added in code ({@link NotesPlugin.addNote}) go in the columns of {@link arrange}.
  * - Drag a post-it by its bar, and size it from its bottom right corner. A click on a post-it brings it up.
- * - The places, the sizes, the order, the layout and the colour are kept in `localStorage` ({@link storageKey}), not in
- *   the file.
+ * - Drag the dock by its handle (the dots at its left) or its free part, to move it out of the way; a double click there
+ *   puts it back in its corner, as does "Reset places". The board and the pile keep their places above the corner.
+ * - The places, the sizes, the order, the layout, the colour and the place of the dock are kept in `localStorage`
+ *   ({@link storageKey}), not in the file.
  *
  * The post-its fill the nearest positioned ancestor of the layer, so the viewer container must be positioned (for
  * example `position: relative`) for the post-its to stay inside the canvas. The post-its and the dock are above the
  * loading screen and below the bars of the editor; their menus are in a second layer, with the popups of the page.
+ *
+ * The tooltips use tippy.js with the `editor` theme of the editor (its CSS is added with the styles, see
+ * {@link InjectStyles}).
  *
  * The plugin's UI folder (Sticky Notes) has the settings: show, layout, colour, arrange, reset the places.
  *
@@ -99,7 +137,10 @@ const LAYER_STEP = 24
  */
 export class StickyNotesUiPlugin extends AViewerPluginSync {
     static readonly PluginType = 'StickyNotesUiPlugin'
-    /** Adds the stylesheet of the notes to the page when the first plugin is made. Off: the page styles the `snp-` classes. */
+    /**
+     * Adds the stylesheet of the notes and of the tooltips to the page when the first plugin is made. Off: the page
+     * styles the `snp-` classes and the tooltips.
+     */
     static InjectStyles = true
     private static _styles?: HTMLStyleElement
     enabled = true
@@ -125,9 +166,10 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
     readonly element: HTMLDivElement
 
     /**
-     * The buttons at the bottom left of the canvas: "+ Note", "▾", "Arrange", the layout and "Minimise" (in the
-     * `minimized` layout, the button that brings the post-its back). Place it with its style
-     * when the corner is taken, e.g. `dock.style.bottom = '64px'`; the pile starts above it.
+     * The buttons at the bottom left of the canvas, after a drag handle: add a note, the store of new notes, arrange,
+     * the layout and minimise (in the `minimized` layout, the button that brings the post-its back). Place it with its
+     * style when the corner is taken, e.g. `dock.style.bottom = '56px'`; the pile starts above it. The person can drag
+     * it elsewhere: that move is its `transform`, so do not set one.
      */
     readonly dock: HTMLDivElement
 
@@ -136,30 +178,42 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
     private _cardsBox: HTMLDivElement
     /** The layer of the menus, next to {@link element}: at the level of the popups of the page, above its bars */
     private _popups: HTMLDivElement
+    private _unraise?: () => void
     private _cards = new Map<string, NoteCard>()
     /** The post-it of each card element, for the ResizeObserver */
     private _byElement = new WeakMap<Element, NoteCard>()
     /** A write of the state that waits for the end of a size change from a corner */
     private _writeTimer = 0
     private _state: StickyState
+    private _storeButton: HTMLButtonElement
     private _arrangeButton: HTMLButtonElement
     private _layoutButton: HTMLButtonElement
     /** The buttons of the dock that show when the post-its are on the canvas */
     private _openButtons: HTMLButtonElement[]
     /** The button of the `minimized` layout: the number of notes; a click brings back the layout from before */
     private _restoreButton: HTMLButtonElement
+    /** The number of notes on {@link _restoreButton} */
+    private _count: HTMLSpanElement
+    /** The tooltips of the buttons on the layer (their text is in `data-tip`) */
+    private _tips?: DelegateInstance
     private _menu?: HTMLDivElement
     /** The button that opened the menu: a click on it again closes the menu */
     private _menuAnchor?: HTMLElement
     private _ready = false
+    /** A note that is made now comes from "Add a note": its post-it opens by the dock */
+    private _addAtDock = false
     /**
-     * Watches the layer (the canvas changes size, also without a window resize) and each post-it (a size from its
-     * corner)
+     * Watches the layer (the canvas changes size, also without a window resize), the dock (a button shows or hides, so
+     * a dragged dock can go past the edge) and each post-it (a size from its corner)
      */
     private _resizer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(entries => {
         for (const {target} of entries) {
             if (target === this.element) {
                 this._onResize()
+                continue
+            }
+            if (target === this.dock) {
+                this._placeDock()
                 continue
             }
             const c = this._byElement.get(target)
@@ -185,24 +239,36 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         ],
     }
 
-    constructor(storageKey = 'threepipe-sticky-notes') {
+    /**
+     * @param storageKey - the `localStorage` key of the layout, the colour, the places, the sizes and the order
+     * @param startMinimized - the post-its start minimized on each page load, so they do not cover the canvas; the button
+     * of the dock brings back the layout that the person set last. `false`: they start in that layout.
+     */
+    constructor(storageKey = 'threepipe-sticky-notes', startMinimized = true) {
         super()
         this.storageKey = storageKey
-        if (StickyNotesUiPlugin.InjectStyles && !StickyNotesUiPlugin._styles?.isConnected) StickyNotesUiPlugin._styles = createStyles(styles)
+        if (StickyNotesUiPlugin.InjectStyles) {
+            if (!StickyNotesUiPlugin._styles?.isConnected) StickyNotesUiPlugin._styles = createStyles(styles)
+            addTooltipStyles()
+        }
         this.element = el('div', 'snp-layer')
         this._cardsBox = el('div', 'snp-cards')
         this._popups = el('div', 'snp-layer snp-popups')
         this.dock = el('div', 'snp-dock')
-        const add = button('+ Note', 'Add a note', () => this.addNote(), 'snp-add')
-        const pick = button('▾', 'Add a note in…', () => this._openMenu(pick, 'New note in', id => this.addNote(id), this._notes?.defaultStore), 'snp-add-to')
-        this._arrangeButton = button('Arrange', 'Put the post-its in columns', () => this.arrange())
+        const grip = this.dock.appendChild(el('div', 'snp-grip'))
+        grip.dataset.tip = 'Drag to move the buttons; double-click to put them back'
+        const add = button(ICONS.add, 'Add a note', () => this.addNote(), 'snp-add')
+        this._storeButton = button('', '', () => this._openMenu(this._storeButton, 'Save new notes in', id => this._setDefaultStore(id), this._notes?.defaultStore), 'snp-store')
+        this._arrangeButton = button(ICONS.arrange, 'Arrange the post-its in columns', () => this.arrange())
         this._layoutButton = button('', '', () => this.layout = this.layout === 'board' ? 'stack' : 'board')
-        const minimize = button('Minimise', 'Take the post-its off the canvas', () => this.layout = 'minimized', 'snp-min')
-        this._restoreButton = button('', 'Put the post-its back on the canvas', () => this._restore(), 'snp-restore')
-        this._openButtons = [add, pick, this._layoutButton, minimize]
-        for (const b of [add, pick, this._arrangeButton, this._layoutButton, minimize, this._restoreButton]) this.dock.appendChild(b)
+        const minimize = button(ICONS.minimize, 'Minimise: take the post-its off the canvas', () => this.layout = 'minimized', 'snp-min')
+        this._restoreButton = button(ICONS.notes, 'Show the notes', () => this._restore(), 'snp-restore')
+        this._count = this._restoreButton.appendChild(el('span', 'snp-count'))
+        this._openButtons = [add, this._storeButton, this._layoutButton, minimize]
+        for (const b of [add, this._storeButton, this._arrangeButton, this._layoutButton, minimize, this._restoreButton]) this.dock.appendChild(b)
         this.element.appendChild(this._cardsBox)
         this.element.appendChild(this.dock)
+        this._draggableDock()
         // a focus (the cursor in a note, a phone keyboard) can scroll a box that hides its overflow: the post-its would
         // move away from their places and not come back
         this.element.addEventListener('scroll', () => this.element.scrollTop = this.element.scrollLeft = 0)
@@ -216,6 +282,8 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         this.color = this._state.color ?? this.color
         this.shown = this._state.shown ?? this.shown
         if (this.layout !== 'minimized') this._state.open = this.layout
+        // this load only: the stored layout stays for the button of the dock (no state write before _ready)
+        if (startMinimized) this.layout = 'minimized'
         this._ready = true
         this._applyLook()
     }
@@ -223,36 +291,70 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
     onAdded(viewer: ThreeViewer) {
         super.onAdded(viewer)
         this._notes = viewer.getPlugin(NotesPlugin)
-        this._notes?.addEventListener('notesChanged', this._onNotesChanged)
-        this._notes?.addEventListener('storeStatusChanged', this._onStatus)
+        this._notes?.addEventListener('notesChange', this._onNotesChanged)
+        this._notes?.addEventListener('storeStatusChange', this._onStatus)
+        this._notes?.addEventListener('defaultStoreChange', this._onDefaultStore)
         viewer.container.appendChild(this.element)
         viewer.container.appendChild(this._popups)
+        // a press on a post-it or the dock brings the notes above other panels (the open perf card)
+        this._unraise = raiseOnPress(this.element)
+        // one tooltip for each button with a data-tip, read when it shows (the layout and store buttons change it);
+        // in the viewer container, so it shows in full screen too, and inside it (the buttons of a post-it at the top
+        // of the canvas show theirs below, not under the bars of the page)
+        this._tips = delegate(this.element, {
+            ...EDITOR_TOOLTIP_PROPS, target: '[data-tip]', appendTo: () => viewer.container,
+            popperOptions: {modifiers: [{name: 'flip', options: {boundary: viewer.container}}]},
+            onShow: tip => {
+                const text = (tip.reference as HTMLElement).dataset.tip
+                if (!text || this.element.classList.contains('snp-dragging')) return false
+                tip.setContent(text)
+            },
+        })
         // the post-its stay inside the canvas when it changes size; without a ResizeObserver, on a window resize
-        if (this._resizer) this._resizer.observe(this.element)
+        if (this._resizer) {
+            this._resizer.observe(this.element)
+            this._resizer.observe(this.dock)
+        }
         else window.addEventListener('resize', this._onResize)
+        this._showStore()
+        this._placeDock()
         this._sync()
     }
 
     onRemove(viewer: ThreeViewer) {
-        this._notes?.removeEventListener('notesChanged', this._onNotesChanged)
-        this._notes?.removeEventListener('storeStatusChanged', this._onStatus)
+        this._notes?.removeEventListener('notesChange', this._onNotesChanged)
+        this._notes?.removeEventListener('storeStatusChange', this._onStatus)
+        this._notes?.removeEventListener('defaultStoreChange', this._onDefaultStore)
         window.removeEventListener('resize', this._onResize)
         if (this._writeTimer) this._writeState()
         this._closeMenu()
+        this._tips?.destroy()
+        this._tips = undefined
         this._resizer?.disconnect()
         for (const c of this._cards.values()) c.card.remove()
         this._cards.clear()
+        this._unraise?.()
+        this._unraise = undefined
         this.element.remove()
         this._popups.remove()
         this._notes = undefined
         super.onRemove(viewer)
     }
 
-    /** Makes a note on top, with the cursor in it ({@link NotesPlugin.defaultStore} when no store is named) */
+    /**
+     * Makes a note on top, with the cursor in it ({@link NotesPlugin.defaultStore} when no store is named). On the
+     * board, its post-it opens by the dock (above it, or below it when the dock is at the top), inside the canvas.
+     */
     addNote(store?: string) {
         this._closeMenu()
         if (this.layout === 'minimized') this._restore()
-        const note = this._notes?.addNote('', store)
+        this._addAtDock = true
+        let note: NoteItem | undefined
+        try {
+            note = this._notes?.addNote('', store)
+        } finally {
+            this._addAtDock = false
+        }
         if (note) this._cards.get(note.id)?.text.focus({preventScroll: true})
         return note
     }
@@ -283,10 +385,12 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         this._layoutCards(true)
     }
 
-    /** Forgets the places and sizes: the board is arranged again, the pile goes back to its corner */
+    /** Forgets the places and sizes: the board is arranged again, the pile and the dock go back to their corner */
     resetPlaces() {
         this._state.stack = {}
         this._state.board = {}
+        this._state.dock = undefined
+        this._placeDock()
         this.arrange()
     }
 
@@ -317,8 +421,23 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         this._restoreButton.style.display = minimized ? '' : 'none'
         this._showCount()
         this._arrangeButton.style.display = this.layout === 'board' ? '' : 'none'
-        this._layoutButton.textContent = this.layout === 'board' ? 'Stack' : 'Spread'
-        this._layoutButton.title = this.layout === 'board' ? 'Put the post-its on a pile' : 'A post-it per note on the board'
+        const board = this.layout === 'board'
+        this._layoutButton.innerHTML = board ? ICONS.stack : ICONS.spread
+        setTip(this._layoutButton, board ? 'Stack: put the post-its on a pile' : 'Spread: a post-it per note on the board')
+        this._showStore()
+        this._placeDock() // another number of buttons: another width
+    }
+
+    /** The icon and tooltip of the store of new notes; hidden with one store */
+    private _showStore() {
+        const stores = this._notes?.stores ?? [], store = this._notes?.defaultStore ?? ''
+        this._storeButton.innerHTML = storeIcon(store)
+        setTip(this._storeButton, 'New notes: ' + this._storeLabel(store))
+        if (this.layout !== 'minimized') this._storeButton.style.display = stores.length > 1 ? '' : 'none'
+    }
+
+    private _setDefaultStore(id: string) {
+        if (this._notes) this._notes.defaultStore = id // its defaultStoreChange shows it
     }
 
     private _onNotesChanged = (e: {change: string, note?: NoteItem, notes?: NoteItem[]}) => {
@@ -343,9 +462,15 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
 
     private _onStatus = (e: {store: string}) => {
         for (const c of this._cards.values()) if (c.note.store === e.store) this._updateBadge(c)
+        this._showStore() // a store added by the app
     }
 
-    private _onResize = () => this._layoutCards(false)
+    private _onDefaultStore = () => this._showStore()
+
+    private _onResize = () => {
+        this._placeDock()
+        this._layoutCards(false)
+    }
 
     /**
      * Makes the post-its of new notes, removes those of removed notes and updates the others, then lays them out. A
@@ -370,8 +495,9 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
             }
             this._showNote(c, note)
         }
-        // a note made now goes on top
+        // a note made now goes on top; from "Add a note", on the board, by the dock
         if (added) this._setOrder([...this._order().filter(o => o !== added), added])
+        if (added && this._addAtDock && this.layout === 'board') (this._state.board ??= {})[added] = this._placeByDock()
         this._showCount()
         // the order with the new note on top is saved (in the stack layout, nothing else saves it)
         if (!this._layoutCards(!!added) && added) this._writeState()
@@ -379,7 +505,7 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
 
     /** The number of notes on the button of the `minimized` layout */
     private _showCount() {
-        this._restoreButton.textContent = 'Notes · ' + (this._notes?.notes.length ?? 0)
+        this._count.textContent = String(this._notes?.notes.length ?? 0)
     }
 
     /** Shows the text and the store of a note on its post-it. Returns true when the note moved to another store. */
@@ -469,6 +595,63 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         return false
     }
 
+    /**
+     * Where a post-it from "Add a note" goes: at the left edge of the dock as shown (dragged or not), above it, or below
+     * it when there is no room above; inside the canvas
+     */
+    private _placeByDock(): Box {
+        const d = this.dock, move = this._placeDock(), size = this._size()
+        const left = d.offsetLeft + move.x, top = d.offsetTop + move.y
+        const above = top - GAP - NOTE_H
+        const {x, y} = this._clamp({x: left, y: above >= 0 ? above : top + d.offsetHeight + GAP}, size)
+        return {x, y}
+    }
+
+    /**
+     * Moves the dock from its corner to where the person dragged it ({@link StickyState.dock}), inside the canvas (the
+     * kept move stays, so a larger canvas shows it there again). Returns the move shown.
+     */
+    private _placeDock() {
+        const d = this.dock, move = this._state.dock
+        if (!move) {
+            d.style.transform = ''
+            return {x: 0, y: 0}
+        }
+        const {width, height} = this._size()
+        const x = within(move.x, -d.offsetLeft, width - d.offsetWidth - d.offsetLeft)
+        const y = within(move.y, -d.offsetTop, height - d.offsetHeight - d.offsetTop)
+        d.style.transform = `translate(${x}px, ${y}px)`
+        return {x, y}
+    }
+
+    /**
+     * Drags the dock by its handle or its free part (a press on a button is a click), after {@link DRAG_START} px. A
+     * double click there puts it back in its corner.
+     */
+    private _draggableDock() {
+        const dock = this.dock
+        const onButton = (e: Event) => !!(e.target as HTMLElement).closest?.('button')
+        dock.addEventListener('pointerdown', (e: PointerEvent) => {
+            if (e.button !== 0 || onButton(e)) return
+            e.preventDefault()
+            this._closeMenu()
+            const start = this._placeDock()
+            trackDrag(dock, e, (dx, dy) => {
+                this._state.dock = {x: start.x + dx, y: start.y + dy}
+                this._placeDock()
+            }, () => {
+                this._state.dock = this._placeDock() // the place kept is the one shown
+                this._writeState()
+            }, this.element)
+        })
+        dock.addEventListener('dblclick', (e: MouseEvent) => {
+            if (onButton(e)) return
+            this._state.dock = undefined
+            this._placeDock()
+            this._writeState()
+        })
+    }
+
     /** The lowest edge of a post-it placed on the board: above the dock */
     private _boardBottom(size: Size) {
         return Math.min(size.height, this.dock.offsetTop || size.height) - GAP
@@ -522,15 +705,15 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
     private _makeCard(note: NoteItem): NoteCard {
         const card = el('div', 'snp-card')
         const bar = el('div', 'snp-bar')
-        const badge = el('button', 'snp-badge') as HTMLButtonElement
+        const badge = el('button', 'snp-icon snp-badge') as HTMLButtonElement
         const text = el('textarea', '') as HTMLTextAreaElement
         const c: NoteCard = {note, card, bar, badge, text, store: note.store, size: [NOTE_W, NOTE_H]}
-        badge.addEventListener('click', () => this._openMenu(badge, 'Keep in', id => this._notes?.updateNote(c.note.id, {store: id}), c.note.store))
+        badge.addEventListener('click', () => this._openMenu(badge, 'Keep this note in', id => this._notes?.updateNote(c.note.id, {store: id}), c.note.store))
         bar.appendChild(badge)
         bar.appendChild(el('span', 'snp-fill'))
-        bar.appendChild(button('+ Context', 'Add the time and the selection', () => this._addContext(c), 'snp-tool'))
-        bar.appendChild(button('Copy', 'Copy the note', () => void navigator.clipboard?.writeText(text.value), 'snp-tool'))
-        bar.appendChild(button('×', 'Delete the note', () => this._notes?.removeNote(c.note.id), 'snp-tool snp-delete'))
+        bar.appendChild(button(ICONS.context, 'Add the time and the selection', () => this._addContext(c), 'snp-tool'))
+        const copy = bar.appendChild(button(ICONS.copy, 'Copy the text', () => void this._copy(c, copy), 'snp-tool'))
+        bar.appendChild(button(ICONS.delete, 'Delete the note', () => this._notes?.removeNote(c.note.id), 'snp-tool snp-delete'))
         text.value = note.text
         text.placeholder = 'A note…'
         text.spellcheck = true
@@ -556,6 +739,40 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         return c
     }
 
+    /**
+     * Copies the text of a note. After the write, the button shows a check and the tooltip "Copied" for
+     * {@link COPIED_TIME} (a click hides a tooltip, and the copy has no other sign); when the page has no clipboard
+     * access (an insecure page, a denied permission), it says that instead.
+     */
+    private async _copy(c: NoteCard, b: HTMLButtonElement) {
+        try {
+            if (!navigator.clipboard) throw new Error('No clipboard')
+            await navigator.clipboard.writeText(c.text.value)
+        } catch (e) {
+            this._flash(b, ICONS.copy, 'Could not copy: no clipboard access')
+            return
+        }
+        this._flash(b, ICONS.copied, 'Copied')
+    }
+
+    /** Shows an icon and a tooltip on a copy button for {@link COPIED_TIME}, then its own again */
+    private _flash(b: HTMLButtonElement, icon: string, tip: string) {
+        b.innerHTML = icon
+        setTip(b, tip)
+        // the tooltip of the delegate, made on the first hover; shown after the click that hid it
+        const tippy = (b as {_tippy?: {setContent(t: string): void, show(): void}})._tippy
+        setTimeout(() => {
+            tippy?.setContent(tip)
+            tippy?.show()
+        })
+        clearTimeout(Number(b.dataset.timer))
+        b.dataset.timer = String(setTimeout(() => {
+            b.innerHTML = ICONS.copy
+            setTip(b, 'Copy the text')
+            tippy?.setContent('Copy the text')
+        }, COPIED_TIME))
+    }
+
     private _addContext(c: NoteCard) {
         const t = c.text
         const line = this._notes?.contextLine() ?? ''
@@ -573,17 +790,15 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
 
     /** Shows the store of the note and its state on the badge; writes to the page only what changed */
     private _updateBadge(c: NoteCard) {
-        const status = this._notes?.storeStatus(c.note.store) ?? '', label = this._storeLabel(c.note.store)
-        if (c.badge.textContent === label && c.badge.dataset.status === status) return
-        c.badge.textContent = label
-        c.badge.title = 'Where the note is kept' + (status === 'error' ? ': it could not be saved or loaded' : '') + '. Click to move it.'
+        const store = c.note.store, status = this._notes?.storeStatus(store) ?? ''
+        if (c.badge.dataset.store === store && c.badge.dataset.status === status) return
+        c.badge.innerHTML = storeIcon(store)
+        setTip(c.badge, 'This note: ' + this._storeLabel(store) + (status === 'error' ? ' (it could not be saved or loaded)' : ''))
+        c.badge.dataset.store = store
         c.badge.dataset.status = status
     }
 
-    /**
-     * Drags a post-it by its bar (the pile, in the stack layout). The pointer is captured on the bar, so the post-it
-     * follows it also outside the bar, and the drag ends on release, cancel or a lost capture.
-     */
+    /** Drags a post-it by its bar (the pile, in the stack layout), after {@link DRAG_START} px */
     private _draggable(c: NoteCard) {
         const bar = c.bar
         bar.addEventListener('pointerdown', (e: PointerEvent) => {
@@ -594,17 +809,8 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
             const stack = this.layout === 'stack'
             const size = this._size()
             const start = stack ? this._pileBox(size) : this._clamp(this._state.board?.[c.note.id] ?? {}, size)
-            const sx = e.clientX, sy = e.clientY
-            let moving = false
-            bar.setPointerCapture?.(e.pointerId)
-            const move = (ev: PointerEvent) => {
-                const dx = ev.clientX - sx, dy = ev.clientY - sy
-                if (!moving && Math.abs(dx) + Math.abs(dy) < DRAG_START) return
-                if (!moving) {
-                    moving = true
-                    this.element.classList.add('snp-dragging')
-                    c.card.classList.add('snp-lifted')
-                }
+            trackDrag(bar, e, (dx, dy) => {
+                c.card.classList.add('snp-lifted')
                 const x = (start.x ?? 0) + dx, y = (start.y ?? 0) + dy
                 if (stack) {
                     this._state.stack = {...this._state.stack, x, y}
@@ -614,15 +820,7 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
                     const box = (this._state.board ??= {})[c.note.id] = {...this._state.board?.[c.note.id], x, y}
                     this._setBox(c, this._clamp(box, size))
                 }
-            }
-            const end = () => {
-                bar.removeEventListener('pointermove', move)
-                bar.removeEventListener('pointerup', end)
-                bar.removeEventListener('pointercancel', end)
-                bar.removeEventListener('lostpointercapture', end)
-                this.element.classList.remove('snp-dragging')
-                c.card.classList.remove('snp-lifted')
-                if (!moving) return
+            }, () => {
                 // the place kept is the one inside the canvas
                 if (stack) {
                     const pile = this._pileBox()
@@ -634,11 +832,7 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
                     board[c.note.id] = {...board[c.note.id], x, y}
                 }
                 this._writeState()
-            }
-            bar.addEventListener('pointermove', move)
-            bar.addEventListener('pointerup', end)
-            bar.addEventListener('pointercancel', end)
-            bar.addEventListener('lostpointercapture', end)
+            }, this.element, () => c.card.classList.remove('snp-lifted'))
         })
     }
 
@@ -706,10 +900,12 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         const menu = el('div', 'snp-menu')
         menu.appendChild(el('div', 'snp-menu-title', title))
         for (const store of this._notes?.stores ?? []) {
-            const b = button(store.label, '', () => {
+            const b = textButton('', () => {
                 this._closeMenu()
                 choose(store.id)
             })
+            b.innerHTML = storeIcon(store.id)
+            b.appendChild(el('span', '', store.label))
             if (store.id === current) b.classList.add('on')
             menu.appendChild(b)
         }
@@ -739,15 +935,15 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
     /** A press outside the menu closes it, but not one on a button that opens a menu: its click toggles it */
     private _pointerOutside = (e: Event) => {
         const t = e.target as HTMLElement
-        if (this._menu?.contains(t) || t?.closest?.('.snp-add-to, .snp-badge')) return
+        if (this._menu?.contains(t) || t?.closest?.('.snp-store, .snp-badge')) return
         this._closeMenu()
     }
 
     private _readState(): StickyState {
         try {
-            return JSON.parse(localStorage.getItem(this.storageKey) || '{}') || {}
+            return JSON.parse(readStored(this.storageKey) || '{}') || {}
         } catch (e) {
-            return {} // no storage, or not JSON
+            return {} // not JSON
         }
     }
 
@@ -755,12 +951,45 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         clearTimeout(this._writeTimer)
         this._writeTimer = 0
         if (this._notes) this._setOrder(this._order())
-        try {
-            localStorage.setItem(this.storageKey, JSON.stringify(this._state))
-        } catch (e) {
-            // no storage: this page only
-        }
+        writeStored(this.storageKey, JSON.stringify(this._state))
     }
+}
+
+/**
+ * Follows a press on `handle` that moves at least {@link DRAG_START} px: `move` gets the distance from the press each
+ * time, `end` runs after a drag (not after a click), `release` after any press. The pointer is captured on the handle, so
+ * the drag goes on outside it, and it ends on release, cancel or a lost capture. `layer` has `snp-dragging` during a
+ * drag (the grabbing cursor, no tooltips).
+ */
+function trackDrag(handle: HTMLElement, e: PointerEvent, move: (dx: number, dy: number) => void, end: () => void, layer: HTMLElement, release?: () => void) {
+    const sx = e.clientX, sy = e.clientY
+    let moving = false
+    handle.setPointerCapture?.(e.pointerId)
+    const onMove = (ev: PointerEvent) => {
+        const dx = ev.clientX - sx, dy = ev.clientY - sy
+        if (!moving && Math.abs(dx) + Math.abs(dy) < DRAG_START) return
+        if (!moving) layer.classList.add('snp-dragging')
+        moving = true
+        move(dx, dy)
+    }
+    const onEnd = () => {
+        handle.removeEventListener('pointermove', onMove)
+        handle.removeEventListener('pointerup', onEnd)
+        handle.removeEventListener('pointercancel', onEnd)
+        handle.removeEventListener('lostpointercapture', onEnd)
+        layer.classList.remove('snp-dragging')
+        release?.()
+        if (moving) end()
+    }
+    handle.addEventListener('pointermove', onMove)
+    handle.addEventListener('pointerup', onEnd)
+    handle.addEventListener('pointercancel', onEnd)
+    handle.addEventListener('lostpointercapture', onEnd)
+}
+
+/** v between min and max; min when the range is empty (a dock wider than the canvas keeps its left edge inside) */
+function within(v: number, min: number, max: number) {
+    return Math.max(min, Math.min(max, v))
 }
 
 /** An element with a class and a text */
@@ -771,10 +1000,27 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, className: string, te
     return e
 }
 
-/** A button with a text, a tooltip and a click */
-function button(text: string, title: string, click: () => void, className = ''): HTMLButtonElement {
+/** A button with a text and a click (the menus) */
+function textButton(text: string, click: () => void, className = ''): HTMLButtonElement {
     const b = el('button', className, text)
-    if (title) b.title = title
     b.addEventListener('click', click)
     return b
+}
+
+/** An icon button with a tooltip and a click */
+function button(icon: string, tip: string, click: () => void, className = ''): HTMLButtonElement {
+    const b = textButton('', click, className ? 'snp-icon ' + className : 'snp-icon')
+    b.innerHTML = icon
+    if (tip) setTip(b, tip)
+    return b
+}
+
+/** The tooltip of a button (shown by the delegate of the layer) and its name for a screen reader */
+function setTip(b: HTMLElement, tip: string) {
+    b.dataset.tip = tip
+    b.setAttribute('aria-label', tip)
+}
+
+function storeIcon(store: string) {
+    return STORE_ICONS[store] ?? STORE_ICONS.other
 }
