@@ -27,6 +27,9 @@ All notable changes to this project will be documented in this file.
 - Vite configs are native ES modules (`import.meta.dirname`, JSON import attributes), with `rolldownOptions` in place of `rollupOptions`, and without the no-op `commonjsOptions` and the redundant `@rollup/plugin-json`
 - `lib/index.js` keeps its `@license` banner (the old minifier removed it)
 - Remove the obsolete `prepare`, `copy:inlines` and `postcompile:esm` scripts, `scripts/each-plugin.mjs`, `scripts/build-plugins.mjs`, `scripts/fix-inline-imports.mjs` and the unused `copyfiles`, `hexer` and `proper-lockfile` dev dependencies
+- TypeScript 7 (`tsc` is the native compiler, npm alias `@typescript/native`) typechecks, writes the declaration files and compiles the examples. The `typescript` package is the TypeScript 6 API (`@typescript/typescript6`), for typedoc. New `npm run typecheck`
+- The declaration files are written by `tsc --emitDeclarationOnly` after each build (`declarations()` in `scripts/vite-utils.mjs`) instead of `vite-plugin-dts`. A full `turbo run build` went from 190s and 7.5 GB peak memory to 41s and 3.9 GB (4 cores). Turbo runs one task per CPU (`concurrency: 100%`). The declarations are the same apart from TypeScript 7 formatting (`import type`, union order, quotes); `npm run test:types` passes for TypeScript 5.0, 5.8, 6.0 and 7.0. Their source map links now point to the `.d.ts.map` next to them (they pointed to missing files)
+- tsconfigs for TypeScript 7: `moduleResolution: bundler` (was `node`), no `baseUrl`, `strict: false` and `types: ["*"]` stated explicitly (the new defaults are `true` and `[]`). The `three` → `threepipe` path in three plugins is removed, it never resolved. Remove the unused `typescript-plugin-css-modules`
 
 ### Fixed
 
@@ -40,6 +43,8 @@ All notable changes to this project will be documented in this file.
 - glTF light extras: the shadow camera `userData` is written and read without the private keys
 - `CameraViewPlugin.animateToView` and `InteractionPromptPlugin` turn the user interactions back on for the camera they animated. Before, they turned them on for the main camera at the end, so a camera that stopped being the main camera during the animation stayed locked (its controls off), for example after a switch to an editor camera. `animateToView` with a `camera` argument that is not the main camera had the same problem. A new main camera now stops the interaction prompt, which puts its camera back.
 - `PickingPlugin`: `userData.userSelectable = false`, `userData.bboxVisible = false` and `visible = false` on a picked object or on one of its parents keep it out of the selection again. The selection condition walked to the scene root before it checked them, so it only checked the root: the ground mesh of `BaseGroundPlugin` could be selected, and a click on a Troika text selected its inner text mesh instead of the text wrapper. The condition is exported as `isPickable`
+- `TilesRendererPlugin`: `CesiumIonAuthPlugin: true` in the import options threw (the plugin needs `{apiToken}`); only the object form adds the plugin. Found by the 3d-tiles-renderer types, which now resolve (the `@ts-expect-error` on its imports are removed)
+- svg-renderer: remove a `BufferGeometry.boundsTree` declaration that conflicted with three-mesh-bvh's
 - glTF/glb export writes the same file for the same input. The images are encoded asynchronously and three.js gave each one the next bufferView when it finished, so the image order in the file changed between exports. `GLTFWriter2` now writes the image bufferViews in the order of the images. The e2e tests had a test-only patch for this, which the production build removed, so the `glb-export` test failed on every run; the patch is removed
 
 

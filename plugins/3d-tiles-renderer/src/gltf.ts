@@ -2,7 +2,6 @@ import {
     GLTFCesiumRTCExtension,
     GLTFMeshFeaturesExtension,
     GLTFStructuralMetadataExtension,
-// @ts-expect-error moduleResolution issue
 } from '3d-tiles-renderer/plugins'
 import {AssetManager} from 'threepipe'
 
