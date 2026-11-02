@@ -489,6 +489,45 @@ describe('AnnotationsPlugin', () => {
         })
     })
 
+    test('a camera with dollyFov: the saved pose wins over the dolly of the fov change, at the view already and after a flight', () => {
+        // as RootScene.dollyActiveCameraFov for camera.userData.dollyFov: a fov change moves the camera along its view
+        // axis to a fitting distance (10 here)
+        const dollying = (camera: PerspectiveCamera & {target: Vector3}) => {
+            let fov = camera.fov
+            Object.defineProperty(camera, 'fov', {
+                get: () => fov,
+                set: (v: number) => {
+                    fov = v
+                    const dir = camera.position.clone().sub(camera.target).normalize()
+                    camera.position.copy(camera.target).addScaledVector(dir, 10)
+                },
+            })
+        }
+        // at the pose of the view, with another fov: the camera move ends at once
+        {
+            const {plugin, box, camera} = setup(false)
+            dollying(camera)
+            plugin.add(box as any, front, normal, {position: [0, 0, 5], target: [0, 0, 0], quaternion: camera.quaternion.toArray(), zoom: 1, fov: 40})
+            plugin.goTo(0)
+            expect(camera.fov).toBe(40)
+            expect(camera.position.toArray().map(v => +v.toFixed(5))).toEqual([0, 0, 5])
+        }
+        // a flight: each step and the end apply the fov before the pose
+        {
+            const popmotion = {animate: (o: any) => {
+                o.onUpdate(0.5)
+                o.onComplete()
+                return {stop: noop}
+            }}
+            const {plugin, box, camera} = setup(false, popmotion)
+            dollying(camera)
+            plugin.add(box as any, front, normal, {position: [3, 0, 0], target: [0, 0, 0], quaternion: [0, 0, 0, 1], zoom: 1, fov: 40})
+            plugin.goTo(0)
+            expect(camera.fov).toBe(40)
+            expect(camera.position.toArray().map(v => +v.toFixed(5))).toEqual([3, 0, 0])
+        }
+    })
+
     test('opening an annotation without a camera move stops the flight of the one before', () => {
         // a flight that runs until it is stopped
         const flights: {stop: ReturnType<typeof vi.fn>}[] = []

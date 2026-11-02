@@ -1022,9 +1022,11 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         // the animation turns the camera to the target. A camera without controls (that would turn it back) and without
         // autoLookAtTarget gets the rotation of the view at the end, so a roll in the view is kept
         const keepRoll = !cam.userData.autoLookAtTarget && !(cam.controls && (cam.controls as any).enabled !== false)
+        // the fov before the pose, in each step and at the end: with camera.userData.dollyFov, a fov change moves the
+        // camera to a distance that fits the model (RootScene.dollyActiveCameraFov), and the pose of the view must win
         const complete = () => {
-            anim.onComplete?.()
             setFov(1)
+            anim.onComplete?.()
             if (!keepRoll) return
             const q = cv.quaternion.clone() // world space
             if (cam.parent) q.premultiply(cam.parent.getWorldQuaternion(new Quaternion()).invert())
@@ -1049,8 +1051,8 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         this._anim = pop.animate({
             from: 0, to: 1, duration, ease: EasingFunctions.easeInOutSine,
             onUpdate: (t: number) => {
-                anim.onUpdate?.(t)
                 setFov(t)
+                anim.onUpdate?.(t)
             },
             onComplete: () => {
                 complete()
