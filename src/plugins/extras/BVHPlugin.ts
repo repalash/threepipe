@@ -141,6 +141,9 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
     // the geometries whose updates the plugin follows: every geometry of the scene, with a tree or not, so an update can
     // also give a geometry a tree (it grows past autoMinTriangles, the gaps in its groups close)
     private _watched = new Set<BVHGeometry>()
+    // the trees that the plugin did not build, with the build key of the geometry when the plugin first saw them: an
+    // update with the same key refits them, another key drops them (they no longer fit), and the plugin builds its own
+    private _adopted = new Map<BVHGeometry, string>()
     // the helper of each mesh, with the geometry that it was made for
     private _helpers = new Map<IObject3D, {helper: Object3D & {dispose(): void}, geometry: IGeometry}>()
 
@@ -219,6 +222,10 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
         viewer.scene.removeEventListener('materialChanged', this._objectMaterialChanged)
         viewer.removeEventListener('postFrame', this._postFrame)
         for (const g of [...this._stats.keys()]) this._dispose(g)
+        // the trees from outside stay, but the meshes get the raycast of three.js back: nothing keeps those trees up to date
+        for (const g of this._adopted.keys()) for (const o of g.appliedMeshes ?? [])
+            if (Object.prototype.hasOwnProperty.call(o, 'raycast') && o.raycast === this.lib?.acceleratedRaycast) delete (o as Partial<IObject3D>).raycast
+        this._adopted.clear()
         for (const g of [...this._watched]) this._unwatch(g)
         for (const o of [...this._helpers.keys()]) this._removeHelper(o)
         this._queue.clear()
@@ -351,12 +358,18 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
         this._queue.delete(e.geometry)
         this._dispose(e.geometry)
         this._unwatch(e.geometry)
+        this._adopted.delete(e.geometry)
     }
 
     private _watch(g: BVHGeometry) {
+        this._adopt(g)
         if (this._watched.has(g)) return
         this._watched.add(g)
         g.addEventListener('geometryUpdate', this._geometryUpdate)
+    }
+
+    private _adopt(g: BVHGeometry) {
+        if (g.boundsTree && !this._stats.has(g) && !this._adopted.has(g)) this._adopted.set(g, buildKey(g))
     }
 
     private _unwatch(g: BVHGeometry) {
@@ -393,13 +406,21 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
         const g = e.geometry
         if (!g) return
         const s = this._stats.get(g)
-        // the update can also change which meshes can use a tree (morph targets added): refit only when the geometry
-        // still wants one, and set the raycasts again on every path
-        if (g.boundsTree && s && buildKey(g) === s.key && this.wants(g)) {
+        const adoptedKey = !s && g.boundsTree ? this._adopted.get(g) : undefined
+        const key = buildKey(g)
+        // the update can also change which meshes can use a tree (morph targets added): refit a tree of the plugin only
+        // when the geometry still wants one, a tree from outside while it fits, and set the raycasts again on every path
+        if (g.boundsTree && (s ? s.key === key && this.wants(g) : adoptedKey === key)) {
             g.boundsTree.refit()
             this._setRaycast(g)
             this._pruneHelpers()
             return
+        }
+        if (adoptedKey !== undefined) {
+            // a tree from outside that no longer fits the geometry (other triangles): it goes, the plugin builds its own
+            g.boundsTree = undefined
+            this._adopted.delete(g)
+            this._pruneHelpers()
         }
         this._dispose(g)
         if (this.wants(g)) this._queue.add(g)
@@ -420,6 +441,7 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
     private _build(g: BVHGeometry) {
         if (!g.attributes.position || !this.lib) return
         const t = performance.now()
+        this._adopted.delete(g)
         const bvh = new this.lib.MeshBVH(g, buildOptions)
         const ms = performance.now() - t
         g.boundsTree = bvh as BVHGeometry['boundsTree']
@@ -444,9 +466,11 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
     // meshes of a geometry with a tree raycast with it, the others get the default back (also a mesh that can no
     // longer use the tree, e.g. its groups now leave out triangles)
     private _setRaycast(g: BVHGeometry) {
+        this._adopt(g)
         const accelerated = this.lib?.acceleratedRaycast
         for (const o of g.appliedMeshes ?? []) {
-            if (g.boundsTree && accelerated && this.canUse(o) && this.modeOf(o) !== 'off') o.raycast = accelerated
+            // a disabled plugin does not use the trees from outside either
+            if (g.boundsTree && accelerated && !this.isDisabled() && this.canUse(o) && this.modeOf(o) !== 'off') o.raycast = accelerated
             else if (Object.prototype.hasOwnProperty.call(o, 'raycast') && o.raycast === accelerated) delete (o as Partial<IObject3D>).raycast
         }
     }

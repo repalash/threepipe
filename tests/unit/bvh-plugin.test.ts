@@ -411,4 +411,52 @@ describe('BVHPlugin', () => {
         expect(Object.prototype.hasOwnProperty.call(m, 'raycast')).toBe(false)
         expect(g.boundsTree).toBeUndefined()
     })
+
+    test('a tree from outside: refitted when the vertices move, replaced when the triangles change; disabled or removed, the plugin stops using it', () => {
+        const {viewer, plugin, add, frame} = setup()
+        const m = add(200, 32)
+        const g = m.geometry!
+        const outside = new threeMeshBVH.MeshBVH(g)
+        g.boundsTree = outside as any
+        plugin.refreshAll()
+        expect(m.raycast).toBe(threeMeshBVH.acceleratedRaycast)
+        const brute = (r: Raycaster) => {
+            const list: Intersection[] = []
+            Mesh.prototype.raycast.call(m, r, list)
+            return list.sort((a, b) => a.distance - b.distance)
+                .map(h => ({distance: +h.distance.toFixed(6), faceIndex: h.faceIndex, object: h.object}))
+        }
+        // the vertices move: the same tree, refitted
+        const pos = g.attributes.position
+        for (let i = 0; i < pos.count; i++) pos.setXYZ(i, pos.getX(i) + 0.7, pos.getY(i) + 0.4, pos.getZ(i)) // out of the old boxes
+        pos.needsUpdate = true
+        g.computeBoundingSphere()
+        g.computeBoundingBox()
+        g.setDirty()
+        frame()
+        expect(g.boundsTree).toBe(outside)
+        expect(rays().map(r => hits(m, r))).toEqual(rays().map(brute))
+        // other triangles (the draw range): the old tree no longer fits, the plugin builds its own
+        g.setDrawRange(0, 3000)
+        g.setDirty()
+        frame()
+        expect(g.boundsTree).toBeDefined()
+        expect(g.boundsTree).not.toBe(outside)
+        expect(rays().map(r => hits(m, r))).toEqual(rays().map(brute))
+
+        // disabled, then removed: a tree from outside stays on the geometry, the mesh gets the raycast of three.js back
+        const o2 = add(200, 32)
+        const t2 = new threeMeshBVH.MeshBVH(o2.geometry!)
+        o2.geometry!.boundsTree = t2 as any
+        plugin.refreshAll()
+        expect(o2.raycast).toBe(threeMeshBVH.acceleratedRaycast)
+        plugin.enabled = false
+        expect(Object.prototype.hasOwnProperty.call(o2, 'raycast')).toBe(false)
+        expect(o2.geometry!.boundsTree).toBe(t2)
+        plugin.enabled = true
+        expect(o2.raycast).toBe(threeMeshBVH.acceleratedRaycast)
+        plugin.onRemove(viewer)
+        expect(Object.prototype.hasOwnProperty.call(o2, 'raycast')).toBe(false)
+        expect(o2.geometry!.boundsTree).toBe(t2)
+    })
 })
