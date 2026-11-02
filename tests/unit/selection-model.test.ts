@@ -204,6 +204,38 @@ describe('selection hierarchy', () => {
 const SIZE = 400
 
 /** An event with the fields the plugin reads */
+/**
+ * A window for the events of a test: as a page, its capture listeners run before its bubble listeners (an event sent to
+ * a node's EventTarget calls all its listeners in the order they were added), and stopImmediatePropagation stops the rest.
+ */
+class WindowStandIn {
+    private _listeners: {type: string, fn: EventListenerOrEventListenerObject, capture: boolean}[] = []
+    addEventListener(type: string, fn: EventListenerOrEventListenerObject, options?: boolean | AddEventListenerOptions) {
+        const capture = typeof options === 'boolean' ? options : !!options?.capture
+        if (!this._listeners.some(l => l.type === type && l.fn === fn && l.capture === capture)) this._listeners.push({type, fn, capture})
+    }
+    removeEventListener(type: string, fn: EventListenerOrEventListenerObject, options?: boolean | EventListenerOptions) {
+        const capture = typeof options === 'boolean' ? options : !!options?.capture
+        this._listeners = this._listeners.filter(l => !(l.type === type && l.fn === fn && l.capture === capture))
+    }
+    dispatchEvent(e: Event) {
+        let stopped = false
+        const stop = e.stopImmediatePropagation.bind(e)
+        Object.defineProperty(e, 'stopImmediatePropagation', {value: () => {
+            stopped = true
+            stop()
+        }})
+        for (const capture of [true, false]) {
+            for (const l of this._listeners.filter(x => x.type === e.type && x.capture === capture)) {
+                if (stopped) return !e.defaultPrevented
+                if (typeof l.fn === 'function') l.fn(e)
+                else l.fn.handleEvent(e)
+            }
+        }
+        return !e.defaultPrevented
+    }
+}
+
 function ev(type: string, fields: Record<string, any> = {}) {
     return Object.assign(new Event(type, {cancelable: true}), {isPrimary: true, button: 0, buttons: 0, shiftKey: false, ctrlKey: false, metaKey: false, altKey: false, ...fields})
 }
@@ -281,7 +313,7 @@ function setup() {
 describe('SelectionUxPlugin', () => {
     // the window of the node setup is globalThis, without events: a new event target for each test
     beforeEach(() => {
-        const win = new EventTarget()
+        const win = new WindowStandIn()
         Object.assign(globalThis, {
             addEventListener: win.addEventListener.bind(win),
             removeEventListener: win.removeEventListener.bind(win),
@@ -560,11 +592,10 @@ describe('SelectionUxPlugin', () => {
         expect(names()).toEqual(['Wall'])
     })
 
-    test('keys: an Escape that an open menu or popover used (defaultPrevented) does not change the selection', () => {
-        // an open menu that closes on Escape, as the layout menu of the editor frame: it marks the key as used. In a
-        // page it listens on the document, before the window's bubble phase; this window stand-in calls its listeners
-        // in the order they were added, so the menu's listener is added first.
-        const menu = (e: Event) => (e as KeyboardEvent).code === 'Escape' && e.preventDefault()
+    test('keys: an Escape that an open menu or popover stops does not change the selection', () => {
+        // an open menu that closes on Escape, as the layout menu of the editor frame: it stops the key. In a page it
+        // listens on the document, before the window's bubble phase: here a bubble listener added before the plugin's.
+        const menu = (e: Event) => (e as KeyboardEvent).code === 'Escape' && e.stopImmediatePropagation()
         window.addEventListener('keydown', menu)
         const {ux, key, leg1, names} = setup()
         ux.select([leg1])
@@ -573,6 +604,20 @@ describe('SelectionUxPlugin', () => {
         window.removeEventListener('keydown', menu)
         expect(key('Escape')).toBe(true) // no menu: the parent
         expect(names()).toEqual(['Legs'])
+    })
+
+    test('keys: Escape selects the parent, also with the PickingPlugin keys, which clear the selection on an Escape that no one used', () => {
+        // as PickingPlugin._onKeyDown (window, bubble phase; a dependency, so added before the plugin's listeners): it
+        // clears the selection on an Escape that is not defaultPrevented
+        let clear = () => {}
+        const picking = (e: Event) => (e as KeyboardEvent).code === 'Escape' && !e.defaultPrevented && clear()
+        window.addEventListener('keydown', picking)
+        const {ux, key, leg1, names} = setup()
+        clear = () => ux.select([])
+        ux.select([leg1])
+        expect(key('Escape')).toBe(true)
+        expect(names()).toEqual(['Legs'])
+        window.removeEventListener('keydown', picking)
     })
 
     test('keys: Esc and Shift+Enter parent, Enter children, Tab siblings, Ctrl+A the level', () => {

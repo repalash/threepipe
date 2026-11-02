@@ -116,7 +116,9 @@ export function setupEditorCameraUi(viewer: ThreeViewer, camera: EditorCameraPlu
     const onKey = (e: KeyboardEvent) => {
         if (e.key !== 'Escape' || !root.classList.contains('ecu-open')) return
         setOpen(false)
-        e.preventDefault() // used: the key does not also change the selection
+        // used: the key does not also change the selection
+        e.preventDefault()
+        e.stopPropagation()
     }
     document.addEventListener('keydown', onKey)
 
