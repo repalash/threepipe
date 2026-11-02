@@ -112,6 +112,10 @@ export function uploadRoutes(app: Hono<CloudEnv>) {
         const size = uploadSize(c)
         const t = target(prefix, segs, c, user)
         assertScope(user)
+        // names that look like ours (the PR builds b/threepipe/…, p/threepipe…, s/threepipe…): staff only, like project
+        // slugs, so nobody claims an official-looking URL or the build of a PR before CI uploads it
+        if (t.scope && /^[sbp]\/threepipe/.test(t.scope) && !isStaff(user))
+            throw new HTTPException(403, {message: `${t.scope.split('/').slice(0, 2).join('/')}… is for threepipe`})
         if (t.scope) await claimScope(c.env, t.scope, user)
         const contentType = contentTypeFor(t.key, c.req.header('content-type'))
         const body = c.req.raw.body

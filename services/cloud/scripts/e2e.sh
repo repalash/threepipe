@@ -56,7 +56,7 @@ R=$(curl -s -X PUT -H "$H" -H "x-content-sha256: $SHA" --data-binary @$TMP/a.txt
 curl -sI "$AURL" | grep -qi "immutable" && ok "a/ cached immutable" || bad "a/ cache header"
 R=$(curl -s -o /dev/null -w '%{http_code}' -X PUT -H "$H" -H "x-content-sha256: $(printf '0%.0s' {1..64})" --data-binary @$TMP/a.txt "$A/api/v1/uploads/a/$U-bad.txt"); [ "$R" = "400" ] && ok "a/ sha mismatch -> 400" || bad "a/ sha mismatch: $R"
 R=$(curl -s -o /dev/null -w '%{http_code}' -X DELETE -H "$H" "$A/api/v1/uploads/${AURL#*/_files/}"); [ "$R" = "403" ] && ok "owner cannot delete a/" || bad "delete a/ as owner: $R"
-R=$(curl -s -X PUT -H "$H" --data-binary @$TMP/a.txt "$A/api/v1/uploads/b/threepipe/pr-$U/examples/a.txt"); echo "$R" | grep -q '"url"' && ok "upload b/" || bad "upload b/: $R"
+R=$(curl -s -X PUT -H "$H" --data-binary @$TMP/a.txt "$A/api/v1/uploads/b/demo/pr-$U/examples/a.txt"); echo "$R" | grep -q '"url"' && ok "upload b/" || bad "upload b/: $R"
 R=$(curl -s -o /dev/null -w '%{http_code}' -X DELETE -H "$H" "$A/api/v1/uploads/s/$U-share/a.txt"); [ "$R" = "200" ] && ok "delete s/" || bad "delete s/: $R"
 [ "$(curl -s -o /dev/null -w '%{http_code}' "$SURL")" = "410" ] && ok "deleted -> 410" || bad "deleted status"
 # another user cannot write into the first user's scope
@@ -77,6 +77,9 @@ STAFF=st$RANDOM
 TS=$(curl -s -X POST $A/api/v1/table/users/auth/sign-up -H 'content-type: application/json' -d "{\"username\":\"$STAFF\",\"email\":\"$STAFF@x.test\",\"password\":\"pass12345\",\"passwordConfirm\":\"pass12345\",\"name\":\"$STAFF\"}" | j "['token']")
 [ "$(admin users/update "{\"where\":\"username == '$STAFF'\",\"setValues\":{\"role\":\"staff\"}}")" = "200" ] || bad "fixture: make staff"
 R=$(curl -s -X DELETE -H "Authorization: Bearer $TS" "$A/api/v1/uploads/${AURL#*/_files/}?reason=copyright"); echo "$R" | grep -q copyright && ok "staff removes a/" || bad "staff delete: $R"
+C1=$(code -X PUT -H "Authorization: Bearer $T2" --data-binary @$TMP/a.txt "$A/api/v1/uploads/b/threepipe/pr-$U/a.txt"); C2=$(code -X PUT -H "Authorization: Bearer $T2" --data-binary @$TMP/a.txt "$A/api/v1/uploads/p/threepipe-$U/a.txt")
+[ "$C1 $C2" = "403 403" ] && ok "b/threepipe/… and p/threepipe… are for staff" || bad "reserved scopes: $C1 $C2"
+R=$(curl -s -X PUT -H "Authorization: Bearer $TS" --data-binary @$TMP/a.txt "$A/api/v1/uploads/b/threepipe/pr-$U/a.txt"); echo "$R" | grep -q '"url"' && ok "staff upload a PR build to b/threepipe/" || bad "staff b/threepipe: $R"
 [ "$(curl -s -o /dev/null -w '%{http_code}' "$AURL")" = "410" ] && ok "removed a/ -> 410" || bad "removed a/ status"
 [ "$(code -X PUT -H "Authorization: Bearer $TOK" -H "x-content-sha256: $SHA" --data-binary @$TMP/a.txt "$A/api/v1/uploads/a/$U.txt")" = "410" ] && ok "a removed a/ cannot be uploaded again -> 410" || bad "a/ over a removal"
 # staff buckets (write-once, content-addressed for e2e)
@@ -88,9 +91,9 @@ curl -s -X PUT -H "Authorization: Bearer $TS" -H "x-content-sha256: $BSHA" --dat
 R=$(curl -s -X POST -H "Authorization: Bearer $TS" -H 'content-type: application/json' -d "{\"paths\":[\"blobs/$BSHA.txt\",\"blobs/$(printf 'a%.0s' {1..64}).png\"]}" "$A/api/v1/buckets/e2e/missing")
 echo "$R" | grep -q "aaaa" && ! echo "$R" | grep -q "$BSHA" && ok "missing blobs" || bad "missing: $R"
 # expiry: backdate the b/ build, run the cron
-[ "$(admin files/update "{\"where\":\"path == 'b/threepipe/pr-$U/examples/a.txt'\",\"setValues\":{\"expires_at\":\"2000-01-01T00:00:00.000Z\"}}")" = "200" ] || bad "fixture: backdate build"
+[ "$(admin files/update "{\"where\":\"path == 'b/demo/pr-$U/examples/a.txt'\",\"setValues\":{\"expires_at\":\"2000-01-01T00:00:00.000Z\"}}")" = "200" ] || bad "fixture: backdate build"
 curl -s -o /dev/null "$A/cdn-cgi/handler/scheduled?cron=17+3+*+*+*"; sleep 1
-[ "$(curl -s -o /dev/null -w '%{http_code}' "$A/_files/b/threepipe/pr-$U/examples/a.txt")" = "404" ] && ok "cron deletes expired build" || bad "cron"
+[ "$(curl -s -o /dev/null -w '%{http_code}' "$A/_files/b/demo/pr-$U/examples/a.txt")" = "404" ] && ok "cron deletes expired build" || bad "cron"
 # --- drive (items, folders) ---
 H0="Authorization: Bearer $TOK"
 UID1=$(echo "$SIGN" | j "['record']['id']")
@@ -189,6 +192,9 @@ for it in $(curl -s -H "$H0" "$A/api/v1/drive?folder=$AF" | python3 -c "import j
 R=$(curl -s -X PUT -H "$HA" --data-binary @$TMP/a.txt "$A/api/v1/drive/files?name=again.txt"); echo "$R" | grep -q '"name":"again.txt"' && [ "$(echo "$R" | j "['folder_id']")" != "$AF" ] && ok "the app's folder was deleted: made again on the next save" || bad "app folder recreate: $R"
 AF=$(echo "$R" | j "['folder_id']")
 LOC2=$(curl -s -o /dev/null -w '%{redirect_url}' -H "$CK" "$CON"); echo "$LOC2" | grep -q "#tp_cloud_key=" && ok "connect: approved before -> straight back with a key" || bad "connect silent: $LOC2"
+LOC2=$(curl -s -o /dev/null -w '%{redirect_url}' -H "$CK" "$CON&state=st-$U-abc"); echo "$LOC2" | grep -q "tp_cloud_state=st-$U-abc" && ok "connect: the state comes back with the key" || bad "connect state: $LOC2"
+curl -s -H "$CK" "$CON&state=st-$U-abc&prompt=consent" | grep -q "name=\"state\" value=\"st-$U-abc\"" && ok "connect: the consent form keeps the state" || bad "connect consent state"
+[ "$(code -H "$CK" "$CON&state=bad%20state")" = "400" ] && ok "connect: a malformed state -> 400" || bad "connect bad state"
 UID2=$(curl -s -H "Authorization: Bearer $T2" "$A/api/v1/table/users/select?select=id" | python3 -c "import json,sys;print(json.load(sys.stdin)[0]['id'])")
 admin scopes/update "{\"where\":\"scope == 'p/$U-page'\",\"setValues\":{\"owner_id\":\"$UID2\"}}" > /dev/null
 curl -s -H "$CK" "$CON" | grep -q "@$U2" && ok "connect: app with a new owner -> consent again" || bad "connect new owner"
@@ -232,6 +238,9 @@ admin user_limits/delete "{\"where\":\"user_id == '$UID2'\"}" > /dev/null
 R=$(curl -s -H "$H0" "$A/api/v1/projects/$P"); echo "$R" | grep -q '"role":"manager"' && echo "$R" | grep -q '"discord_webhook":false' && echo "$R" | grep -q "\"owner\":\"$U\"" && ok "a project's settings" || bad "project get: $R"
 [ "$(code -H "Authorization: Bearer $T2" "$A/api/v1/projects/$P")" = "404" ] && ok "non-members: no such project" || bad "project get non-member"
 curl -s -H "Authorization: Bearer $TS" "$A/api/v1/projects/$P" | grep -q '"role":"manager"' && ok "staff open any project (the reports page's #slug)" || bad "staff project get"
+curl -s -o /dev/null -X POST -H "$H0" -H 'content-type: application/json' -d "{\"username\":\"$STAFF\",\"role\":\"reader\"}" "$A/api/v1/projects/$P/members"
+R=$(curl -s -H "Authorization: Bearer $TS" "$A/api/v1/projects"); echo "$R" | grep -q "\"slug\":\"$P\",\"name\":\"My app\",\"role\":\"manager\"" && ok "staff listed as a reader: their list says manager, as they can" || bad "staff list role: $R"
+curl -s -o /dev/null -X DELETE -H "$H0" "$A/api/v1/projects/$P/members/$STAFF"
 RJ='{"type":"bug","surface":"examples","text":"it broke","email":"me@x.test","log":["GET https://a.test/x?token=abcdefgh12345678 failed","at /Users/jane/app.js:1:2"],"versions":{"threepipe":"0.4.0"},"context":{"auth":{"access_token":"abcdef123456","password":"correct-horse-battery"}}}'
 [ "$(code -X POST -H 'content-type: application/json' -H "Idempotency-Key: key-$U-0" -d "$RJ" "$A/api/v1/projects/$P/reports")" = "401" ] && ok "anonymous report without Turnstile -> 401" || bad "no turnstile"
 R=$(curl -s -X POST -H 'content-type: application/json' -H "Idempotency-Key: key-$U-1" -H 'cf-turnstile-response: test' -H "Origin: https://files.threepipe.org" -d "$RJ" "$A/api/v1/projects/$P/reports"); RID=$(echo "$R" | j "['id']") && ok "anonymous report with Turnstile -> $RID" || bad "anon report: $R"

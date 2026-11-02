@@ -117,9 +117,10 @@ export function projectRoutes(app: Hono<CloudEnv>) {
     app.get('/api/v1/projects', async (c) => {
         const user = await requireUser(c)
         if (user.scope) throw new HTTPException(403, {message: 'an app key cannot read projects'})
-        const {results} = await c.env.PRIMARY_DB.prepare(`SELECT p.slug, p.name, CASE WHEN p.owner_id = ?1 THEN 'manager' ELSE m.role END AS role
+        // the role member() grants: staff manage every project, also one they are a reader of
+        const {results} = await c.env.PRIMARY_DB.prepare(`SELECT p.slug, p.name, CASE WHEN p.owner_id = ?1 OR ?2 THEN 'manager' ELSE m.role END AS role
                 FROM projects p LEFT JOIN project_members m ON m.project_id = p.id AND m.user_id = ?1
-                WHERE p.owner_id = ?1 OR m.user_id = ?1 ORDER BY p.slug`).bind(user.id).all()
+                WHERE p.owner_id = ?1 OR m.user_id = ?1 ORDER BY p.slug`).bind(user.id, isStaff(user) ? 1 : 0).all()
         return c.json({projects: results})
     })
 

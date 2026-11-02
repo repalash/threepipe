@@ -504,6 +504,11 @@ export function driveRoutes(app: Hono<CloudEnv>) {
             const now = await bucket.head(oldBase + rel)
             if (now && now.etag !== copied.get(rel) && await copyObject(c, oldBase + rel, newBase + rel, id) === undefined) failed.push(rel)
         }
+        // The copies carry the visibility their objects had in 1; a visibility change that ended before 2 changed only the
+        // old objects (and the row, which moved): the new ones take the item's visibility now. Without it, an unshare
+        // during 1 leaves a private item whose new unsigned URLs still work.
+        const now = await db.prepare('SELECT visibility FROM drive_items WHERE id = ?').bind(id).first<{visibility: Visibility}>()
+        if (now) for (const rel of rels) if (!failed.includes(rel)) await setVisibility(c, newBase + rel, now.visibility)
         // 4. The old objects go, but those of files not copied again; copies of files deleted while 1 ran go too.
         const keep = new Set(failed), kept = new Set(rels)
         await deleteKeys([...rels.filter(r => !keep.has(r)).map(r => oldBase + r), ...[...copied.keys()].filter(r => !kept.has(r)).map(r => newBase + r)])
