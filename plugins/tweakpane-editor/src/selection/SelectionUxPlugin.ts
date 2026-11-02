@@ -107,6 +107,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         window.addEventListener('pointerup', this._onPointerUp)
         window.addEventListener('pointercancel', this._onPointerCancel)
         window.addEventListener('keydown', this._onKeyDown, {capture: true})
+        window.addEventListener('keydown', this._onKeyDownLate)
         window.addEventListener('keyup', this._onKeyUp, {capture: true})
         window.addEventListener('blur', this._onBlur)
         viewer.addEventListener('preFrame', this._onPreFrame)
@@ -125,6 +126,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         window.removeEventListener('pointerup', this._onPointerUp)
         window.removeEventListener('pointercancel', this._onPointerCancel)
         window.removeEventListener('keydown', this._onKeyDown, {capture: true})
+        window.removeEventListener('keydown', this._onKeyDownLate)
         window.removeEventListener('keyup', this._onKeyUp, {capture: true})
         window.removeEventListener('blur', this._onBlur)
         viewer.removeEventListener('preFrame', this._onPreFrame)
@@ -549,8 +551,18 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         this._setDeepKey(e.ctrlKey || e.metaKey)
     }
 
+    // Escape goes to the page first (window, bubble phase): an open menu or popover that closes on it marks it as used
+    // (preventDefault), and the selection is left as it is. The other keys come first (window, capture phase).
     private _onKeyDown = (e: KeyboardEvent) => {
         this._setDeepKey(e.ctrlKey || e.metaKey)
+        if (e.code !== 'Escape') this._onKey(e)
+    }
+
+    private _onKeyDownLate = (e: KeyboardEvent) => {
+        if (e.code === 'Escape' && !e.defaultPrevented) this._onKey(e)
+    }
+
+    private _onKey(e: KeyboardEvent) {
         if (!this._active) return
         const t = e.target as HTMLElement | null
         if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return
