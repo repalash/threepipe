@@ -62,6 +62,8 @@ export async function requireUser(c: Context<CloudEnv>): Promise<CloudUser> {
             FROM users u LEFT JOIN user_limits l ON l.user_id = u.id WHERE u.id = ?`).bind(auth.uid)
         .first<{id: string, username: string, email: string, role: string | null, handle_set: string | null} & {[k in keyof UserLimits]: number | null}>()
     if (!row) throw new HTTPException(401, {message: 'unknown user'})
+    // an admin sets role 'blocked' (admin panel or API) to stop an account; its files stay, owned by it (files.owner_id)
+    if (row.role === 'blocked') throw new HTTPException(403, {message: 'this account is blocked'})
     const role: Role = row.role === 'admin' || row.role === 'staff' ? row.role : 'member'
     const limits: UserLimits = {}
     for (const k of ['drive_quota', 'projects', 'reports_daily'] as const) if (row[k] !== null) limits[k] = row[k]

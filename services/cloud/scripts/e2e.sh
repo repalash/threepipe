@@ -88,6 +88,10 @@ R=$(curl -s -X PUT -H "Authorization: Bearer $TS" -H "x-content-sha256: $BSHA" -
 curl -s -X PUT -H "Authorization: Bearer $TS" -H "x-content-sha256: $BSHA" --data-binary @$TMP/a.txt "$A/api/v1/buckets/e2e/blobs/$BSHA.txt" | grep -q '"existed":true' && ok "same blob again -> existed" || bad "e2e blob again"
 [ "$(code -X PUT -H "Authorization: Bearer $TS" -H "x-content-sha256: $BSHA" --data-binary @$TMP/a.txt "$A/api/v1/buckets/e2e/blobs/$(printf '1%.0s' {1..64}).txt")" = "400" ] && ok "e2e blob name must be its sha256" || bad "e2e blob name"
 [ "$(code -X PUT -H "Authorization: Bearer $T2" -H "x-content-sha256: $BSHA" --data-binary @$TMP/a.txt "$A/api/v1/buckets/samples/x/a.txt")" = "403" ] && ok "members cannot write staff buckets" || bad "member staff bucket"
+# an admin blocks an account (role 'blocked'): its requests are refused; back to member for the rest of the run
+[ "$(admin users/update "{\"where\":\"username == '$U2'\",\"setValues\":{\"role\":\"blocked\"}}")" = "200" ] || bad "fixture: block"
+[ "$(code -X PUT -H "Authorization: Bearer $T2" --data-binary @$TMP/a.txt "$A/api/v1/uploads/s/$U2-blocked/a.txt")" = "403" ] && [ "$(code -H "Authorization: Bearer $T2" "$A/api/v1/drive")" = "403" ] && ok "a blocked account is refused" || bad "blocked account"
+[ "$(admin users/update "{\"where\":\"username == '$U2'\",\"setValues\":{\"role\":\"member\"}}")" = "200" ] || bad "fixture: unblock"
 R=$(curl -s -X POST -H "Authorization: Bearer $TS" -H 'content-type: application/json' -d "{\"paths\":[\"blobs/$BSHA.txt\",\"blobs/$(printf 'a%.0s' {1..64}).png\"]}" "$A/api/v1/buckets/e2e/missing")
 echo "$R" | grep -q "aaaa" && ! echo "$R" | grep -q "$BSHA" && ok "missing blobs" || bad "missing: $R"
 # expiry: backdate the b/ build, run the cron

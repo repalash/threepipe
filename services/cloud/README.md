@@ -135,7 +135,7 @@ rows they can edit).
 | Access key / app key | 30 days / 24 hours |
 | Projects a member owns | 5 (staff: any) |
 | A report | JSON 5 MB, screenshot 3 MB, text 10 000 characters, log 500 lines of 1000, environment 8 KB, context 16 KB, 3 files and 10 MB together |
-| Reports in 24 hours | 20 per sender, 300 per project, 1000 in all, 2 GB of files in all |
+| Reports in 24 hours | 100 per sender, 10000 per project, 50000 in all, 20 GB of files in all |
 
 ## Uploading from the repository
 

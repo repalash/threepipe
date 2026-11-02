@@ -69,13 +69,13 @@ export const REPORTS_LIST_MAX = 200
 /** Over the last 24 hours; each can be set with its wrangler var. */
 export const REPORTS_DAILY = {
     /** reports per sender (user, or a hash of the IP address) */
-    perSender: {variable: 'REPORTS_DAILY_CAP', default: 20},
+    perSender: {variable: 'REPORTS_DAILY_CAP', default: 100},
     /** reports per project */
-    perProject: {variable: 'REPORTS_DAILY_CAP_PROJECT', default: 300},
+    perProject: {variable: 'REPORTS_DAILY_CAP_PROJECT', default: 10000},
     /** all reports */
-    all: {variable: 'REPORTS_DAILY_CAP_ALL', default: 1000},
+    all: {variable: 'REPORTS_DAILY_CAP_ALL', default: 50000},
     /** bytes of attached files, all reports */
-    fileBytes: {variable: 'REPORTS_DAILY_FILE_BYTES_ALL', default: 2 * GB},
+    fileBytes: {variable: 'REPORTS_DAILY_FILE_BYTES_ALL', default: 20 * GB},
 } as const
 
 /** A daily report cap: its wrangler var when that is a positive integer, else the default. */

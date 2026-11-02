@@ -13,7 +13,7 @@ const userFields = [
 /**
  * threepipe cloud: users (GitHub or Google sign-in), access links for agents and scripts, and the registry of uploaded files.
  * The files themselves are in R2 and served without a database read (src/files.ts); the routes that write them are in src/uploads.ts.
- * `role` is 'member' (default), 'staff' or 'admin', set by an admin. `username` is the handle (account prefix).
+ * `role` is 'member' (default), 'staff', 'admin' or 'blocked' (every route refuses the account), set by an admin. `username` is the handle (account prefix).
  * `users.meta` is writable by the user and goes into their session JWT: only use JWT meta to restrict a token, never to grant.
  */
 export default {
