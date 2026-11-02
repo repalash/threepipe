@@ -78,8 +78,10 @@ const BASIC_DEFAULTS = new MeshBasicMaterial()
 function copyCommon(target: MeshBasicMaterial, material: SourceMaterial) {
     const t = target as unknown as Record<string, unknown>, m = material as unknown as Record<string, unknown>
     for (const k of COMMON_SETTINGS) if (m[k] !== undefined) t[k] = m[k]
-    // never 0 (also in reset), so the alpha test define (and the material version) does not change between meshes
-    if (material.alphaTest !== undefined) target.alphaTest = material.alphaTest < 1e-4 ? 1e-4 : material.alphaTest
+    // the value of the mesh, also 0: a raised threshold would discard the zero-alpha texels of the color map of a mesh
+    // without alpha testing. reset() leaves it, so the version (the alphaTest setter bumps it when the value crosses 0)
+    // changes only when alpha testing turns on or off between meshes, when the program key changes too.
+    target.alphaTest = material.alphaTest ?? 0
 }
 
 /** The program parameters of a texture slot: the map is set, and its UV set (`texture.channel`) */
@@ -145,7 +147,7 @@ abstract class PerObjectBasicMaterial extends MeshBasicMaterial {
         this.color.setHex(0xffffff)
         const t = this as unknown as Record<string, unknown>, d = BASIC_DEFAULTS as unknown as Record<string, unknown>
         for (const k of COMMON_SETTINGS) t[k] = d[k]
-        this.alphaTest = 1e-4
+        // alphaTest stays (see copyCommon): each draw sets it
     }
 }
 

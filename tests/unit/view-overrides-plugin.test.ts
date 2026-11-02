@@ -764,6 +764,31 @@ describe('ViewOverridesPlugin', {timeout}, () => {
         }
     })
 
+    test('alpha testing stays off for a mesh without it (no holes from a color map), and keeps the value of the mesh', () => {
+        const {plugin} = setup()
+        const renderer = {resetCurrentMaterial: vi.fn()} as any
+        const camera = new PerspectiveCamera()
+        const mesh = (params: any = {}) => new Mesh(new tp.BoxGeometry(), new MeshBasicMaterial({map: new Texture(), ...params}))
+        for (const key of ['unlit', 'materialId', 'uv']) {
+            const material = (plugin as any)._materials[key]
+            const draw = (m: any) => {
+                material.onBeforeRender(renderer, m.parent, camera, m.geometry, m, null)
+                const state = {alphaTest: material.alphaTest, version: material.version}
+                material.onAfterRender(renderer, m.parent, camera, m.geometry, m, null)
+                return state
+            }
+            const opaque = draw(mesh())
+            expect(opaque.alphaTest).toBe(0) // the ALPHATEST define is off: zero-alpha texels of the map stay
+            const masked = draw(mesh({alphaTest: 0.5}))
+            expect(masked.alphaTest).toBe(0.5)
+            expect(masked.version).not.toBe(opaque.version) // the alpha test define: another program
+            expect(draw(mesh({alphaTest: 0.5})).version).toBe(masked.version) // the same state: the same program
+            const opaque2 = draw(mesh())
+            expect(opaque2.alphaTest).toBe(0)
+            expect(draw(mesh()).version).toBe(opaque2.version)
+        }
+    })
+
     test('a mesh with geometry groups: each group draw takes the material of its group', () => {
         const {plugin} = setup()
         const renderer = {resetCurrentMaterial: vi.fn()} as any
