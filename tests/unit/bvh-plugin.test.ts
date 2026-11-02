@@ -398,4 +398,17 @@ describe('BVHPlugin', () => {
         expect(m.raycast).toBe(threeMeshBVH.acceleratedRaycast)
         expect(plugin.builtCount).toBe(2)
     })
+
+    test('a geometry update that keeps the triangles but makes the mesh unsupported (morph targets) gives it the raycast of three.js back', () => {
+        const {add, frame} = setup()
+        const m = add(200, 32)
+        frame()
+        expect(m.raycast).toBe(threeMeshBVH.acceleratedRaycast)
+        const g = m.geometry!
+        g.morphAttributes.position = [g.attributes.position.clone()] // the same counts, draw range and groups
+        g.setDirty()
+        frame()
+        expect(Object.prototype.hasOwnProperty.call(m, 'raycast')).toBe(false)
+        expect(g.boundsTree).toBeUndefined()
+    })
 })

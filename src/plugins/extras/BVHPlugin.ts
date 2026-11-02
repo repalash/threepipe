@@ -393,12 +393,17 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
         const g = e.geometry
         if (!g) return
         const s = this._stats.get(g)
-        if (g.boundsTree && s && buildKey(g) === s.key) {
+        // the update can also change which meshes can use a tree (morph targets added): refit only when the geometry
+        // still wants one, and set the raycasts again on every path
+        if (g.boundsTree && s && buildKey(g) === s.key && this.wants(g)) {
             g.boundsTree.refit()
+            this._setRaycast(g)
+            this._pruneHelpers()
             return
         }
         this._dispose(g)
         if (this.wants(g)) this._queue.add(g)
+        else this._setRaycast(g) // also a mesh of a tree that the plugin did not build
     }
 
     private _postFrame() {
