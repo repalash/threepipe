@@ -64,9 +64,13 @@ async function init() {
         viewer.getPlugin(UndoManagerPlugin)?.undoManager?.reset()
         if (editor) editor.documentName = 'Untitled' // the next loaded file names the document
     }
+    // imported before the scene is cleared, as onFiles below: a sample that does not load keeps the current scene
     const sample = (title: string, text: string, icon: string, url: string): EditorSplashSample => ({title, text, icon, load: async() => {
+        const options = {autoScale: true, autoCenter: true}
+        const imported = (await viewer.assetManager.importer.import(url, options)).filter(Boolean)
+        if (!imported.length) throw new Error('Could not load ' + url) // the splash stays open
         newScene()
-        if (!await viewer.load(url, {autoScale: true, autoCenter: true})) throw new Error('Could not load ' + url) // the splash stays open
+        await viewer.assetManager.loadImported(imported, options)
     }})
     const splash = new EditorSplash({
         title: 'threepipe Editor',
