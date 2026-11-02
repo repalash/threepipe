@@ -57,6 +57,8 @@ function resetCurrentMaterial(renderer: WebGLRenderer) {
  *   wireframeLinewidth, depthTest, depthWrite, polygonOffset (factor, units), clippingPlanes, clipIntersection.
  * - Unlit (UnlitOverrideMaterial._copyFrom): the surface colour without lights: color, map, aoMap and its intensity,
  *   lightMap and its intensity, vertexColors, fog.
+ * - Material ID and UV (MapAlphaOverrideMaterial): the alpha of map (an alpha-masked colour texture cuts holes), not
+ *   its colour.
  * - Not copied: envMap, combine, reflectivity, refractionRatio and specularMap (environment reflection, which is
  *   lighting; specularMap only scales it), flatShading (no effect without lights), dithering and toneMapped (output
  *   settings, not the surface), the lit-only maps and values of other materials (normal, roughness, emissive, ...).
@@ -192,8 +194,36 @@ export class UnlitOverrideMaterial extends PerObjectBasicMaterial {
     }
 }
 
+/**
+ * The alpha of the color map of each mesh, without its color: an alpha-masked texture (alphaTest, alphaHash or
+ * transparent) keeps its holes in a view that draws its own color. three's opaque_fragment sets the alpha to 1 for an
+ * opaque material, so the map's alpha changes nothing there.
+ */
+abstract class MapAlphaOverrideMaterial extends PerObjectBasicMaterial {
+    protected _copyFrom(material: SourceMaterial, _geometry: BufferGeometry) {
+        if (material.map !== undefined) this.map = material.map
+    }
+
+    protected _programKey(object: Object3D, geometry: BufferGeometry): unknown[] {
+        return [...super._programKey(object, geometry), ...textureKey(this.map)] // map, mapUv
+    }
+
+    onBeforeCompile(shader: any, _renderer?: WebGLRenderer) {
+        shader.fragmentShader = shaderReplaceString(shader.fragmentShader, '#include <map_fragment>', `
+#ifdef USE_MAP
+    diffuseColor.a *= texture2D( map, vMapUv ).a;
+#endif
+`)
+    }
+
+    reset() {
+        super.reset()
+        this.map = null
+    }
+}
+
 /** Material ID: one flat color for each material, golden-ratio hues from the material id */
-export class MaterialIdOverrideMaterial extends PerObjectBasicMaterial {
+export class MaterialIdOverrideMaterial extends MapAlphaOverrideMaterial {
     private _colors = new Map<number, Color>()
 
     constructor() {
@@ -211,13 +241,18 @@ export class MaterialIdOverrideMaterial extends PerObjectBasicMaterial {
         return c
     }
 
-    protected _copyFrom(material: SourceMaterial) {
+    customProgramCacheKey() {
+        return 'view-override-material-id'
+    }
+
+    protected _copyFrom(material: SourceMaterial, geometry: BufferGeometry) {
+        super._copyFrom(material, geometry)
         this.color.copy(this.colorFor(material.id ?? 0))
     }
 }
 
 /** UV: U in red and V in green for the UV set {@link uvChannel} (0-3), magenta when the mesh has no such UV set */
-export class UvOverrideMaterial extends PerObjectBasicMaterial {
+export class UvOverrideMaterial extends MapAlphaOverrideMaterial {
     uvChannel: 0 | 1 | 2 | 3 = 0
     // set for each mesh before it draws: a missing attribute reads as 0, black, which looks like a UV value
     private _uvMissing = {value: 0}
@@ -232,6 +267,7 @@ export class UvOverrideMaterial extends PerObjectBasicMaterial {
     }
 
     onBeforeCompile(shader: any) {
+        super.onBeforeCompile(shader)
         shader.defines = shader.defines ?? {}
         shader.defines.USE_UV = ''
         shader.uniforms.uvMissing = this._uvMissing
@@ -268,7 +304,8 @@ export class UvOverrideMaterial extends PerObjectBasicMaterial {
 `)
     }
 
-    protected _copyFrom(_: SourceMaterial, geometry: BufferGeometry) {
+    protected _copyFrom(material: SourceMaterial, geometry: BufferGeometry) {
+        super._copyFrom(material, geometry)
         this._uvMissing.value = geometry.attributes[this.uvChannel ? 'uv' + this.uvChannel : 'uv'] ? 0 : 1
     }
 }

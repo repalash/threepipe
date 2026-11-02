@@ -734,6 +734,36 @@ describe('ViewOverridesPlugin', {timeout}, () => {
         }
     })
 
+    test('the material ID and UV views keep the alpha of the color map (alpha-masked textures), not its color', () => {
+        const {plugin} = setup()
+        const renderer = {resetCurrentMaterial: vi.fn()} as any
+        const camera = new PerspectiveCamera()
+        const map = new Texture()
+        const masked = new Mesh(new tp.BoxGeometry(), new MeshBasicMaterial({map, alphaTest: 0.5}))
+        const plain = new Mesh(new tp.BoxGeometry(), new MeshBasicMaterial())
+        for (const key of ['materialId', 'uv']) {
+            const material = (plugin as any)._materials[key]
+            const draw = (m: any) => {
+                material.onBeforeRender(renderer, m.parent, camera, m.geometry, m, null)
+                const state = {map: material.map, version: material.version}
+                material.onAfterRender(renderer, m.parent, camera, m.geometry, m, null)
+                return state
+            }
+            const a = draw(plain)
+            const b = draw(masked)
+            expect(b.map).toBe(map)
+            expect(b.version).not.toBe(a.version) // the map define: another program
+            expect(material.map).toBe(null) // reset after the draw
+            expect(draw(plain).map).toBe(null)
+            // the shader multiplies the alpha by the map, not the color
+            const basic = tp.ShaderLib.basic
+            const shader = {uniforms: tp.UniformsUtils.clone(basic.uniforms), vertexShader: basic.vertexShader, fragmentShader: basic.fragmentShader, defines: {}}
+            material.onBeforeCompile(shader, {} as any)
+            expect(shader.fragmentShader).not.toContain('#include <map_fragment>')
+            expect(shader.fragmentShader).toContain('diffuseColor.a *= texture2D( map, vMapUv ).a;')
+        }
+    })
+
     test('a mesh with geometry groups: each group draw takes the material of its group', () => {
         const {plugin} = setup()
         const renderer = {resetCurrentMaterial: vi.fn()} as any

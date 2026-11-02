@@ -28,7 +28,7 @@ Material views (`setMaterial`):
 | `materialId` | One flat color for each material |
 | `uv` | U in red and V in green for the UV set `uvChannel` (0 for `uv`, 1 to 3 for `uv1` to `uv3`). Magenta where a mesh has no such UV set |
 
-The unlit, material ID and UV views keep the side, opacity, alpha map, alpha test and wireframe of the mesh material.
+The unlit, material ID and UV views keep the side, opacity, alpha map, alpha test and wireframe of the mesh material. The material ID and UV views also keep the alpha of the color map (`map`), so an alpha-masked texture keeps its holes, but not its color.
 
 Fat lines (`LineSegments2`, `Line2`, `MeshLine` with a `LineMaterial`) stay lines in every view: their width (in pixels or world units), dashes and alpha to coverage do not change.
 
