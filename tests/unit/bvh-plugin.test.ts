@@ -476,4 +476,16 @@ describe('BVHPlugin', () => {
         viewer.object3dManager.registerObject(b)
         expect(b.raycast).toBe(threeMeshBVH.acceleratedRaycast)
     })
+
+    test('a geometry switch and a removal of the plugin in the same task: the deferred handling does nothing after the removal', async() => {
+        const {viewer, plugin, add} = setup()
+        const a = add(200, 32)
+        const b = add(20, 8)
+        a.geometry!.boundsTree = new threeMeshBVH.MeshBVH(a.geometry!) as any // a tree from outside
+        b.geometry = a.geometry
+        plugin.onRemove(viewer)
+        await Promise.resolve() // the deferred handling of the geometry switch
+        expect(Object.prototype.hasOwnProperty.call(b, 'raycast')).toBe(false)
+        expect(a.geometry!.hasEventListener('geometryUpdate', (plugin as any)._geometryUpdate)).toBe(false)
+    })
 })

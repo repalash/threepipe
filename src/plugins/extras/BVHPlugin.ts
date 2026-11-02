@@ -395,7 +395,10 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
         const o = e.object
         if (!o?.isMesh) return
         this._pruneHelpers() // a helper made for the old geometry
+        const viewer = this._viewer
         queueMicrotask(() => {
+            // the plugin was removed, or the mesh left the viewer, in the same task: nothing to set up
+            if (!viewer || this._viewer !== viewer || viewer.object3dManager.getObject(o.uuid) !== o) return
             const g: BVHGeometry | undefined = o.geometry
             if (g) this._watch(g)
             if (g?.boundsTree) this._setRaycast(g)
