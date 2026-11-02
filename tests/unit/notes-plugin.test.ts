@@ -547,6 +547,28 @@ describe('NotesPlugin', () => {
         warn.mockRestore()
     })
 
+    test('a browser store that the browser refuses (full, or a sandboxed page) shows the error and saves again later', async() => {
+        let refuse = true
+        vi.stubGlobal('localStorage', {
+            getItem: (k: string) => storage.get(k) ?? null,
+            setItem: (k: string, v: string) => {
+                if (refuse) throw new DOMException('The quota has been exceeded.', 'QuotaExceededError')
+                storage.set(k, v)
+            },
+        })
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+        const notes = new NotesPlugin({file: false})
+        notes.addNote('kept')
+        await notes.flush()
+        expect(notes.storeStatus('browser')).toBe('error')
+        expect(storage.has('threepipe-notes')).toBe(false)
+        refuse = false
+        await notes.flush()
+        expect(notes.storeStatus('browser')).toBe('saved')
+        expect(JSON.parse(storage.get('threepipe-notes')!).map((n: NoteItem) => n.text)).toEqual(['kept'])
+        warn.mockRestore()
+    })
+
     test('the changes of the last 600 ms are saved when the plugin is removed', async() => {
         vi.useFakeTimers()
         const notes = new NotesPlugin()

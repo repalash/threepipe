@@ -103,6 +103,7 @@ Checklist
 - Write plugin
 - If the plugin adds DOM UI over the canvas, pick its `z-index` from [UI layers](#ui-layers-z-index)
 - Add jsdoc comments to the class
+- If the plugin loads a library or a file at runtime from a URL (a CDN), keep the URL in a static property that a user can set (like `DRACOLoader2.DRACO_LIBRARY_PATH`), and add it to `./website/notes/dynamically-loaded-files.md`
 - Export classes, functions in `./src/plugins/index.ts`
 - Optionally, use plugin in `./examples/tweakpane-editor/script.ts`
 - Optionally, use plugin in `./examples/model-viewer/script.ts`
@@ -122,13 +123,15 @@ Plugins that add DOM elements over the canvas use these layers, so the UI stacks
 
 | z-index | Layer | Examples |
 |---|---|---|
-| `auto` to 49 | Overlays drawn on the canvas | selection overlay, `PerfPanelPlugin` (12), editor camera frame (40) |
+| `auto` to 49 | Overlays drawn on the canvas | selection overlay, `PerfPanelPlugin` pill (12), editor camera frame (40) |
 | 50 | Loading screen | `LoadingScreenPlugin` |
-| 100 to 199 | Viewer UI over the scene | `GridItemList` (100), editor camera pill and card (120), sticky notes (150) |
+| 100 to 199 | Viewer UI over the scene | `GridItemList` (100), editor camera pill and card (120), sticky notes and open `PerfPanelPlugin` card (150 + `--ui-raise`: the one pressed last is in front, see `raiseOnPress`) |
 | 200 to 999 | Panels and bars | tweakpane editor `.button-bar` (200), editor frame mode bar (200) and title or status bar (210) |
 | 1000 to 1999 | Floating tools | `TimelineUiPlugin`, `RenderTargetPreviewPlugin`, `GeometryUVPreviewPlugin` (1000) |
 | 2000 to 9998 | Popups and dropdown menus | editor layout menu (2000), sticky notes menus (2000), editor start screen `EditorSplash` (5000) |
 | 9999 and up | Context menus | `CustomContextMenu` |
+
+Floating panels in the same layer that can overlap (the sticky notes and the open perf card in the same corner) register with `raiseOnPress(element)` (core `utils`) and use `z-index: calc(<layer base> + var(--ui-raise, 0))` in their CSS: a press on one brings it in front of the others, and all stay in their layer.
 
 A layer counts only between elements in the same stacking context: an element inside a parent with its own `z-index` (or `transform`, `filter`, `opacity` below 1) stacks inside that parent.
 
@@ -144,6 +147,7 @@ Checklist
 - Write plugin/package
 - If the plugin adds DOM UI over the canvas, pick its `z-index` from [UI layers](#ui-layers-z-index)
 - Add jsdoc comments to the classes
+- If the plugin loads a library or a file at runtime from a URL (a CDN), keep the URL in a static property that a user can set (like `DRACOLoader2.DRACO_LIBRARY_PATH`), and add it to `./website/notes/dynamically-loaded-files.md`
 - Export classes, functions in `index.ts`
 - Optionally, use plugin in `./examples/tweakpane-editor/script.ts`
 - Optionally, use plugin in `./examples/model-viewer/script.ts`

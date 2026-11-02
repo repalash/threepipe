@@ -11,7 +11,6 @@ export function setupCodeEditor (iframe) {
         setupMonacopilot(monaco, editor)
     })
 
-    const codebar = document.querySelector('.codebar');
     const codefiles = document.querySelector('.codefiles-tabs');
     const codefilesActions = document.querySelector('.codefiles-actions');
     const exampleState = {};
@@ -393,55 +392,6 @@ export function setupCodeEditor (iframe) {
                 loadTypesFromTarGz(key)
             }
         }
-    }
-
-    // Function to setup show-code-btn listener in iframe
-    function setupIframeCodeButton () {
-        try {
-
-            let setup = false
-            // Function to actually setup the button once it's available
-            const setupButton = (st = true) => {
-                if(setup) return true
-                const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-                const showCodeBtn = iframeDoc.querySelector('.show-code-btn');
-                if (showCodeBtn) {
-                    setup = true
-                    showCodeBtn.onclick = () => {
-                        codebar.classList.toggle('closed');
-                    };
-
-                    // add style in iframe
-                    const style = iframeDoc.createElement('style');
-                    style.textContent = `
-                        .code-block{
-                            display: none !important;
-                        }
-                    `;
-                    iframeDoc.head.appendChild(style);
-                    return true; // Success
-                }
-                setTimeout(()=>setupButton(), 1000)
-                return false; // Button not found yet
-            };
-            if (setupButton(false)) return;
-            const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-            iframeDoc.addEventListener('DOMContentLoaded', () => {
-                setupButton()
-            });
-        } catch (e) {
-            // Handle cross-origin or other access issues
-            console.warn('Could not access iframe content:', e);
-        }
-    }
-
-    iframe.addEventListener('load', () => {
-        setupIframeCodeButton();
-    });
-
-    // Check if iframe is already loaded and setup immediately if needed
-    if (iframe.contentDocument && iframe.contentDocument.readyState !== 'loading') {
-        setupIframeCodeButton();
     }
 
     window.monacoPromise.then(editor=>editor.setFileUri = setFileUri)
