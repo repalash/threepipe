@@ -99,7 +99,9 @@ export class GLTFContentsPlugin extends AViewerPluginSync {
         const ext = String(options?.fileExtension || path.split('?')[0].split('.').pop() || '').replace(/^\./, '').toLowerCase()
         if (ext !== 'glb' && ext !== 'gltf') return
         try {
-            const buffer = blob ? await blob.arrayBuffer() : await (await fetch(url)).arrayBuffer()
+            // through the importer's URL modifiers (a CDN or a signed URL), so the file read is the file loaded
+            const resolved = this._viewer?.assetManager.importer?.resolveURL(url) ?? url
+            const buffer = blob ? await blob.arrayBuffer() : await (await fetch(resolved)).arrayBuffer()
             const name = path.split('?')[0].split('/').pop() || path
             this.files.unshift(summarizeGLTF(name, parseGLTFBuffer(buffer), buffer.byteLength))
             this.files.length = Math.min(this.files.length, GLTFContentsPlugin.MaxFiles)

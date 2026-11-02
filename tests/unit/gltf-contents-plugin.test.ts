@@ -174,6 +174,21 @@ describe('GLTFContentsPlugin', () => {
         }
     })
 
+    test('a model from a URL is fetched at the URL the importer resolves (its URL modifiers)', async () => {
+        const urls: string[] = []
+        const saved = globalThis.fetch
+        globalThis.fetch = (async (url: string) => (urls.push(url), {arrayBuffer: async () => glb(sample, 0)})) as any
+        try {
+            const {plugin, viewer, load} = setup()
+            viewer.assetManager.importer = {resolveURL: (url: string) => url.replace('https://example.com/', 'https://cdn.example.com/signed/')}
+            await load({assetType: 'model', __rootPath: 'https://example.com/ring.glb', __rootPathOptions: {queryString: 'token=abc'}})
+            expect(urls).toEqual(['https://cdn.example.com/signed/ring.glb?token=abc'])
+            expect(plugin.files.map(f => f.name)).toEqual(['ring.glb'])
+        } finally {
+            globalThis.fetch = saved
+        }
+    })
+
     test('Check the export makes the file of the exporter and shows it first; without an exporter it says so', async () => {
         const blob = Object.assign(new Blob([glb(sample, 100)]), {ext: 'glb'})
         const exporter = {exportScene: async () => blob, exportOptions: {name: 'ring'}}
