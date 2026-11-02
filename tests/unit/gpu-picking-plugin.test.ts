@@ -397,4 +397,26 @@ describe('GPUPickingPlugin', () => {
         expect(picked).toEqual(new Set([near, far, null]))
         expect((camera as PerspectiveCamera).aspect).toBe(1)
     })
+
+    test('a camera that shows a part of a larger view (setViewOffset): the pick sees what the canvas shows', () => {
+        for (const cam of [new PerspectiveCamera(50, W / H, 0.1, 100), new OrthographicCamera(-4, 4, 2, -2, 0.1, 100)]) {
+            const {plugin, near, far, camera} = setup(cam)
+            // the canvas shows the top-left quarter of a view twice its size, moved right by a quarter of the canvas
+            cam.setViewOffset(W * 2, H * 2, W / 4, 0, W, H)
+            const picked = new Set<Object3D | null>()
+            for (let x = 4.5; x < W; x += 8) for (let y = 4.5; y < H; y += 8) {
+                const result = plugin.pick(x, y)
+                const ref = raycast(camera, [near, far], x, y)
+                expect(result?.object ?? null).toBe(ref?.object ?? null)
+                if (result && ref) expect(result.point.distanceTo(ref.point)).toBeLessThan(1e-5)
+                picked.add(result?.object ?? null)
+            }
+            expect(picked).toEqual(new Set([near, far, null]))
+        }
+    })
+
+    test('the vertex shader normalizes the view normal before the interpolation, as three does (non-uniform scale)', () => {
+        const {plugin} = setup(new PerspectiveCamera(50, W / H, 0.1, 100))
+        expect((plugin as any)._material.vertexShader).toMatch(/vViewNormal\s*=\s*normalize\(\s*transformedNormal\s*\)/)
+    })
 })

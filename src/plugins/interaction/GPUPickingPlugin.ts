@@ -154,7 +154,9 @@ void main() {
 #include <project_vertex>
 #include <clipping_planes_vertex>
     vViewPosition = mvPosition.xyz;
-    vViewNormal = transformedNormal;
+    // normalized before the interpolation (as three's normal_vertex): with a non-uniform scale, the normal matrix gives
+    // the vertex normals different lengths, which would weight the interpolated direction
+    vViewNormal = normalize(transformedNormal);
 }`,
         fragmentShader: `
 uniform float objectId;
@@ -268,7 +270,10 @@ void main() {
         pc.matrixAutoUpdate = false
         pc.matrixWorld.copy(cam.matrixWorld)
         pc.matrixWorldInverse.copy(cam.matrixWorldInverse)
-        pc.setViewOffset(w, h, px, py, 1, 1)
+        // the main camera can show a part of a larger view (setViewOffset): the pixel is then a part of that part
+        const view = cam.view?.enabled ? cam.view : null
+        if (view) pc.setViewOffset(view.fullWidth, view.fullHeight, view.offsetX + px * view.width / w, view.offsetY + py * view.height / h, view.width / w, view.height / h)
+        else pc.setViewOffset(w, h, px, py, 1, 1)
         if (cam.isPerspectiveCamera) {
             // setViewOffset sets the aspect to w / h: keep the aspect of the camera (a fixed aspect shows stretched)
             (pc as PerspectiveCamera).aspect = cam.aspect
