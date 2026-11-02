@@ -9,12 +9,24 @@ class FakeElement {
     children: FakeElement[] = []
     parent?: FakeElement
     className = ''
-    style: Record<string, string> = {}
+    // the inline style, with setProperty / removeProperty for custom properties (raiseOnPress sets --ui-raise)
+    style: Record<string, any> = {
+        setProperty(k: string, v: string) {
+            this[k] = v
+        },
+        removeProperty(k: string) {
+            delete this[k]
+        },
+    }
     dataset: Record<string, string> = {}
     textContent = ''
     title = ''
     clientWidth = 0
     clientHeight = 0
+    offsetLeft = 0
+    offsetTop = 0
+    offsetWidth = 0
+    offsetHeight = 0
     private _listeners = new Map<string, Listener[]>()
     classList = {
         add: (...c: string[]) => this._setClasses([...this._classes(), ...c]),
@@ -40,6 +52,12 @@ class FakeElement {
         this.children = []
         for (const x of c) this.appendChild(x)
     }
+    get parentElement() {
+        return this.parent
+    }
+    setPointerCapture() {
+        // the test fires the pointer events on the element itself
+    }
     remove() {
         if (!this.parent) return
         this.parent.children = this.parent.children.filter(x => x !== this)
@@ -57,8 +75,8 @@ class FakeElement {
     listenerCount(type: string) {
         return this._listeners.get(type)?.length ?? 0
     }
-    fire(type: string) {
-        for (const f of this._listeners.get(type) ?? []) f({type})
+    fire(type: string, e: any = {}) {
+        for (const f of this._listeners.get(type) ?? []) f({type, target: this, currentTarget: this, button: 0, pointerId: 1, ...e})
     }
     /** All elements below this one, depth first */
     all(): FakeElement[] {
@@ -93,6 +111,8 @@ beforeEach(() => {
     })
     vi.stubGlobal('cancelAnimationFrame', vi.fn(() => frames = []))
     vi.stubGlobal('getComputedStyle', () => ({getPropertyValue: () => ''}))
+    vi.stubGlobal('addEventListener', vi.fn())
+    vi.stubGlobal('removeEventListener', vi.fn())
 })
 afterEach(() => {
     vi.unstubAllGlobals()
@@ -166,6 +186,129 @@ describe('PerfPanelPlugin', () => {
         expect(el(p).className).toBe('pp-root pp-collapsed pp-top-left')
         p.position = 'bottom-right'
         expect(el(p).className).toBe('pp-root pp-collapsed pp-bottom-right')
+    })
+
+    test('the pill and the card head drag the panel inside the container; a click is not a drag; position puts it back', () => {
+        // a ResizeObserver that the test triggers
+        type Callback = () => void
+        const observed = new Map<unknown, Callback>()
+        vi.stubGlobal('ResizeObserver', class {
+            constructor(public callback: Callback) {}
+            observe(t: unknown) {
+                observed.set(t, this.callback)
+            }
+            disconnect() {
+                observed.clear()
+            }
+        })
+        const {viewer} = makeViewer()
+        Object.assign(viewer.container, {clientWidth: 800, clientHeight: 600})
+        const p = new PerfPanelPlugin()
+        p.onAdded(viewer)
+        const root = el(p), pill = root.find('pp-pill'), head = root.find('pp-head')
+        Object.assign(root, {offsetLeft: 10, offsetTop: 568, offsetWidth: 60, offsetHeight: 22}) // the pill at the bottom left
+        const drag = (handle: FakeElement, dx: number, dy: number) => {
+            handle.fire('pointerdown', {clientX: 100, clientY: 100})
+            handle.fire('pointermove', {clientX: 101, clientY: 101}) // under the drag threshold
+            handle.fire('pointermove', {clientX: 100 + dx, clientY: 100 + dy})
+            handle.fire('pointerup')
+            handle.fire('click') // the browser sends a click after the release
+        }
+
+        drag(pill, 200, -200)
+        expect(root.style.transform).toBe('translate(200px, -200px)')
+        expect(p.collapsed).toBe(true) // the drag did not open the card
+        // after the release, the pointer moves it no more
+        pill.fire('pointermove', {clientX: 0, clientY: 0})
+        expect(root.style.transform).toBe('translate(200px, -200px)')
+        // a click without a move opens the card
+        drag(pill, 1, 1)
+        expect(p.collapsed).toBe(false)
+        expect(root.style.transform).toBe('translate(200px, -200px)')
+
+        // inside the container: the open card (it grows up from the bottom corner) is moved in, the pill comes back
+        Object.assign(root, {offsetTop: 321, offsetWidth: 248, offsetHeight: 269})
+        drag(head, 5000, -5000)
+        expect(root.style.transform).toBe('translate(542px, -321px)') // 800 - 248 - 10; to the top edge
+        expect(p.collapsed).toBe(false) // the drag did not collapse it
+        Object.assign(root, {offsetTop: 568, offsetWidth: 60, offsetHeight: 22})
+        p.collapsed = true
+        expect(root.style.transform).toBe('translate(542px, -321px)')
+        Object.assign(root, {offsetTop: 321, offsetWidth: 248, offsetHeight: 269})
+        p.collapsed = false
+        drag(head, 0, 0) // a click on the head collapses
+        expect(p.collapsed).toBe(true)
+
+        // a smaller container keeps it inside
+        Object.assign(root, {offsetTop: 568, offsetWidth: 60, offsetHeight: 22})
+        viewer.container.clientWidth = 400
+        observed.get(viewer.container)!()
+        expect(root.style.transform).toBe('translate(330px, -321px)') // 400 - 60 - 10
+
+        // the Position dropdown puts it in a corner, also the corner it is in
+        p.position = 'bottom-left'
+        expect(root.style.transform).toBe('')
+        drag(pill, 50, 0)
+        p.position = 'top-right'
+        expect(root.style.transform).toBe('')
+        p.onRemove(viewer)
+        expect(observed.size).toBe(0)
+    })
+
+    test('after a drag, Enter or Space (a click without a press) still opens and collapses the panel', () => {
+        const {viewer} = makeViewer()
+        Object.assign(viewer.container, {clientWidth: 800, clientHeight: 600})
+        const p = new PerfPanelPlugin()
+        p.onAdded(viewer)
+        const root = el(p), pill = root.find('pp-pill'), head = root.find('pp-head')
+        Object.assign(root, {offsetLeft: 10, offsetTop: 568, offsetWidth: 60, offsetHeight: 22})
+        // a drag that ends outside the pill: the browser sends no click, so nothing clears the drag
+        pill.fire('pointerdown', {clientX: 100, clientY: 100})
+        pill.fire('pointermove', {clientX: 300, clientY: 0})
+        pill.fire('pointerup')
+        expect(p.collapsed).toBe(true)
+        pill.fire('click', {detail: 0}) // Enter on the focused pill
+        expect(p.collapsed).toBe(false)
+        head.fire('click', {detail: 0}) // Space on the focused header
+        expect(p.collapsed).toBe(true)
+        // the click that ends a drag still does nothing
+        pill.fire('pointerdown', {clientX: 100, clientY: 100})
+        pill.fire('pointermove', {clientX: 150, clientY: 100})
+        pill.fire('pointerup')
+        pill.fire('click', {detail: 1})
+        expect(p.collapsed).toBe(true)
+        p.onRemove(viewer)
+    })
+
+    test('a dragged panel that grows (a new warning, the open card) is moved back inside', () => {
+        type Callback = () => void
+        const observed = new Map<unknown, Callback>()
+        vi.stubGlobal('ResizeObserver', class {
+            constructor(public callback: Callback) {}
+            observe(t: unknown) {
+                observed.set(t, this.callback)
+            }
+            disconnect() {
+                observed.clear()
+            }
+        })
+        const {viewer} = makeViewer()
+        Object.assign(viewer.container, {clientWidth: 800, clientHeight: 600})
+        const p = new PerfPanelPlugin({collapsed: false})
+        p.onAdded(viewer)
+        const root = el(p), head = root.find('pp-head')
+        // the open card at the bottom left, dragged to the top edge
+        Object.assign(root, {offsetLeft: 10, offsetTop: 321, offsetWidth: 248, offsetHeight: 269})
+        head.fire('pointerdown', {clientX: 100, clientY: 100})
+        head.fire('pointermove', {clientX: 100, clientY: -5000})
+        head.fire('pointerup')
+        expect(root.style.transform).toBe('translate(0px, -321px)')
+        // a warning makes it 60 px taller: it grows up from the bottom corner, so its top would go out
+        Object.assign(root, {offsetTop: 261, offsetHeight: 329})
+        expect(observed.has(root)).toBe(true)
+        observed.get(root)!()
+        expect(root.style.transform).toBe('translate(0px, -261px)')
+        p.onRemove(viewer)
     })
 
     test('enabled, collapsed and position set in code refresh the plugin UI', () => {

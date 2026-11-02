@@ -730,11 +730,23 @@ export class AssetImporter extends EventDispatcher<IAssetImporterEventMap> imple
 
     private _cacheStoreInitPromise?: Promise<void>
     private _initCacheStorage(simpleCache?: boolean, storage?: Cache | Storage | boolean) {
-        if (storage === true && window?.caches) {
-            this._cacheStoreInitPromise = window.caches.open?.('threepipe-assetmanager').then(c => {
+        let caches: CacheStorage | undefined
+        try {
+            caches = window?.caches
+        } catch {
+            // a sandboxed document (opaque origin, e.g. an iframe or a page served with `CSP: sandbox` without
+            // allow-same-origin) throws a SecurityError on any access to window.caches
+            caches = undefined
+        }
+        if (storage === true && caches) {
+            this._cacheStoreInitPromise = caches.open?.('threepipe-assetmanager').then(c => {
                 this._initCacheStorage(simpleCache, c)
                 this._storage = c
                 this._cacheStoreInitPromise = undefined
+            }, () => {
+                // no Cache Storage (private mode, storage blocked): downloads are not cached
+                this._cacheStoreInitPromise = undefined
+                this._initCacheStorage(simpleCache, false)
             })
             return
         }
