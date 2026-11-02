@@ -787,6 +787,21 @@ describe('SelectionUxPlugin', () => {
         expect(names()).toEqual(['Wall'])
     })
 
+    test('keys: an Escape that an open menu or popover used (defaultPrevented) does not change the selection', () => {
+        // an open menu that closes on Escape, as the layout menu of the editor frame: it marks the key as used. In a
+        // page it listens on the document, before the window's bubble phase; this window stand-in calls its listeners
+        // in the order they were added, so the menu's listener is added first.
+        const menu = (e: Event) => (e as KeyboardEvent).code === 'Escape' && e.preventDefault()
+        window.addEventListener('keydown', menu)
+        const {ux, key, leg1, names} = setup()
+        ux.select([leg1])
+        key('Escape')
+        expect(names()).toEqual(['Leg 1'])
+        window.removeEventListener('keydown', menu)
+        expect(key('Escape')).toBe(true) // no menu: the parent
+        expect(names()).toEqual(['Legs'])
+    })
+
     test('keys: Esc and Shift+Enter parent, Enter children, Tab siblings, Ctrl+A the level', () => {
         const {ux, key, leg1, names} = setup()
         expect(key('Escape')).toBe(false) // nothing selected: Esc stays for others
