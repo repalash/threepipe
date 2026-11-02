@@ -10,6 +10,10 @@ All notable changes to this plugin will be documented in this file.
 
 - `three-gpu-pathtracer` (`^0.0.23`) as an optional `peerDependency`: its types (`WebGLPathTracer`) are in the declarations; install it for `skipLibCheck: false`. The bundle includes it.
 
+### Changed
+
+- The bundle includes `three-mesh-bvh` `^0.9.16` (a `devDependency` now; before, the hoisted copy that `three-gpu-pathtracer` resolved, 0.9.1)
+
 ## [0.2.0] - 2025-10-27
 
 ### Changed
