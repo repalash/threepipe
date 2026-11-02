@@ -27,9 +27,9 @@ async function init() {
     await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
 
     const material = new PhysicalMaterial({color: '#d4af37', metalness: 1, roughness: 0.25})
-    const mesh = new Mesh(new TorusKnotGeometry(0.6, 0.2, 160, 24), material)
+    // addObject returns the mesh typed as a scene object (setDirty, ...)
+    const mesh = viewer.scene.addObject(new Mesh(new TorusKnotGeometry(0.6, 0.2, 160, 24), material))
     mesh.name = 'Torus knot'
-    viewer.scene.addObject(mesh)
 
     // any uiconfig.js configs: here written by hand, bound to the mesh and its material.
     // The children of an object's uiConfig work the same, e.g. UiConfigMethods.GetChildren(material.uiConfig)
