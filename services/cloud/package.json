@@ -1,0 +1,24 @@
+{
+    "name": "threepipe-cloud",
+    "type": "module",
+    "scripts": {
+        "dev": "CLOUDFLARE_ENV=local teeny dev --local",
+        "migrate": "CLOUDFLARE_ENV=local teeny deploy --local",
+        "init-infra": "bash scripts/init-infra.sh",
+        "deploy": "teeny deploy --remote",
+        "secrets-upload": "teeny secrets --remote --upload",
+        "cf-typegen": "wrangler types --env-interface CloudflareBindings",
+        "typecheck": "npm run cf-typegen && tsc --noEmit -p tsconfig.json",
+        "test": "bash scripts/e2e.sh"
+    },
+    "dependencies": {
+        "teenybase": "0.1.0",
+        "hono": "^4"
+    },
+    "devDependencies": {
+        "typescript": "^5",
+        "wrangler": "^4"
+    },
+    "private": true,
+    "description": "threepipe cloud: accounts, access links for agents, uploads and the files host (teenybase on Cloudflare Workers + D1 + R2)"
+}
