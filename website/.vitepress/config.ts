@@ -76,8 +76,6 @@ export default defineConfig({
               {text: 'KTXLoadPlugin', link: 'plugin/KTXLoadPlugin'},
               {text: 'USDZLoadPlugin', link: 'plugin/USDZLoadPlugin'},
               {text: 'GLTFMeshOptDecodePlugin', link: 'plugin/GLTFMeshOptDecodePlugin'},
-              {text: 'LUTCubeLoader2', link: 'plugin/LUTCubeLoader2'},
-              {text: 'TextureLoader2', link: 'plugin/TextureLoader2'},
             ],
           },
           {
@@ -87,7 +85,6 @@ export default defineConfig({
               {text: 'VignettePlugin', link: 'plugin/VignettePlugin'},
               {text: 'ChromaticAberrationPlugin', link: 'plugin/ChromaticAberrationPlugin'},
               {text: 'FilmicGrainPlugin', link: 'plugin/FilmicGrainPlugin'},
-              {text: 'LUTPlugin', link: 'plugin/LUTPlugin'},
             ],
           },
           {
@@ -163,6 +160,7 @@ export default defineConfig({
             text: 'Export', collapsed: true,
             items: [
               {text: 'CanvasSnapshotPlugin', link: 'plugin/CanvasSnapshotPlugin'},
+              {text: 'CanvasRecorderPlugin', link: 'plugin/CanvasRecorderPlugin'},
               {text: 'AssetExporterPlugin', link: 'plugin/AssetExporterPlugin'},
               {text: 'FileTransferPlugin', link: 'plugin/FileTransferPlugin'},
             ],

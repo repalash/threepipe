@@ -1,7 +1,7 @@
 ---
 prev:
-    text: 'LUTPlugin'
-    link: './LUTPlugin'
+    text: 'FilmicGrainPlugin'
+    link: './FilmicGrainPlugin'
 
 next: 
     text: 'SSAAPlugin'

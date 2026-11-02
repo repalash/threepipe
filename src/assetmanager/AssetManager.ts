@@ -8,6 +8,7 @@ import {
     LinearMipmapLinearFilter,
     LoadingManager,
     Object3D,
+    TextureLoader,
 } from 'three'
 import {ISerializedConfig, IViewerPlugin, type ThreeViewer} from '../viewer'
 import {AssetImporter, IAssetImporterEventMap} from './AssetImporter'
@@ -46,7 +47,6 @@ import {
     OBJLoader2,
     SimpleJSONLoader,
     SVGTextureLoader,
-    TextureLoader2,
     VideoTextureLoader,
     ZipLoader,
 } from './import'
@@ -92,7 +92,12 @@ export interface ImportAddOptions extends ImportAssetOptions, AddAssetOptions{}
 export interface AddRawOptions extends ProcessRawOptions, AddAssetOptions{}
 
 export interface AssetManagerEventMap{
-    loadAsset: {data: ImportResult}
+    /**
+     * An asset was loaded and added. `options` are the add options given to {@link AssetManager.loadImported}, without
+     * `autoSetEnvironment` and `autoSetBackground`. A listener can read `importConfig: false` there: a viewer config in
+     * the asset was not imported.
+     */
+    loadAsset: {data: ImportResult, options?: AddAssetOptions}
     processStateUpdate: object
 }
 
@@ -201,7 +206,7 @@ export class AssetManager extends EventDispatcher<AssetManagerEventMap> {
                 }
                 break
             }
-            this.dispatchEvent({type: 'loadAsset', data: obj})
+            this.dispatchEvent({type: 'loadAsset', data: obj, options})
             if (Array.isArray(ret)) ret.push(r)
             else ret = r as T
         }
@@ -325,7 +330,7 @@ export class AssetManager extends EventDispatcher<AssetManagerEventMap> {
 
             new Importer(SVGTextureLoader, ['svg', 'data:image/svg'], ['image/svg+xml'], false), // todo: use ImageBitmapLoader if supported (better performance)
 
-            new Importer(TextureLoader2, ['webp', 'png', 'jpeg', 'jpg', 'ico', 'data:image', 'avif', 'bmp', 'gif', 'tiff'], [
+            new Importer(TextureLoader, ['webp', 'png', 'jpeg', 'jpg', 'ico', 'data:image', 'avif', 'bmp', 'gif', 'tiff'], [
                 'image/webp', 'image/png', 'image/jpeg', 'image/gif', 'image/bmp', 'image/tiff', 'image/x-icon', 'image/avif',
             ], false), // todo: use ImageBitmapLoader if supported (better performance)
 

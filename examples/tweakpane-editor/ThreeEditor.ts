@@ -16,7 +16,6 @@ import {
     DynamicImportPlugin,
     EditorViewWidgetPlugin, EntityComponentPlugin,
     FilmicGrainPlugin,
-    LUTPlugin,
     GeometryGeneratorPlugin,
     FragmentClippingExtensionPlugin,
     FrameFadePlugin,
@@ -50,7 +49,6 @@ import {
     SSAAPlugin,
     SSAOPlugin,
     STLLoadPlugin,
-    TextureLoader2,
     ThreeFirstPersonControlsPlugin,
     ThreeViewer,
     TonemapPlugin,
@@ -66,7 +64,7 @@ import {
     VirtualCamerasPlugin,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
-import {HierarchyUiPlugin, TweakpaneEditorPlugin} from '@threepipe/plugin-tweakpane-editor'
+import {EditorCameraPlugin, HierarchyUiPlugin, NotesPlugin, StickyNotesUiPlugin, TweakpaneEditorPlugin} from '@threepipe/plugin-tweakpane-editor'
 import {BlendLoadPlugin} from '@threepipe/plugin-blend-importer'
 import {extraImportPlugins} from '@threepipe/plugins-extra-importers'
 import {FontLibrary, GeometryGeneratorExtrasPlugin} from '@threepipe/plugin-geometry-generator'
@@ -119,6 +117,7 @@ export class ThreeEditor extends ThreeViewer {
         new DepthBufferPlugin(HalfFloatType, false, false),
         new NormalBufferPlugin(HalfFloatType, false),
         CameraViewPlugin,
+        EditorCameraPlugin,
         FullScreenPlugin,
         PickingPlugin,
         ObjectConstraintsPlugin,
@@ -144,7 +143,6 @@ export class ThreeEditor extends ThreeViewer {
         new VignettePlugin(false),
         new ChromaticAberrationPlugin(false),
         new FilmicGrainPlugin(false),
-        new LUTPlugin(false),
         new SSAOPlugin(UnsignedByteType, 1),
         SSReflectionPlugin, new SSContactShadowsPlugin(false),
         new DepthOfFieldPlugin(false), BloomPlugin,
@@ -179,17 +177,18 @@ export class ThreeEditor extends ThreeViewer {
         TroikaTextPlugin,
         new CascadedShadowsPlugin(false),
         DynamicImportPlugin,
+        NotesPlugin, StickyNotesUiPlugin,
     ]
 
     editorModes: Record<string, Class<IViewerPlugin<any>>[]> = {
-        ['Viewer']: [ViewerUiConfigPlugin, DropzonePlugin, BaseGroundPlugin, ContactShadowGroundPlugin, TweakpaneUiPlugin, InteractionPromptPlugin, ThreeGpuPathTracerPlugin, FullScreenPlugin],
+        ['Viewer']: [ViewerUiConfigPlugin, EditorCameraPlugin, DropzonePlugin, BaseGroundPlugin, ContactShadowGroundPlugin, TweakpaneUiPlugin, TweakpaneEditorPlugin, InteractionPromptPlugin, ThreeGpuPathTracerPlugin, FullScreenPlugin],
         ['Interaction']: [HierarchyUiPlugin, TransformControlsPlugin, PivotControlsPlugin, PivotEditPlugin, PickingPlugin, OutlinePlugin, Object3DGeneratorPlugin, GeometryGeneratorPlugin, EditorViewWidgetPlugin, ObjectConstraintsPlugin, Object3DWidgetsPlugin, MeshOptSimplifyModifierPlugin],
         ['Buffers']: [GBufferPlugin, DepthBufferPlugin, NormalBufferPlugin, CascadedShadowsPlugin],
-        ['Post-processing']: [TonemapPlugin, ProgressivePlugin, SSAAPlugin, SSAOPlugin, SSReflectionPlugin, BloomPlugin, DepthOfFieldPlugin, SSGIPlugin, FrameFadePlugin, VignettePlugin, ChromaticAberrationPlugin, FilmicGrainPlugin, LUTPlugin, TemporalAAPlugin, VelocityBufferPlugin, SSContactShadowsPlugin],
+        ['Post-processing']: [TonemapPlugin, ProgressivePlugin, SSAAPlugin, SSAOPlugin, SSReflectionPlugin, BloomPlugin, DepthOfFieldPlugin, SSGIPlugin, FrameFadePlugin, VignettePlugin, ChromaticAberrationPlugin, FilmicGrainPlugin, TemporalAAPlugin, VelocityBufferPlugin, SSContactShadowsPlugin],
         ['Export']: [AssetExporterPlugin, CanvasSnapshotPlugin, AWSClientPlugin, TransfrSharePlugin, AssimpJsPlugin, LoadingScreenPlugin],
         ['Configurator']: [MaterialConfiguratorPlugin, SwitchNodePlugin, GLTFKHRMaterialVariantsPlugin],
         ['Animation']: [TimelineUiPlugin, AnimationObjectPlugin, GLTFAnimationPlugin, CameraViewPlugin],
-        ['Extras']: [HDRiGroundPlugin, Rhino3dmLoadPlugin, ClearcoatTintPlugin, FragmentClippingExtensionPlugin, NoiseBumpMaterialPlugin, AnisotropyPlugin, CustomBumpMapPlugin, VirtualCamerasPlugin, TilesRendererPlugin, EntityComponentPlugin],
+        ['Extras']: [HDRiGroundPlugin, Rhino3dmLoadPlugin, ClearcoatTintPlugin, FragmentClippingExtensionPlugin, NoiseBumpMaterialPlugin, AnisotropyPlugin, CustomBumpMapPlugin, VirtualCamerasPlugin, TilesRendererPlugin, EntityComponentPlugin, StickyNotesUiPlugin, NotesPlugin],
         ['Debug']: [RenderTargetPreviewPlugin, PerfPanelPlugin, DynamicImportPlugin],
     }
 
@@ -197,7 +196,6 @@ export class ThreeEditor extends ThreeViewer {
         await this.addPlugins(this.editorPlugins)
 
         KTX2LoadPlugin.SAVE_SOURCE_BLOBS = true // so that ktx files can be exported.
-        TextureLoader2.SAVE_SOURCE_BLOBS = true // so raster images (jpeg/png) export without canvas re-encode.
 
         // to show more details in the UI and allow to edit changes in title etc.
         const mat = this.getPlugin(MaterialConfiguratorPlugin)
@@ -211,6 +209,10 @@ export class ThreeEditor extends ThreeViewer {
         // disable fading on update
         const fade = this.getPlugin(FrameFadePlugin)
         fade && (fade.isEditor = true)
+
+        // the buttons of the notes go above the perf pill at the bottom left of the canvas
+        const sticky = this.getPlugin(StickyNotesUiPlugin)
+        sticky && (sticky.dock.style.bottom = '56px')
 
         const taa = this.getPlugin(TemporalAAPlugin)
         taa && (taa.stableNoise = true)
@@ -233,7 +235,48 @@ export class ThreeEditor extends ThreeViewer {
 
         editor.loadPlugins(this.editorModes)
 
+        // the name in the page frame: the first loaded model or viewer config file (not a texture or an environment
+        // map) names the document, and a click on the name renames it; the files dropped after it do not change it. The
+        // exported file takes the name, also after a viewer config sets the exporter (its own exportOptions, or Reset
+        // All Settings); a name typed in the exporter's field stays until then. A project system could set
+        // editor.documentName instead.
+        const exporter = this.getPlugin(AssetExporterPlugin)
+        // the extension of the file that named the document: the exporter adds its own, and a dot in a typed name stays
+        let fileExt = ''
+        const exportName = () => {
+            const name = editor.documentName
+            const ext = fileExt && name.toLowerCase().endsWith(fileExt) ? fileExt : ''
+            if (!exporter) return
+            exporter.exportOptions.name = name.slice(0, name.length - ext.length)
+            exporter.uiConfig?.uiRefresh?.(true) // its name field
+        }
+        editor.addEventListener('documentNameChange', exportName)
+        exporter?.addEventListener('deserialize', exportName)
+        editor.documentName = 'Untitled'
+        this.assetManager.addEventListener('loadAsset', ({data}) => {
+            const name = editor.documentName === 'Untitled' ? loadedFileName(data) : '' // not named by a file before, or by the person
+            if (name) {
+                fileExt = name.match(/\.[^.]+$/)?.[0].toLowerCase() ?? ''
+                editor.documentName = name
+            }
+        })
+
         await FontLibrary.Init // required for text geometry generation. todo add to other editors?
 
+    }
+}
+
+/** The file name of a loaded model or viewer config: a dropped or picked file has it on its blob, a URL load in its path */
+function loadedFileName(data: any): string {
+    if (data?.assetType !== 'model' && data?.assetType !== 'config') return ''
+    const blob = data.__rootBlob
+    if (blob) return blob.filePath?.split('/').pop() || blob.name || ''
+    const path: string | undefined = data.userData?.rootPath || data.__rootPath
+    if (!path || path.startsWith('blob:') || path.startsWith('data:')) return ''
+    const base = path.split(/[?#]/)[0].split('/').pop() || ''
+    try {
+        return decodeURIComponent(base)
+    } catch (e) {
+        return base
     }
 }

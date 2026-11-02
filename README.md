@@ -523,6 +523,7 @@ Many features will be added but the core API will not change significantly in fu
   - [GBufferPlugin](https://threepipe.org/plugin/GBufferPlugin.html) - Pre-rendering of depth-normal and flags buffers in a single pass ([deferred shading](https://en.wikipedia.org/wiki/Deferred_shading))
   - [SSAOPlugin](https://threepipe.org/plugin/SSAOPlugin.html) - Add [SSAO(Screen Space Ambient Occlusion)](https://en.wikipedia.org/wiki/Screen_space_ambient_occlusion) for physical materials.
   - [CanvasSnapshotPlugin](https://threepipe.org/plugin/CanvasSnapshotPlugin.html) - Add support for taking snapshots of the canvas with anti-aliasing and other options
+  - [CanvasRecorderPlugin](https://threepipe.org/plugin/CanvasRecorderPlugin.html) - Record the canvas to an MP4 or WebM video or an image sequence, in real time or frame by frame after the progressive render converges
   - [PickingPlugin](https://threepipe.org/plugin/PickingPlugin.html) - Adds support for selecting and multi-selecting objects in the viewer with user interactions and selection widgets
   - [AssetExporterPlugin](https://threepipe.org/plugin/AssetExporterPlugin.html) - Provides options and methods to export the scene/object GLB or Viewer Configuration JSON
   - [LoadingScreenPlugin](https://threepipe.org/plugin/LoadingScreenPlugin.html) - Shows a configurable loading screen overlay over the canvas
@@ -545,7 +546,6 @@ Many features will be added but the core API will not change significantly in fu
   - [VignettePlugin](https://threepipe.org/plugin/VignettePlugin.html) - Add Vignette effect  by patching the final screen pass
   - [ChromaticAberrationPlugin](https://threepipe.org/plugin/ChromaticAberrationPlugin.html) - Add [Chromatic Aberration](https://en.wikipedia.org/wiki/Chromatic_aberration) effect  by patching the final screen pass
   - [FilmicGrainPlugin](https://threepipe.org/plugin/FilmicGrainPlugin.html) - Add [Filmic Grain](https://en.wikipedia.org/wiki/Film_grain) effect  by patching the final screen pass
-  - [LUTPlugin](https://threepipe.org/plugin/LUTPlugin.html) - Color-grade with up to 3 `.cube` 3D LUTs, with per-material slot selection via GBuffer flags
   - [NoiseBumpMaterialPlugin](https://threepipe.org/plugin/NoiseBumpMaterialPlugin.html) - Sparkle Bump/Noise Bump material extension for PhysicalMaterial
   - [CustomBumpMapPlugin](https://threepipe.org/plugin/CustomBumpMapPlugin.html) - Adds multiple bump map support and bicubic filtering material extension for PhysicalMaterial
   - [ClearcoatTintPlugin](https://threepipe.org/plugin/ClearcoatTintPlugin.html) - Clearcoat Tint material extension for PhysicalMaterial
