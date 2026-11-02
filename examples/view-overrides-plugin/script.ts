@@ -8,7 +8,7 @@ import {
     IObject3D,
     LineMaterial2,
     LoadingScreenPlugin,
-    Mesh2,
+    Mesh,
     PhysicalMaterial,
     PickingPlugin,
     SphereGeometry,
@@ -53,22 +53,22 @@ async function init() {
     viewer.scene.addObject(ring, {autoScale: false, autoCenter: false})
 
     // more objects, each with its own material: a colour each in the Material ID view, and shapes for the other views
-    const shapes: [string, Mesh2, [number, number, number]][] = [
-        ['Gold knot', new Mesh2(new TorusKnotGeometry(0.28, 0.09, 128, 16), new PhysicalMaterial({color: '#e8b34b', metalness: 1, roughness: 0.25})), [-1.6, 0.4, 0]],
-        ['Red box', new Mesh2(new BoxGeometry(0.55, 0.55, 0.55), new PhysicalMaterial({color: '#d9402b', roughness: 0.6})), [1.6, 0.4, 0]],
-        ['Glass sphere', new Mesh2(new SphereGeometry(0.32, 48, 24), new PhysicalMaterial({color: '#9fd3ff', roughness: 0.05, transmission: 1, thickness: 0.5})), [-1.6, -0.5, 0]],
-        ['Matte sphere', new Mesh2(new SphereGeometry(0.32, 48, 24), new PhysicalMaterial({color: '#4f9d69', roughness: 0.9})), [1.6, -0.5, 0]],
+    const shapes: [string, Mesh, [number, number, number]][] = [
+        ['Gold knot', new Mesh(new TorusKnotGeometry(0.28, 0.09, 128, 16), new PhysicalMaterial({color: '#e8b34b', metalness: 1, roughness: 0.25})), [-1.6, 0.4, 0]],
+        ['Red box', new Mesh(new BoxGeometry(0.55, 0.55, 0.55), new PhysicalMaterial({color: '#d9402b', roughness: 0.6})), [1.6, 0.4, 0]],
+        ['Glass sphere', new Mesh(new SphereGeometry(0.32, 48, 24), new PhysicalMaterial({color: '#9fd3ff', roughness: 0.05, transmission: 1, thickness: 0.5})), [-1.6, -0.5, 0]],
+        ['Matte sphere', new Mesh(new SphereGeometry(0.32, 48, 24), new PhysicalMaterial({color: '#4f9d69', roughness: 0.9})), [1.6, -0.5, 0]],
     ]
-    for (const [name, mesh, position] of shapes) {
+    const added = shapes.map(([name, mesh, position]) => {
         mesh.name = name
         mesh.position.set(...position)
-        viewer.scene.addObject(mesh, {autoScale: false, autoCenter: false})
-    }
+        return viewer.scene.addObject(mesh, {autoScale: false, autoCenter: false})
+    })
 
     // click an object to select it, then move or rotate it with the gizmo (its mode in the Transform Controls panel)
     const picking = viewer.addPluginSync(PickingPlugin)
     viewer.addPluginSync(TransformControlsPlugin)
-    picking.setSelectedObject(shapes[1][1])
+    picking.setSelectedObject(added[1])
 
     const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
     ui.setupPluginUi(overrides, {expanded: true})
