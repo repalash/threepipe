@@ -198,6 +198,7 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
         viewer.object3dManager.addEventListener('geometryRemove', this._geometryRemove)
         viewer.object3dManager.addEventListener('objectRemove', this._objectRemove)
         viewer.scene.addEventListener('geometryChanged', this._objectGeometryChanged)
+        viewer.scene.addEventListener('materialChanged', this._objectMaterialChanged)
         viewer.addEventListener('postFrame', this._postFrame)
         if (!this.lib) this._load().then(lib => {
             this.lib = lib
@@ -212,6 +213,7 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
         viewer.object3dManager.removeEventListener('geometryRemove', this._geometryRemove)
         viewer.object3dManager.removeEventListener('objectRemove', this._objectRemove)
         viewer.scene.removeEventListener('geometryChanged', this._objectGeometryChanged)
+        viewer.scene.removeEventListener('materialChanged', this._objectMaterialChanged)
         viewer.removeEventListener('postFrame', this._postFrame)
         for (const g of [...this._stats.keys()]) this._dispose(g)
         for (const o of [...this._helpers.keys()]) this._removeHelper(o)
@@ -357,6 +359,13 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
             if (!g?.boundsTree && Object.prototype.hasOwnProperty.call(o, 'raycast') && o.raycast === this.lib?.acceleratedRaycast)
                 delete (o as Partial<IObject3D>).raycast
         })
+    }
+
+    // a mesh got another material: one material and a material array raycast different triangles when the groups leave
+    // gaps (canUse), so the mesh is checked again. The event comes after the new material is set.
+    private _objectMaterialChanged = (e: {object?: IObject3D}) => {
+        const o = e.object
+        if (o?.isMesh && o.geometry) this.refreshObject(o)
     }
 
     // a geometry changed: refit when the tree would have the same triangles (vertices moved), else build again

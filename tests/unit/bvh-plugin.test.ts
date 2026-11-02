@@ -349,4 +349,20 @@ describe('BVHPlugin', () => {
         expect(Object.prototype.hasOwnProperty.call(m2, 'raycast')).toBe(false)
         expect(rays().map(r => hits(m2, r))).toEqual(expected2)
     })
+
+    test('a material change checks the mesh again: one material on groups with gaps gets the raycast of three.js back, a material array the tree', () => {
+        const {add, frame} = setup()
+        const m = add(200, 32)
+        const array = [new MeshBasicMaterial(), new MeshBasicMaterial()]
+        m.material = array as any // three.js raycasts only the groups of a mesh with an array
+        m.geometry!.addGroup(0, 3000, 0)
+        frame()
+        expect(m.raycast).toBe(threeMeshBVH.acceleratedRaycast)
+        // one material (as PickingPlugin.removeMaterial sets): three.js raycasts the whole draw range, the tree does not
+        m.material = new MeshBasicMaterial() as any
+        expect(Object.prototype.hasOwnProperty.call(m, 'raycast')).toBe(false)
+        m.material = array as any
+        frame()
+        expect(m.raycast).toBe(threeMeshBVH.acceleratedRaycast)
+    })
 })

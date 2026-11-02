@@ -65,7 +65,7 @@ If the module does not load, the plugin logs an error and raycasts work as befor
 - Meshes in `auto` mode get a tree from `autoMinTriangles` triangles (default 1000).
 - `object.userData.bvh` sets the mode per object: `'auto'`, `'on'` (always) or `'off'` (never). It is saved with the object. The object's UI has a BVH section with the mode, the status, a Rebuild button and Show boxes (a `BVHHelper`, not saved; it goes when the mesh leaves the scene, gets another geometry, is `off` or not supported, when the tree is dropped, and when the plugin is disabled).
 - Skinned, morphed, instanced and batched meshes, and meshes with their own `raycast` (like fat lines), do not get a tree.
-- A mesh with one material whose geometry groups leave out triangles of the draw range keeps the raycast of three.js. three.js raycasts the whole draw range of such a mesh, but a tree has only the triangles in the groups. A mesh with a material array raycasts only its groups, so it gets a tree.
+- A mesh with one material whose geometry groups leave out triangles of the draw range keeps the raycast of three.js. three.js raycasts the whole draw range of such a mesh, but a tree has only the triangles in the groups. A mesh with a material array raycasts only its groups, so it gets a tree. The plugin checks a mesh again when its material or its groups change.
 
 ```typescript
 mesh.userData.bvh = 'on'
