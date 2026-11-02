@@ -1,21 +1,25 @@
 import type {Context, Hono} from 'hono'
 import {HTTPException} from 'hono/http-exception'
 import type {CloudEnv} from './env'
-import {BUCKET, filesOrigin, prefixRange, randomCode, sha256Hex} from './env'
-import {CloudUser, mintKey, requireUser} from './auth'
-import {appFolder, appLabel, grantFolder} from './appFolders'
-
-/** App keys are short: the app gets a new one on every page load (no screen once approved). */
-export const APP_KEY_SECONDS = 24 * 60 * 60
+import {apiOrigin, BUCKET, filesOrigin, prefixRange, randomCode, sha256Hex} from './env'
+import {APP_KEY_SECONDS} from './limits'
+import {cardPage, esc, ICONS} from './page'
+import {CloudUser, mintKey, requireUser, touchLink} from './auth'
+import {HandlePending} from './handle'
+import {appFolder, appLabel, AppOwner, grantFolder} from './appFolders'
 
 /**
- * "Sign in with threepipe" for apps hosted on the files host (or running on localhost while being developed).
+ * "Sign in with threepipe" for apps hosted on the files host, our own apps on *.threepipe.org (the editor), or apps
+ * running on localhost while being developed. Other domains: not yet.
  * No app registration: the app is identified by where it is served from, `s/<slug>`, `b/<repo>/<ref>`, `p/<name>`,
- * `d/<handle>/<app>` (owned by whoever uploaded there), `localhost:<port>` or `<name>.localhost:<port>`.
+ * `d/<handle>/<app>` (owned by whoever uploaded there), `<name>.threepipe.org`, `localhost:<port>` or `<name>.localhost:<port>`.
  *
- *   GET  /api/v1/connect?return=<app page url>[&access=drive][&prompt=consent]
+ *   GET  /api/v1/connect?return=<app page url>[&access=drive][&prompt=consent][&state=<random>]
  *        signed out → sign-in page; approved before → redirect back with a key; else → consent page
- *   POST /api/v1/connect (the consent form)  → 303 to `<return>#tp_cloud_key=<key>&tp_cloud_user=<handle>&tp_cloud_folder=<folder>&tp_cloud_api=<api origin>`
+ *   POST /api/v1/connect (the consent form)  → 303 to `<return>#tp_cloud_key=<key>&tp_cloud_user=<handle>&tp_cloud_folder=<folder>&tp_cloud_api=<api origin>[&tp_cloud_state=<state>]`
+ *
+ * `state` comes back as it was sent: the app keeps it before it leaves and takes only a key that brings it back, so a
+ * link with someone else's key in the fragment does not sign it in (plugins/cloud CloudAuth).
  *
  * The key works only on the drive routes, inside the app's folder (default; `Apps/<app>` in the user's drive, made on the
  * first approval; `tp_cloud_folder` is its id) or, with `access=drive`, the whole drive (`*`). The grant is an
@@ -24,12 +28,14 @@ export const APP_KEY_SECONDS = 24 * 60 * 60
  */
 export function connectRoutes(app: Hono<CloudEnv>) {
     app.get('/api/v1/connect', async (c) => {
-        const target = appTarget(c, c.req.query('return'), c.req.query('access'))
+        const target = appTarget(c, c.req.query('return'), c.req.query('access'), c.req.query('state'))
         let user: CloudUser
         try {
             user = await requireUser(c)
         } catch (e) {
-            if (e instanceof HTTPException && e.status === 401) return page(c, signInPage(c, target))
+            if (e instanceof HTTPException && e.status === 401) return cardPage(c, signInPage(c, target), {wide: true})
+            // a new Google account picks its handle first (src/handle.ts), then comes back here
+            if (e instanceof HandlePending) return c.redirect(`/account?next=${encodeURIComponent(new URL(c.req.url).pathname + new URL(c.req.url).search)}`)
             throw e
         }
         if (user.link) throw new HTTPException(403, {message: 'approve apps in the browser, signed in to threepipe cloud'})
@@ -38,13 +44,13 @@ export function connectRoutes(app: Hono<CloudEnv>) {
             const grant = await findGrant(c, user, target, owner)
             if (grant) return redirectWithKey(c, target, user, grant.id, await grantFolder(c, user.id, grant.id))
         }
-        return page(c, consentPage(target, user, owner))
+        return cardPage(c, consentPage(target, user, owner), {wide: true})
     })
 
     app.post('/api/v1/connect', async (c) => {
         // a form post with the session cookie: guardRequest (src/auth.ts) already checked it comes from this origin
         const form = await c.req.parseBody()
-        const target = appTarget(c, form.return, form.access)
+        const target = appTarget(c, form.return, form.access, form.state)
         const user = await requireUser(c)
         if (user.link) throw new HTTPException(403, {message: 'approve apps in the browser, signed in to threepipe cloud'})
         const owner = await appOwner(c, target)
@@ -67,10 +73,13 @@ interface AppTarget {
     /** the return URL without its fragment */
     returnUrl: string
     access: 'app' | 'drive'
+    /** sent back as `tp_cloud_state` (see above) */
+    state?: string
 }
 
-function appTarget(c: Context<CloudEnv>, ret: unknown, access: unknown): AppTarget {
+function appTarget(c: Context<CloudEnv>, ret: unknown, access: unknown, state?: unknown): AppTarget {
     if (typeof ret !== 'string' || !ret) throw new HTTPException(400, {message: 'return: the URL of the app page to come back to'})
+    if (state !== undefined && state !== '' && (typeof state !== 'string' || !/^[\w-]{8,128}$/.test(state))) throw new HTTPException(400, {message: 'state: 8 to 128 letters, digits, _ and -'})
     if (access !== undefined && access !== '' && access !== 'app' && access !== 'drive') throw new HTTPException(400, {message: 'access is app (default) or drive'})
     const acc = access === 'drive' ? 'drive' : 'app'
     let u: URL
@@ -81,7 +90,7 @@ function appTarget(c: Context<CloudEnv>, ret: unknown, access: unknown): AppTarg
     }
     u.hash = ''
     const returnUrl = u.href
-    const files = filesOrigin(c.env, new URL(c.req.url).origin) + '/'
+    const files = filesOrigin(c.env, apiOrigin(c)) + '/'
     let app: string, scope: string | undefined
     if (returnUrl.startsWith(files)) {
         let segs: string[]
@@ -95,20 +104,23 @@ function appTarget(c: Context<CloudEnv>, ret: unknown, access: unknown): AppTarg
         app = scope = segs.slice(0, n).join('/')
     } else if (u.protocol === 'http:' && (u.hostname === 'localhost' || u.hostname === '127.0.0.1')) {
         app = `localhost:${u.port || '80'}`
+    } else if (u.protocol === 'https:' && (u.hostname === 'threepipe.org' || u.hostname.endsWith('.threepipe.org')) && u.origin !== apiOrigin(c)) {
+        // our own apps (the editor, the website); user content is only on the files host, handled above
+        app = u.host
     } else if ((u.protocol === 'http:' || u.protocol === 'https:') && u.hostname.endsWith('.localhost')) {
         // *.localhost always resolves to this machine (RFC 6761), e.g. a dev server behind a local proxy
         app = `${u.hostname}:${u.port || (u.protocol === 'https:' ? '443' : '80')}`
     } else {
-        throw new HTTPException(400, {message: `return must be a page on ${files} or on localhost`})
+        throw new HTTPException(400, {message: `return must be a page on ${files}, on threepipe.org or on localhost`})
     }
-    return {app, scope, returnUrl, access: acc}
+    return {app, scope, returnUrl, access: acc, state: typeof state === 'string' && state ? state : undefined}
 }
 
 /**
  * The user who serves the app (who uploaded to its scope), or 400 for an unknown app. Localhost: none.
  * A scope can change hands once its files are gone (the cron releases it): grants are tied to this owner (findGrant).
  */
-async function appOwner(c: Context<CloudEnv>, t: AppTarget): Promise<{id: string, username: string} | null> {
+async function appOwner(c: Context<CloudEnv>, t: AppTarget): Promise<AppOwner> {
     if (!t.scope) return null
     const row = t.scope.startsWith('d/')
         ? await c.env.PRIMARY_DB.prepare(`SELECT u.id, u.username FROM files f JOIN users u ON u.id = f.owner_id
@@ -129,50 +141,38 @@ async function findGrant(c: Context<CloudEnv>, user: CloudUser, t: AppTarget, ow
 
 async function redirectWithKey(c: Context<CloudEnv>, t: AppTarget, user: CloudUser, grant: string, folder: string, status: 302 | 303 = 302) {
     const key = await mintKey(c, user, grant, APP_KEY_SECONDS)
-    c.executionCtx.waitUntil(c.env.PRIMARY_DB.prepare('UPDATE access_links SET last_used = ? WHERE id = ?').bind(new Date().toISOString(), grant).run())
-    const hash = new URLSearchParams({tp_cloud_key: key, tp_cloud_user: user.username, tp_cloud_folder: folder, tp_cloud_api: new URL(c.req.url).origin})
+    touchLink(c, grant)
+    const hash = new URLSearchParams({tp_cloud_key: key, tp_cloud_user: user.username, tp_cloud_folder: folder, tp_cloud_api: apiOrigin(c), ...t.state ? {tp_cloud_state: t.state} : {}})
     c.header('cache-control', 'no-store')
     c.header('referrer-policy', 'no-referrer')
     return c.redirect(`${t.returnUrl}#${hash}`, status)
 }
 
-const esc = (s: string) => s.replace(/[&<>"']/g, ch => `&#${ch.charCodeAt(0)};`)
-
-function page(c: Context<CloudEnv>, body: string) {
-    return c.html(`<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>threepipe cloud</title><style>
-body{font:15px/1.5 system-ui,sans-serif;max-width:28rem;margin:4rem auto;padding:0 1rem;color:#222}
-h1{font-size:1.25rem}code{background:#f2f2f2;padding:0 .25rem;border-radius:3px;word-break:break-all}
-.row{display:flex;gap:.75rem;margin-top:1.5rem}button,a.btn{font:inherit;padding:.5rem 1rem;border-radius:6px;border:1px solid #222;background:#222;color:#fff;cursor:pointer;text-decoration:none}
-a.btn.secondary{background:#fff;color:#222}.note{color:#666;font-size:.875rem}
-</style></head><body>${body}</body></html>`, 200, {
-        'cache-control': 'no-store',
-        'x-frame-options': 'DENY',
-        'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'",
-        // same-origin, not no-referrer: with no-referrer the browser sends `Origin: null` on the form post, and guardRequest rejects it
-        'referrer-policy': 'same-origin',
-    })
-}
+/** Back to the app with `tp_cloud_error=denied` (and its state) */
+const denyUrl = (t: AppTarget) => t.returnUrl + '#' + new URLSearchParams({tp_cloud_error: 'denied', ...t.state ? {tp_cloud_state: t.state} : {}})
 
 function signInPage(c: Context<CloudEnv>, t: AppTarget) {
     const back = new URL(c.req.url)
     const github = `/api/v1/table/users/auth/oauth/github?redirect=${encodeURIComponent(back.pathname + back.search)}`
-    const dev = c.env.DEV_LOGIN === 'true' ? `<a class="btn secondary" href="${esc(`/login?redirect=${encodeURIComponent(back.pathname + back.search)}`)}">Local sign-in</a>` : ''
-    return `<h1>Sign in to threepipe cloud</h1>
+    const google = c.env.GOOGLE_CLIENT_ID ? `<a class="btn lg" href="${esc(`/api/v1/table/users/auth/oauth/google?redirect=${encodeURIComponent(back.pathname + back.search)}`)}">${ICONS.google}Continue with Google</a>` : ''
+    const dev = c.env.DEV_LOGIN === 'true' ? `<a class="btn lg" href="${esc(`/login?redirect=${encodeURIComponent(back.pathname + back.search)}`)}">Local sign-in (development)</a>` : ''
+    return `<h1>Sign in to continue</h1>
 <p><code>${esc(t.app)}</code> wants to use your threepipe cloud drive. Sign in first.</p>
-<div class="row"><a class="btn" href="${esc(github)}">Sign in with GitHub</a>${dev}
-<a class="btn secondary" href="${esc(t.returnUrl + '#tp_cloud_error=denied')}">Cancel</a></div>`
+<div class="stack"><a class="btn dark lg" href="${esc(github)}">${ICONS.github}Continue with GitHub</a>${google}${dev}
+<a class="btn ghost lg" href="${esc(denyUrl(t))}">Cancel</a></div>`
 }
 
-function consentPage(t: AppTarget, user: CloudUser, owner: {id: string, username: string} | null) {
+function consentPage(t: AppTarget, user: CloudUser, owner: AppOwner) {
     const folder = t.access === 'drive' ? 'your whole drive' : `Apps/${appLabel(t.app, owner)}`
     const who = owner ? `served by <b>@${esc(owner.username)}</b> at <code>${esc(t.returnUrl)}</code>` : `running on your computer at <code>${esc(t.returnUrl)}</code>`
     const what = t.access === 'drive'
-        ? `<b>all files in your drive</b>, including the files of other apps`
-        : `the files in <code>${esc(folder)}</code>`
+        ? `<b>All files in your drive</b>, including the files of other apps`
+        : `The files in <b>${esc(folder)}</b>`
     return `<h1>Connect ${esc(t.app)}?</h1>
-<p>The app ${who} wants to read, write, share and delete ${what}.</p>
-<p class="note">Signed in as @${esc(user.username)}. It cannot use anything else in your account. Remove access any time from your access links.</p>
-<form method="post" action="/api/v1/connect"><input type="hidden" name="return" value="${esc(t.returnUrl)}"><input type="hidden" name="access" value="${t.access}">
-<div class="row"><button type="submit">Allow</button><a class="btn secondary" href="${esc(t.returnUrl + '#tp_cloud_error=denied')}">Cancel</a></div></form>`
+<p>The app ${who} wants to read, write, share and delete:</p>
+<div class="scope${t.access === 'drive' ? ' all' : ''}">${ICONS.folder}<span>${what}</span></div>
+<p>It cannot use anything else in your account. Remove access any time in <a href="/account">Apps &amp; keys</a>.</p>
+<form method="post" action="/api/v1/connect"><input type="hidden" name="return" value="${esc(t.returnUrl)}"><input type="hidden" name="access" value="${t.access}">${t.state ? `<input type="hidden" name="state" value="${esc(t.state)}">` : ''}
+<div class="row"><a class="btn lg" href="${esc(denyUrl(t))}">Cancel</a><button type="submit" class="primary lg">Allow</button></div></form>
+<p class="foot">Signed in as @${esc(user.username)}</p>`
 }

@@ -1,6 +1,8 @@
 import type {Hono} from 'hono'
 import {setCookie} from 'hono/cookie'
 import type {CloudEnv} from './env'
+import {DAY} from './limits'
+import {cardPage, esc} from './page'
 
 /**
  * Local development only (`DEV_LOGIN=true` in .dev.vars): sign in with a username and a password instead of GitHub,
@@ -13,8 +15,8 @@ export function devLoginRoutes(app: Hono<CloudEnv>) {
     app.get('/login', c => {
         if (c.env.DEV_LOGIN !== 'true') return c.notFound()
         const redirect = safeRedirect(c.req.query('redirect'))
-        return c.html(page(redirect, c.req.query('error')), 200, {'cache-control': 'no-store', 'x-frame-options': 'DENY',
-            'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; frame-ancestors 'none'; form-action 'self'"})
+        // form-action 'self': the form posts here and is sent back to a path on this host
+        return cardPage(c, page(redirect, c.req.query('error')), {formAction: "'self'"})
     })
 
     app.post('/login', async c => {
@@ -34,7 +36,7 @@ export function devLoginRoutes(app: Hono<CloudEnv>) {
             if (!res.ok) return back(`sign-up failed: ${((await res.json().catch(() => ({}))) as {message?: string}).message ?? res.status}`)
         }
         const {token} = await res.json() as {token: string}
-        setCookie(c, c.get('$db').settings.authCookie!.name, token, {httpOnly: true, secure: true, sameSite: 'Lax', path: '/', maxAge: 24 * 60 * 60})
+        setCookie(c, c.get('$db').settings.authCookie!.name, token, {httpOnly: true, secure: true, sameSite: 'Lax', path: '/', maxAge: DAY})
         return c.redirect(redirect, 303)
     })
 }
@@ -42,13 +44,9 @@ export function devLoginRoutes(app: Hono<CloudEnv>) {
 /** A path on this host, never another site. */
 const safeRedirect = (r: string | undefined) => r && r.startsWith('/') && !r.startsWith('//') && !r.startsWith('/\\') ? r : '/reports'
 
-const esc = (s: string) => s.replace(/[&<>"']/g, ch => `&#${ch.charCodeAt(0)};`)
-
-const page = (redirect: string, error?: string) => `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>threepipe cloud (local)</title><style>body{font:15px/1.5 system-ui,sans-serif;max-width:24rem;margin:4rem auto;padding:0 1rem}
-input,button{font:inherit;display:block;width:100%;margin:.5rem 0;padding:.5rem;box-sizing:border-box}.err{color:#c43d3d}.note{color:#666;font-size:.875rem}</style></head>
-<body><h1>threepipe cloud</h1><p class="note">Local development sign-in (DEV_LOGIN). A new username is created on the first sign-in.</p>
+/** The form, in a card (src/page.ts). */
+const page = (redirect: string, error?: string) => `<h1>Local sign-in</h1><p>Development only (DEV_LOGIN). A new username is created on the first sign-in.</p>
 ${error ? `<p class="err">${esc(error)}</p>` : ''}
-<form method="post" action="/login"><input type="hidden" name="redirect" value="${esc(redirect)}">
-<input name="username" placeholder="username" autocomplete="username" required><input name="password" type="password" placeholder="password (8+ characters)" autocomplete="current-password" required>
-<button type="submit">Sign in</button></form></body></html>`
+<form method="post" action="/login"><input type="hidden" name="redirect" value="${esc(redirect)}"><div class="stack">
+<input class="lg" name="username" placeholder="Username" autocomplete="username" required autofocus><input class="lg" name="password" type="password" placeholder="Password (8+ characters)" autocomplete="current-password" required>
+<button type="submit" class="primary lg">Sign in</button></div></form>`

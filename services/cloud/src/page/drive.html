@@ -1,63 +1,34 @@
-<!-- The drive page of threepipe cloud (src/page.ts): your folders and items, from /api/v1/drive (src/drive.ts). -->
+<!-- The drive page of threepipe cloud (src/page.ts): your folders and items, from /api/v1/drive (src/drive.ts). Look: /ui.css. -->
 <!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex">
-<title>threepipe drive</title>
-<style>
-:root{color-scheme:light dark;--bg:#fff;--fg:#1f2328;--muted:#656d76;--line:#d8dee4;--field:#f6f8fa;--accent:#5d62f6;--lost:#c43d3d;--won:#178a50}
-@media (prefers-color-scheme:dark){:root{--bg:#0d1117;--fg:#e6edf3;--muted:#9198a1;--line:#30363d;--field:#161b22}}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-header{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:10px 16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:2}
-header h1{font-size:15px;margin:0 12px 0 0}
-button,input{font:inherit;color:inherit;background:var(--field);border:1px solid var(--line);border-radius:7px;padding:4px 10px}
-button{cursor:pointer}button[disabled]{opacity:.5;cursor:default}
-a{color:var(--accent)}
-main{display:flex;min-height:calc(100vh - 54px)}
-#list{flex:1;min-width:0;padding:12px 16px}
-#drawer{width:min(520px,45vw);border-left:1px solid var(--line);padding:12px 16px;overflow-y:auto;max-height:calc(100vh - 54px);position:sticky;top:54px}
-#drawer:empty{display:none}
-.crumbs{margin:0 0 10px;color:var(--muted)}.crumbs a{cursor:pointer}
-.row{display:flex;gap:10px;align-items:center;padding:7px 10px;border:1px solid var(--line);border-radius:9px;margin-bottom:6px;cursor:pointer}
-.row:hover,.row.on{border-color:var(--accent)}
-.icon{width:20px;text-align:center;color:var(--muted)}
-.main{flex:1;min-width:0}.t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
-.sub,.meta{color:var(--muted);font-size:12.5px}
-.pill{display:inline-block;padding:1px 8px;border-radius:10px;background:var(--field);font-size:12px}
-.pill.link{color:var(--won);font-weight:600}
-.box{border:1px solid var(--line);border-radius:9px;padding:8px 12px;margin-bottom:10px}
-.box h3{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:0 0 6px}
-.kv{display:flex;gap:10px;padding:2px 0;font-size:13px}.kv b{flex:0 0 110px;color:var(--muted);font-weight:500}.kv span{min-width:0;overflow-wrap:anywhere}
-.actions{display:flex;flex-wrap:wrap;gap:6px}
-.drop{border:2px dashed var(--accent)}
-.err{color:var(--lost)}
-#login{max-width:420px;margin:15vh auto;padding:0 16px}
-</style>
-<script src="/drive/page.js" defer></script>
+<title>Drive · threepipe cloud</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/ui.css">
+<script src="/ui.js" defer></script>
+<script src="/drive/page.js" type="module"></script>
 </head>
 <body>
-<div id="login" hidden>
-  <h1>threepipe drive</h1>
-  <p class="meta">Your files on threepipe cloud: what you and your apps saved.</p>
-  <p><a href="/api/v1/table/users/auth/oauth/github?redirect=%2Fdrive">Sign in with GitHub</a></p>
-  <p id="devLogin" hidden><a href="/login?redirect=%2Fdrive">Local sign-in (development)</a></p>
+<div id="login" class="center" hidden></div>
+<div id="app" class="frame" hidden>
+  <nav id="side"></nav>
+  <main>
+    <div class="toolbar">
+      <div class="crumbs" id="crumbs"></div>
+      <span class="grow"></span>
+      <span id="status" class="status"></span>
+      <button data-new-folder title="New folder"></button>
+      <button data-upload-folder title="A folder of files that belong together (a .gltf with its .bin and textures) becomes one item"></button>
+      <button data-upload-files class="primary"></button>
+    </div>
+    <div class="scroll" id="list"></div>
+  </main>
+  <aside id="panel"></aside>
 </div>
-<div id="app" hidden>
-  <header>
-    <h1>threepipe drive</h1>
-    <button data-new-folder>New folder</button>
-    <button data-upload-files>Upload files</button>
-    <button data-upload-folder title="A folder of files that belong together (a .gltf with its .bin and textures) becomes one item">Upload a folder</button>
-    <input id="files" type="file" multiple hidden>
-    <input id="folder" type="file" webkitdirectory hidden>
-    <span id="status" class="meta"></span>
-    <span style="flex:1"></span>
-    <button data-signout>Sign out</button>
-  </header>
-  <main><div id="list"></div><div id="drawer"></div></main>
-</div>
+<input id="files" type="file" multiple hidden>
+<input id="folder" type="file" webkitdirectory hidden>
 </body>
 </html>

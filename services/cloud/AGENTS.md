@@ -22,3 +22,11 @@ Rules:
 
 Docs for the installed version: `node_modules/teenybase/docs/` (`npx teenybase docs` lists them) and https://teenybase.com/docs. Agent skills: `node_modules/teenybase/plugin/skills/` (`npx teenybase skills`); start with `teenybase/SKILL.md`.
 <!-- /teenybase -->
+
+## This service
+
+Three npm scripts run `wrangler` for what teenybase has no command for. Run them through npm, not wrangler by hand:
+
+- `npm run cf-typegen` (`wrangler types`, also part of `npm run typecheck`)
+- `npm run init-infra` (`wrangler r2 bucket info/create` for the buckets in `wrangler.jsonc`)
+- `npm test` (`scripts/e2e.sh`: fixtures go through teenybase's admin API; one, a Google sign-up's empty `handle_set`, which no API can clear, uses `wrangler d1 execute --local`)

@@ -1,5 +1,4 @@
 # Copy to .dev.vars for local development (npm run dev). Never commit .dev.vars or .prod.vars.
-APP_URL=http://localhost:8787
 JWT_SECRET=dev-main-secret
 JWT_SECRET_USERS=dev-users-secret
 ADMIN_JWT_SECRET=dev-admin-secret
@@ -8,8 +7,14 @@ POCKET_UI_VIEWER_PASSWORD=viewer
 POCKET_UI_EDITOR_PASSWORD=editor
 # signs private drive URLs (src/drive.ts)
 FILES_URL_SECRET=dev-files-url-secret
+# reports (src/reports.ts): keys the hash of an anonymous sender's IP for the daily caps
+REPORTS_RATE_SECRET=dev-reports-rate-secret
+# Cloudflare's test secret that always passes (anonymous reports locally); a real one in .prod.vars
+TURNSTILE_SECRET=1x0000000000000000000000000000000AA
 GITHUB_CLIENT_ID=
 GITHUB_CLIENT_SECRET=
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
 RESPOND_WITH_ERRORS=true
 # /login with a username and password instead of GitHub (src/devLogin.ts). Never in .prod.vars
 DEV_LOGIN=true
