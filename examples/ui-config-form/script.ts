@@ -35,8 +35,8 @@ async function init() {
     // The children of an object's uiConfig work the same, e.g. UiConfigMethods.GetChildren(material.uiConfig)
     const configs: UiObjectConfig[] = [
         {type: 'input', label: 'Name', property: [mesh, 'name']},
-        {type: 'checkbox', label: 'Visible', property: [mesh, 'visible'], onChange: () => mesh.setDirty()},
-        {type: 'vec3', label: 'Position', property: [mesh, 'position'], onChange: () => mesh.setDirty()},
+        {type: 'checkbox', label: 'Visible', property: [mesh, 'visible'], onChange: () => mesh.setDirty?.()},
+        {type: 'vec3', label: 'Position', property: [mesh, 'position'], onChange: () => mesh.setDirty?.()},
         {
             type: 'folder', label: 'Material',
             // a change of any field in the folder
