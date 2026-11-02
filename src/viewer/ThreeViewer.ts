@@ -80,8 +80,8 @@ import {AViewerPlugin} from './AViewerPlugin'
 
 // todo make proper event map
 export interface IViewerEvent extends BaseEvent, Partial<IAnimationLoopEvent> {
-    type: '*'|'update'|'preRender'|'postRender'|'preFrame'|'postFrame'|'dispose'|'addPlugin'|'removePlugin'|'renderEnabled'|'renderDisabled'|'renderError'
-    eType?: '*'|'update'|'preRender'|'postRender'|'preFrame'|'postFrame'|'dispose'|'addPlugin'|'removePlugin'|'renderEnabled'|'renderDisabled'|'renderError'
+    type: '*'|'update'|'preRender'|'postRender'|'preFrame'|'postFrame'|'dispose'|'addPlugin'|'removePlugin'|'renderEnabled'|'renderDisabled'|'renderError'|'viewerEnabled'|'viewerDisabled'
+    eType?: '*'|'update'|'preRender'|'postRender'|'preFrame'|'postFrame'|'dispose'|'addPlugin'|'removePlugin'|'renderEnabled'|'renderDisabled'|'renderError'|'viewerEnabled'|'viewerDisabled'
     [p: string]: any
 }
 export type IViewerEventTypes = IViewerEvent['type']
@@ -332,8 +332,10 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
 
     /**
      * If the viewer is enabled. Set this `false` to disable RAF loop.
+     * It is also false while the WebGL context is lost. A change dispatches `viewerEnabled` or `viewerDisabled`.
      */
-    enabled = true
+    @onChange(ThreeViewer.prototype._enabledChanged)
+        enabled = true
 
     /**
      * Enable or disable all rendering.
@@ -723,24 +725,52 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
         })
         // the animation loop sends no postFrame while the viewer is disabled
         if (!this.renderEnabled || !this.enabled) return blobPromise()
-        return await this.doOnce('postFrame', async() => {
-            this.renderEnabled = false
-            const blob = await blobPromise()
-            this.renderEnabled = true
-            return blob
-        })
+        // no frame came (the viewer was disabled or disposed while waiting), or rendering was paused: the canvas as it is
+        if (!await this.nextFrame() || !this.renderEnabled) return blobPromise()
+        this.renderEnabled = false
+        const blob = await blobPromise()
+        this.renderEnabled = true
+        return blob
     }
 
     /**
      * Returns a data URL with the screenshot of the canvas, after the next frame. When rendering is paused
      * ({@link renderEnabled}) or the viewer is disabled ({@link enabled}, also after a lost WebGL context), the canvas is
-     * read as it is.
+     * read as it is, also when the viewer is disabled before the next frame.
      * @param mimeType default image/jpeg
      * @param quality between 0 and 1
      */
     async getScreenshotDataUrl({mimeType = 'image/jpeg', quality = 0.9} = {}): Promise<string | null | undefined> {
         if (!this.renderEnabled || !this.enabled) return this._canvas.toDataURL(mimeType, quality)
-        return await this.doOnce('postFrame', () => this._canvas.toDataURL(mimeType, quality))
+        await this.nextFrame()
+        return this._canvas.toDataURL(mimeType, quality)
+    }
+
+    /**
+     * Waits for the next frame (the `postFrame` event). The wait also ends when the viewer is disabled ({@link enabled},
+     * also when the WebGL context is lost) or disposed before the frame, since the animation loop sends no `postFrame`
+     * then. A viewer that is disabled already does not wait.
+     *
+     * The code after the `await` runs in the same animation frame, before the browser shows it, so it can read the canvas
+     * of that frame. A frame can come while rendering is paused ({@link renderEnabled}): check it to know if the frame
+     * rendered.
+     * @returns `true` after a frame, `false` when the wait ended without one
+     */
+    async nextFrame(): Promise<boolean> {
+        if (!this.enabled) return false
+        return new Promise<boolean>(resolve => {
+            const end = (frame: boolean) => () => {
+                this.removeEventListener('postFrame', onFrame)
+                this.removeEventListener('viewerDisabled', onStop)
+                this.removeEventListener('dispose', onStop)
+                resolve(frame)
+            }
+            const onFrame = end(true)
+            const onStop = end(false)
+            this.addEventListener('postFrame', onFrame)
+            this.addEventListener('viewerDisabled', onStop)
+            this.addEventListener('dispose', onStop)
+        })
     }
 
     /**
@@ -1610,6 +1640,10 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
             }
         } else p = plugin as T
         return p
+    }
+
+    private _enabledChanged(): void {
+        this.dispatchEvent({type: this.enabled ? 'viewerEnabled' : 'viewerDisabled'})
     }
 
     private _renderEnabledChanged(): void {
