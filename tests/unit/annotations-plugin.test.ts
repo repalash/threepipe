@@ -2,7 +2,7 @@ import {afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi} 
 import {BoxGeometry, InstancedMesh, Matrix4, Mesh, MeshBasicMaterial, Object3D, PerspectiveCamera, Quaternion, Vector3} from 'three'
 import {PopmotionPlugin, UndoManagerPlugin} from 'threepipe'
 import {AnnotationsPlugin} from '../../plugins/annotations/src/AnnotationsPlugin'
-import {renderAnnotationText} from '../../plugins/annotations/src/render-text'
+import {escapeHtml, renderAnnotationText} from '../../plugins/annotations/src/render-text'
 
 type Listener = (e: any) => void
 const noop = () => undefined
@@ -44,6 +44,11 @@ class FakeElement {
         c.parent = this
         this.children.push(c)
         return c
+    }
+    replaceChildren(...nodes: FakeElement[]) {
+        for (const c of [...this.children]) c.remove()
+        this.innerHTML = ''
+        for (const c of nodes) this.appendChild(c)
     }
     insertBefore(c: FakeElement, before: FakeElement) {
         c.remove()
@@ -510,6 +515,125 @@ describe('AnnotationsPlugin', () => {
         plugin.showCloseButton = true
         expect(x.style.display).toBe('')
         expect((plugin.uiConfig.children as any[]).find(c => c.property?.[1] === 'showCloseButton')?.type).toBe('checkbox')
+    })
+
+    describe('renderCardContent: the app renders the card content', () => {
+        const custom = (layer: FakeElement) => card(layer).find('anp-custom')[0]
+        /** Two annotations; the first has data.price */
+        const twoWithData = (editable = false) => {
+            const s = setup(editable)
+            s.plugin.add(s.box as any, front, normal, null, {title: 'Ring', text: 'Gold', data: {price: 1200}})
+            s.plugin.add(s.box as any, front, normal, null, {title: 'Plain'})
+            return s
+        }
+
+        test('a string is the HTML of the content (in place of the title and the text); the ✕ and the tour bar stay; undefined: the default card', () => {
+            const {plugin, layer, canvas} = twoWithData()
+            plugin.compactCard = true
+            plugin.renderCardContent = (a, ctx) => a.data ? `<b>${a.data.price}</b> ${ctx.index + 1}/${ctx.count}` : undefined
+            plugin.goTo(0)
+            const c = card(layer)
+            expect(custom(layer).innerHTML).toBe('<b>1200</b> 1/2')
+            expect(custom(layer).style.display).toBe('')
+            expect(c.classList.contains('anp-has-custom')).toBe(true)
+            expect(c.find('anp-title')[0].style.display).toBe('none')
+            expect(c.find('anp-text')[0].style.display).toBe('none')
+            expect(c.find('anp-x')[0].style.display).toBe('')
+            expect(layer.find('anp-bar')[0].find('anp-bar-title')[0].textContent).toBe('Ring')
+            // a click in the content keeps the card open (it is not the canvas)
+            windowListeners.get('pointerdown')!({target: custom(layer), clientX: 10, clientY: 10})
+            windowListeners.get('pointerup')!({target: custom(layer), clientX: 10, clientY: 10})
+            expect(plugin.openId).toBe(plugin.get(0)!.id)
+            // the hook returns undefined for the second: the default card
+            plugin.next()
+            expect(custom(layer).style.display).toBe('none')
+            expect(custom(layer).innerHTML).toBe('')
+            expect(c.classList.contains('anp-has-custom')).toBe(false)
+            expect(c.find('anp-title')[0].style.display).toBe('')
+            expect(c.find('anp-title')[0].textContent).toBe('Plain')
+            expect(canvas).toBeTruthy()
+        })
+
+        test('an element is put in the content; the hook runs again when another annotation opens, on a change, and when it is set', () => {
+            const {plugin, layer} = twoWithData()
+            plugin.goTo(0)
+            expect(custom(layer).style.display).toBe('none')
+            const calls: string[] = []
+            plugin.renderCardContent = a => {
+                calls.push(a.title)
+                const e = document.createElement('div')
+                e.textContent = a.title
+                return e
+            }
+            // set while a card is open: it renders at once
+            expect(calls).toEqual(['Ring'])
+            expect(custom(layer).children.map(e => e.textContent)).toEqual(['Ring'])
+            plugin.next()
+            expect(custom(layer).children.map(e => e.textContent)).toEqual(['Plain'])
+            plugin.update(plugin.get(1)!.id, {title: 'Plain 2'})
+            expect(custom(layer).children.map(e => e.textContent)).toEqual(['Plain 2'])
+            expect(calls.slice(-2)).toEqual(['Plain', 'Plain 2'])
+            plugin.renderCardContent = undefined
+            expect(custom(layer).children).toHaveLength(0)
+            expect(card(layer).find('anp-title')[0].textContent).toBe('Plain 2')
+        })
+
+        test('editable: the default editor card shows, the hook is not called; not editable again: the hook renders', () => {
+            const {plugin, layer} = twoWithData(true)
+            const hook = vi.fn(() => '<i>custom</i>')
+            plugin.renderCardContent = hook
+            plugin.goTo(0)
+            expect(hook).not.toHaveBeenCalled()
+            expect(card(layer).classList.contains('anp-edit')).toBe(true)
+            expect(custom(layer).style.display).toBe('none')
+            plugin.editable = false
+            expect(custom(layer).innerHTML).toBe('<i>custom</i>')
+        })
+
+        test('a hook that throws: the default card, and the error in the console', () => {
+            const {plugin, layer} = twoWithData()
+            const err = vi.spyOn(console, 'error').mockImplementation(noop)
+            try {
+                plugin.renderCardContent = () => {
+                    throw new Error('app bug')
+                }
+                plugin.goTo(0)
+                expect(custom(layer).style.display).toBe('none')
+                expect(card(layer).find('anp-title')[0].textContent).toBe('Ring')
+                expect(err).toHaveBeenCalled()
+            } finally {
+                err.mockRestore()
+            }
+        })
+
+        test('data: saved and loaded as plain JSON (also keys the serializer reads as its own), undoable with update(); the default card does not show it', () => {
+            const {plugin, layer, box, undo} = setup(false)
+            const data = {price: 1200, type: 'ring', html: '<img src=x onerror=alert(1)>', nested: {uuid: 'u', resource: 'textures', list: [1, {isColor: true, r: 1}]}}
+            const a = plugin.add(box as any, front, normal, null, {title: '<img src=x onerror=alert(1)>', text: '<script>x</script>', data})
+            plugin.add(box as any, front, normal, null)
+            const json = JSON.parse(JSON.stringify(plugin.toJSON()))
+            expect(json.annotations[0].data).toEqual(data)
+            expect('data' in json.annotations[1]).toBe(false)
+            const other = new AnnotationsPlugin()
+            other.fromJSON(json)
+            expect(other.get(0)!.data).toEqual(data)
+            expect(other.get(0)!.data).not.toBe(json.annotations[0].data) // a copy
+            expect('data' in other.get(1)!).toBe(false)
+            // not an object: dropped
+            other.fromJSON({...json, annotations: [{...json.annotations[0], data: 'x'}]})
+            expect('data' in other.get(0)!).toBe(false)
+            // update: one undo step
+            undo.length = 0
+            plugin.update(a.id, {data: {price: 900}})
+            expect(plugin.get(a.id)!.data).toEqual({price: 900})
+            undo[0].undo()
+            expect(plugin.get(a.id)!.data).toEqual(data)
+            // the default card escapes the text and does not render the data
+            plugin.goTo(a.id)
+            const text = card(layer).find('anp-text')[0].innerHTML
+            expect(text).toBe('&lt;script&gt;x&lt;/script&gt;')
+            expect(card(layer).all().some(e => e.innerHTML.includes('onerror'))).toBe(false)
+        })
     })
 
     describe('compactCard and the tour bar', () => {
@@ -1249,5 +1373,9 @@ describe('renderAnnotationText', () => {
             .toBe('at <a href="https://threepipe.org" target="_blank" rel="noopener noreferrer">https://threepipe.org</a>, ok')
         expect(renderAnnotationText('a\n- one\n- two')).toBe('a<br><span class="anp-li">one</span><br><span class="anp-li">two</span>')
         expect(renderAnnotationText('[x](javascript:alert(1))')).toBe('[x](javascript:alert(1))')
+    })
+
+    test('escapeHtml escapes text and attribute values, for the HTML of renderCardContent', () => {
+        expect(escapeHtml(`<a href="x">Tom & 'Jerry'</a>`)).toBe('&lt;a href=&quot;x&quot;&gt;Tom &amp; &#39;Jerry&#39;&lt;/a&gt;')
     })
 })

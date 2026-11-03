@@ -49,6 +49,10 @@
 .anp-text a { color: var(--anp-accent); }
 .anp-li { display: inline-block; padding-left: 12px; text-indent: -12px; }
 .anp-li::before { content: "• "; }
+/* renderCardContent: the app's content in place of the title and the text; the head (the ✕) over the top-right corner */
+.anp-custom { flex: 0 1 auto; min-height: 0; overflow: auto; padding: 12px; overflow-wrap: anywhere; }
+.anp-has-custom .anp-head { position: absolute; top: 0; right: 0; padding: 8px; z-index: 1; }
+.anp-has-custom:not(.anp-no-close) .anp-custom { padding-right: 36px; }
 /* the text field: its text where the text's is (7px margin + 1px border + 4px padding) */
 .anp-text-in { display: none; flex: 0 1 auto; box-sizing: border-box; width: calc(100% - 14px); min-height: 64px; margin: 0 7px 8px; padding: 4px;
   font: inherit; color: inherit; resize: none; border: 1px solid var(--anp-line); border-radius: 4px; background: var(--anp-input); outline: none; }

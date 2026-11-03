@@ -30,3 +30,15 @@ annotations.closeOnCanvasInteraction = true // any click, drag or wheel zoom on 
 annotations.compactCard = true // title and text only, ‹ title › in a tour bar at the bottom that fades while the camera moves
 annotations.showCloseButton = false // no ✕ in the card (Esc and a click on the canvas still close it)
 ```
+
+A custom card from the app's values (`data` is saved with the annotation; the hook is used when `editable` is off):
+
+```typescript
+import {escapeHtml, renderAnnotationText} from '@threepipe/plugin-annotations'
+
+annotations.add(object, localPoint, localNormal, undefined, {title: 'Stone', text: 'Round brilliant', data: {price: 1200}})
+annotations.renderCardContent = (a) => a.data?.price === undefined ? undefined : // undefined: the default card
+    `<b>${escapeHtml(a.title)}</b><div>${renderAnnotationText(a.text)}</div><p>$${escapeHtml(String(a.data.price))}</p>`
+```
+
+A string from the hook is set as HTML as is: escape the values that come from a file or a user.

@@ -59,7 +59,26 @@ export interface Annotation {
     anchor: AnnotationAnchor
     /** Camera view to go to when the annotation is opened. null: the camera stays */
     view: AnnotationView | null
+    /**
+     * Values of the app (a price, a product id…) for {@link AnnotationsPlugin.renderCardContent}. Plain JSON: saved with
+     * the annotation (viewer config, .glb) and loaded as is. The default card never shows it. Change it with
+     * {@link AnnotationsPlugin.update} (a new object, undoable), not in place.
+     */
+    data?: Record<string, any>
 }
+
+/**
+ * Renders the content of the card for an annotation: the title and the text area ({@link AnnotationsPlugin.renderCardContent}).
+ * A string is set as the HTML of the content as is: escape the values that come from a file or a user
+ * (`escapeHtml`, `renderAnnotationText`). An element is put in the content. `undefined` or `null`: the default content.
+ */
+export type AnnotationCardRenderer = (annotation: Annotation, context: {
+    /** The place of the annotation in the tour */
+    index: number
+    /** The number of annotations */
+    count: number
+    plugin: AnnotationsPlugin
+}) => string | HTMLElement | null | undefined
 
 export interface AnnotationsPluginEventMap extends AViewerPluginEventMap {
     /** The list or an annotation changed (also on undo/redo and on load from a file) */
@@ -111,6 +130,8 @@ interface Hit {
  *   {@link closeOnCanvasInteraction}, any interaction with the canvas closes it: also a drag (orbit) or a wheel zoom.
  * - Tour: {@link goTo}, {@link next}, {@link prev}, {@link playTour}; events `annotationChange` and `annotationSelect`
  *   for an outside list.
+ * - {@link renderCardContent}: the app renders the content of the card (not in editable mode), for example from the
+ *   values in {@link Annotation.data}.
  * - {@link compactCard}: the card shows the title and the text only, and a tour bar at the bottom centre has ‹ the title
  *   of the open annotation ›. The bar fades while the user moves the camera ({@link tourBar}). {@link showCloseButton}
  *   hides the ✕ of the card.
@@ -169,11 +190,12 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
 
     private _editable: boolean
     private _showCloseButton = true
+    private _renderCardContent?: AnnotationCardRenderer
     private _compactCard = false
     private _layer?: HTMLDivElement
     private _card?: HTMLDivElement
     private _cardEls!: {
-        head: HTMLElement, title: HTMLElement, titleIn: HTMLInputElement, close: HTMLButtonElement, text: HTMLElement,
+        head: HTMLElement, title: HTMLElement, titleIn: HTMLInputElement, close: HTMLButtonElement, custom: HTMLElement, text: HTMLElement,
         textIn: HTMLTextAreaElement, nav: HTMLElement, pos: HTMLElement, prev: HTMLButtonElement, next: HTMLButtonElement,
         tools: HTMLElement, view: HTMLButtonElement,
     }
@@ -246,6 +268,28 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         this._showCloseButton = v
         this._renderCard()
         this.uiConfig.uiRefresh?.(true, 'postFrame')
+    }
+
+    /**
+     * A hook for the app: renders the content of the card (in place of the title and the text) when `editable` is off.
+     * The ✕, the ‹ › of the card and the tour bar of {@link compactCard} stay; in editable mode the default editor card
+     * shows. It runs when an annotation opens, when the annotations change, and when it is set: set it again to render
+     * the open card again (for app state it reads). Returning `undefined` gives the default content, and so does an
+     * error (logged). A string is set as HTML as is, so escape what comes from a file or a user (`escapeHtml`,
+     * `renderAnnotationText`). Clicks and keys in the content do not reach the viewer, as in the default card.
+     * @example
+     * ```ts
+     * annotations.renderCardContent = (a, {index}) => a.data?.price === undefined ? undefined :
+     *     `<h3>${escapeHtml(a.title)}</h3><p>${renderAnnotationText(a.text)}</p><b>$${escapeHtml(String(a.data.price))}</b>`
+     * ```
+     */
+    get renderCardContent(): AnnotationCardRenderer | undefined {
+        return this._renderCardContent
+    }
+
+    set renderCardContent(v: AnnotationCardRenderer | undefined) {
+        this._renderCardContent = v
+        this._renderCard()
     }
 
     /**
@@ -343,18 +387,38 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         super.onRemove(viewer)
     }
 
+    toJSON(meta?: SerializationMetaType): ISerializedConfig {
+        const json = super.toJSON(meta)
+        // `data` is the app's plain JSON: copied as is (the serializer reads some keys, like `uuid` + `resource`, as its own)
+        const list = json.annotations as any[] | undefined
+        this.annotations.forEach((a, i) => {
+            const item = list?.[i]
+            if (!item) return
+            if (isPlainObject(a.data)) item.data = jsonCopy(a.data)
+            else delete item.data
+        })
+        return json
+    }
+
     fromJSON(data: ISerializedConfig, meta?: SerializationMetaType): this | null {
         if (data.type !== AnnotationsPlugin.PluginType) return null
         // the deserializer fills an existing array in place and keeps extra items, so start from an empty one
         this.annotations = []
         if (!super.fromJSON(data, meta)) return null
-        this.annotations = (this.annotations || []).filter(a => a && a.id && a.anchor && Array.isArray(a.anchor.point)).map(a => ({
-            id: String(a.id),
-            title: a.title || '',
-            text: a.text || '',
-            anchor: {...a.anchor, normal: Array.isArray(a.anchor.normal) ? a.anchor.normal : [0, 1, 0]},
-            view: a.view && Array.isArray(a.view.position) ? a.view : null,
-        }))
+        // `data` from the file as is, see toJSON
+        const appData = new Map<string, unknown>((Array.isArray(data.annotations) ? data.annotations : []).map((r: any) => [String(r?.id), r?.data]))
+        this.annotations = (this.annotations || []).filter(a => a && a.id && a.anchor && Array.isArray(a.anchor.point)).map(a => {
+            const item: Annotation = {
+                id: String(a.id),
+                title: a.title || '',
+                text: a.text || '',
+                anchor: {...a.anchor, normal: Array.isArray(a.anchor.normal) ? a.anchor.normal : [0, 1, 0]},
+                view: a.view && Array.isArray(a.view.position) ? a.view : null,
+            }
+            const d = appData.get(item.id)
+            if (isPlainObject(d)) item.data = jsonCopy(d)
+            return item
+        })
         this.stopTour()
         // ThreeViewer.fromJSON loads the plugins before the scene: a flight would move the camera of the loaded config
         this._stopAnim()
@@ -422,9 +486,9 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
     /**
      * Add an annotation on `object` at a point and normal in its local space. `view` defaults to the current camera view.
      * `content.instanceId`: an instance of an InstancedMesh, the point and the normal are then in that instance's space.
-     * Undoable. Returns the new annotation.
+     * `content.data`: values of the app ({@link Annotation.data}). Undoable. Returns the new annotation.
      */
-    add(object: IObject3D, localPoint: Vector3, localNormal: Vector3, view?: AnnotationView | null, content: {title?: string, text?: string, instanceId?: number} = {}): Annotation {
+    add(object: IObject3D, localPoint: Vector3, localNormal: Vector3, view?: AnnotationView | null, content: {title?: string, text?: string, instanceId?: number, data?: Record<string, any>} = {}): Annotation {
         const a: Annotation = {
             id: MathUtils.generateUUID(),
             title: content.title ?? '',
@@ -432,6 +496,7 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
             anchor: this._makeAnchor(object, localPoint, localNormal, content.instanceId),
             view: view === undefined ? this.captureView() : view,
         }
+        if (content.data) a.data = content.data
         const index = this.annotations.length
         this._insert(a, index)
         this._record(() => this._delete(a.id), () => this._insert(a, index))
@@ -460,8 +525,8 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         this._record(() => set(before), () => set([]))
     }
 
-    /** Change the title, text or view of an annotation. Undoable. */
-    update(id: string, patch: Partial<Pick<Annotation, 'title' | 'text' | 'view'>>) {
+    /** Change the title, text, view or data of an annotation. Undoable. */
+    update(id: string, patch: Partial<Pick<Annotation, 'title' | 'text' | 'view' | 'data'>>) {
         const a = this.get(id)
         if (!a) return
         const before: typeof patch = {}
@@ -996,6 +1061,9 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         titleIn.placeholder = 'Title'
         titleIn.spellcheck = true
         const close = button(head, 'anp-btn anp-x', ICONS.close, 'Close (Esc)', () => this.close())
+        // the content of renderCardContent, in place of the title and the text
+        const custom = el('div', 'anp-custom', card)
+        custom.style.display = 'none'
         const text = el('div', 'anp-text', card)
         const textIn = el('textarea', 'anp-text-in', card)
         textIn.rows = 2
@@ -1009,7 +1077,7 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         const tools = el('div', 'anp-tools', nav)
         const view = button(tools, 'anp-btn anp-view', ICONS.view + '<span>Update view</span>', 'Save the current camera view in this annotation', () => this.updateView())
         button(tools, 'anp-btn anp-del', ICONS.delete, 'Delete this annotation', () => this._openId && this.remove(this._openId))
-        this._cardEls = {head, title, titleIn, close, text, textIn, nav, pos, prev, next, tools, view}
+        this._cardEls = {head, title, titleIn, close, custom, text, textIn, nav, pos, prev, next, tools, view}
         card.addEventListener('pointerdown', e => {
             e.stopPropagation()
             this.stopTour()
@@ -1098,9 +1166,16 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         const n = this.annotations.length
         card.classList.toggle('anp-edit', this._editable)
         card.classList.toggle('anp-text-empty', !a.text.trim())
+        const content = this._editable ? undefined : this._appContent(a, i, n)
+        const custom = content !== undefined
+        card.classList.toggle('anp-has-custom', custom)
+        if (typeof content === 'string') els.custom.innerHTML = content
+        else els.custom.replaceChildren(...content ? [content] : [])
+        els.custom.style.display = custom ? '' : 'none'
+        els.title.style.display = custom ? 'none' : ''
         els.title.textContent = a.title || `Annotation ${i + 1}`
         els.text.innerHTML = renderAnnotationText(a.text)
-        els.text.style.display = a.text.trim() ? '' : 'none'
+        els.text.style.display = a.text.trim() && !custom ? '' : 'none'
         if (document.activeElement !== els.titleIn && els.titleIn.value !== a.title) els.titleIn.value = a.title
         if (document.activeElement !== els.textIn && els.textIn.value !== a.text) els.textIn.value = a.text
         if (this._editable) requestAnimationFrame(() => this._autosize())
@@ -1110,11 +1185,24 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         this._cardSize.w = 0 // measure again
     }
 
+    /** The content of {@link renderCardContent} for an annotation, or undefined for the default content */
+    private _appContent(a: Annotation, index: number, count: number): string | HTMLElement | undefined {
+        const hook = this._renderCardContent
+        if (!hook) return undefined
+        try {
+            return hook(a, {index, count, plugin: this}) ?? undefined
+        } catch (e) {
+            console.error('AnnotationsPlugin: renderCardContent failed, the default card is shown', e)
+            return undefined
+        }
+    }
+
     /** The ✕ ({@link showCloseButton}), and with {@link compactCard}: no bottom row, the tools in the head before the ✕ */
     private _layoutCard(card: HTMLDivElement) {
         const els = this._cardEls
         const compact = this._compactCard
         card.classList.toggle('anp-compact', compact)
+        card.classList.toggle('anp-no-close', !this._showCloseButton)
         els.close.style.display = this._showCloseButton ? '' : 'none'
         els.nav.style.display = compact ? 'none' : ''
         const parent = compact ? els.head : els.nav
@@ -1315,6 +1403,16 @@ const ICONS = {
     // a viewfinder with a check: "set this view"
     view: svg('<path d="M3 8V5a2 2 0 0 1 2-2h3"/><path d="M16 3h3a2 2 0 0 1 2 2v3"/><path d="M21 16v3a2 2 0 0 1-2 2h-3"/><path d="M8 21H5a2 2 0 0 1-2-2v-3"/><path d="m8.5 12 2.5 2.5 4.5-4.5"/>'),
     delete: svg('<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>'),
+}
+
+/** An object, not an array or null */
+function isPlainObject(v: unknown): v is Record<string, any> {
+    return !!v && typeof v === 'object' && !Array.isArray(v)
+}
+
+/** A deep copy of plain JSON (functions and undefined values are dropped) */
+function jsonCopy<T>(v: T): T {
+    return JSON.parse(JSON.stringify(v))
 }
 
 /** A new element with a class, added to `parent` */

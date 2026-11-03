@@ -58,6 +58,29 @@ annotations.addEventListener('annotationSelect', e => console.log('open', e.anno
 - **Closing the card.** The card stays open until its close button, Esc, or a click (no drag) on the canvas; it stays while the camera orbits. With `closeOnCanvasInteraction` (default `false`, also in the UI folder), any interaction with the canvas closes it: a click, a drag (orbit, a touch drag or a pinch) as soon as the pointer moves 4 px, and a wheel zoom. Only the primary button and touch count, and not while placing or dragging a marker. A click on a marker opens that marker's card. Like `editable`, the option is set by the page and is not saved with the scene.
 - **Card options** (also in the UI folder, not saved with the scene). `showCloseButton` (default `true`) shows the ✕ of the card; without it, Esc and a click on the canvas still close the card. `compactCard` (default `false`) is for a viewer with a tour, like Sketchfab's: the card shows the title and the text only, and a dark tour bar at the bottom centre has ‹ the title of the open annotation › (← / → work too). In editable mode, "Update view" and "Delete" move to the top of the card, before the ✕. The bar shows while an annotation is open (also during `playTour`), fades while the user moves the camera (a drag past 4 px or a wheel on the canvas), and shows again 400 ms after the pointer up or the last wheel event. `tourBar` reads its state: `'hidden'`, `'shown'` or `'faded'`.
 
+## Custom card
+
+An app can render the content of the card itself: `renderCardContent` gets the annotation and returns HTML (a string), an element, or `undefined` for the default content. It replaces the title and the text; the ✕ stays in the top-right corner (the content keeps room for it on the right), and the ‹ › of the card and the tour bar of `compactCard` work as before. Each annotation has a free `data` field for the app's values (a price, a product id), saved with it in the viewer config and the .glb as plain JSON. The default card never shows `data`.
+
+```typescript
+import {escapeHtml, renderAnnotationText} from '@threepipe/plugin-annotations'
+
+const stone = annotations.add(object, localPoint, localNormal, undefined, {title: 'Stone', text: '**Round brilliant**', data: {price: 1200, sku: 'RB-100'}})
+annotations.update(stone.id, {data: {price: 990, sku: 'RB-100'}}) // a new object, undoable
+
+annotations.renderCardContent = (a, {index, count}) => {
+    if (a.data?.price === undefined) return undefined // the default card
+    return `<b>${escapeHtml(a.title)}</b>
+        <div>${renderAnnotationText(a.text)}</div>
+        <p>$${escapeHtml(String(a.data.price))} · ${index + 1} of ${count}</p>`
+}
+```
+
+- **When it runs.** When an annotation opens, when the annotations change (also `update` of `data`), and when the hook is set. Set it again to render the open card again for app state that it reads. An error in the hook is logged, and the default card shows.
+- **Editable mode.** The hook is used only when `editable` is off. In editable mode the default editor card shows, so the title and the text stay editable.
+- **Security.** A string is set as the HTML of the card as is. The title, the text and `data` come from the loaded file, so escape them: `escapeHtml(value)` for plain values, `renderAnnotationText(text)` for the formatted text (both escape everything else). Do not put unescaped file or user values into the HTML.
+- **Clicks and keys.** A click, a drag or a wheel in the content does not reach the viewer, and Esc and ← → work as in the default card. Keys typed in an `<input>` or a `<textarea>` in the content stay there.
+
 ## Notes
 
 - The markers and the card are in a layer over the canvas (`z-index: 110`), in the viewer container. The container must be positioned (for example `position: relative`) for the layer to cover only the canvas.
