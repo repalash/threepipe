@@ -193,3 +193,16 @@ describe('offscreen snapshot', () => {
         expect(object.layers.isEnabled(5)).toBe(false)
     })
 })
+
+describe('renderer mode flags', () => {
+    it('renderWithModes puts back the flags when the render throws', () => {
+        const r = tp.upgradeWebGLRenderer.call({userData: {screenSpaceRendering: undefined, backgroundRender: true}} as any, {} as any)
+        expect(() => r.renderWithModes({screenSpaceRendering: false, backgroundRender: false, shadowMapRender: false}, () => {
+            expect(r.userData.screenSpaceRendering).toBe(false)
+            throw new Error('material hook failed')
+        })).toThrow('material hook failed')
+        expect(r.userData.screenSpaceRendering).toBeUndefined()
+        expect(r.userData.backgroundRender).toBe(true)
+        expect(r.userData.shadowMapRender).toBeUndefined()
+    })
+})
