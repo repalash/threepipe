@@ -104,6 +104,7 @@ export {LineGeometryGenerator, type LineGeometryGeneratorParams} from './geometr
 export {createShapeFromPreset, reverseShapeWinding} from './geometry/helpers/ShapePresets'
 export {curveUiConfigs, createCurveTypeDropdown, createCurvePropertyUi, type CurveUiEntry, type SupportedCurveTypes} from './geometry/helpers/CurveUiHelper'
 export {ShapeTubeExtrudePlugin} from './geometry/ShapeTubeExtrudePlugin'
+export {PathEditPlugin, type PathEditPluginEventMap} from './geometry/PathEditPlugin'
 
 // extras
 export {HDRiGroundPlugin} from './extras/HDRiGroundPlugin'
