@@ -101,6 +101,17 @@ async function assertFree(c: Context<CloudEnv>, user: CloudUser, folder: string,
     if (await taken(c, user.id, folder, name, except)) throw new HTTPException(409, {message: `'${name}' exists in this folder`})
 }
 
+/**
+ * The SQL condition that the folder `p` (a placeholder like `?3`) of owner `o` exists, or is the root. Every write that
+ * puts something in a folder carries it, and deleting a folder checks that it is empty in the same statement: D1 runs one
+ * statement at a time, so a folder deleted while something is added to it cannot leave the new child unreachable.
+ */
+const parentExists = (p: string, o: string) => `(${p} = '' OR EXISTS (SELECT 1 FROM drive_folders WHERE id = ${p} AND owner_id = ${o}))`
+/** A write that put nothing because its folder was deleted meanwhile (parentExists). */
+function placed(r: D1Result) {
+    if (!r.meta.changes) throw new HTTPException(404, {message: 'the folder was deleted'})
+}
+
 /** A write that names something: when a request at the same time took the name, the unique index refuses it (409). */
 async function naming<T>(name: string, write: Promise<T>): Promise<T> {
     try {
@@ -156,7 +167,8 @@ const checked = new WeakSet<CloudUser>()
 /** Creates the folder `name` under `parent` (the folder made for an app on connect too, marked with `app`). */
 export async function createFolder(c: Context<CloudEnv>, ownerId: string, parent: string, name: string, app?: string): Promise<Folder> {
     const id = randomCode(12)
-    await naming(name, c.env.PRIMARY_DB.prepare('INSERT INTO drive_folders (id, owner_id, parent_id, name, app) VALUES (?, ?, ?, ?, ?)').bind(id, ownerId, parent, name, app ?? null).run())
+    placed(await naming(name, c.env.PRIMARY_DB.prepare(`INSERT INTO drive_folders (id, owner_id, parent_id, name, app) SELECT ?1, ?2, ?3, ?4, ?5
+            WHERE ${parentExists('?3', '?2')}`).bind(id, ownerId, parent, name, app ?? null).run()))
     return {id, name, parent_id: parent}
 }
 
@@ -369,7 +381,8 @@ export function driveRoutes(app: Hono<CloudEnv>) {
         if (parent !== f.parent_id && (await scopedChain(c, user, parent)).some(x => x.id === f.id))
             throw new HTTPException(400, {message: 'a folder cannot move into itself'})
         await assertFree(c, user, parent, name, f.id)
-        await naming(name, c.env.PRIMARY_DB.prepare('UPDATE drive_folders SET name = ?, parent_id = ? WHERE id = ?').bind(name, parent, f.id).run())
+        placed(await naming(name, c.env.PRIMARY_DB.prepare(`UPDATE drive_folders SET name = ?1, parent_id = ?2 WHERE id = ?3 AND ${parentExists('?2', '?4')}`)
+            .bind(name, parent, f.id, user.id).run()))
         return c.json(folderOut({id: f.id, name, parent_id: parent}))
     })
 
@@ -378,10 +391,11 @@ export function driveRoutes(app: Hono<CloudEnv>) {
         const f = await folderOf(c, user, c.req.param('id'))
         await scopedChain(c, user, f.id)
         if (user.scope === f.id) throw new HTTPException(403, {message: 'an app cannot delete its own folder'})
-        const inside = await c.env.PRIMARY_DB.prepare('SELECT 1 FROM drive_folders WHERE parent_id = ?1 AND owner_id = ?2 UNION ALL SELECT 1 FROM drive_items WHERE folder_id = ?1 AND owner_id = ?2 LIMIT 1')
-            .bind(f.id, user.id).first()
-        if (inside) throw new HTTPException(409, {message: 'the folder is not empty'})
-        await c.env.PRIMARY_DB.prepare('DELETE FROM drive_folders WHERE id = ?').bind(f.id).run()
+        // empty, checked in the same statement (parentExists)
+        const r = await c.env.PRIMARY_DB.prepare(`DELETE FROM drive_folders WHERE id = ?1 AND owner_id = ?2
+                AND NOT EXISTS (SELECT 1 FROM drive_folders WHERE parent_id = ?1 AND owner_id = ?2) AND NOT EXISTS (SELECT 1 FROM drive_items WHERE folder_id = ?1 AND owner_id = ?2)`)
+            .bind(f.id, user.id).run()
+        if (!r.meta.changes) throw new HTTPException(409, {message: 'the folder is not empty'})
         return c.json({deleted: f.id})
     })
 
@@ -394,7 +408,8 @@ export function driveRoutes(app: Hono<CloudEnv>) {
         const name = await freeName(c, user.id, folder, label(c.req.query('name')))
         const rel = name.replace(/[\\?#%]/g, '_').replace(/^\./, '_')
         const item: Item = {id: randomCode(16), name, folder_id: folder, entry: null, visibility: newVisibility(c.req.query('visibility')), size: 0, files_count: 0, created: '', updated: ''}
-        await naming(name, c.env.PRIMARY_DB.prepare('INSERT INTO drive_items (id, owner_id, folder_id, name, visibility) VALUES (?, ?, ?, ?, ?)').bind(item.id, user.id, folder, name, item.visibility).run())
+        placed(await naming(name, c.env.PRIMARY_DB.prepare(`INSERT INTO drive_items (id, owner_id, folder_id, name, visibility) SELECT ?1, ?2, ?3, ?4, ?5
+                WHERE ${parentExists('?3', '?2')}`).bind(item.id, user.id, folder, name, item.visibility).run()))
         try {
             await writeFile(c, user, item, rel)
         } catch (e) {
@@ -423,7 +438,8 @@ export function driveRoutes(app: Hono<CloudEnv>) {
             if (!entry) throw new HTTPException(400, {message: 'bad entry'})
         }
         const id = randomCode(16)
-        await naming(name, c.env.PRIMARY_DB.prepare('INSERT INTO drive_items (id, owner_id, folder_id, name, entry, visibility) VALUES (?, ?, ?, ?, ?, ?)').bind(id, user.id, folder, name, entry, visibility).run())
+        placed(await naming(name, c.env.PRIMARY_DB.prepare(`INSERT INTO drive_items (id, owner_id, folder_id, name, entry, visibility) SELECT ?1, ?2, ?3, ?4, ?5, ?6
+                WHERE ${parentExists('?3', '?2')}`).bind(id, user.id, folder, name, entry, visibility).run()))
         return c.json(itemOut(c, user, await itemOf(c, user, id)), 201)
     })
 
@@ -482,8 +498,13 @@ export function driveRoutes(app: Hono<CloudEnv>) {
         if (body.folder !== undefined) set.push(['folder_id', folder])
         if (body.visibility !== undefined) set.push(['visibility', visibility])
         if (body.entry !== undefined) set.push(['entry', entry])
-        if (set.length) await naming(name, c.env.PRIMARY_DB.prepare(`UPDATE drive_items SET ${set.map(([k]) => k + ' = ?').join(', ')} WHERE id = ?`)
-            .bind(...set.map(([, v]) => v), item.id).run())
+        // a move only into a folder that still exists (parentExists)
+        const into = body.folder !== undefined ? ` AND (? = '' OR EXISTS (SELECT 1 FROM drive_folders WHERE id = ? AND owner_id = ?))` : ''
+        if (set.length) {
+            const r = await naming(name, c.env.PRIMARY_DB.prepare(`UPDATE drive_items SET ${set.map(([k]) => k + ' = ?').join(', ')} WHERE id = ?${into}`)
+                .bind(...set.map(([, v]) => v), item.id, ...into ? [folder, folder, user.id] : []).run())
+            if (into) placed(r)
+        }
         // then each file that does not have it yet (sending the same visibility again repairs a change cut short)
         let after: Item | undefined
         if (body.visibility !== undefined) {
@@ -526,8 +547,15 @@ export function driveRoutes(app: Hono<CloudEnv>) {
         const oldBase = itemBase(user, item.id), id = randomCode(16), newBase = itemBase(user, id)
         const db = c.env.PRIMARY_DB, bucket = c.env.CLOUD_BUCKET
         const deleteKeys = async (keys: string[]) => { for (let i = 0; i < keys.length; i += 1000) await bucket.delete(keys.slice(i, i + 1000)) }
+        // 0. Old objects a change before could not delete (rows marked `deleted_at`, step 4) go first; R2 failing again
+        //    stops here, with the item as it is.
+        const {results: all} = await db.prepare('SELECT path, deleted_at FROM files WHERE item_id = ?').bind(item.id).all<{path: string, deleted_at: string | null}>()
+        const pending = all.filter(r => r.deleted_at).map(r => r.path), rows = all.filter(r => !r.deleted_at)
+        if (pending.length) {
+            await deleteKeys(pending)
+            await db.prepare('DELETE FROM files WHERE item_id = ? AND deleted_at IS NOT NULL').bind(item.id).run()
+        }
         // 1. The objects first, under the new id: until every one is there the item does not change (a failure leaves it as it was).
-        const {results: rows} = await db.prepare('SELECT path FROM files WHERE item_id = ?').bind(item.id).all<{path: string}>()
         const copied = new Map<string, string>() // file → the etag of the object copied
         for (const {path} of rows) {
             const rel = path.slice(oldBase.length)
@@ -539,7 +567,7 @@ export function driveRoutes(app: Hono<CloudEnv>) {
             if (etag) copied.set(rel, etag)
         }
         // 2. D1 in one batch: the item and its rows take the new id. An upload to the old id that registers after this
-        // cleans up after itself (writeFile) and gets a 409.
+        // cleans up after itself (writeFile) and gets a 409. (No row has `deleted_at` now: step 0.)
         const [, moved] = await db.batch([
             db.prepare('UPDATE drive_items SET id = ? WHERE id = ?').bind(id, item.id),
             db.prepare(`UPDATE files SET item_id = ?1, path = ?2 || substr(path, ?3) WHERE item_id = ?4 RETURNING path`).bind(id, newBase, oldBase.length + 1, item.id),
@@ -557,8 +585,19 @@ export function driveRoutes(app: Hono<CloudEnv>) {
         const now = await db.prepare('SELECT visibility FROM drive_items WHERE id = ?').bind(id).first<{visibility: Visibility}>()
         if (now) for (const rel of rels) if (!failed.includes(rel)) await setVisibility(c, newBase + rel, now.visibility)
         // 4. The old objects go, but those of files not copied again; copies of files deleted while 1 ran go too.
+        //    When R2 fails here, the keys left are kept as rows of the item marked `deleted_at` (not listed, not counted in the
+        //    quota): deleting the item or the next new id removes them, so the old links do not stay readable for good.
         const keep = new Set(failed), kept = new Set(rels)
-        await deleteKeys([...rels.filter(r => !keep.has(r)).map(r => oldBase + r), ...[...copied.keys()].filter(r => !kept.has(r)).map(r => newBase + r)])
+        const stale = [...rels.filter(r => !keep.has(r)).map(r => oldBase + r), ...[...copied.keys()].filter(r => !kept.has(r)).map(r => newBase + r)]
+        try {
+            await deleteKeys(stale)
+        } catch (e) {
+            await db.prepare(`INSERT INTO files (id, owner_id, bucket, prefix, path, size, item_id, deleted_at, deleted_reason)
+                    SELECT lower(hex(randomblob(16))), ?1, ?2, 'd', value, 0, ?3, ?4, 'new id: the old object is not deleted yet' FROM json_each(?5) WHERE true
+                    ON CONFLICT (bucket, path) DO NOTHING`).bind(user.id, BUCKET, id, new Date().toISOString(), JSON.stringify(stale)).run()
+            logError('new id: old objects not deleted; kept as pending rows', {item: id, keys: stale.length, error: String(e)})
+            throw new HTTPException(503, {message: `the item has the new id ${id}, but its old files could not be deleted yet; they go when you delete the item or change its id again`})
+        }
         if (failed.length) {
             logError('new id: files changed during the change were not copied again; their old objects stay', {item: id, from: oldBase, to: newBase, files: failed})
             throw new HTTPException(500, {message: `the item got the new id ${id}, but ${failed.length} file(s) uploaded during the change were not copied; upload them again`})
@@ -573,7 +612,8 @@ export function driveRoutes(app: Hono<CloudEnv>) {
         const deleteKeys = async (keys: string[]) => { for (let i = 0; i < keys.length; i += 1000) await c.env.CLOUD_BUCKET.delete(keys.slice(i, i + 1000)) }
         // The objects first: when R2 fails, the item and its rows are still there and deleting it again finishes the job
         // (the other way round, a failure would leave objects, maybe shared, that nothing lists).
-        const paths = (await itemFiles(c, item)).map(f => f.path)
+        // every row of the item, also old objects a new id could not delete yet (marked deleted_at)
+        const paths = (await db.prepare('SELECT path FROM files WHERE item_id = ?').bind(item.id).all<{path: string}>()).results.map(f => f.path)
         await deleteKeys(paths)
         const [rows] = await db.batch([
             db.prepare('DELETE FROM files WHERE item_id = ? RETURNING path').bind(item.id),
