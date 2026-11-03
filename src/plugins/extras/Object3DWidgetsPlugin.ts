@@ -11,8 +11,11 @@ import {
     PointLightHelper2,
     SkeletonHelper2,
     SpotLightHelper2,
+    WidgetIconMode,
+    WidgetIconOverlay,
 } from '../../three/widgets'
 import {PartialRecord} from '../../utils'
+import type {PickingPlugin} from '../interaction/PickingPlugin'
 
 export interface IObject3DHelper<T extends IWidget = IWidget>{
     Create: (o: IObject3D)=>T,
@@ -22,8 +25,8 @@ export interface IObject3DHelper<T extends IWidget = IWidget>{
 /**
  * Automatically creates and manages helper widgets for lights, cameras, lines, and skeletons.
  * Lights and cameras get a round icon that keeps its size in pixels and is drawn on top ({@link showIcons},
- * {@link iconSize}); a click on it selects the light or the camera. Each kind of light and camera has its own colour
- * for its icon and lines ({@link widgetKinds}).
+ * {@link iconSize}, {@link iconMode}); a click on it selects the light or the camera. Each kind of light and camera has
+ * its own colour for its icon and lines ({@link widgetKinds}).
  * Custom widget types can be registered via the `helpers` array.
  * See https://threepipe.org/notes/widgets-and-helpers for the full widget system documentation.
  * @category Plugins
@@ -51,6 +54,17 @@ export class Object3DWidgetsPlugin extends AViewerPluginSync {
     @onChange(Object3DWidgetsPlugin.prototype._optionsChanged)
         iconSize = 22
 
+    /**
+     * How the icons of lights and cameras are drawn. Changing it switches all icons at once.
+     * - `dom` (default): SVG elements in a layer over the canvas ({@link WidgetIconOverlay}). Sharp at any pixel ratio,
+     * and never in a render, screenshot or recording of the canvas. Not seen in WebXR; without a viewer container in a
+     * page (an offscreen canvas) the icons are sprites.
+     * - `sprite`: sprites in the scene ({@link WidgetIcon}), drawn at about one texel per device pixel. Seen in WebXR and
+     * with an offscreen canvas, and part of a render or screenshot of the canvas.
+     */
+    @onChange(Object3DWidgetsPlugin.prototype._optionsChanged)
+        iconMode: WidgetIconMode = 'dom'
+
     /** Draw the frustum of the shadow camera of directional and spot lights that cast shadows */
     @onChange(Object3DWidgetsPlugin.prototype._optionsChanged)
         showShadowFrustum = false
@@ -61,6 +75,7 @@ export class Object3DWidgetsPlugin extends AViewerPluginSync {
     }
 
     protected _optionsChanged() {
+        this._updateIconOverlay()
         this.widgets?.forEach(w => this._applyOptions(w))
         this._viewer?.setDirty()
     }
@@ -69,6 +84,7 @@ export class Object3DWidgetsPlugin extends AViewerPluginSync {
         if (w instanceof AHelperWidget) {
             w.showIcon = this.showIcons
             w.iconSize = this.iconSize
+            w.iconMode = this._iconOverlay ? 'dom' : 'sprite'
         }
         if (w instanceof ALightHelperWidget) w.showShadowFrustum = this.showShadowFrustum
     }
@@ -84,6 +100,35 @@ export class Object3DWidgetsPlugin extends AViewerPluginSync {
 
     private _widgetRoot = new Group2()
 
+    private _iconOverlay?: WidgetIconOverlay
+
+    /** The DOM layer of the icons, while {@link iconMode} is `dom` and the plugin is added to a viewer in a page */
+    get iconOverlay(): WidgetIconOverlay | undefined {
+        return this._iconOverlay
+    }
+
+    /** Makes or removes the DOM layer of the icons for {@link iconMode} */
+    protected _updateIconOverlay() {
+        const viewer = this._viewer
+        const dom = !!viewer && this.iconMode === 'dom' && typeof document !== 'undefined' && !!viewer.container?.appendChild
+        if (dom && !this._iconOverlay) {
+            this._iconOverlay = new WidgetIconOverlay(this._iconClick)
+            this._iconOverlay.attach(viewer.container, viewer.canvas)
+        } else if (!dom && this._iconOverlay) {
+            this._iconOverlay.dispose()
+            this._iconOverlay = undefined
+        }
+    }
+
+    /** A click on a DOM icon selects its object, as a click on a sprite icon does through the picker */
+    private _iconClick = (widget: AHelperWidget, e: MouseEvent) => {
+        const picking = this._viewer?.getPlugin<PickingPlugin>('PickingPlugin')
+        const object = widget.object
+        if (!picking || !object || picking.isDisabled()) return
+        if (picking.multiSelectEnabled && (e.shiftKey || e.ctrlKey || e.metaKey)) picking.toggleSelectedObject(object)
+        else picking.setSelectedObject(object)
+    }
+
     private _modelRoot?: IObject3D
 
     onAdded(viewer: ThreeViewer) {
@@ -93,6 +138,7 @@ export class Object3DWidgetsPlugin extends AViewerPluginSync {
         this._modelRoot = this.inSceneRoot ? viewer.scene : viewer.scene.modelRoot
 
         viewer.scene.addObject(this._widgetRoot, {addToRoot: true, autoScale: false, autoCenter: false})
+        this._updateIconOverlay()
 
         viewer.object3dManager.getObjects().forEach(object=>this._objectAdd({object}))
         viewer.object3dManager.addEventListener('objectAdd', this._objectAdd)
@@ -105,6 +151,8 @@ export class Object3DWidgetsPlugin extends AViewerPluginSync {
         viewer.object3dManager.getObjects().forEach(object=>this._objectRemove({object}))
         this.widgets.forEach(w => w.dispose && w.dispose())
         this.widgets = []
+        this._iconOverlay?.dispose()
+        this._iconOverlay = undefined
         this._widgetRoot.removeFromParent()
         this._widgetRoot.clear()
         super.onRemove(viewer)
@@ -120,6 +168,9 @@ export class Object3DWidgetsPlugin extends AViewerPluginSync {
     protected _viewerListeners: PartialRecord<IViewerEventTypes, (e: IViewerEvent)=>void> = {
         preRender: ()=>{
             this.widgets.forEach(w => w.preRender && w.preRender())
+        },
+        postRender: ()=>{
+            if (this._iconOverlay && this._viewer) this._iconOverlay.update(this.widgets, this._viewer.scene.mainCamera)
         },
     }
 
@@ -202,6 +253,15 @@ export class Object3DWidgetsPlugin extends AViewerPluginSync {
                 type: 'checkbox',
                 label: 'Show icons',
                 property: [this, 'showIcons'],
+            },
+            {
+                type: 'dropdown',
+                label: 'Icon mode',
+                property: [this, 'iconMode'],
+                children: [
+                    {label: 'DOM', value: 'dom'},
+                    {label: 'Sprite', value: 'sprite'},
+                ],
             },
             {
                 type: 'slider',

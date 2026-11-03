@@ -11,5 +11,14 @@ export {PointLightHelper2} from './PointLightHelper2'
 export {SkeletonHelper2} from './SkeletonHelper2'
 export {SpotLightHelper2} from './SpotLightHelper2'
 export {WidgetIcon} from './WidgetIcon'
-export {getWidgetDotTexture, getWidgetIconTexture, getWidgetKind, widgetIconLayout, widgetKinds} from './widgetKinds'
-export type {WidgetKind, WidgetKindStyle} from './widgetKinds'
+export {WidgetIconOverlay} from './WidgetIconOverlay'
+export {
+    createWidgetIconTexture,
+    getWidgetIconShapes,
+    getWidgetIconSvg,
+    getWidgetIconTextureSize,
+    getWidgetKind,
+    widgetIconLayout,
+    widgetKinds,
+} from './widgetKinds'
+export type {WidgetIconMode, WidgetIconShape, WidgetKind, WidgetKindStyle} from './widgetKinds'

@@ -2,7 +2,7 @@ import {Color, ColorRepresentation, Light, Object3D, PerspectiveCamera} from 'th
 import {generateUiFolder, IUiConfigContainer, uiToggle} from 'uiconfig.js'
 import {Group2, iObjectCommons, IObject3D, IWidget, LineMaterial2} from '../../core'
 import {onChange2} from 'ts-browser-helpers'
-import {getWidgetKind, WidgetKind, widgetKinds} from './widgetKinds'
+import {getWidgetKind, WidgetIconMode, WidgetKind, widgetKinds} from './widgetKinds'
 import {WidgetIcon} from './WidgetIcon'
 
 /**
@@ -45,8 +45,24 @@ export abstract class AHelperWidget extends Group2 implements IWidget {
         iconSize = 22
 
     /**
-     * The icon of the object: a sprite that keeps its size in pixels, drawn on top. Made when the object has a
-     * {@link kind} and {@link showIcon} is on.
+     * How the icon is drawn. `sprite`: the widget has an {@link icon} sprite in the scene. `dom`: the widget has no
+     * sprite, and a DOM overlay draws the icon (`WidgetIconOverlay`, made by `Object3DWidgetsPlugin`); a widget used
+     * without the plugin then shows no icon. Set for all widgets with `Object3DWidgetsPlugin.iconMode`.
+     */
+    @onChange2(AHelperWidget.prototype.update)
+        iconMode: WidgetIconMode = 'sprite'
+
+    /**
+     * Whether the icon is shown: the widget is attached to an object with a {@link kind} and {@link showIcon} is on.
+     * The visibility of the widget and its parents applies on top of it.
+     */
+    get hasIcon() {
+        return !!this.object && !!this.kind && this.showIcon
+    }
+
+    /**
+     * The icon of the object: a sprite that keeps its size in pixels, drawn on top. Made when the icon is shown
+     * ({@link hasIcon}) and {@link iconMode} is `sprite`.
      */
     icon: WidgetIcon | undefined
 
@@ -112,7 +128,7 @@ export abstract class AHelperWidget extends Group2 implements IWidget {
     }
 
     protected _updateIcon() {
-        const kind = this.object ? this.kind : undefined
+        const kind = this.object && this.iconMode === 'sprite' ? this.kind : undefined
         if (this.icon && this.icon.kind !== kind) {
             this.icon.dispose()
             this.icon.removeFromParent()

@@ -49,7 +49,9 @@ Group2
         └── BoxSelectionWidget   (wireframe bounding box on selection)
 
 Sprite
-  └── WidgetIcon (the icon of a light or camera widget, a child of the widget)
+  └── WidgetIcon (the icon of a light or camera widget in sprite mode, a child of the widget)
+
+WidgetIconOverlay (DOM layer of the icons in DOM mode, made by Object3DWidgetsPlugin; not in the scene)
 ```
 
 ### Scene Separation
@@ -77,8 +79,9 @@ This debounces updates to at most once per render frame.
 
 **Kind, colour and icon:** `attach()` sets `kind` from `getWidgetKind(object)` (a light or camera kind, else
 `undefined`). The colour of the lines is `color` when it is set, else the colour of the kind (`_lineColor`). A widget
-with a kind and `showIcon` on has an `icon` (`WidgetIcon`, see [Icons](#icons-of-lights-and-cameras)), updated in
-`update()`; `iconSize` is its diameter in CSS pixels. `_createLineMaterial()` makes the line material of the light and
+with a kind and `showIcon` on (`hasIcon`) has an `icon` (`WidgetIcon`, see [Icons](#icons-of-lights-and-cameras)) while
+`iconMode` is `'sprite'`, updated in `update()`; with `'dom'` it has no sprite and the plugin's DOM layer draws the icon.
+`iconSize` is its diameter in CSS pixels. `_createLineMaterial()` makes the line material of the light and
 camera helpers (the [material convention](#material-convention)).
 
 **Known limitation:** Three.js `onBeforeRender` is not called on lights or cameras, only meshes. This is why `ALightHelperWidget` and `ACameraHelperWidget` override with `preRender()`, which `Object3DWidgetsPlugin` calls explicitly in its viewer `preRender` listener.
@@ -154,20 +157,42 @@ The lines are in the camera colour, the cross on the near and far planes darker.
 
 ### Icons of lights and cameras
 
-`WidgetIcon` (`src/three/widgets/WidgetIcon.ts`) is a `Sprite` with `SpriteMaterial({sizeAttenuation: false})`: it
-faces the camera and has the same size at any distance. Before each render (`onBeforeRender`) `updateScale()` converts
-`iconSize` pixels to its units, which depend on the projection (`projectionMatrix[5]`: the field of view or the zoom) and
-the canvas height, and divides out the world scale of the widget (the transform of its object). Lights also have a
-child sprite, `dot`, tinted with the light colour; it cannot be picked.
+`Object3DWidgetsPlugin.iconMode` sets how the icons are drawn: `'dom'` (default) or `'sprite'`. The plugin sets
+`iconMode` on each widget: `'dom'` only while it has its DOM layer (a viewer container in a page), else `'sprite'`.
+Changing it switches all icons; the sprites or the DOM elements of the other mode are removed.
 
-The colour and the icon of each kind are in one table, `widgetKinds` (`src/three/widgets/widgetKinds.ts`), with
-`getWidgetKind(object)`, the shared textures `getWidgetIconTexture(kind)` and `getWidgetDotTexture()` (drawn once on a
-2D canvas, `undefined` in Node.js without a canvas) and `widgetIconLayout` (the sizes in the texture). Other UI that shows
-lights and cameras (an editor overlay, an outliner) reads the same table.
+The shapes of an icon are defined once, in `getWidgetIconShapes(kind)` (`src/three/widgets/widgetKinds.ts`): a white
+disc with a ring in the colour of the kind, the icon path of the kind, and for lights a dot in the object's colour with a
+white edge, in icon units (`widgetIconLayout`). `createWidgetIconTexture(kind, texels)` draws them on a 2D canvas for the
+sprite, `getWidgetIconSvg(kind)` writes them as SVG for the DOM (the dot is `currentColor`). The colour and the icon of each
+kind are in one table, `widgetKinds`, with `getWidgetKind(object)`. Other UI that shows lights and cameras (an editor
+overlay, an outliner) reads the same functions.
+
+**Sprite mode.** `WidgetIcon` (`src/three/widgets/WidgetIcon.ts`) is a `Sprite` with
+`SpriteMaterial({sizeAttenuation: false})`: it faces the camera and has the same size at any distance. Before each render
+(`onBeforeRender`) `updateScale()` converts `iconSize` pixels to its units, which depend on the projection
+(`projectionMatrix[5]`: the field of view or the zoom) and the canvas height, and divides out the world scale of the
+widget (the transform of its object). `updateTexture(pixelRatio)` draws the texture at the size of the icon on screen,
+`getWidgetIconTextureSize(iconSize, renderScale)` texels (about one texel per device pixel, so it is not upscaled or
+shrunk), and again only when that size changes. Lights also have a child sprite, `dot`, on the same quad, with only the
+dot in its texture, tinted with the light colour; it cannot be picked. The icon owns its textures and disposes them.
 
 The icon materials follow the [material convention](#material-convention) and are also `depthTest: false`, so the icon
-is drawn on top. For the same reason `WidgetIcon.raycast` gives its hits a distance of 0: a click on an icon that is in
-front of a model on screen selects the light or the camera, not the model.
+is drawn on top. For the same reason `WidgetIcon.raycast` gives its hits a distance under `1e-6` (`d / (d + 1) * 1e-6`):
+a click on an icon that is in front of a model on screen selects the light or the camera, not the model, and where icons
+overlap the nearer one is hit first (it is also drawn last). The icon and dot sprites have `frustumCulled = false`: the
+world bounds of the frustum test ignore the pixel size of the quad, so an icon whose centre is just out of the view would
+vanish while its disc is still on screen.
+
+**DOM mode.** `WidgetIconOverlay` (`src/three/widgets/WidgetIconOverlay.ts`) is a `div` (`z-index` 8, under the other
+canvas overlays) in the viewer container, over the canvas, with one element per widget holding the SVG. The plugin calls
+`update(widgets, camera)` after each render (`postRender`): it projects the widget position, places the element with
+`transform` only (snapped to device pixels), and writes the DOM only where something changed. An icon is hidden when the
+widget or a parent is hidden, `hasIcon` is false, or the object is out of the near and far range (behind the camera). The
+nearer icon is on top (`z-index` by depth). A click calls `PickingPlugin.setSelectedObject(object)`, or
+`toggleSelectedObject` with shift, ctrl or cmd when multi-select is on; a wheel over an icon is sent on to the canvas.
+The layer, the icons and its stylesheet are removed when the mode changes and when the plugin is removed. It is a small
+layer of its own; it can move onto a shared screen overlay later.
 
 ### BoneHelper / SkeletonHelper2
 
@@ -279,7 +304,7 @@ Widget subclasses typically set on their materials (not enforced by `AHelperWidg
 
 Note: `LineHelper` uses `MeshBasicMaterial` for its handles and does not set all of these. Each subclass chooses what's appropriate.
 The light and camera helpers get their line material from `AHelperWidget._createLineMaterial()`; `WidgetIcon` sets the
-same on its sprite materials.
+same on its sprite materials. DOM icons are not in the canvas, so no render, screenshot or recording has them.
 
 ### Shadow Prevention
 All widget children get `castShadow = false`, `receiveShadow = false`, and `userData.__keepShadowDef = true` (prevents shadow plugins from re-enabling shadows).

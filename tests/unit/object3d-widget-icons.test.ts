@@ -3,9 +3,10 @@
  * `widgetKinds`, a sprite that keeps its pixel size and is drawn on top, not in the GBuffer or the depth passes,
  * picked as the widget's object, and the optional frustum of the shadow camera.
  * No WebGL: the icon textures are drawn on a fake 2D canvas that records the colours, and the pixel size is checked
- * with three.js `Sprite.raycast` at pixel offsets from the icon centre.
+ * with three.js `Sprite.raycast` at pixel offsets from the icon centre. The DOM icons (`iconMode: 'dom'`) are checked on
+ * fake elements that keep their children, styles and listeners.
  */
-import {afterAll, beforeAll, describe, expect, test} from 'vitest'
+import {afterAll, beforeAll, describe, expect, test, vi} from 'vitest'
 import {
     Color,
     DirectionalLight,
@@ -27,13 +28,64 @@ const drawn = new Map<object, string[]>()
 const realCreateElement = document.createElement
 const realPath2D = (globalThis as any).Path2D
 
+const W = 800 // viewer width in CSS px
+
+/** A DOM element with the parts the icon overlay uses */
+class FakeElement {
+    style: Record<string, string> = {}
+    children: FakeElement[] = []
+    parent: FakeElement | null = null
+    attributes: Record<string, string> = {}
+    listeners: Record<string, ((e: any) => void)[]> = {}
+    className = ''
+    hidden = false
+    title = ''
+    innerHTML = ''
+    innerText = ''
+    type = ''
+    clientLeft = 0
+    clientTop = 0
+    constructor(public tagName: string) {}
+    appendChild(c: FakeElement) {
+        c.remove()
+        c.parent = this
+        this.children.push(c)
+        return c
+    }
+    remove() {
+        if (!this.parent) return
+        this.parent.children.splice(this.parent.children.indexOf(this), 1)
+        this.parent = null
+    }
+    setAttribute(k: string, v: any) {
+        this.attributes[k] = String(v)
+    }
+    addEventListener(type: string, f: (e: any) => void) {
+        (this.listeners[type] ??= []).push(f)
+    }
+    removeEventListener() {
+        return
+    }
+    dispatchEvent(e: any) {
+        this.listeners[e.type]?.forEach(f => f(e))
+        return true
+    }
+    getBoundingClientRect() {
+        return {left: 0, top: 0, width: W, height: H}
+    }
+    /** All descendants with a class */
+    all(className: string): FakeElement[] {
+        return this.children.flatMap(c => [...c.className.split(' ').includes(className) ? [c] : [], ...c.all(className)])
+    }
+}
+
 beforeAll(async() => {
     tp = await import('threepipe')
     ;(globalThis as any).Path2D = class {
         constructor(public d: string) {}
     }
     ;(document as any).createElement = (tag: string) => {
-        if (tag !== 'canvas') return realCreateElement(tag)
+        if (tag !== 'canvas') return new FakeElement(tag)
         const canvas: any = {width: 0, height: 0, style: {}, addEventListener: () => undefined}
         const colors: string[] = []
         drawn.set(canvas, colors)
@@ -99,12 +151,29 @@ describe('widgetKinds', () => {
         expect(tp.getWidgetKind(new Mesh())).toBeUndefined()
     })
 
-    test('the icon texture of a kind is made once, in the colour of the kind', () => {
-        const t = tp.getWidgetIconTexture('spotLight')!
+    test('the icon texture of a kind is drawn in the colour of the kind, at the asked size', () => {
+        const t = tp.createWidgetIconTexture('spotLight', 56)!
         expect(t).toBeDefined()
-        expect(tp.getWidgetIconTexture('spotLight')).toBe(t)
+        expect(t.image.width).toBe(56)
+        expect(t.image.height).toBe(56)
+        expect(t.generateMipmaps).toBe(false)
         expect(drawn.get(t.image)).toContain(tp.widgetKinds.spotLight.color)
-        expect(tp.getWidgetIconTexture('pointLight')).not.toBe(t)
+        expect(tp.createWidgetIconTexture('spotLight', 56)).not.toBe(t) // owned by the caller
+    })
+
+    test('the SVG of the DOM icons comes from the same shapes as the texture', () => {
+        for (const kind of Object.keys(tp.widgetKinds) as (keyof typeof tp.widgetKinds)[]) {
+            const {color, icon, dot} = tp.widgetKinds[kind]
+            const svg = tp.getWidgetIconSvg(kind)
+            const shapes = tp.getWidgetIconShapes(kind)
+            expect(svg).toContain(`viewBox="0 0 ${tp.widgetIconLayout.box} ${tp.widgetIconLayout.box}"`)
+            expect(svg).toContain(`d="${icon}"`)
+            expect(svg).toContain(`stroke="${color}"`)
+            expect(svg.split('<circle').length - 1 + svg.split('<path').length - 1).toBe(shapes.length)
+            // the dot is filled with the CSS colour of the element (the colour of the object)
+            expect(svg.includes('fill="currentColor"')).toBe(dot)
+            expect(shapes.some(sh => sh.fill === 'object')).toBe(dot)
+        }
     })
 })
 
@@ -117,8 +186,9 @@ describe('light and camera widget icons', () => {
             expect(icon).toBeInstanceOf(tp.WidgetIcon)
             expect(icon.parent).toBe(widget)
             expect(icon.visible).toBe(true)
-            expect(icon.material.map).toBe(tp.getWidgetIconTexture(kind))
+            expect(icon.material.map).toBeTruthy()
             expect(drawn.get(icon.material.map!.image)).toContain(style.color)
+            expect(!!icon.dot.material.map).toBe(style.dot)
             expect(icon.dot.visible).toBe(style.dot)
             if (style.dot) expect(icon.dot.material.color.getHex()).toBe((object as DirectionalLight).color.getHex())
             // the lines too
@@ -320,5 +390,238 @@ describe('shadow camera frustum', () => {
         expect(c.icon!.visible).toBe(false)
         const labels = (plugin.uiConfig.children as any[]).map(c => c.label)
         expect(labels).toEqual(expect.arrayContaining(['Show icons', 'Icon size (px)', 'Shadow frustum']))
+    })
+})
+
+describe('sprite icons on screen', () => {
+    test('two overlapping icons: the nearer one is hit first, and both before a model', () => {
+        const near = light(new PointLight())
+        near.position.set(0, 0, 3)
+        near.updateMatrixWorld(true)
+        const far = light(new SpotLight())
+        const nearW = new tp.PointLightHelper2(near)
+        const farW = new tp.SpotLightHelper2(far)
+        const wall = new Mesh(new tp.PlaneGeometry(10, 10), new MeshBasicMaterial())
+        wall.position.set(0.3, 0.2, 5) // the ray not on the diagonal of the plane, where it hits both triangles
+        wall.updateMatrixWorld(true)
+        const camera = new PerspectiveCamera(45, 1, 0.1, 100)
+        camera.position.set(0, 0, 10)
+        camera.updateMatrixWorld(true)
+        const raycaster = new Raycaster()
+        raycaster.setFromCamera(new Vector2(0, 0), camera)
+        for (const order of [[farW, nearW], [nearW, farW]]) { // the order in the scene does not matter
+            const root = new tp.Group2()
+            root.add(...order)
+            root.updateMatrixWorld(true)
+            nearW.icon!.updateScale(camera, H)
+            farW.icon!.updateScale(camera, H)
+            const hits = raycaster.intersectObjects([wall, ...order.map(w => w.icon!)], false)
+            expect(hits.map(h => h.object)).toEqual([nearW.icon, farW.icon, wall])
+            expect(hits[0].distance).toBeGreaterThanOrEqual(0)
+        }
+    })
+
+    test('not frustum culled: the icon keeps its pixel size, so it shows at the edge when its centre is just outside', () => {
+        const w = new tp.PointLightHelper2(light(new PointLight()))
+        expect(w.icon!.frustumCulled).toBe(false)
+        expect(w.icon!.dot.frustumCulled).toBe(false)
+    })
+
+    test('the texture is drawn at about one texel per device pixel, again only when the size or the render scale changes', () => {
+        const w = new tp.PointLightHelper2(light(new PointLight()))
+        const icon = w.icon!
+        const {box} = tp.widgetIconLayout
+        expect(icon.textureSize).toBe(box) // 22 px at a pixel ratio of 1
+        const renderer = (pixelRatio: number) => ({getSize: (v: Vector2) => v.set(W, H), getPixelRatio: () => pixelRatio}) as any
+        const camera = new PerspectiveCamera(45, 1, 0.1, 100)
+        icon.onBeforeRender(renderer(2), undefined, camera)
+        expect(icon.textureSize).toBe(2 * box)
+        const map = icon.material.map!
+        expect(map.image.width).toBe(2 * box)
+        expect(icon.dot.material.map!.image.width).toBe(2 * box)
+        icon.onBeforeRender(renderer(2), undefined, camera)
+        expect(icon.material.map).toBe(map) // same size: not drawn again
+        w.iconSize = 44
+        icon.onBeforeRender(renderer(2), undefined, camera)
+        expect(icon.textureSize).toBe(4 * box)
+        expect(icon.material.map).not.toBe(map)
+        icon.onBeforeRender(renderer(1.5), undefined, camera)
+        expect(icon.textureSize).toBe(3 * box)
+        expect(tp.getWidgetIconTextureSize(30, 1.25)).toBe(Math.round(box * 30 / 22 * 1.25))
+    })
+})
+
+describe('icon mode', () => {
+    /** A viewer with a container, a canvas and a camera, and the lights and cameras in its model root */
+    function setup({container = true, picking = undefined as any} = {}) {
+        const sceneRoot = new tp.Group2()
+        const modelRoot = new tp.Group2()
+        sceneRoot.add(modelRoot)
+        const sun = new DirectionalLight(0x00ff00)
+        sun.position.set(-2, 1, 0)
+        const bulb = new PointLight(0xff0000)
+        bulb.position.set(2, 0, 3) // nearer to the camera
+        const cam = new PerspectiveCamera(45, 1, 0.1, 10)
+        cam.position.set(0, 0, -4)
+        const mesh = new Mesh(new tp.PlaneGeometry(1, 1), new MeshBasicMaterial())
+        modelRoot.add(sun, bulb, cam, mesh)
+        const camera = new PerspectiveCamera(45, W / H, 0.1, 100)
+        camera.position.set(0, 0, 10)
+        camera.updateMatrixWorld(true)
+        const containerEl = container ? new FakeElement('div') : undefined
+        const canvas = new FakeElement('canvas')
+        containerEl?.appendChild(canvas)
+        const objectManager = new EventTarget() as any
+        objectManager.getObjects = () => [sun, bulb, cam, mesh]
+        objectManager.addEventListener = () => undefined
+        objectManager.removeEventListener = () => undefined
+        const viewer = Object.assign(new EventTarget(), {
+            container: containerEl,
+            canvas,
+            scene: {modelRoot, mainCamera: camera, addObject: (o: Object3D) => sceneRoot.add(o)},
+            object3dManager: objectManager,
+            getPlugin: (p: string) => p === 'PickingPlugin' ? picking : undefined,
+            setDirty: vi.fn(),
+            console,
+        }) as any
+        const plugin = new tp.Object3DWidgetsPlugin()
+        plugin.onAdded(viewer)
+        const render = () => {
+            sceneRoot.updateMatrixWorld(true)
+            ;(plugin as any)._onViewerEvent({type: 'postRender', eType: 'postRender'})
+        }
+        const widgetOf = (o: Object3D) => plugin.widgets.find(w => w.object === o) as InstanceType<typeof tp.AHelperWidget>
+        const iconOf = (o: Object3D) => plugin.iconOverlay?.getIconElement(widgetOf(o)) as FakeElement | undefined
+        render()
+        return {plugin, viewer, container: containerEl, camera, sun, bulb, cam, render, widgetOf, iconOf}
+    }
+
+    test('DOM by default: an SVG for each light and camera in a layer of the container, and no sprites', () => {
+        const {plugin, container, sun, bulb, cam, widgetOf, iconOf} = setup()
+        expect(plugin.iconMode).toBe('dom')
+        const layer = plugin.iconOverlay!.element as any as FakeElement
+        expect(layer.parent).toBe(container)
+        expect(layer.className).toBe('widget-icons-layer')
+        expect(layer.children).toHaveLength(3)
+        for (const o of [sun, bulb, cam]) {
+            const w = widgetOf(o)
+            expect(w.iconMode).toBe('dom')
+            expect(w.icon).toBeUndefined()
+            const el = iconOf(o)!
+            expect(el.hidden).toBe(false)
+            expect(el.innerHTML).toBe(tp.getWidgetIconSvg(w.kind!))
+            expect(el.style.width).toBe('28px')
+            expect(el.style.transform).toMatch(/^translate\([-\d.]+px, [-\d.]+px\)$/)
+        }
+        expect(iconOf(bulb)!.style.color).toBe('#ff0000') // the dot in the light colour
+        const labels = (plugin.uiConfig.children as any[]).map(c => c.label)
+        expect(labels).toContain('Icon mode')
+        const dropdown = (plugin.uiConfig.children as any[]).find(c => c.label === 'Icon mode')
+        expect(dropdown.type).toBe('dropdown')
+        expect(dropdown.children.map((c: any) => c.value)).toEqual(['dom', 'sprite'])
+    })
+
+    test('switching the mode at runtime swaps the DOM icons and the sprites, and leaves nothing behind', () => {
+        const {plugin, container, sun, bulb, render, widgetOf, iconOf} = setup()
+        const layer = plugin.iconOverlay!.element as any as FakeElement
+        const sheets = () => container!.children.filter(c => c.tagName === 'style')
+        expect(sheets()).toHaveLength(1)
+
+        plugin.iconMode = 'sprite'
+        render()
+        expect(plugin.iconOverlay).toBeUndefined()
+        expect(layer.parent).toBeNull()
+        expect(layer.children).toHaveLength(0)
+        expect(sheets()).toHaveLength(0)
+        expect(container!.children).toHaveLength(1) // the canvas
+        for (const o of [sun, bulb]) {
+            const w = widgetOf(o)
+            expect(w.iconMode).toBe('sprite')
+            expect(w.icon).toBeInstanceOf(tp.WidgetIcon)
+            expect(w.icon!.parent).toBe(w)
+        }
+        const sprite = widgetOf(sun).icon!
+        const dispose = vi.spyOn(sprite, 'dispose')
+
+        plugin.iconMode = 'dom'
+        render()
+        expect(dispose).toHaveBeenCalled()
+        expect(sprite.parent).toBeNull()
+        expect(widgetOf(sun).icon).toBeUndefined()
+        expect(iconOf(sun)!.parent).toBe(plugin.iconOverlay!.element)
+        expect(sheets()).toHaveLength(1)
+    })
+
+    test('a click or tap on a DOM icon selects the object with the PickingPlugin; with shift it toggles it', () => {
+        const picking = {isDisabled: () => false, multiSelectEnabled: true, setSelectedObject: vi.fn(), toggleSelectedObject: vi.fn()}
+        const {sun, cam, iconOf} = setup({picking})
+        iconOf(sun)!.dispatchEvent({type: 'click', shiftKey: false})
+        expect(picking.setSelectedObject).toHaveBeenCalledWith(sun)
+        iconOf(cam)!.dispatchEvent({type: 'click', shiftKey: true})
+        expect(picking.toggleSelectedObject).toHaveBeenCalledWith(cam)
+        picking.isDisabled = () => true
+        iconOf(sun)!.dispatchEvent({type: 'click'})
+        expect(picking.setSelectedObject).toHaveBeenCalledTimes(1)
+    })
+
+    test('icons behind the camera are hidden, icons at the edge are shown, the nearer icon is on top', () => {
+        const {camera, sun, bulb, render, iconOf} = setup()
+        expect(Number(iconOf(bulb)!.style.zIndex)).toBeGreaterThan(Number(iconOf(sun)!.style.zIndex))
+        camera.position.set(0, 0, -1) // between the camera (z -4) and the lights, looking at them: the camera is behind
+        camera.lookAt(0, 0, 10)
+        camera.updateMatrixWorld(true)
+        render()
+        // looking at +z, now the sun (z 0) is behind the bulb (z 3)
+        expect(Number(iconOf(sun)!.style.zIndex)).toBeGreaterThan(Number(iconOf(bulb)!.style.zIndex))
+        camera.lookAt(0, 0, -10)
+        camera.updateMatrixWorld(true)
+        render()
+        expect(iconOf(sun)!.hidden).toBe(true)
+        expect(iconOf(bulb)!.hidden).toBe(true)
+        // the centre just out of the left edge: the right half of the icon is still on screen
+        camera.position.set(0, 0, 10)
+        camera.lookAt(0, 0, 0)
+        camera.updateMatrixWorld(true)
+        const halfWidth = Math.tan(camera.fov / 2 * Math.PI / 180) * 10 * camera.aspect
+        sun.position.set(-halfWidth - 0.05, 0, 0)
+        sun.updateMatrixWorld()
+        render()
+        expect(iconOf(sun)!.hidden).toBe(false)
+        sun.position.set(-halfWidth - 3, 0, 0)
+        sun.updateMatrixWorld()
+        render()
+        expect(iconOf(sun)!.hidden).toBe(true)
+    })
+
+    test('showIcons, iconSize and the visibility of the widgets work the same in DOM mode', () => {
+        const {plugin, sun, render, iconOf} = setup()
+        plugin.iconSize = 44
+        render()
+        expect(iconOf(sun)!.style.width).toBe('56px')
+        plugin.enabled = false // hides the widgets
+        render()
+        expect(iconOf(sun)!.hidden).toBe(true)
+        plugin.enabled = true
+        render()
+        expect(iconOf(sun)!.hidden).toBe(false)
+        plugin.showIcons = false
+        render()
+        expect(iconOf(sun)).toBeUndefined()
+        expect(plugin.iconOverlay!.element.children).toHaveLength(0)
+    })
+
+    test('removing the plugin leaves no DOM', () => {
+        const {plugin, viewer, container} = setup()
+        plugin.onRemove(viewer)
+        expect(container!.children).toHaveLength(1) // the canvas
+        expect(plugin.iconOverlay).toBeUndefined()
+    })
+
+    test('without a container the icons are sprites', () => {
+        const {plugin, sun, widgetOf} = setup({container: false})
+        expect(plugin.iconMode).toBe('dom')
+        expect(plugin.iconOverlay).toBeUndefined()
+        expect(widgetOf(sun).iconMode).toBe('sprite')
+        expect(widgetOf(sun).icon).toBeInstanceOf(tp.WidgetIcon)
     })
 })

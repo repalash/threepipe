@@ -123,7 +123,7 @@ Plugins that add DOM elements over the canvas use these layers, so the UI stacks
 
 | z-index | Layer | Examples |
 |---|---|---|
-| `auto` to 49 | Overlays drawn on the canvas | selection overlay, `PerfPanelPlugin` pill (12), editor camera frame (40) |
+| `auto` to 49 | Overlays drawn on the canvas | selection overlay, `Object3DWidgetsPlugin` DOM icons (8), `PerfPanelPlugin` pill (12), editor camera frame (40) |
 | 50 | Loading screen | `LoadingScreenPlugin` |
 | 100 to 199 | Viewer UI over the scene | `GridItemList` (100), editor camera pill and card (120), sticky notes and open `PerfPanelPlugin` card (150 + `--ui-raise`: the one pressed last is in front, see `raiseOnPress`) |
 | 200 to 999 | Panels and bars | tweakpane editor `.button-bar` (200), editor frame mode bar (200) and title or status bar (210) |

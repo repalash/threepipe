@@ -8,6 +8,12 @@ export type WidgetKind =
     'directionalLight' | 'spotLight' | 'pointLight' | 'rectAreaLight' | 'hemisphereLight' | 'ambientLight' |
     'perspectiveCamera' | 'orthographicCamera'
 
+/**
+ * How the icons of lights and cameras are drawn: `dom`, an element in an overlay over the canvas, or `sprite`, a sprite
+ * in the scene. See `Object3DWidgetsPlugin.iconMode`.
+ */
+export type WidgetIconMode = 'dom' | 'sprite'
+
 export interface WidgetKindStyle {
     /** The colour of the kind (CSS hex, sRGB), for its icon and its lines */
     color: string
@@ -50,7 +56,7 @@ export function getWidgetKind(object: Object3D): WidgetKind | undefined {
 }
 
 /**
- * The layout of an icon texture, in icon units (1 unit is 1 px at the default size): a round icon of
+ * The layout of an icon, in icon units (1 unit is 1 CSS px at the default size): a round icon of
  * {@link widgetIconLayout.diameter} in a square of {@link widgetIconLayout.box}, and a dot of
  * {@link widgetIconLayout.dot} at {@link widgetIconLayout.dotOffset} right and down of the centre.
  */
@@ -61,86 +67,116 @@ export const widgetIconLayout = {
     dotOffset: 8,
 } as const
 
-// about 2 texels per icon unit: no mipmaps, so the thin coloured lines keep their colour at the default size instead of
-// being averaged with the white disc
-const textureSize = 64
-const iconTextures = new Map<WidgetKind, CanvasTexture>()
-let dotTexture: CanvasTexture | undefined
 
-/** A square canvas and its 2D context, `undefined` where there is none */
-function canvas2d(size: number) {
-    if (typeof document === 'undefined' || typeof Path2D === 'undefined') return undefined
-    const canvas = document.createElement('canvas')
-    canvas.width = size
-    canvas.height = size
-    const ctx = canvas.getContext?.('2d')
-    return ctx ? {canvas, ctx} : undefined
+/**
+ * One shape of a widget icon, in icon units ({@link widgetIconLayout}): a circle, or SVG path data in a 16 x 16 box.
+ * Paths are stroked with round caps and joins.
+ */
+export interface WidgetIconShape {
+    /** Centre x, centre y and radius of a circle */
+    circle?: readonly [number, number, number]
+    /** SVG path data, in a 16 x 16 box with its top left corner at {@link at} */
+    path?: string
+    at?: readonly [number, number]
+    /** Fill colour. `'object'`: the colour of the object (the dot of a light) */
+    fill?: string
+    stroke?: string
+    lineWidth?: number
 }
 
-/** An sRGB texture of a canvas, premultiplied, without mipmaps */
-function texture(canvas: HTMLCanvasElement) {
+/**
+ * The shapes of the icon of a kind, in drawing order: a white disc with a ring in the colour of the kind, the icon of
+ * the kind, and for lights the dot in the object's colour with a white edge. The one definition of the icon: the sprite
+ * texture ({@link createWidgetIconTexture}) and the DOM icon ({@link getWidgetIconSvg}) are drawn from it.
+ */
+export function getWidgetIconShapes(kind: WidgetKind): WidgetIconShape[] {
+    const {color, icon, dot} = widgetKinds[kind]
+    const {box, diameter, dot: dotSize, dotOffset} = widgetIconLayout
+    const mid = box / 2
+    const shapes: WidgetIconShape[] = [
+        {circle: [mid, mid, diameter / 2], fill: 'rgba(255,255,255,0.95)', stroke: color, lineWidth: 1.5},
+        {path: icon, at: [mid - 8, mid - 8], stroke: color, lineWidth: 1.4},
+    ]
+    if (dot) shapes.push(
+        {circle: [mid + dotOffset, mid + dotOffset, dotSize / 2 + 1.2], fill: '#ffffff'},
+        {circle: [mid + dotOffset, mid + dotOffset, dotSize / 2], fill: 'object'},
+    )
+    return shapes
+}
+
+const n = (v: number) => +v.toFixed(2)
+
+/**
+ * The icon of a kind as SVG markup, `viewBox` {@link widgetIconLayout.box} square, for an icon in the DOM. The dot is
+ * filled with `currentColor`: set the CSS `color` of the element to the colour of the object.
+ */
+export function getWidgetIconSvg(kind: WidgetKind): string {
+    const {box} = widgetIconLayout
+    const body = getWidgetIconShapes(kind).map(s => {
+        const paint = `fill="${s.fill === 'object' ? 'currentColor' : s.fill ?? 'none'}"` +
+            (s.stroke ? ` stroke="${s.stroke}" stroke-width="${s.lineWidth ?? 1}"` : '')
+        if (s.circle) return `<circle cx="${n(s.circle[0])}" cy="${n(s.circle[1])}" r="${n(s.circle[2])}" ${paint}/>`
+        const [x, y] = s.at ?? [0, 0]
+        return `<path d="${s.path}" transform="translate(${n(x)} ${n(y)})" stroke-linecap="round" stroke-linejoin="round" ${paint}/>`
+    }).join('')
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${box} ${box}" width="100%" height="100%">${body}</svg>`
+}
+
+/**
+ * The size in texels of the icon texture for an icon of `size` CSS pixels (its diameter) on a canvas with `pixelRatio`
+ * (the render scale): about one texel per device pixel, so the texture is neither upscaled nor shrunk on screen.
+ */
+export function getWidgetIconTextureSize(size: number, pixelRatio: number) {
+    const {box, diameter} = widgetIconLayout
+    return Math.max(1, Math.round(box * size / diameter * (pixelRatio || 1)))
+}
+
+/**
+ * Draws the icon of a kind ({@link getWidgetIconShapes}) on a square canvas of `texels` and returns it as an sRGB
+ * texture, premultiplied, without mipmaps. `'icon'` draws all shapes but the dot, `'dot'` only the dot, in white (the
+ * sprite colour tints it), at the same place in the same square. The caller owns the texture and disposes it.
+ * `undefined` where there is no 2D canvas (Node.js without a canvas polyfill).
+ */
+export function createWidgetIconTexture(kind: WidgetKind, texels: number, layer: 'icon' | 'dot' = 'icon'): CanvasTexture | undefined {
+    if (typeof document === 'undefined' || typeof Path2D === 'undefined') return undefined
+    const canvas = document.createElement('canvas')
+    canvas.width = texels
+    canvas.height = texels
+    const ctx = canvas.getContext?.('2d')
+    if (!ctx) return undefined
+    const scale = texels / widgetIconLayout.box
+    ctx.scale(scale, scale)
+    ctx.lineCap = 'round'
+    ctx.lineJoin = 'round'
+    for (const s of getWidgetIconShapes(kind)) {
+        if (layer === 'dot' ? s.fill !== 'object' : s.fill === 'object') continue
+        ctx.save()
+        let path: Path2D | undefined
+        if (s.circle) {
+            ctx.beginPath()
+            ctx.arc(s.circle[0], s.circle[1], s.circle[2], 0, Math.PI * 2)
+        } else if (s.path) {
+            const [x, y] = s.at ?? [0, 0]
+            ctx.translate(x, y)
+            path = new Path2D(s.path)
+        }
+        if (s.fill && s.fill !== 'none') {
+            ctx.fillStyle = s.fill === 'object' ? '#ffffff' : s.fill
+            path ? ctx.fill(path) : ctx.fill()
+        }
+        if (s.stroke) {
+            ctx.lineWidth = s.lineWidth ?? 1
+            ctx.strokeStyle = s.stroke
+            path ? ctx.stroke(path) : ctx.stroke()
+        }
+        ctx.restore()
+    }
     const t = new CanvasTexture(canvas)
     t.colorSpace = SRGBColorSpace
+    // one texel per device pixel (see getWidgetIconTextureSize): no mipmaps needed, and the thin coloured lines keep
+    // their colour instead of being averaged with the white disc
     t.generateMipmaps = false
     t.minFilter = LinearFilter
     t.premultiplyAlpha = true // no dark edges where the transparent texels are filtered in
     return t
-}
-
-/**
- * The icon of a kind as a texture (see {@link widgetIconLayout}): a white disc with a ring and the icon in the
- * colour of the kind, and for lights a white spot for the dot. Made once per kind and shared; do not dispose it.
- * `undefined` where there is no 2D canvas (Node.js without a canvas polyfill).
- */
-export function getWidgetIconTexture(kind: WidgetKind): CanvasTexture | undefined {
-    const cached = iconTextures.get(kind)
-    if (cached) return cached
-    const c = canvas2d(textureSize)
-    if (!c) return undefined
-    const {ctx} = c
-    const {color, icon, dot} = widgetKinds[kind]
-    const {box, diameter, dot: dotSize, dotOffset} = widgetIconLayout
-    const mid = box / 2
-    ctx.scale(textureSize / box, textureSize / box)
-    ctx.beginPath()
-    ctx.arc(mid, mid, diameter / 2, 0, Math.PI * 2)
-    ctx.fillStyle = 'rgba(255,255,255,0.95)'
-    ctx.fill()
-    ctx.lineWidth = 1.5
-    ctx.strokeStyle = color
-    ctx.stroke()
-    ctx.save()
-    ctx.translate(mid - 8, mid - 8)
-    ctx.lineWidth = 1.4
-    ctx.lineCap = 'round'
-    ctx.lineJoin = 'round'
-    ctx.strokeStyle = color
-    ctx.stroke(new Path2D(icon))
-    ctx.restore()
-    if (dot) { // the white edge around the dot, the dot sprite draws the colour inside it
-        ctx.beginPath()
-        ctx.arc(mid + dotOffset, mid + dotOffset, dotSize / 2 + 1.2, 0, Math.PI * 2)
-        ctx.fillStyle = '#ffffff'
-        ctx.fill()
-    }
-    const t = texture(c.canvas)
-    iconTextures.set(kind, t)
-    return t
-}
-
-/**
- * A white disc, for the dot in the object's own colour (the sprite colour tints it). Made once and shared; do not
- * dispose it. `undefined` where there is no 2D canvas.
- */
-export function getWidgetDotTexture(): CanvasTexture | undefined {
-    if (dotTexture) return dotTexture
-    const c = canvas2d(textureSize / 2)
-    if (!c) return undefined
-    const r = textureSize / 4
-    c.ctx.beginPath()
-    c.ctx.arc(r, r, r - 1, 0, Math.PI * 2)
-    c.ctx.fillStyle = '#ffffff'
-    c.ctx.fill()
-    dotTexture = texture(c.canvas)
-    return dotTexture
 }

@@ -38,8 +38,29 @@ depth passes, casts no shadows, and is never exported (widgets are not part of t
   icon also has a small dot in the light's own colour.
 - A click on the icon selects the light or the camera, through the `PickingPlugin`, like a click on its lines. The icon
   is in front of the models for the click too, as it is drawn on top of them.
-- The colours and icons are in `widgetKinds` (`src/three/widgets/widgetKinds.ts`), with `getWidgetKind(object)` and the
-  shared textures `getWidgetIconTexture(kind)`, for any other UI that shows lights and cameras.
+- The colours and icons are in `widgetKinds` (`src/three/widgets/widgetKinds.ts`), with `getWidgetKind(object)`, the
+  shapes of the icons `getWidgetIconShapes(kind)` and the same icon as SVG, `getWidgetIconSvg(kind)`, for any other UI
+  that shows lights and cameras.
+
+### Icon mode
+
+`iconMode` sets how the icons are drawn. Changing it switches all icons at once, with no reload.
+
+| `iconMode` | How | Good | Not |
+|---|---|---|---|
+| `'dom'` (default) | SVG elements in a layer over the canvas, in the viewer container | Sharp at any pixel ratio and icon size; never in a render, screenshot or recording of the canvas | Not seen in WebXR. Without a viewer container in a page (an offscreen canvas) the icons are sprites |
+| `'sprite'` | Sprites in the scene | Seen in WebXR and with an offscreen canvas; part of a render or screenshot of the canvas | Pixels of a texture: sharp only with `renderScale` set to the device pixel ratio |
+
+In both modes the icons follow `showIcons`, `iconSize` and the visibility of the widgets, a click or tap selects the
+object, and where two icons overlap the nearer one is on top and gets the click. An icon whose centre is just out of the
+view still shows the part of it that is on the canvas.
+
+- DOM: the layer (`WidgetIconOverlay`, `plugin.iconOverlay`) has `z-index` 8, under the other overlays on the canvas.
+  The icons are placed after each render with `transform` only, and hidden behind the camera. A click calls
+  `PickingPlugin.setSelectedObject` (with shift, ctrl or cmd and multi-select on, `toggleSelectedObject`); hover shows
+  the pointer cursor; a wheel over an icon still zooms the camera. A drag that starts on an icon does not orbit.
+- Sprite: the texture is drawn at about one texel per device pixel (`iconSize` times the render scale), and again only
+  when one of them changes. For a sharp canvas on high DPI screens, create the viewer with `renderScale: 'auto'`.
 
 | Kind | Colour | Icon |
 |---|---|---|
@@ -59,10 +80,12 @@ The rect area, hemisphere and ambient lights have no widget yet; their colours a
 |---|---|---|
 | `showIcons` | `true` | Show the icons of lights and cameras |
 | `iconSize` | `22` | The diameter of the icons in CSS pixels |
+| `iconMode` | `'dom'` | How the icons are drawn: `'dom'` (SVG over the canvas) or `'sprite'` (in the scene), see [Icon mode](#icon-mode) |
 | `showShadowFrustum` | `false` | Draw the frustum of the shadow camera of directional and spot lights that cast shadows |
 
-All three are in the plugin UI (Widgets folder) and apply to every widget. A single widget has the same options:
-`widget.showIcon`, `widget.iconSize`, `lightWidget.showShadowFrustum`, and `widget.color` for another colour of its lines.
+All four are in the plugin UI (Widgets folder) and apply to every widget. A single widget has the same options:
+`widget.showIcon`, `widget.iconSize`, `widget.iconMode`, `lightWidget.showShadowFrustum`, and `widget.color` for another
+colour of its lines. A widget used without the plugin has no DOM layer, so it shows its icon as a sprite (its default).
 
 Support for additional types of helpers can be added dynamically or by other plugins by pushing a helper constructor to the `Object3DWidgetsPlugin.helpers` array, and calling `Object3DWidgetsPlugin.refresh()`.
 
@@ -86,6 +109,7 @@ generator.generate('camera-perspective', {
 
 // icon size in pixels, and the frustum of the shadow cameras
 plugin.iconSize = 28
+plugin.iconMode = 'sprite' // icons in the scene (WebXR, renders); 'dom' (default) draws them over the canvas
 plugin.showShadowFrustum = true
 
 // to hide the icons only

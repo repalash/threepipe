@@ -22,7 +22,8 @@ async function init() {
     // click the icon (or the lines) of a light or a camera to select it
     const picking = viewer.addPluginSync(PickingPlugin)
 
-    // icons are on by default (showIcons, iconSize in px); the frustum of shadow cameras is off by default
+    // icons are on by default (showIcons, iconSize in px), drawn over the canvas (iconMode 'dom', or 'sprite' in the
+    // scene); the frustum of shadow cameras is off by default
     widgets.showShadowFrustum = true
 
     const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
