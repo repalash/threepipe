@@ -1,7 +1,7 @@
 ---
 prev:
-    text: 'PickingPlugin'
-    link: './PickingPlugin'
+    text: 'GPUPickingPlugin'
+    link: './GPUPickingPlugin'
 
 next:
     text: 'FullScreenPlugin'
