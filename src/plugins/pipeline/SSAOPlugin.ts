@@ -13,6 +13,7 @@ import {ExtendedShaderPass, IPassID, IPipelinePass} from '../../postprocessing'
 import {ThreeViewer} from '../../viewer'
 import {PipelinePassPlugin} from '../base/PipelinePassPlugin'
 import {uiConfig, uiFolderContainer, uiImage, uiSlider, uiToggle} from 'uiconfig.js'
+import {UiTags} from '../../ui/uiconfig'
 import {
     ICamera,
     IMaterial,
@@ -516,6 +517,7 @@ export class SSAOPluginPass extends ExtendedShaderPass implements IPipelinePass 
                 {
                     type: 'checkbox',
                     label: 'Enabled',
+                    tags: [UiTags.Basic],
                     get value() {
                         return !(material.userData.ssaoDisabled ?? false)
                     },

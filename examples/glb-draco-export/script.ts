@@ -11,6 +11,7 @@ import {createSimpleButtons} from '../examples-utils/simple-bottom-buttons.js'
 import {GLTFDracoExportPlugin} from '@threepipe/plugin-gltf-transform'
 
 const viewer = new ThreeViewer({
+    renderScale: 'auto',
     canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
     dropzone: {
         addOptions: {

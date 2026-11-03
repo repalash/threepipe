@@ -14,6 +14,7 @@ import {AdvancedGroundPlugin, SSReflectionPlugin, TemporalAAPlugin} from '@three
 async function init() {
 
     const viewer = new ThreeViewer({
+        renderScale: 'auto',
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
         rgbm: true,
