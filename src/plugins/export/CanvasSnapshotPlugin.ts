@@ -1,5 +1,5 @@
 import {serialize, timeout} from 'ts-browser-helpers'
-import {AViewerPluginSync} from '../../viewer'
+import {AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {uiButton, uiConfig, uiFolderContainer, uiInput} from 'uiconfig.js'
 import {CanvasSnapshot, CanvasSnapshotOptions} from '../../utils/canvas-snapshot'
 import {ProgressivePlugin} from '../pipeline/ProgressivePlugin'
@@ -67,10 +67,13 @@ export class CanvasSnapshotPlugin extends AViewerPluginSync {
             this._viewer.console.warn(`CanvasSnapshotPlugin: ${!this._viewer.enabled ? 'the viewer is disabled' : 'rendering is paused (renderEnabled false)'}, no frame to capture`)
             return undefined
         }
-        await this._viewer?.doOnce('postFrame')
         const viewer = this._viewer
-        const canvas = this._viewer?.canvas
+        const canvas = viewer?.canvas
         if (!viewer || !canvas) return undefined
+        if (!await this._nextFrame(viewer)) {
+            viewer.console.warn('CanvasSnapshotPlugin: rendering stopped before the snapshot, no frame to capture')
+            return undefined
+        }
         viewer.scene.mainCamera.setInteractions(false, CanvasSnapshotPlugin.PluginType)
 
         const dpr = viewer.renderManager.renderScale
@@ -93,17 +96,15 @@ export class CanvasSnapshotPlugin extends AViewerPluginSync {
         if (waitForProgressive && progressive) {
             progressive.maxFrameCount = Math.max(options.progressiveFrames ?? 64, progressive.maxFrameCount)
             viewer.setDirty()
-            await viewer.doOnce('postFrame')
-
-            while (!progressive.isConverged(true)) {
-                // rendering stopped while waiting (a render error, or paused): the frames would never come
-                if (!viewer.renderEnabled) break
-                await viewer.doOnce('postFrame')
+            // the loop ends when rendering stops while waiting (disabled, paused or a render error): the frames would never come
+            let rendering = await this._nextFrame(viewer)
+            while (rendering && !progressive.isConverged(true)) {
+                rendering = await this._nextFrame(viewer)
                 // console.log(`rendering ${ 100 * this._viewer!.renderer.frameCount / progressive.maxFrameCount }%`)
             }
         } else {
             viewer.setDirty()
-            await viewer.doOnce('postFrame')
+            await this._nextFrame(viewer)
         }
 
 
@@ -120,7 +121,7 @@ export class CanvasSnapshotPlugin extends AViewerPluginSync {
         // }
 
         let file
-        if (!viewer.renderEnabled) {
+        if (!viewer.enabled || !viewer.renderEnabled) {
             viewer.console.warn('CanvasSnapshotPlugin: rendering stopped during the snapshot, no frame to capture')
         } else if (options.tileRows && options.tileRows > 1 || options.tileColumns && options.tileColumns > 1) {
             const res = await CanvasSnapshot.GetTiledFiles(canvas, filename, Math.max(1, options.tileRows || 1), Math.max(1, options.tileColumns || 1), options)
@@ -154,6 +155,15 @@ export class CanvasSnapshotPlugin extends AViewerPluginSync {
         viewer.renderManager.renderScale = dpr
 
         return file
+    }
+
+    /**
+     * Waits for the next frame ({@link ThreeViewer.nextFrame}) and resolves whether it rendered: `false` when the viewer
+     * is disabled or disposed before it, or when rendering is paused ({@link ThreeViewer.renderEnabled}, also after a
+     * render error)
+     */
+    private async _nextFrame(viewer: ThreeViewer): Promise<boolean> {
+        return await viewer.nextFrame() && viewer.renderEnabled
     }
 
     @uiInput('Filename')

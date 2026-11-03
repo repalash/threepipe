@@ -118,6 +118,7 @@ Plugins to add support for custom materials and material extensions for existing
 Plugins to configure export options and methods for different file formats.
 
 - [CanvasSnapshotPlugin](../plugin/CanvasSnapshotPlugin) - Add support for taking snapshots of the canvas.
+- [CanvasRecorderPlugin](../plugin/CanvasRecorderPlugin) - Record the canvas to a video (MP4 or WebM) or an image sequence, in real time or frame by frame after the progressive render converges.
 - [AssetExporterPlugin](../plugin/AssetExporterPlugin) - Provides helper options, methods and ui config to export the scene, object GLB or Viewer Configuration.
 - [FileTransferPlugin](../plugin/FileTransferPlugin) - Provides a way to extend the `viewer.export` functionality with custom actions.
 
