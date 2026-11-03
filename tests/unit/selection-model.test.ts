@@ -17,6 +17,7 @@ import {
 import {SelectionUxPlugin} from '../../plugins/tweakpane-editor/src/selection/SelectionUxPlugin'
 import {boxInfo, boxScreenRect, frontFaces, localBox, screenRect, toScreen} from '../../plugins/tweakpane-editor/src/selection/selectionBox'
 import {ElementPool} from '../../plugins/tweakpane-editor/src/selection/ElementPool'
+import {TransformControls} from '../../src/three/controls/TransformControls'
 
 const geometry = new BoxGeometry(0.5, 0.5, 0.5)
 const material = new MeshBasicMaterial()
@@ -474,6 +475,10 @@ function setup() {
             c.parent = canvas
             canvas.children.push(c)
         },
+        // for the transform controls
+        ownerDocument: {pointerLockElement: null},
+        setPointerCapture: () => undefined,
+        releasePointerCapture: () => undefined,
     })
     const picker = new ObjectPicker(root, canvas as any, camera as any)
     const undoManager = new JSUndoManager({limit: 100, debug: false, bindHotKeys: false})
@@ -487,12 +492,14 @@ function setup() {
     })
     picker.addEventListener('selectedObjectChanged', e => picking.dispatchEvent(e))
     picker.addEventListener('hitObject', e => picking.dispatchEvent(e)) // as PickingPlugin: the same intersects object
+    /** Other plugins of the viewer, by type */
+    const plugins: Record<string, any> = {}
     const viewer = Object.assign(new EventDispatcher<any>(), {
         container: canvas,
         canvas,
         scene: {modelRoot: root, mainCamera: camera},
         renderManager: {frameCount: 0},
-        getPlugin: (p: any) => p?.PluginType === 'Picking' ? picking : undefined,
+        getPlugin: (p: any) => p?.PluginType === 'Picking' ? picking : plugins[p],
     }) as any
     document.elementFromPoint = () => canvas as any
 
@@ -531,7 +538,25 @@ function setup() {
     const lines = () => frame().children[0].children
     /** Draw a frame and return the label elements of the overlay */
     const labels = () => frame().children[1].children
-    return {ux, viewer, picking, undoManager, canvas, events, table, legs, leg1, leg2, top, lamp, wall, at, wait, click, dblclick, key, names, frame, lines, labels, camera}
+    return {ux, viewer, plugins, picking, undoManager, canvas, events, table, legs, leg1, leg2, top, lamp, wall, at, wait, click, dblclick, key, names, frame, lines, labels, camera}
+}
+
+/**
+ * {@link setup} with the transform gizmo of a TransformControlsPlugin on the lamp, selected. The point `xArm` is on the
+ * gizmo's X arrow, over empty space: a click there clears the selection.
+ */
+function setupGizmo() {
+    const s = setup()
+    const controls = new TransformControls(s.camera, s.canvas as any)
+    s.plugins.TransformControlsPlugin = {isDisabled: () => false, transformControls: controls}
+    s.ux.select([s.lamp])
+    controls.attach(s.lamp)
+    controls.updateMatrixWorld()
+    const starts: string[] = []
+    controls.addEventListener('mouseDown', () => starts.push(controls.axis!))
+    const p = new Vector3(2.9, 0, 0).project(s.camera)
+    const xArm = {clientX: (p.x + 1) / 2 * SIZE, clientY: (1 - p.y) / 2 * SIZE}
+    return {...s, controls, starts, xArm}
 }
 
 describe('SelectionUxPlugin', () => {
@@ -680,6 +705,59 @@ describe('SelectionUxPlugin', () => {
         window.dispatchEvent(ev('pointerup', {...at(lamp), isPrimary: false}))
         window.dispatchEvent(ev('pointerup', p))
         expect(names()).toEqual([])
+    })
+
+    test('a long press is not a click, as in the core picker', () => {
+        const {canvas, at, lamp, wait, names} = setup()
+        const p = at(lamp)
+        canvas.dispatchEvent(ev('pointerdown', p))
+        wait(ObjectPicker.PointerClickMaxTime)
+        window.dispatchEvent(ev('pointerup', p))
+        expect(names()).toEqual([])
+        canvas.dispatchEvent(ev('pointerdown', p))
+        wait(ObjectPicker.PointerClickMaxTime - 1)
+        window.dispatchEvent(ev('pointerup', p))
+        expect(names()).toEqual(['Lamp'])
+    })
+
+    test('a touch on the transform gizmo moves the object and is not a click: the gizmo finds its axis after the press', () => {
+        const {canvas, xArm, wait, starts, names} = setupGizmo()
+        // on touch, no hover finds the axis before the press
+        const touch = {...xArm, pointerType: 'touch', pointerId: 2}
+        const moved = {...touch, clientX: touch.clientX + 2}
+        // a quick tap, and a hold of a precision adjustment
+        for (const ms of [50, 500]) {
+            canvas.dispatchEvent(ev('pointerdown', touch))
+            wait(ms)
+            window.dispatchEvent(ev('pointermove', {...moved, buttons: 1}))
+            canvas.dispatchEvent(ev('pointerup', moved))
+            window.dispatchEvent(ev('pointerup', moved))
+            wait(1000)
+            expect(names()).toEqual(['Lamp'])
+        }
+        expect(starts).toEqual(['X', 'X'])
+    })
+
+    test('with the transform gizmo on, a tap off the gizmo selects as before', () => {
+        const {canvas, at, top, starts, names} = setupGizmo()
+        const touch = {...at(top), pointerType: 'touch', pointerId: 2}
+        canvas.dispatchEvent(ev('pointerdown', touch))
+        canvas.dispatchEvent(ev('pointerup', touch))
+        window.dispatchEvent(ev('pointerup', touch))
+        expect(starts).toEqual([])
+        expect(names()).toEqual(['Table'])
+    })
+
+    test('a mouse press on the gizmo axis under the pointer is not a click', () => {
+        const {canvas, xArm, controls, starts, names} = setupGizmo()
+        const mouse = {...xArm, pointerType: 'mouse', pointerId: 1}
+        canvas.dispatchEvent(ev('pointermove', mouse))
+        expect(controls.axis).toBe('X') // the hover found the axis
+        canvas.dispatchEvent(ev('pointerdown', mouse))
+        canvas.dispatchEvent(ev('pointerup', mouse))
+        window.dispatchEvent(ev('pointerup', mouse))
+        expect(starts).toEqual(['X'])
+        expect(names()).toEqual(['Lamp'])
     })
 
     test('a short quick drag on empty space keeps the selection (the core picker takes it as a click)', () => {
