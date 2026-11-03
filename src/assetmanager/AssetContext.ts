@@ -15,7 +15,7 @@ import type {GLTFLoader2} from './import'
 import {AssetFormat, defaultAssetFormats} from './formats'
 import {upgradeImportedAsset} from './upgradeImportedAsset'
 import {MetaImporter, metaFromResources, SerializationMetaType, SerializationResourcesType} from '../utils/serialization'
-import {IMaterial, iMaterialCommons, IObject3D, iObjectCommons, ITexture} from '../core'
+import {IMaterial, iMaterialCommons, IObject3D, iObjectCommons, ITexture, upgradeTexture} from '../core'
 
 /**
  * Options for {@link createAssetContext}
@@ -103,11 +103,23 @@ export class AssetContext implements IAssetHost {
         this.exporter.addExporter(this._gltfExporter)
     }
 
+    private _formats = new Set<AssetFormat>()
+
     /**
      * Add file formats: functions from {@link assetFormats}, or {@link Importer} objects.
+     * A format is added once, together with the formats it requires ({@link AssetFormat.requires}).
      */
     addFormat(...formats: (AssetFormat | Importer)[]) {
-        this.importer.addImporter(...formats.map(f => typeof f === 'function' ? f(this) : f))
+        for (const f of formats) {
+            if (typeof f !== 'function') {
+                this.importer.addImporter(f)
+                continue
+            }
+            if (this._formats.has(f)) continue
+            this._formats.add(f)
+            if (f.requires) this.addFormat(...f.requires)
+            this.importer.addImporter(f(this))
+        }
     }
 
     /**
@@ -138,12 +150,13 @@ export class AssetContext implements IAssetHost {
 
     /**
      * Export an object, material or texture to a file.
-     * Plain three.js objects and materials are upgraded in place first (threepipe adds its API to them).
+     * Plain three.js objects, materials and textures are upgraded in place first (threepipe adds its API to them).
      * @returns the file as a Blob, `glb` for objects by default (see {@link ExportFileOptions.exportExt})
      */
     async export(obj: Object3D | IObject3D | IMaterial | ITexture, options?: ExportFileOptions): Promise<BlobExt | undefined> {
         if ((obj as IObject3D).isObject3D && !(obj as IObject3D).assetType) iObjectCommons.upgradeObject3D.call(obj as IObject3D)
         else if ((obj as IMaterial).isMaterial && !(obj as IMaterial).assetType) iMaterialCommons.upgradeMaterial.call(obj as IMaterial)
+        else if ((obj as ITexture).isTexture && !(obj as ITexture).assetType) upgradeTexture.call(obj as ITexture)
         return this.exporter.exportObject(obj as IObject3D, options)
     }
 

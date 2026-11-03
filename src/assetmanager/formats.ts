@@ -27,7 +27,14 @@ import {ThreeSerialization} from '../utils'
  * used directly instead.
  * @category Asset Manager
  */
-export type AssetFormat = (host: IAssetHost) => Importer
+export type AssetFormat = ((host: IAssetHost) => Importer) & {
+    /**
+     * Formats this one uses, added with it by {@link AssetContext.addFormat} (like the Draco decoder for glTF)
+     */
+    readonly requires?: readonly AssetFormat[]
+}
+
+const draco = (() => new Importer(DRACOLoader2, ['drc'], ['model/mesh+draco', 'model/drc'], true)) satisfies AssetFormat
 
 /**
  * The file formats that {@link AssetManager} and {@link AssetContext} load by default. Pick some of them to load only
@@ -134,12 +141,15 @@ export const assetFormats = {
     /**
      * `.gltf` and `.glb` models, with the threepipe glTF extensions and the viewer config embedded by threepipe
      */
-    gltf: ((host) => new Importer<GLTFLoader2>(GLTFLoader2, ['gltf', 'glb', 'data:model/gltf', 'data:model/glb'], ['model/gltf', 'model/gltf+json', 'model/gltf-binary', 'model/glb'], true, (l, _, i) => l?.setup(host, i.extensions))) satisfies AssetFormat,
+    gltf: Object.assign((host: IAssetHost) => new Importer<GLTFLoader2>(GLTFLoader2, ['gltf', 'glb', 'data:model/gltf', 'data:model/glb'], ['model/gltf', 'model/gltf+json', 'model/gltf-binary', 'model/glb'], true, (l, _, i) => l?.setup(host, i.extensions)), {
+        requires: [draco], // the decoder of Draco compressed glTF files (KHR_draco_mesh_compression)
+    }) satisfies AssetFormat,
 
     /**
-     * `.drc` Draco compressed meshes (Draco compressed glTF files need only {@link assetFormats.gltf})
+     * `.drc` Draco compressed meshes. {@link assetFormats.gltf} adds it, the glTF loader decodes Draco compressed
+     * glTF files with it.
      */
-    draco: (() => new Importer(DRACOLoader2, ['drc'], ['model/mesh+draco', 'model/drc'], true)) satisfies AssetFormat,
+    draco,
 
     /**
      * Videos as textures: mp4, ogg, mov, webm

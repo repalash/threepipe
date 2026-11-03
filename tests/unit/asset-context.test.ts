@@ -2,7 +2,7 @@
  * Unit tests for loading and exporting files without a viewer: AssetContext, the one-shot functions and assetFormats (Node).
  */
 import {beforeAll, describe, expect, it} from 'vitest'
-import {BoxGeometry, DirectionalLight, Group, Loader, Mesh, MeshStandardMaterial, PerspectiveCamera} from 'three'
+import {BoxGeometry, DataTexture, DirectionalLight, FloatType, Group, Loader, Mesh, MeshStandardMaterial, PerspectiveCamera, RGBAFormat} from 'three'
 
 // Deferred import — threepipe core has circular static-init dependencies that only resolve once the graph is fully loaded.
 let tp: typeof import('threepipe')
@@ -112,6 +112,25 @@ describe('loading and exporting without a viewer', () => {
         for (const ext of ['glb', 'gltf', 'fbx', 'obj', 'mtl', 'drc', 'hdr', 'exr', 'png', 'jpg', 'svg', 'zip', 'json', 'mat', 'mp4']) {
             expect(assets.importer.importers.some(i => (typeof i.ext === 'function' ? (i.ext as any)() : i.ext).includes(ext)), ext).toBe(true)
         }
+        assets.dispose()
+    })
+
+    it('adds the Draco decoder with the glTF format, once', () => {
+        const assets = tp.createAssetContext({formats: [tp.assetFormats.gltf]})
+        // GLTFLoader2 gets its decoder for KHR_draco_mesh_compression like this
+        expect(assets.importer.registerFile('a.drc')).toBeInstanceOf(tp.DRACOLoader2)
+        const count = assets.importer.importers.length
+        assets.addFormat(tp.assetFormats.draco, tp.assetFormats.gltf)
+        expect(assets.importer.importers.length).toBe(count)
+        assets.dispose()
+    })
+
+    it('exports a plain three.js texture with upgrade: false', async() => {
+        const assets = tp.createAssetContext({formats: [], upgrade: false})
+        const texture = new DataTexture(new Float32Array([1, 0.5, 0.25, 1]), 1, 1, RGBAFormat, FloatType)
+        const blob = await assets.export(texture, {exportExt: 'exr'})
+        expect(blob?.ext).toBe('exr')
+        expect(texture.assetType).toBe('texture')
         assets.dispose()
     })
 
