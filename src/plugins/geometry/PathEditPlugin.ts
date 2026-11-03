@@ -6,12 +6,14 @@ import {isInScene} from '../../three/utils/misc'
 import {
     addCurvePoint,
     CurveEditPoint,
+    curvePointMover,
+    CurveSnapshot,
     getCurveEditPoints,
     getCurveSegments,
-    getCurveVectors,
     removeCurvePoint,
+    restoreCurve,
     setCurveEditPoint,
-    updateCurveArcLengths,
+    snapshotCurve,
 } from '../../three/utils/curve-edit'
 import {GeometryGeneratorPlugin} from './GeometryGeneratorPlugin'
 import type {PickingPlugin} from '../interaction/PickingPlugin'
@@ -32,11 +34,11 @@ export interface PathEditPluginEventMap extends AViewerPluginEventMap {
 
 type PathHandle = {kind: 'point', index: number} | {kind: 'add', segment: number}
 
-/** The state of a curve for undo: the curve object and the values of its vectors */
+/** The state of a curve for undo: the curve object and each of its vectors with its value */
 interface CurveState {
     object: IObject3D
     curve: Curve<any>
-    values: (Vector2 | Vector3)[]
+    values: CurveSnapshot
 }
 
 /** A press closer than this to the edited line keeps editing, px */
@@ -281,13 +283,12 @@ export class PathEditPlugin extends AViewerPluginSync<PathEditPluginEventMap> {
 
     private _snapshot(object: IObject3D): CurveState {
         const curve = curveOf(object)!
-        return {object, curve, values: getCurveVectors(curve).map(v => v.clone())}
+        return {object, curve, values: snapshotCurve(curve)}
     }
 
     private _restore = (s: CurveState) => {
         if (curveOf(s.object) !== s.curve) this._setCurve(s.object, s.curve)
-        getCurveVectors(s.curve).forEach((v, i) => s.values[i] && v.copy(s.values[i] as any))
-        updateCurveArcLengths(s.curve)
+        restoreCurve(s.curve, s.values)
         const n = getCurveEditPoints(s.curve).length
         if (this.selectedPoint !== null && this.selectedPoint >= n) this.selectedPoint = null
         this._changed(s.object, 'restore')
@@ -346,7 +347,9 @@ export class PathEditPlugin extends AViewerPluginSync<PathEditPluginEventMap> {
     private _pointDrag(object: IObject3D, index: number, shift: boolean, before?: CurveState): ScreenHandleDrag<CurveState> | undefined {
         const curve = curveOf(object)
         const point = getCurveEditPoints(curve)[index]
-        if (!curve || !point) return undefined
+        // the vectors of the point from the press: the drag moves them also over another point
+        const mover = curve && curvePointMover(curve, index)
+        if (!curve || !point || !mover) return undefined
         const origin = this._world(object, point.vec)
         const view = this._viewer!.scene.mainCamera.getWorldDirection(new Vector3())
         let plane: Plane | undefined
@@ -369,7 +372,7 @@ export class PathEditPlugin extends AViewerPluginSync<PathEditPluginEventMap> {
             restore: this._restore,
             move: (p) => {
                 if (keepY) p.y = origin.y
-                setCurveEditPoint(curve, index, object.worldToLocal(p.clone()))
+                mover(object.worldToLocal(p.clone()))
                 this._changed(object, 'move', false)
             },
             end: () => {

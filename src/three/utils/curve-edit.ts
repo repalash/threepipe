@@ -20,6 +20,8 @@ export type CurveVector = Vector2 | Vector3
  *
  * The joint of two curves of a path is one point: the end of a curve and the start of the next one. They can be the
  * same `Vector3` (as `PenToolPlugin` makes them) or two equal vectors (a path loaded from a file), `vecs` has each.
+ * The end of the last curve and the start of the first one are one point only when they are the same vector (a
+ * closed path): an open path whose ends are at the same position stays open.
  */
 export interface CurveEditPoint {
     /** The position, in the space of the curve. The first of `vecs` */
@@ -132,7 +134,8 @@ function analyze(curve: Curve<any> | undefined | null): Analysis {
             if (!isVec(vec)) return
             const k = leaf.prefix + key
             let idx: number
-            // the start of a curve of a path, at the end of the curve before it: one point, the joint
+            // the start of a curve of a path, at the end of the curve before it: one point, the joint. The curves of a
+            // path follow each other, so an equal vector is the joint too (a path loaded from a file shares no vector)
             if (i === 0 && anchor && prevEnd !== undefined && same(points[prevEnd].vec, vec)) {
                 idx = prevEnd
                 points[idx].vecs.push(vec)
@@ -157,11 +160,12 @@ function analyze(curve: Curve<any> | undefined | null): Analysis {
         part.segments = kind === 'spline' ? leaf.curve.closed ? n : n - 1 : kind === 'other' ? 0 : 1
         parts.push(part)
     }
-    // a closed path: the end of the last curve is the start of the first one
+    // a closed path: the end of the last curve is the start of the first one. Only the same vector: an open path
+    // whose end is moved onto its start stays open (an equal position is not a joint here)
     if (parts.length > 1) {
         const first = parts[0], last = parts[parts.length - 1]
-        const a = first.anchorIdx[0], bi = last.anchorIdx.length - 1, b = last.anchorIdx[bi]
-        if (a !== undefined && b !== undefined && a !== b && same(points[a].vec, points[b].vec)) merge(points, parts, b, a)
+        const a = first.anchorIdx[0], b = last.anchorIdx[last.anchorIdx.length - 1]
+        if (a !== undefined && b !== undefined && a !== b && points[b].vecs.some(v => points[a].vecs.includes(v))) merge(points, parts, b, a)
     }
     return {points, parts}
 }
@@ -189,9 +193,33 @@ export function getCurveEditPoints(curve: Curve<any> | undefined | null): CurveE
     return analyze(curve).points
 }
 
-/** Every vector of a curve (each once), for a snapshot of its points */
+/**
+ * Every vector of a curve, each once, in the structure of the curve (not merged by position), for a snapshot of its
+ * points: keep each vector with its value, see {@link snapshotCurve}.
+ */
 export function getCurveVectors(curve: Curve<any> | undefined | null): CurveVector[] {
-    return getCurveEditPoints(curve).flatMap(p => p.vecs)
+    const res = new Set<CurveVector>()
+    if (curve) for (const leaf of leaves(curve, '', [])) {
+        for (const {key} of partKeys(leaf.curve, kindOf(leaf.curve))) {
+            const vec = getVec(leaf.curve, key)
+            if (isVec(vec)) res.add(vec)
+        }
+    }
+    return [...res]
+}
+
+/** The vectors of a curve with copies of their values, see {@link restoreCurve} */
+export type CurveSnapshot = [CurveVector, CurveVector][]
+
+/** Each vector of the curve with a copy of its value, to put back with {@link restoreCurve} (for undo) */
+export function snapshotCurve(curve: Curve<any> | undefined | null): CurveSnapshot {
+    return getCurveVectors(curve).map(v => [v, v.clone()])
+}
+
+/** Put back the values of a {@link snapshotCurve} into the same vectors, and update the arc lengths of the curve */
+export function restoreCurve(curve: Curve<any>, snapshot: CurveSnapshot) {
+    for (const [v, value] of snapshot) (v as Vector3).copy(value as Vector3)
+    updateCurveArcLengths(curve)
 }
 
 /**
@@ -224,41 +252,55 @@ export interface SetCurvePointOptions {
 }
 
 /**
- * Set the point `index` of {@link getCurveEditPoints} (all its vectors) to a position in the space of the curve. A 2D
- * curve takes `x` and `y`. Updates the arc lengths of the curve.
+ * A function that moves the point `index` of {@link getCurveEditPoints}, for a drag: it keeps the vectors of the point
+ * (and of the handles that move with it) from now, not the index, so the drag moves the same point when it passes over
+ * another one. Each call sets the point (all its vectors) to a position in the space of the curve (a 2D curve takes
+ * `x` and `y`) and updates the arc lengths. Null when there is no such point.
  */
-export function setCurveEditPoint(curve: Curve<any>, index: number, position: {x: number, y: number, z?: number}, options: SetCurvePointOptions = {}) {
+export function curvePointMover(curve: Curve<any>, index: number, options: SetCurvePointOptions = {}): ((position: {x: number, y: number, z?: number}) => void) | null {
     const points = getCurveEditPoints(curve)
     const p = points[index]
-    if (!p) return
-    const before = toV3(p.vec)
-    const delta = toV3(position).sub(before)
-    if (p.kind === 'anchor' && (options.moveHandles ?? true)) {
-        for (const c of points) {
-            if (c.kind !== 'control' || c.anchors.length !== 1 || c.anchors[0] !== index) continue
+    if (!p) return null
+    // the handles that move with an anchor
+    const handles = p.kind === 'anchor' && (options.moveHandles ?? true) ?
+        points.filter(c => c.kind === 'control' && c.anchors.length === 1 && c.anchors[0] === index) : []
+    // a handle of a smooth point (the two handles point in opposite directions): the other one turns with it
+    let smooth: {other: CurveEditPoint, anchor: CurveVector, length: number} | null = null
+    if (p.kind === 'control' && p.anchors.length === 1 && (options.keepSmooth ?? true)) {
+        const ai = p.anchors[0]
+        const others = points.filter(c => c !== p && c.kind === 'control' && c.anchors.length === 1 && c.anchors[0] === ai)
+        if (others.length === 1) {
+            const anchor = toV3(points[ai].vec)
+            const d0 = toV3(p.vec).sub(anchor), d1 = toV3(others[0].vec).sub(anchor)
+            const l0 = d0.length(), l1 = d1.length()
+            if (l0 > 1e-9 && l1 > 1e-9 && d0.dot(d1) / (l0 * l1) < -0.9999) smooth = {other: others[0], anchor: points[ai].vec, length: l1}
+        }
+    }
+    return (position) => {
+        const delta = toV3(position).sub(toV3(p.vec))
+        for (const c of handles) {
             const q = toV3(c.vec).add(delta)
             c.vecs.forEach(v => setVec(v, q))
         }
-    } else if (p.kind === 'control' && p.anchors.length === 1 && (options.keepSmooth ?? true)) {
-        const ai = p.anchors[0]
-        const anchor = toV3(points[ai].vec)
-        const others = points.filter(c => c !== p && c.kind === 'control' && c.anchors.length === 1 && c.anchors[0] === ai)
-        if (others.length === 1) {
-            const o = others[0]
-            const d0 = before.clone().sub(anchor), d1 = toV3(o.vec).sub(anchor)
-            const l0 = d0.length(), l1 = d1.length()
-            // smooth: the two handles point in opposite directions
-            if (l0 > 1e-9 && l1 > 1e-9 && d0.dot(d1) / (l0 * l1) < -0.9999) {
-                const dir = toV3(position).sub(anchor)
-                if (dir.lengthSq() > 1e-18) {
-                    const q = anchor.clone().addScaledVector(dir.normalize(), -l1)
-                    o.vecs.forEach(v => setVec(v, q))
-                }
+        if (smooth) {
+            const anchor = toV3(smooth.anchor)
+            const dir = toV3(position).sub(anchor)
+            if (dir.lengthSq() > 1e-18) {
+                const q = anchor.addScaledVector(dir.normalize(), -smooth.length)
+                smooth.other.vecs.forEach(v => setVec(v, q))
             }
         }
+        p.vecs.forEach(v => setVec(v, position))
+        updateCurveArcLengths(curve)
     }
-    p.vecs.forEach(v => setVec(v, position))
-    updateCurveArcLengths(curve)
+}
+
+/**
+ * Set the point `index` of {@link getCurveEditPoints} (all its vectors) to a position in the space of the curve. A 2D
+ * curve takes `x` and `y`. Updates the arc lengths of the curve. For a drag, use {@link curvePointMover}.
+ */
+export function setCurveEditPoint(curve: Curve<any>, index: number, position: {x: number, y: number, z?: number}, options: SetCurvePointOptions = {}) {
+    curvePointMover(curve, index, options)?.(position)
 }
 
 /**

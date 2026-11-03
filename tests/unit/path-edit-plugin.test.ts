@@ -415,6 +415,44 @@ describe('PathEditPlugin', () => {
         expect(arr(plugin.getPoints()[1].vec)).toEqual([-3, 1.5, 0])
     })
 
+    /** Two lines through x = 0, 1, 2 with a shared middle joint */
+    function twoLines() {
+        const a = new Vector3(-3, 0, 0), b = new Vector3(0, 0, 0), c = new Vector3(3, 0, 0)
+        const path = new tp.CurvePath3()
+        path.add(new LineCurve3(a, b))
+        path.add(new LineCurve3(b, c))
+        return path
+    }
+    const xs = (o: any) => tp.getCurveEditPoints(o.geometry.userData.generationParams.curve).map((p: any) => p.vec.x)
+
+    test('undo after the last point of an open path is moved onto the first: the points come back', () => {
+        const {plugin, line, undoManager} = setup()
+        const o = line(twoLines())
+        plugin.edit(o)
+        plugin.movePoint(2, new Vector3(-3, 0, 0))
+        expect(xs(o)).toEqual([-3, 0, -3])
+        undoManager.undo()
+        expect(xs(o)).toEqual([-3, 0, 3])
+        undoManager.redo()
+        undoManager.undo()
+        expect(xs(o)).toEqual([-3, 0, 3])
+    })
+
+    test('a drag of the last point onto the first and on: the same point moves; Esc puts it back', () => {
+        const {plugin, line, press, ev, screen, key} = setup()
+        const o = line(twoLines())
+        plugin.edit(o)
+        press(new Vector3(3, 0, 0))
+        win.fire('pointermove', ev(screen(new Vector3(-3, 0, 0)), {buttons: 1}))
+        win.fire('pointermove', ev(screen(new Vector3(-2, 1, 0)), {buttons: 1}))
+        const pts = tp.getCurveEditPoints(o.geometry.userData.generationParams.curve)
+        expect(arr(pts[0].vec)).toEqual([-3, 0, 0])
+        expect(arr(pts[2].vec)).toEqual([-2, 1, 0])
+        win.fire('pointermove', ev(screen(new Vector3(-3, 0, 0)), {buttons: 1}))
+        key('Escape')
+        expect(xs(o)).toEqual([-3, 0, 3])
+    })
+
     test('works without UndoManagerPlugin', () => {
         const {plugin, line, drag} = setup({withUndo: false})
         const curve = spline()

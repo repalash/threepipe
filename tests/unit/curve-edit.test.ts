@@ -95,6 +95,21 @@ describe('getCurveEditPoints', () => {
         expect(pts[pts.length - 1].anchors).toEqual([0])
     })
 
+    test('an open path whose end meets its start (other vectors) stays open', () => {
+        const path = new tp.CurvePath3()
+        path.add(new CubicBezierCurve3(v(0, 0, 0), v(0, 1, 0), v(1, 1, 0), v(2, 0, 0)))
+        path.add(new CubicBezierCurve3(path.curves[0].v3, v(3, -1, 0), v(1, -1, 0), v(0, 0, 0)))
+        const pts = tp.getCurveEditPoints(path)
+        expect(pts.filter(p => p.kind === 'anchor')).toHaveLength(3)
+        expect(pts[0].vecs).toEqual([path.curves[0].v0])
+        expect(pts[pts.length - 1].vecs).toEqual([path.curves[1].v3])
+        // the last handle pulls on the last point, not the first
+        expect(pts[pts.length - 2].anchors).toEqual([pts.length - 1])
+        // moving the end does not move the start
+        tp.setCurveEditPoint(path, pts.length - 1, v(5, 5, 0))
+        near(path.curves[0].v0, [0, 0, 0])
+    })
+
     test('a 2D spline and an ellipse', () => {
         expect(tp.getCurveEditPoints(new SplineCurve([new Vector2(0, 0), new Vector2(1, 1)]))).toHaveLength(2)
         expect(tp.getCurveEditPoints(new EllipseCurve(0, 0, 1, 1))).toHaveLength(0)
@@ -304,6 +319,31 @@ test('a 2D Path of lines: points, add and remove keep a Path of 2D lines', () =>
     expect(removed.curves).toHaveLength(2)
     expect(removed.curves[0]).toBeInstanceOf(LineCurve)
     expect(tp.getCurveEditPoints(removed).map(p => p.vec.toArray())).toEqual([[0, 0], [2, 1], [2, 2]])
+})
+
+test('curvePointMover moves the vectors of the press, also over another point', () => {
+    // a path with a gap: the end of the first line is not the start of the second
+    const path = new tp.CurvePath3()
+    path.add(new LineCurve3(v(0, 0, 0), v(1, 0, 0)))
+    path.add(new LineCurve3(v(1.5, 0, 0), v(2, 0, 0)))
+    const move = tp.curvePointMover(path, 1)!
+    move(v(1.5, 0, 0)) // on the start of the second line: now one point by position
+    expect(tp.getCurveEditPoints(path)).toHaveLength(3)
+    move(v(1, 1, 0))
+    near((path.curves[0] as LineCurve3).v2, [1, 1, 0])
+    near((path.curves[1] as LineCurve3).v1, [1.5, 0, 0])
+})
+
+test('snapshotCurve and restoreCurve pair each vector with its value', () => {
+    const a = v(0, 0, 0), b = v(1, 0, 0), c = v(2, 0, 0)
+    const path = new tp.CurvePath3()
+    path.add(new LineCurve3(a, b))
+    path.add(new LineCurve3(b, c))
+    const snap = tp.snapshotCurve(path)
+    expect(snap.map(([x]) => x)).toEqual([a, b, c])
+    tp.setCurveEditPoint(path, 2, v(0, 0, 0))
+    tp.restoreCurve(path, snap)
+    expect([a, b, c].map(x => x.x)).toEqual([0, 1, 2])
 })
 
 test('cloneCurve keeps shared vectors shared', () => {

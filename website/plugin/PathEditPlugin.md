@@ -82,12 +82,12 @@ The curve is in the local space of the object, so the object can be moved, rotat
 | `CurvePath3`, `CurvePath`, `Path` | the points of each curve, each joint once | the segment is split in place | a joint joins its two curves (a line for two lines, else a cubic Bezier with the outer handles), an end point removes its curve |
 | Other curves (an ellipse) | the vector fields, if any | no | no |
 
-- The joint of two curves of a path is one point. It can be the same `Vector3` in both curves (as `PenToolPlugin` makes them) or two equal vectors (a path loaded from a file); moving it moves both curves, and adding or removing a point keeps the joints shared.
+- The joint of two curves of a path is one point. It can be the same `Vector3` in both curves (as `PenToolPlugin` makes them) or two equal vectors (a path loaded from a file); moving it moves both curves, and adding or removing a point keeps the joints shared. The end of the last curve and the start of the first one are one point only when they are the same vector (a closed path): an open path whose ends meet stays open.
 - Moving an anchor moves its Bezier handles with it. Moving a handle of a smooth point (two handles on one line through the anchor) turns the other handle to keep it smooth; its length stays.
 - An add or a remove puts a new curve object in `generationParams.curve` (the old one is kept for undo); a move changes the vectors of the curve.
 - The plugin regenerates the geometry with `geometry.setDirty({regenerate: true})`, so `GeometryGeneratorPlugin` must be in the viewer and the object in the scene.
 
-The same edits are available without the plugin, as functions of a curve: `getCurveEditPoints`, `setCurveEditPoint`, `getCurveSegments`, `addCurvePoint`, `removeCurvePoint` and `cloneCurve`.
+The same edits are available without the plugin, as functions of a curve: `getCurveEditPoints`, `setCurveEditPoint`, `curvePointMover`, `getCurveSegments`, `addCurvePoint`, `removeCurvePoint`, `cloneCurve`, `snapshotCurve` and `restoreCurve`.
 
 ## LineHelper
 
