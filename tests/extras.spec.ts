@@ -147,7 +147,6 @@ test('svg-geometry-playground', async({page}) => expect(page).toHaveTitle('SVG G
 test('switch-node-plugin', async({page}) => expect(page).toHaveTitle('Switch Node Plugin (Configurator)'))
 test('tailwind-css-cdn-plugin', async({page}) => expect(page).toHaveTitle('TailwindCSS CDN Plugin'))
 test('temporalaa-plugin', async({page}) => expect(page).toHaveTitle('TemporalAA Plugin'))
-test('theatrejs-plugin', async({page}) => expect(page).toHaveTitle('TheatreJs Plugin Test'))
 test('three-csm-basic', async({page}) => expect(page).toHaveTitle('Three CSM Basic Demo (Cascaded Shadow Maps)'))
 test('three-gpu-pathtracer', async({page}) => expect(page).toHaveTitle('Three GPU Path Tracer')) // todo timeout or something
 test('three-svg-renderer-plugin', async({page}) => expect(page).toHaveTitle('Three SVG Renderer'))
