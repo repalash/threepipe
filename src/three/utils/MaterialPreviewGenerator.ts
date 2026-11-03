@@ -70,8 +70,9 @@ export interface MaterialPreviewOptions {
      */
     outputColorSpace?: ColorSpace
     /**
-     * Add the hemisphere light of the preview scene. Default: only when there is no environment map,
-     * so that the material looks the same as in a viewport lit by the environment map.
+     * Add the hemisphere light of the preview scene. Default: only when there is no environment map, or the material
+     * is not lit by the scene environment (only `MeshStandardMaterial` and `MeshPhysicalMaterial` are, not Phong, Lambert or Basic),
+     * so that a material lit by the environment map looks the same as in the viewport, and the other materials are not black.
      */
     light?: boolean
     /**
@@ -233,7 +234,8 @@ export class MaterialPreviewGenerator implements IDisposable {
         this._scene.environmentIntensity = options.environmentIntensity ?? 1
         if (options.environmentRotation) this._scene.environmentRotation.copy(options.environmentRotation)
         else this._scene.environmentRotation.set(0, 0, 0)
-        const light = options.light ?? !options.environment
+        // three.js lights only standard materials with scene.environment
+        const light = options.light ?? !(options.environment && material.isMeshStandardMaterial)
         this._lights.forEach(l => l.visible = light)
 
         try {
