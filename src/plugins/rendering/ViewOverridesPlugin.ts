@@ -50,7 +50,7 @@ export interface ViewOverridesPluginEventMap extends AViewerPluginEventMap {
     change: object
 }
 
-/** The 1k HDR files of the 'env' presets (Poly Haven, CC0) */
+/** The 1k HDR files of the 'env' presets (Poly Haven, CC0; gem_2 from webgi, spot1Lux from the three.js examples) */
 const ENV_BASE = 'https://samples.threepipe.org/minimal/'
 
 /** The colour of a fat line in the normal views: the colour of a zero normal there (0.5 in each channel), no direction */
@@ -118,6 +118,8 @@ function defaultLightingPresets(): ViewOverrideLightingPreset[] {
         {key: 'env-overpass', label: 'Overpass', group: 'env', url: ENV_BASE + 'pedestrian_overpass_1k.hdr'},
         {key: 'env-bridge', label: 'Bridge', group: 'env', url: ENV_BASE + 'san_giuseppe_bridge_1k.hdr'},
         {key: 'env-esplanade', label: 'Esplanade', group: 'env', url: ENV_BASE + 'royal_esplanade_1k.hdr'},
+        {key: 'env-gem', label: 'Gem', group: 'env', url: ENV_BASE + 'gem_2_1k.hdr'},
+        {key: 'env-spot', label: 'Spot', group: 'env', url: ENV_BASE + 'spot1lux_1k.hdr'},
     ]
 }
 
@@ -138,8 +140,9 @@ function defaultLightingPresets(): ViewOverrideLightingPreset[] {
  *
  * Lighting presets ({@link setLighting}, {@link lightingPresets}): 'lights-*' replace the scene lights (and by default
  * the environment, see {@link lightsKeepEnvironment}) with preset lights; 'env-*' replace them with another
- * environment map, loaded once and cached. The 'env' presets are 1k HDR files from Poly Haven (CC0) on
- * samples.threepipe.org: studios, interiors and outdoor scenes.
+ * environment map, loaded once and cached. The 'env' presets are 1k HDR files on samples.threepipe.org: studios,
+ * interiors and outdoor scenes from Poly Haven (CC0), the gem environment of webgi (`gem_2`) and one spot light in the dark
+ * (`spot1Lux` of the three.js examples).
  *
  * A material view and a lighting preset are exclusive: choosing one turns the other off (the debug materials are
  * unlit, so lights do not change them).

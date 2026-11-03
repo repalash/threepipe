@@ -49,7 +49,7 @@ Lighting presets (`setLighting`, the list is in `lightingPresets`):
 | `lights-day`, `lights-night`, `lights-studio`, `lights-none` | Preset lights in place of the scene lights. The environment map is off too, unless `lightsKeepEnvironment` is true |
 | `env-*` (the table below) | Another environment map in place of the scene lights and environment. The map loads on the first use, then it is cached |
 
-The environment presets are 1k HDR files (1024 × 512) from [Poly Haven](https://polyhaven.com/hdris) (CC0), on `https://samples.threepipe.org/minimal/`:
+The environment presets are 1k HDR files (1024 × 512) on `https://samples.threepipe.org/minimal/`: from [Poly Haven](https://polyhaven.com/hdris) (CC0), except `env-gem` (`gem_2.hdr`, the gem environment of webgi) and `env-spot` (`spot1Lux.hdr` of the three.js examples, one spot light in the dark):
 
 | Key | Label | File |
 |---|---|---|
@@ -71,6 +71,8 @@ The environment presets are 1k HDR files (1024 × 512) from [Poly Haven](https:/
 | `env-overpass` | Overpass | `pedestrian_overpass_1k.hdr` |
 | `env-bridge` | Bridge | `san_giuseppe_bridge_1k.hdr` |
 | `env-esplanade` | Esplanade | `royal_esplanade_1k.hdr` |
+| `env-gem` | Gem | `gem_2_1k.hdr` |
+| `env-spot` | Spot | `spot1lux_1k.hdr` |
 
 A material view and a lighting preset are exclusive: choosing one turns the other off, as the debug materials are unlit.
 

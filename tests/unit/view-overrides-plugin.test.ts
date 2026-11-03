@@ -437,7 +437,9 @@ describe('ViewOverridesPlugin', {timeout}, () => {
             'env-day', 'env-night', 'env-studio', 'env-indoors', 'env-outdoors',
         ]))
         const env = presets.filter(p => p.group === 'env')
-        expect(env.length).toBe(18)
+        expect(env.length).toBe(20)
+        expect(env.find(p => p.key === 'env-gem')?.url).toBe('https://samples.threepipe.org/minimal/gem_2_1k.hdr')
+        expect(env.find(p => p.key === 'env-spot')?.url).toBe('https://samples.threepipe.org/minimal/spot1lux_1k.hdr')
         for (const p of env) {
             expect(p.key.startsWith('env-')).toBe(true)
             expect(p.lights).toBe(undefined)
