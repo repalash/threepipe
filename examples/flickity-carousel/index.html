@@ -47,8 +47,14 @@
     </style>
 
 
+    <script type="importmap">
+    {
+        "imports": {
+          "threepipe": "./../../dist/index.mjs"
+        }
+    }
+    </script>
     <script type="module" src="https://unpkg.com/flickity@2.3.0/dist/flickity.pkgd.js"></script>
-    <script src="./../../dist/index.js"></script>
 </head>
 <body>
 <div class="title">
@@ -67,9 +73,8 @@
     <img src="https://s3-us-west-2.amazonaws.com/s.cdpn.io/82/cat-nose.jpg" alt="cat nose" />
 </div>
 <script id="example-script" type="module" data-scripts="./index.html">
-    const {ThreeViewer, LoadingScreenPlugin} = threepipe
-    // or
-    // import {ThreeViewer, LoadingScreenPlugin} from 'threepipe' // if using import maps
+    import {ThreeViewer, LoadingScreenPlugin} from 'threepipe' // the import map above
+    // or, with no import map
     // import {ThreeViewer, LoadingScreenPlugin} from './../../dist/index.mjs'
     // import {ThreeViewer, LoadingScreenPlugin} from 'https://unpkg.com/threepipe@latest/dist/index.mjs'
 
