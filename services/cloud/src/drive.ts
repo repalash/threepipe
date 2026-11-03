@@ -5,7 +5,7 @@ import {base64url, BUCKET, cleanSegments, fileUrl, hmacSha256, jsonBody, logErro
 import {CloudUser, requireUser} from './auth'
 import {contentTypeFor, putStreamed, uploadSize} from './uploads'
 import {grantFolder} from './appFolders'
-import {DRIVE_LIST_MAX, driveQuota, FOLDER_DEPTH_MAX, ITEM_FILES_MAX, NAME_COPIES_MAX, SIGN_DEFAULT_SECONDS, SIGN_MAX_SECONDS, sizeText} from './limits'
+import {DRIVE_LIST_MAX, driveQuota, FOLDER_DEPTH_MAX, NAME_COPIES_MAX, VISIBILITY_FILES_MAX, SIGN_DEFAULT_SECONDS, SIGN_MAX_SECONDS, sizeText} from './limits'
 
 /**
  * The drive: each user's files, saved by apps (the editor) or uploaded.
@@ -24,8 +24,8 @@ import {DRIVE_LIST_MAX, driveQuota, FOLDER_DEPTH_MAX, ITEM_FILES_MAX, NAME_COPIE
  *   POST   /api/v1/drive/folders {name, parent?}     → folder
  *   PATCH  /api/v1/drive/folders/<id> {name?, parent?}
  *   DELETE /api/v1/drive/folders/<id>                 (empty folders only)
- *   PUT    /api/v1/drive/files?folder=<id>&name=<name>   body: the file → a new item with that one file
- *   POST   /api/v1/drive/items {name, folder?, entry?}   → an empty item, for a folder upload (then PUT each file)
+ *   PUT    /api/v1/drive/files?folder=<id>&name=<name>&visibility=   body: the file → a new item with that one file
+ *   POST   /api/v1/drive/items {name, folder?, entry?, visibility?}  → an empty item, for a folder upload (then PUT each file)
  *   PUT    /api/v1/drive/items/<id>/<relative path>  body: one file of the item (overwrites)
  *   GET    /api/v1/drive/items/<id>                  → the item and its files
  *   GET    /api/v1/drive/items/<id>/<relative path>  → the file (owner)
@@ -44,8 +44,18 @@ const ROOT = ''
 
 interface Folder {id: string, name: string, parent_id: string}
 interface Item {id: string, name: string, folder_id: string, entry: string | null, visibility: Visibility, size: number, files_count: number, created: string, updated: string}
-const ITEM_COLUMNS = 'id, name, folder_id, entry, visibility, size, files_count, created, updated'
+/** An item's columns, with its size and file count summed from its files (read, never stored). */
+const ITEM_SELECT = `SELECT i.id, i.name, i.folder_id, i.entry, i.visibility, i.created, i.updated,
+    (SELECT COALESCE(SUM(size), 0) FROM files WHERE item_id = i.id AND deleted_at IS NULL) AS size,
+    (SELECT COUNT(*) FROM files WHERE item_id = i.id AND deleted_at IS NULL) AS files_count FROM drive_items i`
 
+
+/** `?visibility=` / `{visibility}` of a new item: `private` (default) or `link`, so a share is written once, shared. */
+function newVisibility(v: unknown): Visibility {
+    if (v === undefined || v === null || v === '') return 'private'
+    if (!VISIBILITIES.includes(v as Visibility)) throw new HTTPException(400, {message: `visibility is one of ${VISIBILITIES.join(', ')}`})
+    return v as Visibility
+}
 
 /** A name for a folder or an item: any language, no `/`, `\` or control characters, 1 to 255 bytes. */
 function label(name: unknown): string {
@@ -123,9 +133,9 @@ async function folderOf(c: Context<CloudEnv>, user: CloudUser, id: string): Prom
 
 /** The user's item, or 404; for an app key only inside its folder. */
 async function itemOf(c: Context<CloudEnv>, user: CloudUser, id: string): Promise<Item> {
-    const it = await c.env.PRIMARY_DB.prepare(`SELECT ${ITEM_COLUMNS} FROM drive_items WHERE id = ? AND owner_id = ?`).bind(id, user.id).first<Item>()
+    const it = await c.env.PRIMARY_DB.prepare(`${ITEM_SELECT} WHERE i.id = ? AND i.owner_id = ?`).bind(id, user.id).first<Item>()
     if (!it) throw new HTTPException(404, {message: 'no such item'})
-    await scopedChain(c, user, it.folder_id)
+    if (user.scope && user.scope !== '*') await scopedChain(c, user, it.folder_id)
     return it
 }
 
@@ -160,31 +170,17 @@ export async function driveUsage(c: Context<CloudEnv>, userId: string, key = '')
 }
 
 /**
- * Before writing a file: 413 when it would go over the quota (an overwrite counts its new size only), or when it would
- * be one file too many for its item. Returns the size of the file it replaces. writeFile checks the total again after.
+ * Streams the request body into the item as `rel` and registers it: the quota check, the R2 write and one D1 batch.
  */
-async function checkWrite(c: Context<CloudEnv>, user: CloudUser, item: Item, key: string, size: number): Promise<number> {
-    const [{used, old}, files] = await Promise.all([driveUsage(c, user.id, key),
-        c.env.PRIMARY_DB.prepare('SELECT COUNT(*) AS n, COUNT(CASE WHEN path = ?1 THEN 1 END) AS here FROM files WHERE item_id = ?2 AND deleted_at IS NULL')
-            .bind(key, item.id).first<{n: number, here: number}>()])
-    const quota = driveQuota(user)
-    if (used - old + size > quota) throw new HTTPException(413, {message: `drive quota: ${sizeText(quota)} (${sizeText(used)} used)`})
-    if (!files?.here && (files?.n ?? 0) >= ITEM_FILES_MAX) throw new HTTPException(413, {message: `an item has at most ${ITEM_FILES_MAX} files`})
-    return old
-}
-
-const updateCounts = (c: Context<CloudEnv>, id: string, entry: string | null) => c.env.PRIMARY_DB.prepare(`UPDATE drive_items SET entry = COALESCE(entry, ?1),
-        size = (SELECT COALESCE(SUM(size), 0) FROM files WHERE item_id = ?2 AND deleted_at IS NULL),
-        files_count = (SELECT COUNT(*) FROM files WHERE item_id = ?2 AND deleted_at IS NULL) WHERE id = ?2`).bind(entry, id)
-
-/** Streams the request body into the item as `rel`, registers it, and updates the item's size and count. */
 async function writeFile(c: Context<CloudEnv>, user: CloudUser, item: Item, rel: string) {
     const segs = cleanSegments(rel)
     if (!segs) throw new HTTPException(400, {message: 'bad file path (no \\ ? # %, control characters or dot files)'})
     rel = segs.join('/')
     const key = itemBase(user, item.id) + rel
     const size = uploadSize(c)
-    const old = await checkWrite(c, user, item, key, size)
+    const {used, old} = await driveUsage(c, user.id, key)
+    const quota = driveQuota(user)
+    if (used - old + size > quota) throw new HTTPException(413, {message: `drive quota: ${sizeText(quota)} (${sizeText(used)} used)`})
     const body = c.req.raw.body
     if (!body) throw new HTTPException(400, {message: 'empty body'})
     const contentType = contentTypeFor(key, c.req.header('content-type'))
@@ -193,36 +189,22 @@ async function writeFile(c: Context<CloudEnv>, user: CloudUser, item: Item, rel:
         customMetadata: {owner: user.id, item: item.id, visibility: item.visibility},
     })
     if (!stored) throw new HTTPException(409, {message: 'the file was written by another request at the same time; retry'})
-    await c.env.PRIMARY_DB.batch([
-        c.env.PRIMARY_DB.prepare(`INSERT INTO files (id, owner_id, bucket, prefix, path, size, sha256, content_type, item_id) VALUES (?, ?, ?, 'd', ?, ?, ?, ?, ?)
-                ON CONFLICT (bucket, path) DO UPDATE SET size = excluded.size, sha256 = excluded.sha256, content_type = excluded.content_type,
-                deleted_at = NULL, deleted_by = NULL, deleted_reason = NULL`)
-            .bind(crypto.randomUUID(), user.id, BUCKET, key, size, sha256, contentType, item.id),
-        updateCounts(c, item.id, rel),
-    ])
-    // While the file streamed, the item may have been deleted, got a new id or another visibility. Those routes change
-    // D1 first and then only touch the rows they changed, so the row of the item now says what this object must be.
-    const now = await c.env.PRIMARY_DB.prepare('SELECT visibility FROM drive_items WHERE id = ?').bind(item.id).first<{visibility: Visibility}>()
+    const db = c.env.PRIMARY_DB
+    const insert = db.prepare(`INSERT INTO files (id, owner_id, bucket, prefix, path, size, sha256, content_type, item_id) VALUES (?, ?, ?, 'd', ?, ?, ?, ?, ?)
+            ON CONFLICT (bucket, path) DO UPDATE SET size = excluded.size, sha256 = excluded.sha256, content_type = excluded.content_type,
+            deleted_at = NULL, deleted_by = NULL, deleted_reason = NULL`)
+        .bind(crypto.randomUUID(), user.id, BUCKET, key, size, sha256, contentType, item.id)
+    // one round trip: the row, the entry (the item's first file), and the item as it is now. A visibility change or a
+    // delete while the file streamed: the object follows the item.
+    const res = await db.batch([insert, db.prepare('UPDATE drive_items SET entry = COALESCE(entry, ?) WHERE id = ? RETURNING visibility').bind(rel, item.id)])
+    const now = (res[1] as D1Result<{visibility: Visibility}>).results[0]
     if (!now) {
-        await dropFile(c, key, item.id) // gone, unless the new id took this row along (then it copies the object)
-        throw new HTTPException(409, {message: 'the item was deleted or got a new id during the upload'})
+        await db.prepare('DELETE FROM files WHERE bucket = ? AND path = ?').bind(BUCKET, key).run()
+        await c.env.CLOUD_BUCKET.delete(key)
+        throw new HTTPException(409, {message: 'the item was deleted during the upload'})
     }
     if (now.visibility !== item.visibility) await setVisibility(c, key, now.visibility)
-    // Uploads at the same time all pass checkWrite; the total after them is what counts. One that added bytes goes
-    // (the file it replaced is already overwritten); one that did not stays.
-    const {used} = await driveUsage(c, user.id)
-    if (used > driveQuota(user) && size > old) {
-        await dropFile(c, key, item.id)
-        await updateCounts(c, item.id, null).run()
-        throw new HTTPException(413, {message: `drive quota: ${sizeText(driveQuota(user))} (other uploads at the same time used it)`})
-    }
     return {path: rel, size, sha256}
-}
-
-/** Deletes a file this request wrote, if its row is still that item's (a new id moves rows, and their objects with them). */
-async function dropFile(c: Context<CloudEnv>, key: string, itemId: string) {
-    const r = await c.env.PRIMARY_DB.prepare('DELETE FROM files WHERE bucket = ? AND path = ? AND item_id = ?').bind(BUCKET, key, itemId).run()
-    if (r.meta.changes) await c.env.CLOUD_BUCKET.delete(key)
 }
 
 /**
@@ -241,7 +223,6 @@ async function setVisibility(c: Context<CloudEnv>, key: string, visibility: Visi
 }
 
 async function itemFiles(c: Context<CloudEnv>, item: Item) {
-    // at most ITEM_FILES_MAX (checkWrite), give or take uploads that were checked at the same time
     const {results} = await c.env.PRIMARY_DB.prepare('SELECT path, size, content_type FROM files WHERE item_id = ? AND deleted_at IS NULL ORDER BY path')
         .bind(item.id).all<{path: string, size: number, content_type: string}>()
     return results
@@ -299,7 +280,7 @@ export function driveRoutes(app: Hono<CloudEnv>) {
         const path = await scopedChain(c, user, id)
         const [folders, items] = await c.env.PRIMARY_DB.batch([
             c.env.PRIMARY_DB.prepare('SELECT id, name, parent_id FROM drive_folders WHERE owner_id = ? AND parent_id = ? ORDER BY name LIMIT ?').bind(user.id, id, DRIVE_LIST_MAX),
-            c.env.PRIMARY_DB.prepare(`SELECT ${ITEM_COLUMNS} FROM drive_items WHERE owner_id = ? AND folder_id = ? ORDER BY name LIMIT ?`).bind(user.id, id, DRIVE_LIST_MAX),
+            c.env.PRIMARY_DB.prepare(`${ITEM_SELECT} WHERE i.owner_id = ? AND i.folder_id = ? ORDER BY i.name LIMIT ?`).bind(user.id, id, DRIVE_LIST_MAX),
         ]) as [D1Result<Folder>, D1Result<Item>]
         return c.json({
             folder: id === ROOT ? {id: ROOT, name: '', parent: null} : folderOut(path[path.length - 1]),
@@ -385,12 +366,17 @@ export function driveRoutes(app: Hono<CloudEnv>) {
         await scopedChain(c, user, folder)
         const name = await freeName(c, user.id, folder, label(c.req.query('name')))
         const rel = name.replace(/[\\?#%]/g, '_').replace(/^\./, '_')
-        const item: Item = {id: randomCode(16), name, folder_id: folder, entry: null, visibility: 'private', size: 0, files_count: 0, created: '', updated: ''}
-        await naming(name, c.env.PRIMARY_DB.prepare('INSERT INTO drive_items (id, owner_id, folder_id, name) VALUES (?, ?, ?, ?)').bind(item.id, user.id, folder, name).run())
+        const item: Item = {id: randomCode(16), name, folder_id: folder, entry: null, visibility: newVisibility(c.req.query('visibility')), size: 0, files_count: 0, created: '', updated: ''}
+        await naming(name, c.env.PRIMARY_DB.prepare('INSERT INTO drive_items (id, owner_id, folder_id, name, visibility) VALUES (?, ?, ?, ?, ?)').bind(item.id, user.id, folder, name, item.visibility).run())
         try {
             await writeFile(c, user, item, rel)
         } catch (e) {
-            await c.env.PRIMARY_DB.prepare('DELETE FROM drive_items WHERE id = ?').bind(item.id).run()
+            // the item goes with its file: the row, and the object if it was written
+            await c.env.PRIMARY_DB.batch([
+                c.env.PRIMARY_DB.prepare('DELETE FROM files WHERE item_id = ?').bind(item.id),
+                c.env.PRIMARY_DB.prepare('DELETE FROM drive_items WHERE id = ?').bind(item.id),
+            ])
+            await c.env.CLOUD_BUCKET.delete(itemBase(user, item.id) + rel)
             throw e
         }
         return c.json(itemOut(c, user, await itemOf(c, user, item.id)), 201)
@@ -398,7 +384,8 @@ export function driveRoutes(app: Hono<CloudEnv>) {
 
     app.post('/api/v1/drive/items', async (c) => {
         const user = await requireUser(c)
-        const body = await jsonBody<{name?: string, folder?: string, entry?: string}>(c)
+        const body = await jsonBody<{name?: string, folder?: string, entry?: string, visibility?: Visibility}>(c)
+        const visibility = newVisibility(body.visibility)
         const start = await startFolder(c, user)
         const folder = body.folder ?? start
         await scopedChain(c, user, folder)
@@ -409,7 +396,7 @@ export function driveRoutes(app: Hono<CloudEnv>) {
             if (!entry) throw new HTTPException(400, {message: 'bad entry'})
         }
         const id = randomCode(16)
-        await naming(name, c.env.PRIMARY_DB.prepare('INSERT INTO drive_items (id, owner_id, folder_id, name, entry) VALUES (?, ?, ?, ?, ?)').bind(id, user.id, folder, name, entry).run())
+        await naming(name, c.env.PRIMARY_DB.prepare('INSERT INTO drive_items (id, owner_id, folder_id, name, entry, visibility) VALUES (?, ?, ?, ?, ?, ?)').bind(id, user.id, folder, name, entry, visibility).run())
         return c.json(itemOut(c, user, await itemOf(c, user, id)), 201)
     })
 
@@ -451,14 +438,18 @@ export function driveRoutes(app: Hono<CloudEnv>) {
         if (folder !== item.folder_id) await scopedChain(c, user, folder)
         if (name !== item.name || folder !== item.folder_id) await assertFree(c, user, folder, name, item.id)
         if (body.visibility !== undefined && !VISIBILITIES.includes(body.visibility)) throw new HTTPException(400, {message: `visibility is one of ${VISIBILITIES.join(', ')}`})
+        // each file is written again (R2 has no metadata update): sharing is refused for an item too big for one request.
+        // Making one private always goes ahead: a request cut short is sent again, and files already done cost one read.
+        const files = body.visibility !== undefined ? await itemFiles(c, item) : []
+        if (body.visibility === 'link' && item.visibility !== 'link' && files.length > VISIBILITY_FILES_MAX)
+            throw new HTTPException(413, {message: `an item of more than ${VISIBILITY_FILES_MAX} files cannot be shared; split it`})
         const visibility = body.visibility ?? item.visibility
         let entry = item.entry
         if (body.entry !== undefined) {
             entry = cleanSegments(String(body.entry))?.join('/') ?? null
             if (!entry) throw new HTTPException(400, {message: 'bad entry'})
         }
-        // D1 first: an upload that streams meanwhile reads it after registering its file (writeFile). Only the fields this
-        // request gives: a rename at the same time as a visibility change must not write the visibility it read back.
+        // D1 first, only the fields this request gives: a rename at the same time as a visibility change must not write the visibility it read back.
         const set: [string, string | null][] = []
         if (body.name !== undefined) set.push(['name', name])
         if (body.folder !== undefined) set.push(['folder_id', folder])
@@ -468,7 +459,6 @@ export function driveRoutes(app: Hono<CloudEnv>) {
             .bind(...set.map(([, v]) => v), item.id).run())
         // then each file that does not have it yet (sending the same visibility again repairs a change cut short)
         if (body.visibility !== undefined) {
-            const files = await itemFiles(c, item)
             let done = 0
             try {
                 for (const f of files) {
@@ -540,7 +530,7 @@ export function driveRoutes(app: Hono<CloudEnv>) {
     app.delete('/api/v1/drive/items/:id', async (c) => {
         const user = await requireUser(c)
         const item = await itemOf(c, user, c.req.param('id'))
-        // D1 first (an upload that registers after this cleans up after itself, see writeFile), then the objects of the rows
+        // D1 first, then the objects of the rows
         const [rows] = await c.env.PRIMARY_DB.batch([
             c.env.PRIMARY_DB.prepare('DELETE FROM files WHERE item_id = ? RETURNING path').bind(item.id),
             c.env.PRIMARY_DB.prepare('DELETE FROM drive_items WHERE id = ?').bind(item.id),

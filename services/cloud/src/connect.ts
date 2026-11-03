@@ -89,13 +89,16 @@ function appTarget(c: Context<CloudEnv>, ret: unknown, access: unknown, state?: 
         throw new HTTPException(400, {message: 'return is not a URL'})
     }
     u.hash = ''
+    // user:password@ in a URL would hide its real host from a string check (Codex review): never an app page
+    if (u.username || u.password) throw new HTTPException(400, {message: 'return must not carry a user name or password'})
     const returnUrl = u.href
     const files = filesOrigin(c.env, apiOrigin(c)) + '/'
+    const filesUrl = new URL(files)
     let app: string, scope: string | undefined
-    if (returnUrl.startsWith(files)) {
+    if (u.origin === filesUrl.origin && u.pathname.startsWith(filesUrl.pathname)) {
         let segs: string[]
         try {
-            segs = decodeURIComponent(u.pathname.slice(new URL(files).pathname.length)).normalize('NFC').split('/')
+            segs = decodeURIComponent(u.pathname.slice(filesUrl.pathname.length)).normalize('NFC').split('/')
         } catch {
             throw new HTTPException(400, {message: 'return is not a valid URL'})
         }
@@ -118,7 +121,7 @@ function appTarget(c: Context<CloudEnv>, ret: unknown, access: unknown, state?: 
 
 /**
  * The user who serves the app (who uploaded to its scope), or 400 for an unknown app. Localhost: none.
- * A scope can change hands once its files are gone (the cron releases it): grants are tied to this owner (findGrant).
+ * A share (s/) can change hands once it has expired: grants are tied to this owner (findGrant).
  */
 async function appOwner(c: Context<CloudEnv>, t: AppTarget): Promise<AppOwner> {
     if (!t.scope) return null

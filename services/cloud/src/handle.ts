@@ -1,4 +1,5 @@
-import type {Context, Hono, Next} from 'hono'
+import type {Hono} from 'hono'
+import type {SignInHook} from 'teenybase/worker'
 import {HTTPException} from 'hono/http-exception'
 import {requireUser} from './auth'
 import {CloudEnv, jsonBody} from './env'
@@ -31,51 +32,25 @@ export class HandlePending extends HTTPException {
 }
 
 /**
- * After a GitHub sign-in, or a password sign-up or sign-in, succeeds: that user's handle is set (GitHub's login, or
- * the one typed at sign-up). The user is read from the session token this response just made.
+ * teenybase's sign-in hook (db.onSignIn, src/index.ts): a password sign-up or sign-in (local development) keeps the
+ * handle typed at sign-up; an account a GitHub sign-in made takes the GitHub login, under the rules of /handle (lower
+ * case, not reserved, not taken in another case). Anyone else (Google, a login that does not fit) picks one on the card.
  */
-export async function markHandleSet(c: Context<CloudEnv>, next: Next) {
-    const started = new Date().toISOString().slice(0, 19).replace('T', ' ') // users.created: CURRENT_TIMESTAMP, UTC to the second
-    await next()
-    const path = c.req.path
-    const github = /\/auth\/oauth\/github\/callback$/.test(path) && c.res.status === 302
-    const signUp = /\/auth\/(sign-up|login-password)$/.test(path) && c.res.ok
-    if (!github && !signUp) return
-    let token: string | undefined
-    if (github) {
-        const name = c.get('$db').settings.authCookie?.name
-        token = c.res.headers.getSetCookie().map(s => s.split(';')[0]).find(s => s.startsWith(name + '='))?.slice(name!.length + 1)
-    } else token = (await c.res.clone().json().catch(() => ({})) as {token?: string}).token
-    const id = token && jwtId(token)
-    if (!id) return
-    const db = c.env.PRIMARY_DB
-    if (github) {
-        // The GitHub login becomes the handle only for an account this sign-in made (a Google account that has not
-        // chosen yet keeps choosing), and under the rules of /handle: lower case, not reserved, not taken in another
-        // case. Otherwise the user chooses one on the handle card.
-        const row = await db.prepare('SELECT username, created FROM users WHERE id = ? AND handle_set IS NULL').bind(id).first<{username: string, created: string}>()
-        if (!row || row.created < started) return
-        const handle = row.username.toLowerCase()
-        if (!HANDLE.test(handle) || RESERVED.test(handle)) return
-        if (await db.prepare('SELECT 1 FROM users WHERE lower(username) = ? AND id != ?').bind(handle, id).first()) return
-        try {
-            await db.prepare('UPDATE users SET username = ?, handle_set = ? WHERE id = ? AND handle_set IS NULL').bind(handle, new Date().toISOString(), id).run()
-        } catch (e) {
-            if (!/UNIQUE/.test(String(e))) throw e // taken meanwhile: the user chooses one
-        }
+export const setHandleOnSignIn = (env: CloudflareBindings): SignInHook<CloudEnv> => async ({provider, created, user, external}) => {
+    const db = env.PRIMARY_DB, now = new Date().toISOString()
+    if (provider === 'password') {
+        await db.prepare('UPDATE users SET handle_set = ? WHERE id = ? AND handle_set IS NULL').bind(now, user.id).run()
         return
     }
-    await db.prepare('UPDATE users SET handle_set = ? WHERE id = ? AND handle_set IS NULL').bind(new Date().toISOString(), id).run()
-}
-
-/** The `id` of a JWT this worker issued (read only, it was made in this request). */
-function jwtId(token: string): string | undefined {
+    if (provider !== 'github' || !created) return
+    const handle = String(external?.username ?? '').toLowerCase()
+    if (!HANDLE.test(handle) || RESERVED.test(handle)) return
     try {
-        const part = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')
-        const id = JSON.parse(atob(part + '='.repeat((4 - part.length % 4) % 4))).id
-        return typeof id === 'string' ? id : undefined
-    } catch {
-        return undefined
+        // not taken in another case (the unique index only sees the exact case)
+        await db.prepare(`UPDATE users SET username = ?1, handle_set = ?2 WHERE id = ?3 AND handle_set IS NULL
+                AND NOT EXISTS (SELECT 1 FROM users WHERE lower(username) = ?1 AND id != ?3)`).bind(handle, now, user.id).run()
+    } catch (e) {
+        if (!/UNIQUE/.test(String(e))) throw e // taken meanwhile: the user picks one
     }
 }
 

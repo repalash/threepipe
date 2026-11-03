@@ -50,14 +50,14 @@ export class CloudDrive {
     }
 
     /** Saves a file as a new item (a free name like `chair (2).glb` when the name is taken). */
-    save(name: string, blob: Blob, o: {folder?: string} = {}): Promise<DriveItem> {
-        const q = new URLSearchParams({name, ...o.folder !== undefined ? {folder: o.folder} : {}})
+    save(name: string, blob: Blob, o: {folder?: string, visibility?: DriveItem['visibility']} = {}): Promise<DriveItem> {
+        const q = new URLSearchParams({name, ...o.folder !== undefined ? {folder: o.folder} : {}, ...o.visibility ? {visibility: o.visibility} : {}})
         return this._fetch(`/files?${q}`, {method: 'PUT', body: blob})
     }
 
     /** Saves files that belong together as one item; `entry` is the one its URL opens (default: the first). */
-    async saveFolder(name: string, files: {path: string, blob: Blob}[], o: {folder?: string, entry?: string} = {}): Promise<DriveItem> {
-        const item = await this._send<DriveItem>('POST', '/items', {name, folder: o.folder, entry: o.entry ?? files[0]?.path})
+    async saveFolder(name: string, files: {path: string, blob: Blob}[], o: {folder?: string, entry?: string, visibility?: DriveItem['visibility']} = {}): Promise<DriveItem> {
+        const item = await this._send<DriveItem>('POST', '/items', {name, folder: o.folder, entry: o.entry ?? files[0]?.path, visibility: o.visibility})
         for (const f of files) await this._fetch(`/items/${encodeURIComponent(item.id)}/${f.path.split('/').map(encodeURIComponent).join('/')}`, {method: 'PUT', body: f.blob})
         return this.item(item.id)
     }

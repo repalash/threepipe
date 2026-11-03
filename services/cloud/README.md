@@ -36,10 +36,8 @@ npm run deploy                   # the first one creates the D1 database: commit
 ```
 
 - Domains: `cloud.threepipe.org` (API and pages) and `files.threepipe.org` (files host, `FILES_HOST`) are custom-domain
-  `routes` in `wrangler.jsonc`, made and kept by every deploy. Local dev and the e2e use its `local` environment
-  (`CLOUDFLARE_ENV=local` in the scripts), which has no routes: with routes, `wrangler dev` makes the Worker see every
-  request as the route's host. wrangler does not inherit vars and bindings into an environment, so `env.local` repeats
-  them; keep both the same. The samples bucket is served by R2 on `samples.threepipe.org` and `asset-samples.threepipe.org`,
+  `routes` in `wrangler.jsonc`, made and kept by every deploy. Locally (`teeny dev`) the Worker sees `http://localhost:8787`, and
+  `FILES_HOST=` in `.dev.vars` serves files under `/_files/`. The samples bucket is served by R2 on `samples.threepipe.org` and `asset-samples.threepipe.org`,
   the e2e bucket on `e2e-snapshots.threepipe.org` (R2 custom domains, set in the dashboard).
 - After the first deploy, migrations go through the Worker (`teeny deploy` calls its admin API with
   `ADMIN_SERVICE_TOKEN`), so later deploys need a token for this Worker only, no D1 access.
@@ -67,8 +65,8 @@ npm run deploy                   # the first one creates the D1 database: commit
 | `GET /api/v1/access/<code>/key` | the link | the user's JWT with `meta.link` (30 days); deleting the link revokes it |
 | `GET /api/v1/access-links`, `DELETE /api/v1/access-links/<id>` | signed in (not with a key) | your agents' links and connected apps; revoke one (its keys stop at once). teenybase's `/api/v1/table/access_links/…` works too |
 | `PUT /api/v1/uploads/<prefix>/<path>` | signed in / key | upload one file (body), max 90 MB → `{url, path, size, sha256, expires_at}` |
+| `POST /api/v1/uploads/<s\|b\|p>/<name>/` | signed in / key | many files in one multipart request (each part named by its path), max 40 MB and 500 files → `{files: [...]}` |
 | `DELETE /api/v1/uploads/<prefix>/<path>` | owner (`s b p`), staff (all) | the path then answers 410 |
-| `GET /api/v1/table/files/select` | owner | the user's files (teenybase) |
 | `GET /api/v1/drive?folder=<id>`, `GET /api/v1/drive/resolve?path=/a/b` | owner / app key | list a folder, find by path |
 | `POST/PATCH/DELETE /api/v1/drive/folders[/<id>]` | owner / app key | folders (labels with fixed ids) |
 | `PUT /api/v1/drive/files?folder=&name=` | owner / app key | save a file: a new item |
@@ -85,7 +83,7 @@ npm run deploy                   # the first one creates the D1 database: commit
 |---|---|---|---|
 | `s` | 7 days, `?ttl=<days>` up to 30 | owner | `s/<slug>/…` |
 | `a` | permanent | never (`x-content-sha256` required) | `a/<hash8>/<name>` |
-| `b` | 30 days after the last upload to the build | owner | `b/<repo>/<pr or sha>/…` |
+| `b` | until cleaned up | owner | `b/<repo>/<pr or sha>/…` |
 | `p` | permanent | owner | `p/<name>/…` |
 
 The first segment (`b`: `<repo>/<ref>`) belongs to whoever uploads there first; `d/<handle>` belongs to the user with
@@ -113,9 +111,7 @@ The server redacts every field again (query strings, tokens, home-folder user na
 
 ## Limits
 
-All in `src/limits.ts`: constants (a change is a deploy), except the daily report caps, which are wrangler vars
-(`REPORTS_DAILY_CAP`, `REPORTS_DAILY_CAP_PROJECT`, `REPORTS_DAILY_CAP_ALL`, `REPORTS_DAILY_FILE_BYTES_ALL` in
-`wrangler.jsonc`; the constants are their defaults). agents.md quotes them; `@threepipe/plugin-cloud` keeps a copy of
+All in `src/limits.ts`: constants (a change is a deploy). agents.md quotes them; `@threepipe/plugin-cloud` keeps a copy of
 the report limits (`LIMITS`).
 
 One user can have other limits: an admin adds a row to `user_limits` (admin panel, or `POST /api/v1/table/user_limits/insert`
@@ -126,11 +122,11 @@ rows they can edit).
 | What | Limit |
 |---|---|
 | A file upload (uploads, drive, staff buckets) | 90 MB per request |
-| `s/` share | 7 days, `?ttl=` up to 30 |
-| `b/` build | 30 days after its last upload |
+| Many files in one upload (`POST`, s/ b/ p/) | 40 MB and 500 files per request |
+| `s/` share | 7 days, `?ttl=` up to 30 (410 on time; the R2 expiry rule removes it after 30) |
+| `b/` build | kept until cleaned up |
 | Drive quota | 1 GB members, 50 GB staff and admins |
 | Signed drive URL | 1 hour by default, up to 7 days |
-| Files per item | 500 (share, unshare and new id rewrite each one) |
 | Listing a folder | 1000 folders and 1000 items |
 | Access key / app key | 30 days / 24 hours |
 | Projects a member owns | 5 (staff: any) |
@@ -178,9 +174,13 @@ else location.href = 'https://cloud.threepipe.org/api/v1/connect?return=' + enco
   that never change; folders and names are D1 labels (rename/move = one row; a path is one recursive query). A private
   item is read through `files…/t/<exp>.<hmac>/d/<handle>/<item>/…` (covers the whole item, so relative files load; no
   lookup); a `link` item at its URL by anyone (the id cannot be guessed). Visibility is on the objects too. Quota per role.
-- `files` (D1) is the registry: listing, quotas, the daily expiry cron (`src/cron.ts`). `scopes` holds who owns
-  `s/<slug>`, `p/<name>`, `b/<repo>/<ref>`: claimed by one INSERT on a unique column (two first uploads cannot both
-  get it), released by the cron once empty.
+- `s/ b/ p/ a/` uploads: one D1 read per request (one query: the user, its limits, the key's link, so revoking works
+  at once, and who owns the scope `s/<slug>`, `p/<name>`, `b/<repo>/<ref>`, table `scopes`), and a D1 write only to claim
+  a new scope (one upsert; of two first claims one wins) or an expired share. No row per file: the owner, expiry and
+  deletion are on the R2 object. Folders go many files per request (`POST`, multipart), like ij-share. A link's
+  `last_used` is written at most once a day. The bucket's expiry rule (`npm run init-infra`) removes `s/` after 30
+  days; `b/` stays until cleaned up.
+- `files` (D1) lists the files of drive items (quota, item listing) and the staff buckets.
 - Deleting writes a tombstone object at the path (410). Drive items are deleted for real.
 - Requests with the session cookie that change something must come from the API's own origin (CSRF; `src/auth.ts`).
-  Access and app keys are checked against their link on every route, teenybase's included; app keys can only use the drive.
+  Access and app keys are checked against their link on our routes and can't use teenybase's; app keys only the drive.

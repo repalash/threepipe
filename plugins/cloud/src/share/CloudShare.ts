@@ -20,10 +20,11 @@ export class CloudShare {
     async upload(files: ShareFile | ShareFile[], o: {name?: string} = {}): Promise<ShareResult> {
         const list = (Array.isArray(files) ? files : [files]).map(f => f instanceof Blob ? {name: (f as File).name, blob: f as Blob} : f)
         if (!list.length) throw new Error('cloud.share: no files')
+        // made shared (`link`): each file is written once, already shared
         const item = list.length === 1
-            ? await this._drive.save(o.name ?? list[0].name, list[0].blob)
+            ? await this._drive.save(o.name ?? list[0].name, list[0].blob, {visibility: 'link'})
             : await this._drive.saveFolder(o.name ?? `share ${new Date().toISOString().slice(0, 10)}`, list.map(f => ({path: f.name, blob: f.blob})),
-                {entry: list.find(f => f.name === 'index.html')?.name ?? list[0].name})
-        return {url: await this._drive.share(item.id), id: item.id}
+                {entry: list.find(f => f.name === 'index.html')?.name ?? list[0].name, visibility: 'link'})
+        return {url: item.url, id: item.id}
     }
 }

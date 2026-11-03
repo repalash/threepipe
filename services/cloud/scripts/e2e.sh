@@ -1,10 +1,9 @@
 #!/bin/bash
 # End-to-end test of the local worker: sign-up, access link, agents.md, key, uploads (s a b p), serving, ownership,
-# deletes, staff removal, expiry (cron), revoking, the drive (items, folders, signed URLs, links, quota) and app sign-in (connect). Starts `teeny dev` (port 8787) and stops it at the end.
+# deletes, staff removal, revoking, the drive (items, folders, signed URLs, links, quota) and app sign-in (connect). Starts `teeny dev` (port 8787) and stops it at the end.
 # Usage: npm test
 set -u
 # the local environment of wrangler.jsonc (no custom-domain routes)
-export CLOUDFLARE_ENV=local
 cd "$(dirname "$0")/.."
 A=http://127.0.0.1:8787
 TMP=$(mktemp -d)
@@ -32,7 +31,7 @@ TOK=$(echo "$SIGN" | j "['token']" 2>/dev/null) && ok "sign-up" || { bad "sign-u
 LINK=$(curl -s -X POST $A/api/v1/access-links -H "Authorization: Bearer $TOK" -H 'content-type: application/json' -d '{"name":"laptop"}')
 URL=$(echo "$LINK" | j "['url']") && ok "access link: $URL" || bad "access link: $LINK"
 LID=$(echo "$LINK" | j "['id']")
-MD=$(curl -s "$URL"); echo "$MD" | head -1 | grep -q "threepipe cloud" && echo "$MD" | grep -q "valid for 30 days" && echo "$MD" | grep -q "max 90 MB per file" && ok "agents.md (limits from src/limits.ts)" || bad "agents.md: $MD"
+MD=$(curl -s "$URL"); echo "$MD" | head -1 | grep -q "threepipe cloud" && echo "$MD" | grep -q "valid for 30 days" && echo "$MD" | grep -q "(max 90 MB)" && ok "agents.md (limits from src/limits.ts)" || bad "agents.md: $MD"
 KEYURL=$(echo "$MD" | grep -o "http[^ ]*/key" | head -1)
 KEY=$(curl -s "$KEYURL"); [ ${#KEY} -gt 50 ] && ok "key (${#KEY} chars)" || bad "key: $KEY"
 H="Authorization: Bearer $KEY"
@@ -57,15 +56,26 @@ curl -sI "$AURL" | grep -qi "immutable" && ok "a/ cached immutable" || bad "a/ c
 R=$(curl -s -o /dev/null -w '%{http_code}' -X PUT -H "$H" -H "x-content-sha256: $(printf '0%.0s' {1..64})" --data-binary @$TMP/a.txt "$A/api/v1/uploads/a/$U-bad.txt"); [ "$R" = "400" ] && ok "a/ sha mismatch -> 400" || bad "a/ sha mismatch: $R"
 R=$(curl -s -o /dev/null -w '%{http_code}' -X DELETE -H "$H" "$A/api/v1/uploads/${AURL#*/_files/}"); [ "$R" = "403" ] && ok "owner cannot delete a/" || bad "delete a/ as owner: $R"
 R=$(curl -s -X PUT -H "$H" --data-binary @$TMP/a.txt "$A/api/v1/uploads/b/demo/pr-$U/examples/a.txt"); echo "$R" | grep -q '"url"' && ok "upload b/" || bad "upload b/: $R"
+# many files in one POST (multipart, field name = path under the folder): one key check, no database writes
+echo "two" > $TMP/b.txt; echo "<p>hi</p>" > $TMP/i.html
+R=$(curl -s -X POST -H "$H" -F "examples/a.txt=@$TMP/a.txt" -F "examples/sub/b.txt=@$TMP/b.txt" -F "index.html=@$TMP/i.html" "$A/api/v1/uploads/b/demo/pr-$U/")
+[ "$(echo "$R" | j "['files'].__len__()")" = "3" ] && BURL=$(echo "$R" | j "[\"files\"][1][\"url\"]") && [ "$(curl -s "$BURL")" = "two" ] \
+  && curl -s -D - -o /dev/null "$(echo "$R" | j "[\"files\"][2][\"url\"]")" | grep -qi "content-type: text/html" && ok "POST b/: 3 files in one request, served" || bad "POST b/: $R"
+[ "$(code -X POST -H "$H" -F "a.txt=@$TMP/a.txt" "$A/api/v1/uploads/a/x/")" = "400" ] && ok "POST a/ -> 400 (one PUT per file)" || bad "POST a/"
+[ "$(code -X POST -H "$H" -F "x/a.txt=@$TMP/a.txt" -F "x/a.txt=@$TMP/b.txt" "$A/api/v1/uploads/s/$U-dup/")" = "400" ] && ok "POST: a path twice -> 400" || bad "POST duplicate path"
+[ "$(code -X POST -H "$H" -F "pr-$U-1/a.txt=@$TMP/a.txt" -F "pr-$U-2/a.txt=@$TMP/a.txt" "$A/api/v1/uploads/b/demo/")" = "400" ] && ok "POST: files of two scopes -> 400" || bad "POST two scopes"
+R=$(curl -s -X POST -H "$H" -F "a.txt=@$TMP/a.txt" "$A/api/v1/uploads/s/$U-ttl/?ttl=2"); echo "$R" | j "['files'][0]['expires_at']" | grep -q "^$(date -u -d '+2 days' +%Y-%m-%d)" && ok "POST s/ ?ttl" || bad "POST s/ ttl: $R"
 R=$(curl -s -o /dev/null -w '%{http_code}' -X DELETE -H "$H" "$A/api/v1/uploads/s/$U-share/a.txt"); [ "$R" = "200" ] && ok "delete s/" || bad "delete s/: $R"
 [ "$(curl -s -o /dev/null -w '%{http_code}' "$SURL")" = "410" ] && ok "deleted -> 410" || bad "deleted status"
 # another user cannot write into the first user's scope
 U2=v$RANDOM
 T2RAW=$(curl -s -X POST $A/api/v1/table/users/auth/sign-up -H 'content-type: application/json' -d "{\"username\":\"$U2\",\"email\":\"$U2@x.test\",\"password\":\"pass12345\",\"passwordConfirm\":\"pass12345\",\"name\":\"$U2\"}"); T2=$(echo "$T2RAW" | j "['token']" 2>/dev/null) || bad "fixture: second user: ${T2RAW:0:300}"
 R=$(curl -s -o /dev/null -w '%{http_code}' -X PUT -H "Authorization: Bearer $T2" --data-binary @$TMP/a.txt "$A/api/v1/uploads/p/$U-page/x.txt"); [ "$R" = "403" ] && ok "scope owned by first uploader" || bad "scope check: $R"
-# list own files through teenybase
-R=$(curl -s -H "$H" "$A/api/v1/table/files/select?select=path,size"); echo "$R" | grep -q "$U-page" && ok "list own files" || bad "list: $R"
-[ "$(code -X POST -H "$H" -H 'content-type: application/json' -d '{"password":"other12345","passwordConfirm":"other12345"}' "$A/api/v1/table/users/auth/change-password")" = "403" ] && [ "$(code -X POST -H "$H" -H 'content-type: application/json' -d "{\"where\":\"id == '$LID'\"}" "$A/api/v1/table/access_links/delete")" = "403" ] && ok "an access key only reads its files on teenybase routes" || bad "key on teenybase routes"
+[ "$(code -X POST -H "Authorization: Bearer $T2" -F "x.txt=@$TMP/a.txt" "$A/api/v1/uploads/b/demo/pr-$U/")" = "403" ] && ok "POST: scope owned by first uploader" || bad "POST scope check"
+# a share whose files have all expired can be claimed by another user
+[ "$(admin scopes/update "{\"where\":\"scope == 's/$U-ttl'\",\"setValues\":{\"expires_at\":\"2000-01-01T00:00:00.000Z\"}}")" = "200" ] || bad "fixture: expire a share"
+[ "$(code -X PUT -H "Authorization: Bearer $T2" --data-binary @$TMP/a.txt "$A/api/v1/uploads/s/$U-ttl/b.txt")" = "200" ] && [ "$(code -X PUT -H "$H" --data-binary @$TMP/a.txt "$A/api/v1/uploads/s/$U-ttl/c.txt")" = "403" ] && ok "an expired share can be claimed by another user" || bad "expired share claim"
+[ "$(code -H "$H" "$A/api/v1/table/files/select")" = "403" ] && [ "$(code -X POST -H "$H" -H 'content-type: application/json' -d '{"password":"other12345","passwordConfirm":"other12345"}' "$A/api/v1/table/users/auth/change-password")" = "403" ] && [ "$(code -X POST -H "$H" -H 'content-type: application/json' -d "{\"where\":\"id == '$LID'\"}" "$A/api/v1/table/access_links/delete")" = "403" ] && ok "an access key can't use teenybase routes" || bad "key on teenybase routes"
 [ "$(code -X PUT -H "$H" --data-binary @$TMP/a.txt "$A/api/v1/uploads/p/$U-one")" = "400" ] && ok "p/ needs a name and a file path" || bad "p/ one segment"
 # revoke the link: the key stops working
 R=$(curl -s -X POST -H "Authorization: Bearer $TOK" -H 'content-type: application/json' -d "{\"where\":\"id == '$LID'\",\"returning\":[\"id\"]}" "$A/api/v1/table/access_links/delete"); echo "$R" | grep -q "$LID" && ok "revoke link (teenybase delete)" || bad "revoke: $R"
@@ -94,12 +104,9 @@ curl -s -X PUT -H "Authorization: Bearer $TS" -H "x-content-sha256: $BSHA" --dat
 [ "$(admin users/update "{\"where\":\"username == '$U2'\",\"setValues\":{\"role\":\"member\"}}")" = "200" ] || bad "fixture: unblock"
 R=$(curl -s -X POST -H "Authorization: Bearer $TS" -H 'content-type: application/json' -d "{\"paths\":[\"blobs/$BSHA.txt\",\"blobs/$(printf 'a%.0s' {1..64}).png\"]}" "$A/api/v1/buckets/e2e/missing")
 echo "$R" | grep -q "aaaa" && ! echo "$R" | grep -q "$BSHA" && ok "missing blobs" || bad "missing: $R"
-# expiry: backdate the b/ build, run the cron
-[ "$(admin files/update "{\"where\":\"path == 'b/demo/pr-$U/examples/a.txt'\",\"setValues\":{\"expires_at\":\"2000-01-01T00:00:00.000Z\"}}")" = "200" ] || bad "fixture: backdate build"
-curl -s -o /dev/null "$A/cdn-cgi/handler/scheduled?cron=17+3+*+*+*"; sleep 1
-[ "$(curl -s -o /dev/null -w '%{http_code}' "$A/_files/b/demo/pr-$U/examples/a.txt")" = "404" ] && ok "cron deletes expired build" || bad "cron"
 # --- drive (items, folders) ---
 H0="Authorization: Bearer $TOK"
+R=$(curl -s -X PUT -H "$H0" --data-binary @$TMP/a.txt "$A/api/v1/drive/files?name=shared-$U.txt&visibility=link"); [ "$(echo "$R" | j "['visibility']")" = "link" ] && [ "$(curl -s "$(echo "$R" | j "['url']")")" = "hello share" ] && ok "drive: saved shared at once (visibility=link)" || bad "drive save shared: $R"
 UID1=$(echo "$SIGN" | j "['record']['id']")
 echo '{"asset":{"version":"2.0"}}' > $TMP/scene.gltf; echo "bin" > $TMP/scene.bin
 R=$(curl -s -X PUT -H "$H0" --data-binary @$TMP/a.txt "$A/api/v1/drive/files?name=chair.glb"); ITEM=$(echo "$R" | j "['id']"); IURL=$(echo "$R" | j "['url']")
@@ -200,11 +207,9 @@ LOC2=$(curl -s -o /dev/null -w '%{redirect_url}' -H "$CK" "$CON&state=st-$U-abc"
 curl -s -H "$CK" "$CON&state=st-$U-abc&prompt=consent" | grep -q "name=\"state\" value=\"st-$U-abc\"" && ok "connect: the consent form keeps the state" || bad "connect consent state"
 [ "$(code -H "$CK" "$CON&state=bad%20state")" = "400" ] && ok "connect: a malformed state -> 400" || bad "connect bad state"
 UID2=$(curl -s -H "Authorization: Bearer $T2" "$A/api/v1/table/users/select?select=id" | python3 -c "import json,sys;print(json.load(sys.stdin)[0]['id'])")
-admin scopes/update "{\"where\":\"scope == 'p/$U-page'\",\"setValues\":{\"owner_id\":\"$UID2\"}}" > /dev/null
-curl -s -H "$CK" "$CON" | grep -q "@$U2" && ok "connect: app with a new owner -> consent again" || bad "connect new owner"
-admin scopes/update "{\"where\":\"scope == 'p/$U-page'\",\"setValues\":{\"owner_id\":\"$UID1\"}}" > /dev/null
 [ "$(code -H "$CK" "$A/api/v1/connect?return=$(enc "$A/_files/p/none-$U/")")" = "400" ] && ok "connect: unknown app -> 400" || bad "connect unknown app"
 [ "$(code -H "$CK" "$A/api/v1/connect?return=$(enc "https://example.com/app/")")" = "400" ] && ok "connect: other sites -> 400" || bad "connect other site"
+[ "$(code -H "$CK" "$A/api/v1/connect?return=$(enc "https://app@editor.threepipe.org/")")" = "400" ] && [ "$(code -H "$CK" "$A/api/v1/connect?return=$(enc "${A/\/\//\/\/x@}/_files/p/$U-page/")")" = "400" ] && ok "connect: a user name in the return URL -> 400" || bad "connect userinfo"
 curl -s -H "$CK" "$A/api/v1/connect?return=$(enc "https://editor.threepipe.org/")" | grep -q "Apps/editor.threepipe.org" && ok "connect: our apps on threepipe.org" || bad "connect threepipe.org"
 [ "$(code -H "$CK" "$A/api/v1/connect?return=$(enc "http://editor.threepipe.org/")")" = "400" ] && [ "$(code -H "$CK" "$A/api/v1/connect?return=$(enc "https://threepipe.org.evil.example/")")" = "400" ] && ok "connect: http or look-alike threepipe.org -> 400" || bad "connect threepipe.org look-alike"
 curl -s -H "$CK" "$A/api/v1/connect?return=$(enc "http://localhost:5173/")" | grep -q "Apps/localhost:5173" && ok "connect: localhost app" || bad "connect localhost"

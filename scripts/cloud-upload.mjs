@@ -8,7 +8,8 @@
 // Remote paths: s/<slug>/…  p/<name>/…  b/<repo>/<ref>/…  a/<name>                  (PUT /api/v1/uploads/…)
 //               drive:/<folder>/   the file or folder becomes one private item there  (/api/v1/drive/items)
 //               samples/<path>  e2e/blobs/<sha256><ext>                              (staff, PUT /api/v1/buckets/…)
-// Options: --ttl <days> (s/, default 7), --dry-run, --concurrency <n> (default 6),
+// s/ b/ p/ files go many per request (POST, multipart); a/, drive:/ and staff buckets one PUT per file.
+// Options: --ttl <days> (s/, default 7), --dry-run, --concurrency <n> requests at a time (default 6),
 //          --entry <file> (drive:/, the file the item opens; default index.html, else the model, else the first file)
 //
 // The key: TP_CLOUD_KEY from the environment or ~/.config/threepipe-cloud/.env. Get one from an access link (signed in at
@@ -32,6 +33,8 @@ const option = (name, fallback) => args.includes(name) ? args[args.indexOf(name)
 const positional = args.filter((a, i) => !a.startsWith('--') && !['--ttl', '--concurrency', '--entry'].includes(args[i - 1]))
 const dryRun = flag('--dry-run')
 const concurrency = Number(option('--concurrency', 6))
+/** One POST of many files (the worker's limits: 40 MB, 500 files) */
+const BATCH_BYTES = 32 * 1024 * 1024, BATCH_FILES = 400
 const ttl = option('--ttl')
 /** Files a drive item opens as a model (its entry, before textures and buffers) */
 const MODEL = /\.(?:glb|gltf|vjson|usdz|fbx|obj|ply|stl|3dm|drc|3ds|dae)$/i
@@ -78,17 +81,29 @@ if (drive) {
 }
 
 let done = 0, failed = 0, base = ''
-await parallel(files, async f => {
+// s/ b/ p/: many files per request (one key check for all); a bigger file, a/, drive:/ and the staff buckets: one PUT per file
+const batched = drive ? [] : files.filter(f => /^[sbp]\//.test(f.remote) && size(f) <= BATCH_BYTES)
+const inBatch = new Set(batched)
+const single = files.filter(f => !inBatch.has(f))
+const requests = [
+    ...batches(batched).map(g => ({what: `${g.length} files from ${g[0].remote}`, send: async() => (await uploadMany(g)).files})),
+    ...single.map(f => ({what: f.remote, send: async() => [await upload(f)]})),
+]
+const send1 = async({what, send}) => {
     try {
-        const res = await upload(f)
-        if (!base && res.url) base = res.url.slice(0, res.url.length - res.path.length) // the files host
-        if (++done % 100 === 0) console.log(`  ${done} / ${files.length}`)
+        const res = await send()
+        if (!base && res[0]?.url) base = res[0].url.slice(0, res[0].url.length - res[0].path.length) // the files host
+        done += res.length
+        console.log(`  ${done} / ${files.length}`)
     } catch (e) {
         failed++
-        console.log(`  FAIL ${f.remote}: ${e.message}`)
+        console.log(`  FAIL ${what}: ${e.message}`)
     }
-})
-console.log(`${done} uploaded, ${failed} failed`)
+}
+// the first request alone: it claims a new folder (one write on the server), then the rest at once
+if (requests.length) await send1(requests[0])
+await parallel(requests.slice(1), send1)
+console.log(`${done} of ${files.length} uploaded${failed ? `, ${failed} request(s) failed` : ''}`)
 if (drive) console.log(`\nThe item: ${api}/drive (${drive.folder}, ${drive.name}; private until you share it)`)
 if (flag('--preview') && !failed) {
     console.log(`\nExamples of this build: ${base}${files[0].remote.split('/').slice(0, 3).join('/')}/examples/index.html`)
@@ -138,6 +153,45 @@ function gitIgnored(dir) {
         return new Set() // the folder itself is ignored (a build output): upload all of it
     } catch { /* not ignored: exit code 1 */ }
     return new Set(git('ls-files', '--others', '--ignored', '--exclude-standard', '-z', '.').split('\0').filter(Boolean))
+}
+
+/** `files` (all s/, b/ or p/) in groups for one POST each: one scope (`s/<slug>`, `p/<name>`, `b/<repo>/<ref>`), up to BATCH_BYTES and BATCH_FILES. */
+function batches(list) {
+    const out = []
+    let group = [], bytes = 0, scope = ''
+    for (const f of list) {
+        const s = f.remote.split('/').slice(0, f.remote.startsWith('b/') ? 3 : 2).join('/')
+        if (group.length && (s !== scope || bytes + size(f) > BATCH_BYTES || group.length >= BATCH_FILES)) {
+            out.push(group)
+            group = []
+            bytes = 0
+        }
+        group.push(f)
+        bytes += size(f)
+        scope = s
+    }
+    if (group.length) out.push(group)
+    return out
+}
+
+/** One POST of a group from batches(): each file a part named by its path under the scope. */
+async function uploadMany(group) {
+    const scope = group[0].remote.split('/').slice(0, group[0].remote.startsWith('b/') ? 3 : 2).join('/')
+    const form = new FormData()
+    for (const f of group) form.append(f.remote.slice(scope.length + 1), new Blob([f.content ?? fs.readFileSync(f.local)]), path.basename(f.remote))
+    const url = `${api}/api/v1/uploads/${scope.split('/').map(encodeURIComponent).join('/')}/${ttl && scope.startsWith('s/') ? `?ttl=${ttl}` : ''}`
+    for (let attempt = 0; ; attempt++) {
+        let res
+        try {
+            res = await fetch(url, {method: 'POST', headers: {authorization: `Bearer ${key}`}, body: form})
+        } catch (e) {
+            if (attempt < 2) continue
+            throw e
+        }
+        if (res.ok) return res.json()
+        if (res.status >= 500 && attempt < 2) continue
+        throw new Error(`HTTP ${res.status} ${(await res.text()).slice(0, 200)}`)
+    }
 }
 
 async function upload(f) {

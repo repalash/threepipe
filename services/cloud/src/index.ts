@@ -10,10 +10,9 @@ import {connectRoutes} from './connect'
 import {bucketRoutes} from './buckets'
 import {devLoginRoutes} from './devLogin'
 import {projectRoutes} from './projects'
-import {handleRoutes, markHandleSet} from './handle'
+import {handleRoutes, setHandleOnSignIn} from './handle'
 import {pageRoutes} from './page'
 import {guardRequest} from './auth'
-import {deleteExpired} from './cron'
 
 /**
  * threepipe cloud: one Worker for the API (teenybase at /api/v1 plus the routes below) and the files host.
@@ -31,13 +30,13 @@ app.use('*', async (c, next) => {
     logError(signIn ? 'sign-in failed' : 'server error', {status, method: c.req.method, path: c.req.path, error: body.slice(0, 500),
         exception: status >= 500 && c.error ? String(c.error.stack || c.error) : undefined, ray: c.req.header('cf-ray')})
 })
-app.use('*', markHandleSet)
 app.use('*', filesHost) // before teenybase: file reads never touch the database
 
 teenyHono<CloudEnv>(async (c) => {
     const db = new $Database(c, config, new D1Adapter(c.env.PRIMARY_DB))
     db.extensions.push(new OpenApiExtension(db, true))
     db.extensions.push(new PocketUIExtension(db))
+    db.onSignIn.push(setHandleOnSignIn(c.env))
     return db
 }, app, {logger: true, cors: true}, guardRequest)
 
@@ -51,9 +50,4 @@ projectRoutes(app)
 handleRoutes(app)
 pageRoutes(app)
 
-export default {
-    fetch: app.fetch,
-    async scheduled(_event: ScheduledController, env: CloudflareBindings, ctx: ExecutionContext) {
-        ctx.waitUntil(deleteExpired(env).catch(e => logError('cron failed', {exception: String(e?.stack || e)})))
-    },
-} satisfies ExportedHandler<CloudflareBindings>
+export default {fetch: app.fetch} satisfies ExportedHandler<CloudflareBindings>

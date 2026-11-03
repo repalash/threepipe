@@ -1,9 +1,9 @@
 import type {Context, Hono} from 'hono'
 import {HTTPException} from 'hono/http-exception'
 import type {CloudEnv} from './env'
-import {BUCKET, cleanSegments, fileUrl, hex, prefixRange} from './env'
-import {assertScope, CloudUser, isStaff, requireUser} from './auth'
-import {BUILD_DAYS, DAY, SHARE_DEFAULT_DAYS, SHARE_MAX_DAYS, sizeText, UPLOAD_MAX_BYTES} from './limits'
+import {cleanSegments, fileUrl, hex} from './env'
+import {assertScope, CloudUser, isStaff, requireUserAndScope, ScopeRow} from './auth'
+import {DAY, SHARE_DEFAULT_DAYS, SHARE_MAX_DAYS, sizeText, UPLOAD_BATCH_BYTES, UPLOAD_BATCH_FILES, UPLOAD_MAX_BYTES} from './limits'
 
 const DAY_MS = DAY * 1000
 
@@ -34,21 +34,26 @@ interface Target {
     sha256?: string
 }
 
-function target(prefix: Prefix, segs: string[], c: Context<CloudEnv>, user: CloudUser): Target {
-    const now = Date.now()
+/** The part of a key that belongs to one owner: `s/<slug>`, `b/<repo>/<ref>`, `p/<name>`; none for `a/` or a path too short to have one. */
+function scopeOf(prefix: Prefix, segs: string[]): string | undefined {
+    const n = prefix === 'b' ? 2 : prefix === 'a' ? 0 : 1
+    return n && segs.length >= n ? `${prefix}/${segs.slice(0, n).join('/')}` : undefined
+}
+
+function target(prefix: Prefix, segs: string[], c: Context<CloudEnv>): Target {
     switch (prefix) {
     case 's': {
         if (segs.length < 2) throw new HTTPException(400, {message: 's/<slug>/<file path>'})
         const days = c.req.query('ttl') ? Number(c.req.query('ttl')) : SHARE_DEFAULT_DAYS
         if (!Number.isFinite(days) || days <= 0 || days > SHARE_MAX_DAYS) throw new HTTPException(400, {message: `ttl is a number of days, 1 to ${SHARE_MAX_DAYS}`})
-        return {key: 's/' + segs.join('/'), scope: 's/' + segs[0], expiresAt: new Date(now + days * DAY_MS).toISOString()}
+        return {key: 's/' + segs.join('/'), scope: scopeOf(prefix, segs), expiresAt: new Date(Date.now() + days * DAY_MS).toISOString()}
     }
     case 'b':
         if (segs.length < 3) throw new HTTPException(400, {message: 'b/<repo>/<pr-123 or sha>/<file path>'})
-        return {key: 'b/' + segs.join('/'), scope: `b/${segs[0]}/${segs[1]}`, expiresAt: new Date(now + BUILD_DAYS * DAY_MS).toISOString()}
+        return {key: 'b/' + segs.join('/'), scope: scopeOf(prefix, segs), expiresAt: null}
     case 'p':
         if (segs.length < 2) throw new HTTPException(400, {message: 'p/<name>/<file path>'})
-        return {key: 'p/' + segs.join('/'), scope: 'p/' + segs[0], expiresAt: null}
+        return {key: 'p/' + segs.join('/'), scope: scopeOf(prefix, segs), expiresAt: null}
     case 'a': {
         if (segs.length !== 1) throw new HTTPException(400, {message: 'a/<file name>'})
         const sha = (c.req.header('x-content-sha256') || '').toLowerCase()
@@ -88,35 +93,60 @@ export function uploadSize(c: Context<CloudEnv>): number {
 }
 
 /**
- * Claims the scope for the user, or 403 when another user has it. The claim is one INSERT on a unique column, so two
- * first uploads at the same time cannot both get it. Released by the cron when the scope has no files left.
+ * Claims the scope for the user, or 403 when another user has it. `row` is its owner, read with the user in one query
+ * (requireUserAndScope); D1 is written only to claim a new scope or an expired share, or to move a share's expiry later.
+ * Of two claims at the same time one wins: the upsert changes the row only when it is the user's or has expired.
  */
-async function claimScope(env: CloudflareBindings, scope: string, user: CloudUser) {
-    const db = env.PRIMARY_DB
-    const [, owner] = await db.batch([
-        db.prepare('INSERT INTO scopes (id, scope, owner_id) VALUES (?, ?, ?) ON CONFLICT (scope) DO NOTHING').bind(crypto.randomUUID(), scope, user.id),
-        db.prepare('SELECT owner_id FROM scopes WHERE scope = ?').bind(scope),
-    ]) as D1Result<{owner_id: string}>[]
-    if (owner.results[0]?.owner_id !== user.id) throw new HTTPException(403, {message: `'${scope}' belongs to another user`})
+async function claimScope(env: CloudflareBindings, scope: string, user: CloudUser, row: ScopeRow | null, expires: string | null) {
+    // names that look like ours (the PR builds b/threepipe/…, p/threepipe…, s/threepipe…): staff only, like project
+    // slugs, so nobody claims an official-looking URL or the build of a PR before CI uploads it
+    if (/^[sbp]\/threepipe/.test(scope) && !isStaff(user))
+        throw new HTTPException(403, {message: `${scope.split('/').slice(0, 2).join('/')}… is for threepipe`})
+    const taken = () => new HTTPException(403, {message: `'${scope}' belongs to another user`})
+    const now = new Date().toISOString()
+    if (row && !(row.expires && row.expires < now)) {
+        if (row.owner !== user.id) throw taken()
+        // a share lives as long as its last file: move its expiry later when a new file outlives it
+        if (row.expires && expires && expires > row.expires)
+            await env.PRIMARY_DB.prepare('UPDATE scopes SET expires_at = ?1 WHERE scope = ?2 AND owner_id = ?3').bind(expires, scope, user.id).run()
+        return
+    }
+    const won = await env.PRIMARY_DB.prepare(`INSERT INTO scopes (id, scope, owner_id, expires_at) VALUES (?1, ?2, ?3, ?4)
+            ON CONFLICT (scope) DO UPDATE SET owner_id = excluded.owner_id, expires_at = excluded.expires_at
+            WHERE scopes.owner_id = excluded.owner_id OR scopes.expires_at < ?5 RETURNING owner_id`)
+        .bind(crypto.randomUUID(), scope, user.id, expires, now).first<{owner_id: string}>()
+    if (won?.owner_id !== user.id) throw taken()
+}
+
+interface Stored {key: string, size: number, sha256: string, expiresAt: string | null}
+
+/** Runs `fn` on every item, `n` at a time; the results in the order of the items. */
+async function inParallel<T, R>(items: T[], n: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+    const out: R[] = new Array(items.length)
+    let i = 0
+    await Promise.all(Array.from({length: Math.min(n, items.length)}, async() => {
+        while (i < items.length) {
+            const k = i++
+            out[k] = await fn(items[k])
+        }
+    }))
+    return out
 }
 
 /**
- * Uploads (`PUT`) and deletes (`DELETE`) of files in the cloud bucket (the drive is src/drive.ts). Keys are the URL
- * paths; the owner and expiry are also on the R2 object
- * (src/files.ts serves without a database read). The `files` table is the registry.
+ * Uploads (`PUT` one file, `POST` many) and deletes (`DELETE`) of files in the cloud bucket (the drive is src/drive.ts).
+ * Keys are the URL paths; the owner, expiry and deletion are on the R2 object (src/files.ts serves with one R2 read).
+ * D1: one read per request (the user and the scope's owner, `scopes`), a write only to claim a scope. No row per file.
+ * s/ objects are removed by the bucket's expiry rule (init-infra.sh); b/ builds stay until cleaned up.
  */
 export function uploadRoutes(app: Hono<CloudEnv>) {
     app.put('/api/v1/uploads/:prefix/:path{.+}', async (c) => {
-        const user = await requireUser(c)
         const {prefix, segs} = requestKey(c)
+        const t = target(prefix, segs, c)
+        const {user, scopeRow} = await requireUserAndScope(c, t.scope)
         const size = uploadSize(c)
-        const t = target(prefix, segs, c, user)
         assertScope(user)
-        // names that look like ours (the PR builds b/threepipe/…, p/threepipe…, s/threepipe…): staff only, like project
-        // slugs, so nobody claims an official-looking URL or the build of a PR before CI uploads it
-        if (t.scope && /^[sbp]\/threepipe/.test(t.scope) && !isStaff(user))
-            throw new HTTPException(403, {message: `${t.scope.split('/').slice(0, 2).join('/')}… is for threepipe`})
-        if (t.scope) await claimScope(c.env, t.scope, user)
+        if (t.scope) await claimScope(c.env, t.scope, user, scopeRow, t.expiresAt)
         const contentType = contentTypeFor(t.key, c.req.header('content-type'))
         const body = c.req.raw.body
         if (!body) throw new HTTPException(400, {message: 'empty body'})
@@ -132,8 +162,7 @@ export function uploadRoutes(app: Hono<CloudEnv>) {
 
         const {stored, sha256} = await putStreamed(c.env.CLOUD_BUCKET, t.key, body, size, {
             httpMetadata: {contentType},
-            // s/ shares carry their expiry (410 right on time); a b/ build is kept alive by later uploads, so its expiry
-            // is only in the registry and the daily cron deletes it
+            // s/ shares carry their expiry (410 right on time); the bucket's expiry rule removes s/ objects later
             customMetadata: {owner: user.id, ...prefix === 's' && t.expiresAt ? {expires: t.expiresAt} : {}, ...t.sha256 ? {sha256: t.sha256} : {}},
             ...prefix === 'a' ? {onlyIf: new Headers({'if-none-match': '*'})} : {},
         })
@@ -143,36 +172,61 @@ export function uploadRoutes(app: Hono<CloudEnv>) {
             throw new HTTPException(400, {message: 'x-content-sha256 does not match the uploaded bytes'})
         }
 
-        await c.env.PRIMARY_DB.prepare(`INSERT INTO files (id, owner_id, bucket, prefix, path, size, sha256, content_type, expires_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT (bucket, path) DO UPDATE SET owner_id = excluded.owner_id, size = excluded.size, sha256 = excluded.sha256, content_type = excluded.content_type,
-                expires_at = excluded.expires_at, deleted_at = NULL, deleted_by = NULL, deleted_reason = NULL`)
-            .bind(crypto.randomUUID(), user.id, BUCKET, prefix, t.key, size, sha256, contentType, t.expiresAt).run()
-        // a new upload to a build keeps the whole build alive; at most once a day, not on every file of an upload
-        if (prefix === 'b' && t.scope) {
-            await c.env.PRIMARY_DB.prepare(`UPDATE files SET expires_at = ? WHERE bucket = ? AND path >= ? AND path < ? AND deleted_at IS NULL AND expires_at < ?`)
-                .bind(t.expiresAt, BUCKET, ...prefixRange(t.scope + '/'), new Date(Date.now() + (BUILD_DAYS - 1) * DAY_MS).toISOString()).run()
-        }
         return c.json({url: fileUrl(c, t.key), path: t.key, size, sha256, expires_at: t.expiresAt})
     })
 
+    // Many files in one request, like ij-share's folder upload: multipart/form-data, each part a file whose field name
+    // is its path under the URL's folder. The key and the scope are checked once for all of them.
+    app.post('/api/v1/uploads/:prefix/:path{.+}', async (c) => {
+        const prefix = c.req.param('prefix') as Prefix
+        if (!PREFIXES.includes(prefix) || prefix === 'a') throw new HTTPException(400, {message: 'many files go to s/, b/ or p/ (a/ is one PUT per file)'})
+        // the URL names the scope, so it is checked with the user before the body is read
+        const scope = scopeOf(prefix, cleanSegments(c.req.param('path').replace(/\/+$/, '')) || [])
+        if (!scope) throw new HTTPException(400, {message: `POST to the folder: ${prefix === 'b' ? 'b/<repo>/<ref>' : prefix + '/<name>'}/`})
+        const {user, scopeRow} = await requireUserAndScope(c, scope)
+        assertScope(user)
+        const size = Number(c.req.header('content-length'))
+        if (!Number.isInteger(size) || size <= 0) throw new HTTPException(411, {message: 'send the files as multipart/form-data, with Content-Length'})
+        if (size > UPLOAD_BATCH_BYTES) throw new HTTPException(413, {message: `max ${sizeText(UPLOAD_BATCH_BYTES)} per request (a bigger file: one PUT)`})
+        const folder = c.req.param('path').replace(/\/+$/, '')
+        const form = await c.req.raw.formData().catch(() => {
+            throw new HTTPException(400, {message: 'send multipart/form-data: one part per file, its field name the path'})
+        })
+        const parts = [...form.entries()].filter((e): e is [string, File] => typeof e[1] !== 'string')
+        if (!parts.length) throw new HTTPException(400, {message: 'no files'})
+        if (parts.length > UPLOAD_BATCH_FILES) throw new HTTPException(413, {message: `max ${UPLOAD_BATCH_FILES} files per request`})
+        const items = parts.map(([name, file]) => {
+            const segs = cleanSegments(`${folder}/${name}`)
+            if (!segs) throw new HTTPException(400, {message: `bad path: ${name}`})
+            return {t: target(prefix, segs, c), file}
+        })
+        if (items.some(i => i.t.scope !== scope)) throw new HTTPException(400, {message: `the files of one request go under one ${prefix === 'b' ? 'b/<repo>/<ref>' : prefix + '/<name>'}`})
+        if (new Set(items.map(i => i.t.key)).size !== items.length) throw new HTTPException(400, {message: 'a path appears twice'})
+        await claimScope(c.env, scope, user, scopeRow, items[0].t.expiresAt)
+        const stored = await inParallel(items, 16, async({t, file}): Promise<Stored> => {
+            const body = await file.arrayBuffer()
+            await c.env.CLOUD_BUCKET.put(t.key, body, {
+                httpMetadata: {contentType: contentTypeFor(t.key, file.type)},
+                customMetadata: {owner: user.id, ...prefix === 's' && t.expiresAt ? {expires: t.expiresAt} : {}},
+            })
+            return {key: t.key, size: body.byteLength, sha256: hex(await crypto.subtle.digest('SHA-256', body)), expiresAt: t.expiresAt}
+        })
+        return c.json({files: stored.map(f => ({url: fileUrl(c, f.key), path: f.key, size: f.size, sha256: f.sha256, expires_at: f.expiresAt}))})
+    })
 
     app.delete('/api/v1/uploads/:prefix/:path{.+}', async (c) => {
-        const user = await requireUser(c)
-        const {key} = requestKey(c)
+        const {prefix, segs, key} = requestKey(c)
+        const scope = scopeOf(prefix, segs)
+        const {user, scopeRow} = await requireUserAndScope(c, scope)
         assertScope(user)
-        const row = await c.env.PRIMARY_DB.prepare('SELECT owner_id, prefix FROM files WHERE bucket = ? AND path = ? AND deleted_at IS NULL')
-            .bind(BUCKET, key).first<{owner_id: string, prefix: Prefix}>()
-        if (!row) throw new HTTPException(404, {message: 'not found'})
-        // owners delete their s/ b/ p/ files; a/ stays permanent unless staff removes it (copyright, abuse, storage)
-        const mayDelete = isStaff(user) || row.owner_id === user.id && row.prefix !== 'a'
-        if (!mayDelete) throw new HTTPException(403, {message: row.prefix === 'a' ? 'permanent assets are removed by staff only' : 'not your file'})
-        const reason = (c.req.query('reason') || (row.owner_id === user.id ? 'deleted by owner' : 'removed by staff')).slice(0, 200)
-        const now = new Date().toISOString()
-        // a small tombstone object at the path, so the link answers 410 without a database read
-        await c.env.CLOUD_BUCKET.put(key, '', {customMetadata: {deleted: reason, deleted_at: now}})
-        await c.env.PRIMARY_DB.prepare('UPDATE files SET deleted_at = ?, deleted_by = ?, deleted_reason = ? WHERE bucket = ? AND path = ?')
-            .bind(now, user.id, reason, BUCKET, key).run()
+        const obj = await c.env.CLOUD_BUCKET.head(key)
+        if (!obj || obj.customMetadata?.deleted) throw new HTTPException(404, {message: 'not found'})
+        // owners delete the files of their scope; a/ stays permanent unless staff removes it (copyright, abuse, storage)
+        const mine = !!scope && scopeRow?.owner === user.id, asset = prefix === 'a'
+        if (!isStaff(user) && (!mine || asset)) throw new HTTPException(403, {message: asset ? 'permanent assets are removed by staff only' : 'not your file'})
+        const reason = (c.req.query('reason') || (mine ? 'deleted by owner' : 'removed by staff')).slice(0, 200)
+        // a small tombstone object at the path, so the link answers 410
+        await c.env.CLOUD_BUCKET.put(key, '', {customMetadata: {deleted: reason, deleted_at: new Date().toISOString(), deleted_by: user.id}})
         return c.json({deleted: key, reason})
     })
 }

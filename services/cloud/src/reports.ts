@@ -19,8 +19,8 @@
 import type {CloudUser} from './auth'
 import {hex, hmacSha256, logError} from './env'
 import {
-    DAY, dailyCap, REPORT_CONTEXT_MAX, REPORT_ENVIRONMENT_MAX, REPORT_FILES_BYTES_MAX, REPORT_FILES_MAX, REPORT_IMAGE_MAX, REPORT_LOG_LINE_MAX,
-    REPORT_LOG_LINES_MAX, REPORT_NOTE_MAX, REPORT_TEXT_MAX, REPORT_VERSIONS_MAX, REPORTS_LIST_MAX, reportsDaily, sizeText,
+    DAY, REPORT_CONTEXT_MAX, REPORT_ENVIRONMENT_MAX, REPORT_FILES_BYTES_MAX, REPORT_FILES_MAX, REPORT_IMAGE_MAX, REPORT_LOG_LINE_MAX,
+    REPORT_LOG_LINES_MAX, REPORT_NOTE_MAX, REPORT_TEXT_MAX, REPORT_VERSIONS_MAX, REPORTS_DAILY, REPORTS_LIST_MAX, reportsDaily, sizeText,
 } from './limits'
 
 export const TYPES = ['bug', 'question', 'idea', 'other'] as const
@@ -330,8 +330,7 @@ export async function createReport(o: CreateOptions): Promise<Result> {
         db.prepare('SELECT COUNT(*) AS n, COALESCE(SUM(files_bytes), 0) AS b FROM reports WHERE created_at >= ?1').bind(since),
     ]) as D1Result<{n: number, b: number}>[]
     // Checked here before anything is uploaded, and again by the INSERT itself (requests at the same time all pass here)
-    const caps = {sender: o.user ? reportsDaily(env, o.user) : dailyCap(env, 'perSender'), project: dailyCap(env, 'perProject'),
-        all: dailyCap(env, 'all'), fileBytes: dailyCap(env, 'fileBytes')}
+    const caps = {sender: o.user ? reportsDaily(o.user) : REPORTS_DAILY.perSender, project: REPORTS_DAILY.perProject, all: REPORTS_DAILY.all, fileBytes: REPORTS_DAILY.fileBytes}
     const tooMany = {status: 429, body: {error: 'too many reports today, try again tomorrow'}}
     if ((mine.results[0]?.n ?? 0) >= caps.sender) return tooMany
     if ((proj.results[0]?.n ?? 0) >= caps.project) return tooMany
@@ -592,7 +591,9 @@ export async function updateReport(env: CloudflareBindings, project: string, id:
     args.push(id)
     await env.PRIMARY_DB.prepare(`UPDATE reports SET ${sets.join(', ')} WHERE id = ?${args.length} AND deleted_at IS NULL`).bind(...args).run()
     console.log('report update', JSON.stringify({id, by, status: body?.status}))
-    return getReport(env, project, id)
+    // the row only: the page keeps the report and files it has (no R2 read again)
+    const {key: _k, client_key: _c, rate_key: _rk, project_id: _p, ...visible} = (await rowById(env, project, id))!
+    return {status: 200, body: {row: rowOut(visible)}}
 }
 
 /** DELETE the report: the R2 objects go, the personal columns are cleared, the row stays. The rate

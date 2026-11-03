@@ -41,13 +41,16 @@ function checkPath(name: BucketName, path: string): string {
 
 export function bucketRoutes(app: Hono<CloudEnv>) {
     app.post('/api/v1/buckets/:bucket/missing', async (c) => {
-        const {name, bucket} = await staffBucket(c)
+        const {name} = await staffBucket(c)
         const body = await jsonBody<{paths?: unknown}>(c)
         if (!Array.isArray(body.paths) || body.paths.length > MISSING_PATHS_MAX || body.paths.some(p => typeof p !== 'string'))
             throw new HTTPException(400, {message: `paths: up to ${MISSING_PATHS_MAX} paths`})
         const paths = (body.paths as string[]).map(p => checkPath(name, p))
-        const heads = await Promise.all(paths.map(p => bucket.head(p)))
-        return c.json({missing: paths.filter((_, i) => !heads[i])})
+        // one D1 query: every upload here is registered (below); cheaper than an R2 head per path
+        const {results} = await c.env.PRIMARY_DB.prepare(`SELECT path FROM files WHERE bucket = ? AND path IN (SELECT value FROM json_each(?))`)
+            .bind(name, JSON.stringify(paths)).all<{path: string}>()
+        const have = new Set(results.map(r => r.path))
+        return c.json({missing: paths.filter(p => !have.has(p))})
     })
 
     app.put('/api/v1/buckets/:bucket/:path{.+}', async (c) => {
@@ -57,11 +60,6 @@ export function bucketRoutes(app: Hono<CloudEnv>) {
         const expected = (c.req.header('x-content-sha256') || '').toLowerCase()
         if (!/^[0-9a-f]{64}$/.test(expected)) throw new HTTPException(400, {message: 'send x-content-sha256: <hex sha256 of the file>'})
         if (name === 'e2e' && !path.startsWith(`blobs/${expected}`)) throw new HTTPException(400, {message: 'x-content-sha256 does not match the path'})
-        const existing = await bucket.head(path)
-        if (existing) {
-            if (existing.customMetadata?.sha256 === expected) return c.json({url: keyUrl(url, path), path, size: existing.size, existed: true})
-            throw new HTTPException(409, {message: `${name}/${path} exists; paths are write-once`})
-        }
         const body = c.req.raw.body
         if (!body) throw new HTTPException(400, {message: 'empty body'})
         const contentType = contentTypeFor(path, c.req.header('content-type'))
@@ -70,7 +68,12 @@ export function bucketRoutes(app: Hono<CloudEnv>) {
             customMetadata: {owner: user.id, sha256: expected},
             onlyIf: new Headers({'if-none-match': '*'}),
         })
-        if (!stored) throw new HTTPException(409, {message: 'written by another request at the same time; retry'})
+        if (!stored) {
+            // the path exists (write-once): the same bytes again are fine
+            const existing = await bucket.head(path)
+            if (existing?.customMetadata?.sha256 === expected) return c.json({url: keyUrl(url, path), path, size: existing.size, existed: true})
+            throw new HTTPException(409, {message: `${name}/${path} exists; paths are write-once`})
+        }
         if (sha256 !== expected) {
             await bucket.delete(path)
             throw new HTTPException(400, {message: 'x-content-sha256 does not match the uploaded bytes'})

@@ -79,7 +79,7 @@ For a pull request that changes the examples or rendering, add a link to a previ
 
 1. `npm run build:all`: builds the core, the plugins and the examples (nothing is uploaded).
 2. `npm run cloud:upload-preview -- pr-<number>`: uploads what step 1 built (`dist/`, `examples/`, `plugins/*/dist/`)
-   to threepipe cloud and prints the link; put it in the pull request. The preview stays for 30 days after its last upload.
+   to threepipe cloud and prints the link; put it in the pull request. The preview stays until cleaned up.
 
 Step 2 needs a threepipe cloud key (`TP_CLOUD_KEY`): sign in at https://cloud.threepipe.org with GitHub, create an access
 link, and follow it. See `services/cloud/README.md`.

@@ -288,7 +288,7 @@ async function settingsChange(label, f, done) {
 }
 const field = sel => String((document.querySelector(sel) || {}).value || '').trim()
 
-/* PATCH {status} or {note}; the answer is the report as GET gives it. The actor is the member's username, set by the worker. */
+/* PATCH {status} or {note}; the answer is the row (the report and files stay as read). The actor is the member's username, set by the worker. */
 async function repPatch(body) {
     const r = S.rep; if (!r) return
     try {

@@ -1,7 +1,6 @@
 /**
- * Every limit of threepipe cloud, in one place. They are constants in the code (a change is a deploy), except the
- * daily report caps, which are wrangler vars (REPORTS_DAILY_*, wrangler.jsonc) so they can be raised without a code
- * change; the values here are their defaults. agents.md (src/access.ts) and the README quote these.
+ * Every limit of threepipe cloud, in one place: constants in the code (a change is a deploy). agents.md (src/access.ts)
+ * and the README quote these.
  * An admin can give one user other limits in the user_limits table (teenybase.ts): see {@link UserLimits}.
  */
 
@@ -12,13 +11,14 @@ const HOUR = 60 * 60
 export const DAY = 24 * HOUR
 
 // ---- uploads (src/uploads.ts, src/drive.ts, src/buckets.ts) ----
-/** One file per request, streamed through the Worker. A folder is one PUT per file. */
+/** One file per PUT, streamed through the Worker. */
 export const UPLOAD_MAX_BYTES = 90 * MB
+/** Many files per POST (multipart, read into the Worker's memory, 128 MB): bytes and files per request. */
+export const UPLOAD_BATCH_BYTES = 40 * MB
+export const UPLOAD_BATCH_FILES = 500
 /** s/ shares: days kept by default, and the most `?ttl=` may ask for. */
 export const SHARE_DEFAULT_DAYS = 7
 export const SHARE_MAX_DAYS = 30
-/** b/ builds: kept this many days after the last upload to the build. */
-export const BUILD_DAYS = 30
 /** POST /api/v1/buckets/<bucket>/missing: paths per call. */
 export const MISSING_PATHS_MAX = 500
 
@@ -34,8 +34,8 @@ export const DRIVE_QUOTA: Record<'member' | 'staff' | 'admin', number> = {member
 /** Signed URLs of private items: the default and the longest. */
 export const SIGN_DEFAULT_SECONDS = HOUR
 export const SIGN_MAX_SECONDS = 7 * DAY
-/** Files per item: changing its visibility or id rewrites each of them (R2 has no metadata update or rename). */
-export const ITEM_FILES_MAX = 500
+/** Files of an item a share or unshare rewrites in one request (R2 has no metadata update; Workers limit subrequests). */
+export const VISIBILITY_FILES_MAX = 500
 /** `name (2)` … `name (99)`: the free names tried for a new folder or item. */
 export const NAME_COPIES_MAX = 100
 /** Folders and items listed per folder. */
@@ -66,22 +66,14 @@ export const REPORT_VERSIONS_MAX = 24
 export const REPORT_NOTE_MAX = 2000
 /** Reports listed per page. */
 export const REPORTS_LIST_MAX = 200
-/** Over the last 24 hours; each can be set with its wrangler var. */
+/** Reports over the last 24 hours. */
 export const REPORTS_DAILY = {
-    /** reports per sender (user, or a hash of the IP address) */
-    perSender: {variable: 'REPORTS_DAILY_CAP', default: 100},
-    /** reports per project */
-    perProject: {variable: 'REPORTS_DAILY_CAP_PROJECT', default: 10000},
-    /** all reports */
-    all: {variable: 'REPORTS_DAILY_CAP_ALL', default: 50000},
+    /** per sender (user, or a hash of the IP address) */
+    perSender: 100,
+    perProject: 10000,
+    all: 50000,
     /** bytes of attached files, all reports */
-    fileBytes: {variable: 'REPORTS_DAILY_FILE_BYTES_ALL', default: 20 * GB},
-} as const
-
-/** A daily report cap: its wrangler var when that is a positive integer, else the default. */
-export function dailyCap(env: CloudflareBindings, cap: keyof typeof REPORTS_DAILY): number {
-    const n = parseInt(String(env[REPORTS_DAILY[cap].variable] ?? ''), 10)
-    return Number.isInteger(n) && n > 0 ? n : REPORTS_DAILY[cap].default
+    fileBytes: 20 * GB,
 }
 
 // ---- per user ----
@@ -98,7 +90,7 @@ interface LimitedUser {role: keyof typeof DRIVE_QUOTA, limits: UserLimits}
 
 export const driveQuota = (u: LimitedUser) => u.limits.drive_quota ?? DRIVE_QUOTA[u.role]
 export const projectsMax = (u: LimitedUser) => u.limits.projects ?? (u.role === 'member' ? PROJECTS_MAX : Infinity)
-export const reportsDaily = (env: CloudflareBindings, u: LimitedUser) => u.limits.reports_daily ?? dailyCap(env, 'perSender')
+export const reportsDaily = (u: LimitedUser) => u.limits.reports_daily ?? REPORTS_DAILY.perSender
 
 /** `90 MB`, `1 GB`: a limit in bytes for messages. */
 export const sizeText = (bytes: number) => bytes >= GB ? `${+(bytes / GB).toFixed(2)} GB` : `${Math.round(bytes / MB)} MB`

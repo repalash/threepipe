@@ -2,8 +2,8 @@ import type {Hono} from 'hono'
 import {HTTPException} from 'hono/http-exception'
 import type {CloudEnv} from './env'
 import {apiOrigin, filesOrigin, jsonBody, randomCode, sha256Hex} from './env'
-import {mintKey, requireUser} from './auth'
-import {ACCESS_KEY_SECONDS, BUILD_DAYS, DAY, LABEL_MAX, SHARE_DEFAULT_DAYS, SHARE_MAX_DAYS, sizeText, UPLOAD_MAX_BYTES} from './limits'
+import {mintKey, requireUser, touchLink} from './auth'
+import {ACCESS_KEY_SECONDS, DAY, LABEL_MAX, SHARE_DEFAULT_DAYS, SHARE_MAX_DAYS, sizeText, UPLOAD_BATCH_BYTES, UPLOAD_BATCH_FILES, UPLOAD_MAX_BYTES} from './limits'
 
 /**
  * Access links: a signed-in user creates one per agent/machine and copies its URL. The agent reads agents.md from it,
@@ -61,6 +61,7 @@ export function accessRoutes(app: Hono<CloudEnv>) {
     app.get('/api/v1/access/:code/key', async (c) => {
         const link = await findLink(c.env, c.req.param('code'))
         const key = await mintKey(c, {id: link.owner_id, email: link.email}, link.id, ACCESS_KEY_SECONDS)
+        touchLink(c, link.id)
         return c.text(key, 200, {'cache-control': 'no-store'})
     })
 }
@@ -77,15 +78,16 @@ function agentsMd(api: string, files: string, code: string, username: string): s
 
 Download your key from ${api}/api/v1/access/${code}/key and save it as \`TP_CLOUD_KEY=<key>\` in \`~/.config/threepipe-cloud/.env\`, readable only by you (\`chmod 600\`). This URL and the key are credentials: never print them, commit them or put them in shared folders like \`/tmp\`. Send it with every request as \`Authorization: Bearer $TP_CLOUD_KEY\`. The key acts as the user \`${username}\` and is valid for ${ACCESS_KEY_SECONDS / DAY} days; fetch it again from the same URL when it expires.
 
-## Upload a file
+## Upload
 
-\`PUT ${api}/api/v1/uploads/<prefix>/<path>\` with the file as the request body (max ${sizeText(UPLOAD_MAX_BYTES)} per file). Upload a folder as one PUT per file. The answer is JSON with the public \`url\`.
+- One file: \`PUT ${api}/api/v1/uploads/<prefix>/<path>\` with the file as the body (max ${sizeText(UPLOAD_MAX_BYTES)}). The answer is JSON with the public \`url\`.
+- A folder: one \`POST ${api}/api/v1/uploads/<prefix>/<name>/\` (multipart), each file a part named by its path in the folder: \`-F "index.html=@index.html" -F "js/app.js=@js/app.js"\` (max ${sizeText(UPLOAD_BATCH_BYTES)} and ${UPLOAD_BATCH_FILES} files per request; \`s\`, \`b\`, \`p\`). The answer lists each file's \`url\`.
 
 | prefix | for | lifetime | overwrite | path |
 |---|---|---|---|---|
 | \`s\` | temporary shares | ${SHARE_DEFAULT_DAYS} days, \`?ttl=<days>\` up to ${SHARE_MAX_DAYS} | yes, owner | \`s/<slug>/<file path>\` |
 | \`a\` | permanent assets (docs images, videos) | permanent | never | \`a/<file name>\`, send \`x-content-sha256: <hex sha256 of the file>\` |
-| \`b\` | builds and previews of a PR or commit | ${BUILD_DAYS} days after the last upload | yes, owner | \`b/<repo>/<pr-123 or sha>/<file path>\` |
+| \`b\` | builds and previews of a PR or commit | kept until cleaned up | yes, owner | \`b/<repo>/<pr-123 or sha>/<file path>\` |
 | \`p\` | permanent named pages | permanent | yes, owner | \`p/<name>/<file path>\` |
 
 The first part of the path after \`s\`, \`p\` (and \`<repo>/<ref>\` after \`b\`) belongs to whoever uploads there first.
@@ -94,6 +96,7 @@ Files are served at \`${files}/<prefix>/<path>\`; a folder URL ending in \`/\` s
 \`\`\`bash
 set -a; . ~/.config/threepipe-cloud/.env; set +a
 curl -sS -X PUT -H "Authorization: Bearer $TP_CLOUD_KEY" --data-binary @render.png ${api}/api/v1/uploads/s/my-render/render.png
+curl -sS -H "Authorization: Bearer $TP_CLOUD_KEY" -F "index.html=@site/index.html" -F "app.js=@site/app.js" ${api}/api/v1/uploads/s/my-demo/
 curl -sS -X PUT -H "Authorization: Bearer $TP_CLOUD_KEY" -H "x-content-sha256: $(sha256sum diagram.png | cut -d' ' -f1)" --data-binary @diagram.png ${api}/api/v1/uploads/a/diagram.png
 \`\`\`
 
@@ -111,9 +114,5 @@ Your own files, private unless you share them (quota). Each upload is an **item*
 - Rename, move, share: \`PATCH ${api}/api/v1/drive/items/<id>\` \`{"name"?, "folder"?, "visibility": "link" | "private"}\`. With \`link\`, the item's \`url\` works for anyone.
 - Read a private item: \`POST ${api}/api/v1/drive/items/<id>/sign\` \`{"ttl": <seconds>}\` gives a URL ending in \`/\`; add the file path (relative files load too).
 - Delete: \`DELETE ${api}/api/v1/drive/items/<id>\`. New id (old URLs stop working): \`POST ${api}/api/v1/drive/items/<id>/new-id\`.
-
-## Your files
-
-\`GET ${api}/api/v1/table/files/select?select=path,size,expires_at&where=deleted_at%20%3D%3D%20null\` (drive items: \`GET ${api}/api/v1/drive\`)
 `
 }

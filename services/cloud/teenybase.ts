@@ -78,7 +78,8 @@ export default {
             deleteRule: 'auth.uid == owner_id',
         } as TableRulesExtensionData],
     }, {
-        // Registry of every uploaded file, written by src/uploads.ts, never read when a file is served.
+        // The files of drive items (src/drive.ts) and of the staff buckets (src/buckets.ts); never read when a file is served.
+        // s/ b/ p/ a/ uploads have no rows: their owner and expiry are on the R2 objects (src/uploads.ts).
         name: 'files',
         autoSetUid: true,
         fields: [
@@ -90,7 +91,6 @@ export default {
             {name: 'size', type: 'integer', sqlType: 'integer', notNull: true},
             {name: 'sha256', type: 'text', sqlType: 'text'},
             {name: 'content_type', type: 'text', sqlType: 'text'},
-            {name: 'expires_at', type: 'text', sqlType: 'text'},
             // drive (d/) only: the item the file belongs to
             {name: 'item_id', type: 'text', sqlType: 'text'},
             {name: 'deleted_at', type: 'text', sqlType: 'text'},
@@ -101,7 +101,6 @@ export default {
             {fields: ['bucket', 'path'], unique: true},
             {fields: ['owner_id', 'prefix']},
             {fields: 'item_id', where: {q: 'item_id IS NOT NULL'}},
-            {fields: 'expires_at', where: {q: 'expires_at IS NOT NULL AND deleted_at IS NULL'}},
         ],
         triggers: [createdTrigger, updatedTrigger],
         extensions: [{
@@ -113,14 +112,16 @@ export default {
             deleteRule: null,
         } as TableRulesExtensionData],
     }, {
-        // Who owns a scope (`s/<slug>`, `p/<name>`, `b/<repo>/<ref>`): claimed atomically by the first upload (the unique
-        // index), released by the daily cron once the scope has no files left (src/uploads.ts, src/cron.ts).
+        // Who owns an upload scope (`s/<slug>`, `p/<name>`, `b/<repo>/<ref>`): claimed by the first upload (the unique
+        // index), read with the user in one query (src/auth.ts requireUserAndScope, src/uploads.ts). One row per scope, none per
+        // file. `expires_at`: a share's last file expiry, after which another user may claim the slug; null for b/ and p/.
         name: 'scopes',
         autoSetUid: true,
         fields: [
             ...baseFields,
             {name: 'scope', type: 'text', sqlType: 'text', notNull: true, unique: true},
             {name: 'owner_id', type: 'relation', sqlType: 'text', notNull: true, foreignKey: {table: 'users', column: 'id'}},
+            {name: 'expires_at', type: 'text', sqlType: 'text'},
         ],
         triggers: [createdTrigger, updatedTrigger],
         extensions: [{
@@ -166,8 +167,6 @@ export default {
             {name: 'name', type: 'text', sqlType: 'text', notNull: true},
             {name: 'entry', type: 'text', sqlType: 'text'},
             {name: 'visibility', type: 'text', sqlType: 'text', notNull: true, default: sqlValue('private')},
-            {name: 'size', type: 'integer', sqlType: 'integer', notNull: true, default: sqlValue(0)},
-            {name: 'files_count', type: 'integer', sqlType: 'integer', notNull: true, default: sqlValue(0)},
         ],
         indexes: [{fields: ['owner_id', 'folder_id', 'name'], unique: true}],
         triggers: [createdTrigger, updatedTrigger],

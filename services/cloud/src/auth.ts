@@ -24,6 +24,9 @@ export interface CloudUser {
     scope?: string
 }
 
+/** The owner of an upload scope (`s/<slug>`, `b/<repo>/<ref>`, `p/<name>`) as read with the user, or null when unclaimed. */
+export interface ScopeRow {owner: string, expires: string | null}
+
 export const isStaff = (u: CloudUser) => u.role === 'staff' || u.role === 'admin'
 
 /** Records when a link (an access link or an app grant) was last used, after the response. */
@@ -42,26 +45,35 @@ export function hasSession(c: Context<CloudEnv>): boolean {
  * The link row (not the JWT) says whether it is an app key and which folder it may use.
  */
 export async function requireUser(c: Context<CloudEnv>): Promise<CloudUser> {
+    return (await requireUserAndScope(c)).user
+}
+
+/**
+ * requireUser, and the owner of the upload scope `uploadScope` in the same D1 query (src/uploads.ts): one read per request.
+ */
+export async function requireUserAndScope(c: Context<CloudEnv>, uploadScope?: string): Promise<{user: CloudUser, scopeRow: ScopeRow | null}> {
     const cached = c.get('cloudUser')
-    if (cached) return cached
+    if (cached && !uploadScope) return {user: cached, scopeRow: null}
     const db = c.get('$db')
     await db.initAuth()
     const auth = db.auth
     if (!auth.uid || auth.cid !== 'users') throw new HTTPException(401, {message: 'sign in, or send an access key (Authorization: Bearer <key>)'})
     const link = typeof auth.meta?.link === 'string' ? auth.meta.link as string : undefined
-    let app: string | undefined, scope: string | undefined
-    if (link) {
-        const row = await c.env.PRIMARY_DB.prepare('SELECT app, scope FROM access_links WHERE id = ? AND owner_id = ?').bind(link, auth.uid)
-            .first<{app: string | null, scope: string | null}>()
-        if (!row) throw new HTTPException(401, {message: 'access link revoked'})
-        app = row.app ?? undefined
-        scope = row.scope ?? undefined
-        touchLink(c, link)
-    }
-    const row = await c.env.PRIMARY_DB.prepare(`SELECT u.id, u.username, u.email, u.role, u.handle_set, l.drive_quota, l.projects, l.reports_daily
-            FROM users u LEFT JOIN user_limits l ON l.user_id = u.id WHERE u.id = ?`).bind(auth.uid)
-        .first<{id: string, username: string, email: string, role: string | null, handle_set: string | null} & {[k in keyof UserLimits]: number | null}>()
+    // one query: the user, its limits, (a key) its link and (an upload) the scope's owner
+    const row = await c.env.PRIMARY_DB.prepare(`SELECT u.id, u.username, u.email, u.role, u.handle_set, l.drive_quota, l.projects, l.reports_daily,
+                a.id AS link_id, a.app, a.scope, a.last_used, s.owner_id AS scope_owner, s.expires_at AS scope_expires
+            FROM users u LEFT JOIN user_limits l ON l.user_id = u.id LEFT JOIN access_links a ON a.id = ?1 AND a.owner_id = u.id
+                LEFT JOIN scopes s ON s.scope = ?3
+            WHERE u.id = ?2`).bind(link ?? null, auth.uid, uploadScope ?? null)
+        .first<{id: string, username: string, email: string, role: string | null, handle_set: string | null, link_id: string | null, app: string | null, scope: string | null,
+            last_used: string | null, scope_owner: string | null, scope_expires: string | null} & {[k in keyof UserLimits]: number | null}>()
     if (!row) throw new HTTPException(401, {message: 'unknown user'})
+    if (link && !row.link_id) throw new HTTPException(401, {message: 'access link revoked'})
+    // last used: written at most once a day per link, not on every request
+    if (link && (!row.last_used || Date.parse(row.last_used) < Date.now() - 86_400_000)) touchLink(c, link)
+    const scopeRow = row.scope_owner ? {owner: row.scope_owner, expires: row.scope_expires} : null
+    if (cached) return {user: cached, scopeRow}
+    const app = row.app ?? undefined, scope = row.scope ?? undefined
     // an admin sets role 'blocked' (admin panel or API) to stop an account; its files stay, owned by it (files.owner_id)
     if (row.role === 'blocked') throw new HTTPException(403, {message: 'this account is blocked'})
     const role: Role = row.role === 'admin' || row.role === 'staff' ? row.role : 'member'
@@ -70,7 +82,7 @@ export async function requireUser(c: Context<CloudEnv>): Promise<CloudUser> {
     const user: CloudUser = {id: row.id, username: row.username, email: row.email, role, handlePending: !row.handle_set, limits, link, app, scope}
     if (user.handlePending && !HANDLE_FREE.test(c.req.path)) throw new HandlePending()
     c.set('cloudUser', user)
-    return user
+    return {user, scopeRow}
 }
 
 /** 403 for an app key outside the drive routes (they check the folder themselves, src/drive.ts). */
@@ -92,16 +104,14 @@ const OWN_ROUTES = /^\/api\/v1\/(uploads|access|access-links|connect|drive|bucke
  * which sign in to the account with the same email, so a password sign-up with someone's email would be waiting for them.
  */
 const PASSWORD_ROUTES = /^\/api\/v1\/table\/users\/(insert|auth\/(sign-up|login-password|change-password|request-password-reset|confirm-password-reset))$/
-/** The teenybase routes an access key may use (agents.md): reading its files. A key changes nothing else there. */
-const KEY_ROUTES = /^\/api\/v1\/table\/files\/(select|list)$/
 
 /**
  * Runs before every route (teenybase's onRequest hook):
  * - CSRF: a request that changes something with the session cookie (no Authorization header) must come from this origin.
  *   The cookie is SameSite=Lax, and files.threepipe.org is the same site, so Lax alone does not stop it.
  * - Password accounts only with DEV_LOGIN (PASSWORD_ROUTES).
- * - Keys on teenybase's own routes: the link must still exist (revocation); access keys only read their files there
- *   (KEY_ROUTES; otherwise one could set a password and become a session that outlives its link), app keys nothing.
+ * - Access and app keys never use teenybase's own routes (one could set a password there and become a session that
+ *   outlives its link): our routes are their API.
  */
 export async function guardRequest(c: Context<CloudEnv>): Promise<Response | undefined> {
     const url = new URL(c.req.url)
@@ -115,9 +125,5 @@ export async function guardRequest(c: Context<CloudEnv>): Promise<Response | und
         throw new HTTPException(403, {message: 'cross-origin request with the session cookie'})
     if (OWN_ROUTES.test(url.pathname) || !header && !cookie) return
     await db.initAuth()
-    if (typeof db.auth?.meta?.link !== 'string') return
-    const user = await requireUser(c)
-    if (user.scope) throw new HTTPException(403, {message: 'an app key can only use the drive routes (/api/v1/drive…)'})
-    if (!KEY_ROUTES.test(url.pathname)) throw new HTTPException(403, {message: 'an access key can only read its files here (/api/v1/table/files/select)'})
-    return
+    if (typeof db.auth?.meta?.link === 'string') throw new HTTPException(403, {message: 'a key works on /api/v1/uploads, /drive and the routes in its agents.md'})
 }
