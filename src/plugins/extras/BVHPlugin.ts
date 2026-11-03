@@ -62,6 +62,8 @@ interface MeshBVHTree extends IMeshBVH {
 type BVHGeometry = IGeometry & {boundsTree?: MeshBVHTree}
 
 interface BVHStats {
+    // the tree the plugin built: a different boundsTree on the geometry is a tree from outside
+    tree: MeshBVHTree
     triangles: number
     // what the tree was built from (buildKey): a refit cannot change which triangles are in it
     key: string
@@ -402,6 +404,9 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
 
     private _adopt(g: BVHGeometry) {
         const tree = g.boundsTree
+        // the plugin's own tree was replaced from outside: the new one is a tree from outside, checked like any other
+        const own = this._stats.get(g)
+        if (own && own.tree !== tree) this._stats.delete(g)
         // a tree that replaced the adopted one is checked again: it can have other triangles
         if (!tree || this._stats.has(g) || this._adopted.get(g)?.tree === tree) return
         this._adopted.set(g, {tree, key: buildKey(g), covers: hasDrawnTriangles(tree, g)})
@@ -443,6 +448,7 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
     private _geometryUpdate(e: {geometry?: BVHGeometry}) {
         const g = e.geometry
         if (!g) return
+        this._adopt(g) // a replaced tree is not the plugin's any more
         const s = this._stats.get(g)
         const adoptedKey = !s && g.boundsTree ? this._adopted.get(g)?.key : undefined
         const key = buildKey(g)
@@ -491,7 +497,7 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
         const bvh = new this.lib.MeshBVH(g, buildOptions)
         const ms = performance.now() - t
         this._stats.set(g, {
-            triangles: triangleCount(g), key: buildKey(g),
+            tree: bvh as MeshBVHTree, triangles: triangleCount(g), key: buildKey(g),
             bytes: treeBytes(this.lib, bvh), ms,
         })
         g.boundsTree = bvh as BVHGeometry['boundsTree']

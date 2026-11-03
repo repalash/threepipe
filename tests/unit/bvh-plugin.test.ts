@@ -509,6 +509,15 @@ describe('BVHPlugin', () => {
         swap.geometry!.boundsTree = new threeMeshBVH.MeshBVH(swap.geometry!, {range: {start: 0, count: half}}) as any
         plugin.refreshAll()
         expect(swap.raycast).toBe(Mesh.prototype.raycast)
+
+        // the same for a tree of the plugin that is replaced from outside
+        const own = add(200, 32)
+        frame()
+        expect(plugin.statusOf(own)).toMatch(/triangles/)
+        expect(own.raycast).toBe(threeMeshBVH.acceleratedRaycast)
+        own.geometry!.boundsTree = new threeMeshBVH.MeshBVH(own.geometry!, {range: {start: 0, count: half}}) as any
+        plugin.refreshAll()
+        expect(own.raycast).toBe(Mesh.prototype.raycast)
     })
 
     test('a mesh added to a shared geometry with a tree: only that mesh is checked, not every mesh of the geometry', () => {
