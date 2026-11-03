@@ -3,6 +3,8 @@ import {Group2, IObject3D, IWidget} from '../../core'
 import {AViewerPluginSync, type IViewerEvent, IViewerEventTypes, ThreeViewer} from '../../viewer'
 import {IEvent, onChange} from 'ts-browser-helpers'
 import {
+    AHelperWidget,
+    ALightHelperWidget,
     CameraHelper2,
     DirectionalLightHelper2,
     LineHelper,
@@ -19,6 +21,9 @@ export interface IObject3DHelper<T extends IWidget = IWidget>{
 
 /**
  * Automatically creates and manages helper widgets for lights, cameras, lines, and skeletons.
+ * Lights and cameras get a round icon that keeps its size in pixels and is drawn on top ({@link showIcons},
+ * {@link iconSize}); a click on it selects the light or the camera. Each kind of light and camera has its own colour
+ * for its icon and lines ({@link widgetKinds}).
  * Custom widget types can be registered via the `helpers` array.
  * See https://threepipe.org/notes/widgets-and-helpers for the full widget system documentation.
  * @category Plugins
@@ -38,9 +43,34 @@ export class Object3DWidgetsPlugin extends AViewerPluginSync {
         // BoneHelper,
     ]
 
+    /** Show the icons of lights and cameras */
+    @onChange(Object3DWidgetsPlugin.prototype._optionsChanged)
+        showIcons = true
+
+    /** The diameter of the icons of lights and cameras, in CSS pixels */
+    @onChange(Object3DWidgetsPlugin.prototype._optionsChanged)
+        iconSize = 22
+
+    /** Draw the frustum of the shadow camera of directional and spot lights that cast shadows */
+    @onChange(Object3DWidgetsPlugin.prototype._optionsChanged)
+        showShadowFrustum = false
+
     setDirty() {
         this.widgets?.forEach(w => w.visible = !this.isDisabled())
         this._viewer?.setDirty()
+    }
+
+    protected _optionsChanged() {
+        this.widgets?.forEach(w => this._applyOptions(w))
+        this._viewer?.setDirty()
+    }
+
+    protected _applyOptions(w: IWidget) {
+        if (w instanceof AHelperWidget) {
+            w.showIcon = this.showIcons
+            w.iconSize = this.iconSize
+        }
+        if (w instanceof ALightHelperWidget) w.showShadowFrustum = this.showShadowFrustum
     }
 
     toJSON: any = null
@@ -131,6 +161,7 @@ export class Object3DWidgetsPlugin extends AViewerPluginSync {
         const helpers = this.helpers.filter(h => h.Check(o))
         for (const h of helpers) {
             const w = h.Create(o)
+            this._applyOptions(w)
             w.visible = !this.isDisabled()
             this._widgetRoot.add(w)
             this._registerWidget(w)
@@ -166,6 +197,23 @@ export class Object3DWidgetsPlugin extends AViewerPluginSync {
                 type: 'checkbox',
                 label: 'Enabled',
                 property: [this, 'enabled'],
+            },
+            {
+                type: 'checkbox',
+                label: 'Show icons',
+                property: [this, 'showIcons'],
+            },
+            {
+                type: 'slider',
+                label: 'Icon size (px)',
+                bounds: [8, 64],
+                stepSize: 1,
+                property: [this, 'iconSize'],
+            },
+            {
+                type: 'checkbox',
+                label: 'Shadow frustum',
+                property: [this, 'showShadowFrustum'],
             },
         ],
     }

@@ -7,7 +7,6 @@ import {IUiConfigContainer, uiSlider} from 'uiconfig.js'
 import {LineMaterial2} from '../../core'
 
 export class PointLightHelper2 extends ALightHelperWidget {
-    color: ColorRepresentation | undefined
     lightSphere: Wireframe
     declare light: (PointLight & IUiConfigContainer) | undefined
     @onChange(PointLightHelper2.prototype.update)
@@ -28,24 +27,7 @@ export class PointLightHelper2 extends ALightHelperWidget {
 
         const geometry = new WireframeGeometry2(new SphereGeometry(0.5, 4, 2))
 
-        this.hMaterial = new LineMaterial2({
-            color: 0xff0000,
-            linewidth: 3, // in world units with size attenuation, pixels otherwise
-            vertexColors: false,
-            worldUnits: false,
-
-            dashed: false,
-            alphaToCoverage: true,
-
-            toneMapped: false,
-            transparent: true,
-            depthTest: true,
-            depthWrite: false,
-
-            allowOverride: false,
-        })
-        this.hMaterial.userData.renderToGBuffer = false
-        this.hMaterial.userData.renderToDepth = false
+        this.hMaterial = this._createLineMaterial()
 
         this.lightSphere = new Wireframe(geometry, this.hMaterial)
         this.lightSphere.computeLineDistances()
@@ -72,7 +54,7 @@ export class PointLightHelper2 extends ALightHelperWidget {
 
         if (!this.light || !this.lightSphere) return
 
-        this.hMaterial.color.set(this.color ?? this.light.color)
+        this.hMaterial.color.set(this._lineColor)
         this.hMaterial.linewidth = this.lineWidth
         this.lightSphere.scale.setScalar(this.size)
 

@@ -47,6 +47,9 @@ Group2
   │           └── CameraHelper2
   └── SelectionWidget (implements IWidget)
         └── BoxSelectionWidget   (wireframe bounding box on selection)
+
+Sprite
+  └── WidgetIcon (the icon of a light or camera widget, a child of the widget)
 ```
 
 ### Scene Separation
@@ -71,6 +74,12 @@ Widgets live outside the model root. They are parented under a **widget root** g
 2. `beforeRender` → checks flag, calls `update()` if dirty
 
 This debounces updates to at most once per render frame.
+
+**Kind, colour and icon:** `attach()` sets `kind` from `getWidgetKind(object)` (a light or camera kind, else
+`undefined`). The colour of the lines is `color` when it is set, else the colour of the kind (`_lineColor`). A widget
+with a kind and `showIcon` on has an `icon` (`WidgetIcon`, see [Icons](#icons-of-lights-and-cameras)), updated in
+`update()`; `iconSize` is its diameter in CSS pixels. `_createLineMaterial()` makes the line material of the light and
+camera helpers (the [material convention](#material-convention)).
 
 **Known limitation:** Three.js `onBeforeRender` is not called on lights or cameras, only meshes. This is why `ALightHelperWidget` and `ACameraHelperWidget` override with `preRender()`, which `Object3DWidgetsPlugin` calls explicitly in its viewer `preRender` listener.
 
@@ -129,11 +138,36 @@ See [Widget Handle Picking](./widget-handle-picking) for the full interaction da
 - **SpotLightHelper2**: Cone visualization matching spotlight angle and distance. 5 cone lines + 32-segment circle at cone end.
 - **PointLightHelper2**: Wireframe sphere at light position.
 
-All extend `ALightHelperWidget` and use `preRender()` for updates.
+All extend `ALightHelperWidget` and use `preRender()` for updates. The lines are in the colour of the light kind; the
+light's own colour is the dot on the icon.
+
+**Shadow frustum:** with `showShadowFrustum` on (`Object3DWidgetsPlugin.showShadowFrustum`, default off), a directional
+or spot light that casts shadows gets `shadowHelper`, a `CameraHelper2` of `light.shadow.camera` inside its widget, in the
+colour of the light kind. The widget calls `light.shadow.updateMatrices(light)` (as the renderer does before the shadow
+map) and gives the helper the matrix of the shadow camera relative to the light. The helper has no icon and
+`userData.userSelectable = false`, so a click on it does not select the shadow camera.
 
 ### CameraHelper2
 
 Frustum visualization showing near/far planes, field of view cone, up direction, and target line. Uses a `pointMap` system mapping named points to buffer indices for efficient frustum corner updates via `camera.projectionMatrixInverse`.
+The lines are in the camera colour, the cross on the near and far planes darker.
+
+### Icons of lights and cameras
+
+`WidgetIcon` (`src/three/widgets/WidgetIcon.ts`) is a `Sprite` with `SpriteMaterial({sizeAttenuation: false})`: it
+faces the camera and has the same size at any distance. Before each render (`onBeforeRender`) `updateScale()` converts
+`iconSize` pixels to its units, which depend on the projection (`projectionMatrix[5]`: the field of view or the zoom) and
+the canvas height, and divides out the world scale of the widget (the transform of its object). Lights also have a
+child sprite, `dot`, tinted with the light colour; it cannot be picked.
+
+The colour and the icon of each kind are in one table, `widgetKinds` (`src/three/widgets/widgetKinds.ts`), with
+`getWidgetKind(object)`, the shared textures `getWidgetIconTexture(kind)` and `getWidgetDotTexture()` (drawn once on a
+2D canvas, `undefined` in Node.js without a canvas) and `widgetIconLayout` (the sizes in the texture). Other UI that shows
+lights and cameras (an editor overlay, an outliner) reads the same table.
+
+The icon materials follow the [material convention](#material-convention) and are also `depthTest: false`, so the icon
+is drawn on top. For the same reason `WidgetIcon.raycast` gives its hits a distance of 0: a click on an icon that is in
+front of a model on screen selects the light or the camera, not the model.
 
 ### BoneHelper / SkeletonHelper2
 
@@ -244,6 +278,8 @@ Widget subclasses typically set on their materials (not enforced by `AHelperWidg
 - `allowOverride: false` — resist material extension plugins
 
 Note: `LineHelper` uses `MeshBasicMaterial` for its handles and does not set all of these. Each subclass chooses what's appropriate.
+The light and camera helpers get their line material from `AHelperWidget._createLineMaterial()`; `WidgetIcon` sets the
+same on its sprite materials.
 
 ### Shadow Prevention
 All widget children get `castShadow = false`, `receiveShadow = false`, and `userData.__keepShadowDef = true` (prevents shadow plugins from re-enabling shadows).
