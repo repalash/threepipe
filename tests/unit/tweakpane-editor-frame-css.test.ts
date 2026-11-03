@@ -37,7 +37,8 @@ function mediaMatches(params: string, vp: Viewport) {
 function declarations(selector: string, vp: Viewport) {
     const normal: Record<string, string> = {}
     const important: Record<string, string> = {}
-    for (const sheet of sheets) {
+    for (const sheet of sheets) walkSheet(sheet)
+    function walkSheet(sheet: typeof sheets[number]) {
         sheet.walkRules((rule: Rule) => {
             if (!rule.selectors.map(s => s.replace(/\s+/g, ' ').trim()).includes(selector)) return
             for (let p = rule.parent; p && p.type !== 'root'; p = p.parent as any) {
@@ -65,10 +66,10 @@ function specificity(selector: string) {
  * their specificity, then of the source; `!important` wins. A target is one simple selector of the element (its id or
  * one of its classes).
  */
-function cascade(targets: string[], bodyClasses: string[], vp: Viewport) {
+function cascade(targets: string[], bodyClassList: string[], vp: Viewport) {
     const found: {spec: number, order: number, decls: {prop: string, value: string, important: boolean}[]}[] = []
     let order = 0
-    for (const sheet of sheets) {
+    sheets.forEach(sheet => {
         sheet.walkRules((rule: Rule) => {
             order++
             for (let p = rule.parent; p && p.type !== 'root'; p = p.parent as any) {
@@ -79,7 +80,7 @@ function cascade(targets: string[], bodyClasses: string[], vp: Viewport) {
                 const m = sel.match(/^body((?:\.[\w-]+)*)(?: (.+))?$/)
                 const classes = m ? m[1].split('.').filter(Boolean) : []
                 const target = m ? m[2] ?? 'body' : sel
-                if (!targets.includes(target) || !classes.every(c => bodyClasses.includes(c))) continue
+                if (!targets.includes(target) || !classes.every(c => bodyClassList.includes(c))) continue
                 const decls: {prop: string, value: string, important: boolean}[] = []
                 rule.walkDecls(d => {
                     decls.push({prop: d.prop, value: d.value, important: !!d.important})
@@ -87,7 +88,7 @@ function cascade(targets: string[], bodyClasses: string[], vp: Viewport) {
                 found.push({spec: specificity(sel), order, decls})
             }
         })
-    }
+    })
     found.sort((a, b) => a.spec - b.spec || a.order - b.order)
     const normal: Record<string, string> = {}
     const important: Record<string, string> = {}
