@@ -46,7 +46,8 @@ function isThin(o: any) {
  * - A click selects the outermost group under the pointer. A group with a single child is one level with that child
  *   (glTF wrappers), and a top-level object that holds a whole file (a frame) passes the click to its parts.
  * - A click on the selected group keeps it, a double click selects one level deeper. When a part of a group is
- *   selected, a click on another part of that group selects that part.
+ *   selected, a click on another part of that group selects that part. With a widget handle (a curve point) selected,
+ *   a click on its object selects the object, and the transform gizmo moves from the handle to the object.
  * - A click again on the same spot (not a double click) selects the next object behind, at the same level.
  * - Shift+click adds or removes an object. Ctrl/Cmd+click selects the deepest object under the pointer.
  * - Keys: Esc or Shift+Enter select the parent, Enter the children, Tab / Shift+Tab the next / previous sibling,
@@ -95,6 +96,11 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
     private _nextHoverAt = 0
     /** The transform gizmo whose drag start cancels the press (bound at a press: the TransformControlsPlugin can come later) */
     private _gizmo?: TransformControlsPlugin['transformControls']
+    /**
+     * The widget handle (a curve point) that the PickingPlugin selected with the selected object: the transform gizmo
+     * is on it, not on the object
+     */
+    private _selectedHandle: Object3D | null = null
 
     constructor(enabled = true) {
         super()
@@ -146,6 +152,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         this._lastClick = null
         this._cancelClickBehind()
         this._hover = null
+        this._selectedHandle = null
         super.onRemove(viewer)
     }
 
@@ -370,7 +377,8 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         if (this._active && !e.intersects.selectedHandle) e.intersects.consumed = true
     }
 
-    private _onSelectionChanged = () => {
+    private _onSelectionChanged = (e: {intersects?: {selectedHandle?: Object3D | null}}) => {
+        this._selectedHandle = e.intersects?.selectedHandle ?? null
         // the hover target depends on the selection (inside a selected group: the part a double click selects)
         this._pointerDirty = true
         this._emit('selection')
@@ -509,7 +517,9 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         }
         this._lastClick = {p: s.start.clone(), t: now, tgt}
         if (shift) this.select(toggleSelected(sel, tgt))
-        else if (!(sel.length === 1 && sel[0] === tgt)) this.select([tgt])
+        // a click on the selected object keeps it, but with a handle of it selected, the click selects the object itself
+        // (the gizmo moves from the handle to the object)
+        else if (!(sel.length === 1 && sel[0] === tgt && !this._selectedHandle)) this.select([tgt])
     }
 
     // endregion

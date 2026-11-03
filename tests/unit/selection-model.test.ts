@@ -261,7 +261,7 @@ function setup() {
 
     const canvas = Object.assign(new EventTarget(), {
         style: {},
-        getBoundingClientRect: () => ({left: 0, top: 0, width: SIZE, height: SIZE}),
+        getBoundingClientRect: () => ({left: 0, top: 0, x: 0, y: 0, width: SIZE, height: SIZE}), // the core picker reads x and y
         // for the transform controls
         ownerDocument: {pointerLockElement: null},
         setPointerCapture: () => undefined,
@@ -276,7 +276,14 @@ function setup() {
         getSelectedObjects: () => picker.selectedObjects,
     })
     picker.addEventListener('selectedObjectChanged', e => picking.dispatchEvent(e))
-    picker.addEventListener('hitObject', e => picking.dispatchEvent(e)) // as PickingPlugin: the same intersects object
+    picker.addEventListener('hitObject', e => {
+        // as PickingPlugin._onObjectHit: a hit on a widget selects its object, with the widget and the handle
+        const hit = e.intersects.selectedObject
+        let w: any = hit
+        while (w && w.assetType !== 'widget') w = w.parent
+        if (hit && w?.object) Object.assign(e.intersects, {selectedObject: w.object, selectedWidget: w, selectedHandle: hit.userData.isWidgetHandle ? hit : undefined})
+        picking.dispatchEvent(e) // the same intersects object
+    })
     /** Other plugins of the viewer, by type */
     const plugins: Record<string, any> = {}
     const viewer = Object.assign(new EventDispatcher<any>(), {
@@ -558,6 +565,44 @@ describe('SelectionUxPlugin', () => {
         const hit = {intersects: {selectedHandle: handle} as any}
         ;(ux as any)._onPickerHit(hit)
         expect(hit.intersects.consumed).toBeUndefined() // the core pick goes on, with the handle for the gizmo
+    })
+
+    test('with a curve point selected, a click on the curve moves the gizmo to the curve, a click on another point to that point', () => {
+        const {canvas, picking, at, lamp, wait, names} = setup()
+        const widget = Object.assign(group('Lamp widget'), {assetType: 'widget', object: lamp})
+        const h1 = mesh('Handle 1', 3.5, 0, 0), h2 = mesh('Handle 2', 3.5, 1, 0) // beside the lamp, over empty space
+        h1.userData.isWidgetHandle = h2.userData.isWidgetHandle = true
+        widget.add(h1, h2)
+        widget.updateMatrixWorld(true)
+        picking.picker.extraObjects.push(widget)
+        // the object that the transform gizmo is on, as in the TransformControlsPlugin
+        let gizmo: Object3D | null = null
+        let changes = 0
+        picking.addEventListener('selectedObjectChanged', (e: any) => {
+            gizmo = e.object ? e.intersects?.selectedHandle ?? e.intersects?.selectedObject ?? e.object : null
+            changes++
+        })
+        // a tap that the core picker also sees (the release on the canvas)
+        const tap = (o: Object3D, after = 1000) => {
+            canvas.dispatchEvent(ev('pointerdown', at(o)))
+            canvas.dispatchEvent(ev('pointerup', at(o)))
+            window.dispatchEvent(ev('pointerup', at(o)))
+            wait(after)
+        }
+        tap(h1)
+        expect(names()).toEqual(['Lamp'])
+        expect(gizmo).toBe(h1)
+        tap(lamp, 100)
+        expect(names()).toEqual(['Lamp'])
+        expect(gizmo).toBe(lamp)
+        const n = changes
+        tap(lamp, 100) // the same object, no point: no change
+        expect(changes).toBe(n)
+        tap(h1)
+        expect(gizmo).toBe(h1)
+        tap(h2)
+        expect(names()).toEqual(['Lamp'])
+        expect(gizmo).toBe(h2)
     })
 
     test('when the picker picks materials (or geometries, textures), the core picker keeps the clicks', () => {
