@@ -75,6 +75,24 @@ The plugin has a UI folder, `Editor`, with the page layout and the mode names. A
 
 The layout that the person picks (in the menu or the UI) is kept in `localStorage` (`TweakpaneEditorPlugin.LayoutStorageKey`), and so is the names setting that the person picks in the mode bar (`EditorModeBar.StorageKey`; set a key to `null` to not keep it). A layout or a names setting set from code (`editor.layout = 'floating'`, `editor.modeNames = false`) applies, but is not kept, so the person's pick is back at the next visit. `TweakpaneEditorPlugin.DefaultLayout` is the layout when none is stored. The plugin reads the stored layout when it is made, so set `TweakpaneEditorPlugin.LayoutStorageKey` and `TweakpaneEditorPlugin.DefaultLayout` before `new TweakpaneEditorPlugin()`. For the old page with the mode tabs at the bottom in an app, set `TweakpaneEditorPlugin.DefaultLayout = 'classic'`, or `editor.layout = 'classic'` (this one also replaces a layout that the person picked).
 
+### Areas
+
+The frame has fixed areas: the left sidebar, the right sidebar (the panel and the mode bar) and the bottom strip below the canvas. `editor.setArea('left', element)` puts an element in the left sidebar, and `editor.setArea('bottom', element)` puts one in the bottom strip, between the left sidebar and the panel. `editor.setArea(area, null)` empties the area. The element fills the area, and the plugin keeps it when it makes the frame again (also after the classic layout, which has no areas).
+
+- An empty area takes no room, so a page without areas looks the same as before.
+- A shown area is 240 px wide (left) or 160 px tall (bottom): the CSS variables `--lay-left-area-size` and `--lay-bottom-area-size` on `body.lay-frame`. To change them, use a more specific rule, like `html body.lay-frame { --lay-left-area-size: 280px; }`.
+- In the title bar and the status bar layouts, the canvas gets smaller and the areas are edge to edge, with a line to the canvas. In the floating layout, the areas are cards over the canvas, with the same gap as the panel card.
+- The perf pill and the bar of the sticky notes follow the left area: in the floating layout they move right of the left card, and up above the bottom card; the tool bar also moves up. In the other layouts they move with the canvas.
+- The body has the class `lay-has-left` or `lay-has-bottom` while that area has an element. The CSS variables `--lay-left-area`, `--lay-right-area` and `--lay-bottom-area` are the width or height of each area (`0px` when it is empty). In the floating layout, `--lay-left-inset` and `--lay-bottom-inset` are the parts of the canvas that the left and the bottom card cover, with their gap.
+- A portrait window under 920 px wide (a phone) has no room for the left and the bottom area: they are hidden there.
+
+```typescript
+const layers = document.createElement('div')
+editor.setArea('left', layers)
+// later
+editor.setArea('left', null)
+```
+
 The frame applies in every window size. In a wide or a landscape window, the canvas, the panel and the mode bar are side by side. In a portrait window under 920 px wide (a phone), the layout keeps its bars (floating has no gap there). The canvas is on top at full width, and the panel and the mode bar are below it, with the same height. The CSS variable `--lay-split` is the part of the height for the canvas: `0.45`, set on `body.lay-frame`. To change it, use a more specific rule, like `html body.lay-frame { --lay-split: 0.5; }`. A mode bar taller than its room scrolls. When the panel is hidden, the mode bar is a row at the bottom, and a tap on a mode brings the panel back. The mode names are hidden at the first visit in a window under 920 px wide (`EditorModeBar.WideQuery`).
 
 ```typescript

@@ -6,7 +6,7 @@ export type {NoteItem, NotesStore, NotesStoreStatus, NotesPluginOptions, NotesPl
 export {StickyNotesUiPlugin} from './StickyNotesUiPlugin'
 export type {StickyNotesLayout, StickyNotesColor} from './StickyNotesUiPlugin'
 export {EditorFrame, EDITOR_FRAME_LAYOUTS, EDITOR_PAGE_LAYOUTS} from './frame/EditorFrame'
-export type {EditorFrameLayout, EditorFrameOptions, EditorPageLayout} from './frame/EditorFrame'
+export type {EditorFrameArea, EditorFrameLayout, EditorFrameOptions, EditorPageLayout} from './frame/EditorFrame'
 export {EditorModeBar} from './frame/EditorModeBar'
 export type {EditorModeLook, EditorModeBarHost} from './frame/EditorModeBar'
 export {EditorCameraPlugin} from './EditorCameraPlugin'

@@ -51,6 +51,94 @@ function declarations(selector: string, vp: Viewport) {
     return {...normal, ...important}
 }
 
+/** The specificity of a selector of the frame CSS (ids, classes and pseudo-classes, tags), as a number for sorting */
+function specificity(selector: string) {
+    const ids = selector.match(/#[\w-]+/g)?.length ?? 0
+    const classes = selector.match(/[.:][\w-]+/g)?.length ?? 0
+    const tags = selector.match(/(^|\s)[a-z]+/g)?.length ?? 0
+    return ids * 10000 + classes * 100 + tags
+}
+
+/**
+ * The declarations for an element with the body in the given classes, at a viewport: every rule `body.a.b <target>`
+ * (or `<target>`, or `body.a.b` for the body itself, target `body`) whose body classes the body has, in the order of
+ * their specificity, then of the source; `!important` wins. A target is one simple selector of the element (its id or
+ * one of its classes).
+ */
+function cascade(targets: string[], bodyClasses: string[], vp: Viewport) {
+    const found: {spec: number, order: number, decls: {prop: string, value: string, important: boolean}[]}[] = []
+    let order = 0
+    for (const sheet of sheets) {
+        sheet.walkRules((rule: Rule) => {
+            order++
+            for (let p = rule.parent; p && p.type !== 'root'; p = p.parent as any) {
+                if (p.type === 'atrule' && (p as AtRule).name === 'media' && !mediaMatches((p as AtRule).params, vp)) return
+            }
+            for (const raw of rule.selectors) {
+                const sel = raw.replace(/\s+/g, ' ').trim()
+                const m = sel.match(/^body((?:\.[\w-]+)*)(?: (.+))?$/)
+                const classes = m ? m[1].split('.').filter(Boolean) : []
+                const target = m ? m[2] ?? 'body' : sel
+                if (!targets.includes(target) || !classes.every(c => bodyClasses.includes(c))) continue
+                const decls: {prop: string, value: string, important: boolean}[] = []
+                rule.walkDecls(d => {
+                    decls.push({prop: d.prop, value: d.value, important: !!d.important})
+                })
+                found.push({spec: specificity(sel), order, decls})
+            }
+        })
+    }
+    found.sort((a, b) => a.spec - b.spec || a.order - b.order)
+    const normal: Record<string, string> = {}
+    const important: Record<string, string> = {}
+    for (const f of found) for (const d of f.decls) (d.important ? important : normal)[d.prop] = d.value
+    return {...normal, ...important}
+}
+
+/**
+ * The value in px of a CSS length (`calc`, `var` with the given custom properties and their fallbacks, px, rem, and % of
+ * `percentOf`)
+ */
+function evaluate(expr: string, percentOf: number, vars: Record<string, string>): number {
+    let e = expr
+    for (let i = 0; i < 8; i++) e = e.replace(/var\((--[\w-]+)(?:,\s*([^()]+))?\)/g, (_, k, fb) => vars[k] ?? fb ?? 'NaN')
+    const js = e.replace(/calc/g, '').replace(/(-?[\d.]+)rem/g, '($1*16)').replace(/(-?[\d.]+)px/g, '($1)').replace(/(-?[\d.]+)%/g, `($1*${percentOf}/100)`)
+    if (!/^[\d\s.+\-*/()]+$/.test(js)) throw new Error('Cannot evaluate: ' + expr)
+    return Function(`return (${js})`)() as number
+}
+
+type Layout = 'titlebar' | 'statusbar' | 'floating'
+interface FrameState {left?: boolean, bottom?: boolean, panelHidden?: boolean}
+
+/** The classes of the body for a layout and its state, as EditorFrame and EditorModeBar set them */
+function bodyClasses(layout: Layout, s: FrameState = {}) {
+    return ['lay-frame', 'lay-' + layout, ...s.left ? ['lay-has-left'] : [], ...s.bottom ? ['lay-has-bottom'] : [], ...s.panelHidden ? ['mb-panel-hidden'] : []]
+}
+
+/** The custom properties of the body: its own, and --mb-width of the mode bar (on the root element, the names hidden) */
+function bodyVars(layout: Layout, vp: Viewport, s: FrameState = {}) {
+    const all = cascade(['body'], bodyClasses(layout, s), vp)
+    return {'--mb-width': '44px', ...Object.fromEntries(Object.entries(all).filter(([k]) => k.startsWith('--')))}
+}
+
+/** The box of a fixed element, from its left, right, top, bottom, width and height, in px; null when it is not shown */
+function box(targets: string[], layout: Layout, vp: Viewport, s: FrameState = {}) {
+    const d = cascade(targets, bodyClasses(layout, s), vp)
+    if (d.display === 'none') return null
+    const vars = bodyVars(layout, vp, s)
+    const v = (prop: string, of: number) => d[prop] === undefined || d[prop] === 'auto' ? undefined : evaluate(d[prop], of, vars)
+    const side = (start: string, end: string, size: string, of: number) => {
+        let [a, b, w] = [v(start, of), v(end, of), v(size, of)]
+        if (d.inset === '0') [a, b] = [a ?? 0, b ?? 0]
+        if (w === undefined && a !== undefined && b !== undefined) w = of - a - b
+        if (a === undefined && b !== undefined && w !== undefined) a = of - b - w
+        return [a, w]
+    }
+    const [left, width] = side('left', 'right', 'width', vp.width)
+    const [top, height] = side('top', 'bottom', 'height', vp.height)
+    return {left, top, width, height}
+}
+
 describe('tweakpane editor frame on a phone', () => {
     it('keeps the chosen frame: the bars and the mode bar show, the mode tabs and the panel title do not', () => {
         for (const vp of [phone, phoneLandscape]) {
@@ -178,19 +266,12 @@ describe('tweakpane editor frame on a phone', () => {
         expect(z('.lay-menu')).toBeGreaterThanOrEqual(2000)
     })
 
-    it('keeps the floating tool bar in the part of the canvas that the panels do not cover', () => {
+    it('keeps the floating tool bar in the part of the canvas that the panels and the left card do not cover', () => {
         // the floating canvas is the whole window and the bar moves left of the panels: its max-width must leave the
         // panels out, or a narrow window puts its first buttons left of the window, out of the bar's scroll
-        const evaluate = (expr: string, vp: Viewport, vars: Record<string, string>): number => {
-            let e = expr
-            for (let i = 0; i < 5; i++) e = e.replace(/var\((--[\w-]+)(?:,\s*([^()]+))?\)/g, (_, k, fb) => vars[k] ?? fb ?? 'NaN')
-            const js = e.replace(/calc/g, '').replace(/(-?[\d.]+)rem/g, '($1*16)').replace(/(-?[\d.]+)px/g, '($1)').replace(/(-?[\d.]+)%/g, `($1*${vp.width}/100)`)
-            if (!/^[\d\s.+\-*/()]+$/.test(js)) throw new Error('Cannot evaluate: ' + expr)
-            return Function(`return (${js})`)() as number
-        }
         // the left and right padding of a padding shorthand (1 to 4 values)
         const sidePad = (v: string) => {
-            const p = v.split(/\s+/).map(x => evaluate(x, phone, {}))
+            const p = v.split(/\s+/).map(x => evaluate(x, phone.width, {}))
             return (p[1] ?? p[0]) + (p[3] ?? p[1] ?? p[0])
         }
         // the rules of the bar, in the order of their specificity (a later one wins): with the perf pill at the bottom
@@ -201,22 +282,25 @@ describe('tweakpane editor frame on a phone', () => {
         for (const vp of [{width: 568, height: 320}, {width: 844, height: 390}, desktop]) {
             for (const mb of ['44px', '168px']) {
                 for (const pill of [false, true]) {
-                    const vars: Record<string, string> = {'--mb-width': mb, '--tweakpane-ui-container-width': '300px', '--lay-gap': '12px'}
-                    vars['--lay-right-inset'] = declarations('body.lay-floating #canvas-container', vp)['--lay-right-inset']
-                    if (pill) Object.assign(vars, declarations('body.lay-frame', vp), declarations(pillContainer, vp))
-                    const bar = Object.assign({}, ...barRules(pill).map(r => declarations(r, vp)))
-                    const sidePadding = sidePad(bar.padding ?? declarations('.button-bar', vp).padding)
-                    const right = evaluate(bar.right, vp, vars)
-                    const maxWidth = evaluate(bar['max-width'], vp, vars)
-                    const width = Math.max(0, maxWidth) + sidePadding
-                    const panelLeft = vp.width - evaluate(vars['--lay-right-inset'], vp, vars) + 12 // the panel card's left edge
-                    // the right edge of the pill: its left and its widest (the 76 px of a phone). When the canvas left of
-                    // the panels has no room for the pill and a button (568 px with the mode names, which a narrow window
-                    // hides at the first visit), the bar has no width and only the window edge is checked
-                    const pillRight = pill && maxWidth > 0 ? evaluate(declarations('body.lay-frame .pp-root.pp-bottom-left', vp).left, vp, vars) + 76 : 0
-                    const at = `${vp.width} px, mode bar ${mb}${pill ? ', perf pill' : ''}`
-                    expect(vp.width - right - width, `${at}: left edge`).toBeGreaterThanOrEqual(pillRight)
-                    expect(vp.width - right, `${at}: right edge`).toBeLessThanOrEqual(panelLeft)
+                    for (const left of [false, true]) {
+                        const vars: Record<string, string> = {...bodyVars('floating', vp, {left}), '--mb-width': mb}
+                        if (pill) Object.assign(vars, declarations(pillContainer, vp))
+                        const bar = Object.assign({}, ...barRules(pill).map(r => declarations(r, vp)))
+                        const sidePadding = sidePad(bar.padding ?? declarations('.button-bar', vp).padding)
+                        const right = evaluate(bar.right, vp.width, vars)
+                        const maxWidth = evaluate(bar['max-width'], vp.width, vars)
+                        const width = Math.max(0, maxWidth) + sidePadding
+                        const panelLeft = vp.width - evaluate(vars['--lay-right-inset'], vp.width, vars) + 12 // the panel card's left edge
+                        const leftCardRight = evaluate(vars['--lay-left-inset'], vp.width, vars) // with its gap; 0 without the card
+                        // the right edge of the pill (moved by the left card): its left and its widest (the 76 px of a
+                        // phone). When the canvas left of the panels has no room for the pill and a button (568 px with
+                        // the mode names, which a narrow window hides at the first visit; or a left card), the bar has no
+                        // width and only the window edge is checked
+                        const pillRight = pill && maxWidth > 0 ? evaluate(declarations('body.lay-frame .pp-root.pp-bottom-left', vp).left, vp.width, vars) + leftCardRight + 76 : 0
+                        const at = `${vp.width} px, mode bar ${mb}${pill ? ', perf pill' : ''}${left ? ', left area' : ''}`
+                        expect(vp.width - right - width, `${at}: left edge`).toBeGreaterThanOrEqual(maxWidth > 0 ? Math.max(pillRight, leftCardRight) : 0)
+                        expect(vp.width - right, `${at}: right edge`).toBeLessThanOrEqual(panelLeft)
+                    }
                 }
             }
         }
@@ -225,8 +309,8 @@ describe('tweakpane editor frame on a phone', () => {
     it('keeps the side by side frame in a wide window', () => {
         const canvas = declarations('body.lay-titlebar #canvas-container', desktop)
         const panel = declarations('body.lay-titlebar #tweakpaneUiContainer', desktop)
-        expect(canvas.width).toBe('calc(100% - var(--mb-width, 44px) - var(--tweakpane-ui-container-width, 300px))')
-        expect(canvas.height).toBe('calc(100% - var(--lay-top) - var(--lay-bottom))')
+        expect(canvas.width).toBe('calc(100% - var(--lay-left-area) - var(--lay-right-area))')
+        expect(canvas.height).toBe('calc(100% - var(--lay-top) - var(--lay-bottom) - var(--lay-bottom-area))')
         expect(panel.top).toBe('var(--lay-top)')
         expect(panel.width).toBe('var(--tweakpane-ui-container-width, 300px)')
         // floating: the panel and the mode bar are one card, joined without a gap or round corners at the join
@@ -237,4 +321,99 @@ describe('tweakpane editor frame on a phone', () => {
         expect(floatBar['border-radius']).toBe('0 8px 8px 0')
         expect(declarations('body.lay-floating.mb-panel-hidden .mb-root', desktop)['border-radius']).toBe('8px')
     })
+})
+
+describe('tweakpane editor frame areas', () => {
+    const canvas = ['#canvas-container']
+    const panel = ['#tweakpaneUiContainer']
+    const leftArea = ['.lay-area', '.lay-area-left']
+    const bottomArea = ['.lay-area', '.lay-area-bottom']
+    const corner = ['.pp-root.pp-bottom-left', '.snp-dock']
+    /** The margins that move the perf pill and the bar of the sticky notes off the cards of the areas, in px */
+    const cornerMargins = (layout: Layout, vp: Viewport, s: FrameState) => corner.map(t => {
+        const [, , bottom, left] = cascade([t], bodyClasses(layout, s), vp).margin.split(/\s+(?![^(]*\))/)
+        const vars = bodyVars(layout, vp, s)
+        return [evaluate(left, vp.width, vars), evaluate(bottom, vp.height, vars)]
+    })
+    const toolBarMargin = (layout: Layout, vp: Viewport, s: FrameState) =>
+        evaluate(cascade(['.util-buttons-container'], bodyClasses(layout, s), vp)['margin-bottom'], vp.height, bodyVars(layout, vp, s))
+
+    // the canvas, the panel and the corner of each layout without areas: the frame of before the areas
+    const before = {
+        titlebar: {canvas: {left: 0, top: 36, width: 1096, height: 864}, panel: {left: 1096, top: 36, width: 300, height: 864}},
+        statusbar: {canvas: {left: 0, top: 0, width: 1096, height: 874}, panel: {left: 1096, top: 0, width: 300, height: 874}},
+        floating: {canvas: {left: 0, top: 0, width: 1440, height: 900}, panel: {left: 1084, top: 12, width: 300, height: 876}},
+    }
+
+    for (const layout of ['titlebar', 'statusbar', 'floating'] as const) {
+        it(`${layout}: an empty left and bottom area take no room, and nothing moves`, () => {
+            for (const panelHidden of [false, true]) {
+                const s = {panelHidden}
+                const vars = bodyVars(layout, desktop, s)
+                expect([vars['--lay-left-area'], vars['--lay-bottom-area'], vars['--lay-left-inset'], vars['--lay-bottom-inset']]).toEqual(['0px', '0px', '0px', '0px'])
+                expect(box(leftArea, layout, desktop, s), 'left area').toBeNull()
+                expect(box(bottomArea, layout, desktop, s), 'bottom area').toBeNull()
+                const c = before[layout].canvas
+                // the panel hidden: the canvas takes its room, except in floating (the canvas is the whole window)
+                expect(box(canvas, layout, desktop, s)).toEqual(panelHidden && layout !== 'floating' ? {...c, width: c.width + 300} : c)
+                expect(cornerMargins(layout, desktop, s)).toEqual([[0, 0], [0, 0]])
+                expect(toolBarMargin(layout, desktop, s)).toBe(0)
+            }
+            expect(box(panel, layout, desktop)).toEqual(before[layout].panel)
+        })
+
+        it(`${layout}: an element in the left area shows it and sets the width variable`, () => {
+            const s = {left: true}
+            const vars = bodyVars(layout, desktop, s)
+            expect(vars['--lay-left-area-size']).toBe('240px')
+            expect(evaluate(vars['--lay-left-area'], desktop.width, vars)).toBe(240)
+            const area = box(leftArea, layout, desktop, s)
+            const c = before[layout].canvas
+            if (layout === 'floating') {
+                // a card over the canvas, with the gap of the panel card; the canvas does not change
+                expect(area).toEqual({left: 12, top: 12, width: 240, height: 876})
+                expect(box(canvas, layout, desktop, s)).toEqual(c)
+                // the perf pill and the bar of the sticky notes keep out of the card: its width and the gap
+                expect(cornerMargins(layout, desktop, s)).toEqual([[252, 0], [252, 0]])
+            } else {
+                // from bar to bar at the left; the canvas is narrower
+                expect(area).toEqual({left: 0, top: c.top, width: 240, height: c.height})
+                expect(box(canvas, layout, desktop, s)).toEqual({...c, left: 240, width: c.width - 240})
+                // the canvas moved: the pill and the bar of the sticky notes in it move with it
+                expect(cornerMargins(layout, desktop, s)).toEqual([[0, 0], [0, 0]])
+            }
+            expect(box(panel, layout, desktop, s)).toEqual(before[layout].panel)
+            expect(box(bottomArea, layout, desktop, s)).toBeNull()
+        })
+
+        it(`${layout}: an element in the bottom area shows it below the canvas, between the left area and the panel`, () => {
+            for (const panelHidden of [false, true]) {
+                const s = {left: true, bottom: true, panelHidden}
+                const right = panelHidden ? 44 : 344 // the mode bar, and the panel
+                const area = box(bottomArea, layout, desktop, s)
+                const c = before[layout].canvas
+                if (layout === 'floating') {
+                    expect(area).toEqual({left: 264, top: 900 - 12 - 160, width: 1440 - 264 - right - 24, height: 160})
+                    expect(box(canvas, layout, desktop, s)).toEqual(c)
+                    expect(cornerMargins(layout, desktop, s)).toEqual([[252, 172], [252, 172]])
+                    expect(toolBarMargin(layout, desktop, s)).toBe(172)
+                } else {
+                    expect(area).toEqual({left: 240, top: c.top + c.height - 160, width: 1440 - 240 - right, height: 160})
+                    expect(box(canvas, layout, desktop, s)).toEqual({left: 240, top: c.top, width: 1440 - 240 - right, height: c.height - 160})
+                    expect(toolBarMargin(layout, desktop, s)).toBe(0)
+                }
+            }
+        })
+
+        it(`${layout}: a narrow portrait window hides the areas, and they take no room`, () => {
+            const s = {left: true, bottom: true}
+            expect(box(leftArea, layout, phone, s)).toBeNull()
+            expect(box(bottomArea, layout, phone, s)).toBeNull()
+            const vars = bodyVars(layout, phone, s)
+            for (const k of ['--lay-left-area', '--lay-bottom-area', '--lay-left-inset', '--lay-bottom-inset']) {
+                expect(evaluate(vars[k], phone.width, vars), k).toBe(0)
+            }
+            expect(cascade(canvas, bodyClasses(layout, s), phone).width).toBe('100%')
+        })
+    }
 })

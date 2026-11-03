@@ -143,6 +143,10 @@ class FakeElement {
     append(...cs: FakeElement[]) {
         cs.forEach(c => this.appendChild(c))
     }
+    replaceChildren(...cs: FakeElement[]) {
+        for (const c of [...this.children]) c.remove()
+        this.append(...cs)
+    }
     insertBefore(c: FakeElement, before: FakeElement | null) {
         c.remove()
         c.parent = this
@@ -419,6 +423,67 @@ describe('EditorFrame', () => {
     })
 })
 
+describe('EditorFrame areas', () => {
+    const area = (name: string) => body().find('lay-area-' + name)
+    /** The parts of the frame in the body, and in the mode bar (the actions of the floating layout) */
+    const structure = (f: InstanceType<typeof EditorFrame>) => ({
+        bars: body().children.filter(c => c.classList.contains('lay-bar')).map(c => c.classList.contains('lay-top') ? 'top' : 'bottom'),
+        areas: body().children.filter(c => c.classList.contains('lay-area')).map(c => c.className),
+        floatActions: (f.modeBar.element as any as FakeElement).find('lay-float-actions').length,
+        classes: body().className.split(' ').filter(c => c.startsWith('lay-')).sort(),
+    })
+
+    const bars = {titlebar: ['top'], statusbar: ['bottom'], floating: []}
+    for (const layout of ['titlebar', 'statusbar', 'floating'] as const) {
+        test(`${layout}: the bars, the mode bar and an empty left and bottom area, which take no room`, () => {
+            const f = new EditorFrame(host(), {layout})
+            expect(structure(f)).toEqual({
+                bars: bars[layout],
+                areas: ['lay-area lay-area-left', 'lay-area lay-area-bottom'],
+                floatActions: layout === 'floating' ? 1 : 0,
+                // no lay-has-<area>: the CSS gives an empty area no room (tweakpane-editor-frame-css.test.ts)
+                classes: ['lay-' + layout, 'lay-frame'].sort(),
+            })
+            expect(area('left')[0].children).toHaveLength(0)
+            expect(area('bottom')[0].children).toHaveLength(0)
+            expect(body().find('mb-root')).toHaveLength(1)
+        })
+
+        test(`${layout}: an element in the left area shows it, and a null empties the area`, () => {
+            const f = new EditorFrame(host(), {layout})
+            const layers = new FakeElement('div')
+            f.setArea('left', layers as any)
+            expect(area('left')[0].children).toEqual([layers])
+            expect(body().classList.contains('lay-has-left')).toBe(true)
+            expect(body().classList.contains('lay-has-bottom')).toBe(false)
+            // another element takes its place
+            const catalogue = new FakeElement('div')
+            f.setArea('left', catalogue as any)
+            expect(area('left')[0].children).toEqual([catalogue])
+            expect(layers.parentElement).toBeNull()
+            f.setArea('left', null)
+            expect(area('left')[0].children).toHaveLength(0)
+            expect(body().classList.contains('lay-has-left')).toBe(false)
+        })
+    }
+
+    test('the areas keep their elements when the layout changes, and go with the frame', () => {
+        const f = new EditorFrame(host(), {layout: 'titlebar'})
+        const left = new FakeElement('div'), bottom = new FakeElement('div')
+        f.setArea('left', left as any)
+        f.setArea('bottom', bottom as any)
+        for (const layout of ['floating', 'statusbar', 'titlebar'] as const) {
+            f.setLayout(layout)
+            expect(area('left')[0].children, layout).toEqual([left])
+            expect(area('bottom')[0].children, layout).toEqual([bottom])
+            expect(structure(f).classes, layout).toEqual(['lay-' + layout, 'lay-frame', 'lay-has-bottom', 'lay-has-left'].sort())
+        }
+        f.dispose()
+        expect(body().find('lay-area')).toHaveLength(0)
+        expect(body().className.split(' ').filter(c => c.startsWith('lay-'))).toEqual([])
+    })
+})
+
 describe('TweakpaneEditorPlugin.layout', () => {
     /** The plugin with modes in a fake viewer, so a layout makes the frame */
     const plugin = () => {
@@ -450,6 +515,26 @@ describe('TweakpaneEditorPlugin.layout', () => {
         dropdown.setValue('floating')
         expect(p.frame?.layout).toBe('floating')
         expect(storage.get('tpEditorLayout')).toBe('floating')
+    })
+
+    test('setArea keeps the element when the frame is made again, also after the classic layout', () => {
+        const p = plugin()
+        const layers = new FakeElement('div')
+        p.layout = 'classic'
+        p.setArea('left', layers as any) // no frame: kept for later
+        expect(body().find('lay-area')).toHaveLength(0)
+        p.layout = 'floating'
+        expect(body().find('lay-area-left')[0].children).toEqual([layers])
+        expect(body().classList.contains('lay-has-left')).toBe(true)
+        p.layout = 'classic'
+        expect(body().classList.contains('lay-has-left')).toBe(false)
+        p.layout = 'titlebar'
+        expect(body().find('lay-area-left')[0].children).toEqual([layers])
+        p.setArea('left', null)
+        p.layout = 'classic'
+        p.layout = 'statusbar'
+        expect(body().find('lay-area-left')[0].children).toHaveLength(0)
+        expect(body().classList.contains('lay-has-left')).toBe(false)
     })
 
     test('the light or dark toggle sets the color mode of the Tweakpane UI, and its Color Mode dropdown follows', () => {

@@ -16,6 +16,15 @@ export type EditorFrameLayout = 'titlebar' | 'statusbar' | 'floating'
 /** The names of the layouts, for menus */
 export const EDITOR_FRAME_LAYOUTS: [EditorFrameLayout, string][] = [['titlebar', 'Title bar'], ['statusbar', 'Status bar'], ['floating', 'Floating panels']]
 
+/**
+ * The areas of {@link EditorFrame} that an app fills ({@link EditorFrame.setArea}):
+ * - `left`: the sidebar left of the canvas, from the top to the bottom of the frame;
+ * - `bottom`: the strip below the canvas, between the left sidebar and the panel.
+ *
+ * The right sidebar is the panel (the container of the Tweakpane UI) with the {@link EditorModeBar}.
+ */
+export type EditorFrameArea = 'left' | 'bottom'
+
 /** The layout of the editor page: a frame layout, or `classic` for no frame (the mode tabs at the bottom) */
 export type EditorPageLayout = EditorFrameLayout | 'classic'
 
@@ -70,6 +79,13 @@ const ICONS = {
  * class `lay-frame` and `lay-<layout>`. The canvas size follows the CSS of the layout, and the viewer follows the canvas
  * size (the ResizeObserver of `ThreeViewer`).
  *
+ * The frame has fixed areas ({@link EditorFrameArea}): the left sidebar, the right sidebar (the panel and the mode bar)
+ * and the bottom strip. An app puts an element in the left or the bottom area with {@link setArea}; an empty area takes
+ * no room. The CSS variables `--lay-left-area`, `--lay-right-area` and `--lay-bottom-area` on the body are the width or
+ * the height of each area (`0px` when it is empty). In the floating layout the areas are cards over the canvas, and
+ * `--lay-left-inset` and `--lay-bottom-inset` are the parts of the canvas that the left and the bottom card cover with
+ * their gap: the perf pill, the bar of the sticky notes and the tool bar keep out of them.
+ *
  * In a wide or a landscape window, the canvas, the panel and the mode bar are side by side. In a portrait window under
  * 920 px wide (a phone), the layout keeps its bars (floating has no gap there); the canvas is on top at full width, and
  * the panel and the mode bar are below it, with the same height. The CSS variable `--lay-split` is the part of the height
@@ -87,6 +103,8 @@ export class EditorFrame {
     private _bottom: HTMLDivElement
     /** The actions in the mode bar, for the floating layout (it has no bar) */
     private _floatActions: HTMLDivElement
+    /** The elements of the areas ({@link setArea}), in the page while the frame is */
+    private _areas: Record<EditorFrameArea, HTMLDivElement>
     /** The open layout menu, and the button that opened it */
     private _menu?: HTMLDivElement
     private _menuAnchor?: HTMLElement
@@ -117,6 +135,7 @@ export class EditorFrame {
         if (options.onRename) for (const bar of [this._top, this._bottom]) this._editableName(bar.querySelector('.lay-file')!)
         this._floatActions = createDiv({classList: ['lay-float-actions'], addToBody: false})
         this._floatActions.append(...this._actions('modeBar'))
+        this._areas = {left: this._area('left'), bottom: this._area('bottom')}
 
         window.addEventListener('keydown', this._onKeyDown)
         this.modeBar.element.addEventListener('click', this._expandPanel)
@@ -210,6 +229,24 @@ export class EditorFrame {
         this.documentName = this._documentName
     }
 
+    /**
+     * Puts an element in an area of the frame, in place of the element that is there, or empties the area (`null`).
+     * - An area with an element shows (the body class `lay-has-<area>`), and the canvas makes room for it (the floating
+     *   layout: the area is a card over the canvas). An empty area takes no room.
+     * - The element fills the area. The area is `--lay-left-area-size` wide (`240px`) or `--lay-bottom-area-size` tall
+     *   (`160px`), CSS variables on `body.lay-frame`; set others with a more specific rule, like
+     *   `html body.lay-frame { --lay-left-area-size: 280px; }`.
+     * - A narrow portrait window (a phone) has no room for the areas: they are hidden there, and take no room.
+     *
+     * The areas go with the frame: `TweakpaneEditorPlugin.setArea` keeps the element when the plugin makes the frame again.
+     * @param area - `left` or `bottom` ({@link EditorFrameArea})
+     * @param element - the element to show in the area, or `null` for an empty area
+     */
+    setArea(area: EditorFrameArea, element: HTMLElement | null) {
+        this._areas[area].replaceChildren(...element ? [element] : [])
+        document.body.classList.toggle('lay-has-' + area, !!element)
+    }
+
     /** Switches between the light and the dark theme of the same family, when the current theme is in a pair */
     toggleTheme() {
         const cm = this.options.colorMode
@@ -227,6 +264,10 @@ export class EditorFrame {
         this._top.remove()
         this._bottom.remove()
         this._floatActions.remove()
+        for (const [area, el] of Object.entries(this._areas)) {
+            el.remove()
+            document.body.classList.remove('lay-has-' + area)
+        }
         this._closeMenu()
         this._tips.forEach(t => t.destroy())
         this.modeBar.dispose()
@@ -259,6 +300,11 @@ export class EditorFrame {
 
     private _bar(cls: string) {
         return createDiv({classList: ['lay-bar', cls], addToBody: false})
+    }
+
+    /** An empty area, in the page: hidden until {@link setArea} puts an element in it */
+    private _area(area: EditorFrameArea) {
+        return document.body.appendChild(createDiv({classList: ['lay-area', 'lay-area-' + area], addToBody: false}))
     }
 
     /**
