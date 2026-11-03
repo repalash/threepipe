@@ -1,6 +1,8 @@
 import {describe, expect, test, vi} from 'vitest'
 import {BoxGeometry, CustomBlending, DataUtils, EventDispatcher, Group, MaxEquation, Mesh, MeshBasicMaterial, NoBlending, Object3D, PerspectiveCamera, ShaderMaterial, Texture, Vector3} from 'three'
 import {lineMaskFragment, SelectionMaskPass, selectionMaskMaterial, SelectionOutlinePlugin} from '../../plugins/tweakpane-editor/src/SelectionOutlinePlugin'
+import {MaterialExtender} from '../../src/materials/MaterialExtender'
+import {getOrCall} from 'ts-browser-helpers'
 
 const mesh = (name: string) => Object.assign(new Mesh(new BoxGeometry()), {name})
 
@@ -308,6 +310,38 @@ describe('SelectionOutlinePlugin', () => {
         // width 6 at render scale 3: taps at 0.75, 6.67, 12.58 and 18.5 px, all inside the outline
         expect(glsl).not.toMatch(/d(Sel|Hov|Part) < 10\.0/)
         for (const d of ['dSel', 'dHov', 'dPart']) expect(glsl).toContain(`${d} < selNoHit`)
+    })
+
+    test('antialias: on by default, a define of the screen pass; a toggle recompiles the screen pass', () => {
+        const {plugin, viewer} = setup()
+        expect(plugin.antialias).toBe(true)
+        expect(plugin.extraDefines.SEL_OUTLINE_AA()).toBe('1')
+        plugin.antialias = false
+        expect(plugin.extraDefines.SEL_OUTLINE_AA()).toBe('0')
+        expect(viewer.renderManager.screenPass.setDirty).toHaveBeenCalled()
+        // the cache key of the extension has the value of the define, so the screen pass compiles again
+        expect(MaterialExtender.CacheKeyForExtension({} as any, plugin)).toMatch(/0$/)
+        // the anti-aliased code is only behind the define: off compiles the outline of the earlier versions
+        const glsl = plugin.parsFragmentSnippet() as string
+        const ifs = glsl.match(/#if.*$/gm) ?? []
+        expect(ifs.length).toBeGreaterThan(0)
+        for (const i of ifs) expect(i).toBe('#if SEL_OUTLINE_AA')
+        expect(glsl.match(/#endif/g)?.length).toBe(ifs.length)
+    })
+
+    test('antialias has a toggle in the UI', () => {
+        const plugin = new SelectionOutlinePlugin()
+        const labels = ((plugin.uiConfig as any)?.children ?? []).map((c: any) => getOrCall(c.label))
+        expect(labels).toContain('Antialias')
+    })
+
+    test('antialias is not saved, as the other options', () => {
+        const plugin = new SelectionOutlinePlugin()
+        plugin.antialias = false
+        plugin.width = 4
+        const data = plugin.toJSON()
+        expect(data).not.toHaveProperty('antialias')
+        expect(data).not.toHaveProperty('width')
     })
 
     test('the hover is a second draw into its own channel: a hovered object in front of the selection does not hide it', () => {

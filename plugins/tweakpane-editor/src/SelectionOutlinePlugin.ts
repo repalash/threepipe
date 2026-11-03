@@ -47,8 +47,8 @@ const PICKING_TYPE = 'PickingPlugin'
  *    own depth buffer: R = selected item, G = part inside that item, A = linear depth of the selection, B = the hover (the
  *    inverse of its own linear depth, 0 = none). The hover is a second draw, so a hovered object in front of the
  *    selection does not hide it, and the reverse.
- * 2. An extension of the screen pass reads the mask after tonemapping and draws an anti-aliased outer outline around
- *    each selected object and the hovered object. Options: thin lines between the parts of an item ({@link parts}),
+ * 2. An extension of the screen pass reads the mask after tonemapping and draws an outer outline around each selected
+ *    object and the hovered object, with anti-aliased edges ({@link antialias}). Options: thin lines between the parts of an item ({@link parts}),
  *    a dashed outline where the selection is behind other objects ({@link xray}), a fill tint ({@link fill}), and a dim
  *    of all other objects ({@link dimOthers}).
  *
@@ -121,6 +121,19 @@ export class SelectionOutlinePlugin extends AScreenPassExtensionPlugin {
         dimOthers = false
 
     /**
+     * Anti-aliased outline edges (the define `SEL_OUTLINE_AA` of the screen pass).
+     * - The outer edge fades over about 1 px at the distance {@link width} from the mask edge: the distance is found by a
+     *   bisection along the edge normal, not only at the radii of the search rings, so the width is the same at each angle.
+     * - The outline goes half a pixel into the edge of the object (its anti-aliased edge). The alpha there comes from the
+     *   part of the 3x3 pixels around it in the mask, so the pixel steps of the mask do not show.
+     *
+     * It reads the mask up to 14 more times at a pixel of the outline (63 instead of 49). Off: the outline without it.
+     */
+    @onChange(SelectionOutlinePlugin.prototype.setDirty)
+    @uiToggle('Antialias')
+        antialias = true
+
+    /**
      * The parts of a selected object, for the lines between parts. Default: the children, below any chain of groups
      * with one child (the objects that a click inside the selection selects next).
      */
@@ -146,6 +159,10 @@ export class SelectionOutlinePlugin extends AScreenPassExtensionPlugin {
         selHasSel: {value: 0},
         selNearFar: {value: new Vector2(0.1, 1000)},
     }
+
+    readonly extraDefines = {
+        ['SEL_OUTLINE_AA']: () => this.antialias ? '1' : '0',
+    } as const
 
     /** After tonemapping and the other extensions, so the colors are exact */
     priority = -110
@@ -809,6 +826,47 @@ float selHidden(vec2 uv, float maskDepth) {
     return getDepth(uv) < maskDepth - 0.005 * abs(viewZ) / range ? 1.0 : 0.0;
 }
 
+#if SEL_OUTLINE_AA
+// the bisection steps along the edge normal: the distance to the mask edge to 1/16 of the ring spacing
+const int selAaSteps = 4;
+
+// true when the mask sample s is a hit of the search at a pixel with the item cSel and the hover cHov: another item drawn
+// over this one (the selection), or the hover where this pixel is not hovered
+bool selIsHit(vec4 s, float cSel, float cHov, bool hover) {
+    if (hover) return cHov < 0.5 && s.b > 0.5;
+    float sSel = floor(s.r + 0.5);
+    return sSel > 0.5 && sSel != cSel && (cSel < 0.5 || sSel > cSel);
+}
+
+// the distance in pixels to the edge of the hits along dir: the sum of the directions of the hits on the nearest ring
+// (about the edge normal), else the direction of the first hit. lo is a radius with no hit, hi the radius of the hits.
+// A bisection between them; n gets the uv and the mask depth of the nearest hit
+float selEdgeDistance(vec2 sum, vec2 first, float lo, float hi, float cSel, float cHov, bool hover, vec2 px, inout vec3 n) {
+    vec2 dir = first;
+    if (dot(sum, sum) > 1e-4) {
+        vec2 d = normalize(sum);
+        vec2 uv = vUv + d * hi * px;
+        vec4 s = texture2D(tSelectionMask, uv);
+        if (selIsHit(s, cSel, cHov, hover)) {
+            dir = d;
+            n = vec3(uv, hover ? selHoverDepth(s.b) : s.a);
+        }
+    }
+    for (int k = 0; k < selAaSteps; k++) {
+        float m = 0.5 * (lo + hi);
+        vec2 uv = vUv + dir * m * px;
+        vec4 s = texture2D(tSelectionMask, uv);
+        if (selIsHit(s, cSel, cHov, hover)) {
+            hi = m;
+            n = vec3(uv, hover ? selHoverDepth(s.b) : s.a);
+        } else {
+            lo = m;
+        }
+    }
+    return 0.5 * (lo + hi);
+}
+#endif
+
 vec4 selectionOutline(in vec4 color) {
     if (selActive < 0.5) return color;
     vec2 px = 1.0 / selMaskSize;
@@ -833,6 +891,19 @@ vec4 selectionOutline(in vec4 color) {
 
     // search around the pixel for the nearest different id. Rings of 12 taps.
     float maxR = max(selWidth, selHoverWidth) + 0.5;
+#if SEL_OUTLINE_AA
+    // the last ring past the outer edge by 1 / cos(15 deg): an edge inside the outline is hit there also between two taps
+    // (the taps of a ring are 30 degrees apart)
+    maxR *= 1.0353;
+    // for each outline: the ring index of the nearest hits, the sum of their directions, the direction of the first one,
+    // and the item of the first hit
+    float kSel = 0.0, kHov = 0.0, idSel = 0.0;
+    vec2 sumSel = vec2(0.0), sumHov = vec2(0.0), firstSel = vec2(0.0), firstHov = vec2(0.0);
+    // a pixel next to this one (the first ring) is outside the selected item / the hover: the inner edge of the outline
+    float edgeSel = 0.0, edgeHov = 0.0;
+    // the item and the hover of the 4 pixels next to this one (right, up, left, down: the first ring at 0, 90, 180, 270 deg)
+    vec4 nbSel = vec4(0.0), nbHov = vec4(0.0);
+#endif
     float dSel = selNoHit, dHov = selNoHit, dPart = selNoHit;
     // the uv and the mask depth of the nearest sample: the x-ray test (a depth read) is done once after the search,
     // not inside the unrolled loop
@@ -847,6 +918,34 @@ vec4 selectionOutline(in vec4 color) {
             float sSel = floor(s.r + 0.5);
             float sPart = floor(s.g + 0.5);
             float sHov = step(0.5, s.b);
+#if SEL_OUTLINE_AA
+            vec2 dir = o / r;
+            if (sSel > 0.5 && sSel != cSel && (cSel < 0.5 || sSel > cSel)) {
+                if (r < dSel) {
+                    kSel = float(ri);
+                    idSel = sSel;
+                    sumSel = vec2(0.0);
+                    firstSel = dir;
+                }
+                if (r <= dSel) sumSel += dir;
+            }
+            if (sHov > 0.5 && cHov < 0.5) {
+                if (r < dHov) {
+                    kHov = float(ri);
+                    sumHov = vec2(0.0);
+                    firstHov = dir;
+                }
+                if (r <= dHov) sumHov += dir;
+            }
+            if (ri == 0) {
+                if (cSel > 0.5 && sSel != cSel && (sSel < 0.5 || cSel > sSel)) edgeSel = 1.0;
+                if (cHov > 0.5 && sHov < 0.5) edgeHov = 1.0;
+                if (i == 0) { nbSel.x = sSel; nbHov.x = sHov; }
+                if (i == 3) { nbSel.y = sSel; nbHov.y = sHov; }
+                if (i == 6) { nbSel.z = sSel; nbHov.z = sHov; }
+                if (i == 9) { nbSel.w = sSel; nbHov.w = sHov; }
+            }
+#endif
             // outer outline of each selected item (one-sided where two items touch)
             if (sSel > 0.5 && sSel != cSel && (cSel < 0.5 || sSel > cSel) && r < dSel) {
                 dSel = r;
@@ -861,6 +960,32 @@ vec4 selectionOutline(in vec4 color) {
         }
     }
 
+#if SEL_OUTLINE_AA
+    // the distance to the mask edge, not the ring radius: between the ring before the hits (no hit) and the ring of the hits
+    float ringStep = (maxR - 0.75) / 3.0;
+    if (dSel < selNoHit) dSel = selEdgeDistance(sumSel, firstSel, kSel > 0.5 ? dSel - ringStep : 0.0, dSel, cSel, cHov, false, px, nSel);
+    if (dHov < selNoHit) dHov = selEdgeDistance(sumHov, firstHov, kHov > 0.5 ? dHov - ringStep : 0.0, dHov, cSel, cHov, true, px, nHov);
+    // the inner edge, at a pixel next to the edge of an item (its own, else the item of the nearest hit) or of the hover
+    float eSel = edgeSel > 0.5 ? cSel : kSel < 0.5 && dSel < selNoHit ? idSel : 0.0;
+    float inSel = 1.0, inHov = 1.0;
+    if (eSel > 0.5 || edgeHov > 0.5 || kHov < 0.5 && dHov < selNoHit) {
+        vec4 d0 = texture2D(tSelectionMask, vUv + vec2(1.0, 1.0) * px);
+        vec4 d1 = texture2D(tSelectionMask, vUv + vec2(-1.0, 1.0) * px);
+        vec4 d2 = texture2D(tSelectionMask, vUv + vec2(-1.0, -1.0) * px);
+        vec4 d3 = texture2D(tSelectionMask, vUv + vec2(1.0, -1.0) * px);
+        vec4 dSels = floor(vec4(d0.r, d1.r, d2.r, d3.r) + 0.5);
+        vec4 dHovs = step(0.5, vec4(d0.b, d1.b, d2.b, d3.b));
+        // the part of the 3x3 pixels in the item / the hover. At a straight edge it is (1.5 - s) / 3, with s the distance
+        // of the pixel center to the edge (outward, along the nearer axis); along a stair of the mask it changes from one
+        // pixel to the next, as the distance to the real edge does
+        vec4 one = vec4(1.0);
+        float fSel = (step(abs(cSel - eSel), 0.5) + dot(one, step(abs(nbSel - eSel), vec4(0.5))) + dot(one, step(abs(dSels - eSel), vec4(0.5)))) / 9.0;
+        float fHov = (cHov + dot(one, nbHov) + dot(one, dHovs)) / 9.0;
+        // the outline from half a pixel inside the edge: the alpha of the pixel is the part of it in that band
+        if (eSel > 0.5) inSel = clamp(2.5 - 3.0 * fSel, 0.0, 1.0);
+        inHov = clamp(2.5 - 3.0 * fHov, 0.0, 1.0);
+    }
+#endif
     if (selParts > 0.0 && dPart < selNoHit) {
         float hid = selHidden(vUv, c.a);
         float a = selParts * (hid > 0.5 ? 0.5 * selXray * dash : 1.0);
@@ -868,14 +993,41 @@ vec4 selectionOutline(in vec4 color) {
     }
     if (dHov < selNoHit) {
         float a = clamp(selHoverWidth + 0.5 - dHov, 0.0, 1.0);
+#if SEL_OUTLINE_AA
+        a = min(a, inHov);
+#endif
         if (selHidden(nHov.xy, nHov.z) > 0.5) a *= selXray * dash * 0.8;
         col = selOver(col, selHoverColor, a);
     }
+#if SEL_OUTLINE_AA
+    // a hovered pixel has no hover hits: the inner edge alone
+    else if (edgeHov > 0.5) {
+        float a = inHov;
+        if (selHidden(vUv, selHoverDepth(c.b)) > 0.5) a *= selXray * dash * 0.8;
+        col = selOver(col, selHoverColor, a);
+    }
+    // the inner edge of the own item of the pixel
+    float inOwn = 0.0;
+    if (edgeSel > 0.5) {
+        inOwn = inSel;
+        if (selHidden(vUv, c.a) > 0.5) inOwn *= selXray * dash;
+    }
+#endif
     if (dSel < selNoHit) {
         float a = clamp(selWidth + 0.5 - dSel, 0.0, 1.0);
+#if SEL_OUTLINE_AA
+        // the edge of the item of the nearest hit: next to it, and not the own item of this pixel
+        if (edgeSel < 0.5) a = min(a, inSel);
+#endif
         if (selHidden(nSel.xy, nSel.z) > 0.5) a *= selXray * dash;
+#if SEL_OUTLINE_AA
+        a = max(a, inOwn);
+#endif
         col = selOver(col, selColor, a);
     }
+#if SEL_OUTLINE_AA
+    else if (inOwn > 0.0) col = selOver(col, selColor, inOwn);
+#endif
     return col;
 }
 `
