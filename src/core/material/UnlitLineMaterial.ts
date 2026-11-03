@@ -19,6 +19,7 @@ import {AnimateTime, SerializationMetaType, shaderReplaceString, ThreeSerializat
 import {iMaterialCommons} from './iMaterialCommons'
 import {IObject3D} from '../IObject'
 import {makeSamplerUi} from '../../ui/image-ui'
+import {UiTags} from '../../ui/uiconfig'
 import {iMaterialUI} from './IMaterialUi'
 import {threeMaterialInterpolateProps, threeMaterialPropList} from './threeMaterialPropList'
 
@@ -171,6 +172,7 @@ export class UnlitLineMaterial<TE extends IMaterialEventMap = IMaterialEventMap>
             {
                 type: 'input',
                 property: [this, 'name'],
+                tags: [UiTags.Basic],
             },
             // {
             //     type: 'monitor',
@@ -183,11 +185,13 @@ export class UnlitLineMaterial<TE extends IMaterialEventMap = IMaterialEventMap>
             {
                 type: 'color',
                 property: [this, 'color'],
+                tags: [UiTags.Basic],
             },
             makeSamplerUi(this, 'map'),
             {
                 type: 'number',
                 property: [this, 'linewidth'],
+                tags: [UiTags.Basic],
             },
             {
                 type: 'dropdown',

@@ -1,9 +1,8 @@
 import {defineConfig} from 'vite'
-import dts from 'vite-plugin-dts'
 import packageJson from './package.json' with {type: 'json'};
 import license from 'rollup-plugin-license';
 import path from 'node:path';
-import {fixDtsImports, globalsReplacePlugin, glsl} from '../../scripts/vite-utils.mjs';
+import {declarations, globalsReplacePlugin, glsl} from '../../scripts/vite-utils.mjs';
 
 const isProd = process.env.NODE_ENV === 'production'
 const { name, version, author } = packageJson
@@ -48,7 +47,7 @@ export default defineConfig({
         },
     },
     plugins: [
-        isProd ? dts({tsconfigPath: './tsconfig.json', afterBuild: fixDtsImports}) : null,
+        isProd ? declarations() : null,
         ...globalsReplacePlugin(globals, isProd),
         glsl({ // todo: minify glsl.
             include: 'src/**/*.glsl',

@@ -83,6 +83,7 @@ Plugins to add/configure interaction and user editable elements to the viewer.
 - [UndoManagerPlugin](../plugin/UndoManagerPlugin) - Adds support for undo/redo operations in the viewer. It can be used to manage the history of changes made to the scene, objects, materials, etc.
 - [ObjectConstraintsPlugin](https://threepipe.org/plugin/ObjectConstraintsPlugin.html) - Adds support for constraints between objects like follow path, look at, position/rotation/scale locking, etc.
 - [PickingPlugin](../plugin/PickingPlugin) - Adds support for selecting and multi-selecting objects in the viewer with user interactions(click, hover, Shift+Click) and selection widgets.
+- [GPUPickingPlugin](../plugin/GPUPickingPlugin) - Finds the front-most mesh under a point of the canvas by rendering object ids on the GPU (one small draw, no triangle tests), for hover on big scenes.
 - [LoadingScreenPlugin](../plugin/LoadingScreenPlugin) - Shows a configurable loading screen overlay over the canvas which can be extended to show a loader during any kind of processing.
 - [FullScreenPlugin](../plugin/FullScreenPlugin) - Provides helpers for entering the fullscreen mode in browsers.
 - [InteractionPromptPlugin](../plugin/InteractionPromptPlugin) - Adds an animated hand icon over canvas and rotates the camera to prompt the user to interact.
@@ -119,6 +120,7 @@ Plugins to add support for custom materials and material extensions for existing
 Plugins to configure export options and methods for different file formats.
 
 - [CanvasSnapshotPlugin](../plugin/CanvasSnapshotPlugin) - Add support for taking snapshots of the canvas.
+- [CanvasRecorderPlugin](../plugin/CanvasRecorderPlugin) - Record the canvas to a video (MP4 or WebM) or an image sequence, in real time or frame by frame after the progressive render converges.
 - [AssetExporterPlugin](../plugin/AssetExporterPlugin) - Provides helper options, methods and ui config to export the scene, object GLB or Viewer Configuration.
 - [FileTransferPlugin](../plugin/FileTransferPlugin) - Provides a way to extend the `viewer.export` functionality with custom actions.
 

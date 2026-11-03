@@ -1,7 +1,6 @@
 import {defineConfig} from 'vite'
-import dts from 'vite-plugin-dts'
 import packageJson from './package.json' with {type: 'json'};
-import {commonPlugins, globalsReplacePlugin, fixDtsImports} from '../../scripts/vite-utils.mjs';
+import {commonPlugins, globalsReplacePlugin, declarations} from '../../scripts/vite-utils.mjs';
 import react from '@vitejs/plugin-react'
 
 const isProd = process.env.NODE_ENV === 'production'
@@ -55,7 +54,7 @@ export default defineConfig({
     },
     plugins: [
         react(),
-        isProd ? dts({tsconfigPath: './tsconfig.json', afterBuild: fixDtsImports}) : null,
+        isProd ? declarations() : null,
         ...globalsReplacePlugin(globals, isProd),
         ...commonPlugins(packageJson, import.meta.dirname, isProd),
     ],

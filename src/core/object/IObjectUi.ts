@@ -7,6 +7,7 @@ import {generateUUID} from '../../three'
 import {getOrCall} from 'ts-browser-helpers'
 import {iCameraCommons} from './iCameraCommons'
 import {iObjectCommons} from './iObjectCommons'
+import {UiTags} from '../../ui/uiconfig'
 
 declare module '../IObject' {
     interface IObject3D {
@@ -126,6 +127,7 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
             {
                 type: 'checkbox',
                 label: 'Visible',
+                tags: [UiTags.Basic],
                 property: [this, 'visible'],
                 onChange: (e)=>{
                     this.setDirty?.({uiChangeEvent: e, refreshScene: true, refreshUi: true, change: 'visible'})
@@ -140,6 +142,7 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
             {
                 type: 'input',
                 label: 'Name',
+                tags: [UiTags.Basic],
                 property: [this, 'name'],
                 onChange: (e)=>{
                     if (e.last) this.setDirty?.({uiChangeEvent: e, refreshScene: true, frameFade: false, refreshUi: true, change: 'name'})
@@ -148,6 +151,7 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
             {
                 type: 'checkbox',
                 label: 'Casts Shadow',
+                tags: [UiTags.Basic],
                 hidden: () => !this.isMesh,
                 property: [this, 'castShadow'],
                 onChange: (e)=>{
@@ -157,6 +161,7 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
             {
                 type: 'checkbox',
                 label: 'Receive Shadow',
+                tags: [UiTags.Basic],
                 hidden: () => !this.isMesh,
                 property: [this, 'receiveShadow'],
                 onChange: (e)=>{
@@ -171,16 +176,19 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
             {
                 type: 'vec3',
                 label: 'Position',
+                tags: [UiTags.Basic],
                 property: [this, 'position'],
             },
             {
                 type: 'vec3',
                 label: 'Rotation',
+                tags: [UiTags.Basic],
                 property: [this, 'rotation'],
             },
             {
                 type: 'vec3',
                 label: 'Scale',
+                tags: [UiTags.Basic],
                 property: [this, 'scale'],
             },
             {

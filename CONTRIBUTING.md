@@ -40,11 +40,15 @@ Run them in the repository root, unless the table says otherwise.
 | `npm run build:all` | Builds the core, every plugin and the examples (turbo, cached) | To test everything as it is deployed |
 | `npm run build-examples` / `npm run watch-examples` | Compiles the examples to JavaScript (once / on change), for `npm run serve` | To test the examples as they are deployed |
 | `npm run serve` | Static server for the built files on http://localhost:9229 | With `build:all`, `build-examples` or `watch-examples` |
+| `npm run lint` | Oxlint with the rules in `.oxlintrc.json` (every rule is an error, the code passes them all) | Before a pull request |
+| `npm run typecheck` | Type-checks the core (TypeScript 7) | Before a pull request |
 | `npm run test:unit` | Unit tests (vitest) | Before a pull request |
 | `npm run test:e2e` | Browser tests (playwright), against the built files | Before a pull request that changes rendering |
 | `npm run check-bundles` | Checks the built bundles: every import is declared, no package is bundled twice | After `build:all`, when a vite config or a dependency changes |
 | `npm run website:dev` | The website (vitepress) | Docs changes |
 | `npm run docs` / `npm run docs-all` | API docs of the core and the website build / the same plus the API docs of every plugin | Docs changes |
+
+Check manually, the linter cannot: a function that returns a Promise is `async` (a sync `throw` in it then rejects the Promise instead of throwing to the caller).
 
 Different from other projects:
 - `dev` starts the dev server (as in vite projects); the watch build of the library is `watch`. Before this change,
@@ -103,6 +107,7 @@ Checklist
 - Write plugin
 - If the plugin adds DOM UI over the canvas, pick its `z-index` from [UI layers](#ui-layers-z-index)
 - Add jsdoc comments to the class
+- If the plugin loads a library or a file at runtime from a URL (a CDN), keep the URL in a static property that a user can set (like `DRACOLoader2.DRACO_LIBRARY_PATH`), and add it to `./website/notes/dynamically-loaded-files.md`
 - Export classes, functions in `./src/plugins/index.ts`
 - Optionally, use plugin in `./examples/tweakpane-editor/script.ts`
 - Optionally, use plugin in `./examples/model-viewer/script.ts`
@@ -146,6 +151,7 @@ Checklist
 - Write plugin/package
 - If the plugin adds DOM UI over the canvas, pick its `z-index` from [UI layers](#ui-layers-z-index)
 - Add jsdoc comments to the classes
+- If the plugin loads a library or a file at runtime from a URL (a CDN), keep the URL in a static property that a user can set (like `DRACOLoader2.DRACO_LIBRARY_PATH`), and add it to `./website/notes/dynamically-loaded-files.md`
 - Export classes, functions in `index.ts`
 - Optionally, use plugin in `./examples/tweakpane-editor/script.ts`
 - Optionally, use plugin in `./examples/model-viewer/script.ts`

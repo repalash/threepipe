@@ -123,6 +123,7 @@ export default defineConfig({
             items: [
               {text: 'DropzonePlugin', link: 'plugin/DropzonePlugin'},
               {text: 'PickingPlugin', link: 'plugin/PickingPlugin'},
+              {text: 'GPUPickingPlugin', link: 'plugin/GPUPickingPlugin'},
               {text: 'LoadingScreenPlugin', link: 'plugin/LoadingScreenPlugin'},
               {text: 'FullScreenPlugin', link: 'plugin/FullScreenPlugin'},
               {text: 'InteractionPromptPlugin', link: 'plugin/InteractionPromptPlugin'},
@@ -161,6 +162,7 @@ export default defineConfig({
             text: 'Export', collapsed: true,
             items: [
               {text: 'CanvasSnapshotPlugin', link: 'plugin/CanvasSnapshotPlugin'},
+              {text: 'CanvasRecorderPlugin', link: 'plugin/CanvasRecorderPlugin'},
               {text: 'AssetExporterPlugin', link: 'plugin/AssetExporterPlugin'},
               {text: 'FileTransferPlugin', link: 'plugin/FileTransferPlugin'},
             ],
