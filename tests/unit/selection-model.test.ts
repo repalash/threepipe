@@ -269,6 +269,23 @@ describe('selection box', () => {
         expect(size([empty], 'local')).toEqual([0, 1, 1])
     })
 
+    test('the box of several objects encloses the turned cube of a rotated light or empty object', () => {
+        const one = () => 1
+        const light = new DirectionalLight() as any as IObject3D, light2 = new DirectionalLight() as any as IObject3D
+        light.position.set(0, 0, 0)
+        light2.position.set(0, 0, 0)
+        light.rotation.z = Math.PI / 4
+        const empty = group('Empty')
+        empty.rotation.z = Math.PI / 4
+        group('G', light, light2, empty)
+        for (const o of [light, empty]) {
+            const both = boxInfo([o, light2], 'world', one)
+            expect(both.size.toArray().map(v => +v.toFixed(5))).toEqual([1.41421, 1.41421, 1])
+            const box = new Box3().setFromPoints(both.corners).expandByScalar(1e-9)
+            for (const c of boxInfo([o], 'local', one).corners) expect(box.containsPoint(c)).toBe(true)
+        }
+    })
+
     test('the world box adds each part in the world: a rotated part in a rotated group', () => {
         const cube = new Mesh(new BoxGeometry(1, 1, 1), material) as any as IObject3D
         cube.rotation.z = -Math.PI / 4

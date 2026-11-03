@@ -79,12 +79,27 @@ export function localBox(obj: IObject3D, pointSize: (o: IObject3D) => number): B
 }
 
 /**
+ * The cube of `pointSize(o)` world units that stands for a light, a camera or an empty object, in its own frame: its box
+ * in {@link boxInfo} (local), turned and placed with the object
+ */
+function placeholderBox(o: IObject3D, pointSize: (o: IObject3D) => number): Box3 {
+    o.updateWorldMatrix(true, false)
+    // pointSize is in world units: divide by the world length of each axis of the object (0 when flat)
+    const s = new Vector3().setScalar(pointSize(o))
+    for (let i = 0; i < 3; i++) {
+        const l = tmpSize.setFromMatrixColumn(o.matrixWorld, i).length()
+        if (l > 0) s.setComponent(i, s.getComponent(i) / l)
+    }
+    return new Box3().setFromCenterAndSize(new Vector3(), s)
+}
+
+/**
  * The world box (aligned to the world axes) of what is drawn of objects: the boxes of their visible meshes, lines and
  * points, and a cube of `pointSize(o)` at each light or camera inside them. Helpers (widgets, a light's target) and an
  * object with `userData.bboxVisible === false` are left out, with all inside them. As in `Box3B.expandByObject`, an object with its own `boundingBox` (an instanced or a skinned mesh: the box
  * of all instances, or of the pose) uses it before the box of its geometry. Each of `objs` that is a light or a camera,
- * or has nothing drawn, adds a cube of `pointSize(o)` at its position, as its own box has ({@link boxInfo}), so the box
- * of several objects encloses the box of each.
+ * or has nothing drawn, adds the cube of `pointSize(o)` that its own box has ({@link boxInfo}), turned with the object (its
+ * 8 corners in the world), so the box of several objects encloses the box of each.
  */
 export function worldBox(objs: IObject3D[], pointSize: (o: IObject3D) => number): Box3 {
     const box = new Box3()
@@ -92,7 +107,7 @@ export function worldBox(objs: IObject3D[], pointSize: (o: IObject3D) => number)
     for (const o of objs) {
         const b = contentBox(o, identity, pointSize)
         // contentBox leaves out the cube of its root: here the root is a selected object
-        if (b.isEmpty() || o.isLight || o.isCamera) b.union(tmpBox.setFromCenterAndSize(o.getWorldPosition(tmpPos), tmpSize.setScalar(pointSize(o))))
+        if (b.isEmpty() || o.isLight || o.isCamera) b.union(placeholderBox(o, pointSize).applyMatrix4(o.matrixWorld))
         box.union(b)
     }
     return box
@@ -110,15 +125,7 @@ export function boxInfo(objs: IObject3D[], space: 'local' | 'world', pointSize: 
     if (objs.length === 1 && space === 'local') {
         const o = objs[0]
         const lb = localBox(o, pointSize)
-        if (lb.isEmpty()) {
-            // pointSize is in world units: divide by the world length of each axis of the object (0 when flat)
-            const s = new Vector3().setScalar(pointSize(o))
-            for (let i = 0; i < 3; i++) {
-                const l = tmpSize.setFromMatrixColumn(o.matrixWorld, i).length()
-                if (l > 0) s.setComponent(i, s.getComponent(i) / l)
-            }
-            lb.setFromCenterAndSize(new Vector3(), s)
-        }
+        if (lb.isEmpty()) lb.copy(placeholderBox(o, pointSize))
         const size = lb.getSize(new Vector3()).max(minSize)
         m.copy(o.matrixWorld).multiply(new Matrix4().compose(lb.getCenter(new Vector3()), new Quaternion(), size))
     } else {
