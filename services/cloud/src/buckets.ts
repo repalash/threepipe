@@ -68,19 +68,23 @@ export function bucketRoutes(app: Hono<CloudEnv>) {
             customMetadata: {owner: user.id, sha256: expected},
             onlyIf: new Headers({'if-none-match': '*'}),
         })
+        // the registry row (/missing reads it); also when the object is there already, so a retry after a failed insert
+        // registers it
+        const register = (size: number, type: string) => c.env.PRIMARY_DB.prepare(`INSERT INTO files (id, owner_id, bucket, prefix, path, size, sha256, content_type)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (bucket, path) DO NOTHING`)
+            .bind(crypto.randomUUID(), user.id, name, path.split('/')[0], path, size, expected, type).run()
         if (!stored) {
             // the path exists (write-once): the same bytes again are fine
             const existing = await bucket.head(path)
-            if (existing?.customMetadata?.sha256 === expected) return c.json({url: keyUrl(url, path), path, size: existing.size, existed: true})
-            throw new HTTPException(409, {message: `${name}/${path} exists; paths are write-once`})
+            if (existing?.customMetadata?.sha256 !== expected) throw new HTTPException(409, {message: `${name}/${path} exists; paths are write-once`})
+            await register(existing.size, existing.httpMetadata?.contentType || contentType)
+            return c.json({url: keyUrl(url, path), path, size: existing.size, existed: true})
         }
         if (sha256 !== expected) {
             await bucket.delete(path)
             throw new HTTPException(400, {message: 'x-content-sha256 does not match the uploaded bytes'})
         }
-        await c.env.PRIMARY_DB.prepare(`INSERT INTO files (id, owner_id, bucket, prefix, path, size, sha256, content_type) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT (bucket, path) DO NOTHING`)
-            .bind(crypto.randomUUID(), user.id, name, path.split('/')[0], path, size, sha256, contentType).run()
+        await register(size, contentType)
         return c.json({url: keyUrl(url, path), path, size, sha256})
     })
 }

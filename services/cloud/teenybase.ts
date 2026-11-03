@@ -91,8 +91,10 @@ export default {
             {name: 'size', type: 'integer', sqlType: 'integer', notNull: true},
             {name: 'sha256', type: 'text', sqlType: 'text'},
             {name: 'content_type', type: 'text', sqlType: 'text'},
-            // drive (d/) only: the item the file belongs to
+            // drive (d/) only: the item the file belongs to, and when R2 stored the version the row describes (two
+            // uploads to one path: the newer object's details win, whichever request registers last)
             {name: 'item_id', type: 'text', sqlType: 'text'},
+            {name: 'version', type: 'text', sqlType: 'text'},
             {name: 'deleted_at', type: 'text', sqlType: 'text'},
             {name: 'deleted_by', type: 'text', sqlType: 'text'},
             {name: 'deleted_reason', type: 'text', sqlType: 'text'},

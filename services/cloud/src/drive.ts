@@ -203,7 +203,7 @@ async function writeFile(c: Context<CloudEnv>, user: CloudUser, item: Item, rel:
     const unreserve = () => (old === undefined
         ? db.prepare('DELETE FROM files WHERE bucket = ? AND path = ? AND size = ? AND sha256 IS NULL').bind(BUCKET, key, size)
         : db.prepare('UPDATE files SET size = ? WHERE bucket = ? AND path = ? AND size = ?').bind(old, BUCKET, key, size)).run()
-    let sha256: string
+    let sha256: string, version: string
     try {
         const put = await putStreamed(c.env.CLOUD_BUCKET, key, body, size, {
             httpMetadata: {contentType},
@@ -211,14 +211,17 @@ async function writeFile(c: Context<CloudEnv>, user: CloudUser, item: Item, rel:
         })
         if (!put.stored) throw new HTTPException(409, {message: 'the file was written by another request at the same time; retry'})
         sha256 = put.sha256
+        version = put.stored.uploaded.toISOString()
     } catch (e) {
         await unreserve()
         throw e
     }
-    // one round trip: the hash, the entry (the item's first file), and the item as it is now. A visibility change or a
-    // delete while the file streamed: the object follows the item.
+    // one round trip: the file's details (unless a newer upload to the same path registered first: R2 serves its bytes),
+    // the entry (the item's first file), and the item as it is now. A visibility change or a delete while the file
+    // streamed: the object follows the item.
     const res = await db.batch([
-        db.prepare('UPDATE files SET sha256 = ? WHERE bucket = ? AND path = ?').bind(sha256, BUCKET, key),
+        db.prepare(`UPDATE files SET size = ?1, sha256 = ?2, content_type = ?3, version = ?4 WHERE bucket = ?5 AND path = ?6 AND (version IS NULL OR version <= ?4)`)
+            .bind(size, sha256, contentType, version, BUCKET, key),
         db.prepare('UPDATE drive_items SET entry = COALESCE(entry, ?) WHERE id = ? RETURNING visibility').bind(rel, item.id),
     ])
     const now = (res[1] as D1Result<{visibility: Visibility}>).results[0]
