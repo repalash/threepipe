@@ -30,6 +30,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- `LoadingScreenPlugin`: every file entry is one line on a narrow screen. Before, an entry with a long file name wrapped after the state (`downloading:` alone on its line, the name on the next) and a name wider than the screen pushed the list out of it. Each entry is now its own row: a long name is truncated with an ellipsis, and the state and the progress stay visible. The layout on wide screens does not change
 - `ViewerTimeline` read the recording delta in milliseconds, but it is in seconds, so the timeline advanced 1000x too slowly in a converge-mode recording
 - `GLTFAnimationPlugin` applies `animationSpeed` (and the scroll and drag factors) to the converge-mode recording step too; it replaced the speed-adjusted step, so with the recording delta now active a speed of 2 would record at half speed
 - Screenshots no longer wait forever when the viewer renders no frame: a disabled viewer (`enabled` false, also after a lost WebGL context, or disabled while they wait) or paused or failed rendering (`renderEnabled` false). `getScreenshotDataUrl` and `getScreenshotBlob` read the canvas as it is; `CanvasSnapshotPlugin` warns, puts back its changes (progressive frame count, pixel ratio, camera interactions) and returns `undefined`

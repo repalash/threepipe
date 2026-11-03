@@ -190,11 +190,13 @@ export class LoadingScreenPlugin extends AAssetManagerProcessStatePlugin {
         }
         if (this.showFileNames) {
             let text = ''
+            // One element per file: on a narrow screen the name is truncated with an ellipsis, and the state and progress stay visible (see the css)
             processState.forEach((v, k) => {
-                text += (this.showProcessStates ? `<span class="loadingScreenProcessState">${escapeHtml(v.state)}</span>: ` : '') +
-                    escapeHtml((k || '').split('/').pop() || '') +
-                    (this.showProgress && v.progress ? ' - ' + (v.progress.toFixed(0) + '%') : '') +
-                    '<br>'
+                text += '<div class="loadingScreenFileEntry">' +
+                    (this.showProcessStates ? `<span class="loadingScreenFileState"><span class="loadingScreenProcessState">${escapeHtml(v.state)}</span>: </span>` : '') +
+                    `<span class="loadingScreenFileName">${escapeHtml((k || '').split('/').pop() || '')}</span>` +
+                    (this.showProgress && v.progress ? `<span class="loadingScreenFileProgress"> - ${v.progress.toFixed(0)}%</span>` : '') +
+                    '</div>'
             })
             this._setHTML(this.filesElement, text)
         } else {
