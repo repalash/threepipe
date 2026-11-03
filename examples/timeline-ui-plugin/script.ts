@@ -16,6 +16,7 @@ import {MaterialConfiguratorPlugin} from '@threepipe/plugin-configurator'
 async function init() {
 
     const viewer = new ThreeViewer({
+        renderScale: 'auto',
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
         plugins: [LoadingScreenPlugin, CameraViewPlugin, MaterialConfiguratorPlugin, GLTFAnimationPlugin, AnimationObjectPlugin, TimelineUiPlugin, PickingPlugin],
