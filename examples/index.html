@@ -353,8 +353,11 @@
             const codebar = document.querySelector('.codebar');
             const iframe = document.querySelector('#example-iframe');
             const filterInput = document.querySelector('#filterInput');
+            // localStorage, or undefined in a sandboxed page (an opaque origin, like the PR previews on files.threepipe.org),
+            // where any read of it throws: the custom examples are then not kept
+            const storage = (() => { try { return window.localStorage } catch { return undefined } })()
             // todo listen to customExample changes and create tab accordingly
-            const customExamples = JSON.parse(localStorage.getItem('tp-examples-custom')) ?? []
+            const customExamples = JSON.parse(storage?.getItem('tp-examples-custom') ?? 'null') ?? []
             let urlParams = new URLSearchParams(window.location.search);
             let searchTerm = urlParams.get('q');
             let allExamples = []
@@ -402,8 +405,8 @@
                     ev.stopPropagation();
                     const customId = ev.target.parentElement.customIdLi;
                     customExamples.splice(customExamples.findIndex(e => e.id === customId), 1);
-                    localStorage.setItem('tp-examples-custom', JSON.stringify(customExamples));
-                    localStorage.removeItem(`tp-examples-custom-${customId}`);
+                    storage?.setItem('tp-examples-custom', JSON.stringify(customExamples));
+                    storage?.removeItem(`tp-examples-custom-${customId}`);
                     ev.target.parentElement.remove();
                     updateSearch()
                 }
@@ -413,8 +416,8 @@
             }
             function addExample(example, content) {
                 customExamples.push(example)
-                localStorage.setItem('tp-examples-custom', JSON.stringify(customExamples));
-                localStorage.setItem(`tp-examples-custom-${example.id}`, content);
+                storage?.setItem('tp-examples-custom', JSON.stringify(customExamples));
+                storage?.setItem(`tp-examples-custom-${example.id}`, content);
                 const a = createExample(example)
                 a.onclick = (ev) => {
                     ev.preventDefault();
@@ -430,7 +433,7 @@
                     console.warn(`Example with id ${exampleId} not found.`);
                     return;
                 }
-                localStorage.setItem(`tp-examples-custom-${example.id}`, content);
+                storage?.setItem(`tp-examples-custom-${example.id}`, content);
             }
 
             const isMobile = window.matchMedia("only screen and (max-width: 768px)").matches;
@@ -455,7 +458,7 @@
                 }
                 if(!updateFrame) return;
                 const custom = !!target.dataset.customId
-                const customContent = custom ? localStorage.getItem(`tp-examples-custom-${target.dataset.customId}`) : null
+                const customContent = custom ? storage?.getItem(`tp-examples-custom-${target.dataset.customId}`) ?? null : null
                 if(!custom) {
                     if (iframe.srcdoc) iframe.removeAttribute('srcdoc');
                     if (iframe.src !== target.href) iframe.src = target.href;
@@ -667,6 +670,7 @@
         <ul>
             <li><a href="./picking-plugin/">Picking (Selection) Plugin </a></li>
             <li><a href="./bvh-plugin/">BVH Plugin <br/>(fast raycasts on big meshes) </a></li>
+            <li><a href="./gpu-picking-plugin/">GPU Picking Plugin <br/>(object ids under the pointer) </a></li>
             <li><a href="./dropzone-plugin/">Dropzone (Drag & Drop) Plugin </a></li>
             <li><a href="./transform-controls-plugin/">Transform Controls Plugin </a></li>
             <li><a href="./pivot-controls-plugin/">Pivot (Transform) Controls Plugin </a></li>
@@ -762,6 +766,7 @@
             <li><a href="./viewer-uiconfig/">Viewer UI </a></li>
             <li><a href="./hierarchy-ui-plugin/">Hierarchy UI Plugin </a></li>
             <li><a href="./notes-plugin/">Notes Plugin </a></li>
+            <li><a href="./ui-config-form/">UiConfig Form (popup) </a></li>
             <li><a href="./tailwind-css-cdn-plugin/">TailwindCSS CDN Plugin </a></li>
         </ul>
         <h2 class="category">Animation</h2>
@@ -896,7 +901,7 @@
     <div class="panes-separator"><div class="panes-separator-line"></div></div>
     <div class="iframe-container right-pane">
         <!-- TODO: allow only threepipe and localhost domains -->
-        <iframe id="example-iframe" src="https://threepipe.org/examples/tweakpane-editor/" frameborder="0" allowfullscreen="allowfullscreen"
+        <iframe id="example-iframe" src="./tweakpane-editor/" frameborder="0" allowfullscreen="allowfullscreen"
                 allow="accelerometer *; ambient-light-sensor *; autoplay *; camera *; clipboard-read *; clipboard-write *; encrypted-media *; fullscreen *; geolocation *; gyroscope *; magnetometer *; microphone *; midi *; payment *; picture-in-picture *; screen-wake-lock *; speaker *; sync-xhr *; usb *; web-share *; vibrate *; vr *">
         </iframe>
     </div>

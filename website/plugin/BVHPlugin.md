@@ -4,8 +4,8 @@ prev:
     link: './PickingPlugin'
 
 next:
-    text: 'LoadingScreenPlugin'
-    link: './LoadingScreenPlugin'
+    text: 'GPUPickingPlugin'
+    link: './GPUPickingPlugin'
 
 ---
 

@@ -1,6 +1,7 @@
 import {_testFinish, _testStart, GeometryUVPreviewPlugin, IObject3D, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
 
 const viewer = new ThreeViewer({
+    renderScale: 'auto',
     canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
     rgbm: true,
     plugins: [LoadingScreenPlugin],
