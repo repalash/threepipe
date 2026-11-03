@@ -13,6 +13,6 @@ export class EXRExporter2 extends EXRExporter implements IExportWriter {
         const res = target.isWebGLRenderTarget ?
             this.parse(target.renderManager!.webglRenderer, <WebGLRenderTarget>target, options) :
             this.parse(<DataTexture>obj, options)
-        return new Blob([res], {type: 'image/x-exr'})
+        return new Blob([res as Uint8Array<ArrayBuffer>], {type: 'image/x-exr'})
     }
 }
