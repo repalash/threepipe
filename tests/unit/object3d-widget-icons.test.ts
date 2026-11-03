@@ -490,7 +490,7 @@ describe('shadow camera frustum', () => {
         expect(c.iconSize).toBe(30)
         expect(w.icon!.visible).toBe(false)
         expect(c.icon!.visible).toBe(false)
-        const labels = (plugin.uiConfig.children as any[]).map(c => c.label)
+        const labels = (plugin.uiConfig.children as any[]).map(ch => ch.label)
         expect(labels).toEqual(expect.arrayContaining(['Show icons', 'Icon size (px)', 'Shadow frustum']))
     })
 })
