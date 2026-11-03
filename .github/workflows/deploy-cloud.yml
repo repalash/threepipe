@@ -28,7 +28,11 @@ jobs:
       name: threepipe cloud
       working-directory: services/cloud
       check: npm ci && npm run typecheck && npm test
-      deploy: npm ci && npm run deploy:ci
-      secrets-env: CLOUDFLARE_API_TOKEN ADMIN_SERVICE_TOKEN
+      install: npm ci
+      deploy: npm run deploy:ci
+      secrets-env: CLOUDFLARE_API_TOKEN ADMIN_SERVICE_TOKEN # secrets of the cloud-deploy environment
       node-version: '22'
-    secrets: inherit
+    secrets: # by name: the deploy job holds no other repository secret
+      DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+      CLAUDE_REVIEW_FIRE_URL: ${{ secrets.CLAUDE_REVIEW_FIRE_URL }}
+      CLAUDE_REVIEW_TOKEN: ${{ secrets.CLAUDE_REVIEW_TOKEN }}
