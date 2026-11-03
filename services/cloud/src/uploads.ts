@@ -110,11 +110,13 @@ async function claimScope(env: CloudflareBindings, scope: string, user: CloudUse
         if (row.owner !== user.id) throw taken()
         // a share lives as long as its last file: move its expiry later when a new file outlives it
         if (row.expires && expires && expires > row.expires)
-            await env.PRIMARY_DB.prepare('UPDATE scopes SET expires_at = ?1 WHERE scope = ?2 AND owner_id = ?3').bind(expires, scope, user.id).run()
+            // only later, compared in the statement: of two uploads at once with different ttls the later expiry stays
+            await env.PRIMARY_DB.prepare('UPDATE scopes SET expires_at = ?1 WHERE scope = ?2 AND owner_id = ?3 AND expires_at < ?1').bind(expires, scope, user.id).run()
         return
     }
     const won = await env.PRIMARY_DB.prepare(`INSERT INTO scopes (id, scope, owner_id, expires_at) VALUES (?1, ?2, ?3, ?4)
-            ON CONFLICT (scope) DO UPDATE SET owner_id = excluded.owner_id, expires_at = excluded.expires_at
+            ON CONFLICT (scope) DO UPDATE SET owner_id = excluded.owner_id,
+                expires_at = CASE WHEN scopes.owner_id = excluded.owner_id AND scopes.expires_at > excluded.expires_at THEN scopes.expires_at ELSE excluded.expires_at END
             WHERE scopes.owner_id = excluded.owner_id OR scopes.expires_at < ?5 RETURNING owner_id`)
         .bind(crypto.randomUUID(), scope, user.id, expires, now).first<{owner_id: string}>()
     if (won?.owner_id !== user.id) throw taken()
@@ -225,7 +227,8 @@ export function uploadRoutes(app: Hono<CloudEnv>) {
         const obj = await c.env.CLOUD_BUCKET.head(key)
         if (!obj || obj.customMetadata?.deleted) throw new HTTPException(404, {message: 'not found'})
         // owners delete the files of their scope; a/ stays permanent unless staff removes it (copyright, abuse, storage)
-        const mine = !!scope && scopeRow?.owner === user.id, asset = prefix === 'a'
+        // the scope's owner, or who uploaded this file (a share whose name went to another user after it expired)
+        const mine = !!scope && (scopeRow?.owner === user.id || obj.customMetadata?.owner === user.id), asset = prefix === 'a'
         if (!isStaff(user) && (!mine || asset)) throw new HTTPException(403, {message: asset ? 'permanent assets are removed by staff only' : 'not your file'})
         const reason = (c.req.query('reason') || (mine ? 'deleted by owner' : 'removed by staff')).slice(0, 200)
         // a small tombstone object at the path, so the link answers 410

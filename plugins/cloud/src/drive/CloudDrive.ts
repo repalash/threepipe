@@ -58,7 +58,13 @@ export class CloudDrive {
     /** Saves files that belong together as one item; `entry` is the one its URL opens (default: the first). */
     async saveFolder(name: string, files: {path: string, blob: Blob}[], o: {folder?: string, entry?: string, visibility?: DriveItem['visibility']} = {}): Promise<DriveItem> {
         const item = await this._send<DriveItem>('POST', '/items', {name, folder: o.folder, entry: o.entry ?? files[0]?.path, visibility: o.visibility})
-        for (const f of files) await this._fetch(`/items/${encodeURIComponent(item.id)}/${f.path.split('/').map(encodeURIComponent).join('/')}`, {method: 'PUT', body: f.blob})
+        try {
+            for (const f of files) await this._fetch(`/items/${encodeURIComponent(item.id)}/${f.path.split('/').map(encodeURIComponent).join('/')}`, {method: 'PUT', body: f.blob})
+        } catch (e) {
+            // a folder saved in part is of no use, and one made shared would stay public: it goes
+            await this.remove(item.id).catch(() => undefined)
+            throw e
+        }
         return this.item(item.id)
     }
 

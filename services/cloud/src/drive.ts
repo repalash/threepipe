@@ -226,7 +226,7 @@ async function writeFile(c: Context<CloudEnv>, user: CloudUser, item: Item, rel:
         db.prepare(`INSERT INTO files (id, owner_id, bucket, prefix, path, size, sha256, content_type, item_id, version)
                 SELECT ?1, ?2, ?3, 'd', ?4, ?5, ?6, ?7, ?8, ?9
                 WHERE (SELECT COALESCE(SUM(size), 0) FROM files WHERE owner_id = ?2 AND prefix = 'd' AND deleted_at IS NULL AND path != ?4) + ?5 <= ?10
-                    AND (EXISTS (SELECT 1 FROM files WHERE bucket = ?3 AND path = ?4)
+                    AND (EXISTS (SELECT 1 FROM files WHERE bucket = ?3 AND path = ?4 AND deleted_at IS NULL)
                         OR (SELECT COUNT(*) FROM files WHERE item_id = ?8 AND deleted_at IS NULL) < ?11)
             ON CONFLICT (bucket, path) DO UPDATE SET size = excluded.size, sha256 = excluded.sha256, content_type = excluded.content_type,
                 version = excluded.version, deleted_at = NULL, deleted_by = NULL, deleted_reason = NULL
@@ -254,7 +254,7 @@ async function writeFile(c: Context<CloudEnv>, user: CloudUser, item: Item, rel:
             // over the quota or the file count (parallel uploads): the bytes it replaced are gone too, so is their row
             await db.prepare('DELETE FROM files WHERE bucket = ? AND path = ? AND (version IS NULL OR version <= ?)').bind(BUCKET, key, version).run()
             await dropOurs()
-            throw pre?.here ? overQuota() : (pre?.files ?? 0) + 1 >= ITEM_FILES_MAX ? itemFull() : overQuota()
+            throw new HTTPException(413, {message: `uploads at the same time went over the drive quota (${sizeText(quota)}) or the ${ITEM_FILES_MAX} files of an item`})
         }
     }
     if (now.visibility !== item.visibility) await setVisibility(c, key, now.visibility)
@@ -519,19 +519,20 @@ export function driveRoutes(app: Hono<CloudEnv>) {
         const folder = body.folder ?? item.folder_id
         if (folder !== item.folder_id) await scopedChain(c, user, folder)
         if (name !== item.name || folder !== item.folder_id) await assertFree(c, user, folder, name, item.id)
-        if (body.visibility !== undefined && !VISIBILITIES.includes(body.visibility)) throw new HTTPException(400, {message: `visibility is one of ${VISIBILITIES.join(', ')}`})
-        // each file is written again (R2 has no metadata update): sharing is refused for an item too big for one request.
-        // Making one private always goes ahead: a request cut short is sent again, and files already done cost one read.
-        if (body.visibility !== undefined) await purgePending(c, item)
-        const files = body.visibility !== undefined ? await itemFiles(c, item) : []
-        if (body.visibility === 'link' && item.visibility !== 'link' && files.length > ITEM_FILES_MAX)
-            throw new HTTPException(413, {message: `an item of more than ${ITEM_FILES_MAX} files cannot be shared; split it`})
-        const visibility = body.visibility ?? item.visibility
+        // every field is checked before anything changes
+        if (body.visibility !== undefined) body.visibility = newVisibility(body.visibility)
         let entry = item.entry
         if (body.entry !== undefined) {
             entry = cleanSegments(String(body.entry))?.join('/') ?? null
             if (!entry) throw new HTTPException(400, {message: 'bad entry'})
         }
+        // each file is written again (R2 has no metadata update): sharing is refused for an item too big for one request.
+        // Making one private always goes ahead: a request cut short is sent again, and files already done cost one read.
+        const files = body.visibility !== undefined ? await itemFiles(c, item) : []
+        if (body.visibility === 'link' && item.visibility !== 'link' && files.length > ITEM_FILES_MAX)
+            throw new HTTPException(413, {message: `an item of more than ${ITEM_FILES_MAX} files cannot be shared; split it`})
+        if (body.visibility !== undefined) await purgePending(c, item)
+        const visibility = body.visibility ?? item.visibility
         // D1 first, only the fields this request gives: a rename at the same time as a visibility change must not write the visibility it read back.
         const set: [string, string | null][] = []
         if (body.name !== undefined) set.push(['name', name])

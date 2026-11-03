@@ -28,7 +28,7 @@ import {LABEL_MAX, projectsMax, REPORT_BODY_MAX, REPORT_FILES_MAX, REPORT_MAX, R
  *   GET    /api/v1/projects/<slug>/reports/<id>                    reader → {row, files, report}
  *   GET    /api/v1/projects/<slug>/reports/<id>/image              reader, the screenshot
  *   GET    /api/v1/projects/<slug>/reports/<id>/files/<i>          reader, attached file i as a download
- *   PATCH  /api/v1/projects/<slug>/reports/<id> {status?, note?}   manager
+ *   PATCH  /api/v1/projects/<slug>/reports/<id> {status?, note?}   manager → {row} (GET has the files and the report)
  *   DELETE /api/v1/projects/<slug>/reports/<id>                    manager; the row stays as a tombstone
  */
 const SLUG = /^[a-z][a-z0-9-]{1,39}$/
