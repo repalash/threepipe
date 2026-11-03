@@ -351,3 +351,61 @@ describe('MaterialPreviewGenerator offscreen', () => {
         gen.dispose()
     })
 })
+
+describe('tone mapping opt-out of a material in previews', () => {
+    function viewerWith(gbufferFlags: boolean | 'noFlags' | 'none') {
+        const tonemap = new tp.TonemapPlugin()
+        const viewer: any = {
+            scene: {environment: null, environmentIntensity: 1, environmentRotation: new tp.Euler()},
+            getPlugin: (t: string) => t === 'Tonemap' ? tonemap : undefined,
+            renderManager: {
+                screenPass: {outputColorSpace: tp.SRGBColorSpace},
+                gbufferUnpackExtension: gbufferFlags === 'none' ? undefined : {extraDefines: {
+                    HAS_GBUFFER: () => 1,
+                    GBUFFER_HAS_FLAGS: () => gbufferFlags === true ? 1 : undefined,
+                }},
+            },
+        }
+        ;(tonemap as any)._viewer = viewer
+        return {viewer, tonemap}
+    }
+    const optedOut = () => {
+        const m = new tp.PhysicalMaterial()
+        m.userData.gBufferData = {tonemapEnabled: false}
+        return m
+    }
+
+    it('follows the viewport: no tone mapping for an opted out material when the screen pass reads the GBuffer flags', () => {
+        const {viewer} = viewerWith(true)
+        expect(tp.materialPreviewOptionsFromViewer(viewer, optedOut()).toneMapping).toBeNull()
+        const legacy = new tp.PhysicalMaterial()
+        legacy.userData.postTonemap = false
+        expect(tp.materialPreviewOptionsFromViewer(viewer, legacy).toneMapping).toBeNull()
+        expect(tp.materialPreviewOptionsFromViewer(viewer, new tp.PhysicalMaterial()).toneMapping).toMatchObject({toneMapping: tp.ACESFilmicToneMapping})
+        expect(tp.materialPreviewOptionsFromViewer(viewer, optedOut()).outputColorSpace).toBe(tp.SRGBColorSpace) // still converted
+    })
+
+    it('tone maps every material when the screen pass has no GBuffer flags, like the viewport', () => {
+        for (const flags of ['noFlags', 'none'] as const) {
+            const {viewer} = viewerWith(flags)
+            expect(tp.materialPreviewOptionsFromViewer(viewer, optedOut()).toneMapping).toMatchObject({toneMapping: tp.ACESFilmicToneMapping})
+        }
+    })
+
+    it('the queue renders an opted out material without tone mapping', () => {
+        const {viewer} = viewerWith(true)
+        const listeners: (() => void)[] = []
+        viewer.renderEnabled = true
+        viewer.addEventListener = (_: string, l: () => void) => listeners.push(l)
+        viewer.removeEventListener = () => {}
+        viewer.renderManager.renderer = {}
+        const generator = {renderToCanvas: vi.fn(() => ({})), dispose: vi.fn()}
+        const queue = new tp.MaterialPreviewQueue(viewer, generator as any)
+        queue.maxPerFrame = 2
+        queue.request(optedOut(), {}, () => {})
+        queue.request(new tp.PhysicalMaterial(), {}, () => {})
+        listeners.forEach(l => l())
+        expect((generator.renderToCanvas.mock.calls as any[])[0][2].toneMapping).toBeNull()
+        expect((generator.renderToCanvas.mock.calls as any[])[1][2].toneMapping).toMatchObject({toneMapping: tp.ACESFilmicToneMapping})
+    })
+})

@@ -133,7 +133,7 @@ function benchmark(material: IMaterial) {
     out.textContent = 'running...'
     const renderer = viewer.renderManager.renderer
     const generator = new MaterialPreviewGenerator()
-    const options = materialPreviewOptionsFromViewer(viewer)
+    const options = materialPreviewOptionsFromViewer(viewer, material)
     const runs = 10
     const time = (f: () => void) => {
         f(); f() // warm up: shader compile

@@ -186,7 +186,7 @@ export class MaterialConfiguratorBasePlugin extends AViewerPluginSync<{'refreshU
             image = pp.image ? imageBitmapToBase64(pp.image, 100) : ''
             if (!image.length) image = makeColorSvgCircle(pp.isColor ? (pp as Color).getHexString() : pp)
         } else {
-            const {environment, ...options} = materialPreviewOptionsFromViewer(this._viewer)
+            const {environment, ...options} = materialPreviewOptionsFromViewer(this._viewer, m)
             image = this._previewGenerator!.generate(m,
                 this._viewer.renderManager.renderer,
                 environment,

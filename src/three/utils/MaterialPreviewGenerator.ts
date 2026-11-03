@@ -85,17 +85,22 @@ export interface MaterialPreviewOptions {
  * the scene's environment map, its intensity and rotation, the tone mapping of the {@link TonemapPlugin}
  * (when it is added and enabled) and the output colour space of the {@link ScreenPass}.
  *
+ * With `material`, the tone mapping follows the material like in the viewport: it is `null` when the material opts out of
+ * tone mapping and the screen pass reads the GBuffer flags (see {@link TonemapPlugin.isMaterialTonemapped}). The output colour space is kept.
+ *
  * The lights of the scene and screen pass effects other than tone mapping (vignette, film grain, chromatic aberration, bloom) are not in the previews.
  * @param viewer
+ * @param material - the material of the preview
  */
-export function materialPreviewOptionsFromViewer(viewer: ThreeViewer): Pick<MaterialPreviewOptions, 'environment' | 'environmentIntensity' | 'environmentRotation' | 'toneMapping' | 'outputColorSpace'> {
+export function materialPreviewOptionsFromViewer(viewer: ThreeViewer, material?: IMaterial): Pick<MaterialPreviewOptions, 'environment' | 'environmentIntensity' | 'environmentRotation' | 'toneMapping' | 'outputColorSpace'> {
     const scene = viewer.scene
     const tonemap = viewer.getPlugin<TonemapPlugin>('Tonemap')
+    const tonemapped = !!tonemap && (material ? tonemap.isMaterialTonemapped(material) : !tonemap.isDisabled())
     return {
         environment: scene.environment,
         environmentIntensity: scene.environmentIntensity,
         environmentRotation: scene.environmentRotation,
-        toneMapping: tonemap && !tonemap.isDisabled() ? {
+        toneMapping: tonemap && tonemapped ? {
             toneMapping: tonemap.toneMapping,
             exposure: tonemap.exposure,
             contrast: tonemap.contrast,

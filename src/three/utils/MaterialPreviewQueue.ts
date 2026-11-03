@@ -235,14 +235,15 @@ export class MaterialPreviewQueue implements IDisposable {
     private _preFrame = () => {
         const viewer = this._viewer
         if (!viewer || !this._jobs.size || !viewer.renderEnabled) return
-        const viewerOptions = materialPreviewOptionsFromViewer(viewer)
-        const settings = settingsKey(viewerOptions)
         const now = this.now()
         let rendered = 0
         for (const [key, job] of [...this._jobs]) {
             if (this._jobs.get(key) !== job) continue // cancelled or replaced in a callback
             const state = this._states.get(job.material)
             if (!state) continue // tracked while the job exists
+            // per material: the tone mapping follows the material's opt-out, like the viewport
+            const viewerOptions = materialPreviewOptionsFromViewer(viewer, job.material)
+            const settings = settingsKey(viewerOptions)
             const cached = this._cache.get(key)
             if (cached && cached.preview.version === state.version && cached.settings === settings) {
                 this._cache.delete(key) // most recently used last
