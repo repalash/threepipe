@@ -175,7 +175,6 @@ test('r3f-drei-text-html', async({page}) => expect(page).toHaveTitle('Threepipe 
 test('r3f-drei-transform-controls', async({page}) => expect(page).toHaveTitle('Threepipe R3F Drei TransformControls'))
 test('r3f-pivot-controls', async({page}) => expect(page).toHaveTitle('Threepipe R3F Drei PivotControls'))
 test('r3f-router-transitions-demo', async({page}) => expect(page).toHaveTitle('Threepipe R3F Router Transitions'))
-// test('r3f-spline-glass-demo', async({page}) => expect(page).toHaveTitle('Threepipe R3F Spline Glass Demo')) // broken: WebGLMultipleRenderTargets removed from three.js fork
 test('r3f-ssr-demo', async({page}) => expect(page).toHaveTitle('Threepipe R3F Screen Space Reflections'))
 test('react-js-sample', async({page}) => expect(page).toHaveTitle('Threepipe React/JS Sample'))
 test('react-jsx-sample', async({page}) => expect(page).toHaveTitle('Threepipe React/JSX Sample'))
