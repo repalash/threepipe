@@ -71,7 +71,7 @@ async function init() {
         grid: true,
         // with the bars and the mode bar of the page frame, so the canvas (and the toolbar on it) fills the window
         expandHides: () => [document.querySelector<HTMLElement>('.sux-side'), document.getElementById('tweakpaneUiContainer'),
-            ...document.querySelectorAll<HTMLElement>('.lay-bar, .mb-root')].filter((e): e is HTMLElement => !!e),
+            ...Array.from(document.querySelectorAll<HTMLElement>('.lay-bar, .mb-root'))].filter((e): e is HTMLElement => !!e),
         viewHides: () => [document.querySelector<HTMLElement>('.sux-side')!],
         extra: [[REPORT_ICON, 'Open a file or sample…', () => openSplash()], [REPORT_ICON, 'Report: what changed and what to try', () => showReport()]],
         // the frames have their own layout button only when they have a bar: the floating one has none

@@ -16,7 +16,6 @@ import {
 } from 'threepipe'
 import {SelectionUxPlugin} from './SelectionUxPlugin'
 import {PenToolPlugin} from './PenToolPlugin'
-import {EditorCameraPlugin} from '@threepipe/plugin-tweakpane-editor'
 import {editorCamera} from './editorCamera'
 import {button, fmtSec, injectMotionStyles, MO_ICONS, numberInput, row, segmented, select} from './motionUi'
 
