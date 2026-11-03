@@ -66,6 +66,8 @@ function isThin(o: any) {
  *   Ctrl/Cmd+A all objects at the level of the selection.
  * - A drag is not a click: the camera controls keep it. A press of {@link ObjectPicker.PointerClickMaxTime} or longer is
  *   not a click, as in the core picker. A press on the transform gizmo is not a click: it moves the object.
+ * - A click that another `hitObject` listener vetoes does not select, as in the core picker: the listener sets
+ *   `intersects.consumed`, or clears `intersects.selectedObject` of a hit (the DepthOfFieldPlugin sets the focus so).
  *
  * The selection is the selection of the {@link PickingPlugin} (added as a dependency): its events and its undo steps stay
  * as they are. While enabled, this plugin takes over the clicks and keys that select.
@@ -168,6 +170,13 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
      * is on it, not on the object
      */
     private _selectedHandle: Object3D | null = null
+    /** The core picker of the PickingPlugin, whose hits this plugin reads last */
+    private _picker?: ObjectPicker
+    /**
+     * Another `hitObject` listener vetoed the last core pick (it set `consumed`, or cleared `selectedObject` of a hit),
+     * as DepthOfFieldPlugin (edit: a click sets the focus) or PivotEditPlugin (a click on its marker) do
+     */
+    private _hitVetoed = false
 
     constructor(enabled = true) {
         super()
@@ -197,7 +206,10 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         viewer.addEventListener('preFrame', this._onPreFrame)
         viewer.addEventListener('postFrame', this._onPostFrame)
         viewer.addEventListener('preRender', this._onPreRender)
-        this._picking.addEventListener('hitObject', this._onPickerHit)
+        // on the picker, after the PickingPlugin: its listener sends the hit to the listeners of the PickingPlugin first,
+        // so this one reads their decision for the click (the picker reads it after this one)
+        this._picker = this._picking.picker
+        this._picker?.addEventListener('hitObject', this._onPickerHit)
         this._picking.addEventListener('selectedObjectChanged', this._onSelectionChanged)
 
         // the overlay: SVG lines, and HTML labels on top, over the canvas; only the parent names take the pointer
@@ -238,7 +250,9 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         viewer.removeEventListener('preFrame', this._onPreFrame)
         viewer.removeEventListener('postFrame', this._onPostFrame)
         viewer.removeEventListener('preRender', this._onPreRender)
-        this._picking?.removeEventListener('hitObject', this._onPickerHit)
+        this._picker?.removeEventListener('hitObject', this._onPickerHit)
+        this._picker = undefined
+        this._hitVetoed = false
         this._picking?.removeEventListener('selectedObjectChanged', this._onSelectionChanged)
         this._takeOverPickingBox(false)
         this._root?.remove()
@@ -472,9 +486,13 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
 
     // region pointer
 
-    private _onPickerHit = (e: {intersects: {consumed?: boolean, selectedHandle?: unknown}}) => {
+    private _onPickerHit = (e: {intersects: {consumed?: boolean, selectedHandle?: unknown, selectedObject?: unknown, intersect?: unknown}}) => {
+        const i = e.intersects
+        // the core picker sends the hit of its click on the canvas release, before the release reaches the window
+        // (_onPointerUp): a click that another listener vetoed does not select there either. A miss is not a veto
+        this._hitVetoed = !!i.consumed || !!i.intersect && !i.selectedObject
         // this plugin selects on click; the PickingPlugin keeps the state, and selects a widget handle itself
-        if (this._active && !e.intersects.selectedHandle) e.intersects.consumed = true
+        if (this._active && !i.selectedHandle) i.consumed = true
     }
 
     private _onSelectionChanged = (e: {intersects?: {selectedHandle?: Object3D | null}}) => {
@@ -523,6 +541,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         if (e.button !== 0) return
         // the second press of a double click: the click behind of the first one does not happen
         this._cancelClickBehind()
+        this._hitVetoed = false
         // the transform gizmo gets the press when the pointer is on one of its axes. A mouse hover finds the axis
         // before the press; a touch has no hover, and the gizmo finds its axis after this listener: its drag start
         // (_onGizmoDrag) cancels the press then
@@ -563,11 +582,13 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
     private _onPointerUp = (e: PointerEvent) => {
         if (e.isPrimary === false) return
         const s = this._state
+        const vetoed = this._hitVetoed
         this._state = null
+        this._hitVetoed = false
         this._pointerHeld = false
         this._pointerDirty = true
-        // a long press is not a click, as in the core picker
-        if (s && this._active && performance.now() - s.time < ObjectPicker.PointerClickMaxTime) this._click(s)
+        // a long press is not a click, as in the core picker; a click that a hitObject listener vetoed does not select
+        if (s && this._active && !vetoed && performance.now() - s.time < ObjectPicker.PointerClickMaxTime) this._click(s)
     }
 
     private _onPointerCancel = () => {

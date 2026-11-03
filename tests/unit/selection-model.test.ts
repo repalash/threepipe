@@ -832,6 +832,39 @@ describe('SelectionUxPlugin', () => {
         expect(gizmo).toBe(h2)
     })
 
+    test('a click that another hitObject listener vetoes (no selected object, or consumed) does not select', () => {
+        const {canvas, picking, undoManager, at, lamp, top, wait, names} = setup()
+        // a tap that the core picker also sees (the release on the canvas)
+        const tap = (o: Object3D) => {
+            canvas.dispatchEvent(ev('pointerdown', at(o)))
+            canvas.dispatchEvent(ev('pointerup', at(o)))
+            window.dispatchEvent(ev('pointerup', at(o)))
+            wait(1000)
+        }
+        // added after this plugin, as a plugin added later: DepthOfFieldPlugin (edit) sets the focus with a click
+        let veto: 'object' | 'consumed' | null = 'object'
+        picking.addEventListener('hitObject', (e: any) => {
+            if (veto === 'object' && e.intersects.intersect) e.intersects.selectedObject = null
+            if (veto === 'consumed') e.intersects.consumed = true
+        })
+        tap(lamp)
+        expect(names()).toEqual([])
+        expect(undoManager.stack).toHaveLength(0)
+        veto = 'consumed' // as PivotEditPlugin on its marker
+        tap(lamp)
+        expect(names()).toEqual([])
+        expect(undoManager.stack).toHaveLength(0)
+        veto = null
+        tap(lamp)
+        expect(names()).toEqual(['Lamp'])
+        // a miss is not a veto: a click on empty space clears the selection
+        veto = 'object'
+        tap(top)
+        expect(names()).toEqual(['Lamp'])
+        tap({position: new Vector3(0, 3, 0), getWorldPosition: (v: Vector3) => v.set(0, 3, 0)} as any)
+        expect(names()).toEqual([])
+    })
+
     test('when the picker picks materials (or geometries, textures), the core picker keeps the clicks', () => {
         const {ux, picking, click, key, lamp, names} = setup()
         ux.select([lamp])
@@ -1103,12 +1136,13 @@ describe('SelectionUxPlugin', () => {
 
     test('takes the clicks of the PickingPlugin while enabled', () => {
         const {ux, picking} = setup()
+        // on the picker, after the PickingPlugin and its listeners
         const hit = {intersects: {} as any}
-        picking.dispatchEvent({type: 'hitObject', ...hit})
+        picking.picker.dispatchEvent({type: 'hitObject', ...hit})
         expect(hit.intersects.consumed).toBe(true)
         ux.enabled = false
         const hit2 = {intersects: {} as any}
-        picking.dispatchEvent({type: 'hitObject', ...hit2})
+        picking.picker.dispatchEvent({type: 'hitObject', ...hit2})
         expect(hit2.intersects.consumed).toBeUndefined()
     })
 
