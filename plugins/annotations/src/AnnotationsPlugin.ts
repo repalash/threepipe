@@ -109,9 +109,12 @@ interface Hit {
  *   view", "Delete", and drag a marker to another surface point. All edits are undoable with {@link UndoManagerPlugin}.
  * - Tour: {@link goTo}, {@link next}, {@link prev}, {@link playTour}; events `annotationChange` and `annotationSelect`
  *   for an outside list.
+ * - {@link hideOnCanvasClick}: a click or tap on the canvas hides all the markers (and closes the card), the next one
+ *   shows them again. {@link markersVisible} is that state.
  *
  * The markers and the card are in a layer over the canvas, in the viewer container (which must be positioned, for
- * example `position: relative`). The UI folder (Annotations) has Editable, Add, Play tour and Remove all.
+ * example `position: relative`). The UI folder (Annotations) has Editable, Hide on canvas click, Add, Play tour and
+ * Remove all.
  *
  * @category Plugins
  */
@@ -142,6 +145,7 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         label: 'Annotations',
         children: [
             {type: 'checkbox', label: 'Editable', property: [this, 'editable']},
+            {type: 'checkbox', label: 'Hide on canvas click', property: [this, 'hideOnCanvasClick']},
             {type: 'button', label: 'Add annotation', value: () => this.startAdding(), hidden: () => !this.editable},
             {type: 'button', label: 'Play tour', value: () => this.playTour()},
             {type: 'button', label: 'Remove all', value: () => this.clear(), hidden: () => !this.editable},
@@ -149,6 +153,8 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
     }
 
     private _editable: boolean
+    private _hideOnCanvasClick = false
+    private _markersVisible = true
     private _layer?: HTMLDivElement
     private _card?: HTMLDivElement
     private _cardEls!: {
@@ -205,6 +211,37 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         this.uiConfig.uiRefresh?.(true, 'postFrame')
     }
 
+    /**
+     * A click or tap on the canvas (no drag) hides all the markers and closes the card; the next one shows them again.
+     * Default false: a click on the canvas only closes the card. Turned off, hidden markers show again.
+     */
+    get hideOnCanvasClick() {
+        return this._hideOnCanvasClick
+    }
+
+    set hideOnCanvasClick(v: boolean) {
+        if (this._hideOnCanvasClick === v) return
+        this._hideOnCanvasClick = v
+        if (!v) this.markersVisible = true
+        this.uiConfig.uiRefresh?.(true, 'postFrame')
+    }
+
+    /**
+     * The markers show. False: they are hidden, take no clicks and cannot be focused, and the card is closed. Set by a
+     * click on the canvas with {@link hideOnCanvasClick}, or from code. Opening an annotation ({@link goTo}, {@link next},
+     * {@link prev}, {@link playTour}) shows them again.
+     */
+    get markersVisible() {
+        return this._markersVisible
+    }
+
+    set markersVisible(v: boolean) {
+        if (this._markersVisible === v) return
+        this._markersVisible = v
+        if (!v) this.close()
+        this._layer?.classList.toggle('anp-markers-hidden', !v)
+    }
+
     /** id of the open annotation, or null */
     get openId() {
         return this._openId
@@ -227,6 +264,7 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         if (AnnotationsPlugin.InjectStyles && !AnnotationsPlugin._styles?.isConnected) AnnotationsPlugin._styles = createStyles(styles)
         const layer = el('div', 'anp-layer')
         layer.classList.toggle('anp-editable', this._editable)
+        layer.classList.toggle('anp-markers-hidden', !this._markersVisible)
         viewer.container.appendChild(layer)
         this._layer = layer
         this._buildCard(layer)
@@ -414,6 +452,7 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         const a = this.get(indexOrId)
         if (!a) return
         if (a.id !== this._openId) this._commitEdit() // the field edits the annotation it was focused for
+        this.markersVisible = true
         this._openId = a.id
         this._renderCard()
         this._syncMarkers()
@@ -1090,7 +1129,10 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         else this.next()
     }
 
-    /** A click (no drag) on the canvas closes the card; dragging to orbit keeps it */
+    /**
+     * A click (no drag) on the canvas closes the card, or with {@link hideOnCanvasClick} (primary button) hides or shows
+     * the markers; dragging to orbit keeps them
+     */
     private _onWindowDown = (e: PointerEvent) => {
         const canvas = e.target === this._viewer?.canvas
         if (canvas) this.stopTour()
@@ -1100,8 +1142,10 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
     private _onWindowUp = (e: PointerEvent) => {
         const d = this._down
         this._down = null
-        if (!d || !d.canvas || !this._openId || this._drag || this._place) return
-        if (e.target === this._viewer?.canvas && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 4) this.close()
+        if (!d || !d.canvas || this._drag || this._place) return
+        if (e.target !== this._viewer?.canvas || Math.hypot(e.clientX - d.x, e.clientY - d.y) >= 4) return
+        if (this._hideOnCanvasClick && !this.isDisabled() && !(e.button > 0)) this.markersVisible = !this._markersVisible
+        else this.close()
     }
 
     // endregion

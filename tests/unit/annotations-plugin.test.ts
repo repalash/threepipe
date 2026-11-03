@@ -1,3 +1,5 @@
+import fs from 'node:fs'
+import path from 'node:path'
 import {afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi} from 'vitest'
 import {BoxGeometry, InstancedMesh, Matrix4, Mesh, MeshBasicMaterial, Object3D, PerspectiveCamera, Quaternion, Vector3} from 'three'
 import {PopmotionPlugin, UndoManagerPlugin} from 'threepipe'
@@ -460,6 +462,121 @@ describe('AnnotationsPlugin', () => {
         expect(plugin.openId).toBe(null)
         expect(c.classList.contains('anp-open')).toBe(false)
         expect(selected).toEqual(['One', 'Two', 'One', 'Two', undefined])
+    })
+
+    describe('hideOnCanvasClick', () => {
+        /** A pointer down and up on `target`, `dx` px apart */
+        const click = (target: any, dx = 0) => {
+            windowListeners.get('pointerdown')!({target, clientX: 10, clientY: 10})
+            windowListeners.get('pointerup')!({target, clientX: 10 + dx, clientY: 10})
+        }
+        const hidden = (layer: FakeElement) => layer.classList.contains('anp-markers-hidden')
+
+        test('off (the default): a click on the canvas only closes the card, the markers stay', () => {
+            const {plugin, layer, box, canvas} = setup(false)
+            expect(plugin.hideOnCanvasClick).toBe(false)
+            expect(plugin.markersVisible).toBe(true)
+            plugin.add(box as any, front, normal, null)
+            plugin.goTo(0)
+            click(canvas)
+            expect(plugin.openId).toBe(null)
+            click(canvas)
+            expect(plugin.markersVisible).toBe(true)
+            expect(hidden(layer)).toBe(false)
+        })
+
+        test('on: a click on the canvas hides the markers and closes the card in one click; the next click shows them and opens nothing', () => {
+            const {plugin, layer, box, canvas} = setup(false)
+            plugin.hideOnCanvasClick = true
+            plugin.add(box as any, front, normal, null)
+            plugin.goTo(0)
+            const selected: (string | null)[] = []
+            plugin.addEventListener('annotationSelect', e => selected.push(e.annotation?.id ?? null))
+            click(canvas)
+            expect(plugin.markersVisible).toBe(false)
+            expect(hidden(layer)).toBe(true)
+            expect(plugin.openId).toBe(null)
+            expect(card(layer).classList.contains('anp-open')).toBe(false)
+            click(canvas)
+            expect(plugin.markersVisible).toBe(true)
+            expect(hidden(layer)).toBe(false)
+            expect(plugin.openId).toBe(null)
+            expect(selected).toEqual([null])
+        })
+
+        test('on: a drag (orbit), a click on the card or a marker, placing and dragging a marker do not toggle them', () => {
+            const {plugin, layer, box, canvas} = setup()
+            plugin.hideOnCanvasClick = true
+            plugin.add(box as any, front, normal, null)
+            ;(plugin as any)._updateScreen()
+            click(canvas, 30)
+            expect(plugin.markersVisible).toBe(true)
+            plugin.goTo(0, {fly: false})
+            click(card(layer))
+            expect(plugin.markersVisible).toBe(true)
+            expect(plugin.openId).not.toBe(null)
+            plugin.close()
+            // a click on a marker opens it (the window gets the events with the marker as target)
+            const m = markers(layer)[0]
+            windowListeners.get('pointerdown')!({target: m, clientX: 400, clientY: 300})
+            m.fire('pointerdown', {clientX: 400, clientY: 300})
+            m.fire('pointerup', {clientX: 400, clientY: 300})
+            windowListeners.get('pointerup')!({target: m, clientX: 400, clientY: 300})
+            expect(plugin.markersVisible).toBe(true)
+            expect(plugin.openId).toBe(plugin.get(0)!.id)
+            // a pointer up on the canvas while a marker is dragged
+            m.fire('pointerdown', {clientX: 400, clientY: 300})
+            click(canvas)
+            expect(plugin.markersVisible).toBe(true)
+            m.fire('pointerup', {clientX: 400, clientY: 300})
+            plugin.startAdding()
+            click(canvas)
+            expect(plugin.markersVisible).toBe(true)
+        })
+
+        test('hidden markers take no pointer events and cannot be focused; the class is kept on a new layer', () => {
+            const {plugin, layer, box, viewer} = setup(false)
+            plugin.add(box as any, front, normal, null)
+            plugin.markersVisible = false
+            expect(hidden(layer)).toBe(true)
+            const css = fs.readFileSync(path.join(import.meta.dirname, '../../plugins/annotations/src/AnnotationsPlugin.css'), 'utf8')
+            const rule = css.match(/\.anp-markers-hidden \.anp-marker\s*\{([^}]*)\}/)?.[1] ?? ''
+            expect(rule).toMatch(/pointer-events:\s*none/)
+            expect(rule).toMatch(/visibility:\s*hidden/) // not focusable, not in the accessibility tree
+            plugin.onRemove(viewer)
+            plugin.onAdded(viewer)
+            expect(hidden(viewer.container.children[0])).toBe(true)
+        })
+
+        test('opening an annotation from code (goTo, next, prev, playTour) shows the markers again', () => {
+            const {plugin, box} = setup(false)
+            plugin.add(box as any, front, normal, null)
+            plugin.add(box as any, front, normal, null)
+            const open = [() => plugin.goTo(1), () => plugin.next(), () => plugin.prev(), () => plugin.playTour()]
+            for (const f of open) {
+                plugin.markersVisible = false
+                expect(plugin.openId).toBe(null)
+                f()
+                expect(plugin.markersVisible).toBe(true)
+                expect(plugin.openId).not.toBe(null)
+                plugin.stopTour()
+                plugin.close()
+            }
+        })
+
+        test('turning the option off shows hidden markers; it is a checkbox in the UI folder', () => {
+            const {plugin, layer, canvas} = setup(false)
+            plugin.hideOnCanvasClick = true
+            click(canvas)
+            expect(plugin.markersVisible).toBe(false)
+            plugin.hideOnCanvasClick = false
+            expect(plugin.markersVisible).toBe(true)
+            expect(hidden(layer)).toBe(false)
+            click(canvas)
+            expect(plugin.markersVisible).toBe(true)
+            const item = (plugin.uiConfig.children as any[]).find(c => c.property?.[1] === 'hideOnCanvasClick')
+            expect(item?.type).toBe('checkbox')
+        })
     })
 
     describe('the roll of a saved view', () => {

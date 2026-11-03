@@ -26,4 +26,5 @@ annotations.startAdding() // the next click on a surface places an annotation, w
 annotations.add(object, localPoint, localNormal, undefined, {title: 'Stone', text: '**Round brilliant**'})
 annotations.goTo(0) // fly to the view of the first one and open its card
 annotations.playTour(5000)
+annotations.hideOnCanvasClick = true // a click or tap on the canvas hides the markers, the next one shows them
 ```
