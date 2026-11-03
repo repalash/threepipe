@@ -594,21 +594,27 @@ function setup() {
 }
 
 /**
- * {@link setup} with the transform gizmo of a TransformControlsPlugin on the lamp, selected. The point `xArm` is on the
- * gizmo's X arrow, over empty space: a click there clears the selection.
+ * {@link setup} with the transform gizmo of a TransformControlsPlugin on the lamp (or on the table), selected. The point
+ * `xArm` is on the gizmo's X arrow of the lamp, over empty space: a click there clears the selection. The point `yArm` is
+ * on the gizmo's Y arrow, 0.5 above the object: on the table, it is over the top.
  */
-function setupGizmo() {
+function setupGizmo(on: 'lamp' | 'table' = 'lamp') {
     const s = setup()
     const controls = new TransformControls(s.camera, s.canvas as any)
     s.plugins.TransformControlsPlugin = {isDisabled: () => false, transformControls: controls}
-    s.ux.select([s.lamp])
-    controls.attach(s.lamp)
+    const o = s[on]
+    s.ux.select([o])
+    controls.attach(o)
     controls.updateMatrixWorld()
     const starts: string[] = []
     controls.addEventListener('mouseDown', () => starts.push(controls.axis!))
-    const p = new Vector3(2.9, 0, 0).project(s.camera)
-    const xArm = {clientX: (p.x + 1) / 2 * SIZE, clientY: (1 - p.y) / 2 * SIZE}
-    return {...s, controls, starts, xArm}
+    const screen = (v: Vector3) => {
+        const p = v.project(s.camera)
+        return {clientX: (p.x + 1) / 2 * SIZE, clientY: (1 - p.y) / 2 * SIZE}
+    }
+    const xArm = screen(new Vector3(2.9, 0, 0))
+    const yArm = screen(o.getWorldPosition(new Vector3()).add(new Vector3(0, 0.5, 0)))
+    return {...s, controls, starts, xArm, yArm}
 }
 
 describe('SelectionUxPlugin', () => {
@@ -810,6 +816,47 @@ describe('SelectionUxPlugin', () => {
         window.dispatchEvent(ev('pointerup', mouse))
         expect(starts).toEqual(['X'])
         expect(names()).toEqual(['Lamp'])
+    })
+
+    test('a double click on a gizmo axis over an object moves the object: no selection change, no level in', () => {
+        const {canvas, yArm, controls, starts, names} = setupGizmo('table')
+        const mouse = {...yArm, pointerType: 'mouse', pointerId: 1}
+        canvas.dispatchEvent(ev('pointermove', mouse))
+        expect(controls.axis).toBe('Y') // the hover found the axis
+        // the gizmo clears its axis on the release: the second press finds it again only in its own pointerdown
+        for (let i = 0; i < 2; i++) {
+            canvas.dispatchEvent(ev('pointerdown', mouse))
+            canvas.dispatchEvent(ev('pointerup', mouse))
+            window.dispatchEvent(ev('pointerup', mouse))
+        }
+        expect(controls.axis).toBe(null)
+        canvas.dispatchEvent(ev('dblclick', mouse))
+        expect(starts).toEqual(['Y', 'Y'])
+        expect(names()).toEqual(['Table']) // not the top under the axis
+    })
+
+    test('a double click after a click that another hitObject listener vetoed does not go one level in', () => {
+        const {ux, canvas, picking, at, table, top, wait, names} = setup()
+        let vetoed = true // as the DepthOfFieldPlugin (edit): a click sets the focus
+        picking.addEventListener('hitObject', (e: any) => {
+            if (vetoed && e.intersects.intersect) e.intersects.selectedObject = null
+        })
+        ux.select([table])
+        const double = () => {
+            for (let i = 0; i < 2; i++) {
+                canvas.dispatchEvent(ev('pointerdown', at(top)))
+                canvas.dispatchEvent(ev('pointerup', at(top)))
+                window.dispatchEvent(ev('pointerup', at(top)))
+                wait(50)
+            }
+            canvas.dispatchEvent(ev('dblclick', at(top)))
+            wait(1000)
+        }
+        double()
+        expect(names()).toEqual(['Table'])
+        vetoed = false
+        double() // a double click of this plugin goes one level in
+        expect(names()).toEqual(['Top'])
     })
 
     test('a short quick drag on empty space keeps the selection (the core picker takes it as a click)', () => {
