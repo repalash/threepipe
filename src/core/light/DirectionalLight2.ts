@@ -6,6 +6,7 @@ import {generateUiConfig, uiColor, uiInput, uiNumber, UiObjectConfig, uiSlider, 
 import {onChange2, onChange3} from 'ts-browser-helpers'
 import {bindToValue} from '../../three'
 import {objectActionsUiConfig} from '../object/IObjectUi'
+import {UiTags} from '../../ui/uiconfig'
 
 /**
  * Extension of three.js DirectionalLight with additional properties for serialization and UI
@@ -29,24 +30,24 @@ export class DirectionalLight2 extends DirectionalLight implements ILight<Direct
     }
     readonly isDirectionalLight2 = true
 
-    @uiToggle('Enabled')
+    @uiToggle('Enabled', {tags: [UiTags.Basic]})
     @onChange3('setDirty')
     declare visible: boolean
 
-    @uiInput('Name')
+    @uiInput('Name', {tags: [UiTags.Basic]})
     @onChange3('setDirty')
     declare name: string
 
-    @uiColor('Color', (that: DirectionalLight2)=>({onChange: ()=>that.setDirty()}))
+    @uiColor('Color', (that: DirectionalLight2)=>({onChange: ()=>that.setDirty(), tags: [UiTags.Basic]}))
     declare color: Color
-    @uiSlider('Intensity', [0, 100], 0.01)
+    @uiSlider('Intensity', [0, 100], 0.01, {tags: [UiTags.Basic]})
     @onChange3('setDirty')
     declare intensity: number
     @uiVector('Position', undefined, undefined, (that: DirectionalLight2)=>({onChange: ()=>that.setDirty()}))
     declare readonly position: Vector3
     @uiVector('Rotation', undefined, undefined, (that: DirectionalLight2)=>({onChange: ()=>that.setDirty()}))
     declare readonly rotation: Euler
-    @uiToggle('Cast Shadow')
+    @uiToggle('Cast Shadow', {tags: [UiTags.Basic]})
     @onChange3('setDirty')
     declare castShadow: boolean
 

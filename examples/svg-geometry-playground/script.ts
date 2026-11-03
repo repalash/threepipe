@@ -14,6 +14,7 @@ import {ThreeSVGRendererPlugin} from '@threepipe/plugin-svg-renderer'
 async function init() {
 
     const viewer = new ThreeViewer({
+        renderScale: 'auto',
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: false,
         rgbm: false,

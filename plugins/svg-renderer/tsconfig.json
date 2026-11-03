@@ -1,6 +1,7 @@
 {
     "compilerOptions": {
-        "baseUrl": "./src",
+        "strict": false,
+        "types": ["*"],
         "rootDir": "./src",
         "allowJs": true,
         "checkJs": false,
@@ -27,7 +28,6 @@
         "allowImportingTsExtensions": true,
         "paths": {
             "three-mesh-halfedge": ["./src/three-mesh-halfedge"],
-            "three": ["threepipe"],
         },
         "lib": [
             "es2020",

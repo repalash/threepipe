@@ -10,6 +10,7 @@ import {copyUserData, ThreeSerialization} from '../../utils'
 import {iCameraCommons} from '../object/iCameraCommons'
 import {bindToValue} from '../../three/utils/decorators'
 import {makeICameraCommonUiConfig, objectExtensionsUiConfig} from '../object/IObjectUi'
+import {UiTags} from '../../ui/uiconfig'
 
 // todo: extract out common functions with perspective camera into iCameraCommons
 // todo: maybe change domElement to some wrapper/base class of viewer
@@ -19,7 +20,7 @@ export class OrthographicCamera2<TE extends ICameraEventMap = ICameraEventMap> e
         return this._controls
     }
 
-    @uiInput('Name') declare name: string
+    @uiInput('Name', {tags: [UiTags.Basic]}) declare name: string
 
     @serialize('camControls')
     private _controls?: ICameraControls
@@ -40,7 +41,7 @@ export class OrthographicCamera2<TE extends ICameraEventMap = ICameraEventMap> e
         userData: ICameraUserData = {}
 
     @onChange3(OrthographicCamera2.prototype.setDirty)
-    @uiNumber('Zoom')
+    @uiNumber('Zoom', {tags: [UiTags.Basic]})
     @serialize() declare zoom: number
 
     @onChange3(OrthographicCamera2.prototype.setDirty)

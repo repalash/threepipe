@@ -15,14 +15,80 @@ export class GLTFWriter2 extends GLTFExporter.Utils.GLTFWriter {
         this.json.asset.subversion = this.TPAssetVersion
     }
 
-    // Hook for deterministic-injection.js to patch processBufferViewImage/write for testing.
-    // Guarded by import.meta.env.DEV — stripped from production builds by Vite.
-    static { if (import.meta.env.DEV) (globalThis as any).testing_patchGLTFWriter2?.(GLTFWriter2) }
-
     declare options: GLTFExporterOptions & {
         externalImagesInExtras: boolean,
         exporterOptions: GLTFExporter2Options
     }
+    declare byteOffset: number
+    declare processBuffer: (buffer: ArrayBuffer) => number
+
+    // region deterministic image order
+
+    /**
+     * Image data waiting for its bufferView, see {@link processBufferViewImage}
+     */
+    private _imageBuffers: Promise<ArrayBuffer>[] = []
+    private _imagesWritten = false
+
+    /**
+     * Images are encoded asynchronously and finish in any order. three.js gives each one the next bufferView when it
+     * finishes, so the same scene exported twice gives different files. Here each image gets a placeholder index
+     * instead (negative), and the bufferViews are written in the order of `json.images` once everything is encoded.
+     */
+    processBufferViewImage(blob: Blob): Promise<number> {
+        if (this._imagesWritten) return super.processBufferViewImage(blob) // after the others, written when it is read
+        const placeholder = -1 - this._imageBuffers.length
+        this._imageBuffers.push(blob.arrayBuffer())
+        return Promise.resolve(placeholder)
+    }
+
+    processInput(input: Object3D | Object3D[]) {
+        // @ts-expect-error not in the three.js types
+        super.processInput(input)
+        // write() waits for everything in pending before it merges the buffers, so the bufferViews are written before that
+        this.pending.push(this._writeAfterPending(this.pending.length))
+    }
+
+    /**
+     * Waits for all the pending work, also the work added while it waits (like an image encoded by a pending
+     * extension), then writes the image bufferViews.
+     * @param self - index of this promise in pending, it does not wait for itself
+     */
+    private async _writeAfterPending(self: number) {
+        for (let waited = 0; waited < this.pending.length;) {
+            const next = this.pending.slice(waited).filter((_, i) => waited + i !== self)
+            waited = this.pending.length
+            await Promise.all(next)
+        }
+        await this._writeImageBufferViews()
+    }
+
+    private async _writeImageBufferViews() {
+        this._imagesWritten = true
+        if (!this._imageBuffers.length) return
+        const buffers = await Promise.all(this._imageBuffers)
+        this._imageBuffers = []
+        const json = this.json
+        if (!json.bufferViews) json.bufferViews = []
+        for (const imageDef of json.images || []) {
+            if (!(imageDef.bufferView < 0)) continue
+            let buffer = buffers[-1 - imageDef.bufferView]
+            if (buffer.byteLength % 4) { // bufferViews are 4-byte aligned
+                const padded = new Uint8Array(Math.ceil(buffer.byteLength / 4) * 4)
+                padded.set(new Uint8Array(buffer))
+                buffer = padded.buffer
+            }
+            imageDef.bufferView = json.bufferViews.push({
+                buffer: this.processBuffer(buffer),
+                byteOffset: this.byteOffset,
+                byteLength: buffer.byteLength,
+            }) - 1
+            this.byteOffset += buffer.byteLength
+        }
+    }
+
+    // endregion
+
     serializeUserData(object: Object3D | Material | BufferGeometry | AnimationClip | Texture, objectDef: any): void {
 
         const userData = object.userData
