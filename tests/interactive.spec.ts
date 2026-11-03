@@ -2460,3 +2460,71 @@ test('hdr-to-exr', async({page}, testInfo) => {
         async() => page.getByRole('button', {name: 'Download .exr'}).click())
 })
 
+test('annotations-plugin', async({page}) => {
+    await expect(page).toHaveTitle('Annotations Plugin')
+
+    // The card of one annotation, read-only or editable: the boxes of the title and the text (the field when it shows),
+    // the text styles that decide where the lines break, and the buttons of the head
+    const measure = async(o: {editable: boolean, compact: boolean, close?: boolean}) => page.evaluate(async({editable, compact, close}) => {
+        const p = (window as any).threeViewers[0].getPlugin('AnnotationsPlugin')
+        p.renderCardContent = undefined
+        p.compactCard = compact
+        p.showCloseButton = close ?? true
+        p.editable = editable
+        const a = p.get(1)
+        p.update(a.id, {
+            title: 'Side panel with a much longer title that wraps over lines',
+            text: 'Notes are saved in the viewer config and in the exported .glb, with their camera view. A second sentence to wrap the text more times.',
+        })
+        p.goTo(a.id, {fly: false})
+        ;(document.activeElement as HTMLElement | null)?.blur()
+        await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))
+        const card = document.querySelector('.anp-card')!
+        const shown = (sel: string) => [...card.querySelectorAll<HTMLElement>(sel)].find(e => getComputedStyle(e).display !== 'none')!
+        const box = (e: HTMLElement) => {
+            const cs = getComputedStyle(e)
+            const r = e.getBoundingClientRect()
+            const px = (v: string) => parseFloat(v) || 0
+            const left = r.left + px(cs.borderLeftWidth) + px(cs.paddingLeft)
+            const top = r.top + px(cs.borderTopWidth) + px(cs.paddingTop)
+            const width = e.clientWidth - px(cs.paddingLeft) - px(cs.paddingRight)
+            // the height of the lines: a field scrolls its text, a block shows it all
+            const height = (e.tagName === 'TEXTAREA' ? e.scrollHeight : e.clientHeight) - px(cs.paddingTop) - px(cs.paddingBottom)
+            return {
+                tag: e.tagName, left, top, width, lines: height / px(cs.lineHeight),
+                style: [cs.font, cs.letterSpacing, cs.wordSpacing, cs.whiteSpace, cs.overflowWrap, cs.wordBreak, cs.textIndent].join(' | '),
+            }
+        }
+        const buttons = [...card.querySelectorAll<HTMLElement>('.anp-head button')].filter(b => b.offsetParent).map(b => {
+            const r = b.getBoundingClientRect()
+            const icon = b.querySelector('svg')!.getBoundingClientRect()
+            return {left: r.left, right: r.right, width: r.width, height: r.height, middle: r.top + r.height / 2, icon: [icon.width, icon.height]}
+        })
+        return {title: box(shown('.anp-title, .anp-title-in')), text: box(shown('.anp-text, .anp-text-in')), buttons}
+    }, o)
+
+    // the default card: the title and the text wrap on the same lines, at the same place, read-only and editable
+    const view = await measure({editable: false, compact: false})
+    const edit = await measure({editable: true, compact: false})
+    expect([view.title.tag, edit.title.tag]).toEqual(['DIV', 'TEXTAREA'])
+    expect(view.title.lines).toBe(2)
+    expect(edit.title).toEqual({...view.title, tag: 'TEXTAREA'})
+    expect(view.text.lines).toBeGreaterThan(1)
+    expect(edit.text).toEqual(view.text)
+    // compactCard: the text wraps on the same lines too. The title is narrower in editable mode (Update view and Delete
+    // sit beside it), so it can take more lines and the text starts lower
+    const compactView = await measure({editable: false, compact: true})
+    const compactEdit = await measure({editable: true, compact: true})
+    expect({...compactEdit.text, top: 0}).toEqual({...compactView.text, top: 0})
+    expect(compactEdit.title.style).toBe(compactView.title.style)
+
+    // the buttons of the head: one size, one icon size, one gap, on one line
+    for (const o of [{editable: true, compact: true}, {editable: true, compact: true, close: false}, {editable: false, compact: true}, {editable: true, compact: false}]) {
+        const {buttons} = await measure(o)
+        expect(buttons.length, JSON.stringify(o)).toBe(o.compact && o.editable ? o.close === false ? 2 : 3 : 1)
+        for (const b of buttons) {
+            expect(b, JSON.stringify(o)).toMatchObject({width: 24, height: 24, icon: [14, 14], middle: buttons[0].middle})
+        }
+        for (let i = 1; i < buttons.length; i++) expect(buttons[i].left - buttons[i - 1].right, JSON.stringify(o)).toBe(2)
+    }
+})

@@ -27,6 +27,8 @@
 .anp-marker.anp-dim { opacity: .4; }
 .anp-marker.anp-dim:hover, .anp-marker.anp-on.anp-dim { opacity: .75; }
 .anp-editable .anp-marker { cursor: grab; }
+/* dragOnlySelected: a marker that is not open opens with a click (a drag orbits); the open one drags */
+.anp-editable.anp-drag-selected .anp-marker:not(.anp-on) { cursor: pointer; }
 .anp-dragging, .anp-dragging .anp-marker { cursor: grabbing !important; }
 .anp-dragging .anp-marker { transition: none; }
 .anp-adding .anp-marker { pointer-events: none; }
@@ -37,12 +39,18 @@
   background: var(--anp-bg); color: var(--anp-fg); border: 1px solid var(--anp-line); border-radius: 6px; box-shadow: var(--anp-shadow);
   pointer-events: auto; outline: none; user-select: text; z-index: 2; }
 .anp-card.anp-open { display: flex; }
-.anp-head { flex: none; display: flex; align-items: center; gap: 8px; padding: 8px 8px 4px 12px; }
-.anp-title, .anp-title-in { flex: 1; min-width: 0; font: inherit; font-size: 13px; font-weight: 600; line-height: 20px; color: inherit; }
-.anp-title { overflow-wrap: anywhere; }
-/* the field: its text where the title's is (1px border + 4px padding) */
-.anp-title-in { display: none; box-sizing: border-box; height: 24px; margin: 0 0 0 -5px; padding: 0 4px;
-  border: 1px solid transparent; border-radius: 4px; background: transparent; outline: none; }
+.anp-head { flex: none; display: flex; align-items: flex-start; gap: 8px; padding: 8px 8px 4px 12px; }
+/* the buttons of the head (the ✕; with compactCard the tools before it): one row, the gap of the tools */
+.anp-head-btns { flex: none; display: flex; align-items: center; gap: 2px; }
+/*
+ * The title and its field (a textarea, editable) have the same box, so the title wraps at the same width and on the
+ * same lines in both: a 1px border and 4px padding, pulled out by the margins so the text is where the head's padding
+ * ends. The first line is level with the 24px buttons (2px from the top).
+ */
+.anp-title, .anp-title-in { flex: 1; min-width: 0; box-sizing: border-box; margin: -3px 0 -5px -5px; padding: 4px;
+  border: 1px solid transparent; border-radius: 4px; font: inherit; font-size: 13px; font-weight: 600; line-height: 20px;
+  letter-spacing: inherit; word-spacing: inherit; color: inherit; white-space: pre-wrap; overflow-wrap: anywhere; }
+.anp-title-in { display: none; height: 30px; resize: none; overflow: hidden; background: transparent; outline: none; }
 .anp-title-in:hover { border-color: var(--anp-line); }
 .anp-title-in:focus { border-color: var(--anp-accent); background: var(--anp-input); }
 .anp-text { flex: 0 1 auto; min-height: 0; overflow: auto; padding: 0 12px 8px; overflow-wrap: anywhere; }
@@ -55,7 +63,8 @@
 .anp-has-custom:not(.anp-no-close) .anp-custom { padding-right: 36px; }
 /* the text field: its text where the text's is (7px margin + 1px border + 4px padding) */
 .anp-text-in { display: none; flex: 0 1 auto; box-sizing: border-box; width: calc(100% - 14px); min-height: 64px; margin: 0 7px 8px; padding: 4px;
-  font: inherit; color: inherit; resize: none; border: 1px solid var(--anp-line); border-radius: 4px; background: var(--anp-input); outline: none; }
+  font: inherit; letter-spacing: inherit; word-spacing: inherit; color: inherit; overflow-wrap: anywhere; resize: none;
+  border: 1px solid var(--anp-line); border-radius: 4px; background: var(--anp-input); outline: none; }
 .anp-text-in:focus { border-color: var(--anp-accent); }
 .anp-nav { flex: none; display: flex; align-items: center; gap: 2px; padding: 4px; border-top: 1px solid var(--anp-line);
   color: var(--anp-dim); font-size: 11px; font-variant-numeric: tabular-nums; }
@@ -83,7 +92,7 @@
 .anp-btn.anp-noview, .anp-btn.anp-noview:hover:not(:disabled) { color: var(--anp-accent); }
 .anp-btn.anp-del:hover:not(:disabled) { color: var(--anp-danger); }
 
-/* compactCard: the tools in the head, icons only, before the ✕ (the bottom row is hidden from the code) */
+/* compactCard: the tools in the head, icons only, before the ✕ in its group (the bottom row is hidden from the code) */
 .anp-compact .anp-tools { margin-left: 0; }
 .anp-compact .anp-btn.anp-view { padding: 0; }
 .anp-compact .anp-btn.anp-view span { display: none; }

@@ -3,6 +3,7 @@ import {BoxGeometry, InstancedMesh, Matrix4, Mesh, MeshBasicMaterial, Object3D, 
 import {PopmotionPlugin, UndoManagerPlugin} from 'threepipe'
 import {AnnotationsPlugin} from '../../plugins/annotations/src/AnnotationsPlugin'
 import {escapeHtml, renderAnnotationText} from '../../plugins/annotations/src/render-text'
+import {JSUndoManager} from 'ts-browser-helpers'
 
 type Listener = (e: any) => void
 const noop = () => undefined
@@ -83,6 +84,12 @@ class FakeElement {
         this.fire('blur')
     }
     setPointerCapture = noop
+    /** The events sent with dispatchEvent */
+    dispatched: any[] = []
+    dispatchEvent(e: any) {
+        this.dispatched.push(e)
+        return true
+    }
     attributes: Record<string, string> = {}
     setAttribute(name: string, value: string) {
         this.attributes[name] = value
@@ -147,6 +154,12 @@ beforeEach(() => {
     // no frame loop: the tests call the screen update themselves
     vi.stubGlobal('requestAnimationFrame', () => 0)
     vi.stubGlobal('cancelAnimationFrame', noop)
+    // the node setup has no PointerEvent: an object with the type and the init values
+    vi.stubGlobal('PointerEvent', class {
+        constructor(readonly type: string, init: any) {
+            Object.assign(this, init)
+        }
+    })
     observers = []
     vi.stubGlobal('ResizeObserver', class {
         targets = new Set<any>()
@@ -207,6 +220,14 @@ function setup(editable = true, popmotion?: any) {
     plugin.onAdded(viewer)
     const layer = viewer.container.children[0] as FakeElement
     return {plugin, viewer, layer, box, group, camera, undo, canvas}
+}
+
+/** A real undo manager for the plugin of `setup`, for the order of the steps (the default one only collects them) */
+function realUndo(viewer: any) {
+    const um = new JSUndoManager({limit: 500, debug: false, bindHotKeys: false})
+    const get = viewer.getPlugin
+    viewer.getPlugin = (c: any) => c === UndoManagerPlugin ? {undoManager: um} : get(c)
+    return um
 }
 
 const markers = (layer: FakeElement) => layer.find('anp-marker')
@@ -672,8 +693,9 @@ describe('AnnotationsPlugin', () => {
             const head = c.find('anp-head')[0]
             const tools = c.find('anp-tools')[0]
             expect(c.find('anp-nav')[0].style.display).toBe('none')
-            expect(tools.parent).toBe(head)
-            expect(head.children.indexOf(tools)).toBe(head.children.indexOf(c.find('anp-x')[0]) - 1)
+            // in the group of the head buttons, before the ✕
+            expect(tools.parent!.parent).toBe(head)
+            expect(tools.parent!.children.indexOf(tools)).toBe(tools.parent!.children.indexOf(c.find('anp-x')[0]) - 1)
             expect(c.classList.contains('anp-compact')).toBe(true)
             expect(plugin.tourBar).toBe('shown')
             expect(bar(layer).dataset.state).toBe('shown')
@@ -1009,7 +1031,7 @@ describe('AnnotationsPlugin', () => {
         expect(doc.activeElement).not.toBe(input)
         expect(input.value).toBe('B')
         expect(plugin.get(a.id)!.title).toBe('A2')
-        expect(undo).toHaveLength(1) // the edit of A, one step
+        expect(undo).toHaveLength(2) // the edit of A, one step, then the selection of B
         undo[0].undo()
         expect(plugin.get(a.id)!.title).toBe('A')
         undo[0].redo()
@@ -1245,6 +1267,7 @@ describe('AnnotationsPlugin', () => {
 
     test('editable: dragging a marker moves it to the surface under the pointer, as one undo step', () => {
         const {plugin, layer, box, undo} = setup()
+        plugin.dragOnlySelected = false // any marker, not only the open one
         const a = plugin.add(box as any, front, normal, null)
         ;(plugin as any)._updateScreen()
         undo.length = 0
@@ -1356,6 +1379,250 @@ describe('AnnotationsPlugin', () => {
         } finally {
             vi.useRealTimers()
         }
+    })
+
+    describe('editable: the open annotation is the selection, and a change of it is one undo step', () => {
+        test('opening another annotation and closing the card are one step each; undo opens the one before, or none', () => {
+            const {plugin, box, viewer, layer, canvas} = setup()
+            const um = realUndo(viewer)
+            const a = plugin.add(box as any, front, normal, null, {title: 'A'})
+            const b = plugin.add(box as any, front, normal, null, {title: 'B'})
+            const steps = () => um.stack.length
+            const before = steps()
+            plugin.goTo(a.id)
+            plugin.goTo(a.id) // the same one: no step
+            plugin.next() // B
+            expect(steps()).toBe(before + 2)
+            // a click on the canvas closes the card: one step
+            windowListeners.get('pointerdown')!({target: canvas, clientX: 10, clientY: 10})
+            windowListeners.get('pointerup')!({target: canvas, clientX: 10, clientY: 10})
+            expect(plugin.openId).toBe(null)
+            // a click on a marker: one step
+            ;(plugin as any)._updateScreen()
+            const m = markers(layer)[0]
+            m.fire('pointerdown', {clientX: 400, clientY: 300})
+            m.fire('pointerup', {clientX: 400, clientY: 300})
+            expect(plugin.openId).toBe(a.id)
+            expect(steps()).toBe(before + 4)
+            const selected: (string | undefined)[] = []
+            plugin.addEventListener('annotationSelect', e => selected.push(e.annotation?.title))
+            um.undo()
+            expect(plugin.openId).toBe(null)
+            um.undo()
+            expect(plugin.openId).toBe(b.id)
+            um.undo()
+            expect(plugin.openId).toBe(a.id)
+            um.undo()
+            expect(plugin.openId).toBe(null)
+            expect(selected).toEqual([undefined, 'B', 'A', undefined])
+            um.redo()
+            um.redo()
+            expect(plugin.openId).toBe(b.id)
+            // the annotations are still there: only the selection steps were undone
+            expect(plugin.getAnnotations().map(x => x.title)).toEqual(['A', 'B'])
+        })
+
+        test('an undo or a redo of the selection does not fly the camera', () => {
+            const {plugin, box, viewer, camera} = setup()
+            const um = realUndo(viewer)
+            const view = {position: [3, 0, 0], target: [0, 0, 0], quaternion: [0, 0, 0, 1], zoom: 1}
+            const a = plugin.add(box as any, front, normal, view)
+            plugin.goTo(a.id)
+            expect(camera.position.x).toBeCloseTo(3)
+            plugin.close()
+            camera.position.set(0, 0, 5)
+            um.undo()
+            expect(plugin.openId).toBe(a.id)
+            expect(camera.position.toArray()).toEqual([0, 0, 5])
+        })
+
+        test('selection steps and edit steps interleave: undo after a delete brings the annotation back, opened; the next undo closes it', () => {
+            const {plugin, box, viewer, layer} = setup()
+            const um = realUndo(viewer)
+            const a = plugin.add(box as any, front, normal, null, {title: 'A'}) // add
+            plugin.goTo(a.id) // select
+            card(layer).find('anp-view')[0].fire('click') // update view
+            ;(plugin as any)._updateScreen()
+            const m = markers(layer)[0]
+            m.fire('pointerdown', {clientX: 400, clientY: 300})
+            m.fire('pointermove', {clientX: 440, clientY: 300})
+            m.fire('pointerup', {clientX: 440, clientY: 300}) // move
+            const moved = plugin.get(a.id)!.anchor.point
+            expect(moved[0]).toBeGreaterThan(0.05)
+            card(layer).find('anp-del')[0].fire('click') // delete
+            expect(plugin.getAnnotations()).toHaveLength(0)
+            expect(plugin.openId).toBe(null)
+            expect(um.stack).toHaveLength(5)
+
+            um.undo() // delete
+            expect(plugin.get(a.id)?.title).toBe('A')
+            expect(plugin.openId).toBe(a.id)
+            um.undo() // move
+            expect(plugin.get(a.id)!.anchor.point).toEqual([0, 0, 0.5])
+            expect(plugin.openId).toBe(a.id)
+            um.undo() // update view
+            expect(plugin.get(a.id)!.view).toBe(null)
+            um.undo() // select
+            expect(plugin.openId).toBe(null)
+            expect(plugin.getAnnotations()).toHaveLength(1)
+            um.undo() // add
+            expect(plugin.getAnnotations()).toHaveLength(0)
+
+            for (let i = 0; i < 4; i++) um.redo()
+            expect(plugin.openId).toBe(a.id)
+            expect(plugin.get(a.id)!.anchor.point).toEqual(moved)
+            um.redo() // delete
+            expect(plugin.getAnnotations()).toHaveLength(0)
+            expect(plugin.openId).toBe(null)
+        })
+
+        test('placing: the new annotation and its opening are two steps; Remove all brings the open annotation back opened', () => {
+            const {plugin, box, viewer, layer} = setup()
+            const um = realUndo(viewer)
+            plugin.startAdding()
+            const place = layer.find('anp-place')[0]
+            place.fire('pointerdown', {clientX: 400, clientY: 300})
+            place.fire('pointerup', {clientX: 400, clientY: 300})
+            const a = plugin.get(0)!
+            expect(plugin.openId).toBe(a.id)
+            expect(um.stack).toHaveLength(2)
+            plugin.add(box as any, front, normal, null)
+            plugin.clear()
+            expect(plugin.openId).toBe(null)
+            um.undo() // clear
+            expect(plugin.getAnnotations()).toHaveLength(2)
+            expect(plugin.openId).toBe(a.id)
+        })
+
+        test('not editable (a viewer), and the tour: opening and closing add no steps', () => {
+            vi.useFakeTimers()
+            try {
+                const {plugin, box, viewer, layer} = setup(false)
+                const um = realUndo(viewer)
+                plugin.add(box as any, front, normal, null)
+                plugin.add(box as any, front, normal, null)
+                const before = um.stack.length
+                ;(plugin as any)._updateScreen()
+                const m = markers(layer)[0]
+                m.fire('pointerdown', {clientX: 400, clientY: 300})
+                m.fire('pointerup', {clientX: 400, clientY: 300})
+                plugin.next()
+                plugin.close()
+                expect(um.stack.length).toBe(before)
+
+                plugin.editable = true
+                plugin.playTour(1000)
+                vi.advanceTimersByTime(3000)
+                expect(plugin.openId).not.toBe(null)
+                expect(um.stack.length).toBe(before)
+                plugin.stopTour()
+            } finally {
+                vi.useRealTimers()
+            }
+        })
+    })
+
+    describe('dragOnlySelected: only the open annotation can be dragged', () => {
+        test('on by default, in the UI next to Editable (editable only), not saved with the scene', () => {
+            const {plugin} = setup()
+            expect(plugin.dragOnlySelected).toBe(true)
+            expect(new AnnotationsPlugin({dragOnlySelected: false}).dragOnlySelected).toBe(false)
+            const items = plugin.uiConfig.children as any[]
+            const i = items.findIndex(c => c.property?.[1] === 'dragOnlySelected')
+            expect(items[i].type).toBe('checkbox')
+            expect(items[i - 1].property?.[1]).toBe('editable')
+            expect(items[i].hidden()).toBe(false)
+            plugin.editable = false
+            expect(items[i].hidden()).toBe(true)
+            expect(Object.keys(plugin.toJSON())).not.toContain('dragOnlySelected')
+        })
+
+        test('a drag on a marker that is not open goes to the canvas from where it started (orbit); a click opens it; then it drags', () => {
+            const {plugin, layer, box, undo, canvas} = setup()
+            const sent = canvas.dispatched
+            const a = plugin.add(box as any, front, normal, null)
+            ;(plugin as any)._updateScreen()
+            undo.length = 0
+            const m = markers(layer)[0]
+            // a drag: the marker stays, the canvas gets a pointer down at the start of the press
+            m.fire('pointerdown', {clientX: 400, clientY: 300, pointerId: 7})
+            m.fire('pointermove', {clientX: 402, clientY: 300, pointerId: 7})
+            expect(sent).toHaveLength(0) // less than 4px: not a drag yet
+            m.fire('pointermove', {clientX: 440, clientY: 300, pointerId: 7, pointerType: 'mouse', buttons: 1, shiftKey: true})
+            expect(sent).toHaveLength(1)
+            expect(sent[0]).toMatchObject({type: 'pointerdown', pointerId: 7, pointerType: 'mouse', button: 0, buttons: 1, clientX: 400, clientY: 300, shiftKey: true, bubbles: true})
+            m.fire('pointermove', {clientX: 460, clientY: 300, pointerId: 7})
+            m.fire('pointerup', {clientX: 460, clientY: 300, pointerId: 7})
+            expect(plugin.get(a.id)!.anchor.point).toEqual([0, 0, 0.5])
+            expect(plugin.openId).toBe(null) // a drag does not open it
+            expect(sent).toHaveLength(1)
+            expect(undo).toHaveLength(0)
+
+            // a click opens it (one selection step), then a drag moves it (one step)
+            m.fire('pointerdown', {clientX: 400, clientY: 300})
+            m.fire('pointerup', {clientX: 400, clientY: 300})
+            expect(plugin.openId).toBe(a.id)
+            m.fire('pointerdown', {clientX: 400, clientY: 300})
+            m.fire('pointermove', {clientX: 440, clientY: 300})
+            m.fire('pointerup', {clientX: 440, clientY: 300})
+            expect(plugin.get(a.id)!.anchor.point[0]).toBeGreaterThan(0.05)
+            expect(undo).toHaveLength(2)
+            expect(sent).toHaveLength(1)
+        })
+
+        test('off: any marker drags at once; the layer class sets the cursor', () => {
+            const {plugin, layer, box} = setup()
+            expect(layer.classList.contains('anp-drag-selected')).toBe(true)
+            plugin.dragOnlySelected = false
+            expect(layer.classList.contains('anp-drag-selected')).toBe(false)
+            const a = plugin.add(box as any, front, normal, null)
+            ;(plugin as any)._updateScreen()
+            const m = markers(layer)[0]
+            m.fire('pointerdown', {clientX: 400, clientY: 300})
+            m.fire('pointermove', {clientX: 440, clientY: 300})
+            m.fire('pointerup', {clientX: 440, clientY: 300})
+            expect(plugin.openId).toBe(null)
+            expect(plugin.get(a.id)!.anchor.point[0]).toBeGreaterThan(0.05)
+        })
+    })
+
+    test('the title field is a textarea that wraps like the title (no line breaks: Enter goes to the text, pasted ones become spaces)', () => {
+        const {plugin, layer, box} = setup()
+        const a = plugin.add(box as any, front, normal, null, {title: 'A'})
+        plugin.goTo(a.id, {focusTitle: true})
+        const input = card(layer).find('anp-title-in')[0]
+        expect(input.tagName).toBe('textarea')
+        expect((input as any).rows).toBe(1)
+        input.value = 'Two\nlines'
+        input.fire('input')
+        expect(input.value).toBe('Two lines')
+        expect(plugin.get(a.id)!.title).toBe('Two lines')
+        // grows with its text: the scroll height and its 1px borders
+        input.scrollHeight = 50
+        input.fire('input')
+        expect(input.style.height).toBe('52px')
+    })
+
+    test('the head buttons are in one group: the tools of compactCard go before the ✕, in the same group', () => {
+        const {plugin, layer, box} = setup()
+        plugin.add(box as any, front, normal, null)
+        plugin.goTo(0)
+        const c = card(layer)
+        const group = c.find('anp-head-btns')[0]
+        expect(group.parent).toBe(c.find('anp-head')[0])
+        expect(group.children.map(x => x.className)).toEqual(['anp-btn anp-x'])
+        plugin.compactCard = true
+        expect(group.children.map(x => x.className)).toEqual(['anp-tools', 'anp-btn anp-x'])
+        // no ✕ and no tools: the group takes no room (no gap after the title)
+        plugin.showCloseButton = false
+        expect(group.style.display).toBe('')
+        plugin.editable = false
+        expect(group.style.display).toBe('none')
+        plugin.compactCard = false
+        plugin.editable = true
+        expect(group.style.display).toBe('none')
+        plugin.showCloseButton = true
+        expect(group.style.display).toBe('')
     })
 
     test('the plugin depends on PopmotionPlugin for the camera animation', () => {

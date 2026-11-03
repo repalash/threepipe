@@ -29,6 +29,7 @@ annotations.playTour(5000)
 annotations.closeOnCanvasInteraction = true // any click, drag or wheel zoom on the canvas closes the card
 annotations.compactCard = true // title and text only, ‹ title › in a tour bar at the bottom that fades while the camera moves
 annotations.showCloseButton = false // no ✕ in the card (Esc and a click on the canvas still close it)
+annotations.dragOnlySelected = false // editable: drag any marker (default: only the open one; a drag from another orbits)
 ```
 
 A custom card from the app's values (`data` is saved with the annotation; the hook is used when `editable` is off):

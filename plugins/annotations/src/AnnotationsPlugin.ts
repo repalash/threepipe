@@ -92,6 +92,8 @@ export interface AnnotationsPluginEventMap extends AViewerPluginEventMap {
 export interface AnnotationsPluginOptions {
     /** Allow adding, editing, moving and deleting annotations. Default false (viewer) */
     editable?: boolean
+    /** Editable: only the open annotation can be dragged ({@link AnnotationsPlugin.dragOnlySelected}). Default true */
+    dragOnlySelected?: boolean
 }
 
 interface MarkerState {
@@ -103,6 +105,16 @@ interface MarkerState {
     onScreen: boolean
     occluded: boolean
     facing: boolean
+}
+
+/** A press on a marker: it becomes a drag (editable) when the pointer moves 4px */
+interface MarkerDrag {
+    id: string
+    pointerId: number
+    x: number
+    y: number
+    moved: boolean
+    before: AnnotationAnchor
 }
 
 interface Hit {
@@ -125,7 +137,9 @@ interface Hit {
  *   only after the camera, an anchor or the scene changed, and while frames render (an animation) at most every
  *   {@link occlusionRecheckInterval} ms.
  * - {@link editable}: {@link startAdding} (then click a surface), edit the title and the text in the card, "Update
- *   view", "Delete", and drag a marker to another surface point. All edits are undoable with {@link UndoManagerPlugin}.
+ *   view", "Delete", and drag a marker to another surface point ({@link dragOnlySelected}: the open one only). All
+ *   edits are undoable with {@link UndoManagerPlugin}, and so is the selection: opening an annotation or closing the
+ *   card is one undo step, as the selection of the PickingPlugin.
  * - The card stays open until it is closed (its close button, Esc) or a click (no drag) on the canvas. With
  *   {@link closeOnCanvasInteraction}, any interaction with the canvas closes it: also a drag (orbit) or a wheel zoom.
  * - Tour: {@link goTo}, {@link next}, {@link prev}, {@link playTour}; events `annotationChange` and `annotationSelect`
@@ -137,8 +151,8 @@ interface Hit {
  *   hides the ✕ of the card.
  *
  * The markers and the card are in a layer over the canvas, in the viewer container (which must be positioned, for
- * example `position: relative`). The UI folder (Annotations) has Editable, Close on canvas interaction, Close button,
- * Compact card, Add, Play tour and Remove all.
+ * example `position: relative`). The UI folder (Annotations) has Editable, Drag only selected, Close on canvas
+ * interaction, Close button, Compact card, Add, Play tour and Remove all.
  *
  * @category Plugins
  */
@@ -179,6 +193,7 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         label: 'Annotations',
         children: [
             {type: 'checkbox', label: 'Editable', property: [this, 'editable']},
+            {type: 'checkbox', label: 'Drag only selected', property: [this, 'dragOnlySelected'], hidden: () => !this.editable},
             {type: 'checkbox', label: 'Close on canvas interaction', property: [this, 'closeOnCanvasInteraction']},
             {type: 'checkbox', label: 'Close button', property: [this, 'showCloseButton']},
             {type: 'checkbox', label: 'Compact card', property: [this, 'compactCard']},
@@ -189,13 +204,15 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
     }
 
     private _editable: boolean
+    private _dragOnlySelected: boolean
     private _showCloseButton = true
     private _renderCardContent?: AnnotationCardRenderer
     private _compactCard = false
     private _layer?: HTMLDivElement
     private _card?: HTMLDivElement
     private _cardEls!: {
-        head: HTMLElement, title: HTMLElement, titleIn: HTMLInputElement, close: HTMLButtonElement, custom: HTMLElement, text: HTMLElement,
+        head: HTMLElement, title: HTMLElement, titleIn: HTMLTextAreaElement, headBtns: HTMLElement, close: HTMLButtonElement,
+        custom: HTMLElement, text: HTMLElement,
         textIn: HTMLTextAreaElement, nav: HTMLElement, pos: HTMLElement, prev: HTMLButtonElement, next: HTMLButtonElement,
         tools: HTMLElement, view: HTMLButtonElement,
     }
@@ -227,7 +244,7 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
     private _am = new Matrix4()
     /** The last pointer down: where, on the canvas or not, with the primary button (or a touch) or not */
     private _down: {x: number, y: number, canvas: boolean, primary: boolean} | null = null
-    private _drag: {id: string, pointerId: number, x: number, y: number, moved: boolean, before: AnnotationAnchor} | null = null
+    private _drag: MarkerDrag | null = null
     private _tour = 0
     /** When this viewer was used last (a pointer down in it, a card opened, placing started), for the keys */
     private _usedAt = 0
@@ -236,12 +253,14 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
     /** Watches the open card: a text that grows or wraps in a narrower viewer changes its size, then it is placed again */
     private _resizer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(() => {
         this._cardSize.w = 0
+        if (this._editable) this._autosize() // a narrower card wraps the title and the text field on more lines
         this._positionCard()
     })
 
     constructor(options: AnnotationsPluginOptions = {}) {
         super()
         this._editable = !!options.editable
+        this._dragOnlySelected = options.dragOnlySelected ?? true
     }
 
     /** Allow adding, editing, moving and deleting annotations. Off: visitors open the annotations only. */
@@ -255,6 +274,24 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         if (!v) this.cancelAdding()
         this._layer?.classList.toggle('anp-editable', v)
         this._renderCard()
+        this.uiConfig.uiRefresh?.(true, 'postFrame')
+    }
+
+    /**
+     * Editable: only the open (selected) annotation can be dragged to another surface point. A press on another marker
+     * opens it with a click, and a drag from it moves the camera, as a drag on the canvas does. Off: a drag on any
+     * marker moves it. Default true: in an editor a drag that starts on a marker is often meant to orbit, and the markers
+     * are small; with it on, a marker moves only after it was opened, and that move is one undo step. Not saved with
+     * the scene, like {@link editable}.
+     */
+    get dragOnlySelected() {
+        return this._dragOnlySelected
+    }
+
+    set dragOnlySelected(v: boolean) {
+        if (this._dragOnlySelected === v) return
+        this._dragOnlySelected = v
+        this._layer?.classList.toggle('anp-drag-selected', v)
         this.uiConfig.uiRefresh?.(true, 'postFrame')
     }
 
@@ -343,6 +380,7 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         if (AnnotationsPlugin.InjectStyles && !AnnotationsPlugin._styles?.isConnected) AnnotationsPlugin._styles = createStyles(styles)
         const layer = el('div', 'anp-layer')
         layer.classList.toggle('anp-editable', this._editable)
+        layer.classList.toggle('anp-drag-selected', this._dragOnlySelected)
         viewer.container.appendChild(layer)
         this._layer = layer
         this._buildBar(layer)
@@ -422,7 +460,7 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         this.stopTour()
         // ThreeViewer.fromJSON loads the plugins before the scene: a flight would move the camera of the loaded config
         this._stopAnim()
-        if (this._openId) this.close()
+        this._select(null)
         this._objCache.clear()
         this._changed('load')
         return this
@@ -503,26 +541,34 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         return a
     }
 
-    /** Remove an annotation. Undoable. */
+    /** Remove an annotation. Undoable: the undo also opens it again when it was open. */
     remove(id: string) {
         const index = this.indexOf(id)
         if (index < 0) return
         const a = this.annotations[index]
+        const open = this._openId === id
         this._delete(id)
-        this._record(() => this._insert(a, index), () => this._delete(id))
+        this._record(() => {
+            this._insert(a, index)
+            if (open) this._select(id, {fly: false})
+        }, () => this._delete(id))
     }
 
-    /** Remove all annotations. Undoable. */
+    /** Remove all annotations. Undoable: the undo also opens the one that was open. */
     clear() {
         const before = [...this.annotations]
         if (!before.length) return
+        const open = this._openId
         const set = (list: Annotation[]) => {
-            if (this._openId) this.close()
+            this._select(null)
             this.annotations = [...list]
             this._changed('clear')
         }
         set([])
-        this._record(() => set(before), () => set([]))
+        this._record(() => {
+            set(before)
+            if (open) this._select(open, {fly: false})
+        }, () => set([]))
     }
 
     /** Change the title, text, view or data of an annotation. Undoable. */
@@ -555,65 +601,40 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
     }
 
     /**
-     * Open an annotation: the camera goes to its saved view and the card opens.
+     * Open an annotation: the camera goes to its saved view and the card opens. In {@link editable} mode, opening
+     * another annotation is one undo step (the undo opens the one before, or closes the card), as a selection.
      * @param indexOrId - place in the tour or id
      * @param options - `fly: false` keeps the camera; `focusTitle` puts the cursor in the title (editable only)
      */
     goTo(indexOrId: number | string, options: {fly?: boolean, focusTitle?: boolean} = {}) {
         const a = this.get(indexOrId)
-        if (!a) return
-        if (a.id !== this._openId) this._commitEdit() // the field edits the annotation it was focused for
-        this._used()
-        this._openId = a.id
-        this._renderCard()
-        this._syncMarkers()
-        this._positionCard(true)
-        if (this._card) this._resizer?.observe(this._card)
-        if (options.fly !== false && a.view) this._flyTo(a.view)
-        else this._stopAnim() // a flight to the annotation before ends here
-        if (this._card) {
-            if (options.focusTitle && this._editable) {
-                this._cardEls.titleIn.focus({preventScroll: true})
-            } else if (!this._card.contains(document.activeElement)) {
-                this._card.focus({preventScroll: true}) // so ←/→ reach this card
-            }
-        }
-        this.dispatchEvent({type: 'annotationSelect', annotation: a, index: this.indexOf(a.id)})
+        if (a) this._select(a.id, options, true)
     }
 
     /** Open the next annotation (after the last: the first) */
     next() {
-        const n = this.annotations.length
-        if (!n) return
-        const i = this._openId ? this.indexOf(this._openId) : -1
-        this.goTo((i + 1) % n)
+        this._step(1, true)
     }
 
     /** Open the previous annotation (before the first: the last) */
     prev() {
-        const n = this.annotations.length
-        if (!n) return
-        const i = this._openId ? this.indexOf(this._openId) : 0
-        this.goTo((i - 1 + n) % n)
+        this._step(-1, true)
     }
 
-    /** Close the card */
+    /** Close the card. In {@link editable} mode, one undo step (the undo opens it again), as a selection. */
     close() {
-        if (!this._openId) return
-        this._commitEdit()
-        if (this._card) this._resizer?.unobserve(this._card)
-        this._openId = null
-        this._renderCard()
-        this._syncMarkers()
-        this.dispatchEvent({type: 'annotationSelect', annotation: null, index: -1})
+        this._select(null, {}, true)
     }
 
-    /** Go through the annotations one after another, like Sketchfab's autopilot. Any click or key stops it. */
+    /**
+     * Go through the annotations one after another, like Sketchfab's autopilot. Any click or key stops it. The tour adds
+     * no undo steps.
+     */
     playTour(intervalMs = 5000) {
         this.stopTour()
         if (!this.annotations.length) return
-        this.next()
-        this._tour = window.setInterval(() => this.next(), Math.max(1000, intervalMs))
+        this._step(1, false)
+        this._tour = window.setInterval(() => this._step(1, false), Math.max(1000, intervalMs))
     }
 
     stopTour() {
@@ -721,7 +742,7 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         const i = this.indexOf(id)
         if (i < 0) return
         const [a] = this.annotations.splice(i, 1)
-        if (this._openId === id) this.close()
+        if (this._openId === id) this._select(null)
         this._objCache.delete(id)
         this._changed('remove', a)
     }
@@ -743,6 +764,58 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
 
     private _record(undo: () => void, redo: () => void) {
         this._viewer?.getPlugin(UndoManagerPlugin)?.undoManager?.record({undo, redo})
+    }
+
+    // endregion
+
+    // region selection
+
+    /**
+     * Opens an annotation (`id`; one that is not there: closes) or closes the card (`null`). With `record`, in
+     * {@link editable} mode, a change of the open annotation is one undo step whose undo opens the one before, or none,
+     * as the selection of the PickingPlugin. The undo and the redo keep the camera where it is.
+     */
+    private _select(id: string | null, options: {fly?: boolean, focusTitle?: boolean} = {}, record = false) {
+        const prev = this._openId
+        const a = id === null ? undefined : this.get(id)
+        if (!a) {
+            if (!prev) return
+            this._commitEdit()
+            if (this._card) this._resizer?.unobserve(this._card)
+            this._openId = null
+            this._renderCard()
+            this._syncMarkers()
+            this.dispatchEvent({type: 'annotationSelect', annotation: null, index: -1})
+        } else {
+            if (a.id !== prev) this._commitEdit() // the field edits the annotation it was focused for
+            this._used()
+            this._openId = a.id
+            this._renderCard()
+            this._syncMarkers()
+            this._positionCard(true)
+            if (this._card) this._resizer?.observe(this._card)
+            if (options.fly !== false && a.view) this._flyTo(a.view)
+            else this._stopAnim() // a flight to the annotation before ends here
+            if (this._card) {
+                if (options.focusTitle && this._editable) {
+                    this._cardEls.titleIn.focus({preventScroll: true})
+                } else if (!this._card.contains(document.activeElement)) {
+                    this._card.focus({preventScroll: true}) // so ←/→ reach this card
+                }
+            }
+            this.dispatchEvent({type: 'annotationSelect', annotation: a, index: this.indexOf(a.id)})
+        }
+        const next = this._openId
+        if (!record || !this._editable || next === prev) return
+        this._record(() => this._select(prev, {fly: false}), () => this._select(next, {fly: false}))
+    }
+
+    /** Opens the next (1) or the previous (-1) annotation, wrapping around; `record`: see {@link _select} */
+    private _step(dir: 1 | -1, record: boolean) {
+        const n = this.annotations.length
+        if (!n) return
+        const i = this._openId ? this.indexOf(this._openId) : dir > 0 ? -1 : 0
+        this._select(this.annotations[(i + dir + n) % n].id, {}, record)
     }
 
     // endregion
@@ -971,6 +1044,10 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         if (!d || d.pointerId !== e.pointerId) return
         if (!d.moved) {
             if (!this._editable || Math.hypot(e.clientX - d.x, e.clientY - d.y) < 4) return
+            if (this._dragOnlySelected && d.id !== this._openId) {
+                this._dragToCanvas(d, e)
+                return
+            }
             d.moved = true
             this._layer?.classList.add('anp-dragging')
         }
@@ -981,6 +1058,21 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         a.anchor = this._makeAnchor(hit.object, hit.localPoint, hit.localNormal, hit.instanceId)
         this._objCache.delete(a.id)
         this._occlDirty = true
+    }
+
+    /**
+     * {@link dragOnlySelected}: a drag on a marker that is not open moves the camera. The canvas gets a pointer down
+     * where the press started, so its controls (they capture the pointer) and the window listeners take the drag from
+     * there, as a drag that started on the canvas.
+     */
+    private _dragToCanvas(d: MarkerDrag, e: PointerEvent) {
+        this._drag = null
+        this._viewer?.canvas.dispatchEvent(new PointerEvent('pointerdown', {
+            bubbles: true, cancelable: true, composed: true,
+            pointerId: e.pointerId, pointerType: e.pointerType, isPrimary: e.isPrimary, button: 0, buttons: e.buttons,
+            clientX: d.x, clientY: d.y, screenX: e.screenX - e.clientX + d.x, screenY: e.screenY - e.clientY + d.y,
+            ctrlKey: e.ctrlKey, shiftKey: e.shiftKey, altKey: e.altKey, metaKey: e.metaKey,
+        }))
     }
 
     private _onMarkerUp = (e: PointerEvent) => {
@@ -1057,10 +1149,14 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         card.tabIndex = -1
         const head = el('div', 'anp-head', card)
         const title = el('div', 'anp-title', head)
-        const titleIn = el('input', 'anp-title-in', head)
+        // a textarea, not an input: the title wraps on the same lines as in the read-only card (one CSS box for both)
+        const titleIn = el('textarea', 'anp-title-in', head)
+        titleIn.rows = 1
         titleIn.placeholder = 'Title'
         titleIn.spellcheck = true
-        const close = button(head, 'anp-btn anp-x', ICONS.close, 'Close (Esc)', () => this.close())
+        // the buttons of the head, in one row: the ✕, and with compactCard the tools before it
+        const headBtns = el('div', 'anp-head-btns', head)
+        const close = button(headBtns, 'anp-btn anp-x', ICONS.close, 'Close (Esc)', () => this.close())
         // the content of renderCardContent, in place of the title and the text
         const custom = el('div', 'anp-custom', card)
         custom.style.display = 'none'
@@ -1077,7 +1173,7 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         const tools = el('div', 'anp-tools', nav)
         const view = button(tools, 'anp-btn anp-view', ICONS.view + '<span>Update view</span>', 'Save the current camera view in this annotation', () => this.updateView())
         button(tools, 'anp-btn anp-del', ICONS.delete, 'Delete this annotation', () => this._openId && this.remove(this._openId))
-        this._cardEls = {head, title, titleIn, close, custom, text, textIn, nav, pos, prev, next, tools, view}
+        this._cardEls = {head, title, titleIn, headBtns, close, custom, text, textIn, nav, pos, prev, next, tools, view}
         card.addEventListener('pointerdown', e => {
             e.stopPropagation()
             this.stopTour()
@@ -1097,7 +1193,7 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
     }
 
     /** Live edit, one undo step per edit (focus → blur) */
-    private _bindField(input: HTMLInputElement | HTMLTextAreaElement, key: 'title' | 'text') {
+    private _bindField(input: HTMLTextAreaElement, key: 'title' | 'text') {
         let before = ''
         let id = ''
         input.addEventListener('focus', () => {
@@ -1107,8 +1203,10 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         input.addEventListener('input', () => {
             const a = this.get(id)
             if (!a) return
+            // the title is one paragraph: a pasted line break becomes a space (Enter goes to the text)
+            if (key === 'title' && input.value.includes('\n')) input.value = input.value.replace(/\s*\n\s*/g, ' ')
             a[key] = input.value
-            if (key === 'text') this._autosize()
+            this._autosize()
             if (key === 'title') {
                 this._syncMarkers()
                 this._updateBar()
@@ -1147,10 +1245,10 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         if (active && this._card?.contains(active)) active.blur()
     }
 
+    /** The fields are as tall as their text (with their 1px borders); the text field up to 240px, then it scrolls */
     private _autosize() {
-        const t = this._cardEls.textIn
-        t.style.height = 'auto'
-        t.style.height = Math.min(240, t.scrollHeight + 2) + 'px'
+        fitHeight(this._cardEls.titleIn, Infinity)
+        fitHeight(this._cardEls.textIn, 240)
     }
 
     private _renderCard() {
@@ -1178,7 +1276,8 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         els.text.style.display = a.text.trim() && !custom ? '' : 'none'
         if (document.activeElement !== els.titleIn && els.titleIn.value !== a.title) els.titleIn.value = a.title
         if (document.activeElement !== els.textIn && els.textIn.value !== a.text) els.textIn.value = a.text
-        if (this._editable) requestAnimationFrame(() => this._autosize())
+        // now, not in the next frame: the title field shows with the height of its lines at once (no jump on a toggle)
+        if (this._editable) this._autosize()
         els.pos.textContent = `${i + 1} / ${n}`
         els.prev.disabled = els.next.disabled = n < 2
         els.view.classList.toggle('anp-noview', !a.view)
@@ -1197,17 +1296,22 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         }
     }
 
-    /** The ✕ ({@link showCloseButton}), and with {@link compactCard}: no bottom row, the tools in the head before the ✕ */
+    /**
+     * The ✕ ({@link showCloseButton}), and with {@link compactCard}: no bottom row, the tools in the head before the ✕,
+     * in the same group (one gap between all the head buttons)
+     */
     private _layoutCard(card: HTMLDivElement) {
         const els = this._cardEls
         const compact = this._compactCard
         card.classList.toggle('anp-compact', compact)
         card.classList.toggle('anp-no-close', !this._showCloseButton)
         els.close.style.display = this._showCloseButton ? '' : 'none'
+        // an empty group takes no room: no gap after the title
+        els.headBtns.style.display = this._showCloseButton || compact && this._editable ? '' : 'none'
         els.nav.style.display = compact ? 'none' : ''
-        const parent = compact ? els.head : els.nav
+        const parent = compact ? els.headBtns : els.nav
         if (parent.contains(els.tools)) return
-        if (compact) els.head.insertBefore(els.tools, els.close)
+        if (compact) els.headBtns.insertBefore(els.tools, els.close)
         else els.nav.appendChild(els.tools)
         this._cardSize.w = 0 // measure again
     }
@@ -1413,6 +1517,13 @@ function isPlainObject(v: unknown): v is Record<string, any> {
 /** A deep copy of plain JSON (functions and undefined values are dropped) */
 function jsonCopy<T>(v: T): T {
     return JSON.parse(JSON.stringify(v))
+}
+
+/** Sets the height of a textarea to its text (the scroll height and the 1px borders), at most `max`. Hidden: left as is. */
+function fitHeight(t: HTMLTextAreaElement, max: number) {
+    if (!t.clientWidth) return
+    t.style.height = 'auto'
+    t.style.height = Math.min(max, t.scrollHeight + 2) + 'px'
 }
 
 /** A new element with a class, added to `parent` */
