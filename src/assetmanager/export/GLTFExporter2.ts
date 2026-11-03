@@ -2,7 +2,7 @@ import {GLTFExporter, GLTFExporterPlugin} from 'three/examples/jsm/exporters/GLT
 import {IExportWriter} from '../IExporter'
 import {GLTFWriter2} from './GLTFWriter2'
 import {AnimationClip, Object3D} from 'three'
-import {ThreeViewer} from '../../viewer'
+import type {IAssetHost} from '../IAssetHost'
 import {
     glbEncryptionProcessor,
     GLTFLightExtrasExtension,
@@ -236,7 +236,7 @@ export class GLTFExporter2 extends GLTFExporter implements IExportWriter {
         // (w)=>new GLTFMeshGpuInstancingExporter(w), // added to threejs
     ]
 
-    setup(viewer: ThreeViewer, extraExtensions?: ((writer: GLTFWriter2) => GLTFExporterPlugin)[]): this {
+    setup(viewer: IAssetHost, extraExtensions?: ((writer: GLTFWriter2) => GLTFExporterPlugin)[]): this {
         for (const ext of GLTFExporter2.ExportExtensions) this.register(ext)
         if (extraExtensions) for (const ext of extraExtensions) this.register(ext)
 
@@ -246,12 +246,12 @@ export class GLTFExporter2 extends GLTFExporter implements IExportWriter {
     }
 
     // BundledResources or viewer config writer
-    gltfViewerWriter(viewer: ThreeViewer): (writer: GLTFWriter2) => GLTFExporterPlugin {
+    gltfViewerWriter(viewer: IAssetHost): (writer: GLTFWriter2) => GLTFExporterPlugin {
         return (writer: GLTFWriter2) => ({
             afterParse: (input: any)=>{
                 input = Array.isArray(input) ? input[0] : input
                 let resources: Partial<SerializationMetaType>|undefined = undefined
-                if (!input?.userData?.rootSceneModelRoot ||
+                if (!input?.userData?.rootSceneModelRoot || !viewer.toJSON ||
                     writer.options?.exporterOptions?.viewerConfig === false ||
                     input?.userData?.__exportViewerConfig === false
                 ) {
@@ -261,7 +261,7 @@ export class GLTFExporter2 extends GLTFExporter implements IExportWriter {
                 } else {
                     // resources will be bundled in the viewer config extension.
                     // note this has to be absolutely at the end of parse. writer.serializationMeta is used and converted to resources inside this
-                    resources = GLTFViewerConfigExtension.ExportViewerConfig(viewer, writer)
+                    resources = GLTFViewerConfigExtension.ExportViewerConfig(viewer as Required<Pick<IAssetHost, 'toJSON'>>, writer)
                 }
                 if (!resources) return
                 const itemCount = Object.values(resources).reduce((sum, arr) => sum + Object.keys(arr).length, 0)

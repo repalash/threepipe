@@ -1,6 +1,7 @@
 import type {GLTFParser} from 'three/examples/jsm/loaders/GLTFLoader.js'
 import type {GLTFWriter} from 'three/examples/jsm/exporters/GLTFExporter.js'
 import {ISerializedViewerConfig, ThreeViewer} from '../../viewer'
+import type {IAssetHost} from '../IAssetHost'
 import {Group, ImageUtils} from 'three'
 import {RGBEPNGLoader} from '../import/RGBEPNGLoader'
 import {SerializationMetaType, SerializationResourcesType} from '../../utils'
@@ -22,7 +23,7 @@ export class GLTFViewerConfigExtension {
      * @param resultScenes
      * @param scene
      */
-    static async ImportViewerConfig(parser: GLTFParser, viewer: ThreeViewer, resultScenes: Group[], scene?: any): Promise<Partial<ISerializedViewerConfig>> {
+    static async ImportViewerConfig(parser: GLTFParser, viewer: IAssetHost, resultScenes: Group[], scene?: any): Promise<Partial<ISerializedViewerConfig>> {
         if (!scene) {
             const scenes = (parser.json.scenes as Group[]) || []
             if (scenes.length !== 1) {
@@ -57,7 +58,7 @@ export class GLTFViewerConfigExtension {
         return viewerConfig
     }
 
-    static async ImportResources(resources: Partial<SerializationResourcesType>, parser: GLTFParser, viewer: ThreeViewer): Promise<any> {
+    static async ImportResources(resources: Partial<SerializationResourcesType>, parser: GLTFParser, viewer: IAssetHost): Promise<any> {
         if (resources.__isLoadedResources) return resources
         await this._parseArrayBuffers(resources, parser)
 
@@ -74,7 +75,7 @@ export class GLTFViewerConfigExtension {
      * @param viewer
      * @private
      */
-    private static async _parseExtraResources(currentResources: {textures?: Record<string, any>, materials?: Record<string, any>}, parser: GLTFParser, viewer: ThreeViewer) {
+    private static async _parseExtraResources(currentResources: {textures?: Record<string, any>, materials?: Record<string, any>}, parser: GLTFParser, viewer: IAssetHost) {
         const extraResources: any = {
             textures: {},
             materials: {},
@@ -171,7 +172,7 @@ export class GLTFViewerConfigExtension {
      * @param writer
      * @constructor
      */
-    static ExportViewerConfig(viewer: ThreeViewer, writer: GLTFWriter2) {
+    static ExportViewerConfig(viewer: Pick<ThreeViewer, 'toJSON'>, writer: GLTFWriter2) {
         const itemCount = Object.entries(writer.serializationMeta).reduce((acc, res) => acc + (res[0].startsWith('_') ? 0 : Object.keys(res[1]).length), 0)
         const meta = itemCount ? writer.serializationMeta : undefined
         const viewerData = viewer.toJSON(true, undefined, meta)

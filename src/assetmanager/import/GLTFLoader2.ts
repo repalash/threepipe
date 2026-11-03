@@ -2,7 +2,7 @@ import type {GLTF, GLTFLoaderPlugin, GLTFParser} from 'three/examples/jsm/loader
 import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader.js'
 import {BufferGeometry, Group, Line, LineLoop, LineSegments, LoadingManager, Object3D, Texture} from 'three'
 import {safeSetProperty} from 'ts-browser-helpers'
-import {ThreeViewer} from '../../viewer'
+import type {IAssetHost} from '../IAssetHost'
 import {generateUUID, whiteImageData} from '../../three'
 import {
     glbEncryptionPreparser,
@@ -299,7 +299,7 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
         return super.register(callback) as this
     }
 
-    setup(viewer: ThreeViewer, extraExtensions: ((parser: GLTFParser) => GLTFLoaderPlugin)[]): this {
+    setup(viewer: IAssetHost, extraExtensions: ((parser: GLTFParser) => GLTFLoaderPlugin)[]): this {
         this.register(GLTFMaterialExtrasExtension.Import(viewer.loadConfigResources))
         for (const ext of extraExtensions) this.register(ext)
 
@@ -313,7 +313,7 @@ export class GLTFLoader2 extends GLTFLoader implements ILoader<GLTF, Object3D|un
     }
 
     // loads the viewer config and handles loading the draco loader for extension
-    gltfViewerParser = (viewer: ThreeViewer): (p: GLTFParser)=>GLTFLoaderPlugin => {
+    gltfViewerParser = (viewer: IAssetHost): (p: GLTFParser)=>GLTFLoaderPlugin => {
 
         return (parser: GLTFParser) => { // this is called when the parser is created
             if (parser.json) removePrivateExtras(parser.json) // before three.js puts the extras into userData
