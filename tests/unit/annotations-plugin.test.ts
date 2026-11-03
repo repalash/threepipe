@@ -1,5 +1,3 @@
-import fs from 'node:fs'
-import path from 'node:path'
 import {afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi} from 'vitest'
 import {BoxGeometry, InstancedMesh, Matrix4, Mesh, MeshBasicMaterial, Object3D, PerspectiveCamera, Quaternion, Vector3} from 'three'
 import {PopmotionPlugin, UndoManagerPlugin} from 'threepipe'
@@ -464,117 +462,122 @@ describe('AnnotationsPlugin', () => {
         expect(selected).toEqual(['One', 'Two', 'One', 'Two', undefined])
     })
 
-    describe('hideOnCanvasClick', () => {
-        /** A pointer down and up on `target`, `dx` px apart */
-        const click = (target: any, dx = 0) => {
-            windowListeners.get('pointerdown')!({target, clientX: 10, clientY: 10})
-            windowListeners.get('pointerup')!({target, clientX: 10 + dx, clientY: 10})
+    describe('closeOnCanvasInteraction', () => {
+        const down = (target: any, x = 10, button = 0) => windowListeners.get('pointerdown')!({target, clientX: x, clientY: 10, button})
+        const move = (target: any, x: number) => windowListeners.get('pointermove')!({target, clientX: x, clientY: 10, button: -1})
+        const up = (target: any, x: number, button = 0) => windowListeners.get('pointerup')!({target, clientX: x, clientY: 10, button})
+        const wheel = (target: any) => windowListeners.get('wheel')!({target})
+        /** One annotation, open */
+        const opened = (editable = false) => {
+            const s = setup(editable)
+            s.plugin.add(s.box as any, front, normal, null)
+            ;(s.plugin as any)._updateScreen()
+            s.plugin.goTo(0)
+            return s
         }
-        const hidden = (layer: FakeElement) => layer.classList.contains('anp-markers-hidden')
 
-        test('off (the default): a click on the canvas only closes the card, the markers stay', () => {
-            const {plugin, layer, box, canvas} = setup(false)
-            expect(plugin.hideOnCanvasClick).toBe(false)
-            expect(plugin.markersVisible).toBe(true)
-            plugin.add(box as any, front, normal, null)
-            plugin.goTo(0)
-            click(canvas)
+        test('off (the default): a drag (orbit) and a wheel zoom keep the card; a click closes it; not saved with the config', () => {
+            const {plugin, canvas} = opened()
+            expect(plugin.closeOnCanvasInteraction).toBe(false)
+            down(canvas)
+            move(canvas, 40)
+            up(canvas, 40)
+            wheel(canvas)
+            expect(plugin.openId).not.toBe(null)
+            down(canvas)
+            up(canvas, 11)
             expect(plugin.openId).toBe(null)
-            click(canvas)
-            expect(plugin.markersVisible).toBe(true)
-            expect(hidden(layer)).toBe(false)
+            plugin.closeOnCanvasInteraction = true
+            expect('closeOnCanvasInteraction' in plugin.toJSON()).toBe(false)
         })
 
-        test('on: a click on the canvas hides the markers and closes the card in one click; the next click shows them and opens nothing', () => {
-            const {plugin, layer, box, canvas} = setup(false)
-            plugin.hideOnCanvasClick = true
-            plugin.add(box as any, front, normal, null)
+        test('on: a drag on the canvas closes the card as soon as it moves 4px, before the pointer up', () => {
+            const {plugin, layer, canvas} = opened()
+            plugin.closeOnCanvasInteraction = true
+            down(canvas)
+            move(canvas, 12)
+            expect(plugin.openId).not.toBe(null)
+            move(canvas, 14)
+            expect(plugin.openId).toBe(null)
+            up(canvas, 40)
+            // a drag from the canvas that ends over the card (no move reached the window) closes it at the pointer up
             plugin.goTo(0)
-            const selected: (string | null)[] = []
-            plugin.addEventListener('annotationSelect', e => selected.push(e.annotation?.id ?? null))
-            click(canvas)
-            expect(plugin.markersVisible).toBe(false)
-            expect(hidden(layer)).toBe(true)
+            down(canvas)
+            up(card(layer), 40)
             expect(plugin.openId).toBe(null)
-            expect(card(layer).classList.contains('anp-open')).toBe(false)
-            click(canvas)
-            expect(plugin.markersVisible).toBe(true)
-            expect(hidden(layer)).toBe(false)
+            // a mouse that moves with no button pressed does nothing
+            plugin.goTo(0)
+            move(canvas, 100)
+            expect(plugin.openId).not.toBe(null)
+        })
+
+        test('on: a click on the canvas closes the card, as before; a click on a marker opens it, on the card keeps it', () => {
+            const {plugin, layer, canvas} = opened()
+            plugin.closeOnCanvasInteraction = true
+            down(card(layer))
+            move(card(layer), 40)
+            up(card(layer), 40)
+            expect(plugin.openId).not.toBe(null)
+            down(canvas)
+            up(canvas, 10)
             expect(plugin.openId).toBe(null)
+            const m = markers(layer)[0]
+            down(m, 400)
+            m.fire('pointerdown', {clientX: 400, clientY: 300})
+            m.fire('pointerup', {clientX: 400, clientY: 300})
+            up(m, 400)
+            expect(plugin.openId).toBe(plugin.get(0)!.id)
+        })
+
+        test('on: a wheel zoom on the canvas closes the card and stops the tour; a wheel on the card does not', () => {
+            const {plugin, layer, canvas} = opened()
+            plugin.closeOnCanvasInteraction = true
+            wheel(card(layer))
+            expect(plugin.openId).not.toBe(null)
+            plugin.playTour()
+            wheel(canvas)
+            expect(plugin.openId).toBe(null)
+            expect(plugin.touring).toBe(false)
+        })
+
+        test('on: not with another button than the primary one, while a marker is dragged, while placing, or when disabled', () => {
+            const {plugin, layer, canvas} = opened(true)
+            plugin.closeOnCanvasInteraction = true
+            // a right drag (pan)
+            down(canvas, 10, 2)
+            move(canvas, 40)
+            up(canvas, 40, 2)
+            expect(plugin.openId).not.toBe(null)
+            // a marker drag: the pointer moves over the canvas
+            const m = markers(layer)[0]
+            m.fire('pointerdown', {clientX: 400, clientY: 300})
+            down(canvas)
+            move(canvas, 40)
+            wheel(canvas)
+            expect(plugin.openId).not.toBe(null)
+            // the window (capture) gets the up before the marker
+            up(canvas, 40)
+            m.fire('pointerup', {clientX: 400, clientY: 300})
+            expect(plugin.openId).not.toBe(null)
+            // disabled
+            plugin.enabled = false
+            down(canvas)
+            move(canvas, 40)
+            wheel(canvas)
+            expect(plugin.openId).not.toBe(null)
+            up(canvas, 40)
+            plugin.enabled = true
+            // placing (it closes the card itself): the wheel it passes to the canvas does nothing
+            const selected: unknown[] = []
+            plugin.addEventListener('annotationSelect', e => selected.push(e.annotation))
+            plugin.startAdding()
+            wheel(canvas)
             expect(selected).toEqual([null])
         })
 
-        test('on: a drag (orbit), a click on the card or a marker, placing and dragging a marker do not toggle them', () => {
-            const {plugin, layer, box, canvas} = setup()
-            plugin.hideOnCanvasClick = true
-            plugin.add(box as any, front, normal, null)
-            ;(plugin as any)._updateScreen()
-            click(canvas, 30)
-            expect(plugin.markersVisible).toBe(true)
-            plugin.goTo(0, {fly: false})
-            click(card(layer))
-            expect(plugin.markersVisible).toBe(true)
-            expect(plugin.openId).not.toBe(null)
-            plugin.close()
-            // a click on a marker opens it (the window gets the events with the marker as target)
-            const m = markers(layer)[0]
-            windowListeners.get('pointerdown')!({target: m, clientX: 400, clientY: 300})
-            m.fire('pointerdown', {clientX: 400, clientY: 300})
-            m.fire('pointerup', {clientX: 400, clientY: 300})
-            windowListeners.get('pointerup')!({target: m, clientX: 400, clientY: 300})
-            expect(plugin.markersVisible).toBe(true)
-            expect(plugin.openId).toBe(plugin.get(0)!.id)
-            // a pointer up on the canvas while a marker is dragged
-            m.fire('pointerdown', {clientX: 400, clientY: 300})
-            click(canvas)
-            expect(plugin.markersVisible).toBe(true)
-            m.fire('pointerup', {clientX: 400, clientY: 300})
-            plugin.startAdding()
-            click(canvas)
-            expect(plugin.markersVisible).toBe(true)
-        })
-
-        test('hidden markers take no pointer events and cannot be focused; the class is kept on a new layer', () => {
-            const {plugin, layer, box, viewer} = setup(false)
-            plugin.add(box as any, front, normal, null)
-            plugin.markersVisible = false
-            expect(hidden(layer)).toBe(true)
-            const css = fs.readFileSync(path.join(import.meta.dirname, '../../plugins/annotations/src/AnnotationsPlugin.css'), 'utf8')
-            const rule = css.match(/\.anp-markers-hidden \.anp-marker\s*\{([^}]*)\}/)?.[1] ?? ''
-            expect(rule).toMatch(/pointer-events:\s*none/)
-            expect(rule).toMatch(/visibility:\s*hidden/) // not focusable, not in the accessibility tree
-            plugin.onRemove(viewer)
-            plugin.onAdded(viewer)
-            expect(hidden(viewer.container.children[0])).toBe(true)
-        })
-
-        test('opening an annotation from code (goTo, next, prev, playTour) shows the markers again', () => {
-            const {plugin, box} = setup(false)
-            plugin.add(box as any, front, normal, null)
-            plugin.add(box as any, front, normal, null)
-            const open = [() => plugin.goTo(1), () => plugin.next(), () => plugin.prev(), () => plugin.playTour()]
-            for (const f of open) {
-                plugin.markersVisible = false
-                expect(plugin.openId).toBe(null)
-                f()
-                expect(plugin.markersVisible).toBe(true)
-                expect(plugin.openId).not.toBe(null)
-                plugin.stopTour()
-                plugin.close()
-            }
-        })
-
-        test('turning the option off shows hidden markers; it is a checkbox in the UI folder', () => {
-            const {plugin, layer, canvas} = setup(false)
-            plugin.hideOnCanvasClick = true
-            click(canvas)
-            expect(plugin.markersVisible).toBe(false)
-            plugin.hideOnCanvasClick = false
-            expect(plugin.markersVisible).toBe(true)
-            expect(hidden(layer)).toBe(false)
-            click(canvas)
-            expect(plugin.markersVisible).toBe(true)
-            const item = (plugin.uiConfig.children as any[]).find(c => c.property?.[1] === 'hideOnCanvasClick')
+        test('a checkbox in the UI folder', () => {
+            const plugin = new AnnotationsPlugin()
+            const item = (plugin.uiConfig.children as any[]).find(c => c.property?.[1] === 'closeOnCanvasInteraction')
             expect(item?.type).toBe('checkbox')
         })
     })

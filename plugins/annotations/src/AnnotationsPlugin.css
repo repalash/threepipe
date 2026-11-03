@@ -21,7 +21,7 @@
   box-shadow: 0 0 0 1px var(--anp-line), 0 1px 2px rgba(0, 0, 0, .2), 0 2px 6px rgba(0, 0, 0, .16);
   display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 11px; line-height: 1;
   font-variant-numeric: tabular-nums; cursor: pointer;
-  pointer-events: auto; user-select: none; touch-action: none; transition: opacity .2s, visibility .2s, box-shadow .12s, background-color .12s; }
+  pointer-events: auto; user-select: none; touch-action: none; transition: opacity .2s, box-shadow .12s, background-color .12s; }
 .anp-marker:hover { box-shadow: 0 0 0 2px var(--anp-accent), 0 1px 2px rgba(0, 0, 0, .2), 0 2px 6px rgba(0, 0, 0, .16); }
 .anp-marker.anp-on { background: var(--anp-accent); color: #fff; box-shadow: 0 0 0 2px var(--anp-bg), 0 0 0 3px var(--anp-accent), 0 2px 6px rgba(0, 0, 0, .2); z-index: 1; }
 .anp-marker.anp-dim { opacity: .4; }
@@ -30,8 +30,6 @@
 .anp-dragging, .anp-dragging .anp-marker { cursor: grabbing !important; }
 .anp-dragging .anp-marker { transition: none; }
 .anp-adding .anp-marker { pointer-events: none; }
-/* hideOnCanvasClick / markersVisible: faded out, then hidden (no clicks, no focus) */
-.anp-layer.anp-markers-hidden .anp-marker { opacity: 0; visibility: hidden; pointer-events: none; }
 
 /* the card: a head (number, title, close), the text, and a bar (‹ 1 / 3 ›, the tools); the text scrolls past the max height */
 .anp-card { position: absolute; left: 0; top: 0; width: 248px; max-width: calc(100% - 16px); max-height: min(360px, calc(100% - 16px));

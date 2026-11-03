@@ -10,6 +10,6 @@ All notable changes to this plugin will be documented in this file.
 
 - First version. `AnnotationsPlugin`: numbered markers on objects with a title, a text and a saved camera view, like Sketchfab annotations. A click on a marker flies the camera to its view and opens a card. Editable mode: add (click a surface), edit, move (drag) and delete, undoable with `UndoManagerPlugin`. Saved in the viewer config and in the exported .glb. Tour (`next`, `prev`, `playTour`) and events for an outside list. `renderAnnotationText` formats the text (bold, italic, links, bullets)
 - The card in the style of the editor: a compact layout (12px sides, 8px rows), icon buttons (14px icons in 24px buttons), the tools in the bottom bar, and the colours of the Tweakpane theme (`--tp-*`, light and dark). Long text scrolls inside a card of at most 360px
-- `hideOnCanvasClick` (default false, also in the UI folder): a click or tap on the canvas (no drag) hides all the markers and closes the card, the next one shows them again. `markersVisible` is the state and can be set from code; hidden markers take no clicks and cannot be focused. Opening an annotation, or turning the option off, shows them
+- `closeOnCanvasInteraction` (default false, also in the UI folder): any interaction with the canvas closes the card, also a drag (as soon as it moves 4px) and a wheel zoom. Off, only a click on the canvas closes it
 
 [unreleased]: https://github.com/repalash/threepipe/tree/dev/plugins/annotations
