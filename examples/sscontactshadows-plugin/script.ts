@@ -16,6 +16,7 @@ import {SSContactShadowsPlugin} from '@threepipe/webgi-plugins'
 async function init() {
 
     const viewer = new ThreeViewer({
+        renderScale: 'auto',
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
         rgbm: false,

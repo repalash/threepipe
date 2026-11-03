@@ -59,6 +59,27 @@
 .loadingScreenFilesElement {
   min-height: 4rem;
   padding: 1rem;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+/* One line per file. The name column has a min-content width of 0, so a long name does not widen the screen or wrap
+   on a narrow one: it is truncated with an ellipsis, and the state and progress stay visible. */
+.loadingScreenFileEntry {
+  display: grid;
+  grid-template-columns: auto minmax(0, auto) auto;
+  justify-content: start;
+  white-space: pre;
+}
+.loadingScreenFileState {
+  grid-column: 1;
+}
+.loadingScreenFileName {
+  grid-column: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.loadingScreenFileProgress {
+  grid-column: 3;
 }
 .loadingScreenLogoElement {
   margin-bottom: 0.5rem;
