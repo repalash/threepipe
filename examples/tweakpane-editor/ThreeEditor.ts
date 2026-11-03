@@ -124,7 +124,7 @@ export class ThreeEditor extends ThreeViewer {
         new TransformControlsPlugin(false),
         new PivotControlsPlugin(false),
         new PivotEditPlugin(false),
-        OutlinePlugin,
+        new OutlinePlugin(false), // off: the SelectionOutlinePlugin draws the selection; turn it on in the Interaction mode to compare
         SelectionOutlinePlugin,
         EditorViewWidgetPlugin,
         ViewerUiConfigPlugin,
