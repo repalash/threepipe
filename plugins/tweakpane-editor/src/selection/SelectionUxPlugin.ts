@@ -36,6 +36,13 @@ export interface SelectionUxPluginEventMap extends AViewerPluginEventMap {
  */
 interface DragState {kind: 'press', start: Vector2, time: number, leaf: IObject3D | null, shift: boolean, deep: boolean}
 
+/**
+ * What took a pointer gesture from this plugin: the transform gizmo (an axis under the pointer, or its drag started), a
+ * widget handle (the PickingPlugin selects it), another `hitObject` listener (it vetoed the pick), the camera controls
+ * (a drag or a second touch), the length of the press, or a cancel of the pointer
+ */
+type GestureTaker = 'gizmo' | 'handle' | 'veto' | 'drag' | 'pinch' | 'long' | 'cancel'
+
 /** Lines and points: thin targets that win over a surface at about the same depth */
 function isThin(o: any) {
     return !!(o.isLine || o.isLine2 || o.isLineSegments2 || o.isPoints)
@@ -56,6 +63,7 @@ function isThin(o: any) {
  *   not a click, as in the core picker. A press on the transform gizmo is not a click: it moves the object.
  * - A click that another `hitObject` listener vetoes does not select, as in the core picker: the listener sets
  *   `intersects.consumed`, or clears `intersects.selectedObject` of a hit (the DepthOfFieldPlugin sets the focus so).
+ * - A double click after a gesture that is not a click (on the gizmo or a handle, vetoed, a drag) does not go in either.
  *
  * The selection is the selection of the {@link PickingPlugin} (added as a dependency): its events, its undo steps and its
  * box widget stay as they are. While enabled, this plugin takes over the clicks and keys that select.
@@ -106,10 +114,10 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
     /** The core picker of the PickingPlugin, whose hits this plugin reads last */
     private _picker?: ObjectPicker
     /**
-     * Another `hitObject` listener vetoed the last core pick (it set `consumed`, or cleared `selectedObject` of a hit),
-     * as DepthOfFieldPlugin (edit: a click sets the focus) or PivotEditPlugin (a click on its marker) do
+     * What took the last pointer gesture on the canvas, null while it is this plugin's. Set by {@link _take}; kept from
+     * the press until the next press, so a double click after the two clicks of a gesture reads it too
      */
-    private _hitVetoed = false
+    private _taken: GestureTaker | null = null
 
     constructor(enabled = true) {
         super()
@@ -158,7 +166,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         viewer.removeEventListener('preRender', this._onPreRender)
         this._picker?.removeEventListener('hitObject', this._onPickerHit)
         this._picker = undefined
-        this._hitVetoed = false
+        this._taken = null
         this._picking?.removeEventListener('selectedObjectChanged', this._onSelectionChanged)
         this._picking = undefined
         this._bindGizmo(undefined)
@@ -388,9 +396,10 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
 
     private _onPickerHit = (e: {intersects: {consumed?: boolean, selectedHandle?: unknown, selectedObject?: unknown, intersect?: unknown}}) => {
         const i = e.intersects
-        // the core picker sends the hit of its click on the canvas release, before the release reaches the window
-        // (_onPointerUp): a click that another listener vetoed does not select there either. A miss is not a veto
-        this._hitVetoed = !!i.consumed || !!i.intersect && !i.selectedObject
+        // another listener vetoed the pick: it set `consumed`, or cleared `selectedObject` of a hit (a miss is not a veto),
+        // as the DepthOfFieldPlugin (edit: a click sets the focus) or the PivotEditPlugin (a click on its marker) do. The
+        // core picker sends the hit of its click on the canvas release, before the release reaches the window
+        if (i.consumed || i.intersect && !i.selectedObject) this._take('veto')
         // this plugin selects on click; the PickingPlugin keeps the state, and selects a widget handle itself
         if (this._active && !i.selectedHandle) i.consumed = true
     }
@@ -419,7 +428,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
     private _onPointerDown = (e: PointerEvent) => {
         if (e.isPrimary === false) {
             // a second touch: a pinch or a two-finger pan of the camera, not a click; no hover until the release
-            this._state = null
+            this._take('pinch')
             this._pointerHeld = true
             return
         }
@@ -430,18 +439,19 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         if (e.button !== 0) return
         // the second press of a double click: the click behind of the first one does not happen
         this._cancelClickBehind()
-        this._hitVetoed = false
+        // a new gesture: this plugin's until something takes it
+        this._taken = null
         // the transform gizmo gets the press when the pointer is on one of its axes. A mouse hover finds the axis
-        // before the press; a touch has no hover, and the gizmo finds its axis after this listener: its drag start
-        // (_onGizmoDrag) cancels the press then
+        // before the press; a touch has no hover (nor a press after a release, which clears the axis), and the gizmo
+        // finds its axis after this listener: its drag start (_onGizmoDrag) takes the gesture then
         const tc = this._viewer!.getPlugin<TransformControlsPlugin>('TransformControlsPlugin')
-        if (tc && !tc.isDisabled() && tc.transformControls?.axis) return
+        if (tc && !tc.isDisabled() && tc.transformControls?.axis) return this._take('gizmo')
         this._bindGizmo(tc?.transformControls)
         const p = this._local(e)
         this._client.set(e.clientX, e.clientY)
         const hit = this.raycastLeaf(p.x, p.y)
         // a widget handle (a curve point): the PickingPlugin selects it with its intersection, for the transform gizmo
-        if (hit?.handle) return
+        if (hit?.handle) return this._take('handle')
         this._state = {kind: 'press', start: p, time: performance.now(), leaf: hit?.leaf ?? null, shift: e.shiftKey, deep: e.ctrlKey || e.metaKey}
     }
 
@@ -452,8 +462,17 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         this._gizmo?.addEventListener('mouseDown', this._onGizmoDrag)
     }
 
-    /** The transform gizmo starts to move the object: the press is not a click */
+    /** The transform gizmo starts to move the object: the gesture is not a click */
     private _onGizmoDrag = () => {
+        this._take('gizmo')
+    }
+
+    /**
+     * Something else took the current pointer gesture: it does not select, not on its release ({@link _click}) and not
+     * by a double click after it, until the next press
+     */
+    private _take(by: GestureTaker) {
+        this._taken ??= by
         this._state = null
     }
 
@@ -465,28 +484,29 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         this._pointerHeld = !!e.buttons
         if (!e.buttons) this._pointerDirty = true
         // a drag: the camera controls have it
-        if (this._state && this._state.start.distanceTo(this._local(e)) >= SelectionUxPlugin.ClickDistance) this._state = null
+        if (this._state && this._state.start.distanceTo(this._local(e)) >= SelectionUxPlugin.ClickDistance) this._take('drag')
     }
 
     private _onPointerUp = (e: PointerEvent) => {
         if (e.isPrimary === false) return
         const s = this._state
-        const vetoed = this._hitVetoed
         this._state = null
-        this._hitVetoed = false
         this._pointerHeld = false
         this._pointerDirty = true
-        // a long press is not a click, as in the core picker; a click that a hitObject listener vetoed does not select
-        if (s && this._active && !vetoed && performance.now() - s.time < ObjectPicker.PointerClickMaxTime) this._click(s)
+        if (!s || !this._active) return
+        // a long press is not a click, as in the core picker
+        if (performance.now() - s.time >= ObjectPicker.PointerClickMaxTime) return this._take('long')
+        this._click(s)
     }
 
     private _onPointerCancel = () => {
-        this._state = null
+        this._take('cancel')
         this._pointerHeld = false
     }
 
     private _onDblClick = (e: MouseEvent) => {
-        if (!this._active || e.target !== this._viewer!.canvas) return
+        // a double click on the gizmo, a handle, or after a vetoed click or a drag: the gesture is not this plugin's
+        if (!this._active || e.target !== this._viewer!.canvas || this._taken) return
         const p = this._local(e)
         const hit = this.raycastLeaf(p.x, p.y)
         if (!hit || hit.handle) return
