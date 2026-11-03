@@ -38,6 +38,13 @@ H="Authorization: Bearer $KEY"
 echo "hello share" > $TMP/a.txt
 R=$(curl -s -X PUT -H "$H" --data-binary @$TMP/a.txt "$A/api/v1/uploads/s/$U-share/a.txt"); SURL=$(echo "$R" | j "['url']") && ok "upload s/ -> $SURL" || bad "upload s/: $R"
 [ "$(curl -s "$SURL")" = "hello share" ] && ok "serve s/" || bad "serve s/"
+# a .md file: a page in a browser (no script runs), the file as it is for curl and with ?raw=1
+printf '# Notes\n\nSome **bold** text.\n\n<script>alert(1)</script>\n' > $TMP/notes.md
+MURL=$(curl -s -X PUT -H "$H" --data-binary @$TMP/notes.md "$A/api/v1/uploads/s/$U-md/notes.md" | j "['url']")
+MD_PAGE=$(curl -s -D $TMP/md.h -H 'sec-fetch-dest: document' "$MURL")
+grep -qi "content-type: text/html" $TMP/md.h && grep -qi "script-src 'none'" $TMP/md.h && echo "$MD_PAGE" | grep -q '<h1 id="notes">Notes' && echo "$MD_PAGE" | grep -q '<strong>bold</strong>' \
+  && [ "$(curl -s "$MURL")" = "$(cat $TMP/notes.md)" ] && [ "$(curl -s -H 'sec-fetch-dest: document' "$MURL?raw=1")" = "$(cat $TMP/notes.md)" ] \
+  && ok ".md: rendered for a browser, raw for curl and ?raw=1" || bad ".md render: $(head -c 300 <<< "$MD_PAGE")"
 # names in any language: NFC-normalized (here the é comes decomposed, as macOS sends it), URLs percent-encoded
 NFD=$(python3 -c "import urllib.parse;print(urllib.parse.quote('cafe\u0301 モデル.txt'))")
 R=$(curl -s -X PUT -H "$H" --data-binary @$TMP/a.txt "$A/api/v1/uploads/s/$U-uni/$NFD"); UURL=$(echo "$R" | j "['url']")

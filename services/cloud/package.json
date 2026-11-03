@@ -12,8 +12,9 @@
         "test": "bash scripts/e2e.sh"
     },
     "dependencies": {
-        "teenybase": "0.1.1",
-        "hono": "^4"
+        "hono": "^4",
+        "marked": "^16.4.2",
+        "teenybase": "0.1.1"
     },
     "devDependencies": {
         "typescript": "^5",

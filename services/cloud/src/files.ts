@@ -2,6 +2,8 @@ import type {Context, Next} from 'hono'
 import type {CloudEnv} from './env'
 import {verifySigned} from './drive'
 import config from 'virtual:teenybase'
+import {isMarkdownPath, markdownResponse, wantsRenderedMarkdown} from './markdown.js'
+import {MARKDOWN_RENDER_BYTES} from './limits'
 
 const HTML_SANDBOX = 'sandbox allow-scripts allow-forms allow-popups allow-modals allow-downloads allow-pointer-lock allow-presentation'
 /** Types a browser shows without running anything (a PDF viewer does not work sandboxed); every other type gets the sandbox. */
@@ -11,7 +13,8 @@ const PASSIVE = /^(?:image\/(?:png|jpeg|gif|webp|avif|x-icon|ktx2)|video\/|audio
  * Serves the cloud bucket on FILES_HOST (or under /_files/ on the API host when FILES_HOST is not set): one R2 read per
  * request, no database. Owner, expiry, deletion and visibility are read from the object's metadata.
  * Everything but passive types (HTML, SVG, XHTML, a type given at upload) gets a sandbox CSP: its scripts run in an
- * opaque origin, away from the API host's sessions.
+ * opaque origin, away from the API host's sessions. A .md file opened in a browser renders to a page that runs no script
+ * (src/markdown.js, from ij-share); curl and agents get the file as it is, and `?raw=1` shows it raw in a browser.
  *
  *   /<s|a|b|p>/<path>                  public
  *   /d/<handle>/<item>/<file>          a drive item shared as `link` (src/drive.ts)
@@ -54,7 +57,9 @@ export async function filesHost(c: Context<CloudEnv>, next: Next) {
     if (signed && !await verifySigned(c.env, signed, key)) return c.text('the signed URL expired or is not valid', 403)
     const allowed = (meta: Record<string, string>) => !key.startsWith('d/') || !!signed || meta.visibility === 'link'
 
-    let obj = await c.env.CLOUD_BUCKET.get(key, {onlyIf: c.req.raw.headers, range: c.req.raw.headers})
+    // a rendered page has its own ETag, so the file's conditional and range headers do not apply to it
+    const render = isMarkdownPath(key) && wantsRenderedMarkdown(c.req.raw, url)
+    let obj = await c.env.CLOUD_BUCKET.get(key, render ? {} : {onlyIf: c.req.raw.headers, range: c.req.raw.headers})
     if (!obj && !key.split('/').pop()!.includes('.')) {
         // a folder without the trailing slash: redirect so its relative links resolve
         const index = await c.env.CLOUD_BUCKET.head(key + '/index.html')
@@ -65,6 +70,12 @@ export async function filesHost(c: Context<CloudEnv>, next: Next) {
     if (meta.deleted) return plain('gone: ' + meta.deleted, 410)
     if (meta.expires && Date.parse(meta.expires) < Date.now()) return plain('expired', 410)
     if (!allowed(meta)) return notFound()
+    if (render && 'body' in obj && obj.size <= MARKDOWN_RENDER_BYTES) {
+        const q = new URLSearchParams(url.search)
+        q.delete('render')
+        q.set('raw', '1')
+        return markdownResponse(obj, c.req.raw, {path: key, rawHref: `${encodeURIComponent(key.split('/').pop()!)}?${q}`})
+    }
 
     const headers = new Headers()
     obj.writeHttpMetadata(headers)

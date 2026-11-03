@@ -170,6 +170,8 @@ else location.href = 'https://cloud.threepipe.org/api/v1/connect?return=' + enco
 
 - R2 key = the URL path. Owner, expiry, deletion and visibility are in the object's custom metadata, so serving is one
   R2 read and never touches D1 (`src/files.ts`). HTML and SVG get a `sandbox` CSP.
+  A `.md` file opened in a browser renders to a page that runs no script (`src/markdown.js`, from ij-share; up to
+  2 MB); curl and agents get the file as it is, and `?raw=1` shows it raw.
 - Drive (`src/drive.ts`): each upload is an item, R2 keys `d/<handle>/<item id>/<name at upload | relative path>`
   that never change; folders and names are D1 labels (rename/move = one row; a path is one recursive query). A private
   item is read through `files…/t/<exp>.<hmac>/d/<handle>/<item>/…` (covers the whole item, so relative files load; no

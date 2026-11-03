@@ -16,6 +16,8 @@ export const UPLOAD_MAX_BYTES = 90 * MB
 /** Many files per POST (multipart, read into the Worker's memory, 128 MB): bytes and files per request. */
 export const UPLOAD_BATCH_BYTES = 40 * MB
 export const UPLOAD_BATCH_FILES = 500
+/** A .md file bigger than this is served as it is, not rendered (the worker's CPU time). */
+export const MARKDOWN_RENDER_BYTES = 2 * 1024 * 1024
 /** s/ shares: days kept by default, and the most `?ttl=` may ask for. */
 export const SHARE_DEFAULT_DAYS = 7
 export const SHARE_MAX_DAYS = 30
