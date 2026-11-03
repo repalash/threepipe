@@ -80,6 +80,26 @@ describe('MaterialPreviewQueue', () => {
         expect(cb.mock.calls[0][0].version).toBe(2)
     })
 
+    it('keeps the debounce when a materialUpdate listener cancels and requests again before the first render', () => {
+        const {generator, queue, frame} = setup({debounce: 200})
+        const m = new tp.PhysicalMaterial()
+        const cb = vi.fn()
+        let handle: {cancel(): void} | undefined
+        const refresh = () => {
+            handle?.cancel()
+            handle = queue.request(m, {}, cb)
+        }
+        m.addEventListener('materialUpdate', refresh) // added before the queue's listener, like an inspector
+        refresh()
+        m.setDirty()
+        frame(100)
+        expect(generator.renderToCanvas).not.toHaveBeenCalled()
+        frame(150)
+        expect(cb).toHaveBeenCalledTimes(1)
+        expect(cb.mock.calls[0][0].version).toBe(1)
+        m.removeEventListener('materialUpdate', refresh)
+    })
+
     it('a waiting request does not block the next request of another material', () => {
         const {queue, frame} = setup({debounce: 200})
         const changing = new tp.PhysicalMaterial(), other = new tp.PhysicalMaterial()

@@ -65,8 +65,9 @@ export interface MaterialPreviewHandle {
     cancel(): void
 }
 
+// one record per material for the life of the material (or the queue), so the change counter and the last update time
+// do not restart when the requests of a material are cancelled and made again (like in its own materialUpdate listener)
 interface MaterialState {
-    material: IMaterial
     version: number
     lastUpdate: number
     refs: number
@@ -151,7 +152,8 @@ export class MaterialPreviewQueue implements IDisposable {
     private readonly _ownsGenerator: boolean
     private _jobs = new Map<string, Job>()
     private _cache = new Map<string, CacheEntry>()
-    private _materials = new Map<string, MaterialState>()
+    private _states = new WeakMap<IMaterial, MaterialState>()
+    private _tracked = new Set<IMaterial>() // materials with the listener added
 
     /**
      * @param viewer
@@ -221,8 +223,12 @@ export class MaterialPreviewQueue implements IDisposable {
         this._viewer = undefined
         this._jobs.clear()
         this._cache.clear()
-        for (const state of this._materials.values()) state.material.removeEventListener('materialUpdate', state.listener)
-        this._materials.clear()
+        for (const material of this._tracked) {
+            const state = this._states.get(material)
+            if (state) material.removeEventListener('materialUpdate', state.listener)
+        }
+        this._tracked.clear()
+        this._states = new WeakMap()
         if (this._ownsGenerator) this.generator.dispose()
     }
 
@@ -235,7 +241,7 @@ export class MaterialPreviewQueue implements IDisposable {
         let rendered = 0
         for (const [key, job] of [...this._jobs]) {
             if (this._jobs.get(key) !== job) continue // cancelled or replaced in a callback
-            const state = this._materials.get(job.material.uuid)
+            const state = this._states.get(job.material)
             if (!state) continue // tracked while the job exists
             const cached = this._cache.get(key)
             if (cached && cached.preview.version === state.version && cached.settings === settings) {
@@ -293,24 +299,26 @@ export class MaterialPreviewQueue implements IDisposable {
 
     // the material is tracked (its materialUpdate counted) while a job or a cached preview uses it
     private _track(material: IMaterial) {
-        let state = this._materials.get(material.uuid)
+        let state = this._states.get(material)
         if (!state) {
-            const s: MaterialState = {material, version: 0, lastUpdate: -Infinity, refs: 0, listener: () => {
+            const s: MaterialState = {version: 0, lastUpdate: -Infinity, refs: 0, listener: () => {
                 s.version++
                 s.lastUpdate = this.now()
             }}
-            material.addEventListener('materialUpdate', s.listener)
-            this._materials.set(material.uuid, s)
+            this._states.set(material, s)
             state = s
         }
-        state.refs++
+        if (state.refs++ === 0) {
+            material.addEventListener('materialUpdate', state.listener)
+            this._tracked.add(material)
+        }
     }
 
     private _untrack(material: IMaterial) {
-        const state = this._materials.get(material.uuid)
+        const state = this._states.get(material)
         if (!state || --state.refs > 0) return
         material.removeEventListener('materialUpdate', state.listener)
-        this._materials.delete(material.uuid)
+        this._tracked.delete(material)
     }
 }
 
