@@ -117,8 +117,28 @@ afterAll(() => {
 beforeEach(() => {
     doc.activeElement = null
     windowListeners = new Map()
-    vi.stubGlobal('addEventListener', (type: string, f: any) => windowListeners.set(type, f))
-    vi.stubGlobal('removeEventListener', (type: string) => windowListeners.delete(type))
+    // every plugin adds its own listeners: windowListeners.get(type) calls them in order, until one calls stopImmediatePropagation
+    const lists = new Map<string, ((e: any) => void)[]>()
+    const dispatch = (type: string) => (e: any) => {
+        let stopped = false
+        const ev = {...e, stopImmediatePropagation: () => {
+            stopped = true
+            e.stopImmediatePropagation?.()
+        }}
+        for (const f of [...lists.get(type) ?? []]) {
+            if (stopped) break
+            f(ev)
+        }
+    }
+    vi.stubGlobal('addEventListener', (type: string, f: any) => {
+        lists.set(type, [...lists.get(type) ?? [], f])
+        windowListeners.set(type, dispatch(type))
+    })
+    vi.stubGlobal('removeEventListener', (type: string, f: any) => {
+        const rest = (lists.get(type) ?? []).filter(x => x !== f)
+        lists.set(type, rest)
+        if (!rest.length) windowListeners.delete(type)
+    })
     // no frame loop: the tests call the screen update themselves
     vi.stubGlobal('requestAnimationFrame', () => 0)
     vi.stubGlobal('cancelAnimationFrame', noop)
@@ -740,6 +760,69 @@ describe('AnnotationsPlugin', () => {
         expect(plugin.openId).toBe(plugin.get(0)!.id)
         expect(key('Escape').stopImmediatePropagation).toHaveBeenCalled()
         expect(plugin.openId).toBe(null)
+    })
+
+    describe('keys with two viewers on the page', () => {
+        const key = (k: string, target: any) => {
+            const e = {key: k, target, preventDefault: vi.fn(), stopImmediatePropagation: vi.fn()}
+            windowListeners.get('keydown')!(e)
+            return e
+        }
+        /** Two viewers, each with two annotations; the first card of each is open (b opened last) */
+        const two = () => {
+            const a = setup()
+            const b = setup()
+            for (const s of [a, b]) {
+                s.plugin.add(s.box as any, front, normal, null)
+                s.plugin.add(s.box as any, front, normal, null)
+            }
+            a.plugin.goTo(0, {fly: false})
+            b.plugin.goTo(0, {fly: false})
+            return {a, b}
+        }
+
+        test('Esc and ← → act on the viewer that has the focus (its card or its canvas), not on the first one added', () => {
+            const {a, b} = two()
+            key('ArrowRight', card(b.layer))
+            expect(b.plugin.openId).toBe(b.plugin.get(1)!.id)
+            expect(a.plugin.openId).toBe(a.plugin.get(0)!.id)
+            expect(key('Escape', card(b.layer)).stopImmediatePropagation).toHaveBeenCalled()
+            expect(b.plugin.openId).toBe(null)
+            expect(a.plugin.openId).not.toBe(null)
+            b.plugin.goTo(0, {fly: false})
+            key('Escape', a.canvas)
+            expect(a.plugin.openId).toBe(null)
+            expect(b.plugin.openId).not.toBe(null)
+        })
+
+        test('Esc cancels placing in the viewer that places, also while the other viewer has a card open', () => {
+            // the second viewer places (the first one added has the first window listener)
+            const {a, b} = two()
+            b.plugin.startAdding()
+            key('Escape', b.layer.find('anp-place')[0])
+            expect(b.plugin.adding).toBe(false)
+            expect(a.plugin.openId).not.toBe(null)
+            // the focus on the page: placing was started last, Esc cancels it
+            b.plugin.startAdding()
+            key('Escape', doc.body)
+            expect(b.plugin.adding).toBe(false)
+            expect(a.plugin.openId).not.toBe(null)
+        })
+
+        test('the focus on the page: the viewer used last handles the key, the next Esc closes the other card', () => {
+            const {a, b} = two()
+            key('ArrowRight', doc.body)
+            expect(b.plugin.openId).toBe(b.plugin.get(1)!.id)
+            expect(a.plugin.openId).toBe(a.plugin.get(0)!.id)
+            // a pointer down in the first viewer (an orbit) makes it the one used last
+            windowListeners.get('pointerdown')!({target: a.canvas, clientX: 10, clientY: 10})
+            windowListeners.get('pointerup')!({target: a.canvas, clientX: 40, clientY: 10})
+            key('Escape', doc.body)
+            expect(a.plugin.openId).toBe(null)
+            expect(b.plugin.openId).not.toBe(null)
+            key('Escape', doc.body)
+            expect(b.plugin.openId).toBe(null)
+        })
     })
 
     test('editable: the title field edits live and records one undo step per edit; Delete and Update view', () => {

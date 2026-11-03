@@ -123,6 +123,9 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
     /** Adds the stylesheet of the `anp-` classes to the page when the first plugin is added. Off: the page styles them. */
     static InjectStyles = true
     private static _styles?: HTMLStyleElement
+    /** The plugins on the page: with the focus on the page (not in a viewer), the one used last takes the keys */
+    private static _added = new Set<AnnotationsPlugin>()
+    private static _uses = 0
     dependencies = [PopmotionPlugin]
     enabled = true
 
@@ -190,6 +193,8 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
     private _down: {x: number, y: number, canvas: boolean, primary: boolean} | null = null
     private _drag: {id: string, pointerId: number, x: number, y: number, moved: boolean, before: AnnotationAnchor} | null = null
     private _tour = 0
+    /** When this viewer was used last (a pointer down in it, a card opened, placing started), for the keys */
+    private _usedAt = 0
     /** The size of the card, measured again when it changes (see `_resizer`), not on every frame */
     private _cardSize = {w: 0, h: 0}
     /** Watches the open card: a text that grows or wraps in a narrower viewer changes its size, then it is placed again */
@@ -242,6 +247,7 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         viewer.container.appendChild(layer)
         this._layer = layer
         this._buildCard(layer)
+        AnnotationsPlugin._added.add(this)
         window.addEventListener('keydown', this._onKeyDown, {capture: true})
         window.addEventListener('pointerdown', this._onWindowDown, {capture: true})
         window.addEventListener('pointerup', this._onWindowUp, {capture: true})
@@ -255,6 +261,7 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
 
     onRemove(viewer: ThreeViewer) {
         cancelAnimationFrame(this._raf)
+        AnnotationsPlugin._added.delete(this)
         this.stopTour()
         this._stopAnim()
         this.cancelAdding()
@@ -430,6 +437,7 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         const a = this.get(indexOrId)
         if (!a) return
         if (a.id !== this._openId) this._commitEdit() // the field edits the annotation it was focused for
+        this._used()
         this._openId = a.id
         this._renderCard()
         this._syncMarkers()
@@ -496,6 +504,7 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         if (!this._editable || !this._viewer || !layer || this._place) return false
         this.stopTour()
         this.close()
+        this._used()
         const place = el('div', 'anp-place')
         place.tabIndex = -1 // focused, so Esc reaches it
         const ghost = el('div', 'anp-ghost', place)
@@ -1089,6 +1098,10 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         const t = e.target as HTMLElement | null
         if (t && (t.isContentEditable || t.closest?.('input, textarea, select'))) return
         this.stopTour()
+        // only when the focus is in this viewer (its canvas, the card, the placing overlay) or on the page, not in another
+        // viewer or panel. On the page, with more viewers, the one used last takes the key
+        const mine = !!t && (t === this._viewer?.canvas || this._layer.contains(t))
+        if (!mine && (t && t !== document.body || !this._usedLast())) return
         if (e.key === 'Escape' && (this._place || this._openId)) {
             e.preventDefault()
             e.stopImmediatePropagation()
@@ -1097,9 +1110,7 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
             return
         }
         if (!this._openId || e.ctrlKey || e.metaKey || e.altKey) return
-        // only when the focus is on the page, the canvas or this card, not in another panel
-        const ok = !t || t === document.body || t === this._viewer?.canvas || this._layer.contains(t)
-        if (!ok || e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
+        if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
         e.preventDefault()
         e.stopImmediatePropagation()
         if (e.key === 'ArrowLeft') this.prev()
@@ -1113,6 +1124,7 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
     private _onWindowDown = (e: PointerEvent) => {
         const canvas = e.target === this._viewer?.canvas
         if (canvas) this.stopTour()
+        if (canvas || this._layer?.contains(e.target as Node)) this._used()
         this._down = {x: e.clientX, y: e.clientY, canvas, primary: !(e.button > 0)}
     }
 
@@ -1134,6 +1146,18 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         if (e.target !== this._viewer?.canvas || !this._closesOnInteraction()) return
         this.stopTour()
         this.close()
+    }
+
+    private _used() {
+        this._usedAt = ++AnnotationsPlugin._uses
+    }
+
+    /** No other plugin on the page with an open card or placing was used after this one */
+    private _usedLast() {
+        for (const p of AnnotationsPlugin._added) {
+            if (p !== this && p._usedAt > this._usedAt && (p._openId || p._place) && !p.isDisabled()) return false
+        }
+        return true
     }
 
     /** {@link closeOnCanvasInteraction} is on and an interaction now would close the open card */
