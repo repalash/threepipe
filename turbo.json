@@ -1,6 +1,7 @@
 {
     "$schema": "https://turborepo.com/schema.json",
     "ui": "stream",
+    "concurrency": "100%",
     "globalDependencies": ["scripts/vite-utils.mjs", "typedoc.json"],
     "tasks": {
         "//#build": {

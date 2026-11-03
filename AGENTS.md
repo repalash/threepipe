@@ -21,10 +21,11 @@
 - Don't ignore or workaround any threepipe/three.js issue unless explicitly asked
 - Repeat goals and tasks in message history when context is getting deep to reiterate and reflect on them
 - Always pick the "Correct" option, not the "Easy" one
-- Never use any git operations that make any changes (stash, etc) in the main checkout folder unless explicitly asked.
+- On the user's own machine: never use any git operations that make any changes (stash, etc) in the main checkout folder unless explicitly asked.
 - Codex might review PRs, other code, check for it and make fixes and review them before pushing to avoid getting stuck in a fix-review loop.
 - Assume subagent reports might be incorrect and inaccurate, verify them manually and redo if inaccuracies are found
-- Work in worktrees in .claude unless required/asked to edit the main copy.
+- On the user's own machine: work in worktrees in .claude unless required/asked to edit the main copy.
+- In a cloud session (Claude Code on the web, a fresh clone in a container, `CLAUDE_CODE_REMOTE=true`) the main checkout and worktree rules above do not apply: the checkout is the session's own, work in it directly on the session's branch, without worktrees.
 - three.js-modded source code is at ./three.js-modded/ - its a separate repository(not submodule), clone it if its not there.
 - Always use the commands defined in package.json scripts (npm run ...), never ad-hoc equivalents (e.g. no raw `npx vite build` or `npx tsc` with guessed configs - they can pick the wrong tsconfig/mode). If a script needs a custom param (like running a specific test), still go through the script and pass the param, e.g. `npm run test:e2e -- --grep "example-name"`. If no script exists for something genuinely needed, add one instead of running ad-hoc commands
 - Read CONTRIBUTING.md when contributing or making PRs
