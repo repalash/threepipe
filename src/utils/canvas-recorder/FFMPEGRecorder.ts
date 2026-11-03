@@ -48,7 +48,7 @@ export class FFMPEGRecorder extends ACanvasRecorder<'encode-progress'> {
                 }
                 const callback = this._recordingCallback
                 this._recordingCallback = undefined
-                callback?.(new Blob([out.data], {
+                callback?.(new Blob([out.data as Uint8Array<ArrayBuffer>], {
                     type: 'video/mp4',
                 }))
                 console.timeEnd('ffmpeg-record')
