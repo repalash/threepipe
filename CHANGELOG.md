@@ -21,7 +21,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
-- Releases run on [repalash/release-tools](https://github.com/repalash/release-tools) (`.github/workflows/publish.yml`): the same approval, tags and partial publishing as before, now with a Claude review in the Discord notice. `scripts/ci/` (publish-check, build-verify, publish-packages, notify-discord) is gone; `npm run build:release` is the release build
+- Releases run on [repalash/release-tools](https://github.com/repalash/release-tools) (`.github/workflows/publish.yml`): the same approval, tags and partial publishing as before, now with a Claude review in the Discord notice. each package now builds on its own in dependency order (a failed one and what depends on it are left out); `scripts/ci/` (publish-check, build-verify, publish-packages, notify-discord) is gone
 - The `loadAsset` event of `AssetManager` has `options`: the add options given to `loadImported` (without `autoSetEnvironment` and `autoSetBackground`), so a listener can tell that a viewer config in the asset was not imported (`importConfig: false`)
 - `npm run check-bundles` (`scripts/check-bundles.mjs`) checks the built bundles: it fails on an import in a built bundle that is not declared (a bare `three` in a plugin) and on a package bundled twice (two Reacts in blueprintjs). Run it after `build:all`
 - Repository setup: the core and the packages in `plugins/` are now one npm workspace, installed by a single `npm install` (one `package-lock.json`, the per-plugin lockfiles are removed). `npm install` no longer builds anything; `npm start` runs the examples from source without a build, `npm run build:all` builds everything

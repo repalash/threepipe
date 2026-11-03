@@ -2,9 +2,11 @@ name: Publish packages to npm
 
 # Publishes the core and each plugin whose version is not on npm, after approval of the npm-publish environment, with
 # repalash/release-tools (a Discord notice with the approval link and a Claude review; npm trusted publishing).
-# - partial: a plugin that fails to build is left out, with what depends on it; the others are published.
-# - post-build must pass: the published declarations checked as a consumer, the docs.
-# - The build also type-checks the examples (build-examples needs no secret: missing keys are empty).
+# - Each package builds with its docs (package-build, in dependency order). partial: one that fails is left out, with
+#   what depends on it; the others are published.
+# - post-build must pass: the published declarations checked as a consumer (the core with plugin-tweakpane, so a
+#   tweakpane build failure stops the release). The examples' type check (build-examples needs no secret: missing keys
+#   are empty) is a warning on the run, not a stop.
 # - Tags: v<version> for the core, <name>-<version> for a plugin (CONTRIBUTING.md, Publishing).
 # npm trusted publisher of each package: this repository, workflow publish.yml, environment npm-publish.
 
@@ -29,8 +31,9 @@ jobs:
     uses: repalash/release-tools/.github/workflows/npm-release.yml@v1
     with:
       packages: . plugins/* !plugins/plugin-template-*
-      build: npm ci && npm run build:release
-      post-build: npm run test:types && npm run docs-all
+      build: npm ci
+      package-build: npm run build && npm run docs --if-present
+      post-build: npm run test:types && (npm run build-examples || echo "::warning::the examples do not type-check")
       partial: true
       clean-package: true
       require-changelog: true

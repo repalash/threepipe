@@ -45,7 +45,6 @@
     "build": "npm run update-version && npm run compile && vite build",
     "compile": "rimraf lib && npm run compile:esm",
     "build:all": "turbo run build && npm run build-examples",
-    "build:release": "bash scripts/release-build.sh",
     "new:pack": "npm run build:all 1>&2 && npm run docs-all 1>&2 && clean-package && npm pack --silent && clean-package restore",
     "build-examples": "npm run generate-example-env && tsc --project examples/tsconfig.build.json",
     "watch-examples": "npm run generate-example-env && tsc --project examples/tsconfig.build.json -w",
