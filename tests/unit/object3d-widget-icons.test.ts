@@ -7,9 +7,11 @@
  * fake elements that keep their children, styles and listeners.
  */
 import {afterAll, beforeAll, describe, expect, test, vi} from 'vitest'
+import {readFileSync} from 'node:fs'
 import {
     Color,
     DirectionalLight,
+    EventDispatcher,
     Mesh,
     MeshBasicMaterial,
     Object3D,
@@ -19,6 +21,7 @@ import {
     Raycaster,
     SpotLight,
     Vector2,
+    Vector3,
 } from 'three'
 
 let tp: typeof import('threepipe')
@@ -71,8 +74,10 @@ class FakeElement {
         return true
     }
     getBoundingClientRect() {
+        FakeElement.rectReads++
         return {left: 0, top: 0, width: W, height: H}
     }
+    static rectReads = 0
     /** All descendants with a class */
     all(className: string): FakeElement[] {
         return this.children.flatMap(c => [...c.className.split(' ').includes(className) ? [c] : [], ...c.all(className)])
@@ -194,7 +199,9 @@ describe('light and camera widget icons', () => {
             // the lines too
             const line = (widget as any).hMaterial ?? (widget as any).line.material
             const lineColor = (widget as any).hMaterial ? line.color : new Color().fromArray((widget as any).line.geometry.getAttribute('instanceColorStart').array, 0)
-            expect(lineColor.getHex()).toBe(new Color(style.color).getHex())
+            // the lines of a light in the light colour (as before the icons), of a camera in the kind colour
+            const expected = (object as any).isLight ? (object as DirectionalLight).color.getHex() : new Color(style.color).getHex()
+            expect(lineColor.getHex()).toBe(expected)
         }
     })
 
@@ -202,6 +209,52 @@ describe('light and camera widget icons', () => {
         const l = light(new DirectionalLight())
         const w = new tp.DirectionalLightHelper2(l, undefined, 0x123456)
         expect(w.hMaterial.color.getHex()).toBe(new Color(0x123456).getHex())
+    })
+
+    test('the lines follow the light colour, and a colour set at runtime redraws them', () => {
+        const l = light(new PointLight(0xff0000))
+        const w = new tp.PointLightHelper2(l)
+        expect(w.hMaterial.color.getHex()).toBe(0xff0000)
+        l.color.set(0x00ff00)
+        w.update()
+        expect(w.hMaterial.color.getHex()).toBe(0x00ff00)
+        w.color = 0x123456 // no update() call
+        expect(w.hMaterial.color.getHex()).toBe(new Color(0x123456).getHex())
+        const c = new tp.CameraHelper2(light(new PerspectiveCamera()))
+        c.color = 0x00ffff
+        expect(new Color().fromArray(c.line.geometry.getAttribute('instanceColorStart').array as any, 0).getHex()).toBe(0x00ffff)
+    })
+
+    test('dispose removes the icon and the shadow frustum and clears them', () => {
+        const l = light(new DirectionalLight())
+        l.castShadow = true
+        const w = new tp.DirectionalLightHelper2(l)
+        w.showShadowFrustum = true
+        const icon = w.icon!, helper = w.shadowHelper!
+        expect(icon.parent).toBe(w)
+        expect(helper.parent).toBe(w)
+        w.dispose()
+        expect(w.icon).toBeUndefined()
+        expect(w.shadowHelper).toBeUndefined()
+        expect(icon.parent).toBeNull()
+        expect(helper.parent).toBeNull()
+    })
+
+    test('the plugin sets the options of a widget with one update', () => {
+        const plugin = new tp.Object3DWidgetsPlugin()
+        const l = light(new SpotLight())
+        const w = new tp.SpotLightHelper2(l)
+        const update = vi.spyOn(w, 'update')
+        plugin.showIcons = false
+        plugin.iconSize = 30
+        plugin.showShadowFrustum = true
+        update.mockClear()
+        ;(plugin as any)._applyOptions(w) // all four differ from the widget
+        expect(update).toHaveBeenCalledTimes(1)
+        expect([w.showIcon, w.iconSize, w.iconMode, w.showShadowFrustum]).toEqual([false, 30, 'sprite', true])
+        update.mockClear()
+        ;(plugin as any)._applyOptions(w) // nothing changes
+        expect(update).toHaveBeenCalledTimes(0)
     })
 
     test('the dot follows a change of the light colour', () => {
@@ -327,7 +380,7 @@ describe('picking an icon', () => {
 
         // the PickingPlugin maps the hit on the icon to the object of the widget
         const picking = new tp.PickingPlugin() as any
-        picking._viewer = {}
+        picking._viewer = {setDirty: () => undefined}
         let event: any
         picking.addEventListener('hitObject', (e: any) => event = e)
         picking._onObjectHit({type: 'hitObject', time: 0, intersects: {selectedObject: hits[0].object, intersect: hits[0], intersects: hits, mouse: new Vector2()}})
@@ -363,15 +416,60 @@ describe('shadow camera frustum', () => {
         expect(helper.parent).toBe(w)
         expect(helper.icon?.visible ?? false).toBe(false)
         expect(helper.userData.userSelectable).toBe(false)
-        // in the colour of the light kind, where the shadow camera is
+        // in the colour of the lines of the light (the light colour), where the shadow camera is
         const c = new Color().fromArray(helper.line.geometry.getAttribute('instanceColorStart').array as any, 0)
-        expect(c.getHex()).toBe(new Color(tp.widgetKinds.directionalLight.color).getHex())
+        expect(c.getHex()).toBe(l.color.getHex())
         w.updateMatrixWorld(true)
         expect(helper.matrixWorld.equals(l.shadow.camera.matrixWorld)).toBe(true)
 
         w.showShadowFrustum = false
         expect(w.shadowHelper).toBeUndefined()
         expect(helper.parent).toBeNull()
+    })
+
+    test('the shadow frustum lines are not picked: a click on one selects nothing, and a model behind it gets the hit', () => {
+        const scene = new tp.Group2()
+        const modelRoot = new tp.Group2()
+        scene.add(modelRoot)
+        const l = light(new DirectionalLight()) // the widget maps a hit to the light, wherever the light is
+        l.position.set(0, 0, 2)
+        l.castShadow = true
+        l.shadow.camera.far = 10
+        l.shadow.camera.updateProjectionMatrix()
+        l.updateMatrixWorld(true)
+        const widgetRoot = new tp.Group2()
+        widgetRoot.userData.isWidgetRoot = true
+        scene.add(widgetRoot)
+        const w = new tp.DirectionalLightHelper2(l)
+        w.showShadowFrustum = true
+        w.showIcon = false // only the lines
+        widgetRoot.add(w)
+        scene.updateMatrixWorld(true)
+        const helper = w.shadowHelper!
+        // the line width is in pixels of the canvas, as the renderer sets it
+        w.traverse(o => (o as any).material?.resolution?.set(H, H))
+        // a far corner of the shadow camera frustum, where its lines meet, away from the other lines of the light
+        const corner = new Vector3(1, 1, 1).unproject(l.shadow.camera as any)
+        const camera = new PerspectiveCamera(45, 1, 0.1, 1000)
+        camera.position.copy(corner).add(new Vector3(0.3, 0.2, 20))
+        camera.lookAt(corner)
+        camera.updateMatrixWorld(true)
+        const wall = new Mesh(new tp.PlaneGeometry(1000, 1000), new MeshBasicMaterial())
+        wall.position.z = corner.z - 50
+        wall.lookAt(camera.position)
+        modelRoot.add(wall)
+        scene.updateMatrixWorld(true)
+
+        const picker = new tp.ObjectPicker(modelRoot as any, new FakeElement('canvas') as any, camera as any, tp.isPickable)
+        picker.extraObjects.push(widgetRoot as any)
+        picker.mouse.set(0, 0) // the centre of the view, on the corner
+        const hit = picker.checkIntersection()
+        // compare names: a failing toBe would print the whole scene
+        wall.name = 'Wall'
+        expect(hit?.selectedObject?.name).toBe('Wall')
+        // the lines of the frustum are hit by the ray, but none of the picked hits is the light or its widget
+        expect(hit!.intersects.some(i => i.object === w || i.object === (l as any))).toBe(false)
+        expect(helper.line.userData.userSelectable).toBeUndefined() // nothing special on the lines: the flag of the helper
     })
 
     test('Object3DWidgetsPlugin options reach the widgets', () => {
@@ -423,6 +521,38 @@ describe('sprite icons on screen', () => {
             expect(hits.map(h => h.object)).toEqual([nearW.icon, farW.icon, wall])
             expect(hits[0].distance).toBeGreaterThanOrEqual(0)
         }
+    })
+
+    test('a hidden icon (showIcon off) takes no hits, so a click there does not select the object', () => {
+        const w = new tp.PointLightHelper2(light(new PointLight()))
+        w.updateMatrixWorld(true)
+        const camera = new PerspectiveCamera(45, 1, 0.1, 100)
+        camera.position.set(0, 0, 10)
+        camera.updateMatrixWorld(true)
+        w.icon!.updateScale(camera, H)
+        const raycaster = new Raycaster()
+        raycaster.setFromCamera(new Vector2(0, 0), camera)
+        const root = new tp.Group2()
+        root.add(w)
+        root.updateMatrixWorld(true)
+        const picker = new tp.ObjectPicker(new tp.Group2() as any, new FakeElement('canvas') as any, camera as any, tp.isPickable)
+        expect(picker.selectableFor(w.icon as any)).toBe(w.icon)
+        w.showIcon = false
+        // a hit on the hidden icon does not go up to the widget (and select the light)
+        expect(picker.selectableFor(w.icon as any)).toBeNull()
+    })
+
+    test('a part of a widget with userSelectable false is not picked, and its hit does not go up to the widget', () => {
+        const w = new tp.PointLightHelper2(light(new PointLight()))
+        const root = new tp.Group2()
+        root.add(w)
+        const picker = new tp.ObjectPicker(new tp.Group2() as any, new FakeElement('canvas') as any, new PerspectiveCamera() as any, tp.isPickable)
+        expect(tp.isPickable(w.lightSphere as any)).toBe(true)
+        w.lightSphere.userData.userSelectable = false
+        expect(tp.isPickable(w.lightSphere as any)).toBe(false)
+        expect(picker.selectableFor(w.lightSphere as any)).toBeNull()
+        // the widget itself (a DOM icon) is still picked
+        expect(picker.selectableFor(w as any)).toBe(w)
     })
 
     test('not frustum culled: the icon keeps its pixel size, so it shows at the edge when its centre is just outside', () => {
@@ -482,7 +612,8 @@ describe('icon mode', () => {
         const viewer = Object.assign(new EventTarget(), {
             container: containerEl,
             canvas,
-            scene: {modelRoot, mainCamera: camera, addObject: (o: Object3D) => sceneRoot.add(o)},
+            scene: {modelRoot, mainCamera: camera, renderCamera: camera, addObject: (o: Object3D) => sceneRoot.add(o)},
+            renderManager: new EventDispatcher(),
             object3dManager: objectManager,
             getPlugin: (p: string) => p === 'PickingPlugin' ? picking : undefined,
             setDirty: vi.fn(),
@@ -494,10 +625,15 @@ describe('icon mode', () => {
             sceneRoot.updateMatrixWorld(true)
             ;(plugin as any)._onViewerEvent({type: 'postRender', eType: 'postRender'})
         }
+        /** A change in the viewer (an update event, as a setDirty sends), then a render */
+        const changed = () => {
+            ;(plugin as any)._onViewerEvent({type: 'update', eType: 'update'})
+            render()
+        }
         const widgetOf = (o: Object3D) => plugin.widgets.find(w => w.object === o) as InstanceType<typeof tp.AHelperWidget>
         const iconOf = (o: Object3D) => plugin.iconOverlay?.getIconElement(widgetOf(o)) as FakeElement | undefined
         render()
-        return {plugin, viewer, container: containerEl, camera, sun, bulb, cam, render, widgetOf, iconOf}
+        return {plugin, viewer, container: containerEl, camera, sun, bulb, cam, render, changed, widgetOf, iconOf}
     }
 
     test('DOM by default: an SVG for each light and camera in a layer of the container, and no sprites', () => {
@@ -556,53 +692,149 @@ describe('icon mode', () => {
         expect(sheets()).toHaveLength(1)
     })
 
-    /** A PickingPlugin stand-in with the real picker and its selection condition (isPickable) */
-    function fakePicking() {
-        return {isDisabled: () => false, multiSelectEnabled: true, setSelectedObject: vi.fn(), toggleSelectedObject: vi.fn(), picker: undefined as any}
+    /** A PickingPlugin with its picker (selection condition isPickable) and its hitObject handler, without a viewer */
+    function realPicking() {
+        const picking = new tp.PickingPlugin() as any
+        picking._viewer = {setDirty: () => undefined}
+        return picking
     }
-    function withPicker(picking: ReturnType<typeof fakePicking>, s: ReturnType<typeof setup>) {
-        picking.picker = new tp.ObjectPicker(s.viewer.scene.modelRoot, new FakeElement('canvas') as any, s.camera as any, tp.isPickable)
+    function withPicker(picking: any, s: ReturnType<typeof setup>) {
+        const picker = new tp.ObjectPicker(s.viewer.scene.modelRoot, new FakeElement('canvas') as any, s.camera as any, tp.isPickable)
+        picker.addEventListener('hitObject', picking._onObjectHit)
+        picking._picker = picker
+        ;(s.plugin as any)._onViewerEvent({type: 'addPlugin', eType: 'addPlugin'})
         s.render()
         return s
     }
+    const selected = (picking: any) => picking.getSelectedObjects().map((o: any) => o.name || o.type)
 
-    test('a click or tap on a DOM icon selects the object with the PickingPlugin; with shift it toggles it', () => {
-        const picking = fakePicking()
-        const {sun, cam, iconOf} = withPicker(picking, setup({picking}))
+    test('a click or tap on a DOM icon selects the object as a click on the sprite does; with shift it toggles it', () => {
+        const picking = realPicking()
+        const s = withPicker(picking, setup({picking}))
+        const {sun, cam, iconOf, widgetOf} = s
+        sun.name = 'Sun'
+        cam.name = 'Cam'
+        const hits: any[] = []
+        picking.addEventListener('hitObject', (e: any) => hits.push({...e.intersects}))
         expect(iconOf(sun)!.className).toBe('widget-icon') // the pointer cursor
         iconOf(sun)!.dispatchEvent({type: 'click', shiftKey: false})
-        expect(picking.setSelectedObject).toHaveBeenCalledWith(sun)
+        expect(selected(picking)).toEqual(['Sun'])
+        // the hitObject event of the PickingPlugin, as for a sprite: the object and its widget
+        expect(hits[0].selectedObject === sun && hits[0].selectedWidget === widgetOf(sun)).toBe(true)
+        picking.multiSelectEnabled = true
         iconOf(cam)!.dispatchEvent({type: 'click', shiftKey: true})
-        expect(picking.toggleSelectedObject).toHaveBeenCalledWith(cam)
-        picking.isDisabled = () => true
+        expect(selected(picking)).toEqual(['Cam', 'Sun'])
+        iconOf(cam)!.dispatchEvent({type: 'click', shiftKey: true})
+        expect(selected(picking)).toEqual(['Sun'])
+        // a hitObject listener can consume the click, as for a sprite
+        const consume = (e: any) => e.intersects.consumed = true
+        picking.addEventListener('hitObject', consume)
+        iconOf(cam)!.dispatchEvent({type: 'click'})
+        expect(selected(picking)).toEqual(['Sun'])
+        picking.removeEventListener('hitObject', consume)
+        // the picking mode applies: a light has no geometry
+        picking.picker.pickingMode = 'geometry'
+        iconOf(cam)!.dispatchEvent({type: 'click'})
+        expect(selected(picking)).toEqual([])
+        picking.picker.pickingMode = 'auto'
+        picking.enabled = false // its setDirty sends an update event
+        s.changed()
+        expect(iconOf(sun)!.className).toContain('widget-icon-static')
         iconOf(sun)!.dispatchEvent({type: 'click'})
-        expect(picking.setSelectedObject).toHaveBeenCalledTimes(1)
+        expect(selected(picking)).toEqual([])
+    })
+
+    test('DOM icons: a long press or a drag is not a click, as on the canvas; the pointer on an icon hovers the object', () => {
+        const picking = realPicking()
+        const {sun, iconOf} = withPicker(picking, setup({picking}))
+        sun.name = 'Sun'
+        const el = iconOf(sun)!
+        let t = 1000
+        const time = vi.spyOn(performance, 'now').mockImplementation(() => t)
+        try {
+            el.dispatchEvent({type: 'pointerdown', isPrimary: true, clientX: 100, clientY: 100})
+            t += tp.ObjectPicker.PointerClickMaxTime + 50
+            el.dispatchEvent({type: 'click', clientX: 100, clientY: 100})
+            expect(selected(picking)).toEqual([])
+            el.dispatchEvent({type: 'pointerdown', isPrimary: true, clientX: 100, clientY: 100})
+            el.dispatchEvent({type: 'click', clientX: 100 + W * tp.ObjectPicker.PointerClickMaxDistance, clientY: 100})
+            expect(selected(picking)).toEqual([])
+            el.dispatchEvent({type: 'pointerdown', isPrimary: true, clientX: 100, clientY: 100})
+            t += 50
+            el.dispatchEvent({type: 'click', clientX: 101, clientY: 100})
+            expect(selected(picking)).toEqual(['Sun'])
+        } finally {
+            time.mockRestore()
+        }
+        // hover, when the picker hovers
+        expect(picking.picker.hoverObject).toBeFalsy()
+        el.dispatchEvent({type: 'pointerenter'})
+        expect(picking.picker.hoverObject).toBeFalsy() // hover is off
+        picking.picker.hoverEnabled = true
+        el.dispatchEvent({type: 'pointerenter'})
+        expect(picking.picker.hoverObject?.name).toBe('Sun')
+        el.dispatchEvent({type: 'pointerleave'})
+        expect(picking.picker.hoverObject).toBeFalsy()
     })
 
     test('a DOM icon click passes the same check as a picker hit: userSelectable, bboxVisible and the selection condition', () => {
-        const picking = fakePicking()
-        const {sun, bulb, cam, render, widgetOf, iconOf} = withPicker(picking, setup({picking}))
+        const picking = realPicking()
+        const {sun, bulb, cam, changed, widgetOf, iconOf} = withPicker(picking, setup({picking}))
+        sun.name = 'Sun'
         widgetOf(sun).userData.userSelectable = false
         widgetOf(bulb).userData.bboxVisible = false
-        render()
+        changed()
         for (const o of [sun, bulb]) {
             iconOf(o)!.dispatchEvent({type: 'click'})
             expect(iconOf(o)!.className).toContain('widget-icon-static') // no pointer cursor
         }
-        expect(picking.setSelectedObject).not.toHaveBeenCalled()
+        expect(selected(picking)).toEqual([])
         // a custom condition of the picker: the camera cannot be selected either
         picking.picker.selectionCondition = (o: any) => tp.isPickable(o) && o !== widgetOf(cam)
-        render()
+        changed()
         iconOf(cam)!.dispatchEvent({type: 'click'})
-        expect(picking.setSelectedObject).not.toHaveBeenCalled()
+        expect(selected(picking)).toEqual([])
         expect(iconOf(cam)!.className).toContain('widget-icon-static')
         // the same widgets as sprites: a hit on the icon does not select them either
         for (const o of [sun, bulb, cam]) expect(picking.picker.selectableFor(widgetOf(o))).toBeNull()
         widgetOf(sun).userData.userSelectable = undefined
-        render()
+        changed()
         expect(iconOf(sun)!.className).toBe('widget-icon')
         iconOf(sun)!.dispatchEvent({type: 'click'})
-        expect(picking.setSelectedObject).toHaveBeenCalledWith(sun)
+        expect(selected(picking)).toEqual(['Sun'])
+    })
+
+    test('the DOM icons follow the camera of the render, read the layout only on a resize, and check the picking only on a change', () => {
+        const picking = realPicking()
+        const s = withPicker(picking, setup({picking}))
+        const {plugin, viewer, sun, render, iconOf} = s
+        const before = iconOf(sun)!.style.transform
+        const other = new PerspectiveCamera(45, W / H, 0.1, 100)
+        other.position.set(5, 0, 10)
+        other.lookAt(0, 0, 0)
+        other.updateMatrixWorld(true)
+        viewer.scene.renderCamera = other
+        render()
+        expect(iconOf(sun)!.style.transform).not.toBe(before)
+        viewer.scene.renderCamera = s.camera
+        // frames without a change: no layout reads, no picking checks
+        const getPlugin = vi.spyOn(viewer, 'getPlugin')
+        const reads = FakeElement.rectReads
+        render()
+        render()
+        expect(FakeElement.rectReads).toBe(reads)
+        expect(getPlugin).not.toHaveBeenCalled()
+        viewer.renderManager.dispatchEvent({type: 'resize'})
+        render()
+        expect(FakeElement.rectReads).toBeGreaterThan(reads)
+        ;(plugin as any)._onViewerEvent({type: 'update', eType: 'update'}) // a change in the viewer (picking enabled, selection, options)
+        render()
+        expect(getPlugin).toHaveBeenCalled()
+    })
+
+    test('a DOM icon that cannot be selected lets the pointer through to the canvas', () => {
+        const css = readFileSync(new URL('../../src/three/widgets/WidgetIconOverlay.css', import.meta.url), 'utf8')
+        expect(css).toMatch(/\.widget-icon-static\s*\{[^}]*pointer-events:\s*none/)
     })
 
     test('without the PickingPlugin the DOM icons have no pointer cursor', () => {
@@ -656,8 +888,12 @@ describe('icon mode', () => {
         expect(plugin.iconOverlay!.element.children).toHaveLength(0)
     })
 
-    test('removing the plugin leaves no DOM', () => {
-        const {plugin, viewer, container} = setup()
+    test('removing an object removes its DOM icon at once; removing the plugin leaves no DOM', () => {
+        const {plugin, viewer, container, sun, iconOf} = setup()
+        const el = iconOf(sun)!
+        ;(plugin as any)._objectRemove({object: sun})
+        expect(el.parent).toBeNull()
+        expect(plugin.iconOverlay!.element.children).toHaveLength(2)
         plugin.onRemove(viewer)
         expect(container!.children).toHaveLength(1) // the canvas
         expect(plugin.iconOverlay).toBeUndefined()

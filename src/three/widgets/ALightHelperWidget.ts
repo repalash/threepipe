@@ -12,12 +12,12 @@ export abstract class ALightHelperWidget extends AHelperWidget {
      * Draw the frustum of the shadow camera (what the shadows of the light cover) when the light casts shadows.
      * Directional and spot lights only. Set for all widgets with `Object3DWidgetsPlugin.showShadowFrustum`.
      */
-    @onChange2(ALightHelperWidget.prototype.update)
+    @onChange2('_optionChanged')
         showShadowFrustum = false
 
     /**
      * The helper of the shadow camera, there while {@link showShadowFrustum} is on and the light casts shadows.
-     * It cannot be picked.
+     * It cannot be picked (`userData.userSelectable = false`): a click on its lines goes to what is behind them.
      */
     shadowHelper: CameraHelper2 | undefined
 
@@ -73,6 +73,8 @@ export abstract class ALightHelperWidget extends AHelperWidget {
 
     dispose() {
         this.shadowHelper?.dispose()
+        this.shadowHelper?.removeFromParent()
+        this.shadowHelper = undefined
         super.dispose()
     }
 }

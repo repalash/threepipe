@@ -27,21 +27,23 @@ export abstract class AHelperWidget extends Group2 implements IWidget {
     kind: WidgetKind | undefined
 
     /**
-     * The colour of the lines. When not set, the colour of the {@link kind} ({@link widgetKinds}) is used.
+     * The colour of the lines. When not set: the colour of the light for a light, else the colour of the {@link kind}
+     * ({@link widgetKinds}). A change redraws the widget.
      */
-    color: ColorRepresentation | undefined
+    @onChange2('_optionChanged')
+        color: ColorRepresentation | undefined
 
     /**
      * Show the {@link icon} of the object (only for objects with a {@link kind}).
      * Set for all widgets with `Object3DWidgetsPlugin.showIcons`.
      */
-    @onChange2(AHelperWidget.prototype.update)
+    @onChange2('_optionChanged')
         showIcon = true
 
     /**
      * The diameter of the {@link icon} in CSS pixels. Set for all widgets with `Object3DWidgetsPlugin.iconSize`.
      */
-    @onChange2(AHelperWidget.prototype.update)
+    @onChange2('_optionChanged')
         iconSize = 22
 
     /**
@@ -49,8 +51,33 @@ export abstract class AHelperWidget extends Group2 implements IWidget {
      * sprite, and a DOM overlay draws the icon (`WidgetIconOverlay`, made by `Object3DWidgetsPlugin`); a widget used
      * without the plugin then shows no icon. Set for all widgets with `Object3DWidgetsPlugin.iconMode`.
      */
-    @onChange2(AHelperWidget.prototype.update)
+    @onChange2('_optionChanged')
         iconMode: WidgetIconMode = 'sprite'
+
+    private _batching = 0
+    private _batchChanged = false
+
+    /** A change of an option: {@link update}, or once at the end of {@link batchUpdate} */
+    protected _optionChanged() {
+        if (this._batching) this._batchChanged = true
+        else this.update()
+    }
+
+    /**
+     * Runs `change`, which sets several options (like {@link showIcon} and {@link iconSize}), with one {@link update} at
+     * the end instead of one per option, and none when no option changed.
+     */
+    batchUpdate(change: () => void) {
+        this._batching++
+        try {
+            change()
+        } finally {
+            if (--this._batching === 0 && this._batchChanged) {
+                this._batchChanged = false
+                this.update()
+            }
+        }
+    }
 
     /**
      * Whether the icon is shown: the widget is attached to an object with a {@link kind} and {@link showIcon} is on.
@@ -96,9 +123,12 @@ export abstract class AHelperWidget extends Group2 implements IWidget {
         setDirty && iObjectCommons.setDirty.call(this)
     }
 
-    /** The colour of the lines: {@link color}, else the colour of the {@link kind} */
+    /** The colour of the lines: {@link color}, else the colour of the light for a light, else the colour of the {@link kind} */
     protected get _lineColor(): ColorRepresentation {
-        return this.color ?? (this.kind ? widgetKinds[this.kind].color : 0xffffff)
+        if (this.color !== undefined) return this.color
+        const light = this.object as Light | undefined
+        if (light?.isLight && light.color?.isColor) return light.color
+        return this.kind ? widgetKinds[this.kind].color : 0xffffff
     }
 
     /**
@@ -197,6 +227,8 @@ export abstract class AHelperWidget extends Group2 implements IWidget {
     dispose() {
         this.detach()
         this.icon?.dispose()
+        this.icon?.removeFromParent()
+        this.icon = undefined
     }
 }
 

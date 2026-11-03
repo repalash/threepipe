@@ -1,5 +1,6 @@
 import {Camera, Color, Vector3} from 'three'
-import {createStyles} from 'ts-browser-helpers'
+import {createStyles, now} from 'ts-browser-helpers'
+import {ObjectPicker} from '../utils/ObjectPicker'
 import {AHelperWidget} from './AHelperWidget'
 import {getWidgetIconSvg, widgetIconLayout, WidgetKind} from './widgetKinds'
 import styles from './WidgetIconOverlay.css?inline'
@@ -17,6 +18,20 @@ interface WidgetIconElement {
     zIndex: string
 }
 
+/** The pointer callbacks of a {@link WidgetIconOverlay} */
+export interface WidgetIconOverlayOptions {
+    /** A click or tap on the icon of a widget */
+    click?: (widget: AHelperWidget, e: MouseEvent) => void
+    /**
+     * Whether a click on the icon of a widget does something (it selects the object). The icons that cannot be clicked
+     * let the pointer through to the canvas (`pointer-events: none`). Checked when an icon is made and after
+     * {@link WidgetIconOverlay.invalidateClickable}. Not set: all icons can be clicked.
+     */
+    canClick?: (widget: AHelperWidget) => boolean
+    /** The pointer enters the icon of a widget, or leaves it (null) */
+    hover?: (widget: AHelperWidget | null) => void
+}
+
 const tmp = new Vector3()
 
 /** Whether the widget and all its parents are visible */
@@ -31,11 +46,17 @@ function visibleInScene(o: AHelperWidget) {
  *
  * The SVG comes from the same shapes as the sprite texture ({@link getWidgetIconSvg}), so both modes look the same; it is
  * sharp at any pixel ratio and icon size, and never in a render, screenshot or recording of the canvas.
- * {@link update} places the icons with `transform` only (called after each render), and hides an icon when its widget
+ * {@link update} places the icons with `transform` only (called after each render, with the camera of the render; the
+ * layout is read again only after {@link invalidateViewport}), and hides an icon when its widget
  * or a parent is hidden, {@link AHelperWidget.hasIcon} is false, or the object is behind the camera or out of its
- * near and far range. An icon that cannot be clicked ({@link canClick}) has no pointer cursor. An icon whose centre is just out of the canvas still shows the part of it that is on the canvas.
- * Where icons overlap, the nearer one is on top (and gets the click), as with sprites. A click or tap on an icon calls {@link onClick}; a wheel over an icon goes on to the canvas, so the
- * camera still zooms.
+ * near and far range. An icon whose centre is just out of the canvas still shows the part of it that is on the canvas.
+ * Where icons overlap, the nearer one is on top (and gets the click), as with sprites.
+ *
+ * The pointer: a click or tap on an icon calls {@link WidgetIconOverlayOptions.click} when it is a click for the canvas
+ * too (shorter than `ObjectPicker.PointerClickMaxTime`, moved less than `ObjectPicker.PointerClickMaxDistance`), the
+ * pointer entering and leaving an icon calls {@link WidgetIconOverlayOptions.hover}, and a wheel over an icon goes on to
+ * the canvas, so the camera still zooms. An icon that cannot be clicked ({@link WidgetIconOverlayOptions.canClick}) lets
+ * the pointer through to the canvas.
  *
  * The layer has `z-index` 8, under the other overlays on the canvas (UI layers in CONTRIBUTING.md).
  * Made by `Object3DWidgetsPlugin`.
@@ -49,13 +70,13 @@ export class WidgetIconOverlay {
     private _canvas?: HTMLElement
     private _sheet?: HTMLStyleElement
     private _rect = ''
+    private _size = {width: 0, height: 0}
+    private _viewportDirty = true
+    private _clickableDirty = true
 
-    /**
-     * @param onClick - called with the widget of an icon that is clicked or tapped, and the event
-     * @param canClick - whether a click on the icon of a widget does something (it selects the object); the icons that
-     * cannot be clicked have no pointer cursor. Checked in {@link update}. Not set: all icons can be clicked.
-     */
-    constructor(public onClick?: (widget: AHelperWidget, e: MouseEvent) => void, public canClick?: (widget: AHelperWidget) => boolean) {
+    private _press?: {time: number, x: number, y: number}
+
+    constructor(public options: WidgetIconOverlayOptions = {}) {
         this.element = document.createElement('div')
         this.element.className = 'widget-icons-layer'
     }
@@ -79,11 +100,37 @@ export class WidgetIconOverlay {
         this._container = undefined
         this._canvas = undefined
         this._rect = ''
+        this._viewportDirty = true
+    }
+
+    /**
+     * Reads the place and the size of the canvas in the container again, at the next {@link update} (the layout is not
+     * read on each frame). Call it when the canvas is resized or moved: `Object3DWidgetsPlugin` calls it on a resize of
+     * the viewer.
+     */
+    invalidateViewport() {
+        this._viewportDirty = true
+    }
+
+    /**
+     * Checks again which icons can be clicked ({@link WidgetIconOverlayOptions.canClick}) at the next {@link update}
+     * (the check is not run on each frame). `Object3DWidgetsPlugin` calls it on a change in the viewer (an `update`
+     * event: the picking plugin, its options or the selection, the widget options) and when a plugin is added or
+     * removed. A new icon is checked when it is made.
+     */
+    invalidateClickable() {
+        this._clickableDirty = true
     }
 
     /** The icon element of a widget, while it has one */
     getIconElement(widget: AHelperWidget): HTMLDivElement | undefined {
         return this._icons.get(widget)?.el
+    }
+
+    /** Removes the icon of a widget (a widget that is removed); {@link update} also does it for the widgets not given */
+    removeIcon(widget: AHelperWidget) {
+        this._icons.get(widget)?.el.remove()
+        this._icons.delete(widget)
     }
 
     /**
@@ -94,14 +141,21 @@ export class WidgetIconOverlay {
         const container = this._container, canvas = this._canvas
         if (!container || !canvas) return
         // the layer covers the canvas, which can be smaller than the container (viewer.setRenderSize)
-        const c = container.getBoundingClientRect()
-        const r = canvas.getBoundingClientRect()
-        const rect = `${r.left - c.left - container.clientLeft}|${r.top - c.top - container.clientTop}|${r.width}|${r.height}`
-        if (rect !== this._rect) {
-            this._rect = rect
-            const [x, y, w, h] = rect.split('|')
-            Object.assign(this.element.style, {left: x + 'px', top: y + 'px', width: w + 'px', height: h + 'px'})
+        if (this._viewportDirty) {
+            this._viewportDirty = false
+            const c = container.getBoundingClientRect()
+            const cr = canvas.getBoundingClientRect()
+            this._size = {width: cr.width, height: cr.height}
+            const rect = `${cr.left - c.left - container.clientLeft}|${cr.top - c.top - container.clientTop}|${cr.width}|${cr.height}`
+            if (rect !== this._rect) {
+                this._rect = rect
+                const [x, y, w, h] = rect.split('|')
+                Object.assign(this.element.style, {left: x + 'px', top: y + 'px', width: w + 'px', height: h + 'px'})
+            }
         }
+        const r = this._size
+        const checkClickable = this._clickableDirty
+        this._clickableDirty = false
         const dpr = globalThis.devicePixelRatio || 1
         const snap = (v: number) => Math.round(v * dpr) / dpr // whole device pixels, so the SVG is not resampled
         const seen = new Set<AHelperWidget>()
@@ -116,6 +170,13 @@ export class WidgetIconOverlay {
             }
             if (!icon) icon = this._create(widget, widget.kind)
             const el = icon.el
+            if (checkClickable || icon.clickable === undefined) {
+                const clickable = !!this.options.click && (this.options.canClick?.(widget) ?? true)
+                if (clickable !== icon.clickable) {
+                    icon.clickable = clickable
+                    el.className = clickable ? 'widget-icon' : 'widget-icon widget-icon-static'
+                }
+            }
 
             const size = widget.iconSize * widgetIconLayout.box / widgetIconLayout.diameter
             tmp.setFromMatrixPosition(widget.matrixWorld).project(camera)
@@ -136,11 +197,6 @@ export class WidgetIconOverlay {
             const objColor = (widget.object as {color?: Color} | undefined)?.color
             const color = objColor?.isColor ? '#' + objColor.getHexString() : ''
             if (color !== icon.color) el.style.color = icon.color = color
-            const clickable = !!this.onClick && (this.canClick?.(widget) ?? true)
-            if (clickable !== icon.clickable) {
-                icon.clickable = clickable
-                el.className = clickable ? 'widget-icon' : 'widget-icon widget-icon-static'
-            }
             const label = widget.object?.name || widget.kind
             if (label !== icon.label) {
                 icon.label = label
@@ -166,7 +222,18 @@ export class WidgetIconOverlay {
         el.className = 'widget-icon'
         el.setAttribute('role', 'button')
         el.innerHTML = getWidgetIconSvg(kind)
-        el.addEventListener('click', (e: MouseEvent) => this.onClick?.(widget, e))
+        el.addEventListener('pointerdown', (e: PointerEvent) => {
+            this._press = e.isPrimary === false ? this._press : {time: now(), x: e.clientX, y: e.clientY}
+        })
+        el.addEventListener('click', (e: MouseEvent) => {
+            const press = this._press
+            this._press = undefined
+            // a click as the canvas counts one (ObjectPicker): a long press or a drag on an icon is not a click
+            if (press && !this._isClick(press, e)) return
+            this.options.click?.(widget, e)
+        })
+        el.addEventListener('pointerenter', () => this.options.hover?.(widget))
+        el.addEventListener('pointerleave', () => this.options.hover?.(null))
         el.addEventListener('wheel', (e: WheelEvent) => {
             e.preventDefault()
             this._canvas?.dispatchEvent(new WheelEvent('wheel', e))
@@ -177,9 +244,15 @@ export class WidgetIconOverlay {
         return icon
     }
 
+    private _isClick(press: {time: number, x: number, y: number}, e: MouseEvent) {
+        if (now() - press.time >= ObjectPicker.PointerClickMaxTime) return false
+        const {width: w, height: h} = this._size
+        // the distance in the units of the picker: the canvas is 2 wide and 2 high
+        return Math.hypot((e.clientX - press.x) / (w / 2 || 1), (e.clientY - press.y) / (h / 2 || 1)) < ObjectPicker.PointerClickMaxDistance
+    }
+
     dispose() {
         this.detach()
-        this.onClick = undefined
-        this.canClick = undefined
+        this.options = {}
     }
 }

@@ -1,6 +1,6 @@
 /* the icons of lights and cameras in DOM mode (Object3DWidgetsPlugin.iconMode), over the canvas: under the other canvas overlays (UI layers in CONTRIBUTING.md) */
 .widget-icons-layer { position: absolute; left: 0; top: 0; width: 100%; height: 100%; z-index: 8; pointer-events: none; overflow: hidden; overflow: clip; }
 .widget-icon { position: absolute; left: 0; top: 0; pointer-events: auto; cursor: pointer; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
-.widget-icon-static { cursor: default; }
+.widget-icon-static { pointer-events: none; } /* cannot be selected: the pointer goes to the canvas (orbit, clicks) */
 .widget-icon[hidden] { display: none; }
 .widget-icon svg { display: block; overflow: visible; }

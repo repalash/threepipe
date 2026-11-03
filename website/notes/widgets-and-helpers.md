@@ -78,11 +78,14 @@ Widgets live outside the model root. They are parented under a **widget root** g
 This debounces updates to at most once per render frame.
 
 **Kind, colour and icon:** `attach()` sets `kind` from `getWidgetKind(object)` (a light or camera kind, else
-`undefined`). The colour of the lines is `color` when it is set, else the colour of the kind (`_lineColor`). A widget
+`undefined`). The colour of the lines is `color` when it is set, else the light colour for a light, else the colour of
+the kind (`_lineColor`); a change of `color` redraws the widget. A widget
 with a kind and `showIcon` on (`hasIcon`) has an `icon` (`WidgetIcon`, see [Icons](#icons-of-lights-and-cameras)) while
 `iconMode` is `'sprite'`, updated in `update()`; with `'dom'` it has no sprite and the plugin's DOM layer draws the icon.
-`iconSize` is its diameter in CSS pixels. `_createLineMaterial()` makes the line material of the light and
-camera helpers (the [material convention](#material-convention)).
+`iconSize` is its diameter in CSS pixels. Each option change runs `update()`; `batchUpdate(fn)` sets several options
+with one update (the plugin uses it). `dispose()` removes and clears `icon` (and `shadowHelper` of a light widget).
+`_createLineMaterial()` makes the line material of the light and camera helpers (the
+[material convention](#material-convention)).
 
 **Known limitation:** Three.js `onBeforeRender` is not called on lights or cameras, only meshes. This is why `ALightHelperWidget` and `ACameraHelperWidget` override with `preRender()`, which `Object3DWidgetsPlugin` calls explicitly in its viewer `preRender` listener.
 
@@ -141,14 +144,15 @@ See [Widget Handle Picking](./widget-handle-picking) for the full interaction da
 - **SpotLightHelper2**: Cone visualization matching spotlight angle and distance. 5 cone lines + 32-segment circle at cone end.
 - **PointLightHelper2**: Wireframe sphere at light position.
 
-All extend `ALightHelperWidget` and use `preRender()` for updates. The lines are in the colour of the light kind; the
-light's own colour is the dot on the icon.
+All extend `ALightHelperWidget` and use `preRender()` for updates. The lines are in the light's own colour (as is the
+dot on the icon); the icon is in the colour of the light kind.
 
 **Shadow frustum:** with `showShadowFrustum` on (`Object3DWidgetsPlugin.showShadowFrustum`, default off), a directional
 or spot light that casts shadows gets `shadowHelper`, a `CameraHelper2` of `light.shadow.camera` inside its widget, in the
 colour of the light kind. The widget calls `light.shadow.updateMatrices(light)` (as the renderer does before the shadow
-map) and gives the helper the matrix of the shadow camera relative to the light. The helper has no icon and
-`userData.userSelectable = false`, so a click on it does not select the shadow camera.
+map) and gives the helper the matrix of the shadow camera relative to the light. The helper has no icon,
+`userData.userSelectable = false`: a hit on its lines is not picked and does not go up to the light widget (see
+[picking a widget](#picking-a-widget)), so a click on a line selects nothing and goes to the model behind it.
 
 ### CameraHelper2
 
@@ -175,7 +179,7 @@ overlay, an outliner) reads the same functions.
 widget (the transform of its object). `updateTexture(pixelRatio)` draws the texture at the size of the icon on screen,
 `getWidgetIconTextureSize(iconSize, renderScale)` texels (about one texel per device pixel, so it is not upscaled or
 shrunk), and again only when that size changes. Lights also have a child sprite, `dot`, on the same quad, with only the
-dot in its texture, tinted with the light colour; it cannot be picked. The icon owns its textures and disposes them.
+dot in its texture, tinted with the light colour; it cannot be picked. A hit on a hidden icon (`showIcon` off) is not picked (see [picking a widget](#picking-a-widget)). The icon owns its textures and disposes them.
 
 The icon materials follow the [material convention](#material-convention) and are also `depthTest: false`, so the icon
 is drawn on top. The textures are premultiplied at upload and blended once (`CustomBlending`, `One` and
@@ -187,14 +191,34 @@ vanish while its disc is still on screen.
 
 **DOM mode.** `WidgetIconOverlay` (`src/three/widgets/WidgetIconOverlay.ts`) is a `div` (`z-index` 8, under the other
 canvas overlays) in the viewer container, over the canvas, with one element per widget holding the SVG. The plugin calls
-`update(widgets, camera)` after each render (`postRender`): it projects the widget position, places the element with
-`transform` only (snapped to device pixels), and writes the DOM only where something changed. An icon is hidden when the
+`update(widgets, camera)` after each render (`postRender`) with the camera of the render (`scene.renderCamera`): it
+projects the widget position, places the element with `transform` only (snapped to device pixels), and writes the DOM
+only where something changed. It reads the layout (the canvas rectangle) only after `invalidateViewport()`, which the
+plugin calls on a resize of the viewer, and checks which icons can be selected only after `invalidateClickable()`,
+which the plugin calls on a viewer `update` event (a `setDirty`: the picking plugin, its options, the selection) and
+when a plugin is added or removed. A change of `userData` flags alone sends no event: call `setDirty` or
+`plugin.iconOverlay.invalidateClickable()` after it. An icon is hidden when the
 widget or a parent is hidden, `hasIcon` is false, or the object is out of the near and far range (behind the camera). The
-nearer icon is on top (`z-index` by depth). A click calls `PickingPlugin.setSelectedObject(object)`, or
-`toggleSelectedObject` with shift, ctrl or cmd when multi-select is on, only when the picker's
-`selectableFor(widget)` gives the widget: the same check as a ray hit on a sprite icon (the selection condition, by
-default `isPickable`, which checks a widget from itself up as it does for the parts of a widget). The icons that cannot
-be selected have no pointer cursor (`widget-icon-static`). A wheel over an icon is sent on to the canvas.
+nearer icon is on top (`z-index` by depth). The pointer goes through the picker as on a sprite icon:
+- The icon can be selected only when the picker's `selectableFor(widget)` gives the widget, the same check as a ray hit
+  on a sprite icon (the selection condition, by default `isPickable`, which checks a widget from itself up as it does
+  for the parts of a widget). The icons that cannot be selected (`widget-icon-static`) have `pointer-events: none`: the
+  pointer goes through them to the canvas (orbit, clicks).
+- A click is a hit on the widget at its position given to `ObjectPicker.selectHit`, which the clicks on the canvas also
+  use: the `hitObject` event (the PickingPlugin maps the widget to its object, and a listener can consume the click),
+  the picking mode, multi-select with shift, ctrl or cmd, and undo. As on the canvas, a press longer than
+  `ObjectPicker.PointerClickMaxTime` or a move more than `PointerClickMaxDistance` is not a click.
+- With the picker's `hoverEnabled`, the pointer on an icon hovers the object (`ObjectPicker.hoverHit`).
+- A wheel over an icon is sent on to the canvas. A drag that starts on an icon does not orbit the camera.
+
+#### Picking a widget
+
+`isPickable` accepts a widget itself (it has no material), for the DOM icons. It checks the flags from the object up:
+a part of a widget with `userSelectable === false`, or under such a part (the shadow frustum helper), is not picked. A
+ray hit on a part that is not picked (hidden, or with that flag) does not go up to its widget: `ObjectPicker.selectableFor`
+stops at a widget when it climbs from a part, so the hit is dropped and the next hit (the model behind) is picked. A
+widget is picked through its parts that are picked, or as itself (a DOM icon).
+
 The layer, the icons and its stylesheet are removed when the mode changes and when the plugin is removed. It is a small
 layer of its own; it can move onto a shared screen overlay later.
 

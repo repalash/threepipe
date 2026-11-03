@@ -23,9 +23,9 @@ Simply add the plugin to the viewer to see the widget.
 
 In the example, each light and camera has a round icon at its position: a sun for the directional light (amber), a
 spot lamp for the spot light (orange), a bulb for the point light (yellow) and a camera for the perspective and
-orthographic cameras (violet). The light icons have a small dot in the colour of the light. The lines of each helper
-(the plane and aim line of the directional light, the spot cone, the point light sphere, the camera frustum) are in the
-colour of the kind, and the boxes in front of the two shadow-casting lights are their shadow camera frustums
+orthographic cameras (violet). The light icons have a small dot in the colour of the light. The lines of a light helper
+(the plane and aim line of the directional light, the spot cone, the point light sphere) are in the colour of the light,
+the camera frustums in the camera colour, and the boxes in front of the two shadow-casting lights are their shadow camera frustums
 (`showShadowFrustum` is on in the example).
 
 ## Icons
@@ -34,8 +34,8 @@ Each light and camera widget shows a round icon at the object's position. The ic
 size in pixels at any distance and zoom, and is drawn on top of the scene. It is not rendered in the GBuffer or the
 depth passes, casts no shadows, and is never exported (widgets are not part of the model root).
 
-- Every kind of light and camera has its own colour and icon, the same for the icon and the lines of its helper. A light
-  icon also has a small dot in the light's own colour.
+- Every kind of light and camera has its own colour and icon. A camera helper draws its lines in that colour; a light
+  helper draws its lines in the light's own colour, and the light icon has a small dot in it.
 - A click on the icon selects the light or the camera, through the `PickingPlugin`, like a click on its lines. The icon
   is in front of the models for the click too, as it is drawn on top of them.
 - The colours and icons are in `widgetKinds` (`src/three/widgets/widgetKinds.ts`), with `getWidgetKind(object)`, the
@@ -56,11 +56,13 @@ object, and where two icons overlap the nearer one is on top and gets the click.
 view still shows the part of it that is on the canvas.
 
 - DOM: the layer (`WidgetIconOverlay`, `plugin.iconOverlay`) has `z-index` 8, under the other overlays on the canvas.
-  The icons are placed after each render with `transform` only, and hidden behind the camera. A click calls
-  `PickingPlugin.setSelectedObject` (with shift, ctrl or cmd and multi-select on, `toggleSelectedObject`) after the same
-  check as a hit on a sprite icon (`ObjectPicker.selectableFor` on the widget: the selection condition,
-  `userData.userSelectable` and `userData.bboxVisible`). Hover shows the pointer cursor on the icons that can be
-  selected; a wheel over an icon still zooms the camera. A drag that starts on an icon does not orbit.
+  The icons are placed after each render with `transform` only, and hidden behind the camera. A click or tap goes
+  through the picker as a click on a sprite icon does (`ObjectPicker.selectHit`): the same check (the selection
+  condition, `userData.userSelectable`, `userData.bboxVisible`), the `hitObject` event, the picking mode, multi-select
+  with shift, ctrl or cmd, and the same limits for a click (a long press or a drag is not one). With hover on in the
+  picker, the pointer on an icon hovers the object. An icon that cannot be selected lets the pointer through to the
+  canvas; the others show the pointer cursor, and a wheel over them still zooms the camera. A drag that starts on an
+  icon that can be selected does not orbit. The icons follow the camera of the render.
 - Sprite: the texture is drawn at about one texel per device pixel (`iconSize` times the render scale), and again only
   when one of them changes. For a sharp canvas on high DPI screens, create the viewer with `renderScale: 'auto'`.
 

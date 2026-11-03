@@ -1,4 +1,5 @@
 import {UiObjectConfig} from 'uiconfig.js'
+import {Vector2, Vector3} from 'three'
 import {Group2, IObject3D, IWidget} from '../../core'
 import {AViewerPluginSync, type IViewerEvent, IViewerEventTypes, ThreeViewer} from '../../viewer'
 import {IEvent, onChange} from 'ts-browser-helpers'
@@ -14,6 +15,7 @@ import {
     WidgetIconMode,
     WidgetIconOverlay,
 } from '../../three/widgets'
+import type {HitIntersects} from '../../three/utils/ObjectPicker'
 import {PartialRecord} from '../../utils'
 import type {PickingPlugin} from '../interaction/PickingPlugin'
 
@@ -81,12 +83,13 @@ export class Object3DWidgetsPlugin extends AViewerPluginSync {
     }
 
     protected _applyOptions(w: IWidget) {
-        if (w instanceof AHelperWidget) {
+        if (!(w instanceof AHelperWidget)) return
+        w.batchUpdate(() => { // one update for all the options
             w.showIcon = this.showIcons
             w.iconSize = this.iconSize
             w.iconMode = this._iconOverlay ? 'dom' : 'sprite'
-        }
-        if (w instanceof ALightHelperWidget) w.showShadowFrustum = this.showShadowFrustum
+            if (w instanceof ALightHelperWidget) w.showShadowFrustum = this.showShadowFrustum
+        })
     }
 
     toJSON: any = null
@@ -107,12 +110,18 @@ export class Object3DWidgetsPlugin extends AViewerPluginSync {
         return this._iconOverlay
     }
 
+    private _viewerResize = ()=> this._iconOverlay?.invalidateViewport()
+
     /** Makes or removes the DOM layer of the icons for {@link iconMode} */
     protected _updateIconOverlay() {
         const viewer = this._viewer
         const dom = !!viewer && this.iconMode === 'dom' && typeof document !== 'undefined' && !!viewer.container?.appendChild
         if (dom && !this._iconOverlay) {
-            this._iconOverlay = new WidgetIconOverlay(this._iconClick, w => !!this._iconPicking(w))
+            this._iconOverlay = new WidgetIconOverlay({
+                click: this._iconClick,
+                canClick: w => !!this._iconPicker(w),
+                hover: this._iconHover,
+            })
             this._iconOverlay.attach(viewer.container, viewer.canvas)
         } else if (!dom && this._iconOverlay) {
             this._iconOverlay.dispose()
@@ -121,22 +130,43 @@ export class Object3DWidgetsPlugin extends AViewerPluginSync {
     }
 
     /**
-     * The PickingPlugin, when a click on the DOM icon of `widget` can select its object: the same check as a hit on a
-     * sprite icon, the picker's `selectableFor` (its selection condition, `userSelectable`, `bboxVisible`), on the widget
+     * The picker of the PickingPlugin, when a click on the DOM icon of `widget` can select its object: the same check as
+     * a ray hit on a sprite icon, the picker's `selectableFor` (its selection condition, `userSelectable`,
+     * `bboxVisible`), on the widget
      */
-    private _iconPicking(widget: AHelperWidget) {
+    private _iconPicker(widget: AHelperWidget) {
         const picking = this._viewer?.getPlugin<PickingPlugin>('PickingPlugin')
         if (!picking || !widget.object || picking.isDisabled()) return undefined
-        return picking.picker?.selectableFor(widget) === widget ? picking : undefined
+        const picker = picking.picker
+        return picker?.selectableFor(widget) === widget ? picker : undefined
     }
 
-    /** A click on a DOM icon selects its object, as a click on a sprite icon does through the picker */
+    /** A hit on the widget at its position, as a ray hit on its sprite icon gives (mapped to the object by the picking) */
+    private _iconHit(widget: AHelperWidget): HitIntersects | null {
+        const camera = this._viewer?.scene.renderCamera // the camera the icons are placed with
+        if (!camera) return null
+        const point = new Vector3().setFromMatrixPosition(widget.matrixWorld)
+        const ndc = point.clone().project(camera)
+        const intersect = {object: widget as IObject3D, point, distance: point.distanceTo(camera.getWorldPosition(new Vector3()))}
+        return {selectedObject: widget as IObject3D, intersect, intersects: [intersect], mouse: new Vector2(ndc.x, ndc.y)}
+    }
+
+    /**
+     * A click on a DOM icon picks the widget as a click on its sprite icon does: the hit goes through the picker's
+     * `selectHit` (the `hitObject` event, which maps the widget to its object and can consume the click, the picking
+     * mode, multi-select with shift, ctrl or cmd, undo)
+     */
     private _iconClick = (widget: AHelperWidget, e: MouseEvent) => {
-        const picking = this._iconPicking(widget)
-        const object = widget.object
-        if (!picking || !object) return
-        if (picking.multiSelectEnabled && (e.shiftKey || e.ctrlKey || e.metaKey)) picking.toggleSelectedObject(object)
-        else picking.setSelectedObject(object)
+        const picker = this._iconPicker(widget)
+        const hit = picker && this._iconHit(widget)
+        if (picker && hit) picker.selectHit(hit, e)
+    }
+
+    /** The pointer on a DOM icon hovers the object as on a sprite icon (the picker's `hoverHit`, when hover is on) */
+    private _iconHover = (widget: AHelperWidget | null) => {
+        const picker = widget ? this._iconPicker(widget) : this._viewer?.getPlugin<PickingPlugin>('PickingPlugin')?.picker
+        if (!picker?.hoverEnabled) return
+        picker.hoverHit(widget && picker ? this._iconHit(widget) : null)
     }
 
     private _modelRoot?: IObject3D
@@ -148,6 +178,7 @@ export class Object3DWidgetsPlugin extends AViewerPluginSync {
         this._modelRoot = this.inSceneRoot ? viewer.scene : viewer.scene.modelRoot
 
         viewer.scene.addObject(this._widgetRoot, {addToRoot: true, autoScale: false, autoCenter: false})
+        viewer.renderManager.addEventListener('resize', this._viewerResize)
         this._updateIconOverlay()
 
         viewer.object3dManager.getObjects().forEach(object=>this._objectAdd({object}))
@@ -163,6 +194,7 @@ export class Object3DWidgetsPlugin extends AViewerPluginSync {
         this.widgets = []
         this._iconOverlay?.dispose()
         this._iconOverlay = undefined
+        viewer.renderManager.removeEventListener('resize', this._viewerResize)
         this._widgetRoot.removeFromParent()
         this._widgetRoot.clear()
         super.onRemove(viewer)
@@ -179,9 +211,14 @@ export class Object3DWidgetsPlugin extends AViewerPluginSync {
         preRender: ()=>{
             this.widgets.forEach(w => w.preRender && w.preRender())
         },
+        // the camera of the render, which the sprites and the lines are drawn with
         postRender: ()=>{
-            if (this._iconOverlay && this._viewer) this._iconOverlay.update(this.widgets, this._viewer.scene.mainCamera)
+            if (this._iconOverlay && this._viewer) this._iconOverlay.update(this.widgets, this._viewer.scene.renderCamera)
         },
+        // a change that can change which DOM icons can be selected: the picking plugin, its options, the selection
+        update: ()=> this._iconOverlay?.invalidateClickable(),
+        addPlugin: ()=> this._iconOverlay?.invalidateClickable(),
+        removePlugin: ()=> this._iconOverlay?.invalidateClickable(),
     }
 
     widgets: (IWidget)[] = []
@@ -194,6 +231,7 @@ export class Object3DWidgetsPlugin extends AViewerPluginSync {
     }
     private _unregisterWidget(w: IWidget) {
         w.removeEventListener('dispose', this._widgetDisposed)
+        if (w instanceof AHelperWidget) this._iconOverlay?.removeIcon(w) // now, not at the next render
         const i = this.widgets.indexOf(w)
         if (i >= 0) this.widgets.splice(i, 1)
     }
