@@ -10,6 +10,7 @@ import {LineMaterial2} from '../../../core/material/LineMaterial2'
 import {UnlitLineMaterial} from '../../../core/material/UnlitLineMaterial'
 import {MeshLine} from '../../../core/object/MeshLine'
 import {AGeometryGenerator} from '../AGeometryGenerator'
+import {updateCurveArcLengths} from '../../../three/utils/curve-edit'
 import {createCurvePropertyUi, createCurveTypeDropdown, type SupportedCurveTypes} from '../helpers/CurveUiHelper'
 
 export interface LineGeometryGeneratorParams {
@@ -52,7 +53,8 @@ export class LineGeometryGenerator extends AGeometryGenerator<LineGeometryGenera
         const segments = Math.max(2, params.segments || 50)
         const closePath = params.closePath || false
 
-        curve.updateArcLengths()
+        // also the lengths of the curves of a path, which CurvePath.updateArcLengths keeps
+        updateCurveArcLengths(curve)
         const points = curve.getSpacedPoints(segments - 1)
 
         if (points.length !== segments) {
