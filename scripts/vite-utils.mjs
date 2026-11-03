@@ -3,7 +3,7 @@ import rollupGlsl from 'rollup-plugin-glsl';
 import license from 'rollup-plugin-license';
 import path from 'node:path';
 import {existsSync} from 'node:fs';
-import {copyFile, mkdir, readdir, readFile, writeFile} from 'node:fs/promises';
+import {copyFile, mkdir, readdir, readFile, rm, writeFile} from 'node:fs/promises';
 import {spawnSync} from 'node:child_process';
 import {createRequire} from 'node:module';
 
@@ -133,7 +133,8 @@ async function fixDtsImports (emittedFiles) {
  * @param {object} [options]
  * @param {string} [options.tsconfig] - relative to the package, `tsconfig.json` by default
  * @param {boolean} [options.copyDtsFiles] - also copy the hand-written `.d.ts` files of the `rootDir` (tsc does not).
- * The tsconfig must set `rootDir`.
+ * The tsconfig must set `rootDir`. A `.d.ts` that has a `.js` beside it is always copied when the tsconfig sets
+ * `rootDir`: it replaces the declaration tsc generates from the JavaScript.
  */
 export function declarations ({tsconfig = 'tsconfig.json', copyDtsFiles = false} = {}) {
     let root, outDir
@@ -158,17 +159,24 @@ export function declarations ({tsconfig = 'tsconfig.json', copyDtsFiles = false}
             if (result.status !== 0 && result.status !== 2 || !emitted.length) {
                 throw new Error(`tsc -p ${tsconfig} wrote no declarations (exit ${result.status}):\n` + (errors.join('\n') || result.stderr || result.error))
             }
-            if (copyDtsFiles) {
-                const configRootDir = JSON.parse(run('--showConfig').stdout).compilerOptions.rootDir
-                // without it the package root would be copied from, node_modules and the output included
-                if (!configRootDir) throw new Error(`declarations({copyDtsFiles: true}) needs rootDir in ${tsconfig}`)
-                const rootDir = path.resolve(root, configRootDir)
-                const files = (await readdir(rootDir, {recursive: true})).filter(f => f.endsWith('.d.ts'))
+            const configRootDir = JSON.parse(run('--showConfig').stdout).compilerOptions.rootDir
+            // without it the package root would be copied from, node_modules and the output included
+            if (copyDtsFiles && !configRootDir) throw new Error(`declarations({copyDtsFiles: true}) needs rootDir in ${tsconfig}`)
+            if (configRootDir) {
+                // --showConfig prints it relative to the tsconfig file
+                const rootDir = path.resolve(root, path.dirname(tsconfig), configRootDir)
+                const sources = (await readdir(rootDir, {recursive: true})).filter(f => !f.split(path.sep).includes('node_modules'))
+                const jsFiles = new Set(sources.filter(f => f.endsWith('.js')))
+                // a hand-written declaration of a JavaScript file (`X.d.ts` beside `X.js`) is always copied: it replaces
+                // the untyped one tsc generates from the JavaScript (allowJs), like TransformControls in the core
+                const files = sources.filter(f => f.endsWith('.d.ts') && (copyDtsFiles || jsFiles.has(f.slice(0, -'.d.ts'.length) + '.js')))
                 for (const file of files) {
                     const to = path.join(outDir, file)
                     await mkdir(path.dirname(to), {recursive: true})
                     await copyFile(path.join(rootDir, file), to)
-                    emitted.push(to)
+                    // the map tsc wrote for its own declaration does not match the copied file
+                    await rm(to + '.map', {force: true})
+                    if (!emitted.some(f => path.resolve(f) === to)) emitted.push(to)
                 }
             }
             await fixDtsImports(emitted)
