@@ -9,6 +9,7 @@ import {
 import {AssimpJsPlugin} from '@threepipe/plugin-assimpjs'
 
 const viewer = new ThreeViewer({
+    renderScale: 'auto',
     canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
     msaa: true,
     plugins: [LoadingScreenPlugin],
