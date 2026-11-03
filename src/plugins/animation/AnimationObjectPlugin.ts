@@ -1,6 +1,7 @@
 import {createDiv, createStyles, getOrCall, serialize} from 'ts-browser-helpers'
 import {AViewerPluginEventMap, AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {generateUiConfig, UiObjectConfig} from 'uiconfig.js'
+import {UiTags} from '../../ui/uiconfig'
 import {AnimationResult, PopmotionPlugin} from './PopmotionPlugin'
 import {AnimationObject, AnimationObjectEventMap} from '../../utils/AnimationObject'
 import {IMaterial, IObject3D} from '../../core'
@@ -279,7 +280,7 @@ export class AnimationObjectPlugin extends AViewerPluginSync<AnimationObjectPlug
         obj.uiConfig?.children?.push({
             type: 'folder',
             label: 'Property Animations',
-            tags: ['animation', AnimationObjectPlugin.PluginType],
+            tags: [UiTags.Animation, AnimationObjectPlugin.PluginType],
             children: [()=>obj.userData.animationObjects?.map(ao=>ao.uiConfig)],
         })
 

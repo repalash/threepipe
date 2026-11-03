@@ -141,7 +141,7 @@ The `basic` tag (`UiTags.Basic`) marks the few fields of an object, material, li
 | Material extensions (clearcoat tint, custom bump map, fragment clipping, noise bump, SSAO) | the Enabled toggle |
 | Geometry | none |
 
-Actions like Duplicate and Delete are not basic, they belong in a menu (the `context-menu` tag).
+Actions like Duplicate and Delete are not basic, they belong in a menu (the `context-menu` tag, `UiTags.ContextMenu`).
 
 The folder rule:
 - Tag fields, not folders. A simple view shows a folder (as a section with its label) only when it holds a basic field, at any depth, and shows only the basic fields in it. A folder without basic fields is left out.
@@ -182,3 +182,24 @@ const config: UiObjectConfig = {
     ],
 }
 ```
+
+## Tags
+
+`UiTags` lists the tags that threepipe sets in its configs. The values are plain strings, so a config or a renderer can use the string or the enum member: `tags: [UiTags.ContextMenu]` and `tags: ['context-menu']` are the same. Check a tag with `hasUiTag(config, UiTags.ContextMenu)`.
+
+| Member | Value | Meaning | Read by |
+|---|---|---|---|
+| `Basic` | `basic` | The few fields that a simple view shows (see [Basic fields](#basic-fields)) | `findTaggedUiConfigs` |
+| `ContextMenu` | `context-menu` | A button for a menu: an action on the object (duplicate, delete, set view, center geometry) | the blueprint renderer (menu of the folder), the blueprint editor (right-click menu of the hierarchy) |
+| `HeaderAction` | `header-action` | A button for the header of its folder, like Add Constraint. Set with `context-menu` | none yet (metadata) |
+| `Interaction` | `interaction` | A menu action that changes the object in the scene (scale to radius, auto center, pivot to center). Set with `context-menu` | none (metadata) |
+| `Advanced` | `advanced` | A field for expert users (uuid, shadow map type, render passes, geometry groups) | none (metadata) |
+| `Performance` | `performance` | A field that trades quality for speed, like a sample, ray or step count | none (metadata) |
+| `Debug` | `debug` | A field to debug the output, like a buffer preview or a split view | none (metadata) |
+| `Widget` | `widget` | The folder of a helper widget (`AHelperWidget`) | none (metadata) |
+| `GeneratedGeometry` | `generatedGeometry` | The Generation Params folder of a generated geometry | `AGeometryGenerator`, to update or remove the folder |
+| `Animation` | `animation` | The Property Animations folder of `AnimationObjectPlugin` | none (metadata) |
+| `Constraints` | `constraints` | The Constraints folder of `ObjectConstraintsPlugin` on an object or material | none (metadata) |
+| `Constraint` | `constraint` | The folder of one constraint, inside the Constraints folder | none (metadata) |
+
+A plugin can also tag its own configs with its `PluginType` to find them again, like `AnimationObjectPlugin` and `ObjectConstraintsPlugin` do, or with its own tag, like `troika-text-params` of `TroikaTextPlugin`. These tags are not in `UiTags`.

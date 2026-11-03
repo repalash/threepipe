@@ -1,5 +1,6 @@
 import {Object3D, PerspectiveCamera} from 'three'
 import {generateUiFolder, IUiConfigContainer, uiToggle} from 'uiconfig.js'
+import {UiTags} from '../../ui/uiconfig'
 import {Group2, iObjectCommons, IObject3D, IWidget} from '../../core'
 import {onChange2} from 'ts-browser-helpers'
 
@@ -90,7 +91,7 @@ export abstract class AHelperWidget extends Group2 implements IWidget {
         return this
     }
 
-    uiConfig = generateUiFolder('Widget', this, {tags: 'widget'})
+    uiConfig = generateUiFolder('Widget', this, {tags: UiTags.Widget})
 
     dispose() {
         this.detach()
