@@ -10,7 +10,6 @@ const models = [
 async function init(i: number) {
 
     const viewer = new ThreeViewer({
-        renderScale: 'auto',
         canvas: document.getElementById('mcanvas' + (i + 1)) as HTMLCanvasElement,
         msaa: true,
         debug: true,
