@@ -141,11 +141,11 @@ describe('GLTFContentsPlugin', () => {
         }
         const plugin = new GLTFContentsPlugin()
         plugin.onAdded(viewer)
-        const load = async (data: any) => Promise.all((listeners.loadAsset ?? []).map(async f => f({data})))
+        const load = async(data: any) => Promise.all((listeners.loadAsset ?? []).map(async f => f({data})))
         return {plugin, viewer, load, listeners}
     }
 
-    test('a loaded glb is read from its file and shown; other loads are not', async () => {
+    test('a loaded glb is read from its file and shown; other loads are not', async() => {
         const {plugin, load} = setup()
         const file = Object.assign(new Blob([glb(sample, 2000)]), {name: 'ring.glb'})
         await load({assetType: 'model', __rootBlob: file})
@@ -156,9 +156,9 @@ describe('GLTFContentsPlugin', () => {
         expect(plugin.shownSummary?.fileBytes).toBe(file.size)
     })
 
-    test('a model from a URL is fetched again with the query string the importer added', async () => {
+    test('a model from a URL is fetched again with the query string the importer added', async() => {
         const urls: string[] = []
-        const fetchMock = async (url: string) => (urls.push(url), {arrayBuffer: async () => glb(sample, 0)})
+        const fetchMock = async(url: string) => (urls.push(url), {arrayBuffer: async() => glb(sample, 0)})
         const saved = globalThis.fetch
         globalThis.fetch = fetchMock as any
         try {
@@ -174,10 +174,10 @@ describe('GLTFContentsPlugin', () => {
         }
     })
 
-    test('a model from a URL is fetched at the URL the importer resolves (its URL modifiers)', async () => {
+    test('a model from a URL is fetched at the URL the importer resolves (its URL modifiers)', async() => {
         const urls: string[] = []
         const saved = globalThis.fetch
-        globalThis.fetch = (async (url: string) => (urls.push(url), {arrayBuffer: async () => glb(sample, 0)})) as any
+        globalThis.fetch = (async(url: string) => (urls.push(url), {arrayBuffer: async() => glb(sample, 0)})) as any
         try {
             const {plugin, viewer, load} = setup()
             viewer.assetManager.importer = {resolveURL: (url: string) => url.replace('https://example.com/', 'https://cdn.example.com/signed/')}
@@ -189,9 +189,9 @@ describe('GLTFContentsPlugin', () => {
         }
     })
 
-    test('Check the export makes the file of the exporter and shows it first; without an exporter it says so', async () => {
+    test('Check the export makes the file of the exporter and shows it first; without an exporter it says so', async() => {
         const blob = Object.assign(new Blob([glb(sample, 100)]), {ext: 'glb'})
-        const exporter = {exportScene: async () => blob, exportOptions: {name: 'ring'}}
+        const exporter = {exportScene: async() => blob, exportOptions: {name: 'ring'}}
         const {plugin} = setup(exporter)
         const s = await plugin.checkExport()
         expect(s?.name).toBe('Export: ring.glb')
@@ -204,7 +204,7 @@ describe('GLTFContentsPlugin', () => {
         expect(none.status).toBe('Add the AssetExporterPlugin to check the export')
     })
 
-    test('a failed export check shows its message above the loaded file, which stays listed', async () => {
+    test('a failed export check shows its message above the loaded file, which stays listed', async() => {
         const {plugin, load} = setup()
         await load({assetType: 'model', __rootBlob: Object.assign(new Blob([glb(sample, 0)]), {name: 'ring.glb'})})
         await plugin.checkExport() // no exporter
@@ -214,7 +214,7 @@ describe('GLTFContentsPlugin', () => {
         expect(labels).toContain('Size')
     })
 
-    test('removing the plugin stops reading loads', async () => {
+    test('removing the plugin stops reading loads', async() => {
         const {plugin, viewer, load} = setup()
         plugin.onRemove(viewer)
         await load({assetType: 'model', __rootBlob: Object.assign(new Blob([glb(sample, 0)]), {name: 'ring.glb'})})
