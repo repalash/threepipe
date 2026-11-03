@@ -2,6 +2,7 @@ import {_testFinish, _testStart, AssetExporterPlugin, IObject3D, LoadingScreenPl
 import {GLTFDracoExportPlugin, GLTFSpecGlossinessConverterPlugin} from '@threepipe/plugin-gltf-transform'
 
 const viewer = new ThreeViewer({
+    renderScale: 'auto',
     canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
     dropzone: {
         addOptions: {
