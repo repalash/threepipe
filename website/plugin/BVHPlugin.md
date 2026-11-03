@@ -52,7 +52,7 @@ Without options, the plugin loads `three-mesh-bvh` with a native dynamic import 
     "imports": {
         "three": "https://unpkg.com/threepipe/dist/index.mjs",
         "threepipe": "https://unpkg.com/threepipe/dist/index.mjs",
-        "three-mesh-bvh": "https://esm.sh/three-mesh-bvh@0.9.16?external=three"
+        "three-mesh-bvh": "https://esm.sh/three-mesh-bvh@0.9.18?external=three"
     }
 }
 </script>
