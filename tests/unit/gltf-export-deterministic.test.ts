@@ -23,7 +23,7 @@ const textures = [mesh.material.map!, mesh.material.normalMap!, mesh.material.em
 /**
  * Exports the mesh to glb, with the data of image i arriving after delays[i] ms
  */
-async function exportGlb(delays: number[]) {
+async function exportGlb(delays: number[], encodeLater = false) {
     const writer = new tp.GLTFWriter2()
     const blobs = new Map(textures.map((t, i) => {
         const blob = new Blob([new Uint8Array(images[i].bytes)], {type: images[i].type})
@@ -35,7 +35,17 @@ async function exportGlb(delays: number[]) {
         return [t, blob]
     }))
     writer.plugins.push({writeTexture: (map: Texture, textureDef: any) => {
-        textureDef.source = writer.processImageBlob(blobs.get(map)!, map)
+        if (!encodeLater) {
+            textureDef.source = writer.processImageBlob(blobs.get(map)!, map)
+            return
+        }
+        // like an extension that encodes its image later: a pending task starts another one that adds the image
+        const later = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+        writer.pending.push(later(5).then(() => {
+            writer.pending.push(later(10).then(() => {
+                textureDef.source = writer.processImageBlob(blobs.get(map)!, map)
+            }))
+        }))
     }} as any)
     return new Promise<Uint8Array>((resolve) => {
         writer.write(mesh, (glb) => resolve(new Uint8Array(glb as ArrayBuffer)), {binary: true, exporterOptions: {}} as any)
@@ -54,6 +64,14 @@ describe('glb export', () => {
         const third = await exportGlb([15, 0, 30])
         expect(second).toEqual(first)
         expect(third).toEqual(first)
+    })
+
+    it('writes the images that pending work adds later', async() => {
+        const first = await exportGlb([30, 15, 0], true)
+        const json = glbJson(first)
+        expect(json.images.length).toBe(images.length)
+        for (const imageDef of json.images) expect(imageDef.bufferView).toBeGreaterThanOrEqual(0)
+        expect(await exportGlb([0, 15, 30], true)).toEqual(first)
     })
 
     it('stores each image in its own 4-byte aligned bufferView, in the order of the images', async() => {

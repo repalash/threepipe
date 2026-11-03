@@ -28,6 +28,7 @@ export class GLTFWriter2 extends GLTFExporter.Utils.GLTFWriter {
      * Image data waiting for its bufferView, see {@link processBufferViewImage}
      */
     private _imageBuffers: Promise<ArrayBuffer>[] = []
+    private _imagesWritten = false
 
     /**
      * Images are encoded asynchronously and finish in any order. three.js gives each one the next bufferView when it
@@ -35,6 +36,7 @@ export class GLTFWriter2 extends GLTFExporter.Utils.GLTFWriter {
      * instead (negative), and the bufferViews are written in the order of `json.images` once everything is encoded.
      */
     processBufferViewImage(blob: Blob): Promise<number> {
+        if (this._imagesWritten) return super.processBufferViewImage(blob) // after the others, written when it is read
         const placeholder = -1 - this._imageBuffers.length
         this._imageBuffers.push(blob.arrayBuffer())
         return Promise.resolve(placeholder)
@@ -43,11 +45,26 @@ export class GLTFWriter2 extends GLTFExporter.Utils.GLTFWriter {
     processInput(input: Object3D | Object3D[]) {
         // @ts-expect-error not in the three.js types
         super.processInput(input)
-        // write() waits for everything in pending, so this runs before the buffers are merged.
-        this.pending.push(Promise.all([...this.pending]).then(async() => this._writeImageBufferViews()))
+        // write() waits for everything in pending before it merges the buffers, so the bufferViews are written before that
+        this.pending.push(this._writeAfterPending(this.pending.length))
+    }
+
+    /**
+     * Waits for all the pending work, also the work added while it waits (like an image encoded by a pending
+     * extension), then writes the image bufferViews.
+     * @param self - index of this promise in pending, it does not wait for itself
+     */
+    private async _writeAfterPending(self: number) {
+        for (let waited = 0; waited < this.pending.length;) {
+            const next = this.pending.slice(waited).filter((_, i) => waited + i !== self)
+            waited = this.pending.length
+            await Promise.all(next)
+        }
+        await this._writeImageBufferViews()
     }
 
     private async _writeImageBufferViews() {
+        this._imagesWritten = true
         if (!this._imageBuffers.length) return
         const buffers = await Promise.all(this._imageBuffers)
         this._imageBuffers = []

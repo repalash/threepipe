@@ -3,7 +3,7 @@ import rollupGlsl from 'rollup-plugin-glsl';
 import license from 'rollup-plugin-license';
 import path from 'node:path';
 import {existsSync} from 'node:fs';
-import {copyFile, glob, mkdir, readFile, writeFile} from 'node:fs/promises';
+import {copyFile, mkdir, readdir, readFile, writeFile} from 'node:fs/promises';
 import {spawnSync} from 'node:child_process';
 import {createRequire} from 'node:module';
 
@@ -132,7 +132,8 @@ async function fixDtsImports (emittedFiles) {
  * Type errors do not stop the build (the declarations are written anyway), they are counted in one line.
  * @param {object} [options]
  * @param {string} [options.tsconfig] - relative to the package, `tsconfig.json` by default
- * @param {boolean} [options.copyDtsFiles] - also copy the hand-written `.d.ts` files of the `rootDir` (tsc does not)
+ * @param {boolean} [options.copyDtsFiles] - also copy the hand-written `.d.ts` files of the `rootDir` (tsc does not).
+ * The tsconfig must set `rootDir`.
  */
 export function declarations ({tsconfig = 'tsconfig.json', copyDtsFiles = false} = {}) {
     let root, outDir
@@ -146,8 +147,10 @@ export function declarations ({tsconfig = 'tsconfig.json', copyDtsFiles = false}
         async closeBundle () {
             const start = Date.now()
             const tsc = path.join(path.dirname(createRequire(import.meta.url).resolve('@typescript/native/package.json')), 'bin/tsc')
-            const result = spawnSync(process.execPath, [tsc, '-p', tsconfig, '--declaration', '--emitDeclarationOnly', '--declarationDir', outDir,
-                '--listEmittedFiles', '--pretty', 'false', '--singleThreaded'], {cwd: root, encoding: 'utf8'})
+            // the output lists every written file and every type error, more than the default 1 MB with many errors
+            const run = (...args) => spawnSync(process.execPath, [tsc, '-p', tsconfig, ...args], {cwd: root, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024})
+            const result = run('--declaration', '--emitDeclarationOnly', '--declarationDir', outDir, '--listEmittedFiles', '--pretty', 'false', '--singleThreaded')
+            if (result.error) throw result.error
             const lines = (result.stdout + result.stderr).split('\n')
             const emitted = lines.filter(l => l.startsWith('TSFILE: ')).map(l => l.slice(8).trim())
             const errors = lines.filter(l => /error TS\d+/.test(l))
@@ -156,9 +159,12 @@ export function declarations ({tsconfig = 'tsconfig.json', copyDtsFiles = false}
                 throw new Error(`tsc -p ${tsconfig} wrote no declarations (exit ${result.status}):\n` + (errors.join('\n') || result.stderr || result.error))
             }
             if (copyDtsFiles) {
-                const rootDir = path.resolve(root, JSON.parse(spawnSync(process.execPath, [tsc, '-p', tsconfig, '--showConfig'],
-                    {cwd: root, encoding: 'utf8'}).stdout).compilerOptions.rootDir ?? '.')
-                for await (const file of glob('**/*.d.ts', {cwd: rootDir})) {
+                const configRootDir = JSON.parse(run('--showConfig').stdout).compilerOptions.rootDir
+                // without it the package root would be copied from, node_modules and the output included
+                if (!configRootDir) throw new Error(`declarations({copyDtsFiles: true}) needs rootDir in ${tsconfig}`)
+                const rootDir = path.resolve(root, configRootDir)
+                const files = (await readdir(rootDir, {recursive: true})).filter(f => f.endsWith('.d.ts'))
+                for (const file of files) {
                     const to = path.join(outDir, file)
                     await mkdir(path.dirname(to), {recursive: true})
                     await copyFile(path.join(rootDir, file), to)
@@ -166,7 +172,7 @@ export function declarations ({tsconfig = 'tsconfig.json', copyDtsFiles = false}
                 }
             }
             await fixDtsImports(emitted)
-            const typeErrors = errors.length ? `, ${errors.length} type errors (npx tsc -p ${tsconfig} --noEmit lists them)` : ''
+            const typeErrors = errors.length ? `, ${errors.length} type errors (\`tsc -p ${tsconfig} --noEmit\` in ${path.relative(path.resolve(import.meta.dirname, '..'), root) || '.'} lists them)` : ''
             console.log(`[declarations] ${emitted.filter(f => f.endsWith('.d.ts')).length} files in ${path.relative(root, outDir)} in ${Date.now() - start}ms${typeErrors}`)
         },
     }

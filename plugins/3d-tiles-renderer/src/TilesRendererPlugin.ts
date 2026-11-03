@@ -229,7 +229,7 @@ export class TilesRendererLoader extends Loader implements ILoader<TilesRenderer
         ()=>new UpdateOnChangePlugin(),
         (opts)=>opts?.ImplicitTilingPlugin !== false ? new ImplicitTilingPlugin() : undefined,
         (opts)=>opts?.TilesFadePlugin !== false ? new TilesFadePlugin(typeof opts?.TilesFadePlugin === 'object' ? opts.TilesFadePlugin : undefined) : undefined,
-        (opts)=>typeof opts?.CesiumIonAuthPlugin === 'object' ? new CesiumIonAuthPlugin(opts.CesiumIonAuthPlugin) : undefined, // needs the apiToken
+        (opts)=>opts?.CesiumIonAuthPlugin && typeof opts.CesiumIonAuthPlugin === 'object' ? new CesiumIonAuthPlugin(opts.CesiumIonAuthPlugin) : undefined, // needs the apiToken (not true, null is skipped)
     ]
 
     constructor(manager: LoadingManager) {

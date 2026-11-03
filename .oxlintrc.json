@@ -7,7 +7,10 @@
     "jsPlugins": ["@stylistic/eslint-plugin", "./scripts/oxlint-naming.mjs"],
     "env": {"browser": true, "node": true, "es2022": true},
     "ignorePatterns": [
-        "**/*.js", "**/*.mjs", "**/*.cjs", "**/*.jsx", "**/*.vue", "**/*.svelte", "**/*.d.ts",
+        "**/*.jsx", "**/*.vue", "**/*.svelte", "**/*.d.ts",
+        ".claude/**", // agent worktrees
+        // generated
+        "plugins/gaussian-splatting/src/three-gaussian-splat/cpp-sorter/sort.js",
         // vendored code, kept as close to upstream as possible
         "plugins/svg-renderer/src/three-svg-renderer/**",
         "plugins/svg-renderer/src/three-mesh-halfedge/**",
@@ -110,6 +113,9 @@
         "naming/type-pascal-case": "error"
     },
     "overrides": [
+        // JavaScript (scripts, configs, the examples index): the mistakes only, it is written in several styles
+        {"files": ["**/*.js", "**/*.mjs", "**/*.cjs"],
+         "rules": {"@stylistic/indent": "off", "@stylistic/quotes": "off", "@stylistic/semi": "off", "@stylistic/comma-dangle": "off", "@stylistic/object-curly-spacing": "off", "@stylistic/comma-spacing": "off", "@stylistic/keyword-spacing": "off", "@stylistic/space-before-function-paren": "off", "@stylistic/space-infix-ops": "off", "@stylistic/no-trailing-spaces": "off", "@stylistic/brace-style": "off", "naming/private-underscore": "off", "naming/type-pascal-case": "off"}},
         // Written in another style, not reformatted
         {"files": [
             "playwright.config.ts",
@@ -155,16 +161,17 @@
         {"files": ["plugins/webgi-plugins/src/utils/Reflector2.ts"], "rules": {"default-param-last": "off"}},
         {"files": ["plugins/gaussian-splatting/src/three-gaussian-splat/cpp-sorter/BufferPool.ts"], "rules": {"naming/private-underscore": "off"}},
         {"files": ["plugins/r3f/src/useViewerImporter.tsx"], "rules": {"no-duplicate-imports": "off"}},
-        {"files": ["tests/unit/tweakpane-editor-frame.test.ts"], "rules": {"no-loop-func": "off"}},
-        {"files": ["tests/interactive.spec.ts", "tests/unit/blend-importer-material.test.ts", "tests/unit/notes-plugin.test.ts", "tests/unit/render-preview.test.ts", "tests/unit/sticky-notes-ui-plugin.test.ts"], "rules": {"no-shadow": "off"}},
-        {"files": ["plugins/webgi-plugins/src/plugins/postprocessing/SSGIPlugin.ts"], "rules": {"prefer-const": "off"}},
+        {"files": ["tests/precache-cdn.mjs", "tests/unit/tweakpane-editor-frame.test.ts"], "rules": {"no-loop-func": "off"}},
+        {"files": ["examples/_index/editor/setup.mjs", "tests/interactive.spec.ts", "tests/unit/blend-importer-material.test.ts", "tests/unit/notes-plugin.test.ts", "tests/unit/render-preview.test.ts", "tests/unit/sticky-notes-ui-plugin.test.ts"], "rules": {"no-shadow": "off"}},
+        {"files": ["examples/_index/editor/loadTypes.mjs", "examples/_index/editor/setup.mjs", "plugins/webgi-plugins/src/plugins/postprocessing/SSGIPlugin.ts", "tests/precache-cdn.mjs", "website/public/scripts/home-viewer.js"], "rules": {"prefer-const": "off"}},
         {"files": ["plugins/blend-importer/src/loader/geometry.ts"], "rules": {"typescript/consistent-type-definitions": "off"}},
         {"files": ["plugins/webgi-plugins/src/utils/FSShadowMaterial.ts"], "rules": {"typescript/no-inferrable-types": "off"}},
         {"files": ["plugins/webgi-plugins/src/plugins/extras/AdvancedGroundPlugin.ts"], "rules": {"typescript/no-non-null-asserted-optional-chain": "off"}},
         {"files": ["tests/unit/sticky-notes-ui-plugin.test.ts", "tests/unit/tweakpane-editor-frame.test.ts"], "rules": {"typescript/no-this-alias": "off"}},
         {"files": ["plugins/webgi-plugins/src/utils/FSShadowMaterial.ts"], "rules": {"typescript/prefer-as-const": "off"}},
         {"files": ["src/plugins/geometry/primitives/geometry-generators.test.ts"], "rules": {"typescript/prefer-for-of": "off"}},
+        {"files": ["examples/_index/editor/loadTypes.mjs"], "rules": {"no-constant-condition": "off"}},
         // Unused variables, to fix or keep file by file in a follow-up
-        {"files": ["src/assetmanager/AssetImporter.ts", "tests/interactive.spec.ts"], "rules": {"no-unused-vars": "off"}}
+        {"files": ["examples/_index/editor/loadTypes.mjs", "examples/_index/editor/monaco.mjs", "examples/_index/editor/setup.mjs", "plugins/*/vite.config.js", "scripts/vite-utils.mjs", "src/assetmanager/AssetImporter.ts", "tests/interactive.spec.ts", "vite.config.js", "vite.examples.config.js", "website/.worker/cf.js", "website/public/scripts/home-3d-abstract.js", "website/public/scripts/home-viewer.js", "website/public/scripts/viewer-controls.js"], "rules": {"no-unused-vars": "off"}}
     ]
 }
