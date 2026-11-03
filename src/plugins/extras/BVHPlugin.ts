@@ -156,7 +156,7 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
     // the trees that the plugin did not build, with the build key of the geometry when the plugin first saw them: an
     // update with the same key refits them, another key drops them (they no longer fit), and the plugin builds its own.
     // covers: the tree has the triangles that the meshes draw, else they keep the raycast of three.js
-    private _adopted = new Map<BVHGeometry, {key: string, covers: boolean}>()
+    private _adopted = new Map<BVHGeometry, {tree: MeshBVHTree, key: string, covers: boolean}>()
     // the helper of each mesh, with the geometry that it was made for
     private _helpers = new Map<IObject3D, {helper: Object3D & {dispose(): void}, geometry: IGeometry}>()
 
@@ -376,7 +376,8 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
         const g: BVHGeometry | undefined = o.geometry
         if (!g || !o.isMesh) return
         this._watch(g)
-        if (g.boundsTree) this._setRaycast(g)
+        // only this mesh: the other meshes of the geometry got theirs when they were queued (no N² for shared geometries)
+        if (g.boundsTree) this._setMeshRaycast(o, g)
         else if (this.wants(g)) this._queue.add(g)
     }
 
@@ -400,8 +401,10 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
     }
 
     private _adopt(g: BVHGeometry) {
-        if (g.boundsTree && !this._stats.has(g) && !this._adopted.has(g))
-            this._adopted.set(g, {key: buildKey(g), covers: hasDrawnTriangles(g.boundsTree, g)})
+        const tree = g.boundsTree
+        // a tree that replaced the adopted one is checked again: it can have other triangles
+        if (!tree || this._stats.has(g) || this._adopted.get(g)?.tree === tree) return
+        this._adopted.set(g, {tree, key: buildKey(g), covers: hasDrawnTriangles(tree, g)})
     }
 
     private _unwatch(g: BVHGeometry) {
@@ -516,14 +519,16 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
     // meshes of a geometry with a tree raycast with it, the others get the default back (also a mesh that can no
     // longer use the tree, e.g. its groups now leave out triangles)
     private _setRaycast(g: BVHGeometry) {
+        for (const o of g.appliedMeshes ?? []) this._setMeshRaycast(o, g)
+    }
+
+    private _setMeshRaycast(o: IObject3D, g: BVHGeometry) {
         this._adopt(g)
         const accelerated = this.lib?.acceleratedRaycast
         const fits = this._stats.has(g) || !!this._adopted.get(g)?.covers
-        for (const o of g.appliedMeshes ?? []) {
-            // a disabled plugin does not use the trees from outside either
-            if (g.boundsTree && fits && accelerated && !this.isDisabled() && this.canUse(o) && this.modeOf(o) !== 'off') o.raycast = accelerated
-            else if (Object.prototype.hasOwnProperty.call(o, 'raycast') && o.raycast === accelerated) delete (o as Partial<IObject3D>).raycast
-        }
+        // a disabled plugin does not use the trees from outside either
+        if (g.boundsTree && fits && accelerated && !this.isDisabled() && this.canUse(o) && this.modeOf(o) !== 'off') o.raycast = accelerated
+        else if (Object.prototype.hasOwnProperty.call(o, 'raycast') && o.raycast === accelerated) delete (o as Partial<IObject3D>).raycast
     }
 }
 

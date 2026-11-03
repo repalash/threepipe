@@ -500,6 +500,36 @@ describe('BVHPlugin', () => {
         const expected = rays().map(brute(exact))
         expect(expected.flat().length).toBeGreaterThan(0)
         expect(rays().map(r => hits(exact, r))).toEqual(expected)
+
+        // a tree that replaces an adopted one is checked again: a full tree, then one with half the triangles
+        const swap = add(200, 32)
+        swap.geometry!.boundsTree = new threeMeshBVH.MeshBVH(swap.geometry!) as any
+        plugin.refreshAll()
+        expect(swap.raycast).toBe(threeMeshBVH.acceleratedRaycast)
+        swap.geometry!.boundsTree = new threeMeshBVH.MeshBVH(swap.geometry!, {range: {start: 0, count: half}}) as any
+        plugin.refreshAll()
+        expect(swap.raycast).toBe(Mesh.prototype.raycast)
+    })
+
+    test('a mesh added to a shared geometry with a tree: only that mesh is checked, not every mesh of the geometry', () => {
+        const {plugin, viewer, add, frame} = setup()
+        const a = add(200, 32)
+        frame()
+        const others = Array.from({length: 20}, () => {
+            const m = new Mesh(a.geometry!, a.material as any) as any
+            viewer.scene.modelRoot.add(m)
+            viewer.object3dManager.registerObject(m)
+            return m
+        })
+        expect(others.every(m => m.raycast === threeMeshBVH.acceleratedRaycast)).toBe(true)
+        const canUse = vi.spyOn(plugin, 'canUse')
+        const last = new Mesh(a.geometry!, a.material as any) as any
+        viewer.scene.modelRoot.add(last)
+        viewer.object3dManager.registerObject(last)
+        expect(last.raycast).toBe(threeMeshBVH.acceleratedRaycast)
+        expect(canUse.mock.calls.filter(c => c[0] === last).length).toBeGreaterThan(0)
+        // none of the other meshes of the geometry is checked again (it was every one of them, N² for N meshes)
+        expect(canUse.mock.calls.filter(c => others.includes(c[0])).length).toBe(0)
     })
 
     test('a mesh that leaves the scene gets the raycast of three.js back, also when its geometry keeps the tree; added again, it uses the tree', async() => {
