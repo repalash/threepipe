@@ -48,6 +48,8 @@ Run them in the repository root, unless the table says otherwise.
 | `npm run website:dev` | The website (vitepress) | Docs changes |
 | `npm run docs` / `npm run docs-all` | API docs of the core and the website build / the same plus the API docs of every plugin | Docs changes |
 
+Check manually, the linter cannot: a function that returns a Promise is `async` (a sync `throw` in it then rejects the Promise instead of throwing to the caller).
+
 Different from other projects:
 - `dev` starts the dev server (as in vite projects); the watch build of the library is `watch`. Before this change,
   `dev` was the watch build and `vite` the dev server.
