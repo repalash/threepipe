@@ -6,6 +6,7 @@
         "migrate": "teeny deploy --local",
         "init-infra": "bash scripts/init-infra.sh",
         "deploy": "teeny deploy --remote",
+        "deploy:ci": "bash scripts/deploy-ci.sh",
         "secrets-upload": "teeny secrets --remote --upload",
         "cf-typegen": "wrangler types --env-interface CloudflareBindings",
         "typecheck": "npm run cf-typegen && tsc --noEmit -p tsconfig.json",
