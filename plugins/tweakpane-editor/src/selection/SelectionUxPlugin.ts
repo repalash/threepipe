@@ -3,6 +3,7 @@ import {
     AViewerPluginSync,
     IObject3D,
     Object3D,
+    ObjectPicker,
     PickingPlugin,
     Raycaster,
     ThreeViewer,
@@ -29,8 +30,11 @@ export interface SelectionUxPluginEventMap extends AViewerPluginEventMap {
     uxUpdate: {reason: string}
 }
 
-/** A press of the left button on the canvas, until it is released (a click) or moves (then the camera controls have it) */
-interface DragState {kind: 'press', start: Vector2, leaf: IObject3D | null, shift: boolean, deep: boolean}
+/**
+ * A press of the left button on the canvas, until it is released (a click), moves (then the camera controls have it),
+ * lasts too long, or starts a drag of the transform gizmo
+ */
+interface DragState {kind: 'press', start: Vector2, time: number, leaf: IObject3D | null, shift: boolean, deep: boolean}
 
 /** Lines and points: thin targets that win over a surface at about the same depth */
 function isThin(o: any) {
@@ -47,7 +51,8 @@ function isThin(o: any) {
  * - Shift+click adds or removes an object. Ctrl/Cmd+click selects the deepest object under the pointer.
  * - Keys: Esc or Shift+Enter select the parent, Enter the children, Tab / Shift+Tab the next / previous sibling,
  *   Ctrl/Cmd+A all objects at the level of the selection.
- * - A drag is not a click: the camera controls keep it.
+ * - A drag is not a click: the camera controls keep it. A press of {@link ObjectPicker.PointerClickMaxTime} or longer is
+ *   not a click, as in the core picker. A press on the transform gizmo is not a click: it moves the object.
  *
  * The selection is the selection of the {@link PickingPlugin} (added as a dependency): its events, its undo steps and its
  * box widget stay as they are. While enabled, this plugin takes over the clicks and keys that select.
@@ -88,6 +93,8 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
     /** A click behind that waits until a double click is ruled out (a press within {@link ClickAgainDelay} cancels it) */
     private _clickBehind?: ReturnType<typeof setTimeout>
     private _nextHoverAt = 0
+    /** The transform gizmo whose drag start cancels the press (bound at a press: the TransformControlsPlugin can come later) */
+    private _gizmo?: TransformControlsPlugin['transformControls']
 
     constructor(enabled = true) {
         super()
@@ -134,6 +141,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         this._picking?.removeEventListener('hitObject', this._onPickerHit)
         this._picking?.removeEventListener('selectedObjectChanged', this._onSelectionChanged)
         this._picking = undefined
+        this._bindGizmo(undefined)
         this._state = null
         this._lastClick = null
         this._cancelClickBehind()
@@ -396,15 +404,30 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         if (e.button !== 0) return
         // the second press of a double click: the click behind of the first one does not happen
         this._cancelClickBehind()
-        // the transform gizmo gets the press when the pointer is on one of its axes
+        // the transform gizmo gets the press when the pointer is on one of its axes. A mouse hover finds the axis
+        // before the press; a touch has no hover, and the gizmo finds its axis after this listener: its drag start
+        // (_onGizmoDrag) cancels the press then
         const tc = this._viewer!.getPlugin<TransformControlsPlugin>('TransformControlsPlugin')
         if (tc && !tc.isDisabled() && tc.transformControls?.axis) return
+        this._bindGizmo(tc?.transformControls)
         const p = this._local(e)
         this._client.set(e.clientX, e.clientY)
         const hit = this.raycastLeaf(p.x, p.y)
         // a widget handle (a curve point): the PickingPlugin selects it with its intersection, for the transform gizmo
         if (hit?.handle) return
-        this._state = {kind: 'press', start: p, leaf: hit?.leaf ?? null, shift: e.shiftKey, deep: e.ctrlKey || e.metaKey}
+        this._state = {kind: 'press', start: p, time: performance.now(), leaf: hit?.leaf ?? null, shift: e.shiftKey, deep: e.ctrlKey || e.metaKey}
+    }
+
+    private _bindGizmo(gizmo: SelectionUxPlugin['_gizmo']) {
+        if (gizmo === this._gizmo) return
+        this._gizmo?.removeEventListener('mouseDown', this._onGizmoDrag)
+        this._gizmo = gizmo
+        this._gizmo?.addEventListener('mouseDown', this._onGizmoDrag)
+    }
+
+    /** The transform gizmo starts to move the object: the press is not a click */
+    private _onGizmoDrag = () => {
+        this._state = null
     }
 
     private _onPointerMove = (e: PointerEvent) => {
@@ -424,7 +447,8 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         this._state = null
         this._pointerHeld = false
         this._pointerDirty = true
-        if (s && this._active) this._click(s)
+        // a long press is not a click, as in the core picker
+        if (s && this._active && performance.now() - s.time < ObjectPicker.PointerClickMaxTime) this._click(s)
     }
 
     private _onPointerCancel = () => {
