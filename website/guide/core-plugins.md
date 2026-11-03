@@ -83,6 +83,7 @@ Plugins to add/configure interaction and user editable elements to the viewer.
 - [CommandsPlugin](../plugin/CommandsPlugin) - A registry of actions (id, label, icon, shortcut, group, `enabled()`, `run()`) with one key listener for all their shortcuts. Plugins register their actions once; toolbars, menus and command palettes list and run them.
 - [ObjectConstraintsPlugin](https://threepipe.org/plugin/ObjectConstraintsPlugin.html) - Adds support for constraints between objects like follow path, look at, position/rotation/scale locking, etc.
 - [PickingPlugin](../plugin/PickingPlugin) - Adds support for selecting and multi-selecting objects in the viewer with user interactions(click, hover, Shift+Click) and selection widgets.
+- [GPUPickingPlugin](../plugin/GPUPickingPlugin) - Finds the front-most mesh under a point of the canvas by rendering object ids on the GPU (one small draw, no triangle tests), for hover on big scenes.
 - [LoadingScreenPlugin](../plugin/LoadingScreenPlugin) - Shows a configurable loading screen overlay over the canvas which can be extended to show a loader during any kind of processing.
 - [FullScreenPlugin](../plugin/FullScreenPlugin) - Provides helpers for entering the fullscreen mode in browsers.
 - [InteractionPromptPlugin](../plugin/InteractionPromptPlugin) - Adds an animated hand icon over canvas and rotates the camera to prompt the user to interact.

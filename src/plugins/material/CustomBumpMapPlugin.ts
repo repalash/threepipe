@@ -1,6 +1,7 @@
 import {Matrix3, SRGBColorSpace} from 'three'
 import {AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {uiFolderContainer, UiObjectConfig, uiToggle} from 'uiconfig.js'
+import {UiTags} from '../../ui/uiconfig'
 import {serialize} from 'ts-browser-helpers'
 import {IMaterial, IObject3D, ITexture, PhysicalMaterial} from '../../core'
 import {MaterialExtension, updateMaterialDefines} from '../../materials'
@@ -140,6 +141,7 @@ export class CustomBumpMapPlugin extends AViewerPluginSync {
                     {
                         type: 'checkbox',
                         label: 'Enabled',
+                        tags: [UiTags.Basic],
                         get value() {
                             return state._hasCustomBump || false
                         },
