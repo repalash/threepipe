@@ -381,8 +381,15 @@ export function driveRoutes(app: Hono<CloudEnv>) {
         if (parent !== f.parent_id && (await scopedChain(c, user, parent)).some(x => x.id === f.id))
             throw new HTTPException(400, {message: 'a folder cannot move into itself'})
         await assertFree(c, user, parent, name, f.id)
-        placed(await naming(name, c.env.PRIMARY_DB.prepare(`UPDATE drive_folders SET name = ?1, parent_id = ?2 WHERE id = ?3 AND ${parentExists('?2', '?4')}`)
-            .bind(name, parent, f.id, user.id).run()))
+        // the destination exists and is not inside the folder, checked in the statement itself: two moves at the same
+        // time (A into B, B into A) cannot make a loop that nothing reaches from the root
+        const moved = await naming(name, c.env.PRIMARY_DB.prepare(`UPDATE drive_folders SET name = ?1, parent_id = ?2 WHERE id = ?3 AND ${parentExists('?2', '?4')}
+                AND ?3 NOT IN (WITH RECURSIVE up(id, parent_id, depth) AS (
+                    SELECT id, parent_id, 0 FROM drive_folders WHERE id = ?2 AND owner_id = ?4
+                    UNION ALL SELECT d.id, d.parent_id, up.depth + 1 FROM drive_folders d JOIN up ON d.id = up.parent_id AND d.owner_id = ?4 WHERE up.depth < ${FOLDER_DEPTH_MAX})
+                SELECT id FROM up)`)
+            .bind(name, parent, f.id, user.id).run())
+        if (!moved.meta.changes) throw new HTTPException(409, {message: 'the destination was deleted or moved into this folder meanwhile; try again'})
         return c.json(folderOut({id: f.id, name, parent_id: parent}))
     })
 
@@ -526,14 +533,15 @@ export function driveRoutes(app: Hono<CloudEnv>) {
                 }
             } catch (e) {
                 if (e instanceof HTTPException && e.status === 404) throw e // deleted meanwhile
-                // cut short (an R2 error, a limit): the row goes back, so the page shows the item as it still mostly is
-                // and the same button tries again (sending a visibility again finishes the files left)
-                logError('drive visibility: cut short', {item: item.id, visibility, done, files: files.length, error: String(e)})
-                if (item.visibility !== visibility) await c.env.PRIMARY_DB.prepare('UPDATE drive_items SET visibility = ? WHERE id = ? AND visibility = ?')
-                    .bind(item.visibility, item.id, visibility).run()
-                throw new HTTPException(503, {message: visibility === 'private'
+                // Cut short (an R2 error, a limit): some files have the new visibility, some the old, so some are public.
+                // The item says `link` either way, never private while a file of it is public: an unshare cut short
+                // goes back to `link`, a share cut short stays `link`. Sending the visibility again finishes the files left.
+                logError('drive visibility: cut short', {item: item.id, visibility: want, done, files: files.length, error: String(e)})
+                if (want === 'private') await c.env.PRIMARY_DB.prepare(`UPDATE drive_items SET visibility = 'link' WHERE id = ? AND visibility = 'private'`)
+                    .bind(item.id).run()
+                throw new HTTPException(503, {message: want === 'private'
                     ? `It is still shared: ${files.length - done} of ${files.length} file(s) could not be made private. Try again.`
-                    : `It is not shared yet: ${files.length - done} of ${files.length} file(s) could not be shared. Try again.`})
+                    : `It is shared, but ${files.length - done} of ${files.length} file(s) could not be shared yet. Try again.`})
             }
         }
         return c.json(itemOut(c, user, after ?? await itemOf(c, user, item.id)))
