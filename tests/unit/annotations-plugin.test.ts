@@ -1658,6 +1658,6 @@ describe('renderAnnotationText', () => {
     })
 
     test('escapeHtml escapes text and attribute values, for the HTML of renderCardContent', () => {
-        expect(escapeHtml(`<a href="x">Tom & 'Jerry'</a>`)).toBe('&lt;a href=&quot;x&quot;&gt;Tom &amp; &#39;Jerry&#39;&lt;/a&gt;')
+        expect(escapeHtml('<a href="x">Tom & \'Jerry\'</a>')).toBe('&lt;a href=&quot;x&quot;&gt;Tom &amp; &#39;Jerry&#39;&lt;/a&gt;')
     })
 })
