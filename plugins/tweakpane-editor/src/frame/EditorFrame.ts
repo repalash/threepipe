@@ -1,7 +1,7 @@
-import {createDiv, createStyles} from 'threepipe'
+import {bindActions, createDiv, createStyles} from 'threepipe'
+import type {CommandAction, ThreeViewer} from 'threepipe'
 import tippy, {Instance} from 'tippy.js'
 import {EditorModeBar, EditorModeBarHost} from './EditorModeBar'
-import {isTextTarget} from '../dom-utils'
 import styles from './EditorFrame.css?inline'
 
 /**
@@ -48,6 +48,12 @@ export interface EditorFrameOptions {
      * `TweakpaneEditorPlugin` passes the container of the Tweakpane UI. Without it, the mode bar hides no panel.
      */
     panel?: () => HTMLElement | null
+    /**
+     * The viewer: while it has a `CommandsPlugin`, the keys of the frame are registered there as actions
+     * ({@link EditorFrame.actions}). Without it (or without the plugin), the frame runs its keys itself.
+     * `TweakpaneEditorPlugin` passes its viewer.
+     */
+    viewer?: ThreeViewer
 }
 
 const svg = (d: string) => `<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`
@@ -94,6 +100,18 @@ export class EditorFrame {
     private _tips: Instance[] = []
     private _themePairs: [string, string][]
     private _styles?: HTMLStyleElement
+    private _unbindActions: () => void
+
+    /**
+     * The keys of the frame, as actions (`bindActions` of threepipe: a `CommandsPlugin` of
+     * {@link EditorFrameOptions.viewer} lists and runs them, else the frame does): Shift+T switches between the light and
+     * the dark theme, Ctrl+\ (Cmd+\ on a Mac) steps through the collapse states of the mode bar and the panel. The
+     * place of the T key, and the \ key or its place (a layout where it types another character).
+     */
+    readonly actions: CommandAction[] = [
+        {id: 'editorFrame.toggleTheme', label: 'Light or dark theme', group: 'Editor', shortcut: 'Shift+KeyT', run: () => this.toggleTheme()},
+        {id: 'editorFrame.cycleModeBar', label: 'Collapse or expand the mode bar', group: 'Editor', shortcut: 'Mod+\\', run: () => this.modeBar.cycle()},
+    ]
 
     /**
      * @param editor - the editor with the modes, for the mode bar (`TweakpaneEditorPlugin`)
@@ -118,7 +136,7 @@ export class EditorFrame {
         this._floatActions = createDiv({classList: ['lay-float-actions'], addToBody: false})
         this._floatActions.append(...this._actions('modeBar'))
 
-        window.addEventListener('keydown', this._onKeyDown)
+        this._unbindActions = bindActions(options.viewer, this.actions)
         this.modeBar.element.addEventListener('click', this._expandPanel)
         this.setLayout(this._layout)
     }
@@ -220,7 +238,7 @@ export class EditorFrame {
     }
 
     dispose() {
-        window.removeEventListener('keydown', this._onKeyDown)
+        this._unbindActions()
         this.modeBar.element.removeEventListener('click', this._expandPanel)
         for (const [k] of EDITOR_FRAME_LAYOUTS) document.body.classList.remove('lay-' + k)
         document.body.classList.remove('lay-frame')
@@ -242,20 +260,6 @@ export class EditorFrame {
         if (root && !root.classList.contains('tp-rotv-expanded')) root.querySelector<HTMLElement>('.tp-rotv_b')?.click()
     }
 
-
-    /** Shift+T: the light or dark theme. Ctrl+\ (Cmd+\ on a Mac): the next collapse state of the mode bar and the panel. */
-    private _onKeyDown = (e: KeyboardEvent) => {
-        if (e.altKey || e.repeat || e.defaultPrevented) return
-        const mod = e.ctrlKey || e.metaKey
-        const theme = e.code === 'KeyT' && e.shiftKey && !mod
-        // the key (a layout with \ elsewhere), or its place (a layout where it types another character)
-        const names = (e.key === '\\' || e.code === 'Backslash') && mod && !e.shiftKey
-        if (!theme && !names) return
-        if (isTextTarget(e.target)) return
-        e.preventDefault()
-        if (theme) this.toggleTheme()
-        else this.modeBar.cycle()
-    }
 
     private _bar(cls: string) {
         return createDiv({classList: ['lay-bar', cls], addToBody: false})

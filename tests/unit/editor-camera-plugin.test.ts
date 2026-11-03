@@ -1,6 +1,6 @@
 import {afterEach, beforeEach, describe, expect, test, vi} from 'vitest'
 import {EventDispatcher, Object3D, PerspectiveCamera, Vector3} from 'three'
-import {FirstPersonControls2, OrbitControls3, OrthographicCamera2, PerspectiveCamera2, ThreeViewer} from 'threepipe'
+import {CommandsPlugin, FirstPersonControls2, OrbitControls3, OrthographicCamera2, PerspectiveCamera2, ThreeViewer} from 'threepipe'
 import {EditorCameraPlugin} from '../../plugins/tweakpane-editor/src/EditorCameraPlugin'
 import {setupEditorCameraUi} from '../../plugins/tweakpane-editor/src/editor-camera-ui'
 import {TweakpaneEditorPlugin} from '../../plugins/tweakpane-editor/src/TweakpaneEditorPlugin'
@@ -55,6 +55,10 @@ function setup({undo = true, orbit = false, ortho = false, sync = false} = {}) {
         canvas,
         assetManager: new EventDispatcher<any>(),
         getPlugin: (p: any) => undo && (p === 'UndoManagerPlugin' || p?.PluginType === 'UndoManagerPlugin') ? undoPlugin : undefined,
+        // for bindActions of the key: the viewer has no CommandsPlugin
+        _pluginListeners: {add: [], remove: []},
+        addPluginListener: ThreeViewer.prototype.addPluginListener,
+        removePluginListener: ThreeViewer.prototype.removePluginListener,
     }) as any
 
     const plugin = new EditorCameraPlugin()
@@ -164,6 +168,45 @@ describe('EditorCameraPlugin', () => {
         plugin.onRemove(viewer)
         expect(key('KeyC').defaultPrevented).toBe(false)
         expect(plugin.editing).toBe(true)
+    })
+
+    test('with a CommandsPlugin (added later), the key is its action editorCamera.toggleEditing, with the new key of hotkey', async() => {
+        const {plugin, viewer} = setup()
+        // the CommandsPlugin added after the camera plugin, as ThreeViewer.addPluginSync does it
+        const commands = new CommandsPlugin()
+        const getPlugin = viewer.getPlugin
+        viewer.getPlugin = (p: any) => p === 'CommandsPlugin' ? commands : getPlugin(p)
+        commands.onAdded(viewer)
+        viewer._pluginListeners.add.forEach((l: any) => l.l({type: 'addPlugin', plugin: commands}))
+        const runs: string[] = []
+        commands.addEventListener('actionRun', ({action}) => runs.push(action.id))
+
+        expect(commands.list('Camera').map(a => [a.id, a.shortcut])).toEqual([['editorCamera.toggleEditing', 'KeyC']])
+        expect(key('KeyC').defaultPrevented).toBe(true)
+        expect(plugin.editing).toBe(false) // one switch: the plugin has no own listener now
+        await Promise.resolve()
+        await Promise.resolve()
+        expect(runs).toEqual(['editorCamera.toggleEditing'])
+
+        const changes = vi.fn()
+        commands.addEventListener('actionsChange', changes)
+        plugin.hotkey = 'KeyK'
+        expect(changes).toHaveBeenCalled()
+        expect(commands.get('editorCamera.toggleEditing')?.shortcut).toBe('KeyK')
+        expect(key('KeyC').defaultPrevented).toBe(false)
+        key('KeyK')
+        expect(plugin.editing).toBe(true)
+
+        // a UI runs it too; not while the plugin is disabled
+        await commands.run('editorCamera.toggleEditing')
+        expect(plugin.editing).toBe(false)
+        plugin.enabled = false
+        expect(await commands.run('editorCamera.toggleEditing')).toBeUndefined()
+        expect(key('KeyK').defaultPrevented).toBe(false)
+        plugin.enabled = true
+
+        plugin.onRemove(viewer)
+        expect(commands.list()).toEqual([])
     })
 
     test('editingChange tells when the view changes between Edit and View (the toggle, the key, disable, remove)', () => {
@@ -1392,5 +1435,47 @@ describe('EditorCameraPlugin start view UI', () => {
         expect(viewer2.container.find('ecu-root')).toHaveLength(0)
         expect((camera2 as any)._listeners?.editingChange ?? []).toHaveLength(0)
         expect(editor).toBeTruthy()
+    })
+
+    test('the TweakpaneEditorPlugin shows the error and the warning of each action run of a CommandsPlugin in a toast', async() => {
+        vi.useFakeTimers()
+        // the CommandsPlugin listens on the window
+        const win = new EventTarget()
+        Object.assign(globalThis, {addEventListener: win.addEventListener.bind(win), removeEventListener: win.removeEventListener.bind(win)})
+        const viewer = uiViewer()
+        const editor = viewer.add(new TweakpaneEditorPlugin())
+        const toasts = () => viewer.container.find('etoast').map((t: FakeElement) => [t.className, t.textContent])
+        // added after the editor
+        const commands = viewer.add(new CommandsPlugin())
+        commands.register([
+            {id: 'upload', label: 'Upload', run: () => ({error: 'Upload failed', warn: 'The file is large'})},
+            {id: 'plain', label: 'Plain', run: () => undefined},
+        ])
+        await commands.run('upload')
+        await commands.run('plain')
+        expect(toasts()).toEqual([['etoast etoast-error', 'Upload failed'], ['etoast etoast-warn', 'The file is large']])
+        expect(viewer.container.find('etoast-error')[0].getAttribute('role')).toBe('alert')
+
+        // a warning goes after Duration, an error after twice that time; a click removes a toast
+        vi.advanceTimersByTime(4000)
+        expect(toasts()).toEqual([['etoast etoast-error', 'Upload failed']])
+        vi.advanceTimersByTime(4000)
+        expect(toasts()).toEqual([])
+        editor.toasts!.show('Saved')
+        const saved = viewer.container.find('etoast')[0]
+        saved.listeners.click.forEach((l: any) => l())
+        expect(toasts()).toEqual([])
+
+        // at most MaxToasts: the oldest goes
+        for (const m of ['1', '2', '3', '4']) editor.toasts!.show(m)
+        expect(toasts().map(([, text]: string[]) => text)).toEqual(['2', '3', '4'])
+
+        // removed: its runs show no toast; the editor removed: no toasts, no styles of the toasts
+        viewer.remove(commands)
+        expect((commands as any)._listeners?.actionRun ?? []).toHaveLength(0)
+        viewer.remove(editor)
+        expect(viewer.container.find('etoast-host')).toHaveLength(0)
+        expect(editor.toasts).toBeUndefined()
+        vi.useRealTimers()
     })
 })
