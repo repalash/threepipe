@@ -27,4 +27,6 @@ annotations.add(object, localPoint, localNormal, undefined, {title: 'Stone', tex
 annotations.goTo(0) // fly to the view of the first one and open its card
 annotations.playTour(5000)
 annotations.closeOnCanvasInteraction = true // any click, drag or wheel zoom on the canvas closes the card
+annotations.compactCard = true // title and text only, ‹ title › in a tour bar at the bottom that fades while the camera moves
+annotations.showCloseButton = false // no ✕ in the card (Esc and a click on the canvas still close it)
 ```

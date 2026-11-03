@@ -111,10 +111,13 @@ interface Hit {
  *   {@link closeOnCanvasInteraction}, any interaction with the canvas closes it: also a drag (orbit) or a wheel zoom.
  * - Tour: {@link goTo}, {@link next}, {@link prev}, {@link playTour}; events `annotationChange` and `annotationSelect`
  *   for an outside list.
+ * - {@link compactCard}: the card shows the title and the text only, and a tour bar at the bottom centre has ‹ the title
+ *   of the open annotation ›. The bar fades while the user moves the camera ({@link tourBar}). {@link showCloseButton}
+ *   hides the ✕ of the card.
  *
  * The markers and the card are in a layer over the canvas, in the viewer container (which must be positioned, for
- * example `position: relative`). The UI folder (Annotations) has Editable, Close on canvas interaction, Add, Play tour
- * and Remove all.
+ * example `position: relative`). The UI folder (Annotations) has Editable, Close on canvas interaction, Close button,
+ * Compact card, Add, Play tour and Remove all.
  *
  * @category Plugins
  */
@@ -156,6 +159,8 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         children: [
             {type: 'checkbox', label: 'Editable', property: [this, 'editable']},
             {type: 'checkbox', label: 'Close on canvas interaction', property: [this, 'closeOnCanvasInteraction']},
+            {type: 'checkbox', label: 'Close button', property: [this, 'showCloseButton']},
+            {type: 'checkbox', label: 'Compact card', property: [this, 'compactCard']},
             {type: 'button', label: 'Add annotation', value: () => this.startAdding(), hidden: () => !this.editable},
             {type: 'button', label: 'Play tour', value: () => this.playTour()},
             {type: 'button', label: 'Remove all', value: () => this.clear(), hidden: () => !this.editable},
@@ -163,12 +168,21 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
     }
 
     private _editable: boolean
+    private _showCloseButton = true
+    private _compactCard = false
     private _layer?: HTMLDivElement
     private _card?: HTMLDivElement
     private _cardEls!: {
-        num: HTMLElement, title: HTMLElement, titleIn: HTMLInputElement, text: HTMLElement, textIn: HTMLTextAreaElement,
-        view: HTMLButtonElement, pos: HTMLElement, prev: HTMLButtonElement, next: HTMLButtonElement,
+        head: HTMLElement, title: HTMLElement, titleIn: HTMLInputElement, close: HTMLButtonElement, text: HTMLElement,
+        textIn: HTMLTextAreaElement, nav: HTMLElement, pos: HTMLElement, prev: HTMLButtonElement, next: HTMLButtonElement,
+        tools: HTMLElement, view: HTMLButtonElement,
     }
+    /** The tour bar of {@link compactCard}; its `data-state` is {@link tourBar} */
+    private _bar?: {el: HTMLDivElement, title: HTMLElement, prev: HTMLButtonElement, next: HTMLButtonElement}
+    /** The user moves the camera (a drag or a wheel on the canvas), until `BAR_DELAY` ms after the end */
+    private _camMoving = false
+    /** The timer that ends `_camMoving` */
+    private _camTimer = 0
     private _place: HTMLDivElement | null = null
     private _markers = new Map<string, MarkerState>()
     private _objCache = new Map<string, {obj: IObject3D | null, gen: number}>()
@@ -222,6 +236,47 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         this.uiConfig.uiRefresh?.(true, 'postFrame')
     }
 
+    /** Show the ✕ in the card. Off: the card closes with Esc, a click on the canvas or from code ({@link close}). Default true. */
+    get showCloseButton() {
+        return this._showCloseButton
+    }
+
+    set showCloseButton(v: boolean) {
+        if (this._showCloseButton === v) return
+        this._showCloseButton = v
+        this._renderCard()
+        this.uiConfig.uiRefresh?.(true, 'postFrame')
+    }
+
+    /**
+     * A compact card, for a viewer with a tour: the card shows the title and the text only (editable: Update view and
+     * Delete at its top, before the ✕), and the tour bar at the bottom centre has ‹ the title of the open annotation ›.
+     * The bar fades while the user moves the camera, see {@link tourBar}. Default false: the card has ‹ 1 / 3 › and
+     * the tools in its bottom row. Not saved with the scene, like {@link editable}.
+     */
+    get compactCard() {
+        return this._compactCard
+    }
+
+    set compactCard(v: boolean) {
+        if (this._compactCard === v) return
+        this._compactCard = v
+        this._renderCard()
+        this.uiConfig.uiRefresh?.(true, 'postFrame')
+    }
+
+    /**
+     * The state of the tour bar of {@link compactCard}:
+     * - `'hidden'`: the option is off, no annotation is open, a new one is being placed, or the plugin is disabled
+     * - `'shown'`: an annotation is open (also during {@link playTour})
+     * - `'faded'`: shown, but the user moves the camera (a drag past 4px or a wheel on the canvas); it shows again
+     *   400 ms after the pointer up or the last wheel event
+     */
+    get tourBar(): 'hidden' | 'shown' | 'faded' {
+        if (!this._compactCard || !this._bar || !this._openId || this._place || this.isDisabled()) return 'hidden'
+        return this._camMoving ? 'faded' : 'shown'
+    }
+
     /** id of the open annotation, or null */
     get openId() {
         return this._openId
@@ -246,6 +301,7 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         layer.classList.toggle('anp-editable', this._editable)
         viewer.container.appendChild(layer)
         this._layer = layer
+        this._buildBar(layer)
         this._buildCard(layer)
         AnnotationsPlugin._added.add(this)
         window.addEventListener('keydown', this._onKeyDown, {capture: true})
@@ -273,9 +329,13 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         viewer.scene.removeEventListener('sceneUpdate', this._onSceneUpdate)
         viewer.scene.removeEventListener('addSceneObject', this._onHierarchy)
         this._resizer?.disconnect()
+        window.clearTimeout(this._camTimer)
+        this._camTimer = 0
+        this._camMoving = false
         this._layer?.remove()
         this._layer = undefined
         this._card = undefined
+        this._bar = undefined
         this._markers.clear()
         this._objCache.clear()
         this._openId = null
@@ -327,6 +387,7 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         if (!this._viewer || !this._layer) return
         const show = !this.isDisabled()
         this._layer.style.display = show ? '' : 'none'
+        this._updateBar()
         if (!show) return
         this._updateScreen()
         this._updateOcclusion()
@@ -549,6 +610,7 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         layer.appendChild(place)
         place.focus({preventScroll: true})
         this._place = place
+        this._updateBar()
         layer.classList.add('anp-adding')
         this.dispatchEvent({type: 'addingChange', adding: true})
         return true
@@ -559,6 +621,7 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         if (!this._place) return
         this._place.remove()
         this._place = null
+        this._updateBar()
         this._layer?.classList.remove('anp-adding')
         this.dispatchEvent({type: 'addingChange', adding: false})
     }
@@ -877,16 +940,62 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
 
     // region card
 
+    /** The tour bar of {@link compactCard}: ‹ the title of the open annotation › at the bottom centre */
+    private _buildBar(layer: HTMLDivElement) {
+        const bar = el('div', 'anp-bar', layer)
+        bar.dataset.state = 'hidden'
+        const prev = button(bar, 'anp-bar-btn anp-bar-prev', ICONS.prev, 'Previous (←)', () => this.prev())
+        const title = el('span', 'anp-bar-title', bar)
+        const next = button(bar, 'anp-bar-btn anp-bar-next', ICONS.next, 'Next (→)', () => this.next())
+        bar.addEventListener('pointerdown', e => {
+            e.stopPropagation()
+            this.stopTour()
+        })
+        bar.addEventListener('wheel', e => e.stopPropagation())
+        this._bar = {el: bar, title, prev, next}
+    }
+
+    /** The bar shows {@link tourBar} in its `data-state` (the CSS shows, fades or hides it) and the open title */
+    private _updateBar() {
+        const bar = this._bar
+        if (!bar) return
+        const state = this.tourBar
+        if (bar.el.dataset.state !== state) bar.el.dataset.state = state
+        if (state === 'hidden') return
+        const i = this._openId ? this.indexOf(this._openId) : -1
+        const title = i < 0 ? '' : this.annotations[i].title || `Annotation ${i + 1}`
+        if (bar.title.textContent !== title) bar.title.textContent = bar.title.title = title
+        bar.prev.disabled = bar.next.disabled = this.annotations.length < 2
+    }
+
+    /**
+     * The user starts (a drag past 4px, a wheel on the canvas) or ends (the pointer up, after each wheel event) moving
+     * the camera: the tour bar fades, and shows again `BAR_DELAY` ms after the end
+     */
+    private _cameraMoving(start: boolean) {
+        window.clearTimeout(this._camTimer)
+        this._camTimer = 0
+        if (start) {
+            this._camMoving = true
+        } else if (this._camMoving) {
+            this._camTimer = window.setTimeout(() => {
+                this._camTimer = 0
+                this._camMoving = false
+                this._updateBar()
+            }, BAR_DELAY)
+        }
+        this._updateBar()
+    }
+
     private _buildCard(layer: HTMLDivElement) {
         const card = el('div', 'anp-card', layer)
         card.tabIndex = -1
         const head = el('div', 'anp-head', card)
-        const num = el('span', 'anp-num', head)
         const title = el('div', 'anp-title', head)
         const titleIn = el('input', 'anp-title-in', head)
         titleIn.placeholder = 'Title'
         titleIn.spellcheck = true
-        button(head, 'anp-btn anp-x', ICONS.close, 'Close (Esc)', () => this.close())
+        const close = button(head, 'anp-btn anp-x', ICONS.close, 'Close (Esc)', () => this.close())
         const text = el('div', 'anp-text', card)
         const textIn = el('textarea', 'anp-text-in', card)
         textIn.rows = 2
@@ -900,7 +1009,7 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         const tools = el('div', 'anp-tools', nav)
         const view = button(tools, 'anp-btn anp-view', ICONS.view + '<span>Update view</span>', 'Save the current camera view in this annotation', () => this.updateView())
         button(tools, 'anp-btn anp-del', ICONS.delete, 'Delete this annotation', () => this._openId && this.remove(this._openId))
-        this._cardEls = {num, title, titleIn, text, textIn, view, pos, prev, next}
+        this._cardEls = {head, title, titleIn, close, text, textIn, nav, pos, prev, next, tools, view}
         card.addEventListener('pointerdown', e => {
             e.stopPropagation()
             this.stopTour()
@@ -932,7 +1041,10 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
             if (!a) return
             a[key] = input.value
             if (key === 'text') this._autosize()
-            if (key === 'title') this._syncMarkers()
+            if (key === 'title') {
+                this._syncMarkers()
+                this._updateBar()
+            }
             this.dispatchEvent({type: 'annotationChange', reason: 'update', annotation: a})
         })
         input.addEventListener('change', () => {
@@ -976,6 +1088,8 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
     private _renderCard() {
         const card = this._card
         if (!card) return
+        this._layoutCard(card)
+        this._updateBar()
         const a = this._openId ? this.get(this._openId) : undefined
         card.classList.toggle('anp-open', !!a)
         if (!a) return
@@ -984,7 +1098,6 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         const n = this.annotations.length
         card.classList.toggle('anp-edit', this._editable)
         card.classList.toggle('anp-text-empty', !a.text.trim())
-        els.num.textContent = String(i + 1)
         els.title.textContent = a.title || `Annotation ${i + 1}`
         els.text.innerHTML = renderAnnotationText(a.text)
         els.text.style.display = a.text.trim() ? '' : 'none'
@@ -994,6 +1107,20 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         els.pos.textContent = `${i + 1} / ${n}`
         els.prev.disabled = els.next.disabled = n < 2
         els.view.classList.toggle('anp-noview', !a.view)
+        this._cardSize.w = 0 // measure again
+    }
+
+    /** The ✕ ({@link showCloseButton}), and with {@link compactCard}: no bottom row, the tools in the head before the ✕ */
+    private _layoutCard(card: HTMLDivElement) {
+        const els = this._cardEls
+        const compact = this._compactCard
+        card.classList.toggle('anp-compact', compact)
+        els.close.style.display = this._showCloseButton ? '' : 'none'
+        els.nav.style.display = compact ? 'none' : ''
+        const parent = compact ? els.head : els.nav
+        if (parent.contains(els.tools)) return
+        if (compact) els.head.insertBefore(els.tools, els.close)
+        else els.nav.appendChild(els.tools)
         this._cardSize.w = 0 // measure again
     }
 
@@ -1131,6 +1258,7 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
     private _onWindowUp = (e: PointerEvent) => {
         const d = this._down
         this._down = null
+        if (this._camMoving) this._cameraMoving(false)
         if (!d || !d.canvas || !this._openId || this._drag || this._place) return
         const click = e.target === this._viewer?.canvas && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 4
         if (click || d.primary && this._closesOnInteraction()) this.close()
@@ -1138,12 +1266,19 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
 
     private _onWindowMove = (e: PointerEvent) => {
         const d = this._down
-        if (!d || !d.canvas || !d.primary || !this._closesOnInteraction()) return
-        if (Math.hypot(e.clientX - d.x, e.clientY - d.y) >= 4) this.close()
+        if (!d || !d.canvas || this._drag || this._place || Math.hypot(e.clientX - d.x, e.clientY - d.y) < 4) return
+        // a drag on the canvas moves the camera (also with another button: pan)
+        if (this._compactCard && (!this._camMoving || this._camTimer)) this._cameraMoving(true)
+        if (d.primary && this._closesOnInteraction()) this.close()
     }
 
     private _onWindowWheel = (e: WheelEvent) => {
-        if (e.target !== this._viewer?.canvas || !this._closesOnInteraction()) return
+        if (e.target !== this._viewer?.canvas) return
+        if (this._compactCard) {
+            this._cameraMoving(true)
+            this._cameraMoving(false) // a wheel has no end event: shown again BAR_DELAY ms after the last one
+        }
+        if (!this._closesOnInteraction()) return
         this.stopTour()
         this.close()
     }
@@ -1168,13 +1303,17 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
     // endregion
 }
 
+/** The tour bar shows again this long (ms) after the user stops moving the camera */
+const BAR_DELAY = 400
+
 /** The icons of the card (24 px grid, drawn with the text colour, shown at 14 px as the icons of the editor) */
 const svg = (d: string) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`
 const ICONS = {
     close: svg('<path d="M18 6 6 18"/><path d="m6 6 12 12"/>'),
     prev: svg('<path d="m15 18-6-6 6-6"/>'),
     next: svg('<path d="m9 18 6-6-6-6"/>'),
-    view: svg('<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3z"/><circle cx="12" cy="13" r="3"/>'),
+    // a viewfinder with a check: "set this view"
+    view: svg('<path d="M3 8V5a2 2 0 0 1 2-2h3"/><path d="M16 3h3a2 2 0 0 1 2 2v3"/><path d="M21 16v3a2 2 0 0 1-2 2h-3"/><path d="M8 21H5a2 2 0 0 1-2-2v-3"/><path d="m8.5 12 2.5 2.5 4.5-4.5"/>'),
     delete: svg('<path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>'),
 }
 

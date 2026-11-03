@@ -50,6 +50,8 @@ async function init() {
     viewer.getPlugin(UndoManagerPlugin)?.undoManager?.reset()
 
     const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    // the UI folder also has Compact card (a title-and-text card and a tour bar at the bottom: try it with Play tour),
+    // Close button and Close on canvas interaction
     ui.setupPluginUi(AnnotationsPlugin, {expanded: true})
 
 }

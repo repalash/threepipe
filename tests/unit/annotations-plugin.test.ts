@@ -482,6 +482,161 @@ describe('AnnotationsPlugin', () => {
         expect(selected).toEqual(['One', 'Two', 'One', 'Two', undefined])
     })
 
+    test('the card has no number (the markers keep theirs)', () => {
+        const {plugin, layer, box} = setup(false)
+        plugin.add(box as any, front, normal, null, {title: 'One'})
+        plugin.goTo(0)
+        expect(card(layer).find('anp-num')).toHaveLength(0)
+        expect(card(layer).find('anp-title')[0].textContent).toBe('One')
+        expect(markers(layer)[0].textContent).toBe('1')
+    })
+
+    test('showCloseButton: off hides the ✕; Esc and a click on the canvas still close the card', () => {
+        const {plugin, layer, box, canvas} = setup(false)
+        plugin.add(box as any, front, normal, null)
+        plugin.goTo(0)
+        const x = card(layer).find('anp-x')[0]
+        expect(plugin.showCloseButton).toBe(true)
+        expect(x.style.display).toBe('')
+        plugin.showCloseButton = false
+        expect(x.style.display).toBe('none')
+        windowListeners.get('keydown')!({key: 'Escape', target: card(layer), preventDefault: noop, stopImmediatePropagation: noop})
+        expect(plugin.openId).toBe(null)
+        plugin.goTo(0)
+        expect(x.style.display).toBe('none')
+        windowListeners.get('pointerdown')!({target: canvas, clientX: 10, clientY: 10})
+        windowListeners.get('pointerup')!({target: canvas, clientX: 10, clientY: 10})
+        expect(plugin.openId).toBe(null)
+        plugin.showCloseButton = true
+        expect(x.style.display).toBe('')
+        expect((plugin.uiConfig.children as any[]).find(c => c.property?.[1] === 'showCloseButton')?.type).toBe('checkbox')
+    })
+
+    describe('compactCard and the tour bar', () => {
+        const bar = (layer: FakeElement) => layer.find('anp-bar')[0]
+        /** Two annotations, One and Two; compact on */
+        const compact = (editable = false) => {
+            const s = setup(editable)
+            s.plugin.add(s.box as any, front, normal, null, {title: 'One'})
+            s.plugin.add(s.box as any, front, normal, null, {title: 'Two'})
+            ;(s.plugin as any)._updateScreen()
+            s.plugin.compactCard = true
+            return s
+        }
+        const down = (target: any, x = 10) => windowListeners.get('pointerdown')!({target, clientX: x, clientY: 10, button: 0})
+        const move = (target: any, x: number) => windowListeners.get('pointermove')!({target, clientX: x, clientY: 10, button: -1})
+        const up = (target: any, x: number) => windowListeners.get('pointerup')!({target, clientX: x, clientY: 10, button: 0})
+
+        test('off (the default): the bar is hidden and the card keeps ‹ 1 / 2 › and its tools in the bottom bar', () => {
+            const {plugin, layer, box} = setup()
+            plugin.add(box as any, front, normal, null)
+            plugin.goTo(0)
+            const c = card(layer)
+            expect(plugin.compactCard).toBe(false)
+            expect(plugin.tourBar).toBe('hidden')
+            expect(bar(layer).dataset.state).toBe('hidden')
+            expect(c.find('anp-nav')[0].style.display).toBe('')
+            expect(c.find('anp-tools')[0].parent).toBe(c.find('anp-nav')[0])
+            // the card is the last child of the layer, markers and the bar go before it
+            expect(layer.children.at(-1)).toBe(c)
+        })
+
+        test('on: ‹ title › leave the card for the bar; Update view and Delete go to the top, before the ✕; off again puts them back', () => {
+            const {plugin, layer} = compact(true)
+            plugin.goTo(0)
+            const c = card(layer)
+            const head = c.find('anp-head')[0]
+            const tools = c.find('anp-tools')[0]
+            expect(c.find('anp-nav')[0].style.display).toBe('none')
+            expect(tools.parent).toBe(head)
+            expect(head.children.indexOf(tools)).toBe(head.children.indexOf(c.find('anp-x')[0]) - 1)
+            expect(c.classList.contains('anp-compact')).toBe(true)
+            expect(plugin.tourBar).toBe('shown')
+            expect(bar(layer).dataset.state).toBe('shown')
+            expect(bar(layer).find('anp-bar-title')[0].textContent).toBe('One')
+            // the title edited in the card: the bar follows
+            const input = c.find('anp-title-in')[0]
+            input.focus()
+            input.value = 'One!'
+            input.fire('input')
+            expect(bar(layer).find('anp-bar-title')[0].textContent).toBe('One!')
+            plugin.compactCard = false
+            expect(c.find('anp-nav')[0].style.display).toBe('')
+            expect(tools.parent).toBe(c.find('anp-nav')[0])
+            expect(c.classList.contains('anp-compact')).toBe(false)
+            expect(plugin.tourBar).toBe('hidden')
+            expect((plugin.uiConfig.children as any[]).find(i => i.property?.[1] === 'compactCard')?.type).toBe('checkbox')
+        })
+
+        test('the bar: ‹ › go to the previous and next annotation and stop the tour; a click on it keeps the card', () => {
+            const {plugin, layer} = compact()
+            plugin.playTour()
+            const b = bar(layer)
+            down(b.find('anp-bar-next')[0])
+            b.fire('pointerdown')
+            b.find('anp-bar-next')[0].fire('click')
+            up(b.find('anp-bar-next')[0], 10)
+            expect(plugin.touring).toBe(false)
+            expect(plugin.openId).toBe(plugin.get(1)!.id)
+            expect(b.find('anp-bar-title')[0].textContent).toBe('Two')
+            b.find('anp-bar-prev')[0].fire('click')
+            expect(plugin.openId).toBe(plugin.get(0)!.id)
+            expect(b.find('anp-bar-title')[0].textContent).toBe('One')
+        })
+
+        test('the bar state: hidden with no open annotation or while placing, faded while the camera is moved (a drag past 4px, a wheel), shown 400 ms after', () => {
+            vi.useFakeTimers()
+            try {
+                const {plugin, layer, canvas} = compact(true)
+                const state = () => {
+                    expect(bar(layer).dataset.state).toBe(plugin.tourBar)
+                    return plugin.tourBar
+                }
+                expect(state()).toBe('hidden')
+                plugin.goTo(0)
+                expect(state()).toBe('shown')
+                down(canvas)
+                move(canvas, 12)
+                expect(state()).toBe('shown') // a click so far
+                move(canvas, 30)
+                expect(state()).toBe('faded')
+                up(canvas, 30)
+                vi.advanceTimersByTime(399)
+                expect(state()).toBe('faded')
+                vi.advanceTimersByTime(1)
+                expect(state()).toBe('shown')
+                // a wheel zoom: shown 400 ms after the last wheel event
+                windowListeners.get('wheel')!({target: canvas})
+                expect(state()).toBe('faded')
+                vi.advanceTimersByTime(300)
+                windowListeners.get('wheel')!({target: canvas})
+                vi.advanceTimersByTime(300)
+                expect(state()).toBe('faded')
+                vi.advanceTimersByTime(100)
+                expect(state()).toBe('shown')
+                // a drag of a marker does not fade it
+                const m = markers(layer)[0]
+                m.fire('pointerdown', {clientX: 400, clientY: 300})
+                down(canvas)
+                move(canvas, 40)
+                expect(state()).toBe('shown')
+                up(canvas, 40)
+                m.fire('pointerup', {clientX: 400, clientY: 300})
+                plugin.close()
+                expect(state()).toBe('hidden')
+                plugin.goTo(0)
+                plugin.startAdding()
+                expect(state()).toBe('hidden')
+                plugin.cancelAdding()
+                plugin.goTo(0)
+                plugin.compactCard = false
+                expect(state()).toBe('hidden')
+            } finally {
+                vi.useRealTimers()
+            }
+        })
+    })
+
     describe('closeOnCanvasInteraction', () => {
         const down = (target: any, x = 10, button = 0) => windowListeners.get('pointerdown')!({target, clientX: x, clientY: 10, button})
         const move = (target: any, x: number) => windowListeners.get('pointermove')!({target, clientX: x, clientY: 10, button: -1})
