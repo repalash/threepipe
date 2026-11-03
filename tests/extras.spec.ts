@@ -116,6 +116,7 @@ test('object3d-widgets-plugin', async({page}) => expect(page).toHaveTitle('Objec
 test('outline-plugin', async({page}) => expect(page).toHaveTitle('Outline Plugin'))
 test('parallax-mapping-plugin', async({page}) => expect(page).toHaveTitle('Parallax Bump Mapping (Relief)'))
 test('perf-panel-plugin', async({page}) => expect(page).toHaveTitle('Perf Panel Plugin'))
+test('material-preview', async({page}) => expect(page).toHaveTitle('Material Preview'))
 test('pivot-controls-plugin', async({page}) => expect(page).toHaveTitle('Pivot Controls Plugin'))
 test('pivot-edit-plugin', async({page}) => expect(page).toHaveTitle('Pivot Edit Plugin'))
 test('pnts-load', async({page}) => expect(page).toHaveTitle('PNTS Load'))

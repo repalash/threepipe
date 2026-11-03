@@ -510,6 +510,8 @@ ui.setupPluginUi(PickingPlugin)
 // Material(and object) properties will appear in the UI when objects are selected
 ```
 
+For a live preview of a material in an inspector (a sphere, a cube or the selected mesh, with the viewport's environment map and tone mapping), use [`MaterialPreviewQueue`](../notes/material-previews).
+
 [//]: # (todo not a bad idea)
 [//]: # (### Shader Debugging)
 
