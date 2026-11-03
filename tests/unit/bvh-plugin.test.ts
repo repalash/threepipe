@@ -488,4 +488,84 @@ describe('BVHPlugin', () => {
         expect(Object.prototype.hasOwnProperty.call(b, 'raycast')).toBe(false)
         expect(a.geometry!.hasEventListener('geometryUpdate', (plugin as any)._geometryUpdate)).toBe(false)
     })
+
+    describe('enabled off, then on', () => {
+        /** The state after a toggle: off has no tree, the raycast of three.js and an Off status; on has them back */
+        function expectOff(plugin: import('threepipe').BVHPlugin, m: import('threepipe').IObject3D) {
+            expect(plugin.isDisabled()).toBe(true)
+            expect(m.geometry!.boundsTree).toBeUndefined()
+            expect(plugin.builtCount).toBe(0)
+            expect(m.raycast).toBe(Mesh.prototype.raycast)
+            expect(plugin.statusOf(m)).toBe('Off (the plugin is disabled)')
+        }
+        function expectOn(plugin: import('threepipe').BVHPlugin, m: import('threepipe').IObject3D) {
+            expect(plugin.isDisabled()).toBe(false)
+            expect(m.geometry!.boundsTree).toBeInstanceOf(threeMeshBVH.MeshBVH)
+            expect(plugin.builtCount).toBe(1)
+            expect(m.raycast).toBe(threeMeshBVH.acceleratedRaycast)
+            expect(plugin.statusOf(m)).toContain('12,800 triangles')
+        }
+
+        test('the trees, the accelerated raycasts, the events and the status follow each toggle', () => {
+            const {plugin, add, frame} = setup()
+            const m = add(200, 32)
+            const expected = rays().map(r => hits(m, r))
+            const events: string[] = []
+            plugin.addEventListener('bvhBuilt', () => events.push('built'))
+            plugin.addEventListener('bvhDisposed', () => events.push('disposed'))
+            frame()
+            expectOn(plugin, m)
+            for (let i = 0; i < 3; i++) {
+                plugin.enabled = false
+                expectOff(plugin, m)
+                frame()
+                expectOff(plugin, m)
+                plugin.enabled = true
+                expect(plugin.statusOf(m)).toBe('Queued')
+                frame()
+                expectOn(plugin, m)
+                expect(rays().map(r => hits(m, r))).toEqual(expected)
+            }
+            expect(events).toEqual(['built', 'disposed', 'built', 'disposed', 'built', 'disposed', 'built'])
+        })
+
+        test('quick toggles before a frame, an odd number: off, also in the status of a mesh that was queued; on again builds the tree', () => {
+            const {plugin, add, frame} = setup()
+            const m = add(200, 32)
+            for (let i = 0; i < 7; i++) plugin.enabled = !plugin.enabled // queued, then toggled before the build
+            expectOff(plugin, m)
+            frame()
+            expectOff(plugin, m)
+            plugin.enabled = true
+            frame()
+            expectOn(plugin, m)
+        })
+
+        test('toggles while three-mesh-bvh loads: the state when the module arrives decides', async() => {
+            const sequences: ((p: import('threepipe').BVHPlugin) => void)[] = [
+                p => { p.enabled = false; p.enabled = true }, // off and on before the load: on
+                p => { p.enabled = false }, // off during the load: off, then on after it
+                p => { for (let i = 0; i < 6; i++) p.enabled = !p.enabled }, // quick toggles, an even number: on
+            ]
+            for (const toggle of sequences) {
+                let resolve!: (lib: typeof threeMeshBVH) => void
+                const {plugin, add, frame} = setup({load: async() => new Promise(r => resolve = r)})
+                const m = add(200, 32)
+                frame() // no module yet: nothing is built
+                expect(plugin.statusOf(m)).toBe('Loading three-mesh-bvh…')
+                toggle(plugin)
+                if (plugin.enabled) expect(plugin.statusOf(m)).toBe('Loading three-mesh-bvh…')
+                else expectOff(plugin, m)
+                resolve(threeMeshBVH)
+                await vi.waitFor(() => expect(plugin.lib).toBe(threeMeshBVH))
+                frame()
+                if (!plugin.enabled) {
+                    expectOff(plugin, m)
+                    plugin.enabled = true
+                    frame()
+                }
+                expectOn(plugin, m)
+            }
+        })
+    })
 })

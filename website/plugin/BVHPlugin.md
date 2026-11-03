@@ -73,6 +73,7 @@ bvh.refreshObject(mesh)
 
 bvh.autoMinTriangles = 10000 // builds or drops the trees of all meshes again
 bvh.enabled = false // drops all trees, raycasts work without them
+bvh.enabled = true // builds them again, after the next frames
 ```
 
 ## Building and updating
@@ -84,7 +85,9 @@ bvh.enabled = false // drops all trees, raycasts work without them
 - A mesh that gets another geometry (`mesh.geometry = ...`) raycasts with the tree of that geometry, if it has one.
 - A removed geometry loses its tree.
 
-The plugin UI shows the number of geometries with a tree, their memory and the build time.
+The plugin UI shows the number of geometries with a tree, their memory and the build time. The status of a mesh (`statusOf(mesh)`, the Status in its BVH section) is `Off` while the plugin is disabled, then `Queued` (or `Loading three-mesh-bvh…`) until its tree is built.
+
+A page that shows the state reads it from the plugin when it changes, not only on its own input: `enabled` can change from the plugin UI or from code, and the trees come one or more frames later. The example reads `isDisabled()`, `lib` and `geometry.boundsTree` after each frame and on `bvhBuilt` / `bvhDisposed`.
 
 ## Trees for other code
 

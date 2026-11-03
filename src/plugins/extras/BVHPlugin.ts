@@ -268,6 +268,8 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
         if (!this.canUse(o)) return 'Not supported (skinned, morphed, instanced, own raycast, or one material with groups that leave out triangles)'
         const s = this._stats.get(g)
         if (s) return `${s.triangles.toLocaleString()} triangles · ${(s.bytes / 1e6).toFixed(2)} MB · built in ${s.ms.toFixed(1)} ms`
+        // before the queue: a disabled plugin builds nothing, the geometries in the queue wait for it
+        if (this.isDisabled()) return 'Off (the plugin is disabled)'
         if (this._queue.has(g)) return this.lib ? 'Queued' : 'Loading three-mesh-bvh…'
         return this.modeOf(o) === 'off' ? 'Off' : `None (under ${this.autoMinTriangles} triangles)`
     }
@@ -289,7 +291,11 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
         const viewer = this._viewer
         if (!viewer) return
         for (const g of [...this._stats.keys()]) if (!this.wants(g)) this._dispose(g)
-        viewer.scene.modelRoot.traverse(o => this._queueObject(o as IObject3D))
+        viewer.scene.modelRoot.traverse(o => {
+            this._queueObject(o as IObject3D)
+            // the Status of the object's BVH section, also of a mesh whose tree did not change (lib not loaded yet)
+            if ((o as IObject3D).isMesh) (o as IObject3D).uiConfig?.uiRefresh?.(true, 'postFrame')
+        })
         this._pruneHelpers()
         this.uiConfig?.uiRefresh?.(true, 'postFrame')
     }
@@ -466,6 +472,7 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
         })
         this._watch(g) // also a geometry outside the scene (getBVH)
         this._setRaycast(g)
+        this._refreshMeshUi(g)
         this.dispatchEvent({type: 'bvhBuilt', geometry: g, bvh, ms})
     }
 
@@ -475,7 +482,13 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
         this._stats.delete(g)
         this._setRaycast(g)
         this._pruneHelpers()
+        this._refreshMeshUi(g)
         this.dispatchEvent({type: 'bvhDisposed', geometry: g})
+    }
+
+    // the BVH section (Status) of the meshes of a geometry that got or lost its tree
+    private _refreshMeshUi(g: BVHGeometry) {
+        for (const o of g.appliedMeshes ?? []) o.uiConfig?.uiRefresh?.(true, 'postFrame')
     }
 
     // meshes of a geometry with a tree raycast with it, the others get the default back (also a mesh that can no
