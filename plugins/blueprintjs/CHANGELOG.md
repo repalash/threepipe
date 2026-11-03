@@ -10,6 +10,10 @@ All notable changes to this plugin will be documented in this file.
 
 - NA
 
+### Fixed
+
+- Update [uiconfig-blueprint](https://www.npmjs.com/package/uiconfig-blueprint) in `devDependencies` and `peerDependencies` to `0.1.0-dev.18` (was `0.1.0-dev.12`). The UI panel now renders in sandboxed documents (an opaque origin, like a page in an `<iframe sandbox>` or served with `CSP: sandbox`), where any access to `localStorage` throws. Before, the panel stopped with a `SecurityError` on such pages. The dark mode and the theme then use the defaults, and a choice lasts until reload.
+
 ## [0.6.0] - 2025-10-27
 
 ### Fixed
