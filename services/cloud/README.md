@@ -41,15 +41,15 @@ npm run deploy                   # the first one creates the D1 database: commit
   the e2e bucket on `e2e-snapshots.threepipe.org` (R2 custom domains, set in the dashboard).
 - After the first deploy, migrations go through the Worker (`teeny deploy` calls its admin API with
   `ADMIN_SERVICE_TOKEN`), so later deploys need a token for this Worker only, no D1 access.
-- CI (`.github/workflows/deploy-cloud.yml`, as repalash/release-tools does for npm): prod deploys when the `cloud`
-  branch moves (`git push origin dev:cloud` after merging into dev). The check job runs the typecheck and the e2e suite;
-  then Discord gets the approval link, a Claude review (the review routine) and the commits; the deploy runs
+- CI (`.github/workflows/deploy-cloud.yml`, release-tools' `deploy.yml`): prod deploys when the `cloud` branch moves
+  (`git push origin dev:cloud` after merging into dev). The check runs the typecheck and the e2e suite with no secrets;
+  Discord gets the approval link, a Claude review and the commits since the last deploy; the deploy runs
   `npm run deploy:ci` once a reviewer approves the `cloud-deploy` environment. Setup, once: the environment
   `cloud-deploy` with Palash as required reviewer and two environment secrets, `CLOUDFLARE_API_TOKEN` (a token for this
   Worker only, Workers Scripts: Edit) and `ADMIN_SERVICE_TOKEN` (the one in `.prod.vars`); the repository secrets
-  `DISCORD_WEBHOOK_URL`, `CLAUDE_REVIEW_FIRE_URL`, `CLAUDE_REVIEW_TOKEN` (release-tools' `scripts/setup-repos.sh
-  --set-secret` sets them). `scripts/deploy-ci.sh` writes a `.prod.vars` with only that token and deploys (teenybase
-  uploads secrets only when there is no Worker yet, so the others are never touched); it stops when there is no Worker.
+  `DISCORD_WEBHOOK_URL`, `CLAUDE_REVIEW_FIRE_URL`, `CLAUDE_REVIEW_TOKEN` (as for releases). `scripts/deploy-ci.sh` writes
+  a `.prod.vars` with only that token and deploys (teenybase uploads secrets only when there is no Worker yet, so the
+  others are never touched); it stops when there is no Worker.
 - Logs: Workers Logs and traces, and logpush to the account's Workers Logpush job; what needs a person is a
   `console.error` line starting with `[cloud]`.
 
