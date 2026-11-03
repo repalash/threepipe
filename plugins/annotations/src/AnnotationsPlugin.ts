@@ -855,7 +855,8 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         while (o && o !== root && o.parent) {
             const name = o.name
             const same = o.parent.children.filter(c => c.name === name)
-            parts.unshift(`${name}#${same.indexOf(o)}`)
+            // encoded, so a name with '/' or '#' stays one part of the path
+            parts.unshift(`${encodeURIComponent(name)}#${same.indexOf(o)}`)
             o = o.parent as IObject3D
         }
         return parts.join('/')
@@ -866,7 +867,7 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         if (!path || !o) return null
         for (const part of path.split('/')) {
             const k = part.lastIndexOf('#')
-            const name = part.slice(0, k)
+            const name = decodeURIComponent(part.slice(0, k))
             const idx = parseInt(part.slice(k + 1)) || 0
             o = o.children.filter(c => c.name === name)[idx] as IObject3D | undefined
             if (!o) return null

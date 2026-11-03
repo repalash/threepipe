@@ -1331,6 +1331,15 @@ describe('AnnotationsPlugin', () => {
         expect(plugin.getObject(loaded)).toBe(null)
     })
 
+    test('names with a slash or a # keep their path: each name is encoded in the anchor path', () => {
+        const {plugin, box, group} = setup()
+        group.name = 'Body/Panel'
+        box.name = 'Part #2'
+        const a = plugin.add(box as any, front, normal, null)
+        expect(a.anchor.path).toBe('Body%2FPanel#0/Part%20%232#0')
+        expect((plugin as any)._byPath(a.anchor.path)).toBe(box)
+    })
+
     test('an annotation stays on its object: removed, it hides and does not move to a sibling with the same name; added back, it shows again', () => {
         const {plugin, layer, box, group, viewer} = setup()
         // two unnamed boxes: the path of both is "#0" among the unnamed ones, so the path cannot tell them apart
