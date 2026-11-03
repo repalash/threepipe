@@ -193,6 +193,7 @@ export class PenToolPlugin extends AViewerPluginSync<PenToolPluginEventMap> {
         window.addEventListener('pointerdown', this._onDown, {capture: true})
         window.addEventListener('pointermove', this._onMove, {capture: true})
         window.addEventListener('pointerup', this._onUp, {capture: true})
+        window.addEventListener('pointercancel', this._release, {capture: true})
         window.addEventListener('keydown', this._onKey, {capture: true})
         window.addEventListener('keyup', this._onKeyUp, {capture: true})
         // not capture: the blur of an element does not bubble, only the window blur reaches here
@@ -239,6 +240,7 @@ export class PenToolPlugin extends AViewerPluginSync<PenToolPluginEventMap> {
         window.removeEventListener('pointerdown', this._onDown, {capture: true})
         window.removeEventListener('pointermove', this._onMove, {capture: true})
         window.removeEventListener('pointerup', this._onUp, {capture: true})
+        window.removeEventListener('pointercancel', this._release, {capture: true})
         window.removeEventListener('keydown', this._onKey, {capture: true})
         window.removeEventListener('keyup', this._onKeyUp, {capture: true})
         window.removeEventListener('blur', this._onBlur)
@@ -317,6 +319,8 @@ export class PenToolPlugin extends AViewerPluginSync<PenToolPluginEventMap> {
 
     private _onMove = (e: PointerEvent) => {
         if (!this._viewer) return
+        // no button held: the pointerup was missed (released outside the window); this move is a hover
+        if (e.buttons === 0) this._release()
         if (!this._drag) this._held(this._space, e.altKey)
         if (this._orbit) return
         const s = this._screen(e)
@@ -339,19 +343,27 @@ export class PenToolPlugin extends AViewerPluginSync<PenToolPluginEventMap> {
     }
 
     private _onUp = (e: PointerEvent) => {
-        if (this._orbit) {
-            this._orbit = false
-            this._cursor()
+        const drag = this._drag
+        if (drag) {
+            e.stopPropagation()
+            // a click without a drag (shorter than CORNER_DRAG on the screen): a corner
+            const a = drag.anchor
+            if (this._screen(e).distanceTo(drag.start) < CORNER_DRAG) {
+                a.hOut.copy(a.p)
+                a.hIn.copy(a.p)
+            }
         }
-        if (!this._drag) return
-        e.stopPropagation()
-        // a click without a drag (shorter than CORNER_DRAG on the screen): a corner
-        const a = this._drag.anchor
-        if (this._screen(e).distanceTo(this._drag.start) < CORNER_DRAG) {
-            a.hOut.copy(a.p)
-            a.hIn.copy(a.p)
-        }
+        this._release()
+    }
+
+    /**
+     * End a pen drag or an orbit drag; also when its pointerup is lost (window blur, pointercancel, a move with no
+     * button). The point keeps the handles of the last move, which applied the corner rule: what a release there makes.
+     */
+    private _release = () => {
+        if (!this._drag && !this._orbit) return
         this._drag = null
+        this._orbit = false
         this._cursor()
         this._draw()
     }
@@ -406,8 +418,9 @@ export class PenToolPlugin extends AViewerPluginSync<PenToolPluginEventMap> {
         } else if (e.key === 'Alt') this._held(this._space, false)
     }
 
-    /** A keyup after the window lost the focus never comes */
+    /** A keyup or a pointerup after the window lost the focus never comes */
     private _onBlur = () => {
+        this._release()
         this._held(false, false)
     }
 

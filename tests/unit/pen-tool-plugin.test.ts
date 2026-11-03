@@ -157,10 +157,10 @@ describe('PenToolPlugin', {timeout}, () => {
         expect(win.count()).toBe(0)
         pen.start()
         expect(pen.active).toBe(true)
-        expect(win.count()).toBe(7)
+        expect(win.count()).toBe(8)
         expect(container.classList.contains('pen-drawing')).toBe(true)
         pen.start() // no second set of listeners
-        expect(win.count()).toBe(7)
+        expect(win.count()).toBe(8)
         pen.cancel()
         expect(pen.active).toBe(false)
         expect(win.count()).toBe(0)
@@ -583,5 +583,65 @@ describe('PenToolPlugin', {timeout}, () => {
         const [c0] = (pen.finish()!.geometry as any).userData.generationParams.curve.curves
         expect(c0.v1.equals(c0.v0)).toBe(false) // handles on the first point
         expect(c0.v2.equals(c0.v3)).toBe(true) // none on the second
+    })
+
+    describe('a lost pointerup ends the drag as a release at the last move would', () => {
+        /** A corner at (-2, 0, 0), then a point at (0, 0, 0) dragged to (1, 0, 0), with no pointerup */
+        const pressAndDrag = () => {
+            const ctx = setup()
+            const {pen, ev, screen, click} = ctx
+            pen.start()
+            click(-2, 0, 0)
+            win.fire('pointerdown', ev(screen(0, 0, 0)))
+            win.fire('pointermove', ev(screen(1, 0, 0), {buttons: 1}))
+            return ctx
+        }
+        const handlesAfterHover = (ctx: ReturnType<typeof setup>) => {
+            const {pen, ev, screen, container} = ctx
+            const move = ev(screen(-1, 0, 2), {buttons: 0}) // hover, no button
+            win.fire('pointermove', move)
+            expect(move.stopPropagation).not.toHaveBeenCalled() // a hover, not a drag
+            expect(container.classList.contains('pen-orbiting')).toBe(false)
+            expect(pen.points.length).toBe(2)
+            const obj = pen.finish()!
+            const [c0] = (obj.geometry as any).userData.generationParams.curve.curves
+            return {c0, center: obj.position}
+        }
+        const expectDragged = ({c0, center}: {c0: any, center: any}) => {
+            // the point at (0, 0, 0) keeps the handles of the last move: its in handle at (-1, 0, 0)
+            expect(close(c0.v3.clone().add(center), [0, 0, 0])).toBe(true)
+            expect(close(c0.v2.clone().add(center), [-1, 0, 0])).toBe(true)
+        }
+
+        test('window blur mid-drag, then a hover move does not change the handles', () => {
+            const ctx = pressAndDrag()
+            win.fire('blur', {})
+            expectDragged(handlesAfterHover(ctx))
+        })
+
+        test('pointercancel mid-drag ends it', () => {
+            const ctx = pressAndDrag()
+            win.fire('pointercancel', ctx.ev(ctx.screen(1, 0, 0)))
+            expectDragged(handlesAfterHover(ctx))
+        })
+
+        test('a move with no button held ends the drag (pointerup released outside the window)', () => {
+            expectDragged(handlesAfterHover(pressAndDrag()))
+        })
+
+        test('an orbit drag ends too: the grabbing cursor goes and the pen draws again', () => {
+            const {pen, container, key, ev, screen, click} = setup()
+            pen.start()
+            key(' ')
+            win.fire('pointerdown', ev(screen(0, 0, 0)))
+            key(' ', undefined, 'keyup')
+            expect(container.classList.contains('pen-orbiting')).toBe(true)
+            win.fire('blur', {})
+            expect(container.classList.contains('pen-orbiting')).toBe(false)
+            expect(container.classList.contains('pen-orbit')).toBe(false)
+            expect(click(0, 0, 0).stopPropagation).toHaveBeenCalled()
+            expect(pen.points.length).toBe(1)
+            pen.cancel()
+        })
     })
 })
