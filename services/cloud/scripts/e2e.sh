@@ -163,6 +163,11 @@ NL=$(curl -s -X POST -H "$H0" "$A/api/v1/drive/items/$LID/new-id" | j "['id']")
 [ "$(admin user_limits/insert "{\"values\":{\"user_id\":\"$UID1\",\"drive_quota\":2147483648,\"note\":\"e2e\"}}")" = "200" ] || bad "fixture: user limits"
 [ "$(code -X PUT -H "$H0" --data-binary @$TMP/a.txt "$A/api/v1/drive/files?name=over.txt")" = "201" ] && [ "$(curl -s -H "$H0" "$A/api/v1/me" | j "['drive']['quota']")" = "2147483648" ] && ok "a user's own drive quota (user_limits)" || bad "user quota"
 [ "$(code -H "$H0" "$A/api/v1/table/user_limits/list")" = "403" ] && [ "$(code -X POST -H "$H0" -H 'content-type: application/json' -d "{\"values\":{\"user_id\":\"$UID1\",\"projects\":99}}" "$A/api/v1/table/user_limits/insert")" = "403" ] && ok "users cannot read or set their limits" || bad "user_limits rules"
+# parallel uploads cannot each spend the same free space: room for one of three 2 MB files
+USED=$(curl -s -H "$H0" "$A/api/v1/me" | j "['drive']['used']"); head -c 2000000 /dev/urandom > $TMP/two.bin
+[ "$(admin user_limits/update "{\"where\":\"user_id == '$UID1'\",\"setValues\":{\"drive_quota\":$((USED + 3000000))}}")" = "200" ] || bad "fixture: tight quota"
+PIDS=""; for i in 1 2 3; do { code -X PUT -H "$H0" --data-binary @$TMP/two.bin "$A/api/v1/drive/files?name=par$i.bin"; echo; } > $TMP/qrace.$i & PIDS="$PIDS $!"; done; wait $PIDS
+[ "$(cat $TMP/qrace.* | grep -c 201)" = "1" ] && [ "$(cat $TMP/qrace.* | grep -c 413)" = "2" ] && [ "$(curl -s -H "$H0" "$A/api/v1/me" | j "['drive']['used']")" = "$((USED + 2000000))" ] && ok "parallel uploads: the quota holds" || bad "quota race: $(cat $TMP/qrace.* | tr '\n' ' ')"
 admin user_limits/delete "{\"where\":\"user_id == '$UID1'\"}" > /dev/null
 admin files/delete "{\"where\":\"path == 'd/$U/big'\"}" > /dev/null
 [ "$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' "$A/")" = "302 $A/drive" ] && ok "the home page opens the drive" || bad "home page: $(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' "$A/")"
