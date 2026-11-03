@@ -115,7 +115,8 @@ export class PenToolPlugin extends AViewerPluginSync<PenToolPluginEventMap> {
     private _enabled = true
     private _active = false
     private _anchors: Anchor[] = []
-    private _drag: {anchor: Anchor, plane: Plane} | null = null
+    /** A press that adds a point; `start` is where it was pressed in the container */
+    private _drag: {anchor: Anchor, plane: Plane, start: Vector2} | null = null
     /** Space held (outside a text field) */
     private _space = false
     /** Alt held, for the cursor; a pointer event has its own `altKey` */
@@ -310,7 +311,7 @@ export class PenToolPlugin extends AViewerPluginSync<PenToolPluginEventMap> {
         // camera when the camera looks along the floor (the level plane would be edge-on)
         const view = this._viewer.scene.mainCamera.getWorldDirection(new Vector3())
         const n = Math.abs(view.y) > 0.25 ? new Vector3(0, 1, 0) : view.negate()
-        this._drag = {anchor: a, plane: new Plane().setFromNormalAndCoplanarPoint(n, p)}
+        this._drag = {anchor: a, plane: new Plane().setFromNormalAndCoplanarPoint(n, p), start: s}
         this._draw()
     }
 
@@ -321,11 +322,17 @@ export class PenToolPlugin extends AViewerPluginSync<PenToolPluginEventMap> {
         const s = this._screen(e)
         if (this._drag) {
             e.stopPropagation()
-            const hit = onPlane(this._rayAt(s).ray, this._drag.plane)
-            if (hit) {
-                const {anchor} = this._drag
-                anchor.hOut.copy(hit)
-                anchor.hIn.copy(anchor.p).multiplyScalar(2).sub(hit) // symmetric, a smooth point
+            const {anchor, plane, start} = this._drag
+            if (s.distanceTo(start) < CORNER_DRAG) {
+                // still a corner, by the rule of pointerup, so the overlay shows what a release makes
+                anchor.hOut.copy(anchor.p)
+                anchor.hIn.copy(anchor.p)
+            } else {
+                const hit = onPlane(this._rayAt(s).ray, plane)
+                if (hit) {
+                    anchor.hOut.copy(hit)
+                    anchor.hIn.copy(anchor.p).multiplyScalar(2).sub(hit) // symmetric, a smooth point
+                }
             }
         } else this._hover = this._onCanvas(e) && !this._orbitKey(e) ? this._place(s, e.shiftKey) : null
         this._draw()
@@ -338,9 +345,9 @@ export class PenToolPlugin extends AViewerPluginSync<PenToolPluginEventMap> {
         }
         if (!this._drag) return
         e.stopPropagation()
-        // a click without a drag: a corner
+        // a click without a drag (shorter than CORNER_DRAG on the screen): a corner
         const a = this._drag.anchor
-        if (a.hOut.distanceTo(a.p) < this._worldPerPixel(a.p) * CORNER_DRAG) {
+        if (this._screen(e).distanceTo(this._drag.start) < CORNER_DRAG) {
             a.hOut.copy(a.p)
             a.hIn.copy(a.p)
         }
@@ -356,7 +363,10 @@ export class PenToolPlugin extends AViewerPluginSync<PenToolPluginEventMap> {
         // the second click of the double-click added a point at the same place: drop it
         const as = this._anchors
         const n = as.length
-        if (n > 1 && as[n - 1].p.distanceTo(as[n - 2].p) < this._worldPerPixel(as[n - 1].p) * CORNER_DRAG) as.pop()
+        if (n > 1) {
+            const a = this._toScreen(as[n - 1].p), b = this._toScreen(as[n - 2].p)
+            if (Math.hypot(a.x - b.x, a.y - b.y) < CORNER_DRAG) as.pop()
+        }
         this.finish()
     }
 
@@ -458,14 +468,6 @@ export class PenToolPlugin extends AViewerPluginSync<PenToolPluginEventMap> {
     private _near(p: Vector3, s: Vector2) {
         const q = this._toScreen(p)
         return Math.hypot(q.x - s.x, q.y - s.y) < CLOSE_DISTANCE
-    }
-
-    /** World size of one screen pixel at `p` */
-    private _worldPerPixel(p: Vector3) {
-        const cam = this._viewer!.scene.mainCamera as any
-        const h = this._viewport().height
-        if (cam.isOrthographicCamera) return (cam.top - cam.bottom) / (cam.zoom || 1) / h
-        return 2 * cam.getWorldPosition(new Vector3()).distanceTo(p) * Math.tan((cam.fov || 45) * Math.PI / 360) / h
     }
 
     private _create(anchors: Anchor[], closed: boolean): IObject3D | undefined {

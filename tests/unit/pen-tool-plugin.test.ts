@@ -560,4 +560,28 @@ describe('PenToolPlugin', {timeout}, () => {
         expect(pen.points.length).toBe(0)
         pen.cancel()
     })
+
+    test('the corner threshold is in screen pixels, also with a zoomed perspective camera', () => {
+        const {pen, camera, ev, screen} = setup()
+        // looking straight down, FoV zoom 4
+        camera.position.set(0, 10, 0)
+        camera.up.set(0, 0, -1)
+        camera.lookAt(0, 0, 0)
+        camera.zoom = 4
+        camera.updateProjectionMatrix()
+        camera.updateMatrixWorld()
+        const pressDrag = (from: number[], dx: number) => {
+            const s = screen(from[0], from[1], from[2])
+            const to = {clientX: s.clientX + dx, clientY: s.clientY}
+            win.fire('pointerdown', ev(s))
+            win.fire('pointermove', ev(to))
+            win.fire('pointerup', ev(to))
+        }
+        pen.start()
+        pressDrag([-1, 0, 0], 10) // 10 px: a smooth point
+        pressDrag([1, 0, 0], 2) // 2 px: a corner
+        const [c0] = (pen.finish()!.geometry as any).userData.generationParams.curve.curves
+        expect(c0.v1.equals(c0.v0)).toBe(false) // handles on the first point
+        expect(c0.v2.equals(c0.v3)).toBe(true) // none on the second
+    })
 })
