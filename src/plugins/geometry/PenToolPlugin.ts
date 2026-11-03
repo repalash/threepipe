@@ -42,6 +42,17 @@ function onPlane(ray: Ray, plane: Plane): Vector3 | null {
     return ray.intersectPlane(plane, new Vector3())
 }
 
+/** True when a key event is typed in a text field, where the pen ignores keys */
+function inTextField(e: KeyboardEvent) {
+    const t = e.target as HTMLElement | null
+    return !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)
+}
+
+/** The Space key; by `code` too, as Option + Space on a Mac types a non-breaking space */
+function isSpace(e: KeyboardEvent) {
+    return e.code === 'Space' || e.key === ' '
+}
+
 /** True when the object and all its parents are visible (a raycast also hits the children of a hidden group) */
 function isVisible(o: Object3D | null): boolean {
     for (; o; o = o.parent) if (!o.visible) return false
@@ -61,7 +72,8 @@ const CURVE_SAMPLES = 20
  * Bezier handles, click the first point to close the path, Enter or double-click to finish, Backspace (or Delete)
  * removes the last point, Esc cancels. Points go on the surface under the pointer, else on the ground (y = 0); with
  * Shift (or when the pointer misses the ground) on a level plane at the height of the previous point, to draw in the
- * air. While drawing, the pen takes the left mouse button on the canvas (no selection, no orbit); the wheel still zooms.
+ * air. While drawing, the pen takes the left mouse button on the canvas (no selection, no orbit); hold Space or Alt and
+ * drag to rotate the camera instead (the orbit controls get the pointer), the right button pans and the wheel zooms.
  *
  * The result is a `line` object of {@link GeometryGeneratorPlugin} with a {@link CurvePath3} of cubic Beziers, added
  * to the model root. Its points stay editable as a generated geometry, and it is saved in a glb. Adding it is one
@@ -104,6 +116,12 @@ export class PenToolPlugin extends AViewerPluginSync<PenToolPluginEventMap> {
     private _active = false
     private _anchors: Anchor[] = []
     private _drag: {anchor: Anchor, plane: Plane} | null = null
+    /** Space held (outside a text field) */
+    private _space = false
+    /** Alt held, for the cursor; a pointer event has its own `altKey` */
+    private _alt = false
+    /** A left drag on the canvas that started with Space or Alt: the orbit controls own it until pointerup */
+    private _orbit = false
     private _hover: Vector3 | null = null
     private _svg?: SVGSVGElement
     private _hint?: HTMLDivElement
@@ -148,7 +166,7 @@ export class PenToolPlugin extends AViewerPluginSync<PenToolPluginEventMap> {
         this._svg = svg
         const hint = document.createElement('div')
         hint.className = 'pen-hint'
-        hint.innerHTML = 'Pen · click: point · drag: curve · <kbd>Shift</kbd> keep the height · first point: close · <kbd>⌫</kbd> remove point · <kbd>Enter</kbd> done · <kbd>Esc</kbd> cancel'
+        hint.innerHTML = 'Pen · click: point · drag: curve · <kbd>Shift</kbd> keep the height · first point: close · <kbd>Space</kbd> or <kbd>Alt</kbd> + drag: rotate · <kbd>⌫</kbd> remove point · <kbd>Enter</kbd> done · <kbd>Esc</kbd> cancel'
         viewer.container.appendChild(hint)
         this._hint = hint
         viewer.addEventListener('postFrame', this._draw)
@@ -175,6 +193,9 @@ export class PenToolPlugin extends AViewerPluginSync<PenToolPluginEventMap> {
         window.addEventListener('pointermove', this._onMove, {capture: true})
         window.addEventListener('pointerup', this._onUp, {capture: true})
         window.addEventListener('keydown', this._onKey, {capture: true})
+        window.addEventListener('keyup', this._onKeyUp, {capture: true})
+        // not capture: the blur of an element does not bubble, only the window blur reaches here
+        window.addEventListener('blur', this._onBlur)
         window.addEventListener('dblclick', this._onDbl, {capture: true})
         this._viewer.container.classList.add('pen-drawing')
         this._changed()
@@ -210,10 +231,16 @@ export class PenToolPlugin extends AViewerPluginSync<PenToolPluginEventMap> {
         this._active = false
         this._drag = null
         this._hover = null
+        this._space = false
+        this._alt = false
+        this._orbit = false
+        this._cursor()
         window.removeEventListener('pointerdown', this._onDown, {capture: true})
         window.removeEventListener('pointermove', this._onMove, {capture: true})
         window.removeEventListener('pointerup', this._onUp, {capture: true})
         window.removeEventListener('keydown', this._onKey, {capture: true})
+        window.removeEventListener('keyup', this._onKeyUp, {capture: true})
+        window.removeEventListener('blur', this._onBlur)
         window.removeEventListener('dblclick', this._onDbl, {capture: true})
         this._viewer?.container.classList.remove('pen-drawing')
         this._draw()
@@ -231,8 +258,41 @@ export class PenToolPlugin extends AViewerPluginSync<PenToolPluginEventMap> {
         return e.target === this._viewer?.canvas
     }
 
+    /** Space or Alt is held: a left drag rotates the camera */
+    private _orbitKey(e: {altKey: boolean}) {
+        return this._space || e.altKey
+    }
+
+    /** The grab cursor while Space or Alt is held (not in a pen drag), grabbing during the drag */
+    private _cursor() {
+        const c = this._viewer?.container.classList
+        if (!c) return
+        const orbit = this._active && (this._orbit || !this._drag && (this._space || this._alt))
+        if (orbit) c.add('pen-orbit')
+        else c.remove('pen-orbit')
+        if (this._active && this._orbit) c.add('pen-orbiting')
+        else c.remove('pen-orbiting')
+    }
+
+    private _held(space: boolean, alt: boolean) {
+        if (space === this._space && alt === this._alt) return
+        this._space = space
+        this._alt = alt
+        this._hover = null // no preview to the pointer while rotating; the next move places it again
+        this._cursor()
+        this._draw()
+    }
+
     private _onDown = (e: PointerEvent) => {
         if (!this._viewer || !this._onCanvas(e) || e.button !== 0) return
+        // Space or Alt: the pen does not take the pointer, the orbit controls rotate, until pointerup
+        this._orbit = this._orbitKey(e)
+        if (this._orbit) {
+            this._hover = null
+            this._cursor()
+            this._draw()
+            return
+        }
         // the pen owns the left button on the canvas while active: no selection, no orbit
         e.stopPropagation()
         e.preventDefault()
@@ -256,6 +316,8 @@ export class PenToolPlugin extends AViewerPluginSync<PenToolPluginEventMap> {
 
     private _onMove = (e: PointerEvent) => {
         if (!this._viewer) return
+        if (!this._drag) this._held(this._space, e.altKey)
+        if (this._orbit) return
         const s = this._screen(e)
         if (this._drag) {
             e.stopPropagation()
@@ -265,11 +327,15 @@ export class PenToolPlugin extends AViewerPluginSync<PenToolPluginEventMap> {
                 anchor.hOut.copy(hit)
                 anchor.hIn.copy(anchor.p).multiplyScalar(2).sub(hit) // symmetric, a smooth point
             }
-        } else this._hover = this._onCanvas(e) ? this._place(s, e.shiftKey) : null
+        } else this._hover = this._onCanvas(e) && !this._orbitKey(e) ? this._place(s, e.shiftKey) : null
         this._draw()
     }
 
     private _onUp = (e: PointerEvent) => {
+        if (this._orbit) {
+            this._orbit = false
+            this._cursor()
+        }
         if (!this._drag) return
         e.stopPropagation()
         // a click without a drag: a corner
@@ -279,11 +345,13 @@ export class PenToolPlugin extends AViewerPluginSync<PenToolPluginEventMap> {
             a.hIn.copy(a.p)
         }
         this._drag = null
+        this._cursor()
         this._draw()
     }
 
     private _onDbl = (e: MouseEvent) => {
-        if (!this._onCanvas(e)) return
+        // two clicks with Space or Alt are not a finish
+        if (!this._onCanvas(e) || this._orbitKey(e)) return
         e.stopPropagation()
         // the second click of the double-click added a point at the same place: drop it
         const as = this._anchors
@@ -293,13 +361,17 @@ export class PenToolPlugin extends AViewerPluginSync<PenToolPluginEventMap> {
     }
 
     private _onKey = (e: KeyboardEvent) => {
-        const t = e.target as HTMLElement | null
-        if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
+        if (e.key === 'Alt') this._held(this._space, true) // not taken: only for the cursor
+        if (inTextField(e)) return
         const own = () => {
             e.preventDefault()
             e.stopImmediatePropagation()
         }
-        if (e.key === 'Escape') {
+        if (isSpace(e)) {
+            // no page scroll and no other handler; also each key repeat
+            own()
+            this._held(true, this._alt)
+        } else if (e.key === 'Escape') {
             own()
             this.cancel()
         } else if (e.key === 'Enter') {
@@ -311,6 +383,22 @@ export class PenToolPlugin extends AViewerPluginSync<PenToolPluginEventMap> {
             if (removed && this._drag?.anchor === removed) this._drag = null
             this._draw()
         }
+    }
+
+    private _onKeyUp = (e: KeyboardEvent) => {
+        if (isSpace(e)) {
+            // a focused button (e.g. Draw Path after a click on it) clicks on the keyup of Space
+            if (!inTextField(e)) {
+                e.preventDefault()
+                e.stopImmediatePropagation()
+            }
+            this._held(false, this._alt)
+        } else if (e.key === 'Alt') this._held(this._space, false)
+    }
+
+    /** A keyup after the window lost the focus never comes */
+    private _onBlur = () => {
+        this._held(false, false)
     }
 
     // endregion

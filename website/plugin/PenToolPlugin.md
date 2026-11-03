@@ -28,8 +28,9 @@ After `start()` (or `toggle()`), on the canvas:
 | <kbd>Backspace</kbd> or <kbd>Delete</kbd> | Remove the last point |
 | <kbd>Esc</kbd> | Cancel |
 | <kbd>Shift</kbd> while clicking | Keep the height of the previous point (draw in the air) |
+| <kbd>Space</kbd> or <kbd>Alt</kbd> + drag | Rotate the camera (the pen adds no point) |
 
-A point goes on the visible surface of a model under the pointer (the pointer position in the canvas, also when the canvas is smaller than the container), else on the ground (y = 0), else (above the horizon) on the level plane through the previous point. A drag pulls the handles on a level plane through the point, or on a plane facing the camera when the camera looks along the ground. While drawing, the pen takes the left mouse button on the canvas: no selection and no orbit. The wheel still zooms. Keys in a text field are ignored.
+A point goes on the visible surface of a model under the pointer (the pointer position in the canvas, also when the canvas is smaller than the container), else on the ground (y = 0), else (above the horizon) on the level plane through the previous point. A drag pulls the handles on a level plane through the point, or on a plane facing the camera when the camera looks along the ground. While drawing, the pen takes the left mouse button on the canvas: no selection and no orbit. To rotate the camera, hold <kbd>Space</kbd> (like the hand tool of Figma) or <kbd>Alt</kbd> and drag: the pen lets the orbit controls have the pointer, and the cursor is a hand. A drag that starts as a rotation stays one until the button is released, also when the key is released first, and a drag that starts as a pen point stays one. While drawing, the pen takes <kbd>Space</kbd>, so it does not scroll the page or press a focused button. The right button still pans, the middle button and the wheel still zoom. Keys in a text field are ignored. Some Linux desktops use <kbd>Alt</kbd> + drag to move windows; use <kbd>Space</kbd> there.
 
 An overlay shows the points, the handles, the curve and a dashed preview of the next segment, with a hint at the bottom of the viewer.
 

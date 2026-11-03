@@ -123,7 +123,7 @@ function setup({canvasRect}: {canvasRect?: Rect} = {}) {
         return {clientX: cr.left + (v.x + 1) / 2 * cr.width, clientY: cr.top + (1 - v.y) / 2 * cr.height}
     }
     const ev = (pos: {clientX: number, clientY: number}, extra: any = {}) => ({
-        target: canvas, button: 0, shiftKey: false, stopPropagation: vi.fn(), stopImmediatePropagation: vi.fn(), preventDefault: vi.fn(), ...pos, ...extra,
+        target: canvas, button: 0, shiftKey: false, altKey: false, stopPropagation: vi.fn(), stopImmediatePropagation: vi.fn(), preventDefault: vi.fn(), ...pos, ...extra,
     })
     /** A click at a world point */
     const click = (x: number, y: number, z: number, extra?: any) => {
@@ -138,9 +138,9 @@ function setup({canvasRect}: {canvasRect?: Rect} = {}) {
         win.fire('pointermove', ev(screen(to[0], to[1], to[2])))
         win.fire('pointerup', ev(screen(to[0], to[1], to[2])))
     }
-    const key = (k: string, target: any = {tagName: 'CANVAS'}) => {
+    const key = (k: string, target: any = {tagName: 'CANVAS'}, type = 'keydown') => {
         const e = {key: k, target, preventDefault: vi.fn(), stopImmediatePropagation: vi.fn()}
-        win.fire('keydown', e)
+        win.fire(type, e)
         return e
     }
     return {pen, viewer, container, containerRect, canvas, camera, modelRoot, undoManager, picking, click, drag, key, screen, ev}
@@ -157,10 +157,10 @@ describe('PenToolPlugin', {timeout}, () => {
         expect(win.count()).toBe(0)
         pen.start()
         expect(pen.active).toBe(true)
-        expect(win.count()).toBe(5)
+        expect(win.count()).toBe(7)
         expect(container.classList.contains('pen-drawing')).toBe(true)
         pen.start() // no second set of listeners
-        expect(win.count()).toBe(5)
+        expect(win.count()).toBe(7)
         pen.cancel()
         expect(pen.active).toBe(false)
         expect(win.count()).toBe(0)
@@ -441,5 +441,123 @@ describe('PenToolPlugin', {timeout}, () => {
             const nearest = Math.min(...vertices.map(v => Math.hypot(v[0] - local.x, v[1] - local.y, v[2] - local.z)))
             expect(nearest).toBeLessThan(1e-6)
         }
+    })
+
+    test('Space + drag rotates the camera: the pen does not take the pointer, also when Space is released mid-drag', () => {
+        const {pen, container, click, key, ev, screen} = setup()
+        pen.start()
+        const down = key(' ')
+        expect(down.preventDefault).toHaveBeenCalled() // no page scroll
+        expect(down.stopImmediatePropagation).toHaveBeenCalled()
+        expect(container.classList.contains('pen-orbit')).toBe(true) // grab cursor
+        key(' ') // key repeat
+        const e = ev(screen(0, 0, 0))
+        win.fire('pointerdown', e)
+        expect(e.stopPropagation).not.toHaveBeenCalled() // the orbit controls get it
+        expect(e.preventDefault).not.toHaveBeenCalled()
+        expect(container.classList.contains('pen-orbiting')).toBe(true) // grabbing cursor
+        const up = key(' ', undefined, 'keyup') // released mid-drag: still an orbit
+        expect(up.preventDefault).toHaveBeenCalled() // a focused button clicks on the keyup of Space
+        const move = ev(screen(1, 0, 0))
+        win.fire('pointermove', move)
+        expect(move.stopPropagation).not.toHaveBeenCalled()
+        expect(container.classList.contains('pen-orbiting')).toBe(true)
+        const release = ev(screen(1, 0, 0))
+        win.fire('pointerup', release)
+        expect(release.stopPropagation).not.toHaveBeenCalled()
+        expect(pen.points.length).toBe(0)
+        expect(container.classList.contains('pen-orbit')).toBe(false)
+        expect(container.classList.contains('pen-orbiting')).toBe(false)
+        // Space released: drawing again
+        expect(click(0, 0, 0).stopPropagation).toHaveBeenCalled()
+        expect(pen.points.length).toBe(1)
+        pen.cancel()
+    })
+
+    test('Alt + drag rotates the camera; an Alt double-click does not finish', () => {
+        const {pen, container, click, key, ev, screen} = setup()
+        pen.start()
+        click(-2, 0, 0)
+        click(2, 0, 0)
+        key('Alt')
+        expect(container.classList.contains('pen-orbit')).toBe(true)
+        const e = click(0, 0, 2, {altKey: true})
+        expect(e.stopPropagation).not.toHaveBeenCalled()
+        expect(e.preventDefault).not.toHaveBeenCalled()
+        expect(pen.points.length).toBe(2)
+        const dbl = ev(screen(0, 0, 2), {altKey: true})
+        win.fire('dblclick', dbl)
+        expect(dbl.stopPropagation).not.toHaveBeenCalled()
+        expect(pen.active).toBe(true)
+        key('Alt', undefined, 'keyup')
+        expect(container.classList.contains('pen-orbit')).toBe(false)
+        pen.cancel()
+    })
+
+    test('a drag started as a pen action stays one when Space is pressed mid-drag', () => {
+        const {pen, container, key, ev, screen, click} = setup()
+        pen.start()
+        click(-2, 0, 0)
+        win.fire('pointerdown', ev(screen(0, 0, 0)))
+        key(' ')
+        const move = ev(screen(1, 0, 0))
+        win.fire('pointermove', move)
+        expect(move.stopPropagation).toHaveBeenCalled()
+        expect(container.classList.contains('pen-orbit')).toBe(false) // the pen cursor, not grab
+        const up = ev(screen(1, 0, 0))
+        win.fire('pointerup', up)
+        expect(up.stopPropagation).toHaveBeenCalled()
+        expect(container.classList.contains('pen-orbit')).toBe(true) // Space still held: grab
+        key(' ', undefined, 'keyup')
+        const [c0] = (pen.finish()!.geometry as any).userData.generationParams.curve.curves
+        expect(c0.v2.equals(c0.v3)).toBe(false) // a smooth point: the drag pulled the handles
+    })
+
+    test('blur clears a held Space, so a lost keyup does not leave the pen in orbit', () => {
+        const {pen, container, click, key} = setup()
+        pen.start()
+        key(' ')
+        expect(container.classList.contains('pen-orbit')).toBe(true)
+        win.fire('blur', {})
+        expect(container.classList.contains('pen-orbit')).toBe(false)
+        expect(click(0, 0, 0).stopPropagation).toHaveBeenCalled()
+        expect(pen.points.length).toBe(1)
+        pen.cancel()
+    })
+
+    test('Space in a text field does nothing; a cancel clears a held Space', () => {
+        const {pen, container, click, key} = setup()
+        pen.start()
+        const e = key(' ', {tagName: 'INPUT'})
+        expect(e.preventDefault).not.toHaveBeenCalled()
+        expect(e.stopImmediatePropagation).not.toHaveBeenCalled()
+        expect(container.classList.contains('pen-orbit')).toBe(false)
+        click(0, 0, 0)
+        expect(pen.points.length).toBe(1)
+        // held outside, released in a text field: cleared, the keyup not taken
+        key(' ')
+        expect(container.classList.contains('pen-orbit')).toBe(true)
+        const up = key(' ', {tagName: 'TEXTAREA'}, 'keyup')
+        expect(up.preventDefault).not.toHaveBeenCalled()
+        click(1, 0, 0)
+        expect(pen.points.length).toBe(2)
+        key(' ')
+        expect(container.classList.contains('pen-orbit')).toBe(true)
+        pen.cancel()
+        expect(container.classList.contains('pen-orbit')).toBe(false)
+        pen.start()
+        click(0, 0, 0)
+        expect(pen.points.length).toBe(1)
+        pen.cancel()
+    })
+
+    test('the middle button passes through untouched', () => {
+        const {pen, click} = setup()
+        pen.start()
+        const e = click(0, 0, 0, {button: 1})
+        expect(e.stopPropagation).not.toHaveBeenCalled()
+        expect(e.preventDefault).not.toHaveBeenCalled()
+        expect(pen.points.length).toBe(0)
+        pen.cancel()
     })
 })

@@ -20,7 +20,8 @@ const viewer = new ThreeViewer({
 async function init() {
     // Click "Draw Path" (or press P), then on the canvas: click to add a point, drag to pull out curve handles,
     // click the first point to close, Enter or double-click to finish, Backspace removes the last point, Esc cancels.
-    // Points go on the model under the pointer, else on the ground. Ctrl/Cmd+Z undoes a new path.
+    // Points go on the model under the pointer, else on the ground. Hold Space or Alt and drag to rotate the camera.
+    // Ctrl/Cmd+Z undoes a new path.
     const pen = viewer.addPluginSync(new PenToolPlugin({color: '#ff6b3d', linewidth: 3}))
 
     await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')

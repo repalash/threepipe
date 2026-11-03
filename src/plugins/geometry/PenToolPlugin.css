@@ -14,3 +14,5 @@
 .pen-drawing .pen-hint { display: block; }
 .pen-hint kbd { font: inherit; background: #3a3a3a; border-radius: 3px; padding: 0 4px; }
 .pen-drawing canvas { cursor: crosshair !important; }
+.pen-drawing.pen-orbit canvas { cursor: grab !important; }
+.pen-drawing.pen-orbiting canvas { cursor: grabbing !important; }
