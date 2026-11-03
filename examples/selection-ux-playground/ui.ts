@@ -415,7 +415,22 @@ export function setupHints(host: HTMLElement, ux: SelectionUxPlugin) {
         clearTimeout(timer)
         timer = window.setTimeout(() => toast.classList.remove('show'), 1800)
     })
+
+    // while Space is held with something selected, a chip in the style of the editor camera chip (its ecu- classes):
+    // a drag then rotates the camera instead of moving the selection. With nothing selected a drag already orbits.
+    const space = document.createElement('div')
+    space.innerHTML = `<span class="ecu-pill"><span class="ecu-icon">${ORBIT_ICON}</span><span>Drag to rotate the camera</span><kbd>Space</kbd></span>`
+    space.hidden = true
+    ux.addEventListener('spaceHold', e => {
+        // right under the editor camera chip when there is one (inside its root, so it follows it), else at the top
+        const cam = host.querySelector<HTMLElement>('.ecu-root:not(.sux-space-top)')
+        space.className = cam ? 'sux-space' : 'ecu-root sux-space sux-space-top'
+        if (space.parentElement !== (cam ?? host)) (cam ?? host).appendChild(space)
+        space.hidden = !(e.held && ux.selected.length)
+    })
 }
+
+const ORBIT_ICON = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="8" cy="8" rx="6.5" ry="2.6"/><path d="M12.6 6.2l1.2-.6-.2 1.4"/><circle cx="8" cy="8" r="2"/></svg>'
 
 // endregion
 
@@ -493,6 +508,9 @@ export function injectUiStyles() {
   border-radius: 8px; opacity: 0; transition: opacity .15s, transform .15s; pointer-events: none; z-index: 13;
 }
 .sux-toast.show { opacity: 1; transform: translateX(-50%); }
+/* the Space chip under the editor camera chip (its look comes from the ecu- classes of editor-camera-ui.css) */
+.sux-space { position: absolute; top: calc(100% + 6px); left: 50%; transform: translateX(-50%); pointer-events: none; }
+.ecu-root.sux-space-top { top: 10px; }
 #sux-help { position: fixed; inset: 0; background: rgba(0,0,0,.28); display: none; align-items: center; justify-content: center; z-index: 2000; padding: 16px; box-sizing: border-box; }
 #sux-help.show { display: flex; }
 #sux-help:focus { outline: none; }

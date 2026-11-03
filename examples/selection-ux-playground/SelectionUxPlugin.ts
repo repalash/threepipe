@@ -171,6 +171,8 @@ export interface SelectionUxPluginEventMap extends AViewerPluginEventMap {
     uxUpdate: {reason: string}
     /** Short message for a toast */
     toast: {message: string}
+    /** Space went down or up: while it is held, a left-drag orbits the camera (also over an object) */
+    spaceHold: {held: boolean}
 }
 
 interface BoxInfo {
@@ -1709,6 +1711,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
     }
 
     private _onBlur = () => {
+        if (this._keys.space) this.dispatchEvent({type: 'spaceHold', held: false})
         this._keys = {shift: false, alt: false, ctrl: false, space: false}
     }
 
@@ -1716,7 +1719,10 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
         this._syncMods(e)
         if (e.code === 'Space') {
             // the key was ours (orbit while held): do not let it also press a focused button on release
-            if (this._keys.space) e.preventDefault()
+            if (this._keys.space) {
+                e.preventDefault()
+                this.dispatchEvent({type: 'spaceHold', held: false})
+            }
             this._keys.space = false
         }
         if (e.code.startsWith('Arrow') && this._nudgeUndo) this._nudgeUndo.final = true
@@ -1754,7 +1760,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
             e.stopPropagation()
         }
         if (e.code === 'Space' && !e.shiftKey) { // Shift+Space is the toolbar's "expand"
-            if (!this._keys.space) this._toast('Space held: drag to orbit')
+            if (!this._keys.space) this.dispatchEvent({type: 'spaceHold', held: true})
             this._keys.space = true
             own()
             return
