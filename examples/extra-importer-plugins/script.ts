@@ -65,7 +65,6 @@ async function init() {
     await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
 
     const urls = [
-        'https://cdn.jsdelivr.net/gh/repalash/three.js-modded@v0.157.1004/examples/models/3ds/portalgun/portalgun.3ds', // todo - to load textures there should be a way to set basepath to portalgun/textures
         'https://cdn.jsdelivr.net/gh/repalash/three.js-modded@v0.157.1004/examples/models/3mf/cube_gears.3mf',
         'https://cdn.jsdelivr.net/gh/repalash/three.js-modded@v0.157.1004/examples/models/collada/elf/elf.dae',
         'https://cdn.jsdelivr.net/gh/repalash/three.js-modded@v0.157.1004/examples/models/amf/rook.amf',
