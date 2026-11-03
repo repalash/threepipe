@@ -1,7 +1,7 @@
 ---
 prev:
-    text: 'UndoManagerPlugin'
-    link: './UndoManagerPlugin'
+    text: 'CommandsPlugin'
+    link: './CommandsPlugin'
 
 next:
     text: 'DeviceOrientationControlsPlugin'

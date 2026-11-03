@@ -4,8 +4,8 @@ prev:
     link: './ObjectConstraintsPlugin'
 
 next:
-    text: 'EditorViewWidgetPlugin'
-    link: './EditorViewWidgetPlugin'
+    text: 'CommandsPlugin'
+    link: './CommandsPlugin'
 ---
 
 # UndoManagerPlugin
