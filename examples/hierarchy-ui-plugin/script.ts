@@ -5,6 +5,7 @@ import {HierarchyUiPlugin} from '@threepipe/plugin-tweakpane-editor'
 async function init() {
 
     const viewer = new ThreeViewer({
+        renderScale: 'auto',
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
         plugins: [LoadingScreenPlugin, HierarchyUiPlugin, PickingPlugin],

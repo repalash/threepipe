@@ -2,6 +2,7 @@ import {_testFinish, _testStart, downloadBlob, isWebpExportSupported, LoadingScr
 import {createSimpleButtons} from '../examples-utils/simple-bottom-buttons.js'
 
 const viewer = new ThreeViewer({
+    renderScale: 'auto',
     canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
     msaa: true,
     plugins: [LoadingScreenPlugin],
