@@ -47,7 +47,30 @@ Lighting presets (`setLighting`, the list is in `lightingPresets`):
 | Key | Lighting |
 |---|---|
 | `lights-day`, `lights-night`, `lights-studio`, `lights-none` | Preset lights in place of the scene lights. The environment map is off too, unless `lightsKeepEnvironment` is true |
-| `env-day`, `env-night`, `env-studio`, `env-indoors`, `env-outdoors` | Another environment map in place of the scene lights and environment. The map loads on the first use, then it is cached |
+| `env-*` (the table below) | Another environment map in place of the scene lights and environment. The map loads on the first use, then it is cached |
+
+The environment presets are 1k HDR files (1024 × 512) from [Poly Haven](https://polyhaven.com/hdris) (CC0), on `https://samples.threepipe.org/minimal/`:
+
+| Key | Label | File |
+|---|---|---|
+| `env-day` | Day | `quarry_01_1k.hdr` |
+| `env-night` | Night | `moonless_golf_1k.hdr` |
+| `env-studio` | Studio | `studio_small_03_1k.hdr` |
+| `env-indoors` | Indoors | `empty_warehouse_01_1k.hdr` |
+| `env-outdoors` | Outdoors | `venice_sunset_1k.hdr` |
+| `env-studio-small-01` | Studio Small 01 | `studio_small_01_1k.hdr` |
+| `env-studio-small-02` | Studio Small 02 | `studio_small_02_1k.hdr` |
+| `env-studio-small-04` | Studio Small 04 | `studio_small_04_1k.hdr` |
+| `env-studio-small-05` | Studio Small 05 | `studio_small_05_1k.hdr` |
+| `env-studio-small-06` | Studio Small 06 | `studio_small_06_1k.hdr` |
+| `env-studio-small-09` | Studio Small 09 | `studio_small_09_1k.hdr` |
+| `env-workshop` | Workshop | `aerodynamics_workshop_1k.hdr` |
+| `env-hangar` | Hangar | `hangar_interior_1k.hdr` |
+| `env-powerplant` | Powerplant | `peppermint_powerplant_2_1k.hdr` |
+| `env-sunrise` | Sunrise | `blouberg_sunrise_2_1k.hdr` |
+| `env-overpass` | Overpass | `pedestrian_overpass_1k.hdr` |
+| `env-bridge` | Bridge | `san_giuseppe_bridge_1k.hdr` |
+| `env-esplanade` | Esplanade | `royal_esplanade_1k.hdr` |
 
 A material view and a lighting preset are exclusive: choosing one turns the other off, as the debug materials are unlit.
 

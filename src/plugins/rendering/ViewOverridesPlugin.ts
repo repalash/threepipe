@@ -50,7 +50,8 @@ export interface ViewOverridesPluginEventMap extends AViewerPluginEventMap {
     change: object
 }
 
-const ENV_BASE = 'https://threejs.org/examples/textures/equirectangular/'
+/** The 1k HDR files of the 'env' presets (Poly Haven, CC0) */
+const ENV_BASE = 'https://samples.threepipe.org/minimal/'
 
 /** The colour of a fat line in the normal views: the colour of a zero normal there (0.5 in each channel), no direction */
 const LINE_NORMAL_COLOR = new Color().setRGB(0.5, 0.5, 0.5, LinearSRGBColorSpace)
@@ -101,9 +102,22 @@ function defaultLightingPresets(): ViewOverrideLightingPreset[] {
         {key: 'lights-none', label: 'None', group: 'lights', lights: () => []},
         {key: 'env-day', label: 'Day', group: 'env', url: ENV_BASE + 'quarry_01_1k.hdr'},
         {key: 'env-night', label: 'Night', group: 'env', url: ENV_BASE + 'moonless_golf_1k.hdr'},
-        {key: 'env-studio', label: 'Studio', group: 'env', url: 'https://samples.threepipe.org/minimal/studio_small_03_1k.hdr'},
-        {key: 'env-indoors', label: 'Indoors', group: 'env', url: 'https://samples.threepipe.org/minimal/empty_warehouse_01_1k.hdr'},
-        {key: 'env-outdoors', label: 'Outdoors', group: 'env', url: 'https://samples.threepipe.org/minimal/venice_sunset_1k.hdr'},
+        {key: 'env-studio', label: 'Studio', group: 'env', url: ENV_BASE + 'studio_small_03_1k.hdr'},
+        {key: 'env-indoors', label: 'Indoors', group: 'env', url: ENV_BASE + 'empty_warehouse_01_1k.hdr'},
+        {key: 'env-outdoors', label: 'Outdoors', group: 'env', url: ENV_BASE + 'venice_sunset_1k.hdr'},
+        {key: 'env-studio-small-01', label: 'Studio Small 01', group: 'env', url: ENV_BASE + 'studio_small_01_1k.hdr'},
+        {key: 'env-studio-small-02', label: 'Studio Small 02', group: 'env', url: ENV_BASE + 'studio_small_02_1k.hdr'},
+        {key: 'env-studio-small-04', label: 'Studio Small 04', group: 'env', url: ENV_BASE + 'studio_small_04_1k.hdr'},
+        {key: 'env-studio-small-05', label: 'Studio Small 05', group: 'env', url: ENV_BASE + 'studio_small_05_1k.hdr'},
+        {key: 'env-studio-small-06', label: 'Studio Small 06', group: 'env', url: ENV_BASE + 'studio_small_06_1k.hdr'},
+        {key: 'env-studio-small-09', label: 'Studio Small 09', group: 'env', url: ENV_BASE + 'studio_small_09_1k.hdr'},
+        {key: 'env-workshop', label: 'Workshop', group: 'env', url: ENV_BASE + 'aerodynamics_workshop_1k.hdr'},
+        {key: 'env-hangar', label: 'Hangar', group: 'env', url: ENV_BASE + 'hangar_interior_1k.hdr'},
+        {key: 'env-powerplant', label: 'Powerplant', group: 'env', url: ENV_BASE + 'peppermint_powerplant_2_1k.hdr'},
+        {key: 'env-sunrise', label: 'Sunrise', group: 'env', url: ENV_BASE + 'blouberg_sunrise_2_1k.hdr'},
+        {key: 'env-overpass', label: 'Overpass', group: 'env', url: ENV_BASE + 'pedestrian_overpass_1k.hdr'},
+        {key: 'env-bridge', label: 'Bridge', group: 'env', url: ENV_BASE + 'san_giuseppe_bridge_1k.hdr'},
+        {key: 'env-esplanade', label: 'Esplanade', group: 'env', url: ENV_BASE + 'royal_esplanade_1k.hdr'},
     ]
 }
 
@@ -124,7 +138,8 @@ function defaultLightingPresets(): ViewOverrideLightingPreset[] {
  *
  * Lighting presets ({@link setLighting}, {@link lightingPresets}): 'lights-*' replace the scene lights (and by default
  * the environment, see {@link lightsKeepEnvironment}) with preset lights; 'env-*' replace them with another
- * environment map, loaded once and cached.
+ * environment map, loaded once and cached. The 'env' presets are 1k HDR files from Poly Haven (CC0) on
+ * samples.threepipe.org: studios, interiors and outdoor scenes.
  *
  * A material view and a lighting preset are exclusive: choosing one turns the other off (the debug materials are
  * unlit, so lights do not change them).

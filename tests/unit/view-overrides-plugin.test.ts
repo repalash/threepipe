@@ -426,6 +426,29 @@ describe('ViewOverridesPlugin', {timeout}, () => {
         expect(render().overrideEnvironment).toBe(tex)
     })
 
+    test('the default presets: unique keys, the first keys kept, env maps are distinct 1k HDRs on samples.threepipe.org', () => {
+        const {plugin} = setup()
+        const presets = plugin.lightingPresets
+        const keys = presets.map(p => p.key)
+        expect(new Set(keys).size).toBe(keys.length)
+        // keys that saved settings may use
+        expect(keys).toEqual(expect.arrayContaining([
+            'lights-day', 'lights-night', 'lights-studio', 'lights-none',
+            'env-day', 'env-night', 'env-studio', 'env-indoors', 'env-outdoors',
+        ]))
+        const env = presets.filter(p => p.group === 'env')
+        expect(env.length).toBe(18)
+        for (const p of env) {
+            expect(p.key.startsWith('env-')).toBe(true)
+            expect(p.lights).toBe(undefined)
+            expect(p.url).toMatch(/^https:\/\/samples\.threepipe\.org\/minimal\/[a-z0-9_]+_1k\.hdr$/)
+        }
+        // one resolution of each image
+        const images = env.map(p => p.url?.replace(/_1k\.hdr$/, ''))
+        expect(new Set(images).size).toBe(env.length)
+        for (const p of presets.filter(q => q.group === 'lights')) expect(p.url).toBe(undefined)
+    })
+
     test('an env preset loads its map once, shows loading, and is applied when loaded', async() => {
         const tex = new Texture()
         const {plugin, viewer, render, real} = setup(async() => tex)
