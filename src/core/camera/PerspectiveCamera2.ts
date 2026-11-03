@@ -19,6 +19,7 @@ import {copyUserData, ThreeSerialization} from '../../utils'
 import {iCameraCommons} from '../object/iCameraCommons'
 import {bindToValue} from '../../three/utils/decorators'
 import {makeICameraCommonUiConfig, objectExtensionsUiConfig} from '../object/IObjectUi'
+import {UiTags} from '../../ui/uiconfig'
 
 // todo: maybe change domElement to some wrapper/base class of viewer
 /**
@@ -30,7 +31,7 @@ export class PerspectiveCamera2<TE extends ICameraEventMap = ICameraEventMap> ex
         return this._controls
     }
 
-    @uiInput('Name') declare name: string
+    @uiInput('Name', {tags: [UiTags.Basic]}) declare name: string
 
     @serialize('camControls')
     private _controls?: ICameraControls
@@ -51,7 +52,7 @@ export class PerspectiveCamera2<TE extends ICameraEventMap = ICameraEventMap> ex
         userData: ICameraUserData = {}
 
     @onChange3(PerspectiveCamera2.prototype.setDirty)
-    @uiSlider('Field Of View', [1, 180], 0.001)
+    @uiSlider('Field Of View', [1, 180], 0.001, {tags: [UiTags.Basic]})
     @serialize() declare fov: number
 
     @onChange3(PerspectiveCamera2.prototype.setDirty)
