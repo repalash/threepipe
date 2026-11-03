@@ -22,6 +22,7 @@ import {MaterialExtension} from '../../materials'
 import {iMaterialCommons} from './iMaterialCommons'
 import {IObject3D} from '../IObject'
 import {iMaterialUI} from './IMaterialUi'
+import {UiTags} from '../../ui/uiconfig'
 import {LineMaterial, type LineMaterialParameters} from 'three/examples/jsm/lines/LineMaterial.js'
 import {threeMaterialInterpolateProps, threeMaterialPropList} from './threeMaterialPropList'
 
@@ -104,14 +105,14 @@ export class LineMaterial2<TE extends IMaterialEventMap = IMaterialEventMap> ext
 
     // region UI Config
 
-    @uiInput() declare name: string
-    @uiColor() declare color: Color
+    @uiInput(undefined, {tags: [UiTags.Basic]}) declare name: string
+    @uiColor(undefined, {tags: [UiTags.Basic]}) declare color: Color
     @uiToggle() declare dashed: boolean
     @uiNumber() declare dashScale: number
     @uiNumber() declare dashSize: number
     @uiNumber() declare dashOffset: number
     @uiNumber() declare gapSize: number
-    @uiNumber() declare linewidth: number
+    @uiNumber(undefined, {tags: [UiTags.Basic]}) declare linewidth: number
     @uiVector() declare resolution: Vector2
     @uiToggle() declare alphaToCoverage: boolean
     @uiToggle() declare worldUnits: boolean

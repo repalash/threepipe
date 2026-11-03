@@ -68,6 +68,7 @@ export class CustomScreenPassExtensionPlugin extends AScreenPassExtensionPlugin 
 }
 
 const viewer = new ThreeViewer({
+    renderScale: 'auto',
     canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
     tonemap: true, // also tonemap (this is also added as an extension)
     plugins: [CustomScreenPassExtensionPlugin],

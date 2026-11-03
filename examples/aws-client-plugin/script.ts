@@ -12,6 +12,7 @@ import {AWSClientPlugin} from '@threepipe/plugin-network'
 async function init() {
 
     const viewer = new ThreeViewer({
+        renderScale: 'auto',
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
         plugins: [SceneUiConfigPlugin, LoadingScreenPlugin],
