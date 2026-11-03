@@ -22,9 +22,12 @@ export interface IMeshBVH {
  * threepipe does not depend on three-mesh-bvh, its types included.
  */
 export interface ThreeMeshBVH {
-    MeshBVH: new (geometry: BufferGeometry, options?: {indirect?: boolean, setBoundingBox?: boolean}) => IMeshBVH
+    MeshBVH: {
+        new (geometry: BufferGeometry, options?: {indirect?: boolean, setBoundingBox?: boolean}): IMeshBVH
+        /** With `cloneBuffers: false`, the buffers of the tree itself (the plugin reads their size) */
+        serialize(bvh: IMeshBVH, options: {cloneBuffers: boolean}): {roots: ArrayBufferLike[], indirectBuffer?: ArrayBufferView | null}
+    }
     acceleratedRaycast: Mesh['raycast']
-    estimateMemoryInBytes(bvh: IMeshBVH): number
     /** Shows the boxes of `mesh.geometry.boundsTree`, to `depth` levels */
     BVHHelper: new (mesh: Object3D, depth?: number) => Object3D & {dispose(): void}
 }
@@ -464,7 +467,15 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
         const end = performance.now() + this.buildBudget
         for (const g of this._queue) {
             this._queue.delete(g)
-            if (this.wants(g) && !g.boundsTree) this._build(g)
+            // an error here would leave the postFrame listener and stop the animation loop of the viewer (three.js asks
+            // for the next frame after the callback returns): the geometry keeps the raycast of three.js
+            if (this.wants(g) && !g.boundsTree) {
+                try {
+                    this._build(g)
+                } catch (e) {
+                    this._viewer?.console.error('BVHPlugin: error in the build of a tree', g, e)
+                }
+            }
             if (performance.now() > end) break
         }
         this.uiConfig?.uiRefresh?.(true, 'postFrame')
@@ -476,11 +487,11 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
         this._adopted.delete(g)
         const bvh = new this.lib.MeshBVH(g, buildOptions)
         const ms = performance.now() - t
-        g.boundsTree = bvh as BVHGeometry['boundsTree']
         this._stats.set(g, {
             triangles: triangleCount(g), key: buildKey(g),
-            bytes: this.lib.estimateMemoryInBytes(bvh), ms,
+            bytes: treeBytes(this.lib, bvh), ms,
         })
+        g.boundsTree = bvh as BVHGeometry['boundsTree']
         this._watch(g) // also a geometry outside the scene (getBVH)
         this._setRaycast(g)
         this._refreshMeshUi(g)
@@ -572,6 +583,16 @@ function hasDrawnTriangles(bvh: MeshBVHTree, g: BufferGeometry) {
         },
     })
     return !other && drawn.every(v => !v)
+}
+
+/**
+ * The memory of a tree: its node buffers and its indirect buffer. Not estimateMemoryInBytes of three-mesh-bvh, which
+ * follows every property from the tree, also its geometry and all that the geometry links to (its UI config, after a UI
+ * showed it, links up to the viewer), and throws at an object without a constructor (a module namespace).
+ */
+function treeBytes(lib: ThreeMeshBVH, bvh: IMeshBVH) {
+    const {roots, indirectBuffer} = lib.MeshBVH.serialize(bvh, {cloneBuffers: false})
+    return roots.reduce((s, r) => s + r.byteLength, 0) + (indirectBuffer?.byteLength ?? 0)
 }
 
 /** The number of triangles of a geometry (its index or its positions) */

@@ -609,5 +609,41 @@ describe('BVHPlugin', () => {
                 expectOn(plugin, m)
             }
         })
+
+        test('off and on after the UI showed the mesh: the tree is built again, its memory is the tree only', () => {
+            const {plugin, add, frame} = setup()
+            const m = add(200, 32)
+            frame()
+            expectOn(plugin, m)
+            // a UI that shows the selected mesh links its geometry's config to the parent configs (uiconfig-tweakpane
+            // sets __uiParent), up to the plugin, its viewer and lib: a module namespace, an object without a constructor
+            const g = m.geometry as any
+            g.uiConfig = {type: 'folder', children: [], __uiParent: {children: [{property: [plugin, 'enabled']}]}}
+            plugin.enabled = false
+            plugin.enabled = true
+            expect(() => frame()).not.toThrow()
+            expectOn(plugin, m)
+            const {roots, indirectBuffer} = threeMeshBVH.MeshBVH.serialize(g.boundsTree, {cloneBuffers: false})
+            const bytes = roots.reduce((s, r) => s + r.byteLength, 0) + (indirectBuffer?.byteLength ?? 0)
+            expect(plugin.statusOf(m)).toContain(`${(bytes / 1e6).toFixed(2)} MB`)
+            expect(plugin.memoryMB).toBe(Math.round(bytes / 1e5) / 10)
+        })
+
+        test('a build that throws: the error is logged, the frame goes on and the other trees are built', () => {
+            const {viewer, plugin, add, frame} = setup()
+            const a = add(200, 32)
+            const b = add(150, 32)
+            const lib = plugin.lib!
+            plugin.lib = {...lib, MeshBVH: Object.assign(function(this: any, geometry: any, options: any) {
+                if (geometry === a.geometry) throw new Error('no tree')
+                return new lib.MeshBVH(geometry, options)
+            }, {serialize: lib.MeshBVH.serialize}) as any}
+            expect(() => frame()).not.toThrow()
+            expect(viewer.console.error).toHaveBeenCalledTimes(1)
+            expect(a.geometry!.boundsTree).toBeUndefined()
+            expect(a.raycast).toBe(Mesh.prototype.raycast)
+            expect(b.geometry!.boundsTree).toBeInstanceOf(threeMeshBVH.MeshBVH)
+            expect(plugin.builtCount).toBe(1)
+        })
     })
 })

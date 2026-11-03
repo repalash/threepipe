@@ -64,7 +64,8 @@ async function init() {
     const panel = setupPanel(viewer, bvh, field)
     setupHover(viewer, bvh, field, panel)
 
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    // expanded on desktop, collapsed on phones and tablets (the default), where it would cover the scene
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
     ui.setupPluginUi(BVHPlugin, {expanded: true})
     ui.setupPluginUi(PickingPlugin, {expanded: false})
 
