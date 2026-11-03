@@ -48,7 +48,15 @@ export interface BVHPluginEventMap extends AViewerPluginEventMap {
     bvhDisposed: {geometry: IGeometry}
 }
 
-type BVHGeometry = IGeometry & {boundsTree?: IMeshBVH}
+// the parts of a MeshBVH that hasDrawnTriangles reads, in a tree from outside
+interface MeshBVHTree extends IMeshBVH {
+    // goes down the tree: intersectsRange gets the positions of the triangles of a leaf, true stops
+    shapecast(callbacks: {intersectsBounds: () => boolean, intersectsRange: (offset: number, count: number) => boolean}): boolean
+    // the triangle at a position of the tree
+    resolveTriangleIndex(i: number): number
+}
+
+type BVHGeometry = IGeometry & {boundsTree?: MeshBVHTree}
 
 interface BVHStats {
     triangles: number
@@ -76,7 +84,8 @@ const buildOptions = {indirect: true, setBoundingBox: false}
  * - A mesh with a tree raycasts with `acceleratedRaycast`. The Raycaster API does not change.
  * - A geometry update refits the tree when it would have the same triangles (the same index or position count, draw
  *   range and groups), else builds it again.
- * - A mesh that gets a geometry with a tree raycasts with that tree.
+ * - A mesh that gets a geometry with a tree raycasts with that tree, when the tree has the triangles that the mesh draws
+ *   (a tree made with the `range` option of three-mesh-bvh, or before a draw range change, can have fewer or others).
  * - Not for skinned or morphed meshes, instanced or batched meshes, or meshes with their own raycast (fat lines).
  *
  * threepipe does not depend on three-mesh-bvh: install it (`npm i three-mesh-bvh`, 0.9.5 or newer) and give it to the
@@ -142,8 +151,9 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
     // also give a geometry a tree (it grows past autoMinTriangles, the gaps in its groups close)
     private _watched = new Set<BVHGeometry>()
     // the trees that the plugin did not build, with the build key of the geometry when the plugin first saw them: an
-    // update with the same key refits them, another key drops them (they no longer fit), and the plugin builds its own
-    private _adopted = new Map<BVHGeometry, string>()
+    // update with the same key refits them, another key drops them (they no longer fit), and the plugin builds its own.
+    // covers: the tree has the triangles that the meshes draw, else they keep the raycast of three.js
+    private _adopted = new Map<BVHGeometry, {key: string, covers: boolean}>()
     // the helper of each mesh, with the geometry that it was made for
     private _helpers = new Map<IObject3D, {helper: Object3D & {dispose(): void}, geometry: IGeometry}>()
 
@@ -387,7 +397,8 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
     }
 
     private _adopt(g: BVHGeometry) {
-        if (g.boundsTree && !this._stats.has(g) && !this._adopted.has(g)) this._adopted.set(g, buildKey(g))
+        if (g.boundsTree && !this._stats.has(g) && !this._adopted.has(g))
+            this._adopted.set(g, {key: buildKey(g), covers: hasDrawnTriangles(g.boundsTree, g)})
     }
 
     private _unwatch(g: BVHGeometry) {
@@ -427,7 +438,7 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
         const g = e.geometry
         if (!g) return
         const s = this._stats.get(g)
-        const adoptedKey = !s && g.boundsTree ? this._adopted.get(g) : undefined
+        const adoptedKey = !s && g.boundsTree ? this._adopted.get(g)?.key : undefined
         const key = buildKey(g)
         // the update can also change which meshes can use a tree (morph targets added): refit a tree of the plugin only
         // when the geometry still wants one, a tree from outside while it fits, and set the raycasts again on every path
@@ -496,9 +507,10 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
     private _setRaycast(g: BVHGeometry) {
         this._adopt(g)
         const accelerated = this.lib?.acceleratedRaycast
+        const fits = this._stats.has(g) || !!this._adopted.get(g)?.covers
         for (const o of g.appliedMeshes ?? []) {
             // a disabled plugin does not use the trees from outside either
-            if (g.boundsTree && accelerated && !this.isDisabled() && this.canUse(o) && this.modeOf(o) !== 'off') o.raycast = accelerated
+            if (g.boundsTree && fits && accelerated && !this.isDisabled() && this.canUse(o) && this.modeOf(o) !== 'off') o.raycast = accelerated
             else if (Object.prototype.hasOwnProperty.call(o, 'raycast') && o.raycast === accelerated) delete (o as Partial<IObject3D>).raycast
         }
     }
@@ -532,6 +544,34 @@ function buildKey(g: BufferGeometry) {
     const count = g.index ? g.index.count : g.attributes.position?.count ?? 0
     const groups = g.groups.map(gr => gr.start + ':' + gr.count).join(',')
     return [g.index ? 'index' : 'positions', count, g.drawRange.start, g.drawRange.count, groups, buildOptions.indirect].join('|')
+}
+
+/**
+ * Whether a tree has exactly the triangles that a tree of the plugin would have: the draw range, and in it the groups
+ * when there are any (what three.js raycasts, see {@link groupsLeaveGaps}). A tree made with the `range` option of
+ * three-mesh-bvh, or before a change of the draw range, can have fewer or others. Reads each triangle of the tree once.
+ */
+function hasDrawnTriangles(bvh: MeshBVHTree, g: BufferGeometry) {
+    const n = triangleCount(g)
+    const start = Math.max(0, Math.floor(g.drawRange.start / 3))
+    const end = Math.min(n, Math.floor((g.drawRange.start + g.drawRange.count) / 3))
+    // 1: drawn and not found in the tree yet
+    const drawn = new Uint8Array(n)
+    if (!g.groups.length) drawn.fill(1, start, end)
+    for (const gr of g.groups) drawn.fill(1, Math.max(start, gr.start / 3), Math.min(end, (gr.start + gr.count) / 3))
+    // stops at a triangle that is not drawn, or that the tree has twice
+    const other = bvh.shapecast({
+        intersectsBounds: () => true,
+        intersectsRange: (offset, count) => {
+            for (let i = offset; i < offset + count; i++) {
+                const t = bvh.resolveTriangleIndex(i)
+                if (!drawn[t]) return true
+                drawn[t] = 0
+            }
+            return false
+        },
+    })
+    return !other && drawn.every(v => !v)
 }
 
 /** The number of triangles of a geometry (its index or its positions) */

@@ -460,6 +460,48 @@ describe('BVHPlugin', () => {
         expect(o2.geometry!.boundsTree).toBe(t2)
     })
 
+    test('a tree from outside without the drawn triangles (the range option, a later draw range) is not used for raycasts; one with them is', () => {
+        const {plugin, add, frame} = setup()
+        const brute = (m: Object3D) => (r: Raycaster) => {
+            const list: Intersection[] = []
+            Mesh.prototype.raycast.call(m, r, list)
+            return list.sort((a, b) => a.distance - b.distance)
+                .map(h => ({distance: +h.distance.toFixed(6), faceIndex: h.faceIndex, object: h.object}))
+        }
+        const half = 6400 * 3 // the knot has 12800 triangles
+        const fallsBack = (drawCount: number, range?: {start: number, count: number}, indirect = false) => {
+            const m = add(200, 32)
+            const g = m.geometry!
+            const tree = new threeMeshBVH.MeshBVH(g, {range, indirect})
+            g.boundsTree = tree as any
+            g.setDrawRange(0, drawCount)
+            plugin.refreshAll()
+            frame()
+            expect(m.raycast).toBe(Mesh.prototype.raycast)
+            expect(g.boundsTree).toBe(tree) // the tree stays: it is not the plugin's
+            const expected = rays().map(brute(m))
+            expect(expected.flat().length).toBeGreaterThan(0)
+            expect(rays().map(r => hits(m, r))).toEqual(expected)
+        }
+        // fewer triangles than the mesh draws: the first half, in the index or in an indirect buffer
+        fallsBack(Infinity, {start: 0, count: half})
+        fallsBack(Infinity, {start: 0, count: half}, true)
+        // the same number, other triangles: the mesh draws the first half, the tree has the second
+        fallsBack(half, {start: half, count: half})
+        // more triangles than the mesh draws: the tree was built before the draw range changed
+        fallsBack(half)
+
+        // exactly the drawn triangles, from a range: used
+        const exact = add(200, 32)
+        exact.geometry!.boundsTree = new threeMeshBVH.MeshBVH(exact.geometry!, {range: {start: 0, count: half}, indirect: true}) as any
+        exact.geometry!.setDrawRange(0, half)
+        plugin.refreshAll()
+        expect(exact.raycast).toBe(threeMeshBVH.acceleratedRaycast)
+        const expected = rays().map(brute(exact))
+        expect(expected.flat().length).toBeGreaterThan(0)
+        expect(rays().map(r => hits(exact, r))).toEqual(expected)
+    })
+
     test('a mesh that leaves the scene gets the raycast of three.js back, also when its geometry keeps the tree; added again, it uses the tree', async() => {
         const {viewer, add, frame} = setup()
         const a = add(200, 32)
