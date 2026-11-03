@@ -389,7 +389,7 @@ export function snapPixelsToCanvas(pixels: SnapObjectPixels, canvas?: HTMLCanvas
     const ctx = canvas.getContext('2d')
     if (!ctx) throw new Error('snapPixelsToCanvas: unable to get 2d context')
     const data = new Uint8ClampedArray(pixels.data.buffer, pixels.data.byteOffset, pixels.data.byteLength)
-    ctx.putImageData(new ImageData(data, pixels.width, pixels.height), 0, 0)
+    ctx.putImageData(new ImageData(data as Uint8ClampedArray<ArrayBuffer>, pixels.width, pixels.height), 0, 0)
     return canvas
 }
 

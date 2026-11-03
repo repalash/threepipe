@@ -235,7 +235,7 @@ export class MaterialPreviewGenerator implements IDisposable {
         if (options.environmentRotation) this._scene.environmentRotation.copy(options.environmentRotation)
         else this._scene.environmentRotation.set(0, 0, 0)
         // three.js lights only standard materials with scene.environment
-        const light = options.light ?? !(options.environment && material.isMeshStandardMaterial)
+        const light = options.light ?? !(options.environment && (material as {isMeshStandardMaterial?: boolean}).isMeshStandardMaterial)
         this._lights.forEach(l => l.visible = light)
 
         try {
