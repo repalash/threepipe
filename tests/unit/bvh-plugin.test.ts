@@ -518,6 +518,17 @@ describe('BVHPlugin', () => {
         own.geometry!.boundsTree = new threeMeshBVH.MeshBVH(own.geometry!, {range: {start: 0, count: half}}) as any
         plugin.refreshAll()
         expect(own.raycast).toBe(Mesh.prototype.raycast)
+
+        // replaced, then the plugin is disabled before a refresh: the tree from outside stays on the geometry
+        const kept = add(200, 32)
+        frame()
+        expect(plugin.statusOf(kept)).toMatch(/triangles/)
+        const outsideTree = new threeMeshBVH.MeshBVH(kept.geometry!) as any
+        kept.geometry!.boundsTree = outsideTree
+        plugin.enabled = false
+        expect(kept.geometry!.boundsTree).toBe(outsideTree)
+        expect(Object.prototype.hasOwnProperty.call(kept, 'raycast')).toBe(false)
+        plugin.enabled = true
     })
 
     test('a mesh added to a shared geometry with a tree: only that mesh is checked, not every mesh of the geometry', () => {

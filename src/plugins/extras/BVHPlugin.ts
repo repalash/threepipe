@@ -508,8 +508,10 @@ export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
     }
 
     private _dispose(g: BVHGeometry) {
-        if (!this._stats.has(g)) return
-        g.boundsTree = undefined
+        const s = this._stats.get(g)
+        if (!s) return
+        // only the plugin's own tree: a tree that replaced it from outside stays on the geometry
+        if (g.boundsTree === s.tree) g.boundsTree = undefined
         this._stats.delete(g)
         this._setRaycast(g)
         this._pruneHelpers()
