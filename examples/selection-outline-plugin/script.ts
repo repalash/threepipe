@@ -27,7 +27,8 @@ async function init() {
     picking.hoverEnabled = true
     picking.widgetEnabled = false // the outline replaces the box widget
     // adds the GBufferPlugin (the depth for the x-ray outline) when it is not there
-    viewer.addPluginSync(SelectionOutlinePlugin)
+    const outline = viewer.addPluginSync(SelectionOutlinePlugin)
+    outline.antialias = true // smooth outline edges (off by default); turn it off in the UI to compare
 
     await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
     const watch = await viewer.load<IObject3D>('https://samples.threepipe.org/demos/classic-watch.glb', {autoCenter: true, autoScale: true})

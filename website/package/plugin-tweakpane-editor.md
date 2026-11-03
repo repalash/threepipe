@@ -247,12 +247,12 @@ In the `TweakpaneEditorPlugin`, while the plugin is added (before or after the e
 
 `SelectionOutlinePlugin` draws the outline of the selected and hovered objects in the render pipeline, as in Figma or Blender. A mask pass renders the meshes of these objects with their own depth. An extension of the screen pass then draws, after tonemapping:
 
-- an outer outline around each selected object and the hovered object, with anti-aliased edges (`antialias`),
+- an outer outline around each selected object and the hovered object, with anti-aliased edges when `antialias` is on,
 - thin lines between the parts of a selected object (`parts`; the parts come from `partsOf`),
 - a dashed outline where the selection is behind other objects (`xray`, needs the `GBufferPlugin`, which the plugin adds),
 - optionally, a fill tint (`fill`) and a dim of all other objects (`dimOthers`).
 
-`antialias` (on by default) smooths both edges of the outline. The outer edge fades over about 1 px at the distance `width` from the mask edge, at each angle: the plugin finds that distance by a bisection along the edge normal (and 15 degrees to each side of it in the outer 1 px). The outline also goes half a pixel into the edge of the object, with an alpha from the part of the 3x3 pixels around it in the mask, so the pixel steps of the mask do not show next to the anti-aliased edge of the object. Mask reads per pixel: 49 when off; when on, up to 63 in the outline and up to 79 in its outer 1 px. Set it to `false` for the outline without it.
+`antialias` (off by default) smooths both edges of the outline. The outer edge fades over about 1 px at the distance `width` from the mask edge, at each angle: the plugin finds that distance by a bisection along the edge normal (and 15 degrees to each side of it in the outer 1 px). The outline also goes half a pixel into the edge of the object, with an alpha from the part of the 3x3 pixels around it in the mask, so the pixel steps of the mask do not show next to the anti-aliased edge of the object. Mask reads per pixel: 49 when off; when on, up to 63 in the outline and up to 79 in its outer 1 px. Set it to `true` to turn it on.
 
 The mask follows the alpha of each material (`opacity`, the alpha of `map`, `alphaMap`, `alphaTest`), so a mesh that its texture cuts has the same shape in the outline. A change of the selection or the hover renders one more frame. It does not restart the progressive render. The mask is drawn once after each change, not in each frame of the progressive render.
 
@@ -269,7 +269,7 @@ picking.widgetEnabled = false // the outline replaces the box widget
 
 const outline = viewer.addPluginSync(SelectionOutlinePlugin)
 outline.width = 2 // CSS pixels
-outline.antialias = true // the default
+outline.antialias = true // smooth edges, off by default
 outline.color.set('#0d99ff')
 outline.redraw() // after a change of a color in place
 

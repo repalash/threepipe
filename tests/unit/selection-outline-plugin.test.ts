@@ -312,21 +312,27 @@ describe('SelectionOutlinePlugin', () => {
         for (const d of ['dSel', 'dHov', 'dPart']) expect(glsl).toContain(`${d} < selNoHit`)
     })
 
-    test('antialias: on by default, a define of the screen pass; a toggle recompiles the screen pass', () => {
+    test('antialias: off by default, a define of the screen pass; a toggle recompiles the screen pass', () => {
         const {plugin, viewer} = setup()
-        expect(plugin.antialias).toBe(true)
-        expect(plugin.extraDefines.SEL_OUTLINE_AA()).toBe('1')
-        plugin.antialias = false
+        expect(plugin.antialias).toBe(false)
         expect(plugin.extraDefines.SEL_OUTLINE_AA()).toBe('0')
+        plugin.antialias = true
+        expect(plugin.extraDefines.SEL_OUTLINE_AA()).toBe('1')
         expect(viewer.renderManager.screenPass.setDirty).toHaveBeenCalled()
         // the cache key of the extension has the value of the define, so the screen pass compiles again
-        expect(MaterialExtender.CacheKeyForExtension({} as any, plugin)).toMatch(/0$/)
+        expect(MaterialExtender.CacheKeyForExtension({} as any, plugin)).toMatch(/1$/)
         // the anti-aliased code is only behind the define: off compiles the outline of the earlier versions
         const glsl = plugin.parsFragmentSnippet() as string
         const ifs = glsl.match(/#if.*$/gm) ?? []
         expect(ifs.length).toBeGreaterThan(0)
         for (const i of ifs) expect(i).toBe('#if SEL_OUTLINE_AA')
         expect(glsl.match(/#endif/g)?.length).toBe(ifs.length)
+    })
+
+    test('the default hover color is a little lighter than the selection color', () => {
+        const plugin = new SelectionOutlinePlugin()
+        expect(plugin.color.getHexString()).toBe('0d99ff')
+        expect(plugin.hoverColor.getHexString()).toBe('209cf7')
     })
 
     test('antialias has a toggle in the UI', () => {
@@ -337,7 +343,7 @@ describe('SelectionOutlinePlugin', () => {
 
     test('antialias is not saved, as the other options', () => {
         const plugin = new SelectionOutlinePlugin()
-        plugin.antialias = false
+        plugin.antialias = true
         plugin.width = 4
         const data = plugin.toJSON()
         expect(data).not.toHaveProperty('antialias')

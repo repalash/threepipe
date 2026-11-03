@@ -48,7 +48,7 @@ const PICKING_TYPE = 'PickingPlugin'
  *    inverse of its own linear depth, 0 = none). The hover is a second draw, so a hovered object in front of the
  *    selection does not hide it, and the reverse.
  * 2. An extension of the screen pass reads the mask after tonemapping and draws an outer outline around each selected
- *    object and the hovered object, with anti-aliased edges ({@link antialias}). Options: thin lines between the parts
+ *    object and the hovered object. Options: anti-aliased edges ({@link antialias}), thin lines between the parts
  *    of an item ({@link parts}), a dashed outline where the selection is behind other objects ({@link xray}), a fill
  *    tint ({@link fill}), and a dim of all other objects ({@link dimOthers}).
  *
@@ -90,10 +90,10 @@ export class SelectionOutlinePlugin extends AScreenPassExtensionPlugin {
     @uiColor<SelectionOutlinePlugin>('Color', t => ({onChange: () => t?.redraw()}))
         color = new Color('#0d99ff')
 
-    /** The hover outline color. Call {@link redraw} after a change in place. */
+    /** The hover outline color, by default a little lighter than {@link color}. Call {@link redraw} after a change in place. */
     @onChange(SelectionOutlinePlugin.prototype.redraw)
     @uiColor<SelectionOutlinePlugin>('Hover color', t => ({onChange: () => t?.redraw()}))
-        hoverColor = new Color('#0d99ff')
+        hoverColor = new Color('#209cf7')
 
     /** Outline width in CSS pixels. The hover outline is 3/4 of it, at least 1 px. */
     @onChange(SelectionOutlinePlugin.prototype.redraw)
@@ -121,19 +121,18 @@ export class SelectionOutlinePlugin extends AScreenPassExtensionPlugin {
         dimOthers = false
 
     /**
-     * Anti-aliased outline edges (the define `SEL_OUTLINE_AA` of the screen pass).
+     * Anti-aliased outline edges (the define `SEL_OUTLINE_AA` of the screen pass). Off by default.
      * - The outer edge fades over about 1 px at the distance {@link width} from the mask edge: the distance is found by a
      *   bisection along the edge normal (and 15 deg to each side of it in the outer 1 px), not only at the radii of the
      *   search rings, so the width is the same at each angle.
      * - The outline goes half a pixel into the edge of the object (its anti-aliased edge). The alpha there comes from the
      *   part of the 3x3 pixels around it in the mask, so the pixel steps of the mask do not show.
      *
-     * Mask reads per pixel: 49 when off. When on, up to 63 in the outline and up to 79 in its outer 1 px. Off: the outline
-     * without it.
+     * Mask reads per pixel: 49 when off. When on, up to 63 in the outline and up to 79 in its outer 1 px.
      */
     @onChange(SelectionOutlinePlugin.prototype.setDirty)
     @uiToggle('Antialias')
-        antialias = true
+        antialias = false
 
     /**
      * The parts of a selected object, for the lines between parts. Default: the children, below any chain of groups
