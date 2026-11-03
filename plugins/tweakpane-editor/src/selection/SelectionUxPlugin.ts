@@ -29,7 +29,7 @@ import {
     toggleSelected,
     wrappedChain,
 } from './selectionHierarchy'
-import {boxEdgesPath, boxInfo, BoxInfo, boxScreenRect, bracketsPath, frontFaces, ScreenPoint, ScreenRect, toScreen} from './selectionBox'
+import {boxEdgesPath, boxInfo, BoxInfo, boxScreenRect, bracketsPath, frontFaces, isFiniteBox, ScreenPoint, ScreenRect, toScreen} from './selectionBox'
 import {ElementPool} from './ElementPool'
 
 export interface SelectionUxPluginEventMap extends AViewerPluginEventMap {
@@ -842,6 +842,7 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
     /** A thin box: the screen rectangle (`rect` style), else the edges of the 3D box that face the camera */
     private _drawBox(key: string, objs: IObject3D[], width: number, opacity: number, w: number, h: number) {
         const info = this.boxInfo(objs)
+        if (!isFiniteBox(info)) return
         const stroke = {fill: 'none', stroke: this.accent, strokeWidth: width, opacity}
         if (this.boxStyle !== 'rect') {
             const sc = this._project(info.corners, w, h)
@@ -855,6 +856,8 @@ export class SelectionUxPlugin extends AViewerPluginSync<SelectionUxPluginEventM
     private _drawSelection(sel: IObject3D[], w: number, h: number) {
         const L = this._lines!
         const info = this.boxInfo(sel)
+        // a NaN or an infinite value in a transform: nothing to draw, and no NaN in the page
+        if (!isFiniteBox(info)) return
         const sc = this._project(info.corners, w, h)
         // clipped at the near plane: a selection that reaches behind the camera covers the screen, not its front corners
         const rect = boxScreenRect(info.corners, this._viewer!.scene.mainCamera, w, h)

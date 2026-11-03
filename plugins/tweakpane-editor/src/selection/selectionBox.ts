@@ -32,8 +32,8 @@ const UNIT_CUBE: Vector3[] = Array.from({length: 8}, (_, i) => new Vector3((i & 
 const BOX_EDGES: [number, number][] = []
 for (let i = 0; i < 8; i++) for (const b of [1, 2, 4]) if (!(i & b)) BOX_EDGES.push([i, i | b])
 
-// scratch objects of contentBox, so a box of many parts does not allocate per part
-const tmpMatrix = new Matrix4(), tmpBox = new Box3(), tmpPos = new Vector3(), tmpSize = new Vector3()
+// scratch objects of contentBox, so a box of many parts does not allocate per part: the matrix of each depth of the tree
+const depthMatrices: Matrix4[] = [], tmpBox = new Box3(), tmpSize = new Vector3()
 
 /**
  * The box of what is drawn of `obj` in a frame: the boxes of its visible meshes, lines and points, and a cube of
@@ -41,15 +41,24 @@ const tmpMatrix = new Matrix4(), tmpBox = new Box3(), tmpPos = new Vector3(), tm
  * `userData.bboxVisible === false` are left out, with all inside them (as in `Box3B.expandByObject`).
  * As in `Box3B.expandByObject`, an object with its own `boundingBox` (an instanced or a skinned mesh: the box of all
  * instances, or of the pose) uses it before the box of its geometry. Empty when `obj` has none of these.
- * @param frame - maps the world to the frame; each part's box goes into the frame from its own world transform
+ * @param frame - maps the space of `obj` to the frame: the identity for its own frame, its `matrixWorld` for the world.
+ * Each part goes into the frame through the local matrices from `obj` down to it, with no inverse, so an object with a
+ * scale of 0 on an axis (its own or of a parent) has a finite box (0 on that axis in the world).
  */
 function contentBox(obj: IObject3D, frame: Matrix4, pointSize: (o: IObject3D) => number): Box3 {
     const box = new Box3()
     obj.updateWorldMatrix(true, true)
-    const visit = (o: IObject3D) => {
+    const matrixAt = (d: number) => depthMatrices[d] ??= new Matrix4()
+    matrixAt(0).copy(frame)
+    // the matrix at `depth` maps the space of `o` to the frame
+    const visit = (o: IObject3D, depth: number) => {
         const c = o as IObject3D & {boundingBox?: Box3 | null, computeBoundingBox?: () => void}
         if (!c.visible || c.userData.bboxVisible === false || isHelperObject(c)) return
-        c.children.forEach(visit)
+        for (const child of c.children) {
+            matrixAt(depth + 1).multiplyMatrices(matrixAt(depth), child.matrix)
+            visit(child as IObject3D, depth + 1)
+        }
+        const m = matrixAt(depth)
         let b: Box3 | null | undefined
         if (c.boundingBox !== undefined) {
             if (c.boundingBox === null) c.computeBoundingBox?.()
@@ -58,24 +67,20 @@ function contentBox(obj: IObject3D, frame: Matrix4, pointSize: (o: IObject3D) =>
             if (!c.geometry.boundingBox) c.geometry.computeBoundingBox()
             b = c.geometry.boundingBox
         } else {
-            if (c !== obj && (c.isLight || c.isCamera)) {
-                const p = c.getWorldPosition(tmpPos)
-                box.union(tmpBox.setFromCenterAndSize(p, tmpSize.setScalar(pointSize(c))).applyMatrix4(frame))
-            }
+            // a light or a camera inside: its cube, as its own box has
+            if (c !== obj && (c.isLight || c.isCamera)) box.union(placeholderBox(c, pointSize).applyMatrix4(m))
             return
         }
         if (!b) return
-        tmpMatrix.multiplyMatrices(frame, c.matrixWorld)
-        box.union(tmpBox.copy(b).applyMatrix4(tmpMatrix))
+        box.union(tmpBox.copy(b).applyMatrix4(m))
     }
-    visit(obj)
+    visit(obj, 0)
     return box
 }
 
 /** The box of what is drawn of `obj` (see {@link worldBox}), in its own frame */
 export function localBox(obj: IObject3D, pointSize: (o: IObject3D) => number): Box3 {
-    obj.updateWorldMatrix(true, false)
-    return contentBox(obj, obj.matrixWorld.clone().invert(), pointSize)
+    return contentBox(obj, new Matrix4(), pointSize)
 }
 
 /**
@@ -103,9 +108,9 @@ function placeholderBox(o: IObject3D, pointSize: (o: IObject3D) => number): Box3
  */
 export function worldBox(objs: IObject3D[], pointSize: (o: IObject3D) => number): Box3 {
     const box = new Box3()
-    const identity = new Matrix4()
     for (const o of objs) {
-        const b = contentBox(o, identity, pointSize)
+        o.updateWorldMatrix(true, false)
+        const b = contentBox(o, o.matrixWorld, pointSize)
         // contentBox leaves out the cube of its root: here the root is a selected object
         if (b.isEmpty() || o.isLight || o.isCamera) b.union(placeholderBox(o, pointSize).applyMatrix4(o.matrixWorld))
         box.union(b)
@@ -141,6 +146,13 @@ export function boxInfo(objs: IObject3D[], space: 'local' | 'world', pointSize: 
     axes.forEach(a => a.normalize())
     const base = new Vector3(center.x, Math.min(...corners.map(c => c.y)), center.z)
     return {matrix: m, corners, center, base, size, axes}
+}
+
+/**
+ * The box is finite: an object with a NaN or an infinite value in its transform (or a parent's) has no box on the screen
+ */
+export function isFiniteBox(info: BoxInfo): boolean {
+    return info.matrix.elements.every(Number.isFinite)
 }
 
 const v4 = new Vector4()

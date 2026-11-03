@@ -286,6 +286,34 @@ describe('selection box', () => {
         }
     })
 
+    test('a flat object (a scale of 0 on an axis, its own or of a parent) has a finite box, 0 on that axis', () => {
+        const finite = (info: ReturnType<typeof boxInfo>) => [...info.corners, info.center, info.size].every(v => [v.x, v.y, v.z].every(Number.isFinite))
+        const size = (info: ReturnType<typeof boxInfo>) => info.size.toArray().map(v => +v.toFixed(5))
+        const flat = mesh('Flat', 1, 0, 0)
+        flat.scale.z = 0
+        const inFlat = mesh('In flat')
+        const parent = group('Flat parent', inFlat)
+        parent.scale.y = 0
+        parent.position.set(-1, 0, 0)
+        const lamp = new DirectionalLight() as any as IObject3D // a light inside a flat parent: its cube is flat too
+        lamp.position.set(0, 0, 0)
+        parent.add(lamp)
+        const a = mesh('A', 0, 0, 3)
+        group('G', flat, parent, a)
+        for (const space of ['local', 'world'] as const) {
+            expect(finite(boxInfo([flat], space, point))).toBe(true)
+            expect(size(boxInfo([flat], space, point))).toEqual([0.5, 0.5, 0])
+            expect(finite(boxInfo([parent], space, point))).toBe(true)
+            expect(size(boxInfo([parent], space, point))).toEqual([0.5, 0, 0.5])
+            expect(finite(boxInfo([inFlat], space, point))).toBe(true)
+            expect(size(boxInfo([inFlat], space, point))).toEqual([0.5, 0, 0.5])
+        }
+        // a multiple selection with them
+        const all = boxInfo([flat, parent, a], 'world', point)
+        expect(finite(all)).toBe(true)
+        expect(size(all)).toEqual([2.5, 0.5, 3.5])
+    })
+
     test('the world box adds each part in the world: a rotated part in a rotated group', () => {
         const cube = new Mesh(new BoxGeometry(1, 1, 1), material) as any as IObject3D
         cube.rotation.z = -Math.PI / 4
@@ -1183,6 +1211,29 @@ describe('SelectionUxPlugin', () => {
         expect(+rect.getAttribute('y')!).toBeCloseTo(Math.min(...ys), 1)
         expect(+rect.getAttribute('width')!).toBeCloseTo(Math.max(...xs) - Math.min(...xs), 1)
         expect(+rect.getAttribute('height')!).toBeCloseTo(Math.max(...ys) - Math.min(...ys), 1)
+    })
+
+    test('overlay: a flat object has its box; an object with a non-finite transform has none, and no NaN reaches the page', () => {
+        const {ux, lamp, lines, labels} = setup()
+        const text = () => JSON.stringify([...lines(), ...labels()].map(e => [[...e.attributes], e.style, e.textContent]))
+        const flat = mesh('Flat', 0, 2, 0)
+        flat.scale.z = 0
+        const broken = mesh('Broken', NaN, 0, 0)
+        lamp.parent!.add(flat, broken)
+        for (const style of ['rect', 'box', 'brackets'] as const) {
+            ux.boxStyle = style
+            const tag = style === 'rect' ? 'rect' : 'path'
+            ux.select([flat])
+            expect(lines().length).toBeGreaterThan(0)
+            expect(lines().every(e => e.tagName === tag)).toBe(true)
+            expect(text()).not.toMatch(/NaN|Infinity/)
+            ux.select([broken])
+            expect(lines()).toEqual([])
+            expect(text()).not.toMatch(/NaN|Infinity/)
+            ux.select([lamp, broken]) // the box of the lamp only
+            expect(lines().map(e => e.tagName)).toEqual([tag])
+            expect(text()).not.toMatch(/NaN|Infinity/)
+        }
     })
 
     test('overlay: the rectangle of a selection that reaches behind the camera covers its part in front of it', () => {
