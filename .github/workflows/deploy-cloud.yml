@@ -1,0 +1,105 @@
+name: Deploy threepipe cloud
+
+# Deploys services/cloud (cloud.threepipe.org) when the `cloud` branch moves (git push origin dev:cloud), after a
+# reviewer approves the `cloud-deploy` environment. The same flow as repalash/release-tools for npm:
+#   check    typecheck and the e2e suite (a local worker), with no secrets
+#   notify   starts the Claude review routine and posts to Discord: the approval link, the review, the commits
+#   deploy   environment cloud-deploy (approval): npm run deploy:ci with the token for this Worker only and
+#            ADMIN_SERVICE_TOKEN, both secrets of that environment; migrations go through the Worker (teenybase)
+
+on:
+  push:
+    branches: [cloud]
+    paths: ['services/cloud/**', '.github/workflows/deploy-cloud.yml', 'scripts/ci/notify-cloud-deploy.mjs']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-cloud
+  cancel-in-progress: false # never cancel a deploy half-way: a newer run waits for the one before
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: services/cloud
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      # GitHub creates a missing environment on first use, without protection: the deploy would then run without
+      # approval. Stop when cloud-deploy has no required reviewer.
+      - name: Check that cloud-deploy requires a reviewer
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          n=$(gh api "repos/$REPOSITORY/environments/cloud-deploy" --jq '[.protection_rules[]? | select(.type == "required_reviewers")] | length' 2> /dev/null) || n=0
+          if [ "$n" = 0 ]; then
+            echo "::error::The cloud-deploy environment is missing or has no required reviewer (services/cloud/README.md, Deploy)."
+            exit 1
+          fi
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test # the e2e suite against a local worker (.dev.vars from .dev.vars.example)
+
+  notify:
+    needs: check
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the commits since the last deploy
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Claude review and Discord notice
+        env:
+          BUILD_OK: ${{ needs.check.result == 'success' }}
+          BEFORE: ${{ github.event.before }}
+          REVIEW_ACTOR: repalash
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          CLAUDE_REVIEW_FIRE_URL: ${{ secrets.CLAUDE_REVIEW_FIRE_URL }}
+          CLAUDE_REVIEW_TOKEN: ${{ secrets.CLAUDE_REVIEW_TOKEN }}
+        run: node scripts/ci/notify-cloud-deploy.mjs
+
+  deploy:
+    needs: check
+    runs-on: ubuntu-latest
+    environment: cloud-deploy
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: services/cloud
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - name: Deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ADMIN_SERVICE_TOKEN: ${{ secrets.ADMIN_SERVICE_TOKEN }}
+        run: npm run deploy:ci
+      - name: Discord notice of a failed deploy
+        if: failure()
+        working-directory: .
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: node scripts/ci/notify-cloud-deploy.mjs --failed
