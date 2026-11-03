@@ -853,7 +853,7 @@ describe('ViewOverridesPlugin', {timeout}, () => {
         const camera = new PerspectiveCamera()
         const unlit = (plugin as any)._materials.unlit
         const props = ['vertexColors', 'alphaToCoverage', 'premultipliedAlpha', 'blending', 'blendSrc', 'blendDst', 'depthTest',
-            'depthWrite', 'polygonOffset', 'polygonOffsetFactor', 'polygonOffsetUnits', 'clippingPlanes', 'clipIntersection', 'fog']
+            'depthWrite', 'colorWrite', 'polygonOffset', 'polygonOffsetFactor', 'polygonOffsetUnits', 'clippingPlanes', 'clipIntersection', 'fog']
         /** The version and the copied settings while the override draws the mesh */
         const draw = (m: any) => {
             unlit.onBeforeRender(renderer, null, camera, m.geometry, m, null)
@@ -882,12 +882,12 @@ describe('ViewOverridesPlugin', {timeout}, () => {
         const planes = [new tp.Plane()]
         const special = new Mesh(new tp.BoxGeometry(), new MeshBasicMaterial({
             alphaToCoverage: true, premultipliedAlpha: true, blending: tp.CustomBlending, blendSrc: tp.OneFactor, blendDst: tp.OneFactor,
-            depthTest: false, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2,
+            depthTest: false, depthWrite: false, colorWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2,
             clippingPlanes: planes, clipIntersection: true, fog: false,
         }))
         const s = draw(special)
         expect(s).toMatchObject({alphaToCoverage: true, premultipliedAlpha: true, blending: tp.CustomBlending, blendSrc: tp.OneFactor,
-            blendDst: tp.OneFactor, depthTest: false, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1,
+            blendDst: tp.OneFactor, depthTest: false, depthWrite: false, colorWrite: false, polygonOffset: true, polygonOffsetFactor: -1,
             polygonOffsetUnits: -2, clippingPlanes: planes, clipIntersection: true, fog: false})
         expect(s.version).not.toBe(p1.version) // opaque, alphaToCoverage, premultipliedAlpha, useFog
         const after = draw(plain)

@@ -54,7 +54,7 @@ function resetCurrentMaterial(renderer: WebGLRenderer) {
  * Material of three.js):
  * - All of them ({@link copyCommon}): which pixels draw and how they blend: opacity, transparent, alphaMap, alphaTest,
  *   alphaHash, alphaToCoverage, premultipliedAlpha, blending and the blend factors, side, wireframe,
- *   wireframeLinewidth, depthTest, depthWrite, polygonOffset (factor, units), clippingPlanes, clipIntersection.
+ *   wireframeLinewidth, depthTest, depthWrite, colorWrite, polygonOffset (factor, units), clippingPlanes, clipIntersection.
  * - Unlit (UnlitOverrideMaterial._copyFrom): the surface colour without lights: color, map, aoMap and its intensity,
  *   lightMap and its intensity, vertexColors, fog.
  * - Material ID and UV (MapAlphaOverrideMaterial): the alpha of map (an alpha-masked colour texture cuts holes), not
@@ -69,7 +69,7 @@ function resetCurrentMaterial(renderer: WebGLRenderer) {
 const COMMON_SETTINGS = [
     'opacity', 'transparent', 'alphaMap', 'alphaHash', 'alphaToCoverage', 'premultipliedAlpha',
     'blending', 'blendSrc', 'blendDst', 'blendEquation', 'blendSrcAlpha', 'blendDstAlpha', 'blendEquationAlpha',
-    'side', 'wireframe', 'wireframeLinewidth', 'depthTest', 'depthWrite',
+    'side', 'wireframe', 'wireframeLinewidth', 'depthTest', 'depthWrite', 'colorWrite',
     'polygonOffset', 'polygonOffsetFactor', 'polygonOffsetUnits', 'clippingPlanes', 'clipIntersection',
 ] as const
 const BASIC_DEFAULTS = new MeshBasicMaterial()
