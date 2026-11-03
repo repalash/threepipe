@@ -104,7 +104,7 @@ export class Dropzone {
             // if (entries[0].name.match(/\.zip$/)) {
             //     this._loadZip(items[0].getAsFile())
             // } else {
-            this._loadNextEntry(new Map(), entries, e)
+            this._loadNextEntry(new Map(), entries, e, files)
             // }
 
             return
@@ -162,21 +162,42 @@ export class Dropzone {
      * @param fileMap
      * @param  {Array<FileSystemEntry>} entries
      * @param e
+     * @param files - `dataTransfer.files` of the drop: a dropped file whose entry cannot be read is taken from it. A
+     * document without an origin (a sandboxed page, like an iframe or a page served with `CSP: sandbox`) refuses
+     * `FileSystemFileEntry.file()`.
+     * @param failed - the paths that could not be read so far
      */
-    private _loadNextEntry(fileMap: Map<string, DropFile>, entries: (FileSystemEntry|null)[], e: DragEvent) {
+    private _loadNextEntry(fileMap: Map<string, DropFile>, entries: (FileSystemEntry|null)[], e: DragEvent, files: DropFile[] = [], failed: string[] = []) {
         const entry = entries.pop()
 
         if (!entry) {
-            this._emit('drop', {files: fileMap, nativeEvent: e})
+            if (!fileMap.size && failed.length) this._fail('Could not read the dropped files: ' + failed.join(', '))
+            else this._emit('drop', {files: fileMap, nativeEvent: e})
             return
         }
 
+        const add = (file: DropFile) => {
+            file.filePath = entry.fullPath
+            fileMap.set(entry.fullPath, file)
+        }
+        const next = () => this._loadNextEntry(fileMap, entries, e, files, failed)
+        const skip = (err: unknown) => {
+            console.error('Could not load file: %s', entry.fullPath, err, 'Try setting Dropzone.USE_DATA_TRANSFER_ITEMS to false.')
+            failed.push(entry.fullPath)
+            next()
+        }
+
         if (entry.isFile) {
-            (entry as FileSystemFileEntry).file((file: DropFile) => {
-                file.filePath = entry.fullPath
-                fileMap.set(entry.fullPath, file)
-                this._loadNextEntry(fileMap, entries, e)
-            }, (err) => console.error('Could not load file: %s', entry.fullPath, err, 'Try setting Dropzone.USE_DATA_TRANSFER_ITEMS to false.'))
+            (entry as FileSystemFileEntry).file((file: File) => {
+                add(file as DropFile)
+                next()
+            }, (err) => {
+                // a dropped file itself (not one in a dropped folder) is also in dataTransfer.files
+                const file = entry.fullPath === '/' + entry.name ? files.find(f => f.name === entry.name) : undefined
+                if (!file) return skip(err)
+                add(file)
+                next()
+            })
         } else if (entry.isDirectory) {
             // readEntries() must be called repeatedly until it stops returning results.
             // https://www.w3.org/TR/2012/WD-file-system-api-20120417/#the-directoryreader-interface
@@ -186,16 +207,16 @@ export class Dropzone {
                 if (newEntries.length) {
                     entries = entries.concat(newEntries)
                     // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-                    reader.readEntries(readerCallback)
+                    reader.readEntries(readerCallback, skip)
                 } else {
-                    this._loadNextEntry(fileMap, entries, e)
+                    next()
                 }
             }
             // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-            reader.readEntries(readerCallback)
+            reader.readEntries(readerCallback, skip)
         } else {
             console.warn('Unknown asset type: ' + entry.fullPath)
-            this._loadNextEntry(fileMap, entries, e)
+            next()
         }
     }
 
