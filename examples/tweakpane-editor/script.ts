@@ -38,6 +38,17 @@ async function init() {
     const editor = viewer.getPlugin(TweakpaneEditorPlugin)
     if (layout && editor) editor.layout = layout
 
+    // ?areas: sample content in the left sidebar and the bottom strip of the page frame (TweakpaneEditorPlugin.setArea),
+    // to see the areas. Without it, both areas are empty and take no space.
+    if (checkQuery('areas', false) && editor) {
+        for (const area of ['left', 'bottom'] as const) {
+            const el = document.createElement('div')
+            el.textContent = area === 'left' ? 'Left sidebar area' : 'Bottom strip area'
+            el.style.cssText = 'padding: 12px; font: 12px system-ui, sans-serif; opacity: .7'
+            editor.setArea(area, el)
+        }
+    }
+
     // for fat lines
     // GLTFLoader2.UseMeshLines = true
     // LineGeometryGenerator.UseMeshLines = true
