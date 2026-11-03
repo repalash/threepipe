@@ -9,7 +9,7 @@
 //               drive:/<folder>/   the file or folder becomes one private item there  (/api/v1/drive/items)
 //               samples/<path>  e2e/blobs/<sha256><ext>                              (staff, PUT /api/v1/buckets/…)
 // s/ b/ p/ files go many per request (POST, multipart); a/, drive:/ and staff buckets one PUT per file.
-// Options: --ttl <days> (s/, default 7), --dry-run, --concurrency <n> requests at a time (default 6),
+// Options: --ttl <days> (s/, default 7), --dry-run, --concurrency <n> requests at a time (default 10),
 //          --entry <file> (drive:/, the file the item opens; default index.html, else the model, else the first file)
 //
 // The key: TP_CLOUD_KEY from the environment or ~/.config/threepipe-cloud/.env. Get one from an access link (signed in at
@@ -32,9 +32,11 @@ const flag = name => args.includes(name)
 const option = (name, fallback) => args.includes(name) ? args[args.indexOf(name) + 1] : fallback
 const positional = args.filter((a, i) => !a.startsWith('--') && !['--ttl', '--concurrency', '--entry'].includes(args[i - 1]))
 const dryRun = flag('--dry-run')
-const concurrency = Number(option('--concurrency', 6))
+const concurrency = Number(option('--concurrency', 10))
 /** One POST of many files (the worker's limits: 40 MB, 500 files) */
-const BATCH_BYTES = 32 * 1024 * 1024, BATCH_FILES = 400
+// A worker request writes 6 files to R2 at a time (Cloudflare: 6 connections waiting for an answer), so many smaller
+// requests at once beat a few big ones; each request is one D1 read on the server.
+const BATCH_BYTES = 32 * 1024 * 1024, BATCH_FILES = 100, FIRST_FILES = 6
 const ttl = option('--ttl')
 /** Files a drive item opens as a model (its entry, before textures and buffers) */
 const MODEL = /\.(?:glb|gltf|vjson|usdz|fbx|obj|ply|stl|3dm|drc|3ds|dae)$/i
@@ -155,13 +157,17 @@ function gitIgnored(dir) {
     return new Set(git('ls-files', '--others', '--ignored', '--exclude-standard', '-z', '.').split('\0').filter(Boolean))
 }
 
+/** The scope of a remote path: `s/<slug>`, `p/<name>`, `b/<repo>/<ref>` (as the worker's scopeOf). */
+function scopeOf(remote) { return remote.split('/').slice(0, remote.startsWith('b/') ? 3 : 2).join('/') }
+
 /** `files` (all s/, b/ or p/) in groups for one POST each: one scope (`s/<slug>`, `p/<name>`, `b/<repo>/<ref>`), up to BATCH_BYTES and BATCH_FILES. */
 function batches(list) {
     const out = []
     let group = [], bytes = 0, scope = ''
     for (const f of list) {
-        const s = f.remote.split('/').slice(0, f.remote.startsWith('b/') ? 3 : 2).join('/')
-        if (group.length && (s !== scope || bytes + size(f) > BATCH_BYTES || group.length >= BATCH_FILES)) {
+        const s = scopeOf(f.remote)
+        // the first request goes alone (it claims the folder): a small one
+        if (group.length && (s !== scope || bytes + size(f) > BATCH_BYTES || group.length >= (out.length ? BATCH_FILES : FIRST_FILES))) {
             out.push(group)
             group = []
             bytes = 0
@@ -176,7 +182,7 @@ function batches(list) {
 
 /** One POST of a group from batches(): each file a part named by its path under the scope. */
 async function uploadMany(group) {
-    const scope = group[0].remote.split('/').slice(0, group[0].remote.startsWith('b/') ? 3 : 2).join('/')
+    const scope = scopeOf(group[0].remote)
     const form = new FormData()
     for (const f of group) form.append(f.remote.slice(scope.length + 1), new Blob([f.content ?? fs.readFileSync(f.local)]), path.basename(f.remote))
     const url = `${api}/api/v1/uploads/${scope.split('/').map(encodeURIComponent).join('/')}/${ttl && scope.startsWith('s/') ? `?ttl=${ttl}` : ''}`

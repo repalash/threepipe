@@ -104,6 +104,8 @@ async function claimScope(env: CloudflareBindings, scope: string, user: CloudUse
         throw new HTTPException(403, {message: `${scope.split('/').slice(0, 2).join('/')}… is for threepipe`})
     const taken = () => new HTTPException(403, {message: `'${scope}' belongs to another user`})
     const now = new Date().toISOString()
+    // a share's scope lives to the end of the UTC day of its last file's expiry: later uploads move it at most once a day
+    if (expires) expires = new Date(Math.ceil(Date.parse(expires) / DAY_MS) * DAY_MS).toISOString()
     if (row && !(row.expires && row.expires < now)) {
         if (row.owner !== user.id) throw taken()
         // a share lives as long as its last file: move its expiry later when a new file outlives it
@@ -203,7 +205,8 @@ export function uploadRoutes(app: Hono<CloudEnv>) {
         if (items.some(i => i.t.scope !== scope)) throw new HTTPException(400, {message: `the files of one request go under one ${prefix === 'b' ? 'b/<repo>/<ref>' : prefix + '/<name>'}`})
         if (new Set(items.map(i => i.t.key)).size !== items.length) throw new HTTPException(400, {message: 'a path appears twice'})
         await claimScope(c.env, scope, user, scopeRow, items[0].t.expiresAt)
-        const stored = await inParallel(items, 16, async({t, file}): Promise<Stored> => {
+        // 6 at a time: a worker request has at most 6 R2 calls waiting for an answer (more only queue)
+        const stored = await inParallel(items, 6, async({t, file}): Promise<Stored> => {
             const body = await file.arrayBuffer()
             await c.env.CLOUD_BUCKET.put(t.key, body, {
                 httpMetadata: {contentType: contentTypeFor(t.key, file.type)},

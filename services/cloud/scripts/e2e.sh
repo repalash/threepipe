@@ -169,7 +169,7 @@ for i in 1 2 3; do
   code -X POST -H "$H0" -H 'content-type: application/json' -d "{\"name\":\"x\",\"folder\":\"$EF\"}" "$A/api/v1/drive/items" > $TMP/fadd.$i; wait $P1
   echo "$(cat $TMP/fdel.$i) $(cat $TMP/fadd.$i)" >> $TMP/frace2
 done
-! grep -q "^200 201$" $TMP/frace2 && [ "$(grep -cE '^(200 404|409 201)$' $TMP/frace2)" = "3" ] && ok "delete a folder while adding to it: one wins" || bad "folder delete race: $(tr '\n' ',' < $TMP/frace2)"
+! grep -q "^200 201$" $TMP/frace2 && [ "$(grep -cE '^(200 (404|409)|409 201)$' $TMP/frace2)" = "3" ] && ok "delete a folder while adding to it: one wins" || bad "folder delete race: $(tr '\n' ',' < $TMP/frace2)"
 [ "$(code -H "Authorization: Bearer $T2" "$A/api/v1/drive/items/$ITEM")" = "404" ] && [ "$(code -X PUT -H "Authorization: Bearer $T2" --data-binary @$TMP/a.txt "$A/api/v1/drive/items/$ITEM/x.txt")" = "404" ] && ok "another user's items do not exist for you" || bad "other user item"
 NL=$(curl -s -X POST -H "$H0" "$A/api/v1/drive/items/$LID/new-id" | j "['id']")
 [ -n "$NL" ] && [ "$NL" != "$LID" ] && [ "$(code "${SURL}scene.gltf")" = "404" ] && curl -s "$(curl -s -X POST -H "$H0" "$A/api/v1/drive/items/$NL/sign" | j "['url']")tex/scene.bin" | grep -q bin && ok "new id: the old URLs stop working, the item stays" || bad "new id: $NL"

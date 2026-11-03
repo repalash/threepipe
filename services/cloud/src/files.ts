@@ -59,7 +59,7 @@ export async function filesHost(c: Context<CloudEnv>, next: Next) {
 
     // a rendered page has its own ETag, so the file's conditional and range headers do not apply to it
     const render = isMarkdownPath(key) && wantsRenderedMarkdown(c.req.raw, url)
-    let obj = await c.env.CLOUD_BUCKET.get(key, render ? {} : {onlyIf: c.req.raw.headers, range: c.req.raw.headers})
+    let obj: R2Object | R2ObjectBody | null = await c.env.CLOUD_BUCKET.get(key, render ? {} : {onlyIf: c.req.raw.headers, range: c.req.raw.headers})
     if (!obj && !key.split('/').pop()!.includes('.')) {
         // a folder without the trailing slash: redirect so its relative links resolve
         const index = await c.env.CLOUD_BUCKET.head(key + '/index.html')
@@ -70,7 +70,12 @@ export async function filesHost(c: Context<CloudEnv>, next: Next) {
     if (meta.deleted) return plain('gone: ' + meta.deleted, 410)
     if (meta.expires && Date.parse(meta.expires) < Date.now()) return plain('expired', 410)
     if (!allowed(meta)) return notFound()
-    if (render && 'body' in obj && obj.size <= MARKDOWN_RENDER_BYTES) {
+    // too big to render: the file as it is, with the request's conditional and range headers after all
+    if (render && obj.size > MARKDOWN_RENDER_BYTES) {
+        if ('body' in obj) await obj.body.cancel()
+        obj = await c.env.CLOUD_BUCKET.get(key, {onlyIf: c.req.raw.headers, range: c.req.raw.headers})
+        if (!obj) return notFound()
+    } else if (render && 'body' in obj) {
         const q = new URLSearchParams(url.search)
         q.delete('render')
         q.set('raw', '1')

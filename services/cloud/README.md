@@ -123,6 +123,7 @@ rows they can edit).
 |---|---|
 | A file upload (uploads, drive, staff buckets) | 90 MB per request |
 | Many files in one upload (`POST`, s/ b/ p/) | 40 MB and 500 files per request |
+| Files in one drive item | 500 |
 | `s/` share | 7 days, `?ttl=` up to 30 (410 on time; the R2 expiry rule removes it after 30) |
 | `b/` build | kept until cleaned up |
 | Drive quota | 1 GB members, 50 GB staff and admins |

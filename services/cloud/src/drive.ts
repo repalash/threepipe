@@ -5,7 +5,7 @@ import {base64url, BUCKET, cleanSegments, fileUrl, hmacSha256, jsonBody, logErro
 import {CloudUser, requireUser} from './auth'
 import {contentTypeFor, putStreamed, uploadSize} from './uploads'
 import {grantFolder} from './appFolders'
-import {DRIVE_LIST_MAX, driveQuota, FOLDER_DEPTH_MAX, NAME_COPIES_MAX, VISIBILITY_FILES_MAX, SIGN_DEFAULT_SECONDS, SIGN_MAX_SECONDS, sizeText} from './limits'
+import {DRIVE_LIST_MAX, driveQuota, FOLDER_DEPTH_MAX, ITEM_FILES_MAX, NAME_COPIES_MAX, SIGN_DEFAULT_SECONDS, SIGN_MAX_SECONDS, sizeText} from './limits'
 
 /**
  * The drive: each user's files, saved by apps (the editor) or uploaded.
@@ -107,9 +107,16 @@ async function assertFree(c: Context<CloudEnv>, user: CloudUser, folder: string,
  * statement at a time, so a folder deleted while something is added to it cannot leave the new child unreachable.
  */
 const parentExists = (p: string, o: string) => `(${p} = '' OR EXISTS (SELECT 1 FROM drive_folders WHERE id = ${p} AND owner_id = ${o}))`
-/** A write that put nothing because its folder was deleted meanwhile (parentExists). */
-function placed(r: D1Result) {
-    if (!r.meta.changes) throw new HTTPException(404, {message: 'the folder was deleted'})
+/**
+ * The SQL condition that no item (`items`) or no folder (`folders`) in `p` has the name `n`. Folders and items share one
+ * namespace, but each table's unique index covers only itself: the writes carry this for the other table.
+ */
+const nameFreeOf = (table: 'items' | 'folders', p: string, n: string, o: string) => table === 'items'
+    ? `NOT EXISTS (SELECT 1 FROM drive_items WHERE owner_id = ${o} AND folder_id = ${p} AND name = ${n})`
+    : `NOT EXISTS (SELECT 1 FROM drive_folders WHERE owner_id = ${o} AND parent_id = ${p} AND name = ${n})`
+/** A write that put nothing: its folder was deleted, or the other table took the name, meanwhile (parentExists, nameFreeOf). */
+function placed(r: D1Result, name: string) {
+    if (!r.meta.changes) throw new HTTPException(409, {message: `the folder was deleted or '${name}' was taken meanwhile; try again`})
 }
 
 /** A write that names something: when a request at the same time took the name, the unique index refuses it (409). */
@@ -168,7 +175,7 @@ const checked = new WeakSet<CloudUser>()
 export async function createFolder(c: Context<CloudEnv>, ownerId: string, parent: string, name: string, app?: string): Promise<Folder> {
     const id = randomCode(12)
     placed(await naming(name, c.env.PRIMARY_DB.prepare(`INSERT INTO drive_folders (id, owner_id, parent_id, name, app) SELECT ?1, ?2, ?3, ?4, ?5
-            WHERE ${parentExists('?3', '?2')}`).bind(id, ownerId, parent, name, app ?? null).run()))
+            WHERE ${parentExists('?3', '?2')} AND ${nameFreeOf('items', '?3', '?4', '?2')}`).bind(id, ownerId, parent, name, app ?? null).run()), name)
     return {id, name, parent_id: parent}
 }
 
@@ -182,9 +189,10 @@ export async function driveUsage(c: Context<CloudEnv>, userId: string): Promise<
 }
 
 /**
- * Streams the request body into the item as `rel`. Its bytes are reserved first, in one statement that checks the quota
- * (parallel uploads cannot each spend the same free space), then the R2 write, then one D1 batch: the file's hash, the
- * entry and the item as it is now. Two round trips, as a check and a register would be.
+ * Streams the request body into the item as `rel`: a quick check (quota, files in the item), the R2 write, then one D1
+ * batch that registers it. The register checks the quota and the item's file count again in the statement that writes
+ * the row, so parallel uploads cannot each spend the same free space, and it keeps the row of the newer object when two
+ * uploads to one path register out of order (`version`, when R2 stored it). Two round trips.
  */
 async function writeFile(c: Context<CloudEnv>, user: CloudUser, item: Item, rel: string) {
     const segs = cleanSegments(rel)
@@ -192,55 +200,62 @@ async function writeFile(c: Context<CloudEnv>, user: CloudUser, item: Item, rel:
     rel = segs.join('/')
     const key = itemBase(user, item.id) + rel
     const size = uploadSize(c)
+    const quota = driveQuota(user)
+    const db = c.env.PRIMARY_DB
+    const pre = await db.prepare(`SELECT COALESCE(SUM(size), 0) AS used, COALESCE(SUM(CASE WHEN path = ?1 THEN size END), 0) AS old,
+                COUNT(CASE WHEN path = ?1 THEN 1 END) AS here, COUNT(CASE WHEN item_id = ?3 THEN 1 END) AS files
+            FROM files WHERE owner_id = ?2 AND prefix = 'd' AND deleted_at IS NULL`).bind(key, user.id, item.id)
+        .first<{used: number, old: number, here: number, files: number}>()
+    const used = pre?.used ?? 0
+    const overQuota = () => new HTTPException(413, {message: `drive quota: ${sizeText(quota)} (${sizeText(used)} used)`})
+    const itemFull = () => new HTTPException(413, {message: `an item holds up to ${ITEM_FILES_MAX} files`})
+    if (used - (pre?.old ?? 0) + size > quota) throw overQuota()
+    if (!pre?.here && (pre?.files ?? 0) >= ITEM_FILES_MAX) throw itemFull()
     const body = c.req.raw.body
     if (!body) throw new HTTPException(400, {message: 'empty body'})
     const contentType = contentTypeFor(key, c.req.header('content-type'))
-    const quota = driveQuota(user)
-    const db = c.env.PRIMARY_DB
-    // the file's old size (an overwrite counts its new size only), the usage, and the reservation, which writes the row
-    // only when the other files and this one fit
-    const [prev, usage, reserved] = await db.batch([
-        db.prepare('SELECT size FROM files WHERE bucket = ? AND path = ?').bind(BUCKET, key),
-        db.prepare(`SELECT COALESCE(SUM(size), 0) AS used FROM files WHERE owner_id = ? AND prefix = 'd' AND deleted_at IS NULL`).bind(user.id),
-        db.prepare(`INSERT INTO files (id, owner_id, bucket, prefix, path, size, content_type, item_id)
-                SELECT ?1, ?2, ?3, 'd', ?4, ?5, ?6, ?7
-                WHERE (SELECT COALESCE(SUM(size), 0) FROM files WHERE owner_id = ?2 AND prefix = 'd' AND deleted_at IS NULL AND path != ?4) + ?5 <= ?8
-            ON CONFLICT (bucket, path) DO UPDATE SET size = excluded.size, content_type = excluded.content_type,
-                deleted_at = NULL, deleted_by = NULL, deleted_reason = NULL`)
-            .bind(crypto.randomUUID(), user.id, BUCKET, key, size, contentType, item.id, quota),
-    ]) as D1Result<{size?: number, used?: number}>[]
-    const old = prev.results[0]?.size
-    if (!reserved.meta.changes) throw new HTTPException(413, {message: `drive quota: ${sizeText(quota)} (${sizeText(usage.results[0]?.used ?? 0)} used)`})
-    // the reservation goes back when the write fails: the row is removed (a new file) or gets its old size (an overwrite)
-    const unreserve = () => (old === undefined
-        ? db.prepare('DELETE FROM files WHERE bucket = ? AND path = ? AND size = ? AND sha256 IS NULL').bind(BUCKET, key, size)
-        : db.prepare('UPDATE files SET size = ? WHERE bucket = ? AND path = ? AND size = ?').bind(old, BUCKET, key, size)).run()
-    let sha256: string, version: string
-    try {
-        const put = await putStreamed(c.env.CLOUD_BUCKET, key, body, size, {
-            httpMetadata: {contentType},
-            customMetadata: {owner: user.id, item: item.id, visibility: item.visibility},
-        })
-        if (!put.stored) throw new HTTPException(409, {message: 'the file was written by another request at the same time; retry'})
-        sha256 = put.sha256
-        version = put.stored.uploaded.toISOString()
-    } catch (e) {
-        await unreserve()
-        throw e
+    const {stored, sha256} = await putStreamed(c.env.CLOUD_BUCKET, key, body, size, {
+        httpMetadata: {contentType},
+        customMetadata: {owner: user.id, item: item.id, visibility: item.visibility},
+    })
+    if (!stored) throw new HTTPException(409, {message: 'the file was written by another request at the same time; retry'})
+    const version = stored.uploaded.toISOString()
+    // one round trip: the row (only if it fits, and only over an older version), the row as it is now, the entry (the
+    // item's first file) and the item. A visibility change or a delete while the file streamed: the object follows the item.
+    const [reg, row, itemNow] = await db.batch([
+        db.prepare(`INSERT INTO files (id, owner_id, bucket, prefix, path, size, sha256, content_type, item_id, version)
+                SELECT ?1, ?2, ?3, 'd', ?4, ?5, ?6, ?7, ?8, ?9
+                WHERE (SELECT COALESCE(SUM(size), 0) FROM files WHERE owner_id = ?2 AND prefix = 'd' AND deleted_at IS NULL AND path != ?4) + ?5 <= ?10
+                    AND (EXISTS (SELECT 1 FROM files WHERE bucket = ?3 AND path = ?4)
+                        OR (SELECT COUNT(*) FROM files WHERE item_id = ?8 AND deleted_at IS NULL) < ?11)
+            ON CONFLICT (bucket, path) DO UPDATE SET size = excluded.size, sha256 = excluded.sha256, content_type = excluded.content_type,
+                version = excluded.version, deleted_at = NULL, deleted_by = NULL, deleted_reason = NULL
+                WHERE files.version IS NULL OR files.version <= excluded.version`)
+            .bind(crypto.randomUUID(), user.id, BUCKET, key, size, sha256, contentType, item.id, version, quota, ITEM_FILES_MAX),
+        db.prepare('SELECT version FROM files WHERE bucket = ? AND path = ?').bind(BUCKET, key),
+        // the entry only names a file that has a row
+        db.prepare(`UPDATE drive_items SET entry = CASE WHEN entry IS NULL AND EXISTS (SELECT 1 FROM files WHERE bucket = ?1 AND path = ?2) THEN ?3 ELSE entry END
+                WHERE id = ?4 RETURNING visibility`).bind(BUCKET, key, rel, item.id),
+    ]) as [D1Result, D1Result<{version: string | null}>, D1Result<{visibility: Visibility}>]
+    // the object goes when nothing registers it, unless a newer upload replaced it meanwhile (that one registers itself)
+    const dropOurs = async() => {
+        if ((await c.env.CLOUD_BUCKET.head(key))?.etag === stored.etag) await c.env.CLOUD_BUCKET.delete(key)
     }
-    // one round trip: the file's details (unless a newer upload to the same path registered first: R2 serves its bytes),
-    // the entry (the item's first file), and the item as it is now. A visibility change or a delete while the file
-    // streamed: the object follows the item.
-    const res = await db.batch([
-        db.prepare(`UPDATE files SET size = ?1, sha256 = ?2, content_type = ?3, version = ?4 WHERE bucket = ?5 AND path = ?6 AND (version IS NULL OR version <= ?4)`)
-            .bind(size, sha256, contentType, version, BUCKET, key),
-        db.prepare('UPDATE drive_items SET entry = COALESCE(entry, ?) WHERE id = ? RETURNING visibility').bind(rel, item.id),
-    ])
-    const now = (res[1] as D1Result<{visibility: Visibility}>).results[0]
+    const now = itemNow.results[0]
     if (!now) {
-        await db.prepare('DELETE FROM files WHERE bucket = ? AND path = ?').bind(BUCKET, key).run()
-        await c.env.CLOUD_BUCKET.delete(key)
-        throw new HTTPException(409, {message: 'the item was deleted during the upload'})
+        await db.prepare('DELETE FROM files WHERE bucket = ? AND path = ? AND version = ?').bind(BUCKET, key, version).run()
+        await dropOurs()
+        throw new HTTPException(409, {message: 'the item was deleted or got a new id during the upload'})
+    }
+    if (!reg.meta.changes) {
+        const v = row.results[0]?.version
+        // a newer upload of this path registered first: R2 serves its bytes and the row describes them
+        if (!(v && v > version)) {
+            // over the quota or the file count (parallel uploads): the bytes it replaced are gone too, so is their row
+            await db.prepare('DELETE FROM files WHERE bucket = ? AND path = ? AND (version IS NULL OR version <= ?)').bind(BUCKET, key, version).run()
+            await dropOurs()
+            throw pre?.here ? overQuota() : (pre?.files ?? 0) + 1 >= ITEM_FILES_MAX ? itemFull() : overQuota()
+        }
     }
     if (now.visibility !== item.visibility) await setVisibility(c, key, now.visibility)
     return {path: rel, size, sha256}
@@ -259,6 +274,22 @@ async function setVisibility(c: Context<CloudEnv>, key: string, visibility: Visi
         if (put) return
     }
     throw new HTTPException(409, {message: 'the file kept changing during the visibility change; try again'})
+}
+
+/** Deletes R2 objects, 1000 a call. */
+const deleteKeys = async(bucket: R2Bucket, keys: string[]) => {
+    for (let i = 0; i < keys.length; i += 1000) await bucket.delete(keys.slice(i, i + 1000))
+}
+
+/**
+ * Old objects a new id could not delete yet (rows of the item marked `deleted_at`, maybe still shared): deleted before
+ * anything else changes the item's files (a visibility change, a new id). R2 failing again stops the request there.
+ */
+async function purgePending(c: Context<CloudEnv>, item: Item) {
+    const {results} = await c.env.PRIMARY_DB.prepare('SELECT path FROM files WHERE item_id = ? AND deleted_at IS NOT NULL').bind(item.id).all<{path: string}>()
+    if (!results.length) return
+    await deleteKeys(c.env.CLOUD_BUCKET, results.map(r => r.path))
+    await c.env.PRIMARY_DB.prepare('DELETE FROM files WHERE item_id = ? AND deleted_at IS NOT NULL').bind(item.id).run()
 }
 
 async function itemFiles(c: Context<CloudEnv>, item: Item) {
@@ -384,12 +415,13 @@ export function driveRoutes(app: Hono<CloudEnv>) {
         // the destination exists and is not inside the folder, checked in the statement itself: two moves at the same
         // time (A into B, B into A) cannot make a loop that nothing reaches from the root
         const moved = await naming(name, c.env.PRIMARY_DB.prepare(`UPDATE drive_folders SET name = ?1, parent_id = ?2 WHERE id = ?3 AND ${parentExists('?2', '?4')}
+                AND ${nameFreeOf('items', '?2', '?1', '?4')}
                 AND ?3 NOT IN (WITH RECURSIVE up(id, parent_id, depth) AS (
                     SELECT id, parent_id, 0 FROM drive_folders WHERE id = ?2 AND owner_id = ?4
                     UNION ALL SELECT d.id, d.parent_id, up.depth + 1 FROM drive_folders d JOIN up ON d.id = up.parent_id AND d.owner_id = ?4 WHERE up.depth < ${FOLDER_DEPTH_MAX})
                 SELECT id FROM up)`)
             .bind(name, parent, f.id, user.id).run())
-        if (!moved.meta.changes) throw new HTTPException(409, {message: 'the destination was deleted or moved into this folder meanwhile; try again'})
+        if (!moved.meta.changes) throw new HTTPException(409, {message: `the destination was deleted or moved into this folder, or '${name}' was taken, meanwhile; try again`})
         return c.json(folderOut({id: f.id, name, parent_id: parent}))
     })
 
@@ -416,7 +448,7 @@ export function driveRoutes(app: Hono<CloudEnv>) {
         const rel = name.replace(/[\\?#%]/g, '_').replace(/^\./, '_')
         const item: Item = {id: randomCode(16), name, folder_id: folder, entry: null, visibility: newVisibility(c.req.query('visibility')), size: 0, files_count: 0, created: '', updated: ''}
         placed(await naming(name, c.env.PRIMARY_DB.prepare(`INSERT INTO drive_items (id, owner_id, folder_id, name, visibility) SELECT ?1, ?2, ?3, ?4, ?5
-                WHERE ${parentExists('?3', '?2')}`).bind(item.id, user.id, folder, name, item.visibility).run()))
+                WHERE ${parentExists('?3', '?2')} AND ${nameFreeOf('folders', '?3', '?4', '?2')}`).bind(item.id, user.id, folder, name, item.visibility).run()), name)
         try {
             await writeFile(c, user, item, rel)
         } catch (e) {
@@ -446,7 +478,7 @@ export function driveRoutes(app: Hono<CloudEnv>) {
         }
         const id = randomCode(16)
         placed(await naming(name, c.env.PRIMARY_DB.prepare(`INSERT INTO drive_items (id, owner_id, folder_id, name, entry, visibility) SELECT ?1, ?2, ?3, ?4, ?5, ?6
-                WHERE ${parentExists('?3', '?2')}`).bind(id, user.id, folder, name, entry, visibility).run()))
+                WHERE ${parentExists('?3', '?2')} AND ${nameFreeOf('folders', '?3', '?4', '?2')}`).bind(id, user.id, folder, name, entry, visibility).run()), name)
         return c.json(itemOut(c, user, await itemOf(c, user, id)), 201)
     })
 
@@ -490,9 +522,10 @@ export function driveRoutes(app: Hono<CloudEnv>) {
         if (body.visibility !== undefined && !VISIBILITIES.includes(body.visibility)) throw new HTTPException(400, {message: `visibility is one of ${VISIBILITIES.join(', ')}`})
         // each file is written again (R2 has no metadata update): sharing is refused for an item too big for one request.
         // Making one private always goes ahead: a request cut short is sent again, and files already done cost one read.
+        if (body.visibility !== undefined) await purgePending(c, item)
         const files = body.visibility !== undefined ? await itemFiles(c, item) : []
-        if (body.visibility === 'link' && item.visibility !== 'link' && files.length > VISIBILITY_FILES_MAX)
-            throw new HTTPException(413, {message: `an item of more than ${VISIBILITY_FILES_MAX} files cannot be shared; split it`})
+        if (body.visibility === 'link' && item.visibility !== 'link' && files.length > ITEM_FILES_MAX)
+            throw new HTTPException(413, {message: `an item of more than ${ITEM_FILES_MAX} files cannot be shared; split it`})
         const visibility = body.visibility ?? item.visibility
         let entry = item.entry
         if (body.entry !== undefined) {
@@ -505,12 +538,14 @@ export function driveRoutes(app: Hono<CloudEnv>) {
         if (body.folder !== undefined) set.push(['folder_id', folder])
         if (body.visibility !== undefined) set.push(['visibility', visibility])
         if (body.entry !== undefined) set.push(['entry', entry])
-        // a move only into a folder that still exists (parentExists)
-        const into = body.folder !== undefined ? ` AND (? = '' OR EXISTS (SELECT 1 FROM drive_folders WHERE id = ? AND owner_id = ?))` : ''
+        // a rename or move: only into a folder that still exists, under a name no folder there has (parentExists, nameFreeOf)
+        const renames = body.name !== undefined || body.folder !== undefined
         if (set.length) {
-            const r = await naming(name, c.env.PRIMARY_DB.prepare(`UPDATE drive_items SET ${set.map(([k]) => k + ' = ?').join(', ')} WHERE id = ?${into}`)
-                .bind(...set.map(([, v]) => v), item.id, ...into ? [folder, folder, user.id] : []).run())
-            if (into) placed(r)
+            const n = set.length, [id, at, owner, label] = [n + 1, n + 2, n + 3, n + 4].map(i => '?' + i)
+            const r = await naming(name, c.env.PRIMARY_DB.prepare(`UPDATE drive_items SET ${set.map(([k], i) => `${k} = ?${i + 1}`).join(', ')} WHERE id = ${id}
+                    ${renames ? `AND ${parentExists(at, owner)} AND ${nameFreeOf('folders', at, label, owner)}` : ''}`)
+                .bind(...set.map(([, v]) => v), item.id, ...renames ? [folder, user.id, name] : []).run())
+            if (renames) placed(r, name)
         }
         // then each file that does not have it yet (sending the same visibility again repairs a change cut short)
         let after: Item | undefined
@@ -554,22 +589,16 @@ export function driveRoutes(app: Hono<CloudEnv>) {
         const item = await itemOf(c, user, c.req.param('id'))
         const oldBase = itemBase(user, item.id), id = randomCode(16), newBase = itemBase(user, id)
         const db = c.env.PRIMARY_DB, bucket = c.env.CLOUD_BUCKET
-        const deleteKeys = async (keys: string[]) => { for (let i = 0; i < keys.length; i += 1000) await bucket.delete(keys.slice(i, i + 1000)) }
-        // 0. Old objects a change before could not delete (rows marked `deleted_at`, step 4) go first; R2 failing again
-        //    stops here, with the item as it is.
-        const {results: all} = await db.prepare('SELECT path, deleted_at FROM files WHERE item_id = ?').bind(item.id).all<{path: string, deleted_at: string | null}>()
-        const pending = all.filter(r => r.deleted_at).map(r => r.path), rows = all.filter(r => !r.deleted_at)
-        if (pending.length) {
-            await deleteKeys(pending)
-            await db.prepare('DELETE FROM files WHERE item_id = ? AND deleted_at IS NOT NULL').bind(item.id).run()
-        }
+        // 0. Old objects a change before could not delete (step 4) go first, with the item as it is when R2 fails again.
+        await purgePending(c, item)
+        const {results: rows} = await db.prepare('SELECT path FROM files WHERE item_id = ?').bind(item.id).all<{path: string}>()
         // 1. The objects first, under the new id: until every one is there the item does not change (a failure leaves it as it was).
         const copied = new Map<string, string>() // file → the etag of the object copied
         for (const {path} of rows) {
             const rel = path.slice(oldBase.length)
             const etag = await copyObject(c, path, newBase + rel, id)
             if (etag === undefined) {
-                await deleteKeys([...copied.keys()].map(r => newBase + r))
+                await deleteKeys(bucket, [...copied.keys()].map(r => newBase + r))
                 throw new HTTPException(503, {message: 'a file could not be copied; the item did not change, try again'})
             }
             if (etag) copied.set(rel, etag)
@@ -598,7 +627,7 @@ export function driveRoutes(app: Hono<CloudEnv>) {
         const keep = new Set(failed), kept = new Set(rels)
         const stale = [...rels.filter(r => !keep.has(r)).map(r => oldBase + r), ...[...copied.keys()].filter(r => !kept.has(r)).map(r => newBase + r)]
         try {
-            await deleteKeys(stale)
+            await deleteKeys(bucket, stale)
         } catch (e) {
             await db.prepare(`INSERT INTO files (id, owner_id, bucket, prefix, path, size, item_id, deleted_at, deleted_reason)
                     SELECT lower(hex(randomblob(16))), ?1, ?2, 'd', value, 0, ?3, ?4, 'new id: the old object is not deleted yet' FROM json_each(?5) WHERE true
@@ -617,19 +646,18 @@ export function driveRoutes(app: Hono<CloudEnv>) {
         const user = await requireUser(c)
         const item = await itemOf(c, user, c.req.param('id'))
         const db = c.env.PRIMARY_DB
-        const deleteKeys = async (keys: string[]) => { for (let i = 0; i < keys.length; i += 1000) await c.env.CLOUD_BUCKET.delete(keys.slice(i, i + 1000)) }
         // The objects first: when R2 fails, the item and its rows are still there and deleting it again finishes the job
         // (the other way round, a failure would leave objects, maybe shared, that nothing lists).
         // every row of the item, also old objects a new id could not delete yet (marked deleted_at)
         const paths = (await db.prepare('SELECT path FROM files WHERE item_id = ?').bind(item.id).all<{path: string}>()).results.map(f => f.path)
-        await deleteKeys(paths)
+        await deleteKeys(c.env.CLOUD_BUCKET, paths)
         const [rows] = await db.batch([
             db.prepare('DELETE FROM files WHERE item_id = ? RETURNING path').bind(item.id),
             db.prepare('DELETE FROM drive_items WHERE id = ?').bind(item.id),
         ]) as D1Result<{path: string}>[]
         // a file uploaded while this ran (its upload cleans up after itself when it registers later)
         const done = new Set(paths), late = rows.results.map(r => r.path).filter(p => !done.has(p))
-        if (late.length) await deleteKeys(late)
+        if (late.length) await deleteKeys(c.env.CLOUD_BUCKET, late)
         return c.json({deleted: item.id})
     })
 

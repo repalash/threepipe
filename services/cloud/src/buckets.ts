@@ -1,7 +1,7 @@
 import type {Context, Hono} from 'hono'
 import {HTTPException} from 'hono/http-exception'
 import type {CloudEnv} from './env'
-import {cleanSegments, jsonBody, keyUrl} from './env'
+import {cleanSegments, hex, jsonBody, keyUrl} from './env'
 import {assertScope, isStaff, requireUser} from './auth'
 import {contentTypeFor, putStreamed, uploadSize} from './uploads'
 import {MISSING_PATHS_MAX} from './limits'
@@ -74,9 +74,19 @@ export function bucketRoutes(app: Hono<CloudEnv>) {
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (bucket, path) DO NOTHING`)
             .bind(crypto.randomUUID(), user.id, name, path.split('/')[0], path, size, expected, type).run()
         if (!stored) {
-            // the path exists (write-once): the same bytes again are fine
+            // the path exists (write-once): the same bytes again are fine. An object put there another way (wrangler, the
+            // dashboard) has no sha256 on it: its bytes are hashed once, so it gets registered and /missing stops listing it.
             const existing = await bucket.head(path)
-            if (existing?.customMetadata?.sha256 !== expected) throw new HTTPException(409, {message: `${name}/${path} exists; paths are write-once`})
+            let same = !!existing && existing.customMetadata?.sha256 === expected
+            if (existing && !existing.customMetadata?.sha256) {
+                const obj = await bucket.get(path)
+                if (obj) {
+                    const digest = new crypto.DigestStream('SHA-256')
+                    await obj.body.pipeTo(digest)
+                    same = hex(await digest.digest) === expected
+                }
+            }
+            if (!existing || !same) throw new HTTPException(409, {message: `${name}/${path} exists; paths are write-once`})
             await register(existing.size, existing.httpMetadata?.contentType || contentType)
             return c.json({url: keyUrl(url, path), path, size: existing.size, existed: true})
         }

@@ -36,8 +36,11 @@ export const DRIVE_QUOTA: Record<'member' | 'staff' | 'admin', number> = {member
 /** Signed URLs of private items: the default and the longest. */
 export const SIGN_DEFAULT_SECONDS = HOUR
 export const SIGN_MAX_SECONDS = 7 * DAY
-/** Files of an item a share or unshare rewrites in one request (R2 has no metadata update; Workers limit subrequests). */
-export const VISIBILITY_FILES_MAX = 500
+/**
+ * Files in one drive item. A share, an unshare or a new id rewrites each file in one request (R2 has no metadata update):
+ * a read and a write per file, well inside the 10,000 subrequests of a request.
+ */
+export const ITEM_FILES_MAX = 500
 /** `name (2)` … `name (99)`: the free names tried for a new folder or item. */
 export const NAME_COPIES_MAX = 100
 /** Folders and items listed per folder. */

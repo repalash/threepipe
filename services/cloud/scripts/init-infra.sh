@@ -13,6 +13,6 @@ done
 rules=$(wrangler r2 bucket lifecycle list threepipe-cloud)
 if grep -q "expire-s" <<< "$rules"; then echo "exists: rule expire-s"
 else wrangler r2 bucket lifecycle add threepipe-cloud expire-s s/ --expire-days 30 --force; fi
-echo "Existing account: run this once after updating, for the expiry rule."
-echo "Next: the public domains of the samples and e2e buckets (R2 > bucket > Settings > Custom Domains),"
-echo "      cp .prod.vars.example .prod.vars (fill it in), npm run secrets-upload, npm run deploy"
+echo "Done. An existing account needs nothing more."
+echo "A new account only, the first time: the public domains of the samples and e2e buckets (R2 > bucket > Settings >"
+echo "Custom Domains), cp .prod.vars.example .prod.vars (fill it in), npm run secrets-upload, npm run deploy"
