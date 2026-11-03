@@ -853,7 +853,8 @@ describe('ViewOverridesPlugin', {timeout}, () => {
         const camera = new PerspectiveCamera()
         const unlit = (plugin as any)._materials.unlit
         const props = ['vertexColors', 'alphaToCoverage', 'premultipliedAlpha', 'blending', 'blendSrc', 'blendDst', 'depthTest',
-            'depthWrite', 'colorWrite', 'polygonOffset', 'polygonOffsetFactor', 'polygonOffsetUnits', 'clippingPlanes', 'clipIntersection', 'fog']
+            'depthWrite', 'colorWrite', 'polygonOffset', 'polygonOffsetFactor', 'polygonOffsetUnits', 'clippingPlanes', 'clipIntersection', 'fog',
+            'stencilWrite', 'stencilWriteMask', 'stencilFunc', 'stencilRef', 'stencilFuncMask', 'stencilFail', 'stencilZFail', 'stencilZPass']
         /** The version and the copied settings while the override draws the mesh */
         const draw = (m: any) => {
             unlit.onBeforeRender(renderer, null, camera, m.geometry, m, null)
@@ -884,11 +885,15 @@ describe('ViewOverridesPlugin', {timeout}, () => {
             alphaToCoverage: true, premultipliedAlpha: true, blending: tp.CustomBlending, blendSrc: tp.OneFactor, blendDst: tp.OneFactor,
             depthTest: false, depthWrite: false, colorWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2,
             clippingPlanes: planes, clipIntersection: true, fog: false,
+            stencilWrite: true, stencilWriteMask: 0x0f, stencilFunc: tp.EqualStencilFunc, stencilRef: 1, stencilFuncMask: 0x0f,
+            stencilFail: tp.ReplaceStencilOp, stencilZFail: tp.ReplaceStencilOp, stencilZPass: tp.ReplaceStencilOp,
         }))
         const s = draw(special)
         expect(s).toMatchObject({alphaToCoverage: true, premultipliedAlpha: true, blending: tp.CustomBlending, blendSrc: tp.OneFactor,
             blendDst: tp.OneFactor, depthTest: false, depthWrite: false, colorWrite: false, polygonOffset: true, polygonOffsetFactor: -1,
-            polygonOffsetUnits: -2, clippingPlanes: planes, clipIntersection: true, fog: false})
+            polygonOffsetUnits: -2, clippingPlanes: planes, clipIntersection: true, fog: false,
+            stencilWrite: true, stencilWriteMask: 0x0f, stencilFunc: tp.EqualStencilFunc, stencilRef: 1, stencilFuncMask: 0x0f,
+            stencilFail: tp.ReplaceStencilOp, stencilZFail: tp.ReplaceStencilOp, stencilZPass: tp.ReplaceStencilOp})
         expect(s.version).not.toBe(p1.version) // opaque, alphaToCoverage, premultipliedAlpha, useFog
         const after = draw(plain)
         const defaults = new MeshBasicMaterial() as any
