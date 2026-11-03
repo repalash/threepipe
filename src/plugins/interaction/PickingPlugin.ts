@@ -45,13 +45,14 @@ function getRootIfWidget(selected: IObject3D) {
 
 /**
  * Whether the {@link PickingPlugin} can select `obj` (the selection condition of its {@link ObjectPicker}): an object
- * with a material (or with `userData.userSelectable` set to true), in a model or a light, and neither it nor a parent
- * (from its widget, if it belongs to one) is hidden, has `userData.userSelectable === false` or has
- * `userData.bboxVisible === false`.
+ * with a material (or with `userData.userSelectable` set to true, or a widget), in a model or a light, and neither it
+ * nor a parent (from its widget, if it belongs to one) is hidden, has `userData.userSelectable === false` or has
+ * `userData.bboxVisible === false`. A widget is checked from itself up, as its parts are, so a hit on a part of a widget
+ * gives the same answer; the DOM icons of `Object3DWidgetsPlugin` are checked on their widget.
  */
 export function isPickable(obj: IObject3D): boolean {
     const hasMat = obj.material
-    if (!hasMat && !obj.userData.userSelectable) return false
+    if (!hasMat && !obj.userData.userSelectable && obj.assetType !== 'widget') return false
     let o: IObject3D | null = getRootIfWidget(obj)
     let ret = false
     while (o) {

@@ -11,6 +11,7 @@ interface WidgetIconElement {
     transform: string
     color: string
     label: string
+    clickable: boolean | undefined
     /** The depth of the object on screen (NDC z), for the stacking */
     depth: number
     zIndex: string
@@ -32,7 +33,7 @@ function visibleInScene(o: AHelperWidget) {
  * sharp at any pixel ratio and icon size, and never in a render, screenshot or recording of the canvas.
  * {@link update} places the icons with `transform` only (called after each render), and hides an icon when its widget
  * or a parent is hidden, {@link AHelperWidget.hasIcon} is false, or the object is behind the camera or out of its
- * near and far range. An icon whose centre is just out of the canvas still shows the part of it that is on the canvas.
+ * near and far range. An icon that cannot be clicked ({@link canClick}) has no pointer cursor. An icon whose centre is just out of the canvas still shows the part of it that is on the canvas.
  * Where icons overlap, the nearer one is on top (and gets the click), as with sprites. A click or tap on an icon calls {@link onClick}; a wheel over an icon goes on to the canvas, so the
  * camera still zooms.
  *
@@ -51,8 +52,10 @@ export class WidgetIconOverlay {
 
     /**
      * @param onClick - called with the widget of an icon that is clicked or tapped, and the event
+     * @param canClick - whether a click on the icon of a widget does something (it selects the object); the icons that
+     * cannot be clicked have no pointer cursor. Checked in {@link update}. Not set: all icons can be clicked.
      */
-    constructor(public onClick?: (widget: AHelperWidget, e: MouseEvent) => void) {
+    constructor(public onClick?: (widget: AHelperWidget, e: MouseEvent) => void, public canClick?: (widget: AHelperWidget) => boolean) {
         this.element = document.createElement('div')
         this.element.className = 'widget-icons-layer'
     }
@@ -133,6 +136,11 @@ export class WidgetIconOverlay {
             const objColor = (widget.object as {color?: Color} | undefined)?.color
             const color = objColor?.isColor ? '#' + objColor.getHexString() : ''
             if (color !== icon.color) el.style.color = icon.color = color
+            const clickable = !!this.onClick && (this.canClick?.(widget) ?? true)
+            if (clickable !== icon.clickable) {
+                icon.clickable = clickable
+                el.className = clickable ? 'widget-icon' : 'widget-icon widget-icon-static'
+            }
             const label = widget.object?.name || widget.kind
             if (label !== icon.label) {
                 icon.label = label
@@ -164,7 +172,7 @@ export class WidgetIconOverlay {
             this._canvas?.dispatchEvent(new WheelEvent('wheel', e))
         }, {passive: false})
         this.element.appendChild(el)
-        const icon: WidgetIconElement = {el, kind, size: 0, transform: '', color: '', label: '', depth: 0, zIndex: ''}
+        const icon: WidgetIconElement = {el, kind, size: 0, transform: '', color: '', label: '', clickable: undefined, depth: 0, zIndex: ''}
         this._icons.set(widget, icon)
         return icon
     }
@@ -172,5 +180,6 @@ export class WidgetIconOverlay {
     dispose() {
         this.detach()
         this.onClick = undefined
+        this.canClick = undefined
     }
 }

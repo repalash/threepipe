@@ -57,8 +57,10 @@ view still shows the part of it that is on the canvas.
 
 - DOM: the layer (`WidgetIconOverlay`, `plugin.iconOverlay`) has `z-index` 8, under the other overlays on the canvas.
   The icons are placed after each render with `transform` only, and hidden behind the camera. A click calls
-  `PickingPlugin.setSelectedObject` (with shift, ctrl or cmd and multi-select on, `toggleSelectedObject`); hover shows
-  the pointer cursor; a wheel over an icon still zooms the camera. A drag that starts on an icon does not orbit.
+  `PickingPlugin.setSelectedObject` (with shift, ctrl or cmd and multi-select on, `toggleSelectedObject`) after the same
+  check as a hit on a sprite icon (`ObjectPicker.selectableFor` on the widget: the selection condition,
+  `userData.userSelectable` and `userData.bboxVisible`). Hover shows the pointer cursor on the icons that can be
+  selected; a wheel over an icon still zooms the camera. A drag that starts on an icon does not orbit.
 - Sprite: the texture is drawn at about one texel per device pixel (`iconSize` times the render scale), and again only
   when one of them changes. For a sharp canvas on high DPI screens, create the viewer with `renderScale: 'auto'`.
 

@@ -223,6 +223,10 @@ describe('light and camera widget icons', () => {
             expect(m.toneMapped).toBe(false)
             expect(m.userData.renderToGBuffer).toBe(false)
             expect(m.userData.renderToDepth).toBe(false)
+            // premultiplied textures, blended once: not multiplied by the alpha again in the shader
+            expect(m.map!.premultiplyAlpha).toBe(true)
+            expect(m.premultipliedAlpha).toBe(false)
+            expect([m.blending, m.blendSrc, m.blendDst]).toEqual([tp.CustomBlending, tp.OneFactor, tp.OneMinusSrcAlphaFactor])
         }
         expect(icon.castShadow).toBe(false)
         expect(icon.userData.__keepShadowDef).toBe(true)
@@ -552,9 +556,20 @@ describe('icon mode', () => {
         expect(sheets()).toHaveLength(1)
     })
 
+    /** A PickingPlugin stand-in with the real picker and its selection condition (isPickable) */
+    function fakePicking() {
+        return {isDisabled: () => false, multiSelectEnabled: true, setSelectedObject: vi.fn(), toggleSelectedObject: vi.fn(), picker: undefined as any}
+    }
+    function withPicker(picking: ReturnType<typeof fakePicking>, s: ReturnType<typeof setup>) {
+        picking.picker = new tp.ObjectPicker(s.viewer.scene.modelRoot, new FakeElement('canvas') as any, s.camera as any, tp.isPickable)
+        s.render()
+        return s
+    }
+
     test('a click or tap on a DOM icon selects the object with the PickingPlugin; with shift it toggles it', () => {
-        const picking = {isDisabled: () => false, multiSelectEnabled: true, setSelectedObject: vi.fn(), toggleSelectedObject: vi.fn()}
-        const {sun, cam, iconOf} = setup({picking})
+        const picking = fakePicking()
+        const {sun, cam, iconOf} = withPicker(picking, setup({picking}))
+        expect(iconOf(sun)!.className).toBe('widget-icon') // the pointer cursor
         iconOf(sun)!.dispatchEvent({type: 'click', shiftKey: false})
         expect(picking.setSelectedObject).toHaveBeenCalledWith(sun)
         iconOf(cam)!.dispatchEvent({type: 'click', shiftKey: true})
@@ -562,6 +577,37 @@ describe('icon mode', () => {
         picking.isDisabled = () => true
         iconOf(sun)!.dispatchEvent({type: 'click'})
         expect(picking.setSelectedObject).toHaveBeenCalledTimes(1)
+    })
+
+    test('a DOM icon click passes the same check as a picker hit: userSelectable, bboxVisible and the selection condition', () => {
+        const picking = fakePicking()
+        const {sun, bulb, cam, render, widgetOf, iconOf} = withPicker(picking, setup({picking}))
+        widgetOf(sun).userData.userSelectable = false
+        widgetOf(bulb).userData.bboxVisible = false
+        render()
+        for (const o of [sun, bulb]) {
+            iconOf(o)!.dispatchEvent({type: 'click'})
+            expect(iconOf(o)!.className).toContain('widget-icon-static') // no pointer cursor
+        }
+        expect(picking.setSelectedObject).not.toHaveBeenCalled()
+        // a custom condition of the picker: the camera cannot be selected either
+        picking.picker.selectionCondition = (o: any) => tp.isPickable(o) && o !== widgetOf(cam)
+        render()
+        iconOf(cam)!.dispatchEvent({type: 'click'})
+        expect(picking.setSelectedObject).not.toHaveBeenCalled()
+        expect(iconOf(cam)!.className).toContain('widget-icon-static')
+        // the same widgets as sprites: a hit on the icon does not select them either
+        for (const o of [sun, bulb, cam]) expect(picking.picker.selectableFor(widgetOf(o))).toBeNull()
+        widgetOf(sun).userData.userSelectable = undefined
+        render()
+        expect(iconOf(sun)!.className).toBe('widget-icon')
+        iconOf(sun)!.dispatchEvent({type: 'click'})
+        expect(picking.setSelectedObject).toHaveBeenCalledWith(sun)
+    })
+
+    test('without the PickingPlugin the DOM icons have no pointer cursor', () => {
+        const {sun, iconOf} = setup()
+        expect(iconOf(sun)!.className).toContain('widget-icon-static')
     })
 
     test('icons behind the camera are hidden, icons at the edge are shown, the nearer icon is on top', () => {

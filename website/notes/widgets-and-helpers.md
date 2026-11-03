@@ -178,7 +178,8 @@ shrunk), and again only when that size changes. Lights also have a child sprite,
 dot in its texture, tinted with the light colour; it cannot be picked. The icon owns its textures and disposes them.
 
 The icon materials follow the [material convention](#material-convention) and are also `depthTest: false`, so the icon
-is drawn on top. For the same reason `WidgetIcon.raycast` gives its hits a distance under `1e-6` (`d / (d + 1) * 1e-6`):
+is drawn on top. The textures are premultiplied at upload and blended once (`CustomBlending`, `One` and
+`OneMinusSrcAlpha`); `premultipliedAlpha: true` would multiply the colour by the alpha a second time in the shader. For the same reason `WidgetIcon.raycast` gives its hits a distance under `1e-6` (`d / (d + 1) * 1e-6`):
 a click on an icon that is in front of a model on screen selects the light or the camera, not the model, and where icons
 overlap the nearer one is hit first (it is also drawn last). The icon and dot sprites have `frustumCulled = false`: the
 world bounds of the frustum test ignore the pixel size of the quad, so an icon whose centre is just out of the view would
@@ -190,7 +191,10 @@ canvas overlays) in the viewer container, over the canvas, with one element per 
 `transform` only (snapped to device pixels), and writes the DOM only where something changed. An icon is hidden when the
 widget or a parent is hidden, `hasIcon` is false, or the object is out of the near and far range (behind the camera). The
 nearer icon is on top (`z-index` by depth). A click calls `PickingPlugin.setSelectedObject(object)`, or
-`toggleSelectedObject` with shift, ctrl or cmd when multi-select is on; a wheel over an icon is sent on to the canvas.
+`toggleSelectedObject` with shift, ctrl or cmd when multi-select is on, only when the picker's
+`selectableFor(widget)` gives the widget: the same check as a ray hit on a sprite icon (the selection condition, by
+default `isPickable`, which checks a widget from itself up as it does for the parts of a widget). The icons that cannot
+be selected have no pointer cursor (`widget-icon-static`). A wheel over an icon is sent on to the canvas.
 The layer, the icons and its stylesheet are removed when the mode changes and when the plugin is removed. It is a small
 layer of its own; it can move onto a shared screen overlay later.
 

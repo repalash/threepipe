@@ -367,6 +367,17 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
         return {obj, intersects}
     }
 
+    /**
+     * The object that a pick on `object` gives: `object` or its nearest parent that is visible and meets
+     * {@link selectionCondition}, or null. Each ray hit of {@link checkIntersection} goes through it, and so do other
+     * ways to pick, like the DOM icons of `Object3DWidgetsPlugin`, so all of them follow the same rules.
+     */
+    selectableFor(object: IObject3D | null): IObject3D | null {
+        let o = object
+        while (o != null && (!o.visible || !this.selectionCondition(o))) o = o.parent as IObject3D | null
+        return o
+    }
+
     checkIntersection(): HitIntersects | null {
         const camera = this._camera
 
@@ -396,11 +407,8 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
 
         const intersects2 = []
         for (const intersect1 of intersects) {
-            selectedObject = intersect1.object
+            selectedObject = this.selectableFor(intersect1.object)
             intersect = intersect1
-            while (selectedObject != null && (!selectedObject.visible || !this.selectionCondition(selectedObject))) {
-                selectedObject = selectedObject.parent
-            }
             if (selectedObject != null) {
                 intersect1.object = selectedObject
                 intersects2.push(intersect1)

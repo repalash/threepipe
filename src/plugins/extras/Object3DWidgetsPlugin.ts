@@ -112,7 +112,7 @@ export class Object3DWidgetsPlugin extends AViewerPluginSync {
         const viewer = this._viewer
         const dom = !!viewer && this.iconMode === 'dom' && typeof document !== 'undefined' && !!viewer.container?.appendChild
         if (dom && !this._iconOverlay) {
-            this._iconOverlay = new WidgetIconOverlay(this._iconClick)
+            this._iconOverlay = new WidgetIconOverlay(this._iconClick, w => !!this._iconPicking(w))
             this._iconOverlay.attach(viewer.container, viewer.canvas)
         } else if (!dom && this._iconOverlay) {
             this._iconOverlay.dispose()
@@ -120,11 +120,21 @@ export class Object3DWidgetsPlugin extends AViewerPluginSync {
         }
     }
 
+    /**
+     * The PickingPlugin, when a click on the DOM icon of `widget` can select its object: the same check as a hit on a
+     * sprite icon, the picker's `selectableFor` (its selection condition, `userSelectable`, `bboxVisible`), on the widget
+     */
+    private _iconPicking(widget: AHelperWidget) {
+        const picking = this._viewer?.getPlugin<PickingPlugin>('PickingPlugin')
+        if (!picking || !widget.object || picking.isDisabled()) return undefined
+        return picking.picker?.selectableFor(widget) === widget ? picking : undefined
+    }
+
     /** A click on a DOM icon selects its object, as a click on a sprite icon does through the picker */
     private _iconClick = (widget: AHelperWidget, e: MouseEvent) => {
-        const picking = this._viewer?.getPlugin<PickingPlugin>('PickingPlugin')
+        const picking = this._iconPicking(widget)
         const object = widget.object
-        if (!picking || !object || picking.isDisabled()) return
+        if (!picking || !object) return
         if (picking.multiSelectEnabled && (e.shiftKey || e.ctrlKey || e.metaKey)) picking.toggleSelectedObject(object)
         else picking.setSelectedObject(object)
     }

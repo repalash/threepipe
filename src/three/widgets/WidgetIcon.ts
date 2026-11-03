@@ -1,4 +1,18 @@
-import {Camera, Color, Intersection, Raycaster, Sprite, SpriteMaterial, Texture, Vector2, Vector3, WebGLRenderer} from 'three'
+import {
+    Camera,
+    Color,
+    CustomBlending,
+    Intersection,
+    OneFactor,
+    OneMinusSrcAlphaFactor,
+    Raycaster,
+    Sprite,
+    SpriteMaterial,
+    Texture,
+    Vector2,
+    Vector3,
+    WebGLRenderer,
+} from 'three'
 import {createWidgetIconTexture, getWidgetIconTextureSize, widgetIconLayout, WidgetKind, widgetKinds} from './widgetKinds'
 
 /** A sprite material that is drawn on top, at a constant size, and is not in the GBuffer or the depth passes */
@@ -10,7 +24,13 @@ function iconMaterial(map?: Texture) {
         depthWrite: false,
         transparent: true,
         toneMapped: false,
-        premultipliedAlpha: true, // the textures are premultiplied
+        // the textures are premultiplied (at upload), so blend them as they are. Not `premultipliedAlpha: true`: that also
+        // multiplies the colour by the alpha in the shader, a second time, which darkens the semi-transparent texels
+        blending: CustomBlending,
+        blendSrc: OneFactor,
+        blendDst: OneMinusSrcAlphaFactor,
+        blendSrcAlpha: OneFactor,
+        blendDstAlpha: OneMinusSrcAlphaFactor,
         allowOverride: false,
     })
     material.userData.renderToGBuffer = false
