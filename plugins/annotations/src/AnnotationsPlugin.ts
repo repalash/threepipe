@@ -490,7 +490,10 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         const show = !this.isDisabled()
         this._layer.style.display = show ? '' : 'none'
         this._updateBar()
-        if (!show) return
+        if (!show) {
+            this.cancelAdding() // the overlay is hidden with the layer
+            return
+        }
         this._updateScreen()
         this._updateOcclusion()
     }
@@ -644,11 +647,11 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
 
     /**
      * Editable only: the next click on a surface places a new annotation there, with the current camera view. Esc or a
-     * right click cancels. Returns false when it did not start (not editable, not added, or already placing).
+     * right click cancels. Returns false when it did not start (not editable, not added, disabled, or already placing).
      */
     startAdding() {
         const layer = this._layer
-        if (!this._editable || !this._viewer || !layer || this._place) return false
+        if (!this._editable || !this._viewer || !layer || this._place || this.isDisabled()) return false
         this.stopTour()
         this.close()
         this._used()
@@ -1083,7 +1086,7 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         const a = this.get(d.id)
         if (!a) return
         if (!d.moved) {
-            this.goTo(a.id)
+            if (e.type !== 'pointercancel') this.goTo(a.id) // a cancelled press is not a click
             return
         }
         const after = a.anchor

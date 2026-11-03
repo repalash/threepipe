@@ -1586,6 +1586,21 @@ describe('AnnotationsPlugin', () => {
         })
     })
 
+    test('a cancelled press on a marker (pointercancel) does not open it; disabled: placing does not start, and stops', () => {
+        const {plugin, layer, box} = setup()
+        plugin.add(box as any, front, normal, null)
+        ;(plugin as any)._updateScreen()
+        const m = markers(layer)[0]
+        m.fire('pointerdown', {clientX: 400, clientY: 300})
+        m.fire('pointercancel', {type: 'pointercancel', clientX: 400, clientY: 300})
+        expect(plugin.openId).toBe(null)
+        expect(plugin.startAdding()).toBe(true)
+        plugin.enabled = false
+        ;(plugin as any)._tick()
+        expect(plugin.adding).toBe(false)
+        expect(plugin.startAdding()).toBe(false)
+    })
+
     test('the title field is a textarea that wraps like the title (no line breaks: Enter goes to the text, pasted ones become spaces)', () => {
         const {plugin, layer, box} = setup()
         const a = plugin.add(box as any, front, normal, null, {title: 'A'})
