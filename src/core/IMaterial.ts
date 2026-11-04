@@ -157,11 +157,11 @@ export interface IMaterialUserData extends IImportResultUserData{
      * - not set: an opaque material is drawn. A transparent material is drawn only when it looks opaque: an opacity above
      * 0.99, and no `map` or `alphaMap`. A transmissive material is not drawn.
      *
-     * A material that is drawn keeps the cut-out shape of its `map` and `alphaMap` alpha: pixels with an alpha below its
-     * `alphaTest` (at least 0.0001) are left out, and all the others write depth and normal. For foliage, lace and decals,
-     * use an opaque material with `alphaTest` (glTF `alphaMode: MASK`): it is drawn with its shape. A blended material
-     * (`transparent: true` with an alpha texture, glTF `BLEND`) is not drawn unless this is `true`, and then its partly
-     * transparent pixels write depth too, so set `alphaTest` with it.
+     * A material that is drawn keeps the cut-out shape of its `map` and `alphaMap` alpha, as in the render: pixels with an
+     * alpha below its `alphaTest` are left out, and all the others write depth and normal. With `alphaTest` 0 nothing is cut.
+     * For foliage, lace and decals, use an opaque material with `alphaTest` (glTF `alphaMode: MASK`): it is drawn with its
+     * shape. A blended material (`transparent: true` with an alpha texture, glTF `BLEND`) is not drawn unless this is
+     * `true`, and then all its pixels write depth, also the transparent ones, so set `alphaTest` with it.
      */
     renderToGBuffer?: boolean
     /**

@@ -37,13 +37,13 @@ Opaque materials are drawn into the GBuffer. Transparent and transmissive materi
 
 ### Alpha: foliage, lace and decals
 
-A material in the GBuffer keeps the cut-out shape of its `map` and `alphaMap` alpha: pixels with an alpha below its `alphaTest` (at least 0.0001) are left out, and all the others write depth and normal.
+A material in the GBuffer keeps the cut-out shape of its `map` and `alphaMap` alpha: pixels with an alpha below its `alphaTest` are left out, and all the others write depth and normal, as in the render. With `alphaTest` 0 (the default) nothing is cut.
 
 | Material | In the GBuffer | Result |
 |---|---|---|
 | Cutout: opaque with `alphaTest`, like 0.5 (glTF `alphaMode: MASK`) | Yes, with its shape | SSAO, SSR, depth of field and outlines see the leaf shape. Use this for foliage, lace and decals. |
 | Blended: `transparent: true` with an alpha texture (glTF `BLEND`) | No | It casts no SSAO, and outlines and SSR do not see it. Its pixels keep the depth and flags of the object behind it (or of the background), so depth of field blurs it at that depth, tone mapping follows that object, and a `PhysicalMaterial` receives the SSAO of that object (`userData.ssaoDisabled` turns it off). |
-| Blended, with `userData.renderToDepth = true` | Yes | Its partly transparent pixels write depth and normal too, which can show halos in SSAO and depth of field. Set `alphaTest` with it. |
+| Blended, with `userData.renderToDepth = true` | Yes | All its pixels write depth and normal, also the transparent ones, which shows its whole quad in SSAO and depth of field. Set `alphaTest` with it. |
 
 Use a blended material only for a surface that is really see-through, like glass or a veil.
 
