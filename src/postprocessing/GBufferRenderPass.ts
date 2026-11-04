@@ -143,9 +143,12 @@ export class GBufferRenderPass<TP extends IPassID=IPassID, T extends WebGLRender
         const activeMipLevel = renderer.getActiveMipmapLevel()
 
         const objects = new Set<IObject3D>()
-        const materials = new Set<IMaterial>() // only for renderFlagsOnly
+        const materials = new Set<IMaterial>()
+        // once for each material: the first call changes it (transparent, transmission), a second one on a material shared
+        // by two objects would see the changed material and could undo the change
         const preprocessMaterial = (m: IMaterial) => {
-            if (this.renderFlagsOnly) materials.add(m)
+            if (materials.has(m)) return
+            materials.add(m)
             this.preprocessMaterial(m)
         }
         this.scene.traverse((object) => {

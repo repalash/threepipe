@@ -154,15 +154,19 @@ describe('GBufferRenderPass.render', {timeout}, () => {
         const {pass} = plugin()
         const shared = Object.assign(new tp.MeshBasicMaterial(), {userData: {renderToGBuffer: false}})
         const sharedOverlay = overlay(undefined, {transparent: false})
+        // transmissive, renderToGBuffer not set: made transparent by the first object, so a second preparation would make it opaque again
+        const sharedGlass = Object.assign(overlay({renderToFlags: true}, {transparent: false}), {transmission: 1})
         const scene = new tp.Scene()
-        scene.add(mesh(shared), mesh(shared), mesh(sharedOverlay), mesh(sharedOverlay))
-        const s = renderOnce(pass, scene, [shared, sharedOverlay])
-        expect(s.flagsOnly).toEqual([sharedOverlay])
+        scene.add(mesh(shared), mesh(shared), mesh(sharedOverlay), mesh(sharedOverlay), mesh(sharedGlass), mesh(sharedGlass))
+        const s = renderOnce(pass, scene, [shared, sharedOverlay, sharedGlass])
+        expect(s.flagsOnly).toEqual([sharedOverlay, sharedGlass])
         expect(s.materials).toEqual([
             {visible: false, transparent: true}, // left out of the GBuffer
             {visible: true, transparent: true}, // flags only
+            {visible: true, transparent: true}, // flags only
         ])
-        expect([shared.transparent, sharedOverlay.transparent]).toEqual([false, false])
+        expect([shared.transparent, sharedOverlay.transparent, sharedGlass.transparent]).toEqual([false, false, false])
+        expect(sharedGlass.transmission).toBe(1)
     })
 })
 
