@@ -257,8 +257,22 @@ async function writeFile(c: Context<CloudEnv>, user: CloudUser, item: Item, rel:
             throw new HTTPException(413, {message: `uploads at the same time went over the drive quota (${sizeText(quota)}) or the ${ITEM_FILES_MAX} files of an item`})
         }
     }
-    if (now.visibility !== item.visibility) await setVisibility(c, key, now.visibility)
+    await followItem(c, item.id, [key], now.visibility, item.visibility)
     return {path: rel, size, sha256}
+}
+
+/**
+ * Gives these objects the item's visibility (`visibility`, read after they were written; `written`: the one they have),
+ * then reads the item again: a change that ended while they were written (an unshare after the read) is applied over
+ * them, until the item holds still. Costs nothing when they have it already.
+ */
+async function followItem(c: Context<CloudEnv>, itemId: string, keys: string[], visibility: Visibility | undefined, written?: Visibility) {
+    for (let round = 0; visibility && visibility !== written; round++) {
+        if (round === 4) throw new HTTPException(409, {message: 'the visibility of the item kept changing; try again'})
+        for (const key of keys) await setVisibility(c, key, visibility)
+        written = visibility
+        visibility = (await c.env.PRIMARY_DB.prepare('SELECT visibility FROM drive_items WHERE id = ?').bind(itemId).first<{visibility: Visibility}>())?.visibility
+    }
 }
 
 /**
@@ -623,7 +637,7 @@ export function driveRoutes(app: Hono<CloudEnv>) {
         // old objects (and the row, which moved): the new ones take the item's visibility now. Without it, an unshare
         // during 1 leaves a private item whose new unsigned URLs still work.
         const now = await db.prepare('SELECT visibility FROM drive_items WHERE id = ?').bind(id).first<{visibility: Visibility}>()
-        if (now) for (const rel of rels) if (!failed.includes(rel)) await setVisibility(c, newBase + rel, now.visibility)
+        await followItem(c, id, rels.filter(rel => !failed.includes(rel)).map(rel => newBase + rel), now?.visibility)
         // 4. The old objects go, but those of files not copied again; copies of files deleted while 1 ran go too.
         //    When R2 fails here, the keys left are kept as rows of the item marked `deleted_at` (not listed, not counted in the
         //    quota): deleting the item or the next new id removes them, so the old links do not stay readable for good.
