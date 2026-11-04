@@ -175,8 +175,8 @@ overlay, an outliner) reads the same functions.
 **Sprite mode.** `WidgetIcon` (`src/three/widgets/WidgetIcon.ts`) is a quad mesh with a `MeshBasicMaterial`, not a
 three.js `Sprite`. Before each render (`onBeforeRender`, also of its dot), `updateScale()` turns it to face the camera of
 the render and converts `iconSize` pixels to its units, which depend on the projection (`projectionMatrix[5]`: the field
-of view or the zoom), the canvas height and, for a perspective camera, the distance along the view axis; it divides out
-the world rotation and scale of the widget (the transform of its object). A mesh, so that the icon writes its GBuffer
+of view or the zoom), the canvas height and, for a perspective camera, the distance along the view axis. It makes the world matrix first and takes it into the space of the widget (the
+transform of its object), so a rotation or a non-uniform scale of the object does not skew the icon. A mesh, so that the icon writes its GBuffer
 flags (`userData.renderToFlags`) and is not tone mapped: its material keeps `allowOverride: false` (the debug views of
 `ViewOverridesPlugin` would draw it as a square), and the GBuffer pass draws it with its own `customGBufferMaterial`,
 cut by the alpha of the icon texture. `updateTexture(pixelRatio)` draws the texture at the size of the icon on screen,

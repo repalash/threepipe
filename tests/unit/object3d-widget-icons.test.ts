@@ -306,6 +306,7 @@ describe('light and camera widget icons', () => {
         const parent = new Object3D()
         parent.scale.setScalar(3) // a light in a scaled model root
         const l = light(new PointLight(), parent)
+        parent.updateMatrixWorld(true) // the light's world matrix gets the transform of its parent
         const w = new tp.PointLightHelper2(l)
         w.updateMatrixWorld(true)
         const icon = w.icon!
@@ -326,6 +327,7 @@ describe('light and camera widget icons', () => {
         const parent = new Object3D()
         parent.rotation.set(0.4, -1.1, 0.3)
         const l = light(new PointLight(), parent)
+        parent.updateMatrixWorld(true) // the light's world matrix gets the transform of its parent
         const w = new tp.PointLightHelper2(l)
         w.updateMatrixWorld(true)
         const icon = w.icon!
@@ -337,6 +339,26 @@ describe('light and camera widget icons', () => {
         icon.updateScale(camera, H)
         const q = icon.getWorldQuaternion(new tp.Quaternion())
         expect(q.angleTo(camera.quaternion)).toBeLessThan(1e-5)
+        expect(hitsAt(icon, camera, half - 1)).toBe(true)
+        expect(hitsAt(icon, camera, half + 1)).toBe(false)
+    })
+
+    test('keeps its pixel size under a non-uniform scale of the parent, with a rolled camera', () => {
+        const parent = new Object3D()
+        parent.scale.set(2, 1, 1)
+        const l = light(new PointLight(), parent)
+        parent.updateMatrixWorld(true) // the light's world matrix gets the scale of its parent
+        const w = new tp.PointLightHelper2(l)
+        w.updateMatrixWorld(true)
+        expect(w.matrixWorld.getMaxScaleOnAxis()).toBe(2)
+        const icon = w.icon!
+        const half = icon.size * tp.widgetIconLayout.box / tp.widgetIconLayout.diameter / 2
+        const camera = new PerspectiveCamera(45, 1, 0.1, 1000)
+        camera.position.set(0, 0, 10)
+        camera.up.set(1, 0, 0) // rolled 90 degrees: the screen up is the scaled axis of the parent
+        camera.lookAt(0, 0, 0)
+        camera.updateMatrixWorld(true)
+        icon.updateScale(camera, H)
         expect(hitsAt(icon, camera, half - 1)).toBe(true)
         expect(hitsAt(icon, camera, half + 1)).toBe(false)
     })

@@ -3,6 +3,7 @@ import {
     Color,
     CustomBlending,
     Intersection,
+    Matrix4,
     Mesh,
     MeshBasicMaterial,
     OneFactor,
@@ -54,11 +55,11 @@ function iconGBufferMaterial() {
 }
 
 const tmpSize = new Vector2()
-const tmpScale = new Vector3()
+const tmpWorldPosition = new Vector3()
 const tmpPosition = new Vector3()
-const tmpQuaternion = new Quaternion()
 const tmpCameraQuaternion = new Quaternion()
 const tmpCameraScale = new Vector3()
+const tmpMatrix = new Matrix4()
 
 /**
  * The icon of a light or a camera widget: a quad at the object's position that always faces the camera, is drawn on
@@ -105,6 +106,9 @@ export class WidgetIcon extends Mesh<PlaneGeometry, MeshBasicMaterial> {
         this.dot.visible = widgetKinds[kind].dot
         this.add(this.dot)
 
+        // the transform is set as a matrix before each render (updateScale), not from position, rotation and scale
+        this.matrixAutoUpdate = false
+
         this.updateTexture(1)
 
         this.traverse(o => {
@@ -140,8 +144,9 @@ export class WidgetIcon extends Mesh<PlaneGeometry, MeshBasicMaterial> {
      * Turns the quad to face the camera and sets its scale so that the round icon is {@link size} pixels wide on a canvas
      * `heightPx` CSS pixels high, at its distance from the camera. The size in pixels depends on the projection (field
      * of view or zoom, `projectionMatrix[5]`), the canvas height and, for a perspective camera, the distance along the
-     * view axis. It also divides out the world rotation and scale of the parent (the widget has the transform of its
-     * object). Called before each render, with the camera of the render.
+     * view axis. The world matrix is made first and then taken into the space of the parent, so a rotation or a
+     * non-uniform scale of the parent (the widget has the transform of its object) does not skew or stretch the icon.
+     * Called before each render, with the camera of the render.
      */
     updateScale(camera: Camera, heightPx: number) {
         const e = camera.projectionMatrix.elements
@@ -151,17 +156,17 @@ export class WidgetIcon extends Mesh<PlaneGeometry, MeshBasicMaterial> {
         // the quad is 1 unit; on screen it is scale * proj * heightPx / 2 pixels, divided by the view depth for a
         // perspective projection (its last element is 0), as the three.js sprite shader with sizeAttenuation false
         let s = 2 * this.size * box / diameter / (proj * heightPx)
-        if (this.parent) this.parent.matrixWorld.decompose(tmpPosition, tmpQuaternion, tmpScale)
-        else {
-            tmpPosition.set(0, 0, 0)
-            tmpQuaternion.identity()
-            tmpScale.set(1, 1, 1)
-        }
-        if (e[15] === 0) s *= Math.max(-tmpPosition.applyMatrix4(camera.matrixWorldInverse).z, 0)
-        // the world rotation of the camera, in the space of the parent
+        // at the origin of the parent
+        if (this.parent) tmpWorldPosition.setFromMatrixPosition(this.parent.matrixWorld)
+        else tmpWorldPosition.set(0, 0, 0)
+        if (e[15] === 0) s *= Math.max(-tmpPosition.copy(tmpWorldPosition).applyMatrix4(camera.matrixWorldInverse).z, 0)
+        // the world matrix: at that point, with the rotation of the camera and the size in world units
         camera.matrixWorld.decompose(tmpPosition, tmpCameraQuaternion, tmpCameraScale)
-        this.quaternion.copy(tmpQuaternion.invert().multiply(tmpCameraQuaternion))
-        this.scale.set(s / (tmpScale.x || 1), s / (tmpScale.y || 1), 1)
+        tmpMatrix.compose(tmpWorldPosition, tmpCameraQuaternion, tmpPosition.set(s, s, 1))
+        // into the space of the parent
+        if (this.parent) this.matrix.copy(this.parent.matrixWorld).invert().multiply(tmpMatrix)
+        else this.matrix.copy(tmpMatrix)
+        this.matrixWorldNeedsUpdate = true
         this.updateMatrixWorld(true)
     }
 
