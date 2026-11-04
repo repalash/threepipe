@@ -1,6 +1,7 @@
 {
     "compilerOptions": {
         "baseUrl": ".",
+        "rootDir": "./src",
         "allowJs": false,
         "checkJs": false,
         "skipLibCheck": true,
