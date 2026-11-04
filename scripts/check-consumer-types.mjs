@@ -23,8 +23,8 @@ const keep = process.argv.includes('--keep')
 const rootPkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'))
 const pluginPkg = JSON.parse(fs.readFileSync(path.join(plugin, 'package.json'), 'utf8'))
 
-// Oldest supported, the version the repo builds with, and the two current majors.
-const tsVersions = process.env.TS_VERSIONS?.split(',') ?? ['5.0.4', rootPkg.devDependencies.typescript, '6.0.3', '7.0.2']
+// Oldest supported and the two current majors (the declarations are written with 7).
+const tsVersions = process.env.TS_VERSIONS?.split(',') ?? ['5.0.4', '6.0.3', '7.0.2']
 const major = v => parseFloat(v)
 
 const SETUPS = [
@@ -114,8 +114,6 @@ console.log(`packed and installed in ${((Date.now() - t0) / 1000).toFixed(0)}s (
 // Errors that other packages cause in our files. A case whose only errors match these is reported as
 // "known" and passes. Remove an entry when the package is fixed (the script says when it stops occurring).
 const KNOWN = [
-    {setups: ['node16', 'nodenext'], match: 'Property \'setupPluginUi\' does not exist',
-        why: 'ts-browser-helpers dist/index.d.ts re-exports \'./types\' without .js, so `Class` is unresolved under node16/nodenext and addPluginSync() loses the plugin type'},
     {setups: ['nodenext'], skipLibCheck: false, match: 'has no exported member \'TextureImageData\'',
         why: '@types/three (three-types-modded) src/Three.d.ts exports \'./textures/types\' without .js'},
 ]

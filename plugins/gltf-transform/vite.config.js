@@ -1,8 +1,7 @@
 import {defineConfig} from 'vite'
-import dts from 'vite-plugin-dts'
 import packageJson from './package.json' with {type: 'json'};
 import path from 'node:path';
-import {commonPlugins, globalsReplacePlugin, fixDtsImports} from '../../scripts/vite-utils.mjs';
+import {commonPlugins, globalsReplacePlugin, declarations} from '../../scripts/vite-utils.mjs';
 
 const isProd = process.env.NODE_ENV === 'production'
 const { name } = packageJson
@@ -42,7 +41,7 @@ export default defineConfig({
         },
     },
     plugins: [
-        isProd ? dts({tsconfigPath: './tsconfig.json', afterBuild: fixDtsImports}) : null,
+        isProd ? declarations() : null,
         ...globalsReplacePlugin(globals, isProd),
         ...commonPlugins(packageJson, import.meta.dirname, isProd),
     ],

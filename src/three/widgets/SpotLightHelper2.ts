@@ -63,6 +63,7 @@ export class SpotLightHelper2 extends ALightHelperWidget {
         })
         this.hMaterial.userData.renderToGBuffer = false
         this.hMaterial.userData.renderToDepth = false
+        this.hMaterial.userData.renderToFlags = true // only the flags (no tone mapping with toneMapped: false), not depth and normal
 
         this.cone = new LineSegments2(geometry, this.hMaterial)
         this.add(this.cone)

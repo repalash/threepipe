@@ -98,6 +98,7 @@ export default defineConfig({
               {text: 'SSAOPlugin (Screen Space Ambient Occlusion)', link: 'plugin/SSAOPlugin'},
               {text: 'CascadedShadowsPlugin (CSM)', link: 'plugin/CascadedShadowsPlugin'},
               {text: 'FrameFadePlugin', link: 'plugin/FrameFadePlugin'},
+              {text: 'ViewOverridesPlugin', link: 'plugin/ViewOverridesPlugin'},
             ],
           },
           {
@@ -122,6 +123,7 @@ export default defineConfig({
             items: [
               {text: 'DropzonePlugin', link: 'plugin/DropzonePlugin'},
               {text: 'PickingPlugin', link: 'plugin/PickingPlugin'},
+              {text: 'BVHPlugin', link: 'plugin/BVHPlugin'},
               {text: 'GPUPickingPlugin', link: 'plugin/GPUPickingPlugin'},
               {text: 'LoadingScreenPlugin', link: 'plugin/LoadingScreenPlugin'},
               {text: 'FullScreenPlugin', link: 'plugin/FullScreenPlugin'},
