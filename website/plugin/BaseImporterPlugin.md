@@ -96,7 +96,7 @@ protected _importer = new Importer(class extends STLLoader implements ILoader {
 | [STLLoadPlugin](./STLLoadPlugin) | `.stl` | no | Wraps geometry in Mesh |
 | [KTX2LoadPlugin](./KTX2LoadPlugin) | `.ktx2` | no | WASM transcoder setup |
 | [KTXLoadPlugin](./KTXLoadPlugin) | `.ktx` | no | Simplest subclass |
-| [USDZLoadPlugin](./USDZLoadPlugin) | `.usdz`, `.usda` | no | Custom parse for USDA |
+| [USDZLoadPlugin](./USDZLoadPlugin) | `.usdz`, `.usda`, `.usdc`, `.usd` | no | |
 
 ### External Packages
 

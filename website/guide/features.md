@@ -24,7 +24,7 @@ Plugins can add additional formats:
 * Models
     * 3dm - Using [Rhino3dmLoadPlugin](../plugin/Rhino3dmLoadPlugin)
     * ply - Using [PLYLoadPlugin](../plugin/PLYLoadPlugin)
-    * usdz - Using [USDZLoadPlugin](../plugin/USDZLoadPlugin)
+    * usdz, usda, usdc, usd - Using [USDZLoadPlugin](../plugin/USDZLoadPlugin)
     * stl - Using [STLLoadPlugin](../plugin/STLLoadPlugin)
     * ktx - Using [KTXLoadPlugin](../plugin/KTXLoadPlugin)
     * ktx2 - Using [KTX2LoadPlugin](../plugin/KTX2LoadPlugin)
