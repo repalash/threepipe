@@ -33,7 +33,8 @@ jobs:
       packages: . plugins/* !plugins/plugin-template-*
       build: npm ci
       package-build: npm run build && npm run docs --if-present
-      post-build: npm run test:types && (npm run build-examples || echo "::warning::the examples do not type-check")
+      # test:types packs the core with plugin-tweakpane, which a release without tweakpane does not build
+      post-build: (test -d plugins/tweakpane/dist || npm run build -w @threepipe/plugin-tweakpane) && npm run test:types && (npm run build-examples || echo "::warning::the examples do not type-check")
       partial: true
       clean-package: true
       require-changelog: true
