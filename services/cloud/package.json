@@ -8,7 +8,7 @@
         "deploy": "teeny deploy --remote",
         "deploy:ci": "bash scripts/deploy-ci.sh",
         "secrets-upload": "teeny secrets --remote --upload",
-        "cf-typegen": "wrangler types --env-interface CloudflareBindings",
+        "cf-typegen": "wrangler types --env-interface CloudflareBindings --env-file .dev.vars.example",
         "typecheck": "npm run cf-typegen && tsc --noEmit -p tsconfig.json",
         "test": "bash scripts/e2e.sh"
     },
