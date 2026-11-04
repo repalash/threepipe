@@ -1,6 +1,5 @@
 import {defineConfig} from 'vite'
-import dts from 'vite-plugin-dts'
-import {fixDtsImports, glsl} from './scripts/vite-utils.mjs';
+import {declarations, glsl} from './scripts/vite-utils.mjs';
 import packageJson from './package.json' with {type: 'json'};
 import license from 'rollup-plugin-license';
 import path from 'node:path';
@@ -52,7 +51,7 @@ export default defineConfig({
         },
     },
     plugins: [
-        isProd ? dts({tsconfigPath: './tsconfig.json', afterBuild: fixDtsImports}) : null,
+        isProd ? declarations({tsconfig: 'src/tsconfig.json'}) : null,
         // ...globalsReplacePlugin(globals, isProd),
         glsl({ // todo: minify glsl.
             include: 'src/**/*.glsl',

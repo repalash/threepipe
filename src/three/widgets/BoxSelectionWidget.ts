@@ -22,6 +22,7 @@ export class BoxSelectionWidget extends SelectionWidget {
         })
         matLine.userData.renderToGBuffer = false
         matLine.userData.renderToDepth = false
+        matLine.userData.renderToFlags = true // only the flags (no tone mapping with toneMapped: false), not depth and normal
         this.lineMaterial = matLine
 
         const ls = new LineSegmentsGeometry()

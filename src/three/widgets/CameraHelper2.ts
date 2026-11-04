@@ -61,6 +61,7 @@ export class CameraHelper2 extends ACameraHelperWidget {
         })
         material.userData.renderToGBuffer = false
         material.userData.renderToDepth = false
+        material.userData.renderToFlags = true // only the flags (no tone mapping with toneMapped: false), not depth and normal
 
         const {vertices, colors, pointMap} = generateVertices()
 
