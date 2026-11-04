@@ -58,8 +58,9 @@ export class GBufferRenderPass<TP extends IPassID=IPassID, T extends WebGLRender
             material.transmission = 0
             // material.needsUpdate = true
         }
-        // left out of the target, but writes its flags: drawn in the transparent pass of the render, see render
-        if (this.renderFlagsOnly && material.userData.renderToFlags === true && !material.userData.pluginsDisabled &&
+        // left out of the target, but writes its flags: drawn in the transparent pass of the render, see render. Not when
+        // it is fully transparent: it adds no colour, so its pixels keep the flags of the scene behind
+        if (this.renderFlagsOnly && material.userData.renderToFlags === true && !material.userData.pluginsDisabled && material.opacity > 0 &&
             (material.transparent || Math.abs(material.transmission || 0) > 0) && this._drawsWithGBufferMaterial(material)) {
             const transmission = material.transmission || 0
             if (Math.abs(transmission) > 0) {

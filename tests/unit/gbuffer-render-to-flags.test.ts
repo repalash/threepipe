@@ -52,6 +52,11 @@ describe('GBufferRenderPass: which materials draw only their flags', {timeout}, 
         // an opaque one too: it is made transparent for the render
         expect(flagsOnly(pass, overlay(undefined, {transparent: false}))).toBe(true)
     })
+    test('a fully transparent overlay (opacity 0) adds no colour, so it does not write its flags', () => {
+        const {pass} = plugin()
+        expect(flagsOnly(pass, overlay(undefined, {opacity: 0}))).toBe(false)
+        expect(flagsOnly(pass, overlay(undefined, {opacity: 0.2}))).toBe(true)
+    })
     test('not set: same as renderToGBuffer, nothing changes', () => {
         const {pass} = plugin()
         expect(flagsOnly(pass, overlay({renderToGBuffer: false, renderToDepth: false}))).toBe(false)
