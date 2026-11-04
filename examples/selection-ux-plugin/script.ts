@@ -8,13 +8,12 @@ import {
     Mesh,
     Object3D,
     PhysicalMaterial,
-    PickingPlugin,
     SphereGeometry,
     ThreeViewer,
     TorusGeometry,
     UndoManagerPlugin,
 } from 'threepipe'
-import {SelectionUxPlugin} from '@threepipe/plugin-tweakpane-editor'
+import {SelectionBoxStyle, SelectionUxPlugin} from '@threepipe/plugin-tweakpane-editor'
 
 async function init() {
 
@@ -25,14 +24,14 @@ async function init() {
     })
     // each selection change is one undo step (Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z)
     viewer.addPluginSync(UndoManagerPlugin)
-    // the selection is the PickingPlugin's: its box widget shows it, this plugin decides what a click or a key selects
+    // the selection is the PickingPlugin's; this plugin decides what a click or a key selects, and draws the overlay:
+    // the box of the selection with its name and size, and the box of what a click would select
     const ux = viewer.addPluginSync(SelectionUxPlugin)
+    ux.unit = 'cm'
 
-    // the hovered object (what a click would select) in the hover box of the PickingPlugin
-    const picking = viewer.getPlugin(PickingPlugin)!
-    ux.addEventListener('uxUpdate', (e) => {
-        if (e.reason === 'hover') picking.picker?.setHoverObject(ux.hovered)
-    })
+    // the style of the box: a screen rectangle, the 3D box, or its corners
+    const style = document.getElementById('box-style') as HTMLSelectElement
+    style.onchange = () => ux.boxStyle = style.value as SelectionBoxStyle
 
     await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
     buildScene(viewer)
