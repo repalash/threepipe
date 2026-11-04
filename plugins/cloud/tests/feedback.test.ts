@@ -27,6 +27,8 @@ describe('redaction', () => {
             ['id 3f2504e0-4f89-11d3-9a0c-0305e82c3301 kept', 'id 3f2504e0-4f89-11d3-9a0c-0305e82c3301 kept'],
             ['password reset failed', 'password reset failed'],
             ['load logo@2x.png and env@1k.hdr', 'load logo@2x.png and env@1k.hdr'],
+            ['fetch https://cloud.threepipe.org/api/v1/access/Ab3dEf6hIj9kLm2nOp5qRs8tUv1wXy4z/agents.md', 'fetch https://cloud.threepipe.org/api/v1/access/<token>/agents.md'],
+            ['GET https://files.threepipe.org/t/1793000000.c2lnbmF0dXJlLXZhbHVlLTEyMzQ1/d/jane/abc/scene.glb 404', 'GET https://files.threepipe.org/t/<token>/d/jane/abc/scene.glb 404'],
         ]
         for (const [input, out] of cases) expect(redact(input), input).toBe(out)
         expect(redact('mail a@b.example and Me@X.example', 'me@x.example')).toBe('mail <email> and Me@X.example')

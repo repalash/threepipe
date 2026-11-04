@@ -528,7 +528,7 @@ export function driveRoutes(app: Hono<CloudEnv>) {
         }
         // each file is written again (R2 has no metadata update): sharing is refused for an item too big for one request.
         // Making one private always goes ahead: a request cut short is sent again, and files already done cost one read.
-        const files = body.visibility !== undefined ? await itemFiles(c, item) : []
+        let files = body.visibility !== undefined ? await itemFiles(c, item) : []
         if (body.visibility === 'link' && item.visibility !== 'link' && files.length > ITEM_FILES_MAX)
             throw new HTTPException(413, {message: `an item of more than ${ITEM_FILES_MAX} files cannot be shared; split it`})
         if (body.visibility !== undefined) await purgePending(c, item)
@@ -558,6 +558,8 @@ export function driveRoutes(app: Hono<CloudEnv>) {
                 // differs, so whichever request ends last leaves the files as the item is.
                 for (let round = 0; ; round++) {
                     done = 0
+                    // the files as they are after the row changed: one uploaded before that read the old visibility
+                    files = await itemFiles(c, item)
                     for (const f of files) {
                         await setVisibility(c, f.path, want)
                         done++
@@ -656,9 +658,9 @@ export function driveRoutes(app: Hono<CloudEnv>) {
             db.prepare('DELETE FROM files WHERE item_id = ? RETURNING path').bind(item.id),
             db.prepare('DELETE FROM drive_items WHERE id = ?').bind(item.id),
         ]) as D1Result<{path: string}>[]
-        // a file uploaded while this ran (its upload cleans up after itself when it registers later)
-        const done = new Set(paths), late = rows.results.map(r => r.path).filter(p => !done.has(p))
-        if (late.length) await deleteKeys(c.env.CLOUD_BUCKET, late)
+        // every path of the rows again: a file uploaded or overwritten while this ran (an upload that registers later
+        // cleans up after itself); deleting a missing key does nothing, and R2 deletes cost nothing
+        await deleteKeys(c.env.CLOUD_BUCKET, rows.results.map(r => r.path))
         return c.json({deleted: item.id})
     })
 
