@@ -228,6 +228,9 @@ export class GBufferPlugin
                     mat.userData.pluginsDisabled = current0.userData.pluginsDisabled
                     // todo other plugin userData
                     mat.side = current0.side
+                    // a hidden or faded-out line draws nothing (no depth, no normal, no flags), as in the colour pass
+                    mat.visible = current0.visible
+                    mat.opacity = current0.opacity
                 }
                 // the flags of the object come from the updaters of the plugins, as for the other objects
                 if (mat instanceof GBufferMaterial && this.material) {

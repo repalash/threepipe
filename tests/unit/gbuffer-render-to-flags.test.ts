@@ -89,6 +89,15 @@ describe('GBufferRenderPass: which materials draw only their flags', {timeout}, 
         expect(mat.flagsOnlyMaterials).toBe(pass.flagsOnlyMaterials)
         expect(flagsOnly(pass, mat)).toBe(true)
         pass.postprocessObject(line)
+        // a hidden or faded-out line material: its GBuffer line material follows it, so it writes no flags
+        pass.flagsOnlyMaterials.clear() // a render clears it
+        line.material.opacity = 0
+        expect(flagsOnly(pass, pass.preprocessObject(line))).toBe(false)
+        pass.postprocessObject(line)
+        line.material.opacity = 1
+        line.material.visible = false
+        expect(pass.preprocessObject(line).visible).toBe(false)
+        pass.postprocessObject(line)
     })
 })
 
