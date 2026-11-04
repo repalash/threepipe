@@ -481,15 +481,17 @@ export class SelectionMaskPass extends RenderPass implements IPipelinePass<'sele
             const masks = new Map<Object3D, number>()
             for (const o of this._items.keys()) masks.set(o, o.layers.mask)
             // fat lines are instanced quads that only a line shader turns into lines: give them a line-shaped mask material
-            const lines: Object3D[] = []
+            // the forced material that each line had before (a plugin can set one for the whole frame, like the line view
+            // override of ViewOverridesPlugin), put back after the mask
+            const lines = new Map<Object3D, Material | undefined>()
             const materials: ShaderMaterial[] = [this.overrideMaterial]
             for (const o of this._items.keys()) {
                 const line = o as any
                 const lm = line.isLine2 || line.isLineSegments2 ? line.currentMaterial ?? line.material : null
                 if (!lm?.isLineMaterial) continue
+                lines.set(o, line.forcedOverrideMaterial)
                 line.forcedOverrideMaterial = this._lineMask(lm)
                 materials.push(line.forcedOverrideMaterial)
-                lines.push(o)
             }
             const mask = this.camera.layers.mask
             this.camera.layers.set(layer)
@@ -499,7 +501,10 @@ export class SelectionMaskPass extends RenderPass implements IPipelinePass<'sele
             this._draw(renderer, masks, materials, false, () => super.render(renderer, writeBuffer as any, target, deltaTime as any, maskActive as any))
             if (hasHover) this._draw(renderer, masks, materials, true, () => super.render(renderer, writeBuffer as any, target, deltaTime as any, maskActive as any))
             for (const [o, m] of masks) o.layers.mask = m
-            for (const o of lines) delete (o as any).forcedOverrideMaterial
+            for (const [o, m] of lines) {
+                if (m === undefined) delete (o as any).forcedOverrideMaterial
+                else (o as any).forcedOverrideMaterial = m
+            }
             this.camera.layers.mask = mask
         }
         renderer.setRenderTarget(t, face, mip)

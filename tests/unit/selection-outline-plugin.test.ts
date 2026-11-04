@@ -431,6 +431,28 @@ describe('SelectionOutlinePlugin', () => {
         expect(lineMaskFragment('void main() {}')).toContain('vec4(itemData.xy, 0., maskDepth)') // no coverage point
     })
 
+    test('a fat line gets its line mask for the mask draw, and its earlier forced material back after it', () => {
+        const pass = new SelectionMaskPass(() => ({}) as any, selectionMaskMaterial()) as any
+        const lineMaterial = Object.assign(new ShaderMaterial({fragmentShader: 'void main() {\n#include <logdepthbuf_fragment>\n}'}), {isLineMaterial: true})
+        const line: any = Object.assign(mesh('line'), {isLineSegments2: true, material: lineMaterial})
+        const other: any = Object.assign(mesh('line2'), {isLineSegments2: true, material: lineMaterial})
+        const viewOverride = new ShaderMaterial() // set for the whole frame by another plugin, like ViewOverridesPlugin
+        line.forcedOverrideMaterial = viewOverride
+        pass.getItems = () => new Map([[line, new Vector3(1, 0, 0)], [other, new Vector3(2, 0, 0)]])
+        pass.scene = new Group() as any
+        pass.camera = new PerspectiveCamera() as any
+        const inPass: any[] = []
+        const renderer: any = {
+            getRenderTarget: () => null, getActiveCubeFace: () => 0, getActiveMipmapLevel: () => 0, setRenderTarget: () => {},
+            renderWithModes: () => inPass.push(line.forcedOverrideMaterial, other.forcedOverrideMaterial),
+        }
+        pass.render(renderer)
+        expect(inPass[0]).toBe(pass._lineMask(lineMaterial))
+        expect(inPass[1]).toBe(pass._lineMask(lineMaterial))
+        expect(line.forcedOverrideMaterial).toBe(viewOverride)
+        expect('forcedOverrideMaterial' in other).toBe(false)
+    })
+
     test('the line mask follows the defines of the line (a line made dashed after its first mask)', () => {
         const pass = new SelectionMaskPass(() => ({}) as any, selectionMaskMaterial()) as any
         const line = new ShaderMaterial({defines: {}, fragmentShader: 'void main() {\n#include <logdepthbuf_fragment>\n}'})
