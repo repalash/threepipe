@@ -328,6 +328,7 @@ Widget subclasses typically set on their materials (not enforced by `AHelperWidg
 - `transparent: true` — blend over scene
 - `depthWrite: false` — don't occlude other widgets
 - `userData.renderToGBuffer = false`, `userData.renderToDepth = false` — excluded from deferred passes
+- `userData.renderToFlags = true` — still writes the GBuffer flags (only those), so with `toneMapped: false` the screen pass does not tone map it, see [GBufferPlugin](../plugin/GBufferPlugin#materials-in-the-gbuffer)
 - `allowOverride: false` — resist material extension plugins
 
 Note: `LineHelper` uses `MeshBasicMaterial` for its handles and does not set all of these. Each subclass chooses what's appropriate.
