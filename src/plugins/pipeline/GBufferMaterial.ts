@@ -99,8 +99,9 @@ export class GBufferMaterial extends ShaderMaterial2 {
 
         const setMap = (key: keyof IMaterial) => {
             const map = material[key]
+            // also cleared when the material has none: a GBuffer material set on the object is not reset after its draw
+            this.uniforms[key].value = map || null
             if (!map) return
-            this.uniforms[key].value = map
             if (!this.uniforms[key + 'Transform']) console.error('GBufferMaterial: ' + key + 'Transform is not defined in uniform')
             else {
                 if ((map as Texture).isTexture)
@@ -112,16 +113,29 @@ export class GBufferMaterial extends ShaderMaterial2 {
         // that the material cuts (its map and alphaMap alpha under alphaTest) are not written, as in the render
         setMap('map')
         setMap('alphaMap')
-        if (material.alphaTest !== undefined) this.alphaTest = material.alphaTest < 1e-4 ? 1e-4 : material.alphaTest
+        // the alpha test of the material: none with alphaTest 0, as in the render (an opaque material ignores the alpha of
+        // its texture). A flags-only draw (an overlay, drawn with blending) always leaves out the pixels with an alpha of
+        // about 0, which add no colour
+        const alphaTest = material.alphaTest ?? 0
+        this.alphaTest = this._flagsOnlyDraw ? Math.max(alphaTest, 1e-4) : alphaTest
         // three.js sets the alphaTest uniform only for its own materials, not for a ShaderMaterial
         this.uniforms.alphaTest.value = this.alphaTest
         if (material.alphaHash !== undefined) this.alphaHash = material.alphaHash
-        // three.js compiles the map chunks only for a material with its own `map` (`alphaMap`), so they are defined here
+        // three.js compiles the map chunks only for a material with its own `map` (`alphaMap`), so they are defined here,
+        // with the UV set of each texture (`Texture.channel`, as getChannel in WebGLPrograms.js)
+        const map = this.uniforms.map.value as Texture | null
+        const alphaMap = this.uniforms.alphaMap.value as Texture | null
+        const channel = (t: Texture | null) => t ? t.channel || 0 : -1
+        const uvName = (c: number) => c > 0 ? 'uv' + c : 'uv'
+        const uses = (c: number) => channel(map) === c || channel(alphaMap) === c ? 1 : undefined
         updateMaterialDefines({
-            ['USE_MAP']: this.uniforms.map.value ? 1 : undefined,
-            ['MAP_UV']: this.uniforms.map.value ? 'uv' : undefined, // todo use getChannel, see WebGLPrograms.js
-            ['USE_ALPHAMAP']: this.uniforms.alphaMap.value ? 1 : undefined,
-            ['ALPHAMAP_UV']: this.uniforms.alphaMap.value ? 'uv' : undefined, // todo use getChannel, see WebGLPrograms.js
+            ['USE_MAP']: map ? 1 : undefined,
+            ['MAP_UV']: map ? uvName(channel(map)) : undefined,
+            ['USE_ALPHAMAP']: alphaMap ? 1 : undefined,
+            ['ALPHAMAP_UV']: alphaMap ? uvName(channel(alphaMap)) : undefined,
+            ['USE_UV1']: uses(1),
+            ['USE_UV2']: uses(2),
+            ['USE_UV3']: uses(3),
         }, this)
 
         if (isOverridden) {

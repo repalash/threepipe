@@ -16,8 +16,8 @@ beforeAll(async() => {
 
 describe('GBufferMaterial: the alpha of the material', {timeout}, () => {
     const renderer = {
-        getContext: () => ({}),
-        getRenderTarget: () => null,
+        getContext: () => ({NONE: 0, COLOR_ATTACHMENT0: 0x8CE0, COLOR_ATTACHMENT1: 0x8CE1, drawBuffers: () => undefined}),
+        getRenderTarget: () => ({textures: [{}, {}]}),
         materials: {refreshTransformUniform: () => undefined},
     }
     const camera = {updateShaderProperties: () => undefined}
@@ -54,5 +54,27 @@ describe('GBufferMaterial: the alpha of the material', {timeout}, () => {
         expect(mesh.material).toBe(mat)
         const s = draw(mat, mesh)
         expect([s.map, s.mapValue, s.alphaTest]).toEqual([1, map, 0.25])
+        // its source material without the map: the map is gone from the next draw too (this material is not reset)
+        src.map = null
+        const t = draw(mat, mesh)
+        expect([t.map, t.mapValue]).toEqual([undefined, null])
+    })
+
+    test('no alpha test with alphaTest 0, as in the render; a flags-only draw leaves out the pixels with alpha about 0', () => {
+        const mat = new tp.GBufferMaterial(true)
+        const src = new tp.PhysicalMaterial({map: new tp.Texture()}) // opaque: the render ignores the alpha of its map
+        expect(draw(mat, new tp.Mesh(new tp.BoxGeometry(), src)).alphaTest).toBe(0)
+        const overlay = new tp.MeshBasicMaterial({map: new tp.Texture(), transparent: true})
+        mat.flagsOnlyMaterials = new Set([overlay])
+        expect(draw(mat, new tp.Mesh(new tp.BoxGeometry(), overlay)).alphaTest).toBe(1e-4)
+    })
+
+    test('each texture is read with its own UV set (Texture.channel)', () => {
+        const mat = new tp.GBufferMaterial(true)
+        const map = Object.assign(new tp.Texture(), {channel: 1})
+        const alphaMap = Object.assign(new tp.Texture(), {channel: 2})
+        mat.onBeforeRender(renderer, null, camera, undefined, new tp.Mesh(new tp.BoxGeometry(), new tp.PhysicalMaterial({map, alphaMap})), null)
+        const d = mat.defines
+        expect([d.MAP_UV, d.ALPHAMAP_UV, d.USE_UV1, d.USE_UV2, d.USE_UV3]).toEqual(['uv1', 'uv2', 1, 1, undefined])
     })
 })
