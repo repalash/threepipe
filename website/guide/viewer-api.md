@@ -260,6 +260,9 @@ viewer.removeEventListener('preFrame', callback)
 // Add a callback to be called only once for an event
 viewer.doOnce('postFrame', () => viewer.canvas.toDataURL('image/png'))
 
+// Wait for the next frame. It resolves false when the viewer is disabled or disposed before it (no frame comes then)
+if (await viewer.nextFrame()) console.log(viewer.canvas.toDataURL('image/png'))
+
 // Enable/disable rendering in the viewer
 viewer.renderEnabled = false
 // do something with the canvas or load assets 

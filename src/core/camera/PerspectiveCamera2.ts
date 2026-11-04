@@ -15,10 +15,11 @@ import {ICameraSetDirtyOptions} from '../ICamera'
 import type {ICameraControls, TControlsCtor} from './ICameraControls'
 import {OrbitControls3} from '../../three/controls/OrbitControls3'
 import {IObject3D} from '../IObject'
-import {ThreeSerialization} from '../../utils'
+import {copyUserData, ThreeSerialization} from '../../utils'
 import {iCameraCommons} from '../object/iCameraCommons'
 import {bindToValue} from '../../three/utils/decorators'
 import {makeICameraCommonUiConfig, objectExtensionsUiConfig} from '../object/IObjectUi'
+import {UiTags} from '../../ui/uiconfig'
 
 // todo: maybe change domElement to some wrapper/base class of viewer
 /**
@@ -30,7 +31,7 @@ export class PerspectiveCamera2<TE extends ICameraEventMap = ICameraEventMap> ex
         return this._controls
     }
 
-    @uiInput('Name') declare name: string
+    @uiInput('Name', {tags: [UiTags.Basic]}) declare name: string
 
     @serialize('camControls')
     private _controls?: ICameraControls
@@ -51,7 +52,7 @@ export class PerspectiveCamera2<TE extends ICameraEventMap = ICameraEventMap> ex
         userData: ICameraUserData = {}
 
     @onChange3(PerspectiveCamera2.prototype.setDirty)
-    @uiSlider('Field Of View', [1, 180], 0.001)
+    @uiSlider('Field Of View', [1, 180], 0.001, {tags: [UiTags.Basic]})
     @serialize() declare fov: number
 
     @onChange3(PerspectiveCamera2.prototype.setDirty)
@@ -358,6 +359,8 @@ export class PerspectiveCamera2<TE extends ICameraEventMap = ICameraEventMap> ex
         // if (data.cameraObject) this._camera.fromJSON(data.cameraObject)
         // todo: add check for OrbitControls being not deserialized(inited properly) if it doesn't exist yet (if it is not inited properly)
         // console.log(JSON.parse(JSON.stringify(data)))
+        // __ userData keys (runtime state) are not loaded, the camera keeps its own (like __isMainCamera). Files saved before the toJSON filter have them.
+        if (data.userData) data = {...data, userData: copyUserData({}, data.userData)}
         ThreeSerialization.Deserialize(data, this, meta, true)
         this.refreshAspect(false)
         this.setDirty({change: 'deserialize'})

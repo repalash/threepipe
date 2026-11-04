@@ -500,24 +500,28 @@ export class ThreeSerialization {
 /**
  * Deep copy/clone from source to dest, assuming both are userData objects for three.js objects/materials/textures etc.
  * This will clone any property that can be cloned (apart from Object3D, Texture, Material) and deep copy the objects and arrays.
+ * Keys that start with `privatePrefix` are skipped at every depth.
  * @note Keep synced with copyMaterialUserData in three.js -> Material.js todo: merge these functions? by putting this inside three.js?
  * @param dest
  * @param source
  * @param ignoredKeysInRoot - keys to ignore in the root object
+ * @param privatePrefix - keys that start with this are not copied. Default `'__'` (the keys that are not kept on clone or in JSON). `'_'` also skips the `_` keys, as in glTF, see {@link copyPublicUserData}.
  */
-export function copyUserData(dest: any, source: any, ignoredKeysInRoot: (string|symbol)[] = []): any {
+export function copyUserData(dest: any, source: any, ignoredKeysInRoot: (string|symbol)[] = [], privatePrefix = '__'): any {
     if (!source) return dest
     for (const key of Object.keys(source)) {
         if (ignoredKeysInRoot.includes(key)) continue
-        if (key.startsWith('__')) continue // double underscore
+        if (key.startsWith(privatePrefix)) continue // private key
         const src = source[key]
-        if (typeof dest[key] === 'function' || typeof src === 'function') continue
+        if (typeof src === 'function') continue
+        // a function in dest is kept, but not one inherited from Object.prototype: a public key can be named toString or constructor
+        if (typeof dest[key] === 'function' && dest[key] !== (Object.prototype as any)[key]) continue
         const skipClone = !src || src.isTexture || src.isObject3D || src.isMaterial || src.isBufferGeometry || src.userDataSkipClone
         if (!skipClone && typeof src.clone === 'function')
             dest[key] = src.clone()
         // else if (!skipClone && (typeof src === 'object' || Array.isArray(src)))
         else if (!skipClone && (src.constructor === Object || Array.isArray(src)))
-            dest[key] = copyUserData(Array.isArray(src) ? [] : {}, src, [])
+            dest[key] = copyUserData(Array.isArray(src) ? [] : {}, src, [], privatePrefix)
         else
             dest[key] = src
     }
@@ -558,6 +562,17 @@ export function copyMaterialUserData(dest: any, source: any, ignoredKeysInRoot =
  */
 export function copyObject3DUserData(dest: any, source: any, ignoredKeysInRoot = ['uuid']): any {
     return copyUserData(dest, source, ignoredKeysInRoot)
+}
+
+/**
+ * Deep copy/clone from source to dest without the private keys, the keys that start with `_` or `__`, at every depth.
+ * This is the userData that is saved in glTF: `_` keys are kept on clone and in JSON but not in glTF, `__` keys are kept nowhere (see {@link IObject3D.userData}).
+ * Used for the shadow camera in `GLTFLightExtrasExtension`. For JSON (`toJSON`, `fromJSON`) use {@link copyUserData}, which skips only the `__` keys.
+ * @param dest
+ * @param source
+ */
+export function copyPublicUserData(dest: any, source: any): any {
+    return copyUserData(dest, source, [], '_')
 }
 
 /**

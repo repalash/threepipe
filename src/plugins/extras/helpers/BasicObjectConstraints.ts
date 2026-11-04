@@ -271,8 +271,9 @@ export const basicObjectConstraints: Record<TConstraintPropsType, {
             const originalPos = new Vector3().copy(obj.position)
             const originalRotation = new Quaternion().copy(obj.quaternion)
 
-            // todo set world position
-            obj.position.copy(worldTarget)
+            // the path point is in world space, the position is in the parent's space
+            const localTarget = obj.parent ? obj.parent.worldToLocal(worldTarget.clone()) : worldTarget
+            obj.position.copy(localTarget)
 
             let rotationChanged = false
 
@@ -298,7 +299,7 @@ export const basicObjectConstraints: Record<TConstraintPropsType, {
 
             // after followCurve because of lookAt
             if (influence !== 1)
-                obj.position.lerpVectors(originalPos, worldTarget, influence)
+                obj.position.lerpVectors(originalPos, localTarget, influence)
 
             const positionChanged = !originalPos.equals(obj.position)
             const changed = positionChanged || rotationChanged

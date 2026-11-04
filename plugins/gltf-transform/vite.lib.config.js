@@ -1,11 +1,8 @@
 import {defineConfig} from 'vite'
-import json from '@rollup/plugin-json';
-import dts from 'vite-plugin-dts'
-import packageJson from './package.json';
+import packageJson from './package.json' with {type: 'json'};
 import license from 'rollup-plugin-license';
-import glsl from 'rollup-plugin-glsl';
 import path from 'node:path';
-import {fixDtsImports} from '../../scripts/vite-utils.mjs';
+import {declarations, glsl} from '../../scripts/vite-utils.mjs';
 
 const isProd = process.env.NODE_ENV === 'production'
 const { name, version, author } = packageJson
@@ -23,9 +20,6 @@ export default defineConfig({
     optimizeDeps: {
         exclude: externalDeps,
     },
-    esbuild: {
-        legalComments: 'none',
-    },
     build: {
         sourcemap: true,
         minify: false,
@@ -42,11 +36,9 @@ export default defineConfig({
         },
         outDir: dist,
         emptyOutDir: isProd,
-        commonjsOptions: {
-            exclude: [/uiconfig.js/, /ts-browser-helpers/],
-        },
-        rollupOptions: {
+        rolldownOptions: {
             output: {
+                comments: {legal: false}, // strip bundled legal comments, the license() banner is added after
                 globals: Object.fromEntries(externalDeps.map(d => [d, d])),
             },
             // Function-based external to catch deep/subpath imports like
@@ -55,11 +47,10 @@ export default defineConfig({
         },
     },
     plugins: [
-        isProd ? dts({tsconfigPath: './tsconfig.json', afterBuild: fixDtsImports}) : null,
+        isProd ? declarations() : null,
         glsl({
             include: 'src/**/*.glsl',
         }),
-        json(),
         license({
             banner: `
         @license
@@ -69,7 +60,7 @@ export default defineConfig({
         See ./dependencies.txt for bundled third-party dependencies and licenses.
       `,
             thirdParty: {
-                output: path.join(__dirname, dist, 'dependencies.txt'),
+                output: path.join(import.meta.dirname, dist, 'dependencies.txt'),
                 includePrivate: true,
             },
         }),
