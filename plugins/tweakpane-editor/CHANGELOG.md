@@ -28,6 +28,10 @@ All notable changes to this plugin will be documented in this file.
 
 - The webgi logo at the bottom left of the canvas (`#webgi-logo`, added by `TweakpaneEditorPlugin`): the image https://static.webgi.xyz/logo.svg with the tooltip "Powered by Threepipe SDK", that opened https://webgi.dev in a new tab, and its URL parameters `logo-img` (another image) and `logo-link` (another link). The perf pill and the post-its dock are at the bottom left now.
 
+### Fixed
+
+- The mode tabs of the classic page took the full width of the page: the minified CSS kept only the `-moz-fit-content` width of `.button-bar` (the last one), which Chrome ignores. The bar is again as wide as its buttons, in the middle of the top
+
 ## [0.6.0]
 
 ### Added
