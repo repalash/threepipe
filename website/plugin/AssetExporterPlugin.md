@@ -1,7 +1,7 @@
 ---
 prev:
-    text: 'CanvasSnapshotPlugin'
-    link: './CanvasSnapshotPlugin'
+    text: 'CanvasRecorderPlugin'
+    link: './CanvasRecorderPlugin'
 
 next: 
     text: 'FileTransferPlugin'

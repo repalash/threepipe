@@ -1,6 +1,7 @@
 import {Vector2, Vector2Tuple, Vector3, Vector3Tuple, Vector4, Vector4Tuple} from 'three'
 import {AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {uiFolderContainer, UiObjectConfig, uiToggle} from 'uiconfig.js'
+import {UiTags} from '../../ui/uiconfig'
 import {serialize} from 'ts-browser-helpers'
 import {IMaterial, IMaterialUserData, IObject3D, PhysicalMaterial} from '../../core'
 import {MaterialExtension, updateMaterialDefines} from '../../materials'
@@ -114,6 +115,7 @@ export class NoiseBumpMaterialPlugin extends AViewerPluginSync {
                     {
                         type: 'checkbox',
                         label: 'Enabled',
+                        tags: [UiTags.Basic],
                         get value() {
                             return state.hasBump || false
                         },

@@ -23,8 +23,8 @@ const keep = process.argv.includes('--keep')
 const rootPkg = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'))
 const pluginPkg = JSON.parse(fs.readFileSync(path.join(plugin, 'package.json'), 'utf8'))
 
-// Oldest supported, the version the repo builds with, and the two current majors.
-const tsVersions = process.env.TS_VERSIONS?.split(',') ?? ['5.0.4', rootPkg.devDependencies.typescript, '6.0.3', '7.0.2']
+// Oldest supported and the two current majors (the declarations are written with 7).
+const tsVersions = process.env.TS_VERSIONS?.split(',') ?? ['5.0.4', '6.0.3', '7.0.2']
 const major = v => parseFloat(v)
 
 const SETUPS = [
@@ -66,13 +66,13 @@ for (const dir of [root, ...fs.readdirSync(path.join(root, 'plugins')).map(d => 
         const text = fs.readFileSync(file, 'utf8')
         for (const m of text.matchAll(relativeSpecRE)) {
             const line = text.slice(text.lastIndexOf('\n', m.index) + 1, m.index)
-            if (!/^\s*(\*|\/\/)/.test(line) && !m[3].endsWith('.js')) staticErrors.push(`${path.relative(root, file)}: '${m[3]}' needs .js (add afterBuild: fixDtsImports to its dts() call)`)
+            if (!/^\s*(\/\*|\*|\/\/)/.test(line) && !m[3].endsWith('.js')) staticErrors.push(`${path.relative(root, file)}: '${m[3]}' needs .js (add afterBuild: fixDtsImports to its dts() call)`)
         }
         if (!declared) continue
         for (const m of text.matchAll(bareSpecRE)) {
             const line = text.slice(text.lastIndexOf('\n', m.index) + 1, m.index)
             const name = m[3].startsWith('@') ? m[3].split('/').slice(0, 2).join('/') : m[3].split('/')[0]
-            if (!/^\s*(\*|\/\/)/.test(line) && !name.includes('*') && !declared.has(name) && !declared.has('@types/' + name))
+            if (!/^\s*(\/\*|\*|\/\/)/.test(line) && !name.includes('*') && !declared.has(name) && !declared.has('@types/' + name))
                 staticErrors.push(`${path.relative(root, file)}: '${m[3]}' is not a dependency or peerDependency of ${pkg.name} (declare it, optional if it is bundled)`)
         }
     }
@@ -114,8 +114,6 @@ console.log(`packed and installed in ${((Date.now() - t0) / 1000).toFixed(0)}s (
 // Errors that other packages cause in our files. A case whose only errors match these is reported as
 // "known" and passes. Remove an entry when the package is fixed (the script says when it stops occurring).
 const KNOWN = [
-    {setups: ['node16', 'nodenext'], match: 'Property \'setupPluginUi\' does not exist',
-        why: 'ts-browser-helpers dist/index.d.ts re-exports \'./types\' without .js, so `Class` is unresolved under node16/nodenext and addPluginSync() loses the plugin type'},
     {setups: ['nodenext'], skipLibCheck: false, match: 'has no exported member \'TextureImageData\'',
         why: '@types/three (three-types-modded) src/Three.d.ts exports \'./textures/types\' without .js'},
 ]

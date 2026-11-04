@@ -523,7 +523,9 @@ Many features will be added but the core API will not change significantly in fu
   - [GBufferPlugin](https://threepipe.org/plugin/GBufferPlugin.html) - Pre-rendering of depth-normal and flags buffers in a single pass ([deferred shading](https://en.wikipedia.org/wiki/Deferred_shading))
   - [SSAOPlugin](https://threepipe.org/plugin/SSAOPlugin.html) - Add [SSAO(Screen Space Ambient Occlusion)](https://en.wikipedia.org/wiki/Screen_space_ambient_occlusion) for physical materials.
   - [CanvasSnapshotPlugin](https://threepipe.org/plugin/CanvasSnapshotPlugin.html) - Add support for taking snapshots of the canvas with anti-aliasing and other options
+  - [CanvasRecorderPlugin](https://threepipe.org/plugin/CanvasRecorderPlugin.html) - Record the canvas to an MP4 or WebM video or an image sequence, in real time or frame by frame after the progressive render converges
   - [PickingPlugin](https://threepipe.org/plugin/PickingPlugin.html) - Adds support for selecting and multi-selecting objects in the viewer with user interactions and selection widgets
+  - [GPUPickingPlugin](https://threepipe.org/plugin/GPUPickingPlugin.html) - Finds the front-most mesh under a point of the canvas by rendering object ids on the GPU, for hover on big scenes
   - [AssetExporterPlugin](https://threepipe.org/plugin/AssetExporterPlugin.html) - Provides options and methods to export the scene/object GLB or Viewer Configuration JSON
   - [LoadingScreenPlugin](https://threepipe.org/plugin/LoadingScreenPlugin.html) - Shows a configurable loading screen overlay over the canvas
   - [FullScreenPlugin](https://threepipe.org/plugin/FullScreenPlugin.html) - Adds support for moving the canvas or the container fullscreen mode in browsers
@@ -542,6 +544,7 @@ Many features will be added but the core API will not change significantly in fu
   - [PerfPanelPlugin](https://threepipe.org/plugin/PerfPanelPlugin.html) - FPS pill and performance card over the canvas: frame times, render time, draw calls, and warnings for a capped frame rate, CPU/GPU bound, battery and software rendering
   - [TailwindCSSCDNPlugin](https://threepipe.org/plugin/TailwindCSSCDNPlugin.html) - Dynamically loads Tailwind CSS from a CDN to enable rapid UI development with utility classes
   - [FrameFadePlugin](https://threepipe.org/plugin/FrameFadePlugin.html) - Post-render pass to smoothly fade to a new rendered frame over time
+  - [ViewOverridesPlugin](https://threepipe.org/plugin/ViewOverridesPlugin.html) - Show the scene with a debug material (unlit, depth, normals, material ID, UV) or with preset lights or another environment map, without changing the scene
   - [VignettePlugin](https://threepipe.org/plugin/VignettePlugin.html) - Add Vignette effect  by patching the final screen pass
   - [ChromaticAberrationPlugin](https://threepipe.org/plugin/ChromaticAberrationPlugin.html) - Add [Chromatic Aberration](https://en.wikipedia.org/wiki/Chromatic_aberration) effect  by patching the final screen pass
   - [FilmicGrainPlugin](https://threepipe.org/plugin/FilmicGrainPlugin.html) - Add [Filmic Grain](https://en.wikipedia.org/wiki/Film_grain) effect  by patching the final screen pass

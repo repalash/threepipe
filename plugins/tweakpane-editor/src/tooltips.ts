@@ -1,5 +1,4 @@
 import {createStyles} from 'threepipe'
-import type {Props} from 'tippy.js'
 import tippyStyles from 'tippy.js/dist/tippy.css?inline'
 import styles from './tooltips.css?inline'
 
@@ -8,7 +7,7 @@ import styles from './tooltips.css?inline'
  * the `editor` theme, a small dark chip. On a touch screen a tap would show a tooltip until the next tap anywhere, so
  * it shows on a long press only.
  */
-export const EDITOR_TOOLTIP_PROPS: Pick<Props, 'theme' | 'touch'> = {theme: 'editor', touch: ['hold', 500]}
+export const EDITOR_TOOLTIP_PROPS: {theme: string, touch: ['hold', number]} = {theme: 'editor', touch: ['hold', 500]}
 
 let added = false
 
