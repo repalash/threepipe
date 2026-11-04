@@ -41,6 +41,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- `PickingPlugin.widgetEnabled = false` also detaches the hover widget. Before, the hover box stayed on the last hovered object, because the hover updates do not move it while the widgets are off (with `hoverEnabled`, when `OutlinePlugin` or `SelectionOutlinePlugin` turns the widgets off)
 - GBuffer, depth and normal buffer passes: a transparent material with `userData.renderToGBuffer` (or `renderToDepth`) set to `false` is left out, also when it has no maps and an opacity of 1. Such a material was drawn as opaque, so it wrote depth and normal. When neither is set, it still draws as opaque
 - `GBufferPlugin`: fat lines (`LineSegments2`, `Line2`, `Wireframe`, drawn with their `customGBufferMaterial`) write the GBuffer flags of the plugins, like the other objects. Their flags had all the bits on, so for example `toneMapped: false` or `userData.postTonemap = false` on a line material did not stop the tone mapping
 - `TonemapPlugin`: a material with `toneMapped: false` is no longer tone mapped. The tonemap bit of the GBuffer flags now also reads `material.toneMapped` (after `userData.gBufferData.tonemapEnabled` and the legacy `userData.postTonemap`, which still win), so the three.js flag works, also on glTF materials that `GLTFMaterialExtrasExtension` loads with it. Objects that are not drawn into the GBuffer (`userData.renderToGBuffer = false`, like the helper widgets) are not changed by this
