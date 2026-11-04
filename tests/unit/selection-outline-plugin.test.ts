@@ -186,6 +186,37 @@ describe('SelectionOutlinePlugin', () => {
         expect(plugin.selected).toEqual([a])
     })
 
+    test('the outline replaces the selection widget of the PickingPlugin while it outlines the selection', () => {
+        const picking = Object.assign(new EventDispatcher<any>(), {selected: [] as any[], widgetEnabled: true, getSelectedObjects() {
+            return this.selected
+        }})
+        const {plugin} = setup(picking)
+        ;(plugin as any)._refreshPicking()
+        expect(picking.widgetEnabled).toBe(false)
+        // a line keeps the widget
+        picking.selected = [Object.assign(mesh('line'), {type: 'LineSegments2'})]
+        picking.dispatchEvent({type: 'selectedObjectChanged'})
+        expect(picking.widgetEnabled).toBe(true)
+        picking.selected = [mesh('a')]
+        picking.dispatchEvent({type: 'selectedObjectChanged'})
+        expect(picking.widgetEnabled).toBe(false)
+        // back on when the plugin stops outlining the selection, off again when it starts
+        plugin.outlineSelected = false
+        expect(picking.widgetEnabled).toBe(true)
+        plugin.outlineSelected = true
+        expect(picking.widgetEnabled).toBe(false)
+        plugin.enabled = false
+        expect(picking.widgetEnabled).toBe(true)
+        plugin.enabled = true
+        expect(picking.widgetEnabled).toBe(false)
+        // a widget that was off before stays off; the plugin turns on only what it turned off
+        plugin.followPicking = false
+        expect(picking.widgetEnabled).toBe(true)
+        picking.widgetEnabled = false
+        plugin.followPicking = true
+        plugin.enabled = false
+        expect(picking.widgetEnabled).toBe(false)
+    })
     test('the mask pass gives each object its own layer mask back', () => {
         const pass = new SelectionMaskPass(() => ({}) as any, new ShaderMaterial({uniforms: {itemData: {value: new Vector3()}}}))
         const onLayer = mesh('on-layer')

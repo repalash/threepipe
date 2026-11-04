@@ -185,6 +185,32 @@ if (selCoverage > 0.0) {
     private _pass?: SelectionMaskPass
     private _target?: WebGLRenderTarget
     private _picking?: PickingPlugin
+    /** The PickingPlugin whose selection widget this plugin turned off, see {@link _updatePickingWidget} */
+    private _widgetHiddenOn?: PickingPlugin
+
+    setDirty() {
+        super.setDirty()
+        this._updatePickingWidget()
+    }
+
+    /**
+     * The outline replaces the selection widget (the box) of the {@link PickingPlugin}, as in `OutlinePlugin`: the widget
+     * is off while this plugin outlines the selection, and on again when it stops (disabled, {@link outlineSelected} off,
+     * removed). A line keeps the widget: it gets no outline, or one that looks bad on it.
+     */
+    private _updatePickingWidget() {
+        const picking = this._picking
+        const primary = this._selected?.[0]
+        const isLine = typeof primary?.type === 'string' && primary.type.includes('Line')
+        const hide = !!picking && !!this._viewer && !this.isDisabled() && this.outlineSelected && !isLine
+        if (hide && picking!.widgetEnabled) {
+            picking!.widgetEnabled = false
+            this._widgetHiddenOn = picking
+        } else if (!hide && this._widgetHiddenOn) {
+            this._widgetHiddenOn.widgetEnabled = true
+            this._widgetHiddenOn = undefined
+        }
+    }
 
     /** The selected objects. Set it when {@link followPicking} is off. */
     get selected(): IObject3D[] {
@@ -285,6 +311,7 @@ if (selCoverage > 0.0) {
     redraw() {
         if (this._pass) this._pass.needsUpdate = true
         this._viewer?.renderManager.setDirty()
+        this._updatePickingWidget()
     }
 
     private _refreshPicking() {
@@ -293,6 +320,10 @@ if (selCoverage > 0.0) {
 
     private _setPicking(picking: PickingPlugin | undefined) {
         if (picking === this._picking) return
+        if (this._widgetHiddenOn) {
+            this._widgetHiddenOn.widgetEnabled = true
+            this._widgetHiddenOn = undefined
+        }
         this._picking?.removeEventListener('selectedObjectChanged', this._onPickingSelection)
         this._picking?.removeEventListener('hoverObjectChanged', this._onPickingHover)
         this._picking = picking
@@ -300,6 +331,7 @@ if (selCoverage > 0.0) {
         picking?.addEventListener('hoverObjectChanged', this._onPickingHover)
         this._onPickingSelection()
         this._onPickingHover({object: null})
+        this._updatePickingWidget()
     }
 
     private _onPickingAdded = () => this._refreshPicking()
