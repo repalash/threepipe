@@ -1,7 +1,7 @@
 // A consumer project that installs the packed threepipe and @threepipe/plugin-tweakpane tarballs.
 // Type-checked by scripts/check-consumer-types.mjs (`npm run test:types`) under several TypeScript
 // versions and tsconfig setups. Add a line here when a declaration fix needs a guard.
-import {BoxGeometry, IScene, ISceneEventMap, lerp, LoadingScreenPlugin, Mesh, PhysicalMaterial, RootScene, ThreeViewer} from 'threepipe'
+import {BoxGeometry, IScene, ISceneEventMap, lerp, LoadingScreenPlugin, Mesh, PhysicalMaterial, RootScene, ThreeViewer, TransformControls} from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 import {Mesh as ThreeMesh} from 'three'
 
@@ -29,3 +29,11 @@ export const t: number = lerp(0, 1, 0.5)
 viewer.thisMemberDoesNotExist()
 // @ts-expect-error lerp takes numbers
 lerp('a', 1, 0.5)
+
+// TransformControls is published with its hand-written declaration, not one generated from the JavaScript
+declare const transformControls: TransformControls
+transformControls.addEventListener('objectChange', () => console.log('moved'))
+transformControls.addEventListener('dragging-changed', (e) => console.log(e.value))
+transformControls.setMode('rotate')
+// @ts-expect-error not a mode
+transformControls.setMode('rotatee')

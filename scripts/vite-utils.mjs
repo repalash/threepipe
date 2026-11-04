@@ -1,10 +1,11 @@
 import replace from '@rollup/plugin-replace';
-import glsl from 'rollup-plugin-glsl';
-import json from '@rollup/plugin-json';
+import rollupGlsl from 'rollup-plugin-glsl';
 import license from 'rollup-plugin-license';
 import path from 'node:path';
 import {existsSync} from 'node:fs';
-import {readFile, writeFile} from 'node:fs/promises';
+import {copyFile, mkdir, readdir, readFile, rm, writeFile} from 'node:fs/promises';
+import {spawnSync} from 'node:child_process';
+import {createRequire} from 'node:module';
 
 export function globalsReplacePlugin (globals, isProd) {
     return [
@@ -29,13 +30,27 @@ export function globalsReplacePlugin (globals, isProd) {
     ]
 }
 
+/**
+ * rollup-plugin-glsl (`.glsl` files as compressed string modules), marked as JavaScript for Rolldown:
+ * Vite 8 needs `moduleType: 'js'` when a transform turns a non-JS file into JS.
+ */
+export function glsl (options) {
+    const plugin = rollupGlsl(options)
+    return {
+        ...plugin,
+        transform (code, id) {
+            const result = plugin.transform.call(this, code, id)
+            return result && {...result, moduleType: 'js'}
+        },
+    }
+}
+
 export function commonPlugins (packageJson, dirname, isProduction = false) {
     const { name, version, author } = packageJson;
     return [
         glsl({ // todo: minify glsl.
             include: 'src/**/*.glsl',
         }),
-        json(),
         // postcss({
         //     modules: false,
         //     autoModules: true,  // todo; issues with typescript import css, because inject is false
@@ -64,7 +79,7 @@ const dtsSpecifierRE = /(\bfrom\s+|\bimport\s*\(\s*|\bimport\s+(?=['"])|\bdeclar
 const dtsExtRE = /\.(d\.ts|tsx?|js)$/
 
 /**
- * `afterBuild` hook for vite-plugin-dts: `dts({tsconfigPath, afterBuild: fixDtsImports})`.
+ * Fixes the imports of the written declaration files, see {@link declarations}.
  *
  * tsc copies import specifiers into the .d.ts files as they are written in the source, so
  * `from './core'` reaches the published package unchanged. These packages are `"type": "module"`,
@@ -77,14 +92,18 @@ const dtsExtRE = /\.(d\.ts|tsx?|js)$/
  * It throws when a relative specifier matches no emitted declaration, and when a declaration
  * imports a `three/...` subpath without `.js` (`three/src/math/MathUtils`): only node10 resolves
  * those, because it ignores the `exports` map of `@types/three`.
+ *
+ * Side-effect imports of packages (`import '@svgdotjs/svg.topath.js'`, which TypeScript 7 keeps in declarations) are
+ * removed: they only matter at runtime, and a consumer checking the declarations fails on one without types.
  */
-export async function fixDtsImports (emittedFiles) {
-    const files = [...emittedFiles.keys()].filter(f => f.endsWith('.d.ts'))
+async function fixDtsImports (emittedFiles) {
+    const files = emittedFiles.filter(f => f.endsWith('.d.ts'))
     const emitted = new Set(files.map(f => path.resolve(f)))
     const has = f => emitted.has(f) || existsSync(f)
     const errors = []
     for (const file of files) {
-        const text = await readFile(file, 'utf8')
+        const original = await readFile(file, 'utf8')
+        const text = original.replace(/^import\s+(['"])(?![./])[^'"\n]+\1;?\n/gm, '')
         const out = text.replace(dtsSpecifierRE, (match, head, quote, spec, offset) => {
             const line = text.slice(text.lastIndexOf('\n', offset) + 1, offset)
             if (/^\s*(\*|\/\/)/.test(line)) return match // example code in a doc comment
@@ -100,7 +119,69 @@ export async function fixDtsImports (emittedFiles) {
             }
             return head + quote + fixed + quote
         })
-        if (out !== text) await writeFile(file, out)
+        if (out !== original) await writeFile(file, out)
     }
     if (errors.length) throw new Error('Declaration imports that consumers cannot resolve:\n' + errors.join('\n'))
+}
+
+/**
+ * Vite plugin that writes the declaration files of a package after a production build:
+ * `tsc --emitDeclarationOnly` with TypeScript 7 (a separate native process, much faster and lighter than loading the
+ * TypeScript compiler into the build), then {@link fixDtsImports}.
+ *
+ * Type errors do not stop the build (the declarations are written anyway), they are counted in one line.
+ * @param {object} [options]
+ * @param {string} [options.tsconfig] - relative to the package, `tsconfig.json` by default
+ * @param {boolean} [options.copyDtsFiles] - also copy the hand-written `.d.ts` files of the `rootDir` (tsc does not).
+ * The tsconfig must set `rootDir`. A `.d.ts` that has a `.js` beside it is always copied when the tsconfig sets
+ * `rootDir`: it replaces the declaration tsc generates from the JavaScript.
+ */
+export function declarations ({tsconfig = 'tsconfig.json', copyDtsFiles = false} = {}) {
+    let root, outDir
+    return {
+        name: 'threepipe-declarations',
+        apply: 'build',
+        configResolved (config) {
+            root = config.root
+            outDir = path.resolve(root, config.build.outDir)
+        },
+        async closeBundle () {
+            const start = Date.now()
+            const tsc = path.join(path.dirname(createRequire(import.meta.url).resolve('@typescript/native/package.json')), 'bin/tsc')
+            // the output lists every written file and every type error, more than the default 1 MB with many errors
+            const run = (...args) => spawnSync(process.execPath, [tsc, '-p', tsconfig, ...args], {cwd: root, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024})
+            const result = run('--declaration', '--emitDeclarationOnly', '--declarationDir', outDir, '--listEmittedFiles', '--pretty', 'false', '--singleThreaded')
+            if (result.error) throw result.error
+            const lines = (result.stdout + result.stderr).split('\n')
+            const emitted = lines.filter(l => l.startsWith('TSFILE: ')).map(l => l.slice(8).trim())
+            const errors = lines.filter(l => /error TS\d+/.test(l))
+            // exit status 1: errors and nothing written (like a broken tsconfig), 2: errors and the declarations written
+            if (result.status !== 0 && result.status !== 2 || !emitted.length) {
+                throw new Error(`tsc -p ${tsconfig} wrote no declarations (exit ${result.status}):\n` + (errors.join('\n') || result.stderr || result.error))
+            }
+            const configRootDir = JSON.parse(run('--showConfig').stdout).compilerOptions.rootDir
+            // without it the package root would be copied from, node_modules and the output included
+            if (copyDtsFiles && !configRootDir) throw new Error(`declarations({copyDtsFiles: true}) needs rootDir in ${tsconfig}`)
+            if (configRootDir) {
+                // --showConfig prints it relative to the tsconfig file
+                const rootDir = path.resolve(root, path.dirname(tsconfig), configRootDir)
+                const sources = (await readdir(rootDir, {recursive: true})).filter(f => !f.split(path.sep).includes('node_modules'))
+                const jsFiles = new Set(sources.filter(f => f.endsWith('.js')))
+                // a hand-written declaration of a JavaScript file (`X.d.ts` beside `X.js`) is always copied: it replaces
+                // the untyped one tsc generates from the JavaScript (allowJs), like TransformControls in the core
+                const files = sources.filter(f => f.endsWith('.d.ts') && (copyDtsFiles || jsFiles.has(f.slice(0, -'.d.ts'.length) + '.js')))
+                for (const file of files) {
+                    const to = path.join(outDir, file)
+                    await mkdir(path.dirname(to), {recursive: true})
+                    await copyFile(path.join(rootDir, file), to)
+                    // the map tsc wrote for its own declaration does not match the copied file
+                    await rm(to + '.map', {force: true})
+                    if (!emitted.some(f => path.resolve(f) === to)) emitted.push(to)
+                }
+            }
+            await fixDtsImports(emitted)
+            const typeErrors = errors.length ? `, ${errors.length} type errors (\`tsc -p ${tsconfig} --noEmit\` in ${path.relative(path.resolve(import.meta.dirname, '..'), root) || '.'} lists them)` : ''
+            console.log(`[declarations] ${emitted.filter(f => f.endsWith('.d.ts')).length} files in ${path.relative(root, outDir)} in ${Date.now() - start}ms${typeErrors}`)
+        },
+    }
 }

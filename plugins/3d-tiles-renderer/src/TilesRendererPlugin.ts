@@ -29,7 +29,6 @@ import {
     ImplicitTilingPlugin,
     TilesFadePlugin,
     UpdateOnChangePlugin,
-// @ts-expect-error moduleResolution issue
 } from '3d-tiles-renderer/plugins'
 
 export type TilesRendererGroup = TilesGroup & IObject3D
@@ -230,7 +229,7 @@ export class TilesRendererLoader extends Loader implements ILoader<TilesRenderer
         ()=>new UpdateOnChangePlugin(),
         (opts)=>opts?.ImplicitTilingPlugin !== false ? new ImplicitTilingPlugin() : undefined,
         (opts)=>opts?.TilesFadePlugin !== false ? new TilesFadePlugin(typeof opts?.TilesFadePlugin === 'object' ? opts.TilesFadePlugin : undefined) : undefined,
-        (opts)=>opts?.CesiumIonAuthPlugin ? new CesiumIonAuthPlugin(typeof opts?.CesiumIonAuthPlugin === 'object' ? opts.CesiumIonAuthPlugin : undefined) : undefined,
+        (opts)=>opts?.CesiumIonAuthPlugin && typeof opts.CesiumIonAuthPlugin === 'object' ? new CesiumIonAuthPlugin(opts.CesiumIonAuthPlugin) : undefined, // needs the apiToken (not true, null is skipped)
     ]
 
     constructor(manager: LoadingManager) {

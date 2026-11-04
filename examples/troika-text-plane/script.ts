@@ -26,6 +26,7 @@ import {createTextDerivedMaterial, Text} from 'troika-three-text'
 async function init() {
 
     const viewer = new ThreeViewer({
+        renderScale: 'auto',
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: false,
         rgbm: false,

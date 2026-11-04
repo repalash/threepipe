@@ -29,13 +29,15 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: 'npm'
       - name: Check for version changes
         id: check
         run: node scripts/ci/publish-check.mjs
       - name: Install and build
         id: build
         if: steps.check.outputs.has_changes == 'true'
-        run: npm ci 2>&1 | tee build.log; exit ${PIPESTATUS[0]}
+        # --continue: one failing package must not keep the others from building, build-verify publishes those that did
+        run: (npm ci && npx turbo run build --continue=dependencies-successful && npm run build-examples) 2>&1 | tee build.log; exit ${PIPESTATUS[0]}
         continue-on-error: true
         env:
           DOT_ENV_CONTENT: ${{ secrets.examples_dot_env }}
@@ -90,7 +92,6 @@ jobs:
           node-version: '24'
           registry-url: https://registry.npmjs.org
           cache: 'npm'
-          cache-dependency-path: '**/package-lock.json'
       - name: Install dependencies (skip build)
         run: npm ci --ignore-scripts
       - name: Download build artifacts
