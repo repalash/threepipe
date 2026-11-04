@@ -184,6 +184,8 @@ export class OutlinePlugin extends AScreenPassExtensionPlugin {
     private _pickingWidgetDisabled = false
     setDirty() {
         super.setDirty()
+        // the pass renders the selection into the outline buffer: not while the plugin is disabled
+        if (this._pass) this._pass.enabled = !this.isDisabled()
         if (!this._viewer) return
         const picking = this._viewer.getPlugin(PickingPlugin)
         let enabled = !this.isDisabled()
@@ -214,6 +216,7 @@ export class OutlinePlugin extends AScreenPassExtensionPlugin {
         this.setDirty() // for picking widget
 
         this._pass = this._createPass()
+        this._pass.enabled = !this.isDisabled()
         this._pass.onDirty?.push(viewer.setDirty)
         // this._pass.beforeRender = wrapThisFunction2(this._beforeRender, this._pass.beforeRender) // not needed at the moment
         viewer.renderManager.registerPass(this._pass)
