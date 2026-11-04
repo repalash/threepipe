@@ -26,7 +26,7 @@ describe('GBufferMaterial: the alpha of the material', {timeout}, () => {
         mat.onBeforeRender(renderer, null, camera, object.geometry, object, null)
         const d = mat.defines
         const during = {map: d.USE_MAP, mapUv: d.MAP_UV, alphaMap: d.USE_ALPHAMAP, alphaMapUv: d.ALPHAMAP_UV,
-            mapValue: mat.uniforms.map.value, alphaMapValue: mat.uniforms.alphaMap.value, alphaTest: mat.alphaTest}
+            mapValue: mat.uniforms.map.value, alphaMapValue: mat.uniforms.alphaMap.value, alphaTest: mat.uniforms.alphaTest.value}
         mat.onAfterRender(renderer, null, camera, object.geometry, object, null)
         return during
     }

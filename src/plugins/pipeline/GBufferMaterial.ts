@@ -113,6 +113,8 @@ export class GBufferMaterial extends ShaderMaterial2 {
         setMap('map')
         setMap('alphaMap')
         if (material.alphaTest !== undefined) this.alphaTest = material.alphaTest < 1e-4 ? 1e-4 : material.alphaTest
+        // three.js sets the alphaTest uniform only for its own materials, not for a ShaderMaterial
+        this.uniforms.alphaTest.value = this.alphaTest
         if (material.alphaHash !== undefined) this.alphaHash = material.alphaHash
         // three.js compiles the map chunks only for a material with its own `map` (`alphaMap`), so they are defined here
         updateMaterialDefines({
