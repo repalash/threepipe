@@ -10,6 +10,11 @@ All notable changes to this plugin will be documented in this file.
 
 - License: the webgi Free Forever License replaces the modified GNU GPL-3.0-only notice, from 1.0.0; see LICENSE and THIRD_PARTY_NOTICES.md. Releases before 1.0.0 keep the license they carried
 
+### Fixed
+
+- `OutlinePlugin`: its pass still rendered the selection into the outline buffer every frame while the plugin was disabled (only the screen shader was off); the pass now follows the plugin's `enabled`
+- `OutlinePlugin`: listeners stayed after the plugin was removed. The PickingPlugin `selectedObjectChanged` listener is managed with `viewer.forPlugin`, and the `document` `mousemove` listener is a named handler removed in `onRemove`
+
 ## [0.7.0] - 2026-10-24
 
 ### Changed
