@@ -16,8 +16,6 @@ import {
   acceleratedRaycast,
   BVHOptions,
   CENTER,
-  computeBoundsTree,
-  disposeBoundsTree,
   MeshBVH
 } from 'three-mesh-bvh';
 import {computeMorphedGeometry, disposeMesh} from '../utils/buffergeometry';
@@ -43,13 +41,7 @@ export interface SVGTexture {
   url: string;
 }
 
-declare module 'three/src/core/BufferGeometry.js' {
-  export interface BufferGeometry {
-    boundsTree?: MeshBVH;
-    computeBoundsTree: typeof computeBoundsTree;
-    disposeBoundsTree: typeof disposeBoundsTree;
-  }
-}
+// BufferGeometry.boundsTree is declared by three-mesh-bvh (GeometryBVH, which MeshBVH extends)
 
 
 /**

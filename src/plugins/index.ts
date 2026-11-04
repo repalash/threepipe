@@ -84,6 +84,7 @@ export {FragmentClippingExtensionPlugin, FragmentClippingMode, fragmentClippingG
 // rendering
 export {VirtualCamerasPlugin, type VirtualCamera, type VirtualCamerasPluginEventMap} from './rendering/VirtualCamerasPlugin'
 export {CascadedShadowsPlugin, type CSMLightData, type FrustumVertices, type FrustumParams, CSMFrustum} from './rendering/CascadedShadowsPlugin'
+export {ViewOverridesPlugin, type ViewOverrideMaterialType, type ViewOverrideMaterialItem, type ViewOverrideLightingPreset, type ViewOverridesPluginEventMap} from './rendering/ViewOverridesPlugin'
 
 // configurator
 export {MaterialConfiguratorBasePlugin, type MaterialVariations} from './configurator/MaterialConfiguratorBasePlugin'
@@ -117,6 +118,7 @@ export {GLTFKHRMaterialVariantsPlugin} from './extras/GLTFKHRMaterialVariantsPlu
 export {TailwindCSSCDNPlugin} from './extras/TailwindCSSCDNPlugin'
 export {DynamicImportPlugin, sampleThreepipeViteHmrPlugin} from './extras/DynamicImportPlugin'
 export {ObjectConstraintsPlugin, ObjectConstraint, type ObjectConstraintsPluginEventMap} from './extras/ObjectConstraintsPlugin'
+export {BVHPlugin, type BVHMode, type BVHPluginEventMap, type BVHPluginOptions, type IMeshBVH, type ThreeMeshBVH} from './extras/BVHPlugin'
 export {basicObjectConstraints, type ConstraintPropsTypes, type TConstraintPropsType, type ConstraintPropsType} from './extras/helpers/BasicObjectConstraints'
 
 // ecs
