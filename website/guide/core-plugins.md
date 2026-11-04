@@ -34,6 +34,7 @@ Plugins configuring the rendering pipeline and providing resources for other plu
 - [SSAOPlugin](../plugin/SSAOPlugin) - Extends the render pipeline to add SSAO(Screen Space Ambient Occlusion) for physical materials in the scene.
 - [CascadedShadowsPlugin](../plugin/CascadedShadowsPlugin) - High-quality directional light shadows across large scenes using Cascaded Shadow Maps (CSM) technique with multiple cascade splitting modes.
 - [FrameFadePlugin](../plugin/FrameFadePlugin) - Post-render pass to smoothly fade to a new rendered frame over time. Used by the core and several plugins like configurators.
+- [ViewOverridesPlugin](../plugin/ViewOverridesPlugin) - Show the scene with a debug material (unlit, depth, normals, material ID, UV) or with preset lights or another environment map, only while rendering, without changing the scene
 
 ## Advanced Rendering
 
