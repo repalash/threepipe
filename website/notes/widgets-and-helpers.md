@@ -48,8 +48,8 @@ Group2
   └── SelectionWidget (implements IWidget)
         └── BoxSelectionWidget   (wireframe bounding box on selection)
 
-Sprite
-  └── WidgetIcon (the icon of a light or camera widget in sprite mode, a child of the widget)
+Mesh
+  └── WidgetIcon (the icon of a light or camera widget in sprite mode: a camera-facing quad, a child of the widget)
 
 WidgetIconOverlay (DOM layer of the icons in DOM mode, made by Object3DWidgetsPlugin; not in the scene)
 ```
@@ -172,11 +172,14 @@ sprite, `getWidgetIconSvg(kind)` writes them as SVG for the DOM (the dot is `cur
 kind are in one table, `widgetKinds`, with `getWidgetKind(object)`. Other UI that shows lights and cameras (an editor
 overlay, an outliner) reads the same functions.
 
-**Sprite mode.** `WidgetIcon` (`src/three/widgets/WidgetIcon.ts`) is a `Sprite` with
-`SpriteMaterial({sizeAttenuation: false})`: it faces the camera and has the same size at any distance. Before each render
-(`onBeforeRender`) `updateScale()` converts `iconSize` pixels to its units, which depend on the projection
-(`projectionMatrix[5]`: the field of view or the zoom) and the canvas height, and divides out the world scale of the
-widget (the transform of its object). `updateTexture(pixelRatio)` draws the texture at the size of the icon on screen,
+**Sprite mode.** `WidgetIcon` (`src/three/widgets/WidgetIcon.ts`) is a quad mesh with a `MeshBasicMaterial`, not a
+three.js `Sprite`. Before each render (`onBeforeRender`, also of its dot), `updateScale()` turns it to face the camera of
+the render and converts `iconSize` pixels to its units, which depend on the projection (`projectionMatrix[5]`: the field
+of view or the zoom), the canvas height and, for a perspective camera, the distance along the view axis; it divides out
+the world rotation and scale of the widget (the transform of its object). A mesh, so that the icon writes its GBuffer
+flags (`userData.renderToFlags`) and is not tone mapped: its material keeps `allowOverride: false` (the debug views of
+`ViewOverridesPlugin` would draw it as a square), and the GBuffer pass draws it with its own `customGBufferMaterial`,
+cut by the alpha of the icon texture. `updateTexture(pixelRatio)` draws the texture at the size of the icon on screen,
 `getWidgetIconTextureSize(iconSize, renderScale)` texels (about one texel per device pixel, so it is not upscaled or
 shrunk), and again only when that size changes. Lights also have a child sprite, `dot`, on the same quad, with only the
 dot in its texture, tinted with the light colour; it cannot be picked. A hit on a hidden icon (`showIcon` off) is not picked (see [picking a widget](#picking-a-widget)). The icon owns its textures and disposes them.
@@ -185,7 +188,7 @@ The icon materials follow the [material convention](#material-convention) and ar
 is drawn on top. The textures are premultiplied at upload and blended once (`CustomBlending`, `One` and
 `OneMinusSrcAlpha`); `premultipliedAlpha: true` would multiply the colour by the alpha a second time in the shader. For the same reason `WidgetIcon.raycast` gives its hits a distance under `1e-6` (`d / (d + 1) * 1e-6`):
 a click on an icon that is in front of a model on screen selects the light or the camera, not the model, and where icons
-overlap the nearer one is hit first (it is also drawn last). The icon and dot sprites have `frustumCulled = false`: the
+overlap the nearer one is hit first (it is also drawn last). The icon and dot quads have `frustumCulled = false`: the
 world bounds of the frustum test ignore the pixel size of the quad, so an icon whose centre is just out of the view would
 vanish while its disc is still on screen.
 

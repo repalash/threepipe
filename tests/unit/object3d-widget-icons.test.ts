@@ -1,9 +1,9 @@
 /**
  * The icons and colours of the light and camera widgets (Object3DWidgetsPlugin): one colour and icon per kind from
- * `widgetKinds`, a sprite that keeps its pixel size and is drawn on top, not in the GBuffer or the depth passes,
- * picked as the widget's object, and the optional frustum of the shadow camera.
+ * `widgetKinds`, a camera-facing quad that keeps its pixel size and is drawn on top, not in the depth passes (only its
+ * GBuffer flags), picked as the widget's object, and the optional frustum of the shadow camera.
  * No WebGL: the icon textures are drawn on a fake 2D canvas that records the colours, and the pixel size is checked
- * with three.js `Sprite.raycast` at pixel offsets from the icon centre. The DOM icons (`iconMode: 'dom'`) are checked on
+ * with the raycast of the icon at pixel offsets from the icon centre. The DOM icons (`iconMode: 'dom'`) are checked on
  * fake elements that keep their children, styles and listeners.
  */
 import {afterAll, beforeAll, describe, expect, test, vi} from 'vitest'
@@ -269,13 +269,17 @@ describe('light and camera widget icons', () => {
         const l = light(new SpotLight())
         const w = new tp.SpotLightHelper2(l)
         const icon = w.icon!
-        for (const m of [icon.material, icon.dot.material]) {
-            expect(m.sizeAttenuation).toBe(false)
+        for (const [o, m] of [[icon, icon.material], [icon.dot, icon.dot.material]] as const) {
             expect(m.depthTest).toBe(false)
             expect(m.depthWrite).toBe(false)
             expect(m.toneMapped).toBe(false)
             expect(m.userData.renderToGBuffer).toBe(false)
             expect(m.userData.renderToDepth).toBe(false)
+            // only the GBuffer flags (not tone mapped), with its own GBuffer material: the material keeps allowOverride
+            // false, so the debug views of ViewOverridesPlugin do not draw it as a square
+            expect(m.userData.renderToFlags).toBe(true)
+            expect(m.allowOverride).toBe(false)
+            expect((o as any).customGBufferMaterial).toBeInstanceOf(tp.GBufferMaterial)
             // premultiplied textures, blended once: not multiplied by the alpha again in the shader
             expect(m.map!.premultiplyAlpha).toBe(true)
             expect(m.premultipliedAlpha).toBe(false)
@@ -316,6 +320,25 @@ describe('light and camera widget icons', () => {
             expect(hitsAt(icon, camera, half - 1)).toBe(true)
             expect(hitsAt(icon, camera, half + 1)).toBe(false)
         }
+    })
+
+    test('faces a camera at any angle, also under a rotated parent, at the same pixel size', () => {
+        const parent = new Object3D()
+        parent.rotation.set(0.4, -1.1, 0.3)
+        const l = light(new PointLight(), parent)
+        const w = new tp.PointLightHelper2(l)
+        w.updateMatrixWorld(true)
+        const icon = w.icon!
+        const half = icon.size * tp.widgetIconLayout.box / tp.widgetIconLayout.diameter / 2
+        const camera = new PerspectiveCamera(45, 1, 0.1, 1000)
+        camera.position.set(6, 4, 9)
+        camera.lookAt(0, 0, 0)
+        camera.updateMatrixWorld(true)
+        icon.updateScale(camera, H)
+        const q = icon.getWorldQuaternion(new tp.Quaternion())
+        expect(q.angleTo(camera.quaternion)).toBeLessThan(1e-5)
+        expect(hitsAt(icon, camera, half - 1)).toBe(true)
+        expect(hitsAt(icon, camera, half + 1)).toBe(false)
     })
 
     test('keeps its pixel size at any zoom of an orthographic camera, and follows iconSize', () => {

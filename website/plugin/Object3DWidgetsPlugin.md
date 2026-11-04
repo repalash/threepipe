@@ -49,7 +49,7 @@ depth passes, casts no shadows, and is never exported (widgets are not part of t
 | `iconMode` | How | Good | Not |
 |---|---|---|---|
 | `'dom'` (default) | SVG elements in a layer over the canvas, in the viewer container | Sharp at any pixel ratio and icon size; never in a render, screenshot or recording of the canvas | Not seen in WebXR. Without a viewer container in a page (an offscreen canvas) the icons are sprites |
-| `'sprite'` | Sprites in the scene | Seen in WebXR and with an offscreen canvas; part of a render or screenshot of the canvas | Pixels of a texture: sharp only with `renderScale` set to the device pixel ratio |
+| `'sprite'` | Camera-facing quads in the scene, not tone mapped | Seen in WebXR and with an offscreen canvas; part of a render or screenshot of the canvas | Pixels of a texture: sharp only with `renderScale` set to the device pixel ratio |
 
 In both modes the icons follow `showIcons`, `iconSize` and the visibility of the widgets, a click or tap selects the
 object, and where two icons overlap the nearer one is on top and gets the click. An icon whose centre is just out of the

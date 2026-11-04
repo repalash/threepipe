@@ -211,6 +211,16 @@ describe('GBufferMaterial: a flags-only draw', {timeout}, () => {
 })
 
 describe('Helper widgets write their flags', {timeout}, () => {
+    test('the icon of a light or a camera writes its flags with its own GBuffer material', () => {
+        const {p, pass} = plugin()
+        const icon = new tp.PointLightHelper2(new tp.PointLight2()).icon
+        const mat = pass.preprocessObject(icon)
+        expect(mat).toBe(icon.customGBufferMaterial)
+        expect(mat.flagUpdaters).toBe(p.material.flagUpdaters)
+        expect(flagsOnly(pass, mat)).toBe(true)
+        pass.postprocessObject(icon)
+        expect('forcedOverrideMaterial' in icon).toBe(false)
+    })
     test('the line materials of the widgets have renderToFlags (and are left out of depth and normal)', () => {
         const widgets = [
             new tp.BoxSelectionWidget(),
@@ -223,8 +233,7 @@ describe('Helper widgets write their flags', {timeout}, () => {
         ]
         for (const w of widgets) {
             const mats: any[] = []
-            // the lines; the sprite icons draw with their own shader, which the GBuffer material cannot draw
-            w.traverse((o: any) => o.material && !o.isSprite && mats.push(o.material))
+            w.traverse((o: any) => o.material && mats.push(o.material))
             expect(mats.length, w.constructor.name).toBeGreaterThan(0)
             for (const m of mats) {
                 expect(m.userData.renderToGBuffer, w.constructor.name).toBe(false)
