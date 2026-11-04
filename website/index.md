@@ -88,9 +88,7 @@ features:
     target: _blank
   - title: Advanced Rendering
     details: Supports advanced rendering plugins like SSAO, WebGi plugins(SSR, Bloom, GI), path tracing, etc for industry specific apps.
-    link: https://webgi.dev/
-    rel: external
-    target: _blank
+    link: ./package/webgi-plugins
     linkText: Checkout WebGi
   - title: Jewelery and Fashion
     details: Compatibility with iJewel3D plugins for high-quality rendering and virtual try-on of jewelery, gemstones, diamonds, precious metals, fabric etc.

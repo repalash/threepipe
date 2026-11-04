@@ -6,7 +6,7 @@ Next generation toolkit for web3D and photorealistic graphics.
 [Github](https://github.com/repalash/threepipe) &mdash;
 [Examples](https://threepipe.org/examples/) &mdash;
 [API Reference](https://threepipe.org/docs/) &mdash;
-[Realistic Rendering](https://webgi.dev/)
+[Realistic Rendering](https://threepipe.org/package/webgi-plugins.html)
 
 [![NPM Package](https://img.shields.io/npm/v/threepipe.svg)](https://www.npmjs.com/package/threepipe)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://opensource.org/license/apache-2-0/)
@@ -28,7 +28,7 @@ Threepipe is a modern 3D framework built on top of [three.js](https://threejs.or
 - Automatic serialization of all viewer and plugin settings in GLB(with custom extensions) and JSON formats.
 - Built-in undo/redo support for user actions.
 - Automatic disposal of all three.js resources with built-in reference management.
-- Realtime Realistic Rendering with screen-space post-processing effects from [webgi](https://webgi.dev/).
+- Realtime Realistic Rendering with screen-space post-processing effects from [webgi](https://threepipe.org/package/webgi-plugins.html).
 - Animation system(and UI) to create state, keyframe-based animations for any object, material, or viewer property with global timeline.
 
 Checkout the documentation and guides on the [threepipe website](https://threepipe.org) for more details.
@@ -44,6 +44,23 @@ Try them: https://threepipe.org/examples/
 View and edit the source code by pressing the code button on the top left of the example page.
 
 ![Threepipe Examples SSAO With Editor](website/public/images/examples-ssao-edit.webp)
+
+## Develop locally
+
+To work on threepipe itself (the core, the plugins or the examples), with Node.js 20.19+ or 22.12+ (vite 8):
+
+```bash
+git clone https://github.com/repalash/threepipe.git
+cd threepipe
+npm install
+npm start     # opens the examples at http://localhost:5173/examples/index.html
+```
+
+`npm install` sets up the core and every plugin in one install and builds nothing; the examples run from the sources.
+Edit a file in `src/`, `plugins/*/src` or `examples/` and the page reloads. `npm run build:all` builds everything. All commands, and what each one is for, are in
+[CONTRIBUTING.md](CONTRIBUTING.md#commands).
+
+To use threepipe in your own project instead, see [Getting Started](#getting-started).
 
 ## Threepipe Editor
 
@@ -137,6 +154,8 @@ Check out the details about the [ThreeViewer API](https://threepipe.org/guide/vi
 npm install threepipe
 ```
 
+TypeScript: the published declarations are type-checked the way a consumer project sees them (`npm run test:types`, also run before every publish): TypeScript 5.0 and newer with `skipLibCheck: true`, TypeScript 5.7 and newer with `skipLibCheck: false`, `strict`, with `moduleResolution` set to `bundler`, `node16`, `nodenext` or `node` (TypeScript 6 and older). With `skipLibCheck: false`, some dependencies, `@types/three` among them, report errors of their own.
+
 ### Loading a 3D Model
 
 First, create a canvas element in your HTML page:
@@ -172,15 +191,15 @@ Check out the glTF Load example to see it in action or to check the JS equivalen
 
 Check out the [Plugins](https://threepipe.org/guide/features.html#plugin-system) section to learn how to add additional functionality to the viewer.
 
-## [![webgi](https://webgi.dev/logo-24.svg)](https://webgi.dev) Realistic Graphics
+## [![webgi](website/public/webgi/logo-24.svg)](https://threepipe.org/package/webgi-plugins.html) Realistic Graphics
 
 Threepipe includes a built-in rendering and post-processing pipeline that is highly optimized and feature packed. Several realistic rendering plugins are included in the `threepipe core` like `SSAOPlugin` for quick ambient occlusion, `SSAAPlugin` for anti-aliasing, `TonemapPlugin` for tonemapping, etc.
 
-Threepipe provides the [`@threepipe/webgi-plugins`](http://npmjs.com/package/@threepipe/webgi-plugins) package (now free) with even more advanced realistic rendering plugins like Screen Space Reflections, HDR Bloom, Depth Of Field etc that work in realtime on all devices.
+Threepipe provides the [`@threepipe/webgi-plugins`](http://npmjs.com/package/@threepipe/webgi-plugins) package with even more advanced realistic rendering plugins like Screen Space Reflections, HDR Bloom, Depth Of Field etc that work in realtime on all devices. From version 0.7.0 the package is under the webgi Free Forever License; earlier releases keep the license they shipped with.
 
-Follow the quickstart guide on various realistic rendering plugins and how they effect the lighting in the scene at [webgi.dev](https://webgi.dev/)
+Follow the quickstart guide on various realistic rendering plugins and how they effect the lighting in the scene at [threepipe.org/package/webgi-plugins](https://threepipe.org/package/webgi-plugins.html)
 
-[![Getting started with webgi rendering](website/public/images/webgi-dev-homepage.webp)](https://webgi.dev/)
+[![Getting started with webgi rendering](website/public/images/webgi-dev-homepage.webp)](https://threepipe.org/package/webgi-plugins.html)
 
 Threepipe also provides other plugins like Path Tracing for photorealistic rendering and baking, and more third party plugins for various effects and custom materials. 
 
@@ -463,6 +482,7 @@ Many features will be added but the core API will not change significantly in fu
 - [ThreePipe](https://github.com/repalash/threepipe/)
   - [Examples](https://threepipe.org/examples/)
   - [Table of Contents](#table-of-contents)
+  - [Develop locally](#develop-locally)
   - [Getting Started](#getting-started)
     - [HTML/JS Quickstart (CDN)](#htmljs-quickstart-cdn)
     - [NPM/YARN Package](#npmyarn)
@@ -503,7 +523,10 @@ Many features will be added but the core API will not change significantly in fu
   - [GBufferPlugin](https://threepipe.org/plugin/GBufferPlugin.html) - Pre-rendering of depth-normal and flags buffers in a single pass ([deferred shading](https://en.wikipedia.org/wiki/Deferred_shading))
   - [SSAOPlugin](https://threepipe.org/plugin/SSAOPlugin.html) - Add [SSAO(Screen Space Ambient Occlusion)](https://en.wikipedia.org/wiki/Screen_space_ambient_occlusion) for physical materials.
   - [CanvasSnapshotPlugin](https://threepipe.org/plugin/CanvasSnapshotPlugin.html) - Add support for taking snapshots of the canvas with anti-aliasing and other options
+  - [CanvasRecorderPlugin](https://threepipe.org/plugin/CanvasRecorderPlugin.html) - Record the canvas to an MP4 or WebM video or an image sequence, in real time or frame by frame after the progressive render converges
   - [PickingPlugin](https://threepipe.org/plugin/PickingPlugin.html) - Adds support for selecting and multi-selecting objects in the viewer with user interactions and selection widgets
+  - [BVHPlugin](https://threepipe.org/plugin/BVHPlugin.html) - Fast raycasts (picking, hover) on big meshes with a bounding volume hierarchy from three-mesh-bvh, loaded on demand
+  - [GPUPickingPlugin](https://threepipe.org/plugin/GPUPickingPlugin.html) - Finds the front-most mesh under a point of the canvas by rendering object ids on the GPU, for hover on big scenes
   - [AssetExporterPlugin](https://threepipe.org/plugin/AssetExporterPlugin.html) - Provides options and methods to export the scene/object GLB or Viewer Configuration JSON
   - [LoadingScreenPlugin](https://threepipe.org/plugin/LoadingScreenPlugin.html) - Shows a configurable loading screen overlay over the canvas
   - [FullScreenPlugin](https://threepipe.org/plugin/FullScreenPlugin.html) - Adds support for moving the canvas or the container fullscreen mode in browsers
@@ -519,8 +542,10 @@ Many features will be added but the core API will not change significantly in fu
   - [TransformAnimationPlugin](https://threepipe.org/plugin/TransformAnimationPlugin.html) - Add support for saving, loading, animating, between object transforms
   - [RenderTargetPreviewPlugin](https://threepipe.org/plugin/RenderTargetPreviewPlugin.html) - Preview any render target in a UI panel over the canvas
   - [GeometryUVPreviewPlugin](https://threepipe.org/plugin/GeometryUVPreviewPlugin.html) - Preview UVs of any geometry in a UI panel over the canvas
+  - [PerfPanelPlugin](https://threepipe.org/plugin/PerfPanelPlugin.html) - FPS pill and performance card over the canvas: frame times, render time, draw calls, and warnings for a capped frame rate, CPU/GPU bound, battery and software rendering
   - [TailwindCSSCDNPlugin](https://threepipe.org/plugin/TailwindCSSCDNPlugin.html) - Dynamically loads Tailwind CSS from a CDN to enable rapid UI development with utility classes
   - [FrameFadePlugin](https://threepipe.org/plugin/FrameFadePlugin.html) - Post-render pass to smoothly fade to a new rendered frame over time
+  - [ViewOverridesPlugin](https://threepipe.org/plugin/ViewOverridesPlugin.html) - Show the scene with a debug material (unlit, depth, normals, material ID, UV) or with preset lights or another environment map, without changing the scene
   - [VignettePlugin](https://threepipe.org/plugin/VignettePlugin.html) - Add Vignette effect  by patching the final screen pass
   - [ChromaticAberrationPlugin](https://threepipe.org/plugin/ChromaticAberrationPlugin.html) - Add [Chromatic Aberration](https://en.wikipedia.org/wiki/Chromatic_aberration) effect  by patching the final screen pass
   - [FilmicGrainPlugin](https://threepipe.org/plugin/FilmicGrainPlugin.html) - Add [Filmic Grain](https://en.wikipedia.org/wiki/Film_grain) effect  by patching the final screen pass
@@ -553,7 +578,7 @@ Many features will be added but the core API will not change significantly in fu
   - [UndoManagerPlugin](https://threepipe.org/plugin/UndoManagerPlugin.html) - Adds support for undo/redo operations in the viewer. Used by other plugins to manage undo history.
   - [ObjectConstraintsPlugin](https://threepipe.org/plugin/ObjectConstraintsPlugin.html) - Add support for constraints between objects like follow path, look at, position/rotation/scale locking, etc.
 - [Packages](https://threepipe.org/guide/threepipe-packages.html)
-  - [@threepipe/webgi-plugins](https://webgi.dev) - Web [Global Illumination](https://en.wikipedia.org/wiki/Global_illumination) - Realistic rendering plugin pack (SSR, SSRTAO, HDR Bloom, TAA, Depth of Field, SSGI, etc.)
+  - [@threepipe/webgi-plugins](https://threepipe.org/package/webgi-plugins.html) - Web [Global Illumination](https://en.wikipedia.org/wiki/Global_illumination) - Realistic rendering plugin pack (SSR, SSRTAO, HDR Bloom, TAA, Depth of Field, SSGI, etc.)
   - [@threepipe/plugin-tweakpane](https://threepipe.org/package/plugin-tweakpane.html) [Tweakpane](https://tweakpane.github.io/docs/) UI Plugin
   - [@threepipe/plugin-blueprintjs](https://threepipe.org/package/plugin-blueprintjs.html) [BlueprintJs](https://blueprintjs.com/) UI Plugin
   - [@threepipe/plugin-tweakpane-editor](https://threepipe.org/package/plugin-tweakpane-editor.html) - Editor Plugin using Tweakpane for plugin UI

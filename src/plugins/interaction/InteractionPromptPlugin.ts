@@ -3,7 +3,7 @@ import {IEvent, now, objectHasOwn, onChange, serialize} from 'ts-browser-helpers
 import {AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {uiButton, uiFolderContainer, uiInput, uiMonitor, uiToggle} from 'uiconfig.js'
 import {OrbitControls3} from '../../three'
-import {IScene, ISceneEventMap} from '../../core'
+import {ICamera, IScene, ISceneEventMap} from '../../core'
 
 /**
  * Interaction Prompt Plugin
@@ -206,6 +206,8 @@ export class InteractionPromptPlugin extends AViewerPluginSync {
         onlyOnOrbitControls = true
 
     private _orbitWarning = false
+    /** The camera that the running animation moves: the main camera when it started */
+    private _camera?: ICamera
 
     @uiButton() startAnimation = () => {
         if (!this._viewer || !this.cursorEl || this.isDisabled()) return
@@ -223,7 +225,8 @@ export class InteractionPromptPlugin extends AViewerPluginSync {
         this.currentTime = 0
         this.animationRunning = true
         this._startedOnce = true
-        this._viewer.scene.mainCamera.setInteractions(false, InteractionPromptPlugin.PluginType)
+        this._camera = this._viewer.scene.mainCamera
+        this._camera.setInteractions(false, InteractionPromptPlugin.PluginType)
         // if (this._viewer.scene.mainCamera.interactionsEnabled) {
         //     this.interactionsDisabled = true
         //     this._viewer.scene.mainCamera.interactionsEnabled = false
@@ -234,12 +237,15 @@ export class InteractionPromptPlugin extends AViewerPluginSync {
         if (!this._viewer || !this.cursorEl) return // dont check for enabled here.
         this.animationRunning = false
         this.cursorEl.style.opacity = '0'
+        // the camera that was animated: the main camera can be another one now
+        const camera = this._camera ?? this._viewer.scene.mainCamera
+        this._camera = undefined
         if (this.currentSphericalPosition && reset) {
-            this._viewer.scene.mainCamera.position.setFromSpherical(this.currentSphericalPosition).add(this._viewer.scene.mainCamera.target)
-            this._viewer.scene.mainCamera.setDirty()
+            camera.position.setFromSpherical(this.currentSphericalPosition).add(camera.target)
+            camera.setDirty()
             this.currentSphericalPosition = undefined
         }
-        this._viewer.scene.mainCamera.setInteractions(true, InteractionPromptPlugin.PluginType)
+        camera.setInteractions(true, InteractionPromptPlugin.PluginType)
         // if (this.interactionsDisabled) {
         //     this._viewer.scene.mainCamera.interactionsEnabled = true
         //     this.interactionsDisabled = false
@@ -264,6 +270,11 @@ export class InteractionPromptPlugin extends AViewerPluginSync {
             this.startAnimation()
 
         if (!this.animationRunning) return
+        // another main camera: the animation stops, and puts its camera back
+        if (this._camera && this._camera !== this._viewer.scene.mainCamera) {
+            this.stopAnimation()
+            return
+        }
 
         if (this.currentTime <= this.animationDuration) {
             this.cursorEl.style.opacity = '1'

@@ -100,6 +100,36 @@ describe('overrideThreeCache', () => {
         expect(warn).toHaveBeenCalledTimes(3)
     })
 
+    it('treats a failed CacheStorage lookup as a cache miss instead of rejecting', async() => {
+        const cache = makeCache()
+        overrideThreeCache(cache)
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+        const error = new Error('CacheStorage unavailable')
+        vi.spyOn(cache, 'match').mockRejectedValue(error)
+
+        // ImageLoader only chains `.then` on this promise, a rejection would leave the load hanging.
+        await expect(threeCache.get('https://example.com/a.png', 'blob')).resolves.toBeUndefined()
+        expect(warn).toHaveBeenCalledTimes(1)
+        expect(warn).toHaveBeenCalledWith('[threepipe cache] lookup failed for', 'https://example.com/a.png', error)
+    })
+
+    it('warns instead of rejecting when the CacheStorage add or remove fails', async() => {
+        const cache = makeCache()
+        overrideThreeCache(cache)
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+        const error = new Error('QuotaExceededError')
+        vi.spyOn(cache, 'match').mockRejectedValue(error)
+        vi.spyOn(cache, 'delete').mockRejectedValue(error)
+
+        await expect(threeCache.add('https://example.com/a.bin', new Uint8Array([1]).buffer, 'arraybuffer')).resolves.toBeUndefined()
+        expect(warn).toHaveBeenLastCalledWith('[threepipe cache] add failed for', 'https://example.com/a.bin', error)
+
+        threeCache.remove('https://example.com/a.bin', 'arraybuffer')
+        await new Promise(resolve => setTimeout(resolve, 0))
+        expect(warn).toHaveBeenLastCalledWith('[threepipe cache] remove failed for', 'https://example.com/a.bin', error)
+        expect(warn).toHaveBeenCalledTimes(2)
+    })
+
     it('skips only blob: urls, not paths starting with blob', async() => {
         const cache = makeCache()
         overrideThreeCache(cache)

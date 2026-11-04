@@ -1,4 +1,5 @@
 import {test, expect} from '@playwright/test'
+import {readFile} from 'node:fs/promises'
 import {setupTestHooks, screenshotMatch, downloadFileMatch, btnClick} from './helpers'
 
 setupTestHooks()
@@ -27,6 +28,43 @@ test('3dm-to-glb', async({page, browserName}, testInfo) => {
     await expect(page).toHaveTitle('Rhino 3DM To GLB')
     if (browserName === 'webkit' && testInfo.snapshotSuffix === 'win32') return
     await downloadFileMatch(page, 'file.glb', async() => btnClick(page, 'Download .glb'))
+})
+
+test('obj-mtl-load', async({page}) => {
+    await expect(page).toHaveTitle('OBJ MTL Load')
+
+    const imageWidths = await page.evaluate(() => {
+        const widths: number[] = []
+        const viewer = (window as any).threeViewers[0]
+        viewer.scene.modelRoot.traverse((object: any) => {
+            const materials = Array.isArray(object.material) ? object.material : [object.material]
+            for (const material of materials) {
+                if (material?.map) widths.push(material.map.image?.width ?? 0)
+            }
+        })
+        return widths
+    })
+    expect(imageWidths.length).toBeGreaterThan(0)
+    expect(imageWidths.every(width => width > 0)).toBe(true)
+})
+
+test('obj-to-glb', async({page}) => {
+    await expect(page).toHaveTitle('OBJ To GLB')
+
+    // The example exports the OBJ and reloads the GLB; its textures must survive the roundtrip.
+    const imageWidths = await page.evaluate(() => {
+        const widths: number[] = []
+        const viewer = (window as any).threeViewers[0]
+        viewer.scene.modelRoot.traverse((object: any) => {
+            const materials = Array.isArray(object.material) ? object.material : [object.material]
+            for (const material of materials) {
+                if (material?.map) widths.push(material.map.image?.width ?? 0)
+            }
+        })
+        return widths
+    })
+    expect(imageWidths.length).toBeGreaterThan(0)
+    expect(imageWidths.every(width => width > 0)).toBe(true)
 })
 
 test('camera-uiconfig', async({page}, testInfo) => {
@@ -640,6 +678,71 @@ test('tonemap-plugin', async({page}, testInfo) => {
 
 test('gbuffer-plugin', async({page}, testInfo) => {
     await expect(page).toHaveTitle('GBuffer Plugin')
+
+    // Exercise the actual GBuffer GLSL, including every possible pair of 8-bit normal channels.
+    const decoded = await page.evaluate(async() => {
+        const {Camera, FloatType, Mesh, NearestFilter, PlaneGeometry, Scene, ShaderMaterial, Vector2, WebGLRenderTarget} = await import('threepipe')
+        const viewer = (window as any).threeViewers[0]
+        const renderer = viewer.renderManager.renderer
+        const shader = {fragmentShader: `
+            #include <gbuffer_unpack>
+            uniform bool grid;
+            uniform vec2 encoding;
+            void main() {
+                vec2 enc = grid ? floor(gl_FragCoord.xy) / 255.0 : encoding;
+                gl_FragColor = vec4(unpackNormal(enc), 1.0);
+            }
+        `}
+        viewer.getPlugin('GBuffer').unpackExtension.shaderExtender(shader)
+        const material = new ShaderMaterial({
+            vertexShader: 'void main() { gl_Position = vec4(position.xy, 0.0, 1.0); }',
+            fragmentShader: shader.fragmentShader,
+            uniforms: {grid: {value: true}, encoding: {value: new Vector2()}},
+            depthTest: false, depthWrite: false, toneMapped: false,
+        })
+        const geometry = new PlaneGeometry(2, 2)
+        const scene = new Scene()
+        scene.add(new Mesh(geometry, material))
+        const camera = new Camera()
+        const target = new WebGLRenderTarget(256, 256, {
+            type: FloatType, minFilter: NearestFilter, magFilter: NearestFilter, depthBuffer: false,
+        })
+        const previousTarget = renderer.getRenderTarget()
+        try {
+            renderer.setRenderTarget(target)
+            renderer.render(scene, camera)
+            const pixels = new Float32Array(256 * 256 * 4)
+            renderer.readRenderTargetPixels(target, 0, 0, 256, 256, pixels)
+            const nonFinite = Array.from(pixels).filter(value => !Number.isFinite(value)).length
+            material.uniforms.grid.value = false
+            const samples = []
+            // Center, interior, four exact boundary points, a quantized boundary, and a corner outside the disk.
+            for (const [x, y] of [[0.5, 0.5], [0.75, 0.5], [1, 0.5], [0, 0.5], [0.5, 1], [0.5, 0], [1, 128 / 255], [0, 0]]) {
+                material.uniforms.encoding.value.set(x, y)
+                renderer.render(scene, camera)
+                const pixel = new Float32Array(4)
+                renderer.readRenderTargetPixels(target, 0, 0, 1, 1, pixel)
+                samples.push(Array.from(pixel))
+            }
+            return {nonFinite, samples}
+        } finally {
+            renderer.setRenderTarget(previousTarget)
+            target.dispose()
+            geometry.dispose()
+            material.dispose()
+        }
+    })
+    expect(decoded.nonFinite).toBe(0)
+    const expected = [
+        [0, 0, 1, 1], [Math.sqrt(3) / 2, 0, 0.5, 1],
+        [0, 0, -1, 1], [0, 0, -1, 1], [0, 0, -1, 1], [0, 0, -1, 1],
+        [0, 0, -1 - 2 / 255 ** 2, 1], [0, 0, -3, 1],
+    ]
+    for (let i = 0; i < expected.length; i++) {
+        for (let channel = 0; channel < 4; channel++) {
+            expect(decoded.samples[i][channel]).toBeCloseTo(expected[i][channel], 5)
+        }
+    }
 
     // --- Buffer visualization toggles ---
     await btnClick(page, 'Toggle Normal+Depth')
@@ -2358,3 +2461,53 @@ test('hdr-to-exr', async({page}, testInfo) => {
         async() => page.getByRole('button', {name: 'Download .exr'}).click())
 })
 
+test('cloud-feedback', async({page}) => {
+    await expect(page).toHaveTitle('Cloud Feedback')
+    const dialog = page.locator('[data-tpc-dialog]')
+
+    // No project on the page: the dialog collects the report, Send is off, Download saves it
+    await page.getByRole('button', {name: 'Report a problem'}).click()
+    await expect(dialog).toBeVisible()
+    await expect(dialog.locator('[data-tpc-shot]')).toBeVisible() // the screenshot of the canvas
+    await dialog.locator('[data-tpc-text]').fill('The cube is too blue')
+    await expect(dialog.locator('[data-tpc-send]')).toBeDisabled()
+    const [download] = await Promise.all([page.waitForEvent('download'), dialog.locator('[data-tpc-download]').click()])
+    const report = JSON.parse(await readFile(await download.path(), 'utf8'))
+    expect(report.type).toBe('bug')
+    expect(report.text).toBe('The cube is too blue')
+    expect(report.surface).toBe('cloud-feedback-example')
+    expect(report.context.app.selected).toBe('Cube') // feedback.addContext('app', …) in the example
+    expect(report.image).toBeTruthy()
+    await dialog.locator('[data-tpc-cancel]').click()
+    await expect(dialog).toHaveCount(0)
+
+    // An uncaught error: the plugin's toast, and its Report opens the dialog about that error
+    await page.evaluate(() => setTimeout(() => { throw new Error('boom from the test') }))
+    await page.locator('[data-tpc-toast-report]').click()
+    await expect(dialog.locator('[data-tpc-cause]')).toContainText('boom from the test')
+    await dialog.locator('[data-tpc-cancel]').click()
+
+    // Signed in (a session as Sign in with threepipe leaves it) with a project: Send posts the report with the key, no
+    // Turnstile, and shows the id. The cloud is mocked.
+    let posted: {auth?: string, body: string} | undefined
+    await page.route('http://cloud.test/**', async route => {
+        const r = route.request()
+        if (r.method() === 'POST' && new URL(r.url()).pathname === '/api/v1/projects/demo/reports') {
+            posted = {auth: r.headers().authorization, body: r.postDataBuffer()?.toString('utf8') ?? ''}
+            return route.fulfill({status: 201, json: {id: 'R-TEST01'}})
+        }
+        return route.fulfill({status: 404, json: {error: 'not mocked'}})
+    })
+    await page.addInitScript(() => sessionStorage.setItem('threepipeCloudSession',
+        JSON.stringify({key: 'test-key', user: 'tester', folder: '*', api: 'http://cloud.test', exp: 4102444800})))
+    await page.goto(new URL('?cloud=http://cloud.test&project=demo', page.url()).href)
+    await page.waitForSelector('body._testFinish', {state: 'attached'})
+    await expect(page.locator('#sign-in')).toHaveText('Signed in as tester')
+    await page.getByRole('button', {name: 'Send feedback'}).click()
+    await dialog.locator('[data-tpc-text]').fill('Love the cube')
+    await expect(dialog.locator('[data-tpc-send]')).toBeEnabled()
+    await dialog.locator('[data-tpc-send]').click()
+    await expect(dialog).toContainText('R-TEST01')
+    expect(posted?.auth).toBe('Bearer test-key')
+    expect(posted?.body).toContain('Love the cube')
+})

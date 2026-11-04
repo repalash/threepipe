@@ -6,11 +6,11 @@ import {
     MeshBasicMaterial,
     MOUSE,
     Object3D,
+    Object3DEventMap,
     Quaternion,
     Raycaster,
     Vector3
 } from 'three';
-import {Object3DEventMap} from "three/src/core/Object3D";
 
 
 export type TransformControlsMode = "translate" | "rotate" | "scale";

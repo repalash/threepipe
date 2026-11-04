@@ -154,6 +154,22 @@ export interface IMaterialUserData extends IImportResultUserData{
      * `renderTransparent` is `false`. When not set, {@link renderToGBuffer} is used.
      */
     renderToDepth?: boolean
+    /**
+     * Write the GBuffer flags (tone mapping, bloom, SSAO and the others of `GBufferPlugin`) for the pixels of the
+     * material even when it is not drawn into the GBuffer, for example with `renderToGBuffer: false`. Such a material
+     * then writes only the flags texture: no depth and no normal, so it does not change SSAO, SSR, depth of field or
+     * outlines. It is drawn after the other objects, without depth write, with its own depth test, and its pixels with
+     * an alpha (from `map`, `alphaMap` and `alphaTest`) of about 0 are left out.
+     *
+     * Overlays like the helper widgets use it with `toneMapped: false`, so that the screen pass does not tone map them and
+     * they keep their exact color.
+     *
+     * When not set, the flags are written where the material is drawn into the GBuffer ({@link renderToDepth}, then
+     * {@link renderToGBuffer}), as before. A material that is drawn into the GBuffer always writes its flags.
+     * Needs multiple render targets (WebGL2) and a material that the `GBufferMaterial` draws: one with `allowOverride`
+     * true, or a fat line (its `customGBufferMaterial`). Not used with `pluginsDisabled`.
+     */
+    renderToFlags?: boolean
 
     /**
      * Flag to tell the scene to prefer `material.envMapIntensity` over `scene.environmentIntensity`
@@ -299,7 +315,7 @@ export interface IMaterial<TE extends IMaterialEventMap = IMaterialEventMap> ext
 
     lastShader?: WebGLProgramParametersWithUniforms
 
-    // Note: for userData: add _ in front of for private use, which is preserved while cloning but not serialisation, and __ for private use, which is not preserved while cloning and serialisation
+    // Note: for userData: add _ in front for private use, which is preserved while cloning and in JSON (toJSON, viewer config) but not in glTF, and __ for private use (runtime state), which is not preserved while cloning, in JSON or in glTF
     userData: IMaterialUserData
 
     /**

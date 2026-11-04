@@ -1,5 +1,5 @@
 import {WebIO} from '@gltf-transform/core'
-import type {EncoderOptions} from '@gltf-transform/extensions/dist/khr-draco-mesh-compression/encoder'
+import type {EncoderOptions} from './GLTFDracoExporterBase'
 import {DRACOLoader2} from 'threepipe'
 import {GLTFDracoExporterBase} from './GLTFDracoExporterBase'
 

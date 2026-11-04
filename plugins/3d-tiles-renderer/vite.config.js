@@ -1,10 +1,8 @@
 import {defineConfig} from 'vite'
-import json from '@rollup/plugin-json';
-import dts from 'vite-plugin-dts'
-import packageJson from './package.json';
+import {declarations, glsl} from '../../scripts/vite-utils.mjs';
+import packageJson from './package.json' with {type: 'json'};
 import license from 'rollup-plugin-license';
 import replace from '@rollup/plugin-replace';
-import glsl from 'rollup-plugin-glsl';
 import path from 'node:path';
 
 const isProd = process.env.NODE_ENV === 'production'
@@ -40,10 +38,7 @@ export default defineConfig({
         },
         outDir: 'dist',
         emptyOutDir: isProd,
-        commonjsOptions: {
-            exclude: [/uiconfig.js/, /ts-browser-helpers/],
-        },
-        rollupOptions: {
+        rolldownOptions: {
             output: {
                 // inlineDynamicImports: false,
                 globals,
@@ -53,9 +48,10 @@ export default defineConfig({
         },
     },
     plugins: [
-        isProd ? dts({tsconfigPath: './tsconfig.json'}) : null,
+        isProd ? declarations() : null,
         replace({
             'from \'three\'': 'from \'threepipe\'',
+            'from "three"': 'from \'threepipe\'', // TS sources reach this transform with double quotes (oxc)
             // 'from \'three/examples/jsm/.*\'': 'from \'threepipe\'', // todo regex doesnt work...
             'from \'three/examples/jsm/loaders/GLTFLoader.js\'': 'from \'threepipe\'',
             'from \'three/examples/jsm/postprocessing/Pass.js\'': 'from \'threepipe\'',
@@ -75,7 +71,6 @@ export default defineConfig({
         glsl({ // todo: minify glsl.
             include: 'src/**/*.glsl',
         }),
-        json(),
         // postcss({
         //     modules: false,
         //     autoModules: true,  // todo; issues with typescript import css, because inject is false
@@ -92,7 +87,7 @@ export default defineConfig({
         See ./dependencies.txt for any bundled third-party dependencies and licenses.
       `,
             thirdParty: {
-                output: path.join(__dirname, 'dist', 'dependencies.txt'),
+                output: path.join(import.meta.dirname, 'dist', 'dependencies.txt'),
                 includePrivate: true, // Default is false.
             },
         }),

@@ -1,0 +1,9 @@
+node_modules
+.local-persist
+.teeny
+.tmp.*.json
+.dev.vars
+.prod.vars
+migrations
+.wrangler
+worker-configuration.d.ts

@@ -12,7 +12,7 @@ export {GBufferMaterial, DepthNormalMaterial} from './pipeline/GBufferMaterial'
 export {DepthBufferPlugin, MeshDepthMaterialOverride} from './pipeline/DepthBufferPlugin'
 export {NormalBufferPlugin, MeshNormalMaterialOverride} from './pipeline/NormalBufferPlugin'
 export {FrameFadePlugin, FrameFadeBlendPass} from './pipeline/FrameFadePlugin'
-export type {ProgressivePluginTarget} from './pipeline/ProgressivePlugin'
+export type {ProgressivePluginTarget, IConvergedCanvasRecorder} from './pipeline/ProgressivePlugin'
 export type {GBufferPluginPass, GBufferPluginTarget} from './pipeline/GBufferPlugin'
 export type {GBufferUpdater, GBufferUpdaterContext} from './pipeline/GBufferMaterial'
 export type {DepthBufferPluginPass, DepthBufferPluginTarget} from './pipeline/DepthBufferPlugin'
@@ -23,6 +23,7 @@ export {SSAOPlugin, SSAOPluginPass, type SSAOPluginTarget} from './pipeline/SSAO
 // ui
 export {RenderTargetPreviewPlugin, type RenderTargetBlock} from './ui/RenderTargetPreviewPlugin'
 export {GeometryUVPreviewPlugin, type TargetBlock} from './ui/GeometryUVPreviewPlugin'
+export {PerfPanelPlugin, type PerfPanelOptions, type PerfPanelPosition, type PerfPanelPluginEventMap, type PerfStats, type PerfWarning, type PerfWarningId} from './ui/PerfPanelPlugin'
 export {ViewerUiConfigPlugin} from './ui/ViewerUiConfigPlugin'
 export {SceneUiConfigPlugin} from './ui/SceneUiConfigPlugin'
 
@@ -31,7 +32,8 @@ export {DropzonePlugin, type DropzonePluginOptions} from './interaction/Dropzone
 export {FullScreenPlugin} from './interaction/FullScreenPlugin'
 export {LoadingScreenPlugin} from './interaction/LoadingScreenPlugin'
 export {InteractionPromptPlugin} from './interaction/InteractionPromptPlugin'
-export {PickingPlugin, type PickingPluginEventMap} from './interaction/PickingPlugin'
+export {PickingPlugin, isPickable, type PickingPluginEventMap} from './interaction/PickingPlugin'
+export {GPUPickingPlugin, type GPUPickResult, type IGPUPicker} from './interaction/GPUPickingPlugin'
 export {DuplicateTracker, type DuplicateMode} from './interaction/DuplicateTracker'
 export {ObjectClipboard, type ClipboardState, type ClipboardMode} from './interaction/ObjectClipboard'
 export {TransformControlsPlugin, TransformControls2} from './interaction/TransformControlsPlugin'
@@ -56,6 +58,7 @@ export {GLTFMeshOptDecodePlugin} from './import/GLTFMeshOptDecodePlugin'
 export {AssetExporterPlugin, type ExportAssetOptions} from './export/AssetExporterPlugin'
 export {CanvasSnapshotPlugin, CanvasSnipperPlugin, type CanvasSnapshotPluginOptions} from './export/CanvasSnapshotPlugin'
 export {FileTransferPlugin} from './export/FileTransferPlugin'
+export {CanvasRecorderPlugin, type CanvasRecorderPluginEventMap} from './export/CanvasRecorderPlugin'
 
 // postprocessing
 export {AScreenPassExtensionPlugin} from './postprocessing/AScreenPassExtensionPlugin'
@@ -81,6 +84,7 @@ export {FragmentClippingExtensionPlugin, FragmentClippingMode, fragmentClippingG
 // rendering
 export {VirtualCamerasPlugin, type VirtualCamera, type VirtualCamerasPluginEventMap} from './rendering/VirtualCamerasPlugin'
 export {CascadedShadowsPlugin, type CSMLightData, type FrustumVertices, type FrustumParams, CSMFrustum} from './rendering/CascadedShadowsPlugin'
+export {ViewOverridesPlugin, type ViewOverrideMaterialType, type ViewOverrideMaterialItem, type ViewOverrideLightingPreset, type ViewOverridesPluginEventMap} from './rendering/ViewOverridesPlugin'
 
 // configurator
 export {MaterialConfiguratorBasePlugin, type MaterialVariations} from './configurator/MaterialConfiguratorBasePlugin'
@@ -114,6 +118,7 @@ export {GLTFKHRMaterialVariantsPlugin} from './extras/GLTFKHRMaterialVariantsPlu
 export {TailwindCSSCDNPlugin} from './extras/TailwindCSSCDNPlugin'
 export {DynamicImportPlugin, sampleThreepipeViteHmrPlugin} from './extras/DynamicImportPlugin'
 export {ObjectConstraintsPlugin, ObjectConstraint, type ObjectConstraintsPluginEventMap} from './extras/ObjectConstraintsPlugin'
+export {BVHPlugin, type BVHMode, type BVHPluginEventMap, type BVHPluginOptions, type IMeshBVH, type ThreeMeshBVH} from './extras/BVHPlugin'
 export {basicObjectConstraints, type ConstraintPropsTypes, type TConstraintPropsType, type ConstraintPropsType} from './extras/helpers/BasicObjectConstraints'
 
 // ecs

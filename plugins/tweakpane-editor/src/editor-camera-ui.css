@@ -1,0 +1,80 @@
+/* the look of the PerfPanelPlugin pill and card (src/plugins/ui/PerfPanelPlugin.css): size, font, radius, colours, and
+   the colours of the tweakpane theme when it is on the page.
+   Layers (CONTRIBUTING, UI layers): the pill and its card are viewer UI (100-199), the frame a canvas overlay (below 50). */
+.ecu-root {
+  --ecu-bg: #ffffff; --ecu-fg: #1e1e1e; --ecu-dim: #8a8f97; --ecu-line: #e9eaec; --ecu-hover: #f2f3f5;
+  --ecu-view: #0d99ff; --ecu-sync: #14ae5c; --ecu-amber: #f5a524;
+  --ecu-shadow: 0 0 0 1px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.06), 0 6px 20px rgba(0,0,0,.10);
+  position: absolute; top: 10px; left: 50%; transform: translateX(-50%); z-index: 120; color: var(--ecu-fg); user-select: none;
+  font: 500 11px/1.35 var(--tp-font-family, Inter, ui-sans-serif, system-ui, sans-serif); -webkit-font-smoothing: antialiased;
+}
+body[class*="tpTheme-"] .ecu-root {
+  --ecu-bg: var(--tp-base-background-color, #1c2026); --ecu-fg: var(--tp-container-foreground-color, #f0f0f0);
+  --ecu-dim: var(--tp-monitor-foreground-color, #9a9a9a); --ecu-line: var(--tp-container-border-color, rgba(255,255,255,.14));
+  --ecu-hover: var(--tp-button-background-color-hover, rgba(255,255,255,.09));
+}
+body.tpTheme-black .ecu-root, body.tpTheme-dark .ecu-root, body.tpTheme-blue .ecu-root, body.tpTheme-clean-dark .ecu-root {
+  --ecu-shadow: 0 0 0 1px rgba(0,0,0,.35), 0 6px 20px rgba(0,0,0,.3);
+}
+.ecu-root button { font: inherit; color: inherit; border: 0; margin: 0; cursor: pointer; }
+.ecu-root button:focus-visible { outline: 2px solid var(--ecu-view); outline-offset: 1px; }
+.ecu-pill {
+  position: relative; display: inline-flex; align-items: center; gap: 6px; height: 22px; padding: 0 8px; border-radius: 6px;
+  background: var(--ecu-bg); box-shadow: var(--ecu-shadow); white-space: nowrap;
+}
+.ecu-pill:hover { background: var(--ecu-hover); }
+/* a move in View that is not saved: an amber dot on the corner, as the warning of the perf pill */
+.ecu-moved .ecu-pill::after {
+  content: ''; position: absolute; top: -2px; right: -2px; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--ecu-amber); box-shadow: 0 0 0 1.5px var(--ecu-bg);
+}
+/* the camera icon: grey in Edit, blue in View, green in View with sync */
+.ecu-icon { flex: none; display: flex; color: var(--ecu-dim); }
+.ecu-icon svg { width: 14px; height: 14px; }
+.ecu-view .ecu-icon { color: var(--ecu-view); }
+.ecu-view.ecu-sync .ecu-icon { color: var(--ecu-sync); }
+.ecu-pill kbd { font: inherit; font-size: 10px; line-height: 14px; padding: 0 4px; border-radius: 3px; color: var(--ecu-dim); background: var(--ecu-hover); }
+/* the card under the pill: open (a hover with a mouse, a tap on a touch screen) or on keyboard focus */
+.ecu-drop { position: absolute; top: 100%; left: 50%; transform: translateX(-50%); padding-top: 6px; visibility: hidden; opacity: 0;
+  transition: opacity .12s ease, visibility 0s linear .12s; }
+.ecu-root:has(:focus-visible) .ecu-drop, .ecu-open .ecu-drop { visibility: visible; opacity: 1; transition-delay: 0s, 0s; }
+.ecu-card { width: 224px; max-width: calc(100vw - 16px); box-sizing: border-box; padding: 6px; border-radius: 6px; background: var(--ecu-bg); box-shadow: var(--ecu-shadow);
+  display: flex; flex-direction: column; gap: 6px; }
+.ecu-shot-box { position: relative; aspect-ratio: 16 / 10; border-radius: 4px; overflow: hidden; background: var(--ecu-hover); }
+.ecu-shot { display: block; width: 100%; height: 100%; padding: 0; background: transparent; }
+.ecu-shot canvas { display: block; width: 100%; height: 100%; object-fit: cover; }
+.ecu-shot:hover canvas { filter: brightness(1.06); }
+.ecu-stale .ecu-shot canvas { opacity: .5; }
+.ecu-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 0 12px; text-align: center; color: var(--ecu-dim); pointer-events: none; }
+.ecu-cap { position: absolute; left: 6px; bottom: 6px; padding: 1px 6px; border-radius: 4px; background: rgba(0,0,0,.55); color: #fff; pointer-events: none; }
+.ecu-pin { position: absolute; top: 6px; right: 6px; display: inline-flex; align-items: center; gap: 4px; height: 22px; padding: 0 7px 0 6px; border-radius: 6px;
+  background: rgba(0,0,0,.55); color: #fff !important; }
+.ecu-pin svg { width: 12px; height: 12px; }
+.ecu-pin:hover { background: rgba(0,0,0,.7); }
+.ecu-pin[aria-pressed="true"] { background: var(--ecu-sync); }
+.ecu-pin[aria-pressed="true"] svg { fill: currentColor; }
+.ecu-seg { display: flex; padding: 2px; border-radius: 6px; background: var(--ecu-hover); }
+.ecu-seg button { flex: 1; height: 22px; border-radius: 4px; background: transparent; color: var(--ecu-dim); }
+.ecu-seg button[aria-pressed="true"] { background: var(--ecu-bg); color: var(--ecu-fg); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+.ecu-seg button:hover { color: var(--ecu-fg); }
+.ecu-acts { display: flex; gap: 6px; }
+.ecu-acts button { flex: 1; height: 24px; border-radius: 5px; background: var(--ecu-hover); }
+.ecu-acts button:hover:not(:disabled) { filter: brightness(.96); }
+/* Save and Reset stay in View, off when there is no move to save: the card keeps its size */
+.ecu-acts button:disabled { opacity: .45; cursor: default; }
+.ecu-acts .ecu-primary { background: var(--ecu-view); color: #fff; }
+.ecu-hint { color: var(--ecu-dim); font-weight: 400; padding: 0 2px; line-height: 1.35; min-height: 2.7em; } /* two lines, for every text */
+.ecu-frame { position: absolute; inset: 0; z-index: 40; pointer-events: none; box-shadow: inset 0 0 0 3px var(--ecu-frame, #0d99ff); display: none; }
+.ecu-frame.ecu-on { display: block; }
+.ecu-frame.ecu-sync { --ecu-frame: #14ae5c; }
+/* a touch screen: no keyboard (no key hint), and larger targets */
+@media (hover: none) { .ecu-pill kbd { display: none; } }
+@media (pointer: coarse) { .ecu-pill { height: 28px; padding: 0 10px; } .ecu-seg button, .ecu-acts button { height: 30px; } .ecu-pin { height: 26px; } }
+/* the classic page on a tablet: its mode tabs are over the top of the canvas */
+@media (max-width: 919.98px) { body:not(.lay-frame) .ecu-root { top: 4.25rem; } }
+/* the classic page on a phone: the settings panel is under the mode tabs, across the canvas. Under its title bar, on the
+   right: the view widget is on the left */
+@media (max-width: 480px) {
+  body:not(.lay-frame) .ecu-root { top: 6.75rem; left: auto; right: 10px; transform: none; }
+  body:not(.lay-frame) .ecu-drop { left: auto; right: 0; transform: none; }
+}

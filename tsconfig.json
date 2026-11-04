@@ -1,6 +1,8 @@
 
 {
     "compilerOptions": {
+        "strict": false,
+        "types": ["*"],
         "allowJs": true,
         "allowSyntheticDefaultImports": true,
         "experimentalDecorators": true,
@@ -16,11 +18,10 @@
         "noUnusedParameters": true,
         "removeComments": false,
         "preserveConstEnums": true,
-        "moduleResolution": "node",
+        "moduleResolution": "bundler",
         "emitDecoratorMetadata": false,
         "sourceMap": false,
         "inlineSources": false,
-        "mapRoot": ".",
         "target": "ES2020",
         "strictNullChecks": true,
         "jsx": "react-jsx",
@@ -31,8 +32,7 @@
             "es2020",
             "esnext",
             "dom"
-        ],
-        "plugins": [{ "name": "typescript-plugin-css-modules" }]
+        ]
     },
     "include": [
         "./src/**/*",

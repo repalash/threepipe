@@ -1,5 +1,4 @@
 import {BaseImporterPlugin, Importer, LoadingManager, ThreeViewer} from 'threepipe'
-// @ts-expect-error moduleResolution issue
 import {DeepZoomImagePlugin} from '3d-tiles-renderer/plugins'
 import {TilesRendererLoader, TilesRendererPlugin} from './TilesRendererPlugin'
 
@@ -38,7 +37,7 @@ export class DeepZoomImageLoader extends TilesRendererLoader {
     }
 }
 
-declare module 'TilesRendererPlugin'{
+declare module './TilesRendererPlugin'{
     interface TilesImportOptions {
         DeepZoomImagePlugin?: boolean | {
             center?: boolean,

@@ -4,8 +4,8 @@ prev:
     link: './CascadedShadowsPlugin'
 
 next:
-    text: 'TemporalAAPlugin'
-    link: './TemporalAAPlugin'
+    text: 'ViewOverridesPlugin'
+    link: './ViewOverridesPlugin'
 
 aside: false
 ---

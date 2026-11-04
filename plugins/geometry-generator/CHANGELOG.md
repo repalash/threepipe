@@ -4,6 +4,12 @@ All notable changes to this plugin will be documented in this file.
 
 [//]: # (The format is based on [Keep a Changelog]&#40;https://keepachangelog.com/en/1.1.0/&#41;, and this project adheres to [Semantic Versioning]&#40;https://semver.org/spec/v2.0.0.html&#41;.)
 
+## [0.8.1] - 2026-10-23
+
+### Fixed
+
+- Type declarations resolve in consumer projects with `moduleResolution: bundler`, `node16` and `nodenext` ([#60](https://github.com/repalash/threepipe/pull/60)): the `.d.ts` files imported a tsconfig `paths` alias of `three`, which resolves nowhere; relative imports carry `.js`
+
 ## [0.8.0]
 
 ### Breaking Changes
@@ -34,6 +40,7 @@ All notable changes to this plugin will be documented in this file.
 - Update [threepipe](https://threepipe.org/) `peerDependency` to [0.1.0](https://github.com/repalash/threepipe/releases/tag/v0.1.0)
 
 [unreleased]: https://github.com/repalash/threepipe/tree/dev/plugins/geometry-generator
+[0.8.1]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugin-geometry-generator-0.8.1
 [0.8.0]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugin-geometry-generator-0.8.0
 [0.7.3]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugin-geometry-generator-0.7.3
 [0.6.3]: https://github.com/repalash/threepipe/releases/tag/@threepipe/plugin-geometry-generator-0.6.3

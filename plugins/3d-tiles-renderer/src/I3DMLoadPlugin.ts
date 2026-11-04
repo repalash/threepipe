@@ -10,8 +10,10 @@ import {
     LoadingManager,
     ThreeViewer,
 } from 'threepipe'
-import type {I3DMResult} from '3d-tiles-renderer/src/three/loaders/I3DMLoader'
 import {I3DMLoader, I3DMScene, LoaderBase} from '3d-tiles-renderer'
+
+// The package root exports the loader but not its result type (deep src/ paths are outside its exports map).
+type I3DMResult = Awaited<ReturnType<I3DMLoader['parse']>>
 
 /**
  * Adds support for loading .i3dm files and data uris.

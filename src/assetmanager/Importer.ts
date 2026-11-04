@@ -8,7 +8,10 @@ import {Class, ValOrFunc} from 'ts-browser-helpers'
 export class Importer<T extends ILoader = ILoader> implements IImporter {
     cls?: Class<T>
 
-    onCtor?: (l: T|undefined, ai: IAssetImporter, i: IImporter) => T|undefined
+    // Method syntax, not a function-typed property: a function-typed property is contravariant under
+    // `strictFunctionTypes`, so `Importer<STLLoader>` would not be assignable to `Importer<ILoader>` in the
+    // declarations of consumers that compile with `strict` and `skipLibCheck: false`.
+    onCtor?(l: T|undefined, ai: IAssetImporter, i: IImporter): T|undefined
 
     ctor(assetImporter: IAssetImporter): ILoader | undefined { // attach all created loaders to this instance and create dispose method to dispose all.
         const loader = this.cls && new this.cls(assetImporter.loadingManager)

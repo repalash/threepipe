@@ -13,7 +13,7 @@ aside: false
 # AdvancedGroundPlugin
 
 [Example](https://threepipe.org/examples/#advanced-ground-plugin/) &mdash;
-[API Reference](https://webgi.dev/docs/classes/AdvancedGroundPlugin.html)
+[API Reference](https://threepipe.org/plugins/webgi-plugins/docs/classes/AdvancedGroundPlugin.html)
 
 <iframe src="https://threepipe.org/examples/advanced-ground-plugin/" style="width:100%;min-height:600px;border:none;" loading="lazy" title="Threepipe Advanced Ground Plugin Example"></iframe>
 
@@ -38,7 +38,7 @@ The AdvancedGroundPlugin builds upon the basic ground plane functionality by add
 
 ## Installation
 
-This plugin is part of the `@threepipe/webgi-plugins` package:
+This plugin is part of the [`@threepipe/webgi-plugins`](../package/webgi-plugins) package:
 
 ```bash
 npm install @threepipe/webgi-plugins
@@ -622,7 +622,7 @@ The AdvancedGroundPlugin is ideal for:
 
 ## API Reference
 
-See the [AdvancedGroundPlugin API documentation](https://webgi.dev/docs/classes/AdvancedGroundPlugin.html) for detailed information on all properties and methods.
+See the [AdvancedGroundPlugin API documentation](https://threepipe.org/plugins/webgi-plugins/docs/classes/AdvancedGroundPlugin.html) for detailed information on all properties and methods.
 
 ## Related Plugins
 

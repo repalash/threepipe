@@ -124,3 +124,61 @@ ui.appendChild({
 ```
 
 [//]: # (TODO: create example/codepen for this)
+
+## Basic fields
+
+Configs can have `tags` (a string or an array of strings). Renderers and editors read them to filter what they show, a renderer that does not read them shows the full UI.
+
+The `basic` tag (`UiTags.Basic`) marks the few fields of an object, material, light, camera or material extension that a simple view shows, like an editor inspector with an "All" toggle for the full UI. The core configs tag these fields:
+
+| Type | Basic fields |
+|---|---|
+| Objects and meshes | Visible, Name, Casts Shadow, Receive Shadow, Position, Rotation, Scale |
+| Materials (physical, unlit, phong, shader) | name, color, map, opacity, transparent, and where the material has them: roughness, metalness, normalMap, emissive, emissiveIntensity, ior, transmission, thickness |
+| Line materials | name, color, linewidth, opacity, transparent |
+| Lights | Enabled, Name, Color (Sky and Ground Color for the hemisphere light), Intensity, Cast Shadow. Spot: Angle, Penumbra. Point: Distance. Rect area: Width, Height |
+| Cameras | Name. Perspective: Field Of View. Orthographic: Zoom |
+| Material extensions (clearcoat tint, custom bump map, fragment clipping, noise bump, SSAO) | the Enabled toggle |
+| Geometry | none |
+
+Actions like Duplicate and Delete are not basic, they belong in a menu (the `context-menu` tag).
+
+The folder rule:
+- Tag fields, not folders. A simple view shows a folder (as a section with its label) only when it holds a basic field, at any depth, and shows only the basic fields in it. A folder without basic fields is left out.
+- A folder with the `basic` tag is basic as a whole and is shown with all its children.
+
+`findTaggedUiConfigs(config, tag)` lists the tagged configs of a tree in order, each with the folders above it (`parents`, from the root to the direct parent), so a renderer can show them in sections or in one list. `hasUiTag(config, tag)` checks one config.
+
+```typescript
+import {findTaggedUiConfigs, UiConfigMethods, UiTags} from 'threepipe'
+
+for (const {config, parents} of findTaggedUiConfigs(material.uiConfig, UiTags.Basic)) {
+    // the last parent is the folder that holds the field, the root when there is only one
+    const section = parents.length > 1 ? UiConfigMethods.GetLabel(parents[parents.length - 1]) : undefined
+    // render config under the section
+}
+```
+
+To mark the basic fields of your own plugin, object extension or material extension, add the tag to the config, or to the params of the decorator:
+
+```typescript
+class MyPlugin extends AViewerPluginSync {
+    @uiToggle('Enabled', {tags: [UiTags.Basic]})
+    enabled = true
+
+    @uiSlider('Strength', [0, 1], 0.01, {tags: [UiTags.Basic]})
+    strength = 0.5
+
+    @uiSlider('Samples', [1, 32], 1) // not basic, shown only in the full UI
+    samples = 8
+}
+
+const config: UiObjectConfig = {
+    type: 'folder',
+    label: 'My Extension',
+    children: [
+        {type: 'checkbox', label: 'Enabled', property: [state, 'enabled'], tags: [UiTags.Basic]},
+        {type: 'slider', label: 'Scale', property: [state, 'scale']},
+    ],
+}
+```

@@ -165,7 +165,7 @@ export function lerpAngle(a: number, b: number, t: number) {
     }
 }
 
-export const lerp = MathUtils.lerp
+export const lerp: (x: number, y: number, t: number) => number = MathUtils.lerp
 
 /**
  * Simplified version of popmption animate that supports seeking around the animation. Used in AnimationObject.ts
