@@ -42,7 +42,7 @@ A material in the GBuffer keeps the cut-out shape of its `map` and `alphaMap` al
 | Material | In the GBuffer | Result |
 |---|---|---|
 | Cutout: opaque with `alphaTest`, like 0.5 (glTF `alphaMode: MASK`) | Yes, with its shape | SSAO, SSR, depth of field and outlines see the leaf shape. Use this for foliage, lace and decals. |
-| Blended: `transparent: true` with an alpha texture (glTF `BLEND`) | No | No SSAO on it, and outlines and SSR do not see it. Its pixels keep the depth and flags of the object behind it (or of the background), so depth of field blurs it at that depth, and tone mapping follows that object. |
+| Blended: `transparent: true` with an alpha texture (glTF `BLEND`) | No | It casts no SSAO, and outlines and SSR do not see it. Its pixels keep the depth and flags of the object behind it (or of the background), so depth of field blurs it at that depth, tone mapping follows that object, and a `PhysicalMaterial` receives the SSAO of that object (`userData.ssaoDisabled` turns it off). |
 | Blended, with `userData.renderToDepth = true` | Yes | Its partly transparent pixels write depth and normal too, which can show halos in SSAO and depth of field. Set `alphaTest` with it. |
 
 Use a blended material only for a surface that is really see-through, like glass or a veil.
