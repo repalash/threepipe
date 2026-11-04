@@ -4,8 +4,8 @@ prev:
     link: './DropzonePlugin'
 
 next:
-    text: 'GPUPickingPlugin'
-    link: './GPUPickingPlugin'
+    text: 'BVHPlugin'
+    link: './BVHPlugin'
 
 ---
 

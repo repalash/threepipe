@@ -55,6 +55,7 @@ export class BoneHelper extends AHelperWidget {
         })
         this.hMaterial.userData.renderToGBuffer = false
         this.hMaterial.userData.renderToDepth = false
+        this.hMaterial.userData.renderToFlags = true // only the flags (no tone mapping with toneMapped: false), not depth and normal
 
         this.lineSegments = new LineSegments2(geometry, this.hMaterial)
         this.lineSegments.frustumCulled = false

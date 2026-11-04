@@ -124,6 +124,7 @@ export default defineConfig({
             items: [
               {text: 'DropzonePlugin', link: 'plugin/DropzonePlugin'},
               {text: 'PickingPlugin', link: 'plugin/PickingPlugin'},
+              {text: 'BVHPlugin', link: 'plugin/BVHPlugin'},
               {text: 'GPUPickingPlugin', link: 'plugin/GPUPickingPlugin'},
               {text: 'LoadingScreenPlugin', link: 'plugin/LoadingScreenPlugin'},
               {text: 'FullScreenPlugin', link: 'plugin/FullScreenPlugin'},
