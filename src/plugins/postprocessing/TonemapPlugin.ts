@@ -143,11 +143,12 @@ export class TonemapPlugin extends AScreenPassExtensionPlugin {
 
     /**
      * Whether the material asks for tone mapping: `false` when `userData.gBufferData.tonemapEnabled`
-     * (or the legacy `userData.postTonemap`) is `false`. This is the bit written to the GBuffer flags.
+     * (or the legacy `userData.postTonemap`) is `false`, else when the material's own `toneMapped` is `false`.
+     * This is the bit written to the GBuffer flags.
      * @param material
      */
     static MaterialTonemapEnabled(material: IMaterial): boolean {
-        return (material.userData.gBufferData?.tonemapEnabled ?? material.userData.postTonemap) !== false
+        return (material?.userData.gBufferData?.tonemapEnabled ?? material?.userData.postTonemap ?? material?.toneMapped) !== false
     }
 
     /**
@@ -166,6 +167,10 @@ export class TonemapPlugin extends AScreenPassExtensionPlugin {
     }
 
     // TODO: add gBufferData or just tonemapEnabled to the scene material UI with an extension like bloom
+    /**
+     * The tonemap bit of the GBuffer flags of a material: off when `userData.gBufferData.tonemapEnabled` (or the legacy
+     * `userData.postTonemap`) is false, else when the material's own `toneMapped` is false, so the three.js flag works too.
+     */
     updateGBufferFlags(data: Vector4, c: GBufferUpdaterContext): void {
         const x = TonemapPlugin.MaterialTonemapEnabled(c.material) ? 1 : 0
         data.w = updateBit(data.w, 1, x) // 2nd Bit
