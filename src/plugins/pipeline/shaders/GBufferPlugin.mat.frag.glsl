@@ -20,10 +20,7 @@
 varying vec3 vViewPosition;
 
 #ifdef USE_ALPHAMAP
-#define USE_UV
-
-#include <packing>
-
+#include <packing> // unpackRGBAToDepth for ALPHA_I_RGBA_PACKING
 #endif
 
 #if IS_GLSL3 > 0
