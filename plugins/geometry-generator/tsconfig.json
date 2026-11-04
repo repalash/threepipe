@@ -1,6 +1,7 @@
 {
     "compilerOptions": {
-        "baseUrl": "./src",
+        "strict": false,
+        "types": ["*"],
         "rootDir": "./src",
         "allowJs": false,
         "checkJs": false,
@@ -29,10 +30,7 @@
             "es2020",
             "esnext",
             "dom"
-        ],
-        "paths": {
-            "three": ["threepipe"]
-        }
+        ]
     },
     "include": [
         "src/**/*"

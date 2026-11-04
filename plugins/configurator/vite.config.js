@@ -1,6 +1,5 @@
 import {defineConfig} from 'vite'
-import dts from 'vite-plugin-dts'
-import {fixDtsImports, glsl} from '../../scripts/vite-utils.mjs';
+import {declarations, glsl} from '../../scripts/vite-utils.mjs';
 import packageJson from './package.json' with {type: 'json'};
 import license from 'rollup-plugin-license';
 import replace from '@rollup/plugin-replace';
@@ -50,7 +49,7 @@ export default defineConfig({
         },
     },
     plugins: [
-        isProd ? dts({tsconfigPath: './tsconfig.json', afterBuild: fixDtsImports}) : null,
+        isProd ? declarations() : null,
         replace({
             'from \'three\'': 'from \'threepipe\'',
             'from "three"': 'from \'threepipe\'', // TS sources reach this transform with double quotes (oxc)

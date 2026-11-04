@@ -6,9 +6,9 @@ All notable changes to this plugin will be documented in this file.
 
 ## [Unreleased]
 
-### Added
+### Changed
 
-- NA
+- ESM only, as it is built (`vite.config.js` makes `dist/index.mjs` only): `main` is `dist/index.mjs` and the exports have no `require` condition. Both pointed at `dist/index.js`, which the build never made, so `require('@threepipe/plugin-r3f')` failed
 
 ## [0.2.0] - 2025-10-18
 

@@ -98,6 +98,7 @@ export default defineConfig({
               {text: 'SSAOPlugin (Screen Space Ambient Occlusion)', link: 'plugin/SSAOPlugin'},
               {text: 'CascadedShadowsPlugin (CSM)', link: 'plugin/CascadedShadowsPlugin'},
               {text: 'FrameFadePlugin', link: 'plugin/FrameFadePlugin'},
+              {text: 'ViewOverridesPlugin', link: 'plugin/ViewOverridesPlugin'},
             ],
           },
           {

@@ -3,13 +3,13 @@
     "description": "Blueprint.js UI Plugin for ThreePipe",
     "version": "0.6.0",
     "devDependencies": {
-        "uiconfig-blueprint": "0.1.0-dev.12"
+        "uiconfig-blueprint": "0.1.0-dev.18"
     },
     "dependencies": {
         "threepipe": "file:./../../src/"
     },
     "peerDependencies": {
-        "uiconfig-blueprint": "0.1.0-dev.12",
+        "uiconfig-blueprint": "0.1.0-dev.18",
         "threepipe": ">=0.4.0"
     },
     "exports": {

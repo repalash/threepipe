@@ -226,7 +226,7 @@ export class GLTFViewerConfigExtension {
 
                 // todo: can we optimize this? this is too many steps
                 const d = encodingVersion < 3 ? halfFloatToRgbe2(buffer.data, 4) : halfFloatToRgbe(buffer.data, 4)
-                const id = new ImageData(d, buffer.width, buffer.height)
+                const id = new ImageData(d as Uint8ClampedArray<ArrayBuffer>, buffer.width, buffer.height)
 
                 const b64 = ImageUtils.getDataURL(id, true).split(',')[1]
 

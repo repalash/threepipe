@@ -142,8 +142,13 @@ export class TonemapPlugin extends AScreenPassExtensionPlugin {
     }
 
     // TODO: add gBufferData or just tonemapEnabled to the scene material UI with an extension like bloom
+    /**
+     * The tonemap bit of the GBuffer flags of a material: off when `userData.gBufferData.tonemapEnabled` (or the legacy
+     * `userData.postTonemap`) is false, else when the material's own `toneMapped` is false, so the three.js flag works too.
+     */
     updateGBufferFlags(data: Vector4, c: GBufferUpdaterContext): void {
-        const x = (c.material.userData.gBufferData?.tonemapEnabled ?? c.material?.userData.postTonemap) === false ? 0 : 1
+        const m = c.material
+        const x = (m?.userData.gBufferData?.tonemapEnabled ?? m?.userData.postTonemap ?? m?.toneMapped) === false ? 0 : 1
         data.w = updateBit(data.w, 1, x) // 2nd Bit
         super.updateGBufferFlags(data, c)
     }
