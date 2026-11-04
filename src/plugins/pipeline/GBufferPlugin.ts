@@ -206,7 +206,7 @@ export class GBufferPlugin
         if (!this.material) throw new Error('GBufferPlugin: material not created')
         this.material.userData.isGBufferMaterial = true
         const pass = new GBufferRenderPass(this.passId, ()=>this.target, this.material, new Color(1, 1, 1), 1)
-        // materials with userData.renderToFlags that are not drawn into the GBuffer write only their flags (WebGL2)
+        // materials with userData.renderToFlags that are not drawn into the GBuffer write only their flags
         pass.renderFlagsOnly = !!this.flagsTexture
         this.material.flagsOnlyMaterials = pass.flagsOnlyMaterials
         const preprocessMaterial = pass.preprocessMaterial

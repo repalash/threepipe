@@ -25,7 +25,7 @@ export class GBufferRenderPass<TP extends IPassID=IPassID, T extends WebGLRender
      * Draw the flags of the materials that have `userData.renderToFlags` set to `true` and are not drawn into the target
      * (like the helper widgets): only the flags output of `GBufferMaterial`, no depth and no normal, after all the
      * other objects. See `IMaterialUserData.renderToFlags`. GBufferPlugin sets it when its target has the flags
-     * texture (multiple render targets, WebGL2). The other passes leave it `false`.
+     * texture (multiple render targets). The other passes leave it `false`.
      */
     renderFlagsOnly = false
 
