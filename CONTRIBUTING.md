@@ -96,7 +96,8 @@ Turbo options can be passed through, for example `npx turbo run build --filter=@
 
 For core and for each package -
 - Update the package version in `package.json` and add a `## [<version>]` entry to its `CHANGELOG.md`.
-- Merge to `master` on github. The "Publish packages to npm" workflow builds and checks every package whose version is not on npm, waits for the `npm-publish` environment approval, publishes, and pushes the release tags (`v0.0.1` for core, `@threepipe/plugin-name-0.0.1` for a plugin).
+- Merge to `master` on github. The "Publish packages to npm" workflow ([repalash/release-tools](https://github.com/repalash/release-tools)) builds and checks every package whose version is not on npm, posts to Discord with the approval link and a Claude review, waits for the `npm-publish` environment approval, publishes with npm trusted publishing, and pushes the release tags (`v0.0.1` for core, `@threepipe/plugin-name-0.0.1` for a plugin).
+- Each package builds with its docs (`npm run build && npm run docs`), in dependency order. A package whose build fails is left out of that release, with the packages that depend on it; the notice lists them and the others are published. `npm run test:types` must pass for any release (it checks the core with plugin-tweakpane); the examples' type check only warns.
 
 ## Creating a Core Plugin
 
