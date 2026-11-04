@@ -58,7 +58,21 @@ export class GBufferMaterial extends ShaderMaterial2 {
         this.reset()
     }
 
+    readonly isGBufferMaterial = true
+
     flagUpdaters: Map<string, GBufferUpdater['updateGBufferFlags']> = new Map()
+
+    /**
+     * The materials whose objects this material draws with only the flags output: no depth, no normal and no depth
+     * write, with the depth test of the material of the object. The objects of the other materials are drawn as usual.
+     * GBufferPlugin sets it to `GBufferRenderPass.flagsOnlyMaterials`, the materials with `userData.renderToFlags`
+     * that are not drawn into the GBuffer. Only with multiple render targets (`multipleRT`, WebGL2).
+     */
+    flagsOnlyMaterials?: Set<IMaterial>
+
+    /** Set during a flags-only draw: the number of color attachments of the target, and the depth state to put back */
+    private _flagsOnlyDraw?: {attachments: number, depthWrite: boolean, depthTest: boolean}
+
     normalMapType: NormalMapTypes = TangentSpaceNormalMap
     flatShading = false
 
@@ -79,6 +93,8 @@ export class GBufferMaterial extends ShaderMaterial2 {
             material = material[0]
         }
         if (!material) return
+
+        this._beginFlagsOnlyDraw(renderer, object, group, material)
 
         if (isOverridden) {
             updateMaterialDefines({
@@ -150,6 +166,36 @@ export class GBufferMaterial extends ShaderMaterial2 {
 
     }
 
+    /**
+     * A flags-only draw (see {@link flagsOnlyMaterials}): the draw buffers of the target are set to the flags texture
+     * (location 1) only, so the depth and normal (location 0) are not written. three.js sets all the attachments as draw
+     * buffers of a target with multiple textures, {@link _endFlagsOnlyDraw} puts them back.
+     */
+    private _beginFlagsOnlyDraw(renderer: WebGLRenderer, object: Object3D, group: Group|null, material: IMaterial) {
+        if (!this.flagsOnlyMaterials || this.glslVersion !== GLSL3) return
+        // the material of the object that the pass looked at: this one for a custom GBuffer material (fat lines)
+        const objectMaterial = (object as IObject3D).material
+        const drawn = Array.isArray(objectMaterial) ? objectMaterial[(group as any)?.materialIndex ?? 0] : objectMaterial
+        if (!drawn || !this.flagsOnlyMaterials.has(drawn)) return
+        const attachments = renderer.getRenderTarget()?.textures.length ?? 1
+        if (attachments < 2) return
+        const gl = renderer.getContext() as WebGL2RenderingContext
+        gl.drawBuffers(Array.from({length: attachments}, (_, i) => i === 1 ? gl.COLOR_ATTACHMENT1 : gl.NONE))
+        this._flagsOnlyDraw = {attachments, depthWrite: this.depthWrite, depthTest: this.depthTest}
+        this.depthWrite = false
+        this.depthTest = material.depthTest
+    }
+
+    private _endFlagsOnlyDraw(renderer: WebGLRenderer) {
+        const d = this._flagsOnlyDraw
+        if (!d) return
+        this._flagsOnlyDraw = undefined
+        const gl = renderer.getContext() as WebGL2RenderingContext
+        gl.drawBuffers(Array.from({length: d.attachments}, (_, i) => gl.COLOR_ATTACHMENT0 + i))
+        this.depthWrite = d.depthWrite
+        this.depthTest = d.depthTest
+    }
+
     protected _updateFlagsUniform(flags: Vector4, material: IMaterial & Partial<PhysicalMaterial>, renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D) {
         /*
          GBuffer Flags has the following data
@@ -183,6 +229,7 @@ export class GBufferMaterial extends ShaderMaterial2 {
 
     onAfterRender(renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D, group: Group) {
         super.onAfterRender(renderer, scene, camera, geometry, object, group)
+        this._endFlagsOnlyDraw(renderer)
 
         let material = (object as any).material as IMaterial & Partial<PhysicalMaterial>
         if (Array.isArray(material)) { // todo: add support for multi materials.
