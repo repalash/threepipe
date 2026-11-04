@@ -280,6 +280,8 @@ describe('light and camera widget icons', () => {
             expect(m.userData.renderToFlags).toBe(true)
             expect(m.allowOverride).toBe(false)
             expect((o as any).customGBufferMaterial).toBeInstanceOf(tp.GBufferMaterial)
+            // not blended: the GBuffer pass draws it as transparent, and blended flags mix with the ones under them
+            expect((o as any).customGBufferMaterial.blending).toBe(tp.NoBlending)
             // premultiplied textures, blended once: not multiplied by the alpha again in the shader
             expect(m.map!.premultiplyAlpha).toBe(true)
             expect(m.premultipliedAlpha).toBe(false)

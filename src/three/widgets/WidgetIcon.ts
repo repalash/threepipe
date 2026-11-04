@@ -6,6 +6,7 @@ import {
     Matrix4,
     Mesh,
     MeshBasicMaterial,
+    NoBlending,
     OneFactor,
     OneMinusSrcAlphaFactor,
     PlaneGeometry,
@@ -51,7 +52,9 @@ function iconMaterial(map?: Texture) {
  * which writes the flags where the icon texture is not cut
  */
 function iconGBufferMaterial() {
-    return new GBufferMaterial(true)
+    // no blending, as the GBuffer material of fat lines: the GBuffer pass draws it as a transparent material, and blended
+    // flags would mix with the flags under them (the tone mapping bit would stay on)
+    return new GBufferMaterial(true, {blending: NoBlending})
 }
 
 const tmpSize = new Vector2()
