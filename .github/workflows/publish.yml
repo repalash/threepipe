@@ -1,104 +1,44 @@
 name: Publish packages to npm
 
+# Publishes the core and each plugin whose version is not on npm, after approval of the npm-publish environment, with
+# repalash/release-tools (a Discord notice with the approval link and a Claude review; npm trusted publishing).
+# - Each package builds with its docs (package-build, in dependency order). partial: one that fails is left out, with
+#   what depends on it; the others are published.
+# - post-build must pass: the published declarations checked as a consumer (the core with plugin-tweakpane, so a
+#   tweakpane build failure stops the release). The examples' type check (build-examples needs no secret: missing keys
+#   are empty) is a warning on the run, not a stop.
+# - Tags: v<version> for the core, <name>-<version> for a plugin (CONTRIBUTING.md, Publishing).
+# npm trusted publisher of each package: this repository, workflow publish.yml, environment npm-publish.
+
 on:
   push:
     branches: ["master"]
-
-  # Allow manual trigger
   workflow_dispatch:
 
 permissions:
   contents: read
-  id-token: write
 
-# Cancel old runs when a new push arrives (cancels stale approval requests)
+# Runs queue: a newer push waits until the one before is approved, rejected or cancelled.
 concurrency:
   group: publish
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
-  check:
-    runs-on: ubuntu-latest
-    outputs:
-      passed: ${{ steps.verify.outputs.passed }}
-      has_publishable: ${{ steps.verify.outputs.has_publishable }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: 'npm'
-      - name: Check for version changes
-        id: check
-        run: node scripts/ci/publish-check.mjs
-      - name: Install and build
-        id: build
-        if: steps.check.outputs.has_changes == 'true'
-        # --continue: one failing package must not keep the others from building, build-verify publishes those that did
-        run: (npm ci && npx turbo run build --continue=dependencies-successful && npm run build-examples) 2>&1 | tee build.log; exit ${PIPESTATUS[0]}
-        continue-on-error: true
-        env:
-          DOT_ENV_CONTENT: ${{ secrets.examples_dot_env }}
-      - name: Verify builds
-        if: steps.check.outputs.has_changes == 'true'
-        id: verify
-        run: node scripts/ci/build-verify.mjs
-        continue-on-error: true
-        env:
-          PUBLISH_CHANGES: ${{ steps.check.outputs.changes }}
-      - name: Check the published declarations as a consumer
-        if: steps.verify.outputs.has_publishable == 'true'
-        run: npm run test:types
-      - name: Generate docs
-        if: steps.verify.outputs.has_publishable == 'true'
-        run: npm run docs-all
-      - name: Upload build artifacts
-        if: steps.verify.outputs.has_publishable == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-output
-          retention-days: 1
-          path: |
-            dist/
-            lib/
-            docs/
-            plugins/*/dist/
-            plugins/*/docs/
-      - name: Notify Discord
-        if: always() && steps.check.outputs.has_changes == 'true'
-        env:
-          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          PASSED_PACKAGES: ${{ steps.verify.outputs.passed || '[]' }}
-          FAILED_PACKAGES: ${{ steps.verify.outputs.failed || '[]' }}
-        run: node scripts/ci/notify-discord.mjs
-      - name: Fail if all builds failed
-        if: always() && steps.verify.outputs.all_failed == 'true'
-        run: exit 1
-
-  publish:
-    needs: check
-    if: needs.check.outputs.has_publishable == 'true'
-    runs-on: ubuntu-latest
-    environment: npm-publish
+  release:
     permissions:
-      contents: write # push the release tags (scripts/ci/publish-packages.mjs)
-      id-token: write
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-          registry-url: https://registry.npmjs.org
-          cache: 'npm'
-      - name: Install dependencies (skip build)
-        run: npm ci --ignore-scripts
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: build-output
-      - name: Publish packages
-        env:
-          PUBLISH_CHANGES: ${{ needs.check.outputs.passed }}
-        run: node scripts/ci/publish-packages.mjs
+      contents: write # tags
+      id-token: write # npm trusted publishing
+    uses: repalash/release-tools/.github/workflows/npm-release.yml@d1906c368826a9621f5852bbbf0aa38ec1ae0c0f # release-tools #8 (partial, root-tag-format, exclusions); @v1 once v1 moves to it
+    with:
+      packages: . plugins/* !plugins/plugin-template-*
+      build: npm ci
+      package-build: npm run build && npm run docs --if-present
+      # test:types packs the core with plugin-tweakpane, which a release without tweakpane does not build
+      post-build: (test -d plugins/tweakpane/dist || npm run build -w @threepipe/plugin-tweakpane) && npm run test:types && (npm run build-examples || echo "::warning::the examples do not type-check")
+      partial: true
+      clean-package: true
+      require-changelog: true
+      tag-format: '{name}-{version}'
+      root-tag-format: 'v{version}'
+      node-version: '22'
+    secrets: inherit
