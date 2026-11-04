@@ -192,6 +192,18 @@ describe('SelectionOutlinePlugin', () => {
         }})
         const {plugin} = setup(picking)
         ;(plugin as any)._refreshPicking()
+        // nothing selected: nothing to outline
+        expect(picking.widgetEnabled).toBe(true)
+        // a light, a camera or a group without meshes gets no outline, and keeps the widget
+        for (const o of [new Group(), Object.assign(new Group(), {type: 'PointLight2'})]) {
+            picking.selected = [o]
+            picking.dispatchEvent({type: 'selectedObjectChanged'})
+            expect(picking.widgetEnabled, o.type).toBe(true)
+        }
+        const g = new Group()
+        g.add(mesh('child'))
+        picking.selected = [g]
+        picking.dispatchEvent({type: 'selectedObjectChanged'})
         expect(picking.widgetEnabled).toBe(false)
         // a line keeps the widget
         picking.selected = [Object.assign(mesh('line'), {type: 'LineSegments2'})]

@@ -196,13 +196,15 @@ if (selCoverage > 0.0) {
     /**
      * The outline replaces the selection widget (the box) of the {@link PickingPlugin}, as in `OutlinePlugin`: the widget
      * is off while this plugin outlines the selection, and on again when it stops (disabled, {@link outlineSelected} off,
-     * removed). A line keeps the widget: it gets no outline, or one that looks bad on it.
+     * removed). A selection that gets no outline keeps the widget: a camera, a light or a group without meshes, and a
+     * line (it gets no outline, or one that looks bad on it).
      */
     private _updatePickingWidget() {
         const picking = this._picking
         const primary = this._selected?.[0]
         const isLine = typeof primary?.type === 'string' && primary.type.includes('Line')
-        const hide = !!picking && !!this._viewer && !this.isDisabled() && this.outlineSelected && !isLine
+        const hide = !!picking && !!this._viewer && !this.isDisabled() && this.outlineSelected && !isLine &&
+            this._selected.some(hasMaskMesh)
         if (hide && picking!.widgetEnabled) {
             picking!.widgetEnabled = false
             this._widgetHiddenOn = picking
@@ -692,6 +694,11 @@ function maskId(index: number) {
 /** A mesh with a geometry: the objects that the mask pass draws */
 function isMaskMesh(o: Object3D) {
     return !!(o as IObject3D).geometry && !!(o as any).isMesh
+}
+
+/** Whether the object or a visible child of it is in the mask (stops at the first one) */
+function hasMaskMesh(o: Object3D): boolean {
+    return o.visible && (isMaskMesh(o) || o.children.some(hasMaskMesh))
 }
 
 /** The same shader defines (keys and values) */

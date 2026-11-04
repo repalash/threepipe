@@ -256,7 +256,7 @@ In the `TweakpaneEditorPlugin`, while the plugin is added (before or after the e
 
 The mask follows the alpha of each material (`opacity`, the alpha of `map`, `alphaMap`, `alphaTest`), so a mesh that its texture cuts has the same shape in the outline.
 
-The outline replaces the selection widget (the box) of the `PickingPlugin`, as the `OutlinePlugin` does: while the plugin outlines the selection, it sets `widgetEnabled` of the `PickingPlugin` to `false`, and it sets it back to `true` when it stops (disabled, `outlineSelected` off, or removed). A selected line keeps the widget. A widget that was off before stays off. A change of the selection or the hover renders one more frame. It does not restart the progressive render. The mask is drawn once after each change, not in each frame of the progressive render.
+The outline replaces the selection widget (the box) of the `PickingPlugin`, as the `OutlinePlugin` does: while the plugin outlines the selection, it sets `widgetEnabled` of the `PickingPlugin` to `false`, and it sets it back to `true` when it stops (disabled, `outlineSelected` off, or removed). A selection that gets no outline keeps the widget: a camera, a light, a group without meshes, or a line. A widget that was off before stays off. A change of the selection or the hover renders one more frame. It does not restart the progressive render. The mask is drawn once after each change, not in each frame of the progressive render.
 
 ```typescript
 import {ThreeViewer, PickingPlugin} from 'threepipe'
