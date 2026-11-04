@@ -176,7 +176,7 @@ describe('GBufferMaterial: a flags-only draw', {timeout}, () => {
     const camera = {updateShaderProperties: () => undefined}
     function draw(mat: any, object: any) {
         mat.onBeforeRender(renderer, null, camera, object.geometry, object, null)
-        const state = {depthWrite: mat.depthWrite, depthTest: mat.depthTest, drawBuffers: gl.drawBuffers.mock.calls.at(-1)?.[0]}
+        const state = {depthWrite: mat.depthWrite, depthTest: mat.depthTest, drawBuffers: gl.drawBuffers.mock.calls.at(-1)?.[0], depthFunc: mat.depthFunc}
         mat.onAfterRender(renderer, null, camera, object.geometry, object, null)
         return state
     }
@@ -185,24 +185,24 @@ describe('GBufferMaterial: a flags-only draw', {timeout}, () => {
         gl.drawBuffers.mockClear()
         const mat = new tp.GBufferMaterial(true)
         mat.flagsOnlyMaterials = new Set()
-        const ov = overlay(undefined, {depthTest: false})
+        const ov = overlay(undefined, {depthTest: false, depthFunc: tp.GreaterDepth})
         mat.flagsOnlyMaterials.add(ov)
         const s = draw(mat, new tp.Mesh(new tp.BoxGeometry(), ov))
-        expect(s).toEqual({depthWrite: false, depthTest: false, drawBuffers: [gl.NONE, gl.COLOR_ATTACHMENT1]})
+        expect(s).toEqual({depthWrite: false, depthTest: false, drawBuffers: [gl.NONE, gl.COLOR_ATTACHMENT1], depthFunc: tp.GreaterDepth})
         // put back for the next draw: all the attachments, as three.js set them
         expect(gl.drawBuffers.mock.calls.at(-1)[0]).toEqual([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1])
-        expect([mat.depthWrite, mat.depthTest]).toEqual([true, true])
+        expect([mat.depthWrite, mat.depthTest, mat.depthFunc]).toEqual([true, true, tp.LessEqualDepth])
     })
     test('other materials, and a material without multiple targets (WebGL1), draw as before', () => {
         gl.drawBuffers.mockClear()
         const mat = new tp.GBufferMaterial(true)
         mat.flagsOnlyMaterials = new Set()
         expect(draw(mat, new tp.Mesh(new tp.BoxGeometry(), overlay(undefined, {depthTest: false}))))
-            .toEqual({depthWrite: true, depthTest: true, drawBuffers: undefined})
+            .toEqual({depthWrite: true, depthTest: true, drawBuffers: undefined, depthFunc: tp.LessEqualDepth})
         const gl1 = new tp.GBufferMaterial(false)
         const ov = overlay()
         gl1.flagsOnlyMaterials = new Set([ov])
-        expect(draw(gl1, new tp.Mesh(new tp.BoxGeometry(), ov))).toEqual({depthWrite: true, depthTest: true, drawBuffers: undefined})
+        expect(draw(gl1, new tp.Mesh(new tp.BoxGeometry(), ov))).toEqual({depthWrite: true, depthTest: true, drawBuffers: undefined, depthFunc: tp.LessEqualDepth})
     })
 })
 

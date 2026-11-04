@@ -2,6 +2,7 @@ import type {ICamera, IMaterial, IMaterialParameters, IObject3D, PhysicalMateria
 import {
     BufferGeometry,
     Camera,
+    DepthModes,
     DoubleSide,
     GLSL1,
     GLSL3, Group,
@@ -71,7 +72,7 @@ export class GBufferMaterial extends ShaderMaterial2 {
     flagsOnlyMaterials?: Set<IMaterial>
 
     /** Set during a flags-only draw: the number of color attachments of the target, and the depth state to put back */
-    private _flagsOnlyDraw?: {attachments: number, depthWrite: boolean, depthTest: boolean}
+    private _flagsOnlyDraw?: {attachments: number, depthWrite: boolean, depthTest: boolean, depthFunc: DepthModes}
 
     normalMapType: NormalMapTypes = TangentSpaceNormalMap
     flatShading = false
@@ -181,9 +182,11 @@ export class GBufferMaterial extends ShaderMaterial2 {
         if (attachments < 2) return
         const gl = renderer.getContext() as WebGL2RenderingContext
         gl.drawBuffers(Array.from({length: attachments}, (_, i) => i === 1 ? gl.COLOR_ATTACHMENT1 : gl.NONE))
-        this._flagsOnlyDraw = {attachments, depthWrite: this.depthWrite, depthTest: this.depthTest}
+        this._flagsOnlyDraw = {attachments, depthWrite: this.depthWrite, depthTest: this.depthTest, depthFunc: this.depthFunc}
         this.depthWrite = false
+        // the same pixels as the source material: its depth test and depth function (an x-ray overlay uses GreaterDepth)
         this.depthTest = material.depthTest
+        this.depthFunc = material.depthFunc
     }
 
     private _endFlagsOnlyDraw(renderer: WebGLRenderer) {
@@ -194,6 +197,7 @@ export class GBufferMaterial extends ShaderMaterial2 {
         gl.drawBuffers(Array.from({length: d.attachments}, (_, i) => gl.COLOR_ATTACHMENT0 + i))
         this.depthWrite = d.depthWrite
         this.depthTest = d.depthTest
+        this.depthFunc = d.depthFunc
     }
 
     protected _updateFlagsUniform(flags: Vector4, material: IMaterial & Partial<PhysicalMaterial>, renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D) {
