@@ -29,7 +29,7 @@ export class GBufferRenderPass<TP extends IPassID=IPassID, T extends WebGLRender
         renderToGBuffer = renderToGBuffer ?? material.userData.renderToGBuffer
         if (material.userData.pluginsDisabled) renderToGBuffer = false
         if (
-            material.transparent && (renderToGBuffer || material.opacity > 0.99 && !material.map && !material.alphaMap) || // transparent and render to gbuffer
+            material.transparent && (renderToGBuffer || renderToGBuffer !== false && material.opacity > 0.99 && !material.map && !material.alphaMap) || // transparent and render to gbuffer (or draws as opaque, when not set)
             !material.transparent && !material.transmission && renderToGBuffer === false // opaque and dont render to gbuffer
         ) {
             this._transparentMats.add(material)
