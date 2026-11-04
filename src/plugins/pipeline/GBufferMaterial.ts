@@ -97,29 +97,38 @@ export class GBufferMaterial extends ShaderMaterial2 {
 
         this._beginFlagsOnlyDraw(renderer, object, group, material)
 
+        const setMap = (key: keyof IMaterial) => {
+            const map = material[key]
+            if (!map) return
+            this.uniforms[key].value = map
+            if (!this.uniforms[key + 'Transform']) console.error('GBufferMaterial: ' + key + 'Transform is not defined in uniform')
+            else {
+                if ((map as Texture).isTexture)
+                    renderer.materials.refreshTransformUniform((map as Texture), this.uniforms[key + 'Transform'])
+            }
+        }
+
+        // the alpha of the material, also for a GBuffer material set on the object (customGBufferMaterial): the pixels
+        // that the material cuts (its map and alphaMap alpha under alphaTest) are not written, as in the render
+        setMap('map')
+        setMap('alphaMap')
+        if (material.alphaTest !== undefined) this.alphaTest = material.alphaTest < 1e-4 ? 1e-4 : material.alphaTest
+        if (material.alphaHash !== undefined) this.alphaHash = material.alphaHash
+        // three.js compiles the map chunks only for a material with its own `map` (`alphaMap`), so they are defined here
+        updateMaterialDefines({
+            ['USE_MAP']: this.uniforms.map.value ? 1 : undefined,
+            ['MAP_UV']: this.uniforms.map.value ? 'uv' : undefined, // todo use getChannel, see WebGLPrograms.js
+            ['USE_ALPHAMAP']: this.uniforms.alphaMap.value ? 1 : undefined,
+            ['ALPHAMAP_UV']: this.uniforms.alphaMap.value ? 'uv' : undefined, // todo use getChannel, see WebGLPrograms.js
+        }, this)
+
         if (isOverridden) {
             updateMaterialDefines({
                 ['FORCED_LINEAR_DEPTH']: material.userData.forcedLinearDepth ?? undefined, // todo add to DepthBufferPlugin as well.
             }, this)
 
         } else {
-            const setMap = (key: keyof IMaterial) => {
-                const map = material[key]
-                if (!map) return
-                this.uniforms[key].value = map
-                if (!this.uniforms[key + 'Transform']) console.error('GBufferMaterial: ' + key + 'Transform is not defined in uniform')
-                else {
-                    if ((map as Texture).isTexture)
-                        renderer.materials.refreshTransformUniform((map as Texture), this.uniforms[key + 'Transform'])
-                }
-            }
-
-            setMap('map')
-
             if (material.side !== undefined) this.side = material.side ?? DoubleSide
-            setMap('alphaMap')
-            if (material.alphaTest !== undefined) this.alphaTest = material.alphaTest < 1e-4 ? 1e-4 : material.alphaTest
-            if (material.alphaHash !== undefined) this.alphaHash = material.alphaHash
 
             setMap('bumpMap')
             if (material.bumpScale !== undefined) this.uniforms.bumpScale.value = material.bumpScale
@@ -137,8 +146,6 @@ export class GBufferMaterial extends ShaderMaterial2 {
             if (material.wireframeLinewidth !== undefined) this.wireframeLinewidth = material.wireframeLinewidth
 
             updateMaterialDefines({
-                // ['USE_ALPHAMAP']: this.uniforms.alphaMap.value ? 1 : undefined,
-                ['ALPHAMAP_UV']: this.uniforms.alphaMap.value ? 'uv' : undefined, // todo use getChannel, see WebGLPrograms.js
                 ['USE_DISPLACEMENTMAP']: this.uniforms.displacementMap.value ? 1 : undefined,
                 ['DISPLACEMENTMAP_UV']: this.uniforms.displacementMap.value ? 'uv' : undefined, // todo use getChannel, see WebGLPrograms.js
                 ['ALPHA_I_RGBA_PACKING']: material.userData.ALPHA_I_RGBA_PACKING ? 1 : undefined,
