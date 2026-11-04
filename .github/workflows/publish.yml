@@ -28,7 +28,7 @@ jobs:
     permissions:
       contents: write # tags
       id-token: write # npm trusted publishing
-    uses: repalash/release-tools/.github/workflows/npm-release.yml@v1
+    uses: repalash/release-tools/.github/workflows/npm-release.yml@d1906c368826a9621f5852bbbf0aa38ec1ae0c0f # release-tools #8 (partial, root-tag-format, exclusions); @v1 once v1 moves to it
     with:
       packages: . plugins/* !plugins/plugin-template-*
       build: npm ci
