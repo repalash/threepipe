@@ -143,8 +143,10 @@ export class EditorFrame {
     private _areas: Record<EditorFrameArea, HTMLDivElement>
     /** The edges that a drag resizes, in the page while the frame is */
     private _handles: Record<EditorFrameSizedArea, HTMLDivElement>
-    /** The sizes set in px ({@link setAreaSize}); not set: the size of the CSS */
+    /** The sizes set in px ({@link setAreaSize}), and kept; not set: the size of the CSS */
     private _sizes: Partial<Record<EditorFrameSizedArea, number>> = {}
+    /** The sizes on screen: {@link _sizes} within the room that is left now ({@link _fitAreas}) */
+    private _applied: Partial<Record<EditorFrameSizedArea, number>> = {}
     /** The collapsed left and bottom areas; the panel collapses as the mode bar hides it */
     private _collapsed: Partial<Record<EditorFrameArea, boolean>> = {}
     /** Ends the drag of an edge that is in progress */
@@ -181,9 +183,11 @@ export class EditorFrame {
         this._floatActions.append(...this._actions('modeBar'))
         this._areas = {left: this._area('left'), bottom: this._area('bottom')}
         this._handles = {left: this._handle('left'), bottom: this._handle('bottom'), right: this._handle('right')}
+        this.modeBar.onLayoutChange = this._fitAreas
         this._restoreAreas()
 
         window.addEventListener('keydown', this._onKeyDown)
+        window.addEventListener('resize', this._fitAreas)
         this.modeBar.element.addEventListener('click', this._expandPanel)
         this.setLayout(this._layout)
     }
@@ -291,14 +295,14 @@ export class EditorFrame {
     setArea(area: EditorFrameArea, element: HTMLElement | null) {
         this._areas[area].replaceChildren(...element ? [element] : [])
         document.body.classList.toggle('lay-has-' + area, !!element)
-        // the room for the other areas changes, and the kept sizes apply before the areas are set: limit them again
-        for (const a of Object.keys(this._sizes) as EditorFrameSizedArea[]) this.setAreaSize(a, this._sizes[a]!)
+        this._fitAreas()
     }
 
     /**
      * Sets the size of an area in px: the width of the left area or the panel (`right`), the height of the bottom area.
-     * It is kept between the limits of {@link AreaLimits}, and leaves room for the canvas. `null` sets the size of the
-     * CSS again (240 px, 160 px, and the panel width of the Tweakpane UI).
+     * It is kept between the limits of {@link AreaLimits}, and leaves room for the canvas. When the window gets smaller,
+     * or another area or the panel opens, the area gets smaller to leave that room, and its size comes back when there is
+     * room again. `null` sets the size of the CSS again (240 px, 160 px, and the panel width of the Tweakpane UI).
      * @param area - `left`, `bottom` or `right` (the panel)
      * @param size - the size in px, or `null`
      * @param keep - keep it in `localStorage` ({@link AreaStorageKey}), as a size that the person picks
@@ -306,12 +310,12 @@ export class EditorFrame {
     setAreaSize(area: EditorFrameSizedArea, size: number | null, keep = false) {
         if (size === null) {
             delete this._sizes[area]
+            delete this._applied[area]
             document.body.style.removeProperty(AREA_SIZE_VARS[area])
         } else {
             const [min, max] = EditorFrame.AreaLimits[area]
-            size = Math.round(Math.max(min, Math.min(max, this._room(area), size)))
-            this._sizes[area] = size
-            document.body.style.setProperty(AREA_SIZE_VARS[area], size + 'px')
+            this._sizes[area] = Math.round(Math.max(min, Math.min(max, this._room(area), size)))
+            this._applySize(area)
         }
         if (keep) this._storeAreas()
     }
@@ -330,6 +334,7 @@ export class EditorFrame {
         }
         this._collapsed[area] = collapsed
         document.body.classList.toggle('lay-collapsed-' + area, collapsed)
+        this._fitAreas()
         if (keep) this._storeAreas()
     }
 
@@ -349,6 +354,8 @@ export class EditorFrame {
 
     dispose() {
         window.removeEventListener('keydown', this._onKeyDown)
+        window.removeEventListener('resize', this._fitAreas)
+        this.modeBar.onLayoutChange = undefined
         this.modeBar.element.removeEventListener('click', this._expandPanel)
         for (const [k] of EDITOR_FRAME_LAYOUTS) document.body.classList.remove('lay-' + k)
         document.body.classList.remove('lay-frame')
@@ -468,7 +475,24 @@ export class EditorFrame {
     private _areaSize(area: EditorFrameSizedArea) {
         const el = area === 'right' ? this.options.panel?.() : this._areas[area]
         const r = el?.getBoundingClientRect()
-        return (area === 'bottom' ? r?.height : r?.width) || this._sizes[area] || EditorFrame.AreaLimits[area][0]
+        return (area === 'bottom' ? r?.height : r?.width) || this._applied[area] || EditorFrame.AreaLimits[area][0]
+    }
+
+    /** Puts the set size of an area on screen, within the room that is left now ({@link _room}) */
+    private _applySize(area: EditorFrameSizedArea) {
+        const size = this._sizes[area]
+        if (size === undefined) return
+        const applied = Math.round(Math.max(EditorFrame.AreaLimits[area][0], Math.min(size, this._room(area))))
+        this._applied[area] = applied
+        document.body.style.setProperty(AREA_SIZE_VARS[area], applied + 'px')
+    }
+
+    /**
+     * Applies the set sizes again when the room changes: the window size, an area shown, emptied, collapsed or opened,
+     * the panel or the names of the mode bar shown or hidden. The kept sizes also apply before the plugin sets the areas.
+     */
+    private _fitAreas = () => {
+        for (const area of Object.keys(this._sizes) as EditorFrameSizedArea[]) this._applySize(area)
     }
 
     /** Keeps the sizes and the collapsed left and bottom areas ({@link AreaStorageKey}) */
@@ -488,11 +512,16 @@ export class EditorFrame {
         }
         for (const area of Object.keys(AREA_SIZE_VARS) as EditorFrameSizedArea[]) {
             const size = stored?.sizes?.[area]
-            if (typeof size === 'number' && isFinite(size)) this.setAreaSize(area, size)
+            const [min, max] = EditorFrame.AreaLimits[area]
+            // the size that the person picked; the room of this window applies on screen only
+            if (typeof size === 'number' && isFinite(size)) this._sizes[area] = Math.round(Math.max(min, Math.min(max, size)))
         }
         for (const area of ['left', 'bottom'] as const) {
-            if (stored?.collapsed?.[area] === true) this.setAreaCollapsed(area, true)
+            if (stored?.collapsed?.[area] !== true) continue
+            this._collapsed[area] = true
+            document.body.classList.add('lay-collapsed-' + area)
         }
+        this._fitAreas()
     }
 
     /**

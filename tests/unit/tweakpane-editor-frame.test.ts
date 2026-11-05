@@ -557,6 +557,51 @@ describe('EditorFrame area sizes', () => {
         expect(left).toBeGreaterThanOrEqual(EditorFrame.AreaLimits.left[0])
     })
 
+    test('the sizes get smaller when the window gets smaller, and come back when it is wide again', () => {
+        vi.stubGlobal('innerWidth', 1440)
+        const f = new EditorFrame(host(), {layout: 'titlebar'})
+        f.setArea('left', new FakeElement('div') as any)
+        // on screen, the width of the left area follows its variable
+        area('left').getBoundingClientRect = () => ({width: parseInt(sizeVar('--lay-left-area-size') ?? '240'), height: 800}) as any
+        f.setAreaSize('left', 480)
+        f.setAreaSize('right', 552)
+        const modeBar = f.modeBar.expanded ? EditorModeBar.Widths.wide : EditorModeBar.Widths.narrow
+        const widths = () => [parseInt(sizeVar('--lay-left-area-size')!), parseInt(sizeVar('--tweakpane-ui-container-width')!)]
+        expect(widths()).toEqual([480, 552])
+        vi.stubGlobal('innerWidth', 1000)
+        win.fire('resize')
+        const [left, right] = widths()
+        expect(left + right + modeBar + EditorFrame.MinCanvasWidth).toBeLessThanOrEqual(1000)
+        vi.stubGlobal('innerWidth', 1440)
+        win.fire('resize')
+        expect(widths()).toEqual([480, 552])
+        f.dispose()
+        vi.stubGlobal('innerWidth', 1000)
+        win.fire('resize') // removed with the frame
+        expect(sizeVar('--lay-left-area-size')).toBeUndefined()
+    })
+
+    test('the sizes are limited again when a collapsed area or the panel opens', () => {
+        vi.stubGlobal('innerWidth', 1200)
+        const f = new EditorFrame(host(), {layout: 'titlebar'})
+        f.setArea('left', new FakeElement('div') as any)
+        area('left').getBoundingClientRect = () => ({width: parseInt(sizeVar('--lay-left-area-size') ?? '240'), height: 800}) as any
+        const fits = () => {
+            const modeBar = f.modeBar.expanded ? EditorModeBar.Widths.wide : EditorModeBar.Widths.narrow
+            return parseInt(sizeVar('--lay-left-area-size')!) + parseInt(sizeVar('--tweakpane-ui-container-width')!) + modeBar + EditorFrame.MinCanvasWidth <= 1200
+        }
+        f.setAreaSize('left', 480)
+        f.setAreaSize('right', 300)
+        f.setAreaCollapsed('left', true)
+        f.setAreaSize('right', 600) // the collapsed left area takes no room
+        f.setAreaCollapsed('left', false)
+        expect(fits()).toBe(true)
+        f.setAreaCollapsed('right', true)
+        f.setAreaSize('left', 480) // the hidden panel takes no room
+        f.setAreaCollapsed('right', false) // through the mode bar
+        expect(fits()).toBe(true)
+    })
+
     test('setAreaCollapsed: the left and the bottom area with a body class, the panel through the mode bar', () => {
         const f = new EditorFrame(host(), {layout: 'titlebar'})
         f.setAreaCollapsed('left', true)
