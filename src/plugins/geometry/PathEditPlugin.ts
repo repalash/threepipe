@@ -1,4 +1,4 @@
-import {Curve, Plane, Vector2, Vector3} from 'three'
+import {Curve, Matrix3, Plane, Vector2, Vector3} from 'three'
 import {uiButton, uiFolderContainer, UiObjectConfig, uiToggle} from 'uiconfig.js'
 import {onChange} from 'ts-browser-helpers'
 import {AViewerPluginEventMap, AViewerPluginSync, ThreeViewer} from '../../viewer'
@@ -342,7 +342,8 @@ export class PathEditPlugin extends AViewerPluginSync<PathEditPluginEventMap> {
         let keepY = false
         if (!(point.vec as Vector3).isVector3) {
             // a 2D curve is in the xy plane of the object
-            const n = new Vector3(0, 0, 1).transformDirection(object.matrixWorld)
+            // the normal matrix: with a sheared world matrix (a rotated child of a non-uniform scale) the z axis is not the normal
+            const n = new Vector3(0, 0, 1).applyMatrix3(new Matrix3().getNormalMatrix(object.matrixWorld)).normalize()
             if (Math.abs(n.dot(view)) > 0.15) plane = new Plane().setFromNormalAndCoplanarPoint(n, origin)
         } else if (shift) {
             // the height stays: a level plane, or the camera plane at the same height when it is edge-on

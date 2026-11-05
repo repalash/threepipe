@@ -13,6 +13,8 @@ import {
     PerspectiveCamera,
     Raycaster,
     Scene,
+    SplineCurve,
+    Vector2,
     Vector3,
 } from 'three'
 
@@ -284,6 +286,24 @@ describe('PathEditPlugin', () => {
         plugin.edit(line(new CatmullRomCurve3([new Vector3(-3, 0, 0), new Vector3(0, 2, 20), new Vector3(3, 0, 0)])))
         frame()
         expect(svg().innerHTML.match(/class="sh-dot/g)).toHaveLength(2)
+    })
+
+    test('a 2D curve under a sheared parent (non-uniform scale, rotated child) is dragged on its plane: the point follows the pointer', () => {
+        const {plugin, line, drag, screen, modelRoot} = setup()
+        const curve = new SplineCurve([new Vector2(-2, 0), new Vector2(0, 1), new Vector2(2, 0)])
+        const o = line(curve)
+        const parent = new Object3D()
+        parent.scale.set(3, 1, 1)
+        modelRoot.add(parent)
+        parent.add(o)
+        o.rotation.y = Math.PI / 4
+        parent.updateMatrixWorld(true)
+        plugin.edit(o)
+        const from = new Vector3(0, 1, 0).applyMatrix4(o.matrixWorld)
+        const target = screen(new Vector3(1.5, 2, 0))
+        drag(from, new Vector3(1.5, 2, 0))
+        const p = screen(new Vector3(curve.points[1].x, curve.points[1].y, 0).applyMatrix4(o.matrixWorld))
+        expect(Math.hypot(p.clientX - target.clientX, p.clientY - target.clientY)).toBeLessThan(0.5)
     })
 
     test('a press away from the handles is not taken (orbit, picking)', () => {
