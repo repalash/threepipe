@@ -75,7 +75,7 @@ function materialRow(mesh: Mesh) {
     time.className = 'time'
     time.textContent = '...'
 
-    // request a preview on every change: the queue waits until the material stops changing (debounce)
+    // request a preview on every change: the queue renders it in the next frame, at most every 100 ms during a drag
     let handle: MaterialPreviewHandle | undefined
     const refresh = () => {
         handle?.cancel()
@@ -95,10 +95,12 @@ function materialRow(mesh: Mesh) {
     const color = document.createElement('input')
     color.type = 'color'
     color.value = '#' + material.color.getHexString()
+    // while the input moves: `last: false` (a drag, as uiconfig sends from a slider); when it is released: the last change
     color.oninput = () => {
         material.color.set(color.value)
-        material.setDirty()
+        material.setDirty({last: false})
     }
+    color.onchange = () => material.setDirty()
     controls.append(label('Colour', color))
 
     for (const prop of ['roughness', 'metalness'] as const) {
@@ -111,8 +113,9 @@ function materialRow(mesh: Mesh) {
         slider.dataset.prop = prop
         slider.oninput = () => {
             material[prop] = parseFloat(slider.value)
-            material.setDirty()
+            material.setDirty({last: false})
         }
+        slider.onchange = () => material.setDirty()
         controls.append(label(prop[0].toUpperCase() + prop.slice(1), slider))
     }
     controls.append(time)

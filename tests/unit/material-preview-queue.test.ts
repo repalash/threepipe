@@ -5,7 +5,7 @@ beforeAll(async() => {
     tp = await import('threepipe')
 }, 60_000)
 
-function setup(opts: {debounce?: number, maxPerFrame?: number} = {}) {
+function setup(opts: {dragInterval?: number, maxPerFrame?: number} = {}) {
     const listeners: (() => void)[] = []
     const scene = {environment: null, environmentIntensity: 1, environmentRotation: new tp.Euler()}
     const viewer = {
@@ -25,7 +25,7 @@ function setup(opts: {debounce?: number, maxPerFrame?: number} = {}) {
     let time = 1000
     const queue = new tp.MaterialPreviewQueue(viewer as any, generator as any)
     queue.now = () => time
-    if (opts.debounce !== undefined) queue.debounce = opts.debounce
+    if (opts.dragInterval !== undefined) queue.dragInterval = opts.dragInterval
     if (opts.maxPerFrame !== undefined) queue.maxPerFrame = opts.maxPerFrame
     const frame = (dt = 16) => {
         time += dt
@@ -63,52 +63,76 @@ describe('MaterialPreviewQueue', () => {
         expect(generator.renderToCanvas).toHaveBeenCalledTimes(3)
     })
 
-    it('waits until the material did not change for debounce ms', () => {
-        const {generator, queue, frame} = setup({debounce: 200})
+    it('renders a changed material in the next frame', () => {
+        const {queue, frame} = setup({dragInterval: 100})
         const m = new tp.PhysicalMaterial()
         const cb = vi.fn()
         queue.request(m, {}, cb)
-        m.setDirty() // a change after the request (the request tracks the material)
-        frame(100)
-        frame(50)
-        expect(generator.renderToCanvas).not.toHaveBeenCalled()
-        m.setDirty() // changes again: waits 200 ms from now
-        frame(150)
-        expect(cb).not.toHaveBeenCalled()
-        frame(60)
+        m.setDirty() // a change from code, or the end of a drag: no last: false
+        frame()
         expect(cb).toHaveBeenCalledTimes(1)
-        expect(cb.mock.calls[0][0].version).toBe(2)
+        expect(cb.mock.calls[0][0].version).toBe(1)
     })
 
-    it('keeps the debounce when a materialUpdate listener cancels and requests again before the first render', () => {
-        const {generator, queue, frame} = setup({debounce: 200})
+    it('during a drag (last: false) renders at most every dragInterval ms, and the change that ends it in the next frame', () => {
+        const {generator, queue, frame} = setup({dragInterval: 100})
         const m = new tp.PhysicalMaterial()
-        const cb = vi.fn()
+        const got: number[] = []
+        const ask = () => queue.request(m, {}, p => got.push(p.version))
+        ask()
+        m.setDirty({last: false})
+        frame(16)
+        expect(got).toEqual([1]) // the first change of a drag renders at once
+        ask()
+        m.setDirty({last: false})
+        frame(16)
+        frame(50)
+        expect(got).toEqual([1]) // 66 ms after the last render
+        frame(40)
+        expect(got).toEqual([1, 2]) // 106 ms
+        ask()
+        m.setDirty({uiChangeEvent: {last: false}} as any) // a uiconfig change event during a drag counts too
+        frame(16)
+        expect(got).toEqual([1, 2])
+        m.setDirty() // the release (last true or not set)
+        frame(16)
+        expect(got).toEqual([1, 2, 4])
+        expect(generator.renderToCanvas).toHaveBeenCalledTimes(3)
+    })
+
+    it('keeps the drag state when a materialUpdate listener cancels and requests again', () => {
+        const {queue, frame} = setup({dragInterval: 100})
+        const m = new tp.PhysicalMaterial()
+        const got: number[] = []
         let handle: {cancel(): void} | undefined
         const refresh = () => {
             handle?.cancel()
-            handle = queue.request(m, {}, cb)
+            handle = queue.request(m, {}, p => got.push(p.version))
         }
         m.addEventListener('materialUpdate', refresh) // added before the queue's listener, like an inspector
         refresh()
-        m.setDirty()
-        frame(100)
-        expect(generator.renderToCanvas).not.toHaveBeenCalled()
-        frame(150)
-        expect(cb).toHaveBeenCalledTimes(1)
-        expect(cb.mock.calls[0][0].version).toBe(1)
+        frame(16)
+        expect(got).toEqual([0])
+        m.setDirty({last: false})
+        frame(16)
+        expect(got).toEqual([0]) // the new request waits for the interval of the last render
+        frame(90)
+        expect(got).toEqual([0, 1])
         m.removeEventListener('materialUpdate', refresh)
     })
 
-    it('a waiting request does not block the next request of another material', () => {
-        const {queue, frame} = setup({debounce: 200})
-        const changing = new tp.PhysicalMaterial(), other = new tp.PhysicalMaterial()
+    it('a request that waits during a drag does not block the next request of another material', () => {
+        const {queue, frame} = setup({dragInterval: 100})
+        const dragged = new tp.PhysicalMaterial(), other = new tp.PhysicalMaterial()
         const got: string[] = []
-        queue.request(changing, {}, () => got.push('changing'))
-        changing.setDirty()
+        queue.request(dragged, {}, () => got.push('dragged'))
+        dragged.setDirty({last: false})
+        frame()
+        queue.request(dragged, {}, () => got.push('dragged'))
+        dragged.setDirty({last: false})
         queue.request(other, {}, () => got.push('other'))
         frame()
-        expect(got).toEqual(['other'])
+        expect(got).toEqual(['dragged', 'other'])
     })
 
     it('shares one render between requests for the same material, shape and size', () => {
@@ -139,7 +163,7 @@ describe('MaterialPreviewQueue', () => {
     })
 
     it('returns a cached preview of an unchanged material in the next frame without a render, and renders again after a materialUpdate', () => {
-        const {generator, queue, frame, advance} = setup({debounce: 200})
+        const {generator, queue, frame} = setup()
         const m = new tp.PhysicalMaterial()
         const first = vi.fn()
         queue.request(m, {}, first)
@@ -157,10 +181,7 @@ describe('MaterialPreviewQueue', () => {
         m.setDirty()
         const changed = vi.fn()
         queue.request(m, {}, changed)
-        frame()
-        expect(changed).not.toHaveBeenCalled() // debounced, the cached preview is stale
-        advance(300)
-        frame()
+        frame() // the cached preview is stale: rendered again
         expect(generator.renderToCanvas).toHaveBeenCalledTimes(2)
         const next = changed.mock.calls[0][0]
         expect(next.version).toBe(1)

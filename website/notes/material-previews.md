@@ -2,6 +2,9 @@
 prev:
   text: 'Widgets, Helpers & Gizmos'
   link: './widgets-and-helpers'
+next:
+  text: 'Frame updates: last, debounce and throttle'
+  link: './frame-updates'
 
 aside: false
 ---
@@ -40,7 +43,7 @@ function showPreview(material: IMaterial, shape: 'sphere' | 'cube' | 'mesh' = 's
     })
 }
 
-// request on every change, the queue waits for the material to stop changing
+// request on every change; the queue renders in the next frame, or at most every 100 ms during a drag
 material.addEventListener('materialUpdate', () => showPreview(material))
 showPreview(material)
 ```
@@ -48,7 +51,7 @@ showPreview(material)
 What the queue does:
 
 - It renders in the viewer's `preFrame`, at most `queue.maxPerFrame` previews per frame (default 1).
-- A request for a material that changed (`materialUpdate`) less than `queue.debounce` ms ago (default 200) waits until the material did not change for that long. A request for a material that did not change renders in the next frame.
+- During a drag, a material renders at most once every `queue.dragInterval` ms (default 100). A drag is a `materialUpdate` with `last: false`, which uiconfig sends while a slider moves (`setDirty({last: false})` from your own inputs). The change that ends the drag (`last` true or not set) renders in the next frame, and so does every other change. See [Frame updates: last, debounce and throttle](./frame-updates).
 - Requests for the same material, shape, geometry and size share one render.
 - It caches the previews by material uuid, shape, geometry, size and a change counter of the material (the number of its `materialUpdate` events). The cache is also invalid after a change of the scene's environment map or of the tone mapping. A request for an unchanged material gets the cached preview in the next frame, without a render. `queue.invalidate(material)` removes the cached previews of a material.
 - `request` returns a handle; `handle.cancel()` stops the callback (and the render, when no other request waits for it).
