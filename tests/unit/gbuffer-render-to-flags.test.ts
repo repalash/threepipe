@@ -180,33 +180,44 @@ describe('GBufferMaterial: a flags-only draw', {timeout}, () => {
     const camera = {updateShaderProperties: () => undefined}
     function draw(mat: any, object: any) {
         mat.onBeforeRender(renderer, null, camera, object.geometry, object, null)
-        const state = {depthWrite: mat.depthWrite, depthTest: mat.depthTest, drawBuffers: gl.drawBuffers.mock.calls.at(-1)?.[0], depthFunc: mat.depthFunc}
+        const state = {depthWrite: mat.depthWrite, depthTest: mat.depthTest, drawBuffers: gl.drawBuffers.mock.calls.at(-1)?.[0], depthFunc: mat.depthFunc, blending: mat.blending}
         mat.onAfterRender(renderer, null, camera, object.geometry, object, null)
         return state
     }
 
-    test('writes only the flags texture, without depth write, with the depth test of the material', () => {
+    test('writes only the flags texture, without depth write and blending, with the depth test of the material', () => {
         gl.drawBuffers.mockClear()
         const mat = new tp.GBufferMaterial(true)
         mat.flagsOnlyMaterials = new Set()
         const ov = overlay(undefined, {depthTest: false, depthFunc: tp.GreaterDepth})
         mat.flagsOnlyMaterials.add(ov)
         const s = draw(mat, new tp.Mesh(new tp.BoxGeometry(), ov))
-        expect(s).toEqual({depthWrite: false, depthTest: false, drawBuffers: [gl.NONE, gl.COLOR_ATTACHMENT1], depthFunc: tp.GreaterDepth})
+        expect(s).toEqual({depthWrite: false, depthTest: false, drawBuffers: [gl.NONE, gl.COLOR_ATTACHMENT1], depthFunc: tp.GreaterDepth, blending: tp.NoBlending})
         // put back for the next draw: all the attachments, as three.js set them
         expect(gl.drawBuffers.mock.calls.at(-1)[0]).toEqual([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1])
-        expect([mat.depthWrite, mat.depthTest, mat.depthFunc]).toEqual([true, true, tp.LessEqualDepth])
+        expect([mat.depthWrite, mat.depthTest, mat.depthFunc, mat.blending]).toEqual([true, true, tp.LessEqualDepth, tp.NormalBlending])
+    })
+    test('a GBuffer material of the object, made transparent by the pass, does not blend the flags', () => {
+        const {pass} = plugin()
+        const mat = new tp.GBufferMaterial(true) // NormalBlending, as a GBuffer material made without options
+        const object = Object.assign(new tp.Mesh2(new tp.BoxGeometry(), overlay(undefined, {transparent: false})), {customGBufferMaterial: mat}) // a threepipe mesh: its `material` returns the forced material
+        expect(flagsOnly(pass, pass.preprocessObject(object))).toBe(true)
+        expect([mat.transparent, mat.blending]).toEqual([true, tp.NormalBlending]) // three.js would blend it
+        const s = draw(mat, object)
+        expect(s.blending).toBe(tp.NoBlending)
+        expect(mat.blending).toBe(tp.NormalBlending)
+        pass.postprocessObject(object)
     })
     test('other materials, and a material without multiple targets (WebGL1), draw as before', () => {
         gl.drawBuffers.mockClear()
         const mat = new tp.GBufferMaterial(true)
         mat.flagsOnlyMaterials = new Set()
         expect(draw(mat, new tp.Mesh(new tp.BoxGeometry(), overlay(undefined, {depthTest: false}))))
-            .toEqual({depthWrite: true, depthTest: true, drawBuffers: undefined, depthFunc: tp.LessEqualDepth})
+            .toEqual({depthWrite: true, depthTest: true, drawBuffers: undefined, depthFunc: tp.LessEqualDepth, blending: tp.NormalBlending})
         const gl1 = new tp.GBufferMaterial(false)
         const ov = overlay()
         gl1.flagsOnlyMaterials = new Set([ov])
-        expect(draw(gl1, new tp.Mesh(new tp.BoxGeometry(), ov))).toEqual({depthWrite: true, depthTest: true, drawBuffers: undefined, depthFunc: tp.LessEqualDepth})
+        expect(draw(gl1, new tp.Mesh(new tp.BoxGeometry(), ov))).toEqual({depthWrite: true, depthTest: true, drawBuffers: undefined, depthFunc: tp.LessEqualDepth, blending: tp.NormalBlending})
     })
 })
 

@@ -1,11 +1,13 @@
 import type {ICamera, IMaterial, IMaterialParameters, IObject3D, PhysicalMaterial} from '../../core'
 import {
+    Blending,
     BufferGeometry,
     Camera,
     DepthModes,
     DoubleSide,
     GLSL1,
     GLSL3, Group,
+    NoBlending,
     NormalMapTypes,
     Object3D,
     Scene,
@@ -71,8 +73,8 @@ export class GBufferMaterial extends ShaderMaterial2 {
      */
     flagsOnlyMaterials?: Set<IMaterial>
 
-    /** Set during a flags-only draw: the number of color attachments of the target, and the depth state to put back */
-    private _flagsOnlyDraw?: {attachments: number, depthWrite: boolean, depthTest: boolean, depthFunc: DepthModes}
+    /** Set during a flags-only draw: the number of color attachments of the target, and the state to put back */
+    private _flagsOnlyDraw?: {attachments: number, depthWrite: boolean, depthTest: boolean, depthFunc: DepthModes, blending: Blending}
 
     normalMapType: NormalMapTypes = TangentSpaceNormalMap
     flatShading = false
@@ -193,7 +195,9 @@ export class GBufferMaterial extends ShaderMaterial2 {
     /**
      * A flags-only draw (see {@link flagsOnlyMaterials}): the draw buffers of the target are set to the flags texture
      * (location 1) only, so the depth and normal (location 0) are not written. three.js sets all the attachments as draw
-     * buffers of a target with multiple textures, {@link _endFlagsOnlyDraw} puts them back.
+     * buffers of a target with multiple textures, {@link _endFlagsOnlyDraw} puts them back. The flags are bits, so the draw
+     * has no blending: the pass draws these materials in its transparent pass, and a GBuffer material of the object (its
+     * `customGBufferMaterial`) is made transparent there, which would blend the flags with the ones behind.
      */
     private _beginFlagsOnlyDraw(renderer: WebGLRenderer, object: Object3D, group: Group|null, material: IMaterial) {
         if (!this.flagsOnlyMaterials || this.glslVersion !== GLSL3) return
@@ -205,8 +209,9 @@ export class GBufferMaterial extends ShaderMaterial2 {
         if (attachments < 2) return
         const gl = renderer.getContext() as WebGL2RenderingContext
         gl.drawBuffers(Array.from({length: attachments}, (_, i) => i === 1 ? gl.COLOR_ATTACHMENT1 : gl.NONE))
-        this._flagsOnlyDraw = {attachments, depthWrite: this.depthWrite, depthTest: this.depthTest, depthFunc: this.depthFunc}
+        this._flagsOnlyDraw = {attachments, depthWrite: this.depthWrite, depthTest: this.depthTest, depthFunc: this.depthFunc, blending: this.blending}
         this.depthWrite = false
+        this.blending = NoBlending
         // the same pixels as the source material: its depth test and depth function (an x-ray overlay uses GreaterDepth)
         this.depthTest = material.depthTest
         this.depthFunc = material.depthFunc
@@ -221,6 +226,7 @@ export class GBufferMaterial extends ShaderMaterial2 {
         this.depthWrite = d.depthWrite
         this.depthTest = d.depthTest
         this.depthFunc = d.depthFunc
+        this.blending = d.blending
     }
 
     protected _updateFlagsUniform(flags: Vector4, material: IMaterial & Partial<PhysicalMaterial>, renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D) {
