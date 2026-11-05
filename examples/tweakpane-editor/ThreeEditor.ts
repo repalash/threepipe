@@ -64,7 +64,7 @@ import {
     VirtualCamerasPlugin,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
-import {EditorCameraPlugin, HierarchyUiPlugin, NotesPlugin, StickyNotesUiPlugin, TweakpaneEditorPlugin} from '@threepipe/plugin-tweakpane-editor'
+import {EditorCameraPlugin, HierarchyUiPlugin, NotesPlugin, SelectionOutlinePlugin, StickyNotesUiPlugin, TweakpaneEditorPlugin} from '@threepipe/plugin-tweakpane-editor'
 import {BlendLoadPlugin} from '@threepipe/plugin-blend-importer'
 import {extraImportPlugins} from '@threepipe/plugins-extra-importers'
 import {FontLibrary, GeometryGeneratorExtrasPlugin} from '@threepipe/plugin-geometry-generator'
@@ -97,6 +97,7 @@ import {
     VelocityBufferPlugin,
 } from '@threepipe/webgi-plugins'
 import {TroikaTextPlugin} from '@threepipe/plugin-troika-text'
+import {AnnotationsPlugin} from '@threepipe/plugin-annotations'
 
 export class ThreeEditor extends ThreeViewer {
 
@@ -124,7 +125,8 @@ export class ThreeEditor extends ThreeViewer {
         new TransformControlsPlugin(false),
         new PivotControlsPlugin(false),
         new PivotEditPlugin(false),
-        OutlinePlugin,
+        new OutlinePlugin(false), // off: the SelectionOutlinePlugin draws the selection; turn it on in the Interaction mode to compare
+        SelectionOutlinePlugin,
         EditorViewWidgetPlugin,
         ViewerUiConfigPlugin,
         ClearcoatTintPlugin,
@@ -178,11 +180,13 @@ export class ThreeEditor extends ThreeViewer {
         new CascadedShadowsPlugin(false),
         DynamicImportPlugin,
         NotesPlugin, StickyNotesUiPlugin,
+        // editable: Add annotation in its folder (Interaction), then click a surface; edits are undoable
+        new AnnotationsPlugin({editable: true}),
     ]
 
     editorModes: Record<string, Class<IViewerPlugin<any>>[]> = {
         ['Viewer']: [ViewerUiConfigPlugin, EditorCameraPlugin, DropzonePlugin, BaseGroundPlugin, ContactShadowGroundPlugin, TweakpaneUiPlugin, TweakpaneEditorPlugin, InteractionPromptPlugin, ThreeGpuPathTracerPlugin, FullScreenPlugin],
-        ['Interaction']: [HierarchyUiPlugin, TransformControlsPlugin, PivotControlsPlugin, PivotEditPlugin, PickingPlugin, OutlinePlugin, Object3DGeneratorPlugin, GeometryGeneratorPlugin, EditorViewWidgetPlugin, ObjectConstraintsPlugin, Object3DWidgetsPlugin, MeshOptSimplifyModifierPlugin],
+        ['Interaction']: [HierarchyUiPlugin, TransformControlsPlugin, PivotControlsPlugin, PivotEditPlugin, PickingPlugin, OutlinePlugin, SelectionOutlinePlugin, AnnotationsPlugin, Object3DGeneratorPlugin, GeometryGeneratorPlugin, EditorViewWidgetPlugin, ObjectConstraintsPlugin, Object3DWidgetsPlugin, MeshOptSimplifyModifierPlugin],
         ['Buffers']: [GBufferPlugin, DepthBufferPlugin, NormalBufferPlugin, CascadedShadowsPlugin],
         ['Post-processing']: [TonemapPlugin, ProgressivePlugin, SSAAPlugin, SSAOPlugin, SSReflectionPlugin, BloomPlugin, DepthOfFieldPlugin, SSGIPlugin, FrameFadePlugin, VignettePlugin, ChromaticAberrationPlugin, FilmicGrainPlugin, TemporalAAPlugin, VelocityBufferPlugin, SSContactShadowsPlugin],
         ['Export']: [AssetExporterPlugin, CanvasSnapshotPlugin, AWSClientPlugin, TransfrSharePlugin, AssimpJsPlugin, LoadingScreenPlugin],
