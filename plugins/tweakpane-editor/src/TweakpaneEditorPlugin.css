@@ -4,7 +4,6 @@
     /*backdrop-filter: blur(8px);*/
     /*border: 1px solid var(--tp-button-background-color-active, #8F949C);*/
     width: fit-content;
-    width: -moz-fit-content;
     height: auto;
     display: flex;
     flex-direction: row;

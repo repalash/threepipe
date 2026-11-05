@@ -17,6 +17,7 @@ const alias = {
     '@threepipe/plugin-network': path.resolve(import.meta.dirname, './plugins/network/src/index.ts'),
     '@threepipe/plugin-tweakpane': path.resolve(import.meta.dirname, './plugins/tweakpane/src/index.ts'),
     '@threepipe/plugin-blueprintjs': path.resolve(import.meta.dirname, './plugins/blueprintjs/src/index.ts'),
+    '@threepipe/plugin-cloud': path.resolve(import.meta.dirname, './plugins/cloud/src/index.ts'),
     '@threepipe/plugin-svg-renderer': path.resolve(import.meta.dirname, './plugins/svg-renderer/src/index.ts'),
     '@threepipe/plugin-tweakpane-editor': path.resolve(import.meta.dirname, './plugins/tweakpane-editor/src/index.ts'),
     '@threepipe/plugin-blend-importer': path.resolve(import.meta.dirname, './plugins/blend-importer/src/index.ts'),

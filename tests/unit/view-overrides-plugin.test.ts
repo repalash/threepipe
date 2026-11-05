@@ -127,6 +127,30 @@ describe('ViewOverridesPlugin', {timeout}, () => {
         expect(line.material.allowOverride).toBe(false)
     })
 
+    test('a widget (a light helper with its lines and icon) keeps its own materials in every material view', () => {
+        const {plugin, viewer, scene, real} = setup()
+        const widget = new tp.PointLightHelper2(new tp.PointLight2())
+        scene.add(widget)
+        const objects: any[] = []
+        widget.traverse((o: any) => o.material && objects.push(o))
+        const materials = objects.map(o => o.material)
+        expect(objects).toContain(widget.icon)
+        // the icon and its dot use the default; the helper line materials already opt out
+        const before = materials.map(m => m.allowOverride)
+        expect(widget.icon!.material.allowOverride).toBe(true)
+        for (const type of plugin.materialTypes.map(m => m.key)) {
+            plugin.setMaterial(type)
+            viewer.dispatchEvent({type: 'preRender'})
+            // its own materials, not the override material nor a line variant
+            expect(objects.map(o => o.material)).toEqual(materials)
+            expect(objects.every(o => o.forcedOverrideMaterial === undefined)).toBe(true)
+            expect(materials.every(m => m.allowOverride === false)).toBe(true)
+            viewer.dispatchEvent({type: 'postRender'})
+            expect(materials.map(m => m.allowOverride)).toEqual(before)
+            expect(real()).toEqual(untouched) // the rest of the scene as before
+        }
+    })
+
     test('the unlit view draws a fat line with its own material', () => {
         const {plugin, viewer, fatLine, fatLineMaterial, real} = setup()
         plugin.setMaterial('unlit')
