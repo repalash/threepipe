@@ -351,6 +351,10 @@ export class EditorFrame {
     }
 
     private _onMenuKeyDown = (e: KeyboardEvent) => {
-        if (e.key === 'Escape') this._closeMenu()
+        if (e.key !== 'Escape') return
+        this._closeMenu()
+        // used: the key does not also change the selection or close something else
+        e.preventDefault()
+        e.stopPropagation()
     }
 }

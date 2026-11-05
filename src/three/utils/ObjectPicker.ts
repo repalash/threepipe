@@ -14,7 +14,7 @@ export interface HitIntersects{
     mouse: Vector2,
     selectedWidget?: (IWidget&IObject3D) | null,
     selectedHandle?: Object3D | null,
-    /** When set to true by a hitObject listener, the picker will skip selection changes for this click. */
+    /** When set to true by a hitObject listener, the picker will skip selection changes for this click (also a click on empty space). */
     consumed?: boolean,
 }
 
@@ -322,9 +322,9 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
     private _onPointerClick = (event: PointerEvent) => {
         if (event.isPrimary === false) return
         this.updateMouseFromEvent(event)
-        const {obj, intersects} = this._hitObject()
+        const {obj, intersects, consumed} = this._hitObject()
 
-        if (intersects?.consumed) return
+        if (consumed) return
 
         if (this.multiSelectEnabled && (event.shiftKey || event.ctrlKey || event.metaKey) && obj && this.selectionMode === 'object') {
             // Multi-select toggle: add if not selected, remove if selected. Last clicked is primary (index 0).
@@ -345,12 +345,9 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
 
     private _hitObject() {
         const intersects = this.checkIntersection()
-        if (intersects) this.dispatchEvent({type: 'hitObject', time: this.time, intersects})
-        else this.dispatchEvent({
-            type: 'hitObject',
-            time: this.time,
-            intersects: {selectedObject: null, intersect: null, intersects: [], mouse: this.mouse.clone()},
-        })
+        // a miss goes to the listeners too, so a listener can consume that click as well (HitIntersects.consumed)
+        const hit: HitIntersects = intersects ?? {selectedObject: null, intersect: null, intersects: [], mouse: this.mouse.clone()}
+        this.dispatchEvent({type: 'hitObject', time: this.time, intersects: hit})
 
         let obj: SelectionObject = intersects?.selectedObject || null
 
@@ -383,7 +380,7 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
                 break
             }
         }
-        return {obj, intersects}
+        return {obj, intersects, consumed: !!hit.consumed}
     }
 
     checkIntersection(): HitIntersects | null {
