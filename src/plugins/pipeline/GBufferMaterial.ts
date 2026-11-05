@@ -135,6 +135,8 @@ export class GBufferMaterial extends ShaderMaterial2 {
             ['MAP_UV']: map ? uvName(channel(map)) : undefined,
             ['USE_ALPHAMAP']: alphaMap ? 1 : undefined,
             ['ALPHAMAP_UV']: alphaMap ? uvName(channel(alphaMap)) : undefined,
+            // an inverted alpha map (`userData.inverseAlphaMap`, as PhysicalMaterial reads it) cuts the same pixels
+            ['INVERSE_ALPHAMAP']: alphaMap && material.userData.inverseAlphaMap ? 1 : undefined,
             ['USE_UV1']: uses(1),
             ['USE_UV2']: uses(2),
             ['USE_UV3']: uses(3),

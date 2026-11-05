@@ -69,6 +69,23 @@ describe('GBufferMaterial: the alpha of the material', {timeout}, () => {
         expect(draw(mat, new tp.Mesh(new tp.BoxGeometry(), overlay)).alphaTest).toBe(1e-4)
     })
 
+    test('an inverted alpha map (userData.inverseAlphaMap) is inverted in the GBuffer too', () => {
+        const mat = new tp.GBufferMaterial(true)
+        const src = new tp.PhysicalMaterial({alphaMap: new tp.Texture(), alphaTest: 0.5})
+        src.userData.inverseAlphaMap = true
+        const mesh = new tp.Mesh(new tp.BoxGeometry(), src)
+        mat.onBeforeRender(renderer, null, camera, undefined, mesh, null)
+        expect(mat.defines.INVERSE_ALPHAMAP).toBe(1)
+        mat.onAfterRender(renderer, null, camera, undefined, mesh, null)
+        // not for the next object, nor without an alpha map
+        mat.onBeforeRender(renderer, null, camera, undefined, new tp.Mesh(new tp.BoxGeometry(), new tp.PhysicalMaterial({alphaMap: new tp.Texture()})), null)
+        expect(mat.defines.INVERSE_ALPHAMAP).toBe(undefined)
+        const noMap = new tp.PhysicalMaterial()
+        noMap.userData.inverseAlphaMap = true
+        mat.onBeforeRender(renderer, null, camera, undefined, new tp.Mesh(new tp.BoxGeometry(), noMap), null)
+        expect(mat.defines.INVERSE_ALPHAMAP).toBe(undefined)
+    })
+
     test('each texture is read with its own UV set (Texture.channel)', () => {
         const mat = new tp.GBufferMaterial(true)
         const map = Object.assign(new tp.Texture(), {channel: 1})
