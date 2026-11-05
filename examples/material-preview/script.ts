@@ -18,7 +18,8 @@ import {
 } from 'threepipe'
 
 // Live material previews for an inspector panel: a MaterialPreviewQueue renders a small offscreen preview
-// with the viewer's environment map and tone mapping when a material stops changing.
+// with the viewer's environment map and tone mapping in the next frame after a change, and at most every
+// dragInterval ms during a drag of a slider.
 
 const viewer = new ThreeViewer({
     canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
@@ -56,6 +57,14 @@ async function init() {
         refreshAll.forEach(f => f())
     })
     document.getElementById('benchmark')!.onclick = () => benchmark(meshes[1].material as IMaterial)
+
+    // the time between two previews during a drag, to try other values (0: one preview per frame)
+    const dragInterval = document.getElementById('drag-interval') as HTMLInputElement
+    dragInterval.value = String(queue.dragInterval)
+    dragInterval.oninput = () => {
+        const v = parseFloat(dragInterval.value)
+        if (v >= 0) queue.dragInterval = v
+    }
 }
 
 const refreshAll: (() => void)[] = []
