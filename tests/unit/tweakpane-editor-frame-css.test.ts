@@ -439,6 +439,9 @@ describe('tweakpane editor frame areas', () => {
                 expect(box(other, layout, phone, s), stacked).toBeNull()
                 expect(box(panel, layout, phone, s), stacked).toBeNull()
                 expect(cascade(canvas, bodyClasses(layout, s), phone).height).toBe(cascade(canvas, bodyClasses(layout, {}), phone).height)
+                // the open mode is not marked: a tap on it shows the panel again
+                expect(cascade(['.mb-btn.on'], bodyClasses(layout, s), phone).background, stacked).toBe('transparent')
+                expect(cascade(['.mb-btn.on'], bodyClasses(layout, {left: true, bottom: true}), phone).background, stacked).not.toBe('transparent')
                 // the mode bar hides the part below the canvas: the area hides with it
                 expect(box(shown, layout, phone, {...s, panelHidden: true}), stacked).toBeNull()
                 // a collapsed area shows there too

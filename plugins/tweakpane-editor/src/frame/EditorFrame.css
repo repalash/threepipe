@@ -309,4 +309,6 @@ body.lay-floating #tweakpaneUiContainer .tp-rotv { box-shadow: none; }
     }
     body.lay-frame.lay-stacked-left.lay-has-left #tweakpaneUiContainer, body.lay-frame.lay-stacked-bottom.lay-has-bottom #tweakpaneUiContainer { display: none; }
     body.lay-frame.mb-panel-hidden.lay-stacked-left.lay-has-left .lay-area-left, body.lay-frame.mb-panel-hidden.lay-stacked-bottom.lay-has-bottom .lay-area-bottom { display: none; }
+    /* the open mode is not marked while an area is there: a tap on it shows its panel again */
+    body.lay-frame.lay-stacked-left.lay-has-left .mb-btn.on, body.lay-frame.lay-stacked-bottom.lay-has-bottom .mb-btn.on { background: transparent; }
 }
