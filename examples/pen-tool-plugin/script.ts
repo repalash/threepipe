@@ -3,7 +3,9 @@ import {
     _testStart,
     GeometryGeneratorPlugin,
     IObject3D,
+    isEditableTarget,
     LoadingScreenPlugin,
+    PathEditPlugin,
     PenToolPlugin,
     PickingPlugin,
     ThreeViewer,
@@ -14,14 +16,14 @@ import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 const viewer = new ThreeViewer({
     canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
     msaa: true,
-    plugins: [LoadingScreenPlugin, GeometryGeneratorPlugin, PickingPlugin, UndoManagerPlugin],
+    plugins: [LoadingScreenPlugin, GeometryGeneratorPlugin, PickingPlugin, UndoManagerPlugin, PathEditPlugin],
 })
 
 async function init() {
     // Click "Draw Path" (or press P), then on the canvas: click to add a point, drag to pull out curve handles,
     // click the first point to close, Enter or double-click to finish, Backspace removes the last point, Esc cancels.
     // Points go on the model under the pointer, else on the ground. Hold Space or Alt and drag to rotate the camera.
-    // Ctrl/Cmd+Z undoes a new path.
+    // Ctrl/Cmd+Z undoes a new path. Double-click a path to edit its points (PathEditPlugin, on the same layer as the pen).
     const pen = viewer.addPluginSync(new PenToolPlugin({color: '#ff6b3d', linewidth: 3}))
 
     await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
@@ -36,11 +38,12 @@ async function init() {
     viewer.scene.mainCamera.setDirty()
 
     window.addEventListener('keydown', (e) => {
-        if (e.key.toLowerCase() === 'p' && !e.ctrlKey && !e.metaKey && !(e.target instanceof HTMLInputElement)) pen.toggle()
+        if (e.key.toLowerCase() === 'p' && !e.ctrlKey && !e.metaKey && !isEditableTarget(e.target)) pen.toggle()
     })
 
     const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
     ui.setupPluginUi(pen, {expanded: true})
+    ui.setupPluginUi(PathEditPlugin)
     ui.setupPluginUi(PickingPlugin)
 }
 
