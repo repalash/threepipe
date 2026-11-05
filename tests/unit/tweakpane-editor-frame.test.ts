@@ -484,6 +484,137 @@ describe('EditorFrame areas', () => {
     })
 })
 
+describe('EditorFrame area sizes', () => {
+    const handle = (area: string) => body().find('lay-handle-' + area)[0]
+    const area = (name: string) => body().find('lay-area-' + name)[0]
+    const stored = () => JSON.parse(storage.get('tpEditorFrameAreas') ?? 'null')
+    const sizeVar = (v: string) => body().style[v]
+    /** A drag on the window from a press on the edge, in px */
+    const drag = (el: FakeElement, from: {clientX?: number, clientY?: number}, ...moves: {clientX?: number, clientY?: number}[]) => {
+        el.fire('pointerdown', {button: 0, ...from})
+        for (const m of moves) win.fire('pointermove', m)
+        win.fire('pointerup', {})
+    }
+
+    test('an edge for the left area, the bottom area and the panel; they go with the frame, and so do the sizes', () => {
+        const f = new EditorFrame(host(), {layout: 'titlebar'})
+        expect(['left', 'bottom', 'right'].map(a => handle(a)?.getAttribute('role'))).toEqual(['separator', 'separator', 'separator'])
+        expect(handle('bottom').getAttribute('aria-orientation')).toBe('horizontal')
+        f.setAreaSize('left', 300)
+        f.setAreaSize('right', 400)
+        f.setAreaCollapsed('bottom', true)
+        f.dispose()
+        expect(body().find('lay-handle')).toHaveLength(0)
+        // the classic layout has the panel width of the Tweakpane UI again
+        expect([sizeVar('--lay-left-area-size'), sizeVar('--tweakpane-ui-container-width')]).toEqual([undefined, undefined])
+        expect(body().classList.contains('lay-collapsed-bottom')).toBe(false)
+    })
+
+    test('setAreaSize keeps the size between the limits and half of the window; null sets the size of the CSS again; keep stores it', () => {
+        const f = new EditorFrame(host(), {layout: 'titlebar'})
+        f.setAreaSize('left', 300.4)
+        expect(sizeVar('--lay-left-area-size')).toBe('300px')
+        f.setAreaSize('left', 20)
+        expect(sizeVar('--lay-left-area-size')).toBe('160px')
+        f.setAreaSize('right', 5000)
+        expect(sizeVar('--tweakpane-ui-container-width')).toBe('600px')
+        vi.stubGlobal('innerHeight', 500)
+        f.setAreaSize('bottom', 380)
+        expect(sizeVar('--lay-bottom-area-size')).toBe('250px') // half of the window
+        expect(storage.has('tpEditorFrameAreas')).toBe(false) // set from code: not kept
+        f.setAreaSize('left', null, true)
+        expect(sizeVar('--lay-left-area-size')).toBeUndefined()
+        expect(stored()).toEqual({sizes: {right: 600, bottom: 250}, collapsed: {}})
+    })
+
+    test('setAreaCollapsed: the left and the bottom area with a body class, the panel through the mode bar', () => {
+        const f = new EditorFrame(host(), {layout: 'titlebar'})
+        f.setAreaCollapsed('left', true)
+        expect(body().classList.contains('lay-collapsed-left')).toBe(true)
+        expect(f.isAreaCollapsed('left')).toBe(true)
+        f.setAreaCollapsed('right', true, true)
+        expect([f.modeBar.open, body().classList.contains('mb-panel-hidden'), f.isAreaCollapsed('right')]).toEqual([false, true, true])
+        expect(storage.has('tpEditorFrameAreas')).toBe(false) // the panel is not kept here
+        f.setAreaCollapsed('right', false)
+        expect(f.modeBar.open).toBe(true)
+        f.setAreaCollapsed('left', false, true)
+        expect(body().classList.contains('lay-collapsed-left')).toBe(false)
+        expect(stored()).toEqual({sizes: {}, collapsed: {left: false}})
+    })
+
+    test('a new frame applies the kept sizes and collapsed areas; a stored value that is not of the frame is ignored', () => {
+        storage.set('tpEditorFrameAreas', JSON.stringify({sizes: {left: 320, right: 'wide'}, collapsed: {bottom: true, right: true}}))
+        let f = new EditorFrame(host(), {layout: 'floating'})
+        expect([sizeVar('--lay-left-area-size'), sizeVar('--tweakpane-ui-container-width')]).toEqual(['320px', undefined])
+        expect([f.isAreaCollapsed('bottom'), f.isAreaCollapsed('right')]).toEqual([true, false])
+        f.dispose()
+        storage.set('tpEditorFrameAreas', '{not json')
+        f = new EditorFrame(host(), {layout: 'floating'})
+        expect(sizeVar('--lay-left-area-size')).toBeUndefined()
+        f.dispose()
+        EditorFrame.AreaStorageKey = null
+        storage.set('tpEditorFrameAreas', JSON.stringify({sizes: {left: 320}}))
+        try {
+            f = new EditorFrame(host(), {layout: 'floating'})
+            expect(sizeVar('--lay-left-area-size')).toBeUndefined()
+            f.setAreaSize('left', 300, true)
+            expect(stored()).toEqual({sizes: {left: 320}}) // not written
+        } finally {
+            EditorFrame.AreaStorageKey = 'tpEditorFrameAreas'
+        }
+    })
+
+    test('a drag of the left edge resizes it, collapses it past half of the smallest size, opens it again, and keeps the size at the end', () => {
+        const f = new EditorFrame(host(), {layout: 'titlebar'})
+        f.setArea('left', new FakeElement('div') as any)
+        area('left').getBoundingClientRect = () => ({width: 240, height: 800}) as any
+        handle('left').fire('pointerdown', {button: 0, clientX: 240})
+        expect(body().classList.contains('lay-resizing')).toBe(true)
+        win.fire('pointermove', {clientX: 300})
+        expect(sizeVar('--lay-left-area-size')).toBe('300px')
+        expect(storage.has('tpEditorFrameAreas')).toBe(false) // during the drag
+        win.fire('pointermove', {clientX: 40}) // a size of 40 px, under half of 160
+        expect(f.isAreaCollapsed('left')).toBe(true)
+        win.fire('pointermove', {clientX: 130}) // 130 px: open, at the smallest size
+        expect([f.isAreaCollapsed('left'), sizeVar('--lay-left-area-size')]).toEqual([false, '160px'])
+        win.fire('pointerup', {})
+        expect(stored()).toEqual({sizes: {left: 160}, collapsed: {left: false}})
+        expect(body().classList.contains('lay-resizing')).toBe(false)
+        // the drag is over: a move does nothing
+        win.fire('pointermove', {clientX: 400})
+        expect(sizeVar('--lay-left-area-size')).toBe('160px')
+        // another button does not drag
+        handle('left').fire('pointerdown', {button: 2, clientX: 160})
+        win.fire('pointermove', {clientX: 400})
+        expect(sizeVar('--lay-left-area-size')).toBe('160px')
+    })
+
+    test('a drag of the panel edge: to the left it grows, to the right it hides the panel; the bottom edge grows up', () => {
+        const panel = new FakeElement('div')
+        panel.getBoundingClientRect = () => ({width: 300, height: 800}) as any
+        const f = new EditorFrame(host(), {layout: 'titlebar', panel: () => panel as any})
+        drag(handle('right'), {clientX: 1096}, {clientX: 1000})
+        expect(sizeVar('--tweakpane-ui-container-width')).toBe('396px')
+        drag(handle('right'), {clientX: 1096}, {clientX: 1350}) // 300 - 254 = 46 px
+        expect(f.modeBar.open).toBe(false)
+        f.setArea('bottom', new FakeElement('div') as any)
+        area('bottom').getBoundingClientRect = () => ({width: 800, height: 160}) as any
+        drag(handle('bottom'), {clientY: 700}, {clientY: 650})
+        expect(sizeVar('--lay-bottom-area-size')).toBe('210px')
+    })
+
+    test('a double-click on an edge sets the default size, or opens a collapsed area', () => {
+        const f = new EditorFrame(host(), {layout: 'titlebar'})
+        f.setAreaSize('left', 300)
+        handle('left').fire('dblclick')
+        expect(sizeVar('--lay-left-area-size')).toBeUndefined()
+        f.setAreaCollapsed('bottom', true)
+        handle('bottom').fire('dblclick')
+        expect(f.isAreaCollapsed('bottom')).toBe(false)
+        expect(stored()).toEqual({sizes: {}, collapsed: {bottom: false}})
+    })
+})
+
 describe('TweakpaneEditorPlugin.layout', () => {
     /** The plugin with modes in a fake viewer, so a layout makes the frame */
     const plugin = () => {

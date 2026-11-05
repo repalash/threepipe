@@ -86,6 +86,20 @@ The frame has fixed areas: the left sidebar, the right sidebar (the panel and th
 - The body has the class `lay-has-left` or `lay-has-bottom` while that area has an element. The CSS variables `--lay-left-area`, `--lay-right-area` and `--lay-bottom-area` are the width or height of each area (`0px` when it is empty). In the floating layout, `--lay-left-inset` and `--lay-bottom-inset` are the parts of the canvas that the left and the bottom card cover, with their gap.
 - A portrait window under 920 px wide (a phone) has no room for the left and the bottom area: they are hidden there.
 
+**Size and collapse.** The left area, the bottom area and the panel (`right`) can change size and collapse:
+
+- A drag on the inner edge of an area changes its size: the right edge of the left area, the top edge of the bottom area, the left edge of the panel. A line shows on the edge on hover. The size stays between the limits of `EditorFrame.AreaLimits` (left 160 to 480 px, bottom 80 to 400 px, panel 240 to 600 px), and at most half of the window.
+- A drag past half of the smallest size collapses the area: it is hidden and takes no room, and its edge stays at the side of the window. A drag out of the edge opens it again. The panel collapses as the mode bar hides it, and the mode bar shows it again.
+- A double-click on an edge sets the default size, or opens a collapsed area.
+- The sizes and the collapsed left and bottom areas that the person picks are kept in `localStorage` (`EditorFrame.AreaStorageKey`, `null` to not keep them), in every layout.
+- From code: `editor.frame.setAreaSize('left', 320)`, `setAreaSize(area, null)` for the default size, `setAreaCollapsed('bottom', true)` and `isAreaCollapsed(area)`. A change from code is not kept, unless the last argument `keep` is `true`.
+- A narrow portrait window has no edges.
+
+```typescript
+editor.frame?.setAreaSize('right', 360) // a wider panel
+editor.frame?.setAreaCollapsed('left', true)
+```
+
 ```typescript
 const layers = document.createElement('div')
 editor.setArea('left', layers)

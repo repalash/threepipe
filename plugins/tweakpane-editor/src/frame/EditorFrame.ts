@@ -1,7 +1,7 @@
 import {createDiv, createStyles} from 'threepipe'
 import tippy, {Instance} from 'tippy.js'
 import {EditorModeBar, EditorModeBarHost} from './EditorModeBar'
-import {isTextTarget} from '../dom-utils'
+import {isTextTarget, readStored, writeStored} from '../dom-utils'
 import styles from './EditorFrame.css?inline'
 
 /**
@@ -24,6 +24,19 @@ export const EDITOR_FRAME_LAYOUTS: [EditorFrameLayout, string][] = [['titlebar',
  * The right sidebar is the panel (the container of the Tweakpane UI) with the {@link EditorModeBar}.
  */
 export type EditorFrameArea = 'left' | 'bottom'
+
+/**
+ * The areas whose size can change ({@link EditorFrame.setAreaSize}) and that can collapse
+ * ({@link EditorFrame.setAreaCollapsed}): the left and the bottom area, and `right`, the panel.
+ */
+export type EditorFrameSizedArea = EditorFrameArea | 'right'
+
+/** The CSS variable of the size of each area, on the body */
+const AREA_SIZE_VARS: Record<EditorFrameSizedArea, string> = {
+    left: '--lay-left-area-size',
+    bottom: '--lay-bottom-area-size',
+    right: '--tweakpane-ui-container-width',
+}
 
 /** The layout of the editor page: a frame layout, or `classic` for no frame (the mode tabs at the bottom) */
 export type EditorPageLayout = EditorFrameLayout | 'classic'
@@ -86,6 +99,13 @@ const ICONS = {
  * `--lay-left-inset` and `--lay-bottom-inset` are the parts of the canvas that the left and the bottom card cover with
  * their gap: the perf pill, the bar of the sticky notes and the tool bar keep out of them.
  *
+ * The left area, the bottom area and the panel have a size and can collapse ({@link setAreaSize},
+ * {@link setAreaCollapsed}). A drag on the inner edge of the area changes its size, between the limits of
+ * {@link AreaLimits}; a drag past half of the smallest size collapses it, and a drag out of the edge opens it again. A
+ * double-click on the edge sets the default size, or opens a collapsed area. The sizes and the collapsed left and bottom
+ * areas that the person picks are kept in `localStorage` ({@link AreaStorageKey}). The panel collapses as the mode bar
+ * hides it, and the mode bar shows it again.
+ *
  * In a wide or a landscape window, the canvas, the panel and the mode bar are side by side. In a portrait window under
  * 920 px wide (a phone), the layout keeps its bars (floating has no gap there); the canvas is on top at full width, and
  * the panel and the mode bar are below it, with the same height. The CSS variable `--lay-split` is the part of the height
@@ -96,6 +116,18 @@ export class EditorFrame {
     /** The default theme pairs: Shift+T goes from one to the other */
     static ThemePairs: [string, string][] = [['clean', 'clean-dark'], ['light', 'dark'], ['white', 'black']]
 
+    /**
+     * The smallest and the largest size of each area in px ({@link setAreaSize}, a drag of its edge). An area is also
+     * at most half of the window.
+     */
+    static AreaLimits: Record<EditorFrameSizedArea, [number, number]> = {left: [160, 480], bottom: [80, 400], right: [240, 600]}
+
+    /**
+     * The `localStorage` key that keeps the sizes and the collapsed left and bottom areas that the person picks (a drag
+     * or a double-click of an edge), or `null` to not keep them. Read when the frame is made.
+     */
+    static AreaStorageKey: string | null = 'tpEditorFrameAreas'
+
     readonly modeBar: EditorModeBar
     private _layout: EditorFrameLayout
     private _documentName = ''
@@ -105,6 +137,14 @@ export class EditorFrame {
     private _floatActions: HTMLDivElement
     /** The elements of the areas ({@link setArea}), in the page while the frame is */
     private _areas: Record<EditorFrameArea, HTMLDivElement>
+    /** The edges that a drag resizes, in the page while the frame is */
+    private _handles: Record<EditorFrameSizedArea, HTMLDivElement>
+    /** The sizes set in px ({@link setAreaSize}); not set: the size of the CSS */
+    private _sizes: Partial<Record<EditorFrameSizedArea, number>> = {}
+    /** The collapsed left and bottom areas; the panel collapses as the mode bar hides it */
+    private _collapsed: Partial<Record<EditorFrameArea, boolean>> = {}
+    /** Ends the drag of an edge that is in progress */
+    private _endDrag?: () => void
     /** The open layout menu, and the button that opened it */
     private _menu?: HTMLDivElement
     private _menuAnchor?: HTMLElement
@@ -136,6 +176,8 @@ export class EditorFrame {
         this._floatActions = createDiv({classList: ['lay-float-actions'], addToBody: false})
         this._floatActions.append(...this._actions('modeBar'))
         this._areas = {left: this._area('left'), bottom: this._area('bottom')}
+        this._handles = {left: this._handle('left'), bottom: this._handle('bottom'), right: this._handle('right')}
+        this._restoreAreas()
 
         window.addEventListener('keydown', this._onKeyDown)
         this.modeBar.element.addEventListener('click', this._expandPanel)
@@ -247,6 +289,50 @@ export class EditorFrame {
         document.body.classList.toggle('lay-has-' + area, !!element)
     }
 
+    /**
+     * Sets the size of an area in px: the width of the left area or the panel (`right`), the height of the bottom area.
+     * It is kept between the limits of {@link AreaLimits}, and at most half of the window. `null` sets the size of the
+     * CSS again (240 px, 160 px, and the panel width of the Tweakpane UI).
+     * @param area - `left`, `bottom` or `right` (the panel)
+     * @param size - the size in px, or `null`
+     * @param keep - keep it in `localStorage` ({@link AreaStorageKey}), as a size that the person picks
+     */
+    setAreaSize(area: EditorFrameSizedArea, size: number | null, keep = false) {
+        if (size === null) {
+            delete this._sizes[area]
+            document.body.style.removeProperty(AREA_SIZE_VARS[area])
+        } else {
+            const [min, max] = EditorFrame.AreaLimits[area]
+            const half = (area === 'bottom' ? innerHeight : innerWidth) / 2
+            size = Math.round(Math.max(min, Math.min(max, half, size)))
+            this._sizes[area] = size
+            document.body.style.setProperty(AREA_SIZE_VARS[area], size + 'px')
+        }
+        if (keep) this._storeAreas()
+    }
+
+    /**
+     * Collapses an area or opens it again. A collapsed left or bottom area is hidden and takes no room; the edge stays,
+     * to drag it out or double-click it. The panel (`right`) collapses as the mode bar hides it ({@link EditorModeBar.setOpen}).
+     * @param area - `left`, `bottom` or `right` (the panel)
+     * @param collapsed - collapse or open
+     * @param keep - keep it in `localStorage` ({@link AreaStorageKey}), as the person's pick. Not for the panel.
+     */
+    setAreaCollapsed(area: EditorFrameSizedArea, collapsed: boolean, keep = false) {
+        if (area === 'right') {
+            if (this.modeBar.open === collapsed) this.modeBar.setOpen(!collapsed)
+            return
+        }
+        this._collapsed[area] = collapsed
+        document.body.classList.toggle('lay-collapsed-' + area, collapsed)
+        if (keep) this._storeAreas()
+    }
+
+    /** Whether an area is collapsed ({@link setAreaCollapsed}); the panel (`right`) when the mode bar hides it */
+    isAreaCollapsed(area: EditorFrameSizedArea) {
+        return area === 'right' ? !this.modeBar.open : !!this._collapsed[area]
+    }
+
     /** Switches between the light and the dark theme of the same family, when the current theme is in a pair */
     toggleTheme() {
         const cm = this.options.colorMode
@@ -266,8 +352,12 @@ export class EditorFrame {
         this._floatActions.remove()
         for (const [area, el] of Object.entries(this._areas)) {
             el.remove()
-            document.body.classList.remove('lay-has-' + area)
+            document.body.classList.remove('lay-has-' + area, 'lay-collapsed-' + area)
         }
+        this._endDrag?.()
+        for (const el of Object.values(this._handles)) el.remove()
+        // the classic layout has the sizes of the Tweakpane UI
+        for (const v of Object.values(AREA_SIZE_VARS)) document.body.style.removeProperty(v)
         this._closeMenu()
         this._tips.forEach(t => t.destroy())
         this.modeBar.dispose()
@@ -305,6 +395,86 @@ export class EditorFrame {
     /** An empty area, in the page: hidden until {@link setArea} puts an element in it */
     private _area(area: EditorFrameArea) {
         return document.body.appendChild(createDiv({classList: ['lay-area', 'lay-area-' + area], addToBody: false}))
+    }
+
+    /**
+     * The edge of an area that a drag resizes: the inner edge (right of the left area, left of the panel, top of the
+     * bottom area). A drag past half of the smallest size collapses the area, a drag out opens it; the size is kept at
+     * the end of the drag. A double-click sets the default size, or opens a collapsed area.
+     */
+    private _handle(area: EditorFrameSizedArea) {
+        const el = document.body.appendChild(createDiv({classList: ['lay-handle', 'lay-handle-' + area], addToBody: false}))
+        el.setAttribute('role', 'separator')
+        el.setAttribute('aria-orientation', area === 'bottom' ? 'horizontal' : 'vertical')
+        el.title = 'Drag to resize, double-click for the default size'
+        el.addEventListener('pointerdown', (e: PointerEvent) => {
+            if (e.button !== 0) return
+            e.preventDefault()
+            this._endDrag?.()
+            const vertical = area !== 'bottom'
+            // left grows to the right, the panel to the left, the bottom area up
+            const sign = area === 'left' ? 1 : -1
+            const start = vertical ? e.clientX : e.clientY
+            const startSize = this.isAreaCollapsed(area) ? 0 : this._areaSize(area)
+            const [min] = EditorFrame.AreaLimits[area]
+            const move = (ev: PointerEvent) => {
+                const size = startSize + sign * ((vertical ? ev.clientX : ev.clientY) - start)
+                if (size < min / 2) return this.setAreaCollapsed(area, true)
+                this.setAreaCollapsed(area, false)
+                this.setAreaSize(area, size)
+            }
+            const end = () => {
+                removeEventListener('pointermove', move)
+                removeEventListener('pointerup', end)
+                removeEventListener('pointercancel', end)
+                document.body.classList.remove('lay-resizing', 'lay-resizing-' + (vertical ? 'x' : 'y'))
+                el.classList.remove('lay-active')
+                this._endDrag = undefined
+                this._storeAreas()
+            }
+            addEventListener('pointermove', move)
+            addEventListener('pointerup', end)
+            addEventListener('pointercancel', end)
+            document.body.classList.add('lay-resizing', 'lay-resizing-' + (vertical ? 'x' : 'y'))
+            el.classList.add('lay-active')
+            this._endDrag = end
+        })
+        el.addEventListener('dblclick', () => {
+            if (this.isAreaCollapsed(area)) this.setAreaCollapsed(area, false, true)
+            else this.setAreaSize(area, null, true)
+        })
+        return el
+    }
+
+    /** The size of an area on screen in px: the width of the left area or the panel, the height of the bottom area */
+    private _areaSize(area: EditorFrameSizedArea) {
+        const el = area === 'right' ? this.options.panel?.() : this._areas[area]
+        const r = el?.getBoundingClientRect()
+        return (area === 'bottom' ? r?.height : r?.width) || this._sizes[area] || EditorFrame.AreaLimits[area][0]
+    }
+
+    /** Keeps the sizes and the collapsed left and bottom areas ({@link AreaStorageKey}) */
+    private _storeAreas() {
+        const key = EditorFrame.AreaStorageKey
+        if (key) writeStored(key, JSON.stringify({sizes: this._sizes, collapsed: this._collapsed}))
+    }
+
+    /** Applies the sizes and the collapsed areas that are kept ({@link AreaStorageKey}) */
+    private _restoreAreas() {
+        const key = EditorFrame.AreaStorageKey
+        let stored: {sizes?: Record<string, unknown>, collapsed?: Record<string, unknown>} | undefined
+        try {
+            stored = JSON.parse(key && readStored(key) || 'null') ?? undefined
+        } catch (e) {
+            return // not a value of this frame
+        }
+        for (const area of Object.keys(AREA_SIZE_VARS) as EditorFrameSizedArea[]) {
+            const size = stored?.sizes?.[area]
+            if (typeof size === 'number' && isFinite(size)) this.setAreaSize(area, size)
+        }
+        for (const area of ['left', 'bottom'] as const) {
+            if (stored?.collapsed?.[area] === true) this.setAreaCollapsed(area, true)
+        }
     }
 
     /**

@@ -62,6 +62,25 @@ body.lay-floating.lay-has-bottom { --lay-bottom-inset: calc(var(--lay-bottom-are
 }
 body.lay-has-left .lay-area-left, body.lay-has-bottom .lay-area-bottom { display: flex; }
 .lay-area > * { flex: 1 1 auto; min-height: 0; }
+/* a collapsed left or bottom area (EditorFrame.setAreaCollapsed, or a drag of its edge to the side): hidden, and it takes
+   no room; its edge stays, to drag it out again or double-click it */
+body.lay-frame.lay-has-left.lay-collapsed-left { --lay-left-area: 0px; --lay-left-inset: 0px; }
+body.lay-frame.lay-has-bottom.lay-collapsed-bottom { --lay-bottom-area: 0px; --lay-bottom-inset: 0px; }
+body.lay-has-left.lay-collapsed-left .lay-area-left, body.lay-has-bottom.lay-collapsed-bottom .lay-area-bottom { display: none; }
+/* the inner edges of the left area, the bottom area and the panel: a drag changes the size (EditorFrame.setAreaSize).
+   6 px to grab, over the line between the parts; a 2 px line shows on hover and while dragging. Above the areas and the
+   mode bar, below the title and status bar. Shown only in a wide or a landscape window (below) */
+.lay-handle { display: none; position: fixed; z-index: 205; touch-action: none; }
+.lay-handle-left, .lay-handle-right { width: 6px; cursor: col-resize; }
+.lay-handle-bottom { height: 6px; cursor: row-resize; }
+.lay-handle::after { content: ''; position: absolute; background: #0d99ff; opacity: 0; transition: opacity .12s .1s; }
+.lay-handle-left::after, .lay-handle-right::after { top: 0; bottom: 0; left: 2px; width: 2px; }
+.lay-handle-bottom::after { left: 0; right: 0; top: 2px; height: 2px; }
+.lay-handle:hover::after, .lay-handle.lay-active::after { opacity: 1; }
+/* while dragging: the cursor of the edge everywhere, and no text selection */
+body.lay-resizing { user-select: none; -webkit-user-select: none; }
+body.lay-resizing-x, body.lay-resizing-x * { cursor: col-resize !important; }
+body.lay-resizing-y, body.lay-resizing-y * { cursor: row-resize !important; }
 .lay-bar {
     position: fixed; left: 0; right: 0; z-index: 210; display: flex; align-items: center; gap: 4px; padding: 0 8px 0 12px; box-sizing: border-box;
     background: var(--tp-base-background-color, #fff); color: var(--tp-container-foreground-color, #1e1e1e);
@@ -216,6 +235,20 @@ body.lay-floating #tweakpaneUiContainer .tp-rotv { box-shadow: none; }
     body.lay-floating .lay-area-left { left: var(--lay-gap); top: var(--lay-gap); bottom: var(--lay-gap); width: var(--lay-left-area); }
     body.lay-floating .lay-area-bottom {
         left: calc(var(--lay-left-inset) + var(--lay-gap)); right: var(--lay-right-inset); bottom: var(--lay-gap); height: var(--lay-bottom-area);
+    }
+
+    /* the edges: on the inner edge of each area, over the line or the gap; the panel's while it shows */
+    body.lay-has-left .lay-handle-left, body.lay-has-bottom .lay-handle-bottom, body.lay-frame .lay-handle-right { display: block; }
+    body.lay-frame.mb-panel-hidden .lay-handle-right { display: none; }
+    body.lay-titlebar .lay-handle-left, body.lay-statusbar .lay-handle-left { left: calc(var(--lay-left-area) - 3px); top: var(--lay-top); bottom: var(--lay-bottom); }
+    body.lay-titlebar .lay-handle-right, body.lay-statusbar .lay-handle-right { right: calc(var(--lay-right-area) - 3px); top: var(--lay-top); bottom: var(--lay-bottom); }
+    body.lay-titlebar .lay-handle-bottom, body.lay-statusbar .lay-handle-bottom {
+        left: var(--lay-left-area); right: var(--lay-right-area); bottom: calc(var(--lay-bottom) + var(--lay-bottom-area) - 3px);
+    }
+    body.lay-floating .lay-handle-left { left: calc(var(--lay-gap) + var(--lay-left-area) - 3px); top: var(--lay-gap); bottom: var(--lay-gap); }
+    body.lay-floating .lay-handle-right { right: calc(var(--lay-gap) + var(--lay-right-area) - 3px); top: var(--lay-gap); bottom: var(--lay-gap); }
+    body.lay-floating .lay-handle-bottom {
+        left: calc(var(--lay-left-inset) + var(--lay-gap)); right: var(--lay-right-inset); bottom: calc(var(--lay-gap) + var(--lay-bottom-area) - 3px);
     }
 }
 

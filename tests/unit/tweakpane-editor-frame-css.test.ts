@@ -109,17 +109,27 @@ function evaluate(expr: string, percentOf: number, vars: Record<string, string>)
 }
 
 type Layout = 'titlebar' | 'statusbar' | 'floating'
-interface FrameState {left?: boolean, bottom?: boolean, panelHidden?: boolean}
+interface FrameState {
+    left?: boolean, bottom?: boolean, panelHidden?: boolean
+    /** The collapsed areas (EditorFrame.setAreaCollapsed) */
+    collapsed?: ('left' | 'bottom')[]
+    /** The sizes set inline on the body (EditorFrame.setAreaSize), like `--lay-left-area-size: 320px` */
+    sizes?: Record<string, string>
+}
 
 /** The classes of the body for a layout and its state, as EditorFrame and EditorModeBar set them */
 function bodyClasses(layout: Layout, s: FrameState = {}) {
-    return ['lay-frame', 'lay-' + layout, ...s.left ? ['lay-has-left'] : [], ...s.bottom ? ['lay-has-bottom'] : [], ...s.panelHidden ? ['mb-panel-hidden'] : []]
+    return ['lay-frame', 'lay-' + layout, ...s.left ? ['lay-has-left'] : [], ...s.bottom ? ['lay-has-bottom'] : [], ...s.panelHidden ? ['mb-panel-hidden'] : [],
+        ...(s.collapsed ?? []).map(a => 'lay-collapsed-' + a)]
 }
 
-/** The custom properties of the body: its own, and --mb-width of the mode bar (on the root element, the names hidden) */
+/**
+ * The custom properties of the body: --mb-width of the mode bar (on the root element, the names hidden) and
+ * --tweakpane-ui-container-width of the Tweakpane UI (on the root element), its own, and the sizes set inline
+ */
 function bodyVars(layout: Layout, vp: Viewport, s: FrameState = {}) {
     const all = cascade(['body'], bodyClasses(layout, s), vp)
-    return {'--mb-width': '44px', ...Object.fromEntries(Object.entries(all).filter(([k]) => k.startsWith('--')))}
+    return {'--mb-width': '44px', '--tweakpane-ui-container-width': '300px', ...Object.fromEntries(Object.entries(all).filter(([k]) => k.startsWith('--'))), ...s.sizes}
 }
 
 /** The box of a fixed element, from its left, right, top, bottom, width and height, in px; null when it is not shown */
@@ -415,6 +425,63 @@ describe('tweakpane editor frame areas', () => {
                 expect(evaluate(vars[k], phone.width, vars), k).toBe(0)
             }
             expect(cascade(canvas, bodyClasses(layout, s), phone).width).toBe('100%')
+        })
+    }
+})
+
+describe('tweakpane editor frame: area sizes and edges', () => {
+    const canvas = ['#canvas-container']
+    const panel = ['#tweakpaneUiContainer']
+    const leftArea = ['.lay-area', '.lay-area-left']
+    const bottomArea = ['.lay-area', '.lay-area-bottom']
+    const handle = (area: string) => ['.lay-handle', '.lay-handle-' + area]
+
+    for (const layout of ['titlebar', 'statusbar', 'floating'] as const) {
+        it(`${layout}: the edges are on the inner edge of the left area, the bottom area and the panel, 6 px wide`, () => {
+            const s = {left: true, bottom: true}
+            const l = box(leftArea, layout, desktop, s)!, b = box(bottomArea, layout, desktop, s)!, p = box(panel, layout, desktop, s)!
+            expect(box(handle('left'), layout, desktop, s)).toEqual({left: l.left! + l.width! - 3, top: l.top, width: 6, height: l.height})
+            expect(box(handle('bottom'), layout, desktop, s)).toEqual({left: b.left, top: b.top! - 3, width: b.width, height: 6})
+            expect(box(handle('right'), layout, desktop, s)).toEqual({left: p.left! - 3, top: p.top, width: 6, height: p.height})
+        })
+
+        it(`${layout}: no edge for an empty area or a hidden panel`, () => {
+            expect(box(handle('left'), layout, desktop, {})).toBeNull()
+            expect(box(handle('bottom'), layout, desktop, {})).toBeNull()
+            expect(box(handle('right'), layout, desktop, {panelHidden: true})).toBeNull()
+        })
+
+        it(`${layout}: a collapsed area is hidden and takes no room; its edge stays at the side`, () => {
+            const s = {left: true, bottom: true, collapsed: ['left', 'bottom'] as ('left' | 'bottom')[]}
+            expect(box(leftArea, layout, desktop, s)).toBeNull()
+            expect(box(bottomArea, layout, desktop, s)).toBeNull()
+            const vars = bodyVars(layout, desktop, s)
+            for (const k of ['--lay-left-area', '--lay-bottom-area', '--lay-left-inset', '--lay-bottom-inset']) {
+                expect(evaluate(vars[k], desktop.width, vars), k).toBe(0)
+            }
+            // the canvas is as without the areas
+            expect(box(canvas, layout, desktop, s)).toEqual(box(canvas, layout, desktop, {}))
+            const gap = layout === 'floating' ? 12 : 0
+            expect(box(handle('left'), layout, desktop, s)!.left).toBe(gap - 3)
+            const bh = box(handle('bottom'), layout, desktop, s)!
+            expect(bh.top! + bh.height!).toBe(desktop.height - (layout === 'statusbar' ? 26 : 0) - gap + 3)
+        })
+
+        it(`${layout}: the sizes set on the body move the areas, the panel and the canvas`, () => {
+            const s = {left: true, bottom: true, sizes: {'--lay-left-area-size': '320px', '--lay-bottom-area-size': '200px', '--tweakpane-ui-container-width': '400px'}}
+            expect(box(leftArea, layout, desktop, s)!.width).toBe(320)
+            expect(box(bottomArea, layout, desktop, s)!.height).toBe(200)
+            expect(box(panel, layout, desktop, s)!.width).toBe(400)
+            if (layout !== 'floating') {
+                const c = box(canvas, layout, desktop, s)!
+                expect([c.left, c.width]).toEqual([320, 1440 - 320 - 400 - 44])
+            }
+            expect(box(handle('left'), layout, desktop, s)!.left).toBe((layout === 'floating' ? 12 : 0) + 320 - 3)
+        })
+
+        it(`${layout}: a narrow portrait window has no edges`, () => {
+            const s = {left: true, bottom: true}
+            for (const area of ['left', 'bottom', 'right']) expect(box(handle(area), layout, phone, s), area).toBeNull()
         })
     }
 })
