@@ -48,10 +48,9 @@ jobs:
         path: .turbo/cache
         key: turbo-${{ runner.os }}-${{ github.sha }}
         restore-keys: turbo-${{ runner.os }}-
-    - run: npm run build:all # core, plugins (turbo, cached) and examples
+    - run: npm run build-site # core, plugins (turbo, cached), examples and docs, to _site (as Cloudflare Pages runs it)
       env:
         DOT_ENV_CONTENT: ${{ secrets.examples_dot_env }} # todo well...
-    - run: npm run build-site # builds to _site
     - name: Prune the turbo cache # entries older than a week (a hit does not renew them), else the saved cache only grows
       run: find .turbo/cache -type f -mtime +7 -delete 2>/dev/null || true
     - name: Upload artifact

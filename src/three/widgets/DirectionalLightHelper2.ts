@@ -7,7 +7,6 @@ import {IUiConfigContainer, uiSlider} from 'uiconfig.js'
 import {LineMaterial2} from '../../core'
 
 export class DirectionalLightHelper2 extends ALightHelperWidget {
-    color: ColorRepresentation|undefined
     lightPlane: Line2
     targetLine: Line2
     declare light: (DirectionalLight&IUiConfigContainer)|undefined
@@ -30,24 +29,7 @@ export class DirectionalLightHelper2 extends ALightHelperWidget {
 
         let geometry = new LineGeometry()
 
-        this.hMaterial = new LineMaterial2({
-            color: 0xff0000,
-            linewidth: 3, // in world units with size attenuation, pixels otherwise
-            vertexColors: false,
-            worldUnits: false,
-
-            dashed: false,
-            alphaToCoverage: true,
-
-            toneMapped: false,
-            transparent: true,
-            depthTest: true,
-            depthWrite: false,
-
-            allowOverride: false,
-        })
-        this.hMaterial.userData.renderToGBuffer = false
-        this.hMaterial.userData.renderToDepth = false
+        this.hMaterial = this._createLineMaterial()
 
         this.lightPlane = new Line2(geometry, this.hMaterial)
         this.add(this.lightPlane)
@@ -98,7 +80,7 @@ export class DirectionalLightHelper2 extends ALightHelperWidget {
         this.lightPlane.lookAt(this._v2)
         this.lightPlane.material = this.hMaterial
         this.targetLine.material = this.hMaterial
-        this.hMaterial.color.set(this.color ?? this.light.color)
+        this.hMaterial.color.set(this._lineColor)
         this.hMaterial.linewidth = this.lineWidth
 
         this.targetLine.lookAt(this._v2)

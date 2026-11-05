@@ -7,7 +7,6 @@ import {IUiConfigContainer, uiSlider} from 'uiconfig.js'
 import {LineMaterial2} from '../../core'
 
 export class SpotLightHelper2 extends ALightHelperWidget {
-    color: ColorRepresentation | undefined
     cone: LineSegments2
     declare light: (SpotLight & IUiConfigContainer) | undefined
     @onChange(SpotLightHelper2.prototype.update)
@@ -45,24 +44,7 @@ export class SpotLightHelper2 extends ALightHelperWidget {
         }
         geometry.setPositions(positions)
 
-        this.hMaterial = new LineMaterial2({
-            color: 0xff0000,
-            linewidth: 3, // in world units with size attenuation, pixels otherwise
-            vertexColors: false,
-            worldUnits: false,
-
-            dashed: false,
-            alphaToCoverage: true,
-
-            toneMapped: false,
-            transparent: true,
-            depthTest: true,
-            depthWrite: false,
-
-            allowOverride: false,
-        })
-        this.hMaterial.userData.renderToGBuffer = false
-        this.hMaterial.userData.renderToDepth = false
+        this.hMaterial = this._createLineMaterial()
 
         this.cone = new LineSegments2(geometry, this.hMaterial)
         this.add(this.cone)
@@ -102,7 +84,7 @@ export class SpotLightHelper2 extends ALightHelperWidget {
 
         this.cone.lookAt(this._v1)
 
-        this.hMaterial.color.set(this.color ?? this.light.color)
+        this.hMaterial.color.set(this._lineColor)
         this.hMaterial.linewidth = this.lineWidth
 
         super.update()
