@@ -29,7 +29,7 @@ Start editing with `edit(object)`, or double-click a line (`editOnDoubleClick`, 
 | <kbd>Esc</kbd> | End editing; during a drag, cancel the drag |
 | Click away from the line | End editing |
 
-Each drag, add and remove is one undo step with [UndoManagerPlugin](./UndoManagerPlugin) (a click or a drag on a `+` adds the point and moves it in one step).
+Each drag, add and remove is one undo step with [UndoManagerPlugin](./UndoManagerPlugin) (a click or a drag on a `+` adds the point and moves it in one step). An undo or redo during a drag ends the drag first, with no undo step for it.
 
 ```typescript
 import {ThreeViewer, GeometryGeneratorPlugin, PathEditPlugin, UndoManagerPlugin, CatmullRomCurve3, Vector3} from 'threepipe'
@@ -66,9 +66,9 @@ The settings are in the plugin UI (uiconfig decorators, `Path Edit`; with the Tw
 
 ## The handles
 
-The handles are drawn in an SVG overlay in the viewer container: the curve, a filled dot at each point on the curve (anchor), a hollow dot at each Bezier control point (handle) with a line to its anchor, and a `+` in the middle of each segment that can have a point (hidden when the segment is short on the screen). A point behind the camera is not drawn. To change the colors, set the CSS variables `--sh-accent` and `--sh-fill` on `.sh-overlay.path-edit` (the overlay of this plugin).
+The handles are drawn in an SVG overlay in the viewer container: the curve, a filled dot at each point on the curve (anchor), a hollow dot at each Bezier control point (handle) with a line to its anchor, and a `+` in the middle of each segment that can have a point (hidden when the segment is short on the screen). A point behind the camera (perspective or orthographic) is not drawn and cannot be pressed. To change the colors, set the CSS variables `--sh-accent` and `--sh-fill` on `.sh-overlay.path-edit` (the overlay of this plugin).
 
-While editing, a left press on a handle is taken in the capture phase: the camera controls, the picking and the transform controls do not get it, so the selection does not change. Every other press works as usual (orbit, pan, select). <kbd>Delete</kbd> and <kbd>Esc</kbd> are taken while editing, so they do not delete or deselect the object.
+While editing, a left press on a handle is taken in the capture phase: the camera controls, the picking and the transform controls do not get it, so the selection does not change. Every other press works as usual (orbit, pan, select). <kbd>Delete</kbd> and <kbd>Esc</kbd> are taken while editing, so they do not delete or deselect the object. These keys are for this viewer only: a key typed on the canvas or an element in the viewer container, or on the page after a press in this viewer. A key in a text field, a panel or another viewer is left to its own handlers. During a drag, only the pointer of the press moves the point; a second finger does not.
 
 ## The curve
 
