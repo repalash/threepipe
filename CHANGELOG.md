@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 [//]: # (The format is based on [Keep a Changelog]&#40;https://keepachangelog.com/en/1.1.0/&#41;, and this project adheres to [Semantic Versioning]&#40;https://semver.org/spec/v2.0.0.html&#41;.)
 
+## [0.7.0-r172.1] - 2026-11-05
+
+Release candidate of the three.js r172 upgrade lane, under the npm dist-tag `three-r172`, with `three-modded` and `three-types-modded` 0.172.10001-rc.1: the changes listed under [Unreleased] below, the r172 upgrade among them.
+
 ## [Unreleased]
 
 ### Added

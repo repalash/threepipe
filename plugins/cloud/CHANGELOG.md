@@ -1,5 +1,9 @@
 # @threepipe/plugin-cloud Changelog
 
+## [0.1.0-r172.1] - 2026-11-05
+
+Release candidate of the three.js r172 upgrade lane, under the npm dist-tag `three-r172`, for threepipe 0.7.0-r172.1: the changes listed under [Unreleased] below.
+
 ## [Unreleased]
 
 ### Fixed
