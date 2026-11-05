@@ -545,6 +545,18 @@ describe('EditorFrame area sizes', () => {
         expect(sizeVar('--tweakpane-ui-container-width')).toBe(Math.min(500, 1000 - modeBar - EditorFrame.MinCanvasWidth) + 'px')
     })
 
+    test('kept sizes are limited again when an area is set, so the left area and the panel leave room for the canvas', () => {
+        vi.stubGlobal('innerWidth', 1200)
+        storage.set('tpEditorFrameAreas', JSON.stringify({sizes: {left: 400, right: 600}}))
+        const f = new EditorFrame(host(), {layout: 'titlebar'}) // the plugin sets the areas after the frame is made
+        expect(sizeVar('--tweakpane-ui-container-width')).toBe('600px') // no left area yet
+        f.setArea('left', new FakeElement('div') as any)
+        const modeBar = f.modeBar.expanded ? EditorModeBar.Widths.wide : EditorModeBar.Widths.narrow
+        const left = parseInt(sizeVar('--lay-left-area-size')!), right = parseInt(sizeVar('--tweakpane-ui-container-width')!)
+        expect(left + right + modeBar + EditorFrame.MinCanvasWidth).toBeLessThanOrEqual(1200)
+        expect(left).toBeGreaterThanOrEqual(EditorFrame.AreaLimits.left[0])
+    })
+
     test('setAreaCollapsed: the left and the bottom area with a body class, the panel through the mode bar', () => {
         const f = new EditorFrame(host(), {layout: 'titlebar'})
         f.setAreaCollapsed('left', true)

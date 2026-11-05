@@ -291,6 +291,8 @@ export class EditorFrame {
     setArea(area: EditorFrameArea, element: HTMLElement | null) {
         this._areas[area].replaceChildren(...element ? [element] : [])
         document.body.classList.toggle('lay-has-' + area, !!element)
+        // the room for the other areas changes, and the kept sizes apply before the areas are set: limit them again
+        for (const a of Object.keys(this._sizes) as EditorFrameSizedArea[]) this.setAreaSize(a, this._sizes[a]!)
     }
 
     /**
