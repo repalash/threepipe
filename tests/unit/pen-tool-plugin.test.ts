@@ -111,7 +111,7 @@ function setup({canvasRect}: {canvasRect?: Rect} = {}) {
     const gen = new tp.GeometryGeneratorPlugin()
     const undoManager = new tp.JSUndoManager({bindHotKeys: false, limit: 100})
     const picking = {setSelectedObject: vi.fn()}
-    const pathEdit = {stopEditing: vi.fn()}
+    const pathEdit = Object.assign(new EventDispatcher<any>(), {stopEditing: vi.fn()})
 
     const viewer = new EventDispatcher() as any
     Object.assign(viewer, {
@@ -177,11 +177,21 @@ describe('PenToolPlugin', {timeout}, () => {
         expect(changes).toEqual([true, false])
     })
 
-    test('starting the pen ends the editing of PathEditPlugin: one tool on the canvas', () => {
-        const {pen, pathEdit} = setup()
+    test('one tool on the canvas: starting the pen ends path editing, and path editing while drawing cancels the pen', () => {
+        const {pen, pathEdit, click} = setup()
         pen.start()
         expect(pathEdit.stopEditing).toHaveBeenCalledTimes(1)
+        click(-1, 0, 0)
+        // e.g. the Edit selected line button of PathEditPlugin
+        pathEdit.dispatchEvent({type: 'editStart', object: {}})
+        expect(pen.active).toBe(false)
+        expect(pen.points).toEqual([])
+        expect(win.count()).toBe(0)
+        // the listener goes with the pen: a later edit does not reach it
+        pathEdit.dispatchEvent({type: 'editStart', object: {}})
+        pen.start()
         pen.cancel()
+        expect(pathEdit.hasEventListener('editStart', (pen as any)._onEditStart)).toBe(false)
     })
 
     test('keys are for this viewer only; starting the pen takes the focus from the UI button that started it', () => {

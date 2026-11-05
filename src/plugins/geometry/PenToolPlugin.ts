@@ -75,7 +75,8 @@ const HINT = 'Pen · click: point · drag: curve · <kbd>Shift</kbd> keep the he
  * undo step with {@link UndoManagerPlugin}, and it is selected with {@link PickingPlugin} when they are added.
  *
  * The overlay (the path, the handles and a hint) is drawn on the screen handle layer of the editing plugins (the same
- * as `PathEditPlugin`), in the viewer container. Starting the pen ends the editing of `PathEditPlugin`.
+ * as `PathEditPlugin`), in the viewer container. Starting the pen ends the editing of `PathEditPlugin`, and starting to
+ * edit a path while drawing cancels the pen.
  *
  * @example
  * ```ts
@@ -118,6 +119,8 @@ export class PenToolPlugin extends AViewerPluginSync<PenToolPluginEventMap> {
     private _orbit = false
     private _hover: Vector3 | null = null
     private _count = 0
+    /** The PathEditPlugin that the pen listens to while drawing */
+    private _pathEdit?: PathEditPlugin
     private _layer = new ScreenHandles<'first' | 'point'>({
         draw: (layer) => this._draw(layer),
         press: (h, e) => this._pressHandle(h, e),
@@ -160,8 +163,11 @@ export class PenToolPlugin extends AViewerPluginSync<PenToolPluginEventMap> {
     /** Start drawing a new path */
     start() {
         if (this._active || !this._viewer || this.isDisabled()) return
-        // one tool at a time on the canvas
-        this._viewer.getPlugin<PathEditPlugin>('PathEditPlugin')?.stopEditing()
+        // one tool at a time on the canvas: the pen ends path editing, and path editing ends the pen
+        const pathEdit = this._viewer.getPlugin<PathEditPlugin>('PathEditPlugin')
+        pathEdit?.stopEditing()
+        pathEdit?.addEventListener('editStart', this._onEditStart)
+        this._pathEdit = pathEdit
         this._active = true
         this._anchors = []
         window.addEventListener('keydown', this._onKey, {capture: true})
@@ -203,6 +209,9 @@ export class PenToolPlugin extends AViewerPluginSync<PenToolPluginEventMap> {
         else this.start()
     }
 
+    /** Path editing started (e.g. its Edit selected line button) while drawing: the pen stops, as with Esc */
+    private _onEditStart = () => this.cancel()
+
     private _stop() {
         if (!this._active) return
         this._active = false
@@ -215,6 +224,8 @@ export class PenToolPlugin extends AViewerPluginSync<PenToolPluginEventMap> {
         window.removeEventListener('keyup', this._onKeyUp, {capture: true})
         window.removeEventListener('blur', this._onBlur)
         window.removeEventListener('dblclick', this._onDbl, {capture: true})
+        this._pathEdit?.removeEventListener('editStart', this._onEditStart)
+        this._pathEdit = undefined
         // ends the drag of a point, clears the overlay, the hint and the cursor
         this._layer.active = false
         this._changed()
