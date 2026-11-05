@@ -12,7 +12,7 @@ All notable changes to this plugin will be documented in this file.
 
 ### Changed
 
-- The bundle includes `three-mesh-bvh` `^0.9.16` (a `devDependency` now; before, the hoisted copy that `three-gpu-pathtracer` resolved, 0.9.1)
+- The bundle includes `three-mesh-bvh` `^0.9.18` (a `devDependency` now; before, the hoisted copy that `three-gpu-pathtracer` resolved, 0.9.1)
 
 ## [0.2.0] - 2025-10-27
 

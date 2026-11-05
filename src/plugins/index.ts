@@ -106,6 +106,7 @@ export {LineGeometryGenerator, type LineGeometryGeneratorParams} from './geometr
 export {createShapeFromPreset, reverseShapeWinding} from './geometry/helpers/ShapePresets'
 export {curveUiConfigs, createCurveTypeDropdown, createCurvePropertyUi, type CurveUiEntry, type SupportedCurveTypes} from './geometry/helpers/CurveUiHelper'
 export {ShapeTubeExtrudePlugin} from './geometry/ShapeTubeExtrudePlugin'
+export {PathEditPlugin, type PathEditPluginEventMap} from './geometry/PathEditPlugin'
 export {PenToolPlugin, type PenToolOptions, type PenToolPluginEventMap} from './geometry/PenToolPlugin'
 
 // extras
@@ -119,6 +120,7 @@ export {GLTFKHRMaterialVariantsPlugin} from './extras/GLTFKHRMaterialVariantsPlu
 export {TailwindCSSCDNPlugin} from './extras/TailwindCSSCDNPlugin'
 export {DynamicImportPlugin, sampleThreepipeViteHmrPlugin} from './extras/DynamicImportPlugin'
 export {ObjectConstraintsPlugin, ObjectConstraint, type ObjectConstraintsPluginEventMap} from './extras/ObjectConstraintsPlugin'
+export {BVHPlugin, type BVHMode, type BVHPluginEventMap, type BVHPluginOptions, type IMeshBVH, type ThreeMeshBVH} from './extras/BVHPlugin'
 export {basicObjectConstraints, type ConstraintPropsTypes, type TConstraintPropsType, type ConstraintPropsType} from './extras/helpers/BasicObjectConstraints'
 
 // ecs

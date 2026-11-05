@@ -239,6 +239,50 @@ In the `TweakpaneEditorPlugin`, while the plugin is added (before or after the e
 - On the classic page on a phone, the pill is on the right, under the title bar of the settings panel, so it does not cover the view widget.
 - `setupEditorCameraUi(viewer, plugin)` adds the pill, the card, the frame and their styles in another app (and the CSS of the tooltips). It returns a function that removes them. The [Tweakpane Editor](https://threepipe.org/examples/#tweakpane-editor/) example has the settings in the Viewer tab.
 
+## SelectionOutlinePlugin
+
+[Example](https://threepipe.org/examples/#selection-outline-plugin/) &mdash;
+[Source Code](https://github.com/repalash/threepipe/blob/master/plugins/tweakpane-editor/src/SelectionOutlinePlugin.ts) &mdash;
+[API Reference](https://threepipe.org/plugins/tweakpane-editor/docs/classes/SelectionOutlinePlugin.html)
+
+`SelectionOutlinePlugin` draws the outline of the selected and hovered objects in the render pipeline, as in Figma or Blender. A mask pass renders the meshes of these objects with their own depth. An extension of the screen pass then draws, after tonemapping:
+
+- an outer outline around each selected object and the hovered object, with anti-aliased edges when `antialias` is on,
+- thin lines between the parts of a selected object (`parts`; the parts come from `partsOf`),
+- a dashed outline where the selection is behind other objects (`xray`, needs the `GBufferPlugin`, which the plugin adds),
+- optionally, a fill tint (`fill`) and a dim of all other objects (`dimOthers`).
+
+`antialias` (off by default) smooths both edges of the outline. The outer edge fades over about 1 px at the distance `width` from the mask edge, at each angle: the plugin finds that distance by a bisection along the edge normal (and 15 degrees to each side of it in the outer 1 px). The outline also goes half a pixel into the edge of the object, with an alpha from the part of the 3x3 pixels around it in the mask, so the pixel steps of the mask do not show next to the anti-aliased edge of the object. Mask reads per pixel: 49 when off; when on, up to 63 in the outline and up to 79 in its outer 1 px. Set it to `true` to turn it on.
+
+The mask follows the alpha of each material (`opacity`, the alpha of `map`, `alphaMap`, `alphaTest`), so a mesh that its texture cuts has the same shape in the outline.
+
+The outline replaces the selection widget (the box) of the `PickingPlugin`, as the `OutlinePlugin` does: while the plugin outlines the selection, it sets `widgetEnabled` of the `PickingPlugin` to `false`, and it sets it back to `true` when it stops (disabled, `outlineSelected` off, or removed). A selection that gets no outline keeps the widget: a camera, a light, a group without meshes, or a line. A widget that was off before stays off. A change of the selection or the hover renders one more frame. It does not restart the progressive render. The mask is drawn once after each change, not in each frame of the progressive render.
+
+```typescript
+import {ThreeViewer, PickingPlugin} from 'threepipe'
+import {SelectionOutlinePlugin} from '@threepipe/plugin-tweakpane-editor'
+
+const viewer = new ThreeViewer({...})
+
+// by default, the outline follows the selection and the hover of the PickingPlugin
+const picking = viewer.addPluginSync(PickingPlugin)
+picking.hoverEnabled = true
+picking.widgetEnabled = false // the outline replaces the box widget
+
+const outline = viewer.addPluginSync(SelectionOutlinePlugin)
+outline.width = 2 // CSS pixels
+outline.antialias = true // smooth edges, off by default
+outline.color.set('#0d99ff')
+outline.redraw() // after a change of a color in place
+
+// or set the objects yourself
+outline.followPicking = false
+outline.selected = [object1, object2]
+outline.hovered = [object3]
+```
+
+The plugin is not saved with the viewer config (`serializeWithViewer = false`).
+
 ## UiConfigForm
 
 [Example](https://threepipe.org/examples/#ui-config-form/) &mdash;

@@ -46,6 +46,16 @@ export function getPropDesc(obj: any, prop: keyof typeof obj) {
     return {proto, protoDesc}
 }
 
+/**
+ * True when the target of a key event takes typed text or keys of its own: an input, a text area, a select or an editable
+ * element (or an element inside one). Keyboard shortcuts of the viewer and the plugins leave such keys alone.
+ * @param target - the `target` of the event
+ */
+export function isEditableTarget(target: EventTarget | null): boolean {
+    const t = target as HTMLElement | null
+    return !!t && (!!t.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName) || !!t.closest?.('input, textarea, select'))
+}
+
 // eslint-disable-next-line @typescript-eslint/naming-convention
 export function isNonRelativeUrl(url: string) { // todo rename to something better
     return url.startsWith('http://')

@@ -4,8 +4,8 @@ prev:
     link: './GeometryGeneratorPlugin'
 
 next:
-    text: 'PenToolPlugin'
-    link: './PenToolPlugin'
+    text: 'PathEditPlugin'
+    link: './PathEditPlugin'
 
 ---
 

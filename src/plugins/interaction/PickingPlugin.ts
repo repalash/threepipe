@@ -27,6 +27,7 @@ import {AssetImporter} from '../../assetmanager'
 import {BoxSelectionWidget, SelectionWidget} from '../../three/widgets'
 import {DuplicateTracker, type DuplicateMode} from './DuplicateTracker'
 import {ObjectClipboard} from './ObjectClipboard'
+import {isEditableTarget} from '../../utils'
 
 export interface PickingPluginEventMap extends AViewerPluginEventMap, ObjectPickerEventMap{
 }
@@ -45,14 +46,19 @@ function getRootIfWidget(selected: IObject3D) {
 
 /**
  * Whether the {@link PickingPlugin} can select `obj` (the selection condition of its {@link ObjectPicker}): an object
- * with a material (or with `userData.userSelectable` set to true), in a model or a light, and neither it nor a parent
- * (from its widget, if it belongs to one) is hidden, has `userData.userSelectable === false` or has
- * `userData.bboxVisible === false`.
+ * with a material (or with `userData.userSelectable` set to true, or a widget), in a model or a light, and neither it
+ * nor a parent is hidden (from its widget, if it belongs to one), has `userData.userSelectable === false` or has
+ * `userData.bboxVisible === false` (from its widget). A widget itself is checked as its parts are; the DOM icons of
+ * `Object3DWidgetsPlugin` are checked on their widget.
  */
 export function isPickable(obj: IObject3D): boolean {
     const hasMat = obj.material
-    if (!hasMat && !obj.userData.userSelectable) return false
-    let o: IObject3D | null = getRootIfWidget(obj)
+    if (!hasMat && !obj.userData.userSelectable && obj.assetType !== 'widget') return false
+    const root = getRootIfWidget(obj)
+    // the parts between obj and its widget: one with userSelectable false (like a helper inside a widget) is not picked
+    for (let p: IObject3D | null = obj; p && p !== root; p = p.parent as IObject3D | null)
+        if (p.userData.userSelectable === false) return false
+    let o: IObject3D | null = root
     let ret = false
     while (o) {
         if (!o.visible) return false
@@ -126,6 +132,10 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         multiSelectEnabled = true
 
     protected _widgetEnabledChange() {
+        // the hover widget too: its updates stop while the widgets are off, so it would stay on the last hovered object
+        const hovered = this._picker?.hoverObject as IObject3D | undefined
+        if (this.widgetEnabled && hovered?.isObject3D) this._hoverWidget?.attach(hovered)
+        else this._hoverWidget?.detach()
         if (!this._widget) return
         if (this.widgetEnabled && (this._picker?.selectedObject as IObject3D)?.isObject3D)
             this._widget.attach(this._picker!.selectedObject as IObject3D)
@@ -164,7 +174,10 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
 
     setDirty() {
         if (!this._viewer) return
-        if (this.isDisabled() && this.getSelectedObject()) this.setSelectedObject(undefined)
+        // Clearing the selection because the plugin was disabled is not something the user did, so it
+        // is not an undo step (it used to be, which put a stray "deselect" on the stack every time edit
+        // mode suspended picking).
+        if (this.isDisabled() && this.getSelectedObject()) this.setSelectedObject(undefined, false, false)
         this._viewer.setDirty()
     }
     constructor(selection: Class<SelectionWidget>|undefined = BoxSelectionWidget, pickUi = true, autoFocus = false) {
@@ -222,12 +235,18 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         this._picker.setSelected(null, true)
     }
 
+    /**
+     * Handle the keyboard shortcuts (Ctrl+A/C/X/V/D, Delete, H, F, Alt+G/R/S, Esc) here. On by default so
+     * the plugin works on its own; an app that owns the viewport keymap (the modelling editor's
+     * `@threepipe/plugin-editor-engine`) turns it off and runs the same actions through its own keymap.
+     */
+    keyboardShortcuts = true
+
     private _onKeyDown = (event: KeyboardEvent) => {
-        if (this.isDisabled()) return
+        if (this.isDisabled() || !this.keyboardShortcuts) return
         // a key another handler already used (a menu, a dialog, an editor overlay), or one typed into a field
         if (event.defaultPrevented) return
-        const target = event.target as HTMLElement | null
-        if (target?.tagName === 'TEXTAREA' || target?.tagName === 'INPUT' || target?.tagName === 'SELECT' || target?.isContentEditable) return
+        if (isEditableTarget(event.target)) return
         const ctrl = event.ctrlKey || event.metaKey
 
         if (ctrl && event.code === 'KeyA') {

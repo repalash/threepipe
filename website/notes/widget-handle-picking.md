@@ -12,7 +12,9 @@ aside: false
 
 # Widget Handle Picking System
 
-This note documents how threepipe's widget handle picking system works, from click to gizmo attachment. This system enables interactive handles on widgets (e.g., curve control points on LineHelper) that can be selected and transformed independently.
+This note documents how threepipe's widget handle picking system works, from click to gizmo attachment. This system enables interactive handles on widgets (e.g., the pivot marker of `PivotEditPlugin`) that can be selected and transformed independently.
+
+The points of generated curves are not widget handles: `LineHelper` only draws them, and [PathEditPlugin](../plugin/PathEditPlugin) edits them with handles on the screen (an SVG overlay), without the picking and the gizmo.
 
 ## Key Concepts
 
@@ -54,7 +56,7 @@ TransformControls2.attach(target)
 
 ## Creating a Widget Handle
 
-Example from `LineHelper.ts` (curve control point handles):
+Example (a handle that moves a point of the data a widget shows):
 
 ```typescript
 const cube = new Mesh(cubeGeometry, material)
@@ -76,8 +78,8 @@ cube.userData.transformControls = {
 ;(cube as IObject3D).setDirty = (e: IObjectSetDirtyOptions) => {
     if (e.change !== 'transform') return
     // Update underlying data from handle position
-    curvePoint.copy(cube.position)
-    geometry.setDirty({regenerate: true})
+    dataPoint.copy(cube.position)
+    widget.object.setDirty()
 }
 
 widget.add(cube) // Add as child of the widget

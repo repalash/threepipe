@@ -327,6 +327,19 @@ describe('LineGeometryGenerator', () => {
         expect(spaced.positions.length / 3).toBe(8)
     })
 
+    test('a path whose point moved is sampled with the new lengths of its curves', async() => {
+        const three = await import('three')
+        const a = new three.Vector3(0, 0, 0), b = new three.Vector3(1, 0, 0), c = new three.Vector3(2, 0, 0)
+        const path = new three.CurvePath<any>()
+        path.add(new three.LineCurve3(a, b))
+        path.add(new three.LineCurve3(b, c))
+        gen(LineGen, {curve: path, segments: 5})
+        c.x = 5
+        const xs = gen(LineGen, {curve: path, segments: 5}).positions.filter((_: number, i: number) => i % 3 === 0)
+        // evenly spaced along the 5 long path
+        expect(xs.map((x: number) => +x.toFixed(4))).toEqual([0, 1.25, 2.5, 3.75, 5])
+    })
+
     test('throws when no curve provided and no default curve', () => {
         const g = new LineGen()
         g.defaultParams.curve = undefined

@@ -83,6 +83,7 @@ Plugins to add/configure interaction and user editable elements to the viewer.
 - [UndoManagerPlugin](../plugin/UndoManagerPlugin) - Adds support for undo/redo operations in the viewer. It can be used to manage the history of changes made to the scene, objects, materials, etc.
 - [ObjectConstraintsPlugin](https://threepipe.org/plugin/ObjectConstraintsPlugin.html) - Adds support for constraints between objects like follow path, look at, position/rotation/scale locking, etc.
 - [PickingPlugin](../plugin/PickingPlugin) - Adds support for selecting and multi-selecting objects in the viewer with user interactions(click, hover, Shift+Click) and selection widgets.
+- [BVHPlugin](../plugin/BVHPlugin) - Fast raycasts (picking, hover) on big meshes with a bounding volume hierarchy from [three-mesh-bvh](https://github.com/gkjohnson/three-mesh-bvh), loaded on demand.
 - [GPUPickingPlugin](../plugin/GPUPickingPlugin) - Finds the front-most mesh under a point of the canvas by rendering object ids on the GPU (one small draw, no triangle tests), for hover on big scenes.
 - [LoadingScreenPlugin](../plugin/LoadingScreenPlugin) - Shows a configurable loading screen overlay over the canvas which can be extended to show a loader during any kind of processing.
 - [FullScreenPlugin](../plugin/FullScreenPlugin) - Provides helpers for entering the fullscreen mode in browsers.
@@ -133,6 +134,7 @@ Plugins to configure export options and methods for different file formats.
 - [Object3DGeneratorPlugin](../plugin/Object3DGeneratorPlugin) - Provides UI and API to create scene objects like lights, cameras, meshes, etc.
 - [GeometryGeneratorPlugin](../plugin/GeometryGeneratorPlugin) - Generate parametric geometries (plane, box, sphere, circle, torus, cylinder, tube, shape, tubeShape, line) that can be re-generated from UI/API.
 - [ShapeTubeExtrudePlugin](../plugin/ShapeTubeExtrudePlugin) - Interactive extrusion of flat geometry along a curve path, with configurable cross-sections and multi-material splits.
+- [PathEditPlugin](../plugin/PathEditPlugin) - Edit the points of generated lines on the screen: drag points and Bezier handles, add and remove points, with undo.
 - [PenToolPlugin](../plugin/PenToolPlugin) - Draw 3D paths like the pen of Figma or Illustrator: click points, drag Bezier handles, close the path; the result is an editable GeometryGenerator line.
 - [GLTFKHRMaterialVariantsPlugin](../plugin/GLTFKHRMaterialVariantsPlugin) - Support using for variants from KHR_materials_variants extension in gltf models.
 - [SimplifyModifierPlugin](../plugin/SimplifyModifierPlugin) - Boilerplate for plugin to simplify geometries

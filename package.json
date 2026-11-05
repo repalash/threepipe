@@ -64,6 +64,11 @@
     "check-test-coverage": "node scripts/check-test-coverage.mjs",
     "test:types": "node scripts/check-consumer-types.mjs",
     "check-bundles": "node scripts/check-bundles.mjs",
+    "dev:cloud": "npm run dev --prefix services/cloud",
+    "build:cloud": "npm run build:dev -w plugins/cloud",
+    "test:cloud": "npm run test -w plugins/cloud && npm run typecheck --prefix services/cloud && npm run test --prefix services/cloud",
+    "cloud:upload": "node scripts/cloud-upload.mjs",
+    "cloud:upload-preview": "node scripts/cloud-upload.mjs --preview",
     "test": "npm run test:unit && npm run test:e2e",
     "docs": "npx typedoc --skipErrorChecking --hostedBaseUrl https://threepipe.org/docs/ && npm run website:build",
     "docs-plugins": "turbo run docs --filter=./plugins/*",
@@ -143,6 +148,7 @@
     "rollup-plugin-glsl": "^1.3.0",
     "rollup-plugin-license": "^3.0.1",
     "three": "npm:three-modded@0.168.10008",
+    "three-mesh-bvh": "^0.9.18",
     "tslib": "^2.5.0",
     "turbo": "^2.11.8",
     "typedoc": "^0.28.20",
@@ -163,7 +169,13 @@
     "uiconfig.js": ">=0.4.1"
   },
   "peerDependencies": {
-    "three": "npm:three-modded@0.168.10008"
+    "three": "npm:three-modded@0.168.10008",
+    "three-mesh-bvh": ">=0.9.5"
+  },
+  "peerDependenciesMeta": {
+    "three-mesh-bvh": {
+      "optional": true
+    }
   },
   "overrides": {
     "ts-browser-helpers": "$ts-browser-helpers",
