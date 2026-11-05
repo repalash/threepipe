@@ -62,6 +62,13 @@ describe('tweakpane editor frame on a phone', () => {
         }
     })
 
+    it('the panel scrolls up and down only, in every window size', () => {
+        for (const vp of [phone, phoneLandscape, desktop]) {
+            const panel = declarations('body.lay-frame #tweakpaneUiContainer', vp)
+            expect([panel['overflow-x'], panel['overflow-y']]).toEqual(['hidden', 'auto'])
+        }
+    })
+
     it('stacks the panel below the canvas in a narrow portrait window, between the bars', () => {
         for (const layout of ['titlebar', 'statusbar', 'floating']) {
             const canvas = declarations(`body.lay-${layout} #canvas-container`, phone)
