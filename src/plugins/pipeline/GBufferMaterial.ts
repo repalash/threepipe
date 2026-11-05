@@ -69,7 +69,7 @@ export class GBufferMaterial extends ShaderMaterial2 {
      * The materials whose objects this material draws with only the flags output: no depth, no normal and no depth
      * write, with the depth test of the material of the object. The objects of the other materials are drawn as usual.
      * GBufferPlugin sets it to `GBufferRenderPass.flagsOnlyMaterials`, the materials with `userData.renderToFlags`
-     * that are not drawn into the GBuffer. Only with multiple render targets (`multipleRT`, WebGL2).
+     * that are not drawn into the GBuffer. Only with multiple render targets (`multipleRT`).
      */
     flagsOnlyMaterials?: Set<IMaterial>
 
