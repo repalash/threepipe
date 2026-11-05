@@ -527,6 +527,24 @@ describe('EditorFrame area sizes', () => {
         expect(stored()).toEqual({sizes: {right: 600, bottom: 250}, collapsed: {}})
     })
 
+    test('the left area and the panel leave room for the canvas next to each other and the mode bar', () => {
+        vi.stubGlobal('innerWidth', 1000)
+        const panel = new FakeElement('div')
+        panel.getBoundingClientRect = () => ({width: 300, height: 800}) as any
+        const f = new EditorFrame(host(), {layout: 'titlebar', panel: () => panel as any})
+        f.setArea('left', new FakeElement('div') as any)
+        area('left').getBoundingClientRect = () => ({width: 480, height: 800}) as any
+        const modeBar = f.modeBar.expanded ? EditorModeBar.Widths.wide : EditorModeBar.Widths.narrow
+        f.setAreaSize('right', 500)
+        expect(sizeVar('--tweakpane-ui-container-width')).toBe(Math.max(240, 1000 - 480 - modeBar - EditorFrame.MinCanvasWidth) + 'px')
+        f.setAreaSize('left', 480)
+        expect(sizeVar('--lay-left-area-size')).toBe(Math.max(160, Math.min(480, 1000 - 300 - modeBar - EditorFrame.MinCanvasWidth)) + 'px')
+        // a collapsed left area takes no room from the panel
+        f.setAreaCollapsed('left', true)
+        f.setAreaSize('right', 500)
+        expect(sizeVar('--tweakpane-ui-container-width')).toBe(Math.min(500, 1000 - modeBar - EditorFrame.MinCanvasWidth) + 'px')
+    })
+
     test('setAreaCollapsed: the left and the bottom area with a body class, the panel through the mode bar', () => {
         const f = new EditorFrame(host(), {layout: 'titlebar'})
         f.setAreaCollapsed('left', true)

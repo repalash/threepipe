@@ -117,10 +117,14 @@ export class EditorFrame {
     static ThemePairs: [string, string][] = [['clean', 'clean-dark'], ['light', 'dark'], ['white', 'black']]
 
     /**
-     * The smallest and the largest size of each area in px ({@link setAreaSize}, a drag of its edge). An area is also
-     * at most half of the window.
+     * The smallest and the largest size of each area in px ({@link setAreaSize}, a drag of its edge). The bottom area is
+     * also at most half of the window, and the left area and the panel leave {@link MinCanvasWidth} for the canvas, next
+     * to each other and the mode bar.
      */
     static AreaLimits: Record<EditorFrameSizedArea, [number, number]> = {left: [160, 480], bottom: [80, 400], right: [240, 600]}
+
+    /** The width in px that the left area and the panel leave for the canvas ({@link AreaLimits}) */
+    static MinCanvasWidth = 240
 
     /**
      * The `localStorage` key that keeps the sizes and the collapsed left and bottom areas that the person picks (a drag
@@ -291,7 +295,7 @@ export class EditorFrame {
 
     /**
      * Sets the size of an area in px: the width of the left area or the panel (`right`), the height of the bottom area.
-     * It is kept between the limits of {@link AreaLimits}, and at most half of the window. `null` sets the size of the
+     * It is kept between the limits of {@link AreaLimits}, and leaves room for the canvas. `null` sets the size of the
      * CSS again (240 px, 160 px, and the panel width of the Tweakpane UI).
      * @param area - `left`, `bottom` or `right` (the panel)
      * @param size - the size in px, or `null`
@@ -303,8 +307,7 @@ export class EditorFrame {
             document.body.style.removeProperty(AREA_SIZE_VARS[area])
         } else {
             const [min, max] = EditorFrame.AreaLimits[area]
-            const half = (area === 'bottom' ? innerHeight : innerWidth) / 2
-            size = Math.round(Math.max(min, Math.min(max, half, size)))
+            size = Math.round(Math.max(min, Math.min(max, this._room(area), size)))
             this._sizes[area] = size
             document.body.style.setProperty(AREA_SIZE_VARS[area], size + 'px')
         }
@@ -444,6 +447,19 @@ export class EditorFrame {
             else this.setAreaSize(area, null, true)
         })
         return el
+    }
+
+    /**
+     * The largest size that leaves room for the canvas: half of the window for the bottom area; for the left area and the
+     * panel, the window less the other one (when it shows), the mode bar and {@link MinCanvasWidth}
+     */
+    private _room(area: EditorFrameSizedArea) {
+        if (area === 'bottom') return innerHeight / 2
+        const other = area === 'left' ?
+            this.modeBar.open ? this._areaSize('right') : 0 :
+            document.body.classList.contains('lay-has-left') && !this._collapsed.left ? this._areaSize('left') : 0
+        const modeBar = this.modeBar.expanded ? EditorModeBar.Widths.wide : EditorModeBar.Widths.narrow
+        return innerWidth - other - modeBar - EditorFrame.MinCanvasWidth
     }
 
     /** The size of an area on screen in px: the width of the left area or the panel, the height of the bottom area */
