@@ -131,6 +131,10 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         multiSelectEnabled = true
 
     protected _widgetEnabledChange() {
+        // the hover widget too: its updates stop while the widgets are off, so it would stay on the last hovered object
+        const hovered = this._picker?.hoverObject as IObject3D | undefined
+        if (this.widgetEnabled && hovered?.isObject3D) this._hoverWidget?.attach(hovered)
+        else this._hoverWidget?.detach()
         if (!this._widget) return
         if (this.widgetEnabled && (this._picker?.selectedObject as IObject3D)?.isObject3D)
             this._widget.attach(this._picker!.selectedObject as IObject3D)

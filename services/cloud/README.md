@@ -45,9 +45,12 @@ npm run deploy                   # the first one creates the D1 database: commit
   (`git push origin dev:cloud` after merging into dev). The check runs the typecheck and the e2e suite with no secrets;
   Discord gets the approval link, a Claude review and the commits since the last deploy; the deploy runs
   `npm run deploy:ci` once a reviewer approves the `cloud-deploy` environment. Setup, once: the environment
-  `cloud-deploy` with Palash as required reviewer and two environment secrets, `CLOUDFLARE_API_TOKEN` (a token for this
-  Worker only, Workers Scripts: Edit) and `ADMIN_SERVICE_TOKEN` (the one in `.prod.vars`); the repository secrets
-  `DISCORD_WEBHOOK_URL`, `CLAUDE_REVIEW_FIRE_URL`, `CLAUDE_REVIEW_TOKEN` (as for releases). `scripts/deploy-ci.sh` writes
+  `cloud-deploy` with Palash as required reviewer, deployments from the `cloud` branch only, and two environment
+  secrets, `CLOUDFLARE_API_TOKEN` (an account token: Specified Workers `threepipe-cloud`, Editor; every deploy also
+  re-sends the two custom domains, which may need Zone → Workers Routes → Edit on threepipe.org) and
+  `ADMIN_SERVICE_TOKEN` (the one in `.prod.vars`); the repository secrets `DISCORD_WEBHOOK_URL`,
+  `CLAUDE_REVIEW_FIRE_URL`, `CLAUDE_REVIEW_TOKEN` (as for releases). The workflow passes each secret by name: a reusable
+  workflow gets an environment's secrets only when its caller passes them. `scripts/deploy-ci.sh` writes
   a `.prod.vars` with only that token and deploys (teenybase uploads secrets only when there is no Worker yet, so the
   others are never touched); it stops when there is no Worker.
 - Logs: Workers Logs and traces, and logpush to the account's Workers Logpush job; what needs a person is a

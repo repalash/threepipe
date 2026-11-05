@@ -355,13 +355,14 @@ export class CloudFeedback {
                     files: p.files.map(f => `${f.name} (${sizeLabel(f.blob.size)})`)}, null, 2)
             }
         }
-        for (const b of typeButtons) b.addEventListener('click', () => {
+        // forEach, not a for loop: the click handlers set `type` of this dialog (no-loop-func)
+        typeButtons.forEach(b => b.addEventListener('click', () => {
             type = b.getAttribute('data-tpc-type') as ReportType
             for (const x of typeButtons) x.setAttribute('aria-pressed', String(x === b))
             if (!o.title) title.textContent = TITLES[type]
             text.placeholder = PLACEHOLDERS[type]
             refresh()
-        })
+        }))
         for (const el of [text, email]) el.addEventListener('input', refresh)
         for (const c of [shot.input, logC.input, envC.input]) c.addEventListener('change', refresh)
         preview.addEventListener('toggle', refresh)
