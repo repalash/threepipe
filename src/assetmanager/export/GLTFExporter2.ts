@@ -1,4 +1,5 @@
 import {GLTFExporter, GLTFExporterPlugin} from 'three/examples/jsm/exporters/GLTFExporter.js'
+import {decompress} from 'three/examples/jsm/utils/WebGLTextureUtils.js'
 import {IExportWriter} from '../IExporter'
 import {GLTFWriter2} from './GLTFWriter2'
 import {AnimationClip, Object3D} from 'three'
@@ -125,6 +126,9 @@ export class GLTFExporter2 extends GLTFExporter implements IExportWriter {
 
     constructor() {
         super()
+        // since three.js r170 a compressed texture that cannot be serialized as is (KTX2 without its source buffer,
+        // see KTX2LoadPlugin.SAVE_SOURCE_BLOBS) is decompressed for export only with texture utils, else the export throws
+        this.setTextureUtils({decompress})
         this.processors.push(glbEncryptionProcessor)
     }
 
