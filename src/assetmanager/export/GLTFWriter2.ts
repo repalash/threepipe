@@ -42,10 +42,10 @@ export class GLTFWriter2 extends GLTFExporter.Utils.GLTFWriter {
         return Promise.resolve(placeholder)
     }
 
-    processInput(input: Object3D | Object3D[]) {
+    async processInputAsync(input: Object3D | Object3D[]) {
         // @ts-expect-error not in the three.js types
-        super.processInput(input)
-        // write() waits for everything in pending before it merges the buffers, so the bufferViews are written before that
+        await super.processInputAsync(input)
+        // writeAsync() waits for everything in pending before it merges the buffers, so the bufferViews are written before that
         this.pending.push(this._writeAfterPending(this.pending.length))
     }
 
