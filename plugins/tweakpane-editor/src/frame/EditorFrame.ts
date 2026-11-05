@@ -375,7 +375,7 @@ export class EditorFrame {
      * Sets the area that the part below the canvas shows in a narrow portrait window (a phone, {@link StackedQuery}),
      * where there is no room for the areas next to the canvas: the panel (`right`, the default), or the left or the
      * bottom area. The mode bar stays next to it, and a tap on a mode shows the panel again. A left or bottom area
-     * without an element shows the panel. It opens the part below the canvas when the mode bar hid it. A wider or a
+     * without an element shows the panel. It opens the part below the canvas when the mode bar hid it, also for the panel. A wider or a
      * landscape window shows all the areas, so this has no effect there. The body has the class `lay-stacked-left` or
      * `lay-stacked-bottom`.
      * @param area - `right` (the panel), `left` or `bottom`
@@ -384,7 +384,7 @@ export class EditorFrame {
     setStackedArea(area: EditorFrameSizedArea, keep = false) {
         this._stacked = area
         for (const a of ['left', 'bottom']) document.body.classList.toggle('lay-stacked-' + a, a === area)
-        if (area !== 'right' && !this.modeBar.open) this.modeBar.setOpen(true)
+        if (!this.modeBar.open) this.modeBar.setOpen(true)
         if (keep) this._storeAreas()
     }
 

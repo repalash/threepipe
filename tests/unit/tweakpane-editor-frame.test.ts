@@ -681,6 +681,12 @@ describe('EditorFrame area sizes', () => {
         areasButton.click()
         expect(items()).toEqual([['Panel', 'false'], ['Left sidebar', 'true'], ['Bottom strip', 'false']])
         areasButton.click()
+        // the panel picked while the mode bar hid the part below the canvas: it opens too
+        f.modeBar.setOpen(false)
+        areasButton.click()
+        menu().children[0].click()
+        expect([f.stackedArea, f.modeBar.open]).toEqual(['right', true])
+        f.setStackedArea('left')
         // a tap on the open mode shows the panel, and does not hide it (the click stops before the button)
         const bar = f.modeBar.element as any as FakeElement
         const tabs = bar.find('mb-btn').filter(b => b.getAttribute('role') === 'tab')
