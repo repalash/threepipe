@@ -22,7 +22,7 @@ jobs:
     permissions:
       contents: read
       deployments: read
-    uses: repalash/release-tools/.github/workflows/deploy.yml@d1906c368826a9621f5852bbbf0aa38ec1ae0c0f # release-tools #8 (deploy.yml); @v1 once v1 moves to it
+    uses: repalash/release-tools/.github/workflows/deploy.yml@97a85f9970a90a25ca25d51bb6f1168c8fb81565 # release-tools #9 (deploy secrets by name); @v1 once v1 moves to it
     with:
       environment: cloud-deploy
       name: threepipe cloud
@@ -30,9 +30,12 @@ jobs:
       check: npm ci && npm run typecheck && npm test
       install: npm ci
       deploy: npm run deploy:ci
-      secrets-env: CLOUDFLARE_API_TOKEN ADMIN_SERVICE_TOKEN # secrets of the cloud-deploy environment
+      secrets-env: CLOUDFLARE_API_TOKEN ADMIN_SERVICE_TOKEN
       node-version: '22'
     secrets: # by name: the deploy job holds no other repository secret
+      # secrets of the cloud-deploy environment: a reusable workflow gets them only when they are passed
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      ADMIN_SERVICE_TOKEN: ${{ secrets.ADMIN_SERVICE_TOKEN }}
       DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
       CLAUDE_REVIEW_FIRE_URL: ${{ secrets.CLAUDE_REVIEW_FIRE_URL }}
       CLAUDE_REVIEW_TOKEN: ${{ secrets.CLAUDE_REVIEW_TOKEN }}
