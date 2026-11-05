@@ -263,11 +263,19 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
         if (event.isPrimary === false) return
         this.updateMouseFromEvent(event)
 
-        if (this.hoverEnabled) {
-            const {obj, intersects} = this._hitObject()
-            this.setHoverObject(obj, true, intersects || undefined)
-        }
+        if (this.hoverEnabled) this.hoverHit(this.checkIntersection())
 
+    }
+
+    /**
+     * Sets the hover object from a hit as a pointer move on the canvas does, when {@link hoverEnabled}: sends
+     * `hitObject`, applies the picking mode and sets the result as the hover object. `hit` null hovers nothing.
+     * Used by the pointer moves of the canvas and by the DOM icons of `Object3DWidgetsPlugin`.
+     */
+    hoverHit(hit: HitIntersects | null) {
+        if (!this.hoverEnabled) return
+        const {obj, intersects} = this._hitObject(hit)
+        this.setHoverObject(obj, true, intersects || undefined)
     }
 
     private _onPointerLeave = (event: PointerEvent) => {
@@ -322,11 +330,22 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
     private _onPointerClick = (event: PointerEvent) => {
         if (event.isPrimary === false) return
         this.updateMouseFromEvent(event)
-        const {obj, intersects} = this._hitObject()
+        this.selectHit(this.checkIntersection(), event)
+    }
+
+    /**
+     * Selects a hit as a click on the canvas does: sends `hitObject` (a listener can change the hit, or consume it to
+     * keep the selection), applies the picking mode (object, material, texture, geometry), and selects the result, or
+     * toggles it with shift, ctrl or cmd when multi-select is on. `hit` null is a click on nothing.
+     * Used by the pointer clicks of the canvas and by other ways to pick, like the DOM icons of `Object3DWidgetsPlugin`
+     * (with a hit made by {@link selectableFor}), so all of them behave the same.
+     */
+    selectHit(hit: HitIntersects | null, event?: {shiftKey?: boolean, ctrlKey?: boolean, metaKey?: boolean}) {
+        const {obj, intersects} = this._hitObject(hit)
 
         if (intersects?.consumed) return
 
-        if (this.multiSelectEnabled && (event.shiftKey || event.ctrlKey || event.metaKey) && obj && this.selectionMode === 'object') {
+        if (this.multiSelectEnabled && (event?.shiftKey || event?.ctrlKey || event?.metaKey) && obj && this.selectionMode === 'object') {
             // Multi-select toggle: add if not selected, remove if selected. Last clicked is primary (index 0).
             const current = [...this._selected] as IObject3D[]
             const idx = current.indexOf(obj as IObject3D)
@@ -343,8 +362,7 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
         }
     }
 
-    private _hitObject() {
-        const intersects = this.checkIntersection()
+    private _hitObject(intersects: HitIntersects | null = this.checkIntersection()) {
         if (intersects) this.dispatchEvent({type: 'hitObject', time: this.time, intersects})
         else this.dispatchEvent({
             type: 'hitObject',
@@ -386,6 +404,23 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
         return {obj, intersects}
     }
 
+    /**
+     * The object that a pick on `object` gives: `object` or its nearest parent that is visible and meets
+     * {@link selectionCondition}, or null. Each ray hit of {@link checkIntersection} goes through it, and so do other
+     * ways to pick, like the DOM icons of `Object3DWidgetsPlugin` (on their widget), so all of them follow the same rules.
+     *
+     * A hit on a part of a widget that is not picked (hidden, or with `userSelectable` false) does not go up to the
+     * widget: a widget is picked through the parts that are picked, or as `object` itself.
+     */
+    selectableFor(object: IObject3D | null): IObject3D | null {
+        let o = object
+        while (o != null && (!o.visible || !this.selectionCondition(o))) {
+            o = o.parent as IObject3D | null
+            if (o?.isWidget || o?.assetType === 'widget') return null
+        }
+        return o
+    }
+
     checkIntersection(): HitIntersects | null {
         const camera = this._camera
 
@@ -415,11 +450,8 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
 
         const intersects2 = []
         for (const intersect1 of intersects) {
-            selectedObject = intersect1.object
+            selectedObject = this.selectableFor(intersect1.object)
             intersect = intersect1
-            while (selectedObject != null && (!selectedObject.visible || !this.selectionCondition(selectedObject))) {
-                selectedObject = selectedObject.parent
-            }
             if (selectedObject != null) {
                 intersect1.object = selectedObject
                 intersects2.push(intersect1)

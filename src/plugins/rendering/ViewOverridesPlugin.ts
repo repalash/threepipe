@@ -138,6 +138,10 @@ function defaultLightingPresets(): ViewOverrideLightingPreset[] {
  * a neutral grey (the colour of a zero normal: a line has no surface normal) and the UV view in magenta (a line has no
  * UV set). A line material with `allowOverride` false keeps its own material in every view, as other materials.
  *
+ * Widgets (helpers, gizmos and their icons: an object with `isWidget` or `assetType` 'widget', and its children) keep
+ * their own materials in every view: the views show the scene, and a widget drawn with a debug material shows as a
+ * rectangle (an icon quad) or in the colour of the view (its lines).
+ *
  * Lighting presets ({@link setLighting}, {@link lightingPresets}): 'lights-*' replace the scene lights (and by default
  * the environment, see {@link lightsKeepEnvironment}) with preset lights; 'env-*' replace them with another
  * environment map, loaded once and cached. The 'env' presets are 1k HDR files on samples.threepipe.org: studios,
@@ -148,8 +152,9 @@ function defaultLightingPresets(): ViewOverrideLightingPreset[] {
  * unlit, so lights do not change them).
  *
  * Everything is applied only while the viewer renders (`preRender` to `postRender`): the override material of the
- * main render pass, the hidden scene lights, the override environment, and the line materials of the fat lines
- * (`forcedOverrideMaterial` of the line object, or `allowOverride` false on the line material in the unlit view). Outside
+ * main render pass, the hidden scene lights, the override environment, the line materials of the fat lines
+ * (`forcedOverrideMaterial` of the line object, or `allowOverride` false on the line material in the unlit view) and
+ * the materials of the widgets (`allowOverride` false). Outside
  * a render the scene and the render pass are as the user left them, so an export, the scene UI and the light toggles
  * see the real scene. Turning an override off, disabling the plugin or removing it shows the scene as before.
  * The state is not saved with the viewer config.
@@ -265,7 +270,8 @@ export class ViewOverridesPlugin extends AViewerPluginSync<ViewOverridesPluginEv
     private _savedOverrideMaterial?: Material | null
     private _savedEnvironment?: ITexture | null
     private _hiddenLights: [Object3D, number][] = []
-    private _linesKeptOut: Material[] = []
+    /** The materials set to `allowOverride` false for this render: fat lines in the unlit view, and the widgets */
+    private _keptOut: Material[] = []
     private _linesForced: [IObject3D, Material | Material[] | undefined][] = []
     /**
      * The materials that draw fat lines in the material views, for each line material. Made on the first use, disposed
@@ -487,9 +493,13 @@ export class ViewOverridesPlugin extends AViewerPluginSync<ViewOverridesPluginEv
             this.lightsRoot.visible = true
         }
 
-        const walk = (o: Object3D) => {
+        const walk = (o: Object3D, inWidget: boolean) => {
             if (o === this.lightsRoot) return
-            if (material) this._overrideLine(o, material)
+            inWidget = inWidget || !!(o as IObject3D).isWidget || (o as IObject3D).assetType === 'widget'
+            if (material) {
+                if (inWidget) this._keepMaterials(o)
+                else this._overrideLine(o, material)
+            }
             // Hide the scene lights with the layers mask, not `visible`: threepipe lights call setDirty when `visible`
             // changes, which would restart progressive rendering every frame. three.js skips lights (and their
             // shadows) that fail the camera layers test.
@@ -497,9 +507,9 @@ export class ViewOverridesPlugin extends AViewerPluginSync<ViewOverridesPluginEv
                 this._hiddenLights.push([o, o.layers.mask])
                 o.layers.mask = 0
             }
-            for (const c of o.children) walk(c)
+            for (const c of o.children) walk(c, inWidget)
         }
-        walk(scene)
+        walk(scene, false)
         if (material && material !== 'unlit') this._pruneLineVariants()
     }
 
@@ -518,13 +528,23 @@ export class ViewOverridesPlugin extends AViewerPluginSync<ViewOverridesPluginEv
         this.lightsRoot.visible = false
         for (const [o, mask] of this._hiddenLights) o.layers.mask = mask
         this._hiddenLights.length = 0
-        for (const m of this._linesKeptOut) m.allowOverride = true
-        this._linesKeptOut.length = 0
+        for (const m of this._keptOut) m.allowOverride = true
+        this._keptOut.length = 0
         for (const [o, saved] of this._linesForced) {
             if (saved === undefined) delete o.forcedOverrideMaterial
             else o.forcedOverrideMaterial = saved
         }
         this._linesForced.length = 0
+    }
+
+    /** A widget keeps its own materials in the material views: `allowOverride` false for this render */
+    private _keepMaterials(o: Object3D) {
+        const mats = (o as IObject3D).material
+        for (const m of Array.isArray(mats) ? mats : mats ? [mats] : []) {
+            if (!m.allowOverride) continue
+            m.allowOverride = false
+            this._keptOut.push(m)
+        }
     }
 
     /**
@@ -548,7 +568,7 @@ export class ViewOverridesPlugin extends AViewerPluginSync<ViewOverridesPluginEv
         for (const m of list) {
             if (!isOverriddenLine(m)) continue
             m.allowOverride = false
-            this._linesKeptOut.push(m)
+            this._keptOut.push(m)
         }
     }
 
