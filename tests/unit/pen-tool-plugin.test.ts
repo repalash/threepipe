@@ -254,6 +254,18 @@ describe('PenToolPlugin', {timeout}, () => {
         expect(curves[2].v3).toBe(curves[0].v0)
     })
 
+    test('the first point closes the path also after a hover over it (the pointer dot is drawn there, not pressable)', () => {
+        const {pen, modelRoot, click, ev, screen} = setup()
+        pen.start()
+        click(-2, 0, 0)
+        click(0, 0, 2)
+        click(2, 0, 0)
+        win.fire('pointermove', ev(screen(-2, 0, 0), {buttons: 0})) // the preview and the pointer dot on the first point
+        click(-2, 0, 0)
+        expect(pen.active).toBe(false)
+        expect((modelRoot.children[0] as any).geometry.userData.generationParams.curve.curves.length).toBe(3)
+    })
+
     test('points go on the model under the pointer; Shift keeps the height of the previous point', () => {
         const {pen, modelRoot, click} = setup()
         const box = new Mesh(new PlaneGeometry(4, 4).rotateX(-Math.PI / 2).translate(0, 1, 0), new MeshBasicMaterial())

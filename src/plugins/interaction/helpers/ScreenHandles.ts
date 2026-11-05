@@ -24,7 +24,7 @@ export interface ScreenHandle<T = unknown> {
     shape?: ScreenHandleShape
     /** Diameter in pixels. Default 9 */
     size?: number
-    /** Press distance in pixels. Default 10 */
+    /** Press distance in pixels. Default 10. 0: drawn only, never hovered or pressed (a marker) */
     hitRadius?: number
     /** Drawn with a halo */
     selected?: boolean
@@ -380,8 +380,10 @@ export class ScreenHandles<T = unknown> {
     private _hit(s: Vector2) {
         let best: ScreenHandle<T> | null = null, bestD = Infinity
         for (const {h, s: p} of this._handles) {
+            const r = h.hitRadius ?? 10
+            if (r <= 0) continue
             const d = Math.hypot(p.x - s.x, p.y - s.y)
-            if (d <= (h.hitRadius ?? 10) && d <= bestD) {
+            if (d <= r && d <= bestD) {
                 best = h
                 bestD = d
             }
