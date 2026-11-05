@@ -16,7 +16,7 @@ export function devLoginRoutes(app: Hono<CloudEnv>) {
         if (c.env.DEV_LOGIN !== 'true') return c.notFound()
         const redirect = safeRedirect(c.req.query('redirect'))
         // form-action 'self': the form posts here and is sent back to a path on this host
-        return cardPage(c, page(redirect, c.req.query('error')), {formAction: "'self'"})
+        return cardPage(c, page(redirect, c.req.query('error')), {formAction: '\'self\''})
     })
 
     app.post('/login', async c => {
