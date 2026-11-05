@@ -36,7 +36,7 @@ All widget classes extend `Group2` and implement `IWidget`:
 ```
 Group2
   ├── AHelperWidget (implements IWidget — event-driven lifecycle, UI integration)
-  │     ├── LineHelper           (line/curve control point handles — INTERACTIVE)
+  │     ├── LineHelper           (line vertices / curve control points, draw only)
   │     ├── BoneHelper           (single bone segment visualization)
   │     ├── SkeletonHelper2      (full skeleton visualization)
   │     ├── ALightHelperWidget
@@ -87,7 +87,7 @@ with one update (the plugin uses it). `dispose()` removes and clears `icon` (and
 `_createLineMaterial()` makes the line material of the light and camera helpers (the
 [material convention](#material-convention)).
 
-**Known limitation:** Three.js `onBeforeRender` is not called on lights or cameras, only meshes. This is why `ALightHelperWidget` and `ACameraHelperWidget` override with `preRender()`, which `Object3DWidgetsPlugin` calls explicitly in its viewer `preRender` listener.
+**Known limitation:** objects do not dispatch a `beforeRender` event (only materials do, from three.js `onBeforeRender`). This is why `ALightHelperWidget`, `ACameraHelperWidget` and `LineHelper` override `preRender()`, which `Object3DWidgetsPlugin` calls explicitly in its viewer `preRender` listener.
 
 ## Object3DWidgetsPlugin — Automatic Widget Creation
 
@@ -125,18 +125,15 @@ widgetsPlugin.helpers.push({
 
 ## Concrete Widgets
 
-### LineHelper — Interactive Curve Editing
+### LineHelper — Line and Curve Points
 
-`LineHelper` (`src/three/widgets/LineHelper.ts`) is the most complex widget. It has two modes:
+`LineHelper` (`src/three/widgets/LineHelper.ts`) draws the points of a line. It only draws them: they cannot be picked and have no gizmo.
 
-**Curve mode** (when `geometry.userData.generationParams.curve` exists):
-- Extracts control points via `getPointsForCurve(curve)` — recursive, handles CubicBezier (`v0-v3`), CatmullRom/Spline (`points[]`), CurvePath (recursive with `curves.N.` prefix)
-- Creates draggable cube handles at each control point
-- Each handle has `userData.isWidgetHandle = true` and a custom `setDirty` that writes position changes back to the curve and triggers geometry regeneration
+**Curve mode** (when `geometry.userData.generationParams.curve` exists): a dot at each control point of the curve, from `getCurveEditPoints(curve)` (`src/three/utils/curve-edit.ts`): CubicBezier and Quadratic (`v0`-`v3`), Line (`v1`, `v2`), CatmullRom/Spline (`points[]`), CurvePath (recursive with a `curves.N.` prefix; the joint of two curves once).
 
-**Vertex mode** (fallback): Creates non-interactive blue cubes at each vertex position.
+**Vertex mode** (fallback): a dot at each vertex.
 
-See [Widget Handle Picking](./widget-handle-picking) for the full interaction data flow.
+The dots are `Points` with `sizeAttenuation: false` (`curvePointSize` and `pointSize` are pixels), and `showPoints` hides them. To edit the points of a curve, add [PathEditPlugin](../plugin/PathEditPlugin): it draws its handles on the screen (an SVG overlay) and writes the curve back to `generationParams.curve`.
 
 ### Light Helpers
 
@@ -297,11 +294,7 @@ User drags gizmo
     ↓
 objectChange event → handle.setDirty({change: 'transform'})
     ↓
-(For curve handles) Update curve point → geometry.setDirty({regenerate: true})
-    ↓
-GeometryGeneratorPlugin._geometryUpdate → generate()
-    ↓
-AHelperWidget._objectUpdate → update() on next render
+The widget writes the handle position back to its data
 ```
 
 ## userData Markers Reference
@@ -335,7 +328,7 @@ Widget subclasses typically set on their materials (not enforced by `AHelperWidg
 - `userData.renderToFlags = true` — still writes the GBuffer flags (only those), so with `toneMapped: false` the screen pass does not tone map it, see [GBufferPlugin](../plugin/GBufferPlugin#materials-in-the-gbuffer)
 - `allowOverride: false` — resist material extension plugins
 
-Note: `LineHelper` uses `MeshBasicMaterial` for its handles and does not set all of these. Each subclass chooses what's appropriate.
+Note: `LineHelper` uses a `PointsMaterial` for its dots and does not set all of these. Each subclass chooses what's appropriate.
 The light and camera helpers get their line material from `AHelperWidget._createLineMaterial()`; `WidgetIcon` sets the
 same on its sprite materials. DOM icons are not in the canvas, so no render, screenshot or recording has them.
 
@@ -345,15 +338,14 @@ All widget children get `castShadow = false`, `receiveShadow = false`, and `user
 ### Dirty Propagation
 Widgets call `iObjectCommons.setDirty()` which dispatches `objectUpdate` events that bubble to the root scene, triggering a re-render.
 
-### Interactive Curve Editing Loop
-When a LineHelper handle is dragged, the full loop is:
-1. User drags handle cube via TransformControls
-2. Handle's custom `setDirty` fires on `{change: 'transform'}`
-3. Handler updates the curve control point from handle position
-4. Calls `geometry.setDirty({regenerate: true})`
-5. `GeometryGeneratorPlugin._geometryUpdate` catches the event and re-runs `generate()`
-6. `AHelperWidget._objectUpdate` is triggered, schedules `update()` on next `beforeRender`
-7. Widget rebuilds its handle positions from the regenerated geometry
+### Curve Editing Loop
+Curve points are edited with `PathEditPlugin`, not with widget handles:
+1. User drags a point of its screen overlay (or adds or removes one)
+2. The plugin writes the point into `geometry.userData.generationParams.curve` (curve edit helpers in `src/three/utils/curve-edit.ts`)
+3. Calls `geometry.setDirty({regenerate: true})`
+4. `GeometryGeneratorPlugin._geometryUpdate` catches the event and re-runs `generate()`
+5. `AHelperWidget._objectUpdate` is triggered; `LineHelper.preRender` (called by `Object3DWidgetsPlugin` before each render) runs `update()`
+6. `LineHelper` moves its dots to the new points
 
 ## Creating Custom Widgets
 

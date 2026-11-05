@@ -1,225 +1,140 @@
-import {
-    BoxGeometry,
-    CatmullRomCurve3,
-    CubicBezierCurve,
-    Curve,
-    CurvePath,
-    Line,
-    LineLoop,
-    LineSegments,
-    Mesh,
-    MeshBasicMaterial,
-    Object3D,
-    Vector2,
-    Vector3,
-} from 'three'
+import {BufferAttribute, BufferGeometry, Curve, Line, LineLoop, LineSegments, Object3D, Points, PointsMaterial} from 'three'
 import {AHelperWidget} from './AHelperWidget'
 import {Line2} from 'three/examples/jsm/lines/Line2.js'
 import {LineSegments2} from 'three/examples/jsm/lines/LineSegments2.js'
-import {
-    IGeometry,
-    iGeometryCommons,
-    IObject3D,
-    IObjectSetDirtyOptions,
-    LineSegmentsGeometry2,
-    MeshLine,
-    MeshLineSegments,
-} from '../../core'
+import {IGeometry, iGeometryCommons, LineSegmentsGeometry2, MeshLine, MeshLineSegments} from '../../core'
 import {onChange} from 'ts-browser-helpers'
-import {uiColor, uiSlider} from 'uiconfig.js'
-// import type {LineGeometryGeneratorParams} from '../../../plugins/geometry-generator/src'
+import {uiColor, uiSlider, uiToggle} from 'uiconfig.js'
+import {getCurveEditPoints} from '../utils/curve-edit'
 
 // todo move this to geometry generator or some other plugin
 export type LineType1 = (Line | LineLoop | LineSegments)
 export type LineType2 = Line2 | LineSegments2 | MeshLine | MeshLineSegments
 export type LineType = LineType1 | LineType2
 
+function pointsMaterial(color: number) {
+    const material = new PointsMaterial({
+        color,
+        size: 1,
+        sizeAttenuation: false, // the size is in pixels, the same at any distance
+        transparent: true,
+        opacity: 0.95,
+        depthWrite: false,
+    })
+    material.userData.renderToGBuffer = false
+    material.userData.renderToDepth = false
+    return material
+}
+
 /**
- * Visualizes line/curve geometry with small cube handles at vertices or control points.
- * When the line has `geometry.userData.generationParams.curve`, creates interactive
- * draggable handles for editing curve control points.
+ * Shows the points of a line: the control points of its curve when the line is generated from one
+ * (`geometry.userData.generationParams.curve`, like a `line` of `GeometryGeneratorPlugin`), else its vertices.
+ *
+ * The points are dots of a constant size on the screen (`Points` with `sizeAttenuation: false`). They only show the
+ * points: they cannot be picked and have no gizmo. To edit the points of a curve on the screen, add `PathEditPlugin`.
+ *
  * See https://threepipe.org/notes/widgets-and-helpers for the full widget system documentation.
  */
 export class LineHelper extends AHelperWidget {
     line: LineType
-    private _vertexHandles: Mesh[] = []
-    private _cubeGeometry: BoxGeometry
-    private _cubeMaterial: MeshBasicMaterial
-    private _cubeMaterial2: MeshBasicMaterial
 
+    /** Show the points of the line */
     @onChange(LineHelper.prototype.update)
-    @uiSlider(undefined, [0.001, 0.2], 0.001)
-        handleSize = 0.05
+    @uiToggle()
+        showPoints = true
 
+    /** Size of the dots at the vertices of a line without a curve, in pixels */
     @onChange(LineHelper.prototype.update)
-    @uiSlider(undefined, [0.001, 0.5], 0.001)
-        editableHandleSize = 0.1
+    @uiSlider(undefined, [1, 20], 0.5)
+        pointSize = 4
 
+    /** Size of the dots at the control points of a curve, in pixels */
+    @onChange(LineHelper.prototype.update)
+    @uiSlider(undefined, [1, 20], 0.5)
+        curvePointSize = 7
+
+    /** Color of the dots at the vertices of a line without a curve */
     @onChange(LineHelper.prototype.update)
     @uiColor()
-        handleColor = 0x0093FD
+        pointColor = 0x0093FD
 
+    /** Color of the dots at the control points of a curve */
     @onChange(LineHelper.prototype.update)
     @uiColor()
-        editableHandleColor = 0xEF0065
+        curvePointColor = 0xEF0065
 
     autoUpgradeChildren = false // used elsewhere
+
+    private _points: Points<BufferGeometry, PointsMaterial>
 
     constructor(line: LineType) {
         super(line)
         this.line = line
 
-        // todo use instanced or batched mesh probably.
-        // Create reusable geometry and material for vertex cubes
-        this._cubeGeometry = new BoxGeometry(1, 1, 1, 2, 2, 2)
-        iGeometryCommons.upgradeGeometry.call(this._cubeGeometry)
-        this._cubeMaterial = new MeshBasicMaterial({
-            color: this.handleColor,
-            transparent: true,
-            opacity: 0.95,
-            allowOverride: false,
-        })
-        this._cubeMaterial.userData.renderToGBuffer = false
-        this._cubeMaterial.userData.renderToDepth = false
-        this._cubeMaterial2 = this._cubeMaterial.clone()
-        this._cubeMaterial2.color.set(this.editableHandleColor)
-        // this._cubeMaterial.depthWrite = false
-        // this._cubeMaterial.depthTest = false
+        const geometry = new BufferGeometry()
+        iGeometryCommons.upgradeGeometry.call(geometry)
+        this._points = new Points(geometry, pointsMaterial(this.curvePointColor))
+        this._points.frustumCulled = false
+        this._points.renderOrder = 100
+        // drawn only: a click on a point picks what is under it, the line itself or another object
+        this._points.raycast = () => undefined
+        this._points.castShadow = false
+        this._points.receiveShadow = false
+        this._points.userData.__keepShadowDef = true
+        this.add(this._points)
 
         this.update()
     }
 
     update() {
         super.update()
-        if (!this.line || !this.line.geometry) return
+        const points = this._points
+        if (!points) return // called by the decorators before the constructor ends
+        const positions = this.showPoints ? this._pointPositions() : null
+        points.visible = !!positions?.positions.length
+        if (!positions || !points.visible) return
 
-        const geometry = this.line.geometry as IGeometry
-        const positionAttribute = geometry.getAttribute('position')
+        const curve = positions.curve
+        points.material.size = curve ? this.curvePointSize : this.pointSize
+        points.material.color.set(curve ? this.curvePointColor : this.pointColor)
 
-        const positions = (geometry as LineSegmentsGeometry2).getPositions ? (geometry as LineSegmentsGeometry2).getPositions() : positionAttribute?.array as Float32Array
-        const vertexCount = positions ? positions.length / 3 : 0
-
-        if (!positions || !vertexCount) return
-
-        const generationParams = this.line.geometry.userData?.generationParams /* as LineGeometryGeneratorParams*/
-        const curve = generationParams?.curve as Curve<Vector2|Vector3>
-        if (curve) {
-            const points = getPointsForCurve(curve)
-
-            const existingCubes = this._vertexHandles
-            this._vertexHandles = []
-            for (let i = points.length; i < existingCubes.length; i++) {
-                this.remove(existingCubes[i])
-            }
-            for (let i = 0; i < points.length; i++) {
-                const point1 = points[i]
-                const cube = existingCubes[i] ?? new Mesh(this._cubeGeometry, this._cubeMaterial2)
-                cube.renderOrder = 100
-                const parr = point1[0]
-                if (!isFinite(parr[0])) parr[0] = 0
-                if (!isFinite(parr[1])) parr[1] = 0
-                if (!isFinite(parr[2])) parr[2] = 0
-                cube.position.fromArray(parr)
-                cube.scale.setScalar(this.editableHandleSize)
-                cube.frustumCulled = false
-
-                // Ensure cubes don't cast/receive shadows
-                cube.castShadow = false
-                cube.receiveShadow = false
-                cube.userData.__keepShadowDef = true
-
-                if (!cube.parent) this.add(cube)
-                this._vertexHandles.push(cube)
-
-                cube.userData.isWidgetHandle = true
-                cube.userData.transformControls = {
-                    mode: 'translate',
-                    space: 'local',
-                    showX: true,
-                    showY: true,
-                    showZ: true,
-                    lockProps: ['mode'],
-                }
-
-                ;(cube as any).__handle = point1
-
-                // when the cube is moved, update the curve point
-                ;(cube as any as IObject3D).setDirty = (e: IObjectSetDirtyOptions)=>{
-                    // from transform controls
-                    if (e.change !== 'transform') return
-                    const handleData = (cube as any).__handle
-                    const point = handleData[0] as [number, number, number]
-                    const key = handleData[1] as string
-                    const position = cube.position
-                    const diff = Math.abs(point[0] - position.x) + Math.abs(point[1] - position.y) + Math.abs(point[2] - position.z)
-                    if (diff <= 1e-4) return
-                    point[0] = position.x
-                    point[1] = position.y
-                    point[2] = position.z
-
-                    let curve1 = curve
-                    let key1 = key
-                    if (key1.startsWith('curves.')) {
-                        const ee = key1.indexOf('.', 7)
-                        const curveIndex = parseInt(key1.slice(7, ee) || '0')
-                        key1 = key1.slice(ee + 1)
-                        if (curveIndex >= 0 && curveIndex < (curve as CurvePath<any>).curves.length) {
-                            curve1 = (curve as CurvePath<any>).curves[curveIndex]
-                        }
-                    }
-                    if (key1.startsWith('points.')) {
-                        const index = parseInt(key1.slice(7) || '0', 10)
-                        ;(curve1 as CatmullRomCurve3).points?.[index]?.set(point[0], point[1], point[2])
-                    } else {
-                        (curve1 as any)[key1]?.set(point[0], point[1], point[2])
-                    }
-                    geometry.setDirty && geometry.setDirty({regenerate: true})
-                }
-            }
-            if (points.length) return
-        }
-
-        // Cube for each vertex
-        this._clearVertexCubes()
-        const existingCubes = this._vertexHandles
-        this._vertexHandles = []
-        for (let i = vertexCount; i < existingCubes.length; i++) {
-            this.remove(existingCubes[i])
-        }
-
-        for (let i = 0; i < vertexCount; i++) {
-            const x = positions[i * 3]
-            const y = positions[i * 3 + 1]
-            const z = positions[i * 3 + 2]
-
-            const cube = existingCubes[i] ?? new Mesh(this._cubeGeometry, this._cubeMaterial)
-            cube.position.set(isFinite(x) ? x : 0, isFinite(y) ? y : 0, isFinite(z) ? z : 0)
-            cube.scale.setScalar(this.handleSize)
-            cube.frustumCulled = false
-
-            // Ensure cubes don't cast/receive shadows
-            cube.castShadow = false
-            cube.receiveShadow = false
-            cube.userData.__keepShadowDef = true
-
-            if (!cube.parent) this.add(cube)
-            this._vertexHandles.push(cube)
-        }
-
+        const arr = positions.positions
+        for (let i = 0; i < arr.length; i++) if (!isFinite(arr[i])) arr[i] = 0
+        const geometry = points.geometry
+        const attr = geometry.getAttribute('position') as BufferAttribute | undefined
+        if (attr && attr.array.length === arr.length) {
+            (attr.array as Float32Array).set(arr)
+            attr.needsUpdate = true
+        } else geometry.setAttribute('position', new BufferAttribute(new Float32Array(arr), 3))
+        geometry.computeBoundingSphere()
     }
 
-    private _clearVertexCubes() {
-        // Remove existing cubes from the scene
-        for (const cube of this._vertexHandles) {
-            this.remove(cube)
-        }
-        this._vertexHandles = []
+    /**
+     * Called by Object3DWidgetsPlugin before each render: updates the points after the line or its geometry changed
+     * (a regenerated curve). Like the light and camera helpers: objects do not dispatch `beforeRender`.
+     */
+    preRender() {
+        if (!this.visible) return
+        this._objectBeforeRender()
+    }
+
+    /** The control points of the curve of the line, else its vertices, in the space of the line */
+    private _pointPositions(): {positions: number[], curve: boolean} | null {
+        const geometry = this.line?.geometry as IGeometry | undefined
+        if (!geometry) return null
+        const curve = (geometry.userData?.generationParams as {curve?: Curve<any>} | undefined)?.curve
+        const curvePoints = curve ? getCurveEditPoints(curve) : []
+        if (curvePoints.length) return {positions: curvePoints.flatMap(p => [p.vec.x, p.vec.y, (p.vec as any).z ?? 0]), curve: true}
+        const positions = (geometry as LineSegmentsGeometry2).getPositions ?
+            (geometry as LineSegmentsGeometry2).getPositions() :
+            geometry.getAttribute('position')?.array as Float32Array | undefined
+        return positions ? {positions: Array.from(positions), curve: false} : null
     }
 
     dispose() {
-        this._clearVertexCubes()
-        this._cubeGeometry.dispose()
-        this._cubeMaterial.dispose()
+        this._points.removeFromParent()
+        this._points.geometry.dispose()
+        this._points.material.dispose()
         super.dispose()
     }
 
@@ -230,31 +145,4 @@ export class LineHelper extends AHelperWidget {
     static Create(obj: Object3D) {
         return new LineHelper(obj as any)
     }
-}
-
-function getPointsForCurve(curve: Curve<Vector2 | Vector3>) {
-    const points = [] as Array<[number[], string]>
-    // toArray since it can be a Vector2 or Vector3
-    if ((curve as any).v0?.toArray)
-        points.push([(curve as CubicBezierCurve).v0.toArray(), 'v0'])
-    if ((curve as any).v1?.toArray)
-        points.push([(curve as CubicBezierCurve).v1.toArray(), 'v1'])
-    if ((curve as any).v2?.toArray)
-        points.push([(curve as CubicBezierCurve).v2.toArray(), 'v2'])
-    if ((curve as any).v3?.toArray)
-        points.push([(curve as CubicBezierCurve).v3.toArray(), 'v3'])
-    if ((curve as any).points !== undefined)
-        (curve as CatmullRomCurve3).points.forEach((p, i) => {
-            points.push([p.toArray(), 'points.' + i])
-        })
-    if ((curve as any).curves !== undefined)
-        (curve as CurvePath<any>).curves.forEach((c, i) => {
-            const points1 = getPointsForCurve(c)
-            points1.forEach(p => {
-                p[1] = 'curves.' + i + '.' + p[1]
-            })
-            points.push(...points1)
-        })
-
-    return points
 }

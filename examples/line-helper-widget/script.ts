@@ -9,7 +9,6 @@ import {
     Object3DWidgetsPlugin,
     PickingPlugin,
     ThreeViewer,
-    TransformControlsPlugin,
     Vector3,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
@@ -19,7 +18,7 @@ async function init() {
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         msaa: true,
         renderScale: 'auto',
-        plugins: [Object3DGeneratorPlugin, GeometryGeneratorPlugin, Object3DWidgetsPlugin, PickingPlugin, TransformControlsPlugin],
+        plugins: [Object3DGeneratorPlugin, GeometryGeneratorPlugin, Object3DWidgetsPlugin, PickingPlugin],
         dropzone: false,
     })
 
@@ -45,6 +44,9 @@ async function init() {
     const material = lineObject.material as LineMaterial2
     material.color = new Color(0x00ff88)
     material.linewidth = 2
+
+    // Object3DWidgetsPlugin adds a LineHelper to the line: it shows the control points of the curve. To edit them on
+    // the screen, add PathEditPlugin (see the path-edit-plugin example); here they can be typed in the UI.
 
     // Set up UI
     const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))

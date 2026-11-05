@@ -1,7 +1,7 @@
 ---
 prev:
-    text: 'ShapeTubeExtrudePlugin'
-    link: './ShapeTubeExtrudePlugin'
+    text: 'PathEditPlugin'
+    link: './PathEditPlugin'
 
 next:
     text: 'SimplifyModifierPlugin'

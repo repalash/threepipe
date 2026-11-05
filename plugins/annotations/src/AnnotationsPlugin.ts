@@ -9,6 +9,7 @@ import {
     ICameraView,
     Intersection,
     IObject3D,
+    isEditableTarget,
     ISerializedConfig,
     MathUtils,
     Matrix3,
@@ -1419,7 +1420,7 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
     private _onKeyDown = (e: KeyboardEvent) => {
         if (this.isDisabled() || !this._layer) return
         const t = e.target as HTMLElement | null
-        if (t && (t.isContentEditable || t.closest?.('input, textarea, select'))) return
+        if (isEditableTarget(t)) return
         this.stopTour()
         // only when the focus is in this viewer (its canvas, the card, the placing overlay) or on the page, not in another
         // viewer or panel. On the page, with more viewers, the one used last takes the key

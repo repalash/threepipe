@@ -27,6 +27,7 @@ import {AssetImporter} from '../../assetmanager'
 import {BoxSelectionWidget, SelectionWidget} from '../../three/widgets'
 import {DuplicateTracker, type DuplicateMode} from './DuplicateTracker'
 import {ObjectClipboard} from './ObjectClipboard'
+import {isEditableTarget} from '../../utils'
 
 export interface PickingPluginEventMap extends AViewerPluginEventMap, ObjectPickerEventMap{
 }
@@ -245,8 +246,7 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         if (this.isDisabled() || !this.keyboardShortcuts) return
         // a key another handler already used (a menu, a dialog, an editor overlay), or one typed into a field
         if (event.defaultPrevented) return
-        const target = event.target as HTMLElement | null
-        if (target?.tagName === 'TEXTAREA' || target?.tagName === 'INPUT' || target?.tagName === 'SELECT' || target?.isContentEditable) return
+        if (isEditableTarget(event.target)) return
         const ctrl = event.ctrlKey || event.metaKey
 
         if (ctrl && event.code === 'KeyA') {
