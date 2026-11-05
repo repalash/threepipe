@@ -84,7 +84,7 @@ The frame has fixed areas: the left sidebar, the right sidebar (the panel and th
 - In the title bar and the status bar layouts, the canvas gets smaller and the areas are edge to edge, with a line to the canvas. In the floating layout, the areas are cards over the canvas, with the same gap as the panel card.
 - The perf pill and the bar of the sticky notes follow the left area: in the floating layout they move right of the left card, and up above the bottom card; the tool bar also moves up. In the other layouts they move with the canvas.
 - The body has the class `lay-has-left` or `lay-has-bottom` while that area has an element. The CSS variables `--lay-left-area`, `--lay-right-area` and `--lay-bottom-area` are the width or height of each area (`0px` when it is empty). In the floating layout, `--lay-left-inset` and `--lay-bottom-inset` are the parts of the canvas that the left and the bottom card cover, with their gap.
-- A portrait window under 920 px wide (a phone) has no room for the left and the bottom area: they are hidden there.
+- A portrait window under 920 px wide (a phone) has no room for the areas next to the canvas. The part below the canvas shows one area at a time: the panel, or the left or the bottom area. The button of the areas, next to the layout button, picks it; it shows there when the left or the bottom area has an element. A tap on a mode in the mode bar shows the panel again. From code: `editor.frame.setStackedArea('left')` (`'right'` for the panel), `editor.frame.stackedArea`. The pick of the person is kept with the sizes.
 
 **Size and collapse.** The left area, the bottom area and the panel (`right`) can change size and collapse:
 

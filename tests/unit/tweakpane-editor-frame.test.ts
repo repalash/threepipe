@@ -252,6 +252,8 @@ const body = () => doc.body as FakeElement
 /** The number of tooltips that show on a hover of a button: its own, and the singleton's for its group */
 const tipsOnHover = (b: FakeElement) => (b._tippy!.state.isEnabled ? 1 : 0) +
     singletons.filter(s => s.state.isEnabled && s.children!.includes(b._tippy!)).length
+/** The layout button among the buttons of a bar */
+const layoutButtonOf = (buttons: FakeElement[]) => buttons.find(b => b.getAttribute('aria-label') === 'Layout of the page')!
 const keydown = (key: string, code: string, mods: Record<string, boolean> = {}) => win.fire('keydown', {key, code, target: body(), ...mods})
 
 describe('EditorModeBar', () => {
@@ -318,8 +320,8 @@ describe('EditorFrame', () => {
         return new EditorFrame(host(), {layout, onRename})
     }
     const layoutButton = (f: InstanceType<typeof EditorFrame>) => f.layout === 'floating' ?
-        (f.modeBar.element as any as FakeElement).find('lay-float-btn').pop()! :
-        body().find('lay-top')[0].find('lay-btn').pop()!
+        layoutButtonOf((f.modeBar.element as any as FakeElement).find('lay-float-btn')) :
+        layoutButtonOf(body().find('lay-top')[0].find('lay-btn'))
 
     for (const [layout, expanded] of [['titlebar', true], ['floating', false], ['floating', true]] as const) {
         test(`the tooltip of the layout button hides while its menu is open, and never doubles (${layout}, names ${expanded ? 'shown' : 'hidden'})`, () => {
@@ -524,7 +526,7 @@ describe('EditorFrame area sizes', () => {
         expect(storage.has('tpEditorFrameAreas')).toBe(false) // set from code: not kept
         f.setAreaSize('left', null, true)
         expect(sizeVar('--lay-left-area-size')).toBeUndefined()
-        expect(stored()).toEqual({sizes: {right: 600, bottom: 250}, collapsed: {}})
+        expect(stored()).toEqual({sizes: {right: 600, bottom: 250}, collapsed: {}, stacked: 'right'})
     })
 
     test('the left area and the panel leave room for the canvas next to each other and the mode bar', () => {
@@ -614,7 +616,7 @@ describe('EditorFrame area sizes', () => {
         expect(f.modeBar.open).toBe(true)
         f.setAreaCollapsed('left', false, true)
         expect(body().classList.contains('lay-collapsed-left')).toBe(false)
-        expect(stored()).toEqual({sizes: {}, collapsed: {left: false}})
+        expect(stored()).toEqual({sizes: {}, collapsed: {left: false}, stacked: 'right'})
     })
 
     test('a new frame applies the kept sizes and collapsed areas; a stored value that is not of the frame is ignored', () => {
@@ -639,6 +641,77 @@ describe('EditorFrame area sizes', () => {
         }
     })
 
+    test('on a phone, the button of the areas puts the left or the bottom area below the canvas; a tap on a mode shows the panel again', () => {
+        vi.stubGlobal('matchMedia', (q: string) => ({matches: q === EditorFrame.StackedQuery})) // a phone in portrait
+        const f = new EditorFrame(host(), {layout: 'titlebar'})
+        const areasButton = body().find('lay-top')[0].find('lay-areas-btn')[0]
+        expect(areasButton).toBeDefined() // the CSS shows it only on a phone with a left or a bottom area
+        const menu = () => body().find('lay-menu')[0]
+        const items = () => menu().children.map(c => [c.textContent, c.getAttribute('aria-checked')])
+        // only the panel while the areas are empty
+        areasButton.click()
+        expect(items()).toEqual([['Panel', 'true']])
+        areasButton.click()
+        f.setArea('left', new FakeElement('div') as any)
+        f.setArea('bottom', new FakeElement('div') as any)
+        areasButton.click()
+        expect(items()).toEqual([['Panel', 'true'], ['Left sidebar', 'false'], ['Bottom strip', 'false']])
+        // the pick: the body class, kept; it opens the part below the canvas when the mode bar hid it
+        f.modeBar.setOpen(false)
+        menu().children[1].click()
+        expect(body().find('lay-menu')).toHaveLength(0)
+        expect([f.stackedArea, body().classList.contains('lay-stacked-left'), body().classList.contains('lay-stacked-bottom'), f.modeBar.open]).toEqual(['left', true, false, true])
+        expect(stored().stacked).toBe('left')
+        areasButton.click()
+        expect(items()).toEqual([['Panel', 'false'], ['Left sidebar', 'true'], ['Bottom strip', 'false']])
+        areasButton.click()
+        // a tap on the open mode shows the panel, and does not hide it (the click stops before the button)
+        const bar = f.modeBar.element as any as FakeElement
+        const tabs = bar.find('mb-btn').filter(b => b.getAttribute('role') === 'tab')
+        const tap = (tab: FakeElement) => {
+            let stopped = false
+            bar.fire('click', {target: tab, stopImmediatePropagation: () => stopped = true})
+            if (!stopped) tab.click()
+        }
+        tap(tabs[0])
+        expect([f.stackedArea, f.modeBar.open, stored().stacked]).toEqual(['right', true, 'right'])
+        // another mode opens as usual
+        f.setStackedArea('bottom')
+        tap(tabs[1])
+        expect([f.stackedArea, f.modeBar.open]).toEqual(['right', true])
+        expect(f.modeBar.editor.setSelectedMode).toHaveBeenCalledWith(1)
+        // the panel below the canvas: a tap on the open mode hides it, as before
+        tap(tabs[0])
+        expect(f.modeBar.open).toBe(false)
+        // an empty area shows the panel, and a mode tap is not taken
+        f.setStackedArea('left')
+        f.setArea('left', null)
+        f.modeBar.setOpen(true)
+        tap(tabs[0])
+        expect([f.stackedArea, f.modeBar.open]).toEqual(['left', false])
+        // a new frame applies the kept area; dispose removes the classes
+        f.dispose()
+        expect(body().className).not.toContain('lay-stacked')
+        storage.set('tpEditorFrameAreas', JSON.stringify({stacked: 'bottom'}))
+        const g = new EditorFrame(host(), {layout: 'floating'})
+        expect([g.stackedArea, body().classList.contains('lay-stacked-bottom')]).toEqual(['bottom', true])
+        g.dispose()
+        storage.set('tpEditorFrameAreas', JSON.stringify({stacked: 'top'}))
+        expect(new EditorFrame(host(), {layout: 'floating'}).stackedArea).toBe('right')
+    })
+
+    test('the mode bar taps are not taken in a wide window, where all the areas show', () => {
+        vi.stubGlobal('matchMedia', (q: string) => ({matches: q !== EditorFrame.StackedQuery}))
+        const f = new EditorFrame(host(), {layout: 'titlebar'})
+        f.setArea('left', new FakeElement('div') as any)
+        f.setStackedArea('left')
+        const bar = f.modeBar.element as any as FakeElement
+        const tab = bar.find('mb-btn').filter(b => b.getAttribute('role') === 'tab')[0]
+        const stop = vi.fn()
+        bar.fire('click', {target: tab, stopImmediatePropagation: stop})
+        expect([f.stackedArea, stop.mock.calls.length]).toEqual(['left', 0])
+    })
+
     test('a drag of the left edge resizes it, collapses it past half of the smallest size, opens it again, and keeps the size at the end', () => {
         const f = new EditorFrame(host(), {layout: 'titlebar'})
         f.setArea('left', new FakeElement('div') as any)
@@ -653,7 +726,7 @@ describe('EditorFrame area sizes', () => {
         win.fire('pointermove', {clientX: 130}) // 130 px: open, at the smallest size
         expect([f.isAreaCollapsed('left'), sizeVar('--lay-left-area-size')]).toEqual([false, '160px'])
         win.fire('pointerup', {})
-        expect(stored()).toEqual({sizes: {left: 160}, collapsed: {left: false}})
+        expect(stored()).toEqual({sizes: {left: 160}, collapsed: {left: false}, stacked: 'right'})
         expect(body().classList.contains('lay-resizing')).toBe(false)
         // the drag is over: a move does nothing
         win.fire('pointermove', {clientX: 400})
@@ -686,7 +759,7 @@ describe('EditorFrame area sizes', () => {
         f.setAreaCollapsed('bottom', true)
         handle('bottom').fire('dblclick')
         expect(f.isAreaCollapsed('bottom')).toBe(false)
-        expect(stored()).toEqual({sizes: {}, collapsed: {bottom: false}})
+        expect(stored()).toEqual({sizes: {}, collapsed: {bottom: false}, stacked: 'right'})
     })
 })
 
@@ -711,7 +784,7 @@ describe('TweakpaneEditorPlugin.layout', () => {
     test('the layout picked in the layout menu or the UI dropdown is kept', () => {
         const p = plugin()
         p.layout = 'titlebar'
-        body().find('lay-top')[0].find('lay-btn').pop()!.click()
+        layoutButtonOf(body().find('lay-top')[0].find('lay-btn')).click()
         const items = body().find('lay-menu')[0].children
         items.find(i => i.textContent === 'Status bar')!.click()
         expect(p.layout).toBe('statusbar')

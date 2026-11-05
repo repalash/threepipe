@@ -38,6 +38,9 @@ const AREA_SIZE_VARS: Record<EditorFrameSizedArea, string> = {
     right: '--tweakpane-ui-container-width',
 }
 
+/** An item of a menu of the bars: its name, whether it is the one picked now, and what a click on it does */
+type MenuItem = [label: string, checked: boolean, onPick: () => void]
+
 /** The layout of the editor page: a frame layout, or `classic` for no frame (the mode tabs at the bottom) */
 export type EditorPageLayout = EditorFrameLayout | 'classic'
 
@@ -77,6 +80,7 @@ const ICONS = {
     app: svg('<path d="M8 1.5l5.6 3.2v6.6L8 14.5l-5.6-3.2V4.7z"/><path d="M8 8l5.6-3.3M8 8v6.5M8 8L2.4 4.7"/>'),
     theme: svg('<path d="M13 9.5A5.5 5.5 0 0 1 6.5 3a5.5 5.5 0 1 0 6.5 6.5z"/>'),
     layout: svg('<rect x="2" y="2.5" width="12" height="11" rx="1.5"/><path d="M2 5.5h12M10 5.5v8"/>'),
+    stacked: svg('<rect x="2" y="2.5" width="12" height="11" rx="1.5"/><path d="M2 8h12"/><path d="M5 10.75h6" opacity=".6"/>'),
 }
 
 /**
@@ -111,6 +115,9 @@ const ICONS = {
  * the panel and the mode bar are below it, with the same height. The CSS variable `--lay-split` is the part of the height
  * for the canvas: `0.45`, set on `body.lay-frame` (a page sets another with a more specific rule, like
  * `html body.lay-frame { --lay-split: 0.5; }`). When the panel is hidden there, the mode bar is a row at the bottom.
+ * The part below the canvas shows one area at a time: the panel, or the left or the bottom area
+ * ({@link setStackedArea}). The button of the areas next to the layout button picks it there, when the left or the
+ * bottom area has an element, and a tap on a mode in the mode bar shows the panel again.
  */
 export class EditorFrame {
     /** The default theme pairs: Shift+T goes from one to the other */
@@ -132,6 +139,15 @@ export class EditorFrame {
      */
     static AreaStorageKey: string | null = 'tpEditorFrameAreas'
 
+    /**
+     * The media query of a narrow portrait window (a phone), where the panel is below the canvas and shows one area at
+     * a time ({@link setStackedArea}). The same as the media query of the frame CSS.
+     */
+    static StackedQuery = '(max-width: 919.98px) and (orientation: portrait)'
+
+    /** The names of the areas in the menu of the button of the areas ({@link setStackedArea}) */
+    static AreaNames: Record<EditorFrameSizedArea, string> = {right: 'Panel', left: 'Left sidebar', bottom: 'Bottom strip'}
+
     readonly modeBar: EditorModeBar
     private _layout: EditorFrameLayout
     private _documentName = ''
@@ -149,9 +165,11 @@ export class EditorFrame {
     private _applied: Partial<Record<EditorFrameSizedArea, number>> = {}
     /** The collapsed left and bottom areas; the panel collapses as the mode bar hides it */
     private _collapsed: Partial<Record<EditorFrameArea, boolean>> = {}
+    /** The area below the canvas in a narrow portrait window ({@link setStackedArea}) */
+    private _stacked: EditorFrameSizedArea = 'right'
     /** Ends the drag of an edge that is in progress */
     private _endDrag?: () => void
-    /** The open layout menu, and the button that opened it */
+    /** The open menu (the layouts or the areas), and the button that opened it */
     private _menu?: HTMLDivElement
     private _menuAnchor?: HTMLElement
     /** The tooltips of the buttons in the bars */
@@ -189,6 +207,8 @@ export class EditorFrame {
         window.addEventListener('keydown', this._onKeyDown)
         window.addEventListener('resize', this._fitAreas)
         this.modeBar.element.addEventListener('click', this._expandPanel)
+        // before the click of a mode, which would hide the panel when its mode is the open one
+        this.modeBar.element.addEventListener('click', this._onModeBarClick, true)
         this.setLayout(this._layout)
     }
 
@@ -286,7 +306,8 @@ export class EditorFrame {
      * - The element fills the area. The area is `--lay-left-area-size` wide (`240px`) or `--lay-bottom-area-size` tall
      *   (`160px`), CSS variables on `body.lay-frame`; set others with a more specific rule, like
      *   `html body.lay-frame { --lay-left-area-size: 280px; }`.
-     * - A narrow portrait window (a phone) has no room for the areas: they are hidden there, and take no room.
+     * - A narrow portrait window (a phone) has no room for the areas next to the canvas: the part below the canvas shows
+     *   one area at a time, the panel by default ({@link setStackedArea}).
      *
      * The areas go with the frame: `TweakpaneEditorPlugin.setArea` keeps the element when the plugin makes the frame again.
      * @param area - `left` or `bottom` ({@link EditorFrameArea})
@@ -343,6 +364,28 @@ export class EditorFrame {
         return area === 'right' ? !this.modeBar.open : !!this._collapsed[area]
     }
 
+    /** The area that the part below the canvas shows in a narrow portrait window ({@link setStackedArea}) */
+    get stackedArea() {
+        return this._stacked
+    }
+
+    /**
+     * Sets the area that the part below the canvas shows in a narrow portrait window (a phone, {@link StackedQuery}),
+     * where there is no room for the areas next to the canvas: the panel (`right`, the default), or the left or the
+     * bottom area. The mode bar stays next to it, and a tap on a mode shows the panel again. A left or bottom area
+     * without an element shows the panel. It opens the part below the canvas when the mode bar hid it. A wider or a
+     * landscape window shows all the areas, so this has no effect there. The body has the class `lay-stacked-left` or
+     * `lay-stacked-bottom`.
+     * @param area - `right` (the panel), `left` or `bottom`
+     * @param keep - keep it in `localStorage` ({@link AreaStorageKey}), as the person's pick (the button of the areas)
+     */
+    setStackedArea(area: EditorFrameSizedArea, keep = false) {
+        this._stacked = area
+        for (const a of ['left', 'bottom']) document.body.classList.toggle('lay-stacked-' + a, a === area)
+        if (area !== 'right' && !this.modeBar.open) this.modeBar.setOpen(true)
+        if (keep) this._storeAreas()
+    }
+
     /** Switches between the light and the dark theme of the same family, when the current theme is in a pair */
     toggleTheme() {
         const cm = this.options.colorMode
@@ -357,7 +400,9 @@ export class EditorFrame {
         window.removeEventListener('resize', this._fitAreas)
         this.modeBar.onLayoutChange = undefined
         this.modeBar.element.removeEventListener('click', this._expandPanel)
+        this.modeBar.element.removeEventListener('click', this._onModeBarClick, true)
         for (const [k] of EDITOR_FRAME_LAYOUTS) document.body.classList.remove('lay-' + k)
+        document.body.classList.remove('lay-stacked-left', 'lay-stacked-bottom')
         document.body.classList.remove('lay-frame')
         this._top.remove()
         this._bottom.remove()
@@ -383,6 +428,24 @@ export class EditorFrame {
     private _expandPanel = () => {
         const root = this.options.panel?.()?.querySelector<HTMLElement>('.tp-rotv')
         if (root && !root.classList.contains('tp-rotv-expanded')) root.querySelector<HTMLElement>('.tp-rotv_b')?.click()
+    }
+
+    /** The left or the bottom area that the part below the canvas shows now, in a narrow portrait window */
+    private _stackedShown(): EditorFrameArea | undefined {
+        const a = this._stacked
+        if (a === 'right' || !this._areas[a].children.length) return undefined
+        return window.matchMedia?.(EditorFrame.StackedQuery).matches ? a : undefined
+    }
+
+    /**
+     * A tap on a mode while a left or bottom area is below the canvas: the panel comes back. A tap on the open mode
+     * only does that (else the mode bar would hide the panel); another mode opens as usual.
+     */
+    private _onModeBarClick = (e: MouseEvent) => {
+        const tab = (e.target as Element | null)?.closest?.('[role]')
+        if (tab?.getAttribute('role') !== 'tab' || !this._stackedShown()) return
+        this.setStackedArea('right', true)
+        if (tab.getAttribute('aria-selected') === 'true' && this.modeBar.open) e.stopImmediatePropagation()
     }
 
 
@@ -495,16 +558,16 @@ export class EditorFrame {
         for (const area of Object.keys(this._sizes) as EditorFrameSizedArea[]) this._applySize(area)
     }
 
-    /** Keeps the sizes and the collapsed left and bottom areas ({@link AreaStorageKey}) */
+    /** Keeps the sizes, the collapsed left and bottom areas and the area below the canvas ({@link AreaStorageKey}) */
     private _storeAreas() {
         const key = EditorFrame.AreaStorageKey
-        if (key) writeStored(key, JSON.stringify({sizes: this._sizes, collapsed: this._collapsed}))
+        if (key) writeStored(key, JSON.stringify({sizes: this._sizes, collapsed: this._collapsed, stacked: this._stacked}))
     }
 
-    /** Applies the sizes and the collapsed areas that are kept ({@link AreaStorageKey}) */
+    /** Applies the sizes, the collapsed areas and the area below the canvas that are kept ({@link AreaStorageKey}) */
     private _restoreAreas() {
         const key = EditorFrame.AreaStorageKey
-        let stored: {sizes?: Record<string, unknown>, collapsed?: Record<string, unknown>} | undefined
+        let stored: {sizes?: Record<string, unknown>, collapsed?: Record<string, unknown>, stacked?: unknown} | undefined
         try {
             stored = JSON.parse(key && readStored(key) || 'null') ?? undefined
         } catch (e) {
@@ -521,18 +584,24 @@ export class EditorFrame {
             this._collapsed[area] = true
             document.body.classList.add('lay-collapsed-' + area)
         }
+        const stacked = stored?.stacked
+        this.setStackedArea(stacked === 'left' || stacked === 'bottom' ? stacked : 'right')
         this._fitAreas()
     }
 
     /**
-     * The light or dark button and the layout button
+     * The light or dark button, the layout button, and the button of the areas (only in a narrow portrait window with a
+     * left or a bottom area, by the CSS)
      * @param where - the top or the bottom bar, or the mode bar (the floating layout): there they have a name that the
      * wide mode bar shows, and the tooltips of the mode bar
      */
     private _actions(where: 'top' | 'bottom' | 'modeBar') {
         const buttons: HTMLButtonElement[] = []
         if (this.options.colorMode) buttons.push(this._button(ICONS.theme, 'Light or dark (Shift T)', 'Light / dark', where, () => this.toggleTheme()))
-        buttons.push(this._button(ICONS.layout, 'Layout of the page', 'Layout', where, b => this._toggleLayoutMenu(b)))
+        buttons.push(this._button(ICONS.layout, 'Layout of the page', 'Layout', where, b => this._toggleMenu(b, () => this._layoutItems())))
+        const areas = this._button(ICONS.stacked, 'Below the canvas', 'Area', where, b => this._toggleMenu(b, () => this._areaItems()))
+        areas.classList.add('lay-areas-btn')
+        buttons.push(areas)
         return buttons
     }
 
@@ -552,26 +621,42 @@ export class EditorFrame {
         return b
     }
 
-    /** Opens the layout menu at its button, or closes it when that button opened it */
-    private _toggleLayoutMenu(anchor: HTMLElement) {
-        const wasOpen = this._menuAnchor === anchor
-        this._closeMenu()
-        if (!wasOpen) this._openLayoutMenu(anchor)
+    /** The items of the layout menu: the layouts of the frame, and the classic page when the app can switch to it */
+    private _layoutItems(): MenuItem[] {
+        const pick = this.options.onPickLayout
+        return (pick ? EDITOR_PAGE_LAYOUTS : EDITOR_FRAME_LAYOUTS).map(([k, label]) => [label, k === this._layout, () => {
+            if (pick) pick(k)
+            else if (k !== 'classic') this.setLayout(k)
+        }])
     }
 
-    private _openLayoutMenu(anchor: HTMLElement) {
+    /** The items of the menu of the areas: the panel, and the left and the bottom area when they have an element */
+    private _areaItems(): MenuItem[] {
+        const shown = this._stackedShown() ?? 'right'
+        return (Object.keys(AREA_SIZE_VARS) as EditorFrameSizedArea[])
+            .filter(a => a === 'right' || this._areas[a].children.length)
+            .sort((a, b) => (a === 'right' ? 0 : 1) - (b === 'right' ? 0 : 1))
+            .map(a => [EditorFrame.AreaNames[a], a === shown, () => this.setStackedArea(a, true)])
+    }
+
+    /** Opens a menu at its button, or closes it when that button opened it */
+    private _toggleMenu(anchor: HTMLElement, items: () => MenuItem[]) {
+        const wasOpen = this._menuAnchor === anchor
+        this._closeMenu()
+        if (!wasOpen) this._openMenu(anchor, items())
+    }
+
+    private _openMenu(anchor: HTMLElement, items: MenuItem[]) {
         const m = createDiv({classList: ['lay-menu'], addToBody: false})
         m.setAttribute('role', 'menu')
-        const pick = this.options.onPickLayout
-        for (const [k, label] of pick ? EDITOR_PAGE_LAYOUTS : EDITOR_FRAME_LAYOUTS) {
+        for (const [label, checked, onPick] of items) {
             const it = createDiv({elementTag: 'button', addToBody: false})
             it.setAttribute('role', 'menuitemradio')
-            it.setAttribute('aria-checked', String(k === this._layout))
+            it.setAttribute('aria-checked', String(checked))
             it.textContent = label
             it.addEventListener('click', () => {
                 this._closeMenu()
-                if (pick) pick(k)
-                else if (k !== 'classic') this.setLayout(k)
+                onPick()
             })
             m.appendChild(it)
         }

@@ -115,12 +115,14 @@ interface FrameState {
     collapsed?: ('left' | 'bottom')[]
     /** The sizes set inline on the body (EditorFrame.setAreaSize), like `--lay-left-area-size: 320px` */
     sizes?: Record<string, string>
+    /** The area below the canvas on a phone (EditorFrame.setStackedArea) */
+    stacked?: 'left' | 'bottom'
 }
 
 /** The classes of the body for a layout and its state, as EditorFrame and EditorModeBar set them */
 function bodyClasses(layout: Layout, s: FrameState = {}) {
     return ['lay-frame', 'lay-' + layout, ...s.left ? ['lay-has-left'] : [], ...s.bottom ? ['lay-has-bottom'] : [], ...s.panelHidden ? ['mb-panel-hidden'] : [],
-        ...(s.collapsed ?? []).map(a => 'lay-collapsed-' + a)]
+        ...(s.collapsed ?? []).map(a => 'lay-collapsed-' + a), ...s.stacked ? ['lay-stacked-' + s.stacked] : []]
 }
 
 /**
@@ -425,6 +427,35 @@ describe('tweakpane editor frame areas', () => {
                 expect(evaluate(vars[k], phone.width, vars), k).toBe(0)
             }
             expect(cascade(canvas, bodyClasses(layout, s), phone).width).toBe('100%')
+        })
+
+        it(`${layout}: on a phone, the left or the bottom area picked for below the canvas takes the place of the panel`, () => {
+            const panelBox = box(panel, layout, phone, {})
+            for (const stacked of ['left', 'bottom'] as const) {
+                const s = {left: true, bottom: true, stacked}
+                const [shown, other] = stacked === 'left' ? [leftArea, bottomArea] : [bottomArea, leftArea]
+                // next to the mode bar, from the canvas to the bottom of the window, as the panel; the panel hides
+                expect(box(shown, layout, phone, s), stacked).toEqual(panelBox)
+                expect(box(other, layout, phone, s), stacked).toBeNull()
+                expect(box(panel, layout, phone, s), stacked).toBeNull()
+                expect(cascade(canvas, bodyClasses(layout, s), phone).height).toBe(cascade(canvas, bodyClasses(layout, {}), phone).height)
+                // the mode bar hides the part below the canvas: the area hides with it
+                expect(box(shown, layout, phone, {...s, panelHidden: true}), stacked).toBeNull()
+                // a collapsed area shows there too
+                expect(box(shown, layout, phone, {...s, collapsed: [stacked]}), stacked).toEqual(panelBox)
+                // an empty area: the panel
+                expect(box(panel, layout, phone, {stacked}), stacked).toEqual(panelBox)
+                // a wide or a landscape window shows all the areas, and the panel
+                for (const vp of [desktop, phoneLandscape]) expect(box(panel, layout, vp, s), stacked).not.toBeNull()
+            }
+        })
+
+        it(`${layout}: the button of the areas shows only on a phone in portrait with a left or a bottom area`, () => {
+            const display = (vp: Viewport, s: FrameState) => cascade(['.lay-areas-btn'], bodyClasses(layout, s), vp).display
+            expect(display(phone, {})).toBe('none')
+            expect(display(phone, {left: true})).toBe('flex')
+            expect(display(phone, {bottom: true})).toBe('flex')
+            for (const vp of [desktop, phoneLandscape]) expect(display(vp, {left: true, bottom: true})).toBe('none')
         })
     }
 })
