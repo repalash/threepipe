@@ -79,7 +79,7 @@ export function makeICameraCommonUiConfig(this: ICamera): UiObjectConfig[] {
         {
             type: 'button',
             label: 'Set View',
-            tags: ['context-menu'],
+            tags: [UiTags.ContextMenu],
             value: ()=>{
                 this.setViewToMain({ui: true})
                 this.uiConfig?.uiRefresh?.(true, 'postFrame') // config is parent config
@@ -89,7 +89,7 @@ export function makeICameraCommonUiConfig(this: ICamera): UiObjectConfig[] {
             type: 'button',
             label: 'Activate main',
             hidden: ()=>this?.isMainCamera,
-            tags: ['context-menu'],
+            tags: [UiTags.ContextMenu],
             value: ()=>{
                 this.activateMain({ui: true})
                 this.uiConfig?.uiRefresh?.(true, 'postFrame')
@@ -98,7 +98,7 @@ export function makeICameraCommonUiConfig(this: ICamera): UiObjectConfig[] {
         {
             type: 'button',
             label: 'Deactivate main',
-            tags: ['context-menu'],
+            tags: [UiTags.ContextMenu],
             hidden: ()=>!this?.isMainCamera,
             value: ()=>{
                 this.deactivateMain({ui: true})
@@ -137,7 +137,7 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
                 type: 'input',
                 property: [this, 'uuid'],
                 disabled: true,
-                tags: ['advanced'],
+                tags: [UiTags.Advanced],
             },
             {
                 type: 'input',
@@ -199,7 +199,7 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
             {
                 type: 'button',
                 label: 'Scale to Radius',
-                tags: ['context-menu', 'interaction'],
+                tags: [UiTags.ContextMenu, UiTags.Interaction],
                 hidden: ()=>!this.autoScale,
                 // prompt: ['Auto Scale Radius: Object will be scaled to the given radius', this.userData.autoScaleRadius || '2', true],
                 value: async()=>{
@@ -218,7 +218,7 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
             {
                 type: 'button',
                 label: 'Auto Center',
-                tags: ['context-menu', 'interaction'],
+                tags: [UiTags.ContextMenu, UiTags.Interaction],
                 hidden: ()=>!this.autoCenter,
                 value: ()=>{
                     // const res = await ThreeViewer.Dialog.confirm('Auto Center: Object will be centered, are you sure you want to proceed?')
@@ -232,7 +232,7 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
             {
                 type: 'button',
                 label: 'Pivot to Node Center',
-                tags: ['context-menu', 'interaction'],
+                tags: [UiTags.ContextMenu, UiTags.Interaction],
                 value: async()=>{
                     const res = await ThreeViewer.Dialog.confirm('Pivot to Center: Adjust the pivot to bounding box center. The object will rotate around the new pivot, are you sure you want to proceed?')
                     if (!res) return
@@ -349,7 +349,7 @@ export function objectActionsUiConfig(this: IObject3D): UiObjectConfig[] {
     return [{
         type: 'button',
         label: 'Duplicate Object',
-        tags: ['context-menu'],
+        tags: [UiTags.ContextMenu],
         value: async(e?: any)=>{
             return iObjectCommons.duplicateObject(this, e)
         },
@@ -357,7 +357,7 @@ export function objectActionsUiConfig(this: IObject3D): UiObjectConfig[] {
     {
         type: 'button',
         label: 'Delete Object',
-        tags: ['context-menu'],
+        tags: [UiTags.ContextMenu],
         value: async(e?: any)=>{
             return iObjectCommons.deleteObject(this, e)
         },

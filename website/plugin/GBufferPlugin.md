@@ -47,7 +47,7 @@ A material in the GBuffer keeps the cut-out shape of its `map` and `alphaMap` al
 
 Use a blended material only for a surface that is really see-through, like glass or a veil.
 
-The flags texture holds bits per pixel that the plugins read, like the tone mapping bit of [`TonemapPlugin`](./TonemapPlugin) (off for a material with `toneMapped: false`). A material that is left out of the GBuffer writes no flags, so its pixels get the clear value (all bits on). Set `userData.renderToFlags` to `true` to write only the flags for such a material: no depth and no normal, so SSAO, SSR, depth of field and outlines do not see it. It is drawn after the other objects, without depth write and with its own depth test, and its pixels with an alpha of about 0 are left out. The helper widgets use it, so that their colors are not tone mapped:
+The flags texture holds bits per pixel that the plugins read, like the tone mapping bit of [`TonemapPlugin`](./TonemapPlugin) (off for a material with `toneMapped: false`). A material that is left out of the GBuffer writes no flags, so its pixels get the clear value (all bits on). Set `userData.renderToFlags` to `true` to write only the flags for such a material: no depth and no normal, so SSAO, SSR, depth of field and outlines do not see it. It is drawn after the other objects, without depth write and blending (the flags are bits) and with its own depth test, and its pixels with an alpha of about 0 are left out. The helper widgets use it, so that their colors are not tone mapped:
 
 ```typescript
 const material = new LineMaterial2({color: 0xff0000, toneMapped: false, transparent: true, depthWrite: false})

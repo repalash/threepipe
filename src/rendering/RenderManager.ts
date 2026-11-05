@@ -55,6 +55,7 @@ import {
     uiSlider,
     uiToggle,
 } from 'uiconfig.js'
+import {UiTags} from '../ui/uiconfig'
 import {bindToValue, generateUUID, textureDataToImageData} from '../three'
 import {BlobExt, EXRExporter2} from '../assetmanager'
 import {IRenderManagerEventMap, RendererBlitOptions} from '../core/IRenderer'
@@ -81,7 +82,7 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
     }
 
     @serialize()
-    @uiDropdown('Shadow Map Type', ['BasicShadowMap', 'PCFShadowMap', 'PCFSoftShadowMap', 'VSMShadowMap'].map((v, i) => ({label: v, value: i})), {tags: ['advanced']})
+    @uiDropdown('Shadow Map Type', ['BasicShadowMap', 'PCFShadowMap', 'PCFSoftShadowMap', 'VSMShadowMap'].map((v, i) => ({label: v, value: i})), {tags: [UiTags.Advanced]})
     @bindToValue({obj: 'shadowMap', key: 'type', onChange: RenderManager.prototype._shadowMapTypeChanged})
         shadowMapType: ShadowMapType
 
@@ -93,7 +94,7 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
         this.reset()
     }
 
-    @uiConfig(undefined, {label: 'Passes', tags: ['advanced'], order: 1000})
+    @uiConfig(undefined, {label: 'Passes', tags: [UiTags.Advanced], order: 1000})
     private _passes: IPipelinePass[] = []
     private _pipeline: IPassID[] = []
     private _passesNeedsUpdate = true
@@ -121,7 +122,7 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
     @onChange2(RenderManager.prototype.rebuildPipeline)
     public autoBuildPipeline = true
 
-    @uiButton('Rebuild Pipeline', {sendArgs: false, tags: ['advanced']})
+    @uiButton('Rebuild Pipeline', {sendArgs: false, tags: [UiTags.Advanced]})
     rebuildPipeline(setDirty = true): void {
         this._passesNeedsUpdate = true
         if (setDirty) {

@@ -123,6 +123,7 @@ export default defineConfig({
             items: [
               {text: 'DropzonePlugin', link: 'plugin/DropzonePlugin'},
               {text: 'PickingPlugin', link: 'plugin/PickingPlugin'},
+              {text: 'BVHPlugin', link: 'plugin/BVHPlugin'},
               {text: 'GPUPickingPlugin', link: 'plugin/GPUPickingPlugin'},
               {text: 'LoadingScreenPlugin', link: 'plugin/LoadingScreenPlugin'},
               {text: 'FullScreenPlugin', link: 'plugin/FullScreenPlugin'},
@@ -225,6 +226,7 @@ export default defineConfig({
           {text: 'glTF Transform Plugin', link: 'package/plugin-gltf-transform'},
           {text: 'Extra Importers Plugins', link: 'package/plugins-extra-importers'},
           {text: 'Network Plugin', link: 'package/plugin-network'},
+          {text: 'Cloud Plugin (feedback, sign-in, drive)', link: 'package/plugin-cloud'},
           {text: 'Blend Importer Plugin', link: 'package/plugin-blend-importer'},
           {text: 'Gaussian Splatting Plugin', link: 'package/plugin-gaussian-splatting'},
           {text: 'svg-renderer Plugin', link: 'package/plugin-svg-renderer'},
@@ -234,6 +236,7 @@ export default defineConfig({
           {text: 'Timeline UI Plugin', link: 'package/plugin-timeline-ui'},
           {text: 'React Three Fiber (r3f)', link: 'package/plugin-r3f'},
           {text: 'Troika Text Plugin (2D)', link: 'package/plugin-troika-text'},
+          {text: 'Annotations Plugin', link: 'package/plugin-annotations'},
         ]
       },
     ],

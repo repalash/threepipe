@@ -42,6 +42,9 @@ Fat lines (`LineSegments2`, `Line2`, `MeshLine` with a `LineMaterial`) stay line
 
 A line material with `allowOverride` false keeps its own material in every view.
 
+Widgets (helpers, gizmos and their icons: an object with `isWidget` or `assetType` `'widget'`, and its children) keep
+their own materials in every view, so the icon of a light or a camera is not drawn as a rectangle.
+
 Lighting presets (`setLighting`, the list is in `lightingPresets`):
 
 | Key | Lighting |
