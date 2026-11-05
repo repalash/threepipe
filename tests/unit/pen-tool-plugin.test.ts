@@ -51,6 +51,10 @@ class FakeElement extends Listeners {
     get childNodes() {
         return this.innerHTML ? [this.innerHTML] : []
     }
+    /** Node.contains: this element or one inside it */
+    contains(node: any): boolean {
+        return node === this || this.children.some(c => c.contains(node))
+    }
     setAttribute(k: string, v: string) {
         this.attributes[k] = v
     }
@@ -139,7 +143,7 @@ function setup({canvasRect}: {canvasRect?: Rect} = {}) {
         win.fire('pointermove', ev(screen(to[0], to[1], to[2])))
         win.fire('pointerup', ev(screen(to[0], to[1], to[2])))
     }
-    const key = (k: string, target: any = {tagName: 'CANVAS'}, type = 'keydown') => {
+    const key = (k: string, target: any = canvas, type = 'keydown') => {
         const e = {key: k, target, preventDefault: vi.fn(), stopImmediatePropagation: vi.fn()}
         win.fire(type, e)
         return e
@@ -177,6 +181,30 @@ describe('PenToolPlugin', {timeout}, () => {
         const {pen, pathEdit} = setup()
         pen.start()
         expect(pathEdit.stopEditing).toHaveBeenCalledTimes(1)
+        pen.cancel()
+    })
+
+    test('keys are for this viewer only; starting the pen takes the focus from the UI button that started it', () => {
+        const {pen, click, key} = setup()
+        const button = Object.assign(new FakeElement('button'), {blur: vi.fn()})
+        doc.activeElement = button
+        try {
+            pen.start()
+            expect(button.blur).toHaveBeenCalled() // Space, Enter and Esc no longer press it
+        } finally {
+            delete doc.activeElement
+        }
+        click(0, 0, 0)
+        click(2, 0, 0)
+        // a key from a panel or another viewer is not the pen's
+        const esc = key('Escape', button)
+        expect(esc.preventDefault).not.toHaveBeenCalled()
+        expect(key('Backspace', button).preventDefault).not.toHaveBeenCalled()
+        expect(pen.active).toBe(true)
+        expect(pen.points.length).toBe(2)
+        // on the page after a press here: the pen's
+        expect(key('Backspace', doc.body).preventDefault).toHaveBeenCalled()
+        expect(pen.points.length).toBe(1)
         pen.cancel()
     })
 

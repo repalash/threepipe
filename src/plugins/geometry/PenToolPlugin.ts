@@ -171,6 +171,9 @@ export class PenToolPlugin extends AViewerPluginSync<PenToolPluginEventMap> {
         window.addEventListener('dblclick', this._onDbl, {capture: true})
         this._layer.active = true
         this._layer.hint = HINT
+        // the keys are the pen's now: a UI button that kept the focus (Draw Path) would take Space, Enter and Esc
+        const focused = document.activeElement as HTMLElement | null | undefined
+        if (focused && focused !== document.body && !this._viewer.container.contains(focused) && !isEditableTarget(focused)) focused.blur?.()
         this._cursor()
         this._changed()
     }
@@ -339,7 +342,8 @@ export class PenToolPlugin extends AViewerPluginSync<PenToolPluginEventMap> {
 
     private _onKey = (e: KeyboardEvent) => {
         if (e.key === 'Alt') this._held(this._space, true) // not taken: only for the cursor
-        if (isEditableTarget(e.target)) return
+        // only a key for this viewer: not another viewer, a panel or a text field
+        if (!this._layer.ownsKey(e)) return
         const own = () => {
             e.preventDefault()
             e.stopImmediatePropagation()
@@ -364,8 +368,8 @@ export class PenToolPlugin extends AViewerPluginSync<PenToolPluginEventMap> {
 
     private _onKeyUp = (e: KeyboardEvent) => {
         if (isSpace(e)) {
-            // a focused button (e.g. Draw Path after a click on it) clicks on the keyup of Space
-            if (!isEditableTarget(e.target)) {
+            // a focused element clicks on the keyup of Space
+            if (this._layer.ownsKey(e)) {
                 e.preventDefault()
                 e.stopImmediatePropagation()
             }
