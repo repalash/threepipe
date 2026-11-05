@@ -100,6 +100,8 @@ export class ScreenHandles<T = unknown> {
     private _handles: {h: ScreenHandle<T>, s: ScreenPoint}[] = []
     private _lines = ''
     private _shapes = ''
+    /** The SVG content written last: a frame with the same drawing does not write the DOM */
+    private _html = ''
     private _hoverId: string | null = null
     private _press: {s: Vector2} | null = null
     private _taken = false
@@ -320,7 +322,10 @@ export class ScreenHandles<T = unknown> {
         this._shapes = ''
         if (this._active) this._options.draw(this)
         const html = this._lines + this._shapes
-        if (html || this.svg.childNodes.length) this.svg.innerHTML = html
+        if (html !== this._html) {
+            this.svg.innerHTML = html
+            this._html = html
+        }
         if (this._hoverId && !this._handles.some(x => x.h.id === this._hoverId)) this._setHover(null)
     }
 

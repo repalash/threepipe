@@ -175,6 +175,24 @@ function bezierPath() {
 }
 
 describe('PathEditPlugin', () => {
+    test('settings in its UI (uiconfig decorators): enabled, edit on double-click, and the edit button', () => {
+        const {plugin, line} = setup()
+        const children = (plugin.uiConfig.children ?? []).map((c: any) => typeof c === 'function' ? c() : c).flat()
+        const label = (c: any) => typeof c.label === 'function' ? c.label() : c.label
+        expect(plugin.uiConfig.label).toBe('Path Edit')
+        expect(children.map(label)).toEqual(['Enabled', 'Edit on double-click', 'Edit selected line'])
+        const button = children[2]
+        plugin.edit(line(spline()))
+        expect(label(button)).toBe('Done')
+        const [target, key] = button.property
+        target[key]() // ends editing
+        expect(plugin.editing).toBe(null)
+        expect(label(button)).toBe('Edit selected line')
+        plugin.edit(line(spline()))
+        plugin.enabled = false
+        expect(plugin.editing).toBe(null)
+    })
+
     test('edit and stopEditing: events, the overlay, the listeners', () => {
         const {plugin, line, frame, svg, container} = setup()
         const o = line(spline())

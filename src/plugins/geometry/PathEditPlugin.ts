@@ -1,6 +1,8 @@
 import {Curve, Plane, Vector2, Vector3} from 'three'
-import type {UiObjectConfig} from 'uiconfig.js'
+import {uiButton, uiFolderContainer, UiObjectConfig, uiToggle} from 'uiconfig.js'
+import {onChange} from 'ts-browser-helpers'
 import {AViewerPluginEventMap, AViewerPluginSync, ThreeViewer} from '../../viewer'
+import {isEditableTarget} from '../../utils'
 import {IObject3D} from '../../core'
 import {isInScene} from '../../three/utils/misc'
 import {
@@ -68,11 +70,6 @@ function samples(curve: Curve<any>, closed: boolean): (Vector2 | Vector3)[] {
     return pts
 }
 
-function inTextField(e: KeyboardEvent) {
-    const t = e.target as HTMLElement | null
-    return !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)
-}
-
 /**
  * PathEditPlugin edits the points of generated lines on the screen: any object whose geometry has a curve in
  * `geometry.userData.generationParams.curve`, like a `line` of {@link GeometryGeneratorPlugin}, a path of
@@ -106,35 +103,25 @@ function inTextField(e: KeyboardEvent) {
  *
  * @category Plugins
  */
+@uiFolderContainer('Path Edit')
 export class PathEditPlugin extends AViewerPluginSync<PathEditPluginEventMap> {
     static readonly PluginType = 'PathEditPlugin'
+    declare uiConfig: UiObjectConfig
     dependencies = [GeometryGeneratorPlugin]
     serializeWithViewer = false
 
+    /** False ends editing, and {@link edit} does nothing */
+    @uiToggle('Enabled')
+    @onChange(PathEditPlugin.prototype._enabledChanged)
+        enabled = true
+
     /** Double-click a generated line to edit it */
-    editOnDoubleClick = true
+    @uiToggle('Edit on double-click')
+        editOnDoubleClick = true
 
     /** The selected point (an index in {@link getPoints}), removed with Delete */
     selectedPoint: number | null = null
 
-    uiConfig: UiObjectConfig = {
-        type: 'folder',
-        label: 'Path Edit',
-        children: [
-            {type: 'checkbox', label: 'Enabled', property: [this, 'enabled']},
-            {type: 'checkbox', label: 'Edit on double-click', property: [this, 'editOnDoubleClick']},
-            {
-                type: 'button',
-                label: () => this._editing ? 'Done' : 'Edit selected line',
-                value: () => {
-                    if (this._editing) this.stopEditing()
-                    else this.edit(this._viewer?.getPlugin<PickingPlugin>('PickingPlugin')?.getSelectedObject() ?? null)
-                },
-            },
-        ],
-    }
-
-    private _enabled = true
     private _editing: IObject3D | null = null
     private _layer = new ScreenHandles<PathHandle>({
         draw: () => this._draw(),
@@ -142,16 +129,15 @@ export class PathEditPlugin extends AViewerPluginSync<PathEditPluginEventMap> {
         click: (e) => this._click(e),
     }, 'path-edit')
 
-    get enabled() {
-        return this._enabled
+    protected _enabledChanged() {
+        if (!this.enabled) this.stopEditing()
     }
 
-    /** False ends editing, and {@link edit} does nothing */
-    set enabled(v: boolean) {
-        if (v === this._enabled) return
-        this._enabled = v
-        if (!v) this.stopEditing()
-        this.uiConfig.uiRefresh?.(true)
+    /** Edit the line selected with `PickingPlugin`, or end editing (the button in the UI) */
+    @uiButton('Edit selected line', (p: PathEditPlugin) => ({label: () => p._editing ? 'Done' : 'Edit selected line'}))
+    toggleEditSelected() {
+        if (this._editing) this.stopEditing()
+        else this.edit(this._viewer?.getPlugin<PickingPlugin>('PickingPlugin')?.getSelectedObject() ?? null)
     }
 
     /** The object being edited, or null */
@@ -437,7 +423,7 @@ export class PathEditPlugin extends AViewerPluginSync<PathEditPluginEventMap> {
     }
 
     private _onKey = (e: KeyboardEvent) => {
-        if (!this._editing || inTextField(e)) return
+        if (!this._editing || isEditableTarget(e.target)) return
         const own = () => {
             e.preventDefault()
             e.stopImmediatePropagation()

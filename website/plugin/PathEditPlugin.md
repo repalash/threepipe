@@ -62,7 +62,7 @@ pathEdit.editOnDoubleClick = false
 pathEdit.enabled = false // ends editing, and edit() does nothing
 ```
 
-The plugin UI (`uiConfig`) has Enabled, Edit on double-click and an Edit selected line / Done button (the selected object of `PickingPlugin`).
+The settings are in the plugin UI (uiconfig decorators, `Path Edit`; with the Tweakpane UI: `ui.setupPluginUi(PathEditPlugin)`): Enabled, Edit on double-click, and an Edit selected line / Done button (`toggleEditSelected()`, with the selected object of `PickingPlugin`). They are not saved with the viewer.
 
 ## The handles
 
