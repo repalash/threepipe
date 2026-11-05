@@ -547,6 +547,22 @@ describe('EditorFrame area sizes', () => {
         expect(sizeVar('--tweakpane-ui-container-width')).toBe(Math.min(500, 1000 - modeBar - EditorFrame.MinCanvasWidth) + 'px')
     })
 
+    test('the default size of an area (null, a double-click) leaves room for the canvas: the other side area fits again', () => {
+        vi.stubGlobal('innerWidth', 1000)
+        storage.set('tpEditorModeBarExpanded', '1')
+        const f = new EditorFrame(host(), {layout: 'titlebar'})
+        f.setArea('left', new FakeElement('div') as any)
+        // on screen, the left area has its variable, else the 240 px of the CSS
+        area('left').getBoundingClientRect = () => ({width: parseInt(sizeVar('--lay-left-area-size') ?? '240'), height: 800}) as any
+        const room = (left: number) => 1000 - left - EditorModeBar.Widths.wide - EditorFrame.MinCanvasWidth
+        f.setAreaSize('left', 160)
+        f.setAreaSize('right', 600)
+        expect(sizeVar('--tweakpane-ui-container-width')).toBe(room(160) + 'px')
+        f.setAreaSize('left', null)
+        expect(sizeVar('--lay-left-area-size')).toBeUndefined()
+        expect(sizeVar('--tweakpane-ui-container-width')).toBe(room(240) + 'px')
+    })
+
     test('kept sizes are limited again when an area is set, so the left area and the panel leave room for the canvas', () => {
         vi.stubGlobal('innerWidth', 1200)
         storage.set('tpEditorFrameAreas', JSON.stringify({sizes: {left: 400, right: 600}}))

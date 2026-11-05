@@ -333,6 +333,8 @@ export class EditorFrame {
             delete this._sizes[area]
             delete this._applied[area]
             document.body.style.removeProperty(AREA_SIZE_VARS[area])
+            // the size of the CSS can be larger: the other side area leaves room for the canvas again
+            this._fitAreas()
         } else {
             const [min, max] = EditorFrame.AreaLimits[area]
             this._sizes[area] = Math.round(Math.max(min, Math.min(max, this._room(area), size)))
