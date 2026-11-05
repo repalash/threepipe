@@ -17,10 +17,6 @@
 
 varying vec3 vViewPosition;
 
-#ifdef USE_ALPHAMAP
-#define USE_UV // see todo in GBufferMaterialOverride updateMaterialDefines
-#endif
-
 void main() {
 
     #include <uv_vertex>
