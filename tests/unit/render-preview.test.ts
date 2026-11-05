@@ -182,6 +182,46 @@ describe('offscreen snapshot', () => {
         expect(object.layers.isEnabled(7)).toBe(false)
     })
 
+    it('SwitchNodeBasePlugin renders the node previews offscreen in the viewer scene, without setDirty', () => {
+        const r = renderer()
+        const scene = new tp.Scene()
+        const node = new tp.Group()
+        const child = new tp.Mesh(new tp.BoxGeometry())
+        node.add(child)
+        scene.add(node)
+        const viewer = {
+            scene, renderManager: {renderer: r, screenPass: {outputColorSpace: tp.SRGBColorSpace}},
+            getPlugin: () => undefined, setDirty: vi.fn(), removeEventListener: vi.fn(),
+        }
+        const canvas = {width: 0, height: 0, getContext: () => ({putImageData: vi.fn()}), toDataURL: () => 'data:image/png;base64,node'}
+        const create = vi.spyOn(document, 'createElement').mockReturnValue(canvas as any)
+        try {
+            const plugin = new tp.SwitchNodeBasePlugin()
+            ;(plugin as any)._viewer = viewer
+            plugin.previewSize = 128
+            const image = plugin.getPreview({name: 'node', selected: '', title: 'Node', camView: 'front', camDistance: 1}, child)
+            expect(image).toBe('data:image/png;base64,node')
+            expect(r.calls).toEqual([
+                'target:SnapObject.hdr', 'clear', 'render:Scene',
+                'target:SnapObject.ldr', 'render:quad',
+                'read:SnapObject.ldr:128x128',
+                'target:last-target',
+            ])
+            expect(r.domElement.toDataURL).not.toHaveBeenCalled()
+            expect(viewer.setDirty).not.toHaveBeenCalled()
+            expect(child.layers.isEnabled(7)).toBe(false)
+            // the render targets are kept for the next preview, and disposed with the plugin
+            const resources = (plugin as any)._snapResources
+            plugin.getPreview({name: 'node', selected: '', title: 'Node', camView: 'top', camDistance: 1}, child)
+            expect((plugin as any)._snapResources).toBe(resources)
+            const dispose = vi.spyOn(resources, 'dispose')
+            plugin.onRemove(viewer as any)
+            expect(dispose).toHaveBeenCalled()
+        } finally {
+            create.mockRestore()
+        }
+    })
+
     it('snapObject with an options object and no size renders to the canvas like the positional form', () => {
         const r = renderer()
         r.domElement.toDataURL.mockReturnValue('data:image/png;base64,canvas')

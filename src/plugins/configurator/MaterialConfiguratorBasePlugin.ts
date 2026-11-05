@@ -173,9 +173,9 @@ export class MaterialConfiguratorBasePlugin extends AViewerPluginSync<{'refreshU
      * Generated previews (`generate:...`) render offscreen and do not change the canvas.
      * @param preview - Type of preview. Could be generate:sphere, generate:cube, color, map, emissive, etc.
      * @param material - Material or index of the material in the variation.
-     * @param viewerSetDirty - call viewer.setDirty() after setting the preview. Not needed since the generated previews render offscreen, kept for compatibility.
+     * @param viewerSetDirty - call viewer.setDirty() after setting the preview. Not needed since the previews do not change the canvas, kept for compatibility.
      */
-    getPreview(material: IMaterial, preview: string, viewerSetDirty = true): string {
+    getPreview(material: IMaterial, preview: string, viewerSetDirty = false): string {
         if (!this._viewer) return ''
         // const m = typeof material === 'number' ? variation.materials[material] : material
         const m = material
