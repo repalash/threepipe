@@ -9,6 +9,7 @@ import {
     EventDispatcher,
     LineCurve3,
     Object3D,
+    OrthographicCamera,
     PerspectiveCamera,
     Raycaster,
     Scene,
@@ -250,6 +251,39 @@ describe('PathEditPlugin', () => {
         expect(arr(curve.points[1])).toEqual([0, 2, 0])
         undoManager.redo()
         expect(arr(curve.points[1])).toEqual([1, 3, 0])
+    })
+
+    test('a second finger does not move or end the drag of the first one', () => {
+        const {plugin, line, press, ev, screen, undoManager} = setup()
+        const curve = spline()
+        plugin.edit(line(curve))
+        press(new Vector3(0, 2, 0), {pointerId: 1})
+        // the second finger goes down away from the handles, moves and is released
+        const other = ev(screen(new Vector3(-2, -2, 0)), {pointerId: 2, buttons: 1})
+        win.fire('pointerdown', other)
+        win.fire('pointermove', ev(screen(new Vector3(2, -2, 0)), {pointerId: 2, buttons: 1}))
+        win.fire('pointerup', ev(screen(new Vector3(2, -2, 0)), {pointerId: 2}))
+        win.fire('pointercancel', ev(screen(new Vector3(2, -2, 0)), {pointerId: 2}))
+        expect(arr(curve.points[1])).toEqual([0, 2, 0])
+        // the first finger still drags
+        win.fire('pointermove', ev(screen(new Vector3(1, 3, 0)), {pointerId: 1, buttons: 1}))
+        expect(arr(curve.points[1])).toEqual([1, 3, 0])
+        win.fire('pointerup', ev(screen(new Vector3(1, 3, 0)), {pointerId: 1}))
+        undoManager.undo()
+        expect(arr(curve.points[1])).toEqual([0, 2, 0])
+    })
+
+    test('a point behind an orthographic camera is not drawn or pressable', () => {
+        const {plugin, line, frame, svg, viewer} = setup()
+        const camera = new OrthographicCamera(-8, 8, 6, -6, 0.1, 100)
+        camera.position.set(0, 0, 10)
+        camera.lookAt(0, 0, 0)
+        camera.updateMatrixWorld()
+        viewer.scene.mainCamera = camera
+        // the middle point is behind the camera (z = 20)
+        plugin.edit(line(new CatmullRomCurve3([new Vector3(-3, 0, 0), new Vector3(0, 2, 20), new Vector3(3, 0, 0)])))
+        frame()
+        expect(svg().innerHTML.match(/class="sh-dot/g)).toHaveLength(2)
     })
 
     test('a press away from the handles is not taken (orbit, picking)', () => {
