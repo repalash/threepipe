@@ -20,7 +20,7 @@ import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 
 // Live material previews for an inspector panel: MaterialPreviewPlugin renders a small offscreen preview with the
 // viewer's environment map and tone mapping in the next frame after a change, and at most every dragInterval ms during
-// a drag of a slider. The panel shows the previews; the Tweakpane UI has the plugin settings and the materials.
+// a drag of a slider or an animation. The panel shows the previews; the Tweakpane UI has the plugin settings and the materials.
 
 const viewer = new ThreeViewer({
     canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
@@ -83,7 +83,7 @@ function materialRow(mesh: Mesh) {
     time.className = 'time'
     time.textContent = '...'
 
-    // request a preview on every change: the plugin renders it in the next frame, at most every dragInterval ms during a drag
+    // request a preview on every change: the plugin renders it in the next frame, at most every dragInterval ms during a drag or an animation
     let handle: MaterialPreviewHandle | undefined
     const refresh = () => {
         handle?.cancel()

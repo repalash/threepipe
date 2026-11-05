@@ -27,16 +27,17 @@ Do the cheap part of the work on every change, and the expensive part only when 
 - The undo commands of uiconfig (`setValueUndoCommand` in ts-browser-helpers) keep `last` as `final`, so the undo
   manager merges the changes of a drag into one undo step.
 - `MaterialPreviewPlugin` renders a preview at most every `dragInterval` ms while `last` is `false`, and in the next frame
-  for the change that ends the drag (see [Material Previews](./material-previews)).
+  for the change that ends the drag (`last: true`). A change without `last` that comes less than `dragInterval` ms after
+  the previous one (an animation sends one in every frame) is limited the same way (see [Material Previews](./material-previews)).
 
-From your own inputs, send `last: false` while the value moves and a normal change at the end:
+From your own inputs, send `last: false` while the value moves and `last: true` at the end:
 
 ```typescript
 slider.oninput = () => {
     material.roughness = parseFloat(slider.value)
     material.setDirty({last: false}) // a drag
 }
-slider.onchange = () => material.setDirty() // the end of the drag: last is not false
+slider.onchange = () => material.setDirty({last: true}) // the end of the drag
 ```
 
 ## Work in the next frame

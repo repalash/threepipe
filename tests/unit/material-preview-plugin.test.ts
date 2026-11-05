@@ -75,7 +75,7 @@ describe('MaterialPreviewPlugin', () => {
         expect(cb.mock.calls[0][0].version).toBe(1)
     })
 
-    it('during a drag (last: false) renders at most every dragInterval ms, and the change that ends it in the next frame', () => {
+    it('during a drag (last: false) renders at most every dragInterval ms, and the change that ends it (last: true) in the next frame', () => {
         const {generator, queue, frame} = setup({dragInterval: 100})
         const m = new tp.PhysicalMaterial()
         const got: number[] = []
@@ -95,10 +95,36 @@ describe('MaterialPreviewPlugin', () => {
         m.setDirty({uiChangeEvent: {last: false}} as any) // a uiconfig change event during a drag counts too
         frame(16)
         expect(got).toEqual([1, 2])
-        m.setDirty() // the release (last true or not set)
+        m.setDirty({uiChangeEvent: {last: true}} as any) // the release of the slider
         frame(16)
         expect(got).toEqual([1, 2, 4])
         expect(generator.renderToCanvas).toHaveBeenCalledTimes(3)
+    })
+
+    it('during an animation (a change in every frame, without last) renders at most every dragInterval ms, and the last change', () => {
+        const {queue, frame} = setup({dragInterval: 100})
+        const m = new tp.PhysicalMaterial()
+        const got: number[] = []
+        let handle: {cancel(): void} | undefined
+        const refresh = () => {
+            handle?.cancel()
+            handle = queue.request(m, {}, p => got.push(p.version))
+        }
+        m.addEventListener('materialUpdate', refresh)
+        refresh() // the inspector opens
+        for (let i = 0; i < 20; i++) { // as AnimationObject or a material transition sends, one change per frame
+            m.setDirty({frameFade: false, source: 'AnimationObject'} as any)
+            frame(16)
+        }
+        expect(got).toEqual([1, 8, 15]) // the first change at once, then every 100 ms (7 frames)
+        frame(16)
+        frame(16)
+        expect(got).toEqual([1, 8, 15, 20]) // the last change, 112 ms after the previous render
+        frame(200)
+        m.setDirty() // a change after a pause renders in the next frame
+        frame(16)
+        expect(got).toEqual([1, 8, 15, 20, 21])
+        m.removeEventListener('materialUpdate', refresh)
     })
 
     it('keeps the drag state when a materialUpdate listener cancels and requests again', () => {

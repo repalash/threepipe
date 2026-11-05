@@ -17,7 +17,7 @@ Threepipe renders the previews with the viewer's renderer, so a preview uses the
 
 - [`snapObject`](https://threepipe.org/docs/functions/snapObject.html), [`snapObjectPixels`](https://threepipe.org/docs/functions/snapObjectPixels.html) and [`snapObjectToCanvas`](https://threepipe.org/docs/functions/snapObjectToCanvas.html) render one object.
 - [`MaterialPreviewGenerator`](https://threepipe.org/docs/classes/MaterialPreviewGenerator.html) renders a material on a shape or a geometry, in a private scene.
-- [`MaterialPreviewPlugin`](https://threepipe.org/docs/classes/MaterialPreviewPlugin.html) makes previews for an inspector: request a preview on every material change, and the plugin renders it in the next frame (during a drag of a slider, at most every `dragInterval` ms).
+- [`MaterialPreviewPlugin`](https://threepipe.org/docs/classes/MaterialPreviewPlugin.html) makes previews for an inspector: request a preview on every material change, and the plugin renders it in the next frame (during a drag of a slider or an animation, at most every `dragInterval` ms).
 
 [Example](https://threepipe.org/examples/#material-preview/) &mdash;
 [Source Code](https://github.com/repalash/threepipe/blob/master/examples/material-preview/script.ts)
@@ -43,7 +43,7 @@ function showPreview(material: IMaterial, shape: 'sphere' | 'cube' | 'mesh' = 's
     })
 }
 
-// request on every change; the plugin renders in the next frame, or at most every dragInterval ms during a drag
+// request on every change; the plugin renders in the next frame, or at most every dragInterval ms during a drag or an animation
 material.addEventListener('materialUpdate', () => showPreview(material))
 showPreview(material)
 ```
@@ -51,7 +51,7 @@ showPreview(material)
 What the plugin does:
 
 - It renders in the viewer's `preFrame`, at most `maxPerFrame` previews per frame (default 1).
-- During a drag, a material renders at most once every `dragInterval` ms (default 100; 0 for one preview per frame). A drag is a `materialUpdate` with `last: false`, which uiconfig sends while a slider moves (`setDirty({last: false})` from your own inputs). The change that ends the drag (`last` true or not set) renders in the next frame, and so does every other change. See [Frame updates: last, debounce and throttle](./frame-updates).
+- While a material changes continuously, it renders at most once every `dragInterval` ms (default 100; 0 for one preview per frame), and its last change renders too. A change is continuous when its `materialUpdate` has `last: false`, which uiconfig sends while a slider moves (`setDirty({last: false})` from your own inputs), or when it has no `last` and comes less than `dragInterval` ms after the previous change of the material: an animation (`AnimationObject`) or a material transition (`setValues` with a time, as the variations timeline of `MaterialConfiguratorBasePlugin` uses) changes the material in every frame. An animation that does not call the material's `setDirty` (`PopmotionPlugin.animateTarget` alone) sends no `materialUpdate`, so the preview does not follow it; call `material.setDirty()` in its `onUpdate`. A change with `last: true` (uiconfig sends it when the slider is released) renders in the next frame, and so does a change after a pause. See [Frame updates: last, debounce and throttle](./frame-updates).
 - Requests for the same material, shape, geometry and size share one render.
 - It caches the previews by material uuid, shape, geometry, size and a change counter of the material (the number of its `materialUpdate` events). The cache is also invalid after a change of the scene's environment map or of the tone mapping. A request for an unchanged material gets the cached preview in the next frame, without a render. `previews.invalidate(material)` removes the cached previews of a material.
 - `request` returns a handle; `handle.cancel()` stops the callback (and the render, when no other request waits for it).

@@ -69,8 +69,9 @@ export interface MaterialPreviewHandle {
 // do not restart when the requests of a material are cancelled and made again (like in its own materialUpdate listener)
 interface MaterialState {
     version: number
-    // the last materialUpdate is a change during a drag (`last: false`, as uiconfig sends while a slider moves)
-    dragging: boolean
+    // the last materialUpdate is part of a continuous change: a drag, an animation or a transition
+    continuous: boolean
+    lastChange: number
     lastRender: number
     refs: number
     listener: (e: {last?: boolean, uiChangeEvent?: {last?: boolean}}) => void
@@ -111,9 +112,11 @@ class Preview implements MaterialPreview {
  * - The previews render offscreen with {@link MaterialPreviewGenerator.renderToCanvas}, with the viewer's environment map and tone mapping
  *   ({@link materialPreviewOptionsFromViewer}), so the colours match the viewport. The canvas is not changed: a preview does not
  *   call `viewer.setDirty()` and does not restart the progressive rendering.
- * - During a drag (a `materialUpdate` with `last: false`, as uiconfig sends while a slider moves), the preview of the
- *   material renders at most once every {@link dragInterval} ms. The change that ends the drag (`last` true or not set)
- *   renders in the next frame. See https://threepipe.org/notes/frame-updates.html
+ * - While a material changes continuously, its preview renders at most once every {@link dragInterval} ms, and the last
+ *   change renders too. A change is continuous when its `materialUpdate` has `last: false` (uiconfig sends it while a
+ *   slider moves), or when it comes less than {@link dragInterval} ms after the previous change and has no `last`
+ *   (an animation or a material transition changes the material in every frame). Other changes, and a change with
+ *   `last: true` (the release of a slider), render in the next frame. See https://threepipe.org/notes/frame-updates.html
  * - Requests for the same material, shape, geometry and size share one render.
  * - Previews are cached by material uuid, shape, geometry, size and the material's change counter (and the viewer's environment and tone mapping),
  *   so a request for an unchanged material returns the cached preview in the next frame, without a render.
@@ -148,7 +151,7 @@ export class MaterialPreviewPlugin extends AViewerPluginSync {
      */
     @uiSlider('Max per frame', [1, 8], 1) maxPerFrame = 1
     /**
-     * During a drag (the last `materialUpdate` of the material has `last: false`), the minimum time in ms between two
+     * While a material changes continuously (a drag, an animation, a transition), the minimum time in ms between two
      * previews of the material. Other changes render in the next frame. 0: one preview per frame.
      */
     @uiSlider('Drag interval (ms)', [0, 500], 10) dragInterval = 100
@@ -280,7 +283,7 @@ export class MaterialPreviewPlugin extends AViewerPluginSync {
                 continue
             }
             if (rendered >= this.maxPerFrame) continue
-            if (state.dragging && now - state.lastRender < this.dragInterval) continue
+            if (state.continuous && now - state.lastRender < this.dragInterval) continue
             rendered++
             state.lastRender = now
             let preview: MaterialPreview
@@ -331,9 +334,13 @@ export class MaterialPreviewPlugin extends AViewerPluginSync {
     private _track(material: IMaterial) {
         let state = this._states.get(material)
         if (!state) {
-            const s: MaterialState = {version: 0, dragging: false, lastRender: -Infinity, refs: 0, listener: (e) => {
+            const s: MaterialState = {version: 0, continuous: false, lastChange: -Infinity, lastRender: -Infinity, refs: 0, listener: (e) => {
+                const now = this.now()
+                const last = e.last ?? e.uiChangeEvent?.last
                 s.version++
-                s.dragging = (e.last ?? e.uiChangeEvent?.last) === false
+                // an animation or a transition sends a change in every frame, without last
+                s.continuous = last === false || (last === undefined && now - s.lastChange < this.dragInterval)
+                s.lastChange = now
             }}
             this._states.set(material, s)
             state = s
