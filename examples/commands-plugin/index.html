@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Commands Plugin</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Import maps polyfill -->
+    <!-- Remove this when import maps will be widely supported -->
+    <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+
+    <script type="importmap">
+    {
+        "imports": {
+          "threepipe": "./../../dist/index.mjs",
+          "@threepipe/plugin-tweakpane": "./../../plugins/tweakpane/dist/index.mjs"
+        }
+    }
+
+    </script>
+    <style id="example-style">
+        html, body, #canvas-container, #mcanvas {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+        }
+        /* a small UI that lists the actions of the CommandsPlugin with their keys, and the result of the last run */
+        #commands {
+            position: absolute; left: 12px; top: 12px; z-index: 100; min-width: 200px; padding: 8px; border-radius: 6px;
+            background: #ffffff; color: #1e1e1e; box-shadow: 0 1px 2px rgba(0,0,0,.06), 0 6px 20px rgba(0,0,0,.10);
+            font: 500 12px/1.4 Inter, ui-sans-serif, system-ui, sans-serif;
+        }
+        #commands button {
+            display: flex; justify-content: space-between; gap: 12px; width: 100%; padding: 4px 6px; border: 0; border-radius: 4px;
+            background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer;
+        }
+        #commands button:hover { background: #f2f3f5; }
+        #commands kbd { font: inherit; color: #8a8f97; }
+        #result { margin: 6px 6px 0; color: #8a8f97; }
+    </style>
+    <script type="module" src="../examples-utils/global-loading.mjs"></script>
+    <script id="example-script" type="module" src="./script.js" data-scripts="./script.ts;./script.js"></script>
+</head>
+<body>
+<div id="canvas-container">
+    <canvas id="mcanvas"></canvas>
+    <div id="commands"><div id="list"></div><div id="result">Press a key, or click an action</div></div>
+</div>
+
+</body>

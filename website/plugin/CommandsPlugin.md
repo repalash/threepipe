@@ -1,0 +1,111 @@
+---
+prev:
+    text: 'UndoManagerPlugin'
+    link: './UndoManagerPlugin'
+
+next:
+    text: 'EditorViewWidgetPlugin'
+    link: './EditorViewWidgetPlugin'
+
+---
+
+# CommandsPlugin
+
+[Example](https://threepipe.org/examples/#commands-plugin/) &mdash;
+[Source Code](https://github.com/repalash/threepipe/blob/master/src/plugins/interaction/CommandsPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/CommandsPlugin.html)
+
+CommandsPlugin is a registry of actions: the commands that a person runs from a key, a toolbar, a context menu or a command palette. Plugins register their actions and keys once, and any UI lists and runs them. The plugin has no UI of its own (only a `Commands` folder in its `uiConfig`), so a plain viewer gets the shortcuts too.
+
+An action (`CommandAction`) has:
+
+| Field | What it is |
+|---|---|
+| `id` | A unique id, like `'undo'`. A new action with the same id replaces the old one. |
+| `label` | The name in a menu or a tooltip |
+| `icon` | Optional. An SVG string or an icon name, for a UI |
+| `shortcut` | Optional. The key, like `'Mod+Z'`, `'Shift+D'` or `'Delete'` (see below) |
+| `group` | Optional. A group for a UI, like `'Edit'` or `'Camera'` |
+| `repeat` | Optional. A held key runs the action again on each repeat. Default: once per press |
+| `enabled()` | Optional. The action can run now. Default: always |
+| `run()` | Runs the action. It can return (or resolve to) `{error?: string, warn?: string}` for the person |
+
+```typescript
+import {ThreeViewer, CommandsPlugin, formatShortcut} from 'threepipe'
+
+const viewer = new ThreeViewer({...})
+const commands = viewer.addPluginSync(CommandsPlugin)
+
+const unregister = commands.register([{
+    id: 'autoRotate', label: 'Auto rotate', group: 'View', shortcut: 'Shift+R',
+    run: () => {
+        const controls = viewer.scene.mainCamera.controls
+        if (!controls) return {warn: 'The camera has no controls'}
+        controls.autoRotate = !controls.autoRotate
+    },
+}, {
+    id: 'upload', label: 'Upload', group: 'File', shortcut: 'Shift+U',
+    run: async() => (await upload()) ? undefined : {error: 'The upload failed'},
+}])
+
+commands.list('View') // the actions of a group, in the order they were registered
+commands.get('upload') // one action
+await commands.run('upload') // runs it, resolves to its result ({} when it told nothing)
+formatShortcut('Mod+Shift+Z') // '⇧⌘Z' on a Mac, 'Ctrl+Shift+Z' on other platforms
+
+commands.addEventListener('actionRun', ({action, result}) => {
+    if (result.error) showError(result.error)
+})
+commands.addEventListener('actionsChange', () => rebuildMenus())
+
+commands.unregister('upload')
+unregister() // removes the actions of that register call
+```
+
+## Shortcuts
+
+A shortcut is modifiers and a key, joined with `+`: `Mod+Z`, `Shift+D`, `Alt+Shift+T`, `Delete`, `Escape`, `Mod++`.
+
+- `Mod` is Ctrl or Cmd, on every platform. The other modifiers are `Shift` and `Alt`. A key press must have the same modifiers: `Mod+Z` does not run on Ctrl+Shift+Z.
+- The key is a key name (`Z`, `Delete`, `Escape`, `\`) or a [`KeyboardEvent.code`](https://developer.mozilla.org/docs/Web/API/KeyboardEvent/code) (`KeyC`, `Digit1`, `Backslash`).
+- A key name matches the character of the key in any case, or, for a letter, a digit or a sign, the place of that key on a US keyboard. So `Mod+Z` also works on a keyboard with other letters (Cyrillic, Greek), and `Alt+T` works on a Mac, where Alt changes the character.
+- A code matches only that place on the keyboard: `KeyC` is the key at the place of C, whatever it types.
+- A sign that needs Shift names Shift: `Shift+/` for `?`.
+
+One `keydown` listener on the window runs the shortcuts of all the actions:
+
+- It leaves a key typed in a text field (an input, a text area, a select, an editable element) and a key that another handler used (`defaultPrevented`).
+- It runs an action only when `enabled()` is not `false`, and calls `preventDefault` only when an action runs.
+- When two enabled actions have the same key, the one registered last runs.
+- While the plugin is disabled (`enabled = false` or `disable(key)`), the keys do nothing. `run(id)` still runs an action.
+
+The helpers `parseShortcut`, `matchShortcut`, `formatShortcut` and `isTextTarget` are exported for other UIs.
+
+## Plugins that work with and without it
+
+`bindActions(viewer, actions)` binds the actions of a plugin or a UI: while the viewer has a `CommandsPlugin` (also one added or removed later), the actions are registered there; else a key listener of their own runs their shortcuts, with the same rules. So each key has one implementation, and the behaviour without the plugin stays the same.
+
+```typescript
+import {bindActions, CommandAction} from 'threepipe'
+
+class MyPlugin extends AViewerPluginSync {
+    static readonly PluginType = 'MyPlugin'
+    enabled = true
+    readonly actions: CommandAction[] = [
+        {id: 'my.toggle', label: 'Toggle', shortcut: 'KeyT', enabled: () => !this.isDisabled(), run: () => this.toggle()},
+    ]
+    private _unbind?: () => void
+    onAdded(viewer: ThreeViewer) {
+        super.onAdded(viewer)
+        this._unbind = bindActions(viewer, this.actions)
+    }
+    onRemove(viewer: ThreeViewer) {
+        this._unbind?.()
+        super.onRemove(viewer)
+    }
+}
+```
+
+In [`@threepipe/plugin-tweakpane-editor`](../package/plugin-tweakpane-editor), the page frame (`editorFrame.toggleTheme`, Shift+T; `editorFrame.cycleModeBar`, Ctrl+\\ or Cmd+\\) and the `EditorCameraPlugin` (`editorCamera.toggleEditing`, C) bind their keys this way. The `TweakpaneEditorPlugin` shows the `error` and `warn` of each `actionRun` in a toast (`EditorToasts`).
+
+The plugin is not saved with the viewer config (`serializeWithViewer` is `false`).

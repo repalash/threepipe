@@ -8,6 +8,7 @@ import {
     ChromaticAberrationPlugin,
     Class,
     ClearcoatTintPlugin,
+    CommandsPlugin,
     ContactShadowGroundPlugin,
     CustomBumpMapPlugin,
     DepthBufferPlugin,
@@ -101,6 +102,8 @@ import {TroikaTextPlugin} from '@threepipe/plugin-troika-text'
 export class ThreeEditor extends ThreeViewer {
 
     editorPlugins: (IViewerPlugin | Class<IViewerPlugin>)[] = [
+        // the actions and keys of the editor (frame, editor camera); the editor shows their errors in toasts
+        CommandsPlugin,
         UndoManagerPlugin,
         LoadingScreenPlugin,
         AssetExporterPlugin,
@@ -181,7 +184,7 @@ export class ThreeEditor extends ThreeViewer {
     ]
 
     editorModes: Record<string, Class<IViewerPlugin<any>>[]> = {
-        ['Viewer']: [ViewerUiConfigPlugin, EditorCameraPlugin, DropzonePlugin, BaseGroundPlugin, ContactShadowGroundPlugin, TweakpaneUiPlugin, TweakpaneEditorPlugin, InteractionPromptPlugin, ThreeGpuPathTracerPlugin, FullScreenPlugin],
+        ['Viewer']: [ViewerUiConfigPlugin, EditorCameraPlugin, CommandsPlugin, DropzonePlugin, BaseGroundPlugin, ContactShadowGroundPlugin, TweakpaneUiPlugin, TweakpaneEditorPlugin, InteractionPromptPlugin, ThreeGpuPathTracerPlugin, FullScreenPlugin],
         ['Interaction']: [HierarchyUiPlugin, TransformControlsPlugin, PivotControlsPlugin, PivotEditPlugin, PickingPlugin, OutlinePlugin, Object3DGeneratorPlugin, GeometryGeneratorPlugin, EditorViewWidgetPlugin, ObjectConstraintsPlugin, Object3DWidgetsPlugin, MeshOptSimplifyModifierPlugin],
         ['Buffers']: [GBufferPlugin, DepthBufferPlugin, NormalBufferPlugin, CascadedShadowsPlugin],
         ['Post-processing']: [TonemapPlugin, ProgressivePlugin, SSAAPlugin, SSAOPlugin, SSReflectionPlugin, BloomPlugin, DepthOfFieldPlugin, SSGIPlugin, FrameFadePlugin, VignettePlugin, ChromaticAberrationPlugin, FilmicGrainPlugin, TemporalAAPlugin, VelocityBufferPlugin, SSContactShadowsPlugin],

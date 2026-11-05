@@ -133,6 +133,7 @@ export default defineConfig({
               {text: 'PivotEditPlugin', link: 'plugin/PivotEditPlugin'},
               {text: 'ObjectConstraintsPlugin', link: 'plugin/ObjectConstraintsPlugin'},
               {text: 'UndoManagerPlugin', link: 'plugin/UndoManagerPlugin'},
+              {text: 'CommandsPlugin', link: 'plugin/CommandsPlugin'},
               {text: 'EditorViewWidgetPlugin', link: 'plugin/EditorViewWidgetPlugin'},
               {text: 'DeviceOrientationControlsPlugin', link: 'plugin/DeviceOrientationControlsPlugin'},
               {text: 'PointerLockControlsPlugin', link: 'plugin/PointerLockControlsPlugin'},

@@ -105,6 +105,27 @@ editor.layout = 'classic'
 
 In the [Tweakpane Editor example](https://threepipe.org/examples/tweakpane-editor/), add `?layout=titlebar`, `?layout=statusbar`, `?layout=floating` or `?layout=classic` to the URL.
 
+## Actions, keys and toasts
+
+The keys of the editor are actions of the [CommandsPlugin](../plugin/CommandsPlugin) of threepipe. When the viewer has a `CommandsPlugin` (added before or after the editor), the editor registers them there, so a toolbar, a menu or a command palette lists and runs them. Without it, the editor runs the same keys itself (`bindActions`), as before.
+
+| Action | Key | Where |
+|---|---|---|
+| `editorFrame.toggleTheme` | Shift+T (the place of the T key) | `EditorFrame.actions` |
+| `editorFrame.cycleModeBar` | Ctrl+\ (Cmd+\ on a Mac) | `EditorFrame.actions` |
+| `editorCamera.toggleEditing` | C (`EditorCameraPlugin.hotkey`) | `EditorCameraPlugin.actions` |
+
+`TweakpaneEditorPlugin.toasts` (`EditorToasts`) shows short messages at the top centre of the canvas, under the camera pill. The editor shows the `error` and the `warn` of each action that the `CommandsPlugin` runs (its `actionRun` event) there. Other UIs show their messages with `toasts.show(message, kind)` (`kind`: `'info'`, `'warn'` or `'error'`). A toast goes after `EditorToasts.Duration` ms (an error after twice that time) or on a click; at most `EditorToasts.MaxToasts` show at a time.
+
+```typescript
+import {CommandsPlugin} from 'threepipe'
+
+const commands = viewer.addPluginSync(CommandsPlugin)
+commands.list('Editor') // the actions of the frame
+commands.register({id: 'save', label: 'Save', shortcut: 'Mod+S', run: async() => (await save()) ? undefined : {error: 'Not saved'}})
+editor.toasts?.show('Saved')
+```
+
 ## NotesPlugin and StickyNotesUiPlugin
 
 [Example](https://threepipe.org/examples/#notes-plugin/) &mdash;
@@ -217,7 +238,7 @@ editorCamera.copyStartView()
 editorCamera.addEventListener('editingChange', ({editing}) => {
     button.classList.toggle('on', editing)
 })
-// another key than C
+// another key than C (the action editorCamera.toggleEditing of a CommandsPlugin takes it too)
 editorCamera.hotkey = 'KeyK'
 ```
 

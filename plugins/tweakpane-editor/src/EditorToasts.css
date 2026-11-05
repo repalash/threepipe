@@ -1,0 +1,22 @@
+/* the toasts of the editor (EditorToasts.ts): small dark chips in the style of the editor tooltips, at the top centre of
+   the canvas, under the camera pill. Layers (CONTRIBUTING, UI layers): viewer UI (100-199), above the camera pill (120). */
+.etoast-host {
+    position: absolute; top: 40px; left: 50%; transform: translateX(-50%); z-index: 130;
+    display: flex; flex-direction: column; align-items: center; gap: 6px; max-width: calc(100% - 16px); pointer-events: none;
+    font: 500 12px/1.35 var(--tp-font-family, Inter, ui-sans-serif, system-ui, sans-serif); letter-spacing: 0.01em;
+}
+.etoast {
+    --etoast-bg: #1e1e1e;
+    display: flex; align-items: center; gap: 6px; max-width: 100%; box-sizing: border-box; padding: 5px 10px; border-radius: 6px;
+    background: var(--etoast-bg); color: #ffffff; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18); pointer-events: auto; cursor: default;
+    animation: etoast-in .15s ease-out;
+}
+/* a dot in the colour of the kind: amber for a warning, red for an error */
+.etoast-warn::before, .etoast-error::before { content: ''; flex: none; width: 7px; height: 7px; border-radius: 50%; background: #f5a524; }
+.etoast-error::before { background: #f24822; }
+body.tpTheme-dark .etoast, body.tpTheme-clean-dark .etoast, body.tpTheme-black .etoast, body.tpTheme-blue .etoast {
+    --etoast-bg: #3a3a3a;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1), 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+@keyframes etoast-in { from { opacity: 0; transform: translateY(-4px); } }
+@media (prefers-reduced-motion: reduce) { .etoast { animation: none; } }
