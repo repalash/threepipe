@@ -2,7 +2,6 @@ import {Curve, Matrix3, Plane, Vector2, Vector3} from 'three'
 import {uiButton, uiFolderContainer, UiObjectConfig, uiToggle} from 'uiconfig.js'
 import {onChange} from 'ts-browser-helpers'
 import {AViewerPluginEventMap, AViewerPluginSync, ThreeViewer} from '../../viewer'
-import {isEditableTarget} from '../../utils'
 import {IObject3D} from '../../core'
 import {isInScene} from '../../three/utils/misc'
 import {
@@ -424,7 +423,8 @@ export class PathEditPlugin extends AViewerPluginSync<PathEditPluginEventMap> {
     }
 
     private _onKey = (e: KeyboardEvent) => {
-        if (!this._editing || isEditableTarget(e.target)) return
+        // only a key for this viewer: not another viewer, a panel or a text field
+        if (!this._editing || !this._layer.ownsKey(e)) return
         const own = () => {
             e.preventDefault()
             e.stopImmediatePropagation()

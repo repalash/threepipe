@@ -2,6 +2,7 @@ import {Plane, Ray, Raycaster, Vector2, Vector3} from 'three'
 import {createStyles} from 'ts-browser-helpers'
 import type {ThreeViewer} from '../../../viewer'
 import type {UndoManagerPlugin} from '../UndoManagerPlugin'
+import {isEditableTarget} from '../../../utils'
 import styles from './ScreenHandles.css?inline'
 
 /** A point in the viewer container, in pixels. `behind`: the world point is behind the camera */
@@ -122,6 +123,8 @@ export class ScreenHandles<T = unknown> {
     private _taken = false
     /** The pointer of the press, the drag or the taken press that the layer follows: other pointers (more fingers) do not change them */
     private _pointerId?: number
+    /** The last press on the page was in this viewer (for the keys typed on the page, see {@link ownsKey}) */
+    private _pressedHere = false
     /** A drag of a handle, or of the canvas (`pressCanvas`, no handle) */
     private _drag: {spec: ScreenHandleDrag<any>, start: Vector2, offset: Vector3, before: any, moved: boolean, handle?: ScreenHandle<T>} | null = null
     private _canvasCursor = ''
@@ -176,6 +179,8 @@ export class ScreenHandles<T = unknown> {
         // a press taken before the last deactivation never got its pointerup here
         this._taken = false
         this._press = null
+        // the tool or the editing starts in this viewer
+        this._pressedHere = v
         if (v) {
             window.addEventListener('pointerdown', this._onDown, capture)
             window.addEventListener('pointermove', this._onMove, capture)
@@ -219,6 +224,20 @@ export class ScreenHandles<T = unknown> {
         this.hintElement.innerHTML = html
         if (html) this.hintElement.classList.add('sh-shown')
         else this.hintElement.classList.remove('sh-shown')
+    }
+
+    /**
+     * True when a key event is for this layer's viewer, so its tool can take it: typed on the canvas or an element in the
+     * viewer container, or on the page (nothing focused) when the last press was in this viewer. Not a key typed in a
+     * text field, in another viewer or in a panel (a menu button, the UI).
+     */
+    ownsKey(e: KeyboardEvent): boolean {
+        const container = this._viewer?.container
+        const t = e.target as Node | null
+        if (!container || isEditableTarget(t)) return false
+        if (t && container.contains(t)) return true
+        const page = !t || t === document.body || t === document.documentElement || t === (window as unknown)
+        return page && this._pressedHere
     }
 
     /** True during a handle drag */
@@ -434,7 +453,9 @@ export class ScreenHandles<T = unknown> {
     }
 
     private _onDown = (e: PointerEvent) => {
-        if (!this._viewer || !this._onCanvas(e) || e.button !== 0 || this._drag) return
+        if (!this._viewer) return
+        this._pressedHere = !!e.target && this._viewer.container.contains(e.target as Node)
+        if (!this._onCanvas(e) || e.button !== 0 || this._drag) return
         const s = this.pointer(e)
         let h = this._hit(s)
         let res = h ? this._options.press(h, e) : undefined
