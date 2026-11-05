@@ -105,6 +105,8 @@ export class ScreenHandles<T = unknown> {
     private _hoverId: string | null = null
     private _press: {s: Vector2} | null = null
     private _taken = false
+    /** The pointer of the press, the drag or the taken press that the layer follows: other pointers (more fingers) do not change them */
+    private _pointerId?: number
     private _drag: {spec: ScreenHandleDrag<any>, start: Vector2, offset: Vector3, before: any, moved: boolean, handle: ScreenHandle<T>} | null = null
     private _ray = new Raycaster()
 
@@ -158,7 +160,7 @@ export class ScreenHandles<T = unknown> {
             window.addEventListener('pointerdown', this._onDown, capture)
             window.addEventListener('pointermove', this._onMove, capture)
             window.addEventListener('pointerup', this._onUp, capture)
-            window.addEventListener('pointercancel', this._release, capture)
+            window.addEventListener('pointercancel', this._onCancel, capture)
             // not capture: the blur of an element does not bubble, only the window blur reaches here
             window.addEventListener('blur', this._release)
         } else {
@@ -168,7 +170,7 @@ export class ScreenHandles<T = unknown> {
             window.removeEventListener('pointerdown', this._onDown, capture)
             window.removeEventListener('pointermove', this._onMove, capture)
             window.removeEventListener('pointerup', this._onUp, capture)
-            window.removeEventListener('pointercancel', this._release, capture)
+            window.removeEventListener('pointercancel', this._onCancel, capture)
             window.removeEventListener('blur', this._release)
             this._setHover(null)
             this.hint = ''
@@ -263,7 +265,8 @@ export class ScreenHandles<T = unknown> {
     /** The position of a world point in the container */
     project(p: Vector3, viewport = this.viewport()): ScreenPoint {
         const v = p.clone().project(this._viewer!.scene.mainCamera)
-        return {x: viewport.x + (v.x + 1) / 2 * viewport.width, y: viewport.y + (1 - v.y) / 2 * viewport.height, behind: v.z > 1}
+        // outside the clip depth: behind a perspective camera (z > 1), behind an orthographic one (z < -1), or before the near plane
+        return {x: viewport.x + (v.x + 1) / 2 * viewport.width, y: viewport.y + (1 - v.y) / 2 * viewport.height, behind: v.z > 1 || v.z < -1}
     }
 
     /** The position of a pointer event in the container */
@@ -392,6 +395,7 @@ export class ScreenHandles<T = unknown> {
         const s = this.pointer(e)
         const h = this._hit(s)
         const res = h ? this._options.press(h, e) : undefined
+        this._pointerId = e.pointerId
         if (!h || !res) {
             this._press = {s}
             return
@@ -415,10 +419,10 @@ export class ScreenHandles<T = unknown> {
     private _onMove = (e: PointerEvent) => {
         if (!this._viewer) return
         const d = this._drag
-        if (d) {
-            e.stopPropagation()
-            // no button: the pointerup was missed (released outside the window)
+        if (d && e.pointerId === this._pointerId) {
+            // no button: the pointerup was missed (released outside the window); this move is a hover, for the viewer too
             if (e.buttons === 0) return this._release()
+            e.stopPropagation()
             const s = this.pointer(e)
             if (!d.moved && s.distanceTo(d.start) < DRAG_START) return
             d.moved = true
@@ -427,8 +431,8 @@ export class ScreenHandles<T = unknown> {
             this.redraw()
             return
         }
-        // hover only without a button: not during an orbit drag
-        if (e.buttons) return
+        // hover only without a button: not during an orbit drag (and not for another finger during a drag)
+        if (e.buttons || d) return
         const h = this._onCanvas(e) ? this._hit(this.pointer(e)) : null
         if ((h?.id ?? null) !== this._hoverId) {
             this._setHover(h)
@@ -437,6 +441,8 @@ export class ScreenHandles<T = unknown> {
     }
 
     private _onUp = (e: PointerEvent) => {
+        // the release of another pointer (a second finger) leaves the press or the drag as it is
+        if (e.pointerId !== this._pointerId) return
         if (this._drag) {
             this._own(e)
             this._release()
@@ -448,6 +454,10 @@ export class ScreenHandles<T = unknown> {
             this._press = null
             if (click && this._onCanvas(e)) this._options.click?.(e)
         }
+    }
+
+    private _onCancel = (e: PointerEvent) => {
+        if (e.pointerId === this._pointerId) this._release()
     }
 
     /** End the drag: the release, also a lost one (window blur, pointercancel, a move with no button) */
