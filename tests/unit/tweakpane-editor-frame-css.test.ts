@@ -461,10 +461,11 @@ describe('tweakpane editor frame: area sizes and edges', () => {
             }
             // the canvas is as without the areas
             expect(box(canvas, layout, desktop, s)).toEqual(box(canvas, layout, desktop, {}))
-            const gap = layout === 'floating' ? 12 : 0
-            expect(box(handle('left'), layout, desktop, s)!.left).toBe(gap - 3)
+            // inside the window (in the gap of floating), so all of the edge can be grabbed
+            const inset = layout === 'floating' ? 12 - 3 : 0
+            expect(box(handle('left'), layout, desktop, s)!.left).toBe(inset)
             const bh = box(handle('bottom'), layout, desktop, s)!
-            expect(bh.top! + bh.height!).toBe(desktop.height - (layout === 'statusbar' ? 26 : 0) - gap + 3)
+            expect(bh.top! + bh.height!).toBe(desktop.height - (layout === 'statusbar' ? 26 : 0) - inset)
         })
 
         it(`${layout}: the sizes set on the body move the areas, the panel and the canvas`, () => {

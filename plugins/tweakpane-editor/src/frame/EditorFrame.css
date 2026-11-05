@@ -245,6 +245,9 @@ body.lay-floating #tweakpaneUiContainer .tp-rotv { box-shadow: none; }
     body.lay-titlebar .lay-handle-bottom, body.lay-statusbar .lay-handle-bottom {
         left: var(--lay-left-area); right: var(--lay-right-area); bottom: calc(var(--lay-bottom) + var(--lay-bottom-area) - 3px);
     }
+    /* a collapsed area at the edge of the window: its edge is inside the window, so all of it can be grabbed */
+    body.lay-titlebar.lay-collapsed-left .lay-handle-left, body.lay-statusbar.lay-collapsed-left .lay-handle-left { left: 0; }
+    body.lay-titlebar.lay-collapsed-bottom .lay-handle-bottom, body.lay-statusbar.lay-collapsed-bottom .lay-handle-bottom { bottom: var(--lay-bottom); }
     body.lay-floating .lay-handle-left { left: calc(var(--lay-gap) + var(--lay-left-area) - 3px); top: var(--lay-gap); bottom: var(--lay-gap); }
     body.lay-floating .lay-handle-right { right: calc(var(--lay-gap) + var(--lay-right-area) - 3px); top: var(--lay-gap); bottom: var(--lay-gap); }
     body.lay-floating .lay-handle-bottom {
