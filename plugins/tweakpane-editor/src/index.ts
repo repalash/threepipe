@@ -1,6 +1,7 @@
 export {TweakpaneEditorPlugin} from './TweakpaneEditorPlugin'
 export type {TweakpaneEditorPluginEventMap} from './TweakpaneEditorPlugin'
 export {HierarchyUiPlugin} from './HierarchyUiPlugin'
+export {LayersPanelPlugin} from './LayersPanelPlugin'
 export {NotesPlugin, BrowserNotesStore, HttpNotesStore} from './NotesPlugin'
 export type {NoteItem, NotesStore, NotesStoreStatus, NotesPluginOptions, NotesPluginEventMap} from './NotesPlugin'
 export {StickyNotesUiPlugin} from './StickyNotesUiPlugin'

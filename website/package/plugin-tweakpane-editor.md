@@ -138,6 +138,59 @@ editor.layout = 'classic'
 
 In the [Tweakpane Editor example](https://threepipe.org/examples/tweakpane-editor/), add `?layout=titlebar`, `?layout=statusbar`, `?layout=floating` or `?layout=classic` to the URL.
 
+## LayersPanelPlugin
+
+[Example](https://threepipe.org/examples/#layers-panel-plugin/) &mdash;
+[Source Code](https://github.com/repalash/threepipe/blob/master/plugins/tweakpane-editor/src/LayersPanelPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/plugins/tweakpane-editor/docs/classes/LayersPanelPlugin.html)
+
+`LayersPanelPlugin` shows the objects of the scene (`scene.modelRoot`) as a tree, like the layers panel of Figma or the outliner of Blender. It replaces the `HierarchyUiPlugin`, which is deprecated.
+
+- A click on a row selects its object in the `PickingPlugin`. Ctrl, Cmd or Shift + click adds the object to the selection, or takes it out.
+- A selection in the viewport marks its rows. It also opens the groups that hold it and scrolls the list to it (`revealSelection`).
+- The arrow on a row opens or closes it. Alt + click on the arrow also opens or closes all the levels below it.
+- A hovered row outlines its object in the viewport, with the `SelectionOutlinePlugin` (`viewportHover`). The outline must follow the picking (`followPicking`, the default). A hover renders one more frame. It does not restart the progressive render. The object hovered in the viewport is marked in the list.
+- The eye button hides or shows the object. The lock button locks or unlocks it. When the row is in the selection, the button changes all the selected objects. A hidden or locked parent dims the buttons of its children.
+- A double-click on a name (or F2) renames the object. Enter or a click outside keeps the name, Escape goes back.
+- With the focus in the list, Up and Down select the next row (Shift adds it). Right opens a row or goes to its first child. Left closes a row or goes to its parent.
+- The search field shows the objects whose name has the text, with the groups that hold them. Escape clears it.
+- Lights and cameras have the icon and the colour of their kind (`widgetKinds` of threepipe), as in the viewport.
+- Only the rows in view are in the DOM (a virtual list), so a scene with many objects stays fast.
+
+The visibility, the lock and the name changes are undo steps with the `UndoManagerPlugin`.
+
+**Lock.** A locked object has `userData.userSelectable` set to `false`. That is the rule of the `PickingPlugin`: it does not pick the object, or the objects inside it, in the viewport. The list can still select it, and then the transform controls can move it. An unlock gives back the value from before the lock (for example `true` on a text that has no material). The glTF export leaves out the `false` values of `userData`, so an exported file does not keep the lock.
+
+**Where the panel goes.**
+
+- With a `TweakpaneEditorPlugin`: in the left area of its page frame, with a Layers entry in the mode bar (`LayersPanelPlugin.AreaEntry`: the name, the icon and the colour). `editorArea` picks another area (`'bottom'`), or `null` for none. The classic layout has no areas, so it does not show the panel.
+- Without the editor: give an element to the constructor, `new LayersPanelPlugin(container)`. The panel goes in it while the plugin is added. The panel fills its parent, so give the parent a height.
+- Or place `layers.element` in the page yourself.
+
+The plugin removes the panel from the page when it is removed. Its UI folder, `Layers Panel`, has the settings: Enabled, Hover in viewport and Reveal selection. The settings and the open rows are not saved with the viewer config.
+
+```typescript
+import {PickingPlugin, ThreeViewer, UndoManagerPlugin} from 'threepipe'
+import {LayersPanelPlugin, SelectionOutlinePlugin} from '@threepipe/plugin-tweakpane-editor'
+
+const viewer = new ThreeViewer({...})
+viewer.addPluginSync(UndoManagerPlugin)
+const picking = viewer.addPluginSync(PickingPlugin) // also added by the panel, if it is not there
+picking.hoverEnabled = true // the object under the pointer is marked in the list
+viewer.addPluginSync(SelectionOutlinePlugin) // the outline of a hovered row
+
+// in an element of the page (it fills it); with a TweakpaneEditorPlugin, leave out the element
+const layers = viewer.addPluginSync(new LayersPanelPlugin(document.getElementById('layers')!))
+
+layers.setExpanded(model, true) // open a row
+layers.setVisible([model], false) // hide, as one undo step
+layers.setLocked([model], true) // not picked in the viewport
+layers.renameObject(model, 'Ring')
+console.log(layers.listedObjects) // the objects in the list, from the top
+```
+
+Not in the panel yet: drag and drop to move objects, a context menu, and tabs for the materials, textures and geometries.
+
 ## NotesPlugin and StickyNotesUiPlugin
 
 [Example](https://threepipe.org/examples/#notes-plugin/) &mdash;

@@ -1,0 +1,67 @@
+/* LayersPanelPlugin: the layers panel. The colours come from the Tweakpane theme on the page (its CSS variables), with
+   light colours when there is none. The panel fills its parent; --lyp-row is the row height (LayersPanelPlugin.RowHeight) */
+.lyp-root {
+    --lyp-bg: var(--tp-base-background-color, #ffffff);
+    --lyp-fg: var(--tp-container-foreground-color, #1e1e1e);
+    --lyp-dim: var(--tp-label-foreground-color, #8a8f98);
+    --lyp-line: var(--tp-container-border-color, #ececec);
+    --lyp-hover: var(--tp-button-background-color-hover, rgba(0, 0, 0, .05));
+    --lyp-input: var(--tp-input-background-color, rgba(0, 0, 0, .05));
+    --lyp-accent: #0d99ff;
+    --lyp-sel: rgba(13, 153, 255, .18);
+    --lyp-sel-focus: rgba(13, 153, 255, .3);
+    --lyp-sel-parent: rgba(13, 153, 255, .07);
+    display: flex; flex-direction: column; height: 100%; min-height: 0; box-sizing: border-box;
+    background: var(--lyp-bg); color: var(--lyp-fg); user-select: none; -webkit-user-select: none;
+    font: 400 var(--lay-font-size, 12px)/1.2 var(--tp-font-family, Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif);
+    -webkit-font-smoothing: antialiased;
+}
+.lyp-head { display: flex; align-items: center; gap: 6px; padding: 10px 12px 6px; flex: none; }
+.lyp-title { font-weight: 600; }
+.lyp-count { color: var(--lyp-dim); }
+.lyp-search {
+    display: flex; align-items: center; gap: 6px; margin: 0 8px 6px; padding: 0 8px; height: 26px; flex: none;
+    border-radius: 5px; background: var(--lyp-input); color: var(--lyp-dim);
+}
+.lyp-search-icon { display: flex; }
+.lyp-search-input { flex: 1; min-width: 0; border: 0; outline: none; background: transparent; color: var(--lyp-fg); font: inherit; padding: 0; }
+.lyp-list { flex: 1; min-height: 0; overflow: auto; outline: none; position: relative; padding-bottom: 8px; overscroll-behavior: contain; scrollbar-width: thin; }
+.lyp-spacer { position: relative; }
+.lyp-empty { color: var(--lyp-dim); padding: 12px; }
+.lyp-row {
+    position: absolute; left: 0; right: 0; height: var(--lyp-row, 28px); display: flex; align-items: center;
+    padding-right: 4px; box-sizing: border-box; white-space: nowrap; cursor: default;
+}
+.lyp-row:hover { background: var(--lyp-hover); }
+/* the object hovered in the viewport, and the row under the pointer: a ring, as the hover outline */
+.lyp-row:hover, .lyp-row.lyp-hover { box-shadow: inset 0 0 0 1px var(--lyp-accent); }
+.lyp-row.lyp-sel { background: var(--lyp-sel); }
+.lyp-list:focus .lyp-row.lyp-sel { background: var(--lyp-sel-focus); }
+.lyp-row.lyp-sel-parent { background: var(--lyp-sel-parent); }
+.lyp-row.lyp-hidden .lyp-name, .lyp-row.lyp-hidden .lyp-kind { opacity: .4; }
+.lyp-caret {
+    width: 18px; height: 22px; flex: none; display: flex; align-items: center; justify-content: center;
+    color: var(--lyp-dim); border-radius: 4px; cursor: pointer;
+}
+.lyp-caret:hover { background: var(--lyp-line); color: var(--lyp-fg); }
+.lyp-caret:empty { cursor: default; background: none; }
+.lyp-kind { width: 18px; flex: none; display: flex; justify-content: center; color: var(--lyp-dim); }
+.lyp-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; padding-left: 4px; }
+.lyp-rename {
+    flex: 1; min-width: 0; margin-left: 2px; padding: 2px 4px; font: inherit; color: var(--lyp-fg); background: var(--lyp-bg);
+    border: 1px solid var(--lyp-accent); border-radius: 3px; outline: none; user-select: text; -webkit-user-select: text;
+}
+.lyp-btn {
+    width: 24px; height: 24px; flex: none; padding: 0; border: 0; border-radius: 4px; background: transparent;
+    color: var(--lyp-dim); display: flex; align-items: center; justify-content: center; cursor: pointer; visibility: hidden;
+}
+.lyp-btn:hover { background: var(--lyp-hover); color: var(--lyp-fg); }
+/* the buttons show on the hovered row, and stay where they are on (hidden, locked), dimmed when a parent sets it */
+.lyp-row:hover .lyp-btn, .lyp-btn.lyp-on, .lyp-btn.lyp-inherited { visibility: visible; }
+.lyp-btn.lyp-inherited { opacity: .45; }
+/* the eye of a camera: threepipe does not hide cameras */
+.lyp-btn:disabled { visibility: hidden !important; }
+/* a touch screen has no hover: the buttons always show */
+@media (hover: none) {
+    .lyp-btn { visibility: visible; }
+}
