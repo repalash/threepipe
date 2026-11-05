@@ -1,6 +1,7 @@
 {
     "compilerOptions": {
-        "baseUrl": ".",
+        "strict": false,
+        "types": ["*"],
         "rootDir": "./src",
         "allowJs": false,
         "checkJs": false,
@@ -30,12 +31,7 @@
             "esnext",
             "dom",
             "dom.iterable"
-        ],
-        "paths": {
-            "threepipe": [
-                "../../dist/index.d.ts"
-            ]
-        }
+        ]
     },
     "include": [
         "src/**/*"
