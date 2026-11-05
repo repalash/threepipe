@@ -58,6 +58,7 @@ import {
 } from '../assetmanager'
 import {IViewerPlugin, IViewerPluginSync} from './IViewerPlugin'
 import {uiConfig, UiObjectConfig, uiPanelContainer, uiToggle} from 'uiconfig.js'
+import {UiTags} from '../ui/uiconfig'
 import {IRenderTarget} from '../rendering'
 import type {
     AssetExporterPlugin,
@@ -344,7 +345,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
      * Note: this does not pause plugins or the timeline, use {@link enabled} for that.
      */
     @onChange(ThreeViewer.prototype._renderEnabledChanged)
-    @uiToggle('Enable Rendering', {tags: ['advanced']})
+    @uiToggle('Enable Rendering', {tags: [UiTags.Advanced]})
         renderEnabled = true // todo add a separate animation loop enabled?
 
     readonly assetManager: AssetManager
@@ -365,7 +366,7 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
      *
      * It's a WIP, API might change.
      */
-    @uiConfig(undefined, {label: 'Timeline', expanded: true, tags: ['advanced']})
+    @uiConfig(undefined, {label: 'Timeline', expanded: true, tags: [UiTags.Advanced]})
     @serialize('timeline')
     readonly timeline = new ViewerTimeline()
 
