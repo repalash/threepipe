@@ -1,5 +1,11 @@
 # @threepipe/plugin-cloud Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- The package builds again and is not built during `npm install`: it writes its declarations with `declarations()` of `scripts/vite-utils.mjs` (as the other packages; `fixDtsImports` and `vite-plugin-dts` are no longer there), into `dist/` (`rootDir` in its tsconfig), and it has no `prepare` script, so a failed build no longer stops `npm ci` of the repository
+
 ## 0.1.0
 
 - Initial package: `ThreepipeCloudPlugin`, the client of threepipe cloud (https://cloud.threepipe.org, services/cloud).
