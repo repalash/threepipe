@@ -168,7 +168,10 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
 
     setDirty() {
         if (!this._viewer) return
-        if (this.isDisabled() && this.getSelectedObject()) this.setSelectedObject(undefined)
+        // Clearing the selection because the plugin was disabled is not something the user did, so it
+        // is not an undo step (it used to be, which put a stray "deselect" on the stack every time edit
+        // mode suspended picking).
+        if (this.isDisabled() && this.getSelectedObject()) this.setSelectedObject(undefined, false, false)
         this._viewer.setDirty()
     }
     constructor(selection: Class<SelectionWidget>|undefined = BoxSelectionWidget, pickUi = true, autoFocus = false) {
@@ -226,8 +229,15 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         this._picker.setSelected(null, true)
     }
 
+    /**
+     * Handle the keyboard shortcuts (Ctrl+A/C/X/V/D, Delete, H, F, Alt+G/R/S, Esc) here. On by default so
+     * the plugin works on its own; an app that owns the viewport keymap (the modelling editor's
+     * `@threepipe/plugin-editor-engine`) turns it off and runs the same actions through its own keymap.
+     */
+    keyboardShortcuts = true
+
     private _onKeyDown = (event: KeyboardEvent) => {
-        if (this.isDisabled()) return
+        if (this.isDisabled() || !this.keyboardShortcuts) return
         // a key another handler already used (a menu, a dialog, an editor overlay), or one typed into a field
         if (event.defaultPrevented) return
         const target = event.target as HTMLElement | null

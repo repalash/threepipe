@@ -32,6 +32,7 @@ import {
     uiToggle,
     uiVector,
 } from 'uiconfig.js'
+import {UiTags} from '../../ui/uiconfig'
 import {getFittingDistance} from '../../three/utils/camera'
 import {iCameraCommons} from './iCameraCommons'
 
@@ -76,7 +77,7 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
      */
     @uiButton<RootScene>(undefined, (s)=>({
         label: ()=>!s.backgroundColor ? 'Set Color Background' : 'Set Transparent BG',
-        tags: ['context-menu'],
+        tags: [UiTags.ContextMenu],
     }))
     toggleTransparentBackground() {
         if (!this.backgroundColor) {
@@ -94,7 +95,7 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
      */
     @uiButton<RootScene>(undefined, (s)=>({
         label: ()=>s.background === 'environment' ? 'Remove Env Background' : 'Set Env Background',
-        disabled: ()=>!s.environment, tags: ['context-menu'],
+        disabled: ()=>!s.environment, tags: [UiTags.ContextMenu],
     }))
     toggleEnvironmentBackground() {
         if (this.background === 'environment') {
@@ -372,7 +373,7 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
         this.setDirty({refreshScene: true})
     }
 
-    @uiButton('Center All Geometries', {sendArgs: false, tags: ['context-menu']})
+    @uiButton('Center All Geometries', {sendArgs: false, tags: [UiTags.ContextMenu]})
     centerAllGeometries(keepPosition = true, obj?: IObject3D) {
         return centerAllGeometries(obj ?? this.modelRoot, keepPosition)
     }
@@ -574,7 +575,7 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
         })
     }
 
-    @uiButton('Auto GPU Instance Meshes', {tags: ['context-menu']})
+    @uiButton('Auto GPU Instance Meshes', {tags: [UiTags.ContextMenu]})
     autoGPUInstanceMeshes() {
         const geoms = new Set<BufferGeometry>()
         this.modelRoot.traverseModels!((o) => {o.geometry && geoms.add(o.geometry)}, {visible: false, widgets: false})
