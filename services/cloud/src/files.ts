@@ -6,8 +6,11 @@ import {isMarkdownPath, markdownResponse, wantsRenderedMarkdown} from './markdow
 import {MARKDOWN_RENDER_BYTES} from './limits'
 
 const HTML_SANDBOX = 'sandbox allow-scripts allow-forms allow-popups allow-modals allow-downloads allow-pointer-lock allow-presentation'
-/** Types a browser shows without running anything (a PDF viewer does not work sandboxed); every other type gets the sandbox. */
-const PASSIVE = /^(?:image\/(?:png|jpeg|gif|webp|avif|x-icon|ktx2)|video\/|audio\/|font\/|model\/|application\/(?:pdf|json|wasm|zip|octet-stream)|text\/(?:javascript|css|plain|markdown))\s*(?:;|$)/
+/**
+ * Types a browser shows without running anything (a PDF viewer does not work sandboxed); every other type gets the
+ * sandbox. A `+xml` type is not passive whatever its top-level type (`model/x3d+xml`): browsers parse it as XML, which can run scripts.
+ */
+const PASSIVE = /^(?:image\/(?:png|jpeg|gif|webp|avif|x-icon|ktx2)|(?:video|audio|font|model)\/(?![\w.+-]*\+xml)[\w.+-]+|application\/(?:pdf|json|wasm|zip|octet-stream)|text\/(?:javascript|css|plain|markdown))\s*(?:;|$)/
 
 /**
  * Serves the cloud bucket on FILES_HOST (or under /_files/ on the API host when FILES_HOST is not set): one R2 read per
