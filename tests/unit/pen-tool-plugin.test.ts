@@ -107,12 +107,13 @@ function setup({canvasRect}: {canvasRect?: Rect} = {}) {
     const gen = new tp.GeometryGeneratorPlugin()
     const undoManager = new tp.JSUndoManager({bindHotKeys: false, limit: 100})
     const picking = {setSelectedObject: vi.fn()}
+    const pathEdit = {stopEditing: vi.fn()}
 
     const viewer = new EventDispatcher() as any
     Object.assign(viewer, {
         container, canvas,
         scene: {mainCamera: camera, modelRoot, setDirty: vi.fn()},
-        getPlugin: (p: any) => p === tp.GeometryGeneratorPlugin ? gen : p === 'UndoManagerPlugin' ? {undoManager} : p === 'PickingPlugin' ? picking : undefined,
+        getPlugin: (p: any) => p === tp.GeometryGeneratorPlugin ? gen : p === 'UndoManagerPlugin' ? {undoManager} : p === 'PickingPlugin' ? picking : p === 'PathEditPlugin' ? pathEdit : undefined,
     })
     const pen = new tp.PenToolPlugin()
     pen.onAdded(viewer)
@@ -143,8 +144,11 @@ function setup({canvasRect}: {canvasRect?: Rect} = {}) {
         win.fire(type, e)
         return e
     }
-    return {pen, viewer, container, containerRect, canvas, camera, modelRoot, undoManager, picking, click, drag, key, screen, ev}
+    return {pen, viewer, container, containerRect, canvas, camera, modelRoot, undoManager, picking, pathEdit, click, drag, key, screen, ev}
 }
+
+/** The cursor of the pen over the canvas: crosshair, grab (Space or Alt held), grabbing (an orbit drag) */
+const cursor = (pen: any): string => pen._layer.canvasCursor
 
 const close = (a: {x: number, y: number, z: number}, b: number[], d = 1e-3) =>
     Math.abs(a.x - b[0]) < d && Math.abs(a.y - b[1]) < d && Math.abs(a.z - b[2]) < d
@@ -157,15 +161,36 @@ describe('PenToolPlugin', {timeout}, () => {
         expect(win.count()).toBe(0)
         pen.start()
         expect(pen.active).toBe(true)
-        expect(win.count()).toBe(8)
-        expect(container.classList.contains('pen-drawing')).toBe(true)
+        // the layer: pointerdown, pointermove, pointerup, pointercancel, blur; the pen: keydown, keyup, blur, dblclick
+        expect(win.count()).toBe(9)
+        expect(container.classList.contains('sh-tool')).toBe(true) // the crosshair
         pen.start() // no second set of listeners
-        expect(win.count()).toBe(8)
+        expect(win.count()).toBe(9)
         pen.cancel()
         expect(pen.active).toBe(false)
         expect(win.count()).toBe(0)
-        expect(container.classList.contains('pen-drawing')).toBe(false)
+        expect(container.classList.contains('sh-tool')).toBe(false)
         expect(changes).toEqual([true, false])
+    })
+
+    test('starting the pen ends the editing of PathEditPlugin: one tool on the canvas', () => {
+        const {pen, pathEdit} = setup()
+        pen.start()
+        expect(pathEdit.stopEditing).toHaveBeenCalledTimes(1)
+        pen.cancel()
+    })
+
+    test('settings in its UI (uiconfig decorators): enabled, the draw button, color and line width', () => {
+        const {pen} = setup()
+        const children = (pen.uiConfig.children ?? []).map((c: any) => typeof c === 'function' ? c() : c).flat()
+        const label = (c: any) => typeof c.label === 'function' ? c.label() : c.label
+        expect(pen.uiConfig.label).toBe('Pen Tool')
+        expect(children.map(label)).toEqual(['Enabled', 'Color', 'Line Width', 'Draw Path'])
+        pen.start()
+        expect(label(children[3])).toBe('Finish Path')
+        pen.enabled = false
+        expect(pen.active).toBe(false)
+        expect(label(children[3])).toBe('Draw Path')
     })
 
     test('clicks place corner points on the ground and Enter makes an open path of cubic Beziers', () => {
@@ -301,8 +326,8 @@ describe('PenToolPlugin', {timeout}, () => {
         click(-2, 0, 0)
         drag([0, 0, 0], [1, 0, 0])
         viewer.dispatchEvent({type: 'postFrame'})
-        expect(svg.innerHTML.match(/class="pen-a/g)?.length).toBe(2)
-        expect(svg.innerHTML.match(/class="pen-h"/g)?.length).toBe(2)
+        expect(svg.innerHTML.match(/class="sh-square/g)?.length).toBe(2)
+        expect(svg.innerHTML.match(/class="sh-ring/g)?.length).toBe(2)
         pen.cancel()
         expect(svg.innerHTML).toBe('')
     })
@@ -328,7 +353,7 @@ describe('PenToolPlugin', {timeout}, () => {
         expect(pen.active).toBe(false)
         expect(win.count()).toBe(0)
         expect(container.children.map(c => c.tagName)).toEqual(['canvas'])
-        expect(container.classList.contains('pen-drawing')).toBe(false)
+        expect(container.classList.contains('sh-tool')).toBe(false)
         expect(pen.serializeWithViewer).toBe(false)
     })
 
@@ -414,7 +439,7 @@ describe('PenToolPlugin', {timeout}, () => {
         const V = (x: number, y: number, z: number) => new tp.Vector3(x, y, z)
         const segment = new tp.CubicBezierCurve3(V(-3, 0, -3), V(-3, 0, -3), V(1, 0, 4), V(3, 0, 4))
         const preview = new tp.CubicBezierCurve3(V(3, 0, 4), V(5, 0, 4), V(-4, 0, 2), V(-4, 0, 2))
-        for (const [curve, cls] of [[segment, 'pen-path'], [preview, 'pen-preview']] as const) {
+        for (const [curve, cls] of [[segment, 'sh-path'], [preview, 'sh-path sh-preview']] as const) {
             const line = polyline(cls)
             for (let t = 0; t <= 1; t += 0.05) expect(distance(toOverlay(curve.getPoint(t)), line)).toBeLessThan(0.5)
         }
@@ -444,30 +469,30 @@ describe('PenToolPlugin', {timeout}, () => {
     })
 
     test('Space + drag rotates the camera: the pen does not take the pointer, also when Space is released mid-drag', () => {
-        const {pen, container, click, key, ev, screen} = setup()
+        const {pen, click, key, ev, screen} = setup()
         pen.start()
         const down = key(' ')
         expect(down.preventDefault).toHaveBeenCalled() // no page scroll
         expect(down.stopImmediatePropagation).toHaveBeenCalled()
-        expect(container.classList.contains('pen-orbit')).toBe(true) // grab cursor
+        expect(cursor(pen)).toBe('grab') // grab cursor
         key(' ') // key repeat
         const e = ev(screen(0, 0, 0))
         win.fire('pointerdown', e)
         expect(e.stopPropagation).not.toHaveBeenCalled() // the orbit controls get it
         expect(e.preventDefault).not.toHaveBeenCalled()
-        expect(container.classList.contains('pen-orbiting')).toBe(true) // grabbing cursor
+        expect(cursor(pen)).toBe('grabbing') // grabbing cursor
         const up = key(' ', undefined, 'keyup') // released mid-drag: still an orbit
         expect(up.preventDefault).toHaveBeenCalled() // a focused button clicks on the keyup of Space
         const move = ev(screen(1, 0, 0))
         win.fire('pointermove', move)
         expect(move.stopPropagation).not.toHaveBeenCalled()
-        expect(container.classList.contains('pen-orbiting')).toBe(true)
+        expect(cursor(pen)).toBe('grabbing')
         const release = ev(screen(1, 0, 0))
         win.fire('pointerup', release)
         expect(release.stopPropagation).not.toHaveBeenCalled()
         expect(pen.points.length).toBe(0)
-        expect(container.classList.contains('pen-orbit')).toBe(false)
-        expect(container.classList.contains('pen-orbiting')).toBe(false)
+        expect(cursor(pen)).not.toBe('grab')
+        expect(cursor(pen)).not.toBe('grabbing')
         // Space released: drawing again
         expect(click(0, 0, 0).stopPropagation).toHaveBeenCalled()
         expect(pen.points.length).toBe(1)
@@ -475,12 +500,12 @@ describe('PenToolPlugin', {timeout}, () => {
     })
 
     test('Alt + drag rotates the camera; an Alt double-click does not finish', () => {
-        const {pen, container, click, key, ev, screen} = setup()
+        const {pen, click, key, ev, screen} = setup()
         pen.start()
         click(-2, 0, 0)
         click(2, 0, 0)
         key('Alt')
-        expect(container.classList.contains('pen-orbit')).toBe(true)
+        expect(cursor(pen)).toBe('grab')
         const e = click(0, 0, 2, {altKey: true})
         expect(e.stopPropagation).not.toHaveBeenCalled()
         expect(e.preventDefault).not.toHaveBeenCalled()
@@ -490,12 +515,12 @@ describe('PenToolPlugin', {timeout}, () => {
         expect(dbl.stopPropagation).not.toHaveBeenCalled()
         expect(pen.active).toBe(true)
         key('Alt', undefined, 'keyup')
-        expect(container.classList.contains('pen-orbit')).toBe(false)
+        expect(cursor(pen)).not.toBe('grab')
         pen.cancel()
     })
 
     test('a drag started as a pen action stays one when Space is pressed mid-drag', () => {
-        const {pen, container, key, ev, screen, click} = setup()
+        const {pen, key, ev, screen, click} = setup()
         pen.start()
         click(-2, 0, 0)
         win.fire('pointerdown', ev(screen(0, 0, 0)))
@@ -503,48 +528,48 @@ describe('PenToolPlugin', {timeout}, () => {
         const move = ev(screen(1, 0, 0))
         win.fire('pointermove', move)
         expect(move.stopPropagation).toHaveBeenCalled()
-        expect(container.classList.contains('pen-orbit')).toBe(false) // the pen cursor, not grab
+        expect(cursor(pen)).not.toBe('grab') // the pen cursor, not grab
         const up = ev(screen(1, 0, 0))
         win.fire('pointerup', up)
         expect(up.stopPropagation).toHaveBeenCalled()
-        expect(container.classList.contains('pen-orbit')).toBe(true) // Space still held: grab
+        expect(cursor(pen)).toBe('grab') // Space still held: grab
         key(' ', undefined, 'keyup')
         const [c0] = (pen.finish()!.geometry as any).userData.generationParams.curve.curves
         expect(c0.v2.equals(c0.v3)).toBe(false) // a smooth point: the drag pulled the handles
     })
 
     test('blur clears a held Space, so a lost keyup does not leave the pen in orbit', () => {
-        const {pen, container, click, key} = setup()
+        const {pen, click, key} = setup()
         pen.start()
         key(' ')
-        expect(container.classList.contains('pen-orbit')).toBe(true)
+        expect(cursor(pen)).toBe('grab')
         win.fire('blur', {})
-        expect(container.classList.contains('pen-orbit')).toBe(false)
+        expect(cursor(pen)).not.toBe('grab')
         expect(click(0, 0, 0).stopPropagation).toHaveBeenCalled()
         expect(pen.points.length).toBe(1)
         pen.cancel()
     })
 
     test('Space in a text field does nothing; a cancel clears a held Space', () => {
-        const {pen, container, click, key} = setup()
+        const {pen, click, key} = setup()
         pen.start()
         const e = key(' ', {tagName: 'INPUT'})
         expect(e.preventDefault).not.toHaveBeenCalled()
         expect(e.stopImmediatePropagation).not.toHaveBeenCalled()
-        expect(container.classList.contains('pen-orbit')).toBe(false)
+        expect(cursor(pen)).not.toBe('grab')
         click(0, 0, 0)
         expect(pen.points.length).toBe(1)
         // held outside, released in a text field: cleared, the keyup not taken
         key(' ')
-        expect(container.classList.contains('pen-orbit')).toBe(true)
+        expect(cursor(pen)).toBe('grab')
         const up = key(' ', {tagName: 'TEXTAREA'}, 'keyup')
         expect(up.preventDefault).not.toHaveBeenCalled()
         click(1, 0, 0)
         expect(pen.points.length).toBe(2)
         key(' ')
-        expect(container.classList.contains('pen-orbit')).toBe(true)
+        expect(cursor(pen)).toBe('grab')
         pen.cancel()
-        expect(container.classList.contains('pen-orbit')).toBe(false)
+        expect(cursor(pen)).not.toBe('grab')
         pen.start()
         click(0, 0, 0)
         expect(pen.points.length).toBe(1)
@@ -597,11 +622,11 @@ describe('PenToolPlugin', {timeout}, () => {
             return ctx
         }
         const handlesAfterHover = (ctx: ReturnType<typeof setup>) => {
-            const {pen, ev, screen, container} = ctx
+            const {pen, ev, screen} = ctx
             const move = ev(screen(-1, 0, 2), {buttons: 0}) // hover, no button
             win.fire('pointermove', move)
             expect(move.stopPropagation).not.toHaveBeenCalled() // a hover, not a drag
-            expect(container.classList.contains('pen-orbiting')).toBe(false)
+            expect(cursor(pen)).not.toBe('grabbing')
             expect(pen.points.length).toBe(2)
             const obj = pen.finish()!
             const [c0] = (obj.geometry as any).userData.generationParams.curve.curves
@@ -630,15 +655,15 @@ describe('PenToolPlugin', {timeout}, () => {
         })
 
         test('an orbit drag ends too: the grabbing cursor goes and the pen draws again', () => {
-            const {pen, container, key, ev, screen, click} = setup()
+            const {pen, key, ev, screen, click} = setup()
             pen.start()
             key(' ')
             win.fire('pointerdown', ev(screen(0, 0, 0)))
             key(' ', undefined, 'keyup')
-            expect(container.classList.contains('pen-orbiting')).toBe(true)
+            expect(cursor(pen)).toBe('grabbing')
             win.fire('blur', {})
-            expect(container.classList.contains('pen-orbiting')).toBe(false)
-            expect(container.classList.contains('pen-orbit')).toBe(false)
+            expect(cursor(pen)).not.toBe('grabbing')
+            expect(cursor(pen)).not.toBe('grab')
             expect(click(0, 0, 0).stopPropagation).toHaveBeenCalled()
             expect(pen.points.length).toBe(1)
             pen.cancel()

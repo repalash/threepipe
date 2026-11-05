@@ -66,6 +66,19 @@ export interface ScreenHandlesOptions<T> {
      * nothing to leave the press to the viewer (orbit, picking).
      */
     press(handle: ScreenHandle<T>, e: PointerEvent): ScreenHandleDrag<any> | boolean | undefined | void
+    /**
+     * A left press on the canvas that no handle took (a tool that draws, like the pen). Return a drag to start one,
+     * true to take the press without a drag, or nothing to leave the press to the viewer.
+     * @param s - the position in the container
+     */
+    pressCanvas?(e: PointerEvent, s: Vector2): ScreenHandleDrag<any> | boolean | undefined | void
+    /**
+     * A pointer move that is not a drag of the layer: a hover, or a drag of the viewer (a button is held, e.g. an orbit)
+     * @param s - the position in the container
+     */
+    move?(e: PointerEvent, s: Vector2): void
+    /** A pointer release that the layer did not take: the end of a press left to the viewer (e.g. an orbit) */
+    pointerUp?(e: PointerEvent): void
     /** A left click on the canvas that is not on a handle (the press is not taken: the viewer also gets it) */
     click?(e: PointerEvent): void
 }
@@ -82,10 +95,12 @@ const f = (n: number) => n.toFixed(1)
 /**
  * A layer of handles on the screen, over the canvas of a viewer: SVG in the viewer container, drawn from world points
  * after each frame, with hover, press, drag (on a plane facing the camera, or along a line) and one undo step per
- * drag with `UndoManagerPlugin`. Used by `PathEditPlugin` for the points of a curve.
+ * drag with `UndoManagerPlugin`. Used by `PathEditPlugin` for the points of a curve, and by `PenToolPlugin` for the path
+ * being drawn (with `pressCanvas`, `move`, `pointerUp` and `canvasCursor`, for a tool that draws on the canvas).
  *
  * While {@link active}, the layer takes a left press on a handle (in the capture phase, so the camera controls, the
- * picking and the transform controls do not get it) and leaves every other press to the viewer.
+ * picking and the transform controls do not get it), and a press on the canvas that `pressCanvas` takes; it leaves every
+ * other press to the viewer.
  *
  * Internal: not exported from the package.
  */
@@ -105,7 +120,9 @@ export class ScreenHandles<T = unknown> {
     private _hoverId: string | null = null
     private _press: {s: Vector2} | null = null
     private _taken = false
-    private _drag: {spec: ScreenHandleDrag<any>, start: Vector2, offset: Vector3, before: any, moved: boolean, handle: ScreenHandle<T>} | null = null
+    /** A drag of a handle, or of the canvas (`pressCanvas`, no handle) */
+    private _drag: {spec: ScreenHandleDrag<any>, start: Vector2, offset: Vector3, before: any, moved: boolean, handle?: ScreenHandle<T>} | null = null
+    private _canvasCursor = ''
     private _ray = new Raycaster()
 
     constructor(private _options: ScreenHandlesOptions<T>, readonly className = '') {
@@ -154,6 +171,9 @@ export class ScreenHandles<T = unknown> {
         if (v === this._active || v && !this._viewer) return
         this._active = v
         const capture = {capture: true}
+        // a press taken before the last deactivation never got its pointerup here
+        this._taken = false
+        this._press = null
         if (v) {
             window.addEventListener('pointerdown', this._onDown, capture)
             window.addEventListener('pointermove', this._onMove, capture)
@@ -172,8 +192,24 @@ export class ScreenHandles<T = unknown> {
             window.removeEventListener('blur', this._release)
             this._setHover(null)
             this.hint = ''
+            this.canvasCursor = ''
         }
         this.redraw()
+    }
+
+    /** The cursor over the canvas while the layer is active (a tool cursor, like `crosshair`); '' for the viewer's. A hovered or dragged handle shows its own */
+    get canvasCursor() {
+        return this._canvasCursor
+    }
+
+    set canvasCursor(cursor: string) {
+        this._canvasCursor = cursor
+        const c = this._viewer?.container
+        if (!c) return
+        if (cursor) {
+            c.classList.add('sh-tool')
+            c.style.setProperty?.('--sh-tool-cursor', cursor)
+        } else c.classList.remove('sh-tool')
     }
 
     /** HTML of the hint at the bottom of the viewer; empty hides it */
@@ -207,7 +243,7 @@ export class ScreenHandles<T = unknown> {
         const s = this.project(h.position)
         if (s.behind) return
         this._handles.push({h, s})
-        const hover = h.id === this._hoverId || this._drag?.handle.id === h.id
+        const hover = h.id === this._hoverId || this._drag?.handle?.id === h.id
         const r = (h.size ?? 9) / 2 * (hover ? 1.25 : 1)
         const shape = h.shape ?? 'dot'
         const cls = `sh-${shape}${hover ? ' sh-hover' : ''}${h.selected ? ' sh-selected' : ''}`
@@ -274,10 +310,15 @@ export class ScreenHandles<T = unknown> {
 
     /** The world ray through a point in the container */
     rayAt(s: Vector2): Ray {
+        return this.raycasterAt(s).ray
+    }
+
+    /** A raycaster through a point in the container, with the camera set (fat lines need it to raycast) */
+    raycasterAt(s: Vector2): Raycaster {
         const v = this.viewport()
         const ndc = new Vector2((s.x - v.x) / v.width * 2 - 1, -((s.y - v.y) / v.height) * 2 + 1)
         this._ray.setFromCamera(ndc, this._viewer!.scene.mainCamera)
-        return this._ray.ray
+        return this._ray
     }
 
     /** The plane through a world point that faces the camera */
@@ -390,9 +431,13 @@ export class ScreenHandles<T = unknown> {
     private _onDown = (e: PointerEvent) => {
         if (!this._viewer || !this._onCanvas(e) || e.button !== 0 || this._drag) return
         const s = this.pointer(e)
-        const h = this._hit(s)
-        const res = h ? this._options.press(h, e) : undefined
-        if (!h || !res) {
+        let h = this._hit(s)
+        let res = h ? this._options.press(h, e) : undefined
+        if (!res) {
+            h = null
+            res = this._options.pressCanvas?.(e, s)
+        }
+        if (!res) {
             this._press = {s}
             return
         }
@@ -407,7 +452,7 @@ export class ScreenHandles<T = unknown> {
         const hit = this._dragPoint(spec, s)
         const offset = hit ? spec.origin.clone().sub(hit) : new Vector3()
         const before = spec.before !== undefined ? spec.before : spec.snapshot?.()
-        this._drag = {spec, start: s, offset, before, moved: false, handle: h}
+        this._drag = {spec, start: s, offset, before, moved: false, handle: h ?? undefined}
         this._cursor()
         this.redraw()
     }
@@ -416,9 +461,9 @@ export class ScreenHandles<T = unknown> {
         if (!this._viewer) return
         const d = this._drag
         if (d) {
-            e.stopPropagation()
-            // no button: the pointerup was missed (released outside the window)
+            // no button: the pointerup was missed (released outside the window); this move is a hover, for the viewer too
             if (e.buttons === 0) return this._release()
+            e.stopPropagation()
             const s = this.pointer(e)
             if (!d.moved && s.distanceTo(d.start) < DRAG_START) return
             d.moved = true
@@ -427,6 +472,7 @@ export class ScreenHandles<T = unknown> {
             this.redraw()
             return
         }
+        this._options.move?.(e, this.pointer(e))
         // hover only without a button: not during an orbit drag
         if (e.buttons) return
         const h = this._onCanvas(e) ? this._hit(this.pointer(e)) : null
@@ -443,10 +489,13 @@ export class ScreenHandles<T = unknown> {
         } else if (this._taken) {
             this._own(e)
             this._taken = false
-        } else if (this._press && e.button === 0) {
-            const click = this.pointer(e).distanceTo(this._press.s) < DRAG_START + 1
-            this._press = null
-            if (click && this._onCanvas(e)) this._options.click?.(e)
+        } else {
+            if (this._press && e.button === 0) {
+                const click = this.pointer(e).distanceTo(this._press.s) < DRAG_START + 1
+                this._press = null
+                if (click && this._onCanvas(e)) this._options.click?.(e)
+            }
+            this._options.pointerUp?.(e)
         }
     }
 

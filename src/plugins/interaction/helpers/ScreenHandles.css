@@ -4,6 +4,7 @@
 }
 .sh-path { fill: none; stroke: var(--sh-accent); stroke-width: 1.5; opacity: .9; }
 .sh-line { fill: none; stroke: var(--sh-accent); stroke-width: 1; opacity: .7; }
+.sh-preview { stroke-dasharray: 4 3; opacity: .7; }
 .sh-dot, .sh-square, .sh-diamond { fill: var(--sh-accent); stroke: var(--sh-fill); stroke-width: 1.5; }
 .sh-ring { fill: var(--sh-fill); stroke: var(--sh-accent); stroke-width: 1.5; }
 .sh-plus circle { fill: var(--sh-fill); stroke: var(--sh-accent); stroke-width: 1; opacity: .9; }
@@ -17,4 +18,5 @@
 }
 .sh-hint.sh-shown { display: block; }
 .sh-hint kbd { font: inherit; background: #3a3a3a; border-radius: 3px; padding: 0 4px; }
+.sh-tool canvas { cursor: var(--sh-tool-cursor, crosshair) !important; }
 .sh-hovering canvas { cursor: var(--sh-cursor, move) !important; }
