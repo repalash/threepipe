@@ -8,8 +8,9 @@ cd "$(dirname "$0")/.."
 : "${ADMIN_SERVICE_TOKEN:?set ADMIN_SERVICE_TOKEN (a secret of the cloud-deploy environment)}"
 : "${CLOUDFLARE_API_TOKEN:?set CLOUDFLARE_API_TOKEN (a token for the threepipe-cloud Worker, a secret of cloud-deploy)}"
 if [ -e .prod.vars ]; then echo ".prod.vars exists: deploy:ci writes its own, run it on a clean checkout" >&2; exit 1; fi
-npx wrangler deployments list --json > /dev/null || { echo "no deployed Worker to update (a first deploy is npm run deploy, by hand)" >&2; exit 1; }
+npx --no-install wrangler deployments list --json > /dev/null || { echo "no deployed Worker to update (a first deploy is npm run deploy, by hand)" >&2; exit 1; }
 umask 077
 printf 'ADMIN_SERVICE_TOKEN=%s\n' "$ADMIN_SERVICE_TOKEN" > .prod.vars
 trap 'rm -f .prod.vars' EXIT
-npx teeny deploy --remote --yes
+# --no-install: never fetch a package from npm with these secrets in the environment (`teeny` on npm is another package)
+npx --no-install teenybase deploy --remote --yes

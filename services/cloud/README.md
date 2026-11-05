@@ -47,7 +47,7 @@ npm run deploy                   # the first one creates the D1 database: commit
   `npm run deploy:ci` once a reviewer approves the `cloud-deploy` environment. Setup, once: the environment
   `cloud-deploy` with Palash as required reviewer, deployments from the `cloud` branch only, and two environment
   secrets, `CLOUDFLARE_API_TOKEN` (an account token: Specified Workers `threepipe-cloud`, Editor; every deploy also
-  re-sends the two custom domains, which may need Zone → Workers Routes → Edit on threepipe.org) and
+  re-sends the two custom domains, so also Zone → Workers Routes → Edit on threepipe.org) and
   `ADMIN_SERVICE_TOKEN` (the one in `.prod.vars`); the repository secrets `DISCORD_WEBHOOK_URL`,
   `CLAUDE_REVIEW_FIRE_URL`, `CLAUDE_REVIEW_TOKEN` (as for releases). The workflow passes each secret by name: a reusable
   workflow gets an environment's secrets only when its caller passes them. `scripts/deploy-ci.sh` writes
