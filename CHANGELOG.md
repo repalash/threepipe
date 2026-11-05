@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- Examples: a small button on each example page, with a link to its source and a prompt to copy for an agent (it replaces the code preview panel)
 - `ObjectPicker.cycleWrap` (default `false`): clicking an already-selected object cycles to the next one under the cursor and wraps round to the front instead of clearing the selection, so clicking the only object under the cursor keeps it selected (Blender's behaviour)
 - `ObjectPicker.cycleThroughHits` (default `true`, as in webgi): set it to `false` to always pick the front object under the cursor instead of cycling through the objects behind it
 - `PickingPlugin.keyboardShortcuts` (default `true`): set it to `false` when the app owns the viewport keymap; the plugin's Ctrl+A/C/X/V/D, Delete, H, F, Alt+G/R/S and Esc handlers then do nothing
