@@ -211,6 +211,16 @@ describe('GBufferMaterial: a flags-only draw', {timeout}, () => {
 })
 
 describe('Helper widgets write their flags', {timeout}, () => {
+    test('the icon of a light or a camera, and its dot, write their flags with the GBuffer material of the pass', () => {
+        const {pass} = plugin()
+        const icon = new tp.PointLightHelper2(new tp.PointLight2()).icon
+        for (const o of [icon, icon.dot]) {
+            const mat = pass.preprocessObject(o)
+            expect(mat).toBe(o.material) // drawn with the override material of the pass, as other meshes
+            expect(flagsOnly(pass, mat)).toBe(true)
+            pass.postprocessObject(o)
+        }
+    })
     test('the line materials of the widgets have renderToFlags (and are left out of depth and normal)', () => {
         const widgets = [
             new tp.BoxSelectionWidget(),
