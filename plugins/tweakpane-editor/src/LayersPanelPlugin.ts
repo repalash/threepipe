@@ -157,6 +157,8 @@ export class LayersPanelPlugin extends AViewerPluginSync {
     private _renaming?: (commit: boolean) => void
     /** The object of the row under the pointer */
     private _rowHover: IObject3D | null = null
+    /** The row element under the pointer: a render can give it another object (the rows are reused) */
+    private _hoverRowEl: HTMLElement | null = null
     /** The value of `userData.userSelectable` before a lock, given back by the unlock */
     private _beforeLock = new WeakMap<IObject3D, boolean | undefined>()
     private _picking?: PickingPlugin
@@ -197,12 +199,16 @@ export class LayersPanelPlugin extends AViewerPluginSync {
         this._list.addEventListener('keydown', this._onKey)
         this._list.addEventListener('scroll', () => this.refresh())
         this._list.addEventListener('pointerover', this._onPointerOver)
-        this._list.addEventListener('pointerleave', () => this._setRowHover(null))
+        this._list.addEventListener('pointerleave', () => {
+            this._hoverRowEl = null
+            this._setRowHover(null)
+        })
     }
 
     onAdded(viewer: ThreeViewer) {
         super.onAdded(viewer)
         viewer.scene.addEventListener('sceneUpdate', this._onSceneUpdate)
+        viewer.scene.addEventListener('objectUpdate', this._onObjectUpdate)
         // the PickingPlugin and the TweakpaneEditorPlugin can be added before or after this plugin, removed and replaced
         viewer.addPluginListener('add', this._onPluginAdded, 'PickingPlugin', 'TweakpaneEditorPlugin')
         viewer.addPluginListener('remove', this._onPluginRemoved, 'PickingPlugin', 'TweakpaneEditorPlugin')
@@ -215,8 +221,10 @@ export class LayersPanelPlugin extends AViewerPluginSync {
 
     onRemove(viewer: ThreeViewer) {
         this._renaming?.(false)
+        this._hoverRowEl = null
         this._setRowHover(null)
         viewer.scene.removeEventListener('sceneUpdate', this._onSceneUpdate)
+        viewer.scene.removeEventListener('objectUpdate', this._onObjectUpdate)
         viewer.removePluginListener('add', this._onPluginAdded)
         viewer.removePluginListener('remove', this._onPluginRemoved)
         this._setPicking(undefined)
@@ -441,6 +449,14 @@ export class LayersPanelPlugin extends AViewerPluginSync {
         this.refresh(!!e.hierarchyChanged || e.change === 'name')
     }
 
+    /**
+     * An object added or removed. The scene sends no `sceneUpdate` for a camera (`RootScene.refreshScene` leaves its
+     * changes out), so the list hears of it here.
+     */
+    private _onObjectUpdate = (e: {change?: string}) => {
+        if (e.change === 'addedToParent' || e.change === 'removedFromParent') this.refresh(true)
+    }
+
     private _onSelection = () => {
         let opened = false
         if (this.revealSelection) {
@@ -497,8 +513,8 @@ export class LayersPanelPlugin extends AViewerPluginSync {
     }
 
     private _onPointerOver = (e: PointerEvent) => {
-        const row = (e.target as Element | null)?.closest?.('.lyp-row') as HTMLElement | null
-        this._setRowHover(row && this._rowObject(row) || null)
+        this._hoverRowEl = (e.target as Element | null)?.closest?.('.lyp-row') as HTMLElement | null
+        this._setRowHover(this._hoverRowEl && this._rowObject(this._hoverRowEl) || null)
     }
 
     private _onClick = (e: MouseEvent) => {
@@ -699,6 +715,8 @@ export class LayersPanelPlugin extends AViewerPluginSync {
             p.row.style.display = 'none'
             delete p.row.dataset.index
         }
+        // the row under the pointer can have another object now (a scroll, a change of the tree)
+        if (this._hoverRowEl) this._setRowHover(this._rowObject(this._hoverRowEl) ?? null)
         this._empty.style.display = n ? 'none' : ''
         this._empty.textContent = this._filter ? 'No layers match' : 'No objects in the scene'
         this._count.textContent = this._total ? String(this._total) : ''

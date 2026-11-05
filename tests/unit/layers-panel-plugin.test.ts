@@ -585,6 +585,50 @@ describe('LayersPanelPlugin', () => {
         expect(names(list)).toContain('Key')
     })
 
+    test('a camera added or removed builds the list again (the scene sends no sceneUpdate for a camera)', () => {
+        const {list, sceneEvents, modelRoot, camera} = setup()
+        const side = Object.assign(new PerspectiveCamera(), {name: 'Side'})
+        modelRoot.add(side)
+        sceneEvents.dispatchEvent({type: 'objectUpdate', object: side, change: 'addedToParent'})
+        flush()
+        expect(names(list)).toEqual(['watch', 'Sun', 'Camera', 'Side'])
+        camera.removeFromParent()
+        sceneEvents.dispatchEvent({type: 'objectUpdate', object: camera, change: 'removedFromParent'})
+        flush()
+        expect(names(list)).toEqual(['watch', 'Sun', 'Side'])
+        // other changes of an object only draw the rows (sceneUpdate)
+        sceneEvents.dispatchEvent({type: 'objectUpdate', object: side, change: 'position'})
+        expect(frames).toHaveLength(0)
+    })
+
+    test('the hovered row follows its object when the rows are reused: a scroll, a change of the tree', () => {
+        const {layers, list, modelRoot, outline} = setup()
+        for (let i = 0; i < 100; i++) modelRoot.add(mesh('m' + i))
+        layers.refresh(true)
+        flush()
+        const under = row(list, 'm2') // the element under the pointer
+        under.fire('pointerover')
+        expect(outline.hovered.map(o => o.name)).toEqual(['m2'])
+        list.scrollTop = 50 * 28
+        list.fire('scroll')
+        flush()
+        // the same element shows another object now, or none
+        const now = under.style.display === 'none' ? [] : [under.find('lyp-name')[0].textContent]
+        expect(outline.hovered.map(o => o.name)).toEqual(now)
+        expect(now).not.toEqual(['m2'])
+        // a change of the tree under a still pointer
+        list.scrollTop = 0
+        list.fire('scroll')
+        flush()
+        under.fire('pointerover')
+        const before = under.find('lyp-name')[0].textContent
+        modelRoot.children[0].removeFromParent()
+        layers.refresh(true)
+        flush()
+        expect(outline.hovered.map(o => o.name)).toEqual([under.find('lyp-name')[0].textContent])
+        expect(under.find('lyp-name')[0].textContent).not.toBe(before)
+    })
+
     test('goes in the left area of the editor frame with its mode bar entry; editorArea, enabled and a container', () => {
         const {layers, editorPlugin, pluginListeners, viewer, plugins} = setup({editor: true})
         expect(editorPlugin.setArea).toHaveBeenLastCalledWith('left', layers.element, LayersPanelPlugin.AreaEntry)
