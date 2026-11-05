@@ -84,16 +84,10 @@ export class GBufferMaterial extends ShaderMaterial2 {
 
         let isOverridden = false
 
-        let material = (object as any).material as IMaterial & Partial<PhysicalMaterial>
-        if (Array.isArray(material)) { // todo: add support for multi materials.
-            material = material[0]
-        }
+        let material = this._sourceMaterial((object as any).material, group)
         if (material === this as any) {
-            material = (object as IObject3D).currentMaterial as IMaterial & Partial<PhysicalMaterial>
+            material = this._sourceMaterial((object as IObject3D).currentMaterial, group)
             isOverridden = true
-        }
-        if (Array.isArray(material)) { // todo: add support for multi materials.
-            material = material[0]
         }
         if (!material) return
 
@@ -195,6 +189,14 @@ export class GBufferMaterial extends ShaderMaterial2 {
     }
 
     /**
+     * The material of the object for this draw: with a material array, the one of the geometry group, as in the render
+     * (its alpha cut and settings, not the ones of the first material)
+     */
+    private _sourceMaterial(material: IMaterial | IMaterial[] | undefined, group: Group | null) {
+        return (Array.isArray(material) ? material[(group as {materialIndex?: number} | null)?.materialIndex ?? 0] : material) as (IMaterial & Partial<PhysicalMaterial>) | undefined
+    }
+
+    /**
      * A flags-only draw (see {@link flagsOnlyMaterials}): the draw buffers of the target are set to the flags texture
      * (location 1) only, so the depth and normal (location 0) are not written. three.js sets all the attachments as draw
      * buffers of a target with multiple textures, {@link _endFlagsOnlyDraw} puts them back. The flags are bits, so the draw
@@ -266,10 +268,7 @@ export class GBufferMaterial extends ShaderMaterial2 {
         super.onAfterRender(renderer, scene, camera, geometry, object, group)
         this._endFlagsOnlyDraw(renderer)
 
-        let material = (object as any).material as IMaterial & Partial<PhysicalMaterial>
-        if (Array.isArray(material)) { // todo: add support for multi materials.
-            material = material[0]
-        }
+        const material = this._sourceMaterial((object as any).material, group)
         if (!material || material === this as any) return
 
         if (material.materialExtensions?.length) {

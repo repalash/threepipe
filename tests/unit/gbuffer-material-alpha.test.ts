@@ -86,6 +86,28 @@ describe('GBufferMaterial: the alpha of the material', {timeout}, () => {
         expect(mat.defines.INVERSE_ALPHAMAP).toBe(undefined)
     })
 
+    test('a material array: each geometry group is drawn with the alpha of its own material', () => {
+        const mat = new tp.GBufferMaterial(true)
+        const map = new tp.Texture()
+        const cut = new tp.PhysicalMaterial({map, alphaTest: 0.5})
+        const opaque = new tp.PhysicalMaterial()
+        const mesh = new tp.Mesh(new tp.BoxGeometry(), [cut, opaque])
+        const groupState = (materialIndex: number) => {
+            const group = {start: 0, count: 6, materialIndex}
+            mat.onBeforeRender(renderer, null, camera, mesh.geometry, mesh, group)
+            const s = [mat.defines.USE_MAP, mat.uniforms.map.value, mat.uniforms.alphaTest.value]
+            mat.onAfterRender(renderer, null, camera, mesh.geometry, mesh, group)
+            return s
+        }
+        expect(groupState(1)).toEqual([undefined, null, 0]) // the opaque group is not cut by the first material
+        expect(groupState(0)).toEqual([1, map, 0.5])
+        // a GBuffer material set on the object: the group of its own material array
+        tp.iObjectCommons.upgradeObject3D.call(mesh)
+        mesh.forcedOverrideMaterial = mat
+        expect(groupState(1)).toEqual([undefined, null, 0])
+        expect(groupState(0)).toEqual([1, map, 0.5])
+    })
+
     test('each texture is read with its own UV set (Texture.channel)', () => {
         const mat = new tp.GBufferMaterial(true)
         const map = Object.assign(new tp.Texture(), {channel: 1})
