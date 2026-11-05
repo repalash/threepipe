@@ -677,6 +677,9 @@ describe('EditorFrame area sizes', () => {
         expect([shown(e.box), shown(e.left), shown(e.bottom)]).toEqual([true, true, false])
         expect([e.left.getAttribute('aria-label'), e.left.find('mb-label')[0].textContent, e.left.find('layers-icon').length]).toEqual(['Layers', 'Layers', 1])
         expect(e.left._tippy!.props.content).toBe('Layers')
+        expect(e.left.style['--mb-color']).toBeUndefined() // the grey of the CSS
+        f.setArea('left', new FakeElement('div') as any, {name: 'Layers', color: '#7c5cff'})
+        expect(e.left.style['--mb-color']).toBe('#7c5cff')
         f.setArea('bottom', new FakeElement('div') as any)
         expect([shown(e.bottom), e.bottom.getAttribute('aria-label')]).toEqual([true, EditorFrame.AreaNames.bottom])
         f.setArea('left', null)

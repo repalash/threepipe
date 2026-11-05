@@ -44,6 +44,8 @@ export interface EditorFrameAreaOptions {
     name?: string
     /** The icon of the entry: an SVG string, 16 px. Default: a sidebar or a strip */
     icon?: string
+    /** The colour of the icon and of the mark while the area shows, as the colours of the modes. Default: the grey of the labels */
+    color?: string
 }
 
 /** An item of a menu of the bars: its name, whether it is the one picked now, and what a click on it does */
@@ -348,6 +350,8 @@ export class EditorFrame {
         entry.appendChild(label)
         entry.setAttribute('aria-label', name)
         ;(entry as any)._tippy?.setContent(name)
+        if (options.color) entry.style.setProperty('--mb-color', options.color)
+        else entry.style.removeProperty('--mb-color')
         this._fitAreas()
     }
 

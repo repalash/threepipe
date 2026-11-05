@@ -454,6 +454,8 @@ describe('tweakpane editor frame areas', () => {
         })
 
         it(`${layout}: the entries of the areas in the mode bar: marked while their area shows, a row with the hidden panel`, () => {
+            // the colour of the mark: the grey of the labels, unless the app gives one (inline --mb-color)
+            expect(cascade(['.lay-area-entry'], bodyClasses(layout, {left: true}), desktop)['--mb-color']).toBe('var(--tp-label-foreground-color, #8a8f98)')
             for (const vp of [phone, desktop]) {
                 expect(cascade(['.mb-btn.lay-entry-on'], bodyClasses(layout, {left: true}), vp).background).toContain('color-mix')
                 // an area shown below the canvas unmarks the open mode, not the entry

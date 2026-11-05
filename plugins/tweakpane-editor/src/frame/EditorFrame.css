@@ -139,6 +139,7 @@ body.lay-frame #canvas-container:has(.pp-root.pp-bottom-left) { --util-left-room
    marked while its area shows (lay-entry-on); a mode is marked by .on */
 .lay-area-entries { display: flex; flex-direction: column; align-items: center; gap: 4px; margin-top: 2px; padding-top: 6px; border-top: 1px solid var(--mb-line); }
 .mb-wide .lay-area-entries { align-items: stretch; }
+.lay-area-entry { --mb-color: var(--tp-label-foreground-color, #8a8f98); }
 .mb-btn.lay-entry-on { background: color-mix(in srgb, var(--mb-color) 16%, transparent); }
 .lay-float-actions { display: flex; flex-direction: column; align-items: center; gap: 2px; margin-top: auto; color: var(--tp-label-foreground-color, #8a8f98); }
 .lay-float-actions + .mb-toggle { margin-top: 2px; }
