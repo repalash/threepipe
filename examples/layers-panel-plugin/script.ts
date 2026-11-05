@@ -33,7 +33,8 @@ async function init() {
     const layers = viewer.addPluginSync(new LayersPanelPlugin(document.getElementById('layers')!))
 
     await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
-    const watch = await viewer.load<IObject3D>('https://samples.threepipe.org/demos/classic-watch.glb', {autoCenter: true, autoScale: true})
+    // a model with a deep tree of parts
+    const model = await viewer.load<IObject3D>('https://samples.threepipe.org/demos/kira.glb', {autoCenter: true, autoScale: true})
 
     // a light and a camera: their rows have the icon and the colour of their kind
     const sun = new DirectionalLight2(0xffffff, 2)
@@ -50,7 +51,7 @@ async function init() {
     viewer.scene.addObject(camera)
 
     // open the model's row: its parts show below it
-    if (watch) layers.setExpanded(watch, true)
+    if (model) layers.setExpanded(model, true)
 
     const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
     ui.setupPluginUi(LayersPanelPlugin, {expanded: true})
