@@ -275,3 +275,30 @@ form.refresh()
 ```
 
 The form does not watch the values: call `refresh()` after a change from elsewhere (code, another panel). Its own undo and redo steps refresh it. A form made in `onStructureChange` takes the place of the old one: the undo and redo of edits made in the old form refresh the new one. A config that is `hidden` when the form is made is not drawn.
+
+## GLTFContentsPlugin
+
+[Source Code](https://github.com/repalash/threepipe/blob/master/plugins/tweakpane-editor/src/GLTFContentsPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/plugins/tweakpane-editor/docs/classes/GLTFContentsPlugin.html)
+
+`GLTFContentsPlugin` shows what a glTF file holds, in its UI folder (`glTF Contents`, in the Debug mode of the [Tweakpane Editor](https://threepipe.org/examples/#tweakpane-editor/) example).
+
+- **Check the export** makes the file that `AssetExporterPlugin` would download, with its export options, and lists what is in it, without a download: the models of the scene, and the viewer config with the settings of each plugin (the notes of `NotesPlugin`, the camera views, ...), so you see what all the dropped files and settings add to the file.
+- **Loaded files**: each glTF or GLB file that is loaded (dropped, picked or from a URL) is read again from its file and listed. `Show` picks the export or a file.
+
+For each file: the size of the file, its JSON and binary parts and the part in images; the generator; the counts of nodes, meshes and primitives, triangles, vertices, materials, textures, animations, cameras and lights; the viewer config (`WEBGI_viewer`), each plugin with the size of its settings (the largest first) and the resources by kind; and lists of the meshes (triangles, vertices), materials (their extensions), images (type, size), animations (channels, duration) and the extensions used.
+
+```typescript
+import {AssetExporterPlugin, ThreeViewer} from 'threepipe'
+import {GLTFContentsPlugin} from '@threepipe/plugin-tweakpane-editor'
+
+const viewer = new ThreeViewer({...plugins: [AssetExporterPlugin]})
+const contents = viewer.addPluginSync(GLTFContentsPlugin)
+
+const summary = await contents.checkExport()
+console.log(summary?.counts.triangles, summary?.viewerConfig?.plugins)
+```
+
+An encrypted file (the exporter's Encrypt option) shows as encrypted, without counts: its JSON holds only the encryption metadata. A model loaded from a URL is fetched again with the same `queryString` as the importer.
+
+The summary is `summarizeGLTF(name, parseGLTFBuffer(buffer), fileBytes)`, which an app can call for any glTF or GLB buffer. The plugin is not saved with the viewer config.
