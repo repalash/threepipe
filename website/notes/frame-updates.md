@@ -26,7 +26,7 @@ Do the cheap part of the work on every change, and the expensive part only when 
 - Objects refresh their UI, and the scene when a name changes, only on `last`.
 - The undo commands of uiconfig (`setValueUndoCommand` in ts-browser-helpers) keep `last` as `final`, so the undo
   manager merges the changes of a drag into one undo step.
-- `MaterialPreviewQueue` renders a preview at most every `dragInterval` ms while `last` is `false`, and in the next frame
+- `MaterialPreviewPlugin` renders a preview at most every `dragInterval` ms while `last` is `false`, and in the next frame
   for the change that ends the drag (see [Material Previews](./material-previews)).
 
 From your own inputs, send `last: false` while the value moves and a normal change at the end:
@@ -46,7 +46,7 @@ The viewer runs its frame loop with `requestAnimationFrame` and fires `preFrame`
 
 - `viewer.setDirty()` only sets a flag. Any number of calls in one frame reset the render once, in the next frame.
 - `viewer.doOnce('postFrame', fn)` runs `fn` once, in the next frame.
-- `MaterialPreviewQueue` renders in `preFrame`, at most `maxPerFrame` previews per frame.
+- `MaterialPreviewPlugin` renders in `preFrame`, at most `maxPerFrame` previews per frame.
 
 When the viewer is disabled, these events do not fire, so work queued there waits too.
 
@@ -66,7 +66,7 @@ give one refresh.
 | Expensive work for a value that a user drags (shader update, preview, rebuild) | Do it when `last` is not `false`; during the drag, do the cheap part, or limit it to an interval |
 | Many changes in one frame (several properties set in a row) | Do the work in the next frame event: `setDirty`, `doOnce`, or your own `preFrame` listener |
 | UI refresh after a change | `uiRefresh(deep, 'postFrame')` |
-| Feedback while a user drags | A limit per interval during the drag, as `MaterialPreviewQueue.dragInterval`; not a debounce, which shows nothing until the drag stops |
+| Feedback while a user drags | A limit per interval during the drag, as `MaterialPreviewPlugin.dragInterval`; not a debounce, which shows nothing until the drag stops |
 
 `OrbitControls3.throttleUpdate` (60) is set in threepipe, but it has no effect now: the throttle in `OrbitControls.update`
 of the three.js fork never sets the time of the last update (the line is commented out), so every update runs.

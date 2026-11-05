@@ -390,6 +390,13 @@ export class MaterialConfiguratorBasePlugin extends AViewerPluginSync<{'refreshU
                     },
                 },
                 {
+                    type: 'slider',
+                    label: 'Preview size (px)',
+                    property: [this, 'previewSize'],
+                    bounds: [32, 1024],
+                    stepSize: 32,
+                },
+                {
                     type: 'button',
                     label: 'Refresh Ui',
                     value: () => this.refreshUi(),

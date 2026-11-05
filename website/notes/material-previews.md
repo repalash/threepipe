@@ -17,7 +17,7 @@ Threepipe renders the previews with the viewer's renderer, so a preview uses the
 
 - [`snapObject`](https://threepipe.org/docs/functions/snapObject.html), [`snapObjectPixels`](https://threepipe.org/docs/functions/snapObjectPixels.html) and [`snapObjectToCanvas`](https://threepipe.org/docs/functions/snapObjectToCanvas.html) render one object.
 - [`MaterialPreviewGenerator`](https://threepipe.org/docs/classes/MaterialPreviewGenerator.html) renders a material on a shape or a geometry, in a private scene.
-- [`MaterialPreviewQueue`](https://threepipe.org/docs/classes/MaterialPreviewQueue.html) makes previews for an inspector: request a preview on every material change, and the queue renders it when the material stops changing.
+- [`MaterialPreviewPlugin`](https://threepipe.org/docs/classes/MaterialPreviewPlugin.html) makes previews for an inspector: request a preview on every material change, and the plugin renders it in the next frame (during a drag of a slider, at most every `dragInterval` ms).
 
 [Example](https://threepipe.org/examples/#material-preview/) &mdash;
 [Source Code](https://github.com/repalash/threepipe/blob/master/examples/material-preview/script.ts)
@@ -25,9 +25,9 @@ Threepipe renders the previews with the viewer's renderer, so a preview uses the
 ## Live previews in an inspector
 
 ```typescript
-import {MaterialPreviewQueue, MaterialPreviewHandle, IMaterial} from 'threepipe'
+import {MaterialPreviewPlugin, MaterialPreviewHandle, IMaterial} from 'threepipe'
 
-const queue = new MaterialPreviewQueue(viewer)
+const previews = viewer.addPluginSync(MaterialPreviewPlugin)
 
 const canvas = document.createElement('canvas') // in the inspector panel
 canvas.width = canvas.height = 256
@@ -35,7 +35,7 @@ let handle: MaterialPreviewHandle | undefined
 
 function showPreview(material: IMaterial, shape: 'sphere' | 'cube' | 'mesh' = 'sphere', geometry?: BufferGeometry) {
     handle?.cancel()
-    handle = queue.request(material, {shape, geometry, size: 256}, preview => {
+    handle = previews.request(material, {shape, geometry, size: 256}, preview => {
         const ctx = canvas.getContext('2d')!
         ctx.clearRect(0, 0, canvas.width, canvas.height)
         ctx.drawImage(preview.canvas, 0, 0)
@@ -43,21 +43,22 @@ function showPreview(material: IMaterial, shape: 'sphere' | 'cube' | 'mesh' = 's
     })
 }
 
-// request on every change; the queue renders in the next frame, or at most every 100 ms during a drag
+// request on every change; the plugin renders in the next frame, or at most every dragInterval ms during a drag
 material.addEventListener('materialUpdate', () => showPreview(material))
 showPreview(material)
 ```
 
-What the queue does:
+What the plugin does:
 
-- It renders in the viewer's `preFrame`, at most `queue.maxPerFrame` previews per frame (default 1).
-- During a drag, a material renders at most once every `queue.dragInterval` ms (default 100). A drag is a `materialUpdate` with `last: false`, which uiconfig sends while a slider moves (`setDirty({last: false})` from your own inputs). The change that ends the drag (`last` true or not set) renders in the next frame, and so does every other change. See [Frame updates: last, debounce and throttle](./frame-updates).
+- It renders in the viewer's `preFrame`, at most `maxPerFrame` previews per frame (default 1).
+- During a drag, a material renders at most once every `dragInterval` ms (default 100; 0 for one preview per frame). A drag is a `materialUpdate` with `last: false`, which uiconfig sends while a slider moves (`setDirty({last: false})` from your own inputs). The change that ends the drag (`last` true or not set) renders in the next frame, and so does every other change. See [Frame updates: last, debounce and throttle](./frame-updates).
 - Requests for the same material, shape, geometry and size share one render.
-- It caches the previews by material uuid, shape, geometry, size and a change counter of the material (the number of its `materialUpdate` events). The cache is also invalid after a change of the scene's environment map or of the tone mapping. A request for an unchanged material gets the cached preview in the next frame, without a render. `queue.invalidate(material)` removes the cached previews of a material.
+- It caches the previews by material uuid, shape, geometry, size and a change counter of the material (the number of its `materialUpdate` events). The cache is also invalid after a change of the scene's environment map or of the tone mapping. A request for an unchanged material gets the cached preview in the next frame, without a render. `previews.invalidate(material)` removes the cached previews of a material.
 - `request` returns a handle; `handle.cancel()` stops the callback (and the render, when no other request waits for it).
 - The `mesh` shape renders the given geometry alone (for example the geometry of the selected mesh), with a camera fitted to its bounds.
+- Its settings are in its UI (`Material Previews`, for example `ui.setupPluginUi(MaterialPreviewPlugin)` with the Tweakpane UI): `enabled`, `size` (the default size, 256), `maxPerFrame`, `dragInterval` and `maxCacheSize` (32). They are not saved with the viewer. While it is disabled, the requests wait.
 
-The callback gets a [`MaterialPreview`](https://threepipe.org/docs/interfaces/MaterialPreview.html): `canvas` (the cheapest output, no image encoding), `toDataURL()` (a png, encoded on the first call), `renderTime` (ms) and `version` (the change counter). The queue draws the next preview of the same material, shape and size into the same canvas, so copy it in the callback, or put the canvas itself in the page and it updates in place.
+The callback gets a [`MaterialPreview`](https://threepipe.org/docs/interfaces/MaterialPreview.html): `canvas` (the cheapest output, no image encoding), `toDataURL()` (a png, encoded on the first call), `renderTime` (ms) and `version` (the change counter). The plugin draws the next preview of the same material, shape and size into the same canvas, so copy it in the callback, or put the canvas itself in the page and it updates in place.
 
 ## Offscreen render, colours of the viewport
 

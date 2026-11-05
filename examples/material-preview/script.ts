@@ -8,7 +8,7 @@ import {
     MaterialPreviewGenerator,
     MaterialPreviewHandle,
     materialPreviewOptionsFromViewer,
-    MaterialPreviewQueue,
+    MaterialPreviewPlugin,
     MaterialPreviewShape,
     Mesh,
     PhysicalMaterial,
@@ -16,18 +16,19 @@ import {
     ThreeViewer,
     TorusKnotGeometry,
 } from 'threepipe'
+import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 
-// Live material previews for an inspector panel: a MaterialPreviewQueue renders a small offscreen preview
-// with the viewer's environment map and tone mapping in the next frame after a change, and at most every
-// dragInterval ms during a drag of a slider.
+// Live material previews for an inspector panel: MaterialPreviewPlugin renders a small offscreen preview with the
+// viewer's environment map and tone mapping in the next frame after a change, and at most every dragInterval ms during
+// a drag of a slider. The panel shows the previews; the Tweakpane UI has the plugin settings and the materials.
 
 const viewer = new ThreeViewer({
     canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
     msaa: true,
-    plugins: [LoadingScreenPlugin],
+    plugins: [LoadingScreenPlugin, MaterialPreviewPlugin],
 })
 
-const queue = new MaterialPreviewQueue(viewer)
+const previews = viewer.getPlugin(MaterialPreviewPlugin)!
 let shape: MaterialPreviewShape = 'sphere'
 
 async function init() {
@@ -58,13 +59,11 @@ async function init() {
     })
     document.getElementById('benchmark')!.onclick = () => benchmark(meshes[1].material as IMaterial)
 
-    // the time between two previews during a drag, to try other values (0: one preview per frame)
-    const dragInterval = document.getElementById('drag-interval') as HTMLInputElement
-    dragInterval.value = String(queue.dragInterval)
-    dragInterval.oninput = () => {
-        const v = parseFloat(dragInterval.value)
-        if (v >= 0) queue.dragInterval = v
-    }
+    // the plugin settings (drag interval, max per frame, size, cache size), and the materials: a change of a material in
+    // the UI sends materialUpdate events with `last` (false while a slider moves), and its preview follows
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    ui.setupPluginUi(MaterialPreviewPlugin)
+    for (const mesh of meshes) ui.appendChild((mesh.material as PhysicalMaterial).uiConfig)
 }
 
 const refreshAll: (() => void)[] = []
@@ -75,7 +74,7 @@ function materialRow(mesh: Mesh) {
     row.className = 'material'
     const canvas = document.createElement('canvas')
     canvas.className = 'preview'
-    canvas.width = canvas.height = queue.size
+    canvas.width = canvas.height = previews.size
     canvas.dataset.material = material.name
     const ctx = canvas.getContext('2d')!
     const controls = document.createElement('div')
@@ -84,11 +83,11 @@ function materialRow(mesh: Mesh) {
     time.className = 'time'
     time.textContent = '...'
 
-    // request a preview on every change: the queue renders it in the next frame, at most every 100 ms during a drag
+    // request a preview on every change: the plugin renders it in the next frame, at most every dragInterval ms during a drag
     let handle: MaterialPreviewHandle | undefined
     const refresh = () => {
         handle?.cancel()
-        handle = queue.request(material, {shape, geometry: mesh.geometry, size: queue.size}, p => {
+        handle = previews.request(material, {shape, geometry: mesh.geometry, size: previews.size}, p => {
             ctx.clearRect(0, 0, canvas.width, canvas.height)
             ctx.drawImage(p.canvas, 0, 0, canvas.width, canvas.height)
             time.textContent = p.renderTime.toFixed(1) + ' ms (' + p.size + 'px)'
@@ -99,44 +98,10 @@ function materialRow(mesh: Mesh) {
 
     const name = document.createElement('b')
     name.textContent = material.name
-    controls.append(name)
-
-    const color = document.createElement('input')
-    color.type = 'color'
-    color.value = '#' + material.color.getHexString()
-    // while the input moves: `last: false` (a drag, as uiconfig sends from a slider); when it is released: the last change
-    color.oninput = () => {
-        material.color.set(color.value)
-        material.setDirty({last: false})
-    }
-    color.onchange = () => material.setDirty()
-    controls.append(label('Colour', color))
-
-    for (const prop of ['roughness', 'metalness'] as const) {
-        const slider = document.createElement('input')
-        slider.type = 'range'
-        slider.min = '0'
-        slider.max = '1'
-        slider.step = '0.01'
-        slider.value = String(material[prop])
-        slider.dataset.prop = prop
-        slider.oninput = () => {
-            material[prop] = parseFloat(slider.value)
-            material.setDirty({last: false})
-        }
-        slider.onchange = () => material.setDirty()
-        controls.append(label(prop[0].toUpperCase() + prop.slice(1), slider))
-    }
-    controls.append(time)
+    controls.append(name, time)
     row.append(canvas, controls)
     refresh()
     return row
-}
-
-function label(text: string, input: HTMLElement) {
-    const l = document.createElement('label')
-    l.append(text, input)
-    return l
 }
 
 // Time per preview: the offscreen render (256px) and the old full canvas snapshot (render to the canvas, toDataURL of the canvas).

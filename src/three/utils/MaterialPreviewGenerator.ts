@@ -119,7 +119,7 @@ export function materialPreviewOptionsFromViewer(viewer: ThreeViewer, material?:
  *   and do not change the canvas. Pass {@link materialPreviewOptionsFromViewer} to match the viewport.
  * - {@link generate} without `options.size` renders to the canvas and reads the whole canvas (the old behaviour).
  *
- * For previews that are requested on every material change (an inspector), see {@link MaterialPreviewQueue}.
+ * For previews that are requested on every material change (an inspector), see {@link MaterialPreviewPlugin}.
  */
 export class MaterialPreviewGenerator implements IDisposable {
     private _scene: Scene

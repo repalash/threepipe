@@ -23,7 +23,8 @@ function setup(opts: {dragInterval?: number, maxPerFrame?: number} = {}) {
         dispose: vi.fn(),
     }
     let time = 1000
-    const queue = new tp.MaterialPreviewQueue(viewer as any, generator as any)
+    const queue = new tp.MaterialPreviewPlugin(generator as any)
+    queue.onAdded(viewer as any)
     queue.now = () => time
     if (opts.dragInterval !== undefined) queue.dragInterval = opts.dragInterval
     if (opts.maxPerFrame !== undefined) queue.maxPerFrame = opts.maxPerFrame
@@ -34,7 +35,7 @@ function setup(opts: {dragInterval?: number, maxPerFrame?: number} = {}) {
     return {viewer, generator, queue, frame, listeners, scene, advance: (dt: number) => { time += dt }}
 }
 
-describe('MaterialPreviewQueue', () => {
+describe('MaterialPreviewPlugin', () => {
     it('renders in preFrame, at most maxPerFrame previews per frame, in request order', () => {
         const {generator, queue, frame} = setup()
         const a = new tp.PhysicalMaterial(), b = new tp.PhysicalMaterial(), c = new tp.PhysicalMaterial()
@@ -289,7 +290,30 @@ describe('MaterialPreviewQueue', () => {
         expect(count(b)).toBe(before)
         expect(listeners.length).toBe(0)
         expect(generator.dispose).not.toHaveBeenCalled() // not owned
-        expect(() => queue.request(a, {}, () => {})).toThrow('disposed')
+        expect(() => queue.request(a, {}, () => {})).toThrow('not added to a viewer')
+    })
+
+    it('a disabled plugin renders nothing, and its requests render when it is enabled again', () => {
+        const {generator, queue, frame} = setup()
+        const cb = vi.fn()
+        queue.enabled = false
+        queue.request(new tp.PhysicalMaterial(), {}, cb)
+        frame()
+        expect(generator.renderToCanvas).not.toHaveBeenCalled()
+        queue.enabled = true
+        frame()
+        expect(cb).toHaveBeenCalledTimes(1)
+    })
+
+    it('removed from the viewer: it stops rendering and drops its requests; settings are in its UI and not saved', () => {
+        const {viewer, queue, listeners} = setup()
+        queue.request(new tp.PhysicalMaterial(), {}, () => {})
+        queue.onRemove(viewer as any)
+        expect(listeners.length).toBe(0)
+        expect(queue.pending).toBe(0)
+        const labels = (queue.uiConfig?.children as any[] ?? []).map(c => (typeof c === 'function' ? c() : c)?.label)
+        expect(labels).toEqual(expect.arrayContaining(['Enabled', 'Size (px)', 'Max per frame', 'Drag interval (ms)', 'Cache size']))
+        expect(queue.serializeWithViewer).toBe(false)
     })
 })
 
@@ -413,15 +437,16 @@ describe('tone mapping opt-out of a material in previews', () => {
         }
     })
 
-    it('the queue renders an opted out material without tone mapping', () => {
+    it('the plugin renders an opted out material without tone mapping', () => {
         const {viewer} = viewerWith(true)
         const listeners: (() => void)[] = []
         viewer.renderEnabled = true
-        viewer.addEventListener = (_: string, l: () => void) => listeners.push(l)
+        viewer.addEventListener = (type: string, l: () => void) => type === 'preFrame' && listeners.push(l)
         viewer.removeEventListener = () => {}
         viewer.renderManager.renderer = {}
         const generator = {renderToCanvas: vi.fn(() => ({})), dispose: vi.fn()}
-        const queue = new tp.MaterialPreviewQueue(viewer, generator as any)
+        const queue = new tp.MaterialPreviewPlugin(generator as any)
+        queue.onAdded(viewer)
         queue.maxPerFrame = 2
         queue.request(optedOut(), {}, () => {})
         queue.request(new tp.PhysicalMaterial(), {}, () => {})

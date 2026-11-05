@@ -11,7 +11,8 @@
     <script type="importmap">
     {
         "imports": {
-          "threepipe": "./../../dist/index.mjs"
+          "threepipe": "./../../dist/index.mjs",
+          "@threepipe/plugin-tweakpane": "./../../plugins/tweakpane/dist/index.mjs"
         }
     }
 
@@ -26,7 +27,7 @@
         #preview-panel {
             position: absolute;
             top: 12px;
-            right: 12px;
+            left: 12px; /* the Tweakpane UI (the plugin settings and the materials) is on the right */
             width: 280px;
             max-height: calc(100% - 24px);
             overflow-y: auto;
@@ -45,8 +46,6 @@
         #preview-panel .material { display: flex; gap: 8px; padding: 6px 0; border-top: 1px solid #444; }
         #preview-panel canvas.preview { width: 96px; height: 96px; flex: none; border-radius: 4px; background: repeating-conic-gradient(#3a3a3a 0 25%, #2a2a2a 0 50%) 0 0 / 16px 16px; }
         #preview-panel .controls { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-        #preview-panel label { display: flex; justify-content: space-between; align-items: center; gap: 4px; }
-        #preview-panel input[type=range] { width: 90px; }
         #preview-panel .time { color: #9a9; }
         #preview-panel .bench { margin-top: 8px; border-top: 1px solid #444; padding-top: 8px; }
         #preview-panel .bench button { width: 100%; padding: 4px; border: 1px solid #555; border-radius: 4px; background: #333; color: #eee; cursor: pointer; }
@@ -71,7 +70,6 @@
         <button data-shape="cube">Cube</button>
         <button data-shape="mesh">This mesh</button>
     </div>
-    <label title="During a drag of a slider, the minimum time between two previews of a material (MaterialPreviewQueue.dragInterval). 0: one preview per frame">Drag interval (ms) <input id="drag-interval" type="number" min="0" step="10" style="width: 60px"></label>
     <div id="materials"></div>
     <div class="bench">
         <button id="benchmark">Benchmark: offscreen vs full canvas</button>

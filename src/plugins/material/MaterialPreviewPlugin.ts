@@ -1,16 +1,16 @@
 import type {BufferGeometry} from 'three'
-import {IDisposable} from 'ts-browser-helpers'
-import type {ThreeViewer} from '../../viewer'
+import {uiFolderContainer, uiSlider, uiToggle} from 'uiconfig.js'
+import {AViewerPluginSync, ThreeViewer} from '../../viewer'
 import type {IMaterial} from '../../core'
 import {
     MaterialPreviewGenerator,
     MaterialPreviewOptions,
     materialPreviewOptionsFromViewer,
     MaterialPreviewShape,
-} from './MaterialPreviewGenerator'
+} from '../../three/utils/MaterialPreviewGenerator'
 
 /**
- * Options of {@link MaterialPreviewQueue.request}.
+ * Options of {@link MaterialPreviewPlugin.request}.
  */
 export interface MaterialPreviewRequestOptions {
     /**
@@ -22,20 +22,20 @@ export interface MaterialPreviewRequestOptions {
      */
     geometry?: BufferGeometry
     /**
-     * Size in pixels. Default {@link MaterialPreviewQueue.size}
+     * Size in pixels. Default {@link MaterialPreviewPlugin.size}
      */
     size?: number
 }
 
 /**
- * A material preview made by {@link MaterialPreviewQueue}.
+ * A material preview made by {@link MaterialPreviewPlugin}.
  */
 export interface MaterialPreview {
     readonly material: IMaterial
     readonly shape: string
     readonly size: number
     /**
-     * Canvas with the preview. The queue draws the next preview of the same material, shape and size into the same canvas:
+     * Canvas with the preview. The plugin draws the next preview of the same material, shape and size into the same canvas:
      * put the canvas in the page and it updates in place, or copy it (`drawImage`, {@link toDataURL}) in the callback.
      */
     readonly canvas: HTMLCanvasElement
@@ -56,7 +56,7 @@ export interface MaterialPreview {
 export type MaterialPreviewCallback = (preview: MaterialPreview) => void
 
 /**
- * Returned by {@link MaterialPreviewQueue.request}.
+ * Returned by {@link MaterialPreviewPlugin.request}.
  */
 export interface MaterialPreviewHandle {
     /**
@@ -65,7 +65,7 @@ export interface MaterialPreviewHandle {
     cancel(): void
 }
 
-// one record per material for the life of the material (or the queue), so the change counter and the drag state
+// one record per material for the life of the material (or the plugin), so the change counter and the drag state
 // do not restart when the requests of a material are cancelled and made again (like in its own materialUpdate listener)
 interface MaterialState {
     version: number
@@ -105,8 +105,8 @@ class Preview implements MaterialPreview {
 }
 
 /**
- * Makes material previews for an inspector: request a preview on every material change, and the queue renders it in the
- * viewer's next `preFrame`, at most {@link maxPerFrame} per frame.
+ * Makes material previews for an inspector: request a preview on every material change, and the plugin renders it in the
+ * viewer's next `preFrame`, at most {@link maxPerFrame} per frame. Its settings are in its UI (`Material Previews`).
  *
  * - The previews render offscreen with {@link MaterialPreviewGenerator.renderToCanvas}, with the viewer's environment map and tone mapping
  *   ({@link materialPreviewOptionsFromViewer}), so the colours match the viewport. The canvas is not changed: a preview does not
@@ -119,33 +119,43 @@ class Preview implements MaterialPreview {
  *   so a request for an unchanged material returns the cached preview in the next frame, without a render.
  *
  * ```ts
- * const queue = new MaterialPreviewQueue(viewer)
+ * const previews = viewer.addPluginSync(MaterialPreviewPlugin)
  * let handle: MaterialPreviewHandle | undefined
  * function showPreview(material: IMaterial) {
  *     handle?.cancel()
- *     handle = queue.request(material, {shape: 'sphere'}, p => img.src = p.toDataURL())
+ *     handle = previews.request(material, {shape: 'sphere'}, p => img.src = p.toDataURL())
  * }
  * material.addEventListener('materialUpdate', () => showPreview(material))
  * ```
  */
-export class MaterialPreviewQueue implements IDisposable {
+@uiFolderContainer('Material Previews')
+export class MaterialPreviewPlugin extends AViewerPluginSync {
+    static readonly PluginType = 'MaterialPreviewPlugin'
+    /**
+     * While it is disabled, requests wait and nothing renders.
+     */
+    @uiToggle('Enabled') enabled = true
+    /**
+     * The previews are made on request; their settings are not saved with the viewer.
+     */
+    serializeWithViewer = false
     /**
      * Default size of the previews in pixels.
      */
-    size = 256
+    @uiSlider('Size (px)', [32, 1024], 32) size = 256
     /**
      * Maximum number of previews rendered in one frame. Cached previews do not count.
      */
-    maxPerFrame = 1
+    @uiSlider('Max per frame', [1, 8], 1) maxPerFrame = 1
     /**
      * During a drag (the last `materialUpdate` of the material has `last: false`), the minimum time in ms between two
-     * previews of the material. Other changes render in the next frame.
+     * previews of the material. Other changes render in the next frame. 0: one preview per frame.
      */
-    dragInterval = 100
+    @uiSlider('Drag interval (ms)', [0, 500], 10) dragInterval = 100
     /**
      * Number of previews kept in the cache (the least recently used is removed first).
      */
-    maxCacheSize = 32
+    @uiSlider('Cache size', [0, 128], 1) maxCacheSize = 32
     /**
      * Clock in ms, for {@link dragInterval}.
      */
@@ -153,7 +163,6 @@ export class MaterialPreviewQueue implements IDisposable {
 
     readonly generator: MaterialPreviewGenerator
 
-    private _viewer?: ThreeViewer
     private readonly _ownsGenerator: boolean
     private _jobs = new Map<string, Job>()
     private _cache = new Map<string, CacheEntry>()
@@ -161,14 +170,23 @@ export class MaterialPreviewQueue implements IDisposable {
     private _tracked = new Set<IMaterial>() // materials with the listener added
 
     /**
-     * @param viewer
-     * @param generator - the generator to render with. Default a new one, disposed with the queue
+     * @param generator - the generator to render with. Default a new one, disposed with the plugin
      */
-    constructor(viewer: ThreeViewer, generator?: MaterialPreviewGenerator) {
-        this._viewer = viewer
+    constructor(generator?: MaterialPreviewGenerator) {
+        super()
         this.generator = generator ?? new MaterialPreviewGenerator()
         this._ownsGenerator = !generator
+    }
+
+    onAdded(viewer: ThreeViewer) {
+        super.onAdded(viewer)
         viewer.addEventListener('preFrame', this._preFrame)
+    }
+
+    onRemove(viewer: ThreeViewer) {
+        viewer.removeEventListener('preFrame', this._preFrame)
+        this._clear()
+        super.onRemove(viewer)
     }
 
     /**
@@ -180,7 +198,7 @@ export class MaterialPreviewQueue implements IDisposable {
      * @returns a handle to cancel the request
      */
     request(material: IMaterial, options: MaterialPreviewRequestOptions, callback: MaterialPreviewCallback): MaterialPreviewHandle {
-        if (!this._viewer) throw new Error('MaterialPreviewQueue: disposed')
+        if (!this._viewer) throw new Error('MaterialPreviewPlugin: not added to a viewer')
         const shape = options.shape ?? 'sphere'
         const geometry = shape === 'mesh' ? options.geometry : undefined
         const size = options.size ?? this.size
@@ -224,8 +242,14 @@ export class MaterialPreviewQueue implements IDisposable {
     }
 
     dispose() {
-        this._viewer?.removeEventListener('preFrame', this._preFrame)
-        this._viewer = undefined
+        if (this._viewer) this.onRemove(this._viewer)
+        this._clear()
+        if (this._ownsGenerator) this.generator.dispose()
+        super.dispose()
+    }
+
+    /** Drops the requests and the cached previews, and stops listening to the materials */
+    private _clear() {
         this._jobs.clear()
         this._cache.clear()
         for (const material of this._tracked) {
@@ -234,12 +258,11 @@ export class MaterialPreviewQueue implements IDisposable {
         }
         this._tracked.clear()
         this._states = new WeakMap()
-        if (this._ownsGenerator) this.generator.dispose()
     }
 
     private _preFrame = () => {
         const viewer = this._viewer
-        if (!viewer || !this._jobs.size || !viewer.renderEnabled) return
+        if (!viewer || !this._jobs.size || !viewer.renderEnabled || this.isDisabled()) return
         const now = this.now()
         let rendered = 0
         for (const [key, job] of [...this._jobs]) {
@@ -271,7 +294,7 @@ export class MaterialPreviewQueue implements IDisposable {
                 }, cached?.preview.canvas)
                 preview = new Preview(job.material, job.shape, job.size, canvas, state.version, this.now() - start)
             } catch (e) {
-                console.error('MaterialPreviewQueue: unable to render the preview of', job.material, e)
+                console.error('MaterialPreviewPlugin: unable to render the preview of', job.material, e)
                 this._jobs.delete(key)
                 this._untrack(job.material)
                 continue
@@ -291,7 +314,7 @@ export class MaterialPreviewQueue implements IDisposable {
             try {
                 entry.callback(preview)
             } catch (e) {
-                console.error('MaterialPreviewQueue: error in a preview callback', e)
+                console.error('MaterialPreviewPlugin: error in a preview callback', e)
             }
         }
     }
