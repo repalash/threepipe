@@ -192,7 +192,7 @@ export class GBufferMaterial extends ShaderMaterial2 {
      * The material of the object for this draw: with a material array, the one of the geometry group, as in the render
      * (its alpha cut and settings, not the ones of the first material)
      */
-    private _sourceMaterial(material: IMaterial | IMaterial[] | undefined, group: Group | null) {
+    private _sourceMaterial(material: IMaterial | IMaterial[] | null | undefined, group: Group | null) {
         return (Array.isArray(material) ? material[(group as {materialIndex?: number} | null)?.materialIndex ?? 0] : material) as (IMaterial & Partial<PhysicalMaterial>) | undefined
     }
 
