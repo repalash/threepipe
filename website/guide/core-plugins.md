@@ -61,7 +61,7 @@ Plugins to add importers/loaders for different file formats.
 - [STLLoadPlugin](../plugin/STLLoadPlugin) - Add support for loading .stl files
 - [KTX2LoadPlugin](../plugin/KTX2LoadPlugin) - Add support for loading .ktx2 files
 - [KTXLoadPlugin](../plugin/KTXLoadPlugin) - Add support for loading .ktx files
-- [USDZLoadPlugin](../plugin/USDZLoadPlugin) - Add support for loading .usdz files
+- [USDZLoadPlugin](../plugin/USDZLoadPlugin) - Add support for loading .usdz, .usda, .usdc, .usd files
 - [GLTFMeshOptDecodePlugin](../plugin/GLTFMeshOptDecodePlugin) - Decode gltf files with EXT_meshopt_compression extension.
 
 ## Post-processing

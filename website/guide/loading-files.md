@@ -261,8 +261,9 @@ Built-in plugins that add support for additional formats:
   - `.ktx2` - Khronos Texture format with GPU compression support
   - `.ktx` - Original Khronos Texture format
   
-- **Apple AR Files** - [USDZLoadPlugin](../plugin/USDZLoadPlugin)
-  - `.usdz` - Universal Scene Description ZIP for AR Quick Look
+- **USD** - [USDZLoadPlugin](../plugin/USDZLoadPlugin)
+  - `.usdz` - Universal Scene Description ZIP (AR Quick Look)
+  - `.usda`, `.usdc`, `.usd` - Universal Scene Description, text or binary
   
 - **Compressed glTF** - [GLTFMeshOptDecodePlugin](../plugin/GLTFMeshOptDecodePlugin)
   - `.glb/.gltf` with `EXT_meshopt_compression` extension for smaller file sizes

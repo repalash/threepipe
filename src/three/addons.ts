@@ -25,6 +25,7 @@ export {VerticalBlurShader} from 'three/examples/jsm/shaders/VerticalBlurShader.
 export {OrbitControls, type OrbitControlsEventMap} from 'three/examples/jsm/controls/OrbitControls.js'
 export {KTX2Loader} from 'three/examples/jsm/loaders/KTX2Loader.js'
 export {KTXLoader} from 'three/examples/jsm/loaders/KTXLoader.js'
+export {USDLoader} from 'three/examples/jsm/loaders/USDLoader.js'
 export {USDZLoader} from 'three/examples/jsm/loaders/USDZLoader.js'
 export {mergeVertices} from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 export {PLYLoader} from 'three/examples/jsm/loaders/PLYLoader.js'
