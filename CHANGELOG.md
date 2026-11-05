@@ -35,6 +35,8 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- `Object3DWidgetsPlugin` depends on `GBufferPlugin` and adds it to the viewer: the widgets have `toneMapped: false`, which works through the GBuffer flags. Without them, the tone mapping changed the colours of the helper lines and of the `'sprite'` icons
+- `ViewOverridesPlugin`: widgets (an object with `isWidget` or `assetType` `'widget'`, and its children) keep their own materials in every view, so a light or camera icon is not drawn as a rectangle
 - Releases run on [repalash/release-tools](https://github.com/repalash/release-tools) (`.github/workflows/publish.yml`): the same approval, tags and partial publishing as before, now with a Claude review in the Discord notice. Each package now builds on its own in dependency order (a failed one and what depends on it are left out); `scripts/ci/` (publish-check, build-verify, publish-packages, notify-discord) is gone
 - The lines of `CameraHelper2` are drawn in the camera colour from `widgetKinds`: the frustum, cone, up and target lines in one colour and the cross darker. The light helpers (`DirectionalLightHelper2`, `SpotLightHelper2`, `PointLightHelper2`) keep the light colour for their lines, and the shadow frustum uses it too. `color` still sets another colour, and a change of `color` now redraws the widget. The helpers share one line material setup (`AHelperWidget._createLineMaterial`)
 - The `loadAsset` event of `AssetManager` has `options`: the add options given to `loadImported` (without `autoSetEnvironment` and `autoSetBackground`), so a listener can tell that a viewer config in the asset was not imported (`importConfig: false`)

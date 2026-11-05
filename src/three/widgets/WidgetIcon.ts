@@ -6,7 +6,6 @@ import {
     Matrix4,
     Mesh,
     MeshBasicMaterial,
-    NoBlending,
     OneFactor,
     OneMinusSrcAlphaFactor,
     PlaneGeometry,
@@ -17,12 +16,12 @@ import {
     Vector3,
     WebGLRenderer,
 } from 'three'
-import {GBufferMaterial} from '../../plugins/pipeline/GBufferMaterial'
 import {createWidgetIconTexture, getWidgetIconTextureSize, widgetIconLayout, WidgetKind, widgetKinds} from './widgetKinds'
 
 /**
  * An unlit material that is drawn on top and is not in the depth passes. It writes only the GBuffer flags of its pixels
- * (`renderToFlags`), with its own GBuffer material ({@link iconGBufferMaterial}), so `toneMapped: false` keeps its colours
+ * (`renderToFlags`, drawn by the GBuffer material of the pass where its texture is not cut), so `toneMapped: false`
+ * keeps its colours. `ViewOverridesPlugin` keeps it out of its debug views, as a material of a widget
  */
 function iconMaterial(map?: Texture) {
     const material = new MeshBasicMaterial({
@@ -38,23 +37,11 @@ function iconMaterial(map?: Texture) {
         blendDst: OneMinusSrcAlphaFactor,
         blendSrcAlpha: OneFactor,
         blendDstAlpha: OneMinusSrcAlphaFactor,
-        allowOverride: false,
     })
     material.userData.renderToGBuffer = false
     material.userData.renderToDepth = false
     material.userData.renderToFlags = true // only the flags (no tone mapping with toneMapped: false), not depth and normal
     return material
-}
-
-/**
- * The GBuffer material of an icon quad (its `customGBufferMaterial`): the material keeps `allowOverride: false`, so
- * the debug views of `ViewOverridesPlugin` do not draw the icon as a square, and the GBuffer pass draws it with this one,
- * which writes the flags where the icon texture is not cut
- */
-function iconGBufferMaterial() {
-    // no blending, as the GBuffer material of fat lines: the GBuffer pass draws it as a transparent material, and blended
-    // flags would mix with the flags under them (the tone mapping bit would stay on)
-    return new GBufferMaterial(true, {blending: NoBlending})
 }
 
 const tmpSize = new Vector2()
@@ -81,8 +68,6 @@ export class WidgetIcon extends Mesh<PlaneGeometry, MeshBasicMaterial> {
     readonly kind: WidgetKind
     /** The dot in the object's own colour (lights only): a quad over the icon, its texture tinted with the colour */
     readonly dot: Mesh<PlaneGeometry, MeshBasicMaterial>
-    /** The material that the GBuffer pass draws the quad with, for its flags (see `GBufferPlugin`) */
-    customGBufferMaterial = iconGBufferMaterial()
     /** The diameter of the round icon in CSS pixels */
     size: number = widgetIconLayout.diameter
     /** The width and height of the current texture in texels, 0 when there is none (no 2D canvas) */
@@ -98,7 +83,6 @@ export class WidgetIcon extends Mesh<PlaneGeometry, MeshBasicMaterial> {
         this.frustumCulled = false
 
         this.dot = new Mesh(this.geometry, iconMaterial())
-        ;(this.dot as Mesh & {customGBufferMaterial?: GBufferMaterial}).customGBufferMaterial = iconGBufferMaterial()
         this.dot.name = 'Widget Icon Dot'
         // its transform follows the icon in each render, also when it is drawn first
         this.dot.onBeforeRender = (renderer, scene, camera) => this.onBeforeRender(renderer, scene, camera)
@@ -207,8 +191,6 @@ export class WidgetIcon extends Mesh<PlaneGeometry, MeshBasicMaterial> {
         this.dot.material.map?.dispose()
         this.material.dispose()
         this.dot.material.dispose()
-        this.customGBufferMaterial.dispose()
-        ;(this.dot as Mesh & {customGBufferMaterial?: GBufferMaterial}).customGBufferMaterial?.dispose()
         this.geometry.dispose()
     }
 }

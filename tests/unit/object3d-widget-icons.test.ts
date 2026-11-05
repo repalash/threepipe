@@ -275,13 +275,10 @@ describe('light and camera widget icons', () => {
             expect(m.toneMapped).toBe(false)
             expect(m.userData.renderToGBuffer).toBe(false)
             expect(m.userData.renderToDepth).toBe(false)
-            // only the GBuffer flags (not tone mapped), with its own GBuffer material: the material keeps allowOverride
-            // false, so the debug views of ViewOverridesPlugin do not draw it as a square
+            // only the GBuffer flags (not tone mapped), drawn by the GBuffer material of the pass, as any mesh with a map
             expect(m.userData.renderToFlags).toBe(true)
-            expect(m.allowOverride).toBe(false)
-            expect((o as any).customGBufferMaterial).toBeInstanceOf(tp.GBufferMaterial)
-            // not blended: the GBuffer pass draws it as transparent, and blended flags mix with the ones under them
-            expect((o as any).customGBufferMaterial.blending).toBe(tp.NoBlending)
+            expect(m.allowOverride).toBe(true)
+            expect((o as any).customGBufferMaterial).toBe(undefined)
             // premultiplied textures, blended once: not multiplied by the alpha again in the shader
             expect(m.map!.premultiplyAlpha).toBe(true)
             expect(m.premultipliedAlpha).toBe(false)
@@ -952,5 +949,11 @@ describe('icon mode', () => {
         expect(plugin.iconOverlay).toBeUndefined()
         expect(widgetOf(sun).iconMode).toBe('sprite')
         expect(widgetOf(sun).icon).toBeInstanceOf(tp.WidgetIcon)
+    })
+})
+
+describe('tone mapping', () => {
+    test('the plugin depends on GBufferPlugin: the GBuffer flags keep the widget colours out of the tone mapping', () => {
+        expect(new tp.Object3DWidgetsPlugin().dependencies).toContain(tp.GBufferPlugin)
     })
 })

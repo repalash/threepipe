@@ -51,6 +51,10 @@ depth passes, casts no shadows, and is never exported (widgets are not part of t
 | `'dom'` (default) | SVG elements in a layer over the canvas, in the viewer container | Sharp at any pixel ratio and icon size; never in a render, screenshot or recording of the canvas | Not seen in WebXR. Without a viewer container in a page (an offscreen canvas) the icons are sprites |
 | `'sprite'` | Camera-facing quads in the scene, not tone mapped | Seen in WebXR and with an offscreen canvas; part of a render or screenshot of the canvas | Pixels of a texture: sharp only with `renderScale` set to the device pixel ratio |
 
+The widgets are not tone mapped (`toneMapped: false`): their pixels write only their GBuffer flags, so the plugin
+depends on the [`GBufferPlugin`](./GBufferPlugin) and adds it to the viewer. Without the GBuffer flags, the tone
+mapping applies to every pixel, and the colours of the lines and of the `'sprite'` icons change.
+
 In both modes the icons follow `showIcons`, `iconSize` and the visibility of the widgets, a click or tap selects the
 object, and where two icons overlap the nearer one is on top and gets the click. An icon whose centre is just out of the
 view still shows the part of it that is on the canvas.

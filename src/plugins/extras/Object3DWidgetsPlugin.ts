@@ -18,6 +18,7 @@ import {
 import type {HitIntersects} from '../../three/utils/ObjectPicker'
 import {PartialRecord} from '../../utils'
 import type {PickingPlugin} from '../interaction/PickingPlugin'
+import {GBufferPlugin} from '../pipeline/GBufferPlugin'
 
 export interface IObject3DHelper<T extends IWidget = IWidget>{
     Create: (o: IObject3D)=>T,
@@ -29,6 +30,9 @@ export interface IObject3DHelper<T extends IWidget = IWidget>{
  * Lights and cameras get a round icon that keeps its size in pixels and is drawn on top ({@link showIcons},
  * {@link iconSize}, {@link iconMode}); a click on it selects the light or the camera. Each kind of light and camera has
  * its own colour for its icon and lines ({@link widgetKinds}).
+ * The widgets are not tone mapped (`toneMapped: false`): their pixels write only their GBuffer flags, so the plugin
+ * depends on {@link GBufferPlugin} and adds it to the viewer. Without the GBuffer flags, the tone mapping applies to all
+ * pixels.
  * Custom widget types can be registered via the `helpers` array.
  * See https://threepipe.org/notes/widgets-and-helpers for the full widget system documentation.
  * @category Plugins
@@ -37,6 +41,9 @@ export class Object3DWidgetsPlugin extends AViewerPluginSync {
     @onChange(Object3DWidgetsPlugin.prototype.setDirty)
         enabled = true
     public static readonly PluginType = 'Object3DWidgetsPlugin'
+
+    /** The GBuffer flags keep the colours of the widgets out of the tone mapping (see the class docs) */
+    dependencies = [GBufferPlugin]
 
     helpers: IObject3DHelper[] = [
         DirectionalLightHelper2,
@@ -61,8 +68,8 @@ export class Object3DWidgetsPlugin extends AViewerPluginSync {
      * - `dom` (default): SVG elements in a layer over the canvas ({@link WidgetIconOverlay}). Sharp at any pixel ratio,
      * and never in a render, screenshot or recording of the canvas. Not seen in WebXR; without a viewer container in a
      * page (an offscreen canvas) the icons are sprites.
-     * - `sprite`: sprites in the scene ({@link WidgetIcon}), drawn at about one texel per device pixel. Seen in WebXR and
-     * with an offscreen canvas, and part of a render or screenshot of the canvas.
+     * - `sprite`: quads in the scene that face the camera ({@link WidgetIcon}), drawn at about one texel per device pixel.
+     * Seen in WebXR and with an offscreen canvas, and part of a render or screenshot of the canvas.
      */
     @onChange(Object3DWidgetsPlugin.prototype._optionsChanged)
         iconMode: WidgetIconMode = 'dom'

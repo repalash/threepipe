@@ -177,9 +177,10 @@ three.js `Sprite`. Before each render (`onBeforeRender`, also of its dot), `upda
 the render and converts `iconSize` pixels to its units, which depend on the projection (`projectionMatrix[5]`: the field
 of view or the zoom), the canvas height and, for a perspective camera, the distance along the view axis. It makes the world matrix first and takes it into the space of the widget (the
 transform of its object), so a rotation or a non-uniform scale of the object does not skew the icon. A mesh, so that the icon writes its GBuffer
-flags (`userData.renderToFlags`) and is not tone mapped: its material keeps `allowOverride: false` (the debug views of
-`ViewOverridesPlugin` would draw it as a square), and the GBuffer pass draws it with its own `customGBufferMaterial`,
-cut by the alpha of the icon texture. `updateTexture(pixelRatio)` draws the texture at the size of the icon on screen,
+flags (`userData.renderToFlags`) and is not tone mapped: the GBuffer pass draws it with the GBuffer material of the
+pass, as any mesh with a map, cut by the alpha of the icon texture. `ViewOverridesPlugin` keeps the materials of widgets
+out of its debug views (`allowOverride` false during that render), so the icon is not drawn as a square there; in those
+renders the GBuffer material does not draw the icon either, so the icon is tone mapped in a debug view. `updateTexture(pixelRatio)` draws the texture at the size of the icon on screen,
 `getWidgetIconTextureSize(iconSize, renderScale)` texels (about one texel per device pixel, so it is not upscaled or
 shrunk), and again only when that size changes. Lights also have a child sprite, `dot`, on the same quad, with only the
 dot in its texture, tinted with the light colour; it cannot be picked. A hit on a hidden icon (`showIcon` off) is not picked (see [picking a widget](#picking-a-widget)). The icon owns its textures and disposes them.
