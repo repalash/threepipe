@@ -657,36 +657,76 @@ describe('EditorFrame area sizes', () => {
         }
     })
 
-    test('on a phone, the button of the areas puts the left or the bottom area below the canvas; a tap on a mode shows the panel again', () => {
+    /** The entries of the areas in the mode bar, and the tabs of the modes */
+    const entries = (f: InstanceType<typeof EditorFrame>) => {
+        const box = (f.modeBar.element as any as FakeElement).find('lay-area-entries')[0]
+        return {box, left: box.find('lay-area-entry')[0], bottom: box.find('lay-area-entry')[1]}
+    }
+    const shown = (e: FakeElement) => e.style.display !== 'none'
+    const marked = (e: FakeElement) => e.classList.contains('lay-entry-on')
+
+    test('the mode bar has an entry for each area with an element, after the modes, with its name and icon', () => {
+        const f = new EditorFrame(host(), {layout: 'floating'})
+        const bar = f.modeBar.element as any as FakeElement
+        const e = entries(f)
+        // after the two modes, before the actions of the floating layout and the names toggle
+        expect(bar.children.indexOf(e.box)).toBe(2)
+        expect(bar.children.indexOf(e.box)).toBeLessThan(bar.children.indexOf(bar.find('lay-float-actions')[0]))
+        expect([shown(e.box), shown(e.left), shown(e.bottom)]).toEqual([false, false, false])
+        f.setArea('left', new FakeElement('div') as any, {name: 'Layers', icon: '<svg class="layers-icon"></svg>'})
+        expect([shown(e.box), shown(e.left), shown(e.bottom)]).toEqual([true, true, false])
+        expect([e.left.getAttribute('aria-label'), e.left.find('mb-label')[0].textContent, e.left.find('layers-icon').length]).toEqual(['Layers', 'Layers', 1])
+        expect(e.left._tippy!.props.content).toBe('Layers')
+        f.setArea('bottom', new FakeElement('div') as any)
+        expect([shown(e.bottom), e.bottom.getAttribute('aria-label')]).toEqual([true, EditorFrame.AreaNames.bottom])
+        f.setArea('left', null)
+        expect([shown(e.box), shown(e.left)]).toEqual([true, false])
+        f.dispose()
+        expect(bar.find('lay-area-entries')).toHaveLength(0)
+    })
+
+    test('in a wide window, an entry shows or hides its area, and is marked while it shows', () => {
+        vi.stubGlobal('matchMedia', (q: string) => ({matches: q !== EditorFrame.StackedQuery}))
+        const f = new EditorFrame(host(), {layout: 'titlebar'})
+        f.setArea('left', new FakeElement('div') as any)
+        const e = entries(f)
+        expect(marked(e.left)).toBe(true)
+        e.left.click()
+        expect([f.isAreaCollapsed('left'), marked(e.left), stored().collapsed.left]).toEqual([true, false, true])
+        e.left.click()
+        expect([f.isAreaCollapsed('left'), marked(e.left)]).toEqual([false, true])
+        // a drag of the edge to the side collapses it too: the entry follows
+        f.setAreaCollapsed('left', true)
+        expect(marked(e.left)).toBe(false)
+        // the modes are not taken
+        f.setAreaCollapsed('left', false)
+        const bar = f.modeBar.element as any as FakeElement
+        const tab = bar.find('mb-btn').filter(b => b.getAttribute('role') === 'tab')[0]
+        const stop = vi.fn()
+        bar.fire('click', {target: tab, stopImmediatePropagation: stop})
+        expect([f.stackedArea, stop.mock.calls.length]).toEqual(['right', 0])
+    })
+
+    test('on a phone, the entries and the modes share the part below the canvas; a tap on the one shown hides it', () => {
         vi.stubGlobal('matchMedia', (q: string) => ({matches: q === EditorFrame.StackedQuery})) // a phone in portrait
         const f = new EditorFrame(host(), {layout: 'titlebar'})
-        const areasButton = body().find('lay-top')[0].find('lay-areas-btn')[0]
-        expect(areasButton).toBeDefined() // the CSS shows it only on a phone with a left or a bottom area
-        const menu = () => body().find('lay-menu')[0]
-        const items = () => menu().children.map(c => [c.textContent, c.getAttribute('aria-checked')])
-        // only the panel while the areas are empty
-        areasButton.click()
-        expect(items()).toEqual([['Panel', 'true']])
-        areasButton.click()
-        f.setArea('left', new FakeElement('div') as any)
+        f.setArea('left', new FakeElement('div') as any, {name: 'Layers'})
         f.setArea('bottom', new FakeElement('div') as any)
-        areasButton.click()
-        expect(items()).toEqual([['Panel', 'true'], ['Left sidebar', 'false'], ['Bottom strip', 'false']])
-        // the pick: the body class, kept; it opens the part below the canvas when the mode bar hid it
+        const e = entries(f)
+        // the panel is below the canvas: no entry is marked
+        expect([marked(e.left), marked(e.bottom)]).toEqual([false, false])
+        // an entry: its area there, kept; it opens the part below the canvas when the mode bar hid it
         f.modeBar.setOpen(false)
-        menu().children[1].click()
-        expect(body().find('lay-menu')).toHaveLength(0)
-        expect([f.stackedArea, body().classList.contains('lay-stacked-left'), body().classList.contains('lay-stacked-bottom'), f.modeBar.open]).toEqual(['left', true, false, true])
-        expect(stored().stacked).toBe('left')
-        areasButton.click()
-        expect(items()).toEqual([['Panel', 'false'], ['Left sidebar', 'true'], ['Bottom strip', 'false']])
-        areasButton.click()
-        // the panel picked while the mode bar hid the part below the canvas: it opens too
-        f.modeBar.setOpen(false)
-        areasButton.click()
-        menu().children[0].click()
-        expect([f.stackedArea, f.modeBar.open]).toEqual(['right', true])
-        f.setStackedArea('left')
+        e.left.click()
+        expect([f.stackedArea, body().classList.contains('lay-stacked-left'), f.modeBar.open, stored().stacked]).toEqual(['left', true, true, 'left'])
+        expect([marked(e.left), marked(e.bottom)]).toEqual([true, false])
+        e.bottom.click()
+        expect([f.stackedArea, marked(e.left), marked(e.bottom)]).toEqual(['bottom', false, true])
+        // a tap on the entry shown hides the part below the canvas, and a tap again shows it
+        e.bottom.click()
+        expect([f.modeBar.open, marked(e.bottom), f.stackedArea]).toEqual([false, false, 'bottom'])
+        e.bottom.click()
+        expect([f.modeBar.open, marked(e.bottom)]).toEqual([true, true])
         // a tap on the open mode shows the panel, and does not hide it (the click stops before the button)
         const bar = f.modeBar.element as any as FakeElement
         const tabs = bar.find('mb-btn').filter(b => b.getAttribute('role') === 'tab')
@@ -696,19 +736,21 @@ describe('EditorFrame area sizes', () => {
             if (!stopped) tab.click()
         }
         tap(tabs[0])
-        expect([f.stackedArea, f.modeBar.open, stored().stacked]).toEqual(['right', true, 'right'])
+        expect([f.stackedArea, f.modeBar.open, stored().stacked, marked(e.bottom)]).toEqual(['right', true, 'right', false])
         // another mode opens as usual
-        f.setStackedArea('bottom')
+        f.setStackedArea('left')
         tap(tabs[1])
         expect([f.stackedArea, f.modeBar.open]).toEqual(['right', true])
         expect(f.modeBar.editor.setSelectedMode).toHaveBeenCalledWith(1)
         // the panel below the canvas: a tap on the open mode hides it, as before
         tap(tabs[0])
         expect(f.modeBar.open).toBe(false)
+        // the panel picked from code opens the part below the canvas too
+        f.setStackedArea('right')
+        expect(f.modeBar.open).toBe(true)
         // an empty area shows the panel, and a mode tap is not taken
         f.setStackedArea('left')
         f.setArea('left', null)
-        f.modeBar.setOpen(true)
         tap(tabs[0])
         expect([f.stackedArea, f.modeBar.open]).toEqual(['left', false])
         // a new frame applies the kept area; dispose removes the classes
@@ -720,18 +762,6 @@ describe('EditorFrame area sizes', () => {
         g.dispose()
         storage.set('tpEditorFrameAreas', JSON.stringify({stacked: 'top'}))
         expect(new EditorFrame(host(), {layout: 'floating'}).stackedArea).toBe('right')
-    })
-
-    test('the mode bar taps are not taken in a wide window, where all the areas show', () => {
-        vi.stubGlobal('matchMedia', (q: string) => ({matches: q !== EditorFrame.StackedQuery}))
-        const f = new EditorFrame(host(), {layout: 'titlebar'})
-        f.setArea('left', new FakeElement('div') as any)
-        f.setStackedArea('left')
-        const bar = f.modeBar.element as any as FakeElement
-        const tab = bar.find('mb-btn').filter(b => b.getAttribute('role') === 'tab')[0]
-        const stop = vi.fn()
-        bar.fire('click', {target: tab, stopImmediatePropagation: stop})
-        expect([f.stackedArea, stop.mock.calls.length]).toEqual(['left', 0])
     })
 
     test('a drag of the left edge resizes it, collapses it past half of the smallest size, opens it again, and keeps the size at the end', () => {

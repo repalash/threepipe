@@ -38,6 +38,14 @@ const AREA_SIZE_VARS: Record<EditorFrameSizedArea, string> = {
     right: '--tweakpane-ui-container-width',
 }
 
+/** The entry of an area in the mode bar ({@link EditorFrame.setArea}) */
+export interface EditorFrameAreaOptions {
+    /** The name of the entry. Default: {@link EditorFrame.AreaNames} */
+    name?: string
+    /** The icon of the entry: an SVG string, 16 px. Default: a sidebar or a strip */
+    icon?: string
+}
+
 /** An item of a menu of the bars: its name, whether it is the one picked now, and what a click on it does */
 type MenuItem = [label: string, checked: boolean, onPick: () => void]
 
@@ -80,7 +88,8 @@ const ICONS = {
     app: svg('<path d="M8 1.5l5.6 3.2v6.6L8 14.5l-5.6-3.2V4.7z"/><path d="M8 8l5.6-3.3M8 8v6.5M8 8L2.4 4.7"/>'),
     theme: svg('<path d="M13 9.5A5.5 5.5 0 0 1 6.5 3a5.5 5.5 0 1 0 6.5 6.5z"/>'),
     layout: svg('<rect x="2" y="2.5" width="12" height="11" rx="1.5"/><path d="M2 5.5h12M10 5.5v8"/>'),
-    stacked: svg('<rect x="2" y="2.5" width="12" height="11" rx="1.5"/><path d="M2 8h12"/><path d="M5 10.75h6" opacity=".6"/>'),
+    left: svg('<rect x="2" y="2.5" width="12" height="11" rx="1.5"/><path d="M6 2.5v11"/>'),
+    bottom: svg('<rect x="2" y="2.5" width="12" height="11" rx="1.5"/><path d="M2 10h12"/>'),
 }
 
 /**
@@ -115,9 +124,12 @@ const ICONS = {
  * the panel and the mode bar are below it, with the same height. The CSS variable `--lay-split` is the part of the height
  * for the canvas: `0.45`, set on `body.lay-frame` (a page sets another with a more specific rule, like
  * `html body.lay-frame { --lay-split: 0.5; }`). When the panel is hidden there, the mode bar is a row at the bottom.
- * The part below the canvas shows one area at a time: the panel, or the left or the bottom area
- * ({@link setStackedArea}). The button of the areas next to the layout button picks it there, when the left or the
- * bottom area has an element, and a tap on a mode in the mode bar shows the panel again.
+ *
+ * The mode bar lists the modes, then an entry for each area with an element (its name and icon from {@link setArea}).
+ * In a wide or a landscape window, the areas show next to the canvas, and a tap on an entry shows or hides its area
+ * ({@link setAreaCollapsed}). On a phone, the part below the canvas shows one of them at a time
+ * ({@link setStackedArea}): a mode shows the panel there, an entry shows its area, and a tap on the one shown hides
+ * the part below the canvas.
  */
 export class EditorFrame {
     /** The default theme pairs: Shift+T goes from one to the other */
@@ -145,8 +157,8 @@ export class EditorFrame {
      */
     static StackedQuery = '(max-width: 919.98px) and (orientation: portrait)'
 
-    /** The names of the areas in the menu of the button of the areas ({@link setStackedArea}) */
-    static AreaNames: Record<EditorFrameSizedArea, string> = {right: 'Panel', left: 'Left sidebar', bottom: 'Bottom strip'}
+    /** The default names of the entries of the areas in the mode bar ({@link setArea}) */
+    static AreaNames: Record<EditorFrameArea, string> = {left: 'Left sidebar', bottom: 'Bottom strip'}
 
     readonly modeBar: EditorModeBar
     private _layout: EditorFrameLayout
@@ -157,6 +169,9 @@ export class EditorFrame {
     private _floatActions: HTMLDivElement
     /** The elements of the areas ({@link setArea}), in the page while the frame is */
     private _areas: Record<EditorFrameArea, HTMLDivElement>
+    /** The entries of the areas in the mode bar, after the modes, and their box */
+    private _entries: Record<EditorFrameArea, HTMLButtonElement>
+    private _entryBox: HTMLDivElement
     /** The edges that a drag resizes, in the page while the frame is */
     private _handles: Record<EditorFrameSizedArea, HTMLDivElement>
     /** The sizes set in px ({@link setAreaSize}), and kept; not set: the size of the CSS */
@@ -169,7 +184,7 @@ export class EditorFrame {
     private _stacked: EditorFrameSizedArea = 'right'
     /** Ends the drag of an edge that is in progress */
     private _endDrag?: () => void
-    /** The open menu (the layouts or the areas), and the button that opened it */
+    /** The open layout menu, and the button that opened it */
     private _menu?: HTMLDivElement
     private _menuAnchor?: HTMLElement
     /** The tooltips of the buttons in the bars */
@@ -200,6 +215,11 @@ export class EditorFrame {
         this._floatActions = createDiv({classList: ['lay-float-actions'], addToBody: false})
         this._floatActions.append(...this._actions('modeBar'))
         this._areas = {left: this._area('left'), bottom: this._area('bottom')}
+        this._entryBox = createDiv({classList: ['lay-area-entries'], addToBody: false})
+        this._entries = {left: this._entry('left'), bottom: this._entry('bottom')}
+        // after the modes: before the actions (floating) and the names toggle
+        this.modeBar.element.insertBefore(this._entryBox, this.modeBar.element.children[editor.modeKeys.length] ?? null)
+        this._refreshEntries()
         this._handles = {left: this._handle('left'), bottom: this._handle('bottom'), right: this._handle('right')}
         this.modeBar.onLayoutChange = this._fitAreas
         this._restoreAreas()
@@ -306,16 +326,28 @@ export class EditorFrame {
      * - The element fills the area. The area is `--lay-left-area-size` wide (`240px`) or `--lay-bottom-area-size` tall
      *   (`160px`), CSS variables on `body.lay-frame`; set others with a more specific rule, like
      *   `html body.lay-frame { --lay-left-area-size: 280px; }`.
+     * - The mode bar has an entry for the area, after the modes, with the name and the icon of `options`. In a wide or a
+     *   landscape window a tap on it shows or hides the area ({@link setAreaCollapsed}).
      * - A narrow portrait window (a phone) has no room for the areas next to the canvas: the part below the canvas shows
-     *   one area at a time, the panel by default ({@link setStackedArea}).
+     *   one at a time, the panel by default, and a tap on the entry shows the area there ({@link setStackedArea}).
      *
      * The areas go with the frame: `TweakpaneEditorPlugin.setArea` keeps the element when the plugin makes the frame again.
      * @param area - `left` or `bottom` ({@link EditorFrameArea})
      * @param element - the element to show in the area, or `null` for an empty area
+     * @param options - the name and the icon of its entry in the mode bar
      */
-    setArea(area: EditorFrameArea, element: HTMLElement | null) {
+    setArea(area: EditorFrameArea, element: HTMLElement | null, options: EditorFrameAreaOptions = {}) {
         this._areas[area].replaceChildren(...element ? [element] : [])
         document.body.classList.toggle('lay-has-' + area, !!element)
+        const name = options.name ?? EditorFrame.AreaNames[area]
+        const entry = this._entries[area]
+        entry.innerHTML = options.icon ?? ICONS[area]
+        const label = document.createElement('span')
+        label.className = 'mb-label'
+        label.textContent = name
+        entry.appendChild(label)
+        entry.setAttribute('aria-label', name)
+        ;(entry as any)._tippy?.setContent(name)
         this._fitAreas()
     }
 
@@ -374,17 +406,18 @@ export class EditorFrame {
     /**
      * Sets the area that the part below the canvas shows in a narrow portrait window (a phone, {@link StackedQuery}),
      * where there is no room for the areas next to the canvas: the panel (`right`, the default), or the left or the
-     * bottom area. The mode bar stays next to it, and a tap on a mode shows the panel again. A left or bottom area
-     * without an element shows the panel. It opens the part below the canvas when the mode bar hid it, also for the panel. A wider or a
-     * landscape window shows all the areas, so this has no effect there. The body has the class `lay-stacked-left` or
-     * `lay-stacked-bottom`.
+     * bottom area. The mode bar stays next to it: a tap on a mode shows the panel again, a tap on the entry of an area
+     * shows that area. A left or bottom area without an element shows the panel. It opens the part below the canvas when
+     * the mode bar hid it. A wider or a landscape window shows all the areas, so this has no effect there. The body has
+     * the class `lay-stacked-left` or `lay-stacked-bottom`.
      * @param area - `right` (the panel), `left` or `bottom`
-     * @param keep - keep it in `localStorage` ({@link AreaStorageKey}), as the person's pick (the button of the areas)
+     * @param keep - keep it in `localStorage` ({@link AreaStorageKey}), as the person's pick (an entry of the mode bar)
      */
     setStackedArea(area: EditorFrameSizedArea, keep = false) {
         this._stacked = area
         for (const a of ['left', 'bottom']) document.body.classList.toggle('lay-stacked-' + a, a === area)
         if (!this.modeBar.open) this.modeBar.setOpen(true)
+        this._refreshEntries()
         if (keep) this._storeAreas()
     }
 
@@ -409,6 +442,7 @@ export class EditorFrame {
         this._top.remove()
         this._bottom.remove()
         this._floatActions.remove()
+        this._entryBox.remove()
         for (const [area, el] of Object.entries(this._areas)) {
             el.remove()
             document.body.classList.remove('lay-has-' + area, 'lay-collapsed-' + area)
@@ -432,11 +466,50 @@ export class EditorFrame {
         if (root && !root.classList.contains('tp-rotv-expanded')) root.querySelector<HTMLElement>('.tp-rotv_b')?.click()
     }
 
+    /** A narrow portrait window (a phone): the part below the canvas shows one area at a time */
+    private _isStacked() {
+        return !!window.matchMedia?.(EditorFrame.StackedQuery).matches
+    }
+
     /** The left or the bottom area that the part below the canvas shows now, in a narrow portrait window */
     private _stackedShown(): EditorFrameArea | undefined {
         const a = this._stacked
         if (a === 'right' || !this._areas[a].children.length) return undefined
-        return window.matchMedia?.(EditorFrame.StackedQuery).matches ? a : undefined
+        return this._isStacked() ? a : undefined
+    }
+
+    /** The entry of an area in the mode bar: hidden until {@link setArea} puts an element in the area */
+    private _entry(area: EditorFrameArea) {
+        const b = this._button(ICONS[area], EditorFrame.AreaNames[area], EditorFrame.AreaNames[area], 'modeBar', () => this._onEntry(area))
+        b.classList.add('lay-area-entry')
+        this._entryBox.appendChild(b)
+        return b
+    }
+
+    /**
+     * A tap on the entry of an area. On a phone: the area below the canvas, or, when it is there, the part below the
+     * canvas hides (as the open mode does). Else: the area shows or hides, and the pick is kept.
+     */
+    private _onEntry(area: EditorFrameArea) {
+        if (!this._isStacked()) return this.setAreaCollapsed(area, !this._collapsed[area], true)
+        if (this._stackedShown() === area && this.modeBar.open) this.modeBar.setOpen(false)
+        else this.setStackedArea(area, true)
+    }
+
+    /** Shows the entries of the areas with an element, and marks the ones whose area shows */
+    private _refreshEntries() {
+        const stacked = this._isStacked()
+        let any = false
+        for (const area of ['left', 'bottom'] as const) {
+            const entry = this._entries[area]
+            const filled = this._areas[area].children.length > 0
+            any ||= filled
+            entry.style.display = filled ? '' : 'none'
+            const shown = filled && (stacked ? this._stackedShown() === area && this.modeBar.open : !this._collapsed[area])
+            entry.classList.toggle('lay-entry-on', shown)
+            entry.setAttribute('aria-pressed', String(shown))
+        }
+        this._entryBox.style.display = any ? '' : 'none'
     }
 
     /**
@@ -558,6 +631,8 @@ export class EditorFrame {
      */
     private _fitAreas = () => {
         for (const area of Object.keys(this._sizes) as EditorFrameSizedArea[]) this._applySize(area)
+        // the window can change between a phone and a wide window, and the panel can show or hide
+        this._refreshEntries()
     }
 
     /** Keeps the sizes, the collapsed left and bottom areas and the area below the canvas ({@link AreaStorageKey}) */
@@ -592,8 +667,7 @@ export class EditorFrame {
     }
 
     /**
-     * The light or dark button, the layout button, and the button of the areas (only in a narrow portrait window with a
-     * left or a bottom area, by the CSS)
+     * The light or dark button and the layout button
      * @param where - the top or the bottom bar, or the mode bar (the floating layout): there they have a name that the
      * wide mode bar shows, and the tooltips of the mode bar
      */
@@ -601,9 +675,6 @@ export class EditorFrame {
         const buttons: HTMLButtonElement[] = []
         if (this.options.colorMode) buttons.push(this._button(ICONS.theme, 'Light or dark (Shift T)', 'Light / dark', where, () => this.toggleTheme()))
         buttons.push(this._button(ICONS.layout, 'Layout of the page', 'Layout', where, b => this._toggleMenu(b, () => this._layoutItems())))
-        const areas = this._button(ICONS.stacked, 'Below the canvas', 'Area', where, b => this._toggleMenu(b, () => this._areaItems()))
-        areas.classList.add('lay-areas-btn')
-        buttons.push(areas)
         return buttons
     }
 
@@ -630,15 +701,6 @@ export class EditorFrame {
             if (pick) pick(k)
             else if (k !== 'classic') this.setLayout(k)
         }])
-    }
-
-    /** The items of the menu of the areas: the panel, and the left and the bottom area when they have an element */
-    private _areaItems(): MenuItem[] {
-        const shown = this._stackedShown() ?? 'right'
-        return (Object.keys(AREA_SIZE_VARS) as EditorFrameSizedArea[])
-            .filter(a => a === 'right' || this._areas[a].children.length)
-            .sort((a, b) => (a === 'right' ? 0 : 1) - (b === 'right' ? 0 : 1))
-            .map(a => [EditorFrame.AreaNames[a], a === shown, () => this.setStackedArea(a, true)])
     }
 
     /** Opens a menu at its button, or closes it when that button opened it */

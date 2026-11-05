@@ -453,12 +453,14 @@ describe('tweakpane editor frame areas', () => {
             }
         })
 
-        it(`${layout}: the button of the areas shows only on a phone in portrait with a left or a bottom area`, () => {
-            const display = (vp: Viewport, s: FrameState) => cascade(['.lay-areas-btn'], bodyClasses(layout, s), vp).display
-            expect(display(phone, {})).toBe('none')
-            expect(display(phone, {left: true})).toBe('flex')
-            expect(display(phone, {bottom: true})).toBe('flex')
-            for (const vp of [desktop, phoneLandscape]) expect(display(vp, {left: true, bottom: true})).toBe('none')
+        it(`${layout}: the entries of the areas in the mode bar: marked while their area shows, a row with the hidden panel`, () => {
+            for (const vp of [phone, desktop]) {
+                expect(cascade(['.mb-btn.lay-entry-on'], bodyClasses(layout, {left: true}), vp).background).toContain('color-mix')
+                // an area shown below the canvas unmarks the open mode, not the entry
+                expect(cascade(['.mb-btn.lay-entry-on'], bodyClasses(layout, {left: true, stacked: 'left'}), vp).background).toContain('color-mix')
+            }
+            expect(cascade(['.lay-area-entries', '.mb-root > .lay-area-entries'], bodyClasses(layout, {left: true, panelHidden: true}), phone)['flex-direction']).toBe('row')
+            expect(cascade(['.lay-area-entries', '.mb-root > .lay-area-entries'], bodyClasses(layout, {left: true, panelHidden: true}), desktop)['flex-direction']).toBe('column')
         })
     }
 })

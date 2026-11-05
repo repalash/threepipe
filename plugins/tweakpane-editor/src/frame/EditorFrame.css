@@ -135,8 +135,11 @@ body.lay-frame #canvas-container:has(.pp-root.pp-bottom-left) { --util-left-room
     body.lay-frame .pp-root.pp-bottom-left { bottom: 0.75rem; }
     body.lay-frame .pp-root.pp-bottom-left .pp-pill { height: 32px; min-width: 76px; justify-content: center; font-variant-numeric: tabular-nums; padding: 0 8px; border-radius: 8px; font-size: 12px; }
 }
-/* the button of the areas (EditorFrame.setStackedArea): only in a narrow portrait window with a left or a bottom area (below) */
-body.lay-frame .lay-areas-btn { display: none; }
+/* the entries of the areas in the mode bar, after the modes, with a line above them (EditorFrame.setArea). An entry is
+   marked while its area shows (lay-entry-on); a mode is marked by .on */
+.lay-area-entries { display: flex; flex-direction: column; align-items: center; gap: 4px; margin-top: 2px; padding-top: 6px; border-top: 1px solid var(--mb-line); }
+.mb-wide .lay-area-entries { align-items: stretch; }
+.mb-btn.lay-entry-on { background: color-mix(in srgb, var(--mb-color) 16%, transparent); }
 .lay-float-actions { display: flex; flex-direction: column; align-items: center; gap: 2px; margin-top: auto; color: var(--tp-label-foreground-color, #8a8f98); }
 .lay-float-actions + .mb-toggle { margin-top: 2px; }
 /* the wide bar: the actions are rows with their names, like the modes and the names toggle */
@@ -292,16 +295,16 @@ body.lay-floating #tweakpaneUiContainer .tp-rotv { box-shadow: none; }
     body.lay-frame.mb-panel-hidden .mb-root > .mb-toggle { margin: 0 0 0 auto; }
     body.lay-frame.mb-panel-hidden .mb-root > .lay-float-actions { flex-direction: row; margin: 0 0 0 auto; }
     body.lay-frame.mb-panel-hidden .mb-root > .lay-float-actions + .mb-toggle { margin-left: 2px; }
+    body.lay-frame.mb-panel-hidden .mb-root > .lay-area-entries { flex-direction: row; margin: 0 0 0 2px; padding: 0 0 0 6px; border-top: 0; border-left: 1px solid var(--mb-line); }
 
     /* no room for the left and the bottom area next to the canvas: hidden, and they take no room */
     body.lay-frame.lay-has-left { --lay-left-area: 0px; }
     body.lay-frame.lay-has-bottom { --lay-bottom-area: 0px; }
     body.lay-has-left .lay-area-left, body.lay-has-bottom .lay-area-bottom { display: none; }
 
-    /* the part below the canvas shows one area at a time: the panel, or the left or the bottom area that the button of
-       the areas picks (EditorFrame.setStackedArea, the body class lay-stacked-<area>), in the place of the panel, next
+    /* the part below the canvas shows one area at a time: the panel, or the left or the bottom area that its entry in
+       the mode bar picks (EditorFrame.setStackedArea, the body class lay-stacked-<area>), in the place of the panel, next
        to the mode bar. A collapsed area shows there too. When the mode bar hides the panel, the canvas takes it all. */
-    body.lay-frame.lay-has-left .lay-areas-btn, body.lay-frame.lay-has-bottom .lay-areas-btn { display: flex; }
     body.lay-frame.lay-stacked-left.lay-has-left .lay-area-left, body.lay-frame.lay-stacked-bottom.lay-has-bottom .lay-area-bottom {
         display: flex; left: 0; right: var(--mb-width, 44px); width: auto; height: auto;
         top: calc(var(--lay-top) + (100% - var(--lay-top) - var(--lay-bottom)) * var(--lay-split)); bottom: var(--lay-bottom);

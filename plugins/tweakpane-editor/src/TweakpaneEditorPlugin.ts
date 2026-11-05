@@ -17,7 +17,7 @@ import tippy from 'tippy.js'
 import {addTooltipStyles, EDITOR_TOOLTIP_PROPS} from './tooltips'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 import {UiObjectConfig} from 'uiconfig.js'
-import {EDITOR_PAGE_LAYOUTS, EditorFrame, EditorFrameArea, EditorFrameLayout, EditorFrameOptions, EditorPageLayout} from './frame/EditorFrame'
+import {EDITOR_PAGE_LAYOUTS, EditorFrame, EditorFrameArea, EditorFrameAreaOptions, EditorFrameLayout, EditorFrameOptions, EditorPageLayout} from './frame/EditorFrame'
 import {readStored, writeStored} from './dom-utils'
 
 export interface TweakpaneEditorPluginEventMap extends AViewerPluginEventMap {
@@ -113,16 +113,17 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
         this.dispatchEvent({type: 'documentNameChange', name})
     }
 
-    private _areas = new Map<EditorFrameArea, HTMLElement>()
+    private _areas = new Map<EditorFrameArea, [HTMLElement, EditorFrameAreaOptions]>()
     /**
      * Puts an element in an area of the page frame ({@link EditorFrame.setArea}): `left`, the sidebar left of the canvas,
-     * or `bottom`, the strip below it. `null` empties the area. The plugin keeps the element when it makes the frame again
-     * (at {@link loadPlugins}, and after the classic layout, which has no areas).
+     * or `bottom`, the strip below it, with an entry in the mode bar (`options`: its name and icon). `null` empties the
+     * area. The plugin keeps the element when it makes the frame again (at {@link loadPlugins}, and after the classic
+     * layout, which has no areas).
      */
-    setArea(area: EditorFrameArea, element: HTMLElement | null) {
-        if (element) this._areas.set(area, element)
+    setArea(area: EditorFrameArea, element: HTMLElement | null, options: EditorFrameAreaOptions = {}) {
+        if (element) this._areas.set(area, [element, options])
         else this._areas.delete(area)
-        this.frame?.setArea(area, element)
+        this.frame?.setArea(area, element, options)
     }
 
     private _layout: EditorPageLayout = readStoredLayout() ?? TweakpaneEditorPlugin.DefaultLayout
@@ -218,7 +219,7 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
         })
         this.frame.modeBar.select(this._selectedMode)
         this.frame.documentName = this._documentName
-        for (const [area, element] of this._areas) this.frame.setArea(area, element)
+        for (const [area, [element, options]] of this._areas) this.frame.setArea(area, element, options)
         // the mode bar keeps the names shown or hidden (its toggle button, the stored state): the checkbox follows it
         this.frame.modeBar.onExpandedChange = () => this.uiConfig.uiRefresh?.(true)
     }
