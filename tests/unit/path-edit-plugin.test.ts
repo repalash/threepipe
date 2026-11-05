@@ -61,6 +61,10 @@ class FakeElement extends Listeners {
     get childNodes() {
         return this.innerHTML ? [this.innerHTML] : []
     }
+    /** Node.contains: this element or one inside it */
+    contains(node: any): boolean {
+        return node === this || this.children.some(c => c.contains(node))
+    }
     setAttribute(k: string, v: string) {
         this.attributes[k] = v
     }
@@ -154,7 +158,7 @@ function setup({withUndo = true} = {}) {
         win.fire('pointerup', up)
         return {down, move, up}
     }
-    const key = (k: string, target: any = {tagName: 'CANVAS'}) => {
+    const key = (k: string, target: any = canvas) => {
         const e = {key: k, target, preventDefault: vi.fn(), stopImmediatePropagation: vi.fn()}
         win.fire('keydown', e)
         return e
@@ -304,6 +308,29 @@ describe('PathEditPlugin', () => {
         drag(from, new Vector3(1.5, 2, 0))
         const p = screen(new Vector3(curve.points[1].x, curve.points[1].y, 0).applyMatrix4(o.matrixWorld))
         expect(Math.hypot(p.clientX - target.clientX, p.clientY - target.clientY)).toBeLessThan(0.5)
+    })
+
+    test('keys are for this viewer only: not from another viewer or a panel; on the page after a press here', () => {
+        const {plugin, line, key, click, ev, screen} = setup()
+        const curve = spline()
+        plugin.edit(line(curve))
+        click(new Vector3(0, 2, 0)) // selects the middle point
+        expect(plugin.selectedPoint).toBe(1)
+        // a menu button or another viewer's canvas, outside this container
+        const other = new FakeElement('button')
+        const fromMenu = key('Escape', other)
+        expect(fromMenu.preventDefault).not.toHaveBeenCalled()
+        expect(key('Delete', other).preventDefault).not.toHaveBeenCalled()
+        expect(plugin.getPoints().length).toBe(3)
+        // on the page after a press in another viewer: not ours
+        win.fire('pointerdown', ev(screen(new Vector3(0, 0, 0)), {target: other}))
+        expect(key('Delete', document.body).preventDefault).not.toHaveBeenCalled()
+        expect(plugin.getPoints().length).toBe(3)
+        // on the page after a press here: ours
+        win.fire('pointerdown', ev(screen(new Vector3(-2, -2, 0))))
+        expect(key('Delete', document.body).preventDefault).toHaveBeenCalled()
+        expect(plugin.getPoints().length).toBe(2) // removePoint sets a new curve
+        expect(plugin.editing).not.toBe(null)
     })
 
     test('a press away from the handles is not taken (orbit, picking)', () => {
