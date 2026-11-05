@@ -3,6 +3,7 @@ import {IMaterial, IObject3D, IObject3DEventMap} from '../../core'
 import {basicObjectConstraints, ConstraintPropsType, TConstraintPropsType} from './helpers/BasicObjectConstraints'
 import {getOrCall, onChange, serializable, serialize} from 'ts-browser-helpers'
 import {generateUiConfig, uiDropdown, uiFolderContainer, uiInput, UiObjectConfig, uiSlider, uiToggle} from 'uiconfig.js'
+import {UiTags} from '../../ui/uiconfig'
 import {generateUUID} from '../../three'
 import type {AnimationObjectPlugin} from '../animation/AnimationObjectPlugin'
 
@@ -225,14 +226,14 @@ export class ObjectConstraintsPlugin extends AViewerPluginSync<ObjectConstraints
         obj.uiConfig?.children?.push({
             type: 'folder',
             label: 'Constraints',
-            tags: ['constraints', ObjectConstraintsPlugin.PluginType],
+            tags: [UiTags.Constraints, ObjectConstraintsPlugin.PluginType],
             children: [
                 ()=>obj.userData.constraints?.map(c=>c.uiConfig),
                 {
                     type: 'button',
                     label: 'Add Constraint',
                     icon: 'plus',
-                    tags: ['context-menu', 'header-action'],
+                    tags: [UiTags.ContextMenu, UiTags.HeaderAction],
                     onClick: () => {
                         const c = this.addConstraint(obj as any)
                         return ()=> this.removeConstraint(obj as any, c) // undo function
@@ -407,7 +408,7 @@ export class ObjectConstraint<T extends TConstraintPropsType = TConstraintPropsT
     uiConfig: UiObjectConfig = {
         type: 'folder',
         label: () => this.type || 'Constraint',
-        tags: ['constraint', ObjectConstraintsPlugin.PluginType],
+        tags: [UiTags.Constraint, ObjectConstraintsPlugin.PluginType],
         onChange: this.setDirty,
         children: [
             ...generateUiConfig(this),
@@ -423,7 +424,7 @@ export class ObjectConstraint<T extends TConstraintPropsType = TConstraintPropsT
             },
             {
                 type: 'button',
-                tags: ['context-menu'],
+                tags: [UiTags.ContextMenu],
                 label: 'Remove Constraint',
                 icon: 'cross',
                 property: [this, 'remove'],

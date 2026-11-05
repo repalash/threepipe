@@ -12,7 +12,7 @@ All notable changes to this plugin will be documented in this file.
 
 ### Changed
 
-- Update `three-mesh-bvh` (bundled, optional `peerDependency`) from `^0.7.4` to `^0.9.16`. `SVGMesh` builds its BVH with `targetLeafSize: 1` (was the deprecated `maxLeafTris`), and `SVGMeshOptions.bvhOptions` is a `BVHOptions` (was the deprecated `MeshBVHOptions`, the same fields)
+- Update `three-mesh-bvh` (bundled, optional `peerDependency`) from `^0.7.4` to `^0.9.18`. `SVGMesh` builds its BVH with `targetLeafSize: 1` (was the deprecated `maxLeafTris`), and `SVGMeshOptions.bvhOptions` is a `BVHOptions` (was the deprecated `MeshBVHOptions`, the same fields)
 
 ## [0.2.6] - 2026-10-23
 

@@ -147,6 +147,22 @@ export interface IMaterialUserData extends IImportResultUserData{
      */
     disposeOnIdle?: boolean
 
+    /**
+     * Draw the material into the GBuffer of `GBufferPlugin` (depth, normal and flags), the depth of `DepthBufferPlugin`,
+     * and the normal buffer of `NormalBufferPlugin` when its `renderTransparent` is `false`. SSAO, SSR, depth of field and
+     * outlines see only the materials drawn there. {@link renderToDepth} takes precedence over it when set.
+     * - `true`: drawn, also when transparent or transmissive.
+     * - `false`: not drawn, and no flags are written for its pixels (see {@link renderToFlags}). `pluginsDisabled` acts
+     * as `false`.
+     * - not set: an opaque material is drawn. A transparent material is drawn only when it looks opaque: an opacity above
+     * 0.99, and no `map` or `alphaMap`. A transmissive material is not drawn.
+     *
+     * A material that is drawn keeps the cut-out shape of its `map` and `alphaMap` alpha, as in the render: pixels with an
+     * alpha below its `alphaTest` are left out, and all the others write depth and normal. With `alphaTest` 0 nothing is cut.
+     * For foliage, lace and decals, use an opaque material with `alphaTest` (glTF `alphaMode: MASK`): it is drawn with its
+     * shape. A blended material (`transparent: true` with an alpha texture, glTF `BLEND`) is not drawn unless this is
+     * `true`, and then all its pixels write depth, also the transparent ones, so set `alphaTest` with it.
+     */
     renderToGBuffer?: boolean
     /**
      * Same as {@link renderToGBuffer}, and takes precedence over it, for the passes that render depth:
@@ -154,6 +170,22 @@ export interface IMaterialUserData extends IImportResultUserData{
      * `renderTransparent` is `false`. When not set, {@link renderToGBuffer} is used.
      */
     renderToDepth?: boolean
+    /**
+     * Write the GBuffer flags (tone mapping, bloom, SSAO and the others of `GBufferPlugin`) for the pixels of the
+     * material even when it is not drawn into the GBuffer, for example with `renderToGBuffer: false`. Such a material
+     * then writes only the flags texture: no depth and no normal, so it does not change SSAO, SSR, depth of field or
+     * outlines. It is drawn after the other objects, without depth write, with its own depth test, and its pixels with
+     * an alpha (from `map`, `alphaMap` and `alphaTest`) of about 0 are left out.
+     *
+     * Overlays like the helper widgets use it with `toneMapped: false`, so that the screen pass does not tone map them and
+     * they keep their exact color.
+     *
+     * When not set, the flags are written where the material is drawn into the GBuffer ({@link renderToDepth}, then
+     * {@link renderToGBuffer}), as before. A material that is drawn into the GBuffer always writes its flags.
+     * Needs the flags texture (`GBufferPlugin.renderFlagsBuffer`, on by default) and a material that the `GBufferMaterial`
+     * draws: one with `allowOverride` true, or a fat line (its `customGBufferMaterial`). Not used with `pluginsDisabled`.
+     */
+    renderToFlags?: boolean
 
     /**
      * Flag to tell the scene to prefer `material.envMapIntensity` over `scene.environmentIntensity`

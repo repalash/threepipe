@@ -8,6 +8,7 @@ setupTestHooks()
 // The beforeEach hook handles all of this — the test body just verifies the page title.
 
 test('3d-tiles-renderer', async({page}) => expect(page).toHaveTitle('3d Tiles Renderer'))
+// annotations-plugin — covered by interactive test
 test('directional-light', async({page}) => expect(page).toHaveTitle('Directional Light'))
 test('drc-load', async({page}) => expect(page).toHaveTitle('DRACO(DRC) Load'))
 test('dropzone-plugin', async({page}) => expect(page).toHaveTitle('Dropzone Plugin'))
@@ -97,6 +98,7 @@ test('gltf-transmission-test-msaa-zprepass', async({page}) => expect(page).toHav
 test('hdri-ground-plugin', async({page}) => expect(page).toHaveTitle('HDRi Ground Plugin'))
 test('hemisphere-light', async({page}) => expect(page).toHaveTitle('Hemisphere Light'))
 test('hierarchy-ui-plugin', async({page}) => expect(page).toHaveTitle('Hierarchy UI Plugin'))
+test('selection-outline-plugin', async({page}) => expect(page).toHaveTitle('Selection Outline Plugin'))
 test('ui-config-form', async({page}) => expect(page).toHaveTitle('UiConfig Form'))
 // test('html-js-sample', async({page}) => expect(page).toHaveTitle('Threepipe HTML/JS Sample')) // sample - no testFinish
 test('i3dm-load', async({page}) => expect(page).toHaveTitle('I3DM (Instanced 3D Model, OGC Tiles) Load'))
@@ -160,6 +162,7 @@ test('troika-text-shadow', async({page}) => expect(page).toHaveTitle('Troika Thr
 test('tweakpane-ui-plugin', async({page}) => expect(page).toHaveTitle('Tweakpane Ui Plugin'))
 test('velocity-buffer-plugin', async({page}) => expect(page).toHaveTitle('Velocity Buffer Plugin'))
 test('viewer-render-size', async({page}) => expect(page).toHaveTitle('Viewer Render Size'))
+test('view-overrides-plugin', async({page}) => expect(page).toHaveTitle('View Overrides Plugin'))
 test('vignette-plugin', async({page}) => expect(page).toHaveTitle('Vignette Plugin'))
 test('virtual-camera', async({page}) => expect(page).toHaveTitle('Virtual Camera'))
 test('virtual-cameras-plugin', async({page}) => expect(page).toHaveTitle('Virtual Cameras Plugin'))

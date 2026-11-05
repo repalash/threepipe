@@ -418,3 +418,13 @@ describe('tweakpane editor frame areas', () => {
         })
     }
 })
+
+describe('tweakpane editor classic page', () => {
+    it('the mode tabs are as wide as their buttons, in the middle of the top', () => {
+        // the CSS minifier of the build keeps only the last declaration of a property: a vendor fallback after
+        // `fit-content` (like `-moz-fit-content`) is the one kept, and Chrome drops it, so the bar took the full width
+        expect(declarations('.button-bar', desktop).width).toBe('fit-content')
+        const tabs = declarations('.mode-buttons-container', desktop)
+        expect([tabs.left, tabs.right, tabs['margin-left'], tabs['margin-right']]).toEqual(['0', '0', 'auto', 'auto'])
+    })
+})
