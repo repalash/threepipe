@@ -1,5 +1,9 @@
 set -euo pipefail
 
+# Builds what it copies: since npm workspaces (#93) nothing is built during npm install, and docs-all builds only the
+# packages other packages' docs need (not the core), so a fresh checkout (Cloudflare Pages runs only this script) has no
+# dist. Core and plugins come from the turbo cache when already built (GitHub Pages restores it).
+npm run build:all
 npm run docs-all
 rm -rf _site
 mkdir _site
