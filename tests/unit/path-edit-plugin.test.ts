@@ -259,6 +259,26 @@ describe('PathEditPlugin', () => {
         expect(arr(curve.points[1])).toEqual([1, 3, 0])
     })
 
+    test('an undo during a drag ends the drag first: the point comes back, no undo step on release, redo works', () => {
+        const {plugin, line, press, ev, screen, undoManager} = setup()
+        const curve = spline()
+        plugin.edit(line(curve))
+        plugin.movePoint(0, new Vector3(-4, 0, 0))
+        press(new Vector3(0, 2, 0))
+        win.fire('pointermove', ev(screen(new Vector3(1, 3, 0)), {buttons: 1}))
+        expect(arr(curve.points[1])).toEqual([1, 3, 0])
+        undoManager.undo()
+        expect(arr(curve.points[1])).toEqual([0, 2, 0])
+        expect(arr(curve.points[0])).toEqual([-3, 0, 0])
+        // the rest of the gesture changes nothing and records nothing
+        win.fire('pointermove', ev(screen(new Vector3(2, 3, 0)), {buttons: 1}))
+        win.fire('pointerup', ev(screen(new Vector3(2, 3, 0))))
+        expect(arr(curve.points[1])).toEqual([0, 2, 0])
+        expect(undoManager.canUndo()).toBe(false)
+        undoManager.redo()
+        expect(arr(curve.points[0])).toEqual([-4, 0, 0])
+    })
+
     test('a second finger does not move or end the drag of the first one', () => {
         const {plugin, line, press, ev, screen, undoManager} = setup()
         const curve = spline()

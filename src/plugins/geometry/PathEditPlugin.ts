@@ -272,6 +272,8 @@ export class PathEditPlugin extends AViewerPluginSync<PathEditPluginEventMap> {
     }
 
     private _restore = (s: CurveState) => {
+        // an undo or redo during a drag: the drag ends first (its press state comes back, with no undo step)
+        this._layer.cancelDrag()
         if (curveOf(s.object) !== s.curve) this._setCurve(s.object, s.curve)
         restoreCurve(s.curve, s.values)
         const n = getCurveEditPoints(s.curve).length
