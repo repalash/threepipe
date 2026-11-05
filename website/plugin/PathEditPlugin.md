@@ -4,8 +4,8 @@ prev:
     link: './ShapeTubeExtrudePlugin'
 
 next:
-    text: 'GLTFKHRMaterialVariantsPlugin'
-    link: './GLTFKHRMaterialVariantsPlugin'
+    text: 'PenToolPlugin'
+    link: './PenToolPlugin'
 
 ---
 

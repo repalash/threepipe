@@ -1,7 +1,7 @@
 ---
 prev:
-    text: 'PathEditPlugin'
-    link: './PathEditPlugin'
+    text: 'PenToolPlugin'
+    link: './PenToolPlugin'
 
 next:
     text: 'SimplifyModifierPlugin'

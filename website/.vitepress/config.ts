@@ -179,6 +179,7 @@ export default defineConfig({
               {text: 'GeometryGeneratorPlugin', link: 'plugin/GeometryGeneratorPlugin'},
               {text: 'ShapeTubeExtrudePlugin', link: 'plugin/ShapeTubeExtrudePlugin'},
               {text: 'PathEditPlugin', link: 'plugin/PathEditPlugin'},
+              {text: 'PenToolPlugin', link: 'plugin/PenToolPlugin'},
               {text: 'GLTFKHRMaterialVariantsPlugin', link: 'plugin/GLTFKHRMaterialVariantsPlugin'},
               {text: 'SimplifyModifierPlugin', link: 'plugin/SimplifyModifierPlugin'},
               {text: 'MeshOptSimplifyModifierPlugin', link: 'plugin/MeshOptSimplifyModifierPlugin'},

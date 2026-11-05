@@ -107,6 +107,7 @@ export {createShapeFromPreset, reverseShapeWinding} from './geometry/helpers/Sha
 export {curveUiConfigs, createCurveTypeDropdown, createCurvePropertyUi, type CurveUiEntry, type SupportedCurveTypes} from './geometry/helpers/CurveUiHelper'
 export {ShapeTubeExtrudePlugin} from './geometry/ShapeTubeExtrudePlugin'
 export {PathEditPlugin, type PathEditPluginEventMap} from './geometry/PathEditPlugin'
+export {PenToolPlugin, type PenToolOptions, type PenToolPluginEventMap} from './geometry/PenToolPlugin'
 
 // extras
 export {HDRiGroundPlugin} from './extras/HDRiGroundPlugin'

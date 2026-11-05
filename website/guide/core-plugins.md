@@ -135,6 +135,7 @@ Plugins to configure export options and methods for different file formats.
 - [GeometryGeneratorPlugin](../plugin/GeometryGeneratorPlugin) - Generate parametric geometries (plane, box, sphere, circle, torus, cylinder, tube, shape, tubeShape, line) that can be re-generated from UI/API.
 - [ShapeTubeExtrudePlugin](../plugin/ShapeTubeExtrudePlugin) - Interactive extrusion of flat geometry along a curve path, with configurable cross-sections and multi-material splits.
 - [PathEditPlugin](../plugin/PathEditPlugin) - Edit the points of generated lines on the screen: drag points and Bezier handles, add and remove points, with undo.
+- [PenToolPlugin](../plugin/PenToolPlugin) - Draw 3D paths like the pen of Figma or Illustrator: click points, drag Bezier handles, close the path; the result is an editable GeometryGenerator line.
 - [GLTFKHRMaterialVariantsPlugin](../plugin/GLTFKHRMaterialVariantsPlugin) - Support using for variants from KHR_materials_variants extension in gltf models.
 - [SimplifyModifierPlugin](../plugin/SimplifyModifierPlugin) - Boilerplate for plugin to simplify geometries
 - [MeshOptSimplifyModifierPlugin](../plugin/MeshOptSimplifyModifierPlugin) - Simplify geometries using meshoptimizer library
