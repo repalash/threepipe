@@ -32,12 +32,15 @@ export function readThemeColor(storage: Pick<Storage, 'getItem'> | undefined, de
 }
 
 /**
- * Keeps the colour mode with the default of now, for {@link readThemeColor}
+ * Keeps the colour mode with the default of now, for {@link readThemeColor}. Nothing is written when the colour mode is
+ * the one that {@link readThemeColor} gives now (the value that the page sets when it opens), so a pick is not marked as
+ * a default when the default happens to be the same for a while (a change of the system setting).
  * @param storage - `localStorage`, or undefined where the page has none
  * @param color - the colour mode
  * @param defaultColor - the default of now ({@link defaultThemeColor})
  */
-export function writeThemeColor(storage: Pick<Storage, 'setItem'> | undefined, color: ThemeColors, defaultColor: ThemeColors) {
-    storage?.setItem(ThemeStorageKey, color)
-    storage?.setItem(ThemeDefaultStorageKey, defaultColor)
+export function writeThemeColor(storage: Pick<Storage, 'getItem' | 'setItem'> | undefined, color: ThemeColors, defaultColor: ThemeColors) {
+    if (!storage || readThemeColor(storage, defaultColor) === color) return
+    storage.setItem(ThemeStorageKey, color)
+    storage.setItem(ThemeDefaultStorageKey, defaultColor)
 }

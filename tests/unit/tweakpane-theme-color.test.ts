@@ -23,10 +23,26 @@ describe('Tweakpane colour mode in localStorage', () => {
 
     test('a kept value that was the default when it was written follows a new default', () => {
         const s = storage()
-        writeThemeColor(s, 'clean', 'clean') // the first visit writes the default
+        writeThemeColor(s, 'clean', 'clean') // the first visit sets the default: nothing to keep
+        expect(s.map.size).toBe(0)
+        writeThemeColor(s, 'blue', 'clean')
+        writeThemeColor(s, 'clean', 'clean') // the person picks the default again
         expect(s.map.get(ThemeDefaultStorageKey)).toBe('clean')
         expect(readThemeColor(s, 'clean')).toBe('clean')
         expect(readThemeColor(s, 'clean-dark')).toBe('clean-dark') // the system setting or the default changed
+    })
+
+    test('a pick stays when the system setting matches it for a while (light, dark, light)', () => {
+        const s = storage()
+        const open = (system: 'clean' | 'clean-dark') => {
+            const color = readThemeColor(s, system) // the constructor
+            writeThemeColor(s, color, system) // and its write of the colour mode
+            return color
+        }
+        expect(open('clean')).toBe('clean')
+        writeThemeColor(s, 'clean-dark', 'clean') // picked on a light system
+        expect(open('clean-dark')).toBe('clean-dark')
+        expect(open('clean')).toBe('clean-dark')
     })
 
     test('a colour mode that the person picked stays when the default changes', () => {
