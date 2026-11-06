@@ -373,6 +373,62 @@ describe('InspectorPlugin', () => {
         }
     })
 
+    test('the search shows the settings whose name has the text, and the folders whose title has it; Escape clears it', () => {
+        const {el} = setup()
+        picking.select(mesh(new PhysicalMaterial()))
+        // the rows that the renderer builds in the body: settings (a label, or a button title) and folders (a title)
+        const node = (cls: string, text = '', ...children: FakeElement[]) => {
+            const n = new FakeElement('div')
+            n.className = cls
+            n.textContent = text
+            children.forEach(c => n.appendChild(c))
+            return n
+        }
+        const setting = (label: string) => node('tp-lblv', '', node('tp-lblv_l', label))
+        const button = (title: string) => node('tp-lblv', '', node('tp-lblv_l'), node('tp-btnv', '', node('tp-btnv_t', title)))
+        const folder = (title: string, ...rows: FakeElement[]) => node('tp-fldv', '', node('tp-fldv_b', '', node('tp-fldv_t', title)), node('tp-fldv_c', '', ...rows))
+        const body = el.find('isp-body')[0]
+        const position = setting('Position'), scale = setting('Scale'), focus = button('Focus')
+        const color = setting('Color'), shadowsBias = setting('Bias')
+        const shadows = folder('Shadows', shadowsBias)
+        const render = folder('Render', color, shadows)
+        body.appendChild(node('tp-rotv', '', node('tp-rotv_c', '', focus, position, scale, render)))
+        const search = el.find('isp-search')[0]
+        const missing = () => [position, scale, focus, color, shadowsBias, shadows, render].filter(r => r.classList.contains('isp-miss')).length
+        const type = (text: string) => {
+            search.value = text
+            search.fire('input')
+        }
+        type('sc')
+        expect([position, scale, render].map(r => r.classList.contains('isp-miss'))).toEqual([true, false, true])
+        expect(body.classList.contains('isp-searching')).toBe(true)
+        // a setting in a nested folder: the folders around it show
+        type(' BIAS ')
+        expect([render, shadows, shadowsBias, color].map(r => r.classList.contains('isp-miss'))).toEqual([false, false, false, true])
+        // a folder title: all its settings
+        type('render')
+        expect([render, shadows, shadowsBias, color, position].map(r => r.classList.contains('isp-miss'))).toEqual([false, false, false, false, true])
+        // a button title
+        type('focus')
+        expect(focus.classList.contains('isp-miss')).toBe(false)
+        expect(el.find('isp-empty').filter(e => e.textContent.startsWith('No settings'))[0].style.display).toBe('none')
+        type('nothing like it')
+        expect(el.find('isp-empty').filter(e => e.textContent.startsWith('No settings'))[0].style.display).toBe('')
+        // a new selection keeps the search
+        picking.select(mesh(new PhysicalMaterial()))
+        expect(missing()).toBe(7)
+        // Escape clears it, and does not reach the PickingPlugin (which clears the selection)
+        const stopPropagation = vi.fn()
+        search.fire('keydown', {key: 'Escape', stopPropagation})
+        expect(search.value).toBe('')
+        expect(stopPropagation).toHaveBeenCalled()
+        expect(missing()).toBe(0)
+        expect(body.classList.contains('isp-searching')).toBe(false)
+        // with no text, Escape goes on to the PickingPlugin
+        search.fire('keydown', {key: 'Escape', stopPropagation})
+        expect(stopPropagation).toHaveBeenCalledTimes(1)
+    })
+
     test('the material preview is asked for on the Material tab only, with the shape and the view', () => {
         const {inspector, el} = setup()
         const a = mesh(new PhysicalMaterial())

@@ -94,6 +94,8 @@ class InspectorUiRenderer extends TweakpaneUiPlugin {
  *   inspector is in the page and enabled, the plugin turns off the selection UI of the PickingPlugin
  *   ({@link PickingPlugin.selectionUi}), since a uiConfig renders in one UI at a time; out of the page (the classic
  *   layout of the editor) the PickingPlugin shows the selection again, from the next change of the selection.
+ * - A search field above the settings shows only the settings whose name has the text, and the folders whose title has
+ *   it (with all their settings); the folders open while it has text. Escape in it clears it.
  * - A right-click on a setting (a long press on a touch screen) offers Reset to default, when its value is not the default
  *   of its class (the value of a new object of the same class), with undo.
  * - Escape (the PickingPlugin) clears the selection.
@@ -174,7 +176,9 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
     private _previewBody: HTMLDivElement
     private _canvas: HTMLCanvasElement
     private _shapesEl: HTMLDivElement
+    private _search: HTMLInputElement
     private _body: HTMLDivElement
+    private _noMatch: HTMLDivElement
     private _empty: HTMLDivElement
 
     private _ui?: InspectorUiRenderer
@@ -246,7 +250,24 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
                 this.uiConfig?.uiRefresh?.(true)
             })
         }
+        this._search = this.element.appendChild(el('input', 'isp-search'))
+        this._search.type = 'search'
+        this._search.placeholder = 'Search settings'
+        this._search.setAttribute('aria-label', 'Search the settings of the selection')
+        this._search.addEventListener('input', () => this._applySearch())
+        this._search.addEventListener('keydown', (e: KeyboardEvent) => {
+            // Escape clears the text first; the next one clears the selection (the PickingPlugin)
+            if (e.key !== 'Escape' || !this._search.value) return
+            e.stopPropagation()
+            this._search.value = ''
+            this._applySearch()
+        })
         this._body = this.element.appendChild(el('div', 'isp-body'))
+        // the renderer builds and rebuilds its rows (a refresh, a dynamic folder): the search applies to the new ones too
+        if (typeof MutationObserver !== 'undefined') new MutationObserver(() => this._applySearch()).observe(this._body, {childList: true, subtree: true})
+        this._noMatch = this.element.appendChild(el('div', 'isp-empty'))
+        this._noMatch.textContent = 'No settings match the search'
+        this._noMatch.style.display = 'none'
         this._empty = this.element.appendChild(el('div', 'isp-empty'))
         this._empty.textContent = 'Select an object in the viewport or in the layers'
         this._setupPreviewControls()
@@ -489,6 +510,16 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
         this._empty.style.display = tabs.length ? 'none' : ''
         this._requestPreview()
         this._renderCards()
+        this._applySearch()
+    }
+
+    /** Shows the settings that match the text of the search field (all of them when it is empty) */
+    private _applySearch() {
+        if (!this._search) return // the first set of the settings, before the constructor makes the elements
+        const q = this._search.value.trim().toLowerCase()
+        this._body.classList.toggle('isp-searching', !!q)
+        const any = filterRows(this._body, q, !q)
+        this._noMatch.style.display = q && !any && this._tabs().length ? '' : 'none'
     }
 
     /**
@@ -744,6 +775,42 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
         await this._ui?.methods.setValue(config, value as any, {last: true}, true, true)
         config.uiRefresh?.(true, 'postFrame')
     }
+}
+
+/** The text of the first element with the class `cls` in `node`, lower case */
+function textOf(node: Element, cls: string): string {
+    for (const c of Array.from(node.children)) {
+        if (c.classList.contains(cls)) return (c.textContent ?? '').toLowerCase()
+        const t = textOf(c, cls)
+        if (t) return t
+    }
+    return ''
+}
+
+/**
+ * Hides the rows of the Tweakpane UI in `node` (class `isp-miss`) that do not match `q`: a setting whose label (or button
+ * title) has it, or any setting in a folder whose title has it. A folder shows while it has a row that shows.
+ * @param shown - an outer folder matches: all rows show
+ * @returns whether a row shows
+ */
+function filterRows(node: Element, q: string, shown: boolean): boolean {
+    const cl = node.classList
+    if (cl.contains('tp-fldv')) {
+        const head = Array.from(node.children).find(c => c.classList.contains('tp-fldv_b'))
+        const match = shown || !!head && textOf(head, 'tp-fldv_t').includes(q)
+        let any = false
+        for (const c of Array.from(node.children)) if (c !== head) any = filterRows(c, q, match) || any
+        cl.toggle('isp-miss', !(match || any))
+        return match || any
+    }
+    if (cl.contains('tp-lblv')) {
+        const visible = shown || (textOf(node, 'tp-lblv_l') + ' ' + textOf(node, 'tp-btnv_t')).includes(q)
+        cl.toggle('isp-miss', !visible)
+        return visible
+    }
+    let any = false
+    for (const c of Array.from(node.children)) any = filterRows(c, q, shown) || any
+    return any
 }
 
 /** The same value: equal primitives, or objects with `equals` (vectors, colours, eulers) */
