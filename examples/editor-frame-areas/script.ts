@@ -29,21 +29,24 @@ async function init() {
     const layout = getUrlQueryParam('layout') as EditorPageLayout | null
     if (layout) editor.layout = layout
 
-    // Elements in the left area and in the bottom area of the page frame. A list is a stack: the area is split between
-    // the elements, with a line between two (in the floating layout each element is a card, and the split is a gap with
-    // drag dots). Each area gets one entry in the mode bar, after the modes, with a name, an icon and a colour. The
-    // plugin keeps the elements when it makes the frame again (a change of the layout). setArea(area, null) empties it.
-    editor.setArea('left', [sampleArea('Left area', [
+    // Panels in the places of the page frame. The panels of a place are a stack: the place is split between them, with
+    // a line between two (in the floating layout each panel is a card, and the split is a gap with drag dots). Each panel
+    // has an entry in the mode bar, after the modes, with a name, an icon and a colour: a tap shows or hides it, a
+    // right-click (a long press on a touch screen) moves it to another place. The plugin keeps the panels when it makes
+    // the frame again (a change of the layout); removePanel(id) takes one out.
+    editor.addPanel('notes', sampleArea('Left area', [
         'Drag the inner edge to resize, past half of the smallest size to collapse; double-click it for the default size.',
         'Floating layout: drag the dots in the gap at the window edge to move the card; double-click them to put it back.',
         'Floating layout: drag the top or the bottom edge to make the card shorter; double-click it to fill the side.',
-        'The entry in the mode bar shows or hides this area. In a narrow window, the areas show in the place of the panel, one at a time.',
-    ]), sampleArea('Second element', [
-        'A stack: drag the line (the dots in the floating layout) above this element to move the split; double-click it for equal sizes.',
-    ])], {name: 'Notes', icon: ICON_LIST, color: '#7c5cff'})
-    editor.setArea('bottom', [sampleArea('Bottom area', [
-        'A strip below the canvas, between the left area and the panel: a timeline, a console, a list of assets.',
-    ], true), sampleArea('Console', ['The bottom area stacks its elements left to right.'])], {name: 'Timeline', icon: ICON_CLOCK, color: '#f59e0b'})
+        'The entry in the mode bar shows or hides this panel; a right-click on it moves it to another place. In a narrow window, the places show in the place of the panel, one at a time.',
+    ]), {name: 'Notes', icon: ICON_LIST, color: '#7c5cff', area: 'left'})
+    editor.addPanel('second', sampleArea('Second panel', [
+        'A stack: drag the line (the dots in the floating layout) above this panel to move the split; double-click it for equal sizes.',
+    ]), {name: 'Second', icon: ICON_LIST, color: '#10b981', area: 'left'})
+    editor.addPanel('timeline', sampleArea('Bottom place', [
+        'A strip below the canvas, between the left place and the panel: a timeline, a console, a list of assets.',
+    ], true), {name: 'Timeline', icon: ICON_CLOCK, color: '#f59e0b', area: 'bottom'})
+    editor.addPanel('console', sampleArea('Console', ['The bottom place stacks its panels left to right.']), {name: 'Console', icon: ICON_LIST, color: '#ef4444', area: 'bottom'})
 
     await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
     await viewer.load('https://samples.threepipe.org/minimal/DamagedHelmet/glTF/DamagedHelmet.gltf', {autoCenter: true, autoScale: true})

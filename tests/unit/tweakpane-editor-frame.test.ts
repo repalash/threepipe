@@ -113,6 +113,12 @@ class FakeElement {
     get lastElementChild() {
         return this.children[this.children.length - 1] ?? null
     }
+    get firstElementChild() {
+        return this.children[0] ?? null
+    }
+    prepend(c: FakeElement) {
+        this.insertBefore(c, this.children[0] ?? null)
+    }
     get parentElement() {
         return this.parent ?? null
     }
@@ -187,10 +193,18 @@ class FakeElement {
         this._listeners.set(type, (this._listeners.get(type) ?? []).filter(x => x !== f))
     }
     fire(type: string, e: any = {}) {
+        // stopImmediatePropagation stops the next listeners of this element, as in a page
+        let stopped = false
         const event = {target: this, currentTarget: this, defaultPrevented: false, preventDefault: () => {
             event.defaultPrevented = true
-        }, stopPropagation: () => {}, ...e}
-        for (const f of this._listeners.get(type) ?? []) f(event)
+        }, stopPropagation: () => {}, ...e, stopImmediatePropagation: () => {
+            stopped = true
+            e.stopImmediatePropagation?.()
+        }}
+        for (const f of this._listeners.get(type) ?? []) {
+            f(event)
+            if (stopped) break
+        }
         return event
     }
     all(): FakeElement[] {
@@ -250,6 +264,15 @@ const {EditorFrame} = await import('../../plugins/tweakpane-editor/src/frame/Edi
 const {TweakpaneEditorPlugin} = await import('../../plugins/tweakpane-editor/src/TweakpaneEditorPlugin')
 
 const host = () => ({modeKeys: ['Viewer', 'Export'], setSelectedMode: vi.fn()})
+/**
+ * Fills a place with panels, one for each element, with the ids `<area><index>` in order (and takes out the panels of
+ * those ids that were there): what a test of a stack needs. Works on an EditorFrame and on a TweakpaneEditorPlugin.
+ */
+const place = (f: {removePanel(id: string): void, addPanel(id: string, el: any, o?: any): void}, area: 'left' | 'bottom' | 'right', el: any, options?: any) => {
+    for (let i = 0; i < 10; i++) f.removePanel(area + i)
+    const els = el === null ? [] : Array.isArray(el) ? el : [el]
+    els.forEach((e: any, i: number) => f.addPanel(area + i, e, {...Array.isArray(options) ? options[i] : i === 0 ? options : {}, area}))
+}
 const body = () => doc.body as FakeElement
 /** The number of tooltips that show on a hover of a button: its own, and the singleton's for its group */
 const tipsOnHover = (b: FakeElement) => (b._tippy!.state.isEnabled ? 1 : 0) +
@@ -429,6 +452,8 @@ describe('EditorFrame', () => {
 
 describe('EditorFrame areas', () => {
     const area = (name: string) => body().find('lay-area-' + name)
+    /** The elements of the panels of a place: each panel is in a section */
+    const els = (name: string) => area(name)[0].children.filter(c => c.classList.contains('lay-section')).map(c => c.children[0])
     /** The parts of the frame in the body, and in the mode bar (the actions of the floating layout) */
     const structure = (f: InstanceType<typeof EditorFrame>) => ({
         bars: body().children.filter(c => c.classList.contains('lay-bar')).map(c => ['top', 'bottom', 'head'].find(k => c.classList.contains('lay-' + k))),
@@ -457,16 +482,16 @@ describe('EditorFrame areas', () => {
         test(`${layout}: an element in the left area shows it, and a null empties the area`, () => {
             const f = new EditorFrame(host(), {layout})
             const layers = new FakeElement('div')
-            f.setArea('left', layers as any)
-            expect(area('left')[0].children).toEqual([layers])
+            place(f, 'left', layers as any)
+            expect(els('left')).toEqual([layers])
             expect(body().classList.contains('lay-has-left')).toBe(true)
             expect(body().classList.contains('lay-has-bottom')).toBe(false)
             // another element takes its place
             const catalogue = new FakeElement('div')
-            f.setArea('left', catalogue as any)
-            expect(area('left')[0].children).toEqual([catalogue])
-            expect(layers.parentElement).toBeNull()
-            f.setArea('left', null)
+            place(f, 'left', catalogue as any)
+            expect(els('left')).toEqual([catalogue])
+            expect(area('left')[0].contains(layers)).toBe(false)
+            place(f, 'left', null)
             expect(area('left')[0].children).toHaveLength(0)
             expect(body().classList.contains('lay-has-left')).toBe(false)
         })
@@ -475,12 +500,12 @@ describe('EditorFrame areas', () => {
     test('the areas keep their elements when the layout changes, and go with the frame', () => {
         const f = new EditorFrame(host(), {layout: 'titlebar'})
         const left = new FakeElement('div'), bottom = new FakeElement('div')
-        f.setArea('left', left as any)
-        f.setArea('bottom', bottom as any)
+        place(f, 'left', left as any)
+        place(f, 'bottom', bottom as any)
         for (const layout of ['floating', 'statusbar', 'titlebar'] as const) {
             f.setLayout(layout)
-            expect(area('left')[0].children, layout).toEqual([left])
-            expect(area('bottom')[0].children, layout).toEqual([bottom])
+            expect(els('left'), layout).toEqual([left])
+            expect(els('bottom'), layout).toEqual([bottom])
             expect(structure(f).classes, layout).toEqual(['lay-' + layout, 'lay-frame', 'lay-has-bottom', 'lay-has-left', 'lay-side'].sort())
         }
         f.dispose()
@@ -529,7 +554,7 @@ describe('EditorFrame area sizes', () => {
         expect(storage.has('tpEditorFrameAreas')).toBe(false) // set from code: not kept
         f.setAreaSize('left', null, true)
         expect(sizeVar('--lay-left-area-size')).toBeUndefined()
-        expect(stored()).toEqual({sizes: {right: 600, bottom: 250}, collapsed: {}, stacked: 'right', offsets: {}, spans: {}, splits: {}})
+        expect(stored()).toEqual({sizes: {right: 600, bottom: 250}, collapsed: {}, panels: {}, weights: {}, stacked: 'right', offsets: {}, spans: {}, rightShare: 0.5})
     })
 
     test('the left area and the panel leave room for the canvas next to each other and the mode bar', () => {
@@ -537,7 +562,7 @@ describe('EditorFrame area sizes', () => {
         const panel = new FakeElement('div')
         panel.getBoundingClientRect = () => ({width: 300, height: 800}) as any
         const f = new EditorFrame(host(), {layout: 'titlebar', panel: () => panel as any})
-        f.setArea('left', new FakeElement('div') as any)
+        place(f, 'left', new FakeElement('div') as any)
         area('left').getBoundingClientRect = () => ({width: 480, height: 800}) as any
         const modeBar = f.modeBar.expanded ? EditorModeBar.Widths.wide : EditorModeBar.Widths.narrow
         f.setAreaSize('right', 500)
@@ -554,7 +579,7 @@ describe('EditorFrame area sizes', () => {
         vi.stubGlobal('innerWidth', 1000)
         storage.set('tpEditorModeBarExpanded', '1')
         const f = new EditorFrame(host(), {layout: 'titlebar'})
-        f.setArea('left', new FakeElement('div') as any)
+        place(f, 'left', new FakeElement('div') as any)
         // on screen, the left area has its variable, else the 240 px of the CSS
         area('left').getBoundingClientRect = () => ({width: parseInt(sizeVar('--lay-left-area-size') ?? '240'), height: 800}) as any
         const room = (left: number) => 1000 - left - EditorModeBar.Widths.wide - EditorFrame.MinCanvasWidth
@@ -571,7 +596,7 @@ describe('EditorFrame area sizes', () => {
         storage.set('tpEditorFrameAreas', JSON.stringify({sizes: {left: 400, right: 600}}))
         const f = new EditorFrame(host(), {layout: 'titlebar'}) // the plugin sets the areas after the frame is made
         expect(sizeVar('--tweakpane-ui-container-width')).toBe('600px') // no left area yet
-        f.setArea('left', new FakeElement('div') as any)
+        place(f, 'left', new FakeElement('div') as any)
         const modeBar = f.modeBar.expanded ? EditorModeBar.Widths.wide : EditorModeBar.Widths.narrow
         const left = parseInt(sizeVar('--lay-left-area-size')!), right = parseInt(sizeVar('--tweakpane-ui-container-width')!)
         expect(left + right + modeBar + EditorFrame.MinCanvasWidth).toBeLessThanOrEqual(1200)
@@ -581,7 +606,7 @@ describe('EditorFrame area sizes', () => {
     test('the sizes get smaller when the window gets smaller, and come back when it is wide again', () => {
         vi.stubGlobal('innerWidth', 1440)
         const f = new EditorFrame(host(), {layout: 'titlebar'})
-        f.setArea('left', new FakeElement('div') as any)
+        place(f, 'left', new FakeElement('div') as any)
         // on screen, the width of the left area follows its variable
         area('left').getBoundingClientRect = () => ({width: parseInt(sizeVar('--lay-left-area-size') ?? '240'), height: 800}) as any
         f.setAreaSize('left', 480)
@@ -605,7 +630,7 @@ describe('EditorFrame area sizes', () => {
     test('the sizes are limited again when a collapsed area or the panel opens', () => {
         vi.stubGlobal('innerWidth', 1200)
         const f = new EditorFrame(host(), {layout: 'titlebar'})
-        f.setArea('left', new FakeElement('div') as any)
+        place(f, 'left', new FakeElement('div') as any)
         area('left').getBoundingClientRect = () => ({width: parseInt(sizeVar('--lay-left-area-size') ?? '240'), height: 800}) as any
         const fits = () => {
             const modeBar = f.modeBar.expanded ? EditorModeBar.Widths.wide : EditorModeBar.Widths.narrow
@@ -635,7 +660,7 @@ describe('EditorFrame area sizes', () => {
         expect(f.modeBar.open).toBe(true)
         f.setAreaCollapsed('left', false, true)
         expect(body().classList.contains('lay-collapsed-left')).toBe(false)
-        expect(stored()).toEqual({sizes: {}, collapsed: {left: false}, stacked: 'right', offsets: {}, spans: {}, splits: {}})
+        expect(stored()).toEqual({sizes: {}, collapsed: {left: false}, panels: {}, weights: {}, stacked: 'right', offsets: {}, spans: {}, rightShare: 0.5})
     })
 
     test('a new frame applies the kept sizes and collapsed areas; a stored value that is not of the frame is ignored', () => {
@@ -667,6 +692,131 @@ describe('EditorFrame area sizes', () => {
     }
     const shown = (e: FakeElement) => e.style.display !== 'none'
     const marked = (e: FakeElement) => e.classList.contains('lay-entry-on')
+
+    test('a stack with a list of options: an entry for each element, which shows or hides it; the last one collapses the area', () => {
+        const f = new EditorFrame(host(), {layout: 'titlebar'})
+        const layers = new FakeElement('div'), inspector = new FakeElement('div')
+        place(f, 'left', [layers, inspector] as any, [{name: 'Layers'}, {name: 'Inspector'}])
+        place(f, 'bottom', new FakeElement('div') as any, {name: 'Timeline'})
+        const box = (f.modeBar.element as any as FakeElement).find('lay-area-entries')[0]
+        const all = () => box.find('lay-area-entry').filter(e => e.style.display !== 'none')
+        // in the order of the areas, then of the elements (the right area is empty: no entry)
+        expect(all().map(e => e.getAttribute('aria-label'))).toEqual(['Layers', 'Inspector', 'Timeline'])
+        const [eLayers, eInspector] = all()
+        const sections = body().find('lay-area-left')[0].find('lay-section')
+        const split = body().find('lay-area-left')[0].find('lay-split')[0]
+        const hidden = (e: FakeElement) => e.classList.contains('lay-section-hidden')
+        expect([marked(eLayers), marked(eInspector)]).toEqual([true, true])
+        eLayers.click()
+        expect([hidden(sections[0]), hidden(sections[1]), hidden(split), marked(eLayers), marked(eInspector)]).toEqual([true, false, true, false, true])
+        expect(stored().panels).toEqual({left0: {hidden: true}})
+        // the last shown element: the area collapses, the element stays
+        eInspector.click()
+        expect([f.isAreaCollapsed('left'), hidden(sections[1]), marked(eInspector)]).toEqual([true, false, false])
+        // an entry opens the area with its element
+        eLayers.click()
+        expect([f.isAreaCollapsed('left'), hidden(sections[0]), hidden(sections[1]), hidden(split)]).toEqual([false, false, false, false])
+    })
+
+    test('a right-click on the entry of a panel opens its Move menu: the places, its own checked; a pick moves it, kept', () => {
+        const f = new EditorFrame(host(), {layout: 'titlebar'})
+        const layers = new FakeElement('div')
+        f.addPanel('layers', layers as any, {name: 'Layers', area: 'left'})
+        f.addPanel('timeline', new FakeElement('div') as any, {name: 'Timeline', area: 'bottom'})
+        const box = (f.modeBar.element as any as FakeElement).find('lay-area-entries')[0]
+        const entry = box.find('lay-area-entry')[0]
+        let prevented = false
+        entry.fire('contextmenu', {preventDefault: () => prevented = true})
+        const menu = body().find('lay-menu')[0]
+        expect(prevented).toBe(true)
+        expect(menu.children.map(i => i.textContent + (i.getAttribute('aria-checked') === 'true' ? '*' : ''))).toEqual(['Left sidebar*', 'Bottom strip', 'Right sidebar'])
+        menu.children[1].click()
+        expect([f.panelArea('layers'), body().find('lay-area-bottom')[0].contains(layers), body().classList.contains('lay-has-left')]).toEqual(['bottom', true, false])
+        // at the end of the stack of its new place; the entries follow the places, then the stacks
+        expect(box.find('lay-area-entry').map(e => e.getAttribute('aria-label'))).toEqual(['Timeline', 'Layers'])
+        expect(stored().panels).toEqual({layers: {area: 'bottom', hidden: false}})
+        // a new frame (a reload) puts it in the kept place
+        f.dispose()
+        const g = new EditorFrame(host(), {layout: 'titlebar'})
+        g.addPanel('layers', layers as any, {name: 'Layers', area: 'left'})
+        expect(g.panelArea('layers')).toBe('bottom')
+    })
+
+    test('a long press on the entry of a panel on a touch screen opens the Move menu, and is not a tap', () => {
+        vi.useFakeTimers()
+        try {
+            const f = new EditorFrame(host(), {layout: 'titlebar'})
+            f.addPanel('layers', new FakeElement('div') as any, {name: 'Layers'})
+            const entry = (f.modeBar.element as any as FakeElement).find('lay-area-entry')[0]
+            entry.fire('pointerdown', {pointerType: 'touch', clientX: 0, clientY: 0})
+            vi.advanceTimersByTime(EditorFrame.LongPressTime)
+            entry.fire('pointerup', {})
+            entry.click()
+            expect([body().find('lay-menu').length, f.isPanelHidden('layers')]).toEqual([1, false])
+        } finally {
+            vi.useRealTimers()
+        }
+    })
+
+    test('movePanel and removePanel: the panels of a place in their order; an empty place takes no room', () => {
+        const f = new EditorFrame(host(), {layout: 'titlebar'})
+        const a = new FakeElement('div'), b = new FakeElement('div')
+        f.addPanel('a', a as any, {area: 'left'})
+        f.addPanel('b', b as any, {area: 'left'})
+        expect(f.panelIds).toEqual(['a', 'b'])
+        f.setPanelHidden('a', true)
+        f.movePanel('a', 'right') // not kept: from code
+        expect([f.panelArea('a'), f.isPanelHidden('a'), stored()?.panels ?? {}]).toEqual(['right', false, {}])
+        expect(body().find('lay-area-left')[0].find('lay-split')).toHaveLength(0)
+        f.removePanel('b')
+        expect([body().classList.contains('lay-has-left'), f.panelIds]).toEqual([false, ['a']])
+        // the same id again: in place of the old panel
+        const c = new FakeElement('div')
+        f.addPanel('a', c as any, {area: 'left'})
+        expect([f.panelIds, f.panelArea('a'), body().find('lay-area-left')[0].contains(c)]).toEqual([['a'], 'left', true])
+    })
+
+    test('a narrow window, no hidden element kept: a tap on an entry of the stack shown hides that element, not the place', () => {
+        vi.stubGlobal('innerWidth', 600)
+        vi.stubGlobal('innerHeight', 900)
+        const f = new EditorFrame(host(), {layout: 'titlebar'})
+        place(f, 'left', [new FakeElement('div'), new FakeElement('div')] as any, [{name: 'Layers'}, {name: 'Inspector'}])
+        f.setStackedArea('left')
+        const box = (f.modeBar.element as any as FakeElement).find('lay-area-entries')[0]
+        box.find('lay-area-entry')[0].click()
+        expect([f.isPanelHidden('left0'), f.isPanelHidden('left1'), f.modeBar.open, f.stackedArea]).toEqual([true, false, true, 'left'])
+        // the last element shown: the place hides
+        box.find('lay-area-entry')[1].click()
+        expect([f.isPanelHidden('left1'), f.modeBar.open]).toEqual([false, false])
+    })
+
+    test('a drag of a split changes the two shown sections next to it; a hidden section keeps its weight', () => {
+        const f = new EditorFrame(host(), {layout: 'titlebar'})
+        place(f, 'left', [new FakeElement('div'), new FakeElement('div'), new FakeElement('div')] as any, [{}, {}, {}])
+        f.setPanelHidden('left1', true)
+        const leftArea = body().find('lay-area-left')[0]
+        const sections = leftArea.find('lay-section')
+        // a hidden section measures 0, the shown ones 100 px
+        sections.forEach((sec, i) => (sec as any).getBoundingClientRect = () => ({left: 0, top: 0, right: 100, bottom: i === 1 ? 0 : 100, width: 100, height: i === 1 ? 0 : 100}))
+        const split = leftArea.find('lay-split')[1] // before the third section: between the first and the third
+        split.fire('pointerdown', {button: 0, clientY: 0})
+        win.fire('pointermove', {clientY: 50})
+        win.fire('pointerup', {})
+        const weights = sections.map(sec => Number(sec.style.flexGrow))
+        expect(weights[1]).toBe(1)
+        expect(weights[0]).toBeCloseTo(1.5)
+        expect(weights[2]).toBeCloseTo(0.5)
+    })
+
+    test('the place and the hidden state that the person picks are kept by the id of the panel', () => {
+        storage.set('tpEditorFrameAreas', JSON.stringify({panels: {b: {hidden: true}, c: {area: 'bottom'}, d: {area: 'top', hidden: 'x'}}}))
+        const f = new EditorFrame(host(), {layout: 'titlebar'})
+        f.addPanel('a', new FakeElement('div') as any, {area: 'left'})
+        f.addPanel('b', new FakeElement('div') as any, {area: 'left'})
+        f.addPanel('c', new FakeElement('div') as any, {area: 'left'})
+        f.addPanel('d', new FakeElement('div') as any, {area: 'left'}) // a place that is not one, a hidden that is not a boolean: left out
+        expect(['a', 'b', 'c', 'd'].map(id => [f.panelArea(id), f.isPanelHidden(id)])).toEqual([['left', false], ['left', true], ['bottom', false], ['left', false]])
+    })
 
     test('the breakpoints set the layout classes on the body; a resize sets them again', () => {
         const f = new EditorFrame(host(), {layout: 'titlebar'})
@@ -705,7 +855,7 @@ describe('EditorFrame area sizes', () => {
         vi.stubGlobal('innerHeight', 500) // landscape: side by side
         storage.set('tpEditorModeBarExpanded', '0')
         const f = new EditorFrame(host(), {layout: 'titlebar'})
-        f.setArea('left', new FakeElement('div') as any)
+        place(f, 'left', new FakeElement('div') as any)
         // on screen: the variable, else the 240 px of the CSS
         area('left').getBoundingClientRect = () => ({width: parseInt(sizeVar('--lay-left-area-size') ?? '240'), height: 800}) as any
         const room = (w: number) => w - 240 /* panel, no variable: AreaLimits */ - EditorModeBar.Widths.narrow - EditorFrame.MinCanvasWidth
@@ -722,32 +872,36 @@ describe('EditorFrame area sizes', () => {
         expect(sizeVar('--lay-left-area-size')).toBeUndefined()
     })
 
-    test('the mode bar has an entry for each area with an element, after the modes, with its name and icon', () => {
+    test('each panel has an entry in the mode bar, after the modes, with its name, icon and colour', () => {
         const f = new EditorFrame(host(), {layout: 'floating'})
         const bar = f.modeBar.element as any as FakeElement
-        const e = entries(f)
+        const box = bar.find('lay-area-entries')[0]
         // after the two modes, before the actions of the floating layout and the names toggle
-        expect(bar.children.indexOf(e.box)).toBe(2)
-        expect(bar.children.indexOf(e.box)).toBeLessThan(bar.children.indexOf(bar.find('lay-float-actions')[0]))
-        expect([shown(e.box), shown(e.left), shown(e.bottom)]).toEqual([false, false, false])
-        f.setArea('left', new FakeElement('div') as any, {name: 'Layers', icon: '<svg class="layers-icon"></svg>'})
-        expect([shown(e.box), shown(e.left), shown(e.bottom)]).toEqual([true, true, false])
-        expect([e.left.getAttribute('aria-label'), e.left.find('mb-label')[0].textContent, e.left.find('layers-icon').length]).toEqual(['Layers', 'Layers', 1])
-        expect(e.left._tippy!.props.content).toBe('Layers')
-        expect(e.left.style['--mb-color']).toBeUndefined() // the grey of the CSS
-        f.setArea('left', new FakeElement('div') as any, {name: 'Layers', color: '#7c5cff'})
-        expect(e.left.style['--mb-color']).toBe('#7c5cff')
-        f.setArea('bottom', new FakeElement('div') as any)
-        expect([shown(e.bottom), e.bottom.getAttribute('aria-label')]).toEqual([true, EditorFrame.AreaNames.bottom])
-        f.setArea('left', null)
-        expect([shown(e.box), shown(e.left)]).toEqual([true, false])
+        expect(bar.children.indexOf(box)).toBe(2)
+        expect(bar.children.indexOf(box)).toBeLessThan(bar.children.indexOf(bar.find('lay-float-actions')[0]))
+        expect([shown(box), box.find('lay-area-entry').length]).toEqual([false, 0])
+        f.addPanel('layers', new FakeElement('div') as any, {name: 'Layers', icon: '<svg class="layers-icon"></svg>'})
+        let e = box.find('lay-area-entry')[0]
+        expect(shown(box)).toBe(true)
+        expect([e.getAttribute('aria-label'), e.find('mb-label')[0].textContent, e.find('layers-icon').length]).toEqual(['Layers', 'Layers', 1])
+        expect(e._tippy!.props.content).toBe('Layers')
+        expect(e.style['--mb-color']).toBeUndefined() // the grey of the CSS
+        f.addPanel('layers', new FakeElement('div') as any, {name: 'Layers', color: '#7c5cff'})
+        e = box.find('lay-area-entry')[0]
+        expect([box.find('lay-area-entry').length, e.style['--mb-color']]).toEqual([1, '#7c5cff'])
+        // no name: the name of its place
+        f.addPanel('strip', new FakeElement('div') as any, {area: 'bottom'})
+        expect(box.find('lay-area-entry')[1].getAttribute('aria-label')).toBe(EditorFrame.AreaNames.bottom)
+        f.removePanel('layers')
+        f.removePanel('strip')
+        expect([shown(box), box.find('lay-area-entry').length]).toEqual([false, 0])
         f.dispose()
         expect(bar.find('lay-area-entries')).toHaveLength(0)
     })
 
     test('in a wide window, an entry shows or hides its area, and is marked while it shows', () => {
         const f = new EditorFrame(host(), {layout: 'titlebar'})
-        f.setArea('left', new FakeElement('div') as any)
+        place(f, 'left', new FakeElement('div') as any)
         const e = entries(f)
         expect(marked(e.left)).toBe(true)
         e.left.click()
@@ -770,8 +924,8 @@ describe('EditorFrame area sizes', () => {
         vi.stubGlobal('innerWidth', 390) // a phone in portrait (EditorFrame.Breakpoints)
         vi.stubGlobal('innerHeight', 664)
         const f = new EditorFrame(host(), {layout: 'titlebar'})
-        f.setArea('left', new FakeElement('div') as any, {name: 'Layers'})
-        f.setArea('bottom', new FakeElement('div') as any)
+        place(f, 'left', new FakeElement('div') as any, {name: 'Layers'})
+        place(f, 'bottom', new FakeElement('div') as any)
         const e = entries(f)
         // the panel is below the canvas: no entry is marked
         expect([marked(e.left), marked(e.bottom)]).toEqual([false, false])
@@ -810,7 +964,7 @@ describe('EditorFrame area sizes', () => {
         expect(f.modeBar.open).toBe(true)
         // an empty area shows the panel, and a mode tap is not taken
         f.setStackedArea('left')
-        f.setArea('left', null)
+        place(f, 'left', null)
         tap(tabs[0])
         expect([f.stackedArea, f.modeBar.open]).toEqual(['left', false])
         // a new frame applies the kept area; dispose removes the classes
@@ -826,7 +980,7 @@ describe('EditorFrame area sizes', () => {
 
     test('a drag of the left edge resizes it, collapses it past half of the smallest size, opens it again, and keeps the size at the end', () => {
         const f = new EditorFrame(host(), {layout: 'titlebar'})
-        f.setArea('left', new FakeElement('div') as any)
+        place(f, 'left', new FakeElement('div') as any)
         area('left').getBoundingClientRect = () => ({width: 240, height: 800}) as any
         handle('left').fire('pointerdown', {button: 0, clientX: 240})
         expect(body().classList.contains('lay-resizing')).toBe(true)
@@ -838,7 +992,7 @@ describe('EditorFrame area sizes', () => {
         win.fire('pointermove', {clientX: 130}) // 130 px: open, at the smallest size
         expect([f.isAreaCollapsed('left'), sizeVar('--lay-left-area-size')]).toEqual([false, '160px'])
         win.fire('pointerup', {})
-        expect(stored()).toEqual({sizes: {left: 160}, collapsed: {left: false}, stacked: 'right', offsets: {}, spans: {}, splits: {}})
+        expect(stored()).toEqual({sizes: {left: 160}, collapsed: {left: false}, panels: {}, weights: {}, stacked: 'right', offsets: {}, spans: {}, rightShare: 0.5})
         expect(body().classList.contains('lay-resizing')).toBe(false)
         // the drag is over: a move does nothing
         win.fire('pointermove', {clientX: 400})
@@ -857,7 +1011,7 @@ describe('EditorFrame area sizes', () => {
         expect(sizeVar('--tweakpane-ui-container-width')).toBe('396px')
         drag(handle('right'), {clientX: 1096}, {clientX: 1350}) // 300 - 254 = 46 px
         expect(f.modeBar.open).toBe(false)
-        f.setArea('bottom', new FakeElement('div') as any)
+        place(f, 'bottom', new FakeElement('div') as any)
         area('bottom').getBoundingClientRect = () => ({width: 800, height: 160}) as any
         drag(handle('bottom'), {clientY: 700}, {clientY: 650})
         expect(sizeVar('--lay-bottom-area-size')).toBe('210px')
@@ -871,7 +1025,7 @@ describe('EditorFrame area sizes', () => {
         f.setAreaCollapsed('bottom', true)
         handle('bottom').fire('dblclick')
         expect(f.isAreaCollapsed('bottom')).toBe(false)
-        expect(stored()).toEqual({sizes: {}, collapsed: {bottom: false}, stacked: 'right', offsets: {}, spans: {}, splits: {}})
+        expect(stored()).toEqual({sizes: {}, collapsed: {bottom: false}, panels: {}, weights: {}, stacked: 'right', offsets: {}, spans: {}, rightShare: 0.5})
     })
 
     /** A floating frame with a 300 px panel and a 240 px left card (the gap is 12 px, see getComputedStyle above) */
@@ -879,7 +1033,7 @@ describe('EditorFrame area sizes', () => {
         const panel = new FakeElement('div')
         panel.getBoundingClientRect = () => ({width: 300, height: 876}) as any
         const f = new EditorFrame(host(), {layout: 'floating', panel: () => panel as any})
-        f.setArea('left', new FakeElement('div') as any)
+        place(f, 'left', new FakeElement('div') as any)
         area('left').getBoundingClientRect = () => ({width: 240, height: 876}) as any
         return f
     }
@@ -910,7 +1064,7 @@ describe('EditorFrame area sizes', () => {
         f.setAreaSpan('left', {start: 100})
         expect([f.areaSpan('left'), sizeVar('--lay-left-length')]).toEqual([{start: 100, length: 776}, undefined])
         // the row of the bottom card: between the left card (12 + 100 + 240) and the panel with the mode bar (12 + 50 + 468 + 12)
-        f.setArea('bottom', new FakeElement('div') as any)
+        place(f, 'bottom', new FakeElement('div') as any)
         expect(f.areaSpan('bottom')).toEqual({start: 0, length: 1440 - 352 - 12 - 542})
         f.setAreaSpan('left', null)
         expect([f.areaSpan('left'), sizeVar('--lay-left-start')]).toEqual([{start: 0, length: 876}, undefined])
@@ -948,7 +1102,7 @@ describe('EditorFrame area sizes', () => {
         // hidden: the area takes its place
         panel.getBoundingClientRect = () => ({width: 0, height: 0}) as any
         const f = new EditorFrame(host(), {layout: 'titlebar', panel: () => panel as any})
-        f.setArea('left', new FakeElement('div') as any)
+        place(f, 'left', new FakeElement('div') as any)
         area('left').getBoundingClientRect = () => ({width: 300, height: 324}) as any
         f.setStackedArea('left')
         drag(handle('right'), {clientX: 296}, {clientX: 286})
@@ -1006,7 +1160,7 @@ describe('EditorFrame area sizes', () => {
         // the panel and the mode bar move to the left, the bottom card up and to the right
         drag(grip('right'), {clientX: 1434, clientY: 400}, {clientX: 1404, clientY: 400})
         expect(f.areaOffset('right')).toBe(30)
-        f.setArea('bottom', new FakeElement('div') as any)
+        place(f, 'bottom', new FakeElement('div') as any)
         area('bottom').getBoundingClientRect = () => ({width: 600, height: 160}) as any
         f.setAreaSpan('bottom', {start: 0, length: 300})
         drag(grip('bottom'), {clientX: 500, clientY: 894}, {clientX: 540, clientY: 874})
@@ -1019,7 +1173,7 @@ describe('EditorFrame area sizes', () => {
 
     test('after a drag, an end of a card that touches the end of its side stays there: the card grows with the side', () => {
         const f = floating()
-        f.setArea('bottom', new FakeElement('div') as any)
+        place(f, 'bottom', new FakeElement('div') as any)
         area('bottom').getBoundingClientRect = () => ({width: 684, height: 160}) as any
         // the row of the bottom card: 1440 - (12 + 240) - 12 - (12 + 468 + 12) = 684; 100 px off its left end
         drag(end('bottom', 'start'), {clientX: 264}, {clientX: 364})
@@ -1036,10 +1190,10 @@ describe('EditorFrame area sizes', () => {
         expect(f.areaSpan('bottom')).toEqual({start: 100, length: 484})
     })
 
-    test('setArea with a list: a stack of sections with a split between two; a drag moves the split, a double-click makes them equal', () => {
+    test('the panels of a place: a stack of sections with a split between two; a drag moves the split, a double-click makes them equal', () => {
         const f = new EditorFrame(host(), {layout: 'titlebar'})
         const [a, b, c] = [new FakeElement('div'), new FakeElement('div'), new FakeElement('div')]
-        f.setArea('left', [a, b, c] as any)
+        place(f, 'left', [a, b, c] as any)
         const box = area('left')
         expect(box.classList.contains('lay-split-area')).toBe(true)
         expect(box.children.map(e => e.className)).toEqual(['lay-section', 'lay-split', 'lay-section', 'lay-split', 'lay-section'])
@@ -1052,28 +1206,30 @@ describe('EditorFrame area sizes', () => {
         sections.forEach(e => e.getBoundingClientRect = () => ({width: 240, height: 300}) as any)
         drag(splits[0], {clientY: 300}, {clientY: 360})
         expect(sections.map(e => e.style.flexGrow)).toEqual(['1.2', '0.8', '1'])
-        expect(stored().splits).toEqual({left: [1.2, 0.8, 1]})
-        // at least MinSectionSize
+        // kept by the id of the panel
+        expect(stored().weights).toEqual({left0: 1.2, left1: 0.8})
+        // at least MinSectionSize (the sections now measure as their weights give them: 360, 240 and 300)
+        sections.forEach((e, i) => e.getBoundingClientRect = () => ({width: 240, height: [360, 240, 300][i]}) as any)
         drag(splits[1], {clientY: 600}, {clientY: 0})
         expect(sections[1].style.flexGrow).toBe(String(Math.round(EditorFrame.MinSectionSize / 900 * 3 * 1000) / 1000))
         splits[0].fire('dblclick')
-        expect([sections.map(e => e.style.flexGrow), stored().splits]).toEqual([['1', '1', '1'], {}])
-        // one element: no stack
-        f.setArea('left', a as any)
-        expect([box.classList.contains('lay-split-area'), box.children]).toEqual([false, [a]])
+        expect([sections.map(e => e.style.flexGrow), stored().weights]).toEqual([['1', '1', '1'], {}])
+        // one panel: no stack (its section fills the place)
+        place(f, 'left', a as any)
+        expect([box.classList.contains('lay-split-area'), box.children.map(e => e.children[0])]).toEqual([false, [a]])
     })
 
-    test('a stack keeps its split in a new frame, for the same number of elements; the bottom area stacks left to right', () => {
-        storage.set('tpEditorFrameAreas', JSON.stringify({splits: {left: [1.5, 0.5], bottom: [2, 'x']}}))
+    test('a stack keeps its split by the ids of its panels in a new frame; the bottom place stacks left to right', () => {
+        storage.set('tpEditorFrameAreas', JSON.stringify({weights: {left0: 1.5, left1: 0.5, bottom0: 'x', bottom1: -1}}))
         const f = new EditorFrame(host(), {layout: 'titlebar'})
-        f.setArea('left', [new FakeElement('div'), new FakeElement('div')] as any)
+        place(f, 'left', [new FakeElement('div'), new FakeElement('div')] as any)
         const grow = (a: string) => area(a).children.filter(e => e.classList.contains('lay-section')).map(e => e.style.flexGrow)
         expect(grow('left')).toEqual(['1.5', '0.5'])
-        // another number of elements: equal
-        f.setArea('left', [new FakeElement('div'), new FakeElement('div'), new FakeElement('div')] as any)
-        expect(grow('left')).toEqual(['1', '1', '1'])
-        // a value that is not a number is ignored
-        f.setArea('bottom', [new FakeElement('div'), new FakeElement('div')] as any)
+        // a new panel: weight 1, the others keep theirs
+        place(f, 'left', [new FakeElement('div'), new FakeElement('div'), new FakeElement('div')] as any)
+        expect(grow('left')).toEqual(['1.5', '0.5', '1'])
+        // a value that is not a positive number is ignored
+        place(f, 'bottom', [new FakeElement('div'), new FakeElement('div')] as any)
         expect(grow('bottom')).toEqual(['1', '1'])
         const split = area('bottom').children.find(e => e.classList.contains('lay-split'))!
         expect(split.getAttribute('aria-orientation')).toBe('vertical')
@@ -1151,23 +1307,24 @@ describe('TweakpaneEditorPlugin.layout', () => {
         expect(storage.get('tpEditorLayout')).toBe('floating')
     })
 
-    test('setArea keeps the element when the frame is made again, also after the classic layout', () => {
+    test('addPanel keeps the panel when the frame is made again, also after the classic layout; removePanel takes it out', () => {
         const p = plugin()
         const layers = new FakeElement('div')
+        const inLeft = () => body().find('lay-area-left')[0]?.find('lay-section').map(e => e.children[0]) ?? []
         p.layout = 'classic'
-        p.setArea('left', layers as any) // no frame: kept for later
+        p.addPanel('layers', layers as any, {name: 'Layers', area: 'left'}) // no frame: kept for later
         expect(body().find('lay-area')).toHaveLength(0)
         p.layout = 'floating'
-        expect(body().find('lay-area-left')[0].children).toEqual([layers])
+        expect(inLeft()).toEqual([layers])
         expect(body().classList.contains('lay-has-left')).toBe(true)
         p.layout = 'classic'
         expect(body().classList.contains('lay-has-left')).toBe(false)
         p.layout = 'titlebar'
-        expect(body().find('lay-area-left')[0].children).toEqual([layers])
-        p.setArea('left', null)
+        expect(inLeft()).toEqual([layers])
+        p.removePanel('layers')
         p.layout = 'classic'
         p.layout = 'statusbar'
-        expect(body().find('lay-area-left')[0].children).toHaveLength(0)
+        expect(inLeft()).toHaveLength(0)
         expect(body().classList.contains('lay-has-left')).toBe(false)
     })
 
@@ -1179,5 +1336,139 @@ describe('TweakpaneEditorPlugin.layout', () => {
         win.fire('keydown', {key: 'T', code: 'KeyT', shiftKey: true, target: body()})
         expect(ui.colorMode).toBe('clean-dark')
         expect(ui.uiConfig.uiRefresh).toHaveBeenCalled()
+    })
+})
+
+describe('EditorFrame right area', () => {
+    const stored = () => JSON.parse(storage.get('tpEditorFrameAreas') ?? 'null')
+    /** A frame with the container of the Tweakpane UI (the pane of the UI in it) as its panel */
+    const setup = (layout: 'titlebar' | 'floating' = 'titlebar') => {
+        const panel = new FakeElement('div')
+        panel.id = 'tweakpaneUiContainer'
+        const pane = panel.appendChild(new FakeElement('div'))
+        pane.className = 'tp-rotv'
+        const f = new EditorFrame(host(), {layout, panel: () => panel as any})
+        const box = () => (f.modeBar.element as any as FakeElement).find('lay-area-entries')[0]
+        const shownEntries = () => box().find('lay-area-entry').filter(e => e.style.display !== 'none')
+        return {f, panel, pane, shownEntries}
+    }
+    const has = (c: string) => body().classList.contains(c)
+    const tab = (f: InstanceType<typeof EditorFrame>, open: boolean) =>
+        (f.modeBar.element as any as FakeElement).all().find(b => b.getAttribute('role') === 'tab' && (b.getAttribute('aria-selected') === 'true') === open)!
+
+    test('the right area goes first in the panel, with a split, above the pane of the mode settings; null takes it out', () => {
+        const {f, panel, pane, shownEntries} = setup()
+        const inspector = new FakeElement('div')
+        place(f, 'right', inspector as any, [{name: 'Inspector'}])
+        const [area, split] = panel.children
+        expect(area.classList.contains('lay-area-right')).toBe(true)
+        expect(area.find('lay-section')[0].children).toEqual([inspector])
+        expect(split.classList.contains('lay-pane-split')).toBe(true)
+        expect(panel.children[2]).toBe(pane)
+        expect([has('lay-has-right'), has('lay-right-shown')]).toEqual([true, true])
+        expect(shownEntries().map(e => e.getAttribute('aria-label'))).toEqual(['Inspector'])
+        place(f, 'right', null)
+        expect(panel.children).toEqual([pane])
+        expect([has('lay-has-right'), has('lay-right-shown')]).toEqual([false, false])
+        expect(shownEntries()).toHaveLength(0)
+    })
+
+    test('its entry hides and shows it; hiding the only element collapses the right area, the mode settings stay', () => {
+        const {f, shownEntries} = setup()
+        place(f, 'right', new FakeElement('div') as any, [{name: 'Inspector'}])
+        const entry = shownEntries()[0]
+        expect(entry.classList.contains('lay-entry-on')).toBe(true)
+        entry.click()
+        expect([has('lay-right-shown'), entry.classList.contains('lay-entry-on'), f.modeBar.open]).toEqual([false, false, true])
+        expect(stored().collapsed.right).toBe(true)
+        entry.click()
+        expect(has('lay-right-shown')).toBe(true)
+    })
+
+    test('a click on the open mode hides its settings while the right area shows, and a click shows them again', () => {
+        const {f} = setup()
+        place(f, 'right', new FakeElement('div') as any, [{name: 'Inspector'}])
+        const bar = f.modeBar.element as any as FakeElement
+        let stopped = false
+        bar.fire('click', {target: tab(f, true), stopImmediatePropagation: () => stopped = true})
+        expect([f.modeSettingsHidden, has('lay-mode-hidden'), stopped, f.modeBar.open]).toEqual([true, true, true, true])
+        bar.fire('click', {target: tab(f, true), stopImmediatePropagation: () => {}})
+        expect([f.modeSettingsHidden, has('lay-mode-hidden')]).toEqual([false, false])
+        // another mode: its settings show
+        f.setModeSettingsHidden(true)
+        stopped = false
+        bar.fire('click', {target: tab(f, false), stopImmediatePropagation: () => stopped = true})
+        expect([f.modeSettingsHidden, stopped]).toEqual([false, false])
+        // without the right area, the open mode hides the panel as before (the click goes on to the button)
+        place(f, 'right', null)
+        stopped = false
+        bar.fire('click', {target: tab(f, true), stopImmediatePropagation: () => stopped = true})
+        expect([f.modeSettingsHidden, stopped]).toEqual([false, false])
+    })
+
+    test('swap: the app hides the mode settings and shows the right area while something is selected', () => {
+        const {f} = setup()
+        place(f, 'right', new FakeElement('div') as any, [{name: 'Inspector'}])
+        // nothing selected: the right area collapses, the mode settings show
+        f.setPanelHidden('right0', true)
+        f.setModeSettingsHidden(false)
+        expect([has('lay-right-shown'), has('lay-mode-hidden')]).toEqual([false, false])
+        // selected: the right area takes the panel
+        f.setPanelHidden('right0', false)
+        f.setModeSettingsHidden(true)
+        expect([has('lay-right-shown'), has('lay-mode-hidden')]).toEqual([true, true])
+        // the mode settings hidden apply only while the right area shows
+        f.setPanelHidden('right0', true)
+        expect([has('lay-right-shown'), has('lay-mode-hidden')]).toEqual([false, false])
+    })
+
+    test('a drag of the split sets the part of the panel for the right area, kept; a double-click puts it at the middle', () => {
+        const {f, panel, pane} = setup()
+        place(f, 'right', new FakeElement('div') as any, [{name: 'Inspector'}])
+        const [area, split] = panel.children
+        ;(area as any).getBoundingClientRect = () => ({height: 300, width: 300})
+        ;(pane as any).getBoundingClientRect = () => ({height: 300, width: 300})
+        split.fire('pointerdown', {button: 0, clientY: 300})
+        win.fire('pointermove', {clientY: 420})
+        win.fire('pointerup', {})
+        expect(body().style['--lay-right-box-grow']).toBe('0.7')
+        expect(stored().rightShare).toBe(0.7)
+        split.fire('dblclick')
+        expect([body().style['--lay-right-box-grow'], stored().rightShare]).toEqual(['0.5', 0.5])
+    })
+
+    test('the TweakpaneEditorPlugin keeps the right area when it makes the frame again; a picked mode shows its settings', () => {
+        const panel = new FakeElement('div')
+        panel.id = 'tweakpaneUiContainer'
+        panel.appendChild(new FakeElement('div')).className = 'tp-rotv'
+        doc.getElementById = (id: string) => id === 'tweakpaneUiContainer' ? panel : null
+        const p = new TweakpaneEditorPlugin()
+        ;(p as any)._viewer = {getPlugin: () => undefined}
+        p.modeKeys = ['Viewer', 'Export']
+        p.layout = 'titlebar'
+        const inspector = new FakeElement('div')
+        place(p, 'right', inspector as any, [{name: 'Inspector'}])
+        p.layout = 'floating'
+        p.layout = 'classic'
+        p.layout = 'statusbar'
+        expect(panel.children[0].find('lay-section')[0].children).toEqual([inspector])
+        p.frame!.setModeSettingsHidden(true)
+        p.setSelectedMode(1)
+        expect(p.frame!.modeSettingsHidden).toBe(false)
+    })
+
+    test('the TweakpaneEditorPlugin sends frameChange when it makes or removes the frame, so an app sets the frame state again', () => {
+        const p = new TweakpaneEditorPlugin()
+        ;(p as any)._viewer = {getPlugin: () => undefined}
+        p.modeKeys = ['Viewer', 'Export']
+        const frames: unknown[] = []
+        p.addEventListener('frameChange', e => frames.push(e.frame))
+        p.layout = 'titlebar'
+        const first = p.frame
+        p.layout = 'floating' // the same frame, another layout: no event
+        p.layout = 'classic'
+        p.layout = 'statusbar'
+        expect(frames).toEqual([first, undefined, p.frame])
+        expect(p.frame).not.toBe(first)
     })
 })

@@ -241,12 +241,13 @@ export class ThreeEditor extends ThreeViewer {
 
         editor.loadPlugins(this.editorModes)
 
-        // the layers in the left area of the page frame (?layers=bottom: in the bottom strip), with an entry in the mode
-        // bar; out of it while the panel is off
+        // the layers as a panel of the page frame, in the left sidebar (?layers=bottom: in the bottom strip; the person
+        // moves it with the menu of its entry in the mode bar); out of the frame while the panel is off
         const layers = this.getPlugin(LayersPanelPlugin)
         if (layers) {
             const area = getUrlQueryParam('layers') === 'bottom' ? 'bottom' : 'left'
-            const placeLayers = () => editor.setArea(area, layers.isDisabled() ? null : layers.element, LayersPanelPlugin.AreaEntry)
+            const placeLayers = () => layers.isDisabled() ? editor.removePanel('layers') :
+                editor.addPanel('layers', layers.element, {...LayersPanelPlugin.AreaEntry, area})
             placeLayers()
             layers.addEventListener('enabledChange', placeLayers)
         }
