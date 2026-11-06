@@ -207,59 +207,58 @@ body.lay-floating #tweakpaneUiContainer .tp-rotv { box-shadow: none; }
 
 /* a wide or a landscape window: the left area, the canvas with the bottom area below it, then the panel, then the mode
    bar, side by side */
-@media only screen and (min-width: 920px), only screen and (orientation: landscape) {
-    body.lay-titlebar #canvas-container, body.lay-statusbar #canvas-container {
-        height: calc(100% - var(--lay-top) - var(--lay-bottom) - var(--lay-bottom-area));
-        width: calc(100% - var(--lay-left-area) - var(--lay-right-area)) !important;
-    }
-    body.lay-titlebar #tweakpaneUiContainer, body.lay-statusbar #tweakpaneUiContainer {
-        top: var(--lay-top); width: var(--tweakpane-ui-container-width, 300px);
-        border-left: 1px solid var(--tp-container-border-color, #e6e6e6);
-    }
-    /* the areas edge to edge, between the bars, with a line to the canvas */
-    body.lay-titlebar .lay-area-left, body.lay-statusbar .lay-area-left {
-        left: 0; top: var(--lay-top); bottom: var(--lay-bottom); width: var(--lay-left-area);
-        border-right: 1px solid var(--tp-container-border-color, #e6e6e6);
-    }
-    body.lay-titlebar .lay-area-bottom, body.lay-statusbar .lay-area-bottom {
-        left: var(--lay-left-area); right: var(--lay-right-area); bottom: var(--lay-bottom); height: var(--lay-bottom-area);
-        border-top: 1px solid var(--tp-container-border-color, #e6e6e6);
-    }
-
-    /* floating: the canvas fills the window, the cards float over it. --lay-right-inset: the part of the canvas that the
-       panel and the mode bar cover, with the gaps on both sides of their card */
-    body.lay-floating { --lay-right-inset: calc(var(--lay-right-area) + 2 * var(--lay-gap)); }
-    body.lay-floating #canvas-container { inset: 0; width: 100% !important; height: 100%; border-radius: 0; }
-    /* the buttons on the right of the canvas keep to the part that the panels do not cover */
-    body.lay-floating #fsToggle, body.lay-floating .util-buttons-container { right: calc(var(--lay-right-inset) + 1.25rem - var(--lay-gap)); }
-    /* and the tool bar is not wider than that part (its own max-width less the move to the left, and less the left card),
-       so in a narrow window it scrolls inside it instead of going past the left edge of the window or under the left card */
-    body.lay-floating .util-buttons-container { max-width: calc(100% - var(--lay-right-inset) + var(--lay-gap) - 3.5rem - var(--util-left-room, 0px) - var(--lay-left-inset)); }
-    body.lay-floating #tweakpaneUiContainer { top: var(--lay-gap); width: var(--tweakpane-ui-container-width, 300px); }
-    /* the areas: cards with the same gap to the window, to the panel and to each other */
-    body.lay-floating .lay-area { border-radius: 8px; box-shadow: var(--lay-card-shadow); }
-    body.lay-floating .lay-area-left { left: var(--lay-gap); top: var(--lay-gap); bottom: var(--lay-gap); width: var(--lay-left-area); }
-    body.lay-floating .lay-area-bottom {
-        left: calc(var(--lay-left-inset) + var(--lay-gap)); right: var(--lay-right-inset); bottom: var(--lay-gap); height: var(--lay-bottom-area);
-    }
-
-    /* the edges: on the inner edge of each area, over the line or the gap; the panel's while it shows */
-    body.lay-has-left .lay-handle-left, body.lay-has-bottom .lay-handle-bottom, body.lay-frame .lay-handle-right { display: block; }
-    body.lay-frame.mb-panel-hidden .lay-handle-right { display: none; }
-    body.lay-titlebar .lay-handle-left, body.lay-statusbar .lay-handle-left { left: calc(var(--lay-left-area) - 3px); top: var(--lay-top); bottom: var(--lay-bottom); }
-    body.lay-titlebar .lay-handle-right, body.lay-statusbar .lay-handle-right { right: calc(var(--lay-right-area) - 3px); top: var(--lay-top); bottom: var(--lay-bottom); }
-    body.lay-titlebar .lay-handle-bottom, body.lay-statusbar .lay-handle-bottom {
-        left: var(--lay-left-area); right: var(--lay-right-area); bottom: calc(var(--lay-bottom) + var(--lay-bottom-area) - 3px);
-    }
-    /* a collapsed area at the edge of the window: its edge is inside the window, so all of it can be grabbed */
-    body.lay-titlebar.lay-collapsed-left .lay-handle-left, body.lay-statusbar.lay-collapsed-left .lay-handle-left { left: 0; }
-    body.lay-titlebar.lay-collapsed-bottom .lay-handle-bottom, body.lay-statusbar.lay-collapsed-bottom .lay-handle-bottom { bottom: var(--lay-bottom); }
-    body.lay-floating .lay-handle-left { left: calc(var(--lay-gap) + var(--lay-left-area) - 3px); top: var(--lay-gap); bottom: var(--lay-gap); }
-    body.lay-floating .lay-handle-right { right: calc(var(--lay-gap) + var(--lay-right-area) - 3px); top: var(--lay-gap); bottom: var(--lay-gap); }
-    body.lay-floating .lay-handle-bottom {
-        left: calc(var(--lay-left-inset) + var(--lay-gap)); right: var(--lay-right-inset); bottom: calc(var(--lay-gap) + var(--lay-bottom-area) - 3px);
-    }
+body.lay-side.lay-titlebar #canvas-container, body.lay-side.lay-statusbar #canvas-container {
+    height: calc(100% - var(--lay-top) - var(--lay-bottom) - var(--lay-bottom-area));
+    width: calc(100% - var(--lay-left-area) - var(--lay-right-area)) !important;
 }
+body.lay-side.lay-titlebar #tweakpaneUiContainer, body.lay-side.lay-statusbar #tweakpaneUiContainer {
+    top: var(--lay-top); width: var(--tweakpane-ui-container-width, 300px);
+    border-left: 1px solid var(--tp-container-border-color, #e6e6e6);
+}
+/* the areas edge to edge, between the bars, with a line to the canvas */
+body.lay-side.lay-titlebar .lay-area-left, body.lay-side.lay-statusbar .lay-area-left {
+    left: 0; top: var(--lay-top); bottom: var(--lay-bottom); width: var(--lay-left-area);
+    border-right: 1px solid var(--tp-container-border-color, #e6e6e6);
+}
+body.lay-side.lay-titlebar .lay-area-bottom, body.lay-side.lay-statusbar .lay-area-bottom {
+    left: var(--lay-left-area); right: var(--lay-right-area); bottom: var(--lay-bottom); height: var(--lay-bottom-area);
+    border-top: 1px solid var(--tp-container-border-color, #e6e6e6);
+}
+
+/* floating: the canvas fills the window, the cards float over it. --lay-right-inset: the part of the canvas that the
+   panel and the mode bar cover, with the gaps on both sides of their card */
+body.lay-side.lay-floating { --lay-right-inset: calc(var(--lay-right-area) + 2 * var(--lay-gap)); }
+body.lay-side.lay-floating #canvas-container { inset: 0; width: 100% !important; height: 100%; border-radius: 0; }
+/* the buttons on the right of the canvas keep to the part that the panels do not cover */
+body.lay-side.lay-floating #fsToggle, body.lay-side.lay-floating .util-buttons-container { right: calc(var(--lay-right-inset) + 1.25rem - var(--lay-gap)); }
+/* and the tool bar is not wider than that part (its own max-width less the move to the left, and less the left card),
+   so in a narrow window it scrolls inside it instead of going past the left edge of the window or under the left card */
+body.lay-side.lay-floating .util-buttons-container { max-width: calc(100% - var(--lay-right-inset) + var(--lay-gap) - 3.5rem - var(--util-left-room, 0px) - var(--lay-left-inset)); }
+body.lay-side.lay-floating #tweakpaneUiContainer { top: var(--lay-gap); width: var(--tweakpane-ui-container-width, 300px); }
+/* the areas: cards with the same gap to the window, to the panel and to each other */
+body.lay-side.lay-floating .lay-area { border-radius: 8px; box-shadow: var(--lay-card-shadow); }
+body.lay-side.lay-floating .lay-area-left { left: var(--lay-gap); top: var(--lay-gap); bottom: var(--lay-gap); width: var(--lay-left-area); }
+body.lay-side.lay-floating .lay-area-bottom {
+    left: calc(var(--lay-left-inset) + var(--lay-gap)); right: var(--lay-right-inset); bottom: var(--lay-gap); height: var(--lay-bottom-area);
+}
+
+/* the edges: on the inner edge of each area, over the line or the gap; the panel's while it shows */
+body.lay-side.lay-has-left .lay-handle-left, body.lay-side.lay-has-bottom .lay-handle-bottom, body.lay-side.lay-frame .lay-handle-right { display: block; }
+body.lay-side.lay-frame.mb-panel-hidden .lay-handle-right { display: none; }
+body.lay-side.lay-titlebar .lay-handle-left, body.lay-side.lay-statusbar .lay-handle-left { left: calc(var(--lay-left-area) - 3px); top: var(--lay-top); bottom: var(--lay-bottom); }
+body.lay-side.lay-titlebar .lay-handle-right, body.lay-side.lay-statusbar .lay-handle-right { right: calc(var(--lay-right-area) - 3px); top: var(--lay-top); bottom: var(--lay-bottom); }
+body.lay-side.lay-titlebar .lay-handle-bottom, body.lay-side.lay-statusbar .lay-handle-bottom {
+    left: var(--lay-left-area); right: var(--lay-right-area); bottom: calc(var(--lay-bottom) + var(--lay-bottom-area) - 3px);
+}
+/* a collapsed area at the edge of the window: its edge is inside the window, so all of it can be grabbed */
+body.lay-side.lay-titlebar.lay-collapsed-left .lay-handle-left, body.lay-side.lay-statusbar.lay-collapsed-left .lay-handle-left { left: 0; }
+body.lay-side.lay-titlebar.lay-collapsed-bottom .lay-handle-bottom, body.lay-side.lay-statusbar.lay-collapsed-bottom .lay-handle-bottom { bottom: var(--lay-bottom); }
+body.lay-side.lay-floating .lay-handle-left { left: calc(var(--lay-gap) + var(--lay-left-area) - 3px); top: var(--lay-gap); bottom: var(--lay-gap); }
+body.lay-side.lay-floating .lay-handle-right { right: calc(var(--lay-gap) + var(--lay-right-area) - 3px); top: var(--lay-gap); bottom: var(--lay-gap); }
+body.lay-side.lay-floating .lay-handle-bottom {
+    left: calc(var(--lay-left-inset) + var(--lay-gap)); right: var(--lay-right-inset); bottom: calc(var(--lay-gap) + var(--lay-bottom-area) - 3px);
+}
+
 
 /* a narrow portrait window (a phone): the canvas on top, full width; the panel below it, and the mode bar beside the
    panel, with the same top and bottom (--lay-split: the part of the height for the canvas), so the tool bar of the canvas
@@ -267,52 +266,66 @@ body.lay-floating #tweakpaneUiContainer .tp-rotv { box-shadow: none; }
    the bottom (--mb-row-height, it scrolls sideways), where a tap on a mode brings the panel back, and the canvas takes the
    rest. Floating has no gap around the parts here (it only takes room), so no round corners or shadows either: it is
    laid out as the other layouts, with lines between the parts. */
-@media only screen and (max-width: 919.98px) and (orientation: portrait) {
-    body.lay-frame { --lay-split: 0.45; --mb-row-height: 44px; }
-    body.lay-floating { --lay-gap: 0px; }
-    body.lay-titlebar #canvas-container, body.lay-statusbar #canvas-container, body.lay-floating #canvas-container {
-        width: 100% !important;
-        height: calc((100% - var(--lay-top) - var(--lay-bottom)) * var(--lay-split)) !important;
-    }
-    body.lay-titlebar.mb-panel-hidden #canvas-container, body.lay-statusbar.mb-panel-hidden #canvas-container,
-    body.lay-floating.mb-panel-hidden #canvas-container { height: calc(100% - var(--lay-top) - var(--lay-bottom) - var(--mb-row-height)) !important; }
-    body.lay-titlebar #tweakpaneUiContainer, body.lay-statusbar #tweakpaneUiContainer, body.lay-floating #tweakpaneUiContainer {
-        top: calc(var(--lay-top) + (100% - var(--lay-top) - var(--lay-bottom)) * var(--lay-split)) !important; left: 0; width: auto !important;
-        bottom: var(--lay-bottom); border-top: 1px solid var(--tp-container-border-color, #e6e6e6);
-    }
-    body.lay-titlebar .mb-root, body.lay-statusbar .mb-root, body.lay-floating .mb-root {
-        top: calc(var(--lay-top) + (100% - var(--lay-top) - var(--lay-bottom)) * var(--lay-split)); bottom: var(--lay-bottom);
-        border-top: 1px solid var(--mb-line);
-    }
-    body.lay-floating #tweakpaneUiContainer, body.lay-floating .mb-root, body.lay-floating.mb-panel-hidden .mb-root {
-        border-radius: 0; box-shadow: none; clip-path: none;
-    }
-
-    /* the panel hidden: the mode bar is a row at the bottom, the actions and the names toggle at its end */
-    body.lay-frame.mb-panel-hidden .mb-root {
-        top: auto; left: 0; width: auto; height: var(--mb-row-height); flex-direction: row; align-items: center; padding: 0 6px;
-        overflow-x: auto; overflow-y: hidden; border-left: 0;
-    }
-    body.lay-frame.mb-panel-hidden .mb-root > .mb-toggle { margin: 0 0 0 auto; }
-    body.lay-frame.mb-panel-hidden .mb-root > .lay-float-actions { flex-direction: row; margin: 0 0 0 auto; }
-    body.lay-frame.mb-panel-hidden .mb-root > .lay-float-actions + .mb-toggle { margin-left: 2px; }
-    body.lay-frame.mb-panel-hidden .mb-root > .lay-area-entries { flex-direction: row; margin: 0 0 0 2px; padding: 0 0 0 6px; border-top: 0; border-left: 1px solid var(--mb-line); }
-
-    /* no room for the left and the bottom area next to the canvas: hidden, and they take no room */
-    body.lay-frame.lay-has-left { --lay-left-area: 0px; }
-    body.lay-frame.lay-has-bottom { --lay-bottom-area: 0px; }
-    body.lay-has-left .lay-area-left, body.lay-has-bottom .lay-area-bottom { display: none; }
-
-    /* the part below the canvas shows one area at a time: the panel, or the left or the bottom area that its entry in
-       the mode bar picks (EditorFrame.setStackedArea, the body class lay-stacked-<area>), in the place of the panel, next
-       to the mode bar. A collapsed area shows there too. When the mode bar hides the panel, the canvas takes it all. */
-    body.lay-frame.lay-stacked-left.lay-has-left .lay-area-left, body.lay-frame.lay-stacked-bottom.lay-has-bottom .lay-area-bottom {
-        display: flex; left: 0; right: var(--mb-width, 44px); width: auto; height: auto;
-        top: calc(var(--lay-top) + (100% - var(--lay-top) - var(--lay-bottom)) * var(--lay-split)); bottom: var(--lay-bottom);
-        border: 0; border-top: 1px solid var(--tp-container-border-color, #e6e6e6); border-radius: 0; box-shadow: none;
-    }
-    body.lay-frame.lay-stacked-left.lay-has-left #tweakpaneUiContainer, body.lay-frame.lay-stacked-bottom.lay-has-bottom #tweakpaneUiContainer { display: none; }
-    body.lay-frame.mb-panel-hidden.lay-stacked-left.lay-has-left .lay-area-left, body.lay-frame.mb-panel-hidden.lay-stacked-bottom.lay-has-bottom .lay-area-bottom { display: none; }
-    /* the open mode is not marked while an area is there: a tap on it shows its panel again */
-    body.lay-frame.lay-stacked-left.lay-has-left .mb-btn.on, body.lay-frame.lay-stacked-bottom.lay-has-bottom .mb-btn.on { background: transparent; }
+body.lay-stack.lay-frame { --lay-split: 0.45; --mb-row-height: 44px; }
+body.lay-stack.lay-floating { --lay-gap: 0px; }
+body.lay-stack.lay-titlebar #canvas-container, body.lay-stack.lay-statusbar #canvas-container, body.lay-stack.lay-floating #canvas-container {
+    width: 100% !important;
+    height: calc((100% - var(--lay-top) - var(--lay-bottom)) * var(--lay-split)) !important;
 }
+body.lay-stack.lay-titlebar.mb-panel-hidden #canvas-container, body.lay-stack.lay-statusbar.mb-panel-hidden #canvas-container,
+body.lay-stack.lay-floating.mb-panel-hidden #canvas-container { height: calc(100% - var(--lay-top) - var(--lay-bottom) - var(--mb-row-height)) !important; }
+body.lay-stack.lay-titlebar #tweakpaneUiContainer, body.lay-stack.lay-statusbar #tweakpaneUiContainer, body.lay-stack.lay-floating #tweakpaneUiContainer {
+    top: calc(var(--lay-top) + (100% - var(--lay-top) - var(--lay-bottom)) * var(--lay-split)) !important; left: 0; width: auto !important;
+    bottom: var(--lay-bottom); border-top: 1px solid var(--tp-container-border-color, #e6e6e6);
+}
+body.lay-stack.lay-titlebar .mb-root, body.lay-stack.lay-statusbar .mb-root, body.lay-stack.lay-floating .mb-root {
+    top: calc(var(--lay-top) + (100% - var(--lay-top) - var(--lay-bottom)) * var(--lay-split)); bottom: var(--lay-bottom);
+    border-top: 1px solid var(--mb-line);
+}
+body.lay-stack.lay-floating #tweakpaneUiContainer, body.lay-stack.lay-floating .mb-root, body.lay-stack.lay-floating.mb-panel-hidden .mb-root {
+    border-radius: 0; box-shadow: none; clip-path: none;
+}
+
+/* the panel hidden: the mode bar is a row at the bottom, the actions and the names toggle at its end */
+body.lay-stack.lay-frame.mb-panel-hidden .mb-root {
+    top: auto; left: 0; width: auto; height: var(--mb-row-height); flex-direction: row; align-items: center; padding: 0 6px;
+    overflow-x: auto; overflow-y: hidden; border-left: 0;
+}
+body.lay-stack.lay-frame.mb-panel-hidden .mb-root > .mb-toggle { margin: 0 0 0 auto; }
+body.lay-stack.lay-frame.mb-panel-hidden .mb-root > .lay-float-actions { flex-direction: row; margin: 0 0 0 auto; }
+body.lay-stack.lay-frame.mb-panel-hidden .mb-root > .lay-float-actions + .mb-toggle { margin-left: 2px; }
+body.lay-stack.lay-frame.mb-panel-hidden .mb-root > .lay-area-entries { flex-direction: row; margin: 0 0 0 2px; padding: 0 0 0 6px; border-top: 0; border-left: 1px solid var(--mb-line); }
+
+/* one view at a time (body class lay-single, EditorFrame.Breakpoints): a narrow portrait window (stacked, below the
+   canvas) or a narrow landscape window (in the right column). There is no room for the left and the bottom area next to
+   the canvas: they take no room, and their entry in the mode bar shows them in the place of the panel, one at a time
+   (EditorFrame.setStackedArea, the body class lay-stacked-<area>). A collapsed area shows there too. When the mode bar
+   hides the panel, the area hides with it. */
+body.lay-single.lay-frame.lay-has-left { --lay-left-area: 0px; }
+body.lay-single.lay-frame.lay-has-bottom { --lay-bottom-area: 0px; }
+body.lay-single.lay-floating.lay-has-left { --lay-left-inset: 0px; }
+body.lay-single.lay-floating.lay-has-bottom { --lay-bottom-inset: 0px; }
+body.lay-single.lay-has-left .lay-area-left, body.lay-single.lay-has-bottom .lay-area-bottom { display: none; }
+body.lay-single.lay-has-left .lay-handle-left, body.lay-single.lay-has-bottom .lay-handle-bottom { display: none; }
+body.lay-single.lay-frame.lay-stacked-left.lay-has-left .lay-area-left, body.lay-single.lay-frame.lay-stacked-bottom.lay-has-bottom .lay-area-bottom {
+    display: flex; height: auto; border-radius: 0; box-shadow: none;
+}
+body.lay-single.lay-frame.lay-stacked-left.lay-has-left #tweakpaneUiContainer, body.lay-single.lay-frame.lay-stacked-bottom.lay-has-bottom #tweakpaneUiContainer { display: none; }
+body.lay-single.lay-frame.mb-panel-hidden.lay-stacked-left.lay-has-left .lay-area-left, body.lay-single.lay-frame.mb-panel-hidden.lay-stacked-bottom.lay-has-bottom .lay-area-bottom { display: none; }
+/* the open mode is not marked while an area is there: a tap on it shows its panel again */
+body.lay-single.lay-frame.lay-stacked-left.lay-has-left .mb-btn.on, body.lay-single.lay-frame.lay-stacked-bottom.lay-has-bottom .mb-btn.on { background: transparent; }
+/* the box of the area shown: below the canvas next to the mode bar (stacked), or the box of the panel (side by side) */
+body.lay-stack.lay-stacked-left .lay-area-left, body.lay-stack.lay-stacked-bottom .lay-area-bottom {
+    left: 0; right: var(--mb-width, 44px); width: auto;
+    top: calc(var(--lay-top) + (100% - var(--lay-top) - var(--lay-bottom)) * var(--lay-split)); bottom: var(--lay-bottom);
+    border: 0; border-top: 1px solid var(--tp-container-border-color, #e6e6e6);
+}
+body.lay-side.lay-stacked-left .lay-area-left, body.lay-side.lay-stacked-bottom .lay-area-bottom {
+    left: auto; right: var(--mb-width, 44px); width: var(--tweakpane-ui-container-width, 300px);
+    top: var(--lay-top); bottom: var(--lay-bottom); border: 0; border-left: 1px solid var(--tp-container-border-color, #e6e6e6);
+}
+body.lay-side.lay-single.lay-floating.lay-stacked-left.lay-has-left .lay-area-left, body.lay-side.lay-single.lay-floating.lay-stacked-bottom.lay-has-bottom .lay-area-bottom {
+    right: calc(var(--mb-width, 44px) + var(--lay-gap)); top: var(--lay-gap); bottom: var(--lay-gap); border: 0;
+    border-radius: 8px 0 0 8px; box-shadow: var(--lay-card-shadow); clip-path: inset(-20px 0 -20px -20px);
+}
+

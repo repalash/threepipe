@@ -154,10 +154,16 @@ export class EditorFrame {
     static AreaStorageKey: string | null = 'tpEditorFrameAreas'
 
     /**
-     * The media query of a narrow portrait window (a phone), where the panel is below the canvas and shows one area at
-     * a time ({@link setStackedArea}). The same as the media query of the frame CSS.
+     * The window widths in px where the layout of the frame changes (read on each resize; change them before the frame is
+     * made, or call a resize):
+     * - `stack`: a portrait window narrower than this (a phone) has the canvas on top and the panel below it (the body
+     *   class `lay-stack`); else the parts are side by side (`lay-side`).
+     * - `singleView`: a window narrower than this, in any orientation, has no room for the left and the bottom area next
+     *   to the canvas (the smallest left area, panel, mode bar and canvas: 160 + 240 + 44 + 240 = 684 px). The areas then
+     *   show in the place of the panel, one view at a time, picked with their entries in the mode bar (`lay-single`, also
+     *   set with `lay-stack`, see {@link setStackedArea}).
      */
-    static StackedQuery = '(max-width: 919.98px) and (orientation: portrait)'
+    static Breakpoints = {stack: 920, singleView: 700}
 
     /** The default names of the entries of the areas in the mode bar ({@link setArea}) */
     static AreaNames: Record<EditorFrameArea, string> = {left: 'Left sidebar', bottom: 'Bottom strip'}
@@ -369,8 +375,8 @@ export class EditorFrame {
             delete this._sizes[area]
             delete this._applied[area]
             document.body.style.removeProperty(AREA_SIZE_VARS[area])
-            // the size of the CSS can be larger: the other side area leaves room for the canvas again
-            this._fitAreas()
+            // the size of the CSS can be larger: the other areas make room first, this one keeps its size if it can
+            this._fit(area)
         } else {
             const [min, max] = EditorFrame.AreaLimits[area]
             this._sizes[area] = Math.round(Math.max(min, Math.min(max, this._room(area), size)))
@@ -408,8 +414,8 @@ export class EditorFrame {
     }
 
     /**
-     * Sets the area that the part below the canvas shows in a narrow portrait window (a phone, {@link StackedQuery}),
-     * where there is no room for the areas next to the canvas: the panel (`right`, the default), or the left or the
+     * Sets the area that shows in the place of the panel in a narrow window (below the canvas on a phone, in the right
+     * column of a narrow landscape window, see {@link Breakpoints}), where there is no room for the areas next to the canvas: the panel (`right`, the default), or the left or the
      * bottom area. The mode bar stays next to it: a tap on a mode shows the panel again, a tap on the entry of an area
      * shows that area. A left or bottom area without an element shows the panel. It opens the part below the canvas when
      * the mode bar hid it. A wider or a landscape window shows all the areas, so this has no effect there. The body has
@@ -441,7 +447,7 @@ export class EditorFrame {
         this.modeBar.element.removeEventListener('click', this._expandPanel)
         this.modeBar.element.removeEventListener('click', this._onModeBarClick, true)
         for (const [k] of EDITOR_FRAME_LAYOUTS) document.body.classList.remove('lay-' + k)
-        document.body.classList.remove('lay-stacked-left', 'lay-stacked-bottom')
+        document.body.classList.remove('lay-stacked-left', 'lay-stacked-bottom', 'lay-stack', 'lay-side', 'lay-single')
         document.body.classList.remove('lay-frame')
         this._top.remove()
         this._bottom.remove()
@@ -470,16 +476,26 @@ export class EditorFrame {
         if (root && !root.classList.contains('tp-rotv-expanded')) root.querySelector<HTMLElement>('.tp-rotv_b')?.click()
     }
 
-    /** A narrow portrait window (a phone): the part below the canvas shows one area at a time */
-    private _isStacked() {
-        return !!window.matchMedia?.(EditorFrame.StackedQuery).matches
+    /** A narrow window ({@link Breakpoints}): the place of the panel shows one view at a time */
+    private _isSingle() {
+        return document.body.classList.contains('lay-single')
+    }
+
+    /** Sets the body classes of the layout for the window size ({@link Breakpoints}) */
+    private _applyBreakpoints() {
+        const {stack: stackBelow, singleView} = EditorFrame.Breakpoints
+        const stack = innerHeight >= innerWidth && innerWidth < stackBelow
+        const body = document.body
+        body.classList.toggle('lay-stack', stack)
+        body.classList.toggle('lay-side', !stack)
+        body.classList.toggle('lay-single', stack || innerWidth < singleView)
     }
 
     /** The left or the bottom area that the part below the canvas shows now, in a narrow portrait window */
     private _stackedShown(): EditorFrameArea | undefined {
         const a = this._stacked
         if (a === 'right' || !this._areas[a].children.length) return undefined
-        return this._isStacked() ? a : undefined
+        return this._isSingle() ? a : undefined
     }
 
     /** The entry of an area in the mode bar: hidden until {@link setArea} puts an element in the area */
@@ -495,21 +511,21 @@ export class EditorFrame {
      * canvas hides (as the open mode does). Else: the area shows or hides, and the pick is kept.
      */
     private _onEntry(area: EditorFrameArea) {
-        if (!this._isStacked()) return this.setAreaCollapsed(area, !this._collapsed[area], true)
+        if (!this._isSingle()) return this.setAreaCollapsed(area, !this._collapsed[area], true)
         if (this._stackedShown() === area && this.modeBar.open) this.modeBar.setOpen(false)
         else this.setStackedArea(area, true)
     }
 
     /** Shows the entries of the areas with an element, and marks the ones whose area shows */
     private _refreshEntries() {
-        const stacked = this._isStacked()
+        const single = this._isSingle()
         let any = false
         for (const area of ['left', 'bottom'] as const) {
             const entry = this._entries[area]
             const filled = this._areas[area].children.length > 0
             any ||= filled
             entry.style.display = filled ? '' : 'none'
-            const shown = filled && (stacked ? this._stackedShown() === area && this.modeBar.open : !this._collapsed[area])
+            const shown = filled && (single ? this._stackedShown() === area && this.modeBar.open : !this._collapsed[area])
             entry.classList.toggle('lay-entry-on', shown)
             entry.setAttribute('aria-pressed', String(shown))
         }
@@ -608,7 +624,7 @@ export class EditorFrame {
         if (area === 'bottom') return innerHeight / 2
         const other = area === 'left' ?
             this.modeBar.open ? this._areaSize('right') : 0 :
-            document.body.classList.contains('lay-has-left') && !this._collapsed.left ? this._areaSize('left') : 0
+            this._shows('left') ? this._areaSize('left') : 0
         const modeBar = this.modeBar.expanded ? EditorModeBar.Widths.wide : EditorModeBar.Widths.narrow
         return innerWidth - other - modeBar - EditorFrame.MinCanvasWidth
     }
@@ -620,10 +636,32 @@ export class EditorFrame {
         return (area === 'bottom' ? r?.height : r?.width) || this._applied[area] || EditorFrame.AreaLimits[area][0]
     }
 
-    /** Puts the set size of an area on screen, within the room that is left now ({@link _room}) */
+    /** The area takes room next to the canvas now: it has an element and is not collapsed, or the panel is open */
+    private _shows(area: EditorFrameSizedArea) {
+        if (area === 'right') return this.modeBar.open
+        return this._areas[area].children.length > 0 && !this._collapsed[area] && !this._isSingle()
+    }
+
+    /**
+     * Puts the size of an area on screen, within the room that is left now ({@link _room}): the set size, or the size of
+     * the CSS when none is set, made smaller only when the room is less
+     */
     private _applySize(area: EditorFrameSizedArea) {
         const size = this._sizes[area]
-        if (size === undefined) return
+        if (size === undefined) {
+            const prop = AREA_SIZE_VARS[area]
+            const shrunk = this._applied[area] !== undefined
+            delete this._applied[area]
+            if (shrunk) document.body.style.removeProperty(prop)
+            // stacked, the panel and the areas are as wide as the window
+            if (!this._shows(area) || document.body.classList.contains('lay-stack')) return
+            const room = this._room(area)
+            if (this._areaSize(area) <= room) return
+            const fit = Math.round(Math.max(EditorFrame.AreaLimits[area][0], room))
+            this._applied[area] = fit
+            document.body.style.setProperty(prop, fit + 'px')
+            return
+        }
         const applied = Math.round(Math.max(EditorFrame.AreaLimits[area][0], Math.min(size, this._room(area))))
         this._applied[area] = applied
         document.body.style.setProperty(AREA_SIZE_VARS[area], applied + 'px')
@@ -633,8 +671,13 @@ export class EditorFrame {
      * Applies the set sizes again when the room changes: the window size, an area shown, emptied, collapsed or opened,
      * the panel or the names of the mode bar shown or hidden. The kept sizes also apply before the plugin sets the areas.
      */
-    private _fitAreas = () => {
-        for (const area of Object.keys(this._sizes) as EditorFrameSizedArea[]) this._applySize(area)
+    private _fitAreas = () => this._fit()
+
+    /** {@link _fitAreas}, with one area fitted last: the one that the person just changed keeps its size if it can */
+    private _fit(last?: EditorFrameSizedArea) {
+        this._applyBreakpoints()
+        const areas = (Object.keys(AREA_SIZE_VARS) as EditorFrameSizedArea[]).filter(a => a !== last)
+        for (const area of last ? [...areas, last] : areas) this._applySize(area)
         // the window can change between a phone and a wide window, and the panel can show or hide
         this._refreshEntries()
     }

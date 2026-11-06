@@ -84,8 +84,8 @@ The frame has fixed areas: the left sidebar, the right sidebar (the panel and th
 - In the title bar and the status bar layouts, the canvas gets smaller and the areas are edge to edge, with a line to the canvas. In the floating layout, the areas are cards over the canvas, with the same gap as the panel card.
 - The perf pill and the bar of the sticky notes follow the left area: in the floating layout they move right of the left card, and up above the bottom card; the tool bar also moves up. In the other layouts they move with the canvas.
 - The body has the class `lay-has-left` or `lay-has-bottom` while that area has an element. The CSS variables `--lay-left-area`, `--lay-right-area` and `--lay-bottom-area` are the width or height of each area (`0px` when it is empty). In the floating layout, `--lay-left-inset` and `--lay-bottom-inset` are the parts of the canvas that the left and the bottom card cover, with their gap.
-- The mode bar has an entry for each area with an element, after the modes, with a line above them. `editor.setArea('left', layers, {name: 'Layers', icon: svg, color: '#7c5cff'})` gives it a name, an icon and a colour, like a mode (default: "Left sidebar", "Bottom strip", a sidebar or strip icon, and the grey of the labels). In a wide or a landscape window, a tap on the entry shows or hides its area (`setAreaCollapsed`, kept), and the entry is marked while the area shows.
-- A portrait window under 920 px wide (a phone) has no room for the areas next to the canvas. The part below the canvas shows one view at a time: a mode shows the panel there, and an entry shows its area. A tap on the one shown hides the part below the canvas, as a tap on the open mode does. From code: `editor.frame.setStackedArea('left')` (`'right'` for the panel), `editor.frame.stackedArea`. The pick of the person is kept with the sizes.
+- The mode bar has an entry for each area with an element, after the modes, with a line above them. `editor.setArea('left', layers, {name: 'Layers', icon: svg, color: '#7c5cff'})` gives it a name, an icon and a colour, like a mode (default: "Left sidebar", "Bottom strip", a sidebar or strip icon, and the grey of the labels). When the areas show next to the canvas (body class `lay-side` without `lay-single`), a tap on the entry shows or hides its area (`setAreaCollapsed`, kept), and the entry is marked while the area shows.
+- A narrow window has no room for the areas next to the canvas (see the breakpoints below). The place of the panel then shows one view at a time: a mode shows the panel there, and an entry shows its area. A tap on the one shown hides it, as a tap on the open mode does. From code: `editor.frame.setStackedArea('left')` (`'right'` for the panel), `editor.frame.stackedArea`. The pick of the person is kept with the sizes.
 
 **Size and collapse.** The left area, the bottom area and the panel (`right`) can change size and collapse:
 
@@ -108,7 +108,17 @@ editor.setArea('left', layers, {name: 'Layers'}) // an entry "Layers" in the mod
 editor.setArea('left', null)
 ```
 
-The frame applies in every window size. In a wide or a landscape window, the canvas, the panel and the mode bar are side by side. In a portrait window under 920 px wide (a phone), the layout keeps its bars (floating has no gap there). The canvas is on top at full width, and the panel and the mode bar are below it, with the same height. The CSS variable `--lay-split` is the part of the height for the canvas: `0.45`, set on `body.lay-frame`. To change it, use a more specific rule, like `html body.lay-frame { --lay-split: 0.5; }`. A mode bar taller than its room scrolls. When the panel is hidden, the mode bar is a row at the bottom, and a tap on a mode brings the panel back. The mode names are hidden at the first visit in a window under 920 px wide (`EditorModeBar.WideQuery`).
+The layout changes at two window widths, `EditorFrame.Breakpoints` (`{stack: 920, singleView: 700}`, in px; set other numbers before the frame is made). The frame sets body classes for them, and the CSS of the frame uses the classes:
+
+| Window | Layout | Body classes |
+|---|---|---|
+| `stack` (920 px) wide or more, or landscape and `singleView` (700 px) wide or more | Side by side: the left area, the canvas with the bottom strip under it, the panel, the mode bar. Areas at the size of the CSS also get smaller when the window has no room for them | `lay-side` |
+| Landscape and narrower than `singleView` | Side by side, but the left and the bottom area show in the place of the panel, one at a time. `singleView` is 700 px because the smallest left area, panel, mode bar and canvas need 160 + 240 + 44 + 240 = 684 px | `lay-side lay-single` |
+| Portrait and narrower than `stack` (a phone) | The canvas on top, below it the panel or one area at a time, next to the mode bar | `lay-stack lay-single` |
+
+The names in the mode bar show at the first visit in a window 920 px wide or more (`EditorModeBar.WideQuery`), and the perf pill is larger under 920 px; these two are CSS and media queries, not breakpoints of the frame.
+
+The frame applies in every window size. With `lay-side`, the canvas, the panel and the mode bar are side by side. In a portrait window under 920 px wide (a phone), the layout keeps its bars (floating has no gap there). The canvas is on top at full width, and the panel and the mode bar are below it, with the same height. The CSS variable `--lay-split` is the part of the height for the canvas: `0.45`, set on `body.lay-frame`. To change it, use a more specific rule, like `html body.lay-frame { --lay-split: 0.5; }`. A mode bar taller than its room scrolls. When the panel is hidden, the mode bar is a row at the bottom, and a tap on a mode brings the panel back. The mode names are hidden at the first visit in a window under 920 px wide (`EditorModeBar.WideQuery`).
 
 ```typescript
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'

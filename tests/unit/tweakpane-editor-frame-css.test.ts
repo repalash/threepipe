@@ -33,14 +33,33 @@ function mediaMatches(params: string, vp: Viewport) {
     }))
 }
 
-/** The declarations for a selector (exactly one of a rule's selectors) at a viewport, in cascade order: `!important` wins */
+/**
+ * The body classes of the layout that the frame sets for a window size (EditorFrame.Breakpoints = {stack: 920,
+ * singleView: 700}): lay-stack for a portrait window under 920 px, else lay-side; lay-single when stacked or under 700 px
+ */
+function layoutClasses(vp: Viewport) {
+    const stack = vp.height >= vp.width && vp.width < 920
+    return [stack ? 'lay-stack' : 'lay-side', ...stack || vp.width < 700 ? ['lay-single'] : []]
+}
+const LAYOUT_CLASS = /\.lay-(stack|side|single)\b/g
+
+/**
+ * The declarations for a selector (exactly one of a rule's selectors, without the layout classes) at a viewport, in
+ * cascade order: `!important` wins. The layout classes of a rule (lay-stack, lay-side, lay-single) must match the
+ * viewport, as a media query would.
+ */
 function declarations(selector: string, vp: Viewport) {
     const normal: Record<string, string> = {}
     const important: Record<string, string> = {}
+    const layout = layoutClasses(vp)
     for (const sheet of sheets) walkSheet(sheet)
     function walkSheet(sheet: typeof sheets[number]) {
         sheet.walkRules((rule: Rule) => {
-            if (!rule.selectors.map(s => s.replace(/\s+/g, ' ').trim()).includes(selector)) return
+            const match = rule.selectors.map(s => s.replace(/\s+/g, ' ').trim()).find(s => {
+                const needs = [...s.matchAll(LAYOUT_CLASS)].map(m => 'lay-' + m[1])
+                return s.replace(LAYOUT_CLASS, '') === selector && needs.every(c => layout.includes(c))
+            })
+            if (!match) return
             for (let p = rule.parent; p && p.type !== 'root'; p = p.parent as any) {
                 if (p.type === 'atrule' && (p as AtRule).name === 'media' && !mediaMatches((p as AtRule).params, vp)) return
             }
@@ -66,7 +85,9 @@ function specificity(selector: string) {
  * their specificity, then of the source; `!important` wins. A target is one simple selector of the element (its id or
  * one of its classes).
  */
-function cascade(targets: string[], bodyClassList: string[], vp: Viewport) {
+function cascade(targets: string[], stateClasses: string[], vp: Viewport) {
+    // the layout classes that the frame sets for the window size
+    const bodyClassList = [...stateClasses, ...layoutClasses(vp)]
     const found: {spec: number, order: number, decls: {prop: string, value: string, important: boolean}[]}[] = []
     let order = 0
     sheets.forEach(sheet => {
@@ -451,6 +472,31 @@ describe('tweakpane editor frame areas', () => {
                 // a wide or a landscape window shows all the areas, and the panel
                 for (const vp of [desktop, phoneLandscape]) expect(box(panel, layout, vp, s), stacked).not.toBeNull()
             }
+        })
+
+        it(`${layout}: a narrow landscape window (under 700 px) shows the areas in the place of the panel, one at a time`, () => {
+            const narrow: Viewport = {width: 640, height: 360}
+            const panelBox = box(panel, layout, narrow, {})
+            // side by side: the panel next to the mode bar (with the gap of the cards in floating)
+            expect(panelBox!.left! + panelBox!.width!).toBe(640 - 44 - (layout === 'floating' ? 12 : 0))
+            const s = {left: true, bottom: true}
+            // no room next to the canvas: the areas take none
+            expect(box(leftArea, layout, narrow, s)).toBeNull()
+            expect(box(bottomArea, layout, narrow, s)).toBeNull()
+            const vars = bodyVars(layout, narrow, s)
+            for (const k of ['--lay-left-area', '--lay-bottom-area', '--lay-left-inset', '--lay-bottom-inset']) {
+                expect(evaluate(vars[k], narrow.width, vars), k).toBe(0)
+            }
+            expect(box(canvas, layout, narrow, s)).toEqual(box(canvas, layout, narrow, {}))
+            // an entry picks one: it has the box of the panel, and the panel hides
+            for (const stacked of ['left', 'bottom'] as const) {
+                const shown = stacked === 'left' ? leftArea : bottomArea
+                expect(box(shown, layout, narrow, {...s, stacked}), stacked).toEqual(panelBox)
+                expect(box(panel, layout, narrow, {...s, stacked}), stacked).toBeNull()
+                expect(box(shown, layout, narrow, {...s, stacked, panelHidden: true}), stacked).toBeNull()
+            }
+            // 700 px and wider: side by side, all of them
+            expect(box(leftArea, layout, {width: 800, height: 360}, s)).not.toBeNull()
         })
 
         it(`${layout}: the entries of the areas in the mode bar: marked while their area shows, a row with the hidden panel`, () => {

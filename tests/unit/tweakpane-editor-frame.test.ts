@@ -444,7 +444,7 @@ describe('EditorFrame areas', () => {
                 areas: ['lay-area lay-area-left', 'lay-area lay-area-bottom'],
                 floatActions: layout === 'floating' ? 1 : 0,
                 // no lay-has-<area>: the CSS gives an empty area no room (tweakpane-editor-frame-css.test.ts)
-                classes: ['lay-' + layout, 'lay-frame'].sort(),
+                classes: ['lay-' + layout, 'lay-frame', 'lay-side'].sort(), // lay-side: 1440 x 900 (EditorFrame.Breakpoints)
             })
             expect(area('left')[0].children).toHaveLength(0)
             expect(area('bottom')[0].children).toHaveLength(0)
@@ -478,7 +478,7 @@ describe('EditorFrame areas', () => {
             f.setLayout(layout)
             expect(area('left')[0].children, layout).toEqual([left])
             expect(area('bottom')[0].children, layout).toEqual([bottom])
-            expect(structure(f).classes, layout).toEqual(['lay-' + layout, 'lay-frame', 'lay-has-bottom', 'lay-has-left'].sort())
+            expect(structure(f).classes, layout).toEqual(['lay-' + layout, 'lay-frame', 'lay-has-bottom', 'lay-has-left', 'lay-side'].sort())
         }
         f.dispose()
         expect(body().find('lay-area')).toHaveLength(0)
@@ -665,6 +665,60 @@ describe('EditorFrame area sizes', () => {
     const shown = (e: FakeElement) => e.style.display !== 'none'
     const marked = (e: FakeElement) => e.classList.contains('lay-entry-on')
 
+    test('the breakpoints set the layout classes on the body; a resize sets them again', () => {
+        const f = new EditorFrame(host(), {layout: 'titlebar'})
+        const classes = () => ['lay-stack', 'lay-side', 'lay-single'].filter(c => body().classList.contains(c))
+        expect(classes()).toEqual(['lay-side']) // 1440 x 900
+        const size = (w: number, h: number) => {
+            vi.stubGlobal('innerWidth', w)
+            vi.stubGlobal('innerHeight', h)
+            win.fire('resize')
+        }
+        size(390, 664) // a phone in portrait
+        expect(classes()).toEqual(['lay-stack', 'lay-single'])
+        size(919, 1200)
+        expect(classes()).toEqual(['lay-stack', 'lay-single'])
+        size(920, 1200)
+        expect(classes()).toEqual(['lay-side'])
+        size(699, 390) // a narrow landscape window
+        expect(classes()).toEqual(['lay-side', 'lay-single'])
+        size(700, 390)
+        expect(classes()).toEqual(['lay-side'])
+        // other numbers: the next resize uses them
+        const saved = {...EditorFrame.Breakpoints}
+        try {
+            EditorFrame.Breakpoints.singleView = 800
+            size(780, 390)
+            expect(classes()).toEqual(['lay-side', 'lay-single'])
+        } finally {
+            Object.assign(EditorFrame.Breakpoints, saved)
+        }
+        f.dispose()
+        expect(classes()).toEqual([])
+    })
+
+    test('areas at the size of the CSS shrink when the window has no room for them, and get it back when it has', () => {
+        vi.stubGlobal('innerWidth', 1000)
+        vi.stubGlobal('innerHeight', 500) // landscape: side by side
+        storage.set('tpEditorModeBarExpanded', '0')
+        const f = new EditorFrame(host(), {layout: 'titlebar'})
+        f.setArea('left', new FakeElement('div') as any)
+        // on screen: the variable, else the 240 px of the CSS
+        area('left').getBoundingClientRect = () => ({width: parseInt(sizeVar('--lay-left-area-size') ?? '240'), height: 800}) as any
+        const room = (w: number) => w - 240 /* panel, no variable: AreaLimits */ - EditorModeBar.Widths.narrow - EditorFrame.MinCanvasWidth
+        vi.stubGlobal('innerWidth', 720)
+        win.fire('resize')
+        expect(sizeVar('--lay-left-area-size')).toBe(Math.max(160, room(720)) + 'px')
+        vi.stubGlobal('innerWidth', 1400)
+        win.fire('resize')
+        expect(sizeVar('--lay-left-area-size')).toBeUndefined() // the size of the CSS again
+        expect(stored()).toBeNull() // not a size that the person picked
+        // a narrow window shows the areas one at a time: no fitting for them
+        vi.stubGlobal('innerWidth', 650)
+        win.fire('resize')
+        expect(sizeVar('--lay-left-area-size')).toBeUndefined()
+    })
+
     test('the mode bar has an entry for each area with an element, after the modes, with its name and icon', () => {
         const f = new EditorFrame(host(), {layout: 'floating'})
         const bar = f.modeBar.element as any as FakeElement
@@ -689,7 +743,6 @@ describe('EditorFrame area sizes', () => {
     })
 
     test('in a wide window, an entry shows or hides its area, and is marked while it shows', () => {
-        vi.stubGlobal('matchMedia', (q: string) => ({matches: q !== EditorFrame.StackedQuery}))
         const f = new EditorFrame(host(), {layout: 'titlebar'})
         f.setArea('left', new FakeElement('div') as any)
         const e = entries(f)
@@ -711,7 +764,8 @@ describe('EditorFrame area sizes', () => {
     })
 
     test('on a phone, the entries and the modes share the part below the canvas; a tap on the one shown hides it', () => {
-        vi.stubGlobal('matchMedia', (q: string) => ({matches: q === EditorFrame.StackedQuery})) // a phone in portrait
+        vi.stubGlobal('innerWidth', 390) // a phone in portrait (EditorFrame.Breakpoints)
+        vi.stubGlobal('innerHeight', 664)
         const f = new EditorFrame(host(), {layout: 'titlebar'})
         f.setArea('left', new FakeElement('div') as any, {name: 'Layers'})
         f.setArea('bottom', new FakeElement('div') as any)
