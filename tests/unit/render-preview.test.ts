@@ -155,6 +155,21 @@ describe('offscreen snapshot', () => {
         resources.dispose()
     })
 
+    it('uses an 8 bit HDR target in WebGL2 without a colour buffer float extension, half float with one', () => {
+        const r = renderer()
+        r.capabilities.isWebGL2 = true
+        r.extensions.has = () => false // WebGL2 samples float textures, but cannot render to them
+        let resources = new tp.SnapObjectResources()
+        tp.snapObjectPixels(r as any, new tp.Mesh(new tp.BoxGeometry()), {resources, size: 8})
+        expect(resources.hdrTarget!.texture.type).toBe(tp.UnsignedByteType)
+        resources.dispose()
+        r.extensions.has = (name: string) => name === 'EXT_color_buffer_float'
+        resources = new tp.SnapObjectResources()
+        tp.snapObjectPixels(r as any, new tp.Mesh(new tp.BoxGeometry()), {resources, size: 8})
+        expect(resources.hdrTarget!.texture.type).toBe(tp.HalfFloatType)
+        resources.dispose()
+    })
+
     it('without tone mapping and with a linear output, only copies', () => {
         const r = renderer()
         const resources = new tp.SnapObjectResources()

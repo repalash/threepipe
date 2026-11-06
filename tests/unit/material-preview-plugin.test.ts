@@ -183,6 +183,31 @@ describe('MaterialPreviewPlugin', () => {
         expect(got).toEqual(['neon', 'bubble', 'lava', 'neon', 'bubble', 'lava'])
     })
 
+    it('two previews of one material (a card and a large view) are throttled each on its own during an animation', () => {
+        const {queue, frame} = setup({dragInterval: 100, maxPerFrame: 2})
+        const m = new tp.PhysicalMaterial()
+        const got: number[] = []
+        const handles: any[] = []
+        const ask = () => {
+            handles.forEach(h => h.cancel())
+            handles.length = 0
+            for (const size of [128, 256]) handles.push(queue.request(m, {size}, p => got.push(p.size)))
+        }
+        ask()
+        frame()
+        expect(got).toEqual([128, 256])
+        // an animation: a change in every frame (16 ms) for about half a second, the card asks first each time
+        for (let i = 0; i < 32; i++) {
+            m.setDirty()
+            ask()
+            frame()
+        }
+        // both previews follow the animation, every 100 ms each, not only the card
+        const cards = got.filter(s => s === 128).length, large = got.filter(s => s === 256).length
+        expect(large).toBe(cards)
+        expect(cards).toBeGreaterThanOrEqual(5)
+    })
+
     it('shares one render between requests for the same material, shape and size', () => {
         const {generator, queue, frame} = setup()
         const m = new tp.PhysicalMaterial()

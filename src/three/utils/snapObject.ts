@@ -28,7 +28,6 @@ import {CopyShader} from 'three/examples/jsm/shaders/CopyShader.js'
 import {glsl, IDisposable} from 'ts-browser-helpers'
 import {Box3B} from '../math/Box3B'
 import {IWebGLRenderer} from '../../core'
-import {getTextureDataType} from './texture'
 import TonemapShader from '../../plugins/postprocessing/shaders/TonemapPlugin.pars.glsl'
 
 /**
@@ -187,7 +186,7 @@ export class SnapObjectResources implements IDisposable {
      * @param width
      * @param height
      * @param samples - MSAA samples of the HDR target
-     * @param type - texture type of the HDR target, half float by default. See {@link getTextureDataType}
+     * @param type - texture type of the HDR target, half float by default
      */
     prepare(width: number, height: number, samples = 4, type: TextureDataType = HalfFloatType): {hdr: WebGLRenderTarget, ldr: WebGLRenderTarget} {
         if (this.hdrTarget && (this.hdrTarget.samples !== samples || this.hdrTarget.texture.type !== type)) {
@@ -328,8 +327,7 @@ export function snapObjectPixels(renderer: IWebGLRenderer | WebGLRenderer, objec
     const resources = options.resources ?? new SnapObjectResources()
     try {
         return withSnapCamera(object, options, width / height, (root, camera) => {
-            // half float when the device can render to it, like the other HDR targets
-            const {hdr, ldr} = resources.prepare(width, height, options.samples ?? 4, getTextureDataType(renderer))
+            const {hdr, ldr} = resources.prepare(width, height, options.samples ?? 4, renderableHdrType(renderer))
             resources.setOutput(options.toneMapping, options.outputColorSpace)
 
             const lastTarget = renderer.getRenderTarget()
@@ -464,4 +462,14 @@ export function snapObject(
         }
         return snap
     })
+}
+
+/**
+ * The type of the HDR target of a snapshot: half float when the device can render to it (`EXT_color_buffer_half_float`, or
+ * `EXT_color_buffer_float` in WebGL2), else 8 bit. WebGL2 alone samples float textures but does not render to them, so
+ * `getTextureDataType` (for loaded data) is not used here.
+ */
+function renderableHdrType(renderer: IWebGLRenderer | WebGLRenderer): TextureDataType {
+    const ext = renderer.extensions
+    return ext.has('EXT_color_buffer_half_float') || renderer.capabilities.isWebGL2 && ext.has('EXT_color_buffer_float') ? HalfFloatType : UnsignedByteType
 }

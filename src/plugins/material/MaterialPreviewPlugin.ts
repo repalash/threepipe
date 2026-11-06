@@ -72,7 +72,9 @@ interface MaterialState {
     // the last materialUpdate is part of a continuous change: a drag, an animation or a transition
     continuous: boolean
     lastChange: number
-    lastRender: number
+    // the time of the last render of each preview of the material (by cache key: shape, geometry, size), so that two
+    // previews of one material (a small card and a large view) are throttled each on its own
+    lastRender: Map<string, number>
     refs: number
     listener: (e: {last?: boolean, uiChangeEvent?: {last?: boolean}}) => void
 }
@@ -268,10 +270,10 @@ export class MaterialPreviewPlugin extends AViewerPluginSync {
         if (!viewer || !this._jobs.size || !viewer.renderEnabled || this.isDisabled()) return
         const now = this.now()
         let rendered = 0
-        // the material rendered longest ago first: a material that changes in every frame asks again each time, and its
+        // the preview rendered longest ago first: a material that changes in every frame asks again each time, and its
         // new request would else always come before the others, which then never render (with maxPerFrame)
-        const jobs = [...this._jobs].sort(([, a], [, b]) =>
-            (this._states.get(a.material)?.lastRender ?? -Infinity) - (this._states.get(b.material)?.lastRender ?? -Infinity))
+        const lastRender = (key: string, job: Job) => this._states.get(job.material)?.lastRender.get(key) ?? -Infinity
+        const jobs = [...this._jobs].sort(([ka, a], [kb, b]) => lastRender(ka, a) - lastRender(kb, b))
         for (const [key, job] of jobs) {
             if (this._jobs.get(key) !== job) continue // cancelled or replaced in a callback
             const state = this._states.get(job.material)
@@ -287,9 +289,9 @@ export class MaterialPreviewPlugin extends AViewerPluginSync {
                 continue
             }
             if (rendered >= this.maxPerFrame) continue
-            if (state.continuous && now - state.lastRender < this.dragInterval) continue
+            if (state.continuous && now - (state.lastRender.get(key) ?? -Infinity) < this.dragInterval) continue
             rendered++
-            state.lastRender = now
+            state.lastRender.set(key, now)
             let preview: MaterialPreview
             try {
                 const start = this.now()
@@ -338,7 +340,7 @@ export class MaterialPreviewPlugin extends AViewerPluginSync {
     private _track(material: IMaterial) {
         let state = this._states.get(material)
         if (!state) {
-            const s: MaterialState = {version: 0, continuous: false, lastChange: -Infinity, lastRender: -Infinity, refs: 0, listener: (e) => {
+            const s: MaterialState = {version: 0, continuous: false, lastChange: -Infinity, lastRender: new Map(), refs: 0, listener: (e) => {
                 const now = this.now()
                 const last = e.last ?? e.uiChangeEvent?.last
                 s.version++
