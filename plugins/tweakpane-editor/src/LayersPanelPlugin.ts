@@ -8,6 +8,7 @@ import {
     PickingPlugin,
     ThreeViewer,
     uiFolderContainer,
+    uiNumber,
     uiToggle,
     widgetKinds,
 } from 'threepipe'
@@ -17,12 +18,17 @@ import type {TweakpaneEditorPlugin} from './TweakpaneEditorPlugin'
 import type {EditorFrameArea, EditorFrameAreaOptions} from './frame/EditorFrame'
 import styles from './LayersPanelPlugin.css?inline'
 
-/** One row of the list: an object, its depth in the tree, its number of child layers, and if it is open */
+/**
+ * One row of the list: an object, its depth in the tree, its number of child layers, and if it is open. A row with
+ * `more` is the "… N more" row of an open object ({@link LayersPanelPlugin.maxChildren}): `object` is that object, and
+ * `more` the number of its children that do not show.
+ */
 interface LayerRow {
     object: IObject3D
     depth: number
     kids: number
     open: boolean
+    more?: number
 }
 
 /** The elements of one row of the virtual list. The rows are made once and filled again for each render. */
@@ -77,6 +83,8 @@ const ICONS = {
  * - With the focus in the list: Up and Down select the next row (Shift adds it), Right opens a row or goes to its first
  *   child, Left closes a row or goes to its parent.
  * - The search field shows only the objects whose name has the text, with the groups that hold them.
+ * - An open row shows its first {@link maxChildren} children (5), then a "… N more" row; a click on it shows all of them
+ *   ({@link showAllChildren}). The objects at the top level, a search and children that hold the selection always show.
  * - A virtual list: only the rows in view are in the DOM, so a scene with many objects stays fast.
  *
  * Lights and cameras have the icon and the colour of their kind (`widgetKinds` of threepipe), as in the viewport.
@@ -132,6 +140,14 @@ export class LayersPanelPlugin extends AViewerPluginSync {
         revealSelection = true
 
     /**
+     * An open row shows this many of its children, then a "… N more" row; a click on it shows all of them (until the row
+     * is closed). The objects at the top level, a search, and children that hold the selection always show. `0`: all.
+     */
+    @onChange(LayersPanelPlugin.prototype._maxChildrenChanged)
+    @uiNumber('Max children')
+        maxChildren = 5
+
+    /**
      * The area of the page frame of the {@link TweakpaneEditorPlugin} for the panel (`TweakpaneEditorPlugin.setArea`).
      * `null`: the plugin does not put the panel in the frame. Not used with a `container`.
      */
@@ -151,6 +167,8 @@ export class LayersPanelPlugin extends AViewerPluginSync {
     private _filter = ''
     /** The open rows. Weak: a removed object is not kept. */
     private _expanded = new WeakSet<IObject3D>()
+    /** The open rows that show all their children ({@link showAllChildren}) */
+    private _showAll = new WeakSet<IObject3D>()
     private _flat: LayerRow[] = []
     private _index = new Map<IObject3D, number>()
     private _total = 0
@@ -271,7 +289,7 @@ export class LayersPanelPlugin extends AViewerPluginSync {
     /** The objects in the list, from the top: the children of the open rows included, filtered by the search */
     get listedObjects(): IObject3D[] {
         if (this._structureDirty) this._build()
-        return this._flat.map(r => r.object)
+        return this._flat.filter(r => !r.more).map(r => r.object)
     }
 
     /** The object has its row open: its children are in the list */
@@ -284,7 +302,12 @@ export class LayersPanelPlugin extends AViewerPluginSync {
      * @param deep - also all the levels below it
      */
     setExpanded(object: IObject3D, open: boolean, deep = false) {
-        const set = (o: IObject3D) => open ? this._expanded.add(o) : this._expanded.delete(o)
+        const set = (o: IObject3D) => {
+            if (open) return this._expanded.add(o)
+            this._expanded.delete(o)
+            // closed: the next open shows the first children again
+            this._showAll.delete(o)
+        }
         if (deep) object.traverse(o => set(o as IObject3D))
         else set(object)
         this.refresh(true)
@@ -293,6 +316,13 @@ export class LayersPanelPlugin extends AViewerPluginSync {
     /** Closes all the rows */
     collapseAll() {
         this._expanded = new WeakSet()
+        this._showAll = new WeakSet()
+        this.refresh(true)
+    }
+
+    /** Shows all the children of an open row, in place of its "… N more" row ({@link maxChildren}) */
+    showAllChildren(object: IObject3D) {
+        this._showAll.add(object)
         this.refresh(true)
     }
 
@@ -487,7 +517,8 @@ export class LayersPanelPlugin extends AViewerPluginSync {
                 }
             }
         }
-        this.refresh(opened)
+        // a selected object in the place of a "… N more" row shows all the children
+        this.refresh(opened || this._selected().some(s => this._flat.some(r => r.more && s.parent === r.object && !this._index.has(s))))
     }
 
     private _onPickingHover = () => {
@@ -540,6 +571,8 @@ export class LayersPanelPlugin extends AViewerPluginSync {
         const target = e.target as Element
         if (target.closest('.lyp-rename')) return
         const row = target.closest('.lyp-row') as HTMLElement | null
+        const more = row?.dataset.index !== undefined ? this._flat[+row.dataset.index] : undefined
+        if (more?.more) return this.showAllChildren(more.object)
         const o = row && this._rowObject(row)
         if (!o) return
         // the list keeps the focus (a click can focus a button), for the arrow keys
@@ -591,14 +624,16 @@ export class LayersPanelPlugin extends AViewerPluginSync {
         const sel = this._selected()
         const i = sel.length ? this._index.get(sel[0]) ?? -1 : -1
         const r = i >= 0 ? flat[i] : undefined
-        const go = (j: number) => {
+        // the next row of an object in that direction: a "… N more" row is passed over
+        const go = (j: number, step = 1) => {
+            while (flat[j]?.more) j += step
             const t = flat[Math.max(0, Math.min(flat.length - 1, j))]
-            if (!t) return
+            if (!t || t.more) return
             if (e.shiftKey && sel.length && this._picking?.multiSelectEnabled) this._select([t.object, ...sel.filter(s => s !== t.object)])
             else this._select([t.object])
         }
         if (e.key === 'ArrowDown') go(i + 1)
-        else if (e.key === 'ArrowUp') go(i < 0 ? flat.length - 1 : i - 1)
+        else if (e.key === 'ArrowUp') go(i < 0 ? flat.length - 1 : i - 1, -1)
         else if (!r) return
         else if (e.key === 'ArrowRight') {
             if (r.kids && !r.open) this.setExpanded(r.object, true, e.altKey)
@@ -678,6 +713,13 @@ export class LayersPanelPlugin extends AViewerPluginSync {
         }
         const top = this._kids(root)
         for (const o of top) mark(o)
+        // the selected objects and the objects that hold them: a child of these always shows
+        const holdsSel = new Set<IObject3D>()
+        for (const s of this._selected()) {
+            holdsSel.add(s)
+            s.traverseAncestors(a => holdsSel.add(a as IObject3D))
+        }
+        const limit = Math.max(0, Math.floor(this.maxChildren))
         const add = (o: IObject3D, depth: number) => {
             if (!keep.has(o)) return
             const kids = this._kids(o)
@@ -685,7 +727,12 @@ export class LayersPanelPlugin extends AViewerPluginSync {
             const open = kids.length > 0 && (!!filter || this._expanded.has(o))
             this._index.set(o, this._flat.length)
             this._flat.push({object: o, depth, kids: kids.length, open})
-            if (open) for (const k of kids) add(k, depth + 1)
+            if (!open) return
+            // the first children and a "… N more" row; not for one child more, the search, or the selection
+            const cut = limit > 0 && !filter && kids.length > limit + 1 && !this._showAll.has(o) &&
+                !kids.slice(limit).some(k => holdsSel.has(k))
+            for (const k of cut ? kids.slice(0, limit) : kids) add(k, depth + 1)
+            if (cut) this._flat.push({object: o, depth: depth + 1, kids: 0, open: false, more: kids.length - limit})
         }
         for (const o of top) add(o, 0)
     }
@@ -764,13 +811,24 @@ export class LayersPanelPlugin extends AViewerPluginSync {
         return p
     }
 
+    /** The object of a row element; none for a "… N more" row */
     private _rowObject(row: HTMLElement): IObject3D | undefined {
         const i = row.dataset.index
-        return i === undefined ? undefined : this._flat[+i]?.object
+        const r = i === undefined ? undefined : this._flat[+i]
+        return r && !r.more ? r.object : undefined
     }
 
     /** Fills one row. Each part is set only when it changes, so a refresh in each frame (a drag in the viewport) is cheap. */
     private _fill(p: RowElements, i: number, r: LayerRow, isSel: boolean, isParentOfSel: boolean, isHovered: boolean) {
+        const {row} = p
+        row.dataset.index = String(i)
+        setIfChanged(row.style, 'display', '')
+        setIfChanged(row.style, 'top', i * LayersPanelPlugin.RowHeight + 'px')
+        setIfChanged(row.style, 'paddingLeft', 4 + r.depth * INDENT + 'px')
+        row.setAttribute('aria-level', String(r.depth + 1))
+        if (r.more) return this._fillMore(p, r.more)
+        setIfChanged(p.lock.style, 'visibility', '')
+        setIfChanged(p.eye.style, 'visibility', '')
         const o = r.object
         const root = this._viewer?.scene.modelRoot
         // hidden or locked by a parent too
@@ -782,13 +840,7 @@ export class LayersPanelPlugin extends AViewerPluginSync {
         }
         const cls = 'lyp-row' + (isSel ? ' lyp-sel' : isParentOfSel ? ' lyp-sel-parent' : '') +
             (hidden ? ' lyp-hidden' : '') + (locked ? ' lyp-locked' : '') + (isHovered ? ' lyp-hover' : '')
-        const {row} = p
         setIfChanged(row, 'className', cls)
-        row.dataset.index = String(i)
-        setIfChanged(row.style, 'display', '')
-        setIfChanged(row.style, 'top', i * LayersPanelPlugin.RowHeight + 'px')
-        setIfChanged(row.style, 'paddingLeft', 4 + r.depth * INDENT + 'px')
-        row.setAttribute('aria-level', String(r.depth + 1))
         row.setAttribute('aria-selected', String(isSel))
         if (r.kids) row.setAttribute('aria-expanded', String(r.open))
         else row.removeAttribute('aria-expanded')
@@ -814,6 +866,24 @@ export class LayersPanelPlugin extends AViewerPluginSync {
         toggleButton(p.eye, !o.visible, hidden, ICONS.eyeOff, ICONS.eye, 'Show (H)', 'Hide (H)')
         // a camera cannot be hidden
         setIfChanged(p.eye, 'disabled', !!o.isCamera)
+    }
+
+    /** Fills the "… N more" row of an open object: no icon and no buttons; a click shows all the children */
+    private _fillMore(p: RowElements, more: number) {
+        setIfChanged(p.row, 'className', 'lyp-row lyp-more')
+        p.row.removeAttribute('aria-expanded')
+        p.row.setAttribute('aria-selected', 'false')
+        p.caret.dataset.state = p.kind.dataset.kind = ''
+        p.caret.innerHTML = p.kind.innerHTML = ''
+        p.caret.title = ''
+        setIfChanged(p.name, 'textContent', `… ${more} more`)
+        setIfChanged(p.name, 'title', 'Show all')
+        setIfChanged(p.lock.style, 'visibility', 'hidden')
+        setIfChanged(p.eye.style, 'visibility', 'hidden')
+    }
+
+    private _maxChildrenChanged() {
+        this.refresh(true)
     }
 
     // endregion

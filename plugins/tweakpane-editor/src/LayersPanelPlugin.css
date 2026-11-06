@@ -47,6 +47,9 @@
 .lyp-caret:empty { cursor: default; background: none; }
 .lyp-kind { width: 18px; flex: none; display: flex; justify-content: center; color: var(--lyp-dim); }
 .lyp-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; padding-left: 4px; }
+/* the "… N more" row of an open row (LayersPanelPlugin.maxChildren): a click shows all the children */
+.lyp-row.lyp-more { cursor: pointer; }
+.lyp-row.lyp-more .lyp-name { color: var(--tp-label-foreground-color, #8a8f98); }
 .lyp-rename {
     flex: 1; min-width: 0; margin-left: 2px; padding: 2px 4px; font: inherit; color: var(--lyp-fg); background: var(--lyp-bg);
     border: 1px solid var(--lyp-accent); border-radius: 3px; outline: none; user-select: text; -webkit-user-select: text;

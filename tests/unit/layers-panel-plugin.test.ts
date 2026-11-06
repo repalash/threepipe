@@ -586,6 +586,64 @@ describe('LayersPanelPlugin', () => {
         expect(outline.hovered).not.toContain(sun)
     })
 
+    test('an open row shows its first children and a "… N more" row; a click, the search or the selection shows all', () => {
+        const {layers, list, picking, modelRoot} = setup()
+        const parts = Object.assign(new Group(), {name: 'Parts'})
+        for (let i = 0; i < 12; i++) parts.add(mesh('p' + i))
+        modelRoot.add(parts)
+        modelRoot.add(mesh('after'))
+        layers.refresh(true)
+        layers.setExpanded(parts as any, true)
+        flush()
+        const shown = () => names(list).filter(n => /^p\d+$/.test(n))
+        expect(shown()).toEqual(['p0', 'p1', 'p2', 'p3', 'p4'])
+        expect(names(list)).toContain('… 7 more')
+        // not an object: no selection, no outline, not in the listed objects
+        expect(layers.listedObjects.map(o => o.name)).not.toContain('… 7 more')
+        // a click shows all of them, until the row is closed
+        row(list, '… 7 more').fire('click')
+        flush()
+        expect(shown()).toHaveLength(12)
+        expect(names(list)).not.toContain('… 7 more')
+        layers.setExpanded(parts as any, false)
+        layers.setExpanded(parts as any, true)
+        flush()
+        expect(shown()).toHaveLength(5)
+        // the search shows all the matches
+        const search = (layers.element as any as FakeElement).find('lyp-search-input')[0]
+        search.value = 'p'
+        search.fire('input')
+        flush()
+        expect(shown()).toHaveLength(12)
+        search.value = ''
+        search.fire('input')
+        flush()
+        expect(shown()).toHaveLength(5)
+        // a selected child in the place of the "… N more" row shows all of them
+        picking.select([parts.children[9]])
+        flush()
+        expect(shown()).toHaveLength(12)
+        picking.select([])
+        // the Up and Down keys pass over the "… N more" row
+        layers.setExpanded(parts as any, false)
+        layers.setExpanded(parts as any, true)
+        flush()
+        picking.select([parts.children[4]])
+        flush()
+        key(list, 'ArrowDown')
+        expect(picking.selected.map(o => o.name)).toEqual(['after'])
+        key(list, 'ArrowUp')
+        expect(picking.selected.map(o => o.name)).toEqual(['p4'])
+        // 0: all; one child more than the limit: all (no "… 1 more" row)
+        picking.select([])
+        layers.maxChildren = 0
+        flush()
+        expect(shown()).toHaveLength(12)
+        layers.maxChildren = 11
+        flush()
+        expect([shown().length, names(list).some(n => n.startsWith('…'))]).toEqual([12, false])
+    })
+
     test('the search shows the matches and the groups that hold them; Escape clears it', () => {
         const {list, layers} = setup()
         const search = (layers.element as any as FakeElement).find('lyp-search-input')[0]

@@ -189,6 +189,7 @@ In the [Tweakpane Editor example](https://threepipe.org/examples/tweakpane-edito
 - With the focus in the list, Up and Down select the next row (Shift adds it). Right opens a row or goes to its first child. Left closes a row or goes to its parent.
 - The search field shows the objects whose name has the text, with the groups that hold them. Escape clears it.
 - Lights and cameras have the icon and the colour of their kind (`widgetKinds` of threepipe), as in the viewport.
+- An open row shows its first `maxChildren` children (5), then a "… N more" row. A click on it shows all of them (`showAllChildren(object)`), until the row is closed. The objects at the top level, a search, and children that hold the selection always show; `maxChildren = 0` shows all. The Up and Down keys pass over the "… N more" row.
 - Only the rows in view are in the DOM (a virtual list), so a scene with many objects stays fast.
 
 The visibility, the lock and the name changes are undo steps with the `UndoManagerPlugin`.
@@ -201,7 +202,7 @@ The visibility, the lock and the name changes are undo steps with the `UndoManag
 - Without the editor: give an element to the constructor, `new LayersPanelPlugin(container)`. The panel goes in it while the plugin is added. The panel fills its parent, so give the parent a height.
 - Or place `layers.element` in the page yourself.
 
-The plugin removes the panel from the page when it is removed. Its UI folder, `Layers Panel`, has the settings: Enabled, Hover in viewport and Reveal selection. The settings and the open rows are not saved with the viewer config.
+The plugin removes the panel from the page when it is removed. Its UI folder, `Layers Panel`, has the settings: Enabled, Hover in viewport, Reveal selection and Max children. The settings and the open rows are not saved with the viewer config.
 
 ```typescript
 import {PickingPlugin, ThreeViewer, UndoManagerPlugin} from 'threepipe'
