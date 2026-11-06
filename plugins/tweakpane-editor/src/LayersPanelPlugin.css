@@ -19,6 +19,14 @@
 .lyp-head { display: flex; align-items: center; gap: 6px; padding: 10px 12px 6px; flex: none; }
 .lyp-title { font-weight: 600; }
 .lyp-count { color: var(--lyp-dim); }
+/* the tab bar (LayersPanelPlugin.tabs): hidden with one tab */
+.lyp-tabs { display: flex; gap: 2px; margin: 0 8px 6px; padding: 2px; border-radius: 6px; background: var(--lyp-input); flex: none; }
+.lyp-tab {
+    flex: 1 1 auto; min-width: 0; border: 0; background: transparent; color: var(--lyp-dim); padding: 4px 2px; border-radius: 4px;
+    font: inherit; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.lyp-tab:hover { color: var(--lyp-fg); background: var(--lyp-hover); }
+.lyp-tab.lyp-on { color: var(--lyp-fg); background: var(--lyp-bg); box-shadow: 0 0 0 1px var(--lyp-line), 0 1px 2px rgba(0, 0, 0, .06); font-weight: 600; }
 .lyp-search {
     display: flex; align-items: center; gap: 6px; margin: 0 8px 6px; padding: 0 8px; height: 26px; flex: none;
     border-radius: 5px; background: var(--lyp-input); color: var(--lyp-dim);
@@ -47,6 +55,11 @@
 .lyp-caret:empty { cursor: default; background: none; }
 .lyp-kind { width: 18px; flex: none; display: flex; justify-content: center; color: var(--lyp-dim); }
 .lyp-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; padding-left: 4px; }
+/* the rows of a tab of assets: a swatch, a picture or an icon, the name, and a short text (size, users) */
+.lyp-swatch { width: 12px; height: 12px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .2); display: inline-block; }
+.lyp-thumb { width: 16px; height: 16px; border-radius: 3px; object-fit: cover; display: block; }
+.lyp-meta { color: var(--lyp-dim); white-space: nowrap; padding: 0 6px; flex: none; }
+.lyp-meta:empty { display: none; }
 /* the "… N more" row of an open row (LayersPanelPlugin.maxChildren): a click shows all the children */
 .lyp-row.lyp-more { cursor: pointer; }
 .lyp-row.lyp-more .lyp-name { color: var(--tp-label-foreground-color, #8a8f98); }

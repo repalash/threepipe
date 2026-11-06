@@ -121,10 +121,14 @@ class FakePicking extends EventDispatcher<any> {
     selected: Object3D[] = []
     hover: Object3D | null = null
     multiSelectEnabled = true
-    picker = {
-        setSelected: (o: Object3D | Object3D[] | null, _record: boolean) => this.select(o ? Array.isArray(o) ? o : [o] : []),
+    picker = ((self: FakePicking) => ({
+        setSelected: (o: any, _record: boolean) => self.select(o ? Array.isArray(o) ? o : [o] : []),
         hoverObject: null as Object3D | null,
-    }
+        // the first selected thing: an object, or a material, a texture or a geometry
+        get selectedObject() {
+            return self.selected[0] ?? null
+        },
+    }))(this)
     select(objects: Object3D[]) {
         this.selected = [...objects]
         this.dispatchEvent({type: 'selectedObjectChanged'})
@@ -215,6 +219,11 @@ function setup({editor = false, container, picking: withPicking = true}: SetupOp
     const pluginListeners: {type: string, listener: any}[] = []
     const undo: {undo: () => void, redo: () => void}[] = []
     const outlineViewer = {renderManager: {setDirty: vi.fn()}, getPlugin: () => undefined}
+    // the assets of the Object3DManager, for the tabs: a test fills them
+    const assets = {materials: [] as any[], textures: [] as any[], geometries: [] as any[]}
+    const object3dManager = Object.assign(new EventDispatcher<any>(), {
+        getMaterials: () => assets.materials, getTextures: () => assets.textures, getGeometries: () => assets.geometries,
+    })
     const outline = new SelectionOutlinePlugin()
     ;(outline as any)._viewer = outlineViewer
     const editorPlugin = {setArea: vi.fn()}
@@ -226,6 +235,7 @@ function setup({editor = false, container, picking: withPicking = true}: SetupOp
     }
     const viewer = Object.assign(new EventDispatcher<any>(), {
         scene: Object.assign(sceneEvents, {modelRoot: objects.modelRoot}),
+        object3dManager,
         getPlugin: (type: string) => plugins[type],
         addPluginListener: (type: string, listener: any) => pluginListeners.push({type, listener}),
         removePluginListener: (type: string, listener: any) => {
@@ -240,7 +250,7 @@ function setup({editor = false, container, picking: withPicking = true}: SetupOp
     list.clientHeight = 280 // 10 rows
     layers.onAdded(viewer)
     flush()
-    return {...objects, layers, list, picking, viewer, sceneEvents, pluginListeners, undo, outline, outlineViewer, editorPlugin, plugins}
+    return {...objects, layers, list, picking, viewer, sceneEvents, pluginListeners, undo, outline, outlineViewer, editorPlugin, plugins, assets, object3dManager}
 }
 
 /** The rows in the DOM that show, from the top */
@@ -642,6 +652,127 @@ describe('LayersPanelPlugin', () => {
         layers.maxChildren = 11
         flush()
         expect([shown().length, names(list).some(n => n.startsWith('…'))]).toEqual([12, false])
+    })
+
+    /** The scene of setup with a gold material on the case, its texture, a texture of the scene and a geometry of the hands */
+    const withAssets = () => {
+        const s = setup()
+        const gold = {isMaterial: true, type: 'MeshStandardMaterial2', name: 'Gold', uuid: 'm1aa', color: {getHexString: () => 'ffcc00'},
+            appliedMeshes: new Set([s.caseA, s.caseB]), setDirty: vi.fn()}
+        const unused = {isMaterial: true, type: 'MeshBasicMaterial', name: '', uuid: 'm2bb', appliedMeshes: new Set([mesh('elsewhere')])}
+        const albedo = {isTexture: true, name: 'Albedo', uuid: 't1cc', image: {width: 512, height: 256}, appliedObjects: new Set([gold])}
+        const sky = {isTexture: true, name: '', uuid: 't2dd', appliedObjects: new Set([{isScene: true, isObject3D: true, parent: null}])}
+        const hands = {isBufferGeometry: true, name: '', uuid: 'g1ee', attributes: {position: {count: 1500}}, userData: {}, appliedMeshes: new Set([s.hands])}
+        s.assets.materials.push(gold, unused)
+        s.assets.textures.push(albedo, sky)
+        s.assets.geometries.push(hands)
+        s.layers.refresh(true)
+        flush()
+        return {...s, gold, albedo, sky, handsGeometry: hands}
+    }
+    const tabs = (layers: LayersPanelPlugin) => (layers.element as any as FakeElement).find('lyp-tabs')[0]
+    const tab = (layers: LayersPanelPlugin, name: string) => tabs(layers).find('lyp-tab').find(b => b.textContent === name)!
+    const metas = (list: FakeElement) => rows(list).map(r => r.find('lyp-meta')[0].textContent)
+
+    test('the tab bar shows the tabs that are on; with one tab, no tab bar; a tab turned off gives its place to the first', () => {
+        const {layers, list, gold} = withAssets()
+        expect(layers.tabs).toEqual(['objects', 'materials', 'textures', 'geometries'])
+        expect(tabs(layers).style.display).toBe('')
+        expect(has(tab(layers, 'Objects'), 'lyp-on')).toBe(true)
+        // the counts are in the tooltips: the materials used in the scene (not the one of an object elsewhere)
+        expect(tab(layers, 'Materials').title).toBe('Materials: 1')
+        tab(layers, 'Materials').fire('click')
+        flush()
+        expect([layers.tab, names(list), has(tab(layers, 'Materials'), 'lyp-on')]).toEqual(['materials', ['Gold'], true])
+        expect(gold).toBeDefined()
+        // the open tab turned off: the first tab that is on
+        layers.materialsTab = false
+        flush()
+        expect([layers.tab, tab(layers, 'Materials').style.display]).toEqual(['objects', 'none'])
+        // one tab on: no tab bar
+        layers.texturesTab = false
+        layers.geometryTab = false
+        expect(tabs(layers).style.display).toBe('none')
+        // none on: the Objects tab
+        layers.objectsTab = false
+        expect(layers.tabs).toEqual(['objects'])
+        layers.setTab('materials') // off: no change
+        expect(layers.tab).toBe('objects')
+    })
+
+    test('the Materials tab: a swatch, the users; open lists them; a click selects the asset; hover outlines its users', () => {
+        const {layers, list, picking, outline, gold, caseA, caseB, undo} = withAssets()
+        layers.setTab('materials')
+        flush()
+        const r = row(list, 'Gold')
+        expect(part(r, 'lyp-kind').innerHTML).toContain('background:#ffcc00')
+        expect([metas(list), part(r, 'lyp-lock').style.visibility]).toEqual([['2 obj'], 'hidden'])
+        // a click selects the material: the UI of the editor shows it
+        r.fire('click')
+        flush()
+        expect(picking.selected).toEqual([gold])
+        expect(has(row(list, 'Gold'), 'lyp-sel')).toBe(true)
+        // its arrow lists the objects that use it; a click on one selects it, and marks its asset
+        part(row(list, 'Gold'), 'lyp-caret').fire('click')
+        flush()
+        expect(names(list)).toEqual(['Gold', 'case-a', 'case-b'])
+        row(list, 'case-b').fire('click')
+        flush()
+        expect(picking.selected).toEqual([caseB])
+        expect(has(row(list, 'Gold'), 'lyp-sel-parent')).toBe(true)
+        // a hover outlines the users of the asset
+        row(list, 'Gold').fire('pointerover')
+        expect(outline.hovered).toEqual([caseA, caseB])
+        list.fire('pointerleave')
+        // a double-click selects its users; a double-click on the name renames it, as one undo step
+        row(list, 'Gold').fire('dblclick')
+        expect(picking.selected).toEqual([caseA, caseB])
+        part(row(list, 'Gold'), 'lyp-name').fire('dblclick')
+        const input = list.find('lyp-rename')[0]
+        input.value = 'Brushed gold'
+        input.fire('keydown', {key: 'Enter'})
+        flush()
+        expect([gold.name, names(list)[0]]).toEqual(['Brushed gold', 'Brushed gold'])
+        undo[undo.length - 1].undo()
+        expect(gold.name).toBe('Gold')
+    })
+
+    test('the Textures and Geometry tabs: size, vertices and users; the search; the arrow keys', () => {
+        const {layers, list, picking, albedo, sky, handsGeometry, hands} = withAssets()
+        layers.setTab('textures')
+        flush()
+        // the texture of the material counts its users; a texture of the scene says so
+        expect(names(list)).toEqual(['Albedo', 'Texture t2dd'])
+        expect(metas(list)).toEqual(['512×256 · 2 obj', 'scene'])
+        const search = (layers.element as any as FakeElement).find('lyp-search-input')[0]
+        search.value = 'alb'
+        search.fire('input')
+        flush()
+        expect(names(list)).toEqual(['Albedo'])
+        search.value = ''
+        search.fire('input')
+        flush()
+        // the arrow keys select the next asset
+        key(list, 'ArrowDown')
+        expect(picking.selected).toEqual([albedo])
+        key(list, 'ArrowDown')
+        expect(picking.selected).toEqual([sky])
+        key(list, 'ArrowUp')
+        expect(picking.selected).toEqual([albedo])
+        // Right opens the asset and Down goes to its first user; Left goes back to the asset
+        key(list, 'ArrowRight')
+        key(list, 'ArrowDown')
+        expect(picking.selected.map(o => o.name)).toEqual(['case-a'])
+        key(list, 'ArrowLeft')
+        expect(picking.selected).toEqual([albedo])
+        // the geometry: no name, so its kind and uuid; its vertices; a double-click on the name selects its users
+        layers.setTab('geometries')
+        flush()
+        expect([names(list), metas(list)]).toEqual([['Geometry g1ee'], ['1.5k v · 1 obj']])
+        part(row(list, 'Geometry g1ee'), 'lyp-name').fire('dblclick')
+        expect(list.find('lyp-rename')).toHaveLength(0)
+        expect(picking.selected).toEqual([hands])
+        expect(handsGeometry).toBeDefined()
     })
 
     test('the search shows the matches and the groups that hold them; Escape clears it', () => {

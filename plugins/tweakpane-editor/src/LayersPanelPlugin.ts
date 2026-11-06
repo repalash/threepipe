@@ -12,7 +12,7 @@ import {
     uiToggle,
     widgetKinds,
 } from 'threepipe'
-import type {UndoManagerPlugin} from 'threepipe'
+import type {IGeometry, IMaterial, ITexture, UndoManagerPlugin} from 'threepipe'
 import type {SelectionOutlinePlugin} from './SelectionOutlinePlugin'
 import type {TweakpaneEditorPlugin} from './TweakpaneEditorPlugin'
 import type {EditorFrameArea, EditorFrameAreaOptions} from './frame/EditorFrame'
@@ -31,15 +31,44 @@ interface LayerRow {
     more?: number
 }
 
+/** The tabs of the panel ({@link LayersPanelPlugin.tabs}): the tree of the objects, and the assets that they use */
+export type LayersTab = 'objects' | 'materials' | 'textures' | 'geometries'
+
+/** The tabs, their names, and the setting that turns each on */
+const TABS: [tab: LayersTab, name: string, setting: 'objectsTab' | 'materialsTab' | 'texturesTab' | 'geometryTab'][] = [
+    ['objects', 'Objects', 'objectsTab'], ['materials', 'Materials', 'materialsTab'],
+    ['textures', 'Textures', 'texturesTab'], ['geometries', 'Geometry', 'geometryTab'],
+]
+
+/** An asset of a tab: a material, a texture or a geometry */
+type LayerAsset = IMaterial | ITexture | IGeometry
+
+/**
+ * One row of a tab of assets: an asset with the objects in the scene that use it (and `scene`: a texture that the scene
+ * uses, like the background), or, with `user`, one of these objects under its open asset
+ */
+interface AssetRow {
+    asset: LayerAsset
+    users: IObject3D[]
+    scene: boolean
+    open: boolean
+    user?: IObject3D
+}
+
 /** The elements of one row of the virtual list. The rows are made once and filled again for each render. */
 interface RowElements {
     row: HTMLDivElement
     caret: HTMLSpanElement
     kind: HTMLSpanElement
     name: HTMLSpanElement
+    /** A short text after the name: the size of a texture, the users of an asset */
+    meta: HTMLSpanElement
     lock: HTMLButtonElement
     eye: HTMLButtonElement
 }
+
+/** The events of the `Object3DManager` of the viewer that change the tabs of assets */
+const ASSET_EVENTS = ['materialAdd', 'materialRemove', 'textureAdd', 'textureRemove', 'geometryAdd', 'geometryRemove'] as const
 
 /** The rows above and below the visible part of the list that are in the DOM too, so a short scroll shows no gap */
 const OVERSCAN = 8
@@ -58,6 +87,8 @@ const ICONS = {
     search: svg('<circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/>'),
     closed: svg('<path d="M6 4l4 4-4 4"/>', 10),
     open: svg('<path d="M4 6l4 4 4-4"/>', 10),
+    texture: svg('<rect x="2.5" y="2.5" width="11" height="11" rx="1.5"/><circle cx="6" cy="6" r="1.3"/><path d="M13.5 10.5l-3.5-3.5-7.5 7"/>'),
+    geometry: svg('<path d="M2.5 13.5h11L8 2.5z"/><path d="M5.25 8h5.5M8 13.5L5.25 8M8 13.5L10.75 8"/>'),
     // the entry in the mode bar of the editor frame, 16 px as the icons of the frame
     layers: svg('<path d="M8 2l6 3-6 3-6-3z"/><path d="M2 8l6 3 6-3M2 11l6 3 6-3"/>', 16),
 }
@@ -83,6 +114,11 @@ const ICONS = {
  * - With the focus in the list: Up and Down select the next row (Shift adds it), Right opens a row or goes to its first
  *   child, Left closes a row or goes to its parent.
  * - The search field shows only the objects whose name has the text, with the groups that hold them.
+ * - Tabs for the materials, the textures and the geometries that the objects use ({@link tabs}, each turned on or off by
+ *   {@link materialsTab} and the others; one tab shows no tab bar). An asset row has a swatch, a picture or an icon, the
+ *   name, a short text (the size of a texture, the vertices of a geometry, the users), and an arrow that lists its users.
+ *   A click selects the asset in the PickingPlugin, a double-click selects its users, a double-click on the name (or
+ *   F2) renames a material or a texture ({@link renameAsset}); a hover outlines its users.
  * - An open row shows its first {@link maxChildren} children (5), then a "… N more" row; a click on it shows all of them
  *   ({@link showAllChildren}). The objects at the top level, a search and children that hold the selection always show.
  * - A virtual list: only the rows in view are in the DOM, so a scene with many objects stays fast.
@@ -148,6 +184,29 @@ export class LayersPanelPlugin extends AViewerPluginSync {
         maxChildren = 5
 
     /**
+     * The Objects tab: the tree of the objects. The tabs that are on show in a tab bar ({@link tabs}); with one tab on,
+     * there is no tab bar.
+     */
+    @onChange(LayersPanelPlugin.prototype._tabsChanged)
+    @uiToggle('Objects tab')
+        objectsTab = true
+
+    /** The Materials tab: the materials of the objects in the scene, with a swatch and the objects that use each */
+    @onChange(LayersPanelPlugin.prototype._tabsChanged)
+    @uiToggle('Materials tab')
+        materialsTab = true
+
+    /** The Textures tab: the textures that the scene and its objects use, with a picture, the size and the users */
+    @onChange(LayersPanelPlugin.prototype._tabsChanged)
+    @uiToggle('Textures tab')
+        texturesTab = true
+
+    /** The Geometry tab: the geometries of the objects in the scene, with the vertex count and the objects that use each */
+    @onChange(LayersPanelPlugin.prototype._tabsChanged)
+    @uiToggle('Geometry tab')
+        geometryTab = true
+
+    /**
      * The area of the page frame of the {@link TweakpaneEditorPlugin} for the panel (`TweakpaneEditorPlugin.setArea`).
      * `null`: the plugin does not put the panel in the frame. Not used with a `container`.
      */
@@ -163,6 +222,15 @@ export class LayersPanelPlugin extends AViewerPluginSync {
     private _spacer: HTMLDivElement
     private _empty: HTMLDivElement
     private _count: HTMLSpanElement
+    private _tabsEl: HTMLDivElement
+    private _tab: LayersTab = 'objects'
+    /** The rows of the open tab of assets, and the number of assets in each tab (for the tab bar and the header) */
+    private _assetRows: AssetRow[] = []
+    private _tabCounts: Partial<Record<LayersTab, number>> = {}
+    /** The open assets: their users are in the list */
+    private _openAssets = new WeakSet<object>()
+    /** The pictures of the textures, as data URLs ('' when the image cannot be drawn) */
+    private _thumbs = new WeakMap<object, string>()
     private _search: HTMLInputElement
     private _filter = ''
     /** The open rows. Weak: a removed object is not kept. */
@@ -180,8 +248,9 @@ export class LayersPanelPlugin extends AViewerPluginSync {
     private _reveal = false
     /** The rename that is open: a render waits until it ends */
     private _renaming?: (commit: boolean) => void
-    /** The object of the row under the pointer */
-    private _rowHover: IObject3D | null = null
+    /** The row under the pointer: its object or asset, and the objects that the viewport outlines for it */
+    private _hoverKey: unknown = null
+    private _hoverObjects: IObject3D[] = []
     /** The row element under the pointer: a render can give it another object (the rows are reused) */
     private _hoverRowEl: HTMLElement | null = null
     /** The outline of a row that waits for the pointer to rest ({@link HoverDelay}) */
@@ -207,6 +276,16 @@ export class LayersPanelPlugin extends AViewerPluginSync {
         const head = this.element.appendChild(el('div', 'lyp-head'))
         head.appendChild(el('span', 'lyp-title')).textContent = 'Layers'
         this._count = head.appendChild(el('span', 'lyp-count'))
+        this._tabsEl = this.element.appendChild(el('div', 'lyp-tabs'))
+        this._tabsEl.setAttribute('role', 'tablist')
+        for (const [tab, name] of TABS) {
+            const b = this._tabsEl.appendChild(el('button', 'lyp-tab'))
+            b.type = 'button'
+            b.dataset.tab = tab
+            b.textContent = name
+            b.setAttribute('role', 'tab')
+            b.addEventListener('click', () => this.setTab(tab))
+        }
         const search = this.element.appendChild(el('label', 'lyp-search'))
         search.appendChild(el('span', 'lyp-search-icon')).innerHTML = ICONS.search
         this._search = search.appendChild(el('input', 'lyp-search-input'))
@@ -230,12 +309,14 @@ export class LayersPanelPlugin extends AViewerPluginSync {
             this._hoverRowEl = null
             this._setRowHover(null)
         })
+        this._tabsChanged()
     }
 
     onAdded(viewer: ThreeViewer) {
         super.onAdded(viewer)
         viewer.scene.addEventListener('sceneUpdate', this._onSceneUpdate)
         viewer.scene.addEventListener('objectUpdate', this._onObjectUpdate)
+        for (const type of ASSET_EVENTS) viewer.object3dManager?.addEventListener(type, this._onAssetsChanged)
         // the PickingPlugin and the TweakpaneEditorPlugin can be added before or after this plugin, removed and replaced
         viewer.addPluginListener('add', this._onPluginAdded, 'PickingPlugin', 'TweakpaneEditorPlugin')
         viewer.addPluginListener('remove', this._onPluginRemoved, 'PickingPlugin', 'TweakpaneEditorPlugin')
@@ -252,6 +333,7 @@ export class LayersPanelPlugin extends AViewerPluginSync {
         this._setRowHover(null)
         viewer.scene.removeEventListener('sceneUpdate', this._onSceneUpdate)
         viewer.scene.removeEventListener('objectUpdate', this._onObjectUpdate)
+        for (const type of ASSET_EVENTS) viewer.object3dManager?.removeEventListener(type, this._onAssetsChanged)
         viewer.removePluginListener('add', this._onPluginAdded)
         viewer.removePluginListener('remove', this._onPluginRemoved)
         this._setPicking(undefined)
@@ -318,6 +400,40 @@ export class LayersPanelPlugin extends AViewerPluginSync {
         this._expanded = new WeakSet()
         this._showAll = new WeakSet()
         this.refresh(true)
+    }
+
+    /** The tabs that are on ({@link objectsTab}, {@link materialsTab}, {@link texturesTab}, {@link geometryTab}); the Objects tab when none is */
+    get tabs(): LayersTab[] {
+        const on = TABS.filter(t => this[t[2]]).map(t => t[0])
+        return on.length ? on : ['objects']
+    }
+
+    /** The open tab ({@link setTab}) */
+    get tab(): LayersTab {
+        return this._tab
+    }
+
+    /** Opens a tab that is on ({@link tabs}) */
+    setTab(tab: LayersTab) {
+        if (tab === this._tab || !this.tabs.includes(tab)) return
+        this._tab = tab
+        this._setRowHover(null)
+        this._list.scrollTop = 0
+        this._updateTabs()
+        this.refresh(true)
+    }
+
+    /** Renames a material or a texture, as one undo step. An empty name or the same name does nothing. */
+    renameAsset(asset: IMaterial | ITexture, name: string) {
+        const old = asset.name
+        if (!name || name === old) return
+        const set = (n: string) => {
+            asset.name = n
+            asset.setDirty?.()
+            this.refresh(true)
+        }
+        set(name)
+        this._record(() => set(old), () => set(name))
     }
 
     /** Shows all the children of an open row, in place of its "… N more" row ({@link maxChildren}) */
@@ -397,27 +513,32 @@ export class LayersPanelPlugin extends AViewerPluginSync {
     startRename(object: IObject3D) {
         if (this.isDisabled() || !this._viewer) return false
         if (this._structureDirty) this._build()
-        const i = this._index.get(object)
+        const i = this._tab === 'objects' ? this._index.get(object) : undefined
         if (i === undefined) return false
+        return this._openRename(i, object.name, name => this.renameObject(object, name))
+    }
+
+    /** The name field on the row at a place in the list, with the name now; Enter or a blur calls `commit` */
+    private _openRename(i: number, value: string, commit: (name: string) => void) {
         this._renaming?.(true)
         this._scrollTo(i)
         this._renderNow()
         const els = this._pool.find(p => p.row.dataset.index === String(i))
         if (!els) return false
         const input = el('input', 'lyp-rename')
-        input.value = object.name
+        input.value = value
         input.setAttribute('aria-label', 'Name')
         els.name.style.display = 'none'
         els.row.insertBefore(input, els.lock)
         input.focus()
         input.select()
-        const finish = (commit: boolean) => {
+        const finish = (keep: boolean) => {
             if (this._renaming !== finish) return
             this._renaming = undefined
             const name = input.value.trim()
             input.remove()
             els.name.style.display = ''
-            if (commit) this.renameObject(object, name)
+            if (keep) commit(name)
             this._list.focus({preventScroll: true})
             this.refresh()
         }
@@ -534,19 +655,20 @@ export class LayersPanelPlugin extends AViewerPluginSync {
     }
 
     /**
-     * The row under the pointer: its object is outlined in the viewport ({@link viewportHover}), after the pointer rests
-     * on it ({@link HoverDelay}); no row clears the outline at once
+     * The row under the pointer: its object (or the users of its asset) is outlined in the viewport ({@link viewportHover}),
+     * after the pointer rests on it ({@link HoverDelay}); no row clears the outline at once
      */
-    private _setRowHover(object: IObject3D | null) {
+    private _setRowHover(target: {key: unknown, objects: IObject3D[]} | null) {
         clearTimeout(this._hoverTimer)
         this._hoverTimer = undefined
-        if (object === this._rowHover) return
+        if ((target?.key ?? null) === this._hoverKey) return
         const apply = () => {
             this._hoverTimer = undefined
-            this._rowHover = object
+            this._hoverKey = target?.key ?? null
+            this._hoverObjects = target?.objects ?? []
             this._outlineHover()
         }
-        if (object && LayersPanelPlugin.HoverDelay > 0) this._hoverTimer = setTimeout(apply, LayersPanelPlugin.HoverDelay)
+        if (target && LayersPanelPlugin.HoverDelay > 0) this._hoverTimer = setTimeout(apply, LayersPanelPlugin.HoverDelay)
         else apply()
     }
 
@@ -557,23 +679,32 @@ export class LayersPanelPlugin extends AViewerPluginSync {
     private _outlineHover() {
         const outline = this._viewer?.getPlugin<SelectionOutlinePlugin>('SelectionOutlinePlugin')
         if (!outline?.followPicking) return
-        const row = this.viewportHover ? this._rowHover : null
+        const row = this.viewportHover ? this._hoverObjects : []
         const canvas = this._picking?.picker?.hoverObject as IObject3D | null | undefined
-        outline.hovered = row ? [row] : canvas?.isObject3D ? [canvas] : []
+        outline.hovered = row.length ? [...row] : canvas?.isObject3D ? [canvas] : []
     }
 
     private _onPointerOver = (e: PointerEvent) => {
         this._hoverRowEl = (e.target as Element | null)?.closest?.('.lyp-row') as HTMLElement | null
-        this._setRowHover(this._hoverRowEl && this._rowObject(this._hoverRowEl) || null)
+        this._setRowHover(this._hoverRowEl && this._rowTarget(this._hoverRowEl))
     }
 
     private _onClick = (e: MouseEvent) => {
         const target = e.target as Element
         if (target.closest('.lyp-rename')) return
         const row = target.closest('.lyp-row') as HTMLElement | null
-        const more = row?.dataset.index !== undefined ? this._flat[+row.dataset.index] : undefined
+        if (!row) return
+        const asset = this._assetRowOf(row)
+        if (asset) {
+            this._list.focus({preventScroll: true})
+            if (asset.user) this._clickObject(asset.user, e)
+            else if (target.closest('.lyp-caret') && asset.users.length) this._toggleAsset(asset.asset)
+            else this._selectAsset(asset.asset)
+            return
+        }
+        const more = row.dataset.index !== undefined ? this._flat[+row.dataset.index] : undefined
         if (more?.more) return this.showAllChildren(more.object)
-        const o = row && this._rowObject(row)
+        const o = this._rowObject(row)
         if (!o) return
         // the list keeps the focus (a click can focus a button), for the arrow keys
         this._list.focus({preventScroll: true})
@@ -581,19 +712,37 @@ export class LayersPanelPlugin extends AViewerPluginSync {
         else if (target.closest('.lyp-lock')) this._toggle(o, 'locked')
         else if (target.closest('.lyp-caret') && this._flat[this._index.get(o)!]?.kids) {
             this.setExpanded(o, !this._expanded.has(o), e.altKey)
-        } else {
-            // a key adds or takes out, with multi-select (else the row is selected, as in the viewport)
-            if ((e.shiftKey || e.ctrlKey || e.metaKey) && this._picking?.multiSelectEnabled) this._picking.toggleSelectedObject(o)
-            else this._select([o])
-        }
+        } else this._clickObject(o, e)
+    }
+
+    /** A click on the row of an object: it selects it; a key adds or takes out, with multi-select (as in the viewport) */
+    private _clickObject(o: IObject3D, e: MouseEvent) {
+        if ((e.shiftKey || e.ctrlKey || e.metaKey) && this._picking?.multiSelectEnabled) this._picking.toggleSelectedObject(o)
+        else this._select([o])
     }
 
     private _onDoubleClick = (e: MouseEvent) => {
         const target = e.target as Element
-        if (!target.closest('.lyp-name')) return
         const row = target.closest('.lyp-row') as HTMLElement | null
-        const o = row && this._rowObject(row)
+        if (!row) return
+        const asset = this._assetRowOf(row)
+        // an asset: its name renames it (not a geometry), else its users are selected
+        if (asset) {
+            if (asset.user) return
+            if (target.closest('.lyp-name') && this._startAssetRename(+row.dataset.index!)) return
+            this._select(asset.users)
+            return
+        }
+        const o = target.closest('.lyp-name') && this._rowObject(row)
         if (o) this.startRename(o)
+    }
+
+    /** The name field on the row of a material or a texture of the open tab; `false` for a geometry or a user row */
+    private _startAssetRename(i: number) {
+        const r = this._assetRows[i]
+        if (!r || r.user || (r.asset as IGeometry).isBufferGeometry) return false
+        const a = r.asset as IMaterial | ITexture
+        return this._openRename(i, a.name, name => this.renameAsset(a, name))
     }
 
     private _onSearchKey = (e: KeyboardEvent) => {
@@ -609,10 +758,13 @@ export class LayersPanelPlugin extends AViewerPluginSync {
     private _onKey = (e: KeyboardEvent) => {
         if (e.target !== this._list) return
         if (e.key === 'F2') {
+            const picked = this._picking?.picker?.selectedObject as unknown
+            const assetAt = this._tab !== 'objects' ? this._assetRows.findIndex(r => !r.user && r.asset === picked) : -1
             const s = this._selected()[0]
-            if (s) {
+            if (assetAt >= 0 || s) {
                 e.preventDefault()
-                this.startRename(s)
+                if (assetAt >= 0) this._startAssetRename(assetAt)
+                else this.startRename(s)
             }
             return
         }
@@ -620,6 +772,7 @@ export class LayersPanelPlugin extends AViewerPluginSync {
         e.preventDefault()
         e.stopPropagation() // not for the camera or the other shortcuts of the page
         if (this._structureDirty) this._build()
+        if (this._tab !== 'objects') return this._assetKey(e.key)
         const flat = this._flat
         const sel = this._selected()
         const i = sel.length ? this._index.get(sel[0]) ?? -1 : -1
@@ -645,12 +798,47 @@ export class LayersPanelPlugin extends AViewerPluginSync {
         }
     }
 
+    /** The arrow keys in a tab of assets: Up and Down select the next row, Right opens an asset, Left closes it */
+    private _assetKey(key: string) {
+        const rows = this._assetRows
+        const picked = this._picking?.picker?.selectedObject as unknown
+        const sel = this._selected()
+        const i = rows.findIndex(r => r.user ? sel.includes(r.user) : r.asset === picked)
+        const r = rows[i]
+        const go = (j: number) => {
+            const t = rows[Math.max(0, Math.min(rows.length - 1, j))]
+            if (t?.user) this._select([t.user])
+            else if (t) this._selectAsset(t.asset)
+        }
+        if (key === 'ArrowDown') go(i + 1)
+        else if (key === 'ArrowUp') go(i < 0 ? rows.length - 1 : i - 1)
+        else if (!r) return
+        else if (r.user) {
+            // a user: Left goes to its asset
+            if (key === 'ArrowLeft') this._selectAsset(r.asset)
+        } else if (key === 'ArrowRight' ? !r.open && r.users.length : r.open) this._toggleAsset(r.asset)
+    }
+
     // endregion
 
     // region actions
 
     private _selected(): IObject3D[] {
         return (this._picking?.getSelectedObjects() ?? []).filter(o => (o as IObject3D)?.isObject3D) as IObject3D[]
+    }
+
+    /** Selects a material, a texture or a geometry in the PickingPlugin: the UI of the editor shows its settings */
+    private _selectAsset(asset: LayerAsset) {
+        const picking = this._picking
+        if (!picking || picking.isDisabled()) return
+        picking.picker?.setSelected(asset, true)
+    }
+
+    /** Opens or closes an asset: its users show under it */
+    private _toggleAsset(asset: LayerAsset) {
+        if (this._openAssets.has(asset)) this._openAssets.delete(asset)
+        else this._openAssets.add(asset)
+        this.refresh(true)
     }
 
     private _select(objects: IObject3D[]) {
@@ -693,9 +881,16 @@ export class LayersPanelPlugin extends AViewerPluginSync {
         return (o.children as IObject3D[]).filter(c => this._isLayer(c))
     }
 
-    /** Builds the list of rows from the tree, the open rows and the search */
+    /** Builds the rows of the tree and of the open tab of assets, and the counts of the tabs */
     private _build() {
         this._structureDirty = false
+        this._buildObjects()
+        this._buildAssets()
+        this._updateTabs()
+    }
+
+    /** Builds the list of rows from the tree, the open rows and the search */
+    private _buildObjects() {
         this._flat = []
         this._index.clear()
         this._total = 0
@@ -754,9 +949,9 @@ export class LayersPanelPlugin extends AViewerPluginSync {
         this._frame = 0
         if (!this._viewer || this._renaming || this.isDisabled()) return
         if (this._structureDirty) this._build()
+        if (this._tab !== 'objects') return this._renderAssets()
         const flat = this._flat
         const n = flat.length
-        const rowHeight = LayersPanelPlugin.RowHeight
         const sel = this._selected()
         if (this._reveal) {
             this._reveal = false
@@ -767,15 +962,25 @@ export class LayersPanelPlugin extends AViewerPluginSync {
         const parentsOfSel = new Set<IObject3D>()
         for (const s of sel) s.traverseAncestors(a => parentsOfSel.add(a as IObject3D))
         const hovered = this._picking?.picker?.hoverObject
-        this._spacer.style.height = n * rowHeight + 'px'
-        // only the rows in view, and OVERSCAN more above and below, are in the DOM
-        const scroll = this._list.scrollTop
-        const first = Math.max(0, Math.floor(scroll / rowHeight) - OVERSCAN)
-        const last = Math.min(n, Math.ceil((scroll + this._list.clientHeight) / rowHeight) + OVERSCAN)
+        const [first, last] = this._window(n)
         for (let i = first; i < last; i++) {
             const r = flat[i]
             this._fill(this._rowAt(i - first), i, r, selected.has(r.object), parentsOfSel.has(r.object), r.object === hovered)
         }
+        this._endRender(first, last, n, this._filter ? 'No layers match' : 'No objects in the scene')
+    }
+
+    /** The rows of the list in the DOM: the ones in view, and OVERSCAN more above and below */
+    private _window(n: number): [first: number, last: number] {
+        const rowHeight = LayersPanelPlugin.RowHeight
+        this._spacer.style.height = n * rowHeight + 'px'
+        const scroll = this._list.scrollTop
+        const first = Math.max(0, Math.floor(scroll / rowHeight) - OVERSCAN)
+        return [first, Math.min(n, Math.ceil((scroll + this._list.clientHeight) / rowHeight) + OVERSCAN)]
+    }
+
+    /** After the rows from `first` to `last` of `n` are filled: hides the other rows of the pool, the hover, the empty text and the count */
+    private _endRender(first: number, last: number, n: number, emptyText: string) {
         for (let j = Math.max(0, last - first); j < this._pool.length; j++) {
             const p = this._pool[j]
             if (p.row.style.display === 'none') continue
@@ -783,10 +988,26 @@ export class LayersPanelPlugin extends AViewerPluginSync {
             delete p.row.dataset.index
         }
         // the row under the pointer can have another object now (a scroll, a change of the tree)
-        if (this._hoverRowEl) this._setRowHover(this._rowObject(this._hoverRowEl) ?? null)
+        if (this._hoverRowEl) this._setRowHover(this._rowTarget(this._hoverRowEl))
         this._empty.style.display = n ? 'none' : ''
-        this._empty.textContent = this._filter ? 'No layers match' : 'No objects in the scene'
-        this._count.textContent = this._total ? String(this._total) : ''
+        this._empty.textContent = emptyText
+        const count = this._tabCounts[this._tab] ?? 0
+        this._count.textContent = count ? String(count) : ''
+    }
+
+    /** Fills the rows of the open tab of assets in view */
+    private _renderAssets() {
+        const rows = this._assetRows
+        const picked = this._picking?.picker?.selectedObject as unknown
+        const selected = new Set(this._selected())
+        const [first, last] = this._window(rows.length)
+        for (let i = first; i < last; i++) {
+            const r = rows[i]
+            const isSel = r.user ? selected.has(r.user) : r.asset === picked
+            this._fillAsset(this._rowAt(i - first), i, r, isSel, !r.user && r.users.some(u => selected.has(u)))
+        }
+        const name = TABS.find(t => t[0] === this._tab)![1].toLowerCase()
+        this._endRender(first, last, rows.length, this._filter ? 'Nothing matches' : `No ${name} in the scene`)
     }
 
     /** The row element at a place in the pool, made when the pool has none there */
@@ -800,6 +1021,7 @@ export class LayersPanelPlugin extends AViewerPluginSync {
             caret: row.appendChild(el('span', 'lyp-caret')),
             kind: row.appendChild(el('span', 'lyp-kind')),
             name: row.appendChild(el('span', 'lyp-name')),
+            meta: row.appendChild(el('span', 'lyp-meta')),
             lock: row.appendChild(el('button', 'lyp-btn lyp-lock')),
             eye: row.appendChild(el('button', 'lyp-btn lyp-eye')),
         }
@@ -814,8 +1036,23 @@ export class LayersPanelPlugin extends AViewerPluginSync {
     /** The object of a row element; none for a "… N more" row */
     private _rowObject(row: HTMLElement): IObject3D | undefined {
         const i = row.dataset.index
+        if (this._tab !== 'objects') return i === undefined ? undefined : this._assetRows[+i]?.user
         const r = i === undefined ? undefined : this._flat[+i]
         return r && !r.more ? r.object : undefined
+    }
+
+    /** The row of a tab of assets that a row element shows */
+    private _assetRowOf(row: HTMLElement): AssetRow | undefined {
+        const i = row.dataset.index
+        return this._tab === 'objects' || i === undefined ? undefined : this._assetRows[+i]
+    }
+
+    /** What the viewport outlines for a row element: its object, or the users of its asset */
+    private _rowTarget(row: HTMLElement): {key: unknown, objects: IObject3D[]} | null {
+        const a = this._assetRowOf(row)
+        if (a) return a.user ? {key: a.user, objects: [a.user]} : {key: a.asset, objects: a.users}
+        const o = this._rowObject(row)
+        return o ? {key: o, objects: [o]} : null
     }
 
     /** Fills one row. Each part is set only when it changes, so a refresh in each frame (a drag in the viewport) is cheap. */
@@ -829,6 +1066,7 @@ export class LayersPanelPlugin extends AViewerPluginSync {
         if (r.more) return this._fillMore(p, r.more)
         setIfChanged(p.lock.style, 'visibility', '')
         setIfChanged(p.eye.style, 'visibility', '')
+        setIfChanged(p.meta, 'textContent', '')
         const o = r.object
         const root = this._viewer?.scene.modelRoot
         // hidden or locked by a parent too
@@ -845,19 +1083,8 @@ export class LayersPanelPlugin extends AViewerPluginSync {
         if (r.kids) row.setAttribute('aria-expanded', String(r.open))
         else row.removeAttribute('aria-expanded')
 
-        const caret = r.kids ? r.open ? 'open' : 'closed' : ''
-        if (p.caret.dataset.state !== caret) {
-            p.caret.dataset.state = caret
-            p.caret.innerHTML = caret ? ICONS[caret as 'open' | 'closed'] : ''
-            p.caret.title = caret ? 'Open or close (Alt: all levels)' : ''
-        }
-        const kind = getWidgetKind(o)
-        const kindKey = kind ?? ((o as any).geometry ? 'mesh' : 'group')
-        if (p.kind.dataset.kind !== kindKey) {
-            p.kind.dataset.kind = kindKey
-            p.kind.innerHTML = kind ? svg(`<path d="${widgetKinds[kind].icon}"/>`) : ICONS[kindKey as 'mesh' | 'group']
-            p.kind.style.color = kind ? widgetKinds[kind].color : ''
-        }
+        this._setCaret(p, r.kids ? r.open ? 'open' : 'closed' : '', 'Open or close (Alt: all levels)')
+        this._setObjectKind(p, o)
         const name = o.name || o.type
         setIfChanged(p.name, 'textContent', name)
         setIfChanged(p.name, 'title', name)
@@ -868,14 +1095,72 @@ export class LayersPanelPlugin extends AViewerPluginSync {
         setIfChanged(p.eye, 'disabled', !!o.isCamera)
     }
 
+    /** The arrow of a row: `open`, `closed`, or none */
+    private _setCaret(p: RowElements, state: '' | 'open' | 'closed', title: string) {
+        if (p.caret.dataset.state === state) return
+        p.caret.dataset.state = state
+        p.caret.innerHTML = state ? ICONS[state] : ''
+        p.caret.title = state ? title : ''
+    }
+
+    /** The icon of an object: its kind (a light or a camera, in its colour), a mesh, or a group */
+    private _setObjectKind(p: RowElements, o: IObject3D) {
+        const kind = getWidgetKind(o)
+        const kindKey = kind ?? ((o as any).geometry ? 'mesh' : 'group')
+        if (p.kind.dataset.kind === kindKey) return
+        p.kind.dataset.kind = kindKey
+        p.kind.innerHTML = kind ? svg(`<path d="${widgetKinds[kind].icon}"/>`) : ICONS[kindKey as 'mesh' | 'group']
+        p.kind.style.color = kind ? widgetKinds[kind].color : ''
+    }
+
+    /** Fills a row of a tab of assets: an asset (its swatch, picture or icon, name, size and users) or one of its users */
+    private _fillAsset(p: RowElements, i: number, r: AssetRow, isSel: boolean, usedBySel: boolean) {
+        const {row} = p
+        row.dataset.index = String(i)
+        setIfChanged(row.style, 'display', '')
+        setIfChanged(row.style, 'top', i * LayersPanelPlugin.RowHeight + 'px')
+        setIfChanged(row.style, 'paddingLeft', 4 + (r.user ? INDENT : 0) + 'px')
+        row.setAttribute('aria-level', r.user ? '2' : '1')
+        setIfChanged(row, 'className', 'lyp-row ' + (r.user ? 'lyp-user' : 'lyp-asset') + (isSel ? ' lyp-sel' : usedBySel ? ' lyp-sel-parent' : ''))
+        row.setAttribute('aria-selected', String(isSel))
+        const opens = !r.user && r.users.length > 0
+        if (opens) row.setAttribute('aria-expanded', String(r.open))
+        else row.removeAttribute('aria-expanded')
+        this._setCaret(p, opens ? r.open ? 'open' : 'closed' : '', 'Show or hide the objects that use it')
+        setIfChanged(p.lock.style, 'visibility', 'hidden')
+        setIfChanged(p.eye.style, 'visibility', 'hidden')
+        if (r.user) {
+            this._setObjectKind(p, r.user)
+            setIfChanged(p.name, 'textContent', r.user.name || r.user.type)
+            setIfChanged(p.name, 'title', p.name.textContent!)
+            setIfChanged(p.meta, 'textContent', '')
+            return
+        }
+        const a = r.asset
+        const swatch = (a as IMaterial).isMaterial ? '#' + ((a as IMaterial & {color?: {getHexString(): string}}).color?.getHexString() ?? 'cccccc') : ''
+        const thumb = (a as ITexture).isTexture ? this._thumb(a as ITexture) : ''
+        const kindKey = swatch ? 'swatch' + swatch : thumb ? 'thumb' : (a as ITexture).isTexture ? 'texture' : 'geometry'
+        if (p.kind.dataset.kind !== kindKey) {
+            p.kind.dataset.kind = kindKey
+            p.kind.style.color = ''
+            p.kind.innerHTML = swatch ? `<span class="lyp-swatch" style="background:${swatch}"></span>` :
+                thumb ? `<img class="lyp-thumb" alt="" src="${thumb}">` : ICONS[kindKey as 'texture' | 'geometry']
+        }
+        const name = this._assetName(a)
+        setIfChanged(p.name, 'textContent', name)
+        setIfChanged(p.name, 'title', name)
+        setIfChanged(p.meta, 'textContent', this._assetMeta(r))
+    }
+
     /** Fills the "… N more" row of an open object: no icon and no buttons; a click shows all the children */
     private _fillMore(p: RowElements, more: number) {
         setIfChanged(p.row, 'className', 'lyp-row lyp-more')
         p.row.removeAttribute('aria-expanded')
         p.row.setAttribute('aria-selected', 'false')
-        p.caret.dataset.state = p.kind.dataset.kind = ''
-        p.caret.innerHTML = p.kind.innerHTML = ''
-        p.caret.title = ''
+        this._setCaret(p, '', '')
+        p.kind.dataset.kind = ''
+        p.kind.innerHTML = ''
+        setIfChanged(p.meta, 'textContent', '')
         setIfChanged(p.name, 'textContent', `… ${more} more`)
         setIfChanged(p.name, 'title', 'Show all')
         setIfChanged(p.lock.style, 'visibility', 'hidden')
@@ -885,6 +1170,134 @@ export class LayersPanelPlugin extends AViewerPluginSync {
     private _maxChildrenChanged() {
         this.refresh(true)
     }
+
+    // region tabs
+
+    /** A tab turned on or off: the tab bar shows only with two tabs or more; a tab turned off gives its place to the first one */
+    private _tabsChanged() {
+        if (!this._tabsEl) return // the first set of the settings, in the constructor
+        const tabs = this.tabs
+        if (!tabs.includes(this._tab)) {
+            this._tab = tabs[0]
+            this._setRowHover(null)
+            this._list.scrollTop = 0
+        }
+        this._updateTabs()
+        this.refresh(true)
+    }
+
+    /** The buttons of the tab bar: the tabs that are on, the open one marked, the counts in the tooltips */
+    private _updateTabs() {
+        const tabs = this.tabs
+        this._tabsEl.style.display = tabs.length > 1 ? '' : 'none'
+        for (const b of Array.from(this._tabsEl.children) as HTMLButtonElement[]) {
+            const tab = b.dataset.tab as LayersTab
+            const on = tab === this._tab
+            b.style.display = tabs.includes(tab) ? '' : 'none'
+            b.classList.toggle('lyp-on', on)
+            b.setAttribute('aria-selected', String(on))
+            const count = this._tabCounts[tab]
+            b.title = TABS.find(t => t[0] === tab)![1] + (count === undefined ? '' : ': ' + count)
+        }
+    }
+
+    private _onAssetsChanged = () => {
+        this.refresh(true)
+    }
+
+    /** Builds the rows of the open tab of assets (an open asset lists its users under it), and the counts of the tabs */
+    private _buildAssets() {
+        this._assetRows = []
+        this._tabCounts = {objects: this._total}
+        let open: Omit<AssetRow, 'open'>[] = []
+        for (const tab of this.tabs) {
+            if (tab === 'objects') continue
+            const list = this._collect(tab)
+            this._tabCounts[tab] = list.length
+            if (tab === this._tab) open = list
+        }
+        const filter = this._filter
+        for (const x of open) {
+            if (filter && !this._assetName(x.asset).toLowerCase().includes(filter)) continue
+            const isOpen = x.users.length > 0 && this._openAssets.has(x.asset)
+            this._assetRows.push({...x, open: isOpen})
+            if (isOpen) for (const user of x.users) this._assetRows.push({...x, open: false, user})
+        }
+    }
+
+    /**
+     * The materials, textures or geometries that the objects in the scene use (the `Object3DManager` of the viewer), each
+     * with those objects. A texture of a material counts the objects of the material; a texture of the scene counts too.
+     */
+    private _collect(tab: LayersTab): Omit<AssetRow, 'open'>[] {
+        const om = this._viewer?.object3dManager
+        const root = this._viewer?.scene.modelRoot
+        if (!om || !root || tab === 'objects') return []
+        const inScene = (o: IObject3D) => {
+            for (let p: IObject3D | null = o; p; p = p.parent as IObject3D | null) if (p === root) return true
+            return false
+        }
+        const users = (a: {appliedMeshes?: Set<IObject3D>}) => [...a.appliedMeshes ?? []].filter(inScene)
+        if (tab === 'materials') return om.getMaterials().map(asset => ({asset, users: users(asset), scene: false})).filter(x => x.users.length)
+        if (tab === 'geometries') return om.getGeometries().map(asset => ({asset, users: users(asset), scene: false})).filter(x => x.users.length)
+        return om.getTextures().map(asset => {
+            const found = new Set<IObject3D>()
+            let scene = false
+            asset.appliedObjects?.forEach(o => {
+                if ((o as IMaterial).isMaterial) users(o as IMaterial).forEach(m => found.add(m))
+                else if ((o as IObject3D & {isScene?: boolean}).isScene) scene = true
+                else if (inScene(o as IObject3D)) found.add(o as IObject3D)
+            })
+            return {asset, users: [...found], scene}
+        }).filter(x => x.users.length || x.scene)
+    }
+
+    /** The name of an asset, or its kind and the start of its uuid */
+    private _assetName(a: LayerAsset) {
+        return a.name || ((a as ITexture).isTexture ? 'Texture' : (a as IMaterial).isMaterial ? (a as IMaterial).type : 'Geometry') + ' ' + a.uuid.slice(0, 4)
+    }
+
+    /** The short text of an asset: the size of a texture, the generator and the vertices of a geometry, the users */
+    private _assetMeta(r: AssetRow) {
+        const a = r.asset
+        const users = r.users.length ? `${r.users.length} obj` : r.scene ? 'scene' : ''
+        if ((a as ITexture).isTexture) {
+            const image = (a as ITexture).image as {width?: number, height?: number} | undefined
+            return [image?.width ? `${image.width}×${image.height}` : '', users].filter(Boolean).join(' · ')
+        }
+        if ((a as IGeometry).isBufferGeometry) {
+            const g = a as IGeometry
+            const v = g.attributes?.position?.count ?? 0
+            const generator = g.userData?.generationParams?.type as string | undefined
+            return [generator, (v >= 1000 ? (v / 1000).toFixed(1) + 'k' : v) + ' v', users].filter(Boolean).join(' · ')
+        }
+        return users
+    }
+
+    /** A small picture of a texture, as a data URL; '' when its image cannot be drawn (a data texture, not loaded) */
+    private _thumb(t: ITexture) {
+        const cached = this._thumbs.get(t)
+        if (cached !== undefined) return cached
+        let url = ''
+        const img = t.image as CanvasImageSource & {width?: number} | undefined
+        try {
+            const drawable = typeof HTMLImageElement !== 'undefined' && img instanceof HTMLImageElement ||
+                typeof HTMLCanvasElement !== 'undefined' && img instanceof HTMLCanvasElement ||
+                typeof ImageBitmap !== 'undefined' && img instanceof ImageBitmap
+            if (drawable && img!.width) {
+                const c = document.createElement('canvas')
+                c.width = c.height = 32
+                c.getContext('2d')?.drawImage(img!, 0, 0, 32, 32)
+                url = c.toDataURL()
+            }
+        } catch (e) {
+            url = '' // a texture from another origin
+        }
+        this._thumbs.set(t, url)
+        return url
+    }
+
+    // endregion
 
     // endregion
 }

@@ -189,6 +189,9 @@ In the [Tweakpane Editor example](https://threepipe.org/examples/tweakpane-edito
 - With the focus in the list, Up and Down select the next row (Shift adds it). Right opens a row or goes to its first child. Left closes a row or goes to its parent.
 - The search field shows the objects whose name has the text, with the groups that hold them. Escape clears it.
 - Lights and cameras have the icon and the colour of their kind (`widgetKinds` of threepipe), as in the viewport.
+- **Tabs**: Objects, Materials, Textures and Geometry, each turned on or off with `objectsTab`, `materialsTab`, `texturesTab` and `geometryTab` (all on by default, in the UI folder). With one tab on, there is no tab bar. `layers.tabs` lists the tabs that are on, `layers.tab` is the open one, `layers.setTab('materials')` opens one. The counts are in the tooltips of the tabs and in the header.
+- A tab of assets lists the materials, textures or geometries that the objects in the scene use (from `viewer.object3dManager`). An asset row has a swatch (a material), a picture (a texture) or an icon, the name, and a short text: the size of a texture, the generator and the vertices of a geometry, and the number of objects that use it (`scene` for a texture of the scene). Its arrow lists those objects under it.
+- In a tab of assets, a click selects the asset in the `PickingPlugin` (the UI of the editor shows its settings), a double-click selects the objects that use it, and a double-click on the name or F2 renames a material or a texture (`renameAsset(asset, name)`, one undo step). A hover outlines the objects that use it. Up and Down select the next row, Right opens an asset, Left closes it or goes from a user back to its asset.
 - An open row shows its first `maxChildren` children (5), then a "… N more" row. A click on it shows all of them (`showAllChildren(object)`), until the row is closed. The objects at the top level, a search, and children that hold the selection always show; `maxChildren = 0` shows all. The Up and Down keys pass over the "… N more" row.
 - Only the rows in view are in the DOM (a virtual list), so a scene with many objects stays fast.
 
@@ -202,7 +205,7 @@ The visibility, the lock and the name changes are undo steps with the `UndoManag
 - Without the editor: give an element to the constructor, `new LayersPanelPlugin(container)`. The panel goes in it while the plugin is added. The panel fills its parent, so give the parent a height.
 - Or place `layers.element` in the page yourself.
 
-The plugin removes the panel from the page when it is removed. Its UI folder, `Layers Panel`, has the settings: Enabled, Hover in viewport, Reveal selection and Max children. The settings and the open rows are not saved with the viewer config.
+The plugin removes the panel from the page when it is removed. Its UI folder, `Layers Panel`, has the settings: Enabled, Hover in viewport, Reveal selection, Max children, and the four tabs. The settings and the open rows are not saved with the viewer config.
 
 ```typescript
 import {PickingPlugin, ThreeViewer, UndoManagerPlugin} from 'threepipe'
@@ -221,6 +224,8 @@ layers.setExpanded(model, true) // open a row
 layers.setVisible([model], false) // hide, as one undo step
 layers.setLocked([model], true) // not picked in the viewport
 layers.renameObject(model, 'Ring')
+layers.materialsTab = false // no Materials tab
+layers.setTab('textures') // open a tab
 console.log(layers.listedObjects) // the objects in the list, from the top
 ```
 
