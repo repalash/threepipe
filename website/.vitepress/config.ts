@@ -76,6 +76,7 @@ export default defineConfig({
               {text: 'KTXLoadPlugin', link: 'plugin/KTXLoadPlugin'},
               {text: 'USDZLoadPlugin', link: 'plugin/USDZLoadPlugin'},
               {text: 'GLTFMeshOptDecodePlugin', link: 'plugin/GLTFMeshOptDecodePlugin'},
+              {text: 'TextureLoader2', link: 'plugin/TextureLoader2'},
             ],
           },
           {

@@ -44,6 +44,25 @@ export interface ImportResultExtras {
     __rootBlob?: IFile
     // __disposed?: boolean
 
+    /**
+     * Set to true in an asset loader to ask AssetImporter to cache the raw source bytes
+     * on `__sourceBuffer` during `processRaw`. Used for later serialization / re-export.
+     * Bytes live at top level on the asset (not in userData) — userData is for
+     * user-facing config, not internal byte buffers.
+     */
+    __needsSourceBuffer?: boolean
+    /**
+     * Raw source bytes of the asset — populated by AssetImporter when `__needsSourceBuffer`
+     * is set and the asset was loaded from a `File`/`Blob`. For textures that have a
+     * `source`, also consider `texture.source._sourceImgBuffer` (per-source, shared on clone).
+     */
+    __sourceBuffer?: ArrayBuffer
+    /**
+     * Cached source blob of the asset — populated by AssetImporter when the asset was
+     * loaded from a `File`/`Blob`. Holds filename and type for later serialization.
+     */
+    __sourceBlob?: IFile
+
     [key: string]: any
 }
 export type ImportResult = ImportResultObject & ImportResultExtras
@@ -66,18 +85,6 @@ export interface IImportResultUserData{
      * extra arbitrary data saved by the importer that can be used by the plugins (like gltf material variants)
      */
     __importData?: any
-    /**
-     * This can be set to true in the importer to indicate that the source buffer should be loaded and cached in the userdata during processRaw
-     */
-    __needsSourceBuffer?: boolean
-    /**
-     * Cached source buffer for the asset (only cached when __needsSourceBuffer is set)
-     */
-    __sourceBuffer?: ArrayBuffer
-    /**
-     * Cached source blob for the asset
-     */
-    __sourceBlob?: IFile
 
     [key: string]: any
 }
