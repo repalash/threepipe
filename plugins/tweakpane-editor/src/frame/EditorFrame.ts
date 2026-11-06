@@ -404,7 +404,8 @@ export class EditorFrame {
         } else {
             const [min, max] = EditorFrame.AreaLimits[area]
             this._sizes[area] = Math.round(Math.max(min, Math.min(max, this._room(area), size)))
-            this._applySize(area)
+            // the offsets and the row of the bottom card follow the new size; this area keeps its size if it can
+            this._fit(area)
         }
         if (keep) this._storeAreas()
     }

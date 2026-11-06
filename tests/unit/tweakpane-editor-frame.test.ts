@@ -917,6 +917,18 @@ describe('EditorFrame area sizes', () => {
         expect([f.areaOffset('left'), sizeVar('--lay-left-offset')]).toEqual([0, undefined])
     })
 
+    test('a larger size of a moved card makes its offset smaller, so the card stays in the room', () => {
+        const f = floating()
+        // the left card is as wide as its size on screen
+        area('left').getBoundingClientRect = () => ({width: parseFloat(body().style['--lay-left-area-size'] ?? '240'), height: 876}) as any
+        f.setAreaSize('left', 160)
+        // the room: 1440 - 300 (panel) - 168 (mode bar with names) - 240 (canvas) = 732
+        f.setAreaOffset('left', 600)
+        expect(f.areaOffset('left')).toBe(572)
+        f.setAreaSize('left', 480)
+        expect([sizeVar('--lay-left-area-size'), f.areaOffset('left')]).toEqual(['480px', 252])
+    })
+
     test('the offsets and the spans apply only in the floating layout with the areas next to the canvas, and are kept', () => {
         const f = floating()
         f.setAreaOffset('left', 100, true)
