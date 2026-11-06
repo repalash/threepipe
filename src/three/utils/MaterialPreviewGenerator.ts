@@ -176,7 +176,7 @@ export class MaterialPreviewGenerator implements IDisposable {
 
     // the shapes have a white vertex colour, so a material with vertexColors shows its own colour (not black)
     shapes: Record<string, Mesh> = {
-        sphere: new Mesh(withWhiteColors(new SphereGeometry(1))),
+        sphere: new Mesh(withWhiteColors(new SphereGeometry(1, 64, 32))), // smooth at the size of a large preview
         cube: new Mesh(withWhiteColors(new BoxGeometry(1, 1, 1))),
         cylinder: new Mesh(withWhiteColors(new CylinderGeometry(0.5, 0.5, 1))),
     }
