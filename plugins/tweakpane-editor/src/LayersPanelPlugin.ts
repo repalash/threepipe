@@ -191,7 +191,7 @@ export class LayersPanelPlugin extends AViewerPluginSync {
      * is closed). The objects at the top level, a search, and children that hold the selection always show. `0`: all.
      */
     @onChange(LayersPanelPlugin.prototype._structureChanged)
-    @uiNumber('Max children')
+    @uiNumber('Max children', {stepSize: 1})
         maxChildren = 5
 
     /**

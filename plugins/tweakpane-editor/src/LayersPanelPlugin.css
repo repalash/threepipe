@@ -54,7 +54,9 @@
 .lyp-caret:hover { background: var(--lyp-line); color: var(--lyp-fg); }
 .lyp-caret:empty { cursor: default; background: none; }
 .lyp-kind { width: 18px; flex: none; display: flex; justify-content: center; color: var(--lyp-dim); }
-.lyp-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; padding-left: 4px; }
+/* the name is as wide as its text, and the rest of the row is free: a double-click on the name renames, on the free part
+   it focuses (LayersPanelPlugin.doubleClickFocus) */
+.lyp-name { flex: 0 1 auto; margin-right: auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; padding-left: 4px; }
 /* the rows of a tab of assets: a swatch, a picture or an icon, the name, and a short text (size, users) */
 .lyp-swatch { width: 12px; height: 12px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .2); display: inline-block; }
 .lyp-thumb { width: 16px; height: 16px; border-radius: 3px; object-fit: cover; display: block; }
