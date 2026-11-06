@@ -796,15 +796,20 @@ describe('LayersPanelPlugin', () => {
     })
 
     test('a tab of assets: a mesh that takes another material or geometry builds it again; a reused row shows its own picture', () => {
-        const {layers, list, sceneEvents, gold, caseB, handsGeometry, hands, albedo, sky} = withAssets()
+        const {layers, list, sceneEvents, outline, gold, caseB, handsGeometry, hands, albedo, sky} = withAssets()
         layers.setTab('materials')
         flush()
         expect(metas(list)).toEqual(['2 obj'])
         // case-b takes another material that is already in use: no add or remove event, only the change of the mesh
+        // with the pointer on the row of the material, its outline follows its users
+        row(list, 'Gold').fire('pointerover')
+        expect(outline.hovered).toHaveLength(2)
         gold.appliedMeshes.delete(caseB)
         sceneEvents.dispatchEvent({type: 'materialChanged', object: caseB})
         flush()
         expect(metas(list)).toEqual(['1 obj'])
+        expect(outline.hovered).not.toContain(caseB)
+        list.fire('pointerleave')
         // the same for a geometry
         layers.setTab('geometries')
         flush()

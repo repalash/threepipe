@@ -721,7 +721,15 @@ export class LayersPanelPlugin extends AViewerPluginSync {
     private _setRowHover(target: {key: unknown, objects: IObject3D[]} | null) {
         clearTimeout(this._hoverTimer)
         this._hoverTimer = undefined
-        if ((target?.key ?? null) === this._hoverKey) return
+        if ((target?.key ?? null) === this._hoverKey) {
+            // the same row: its objects can change (the users of an asset), then the outline follows at once
+            const objects = target?.objects ?? []
+            const now = this._hoverObjects
+            if (objects.length === now.length && objects.every((o, i) => o === now[i])) return
+            this._hoverObjects = objects
+            this._outlineHover()
+            return
+        }
         const apply = () => {
             this._hoverTimer = undefined
             this._hoverKey = target?.key ?? null
