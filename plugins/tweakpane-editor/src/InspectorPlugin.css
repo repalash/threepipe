@@ -1,0 +1,41 @@
+/* InspectorPlugin: the colours, the font and the lines of the Tweakpane theme of the page (the tpTheme-* body class) */
+.isp-root {
+    display: flex; flex-direction: column; box-sizing: border-box; min-height: 0; height: 100%;
+    color: var(--tp-container-foreground-color, #1e1e1e); background: var(--tp-base-background-color, #fff);
+    font: 12px/1.3 var(--tp-font-family, system-ui, sans-serif);
+}
+.isp-root button, .isp-root select { font: inherit; color: inherit; }
+.isp-title { font-weight: 600; padding: 10px 12px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: none; }
+.isp-root:not(.isp-has-selection) .isp-title { opacity: .6; font-weight: 500; }
+.isp-tabs {
+    display: flex; gap: 2px; margin: 0 8px 6px; padding: 2px; border-radius: 6px; flex: none;
+    background: var(--tp-input-background-color, rgba(0, 0, 0, .05));
+}
+.isp-tab { flex: 1; min-width: 0; border: 0; background: transparent; padding: 5px 0; border-radius: 4px; opacity: .7; cursor: pointer; }
+.isp-tab:hover { opacity: 1; }
+.isp-tab.isp-on { opacity: 1; font-weight: 600; background: var(--tp-base-background-color, #fff); box-shadow: 0 0 0 1px var(--tp-container-border-color, #ececec); }
+.isp-materials {
+    margin: 0 8px 6px; padding: 4px 6px; border-radius: 4px; flex: none;
+    border: 1px solid var(--tp-container-border-color, #e6e6e6); background: var(--tp-input-background-color, transparent);
+}
+.isp-preview { padding: 0 8px 8px; flex: none; }
+/* a finger on the preview turns it (touch-action: none), it does not scroll the panel */
+.isp-preview-canvas {
+    width: 100%; max-width: 220px; aspect-ratio: 1; display: block; margin: 0 auto; cursor: grab; touch-action: none; border-radius: 8px;
+    background: repeating-conic-gradient(rgba(127, 127, 127, .18) 0 25%, transparent 0 50%) 0 0 / 16px 16px;
+}
+.isp-preview-canvas:active { cursor: grabbing; }
+.isp-shapes { display: flex; gap: 2px; margin: 6px auto 0; max-width: 220px; }
+.isp-shape { flex: 1; border: 0; border-radius: 4px; padding: 4px 0; font-size: 11px; cursor: pointer; background: var(--tp-input-background-color, rgba(0, 0, 0, .05)); }
+.isp-shape.isp-on { box-shadow: inset 0 0 0 1px var(--tp-label-foreground-color, #0d99ff); font-weight: 600; }
+.isp-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.isp-root:not(.isp-has-selection) .isp-body { display: none; }
+.isp-empty { padding: 4px 12px 14px; opacity: .6; }
+
+/* the Tweakpane UI of the inspector: no box and no "Configuration" title (the head of the inspector names the selection),
+   and the folder of the open tab has no title of its own (the tab names it) */
+.isp-ui .tp-rotv { box-shadow: none !important; border-radius: 0 !important; background: transparent !important; }
+.isp-ui .tp-rotv_b { display: none !important; }
+.isp-ui .tp-rotv_c { padding-top: 0 !important; }
+.isp-ui .tp-rotv_c > .tp-fldv { margin: 0 !important; border-radius: 0 !important; }
+.isp-ui .tp-rotv_c > .tp-fldv > .tp-fldv_b { display: none !important; }

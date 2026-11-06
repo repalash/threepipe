@@ -325,3 +325,16 @@ html, body {
     font-family: 'Gilroy', sans-serif !important;
 }
 
+
+/* the section of the panel (TweakpaneEditorPlugin.setPanelSection): first in the container of the Tweakpane UI. The
+   container is a column; the section and the settings of the mode scroll each on its own. */
+body.tpe-panel-section #tweakpaneUiContainer { display: flex; flex-direction: column; }
+body.tpe-panel-section #tweakpaneUiContainer > .tpe-panel-section-root {
+    flex: 0 1 auto; max-height: 60%; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+    border-bottom: 1px solid var(--tp-container-border-color, #e6e6e6); box-sizing: border-box;
+}
+body.tpe-panel-section #tweakpaneUiContainer > :not(.tpe-panel-section-root) { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+/* swap: the section only while it is swapped in, and then in place of the settings */
+body.tpe-panel-swap:not(.tpe-panel-swapped) #tweakpaneUiContainer > .tpe-panel-section-root { display: none; }
+body.tpe-panel-swapped #tweakpaneUiContainer > .tpe-panel-section-root { flex: 1 1 auto; max-height: none; border-bottom: 0; }
+body.tpe-panel-swapped #tweakpaneUiContainer > :not(.tpe-panel-section-root) { display: none; }
