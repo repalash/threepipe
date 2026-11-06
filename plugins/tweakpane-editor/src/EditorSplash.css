@@ -1,0 +1,123 @@
+/*
+ * EditorSplash: the start screen of the editor. The colours come from the Tweakpane theme of the page (the --tp-*
+ * variables on the body, as the editor frame), the accent is the blue of the frame. z-index: the popups layer of the UI
+ * layers in CONTRIBUTING.md (2000 to 9998), above the menus of the frame and the sticky notes (2000), below the context
+ * menu (9999) and the tooltips of the editor (tippy, 9999).
+ */
+.esp-root {
+    --esp-accent: #0d99ff;
+    --esp-bg: var(--tp-base-background-color, #ffffff);
+    --esp-fg: var(--tp-container-foreground-color, #1e1e1e);
+    --esp-dim: var(--tp-label-foreground-color, #757575);
+    --esp-line: var(--tp-container-border-color, #e6e6e6);
+    --esp-hover: var(--tp-button-background-color-hover, #f2f3f5);
+    --esp-fill: var(--tp-input-background-color, #f5f5f5);
+    position: fixed; inset: 0; z-index: 5000; display: flex; align-items: center; justify-content: center; padding: 16px; box-sizing: border-box;
+    color: var(--esp-fg); font: 400 13px/1.4 var(--tp-font-family, Inter, ui-sans-serif, system-ui, sans-serif); -webkit-font-smoothing: antialiased;
+    background: rgba(20, 20, 24, 0.38); animation: esp-fade .16s ease-out;
+}
+body.tpTheme-dark .esp-root, body.tpTheme-clean-dark .esp-root, body.tpTheme-black .esp-root, body.tpTheme-blue .esp-root {
+    background: rgba(0, 0, 0, 0.55);
+}
+.esp-root:focus { outline: none; }
+.esp-root [hidden] { display: none !important; }
+@keyframes esp-fade { from { opacity: 0; } }
+@keyframes esp-rise { from { transform: translateY(8px); } }
+.esp-card {
+    position: relative; width: min(820px, 100%); max-height: min(560px, 100%); display: flex; flex-direction: column; overflow: hidden;
+    background: var(--esp-bg); border-radius: 12px; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08), 0 24px 64px rgba(0, 0, 0, 0.28);
+    animation: esp-rise .2s ease-out;
+}
+/* the header: the app name over a quiet grid with a glow of the accent, like the art of a splash */
+.esp-head {
+    position: relative; flex: none; height: 84px; display: flex; align-items: flex-end; gap: 10px; padding: 0 16px 14px 20px; box-sizing: border-box;
+    border-bottom: 1px solid var(--esp-line);
+    background:
+        radial-gradient(ellipse 55% 140% at 88% 120%, color-mix(in srgb, var(--esp-accent) 30%, transparent), transparent 70%),
+        repeating-linear-gradient(90deg, color-mix(in srgb, var(--esp-fg) 6%, transparent) 0 1px, transparent 1px 24px),
+        repeating-linear-gradient(0deg, color-mix(in srgb, var(--esp-fg) 6%, transparent) 0 1px, transparent 1px 24px),
+        var(--esp-bg);
+}
+.esp-logo {
+    display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px;
+    background: var(--esp-bg); color: var(--esp-accent); box-shadow: 0 0 0 1px var(--esp-line);
+}
+.esp-logo svg { width: 20px; height: 20px; }
+.esp-title { font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
+.esp-version { font-size: 11px; color: var(--esp-dim); padding-bottom: 3px; }
+.esp-version:empty { display: none; }
+.esp-root button { font: inherit; color: inherit; cursor: pointer; }
+.esp-root button:focus-visible, .esp-check input:focus-visible { outline: 2px solid var(--esp-accent); outline-offset: 1px; }
+.esp-close {
+    position: absolute; top: 10px; right: 10px; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 5px; background: transparent;
+    display: flex; align-items: center; justify-content: center; opacity: .75;
+}
+.esp-close:hover { opacity: 1; background: var(--esp-hover); }
+.esp-body { flex: 1; min-height: 0; display: flex; }
+.esp-side { flex: none; width: 220px; padding: 14px 10px; overflow: auto; border-right: 1px solid var(--esp-line); background: color-mix(in srgb, var(--esp-fill) 55%, var(--esp-bg)); box-sizing: border-box; }
+.esp-main { flex: 1; min-width: 0; padding: 14px 18px 16px; overflow: auto; }
+.esp-heading { padding: 0 8px 8px; font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--esp-dim); }
+.esp-main .esp-heading { padding-left: 0; }
+.esp-start + .esp-heading { margin-top: 16px; }
+/* a row of Start and Recent: a 16 px icon, the label, the shortcut */
+.esp-row {
+    width: 100%; height: 32px; display: flex; align-items: center; gap: 9px; padding: 0 8px; border: 0; border-radius: 6px;
+    background: transparent; text-align: left;
+}
+.esp-row:hover { background: var(--esp-hover); }
+.esp-row svg { flex: none; color: var(--esp-dim); }
+.esp-row:hover svg { color: var(--esp-accent); }
+.esp-row span { flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.esp-row kbd { font: inherit; font-size: 11px; color: var(--esp-dim); }
+.esp-none { padding: 2px 8px; font-size: 12px; color: var(--esp-dim); }
+/* the sample cards */
+.esp-samples { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.esp-card-btn {
+    display: flex; flex-direction: column; align-items: stretch; padding: 0; overflow: hidden; text-align: left;
+    border: 1px solid var(--esp-line); border-radius: 8px; background: var(--esp-bg); transition: border-color .12s, box-shadow .12s;
+}
+.esp-card-btn:hover { border-color: var(--esp-accent); box-shadow: 0 0 0 1px var(--esp-accent); }
+.esp-thumb { height: 76px; display: flex; align-items: center; justify-content: center; background: var(--esp-fill); color: var(--esp-dim); }
+.esp-thumb svg { width: 32px; height: 32px; }
+.esp-card-btn:hover .esp-thumb { color: var(--esp-accent); }
+.esp-label { padding: 8px 10px 9px; font-weight: 500; }
+.esp-label:not(:last-child) { padding-bottom: 0; }
+.esp-text { padding: 2px 10px 9px; font-size: 12px; line-height: 1.35; color: var(--esp-dim); }
+.esp-status { min-height: 18px; margin-top: 10px; font-size: 12px; color: var(--esp-dim); }
+.esp-status.esp-error { color: #dc2626; }
+.esp-foot {
+    flex: none; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 16px 10px 20px;
+    border-top: 1px solid var(--esp-line); font-size: 12px; color: var(--esp-dim);
+}
+.esp-check { display: flex; align-items: center; gap: 6px; margin-left: auto; white-space: nowrap; color: var(--esp-fg); cursor: pointer; }
+.esp-check input { margin: 0; accent-color: var(--esp-accent); }
+/* a file over the splash */
+.esp-drop {
+    position: absolute; inset: 8px; display: none; align-items: center; justify-content: center; pointer-events: none;
+    border: 2px dashed var(--esp-accent); border-radius: 10px; background: color-mix(in srgb, var(--esp-bg) 86%, var(--esp-accent));
+    font-size: 15px; font-weight: 600; color: var(--esp-accent);
+}
+.esp-over .esp-drop { display: flex; }
+/* a sample or a file loads: the other buttons are dimmed (EditorSplash runs one load at a time) */
+.esp-busy .esp-row, .esp-busy .esp-card-btn { cursor: progress; }
+.esp-busy .esp-card-btn:not(.esp-loading), .esp-busy .esp-row:not(.esp-loading) { opacity: .55; }
+.esp-loading { border-color: var(--esp-accent); animation: esp-pulse .9s ease-in-out infinite; }
+@keyframes esp-pulse { 50% { opacity: .5; } }
+/* a touch screen: no keyboard shortcut to show */
+@media (pointer: coarse) {
+    .esp-row kbd { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .esp-root, .esp-card, .esp-loading { animation: none; }
+}
+/* a phone: Start and Recent above the samples, all in one scroll; no drop hint (no drag and drop on a touch screen) */
+@media (max-width: 600px) {
+    .esp-root { padding: 12px; }
+    .esp-card { max-height: 100%; }
+    .esp-head { height: 68px; }
+    .esp-body { flex-direction: column; overflow: auto; }
+    .esp-side { width: auto; overflow: visible; border-right: 0; border-bottom: 1px solid var(--esp-line); }
+    .esp-main { overflow: visible; }
+    .esp-samples { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
+    .esp-hint { display: none; }
+}
