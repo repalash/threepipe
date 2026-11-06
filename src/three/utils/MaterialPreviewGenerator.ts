@@ -1,5 +1,6 @@
 import {
     BoxGeometry,
+    BufferAttribute,
     BufferGeometry,
     ColorSpace,
     CylinderGeometry,
@@ -173,10 +174,11 @@ export class MaterialPreviewGenerator implements IDisposable {
         this._resources.dispose()
     }
 
+    // the shapes have a white vertex colour, so a material with vertexColors shows its own colour (not black)
     shapes: Record<string, Mesh> = {
-        sphere: new Mesh(new SphereGeometry(1)),
-        cube: new Mesh(new BoxGeometry(1, 1, 1)),
-        cylinder: new Mesh(new CylinderGeometry(0.5, 0.5, 1)),
+        sphere: new Mesh(withWhiteColors(new SphereGeometry(1))),
+        cube: new Mesh(withWhiteColors(new BoxGeometry(1, 1, 1))),
+        cylinder: new Mesh(withWhiteColors(new CylinderGeometry(0.5, 0.5, 1))),
     }
 
     /**
@@ -307,4 +309,11 @@ export class MaterialPreviewGenerator implements IDisposable {
         return direction.clone().normalize().multiplyScalar(distance / maxSize)
     }
 
+}
+
+/** Adds a white `color` attribute to a geometry: a material with `vertexColors` renders with its own colour on it */
+function withWhiteColors<T extends BufferGeometry>(geometry: T): T {
+    const count = geometry.getAttribute('position').count
+    geometry.setAttribute('color', new BufferAttribute(new Float32Array(count * 3).fill(1), 3))
+    return geometry
 }

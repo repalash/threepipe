@@ -82,3 +82,16 @@ describe('MaterialPreviewGenerator view', () => {
         material.dispose()
     })
 })
+
+describe('MaterialPreviewGenerator shapes', () => {
+    it('the preset shapes have a white vertex colour, so a material with vertexColors is not black', () => {
+        const generator = new tp.MaterialPreviewGenerator()
+        for (const name of ['sphere', 'cube', 'cylinder']) {
+            const color = generator.shapes[name].geometry.getAttribute('color')
+            expect(color?.itemSize).toBe(3)
+            expect(color.count).toBe(generator.shapes[name].geometry.getAttribute('position').count)
+            expect(Array.from(color.array as Float32Array).every(v => v === 1)).toBe(true)
+        }
+        generator.dispose()
+    })
+})
