@@ -577,7 +577,7 @@ describe('LayersPanelPlugin', () => {
         // only the timers: the list draws in the animation frames of the test
         vi.useFakeTimers({toFake: ['setTimeout', 'clearTimeout']})
         LayersPanelPlugin.HoverDelay = 80
-        const {list, sun, camera, outline, outlineViewer} = setup()
+        const {layers, list, sun, camera, outline, outlineViewer} = setup()
         const redraws = outlineViewer.renderManager.setDirty
         // across the rows, faster than the delay: no outline, no frame
         row(list, 'Sun').fire('pointerover')
@@ -600,6 +600,14 @@ describe('LayersPanelPlugin', () => {
         vi.advanceTimersByTime(200)
         expect([outline.hovered, redraws.mock.calls.length]).toEqual([[], 2])
         expect(outline.hovered).not.toContain(sun)
+        // the list drawn again in each frame (an animated material) while the pointer rests: the row keeps its time
+        row(list, 'Sun').fire('pointerover')
+        for (let k = 0; k < 4; k++) {
+            layers.refresh()
+            flush()
+            vi.advanceTimersByTime(30)
+        }
+        expect(outline.hovered).toEqual([sun])
     })
 
     test('an open row shows its first children and a "… N more" row; a click, the search or the selection shows all', () => {
@@ -847,7 +855,7 @@ describe('LayersPanelPlugin', () => {
         expect(metas(list)).toEqual(['1.5k v · 2 obj'])
         expect(hands).toBeDefined()
         // pictures (the fake DOM cannot draw them): a search gives the row of Albedo to the other texture
-        ;(layers as any)._thumbs.set(albedo, 'data:albedo').set(sky, 'data:sky')
+        ;(layers as any)._thumbs.set(albedo, {image: albedo.image, url: 'data:albedo', n: -1}).set(sky, {image: sky.image, url: 'data:sky', n: -2})
         layers.setTab('textures')
         flush()
         expect(part(rows(list)[0], 'lyp-kind').innerHTML).toContain('data:albedo')
@@ -859,15 +867,16 @@ describe('LayersPanelPlugin', () => {
         expect(part(rows(list)[0], 'lyp-kind').innerHTML).toContain('data:sky')
     })
 
-    test('the picture of a texture whose image loads later shows after the load', () => {
+    test('the picture of a texture whose image loads later shows after the load, and a new image gives a new picture', () => {
         const {layers, list, assets, gold} = withAssets()
         class FakeImage {
             width = 0
         }
         vi.stubGlobal('HTMLImageElement', FakeImage)
+        let drawn = 0
         const createElement = doc.createElement
         doc.createElement = (tag: string) => tag === 'canvas' ?
-            {getContext: () => ({drawImage: () => undefined}), toDataURL: () => 'data:drawn'} : createElement(tag)
+            {getContext: () => ({drawImage: () => undefined}), toDataURL: () => 'data:drawn' + ++drawn} : createElement(tag)
         try {
             const image = new FakeImage()
             assets.textures.push({isTexture: true, name: 'Late', uuid: 't4gg', image, appliedObjects: new Set([gold])})
@@ -882,7 +891,17 @@ describe('LayersPanelPlugin', () => {
             image.width = 64
             layers.refresh(true)
             flush()
-            expect(part(rows(list)[0], 'lyp-kind').innerHTML).toContain('data:drawn')
+            expect(part(rows(list)[0], 'lyp-kind').innerHTML).toContain('data:drawn1')
+            // another image in the same texture (the Flip Y of the image UI): a new picture
+            const flipped = Object.assign(new FakeImage(), {width: 64})
+            ;(assets.textures[assets.textures.length - 1] as any).image = flipped
+            layers.refresh(true)
+            flush()
+            expect(part(rows(list)[0], 'lyp-kind').innerHTML).toContain('data:drawn2')
+            // the same image: no new picture
+            layers.refresh(true)
+            flush()
+            expect([drawn, part(rows(list)[0], 'lyp-kind').innerHTML.includes('data:drawn2')]).toEqual([2, true])
         } finally {
             doc.createElement = createElement // the stub of HTMLImageElement goes in afterEach
         }

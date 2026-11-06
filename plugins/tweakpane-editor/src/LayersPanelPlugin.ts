@@ -275,7 +275,9 @@ export class LayersPanelPlugin extends AViewerPluginSync {
     /** The asset of the user row that the panel selected last: an object can be a user of two open assets */
     private _userAsset?: LayerAsset
     /** The pictures of the textures, as data URLs ('' when the image cannot be drawn) */
-    private _thumbs = new WeakMap<object, string>()
+    private _thumbs = new WeakMap<object, {image: unknown, url: string, n: number}>()
+    /** The number of the last picture drawn: the key of a picture in a row, so a new picture of a texture is drawn */
+    private _thumbCount = 0
     private _search: HTMLInputElement
     private _filter = ''
     /** The open rows. Weak: a removed object is not kept. */
@@ -298,8 +300,9 @@ export class LayersPanelPlugin extends AViewerPluginSync {
     private _hoverObjects: IObject3D[] = []
     /** The row element under the pointer: a render can give it another object (the rows are reused) */
     private _hoverRowEl: HTMLElement | null = null
-    /** The outline of a row that waits for the pointer to rest ({@link HoverDelay}) */
+    /** The outline of a row that waits for the pointer to rest ({@link HoverDelay}), and the target that it outlines then */
     private _hoverTimer?: ReturnType<typeof setTimeout>
+    private _hoverNext: {key: unknown, objects: IObject3D[]} | null = null
     /** The value of `userData.userSelectable` before a lock, given back by the unlock */
     private _beforeLock = new WeakMap<IObject3D, boolean | undefined>()
     private _picking?: PickingPlugin
@@ -721,8 +724,14 @@ export class LayersPanelPlugin extends AViewerPluginSync {
      * after the pointer rests on it ({@link HoverDelay}); no row clears the outline at once
      */
     private _setRowHover(target: {key: unknown, objects: IObject3D[]} | null) {
+        // the row that waits is drawn again (a render in each frame): it keeps its time, with its objects now
+        if (this._hoverTimer && target && target.key === this._hoverNext?.key) {
+            this._hoverNext = target
+            return
+        }
         clearTimeout(this._hoverTimer)
         this._hoverTimer = undefined
+        this._hoverNext = null
         if ((target?.key ?? null) === this._hoverKey) {
             // the same row: its objects can change (the users of an asset), then the outline follows at once
             const objects = target?.objects ?? []
@@ -732,10 +741,13 @@ export class LayersPanelPlugin extends AViewerPluginSync {
             this._outlineHover()
             return
         }
+        this._hoverNext = target
         const apply = () => {
+            const next = this._hoverNext
             this._hoverTimer = undefined
-            this._hoverKey = target?.key ?? null
-            this._hoverObjects = target?.objects ?? []
+            this._hoverNext = null
+            this._hoverKey = next?.key ?? null
+            this._hoverObjects = next?.objects ?? []
             this._outlineHover()
         }
         if (target && LayersPanelPlugin.HoverDelay > 0) this._hoverTimer = setTimeout(apply, LayersPanelPlugin.HoverDelay)
@@ -1252,14 +1264,14 @@ export class LayersPanelPlugin extends AViewerPluginSync {
         }
         const a = r.asset
         const swatch = (a as IMaterial).isMaterial ? '#' + ((a as IMaterial & {color?: {getHexString(): string}}).color?.getHexString() ?? 'cccccc') : ''
-        const thumb = (a as ITexture).isTexture ? this._thumb(a as ITexture) : ''
-        // a picture is of one texture: a reused row draws the picture of its new texture
-        const kindKey = swatch ? 'swatch' + swatch : thumb ? 'thumb:' + a.uuid : (a as ITexture).isTexture ? 'texture' : 'geometry'
+        const thumb = (a as ITexture).isTexture ? this._thumb(a as ITexture) : undefined
+        // each picture has its number: a reused row, or a texture with a new image, draws the new picture
+        const kindKey = swatch ? 'swatch' + swatch : thumb?.url ? 'thumb:' + thumb.n : (a as ITexture).isTexture ? 'texture' : 'geometry'
         if (p.kind.dataset.kind !== kindKey) {
             p.kind.dataset.kind = kindKey
             p.kind.style.color = ''
             p.kind.innerHTML = swatch ? `<span class="lyp-swatch" style="background:${swatch}"></span>` :
-                thumb ? `<img class="lyp-thumb" alt="" src="${thumb}">` : ICONS[(a as ITexture).isTexture ? 'texture' : 'geometry']
+                thumb?.url ? `<img class="lyp-thumb" alt="" src="${thumb.url}">` : ICONS[(a as ITexture).isTexture ? 'texture' : 'geometry']
         }
         const name = this._assetName(a)
         setIfChanged(p.name, 'textContent', name)
@@ -1420,18 +1432,19 @@ export class LayersPanelPlugin extends AViewerPluginSync {
     }
 
     /**
-     * A small picture of a texture, as a data URL; '' when its image cannot be drawn (a data texture, another origin). An
-     * image that is not loaded yet is not kept as '': a later render draws it.
+     * A small picture of a texture: a data URL (`url`, '' when its image cannot be drawn: a data texture, another
+     * origin) and its number (`n`). It is drawn again when the texture gets another image (the Flip Y of the image UI);
+     * an image that is not loaded yet gives none, so a later render draws it.
      */
-    private _thumb(t: ITexture) {
+    private _thumb(t: ITexture): {url: string, n: number} | undefined {
         const cached = this._thumbs.get(t)
-        if (cached !== undefined) return cached
+        if (cached && cached.image === t.image) return cached
         let url = ''
         const img = t.image as CanvasImageSource & {width?: number} | undefined
         const drawable = typeof HTMLImageElement !== 'undefined' && img instanceof HTMLImageElement ||
             typeof HTMLCanvasElement !== 'undefined' && img instanceof HTMLCanvasElement ||
             typeof ImageBitmap !== 'undefined' && img instanceof ImageBitmap
-        if (drawable && !img!.width) return ''
+        if (drawable && !img!.width) return undefined
         try {
             if (drawable) {
                 const c = document.createElement('canvas')
@@ -1442,8 +1455,9 @@ export class LayersPanelPlugin extends AViewerPluginSync {
         } catch (e) {
             url = '' // a texture from another origin
         }
-        this._thumbs.set(t, url)
-        return url
+        const thumb = {image: t.image, url, n: ++this._thumbCount}
+        this._thumbs.set(t, thumb)
+        return thumb
     }
 
     // endregion
