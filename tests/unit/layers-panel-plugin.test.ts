@@ -219,7 +219,7 @@ function setup({editor = false, container, picking: withPicking = true, sceneRow
     const objects = scene()
     const picking = new FakePicking()
     const sceneEvents = new EventDispatcher<any>()
-    const pluginListeners: {type: string, listener: any}[] = []
+    const pluginListeners: {type: string, listener: any, names: string[]}[] = []
     const undo: {undo: () => void, redo: () => void}[] = []
     const outlineViewer = {renderManager: {setDirty: vi.fn()}, getPlugin: () => undefined}
     // the assets of the Object3DManager, for the tabs: a test fills them
@@ -242,7 +242,7 @@ function setup({editor = false, container, picking: withPicking = true, sceneRow
             isObject3D: true, parent: null, traverseAncestors: () => undefined}),
         object3dManager,
         getPlugin: (type: string) => plugins[type],
-        addPluginListener: (type: string, listener: any) => pluginListeners.push({type, listener}),
+        addPluginListener: (type: string, listener: any, ...names: string[]) => pluginListeners.push({type, listener, names}),
         removePluginListener: (type: string, listener: any) => {
             const i = pluginListeners.findIndex(l => l.type === type && l.listener === listener)
             if (i >= 0) pluginListeners.splice(i, 1)
@@ -1085,36 +1085,30 @@ describe('LayersPanelPlugin', () => {
         expect(under.find('lyp-name')[0].textContent).not.toBe(before)
     })
 
-    test('goes in the left area of the editor frame with its mode bar entry; editorArea, enabled and a container', () => {
-        const {layers, editorPlugin, pluginListeners, viewer, plugins} = setup({editor: true})
-        expect(editorPlugin.setArea).toHaveBeenLastCalledWith('left', layers.element, LayersPanelPlugin.AreaEntry)
+    test('does not touch the editor frame; enabledChange when it is turned on or off; a container', () => {
+        const {layers, editorPlugin, pluginListeners} = setup({editor: true})
+        // the app places the panel: the plugin does not call the editor, or listen for it
+        expect(editorPlugin.setArea).not.toHaveBeenCalled()
+        expect(pluginListeners.map(l => l.names)).toEqual([['PickingPlugin'], ['PickingPlugin']])
         expect(LayersPanelPlugin.AreaEntry.name).toBe('Layers')
-        layers.editorArea = 'bottom'
-        expect(editorPlugin.setArea.mock.calls.slice(-2)).toEqual([['left', null], ['bottom', layers.element, LayersPanelPlugin.AreaEntry]])
+        const changes: boolean[] = []
+        layers.addEventListener('enabledChange', e => changes.push(e.enabled))
         layers.enabled = false
-        expect(editorPlugin.setArea).toHaveBeenLastCalledWith('bottom', null)
         expect(layers.element.style.display).toBe('none')
         layers.enabled = true
-        expect(editorPlugin.setArea).toHaveBeenLastCalledWith('bottom', layers.element, LayersPanelPlugin.AreaEntry)
         expect(layers.element.style.display).toBe('')
-        layers.editorArea = null
-        expect(editorPlugin.setArea).toHaveBeenLastCalledWith('bottom', null)
+        // enable and disable with a key send it too; no change, no event
+        layers.disable('test')
+        layers.disable('other')
+        layers.enable('test')
+        layers.enable('other')
+        layers.enabled = true
+        expect(changes).toEqual([false, true, false, true])
+        expect(editorPlugin.setArea).not.toHaveBeenCalled()
 
-        // the editor removed, and added again
-        layers.editorArea = 'left'
-        const removed = pluginListeners.find(l => l.type === 'remove')!.listener
-        removed({plugin: editorPlugin})
-        expect(editorPlugin.setArea).toHaveBeenLastCalledWith('left', null)
-        const again = {setArea: vi.fn()}
-        plugins.TweakpaneEditorPlugin = again
-        pluginListeners.find(l => l.type === 'add')!.listener({plugin: again})
-        expect(again.setArea).toHaveBeenLastCalledWith('left', layers.element, LayersPanelPlugin.AreaEntry)
-        expect(viewer.setDirty).not.toHaveBeenCalled()
-
-        // with a container: the panel goes there, not in the frame
+        // with a container: the panel goes there
         const container = new FakeElement('div')
-        const s = setup({editor: true, container})
-        expect(s.editorPlugin.setArea).not.toHaveBeenCalled()
+        const s = setup({container})
         expect(s.layers.element as any).toBe(container.children[0])
     })
 
@@ -1130,7 +1124,7 @@ describe('LayersPanelPlugin', () => {
         expect(layers.listedObjects).toHaveLength(3)
     })
 
-    test('remove takes out the listeners, the element, the frame area, the open rename and the hover', () => {
+    test('remove takes out the listeners, the element, the open rename and the hover', () => {
         const container = new FakeElement('div')
         const s = setup({editor: true})
         const {layers, list, picking, viewer, sceneEvents, pluginListeners, outline, sun} = s
@@ -1146,7 +1140,7 @@ describe('LayersPanelPlugin', () => {
         expect(picking.hasEventListener('selectedObjectChanged', (layers as any)._onSelection)).toBe(false)
         expect(picking.hasEventListener('hoverObjectChanged', (layers as any)._onPickingHover)).toBe(false)
         expect(pluginListeners).toHaveLength(0)
-        expect(s.editorPlugin.setArea).toHaveBeenLastCalledWith('left', null)
+        expect(s.editorPlugin.setArea).not.toHaveBeenCalled()
         flush() // the frame was cancelled: nothing drawn, no error
         // nothing reacts after the remove
         picking.select([sun])

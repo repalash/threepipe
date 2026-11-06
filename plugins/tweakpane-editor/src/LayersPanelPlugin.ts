@@ -1,4 +1,5 @@
 import {
+    AViewerPluginEventMap,
     AViewerPluginSync,
     createStyles,
     getWidgetKind,
@@ -14,8 +15,7 @@ import {
 } from 'threepipe'
 import type {IGeometry, IMaterial, ITexture, UndoManagerPlugin} from 'threepipe'
 import type {SelectionOutlinePlugin} from './SelectionOutlinePlugin'
-import type {TweakpaneEditorPlugin} from './TweakpaneEditorPlugin'
-import type {EditorFrameArea, EditorFrameAreaOptions} from './frame/EditorFrame'
+import type {EditorFrameAreaOptions} from './frame/EditorFrame'
 import styles from './LayersPanelPlugin.css?inline'
 
 /**
@@ -31,6 +31,12 @@ interface LayerRow {
     more?: number
     /** The row of the scene or of the default camera, at the top ({@link LayersPanelPlugin.sceneRows}) */
     pinned?: boolean
+}
+
+/** The events of {@link LayersPanelPlugin} */
+export interface LayersPanelPluginEventMap extends AViewerPluginEventMap {
+    /** The panel is turned on or off (`enabled`, `enable`, `disable`): the app that placed {@link LayersPanelPlugin.element} can take it out or put it back */
+    enabledChange: {enabled: boolean}
 }
 
 /** The kinds of objects that can show no children in the list ({@link LayersPanelPlugin.leafTypes}) */
@@ -136,17 +142,27 @@ const ICONS = {
  *
  * Lights and cameras have the icon and the colour of their kind (`widgetKinds` of threepipe), as in the viewport.
  *
- * Where the panel goes: in the `container` given to the constructor; else, with a {@link TweakpaneEditorPlugin}, in the
- * area {@link editorArea} of its page frame (the left sidebar by default), with an entry in the mode bar
- * ({@link LayersPanelPlugin.AreaEntry}); else the app puts {@link element} in the page. The element fills its parent: give
- * the parent a height. The plugin takes the panel out of the page when it is removed.
+ * Where the panel goes: in the `container` given to the constructor, else the app puts {@link element} in the page. The
+ * plugin does not depend on the editor: in the page frame of the `TweakpaneEditorPlugin`, the app calls
+ * `editor.setArea('left', layers.element, LayersPanelPlugin.AreaEntry)`, and on the `enabledChange` event it takes the
+ * area out (`setArea('left', null)`) or puts it back. The element fills its parent: give the parent a height. The plugin
+ * takes the panel out of the page when it is removed.
+ *
+ * @example
+ * ```ts
+ * const layers = viewer.addPluginSync(LayersPanelPlugin)
+ * const editor = viewer.getPlugin(TweakpaneEditorPlugin)!
+ * const place = () => editor.setArea('left', layers.isDisabled() ? null : layers.element, LayersPanelPlugin.AreaEntry)
+ * place()
+ * layers.addEventListener('enabledChange', place)
+ * ```
  *
  * The plugin UI folder (Layers Panel) has the settings. The settings and the open rows are not saved with the viewer.
  *
  * @category Plugins
  */
 @uiFolderContainer('Layers Panel')
-export class LayersPanelPlugin extends AViewerPluginSync {
+export class LayersPanelPlugin extends AViewerPluginSync<LayersPanelPluginEventMap> {
     static readonly PluginType = 'LayersPanelPlugin'
     /** Adds the stylesheet of the panel to the page when the first plugin is made. Off: the page styles the `lyp-` classes. */
     static InjectStyles = true
@@ -154,8 +170,8 @@ export class LayersPanelPlugin extends AViewerPluginSync {
     /** The height of a row in px. The stylesheet takes it from the CSS variable `--lyp-row` on {@link element}. */
     static readonly RowHeight = 28
     /**
-     * The entry of the panel in the mode bar of the editor frame (`TweakpaneEditorPlugin.setArea`): its name, icon and
-     * colour. Set it before the plugin is added.
+     * A name, an icon and a colour for the entry of the panel in the mode bar of the editor frame, for the app to pass to
+     * `TweakpaneEditorPlugin.setArea`. The plugin does not use it.
      */
     static AreaEntry: EditorFrameAreaOptions = {name: 'Layers', icon: ICONS.layers, color: '#6366f1'}
 
@@ -169,7 +185,7 @@ export class LayersPanelPlugin extends AViewerPluginSync {
     dependencies = [PickingPlugin]
     serializeWithViewer = false
 
-    /** Off: the panel is hidden, and out of the area of the editor frame */
+    /** Off: the panel is hidden, and the `enabledChange` event tells the app (which can take its area out of the editor frame) */
     @onChange(LayersPanelPlugin.prototype.setDirty)
     @uiToggle('Enabled')
         enabled = true
@@ -249,13 +265,6 @@ export class LayersPanelPlugin extends AViewerPluginSync {
     @uiToggle('Geometry tab')
         geometryTab = true
 
-    /**
-     * The area of the page frame of the {@link TweakpaneEditorPlugin} for the panel (`TweakpaneEditorPlugin.setArea`).
-     * `null`: the plugin does not put the panel in the frame. Not used with a `container`.
-     */
-    @onChange(LayersPanelPlugin.prototype._place)
-        editorArea: EditorFrameArea | null = 'left'
-
     /** The panel: the header, the search field and the list. It fills its parent. */
     readonly element: HTMLDivElement
     /** The element that holds the panel while the plugin is added, given to the constructor */
@@ -306,14 +315,13 @@ export class LayersPanelPlugin extends AViewerPluginSync {
     /** The value of `userData.userSelectable` before a lock, given back by the unlock */
     private _beforeLock = new WeakMap<IObject3D, boolean | undefined>()
     private _picking?: PickingPlugin
-    private _editor?: TweakpaneEditorPlugin
-    /** The area of the editor frame that has the panel now */
-    private _placedArea: EditorFrameArea | null = null
+    /** On or off at the last `enabledChange` (set in the constructor, after the first set of `enabled`) */
+    private _on: boolean
     private _resizer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(() => this.refresh())
 
     /**
-     * @param container - the element that holds the panel while the plugin is added. Without it, the panel goes in the
-     * page frame of the {@link TweakpaneEditorPlugin} ({@link editorArea}), or the app puts {@link element} in the page.
+     * @param container - the element that holds the panel while the plugin is added. Without it, the app puts
+     * {@link element} in the page (in the editor frame: `TweakpaneEditorPlugin.setArea`).
      */
     constructor(container?: HTMLElement) {
         super()
@@ -358,6 +366,7 @@ export class LayersPanelPlugin extends AViewerPluginSync {
             this._setRowHover(null)
         })
         this._tabsChanged()
+        this._on = !this.isDisabled()
     }
 
     onAdded(viewer: ThreeViewer) {
@@ -369,11 +378,10 @@ export class LayersPanelPlugin extends AViewerPluginSync {
         viewer.scene.addEventListener('materialChanged', this._onAssetsChanged)
         viewer.scene.addEventListener('geometryChanged', this._onAssetsChanged)
         viewer.scene.addEventListener('materialUpdate', this._onMaterialUpdate)
-        // the PickingPlugin and the TweakpaneEditorPlugin can be added before or after this plugin, removed and replaced
-        viewer.addPluginListener('add', this._onPluginAdded, 'PickingPlugin', 'TweakpaneEditorPlugin')
-        viewer.addPluginListener('remove', this._onPluginRemoved, 'PickingPlugin', 'TweakpaneEditorPlugin')
+        // the PickingPlugin can be added before or after this plugin, removed and replaced
+        viewer.addPluginListener('add', this._onPluginAdded, 'PickingPlugin')
+        viewer.addPluginListener('remove', this._onPluginRemoved, 'PickingPlugin')
         this._setPicking(viewer.getPlugin<PickingPlugin>('PickingPlugin'))
-        this._setEditor(viewer.getPlugin<TweakpaneEditorPlugin>('TweakpaneEditorPlugin'))
         this._resizer?.observe(this._list)
         this._place()
         this.refresh(true)
@@ -392,7 +400,6 @@ export class LayersPanelPlugin extends AViewerPluginSync {
         viewer.removePluginListener('add', this._onPluginAdded)
         viewer.removePluginListener('remove', this._onPluginRemoved)
         this._setPicking(undefined)
-        this._setEditor(undefined)
         this._resizer?.disconnect()
         if (this._frame) cancelFrame(this._frame)
         this._frame = 0
@@ -405,9 +412,15 @@ export class LayersPanelPlugin extends AViewerPluginSync {
         super.dispose()
     }
 
-    /** Called when {@link enabled} changes (and by `enable` / `disable`): shows or hides the panel */
+    /** Called when {@link enabled} changes (and by `enable` / `disable`): shows or hides the panel, and sends `enabledChange` */
     setDirty() {
-        if (!this._viewer) return // the first set of enabled, in the constructor
+        const on = !this.isDisabled()
+        // undefined at the first set of enabled, in the constructor
+        if (this._on !== undefined && on !== this._on) {
+            this._on = on
+            this.dispatchEvent({type: 'enabledChange', enabled: on})
+        }
+        if (!this._viewer) return
         this._place()
         if (!this.isDisabled()) this.refresh(true)
     }
@@ -611,26 +624,12 @@ export class LayersPanelPlugin extends AViewerPluginSync {
 
     // region placement
 
-    /** Puts the panel in its container or in the area of the editor frame, or takes it out (disabled) */
+    /** Shows or hides the panel (disabled), and puts it in its container */
     private _place() {
         if (!this._viewer) return
         const on = !this.isDisabled()
         this.element.style.display = on ? '' : 'none'
-        const area = on && this._editor && !this.container ? this.editorArea : null
-        if (area !== this._placedArea) {
-            if (this._placedArea) this._editor?.setArea(this._placedArea, null)
-            this._placedArea = area
-            if (area) this._editor!.setArea(area, this.element, LayersPanelPlugin.AreaEntry)
-        }
         if (this.container && on && this.element.parentElement !== this.container) this.container.appendChild(this.element)
-    }
-
-    private _setEditor(editor: TweakpaneEditorPlugin | undefined) {
-        if (editor === this._editor) return
-        if (this._placedArea) this._editor?.setArea(this._placedArea, null)
-        this._placedArea = null
-        this._editor = editor
-        this._place()
     }
 
     private _setPicking(picking: PickingPlugin | undefined) {
@@ -645,13 +644,11 @@ export class LayersPanelPlugin extends AViewerPluginSync {
 
     private _onPluginAdded = () => {
         this._setPicking(this._viewer?.getPlugin<PickingPlugin>('PickingPlugin'))
-        this._setEditor(this._viewer?.getPlugin<TweakpaneEditorPlugin>('TweakpaneEditorPlugin'))
     }
 
     // the removed plugin is still the one getPlugin returns at this point
     private _onPluginRemoved = (e: IViewerEvent) => {
         if (e.plugin === this._picking) this._setPicking(undefined)
-        if (e.plugin === this._editor) this._setEditor(undefined)
     }
 
     // endregion

@@ -152,7 +152,7 @@ export class ThreeEditor extends ThreeViewer {
         new SSGIPlugin(UnsignedByteType, 1, false),
         KTX2LoadPlugin, KTXLoadPlugin, PLYLoadPlugin, Rhino3dmLoadPlugin, STLLoadPlugin, USDZLoadPlugin,
         BlendLoadPlugin,
-        // the layers in the left sidebar of the page frame, with an entry in the mode bar
+        // the layers, placed in the left sidebar of the page frame in init()
         LayersPanelPlugin,
         new Object3DWidgetsPlugin(false),
         Object3DGeneratorPlugin,
@@ -239,6 +239,14 @@ export class ThreeEditor extends ThreeViewer {
         const editor = this.addPluginSync(new TweakpaneEditorPlugin())
 
         editor.loadPlugins(this.editorModes)
+
+        // the layers in the left area of the page frame, with an entry in the mode bar; out of it while the panel is off
+        const layers = this.getPlugin(LayersPanelPlugin)
+        if (layers) {
+            const placeLayers = () => editor.setArea('left', layers.isDisabled() ? null : layers.element, LayersPanelPlugin.AreaEntry)
+            placeLayers()
+            layers.addEventListener('enabledChange', placeLayers)
+        }
 
         // the name in the page frame: the first loaded model or viewer config file (not a texture or an environment
         // map) names the document, and a click on the name renames it; the files dropped after it do not change it. The

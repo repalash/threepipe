@@ -204,7 +204,18 @@ The visibility, the lock and the name changes are undo steps with the `UndoManag
 
 **Where the panel goes.**
 
-- With a `TweakpaneEditorPlugin`: in the left area of its page frame, with a Layers entry in the mode bar (`LayersPanelPlugin.AreaEntry`: the name, the icon and the colour). `editorArea` picks another area (`'bottom'`), or `null` for none. The classic layout has no areas, so it does not show the panel.
+The plugin does not depend on the editor: the app places the panel.
+
+- In the page frame of a `TweakpaneEditorPlugin`: put `layers.element` in an area, with a Layers entry in the mode bar. `LayersPanelPlugin.AreaEntry` has a name, an icon and a colour for the entry. The `enabledChange` event (`{enabled}`) tells when the panel is turned on or off (Enabled, `enable`, `disable`), so the app can take the area out and put it back. The classic layout has no areas, so it does not show the panel.
+
+  ```ts
+  const layers = viewer.addPluginSync(LayersPanelPlugin)
+  const editor = viewer.getPlugin(TweakpaneEditorPlugin)!
+  const place = () => editor.setArea('left', layers.isDisabled() ? null : layers.element, LayersPanelPlugin.AreaEntry)
+  place()
+  layers.addEventListener('enabledChange', place)
+  ```
+
 - Without the editor: give an element to the constructor, `new LayersPanelPlugin(container)`. The panel goes in it while the plugin is added. The panel fills its parent, so give the parent a height.
 - Or place `layers.element` in the page yourself.
 
