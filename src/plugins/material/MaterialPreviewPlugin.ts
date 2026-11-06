@@ -1,5 +1,5 @@
 import type {BufferGeometry, Vector3} from 'three'
-import {uiFolderContainer, uiSlider, uiToggle} from 'uiconfig.js'
+import {type ChangeEvent, uiFolderContainer, uiSlider, uiToggle} from 'uiconfig.js'
 import {AViewerPluginSync, ThreeViewer} from '../../viewer'
 import type {IMaterial} from '../../core'
 import {
@@ -16,7 +16,7 @@ export interface MaterialChangeEvent {
     change?: string
     key?: string
     last?: boolean
-    uiChangeEvent?: {last?: boolean, config?: {property?: [unknown, string | number] | unknown[]}}
+    uiChangeEvent?: ChangeEvent
 }
 
 /**
@@ -196,8 +196,10 @@ export class MaterialPreviewPlugin extends AViewerPluginSync {
      * and no preview renders. Default: a rename (`change` or `key` `'name'`, or the name field of the material's UI).
      * Set a function to skip other changes, from the `change` and `key` of `setDirty`.
      */
-    ignoreChange: (e: MaterialChangeEvent) => boolean = e =>
-        (e.change ?? e.key ?? e.uiChangeEvent?.config?.property?.[1]) === 'name'
+    ignoreChange: (e: MaterialChangeEvent) => boolean = e => {
+        const property = e.uiChangeEvent?.config?.property // [target, key], or a function that returns it
+        return (e.change ?? e.key ?? (Array.isArray(property) ? property[1] : undefined)) === 'name'
+    }
     /**
      * Clock in ms, for {@link dragInterval}.
      */
