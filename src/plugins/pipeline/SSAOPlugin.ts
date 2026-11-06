@@ -13,6 +13,7 @@ import {ExtendedShaderPass, IPassID, IPipelinePass} from '../../postprocessing'
 import {ThreeViewer} from '../../viewer'
 import {PipelinePassPlugin} from '../base/PipelinePassPlugin'
 import {uiConfig, uiFolderContainer, uiImage, uiSlider, uiToggle} from 'uiconfig.js'
+import {UiTags} from '../../ui/uiconfig'
 import {
     ICamera,
     IMaterial,
@@ -131,7 +132,7 @@ export class SSAOPlugin
     target?: SSAOPluginTarget
 
     /** Debug texture preview of the SSAO buffer (read-only) */
-    @uiImage('SSAO Buffer', {readOnly: true, tags: ['debug']})
+    @uiImage('SSAO Buffer', {readOnly: true, tags: [UiTags.Debug]})
         texture?: Texture
 
     @uiConfig(undefined, {unwrapContents: true})
@@ -330,7 +331,7 @@ export class SSAOPluginPass extends ExtendedShaderPass implements IPipelinePass 
         falloff = 1.3
 
     @serialize()
-    @uiSlider('Num Samples', [1, 11], 1, {tags: ['performance']})
+    @uiSlider('Num Samples', [1, 11], 1, {tags: [UiTags.Performance]})
     @matDefine('NUM_SAMPLES', undefined, undefined, SSAOPluginPass.prototype.setDirty)
         numSamples = 8
 
@@ -348,7 +349,7 @@ export class SSAOPluginPass extends ExtendedShaderPass implements IPipelinePass 
     // @bindToValue({obj: 'bilateralPass', key: 'enabled', onChange: 'setDirty'})
     // smoothEdgeSharpness = true
 
-    @uiSlider('Split', [0, 1], 0.01, {tags: ['debug']})
+    @uiSlider('Split', [0, 1], 0.01, {tags: [UiTags.Debug]})
     @serialize() @uniform({propKey: 'ssaoSplitX', onChange: SSAOPluginPass.prototype.setDirty})
         split = 0
 
@@ -516,6 +517,7 @@ export class SSAOPluginPass extends ExtendedShaderPass implements IPipelinePass 
                 {
                     type: 'checkbox',
                     label: 'Enabled',
+                    tags: [UiTags.Basic],
                     get value() {
                         return !(material.userData.ssaoDisabled ?? false)
                     },

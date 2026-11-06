@@ -134,7 +134,7 @@ export class CanvasSnapshotPlugin extends AViewerPluginSync {
                         zippa[(f as File).name] = new Uint8Array(await (f as File).arrayBuffer())
                     }
                     const zipped = zipSync(zippa)
-                    file = new File([zipped], filename + '.zip', {type: 'application/zip', lastModified: Date.now()})
+                    file = new File([zipped as Uint8Array<ArrayBuffer>], filename + '.zip', {type: 'application/zip', lastModified: Date.now()})
                 } else {
                     file = res as string[]
                 }

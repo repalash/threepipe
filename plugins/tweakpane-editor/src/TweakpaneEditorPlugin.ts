@@ -14,10 +14,10 @@ import {setupEditorCameraUi} from './editor-camera-ui'
 import type {EditorCameraPlugin} from './EditorCameraPlugin'
 import styles from './TweakpaneEditorPlugin.css?inline'
 import tippy from 'tippy.js'
-import {addTooltipStyles, EDITOR_TOOLTIP_PROPS} from './tooltips'
+import {addTooltipStyles, EDITOR_TOOLTIP_PROPS, tooltipParent} from './tooltips'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 import {UiObjectConfig} from 'uiconfig.js'
-import {EDITOR_PAGE_LAYOUTS, EditorFrame, EditorFrameLayout, EditorFrameOptions, EditorPageLayout} from './frame/EditorFrame'
+import {EDITOR_PAGE_LAYOUTS, EditorFrame, EditorFrameArea, EditorFrameAreaOptions, EditorFrameLayout, EditorFrameOptions, EditorPageLayout} from './frame/EditorFrame'
 import {readStored, writeStored} from './dom-utils'
 
 export interface TweakpaneEditorPluginEventMap extends AViewerPluginEventMap {
@@ -45,7 +45,7 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
             ...EDITOR_TOOLTIP_PROPS,
             duration: 200, // a short fade: tooltips and popovers take 160 to 220 ms
             arrow: true,
-            appendTo: () => viewer.container, // for fullscreen
+            appendTo: tooltipParent, // above the frame; in the viewer container in full screen
         })
 
         setupFullscreenButton(viewer)
@@ -111,6 +111,20 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
         this._documentName = name
         if (this.frame) this.frame.documentName = name
         this.dispatchEvent({type: 'documentNameChange', name})
+    }
+
+    private _areas = new Map<EditorFrameArea, [HTMLElement | HTMLElement[], EditorFrameAreaOptions]>()
+    /**
+     * Puts an element in an area of the page frame ({@link EditorFrame.setArea}): `left`, the sidebar left of the canvas,
+     * or `bottom`, the strip below it, with an entry in the mode bar (`options`: its name and icon). A list of elements
+     * is a stack, split between them (see {@link EditorFrame.setArea}). `null` empties the
+     * area. The plugin keeps the element when it makes the frame again (at {@link loadPlugins}, and after the classic
+     * layout, which has no areas).
+     */
+    setArea(area: EditorFrameArea, element: HTMLElement | HTMLElement[] | null, options: EditorFrameAreaOptions = {}) {
+        if (element) this._areas.set(area, [element, options])
+        else this._areas.delete(area)
+        this.frame?.setArea(area, element, options)
     }
 
     private _layout: EditorPageLayout = readStoredLayout() ?? TweakpaneEditorPlugin.DefaultLayout
@@ -206,6 +220,7 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
         })
         this.frame.modeBar.select(this._selectedMode)
         this.frame.documentName = this._documentName
+        for (const [area, [element, options]] of this._areas) this.frame.setArea(area, element, options)
         // the mode bar keeps the names shown or hidden (its toggle button, the stored state): the checkbox follows it
         this.frame.modeBar.onExpandedChange = () => this.uiConfig.uiRefresh?.(true)
     }

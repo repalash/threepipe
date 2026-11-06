@@ -40,11 +40,15 @@ Run them in the repository root, unless the table says otherwise.
 | `npm run build:all` | Builds the core, every plugin and the examples (turbo, cached) | To test everything as it is deployed |
 | `npm run build-examples` / `npm run watch-examples` | Compiles the examples to JavaScript (once / on change), for `npm run serve` | To test the examples as they are deployed |
 | `npm run serve` | Static server for the built files on http://localhost:9229 | With `build:all`, `build-examples` or `watch-examples` |
+| `npm run lint` | Oxlint with the rules in `.oxlintrc.json` (every rule is an error, the code passes them all) | Before a pull request |
+| `npm run typecheck` | Type-checks the core (TypeScript 7) | Before a pull request |
 | `npm run test:unit` | Unit tests (vitest) | Before a pull request |
 | `npm run test:e2e` | Browser tests (playwright), against the built files | Before a pull request that changes rendering |
 | `npm run check-bundles` | Checks the built bundles: every import is declared, no package is bundled twice | After `build:all`, when a vite config or a dependency changes |
 | `npm run website:dev` | The website (vitepress) | Docs changes |
 | `npm run docs` / `npm run docs-all` | API docs of the core and the website build / the same plus the API docs of every plugin | Docs changes |
+
+Check manually, the linter cannot: a function that returns a Promise is `async` (a sync `throw` in it then rejects the Promise instead of throwing to the caller).
 
 Different from other projects:
 - `dev` starts the dev server (as in vite projects); the watch build of the library is `watch`. Before this change,
@@ -75,6 +79,15 @@ To add a dependency to a plugin, run `npm install <package> -w plugins/<plugin-n
 No workflow runs on pull requests. Before a pull request, run `test:unit`, and for build or dependency changes
 `build:all`, `check-bundles` and `test:types`.
 
+For a pull request that changes the examples or rendering, add a link to a preview of it. Two separate steps:
+
+1. `npm run build:all`: builds the core, the plugins and the examples (nothing is uploaded).
+2. `npm run cloud:upload-preview -- pr-<number>`: uploads what step 1 built (`dist/`, `examples/`, `plugins/*/dist/`)
+   to threepipe cloud and prints the link; put it in the pull request. The preview stays until cleaned up.
+
+Step 2 needs a threepipe cloud key (`TP_CLOUD_KEY`): sign in at https://cloud.threepipe.org with GitHub, create an access
+link, and follow it. See `services/cloud/README.md`.
+
 ## Building
 
 Builds run through [Turborepo](https://turborepo.com): packages build in parallel in dependency order, and a package whose inputs did not change is restored from the cache in `.turbo/` instead of being built again.
@@ -92,7 +105,8 @@ Turbo options can be passed through, for example `npx turbo run build --filter=@
 
 For core and for each package -
 - Update the package version in `package.json` and add a `## [<version>]` entry to its `CHANGELOG.md`.
-- Merge to `master` on github. The "Publish packages to npm" workflow builds and checks every package whose version is not on npm, waits for the `npm-publish` environment approval, publishes, and pushes the release tags (`v0.0.1` for core, `@threepipe/plugin-name-0.0.1` for a plugin).
+- Merge to `master` on github. The "Publish packages to npm" workflow ([repalash/release-tools](https://github.com/repalash/release-tools)) builds and checks every package whose version is not on npm, posts to Discord with the approval link and a Claude review, waits for the `npm-publish` environment approval, publishes with npm trusted publishing, and pushes the release tags (`v0.0.1` for core, `@threepipe/plugin-name-0.0.1` for a plugin).
+- Each package builds with its docs (`npm run build && npm run docs`), in dependency order. A package whose build fails is left out of that release, with the packages that depend on it; the notice lists them and the others are published. `npm run test:types` must pass for any release (it checks the core with plugin-tweakpane); the examples' type check only warns.
 
 ## Creating a Core Plugin
 
@@ -123,7 +137,7 @@ Plugins that add DOM elements over the canvas use these layers, so the UI stacks
 
 | z-index | Layer | Examples |
 |---|---|---|
-| `auto` to 49 | Overlays drawn on the canvas | selection overlay, `PerfPanelPlugin` pill (12), editor camera frame (40) |
+| `auto` to 49 | Overlays drawn on the canvas | selection overlay, `Object3DWidgetsPlugin` DOM icons (8), `PerfPanelPlugin` pill (12), editor camera frame (40) |
 | 50 | Loading screen | `LoadingScreenPlugin` |
 | 100 to 199 | Viewer UI over the scene | `GridItemList` (100), editor camera pill and card (120), sticky notes and open `PerfPanelPlugin` card (150 + `--ui-raise`: the one pressed last is in front, see `raiseOnPress`) |
 | 200 to 999 | Panels and bars | tweakpane editor `.button-bar` (200), editor frame mode bar (200) and title or status bar (210) |

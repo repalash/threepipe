@@ -75,7 +75,74 @@ The plugin has a UI folder, `Editor`, with the page layout and the mode names. A
 
 The layout that the person picks (in the menu or the UI) is kept in `localStorage` (`TweakpaneEditorPlugin.LayoutStorageKey`), and so is the names setting that the person picks in the mode bar (`EditorModeBar.StorageKey`; set a key to `null` to not keep it). A layout or a names setting set from code (`editor.layout = 'floating'`, `editor.modeNames = false`) applies, but is not kept, so the person's pick is back at the next visit. `TweakpaneEditorPlugin.DefaultLayout` is the layout when none is stored. The plugin reads the stored layout when it is made, so set `TweakpaneEditorPlugin.LayoutStorageKey` and `TweakpaneEditorPlugin.DefaultLayout` before `new TweakpaneEditorPlugin()`. For the old page with the mode tabs at the bottom in an app, set `TweakpaneEditorPlugin.DefaultLayout = 'classic'`, or `editor.layout = 'classic'` (this one also replaces a layout that the person picked).
 
-The frame applies in every window size. In a wide or a landscape window, the canvas, the panel and the mode bar are side by side. In a portrait window under 920 px wide (a phone), the layout keeps its bars (floating has no gap there). The canvas is on top at full width, and the panel and the mode bar are below it, with the same height. The CSS variable `--lay-split` is the part of the height for the canvas: `0.45`, set on `body.lay-frame`. To change it, use a more specific rule, like `html body.lay-frame { --lay-split: 0.5; }`. A mode bar taller than its room scrolls. When the panel is hidden, the mode bar is a row at the bottom, and a tap on a mode brings the panel back. The mode names are hidden at the first visit in a window under 920 px wide (`EditorModeBar.WideQuery`).
+### Areas
+
+[Example](https://threepipe.org/examples/#editor-frame-areas/) (sample content in the left and the bottom area, the floating layout first)
+
+The frame has fixed areas: the left sidebar, the right sidebar (the panel and the mode bar) and the bottom strip below the canvas. `editor.setArea('left', element)` puts an element in the left sidebar, and `editor.setArea('bottom', element)` puts one in the bottom strip, between the left sidebar and the panel. `editor.setArea(area, null)` empties the area. The element fills the area, and the plugin keeps it when it makes the frame again (also after the classic layout, which has no areas).
+
+- An empty area takes no room, so a page without areas looks the same as before.
+- A shown area is 240 px wide (left) or 160 px tall (bottom): the CSS variables `--lay-left-area-size` and `--lay-bottom-area-size` on `body.lay-frame`. To change them, use a more specific rule, like `html body.lay-frame { --lay-left-area-size: 280px; }`.
+- In the title bar and the status bar layouts, the canvas gets smaller and the areas are edge to edge, with a line to the canvas. In the floating layout, the areas are cards over the canvas, with the same gap as the panel card.
+- The perf pill and the bar of the sticky notes follow the left area: in the floating layout they move right of the left card, and up above the bottom card; the tool bar also moves up. In the other layouts they move with the canvas.
+- The body has the class `lay-has-left` or `lay-has-bottom` while that area has an element. The CSS variables `--lay-left-area`, `--lay-right-area` and `--lay-bottom-area` are the width or height of each area (`0px` when it is empty). In the floating layout, `--lay-left-inset` and `--lay-bottom-inset` are the parts of the canvas that the left and the bottom card cover, with their gap.
+- The mode bar has an entry for each area with an element, after the modes, with a line above them. `editor.setArea('left', layers, {name: 'Layers', icon: svg, color: '#7c5cff'})` gives it a name, an icon and a colour, like a mode (default: "Left sidebar", "Bottom strip", a sidebar or strip icon, and the grey of the labels). When the areas show next to the canvas (body class `lay-side` without `lay-single`), a tap on the entry shows or hides its area (`setAreaCollapsed`, kept), and the entry is marked while the area shows.
+- A narrow window has no room for the areas next to the canvas (see the breakpoints below). The place of the panel then shows one view at a time: a mode shows the panel there, and an entry shows its area. A tap on the one shown hides it, as a tap on the open mode does. From code: `editor.frame.setStackedArea('left')` (`'right'` for the panel), `editor.frame.stackedArea`. The pick of the person is kept with the sizes.
+
+**Stacks.** `editor.setArea('left', [layers, properties])` puts a list of elements in an area: the area is split between them, top to bottom in the left area, left to right in the bottom area. One entry in the mode bar shows or hides the whole stack.
+
+- A line between two elements moves the split with a drag; each element keeps at least `EditorFrame.MinSectionSize` (48 px). A double-click makes them equal. The split is kept with the sizes, as proportions, for the same number of elements.
+- In the floating layout, each element is a card, and the split is the gap between two cards, with drag dots (blue on hover).
+
+**The head of the floating layout.** The floating layout has no bar, so a slim card at the top of the left column (the head, `.lay-head`) shows the logo, the app name and the file name (renamable, as in the bar). It is as wide as the left card and moves with it on the x axis; the left card starts one gap below it, and a drag of its top edge opens the gap. Its height is the CSS variable `--lay-head` (36 px).
+
+**Size and collapse.** The left area, the bottom area and the panel (`right`) can change size and collapse:
+
+- A drag on the inner edge of an area changes its size: the right edge of the left area, the top edge of the bottom area, the left edge of the panel. A line shows on the edge on hover. The size stays between the limits of `EditorFrame.AreaLimits` (left 160 to 480 px, bottom 80 to 400 px, panel 240 to 600 px). The bottom area is at most half of the window, and the left area and the panel leave at least `EditorFrame.MinCanvasWidth` (240 px) for the canvas, next to each other and the mode bar. When the window gets smaller, or another area, the panel or the names of the mode bar show, an area gets smaller to keep that room; its size comes back when there is room again.
+- A drag past half of the smallest size collapses the area: it is hidden and takes no room, and its edge stays at the side of the window. A drag out of the edge opens it again. The panel collapses as the mode bar hides it, and the mode bar shows it again.
+- A double-click on an edge sets the default size, or opens a collapsed area.
+- The sizes and the collapsed left and bottom areas that the person picks are kept in `localStorage` (`EditorFrame.AreaStorageKey`, `null` to not keep them), in every layout.
+- From code: `editor.frame.setAreaSize('left', 320)`, `setAreaSize(area, null)` for the default size, `setAreaCollapsed('bottom', true)` and `isAreaCollapsed(area)`. A change from code is not kept, unless the last argument `keep` is `true`.
+- A narrow portrait window has no edges.
+
+```typescript
+editor.frame?.setAreaSize('right', 360) // a wider panel
+editor.frame?.setAreaCollapsed('left', true)
+```
+
+**Move the floating cards.** In the floating layout, with the areas next to the canvas, each card can move and take a part of its side: the left card, the bottom card, and the panel with the mode bar (one card).
+
+- A grip is a strip in the gap on the side of the window of each card (its dots always show, blue on hover). A drag moves the card on both axes: away from its side (the left card to the right, the bottom card up, the panel to the left; `setAreaOffset`), and along its side (`setAreaSpan`). The card keeps its length while it moves. A double-click puts the card back.
+- After a drag, an end of a card that touches the end of its side stays there: the card grows and shrinks with its side (for example, the bottom card when the left card hides). A card that touches both ends fills its side again. Only a card that is shorter than its side keeps its length.
+- The ends of a card along its side (the top and the bottom edge of the left card and the panel, the left and the right end of the bottom card) resize it, at least `EditorFrame.MinCardLength` (120 px) long. A double-click fills the side again.
+- The offset and the size of a card share the room that leaves `EditorFrame.MinCanvasWidth` for the canvas (the bottom card: half of the window height). When the window gets smaller, the offset gets smaller first, then the size.
+- The perf pill, the bar of the sticky notes and the tool bar keep out of the whole column of the left card and the row of the bottom card, also when the card is shorter.
+- The CSS variables `--lay-<area>-offset`, `--lay-<area>-start` and `--lay-<area>-length` on the body. They are kept with the sizes. Other layouts and narrow windows do not use them.
+- From code: `editor.frame.setAreaOffset('left', 40)`, `setAreaSpan('right', {start: 60, length: 480})` (no `length`: to the end of the side), `null` for none; `areaOffset(area)` and `areaSpan(area)` give the values on screen.
+
+```typescript
+editor.frame?.setAreaOffset('left', 40) // the left card 40 px from the window edge
+editor.frame?.setAreaSpan('right', {start: 60, length: 480}) // a shorter panel, 60 px below the top gap
+```
+
+```typescript
+const layers = document.createElement('div')
+editor.setArea('left', layers, {name: 'Layers'}) // an entry "Layers" in the mode bar
+// later
+editor.setArea('left', null)
+```
+
+The layout changes at two window widths, `EditorFrame.Breakpoints` (`{stack: 920, singleView: 700}`, in px; set other numbers before the frame is made). The frame sets body classes for them, and the CSS of the frame uses the classes:
+
+| Window | Layout | Body classes |
+|---|---|---|
+| `stack` (920 px) wide or more, or landscape and `singleView` (700 px) wide or more | Side by side: the left area, the canvas with the bottom strip under it, the panel, the mode bar. Areas at the size of the CSS also get smaller when the window has no room for them | `lay-side` |
+| Landscape and narrower than `singleView` | Side by side, but the left and the bottom area show in the place of the panel, one at a time. `singleView` is 700 px because the smallest left area, panel, mode bar and canvas need 160 + 240 + 44 + 240 = 684 px | `lay-side lay-single` |
+| Portrait and narrower than `stack` (a phone) | The canvas on top, below it the panel or one area at a time, next to the mode bar | `lay-stack lay-single` |
+
+The names in the mode bar show at the first visit in a window 920 px wide or more (`EditorModeBar.WideQuery`), and the perf pill is larger under 920 px; these two are CSS and media queries, not breakpoints of the frame.
+
+The frame applies in every window size. With `lay-side`, the canvas, the panel and the mode bar are side by side. In a portrait window under 920 px wide (a phone), the layout keeps its bars (floating has no gap there). The canvas is on top at full width, and the panel and the mode bar are below it, with the same height. The CSS variable `--lay-split` is the part of the height for the canvas: `0.45`, set on `body.lay-frame`. To change it, use a more specific rule, like `html body.lay-frame { --lay-split: 0.5; }`. A mode bar taller than its room scrolls. When the panel is hidden, the mode bar is a row at the bottom, and a tap on a mode brings the panel back. The mode names are hidden at the first visit in a window under 920 px wide (`EditorModeBar.WideQuery`).
 
 ```typescript
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
@@ -104,6 +171,79 @@ editor.layout = 'classic'
 ```
 
 In the [Tweakpane Editor example](https://threepipe.org/examples/tweakpane-editor/), add `?layout=titlebar`, `?layout=statusbar`, `?layout=floating` or `?layout=classic` to the URL.
+
+## LayersPanelPlugin
+
+[Example](https://threepipe.org/examples/#layers-panel-plugin/) &mdash;
+[Source Code](https://github.com/repalash/threepipe/blob/master/plugins/tweakpane-editor/src/LayersPanelPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/plugins/tweakpane-editor/docs/classes/LayersPanelPlugin.html)
+
+`LayersPanelPlugin` shows the objects of the scene (`scene.modelRoot`) as a tree, like the layers panel of Figma or the outliner of Blender. It replaces the `HierarchyUiPlugin`, which is deprecated.
+
+- A click on a row selects its object in the `PickingPlugin`. Ctrl, Cmd or Shift + click adds the object to the selection, or takes it out.
+- A selection in the viewport marks its rows. It also opens the groups that hold it and scrolls the list to it (`revealSelection`).
+- The arrow on a row opens or closes it. Alt + click on the arrow also opens or closes all the levels below it.
+- A hovered row outlines its object in the viewport, with the `SelectionOutlinePlugin` (`viewportHover`). The outline must follow the picking (`followPicking`, the default). The outline shows when the pointer rests on a row for `LayersPanelPlugin.HoverDelay` ms (80; `0` for at once), so a move across many rows renders no frames. A hover renders one more frame. It does not restart the progressive render. The object hovered in the viewport is marked in the list.
+- The eye button hides or shows the object. The lock button locks or unlocks it. When the row is in the selection, the button changes all the selected objects. A hidden or locked parent dims the buttons of its children.
+- A double-click on a name (or F2) renames the object. Enter or a click outside keeps the name, Escape goes back.
+- With the focus in the list, Up and Down select the next row (Shift adds it). Right opens a row or goes to its first child. Left closes a row or goes to its parent.
+- The search field shows the objects whose name has the text, with the groups that hold them. Escape clears it.
+- Lights and cameras have the icon and the colour of their kind (`widgetKinds` of threepipe), as in the viewport.
+- The Objects tab starts with the scene and the default camera (`sceneRows`, on), dimmer and with a line below them: they are not in the model, so they have no eye, lock or arrow, and a search hides them. A click selects them, so the UI of the editor shows their settings.
+- Meshes, lines, points, cameras and lights show no children (their helpers, targets or parts): `leafTypes` lists the kinds (set a new list to change it), and `showLeafChildren` (off, in the UI) shows the children of all kinds.
+- A double-click on a row selects it and moves the camera to it (`doubleClickFocus`, on; the scene row frames the whole model). A double-click on the name renames it. With `clickToUnselect` (off), a click on a selected row unselects it.
+- **Tabs**: Objects, Materials, Textures and Geometry, each turned on or off with `objectsTab`, `materialsTab`, `texturesTab` and `geometryTab` (all on by default, in the UI folder). With one tab on, there is no tab bar. `layers.tabs` lists the tabs that are on, `layers.tab` is the open one, `layers.setTab('materials')` opens one. The counts are in the tooltips of the tabs and in the header.
+- A tab of assets lists the materials, textures or geometries that the objects in the scene use (from `viewer.object3dManager`). An asset row has a swatch (a material), a picture (a texture) or an icon, the name, and a short text: the size of a texture, the generator and the vertices of a geometry, and the number of objects that use it (`scene` for a texture of the scene). Its arrow lists those objects under it.
+- In a tab of assets, a click selects the asset in the `PickingPlugin` (the UI of the editor shows its settings), a double-click selects the objects that use it, and a double-click on the name or F2 renames a material or a texture (`renameAsset(asset, name)`, one undo step). A hover outlines the objects that use it. Up and Down select the next row, Right opens an asset, Left closes it or goes from a user back to its asset.
+- An open row shows its first `maxChildren` children (5), then a "… N more" row. A click on it shows all of them (`showAllChildren(object)`), until the row is closed. The objects at the top level, a search, and children that hold the selection always show; `maxChildren = 0` shows all. The Up and Down keys pass over the "… N more" row.
+- Only the rows in view are in the DOM (a virtual list), so a scene with many objects stays fast.
+
+The visibility, the lock and the name changes are undo steps with the `UndoManagerPlugin`.
+
+**Lock.** A locked object has `userData.userSelectable` set to `false`. That is the rule of the `PickingPlugin`: it does not pick the object, or the objects inside it, in the viewport. The list can still select it, and then the transform controls can move it. An unlock gives back the value from before the lock (for example `true` on a text that has no material). The glTF export leaves out the `false` values of `userData`, so an exported file does not keep the lock.
+
+**Where the panel goes.**
+
+The plugin does not depend on the editor: the app places the panel.
+
+- In the page frame of a `TweakpaneEditorPlugin`: put `layers.element` in an area, with a Layers entry in the mode bar. `LayersPanelPlugin.AreaEntry` has a name, an icon and a colour for the entry. The `enabledChange` event (`{enabled}`) tells when the panel is turned on or off (Enabled, `enable`, `disable`), so the app can take the area out and put it back. The classic layout has no areas, so it does not show the panel.
+
+  ```ts
+  const layers = viewer.addPluginSync(LayersPanelPlugin)
+  const editor = viewer.getPlugin(TweakpaneEditorPlugin)!
+  const place = () => editor.setArea('left', layers.isDisabled() ? null : layers.element, LayersPanelPlugin.AreaEntry)
+  place()
+  layers.addEventListener('enabledChange', place)
+  ```
+
+- Without the editor: give an element to the constructor, `new LayersPanelPlugin(container)`. The panel goes in it while the plugin is added. The panel fills its parent, so give the parent a height.
+- Or place `layers.element` in the page yourself.
+
+The plugin removes the panel from the page when it is removed. Its UI folder, `Layers Panel`, has the settings: Enabled, Hover in viewport, Reveal selection, Max children, Scene and camera rows, Show children of meshes, lights, cameras, the two click settings, and the four tabs. The settings and the open rows are not saved with the viewer config.
+
+```typescript
+import {PickingPlugin, ThreeViewer, UndoManagerPlugin} from 'threepipe'
+import {LayersPanelPlugin, SelectionOutlinePlugin} from '@threepipe/plugin-tweakpane-editor'
+
+const viewer = new ThreeViewer({...})
+viewer.addPluginSync(UndoManagerPlugin)
+const picking = viewer.addPluginSync(PickingPlugin) // also added by the panel, if it is not there
+picking.hoverEnabled = true // the object under the pointer is marked in the list
+viewer.addPluginSync(SelectionOutlinePlugin) // the outline of a hovered row
+
+// in an element of the page (it fills it); with a TweakpaneEditorPlugin, leave out the element
+const layers = viewer.addPluginSync(new LayersPanelPlugin(document.getElementById('layers')!))
+
+layers.setExpanded(model, true) // open a row
+layers.setVisible([model], false) // hide, as one undo step
+layers.setLocked([model], true) // not picked in the viewport
+layers.renameObject(model, 'Ring')
+layers.materialsTab = false // no Materials tab
+layers.setTab('textures') // open a tab
+console.log(layers.listedObjects) // the objects in the list, from the top
+```
+
+Not in the panel yet: drag and drop to move objects, a context menu, and tabs for the materials, textures and geometries.
 
 ## NotesPlugin and StickyNotesUiPlugin
 
@@ -238,3 +378,84 @@ In the `TweakpaneEditorPlugin`, while the plugin is added (before or after the e
 - The picture is taken from the canvas right after a render, when the view shows the saved start view (`showsStartView`): after a load, in View before a move, after a save, a sync or "Set as start view". It is a small copy of the canvas (448 px wide); it is taken again when the render ends (progressive rendering), and shows faded while it is out of date.
 - On the classic page on a phone, the pill is on the right, under the title bar of the settings panel, so it does not cover the view widget.
 - `setupEditorCameraUi(viewer, plugin)` adds the pill, the card, the frame and their styles in another app (and the CSS of the tooltips). It returns a function that removes them. The [Tweakpane Editor](https://threepipe.org/examples/#tweakpane-editor/) example has the settings in the Viewer tab.
+
+## SelectionOutlinePlugin
+
+[Example](https://threepipe.org/examples/#selection-outline-plugin/) &mdash;
+[Source Code](https://github.com/repalash/threepipe/blob/master/plugins/tweakpane-editor/src/SelectionOutlinePlugin.ts) &mdash;
+[API Reference](https://threepipe.org/plugins/tweakpane-editor/docs/classes/SelectionOutlinePlugin.html)
+
+`SelectionOutlinePlugin` draws the outline of the selected and hovered objects in the render pipeline, as in Figma or Blender. A mask pass renders the meshes of these objects with their own depth. An extension of the screen pass then draws, after tonemapping:
+
+- an outer outline around each selected object and the hovered object, with anti-aliased edges when `antialias` is on,
+- thin lines between the parts of a selected object (`parts`; the parts come from `partsOf`),
+- a dashed outline where the selection is behind other objects (`xray`, needs the `GBufferPlugin`, which the plugin adds),
+- optionally, a fill tint (`fill`) and a dim of all other objects (`dimOthers`).
+
+`antialias` (off by default) smooths both edges of the outline. The outer edge fades over about 1 px at the distance `width` from the mask edge, at each angle: the plugin finds that distance by a bisection along the edge normal (and 15 degrees to each side of it in the outer 1 px). The outline also goes half a pixel into the edge of the object, with an alpha from the part of the 3x3 pixels around it in the mask, so the pixel steps of the mask do not show next to the anti-aliased edge of the object. Mask reads per pixel: 49 when off; when on, up to 63 in the outline and up to 79 in its outer 1 px. Set it to `true` to turn it on.
+
+The mask follows the alpha of each material (`opacity`, the alpha of `map`, `alphaMap`, `alphaTest`), so a mesh that its texture cuts has the same shape in the outline.
+
+The outline replaces the selection widget (the box) of the `PickingPlugin`, as the `OutlinePlugin` does: while the plugin outlines the selection, it sets `widgetEnabled` of the `PickingPlugin` to `false`, and it sets it back to `true` when it stops (disabled, `outlineSelected` off, or removed). A selection that gets no outline keeps the widget: a camera, a light, a group without meshes, or a line. A widget that was off before stays off. A change of the selection or the hover renders one more frame. It does not restart the progressive render. The mask is drawn once after each change, not in each frame of the progressive render.
+
+```typescript
+import {ThreeViewer, PickingPlugin} from 'threepipe'
+import {SelectionOutlinePlugin} from '@threepipe/plugin-tweakpane-editor'
+
+const viewer = new ThreeViewer({...})
+
+// by default, the outline follows the selection and the hover of the PickingPlugin
+const picking = viewer.addPluginSync(PickingPlugin)
+picking.hoverEnabled = true
+picking.widgetEnabled = false // the outline replaces the box widget
+
+const outline = viewer.addPluginSync(SelectionOutlinePlugin)
+outline.width = 2 // CSS pixels
+outline.antialias = true // smooth edges, off by default
+outline.color.set('#0d99ff')
+outline.redraw() // after a change of a color in place
+
+// or set the objects yourself
+outline.followPicking = false
+outline.selected = [object1, object2]
+outline.hovered = [object3]
+```
+
+The plugin is not saved with the viewer config (`serializeWithViewer = false`).
+
+## UiConfigForm
+
+[Example](https://threepipe.org/examples/#ui-config-form/) &mdash;
+[Source Code](https://github.com/repalash/threepipe/blob/master/plugins/tweakpane-editor/src/ui/UiConfigForm.ts) &mdash;
+[API Reference](https://threepipe.org/plugins/tweakpane-editor/docs/classes/UiConfigForm.html)
+
+`UiConfigForm` draws a list of uiconfig.js configs (the same configs that the Tweakpane panels use) as a small plain-DOM form. Use it for a popup or a card next to an object, where a Tweakpane panel is too large.
+
+- Fields: number (drag the name to scrub, Shift for 10x), slider, checkbox, dropdown, vector, color, text, button, monitor, and folders (always open). An `input` bound to a boolean or a number gets a checkbox or a number field.
+- A button's function can return an undo function or `{action, undo, redo}`, as in uiconfig.js: the action runs, and with an `undoManager` it is one undo step.
+- A change sets the value through the binding of the config, then calls `onChange` of the config and of each parent folder (a function or a list of functions), as the Tweakpane renderer does. When a Tweakpane panel also draws the configs, each handler runs once, and the change goes on to the folders above the form.
+- A scrub, the slider and the colour picker send changes with `last: false` while they move, and a final change with `last: true` when they end, as Tweakpane does. A config that waits for the final change (e.g. to rebuild a geometry) gets it.
+- With an `undoManager`, each edit is one undo step. Quick edits of the same field (a scrub, the slider) merge into one step.
+- A number field takes whole numbers when its `stepSize` is a whole number of 1 or more, or when its name is a count (segments, sides, steps...). Change this with the `isInteger` option.
+- The form adds its stylesheet once (`UiConfigForm.InjectStyles`). The colours follow the Tweakpane theme variables (`--tp-...`) when the page sets them.
+
+```typescript
+import {UiConfigMethods, UndoManagerPlugin} from 'threepipe'
+import {UiConfigForm} from '@threepipe/plugin-tweakpane-editor'
+
+const undo = viewer.addPluginSync(UndoManagerPlugin)
+
+// the fields of the material, in a popup
+const form = new UiConfigForm(UiConfigMethods.GetChildren(material.uiConfig), {
+    undoManager: undo.undoManager,
+    onChange: () => viewer.setDirty(),
+    // a dropdown or a button can change which fields there are: make the form again (in this call)
+    onStructureChange: () => {/* form.dispose(); make a new form */},
+})
+popup.appendChild(form.element)
+
+// after a change from elsewhere
+form.refresh()
+```
+
+The form does not watch the values: call `refresh()` after a change from elsewhere (code, another panel). Its own undo and redo steps refresh it. A form made in `onStructureChange` takes the place of the old one: the undo and redo of edits made in the old form refresh the new one. A config that is `hidden` when the form is made is not drawn.

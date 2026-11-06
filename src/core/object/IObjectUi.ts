@@ -7,6 +7,7 @@ import {generateUUID} from '../../three'
 import {getOrCall} from 'ts-browser-helpers'
 import {iCameraCommons} from './iCameraCommons'
 import {iObjectCommons} from './iObjectCommons'
+import {UiTags} from '../../ui/uiconfig'
 
 declare module '../IObject' {
     interface IObject3D {
@@ -78,7 +79,7 @@ export function makeICameraCommonUiConfig(this: ICamera): UiObjectConfig[] {
         {
             type: 'button',
             label: 'Set View',
-            tags: ['context-menu'],
+            tags: [UiTags.ContextMenu],
             value: ()=>{
                 this.setViewToMain({ui: true})
                 this.uiConfig?.uiRefresh?.(true, 'postFrame') // config is parent config
@@ -88,7 +89,7 @@ export function makeICameraCommonUiConfig(this: ICamera): UiObjectConfig[] {
             type: 'button',
             label: 'Activate main',
             hidden: ()=>this?.isMainCamera,
-            tags: ['context-menu'],
+            tags: [UiTags.ContextMenu],
             value: ()=>{
                 this.activateMain({ui: true})
                 this.uiConfig?.uiRefresh?.(true, 'postFrame')
@@ -97,7 +98,7 @@ export function makeICameraCommonUiConfig(this: ICamera): UiObjectConfig[] {
         {
             type: 'button',
             label: 'Deactivate main',
-            tags: ['context-menu'],
+            tags: [UiTags.ContextMenu],
             hidden: ()=>!this?.isMainCamera,
             value: ()=>{
                 this.deactivateMain({ui: true})
@@ -126,6 +127,7 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
             {
                 type: 'checkbox',
                 label: 'Visible',
+                tags: [UiTags.Basic],
                 property: [this, 'visible'],
                 onChange: (e)=>{
                     this.setDirty?.({uiChangeEvent: e, refreshScene: true, refreshUi: true, change: 'visible'})
@@ -135,11 +137,12 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
                 type: 'input',
                 property: [this, 'uuid'],
                 disabled: true,
-                tags: ['advanced'],
+                tags: [UiTags.Advanced],
             },
             {
                 type: 'input',
                 label: 'Name',
+                tags: [UiTags.Basic],
                 property: [this, 'name'],
                 onChange: (e)=>{
                     if (e.last) this.setDirty?.({uiChangeEvent: e, refreshScene: true, frameFade: false, refreshUi: true, change: 'name'})
@@ -148,6 +151,7 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
             {
                 type: 'checkbox',
                 label: 'Casts Shadow',
+                tags: [UiTags.Basic],
                 hidden: () => !this.isMesh,
                 property: [this, 'castShadow'],
                 onChange: (e)=>{
@@ -157,6 +161,7 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
             {
                 type: 'checkbox',
                 label: 'Receive Shadow',
+                tags: [UiTags.Basic],
                 hidden: () => !this.isMesh,
                 property: [this, 'receiveShadow'],
                 onChange: (e)=>{
@@ -171,16 +176,19 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
             {
                 type: 'vec3',
                 label: 'Position',
+                tags: [UiTags.Basic],
                 property: [this, 'position'],
             },
             {
                 type: 'vec3',
                 label: 'Rotation',
+                tags: [UiTags.Basic],
                 property: [this, 'rotation'],
             },
             {
                 type: 'vec3',
                 label: 'Scale',
+                tags: [UiTags.Basic],
                 property: [this, 'scale'],
             },
             {
@@ -191,7 +199,7 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
             {
                 type: 'button',
                 label: 'Scale to Radius',
-                tags: ['context-menu', 'interaction'],
+                tags: [UiTags.ContextMenu, UiTags.Interaction],
                 hidden: ()=>!this.autoScale,
                 // prompt: ['Auto Scale Radius: Object will be scaled to the given radius', this.userData.autoScaleRadius || '2', true],
                 value: async()=>{
@@ -210,7 +218,7 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
             {
                 type: 'button',
                 label: 'Auto Center',
-                tags: ['context-menu', 'interaction'],
+                tags: [UiTags.ContextMenu, UiTags.Interaction],
                 hidden: ()=>!this.autoCenter,
                 value: ()=>{
                     // const res = await ThreeViewer.Dialog.confirm('Auto Center: Object will be centered, are you sure you want to proceed?')
@@ -224,7 +232,7 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
             {
                 type: 'button',
                 label: 'Pivot to Node Center',
-                tags: ['context-menu', 'interaction'],
+                tags: [UiTags.ContextMenu, UiTags.Interaction],
                 value: async()=>{
                     const res = await ThreeViewer.Dialog.confirm('Pivot to Center: Adjust the pivot to bounding box center. The object will rotate around the new pivot, are you sure you want to proceed?')
                     if (!res) return
@@ -341,7 +349,7 @@ export function objectActionsUiConfig(this: IObject3D): UiObjectConfig[] {
     return [{
         type: 'button',
         label: 'Duplicate Object',
-        tags: ['context-menu'],
+        tags: [UiTags.ContextMenu],
         value: async(e?: any)=>{
             return iObjectCommons.duplicateObject(this, e)
         },
@@ -349,7 +357,7 @@ export function objectActionsUiConfig(this: IObject3D): UiObjectConfig[] {
     {
         type: 'button',
         label: 'Delete Object',
-        tags: ['context-menu'],
+        tags: [UiTags.ContextMenu],
         value: async(e?: any)=>{
             return iObjectCommons.deleteObject(this, e)
         },
