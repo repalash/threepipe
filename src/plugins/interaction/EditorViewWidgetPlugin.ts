@@ -28,6 +28,8 @@ export class EditorViewWidgetPlugin extends AViewerPluginSync {
     onAdded(v: ThreeViewer) {
         super.onAdded(v)
         this.widget = new ViewHelper2(v.scene.mainCamera as any, v.canvas, this.placement, this.size)
+        // a class for the page around the canvas (an editor frame keeps it out of its cards)
+        this.widget.domContainer.classList.add('editor-view-widget')
         this.widget.target = v.scene.mainCamera.target
         this.widget.addEventListener('animating-changed', (e)=>{
             const val = e.detail.value

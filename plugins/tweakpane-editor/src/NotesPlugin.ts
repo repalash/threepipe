@@ -31,7 +31,12 @@ export interface NotesStore {
 /** The state of a store: its notes are loading, saved, waiting to be saved, being saved, or it failed */
 export type NotesStoreStatus = 'loading' | 'saved' | 'changed' | 'saving' | 'error'
 
-/** Keeps notes in `localStorage`, in this browser only */
+/**
+ * Keeps notes in `localStorage`, in this browser only. A page in a sandbox without `allow-same-origin` (a `sandbox`
+ * iframe or a `Content-Security-Policy: sandbox` header) has no `localStorage`: this store finds no notes there, and
+ * each save fails, so the store shows the `error` status (and a console warning). The notes stay in the page until it
+ * closes.
+ */
 export class BrowserNotesStore implements NotesStore {
     constructor(readonly key = 'threepipe-notes', readonly id = 'browser', readonly label = 'This browser') {}
 

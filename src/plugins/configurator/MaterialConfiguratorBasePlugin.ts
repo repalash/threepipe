@@ -3,7 +3,7 @@ import {PickingPlugin} from '../interaction/PickingPlugin'
 import {escapeRegExp, getOrCall, imageBitmapToBase64, makeColorSvgCircle, serialize} from 'ts-browser-helpers'
 import {UiObjectConfig} from 'uiconfig.js'
 import {IMaterial, IObject3D, PhysicalMaterial} from '../../core'
-import {MaterialPreviewGenerator} from '../../three'
+import {MaterialPreviewGenerator, materialPreviewOptionsFromViewer} from '../../three'
 import {Color} from 'three'
 import {AnimationResult, PopmotionPlugin} from '../animation/PopmotionPlugin'
 import {FrameFadePlugin} from '../pipeline/FrameFadePlugin'
@@ -162,13 +162,20 @@ export class MaterialConfiguratorBasePlugin extends AViewerPluginSync<{'refreshU
     }
 
     /**
+     * Size in pixels of the generated previews (`generate:sphere`, `generate:cube`...).
+     * They render offscreen with the viewer's environment map and tone mapping, see {@link MaterialPreviewGenerator.renderToCanvas}.
+     */
+    previewSize = 256
+
+    /**
      * Get the preview for a material variation
-     * Should be called from preFrame ideally. (or preRender but set viewerSetDirty = false)
+     * Should be called from preFrame or postFrame ideally (not during a render).
+     * Generated previews (`generate:...`) render offscreen and do not change the canvas.
      * @param preview - Type of preview. Could be generate:sphere, generate:cube, color, map, emissive, etc.
      * @param material - Material or index of the material in the variation.
-     * @param viewerSetDirty - call viewer.setDirty() after setting the preview. So that the preview is cleared from the canvas.
+     * @param viewerSetDirty - call viewer.setDirty() after setting the preview. Not needed since the previews do not change the canvas, kept for compatibility.
      */
-    getPreview(material: IMaterial, preview: string, viewerSetDirty = true): string {
+    getPreview(material: IMaterial, preview: string, viewerSetDirty = false): string {
         if (!this._viewer) return ''
         // const m = typeof material === 'number' ? variation.materials[material] : material
         const m = material
@@ -179,13 +186,15 @@ export class MaterialConfiguratorBasePlugin extends AViewerPluginSync<{'refreshU
             image = pp.image ? imageBitmapToBase64(pp.image, 100) : ''
             if (!image.length) image = makeColorSvgCircle(pp.isColor ? (pp as Color).getHexString() : pp)
         } else {
+            const {environment, ...options} = materialPreviewOptionsFromViewer(this._viewer, m)
             image = this._previewGenerator!.generate(m,
                 this._viewer.renderManager.renderer,
-                this._viewer.scene.environment,
-                preview.split(':')[1]
+                environment,
+                preview.split(':')[1],
+                {...options, size: this.previewSize},
             )
         }
-        if (viewerSetDirty) this._viewer.setDirty() // because called from preFrame
+        if (viewerSetDirty) this._viewer.setDirty()
         return image
     }
 
@@ -379,6 +388,13 @@ export class MaterialConfiguratorBasePlugin extends AViewerPluginSync<{'refreshU
                         if (!mat.name && !await this._viewer?.dialog.confirm('Material configurator: Material has no name. Use uuid instead?')) return
                         this.addVariation(mat)
                     },
+                },
+                {
+                    type: 'slider',
+                    label: 'Preview size (px)',
+                    property: [this, 'previewSize'],
+                    bounds: [32, 1024],
+                    stepSize: 32,
                 },
                 {
                     type: 'button',

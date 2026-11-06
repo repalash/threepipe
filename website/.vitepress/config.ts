@@ -61,6 +61,8 @@ export default defineConfig({
           {text: 'Dynamically Loaded Files', link: 'notes/dynamically-loaded-files'},
           {text: 'Widget Handle Picking', link: 'notes/widget-handle-picking'},
           {text: 'Widgets, Helpers & Gizmos', link: 'notes/widgets-and-helpers'},
+          {text: 'Material Previews', link: 'notes/material-previews'},
+          {text: 'Frame Updates: last, debounce, throttle', link: 'notes/frame-updates'},
         ]
       },
       {

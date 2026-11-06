@@ -9,6 +9,15 @@ import styles from './tooltips.css?inline'
  */
 export const EDITOR_TOOLTIP_PROPS: {theme: string, touch: ['hold', number]} = {theme: 'editor', touch: ['hold', 500]}
 
+/**
+ * Where an editor tooltip goes: the element in full screen (the viewer container, see the full screen button), else the
+ * page body, so the tooltip shows above the bars, the panel and the areas of the page frame (the canvas box is below
+ * them). Use it as the tippy.js `appendTo`: `appendTo: tooltipParent`.
+ */
+export function tooltipParent(): Element {
+    return document.fullscreenElement ?? document.body
+}
+
 let added = false
 
 /** Adds the CSS of tippy.js and of the `editor` theme to the page, once */
