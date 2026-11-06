@@ -19,7 +19,7 @@
             "enabled": true
         }
     },
-    // the API and pages, and the files host (FILES_HOST): custom domains, made and kept by every deploy
+    // the API and pages, and the files host (FILES_HOST): custom domains, sent by npm run deploy (CI leaves them out: README, Deploy)
     "routes": [
         { "pattern": "cloud.threepipe.org", "custom_domain": true },
         { "pattern": "files.threepipe.org", "custom_domain": true }

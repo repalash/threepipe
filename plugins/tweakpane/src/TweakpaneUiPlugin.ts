@@ -30,9 +30,8 @@ import {
 } from 'threepipe'
 import styles from './tpTheme.css?inline'
 import {tpImageInputGenerator} from './tpImageInputGenerator'
-
-const themeColors = ['black', 'white', 'blue', 'light', 'dark', 'clean', 'clean-dark'] as const
-type ThemeColors = typeof themeColors[number]
+import {defaultThemeColor, readThemeColor, themeColors, writeThemeColor} from './themeColor'
+import type {ThemeColors} from './themeColor'
 
 @uiFolderContainer('Tweakpane UI')
 export class TweakpaneUiPlugin extends UiConfigRendererTweakpane implements IViewerPluginSync {
@@ -42,6 +41,10 @@ export class TweakpaneUiPlugin extends UiConfigRendererTweakpane implements IVie
 
     static CONTAINER_SLOT = 'uiconfigMainPanelSlot'
 
+    /**
+     * The theme of the panel. The default is `clean`, or `clean-dark` when the system prefers a dark theme. It is kept
+     * in `localStorage` with the default of that time, so a kept value that was the default follows a new default.
+     */
     @onChange(TweakpaneUiPlugin.prototype._colorModeChanged)
     @uiDropdown('Color Mode', themeColors.map(label=>({label})))
         colorMode: ThemeColors
@@ -209,13 +212,14 @@ function themeStorage(): Storage | undefined {
         return undefined
     }
 }
+function systemThemeColor(): ThemeColors {
+    return defaultThemeColor(window.matchMedia('(prefers-color-scheme: dark)').matches)
+}
 function getThemeColor(): ThemeColors {
-    const c = themeStorage()?.getItem('tpTheme') as ThemeColors | null | undefined
-    if (c && themeColors.includes(c)) return c
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'clean-dark' : 'clean'
+    return readThemeColor(themeStorage(), systemThemeColor())
 }
 function setThemeColor(color: ThemeColors) {
     document.body.classList.remove(...themeColors.map(t=>'tpTheme-' + t))
     document.body.classList.add('tpTheme-' + color)
-    themeStorage()?.setItem('tpTheme', color)
+    writeThemeColor(themeStorage(), color, systemThemeColor())
 }
