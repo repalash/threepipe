@@ -348,7 +348,18 @@ export function snapObjectPixels(renderer: IWebGLRenderer | WebGLRenderer, objec
                         screenSpaceRendering: false,
                         shadowMapRender: false,
                     }, render)
-                } else render()
+                } else {
+                    // a plain three.js renderer: no background render mode, so the background of the scene is removed for
+                    // the render (the snapshot has a transparent background)
+                    const scene = root as {background?: unknown}
+                    const background = scene.background
+                    scene.background = null
+                    try {
+                        render()
+                    } finally {
+                        scene.background = background
+                    }
+                }
 
                 resources.resolve(renderer)
 

@@ -170,6 +170,21 @@ describe('offscreen snapshot', () => {
         resources.dispose()
     })
 
+    it('with a plain three.js renderer (no renderWithModes), the background of the scene is not rendered, and is put back', () => {
+        const r: any = renderer()
+        delete r.renderWithModes
+        const root = new tp.Scene()
+        const background = new tp.Color(1, 0, 0)
+        root.background = background
+        const seen: unknown[] = []
+        r.render = vi.fn((scene: any) => { if (scene === root) seen.push(scene.background) })
+        const mesh = new tp.Mesh(new tp.BoxGeometry())
+        root.add(mesh)
+        tp.snapObjectPixels(r, mesh, {root, size: 8})
+        expect(seen).toEqual([null]) // transparent, as documented
+        expect(root.background).toBe(background)
+    })
+
     it('without tone mapping and with a linear output, only copies', () => {
         const r = renderer()
         const resources = new tp.SnapObjectResources()
