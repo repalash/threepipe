@@ -76,6 +76,8 @@ interface MaterialState {
     // previews of one material (a small card and a large view) are throttled each on its own
     lastRender: Map<string, number>
     refs: number
+    // when the last job or cached preview of the material went away; it is listened to a while longer (LISTEN_AFTER_USE)
+    unusedSince: number
     listener: (e: {last?: boolean, uiChangeEvent?: {last?: boolean}}) => void
 }
 
@@ -267,7 +269,9 @@ export class MaterialPreviewPlugin extends AViewerPluginSync {
 
     private _preFrame = () => {
         const viewer = this._viewer
-        if (!viewer || !this._jobs.size || !viewer.renderEnabled || this.isDisabled()) return
+        if (!viewer) return
+        this._stopIdleListeners()
+        if (!this._jobs.size || !viewer.renderEnabled || this.isDisabled()) return
         const now = this.now()
         let rendered = 0
         // the preview rendered longest ago first: a material that changes in every frame asks again each time, and its
@@ -336,11 +340,13 @@ export class MaterialPreviewPlugin extends AViewerPluginSync {
         }
     }
 
-    // the material is tracked (its materialUpdate counted) while a job or a cached preview uses it
+    // the material is tracked (its materialUpdate counted) while a job or a cached preview uses it, and LISTEN_AFTER_USE ms
+    // after that. The next request often comes from the app's own materialUpdate listener: a listener added during that
+    // dispatch would miss the change, so with no cache (or an evicted preview) a drag would never count as continuous
     private _track(material: IMaterial) {
         let state = this._states.get(material)
         if (!state) {
-            const s: MaterialState = {version: 0, continuous: false, lastChange: -Infinity, lastRender: new Map(), refs: 0, listener: (e) => {
+            const s: MaterialState = {version: 0, continuous: false, lastChange: -Infinity, lastRender: new Map(), refs: 0, unusedSince: Infinity, listener: (e) => {
                 const now = this.now()
                 const last = e.last ?? e.uiChangeEvent?.last
                 s.version++
@@ -351,7 +357,9 @@ export class MaterialPreviewPlugin extends AViewerPluginSync {
             this._states.set(material, s)
             state = s
         }
-        if (state.refs++ === 0) {
+        state.refs++
+        state.unusedSince = Infinity
+        if (!this._tracked.has(material)) {
             material.addEventListener('materialUpdate', state.listener)
             this._tracked.add(material)
         }
@@ -360,10 +368,23 @@ export class MaterialPreviewPlugin extends AViewerPluginSync {
     private _untrack(material: IMaterial) {
         const state = this._states.get(material)
         if (!state || --state.refs > 0) return
-        material.removeEventListener('materialUpdate', state.listener)
-        this._tracked.delete(material)
+        state.unusedSince = this.now()
+    }
+
+    /** Removes the listener of the materials that no job or cached preview used, and that did not change, for LISTEN_AFTER_USE ms */
+    private _stopIdleListeners() {
+        const now = this.now()
+        for (const material of this._tracked) {
+            const state = this._states.get(material)
+            if (state && (state.refs > 0 || now - Math.max(state.unusedSince, state.lastChange) < LISTEN_AFTER_USE)) continue
+            if (state) material.removeEventListener('materialUpdate', state.listener)
+            this._tracked.delete(material)
+        }
     }
 }
+
+/** How long in ms a material is still listened to after its last job or cached preview, and after its last change */
+const LISTEN_AFTER_USE = 1000
 
 /**
  * Cache key of a preview: material, shape, geometry and size.

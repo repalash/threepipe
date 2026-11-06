@@ -208,6 +208,31 @@ describe('MaterialPreviewPlugin', () => {
         expect(cards).toBeGreaterThanOrEqual(5)
     })
 
+    it('without a cache, a drag that asks again in each materialUpdate is still throttled', () => {
+        const {queue, frame} = setup({dragInterval: 100})
+        queue.maxCacheSize = 0
+        const m = new tp.PhysicalMaterial()
+        let renders = 0
+        let handle: any
+        // the documented pattern: the app asks again in its own materialUpdate listener (it runs before the plugin's)
+        const ask = () => {
+            handle?.cancel()
+            handle = queue.request(m, {}, () => renders++)
+        }
+        m.addEventListener('materialUpdate', ask)
+        ask()
+        frame()
+        expect(renders).toBe(1)
+        // a slider drag: a change with last: false in each frame for about half a second
+        for (let i = 0; i < 32; i++) {
+            m.setDirty({last: false} as any)
+            frame()
+        }
+        // every 100 ms, not in every frame
+        expect(renders).toBeGreaterThan(2)
+        expect(renders).toBeLessThan(10)
+    })
+
     it('shares one render between requests for the same material, shape and size', () => {
         const {generator, queue, frame} = setup()
         const m = new tp.PhysicalMaterial()
@@ -356,8 +381,11 @@ describe('MaterialPreviewPlugin', () => {
         expect(count(a)).toBe(before + 1) // cached
         queue.request(b, {}, () => {})
         frame()
-        expect(count(a)).toBe(before) // evicted
+        expect(count(a)).toBe(before + 1) // evicted, still listened to for a second
         expect(count(b)).toBe(before + 1)
+        frame(1100)
+        expect(count(a)).toBe(before) // no use and no change for a second
+        expect(count(b)).toBe(before + 1) // cached
         queue.dispose()
         expect(count(b)).toBe(before)
         expect(listeners.length).toBe(0)
