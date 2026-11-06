@@ -543,7 +543,7 @@ describe('EditorFrame area sizes', () => {
         expect(storage.has('tpEditorFrameAreas')).toBe(false) // set from code: not kept
         f.setAreaSize('left', null, true)
         expect(sizeVar('--lay-left-area-size')).toBeUndefined()
-        expect(stored()).toEqual({sizes: {right: 600, bottom: 250}, collapsed: {}, stacked: 'right', offsets: {}, spans: {}, splits: {}})
+        expect(stored()).toEqual({sizes: {right: 600, bottom: 250}, collapsed: {}, hidden: {}, stacked: 'right', offsets: {}, spans: {}, splits: {}})
     })
 
     test('the left area and the panel leave room for the canvas next to each other and the mode bar', () => {
@@ -649,7 +649,7 @@ describe('EditorFrame area sizes', () => {
         expect(f.modeBar.open).toBe(true)
         f.setAreaCollapsed('left', false, true)
         expect(body().classList.contains('lay-collapsed-left')).toBe(false)
-        expect(stored()).toEqual({sizes: {}, collapsed: {left: false}, stacked: 'right', offsets: {}, spans: {}, splits: {}})
+        expect(stored()).toEqual({sizes: {}, collapsed: {left: false}, hidden: {}, stacked: 'right', offsets: {}, spans: {}, splits: {}})
     })
 
     test('a new frame applies the kept sizes and collapsed areas; a stored value that is not of the frame is ignored', () => {
@@ -681,6 +681,45 @@ describe('EditorFrame area sizes', () => {
     }
     const shown = (e: FakeElement) => e.style.display !== 'none'
     const marked = (e: FakeElement) => e.classList.contains('lay-entry-on')
+
+    test('a stack with a list of options: an entry for each element, which shows or hides it; the last one collapses the area', () => {
+        const f = new EditorFrame(host(), {layout: 'titlebar'})
+        const layers = new FakeElement('div'), inspector = new FakeElement('div')
+        f.setArea('left', [layers, inspector] as any, [{name: 'Layers'}, {name: 'Inspector'}])
+        f.setArea('bottom', new FakeElement('div') as any, {name: 'Timeline'})
+        const box = (f.modeBar.element as any as FakeElement).find('lay-area-entries')[0]
+        const all = () => box.find('lay-area-entry')
+        // in the order of the areas, then of the elements
+        expect(all().map(e => e.getAttribute('aria-label'))).toEqual(['Layers', 'Inspector', 'Timeline'])
+        const [eLayers, eInspector] = all()
+        const sections = body().find('lay-area-left')[0].find('lay-section')
+        const split = body().find('lay-area-left')[0].find('lay-split')[0]
+        const hidden = (e: FakeElement) => e.classList.contains('lay-section-hidden')
+        expect([marked(eLayers), marked(eInspector)]).toEqual([true, true])
+        eLayers.click()
+        expect([hidden(sections[0]), hidden(sections[1]), hidden(split), marked(eLayers), marked(eInspector)]).toEqual([true, false, true, false, true])
+        expect(stored().hidden).toEqual({left: [true, false]})
+        // the last shown element: the area collapses, the element stays
+        eInspector.click()
+        expect([f.isAreaCollapsed('left'), hidden(sections[1]), marked(eInspector)]).toEqual([true, false, false])
+        // an entry opens the area with its element
+        eLayers.click()
+        expect([f.isAreaCollapsed('left'), hidden(sections[0]), hidden(sections[1]), hidden(split)]).toEqual([false, false, false, false])
+        // one options object: one entry for the whole stack, as before
+        f.setArea('left', [layers, inspector] as any, {name: 'Layers'})
+        expect(all().map(e => e.getAttribute('aria-label'))).toEqual(['Layers', 'Timeline'])
+        all()[0].click()
+        expect(f.isAreaCollapsed('left')).toBe(true)
+    })
+
+    test('the hidden elements of a stack are kept, and apply to a stack of the same length', () => {
+        storage.set('tpEditorFrameAreas', JSON.stringify({hidden: {left: [false, true]}}))
+        const f = new EditorFrame(host(), {layout: 'titlebar'})
+        f.setArea('left', [new FakeElement('div'), new FakeElement('div')] as any, [{name: 'A'}, {name: 'B'}])
+        expect([f.isSectionHidden('left', 0), f.isSectionHidden('left', 1)]).toEqual([false, true])
+        f.setArea('left', [new FakeElement('div'), new FakeElement('div'), new FakeElement('div')] as any, [{}, {}, {}])
+        expect(f.isSectionHidden('left', 1)).toBe(false)
+    })
 
     test('the breakpoints set the layout classes on the body; a resize sets them again', () => {
         const f = new EditorFrame(host(), {layout: 'titlebar'})
@@ -852,7 +891,7 @@ describe('EditorFrame area sizes', () => {
         win.fire('pointermove', {clientX: 130}) // 130 px: open, at the smallest size
         expect([f.isAreaCollapsed('left'), sizeVar('--lay-left-area-size')]).toEqual([false, '160px'])
         win.fire('pointerup', {})
-        expect(stored()).toEqual({sizes: {left: 160}, collapsed: {left: false}, stacked: 'right', offsets: {}, spans: {}, splits: {}})
+        expect(stored()).toEqual({sizes: {left: 160}, collapsed: {left: false}, hidden: {}, stacked: 'right', offsets: {}, spans: {}, splits: {}})
         expect(body().classList.contains('lay-resizing')).toBe(false)
         // the drag is over: a move does nothing
         win.fire('pointermove', {clientX: 400})
@@ -885,7 +924,7 @@ describe('EditorFrame area sizes', () => {
         f.setAreaCollapsed('bottom', true)
         handle('bottom').fire('dblclick')
         expect(f.isAreaCollapsed('bottom')).toBe(false)
-        expect(stored()).toEqual({sizes: {}, collapsed: {bottom: false}, stacked: 'right', offsets: {}, spans: {}, splits: {}})
+        expect(stored()).toEqual({sizes: {}, collapsed: {bottom: false}, hidden: {}, stacked: 'right', offsets: {}, spans: {}, splits: {}})
     })
 
     /** A floating frame with a 300 px panel and a 240 px left card (the gap is 12 px, see getComputedStyle above) */

@@ -69,6 +69,8 @@ body.lay-has-left .lay-area-left, body.lay-has-bottom .lay-area-bottom { display
 .lay-area-bottom.lay-split-area { flex-direction: row; }
 .lay-area > .lay-section { flex: 1 1 0; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 .lay-section > * { flex: 1 1 auto; min-height: 0; }
+/* an element of a stack that its entry hides (EditorFrame.setSectionHidden), and the split before it */
+.lay-area > .lay-section-hidden { display: none !important; }
 .lay-area > .lay-split {
     flex: 0 0 1px; position: relative; z-index: 1; touch-action: none; background: var(--tp-container-border-color, #e6e6e6);
     --lay-grip-color: var(--tp-label-foreground-color, #8a8f98);

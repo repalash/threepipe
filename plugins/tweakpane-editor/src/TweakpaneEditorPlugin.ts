@@ -130,15 +130,16 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
         this.dispatchEvent({type: 'documentNameChange', name})
     }
 
-    private _areas = new Map<EditorFrameArea, [HTMLElement | HTMLElement[], EditorFrameAreaOptions]>()
+    private _areas = new Map<EditorFrameArea, [HTMLElement | HTMLElement[], EditorFrameAreaOptions | EditorFrameAreaOptions[]]>()
     /**
      * Puts an element in an area of the page frame ({@link EditorFrame.setArea}): `left`, the sidebar left of the canvas,
      * or `bottom`, the strip below it, with an entry in the mode bar (`options`: its name and icon). A list of elements
-     * is a stack, split between them (see {@link EditorFrame.setArea}). `null` empties the
+     * is a stack, split between them (see {@link EditorFrame.setArea}); with a list of options, each element has its own
+     * entry, which shows or hides it. `null` empties the
      * area. The plugin keeps the element when it makes the frame again (at {@link loadPlugins}, and after the classic
      * layout, which has no areas).
      */
-    setArea(area: EditorFrameArea, element: HTMLElement | HTMLElement[] | null, options: EditorFrameAreaOptions = {}) {
+    setArea(area: EditorFrameArea, element: HTMLElement | HTMLElement[] | null, options: EditorFrameAreaOptions | EditorFrameAreaOptions[] = {}) {
         if (element) this._areas.set(area, [element, options])
         else this._areas.delete(area)
         this.frame?.setArea(area, element, options)

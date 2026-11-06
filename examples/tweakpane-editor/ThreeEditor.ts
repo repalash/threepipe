@@ -253,8 +253,10 @@ export class ThreeEditor extends ThreeViewer {
         const placePanels = () => {
             const layersEl = layers && !layers.isDisabled() ? layers.element : null
             const inspectorEl = inspector && !inspector.isDisabled() ? inspector.element : null
-            const left = [layersArea === 'left' ? layersEl : null, inspectorPlace === 'left' ? inspectorEl : null].filter((e): e is HTMLDivElement => !!e)
-            editor.setArea('left', left.length ? left : null, left[0] === layersEl ? LayersPanelPlugin.AreaEntry : InspectorPlugin.AreaEntry)
+            // the left stack: an entry in the mode bar for each panel in it, which shows or hides it
+            const left = ([[layersArea === 'left' ? layersEl : null, LayersPanelPlugin.AreaEntry], [inspectorPlace === 'left' ? inspectorEl : null, InspectorPlugin.AreaEntry]] as const)
+                .filter((p): p is [HTMLDivElement, typeof LayersPanelPlugin.AreaEntry] => !!p[0])
+            editor.setArea('left', left.length ? left.map(p => p[0]) : null, left.map(p => p[1]))
             if (layersArea === 'bottom') editor.setArea('bottom', layersEl, LayersPanelPlugin.AreaEntry)
             editor.setPanelSection(inspectorPlace === 'left' ? null : inspectorEl, {swap: inspectorPlace === 'swap'})
             editor.panelSwapped = !!inspector?.hasSelection
