@@ -110,6 +110,9 @@
 .snp-grip:hover { opacity: .8; }
 /* minimised: the notes icon and their number */
 .snp-dock .snp-restore { width: auto; gap: 6px; padding: 6px 8px; }
+/* its icon has a fixed size: 100% of a button as wide as its content is circular, and Safari then stretches the icon,
+   and with it the dock, to the free width of the canvas */
+.snp-dock .snp-restore svg { width: 14px; height: 14px; flex: none; }
 .snp-count { font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums; }
 
 /* the stores of "▾" and of a badge */

@@ -328,7 +328,14 @@ describe('StickyNotesUiPlugin', () => {
         expect(target).toBe(layer)
         expect(props.target).toBe('[data-tip]')
         expect(props.theme).toBe('editor')
-        expect(props.appendTo()).toBe(viewer.container)
+        // above the frame (the body), and in the element in full screen
+        expect(props.appendTo()).toBe(document.body)
+        ;(document as any).fullscreenElement = viewer.container
+        try {
+            expect(props.appendTo()).toBe(viewer.container)
+        } finally {
+            delete (document as any).fullscreenElement
+        }
         expect(props.popperOptions.modifiers[0].options.boundary).toBe(viewer.container)
         const shown: string[] = []
         const tip = (reference: FakeElement) => props.onShow({reference, setContent: (t: string) => shown.push(t)})
