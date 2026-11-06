@@ -208,6 +208,9 @@ body.lay-frame #tweakpaneUiContainer {
     pointer-events: auto; overscroll-behavior: contain;
     padding: 0; overflow-y: auto; scrollbar-gutter: stable; scrollbar-width: thin;
     scrollbar-color: var(--tp-groove-foreground-color, rgba(128, 128, 128, .5)) transparent;
+    /* up and down only: Safari draws the scrollbars of ::-webkit-scrollbar in the box, so the content was a little wider
+       than the room, and the panel scrolled sideways under a finger */
+    overflow-x: hidden;
 }
 /* the sections of the panel: one line between them, no box, no gap above the first */
 body.lay-frame #tweakpaneUiContainer .tp-rotv_c { padding-top: 0 !important; }

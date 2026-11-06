@@ -56,6 +56,8 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- tweakpane-editor page frame: the panel scrolls up and down only. On a phone in Safari it also scrolled sideways, and the labels went out at the left
+- `StickyNotesUiPlugin` (tweakpane-editor): the minimised notes bar is as wide as its icon and number again on a phone. Its icon was 100% of a button as wide as its content, and Safari stretched it, and the bar, to the free width of the canvas
 - `TweakpaneUiPlugin`: a new default colour mode reaches people who opened a page before. Every visit kept the colour mode in `localStorage`, also the default, so the old default stayed (for example `blue`, `dark` or `light` in place of `clean`). The default at the time of the write is now kept too (`tpThemeDefault`), and a kept value that was the default follows the default of now; a colour mode that the person picked stays. It is written only when it changes
 - `PickingPlugin`: clearing the selection because the plugin was disabled no longer records an undo step
 - `ObjectPicker.setSelected`: selecting the already selected object again (a click on an object selected from code, or a cycle that comes round to it) no longer dispatches `selectedObjectChanged` or records an undo step; only the stored hit is updated
