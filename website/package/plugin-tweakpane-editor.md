@@ -77,6 +77,8 @@ The layout that the person picks (in the menu or the UI) is kept in `localStorag
 
 ### Areas
 
+[Example](https://threepipe.org/examples/#editor-frame-areas/) (sample content in the left and the bottom area, the floating layout first)
+
 The frame has fixed areas: the left sidebar, the right sidebar (the panel and the mode bar) and the bottom strip below the canvas. `editor.setArea('left', element)` puts an element in the left sidebar, and `editor.setArea('bottom', element)` puts one in the bottom strip, between the left sidebar and the panel. `editor.setArea(area, null)` empties the area. The element fills the area, and the plugin keeps it when it makes the frame again (also after the classic layout, which has no areas).
 
 - An empty area takes no room, so a page without areas looks the same as before.
