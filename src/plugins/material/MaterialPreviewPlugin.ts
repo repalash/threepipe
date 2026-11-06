@@ -1,4 +1,4 @@
-import type {BufferGeometry} from 'three'
+import type {BufferGeometry, Vector3} from 'three'
 import {uiFolderContainer, uiSlider, uiToggle} from 'uiconfig.js'
 import {AViewerPluginSync, ThreeViewer} from '../../viewer'
 import type {IMaterial} from '../../core'
@@ -8,6 +8,16 @@ import {
     materialPreviewOptionsFromViewer,
     MaterialPreviewShape,
 } from '../../three/utils/MaterialPreviewGenerator'
+
+/**
+ * The `materialUpdate` event of a material, as {@link MaterialPreviewPlugin.ignoreChange} gets it: the options of `setDirty`.
+ */
+export interface MaterialChangeEvent {
+    change?: string
+    key?: string
+    last?: boolean
+    uiChangeEvent?: {last?: boolean, config?: {property?: [unknown, string | number] | unknown[]}}
+}
 
 /**
  * Options of {@link MaterialPreviewPlugin.request}.
@@ -25,6 +35,20 @@ export interface MaterialPreviewRequestOptions {
      * Size in pixels. Default {@link MaterialPreviewPlugin.size}
      */
     size?: number
+    /**
+     * Direction from the object to the camera, to turn the preview (a drag on the preview can set it). See
+     * {@link MaterialPreviewOptions.cameraDirection}. Part of the cache key.
+     */
+    cameraDirection?: Vector3
+    /**
+     * Distance of the camera as a factor of the default framing (1). See {@link MaterialPreviewOptions.cameraDistance}. Part of the cache key.
+     */
+    cameraDistance?: number
+    /**
+     * The minimum time in ms between two previews of this request while its material changes continuously, in place of
+     * {@link MaterialPreviewPlugin.dragInterval}. When requests for the same preview give different values, the smallest is used.
+     */
+    dragInterval?: number
 }
 
 /**
@@ -78,7 +102,7 @@ interface MaterialState {
     refs: number
     // when the last job or cached preview of the material went away; it is listened to a while longer (LISTEN_AFTER_USE)
     unusedSince: number
-    listener: (e: {last?: boolean, uiChangeEvent?: {last?: boolean}}) => void
+    listener: (e: MaterialChangeEvent) => void
 }
 
 interface Job {
@@ -86,6 +110,10 @@ interface Job {
     shape: MaterialPreviewShape
     geometry?: BufferGeometry
     size: number
+    cameraDirection?: Vector3
+    cameraDistance?: number
+    // the smallest dragInterval of the requests, else the plugin's
+    dragInterval?: number
     entries: Set<{callback: MaterialPreviewCallback}>
 }
 
@@ -164,6 +192,13 @@ export class MaterialPreviewPlugin extends AViewerPluginSync {
      */
     @uiSlider('Cache size', [0, 128], 1) maxCacheSize = 32
     /**
+     * A change of a material that does not change its look: it does not count as a change, so the cached previews stay
+     * and no preview renders. Default: a rename (`change` or `key` `'name'`, or the name field of the material's UI).
+     * Set a function to skip other changes, from the `change` and `key` of `setDirty`.
+     */
+    ignoreChange: (e: MaterialChangeEvent) => boolean = e =>
+        (e.change ?? e.key ?? e.uiChangeEvent?.config?.property?.[1]) === 'name'
+    /**
      * Clock in ms, for {@link dragInterval}.
      */
     now: () => number = () => performance.now()
@@ -209,13 +244,15 @@ export class MaterialPreviewPlugin extends AViewerPluginSync {
         const shape = options.shape ?? 'sphere'
         const geometry = shape === 'mesh' ? options.geometry : undefined
         const size = options.size ?? this.size
-        const key = cacheKey(material, shape, geometry, size)
+        const {cameraDirection, cameraDistance} = options
+        const key = cacheKey(material, shape, geometry, size, cameraDirection, cameraDistance)
         let job = this._jobs.get(key)
         if (!job) {
-            job = {material, shape, geometry, size, entries: new Set()}
+            job = {material, shape, geometry, size, cameraDirection: cameraDirection?.clone(), cameraDistance, entries: new Set()}
             this._jobs.set(key, job)
             this._track(material)
         }
+        if (options.dragInterval !== undefined) job.dragInterval = Math.min(job.dragInterval ?? Infinity, options.dragInterval)
         const entry = {callback}
         job.entries.add(entry)
         const j = job
@@ -293,7 +330,7 @@ export class MaterialPreviewPlugin extends AViewerPluginSync {
                 continue
             }
             if (rendered >= this.maxPerFrame) continue
-            if (state.continuous && now - (state.lastRender.get(key) ?? -Infinity) < this.dragInterval) continue
+            if (state.continuous && now - (state.lastRender.get(key) ?? -Infinity) < (job.dragInterval ?? this.dragInterval)) continue
             rendered++
             state.lastRender.set(key, now)
             let preview: MaterialPreview
@@ -304,6 +341,8 @@ export class MaterialPreviewPlugin extends AViewerPluginSync {
                     shape: job.shape,
                     geometry: job.geometry,
                     size: job.size,
+                    cameraDirection: job.cameraDirection,
+                    cameraDistance: job.cameraDistance,
                 }, cached?.preview.canvas)
                 preview = new Preview(job.material, job.shape, job.size, canvas, state.version, this.now() - start)
             } catch (e) {
@@ -347,6 +386,7 @@ export class MaterialPreviewPlugin extends AViewerPluginSync {
         let state = this._states.get(material)
         if (!state) {
             const s: MaterialState = {version: 0, continuous: false, lastChange: -Infinity, lastRender: new Map(), refs: 0, unusedSince: Infinity, listener: (e) => {
+                if (this.ignoreChange(e)) return // the look of the material is the same: the cached previews stay
                 const now = this.now()
                 const last = e.last ?? e.uiChangeEvent?.last
                 s.version++
@@ -389,8 +429,9 @@ const LISTEN_AFTER_USE = 1000
 /**
  * Cache key of a preview: material, shape, geometry and size.
  */
-function cacheKey(material: IMaterial, shape: string, geometry: BufferGeometry | undefined, size: number) {
-    return material.uuid + '|' + shape + '|' + (geometry?.uuid ?? '') + '|' + size
+function cacheKey(material: IMaterial, shape: string, geometry: BufferGeometry | undefined, size: number, direction?: Vector3, distance?: number) {
+    const view = direction ? [direction.x, direction.y, direction.z].map(v => v.toFixed(4)).join(',') : ''
+    return material.uuid + '|' + shape + '|' + (geometry?.uuid ?? '') + '|' + size + '|' + view + '|' + (distance ?? '')
 }
 
 /**

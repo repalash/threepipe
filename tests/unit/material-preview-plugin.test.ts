@@ -233,6 +233,73 @@ describe('MaterialPreviewPlugin', () => {
         expect(renders).toBeLessThan(10)
     })
 
+    it('a view (camera direction and distance) is passed to the generator and is part of the cache key', () => {
+        const {generator, queue, frame} = setup()
+        const m = new tp.PhysicalMaterial()
+        const dir = new tp.Vector3(1, 0, 0)
+        queue.request(m, {cameraDirection: dir, cameraDistance: 0.8}, () => {})
+        dir.set(0, 1, 0) // the request keeps its own copy
+        frame()
+        expect(generator.renderToCanvas.mock.calls[0][2]).toMatchObject({cameraDistance: 0.8})
+        expect(generator.renderToCanvas.mock.calls[0][2].cameraDirection.toArray()).toEqual([1, 0, 0])
+        // the same view: cached; another view: a new render
+        queue.request(m, {cameraDirection: new tp.Vector3(1, 0, 0), cameraDistance: 0.8}, () => {})
+        frame()
+        expect(generator.renderToCanvas).toHaveBeenCalledTimes(1)
+        queue.request(m, {cameraDirection: new tp.Vector3(0, 0, 1), cameraDistance: 0.8}, () => {})
+        frame()
+        expect(generator.renderToCanvas).toHaveBeenCalledTimes(2)
+    })
+
+    it('a request can set its own dragInterval; the smallest of the requests of one preview is used', () => {
+        const {queue, frame} = setup({dragInterval: 100})
+        const m = new tp.PhysicalMaterial()
+        let renders = 0
+        let handle: any
+        const ask = () => {
+            handle?.cancel()
+            handle = queue.request(m, {dragInterval: 0}, () => renders++)
+        }
+        ask()
+        frame()
+        for (let i = 0; i < 10; i++) {
+            m.setDirty({last: false} as any)
+            ask()
+            frame()
+        }
+        expect(renders).toBe(11) // one preview per frame, not every 100 ms
+        // two requests of one preview: 200 and 50 ms, the smaller wins
+        const n = new tp.PhysicalMaterial()
+        const got: number[] = []
+        queue.request(n, {dragInterval: 200}, () => got.push(1))
+        queue.request(n, {dragInterval: 50}, () => got.push(2))
+        frame()
+        expect(got).toEqual([1, 2])
+    })
+
+    it('a change that does not change the look (a rename, or ignoreChange) keeps the cached preview', () => {
+        const {generator, queue, frame} = setup()
+        const m = new tp.PhysicalMaterial()
+        queue.request(m, {}, () => {})
+        frame()
+        m.name = 'Renamed'
+        m.setDirty({change: 'name'} as any)
+        m.setDirty({uiChangeEvent: {config: {property: [m, 'name']}}} as any) // the name field of the material UI
+        queue.request(m, {}, () => {})
+        frame()
+        expect(generator.renderToCanvas).toHaveBeenCalledTimes(1) // from the cache
+        // an app can skip its own changes
+        queue.ignoreChange = e => e.change === 'userData'
+        m.setDirty({change: 'userData'} as any)
+        queue.request(m, {}, () => {})
+        frame()
+        expect(generator.renderToCanvas).toHaveBeenCalledTimes(1)
+        m.setDirty({change: 'color'} as any)
+        queue.request(m, {}, () => {})
+        frame()
+        expect(generator.renderToCanvas).toHaveBeenCalledTimes(2)
+    })
+
     it('shares one render between requests for the same material, shape and size', () => {
         const {generator, queue, frame} = setup()
         const m = new tp.PhysicalMaterial()

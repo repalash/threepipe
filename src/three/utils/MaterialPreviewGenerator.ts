@@ -79,6 +79,15 @@ export interface MaterialPreviewOptions {
      * MSAA samples. Default 4
      */
     samples?: number
+    /**
+     * Direction from the object to the camera (it is normalized), to turn the preview: a drag on the preview can set it.
+     * Default {@link MaterialPreviewGenerator.meshCameraDirection} for the `mesh` shape, `(0, 0, 1)` for the others.
+     */
+    cameraDirection?: Vector3
+    /**
+     * Distance of the camera as a factor of the default framing: 1 (default) frames the shape, less is closer.
+     */
+    cameraDistance?: number
 }
 
 /**
@@ -242,7 +251,8 @@ export class MaterialPreviewGenerator implements IDisposable {
             return snapObjectPixels(renderer, object, {
                 root: this._scene,
                 channel: this._channel,
-                camOffset: isMesh ? this._meshCamOffset(object) : new Vector3(0, 0, 1.5),
+                camOffset: (isMesh ? this._meshCamOffset(object, options.cameraDirection) : (options.cameraDirection?.clone().normalize() ?? new Vector3(0, 0, 1)).multiplyScalar(1.5))
+                    .multiplyScalar(options.cameraDistance ?? 1),
                 camera: this.camera,
                 size: options.size ?? 256,
                 toneMapping: options.toneMapping,
@@ -283,7 +293,7 @@ export class MaterialPreviewGenerator implements IDisposable {
     }
 
     // the camera distance that fits the bounding sphere of the geometry, in units of the largest side of its bounds (see snapObject camOffset)
-    private _meshCamOffset(object: Mesh) {
+    private _meshCamOffset(object: Mesh, direction = this.meshCameraDirection) {
         const geometry = object.geometry
         if (!geometry.boundingBox) geometry.computeBoundingBox()
         if (!geometry.boundingSphere) geometry.computeBoundingSphere()
@@ -294,7 +304,7 @@ export class MaterialPreviewGenerator implements IDisposable {
         const radius = (geometry.boundingSphere?.radius ?? size.length() / 2) + offCenter
         const halfFov = this.camera.fov / 2 * Math.PI / 180
         const distance = radius / Math.sin(halfFov) * 1.05
-        return this.meshCameraDirection.clone().normalize().multiplyScalar(distance / maxSize)
+        return direction.clone().normalize().multiplyScalar(distance / maxSize)
     }
 
 }

@@ -81,7 +81,7 @@ export {CustomBumpMapPlugin, customBumpMapGLTFExtension} from './material/Custom
 export {ParallaxMappingPlugin} from './material/ParallaxMappingPlugin'
 export {FragmentClippingExtensionPlugin, FragmentClippingMode, fragmentClippingGLTFExtension} from './material/FragmentClippingExtensionPlugin'
 export {MaterialPreviewPlugin} from './material/MaterialPreviewPlugin'
-export type {MaterialPreview, MaterialPreviewCallback, MaterialPreviewHandle, MaterialPreviewRequestOptions} from './material/MaterialPreviewPlugin'
+export type {MaterialChangeEvent, MaterialPreview, MaterialPreviewCallback, MaterialPreviewHandle, MaterialPreviewRequestOptions} from './material/MaterialPreviewPlugin'
 
 // rendering
 export {VirtualCamerasPlugin, type VirtualCamera, type VirtualCamerasPluginEventMap} from './rendering/VirtualCamerasPlugin'

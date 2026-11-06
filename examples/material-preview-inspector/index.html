@@ -43,7 +43,9 @@
         #preview-panel h3 { margin: 0 0 8px; font-size: 13px; font-weight: 600; }
         #preview-panel h3 span { color: #888; font-weight: 400; }
         .checker { background: repeating-conic-gradient(#3a3a3a 0 25%, #2c2c2c 0 50%) 0 0 / 16px 16px; }
-        #large { width: 100%; aspect-ratio: 1; border-radius: 8px; display: block; }
+        #large { width: 100%; aspect-ratio: 1; border-radius: 8px; display: block; cursor: grab; touch-action: none; }
+        #large:active { cursor: grabbing; }
+        .hint { color: #777; font-size: 10px; margin: -4px 0 8px; }
         .large-info { display: flex; justify-content: space-between; margin: 6px 0 8px; }
         .large-info b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .large-info span { color: #9a9; flex: none; padding-left: 8px; }
@@ -74,6 +76,7 @@
     <h3>Materials <span id="count"></span></h3>
     <canvas id="large" class="checker" width="256" height="256"></canvas>
     <div class="large-info"><b id="large-name"></b><span id="large-time"></span></div>
+    <div class="hint">Drag to turn · wheel to zoom · double-click to reset · drop a model on the page</div>
     <div class="row shapes">
         <button data-shape="sphere" class="on">Sphere</button>
         <button data-shape="cube">Cube</button>

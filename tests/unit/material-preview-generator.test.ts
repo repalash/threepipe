@@ -62,3 +62,23 @@ describe('MaterialPreviewGenerator light', () => {
         environment.dispose()
     })
 })
+
+describe('MaterialPreviewGenerator view', () => {
+    it('turns the camera to cameraDirection and moves it by cameraDistance', () => {
+        const generator = new tp.MaterialPreviewGenerator()
+        const {renderer} = fakeRenderer()
+        const material = new tp.PhysicalMaterial()
+        const dir = () => generator.camera.position.clone().sub(generator.camera.target ?? new tp.Vector3()).normalize()
+        const length = () => generator.camera.position.length()
+        generator.renderPixels(material as any, renderer as any, {size: 4})
+        expect(dir().toArray().map(v => +v.toFixed(3))).toEqual([0, 0, 1]) // the default
+        const base = length()
+        generator.renderPixels(material as any, renderer as any, {size: 4, cameraDirection: new tp.Vector3(2, 0, 0)})
+        expect(dir().toArray().map(v => +v.toFixed(3))).toEqual([1, 0, 0])
+        expect(length()).toBeCloseTo(base, 5) // the direction is normalized: the same framing
+        generator.renderPixels(material as any, renderer as any, {size: 4, cameraDirection: new tp.Vector3(2, 0, 0), cameraDistance: 0.5})
+        expect(length()).toBeCloseTo(base * 0.5, 5)
+        generator.dispose()
+        material.dispose()
+    })
+})
