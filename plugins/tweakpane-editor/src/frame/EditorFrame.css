@@ -212,14 +212,15 @@ body.lay-frame #tweakpaneUiContainer {
        than the room, and the panel scrolled sideways under a finger */
     overflow-x: hidden;
 }
-/* the sections of the panel: one line between them, no box, no gap above the first */
-body.lay-frame #tweakpaneUiContainer .tp-rotv_c { padding-top: 0 !important; }
-body.lay-frame #tweakpaneUiContainer .tp-rotv_c > .tp-fldv {
+/* the sections of the panel: one line between them, no box, no gap above the first. Only the main pane (a child of the
+   container): a section of the panel (TweakpaneEditorPlugin.setPanelSection) can hold a Tweakpane UI of its own */
+body.lay-frame #tweakpaneUiContainer > .tp-rotv > .tp-rotv_c { padding-top: 0 !important; }
+body.lay-frame #tweakpaneUiContainer > .tp-rotv > .tp-rotv_c > .tp-fldv {
     margin: 0 !important; border-radius: 0 !important;
     border-style: solid !important; border-width: 1px 0 0 !important; border-color: var(--tp-container-border-color, #e6e6e6) !important;
 }
 /* the first shown section: the hidden sections of the other modes come before it, so not :first-child */
-body.lay-frame #tweakpaneUiContainer .tp-rotv_c > .tp-fldv.tp-v-vfst { border-top-width: 0 !important; }
+body.lay-frame #tweakpaneUiContainer > .tp-rotv > .tp-rotv_c > .tp-fldv.tp-v-vfst { border-top-width: 0 !important; }
 /* title and status bar: the canvas and the panel edge to edge, between the bars */
 body.lay-titlebar #canvas-container, body.lay-statusbar #canvas-container {
     margin: 0 !important; left: var(--lay-left-area); top: var(--lay-top); border-radius: 0; box-shadow: none;
@@ -230,9 +231,9 @@ body.lay-titlebar #tweakpaneUiContainer, body.lay-statusbar #tweakpaneUiContaine
     background: var(--tp-base-background-color, #fff); box-sizing: border-box;
     border-radius: 0;
 }
-body.lay-titlebar #tweakpaneUiContainer .tp-rotv, body.lay-statusbar #tweakpaneUiContainer .tp-rotv { border-radius: 0; box-shadow: none; }
+body.lay-titlebar #tweakpaneUiContainer > .tp-rotv, body.lay-statusbar #tweakpaneUiContainer > .tp-rotv { border-radius: 0; box-shadow: none; }
 /* no "Configuration" title: the mode bar names the open mode and hides the panel */
-body.lay-frame #tweakpaneUiContainer .tp-rotv_b { display: none; }
+body.lay-frame #tweakpaneUiContainer > .tp-rotv > .tp-rotv_b { display: none; }
 body.lay-titlebar .mb-root, body.lay-statusbar .mb-root { top: var(--lay-top); bottom: var(--lay-bottom); }
 body.lay-frame #mcanvas { border-radius: 0; }
 /* floating: the panel and the mode bar are one card (as in the other layouts, side by side with a line between them),
@@ -250,7 +251,7 @@ body.lay-floating #tweakpaneUiContainer {
     border-radius: 8px 0 0 8px; background: var(--tp-base-background-color, #fff); box-shadow: var(--lay-card-shadow);
     clip-path: inset(-20px 0 -20px -20px);
 }
-body.lay-floating #tweakpaneUiContainer .tp-rotv { box-shadow: none; }
+body.lay-floating #tweakpaneUiContainer > .tp-rotv { box-shadow: none; }
 
 /* side by side (lay-side, EditorFrame.Breakpoints): the left area, the canvas with the bottom area below it, then the
    panel, then the mode bar */
