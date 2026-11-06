@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Editor Inspector Prototype</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Import maps polyfill -->
+    <!-- Remove this when import maps will be widely supported -->
+    <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+
+    <script type="importmap">
+    {
+        "imports": {
+          "threepipe": "./../../dist/index.mjs",
+          "@threepipe/plugin-tweakpane": "./../../plugins/tweakpane/dist/index.mjs",
+          "@threepipe/plugin-tweakpane-editor": "./../../plugins/tweakpane-editor/dist/index.mjs"
+        }
+    }
+
+    </script>
+    <style id="example-style">
+        html, body, #canvas-container, #mcanvas {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+        }
+        /* the inspector: colours from the Tweakpane theme of the page */
+        .insp {
+            display: flex; flex-direction: column; box-sizing: border-box; min-height: 0;
+            color: var(--tp-container-foreground-color, #1e1e1e); background: var(--tp-base-background-color, #fff);
+            font: 12px/1.3 var(--tp-font-family, Inter, system-ui, sans-serif);
+        }
+        .insp button { font: inherit; color: inherit; cursor: pointer; }
+        .insp-variants { display: flex; gap: 2px; padding: 6px 8px 0; }
+        .insp-variants button { flex: 1; border: 1px dashed #f59e0b; background: transparent; border-radius: 4px; padding: 3px 2px; font-size: 10px; color: #b45309; }
+        .insp-variants button.on { background: #f59e0b; color: #fff; border-style: solid; }
+        .insp-title { font-weight: 600; padding: 10px 12px 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .insp-tabs { display: flex; gap: 2px; margin: 0 8px 6px; padding: 2px; border-radius: 6px; background: var(--tp-input-background-color, rgba(0, 0, 0, .05)); }
+        .insp-tabs:empty { display: none; }
+        .insp-tabs button { flex: 1; border: 0; background: transparent; padding: 4px 0; border-radius: 4px; opacity: .7; }
+        .insp-tabs button.on { opacity: 1; font-weight: 600; background: var(--tp-base-background-color, #fff); box-shadow: 0 0 0 1px var(--tp-container-border-color, #ececec); }
+        .insp-preview { padding: 0 8px 6px; }
+        .insp-preview canvas { width: 100%; max-width: 220px; aspect-ratio: 1; display: block; margin: 0 auto; cursor: grab; touch-action: none; border-radius: 8px; background: repeating-conic-gradient(rgba(127, 127, 127, .18) 0 25%, transparent 0 50%) 0 0 / 16px 16px; }
+        .insp-shapes { display: flex; gap: 2px; margin-top: 4px; }
+        .insp-shapes button { flex: 1; border: 0; background: var(--tp-input-background-color, rgba(0, 0, 0, .05)); border-radius: 4px; padding: 3px 0; font-size: 11px; }
+        .insp-shapes button.on { outline: 1px solid #0d99ff; }
+        .insp-body { flex: 1; min-height: 0; overflow: auto; }
+        .insp-empty { padding: 16px 12px; opacity: .6; }
+        /* the left variant: in the stack under Layers */
+        .lay-area .insp { height: 100%; }
+        /* the right variants: in the container of the Tweakpane UI, above the mode settings */
+        body.insp-right #tweakpaneUiContainer, body.insp-swap #tweakpaneUiContainer { display: flex; flex-direction: column; }
+        body.insp-right #tweakpaneUiContainer > .insp { flex: 0 1 auto; max-height: 60%; overflow: auto; border-bottom: 1px solid var(--tp-container-border-color, #ececec); }
+        body.insp-right #tweakpaneUiContainer > :not(.insp) { flex: 1 1 auto; min-height: 0; overflow: auto; }
+        /* swap: the inspector in place of the mode settings while something is selected */
+        body.insp-swap #tweakpaneUiContainer > .insp { flex: 1 1 auto; min-height: 0; overflow: auto; }
+        body.insp-swap:not(.insp-has-sel) #tweakpaneUiContainer > .insp .insp-empty,
+        body.insp-swap:not(.insp-has-sel) #tweakpaneUiContainer > .insp .insp-title,
+        body.insp-swap:not(.insp-has-sel) #tweakpaneUiContainer > .insp .insp-body { display: none; }
+        body.insp-swap:not(.insp-has-sel) #tweakpaneUiContainer > .insp { flex: 0 0 auto; }
+        body.insp-swap.insp-has-sel #tweakpaneUiContainer > :not(.insp) { display: none; }
+    </style>
+    <script type="module" src="../examples-utils/global-loading.mjs"></script>
+    <script id="example-script" type="module" src="./script.js" data-scripts="./script.ts;./script.js"></script>
+</head>
+<body>
+<div id="canvas-container">
+    <canvas id="mcanvas"></canvas>
+</div>
+
+</body>
+</html>
