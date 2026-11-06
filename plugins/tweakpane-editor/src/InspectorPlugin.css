@@ -40,5 +40,6 @@
 .isp-ui .tp-rotv_c { padding-top: 0 !important; }
 .isp-ui .tp-rotv_c > .tp-fldv { margin: 0 !important; border-radius: 0 !important; }
 .isp-ui .tp-rotv_c > .tp-fldv > .tp-fldv_b { display: none !important; }
-/* a gap between the actions of the tab (Focus, Remove Material(s)) and the settings below them */
-.isp-ui .tp-rotv_c > .tp-btnv + .tp-fldv { margin-top: 6px !important; }
+/* a gap between the actions of the tab (Focus, Remove Material(s)) and the line above the settings below them. The
+   buttons are in label views (.tp-lblv), and the hidden ones (New ... Material) can come between */
+.isp-ui .tp-rotv_c > .tp-lblv ~ .tp-fldv { margin-top: 8px !important; }
