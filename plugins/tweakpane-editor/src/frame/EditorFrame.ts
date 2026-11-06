@@ -591,7 +591,8 @@ export class EditorFrame {
      * Tweakpane UI starts folded on a phone): when a layout applies, and on a click in the mode bar.
      */
     private _expandPanel = () => {
-        const root = this.options.panel?.()?.querySelector<HTMLElement>(':scope > .tp-rotv') // the main pane, not one in a section
+        // the main pane, a child of the panel: not the pane of a Tweakpane UI in a section of the panel
+        const root = Array.from(this.options.panel?.()?.children ?? []).find(c => c.classList.contains('tp-rotv')) as HTMLElement | undefined
         if (root && !root.classList.contains('tp-rotv-expanded')) root.querySelector<HTMLElement>('.tp-rotv_b')?.click()
     }
 
