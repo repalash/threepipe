@@ -3,6 +3,10 @@ prev:
   text: 'Widget Handle Picking'
   link: './widget-handle-picking'
 
+next:
+  text: 'Material Previews'
+  link: './material-previews'
+
 aside: false
 ---
 

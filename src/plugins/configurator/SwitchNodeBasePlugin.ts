@@ -3,7 +3,7 @@ import {AViewerPluginSync, ThreeViewer} from '../../viewer'
 import {PickingPlugin} from '../interaction/PickingPlugin'
 import {UiObjectConfig} from 'uiconfig.js'
 import {serialize} from 'ts-browser-helpers'
-import {snapObject} from '../../three'
+import {materialPreviewOptionsFromViewer, snapObject, SnapObjectResources} from '../../three'
 import {IObject3D} from '../../core'
 
 /**
@@ -53,6 +53,8 @@ export class SwitchNodeBasePlugin extends AViewerPluginSync {
         this._picking?.removeEventListener('selectedObjectChanged', this.refreshUiConfig)
         this._picking = undefined
         viewer.removeEventListener('postFrame', this._postFrame)
+        this._snapResources?.dispose()
+        this._snapResources = undefined
         super.onRemove(viewer)
     }
 
@@ -154,13 +156,22 @@ export class SwitchNodeBasePlugin extends AViewerPluginSync {
     }
 
     /**
-     * Get the preview for a switch node variation
-     * Should be called from preFrame ideally. (or preRender but set viewerSetDirty = false)
+     * Size in pixels of the previews of the nodes. They render offscreen in the viewer's scene (with its environment map)
+     * and with the viewer's tone mapping, see {@link snapObject}.
+     */
+    previewSize = 256
+
+    /** The render targets of the previews, kept between previews */
+    private _snapResources?: SnapObjectResources
+
+    /**
+     * Get the preview for a switch node variation, as a png data url with a transparent background.
+     * It renders offscreen at {@link previewSize} and does not change the canvas. Call it from preFrame or postFrame (not during a render).
      * @param child - Child Object to get the preview for
      * @param variation - Switch node variation that contains the child.
-     * @param viewerSetDirty - call viewer.setDirty() after setting the preview. So that the preview is cleared from the canvas.
+     * @param viewerSetDirty - call viewer.setDirty() after the preview. Not needed since the preview renders offscreen, kept for compatibility.
      */
-    getPreview(variation: ObjectSwitchNode, child: Object3D, viewerSetDirty = true): string {
+    getPreview(variation: ObjectSwitchNode, child: Object3D, viewerSetDirty = false): string {
         if (!this._viewer || !variation) return ''
         // const m = typeof material === 'number' ? variation.materials[material] : material
         const cv = variation.camView
@@ -170,8 +181,18 @@ export class SwitchNodeBasePlugin extends AViewerPluginSync {
             (cv.includes('front') ? 1 : 0) - (cv.includes('back') ? 1 : 0)
         )
         if (!variation.camDistance) variation.camDistance = 1
-        const image = snapObject(this._viewer!.renderManager.renderer, child, this._viewer?.scene, 7, camOffset.multiplyScalar(variation.camDistance * 2))
-        if (viewerSetDirty) this._viewer.setDirty() // because called from preFrame
+        const {toneMapping, outputColorSpace} = materialPreviewOptionsFromViewer(this._viewer)
+        this._snapResources ??= new SnapObjectResources()
+        const image = snapObject(this._viewer.renderManager.renderer, child, {
+            root: this._viewer.scene,
+            channel: 7,
+            camOffset: camOffset.multiplyScalar(variation.camDistance * 2),
+            size: this.previewSize,
+            toneMapping,
+            outputColorSpace,
+            resources: this._snapResources,
+        })
+        if (viewerSetDirty) this._viewer.setDirty()
         return image
     }
 
@@ -244,6 +265,13 @@ export class SwitchNodeBasePlugin extends AViewerPluginSync {
                             camDistance: 1,
                         })
                     },
+                },
+                {
+                    type: 'slider',
+                    label: 'Preview size (px)',
+                    property: [this, 'previewSize'],
+                    bounds: [32, 1024],
+                    stepSize: 32,
                 },
                 {
                     type: 'button',
