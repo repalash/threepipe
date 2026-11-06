@@ -480,6 +480,7 @@ export function snapObject(
  * `EXT_color_buffer_float` in WebGL2), else 8 bit. WebGL2 alone samples float textures but does not render to them, so
  * `getTextureDataType` (for loaded data) is not used here.
  */
+// todo: remove the 8 bit path (and this check) when rendering to half float is supported everywhere
 function renderableHdrType(renderer: IWebGLRenderer | WebGLRenderer): TextureDataType {
     const ext = renderer.extensions
     return ext.has('EXT_color_buffer_half_float') || renderer.capabilities.isWebGL2 && ext.has('EXT_color_buffer_float') ? HalfFloatType : UnsignedByteType
