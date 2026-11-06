@@ -904,6 +904,8 @@ export class EditorFrame {
         this._applyBreakpoints()
         const areas = (Object.keys(AREA_SIZE_VARS) as EditorFrameSizedArea[]).filter(a => a !== last)
         const order = last ? [...areas, last] : areas
+        // the offsets get smaller first: fitted to the sizes of now, so no size gets smaller for the old offset of another card
+        for (const area of order) this._applyOffset(area)
         for (const area of order) {
             this._applySize(area)
             this._applyOffset(area)

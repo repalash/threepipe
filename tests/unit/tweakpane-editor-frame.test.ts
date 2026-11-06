@@ -929,6 +929,18 @@ describe('EditorFrame area sizes', () => {
         expect([sizeVar('--lay-left-area-size'), f.areaOffset('left')]).toEqual(['480px', 252])
     })
 
+    test('a smaller window makes the offsets smaller before the sizes of the other cards', () => {
+        const f = floating()
+        area('left').getBoundingClientRect = () => ({width: parseFloat(body().style['--lay-left-area-size'] ?? '240'), height: 876}) as any
+        // the room of the panel: 1440 - 240 (left card) - 168 (mode bar with names) - 240 (canvas) = 792, less 300
+        f.setAreaOffset('right', 2000)
+        expect(f.areaOffset('right')).toBe(492)
+        // at 1000 px the offset goes to 1000 - 240 - 168 - 240 - 300 = 52, and the left card keeps its 240 px
+        vi.stubGlobal('innerWidth', 1000)
+        win.fire('resize')
+        expect([f.areaOffset('right'), sizeVar('--lay-left-area-size')]).toEqual([52, undefined])
+    })
+
     test('the offsets and the spans apply only in the floating layout with the areas next to the canvas, and are kept', () => {
         const f = floating()
         f.setAreaOffset('left', 100, true)
