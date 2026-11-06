@@ -67,8 +67,8 @@ const ICONS = {
  *   ({@link revealSelection}).
  * - The arrow on a row opens or closes it; Alt + click on the arrow opens or closes all the levels below it too.
  * - A hovered row outlines its object in the viewport with the {@link SelectionOutlinePlugin}, when that plugin is added
- *   and follows the picking ({@link viewportHover}). It renders one more frame and does not restart the progressive
- *   render. The object hovered in the viewport is marked in the list.
+ *   and follows the picking ({@link viewportHover}), when the pointer rests on the row ({@link HoverDelay}). It renders
+ *   one more frame and does not restart the progressive render. The object hovered in the viewport is marked in the list.
  * - The eye button hides or shows the object, the lock button locks or unlocks it. A locked object has
  *   `userData.userSelectable` set to `false`: the {@link PickingPlugin} does not pick it, or the objects inside it, in the
  *   viewport; the list can still select it. A row in the selection changes all the selected objects. Both are undo steps
@@ -103,6 +103,13 @@ export class LayersPanelPlugin extends AViewerPluginSync {
      * colour. Set it before the plugin is added.
      */
     static AreaEntry: EditorFrameAreaOptions = {name: 'Layers', icon: ICONS.layers, color: '#6366f1'}
+
+    /**
+     * The time in ms that the pointer rests on a row before the viewport outlines its object ({@link viewportHover}). Each
+     * outline renders one frame, so a move across many rows renders none until the pointer stops. The pointer that
+     * leaves the list clears the outline at once. `0`: at once on each row.
+     */
+    static HoverDelay = 80
 
     dependencies = [PickingPlugin]
     serializeWithViewer = false
@@ -159,6 +166,8 @@ export class LayersPanelPlugin extends AViewerPluginSync {
     private _rowHover: IObject3D | null = null
     /** The row element under the pointer: a render can give it another object (the rows are reused) */
     private _hoverRowEl: HTMLElement | null = null
+    /** The outline of a row that waits for the pointer to rest ({@link HoverDelay}) */
+    private _hoverTimer?: ReturnType<typeof setTimeout>
     /** The value of `userData.userSelectable` before a lock, given back by the unlock */
     private _beforeLock = new WeakMap<IObject3D, boolean | undefined>()
     private _picking?: PickingPlugin
@@ -493,11 +502,21 @@ export class LayersPanelPlugin extends AViewerPluginSync {
         this._outlineHover()
     }
 
-    /** The row under the pointer: its object is outlined in the viewport ({@link viewportHover}) */
+    /**
+     * The row under the pointer: its object is outlined in the viewport ({@link viewportHover}), after the pointer rests
+     * on it ({@link HoverDelay}); no row clears the outline at once
+     */
     private _setRowHover(object: IObject3D | null) {
+        clearTimeout(this._hoverTimer)
+        this._hoverTimer = undefined
         if (object === this._rowHover) return
-        this._rowHover = object
-        this._outlineHover()
+        const apply = () => {
+            this._hoverTimer = undefined
+            this._rowHover = object
+            this._outlineHover()
+        }
+        if (object && LayersPanelPlugin.HoverDelay > 0) this._hoverTimer = setTimeout(apply, LayersPanelPlugin.HoverDelay)
+        else apply()
     }
 
     /**

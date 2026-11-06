@@ -163,9 +163,13 @@ beforeEach(() => {
     vi.stubGlobal('cancelAnimationFrame', (id: number) => {
         frames[id - 1] = () => {}
     })
+    // a row outlines at once in the tests; the test of the delay sets it
+    LayersPanelPlugin.HoverDelay = 0
 })
 afterEach(() => {
     vi.unstubAllGlobals()
+    vi.useRealTimers()
+    LayersPanelPlugin.HoverDelay = 80
 })
 
 /** Runs the animation frames that the panel asked for */
@@ -544,6 +548,35 @@ describe('LayersPanelPlugin', () => {
         outline.hovered = []
         row(list, 'Sun').fire('pointerover')
         expect(outline.hovered).toEqual([])
+    })
+
+    test('a row outlines its object after the pointer rests on it; a move across rows renders no frame', () => {
+        // only the timers: the list draws in the animation frames of the test
+        vi.useFakeTimers({toFake: ['setTimeout', 'clearTimeout']})
+        LayersPanelPlugin.HoverDelay = 80
+        const {list, sun, camera, outline, outlineViewer} = setup()
+        const redraws = outlineViewer.renderManager.setDirty
+        // across the rows, faster than the delay: no outline, no frame
+        row(list, 'Sun').fire('pointerover')
+        vi.advanceTimersByTime(40)
+        row(list, 'Camera').fire('pointerover')
+        vi.advanceTimersByTime(40)
+        expect([outline.hovered, redraws.mock.calls.length]).toEqual([[], 0])
+        // the pointer rests: one frame
+        vi.advanceTimersByTime(40)
+        expect([outline.hovered, redraws.mock.calls.length]).toEqual([[camera], 1])
+        // back to the row of the outline before the delay: nothing changes, nothing is left to run
+        row(list, 'Sun').fire('pointerover')
+        row(list, 'Camera').fire('pointerover')
+        vi.advanceTimersByTime(200)
+        expect([outline.hovered, redraws.mock.calls.length]).toEqual([[camera], 1])
+        // a row that waits, then the pointer leaves: the outline clears at once and the row never outlines
+        row(list, 'Sun').fire('pointerover')
+        list.fire('pointerleave')
+        expect(outline.hovered).toEqual([])
+        vi.advanceTimersByTime(200)
+        expect([outline.hovered, redraws.mock.calls.length]).toEqual([[], 2])
+        expect(outline.hovered).not.toContain(sun)
     })
 
     test('the search shows the matches and the groups that hold them; Escape clears it', () => {

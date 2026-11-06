@@ -183,7 +183,7 @@ In the [Tweakpane Editor example](https://threepipe.org/examples/tweakpane-edito
 - A click on a row selects its object in the `PickingPlugin`. Ctrl, Cmd or Shift + click adds the object to the selection, or takes it out.
 - A selection in the viewport marks its rows. It also opens the groups that hold it and scrolls the list to it (`revealSelection`).
 - The arrow on a row opens or closes it. Alt + click on the arrow also opens or closes all the levels below it.
-- A hovered row outlines its object in the viewport, with the `SelectionOutlinePlugin` (`viewportHover`). The outline must follow the picking (`followPicking`, the default). A hover renders one more frame. It does not restart the progressive render. The object hovered in the viewport is marked in the list.
+- A hovered row outlines its object in the viewport, with the `SelectionOutlinePlugin` (`viewportHover`). The outline must follow the picking (`followPicking`, the default). The outline shows when the pointer rests on a row for `LayersPanelPlugin.HoverDelay` ms (80; `0` for at once), so a move across many rows renders no frames. A hover renders one more frame. It does not restart the progressive render. The object hovered in the viewport is marked in the list.
 - The eye button hides or shows the object. The lock button locks or unlocks it. When the row is in the selection, the button changes all the selected objects. A hidden or locked parent dims the buttons of its children.
 - A double-click on a name (or F2) renames the object. Enter or a click outside keeps the name, Escape goes back.
 - With the focus in the list, Up and Down select the next row (Shift adds it). Right opens a row or goes to its first child. Left closes a row or goes to its parent.
