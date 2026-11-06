@@ -6,7 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ## [0.7.0-r172.1] - 2026-11-05
 
-Release candidate of the three.js r172 upgrade lane, under the npm dist-tag `three-r172`, with `three-modded` and `three-types-modded` 0.172.10001-rc.1: the changes listed under [Unreleased] below, the r172 upgrade among them.
+Release candidate of the three.js r172 upgrade lane, under the npm dist-tag `three-r172`, with `three-modded` and `three-types-modded` 0.172.10001-rc.2: the changes listed under [Unreleased] below, the r172 upgrade among them.
 
 ## [Unreleased]
 
@@ -52,6 +52,8 @@ Release candidate of the three.js r172 upgrade lane, under the npm dist-tag `thr
   - `TiltLoadPlugin` removed from `@threepipe/plugins-extra-importers` (three.js r169 removed `TiltLoader`)
   - glTF export of non-PBR materials (e.g. OBJ/MTL Phong materials) writes `roughnessFactor: 1, metallicFactor: 0` instead of `0.5, 0.5` (three.js r170, #29692); such materials look less glossy after an export/import round trip
   - glTF export of a compressed texture that cannot be written as is (a KTX2 texture without its source, `KTX2LoadPlugin.SAVE_SOURCE_BLOBS` off) decompresses it as before: three.js r170 does that only with texture utils, which `GLTFExporter2` now sets (`setTextureUtils({decompress})`); without them the export threw
+  - **Breaking** threepipe exports `USDLoader` in place of `USDZLoader`, as `three/addons` does in three-modded 0.172.10001-rc.2 (three.js r179). `three/examples/jsm/loaders/USDZLoader.js` is still there as a deprecated `USDLoader`
+  - `USDZLoadPlugin` loads with three.js `USDLoader` (from r187 in three-modded): also `.usdc` and `.usd` files, and USDZ files with a binary (USDC) layer, which failed with "usdc files are not supported"
 - `ObjectPicker.setSelected` of a list switches the selection mode as its first item does (a list of objects after a material: object mode again), as a single item does
 - `EditorViewWidgetPlugin`: the container of the widget has the class `editor-view-widget`, so a page can place it (the floating layout of the tweakpane editor frame keeps it out of its cards).
 - `Object3DWidgetsPlugin` depends on `GBufferPlugin` and adds it to the viewer: the widgets have `toneMapped: false`, which works through the GBuffer flags. Without them, the tone mapping changed the colours of the helper lines and of the `'sprite'` icons
