@@ -795,6 +795,34 @@ describe('LayersPanelPlugin', () => {
         expect(handsGeometry).toBeDefined()
     })
 
+    test('the arrow keys in a tab of assets: an object under two open assets is two rows; the list scrolls to the row', () => {
+        const {layers, list, picking, assets, gold, albedo} = withAssets()
+        const normal = {isTexture: true, name: 'Normal', uuid: 't3ff', appliedObjects: new Set([gold])}
+        assets.textures.push(normal)
+        layers.setTab('textures')
+        layers.refresh(true)
+        flush()
+        part(row(list, 'Albedo'), 'lyp-caret').fire('click')
+        flush()
+        part(row(list, 'Normal'), 'lyp-caret').fire('click')
+        flush()
+        expect(names(list)).toEqual(['Albedo', 'case-a', 'case-b', 'Texture t2dd', 'Normal', 'case-a', 'case-b'])
+        list.clientHeight = 56 // 2 rows
+        const path: string[] = []
+        for (let k = 0; k < 7; k++) {
+            key(list, 'ArrowDown')
+            flush()
+            path.push(picking.selected[0].name || picking.selected[0].uuid)
+        }
+        // the second case-a and case-b are rows of their own: Down goes on to the end
+        expect(path).toEqual(['Albedo', 'case-a', 'case-b', 't2dd', 'Normal', 'case-a', 'case-b'])
+        expect(list.scrollTop).toBe(7 * 28 - 56)
+        // Left goes to the asset of that row, not to the first asset of the object
+        key(list, 'ArrowLeft')
+        expect(picking.selected).toEqual([normal])
+        expect(albedo).toBeDefined()
+    })
+
     test('a tab of assets: a mesh that takes another material or geometry builds it again; a reused row shows its own picture', () => {
         const {layers, list, sceneEvents, outline, gold, caseB, handsGeometry, hands, albedo, sky} = withAssets()
         layers.setTab('materials')

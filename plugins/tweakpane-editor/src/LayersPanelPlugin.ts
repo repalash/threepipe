@@ -272,6 +272,8 @@ export class LayersPanelPlugin extends AViewerPluginSync {
     private _tabCounts: Partial<Record<LayersTab, number>> = {}
     /** The open assets: their users are in the list */
     private _openAssets = new WeakSet<object>()
+    /** The asset of the user row that the panel selected last: an object can be a user of two open assets */
+    private _userAsset?: LayerAsset
     /** The pictures of the textures, as data URLs ('' when the image cannot be drawn) */
     private _thumbs = new WeakMap<object, string>()
     private _search: HTMLInputElement
@@ -765,8 +767,10 @@ export class LayersPanelPlugin extends AViewerPluginSync {
         const asset = this._assetRowOf(row)
         if (asset) {
             this._list.focus({preventScroll: true})
-            if (asset.user) this._clickObject(asset.user, e)
-            else if (target.closest('.lyp-caret') && asset.users.length) this._toggleAsset(asset.asset)
+            if (asset.user) {
+                this._userAsset = asset.asset
+                this._clickObject(asset.user, e)
+            } else if (target.closest('.lyp-caret') && asset.users.length) this._toggleAsset(asset.asset)
             else this._selectAsset(asset.asset)
             return
         }
@@ -886,12 +890,19 @@ export class LayersPanelPlugin extends AViewerPluginSync {
         const rows = this._assetRows
         const picked = this._picking?.picker?.selectedObject as unknown
         const sel = this._selected()
-        const i = rows.findIndex(r => r.user ? sel.includes(r.user) : r.asset === picked)
+        const isSel = (r: AssetRow) => r.user ? sel.includes(r.user) : r.asset === picked
+        // the selected user row under the asset it was selected from, else the first selected row
+        let i = rows.findIndex(r => r.user && r.asset === this._userAsset && isSel(r))
+        if (i < 0) i = rows.findIndex(isSel)
         const r = rows[i]
         const go = (j: number) => {
-            const t = rows[Math.max(0, Math.min(rows.length - 1, j))]
-            if (t?.user) this._select([t.user])
-            else if (t) this._selectAsset(t.asset)
+            j = Math.max(0, Math.min(rows.length - 1, j))
+            const t = rows[j]
+            if (!t) return
+            this._scrollTo(j)
+            this._userAsset = t.user ? t.asset : undefined
+            if (t.user) this._select([t.user])
+            else this._selectAsset(t.asset)
         }
         if (key === 'ArrowDown') go(i + 1)
         else if (key === 'ArrowUp') go(i < 0 ? rows.length - 1 : i - 1)
