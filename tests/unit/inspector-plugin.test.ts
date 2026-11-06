@@ -18,6 +18,8 @@ class FakeElement {
     height = 0
     dataset: Record<string, string> = {}
     style: Record<string, any> = {}
+    /** In the page: the app placed the inspector (a test sets false for an inspector out of the page) */
+    isConnected = true
     private _attrs = new Map<string, string>()
     classList = {
         contains: (c: string) => this.className.split(' ').includes(c),
@@ -327,6 +329,23 @@ describe('InspectorPlugin', () => {
         inspector.onRemove(viewer as any)
         expect(picking.selectionUi).toBe(true)
         expect(ui.disposed).toBe(true)
+    })
+
+    test('out of the page (the classic layout), the PickingPlugin shows the settings of the selection; back in the page, the inspector does', () => {
+        const {el, ui, viewer} = setup()
+        el.isConnected = false
+        const a = mesh(new PhysicalMaterial())
+        picking.select(a)
+        // the inspector lets go of the settings, the PickingPlugin shows them
+        expect([ui.shown, picking.selectionUi]).toEqual([[], true])
+        // the layout changes: the canvas resizes, the viewer sends update
+        el.isConnected = true
+        viewer.dispatchEvent({type: 'update'})
+        expect(picking.selectionUi).toBe(false)
+        expect(ui.shown.at(-1)).toBe(a.uiConfig)
+        el.isConnected = false
+        viewer.dispatchEvent({type: 'update'})
+        expect([ui.shown, picking.selectionUi]).toEqual([[], true])
     })
 
     test('enabled sends enabledChange and hides the panel', () => {

@@ -86,9 +86,10 @@ class InspectorUiRenderer extends TweakpaneUiPlugin {
  * - The Material tab has a large live preview of the material (with the {@link MaterialPreviewPlugin}): a sphere, a cube
  *   or the selected mesh alone ({@link previewShape}). A drag on it turns it, the wheel zooms, a double-click resets the
  *   view. A mesh with more than one material has a list of its materials.
- * - The settings render in a second Tweakpane renderer, inside {@link element}, with the theme of the page. The plugin
- *   turns off the selection UI of the PickingPlugin while it is added ({@link PickingPlugin.selectionUi}), since a
- *   uiConfig renders in one UI at a time.
+ * - The settings render in a second Tweakpane renderer, inside {@link element}, with the theme of the page. While the
+ *   inspector is in the page and enabled, the plugin turns off the selection UI of the PickingPlugin
+ *   ({@link PickingPlugin.selectionUi}), since a uiConfig renders in one UI at a time; out of the page (the classic
+ *   layout of the editor) the PickingPlugin shows the selection again, from the next change of the selection.
  * - Escape (the PickingPlugin) clears the selection.
  *
  * Where the panel goes: in the `container` given to the constructor, else the app puts {@link element} in the page.
@@ -181,6 +182,8 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
     private _settings = ''
     /** On or off at the last `enabledChange` (set in the constructor, after the first set of `enabled`) */
     private _on?: boolean
+    /** In the page and enabled, at the last check ({@link _updateInPage}): the settings of the selection show here */
+    private _inPage = false
 
     /**
      * @param container - the element that holds the panel while the plugin is added. Without it, the app puts
@@ -284,6 +287,7 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
         }
         this._place()
         this._requestPreview()
+        this._updateInPage()
     }
 
     private _place() {
@@ -302,7 +306,6 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
         this._picking = picking
         if (picking) {
             this._pickingSelectionUi = picking.selectionUi
-            picking.selectionUi = false
             picking.addEventListener('selectedObjectChanged', this._onSelection)
         }
         this._onSelection()
@@ -316,7 +319,31 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
     }
 
     private _onSelection = () => {
+        // before the inspector renders the selection: a uiConfig renders in one UI at a time
+        this._updateInPage(true)
         this._show(this._picking?.getSelectedObject() ?? undefined, true)
+    }
+
+    /**
+     * The inspector shows the settings of the selection only while it is in the page and enabled; else the PickingPlugin
+     * shows them in its own UI (the classic layout of the editor has no areas, or the app took the inspector out). A
+     * uiConfig renders in one UI at a time, so the one that lets go of it does that first. Checked at each change of the
+     * selection and of {@link enabled}, and at each viewer `update` (a change of the layout resizes the canvas). An
+     * inspector in a collapsed area is in the page.
+     * @param sync - set the PickingPlugin even when nothing changed
+     */
+    private _updateInPage(sync = false) {
+        if (!this._viewer) return // the first set of enabled, in the constructor
+        const inPage = !this.isDisabled() && this.element.isConnected
+        if (inPage === this._inPage && !sync) return
+        const changed = inPage !== this._inPage
+        this._inPage = inPage
+        // out of the page: let go of the settings first; in the page: the PickingPlugin lets go first
+        if (changed && !inPage) this._render()
+        const picking = this._picking
+        const selectionUi = inPage ? false : this._pickingSelectionUi
+        if (picking && picking.selectionUi !== selectionUi) picking.selectionUi = selectionUi
+        if (changed && inPage) this._render()
     }
 
     /** The selected object took another material or geometry: show the new ones */
@@ -411,7 +438,8 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
         // and Select Parent on the Object tab, Remove Material(s) and New ... Material on the Material tab
         const actions = open?.[0] === 'object' ? this._objectActions : materialTab ? this._materialActions : []
         const config = open?.[1].uiConfig
-        const configs = config ? [...actions, config] : actions
+        // out of the page, the PickingPlugin shows the settings ({@link _updateInPage})
+        const configs = !this._inPage ? [] : config ? [...actions, config] : actions
         if (configs.length !== this._shown.length || configs.some((c, i) => c !== this._shown[i])) {
             for (const c of this._shown) this._ui?.removeChild(c)
             this._shown = []
@@ -491,6 +519,7 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
      * send no `materialUpdate`. Ask again when they changed (the preview plugin renders only then).
      */
     private _onViewerUpdate = () => {
+        this._updateInPage()
         if (!this._handle || !this._viewer) return
         if (materialPreviewSettingsKey(materialPreviewOptionsFromViewer(this._viewer, this._material)) !== this._settings) this._requestPreview()
     }
