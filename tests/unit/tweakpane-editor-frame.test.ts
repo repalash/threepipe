@@ -431,13 +431,14 @@ describe('EditorFrame areas', () => {
     const area = (name: string) => body().find('lay-area-' + name)
     /** The parts of the frame in the body, and in the mode bar (the actions of the floating layout) */
     const structure = (f: InstanceType<typeof EditorFrame>) => ({
-        bars: body().children.filter(c => c.classList.contains('lay-bar')).map(c => c.classList.contains('lay-top') ? 'top' : 'bottom'),
+        bars: body().children.filter(c => c.classList.contains('lay-bar')).map(c => ['top', 'bottom', 'head'].find(k => c.classList.contains('lay-' + k))),
         areas: body().children.filter(c => c.classList.contains('lay-area')).map(c => c.className),
         floatActions: (f.modeBar.element as any as FakeElement).find('lay-float-actions').length,
         classes: body().className.split(' ').filter(c => c.startsWith('lay-')).sort(),
     })
 
-    const bars = {titlebar: ['top'], statusbar: ['bottom'], floating: []}
+    // floating has no bar: its head has the name (at the top of the left column)
+    const bars = {titlebar: ['top'], statusbar: ['bottom'], floating: ['head']}
     for (const layout of ['titlebar', 'statusbar', 'floating'] as const) {
         test(`${layout}: the bars, the mode bar and an empty left and bottom area, which take no room`, () => {
             const f = new EditorFrame(host(), {layout})
@@ -528,7 +529,7 @@ describe('EditorFrame area sizes', () => {
         expect(storage.has('tpEditorFrameAreas')).toBe(false) // set from code: not kept
         f.setAreaSize('left', null, true)
         expect(sizeVar('--lay-left-area-size')).toBeUndefined()
-        expect(stored()).toEqual({sizes: {right: 600, bottom: 250}, collapsed: {}, stacked: 'right', offsets: {}, spans: {}})
+        expect(stored()).toEqual({sizes: {right: 600, bottom: 250}, collapsed: {}, stacked: 'right', offsets: {}, spans: {}, splits: {}})
     })
 
     test('the left area and the panel leave room for the canvas next to each other and the mode bar', () => {
@@ -634,7 +635,7 @@ describe('EditorFrame area sizes', () => {
         expect(f.modeBar.open).toBe(true)
         f.setAreaCollapsed('left', false, true)
         expect(body().classList.contains('lay-collapsed-left')).toBe(false)
-        expect(stored()).toEqual({sizes: {}, collapsed: {left: false}, stacked: 'right', offsets: {}, spans: {}})
+        expect(stored()).toEqual({sizes: {}, collapsed: {left: false}, stacked: 'right', offsets: {}, spans: {}, splits: {}})
     })
 
     test('a new frame applies the kept sizes and collapsed areas; a stored value that is not of the frame is ignored', () => {
@@ -837,7 +838,7 @@ describe('EditorFrame area sizes', () => {
         win.fire('pointermove', {clientX: 130}) // 130 px: open, at the smallest size
         expect([f.isAreaCollapsed('left'), sizeVar('--lay-left-area-size')]).toEqual([false, '160px'])
         win.fire('pointerup', {})
-        expect(stored()).toEqual({sizes: {left: 160}, collapsed: {left: false}, stacked: 'right', offsets: {}, spans: {}})
+        expect(stored()).toEqual({sizes: {left: 160}, collapsed: {left: false}, stacked: 'right', offsets: {}, spans: {}, splits: {}})
         expect(body().classList.contains('lay-resizing')).toBe(false)
         // the drag is over: a move does nothing
         win.fire('pointermove', {clientX: 400})
@@ -870,7 +871,7 @@ describe('EditorFrame area sizes', () => {
         f.setAreaCollapsed('bottom', true)
         handle('bottom').fire('dblclick')
         expect(f.isAreaCollapsed('bottom')).toBe(false)
-        expect(stored()).toEqual({sizes: {}, collapsed: {bottom: false}, stacked: 'right', offsets: {}, spans: {}})
+        expect(stored()).toEqual({sizes: {}, collapsed: {bottom: false}, stacked: 'right', offsets: {}, spans: {}, splits: {}})
     })
 
     /** A floating frame with a 300 px panel and a 240 px left card (the gap is 12 px, see getComputedStyle above) */
@@ -1008,6 +1009,71 @@ describe('EditorFrame area sizes', () => {
         expect(stored().spans.bottom).toEqual({start: 100, length: 484})
         f.setAreaCollapsed('left', true)
         expect(f.areaSpan('bottom')).toEqual({start: 100, length: 484})
+    })
+
+    test('setArea with a list: a stack of sections with a split between two; a drag moves the split, a double-click makes them equal', () => {
+        const f = new EditorFrame(host(), {layout: 'titlebar'})
+        const [a, b, c] = [new FakeElement('div'), new FakeElement('div'), new FakeElement('div')]
+        f.setArea('left', [a, b, c] as any)
+        const box = area('left')
+        expect(box.classList.contains('lay-split-area')).toBe(true)
+        expect(box.children.map(e => e.className)).toEqual(['lay-section', 'lay-split', 'lay-section', 'lay-split', 'lay-section'])
+        const sections = box.children.filter(e => e.classList.contains('lay-section'))
+        expect(sections.map(e => e.children[0])).toEqual([a, b, c])
+        expect(sections.map(e => e.style.flexGrow)).toEqual(['1', '1', '1'])
+        const splits = box.children.filter(e => e.classList.contains('lay-split'))
+        expect(splits.map(e => e.getAttribute('role'))).toEqual(['separator', 'separator'])
+        // 300 px each: the first split 60 px down gives 360 and 240
+        sections.forEach(e => e.getBoundingClientRect = () => ({width: 240, height: 300}) as any)
+        drag(splits[0], {clientY: 300}, {clientY: 360})
+        expect(sections.map(e => e.style.flexGrow)).toEqual(['1.2', '0.8', '1'])
+        expect(stored().splits).toEqual({left: [1.2, 0.8, 1]})
+        // at least MinSectionSize
+        drag(splits[1], {clientY: 600}, {clientY: 0})
+        expect(sections[1].style.flexGrow).toBe(String(Math.round(EditorFrame.MinSectionSize / 900 * 3 * 1000) / 1000))
+        splits[0].fire('dblclick')
+        expect([sections.map(e => e.style.flexGrow), stored().splits]).toEqual([['1', '1', '1'], {}])
+        // one element: no stack
+        f.setArea('left', a as any)
+        expect([box.classList.contains('lay-split-area'), box.children]).toEqual([false, [a]])
+    })
+
+    test('a stack keeps its split in a new frame, for the same number of elements; the bottom area stacks left to right', () => {
+        storage.set('tpEditorFrameAreas', JSON.stringify({splits: {left: [1.5, 0.5], bottom: [2, 'x']}}))
+        const f = new EditorFrame(host(), {layout: 'titlebar'})
+        f.setArea('left', [new FakeElement('div'), new FakeElement('div')] as any)
+        const grow = (a: string) => area(a).children.filter(e => e.classList.contains('lay-section')).map(e => e.style.flexGrow)
+        expect(grow('left')).toEqual(['1.5', '0.5'])
+        // another number of elements: equal
+        f.setArea('left', [new FakeElement('div'), new FakeElement('div'), new FakeElement('div')] as any)
+        expect(grow('left')).toEqual(['1', '1', '1'])
+        // a value that is not a number is ignored
+        f.setArea('bottom', [new FakeElement('div'), new FakeElement('div')] as any)
+        expect(grow('bottom')).toEqual(['1', '1'])
+        const split = area('bottom').children.find(e => e.classList.contains('lay-split'))!
+        expect(split.getAttribute('aria-orientation')).toBe('vertical')
+        area('bottom').children.filter(e => e.classList.contains('lay-section')).forEach(e => e.getBoundingClientRect = () => ({width: 400, height: 160}) as any)
+        drag(split, {clientX: 400}, {clientX: 500})
+        expect(grow('bottom')).toEqual(['1.25', '0.75'])
+    })
+
+    test('the head of the floating layout has the app name and the file name, and takes its room from the left column', () => {
+        const f = floating()
+        const head = body().find('lay-head')[0]
+        expect(head.querySelector('b')!.textContent).toBe('threepipe')
+        f.documentName = 'ring.glb'
+        expect(head.querySelector('.lay-file')!.textContent).toBe('ring.glb')
+        // not in the other layouts, which have a bar with the name
+        f.setLayout('titlebar')
+        expect(body().find('lay-head')).toHaveLength(0)
+        f.setLayout('floating')
+        // the side of the left card: 900 - 2 x 12, less the head (36 px) and its gap
+        vi.stubGlobal('getComputedStyle', () => ({getPropertyValue: (k: string) => ({'--lay-gap': '12px', '--lay-head': '36px'} as any)[k] ?? ''}))
+        f.setAreaSpan('left', {start: 0})
+        expect(f.areaSpan('left')).toEqual({start: 0, length: 828})
+        expect(f.areaSpan('right')).toEqual({start: 0, length: 876})
+        f.dispose()
+        expect(body().find('lay-head')).toHaveLength(0)
     })
 
     test('a drag of an end of a card sets its span; the other end stays; a double-click fills the side', () => {

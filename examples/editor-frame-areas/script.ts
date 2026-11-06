@@ -29,18 +29,21 @@ async function init() {
     const layout = getUrlQueryParam('layout') as EditorPageLayout | null
     if (layout) editor.layout = layout
 
-    // An element in the left area and in the bottom area of the page frame. Each gets an entry in the mode bar, after
-    // the modes, with a name, an icon and a colour. The plugin keeps the elements when it makes the frame again (a
-    // change of the layout). setArea(area, null) empties an area.
-    editor.setArea('left', sampleArea('Left area', [
+    // Elements in the left area and in the bottom area of the page frame. A list is a stack: the area is split between
+    // the elements, with a line between two (in the floating layout each element is a card, and the split is a gap with
+    // drag dots). Each area gets one entry in the mode bar, after the modes, with a name, an icon and a colour. The
+    // plugin keeps the elements when it makes the frame again (a change of the layout). setArea(area, null) empties it.
+    editor.setArea('left', [sampleArea('Left area', [
         'Drag the inner edge to resize, past half of the smallest size to collapse; double-click it for the default size.',
         'Floating layout: drag the dots in the gap at the window edge to move the card; double-click them to put it back.',
         'Floating layout: drag the top or the bottom edge to make the card shorter; double-click it to fill the side.',
         'The entry in the mode bar shows or hides this area. In a narrow window, the areas show in the place of the panel, one at a time.',
-    ]), {name: 'Notes', icon: ICON_LIST, color: '#7c5cff'})
-    editor.setArea('bottom', sampleArea('Bottom area', [
+    ]), sampleArea('Second element', [
+        'A stack: drag the line (the dots in the floating layout) above this element to move the split; double-click it for equal sizes.',
+    ])], {name: 'Notes', icon: ICON_LIST, color: '#7c5cff'})
+    editor.setArea('bottom', [sampleArea('Bottom area', [
         'A strip below the canvas, between the left area and the panel: a timeline, a console, a list of assets.',
-    ], true), {name: 'Timeline', icon: ICON_CLOCK, color: '#f59e0b'})
+    ], true), sampleArea('Console', ['The bottom area stacks its elements left to right.'])], {name: 'Timeline', icon: ICON_CLOCK, color: '#f59e0b'})
 
     await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
     await viewer.load('https://samples.threepipe.org/minimal/DamagedHelmet/glTF/DamagedHelmet.gltf', {autoCenter: true, autoScale: true})

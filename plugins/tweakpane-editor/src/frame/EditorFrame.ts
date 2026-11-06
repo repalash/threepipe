@@ -160,6 +160,9 @@ export class EditorFrame {
     /** The smallest length in px of a card of the floating layout along its side ({@link setAreaSpan}) */
     static MinCardLength = 120
 
+    /** The smallest size in px of an element in a stack of an area ({@link setArea} with a list), when a drag moves the split */
+    static MinSectionSize = 48
+
     /**
      * The `localStorage` key that keeps the sizes and the collapsed left and bottom areas that the person picks (a drag
      * or a double-click of an edge), or `null` to not keep them. Read when the frame is made.
@@ -186,6 +189,8 @@ export class EditorFrame {
     private _documentName = ''
     private _top: HTMLDivElement
     private _bottom: HTMLDivElement
+    /** The head of the floating layout (it has no bar): the logo, the app name and the file name, at the top of the left column */
+    private _head: HTMLDivElement
     /** The actions in the mode bar, for the floating layout (it has no bar) */
     private _floatActions: HTMLDivElement
     /** The elements of the areas ({@link setArea}), in the page while the frame is */
@@ -207,6 +212,8 @@ export class EditorFrame {
     /** The spans set ({@link setAreaSpan}), and kept; and the spans on screen, with the length of a card that fills its side */
     private _spans: Partial<Record<EditorFrameSizedArea, EditorFrameAreaSpan>> = {}
     private _appliedSpans: Partial<Record<EditorFrameSizedArea, Required<EditorFrameAreaSpan>>> = {}
+    /** The sizes of the elements of a stack ({@link setArea} with a list), as weights (`flex-grow`), and kept; not set: equal */
+    private _splits: Partial<Record<EditorFrameArea, number[]>> = {}
     /** The collapsed left and bottom areas; the panel collapses as the mode bar hides it */
     private _collapsed: Partial<Record<EditorFrameArea, boolean>> = {}
     /** The area below the canvas in a narrow portrait window ({@link setStackedArea}) */
@@ -240,7 +247,10 @@ export class EditorFrame {
         this._bottom = this._bar('lay-bottom')
         this._bottom.innerHTML = '<span class="lay-file"></span><span class="lay-fill"></span>'
         this._bottom.append(...this._actions('bottom'))
-        if (options.onRename) for (const bar of [this._top, this._bottom]) this._editableName(bar.querySelector('.lay-file')!)
+        this._head = this._bar('lay-head')
+        this._head.innerHTML = `<span class="lay-app">${ICONS.app}<b></b></span><span class="lay-sep"></span><span class="lay-file"></span>`
+        this._head.querySelector('b')!.textContent = title
+        if (options.onRename) for (const bar of [this._top, this._bottom, this._head]) this._editableName(bar.querySelector('.lay-file')!)
         this._floatActions = createDiv({classList: ['lay-float-actions'], addToBody: false})
         this._floatActions.append(...this._actions('modeBar'))
         this._areas = {left: this._area('left'), bottom: this._area('bottom')}
@@ -275,7 +285,7 @@ export class EditorFrame {
     }
     set documentName(name: string) {
         this._documentName = name
-        for (const el of [this._top, this._bottom]) {
+        for (const el of [this._top, this._bottom, this._head]) {
             el.querySelector('.lay-file')!.textContent = name
             el.classList.toggle('lay-noname', !name)
         }
@@ -342,6 +352,8 @@ export class EditorFrame {
         else this._top.remove()
         if (layout === 'statusbar') body.appendChild(this._bottom)
         else this._bottom.remove()
+        if (layout === 'floating') body.appendChild(this._head)
+        else this._head.remove()
         // above the names toggle of the mode bar
         if (layout === 'floating') this.modeBar.element.insertBefore(this._floatActions, this.modeBar.element.lastElementChild)
         else this._floatActions.remove()
@@ -363,14 +375,31 @@ export class EditorFrame {
      * - A narrow portrait window (a phone) has no room for the areas next to the canvas: the part below the canvas shows
      *   one at a time, the panel by default, and a tap on the entry shows the area there ({@link setStackedArea}).
      *
+     * - A list of elements is a stack: the area is split between them, with a line between two elements (a gap with drag
+     *   dots in the floating layout, where each element is a card). A drag on it moves the split, at least
+     *   {@link MinSectionSize} for each element; a double-click makes them equal. The split is kept with the sizes.
+     *
      * The areas go with the frame: `TweakpaneEditorPlugin.setArea` keeps the element when the plugin makes the frame again.
      * @param area - `left` or `bottom` ({@link EditorFrameArea})
-     * @param element - the element to show in the area, or `null` for an empty area
+     * @param element - the element to show in the area, a list of elements for a stack (top to bottom in the left area,
+     * left to right in the bottom area), or `null` for an empty area
      * @param options - the name and the icon of its entry in the mode bar
      */
-    setArea(area: EditorFrameArea, element: HTMLElement | null, options: EditorFrameAreaOptions = {}) {
-        this._areas[area].replaceChildren(...element ? [element] : [])
-        document.body.classList.toggle('lay-has-' + area, !!element)
+    setArea(area: EditorFrameArea, element: HTMLElement | HTMLElement[] | null, options: EditorFrameAreaOptions = {}) {
+        const elements = element === null ? [] : Array.isArray(element) ? element : [element]
+        const box = this._areas[area]
+        box.replaceChildren()
+        // a stack: each element in a section, with a split between two sections
+        box.classList.toggle('lay-split-area', elements.length > 1)
+        if (elements.length === 1) box.appendChild(elements[0])
+        else elements.forEach((el, i) => {
+            if (i > 0) box.appendChild(this._split(area, i))
+            const section = createDiv({classList: ['lay-section'], addToBody: false})
+            section.appendChild(el)
+            box.appendChild(section)
+        })
+        this._applySplits(area)
+        document.body.classList.toggle('lay-has-' + area, elements.length > 0)
         const name = options.name ?? EditorFrame.AreaNames[area]
         const entry = this._entries[area]
         entry.innerHTML = options.icon ?? ICONS[area]
@@ -527,6 +556,7 @@ export class EditorFrame {
         document.body.classList.remove('lay-frame')
         this._top.remove()
         this._bottom.remove()
+        this._head.remove()
         this._floatActions.remove()
         this._entryBox.remove()
         for (const [area, el] of Object.entries(this._areas)) {
@@ -703,6 +733,60 @@ export class EditorFrame {
         this._endDrag = end
     }
 
+    /** The sections of a stack in an area ({@link setArea} with a list), in order */
+    private _sections(area: EditorFrameArea) {
+        return Array.from(this._areas[area].children).filter(c => c.classList.contains('lay-section')) as HTMLElement[]
+    }
+
+    /** Puts the weights of a stack on its sections: the kept ones when they are for this number of sections, else equal */
+    private _applySplits(area: EditorFrameArea) {
+        const sections = this._sections(area)
+        const weights = this._splits[area]?.length === sections.length ? this._splits[area] : undefined
+        sections.forEach((s, i) => {
+            s.style.flexGrow = String(weights?.[i] ?? 1)
+        })
+    }
+
+    /**
+     * The split before the section `index` of a stack: a line (a gap with drag dots in the floating layout). A drag moves
+     * it, between the two sections next to it; a double-click makes all the sections equal.
+     */
+    private _split(area: EditorFrameArea, index: number) {
+        const el = createDiv({classList: ['lay-split'], addToBody: false})
+        const vertical = area === 'left'
+        el.setAttribute('role', 'separator')
+        el.setAttribute('aria-orientation', vertical ? 'horizontal' : 'vertical')
+        el.title = 'Drag to resize, double-click for equal sizes'
+        el.addEventListener('pointerdown', (e: PointerEvent) => {
+            if (e.button !== 0) return
+            e.preventDefault()
+            const sizes = this._sections(area).map(s => {
+                const r = s.getBoundingClientRect()
+                return vertical ? r.height : r.width
+            })
+            const [a, b] = [index - 1, index]
+            const pair = sizes[a] + sizes[b]
+            const p0 = vertical ? e.clientY : e.clientX
+            this._drag(el, ['lay-resizing', 'lay-resizing-' + (vertical ? 'y' : 'x')], (ev: PointerEvent) => {
+                const min = Math.min(EditorFrame.MinSectionSize, pair / 2)
+                const size = Math.max(min, Math.min(pair - min, sizes[a] + (vertical ? ev.clientY : ev.clientX) - p0))
+                const next = sizes.slice()
+                next[a] = size
+                next[b] = pair - size
+                // weights that sum to the number of sections, so the split stays when the area changes size
+                const total = next.reduce((t, v) => t + v, 0) || 1
+                this._splits[area] = next.map(v => Math.round(v / total * next.length * 1000) / 1000)
+                this._applySplits(area)
+            })
+        })
+        el.addEventListener('dblclick', () => {
+            delete this._splits[area]
+            this._applySplits(area)
+            this._storeAreas()
+        })
+        return el
+    }
+
     /**
      * The grip of a floating card: a strip in the gap on its side of the window. A drag moves the card on both axes, its
      * offset ({@link setAreaOffset}) and the start of its span ({@link setAreaSpan}; the card keeps its length while it
@@ -814,13 +898,20 @@ export class EditorFrame {
         return parseFloat(getComputedStyle(document.body).getPropertyValue('--lay-gap')) || 0
     }
 
+    /** The height that the head of the floating layout takes from the left column, with its gap (`--lay-head`) */
+    private _headRoom() {
+        const head = parseFloat(getComputedStyle(document.body).getPropertyValue('--lay-head')) || 0
+        return head ? head + this._gap() : 0
+    }
+
     /**
-     * The length of the whole side of a floating card: the window height less the gaps for the left card and the panel;
+     * The length of the whole side of a floating card: the window height less the gaps for the left card (less the head
+     * above it) and the panel;
      * for the bottom card, its row between the left card and the panel (with their offsets and gaps)
      */
     private _fullLength(area: EditorFrameSizedArea) {
         const gap = this._gap()
-        if (area !== 'bottom') return innerHeight - 2 * gap
+        if (area !== 'bottom') return innerHeight - 2 * gap - (area === 'left' ? this._headRoom() : 0)
         const left = this._shows('left') ? this._areaSize('left') + gap + this.areaOffset('left') : 0
         const right = (this.modeBar.open ? this._areaSize('right') : 0) + this._modeBarWidth() + 2 * gap + this.areaOffset('right')
         return innerWidth - left - gap - right
@@ -926,14 +1017,15 @@ export class EditorFrame {
     /** Keeps the sizes, the collapsed left and bottom areas and the area below the canvas ({@link AreaStorageKey}) */
     private _storeAreas() {
         const key = EditorFrame.AreaStorageKey
-        if (key) writeStored(key, JSON.stringify({sizes: this._sizes, collapsed: this._collapsed, stacked: this._stacked, offsets: this._offsets, spans: this._spans}))
+        if (key) writeStored(key, JSON.stringify({sizes: this._sizes, collapsed: this._collapsed, stacked: this._stacked, offsets: this._offsets, spans: this._spans, splits: this._splits}))
     }
 
     /** Applies the sizes, the collapsed areas and the area below the canvas that are kept ({@link AreaStorageKey}) */
     private _restoreAreas() {
         const key = EditorFrame.AreaStorageKey
         let stored: {sizes?: Record<string, unknown>, collapsed?: Record<string, unknown>, stacked?: unknown,
-            offsets?: Record<string, unknown>, spans?: Record<string, {start?: unknown, length?: unknown} | undefined>} | undefined
+            offsets?: Record<string, unknown>, spans?: Record<string, {start?: unknown, length?: unknown} | undefined>,
+            splits?: Record<string, unknown>} | undefined
         try {
             stored = JSON.parse(key && readStored(key) || 'null') ?? undefined
         } catch (e) {
@@ -954,6 +1046,8 @@ export class EditorFrame {
             }
         }
         for (const area of ['left', 'bottom'] as const) {
+            const split = stored?.splits?.[area]
+            if (Array.isArray(split) && split.length > 1 && split.every(v => typeof v === 'number' && isFinite(v) && v > 0)) this._splits[area] = split
             if (stored?.collapsed?.[area] !== true) continue
             this._collapsed[area] = true
             document.body.classList.add('lay-collapsed-' + area)

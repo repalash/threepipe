@@ -405,7 +405,8 @@ describe('tweakpane editor frame areas', () => {
             const c = before[layout].canvas
             if (layout === 'floating') {
                 // a card over the canvas, with the gap of the panel card; the canvas does not change
-                expect(area).toEqual({left: 12, top: 12, width: 240, height: 876})
+                // below the head of the floating layout: 36 px and a gap
+                expect(area).toEqual({left: 12, top: 60, width: 240, height: 828})
                 expect(box(canvas, layout, desktop, s)).toEqual(c)
                 // the perf pill and the bar of the sticky notes keep out of the card: its width and the gap
                 expect(cornerMargins(layout, desktop, s)).toEqual([[252, 0], [252, 0]])
@@ -518,6 +519,24 @@ describe('tweakpane editor frame areas', () => {
         })
     }
 
+    it('a stack: a line between the sections; in the floating layout, each section is a card and the split is a gap with dots', () => {
+        const s = {left: true}
+        const docked = (t: string[]) => cascade(t, bodyClasses('titlebar', s), desktop)
+        const float = (t: string[]) => cascade(t, bodyClasses('floating', s), desktop)
+        expect(docked(['.lay-area > .lay-split'])).toMatchObject({flex: '0 0 1px', background: 'var(--tp-container-border-color, #e6e6e6)'})
+        expect(docked(['.lay-area-left > .lay-split']).cursor).toBe('row-resize')
+        expect(docked(['.lay-area-bottom > .lay-split']).cursor).toBe('col-resize')
+        expect(docked(['.lay-area-bottom.lay-split-area'])['flex-direction']).toBe('row')
+        expect(docked(['.lay-area > .lay-section'])).toMatchObject({flex: '1 1 0', overflow: 'hidden'})
+        // floating: the area has no card of its own, its sections are cards
+        expect(float(['.lay-area.lay-split-area'])).toMatchObject({background: 'transparent', 'box-shadow': 'none'})
+        expect(float(['.lay-split-area > .lay-section'])).toMatchObject({'border-radius': '8px', 'box-shadow': 'var(--lay-card-shadow)'})
+        expect(float(['.lay-split-area > .lay-split'])).toMatchObject({'flex-basis': 'var(--lay-gap)', background: 'transparent'})
+        expect(float(['.lay-area-left.lay-split-area > .lay-split::before'])).toMatchObject({width: '24px', height: '4px'})
+        expect(float(['.lay-split-area > .lay-split::before']).opacity).toBe('0.6')
+        expect(docked(['.lay-area > .lay-split:hover'])['--lay-grip-color']).toBe('#0d99ff')
+    })
+
     it('floating: the offsets and the spans move the cards, their edges, grips and ends, and the insets', () => {
         const s = {left: true, bottom: true, sizes: {
             '--lay-left-offset': '20px', '--lay-left-start': '100px', '--lay-left-length': '400px',
@@ -525,7 +544,10 @@ describe('tweakpane editor frame areas', () => {
             '--lay-bottom-offset': '10px', '--lay-bottom-start': '40px', '--lay-bottom-length': '300px',
         }}
         const at = (t: string[]) => box(t, 'floating', desktop, s)
-        expect(at(leftArea)).toEqual({left: 32, top: 112, width: 240, height: 400})
+        // the left card starts below the head (36 px and a gap), 100 px on; the head moves with it on the x axis
+        expect(at(leftArea)).toEqual({left: 32, top: 160, width: 240, height: 400})
+        expect(at(['.lay-bar', '.lay-head'])).toEqual({left: 32, top: 12, width: 240, height: 36})
+        expect(box(['.lay-bar', '.lay-head'], 'titlebar', desktop, s)).toBeNull()
         // the panel and the mode bar move together: right 12 + 30, then the mode bar (44)
         expect(at(panel)).toEqual({left: 1440 - 42 - 44 - 300, top: 62, width: 300, height: 500})
         const bar = cascade(['.mb-root'], bodyClasses('floating', s), desktop)
@@ -534,13 +556,13 @@ describe('tweakpane editor frame areas', () => {
         // the bottom card in its row: after the left card (12 + 20 + 240) and its gap, 40 px on
         expect(at(bottomArea)).toEqual({left: 272 + 12 + 40, top: 900 - 22 - 160, width: 300, height: 160})
         // the inner edges follow the cards
-        expect(at(['.lay-handle', '.lay-handle-left'])).toEqual({left: 32 + 240 - 3, top: 112, width: 6, height: 400})
+        expect(at(['.lay-handle', '.lay-handle-left'])).toEqual({left: 32 + 240 - 3, top: 160, width: 6, height: 400})
         expect(at(['.lay-handle', '.lay-handle-bottom'])).toEqual({left: 324, top: 900 - 22 - 160 - 3, width: 300, height: 6})
         // the grip is in the gap on the side of the window; the ends are on the ends of the card
-        expect(at(['.lay-grip', '.lay-grip-left'])).toEqual({left: 22, top: 112, width: 8, height: 400})
+        expect(at(['.lay-grip', '.lay-grip-left'])).toEqual({left: 22, top: 160, width: 8, height: 400})
         expect(at(['.lay-grip', '.lay-grip-right'])).toEqual({left: 1440 - 32 - 8, top: 62, width: 8, height: 500})
-        expect(at(['.lay-end', '.lay-end-left', '.lay-end-left-start'])).toEqual({left: 32, top: 109, width: 240, height: 6})
-        expect(at(['.lay-end', '.lay-end-left', '.lay-end-left-end'])).toEqual({left: 32, top: 509, width: 240, height: 6})
+        expect(at(['.lay-end', '.lay-end-left', '.lay-end-left-start'])).toEqual({left: 32, top: 157, width: 240, height: 6})
+        expect(at(['.lay-end', '.lay-end-left', '.lay-end-left-end'])).toEqual({left: 32, top: 557, width: 240, height: 6})
         expect(at(['.lay-end', '.lay-end-bottom', '.lay-end-bottom-end'])).toEqual({left: 324 + 300 - 3, top: 718, width: 6, height: 160})
         // the pill and the bar of the sticky notes keep out of the column of the left card and the row of the bottom card
         expect(cornerMargins('floating', desktop, s)).toEqual([[272, 182], [272, 182]])
@@ -558,7 +580,7 @@ describe('tweakpane editor frame areas', () => {
         expect(box(['.lay-end', '.lay-end-right', '.lay-end-right-start'], 'floating', {width: 640, height: 360}, s)).toBeNull()
         expect(box(['.lay-grip', '.lay-grip-right'], 'floating', desktop, {})).not.toBeNull()
         // no offsets or spans: the cards fill their sides as before
-        expect(box(leftArea, 'floating', desktop, {left: true})).toEqual({left: 12, top: 12, width: 240, height: 876})
+        expect(box(leftArea, 'floating', desktop, {left: true})).toEqual({left: 12, top: 60, width: 240, height: 828})
         expect(box(panel, 'floating', desktop, {})).toEqual(before.floating.panel)
     })
 })
