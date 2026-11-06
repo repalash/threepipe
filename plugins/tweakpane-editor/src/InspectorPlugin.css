@@ -37,6 +37,19 @@
     border: 1px solid var(--tp-container-border-color, #e6e6e6); background: var(--tp-input-background-color, transparent);
 }
 .isp-preview { padding: 0 8px 8px; flex: none; }
+/* the head of the preview folds it, with a chevron like the folders of the settings */
+.isp-preview-head {
+    display: flex; align-items: center; gap: 6px; width: 100%; border: 0; background: transparent; cursor: pointer;
+    padding: 4px 4px; margin: 0 0 4px; border-radius: 4px; text-align: left; font-weight: 500; opacity: .8;
+}
+.isp-preview-head:hover { opacity: 1; background: var(--tp-input-background-color, rgba(0, 0, 0, .05)); }
+.isp-preview-head:focus-visible { outline: 2px solid var(--tp-label-foreground-color, #0d99ff); outline-offset: -2px; }
+.isp-preview-head::before {
+    content: ''; width: 5px; height: 5px; border: solid currentColor; border-width: 0 1.5px 1.5px 0; transform: rotate(45deg) translate(-1px, -1px);
+    transition: transform .15s;
+}
+.isp-preview-head[aria-expanded="false"]::before { transform: rotate(-45deg); }
+.isp-preview-head[aria-expanded="false"] { margin-bottom: 0; }
 /* a finger on the preview turns it (touch-action: none), it does not scroll the panel */
 .isp-preview-canvas {
     width: 100%; max-width: 220px; aspect-ratio: 1; display: block; margin: 0 auto; cursor: grab; touch-action: none; border-radius: 8px;

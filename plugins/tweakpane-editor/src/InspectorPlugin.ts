@@ -142,7 +142,7 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
     @uiToggle('Enabled')
         enabled = true
 
-    /** The Material tab shows a large live preview of the material */
+    /** The Material tab shows a large live preview of the material. Off: only its head, which a click opens again. */
     @onChange(InspectorPlugin.prototype._requestPreview)
     @uiToggle('Material preview')
         preview = true
@@ -162,6 +162,8 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
     private _cardHandles: MaterialPreviewHandle[] = []
     private _materialList: HTMLSelectElement
     private _previewEl: HTMLDivElement
+    private _previewHead: HTMLButtonElement
+    private _previewBody: HTMLDivElement
     private _canvas: HTMLCanvasElement
     private _shapesEl: HTMLDivElement
     private _body: HTMLDivElement
@@ -212,11 +214,20 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
         this._materialList.setAttribute('aria-label', 'Material of the mesh')
         this._materialList.addEventListener('change', () => this._pickMaterial(Number(this._materialList.value)))
         this._previewEl = this.element.appendChild(el('div', 'isp-preview'))
-        this._canvas = this._previewEl.appendChild(el('canvas', 'isp-preview-canvas'))
+        // the head folds the preview: in a short place the settings under it get the room
+        this._previewHead = this._previewEl.appendChild(el('button', 'isp-preview-head'))
+        this._previewHead.type = 'button'
+        this._previewHead.textContent = 'Preview'
+        this._previewHead.addEventListener('click', () => {
+            this.preview = !this.preview
+            this.uiConfig?.uiRefresh?.(true)
+        })
+        this._previewBody = this._previewEl.appendChild(el('div', 'isp-preview-body'))
+        this._canvas = this._previewBody.appendChild(el('canvas', 'isp-preview-canvas'))
         this._canvas.width = this._canvas.height = InspectorPlugin.PreviewSize
         this._canvas.title = 'Drag to turn, wheel to zoom, double-click to reset'
         this._canvas.setAttribute('aria-label', 'Material preview')
-        this._shapesEl = this._previewEl.appendChild(el('div', 'isp-shapes'))
+        this._shapesEl = this._previewBody.appendChild(el('div', 'isp-shapes'))
         for (const [shape, name] of SHAPES) {
             const b = this._shapesEl.appendChild(el('button', 'isp-shape'))
             b.type = 'button'
@@ -533,9 +544,10 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
         this._requestPreview()
     }
 
-    private _previewShown() {
+    /** The Material tab is open with a material: the preview or its head shows */
+    private _previewTab() {
         const open = this._tabs().find(t => t[0] === this._tab) ?? this._tabs()[0]
-        return !!this._viewer && !this.isDisabled() && this.preview && open?.[0] === 'material' && !!this._material
+        return !!this._viewer && !this.isDisabled() && open?.[0] === 'material' && !!this._material
     }
 
     /** Asks the MaterialPreviewPlugin for the large preview, now and on each change of the material */
@@ -543,8 +555,11 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
         if (!this._previewEl) return // the first set of the settings, before the constructor makes the elements
         this._handle?.cancel()
         this._handle = undefined
-        const shown = this._previewShown()
-        this._previewEl.style.display = shown ? '' : 'none'
+        const tab = this._previewTab()
+        const shown = tab && this.preview
+        this._previewEl.style.display = tab ? '' : 'none'
+        this._previewBody.style.display = this.preview ? '' : 'none'
+        this._previewHead.setAttribute('aria-expanded', String(this.preview))
         if (this._watched !== (shown ? this._material : undefined)) {
             this._unwatch()
             if (shown) {

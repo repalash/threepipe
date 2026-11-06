@@ -310,7 +310,24 @@ describe('InspectorPlugin', () => {
         canvas.fire('pointerdown', {button: 0, clientX: 0, clientY: 0, pointerId: 1})
         canvas.fire('pointermove', {clientX: 40, clientY: 0, pointerId: 1})
         expect(requests.at(-1)!.options.cameraDirection.equals(before)).toBe(false)
-        inspector.preview = false
+        // off: the head stays, the preview folds and is not asked for; a click on the head opens it again
+        const head = el.find('isp-preview-head')[0]
+        expect(head.getAttribute('aria-expanded')).toBe('true')
+        const k = requests.length
+        head.click()
+        expect(inspector.preview).toBe(false)
+        expect(el.find('isp-preview')[0].style.display).toBe('')
+        expect(el.find('isp-preview-body')[0].style.display).toBe('none')
+        expect(head.getAttribute('aria-expanded')).toBe('false')
+        expect(requests.length).toBe(k)
+        ;(a.material as any).setDirty() // no preview to refresh
+        expect(requests.length).toBe(k)
+        head.click()
+        expect(inspector.preview).toBe(true)
+        expect(el.find('isp-preview-body')[0].style.display).toBe('')
+        expect(requests.length).toBe(k + 1)
+        // the Object tab has no preview and no head
+        el.find('isp-tab')[0].click()
         expect(el.find('isp-preview')[0].style.display).toBe('none')
     })
 
