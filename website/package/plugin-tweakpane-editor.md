@@ -172,6 +172,79 @@ editor.layout = 'classic'
 
 In the [Tweakpane Editor example](https://threepipe.org/examples/tweakpane-editor/), add `?layout=titlebar`, `?layout=statusbar`, `?layout=floating` or `?layout=classic` to the URL.
 
+## LayersPanelPlugin
+
+[Example](https://threepipe.org/examples/#layers-panel-plugin/) &mdash;
+[Source Code](https://github.com/repalash/threepipe/blob/master/plugins/tweakpane-editor/src/LayersPanelPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/plugins/tweakpane-editor/docs/classes/LayersPanelPlugin.html)
+
+`LayersPanelPlugin` shows the objects of the scene (`scene.modelRoot`) as a tree, like the layers panel of Figma or the outliner of Blender. It replaces the `HierarchyUiPlugin`, which is deprecated.
+
+- A click on a row selects its object in the `PickingPlugin`. Ctrl, Cmd or Shift + click adds the object to the selection, or takes it out.
+- A selection in the viewport marks its rows. It also opens the groups that hold it and scrolls the list to it (`revealSelection`).
+- The arrow on a row opens or closes it. Alt + click on the arrow also opens or closes all the levels below it.
+- A hovered row outlines its object in the viewport, with the `SelectionOutlinePlugin` (`viewportHover`). The outline must follow the picking (`followPicking`, the default). The outline shows when the pointer rests on a row for `LayersPanelPlugin.HoverDelay` ms (80; `0` for at once), so a move across many rows renders no frames. A hover renders one more frame. It does not restart the progressive render. The object hovered in the viewport is marked in the list.
+- The eye button hides or shows the object. The lock button locks or unlocks it. When the row is in the selection, the button changes all the selected objects. A hidden or locked parent dims the buttons of its children.
+- A double-click on a name (or F2) renames the object. Enter or a click outside keeps the name, Escape goes back.
+- With the focus in the list, Up and Down select the next row (Shift adds it). Right opens a row or goes to its first child. Left closes a row or goes to its parent.
+- The search field shows the objects whose name has the text, with the groups that hold them. Escape clears it.
+- Lights and cameras have the icon and the colour of their kind (`widgetKinds` of threepipe), as in the viewport.
+- The Objects tab starts with the scene and the default camera (`sceneRows`, on), dimmer and with a line below them: they are not in the model, so they have no eye, lock or arrow, and a search hides them. A click selects them, so the UI of the editor shows their settings.
+- Meshes, lines, points, cameras and lights show no children (their helpers, targets or parts): `leafTypes` lists the kinds (set a new list to change it), and `showLeafChildren` (off, in the UI) shows the children of all kinds.
+- A double-click on a row selects it and moves the camera to it (`doubleClickFocus`, on; the scene row frames the whole model). A double-click on the name renames it. With `clickToUnselect` (off), a click on a selected row unselects it.
+- **Tabs**: Objects, Materials, Textures and Geometry, each turned on or off with `objectsTab`, `materialsTab`, `texturesTab` and `geometryTab` (all on by default, in the UI folder). With one tab on, there is no tab bar. `layers.tabs` lists the tabs that are on, `layers.tab` is the open one, `layers.setTab('materials')` opens one. The counts are in the tooltips of the tabs and in the header.
+- A tab of assets lists the materials, textures or geometries that the objects in the scene use (from `viewer.object3dManager`). An asset row has a swatch (a material), a picture (a texture) or an icon, the name, and a short text: the size of a texture, the generator and the vertices of a geometry, and the number of objects that use it (`scene` for a texture of the scene). Its arrow lists those objects under it.
+- In a tab of assets, a click selects the asset in the `PickingPlugin` (the UI of the editor shows its settings), a double-click selects the objects that use it, and a double-click on the name or F2 renames a material or a texture (`renameAsset(asset, name)`, one undo step). A hover outlines the objects that use it. Up and Down select the next row, Right opens an asset, Left closes it or goes from a user back to its asset.
+- An open row shows its first `maxChildren` children (5), then a "… N more" row. A click on it shows all of them (`showAllChildren(object)`), until the row is closed. The objects at the top level, a search, and children that hold the selection always show; `maxChildren = 0` shows all. The Up and Down keys pass over the "… N more" row.
+- Only the rows in view are in the DOM (a virtual list), so a scene with many objects stays fast.
+
+The visibility, the lock and the name changes are undo steps with the `UndoManagerPlugin`.
+
+**Lock.** A locked object has `userData.userSelectable` set to `false`. That is the rule of the `PickingPlugin`: it does not pick the object, or the objects inside it, in the viewport. The list can still select it, and then the transform controls can move it. An unlock gives back the value from before the lock (for example `true` on a text that has no material). The glTF export leaves out the `false` values of `userData`, so an exported file does not keep the lock.
+
+**Where the panel goes.**
+
+The plugin does not depend on the editor: the app places the panel.
+
+- In the page frame of a `TweakpaneEditorPlugin`: put `layers.element` in an area, with a Layers entry in the mode bar. `LayersPanelPlugin.AreaEntry` has a name, an icon and a colour for the entry. The `enabledChange` event (`{enabled}`) tells when the panel is turned on or off (Enabled, `enable`, `disable`), so the app can take the area out and put it back. The classic layout has no areas, so it does not show the panel.
+
+  ```ts
+  const layers = viewer.addPluginSync(LayersPanelPlugin)
+  const editor = viewer.getPlugin(TweakpaneEditorPlugin)!
+  const place = () => editor.setArea('left', layers.isDisabled() ? null : layers.element, LayersPanelPlugin.AreaEntry)
+  place()
+  layers.addEventListener('enabledChange', place)
+  ```
+
+- Without the editor: give an element to the constructor, `new LayersPanelPlugin(container)`. The panel goes in it while the plugin is added. The panel fills its parent, so give the parent a height.
+- Or place `layers.element` in the page yourself.
+
+The plugin removes the panel from the page when it is removed. Its UI folder, `Layers Panel`, has the settings: Enabled, Hover in viewport, Reveal selection, Max children, Scene and camera rows, Show children of meshes, lights, cameras, the two click settings, and the four tabs. The settings and the open rows are not saved with the viewer config.
+
+```typescript
+import {PickingPlugin, ThreeViewer, UndoManagerPlugin} from 'threepipe'
+import {LayersPanelPlugin, SelectionOutlinePlugin} from '@threepipe/plugin-tweakpane-editor'
+
+const viewer = new ThreeViewer({...})
+viewer.addPluginSync(UndoManagerPlugin)
+const picking = viewer.addPluginSync(PickingPlugin) // also added by the panel, if it is not there
+picking.hoverEnabled = true // the object under the pointer is marked in the list
+viewer.addPluginSync(SelectionOutlinePlugin) // the outline of a hovered row
+
+// in an element of the page (it fills it); with a TweakpaneEditorPlugin, leave out the element
+const layers = viewer.addPluginSync(new LayersPanelPlugin(document.getElementById('layers')!))
+
+layers.setExpanded(model, true) // open a row
+layers.setVisible([model], false) // hide, as one undo step
+layers.setLocked([model], true) // not picked in the viewport
+layers.renameObject(model, 'Ring')
+layers.materialsTab = false // no Materials tab
+layers.setTab('textures') // open a tab
+console.log(layers.listedObjects) // the objects in the list, from the top
+```
+
+Not in the panel yet: drag and drop to move objects, a context menu, and tabs for the materials, textures and geometries.
+
 ## NotesPlugin and StickyNotesUiPlugin
 
 [Example](https://threepipe.org/examples/#notes-plugin/) &mdash;

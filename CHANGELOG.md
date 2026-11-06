@@ -36,6 +36,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- `ObjectPicker.setSelected` of a list switches the selection mode as its first item does (a list of objects after a material: object mode again), as a single item does
 - `EditorViewWidgetPlugin`: the container of the widget has the class `editor-view-widget`, so a page can place it (the floating layout of the tweakpane editor frame keeps it out of its cards).
 - `Object3DWidgetsPlugin` depends on `GBufferPlugin` and adds it to the viewer: the widgets have `toneMapped: false`, which works through the GBuffer flags. Without them, the tone mapping changed the colours of the helper lines and of the `'sprite'` icons
 - `ViewOverridesPlugin`: widgets (an object with `isWidget` or `assetType` `'widget'`, and its children) keep their own materials in every view, so a light or camera icon is not drawn as a rectangle
