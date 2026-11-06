@@ -1419,17 +1419,21 @@ export class LayersPanelPlugin extends AViewerPluginSync {
         return users
     }
 
-    /** A small picture of a texture, as a data URL; '' when its image cannot be drawn (a data texture, not loaded) */
+    /**
+     * A small picture of a texture, as a data URL; '' when its image cannot be drawn (a data texture, another origin). An
+     * image that is not loaded yet is not kept as '': a later render draws it.
+     */
     private _thumb(t: ITexture) {
         const cached = this._thumbs.get(t)
         if (cached !== undefined) return cached
         let url = ''
         const img = t.image as CanvasImageSource & {width?: number} | undefined
+        const drawable = typeof HTMLImageElement !== 'undefined' && img instanceof HTMLImageElement ||
+            typeof HTMLCanvasElement !== 'undefined' && img instanceof HTMLCanvasElement ||
+            typeof ImageBitmap !== 'undefined' && img instanceof ImageBitmap
+        if (drawable && !img!.width) return ''
         try {
-            const drawable = typeof HTMLImageElement !== 'undefined' && img instanceof HTMLImageElement ||
-                typeof HTMLCanvasElement !== 'undefined' && img instanceof HTMLCanvasElement ||
-                typeof ImageBitmap !== 'undefined' && img instanceof ImageBitmap
-            if (drawable && img!.width) {
+            if (drawable) {
                 const c = document.createElement('canvas')
                 c.width = c.height = 32
                 c.getContext('2d')?.drawImage(img!, 0, 0, 32, 32)

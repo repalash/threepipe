@@ -859,6 +859,35 @@ describe('LayersPanelPlugin', () => {
         expect(part(rows(list)[0], 'lyp-kind').innerHTML).toContain('data:sky')
     })
 
+    test('the picture of a texture whose image loads later shows after the load', () => {
+        const {layers, list, assets, gold} = withAssets()
+        class FakeImage {
+            width = 0
+        }
+        vi.stubGlobal('HTMLImageElement', FakeImage)
+        const createElement = doc.createElement
+        doc.createElement = (tag: string) => tag === 'canvas' ?
+            {getContext: () => ({drawImage: () => undefined}), toDataURL: () => 'data:drawn'} : createElement(tag)
+        try {
+            const image = new FakeImage()
+            assets.textures.push({isTexture: true, name: 'Late', uuid: 't4gg', image, appliedObjects: new Set([gold])})
+            layers.setTab('textures')
+            const search = (layers.element as any as FakeElement).find('lyp-search-input')[0]
+            search.value = 'late'
+            search.fire('input')
+            flush()
+            expect(names(list)).toEqual(['Late'])
+            // not loaded: the icon of a texture
+            expect(part(rows(list)[0], 'lyp-kind').innerHTML).not.toContain('data:drawn')
+            image.width = 64
+            layers.refresh(true)
+            flush()
+            expect(part(rows(list)[0], 'lyp-kind').innerHTML).toContain('data:drawn')
+        } finally {
+            doc.createElement = createElement // the stub of HTMLImageElement goes in afterEach
+        }
+    })
+
     test('a material changed elsewhere shows its new name and colour in the Materials tab', () => {
         const {layers, list, sceneEvents, gold} = withAssets()
         layers.setTab('materials')
