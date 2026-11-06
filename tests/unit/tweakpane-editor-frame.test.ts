@@ -425,6 +425,37 @@ describe('EditorFrame', () => {
         name.fire('keydown', {key: 'Enter'})
         expect(name.scrollLeft).toBe(0)
     })
+
+    test('a phone keyboard that opens over the focused field: the page scrolls the field above it, else nothing', () => {
+        // the visible part of the page (the keyboard covers the rest) and a field in the panel at the bottom
+        const vv = Object.assign(new FakeElement('visualViewport'), {offsetTop: 0, height: 900})
+        vi.stubGlobal('visualViewport', vv)
+        const scrollBy = vi.fn()
+        vi.stubGlobal('scrollBy', scrollBy)
+        const f = frame('titlebar', true)
+        const field = new FakeElement('input')
+        field.getBoundingClientRect = () => ({top: 760, bottom: 790}) as any
+        doc.activeElement = field
+        // the keyboard opens: 500 px are left, the field is under it
+        vv.height = 500
+        vv.fire('resize', {})
+        expect(scrollBy).toHaveBeenCalledWith(0, 790 - (500 - EditorFrame.KeyboardMargin))
+        // the browser moved the view itself: the field shows, no scroll
+        scrollBy.mockClear()
+        vv.offsetTop = 300
+        vv.fire('resize', {})
+        expect(scrollBy).not.toHaveBeenCalled()
+        // no field in focus: no scroll
+        vv.offsetTop = 0
+        doc.activeElement = body()
+        vv.fire('resize', {})
+        expect(scrollBy).not.toHaveBeenCalled()
+        // the frame removed: it no longer listens
+        doc.activeElement = field
+        f.dispose()
+        vv.fire('resize', {})
+        expect(scrollBy).not.toHaveBeenCalled()
+    })
 })
 
 describe('EditorFrame areas', () => {
