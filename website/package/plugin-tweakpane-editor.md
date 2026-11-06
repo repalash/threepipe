@@ -243,7 +243,7 @@ layers.setTab('textures') // open a tab
 console.log(layers.listedObjects) // the objects in the list, from the top
 ```
 
-Not in the panel yet: drag and drop to move objects, a context menu, and tabs for the materials, textures and geometries.
+Not in the panel yet: drag and drop to move objects, and a context menu.
 
 ## NotesPlugin and StickyNotesUiPlugin
 
@@ -254,7 +254,7 @@ Not in the panel yet: drag and drop to move objects, a context menu, and tabs fo
 `NotesPlugin` keeps a list of notes. Each note is kept in a store:
 
 - `file`: the `fileNotes` property is serialized, so these notes are saved in the viewer config, inside an exported .glb, and come back when the file loads.
-- `browser`: `localStorage` (`BrowserNotesStore`).
+- `browser`: `localStorage` (`BrowserNotesStore`). A page in a sandbox without `allow-same-origin` (a `sandbox` iframe or a `Content-Security-Policy: sandbox` header, as on the preview pages of files.threepipe.org) has no `localStorage`, so this store finds no notes there and cannot save: after the first save, the store icon of its notes is red ("it could not be saved or loaded" in its tooltip), and the console shows the warning `NotesPlugin: could not save the notes of browser`. This is expected. The notes stay in the page until it closes; to keep them, move them to the `file` store and export, or use a store of the app.
 - A store of the app: any object with `id`, `label`, `load()` and `save(notes)` (`NotesStore`), added with `addStore()` or the `stores` option. `HttpNotesStore` is one for a server: GET returns `{notes}`, POST takes `{notes}`; a save under 64 KiB is a `keepalive` request, so the last changes reach the server also when the page closes.
 
 Changes are saved per store, 600 ms after the last one, and when the plugin is removed. Notes made in a store while it loads are kept and saved. The plugin has no notes UI. Its UI folder (`Notes`) has the settings: the store of new notes, and clear the notes in the file.
