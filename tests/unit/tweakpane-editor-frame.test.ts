@@ -930,6 +930,31 @@ describe('EditorFrame area sizes', () => {
         expect([sizeVar('--lay-left-area-size'), f.areaOffset('left')]).toEqual(['480px', 252])
     })
 
+    test('a size that the person sets makes the offset of the other card smaller', () => {
+        const f = floating()
+        area('left').getBoundingClientRect = () => ({width: parseFloat(body().style['--lay-left-area-size'] ?? '240'), height: 876}) as any
+        f.setAreaOffset('right', 2000)
+        expect(f.areaOffset('right')).toBe(492)
+        // 480 px fit when the panel moves back: 1440 - 480 - 168 - 240 - 300 = 252
+        f.setAreaSize('left', 480)
+        expect([sizeVar('--lay-left-area-size'), f.areaOffset('right')]).toEqual(['480px', 252])
+    })
+
+    test('a narrow window: a drag of the panel edge starts from the width of the area shown in the place of the panel', () => {
+        wide = false
+        vi.stubGlobal('innerWidth', 640)
+        vi.stubGlobal('innerHeight', 360)
+        const panel = new FakeElement('div')
+        // hidden: the area takes its place
+        panel.getBoundingClientRect = () => ({width: 0, height: 0}) as any
+        const f = new EditorFrame(host(), {layout: 'titlebar', panel: () => panel as any})
+        f.setArea('left', new FakeElement('div') as any)
+        area('left').getBoundingClientRect = () => ({width: 300, height: 324}) as any
+        f.setStackedArea('left')
+        drag(handle('right'), {clientX: 296}, {clientX: 286})
+        expect(sizeVar('--tweakpane-ui-container-width')).toBe('310px')
+    })
+
     test('a smaller window makes the offsets smaller before the sizes of the other cards', () => {
         const f = floating()
         area('left').getBoundingClientRect = () => ({width: parseFloat(body().style['--lay-left-area-size'] ?? '240'), height: 876}) as any

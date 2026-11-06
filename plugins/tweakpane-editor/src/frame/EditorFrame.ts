@@ -432,8 +432,9 @@ export class EditorFrame {
             this._fit(area)
         } else {
             const [min, max] = EditorFrame.AreaLimits[area]
-            this._sizes[area] = Math.round(Math.max(min, Math.min(max, this._room(area), size)))
-            // the offsets and the row of the bottom card follow the new size; this area keeps its size if it can
+            // the offsets of the other cards give way to a size that is set: it is on screen first, then the others fit
+            this._sizes[area] = Math.round(Math.max(min, Math.min(max, this._room(area, false), size)))
+            this._applySize(area, false)
             this._fit(area)
         }
         if (keep) this._storeAreas()
@@ -875,13 +876,15 @@ export class EditorFrame {
      * The largest size that leaves room for the canvas: half of the window for the bottom area; for the left area and the
      * panel, the window less the other one (when it shows) and its offset ({@link setAreaOffset}), the mode bar and
      * {@link MinCanvasWidth}. The size and the offset of the area itself share this room.
+     * @param offsets - `false` to leave out the offset of the other one (a size that is set, which the offset gives way to)
      */
-    private _room(area: EditorFrameSizedArea) {
+    private _room(area: EditorFrameSizedArea, offsets = true) {
         if (area === 'bottom') return innerHeight / 2
         const other = area === 'left' ?
             this.modeBar.open ? this._areaSize('right') : 0 :
             this._shows('left') ? this._areaSize('left') : 0
-        return innerWidth - other - this.areaOffset(area === 'left' ? 'right' : 'left') - this._modeBarWidth() - EditorFrame.MinCanvasWidth
+        const offset = offsets ? this.areaOffset(area === 'left' ? 'right' : 'left') : 0
+        return innerWidth - other - offset - this._modeBarWidth() - EditorFrame.MinCanvasWidth
     }
 
     private _modeBarWidth() {
@@ -953,9 +956,13 @@ export class EditorFrame {
         else style.removeProperty(`--lay-${area}-length`)
     }
 
-    /** The size of an area on screen in px: the width of the left area or the panel, the height of the bottom area */
+    /**
+     * The size of an area on screen in px: the width of the left area or the panel, the height of the bottom area. In a
+     * narrow window, the width of the panel is the width of the area shown in its place.
+     */
     private _areaSize(area: EditorFrameSizedArea) {
-        const el = area === 'right' ? this.options.panel?.() : this._areas[area]
+        const shown = area === 'right' ? this._stackedShown() : undefined
+        const el = shown ? this._areas[shown] : area === 'right' ? this.options.panel?.() : this._areas[area]
         const r = el?.getBoundingClientRect()
         return (area === 'bottom' ? r?.height : r?.width) || this._applied[area] || EditorFrame.AreaLimits[area][0]
     }
@@ -969,8 +976,9 @@ export class EditorFrame {
     /**
      * Puts the size of an area on screen, within the room that is left now ({@link _room}): the set size, or the size of
      * the CSS when none is set, made smaller only when the room is less
+     * @param offsets - `false` to leave the offset of the other card out of the room ({@link _room})
      */
-    private _applySize(area: EditorFrameSizedArea) {
+    private _applySize(area: EditorFrameSizedArea, offsets = true) {
         const size = this._sizes[area]
         if (size === undefined) {
             const prop = AREA_SIZE_VARS[area]
@@ -979,14 +987,14 @@ export class EditorFrame {
             if (shrunk) document.body.style.removeProperty(prop)
             // stacked, the panel and the areas are as wide as the window
             if (!this._shows(area) || document.body.classList.contains('lay-stack')) return
-            const room = this._room(area)
+            const room = this._room(area, offsets)
             if (this._areaSize(area) <= room) return
             const fit = Math.round(Math.max(EditorFrame.AreaLimits[area][0], room))
             this._applied[area] = fit
             document.body.style.setProperty(prop, fit + 'px')
             return
         }
-        const applied = Math.round(Math.max(EditorFrame.AreaLimits[area][0], Math.min(size, this._room(area))))
+        const applied = Math.round(Math.max(EditorFrame.AreaLimits[area][0], Math.min(size, this._room(area, offsets))))
         this._applied[area] = applied
         document.body.style.setProperty(AREA_SIZE_VARS[area], applied + 'px')
     }
