@@ -101,6 +101,20 @@ editor.frame?.setAreaSize('right', 360) // a wider panel
 editor.frame?.setAreaCollapsed('left', true)
 ```
 
+**Move the floating cards.** In the floating layout, with the areas next to the canvas, each card can move and take a part of its side: the left card, the bottom card, and the panel with the mode bar (one card).
+
+- A grip is a strip in the gap on the side of the window of each card (dots show on hover). A drag moves the card on both axes: away from its side (the left card to the right, the bottom card up, the panel to the left; `setAreaOffset`), and along its side (`setAreaSpan`). The first move fixes the length that the card has, so it keeps its size. A double-click puts the card back.
+- The ends of a card along its side (the top and the bottom edge of the left card and the panel, the left and the right end of the bottom card) resize it, at least `EditorFrame.MinCardLength` (120 px) long. A double-click fills the side again.
+- The offset and the size of a card share the room that leaves `EditorFrame.MinCanvasWidth` for the canvas (the bottom card: half of the window height). When the window gets smaller, the offset gets smaller first, then the size.
+- The perf pill, the bar of the sticky notes and the tool bar keep out of the whole column of the left card and the row of the bottom card, also when the card is shorter.
+- The CSS variables `--lay-<area>-offset`, `--lay-<area>-start` and `--lay-<area>-length` on the body. They are kept with the sizes. Other layouts and narrow windows do not use them.
+- From code: `editor.frame.setAreaOffset('left', 40)`, `setAreaSpan('right', {start: 60, length: 480})` (no `length`: to the end of the side), `null` for none; `areaOffset(area)` and `areaSpan(area)` give the values on screen.
+
+```typescript
+editor.frame?.setAreaOffset('left', 40) // the left card 40 px from the window edge
+editor.frame?.setAreaSpan('right', {start: 60, length: 480}) // a shorter panel, 60 px below the top gap
+```
+
 ```typescript
 const layers = document.createElement('div')
 editor.setArea('left', layers, {name: 'Layers'}) // an entry "Layers" in the mode bar

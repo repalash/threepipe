@@ -48,6 +48,16 @@ export interface EditorFrameAreaOptions {
     color?: string
 }
 
+/**
+ * The part of its side of the window that a card of the floating layout takes ({@link EditorFrame.setAreaSpan}): it
+ * starts `start` px after the gap of the window (from the top for the left card and the panel, from the left end of its
+ * row for the bottom strip), and is `length` px long; no length: to the end of the side.
+ */
+export interface EditorFrameAreaSpan {
+    start: number
+    length?: number
+}
+
 /** An item of a menu of the bars: its name, whether it is the one picked now, and what a click on it does */
 type MenuItem = [label: string, checked: boolean, onPick: () => void]
 
@@ -147,6 +157,9 @@ export class EditorFrame {
     /** The width in px that the left area and the panel leave for the canvas ({@link AreaLimits}) */
     static MinCanvasWidth = 240
 
+    /** The smallest length in px of a card of the floating layout along its side ({@link setAreaSpan}) */
+    static MinCardLength = 120
+
     /**
      * The `localStorage` key that keeps the sizes and the collapsed left and bottom areas that the person picks (a drag
      * or a double-click of an edge), or `null` to not keep them. Read when the frame is made.
@@ -186,6 +199,14 @@ export class EditorFrame {
     private _sizes: Partial<Record<EditorFrameSizedArea, number>> = {}
     /** The sizes on screen: {@link _sizes} within the room that is left now ({@link _fitAreas}) */
     private _applied: Partial<Record<EditorFrameSizedArea, number>> = {}
+    /** The grips of the floating cards ({@link setAreaOffset}) and their ends ({@link setAreaSpan}), in the page while the frame is */
+    private _grips: HTMLDivElement[]
+    /** The offsets set in px ({@link setAreaOffset}), and kept; and the offsets on screen, within the room */
+    private _offsets: Partial<Record<EditorFrameSizedArea, number>> = {}
+    private _appliedOffsets: Partial<Record<EditorFrameSizedArea, number>> = {}
+    /** The spans set ({@link setAreaSpan}), and kept; and the spans on screen, with the length of a card that fills its side */
+    private _spans: Partial<Record<EditorFrameSizedArea, EditorFrameAreaSpan>> = {}
+    private _appliedSpans: Partial<Record<EditorFrameSizedArea, Required<EditorFrameAreaSpan>>> = {}
     /** The collapsed left and bottom areas; the panel collapses as the mode bar hides it */
     private _collapsed: Partial<Record<EditorFrameArea, boolean>> = {}
     /** The area below the canvas in a narrow portrait window ({@link setStackedArea}) */
@@ -229,6 +250,7 @@ export class EditorFrame {
         this.modeBar.element.insertBefore(this._entryBox, this.modeBar.element.children[editor.modeKeys.length] ?? null)
         this._refreshEntries()
         this._handles = {left: this._handle('left'), bottom: this._handle('bottom'), right: this._handle('right')}
+        this._grips = (['left', 'bottom', 'right'] as const).flatMap(a => [this._grip(a), this._end(a, 'start'), this._end(a, 'end')])
         this.modeBar.onLayoutChange = this._fitAreas
         this._restoreAreas()
 
@@ -325,6 +347,8 @@ export class EditorFrame {
         else this._floatActions.remove()
         this._expandPanel()
         this.documentName = this._documentName
+        // the cards move only in the floating layout
+        this._fitAreas()
     }
 
     /**
@@ -431,6 +455,57 @@ export class EditorFrame {
         if (keep) this._storeAreas()
     }
 
+    /**
+     * Moves a card of the floating layout away from its side of the window, on the axis of its size: the left card to the
+     * right, the bottom card up, the panel with the mode bar to the left. The card stays within the room that leaves
+     * {@link MinCanvasWidth} for the canvas (the bottom card: within half of the window height); when the window gets
+     * smaller, the offset gets smaller first, then the size. It applies only in the floating layout with the areas next to
+     * the canvas (not in a narrow window, see {@link Breakpoints}); elsewhere it is kept for later. A drag of the grip of
+     * a card (a strip in the gap on its side of the window) sets it and the start of its span ({@link setAreaSpan}); a
+     * double-click of the grip puts the card back. The CSS variable `--lay-<area>-offset` on the body.
+     * @param area - `left`, `bottom` or `right` (the panel and the mode bar)
+     * @param offset - the offset in px, or `null` for none
+     * @param keep - keep it in `localStorage` ({@link AreaStorageKey}), as the person's pick
+     */
+    setAreaOffset(area: EditorFrameSizedArea, offset: number | null, keep = false) {
+        if (offset === null) delete this._offsets[area]
+        else this._offsets[area] = Math.round(Math.max(0, offset))
+        this._fit(area)
+        if (keep) this._storeAreas()
+    }
+
+    /** The offset of a card on screen in px ({@link setAreaOffset}): 0 when it is not moved, or outside the floating layout */
+    areaOffset(area: EditorFrameSizedArea) {
+        return this._appliedOffsets[area] ?? 0
+    }
+
+    /**
+     * Sets the part of its side that a card of the floating layout takes: the top and the height of the left card and of
+     * the panel with the mode bar, the left end and the width of the bottom card (in its row, between the left card and
+     * the panel). The length is at least {@link MinCardLength}, and the card stays in its side. `null`: the whole side
+     * (the default). It applies where {@link setAreaOffset} applies. A drag of the ends of a card (the top and the bottom
+     * edge, or the left and the right end) sets it, and a double-click of an end fills the side again; a drag of the grip
+     * moves the card along its side. The CSS variables `--lay-<area>-start` and `--lay-<area>-length` on the body.
+     * @param area - `left`, `bottom` or `right` (the panel and the mode bar)
+     * @param span - the start and the length in px ({@link EditorFrameAreaSpan}), or `null`
+     * @param keep - keep it in `localStorage` ({@link AreaStorageKey}), as the person's pick
+     */
+    setAreaSpan(area: EditorFrameSizedArea, span: EditorFrameAreaSpan | null, keep = false) {
+        if (span === null) delete this._spans[area]
+        else {
+            const start = Math.round(Math.max(0, span.start))
+            this._spans[area] = span.length === undefined ? {start} : {start, length: Math.round(Math.max(EditorFrame.MinCardLength, span.length))}
+        }
+        this._fit(area)
+        if (keep) this._storeAreas()
+    }
+
+    /** The span of a card on screen in px ({@link setAreaSpan}), with the length of a card that fills its side; `undefined` outside the floating layout */
+    areaSpan(area: EditorFrameSizedArea): Required<EditorFrameAreaSpan> | undefined {
+        const span = this._appliedSpans[area]
+        return span && {...span}
+    }
+
     /** Switches between the light and the dark theme of the same family, when the current theme is in a pair */
     toggleTheme() {
         const cm = this.options.colorMode
@@ -458,9 +533,12 @@ export class EditorFrame {
             document.body.classList.remove('lay-has-' + area, 'lay-collapsed-' + area)
         }
         this._endDrag?.()
-        for (const el of Object.values(this._handles)) el.remove()
+        for (const el of [...Object.values(this._handles), ...this._grips]) el.remove()
         // the classic layout has the sizes of the Tweakpane UI
         for (const v of Object.values(AREA_SIZE_VARS)) document.body.style.removeProperty(v)
+        for (const area of Object.keys(AREA_SIZE_VARS)) {
+            for (const k of ['offset', 'start', 'length']) document.body.style.removeProperty(`--lay-${area}-${k}`)
+        }
         this._closeMenu()
         this._tips.forEach(t => t.destroy())
         this.modeBar.dispose()
@@ -580,34 +658,18 @@ export class EditorFrame {
         el.addEventListener('pointerdown', (e: PointerEvent) => {
             if (e.button !== 0) return
             e.preventDefault()
-            this._endDrag?.()
             const vertical = area !== 'bottom'
             // left grows to the right, the panel to the left, the bottom area up
             const sign = area === 'left' ? 1 : -1
             const start = vertical ? e.clientX : e.clientY
             const startSize = this.isAreaCollapsed(area) ? 0 : this._areaSize(area)
             const [min] = EditorFrame.AreaLimits[area]
-            const move = (ev: PointerEvent) => {
+            this._drag(el, ['lay-resizing', 'lay-resizing-' + (vertical ? 'x' : 'y')], (ev: PointerEvent) => {
                 const size = startSize + sign * ((vertical ? ev.clientX : ev.clientY) - start)
                 if (size < min / 2) return this.setAreaCollapsed(area, true)
                 this.setAreaCollapsed(area, false)
                 this.setAreaSize(area, size)
-            }
-            const end = () => {
-                removeEventListener('pointermove', move)
-                removeEventListener('pointerup', end)
-                removeEventListener('pointercancel', end)
-                document.body.classList.remove('lay-resizing', 'lay-resizing-' + (vertical ? 'x' : 'y'))
-                el.classList.remove('lay-active')
-                this._endDrag = undefined
-                this._storeAreas()
-            }
-            addEventListener('pointermove', move)
-            addEventListener('pointerup', end)
-            addEventListener('pointercancel', end)
-            document.body.classList.add('lay-resizing', 'lay-resizing-' + (vertical ? 'x' : 'y'))
-            el.classList.add('lay-active')
-            this._endDrag = end
+            })
         })
         el.addEventListener('dblclick', () => {
             if (this.isAreaCollapsed(area)) this.setAreaCollapsed(area, false, true)
@@ -617,16 +679,179 @@ export class EditorFrame {
     }
 
     /**
+     * A drag of an edge or a grip from a press on `el`: `move` for each move of the pointer, then `done` and the areas are
+     * kept at the end. `classes` are on the body while it lasts (the cursor).
+     */
+    private _drag(el: HTMLElement, classes: string[], move: (ev: PointerEvent) => void, done?: () => void) {
+        this._endDrag?.()
+        const end = () => {
+            removeEventListener('pointermove', move)
+            removeEventListener('pointerup', end)
+            removeEventListener('pointercancel', end)
+            document.body.classList.remove(...classes)
+            el.classList.remove('lay-active')
+            this._endDrag = undefined
+            done?.()
+            this._storeAreas()
+        }
+        addEventListener('pointermove', move)
+        addEventListener('pointerup', end)
+        addEventListener('pointercancel', end)
+        document.body.classList.add(...classes)
+        el.classList.add('lay-active')
+        this._endDrag = end
+    }
+
+    /**
+     * The grip of a floating card: a strip in the gap on its side of the window. A drag moves the card on both axes, its
+     * offset ({@link setAreaOffset}) and the start of its span ({@link setAreaSpan}, the first move fixes the length that
+     * the card has); a double-click puts the card back at its side, the whole side long.
+     */
+    private _grip(area: EditorFrameSizedArea) {
+        const el = document.body.appendChild(createDiv({classList: ['lay-grip', 'lay-grip-' + area], addToBody: false}))
+        el.title = 'Drag to move, double-click to put it back'
+        el.addEventListener('pointerdown', (e: PointerEvent) => {
+            if (e.button !== 0) return
+            e.preventDefault()
+            const x0 = e.clientX, y0 = e.clientY
+            const offset0 = this.areaOffset(area)
+            const span0 = this._appliedSpans[area]
+            if (!span0) return
+            this._drag(el, ['lay-moving'], (ev: PointerEvent) => {
+                const dx = ev.clientX - x0, dy = ev.clientY - y0
+                // across: away from the side of the window; along: down the side, or to the right in the row
+                const [across, along] = area === 'left' ? [dx, dy] : area === 'right' ? [-dx, dy] : [-dy, dx]
+                this._offsets[area] = Math.max(0, Math.round(offset0 + across))
+                this._spans[area] = {start: Math.max(0, Math.round(span0.start + along)), length: span0.length}
+                this._fit(area)
+            }, () => this._keepApplied(area))
+        })
+        el.addEventListener('dblclick', () => {
+            delete this._offsets[area]
+            delete this._spans[area]
+            this._fit(area)
+            this._storeAreas()
+        })
+        return el
+    }
+
+    /**
+     * An end of a floating card along its side: the top (`start`) or the bottom edge (`end`) of the left card and the
+     * panel, the left or the right end of the bottom card. A drag sets its span ({@link setAreaSpan}), a double-click
+     * fills the side again.
+     */
+    private _end(area: EditorFrameSizedArea, which: 'start' | 'end') {
+        const el = document.body.appendChild(createDiv({classList: ['lay-end', 'lay-end-' + area, `lay-end-${area}-${which}`], addToBody: false}))
+        const horizontal = area === 'bottom'
+        el.setAttribute('role', 'separator')
+        el.setAttribute('aria-orientation', horizontal ? 'vertical' : 'horizontal')
+        el.title = 'Drag to resize, double-click to fill the side'
+        el.addEventListener('pointerdown', (e: PointerEvent) => {
+            if (e.button !== 0) return
+            e.preventDefault()
+            const p0 = horizontal ? e.clientX : e.clientY
+            const span0 = this._appliedSpans[area]
+            if (!span0) return
+            const endAt = span0.start + span0.length
+            this._drag(el, ['lay-resizing', 'lay-resizing-' + (horizontal ? 'x' : 'y')], (ev: PointerEvent) => {
+                const d = (horizontal ? ev.clientX : ev.clientY) - p0
+                if (which === 'end') this._spans[area] = {start: span0.start, length: Math.max(EditorFrame.MinCardLength, span0.length + d)}
+                else {
+                    // the other end stays
+                    const start = Math.max(0, Math.min(endAt - EditorFrame.MinCardLength, span0.start + d))
+                    this._spans[area] = {start, length: endAt - start}
+                }
+                this._fit(area)
+            }, () => this._keepApplied(area))
+        })
+        el.addEventListener('dblclick', () => {
+            delete this._spans[area]
+            this._fit(area)
+            this._storeAreas()
+        })
+        return el
+    }
+
+    /** After a drag: the set offset and span of a card are the ones on screen, so the next drag starts from what is seen */
+    private _keepApplied(area: EditorFrameSizedArea) {
+        if (this._offsets[area] !== undefined) this._offsets[area] = this.areaOffset(area)
+        const span = this._appliedSpans[area]
+        if (this._spans[area] && span) this._spans[area] = {...span}
+    }
+
+    /**
      * The largest size that leaves room for the canvas: half of the window for the bottom area; for the left area and the
-     * panel, the window less the other one (when it shows), the mode bar and {@link MinCanvasWidth}
+     * panel, the window less the other one (when it shows) and its offset ({@link setAreaOffset}), the mode bar and
+     * {@link MinCanvasWidth}. The size and the offset of the area itself share this room.
      */
     private _room(area: EditorFrameSizedArea) {
         if (area === 'bottom') return innerHeight / 2
         const other = area === 'left' ?
             this.modeBar.open ? this._areaSize('right') : 0 :
             this._shows('left') ? this._areaSize('left') : 0
-        const modeBar = this.modeBar.expanded ? EditorModeBar.Widths.wide : EditorModeBar.Widths.narrow
-        return innerWidth - other - modeBar - EditorFrame.MinCanvasWidth
+        return innerWidth - other - this.areaOffset(area === 'left' ? 'right' : 'left') - this._modeBarWidth() - EditorFrame.MinCanvasWidth
+    }
+
+    private _modeBarWidth() {
+        return this.modeBar.expanded ? EditorModeBar.Widths.wide : EditorModeBar.Widths.narrow
+    }
+
+    /** The cards move and take a part of their side: the floating layout, with the areas next to the canvas */
+    private _movable() {
+        return this._layout === 'floating' && !this._isSingle()
+    }
+
+    /** The gap of the floating cards to the window (`--lay-gap`) */
+    private _gap() {
+        return parseFloat(getComputedStyle(document.body).getPropertyValue('--lay-gap')) || 0
+    }
+
+    /**
+     * The length of the whole side of a floating card: the window height less the gaps for the left card and the panel;
+     * for the bottom card, its row between the left card and the panel (with their offsets and gaps)
+     */
+    private _fullLength(area: EditorFrameSizedArea) {
+        const gap = this._gap()
+        if (area !== 'bottom') return innerHeight - 2 * gap
+        const left = this._shows('left') ? this._areaSize('left') + gap + this.areaOffset('left') : 0
+        const right = (this.modeBar.open ? this._areaSize('right') : 0) + this._modeBarWidth() + 2 * gap + this.areaOffset('right')
+        return innerWidth - left - gap - right
+    }
+
+    /** Puts the offset of a card on screen ({@link setAreaOffset}): within the room that its size leaves */
+    private _applyOffset(area: EditorFrameSizedArea) {
+        const prop = `--lay-${area}-offset`
+        const card = area === 'right' || this._shows(area)
+        const size = area === 'right' && !this.modeBar.open ? 0 : this._areaSize(area)
+        const offset = this._movable() && card ? Math.round(Math.max(0, Math.min(this._offsets[area] ?? 0, this._room(area) - size))) : 0
+        if (offset) {
+            this._appliedOffsets[area] = offset
+            document.body.style.setProperty(prop, offset + 'px')
+        } else {
+            delete this._appliedOffsets[area]
+            document.body.style.removeProperty(prop)
+        }
+    }
+
+    /** Puts the span of a card on screen ({@link setAreaSpan}): at least {@link MinCardLength} long, in its side */
+    private _applySpan(area: EditorFrameSizedArea) {
+        const style = document.body.style
+        if (!this._movable() || !(area === 'right' || this._shows(area))) {
+            delete this._appliedSpans[area]
+            style.removeProperty(`--lay-${area}-start`)
+            style.removeProperty(`--lay-${area}-length`)
+            return
+        }
+        const full = this._fullLength(area)
+        const set = this._spans[area] ?? {start: 0}
+        const length = Math.round(Math.max(Math.min(EditorFrame.MinCardLength, full), Math.min(full, set.length ?? full - set.start)))
+        const start = Math.round(Math.max(0, Math.min(set.start, full - length)))
+        this._appliedSpans[area] = {start, length}
+        if (start) style.setProperty(`--lay-${area}-start`, start + 'px')
+        else style.removeProperty(`--lay-${area}-start`)
+        // no length: the CSS fills the side from the start
+        if (set.length !== undefined) style.setProperty(`--lay-${area}-length`, length + 'px')
+        else style.removeProperty(`--lay-${area}-length`)
     }
 
     /** The size of an area on screen in px: the width of the left area or the panel, the height of the bottom area */
@@ -677,7 +902,13 @@ export class EditorFrame {
     private _fit(last?: EditorFrameSizedArea) {
         this._applyBreakpoints()
         const areas = (Object.keys(AREA_SIZE_VARS) as EditorFrameSizedArea[]).filter(a => a !== last)
-        for (const area of last ? [...areas, last] : areas) this._applySize(area)
+        const order = last ? [...areas, last] : areas
+        for (const area of order) {
+            this._applySize(area)
+            this._applyOffset(area)
+        }
+        // the row of the bottom card is known after the sizes and the offsets
+        for (const area of order) this._applySpan(area)
         // the window can change between a phone and a wide window, and the panel can show or hide
         this._refreshEntries()
     }
@@ -685,13 +916,14 @@ export class EditorFrame {
     /** Keeps the sizes, the collapsed left and bottom areas and the area below the canvas ({@link AreaStorageKey}) */
     private _storeAreas() {
         const key = EditorFrame.AreaStorageKey
-        if (key) writeStored(key, JSON.stringify({sizes: this._sizes, collapsed: this._collapsed, stacked: this._stacked}))
+        if (key) writeStored(key, JSON.stringify({sizes: this._sizes, collapsed: this._collapsed, stacked: this._stacked, offsets: this._offsets, spans: this._spans}))
     }
 
     /** Applies the sizes, the collapsed areas and the area below the canvas that are kept ({@link AreaStorageKey}) */
     private _restoreAreas() {
         const key = EditorFrame.AreaStorageKey
-        let stored: {sizes?: Record<string, unknown>, collapsed?: Record<string, unknown>, stacked?: unknown} | undefined
+        let stored: {sizes?: Record<string, unknown>, collapsed?: Record<string, unknown>, stacked?: unknown,
+            offsets?: Record<string, unknown>, spans?: Record<string, {start?: unknown, length?: unknown} | undefined>} | undefined
         try {
             stored = JSON.parse(key && readStored(key) || 'null') ?? undefined
         } catch (e) {
@@ -702,6 +934,14 @@ export class EditorFrame {
             const [min, max] = EditorFrame.AreaLimits[area]
             // the size that the person picked; the room of this window applies on screen only
             if (typeof size === 'number' && isFinite(size)) this._sizes[area] = Math.round(Math.max(min, Math.min(max, size)))
+            const offset = stored?.offsets?.[area]
+            if (typeof offset === 'number' && isFinite(offset)) this._offsets[area] = Math.round(Math.max(0, offset))
+            const span = stored?.spans?.[area]
+            const isNum = (v: unknown): v is number => typeof v === 'number' && isFinite(v)
+            if (span && isNum(span.start)) {
+                const start = Math.round(Math.max(0, span.start))
+                this._spans[area] = isNum(span.length) ? {start, length: Math.round(Math.max(EditorFrame.MinCardLength, span.length))} : {start}
+            }
         }
         for (const area of ['left', 'bottom'] as const) {
             if (stored?.collapsed?.[area] !== true) continue

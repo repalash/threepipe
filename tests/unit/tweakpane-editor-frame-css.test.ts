@@ -224,7 +224,7 @@ describe('tweakpane editor frame on a phone', () => {
         // landscape and wide windows keep the full-height mode bar, also with the panel hidden
         for (const vp of [phoneLandscape, desktop]) {
             expect(declarations('body.lay-titlebar .mb-root', vp).top).toBe('var(--lay-top)')
-            expect(declarations('body.lay-floating .mb-root', vp).top).toBe('var(--lay-gap)')
+            expect(declarations('body.lay-floating .mb-root', vp).top).toBe('calc(var(--lay-gap) + var(--lay-right-start))')
             expect(declarations('body.lay-frame.mb-panel-hidden .mb-root', vp)['flex-direction']).toBeUndefined()
         }
     })
@@ -350,7 +350,7 @@ describe('tweakpane editor frame on a phone', () => {
         // floating: the panel and the mode bar are one card, joined without a gap or round corners at the join
         const floatPanel = declarations('body.lay-floating #tweakpaneUiContainer', desktop)
         const floatBar = declarations('body.lay-floating .mb-root', desktop)
-        expect(floatPanel.right).toBe('calc(var(--mb-width, 44px) + var(--lay-gap))')
+        expect(floatPanel.right).toBe('calc(var(--mb-width, 44px) + var(--lay-gap) + var(--lay-right-offset))')
         expect(floatPanel['border-radius']).toBe('8px 0 0 8px')
         expect(floatBar['border-radius']).toBe('0 8px 8px 0')
         expect(declarations('body.lay-floating.mb-panel-hidden .mb-root', desktop)['border-radius']).toBe('8px')
@@ -517,6 +517,47 @@ describe('tweakpane editor frame areas', () => {
             expect(cascade(['.lay-area-entries', '.mb-root > .lay-area-entries'], bodyClasses(layout, {left: true, panelHidden: true}), desktop)['flex-direction']).toBe('column')
         })
     }
+
+    it('floating: the offsets and the spans move the cards, their edges, grips and ends, and the insets', () => {
+        const s = {left: true, bottom: true, sizes: {
+            '--lay-left-offset': '20px', '--lay-left-start': '100px', '--lay-left-length': '400px',
+            '--lay-right-offset': '30px', '--lay-right-start': '50px', '--lay-right-length': '500px',
+            '--lay-bottom-offset': '10px', '--lay-bottom-start': '40px', '--lay-bottom-length': '300px',
+        }}
+        const at = (t: string[]) => box(t, 'floating', desktop, s)
+        expect(at(leftArea)).toEqual({left: 32, top: 112, width: 240, height: 400})
+        // the panel and the mode bar move together: right 12 + 30, then the mode bar (44)
+        expect(at(panel)).toEqual({left: 1440 - 42 - 44 - 300, top: 62, width: 300, height: 500})
+        const bar = cascade(['.mb-root'], bodyClasses('floating', s), desktop)
+        const vars = bodyVars('floating', desktop, s)
+        expect([bar.right, bar.top, bar.height].map(v => evaluate(v, 900, vars))).toEqual([42, 62, 500])
+        // the bottom card in its row: after the left card (12 + 20 + 240) and its gap, 40 px on
+        expect(at(bottomArea)).toEqual({left: 272 + 12 + 40, top: 900 - 22 - 160, width: 300, height: 160})
+        // the inner edges follow the cards
+        expect(at(['.lay-handle', '.lay-handle-left'])).toEqual({left: 32 + 240 - 3, top: 112, width: 6, height: 400})
+        expect(at(['.lay-handle', '.lay-handle-bottom'])).toEqual({left: 324, top: 900 - 22 - 160 - 3, width: 300, height: 6})
+        // the grip is in the gap on the side of the window; the ends are on the ends of the card
+        expect(at(['.lay-grip', '.lay-grip-left'])).toEqual({left: 22, top: 112, width: 8, height: 400})
+        expect(at(['.lay-grip', '.lay-grip-right'])).toEqual({left: 1440 - 32 - 8, top: 62, width: 8, height: 500})
+        expect(at(['.lay-end', '.lay-end-left', '.lay-end-left-start'])).toEqual({left: 32, top: 109, width: 240, height: 6})
+        expect(at(['.lay-end', '.lay-end-left', '.lay-end-left-end'])).toEqual({left: 32, top: 509, width: 240, height: 6})
+        expect(at(['.lay-end', '.lay-end-bottom', '.lay-end-bottom-end'])).toEqual({left: 324 + 300 - 3, top: 718, width: 6, height: 160})
+        // the pill and the bar of the sticky notes keep out of the column of the left card and the row of the bottom card
+        expect(cornerMargins('floating', desktop, s)).toEqual([[272, 182], [272, 182]])
+        // the line of an edge stops at the round corners
+        const line = (layout: Layout, t: string) => cascade(['.lay-handle::after', `.lay-${t}::after`], bodyClasses(layout, s), desktop)
+        expect(line('floating', 'handle-bottom')).toMatchObject({left: '8px', right: '8px'})
+        expect(line('floating', 'handle-left')).toMatchObject({top: '8px', bottom: '8px'})
+        expect(line('titlebar', 'handle-bottom')).toMatchObject({left: '0', right: '0'})
+        // no grips or ends: in the other layouts, for a collapsed card, and when the areas show one at a time
+        expect(box(['.lay-grip', '.lay-grip-left'], 'titlebar', desktop, s)).toBeNull()
+        expect(box(['.lay-grip', '.lay-grip-left'], 'floating', desktop, {...s, collapsed: ['left']})).toBeNull()
+        expect(box(['.lay-end', '.lay-end-right', '.lay-end-right-start'], 'floating', {width: 640, height: 360}, s)).toBeNull()
+        expect(box(['.lay-grip', '.lay-grip-right'], 'floating', desktop, {})).not.toBeNull()
+        // no offsets or spans: the cards fill their sides as before
+        expect(box(leftArea, 'floating', desktop, {left: true})).toEqual({left: 12, top: 12, width: 240, height: 876})
+        expect(box(panel, 'floating', desktop, {})).toEqual(before.floating.panel)
+    })
 })
 
 describe('tweakpane editor frame: area sizes and edges', () => {

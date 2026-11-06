@@ -48,13 +48,15 @@ body.lay-floating { --lay-top: 0px; --lay-bottom: 0px; --lay-gap: 12px; --lay-ca
    (0px in the other layouts, where the canvas is smaller) */
 body.lay-frame {
     --lay-left-area-size: 240px; --lay-bottom-area-size: 160px; --lay-left-area: 0px; --lay-bottom-area: 0px; --lay-left-inset: 0px; --lay-bottom-inset: 0px;
+    --lay-left-offset: 0px; --lay-bottom-offset: 0px; --lay-right-offset: 0px;
+    --lay-left-start: 0px; --lay-bottom-start: 0px; --lay-right-start: 0px;
     --lay-right-area: calc(var(--mb-width, 44px) + var(--tweakpane-ui-container-width, 300px));
 }
 body.lay-frame.mb-panel-hidden { --lay-right-area: var(--mb-width, 44px); }
 body.lay-frame.lay-has-left { --lay-left-area: var(--lay-left-area-size); }
 body.lay-frame.lay-has-bottom { --lay-bottom-area: var(--lay-bottom-area-size); }
-body.lay-floating.lay-has-left { --lay-left-inset: calc(var(--lay-left-area) + var(--lay-gap)); }
-body.lay-floating.lay-has-bottom { --lay-bottom-inset: calc(var(--lay-bottom-area) + var(--lay-gap)); }
+body.lay-floating.lay-has-left { --lay-left-inset: calc(var(--lay-left-area) + var(--lay-gap) + var(--lay-left-offset)); }
+body.lay-floating.lay-has-bottom { --lay-bottom-inset: calc(var(--lay-bottom-area) + var(--lay-gap) + var(--lay-bottom-offset)); }
 /* z-index: the panels and bars layer, as the mode bar. The element in an area fills it */
 .lay-area {
     display: none; position: fixed; z-index: 200; flex-direction: column; overflow: hidden; box-sizing: border-box;
@@ -81,6 +83,19 @@ body.lay-has-left.lay-collapsed-left .lay-area-left, body.lay-has-bottom.lay-col
 body.lay-resizing { user-select: none; -webkit-user-select: none; }
 body.lay-resizing-x, body.lay-resizing-x * { cursor: col-resize !important; }
 body.lay-resizing-y, body.lay-resizing-y * { cursor: row-resize !important; }
+/* the grips of the floating cards (EditorFrame.setAreaOffset): a strip in the gap on the outer side of the card, the side
+   of the window; a drag moves the card away from it, a double-click puts it back. Dots show on hover. */
+.lay-grip { display: none; position: fixed; z-index: 205; touch-action: none; cursor: grab; }
+.lay-grip-left, .lay-grip-right { width: 8px; }
+.lay-grip-bottom { height: 8px; }
+.lay-grip::after {
+    content: ''; position: absolute; inset: 0; margin: auto; border-radius: 2px; opacity: 0; transition: opacity .12s .1s;
+    background: radial-gradient(circle, var(--tp-label-foreground-color, #8a8f98) 1px, transparent 1.5px) 0 0 / 4px 4px;
+}
+.lay-grip-left::after, .lay-grip-right::after { width: 4px; height: 24px; }
+.lay-grip-bottom::after { width: 24px; height: 4px; }
+.lay-grip:hover::after, .lay-grip.lay-active::after { opacity: 1; }
+body.lay-moving, body.lay-moving * { cursor: grabbing !important; user-select: none; -webkit-user-select: none; }
 .lay-bar {
     position: fixed; left: 0; right: 0; z-index: 210; display: flex; align-items: center; gap: 4px; padding: 0 8px 0 12px; box-sizing: border-box;
     background: var(--tp-base-background-color, #fff); color: var(--tp-container-foreground-color, #1e1e1e);
@@ -193,13 +208,13 @@ body.lay-frame #mcanvas { border-radius: 0; }
    there. With the panel hidden, the mode bar is the whole card. */
 body.lay-floating #canvas-container { margin: 0 !important; box-shadow: none; }
 body.lay-floating .mb-root {
-    top: var(--lay-gap); bottom: var(--lay-gap); right: var(--lay-gap); border: 0; box-shadow: var(--lay-card-shadow);
+    top: var(--lay-gap); bottom: var(--lay-gap); right: calc(var(--lay-gap) + var(--lay-right-offset)); border: 0; box-shadow: var(--lay-card-shadow);
     border-radius: 0 8px 8px 0; border-left: 1px solid var(--mb-line); clip-path: inset(-20px -20px -20px 0);
 }
 body.lay-floating.mb-panel-hidden .mb-root { border-radius: 8px; border-left: 0; clip-path: none; }
 body.lay-floating #tweakpaneUiContainer {
     margin: 0 !important; bottom: var(--lay-gap); height: auto !important; max-height: none !important;
-    right: calc(var(--mb-width, 44px) + var(--lay-gap));
+    right: calc(var(--mb-width, 44px) + var(--lay-gap) + var(--lay-right-offset));
     border-radius: 8px 0 0 8px; background: var(--tp-base-background-color, #fff); box-shadow: var(--lay-card-shadow);
     clip-path: inset(-20px 0 -20px -20px);
 }
@@ -226,20 +241,35 @@ body.lay-side.lay-titlebar .lay-area-bottom, body.lay-side.lay-statusbar .lay-ar
 }
 
 /* floating: the canvas fills the window, the cards float over it. --lay-right-inset: the part of the canvas that the
-   panel and the mode bar cover, with the gaps on both sides of their card */
-body.lay-side.lay-floating { --lay-right-inset: calc(var(--lay-right-area) + 2 * var(--lay-gap)); }
+   panel and the mode bar cover, with the gaps on both sides of their card and its offset. The offsets
+   (--lay-left-offset, --lay-bottom-offset, --lay-right-offset, EditorFrame.setAreaOffset) move each card away from its
+   side of the window; the panel and the mode bar move together. Along its side, a card starts --lay-<area>-start after
+   the gap and is --lay-<area>-length long (EditorFrame.setAreaSpan; the default length fills the side). The insets keep
+   the whole column or row of a card */
+body.lay-side.lay-floating {
+    --lay-right-inset: calc(var(--lay-right-area) + 2 * var(--lay-gap) + var(--lay-right-offset));
+    --lay-left-length: calc(100% - 2 * var(--lay-gap) - var(--lay-left-start));
+    --lay-right-length: calc(100% - 2 * var(--lay-gap) - var(--lay-right-start));
+    --lay-bottom-length: calc(100% - var(--lay-left-inset) - var(--lay-gap) - var(--lay-right-inset) - var(--lay-bottom-start));
+}
+/* the card of the panel and the mode bar: its start (from the top gap) and its length (EditorFrame.setAreaSpan) */
+body.lay-side.lay-floating .mb-root { top: calc(var(--lay-gap) + var(--lay-right-start)); bottom: auto; height: var(--lay-right-length); }
+body.lay-side.lay-floating #tweakpaneUiContainer { bottom: auto; height: var(--lay-right-length) !important; }
 body.lay-side.lay-floating #canvas-container { inset: 0; width: 100% !important; height: 100%; border-radius: 0; }
 /* the buttons on the right of the canvas keep to the part that the panels do not cover */
 body.lay-side.lay-floating #fsToggle, body.lay-side.lay-floating .util-buttons-container { right: calc(var(--lay-right-inset) + 1.25rem - var(--lay-gap)); }
 /* and the tool bar is not wider than that part (its own max-width less the move to the left, and less the left card),
    so in a narrow window it scrolls inside it instead of going past the left edge of the window or under the left card */
 body.lay-side.lay-floating .util-buttons-container { max-width: calc(100% - var(--lay-right-inset) + var(--lay-gap) - 3.5rem - var(--util-left-room, 0px) - var(--lay-left-inset)); }
-body.lay-side.lay-floating #tweakpaneUiContainer { top: var(--lay-gap); width: var(--tweakpane-ui-container-width, 300px); }
+body.lay-side.lay-floating #tweakpaneUiContainer { top: calc(var(--lay-gap) + var(--lay-right-start)); width: var(--tweakpane-ui-container-width, 300px); }
 /* the areas: cards with the same gap to the window, to the panel and to each other */
 body.lay-side.lay-floating .lay-area { border-radius: 8px; box-shadow: var(--lay-card-shadow); }
-body.lay-side.lay-floating .lay-area-left { left: var(--lay-gap); top: var(--lay-gap); bottom: var(--lay-gap); width: var(--lay-left-area); }
+body.lay-side.lay-floating .lay-area-left {
+    left: calc(var(--lay-gap) + var(--lay-left-offset)); top: calc(var(--lay-gap) + var(--lay-left-start)); height: var(--lay-left-length); width: var(--lay-left-area);
+}
 body.lay-side.lay-floating .lay-area-bottom {
-    left: calc(var(--lay-left-inset) + var(--lay-gap)); right: var(--lay-right-inset); bottom: var(--lay-gap); height: var(--lay-bottom-area);
+    left: calc(var(--lay-left-inset) + var(--lay-gap) + var(--lay-bottom-start)); width: var(--lay-bottom-length);
+    bottom: calc(var(--lay-gap) + var(--lay-bottom-offset)); height: var(--lay-bottom-area);
 }
 
 /* the edges: on the inner edge of each area, over the line or the gap; the panel's while it shows */
@@ -253,10 +283,50 @@ body.lay-side.lay-titlebar .lay-handle-bottom, body.lay-side.lay-statusbar .lay-
 /* a collapsed area at the edge of the window: its edge is inside the window, so all of it can be grabbed */
 body.lay-side.lay-titlebar.lay-collapsed-left .lay-handle-left, body.lay-side.lay-statusbar.lay-collapsed-left .lay-handle-left { left: 0; }
 body.lay-side.lay-titlebar.lay-collapsed-bottom .lay-handle-bottom, body.lay-side.lay-statusbar.lay-collapsed-bottom .lay-handle-bottom { bottom: var(--lay-bottom); }
-body.lay-side.lay-floating .lay-handle-left { left: calc(var(--lay-gap) + var(--lay-left-area) - 3px); top: var(--lay-gap); bottom: var(--lay-gap); }
-body.lay-side.lay-floating .lay-handle-right { right: calc(var(--lay-gap) + var(--lay-right-area) - 3px); top: var(--lay-gap); bottom: var(--lay-gap); }
+body.lay-side.lay-floating .lay-handle-left {
+    left: calc(var(--lay-gap) + var(--lay-left-offset) + var(--lay-left-area) - 3px); top: calc(var(--lay-gap) + var(--lay-left-start)); height: var(--lay-left-length);
+}
+body.lay-side.lay-floating .lay-handle-right {
+    right: calc(var(--lay-gap) + var(--lay-right-offset) + var(--lay-right-area) - 3px); top: calc(var(--lay-gap) + var(--lay-right-start)); height: var(--lay-right-length);
+}
 body.lay-side.lay-floating .lay-handle-bottom {
-    left: calc(var(--lay-left-inset) + var(--lay-gap)); right: var(--lay-right-inset); bottom: calc(var(--lay-gap) + var(--lay-bottom-area) - 3px);
+    left: calc(var(--lay-left-inset) + var(--lay-gap) + var(--lay-bottom-start)); width: var(--lay-bottom-length);
+    bottom: calc(var(--lay-gap) + var(--lay-bottom-offset) + var(--lay-bottom-area) - 3px);
+}
+/* the line of an edge stops at the round corners of the floating cards */
+body.lay-side.lay-floating .lay-handle-left::after, body.lay-side.lay-floating .lay-handle-right::after { top: 8px; bottom: 8px; }
+body.lay-side.lay-floating .lay-handle-bottom::after, body.lay-side.lay-floating .lay-end-left::after, body.lay-side.lay-floating .lay-end-right::after { left: 8px; right: 8px; }
+body.lay-side.lay-floating .lay-end-bottom::after { top: 8px; bottom: 8px; }
+/* the ends of a card along its side (the top and the bottom edge of the left card and the right card, the left and the
+   right end of the bottom card): a drag sets its start or its length */
+.lay-end { display: none; position: fixed; z-index: 205; touch-action: none; }
+.lay-end-left, .lay-end-right { height: 6px; cursor: row-resize; }
+.lay-end-bottom { width: 6px; cursor: col-resize; }
+.lay-end::after { content: ''; position: absolute; background: #0d99ff; opacity: 0; transition: opacity .12s .1s; }
+.lay-end-left::after, .lay-end-right::after { left: 0; right: 0; top: 2px; height: 2px; }
+.lay-end-bottom::after { top: 0; bottom: 0; left: 2px; width: 2px; }
+.lay-end:hover::after, .lay-end.lay-active::after { opacity: 1; }
+body.lay-side.lay-floating .lay-end-left { left: calc(var(--lay-gap) + var(--lay-left-offset)); width: var(--lay-left-area); }
+body.lay-side.lay-floating .lay-end-right { right: calc(var(--lay-gap) + var(--lay-right-offset)); width: var(--lay-right-area); }
+body.lay-side.lay-floating .lay-end-left-start { top: calc(var(--lay-gap) + var(--lay-left-start) - 3px); }
+body.lay-side.lay-floating .lay-end-left-end { top: calc(var(--lay-gap) + var(--lay-left-start) + var(--lay-left-length) - 3px); }
+body.lay-side.lay-floating .lay-end-right-start { top: calc(var(--lay-gap) + var(--lay-right-start) - 3px); }
+body.lay-side.lay-floating .lay-end-right-end { top: calc(var(--lay-gap) + var(--lay-right-start) + var(--lay-right-length) - 3px); }
+body.lay-side.lay-floating .lay-end-bottom { bottom: calc(var(--lay-gap) + var(--lay-bottom-offset)); height: var(--lay-bottom-area); }
+body.lay-side.lay-floating .lay-end-bottom-start { left: calc(var(--lay-left-inset) + var(--lay-gap) + var(--lay-bottom-start) - 3px); }
+body.lay-side.lay-floating .lay-end-bottom-end { left: calc(var(--lay-left-inset) + var(--lay-gap) + var(--lay-bottom-start) + var(--lay-bottom-length) - 3px); }
+/* the grips: floating, side by side, while the card shows (the mode bar is the card of the panel when the panel hides) */
+body.lay-side.lay-floating.lay-has-left .lay-grip-left, body.lay-side.lay-floating.lay-has-left .lay-end-left,
+body.lay-side.lay-floating.lay-has-bottom .lay-grip-bottom, body.lay-side.lay-floating.lay-has-bottom .lay-end-bottom,
+body.lay-side.lay-floating .lay-grip-right, body.lay-side.lay-floating .lay-end-right { display: block; }
+/* not for a collapsed card, nor when the areas show one at a time */
+body.lay-side.lay-floating.lay-single .lay-grip, body.lay-side.lay-floating.lay-single .lay-end,
+body.lay-side.lay-floating.lay-collapsed-left .lay-grip-left, body.lay-side.lay-floating.lay-collapsed-left .lay-end-left,
+body.lay-side.lay-floating.lay-collapsed-bottom .lay-grip-bottom, body.lay-side.lay-floating.lay-collapsed-bottom .lay-end-bottom { display: none; }
+body.lay-side.lay-floating .lay-grip-left { left: calc(var(--lay-left-offset) + var(--lay-gap) - 10px); top: calc(var(--lay-gap) + var(--lay-left-start)); height: var(--lay-left-length); }
+body.lay-side.lay-floating .lay-grip-right { right: calc(var(--lay-right-offset) + var(--lay-gap) - 10px); top: calc(var(--lay-gap) + var(--lay-right-start)); height: var(--lay-right-length); }
+body.lay-side.lay-floating .lay-grip-bottom {
+    left: calc(var(--lay-left-inset) + var(--lay-gap) + var(--lay-bottom-start)); width: var(--lay-bottom-length); bottom: calc(var(--lay-bottom-offset) + var(--lay-gap) - 10px);
 }
 
 
