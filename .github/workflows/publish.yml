@@ -26,17 +26,22 @@ concurrency:
 
 jobs:
   # A lane branch never publishes to `latest`: every package version that is not on npm yet must be a prerelease
-  # with a publishConfig.tag (three-rNNN).
+  # with the lane's publishConfig.tag (three-rNNN on lane/rNNN).
   lane-guard:
     if: github.ref_name != 'master'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Prerelease versions with a dist-tag only
+      - name: Prerelease versions with the lane's dist-tag only
+        env:
+          BRANCH: ${{ github.ref_name }}
         run: |
           node --input-type=module -e "
           import {readFileSync, readdirSync, existsSync} from 'node:fs'
           import {execFileSync} from 'node:child_process'
+          const lane = /^lane\/(r[0-9]+)$/.exec(process.env.BRANCH)
+          if (!lane) { console.log('::error::' + process.env.BRANCH + ' is not a lane branch (lane/rNNN)'); process.exit(1) }
+          const tag = 'three-' + lane[1]
           const dirs = ['.', ...readdirSync('plugins').filter(d => !d.startsWith('plugin-template-')).map(d => 'plugins/' + d)]
           let bad = 0
           for (const dir of dirs) {
@@ -46,7 +51,7 @@ jobs:
             let published = false
             try { published = execFileSync('npm', ['view', p.name + '@' + p.version, 'version'], {encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore']}).trim() === p.version } catch {}
             if (published) continue
-            if (!/^[^+]*-/.test(p.version) || !p.publishConfig?.tag) { console.log('::error::' + p.name + '@' + p.version + ' would be published without a prerelease version and publishConfig.tag'); bad++ }
+            if (!/^[^+]*-/.test(p.version) || p.publishConfig?.tag !== tag) { console.log('::error::' + p.name + '@' + p.version + ' needs a prerelease version and publishConfig.tag ' + tag); bad++ }
           }
           process.exit(bad ? 1 : 0)"
 
