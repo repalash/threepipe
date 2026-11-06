@@ -29,6 +29,10 @@ All notable changes to this plugin will be documented in this file.
 - The editor's tooltips (the bottom button bar, the fullscreen button, the mode bar, the frame buttons, the camera pill and the sticky notes) share one tippy theme, `editor`: a small dark chip with its arrow, lighter in the dark themes. Before, the button bar tooltips took the panel colours, with a dark arrow in the light themes. The camera pill and the sticky notes add the tippy.js CSS and the theme themselves (once per page), so they also work without `TweakpaneEditorPlugin`.
 - treejs comes from npm, `@repalash/treejs` 2.0.0 (the same code), instead of a git URL, which npm 12 refuses by default. `HierarchyUiPlugin.treeView` is typed `any`: treejs is bundled, so its type could not resolve in consumer declarations.
 
+### Fixed
+
+- The page frame on a phone: when the keyboard opens over the focused field (the search of the layers, a field of the panel), the page scrolls so that the field shows above the keyboard (`EditorFrame.KeyboardMargin`, 8 px). iOS does not always move the view up itself, for example at the first focus after a switch from another app. When the browser already shows the field, nothing changes.
+
 ### Removed
 
 - The webgi logo at the bottom left of the canvas (`#webgi-logo`, added by `TweakpaneEditorPlugin`): the image https://static.webgi.xyz/logo.svg with the tooltip "Powered by Threepipe SDK", that opened https://webgi.dev in a new tab, and its URL parameters `logo-img` (another image) and `logo-link` (another link). The perf pill and the post-its dock are at the bottom left now.

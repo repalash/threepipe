@@ -166,6 +166,9 @@ export class EditorFrame {
     /** The smallest size in px of an element in a stack of an area ({@link setArea} with a list), when a drag moves the split */
     static MinSectionSize = 48
 
+    /** The room in px between a focused field and the keyboard of a phone, when the frame moves the view up to the field */
+    static KeyboardMargin = 8
+
     /**
      * The `localStorage` key that keeps the sizes and the collapsed left and bottom areas that the person picks (a drag
      * or a double-click of an edge), or `null` to not keep them. Read when the frame is made.
@@ -269,6 +272,7 @@ export class EditorFrame {
 
         window.addEventListener('keydown', this._onKeyDown)
         window.addEventListener('resize', this._fitAreas)
+        window.visualViewport?.addEventListener('resize', this._revealField)
         this.modeBar.element.addEventListener('click', this._expandPanel)
         // before the click of a mode, which would hide the panel when its mode is the open one
         this.modeBar.element.addEventListener('click', this._onModeBarClick, true)
@@ -552,6 +556,7 @@ export class EditorFrame {
     dispose() {
         window.removeEventListener('keydown', this._onKeyDown)
         window.removeEventListener('resize', this._fitAreas)
+        window.visualViewport?.removeEventListener('resize', this._revealField)
         this.modeBar.onLayoutChange = undefined
         this.modeBar.element.removeEventListener('click', this._expandPanel)
         this.modeBar.element.removeEventListener('click', this._onModeBarClick, true)
@@ -587,6 +592,21 @@ export class EditorFrame {
     private _expandPanel = () => {
         const root = this.options.panel?.()?.querySelector<HTMLElement>('.tp-rotv')
         if (root && !root.classList.contains('tp-rotv-expanded')) root.querySelector<HTMLElement>('.tp-rotv_b')?.click()
+    }
+
+    /**
+     * The keyboard of a phone opens (the visible part of the page gets shorter) over the focused field. The frame is fixed
+     * to the window, so the page does not get shorter, and the browser must move the view up to the field. iOS does not
+     * always do it (at the first focus after a load or after a switch from another app). Then the page scrolls so that
+     * the field is {@link KeyboardMargin} above the keyboard. When the browser already shows the field, nothing changes.
+     */
+    private _revealField = () => {
+        const vv = window.visualViewport
+        const field = document.activeElement as HTMLElement | null
+        if (!vv || !field || field === document.body || !isTextTarget(field)) return
+        const visibleBottom = vv.offsetTop + vv.height - EditorFrame.KeyboardMargin
+        const below = field.getBoundingClientRect().bottom - visibleBottom
+        if (below > 0) window.scrollBy(0, below)
     }
 
     /** A narrow window ({@link Breakpoints}): the place of the panel shows one view at a time */
