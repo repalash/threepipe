@@ -1,5 +1,5 @@
 export {TweakpaneEditorPlugin} from './TweakpaneEditorPlugin'
-export type {TweakpaneEditorPluginEventMap, EditorPanelSectionOptions} from './TweakpaneEditorPlugin'
+export type {TweakpaneEditorPluginEventMap} from './TweakpaneEditorPlugin'
 export {HierarchyUiPlugin} from './HierarchyUiPlugin'
 export {LayersPanelPlugin} from './LayersPanelPlugin'
 export type {LayerLeafType, LayersTab} from './LayersPanelPlugin'

@@ -242,14 +242,21 @@ export class ThreeEditor extends ThreeViewer {
         editor.loadPlugins(this.editorModes)
 
         // the layers in the left area of the page frame (?layers=bottom: in the bottom strip), with an entry in the mode
-        // bar. The inspector of the selection: ?inspector=swap (the default), the right panel shows it while something is
-        // selected and the mode settings when nothing is (a click on a mode shows its settings); ?inspector=right, above
-        // the mode settings; ?inspector=left, under the layers. Each is out of its place while its panel is off.
+        // bar. The inspector of the selection: ?inspector=swap (the default), in the right area (the top of the panel), and
+        // while something is selected it takes the whole panel (the settings of the mode hide; a click on a mode shows
+        // them); ?inspector=right, in the right area above the mode settings; ?inspector=left, under the layers. Each has
+        // its entry in the mode bar, and is out of its place while its panel is off.
         const layers = this.getPlugin(LayersPanelPlugin)
         const inspector = this.getPlugin(InspectorPlugin)
         const layersArea = getUrlQueryParam('layers') === 'bottom' ? 'bottom' : 'left'
         const inspectorParam = getUrlQueryParam('inspector')
         const inspectorPlace = inspectorParam === 'right' || inspectorParam === 'left' ? inspectorParam : 'swap'
+        const swap = () => {
+            if (inspectorPlace !== 'swap') return
+            const selected = !!inspector?.hasSelection
+            editor.frame?.setSectionHidden('right', 0, !selected)
+            editor.frame?.setModeSettingsHidden(selected)
+        }
         const placePanels = () => {
             const layersEl = layers && !layers.isDisabled() ? layers.element : null
             const inspectorEl = inspector && !inspector.isDisabled() ? inspector.element : null
@@ -258,13 +265,13 @@ export class ThreeEditor extends ThreeViewer {
                 .filter((p): p is [HTMLDivElement, typeof LayersPanelPlugin.AreaEntry] => !!p[0])
             editor.setArea('left', left.length ? left.map(p => p[0]) : null, left.map(p => p[1]))
             if (layersArea === 'bottom') editor.setArea('bottom', layersEl, LayersPanelPlugin.AreaEntry)
-            editor.setPanelSection(inspectorPlace === 'left' ? null : inspectorEl, {swap: inspectorPlace === 'swap'})
-            editor.panelSwapped = !!inspector?.hasSelection
+            editor.setArea('right', inspectorPlace === 'left' ? null : inspectorEl, [InspectorPlugin.AreaEntry])
+            swap()
         }
         placePanels()
         layers?.addEventListener('enabledChange', placePanels)
         inspector?.addEventListener('enabledChange', placePanels)
-        inspector?.addEventListener('selectionChange', e => editor.panelSwapped = e.hasSelection)
+        inspector?.addEventListener('selectionChange', swap)
 
         // the name in the page frame: the first loaded model or viewer config file (not a texture or an environment
         // map) names the document, and a click on the name renames it; the files dropped after it do not change it. The

@@ -82,6 +82,44 @@ body.lay-has-left .lay-area-left, body.lay-has-bottom .lay-area-bottom { display
 .lay-split::after { content: ''; position: absolute; }
 .lay-area-left > .lay-split::after { left: 0; right: 0; top: -3px; bottom: -3px; }
 .lay-area-bottom > .lay-split::after { top: 0; bottom: 0; left: -3px; right: -3px; }
+/* the right area (EditorFrame.setArea right): in the panel, above the settings of the mode (the pane of the Tweakpane
+   UI), with a line between them; their heights by the weights that the frame sets (--lay-right-box-grow,
+   --lay-right-pane-grow; a drag of the line). Each part scrolls on its own. With the settings of the mode hidden
+   (lay-mode-hidden), the right area takes the whole panel. */
+.lay-area-right { position: static; z-index: auto; min-height: 0; }
+body.lay-frame.lay-right-shown #tweakpaneUiContainer { display: flex; flex-direction: column; overflow: hidden !important; }
+body.lay-frame.lay-right-shown #tweakpaneUiContainer > .lay-area-right { display: flex; flex: var(--lay-right-box-grow, 1) 1 0; min-height: 48px; }
+body.lay-frame.lay-right-shown #tweakpaneUiContainer > .tp-rotv { flex: var(--lay-right-pane-grow, 1) 1 0; min-height: 48px; overflow-y: auto; overscroll-behavior: contain; }
+body.lay-frame:not(.lay-right-shown) #tweakpaneUiContainer > .lay-pane-split { display: none; }
+body.lay-frame.lay-right-shown.lay-mode-hidden #tweakpaneUiContainer > .tp-rotv,
+body.lay-frame.lay-right-shown.lay-mode-hidden #tweakpaneUiContainer > .lay-pane-split { display: none; }
+body.lay-frame.lay-right-shown.lay-mode-hidden #tweakpaneUiContainer > .lay-area-right { flex-grow: 1; }
+/* the mode bar marks no mode while its settings are hidden (a click on the open mode shows them) */
+body.lay-frame.lay-right-shown.lay-mode-hidden .mb-btn.on { background: transparent; }
+#tweakpaneUiContainer > .lay-pane-split {
+    flex: 0 0 1px; position: relative; z-index: 1; touch-action: none; cursor: row-resize;
+    background: var(--tp-container-border-color, #e6e6e6); --lay-grip-color: var(--tp-label-foreground-color, #8a8f98);
+}
+#tweakpaneUiContainer > .lay-pane-split:hover, #tweakpaneUiContainer > .lay-pane-split.lay-active { background: #0d99ff; --lay-grip-color: #0d99ff; }
+#tweakpaneUiContainer > .lay-pane-split::after { left: 0; right: 0; top: -3px; bottom: -3px; }
+.lay-area-right > .lay-split { cursor: row-resize; }
+.lay-area-right > .lay-split::after { left: 0; right: 0; top: -3px; bottom: -3px; }
+/* floating: the right area and the settings are two cards with a gap and drag dots between them, as a stack */
+body.lay-side.lay-floating.lay-right-shown #tweakpaneUiContainer { background: transparent; box-shadow: none; clip-path: none; overflow: visible !important; }
+body.lay-side.lay-floating.lay-right-shown #tweakpaneUiContainer > .lay-area-right,
+body.lay-side.lay-floating.lay-right-shown #tweakpaneUiContainer > .tp-rotv {
+    background: var(--tp-base-background-color, #fff); border-radius: 8px 0 0 8px; box-shadow: var(--lay-card-shadow); clip-path: inset(-20px 0 -20px -20px);
+}
+body.lay-side.lay-floating.lay-right-shown #tweakpaneUiContainer > .lay-pane-split,
+body.lay-side.lay-floating.lay-right-shown #tweakpaneUiContainer > .lay-pane-split:hover,
+body.lay-side.lay-floating.lay-right-shown #tweakpaneUiContainer > .lay-pane-split.lay-active { flex-basis: var(--lay-gap); background: transparent; }
+body.lay-side.lay-floating.lay-right-shown #tweakpaneUiContainer > .lay-pane-split::after { inset: 0; }
+body.lay-side.lay-floating.lay-right-shown #tweakpaneUiContainer > .lay-pane-split::before {
+    content: ''; position: absolute; inset: 0; margin: auto; width: 24px; height: 4px; border-radius: 2px; opacity: 0.6; transition: opacity .12s;
+    background: radial-gradient(circle, var(--lay-grip-color) 1px, transparent 1.5px) 0 0 / 4px 4px;
+}
+body.lay-side.lay-floating.lay-right-shown #tweakpaneUiContainer > .lay-pane-split:hover::before,
+body.lay-side.lay-floating.lay-right-shown #tweakpaneUiContainer > .lay-pane-split.lay-active::before { opacity: 1; }
 /* a collapsed left or bottom area (EditorFrame.setAreaCollapsed, or a drag of its edge to the side): hidden, and it takes
    no room; its edge stays, to drag it out again or double-click it */
 body.lay-frame.lay-has-left.lay-collapsed-left { --lay-left-area: 0px; --lay-left-inset: 0px; }

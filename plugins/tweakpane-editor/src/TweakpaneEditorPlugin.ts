@@ -23,17 +23,6 @@ import {readStored, writeStored} from './dom-utils'
 export interface TweakpaneEditorPluginEventMap extends AViewerPluginEventMap {
     /** {@link TweakpaneEditorPlugin.documentName} changed: set by the app, or renamed in the bar of the frame */
     documentNameChange: {name: string}
-    /** {@link TweakpaneEditorPlugin.panelSwapped} changed: by the app, or by a click on a mode, which shows its settings */
-    panelSwappedChange: {swapped: boolean}
-}
-
-/** How the section of the panel shows ({@link TweakpaneEditorPlugin.setPanelSection}) */
-export interface EditorPanelSectionOptions {
-    /**
-     * `false` (default): the section is above the settings of the mode, and both show. `true`: the section shows in
-     * place of them, while {@link TweakpaneEditorPlugin.panelSwapped} is on.
-     */
-    swap?: boolean
 }
 
 export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPluginEventMap> {
@@ -73,11 +62,6 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
         viewer.removePluginListener('remove', this._removeEditorCameraUi)
         this._removeEditorCameraUi()
         this._removeFrame()
-        // the section is kept, and placed again at loadPlugins
-        if (this._panelSection) {
-            this._panelSection[0].remove()
-            document.body.classList.remove('tpe-panel-section', 'tpe-panel-swap', 'tpe-panel-swapped')
-        }
         super.onRemove(viewer)
     }
 
@@ -108,10 +92,9 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
 
     /**
      * Options of the page frame (the app name, the theme pairs), used when the frame is made. The plugin sets the layout,
-     * the pick in the layout menu ({@link layout}), the rename ({@link documentName}) and the click of a mode
-     * ({@link setPanelSection}).
+     * the pick in the layout menu ({@link layout}) and the rename ({@link documentName}).
      */
-    frameOptions: Omit<EditorFrameOptions, 'layout' | 'onPickLayout' | 'onRename' | 'onModeClick'> = {}
+    frameOptions: Omit<EditorFrameOptions, 'layout' | 'onPickLayout' | 'onRename'> = {}
 
     private _documentName = ''
     /**
@@ -133,7 +116,8 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
     private _areas = new Map<EditorFrameArea, [HTMLElement | HTMLElement[], EditorFrameAreaOptions | EditorFrameAreaOptions[]]>()
     /**
      * Puts an element in an area of the page frame ({@link EditorFrame.setArea}): `left`, the sidebar left of the canvas,
-     * or `bottom`, the strip below it, with an entry in the mode bar (`options`: its name and icon). A list of elements
+     * `bottom`, the strip below it, or `right`, the top of the panel above the settings of the mode, with an entry in the
+     * mode bar (`options`: its name and icon). A list of elements
      * is a stack, split between them (see {@link EditorFrame.setArea}); with a list of options, each element has its own
      * entry, which shows or hides it. `null` empties the
      * area. The plugin keeps the element when it makes the frame again (at {@link loadPlugins}, and after the classic
@@ -143,73 +127,6 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
         if (element) this._areas.set(area, [element, options])
         else this._areas.delete(area)
         this.frame?.setArea(area, element, options)
-    }
-
-    private _panelSection?: [HTMLElement, EditorPanelSectionOptions]
-    private _panelSwapped = false
-
-    /**
-     * Puts an element at the top of the panel (the container of the Tweakpane UI), above the settings of the mode, or in
-     * their place with `swap` ({@link EditorPanelSectionOptions}), or takes it out (`null`). It is the place of an
-     * inspector (`InspectorPlugin`) in the right sidebar; `setArea('left', ...)` is the other place.
-     * - Above (default): the section is at most 60% of the panel; the section and the settings scroll each on its own.
-     * - Swap: the panel shows the section while {@link panelSwapped} is on, and the settings of the mode while it is off.
-     *   The app turns it on and off, for example on each change of the selection (the `selectionChange` of the
-     *   `InspectorPlugin`). A click on a mode (in the mode bar of the frame, or a mode tab) turns it off and shows the
-     *   settings of that mode, also the mode that is open.
-     *
-     * It works in every page layout, also `classic`, and the plugin keeps the element when it makes the frame again.
-     * The body has the class `tpe-panel-section`, with `tpe-panel-swap` for swap, and `tpe-panel-swapped` while the
-     * section is in place of the settings.
-     */
-    setPanelSection(element: HTMLElement | null, options: EditorPanelSectionOptions = {}) {
-        const old = this._panelSection?.[0]
-        if (old && old !== element) {
-            old.remove()
-            old.classList.remove('tpe-panel-section-root')
-        }
-        this._panelSection = element ? [element, options] : undefined
-        this._placePanelSection()
-    }
-
-    /**
-     * Swap ({@link setPanelSection} with `swap`): the panel shows the section in place of the settings of the mode. No
-     * effect on a section above the settings, or with no section. Each change sends `panelSwappedChange`.
-     */
-    get panelSwapped() {
-        return this._panelSwapped
-    }
-    set panelSwapped(swapped: boolean) {
-        if (swapped === this._panelSwapped) return
-        this._panelSwapped = swapped
-        this._placePanelSection()
-        this.dispatchEvent({type: 'panelSwappedChange', swapped})
-    }
-
-    /** Puts the section of {@link setPanelSection} first in the container of the Tweakpane UI, and sets the body classes */
-    private _placePanelSection() {
-        const [element, options] = this._panelSection ?? []
-        const body = document.body
-        body.classList.toggle('tpe-panel-section', !!element)
-        body.classList.toggle('tpe-panel-swap', !!options?.swap)
-        body.classList.toggle('tpe-panel-swapped', !!options?.swap && this._panelSwapped)
-        const panel = this._viewer ? document.getElementById('tweakpaneUiContainer') : null
-        if (!element || !panel) {
-            element?.remove()
-            return
-        }
-        element.classList.add('tpe-panel-section-root')
-        if (panel.firstElementChild !== element) panel.prepend(element)
-    }
-
-    /**
-     * A click on a mode in the mode bar (`EditorFrameOptions.onModeClick`), while the section is in place of the settings:
-     * show the settings of the mode, and keep the panel open when it is the open mode
-     */
-    private _onModeClick = (open: boolean) => {
-        if (!this._panelSwapped || !this._panelSection?.[1].swap) return false
-        this.panelSwapped = false
-        return open
     }
 
     private _layout: EditorPageLayout = readStoredLayout() ?? TweakpaneEditorPlugin.DefaultLayout
@@ -302,7 +219,6 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
             layout,
             onPickLayout: (l) => this._pickLayout(l),
             onRename: (name) => this.documentName = name,
-            onModeClick: this._onModeClick,
         })
         this.frame.modeBar.select(this._selectedMode)
         this.frame.documentName = this._documentName
@@ -361,13 +277,12 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
         // the mode bar shows the modes: make the frame again with the new modes
         this._removeFrame()
         this._applyLayout()
-        this._placePanelSection()
     }
 
     setSelectedMode(mode: number) {
         this._selectedMode = mode
-        // a mode is picked: show its settings (also when the section of the panel is in their place)
-        this.panelSwapped = false
+        // a mode is picked: show its settings (also when the right area is in their place)
+        this.frame?.setModeSettingsHidden(false)
 
         // if (picking) picking.enabled = true
 

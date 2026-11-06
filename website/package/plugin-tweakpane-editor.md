@@ -89,15 +89,19 @@ The frame has fixed areas: the left sidebar, the right sidebar (the panel and th
 - The mode bar has an entry for each area with an element, after the modes, with a line above them. `editor.setArea('left', layers, {name: 'Layers', icon: svg, color: '#7c5cff'})` gives it a name, an icon and a colour, like a mode (default: "Left sidebar", "Bottom strip", a sidebar or strip icon, and the grey of the labels). When the areas show next to the canvas (body class `lay-side` without `lay-single`), a tap on the entry shows or hides its area (`setAreaCollapsed`, kept), and the entry is marked while the area shows.
 - A narrow window has no room for the areas next to the canvas (see the breakpoints below). The place of the panel then shows one view at a time: a mode shows the panel there, and an entry shows its area. A tap on the one shown hides it, as a tap on the open mode does. From code: `editor.frame.setStackedArea('left')` (`'right'` for the panel), `editor.frame.stackedArea`. The pick of the person is kept with the sizes.
 
-**Stacks.** `editor.setArea('left', [layers, properties])` puts a list of elements in an area: the area is split between them, top to bottom in the left area, left to right in the bottom area. One entry in the mode bar shows or hides the whole stack.
+**Stacks.** `editor.setArea('left', [layers, properties])` puts a list of elements in an area: the area is split between them, top to bottom in the left area, left to right in the bottom area. One entry in the mode bar shows or hides the whole stack (with a list of options, each element has its own entry, see below).
 
 - A line between two elements moves the split with a drag; each element keeps at least `EditorFrame.MinSectionSize` (48 px). A double-click makes them equal. The split is kept with the sizes, as proportions, for the same number of elements.
 - In the floating layout, each element is a card, and the split is the gap between two cards, with drag dots (blue on hover).
 
-**The section of the panel.** `editor.setPanelSection(element)` puts an element at the top of the panel (the container of the Tweakpane UI), above the settings of the mode. It is the place of an inspector in the right sidebar (`InspectorPlugin` below). The section is at most 60% of the panel, and the section and the settings scroll each on its own. `editor.setPanelSection(null)` takes it out. It works in every layout, also `classic`, and the plugin keeps the element when it makes the frame again.
+**The right area.** `editor.setArea('right', element)` puts an element at the top of the right sidebar, in the panel (the container of the Tweakpane UI), above the settings of the mode, with a line between them (in the floating layout, two cards with a gap and drag dots). A drag of the line sets the part of each (kept with the sizes); a double-click puts it at the middle. Each part scrolls on its own. A list of elements is a stack, as in the left area. It is the place of an inspector in the right sidebar (`InspectorPlugin` below). There is no right area in the classic layout.
 
-- With `{swap: true}`, the section shows in place of the settings of the mode, while `editor.panelSwapped` is on; while it is off, the panel shows the settings. The app turns it on and off, for example on each change of the selection. A click on a mode (in the mode bar or a mode tab) turns it off and shows the settings of that mode, also the mode that is open (it does not hide the panel then). The mode bar does not mark the open mode while the section is in its place. Each change sends `panelSwappedChange` (`{swapped}`).
-- The body has the class `tpe-panel-section`, with `tpe-panel-swap` for swap, and `tpe-panel-swapped` while the section is in place of the settings.
+- The element has an entry in the mode bar (with a list of options, each element has one), which shows or hides it; hiding the only element collapses the right area, and the mode settings take the panel again.
+- While the right area shows, a click on the open mode hides the settings of the mode, and the right area takes the whole panel (the mode bar marks no mode then); a click on a mode shows them again. From code: `editor.frame.setModeSettingsHidden(true)`, `modeSettingsHidden`; `setSelectedMode` shows them. Without the right area, a click on the open mode hides the panel, as before.
+- Swap (the inspector in place of the mode settings while something is selected) is the two together: `editor.frame.setSectionHidden('right', 0, !selected)` and `editor.frame.setModeSettingsHidden(selected)`.
+- The body has the classes `lay-has-right`, `lay-right-shown` and `lay-mode-hidden`.
+
+**Elements of a stack.** With a list of options, `editor.setArea('left', [layers, inspector], [layersEntry, inspectorEntry])` gives each element of a stack its own entry in the mode bar, which shows or hides it (`editor.frame.setSectionHidden(area, index, hidden)`, `isSectionHidden`). Hiding the last shown element collapses the area. The hidden elements are kept with the sizes, for a stack of the same length.
 
 **The head of the floating layout.** The floating layout has no bar, so a slim card at the top of the left column (the head, `.lay-head`) shows the logo, the app name and the file name (renamable, as in the bar). It is as wide as the left card and moves with it on the x axis; the left card starts one gap below it, and a drag of its top edge opens the gap. Its height is the CSS variable `--lay-head` (36 px).
 
@@ -270,18 +274,20 @@ Not in the panel yet: drag and drop to move objects, and a context menu.
 const inspector = viewer.addPluginSync(InspectorPlugin)
 const editor = viewer.getPlugin(TweakpaneEditorPlugin)!
 
-// swap: the right panel shows the inspector while something is selected, and the mode settings when nothing is
-editor.setPanelSection(inspector.element, {swap: true})
-inspector.addEventListener('selectionChange', e => editor.panelSwapped = e.hasSelection)
+// right: in the right area, the top of the panel above the mode settings, with its entry in the mode bar
+editor.setArea('right', inspector.element, [InspectorPlugin.AreaEntry])
 
-// or above the mode settings, in the right panel
-editor.setPanelSection(inspector.element)
+// swap: also in the right area; while something is selected it takes the whole panel (the mode settings hide)
+inspector.addEventListener('selectionChange', e => {
+    editor.frame?.setSectionHidden('right', 0, !e.hasSelection)
+    editor.frame?.setModeSettingsHidden(e.hasSelection)
+})
 
-// or under the layers panel, in the left area (a stack)
-editor.setArea('left', [layers.element, inspector.element], LayersPanelPlugin.AreaEntry)
+// or under the layers panel, in the left area (a stack, an entry for each)
+editor.setArea('left', [layers.element, inspector.element], [LayersPanelPlugin.AreaEntry, InspectorPlugin.AreaEntry])
 ```
 
-`InspectorPlugin.AreaEntry` has a name, an icon and a colour for an area entry of its own. On a phone, swap shows one panel at a time; the left place shares the narrow left card with the layers. Without the editor: give an element to the constructor, `new InspectorPlugin(container)`, or place `inspector.element` yourself; give its parent a height. On `enabledChange`, take it out of its place or put it back. Its UI folder, `Inspector`, has Enabled, Material preview and Preview shape; they are not saved with the viewer config.
+`InspectorPlugin.AreaEntry` has a name, an icon and a colour for its entry in the mode bar. On a phone, the right area and the mode settings share the part below the canvas, and swap shows one of them at a time; the left place shares the narrow left card with the layers. There is no right area in the classic layout. Without the editor: give an element to the constructor, `new InspectorPlugin(container)`, or place `inspector.element` yourself; give its parent a height. On `enabledChange`, take it out of its place or put it back. Its UI folder, `Inspector`, has Enabled, Material preview and Preview shape; they are not saved with the viewer config.
 
 Not in the inspector yet: pinch zoom on the preview, and the settings of more than one selected object at once.
 
