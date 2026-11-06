@@ -19,10 +19,11 @@
 .lyp-head { display: flex; align-items: center; gap: 6px; padding: 10px 12px 6px; flex: none; }
 .lyp-title { font-weight: 600; }
 .lyp-count { color: var(--lyp-dim); }
-/* the tab bar (LayersPanelPlugin.tabs): hidden with one tab */
-.lyp-tabs { display: flex; gap: 2px; margin: 0 8px 6px; padding: 2px; border-radius: 6px; background: var(--lyp-input); flex: none; }
+/* the tab bar (LayersPanelPlugin.tabs): hidden with one tab. No gap and no side padding: the four names fit in the left
+   area at its default size (240 px) */
+.lyp-tabs { display: flex; margin: 0 8px 6px; padding: 2px; border-radius: 6px; background: var(--lyp-input); flex: none; }
 .lyp-tab {
-    flex: 1 1 auto; min-width: 0; border: 0; background: transparent; color: var(--lyp-dim); padding: 4px 2px; border-radius: 4px;
+    flex: 1 1 auto; min-width: 0; border: 0; background: transparent; color: var(--lyp-dim); padding: 4px 0; border-radius: 4px;
     font: inherit; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .lyp-tab:hover { color: var(--lyp-fg); background: var(--lyp-hover); }
