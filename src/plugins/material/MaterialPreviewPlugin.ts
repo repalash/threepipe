@@ -411,13 +411,22 @@ export class MaterialPreviewPlugin extends AViewerPluginSync {
         state.unusedSince = this.now()
     }
 
-    /** Removes the listener of the materials that no job or cached preview used, and that did not change, for LISTEN_AFTER_USE ms */
+    /**
+     * Removes the listener of the materials that no job or cached preview used, and that did not change, for
+     * LISTEN_AFTER_USE ms. Also drops the render times of the previews that no request waits for, after the throttling
+     * window: a new view (cameraDirection, cameraDistance) is a new key, so they would else grow while a preview is turned.
+     */
     private _stopIdleListeners() {
         const now = this.now()
+        const keep = Math.max(LISTEN_AFTER_USE, this.dragInterval)
         for (const material of this._tracked) {
             const state = this._states.get(material)
+            if (state) for (const [key, time] of state.lastRender) if (now - time > keep && !this._jobs.has(key)) state.lastRender.delete(key)
             if (state && (state.refs > 0 || now - Math.max(state.unusedSince, state.lastChange) < LISTEN_AFTER_USE)) continue
-            if (state) material.removeEventListener('materialUpdate', state.listener)
+            if (state) {
+                material.removeEventListener('materialUpdate', state.listener)
+                state.lastRender.clear()
+            }
             this._tracked.delete(material)
         }
     }

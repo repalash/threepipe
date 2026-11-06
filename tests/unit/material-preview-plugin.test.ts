@@ -251,6 +251,21 @@ describe('MaterialPreviewPlugin', () => {
         expect(generator.renderToCanvas).toHaveBeenCalledTimes(2)
     })
 
+    it('turning a preview (a new view in each frame) keeps a bounded number of render times', () => {
+        const {queue, frame} = setup()
+        const m = new tp.PhysicalMaterial()
+        let handle: any
+        for (let i = 0; i < 300; i++) {
+            handle?.cancel()
+            handle = queue.request(m, {cameraDirection: new tp.Vector3(Math.cos(i / 10), 0.3, Math.sin(i / 10))}, () => {})
+            frame()
+        }
+        // 300 views over about 5 s: only the ones of the last second are kept
+        const times = (queue as any)._states.get(m).lastRender as Map<string, number>
+        expect(times.size).toBeLessThan(80)
+        expect(times.size).toBeGreaterThan(0)
+    })
+
     it('a request can set its own dragInterval; the smallest of the requests of one preview is used', () => {
         const {queue, frame} = setup({dragInterval: 100})
         const m = new tp.PhysicalMaterial()
