@@ -638,8 +638,18 @@ export class LayersPanelPlugin extends AViewerPluginSync {
                 }
             }
         }
-        // a selected object in the place of a "… N more" row shows all the children
-        this.refresh(opened || this._selected().some(s => this._flat.some(r => r.more && s.parent === r.object && !this._index.has(s))))
+        this.refresh(opened || this._selectionBehindMore())
+    }
+
+    /** A selected object is not in the list, and an object that holds it has a "… N more" row: the build shows all */
+    private _selectionBehindMore() {
+        const cut = new Set(this._flat.filter(r => r.more).map(r => r.object))
+        if (!cut.size) return false
+        return this._selected().some(s => {
+            if (this._index.has(s)) return false
+            for (let p = s.parent as IObject3D | null; p; p = p.parent as IObject3D | null) if (cut.has(p)) return true
+            return false
+        })
     }
 
     private _onPickingHover = () => {
