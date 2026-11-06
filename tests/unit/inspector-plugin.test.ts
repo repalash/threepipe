@@ -558,6 +558,16 @@ describe('InspectorPlugin.css', () => {
         expect(rule('.isp-body')).not.toMatch(/overflow-y:\s*auto/)
         expect(rule('.isp-body')).toMatch(/flex:\s*none/)
     })
+
+    test('while the search has text, the rows that do not match hide and the closed folders open', async() => {
+        const {readFileSync} = await import('node:fs')
+        const css = readFileSync(new URL('../../plugins/tweakpane-editor/src/InspectorPlugin.css', import.meta.url), 'utf8')
+        const rule = (sel: string) => css.match(new RegExp(sel.replace(/[.]/g, '\\.') + '\\s*\\{([^}]*)\\}'))?.[1] ?? ''
+        expect(rule('.isp-searching .isp-miss')).toMatch(/display:\s*none\s*!important/)
+        // Tweakpane: a closed folder has display: none on its content, and a height set inline
+        expect(rule('.isp-searching .tp-fldv_c')).toMatch(/display:\s*block\s*!important/)
+        expect(rule('.isp-searching .tp-fldv_c')).toMatch(/height:\s*auto\s*!important/)
+    })
 })
 
 describe('PickingPlugin.selectionUi', () => {

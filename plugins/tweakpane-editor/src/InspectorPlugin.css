@@ -62,7 +62,8 @@
 .isp-shape.isp-on { box-shadow: inset 0 0 0 1px var(--tp-label-foreground-color, #0d99ff); font-weight: 600; }
 .isp-body { flex: none; }
 .isp-root:not(.isp-has-selection) .isp-body, .isp-root:not(.isp-has-selection) .isp-search { display: none; }
-/* the search of the settings: the rows that do not match hide, and the folders open (Tweakpane sets their height inline) */
+/* the search of the settings: the rows that do not match hide, and the folders open (Tweakpane sets their height inline,
+   and a closed folder has display: none) */
 .isp-search {
     margin: 0 8px 6px; padding: 5px 8px; border-radius: 4px; flex: none; min-width: 0; outline: none;
     border: 1px solid transparent; background: var(--tp-input-background-color, rgba(0, 0, 0, .05)); font: inherit; color: inherit;
@@ -71,7 +72,7 @@
 /* iOS zooms the page into a focused field with text under 16 px */
 @media (pointer: coarse) { .isp-search { font-size: 16px; } }
 .isp-searching .isp-miss { display: none !important; }
-.isp-searching .tp-fldv_c { height: auto !important; opacity: 1 !important; overflow: visible !important; }
+.isp-searching .tp-fldv_c { display: block !important; height: auto !important; opacity: 1 !important; overflow: visible !important; }
 .isp-empty { padding: 4px 12px 14px; opacity: .6; }
 
 /* the Tweakpane UI of the inspector: no box and no "Configuration" title (the head of the inspector names the selection),
