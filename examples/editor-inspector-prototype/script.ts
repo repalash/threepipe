@@ -40,9 +40,11 @@ async function init() {
     viewer.addPluginSync(ViewerUiConfigPlugin)
     const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
     const editor = viewer.addPluginSync(new TweakpaneEditorPlugin())
+    // PickingPlugin is not in the modes: its folder shows the uiConfig of the selection too, and one uiConfig renders in
+    // one renderer only. The real inspector replaces that part of the PickingPlugin UI.
     editor.loadPlugins({
         ['Viewer']: [ViewerUiConfigPlugin],
-        ['Interaction']: [PickingPlugin, MaterialPreviewPlugin],
+        ['Interaction']: [MaterialPreviewPlugin],
     })
     const layers = viewer.addPluginSync(LayersPanelPlugin)
 
