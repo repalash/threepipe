@@ -574,6 +574,15 @@ describe('tweakpane editor frame areas', () => {
         // the dots of a grip always show; blue on hover
         expect(cascade(['.lay-grip::after'], bodyClasses('floating', s), desktop).opacity).toBe('0.6')
         expect(cascade(['.lay-grip:hover'], bodyClasses('floating', s), desktop)['--lay-grip-color']).toBe('#0d99ff')
+        // the view widget of the canvas: right of the left card; below the head when no left card shows
+        const widget = (state: typeof s | {collapsed?: ('left' | 'bottom')[], left?: boolean}) => {
+            const d = cascade(['.editor-view-widget'], bodyClasses('floating', state), desktop)
+            const v = bodyVars('floating', desktop, state)
+            return [evaluate(d['margin-left'] ?? '0px', 1440, v), evaluate(d['margin-top'] ?? '0px', 900, v)]
+        }
+        expect(widget(s)).toEqual([272, 0])
+        expect(widget({})).toEqual([0, 48])
+        expect(widget({left: true, collapsed: ['left']})).toEqual([0, 48])
         // no grips or ends: in the other layouts, for a collapsed card, and when the areas show one at a time
         expect(box(['.lay-grip', '.lay-grip-left'], 'titlebar', desktop, s)).toBeNull()
         expect(box(['.lay-grip', '.lay-grip-left'], 'floating', desktop, {...s, collapsed: ['left']})).toBeNull()

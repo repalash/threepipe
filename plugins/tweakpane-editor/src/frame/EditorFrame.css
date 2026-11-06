@@ -167,6 +167,11 @@ body.lay-frame { --lay-corner-left: 1.25rem; }
 body.lay-frame .pp-root.pp-bottom-left { left: var(--lay-corner-left); bottom: calc(1.25rem + 5px); }
 body.lay-frame .snp-dock { left: var(--lay-corner-left); }
 body.lay-frame .pp-root.pp-bottom-left, body.lay-frame .snp-dock { margin: 0 0 var(--lay-bottom-inset) var(--lay-left-inset); }
+/* the view widget of the canvas (EditorViewWidgetPlugin, at the top left) keeps out of the floating cards: right of the
+   left card, and below the head when no left card shows */
+body.lay-side.lay-floating .editor-view-widget { margin-top: var(--lay-head-room); }
+body.lay-side.lay-floating.lay-has-left .editor-view-widget { margin-top: 0; margin-left: var(--lay-left-inset); }
+body.lay-side.lay-floating.lay-has-left.lay-collapsed-left .editor-view-widget, body.lay-side.lay-floating.lay-has-left.lay-single .editor-view-widget { margin-top: var(--lay-head-room); }
 body.lay-frame #canvas-container:has(.pp-root.pp-bottom-left) { --util-left-room: 84px; }
 @media only screen and (max-width: 919.98px) {
     /* a phone: as tall as the tool bar, a larger target (its fixed width keeps the row still as the numbers change) */
