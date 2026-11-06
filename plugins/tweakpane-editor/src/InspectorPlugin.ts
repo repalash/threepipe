@@ -2,6 +2,8 @@ import {
     AViewerPluginEventMap,
     AViewerPluginSync,
     createStyles,
+    CustomContextMenu,
+    getOrCall,
     IEvent,
     IGeometry,
     IMaterial,
@@ -92,6 +94,8 @@ class InspectorUiRenderer extends TweakpaneUiPlugin {
  *   inspector is in the page and enabled, the plugin turns off the selection UI of the PickingPlugin
  *   ({@link PickingPlugin.selectionUi}), since a uiConfig renders in one UI at a time; out of the page (the classic
  *   layout of the editor) the PickingPlugin shows the selection again, from the next change of the selection.
+ * - A right-click on a setting (a long press on a touch screen) offers Reset to default, when its value is not the default
+ *   of its class (the value of a new object of the same class), with undo.
  * - Escape (the PickingPlugin) clears the selection.
  *
  * Where the panel goes: in the `container` given to the constructor, else the app puts {@link element} in the page.
@@ -125,8 +129,12 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
     /** Add the CSS of the panel to the page when the first panel is made. Off: the app brings its own styles. */
     static InjectStyles = true
     private static _styles?: HTMLStyleElement
+    /** The objects with the default values of each class, for Reset to default: a new object of the class, made once (`null`: it needs arguments) */
+    private static _defaults = new Map<Function, Record<string, unknown> | null>()
     /** The size in px of the large preview of the material */
     static PreviewSize = 256
+    /** The time in ms of a touch on a setting that opens its menu (Reset to default) */
+    static LongPressTime = 500
     /** The size in px of the previews in the material cards of the Object tab (twice the size on screen, for a sharp 2x screen) */
     static CardPreviewSize = 64
     /** The entry of the panel in the mode bar of the editor frame, for `TweakpaneEditorPlugin.addPanel` */
@@ -242,6 +250,7 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
         this._empty = this.element.appendChild(el('div', 'isp-empty'))
         this._empty.textContent = 'Select an object in the viewport or in the layers'
         this._setupPreviewControls()
+        this._setupReset()
         this._shapeChanged()
         this._render()
         this._on = !this.isDisabled()
@@ -638,4 +647,108 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
             this._requestPreview()
         })
     }
+
+    /** A right-click on a setting, or a long press on a touch screen, opens its menu: Reset to default */
+    private _setupReset() {
+        let timer: ReturnType<typeof setTimeout> | undefined
+        let start: {x: number, y: number} | undefined
+        const cancel = () => {
+            clearTimeout(timer)
+            timer = undefined
+        }
+        this._body.addEventListener('contextmenu', (e: MouseEvent) => {
+            cancel() // a long press on Android also sends contextmenu
+            if (this._openFieldMenu(e.target as Element, e.clientX, e.clientY)) e.preventDefault()
+        })
+        this._body.addEventListener('pointerdown', (e: PointerEvent) => {
+            cancel()
+            if (e.pointerType !== 'touch') return
+            const target = e.target as Element
+            start = {x: e.clientX, y: e.clientY}
+            timer = setTimeout(() => this._openFieldMenu(target, start!.x, start!.y), InspectorPlugin.LongPressTime)
+        })
+        // a drag (a slider, a scroll) is not a long press
+        this._body.addEventListener('pointermove', (e: PointerEvent) => {
+            if (timer && start && Math.hypot(e.clientX - start.x, e.clientY - start.y) > 8) cancel()
+        })
+        this._body.addEventListener('pointerup', cancel)
+        this._body.addEventListener('pointercancel', cancel)
+    }
+
+    /**
+     * The menu of the setting at `target`: Reset to default, when its value is not the default.
+     * @returns whether a menu opened
+     */
+    private _openFieldMenu(target: Element, x: number, y: number) {
+        const field = this._fieldAt(target)
+        if (!field) return false
+        const value = (field.target as Record<string, unknown>)[field.key]
+        const def = this._defaultValue(field.target, field.key)
+        if (def === undefined || isSameValue(value, def)) return false
+        this._showMenu({'Reset to default': () => this._resetField(field.config, def)}, x, y)
+        return true
+    }
+
+    protected _showMenu(items: Record<string, () => void>, x: number, y: number) {
+        CustomContextMenu.Create(items, x, y)
+    }
+
+    /** The setting (a uiConfig with a property) whose row in the renderer holds `target` */
+    private _fieldAt(target: Element) {
+        const row = target?.closest?.('.tp-lblv')
+        if (!row) return undefined
+        let found: {config: UiObjectConfig, target: object, key: string} | undefined
+        const visit = (c: UiObjectConfig) => {
+            if (found) return
+            const ref = c.uiRef as {controller_?: {view?: {element?: Element}}, element?: Element} | undefined
+            if (ref && (ref.controller_?.view?.element ?? ref.element) === row) {
+                const [obj, key] = getOrCall(c.property) ?? []
+                if (obj && typeof obj === 'object' && key !== undefined) found = {config: c, target: obj, key: String(key)}
+                return
+            }
+            const children = getOrCall(c.children as any) as (UiObjectConfig | (() => UiObjectConfig))[] | undefined
+            if (Array.isArray(children)) for (const child of children) {
+                const cc = getOrCall(child)
+                if (cc) visit(cc)
+            }
+        }
+        for (const c of this._shown) visit(c)
+        return found
+    }
+
+    /**
+     * The default value of a property: its value in a new object of the same class. `undefined` when there is none (a
+     * class that needs arguments, a plain object, a function).
+     */
+    private _defaultValue(target: object, key: string) {
+        // todo: the value of the asset that the object comes from (a prefab or a template: the root url in its userData), as a revert to it (U2 in the plan of the selection UX)
+        const Class = target.constructor
+        if (!Class || Class === Object) return undefined
+        let defaults = InspectorPlugin._defaults.get(Class)
+        if (defaults === undefined) {
+            try {
+                defaults = new (Class as new () => Record<string, unknown>)()
+            } catch {
+                defaults = null
+            }
+            InspectorPlugin._defaults.set(Class, defaults)
+        }
+        if (!defaults || !(key in defaults)) return undefined
+        const value = defaults[key]
+        return typeof value === 'function' ? undefined : value
+    }
+
+    /** Sets the default value through the renderer, with undo; a copy for an object value (a vector, a colour) */
+    private async _resetField(config: UiObjectConfig, def: unknown) {
+        const value = (def as {clone?: () => unknown})?.clone ? (def as {clone: () => unknown}).clone() : def
+        await this._ui?.methods.setValue(config, value as any, {last: true}, true, true)
+        config.uiRefresh?.(true, 'postFrame')
+    }
+}
+
+/** The same value: equal primitives, or objects with `equals` (vectors, colours, eulers) */
+function isSameValue(a: unknown, b: unknown) {
+    if (a === b) return true
+    const eq = (a as {equals?: (o: unknown) => boolean})?.equals
+    return typeof eq === 'function' && !!b && typeof b === 'object' && eq.call(a, b)
 }

@@ -33,6 +33,10 @@ class FakeElement {
     get parentElement() {
         return this.parent ?? null
     }
+    /** `.class` only */
+    closest(sel: string): FakeElement | null {
+        return this.classList.contains(sel.slice(1)) ? this : this.parent?.closest(sel) ?? null
+    }
     setAttribute(k: string, v: string) {
         this._attrs.set(k, v)
     }
@@ -79,6 +83,12 @@ class FakeElement {
 const renderers: FakeRenderer[] = []
 class FakeRenderer {
     shown: any[] = []
+    /** setValue of uiconfig.js: sets the property of the config */
+    methods = {setValue: vi.fn(async(c: any, v: any) => {
+        const [o, k] = typeof c.property === 'function' ? c.property() : c.property
+        o[k] = v
+        return true
+    })}
     added = false
     disposed = false
     constructor(..._args: any[]) {
@@ -285,6 +295,82 @@ describe('InspectorPlugin', () => {
         // no material (a selected texture or geometry): no cards
         picking.select(undefined)
         expect(el.find('isp-cards')[0].style.display).toBe('none')
+    })
+
+    test('a right-click or a long press on a setting offers Reset to default when the value is not the default of its class', async() => {
+        const {inspector, el, ui} = setup()
+        const menus: Record<string, () => void>[] = []
+        ;(inspector as any)._showMenu = (items: Record<string, () => void>) => menus.push(items)
+        const mat = new PhysicalMaterial()
+        // a row of the renderer for each setting: the element of its binding (uiRef), with a label inside
+        const row = () => {
+            const r = new FakeElement('div')
+            r.className = 'tp-lblv'
+            r.appendChild(new FakeElement('div')).className = 'tp-lblv_l'
+            return r
+        }
+        const roughRow = row(), colorRow = row(), nestedRow = row(), otherRow = row()
+        const rough = {type: 'slider', property: [mat, 'roughness'], uiRef: {controller_: {view: {element: roughRow}}}}
+        const color = {type: 'color', property: () => [mat, 'color'], uiRef: {controller_: {view: {element: colorRow}}}}
+        class NeedsArgs {
+            size: number
+            constructor(size: number) {
+                if (size === undefined) throw new Error('size')
+                this.size = size
+            }
+        }
+        const odd = new NeedsArgs(3)
+        const nested = {type: 'number', property: [odd, 'size'], uiRef: {controller_: {view: {element: nestedRow}}}}
+        ;(mat as any).uiConfig = {type: 'folder', label: 'Material', children: [rough, color, () => ({type: 'folder', children: [nested]})]}
+        picking.select(mesh(mat))
+        el.find('isp-tab')[1].click()
+        const body = el.find('isp-body')[0]
+        const rightClick = (target: FakeElement) => {
+            const preventDefault = vi.fn()
+            body.fire('contextmenu', {target, clientX: 10, clientY: 20, preventDefault})
+            return preventDefault.mock.calls.length > 0
+        }
+        // the default value: no menu, and the menu of the browser is not stopped
+        expect(mat.roughness).toBe(1)
+        expect(rightClick(roughRow.children[0])).toBe(false)
+        expect(menus).toHaveLength(0)
+        mat.roughness = 0.3
+        expect(rightClick(roughRow.children[0])).toBe(true)
+        expect(Object.keys(menus[0])).toEqual(['Reset to default'])
+        menus[0]['Reset to default']()
+        await Promise.resolve()
+        // through the renderer: undo and onChange
+        expect(ui.methods.setValue).toHaveBeenLastCalledWith(rough, 1, {last: true}, true, true)
+        expect(mat.roughness).toBe(1)
+        // an object value: a copy of the default, not the default object
+        mat.color.set(0xff0000)
+        expect(rightClick(colorRow)).toBe(true)
+        menus[1]['Reset to default']()
+        await Promise.resolve()
+        expect(mat.color.getHex()).toBe(0xffffff)
+        expect(ui.methods.setValue.mock.lastCall![1]).not.toBe((InspectorPlugin as any)._defaults.get(PhysicalMaterial).color)
+        // a class that needs arguments has no default; a row that is not a setting has no menu
+        expect(rightClick(nestedRow)).toBe(false)
+        expect(rightClick(otherRow)).toBe(false)
+        expect(menus).toHaveLength(2)
+        // a long press on a touch screen, not a drag
+        vi.useFakeTimers()
+        try {
+            mat.roughness = 0.5
+            body.fire('pointerdown', {target: roughRow, pointerType: 'touch', clientX: 0, clientY: 0})
+            body.fire('pointermove', {clientX: 20, clientY: 0})
+            vi.advanceTimersByTime(InspectorPlugin.LongPressTime)
+            expect(menus).toHaveLength(2)
+            body.fire('pointerdown', {target: roughRow, pointerType: 'touch', clientX: 0, clientY: 0})
+            vi.advanceTimersByTime(InspectorPlugin.LongPressTime)
+            expect(menus).toHaveLength(3)
+            // a mouse press is not a long press
+            body.fire('pointerdown', {target: roughRow, pointerType: 'mouse', clientX: 0, clientY: 0})
+            vi.advanceTimersByTime(InspectorPlugin.LongPressTime)
+            expect(menus).toHaveLength(3)
+        } finally {
+            vi.useRealTimers()
+        }
     })
 
     test('the material preview is asked for on the Material tab only, with the shape and the view', () => {
