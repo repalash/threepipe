@@ -1,15 +1,14 @@
 import {createDiv, createStyles} from 'threepipe'
-import tippy, {Instance} from 'tippy.js'
 import {EditorModeBar, EditorModeBarHost} from './EditorModeBar'
 import {isTextTarget, readStored, writeStored} from '../dom-utils'
 import styles from './EditorFrame.css?inline'
 
 /**
  * The layouts of {@link EditorFrame}:
- * - `titlebar`: a slim bar on top (app, file name, actions); the canvas and the panel are edge to edge below it.
- * - `statusbar`: no title; a slim bar at the bottom (file name, actions), like a code editor.
+ * - `titlebar`: a slim bar on top (app, file name); the canvas and the panel are edge to edge below it.
+ * - `statusbar`: no title; a slim bar at the bottom (file name), like a code editor.
  * - `floating`: the canvas fills the window; the panel and the mode bar float over it, with the same gap on every side.
- *   No bar, so no file name ({@link EditorFrame.documentName}); the actions are in the mode bar.
+ *   No bar, so no file name ({@link EditorFrame.documentName}).
  */
 export type EditorFrameLayout = 'titlebar' | 'statusbar' | 'floating'
 
@@ -136,7 +135,7 @@ const ICONS = {
  * - Shift+T switches between the light and dark theme of the same family ({@link EditorFrameOptions.themePairs}).
  * - The panel has no title of its own: the mode bar names the open mode and hides the panel.
  *
- * Made by `TweakpaneEditorPlugin` (its `layout`). The floating layout has its actions in the mode bar. The body has the
+ * Made by `TweakpaneEditorPlugin` (its `layout`). The actions (light or dark, layout) are at the bottom of the mode bar in each layout. The body has the
  * class `lay-frame` and `lay-<layout>`. The canvas size follows the CSS of the layout, and the viewer follows the canvas
  * size (the ResizeObserver of `ThreeViewer`).
  *
@@ -221,8 +220,8 @@ export class EditorFrame {
     private _bottom: HTMLDivElement
     /** The head of the floating layout (it has no bar): the logo, the app name and the file name, at the top of the left column */
     private _head: HTMLDivElement
-    /** The actions in the mode bar, for the floating layout (it has no bar) */
-    private _floatActions: HTMLDivElement
+    /** The actions in the mode bar, above the names toggle */
+    private _modeActions: HTMLDivElement
     /** The boxes of the places, with the sections of their panels ({@link addPanel}); left and bottom in the page while the frame is */
     private _areas: Record<EditorFrameArea, HTMLDivElement>
     /** The panels ({@link addPanel}), in the order they were added; and the box of their entries in the mode bar */
@@ -262,7 +261,6 @@ export class EditorFrame {
     private _menu?: HTMLDivElement
     private _menuAnchor?: HTMLElement
     /** The tooltips of the buttons in the bars */
-    private _tips: Instance[] = []
     private _themePairs: [string, string][]
     private _styles?: HTMLStyleElement
 
@@ -279,23 +277,23 @@ export class EditorFrame {
 
         const title = options.title ?? 'threepipe'
         this._top = this._bar('lay-top')
-        this._top.innerHTML = `<span class="lay-app">${ICONS.app}<b></b><span class="lay-dim">Editor</span></span><span class="lay-sep"></span><span class="lay-file"></span><span class="lay-fill"></span>`
+        this._top.innerHTML = `<span class="lay-app">${ICONS.app}<b></b><span class="lay-dim">Editor</span></span><span class="lay-sep"></span><span class="lay-file"></span>`
         this._top.querySelector('b')!.textContent = title
-        this._top.append(...this._actions('top'))
         this._bottom = this._bar('lay-bottom')
-        this._bottom.innerHTML = '<span class="lay-file"></span><span class="lay-fill"></span>'
-        this._bottom.append(...this._actions('bottom'))
+        this._bottom.innerHTML = '<span class="lay-file"></span>'
         this._head = this._bar('lay-head')
         this._head.innerHTML = `<span class="lay-app">${ICONS.app}<b></b></span><span class="lay-sep"></span><span class="lay-file"></span>`
         this._head.querySelector('b')!.textContent = title
         if (options.onRename) for (const bar of [this._top, this._bottom, this._head]) this._editableName(bar.querySelector('.lay-file')!)
-        this._floatActions = createDiv({classList: ['lay-float-actions'], addToBody: false})
-        this._floatActions.append(...this._actions('modeBar'))
+        // the same place in each layout: the mode bar, above the names toggle
+        this._modeActions = createDiv({classList: ['lay-mode-actions'], addToBody: false})
+        this._modeActions.append(...this._actions())
+        this.modeBar.element.insertBefore(this._modeActions, this.modeBar.element.lastElementChild)
         // the right area is in the panel, placed when it has an element (_applyRight)
         this._areas = {left: this._area('left'), bottom: this._area('bottom'), right: createDiv({classList: ['lay-area', 'lay-area-right'], addToBody: false})}
         this._rightSplit = this._paneSplit()
         this._entryBox = createDiv({classList: ['lay-area-entries'], addToBody: false})
-        // after the modes: before the actions (floating) and the names toggle
+        // after the modes: before the actions and the names toggle
         this.modeBar.element.insertBefore(this._entryBox, this.modeBar.element.children[editor.modeKeys.length] ?? null)
         this._refreshEntries()
         this._handles = {left: this._handle('left'), bottom: this._handle('bottom'), right: this._handle('right')}
@@ -393,9 +391,6 @@ export class EditorFrame {
         else this._bottom.remove()
         if (layout === 'floating') body.appendChild(this._head)
         else this._head.remove()
-        // above the names toggle of the mode bar
-        if (layout === 'floating') this.modeBar.element.insertBefore(this._floatActions, this.modeBar.element.lastElementChild)
-        else this._floatActions.remove()
         this._expandPanel()
         this.documentName = this._documentName
         // the cards move only in the floating layout
@@ -810,7 +805,7 @@ export class EditorFrame {
         this._top.remove()
         this._bottom.remove()
         this._head.remove()
-        this._floatActions.remove()
+        this._modeActions.remove()
         this._entryBox.remove()
         for (const [area, el] of Object.entries(this._areas)) {
             el.remove()
@@ -828,7 +823,6 @@ export class EditorFrame {
             for (const k of ['offset', 'start', 'length']) document.body.style.removeProperty(`--lay-${area}-${k}`)
         }
         this._closeMenu()
-        this._tips.forEach(t => t.destroy())
         this.modeBar.dispose()
         this._styles?.remove()
     }
@@ -871,7 +865,7 @@ export class EditorFrame {
      */
     private _entry(id: string) {
         let held = false
-        const b = this._button(ICONS.left, '', '', 'modeBar', () => {
+        const b = this._button(ICONS.left, '', '', () => {
             // the end of a long press that opened the menu is not a tap
             if (held) held = false
             else this._onPanelEntry(id)
@@ -1416,29 +1410,22 @@ export class EditorFrame {
         this._fitAreas()
     }
 
-    /**
-     * The light or dark button and the layout button
-     * @param where - the top or the bottom bar, or the mode bar (the floating layout): there they have a name that the
-     * wide mode bar shows, and the tooltips of the mode bar
-     */
-    private _actions(where: 'top' | 'bottom' | 'modeBar') {
+    /** The light or dark button and the layout button, in the mode bar */
+    private _actions() {
         const buttons: HTMLButtonElement[] = []
-        if (this.options.colorMode) buttons.push(this._button(ICONS.theme, 'Light or dark (Shift T)', 'Light / dark', where, () => this.toggleTheme()))
-        buttons.push(this._button(ICONS.layout, 'Layout of the page', 'Layout', where, b => this._toggleMenu(b, () => this._layoutItems())))
+        if (this.options.colorMode) buttons.push(this._button(ICONS.theme, 'Light or dark (Shift T)', 'Light / dark', () => this.toggleTheme()))
+        buttons.push(this._button(ICONS.layout, 'Layout of the page', 'Layout', b => this._toggleMenu(b, () => this._layoutItems())))
         return buttons
     }
 
-    private _button(icon: string, tip: string, name: string, where: 'top' | 'bottom' | 'modeBar', onClick: (b: HTMLButtonElement) => void) {
-        const b = createDiv({elementTag: 'button', innerHTML: icon, classList: where === 'modeBar' ? ['mb-btn', 'lay-float-btn'] : ['lay-btn'], addToBody: false})
-        if (where === 'modeBar') {
-            const label = document.createElement('span')
-            label.className = 'mb-label'
-            label.textContent = name
-            b.appendChild(label)
-            this.modeBar.addTooltip(b, tip)
-        } else {
-            this._tips.push(tippy(b, {content: tip, placement: where === 'top' ? 'bottom' : 'top', appendTo: () => document.body}))
-        }
+    /** A button in the mode bar, with a name that the wide mode bar shows and the tooltip of the mode bar */
+    private _button(icon: string, tip: string, name: string, onClick: (b: HTMLButtonElement) => void) {
+        const b = createDiv({elementTag: 'button', innerHTML: icon, classList: ['mb-btn', 'lay-mode-btn'], addToBody: false})
+        const label = document.createElement('span')
+        label.className = 'mb-label'
+        label.textContent = name
+        b.appendChild(label)
+        this.modeBar.addTooltip(b, tip)
         b.setAttribute('aria-label', tip)
         b.addEventListener('click', () => onClick(b))
         return b
@@ -1498,13 +1485,10 @@ export class EditorFrame {
 
     /**
      * The tooltip of the button that opened the menu would cover its first item: off while the menu is open. The
-     * buttons in the mode bar (the floating layout) share the tooltip of the mode bar, so the mode bar holds it.
+     * buttons in the mode bar share the tooltip of the mode bar, so the mode bar holds it.
      */
     private _holdTooltip(anchor: HTMLElement, held: boolean) {
-        if (this.modeBar.element.contains(anchor)) return this.modeBar.holdTooltips(held)
-        const tip = this._tips.find(t => t.reference === anchor)
-        if (held) tip?.disable() // it also hides
-        else tip?.enable()
+        if (this.modeBar.element.contains(anchor)) this.modeBar.holdTooltips(held)
     }
 
     private _onMenuPointerDown = (e: PointerEvent) => {

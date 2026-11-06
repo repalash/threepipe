@@ -344,16 +344,14 @@ describe('EditorFrame', () => {
         storage.set('tpEditorModeBarExpanded', expanded ? '1' : '0')
         return new EditorFrame(host(), {layout, onRename})
     }
-    const layoutButton = (f: InstanceType<typeof EditorFrame>) => f.layout === 'floating' ?
-        layoutButtonOf((f.modeBar.element as any as FakeElement).find('lay-float-btn')) :
-        layoutButtonOf(body().find('lay-top')[0].find('lay-btn'))
+    const layoutButton = (f: InstanceType<typeof EditorFrame>) => layoutButtonOf((f.modeBar.element as any as FakeElement).find('lay-mode-btn'))
 
     for (const [layout, expanded] of [['titlebar', true], ['floating', false], ['floating', true]] as const) {
         test(`the tooltip of the layout button hides while its menu is open, and never doubles (${layout}, names ${expanded ? 'shown' : 'hidden'})`, () => {
             const f = frame(layout, expanded)
             const b = layoutButton(f)
             const before = tipsOnHover(b)
-            expect(before).toBe(layout === 'floating' && expanded ? 0 : 1)
+            expect(before).toBe(expanded ? 0 : 1)
             b.click()
             expect(body().find('lay-menu')).toHaveLength(1)
             expect(tipsOnHover(b)).toBe(0)
@@ -454,11 +452,11 @@ describe('EditorFrame areas', () => {
     const area = (name: string) => body().find('lay-area-' + name)
     /** The elements of the panels of a place: each panel is in a section */
     const els = (name: string) => area(name)[0].children.filter(c => c.classList.contains('lay-section')).map(c => c.children[0])
-    /** The parts of the frame in the body, and in the mode bar (the actions of the floating layout) */
+    /** The parts of the frame in the body, and in the mode bar (the actions) */
     const structure = (f: InstanceType<typeof EditorFrame>) => ({
         bars: body().children.filter(c => c.classList.contains('lay-bar')).map(c => ['top', 'bottom', 'head'].find(k => c.classList.contains('lay-' + k))),
         areas: body().children.filter(c => c.classList.contains('lay-area')).map(c => c.className),
-        floatActions: (f.modeBar.element as any as FakeElement).find('lay-float-actions').length,
+        modeActions: (f.modeBar.element as any as FakeElement).find('lay-mode-actions').length,
         classes: body().className.split(' ').filter(c => c.startsWith('lay-')).sort(),
     })
 
@@ -470,7 +468,7 @@ describe('EditorFrame areas', () => {
             expect(structure(f)).toEqual({
                 bars: bars[layout],
                 areas: ['lay-area lay-area-left', 'lay-area lay-area-bottom'],
-                floatActions: layout === 'floating' ? 1 : 0,
+                modeActions: 1, // the same place in each layout
                 // no lay-has-<area>: the CSS gives an empty area no room (tweakpane-editor-frame-css.test.ts)
                 classes: ['lay-' + layout, 'lay-frame', 'lay-side'].sort(), // lay-side: 1440 x 900 (EditorFrame.Breakpoints)
             })
@@ -496,6 +494,22 @@ describe('EditorFrame areas', () => {
             expect(body().classList.contains('lay-has-left')).toBe(false)
         })
     }
+
+    test('the light or dark and the layout buttons stay at the same place in the mode bar in each layout, and the bars have no buttons', () => {
+        const f = new EditorFrame(host(), {layout: 'titlebar', colorMode: {get: () => 'clean', set: () => {}}})
+        const bar = f.modeBar.element as any as FakeElement
+        const actions = bar.find('lay-mode-actions')[0]
+        for (const layout of ['titlebar', 'statusbar', 'floating', 'titlebar'] as const) {
+            f.setLayout(layout)
+            expect(bar.find('lay-mode-actions'), layout).toEqual([actions])
+            // above the names toggle, the last child
+            expect(bar.children.indexOf(actions), layout).toBe(bar.children.length - 2)
+            expect(actions.children.map(b => b.getAttribute('aria-label')), layout).toEqual(['Light or dark (Shift T)', 'Layout of the page'])
+            for (const b of body().children.filter(c => c.classList.contains('lay-bar'))) expect(b.all().filter(e => e.tagName.toLowerCase() === 'button'), layout).toHaveLength(0)
+        }
+        f.dispose()
+        expect(bar.find('lay-mode-actions')).toHaveLength(0)
+    })
 
     test('the areas keep their elements when the layout changes, and go with the frame', () => {
         const f = new EditorFrame(host(), {layout: 'titlebar'})
@@ -878,7 +892,7 @@ describe('EditorFrame area sizes', () => {
         const box = bar.find('lay-area-entries')[0]
         // after the two modes, before the actions of the floating layout and the names toggle
         expect(bar.children.indexOf(box)).toBe(2)
-        expect(bar.children.indexOf(box)).toBeLessThan(bar.children.indexOf(bar.find('lay-float-actions')[0]))
+        expect(bar.children.indexOf(box)).toBeLessThan(bar.children.indexOf(bar.find('lay-mode-actions')[0]))
         expect([shown(box), box.find('lay-area-entry').length]).toEqual([false, 0])
         f.addPanel('layers', new FakeElement('div') as any, {name: 'Layers', icon: '<svg class="layers-icon"></svg>'})
         let e = box.find('lay-area-entry')[0]
@@ -1295,7 +1309,7 @@ describe('TweakpaneEditorPlugin.layout', () => {
     test('the layout picked in the layout menu or the UI dropdown is kept', () => {
         const p = plugin()
         p.layout = 'titlebar'
-        layoutButtonOf(body().find('lay-top')[0].find('lay-btn')).click()
+        layoutButtonOf((p.frame!.modeBar.element as any as FakeElement).find('lay-mode-btn')).click()
         const items = body().find('lay-menu')[0].children
         items.find(i => i.textContent === 'Status bar')!.click()
         expect(p.layout).toBe('statusbar')
