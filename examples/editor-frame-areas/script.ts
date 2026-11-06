@@ -15,14 +15,16 @@ async function init() {
         canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
         renderScale: 'auto',
         msaa: true,
-        plugins: [LoadingScreenPlugin, PickingPlugin, ViewerUiConfigPlugin],
+        plugins: [LoadingScreenPlugin, PickingPlugin],
     })
+    // after the viewer is made: it shows viewer.uiConfig
+    viewer.addPluginSync(ViewerUiConfigPlugin)
 
     viewer.addPluginSync(new TweakpaneUiPlugin(true))
     const editor = viewer.addPluginSync(new TweakpaneEditorPlugin())
     editor.loadPlugins({
         ['Viewer']: [ViewerUiConfigPlugin],
-        ['Picking']: [PickingPlugin],
+        ['Interaction']: [PickingPlugin],
     })
     const layout = getUrlQueryParam('layout') as EditorPageLayout | null
     if (layout) editor.layout = layout
