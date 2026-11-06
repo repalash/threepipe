@@ -141,13 +141,15 @@ const labels = (ui: FakeRenderer) => ui.shown.map(c => c.label)
 
 let picking: FakePicking
 let requests: {material: any, options: any}[]
+let invalidated: any[]
 const setup = () => {
     picking = new FakePicking()
     requests = []
+    invalidated = []
     const previews = {request: (material: any, options: any) => {
         requests.push({material, options})
         return {cancel: () => {}}
-    }}
+    }, invalidate: (m: any) => invalidated.push(m)}
     const viewer = Object.assign(new EventDispatcher<any>(), {
         // what materialPreviewOptionsFromViewer reads: the environment of the scene and the screen pass
         scene: Object.assign(new EventDispatcher<any>(), {environment: null, environmentIntensity: 1, environmentRotation: new Euler()}),
@@ -297,6 +299,25 @@ describe('InspectorPlugin', () => {
         viewer.scene.environmentRotation.y = 1
         viewer.dispatchEvent({type: 'update'})
         expect(requests.length).toBe(m)
+    })
+
+    test('a change of the selected geometry in place drops the cached previews of its materials and asks again', () => {
+        const {el, inspector, viewer} = setup()
+        const a = mesh(new PhysicalMaterial())
+        picking.select(a)
+        // an edit on the Geometry tab: the cache is dropped, no preview is shown
+        viewer.scene.dispatchEvent({type: 'geometryUpdate', geometry: a.geometry})
+        expect(invalidated).toEqual([a.material])
+        expect(requests).toHaveLength(0)
+        inspector.previewShape = 'mesh'
+        el.find('isp-tab')[1].click()
+        const n = requests.length
+        viewer.scene.dispatchEvent({type: 'geometryUpdate', geometry: a.geometry})
+        expect(requests.length).toBe(n + 1)
+        // another geometry: nothing
+        viewer.scene.dispatchEvent({type: 'geometryUpdate', geometry: new BoxGeometry()})
+        expect(invalidated).toHaveLength(2)
+        expect(requests.length).toBe(n + 1)
     })
 
     test('turns off the selection UI of the PickingPlugin while it is added, and puts it back', () => {

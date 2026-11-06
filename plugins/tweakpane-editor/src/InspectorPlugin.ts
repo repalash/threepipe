@@ -240,6 +240,7 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
         viewer.scene.addEventListener('materialChanged', this._onPartsChanged)
         viewer.scene.addEventListener('geometryChanged', this._onPartsChanged)
         viewer.scene.addEventListener('objectUpdate', this._onObjectUpdate)
+        viewer.scene.addEventListener('geometryUpdate', this._onGeometryUpdate)
         viewer.addEventListener('update', this._onViewerUpdate)
         // the PickingPlugin can be removed and added again
         viewer.addPluginListener('add', this._onPluginAdded, 'PickingPlugin')
@@ -252,6 +253,7 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
         viewer.scene.removeEventListener('materialChanged', this._onPartsChanged)
         viewer.scene.removeEventListener('geometryChanged', this._onPartsChanged)
         viewer.scene.removeEventListener('objectUpdate', this._onObjectUpdate)
+        viewer.scene.removeEventListener('geometryUpdate', this._onGeometryUpdate)
         viewer.removeEventListener('update', this._onViewerUpdate)
         viewer.removePluginListener('add', this._onPluginAdded)
         viewer.removePluginListener('remove', this._onPluginRemoved)
@@ -314,6 +316,19 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
     /** The selected object took another material or geometry: show the new ones */
     private _onPartsChanged = (e: IEvent<any> & {object?: IObject3D}) => {
         if (e.object && e.object === this._object) this._show(this._object)
+    }
+
+    /**
+     * The selected geometry changed in place (a geometry generator, the Geometry tab): the cached previews of the "This
+     * mesh" shape are old, and the cache keys on the geometry uuid, which stays. Drop the cached previews of the materials
+     * of the object, also while another tab is open, and ask again when the preview shows.
+     */
+    private _onGeometryUpdate = (e: IEvent<any> & {geometry?: IGeometry | null, object?: IObject3D}) => {
+        const geometry = this._geometry
+        if (!geometry || (e.geometry ?? e.object?.geometry) !== geometry) return
+        const previews = this._viewer?.getPlugin(MaterialPreviewPlugin)
+        for (const m of this._materials) previews?.invalidate(m)
+        this._requestPreview()
     }
 
     /** A rename of the selected object */
