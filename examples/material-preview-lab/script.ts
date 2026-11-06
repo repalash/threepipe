@@ -91,7 +91,7 @@ function setActive(material: PhysicalMaterial) {
     if (active.uiConfig) ui.removeChild(active.uiConfig)
     active = material
     vase.material = material
-    vase.setDirty?.()
+    viewer.setDirty()
     document.querySelectorAll('.swatch').forEach(s => s.classList.toggle('on', (s as HTMLElement).dataset.name === material.name))
     document.getElementById('active-name')!.textContent = material.name
     stopLarge?.()
