@@ -66,11 +66,13 @@ async function init() {
     await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
 
     // the portalgun .3ds file asks for its texture next to it (portalgun/color.jpg), but the file is in portalgun/textures:
-    // a URL modifier of the importer loads it from there
+    // a URL modifier of the importer loads it from there.
+    // todo - there should be an import option to set the base path of the files a model references (like
+    //  TDSLoader.setResourcePath), so this modifier is not needed
     viewer.assetManager.importer.addURLModifier(url => url.replace(/\/3ds\/portalgun\/(?!textures\/)([^/]+\.jpg)$/, '/3ds/portalgun/textures/$1'))
 
     const urls = [
-        'https://cdn.jsdelivr.net/gh/repalash/three.js-modded@v0.157.1004/examples/models/3ds/portalgun/portalgun.3ds',
+        'https://cdn.jsdelivr.net/gh/repalash/three.js-modded@v0.157.1004/examples/models/3ds/portalgun/portalgun.3ds', // its texture: see the URL modifier above
         'https://cdn.jsdelivr.net/gh/repalash/three.js-modded@v0.157.1004/examples/models/3mf/cube_gears.3mf',
         'https://cdn.jsdelivr.net/gh/repalash/three.js-modded@v0.157.1004/examples/models/collada/elf/elf.dae',
         'https://cdn.jsdelivr.net/gh/repalash/three.js-modded@v0.157.1004/examples/models/amf/rook.amf',
