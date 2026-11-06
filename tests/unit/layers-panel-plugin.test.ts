@@ -868,7 +868,7 @@ describe('LayersPanelPlugin', () => {
     })
 
     test('the picture of a texture whose image loads later shows after the load, and a new image gives a new picture', () => {
-        const {layers, list, assets, gold} = withAssets()
+        const {layers, list, assets, gold, sceneEvents} = withAssets()
         class FakeImage {
             width = 0
         }
@@ -902,6 +902,17 @@ describe('LayersPanelPlugin', () => {
             layers.refresh(true)
             flush()
             expect([drawn, part(rows(list)[0], 'lyp-kind').innerHTML.includes('data:drawn2')]).toEqual([2, true])
+            // a new image with only a texture update (no material change): the update reaches the scene, the row draws again
+            const another = Object.assign(new FakeImage(), {width: 128, height: 64})
+            ;(assets.textures[assets.textures.length - 1] as any).image = another
+            sceneEvents.dispatchEvent({type: 'textureUpdate'})
+            flush()
+            expect([part(rows(list)[0], 'lyp-kind').innerHTML.includes('data:drawn3'), metas(list)[0]]).toEqual([true, '128×64 · 2 obj'])
+            // in another tab: nothing to draw
+            layers.setTab('objects')
+            flush()
+            sceneEvents.dispatchEvent({type: 'textureUpdate'})
+            expect(frames).toHaveLength(0)
         } finally {
             doc.createElement = createElement // the stub of HTMLImageElement goes in afterEach
         }

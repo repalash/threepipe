@@ -378,6 +378,7 @@ export class LayersPanelPlugin extends AViewerPluginSync<LayersPanelPluginEventM
         viewer.scene.addEventListener('materialChanged', this._onAssetsChanged)
         viewer.scene.addEventListener('geometryChanged', this._onAssetsChanged)
         viewer.scene.addEventListener('materialUpdate', this._onMaterialUpdate)
+        viewer.scene.addEventListener('textureUpdate', this._onTextureUpdate)
         // the PickingPlugin can be added before or after this plugin, removed and replaced
         viewer.addPluginListener('add', this._onPluginAdded, 'PickingPlugin')
         viewer.addPluginListener('remove', this._onPluginRemoved, 'PickingPlugin')
@@ -397,6 +398,7 @@ export class LayersPanelPlugin extends AViewerPluginSync<LayersPanelPluginEventM
         viewer.scene.removeEventListener('materialChanged', this._onAssetsChanged)
         viewer.scene.removeEventListener('geometryChanged', this._onAssetsChanged)
         viewer.scene.removeEventListener('materialUpdate', this._onMaterialUpdate)
+        viewer.scene.removeEventListener('textureUpdate', this._onTextureUpdate)
         viewer.removePluginListener('add', this._onPluginAdded)
         viewer.removePluginListener('remove', this._onPluginRemoved)
         this._setPicking(undefined)
@@ -1357,6 +1359,14 @@ export class LayersPanelPlugin extends AViewerPluginSync<LayersPanelPluginEventM
      */
     private _onMaterialUpdate = () => {
         if (this._tab === 'materials' || this._tab === 'textures') this.refresh(true)
+    }
+
+    /**
+     * A texture of a material changed (a new image: it bubbles to the scene): its picture and size show in the Textures
+     * tab. The rows are drawn again; the list stays (the picture and the size are read when a row is drawn).
+     */
+    private _onTextureUpdate = () => {
+        if (this._tab === 'textures') this.refresh()
     }
 
     /** Builds the rows of the open tab of assets (an open asset lists its users under it), and the counts of the tabs */
