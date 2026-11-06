@@ -46,20 +46,26 @@
         .insp-shapes button { flex: 1; border: 0; background: var(--tp-input-background-color, rgba(0, 0, 0, .05)); border-radius: 4px; padding: 3px 0; font-size: 11px; }
         .insp-shapes button.on { outline: 1px solid #0d99ff; }
         .insp-body { flex: 1; min-height: 0; overflow: auto; }
+        /* the inspector's own Tweakpane renderer makes a second #tweakpaneUiContainer: undo the frame's fixed panel styles for it */
+        .insp #tweakpaneUiContainer {
+            position: static !important; inset: auto !important; width: auto !important; height: auto !important; max-height: none !important;
+            transform: none !important; box-shadow: none !important; border: 0 !important; border-radius: 0 !important; margin: 0 !important;
+            display: block !important; z-index: auto !important; overflow: visible !important; padding: 0 !important; background: transparent !important;
+        }
         .insp-empty { padding: 16px 12px; opacity: .6; }
         /* the left variant: in the stack under Layers */
         .lay-area .insp { height: 100%; }
         /* the right variants: in the container of the Tweakpane UI, above the mode settings */
-        body.insp-right #tweakpaneUiContainer, body.insp-swap #tweakpaneUiContainer { display: flex; flex-direction: column; }
-        body.insp-right #tweakpaneUiContainer > .insp { flex: 0 1 auto; max-height: 60%; overflow: auto; border-bottom: 1px solid var(--tp-container-border-color, #ececec); }
-        body.insp-right #tweakpaneUiContainer > :not(.insp) { flex: 1 1 auto; min-height: 0; overflow: auto; }
+        body.insp-right > #tweakpaneUiContainer, body.insp-swap > #tweakpaneUiContainer { display: flex; flex-direction: column; }
+        body.insp-right > #tweakpaneUiContainer > .insp { flex: 0 1 auto; max-height: 60%; overflow: auto; border-bottom: 1px solid var(--tp-container-border-color, #ececec); }
+        body.insp-right > #tweakpaneUiContainer > :not(.insp) { flex: 1 1 auto; min-height: 0; overflow: auto; }
         /* swap: the inspector in place of the mode settings while something is selected */
-        body.insp-swap #tweakpaneUiContainer > .insp { flex: 1 1 auto; min-height: 0; overflow: auto; }
-        body.insp-swap:not(.insp-has-sel) #tweakpaneUiContainer > .insp .insp-empty,
-        body.insp-swap:not(.insp-has-sel) #tweakpaneUiContainer > .insp .insp-title,
-        body.insp-swap:not(.insp-has-sel) #tweakpaneUiContainer > .insp .insp-body { display: none; }
-        body.insp-swap:not(.insp-has-sel) #tweakpaneUiContainer > .insp { flex: 0 0 auto; }
-        body.insp-swap.insp-has-sel #tweakpaneUiContainer > :not(.insp) { display: none; }
+        body.insp-swap > #tweakpaneUiContainer > .insp { flex: 1 1 auto; min-height: 0; overflow: auto; }
+        body.insp-swap:not(.insp-has-sel) > #tweakpaneUiContainer > .insp .insp-empty,
+        body.insp-swap:not(.insp-has-sel) > #tweakpaneUiContainer > .insp .insp-title,
+        body.insp-swap:not(.insp-has-sel) > #tweakpaneUiContainer > .insp .insp-body { display: none; }
+        body.insp-swap:not(.insp-has-sel) > #tweakpaneUiContainer > .insp { flex: 0 0 auto; }
+        body.insp-swap.insp-has-sel > #tweakpaneUiContainer > :not(.insp) { display: none; }
     </style>
     <script type="module" src="../examples-utils/global-loading.mjs"></script>
     <script id="example-script" type="module" src="./script.js" data-scripts="./script.ts;./script.js"></script>
