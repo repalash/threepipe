@@ -84,16 +84,18 @@ body.lay-resizing { user-select: none; -webkit-user-select: none; }
 body.lay-resizing-x, body.lay-resizing-x * { cursor: col-resize !important; }
 body.lay-resizing-y, body.lay-resizing-y * { cursor: row-resize !important; }
 /* the grips of the floating cards (EditorFrame.setAreaOffset): a strip in the gap on the outer side of the card, the side
-   of the window; a drag moves the card away from it, a double-click puts it back. Dots show on hover. */
-.lay-grip { display: none; position: fixed; z-index: 205; touch-action: none; cursor: grab; }
+   of the window; a drag moves the card away from it, a double-click puts it back. Its dots always show, in the accent
+   colour on hover and during a drag. */
+.lay-grip { display: none; position: fixed; z-index: 205; touch-action: none; cursor: grab; --lay-grip-color: var(--tp-label-foreground-color, #8a8f98); }
 .lay-grip-left, .lay-grip-right { width: 8px; }
 .lay-grip-bottom { height: 8px; }
 .lay-grip::after {
-    content: ''; position: absolute; inset: 0; margin: auto; border-radius: 2px; opacity: 0; transition: opacity .12s .1s;
-    background: radial-gradient(circle, var(--tp-label-foreground-color, #8a8f98) 1px, transparent 1.5px) 0 0 / 4px 4px;
+    content: ''; position: absolute; inset: 0; margin: auto; border-radius: 2px; opacity: 0.6; transition: opacity .12s;
+    background: radial-gradient(circle, var(--lay-grip-color) 1px, transparent 1.5px) 0 0 / 4px 4px;
 }
 .lay-grip-left::after, .lay-grip-right::after { width: 4px; height: 24px; }
 .lay-grip-bottom::after { width: 24px; height: 4px; }
+.lay-grip:hover, .lay-grip.lay-active { --lay-grip-color: #0d99ff; }
 .lay-grip:hover::after, .lay-grip.lay-active::after { opacity: 1; }
 body.lay-moving, body.lay-moving * { cursor: grabbing !important; user-select: none; -webkit-user-select: none; }
 .lay-bar {

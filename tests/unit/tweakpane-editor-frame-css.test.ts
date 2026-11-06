@@ -549,6 +549,9 @@ describe('tweakpane editor frame areas', () => {
         expect(line('floating', 'handle-bottom')).toMatchObject({left: '8px', right: '8px'})
         expect(line('floating', 'handle-left')).toMatchObject({top: '8px', bottom: '8px'})
         expect(line('titlebar', 'handle-bottom')).toMatchObject({left: '0', right: '0'})
+        // the dots of a grip always show; blue on hover
+        expect(cascade(['.lay-grip::after'], bodyClasses('floating', s), desktop).opacity).toBe('0.6')
+        expect(cascade(['.lay-grip:hover'], bodyClasses('floating', s), desktop)['--lay-grip-color']).toBe('#0d99ff')
         // no grips or ends: in the other layouts, for a collapsed card, and when the areas show one at a time
         expect(box(['.lay-grip', '.lay-grip-left'], 'titlebar', desktop, s)).toBeNull()
         expect(box(['.lay-grip', '.lay-grip-left'], 'floating', desktop, {...s, collapsed: ['left']})).toBeNull()
