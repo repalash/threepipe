@@ -154,7 +154,7 @@ export class MaterialPreviewPlugin extends AViewerPluginSync {
      * While a material changes continuously (a drag, an animation, a transition), the minimum time in ms between two
      * previews of the material. Other changes render in the next frame. 0: one preview per frame.
      */
-    @uiSlider('Drag interval (ms)', [0, 500], 10) dragInterval = 100
+    @uiSlider('Drag interval (ms)', [0, 500], 1) dragInterval = 32
     /**
      * Number of previews kept in the cache (the least recently used is removed first).
      */
