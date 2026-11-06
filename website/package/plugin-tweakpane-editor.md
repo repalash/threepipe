@@ -105,7 +105,8 @@ editor.frame?.setAreaCollapsed('left', true)
 
 **Move the floating cards.** In the floating layout, with the areas next to the canvas, each card can move and take a part of its side: the left card, the bottom card, and the panel with the mode bar (one card).
 
-- A grip is a strip in the gap on the side of the window of each card (its dots always show, blue on hover). A drag moves the card on both axes: away from its side (the left card to the right, the bottom card up, the panel to the left; `setAreaOffset`), and along its side (`setAreaSpan`). The first move fixes the length that the card has, so it keeps its size. A double-click puts the card back.
+- A grip is a strip in the gap on the side of the window of each card (its dots always show, blue on hover). A drag moves the card on both axes: away from its side (the left card to the right, the bottom card up, the panel to the left; `setAreaOffset`), and along its side (`setAreaSpan`). The card keeps its length while it moves. A double-click puts the card back.
+- After a drag, an end of a card that touches the end of its side stays there: the card grows and shrinks with its side (for example, the bottom card when the left card hides). A card that touches both ends fills its side again. Only a card that is shorter than its side keeps its length.
 - The ends of a card along its side (the top and the bottom edge of the left card and the panel, the left and the right end of the bottom card) resize it, at least `EditorFrame.MinCardLength` (120 px) long. A double-click fills the side again.
 - The offset and the size of a card share the room that leaves `EditorFrame.MinCanvasWidth` for the canvas (the bottom card: half of the window height). When the window gets smaller, the offset gets smaller first, then the size.
 - The perf pill, the bar of the sticky notes and the tool bar keep out of the whole column of the left card and the row of the bottom card, also when the card is shorter.

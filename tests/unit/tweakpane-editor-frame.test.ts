@@ -969,9 +969,10 @@ describe('EditorFrame area sizes', () => {
     test('a drag of a grip moves the card on both axes and keeps its length; a double-click puts it back', () => {
         const f = floating()
         drag(grip('left'), {clientX: 6, clientY: 400}, {clientX: 56, clientY: 300}, {clientX: 106, clientY: 500})
-        // 100 to the right; the first move fixed the length of the whole side, so the card cannot move down
+        // 100 to the right; the card fills its side, so it cannot move down, and its span stays the whole side
         expect([f.areaOffset('left'), f.areaSpan('left')]).toEqual([100, {start: 0, length: 876}])
-        expect(stored()).toMatchObject({offsets: {left: 100}, spans: {left: {start: 0, length: 876}}})
+        expect(stored().offsets).toEqual({left: 100})
+        expect(stored().spans.left).toBeUndefined()
         // the side is full: the start stays 0. A smaller card moves
         f.setAreaSpan('left', {start: 0, length: 400})
         drag(grip('left'), {clientX: 106, clientY: 400}, {clientX: 56, clientY: 600})
@@ -988,6 +989,25 @@ describe('EditorFrame area sizes', () => {
         grip('left').fire('dblclick')
         expect([f.areaOffset('left'), f.areaSpan('left')]).toEqual([0, {start: 0, length: 876}])
         expect(stored().offsets.left).toBeUndefined()
+    })
+
+    test('after a drag, an end of a card that touches the end of its side stays there: the card grows with the side', () => {
+        const f = floating()
+        f.setArea('bottom', new FakeElement('div') as any)
+        area('bottom').getBoundingClientRect = () => ({width: 684, height: 160}) as any
+        // the row of the bottom card: 1440 - (12 + 240) - 12 - (12 + 468 + 12) = 684; 100 px off its left end
+        drag(end('bottom', 'start'), {clientX: 264}, {clientX: 364})
+        expect(f.areaSpan('bottom')).toEqual({start: 100, length: 584})
+        expect(stored().spans.bottom).toEqual({start: 100})
+        // the left card hides: the row is 936 px, and the card still reaches its right end
+        f.setAreaCollapsed('left', true)
+        expect(f.areaSpan('bottom')).toEqual({start: 100, length: 836})
+        // a card made shorter at its right end keeps its length
+        f.setAreaCollapsed('left', false)
+        drag(end('bottom', 'end'), {clientX: 948}, {clientX: 848})
+        expect(stored().spans.bottom).toEqual({start: 100, length: 484})
+        f.setAreaCollapsed('left', true)
+        expect(f.areaSpan('bottom')).toEqual({start: 100, length: 484})
     })
 
     test('a drag of an end of a card sets its span; the other end stays; a double-click fills the side', () => {

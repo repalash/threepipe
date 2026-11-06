@@ -705,8 +705,8 @@ export class EditorFrame {
 
     /**
      * The grip of a floating card: a strip in the gap on its side of the window. A drag moves the card on both axes, its
-     * offset ({@link setAreaOffset}) and the start of its span ({@link setAreaSpan}, the first move fixes the length that
-     * the card has); a double-click puts the card back at its side, the whole side long.
+     * offset ({@link setAreaOffset}) and the start of its span ({@link setAreaSpan}; the card keeps its length while it
+     * moves); a double-click puts the card back at its side, the whole side long.
      */
     private _grip(area: EditorFrameSizedArea) {
         const el = document.body.appendChild(createDiv({classList: ['lay-grip', 'lay-grip-' + area], addToBody: false}))
@@ -773,11 +773,18 @@ export class EditorFrame {
         return el
     }
 
-    /** After a drag: the set offset and span of a card are the ones on screen, so the next drag starts from what is seen */
+    /**
+     * After a drag: the set offset and span of a card are the ones on screen, so the next drag starts from what is seen.
+     * A card that reaches the end of its side keeps no length: it reaches the end also when the side gets longer or
+     * shorter (another card hides or shows, the window changes); at both ends it fills the side again.
+     */
     private _keepApplied(area: EditorFrameSizedArea) {
         if (this._offsets[area] !== undefined) this._offsets[area] = this.areaOffset(area)
         const span = this._appliedSpans[area]
-        if (this._spans[area] && span) this._spans[area] = {...span}
+        if (!this._spans[area] || !span) return
+        if (span.start + span.length < this._fullLength(area) - 0.5) this._spans[area] = {...span}
+        else if (span.start > 0) this._spans[area] = {start: span.start}
+        else delete this._spans[area]
     }
 
     /**
