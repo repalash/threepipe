@@ -363,6 +363,7 @@ export class LayersPanelPlugin extends AViewerPluginSync {
         // a mesh that takes another material or geometry, already in use: the users of both change (no add or remove)
         viewer.scene.addEventListener('materialChanged', this._onAssetsChanged)
         viewer.scene.addEventListener('geometryChanged', this._onAssetsChanged)
+        viewer.scene.addEventListener('materialUpdate', this._onMaterialUpdate)
         // the PickingPlugin and the TweakpaneEditorPlugin can be added before or after this plugin, removed and replaced
         viewer.addPluginListener('add', this._onPluginAdded, 'PickingPlugin', 'TweakpaneEditorPlugin')
         viewer.addPluginListener('remove', this._onPluginRemoved, 'PickingPlugin', 'TweakpaneEditorPlugin')
@@ -382,6 +383,7 @@ export class LayersPanelPlugin extends AViewerPluginSync {
         for (const type of ASSET_EVENTS) viewer.object3dManager?.removeEventListener(type, this._onAssetsChanged)
         viewer.scene.removeEventListener('materialChanged', this._onAssetsChanged)
         viewer.scene.removeEventListener('geometryChanged', this._onAssetsChanged)
+        viewer.scene.removeEventListener('materialUpdate', this._onMaterialUpdate)
         viewer.removePluginListener('add', this._onPluginAdded)
         viewer.removePluginListener('remove', this._onPluginRemoved)
         this._setPicking(undefined)
@@ -1319,6 +1321,14 @@ export class LayersPanelPlugin extends AViewerPluginSync {
 
     private _onAssetsChanged = () => {
         this.refresh(true)
+    }
+
+    /**
+     * A material changed (it bubbles to the scene): its name, colour or maps show in the Materials and the Textures tab.
+     * The other tabs do not show them, and a drag of a slider sends it in each frame.
+     */
+    private _onMaterialUpdate = () => {
+        if (this._tab === 'materials' || this._tab === 'textures') this.refresh(true)
     }
 
     /** Builds the rows of the open tab of assets (an open asset lists its users under it), and the counts of the tabs */

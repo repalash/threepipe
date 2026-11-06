@@ -826,6 +826,23 @@ describe('LayersPanelPlugin', () => {
         expect(part(rows(list)[0], 'lyp-kind').innerHTML).toContain('data:sky')
     })
 
+    test('a material changed elsewhere shows its new name and colour in the Materials tab', () => {
+        const {layers, list, sceneEvents, gold} = withAssets()
+        layers.setTab('materials')
+        flush()
+        gold.name = 'Rose gold'
+        gold.color.getHexString = () => 'e0a090'
+        sceneEvents.dispatchEvent({type: 'materialUpdate', material: gold})
+        flush()
+        expect(names(list)).toEqual(['Rose gold'])
+        expect(part(rows(list)[0], 'lyp-kind').innerHTML).toContain('#e0a090')
+        // the Objects tab does not build again for it
+        layers.setTab('objects')
+        flush()
+        sceneEvents.dispatchEvent({type: 'materialUpdate', material: gold})
+        expect(frames).toHaveLength(0)
+    })
+
     test('the scene and the default camera are the first rows: dimmer, no buttons, a line below; a click selects them', () => {
         const {layers, list, picking, viewer, modelRoot, outline} = setup({sceneRows: true})
         const theScene = viewer.scene

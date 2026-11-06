@@ -160,15 +160,16 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
     }
 
     setSelected(object: SelectionObject, record = true, intersects?: HitIntersects) {
-        // Auto-switch selection mode based on object type
-        if (object) {
-            if ((object as IObject3D)?.isObject3D && this.selectionMode !== 'object') {
+        // Auto-switch selection mode based on object type (of the first item of a list)
+        const first = Array.isArray(object) ? object[0] : object
+        if (first) {
+            if ((first as IObject3D)?.isObject3D && this.selectionMode !== 'object') {
                 this.selectionMode = 'object'
-            } else if ((object as IMaterial)?.isMaterial && this.selectionMode !== 'material') {
+            } else if ((first as IMaterial)?.isMaterial && this.selectionMode !== 'material') {
                 this.selectionMode = 'material'
-            } else if ((object as ITexture)?.isTexture && this.selectionMode !== 'texture') {
+            } else if ((first as ITexture)?.isTexture && this.selectionMode !== 'texture') {
                 this.selectionMode = 'texture'
-            } else if ((object as IGeometry)?.isBufferGeometry && this.selectionMode !== 'geometry') {
+            } else if ((first as IGeometry)?.isBufferGeometry && this.selectionMode !== 'geometry') {
                 this.selectionMode = 'geometry'
             }
         }

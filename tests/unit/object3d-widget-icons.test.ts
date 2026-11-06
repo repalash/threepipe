@@ -586,6 +586,18 @@ describe('sprite icons on screen', () => {
         expect(picker.selectableFor(w.icon as any)).toBeNull()
     })
 
+    test('setSelected of a list switches the selection mode as its first item does, as a single item does', () => {
+        const picker = new tp.ObjectPicker(new tp.Group2() as any, new FakeElement('canvas') as any, new PerspectiveCamera() as any, tp.isPickable)
+        const material = new MeshBasicMaterial() as any
+        picker.setSelected(material)
+        expect(picker.selectionMode).toBe('material')
+        // the objects that use the material: object mode again, so a click in the viewport selects objects
+        picker.setSelected([new tp.Mesh2(), new tp.Mesh2()] as any)
+        expect(picker.selectionMode).toBe('object')
+        picker.setSelected([material] as any)
+        expect(picker.selectionMode).toBe('material')
+    })
+
     test('a part of a widget with userSelectable false is not picked, and its hit does not go up to the widget', () => {
         const w = new tp.PointLightHelper2(light(new PointLight()))
         const root = new tp.Group2()
