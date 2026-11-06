@@ -27,40 +27,33 @@
         #preview-panel {
             position: absolute;
             top: 12px;
-            left: 12px; /* the Tweakpane UI (the plugin settings and the selected material) is on the right */
-            width: 300px;
+            left: 12px; /* the Tweakpane UI (the plugin settings and the materials) is on the right */
+            width: 280px;
             max-height: calc(100% - 24px);
-            display: flex;
-            flex-direction: column;
+            overflow-y: auto;
             box-sizing: border-box;
-            padding: 12px;
-            border-radius: 10px;
-            background: rgba(22, 22, 26, 0.9);
+            padding: 10px;
+            border-radius: 8px;
+            background: rgba(24, 24, 28, 0.88);
             color: #eee;
             font: 12px/1.4 system-ui, sans-serif;
             z-index: 200;
         }
-        #preview-panel h3 { margin: 0 0 8px; font-size: 13px; font-weight: 600; }
-        #preview-panel h3 span { color: #888; font-weight: 400; }
-        .checker { background: repeating-conic-gradient(#3a3a3a 0 25%, #2c2c2c 0 50%) 0 0 / 16px 16px; }
-        #large { width: 100%; aspect-ratio: 1; border-radius: 8px; display: block; }
-        .large-info { display: flex; justify-content: space-between; margin: 6px 0 8px; }
-        .large-info b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .large-info span { color: #9a9; flex: none; padding-left: 8px; }
-        .row { display: flex; gap: 4px; margin-bottom: 8px; }
-        .row button { flex: 1; padding: 5px 4px; border: 1px solid #444; border-radius: 5px; background: #2e2e33; color: #eee; cursor: pointer; font: inherit; }
-        .row button.on { background: #4a6cf7; border-color: #4a6cf7; }
-        #stats { color: #9a9; font-size: 11px; margin-bottom: 8px; }
-        #materials { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; overflow-y: auto; min-height: 0; padding: 2px; }
-        .card { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 4px; border: 1px solid transparent; border-radius: 6px; background: #26262b; color: #ccc; cursor: pointer; font: 10px/1.2 system-ui, sans-serif; min-width: 0; }
-        .card:hover { background: #303036; }
-        .card.on { border-color: #4a6cf7; background: #2b3150; color: #fff; }
-        .card canvas { width: 100%; aspect-ratio: 1; border-radius: 4px; background: repeating-conic-gradient(#3a3a3a 0 25%, #2c2c2c 0 50%) 0 0 / 12px 12px; }
-        .card span { width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
+        #preview-panel h3 { margin: 0 0 8px; font-size: 13px; }
+        #preview-panel .shapes { display: flex; gap: 4px; margin-bottom: 8px; }
+        #preview-panel .shapes button { flex: 1; padding: 4px; border: 1px solid #555; border-radius: 4px; background: #333; color: #eee; cursor: pointer; }
+        #preview-panel .shapes button.on { background: #4a6cf7; border-color: #4a6cf7; }
+        #preview-panel .material { display: flex; gap: 8px; padding: 6px 0; border-top: 1px solid #444; }
+        #preview-panel canvas.preview { width: 96px; height: 96px; flex: none; border-radius: 4px; background: repeating-conic-gradient(#3a3a3a 0 25%, #2a2a2a 0 50%) 0 0 / 16px 16px; }
+        #preview-panel .controls { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+        #preview-panel .time { color: #9a9; }
+        #preview-panel .bench { margin-top: 8px; border-top: 1px solid #444; padding-top: 8px; }
+        #preview-panel .bench button { width: 100%; padding: 4px; border: 1px solid #555; border-radius: 4px; background: #333; color: #eee; cursor: pointer; }
+        #benchmark-images { display: flex; gap: 8px; margin-top: 6px; }
+        #benchmark-images img { width: 96px; height: 96px; border-radius: 4px; background: #222; }
+        #preview-panel pre { white-space: pre-wrap; margin: 6px 0 0; font-size: 11px; }
         @media (max-width: 600px) {
-            #preview-panel { top: auto; bottom: 12px; left: 12px; right: 12px; width: auto; max-height: 50%; }
-            #large { width: 120px; }
-            #materials { grid-template-columns: repeat(5, 1fr); }
+            #preview-panel { top: auto; bottom: 12px; left: 12px; right: 12px; width: auto; max-height: 45%; }
         }
     </style>
     <script type="module" src="../examples-utils/global-loading.mjs"></script>
@@ -71,19 +64,18 @@
     <canvas id="mcanvas"></canvas>
 </div>
 <div id="preview-panel">
-    <h3>Materials <span id="count"></span></h3>
-    <canvas id="large" class="checker" width="256" height="256"></canvas>
-    <div class="large-info"><b id="large-name"></b><span id="large-time"></span></div>
-    <div class="row shapes">
+    <h3>Material previews</h3>
+    <div class="shapes">
         <button data-shape="sphere" class="on">Sphere</button>
         <button data-shape="cube">Cube</button>
         <button data-shape="mesh">This mesh</button>
     </div>
-    <div class="row">
-        <button id="animate" title="Shift the hue of the selected material in each frame, as an animation does">Animate colour</button>
-    </div>
-    <div id="stats"></div>
     <div id="materials"></div>
+    <div class="bench">
+        <button id="benchmark">Benchmark: offscreen vs full canvas</button>
+        <pre id="benchmark-result"></pre>
+        <div id="benchmark-images"></div>
+    </div>
 </div>
 
 </body>

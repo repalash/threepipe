@@ -162,6 +162,27 @@ describe('MaterialPreviewPlugin', () => {
         expect(got).toEqual(['dragged', 'other'])
     })
 
+    it('materials that change and ask again in every frame take turns: the one rendered longest ago first', () => {
+        const {queue, frame} = setup({dragInterval: 0})
+        const mats = ['neon', 'bubble', 'lava'].map(name => new tp.PhysicalMaterial({name}))
+        const got: string[] = []
+        const handles = new Map<any, any>()
+        // an animation: in each frame each material changes, and the app asks for its preview again, in the same order
+        const ask = (m: any) => {
+            handles.get(m)?.cancel()
+            handles.set(m, queue.request(m, {}, () => got.push(m.name)))
+        }
+        mats.forEach(ask)
+        for (let i = 0; i < 6; i++) {
+            frame()
+            mats.forEach(m => {
+                m.setDirty()
+                ask(m)
+            })
+        }
+        expect(got).toEqual(['neon', 'bubble', 'lava', 'neon', 'bubble', 'lava'])
+    })
+
     it('shares one render between requests for the same material, shape and size', () => {
         const {generator, queue, frame} = setup()
         const m = new tp.PhysicalMaterial()

@@ -20,7 +20,8 @@ Threepipe renders the previews with the viewer's renderer, so a preview uses the
 - [`MaterialPreviewPlugin`](https://threepipe.org/docs/classes/MaterialPreviewPlugin.html) makes previews for an inspector: request a preview on every material change, and the plugin renders it in the next frame (during a drag of a slider or an animation, at most every `dragInterval` ms).
 
 Examples:
-- [Material inspector](https://threepipe.org/examples/#material-preview/) ([source](https://github.com/repalash/threepipe/blob/master/examples/material-preview/script.ts)): every material of a model with its preview (sphere, cube or its own mesh); a click, or a pick in the viewport, selects a material and shows its settings and a large preview; "Animate colour" shows the previews during an animation.
+- [Material previews](https://threepipe.org/examples/#material-preview/) ([source](https://github.com/repalash/threepipe/blob/master/examples/material-preview/script.ts)): the simple use, three objects and their previews.
+- [Material inspector](https://threepipe.org/examples/#material-preview-inspector/) ([source](https://github.com/repalash/threepipe/blob/master/examples/material-preview-inspector/script.ts)): every material of a model with its preview (sphere, cube or its own mesh); a click, or a pick in the viewport, selects a material and shows its settings and a large preview; "Animate colour" shows the previews during an animation.
 - [Material lab](https://threepipe.org/examples/#material-preview-lab/) ([source](https://github.com/repalash/threepipe/blob/master/examples/material-preview-lab/script.ts)): a palette of materials (metals, car paint, velvet, pearl, glass), three of them animated, with the number of renders of each preview; a click puts a material on the vase; a benchmark compares the offscreen preview with the old full canvas snapshot.
 
 ## Live previews in an inspector

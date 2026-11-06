@@ -268,7 +268,11 @@ export class MaterialPreviewPlugin extends AViewerPluginSync {
         if (!viewer || !this._jobs.size || !viewer.renderEnabled || this.isDisabled()) return
         const now = this.now()
         let rendered = 0
-        for (const [key, job] of [...this._jobs]) {
+        // the material rendered longest ago first: a material that changes in every frame asks again each time, and its
+        // new request would else always come before the others, which then never render (with maxPerFrame)
+        const jobs = [...this._jobs].sort(([, a], [, b]) =>
+            (this._states.get(a.material)?.lastRender ?? -Infinity) - (this._states.get(b.material)?.lastRender ?? -Infinity))
+        for (const [key, job] of jobs) {
             if (this._jobs.get(key) !== job) continue // cancelled or replaced in a callback
             const state = this._states.get(job.material)
             if (!state) continue // tracked while the job exists

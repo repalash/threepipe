@@ -213,6 +213,7 @@ export class SnapObjectResources implements IDisposable {
     setOutput(toneMapping?: SnapObjectToneMapping | null, outputColorSpace: ColorSpace = SRGBColorSpace) {
         const material = this.material
         const fn = toneMapping ? toneMappingFunctions[toneMapping.toneMapping] : undefined
+        // todo: Display-P3 (and any other non-sRGB space) is written as linear; convert it like the screen pass does
         const srgb = outputColorSpace === SRGBColorSpace ? '1' : undefined
         if (material.defines.SNAP_TONE_MAPPING !== fn || material.defines.SNAP_SRGB_OUTPUT !== srgb) {
             if (fn) material.defines.SNAP_TONE_MAPPING = fn
