@@ -25,7 +25,8 @@
     background: repeating-conic-gradient(rgba(127, 127, 127, .18) 0 25%, transparent 0 50%) 0 0 / 16px 16px;
 }
 .isp-preview-canvas:active { cursor: grabbing; }
-.isp-shapes { display: flex; gap: 2px; margin: 6px auto 0; max-width: 220px; }
+/* as wide as the buttons of the settings below it */
+.isp-shapes { display: flex; gap: 2px; margin: 6px 0 0; }
 .isp-shape { flex: 1; border: 0; border-radius: 4px; padding: 4px 0; font-size: 11px; cursor: pointer; background: var(--tp-input-background-color, rgba(0, 0, 0, .05)); }
 .isp-shape.isp-on { box-shadow: inset 0 0 0 1px var(--tp-label-foreground-color, #0d99ff); font-weight: 600; }
 .isp-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
@@ -39,3 +40,5 @@
 .isp-ui .tp-rotv_c { padding-top: 0 !important; }
 .isp-ui .tp-rotv_c > .tp-fldv { margin: 0 !important; border-radius: 0 !important; }
 .isp-ui .tp-rotv_c > .tp-fldv > .tp-fldv_b { display: none !important; }
+/* a gap between the actions of the tab (Focus, Remove Material(s)) and the settings below them */
+.isp-ui .tp-rotv_c > .tp-btnv + .tp-fldv { margin-top: 6px !important; }
