@@ -470,7 +470,13 @@ describe('tweakpane editor frame areas', () => {
                 // an empty area: the panel
                 expect(box(panel, layout, phone, {stacked}), stacked).toEqual(panelBox)
                 // a wide or a landscape window shows all the areas, and the panel
-                for (const vp of [desktop, phoneLandscape]) expect(box(panel, layout, vp, s), stacked).not.toBeNull()
+                // where they are, as without the pick (the pick is kept for the next narrow window)
+                for (const vp of [desktop, phoneLandscape]) {
+                    expect(box(panel, layout, vp, s), stacked).not.toBeNull()
+                    for (const area of [leftArea, bottomArea]) {
+                        expect(box(area, layout, vp, s), stacked).toEqual(box(area, layout, vp, {left: true, bottom: true}))
+                    }
+                }
             }
         })
 

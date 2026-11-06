@@ -320,7 +320,7 @@ body.lay-stack.lay-stacked-left .lay-area-left, body.lay-stack.lay-stacked-botto
     top: calc(var(--lay-top) + (100% - var(--lay-top) - var(--lay-bottom)) * var(--lay-split)); bottom: var(--lay-bottom);
     border: 0; border-top: 1px solid var(--tp-container-border-color, #e6e6e6);
 }
-body.lay-side.lay-stacked-left .lay-area-left, body.lay-side.lay-stacked-bottom .lay-area-bottom {
+body.lay-side.lay-single.lay-stacked-left .lay-area-left, body.lay-side.lay-single.lay-stacked-bottom .lay-area-bottom {
     left: auto; right: var(--mb-width, 44px); width: var(--tweakpane-ui-container-width, 300px);
     top: var(--lay-top); bottom: var(--lay-bottom); border: 0; border-left: 1px solid var(--tp-container-border-color, #e6e6e6);
 }
