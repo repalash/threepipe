@@ -789,6 +789,37 @@ describe('LayersPanelPlugin', () => {
         expect(handsGeometry).toBeDefined()
     })
 
+    test('a tab of assets: a mesh that takes another material or geometry builds it again; a reused row shows its own picture', () => {
+        const {layers, list, sceneEvents, gold, caseB, handsGeometry, hands, albedo, sky} = withAssets()
+        layers.setTab('materials')
+        flush()
+        expect(metas(list)).toEqual(['2 obj'])
+        // case-b takes another material that is already in use: no add or remove event, only the change of the mesh
+        gold.appliedMeshes.delete(caseB)
+        sceneEvents.dispatchEvent({type: 'materialChanged', object: caseB})
+        flush()
+        expect(metas(list)).toEqual(['1 obj'])
+        // the same for a geometry
+        layers.setTab('geometries')
+        flush()
+        handsGeometry.appliedMeshes.add(caseB)
+        sceneEvents.dispatchEvent({type: 'geometryChanged', object: caseB})
+        flush()
+        expect(metas(list)).toEqual(['1.5k v · 2 obj'])
+        expect(hands).toBeDefined()
+        // pictures (the fake DOM cannot draw them): a search gives the row of Albedo to the other texture
+        ;(layers as any)._thumbs.set(albedo, 'data:albedo').set(sky, 'data:sky')
+        layers.setTab('textures')
+        flush()
+        expect(part(rows(list)[0], 'lyp-kind').innerHTML).toContain('data:albedo')
+        const search = (layers.element as any as FakeElement).find('lyp-search-input')[0]
+        search.value = 't2dd'
+        search.fire('input')
+        flush()
+        expect(names(list)).toEqual(['Texture t2dd'])
+        expect(part(rows(list)[0], 'lyp-kind').innerHTML).toContain('data:sky')
+    })
+
     test('the search shows the matches and the groups that hold them; Escape clears it', () => {
         const {list, layers} = setup()
         const search = (layers.element as any as FakeElement).find('lyp-search-input')[0]

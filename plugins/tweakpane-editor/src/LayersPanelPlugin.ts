@@ -317,6 +317,9 @@ export class LayersPanelPlugin extends AViewerPluginSync {
         viewer.scene.addEventListener('sceneUpdate', this._onSceneUpdate)
         viewer.scene.addEventListener('objectUpdate', this._onObjectUpdate)
         for (const type of ASSET_EVENTS) viewer.object3dManager?.addEventListener(type, this._onAssetsChanged)
+        // a mesh that takes another material or geometry, already in use: the users of both change (no add or remove)
+        viewer.scene.addEventListener('materialChanged', this._onAssetsChanged)
+        viewer.scene.addEventListener('geometryChanged', this._onAssetsChanged)
         // the PickingPlugin and the TweakpaneEditorPlugin can be added before or after this plugin, removed and replaced
         viewer.addPluginListener('add', this._onPluginAdded, 'PickingPlugin', 'TweakpaneEditorPlugin')
         viewer.addPluginListener('remove', this._onPluginRemoved, 'PickingPlugin', 'TweakpaneEditorPlugin')
@@ -334,6 +337,8 @@ export class LayersPanelPlugin extends AViewerPluginSync {
         viewer.scene.removeEventListener('sceneUpdate', this._onSceneUpdate)
         viewer.scene.removeEventListener('objectUpdate', this._onObjectUpdate)
         for (const type of ASSET_EVENTS) viewer.object3dManager?.removeEventListener(type, this._onAssetsChanged)
+        viewer.scene.removeEventListener('materialChanged', this._onAssetsChanged)
+        viewer.scene.removeEventListener('geometryChanged', this._onAssetsChanged)
         viewer.removePluginListener('add', this._onPluginAdded)
         viewer.removePluginListener('remove', this._onPluginRemoved)
         this._setPicking(undefined)
@@ -1149,12 +1154,13 @@ export class LayersPanelPlugin extends AViewerPluginSync {
         const a = r.asset
         const swatch = (a as IMaterial).isMaterial ? '#' + ((a as IMaterial & {color?: {getHexString(): string}}).color?.getHexString() ?? 'cccccc') : ''
         const thumb = (a as ITexture).isTexture ? this._thumb(a as ITexture) : ''
-        const kindKey = swatch ? 'swatch' + swatch : thumb ? 'thumb' : (a as ITexture).isTexture ? 'texture' : 'geometry'
+        // a picture is of one texture: a reused row draws the picture of its new texture
+        const kindKey = swatch ? 'swatch' + swatch : thumb ? 'thumb:' + a.uuid : (a as ITexture).isTexture ? 'texture' : 'geometry'
         if (p.kind.dataset.kind !== kindKey) {
             p.kind.dataset.kind = kindKey
             p.kind.style.color = ''
             p.kind.innerHTML = swatch ? `<span class="lyp-swatch" style="background:${swatch}"></span>` :
-                thumb ? `<img class="lyp-thumb" alt="" src="${thumb}">` : ICONS[kindKey as 'texture' | 'geometry']
+                thumb ? `<img class="lyp-thumb" alt="" src="${thumb}">` : ICONS[(a as ITexture).isTexture ? 'texture' : 'geometry']
         }
         const name = this._assetName(a)
         setIfChanged(p.name, 'textContent', name)
