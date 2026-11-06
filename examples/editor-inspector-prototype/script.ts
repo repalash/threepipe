@@ -89,8 +89,8 @@ class Inspector {
     private _handle?: MaterialPreviewHandle
     private _previews: MaterialPreviewPlugin
 
-    constructor(private _viewer: ThreeViewer, colorMode: TweakpaneUiPlugin['colorMode']) {
-        this._previews = _viewer.getPlugin(MaterialPreviewPlugin)!
+    constructor(viewer: ThreeViewer, colorMode: TweakpaneUiPlugin['colorMode']) {
+        this._previews = viewer.getPlugin(MaterialPreviewPlugin)!
         this.element.className = 'insp'
         const switcher = document.createElement('div')
         switcher.className = 'insp-variants'
@@ -131,7 +131,7 @@ class Inspector {
 
         // a second Tweakpane renderer, for the inspector only (the main one shows the modes)
         this._ui = new TweakpaneUiPlugin(true, false, this._body, colorMode)
-        this._ui.onAdded(_viewer)
+        this._ui.onAdded(viewer)
         this.show(undefined)
     }
 
