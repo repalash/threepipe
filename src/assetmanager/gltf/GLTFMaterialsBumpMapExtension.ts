@@ -1,7 +1,6 @@
 import type {GLTFLoaderPlugin, GLTFParser} from 'three/examples/jsm/loaders/GLTFLoader.js'
 import type {MeshStandardMaterial} from 'three'
 import type {GLTFExporterPlugin, GLTFWriter} from 'three/examples/jsm/exporters/GLTFExporter.js'
-import {PhysicalMaterial} from '../../core'
 
 /**
  * Bump Map Extension
@@ -14,6 +13,12 @@ import {PhysicalMaterial} from '../../core'
  */
 export class GLTFMaterialsBumpMapExtension {
     static readonly WebGiMaterialsBumpMapExtension = 'WEBGI_materials_bumpmap'
+    /**
+     * Standard extension written/read by the three.js GLTFExporter/GLTFLoader.
+     * Bump maps are exported as this since the legacy {@link WebGiMaterialsBumpMapExtension} writer was dropped in 0.17.0.
+     * Uses `bumpTexture` and `bumpFactor` (not `bumpScale`).
+     */
+    static readonly ExtMaterialsBumpExtension = 'EXT_materials_bump'
     static Import = (parser: GLTFParser): GLTFLoaderPlugin=> new GLTFMaterialsBumpMapExtensionImport(parser)
     static Export = (writer: GLTFWriter): GLTFExporterPlugin => new GLTFMaterialsBumpMapExtensionExport(writer)
 
@@ -89,15 +94,15 @@ class GLTFMaterialsBumpMapExtensionExport {
 
     writeMaterial(material: MeshStandardMaterial, materialDef: any) {
 
-        if (!material.isMeshStandardMaterial || material.bumpScale === 0) return
+        if (!material.isMeshStandardMaterial || material.bumpScale === 0 && !material.bumpMap) return
 
         const writer = this.writer
         const extensionsUsed = writer.extensionsUsed
 
         const extensionDef: any = {}
 
-        if (material.bumpScale !== PhysicalMaterial.MaterialProperties.bumpScale)
-            extensionDef.bumpScale = material.bumpScale
+        extensionDef.bumpScale = material.bumpScale
+        extensionDef.normalizedScale = !(material as any).userData?.legacyBumpScale
 
         if (material.bumpMap && writer.checkEmptyMap(material.bumpMap)) {
 
@@ -106,8 +111,6 @@ class GLTFMaterialsBumpMapExtensionExport {
             extensionDef.bumpTexture = bumpMapDef
 
         }
-
-        if (!Object.keys(extensionDef)) return
 
         materialDef.extensions = materialDef.extensions || {}
         materialDef.extensions[ this.name ] = extensionDef

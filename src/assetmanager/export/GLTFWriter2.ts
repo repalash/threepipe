@@ -12,6 +12,7 @@ export class GLTFWriter2 extends GLTFExporter.Utils.GLTFWriter {
 
     constructor() {
         super()
+        // todo: remove asset.subversion after Jun 2026 — normalizedScale in bump extension replaces it
         this.json.asset.subversion = this.TPAssetVersion
     }
 

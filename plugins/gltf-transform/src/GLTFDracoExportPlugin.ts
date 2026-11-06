@@ -49,6 +49,9 @@ export class GLTFDracoExportPlugin extends AViewerPluginSync {
      */
     extraExtensions = [ // its array because we want to keep the order of extensions
         [GLTFMaterialsBumpMapExtension.WebGiMaterialsBumpMapExtension, GLTFMaterialsBumpMapExtension.Textures],
+        // three.js writes bump maps as the standard EXT_materials_bump (the legacy WEBGI_materials_bumpmap writer was dropped in 0.17.0).
+        // Register it here too, else the glTF-Transform/Draco round-trip drops the binding. See WG-52.
+        [GLTFMaterialsBumpMapExtension.ExtMaterialsBumpExtension, GLTFMaterialsBumpMapExtension.Textures],
         [GLTFMaterialsLightMapExtension.WebGiMaterialsLightMapExtension, GLTFMaterialsLightMapExtension.Textures],
         [GLTFMaterialsAlphaMapExtension.WebGiMaterialsAlphaMapExtension, GLTFMaterialsAlphaMapExtension.Textures],
         [GLTFMaterialsDisplacementMapExtension.WebGiMaterialsDisplacementMapExtension, GLTFMaterialsDisplacementMapExtension.Textures],

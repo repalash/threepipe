@@ -10,6 +10,10 @@ All notable changes to this plugin will be documented in this file.
 
 - NA
 
+### Fixed
+
+- `GLTFDracoExportPlugin`: register `EXT_materials_bump` as a generic extension. three.js exports bump maps as `EXT_materials_bump` which is not in glTF-Transform `ALL_EXTENSIONS`, so the bump map was dropped from every material in the draco export round-trip.
+
 ## [0.3.0] - 2026-04-19
 
 ### Added

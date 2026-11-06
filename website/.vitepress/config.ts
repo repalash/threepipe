@@ -61,6 +61,7 @@ export default defineConfig({
           {text: 'Dynamically Loaded Files', link: 'notes/dynamically-loaded-files'},
           {text: 'Widget Handle Picking', link: 'notes/widget-handle-picking'},
           {text: 'Widgets, Helpers & Gizmos', link: 'notes/widgets-and-helpers'},
+          {text: 'Legacy Bump Scale', link: 'notes/legacy-bump-scale'},
         ]
       },
       {

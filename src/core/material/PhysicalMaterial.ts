@@ -63,6 +63,27 @@ export class PhysicalMaterial<TE extends IMaterialEventMap = IMaterialEventMap> 
     bumpMap: ITexture | null = null
     displacementMap: ITexture | null = null
 
+    /**
+     * Use the bump map scale of three.js before r158 (not normalized by the screen space derivatives) for files made with older threepipe/webgi.
+     * Stored in `userData.legacyBumpScale` and set automatically on import. See https://threepipe.org/notes/legacy-bump-scale.html
+     */
+    get legacyBumpScale(): boolean {
+        return !!this.userData.legacyBumpScale
+    }
+
+    set legacyBumpScale(value: boolean) {
+        if (value === this.legacyBumpScale) return
+        if (value) {
+            this.userData.legacyBumpScale = true
+            this.defines.BUMP_MAP_SCALE_LEGACY = '1'
+        } else {
+            delete this.userData.legacyBumpScale
+            delete this.defines.BUMP_MAP_SCALE_LEGACY
+        }
+        this.needsUpdate = true
+        this.setDirty()
+    }
+
 
     constructor({customMaterialExtensions, ...parameters}: MeshPhysicalMaterialParameters & IMaterialParameters = {}) {
         super()
