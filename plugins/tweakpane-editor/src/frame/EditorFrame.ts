@@ -131,17 +131,20 @@ const ICONS = {
  * areas that the person picks are kept in `localStorage` ({@link AreaStorageKey}). The panel collapses as the mode bar
  * hides it, and the mode bar shows it again.
  *
- * In a wide or a landscape window, the canvas, the panel and the mode bar are side by side. In a portrait window under
- * 920 px wide (a phone), the layout keeps its bars (floating has no gap there); the canvas is on top at full width, and
- * the panel and the mode bar are below it, with the same height. The CSS variable `--lay-split` is the part of the height
- * for the canvas: `0.45`, set on `body.lay-frame` (a page sets another with a more specific rule, like
- * `html body.lay-frame { --lay-split: 0.5; }`). When the panel is hidden there, the mode bar is a row at the bottom.
+ * The layout changes at the window widths of {@link Breakpoints}. Side by side (`lay-side`), the canvas, the panel and
+ * the mode bar are next to each other. In a portrait window under 920 px wide (a phone, `lay-stack`), the layout keeps
+ * its bars (floating has no gap there); the canvas is on top at full width, and the panel and the mode bar are below it,
+ * with the same height. The CSS variable `--lay-split` is the part of the height for the canvas: `0.45`, set on
+ * `body.lay-frame` (a page sets another with a more specific rule, like `html body.lay-frame { --lay-split: 0.5; }`).
+ * When the panel is hidden there, the mode bar is a row at the bottom.
  *
  * The mode bar lists the modes, then an entry for each area with an element (its name and icon from {@link setArea}).
- * In a wide or a landscape window, the areas show next to the canvas, and a tap on an entry shows or hides its area
- * ({@link setAreaCollapsed}). On a phone, the part below the canvas shows one of them at a time
- * ({@link setStackedArea}): a mode shows the panel there, an entry shows its area, and a tap on the one shown hides
- * the part below the canvas.
+ * When the areas show next to the canvas, a tap on an entry shows or hides its area ({@link setAreaCollapsed}). In a
+ * narrow window (`lay-single`), the place of the panel shows one of them at a time ({@link setStackedArea}): a mode
+ * shows the panel there, an entry shows its area, and a tap on the one shown hides that place.
+ *
+ * In the floating layout, the cards move and take a part of their side ({@link setAreaOffset}, {@link setAreaSpan}), and
+ * a head at the top of the left column shows the logo, the app name and the file name.
  */
 export class EditorFrame {
     /** The default theme pairs: Shift+T goes from one to the other */
@@ -216,7 +219,7 @@ export class EditorFrame {
     private _splits: Partial<Record<EditorFrameArea, number[]>> = {}
     /** The collapsed left and bottom areas; the panel collapses as the mode bar hides it */
     private _collapsed: Partial<Record<EditorFrameArea, boolean>> = {}
-    /** The area below the canvas in a narrow portrait window ({@link setStackedArea}) */
+    /** The area in the place of the panel in a narrow window ({@link setStackedArea}) */
     private _stacked: EditorFrameSizedArea = 'right'
     /** Ends the drag of an edge that is in progress */
     private _endDrag?: () => void
@@ -370,11 +373,10 @@ export class EditorFrame {
      * - The element fills the area. The area is `--lay-left-area-size` wide (`240px`) or `--lay-bottom-area-size` tall
      *   (`160px`), CSS variables on `body.lay-frame`; set others with a more specific rule, like
      *   `html body.lay-frame { --lay-left-area-size: 280px; }`.
-     * - The mode bar has an entry for the area, after the modes, with the name and the icon of `options`. In a wide or a
-     *   landscape window a tap on it shows or hides the area ({@link setAreaCollapsed}).
-     * - A narrow portrait window (a phone) has no room for the areas next to the canvas: the part below the canvas shows
-     *   one at a time, the panel by default, and a tap on the entry shows the area there ({@link setStackedArea}).
-     *
+     * - The mode bar has an entry for the area, after the modes, with the name and the icon of `options`. When the areas
+     *   show next to the canvas, a tap on it shows or hides the area ({@link setAreaCollapsed}).
+     * - A narrow window ({@link Breakpoints}) has no room for the areas next to the canvas: the place of the panel shows
+     *   one view at a time, the panel by default, and a tap on the entry shows the area there ({@link setStackedArea}).
      * - A list of elements is a stack: the area is split between them, with a line between two elements (a gap with drag
      *   dots in the floating layout, where each element is a card). A drag on it moves the split, at least
      *   {@link MinSectionSize} for each element; a double-click makes them equal. The split is kept with the sizes.
@@ -463,18 +465,19 @@ export class EditorFrame {
         return area === 'right' ? !this.modeBar.open : !!this._collapsed[area]
     }
 
-    /** The area that the part below the canvas shows in a narrow portrait window ({@link setStackedArea}) */
+    /** The area that the place of the panel shows in a narrow window ({@link setStackedArea}) */
     get stackedArea() {
         return this._stacked
     }
 
     /**
      * Sets the area that shows in the place of the panel in a narrow window (below the canvas on a phone, in the right
-     * column of a narrow landscape window, see {@link Breakpoints}), where there is no room for the areas next to the canvas: the panel (`right`, the default), or the left or the
-     * bottom area. The mode bar stays next to it: a tap on a mode shows the panel again, a tap on the entry of an area
-     * shows that area. A left or bottom area without an element shows the panel. It opens the part below the canvas when
-     * the mode bar hid it. A wider or a landscape window shows all the areas, so this has no effect there. The body has
-     * the class `lay-stacked-left` or `lay-stacked-bottom`.
+     * column of a narrow landscape window, see {@link Breakpoints}), where there is no room for the areas next to the
+     * canvas: the panel (`right`, the default), or the left or the bottom area. The mode bar stays next to it: a tap on a
+     * mode shows the panel again, a tap on the entry of an area shows that area. A left or bottom area without an element
+     * shows the panel. It opens the place of the panel when the mode bar hid it. When the areas show next to the canvas,
+     * this has no effect (it is kept for the next narrow window). The body has the class `lay-stacked-left` or
+     * `lay-stacked-bottom`.
      * @param area - `right` (the panel), `left` or `bottom`
      * @param keep - keep it in `localStorage` ({@link AreaStorageKey}), as the person's pick (an entry of the mode bar)
      */
@@ -601,7 +604,7 @@ export class EditorFrame {
         body.classList.toggle('lay-single', stack || innerWidth < singleView)
     }
 
-    /** The left or the bottom area that the part below the canvas shows now, in a narrow portrait window */
+    /** The left or the bottom area that the place of the panel shows now, in a narrow window */
     private _stackedShown(): EditorFrameArea | undefined {
         const a = this._stacked
         if (a === 'right' || !this._areas[a].children.length) return undefined
@@ -617,8 +620,8 @@ export class EditorFrame {
     }
 
     /**
-     * A tap on the entry of an area. On a phone: the area below the canvas, or, when it is there, the part below the
-     * canvas hides (as the open mode does). Else: the area shows or hides, and the pick is kept.
+     * A tap on the entry of an area. In a narrow window: the area in the place of the panel, or, when it is there, that
+     * place hides (as the open mode does). Else: the area shows or hides, and the pick is kept.
      */
     private _onEntry(area: EditorFrameArea) {
         if (!this._isSingle()) return this.setAreaCollapsed(area, !this._collapsed[area], true)
@@ -643,8 +646,8 @@ export class EditorFrame {
     }
 
     /**
-     * A tap on a mode while a left or bottom area is below the canvas: the panel comes back. A tap on the open mode
-     * only does that (else the mode bar would hide the panel); another mode opens as usual.
+     * A tap on a mode while a left or bottom area is in the place of the panel: the panel comes back. A tap on the open
+     * mode only does that (else the mode bar would hide the panel); another mode opens as usual.
      */
     private _onModeBarClick = (e: MouseEvent) => {
         const tab = (e.target as Element | null)?.closest?.('[role]')
@@ -652,7 +655,6 @@ export class EditorFrame {
         this.setStackedArea('right', true)
         if (tab.getAttribute('aria-selected') === 'true' && this.modeBar.open) e.stopImmediatePropagation()
     }
-
 
     /** Shift+T: the light or dark theme. Ctrl+\ (Cmd+\ on a Mac): the next collapse state of the mode bar and the panel. */
     private _onKeyDown = (e: KeyboardEvent) => {
@@ -870,6 +872,8 @@ export class EditorFrame {
         if (span.start + span.length < this._fullLength(area) - 0.5) this._spans[area] = {...span}
         else if (span.start > 0) this._spans[area] = {start: span.start}
         else delete this._spans[area]
+        // the same on screen; a span without a length leaves the length to the CSS
+        this._applySpan(area)
     }
 
     /**
@@ -896,21 +900,25 @@ export class EditorFrame {
         return this._layout === 'floating' && !this._isSingle()
     }
 
+    /** A length in px of the CSS of the body (a custom property, like `--lay-gap`); 0 when it is not set */
+    private _cssPx(name: string) {
+        return parseFloat(getComputedStyle(document.body).getPropertyValue(name)) || 0
+    }
+
     /** The gap of the floating cards to the window (`--lay-gap`) */
     private _gap() {
-        return parseFloat(getComputedStyle(document.body).getPropertyValue('--lay-gap')) || 0
+        return this._cssPx('--lay-gap')
     }
 
     /** The height that the head of the floating layout takes from the left column, with its gap (`--lay-head`) */
     private _headRoom() {
-        const head = parseFloat(getComputedStyle(document.body).getPropertyValue('--lay-head')) || 0
+        const head = this._cssPx('--lay-head')
         return head ? head + this._gap() : 0
     }
 
     /**
-     * The length of the whole side of a floating card: the window height less the gaps for the left card (less the head
-     * above it) and the panel;
-     * for the bottom card, its row between the left card and the panel (with their offsets and gaps)
+     * The length of the whole side of a floating card: the window height less the gaps for the panel, and also less the
+     * head for the left card; for the bottom card, its row between the left card and the panel (with their offsets and gaps)
      */
     private _fullLength(area: EditorFrameSizedArea) {
         const gap = this._gap()
@@ -1022,13 +1030,16 @@ export class EditorFrame {
         this._refreshEntries()
     }
 
-    /** Keeps the sizes, the collapsed left and bottom areas and the area below the canvas ({@link AreaStorageKey}) */
+    /**
+     * Keeps the sizes, the collapsed left and bottom areas, the area in the place of the panel, the offsets and the spans of
+     * the floating cards and the splits of the stacks ({@link AreaStorageKey})
+     */
     private _storeAreas() {
         const key = EditorFrame.AreaStorageKey
         if (key) writeStored(key, JSON.stringify({sizes: this._sizes, collapsed: this._collapsed, stacked: this._stacked, offsets: this._offsets, spans: this._spans, splits: this._splits}))
     }
 
-    /** Applies the sizes, the collapsed areas and the area below the canvas that are kept ({@link AreaStorageKey}) */
+    /** Applies what {@link _storeAreas} keeps; a value that is not of the frame is left out */
     private _restoreAreas() {
         const key = EditorFrame.AreaStorageKey
         let stored: {sizes?: Record<string, unknown>, collapsed?: Record<string, unknown>, stacked?: unknown,
@@ -1039,15 +1050,15 @@ export class EditorFrame {
         } catch (e) {
             return // not a value of this frame
         }
+        const isNum = (v: unknown): v is number => typeof v === 'number' && isFinite(v)
         for (const area of Object.keys(AREA_SIZE_VARS) as EditorFrameSizedArea[]) {
             const size = stored?.sizes?.[area]
             const [min, max] = EditorFrame.AreaLimits[area]
             // the size that the person picked; the room of this window applies on screen only
-            if (typeof size === 'number' && isFinite(size)) this._sizes[area] = Math.round(Math.max(min, Math.min(max, size)))
+            if (isNum(size)) this._sizes[area] = Math.round(Math.max(min, Math.min(max, size)))
             const offset = stored?.offsets?.[area]
-            if (typeof offset === 'number' && isFinite(offset)) this._offsets[area] = Math.round(Math.max(0, offset))
+            if (isNum(offset)) this._offsets[area] = Math.round(Math.max(0, offset))
             const span = stored?.spans?.[area]
-            const isNum = (v: unknown): v is number => typeof v === 'number' && isFinite(v)
             if (span && isNum(span.start)) {
                 const start = Math.round(Math.max(0, span.start))
                 this._spans[area] = isNum(span.length) ? {start, length: Math.round(Math.max(EditorFrame.MinCardLength, span.length))} : {start}
@@ -1055,7 +1066,7 @@ export class EditorFrame {
         }
         for (const area of ['left', 'bottom'] as const) {
             const split = stored?.splits?.[area]
-            if (Array.isArray(split) && split.length > 1 && split.every(v => typeof v === 'number' && isFinite(v) && v > 0)) this._splits[area] = split
+            if (Array.isArray(split) && split.length > 1 && split.every(v => isNum(v) && v > 0)) this._splits[area] = split
             if (stored?.collapsed?.[area] !== true) continue
             this._collapsed[area] = true
             document.body.classList.add('lay-collapsed-' + area)

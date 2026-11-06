@@ -87,7 +87,7 @@ body.lay-frame.lay-has-bottom.lay-collapsed-bottom { --lay-bottom-area: 0px; --l
 body.lay-has-left.lay-collapsed-left .lay-area-left, body.lay-has-bottom.lay-collapsed-bottom .lay-area-bottom { display: none; }
 /* the inner edges of the left area, the bottom area and the panel: a drag changes the size (EditorFrame.setAreaSize).
    6 px to grab, over the line between the parts; a 2 px line shows on hover and while dragging. Above the areas and the
-   mode bar, below the title and status bar. Shown only in a wide or a landscape window (below) */
+   mode bar, below the title and status bar. Shown only side by side (lay-side, below) */
 .lay-handle { display: none; position: fixed; z-index: 205; touch-action: none; }
 .lay-handle-left, .lay-handle-right { width: 6px; cursor: col-resize; }
 .lay-handle-bottom { height: 6px; cursor: row-resize; }
@@ -249,8 +249,8 @@ body.lay-floating #tweakpaneUiContainer {
 }
 body.lay-floating #tweakpaneUiContainer .tp-rotv { box-shadow: none; }
 
-/* a wide or a landscape window: the left area, the canvas with the bottom area below it, then the panel, then the mode
-   bar, side by side */
+/* side by side (lay-side, EditorFrame.Breakpoints): the left area, the canvas with the bottom area below it, then the
+   panel, then the mode bar */
 body.lay-side.lay-titlebar #canvas-container, body.lay-side.lay-statusbar #canvas-container {
     height: calc(100% - var(--lay-top) - var(--lay-bottom) - var(--lay-bottom-area));
     width: calc(100% - var(--lay-left-area) - var(--lay-right-area)) !important;
@@ -376,7 +376,7 @@ body.lay-side.lay-floating .lay-grip-bottom {
 }
 
 
-/* a narrow portrait window (a phone): the canvas on top, full width; the panel below it, and the mode bar beside the
+/* a narrow portrait window (a phone, lay-stack): the canvas on top, full width; the panel below it, and the mode bar beside the
    panel, with the same top and bottom (--lay-split: the part of the height for the canvas), so the tool bar of the canvas
    never covers the panel. A mode bar taller than its room scrolls. When the panel is hidden, the mode bar is a row at
    the bottom (--mb-row-height, it scrolls sideways), where a tap on a mode brings the panel back, and the canvas takes the
