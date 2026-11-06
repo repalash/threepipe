@@ -98,9 +98,9 @@ export function uploadSize(c: Context<CloudEnv>): number {
  * Of two claims at the same time one wins: the upsert changes the row only when it is the user's or has expired.
  */
 async function claimScope(env: CloudflareBindings, scope: string, user: CloudUser, row: ScopeRow | null, expires: string | null) {
-    // names that look like ours (the PR builds b/threepipe/…, p/threepipe…, s/threepipe…): staff only, like project
+    // names that look like ours, in any case (the PR builds b/threepipe/…, p/threepipe…, s/ThreePipe…): staff only, like project
     // slugs, so nobody claims an official-looking URL or the build of a PR before CI uploads it
-    if (/^[sbp]\/threepipe/.test(scope) && !isStaff(user))
+    if (/^[sbp]\/threepipe/i.test(scope) && !isStaff(user))
         throw new HTTPException(403, {message: `${scope.split('/').slice(0, 2).join('/')}… is for threepipe`})
     const taken = () => new HTTPException(403, {message: `'${scope}' belongs to another user`})
     const now = new Date().toISOString()

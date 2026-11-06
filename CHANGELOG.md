@@ -36,6 +36,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- `EditorViewWidgetPlugin`: the container of the widget has the class `editor-view-widget`, so a page can place it (the floating layout of the tweakpane editor frame keeps it out of its cards).
 - `Object3DWidgetsPlugin` depends on `GBufferPlugin` and adds it to the viewer: the widgets have `toneMapped: false`, which works through the GBuffer flags. Without them, the tone mapping changed the colours of the helper lines and of the `'sprite'` icons
 - `ViewOverridesPlugin`: widgets (an object with `isWidget` or `assetType` `'widget'`, and its children) keep their own materials in every view, so a light or camera icon is not drawn as a rectangle
 - Releases run on [repalash/release-tools](https://github.com/repalash/release-tools) (`.github/workflows/publish.yml`): the same approval, tags and partial publishing as before, now with a Claude review in the Discord notice. Each package now builds on its own in dependency order (a failed one and what depends on it are left out); `scripts/ci/` (publish-check, build-verify, publish-packages, notify-discord) is gone
@@ -55,6 +56,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- `TweakpaneUiPlugin`: a new default colour mode reaches people who opened a page before. Every visit kept the colour mode in `localStorage`, also the default, so the old default stayed (for example `blue`, `dark` or `light` in place of `clean`). The default at the time of the write is now kept too (`tpThemeDefault`), and a kept value that was the default follows the default of now; a colour mode that the person picked stays. It is written only when it changes
 - `PickingPlugin`: clearing the selection because the plugin was disabled no longer records an undo step
 - `ObjectPicker.setSelected`: selecting the already selected object again (a click on an object selected from code, or a cycle that comes round to it) no longer dispatches `selectedObjectChanged` or records an undo step; only the stored hit is updated
 - `Dropzone`: drops whose `DataTransfer` was built by script (`new DataTransfer()` + `items.add(file)`) or whose items give no file entry are read from `dataTransfer.files` instead of being ignored

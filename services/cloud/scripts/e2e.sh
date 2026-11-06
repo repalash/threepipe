@@ -57,6 +57,14 @@ HDR=$(curl -sI "${PURL%index.html}"); echo "$HDR" | grep -qi "content-security-p
 [ "$(curl -s -o /dev/null -w '%{http_code}' "${PURL%/index.html}")" = "301" ] && ok "folder without slash redirects" || bad "folder redirect"
 R=$(curl -s -X PUT -H "$H" -H 'content-type: Text/HTML' --data-binary @$TMP/index.html "$A/api/v1/uploads/p/$U-page/noext"); NURL=$(echo "$R" | j "['url']")
 HDR=$(curl -sI "$NURL"); echo "$HDR" | grep -qi "content-security-policy: sandbox" && ! curl -sI "$SURL" | grep -qi "content-security-policy" && ok "a type given at upload (Text/HTML, no extension) gets the sandbox; text/plain does not" || bad "given type sandbox: $HDR"
+# media, fonts and models are passive, but any +xml type parses as XML, which can run scripts
+PASSIVE_BAD=""; for t in video/mp4 audio/mpeg font/woff2 model/gltf-binary 'video/mp4; codecs=avc1' model/gltf+json; do
+  R=$(curl -s -X PUT -H "$H" -H "content-type: $t" --data-binary @$TMP/a.txt "$A/api/v1/uploads/p/$U-page/passive-$RANDOM"); curl -sI "$(echo "$R" | j "['url']")" | grep -qi "content-security-policy" && PASSIVE_BAD="$PASSIVE_BAD $t"
+done
+for t in model/x3d+xml video/x+xml font/x+xml; do
+  R=$(curl -s -X PUT -H "$H" -H "content-type: $t" --data-binary @$TMP/a.txt "$A/api/v1/uploads/p/$U-page/active-$RANDOM"); curl -sI "$(echo "$R" | j "['url']")" | grep -qi "content-security-policy: sandbox" || PASSIVE_BAD="$PASSIVE_BAD $t"
+done
+[ -z "$PASSIVE_BAD" ] && ok "video, audio, font, model have no sandbox; their +xml types do" || bad "passive types:$PASSIVE_BAD"
 SHA=$(sha256sum $TMP/a.txt | cut -d' ' -f1)
 R=$(curl -s -X PUT -H "$H" -H "x-content-sha256: $SHA" --data-binary @$TMP/a.txt "$A/api/v1/uploads/a/$U.txt"); AURL=$(echo "$R" | j "['url']") && ok "upload a/ -> $AURL" || bad "upload a/: $R"
 curl -sI "$AURL" | grep -qi "immutable" && ok "a/ cached immutable" || bad "a/ cache header"
@@ -96,6 +104,8 @@ TS=$(curl -s -X POST $A/api/v1/table/users/auth/sign-up -H 'content-type: applic
 R=$(curl -s -X DELETE -H "Authorization: Bearer $TS" "$A/api/v1/uploads/${AURL#*/_files/}?reason=copyright"); echo "$R" | grep -q copyright && ok "staff removes a/" || bad "staff delete: $R"
 C1=$(code -X PUT -H "Authorization: Bearer $T2" --data-binary @$TMP/a.txt "$A/api/v1/uploads/b/threepipe/pr-$U/a.txt"); C2=$(code -X PUT -H "Authorization: Bearer $T2" --data-binary @$TMP/a.txt "$A/api/v1/uploads/p/threepipe-$U/a.txt")
 [ "$C1 $C2" = "403 403" ] && ok "b/threepipe/… and p/threepipe… are for staff" || bad "reserved scopes: $C1 $C2"
+C1=$(code -X PUT -H "Authorization: Bearer $T2" --data-binary @$TMP/a.txt "$A/api/v1/uploads/s/ThreePipe-$U/a.txt"); C2=$(code -X PUT -H "Authorization: Bearer $T2" --data-binary @$TMP/a.txt "$A/api/v1/uploads/b/THREEPIPE/pr-$U/a.txt")
+[ "$C1 $C2" = "403 403" ] && ok "lookalikes in another case (s/ThreePipe-…, b/THREEPIPE/…) are for staff too" || bad "reserved scopes, case: $C1 $C2"
 R=$(curl -s -X PUT -H "Authorization: Bearer $TS" --data-binary @$TMP/a.txt "$A/api/v1/uploads/b/threepipe/pr-$U/a.txt"); echo "$R" | grep -q '"url"' && ok "staff upload a PR build to b/threepipe/" || bad "staff b/threepipe: $R"
 [ "$(curl -s -o /dev/null -w '%{http_code}' "$AURL")" = "410" ] && ok "removed a/ -> 410" || bad "removed a/ status"
 [ "$(code -X PUT -H "Authorization: Bearer $TOK" -H "x-content-sha256: $SHA" --data-binary @$TMP/a.txt "$A/api/v1/uploads/a/$U.txt")" = "410" ] && ok "a removed a/ cannot be uploaded again -> 410" || bad "a/ over a removal"

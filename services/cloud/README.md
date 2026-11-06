@@ -36,7 +36,7 @@ npm run deploy                   # the first one creates the D1 database: commit
 ```
 
 - Domains: `cloud.threepipe.org` (API and pages) and `files.threepipe.org` (files host, `FILES_HOST`) are custom-domain
-  `routes` in `wrangler.jsonc`, made and kept by every deploy. Locally (`teeny dev`) the Worker sees `http://localhost:8787`, and
+  `routes` in `wrangler.jsonc`, sent by `npm run deploy` (CI leaves them out, below). Locally (`teeny dev`) the Worker sees `http://localhost:8787`, and
   `FILES_HOST=` in `.dev.vars` serves files under `/_files/`. The samples bucket is served by R2 on `samples.threepipe.org` and `asset-samples.threepipe.org`,
   the e2e bucket on `e2e-snapshots.threepipe.org` (R2 custom domains, set in the dashboard).
 - After the first deploy, migrations go through the Worker (`teeny deploy` calls its admin API with
@@ -46,13 +46,16 @@ npm run deploy                   # the first one creates the D1 database: commit
   Discord gets the approval link, a Claude review and the commits since the last deploy; the deploy runs
   `npm run deploy:ci` once a reviewer approves the `cloud-deploy` environment. Setup, once: the environment
   `cloud-deploy` with Palash as required reviewer, deployments from the `cloud` branch only, and two environment
-  secrets, `CLOUDFLARE_API_TOKEN` (an account token: Specified Workers `threepipe-cloud`, Editor; every deploy also
-  re-sends the two custom domains, which may need Zone → Workers Routes → Edit on threepipe.org) and
+  secrets, `CLOUDFLARE_API_TOKEN` (an account token: Specified Workers `threepipe-cloud`, Editor) and
   `ADMIN_SERVICE_TOKEN` (the one in `.prod.vars`); the repository secrets `DISCORD_WEBHOOK_URL`,
   `CLAUDE_REVIEW_FIRE_URL`, `CLAUDE_REVIEW_TOKEN` (as for releases). The workflow passes each secret by name: a reusable
   workflow gets an environment's secrets only when its caller passes them. `scripts/deploy-ci.sh` writes
   a `.prod.vars` with only that token and deploys (teenybase uploads secrets only when there is no Worker yet, so the
   others are never touched); it stops when there is no Worker.
+- CI deploys with a copy of `wrangler.jsonc` without `routes`, because the token has no zone access: wrangler then leaves
+  the domains as they are, and the script checks that both still answer. A new or changed domain is deployed by hand
+  (`npm run deploy`). **When updating wrangler:** check that a deploy with no `routes` still does not remove the domains
+  (`publishCustomDomains` in its source, and its release notes); if it does, the CI deploy takes both domains down.
 - Logs: Workers Logs and traces, and logpush to the account's Workers Logpush job; what needs a person is a
   `console.error` line starting with `[cloud]`.
 

@@ -238,6 +238,8 @@ beforeEach(() => {
     vi.stubGlobal('getSelection', () => ({selectAllChildren: () => {}}))
     vi.stubGlobal('innerWidth', 1440)
     vi.stubGlobal('innerHeight', 900)
+    // the gap of the floating cards (EditorFrame.css)
+    vi.stubGlobal('getComputedStyle', () => ({getPropertyValue: (k: string) => k === '--lay-gap' ? '12px' : ''}))
 })
 afterEach(() => {
     vi.unstubAllGlobals()
@@ -429,13 +431,14 @@ describe('EditorFrame areas', () => {
     const area = (name: string) => body().find('lay-area-' + name)
     /** The parts of the frame in the body, and in the mode bar (the actions of the floating layout) */
     const structure = (f: InstanceType<typeof EditorFrame>) => ({
-        bars: body().children.filter(c => c.classList.contains('lay-bar')).map(c => c.classList.contains('lay-top') ? 'top' : 'bottom'),
+        bars: body().children.filter(c => c.classList.contains('lay-bar')).map(c => ['top', 'bottom', 'head'].find(k => c.classList.contains('lay-' + k))),
         areas: body().children.filter(c => c.classList.contains('lay-area')).map(c => c.className),
         floatActions: (f.modeBar.element as any as FakeElement).find('lay-float-actions').length,
         classes: body().className.split(' ').filter(c => c.startsWith('lay-')).sort(),
     })
 
-    const bars = {titlebar: ['top'], statusbar: ['bottom'], floating: []}
+    // floating has no bar: its head has the name (at the top of the left column)
+    const bars = {titlebar: ['top'], statusbar: ['bottom'], floating: ['head']}
     for (const layout of ['titlebar', 'statusbar', 'floating'] as const) {
         test(`${layout}: the bars, the mode bar and an empty left and bottom area, which take no room`, () => {
             const f = new EditorFrame(host(), {layout})
@@ -444,7 +447,7 @@ describe('EditorFrame areas', () => {
                 areas: ['lay-area lay-area-left', 'lay-area lay-area-bottom'],
                 floatActions: layout === 'floating' ? 1 : 0,
                 // no lay-has-<area>: the CSS gives an empty area no room (tweakpane-editor-frame-css.test.ts)
-                classes: ['lay-' + layout, 'lay-frame'].sort(),
+                classes: ['lay-' + layout, 'lay-frame', 'lay-side'].sort(), // lay-side: 1440 x 900 (EditorFrame.Breakpoints)
             })
             expect(area('left')[0].children).toHaveLength(0)
             expect(area('bottom')[0].children).toHaveLength(0)
@@ -478,7 +481,7 @@ describe('EditorFrame areas', () => {
             f.setLayout(layout)
             expect(area('left')[0].children, layout).toEqual([left])
             expect(area('bottom')[0].children, layout).toEqual([bottom])
-            expect(structure(f).classes, layout).toEqual(['lay-' + layout, 'lay-frame', 'lay-has-bottom', 'lay-has-left'].sort())
+            expect(structure(f).classes, layout).toEqual(['lay-' + layout, 'lay-frame', 'lay-has-bottom', 'lay-has-left', 'lay-side'].sort())
         }
         f.dispose()
         expect(body().find('lay-area')).toHaveLength(0)
@@ -526,7 +529,7 @@ describe('EditorFrame area sizes', () => {
         expect(storage.has('tpEditorFrameAreas')).toBe(false) // set from code: not kept
         f.setAreaSize('left', null, true)
         expect(sizeVar('--lay-left-area-size')).toBeUndefined()
-        expect(stored()).toEqual({sizes: {right: 600, bottom: 250}, collapsed: {}, stacked: 'right'})
+        expect(stored()).toEqual({sizes: {right: 600, bottom: 250}, collapsed: {}, stacked: 'right', offsets: {}, spans: {}, splits: {}})
     })
 
     test('the left area and the panel leave room for the canvas next to each other and the mode bar', () => {
@@ -632,7 +635,7 @@ describe('EditorFrame area sizes', () => {
         expect(f.modeBar.open).toBe(true)
         f.setAreaCollapsed('left', false, true)
         expect(body().classList.contains('lay-collapsed-left')).toBe(false)
-        expect(stored()).toEqual({sizes: {}, collapsed: {left: false}, stacked: 'right'})
+        expect(stored()).toEqual({sizes: {}, collapsed: {left: false}, stacked: 'right', offsets: {}, spans: {}, splits: {}})
     })
 
     test('a new frame applies the kept sizes and collapsed areas; a stored value that is not of the frame is ignored', () => {
@@ -665,6 +668,60 @@ describe('EditorFrame area sizes', () => {
     const shown = (e: FakeElement) => e.style.display !== 'none'
     const marked = (e: FakeElement) => e.classList.contains('lay-entry-on')
 
+    test('the breakpoints set the layout classes on the body; a resize sets them again', () => {
+        const f = new EditorFrame(host(), {layout: 'titlebar'})
+        const classes = () => ['lay-stack', 'lay-side', 'lay-single'].filter(c => body().classList.contains(c))
+        expect(classes()).toEqual(['lay-side']) // 1440 x 900
+        const size = (w: number, h: number) => {
+            vi.stubGlobal('innerWidth', w)
+            vi.stubGlobal('innerHeight', h)
+            win.fire('resize')
+        }
+        size(390, 664) // a phone in portrait
+        expect(classes()).toEqual(['lay-stack', 'lay-single'])
+        size(919, 1200)
+        expect(classes()).toEqual(['lay-stack', 'lay-single'])
+        size(920, 1200)
+        expect(classes()).toEqual(['lay-side'])
+        size(699, 390) // a narrow landscape window
+        expect(classes()).toEqual(['lay-side', 'lay-single'])
+        size(700, 390)
+        expect(classes()).toEqual(['lay-side'])
+        // other numbers: the next resize uses them
+        const defaults = {...EditorFrame.Breakpoints}
+        try {
+            EditorFrame.Breakpoints.singleView = 800
+            size(780, 390)
+            expect(classes()).toEqual(['lay-side', 'lay-single'])
+        } finally {
+            Object.assign(EditorFrame.Breakpoints, defaults)
+        }
+        f.dispose()
+        expect(classes()).toEqual([])
+    })
+
+    test('areas at the size of the CSS shrink when the window has no room for them, and get it back when it has', () => {
+        vi.stubGlobal('innerWidth', 1000)
+        vi.stubGlobal('innerHeight', 500) // landscape: side by side
+        storage.set('tpEditorModeBarExpanded', '0')
+        const f = new EditorFrame(host(), {layout: 'titlebar'})
+        f.setArea('left', new FakeElement('div') as any)
+        // on screen: the variable, else the 240 px of the CSS
+        area('left').getBoundingClientRect = () => ({width: parseInt(sizeVar('--lay-left-area-size') ?? '240'), height: 800}) as any
+        const room = (w: number) => w - 240 /* panel, no variable: AreaLimits */ - EditorModeBar.Widths.narrow - EditorFrame.MinCanvasWidth
+        vi.stubGlobal('innerWidth', 720)
+        win.fire('resize')
+        expect(sizeVar('--lay-left-area-size')).toBe(Math.max(160, room(720)) + 'px')
+        vi.stubGlobal('innerWidth', 1400)
+        win.fire('resize')
+        expect(sizeVar('--lay-left-area-size')).toBeUndefined() // the size of the CSS again
+        expect(stored()).toBeNull() // not a size that the person picked
+        // a narrow window shows the areas one at a time: no fitting for them
+        vi.stubGlobal('innerWidth', 650)
+        win.fire('resize')
+        expect(sizeVar('--lay-left-area-size')).toBeUndefined()
+    })
+
     test('the mode bar has an entry for each area with an element, after the modes, with its name and icon', () => {
         const f = new EditorFrame(host(), {layout: 'floating'})
         const bar = f.modeBar.element as any as FakeElement
@@ -689,7 +746,6 @@ describe('EditorFrame area sizes', () => {
     })
 
     test('in a wide window, an entry shows or hides its area, and is marked while it shows', () => {
-        vi.stubGlobal('matchMedia', (q: string) => ({matches: q !== EditorFrame.StackedQuery}))
         const f = new EditorFrame(host(), {layout: 'titlebar'})
         f.setArea('left', new FakeElement('div') as any)
         const e = entries(f)
@@ -711,7 +767,8 @@ describe('EditorFrame area sizes', () => {
     })
 
     test('on a phone, the entries and the modes share the part below the canvas; a tap on the one shown hides it', () => {
-        vi.stubGlobal('matchMedia', (q: string) => ({matches: q === EditorFrame.StackedQuery})) // a phone in portrait
+        vi.stubGlobal('innerWidth', 390) // a phone in portrait (EditorFrame.Breakpoints)
+        vi.stubGlobal('innerHeight', 664)
         const f = new EditorFrame(host(), {layout: 'titlebar'})
         f.setArea('left', new FakeElement('div') as any, {name: 'Layers'})
         f.setArea('bottom', new FakeElement('div') as any)
@@ -781,7 +838,7 @@ describe('EditorFrame area sizes', () => {
         win.fire('pointermove', {clientX: 130}) // 130 px: open, at the smallest size
         expect([f.isAreaCollapsed('left'), sizeVar('--lay-left-area-size')]).toEqual([false, '160px'])
         win.fire('pointerup', {})
-        expect(stored()).toEqual({sizes: {left: 160}, collapsed: {left: false}, stacked: 'right'})
+        expect(stored()).toEqual({sizes: {left: 160}, collapsed: {left: false}, stacked: 'right', offsets: {}, spans: {}, splits: {}})
         expect(body().classList.contains('lay-resizing')).toBe(false)
         // the drag is over: a move does nothing
         win.fire('pointermove', {clientX: 400})
@@ -814,7 +871,250 @@ describe('EditorFrame area sizes', () => {
         f.setAreaCollapsed('bottom', true)
         handle('bottom').fire('dblclick')
         expect(f.isAreaCollapsed('bottom')).toBe(false)
-        expect(stored()).toEqual({sizes: {}, collapsed: {bottom: false}, stacked: 'right'})
+        expect(stored()).toEqual({sizes: {}, collapsed: {bottom: false}, stacked: 'right', offsets: {}, spans: {}, splits: {}})
+    })
+
+    /** A floating frame with a 300 px panel and a 240 px left card (the gap is 12 px, see getComputedStyle above) */
+    const floating = () => {
+        const panel = new FakeElement('div')
+        panel.getBoundingClientRect = () => ({width: 300, height: 876}) as any
+        const f = new EditorFrame(host(), {layout: 'floating', panel: () => panel as any})
+        f.setArea('left', new FakeElement('div') as any)
+        area('left').getBoundingClientRect = () => ({width: 240, height: 876}) as any
+        return f
+    }
+    const grip = (a: string) => body().find('lay-grip-' + a)[0]
+    const end = (a: string, which: string) => body().find(`lay-end-${a}-${which}`)[0]
+
+    test('floating: setAreaOffset moves a card within the room for the canvas; setAreaSpan sets its part of the side', () => {
+        const f = floating()
+        f.setAreaOffset('left', 100)
+        expect([f.areaOffset('left'), sizeVar('--lay-left-offset')]).toEqual([100, '100px'])
+        // the size and the offset share the room: 1440 - 300 (panel) - 168 (mode bar with names) - 240 (canvas) = 732, less 240
+        f.setAreaOffset('left', 2000)
+        expect(f.areaOffset('left')).toBe(492)
+        // the panel then has no room to move: 1440 - 240 - 492 - 168 - 240 = 300, its size
+        f.setAreaOffset('right', 50)
+        expect(f.areaOffset('right')).toBe(0)
+        f.setAreaOffset('left', 100)
+        f.setAreaOffset('right', 50)
+        expect([f.areaOffset('right'), sizeVar('--lay-right-offset')]).toEqual([50, '50px'])
+        // along the side: the window height less the gaps, 876 px
+        f.setAreaSpan('left', {start: 100, length: 400})
+        expect([f.areaSpan('left'), sizeVar('--lay-left-start'), sizeVar('--lay-left-length')]).toEqual([{start: 100, length: 400}, '100px', '400px'])
+        f.setAreaSpan('left', {start: 800, length: 400})
+        expect(f.areaSpan('left')).toEqual({start: 476, length: 400})
+        f.setAreaSpan('left', {start: 0, length: 10})
+        expect(f.areaSpan('left')).toEqual({start: 0, length: EditorFrame.MinCardLength})
+        // no length: to the end of the side, which the CSS fills
+        f.setAreaSpan('left', {start: 100})
+        expect([f.areaSpan('left'), sizeVar('--lay-left-length')]).toEqual([{start: 100, length: 776}, undefined])
+        // the row of the bottom card: between the left card (12 + 100 + 240) and the panel with the mode bar (12 + 50 + 468 + 12)
+        f.setArea('bottom', new FakeElement('div') as any)
+        expect(f.areaSpan('bottom')).toEqual({start: 0, length: 1440 - 352 - 12 - 542})
+        f.setAreaSpan('left', null)
+        expect([f.areaSpan('left'), sizeVar('--lay-left-start')]).toEqual([{start: 0, length: 876}, undefined])
+        f.setAreaOffset('left', null)
+        expect([f.areaOffset('left'), sizeVar('--lay-left-offset')]).toEqual([0, undefined])
+    })
+
+    test('a larger size of a moved card makes its offset smaller, so the card stays in the room', () => {
+        const f = floating()
+        // the left card is as wide as its size on screen
+        area('left').getBoundingClientRect = () => ({width: parseFloat(body().style['--lay-left-area-size'] ?? '240'), height: 876}) as any
+        f.setAreaSize('left', 160)
+        // the room: 1440 - 300 (panel) - 168 (mode bar with names) - 240 (canvas) = 732
+        f.setAreaOffset('left', 600)
+        expect(f.areaOffset('left')).toBe(572)
+        f.setAreaSize('left', 480)
+        expect([sizeVar('--lay-left-area-size'), f.areaOffset('left')]).toEqual(['480px', 252])
+    })
+
+    test('a size that the person sets makes the offset of the other card smaller', () => {
+        const f = floating()
+        area('left').getBoundingClientRect = () => ({width: parseFloat(body().style['--lay-left-area-size'] ?? '240'), height: 876}) as any
+        f.setAreaOffset('right', 2000)
+        expect(f.areaOffset('right')).toBe(492)
+        // 480 px fit when the panel moves back: 1440 - 480 - 168 - 240 - 300 = 252
+        f.setAreaSize('left', 480)
+        expect([sizeVar('--lay-left-area-size'), f.areaOffset('right')]).toEqual(['480px', 252])
+    })
+
+    test('a narrow window: a drag of the panel edge starts from the width of the area shown in the place of the panel', () => {
+        wide = false
+        vi.stubGlobal('innerWidth', 640)
+        vi.stubGlobal('innerHeight', 360)
+        const panel = new FakeElement('div')
+        // hidden: the area takes its place
+        panel.getBoundingClientRect = () => ({width: 0, height: 0}) as any
+        const f = new EditorFrame(host(), {layout: 'titlebar', panel: () => panel as any})
+        f.setArea('left', new FakeElement('div') as any)
+        area('left').getBoundingClientRect = () => ({width: 300, height: 324}) as any
+        f.setStackedArea('left')
+        drag(handle('right'), {clientX: 296}, {clientX: 286})
+        expect(sizeVar('--tweakpane-ui-container-width')).toBe('310px')
+    })
+
+    test('a smaller window makes the offsets smaller before the sizes of the other cards', () => {
+        const f = floating()
+        area('left').getBoundingClientRect = () => ({width: parseFloat(body().style['--lay-left-area-size'] ?? '240'), height: 876}) as any
+        // the room of the panel: 1440 - 240 (left card) - 168 (mode bar with names) - 240 (canvas) = 792, less 300
+        f.setAreaOffset('right', 2000)
+        expect(f.areaOffset('right')).toBe(492)
+        // at 1000 px the offset goes to 1000 - 240 - 168 - 240 - 300 = 52, and the left card keeps its 240 px
+        vi.stubGlobal('innerWidth', 1000)
+        win.fire('resize')
+        expect([f.areaOffset('right'), sizeVar('--lay-left-area-size')]).toEqual([52, undefined])
+    })
+
+    test('the offsets and the spans apply only in the floating layout with the areas next to the canvas, and are kept', () => {
+        const f = floating()
+        f.setAreaOffset('left', 100, true)
+        f.setAreaSpan('right', {start: 50, length: 500}, true)
+        expect(stored()).toMatchObject({offsets: {left: 100}, spans: {right: {start: 50, length: 500}}})
+        f.setLayout('titlebar')
+        expect([f.areaOffset('left'), f.areaSpan('right'), sizeVar('--lay-left-offset'), sizeVar('--lay-right-start')]).toEqual([0, undefined, undefined, undefined])
+        f.setLayout('floating')
+        expect([f.areaOffset('left'), f.areaSpan('right')]).toEqual([100, {start: 50, length: 500}])
+        // a narrow window shows the areas one at a time
+        vi.stubGlobal('innerWidth', 640)
+        vi.stubGlobal('innerHeight', 360)
+        win.fire('resize')
+        expect([f.areaOffset('left'), f.areaSpan('right'), sizeVar('--lay-right-length')]).toEqual([0, undefined, undefined])
+        f.dispose()
+        // a new frame applies the kept ones; values that are not numbers are ignored
+        vi.stubGlobal('innerWidth', 1440)
+        vi.stubGlobal('innerHeight', 900)
+        storage.set('tpEditorFrameAreas', JSON.stringify({offsets: {left: 80, right: 'x'}, spans: {left: {start: 30, length: 300}, bottom: {start: 'a'}}}))
+        const g = floating()
+        expect([g.areaOffset('left'), g.areaOffset('right'), g.areaSpan('left')]).toEqual([80, 0, {start: 30, length: 300}])
+        g.dispose()
+        for (const k of ['offset', 'start', 'length']) expect(sizeVar(`--lay-left-${k}`), k).toBeUndefined()
+    })
+
+    test('a drag of a grip moves the card on both axes and keeps its length; a double-click puts it back', () => {
+        const f = floating()
+        drag(grip('left'), {clientX: 6, clientY: 400}, {clientX: 56, clientY: 300}, {clientX: 106, clientY: 500})
+        // 100 to the right; the card fills its side, so it cannot move down, and its span stays the whole side
+        expect([f.areaOffset('left'), f.areaSpan('left')]).toEqual([100, {start: 0, length: 876}])
+        expect(stored().offsets).toEqual({left: 100})
+        expect(stored().spans.left).toBeUndefined()
+        // the side is full: the start stays 0. A smaller card moves
+        f.setAreaSpan('left', {start: 0, length: 400})
+        drag(grip('left'), {clientX: 106, clientY: 400}, {clientX: 56, clientY: 600})
+        expect([f.areaOffset('left'), f.areaSpan('left')]).toEqual([50, {start: 200, length: 400}])
+        // the panel and the mode bar move to the left, the bottom card up and to the right
+        drag(grip('right'), {clientX: 1434, clientY: 400}, {clientX: 1404, clientY: 400})
+        expect(f.areaOffset('right')).toBe(30)
+        f.setArea('bottom', new FakeElement('div') as any)
+        area('bottom').getBoundingClientRect = () => ({width: 600, height: 160}) as any
+        f.setAreaSpan('bottom', {start: 0, length: 300})
+        drag(grip('bottom'), {clientX: 500, clientY: 894}, {clientX: 540, clientY: 874})
+        expect([f.areaOffset('bottom'), f.areaSpan('bottom')]).toEqual([20, {start: 40, length: 300}])
+        expect(body().classList.contains('lay-moving')).toBe(false)
+        grip('left').fire('dblclick')
+        expect([f.areaOffset('left'), f.areaSpan('left')]).toEqual([0, {start: 0, length: 876}])
+        expect(stored().offsets.left).toBeUndefined()
+    })
+
+    test('after a drag, an end of a card that touches the end of its side stays there: the card grows with the side', () => {
+        const f = floating()
+        f.setArea('bottom', new FakeElement('div') as any)
+        area('bottom').getBoundingClientRect = () => ({width: 684, height: 160}) as any
+        // the row of the bottom card: 1440 - (12 + 240) - 12 - (12 + 468 + 12) = 684; 100 px off its left end
+        drag(end('bottom', 'start'), {clientX: 264}, {clientX: 364})
+        expect(f.areaSpan('bottom')).toEqual({start: 100, length: 584})
+        expect(stored().spans.bottom).toEqual({start: 100})
+        // the left card hides: the row is 936 px, and the card still reaches its right end
+        f.setAreaCollapsed('left', true)
+        expect(f.areaSpan('bottom')).toEqual({start: 100, length: 836})
+        // a card made shorter at its right end keeps its length
+        f.setAreaCollapsed('left', false)
+        drag(end('bottom', 'end'), {clientX: 948}, {clientX: 848})
+        expect(stored().spans.bottom).toEqual({start: 100, length: 484})
+        f.setAreaCollapsed('left', true)
+        expect(f.areaSpan('bottom')).toEqual({start: 100, length: 484})
+    })
+
+    test('setArea with a list: a stack of sections with a split between two; a drag moves the split, a double-click makes them equal', () => {
+        const f = new EditorFrame(host(), {layout: 'titlebar'})
+        const [a, b, c] = [new FakeElement('div'), new FakeElement('div'), new FakeElement('div')]
+        f.setArea('left', [a, b, c] as any)
+        const box = area('left')
+        expect(box.classList.contains('lay-split-area')).toBe(true)
+        expect(box.children.map(e => e.className)).toEqual(['lay-section', 'lay-split', 'lay-section', 'lay-split', 'lay-section'])
+        const sections = box.children.filter(e => e.classList.contains('lay-section'))
+        expect(sections.map(e => e.children[0])).toEqual([a, b, c])
+        expect(sections.map(e => e.style.flexGrow)).toEqual(['1', '1', '1'])
+        const splits = box.children.filter(e => e.classList.contains('lay-split'))
+        expect(splits.map(e => e.getAttribute('role'))).toEqual(['separator', 'separator'])
+        // 300 px each: the first split 60 px down gives 360 and 240
+        sections.forEach(e => e.getBoundingClientRect = () => ({width: 240, height: 300}) as any)
+        drag(splits[0], {clientY: 300}, {clientY: 360})
+        expect(sections.map(e => e.style.flexGrow)).toEqual(['1.2', '0.8', '1'])
+        expect(stored().splits).toEqual({left: [1.2, 0.8, 1]})
+        // at least MinSectionSize
+        drag(splits[1], {clientY: 600}, {clientY: 0})
+        expect(sections[1].style.flexGrow).toBe(String(Math.round(EditorFrame.MinSectionSize / 900 * 3 * 1000) / 1000))
+        splits[0].fire('dblclick')
+        expect([sections.map(e => e.style.flexGrow), stored().splits]).toEqual([['1', '1', '1'], {}])
+        // one element: no stack
+        f.setArea('left', a as any)
+        expect([box.classList.contains('lay-split-area'), box.children]).toEqual([false, [a]])
+    })
+
+    test('a stack keeps its split in a new frame, for the same number of elements; the bottom area stacks left to right', () => {
+        storage.set('tpEditorFrameAreas', JSON.stringify({splits: {left: [1.5, 0.5], bottom: [2, 'x']}}))
+        const f = new EditorFrame(host(), {layout: 'titlebar'})
+        f.setArea('left', [new FakeElement('div'), new FakeElement('div')] as any)
+        const grow = (a: string) => area(a).children.filter(e => e.classList.contains('lay-section')).map(e => e.style.flexGrow)
+        expect(grow('left')).toEqual(['1.5', '0.5'])
+        // another number of elements: equal
+        f.setArea('left', [new FakeElement('div'), new FakeElement('div'), new FakeElement('div')] as any)
+        expect(grow('left')).toEqual(['1', '1', '1'])
+        // a value that is not a number is ignored
+        f.setArea('bottom', [new FakeElement('div'), new FakeElement('div')] as any)
+        expect(grow('bottom')).toEqual(['1', '1'])
+        const split = area('bottom').children.find(e => e.classList.contains('lay-split'))!
+        expect(split.getAttribute('aria-orientation')).toBe('vertical')
+        area('bottom').children.filter(e => e.classList.contains('lay-section')).forEach(e => e.getBoundingClientRect = () => ({width: 400, height: 160}) as any)
+        drag(split, {clientX: 400}, {clientX: 500})
+        expect(grow('bottom')).toEqual(['1.25', '0.75'])
+    })
+
+    test('the head of the floating layout has the app name and the file name, and takes its room from the left column', () => {
+        const f = floating()
+        const head = body().find('lay-head')[0]
+        expect(head.querySelector('b')!.textContent).toBe('threepipe')
+        f.documentName = 'ring.glb'
+        expect(head.querySelector('.lay-file')!.textContent).toBe('ring.glb')
+        // not in the other layouts, which have a bar with the name
+        f.setLayout('titlebar')
+        expect(body().find('lay-head')).toHaveLength(0)
+        f.setLayout('floating')
+        // the side of the left card: 900 - 2 x 12, less the head (36 px) and its gap
+        vi.stubGlobal('getComputedStyle', () => ({getPropertyValue: (k: string) => ({'--lay-gap': '12px', '--lay-head': '36px'} as any)[k] ?? ''}))
+        f.setAreaSpan('left', {start: 0})
+        expect(f.areaSpan('left')).toEqual({start: 0, length: 828})
+        expect(f.areaSpan('right')).toEqual({start: 0, length: 876})
+        f.dispose()
+        expect(body().find('lay-head')).toHaveLength(0)
+    })
+
+    test('a drag of an end of a card sets its span; the other end stays; a double-click fills the side', () => {
+        const f = floating()
+        drag(end('left', 'start'), {clientY: 12}, {clientY: 112})
+        expect(f.areaSpan('left')).toEqual({start: 100, length: 776})
+        drag(end('left', 'end'), {clientY: 888}, {clientY: 588})
+        expect(f.areaSpan('left')).toEqual({start: 100, length: 476})
+        // not shorter than MinCardLength, from either end
+        drag(end('left', 'start'), {clientY: 112}, {clientY: 900})
+        expect(f.areaSpan('left')).toEqual({start: 576 - EditorFrame.MinCardLength, length: EditorFrame.MinCardLength})
+        drag(end('left', 'end'), {clientY: 588}, {clientY: 0})
+        expect(f.areaSpan('left')!.length).toBe(EditorFrame.MinCardLength)
+        expect(stored().spans.left).toEqual(f.areaSpan('left'))
+        end('left', 'end').fire('dblclick')
+        expect([f.areaSpan('left'), sizeVar('--lay-left-length')]).toEqual([{start: 0, length: 876}, undefined])
     })
 })
 
