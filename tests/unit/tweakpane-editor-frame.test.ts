@@ -193,10 +193,18 @@ class FakeElement {
         this._listeners.set(type, (this._listeners.get(type) ?? []).filter(x => x !== f))
     }
     fire(type: string, e: any = {}) {
+        // stopImmediatePropagation stops the next listeners of this element, as in a page
+        let stopped = false
         const event = {target: this, currentTarget: this, defaultPrevented: false, preventDefault: () => {
             event.defaultPrevented = true
-        }, stopPropagation: () => {}, ...e}
-        for (const f of this._listeners.get(type) ?? []) f(event)
+        }, stopPropagation: () => {}, ...e, stopImmediatePropagation: () => {
+            stopped = true
+            e.stopImmediatePropagation?.()
+        }}
+        for (const f of this._listeners.get(type) ?? []) {
+            f(event)
+            if (stopped) break
+        }
         return event
     }
     all(): FakeElement[] {
@@ -1249,6 +1257,24 @@ describe('TweakpaneEditorPlugin.setPanelSection', () => {
         stopped = false
         bar.fire('click', {target: open, stopImmediatePropagation: () => stopped = true})
         expect(stopped).toBe(false)
+    })
+
+    test('swap in a narrow window: a click on the open mode while an area shows in the place of the panel shows the mode settings', () => {
+        vi.stubGlobal('innerWidth', 600)
+        vi.stubGlobal('innerHeight', 900)
+        const {p} = setup()
+        p.setArea('left', new FakeElement('div') as any)
+        p.setPanelSection(new FakeElement('div') as any, {swap: true})
+        p.panelSwapped = true
+        p.frame!.setStackedArea('left')
+        expect(p.frame!.stackedArea).toBe('left')
+        const bar = p.frame!.modeBar.element as unknown as FakeElement
+        const open = bar.all().find(b => b.getAttribute('role') === 'tab' && b.getAttribute('aria-selected') === 'true')!
+        let stopped = false
+        bar.fire('click', {target: open, stopImmediatePropagation: () => stopped = true})
+        expect(p.frame!.stackedArea).toBe('right')
+        expect(p.panelSwapped).toBe(false)
+        expect(stopped).toBe(true)
     })
 
     test('the section stays when the frame is made again, and works in the classic layout', () => {

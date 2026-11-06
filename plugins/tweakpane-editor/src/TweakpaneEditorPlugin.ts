@@ -108,9 +108,10 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
 
     /**
      * Options of the page frame (the app name, the theme pairs), used when the frame is made. The plugin sets the layout,
-     * the pick in the layout menu ({@link layout}) and the rename ({@link documentName}).
+     * the pick in the layout menu ({@link layout}), the rename ({@link documentName}) and the click of a mode
+     * ({@link setPanelSection}).
      */
-    frameOptions: Omit<EditorFrameOptions, 'layout' | 'onPickLayout' | 'onRename'> = {}
+    frameOptions: Omit<EditorFrameOptions, 'layout' | 'onPickLayout' | 'onRename' | 'onModeClick'> = {}
 
     private _documentName = ''
     /**
@@ -200,13 +201,14 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
         if (panel.firstElementChild !== element) panel.prepend(element)
     }
 
-    /** A click on the mode that is open, while the section is in place of its settings: show the settings, not hide the panel */
-    private _onModeBarClick = (e: MouseEvent) => {
-        const tab = (e.target as Element | null)?.closest?.('[role]')
-        if (tab?.getAttribute('role') !== 'tab' || !this._panelSwapped || !this._panelSection?.[1].swap || tab.getAttribute('aria-selected') !== 'true') return
-        if (!this.frame?.modeBar.open) return
-        e.stopImmediatePropagation()
+    /**
+     * A click on a mode in the mode bar (`EditorFrameOptions.onModeClick`), while the section is in place of the settings:
+     * show the settings of the mode, and keep the panel open when it is the open mode
+     */
+    private _onModeClick = (open: boolean) => {
+        if (!this._panelSwapped || !this._panelSection?.[1].swap) return false
         this.panelSwapped = false
+        return open
     }
 
     private _layout: EditorPageLayout = readStoredLayout() ?? TweakpaneEditorPlugin.DefaultLayout
@@ -299,12 +301,11 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
             layout,
             onPickLayout: (l) => this._pickLayout(l),
             onRename: (name) => this.documentName = name,
+            onModeClick: this._onModeClick,
         })
         this.frame.modeBar.select(this._selectedMode)
         this.frame.documentName = this._documentName
         for (const [area, [element, options]] of this._areas) this.frame.setArea(area, element, options)
-        // capture: before the click of the mode button, which hides the panel when its mode is the open one
-        this.frame.modeBar.element.addEventListener('click', this._onModeBarClick, true)
         // the mode bar keeps the names shown or hidden (its toggle button, the stored state): the checkbox follows it
         this.frame.modeBar.onExpandedChange = () => this.uiConfig.uiRefresh?.(true)
     }

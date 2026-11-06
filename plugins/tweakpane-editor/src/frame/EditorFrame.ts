@@ -93,6 +93,12 @@ export interface EditorFrameOptions {
      * `TweakpaneEditorPlugin` passes the container of the Tweakpane UI. Without it, the mode bar hides no panel.
      */
     panel?: () => HTMLElement | null
+    /**
+     * Called first on a click of a mode in the mode bar, with `open`: the mode is the open one and the panel shows. Return
+     * `true` to keep the panel open, so a click on the open mode does not hide it. `TweakpaneEditorPlugin` uses it to
+     * show the settings of the mode in place of a section of the panel (`setPanelSection` with `swap`).
+     */
+    onModeClick?: (open: boolean) => boolean | void
 }
 
 const svg = (d: string) => `<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`
@@ -651,9 +657,13 @@ export class EditorFrame {
      */
     private _onModeBarClick = (e: MouseEvent) => {
         const tab = (e.target as Element | null)?.closest?.('[role]')
-        if (tab?.getAttribute('role') !== 'tab' || !this._stackedShown()) return
-        this.setStackedArea('right', true)
-        if (tab.getAttribute('aria-selected') === 'true' && this.modeBar.open) e.stopImmediatePropagation()
+        if (tab?.getAttribute('role') !== 'tab') return
+        const open = tab.getAttribute('aria-selected') === 'true' && this.modeBar.open
+        const keep = this.options.onModeClick?.(open) === true
+        // a narrow window: a mode shows the panel in the place of an area; the open mode does not hide it then
+        if (this._stackedShown()) this.setStackedArea('right', true)
+        else if (!keep) return
+        if (open) e.stopImmediatePropagation()
     }
 
     /** Shift+T: the light or dark theme. Ctrl+\ (Cmd+\ on a Mac): the next collapse state of the mode bar and the panel. */
