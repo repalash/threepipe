@@ -130,7 +130,14 @@ class FakePicking extends EventDispatcher<any> {
         this.selected = o
         this.dispatchEvent({type: 'selectedObjectChanged', object: o})
     }
+    objectSelectionUiConfig(o: any) {
+        return [{type: 'button', label: 'Focus', object: o}]
+    }
+    objectMaterialManageUiConfig(o: any) {
+        return [{type: 'button', label: 'Remove Material(s)', object: o}]
+    }
 }
+const labels = (ui: FakeRenderer) => ui.shown.map(c => c.label)
 
 let picking: FakePicking
 let requests: {material: any, options: any}[]
@@ -176,16 +183,17 @@ describe('InspectorPlugin', () => {
         picking.select(a)
         expect(tabs()).toEqual(['Object*', 'Material', 'Geometry'])
         expect(el.find('isp-title')[0].textContent).toBe('Box')
-        expect(ui.shown).toEqual([a.uiConfig])
+        expect(ui.shown.at(-1)).toBe(a.uiConfig)
         el.find('isp-tab')[1].click()
-        expect(ui.shown).toEqual([(a.material as any).uiConfig])
+        expect(ui.shown.at(-1)).toBe((a.material as any).uiConfig)
         const b = mesh(new PhysicalMaterial())
         picking.select(b)
         expect(tabs()).toEqual(['Object', 'Material*', 'Geometry'])
-        expect(ui.shown).toEqual([(b.material as any).uiConfig])
+        expect(ui.shown.at(-1)).toBe((b.material as any).uiConfig)
         // a material alone: one tab, no tab bar; the open tab is kept for the next mesh
         picking.select(b.material)
         expect(tabs()).toEqual(['Material*'])
+        expect(ui.shown).toEqual([(b.material as any).uiConfig])
         expect(el.find('isp-tabs')[0].style.display).toBe('none')
         picking.select(undefined)
         expect(tabs()).toEqual([])
@@ -216,7 +224,19 @@ describe('InspectorPlugin', () => {
         const m = new UnlitMaterial()
         a.material = m
         viewer.scene.dispatchEvent({type: 'materialChanged', object: a})
-        expect(ui.shown).toEqual([m.uiConfig])
+        expect(ui.shown.at(-1)).toBe(m.uiConfig)
+    })
+
+    test('shows the actions of the PickingPlugin for the object: Focus on the Object tab, the material actions on the Material tab', () => {
+        const {el, ui} = setup()
+        const a = mesh(new PhysicalMaterial())
+        picking.select(a)
+        expect(labels(ui)).toEqual(['Focus', 'Box'])
+        expect(ui.shown[0].object).toBe(a)
+        el.find('isp-tab')[1].click()
+        expect(labels(ui)).toEqual(['Remove Material(s)', (a.material as any).uiConfig.label])
+        el.find('isp-tab')[2].click()
+        expect(ui.shown).toEqual([a.geometry.uiConfig].filter(Boolean))
     })
 
     test('a mesh with more materials has a list of them', () => {
@@ -230,7 +250,7 @@ describe('InspectorPlugin', () => {
         expect(list.children.map(o => o.textContent)).toEqual(['Gold', 'Stone'])
         list.value = '1'
         list.fire('change')
-        expect(ui.shown).toEqual([m2.uiConfig])
+        expect(ui.shown.at(-1)).toBe(m2.uiConfig)
     })
 
     test('the material preview is asked for on the Material tab only, with the shape and the view', () => {

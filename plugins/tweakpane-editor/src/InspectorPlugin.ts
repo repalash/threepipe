@@ -149,7 +149,11 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
     private _empty: HTMLDivElement
 
     private _ui?: InspectorUiRenderer
-    private _shown?: UiObjectConfig
+    /** The uiConfigs in the renderer: the actions of the open tab, then the uiConfig of its part */
+    private _shown: UiObjectConfig[] = []
+    /** The actions of the PickingPlugin for the selected object: Focus and Select Parent, and the material actions */
+    private _objectActions: UiObjectConfig[] = []
+    private _materialActions: UiObjectConfig[] = []
     private _picking?: PickingPlugin
     /** The value of {@link PickingPlugin.selectionUi} before this plugin turned it off */
     private _pickingSelectionUi = true
@@ -324,6 +328,9 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
         if (!this._material || !this._materials.includes(this._material)) this._material = this._materials[0]
         this._geometry = object ? object.geometry as IGeometry | undefined : (selected as IGeometry)?.isBufferGeometry ? selected as IGeometry : undefined
         this._texture = (selected as ITexture)?.isTexture ? selected as ITexture : undefined
+        // made again for each object: they hold it
+        this._objectActions = object && this._picking ? this._picking.objectSelectionUiConfig(object) : []
+        this._materialActions = object && this._picking ? this._picking.objectMaterialManageUiConfig(object) : []
         this._render()
         this._hasSelection = !!selected
         // also for another selection after one: the app shows the inspector again (a click on a mode swapped it out)
@@ -373,14 +380,18 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
             this._materialList.value = String(this._materials.indexOf(this._material!))
         }
 
+        // the actions of the PickingPlugin that its UI shows with the selection (the inspector turns that UI off): Focus
+        // and Select Parent on the Object tab, Remove Material(s) and New ... Material on the Material tab
+        const actions = open?.[0] === 'object' ? this._objectActions : materialTab ? this._materialActions : []
         const config = open?.[1].uiConfig
-        if (config !== this._shown) {
-            if (this._shown) this._ui?.removeChild(this._shown)
-            this._shown = undefined
-            if (config && this._ui) {
-                if (config.type === 'folder') safeSetProperty(config, 'expanded', true, true)
-                this._ui.appendChild(config)
-                this._shown = config
+        const configs = config ? [...actions, config] : actions
+        if (configs.length !== this._shown.length || configs.some((c, i) => c !== this._shown[i])) {
+            for (const c of this._shown) this._ui?.removeChild(c)
+            this._shown = []
+            if (this._ui) for (const c of configs) {
+                if (c.type === 'folder') safeSetProperty(c, 'expanded', true, true)
+                this._ui.appendChild(c)
+                this._shown.push(c)
             }
         }
         this._empty.style.display = tabs.length ? 'none' : ''
