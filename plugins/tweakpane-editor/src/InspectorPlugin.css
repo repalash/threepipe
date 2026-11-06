@@ -1,6 +1,7 @@
 /* InspectorPlugin: the colours, the font and the lines of the Tweakpane theme of the page (the tpTheme-* body class) */
+/* one column that scrolls as a whole: in a short area the head, the preview and the settings stay reachable */
 .isp-root {
-    display: flex; flex-direction: column; box-sizing: border-box; min-height: 0; height: 100%;
+    display: flex; flex-direction: column; box-sizing: border-box; min-height: 0; height: 100%; overflow-y: auto; overscroll-behavior: contain;
     color: var(--tp-container-foreground-color, #1e1e1e); background: var(--tp-base-background-color, #fff);
     font: 12px/1.3 var(--tp-font-family, system-ui, sans-serif);
 }
@@ -29,7 +30,7 @@
 .isp-shapes { display: flex; gap: 2px; margin: 6px 0 0; }
 .isp-shape { flex: 1; border: 0; border-radius: 4px; padding: 4px 0; font-size: 11px; cursor: pointer; background: var(--tp-input-background-color, rgba(0, 0, 0, .05)); }
 .isp-shape.isp-on { box-shadow: inset 0 0 0 1px var(--tp-label-foreground-color, #0d99ff); font-weight: 600; }
-.isp-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.isp-body { flex: none; }
 .isp-root:not(.isp-has-selection) .isp-body { display: none; }
 .isp-empty { padding: 4px 12px 14px; opacity: .6; }
 

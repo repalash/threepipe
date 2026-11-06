@@ -23,6 +23,11 @@ import {readStored, writeStored} from './dom-utils'
 export interface TweakpaneEditorPluginEventMap extends AViewerPluginEventMap {
     /** {@link TweakpaneEditorPlugin.documentName} changed: set by the app, or renamed in the bar of the frame */
     documentNameChange: {name: string}
+    /**
+     * The page frame was made ({@link TweakpaneEditorPlugin.frame}, with the areas again) or removed (`undefined`, the
+     * classic layout). A new frame has its own state (`modeSettingsHidden`), so an app sets it again here.
+     */
+    frameChange: {frame?: EditorFrame}
 }
 
 export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPluginEventMap> {
@@ -225,11 +230,14 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
         for (const [area, [element, options]] of this._areas) this.frame.setArea(area, element, options)
         // the mode bar keeps the names shown or hidden (its toggle button, the stored state): the checkbox follows it
         this.frame.modeBar.onExpandedChange = () => this.uiConfig.uiRefresh?.(true)
+        this.dispatchEvent({type: 'frameChange', frame: this.frame})
     }
 
     private _removeFrame() {
-        this.frame?.dispose()
+        if (!this.frame) return
+        this.frame.dispose()
         this.frame = undefined
+        this.dispatchEvent({type: 'frameChange', frame: undefined})
     }
 
     private _selectedMode = 0

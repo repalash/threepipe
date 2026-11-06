@@ -1385,4 +1385,19 @@ describe('EditorFrame right area', () => {
         p.setSelectedMode(1)
         expect(p.frame!.modeSettingsHidden).toBe(false)
     })
+
+    test('the TweakpaneEditorPlugin sends frameChange when it makes or removes the frame, so an app sets the frame state again', () => {
+        const p = new TweakpaneEditorPlugin()
+        ;(p as any)._viewer = {getPlugin: () => undefined}
+        p.modeKeys = ['Viewer', 'Export']
+        const frames: unknown[] = []
+        p.addEventListener('frameChange', e => frames.push(e.frame))
+        p.layout = 'titlebar'
+        const first = p.frame
+        p.layout = 'floating' // the same frame, another layout: no event
+        p.layout = 'classic'
+        p.layout = 'statusbar'
+        expect(frames).toEqual([first, undefined, p.frame])
+        expect(p.frame).not.toBe(first)
+    })
 })

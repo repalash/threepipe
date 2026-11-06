@@ -359,6 +359,18 @@ describe('InspectorPlugin', () => {
     })
 })
 
+describe('InspectorPlugin.css', () => {
+    test('the inspector scrolls as one column, so in a short area the settings under the preview stay reachable', async() => {
+        const {readFileSync} = await import('node:fs')
+        const css = readFileSync(new URL('../../plugins/tweakpane-editor/src/InspectorPlugin.css', import.meta.url), 'utf8')
+        const rule = (sel: string) => css.match(new RegExp(sel.replace(/[.]/g, '\\.') + '\\s*\\{([^}]*)\\}'))?.[1] ?? ''
+        expect(rule('.isp-root')).toMatch(/overflow-y:\s*auto/)
+        // the settings do not scroll on their own (they would shrink to nothing under the head and the preview)
+        expect(rule('.isp-body')).not.toMatch(/overflow-y:\s*auto/)
+        expect(rule('.isp-body')).toMatch(/flex:\s*none/)
+    })
+})
+
 describe('PickingPlugin.selectionUi', () => {
     test('off: the UI of the plugin shows only the picking settings, not the selection', () => {
         const p = new PickingPlugin()

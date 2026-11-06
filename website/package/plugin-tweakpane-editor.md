@@ -98,7 +98,7 @@ The frame has fixed areas: the left sidebar, the right sidebar (the panel and th
 
 - The element has an entry in the mode bar (with a list of options, each element has one), which shows or hides it; hiding the only element collapses the right area, and the mode settings take the panel again.
 - While the right area shows, a click on the open mode hides the settings of the mode, and the right area takes the whole panel (the mode bar marks no mode then); a click on a mode shows them again. From code: `editor.frame.setModeSettingsHidden(true)`, `modeSettingsHidden`; `setSelectedMode` shows them. Without the right area, a click on the open mode hides the panel, as before.
-- Swap (the inspector in place of the mode settings while something is selected) is the two together: `editor.frame.setSectionHidden('right', 0, !selected)` and `editor.frame.setModeSettingsHidden(selected)`.
+- Swap (the inspector in place of the mode settings while something is selected) is the two together: `editor.frame.setSectionHidden('right', 0, !selected)` and `editor.frame.setModeSettingsHidden(selected)`. A new frame (a change of the layout, like classic and back) starts with the mode settings shown: set it again on the `frameChange` event of the plugin.
 - The body has the classes `lay-has-right`, `lay-right-shown` and `lay-mode-hidden`.
 
 **Elements of a stack.** With a list of options, `editor.setArea('left', [layers, inspector], [layersEntry, inspectorEntry])` gives each element of a stack its own entry in the mode bar, which shows or hides it (`editor.frame.setSectionHidden(area, index, hidden)`, `isSectionHidden`). Hiding the last shown element collapses the area. The hidden elements are kept with the sizes, for a stack of the same length.

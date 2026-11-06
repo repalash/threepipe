@@ -272,6 +272,8 @@ export class ThreeEditor extends ThreeViewer {
         layers?.addEventListener('enabledChange', placePanels)
         inspector?.addEventListener('enabledChange', placePanels)
         inspector?.addEventListener('selectionChange', swap)
+        // a new frame (a change of the layout, like classic and back) starts with the mode settings shown
+        editor.addEventListener('frameChange', swap)
 
         // the name in the page frame: the first loaded model or viewer config file (not a texture or an environment
         // map) names the document, and a click on the name renames it; the files dropped after it do not change it. The
