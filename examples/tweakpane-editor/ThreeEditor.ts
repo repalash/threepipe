@@ -24,6 +24,7 @@ import {
     GLTFAnimationPlugin,
     GLTFKHRMaterialVariantsPlugin,
     GLTFMeshOptDecodePlugin,
+    getUrlQueryParam,
     HalfFloatType,
     HDRiGroundPlugin,
     InteractionPromptPlugin,
@@ -240,10 +241,12 @@ export class ThreeEditor extends ThreeViewer {
 
         editor.loadPlugins(this.editorModes)
 
-        // the layers in the left area of the page frame, with an entry in the mode bar; out of it while the panel is off
+        // the layers in the left area of the page frame (?layers=bottom: in the bottom strip), with an entry in the mode
+        // bar; out of it while the panel is off
         const layers = this.getPlugin(LayersPanelPlugin)
         if (layers) {
-            const placeLayers = () => editor.setArea('left', layers.isDisabled() ? null : layers.element, LayersPanelPlugin.AreaEntry)
+            const area = getUrlQueryParam('layers') === 'bottom' ? 'bottom' : 'left'
+            const placeLayers = () => editor.setArea(area, layers.isDisabled() ? null : layers.element, LayersPanelPlugin.AreaEntry)
             placeLayers()
             layers.addEventListener('enabledChange', placeLayers)
         }
