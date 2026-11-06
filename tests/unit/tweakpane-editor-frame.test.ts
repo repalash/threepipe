@@ -712,6 +712,38 @@ describe('EditorFrame area sizes', () => {
         expect(f.isAreaCollapsed('left')).toBe(true)
     })
 
+    test('a narrow window, no hidden element kept: a tap on an entry of the stack shown hides that element, not the place', () => {
+        vi.stubGlobal('innerWidth', 600)
+        vi.stubGlobal('innerHeight', 900)
+        const f = new EditorFrame(host(), {layout: 'titlebar'})
+        f.setArea('left', [new FakeElement('div'), new FakeElement('div')] as any, [{name: 'Layers'}, {name: 'Inspector'}])
+        f.setStackedArea('left')
+        const box = (f.modeBar.element as any as FakeElement).find('lay-area-entries')[0]
+        box.find('lay-area-entry')[0].click()
+        expect([f.isSectionHidden('left', 0), f.isSectionHidden('left', 1), f.modeBar.open, f.stackedArea]).toEqual([true, false, true, 'left'])
+        // the last element shown: the place hides
+        box.find('lay-area-entry')[1].click()
+        expect([f.isSectionHidden('left', 1), f.modeBar.open]).toEqual([false, false])
+    })
+
+    test('a drag of a split changes the two shown sections next to it; a hidden section keeps its weight', () => {
+        const f = new EditorFrame(host(), {layout: 'titlebar'})
+        f.setArea('left', [new FakeElement('div'), new FakeElement('div'), new FakeElement('div')] as any, [{}, {}, {}])
+        f.setSectionHidden('left', 1, true)
+        const leftArea = body().find('lay-area-left')[0]
+        const sections = leftArea.find('lay-section')
+        // a hidden section measures 0, the shown ones 100 px
+        sections.forEach((sec, i) => (sec as any).getBoundingClientRect = () => ({left: 0, top: 0, right: 100, bottom: i === 1 ? 0 : 100, width: 100, height: i === 1 ? 0 : 100}))
+        const split = leftArea.find('lay-split')[1] // before the third section: between the first and the third
+        split.fire('pointerdown', {button: 0, clientY: 0})
+        win.fire('pointermove', {clientY: 50})
+        win.fire('pointerup', {})
+        const weights = sections.map(sec => Number(sec.style.flexGrow))
+        expect(weights[1]).toBe(1)
+        expect(weights[0]).toBeCloseTo(1.5)
+        expect(weights[2]).toBeCloseTo(0.5)
+    })
+
     test('the hidden elements of a stack are kept, and apply to a stack of the same length', () => {
         storage.set('tpEditorFrameAreas', JSON.stringify({hidden: {left: [false, true]}}))
         const f = new EditorFrame(host(), {layout: 'titlebar'})
@@ -1106,7 +1138,8 @@ describe('EditorFrame area sizes', () => {
         drag(splits[0], {clientY: 300}, {clientY: 360})
         expect(sections.map(e => e.style.flexGrow)).toEqual(['1.2', '0.8', '1'])
         expect(stored().splits).toEqual({left: [1.2, 0.8, 1]})
-        // at least MinSectionSize
+        // at least MinSectionSize (the sections now measure as their weights give them: 360, 240 and 300)
+        sections.forEach((e, i) => e.getBoundingClientRect = () => ({width: 240, height: [360, 240, 300][i]}) as any)
         drag(splits[1], {clientY: 600}, {clientY: 0})
         expect(sections[1].style.flexGrow).toBe(String(Math.round(EditorFrame.MinSectionSize / 900 * 3 * 1000) / 1000))
         splits[0].fire('dblclick')

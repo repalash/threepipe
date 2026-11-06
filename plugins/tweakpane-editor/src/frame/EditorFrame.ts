@@ -721,7 +721,8 @@ export class EditorFrame {
         const shown = this._stackedShown() === area && this.modeBar.open
         if (shown && (!per || !this.isSectionHidden(area, index))) {
             // the element shows: hide it, or the place when it is the only one
-            if (per && this._hidden[area]?.some((h, i) => !h && i !== index)) return this.setSectionHidden(area, index, true, true)
+            const others = this._sections(area).some((_, i) => i !== index && !this.isSectionHidden(area, i))
+            if (per && others) return this.setSectionHidden(area, index, true, true)
             return this.modeBar.setOpen(false)
         }
         if (per && this.isSectionHidden(area, index)) this.setSectionHidden(area, index, false, true)
@@ -868,7 +869,8 @@ export class EditorFrame {
         el.addEventListener('pointerdown', (e: PointerEvent) => {
             if (e.button !== 0) return
             e.preventDefault()
-            const sizes = this._sections(area).map(s => {
+            const sections = this._sections(area)
+            const sizes = sections.map(s => {
                 const r = s.getBoundingClientRect()
                 return vertical ? r.height : r.width
             })
@@ -881,12 +883,14 @@ export class EditorFrame {
             this._drag(el, ['lay-resizing', 'lay-resizing-' + (vertical ? 'y' : 'x')], (ev: PointerEvent) => {
                 const min = Math.min(EditorFrame.MinSectionSize, pair / 2)
                 const size = Math.max(min, Math.min(pair - min, sizes[a] + (vertical ? ev.clientY : ev.clientX) - p0))
-                const next = sizes.slice()
-                next[a] = size
-                next[b] = pair - size
-                // weights that sum to the number of sections, so the split stays when the area changes size
-                const total = next.reduce((t, v) => t + v, 0) || 1
-                this._splits[area] = next.map(v => Math.round(v / total * next.length * 1000) / 1000)
+                // only the two sections next to the split change: they share their weights as their new sizes; the
+                // others keep theirs (a hidden one measures 0 and would get no room when it shows again)
+                const kept = this._splits[area]
+                const weights = kept?.length === sections.length ? kept.slice() : sections.map(() => 1)
+                const pairWeight = weights[a] + weights[b]
+                weights[a] = Math.round(pairWeight * size / pair * 1000) / 1000
+                weights[b] = Math.round((pairWeight - weights[a]) * 1000) / 1000
+                this._splits[area] = weights
                 this._applySplits(area)
             })
         })
