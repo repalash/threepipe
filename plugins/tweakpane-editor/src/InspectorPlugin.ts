@@ -83,6 +83,8 @@ class InspectorUiRenderer extends TweakpaneUiPlugin {
  * Blender: a head with the name of the selection, tabs for its parts (Object, Material, Geometry; Texture for a selected
  * texture), and the uiConfig of the open tab. A pick of another object keeps the open tab when the new selection has it.
  *
+ * - The Object tab has a card for each material of the selected mesh, with a small preview and the name: a click opens
+ *   the Material tab on that material.
  * - The Material tab has a large live preview of the material (with the {@link MaterialPreviewPlugin}): a sphere, a cube
  *   or the selected mesh alone ({@link previewShape}). A drag on it turns it, the wheel zooms, a double-click resets the
  *   view. A mesh with more than one material has a list of its materials.
@@ -125,6 +127,8 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
     private static _styles?: HTMLStyleElement
     /** The size in px of the large preview of the material */
     static PreviewSize = 256
+    /** The size in px of the previews in the material cards of the Object tab (twice the size on screen, for a sharp 2x screen) */
+    static CardPreviewSize = 64
     /** The entry of the panel in the mode bar of the editor frame, for `TweakpaneEditorPlugin.addPanel` */
     static AreaEntry: EditorFrameAreaOptions = {name: 'Inspector', icon: AREA_ICON, color: '#0ea5e9'}
 
@@ -153,6 +157,9 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
 
     private _title: HTMLDivElement
     private _tabsEl: HTMLDivElement
+    private _cardsEl: HTMLDivElement
+    /** The previews of the material cards, cancelled when the cards are made again or hide */
+    private _cardHandles: MaterialPreviewHandle[] = []
     private _materialList: HTMLSelectElement
     private _previewEl: HTMLDivElement
     private _canvas: HTMLCanvasElement
@@ -200,6 +207,7 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
         this._title = this.element.appendChild(el('div', 'isp-title'))
         this._tabsEl = this.element.appendChild(el('div', 'isp-tabs'))
         this._tabsEl.setAttribute('role', 'tablist')
+        this._cardsEl = this.element.appendChild(el('div', 'isp-cards'))
         this._materialList = this.element.appendChild(el('select', 'isp-materials'))
         this._materialList.setAttribute('aria-label', 'Material of the mesh')
         this._materialList.addEventListener('change', () => this._pickMaterial(Number(this._materialList.value)))
@@ -272,6 +280,7 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
         this._setPicking(undefined)
         this._show(undefined, true)
         this._unwatch()
+        this._cancelCards()
         // put the undo manager of the viewer back before dispose, which disposes the one it has
         this._ui?.onRemove(viewer)
         this._ui?.dispose()
@@ -289,8 +298,11 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
             this.dispatchEvent({type: 'enabledChange', enabled: on})
         }
         this._place()
-        this._requestPreview()
-        this._updateInPage()
+        // in or out of the page renders again, with the previews
+        if (!this._updateInPage()) {
+            this._requestPreview()
+            this._renderCards()
+        }
     }
 
     private _place() {
@@ -334,11 +346,12 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
      * selection and of {@link enabled}, and at each viewer `update` (a change of the layout resizes the canvas). An
      * inspector in a collapsed area is in the page.
      * @param sync - set the PickingPlugin even when nothing changed
+     * @returns whether it rendered the inspector again
      */
     private _updateInPage(sync = false) {
-        if (!this._viewer) return // the first set of enabled, in the constructor
+        if (!this._viewer) return false // the first set of enabled, in the constructor
         const inPage = !this.isDisabled() && this.element.isConnected
-        if (inPage === this._inPage && !sync) return
+        if (inPage === this._inPage && !sync) return false
         const changed = inPage !== this._inPage
         this._inPage = inPage
         // out of the page: let go of the settings first; in the page: the PickingPlugin lets go first
@@ -347,6 +360,7 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
         const selectionUi = inPage ? false : this._pickingSelectionUi
         if (picking && picking.selectionUi !== selectionUi) picking.selectionUi = selectionUi
         if (changed && inPage) this._render()
+        return changed
     }
 
     /** The selected object took another material or geometry: show the new ones */
@@ -454,6 +468,51 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
         }
         this._empty.style.display = tabs.length ? 'none' : ''
         this._requestPreview()
+        this._renderCards()
+    }
+
+    /**
+     * The material cards of the Object tab: one for each material of the selected mesh, with a small preview and the name
+     * (the type for a material with no name). A click opens the Material tab on that material.
+     */
+    private _renderCards() {
+        if (!this._cardsEl) return // the first set of enabled, before the constructor makes the elements
+        this._cancelCards()
+        this._cardsEl.replaceChildren()
+        const tabs = this._tabs()
+        const open = tabs.find(t => t[0] === this._tab) ?? tabs[0]
+        const shown = open?.[0] === 'object' && this._materials.length > 0
+        this._cardsEl.style.display = shown ? '' : 'none'
+        if (!shown) return
+        const previews = !this.isDisabled() ? this._viewer?.getPlugin(MaterialPreviewPlugin) : undefined
+        const size = InspectorPlugin.CardPreviewSize
+        this._materials.forEach((mat, i) => {
+            const card = this._cardsEl.appendChild(el('button', 'isp-card'))
+            card.type = 'button'
+            card.title = 'Open in the Material tab'
+            const canvas = card.appendChild(el('canvas', 'isp-card-preview'))
+            canvas.width = canvas.height = size
+            const name = card.appendChild(el('span', 'isp-card-name'))
+            name.textContent = mat.name || `${mat.type} ${this._materials.length > 1 ? i + 1 : ''}`.trim()
+            const type = card.appendChild(el('span', 'isp-card-type'))
+            type.textContent = mat.type
+            card.classList.toggle('isp-card-plain', !mat.name)
+            card.addEventListener('click', () => {
+                this._material = mat
+                this.setTab('material')
+            })
+            if (previews) this._cardHandles.push(previews.request(mat, {shape: 'sphere', size}, p => {
+                const ctx = canvas.getContext('2d')
+                if (!ctx) return
+                ctx.clearRect(0, 0, size, size)
+                ctx.drawImage(p.canvas, 0, 0, size, size)
+            }))
+        })
+    }
+
+    private _cancelCards() {
+        for (const h of this._cardHandles) h.cancel()
+        this._cardHandles = []
     }
 
     private _renderTitle() {

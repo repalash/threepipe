@@ -259,11 +259,40 @@ describe('InspectorPlugin', () => {
         expect(ui.shown.at(-1)).toBe(m2.uiConfig)
     })
 
+    test('the Object tab has a card for each material, with a small preview and the name; a click opens the Material tab on it', () => {
+        const {inspector, el, ui, tabs} = setup()
+        const m1 = new PhysicalMaterial({name: 'Gold'})
+        const m2 = new PhysicalMaterial()
+        picking.select(mesh(m1, m2))
+        const cards = () => el.find('isp-card')
+        expect(cards().map(c => c.find('isp-card-name')[0].textContent)).toEqual(['Gold', m2.type + ' 2'])
+        // a material with no name shows its type as the name, alone
+        expect(cards().map(c => c.classList.contains('isp-card-plain'))).toEqual([false, true])
+        expect(requests.map(r => [r.material, r.options.size, r.options.shape])).toEqual([[m1, 64, 'sphere'], [m2, 64, 'sphere']])
+        cards()[1].click()
+        expect(tabs()).toEqual(['Object', 'Material*', 'Geometry'])
+        expect(ui.shown.at(-1)).toBe(m2.uiConfig)
+        // the Material tab has no cards
+        expect(el.find('isp-cards')[0].style.display).toBe('none')
+        expect(cards()).toHaveLength(0)
+        // turned off: no previews for the cards
+        el.find('isp-tab')[0].click()
+        const n = requests.length
+        inspector.enabled = false
+        expect(requests.length).toBe(n)
+        inspector.enabled = true
+        expect(requests.length).toBe(n + 2)
+        // no material (a selected texture or geometry): no cards
+        picking.select(undefined)
+        expect(el.find('isp-cards')[0].style.display).toBe('none')
+    })
+
     test('the material preview is asked for on the Material tab only, with the shape and the view', () => {
         const {inspector, el} = setup()
         const a = mesh(new PhysicalMaterial())
         picking.select(a)
-        expect(requests).toHaveLength(0)
+        // the Object tab asks only for the small previews of its material cards
+        expect(requests.map(r => r.options.size)).toEqual([InspectorPlugin.CardPreviewSize])
         expect(el.find('isp-preview')[0].style.display).toBe('none')
         el.find('isp-tab')[1].click()
         expect(el.find('isp-preview')[0].style.display).toBe('')
@@ -310,7 +339,8 @@ describe('InspectorPlugin', () => {
         // an edit on the Geometry tab: the cache is dropped, no preview is shown
         viewer.scene.dispatchEvent({type: 'geometryUpdate', geometry: a.geometry})
         expect(invalidated).toEqual([a.material])
-        expect(requests).toHaveLength(0)
+        // the material card asks for a sphere, not the geometry
+        expect(requests.map(r => r.options.size)).toEqual([InspectorPlugin.CardPreviewSize])
         inspector.previewShape = 'mesh'
         el.find('isp-tab')[1].click()
         const n = requests.length

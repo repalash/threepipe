@@ -15,6 +15,23 @@
 .isp-tab { flex: 1; min-width: 0; border: 0; background: transparent; padding: 5px 0; border-radius: 4px; opacity: .7; cursor: pointer; }
 .isp-tab:hover { opacity: 1; }
 .isp-tab.isp-on { opacity: 1; font-weight: 600; background: var(--tp-base-background-color, #fff); box-shadow: 0 0 0 1px var(--tp-container-border-color, #ececec); }
+/* the material cards of the Object tab: a small preview, the name and the type; a click opens the Material tab */
+.isp-cards { display: flex; flex-direction: column; gap: 2px; margin: 0 8px 6px; flex: none; }
+.isp-card {
+    display: grid; grid-template-columns: 32px 1fr; grid-template-rows: auto auto; column-gap: 8px; align-items: center;
+    border: 0; border-radius: 6px; padding: 4px; text-align: left; cursor: pointer; background: transparent;
+}
+.isp-card:hover { background: var(--tp-input-background-color, rgba(0, 0, 0, .05)); }
+.isp-card:focus-visible { outline: 2px solid var(--tp-label-foreground-color, #0d99ff); outline-offset: -2px; }
+.isp-card-preview {
+    grid-row: span 2; width: 32px; height: 32px; border-radius: 6px;
+    background: repeating-conic-gradient(rgba(127, 127, 127, .18) 0 25%, transparent 0 50%) 0 0 / 8px 8px;
+}
+.isp-card-name { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.isp-card-type { font-size: 11px; opacity: .6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* a material with no name shows its type as the name, on one line */
+.isp-card-plain .isp-card-type { display: none; }
+.isp-card-plain .isp-card-name { grid-row: span 2; }
 .isp-materials {
     margin: 0 8px 6px; padding: 4px 6px; border-radius: 4px; flex: none;
     border: 1px solid var(--tp-container-border-color, #e6e6e6); background: var(--tp-input-background-color, transparent);
