@@ -40,9 +40,9 @@ body.mb-panel-hidden .mb-toggle svg { transform: rotate(180deg); }
 body.lay-titlebar { --lay-top: 36px; --lay-bottom: 0px; }
 body.lay-statusbar { --lay-top: 0px; --lay-bottom: 26px; }
 body.lay-floating { --lay-top: 0px; --lay-bottom: 0px; --lay-gap: 12px; --lay-card-shadow: 0 0 0 1px rgba(0,0,0,.06), 0 2px 10px rgba(0,0,0,.08); }
-/* the areas of the frame: the left sidebar and the bottom strip (EditorFrame.setArea), and the right sidebar (the panel
-   and the mode bar). Their width or height: --lay-left-area, --lay-right-area, --lay-bottom-area. The left and the bottom
-   area show when they have an element (the body class lay-has-left, lay-has-bottom), --lay-left-area-size wide or
+/* the areas of the frame: the left sidebar and the bottom strip (places of EditorFrame.addPanel), and the right sidebar
+   (the panel and the mode bar). Their width or height: --lay-left-area, --lay-right-area, --lay-bottom-area. The left
+   and the bottom area show when they have a panel (the body class lay-has-left, lay-has-bottom), --lay-left-area-size wide or
    --lay-bottom-area-size tall; empty, they take no room (0px). In the floating layout, --lay-left-inset and
    --lay-bottom-inset are the parts of the canvas that the left and the bottom card cover, with their gap to the window
    (0px in the other layouts, where the canvas is smaller) */
@@ -64,12 +64,12 @@ body.lay-floating.lay-has-bottom { --lay-bottom-inset: calc(var(--lay-bottom-are
 }
 body.lay-has-left .lay-area-left, body.lay-has-bottom .lay-area-bottom { display: flex; }
 .lay-area > * { flex: 1 1 auto; min-height: 0; }
-/* a stack (EditorFrame.setArea with a list): the elements in sections, split by their weights (flex-grow, set by the
+/* a stack (more than one panel in a place): the panels in sections, split by their weights (flex-grow, set by the
    frame), with a line between two sections; a drag on it moves the split. The bottom area stacks left to right. */
 .lay-area-bottom.lay-split-area { flex-direction: row; }
 .lay-area > .lay-section { flex: 1 1 0; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
 .lay-section > * { flex: 1 1 auto; min-height: 0; }
-/* an element of a stack that its entry hides (EditorFrame.setSectionHidden), and the split before it */
+/* a panel of a stack that its entry hides (EditorFrame.setPanelHidden), and the split before it */
 .lay-area > .lay-section-hidden { display: none !important; }
 .lay-area > .lay-split {
     flex: 0 0 1px; position: relative; z-index: 1; touch-action: none; background: var(--tp-container-border-color, #e6e6e6);
@@ -82,7 +82,7 @@ body.lay-has-left .lay-area-left, body.lay-has-bottom .lay-area-bottom { display
 .lay-split::after { content: ''; position: absolute; }
 .lay-area-left > .lay-split::after { left: 0; right: 0; top: -3px; bottom: -3px; }
 .lay-area-bottom > .lay-split::after { top: 0; bottom: 0; left: -3px; right: -3px; }
-/* the right area (EditorFrame.setArea right): in the panel, above the settings of the mode (the pane of the Tweakpane
+/* the right place (EditorFrame.addPanel with area right): in the panel, above the settings of the mode (the pane of the Tweakpane
    UI), with a line between them; their heights by the weights that the frame sets (--lay-right-box-grow,
    --lay-right-pane-grow; a drag of the line). Each part scrolls on its own. With the settings of the mode hidden
    (lay-mode-hidden), the right area takes the whole panel. */
@@ -211,8 +211,8 @@ body.lay-frame #canvas-container:has(.pp-root.pp-bottom-left) { --util-left-room
     body.lay-frame .pp-root.pp-bottom-left { bottom: 0.75rem; }
     body.lay-frame .pp-root.pp-bottom-left .pp-pill { height: 32px; min-width: 76px; justify-content: center; font-variant-numeric: tabular-nums; padding: 0 8px; border-radius: 8px; font-size: 12px; }
 }
-/* the entries of the areas in the mode bar, after the modes, with a line above them (EditorFrame.setArea). An entry is
-   marked while its area shows (lay-entry-on); a mode is marked by .on */
+/* the entries of the panels in the mode bar, after the modes, with a line above them (EditorFrame.addPanel). An entry is
+   marked while its panel shows (lay-entry-on); a mode is marked by .on */
 .lay-area-entries { display: flex; flex-direction: column; align-items: center; gap: 4px; margin-top: 2px; padding-top: 6px; border-top: 1px solid var(--mb-line); }
 .mb-wide .lay-area-entries { align-items: stretch; }
 .lay-area-entry { --mb-color: var(--tp-label-foreground-color, #8a8f98); }
@@ -245,7 +245,7 @@ body.lay-frame #tweakpaneUiContainer {
     overflow-x: hidden;
 }
 /* the sections of the panel: one line between them, no box, no gap above the first. Only the main pane (a child of the
-   container): a section of the panel (TweakpaneEditorPlugin.setPanelSection) can hold a Tweakpane UI of its own */
+   container): a panel in the right place (TweakpaneEditorPlugin.addPanel) can hold a Tweakpane UI of its own */
 body.lay-frame #tweakpaneUiContainer > .tp-rotv > .tp-rotv_c { padding-top: 0 !important; }
 body.lay-frame #tweakpaneUiContainer > .tp-rotv > .tp-rotv_c > .tp-fldv {
     margin: 0 !important; border-radius: 0 !important;
