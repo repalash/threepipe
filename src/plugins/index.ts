@@ -80,7 +80,7 @@ export {NoiseBumpMaterialPlugin, noiseBumpMaterialGLTFExtension} from './materia
 export {CustomBumpMapPlugin, customBumpMapGLTFExtension} from './material/CustomBumpMapPlugin'
 export {ParallaxMappingPlugin} from './material/ParallaxMappingPlugin'
 export {FragmentClippingExtensionPlugin, FragmentClippingMode, fragmentClippingGLTFExtension} from './material/FragmentClippingExtensionPlugin'
-export {MaterialPreviewPlugin} from './material/MaterialPreviewPlugin'
+export {MaterialPreviewPlugin, materialPreviewSettingsKey} from './material/MaterialPreviewPlugin'
 export type {MaterialChangeEvent, MaterialPreview, MaterialPreviewCallback, MaterialPreviewHandle, MaterialPreviewRequestOptions} from './material/MaterialPreviewPlugin'
 
 // rendering

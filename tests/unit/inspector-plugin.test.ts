@@ -1,5 +1,5 @@
 import {afterAll, beforeAll, beforeEach, describe, expect, test, vi} from 'vitest'
-import {BoxGeometry, EventDispatcher} from 'three'
+import {BoxGeometry, Euler, EventDispatcher} from 'three'
 import {Mesh, PhysicalMaterial, PickingPlugin, UnlitMaterial} from 'threepipe'
 
 // The inspector of the tweakpane editor (plugins/tweakpane-editor/src/InspectorPlugin.ts), and the selectionUi option of
@@ -149,7 +149,9 @@ const setup = () => {
         return {cancel: () => {}}
     }}
     const viewer = Object.assign(new EventDispatcher<any>(), {
-        scene: new EventDispatcher<any>(),
+        // what materialPreviewOptionsFromViewer reads: the environment of the scene and the screen pass
+        scene: Object.assign(new EventDispatcher<any>(), {environment: null, environmentIntensity: 1, environmentRotation: new Euler()}),
+        renderManager: {screenPass: {outputColorSpace: 'srgb'}},
         getPlugin: (p: any) => p === PickingPlugin ? picking : p?.PluginType === 'MaterialPreviewPlugin' ? previews : undefined,
         addPluginListener: () => {},
         removePluginListener: () => {},
@@ -277,6 +279,24 @@ describe('InspectorPlugin', () => {
         expect(requests.at(-1)!.options.cameraDirection.equals(before)).toBe(false)
         inspector.preview = false
         expect(el.find('isp-preview')[0].style.display).toBe('none')
+    })
+
+    test('asks for the preview again when the lighting of the viewer changes, not on other updates', () => {
+        const {el, viewer} = setup()
+        picking.select(mesh(new PhysicalMaterial()))
+        el.find('isp-tab')[1].click()
+        const n = requests.length
+        viewer.dispatchEvent({type: 'update'}) // a camera move: the same settings
+        expect(requests.length).toBe(n)
+        viewer.scene.environmentIntensity = 2
+        viewer.dispatchEvent({type: 'update'})
+        expect(requests.length).toBe(n + 1)
+        // not on the Object tab: no preview to refresh
+        el.find('isp-tab')[0].click()
+        const m = requests.length
+        viewer.scene.environmentRotation.y = 1
+        viewer.dispatchEvent({type: 'update'})
+        expect(requests.length).toBe(m)
     })
 
     test('turns off the selection UI of the PickingPlugin while it is added, and puts it back', () => {

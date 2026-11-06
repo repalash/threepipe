@@ -9,7 +9,9 @@ import {
     ITexture,
     IViewerEvent,
     MaterialPreviewHandle,
+    materialPreviewOptionsFromViewer,
     MaterialPreviewPlugin,
+    materialPreviewSettingsKey,
     MaterialPreviewShape,
     onChange,
     PickingPlugin,
@@ -169,6 +171,8 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
     private _handle?: MaterialPreviewHandle
     /** The material whose `materialUpdate` the preview listens to */
     private _watched?: IMaterial
+    /** The viewer settings of the last preview request (environment map, tone mapping), see {@link materialPreviewSettingsKey} */
+    private _settings = ''
     /** On or off at the last `enabledChange` (set in the constructor, after the first set of `enabled`) */
     private _on?: boolean
 
@@ -236,6 +240,7 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
         viewer.scene.addEventListener('materialChanged', this._onPartsChanged)
         viewer.scene.addEventListener('geometryChanged', this._onPartsChanged)
         viewer.scene.addEventListener('objectUpdate', this._onObjectUpdate)
+        viewer.addEventListener('update', this._onViewerUpdate)
         // the PickingPlugin can be removed and added again
         viewer.addPluginListener('add', this._onPluginAdded, 'PickingPlugin')
         viewer.addPluginListener('remove', this._onPluginRemoved, 'PickingPlugin')
@@ -247,6 +252,7 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
         viewer.scene.removeEventListener('materialChanged', this._onPartsChanged)
         viewer.scene.removeEventListener('geometryChanged', this._onPartsChanged)
         viewer.scene.removeEventListener('objectUpdate', this._onObjectUpdate)
+        viewer.removeEventListener('update', this._onViewerUpdate)
         viewer.removePluginListener('add', this._onPluginAdded)
         viewer.removePluginListener('remove', this._onPluginRemoved)
         this._setPicking(undefined)
@@ -441,6 +447,7 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
         const shape = this.previewShape === 'mesh' && !this._geometry ? 'sphere' : this.previewShape
         const {yaw, pitch, distance} = this._view
         const size = InspectorPlugin.PreviewSize
+        this._settings = this._viewer ? materialPreviewSettingsKey(materialPreviewOptionsFromViewer(this._viewer, this._material)) : ''
         this._handle = previews.request(this._material, {
             shape,
             geometry: shape === 'mesh' ? this._geometry : undefined,
@@ -457,6 +464,15 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
     }
 
     private _onMaterialUpdate = () => this._requestPreview()
+
+    /**
+     * A change in the viewer: the environment map, its intensity or rotation, or the tone mapping change the preview, and
+     * send no `materialUpdate`. Ask again when they changed (the preview plugin renders only then).
+     */
+    private _onViewerUpdate = () => {
+        if (!this._handle || !this._viewer) return
+        if (materialPreviewSettingsKey(materialPreviewOptionsFromViewer(this._viewer, this._material)) !== this._settings) this._requestPreview()
+    }
 
     private _unwatch() {
         this._watched?.removeEventListener('materialUpdate', this._onMaterialUpdate)
