@@ -14,7 +14,7 @@ import {setupEditorCameraUi} from './editor-camera-ui'
 import type {EditorCameraPlugin} from './EditorCameraPlugin'
 import styles from './TweakpaneEditorPlugin.css?inline'
 import tippy from 'tippy.js'
-import {addTooltipStyles, EDITOR_TOOLTIP_PROPS} from './tooltips'
+import {addTooltipStyles, EDITOR_TOOLTIP_PROPS, tooltipParent} from './tooltips'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 import {UiObjectConfig} from 'uiconfig.js'
 import {EDITOR_PAGE_LAYOUTS, EditorFrame, EditorFrameArea, EditorFrameAreaOptions, EditorFrameLayout, EditorFrameOptions, EditorPageLayout} from './frame/EditorFrame'
@@ -45,7 +45,7 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
             ...EDITOR_TOOLTIP_PROPS,
             duration: 200, // a short fade: tooltips and popovers take 160 to 220 ms
             arrow: true,
-            appendTo: () => viewer.container, // for fullscreen
+            appendTo: tooltipParent, // above the frame; in the viewer container in full screen
         })
 
         setupFullscreenButton(viewer)
