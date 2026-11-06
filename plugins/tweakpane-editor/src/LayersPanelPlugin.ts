@@ -459,11 +459,11 @@ export class LayersPanelPlugin extends AViewerPluginSync {
     }
 
     /**
-     * An object added or removed. The scene sends no `sceneUpdate` for a camera (`RootScene.refreshScene` leaves its
-     * changes out), so the list hears of it here.
+     * An object added, removed or renamed. The scene sends no `sceneUpdate` for a camera (`RootScene.refreshScene` leaves
+     * its changes out), so the list hears of it here.
      */
     private _onObjectUpdate = (e: {change?: string}) => {
-        if (e.change === 'addedToParent' || e.change === 'removedFromParent') this.refresh(true)
+        if (e.change === 'addedToParent' || e.change === 'removedFromParent' || e.change === 'name') this.refresh(true)
     }
 
     private _onSelection = () => {
@@ -549,7 +549,8 @@ export class LayersPanelPlugin extends AViewerPluginSync {
         else if (target.closest('.lyp-caret') && this._flat[this._index.get(o)!]?.kids) {
             this.setExpanded(o, !this._expanded.has(o), e.altKey)
         } else {
-            if (e.shiftKey || e.ctrlKey || e.metaKey) this._picking?.toggleSelectedObject(o)
+            // a key adds or takes out, with multi-select (else the row is selected, as in the viewport)
+            if ((e.shiftKey || e.ctrlKey || e.metaKey) && this._picking?.multiSelectEnabled) this._picking.toggleSelectedObject(o)
             else this._select([o])
         }
     }

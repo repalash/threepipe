@@ -137,6 +137,8 @@ class FakePicking extends EventDispatcher<any> {
         return [...this.selected]
     }
     toggleSelectedObject(o: Object3D) {
+        // as the PickingPlugin: nothing without multi-select
+        if (!this.multiSelectEnabled) return
         const i = this.selected.indexOf(o)
         this.select(i >= 0 ? this.selected.filter(x => x !== o) : [o, ...this.selected])
     }
@@ -310,6 +312,11 @@ describe('LayersPanelPlugin', () => {
         expect(picking.selected).toEqual([sun])
         flush()
         expect(has(row(list, 'Sun'), 'lyp-sel')).toBe(true)
+        // without multi-select, a click with a key selects the row, as in the viewport
+        picking.multiSelectEnabled = false
+        row(list, 'Camera').fire('click', {ctrlKey: true})
+        expect(picking.selected).toEqual([camera])
+        picking.multiSelectEnabled = true
         expect(row(list, 'Sun').getAttribute('aria-selected')).toBe('true')
         expect(has(row(list, 'Camera'), 'lyp-sel')).toBe(false)
     })
@@ -629,6 +636,11 @@ describe('LayersPanelPlugin', () => {
         sceneEvents.dispatchEvent({type: 'objectUpdate', object: camera, change: 'removedFromParent'})
         flush()
         expect(names(list)).toEqual(['watch', 'Sun', 'Side'])
+        // a camera renamed from elsewhere
+        side.name = 'Top'
+        sceneEvents.dispatchEvent({type: 'objectUpdate', object: side, change: 'name'})
+        flush()
+        expect(names(list)).toEqual(['watch', 'Sun', 'Top'])
         // other changes of an object only draw the rows (sceneUpdate)
         sceneEvents.dispatchEvent({type: 'objectUpdate', object: side, change: 'position'})
         expect(frames).toHaveLength(0)
