@@ -229,7 +229,7 @@ function setup({editor = false, container, picking: withPicking = true, sceneRow
     })
     const outline = new SelectionOutlinePlugin()
     ;(outline as any)._viewer = outlineViewer
-    const editorPlugin = {setArea: vi.fn()}
+    const editorPlugin = {addPanel: vi.fn(), removePanel: vi.fn()}
     const plugins: Record<string, any> = {
         PickingPlugin: withPicking ? picking : undefined,
         SelectionOutlinePlugin: outline,
@@ -1099,7 +1099,7 @@ describe('LayersPanelPlugin', () => {
     test('does not touch the editor frame; enabledChange when it is turned on or off; a container', () => {
         const {layers, editorPlugin, pluginListeners} = setup({editor: true})
         // the app places the panel: the plugin does not call the editor, or listen for it
-        expect(editorPlugin.setArea).not.toHaveBeenCalled()
+        expect([editorPlugin.addPanel, editorPlugin.removePanel].flatMap(f => f.mock.calls)).toHaveLength(0)
         expect(pluginListeners.map(l => l.names)).toEqual([['PickingPlugin'], ['PickingPlugin']])
         expect(LayersPanelPlugin.AreaEntry.name).toBe('Layers')
         const changes: boolean[] = []
@@ -1115,7 +1115,7 @@ describe('LayersPanelPlugin', () => {
         layers.enable('other')
         layers.enabled = true
         expect(changes).toEqual([false, true, false, true])
-        expect(editorPlugin.setArea).not.toHaveBeenCalled()
+        expect([editorPlugin.addPanel, editorPlugin.removePanel].flatMap(f => f.mock.calls)).toHaveLength(0)
 
         // with a container: the panel goes there
         const container = new FakeElement('div')
@@ -1151,7 +1151,7 @@ describe('LayersPanelPlugin', () => {
         expect(picking.hasEventListener('selectedObjectChanged', (layers as any)._onSelection)).toBe(false)
         expect(picking.hasEventListener('hoverObjectChanged', (layers as any)._onPickingHover)).toBe(false)
         expect(pluginListeners).toHaveLength(0)
-        expect(s.editorPlugin.setArea).not.toHaveBeenCalled()
+        expect([s.editorPlugin.addPanel, s.editorPlugin.removePanel].flatMap(f => f.mock.calls)).toHaveLength(0)
         flush() // the frame was cancelled: nothing drawn, no error
         // nothing reacts after the remove
         picking.select([sun])
