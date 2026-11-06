@@ -73,8 +73,11 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
         viewer.removePluginListener('remove', this._removeEditorCameraUi)
         this._removeEditorCameraUi()
         this._removeFrame()
-        this._panelSection?.[0].remove()
-        document.body.classList.remove('tpe-panel-section', 'tpe-panel-swap', 'tpe-panel-swapped')
+        // the section is kept, and placed again at loadPlugins
+        if (this._panelSection) {
+            this._panelSection[0].remove()
+            document.body.classList.remove('tpe-panel-section', 'tpe-panel-swap', 'tpe-panel-swapped')
+        }
         super.onRemove(viewer)
     }
 
@@ -199,8 +202,8 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
 
     /** A click on the mode that is open, while the section is in place of its settings: show the settings, not hide the panel */
     private _onModeBarClick = (e: MouseEvent) => {
-        const tab = (e.target as Element | null)?.closest?.('[role="tab"]')
-        if (!tab || !this._panelSwapped || !this._panelSection?.[1].swap || tab.getAttribute('aria-selected') !== 'true') return
+        const tab = (e.target as Element | null)?.closest?.('[role]')
+        if (tab?.getAttribute('role') !== 'tab' || !this._panelSwapped || !this._panelSection?.[1].swap || tab.getAttribute('aria-selected') !== 'true') return
         if (!this.frame?.modeBar.open) return
         e.stopImmediatePropagation()
         this.panelSwapped = false
@@ -300,7 +303,7 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
         this.frame.modeBar.select(this._selectedMode)
         this.frame.documentName = this._documentName
         for (const [area, [element, options]] of this._areas) this.frame.setArea(area, element, options)
-        // before the click of the mode bar (the open mode hides the panel) and of the frame, so added first
+        // capture: before the click of the mode button, which hides the panel when its mode is the open one
         this.frame.modeBar.element.addEventListener('click', this._onModeBarClick, true)
         // the mode bar keeps the names shown or hidden (its toggle button, the stored state): the checkbox follows it
         this.frame.modeBar.onExpandedChange = () => this.uiConfig.uiRefresh?.(true)

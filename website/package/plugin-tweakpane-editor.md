@@ -94,6 +94,11 @@ The frame has fixed areas: the left sidebar, the right sidebar (the panel and th
 - A line between two elements moves the split with a drag; each element keeps at least `EditorFrame.MinSectionSize` (48 px). A double-click makes them equal. The split is kept with the sizes, as proportions, for the same number of elements.
 - In the floating layout, each element is a card, and the split is the gap between two cards, with drag dots (blue on hover).
 
+**The section of the panel.** `editor.setPanelSection(element)` puts an element at the top of the panel (the container of the Tweakpane UI), above the settings of the mode. It is the place of an inspector in the right sidebar (`InspectorPlugin` below). The section is at most 60% of the panel, and the section and the settings scroll each on its own. `editor.setPanelSection(null)` takes it out. It works in every layout, also `classic`, and the plugin keeps the element when it makes the frame again.
+
+- With `{swap: true}`, the section shows in place of the settings of the mode, while `editor.panelSwapped` is on; while it is off, the panel shows the settings. The app turns it on and off, for example on each change of the selection. A click on a mode (in the mode bar or a mode tab) turns it off and shows the settings of that mode, also the mode that is open (it does not hide the panel then). The mode bar does not mark the open mode while the section is in its place. Each change sends `panelSwappedChange` (`{swapped}`).
+- The body has the class `tpe-panel-section`, with `tpe-panel-swap` for swap, and `tpe-panel-swapped` while the section is in place of the settings.
+
 **The head of the floating layout.** The floating layout has no bar, so a slim card at the top of the left column (the head, `.lay-head`) shows the logo, the app name and the file name (renamable, as in the bar). It is as wide as the left card and moves with it on the x axis; the left card starts one gap below it, and a drag of its top edge opens the gap. Its height is the CSS variable `--lay-head` (36 px).
 
 **Size and collapse.** The left area, the bottom area and the panel (`right`) can change size and collapse:
@@ -244,6 +249,41 @@ console.log(layers.listedObjects) // the objects in the list, from the top
 ```
 
 Not in the panel yet: drag and drop to move objects, and a context menu.
+
+## InspectorPlugin
+
+[Source Code](https://github.com/repalash/threepipe/blob/master/plugins/tweakpane-editor/src/InspectorPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/plugins/tweakpane-editor/docs/classes/InspectorPlugin.html)
+
+`InspectorPlugin` shows the settings of the selection of the `PickingPlugin`, like the inspector of Unity or the properties panel of Blender. Try it in the [tweakpane editor example](https://threepipe.org/examples/#tweakpane-editor/) (`?inspector=swap|right|left`).
+
+- A head with the name of the selection (and `+N` for more selected objects), and tabs for its parts: Object, Material and Geometry, and Texture for a selected texture (`InspectorTab`, `tab`, `setTab`). One tab shows no tab bar. A pick of another object keeps the open tab when the new selection has it, so a click from mesh to mesh keeps the Material tab.
+- The open tab shows the uiConfig of that part, in a second Tweakpane renderer inside `element`, with the theme of the page. While the plugin is added, it turns off the selection UI of the `PickingPlugin` (`PickingPlugin.selectionUi`), since a uiConfig renders in one UI at a time; the Picker folder keeps the picking settings.
+- The Material tab has a large live preview of the material, from the `MaterialPreviewPlugin` (`preview`, on by default): a sphere, a cube or the selected mesh alone (`previewShape`, also the buttons under it). A drag on it turns it, the wheel zooms, and a double-click resets the view; a finger drag turns it on a phone (`touch-action: none`, so the panel does not scroll under it). A mesh with more than one material has a list of its materials. The preview is `InspectorPlugin.PreviewSize` px (256).
+- The selected object takes another material or geometry: the inspector shows the new one. A rename updates the head.
+- Escape (the PickingPlugin) clears the selection.
+- `hasSelection`, and the events `selectionChange` (`{hasSelection}`, on each change of the selection, not on a new material of the selected object) and `enabledChange` (`{enabled}`).
+
+**Where the panel goes.** The plugin does not depend on the editor: the app places the panel. In the page frame there are three places:
+
+```ts
+const inspector = viewer.addPluginSync(InspectorPlugin)
+const editor = viewer.getPlugin(TweakpaneEditorPlugin)!
+
+// swap: the right panel shows the inspector while something is selected, and the mode settings when nothing is
+editor.setPanelSection(inspector.element, {swap: true})
+inspector.addEventListener('selectionChange', e => editor.panelSwapped = e.hasSelection)
+
+// or above the mode settings, in the right panel
+editor.setPanelSection(inspector.element)
+
+// or under the layers panel, in the left area (a stack)
+editor.setArea('left', [layers.element, inspector.element], LayersPanelPlugin.AreaEntry)
+```
+
+`InspectorPlugin.AreaEntry` has a name, an icon and a colour for an area entry of its own. On a phone, swap shows one panel at a time; the left place shares the narrow left card with the layers. Without the editor: give an element to the constructor, `new InspectorPlugin(container)`, or place `inspector.element` yourself; give its parent a height. On `enabledChange`, take it out of its place or put it back. Its UI folder, `Inspector`, has Enabled, Material preview and Preview shape; they are not saved with the viewer config.
+
+Not in the inspector yet: pinch zoom on the preview, and the settings of more than one selected object at once.
 
 ## NotesPlugin and StickyNotesUiPlugin
 

@@ -338,3 +338,5 @@ body.tpe-panel-section #tweakpaneUiContainer > :not(.tpe-panel-section-root) { f
 body.tpe-panel-swap:not(.tpe-panel-swapped) #tweakpaneUiContainer > .tpe-panel-section-root { display: none; }
 body.tpe-panel-swapped #tweakpaneUiContainer > .tpe-panel-section-root { flex: 1 1 auto; max-height: none; border-bottom: 0; }
 body.tpe-panel-swapped #tweakpaneUiContainer > :not(.tpe-panel-section-root) { display: none; }
+/* the mode bar does not mark the open mode while the section is in place of its settings (a click on it shows them) */
+body.tpe-panel-swapped .mb-btn.on { background: transparent; }

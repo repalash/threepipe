@@ -113,6 +113,12 @@ class FakeElement {
     get lastElementChild() {
         return this.children[this.children.length - 1] ?? null
     }
+    get firstElementChild() {
+        return this.children[0] ?? null
+    }
+    prepend(c: FakeElement) {
+        this.insertBefore(c, this.children[0] ?? null)
+    }
     get parentElement() {
         return this.parent ?? null
     }
@@ -1179,5 +1185,81 @@ describe('TweakpaneEditorPlugin.layout', () => {
         win.fire('keydown', {key: 'T', code: 'KeyT', shiftKey: true, target: body()})
         expect(ui.colorMode).toBe('clean-dark')
         expect(ui.uiConfig.uiRefresh).toHaveBeenCalled()
+    })
+})
+
+describe('TweakpaneEditorPlugin.setPanelSection', () => {
+    /** The plugin with modes in a fake viewer, and the container of the Tweakpane UI with the root of the UI in it */
+    const setup = (layout: 'titlebar' | 'classic' = 'titlebar') => {
+        const panel = new FakeElement('div')
+        panel.id = 'tweakpaneUiContainer'
+        const root = panel.appendChild(new FakeElement('div'))
+        doc.getElementById = (id: string) => id === 'tweakpaneUiContainer' ? panel : null
+        const p = new TweakpaneEditorPlugin()
+        ;(p as any)._viewer = {getPlugin: () => undefined}
+        p.modeKeys = ['Viewer', 'Export']
+        p.layout = layout
+        return {p, panel, root}
+    }
+    const has = (c: string) => body().classList.contains(c)
+
+    test('the section goes first in the panel, above the settings, and null takes it out', () => {
+        const {p, panel, root} = setup()
+        const section = new FakeElement('div')
+        p.setPanelSection(section as any)
+        expect(panel.children).toEqual([section, root])
+        expect(section.classList.contains('tpe-panel-section-root')).toBe(true)
+        expect(has('tpe-panel-section')).toBe(true)
+        expect(has('tpe-panel-swap')).toBe(false)
+        p.panelSwapped = true // no effect without swap
+        expect(has('tpe-panel-swapped')).toBe(false)
+        p.setPanelSection(null)
+        expect(panel.children).toEqual([root])
+        expect(has('tpe-panel-section')).toBe(false)
+    })
+
+    test('swap: the section is in place of the settings while panelSwapped is on; a mode picked turns it off', () => {
+        const {p} = setup()
+        p.setPanelSection(new FakeElement('div') as any, {swap: true})
+        expect(has('tpe-panel-swap')).toBe(true)
+        expect(has('tpe-panel-swapped')).toBe(false)
+        const events: boolean[] = []
+        p.addEventListener('panelSwappedChange', e => events.push(e.swapped))
+        p.panelSwapped = true
+        p.panelSwapped = true // no change, no event
+        expect(has('tpe-panel-swapped')).toBe(true)
+        p.setSelectedMode(1)
+        expect(p.panelSwapped).toBe(false)
+        expect(has('tpe-panel-swapped')).toBe(false)
+        expect(events).toEqual([true, false])
+    })
+
+    test('swap: a click on the open mode shows its settings, and does not hide the panel', () => {
+        const {p} = setup()
+        p.setPanelSection(new FakeElement('div') as any, {swap: true})
+        p.panelSwapped = true
+        const bar = p.frame!.modeBar.element as unknown as FakeElement
+        const open = bar.all().find(b => b.getAttribute('role') === 'tab' && b.getAttribute('aria-selected') === 'true')!
+        let stopped = false
+        bar.fire('click', {target: open, stopImmediatePropagation: () => stopped = true})
+        expect(p.panelSwapped).toBe(false)
+        expect(stopped).toBe(true)
+        expect(p.frame!.modeBar.open).toBe(true)
+        // not swapped: the click goes on to the button (which hides the panel), as before
+        stopped = false
+        bar.fire('click', {target: open, stopImmediatePropagation: () => stopped = true})
+        expect(stopped).toBe(false)
+    })
+
+    test('the section stays when the frame is made again, and works in the classic layout', () => {
+        const {p, panel, root} = setup('classic')
+        const section = new FakeElement('div')
+        p.setPanelSection(section as any, {swap: true})
+        expect(panel.children).toEqual([section, root])
+        p.panelSwapped = true
+        expect(has('tpe-panel-swapped')).toBe(true)
+        p.layout = 'floating'
+        p.layout = 'classic'
+        expect(panel.children[0]).toBe(section)
     })
 })
