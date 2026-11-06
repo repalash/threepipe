@@ -29,7 +29,12 @@ interface LayerRow {
     kids: number
     open: boolean
     more?: number
+    /** The row of the scene or of the default camera, at the top ({@link LayersPanelPlugin.sceneRows}) */
+    pinned?: boolean
 }
+
+/** The kinds of objects that can show no children in the list ({@link LayersPanelPlugin.leafTypes}) */
+export type LayerLeafType = 'mesh' | 'line' | 'points' | 'camera' | 'light'
 
 /** The tabs of the panel ({@link LayersPanelPlugin.tabs}): the tree of the objects, and the assets that they use */
 export type LayersTab = 'objects' | 'materials' | 'textures' | 'geometries'
@@ -87,6 +92,7 @@ const ICONS = {
     search: svg('<circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/>'),
     closed: svg('<path d="M6 4l4 4-4 4"/>', 10),
     open: svg('<path d="M4 6l4 4 4-4"/>', 10),
+    scene: svg('<path d="M8 2.5l5.5 2.75L8 8 2.5 5.25z"/><path d="M2.5 8L8 10.75 13.5 8M2.5 10.75L8 13.5l5.5-2.75"/>'),
     texture: svg('<rect x="2.5" y="2.5" width="11" height="11" rx="1.5"/><circle cx="6" cy="6" r="1.3"/><path d="M13.5 10.5l-3.5-3.5-7.5 7"/>'),
     geometry: svg('<path d="M2.5 13.5h11L8 2.5z"/><path d="M5.25 8h5.5M8 13.5L5.25 8M8 13.5L10.75 8"/>'),
     // the entry in the mode bar of the editor frame, 16 px as the icons of the frame
@@ -119,6 +125,11 @@ const ICONS = {
  *   name, a short text (the size of a texture, the vertices of a geometry, the users), and an arrow that lists its users.
  *   A click selects the asset in the PickingPlugin, a double-click selects its users, a double-click on the name (or
  *   F2) renames a material or a texture ({@link renameAsset}); a hover outlines its users.
+ * - The scene and the default camera are the first two rows, above the model ({@link sceneRows}), dimmer and with a line
+ *   below them; a click selects them. Meshes, lines, points, cameras and lights show no children ({@link leafTypes},
+ *   {@link showLeafChildren}).
+ * - A double-click on a row selects it and moves the camera to it ({@link doubleClickFocus}; the scene row frames the
+ *   model); a double-click on the name renames it. With {@link clickToUnselect}, a click on a selected row unselects it.
  * - An open row shows its first {@link maxChildren} children (5), then a "… N more" row; a click on it shows all of them
  *   ({@link showAllChildren}). The objects at the top level, a search and children that hold the selection always show.
  * - A virtual list: only the rows in view are in the DOM, so a scene with many objects stays fast.
@@ -179,9 +190,41 @@ export class LayersPanelPlugin extends AViewerPluginSync {
      * An open row shows this many of its children, then a "… N more" row; a click on it shows all of them (until the row
      * is closed). The objects at the top level, a search, and children that hold the selection always show. `0`: all.
      */
-    @onChange(LayersPanelPlugin.prototype._maxChildrenChanged)
+    @onChange(LayersPanelPlugin.prototype._structureChanged)
     @uiNumber('Max children')
         maxChildren = 5
+
+    /**
+     * The scene and the default camera as the first two rows of the Objects tab, above the model, with a line below them.
+     * A click selects them (the UI of the editor shows their settings). They are not in the model: they have no eye, lock
+     * or arrow, and a search hides them.
+     */
+    @onChange(LayersPanelPlugin.prototype._structureChanged)
+    @uiToggle('Scene and camera rows')
+        sceneRows = true
+
+    /**
+     * The kinds of objects that show no children in the list: their helpers, targets or parts. Set a new list to change
+     * it. {@link showLeafChildren} shows the children of all kinds.
+     */
+    @onChange(LayersPanelPlugin.prototype._structureChanged)
+        leafTypes: LayerLeafType[] = ['mesh', 'line', 'points', 'camera', 'light']
+
+    /** Shows the children of the objects of {@link leafTypes} too */
+    @onChange(LayersPanelPlugin.prototype._structureChanged)
+    @uiToggle('Show children of meshes, lights, cameras')
+        showLeafChildren = false
+
+    /** A click on a selected row (without a key) unselects it */
+    @uiToggle('Click unselects a selected row')
+        clickToUnselect = false
+
+    /**
+     * A double-click on a row selects it and moves the camera to it (the scene row: to the whole model). A double-click on
+     * the name renames it.
+     */
+    @uiToggle('Double-click focuses')
+        doubleClickFocus = true
 
     /**
      * The Objects tab: the tree of the objects. The tabs that are on show in a tab bar ({@link tabs}); with one tab on,
@@ -376,7 +419,7 @@ export class LayersPanelPlugin extends AViewerPluginSync {
     /** The objects in the list, from the top: the children of the open rows included, filtered by the search */
     get listedObjects(): IObject3D[] {
         if (this._structureDirty) this._build()
-        return this._flat.filter(r => !r.more).map(r => r.object)
+        return this._flat.filter(r => !r.more && !r.pinned).map(r => r.object)
     }
 
     /** The object has its row open: its children are in the list */
@@ -519,7 +562,7 @@ export class LayersPanelPlugin extends AViewerPluginSync {
         if (this.isDisabled() || !this._viewer) return false
         if (this._structureDirty) this._build()
         const i = this._tab === 'objects' ? this._index.get(object) : undefined
-        if (i === undefined) return false
+        if (i === undefined || this._flat[i].pinned) return false
         return this._openRename(i, object.name, name => this.renameObject(object, name))
     }
 
@@ -732,8 +775,17 @@ export class LayersPanelPlugin extends AViewerPluginSync {
 
     /** A click on the row of an object: it selects it; a key adds or takes out, with multi-select (as in the viewport) */
     private _clickObject(o: IObject3D, e: MouseEvent) {
-        if ((e.shiftKey || e.ctrlKey || e.metaKey) && this._picking?.multiSelectEnabled) this._picking.toggleSelectedObject(o)
+        const key = e.shiftKey || e.ctrlKey || e.metaKey
+        if (key && this._picking?.multiSelectEnabled) this._picking.toggleSelectedObject(o)
+        else if (!key && this.clickToUnselect && this._selected().includes(o)) this._select([])
         else this._select([o])
+    }
+
+    /** Selects an object and moves the camera to it ({@link doubleClickFocus}); for the scene, to the whole model */
+    private _focus(o: IObject3D) {
+        this._select([o])
+        const viewer = this._viewer
+        if (viewer) void this._picking?.focusObject(o === viewer.scene ? viewer.scene.modelRoot : o)
     }
 
     private _onDoubleClick = (e: MouseEvent) => {
@@ -743,13 +795,19 @@ export class LayersPanelPlugin extends AViewerPluginSync {
         const asset = this._assetRowOf(row)
         // an asset: its name renames it (not a geometry), else its users are selected
         if (asset) {
-            if (asset.user) return
+            if (asset.user) {
+                if (this.doubleClickFocus) this._focus(asset.user)
+                return
+            }
             if (target.closest('.lyp-name') && this._startAssetRename(+row.dataset.index!)) return
             this._select(asset.users)
             return
         }
-        const o = target.closest('.lyp-name') && this._rowObject(row)
-        if (o) this.startRename(o)
+        const o = this._rowObject(row)
+        if (!o) return
+        // the name renames (not the rows of the scene and the camera); the rest of the row focuses
+        if (target.closest('.lyp-name') && this.startRename(o)) return
+        if (this.doubleClickFocus) this._focus(o)
     }
 
     /** The name field on the row of a material or a texture of the open tab; `false` for a geometry or a user row */
@@ -893,7 +951,16 @@ export class LayersPanelPlugin extends AViewerPluginSync {
     }
 
     private _kids(o: IObject3D) {
+        if (!this.showLeafChildren && this._isLeaf(o)) return []
         return (o.children as IObject3D[]).filter(c => this._isLayer(c))
+    }
+
+    /** An object of {@link leafTypes}: its children do not show */
+    private _isLeaf(o: IObject3D) {
+        const t = this.leafTypes
+        const k = o as IObject3D & {isLine?: boolean, isPoints?: boolean}
+        return !!(k.isMesh && t.includes('mesh') || k.isLine && t.includes('line') || k.isPoints && t.includes('points') ||
+            k.isCamera && t.includes('camera') || k.isLight && t.includes('light'))
     }
 
     /** Builds the rows of the tree and of the open tab of assets, and the counts of the tabs */
@@ -912,6 +979,15 @@ export class LayersPanelPlugin extends AViewerPluginSync {
         const root = this._viewer?.scene.modelRoot as IObject3D | undefined
         if (!root) return
         const filter = this._filter
+        // the scene and the default camera, above the model; not in a search
+        const scene = this._viewer!.scene
+        if (this.sceneRows && !filter) {
+            for (const o of [scene, scene.defaultCamera] as (IObject3D | undefined)[]) {
+                if (!o) continue
+                this._index.set(o, this._flat.length)
+                this._flat.push({object: o, depth: 0, kids: 0, open: false, pinned: true})
+            }
+        }
         // one pass for the search: an object stays when it or an object inside it matches
         const keep = new Set<IObject3D>()
         const mark = (o: IObject3D): boolean => {
@@ -1067,7 +1143,8 @@ export class LayersPanelPlugin extends AViewerPluginSync {
         const a = this._assetRowOf(row)
         if (a) return a.user ? {key: a.user, objects: [a.user]} : {key: a.asset, objects: a.users}
         const o = this._rowObject(row)
-        return o ? {key: o, objects: [o]} : null
+        // the scene row: no outline of the whole model
+        return o ? {key: o, objects: o === this._viewer?.scene ? [] : [o]} : null
     }
 
     /** Fills one row. Each part is set only when it changes, so a refresh in each frame (a drag in the viewport) is cheap. */
@@ -1079,6 +1156,7 @@ export class LayersPanelPlugin extends AViewerPluginSync {
         setIfChanged(row.style, 'paddingLeft', 4 + r.depth * INDENT + 'px')
         row.setAttribute('aria-level', String(r.depth + 1))
         if (r.more) return this._fillMore(p, r.more)
+        if (r.pinned) return this._fillPinned(p, i, r.object, isSel)
         setIfChanged(p.lock.style, 'visibility', '')
         setIfChanged(p.eye.style, 'visibility', '')
         setIfChanged(p.meta, 'textContent', '')
@@ -1168,6 +1246,28 @@ export class LayersPanelPlugin extends AViewerPluginSync {
         setIfChanged(p.meta, 'textContent', this._assetMeta(r))
     }
 
+    /** Fills the row of the scene or of the default camera: a grey icon, a dimmer name, no buttons; a line below the last one */
+    private _fillPinned(p: RowElements, i: number, o: IObject3D, isSel: boolean) {
+        const end = !this._flat[i + 1]?.pinned
+        setIfChanged(p.row, 'className', 'lyp-row lyp-pinned' + (isSel ? ' lyp-sel' : '') + (end ? ' lyp-pinned-end' : ''))
+        p.row.removeAttribute('aria-expanded')
+        p.row.setAttribute('aria-selected', String(isSel))
+        this._setCaret(p, '', '')
+        const isScene = o === this._viewer?.scene
+        const key = isScene ? 'pinned-scene' : 'pinned-camera'
+        if (p.kind.dataset.kind !== key) {
+            p.kind.dataset.kind = key
+            p.kind.style.color = ''
+            p.kind.innerHTML = isScene ? ICONS.scene : svg(`<path d="${widgetKinds[getWidgetKind(o) ?? 'perspectiveCamera'].icon}"/>`)
+        }
+        const name = isScene ? 'Scene' : o.name || 'Default camera'
+        setIfChanged(p.name, 'textContent', name)
+        setIfChanged(p.name, 'title', name)
+        setIfChanged(p.meta, 'textContent', '')
+        setIfChanged(p.lock.style, 'visibility', 'hidden')
+        setIfChanged(p.eye.style, 'visibility', 'hidden')
+    }
+
     /** Fills the "… N more" row of an open object: no icon and no buttons; a click shows all the children */
     private _fillMore(p: RowElements, more: number) {
         setIfChanged(p.row, 'className', 'lyp-row lyp-more')
@@ -1183,7 +1283,7 @@ export class LayersPanelPlugin extends AViewerPluginSync {
         setIfChanged(p.eye.style, 'visibility', 'hidden')
     }
 
-    private _maxChildrenChanged() {
+    private _structureChanged() {
         this.refresh(true)
     }
 

@@ -149,6 +149,7 @@ class FakePicking extends EventDispatcher<any> {
     isDisabled() {
         return false
     }
+    focusObject = vi.fn()
 }
 
 const doc = globalThis.document as any
@@ -209,10 +210,12 @@ interface SetupOptions {
     editor?: boolean
     container?: FakeElement
     picking?: boolean
+    /** The rows of the scene and of the default camera (LayersPanelPlugin.sceneRows): off, so the rows are the model's */
+    sceneRows?: boolean
 }
 
 /** The panel in a fake viewer, with the scene above, the picking, an outline, an undo manager and maybe an editor */
-function setup({editor = false, container, picking: withPicking = true}: SetupOptions = {}) {
+function setup({editor = false, container, picking: withPicking = true, sceneRows = false}: SetupOptions = {}) {
     const objects = scene()
     const picking = new FakePicking()
     const sceneEvents = new EventDispatcher<any>()
@@ -234,7 +237,9 @@ function setup({editor = false, container, picking: withPicking = true}: SetupOp
         TweakpaneEditorPlugin: editor ? editorPlugin : undefined,
     }
     const viewer = Object.assign(new EventDispatcher<any>(), {
-        scene: Object.assign(sceneEvents, {modelRoot: objects.modelRoot}),
+        // the scene is an object too (RootScene), at the top of the tree
+        scene: Object.assign(sceneEvents, {modelRoot: objects.modelRoot, defaultCamera: Object.assign(new PerspectiveCamera(), {name: 'Default Camera'}),
+            isObject3D: true, parent: null, traverseAncestors: () => undefined}),
         object3dManager,
         getPlugin: (type: string) => plugins[type],
         addPluginListener: (type: string, listener: any) => pluginListeners.push({type, listener}),
@@ -246,6 +251,7 @@ function setup({editor = false, container, picking: withPicking = true}: SetupOp
         console,
     }) as any
     const layers = new LayersPanelPlugin(container as any)
+    layers.sceneRows = sceneRows
     const list = (layers.element as any as FakeElement).find('lyp-list')[0]
     list.clientHeight = 280 // 10 rows
     layers.onAdded(viewer)
@@ -818,6 +824,79 @@ describe('LayersPanelPlugin', () => {
         flush()
         expect(names(list)).toEqual(['Texture t2dd'])
         expect(part(rows(list)[0], 'lyp-kind').innerHTML).toContain('data:sky')
+    })
+
+    test('the scene and the default camera are the first rows: dimmer, no buttons, a line below; a click selects them', () => {
+        const {layers, list, picking, viewer, modelRoot, outline} = setup({sceneRows: true})
+        const theScene = viewer.scene
+        const camera = theScene.defaultCamera
+        expect(names(list).slice(0, 3)).toEqual(['Scene', 'Default Camera', 'watch'])
+        expect([has(rows(list)[0], 'lyp-pinned'), has(rows(list)[0], 'lyp-pinned-end'), has(rows(list)[1], 'lyp-pinned-end')]).toEqual([true, false, true])
+        expect([part(rows(list)[0], 'lyp-eye').style.visibility, part(rows(list)[1], 'lyp-lock').style.visibility]).toEqual(['hidden', 'hidden'])
+        // not in the model: not in the listed objects
+        expect(layers.listedObjects.map(o => o.name)).not.toContain('Default Camera')
+        row(list, 'Scene').fire('click')
+        flush()
+        expect(picking.selected).toEqual([theScene])
+        expect(has(row(list, 'Scene'), 'lyp-sel')).toBe(true)
+        // the scene row outlines nothing (not the whole model); a double-click frames the model, not a rename
+        row(list, 'Scene').fire('pointerover')
+        expect(outline.hovered).toEqual([])
+        part(row(list, 'Scene'), 'lyp-name').fire('dblclick')
+        expect(list.find('lyp-rename')).toHaveLength(0)
+        expect(picking.focusObject).toHaveBeenLastCalledWith(modelRoot)
+        row(list, 'Default Camera').fire('click')
+        expect(picking.selected).toEqual([camera])
+        // a search hides them; the setting turns them off
+        const search = (layers.element as any as FakeElement).find('lyp-search-input')[0]
+        search.value = 'watch'
+        search.fire('input')
+        flush()
+        expect(names(list)).not.toContain('Scene')
+        search.value = ''
+        search.fire('input')
+        layers.sceneRows = false
+        flush()
+        expect(names(list)[0]).toBe('watch')
+    })
+
+    test('leaf types: meshes, lines, points, cameras and lights show no children, unless showLeafChildren', () => {
+        const {layers, list, modelRoot} = setup()
+        const body = mesh('body')
+        body.add(mesh('part'))
+        modelRoot.add(body)
+        layers.refresh(true)
+        flush()
+        expect([names(list), part(row(list, 'body'), 'lyp-caret').dataset.state]).toEqual([['watch', 'Sun', 'Camera', 'body'], ''])
+        layers.showLeafChildren = true
+        layers.setExpanded(body as any, true)
+        flush()
+        expect(names(list)).toEqual(['watch', 'Sun', 'Camera', 'body', 'part'])
+        // another list: only the lights
+        layers.showLeafChildren = false
+        layers.leafTypes = ['light']
+        flush()
+        expect(names(list)).toContain('part')
+    })
+
+    test('clicks: a click on a selected row unselects it with clickToUnselect; a double-click focuses, the name renames', () => {
+        const {layers, list, picking, sun, watch} = setup()
+        row(list, 'Sun').fire('click')
+        row(list, 'Sun').fire('click')
+        expect(picking.selected).toEqual([sun]) // off by default
+        layers.clickToUnselect = true
+        row(list, 'Sun').fire('click')
+        expect(picking.selected).toEqual([])
+        // a double-click on the row selects and focuses; on the name it renames
+        row(list, 'watch').fire('dblclick')
+        expect([picking.selected, picking.focusObject.mock.calls.at(-1)?.[0]]).toEqual([[watch], watch])
+        part(row(list, 'watch'), 'lyp-name').fire('dblclick')
+        expect(list.find('lyp-rename')).toHaveLength(1)
+        list.find('lyp-rename')[0].fire('keydown', {key: 'Escape'})
+        layers.doubleClickFocus = false
+        picking.focusObject.mockClear()
+        row(list, 'Sun').fire('dblclick')
+        expect(picking.focusObject).not.toHaveBeenCalled()
     })
 
     test('the search shows the matches and the groups that hold them; Escape clears it', () => {

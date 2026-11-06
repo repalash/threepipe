@@ -60,6 +60,10 @@
 .lyp-thumb { width: 16px; height: 16px; border-radius: 3px; object-fit: cover; display: block; }
 .lyp-meta { color: var(--lyp-dim); white-space: nowrap; padding: 0 6px; flex: none; }
 .lyp-meta:empty { display: none; }
+/* the rows of the scene and of the default camera (LayersPanelPlugin.sceneRows): not in the model, so dimmer, with a
+   line below the last one */
+.lyp-row.lyp-pinned .lyp-name, .lyp-row.lyp-pinned .lyp-kind { color: var(--lyp-dim); }
+.lyp-row.lyp-pinned-end { box-shadow: inset 0 -1px var(--lyp-line); }
 /* the "… N more" row of an open row (LayersPanelPlugin.maxChildren): a click shows all the children */
 .lyp-row.lyp-more { cursor: pointer; }
 .lyp-row.lyp-more .lyp-name { color: var(--tp-label-foreground-color, #8a8f98); }

@@ -189,6 +189,9 @@ In the [Tweakpane Editor example](https://threepipe.org/examples/tweakpane-edito
 - With the focus in the list, Up and Down select the next row (Shift adds it). Right opens a row or goes to its first child. Left closes a row or goes to its parent.
 - The search field shows the objects whose name has the text, with the groups that hold them. Escape clears it.
 - Lights and cameras have the icon and the colour of their kind (`widgetKinds` of threepipe), as in the viewport.
+- The Objects tab starts with the scene and the default camera (`sceneRows`, on), dimmer and with a line below them: they are not in the model, so they have no eye, lock or arrow, and a search hides them. A click selects them, so the UI of the editor shows their settings.
+- Meshes, lines, points, cameras and lights show no children (their helpers, targets or parts): `leafTypes` lists the kinds (set a new list to change it), and `showLeafChildren` (off, in the UI) shows the children of all kinds.
+- A double-click on a row selects it and moves the camera to it (`doubleClickFocus`, on; the scene row frames the whole model). A double-click on the name renames it. With `clickToUnselect` (off), a click on a selected row unselects it.
 - **Tabs**: Objects, Materials, Textures and Geometry, each turned on or off with `objectsTab`, `materialsTab`, `texturesTab` and `geometryTab` (all on by default, in the UI folder). With one tab on, there is no tab bar. `layers.tabs` lists the tabs that are on, `layers.tab` is the open one, `layers.setTab('materials')` opens one. The counts are in the tooltips of the tabs and in the header.
 - A tab of assets lists the materials, textures or geometries that the objects in the scene use (from `viewer.object3dManager`). An asset row has a swatch (a material), a picture (a texture) or an icon, the name, and a short text: the size of a texture, the generator and the vertices of a geometry, and the number of objects that use it (`scene` for a texture of the scene). Its arrow lists those objects under it.
 - In a tab of assets, a click selects the asset in the `PickingPlugin` (the UI of the editor shows its settings), a double-click selects the objects that use it, and a double-click on the name or F2 renames a material or a texture (`renameAsset(asset, name)`, one undo step). A hover outlines the objects that use it. Up and Down select the next row, Right opens an asset, Left closes it or goes from a user back to its asset.
@@ -205,7 +208,7 @@ The visibility, the lock and the name changes are undo steps with the `UndoManag
 - Without the editor: give an element to the constructor, `new LayersPanelPlugin(container)`. The panel goes in it while the plugin is added. The panel fills its parent, so give the parent a height.
 - Or place `layers.element` in the page yourself.
 
-The plugin removes the panel from the page when it is removed. Its UI folder, `Layers Panel`, has the settings: Enabled, Hover in viewport, Reveal selection, Max children, and the four tabs. The settings and the open rows are not saved with the viewer config.
+The plugin removes the panel from the page when it is removed. Its UI folder, `Layers Panel`, has the settings: Enabled, Hover in viewport, Reveal selection, Max children, Scene and camera rows, Show children of meshes, lights, cameras, the two click settings, and the four tabs. The settings and the open rows are not saved with the viewer config.
 
 ```typescript
 import {PickingPlugin, ThreeViewer, UndoManagerPlugin} from 'threepipe'
