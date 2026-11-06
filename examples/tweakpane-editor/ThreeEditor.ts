@@ -241,37 +241,42 @@ export class ThreeEditor extends ThreeViewer {
 
         editor.loadPlugins(this.editorModes)
 
-        // the layers in the left area of the page frame (?layers=bottom: in the bottom strip), with an entry in the mode
-        // bar. The inspector of the selection: ?inspector=swap (the default), in the right area (the top of the panel), and
-        // while something is selected it takes the whole panel (the settings of the mode hide; a click on a mode shows
-        // them); ?inspector=right, in the right area above the mode settings; ?inspector=left, under the layers. Each has
-        // its entry in the mode bar, and is out of its place while its panel is off.
+        // the layers and the inspector of the selection are panels of the page frame, each with an entry in the mode bar;
+        // the person moves a panel with the menu of its entry. A panel is out of the frame while its plugin is off.
+        // The layers: in the left sidebar (?layers=bottom: in the bottom strip). The inspector: ?inspector=swap (the
+        // default), in the right sidebar, and while something is selected it takes the whole panel (the settings of the
+        // mode hide; a click on a mode shows them); ?inspector=right, in the right sidebar above the mode settings;
+        // ?inspector=left, under the layers.
         const layers = this.getPlugin(LayersPanelPlugin)
         const inspector = this.getPlugin(InspectorPlugin)
-        const layersArea = getUrlQueryParam('layers') === 'bottom' ? 'bottom' : 'left'
         const inspectorParam = getUrlQueryParam('inspector')
         const inspectorPlace = inspectorParam === 'right' || inspectorParam === 'left' ? inspectorParam : 'swap'
+        // swap: only while the inspector is in the right sidebar (the person can move it elsewhere)
         const swap = () => {
-            if (inspectorPlace !== 'swap') return
+            const frame = editor.frame
+            if (inspectorPlace !== 'swap' || !frame || frame.panelArea('inspector') !== 'right') return
             const selected = !!inspector?.hasSelection
-            editor.frame?.setSectionHidden('right', 0, !selected)
-            editor.frame?.setModeSettingsHidden(selected)
+            frame.setPanelHidden('inspector', !selected)
+            frame.setModeSettingsHidden(selected)
         }
-        const placePanels = () => {
-            const layersEl = layers && !layers.isDisabled() ? layers.element : null
-            const inspectorEl = inspector && !inspector.isDisabled() ? inspector.element : null
-            // the left stack: an entry in the mode bar for each panel in it, which shows or hides it
-            const left = ([[layersArea === 'left' ? layersEl : null, LayersPanelPlugin.AreaEntry], [inspectorPlace === 'left' ? inspectorEl : null, InspectorPlugin.AreaEntry]] as const)
-                .filter((p): p is [HTMLDivElement, typeof LayersPanelPlugin.AreaEntry] => !!p[0])
-            editor.setArea('left', left.length ? left.map(p => p[0]) : null, left.map(p => p[1]))
-            if (layersArea === 'bottom') editor.setArea('bottom', layersEl, LayersPanelPlugin.AreaEntry)
-            editor.setArea('right', inspectorPlace === 'left' ? null : inspectorEl, [InspectorPlugin.AreaEntry])
-            swap()
+        if (layers) {
+            const area = getUrlQueryParam('layers') === 'bottom' ? 'bottom' : 'left'
+            const placeLayers = () => layers.isDisabled() ? editor.removePanel('layers') :
+                editor.addPanel('layers', layers.element, {...LayersPanelPlugin.AreaEntry, area})
+            placeLayers()
+            layers.addEventListener('enabledChange', placeLayers)
         }
-        placePanels()
-        layers?.addEventListener('enabledChange', placePanels)
-        inspector?.addEventListener('enabledChange', placePanels)
-        inspector?.addEventListener('selectionChange', swap)
+        if (inspector) {
+            const area = inspectorPlace === 'left' ? 'left' : 'right'
+            const placeInspector = () => {
+                if (inspector.isDisabled()) editor.removePanel('inspector')
+                else editor.addPanel('inspector', inspector.element, {...InspectorPlugin.AreaEntry, area})
+                swap()
+            }
+            placeInspector()
+            inspector.addEventListener('enabledChange', placeInspector)
+            inspector.addEventListener('selectionChange', swap)
+        }
         // a new frame (a change of the layout, like classic and back) starts with the mode settings shown
         editor.addEventListener('frameChange', swap)
 

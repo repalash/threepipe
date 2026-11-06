@@ -1,15 +1,14 @@
 import {createDiv, createStyles} from 'threepipe'
-import tippy, {Instance} from 'tippy.js'
 import {EditorModeBar, EditorModeBarHost} from './EditorModeBar'
 import {isTextTarget, readStored, writeStored} from '../dom-utils'
 import styles from './EditorFrame.css?inline'
 
 /**
  * The layouts of {@link EditorFrame}:
- * - `titlebar`: a slim bar on top (app, file name, actions); the canvas and the panel are edge to edge below it.
- * - `statusbar`: no title; a slim bar at the bottom (file name, actions), like a code editor.
+ * - `titlebar`: a slim bar on top (app, file name); the canvas and the panel are edge to edge below it.
+ * - `statusbar`: no title; a slim bar at the bottom (file name), like a code editor.
  * - `floating`: the canvas fills the window; the panel and the mode bar float over it, with the same gap on every side.
- *   No bar, so no file name ({@link EditorFrame.documentName}); the actions are in the mode bar.
+ *   No bar, so no file name ({@link EditorFrame.documentName}).
  */
 export type EditorFrameLayout = 'titlebar' | 'statusbar' | 'floating'
 
@@ -17,7 +16,7 @@ export type EditorFrameLayout = 'titlebar' | 'statusbar' | 'floating'
 export const EDITOR_FRAME_LAYOUTS: [EditorFrameLayout, string][] = [['titlebar', 'Title bar'], ['statusbar', 'Status bar'], ['floating', 'Floating panels']]
 
 /**
- * The areas of {@link EditorFrame} that an app fills ({@link EditorFrame.setArea}):
+ * The places of {@link EditorFrame} where panels go ({@link EditorFrame.addPanel}):
  * - `left`: the sidebar left of the canvas, from the top to the bottom of the frame;
  * - `bottom`: the strip below the canvas, between the left sidebar and the panel;
  * - `right`: the top part of the right sidebar, above the settings of the mode, in the panel (the container of the
@@ -40,7 +39,7 @@ const AREA_SIZE_VARS: Record<EditorFrameSizedArea, string> = {
     right: '--tweakpane-ui-container-width',
 }
 
-/** The entry of an area in the mode bar ({@link EditorFrame.setArea}) */
+/** The entry of a panel in the mode bar ({@link EditorFrame.addPanel}) */
 export interface EditorFrameAreaOptions {
     /** The name of the entry. Default: {@link EditorFrame.AreaNames} */
     name?: string
@@ -49,6 +48,26 @@ export interface EditorFrameAreaOptions {
     /** The colour of the icon and of the mark while the area shows, as the colours of the modes. Default: the grey of the labels */
     color?: string
 }
+
+/** A panel of the frame ({@link EditorFrame.addPanel}): its entry in the mode bar, and the place where it starts */
+export interface EditorFramePanelOptions extends EditorFrameAreaOptions {
+    /** The place of the panel until the person moves it (its Move menu): `left` (default), `bottom` or `right` */
+    area?: EditorFrameArea
+}
+
+/** A panel in the frame: its element in a section of its place, and its entry in the mode bar */
+interface FramePanel {
+    id: string
+    element: HTMLElement
+    options: EditorFramePanelOptions
+    area: EditorFrameArea
+    hidden: boolean
+    section: HTMLDivElement
+    entry: HTMLButtonElement
+}
+
+/** The places in their order: the entries of the mode bar follow it */
+const PLACES: EditorFrameArea[] = ['left', 'bottom', 'right']
 
 /**
  * The part of its side of the window that a card of the floating layout takes ({@link EditorFrame.setAreaSpan}): it
@@ -116,12 +135,13 @@ const ICONS = {
  * - Shift+T switches between the light and dark theme of the same family ({@link EditorFrameOptions.themePairs}).
  * - The panel has no title of its own: the mode bar names the open mode and hides the panel.
  *
- * Made by `TweakpaneEditorPlugin` (its `layout`). The floating layout has its actions in the mode bar. The body has the
+ * Made by `TweakpaneEditorPlugin` (its `layout`). The actions (light or dark, layout) are at the bottom of the mode bar in each layout. The body has the
  * class `lay-frame` and `lay-<layout>`. The canvas size follows the CSS of the layout, and the viewer follows the canvas
  * size (the ResizeObserver of `ThreeViewer`).
  *
- * The frame has fixed areas ({@link EditorFrameArea}): the left sidebar, the right sidebar (the panel and the mode bar)
- * and the bottom strip. An app puts an element in the left or the bottom area with {@link setArea}; an empty area takes
+ * The frame has three fixed places ({@link EditorFrameArea}): the left sidebar, the bottom strip below the canvas, and
+ * the top of the right sidebar (above the settings of the mode, in the panel). An app adds panels to them with
+ * {@link addPanel}, and the person moves them (the Move menu of their entry); an empty place takes
  * no room. The CSS variables `--lay-left-area`, `--lay-right-area` and `--lay-bottom-area` on the body are the width or
  * the height of each area (`0px` when it is empty). In the floating layout the areas are cards over the canvas, and
  * `--lay-left-inset` and `--lay-bottom-inset` are the parts of the canvas that the left and the bottom card cover with
@@ -141,8 +161,8 @@ const ICONS = {
  * `body.lay-frame` (a page sets another with a more specific rule, like `html body.lay-frame { --lay-split: 0.5; }`).
  * When the panel is hidden there, the mode bar is a row at the bottom.
  *
- * The mode bar lists the modes, then an entry for each area with an element (its name and icon from {@link setArea}).
- * When the areas show next to the canvas, a tap on an entry shows or hides its area ({@link setAreaCollapsed}). In a
+ * The mode bar lists the modes, then an entry for each panel (its name and icon from {@link addPanel}). A tap on an
+ * entry shows or hides its panel ({@link setPanelHidden}), a right-click or a long press moves it ({@link movePanel}). In a
  * narrow window (`lay-single`), the place of the panel shows one of them at a time ({@link setStackedArea}): a mode
  * shows the panel there, an entry shows its area, and a tap on the one shown hides that place.
  *
@@ -166,7 +186,7 @@ export class EditorFrame {
     /** The smallest length in px of a card of the floating layout along its side ({@link setAreaSpan}) */
     static MinCardLength = 120
 
-    /** The smallest size in px of an element in a stack of an area ({@link setArea} with a list), when a drag moves the split */
+    /** The smallest size in px of a panel in the stack of a place, when a drag moves the split ({@link addPanel}) */
     static MinSectionSize = 48
 
     /**
@@ -187,8 +207,11 @@ export class EditorFrame {
      */
     static Breakpoints = {stack: 920, singleView: 700}
 
-    /** The default names of the entries of the areas in the mode bar ({@link setArea}) */
+    /** The names of the places: the default names of the entries of the panels, and the Move menu ({@link addPanel}) */
     static AreaNames: Record<EditorFrameArea, string> = {left: 'Left sidebar', bottom: 'Bottom strip', right: 'Right sidebar'}
+
+    /** The time in ms of a press on the entry of a panel, on a touch screen, that opens its Move menu ({@link addPanel}) */
+    static LongPressTime = 500
 
     readonly modeBar: EditorModeBar
     private _layout: EditorFrameLayout
@@ -197,13 +220,17 @@ export class EditorFrame {
     private _bottom: HTMLDivElement
     /** The head of the floating layout (it has no bar): the logo, the app name and the file name, at the top of the left column */
     private _head: HTMLDivElement
-    /** The actions in the mode bar, for the floating layout (it has no bar) */
-    private _floatActions: HTMLDivElement
-    /** The elements of the areas ({@link setArea}), in the page while the frame is */
+    /** The actions in the mode bar, above the names toggle */
+    private _modeActions: HTMLDivElement
+    /** The boxes of the places, with the sections of their panels ({@link addPanel}); left and bottom in the page while the frame is */
     private _areas: Record<EditorFrameArea, HTMLDivElement>
-    /** The entries of the areas in the mode bar, after the modes, and their box */
-    private _entries: Record<EditorFrameArea, HTMLButtonElement[]>
+    /** The panels ({@link addPanel}), in the order they were added; and the box of their entries in the mode bar */
+    private _panels = new Map<string, FramePanel>()
     private _entryBox: HTMLDivElement
+    /** The place and the hidden state that the person picked for each panel (its entry, its Move menu), by id; kept */
+    private _picks: Record<string, {area?: EditorFrameArea, hidden?: boolean}> = {}
+    /** The size of each panel in the stack of its place, as a weight (`flex-grow`), by id; kept; not set: 1 */
+    private _weights: Record<string, number> = {}
     /** The edges that a drag resizes, in the page while the frame is */
     private _handles: Record<EditorFrameSizedArea, HTMLDivElement>
     /** The sizes set in px ({@link setAreaSize}), and kept; not set: the size of the CSS */
@@ -218,18 +245,9 @@ export class EditorFrame {
     /** The spans set ({@link setAreaSpan}), and kept; and the spans on screen, with the length of a card that fills its side */
     private _spans: Partial<Record<EditorFrameSizedArea, EditorFrameAreaSpan>> = {}
     private _appliedSpans: Partial<Record<EditorFrameSizedArea, Required<EditorFrameAreaSpan>>> = {}
-    /** The sizes of the elements of a stack ({@link setArea} with a list), as weights (`flex-grow`), and kept; not set: equal */
-    private _splits: Partial<Record<EditorFrameArea, number[]>> = {}
     /** The collapsed left and bottom areas; the panel collapses as the mode bar hides it */
     private _collapsed: Partial<Record<EditorFrameArea, boolean>> = {}
-    /**
-     * The hidden sections of a stack with an entry for each element ({@link setArea} with a list of options), by index;
-     * kept, and applied again for a stack of the same length
-     */
-    private _hidden: Partial<Record<EditorFrameArea, boolean[]>> = {}
-    /** The stacks with an entry for each element ({@link setArea} with a list of options) */
-    private _perSection: Partial<Record<EditorFrameArea, boolean>> = {}
-    /** The line between the right area and the settings of the mode, in the panel ({@link setArea} `right`) */
+    /** The line between the right area and the settings of the mode, in the panel ({@link addPanel} `right`) */
     private _rightSplit: HTMLDivElement
     /** The part of the panel height for the right area, 0 to 1, with the settings of the mode under it; kept */
     private _rightShare = 0.5
@@ -243,7 +261,6 @@ export class EditorFrame {
     private _menu?: HTMLDivElement
     private _menuAnchor?: HTMLElement
     /** The tooltips of the buttons in the bars */
-    private _tips: Instance[] = []
     private _themePairs: [string, string][]
     private _styles?: HTMLStyleElement
 
@@ -260,26 +277,23 @@ export class EditorFrame {
 
         const title = options.title ?? 'threepipe'
         this._top = this._bar('lay-top')
-        this._top.innerHTML = `<span class="lay-app">${ICONS.app}<b></b><span class="lay-dim">Editor</span></span><span class="lay-sep"></span><span class="lay-file"></span><span class="lay-fill"></span>`
+        this._top.innerHTML = `<span class="lay-app">${ICONS.app}<b></b><span class="lay-dim">Editor</span></span><span class="lay-sep"></span><span class="lay-file"></span>`
         this._top.querySelector('b')!.textContent = title
-        this._top.append(...this._actions('top'))
         this._bottom = this._bar('lay-bottom')
-        this._bottom.innerHTML = '<span class="lay-file"></span><span class="lay-fill"></span>'
-        this._bottom.append(...this._actions('bottom'))
+        this._bottom.innerHTML = '<span class="lay-file"></span>'
         this._head = this._bar('lay-head')
         this._head.innerHTML = `<span class="lay-app">${ICONS.app}<b></b></span><span class="lay-sep"></span><span class="lay-file"></span>`
         this._head.querySelector('b')!.textContent = title
         if (options.onRename) for (const bar of [this._top, this._bottom, this._head]) this._editableName(bar.querySelector('.lay-file')!)
-        this._floatActions = createDiv({classList: ['lay-float-actions'], addToBody: false})
-        this._floatActions.append(...this._actions('modeBar'))
+        // the same place in each layout: the mode bar, above the names toggle
+        this._modeActions = createDiv({classList: ['lay-mode-actions'], addToBody: false})
+        this._modeActions.append(...this._actions())
+        this.modeBar.element.insertBefore(this._modeActions, this.modeBar.element.lastElementChild)
         // the right area is in the panel, placed when it has an element (_applyRight)
         this._areas = {left: this._area('left'), bottom: this._area('bottom'), right: createDiv({classList: ['lay-area', 'lay-area-right'], addToBody: false})}
         this._rightSplit = this._paneSplit()
         this._entryBox = createDiv({classList: ['lay-area-entries'], addToBody: false})
-        // one entry for each area at first, in their order (an entry goes after the ones of the areas before it)
-        this._entries = {left: [], bottom: [], right: []}
-        for (const area of ['left', 'bottom', 'right'] as const) this._entries[area].push(this._entry(area, 0))
-        // after the modes: before the actions (floating) and the names toggle
+        // after the modes: before the actions and the names toggle
         this.modeBar.element.insertBefore(this._entryBox, this.modeBar.element.children[editor.modeKeys.length] ?? null)
         this._refreshEntries()
         this._handles = {left: this._handle('left'), bottom: this._handle('bottom'), right: this._handle('right')}
@@ -377,9 +391,6 @@ export class EditorFrame {
         else this._bottom.remove()
         if (layout === 'floating') body.appendChild(this._head)
         else this._head.remove()
-        // above the names toggle of the mode bar
-        if (layout === 'floating') this.modeBar.element.insertBefore(this._floatActions, this.modeBar.element.lastElementChild)
-        else this._floatActions.remove()
         this._expandPanel()
         this.documentName = this._documentName
         // the cards move only in the floating layout
@@ -387,60 +398,144 @@ export class EditorFrame {
     }
 
     /**
-     * Puts an element in an area of the frame, in place of the element that is there, or empties the area (`null`).
-     * - An area with an element shows (the body class `lay-has-<area>`), and the canvas makes room for it (the floating
-     *   layout: the area is a card over the canvas). An empty area takes no room.
-     * - The element fills the area. The area is `--lay-left-area-size` wide (`240px`) or `--lay-bottom-area-size` tall
-     *   (`160px`), CSS variables on `body.lay-frame`; set others with a more specific rule, like
-     *   `html body.lay-frame { --lay-left-area-size: 280px; }`.
-     * - The mode bar has an entry for the area, after the modes, with the name and the icon of `options`. When the areas
-     *   show next to the canvas, a tap on it shows or hides the area ({@link setAreaCollapsed}).
-     * - A narrow window ({@link Breakpoints}) has no room for the areas next to the canvas: the place of the panel shows
-     *   one view at a time, the panel by default, and a tap on the entry shows the area there ({@link setStackedArea}).
-     * - A list of elements is a stack: the area is split between them, with a line between two elements (a gap with drag
-     *   dots in the floating layout, where each element is a card). A drag on it moves the split, at least
-     *   {@link MinSectionSize} for each element; a double-click makes them equal. The split is kept with the sizes.
-     * - With a list of options, each element of the stack has an entry in the mode bar, which shows or hides it; the
-     *   hidden elements are kept with the sizes.
+     * Adds a panel to the frame, or puts a new element in the panel of this id. A panel is an element in a place of the
+     * frame, with an entry in the mode bar:
+     * - The places are fixed: `left`, the sidebar left of the canvas; `bottom`, the strip below the canvas; `right`, the
+     *   top of the right sidebar, above the settings of the mode, in the panel of the Tweakpane UI. The panel starts in
+     *   `options.area` (`left`), until the person moves it: a right-click on its entry (a long press on a touch screen)
+     *   opens a menu of the places ({@link movePanel}).
+     * - The panels of a place are a stack, in the order they were added: the place is split between them, with a line
+     *   between two (a gap with drag dots in the floating layout, where each panel is a card). A drag on it moves the
+     *   split, at least {@link MinSectionSize} for each; a double-click makes them equal.
+     * - The entry, after the modes, has the name, the icon and the colour of `options`. A tap on it shows or hides the
+     *   panel ({@link setPanelHidden}); hiding the last shown panel of a place collapses the place. In a narrow window
+     *   ({@link Breakpoints}) the left and the bottom place show in the place of the panel, one view at a time
+     *   ({@link setStackedArea}).
+     * - A place with a panel shows (the body class `lay-has-<area>`), and the canvas makes room for it (the floating
+     *   layout: a card over the canvas); an empty place takes no room. The left place is `--lay-left-area-size` wide
+     *   (`240px`), the bottom place `--lay-bottom-area-size` tall (`160px`), CSS variables on `body.lay-frame`.
+     * - The place, the hidden state and the size in the stack that the person picks are kept by id in `localStorage`
+     *   ({@link AreaStorageKey}), with the sizes.
      *
-     * The areas go with the frame: `TweakpaneEditorPlugin.setArea` keeps the element when the plugin makes the frame again.
-     * @param area - `left` or `bottom` ({@link EditorFrameArea})
-     * @param element - the element to show in the area, a list of elements for a stack (top to bottom in the left area,
-     * left to right in the bottom area), or `null` for an empty area
-     * @param options - the name and the icon of its entry in the mode bar; for a stack, a list of options gives each element
-     * its own entry, which shows or hides that element ({@link setSectionHidden}); hiding the last one collapses the area
+     * The panels go with the frame: `TweakpaneEditorPlugin.addPanel` adds them again when the plugin makes the frame again.
+     * @param id - the id of the panel, for {@link removePanel}, {@link movePanel}, {@link setPanelHidden} and the kept state
+     * @param element - the element of the panel; it fills its section
+     * @param options - its entry in the mode bar (name, icon, colour) and the place where it starts
      */
-    setArea(area: EditorFrameArea, element: HTMLElement | HTMLElement[] | null, options: EditorFrameAreaOptions | EditorFrameAreaOptions[] = {}) {
-        const elements = element === null ? [] : Array.isArray(element) ? element : [element]
-        const box = this._areas[area]
-        box.replaceChildren()
-        // a stack: each element in a section, with a split between two sections
-        // the right area: always sections (their entries hide them), the settings of the mode under them
-        const sectioned = elements.length > 1 || area === 'right'
-        box.classList.toggle('lay-split-area', elements.length > 1)
-        if (!sectioned) elements.forEach(el => box.appendChild(el))
-        else elements.forEach((el, i) => {
-            if (i > 0) box.appendChild(this._split(area, i))
-            const section = createDiv({classList: ['lay-section'], addToBody: false})
-            section.appendChild(el)
-            box.appendChild(section)
-        })
-        this._applySplits(area)
-        document.body.classList.toggle('lay-has-' + area, elements.length > 0)
-        // a list of options: an entry for each element of the stack, which shows or hides its section
-        const perSection = Array.isArray(options) && elements.length > 0
-        this._perSection[area] = perSection
-        const list = perSection ? elements.map((_, i) => (options as EditorFrameAreaOptions[])[i] ?? {}) : [Array.isArray(options) ? options[0] ?? {} : options]
-        const entries = this._entries[area]
-        while (entries.length > list.length) entries.pop()!.remove()
-        while (entries.length < list.length) entries.push(this._entry(area, entries.length))
-        list.forEach((o, i) => this._fillEntry(entries[i], area, o))
-        if (!perSection || this._hidden[area]?.length !== elements.length) delete this._hidden[area]
-        this._applySections(area)
+    addPanel(id: string, element: HTMLElement, options: EditorFramePanelOptions = {}) {
+        const old = this._panels.get(id)
+        if (old) this._dropPanel(old)
+        const section = createDiv({classList: ['lay-section'], addToBody: false})
+        section.appendChild(element)
+        const entry = this._entry(id)
+        this._fillEntry(entry, options.area ?? 'left', options)
+        const pick = this._picks[id]
+        const area = pick?.area ?? options.area ?? 'left'
+        const panel: FramePanel = {id, element, options, area, hidden: pick?.hidden ?? false, section, entry}
+        this._panels.set(id, panel)
+        this._layoutArea(area)
+        if (old && old.area !== area) this._layoutArea(old.area)
         this._fitAreas()
     }
 
-    /** The icon, the name and the colour of an entry of an area in the mode bar ({@link setArea}) */
+    /** Takes a panel out of the frame ({@link addPanel}); its kept place and size stay for when it is added again */
+    removePanel(id: string) {
+        const p = this._panels.get(id)
+        if (!p) return
+        this._dropPanel(p)
+        this._layoutArea(p.area)
+        this._fitAreas()
+    }
+
+    /** Takes the section and the entry of a panel out of the page, and the panel out of the list */
+    private _dropPanel(p: FramePanel) {
+        p.section.remove()
+        p.entry.remove()
+        this._panels.delete(p.id)
+    }
+
+    /**
+     * Moves a panel to another place (`left`, `bottom` or `right`), at the end of its stack, and shows it (the place
+     * opens when it was collapsed). The Move menu of its entry does this.
+     * @param keep - keep it in `localStorage` ({@link AreaStorageKey}), as the person's pick
+     */
+    movePanel(id: string, area: EditorFrameArea, keep = false) {
+        const p = this._panels.get(id)
+        if (!p || !PLACES.includes(area)) return
+        const from = p.area
+        if (from !== area) {
+            p.area = area
+            // the end of the stack of its new place: the order of the panels is the order of the map
+            this._panels.delete(id)
+            this._panels.set(id, p)
+        }
+        p.hidden = false
+        if (keep) this._picks[id] = {...this._picks[id], area, hidden: false}
+        if (this._collapsed[area]) this._setCollapsed(area, false, keep)
+        this._layoutArea(from)
+        if (from !== area) this._layoutArea(area)
+        this._fitAreas()
+        if (keep) this._storeAreas()
+    }
+
+    /**
+     * Shows or hides a panel, as its entry in the mode bar does. Hiding the last shown panel of a place collapses the
+     * place instead (the panel stays shown in it, for when the place opens); showing a panel opens its place.
+     * @param keep - keep it in `localStorage` ({@link AreaStorageKey}), as the person's pick
+     */
+    setPanelHidden(id: string, hidden: boolean, keep = false) {
+        const p = this._panels.get(id)
+        if (!p) return
+        if (hidden && !this._areaPanels(p.area).some(q => q !== p && !q.hidden)) {
+            this._setCollapsed(p.area, true, keep)
+            return
+        }
+        p.hidden = hidden
+        if (keep) this._picks[id] = {...this._picks[id], hidden}
+        if (!hidden && this._collapsed[p.area]) this._setCollapsed(p.area, false, keep)
+        this._applySections(p.area)
+        this._fitAreas()
+        if (keep) this._storeAreas()
+    }
+
+    /** Whether a panel is hidden in its place ({@link setPanelHidden}); a collapsed place does not hide its panels */
+    isPanelHidden(id: string) {
+        return !!this._panels.get(id)?.hidden
+    }
+
+    /** The place of a panel, or `undefined` for no panel of this id */
+    panelArea(id: string): EditorFrameArea | undefined {
+        return this._panels.get(id)?.area
+    }
+
+    /** The ids of the panels, in the order they were added */
+    get panelIds() {
+        return Array.from(this._panels.keys())
+    }
+
+    /** The panels of a place, in their order in its stack */
+    private _areaPanels(area: EditorFrameArea) {
+        return Array.from(this._panels.values()).filter(p => p.area === area)
+    }
+
+    /** Puts the sections of the panels of a place in it, with a split between two, and the entries in their order */
+    private _layoutArea(area: EditorFrameArea) {
+        const list = this._areaPanels(area)
+        const box = this._areas[area]
+        box.replaceChildren()
+        list.forEach((p, i) => {
+            if (i > 0) box.appendChild(this._split(area, i))
+            box.appendChild(p.section)
+        })
+        box.classList.toggle('lay-split-area', list.length > 1)
+        document.body.classList.toggle('lay-has-' + area, list.length > 0)
+        // the entries: the places in their order, then the panels in the order of their stack
+        for (const place of PLACES) for (const p of this._areaPanels(place)) this._entryBox.appendChild(p.entry)
+        this._applySplits(area)
+        this._applySections(area)
+    }
+
+    /** The icon, the name and the colour of the entry of a panel in the mode bar ({@link addPanel}) */
     private _fillEntry(entry: HTMLButtonElement, area: EditorFrameArea, options: EditorFrameAreaOptions) {
         const name = options.name ?? EditorFrame.AreaNames[area]
         entry.innerHTML = options.icon ?? ICONS[area]
@@ -454,31 +549,6 @@ export class EditorFrame {
         else entry.style.removeProperty('--mb-color')
     }
 
-    /**
-     * Shows or hides one element of a stack with an entry for each element ({@link setArea} with a list of options), as
-     * its entry in the mode bar does. Hiding the last shown element collapses the area instead ({@link setAreaCollapsed}).
-     * @param area - `left` or `bottom`
-     * @param index - the element, in the order of {@link setArea}
-     * @param hidden - hide or show
-     * @param keep - keep it in `localStorage` ({@link AreaStorageKey}), as the person's pick
-     */
-    setSectionHidden(area: EditorFrameArea, index: number, hidden: boolean, keep = false) {
-        // one element without a section (left, bottom): it is the area
-        const count = Math.max(this._sections(area).length, this._areas[area].children.length ? 1 : 0)
-        if (!this._perSection[area] || index < 0 || index >= count) return
-        const flags = this._hidden[area] ?? new Array<boolean>(count).fill(false)
-        if (hidden && flags.filter((h, i) => !h && i !== index).length === 0) {
-            this._setCollapsed(area, true, keep)
-            return
-        }
-        flags[index] = hidden
-        this._hidden[area] = flags
-        if (!hidden && this._collapsed[area]) this._setCollapsed(area, false, keep)
-        this._applySections(area)
-        this._fitAreas()
-        if (keep) this._storeAreas()
-    }
-
     /** Collapses or opens an area: the left and the bottom area as {@link setAreaCollapsed}; the right area in the panel */
     private _setCollapsed(area: EditorFrameArea, collapsed: boolean, keep: boolean) {
         if (area !== 'right') return this.setAreaCollapsed(area, collapsed, keep)
@@ -488,7 +558,7 @@ export class EditorFrame {
     }
 
     /**
-     * Hides the settings of the mode in the panel while the right area shows ({@link setArea} `right`): the right area
+     * Hides the settings of the mode in the panel while the right place shows panels ({@link addPanel}): the right place
      * takes the whole panel. A click on the open mode in the mode bar does this too, and a click on a mode shows them
      * again. Without the right area, the settings always show (the mode bar hides the panel). Not kept: an app sets it,
      * for example while something is selected (an inspector in the right area, its settings in place of the modes).
@@ -506,7 +576,7 @@ export class EditorFrame {
 
     /** The right area takes room in the panel now: it has an element, it is not collapsed, and the panel is open */
     private _rightShown() {
-        return this._areas.right.children.length > 0 && !this._collapsed.right && this.modeBar.open
+        return this._areaPanels('right').length > 0 && !this._collapsed.right && this.modeBar.open
     }
 
     /**
@@ -568,9 +638,9 @@ export class EditorFrame {
         return el
     }
 
-    /** Whether an element of a stack is hidden ({@link setSectionHidden}) */
-    isSectionHidden(area: EditorFrameArea, index: number) {
-        return !!this._hidden[area]?.[index]
+    /** Whether the panel at this index of the stack of a place is hidden ({@link setPanelHidden}) */
+    private _sectionHidden(area: EditorFrameArea, index: number) {
+        return !!this._areaPanels(area)[index]?.hidden
     }
 
     /** Hides the hidden sections of a stack, and the splits that are not between two shown sections */
@@ -581,7 +651,7 @@ export class EditorFrame {
         children.forEach((child, k) => {
             const i = sections.indexOf(child)
             if (i < 0) return
-            const hidden = this.isSectionHidden(area, i)
+            const hidden = this._sectionHidden(area, i)
             child.classList.toggle('lay-section-hidden', hidden)
             const split = children[k - 1]
             if (split?.classList.contains('lay-split')) split.classList.toggle('lay-section-hidden', hidden || !shownBefore)
@@ -735,7 +805,7 @@ export class EditorFrame {
         this._top.remove()
         this._bottom.remove()
         this._head.remove()
-        this._floatActions.remove()
+        this._modeActions.remove()
         this._entryBox.remove()
         for (const [area, el] of Object.entries(this._areas)) {
             el.remove()
@@ -753,7 +823,6 @@ export class EditorFrame {
             for (const k of ['offset', 'start', 'length']) document.body.style.removeProperty(`--lay-${area}-${k}`)
         }
         this._closeMenu()
-        this._tips.forEach(t => t.destroy())
         this.modeBar.dispose()
         this._styles?.remove()
     }
@@ -786,74 +855,102 @@ export class EditorFrame {
     /** The left or the bottom area that the place of the panel shows now, in a narrow window */
     private _stackedShown(): EditorFrameArea | undefined {
         const a = this._stacked
-        if (a === 'right' || !this._areas[a].children.length) return undefined
+        if (a === 'right' || !this._areaPanels(a).length) return undefined
         return this._isSingle() ? a : undefined
     }
 
     /**
-     * An entry of an area in the mode bar: hidden until {@link setArea} puts an element in the area. A stack with a list
-     * of options has an entry for each element (`index`).
+     * The entry of a panel in the mode bar: a tap shows or hides it; a right-click, or a long press on a touch screen,
+     * opens its Move menu (the places)
      */
-    private _entry(area: EditorFrameArea, index: number) {
-        const b = this._button(ICONS[area], EditorFrame.AreaNames[area], EditorFrame.AreaNames[area], 'modeBar', () => this._onEntry(area, index))
+    private _entry(id: string) {
+        let held = false
+        const b = this._button(ICONS.left, '', '', () => {
+            // the end of a long press that opened the menu is not a tap
+            if (held) held = false
+            else this._onPanelEntry(id)
+        })
         b.classList.add('lay-area-entry')
-        // in the order of the areas, then of the elements
-        const order: EditorFrameArea[] = ['left', 'bottom', 'right']
-        const before = order.slice(0, order.indexOf(area)).flatMap(a => this._entries?.[a] ?? [])
-        const after = this._entries?.[area]?.[index - 1] ?? before.at(-1)
-        const kids = Array.from(this._entryBox.children)
-        const at = after ? kids.indexOf(after) + 1 : 0
-        this._entryBox.insertBefore(b, kids[at] ?? null)
+        b.setAttribute('aria-haspopup', 'menu')
+        b.addEventListener('contextmenu', (e: MouseEvent) => {
+            e.preventDefault()
+            this._toggleMenu(b, () => this._moveItems(id))
+        })
+        let timer = 0
+        let start: {x: number, y: number} | undefined
+        const cancel = () => {
+            clearTimeout(timer)
+            timer = 0
+            start = undefined
+        }
+        b.addEventListener('pointerdown', (e: PointerEvent) => {
+            if (e.pointerType === 'mouse') return
+            start = {x: e.clientX, y: e.clientY}
+            timer = window.setTimeout(() => {
+                timer = 0
+                held = true
+                this._toggleMenu(b, () => this._moveItems(id))
+            }, EditorFrame.LongPressTime)
+        })
+        b.addEventListener('pointermove', (e: PointerEvent) => {
+            if (start && Math.hypot(e.clientX - start.x, e.clientY - start.y) > 10) cancel()
+        })
+        b.addEventListener('pointerup', cancel)
+        b.addEventListener('pointercancel', cancel)
         return b
     }
 
+    /** The Move menu of a panel: the places, the one of the panel checked */
+    private _moveItems(id: string): MenuItem[] {
+        const p = this._panels.get(id)
+        return PLACES.map(area => [EditorFrame.AreaNames[area], p?.area === area, () => this.movePanel(id, area, true)])
+    }
+
     /**
-     * A tap on the entry of an area (of an element of a stack with an entry for each). In a narrow window: the area in the
-     * place of the panel, or, when it is there, that place hides (as the open mode does). Else: the area (the element)
-     * shows or hides, and the pick is kept.
+     * A tap on the entry of a panel. The right place (in the panel of the Tweakpane UI), or a wide window: the panel
+     * shows or hides, and the pick is kept. A narrow window, for the left or the bottom place: the place in the place of
+     * the panel; when it is there, the panel hides, or the place when it is the only one shown (as the open mode does).
      */
-    private _onEntry(area: EditorFrameArea, index: number) {
-        const per = this._perSection[area]
+    private _onPanelEntry(id: string) {
+        const p = this._panels.get(id)
+        if (!p) return
+        const area = p.area
         if (area === 'right') {
-            // in the panel: a narrow window with a left or bottom area in its place shows the panel again
+            // in the panel: a narrow window with a left or bottom place in its place shows the panel again
             if (this._stackedShown()) this.setStackedArea('right', true)
             if (!this.modeBar.open) this.modeBar.setOpen(true)
         }
         if (!this._isSingle() || area === 'right') {
-            if (!per) return this._setCollapsed(area, !this._collapsed[area], true)
             if (this._collapsed[area]) {
                 this._setCollapsed(area, false, true)
-                if (this.isSectionHidden(area, index)) this.setSectionHidden(area, index, false, true)
+                if (p.hidden) this.setPanelHidden(id, false, true)
                 return
             }
-            return this.setSectionHidden(area, index, !this.isSectionHidden(area, index), true)
+            return this.setPanelHidden(id, !p.hidden, true)
         }
         const shown = this._stackedShown() === area && this.modeBar.open
-        if (shown && (!per || !this.isSectionHidden(area, index))) {
-            // the element shows: hide it, or the place when it is the only one
-            const others = this._sections(area).some((_, i) => i !== index && !this.isSectionHidden(area, i))
-            if (per && others) return this.setSectionHidden(area, index, true, true)
+        if (shown && !p.hidden) {
+            if (this._areaPanels(area).some(q => q !== p && !q.hidden)) return this.setPanelHidden(id, true, true)
             return this.modeBar.setOpen(false)
         }
-        if (per && this.isSectionHidden(area, index)) this.setSectionHidden(area, index, false, true)
+        if (p.hidden) this.setPanelHidden(id, false, true)
         this.setStackedArea(area, true)
     }
 
-    /** Shows the entries of the areas with an element, and marks the ones whose area shows */
+    /** Shows the box of the entries when there is a panel, and marks the entries of the panels that show */
     private _refreshEntries() {
         const single = this._isSingle()
         let any = false
-        for (const area of ['left', 'bottom', 'right'] as const) {
-            const filled = this._areas[area].children.length > 0
-            any ||= filled
-            const areaShown = filled && (area === 'right' ? !this._collapsed.right && this.modeBar.open && !this._stackedShown() :
-                single ? this._stackedShown() === area && this.modeBar.open : !this._collapsed[area])
-            this._entries[area].forEach((entry, i) => {
-                entry.style.display = filled ? '' : 'none'
-                const shown = areaShown && !(this._perSection[area] && this.isSectionHidden(area, i))
-                entry.classList.toggle('lay-entry-on', shown)
-                entry.setAttribute('aria-pressed', String(shown))
-            })
+        for (const area of PLACES) {
+            const list = this._areaPanels(area)
+            any ||= list.length > 0
+            const areaShown = area === 'right' ? !this._collapsed.right && this.modeBar.open && !this._stackedShown() :
+                single ? this._stackedShown() === area && this.modeBar.open : !this._collapsed[area]
+            for (const p of list) {
+                const shown = areaShown && !p.hidden
+                p.entry.classList.toggle('lay-entry-on', shown)
+                p.entry.setAttribute('aria-pressed', String(shown))
+            }
         }
         this._entryBox.style.display = any ? '' : 'none'
     }
@@ -899,7 +996,7 @@ export class EditorFrame {
         return createDiv({classList: ['lay-bar', cls], addToBody: false})
     }
 
-    /** An empty area, in the page: hidden until {@link setArea} puts an element in it */
+    /** An empty place, in the page: hidden until {@link addPanel} puts a panel in it */
     private _area(area: EditorFrameArea) {
         return document.body.appendChild(createDiv({classList: ['lay-area', 'lay-area-' + area], addToBody: false}))
     }
@@ -961,18 +1058,14 @@ export class EditorFrame {
         this._endDrag = end
     }
 
-    /** The sections of a stack in an area ({@link setArea} with a list), in order */
+    /** The sections of the panels of a place, in order */
     private _sections(area: EditorFrameArea) {
         return Array.from(this._areas[area].children).filter(c => c.classList.contains('lay-section')) as HTMLElement[]
     }
 
-    /** Puts the weights of a stack on its sections: the kept ones when they are for this number of sections, else equal */
+    /** Puts the weights of the panels of a place on their sections (kept by id; not set: 1) */
     private _applySplits(area: EditorFrameArea) {
-        const sections = this._sections(area)
-        const weights = this._splits[area]?.length === sections.length ? this._splits[area] : undefined
-        sections.forEach((s, i) => {
-            s.style.flexGrow = String(weights?.[i] ?? 1)
-        })
+        for (const p of this._areaPanels(area)) p.section.style.flexGrow = String(this._weights[p.id] ?? 1)
     }
 
     /**
@@ -995,26 +1088,27 @@ export class EditorFrame {
             })
             // the shown section before this split (a hidden one between takes no room)
             let a = index - 1
-            while (a > 0 && this.isSectionHidden(area, a)) a--
+            while (a > 0 && this._sectionHidden(area, a)) a--
             const b = index
             const pair = sizes[a] + sizes[b]
             const p0 = vertical ? e.clientY : e.clientX
             this._drag(el, ['lay-resizing', 'lay-resizing-' + (vertical ? 'y' : 'x')], (ev: PointerEvent) => {
                 const min = Math.min(EditorFrame.MinSectionSize, pair / 2)
                 const size = Math.max(min, Math.min(pair - min, sizes[a] + (vertical ? ev.clientY : ev.clientX) - p0))
-                // only the two sections next to the split change: they share their weights as their new sizes; the
+                // only the two panels next to the split change: they share their weights as their new sizes; the
                 // others keep theirs (a hidden one measures 0 and would get no room when it shows again)
-                const kept = this._splits[area]
-                const weights = kept?.length === sections.length ? kept.slice() : sections.map(() => 1)
-                const pairWeight = weights[a] + weights[b]
-                weights[a] = Math.round(pairWeight * size / pair * 1000) / 1000
-                weights[b] = Math.round((pairWeight - weights[a]) * 1000) / 1000
-                this._splits[area] = weights
+                const list = this._areaPanels(area)
+                const [pa, pb] = [list[a], list[b]]
+                if (!pa || !pb) return
+                const pairWeight = (this._weights[pa.id] ?? 1) + (this._weights[pb.id] ?? 1)
+                const wa = Math.round(pairWeight * size / pair * 1000) / 1000
+                this._weights[pa.id] = wa
+                this._weights[pb.id] = Math.round((pairWeight - wa) * 1000) / 1000
                 this._applySplits(area)
             })
         })
         el.addEventListener('dblclick', () => {
-            delete this._splits[area]
+            for (const p of this._areaPanels(area)) delete this._weights[p.id]
             this._applySplits(area)
             this._storeAreas()
         })
@@ -1268,7 +1362,7 @@ export class EditorFrame {
      */
     private _storeAreas() {
         const key = EditorFrame.AreaStorageKey
-        if (key) writeStored(key, JSON.stringify({sizes: this._sizes, collapsed: this._collapsed, hidden: this._hidden, stacked: this._stacked, offsets: this._offsets, spans: this._spans, splits: this._splits, rightShare: this._rightShare}))
+        if (key) writeStored(key, JSON.stringify({sizes: this._sizes, collapsed: this._collapsed, panels: this._picks, weights: this._weights, stacked: this._stacked, offsets: this._offsets, spans: this._spans, rightShare: this._rightShare}))
     }
 
     /** Applies what {@link _storeAreas} keeps; a value that is not of the frame is left out */
@@ -1276,7 +1370,7 @@ export class EditorFrame {
         const key = EditorFrame.AreaStorageKey
         let stored: {sizes?: Record<string, unknown>, collapsed?: Record<string, unknown>, stacked?: unknown,
             offsets?: Record<string, unknown>, spans?: Record<string, {start?: unknown, length?: unknown} | undefined>,
-            splits?: Record<string, unknown>, hidden?: Record<string, unknown>, rightShare?: unknown} | undefined
+            panels?: Record<string, {area?: unknown, hidden?: unknown} | undefined>, weights?: Record<string, unknown>, rightShare?: unknown} | undefined
         try {
             stored = JSON.parse(key && readStored(key) || 'null') ?? undefined
         } catch (e) {
@@ -1298,13 +1392,16 @@ export class EditorFrame {
         }
         if (isNum(stored?.rightShare) && stored.rightShare > 0 && stored.rightShare < 1) this._rightShare = stored.rightShare
         if (stored?.collapsed?.right === true) this._collapsed.right = true
-        for (const area of ['left', 'bottom', 'right'] as const) {
-            const split = stored?.splits?.[area]
-            if (Array.isArray(split) && split.length > 1 && split.every(v => isNum(v) && v > 0)) this._splits[area] = split
-            const hidden = stored?.hidden?.[area]
-            // applied when setArea puts a stack of this length
-            if (Array.isArray(hidden) && hidden.length > 0 && hidden.every(v => typeof v === 'boolean') && hidden.some(v => !v)) this._hidden[area] = hidden
-            if (area === 'right' || stored?.collapsed?.[area] !== true) continue
+        // the picks of the panels, applied when addPanel adds a panel of that id
+        for (const [id, pick] of Object.entries(stored?.panels ?? {})) {
+            if (!pick || typeof pick !== 'object') continue
+            const area = PLACES.find(a => a === pick.area)
+            const hidden = typeof pick.hidden === 'boolean' ? pick.hidden : undefined
+            if (area || hidden !== undefined) this._picks[id] = {...area ? {area} : {}, ...hidden !== undefined ? {hidden} : {}}
+        }
+        for (const [id, w] of Object.entries(stored?.weights ?? {})) if (isNum(w) && w > 0) this._weights[id] = w
+        for (const area of ['left', 'bottom'] as const) {
+            if (stored?.collapsed?.[area] !== true) continue
             this._collapsed[area] = true
             document.body.classList.add('lay-collapsed-' + area)
         }
@@ -1313,29 +1410,22 @@ export class EditorFrame {
         this._fitAreas()
     }
 
-    /**
-     * The light or dark button and the layout button
-     * @param where - the top or the bottom bar, or the mode bar (the floating layout): there they have a name that the
-     * wide mode bar shows, and the tooltips of the mode bar
-     */
-    private _actions(where: 'top' | 'bottom' | 'modeBar') {
+    /** The light or dark button and the layout button, in the mode bar */
+    private _actions() {
         const buttons: HTMLButtonElement[] = []
-        if (this.options.colorMode) buttons.push(this._button(ICONS.theme, 'Light or dark (Shift T)', 'Light / dark', where, () => this.toggleTheme()))
-        buttons.push(this._button(ICONS.layout, 'Layout of the page', 'Layout', where, b => this._toggleMenu(b, () => this._layoutItems())))
+        if (this.options.colorMode) buttons.push(this._button(ICONS.theme, 'Light or dark (Shift T)', 'Light / dark', () => this.toggleTheme()))
+        buttons.push(this._button(ICONS.layout, 'Layout of the page', 'Layout', b => this._toggleMenu(b, () => this._layoutItems())))
         return buttons
     }
 
-    private _button(icon: string, tip: string, name: string, where: 'top' | 'bottom' | 'modeBar', onClick: (b: HTMLButtonElement) => void) {
-        const b = createDiv({elementTag: 'button', innerHTML: icon, classList: where === 'modeBar' ? ['mb-btn', 'lay-float-btn'] : ['lay-btn'], addToBody: false})
-        if (where === 'modeBar') {
-            const label = document.createElement('span')
-            label.className = 'mb-label'
-            label.textContent = name
-            b.appendChild(label)
-            this.modeBar.addTooltip(b, tip)
-        } else {
-            this._tips.push(tippy(b, {content: tip, placement: where === 'top' ? 'bottom' : 'top', appendTo: () => document.body}))
-        }
+    /** A button in the mode bar, with a name that the wide mode bar shows and the tooltip of the mode bar */
+    private _button(icon: string, tip: string, name: string, onClick: (b: HTMLButtonElement) => void) {
+        const b = createDiv({elementTag: 'button', innerHTML: icon, classList: ['mb-btn', 'lay-mode-btn'], addToBody: false})
+        const label = document.createElement('span')
+        label.className = 'mb-label'
+        label.textContent = name
+        b.appendChild(label)
+        this.modeBar.addTooltip(b, tip)
         b.setAttribute('aria-label', tip)
         b.addEventListener('click', () => onClick(b))
         return b
@@ -1395,13 +1485,10 @@ export class EditorFrame {
 
     /**
      * The tooltip of the button that opened the menu would cover its first item: off while the menu is open. The
-     * buttons in the mode bar (the floating layout) share the tooltip of the mode bar, so the mode bar holds it.
+     * buttons in the mode bar share the tooltip of the mode bar, so the mode bar holds it.
      */
     private _holdTooltip(anchor: HTMLElement, held: boolean) {
-        if (this.modeBar.element.contains(anchor)) return this.modeBar.holdTooltips(held)
-        const tip = this._tips.find(t => t.reference === anchor)
-        if (held) tip?.disable() // it also hides
-        else tip?.enable()
+        if (this.modeBar.element.contains(anchor)) this.modeBar.holdTooltips(held)
     }
 
     private _onMenuPointerDown = (e: PointerEvent) => {

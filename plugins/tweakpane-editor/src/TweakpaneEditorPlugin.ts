@@ -17,7 +17,7 @@ import tippy from 'tippy.js'
 import {addTooltipStyles, EDITOR_TOOLTIP_PROPS, tooltipParent} from './tooltips'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 import {UiObjectConfig} from 'uiconfig.js'
-import {EDITOR_PAGE_LAYOUTS, EditorFrame, EditorFrameArea, EditorFrameAreaOptions, EditorFrameLayout, EditorFrameOptions, EditorPageLayout} from './frame/EditorFrame'
+import {EDITOR_PAGE_LAYOUTS, EditorFrame, EditorFrameLayout, EditorFrameOptions, EditorFramePanelOptions, EditorPageLayout} from './frame/EditorFrame'
 import {readStored, writeStored} from './dom-utils'
 
 export interface TweakpaneEditorPluginEventMap extends AViewerPluginEventMap {
@@ -118,20 +118,24 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
         this.dispatchEvent({type: 'documentNameChange', name})
     }
 
-    private _areas = new Map<EditorFrameArea, [HTMLElement | HTMLElement[], EditorFrameAreaOptions | EditorFrameAreaOptions[]]>()
+    private _panels = new Map<string, [HTMLElement, EditorFramePanelOptions]>()
     /**
-     * Puts an element in an area of the page frame ({@link EditorFrame.setArea}): `left`, the sidebar left of the canvas,
-     * `bottom`, the strip below it, or `right`, the top of the panel above the settings of the mode, with an entry in the
-     * mode bar (`options`: its name and icon). A list of elements
-     * is a stack, split between them (see {@link EditorFrame.setArea}); with a list of options, each element has its own
-     * entry, which shows or hides it. `null` empties the
-     * area. The plugin keeps the element when it makes the frame again (at {@link loadPlugins}, and after the classic
-     * layout, which has no areas).
+     * Adds a panel to the page frame ({@link EditorFrame.addPanel}): an element in a place (`left`, the sidebar left of
+     * the canvas; `bottom`, the strip below it; `right`, the top of the panel above the settings of the mode), with an
+     * entry in the mode bar (`options`: its name, icon and colour, and the place where it starts). The person shows or
+     * hides it with its entry, and moves it to another place with the menu of its entry (a right-click, or a long press).
+     * The plugin keeps the panel and adds it again when it makes the frame again (at {@link loadPlugins}, and after the
+     * classic layout, which has no frame). Move or hide it from code with `frame.movePanel` and `frame.setPanelHidden`.
      */
-    setArea(area: EditorFrameArea, element: HTMLElement | HTMLElement[] | null, options: EditorFrameAreaOptions | EditorFrameAreaOptions[] = {}) {
-        if (element) this._areas.set(area, [element, options])
-        else this._areas.delete(area)
-        this.frame?.setArea(area, element, options)
+    addPanel(id: string, element: HTMLElement, options: EditorFramePanelOptions = {}) {
+        this._panels.set(id, [element, options])
+        this.frame?.addPanel(id, element, options)
+    }
+
+    /** Takes a panel out of the page frame ({@link addPanel}) */
+    removePanel(id: string) {
+        this._panels.delete(id)
+        this.frame?.removePanel(id)
     }
 
     private _layout: EditorPageLayout = readStoredLayout() ?? TweakpaneEditorPlugin.DefaultLayout
@@ -227,7 +231,7 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
         })
         this.frame.modeBar.select(this._selectedMode)
         this.frame.documentName = this._documentName
-        for (const [area, [element, options]] of this._areas) this.frame.setArea(area, element, options)
+        for (const [id, [element, options]] of this._panels) this.frame.addPanel(id, element, options)
         // the mode bar keeps the names shown or hidden (its toggle button, the stored state): the checkbox follows it
         this.frame.modeBar.onExpandedChange = () => this.uiConfig.uiRefresh?.(true)
         this.dispatchEvent({type: 'frameChange', frame: this.frame})

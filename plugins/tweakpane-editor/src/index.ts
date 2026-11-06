@@ -13,7 +13,7 @@ export {SelectionOutlinePlugin, SelectionMaskPass} from './SelectionOutlinePlugi
 export {UiConfigForm, isIntegerName} from './ui/UiConfigForm'
 export type {UiConfigFormOptions} from './ui/UiConfigForm'
 export {EditorFrame, EDITOR_FRAME_LAYOUTS, EDITOR_PAGE_LAYOUTS} from './frame/EditorFrame'
-export type {EditorFrameArea, EditorFrameAreaOptions, EditorFrameAreaSpan, EditorFrameLayout, EditorFrameOptions, EditorFrameSizedArea, EditorPageLayout} from './frame/EditorFrame'
+export type {EditorFrameArea, EditorFrameAreaOptions, EditorFrameAreaSpan, EditorFrameLayout, EditorFrameOptions, EditorFramePanelOptions, EditorFrameSizedArea, EditorPageLayout} from './frame/EditorFrame'
 export {EditorModeBar} from './frame/EditorModeBar'
 export type {EditorModeLook, EditorModeBarHost} from './frame/EditorModeBar'
 export {EditorCameraPlugin} from './EditorCameraPlugin'

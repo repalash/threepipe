@@ -93,26 +93,29 @@ class InspectorUiRenderer extends TweakpaneUiPlugin {
  * - Escape (the PickingPlugin) clears the selection.
  *
  * Where the panel goes: in the `container` given to the constructor, else the app puts {@link element} in the page.
- * In the editor frame there are three places, and the app picks one:
+ * In the editor frame it is a panel in one of the three places, and the person can move it with the menu of its entry:
  *
  * ```ts
  * const inspector = viewer.addPluginSync(InspectorPlugin)
  * const editor = viewer.getPlugin(TweakpaneEditorPlugin)!
  *
- * // right: in the right area, the top of the panel above the mode settings, with its entry in the mode bar
- * editor.setArea('right', inspector.element, [InspectorPlugin.AreaEntry])
+ * // right: in the right sidebar, the top of the panel above the mode settings, with its entry in the mode bar
+ * editor.addPanel('inspector', inspector.element, {...InspectorPlugin.AreaEntry, area: 'right'})
  *
- * // swap: also in the right area; while something is selected it takes the whole panel (the mode settings hide)
+ * // swap: also in the right sidebar; while something is selected it takes the whole panel (the mode settings hide)
  * inspector.addEventListener('selectionChange', e => {
- *     editor.frame?.setSectionHidden('right', 0, !e.hasSelection)
- *     editor.frame?.setModeSettingsHidden(e.hasSelection)
+ *     const frame = editor.frame
+ *     if (!frame || frame.panelArea('inspector') !== 'right') return // the person moved it
+ *     frame.setPanelHidden('inspector', !e.hasSelection)
+ *     frame.setModeSettingsHidden(e.hasSelection)
  * })
  *
- * // or under the layers panel, in the left area (a stack, an entry for each)
- * editor.setArea('left', [layers.element, inspector.element], [LayersPanelPlugin.AreaEntry, InspectorPlugin.AreaEntry])
+ * // or under the layers panel, in the left sidebar (a stack, in the order the panels are added)
+ * editor.addPanel('layers', layers.element, {...LayersPanelPlugin.AreaEntry, area: 'left'})
+ * editor.addPanel('inspector', inspector.element, {...InspectorPlugin.AreaEntry, area: 'left'})
  * ```
  *
- * On the `enabledChange` event, the app takes the inspector out of its place or puts it back.
+ * On the `enabledChange` event, the app takes the inspector out of its place or puts it back (`editor.removePanel`, `editor.addPanel`).
  */
 @uiFolderContainer('Inspector')
 export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> {
@@ -122,7 +125,7 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
     private static _styles?: HTMLStyleElement
     /** The size in px of the large preview of the material */
     static PreviewSize = 256
-    /** The entry of the panel in the mode bar of the editor frame, for `TweakpaneEditorPlugin.setArea` */
+    /** The entry of the panel in the mode bar of the editor frame, for `TweakpaneEditorPlugin.addPanel` */
     static AreaEntry: EditorFrameAreaOptions = {name: 'Inspector', icon: AREA_ICON, color: '#0ea5e9'}
 
     // the settings of the panel are not part of the scene: nothing to save
@@ -187,7 +190,7 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
 
     /**
      * @param container - the element that holds the panel while the plugin is added. Without it, the app puts
-     * {@link element} in the page (in the editor frame: `TweakpaneEditorPlugin.setArea`, `right` or `left`).
+     * {@link element} in the page (in the editor frame: `TweakpaneEditorPlugin.addPanel`).
      */
     constructor(container?: HTMLElement) {
         super()

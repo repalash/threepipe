@@ -32,7 +32,7 @@ body[class*="tpTheme-"] .mb-root {
 .mb-root.mb-wide { align-items: stretch; padding: 10px 6px; }
 .mb-wide .mb-btn { width: auto; justify-content: flex-start; gap: 10px; padding: 0 8px; }
 .mb-wide .mb-label { display: block; }
-.mb-wide .mb-toggle .mb-label, .mb-wide .lay-float-btn .mb-label { color: inherit; font-weight: 400; }
+.mb-wide .mb-toggle .mb-label, .mb-wide .lay-mode-btn .mb-label { color: inherit; font-weight: 400; }
 /* the arrow names the next step: › hides the names or the panel, ‹ shows them again (the panel hidden) */
 body.mb-panel-hidden .mb-toggle svg { transform: rotate(180deg); }
 
@@ -170,7 +170,6 @@ body.lay-moving, body.lay-moving * { cursor: grabbing !important; user-select: n
 .lay-file.lay-editable { cursor: text; padding: 3px 5px; margin: 0 -5px; border-radius: 4px; outline: none; }
 .lay-file.lay-editable:hover { background: var(--tp-button-background-color-hover, rgba(0,0,0,.06)); }
 .lay-file.lay-editable:focus-visible, .lay-file.lay-editable[contenteditable] { box-shadow: inset 0 0 0 1px #0d99ff; background: var(--tp-input-background-color, transparent); text-overflow: clip; }
-.lay-fill { flex: 1; }
 /* no name set by the app: no name and no separator */
 .lay-noname .lay-sep, .lay-noname .lay-file { display: none; }
 /* the head of the floating layout, which has no bar: the logo, the app name and the file name, a card at the top of the
@@ -179,13 +178,6 @@ body.lay-moving, body.lay-moving * { cursor: grabbing !important; user-select: n
 .lay-head { display: none; right: auto; height: var(--lay-head, 36px); border-radius: 8px; box-shadow: var(--lay-card-shadow); }
 body.lay-side.lay-floating .lay-head { display: flex; top: var(--lay-gap); left: calc(var(--lay-gap) + var(--lay-left-offset)); width: var(--lay-left-area-size); }
 .lay-head .lay-file { flex: 1 1 auto; min-width: 0; max-width: none; }
-.lay-btn {
-    width: 28px; height: 28px; border: 0; border-radius: 5px; background: transparent; color: inherit; cursor: pointer; padding: 0;
-    display: flex; align-items: center; justify-content: center; opacity: .75; flex-shrink: 0;
-}
-.lay-bottom .lay-btn { width: 22px; height: 22px; }
-.lay-btn:hover { opacity: 1; background: var(--tp-button-background-color-hover, #f2f3f5); }
-.lay-btn:focus-visible { outline: 2px solid #0d99ff; outline-offset: 1px; }
 /* the tool bar on the canvas: icon buttons with the hover and on states of the bars and the mode bar, not the larger
    buttons with dividers of the classic page. A margin keeps it above the card of the bottom area (floating) */
 body.lay-frame .util-buttons-container { gap: 2px; padding: 2px; margin-bottom: var(--lay-bottom-inset); }
@@ -225,10 +217,10 @@ body.lay-frame #canvas-container:has(.pp-root.pp-bottom-left) { --util-left-room
 .mb-wide .lay-area-entries { align-items: stretch; }
 .lay-area-entry { --mb-color: var(--tp-label-foreground-color, #8a8f98); }
 .mb-btn.lay-entry-on { background: color-mix(in srgb, var(--mb-color) 16%, transparent); }
-.lay-float-actions { display: flex; flex-direction: column; align-items: center; gap: 2px; margin-top: auto; color: var(--tp-label-foreground-color, #8a8f98); }
-.lay-float-actions + .mb-toggle { margin-top: 2px; }
+.lay-mode-actions { display: flex; flex-direction: column; align-items: center; gap: 2px; margin-top: auto; color: var(--tp-label-foreground-color, #8a8f98); }
+.lay-mode-actions + .mb-toggle { margin-top: 2px; }
 /* the wide bar: the actions are rows with their names, like the modes and the names toggle */
-.mb-wide .lay-float-actions { align-items: stretch; }
+.mb-wide .lay-mode-actions { align-items: stretch; }
 .lay-menu {
     position: fixed; z-index: 2000; display: flex; flex-direction: column; padding: 4px; min-width: 160px; border-radius: 8px;
     background: var(--tp-base-background-color, #fff); color: var(--tp-container-foreground-color, #1e1e1e);
@@ -452,8 +444,8 @@ body.lay-stack.lay-frame.mb-panel-hidden .mb-root {
     overflow-x: auto; overflow-y: hidden; border-left: 0;
 }
 body.lay-stack.lay-frame.mb-panel-hidden .mb-root > .mb-toggle { margin: 0 0 0 auto; }
-body.lay-stack.lay-frame.mb-panel-hidden .mb-root > .lay-float-actions { flex-direction: row; margin: 0 0 0 auto; }
-body.lay-stack.lay-frame.mb-panel-hidden .mb-root > .lay-float-actions + .mb-toggle { margin-left: 2px; }
+body.lay-stack.lay-frame.mb-panel-hidden .mb-root > .lay-mode-actions { flex-direction: row; margin: 0 0 0 auto; }
+body.lay-stack.lay-frame.mb-panel-hidden .mb-root > .lay-mode-actions + .mb-toggle { margin-left: 2px; }
 body.lay-stack.lay-frame.mb-panel-hidden .mb-root > .lay-area-entries { flex-direction: row; margin: 0 0 0 2px; padding: 0 0 0 6px; border-top: 0; border-left: 1px solid var(--mb-line); }
 
 /* one view at a time (body class lay-single, EditorFrame.Breakpoints): a narrow portrait window (stacked, below the
