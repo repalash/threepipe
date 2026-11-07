@@ -453,10 +453,11 @@ export class EditorFrame {
         this._fitAreas()
     }
 
-    /** Takes the section and the entry of a panel out of the page, and the panel out of the list */
+    /** Takes the section and the entry of a panel out of the page (with the tooltip of the entry), and the panel out of the list */
     private _dropPanel(p: FramePanel) {
         p.section.remove()
         p.entry.remove()
+        this.modeBar.removeTooltip(p.entry)
         this._panels.delete(p.id)
     }
 
