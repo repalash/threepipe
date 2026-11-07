@@ -65,4 +65,32 @@ With converge mode off (or without the `ProgressivePlugin`, where the animations
 
 The MP4 recorder loads ffmpeg.js from [FFMPEGRecorder.LIBRARY_PATH](https://threepipe.org/docs/classes/FFMPEGRecorder.html#library_path) (jsdelivr by default) when it is created. Set it before the plugin is added to host the files yourself. All such URLs are listed in [Dynamically loaded files](../notes/dynamically-loaded-files).
 
+## Where the frames go
+
+An image sequence writes to a folder from the browser's folder picker by default. Set `frameSink` to send the frames anywhere else, such as a server, a zip or memory. It also works without a picker, in Safari and Firefox, and with no user gesture, in an automated render.
+
+```typescript
+const recorder = viewer.getPlugin(CanvasRecorderPlugin)!
+recorder.mimeType = 'image/png'
+recorder.frameSink = async({blob, index, name, mimeType}) => {
+    await fetch('/frames/' + name, {method: 'PUT', body: blob})
+}
+await recorder.recordCamera360(3)
+```
+
+Frames arrive one at a time and in order. In converge mode the next frame waits for the promise, so a slow sink doesn't fill the memory. If it fails, no more frames are sent and the recorder reports an `error` when it stops.
+
+## Adding a recorder
+
+`registerRecorder` adds a new output with no change to the plugin, for example one built on WebCodecs. It's used when `mimeType` matches, ahead of the built-in recorders. The recorder implements [ICanvasRecorder](https://threepipe.org/docs/interfaces/ICanvasRecorder.html); extending [ACanvasRecorder](https://threepipe.org/docs/classes/ACanvasRecorder.html) is the shortest way.
+
+```typescript
+recorder.registerRecorder('webcodecs',
+    (canvas, options) => new MyWebCodecsRecorder(canvas, options),
+    mimeType => mimeType === 'video/webm')
+recorder.mimeType = 'video/webm'
+```
+
+`registerRecorder` and `unregisterRecorder` return `false` and change nothing during a recording.
+
 The plugin UI has the recorder options, buttons to record the camera turntable and the glTF animations, and the ffmpeg options of the MP4 recorder.

@@ -13,7 +13,7 @@ export {animateAsync, animateTarget, EasingFunctions, makeSetterFor, animate, le
 export {type AnimateTime, lerpNumber, lerpVal, lerpVector, lerpTexture, lerpParams} from './lerp'
 export {cLinearToRGBM, vLinearToRGBM, cRGBMToLinear, vRGBMToLinear} from './color-encodings'
 export {CanvasSnapshot, type CanvasSnapshotOptions, type CanvasSnapshotRect} from './canvas-snapshot'
-export {ACanvasRecorder, type ICanvasRecorder, type CanvasRecorderOptions, type TRecorderStates} from './canvas-recorder/ACanvasRecorder'
+export {ACanvasRecorder, type ICanvasRecorder, type CanvasRecorderOptions, type CanvasRecorderFrame, type CanvasFrameSink, type TRecorderStates} from './canvas-recorder/ACanvasRecorder'
 export {FFMPEGRecorder, type FFMPEGOptions} from './canvas-recorder/FFMPEGRecorder'
 export {CanvasMediaRecorder} from './canvas-recorder/CanvasMediaRecorder'
 export {ImageSequenceRecorder} from './canvas-recorder/ImageSequenceRecorder'

@@ -1973,3 +1973,170 @@ describe('a viewer that renders no frame', () => {
         expect(stop).not.toHaveBeenCalled()
     })
 })
+
+describe('ImageSequenceRecorder frame sink', () => {
+    const quiet = {log: () => undefined, warn: () => undefined, error: () => undefined}
+    const make = (frameSink: any, toBlob?: any) => {
+        const rec = new ImageSequenceRecorder({toBlob: toBlob ?? ((cb: (b: Blob) => void) => cb(new Blob(['x'])))} as any, {mimeType: 'image/png', frameSink}) as any
+        rec._console = quiet
+        return rec
+    }
+    const stop = async(rec: any) => new Promise<void>(resolve => rec.stop(() => resolve()))
+
+    test('starts with no folder picker', () => {
+        const rec = make(() => undefined)
+        rec.start()
+        expect(rec.state).toBe('recording')
+    })
+
+    test('frames arrive one at a time and in order, also when the captures end out of order', async() => {
+        const captures: ((b: Blob) => void)[] = []
+        const seen: [number, string][] = []
+        let running = 0, most = 0
+        const rec = make(async({index, name}: any) => {
+            most = Math.max(most, ++running)
+            await Promise.resolve()
+            seen.push([index, name])
+            running--
+        }, (cb: (b: Blob) => void) => captures.push(cb))
+        rec.start()
+        rec.requestFrame()
+        rec.requestFrame()
+        captures[1](new Blob(['b']))
+        captures[0](new Blob(['a']))
+        await stop(rec)
+        expect(seen).toEqual([[0, 'frame_00001.png'], [1, 'frame_00002.png']])
+        expect(most).toBe(1)
+    })
+
+    test('the next converged frame waits for the sink', async() => {
+        let done!: () => void
+        const rec = make(async() => new Promise<void>(r => done = r))
+        rec.start()
+        expect(rec.isBusy()).toBe(false)
+        rec.requestFrame()
+        expect(rec.isBusy()).toBe(true)
+        await new Promise(r => setTimeout(r))
+        done()
+        await stop(rec)
+        expect(rec.isBusy()).toBe(false)
+    })
+
+    test('a failure stops later frames, and the stop reports it', async() => {
+        const sent: number[] = []
+        const rec = make(({index}: any) => {
+            sent.push(index)
+            throw new Error('full')
+        })
+        const errors: any[] = []
+        rec.addEventListener('error', (e: any) => errors.push(e))
+        rec.start()
+        rec.requestFrame()
+        rec.requestFrame()
+        await stop(rec)
+        expect(sent).toEqual([0])
+        expect(errors.length).toBe(1)
+        expect(rec.state).toBe('error')
+    })
+
+    test('a sink set during a recording applies to the next one', async() => {
+        const a: number[] = [], b: number[] = []
+        const rec = make(({index}: any) => void a.push(index))
+        rec.start()
+        rec.setOptions({frameSink: ({index}: any) => void b.push(index)})
+        rec.requestFrame()
+        await stop(rec)
+        expect([a, b]).toEqual([[0], []])
+    })
+
+    test('without a sink, the start still needs the folder picker', () => {
+        const rec = make(undefined)
+        rec.start()
+        expect(rec.state).toBe('error')
+    })
+})
+
+describe('CanvasRecorderPlugin recorders', () => {
+    const fake = () => {
+        const rec = new ImageSequenceRecorder({toBlob: (cb: (b: Blob) => void) => cb(new Blob(['x']))} as any, {mimeType: 'video/x'}) as any
+        rec.dispose = vi.fn()
+        return rec
+    }
+
+    test('a registered recorder is used for its format only, and only made when needed', () => {
+        const {plugin} = setup()
+        plugin.mimeType = 'image/png' // a built-in recorder that needs no worker here
+        const rec = fake()
+        const factory = vi.fn(() => rec)
+        const before = plugin._recorder
+        expect(plugin.registerRecorder('x', factory, (m: string) => m === 'video/x')).toBe(true)
+        expect(factory).not.toHaveBeenCalled()
+        expect(plugin._recorder).toBe(before)
+        plugin.mimeType = 'video/x'
+        expect(plugin._recorder).toBe(rec)
+        expect(factory).toHaveBeenCalledTimes(1)
+        plugin.mimeType = 'image/png'
+        expect(plugin._recorder).toBe(before)
+    })
+
+    test('by default it matches the mimeType equal to its name', () => {
+        const {plugin} = setup()
+        plugin.mimeType = 'image/png' // a built-in recorder that needs no worker here
+        const rec = fake()
+        plugin.registerRecorder('video/x', () => rec)
+        plugin.mimeType = 'video/x'
+        expect(plugin._recorder).toBe(rec)
+    })
+
+    test('it goes ahead of a built-in recorder, and the last one registered wins', () => {
+        const {plugin} = setup()
+        plugin.mimeType = 'image/png' // a built-in recorder that needs no worker here
+        const a = fake(), b = fake()
+        plugin.registerRecorder('a', () => a, (m: string) => m === 'image/png')
+        expect(plugin._recorder).toBe(a)
+        plugin.registerRecorder('b', () => b, (m: string) => m === 'image/png')
+        expect(plugin._recorder).toBe(b)
+    })
+
+    test('registering a name again disposes the recorder it made', () => {
+        const {plugin} = setup()
+        plugin.mimeType = 'image/png' // a built-in recorder that needs no worker here
+        const a = fake(), b = fake()
+        plugin.registerRecorder('video/x', () => a)
+        plugin.mimeType = 'video/x'
+        plugin.registerRecorder('video/x', () => b)
+        expect(a.dispose).toHaveBeenCalledTimes(1)
+        expect(plugin._recorder).toBe(b)
+    })
+
+    test('unregistering goes back to the built-in recorder', () => {
+        const {plugin} = setup()
+        plugin.mimeType = 'image/png' // a built-in recorder that needs no worker here
+        const before = plugin._recorder
+        const a = fake()
+        plugin.registerRecorder('a', () => a, (m: string) => m === 'image/png')
+        expect(plugin.unregisterRecorder('a')).toBe(true)
+        expect(a.dispose).toHaveBeenCalledTimes(1)
+        expect(plugin._recorder).toBe(before)
+        expect(plugin.unregisterRecorder('a')).toBe(false)
+    })
+
+    test('recorders do not change during a recording', () => {
+        const {plugin} = setup()
+        plugin.mimeType = 'image/png' // a built-in recorder that needs no worker here
+        plugin._recorder.setState('recording')
+        expect(plugin.registerRecorder('a', fake)).toBe(false)
+        expect(plugin.unregisterRecorder('a')).toBe(false)
+        plugin._recorder.setState('stopped')
+    })
+
+    test('the frame sink reaches the recorder, and clearing it does too', () => {
+        const {plugin} = setup()
+        plugin.mimeType = 'image/png' // a built-in recorder that needs no worker here
+        const sink = () => undefined
+        plugin.frameSink = sink
+        expect(plugin._recorder.options.frameSink).toBe(sink)
+        plugin.frameSink = undefined
+        expect(plugin._recorder.options.frameSink).toBeUndefined()
+    })
+})
