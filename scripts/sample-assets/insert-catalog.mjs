@@ -19,8 +19,7 @@ const {values: args} = parseArgs({options: {
 }})
 
 // the columns of services/cloud/teenybase.ts that the catalog sets
-const ASSET_COLUMNS = ['kind', 'set_name', 'name', 'label', 'tags', 'license', 'authors', 'source_url', 'links', 'changes', 'url', 'thumb_url', 'video_url',
-    'screenshots', 'meta_url', 'metadata', 'variants', 'size', 'triangles', 'vertices', 'meshes', 'materials', 'textures', 'animations', 'extensions', 'poly', 'width', 'height']
+const ASSET_COLUMNS = ['kind', 'set_name', 'name', 'label', 'tags', 'license', 'authors', 'source_url', 'url', 'thumb_url', 'video_url', 'size', 'triangles', 'poly', 'metadata']
 const LINK_COLUMNS = ['from_asset', 'relation', 'to_asset']
 const D1_MAX_PARAMS = 100 // bound parameters in one statement (Cloudflare's limit), one per column of each row
 const AT_ONCE = 6
@@ -43,7 +42,7 @@ for (const row of catalog.rows) {
     if (!/^[A-Za-z0-9._-]+$/.test(row.name)) problems.push(`${asset}: the name is not a slug`)
     // a model already in the bucket is not in --out, nor is the model a texture of it points to
     const inBucket = row.linked || (row.kind === 'texture' && !catalog.rows.some(r => r.kind === 'model' && !r.linked && r.url === row.url))
-    const urls = [inBucket ? undefined : row.url, row.thumb_url, row.video_url, row.meta_url, ...JSON.parse(row.screenshots ?? '[]').map(s => s.url)].filter(Boolean)
+    const urls = [inBucket ? undefined : row.url, row.thumb_url, row.video_url, ...(JSON.parse(row.metadata ?? '{}').screenshots ?? []).map(s => s.url)].filter(Boolean)
     for (const url of urls) {
         const file = localOf(url)
         if (file && !fs.existsSync(file)) problems.push(`${asset}: no file for ${url}`)
