@@ -4,17 +4,17 @@ All notable changes to this project will be documented in this file.
 
 [//]: # (The format is based on [Keep a Changelog]&#40;https://keepachangelog.com/en/1.1.0/&#41;, and this project adheres to [Semantic Versioning]&#40;https://semver.org/spec/v2.0.0.html&#41;.)
 
-## [0.7.0-r172.1] - 2026-11-05
+## [0.7.0-r177.1] - 2026-11-07
 
-Release candidate of the three.js r172 upgrade lane, under the npm dist-tag `three-r172`, with `three-modded` and `three-types-modded` 0.172.10001-rc.2: the changes listed under [Unreleased] below, the r172 upgrade among them.
+Release candidate of the three.js r177 upgrade lane, under the npm dist-tag `three-r177`, with `three-modded` and `three-types-modded` 0.177.10001-rc.1: the changes listed under [Unreleased] below, the r172 upgrade among them.
 
 An app that installs the release candidate pins `three` and `@types/three` to the same versions with `overrides`, since other packages' ranges (such as `uiconfig-tweakpane`'s peer `@types/three`) do not match prerelease versions:
 
 ```json
 "dependencies": {
-    "threepipe": "0.7.0-r172.1",
-    "three": "npm:three-modded@0.172.10001-rc.2",
-    "@types/three": "npm:three-types-modded@0.172.10001-rc.2"
+    "threepipe": "0.7.0-r177.1",
+    "three": "npm:three-modded@0.177.10001-rc.1",
+    "@types/three": "npm:three-types-modded@0.177.10001-rc.1"
 },
 "overrides": {
     "three": "$three",
@@ -57,7 +57,7 @@ An app that installs the release candidate pins `three` and `@types/three` to th
 
 ### Changed
 
-- Upgrade `three` from v0.168.10008 to v0.172.10001 (three.js r172)
+- Upgrade `three` from v0.168.10008 to v0.177.10001 (three.js r177, through r172)
   - **Breaking** `RenderManager.exportRenderTarget()` is async and returns `Promise<BlobExt>` (three.js r169 made `EXRExporter.parse()` async); `RenderTargetPreviewPlugin.downloadTarget()` returns a promise too
   - **Breaking** glTF export is async (three.js r170): `GLTFWriter2.processObjects/processMaterial/processTexture` are now `processObjectsAsync/processMaterialAsync/processTextureAsync`, and glTF exporter plugins must implement `writeMaterialAsync` instead of `writeMaterial` — the old hook is silently ignored by three, so material extensions would be dropped from exports. All built-in extensions are updated. The `writeMesh`, `writeNode`, `beforeParse` and `afterParse` hooks may return a promise (three-modded awaits them)
   - `DisplayP3ColorSpace` moved out of three.js core (r170). threepipe registers Display P3 from `three/examples/jsm/math/ColorSpaces.js`, so the `ColorSpace` ui mapping keeps working
@@ -66,8 +66,15 @@ An app that installs the release candidate pins `three` and `@types/three` to th
   - `TiltLoadPlugin` removed from `@threepipe/plugins-extra-importers` (three.js r169 removed `TiltLoader`)
   - glTF export of non-PBR materials (e.g. OBJ/MTL Phong materials) writes `roughnessFactor: 1, metallicFactor: 0` instead of `0.5, 0.5` (three.js r170, #29692); such materials look less glossy after an export/import round trip
   - glTF export of a compressed texture that cannot be written as is (a KTX2 texture without its source, `KTX2LoadPlugin.SAVE_SOURCE_BLOBS` off) decompresses it as before: three.js r170 does that only with texture utils, which `GLTFExporter2` now sets (`setTextureUtils({decompress})`); without them the export threw
-  - **Breaking** threepipe exports `USDLoader` in place of `USDZLoader`, as `three/addons` does in three-modded 0.172.10001-rc.2 (three.js r179). `three/examples/jsm/loaders/USDZLoader.js` is still there as a deprecated `USDLoader`
+  - **Breaking** threepipe exports `USDLoader` in place of `USDZLoader`, as `three/addons` does in three-modded (three.js r179). `three/examples/jsm/loaders/USDZLoader.js` is still there as a deprecated `USDLoader`
   - `USDZLoadPlugin` loads with three.js `USDLoader` (from r187 in three-modded): also `.usdc` and `.usd` files, and USDZ files with a binary (USDC) layer, which failed with "usdc files are not supported"
+  - Fork patches that three.js now has upstream are dropped from `three-modded` (`Material.allowOverride`, `LightShadow.copy` of `normalBias`, `textureIndex` in `readRenderTargetPixels`, `KTX2Loader` `crossOrigin`), no change in threepipe's API
+  - `ImageUtils.getDataURL(image, type = 'image/png')` always returns a PNG (three.js r177), the fork's `forcePng` second argument is removed. `GLTFViewerConfigExtension` no longer passes it
+  - glTF export writes parent nodes before their children (three.js r177, #31125), so node indices in exported files change and exported glb/gltf files differ byte-wise from earlier versions for the same scene
+  - Material JSON `metadata.version` is `4.7` (three.js r177) instead of the fork's `4.6001`. Files saved by earlier versions load as before (the legacy bump scale is only applied for `<= 4.6`)
+  - **Breaking** `CreateRenderTargetOptions.format` is a `PixelFormat` instead of a `number` (three.js r177 types `RenderTargetOptions.format` as `PixelFormat`), callers passing a plain `number` have to pass a `PixelFormat` constant. Added the `isPixelFormat()` type guard to check a `Texture.format`
+  - `LineMaterial2` places the `beforeAccumulation` shader marker before `#include <logdepthbuf_fragment>`, as three.js r177 (#31144) moved `vec4 diffuseColor = ` to the start of `main()`. The marker stays after the discards and the final alpha, like before
+  - `ExtendedShaderPass.dispose()` disposes the full-screen quad through `super.dispose()`: three.js r175 renamed `ShaderPass.fsQuad` to `_fsQuad`, so the quad was no longer disposed
 - `ObjectPicker.setSelected` of a list switches the selection mode as its first item does (a list of objects after a material: object mode again), as a single item does
 - `EditorViewWidgetPlugin`: the container of the widget has the class `editor-view-widget`, so a page can place it (the floating layout of the tweakpane editor frame keeps it out of its cards).
 - `Object3DWidgetsPlugin` depends on `GBufferPlugin` and adds it to the viewer: the widgets have `toneMapped: false`, which works through the GBuffer flags. Without them, the tone mapping changed the colours of the helper lines and of the `'sprite'` icons

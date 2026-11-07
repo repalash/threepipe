@@ -1,9 +1,9 @@
 {
     "name": "@threepipe/plugin-svg-renderer",
     "description": "Plugins for SVG Rendering of 3d objects for Threepipe",
-    "version": "0.3.0-r172.1",
+    "version": "0.3.0-r177.1",
     "publishConfig": {
-        "tag": "three-r172"
+        "tag": "three-r177"
     },
     "devDependencies": {
         "@svgdotjs/svg.js": "^3.2.0",
@@ -19,7 +19,7 @@
         "threepipe": "file:./../../src/"
     },
     "peerDependencies": {
-        "threepipe": ">=0.1.0 || >=0.7.0-r172.1",
+        "threepipe": ">=0.1.0 || >=0.7.0-r177.1",
         "@svgdotjs/svg.js": "^3.2.0",
         "three-mesh-bvh": "^0.9.18"
     },
