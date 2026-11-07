@@ -8,6 +8,20 @@ All notable changes to this project will be documented in this file.
 
 Release candidate of the three.js r172 upgrade lane, under the npm dist-tag `three-r172`, with `three-modded` and `three-types-modded` 0.172.10001-rc.2: the changes listed under [Unreleased] below, the r172 upgrade among them.
 
+An app that installs the release candidate pins `three` and `@types/three` to the same versions with `overrides`, since other packages' ranges (such as `uiconfig-tweakpane`'s peer `@types/three`) do not match prerelease versions:
+
+```json
+"dependencies": {
+    "threepipe": "0.7.0-r172.1",
+    "three": "npm:three-modded@0.172.10001-rc.2",
+    "@types/three": "npm:three-types-modded@0.172.10001-rc.2"
+},
+"overrides": {
+    "three": "$three",
+    "@types/three": "$@types/three"
+}
+```
+
 ## [Unreleased]
 
 ### Added

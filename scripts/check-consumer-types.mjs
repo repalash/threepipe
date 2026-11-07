@@ -97,15 +97,23 @@ function pack(dir) {
 }
 
 const tsAlias = v => `typescript-${v}`
+// A prerelease three (a three.js upgrade lane: three-modded 0.NNN.10001-rc.N) does not satisfy the plain
+// ranges other packages declare (uiconfig-tweakpane's peer @types/three >=0.152.1), so npm would add the
+// upstream three / @types/three next to it. A consumer of an rc pins both with overrides, and so does this one.
+const threeSpec = rootPkg.peerDependencies.three
+const typesSpec = rootPkg.dependencies['@types/three']
+const threeOverrides = /-/.test(threeSpec.split('@').pop()) ? {three: '$three', '@types/three': '$@types/three'} : undefined
 fs.writeFileSync(path.join(work, 'package.json'), JSON.stringify({
     name: 'threepipe-consumer-types', private: true, type: 'module',
     dependencies: {
         threepipe: 'file:' + pack(root),
         [pluginPkg.name]: 'file:' + pack(plugin),
-        three: rootPkg.peerDependencies.three,
+        three: threeSpec,
+        ...(threeOverrides ? {'@types/three': typesSpec} : {}),
         'uiconfig-tweakpane': pluginPkg.peerDependencies['uiconfig-tweakpane'],
         ...Object.fromEntries(tsVersions.map(v => [tsAlias(v), `npm:typescript@${v}`])),
     },
+    ...(threeOverrides ? {overrides: threeOverrides} : {}),
 }, null, 2))
 fs.copyFileSync(path.join(root, 'tests/consumer-types/consumer.ts'), path.join(work, 'consumer.ts'))
 execSync('npm install --silent --no-audit --no-fund --ignore-scripts', {cwd: work, stdio: 'inherit'})
@@ -113,10 +121,7 @@ console.log(`packed and installed in ${((Date.now() - t0) / 1000).toFixed(0)}s (
 
 // Errors that other packages cause in our files. A case whose only errors match these is reported as
 // "known" and passes. Remove an entry when the package is fixed (the script says when it stops occurring).
-const KNOWN = [
-    {setups: ['nodenext'], skipLibCheck: false, match: 'has no exported member \'TextureImageData\'',
-        why: '@types/three (three-types-modded) src/Three.d.ts exports \'./textures/types\' without .js'},
-]
+const KNOWN = []
 const seen = new Set()
 const ours = /^(consumer\.ts|node_modules\/(threepipe|@threepipe)\/)/
 let failed = 0
