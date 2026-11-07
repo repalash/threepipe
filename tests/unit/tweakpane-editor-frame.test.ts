@@ -815,6 +815,22 @@ describe('EditorFrame area sizes', () => {
         expect([f.isPanelHidden('e'), !!(f as any)._collapsed.right]).toEqual([false, true])
     })
 
+    test('a panel that the person hid shows in its place when the last shown panel goes, and the kept pick says so', () => {
+        const f = new EditorFrame(host(), {layout: 'titlebar'})
+        f.addPanel('a', new FakeElement('div') as any, {area: 'left'})
+        f.addPanel('b', new FakeElement('div') as any, {area: 'left'})
+        f.setPanelHidden('b', true, true)
+        f.removePanel('a') // from code
+        expect([f.isPanelHidden('b'), stored().panels.b.hidden]).toEqual([false, false])
+        ;((f as any)._panels.get('b').entry as FakeElement).click() // opens the place
+        expect(f.isAreaCollapsed('left')).toBe(false)
+        f.dispose()
+        // a reload with b only: the place opens with b shown
+        const g = new EditorFrame(host(), {layout: 'titlebar'})
+        g.addPanel('b', new FakeElement('div') as any, {area: 'left'})
+        expect([g.isPanelHidden('b'), g.isAreaCollapsed('left')]).toEqual([false, false])
+    })
+
     test('addPanel with the id of a panel in another place lays out the old place again', () => {
         const f = new EditorFrame(host(), {layout: 'titlebar'})
         f.addPanel('a', new FakeElement('div') as any, {area: 'left'})

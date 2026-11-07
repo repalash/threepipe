@@ -501,12 +501,18 @@ export class EditorFrame {
     private _settleArea(area: EditorFrameArea, keep: boolean) {
         const list = this._areaPanels(area)
         if (!list.length || list.some(p => !p.hidden)) return
+        // a kept hidden pick no longer holds: the panel shows in the place (also when this is not the person's pick),
+        // else a reload would bring back an open place with only hidden panels
+        let picked = false
         for (const p of list) {
             p.hidden = false
-            if (keep) this._picks[p.id] = {...this._picks[p.id], hidden: false}
+            if (!keep && !this._picks[p.id]?.hidden) continue
+            this._picks[p.id] = {...this._picks[p.id], hidden: false}
+            picked = true
         }
         this._applySections(area)
         this._setCollapsed(area, true, keep)
+        if (picked && !keep) this._storeAreas()
     }
 
     /**
