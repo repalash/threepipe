@@ -177,6 +177,23 @@ describe('EditorCameraPlugin', () => {
         expect(plugin.editing).toBe(true)
     })
 
+    test('shortcut: the key that a CommandsPlugin sets for the switch, else hotkey; a change of the actions sends hotkeyChange', () => {
+        const {plugin, viewer} = setup()
+        const commands = new CommandsPlugin()
+        const getPlugin = viewer.getPlugin
+        viewer.getPlugin = (p: any) => p === 'CommandsPlugin' ? commands : getPlugin(p)
+        commands.onAdded(viewer)
+        viewer._pluginListeners.add.forEach((l: any) => l.l({type: 'addPlugin', plugin: commands}))
+        const changes: string[] = []
+        plugin.addEventListener('hotkeyChange', ({hotkey}) => changes.push(hotkey))
+        expect(plugin.shortcut).toBe('KeyC')
+        commands.setShortcut('editorCamera.toggleEditing', 'KeyV')
+        expect([plugin.shortcut, changes.length > 0]).toEqual(['KeyV', true])
+        commands.setShortcut('editorCamera.toggleEditing', null)
+        expect(plugin.shortcut).toBeUndefined()
+        commands.onRemove(viewer)
+    })
+
     test('with a CommandsPlugin (added later), the key is its action editorCamera.toggleEditing, with the new key of hotkey', async() => {
         const {plugin, viewer} = setup()
         // the CommandsPlugin added after the camera plugin, as ThreeViewer.addPluginSync does it
@@ -1294,6 +1311,10 @@ class FakeEditorCamera extends EventDispatcher<any> {
     startViewMoved = false
     showsStartView = false
     hotkey = 'KeyC'
+    // the key now (EditorCameraPlugin.shortcut): here the hotkey
+    get shortcut() {
+        return this.hotkey || undefined
+    }
     disabled = false
     isDisabled = () => this.disabled
     onAdded() {}

@@ -58,9 +58,10 @@ export function parseShortcut(shortcut: string): ParsedShortcut | undefined {
  * The key press is the shortcut ({@link parseShortcut}): the same modifiers (no more, no less) and the same key.
  * - `Mod` is Cmd on a Mac (also an iPhone or an iPad with a keyboard) and Ctrl on other platforms. The other one of the
  *   two is not a modifier of a shortcut: a key press with it matches no shortcut (Ctrl+Z on a Mac is not `Mod+Z`).
- * - A key name matches the character of the key (`KeyboardEvent.key`, in any case), or, for a letter, a digit or a
- *   sign, the place of that key on a US keyboard (`KeyboardEvent.code`). So `Mod+Z` also works on a keyboard with
- *   other letters (Cyrillic, Greek), and `Alt+T` works on a Mac, where Alt changes the character.
+ * - A key name matches the character of the key (`KeyboardEvent.key`, in any case), or the place of that key on a US
+ *   keyboard (`KeyboardEvent.code`): for a digit or a sign always, for a letter only when the key types no Latin letter.
+ *   So `Mod+Z` also works on a keyboard with other letters (Cyrillic, Greek), and `Alt+T` works on a Mac, where Alt
+ *   changes the character; on a QWERTZ keyboard the Z key is `Z`, not `Y`.
  * - A `KeyboardEvent.code` (`KeyC`) matches only that place on the keyboard.
  * - A shortcut with a sign that needs Shift names Shift too: `Shift+/` for `?`.
  * @param mac - `Mod` is Cmd (a Mac). Default: the platform of the browser.
@@ -71,8 +72,14 @@ export function matchShortcut(event: KeyboardEvent, shortcut: string | ParsedSho
     const mod = mac ? event.metaKey : event.ctrlKey
     const other = mac ? event.ctrlKey : event.metaKey
     if (other || !!event.shiftKey !== s.shift || !!event.altKey !== s.alt || !!mod !== s.mod) return false
+    const key = event.key?.toLowerCase()
+    if (key === s.key.toLowerCase()) return true
     // an event without a code (made by a script) matches by its key only
-    return event.key?.toLowerCase() === s.key.toLowerCase() || !!event.code && (event.code === s.key || event.code === codeOf(s.key))
+    if (!event.code) return false
+    if (event.code === s.key) return true
+    if (event.code !== codeOf(s.key)) return false
+    // a letter by its place only when the key types no Latin letter (another script, or Alt on a Mac)
+    return !/^[a-z]$/i.test(s.key) || !/^[a-z]$/.test(key ?? '')
 }
 
 /**
@@ -110,4 +117,15 @@ export function isTextTarget(target: EventTarget | null): boolean {
     if (t.isContentEditable || t.closest?.('textarea, select')) return true
     const input = t.closest?.('input') as HTMLInputElement | null | undefined
     return !!input && !NO_TEXT_INPUTS.has(input.type)
+}
+
+/**
+ * The key belongs to the element with the focus: any key typed in a text field ({@link isTextTarget}), and Space or
+ * Enter on a button, a checkbox, a radio button or another input (they press it). Keyboard shortcuts leave such a key
+ * to the element; other keys (Delete, a letter) on a focused checkbox still run the shortcuts.
+ */
+export function isTargetKey(event: KeyboardEvent): boolean {
+    if (isTextTarget(event.target)) return true
+    if (event.key !== ' ' && event.key !== 'Enter') return false
+    return !!(event.target as HTMLElement | null)?.closest?.('button, input, summary, [role="button"], [role="checkbox"]')
 }

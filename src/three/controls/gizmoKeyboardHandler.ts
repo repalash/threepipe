@@ -4,6 +4,8 @@ import type {CommandAction} from '../../plugins/interaction/CommandsPlugin'
 export interface GizmoActionTarget {
     /** The gizmo takes its keys now: enabled and attached to an object */
     active(): boolean
+    /** The gizmo is attached to an object: the on/off key works also while it is off */
+    attached(): boolean
     toggleSpace(): void
     adjustSize(delta: number): void
     toggleAxis(axis: 0 | 1 | 2): void
@@ -21,9 +23,8 @@ export interface GizmoActionTarget {
  * @param target - the gizmo
  */
 export function gizmoActions(prefix: string, group: string, target: GizmoActionTarget): CommandAction[] {
-    const action = (id: string, label: string, shortcut: string | string[], run: () => void): CommandAction => ({
-        id: prefix + '.' + id, label, group, shortcut,
-        enabled: () => target.active(),
+    const action = (id: string, label: string, shortcut: string | string[], run: () => void, enabled = () => target.active()): CommandAction => ({
+        id: prefix + '.' + id, label, group, shortcut, enabled,
         run: () => {
             run()
             target.changed()
@@ -37,6 +38,7 @@ export function gizmoActions(prefix: string, group: string, target: GizmoActionT
         action('toggleX', 'Show or hide the X axis', 'KeyX', () => target.toggleAxis(0)),
         action('toggleY', 'Show or hide the Y axis', 'KeyY', () => target.toggleAxis(1)),
         action('toggleZ', 'Show or hide the Z axis', 'KeyZ', () => target.toggleAxis(2)),
-        action('toggleEnabled', 'Turn the gizmo on or off', 'Space', () => target.toggleEnabled()),
+        // also while it is off, to turn it on again
+        action('toggleEnabled', 'Turn the gizmo on or off', 'Space', () => target.toggleEnabled(), () => target.attached()),
     ]
 }

@@ -136,6 +136,10 @@ describe('matchShortcut', () => {
         expect(matchShortcut(keyEvent('\\', 'IntlBackslash', {ctrlKey: true}), 'Mod+\\')).toBe(true)
         expect(matchShortcut(keyEvent('#', 'Backslash', {metaKey: true}), 'Mod+\\', true)).toBe(true)
         expect(matchShortcut(keyEvent('1', 'Digit1'), '1')).toBe(true)
+        // a letter by its place only when the key types no Latin letter: on QWERTZ the Z key (code KeyY) is Z, not Y
+        expect(matchShortcut(keyEvent('z', 'KeyY'), 'Y')).toBe(false)
+        expect(matchShortcut(keyEvent('z', 'KeyY'), 'Z')).toBe(true)
+        expect(matchShortcut(keyEvent('†', 'KeyT', {altKey: true}), 'Alt+T')).toBe(true)
         // an event without a code (made by a script) matches by its key only: Escape is not ArrowLeft
         expect(matchShortcut(keyEvent('Escape', undefined as any), 'ArrowLeft')).toBe(false)
         expect(matchShortcut(keyEvent('Escape', ''), 'ArrowLeft')).toBe(false)
@@ -490,6 +494,26 @@ describe('bindActions', () => {
         expect([clear.run.mock.calls.length, end.run.mock.calls.length]).toEqual([1, 1])
         unbindA()
         expect(press('Escape', 'Escape').defaultPrevented).toBe(false)
+    })
+
+    test('a focused button or checkbox keeps Space and Enter; Delete there still runs; a capture action leaves a focused panel', () => {
+        const toggle = action('toggle', {shortcut: 'Space'})
+        const del = action('delete', {shortcut: 'Delete'})
+        const next = action('next', {shortcut: 'ArrowRight', capture: true})
+        const unbind = bindActions(undefined, [toggle, del, next])
+        const control = (tag: string) => {
+            const el: any = {tagName: tag.toUpperCase(), nodeType: 1, type: 'checkbox'}
+            el.closest = (sel: string) => sel.split(', ').includes(tag) ? el : null
+            return el
+        }
+        expect(pressIn(control('button'), ' ', 'Space').defaultPrevented).toBe(false)
+        expect(pressIn(control('input'), 'Enter', 'Enter').defaultPrevented).toBe(false)
+        expect(pressIn(control('input'), 'Delete', 'Delete').defaultPrevented).toBe(true)
+        // the focus in a panel (an element of no viewer): the panel keeps its arrows; on the page the action runs
+        expect(pressIn(control('div'), 'ArrowRight', 'ArrowRight').defaultPrevented).toBe(false)
+        expect(press('ArrowRight', 'ArrowRight').defaultPrevented).toBe(true)
+        expect([toggle.run.mock.calls.length, del.run.mock.calls.length, next.run.mock.calls.length]).toEqual([0, 1, 1])
+        unbind()
     })
 
     test('a capture action runs in the capture phase and stops the key (before the arrow keys of the camera controls)', () => {

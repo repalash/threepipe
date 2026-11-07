@@ -237,6 +237,7 @@ export class TransformControls2 extends TransformControls implements IWidget, IO
     readonly actions: CommandAction[] = [
         ...gizmoActions('transformControls', 'Transform', {
             active: () => this.enabled && !!this.object,
+            attached: () => !!this.object,
             toggleSpace: () => { this.space = this.space === 'local' ? 'world' : 'local' },
             adjustSize: (d) => { this.size = Math.max(this.size + d, 0.1) },
             toggleAxis: (a) => {

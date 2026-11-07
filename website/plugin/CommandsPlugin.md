@@ -68,16 +68,16 @@ A shortcut is modifiers and a key, joined with `+`: `Mod+Z`, `Shift+D`, `Alt+Shi
 
 - `Mod` is Cmd on a Mac (also an iPhone or an iPad with a keyboard) and Ctrl on other platforms. The other one of the two matches no shortcut: Ctrl+Z on a Mac is not `Mod+Z`. The other modifiers are `Shift` and `Alt`. A key press must have the same modifiers: `Mod+Z` does not run on Ctrl+Shift+Z.
 - The key is a key name (`Z`, `Delete`, `Escape`, `\`) or a [`KeyboardEvent.code`](https://developer.mozilla.org/docs/Web/API/KeyboardEvent/code) (`KeyC`, `Digit1`, `Backslash`).
-- A key name matches the character of the key in any case, or, for a letter, a digit or a sign, the place of that key on a US keyboard. So `Mod+Z` also works on a keyboard with other letters (Cyrillic, Greek), and `Alt+T` works on a Mac, where Alt changes the character.
+- A key name matches the character of the key in any case, or the place of that key on a US keyboard: for a digit or a sign always, for a letter only when the key types no Latin letter. So `Mod+Z` also works on a keyboard with other letters (Cyrillic, Greek), `Alt+T` works on a Mac, where Alt changes the character, and on a QWERTZ keyboard the Z key is `Z`, not `Y`.
 - A code matches only that place on the keyboard: `KeyC` is the key at the place of C, whatever it types.
 - A sign that needs Shift names Shift: `Shift+/` for `?`.
 
 One `keydown` listener on the window runs the shortcuts of all the actions:
 
-- It leaves a key typed in a text field (an input that takes text, a text area, a select, an editable element; not a checkbox, a radio button, a button, a colour or a file input, which keep the focus after a click) and a key that another handler used (`defaultPrevented`).
+- It leaves a key typed in a text field (an input that takes text, a text area, a select, an editable element) and a key that another handler used (`defaultPrevented`). A checkbox, a radio button or a button keeps the focus after a click: it keeps Space and Enter (they press it), and the other keys (Delete, a letter) run the shortcuts (`isTargetKey`).
 - It runs an action only when `enabled()` is not `false`, and calls `preventDefault` only when an action runs.
 - An action can have more keys: `shortcut: ['Delete', 'Backspace']`.
-- A focused element (a list, a field) has its keys first. An action with `capture: true` runs before it, in the capture phase on the window, and the key stops there: the arrows of an open annotation win over the arrow keys of the camera controls on the canvas.
+- A focused element (a list, a field) has its keys first. An action with `capture: true` runs before it, in the capture phase on the window, and the key stops there: the arrows of an open annotation win over the arrow keys of the camera controls on the canvas. It runs only while the focus is in its viewer (the canvas, a card) or on the page, so a focused panel keeps its keys.
 - When two enabled actions have the same key, the one with the higher `priority` runs (default `0`), then the one registered last. An action that ends a mode (Escape that ends the pivot edit, `priority: 1`) is above one that acts on the selection (Escape that clears it).
 - While the plugin is disabled (`enabled = false` or `disable(key)`), the keys do nothing. `run(id)` still runs an action.
 - With more viewers on the page, a key is for the viewer that has the focus (the target is its canvas or in its container). When the focus is in no viewer (the page, a side panel), the viewer with the last pointer press takes it. A viewer that left the page takes no key while another one is on it (`viewerTakesKey(viewer, event)`).
@@ -91,7 +91,7 @@ commands.setShortcut('transformControls.toggleEnabled', null) // Space does noth
 
 **Toasts.** The `error` and the `warn` of each run show in a toast of the viewer dialog (`viewer.dialog.toast`, in the viewer container), while `toastResults` is on (default). The UI plugins (`TweakpaneUiPlugin`, `BlueprintJsUiPlugin`) use the HTML dialog of `ts-browser-helpers`, which shows a small chip at the top centre; without one, the message goes to the console.
 
-The helpers `parseShortcut`, `matchShortcut`, `formatShortcut`, `isTextTarget`, `shortcutsOf` and `viewerTakesKey` are exported for other UIs.
+The helpers `parseShortcut`, `matchShortcut`, `formatShortcut`, `isTextTarget`, `isTargetKey`, `shortcutsOf` and `viewerTakesKey` are exported for other UIs.
 
 ## Plugins that work with and without it
 

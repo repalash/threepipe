@@ -1,6 +1,6 @@
 import {AViewerPluginEventMap, AViewerPluginSync, ThreeViewer} from '../../viewer'
 import type {UiObjectConfig} from 'uiconfig.js'
-import {formatShortcut, isTextTarget, matchShortcut, parseShortcut} from '../../utils/shortcuts'
+import {formatShortcut, isTargetKey, matchShortcut, parseShortcut} from '../../utils/shortcuts'
 
 /** What an action tells after it ran: an error or a warning for the person ({@link CommandsPlugin} shows it in a toast). */
 export interface CommandResult {
@@ -38,7 +38,9 @@ export interface CommandAction {
     /**
      * The key runs before the handlers of the element with the focus (in the capture phase on the window), and the key
      * stops there. For a key of an open card that must win over a key of the canvas: the arrows of an open annotation
-     * over the arrow keys of the camera controls. Default: `false`, a focused element (a list, a field) has its keys first.
+     * over the arrow keys of the camera controls. It runs only while the focus is in the viewer (its canvas, a card in
+     * its container) or on the page, so a focused panel (a list) keeps its keys. Default: `false`, a focused element has
+     * its keys first.
      */
     capture?: boolean
     /** The action can run now. Default: always. A key of a disabled action is left to other handlers. */
@@ -75,13 +77,13 @@ export function shortcutsOf(shortcut: string | string[] | null | undefined): str
 type Keys = (action: CommandAction) => string | string[] | null | undefined
 
 /**
- * The action of a key press, of the actions of that phase ({@link CommandAction.capture}): of the enabled actions with the key, the one with the highest
- * {@link CommandAction.priority}, then the one last in `actions`. A key that another handler used (`defaultPrevented`),
- * or that is typed in a text field ({@link isTextTarget}), has no action. A held key (`repeat`) has only an action with
- * {@link CommandAction.repeat}.
+ * The action of a key press, of the actions of that phase ({@link CommandAction.capture}): of the enabled actions with
+ * the key, the one with the highest {@link CommandAction.priority}, then the one last in `actions`. A key that another
+ * handler used (`defaultPrevented`), or that belongs to the element with the focus ({@link isTargetKey}: a text field,
+ * Space on a button), has no action. A held key (`repeat`) has only an action with {@link CommandAction.repeat}.
  */
 function shortcutAction(event: KeyboardEvent, actions: readonly CommandAction[], capture: boolean, keys: Keys = a => a.shortcut): CommandAction | undefined {
-    if (event.defaultPrevented || isTextTarget(event.target)) return undefined
+    if (event.defaultPrevented || isTargetKey(event)) return undefined
     let found: CommandAction | undefined
     for (const a of actions) {
         if (!!a.capture !== capture || event.repeat && !a.repeat || !shortcutsOf(keys(a)).some(k => matchShortcut(event, k))) continue
@@ -106,6 +108,13 @@ const inViewer = (v: ThreeViewer, t: EventTarget) => {
     }
 }
 const viewerOf = (t: EventTarget | null) => t ? liveViewers().find(v => inViewer(v, t)) : undefined
+/** The focus is in the viewer or on the page (the body, or no target): a capture action can take the key */
+const focusForCapture = (viewer: ThreeViewer | undefined, e: KeyboardEvent) => {
+    const t = e.target as Node | null
+    // the page: no element (the window, the document) or the body
+    if (!t || typeof t.nodeType !== 'number' || t.nodeType === 9 || typeof document !== 'undefined' && t === document.body) return true
+    return !!viewer && inViewer(viewer, t)
+}
 const onViewerPointerDown = (e: PointerEvent) => {
     lastViewer = viewerOf(e.target) ?? lastViewer
 }
@@ -124,7 +133,7 @@ function trackViewer(viewer: ThreeViewer | undefined): () => void {
         if (n > 0) return keyViewers.set(viewer, n)
         keyViewers.delete(viewer)
         if (lastViewer === viewer) lastViewer = undefined
-        if (!liveViewers().length) window.removeEventListener('pointerdown', onViewerPointerDown, true)
+        if (!keyViewers.size) window.removeEventListener('pointerdown', onViewerPointerDown, true)
     }
 }
 
@@ -320,7 +329,7 @@ export class CommandsPlugin extends AViewerPluginSync<CommandsPluginEventMap> {
     }
 
     private _onKey(e: KeyboardEvent, capture: boolean) {
-        if (this.isDisabled() || !viewerTakesKey(this._viewer, e)) return
+        if (this.isDisabled() || !viewerTakesKey(this._viewer, e) || capture && !focusForCapture(this._viewer, e)) return
         const action = shortcutAction(e, this._actions, capture, a => this.shortcutOf(a.id))
         if (!action) return
         e.preventDefault()
@@ -340,7 +349,7 @@ const looseActions = new Map<ThreeViewer | undefined, CommandAction[][]>()
 
 function onLooseKey(e: KeyboardEvent, capture: boolean) {
     // the actions of the viewers that take the key (normally one), in the order they were bound
-    const actions = [...looseActions].filter(([viewer]) => viewerTakesKey(viewer, e)).flatMap(([, lists]) => lists.flat())
+    const actions = [...looseActions].filter(([viewer]) => viewerTakesKey(viewer, e) && (!capture || focusForCapture(viewer, e))).flatMap(([, lists]) => lists.flat())
     const action = shortcutAction(e, actions, capture)
     if (!action) return
     e.preventDefault()

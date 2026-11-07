@@ -620,7 +620,6 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         if (a) this._select(a.id, options, true)
     }
 
-    /** Open the next annotation (after the last: the first) */
     /**
      * The keys of the plugin, as actions (`bindActions`: a `CommandsPlugin` of the viewer lists them): → and ← open the
      * next and the previous annotation while a card is open, before the arrow keys of the camera controls on the canvas
@@ -633,6 +632,7 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
     ]
     private _unbindActions?: () => void
 
+    /** Open the next annotation (after the last: the first) */
     next() {
         this._step(1, true)
     }

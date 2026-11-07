@@ -208,6 +208,7 @@ export class PivotControls extends Group<PivotControlsEventMap & Object3DEventMa
      */
     readonly actions: CommandAction[] = gizmoActions('pivotControls', 'Pivot', {
         active: () => this.enabled && !!this.object,
+        attached: () => !!this.object,
         toggleSpace: () => { this.space = this.space === 'local' ? 'world' : 'local' },
         adjustSize: (d) => { this.gizmoScale = Math.max(this.gizmoScale + d, 0.1) },
         toggleAxis: (a) => { this.activeAxes[a] = !this.activeAxes[a]; this.updateHandleVisibility() },

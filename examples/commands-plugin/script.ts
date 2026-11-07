@@ -1,4 +1,4 @@
-import {_testFinish, _testStart, CommandsPlugin, formatShortcut, IObject3D, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
+import {_testFinish, _testStart, CommandsPlugin, formatShortcut, IObject3D, LoadingScreenPlugin, shortcutsOf, ThreeViewer} from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 
 const viewer = new ThreeViewer({
@@ -51,7 +51,8 @@ async function init() {
     const result = document.getElementById('result')!
     for (const action of commands.list()) {
         const button = document.createElement('button')
-        button.innerHTML = `<span></span><kbd>${action.shortcut ? formatShortcut(action.shortcut) : ''}</kbd>`
+        // the keys now: the ones that the app set with setShortcut, else the action's own
+        button.innerHTML = `<span></span><kbd>${shortcutsOf(commands.shortcutOf(action.id)).map(k => formatShortcut(k)).join(', ')}</kbd>`
         button.firstElementChild!.textContent = action.label
         button.onclick = () => {
             commands.run(action.id)

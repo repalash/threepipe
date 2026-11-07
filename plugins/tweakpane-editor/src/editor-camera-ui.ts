@@ -176,7 +176,8 @@ export function setupEditorCameraUi(viewer: ThreeViewer, camera: EditorCameraPlu
         const editing = camera.editing
         const sync = camera.syncStartView
         const moved = camera.startViewMoved
-        const key = camera.hotkey ? formatShortcut(camera.hotkey) : ''
+        // the key now: the one that a CommandsPlugin sets, else the hotkey
+        const key = camera.shortcut ? formatShortcut(camera.shortcut) : ''
         // disabled: the default camera is the main camera, neither the editor camera nor the start view
         root.style.display = camera.isDisabled() ? 'none' : ''
         root.classList.toggle('ecu-view', !editing)
