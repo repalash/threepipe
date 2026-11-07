@@ -831,6 +831,21 @@ describe('EditorFrame area sizes', () => {
         expect([g.isPanelHidden('b'), g.isAreaCollapsed('left')]).toEqual([false, false])
     })
 
+    test('a removed or replaced panel takes the tooltip of its entry out of the mode bar', () => {
+        const f = new EditorFrame(host(), {layout: 'titlebar'})
+        const tips = () => (f.modeBar as any)._tips.length
+        const group = () => singletons.find(s => s === (f.modeBar as any)._tipGroup)!.children!.length
+        const before = [tips(), group()]
+        for (let i = 0; i < 5; i++) {
+            f.addPanel('layers', new FakeElement('div') as any, {area: 'left'})
+            f.removePanel('layers')
+        }
+        expect([tips(), group()]).toEqual(before)
+        f.addPanel('layers', new FakeElement('div') as any, {area: 'left'})
+        f.addPanel('layers', new FakeElement('div') as any, {area: 'left'}) // in place of the old one
+        expect([tips(), group()]).toEqual([before[0] + 1, before[1] + 1])
+    })
+
     test('addPanel with the id of a panel in another place lays out the old place again', () => {
         const f = new EditorFrame(host(), {layout: 'titlebar'})
         f.addPanel('a', new FakeElement('div') as any, {area: 'left'})
