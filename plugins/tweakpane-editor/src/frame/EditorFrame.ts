@@ -452,6 +452,8 @@ export class EditorFrame {
         this._dropPanel(p)
         this._layoutArea(p.area)
         this._settleArea(p.area, false)
+        // the hidden mode settings belonged to the right place as it was (an app hid them for this panel, like swap)
+        if (p.area === 'right') this.setModeSettingsHidden(false)
         this._fitAreas()
     }
 
@@ -487,6 +489,8 @@ export class EditorFrame {
         if (from !== area) {
             this._layoutArea(area)
             this._settleArea(from, keep)
+            // the hidden mode settings belonged to the right place as it was (an app hid them for this panel, like swap)
+            if (from === 'right') this.setModeSettingsHidden(false)
         }
         // a narrow window shows one place at a time: the new one; the right place is in the panel, which the mode bar
         // can have hidden
@@ -601,7 +605,8 @@ export class EditorFrame {
      * Hides the settings of the mode in the panel while the right place shows panels ({@link addPanel}): the right place
      * takes the whole panel. A click on the open mode in the mode bar does this too, and a click on a mode shows them
      * again. Without the right area, the settings always show (the mode bar hides the panel). Not kept: an app sets it,
-     * for example while something is selected (an inspector in the right area, its settings in place of the modes).
+     * for example while something is selected (an inspector in the right area, its settings in place of the modes). A
+     * panel that leaves the right place (a move or a remove) shows them again.
      */
     setModeSettingsHidden(hidden: boolean) {
         if (hidden === this._modeHidden) return

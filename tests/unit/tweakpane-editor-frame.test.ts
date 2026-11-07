@@ -910,6 +910,29 @@ describe('EditorFrame area sizes', () => {
         expect([f.modeBar.open, f.isPanelHidden('a'), f.panelArea('a')]).toEqual([true, false, 'right'])
     })
 
+    test('a panel that leaves the right place shows the mode settings again (an app hid them for it, like swap)', () => {
+        const f = new EditorFrame(host(), {layout: 'titlebar'})
+        f.addPanel('insp', new FakeElement('div') as any, {area: 'right'})
+        f.addPanel('layers', new FakeElement('div') as any, {area: 'left'})
+        f.setModeSettingsHidden(true)
+        f.movePanel('insp', 'left', true)
+        expect(f.modeSettingsHidden).toBe(false)
+        // another panel in the right place later: the mode settings show under it
+        f.movePanel('layers', 'right', true)
+        expect(f.modeSettingsHidden).toBe(false)
+        // a move within the right place keeps them; a remove from it shows them
+        f.setModeSettingsHidden(true)
+        f.movePanel('layers', 'right')
+        expect(f.modeSettingsHidden).toBe(true)
+        f.removePanel('layers')
+        expect(f.modeSettingsHidden).toBe(false)
+        // a panel that leaves another place does not change them
+        f.addPanel('r', new FakeElement('div') as any, {area: 'right'})
+        f.setModeSettingsHidden(true)
+        f.movePanel('insp', 'bottom')
+        expect(f.modeSettingsHidden).toBe(true)
+    })
+
     test('a narrow window: a moved panel shows in its new place, which takes the place of the panel', () => {
         vi.stubGlobal('innerWidth', 600)
         vi.stubGlobal('innerHeight', 900)
