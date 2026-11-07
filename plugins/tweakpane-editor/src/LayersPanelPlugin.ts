@@ -143,16 +143,17 @@ const ICONS = {
  * Lights and cameras have the icon and the colour of their kind (`widgetKinds` of threepipe), as in the viewport.
  *
  * Where the panel goes: in the `container` given to the constructor, else the app puts {@link element} in the page. The
- * plugin does not depend on the editor: in the page frame of the `TweakpaneEditorPlugin`, the app calls
- * `editor.setArea('left', layers.element, LayersPanelPlugin.AreaEntry)`, and on the `enabledChange` event it takes the
- * area out (`setArea('left', null)`) or puts it back. The element fills its parent: give the parent a height. The plugin
+ * plugin does not depend on the editor: in the page frame of the `TweakpaneEditorPlugin`, the app adds it as a panel,
+ * `editor.addPanel('layers', layers.element, {...LayersPanelPlugin.AreaEntry, area: 'left'})` (the person can move it to
+ * another place with the menu of its entry), and on the `enabledChange` event it takes the panel out
+ * (`editor.removePanel('layers')`) or adds it back. The element fills its parent: give the parent a height. The plugin
  * takes the panel out of the page when it is removed.
  *
  * @example
  * ```ts
  * const layers = viewer.addPluginSync(LayersPanelPlugin)
  * const editor = viewer.getPlugin(TweakpaneEditorPlugin)!
- * const place = () => editor.setArea('left', layers.isDisabled() ? null : layers.element, LayersPanelPlugin.AreaEntry)
+ * const place = () => layers.isDisabled() ? editor.removePanel('layers') : editor.addPanel('layers', layers.element, {...LayersPanelPlugin.AreaEntry, area: 'left'})
  * place()
  * layers.addEventListener('enabledChange', place)
  * ```
@@ -171,7 +172,7 @@ export class LayersPanelPlugin extends AViewerPluginSync<LayersPanelPluginEventM
     static readonly RowHeight = 28
     /**
      * A name, an icon and a colour for the entry of the panel in the mode bar of the editor frame, for the app to pass to
-     * `TweakpaneEditorPlugin.setArea`. The plugin does not use it.
+     * `TweakpaneEditorPlugin.addPanel`. The plugin does not use it.
      */
     static AreaEntry: EditorFrameAreaOptions = {name: 'Layers', icon: ICONS.layers, color: '#6366f1'}
 
@@ -321,7 +322,7 @@ export class LayersPanelPlugin extends AViewerPluginSync<LayersPanelPluginEventM
 
     /**
      * @param container - the element that holds the panel while the plugin is added. Without it, the app puts
-     * {@link element} in the page (in the editor frame: `TweakpaneEditorPlugin.setArea`).
+     * {@link element} in the page (in the editor frame: `TweakpaneEditorPlugin.addPanel`).
      */
     constructor(container?: HTMLElement) {
         super()
