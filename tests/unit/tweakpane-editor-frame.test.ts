@@ -790,6 +790,68 @@ describe('EditorFrame area sizes', () => {
         expect([f.panelIds, f.panelArea('a'), body().find('lay-area-left')[0].contains(c)]).toEqual([['a'], 'left', true])
     })
 
+    test('a place left with only hidden panels (its last shown panel moved away or removed) collapses, and its panels show in it', () => {
+        const f = new EditorFrame(host(), {layout: 'titlebar'})
+        f.addPanel('a', new FakeElement('div') as any, {area: 'left'})
+        f.addPanel('b', new FakeElement('div') as any, {area: 'left'})
+        f.setPanelHidden('b', true, true)
+        f.movePanel('a', 'right', true)
+        expect([f.isAreaCollapsed('left'), body().classList.contains('lay-collapsed-left'), f.isPanelHidden('b')]).toEqual([true, true, false])
+        expect([stored().collapsed.left, stored().panels.b.hidden]).toEqual([true, false])
+        // a tap on its entry opens the place again with it
+        const entry = (id: string) => (f.modeBar.element as any as FakeElement).find('lay-area-entry').find(e => e === (f as any)._panels.get(id).entry)!
+        entry('b').click()
+        expect([f.isAreaCollapsed('left'), f.isPanelHidden('b')]).toEqual([false, false])
+        // the same when the last shown panel is removed
+        f.addPanel('c', new FakeElement('div') as any, {area: 'bottom'})
+        f.addPanel('d', new FakeElement('div') as any, {area: 'bottom'})
+        f.setPanelHidden('d', true)
+        f.removePanel('c')
+        expect([f.isAreaCollapsed('bottom'), f.isPanelHidden('d')]).toEqual([true, false])
+        // and the right place
+        f.addPanel('e', new FakeElement('div') as any, {area: 'right'})
+        f.setPanelHidden('e', true)
+        f.movePanel('a', 'left')
+        expect([f.isPanelHidden('e'), !!(f as any)._collapsed.right]).toEqual([false, true])
+    })
+
+    test('a tap on the entry of a panel in the right place while the panel cannot be seen shows it, and does not hide it', () => {
+        const f = new EditorFrame(host(), {layout: 'titlebar'})
+        f.addPanel('insp', new FakeElement('div') as any, {area: 'right'})
+        f.addPanel('layers', new FakeElement('div') as any, {area: 'left'})
+        const entry = (id: string) => (f as any)._panels.get(id).entry as FakeElement
+        // the mode bar hid the panel
+        f.modeBar.setOpen(false)
+        entry('insp').click()
+        expect([f.modeBar.open, f.isPanelHidden('insp'), !!(f as any)._collapsed.right, marked(entry('insp'))]).toEqual([true, false, false, true])
+        // shown: a tap hides it, as before (the only one: the place collapses)
+        entry('insp').click()
+        expect([!!(f as any)._collapsed.right, marked(entry('insp'))]).toEqual([true, false])
+        entry('insp').click()
+        expect(marked(entry('insp'))).toBe(true)
+        // a narrow window with the left place in the place of the panel
+        vi.stubGlobal('innerWidth', 600)
+        vi.stubGlobal('innerHeight', 900)
+        win.fire('resize')
+        f.setStackedArea('left')
+        expect(marked(entry('insp'))).toBe(false)
+        entry('insp').click()
+        expect([f.stackedArea, f.isPanelHidden('insp'), !!(f as any)._collapsed.right, marked(entry('insp'))]).toEqual(['right', false, false, true])
+    })
+
+    test('a narrow window: a moved panel shows in its new place, which takes the place of the panel', () => {
+        vi.stubGlobal('innerWidth', 600)
+        vi.stubGlobal('innerHeight', 900)
+        const f = new EditorFrame(host(), {layout: 'titlebar'})
+        f.addPanel('a', new FakeElement('div') as any, {area: 'left'})
+        f.addPanel('b', new FakeElement('div') as any, {area: 'left'})
+        f.setStackedArea('left')
+        f.movePanel('b', 'bottom', true)
+        expect([f.stackedArea, body().classList.contains('lay-stacked-bottom'), f.isPanelHidden('b'), stored().stacked]).toEqual(['bottom', true, false, 'bottom'])
+        f.movePanel('a', 'right', true)
+        expect([f.stackedArea, f.modeBar.open]).toEqual(['right', true])
+    })
+
     test('a narrow window, no hidden element kept: a tap on an entry of the stack shown hides that element, not the place', () => {
         vi.stubGlobal('innerWidth', 600)
         vi.stubGlobal('innerHeight', 900)
