@@ -410,7 +410,7 @@ describe('InspectorPlugin', () => {
         const shadows = folder('Shadows', shadowsBias)
         const render = folder('Render', color, shadows)
         body.appendChild(node('tp-rotv', '', node('tp-rotv_c', '', focus, position, scale, render)))
-        const search = el.find('isp-search')[0]
+        const search = el.find('isp-search-input')[0]
         const missing = () => [position, scale, focus, color, shadowsBias, shadows, render].filter(r => r.classList.contains('isp-miss')).length
         const type = (text: string) => {
             search.value = text
@@ -578,6 +578,27 @@ describe('InspectorPlugin.css', () => {
         // the settings do not scroll on their own (they would shrink to nothing under the head and the preview)
         expect(rule('.isp-body')).not.toMatch(/overflow-y:\s*auto/)
         expect(rule('.isp-body')).toMatch(/flex:\s*none/)
+    })
+
+    test('the tab bar, the search field and the font are the ones of the Layers panel (the same sizes)', async() => {
+        const {readFileSync} = await import('node:fs')
+        const read = (f: string) => readFileSync(new URL('../../plugins/tweakpane-editor/src/' + f, import.meta.url), 'utf8')
+        const isp = read('InspectorPlugin.css'), lyp = read('LayersPanelPlugin.css')
+        // the declarations of a rule, without the colours (each panel takes them from its own variables)
+        const sizes = (css: string, sel: string) => {
+            // the rule of the selector alone, at the start of a line (not a longer selector that ends with it)
+            const body = css.match(new RegExp('(?:^|\\n)' + sel.replace(/[.]/g, '\\.') + '\\s*\\{([^}]*)\\}'))?.[1] ?? ''
+            return body.replace(/\/\*[\s\S]*?\*\//g, '').split(';').map(d => d.trim().replace(/\s+/g, ' ')).filter(d => d && !/^(color|background|box-shadow)\s*:/.test(d)).sort()
+        }
+        for (const part of ['-tabs', '-tab', '-tab.$-on', '-search', '-search-icon', '-search-input']) {
+            const [a, b] = ['isp', 'lyp'].map(p => '.' + p + part.replace('$', p))
+            expect(sizes(isp, a), a).toEqual(sizes(lyp, b))
+            expect(sizes(isp, a).length, a).toBeGreaterThan(0)
+        }
+        const font = (css: string, sel: string) => sizes(css, sel).find(d => d.startsWith('font:'))
+        expect(font(isp, '.isp-root')).toBe(font(lyp, '.lyp-root'))
+        // no larger text in the search field on a touch screen: the same height as the Layers search
+        expect(isp).not.toMatch(/pointer:\s*coarse/)
     })
 
     test('while the search has text, the rows that do not match hide and the closed folders open', async() => {

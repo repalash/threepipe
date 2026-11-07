@@ -3,18 +3,22 @@
 .isp-root {
     display: flex; flex-direction: column; box-sizing: border-box; min-height: 0; height: 100%; overflow-y: auto; overscroll-behavior: contain;
     color: var(--tp-container-foreground-color, #1e1e1e); background: var(--tp-base-background-color, #fff);
-    font: 12px/1.3 var(--tp-font-family, system-ui, sans-serif);
+    /* the font of the Layers panel (LayersPanelPlugin.css), so the two panels look the same next to each other */
+    font: 400 var(--lay-font-size, 12px)/1.2 var(--tp-font-family, Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif);
+    -webkit-font-smoothing: antialiased;
 }
 .isp-root button, .isp-root select { font: inherit; color: inherit; }
 .isp-title { font-weight: 600; padding: 10px 12px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: none; }
 .isp-root:not(.isp-has-selection) .isp-title { opacity: .6; font-weight: 500; }
-.isp-tabs {
-    display: flex; gap: 2px; margin: 0 8px 6px; padding: 2px; border-radius: 6px; flex: none;
-    background: var(--tp-input-background-color, rgba(0, 0, 0, .05));
+/* the tab bar and the search field are the ones of the Layers panel (.lyp-tabs, .lyp-tab, .lyp-search in
+   LayersPanelPlugin.css): the same sizes, with the colours of the Tweakpane theme */
+.isp-tabs { display: flex; margin: 0 8px 6px; padding: 2px; border-radius: 6px; background: var(--tp-input-background-color, rgba(0, 0, 0, .05)); flex: none; }
+.isp-tab {
+    flex: 1 1 auto; min-width: 0; border: 0; background: transparent; color: var(--tp-label-foreground-color, #8a8f98); padding: 4px 0; border-radius: 4px;
+    font: inherit; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.isp-tab { flex: 1; min-width: 0; border: 0; background: transparent; padding: 5px 0; border-radius: 4px; opacity: .7; cursor: pointer; }
-.isp-tab:hover { opacity: 1; }
-.isp-tab.isp-on { opacity: 1; font-weight: 600; background: var(--tp-base-background-color, #fff); box-shadow: 0 0 0 1px var(--tp-container-border-color, #ececec); }
+.isp-tab:hover { color: var(--tp-container-foreground-color, #1e1e1e); background: var(--tp-button-background-color-hover, rgba(0, 0, 0, .05)); }
+.isp-tab.isp-on { color: var(--tp-container-foreground-color, #1e1e1e); background: var(--tp-base-background-color, #ffffff); box-shadow: 0 0 0 1px var(--tp-container-border-color, #ececec), 0 1px 2px rgba(0, 0, 0, .06); font-weight: 600; }
 /* the material cards of the Object tab: a small preview, the name and the type; a click opens the Material tab */
 .isp-cards { display: flex; flex-direction: column; gap: 2px; margin: 0 8px 6px; flex: none; }
 .isp-card {
@@ -65,12 +69,11 @@
 /* the search of the settings: the rows that do not match hide, and the folders open (Tweakpane sets their height inline,
    and a closed folder has display: none) */
 .isp-search {
-    margin: 0 8px 6px; padding: 5px 8px; border-radius: 4px; flex: none; min-width: 0; outline: none;
-    border: 1px solid transparent; background: var(--tp-input-background-color, rgba(0, 0, 0, .05)); font: inherit; color: inherit;
+    display: flex; align-items: center; gap: 6px; margin: 0 8px 6px; padding: 0 8px; height: 26px; flex: none;
+    border-radius: 5px; background: var(--tp-input-background-color, rgba(0, 0, 0, .05)); color: var(--tp-label-foreground-color, #8a8f98);
 }
-.isp-search:focus { border-color: var(--tp-label-foreground-color, #0d99ff); }
-/* iOS zooms the page into a focused field with text under 16 px */
-@media (pointer: coarse) { .isp-search { font-size: 16px; } }
+.isp-search-icon { display: flex; }
+.isp-search-input { flex: 1; min-width: 0; border: 0; outline: none; background: transparent; color: var(--tp-container-foreground-color, #1e1e1e); font: inherit; padding: 0; }
 .isp-searching .isp-miss { display: none !important; }
 .isp-searching .tp-fldv_c { display: block !important; height: auto !important; opacity: 1 !important; overflow: visible !important; }
 .isp-empty { padding: 4px 12px 14px; opacity: .6; }
