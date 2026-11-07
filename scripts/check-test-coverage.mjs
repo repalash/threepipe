@@ -74,7 +74,7 @@ function checkTestCoverage(testDir, testFile, ignoredFolders, testingFile) {
 function checkTestCoverageExamples() {
     const testDir = 'examples'
     const testFile = 'interactive.spec.ts,extras.spec.ts'
-    const ignored = ['examples-utils', '_index']
+    const ignored = ['examples-utils', '_index', '_render-model']
     const testingFile = 'index.html'
 
     return checkTestCoverage(testDir, testFile, ignored, testingFile)

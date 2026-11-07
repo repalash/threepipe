@@ -320,6 +320,23 @@ curl -s -X PATCH -H "$H0" -H 'content-type: application/json' -d '{"status":"in_
 curl -s -X DELETE -H "$H0" "$A/api/v1/projects/$P/reports/$RID2" | grep -q deleted_at && [ "$(code -H "$H0" "$A/api/v1/projects/$P/reports/$RID2/image")" = "404" ] && ok "delete a report (tombstone)" || bad "delete report"
 [ "$(code -H "$H0" "$A/api/v1/projects/p-none-$U/reports")" = "404" ] && ok "unknown project -> 404" || bad "unknown project"
 curl -sI "$A/reports" | grep -qi "content-security-policy: default-src 'none'; script-src 'self'" && [ "$(code "$A/reports/page.js")" = "200" ] && ok "reports page" || bad "reports page"
+# the catalog of sample assets: anyone reads and filters it, only the admin token writes
+AROW() { echo "{\"values\":{\"kind\":\"model\",\"set_name\":\"e2e-$U\",\"name\":\"$1\",\"label\":\"$1\",\"license\":\"CC0-1.0\",\"source_url\":\"https://example.com/$1\",\"url\":\"https://example.com/$1.glb\",\"tags\":\"[\\\"$3\\\",\\\"e2e\\\"]\",\"size\":10,\"triangles\":$2,\"poly\":\"$3\"}}"; }
+[ "$(admin threepipe_assets/insert "$(AROW small 12 low)")" = "200" ] && [ "$(admin threepipe_assets/insert "$(AROW big 900000 high)")" = "200" ] && ok "the admin token adds assets" || bad "assets: admin insert"
+[ "$(admin threepipe_assets/insert "$(AROW small 12 low)")" != "200" ] && ok "a set has one asset of a name" || bad "assets: duplicate name"
+[ "$(admin threepipe_assets/insert "{\"values\":{\"kind\":\"hdri\",\"set_name\":\"e2e-$U\",\"name\":\"external\",\"label\":\"External\",\"source_url\":\"https://example.com/x\",\"url\":\"https://example.com/x.hdr\",\"metadata\":\"{}\"}}")" = "200" ] && ok "an external asset needs only its links, and an HDRI no triangles" || bad "assets: external insert"
+[ "$(code -X POST -H "Authorization: Bearer $T2" -H 'content-type: application/json' -d "$(AROW other 1 low)" "$A/api/v1/table/threepipe_assets/insert")" != "200" ] && ok "a member cannot add an asset" || bad "assets: member insert"
+MQ=$(python3 -c "import urllib.parse,sys;print(urllib.parse.urlencode({'where':sys.argv[1],'order':'-triangles'}))" "set_name == 'e2e-$U' & triangles > 100")
+R=$(curl -s "$A/api/v1/table/threepipe_assets/select?$MQ"); echo "$R" | python3 -c "import json,sys;d=json.load(sys.stdin);r=d if isinstance(d,list) else d.get('items',d);sys.exit(0 if len(r)==1 and r[0]['name']=='big' else 1)" && ok "anyone can filter the assets, no sign-in" || bad "assets: public select: $R"
+MQ=$(python3 -c "import urllib.parse,sys;print(urllib.parse.urlencode({'where':sys.argv[1]}))" "set_name == 'e2e-$U' & json_contains(tags, 'high')")
+R=$(curl -s "$A/api/v1/table/threepipe_assets/select?$MQ"); echo "$R" | python3 -c "import json,sys;d=json.load(sys.stdin);r=d if isinstance(d,list) else d.get('items',d);sys.exit(0 if len(r)==1 and r[0]['name']=='big' else 1)" && ok "anyone can filter the assets by a tag" || bad "assets: filter by tag: $R"
+MQ=$(python3 -c "import urllib.parse,sys;print(urllib.parse.urlencode({'where':sys.argv[1]}))" "set_name == 'e2e-$U'")
+R=$(curl -s "$A/api/v1/table/threepipe_assets/list?$MQ"); echo "$R" | python3 -c "import json,sys;d=json.load(sys.stdin);sys.exit(0 if d['total']==3 and len(d['items'])==3 else 1)" && ok "anyone can list the assets with a total" || bad "assets: public list: $R"
+LINK="{\"values\":{\"from_asset\":\"e2e-$U/big\",\"relation\":\"uses\",\"to_asset\":\"e2e-$U/external\"}}"
+[ "$(admin threepipe_asset_links/insert "$LINK")" = "200" ] && [ "$(admin threepipe_asset_links/insert "$LINK")" != "200" ] && ok "a link between assets is stored once" || bad "assets: link insert"
+[ "$(code -X POST -H "Authorization: Bearer $T2" -H 'content-type: application/json' -d "$LINK" "$A/api/v1/table/threepipe_asset_links/insert")" != "200" ] && ok "a member cannot add a link" || bad "assets: member link"
+MQ=$(python3 -c "import urllib.parse,sys;print(urllib.parse.urlencode({'where':sys.argv[1]}))" "to_asset == 'e2e-$U/external'")
+R=$(curl -s "$A/api/v1/table/threepipe_asset_links/select?$MQ"); echo "$R" | python3 -c "import json,sys;d=json.load(sys.stdin);r=d if isinstance(d,list) else d.get('items',d);sys.exit(0 if len(r)==1 and r[0]['from_asset'].endswith('/big') else 1)" && ok "anyone can read what uses an asset" || bad "assets: reverse link: $R"
 echo "failures: $FAILS"
 # what the worker logged, to see why a check failed
 [ $FAILS -eq 0 ] || grep -E '\[cloud\]|ERROR|Error' "$TMP/dev.log" | tail -20

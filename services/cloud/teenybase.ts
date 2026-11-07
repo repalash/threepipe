@@ -311,5 +311,72 @@ export default {
             updateRule: null,
             deleteRule: null,
         } as TableRulesExtensionData],
+    }, {
+        // The catalog of sample assets (models, HDRIs, textures): public to read through teenybase's table API (select,
+        // list, view), written only with the admin token (scripts/sample-assets). Only for finding them, one query per
+        // request: the files are read from their URLs with no database. A URL is on our samples bucket
+        // (assets/<set_name>/<name>/) or anywhere else.
+        name: 'threepipe_assets',
+        autoSetUid: true,
+        fields: [
+            ...baseFields,
+            {name: 'kind', type: 'text', sqlType: 'text', notNull: true}, // model | hdri | material | texture
+            {name: 'set_name', type: 'text', sqlType: 'text', notNull: true}, // khronos, gltf-research-scenes, poly-haven, ...
+            {name: 'name', type: 'text', sqlType: 'text', notNull: true}, // a slug, the source's name is in `label`
+            {name: 'label', type: 'text', sqlType: 'text', notNull: true},
+            {name: 'tags', type: 'text', sqlType: 'text'}, // JSON array
+            // where it comes from and what it may be used for (CC BY asks for a visible credit)
+            {name: 'license', type: 'text', sqlType: 'text'}, // SPDX, like `CC-BY-4.0`; empty: not known
+            {name: 'authors', type: 'text', sqlType: 'text'},
+            {name: 'source_url', type: 'text', sqlType: 'text'}, // empty: not known
+            // full URLs, ours or external; a thumbnail or a video may not exist yet
+            {name: 'url', type: 'text', sqlType: 'text', notNull: true}, // the default file to load
+            {name: 'thumb_url', type: 'text', sqlType: 'text'},
+            {name: 'video_url', type: 'text', sqlType: 'text'},
+            // measured from the default file, to filter and sort on; empty when it does not apply or until it is measured
+            {name: 'size', type: 'integer', sqlType: 'integer'}, // bytes
+            {name: 'triangles', type: 'integer', sqlType: 'integer'},
+            {name: 'poly', type: 'text', sqlType: 'text'}, // low | mid | high, from `triangles`
+            // JSON object, everything else: links [{label, url}], changes, screenshots [{label, url}], variants [{name, url, ...}],
+            // views, animations, play, vertices, meshes, materials, textures, extensions, width, height. A list leaves it out of its `select`.
+            {name: 'metadata', type: 'text', sqlType: 'text'},
+        ],
+        indexes: [
+            {fields: ['set_name', 'name'], unique: true}, // a few hundred rows: no other index is worth its writes
+        ],
+        triggers: [createdTrigger, updatedTrigger],
+        extensions: [{
+            name: 'rules',
+            listRule: 'true',
+            viewRule: 'true',
+            createRule: null,
+            updateRule: null,
+            deleteRule: null,
+        } as TableRulesExtensionData],
+    }, {
+        // Links between sample assets, one row per link, read in both directions: a model `uses` a texture or an HDRI, an
+        // optimized file is `optimized_from` its original, a texture is `part_of` a material. Sizes and formats of one file
+        // are `variants` of its row instead. An asset is named `<set_name>/<name>`. Public to read, admin token to write.
+        name: 'threepipe_asset_links',
+        autoSetUid: true,
+        fields: [
+            ...baseFields,
+            {name: 'from_asset', type: 'text', sqlType: 'text', notNull: true},
+            {name: 'relation', type: 'text', sqlType: 'text', notNull: true},
+            {name: 'to_asset', type: 'text', sqlType: 'text', notNull: true},
+        ],
+        indexes: [
+            {fields: ['from_asset', 'relation', 'to_asset'], unique: true},
+            {fields: ['to_asset', 'relation']},
+        ],
+        triggers: [createdTrigger, updatedTrigger],
+        extensions: [{
+            name: 'rules',
+            listRule: 'true',
+            viewRule: 'true',
+            createRule: null,
+            updateRule: null,
+            deleteRule: null,
+        } as TableRulesExtensionData],
     }],
 } satisfies DatabaseSettings
