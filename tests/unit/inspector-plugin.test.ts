@@ -279,8 +279,16 @@ describe('InspectorPlugin', () => {
         // a material with no name shows its type as the name, alone
         expect(cards().map(c => c.classList.contains('isp-card-plain'))).toEqual([false, true])
         expect(requests.map(r => [r.material, r.options.size, r.options.shape])).toEqual([[m1, 64, 'sphere'], [m2, 64, 'sphere']])
+        // a change of a material (an edit, an undo) asks for its card preview again, only for that card
+        let n0 = requests.length
+        ;(m2 as any).setDirty()
+        expect(requests.slice(n0).map(r => [r.material, r.options.size])).toEqual([[m2, 64]])
         cards()[1].click()
         expect(tabs()).toEqual(['Object', 'Material*', 'Geometry'])
+        // the cards are gone: no card preview on a change (the large preview asks, it shows now)
+        n0 = requests.length
+        ;(m1 as any).setDirty()
+        expect(requests.length).toBe(n0)
         expect(ui.shown.at(-1)).toBe(m2.uiConfig)
         // the Material tab has no cards
         expect(el.find('isp-cards')[0].style.display).toBe('none')

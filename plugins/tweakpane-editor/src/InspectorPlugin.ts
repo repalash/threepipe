@@ -170,6 +170,8 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
     private _cardsEl: HTMLDivElement
     /** The previews of the material cards, cancelled when the cards are made again or hide */
     private _cardHandles: MaterialPreviewHandle[] = []
+    /** The materials of the cards and their `materialUpdate` listeners, removed with the cards */
+    private _cardListeners: [IMaterial, () => void][] = []
     /** The viewer settings of the last previews of the cards ({@link _cardsKey}) */
     private _cardSettings = ''
     private _materialList: HTMLSelectElement
@@ -555,18 +557,28 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
                 this._material = mat
                 this.setTab('material')
             })
-            if (previews) this._cardHandles.push(previews.request(mat, {shape: 'sphere', size}, p => {
-                const ctx = canvas.getContext('2d')
-                if (!ctx) return
-                ctx.clearRect(0, 0, size, size)
-                ctx.drawImage(p.canvas, 0, 0, size, size)
-            }))
+            if (!previews) return
+            const request = () => {
+                this._cardHandles[i]?.cancel()
+                this._cardHandles[i] = previews.request(mat, {shape: 'sphere', size}, p => {
+                    const ctx = canvas.getContext('2d')
+                    if (!ctx) return
+                    ctx.clearRect(0, 0, size, size)
+                    ctx.drawImage(p.canvas, 0, 0, size, size)
+                })
+            }
+            request()
+            // a change of the material (an edit, an undo) asks for its preview again while the card shows
+            mat.addEventListener('materialUpdate', request)
+            this._cardListeners.push([mat, request])
         })
     }
 
     private _cancelCards() {
-        for (const h of this._cardHandles) h.cancel()
+        for (const h of this._cardHandles) h?.cancel()
         this._cardHandles = []
+        for (const [mat, f] of this._cardListeners) mat.removeEventListener('materialUpdate', f)
+        this._cardListeners = []
     }
 
     private _renderTitle() {
