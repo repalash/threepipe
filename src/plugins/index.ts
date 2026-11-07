@@ -44,7 +44,7 @@ export {DeviceOrientationControlsPlugin} from './interaction/DeviceOrientationCo
 export {PointerLockControlsPlugin} from './interaction/PointerLockControlsPlugin'
 export {ThreeFirstPersonControlsPlugin} from './interaction/ThreeFirstPersonControlsPlugin'
 export {UndoManagerPlugin, createBindingsProxy} from './interaction/UndoManagerPlugin'
-export {CommandsPlugin, bindActions, type CommandAction, type CommandResult, type CommandsPluginEventMap} from './interaction/CommandsPlugin'
+export {CommandsPlugin, bindActions, shortcutsOf, viewerTakesKey, type CommandAction, type CommandResult, type CommandsPluginEventMap} from './interaction/CommandsPlugin'
 
 // import
 export {Rhino3dmLoadPlugin} from './import/Rhino3dmLoadPlugin'

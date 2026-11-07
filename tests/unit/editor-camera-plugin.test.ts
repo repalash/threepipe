@@ -1436,46 +1436,4 @@ describe('EditorCameraPlugin start view UI', () => {
         expect((camera2 as any)._listeners?.editingChange ?? []).toHaveLength(0)
         expect(editor).toBeTruthy()
     })
-
-    test('the TweakpaneEditorPlugin shows the error and the warning of each action run of a CommandsPlugin in a toast', async() => {
-        vi.useFakeTimers()
-        // the CommandsPlugin listens on the window
-        const win = new EventTarget()
-        Object.assign(globalThis, {addEventListener: win.addEventListener.bind(win), removeEventListener: win.removeEventListener.bind(win)})
-        const viewer = uiViewer()
-        const editor = viewer.add(new TweakpaneEditorPlugin())
-        const toasts = () => viewer.container.find('etoast').map((t: FakeElement) => [t.className, t.textContent])
-        // added after the editor
-        const commands = viewer.add(new CommandsPlugin())
-        commands.register([
-            {id: 'upload', label: 'Upload', run: () => ({error: 'Upload failed', warn: 'The file is large'})},
-            {id: 'plain', label: 'Plain', run: () => undefined},
-        ])
-        await commands.run('upload')
-        await commands.run('plain')
-        expect(toasts()).toEqual([['etoast etoast-error', 'Upload failed'], ['etoast etoast-warn', 'The file is large']])
-        expect(viewer.container.find('etoast-error')[0].getAttribute('role')).toBe('alert')
-
-        // a warning goes after Duration, an error after twice that time; a click removes a toast
-        vi.advanceTimersByTime(4000)
-        expect(toasts()).toEqual([['etoast etoast-error', 'Upload failed']])
-        vi.advanceTimersByTime(4000)
-        expect(toasts()).toEqual([])
-        editor.toasts!.show('Saved')
-        const saved = viewer.container.find('etoast')[0]
-        saved.listeners.click.forEach((l: any) => l())
-        expect(toasts()).toEqual([])
-
-        // at most MaxToasts: the oldest goes
-        for (const m of ['1', '2', '3', '4']) editor.toasts!.show(m)
-        expect(toasts().map(([, text]: string[]) => text)).toEqual(['2', '3', '4'])
-
-        // removed: its runs show no toast; the editor removed: no toasts, no styles of the toasts
-        viewer.remove(commands)
-        expect((commands as any)._listeners?.actionRun ?? []).toHaveLength(0)
-        viewer.remove(editor)
-        expect(viewer.container.find('etoast-host')).toHaveLength(0)
-        expect(editor.toasts).toBeUndefined()
-        vi.useRealTimers()
-    })
 })

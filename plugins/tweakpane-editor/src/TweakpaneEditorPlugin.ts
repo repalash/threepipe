@@ -9,7 +9,6 @@ import {
     safeSetProperty,
     ThreeViewer,
 } from 'threepipe'
-import type {CommandsPlugin, CommandsPluginEventMap} from 'threepipe'
 import {setupFullscreenButton, setupUtilButtonsBar} from './util-buttons'
 import {setupEditorCameraUi} from './editor-camera-ui'
 import type {EditorCameraPlugin} from './EditorCameraPlugin'
@@ -20,7 +19,6 @@ import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 import {UiObjectConfig} from 'uiconfig.js'
 import {EDITOR_PAGE_LAYOUTS, EditorFrame, EditorFrameLayout, EditorFrameOptions, EditorFramePanelOptions, EditorPageLayout} from './frame/EditorFrame'
 import {readStored, writeStored} from './dom-utils'
-import {EditorToasts} from './EditorToasts'
 import {preventIosInputZoom as preventZoom} from './input-zoom'
 
 export interface TweakpaneEditorPluginEventMap extends AViewerPluginEventMap {
@@ -57,60 +55,23 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
         })
 
         setupFullscreenButton(viewer)
-        this.toasts = new EditorToasts(viewer.container)
 
         // the start view UI while the EditorCameraPlugin is added (before or after this plugin, and again after a
         // remove). By its type name, with a type-only import: the editor works without it, and this module does not load it.
         this._addEditorCameraUi()
         viewer.addPluginListener('add', this._addEditorCameraUi, 'EditorCameraPlugin')
         viewer.addPluginListener('remove', this._removeEditorCameraUi, 'EditorCameraPlugin')
-
-        // the results of the actions in the toasts while a CommandsPlugin is added, by its type name as above
-        this._watchCommands()
-        viewer.addPluginListener('add', this._watchCommands, 'CommandsPlugin')
-        viewer.addPluginListener('remove', this._unwatchCommands, 'CommandsPlugin')
         this._applyInputZoom()
     }
 
     onRemove(viewer: ThreeViewer) {
         viewer.removePluginListener('add', this._addEditorCameraUi)
         viewer.removePluginListener('remove', this._removeEditorCameraUi)
-        viewer.removePluginListener('add', this._watchCommands)
-        viewer.removePluginListener('remove', this._unwatchCommands)
         this._removeEditorCameraUi()
-        this._unwatchCommands()
-        this.toasts?.dispose()
-        this.toasts = undefined
         this._removeFrame()
         this._undoInputZoom?.()
         this._undoInputZoom = undefined
         super.onRemove(viewer)
-    }
-
-    /**
-     * Short messages over the canvas ({@link EditorToasts}), while the plugin is added. It shows the `error` and the
-     * `warn` of each action that a `CommandsPlugin` of the viewer runs (its `actionRun` event); other UIs show their
-     * messages with `toasts.show(message, kind)`.
-     */
-    toasts?: EditorToasts
-
-    /** The CommandsPlugin whose `actionRun` the toasts show */
-    private _commands?: CommandsPlugin
-
-    private _watchCommands = () => {
-        this._unwatchCommands()
-        this._commands = this._viewer?.getPlugin<CommandsPlugin>('CommandsPlugin')
-        this._commands?.addEventListener('actionRun', this._onActionRun)
-    }
-
-    private _unwatchCommands = () => {
-        this._commands?.removeEventListener('actionRun', this._onActionRun)
-        this._commands = undefined
-    }
-
-    private _onActionRun = ({result}: CommandsPluginEventMap['actionRun']) => {
-        if (result.error) this.toasts?.show(result.error, 'error')
-        if (result.warn) this.toasts?.show(result.warn, 'warn')
     }
 
     private _preventIosInputZoom = true

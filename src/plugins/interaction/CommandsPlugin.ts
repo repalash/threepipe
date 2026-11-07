@@ -2,7 +2,7 @@ import {AViewerPluginEventMap, AViewerPluginSync, ThreeViewer} from '../../viewe
 import type {UiObjectConfig} from 'uiconfig.js'
 import {formatShortcut, isTextTarget, matchShortcut, parseShortcut} from '../../utils/shortcuts'
 
-/** What an action tells after it ran: an error or a warning for the person (an editor shows it in a toast). */
+/** What an action tells after it ran: an error or a warning for the person ({@link CommandsPlugin} shows it in a toast). */
 export interface CommandResult {
     error?: string
     warn?: string
@@ -19,12 +19,22 @@ export interface CommandAction {
     label: string
     /** An icon for a UI: an SVG string, or the name of an icon of the UI */
     icon?: string
-    /** The key, like `'Mod+Z'` (Mod: Cmd on a Mac, Ctrl on other platforms), `'Shift+D'` or `'Delete'`. See {@link parseShortcut} and {@link matchShortcut}. */
-    shortcut?: string
+    /**
+     * The key, like `'Mod+Z'` (Mod: Cmd on a Mac, Ctrl on other platforms), `'Shift+D'` or `'Delete'`, or a list of keys
+     * that run it (`['Delete', 'Backspace']`). See {@link parseShortcut} and {@link matchShortcut}. An app changes it
+     * with {@link CommandsPlugin.setShortcut}.
+     */
+    shortcut?: string | string[]
     /** A group for a UI, like `'Edit'` or `'Camera'` ({@link CommandsPlugin.list}) */
     group?: string
     /** A held key runs the action again on each repeat of the key. Default: `false`, the action runs once per press. */
     repeat?: boolean
+    /**
+     * When two enabled actions have the same key, the one with the higher priority runs (then the one registered last).
+     * Default: `0`. An action that ends a mode (Escape that ends the pivot edit) is above one that acts on the selection
+     * (Escape that clears it).
+     */
+    priority?: number
     /** The action can run now. Default: always. A key of a disabled action is left to other handlers. */
     enabled?(): boolean
     /** Runs the action. It can return (or resolve to) an error or a warning for the person. */
@@ -51,19 +61,74 @@ async function runAction(action: CommandAction): Promise<CommandResult> {
     }
 }
 
+/** The keys of an action ({@link CommandAction.shortcut}) as a list */
+export function shortcutsOf(shortcut: string | string[] | null | undefined): string[] {
+    return !shortcut ? [] : Array.isArray(shortcut) ? shortcut : [shortcut]
+}
+
+type Keys = (action: CommandAction) => string | string[] | null | undefined
+
 /**
- * The action of a key press: the last one in `actions` that has the shortcut of the key and is enabled. A key that
- * another handler used (`defaultPrevented`), or that is typed in a text field ({@link isTextTarget}), has no action. A
- * held key (`repeat`) has only an action with {@link CommandAction.repeat}.
+ * The action of a key press: of the enabled actions with the key, the one with the highest
+ * {@link CommandAction.priority}, then the one last in `actions`. A key that another handler used (`defaultPrevented`),
+ * or that is typed in a text field ({@link isTextTarget}), has no action. A held key (`repeat`) has only an action with
+ * {@link CommandAction.repeat}.
  */
-function shortcutAction(event: KeyboardEvent, actions: readonly CommandAction[]): CommandAction | undefined {
+function shortcutAction(event: KeyboardEvent, actions: readonly CommandAction[], keys: Keys = a => a.shortcut): CommandAction | undefined {
     if (event.defaultPrevented || isTextTarget(event.target)) return undefined
-    for (let i = actions.length - 1; i >= 0; i--) {
-        const a = actions[i]
-        if (!a.shortcut || event.repeat && !a.repeat || !matchShortcut(event, a.shortcut)) continue
-        if (!a.enabled || a.enabled()) return a
+    let found: CommandAction | undefined
+    for (const a of actions) {
+        if (event.repeat && !a.repeat || !shortcutsOf(keys(a)).some(k => matchShortcut(event, k))) continue
+        if (a.enabled && !a.enabled()) continue
+        if (!found || (a.priority ?? 0) >= (found.priority ?? 0)) found = a
     }
-    return undefined
+    return found
+}
+
+/** The viewers with actions, by the count of their bindings, and the one that had the last pointer press */
+const keyViewers = new Map<ThreeViewer, number>()
+let lastViewer: ThreeViewer | undefined
+
+const isNode = (t: unknown): t is Node => typeof (t as Node | null)?.nodeType === 'number'
+/** The viewers with actions that are on the page: a viewer that was dropped without a dispose takes no key */
+const liveViewers = () => [...keyViewers.keys()].filter(v => v.container?.isConnected)
+const viewerOf = (t: EventTarget | null) => isNode(t) ? liveViewers().find(v => v.container.contains(t)) : undefined
+const onViewerPointerDown = (e: PointerEvent) => {
+    lastViewer = viewerOf(e.target) ?? lastViewer
+}
+
+/** Counts a binding of actions of a viewer, for {@link viewerTakesKey}. @returns a function that takes it out */
+function trackViewer(viewer: ThreeViewer | undefined): () => void {
+    if (!viewer) return () => {}
+    // the browser adds one listener once
+    window.addEventListener('pointerdown', onViewerPointerDown, true)
+    keyViewers.set(viewer, (keyViewers.get(viewer) ?? 0) + 1)
+    let done = false
+    return () => {
+        if (done) return
+        done = true
+        const n = (keyViewers.get(viewer) ?? 1) - 1
+        if (n > 0) return keyViewers.set(viewer, n)
+        keyViewers.delete(viewer)
+        if (lastViewer === viewer) lastViewer = undefined
+        if (!keyViewers.size) window.removeEventListener('pointerdown', onViewerPointerDown, true)
+    }
+}
+
+/**
+ * The key press is for this viewer, when the page has more viewers with actions: the viewer that has the focus (the
+ * target is in its container), else, when the focus is in no viewer (the page, a side panel), the viewer that had the
+ * last pointer press (else the first one). With one viewer on the page, every key is for it. A viewer that is not on the
+ * page takes a key only when no viewer with actions is.
+ * @param viewer - the viewer, or `undefined`: every key
+ */
+export function viewerTakesKey(viewer: ThreeViewer | undefined, event: KeyboardEvent): boolean {
+    if (!viewer) return true
+    const live = liveViewers()
+    if (!live.includes(viewer)) return !live.length
+    if (live.length < 2) return true
+    const last = lastViewer && live.includes(lastViewer) ? lastViewer : live[0]
+    return (viewerOf(event.target) ?? last) === viewer
 }
 
 /**
@@ -77,10 +142,16 @@ function shortcutAction(event: KeyboardEvent, actions: readonly CommandAction[])
  *
  * - One `keydown` listener on the window runs the shortcuts of all the actions. It leaves a key typed in a text field
  *   (an input, a text area, a select, an editable element) and a key that another handler used (`defaultPrevented`). It
- *   calls `preventDefault` only when an action runs. When two enabled actions have the same key, the one registered
- *   last runs. While the plugin is disabled, the keys do nothing ({@link run} still runs an action).
- * - `actionRun` tells the result of each run ({@link CommandResult}: an error or a warning for the person; the
- *   tweakpane editor shows it in a toast), and `actionsChange` tells that the list changed.
+ *   calls `preventDefault` only when an action runs. When two enabled actions have the same key, the one with the
+ *   higher {@link CommandAction.priority} runs, then the one registered last. While the plugin is disabled, the keys do
+ *   nothing ({@link run} still runs an action).
+ * - The app controls the keys here, in one place: {@link setShortcut} changes or removes the key of an action, and
+ *   {@link enabled} turns all the keys off (for an app with its own keymap).
+ * - With more viewers on the page, a key is for the viewer that has the focus, else for the one used last
+ *   ({@link viewerTakesKey}).
+ * - `actionRun` tells the result of each run ({@link CommandResult}), and `actionsChange` tells that the list changed.
+ *   The `error` and the `warn` of a result show in a toast ({@link toastResults}, `viewer.dialog.toast`; the UI
+ *   plugins show it over the canvas).
  * - Plugins that work with and without this plugin bind their actions with {@link bindActions}: registered here while
  *   the viewer has the plugin, else their own key listener runs them, with the same rules.
  *
@@ -96,8 +167,8 @@ function shortcutAction(event: KeyboardEvent, actions: readonly CommandAction[])
  *         viewer.scene.mainCamera.setDirty()
  *     },
  * })
- * commands.addEventListener('actionRun', ({action, result}) => result.error && alert(result.error))
- * commands.list('Camera').map(a => a.label + ' ' + formatShortcut(a.shortcut ?? ''))
+ * commands.setShortcut('resetCamera', ['Shift+R', 'Home']) // the app sets the keys here
+ * commands.list('Camera').map(a => a.label + ' ' + shortcutsOf(commands.shortcutOf(a.id)).map(k => formatShortcut(k)).join(', '))
  * await commands.run('resetCamera')
  * ```
  *
@@ -108,17 +179,24 @@ export class CommandsPlugin extends AViewerPluginSync<CommandsPluginEventMap> {
     enabled = true
     serializeWithViewer = false
 
+    /** Show the `error` and the `warn` of each run of an action in a toast (`viewer.dialog.toast`) */
+    toastResults = true
+
     /** The actions, in the order they were registered */
     private _actions: CommandAction[] = []
+    /** The keys that the app set ({@link setShortcut}), by the id of the action; `null`: no key */
+    private _shortcuts = new Map<string, string | string[] | null>()
+    private _untrack?: () => void
 
     uiConfig: UiObjectConfig = {
         type: 'folder',
         label: 'Commands',
         children: [
             {type: 'checkbox', label: 'Shortcuts', property: [this, 'enabled']},
+            {type: 'checkbox', label: 'Toast results', property: [this, 'toastResults']},
             () => this._actions.map(a => ({
                 type: 'button',
-                label: a.shortcut ? `${a.label} (${formatShortcut(a.shortcut)})` : a.label,
+                label: [a.label, ...shortcutsOf(this.shortcutOf(a.id)).slice(0, 1).map(k => `(${formatShortcut(k)})`)].join(' '),
                 disabled: () => !!a.enabled && !a.enabled(),
                 value: () => {
                     this.run(a.id)
@@ -129,11 +207,14 @@ export class CommandsPlugin extends AViewerPluginSync<CommandsPluginEventMap> {
 
     onAdded(viewer: ThreeViewer) {
         super.onAdded(viewer)
+        this._untrack = trackViewer(viewer)
         window.addEventListener('keydown', this._onKeyDown)
     }
 
     onRemove(viewer: ThreeViewer) {
         window.removeEventListener('keydown', this._onKeyDown)
+        this._untrack?.()
+        this._untrack = undefined
         super.onRemove(viewer)
     }
 
@@ -145,7 +226,7 @@ export class CommandsPlugin extends AViewerPluginSync<CommandsPluginEventMap> {
     register(action: CommandAction | CommandAction[]): () => void {
         const actions = Array.isArray(action) ? action : [action]
         for (const a of actions) {
-            if (a.shortcut && !parseShortcut(a.shortcut)) console.warn(`CommandsPlugin: the shortcut "${a.shortcut}" of "${a.id}" is not valid`)
+            warnInvalid(a.id, a.shortcut)
             this._actions = this._actions.filter(b => b.id !== a.id)
             this._actions.push(a)
         }
@@ -169,6 +250,27 @@ export class CommandsPlugin extends AViewerPluginSync<CommandsPluginEventMap> {
     }
 
     /**
+     * Changes the key of an action, also of one that is registered later or again. It is the one place where an app
+     * sets the keys: another key, more keys, or none.
+     * @param id - the id of the action
+     * @param shortcut - the key or the keys; `null`: no key; `undefined`: the key of the action again
+     */
+    setShortcut(id: string, shortcut: string | string[] | null | undefined) {
+        if (shortcut === undefined) this._shortcuts.delete(id)
+        else {
+            warnInvalid(id, shortcut)
+            this._shortcuts.set(id, shortcut)
+        }
+        this._changed()
+    }
+
+    /** The key or the keys of an action now: the one set with {@link setShortcut}, else its own */
+    shortcutOf(id: string): string | string[] | undefined {
+        const set = this._shortcuts.get(id)
+        return set === null ? undefined : set ?? this.get(id)?.shortcut
+    }
+
+    /**
      * The actions, in the order they were registered
      * @param group - only the actions of this group
      */
@@ -189,6 +291,11 @@ export class CommandsPlugin extends AViewerPluginSync<CommandsPluginEventMap> {
     private async _run(action: CommandAction) {
         const result = await runAction(action)
         this.dispatchEvent({type: 'actionRun', action, result})
+        const viewer = this._viewer
+        if (this.toastResults && viewer) {
+            if (result.error) viewer.dialog.toast?.(result.error, {kind: 'error', container: viewer.container})
+            if (result.warn) viewer.dialog.toast?.(result.warn, {kind: 'warn', container: viewer.container})
+        }
         return result
     }
 
@@ -198,8 +305,8 @@ export class CommandsPlugin extends AViewerPluginSync<CommandsPluginEventMap> {
     }
 
     private _onKeyDown = (e: KeyboardEvent) => {
-        if (this.isDisabled()) return
-        const action = shortcutAction(e, this._actions)
+        if (this.isDisabled() || !viewerTakesKey(this._viewer, e)) return
+        const action = shortcutAction(e, this._actions, a => this.shortcutOf(a.id))
         if (!action) return
         e.preventDefault()
         this._run(action)
@@ -210,8 +317,8 @@ export class CommandsPlugin extends AViewerPluginSync<CommandsPluginEventMap> {
  * Binds the actions of a plugin or a UI to a viewer, for the code that works with and without a {@link CommandsPlugin}.
  * While the viewer has a `CommandsPlugin` (also one added or removed later), the actions are registered there: a UI
  * lists them, its key listener runs them and sends `actionRun`. Else a key listener on the window runs their shortcuts,
- * with the same rules (text fields, `defaultPrevented`, `enabled()`, `repeat`, `preventDefault` only when an action
- * runs). So each key has one implementation.
+ * with the same rules (text fields, `defaultPrevented`, `enabled()`, `repeat`, `priority`, the viewer that takes the
+ * key, `preventDefault` only when an action runs). So each key has one implementation.
  * @param viewer - the viewer, or `undefined` for the own key listener only
  * @param actions - the actions. To change a shortcut, unbind and bind again: a `CommandsPlugin` then sends
  * `actionsChange` for its UIs.
@@ -219,8 +326,10 @@ export class CommandsPlugin extends AViewerPluginSync<CommandsPluginEventMap> {
  */
 export function bindActions(viewer: ThreeViewer | undefined, actions: CommandAction[]): () => void {
     let unbind: (() => void) | undefined
+    const untrack = trackViewer(viewer)
     const listen = () => {
         const onKeyDown = (e: KeyboardEvent) => {
+            if (!viewerTakesKey(viewer, e)) return
             const action = shortcutAction(e, actions)
             if (!action) return
             e.preventDefault()
@@ -249,5 +358,10 @@ export function bindActions(viewer: ThreeViewer | undefined, actions: CommandAct
         viewer?.removePluginListener('remove', detach)
         unbind?.()
         unbind = undefined
+        untrack()
     }
+}
+
+function warnInvalid(id: string, shortcut: string | string[] | null | undefined) {
+    for (const k of shortcutsOf(shortcut)) if (!parseShortcut(k)) console.warn(`CommandsPlugin: the shortcut "${k}" of "${id}" is not valid`)
 }

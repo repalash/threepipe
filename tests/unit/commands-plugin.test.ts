@@ -24,8 +24,8 @@ function press(key: string, code: string, fields: Record<string, any> = {}) {
 }
 
 // a key press in an element: the event target
-function pressIn(target: any, key: string, code: string) {
-    const e = keyEvent(key, code)
+function pressIn(target: any, key: string, code: string, fields: Record<string, any> = {}) {
+    const e = keyEvent(key, code, fields)
     Object.defineProperty(e, 'target', {value: target})
     window.dispatchEvent(e)
     return e
@@ -38,6 +38,7 @@ function fakeViewer() {
         .filter((l: any) => !l.p.length || l.p.includes(p.constructor.PluginType)).forEach((l: any) => l.l({type, plugin: p}))
     const viewer: any = Object.assign(new EventDispatcher<any>(), {
         _pluginListeners: {add: [], remove: []},
+        dialog: {toast: vi.fn()},
         getPlugin: (t: any) => plugins[typeof t === 'string' ? t : t.PluginType],
         addPluginListener: ThreeViewer.prototype.addPluginListener,
         removePluginListener: ThreeViewer.prototype.removePluginListener,
@@ -310,6 +311,92 @@ describe('CommandsPlugin', () => {
         expect(first.run).toHaveBeenCalledTimes(1)
     })
 
+    test('an action with more keys runs on each; a higher priority wins over the one registered last', () => {
+        const {commands} = setup()
+        const del = action('delete', {shortcut: ['Delete', 'Backspace']})
+        const endMode = action('endMode', {shortcut: 'Escape', priority: 1})
+        const clear = action('clear', {shortcut: 'Escape'})
+        commands.register([del, endMode, clear])
+        press('Delete', 'Delete')
+        press('Backspace', 'Backspace')
+        expect(del.run).toHaveBeenCalledTimes(2)
+        press('Escape', 'Escape')
+        expect([endMode.run.mock.calls.length, clear.run.mock.calls.length]).toEqual([1, 0])
+    })
+
+    test('setShortcut: the app sets another key, more keys or none, also for an action registered later', () => {
+        const {commands} = setup()
+        const undo = action('undo', {shortcut: 'Mod+Z'})
+        commands.register(undo)
+        commands.setShortcut('undo', ['Mod+U', 'Alt+Z'])
+        expect(press('z', 'KeyZ', {ctrlKey: true}).defaultPrevented).toBe(false)
+        expect(press('z', 'KeyZ', {altKey: true}).defaultPrevented).toBe(true)
+        expect(commands.shortcutOf('undo')).toEqual(['Mod+U', 'Alt+Z'])
+        commands.setShortcut('undo', null)
+        expect(press('z', 'KeyZ', {altKey: true}).defaultPrevented).toBe(false)
+        expect(commands.shortcutOf('undo')).toBeUndefined()
+        commands.setShortcut('undo', undefined)
+        expect(press('z', 'KeyZ', {ctrlKey: true}).defaultPrevented).toBe(true)
+        // set before the action is there
+        commands.setShortcut('later', 'Shift+L')
+        const later = action('later', {shortcut: 'L'})
+        commands.register(later)
+        press('L', 'KeyL', {shiftKey: true})
+        press('l', 'KeyL')
+        expect([undo.run.mock.calls.length, later.run.mock.calls.length]).toEqual([2, 1])
+    })
+
+    test('the error and the warning of a run show in a toast of the viewer dialog, in its container, unless toastResults is off', async() => {
+        const {viewer, commands} = setup()
+        commands.register(action('upload', {run: () => ({error: 'Upload failed', warn: 'The file is large'})}))
+        await commands.run('upload')
+        expect(viewer.dialog.toast.mock.calls).toEqual([
+            ['Upload failed', {kind: 'error', container: viewer.container}],
+            ['The file is large', {kind: 'warn', container: viewer.container}],
+        ])
+        commands.toastResults = false
+        await commands.run('upload')
+        expect(viewer.dialog.toast).toHaveBeenCalledTimes(2)
+    })
+
+    test('two viewers on the page: a key is for the viewer with the focus, else for the one used last', () => {
+        const container = () => {
+            const kids = new Set<any>()
+            return {isConnected: true, contains: (t: any) => kids.has(t), kids}
+        }
+        const a = setup(), b = setup()
+        a.viewer.container = container()
+        b.viewer.container = container()
+        const inA = {tagName: 'CANVAS'}, inB = {tagName: 'CANVAS'}
+        a.viewer.container.kids.add(inA)
+        b.viewer.container.kids.add(inB)
+        const undoA = action('undo', {shortcut: 'Mod+Z'}), undoB = action('undo', {shortcut: 'Mod+Z'})
+        a.commands.register(undoA)
+        b.commands.register(undoB)
+        const runs = () => [undoA.run.mock.calls.length, undoB.run.mock.calls.length]
+        try {
+            pressIn(Object.assign(inB, {nodeType: 1}), 'z', 'KeyZ', {ctrlKey: true})
+            expect(runs()).toEqual([0, 1])
+            pressIn(Object.assign(inA, {nodeType: 1}), 'z', 'KeyZ', {ctrlKey: true})
+            expect(runs()).toEqual([1, 1])
+            // the focus on the page: the first one, then the one with the last pointer press
+            press('z', 'KeyZ', {ctrlKey: true})
+            expect(runs()).toEqual([2, 1])
+            const down = new Event('pointerdown')
+            Object.defineProperty(down, 'target', {value: inB})
+            dispatchEvent(down)
+            press('z', 'KeyZ', {ctrlKey: true})
+            expect(runs()).toEqual([2, 2])
+            // a viewer that left the page takes no key: the other one takes all
+            b.viewer.container.isConnected = false
+            pressIn(inB, 'z', 'KeyZ', {ctrlKey: true})
+            expect(runs()).toEqual([3, 2])
+        } finally {
+            a.viewer.remove(a.commands)
+            b.viewer.remove(b.commands)
+        }
+    })
+
     test('the keys are off while the plugin is disabled, and after it is removed; run still runs', async() => {
         const {viewer, commands} = setup()
         const undo = action('undo', {shortcut: 'Mod+Z'})
@@ -372,7 +459,8 @@ describe('CommandsPlugin', () => {
         commands.register([undo, action('reset', {label: 'Reset', enabled: () => false})])
         const children = commands.uiConfig.children as any[]
         expect(children[0].property).toEqual([commands, 'enabled'])
-        const buttons = children[1]()
+        expect(children[1].property).toEqual([commands, 'toastResults'])
+        const buttons = children[2]()
         expect(buttons.map((b: any) => b.label)).toEqual([`Undo (${formatShortcut('Mod+Z')})`, 'Reset'])
         expect(buttons.map((b: any) => b.disabled())).toEqual([false, true])
         buttons[0].value()
