@@ -55,8 +55,9 @@ export interface BVHPluginEventMap extends AViewerPluginEventMap {
 interface MeshBVHTree extends IMeshBVH {
     // goes down the tree: intersectsRange gets the positions of the triangles of a leaf, true stops
     shapecast(callbacks: {intersectsBounds: () => boolean, intersectsRange: (offset: number, count: number) => boolean}): boolean
-    // the triangle at a position of the tree
-    resolveTriangleIndex(i: number): number
+    // the triangle at a position of the tree. Only a MeshBVH has it: three-mesh-bvh types `geometry.boundsTree` as a
+    // GeometryBVH, which can also be a SkinnedMeshBVH, PointsBVH or LineSegmentsBVH
+    resolveTriangleIndex?(i: number): number
 }
 
 type BVHGeometry = IGeometry & {boundsTree?: MeshBVHTree}
@@ -576,6 +577,9 @@ function buildKey(g: BufferGeometry) {
  * three-mesh-bvh, or before a change of the draw range, can have fewer or others. Reads each triangle of the tree once.
  */
 function hasDrawnTriangles(bvh: MeshBVHTree, g: BufferGeometry) {
+    // a tree without triangle indices (not a MeshBVH) cannot be checked: the meshes keep the raycast of three.js
+    const resolveTriangleIndex = bvh.resolveTriangleIndex?.bind(bvh)
+    if (!resolveTriangleIndex) return false
     const n = triangleCount(g)
     const start = Math.max(0, Math.floor(g.drawRange.start / 3))
     const end = Math.min(n, Math.floor((g.drawRange.start + g.drawRange.count) / 3))
@@ -588,7 +592,7 @@ function hasDrawnTriangles(bvh: MeshBVHTree, g: BufferGeometry) {
         intersectsBounds: () => true,
         intersectsRange: (offset, count) => {
             for (let i = offset; i < offset + count; i++) {
-                const t = bvh.resolveTriangleIndex(i)
+                const t = resolveTriangleIndex(i)
                 if (!drawn[t]) return true
                 drawn[t] = 0
             }
