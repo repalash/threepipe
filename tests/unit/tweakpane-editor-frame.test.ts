@@ -757,12 +757,41 @@ describe('EditorFrame area sizes', () => {
         expect([f.panelArea('layers'), body().find('lay-area-bottom')[0].contains(layers), body().classList.contains('lay-has-left')]).toEqual(['bottom', true, false])
         // at the end of the stack of its new place; the entries follow the places, then the stacks
         expect(box.find('lay-area-entry').map(e => e.getAttribute('aria-label'))).toEqual(['Timeline', 'Layers'])
-        expect(stored().panels).toEqual({layers: {area: 'bottom', hidden: false}})
+        expect(stored().panels).toEqual({layers: {area: 'bottom', hidden: false, order: 1}})
         // a new frame (a reload) puts it in the kept place
         f.dispose()
         const g = new EditorFrame(host(), {layout: 'titlebar'})
         g.addPanel('layers', layers as any, {name: 'Layers', area: 'left'})
         expect(g.panelArea('layers')).toBe('bottom')
+    })
+
+    test('a moved panel stays at the end of the stack of its new place in a new frame (a reload)', () => {
+        const build = () => {
+            const f = new EditorFrame(host(), {layout: 'titlebar'})
+            for (const id of ['a', 'b', 'c']) f.addPanel(id, new FakeElement('div') as any, {area: id === 'a' ? 'left' : 'bottom'})
+            return f
+        }
+        const order = (f: EditorFrame) => (f as any)._areaPanels('bottom').map((p: any) => p.id)
+        const f = build()
+        f.movePanel('a', 'bottom', true)
+        expect(order(f)).toEqual(['b', 'c', 'a'])
+        f.dispose()
+        // a is added first, and its place is kept, at the end
+        const g = build()
+        expect(order(g)).toEqual(['b', 'c', 'a'])
+        // a later move goes after it
+        g.movePanel('b', 'left', true)
+        g.movePanel('b', 'bottom', true)
+        expect(order(g)).toEqual(['c', 'a', 'b'])
+    })
+
+    test('a collapse from code is not kept, also when a later pick of the person stores the areas', () => {
+        const f = new EditorFrame(host(), {layout: 'titlebar'})
+        f.addPanel('a', new FakeElement('div') as any, {area: 'left'})
+        f.addPanel('b', new FakeElement('div') as any, {area: 'bottom'})
+        f.setAreaCollapsed('left', true)
+        f.setAreaCollapsed('bottom', true, true)
+        expect(stored().collapsed).toEqual({bottom: true})
     })
 
     test('a long press on the entry of a panel on a touch screen opens the Move menu, and is not a tap', () => {
@@ -776,6 +805,34 @@ describe('EditorFrame area sizes', () => {
             entry.fire('pointerup', {})
             entry.click()
             expect([body().find('lay-menu').length, f.isPanelHidden('layers')]).toEqual([1, false])
+        } finally {
+            vi.useRealTimers()
+        }
+    })
+
+    test('a long press on Android also sends contextmenu, before or after the timer: one menu, and no tap', () => {
+        vi.useFakeTimers()
+        try {
+            const f = new EditorFrame(host(), {layout: 'titlebar'})
+            f.addPanel('layers', new FakeElement('div') as any, {name: 'Layers'})
+            f.addPanel('notes', new FakeElement('div') as any, {name: 'Notes'})
+            const entry = (f.modeBar.element as any as FakeElement).find('lay-area-entry')[0]
+            for (const contextFirst of [true, false]) {
+                entry.fire('pointerdown', {pointerType: 'touch', clientX: 0, clientY: 0})
+                if (contextFirst) entry.fire('contextmenu', {preventDefault: () => {}})
+                vi.advanceTimersByTime(EditorFrame.LongPressTime)
+                if (!contextFirst) entry.fire('contextmenu', {preventDefault: () => {}})
+                entry.fire('pointerup', {})
+                entry.click()
+                expect([body().find('lay-menu').length, f.isPanelHidden('layers')]).toEqual([1, false])
+                ;(f as any)._closeMenu()
+            }
+            // a right-click with a mouse after it: the menu, and the next click is a tap
+            entry.fire('pointerdown', {pointerType: 'mouse', button: 2})
+            entry.fire('contextmenu', {preventDefault: () => {}})
+            expect(body().find('lay-menu')).toHaveLength(1)
+            entry.click()
+            expect(f.isPanelHidden('layers')).toBe(true)
         } finally {
             vi.useRealTimers()
         }
@@ -874,6 +931,18 @@ describe('EditorFrame area sizes', () => {
         f.addPanel('notes', new FakeElement('div') as any, {area: 'left'})
         f.addPanel('second', new FakeElement('div') as any, {area: 'left'})
         expect([f.isPanelHidden('notes'), f.isPanelHidden('second'), f.isAreaCollapsed('left')]).toEqual([true, false, false])
+    })
+
+    test('a restored place with only hidden panels takes no room, as an empty one', () => {
+        storage.set('tpEditorFrameAreas', JSON.stringify({panels: {notes: {hidden: true}, insp: {hidden: true}}}))
+        const panel = new FakeElement('div')
+        const f = new EditorFrame(host(), {layout: 'titlebar', panel: () => panel as any})
+        f.addPanel('notes', new FakeElement('div') as any, {area: 'left'})
+        f.addPanel('insp', new FakeElement('div') as any, {area: 'right'})
+        const has = (a: string) => body().classList.contains('lay-has-' + a)
+        expect([has('left'), has('right'), (f as any)._rightShown()]).toEqual([false, false, false])
+        f.setPanelHidden('notes', false)
+        expect(has('left')).toBe(true)
     })
 
     test('a tap on the entry of a panel in the right place while the panel cannot be seen shows it, and does not hide it', () => {

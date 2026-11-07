@@ -62,6 +62,8 @@ interface FramePanel {
     options: EditorFramePanelOptions
     area: EditorFrameArea
     hidden: boolean
+    /** Its place in the stack: 0 in the order it was added; a move puts it after the others ({@link EditorFrame.movePanel}) */
+    order: number
     section: HTMLDivElement
     entry: HTMLButtonElement
 }
@@ -228,7 +230,9 @@ export class EditorFrame {
     private _panels = new Map<string, FramePanel>()
     private _entryBox: HTMLDivElement
     /** The place and the hidden state that the person picked for each panel (its entry, its Move menu), by id; kept */
-    private _picks: Record<string, {area?: EditorFrameArea, hidden?: boolean}> = {}
+    private _picks: Record<string, {area?: EditorFrameArea, hidden?: boolean, order?: number}> = {}
+    /** The count of the moves: the order of the last moved panel */
+    private _moves = 0
     /** The size of each panel in the stack of its place, as a weight (`flex-grow`), by id; kept; not set: 1 */
     private _weights: Record<string, number> = {}
     /** The edges that a drag resizes, in the page while the frame is */
@@ -247,6 +251,8 @@ export class EditorFrame {
     private _appliedSpans: Partial<Record<EditorFrameSizedArea, Required<EditorFrameAreaSpan>>> = {}
     /** The collapsed left and bottom areas; the panel collapses as the mode bar hides it */
     private _collapsed: Partial<Record<EditorFrameArea, boolean>> = {}
+    /** The collapses that the person picked (`keep`), the ones that {@link _storeAreas} writes */
+    private _keptCollapsed: Partial<Record<EditorFrameArea, boolean>> = {}
     /** The line between the right area and the settings of the mode, in the panel ({@link addPanel} `right`) */
     private _rightSplit: HTMLDivElement
     /** The part of the panel height for the right area, 0 to 1, with the settings of the mode under it; kept */
@@ -433,7 +439,7 @@ export class EditorFrame {
         this._fillEntry(entry, options.area ?? 'left', options)
         const pick = this._picks[id]
         const area = pick?.area ?? options.area ?? 'left'
-        const panel: FramePanel = {id, element, options, area, hidden: pick?.hidden ?? false, section, entry}
+        const panel: FramePanel = {id, element, options, area, hidden: pick?.hidden ?? false, order: pick?.order ?? 0, section, entry}
         this._panels.set(id, panel)
         this._layoutArea(area)
         // the old place lost a panel; the new place is not settled: while the app adds its panels (a restore of the
@@ -476,14 +482,13 @@ export class EditorFrame {
         const p = this._panels.get(id)
         if (!p || !PLACES.includes(area)) return
         const from = p.area
+        // the end of the stack of its new place, also in a new frame and after a reload (kept)
         if (from !== area) {
             p.area = area
-            // the end of the stack of its new place: the order of the panels is the order of the map
-            this._panels.delete(id)
-            this._panels.set(id, p)
+            p.order = ++this._moves
         }
         p.hidden = false
-        if (keep) this._picks[id] = {...this._picks[id], area, hidden: false}
+        if (keep) this._picks[id] = {...this._picks[id], area, hidden: false, order: p.order}
         if (this._collapsed[area]) this._setCollapsed(area, false, keep)
         this._layoutArea(from)
         if (from !== area) {
@@ -557,9 +562,14 @@ export class EditorFrame {
         return Array.from(this._panels.keys())
     }
 
+    /** The place has a panel that is not hidden */
+    private _hasShown(area: EditorFrameArea) {
+        return this._areaPanels(area).some(p => !p.hidden)
+    }
+
     /** The panels of a place, in their order in its stack */
     private _areaPanels(area: EditorFrameArea) {
-        return Array.from(this._panels.values()).filter(p => p.area === area)
+        return Array.from(this._panels.values()).filter(p => p.area === area).sort((a, b) => a.order - b.order)
     }
 
     /** Puts the sections of the panels of a place in it, with a split between two, and the entries in their order */
@@ -572,7 +582,6 @@ export class EditorFrame {
             box.appendChild(p.section)
         })
         box.classList.toggle('lay-split-area', list.length > 1)
-        document.body.classList.toggle('lay-has-' + area, list.length > 0)
         // the entries: the places in their order, then the panels in the order of their stack
         for (const place of PLACES) for (const p of this._areaPanels(place)) this._entryBox.appendChild(p.entry)
         this._applySections(area)
@@ -597,7 +606,12 @@ export class EditorFrame {
         if (area !== 'right') return this.setAreaCollapsed(area, collapsed, keep)
         this._collapsed.right = collapsed
         this._fitAreas()
-        if (keep) this._storeAreas()
+        if (keep) this._keepCollapsed('right', collapsed)
+    }
+
+    private _keepCollapsed(area: EditorFrameArea, collapsed: boolean) {
+        this._keptCollapsed[area] = collapsed
+        this._storeAreas()
     }
 
     /**
@@ -620,7 +634,7 @@ export class EditorFrame {
 
     /** The right area takes room in the panel now: it has an element, it is not collapsed, and the panel is open */
     private _rightShown() {
-        return this._areaPanels('right').length > 0 && !this._collapsed.right && this.modeBar.open
+        return this._hasShown('right') && !this._collapsed.right && this.modeBar.open
     }
 
     /**
@@ -630,7 +644,7 @@ export class EditorFrame {
     private _applyRight() {
         const box = this._areas.right
         const panel = this.options.panel?.()
-        const has = box.children.length > 0
+        const has = this._hasShown('right')
         const body = document.body
         if (has && panel) {
             // first the right area, then the split, then the pane of the Tweakpane UI
@@ -690,6 +704,8 @@ export class EditorFrame {
     /** Hides the hidden sections of a stack, and the splits that are not between two shown sections; the weights of the shown ones */
     private _applySections(area: EditorFrameArea) {
         this._applySplits(area)
+        // a place with only hidden panels (a restored pick) takes no room, as an empty one
+        document.body.classList.toggle('lay-has-' + area, this._hasShown(area))
         let shownBefore = false
         const children = Array.from(this._areas[area].children) as HTMLElement[]
         const sections = this._sections(area)
@@ -746,7 +762,7 @@ export class EditorFrame {
         this._collapsed[area] = collapsed
         document.body.classList.toggle('lay-collapsed-' + area, collapsed)
         this._fitAreas()
-        if (keep) this._storeAreas()
+        if (keep) this._keepCollapsed(area, collapsed)
     }
 
     /** Whether an area is collapsed ({@link setAreaCollapsed}); the panel (`right`) when the mode bar hides it */
@@ -900,7 +916,7 @@ export class EditorFrame {
     /** The left or the bottom area that the place of the panel shows now, in a narrow window */
     private _stackedShown(): EditorFrameArea | undefined {
         const a = this._stacked
-        if (a === 'right' || !this._areaPanels(a).length) return undefined
+        if (a === 'right' || !this._hasShown(a)) return undefined
         return this._isSingle() ? a : undefined
     }
 
@@ -917,10 +933,6 @@ export class EditorFrame {
         })
         b.classList.add('lay-area-entry')
         b.setAttribute('aria-haspopup', 'menu')
-        b.addEventListener('contextmenu', (e: MouseEvent) => {
-            e.preventDefault()
-            this._toggleMenu(b, () => this._moveItems(id))
-        })
         let timer = 0
         let start: {x: number, y: number} | undefined
         const cancel = () => {
@@ -928,7 +940,17 @@ export class EditorFrame {
             timer = 0
             start = undefined
         }
+        // a long press on Android also sends contextmenu, before or after the timer: one menu, and no tap after it
+        b.addEventListener('contextmenu', (e: MouseEvent) => {
+            e.preventDefault()
+            const touch = !!timer
+            cancel()
+            if (held) return
+            this._toggleMenu(b, () => this._moveItems(id))
+            held = touch
+        })
         b.addEventListener('pointerdown', (e: PointerEvent) => {
+            held = false
             if (e.pointerType === 'mouse') return
             start = {x: e.clientX, y: e.clientY}
             timer = window.setTimeout(() => {
@@ -1080,7 +1102,7 @@ export class EditorFrame {
                 if (size < min / 2) return this.setAreaCollapsed(area, true)
                 this.setAreaCollapsed(area, false)
                 this.setAreaSize(area, size)
-            })
+            }, () => {this._keptCollapsed[area] = !!this._collapsed[area]})
         })
         el.addEventListener('dblclick', () => {
             if (this.isAreaCollapsed(area)) this.setAreaCollapsed(area, false, true)
@@ -1429,7 +1451,7 @@ export class EditorFrame {
      */
     private _storeAreas() {
         const key = EditorFrame.AreaStorageKey
-        if (key) writeStored(key, JSON.stringify({sizes: this._sizes, collapsed: this._collapsed, panels: this._picks, weights: this._weights, stacked: this._stacked, offsets: this._offsets, spans: this._spans, rightShare: this._rightShare}))
+        if (key) writeStored(key, JSON.stringify({sizes: this._sizes, collapsed: this._keptCollapsed, panels: this._picks, weights: this._weights, stacked: this._stacked, offsets: this._offsets, spans: this._spans, rightShare: this._rightShare}))
     }
 
     /** Applies what {@link _storeAreas} keeps; a value that is not of the frame is left out */
@@ -1437,7 +1459,7 @@ export class EditorFrame {
         const key = EditorFrame.AreaStorageKey
         let stored: {sizes?: Record<string, unknown>, collapsed?: Record<string, unknown>, stacked?: unknown,
             offsets?: Record<string, unknown>, spans?: Record<string, {start?: unknown, length?: unknown} | undefined>,
-            panels?: Record<string, {area?: unknown, hidden?: unknown} | undefined>, weights?: Record<string, unknown>, rightShare?: unknown} | undefined
+            panels?: Record<string, {area?: unknown, hidden?: unknown, order?: unknown} | undefined>, weights?: Record<string, unknown>, rightShare?: unknown} | undefined
         try {
             stored = JSON.parse(key && readStored(key) || 'null') ?? undefined
         } catch (e) {
@@ -1458,18 +1480,20 @@ export class EditorFrame {
             }
         }
         if (isNum(stored?.rightShare) && stored.rightShare > 0 && stored.rightShare < 1) this._rightShare = stored.rightShare
-        if (stored?.collapsed?.right === true) this._collapsed.right = true
+        if (stored?.collapsed?.right === true) this._collapsed.right = this._keptCollapsed.right = true
         // the picks of the panels, applied when addPanel adds a panel of that id
         for (const [id, pick] of Object.entries(stored?.panels ?? {})) {
             if (!pick || typeof pick !== 'object') continue
             const area = PLACES.find(a => a === pick.area)
             const hidden = typeof pick.hidden === 'boolean' ? pick.hidden : undefined
-            if (area || hidden !== undefined) this._picks[id] = {...area ? {area} : {}, ...hidden !== undefined ? {hidden} : {}}
+            const order = isNum(pick.order) && pick.order > 0 ? Math.round(pick.order) : undefined
+            if (area || hidden !== undefined) this._picks[id] = {...area ? {area} : {}, ...hidden !== undefined ? {hidden} : {}, ...order ? {order} : {}}
+            if (order) this._moves = Math.max(this._moves, order)
         }
         for (const [id, w] of Object.entries(stored?.weights ?? {})) if (isNum(w) && w > 0) this._weights[id] = w
         for (const area of ['left', 'bottom'] as const) {
             if (stored?.collapsed?.[area] !== true) continue
-            this._collapsed[area] = true
+            this._collapsed[area] = this._keptCollapsed[area] = true
             document.body.classList.add('lay-collapsed-' + area)
         }
         const stacked = stored?.stacked
