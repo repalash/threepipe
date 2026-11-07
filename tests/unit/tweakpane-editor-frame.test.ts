@@ -910,6 +910,26 @@ describe('EditorFrame area sizes', () => {
         expect([f.modeBar.open, f.isPanelHidden('a'), f.panelArea('a')]).toEqual([true, false, 'right'])
     })
 
+    test('the shown panels of a place fill it: their weights are scaled to add up to their number, the kept ones stay', () => {
+        storage.set('tpEditorFrameAreas', JSON.stringify({weights: {a: 0.5, b: 1.5}}))
+        const f = new EditorFrame(host(), {layout: 'titlebar'})
+        f.addPanel('a', new FakeElement('div') as any, {area: 'left'})
+        f.addPanel('b', new FakeElement('div') as any, {area: 'left'})
+        const grow = (id: string) => Number((f as any)._panels.get(id).section.style.flexGrow)
+        expect([grow('a'), grow('b')]).toEqual([0.5, 1.5])
+        // the larger one hidden: the smaller one fills the place
+        f.setPanelHidden('b', true)
+        expect(grow('a')).toBe(1)
+        f.setPanelHidden('b', false)
+        expect([grow('a'), grow('b')]).toEqual([0.5, 1.5])
+        // the smaller one alone in another place: it fills it, and keeps its weight for later
+        f.movePanel('a', 'bottom', true)
+        expect([grow('a'), grow('b')]).toEqual([1, 1])
+        expect(stored().weights).toEqual({a: 0.5, b: 1.5})
+        f.movePanel('a', 'left')
+        expect([grow('b'), grow('a')]).toEqual([1.5, 0.5])
+    })
+
     test('a panel that leaves the right place shows the mode settings again (an app hid them for it, like swap)', () => {
         const f = new EditorFrame(host(), {layout: 'titlebar'})
         f.addPanel('insp', new FakeElement('div') as any, {area: 'right'})
