@@ -575,7 +575,6 @@ export class EditorFrame {
         document.body.classList.toggle('lay-has-' + area, list.length > 0)
         // the entries: the places in their order, then the panels in the order of their stack
         for (const place of PLACES) for (const p of this._areaPanels(place)) this._entryBox.appendChild(p.entry)
-        this._applySplits(area)
         this._applySections(area)
     }
 
@@ -688,8 +687,9 @@ export class EditorFrame {
         return !!this._areaPanels(area)[index]?.hidden
     }
 
-    /** Hides the hidden sections of a stack, and the splits that are not between two shown sections */
+    /** Hides the hidden sections of a stack, and the splits that are not between two shown sections; the weights of the shown ones */
     private _applySections(area: EditorFrameArea) {
+        this._applySplits(area)
         let shownBefore = false
         const children = Array.from(this._areas[area].children) as HTMLElement[]
         const sections = this._sections(area)
@@ -1118,9 +1118,21 @@ export class EditorFrame {
         return Array.from(this._areas[area].children).filter(c => c.classList.contains('lay-section')) as HTMLElement[]
     }
 
-    /** Puts the weights of the panels of a place on their sections (kept by id; not set: 1) */
+    /**
+     * Puts the weights of the panels of a place on their sections (kept by id; not set: 1). The shown panels get their
+     * weights scaled to add up to their number: a section has no flex basis, and grow factors that add up to less than 1
+     * would leave a part of the place empty (a panel of weight 0.5 alone, after a move or when the others hide). The kept
+     * weights do not change.
+     */
     private _applySplits(area: EditorFrameArea) {
-        for (const p of this._areaPanels(area)) p.section.style.flexGrow = String(this._weights[p.id] ?? 1)
+        const list = this._areaPanels(area)
+        const shown = list.filter(p => !p.hidden)
+        const sum = shown.reduce((s, p) => s + (this._weights[p.id] ?? 1), 0)
+        const scale = sum > 0 ? shown.length / sum : 1
+        for (const p of list) {
+            const w = this._weights[p.id] ?? 1
+            p.section.style.flexGrow = String(p.hidden ? w : Math.round(w * scale * 1000) / 1000)
+        }
     }
 
     /**
