@@ -133,8 +133,8 @@ const ICONS = {
  *   name, a short text (the size of a texture, the vertices of a geometry, the users), and an arrow that lists its users.
  *   A click selects the asset in the PickingPlugin, a double-click selects its users, a double-click on the name (or
  *   F2) renames a material or a texture ({@link renameAsset}); a hover outlines its users.
- * - The scene and the default camera are the first two rows, above the model ({@link sceneRows}), dimmer and with a line
- *   below them; a click selects them. Meshes, lines, points, cameras and lights show no children ({@link leafTypes},
+ * - The scene and the default camera are the first two rows, above the model ({@link sceneRows}), dimmer; a click
+ *   selects them. Meshes, lines, points, cameras and lights show no children ({@link leafTypes},
  *   {@link showLeafChildren}).
  * - A double-click on a row selects it and moves the camera to it ({@link doubleClickFocus}; the scene row frames the
  *   model); a double-click on the name renames it. With {@link clickToUnselect}, a click on a selected row unselects it.
@@ -214,7 +214,7 @@ export class LayersPanelPlugin extends AViewerPluginSync<LayersPanelPluginEventM
         maxChildren = 5
 
     /**
-     * The scene and the default camera as the first two rows of the Objects tab, above the model, with a line below them.
+     * The scene and the default camera as the first two rows of the Objects tab, above the model, dimmer.
      * A click selects them (the UI of the editor shows their settings). They are not in the model: they have no eye, lock
      * or arrow, and a search hides them.
      */
@@ -1203,7 +1203,7 @@ export class LayersPanelPlugin extends AViewerPluginSync<LayersPanelPluginEventM
         setIfChanged(row.style, 'paddingLeft', 4 + r.depth * INDENT + 'px')
         row.setAttribute('aria-level', String(r.depth + 1))
         if (r.more) return this._fillMore(p, r.more)
-        if (r.pinned) return this._fillPinned(p, i, r.object, isSel)
+        if (r.pinned) return this._fillPinned(p, r.object, isSel)
         setIfChanged(p.lock.style, 'visibility', '')
         setIfChanged(p.eye.style, 'visibility', '')
         setIfChanged(p.meta, 'textContent', '')
@@ -1293,10 +1293,9 @@ export class LayersPanelPlugin extends AViewerPluginSync<LayersPanelPluginEventM
         setIfChanged(p.meta, 'textContent', this._assetMeta(r))
     }
 
-    /** Fills the row of the scene or of the default camera: a grey icon, a dimmer name, no buttons; a line below the last one */
-    private _fillPinned(p: RowElements, i: number, o: IObject3D, isSel: boolean) {
-        const end = !this._flat[i + 1]?.pinned
-        setIfChanged(p.row, 'className', 'lyp-row lyp-pinned' + (isSel ? ' lyp-sel' : '') + (end ? ' lyp-pinned-end' : ''))
+    /** Fills the row of the scene or of the default camera: a grey icon, a dimmer name, no buttons */
+    private _fillPinned(p: RowElements, o: IObject3D, isSel: boolean) {
+        setIfChanged(p.row, 'className', 'lyp-row lyp-pinned' + (isSel ? ' lyp-sel' : ''))
         p.row.removeAttribute('aria-expanded')
         p.row.setAttribute('aria-selected', String(isSel))
         this._setCaret(p, '', '')
