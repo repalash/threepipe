@@ -6,7 +6,7 @@ import styles from './EditorFrame.css?inline'
 /**
  * The layouts of {@link EditorFrame}:
  * - `titlebar`: a slim bar on top (app, file name); the canvas and the panel are edge to edge below it.
- * - `statusbar`: no title; a slim bar at the bottom (file name), like a code editor.
+ * - `statusbar`: a slim bar at the bottom (app, file name), like a code editor.
  * - `floating`: the canvas fills the window; the panel and the mode bar float over it, with the same gap on every side.
  *   No bar, so no file name ({@link EditorFrame.documentName}).
  */
@@ -279,8 +279,10 @@ export class EditorFrame {
         this._top = this._bar('lay-top')
         this._top.innerHTML = `<span class="lay-app">${ICONS.app}<b></b><span class="lay-dim">Editor</span></span><span class="lay-sep"></span><span class="lay-file"></span>`
         this._top.querySelector('b')!.textContent = title
+        // the status bar: the logo and the app name, as in the title bar and the floating head, then the file name
         this._bottom = this._bar('lay-bottom')
-        this._bottom.innerHTML = '<span class="lay-file"></span>'
+        this._bottom.innerHTML = `<span class="lay-app">${ICONS.app}<b></b></span><span class="lay-sep"></span><span class="lay-file"></span>`
+        this._bottom.querySelector('b')!.textContent = title
         this._head = this._bar('lay-head')
         this._head.innerHTML = `<span class="lay-app">${ICONS.app}<b></b></span><span class="lay-sep"></span><span class="lay-file"></span>`
         this._head.querySelector('b')!.textContent = title
