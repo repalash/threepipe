@@ -33,8 +33,8 @@ export async function hmacSha256(secret: string, data: string): Promise<ArrayBuf
 export const apiOrigin = (c: Context<CloudEnv>) => new URL(c.req.url).origin
 
 /** The origin files are served from: FILES_HOST, or `<api origin>/_files` when it is not set (local dev). */
-export function filesOrigin(env: CloudflareBindings, apiOrigin: string): string {
-    return env.FILES_HOST ? `https://${env.FILES_HOST}` : `${apiOrigin}/_files`
+export function filesOrigin(env: CloudflareBindings, origin: string): string {
+    return env.FILES_HOST ? `https://${env.FILES_HOST}` : `${origin}/_files`
 }
 
 /** The bucket name of drive files in the `files` table (src/buckets.ts registers `samples` and `e2e`). */

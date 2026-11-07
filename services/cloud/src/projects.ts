@@ -91,7 +91,7 @@ const out = (c: Context<CloudEnv>, r: Response | {status: number, body: unknown}
     r instanceof Response ? r : c.json(r.body as object, r.status as 200)
 
 export function projectRoutes(app: Hono<CloudEnv>) {
-    app.post('/api/v1/projects', async (c) => {
+    app.post('/api/v1/projects', async(c) => {
         const user = await requireUser(c)
         if (user.scope) throw new HTTPException(403, {message: 'an app key cannot create projects'})
         const body = await jsonBody<{slug?: string, name?: string}>(c)
@@ -114,7 +114,7 @@ export function projectRoutes(app: Hono<CloudEnv>) {
         return c.json({slug, name, role: 'manager'}, 201)
     })
 
-    app.get('/api/v1/projects', async (c) => {
+    app.get('/api/v1/projects', async(c) => {
         const user = await requireUser(c)
         if (user.scope) throw new HTTPException(403, {message: 'an app key cannot read projects'})
         // the role member() grants: staff manage every project, also one they are a reader of
@@ -124,13 +124,13 @@ export function projectRoutes(app: Hono<CloudEnv>) {
         return c.json({projects: results})
     })
 
-    app.get('/api/v1/projects/:slug', async (c) => {
+    app.get('/api/v1/projects/:slug', async(c) => {
         const {project, role} = await member(c, 'reader')
         const owner = await c.env.PRIMARY_DB.prepare('SELECT username FROM users WHERE id = ?').bind(project.owner_id).first<{username: string}>()
         return c.json({slug: project.slug, name: project.name, role, owner: owner?.username ?? null, discord_webhook: !!project.discord_webhook})
     })
 
-    app.patch('/api/v1/projects/:slug', async (c) => {
+    app.patch('/api/v1/projects/:slug', async(c) => {
         const {project} = await member(c, 'manager')
         const body = await jsonBody<{name?: string, discord_webhook?: string | null}>(c)
         const name = typeof body.name === 'string' && body.name.trim() ? body.name.trim().slice(0, LABEL_MAX) : project.name
@@ -145,7 +145,7 @@ export function projectRoutes(app: Hono<CloudEnv>) {
         return c.json({slug: project.slug, name, discord_webhook: !!hook})
     })
 
-    app.get('/api/v1/projects/:slug/members', async (c) => {
+    app.get('/api/v1/projects/:slug/members', async(c) => {
         const {project} = await member(c, 'reader')
         const {results} = await c.env.PRIMARY_DB.prepare(`SELECT u.username, 'owner' AS role FROM users u WHERE u.id = ?1
                 UNION ALL SELECT u.username, m.role FROM project_members m JOIN users u ON u.id = m.user_id WHERE m.project_id = ?2`)
@@ -153,7 +153,7 @@ export function projectRoutes(app: Hono<CloudEnv>) {
         return c.json({members: results})
     })
 
-    app.post('/api/v1/projects/:slug/members', async (c) => {
+    app.post('/api/v1/projects/:slug/members', async(c) => {
         const {project} = await member(c, 'manager')
         const body = await jsonBody<{username?: string, role?: Role}>(c)
         if (!ROLES.includes(body.role as Role)) throw new HTTPException(400, {message: `role is one of ${ROLES.join(', ')}`})
@@ -165,7 +165,7 @@ export function projectRoutes(app: Hono<CloudEnv>) {
         return c.json({username: body.username, role: body.role})
     })
 
-    app.delete('/api/v1/projects/:slug/members/:username', async (c) => {
+    app.delete('/api/v1/projects/:slug/members/:username', async(c) => {
         const {project} = await member(c, 'manager')
         const u = await c.env.PRIMARY_DB.prepare('SELECT id FROM users WHERE username = ?').bind(c.req.param('username')).first<{id: string}>()
         if (!u) throw new HTTPException(404, {message: 'no such user'})
@@ -175,7 +175,7 @@ export function projectRoutes(app: Hono<CloudEnv>) {
 
     // ---- reports ----
 
-    app.post('/api/v1/projects/:slug/reports', async (c) => {
+    app.post('/api/v1/projects/:slug/reports', async(c) => {
         const project = await projectBySlug(c, c.req.param('slug'))
         const clientKey = (c.req.header('idempotency-key') || '').trim()
         if (!/^[\w-]{8,100}$/.test(clientKey)) throw new HTTPException(400, {message: 'Idempotency-Key header required: one value per dialog, the same value on a retry'})
@@ -213,7 +213,7 @@ export function projectRoutes(app: Hono<CloudEnv>) {
         return out(c, r)
     })
 
-    app.get('/api/v1/projects/:slug/reports', async (c) => {
+    app.get('/api/v1/projects/:slug/reports', async(c) => {
         const {project} = await member(c, 'reader')
         const limit = c.req.query('limit') ? parseInt(c.req.query('limit')!, 10) : undefined
         if (c.req.query('limit') && (!Number.isInteger(limit) || (limit as number) <= 0)) throw new HTTPException(400, {message: `limit is a positive integer, at most ${REPORTS_LIST_MAX}`})
@@ -224,17 +224,17 @@ export function projectRoutes(app: Hono<CloudEnv>) {
         return c.json(await listReports(c.env, project.id, {status, type, limit, q: c.req.query('q') || undefined, deleted: c.req.query('deleted') === '1', before: c.req.query('before') || undefined}))
     })
 
-    app.get('/api/v1/projects/:slug/reports/:id', async (c) => {
+    app.get('/api/v1/projects/:slug/reports/:id', async(c) => {
         const {project} = await member(c, 'reader')
         return out(c, await getReport(c.env, project.id, reportId(c)))
     })
 
-    app.get('/api/v1/projects/:slug/reports/:id/image', async (c) => {
+    app.get('/api/v1/projects/:slug/reports/:id/image', async(c) => {
         const {project} = await member(c, 'reader')
         return out(c, await getImage(c.env, project.id, reportId(c)))
     })
 
-    app.get('/api/v1/projects/:slug/reports/:id/files/:idx', async (c) => {
+    app.get('/api/v1/projects/:slug/reports/:id/files/:idx', async(c) => {
         const {project, user} = await member(c, 'reader')
         const idx = Number(c.req.param('idx'))
         if (!Number.isInteger(idx) || idx < 0 || idx >= REPORT_FILES_MAX) throw new HTTPException(404, {message: 'no such file'})
@@ -244,13 +244,13 @@ export function projectRoutes(app: Hono<CloudEnv>) {
         return out(c, r)
     })
 
-    app.patch('/api/v1/projects/:slug/reports/:id', async (c) => {
+    app.patch('/api/v1/projects/:slug/reports/:id', async(c) => {
         const {project, user} = await member(c, 'manager')
         const body = await c.req.json().catch(() => { throw new HTTPException(400, {message: 'body must be JSON'}) })
         return out(c, await updateReport(c.env, project.id, reportId(c), body, user.username))
     })
 
-    app.delete('/api/v1/projects/:slug/reports/:id', async (c) => {
+    app.delete('/api/v1/projects/:slug/reports/:id', async(c) => {
         const {project, user} = await member(c, 'manager')
         return out(c, await deleteReport(c.env, project.id, reportId(c), user.username))
     })
