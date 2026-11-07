@@ -1522,6 +1522,13 @@ describe('EditorFrame right area', () => {
         stopped = false
         bar.fire('click', {target: tab(f, false), stopImmediatePropagation: () => stopped = true})
         expect([f.modeSettingsHidden, stopped]).toEqual([false, false])
+        // the settings hidden, then the panel hidden by the mode bar: a click on the open mode opens it with the settings
+        f.setModeSettingsHidden(true)
+        f.modeBar.setOpen(false)
+        stopped = false
+        bar.fire('click', {target: tab(f, true), stopImmediatePropagation: () => stopped = true})
+        expect([f.modeSettingsHidden, has('lay-mode-hidden'), stopped]).toEqual([false, false, false])
+        f.modeBar.setOpen(true)
         // without the right area, the open mode hides the panel as before (the click goes on to the button)
         place(f, 'right', null)
         stopped = false
