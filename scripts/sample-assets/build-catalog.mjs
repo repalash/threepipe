@@ -454,7 +454,19 @@ const linkRows = [...links].map(l => {
     const [from_asset, relation, to_asset] = l.split('|')
     return {from_asset, relation, to_asset}
 })
-fs.writeFileSync(path.join(args.out, 'catalog.json'), JSON.stringify({rows, links: linkRows, failed}, null, 2))
+// what isn't a column goes into `metadata`; `animations` there is the list of clips, so its count stays out
+const IN_METADATA = ['links', 'changes', 'screenshots', 'variants', 'vertices', 'meshes', 'materials', 'textures', 'extensions', 'width', 'height']
+const JSON_VALUES = new Set(['links', 'screenshots', 'variants', 'extensions'])
+const written = rows.map(({animations: _count, ...row}) => {
+    const metadata = JSON.parse(row.metadata ?? '{}')
+    for (const key of IN_METADATA) {
+        const value = JSON_VALUES.has(key) && row[key] ? JSON.parse(row[key]) : row[key]
+        delete row[key]
+        if (value !== undefined && value !== null && value !== '' && !(Array.isArray(value) && !value.length)) metadata[key] = value
+    }
+    return {...row, metadata: JSON.stringify(metadata)}
+})
+fs.writeFileSync(path.join(args.out, 'catalog.json'), JSON.stringify({rows: written, links: linkRows, failed}, null, 2))
 
 const tagCounts = {}
 for (const r of rows) for (const t of JSON.parse(r.tags)) tagCounts[t] = (tagCounts[t] ?? 0) + 1
