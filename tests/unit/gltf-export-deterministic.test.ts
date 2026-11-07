@@ -48,7 +48,7 @@ async function exportGlb(delays: number[], encodeLater = false) {
         }))
     }} as any)
     return new Promise<Uint8Array>((resolve) => {
-        writer.write(mesh, (glb) => resolve(new Uint8Array(glb as ArrayBuffer)), {binary: true, exporterOptions: {}} as any)
+        writer.writeAsync(mesh, (glb) => resolve(new Uint8Array(glb as ArrayBuffer)), {binary: true, exporterOptions: {}} as any)
     })
 }
 
