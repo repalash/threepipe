@@ -310,5 +310,84 @@ export default {
             updateRule: null,
             deleteRule: null,
         } as TableRulesExtensionData],
+    }, {
+        // The catalog of sample assets (models, HDRIs, textures): public to read through teenybase's table API (select,
+        // list, view), written only with the admin token (scripts/sample-assets). Only for finding them, one query per
+        // request: the files are read from their URLs with no database. A URL is on our samples bucket
+        // (assets/<set_name>/<name>/) or anywhere else.
+        name: 'threepipe_assets',
+        autoSetUid: true,
+        fields: [
+            ...baseFields,
+            {name: 'kind', type: 'text', sqlType: 'text', notNull: true}, // model | hdri | material | texture
+            {name: 'set_name', type: 'text', sqlType: 'text', notNull: true}, // khronos, gltf-research-scenes, poly-haven, ...
+            {name: 'name', type: 'text', sqlType: 'text', notNull: true},
+            {name: 'label', type: 'text', sqlType: 'text', notNull: true},
+            {name: 'tags', type: 'text', sqlType: 'text'}, // JSON array
+            // where it comes from and what it may be used for (CC BY asks for a visible credit)
+            {name: 'license', type: 'text', sqlType: 'text'}, // SPDX, like `CC-BY-4.0`; empty: not known
+            {name: 'authors', type: 'text', sqlType: 'text'},
+            {name: 'source_url', type: 'text', sqlType: 'text'}, // empty: not known
+            {name: 'links', type: 'text', sqlType: 'text'}, // JSON array of {label, url}: the original model, its collection
+            {name: 'changes', type: 'text', sqlType: 'text'}, // what we changed from the source (packed to GLB, compressed)
+            // full URLs, ours or external; a thumbnail or a video may not exist yet
+            {name: 'url', type: 'text', sqlType: 'text', notNull: true}, // the default file to load
+            {name: 'thumb_url', type: 'text', sqlType: 'text'},
+            {name: 'video_url', type: 'text', sqlType: 'text'},
+            {name: 'screenshots', type: 'text', sqlType: 'text'}, // JSON array of {label, url}: high-quality images from the source
+            {name: 'meta_url', type: 'text', sqlType: 'text'}, // more metadata, ours or external
+            {name: 'metadata', type: 'text', sqlType: 'text'}, // JSON object: anything else about it, no column needed
+            // other versions: JSON array of {name, url, size?, triangles?, width?, height?, format?}: Draco, optimized, an HDRI at 4k or as EXR
+            {name: 'variants', type: 'text', sqlType: 'text'},
+            // measured from the default file; empty when it does not apply (triangles of an HDRI) or until an external file is measured
+            {name: 'size', type: 'integer', sqlType: 'integer'}, // bytes
+            {name: 'triangles', type: 'integer', sqlType: 'integer'},
+            {name: 'vertices', type: 'integer', sqlType: 'integer'},
+            {name: 'meshes', type: 'integer', sqlType: 'integer'},
+            {name: 'materials', type: 'integer', sqlType: 'integer'},
+            {name: 'textures', type: 'integer', sqlType: 'integer'},
+            {name: 'animations', type: 'integer', sqlType: 'integer'},
+            {name: 'extensions', type: 'text', sqlType: 'text'}, // JSON array of the glTF extensions it uses
+            {name: 'poly', type: 'text', sqlType: 'text'}, // low | mid | high, from `triangles`
+            {name: 'width', type: 'integer', sqlType: 'integer'}, // pixels, of an HDRI or a texture
+            {name: 'height', type: 'integer', sqlType: 'integer'},
+        ],
+        indexes: [
+            {fields: ['set_name', 'name'], unique: true}, // a few hundred rows: no other index is worth its writes
+        ],
+        triggers: [createdTrigger, updatedTrigger],
+        extensions: [{
+            name: 'rules',
+            listRule: 'true',
+            viewRule: 'true',
+            createRule: null,
+            updateRule: null,
+            deleteRule: null,
+        } as TableRulesExtensionData],
+    }, {
+        // Links between sample assets, one row per link, read in both directions: a model `uses` a texture or an HDRI, an
+        // optimized file is `optimized_from` its original, a texture is `part_of` a material. Sizes and formats of one file
+        // are `variants` of its row instead. An asset is named `<set_name>/<name>`. Public to read, admin token to write.
+        name: 'threepipe_asset_links',
+        autoSetUid: true,
+        fields: [
+            ...baseFields,
+            {name: 'from_asset', type: 'text', sqlType: 'text', notNull: true},
+            {name: 'relation', type: 'text', sqlType: 'text', notNull: true},
+            {name: 'to_asset', type: 'text', sqlType: 'text', notNull: true},
+        ],
+        indexes: [
+            {fields: ['from_asset', 'relation', 'to_asset'], unique: true},
+            {fields: ['to_asset', 'relation']},
+        ],
+        triggers: [createdTrigger, updatedTrigger],
+        extensions: [{
+            name: 'rules',
+            listRule: 'true',
+            viewRule: 'true',
+            createRule: null,
+            updateRule: null,
+            deleteRule: null,
+        } as TableRulesExtensionData],
     }],
 } satisfies DatabaseSettings
