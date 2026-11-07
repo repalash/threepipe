@@ -78,6 +78,8 @@ pickingPlugin.addEventListener('hoverObjectChanged', (e)=>{
 
 ```
 
+The UI of the plugin (the Picker folder) shows the settings of the selection: its uiConfig, its geometry and materials, and a Focus button. An app that shows the selection in another place sets `pickingPlugin.selectionUi = false`: the folder then shows only the picking settings. A uiConfig renders in one UI at a time, so the [`InspectorPlugin`](../package/plugin-tweakpane-editor#inspectorplugin) of the tweakpane editor does this while it is added.
+
 ## Multi-Selection
 
 Picking Plugin supports selecting multiple objects simultaneously using modifier keys. Multi-selection is enabled by default and can be disabled:

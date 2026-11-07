@@ -323,7 +323,7 @@ export class MaterialPreviewPlugin extends AViewerPluginSync {
             if (!state) continue // tracked while the job exists
             // per material: the tone mapping follows the material's opt-out, like the viewport
             const viewerOptions = materialPreviewOptionsFromViewer(viewer, job.material)
-            const settings = settingsKey(viewerOptions)
+            const settings = materialPreviewSettingsKey(viewerOptions)
             const cached = this._cache.get(key)
             if (cached && cached.preview.version === state.version && cached.settings === settings) {
                 this._cache.delete(key) // most recently used last
@@ -446,9 +446,12 @@ function cacheKey(material: IMaterial, shape: string, geometry: BufferGeometry |
 }
 
 /**
- * The viewer settings that change a preview: environment map and tone mapping.
+ * A key of the viewer settings that change a preview: the environment map (with its intensity and rotation), the tone
+ * mapping and the output colour space, from {@link materialPreviewOptionsFromViewer}. The cache of
+ * {@link MaterialPreviewPlugin} uses it; a caller that shows a preview can compare it after a viewer `update` and ask
+ * again when it changed.
  */
-function settingsKey(o: Pick<MaterialPreviewOptions, 'environment' | 'environmentIntensity' | 'environmentRotation' | 'toneMapping' | 'outputColorSpace'>) {
+export function materialPreviewSettingsKey(o: Pick<MaterialPreviewOptions, 'environment' | 'environmentIntensity' | 'environmentRotation' | 'toneMapping' | 'outputColorSpace'>) {
     const r = o.environmentRotation
     const t = o.toneMapping
     return [

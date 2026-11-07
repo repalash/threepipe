@@ -130,6 +130,20 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
     @bindToValue({obj: '_picker', key: 'multiSelectEnabled'})
         multiSelectEnabled = true
 
+    /**
+     * The UI of the plugin shows the settings of the selection: its uiConfig, its geometry and materials, and the Focus
+     * button. Off: it shows only the picking settings, for an app that shows the selection in another place, like the
+     * `InspectorPlugin` of `@threepipe/plugin-tweakpane-editor` (a uiConfig renders in one UI at a time).
+     *
+     * Note: this is for runtime use only, not serialized
+     */
+    @onChange(PickingPlugin.prototype._selectionUiChanged)
+        selectionUi = true
+
+    protected _selectionUiChanged() {
+        this.refreshUiChildren(this.getSelectedObject())
+    }
+
     protected _widgetEnabledChange() {
         // the hover widget too: its updates stop while the widgets are off, so it would stay on the last hovered object
         const hovered = this._picker?.hoverObject as IObject3D | undefined
@@ -802,7 +816,7 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         type: 'button',
         label: 'Select an object to see its properties',
         readOnly: true,
-        hidden: () => this.getSelectedObject() !== undefined,
+        hidden: () => this.getSelectedObject() !== undefined || !this.selectionUi,
     }
     private _uiConfigChildren: UiObjectConfig[] = [
         {
@@ -875,7 +889,9 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         if (this._pickUi) {
             const ui = this.uiConfig
             ui.children = [...this._uiConfigChildren]
-            if (selected) {
+            if (!this.selectionUi) {
+                // the app shows the selection in another place
+            } else if (selected) {
                 if ((selected as IObject3D).isObject3D) {
                     const obj = (selected as IObject3D)
                     ui.children.push(...this.objectSelectionUiConfig(obj))

@@ -34,6 +34,13 @@
 }
 .lyp-search-icon { display: flex; }
 .lyp-search-input { flex: 1; min-width: 0; border: 0; outline: none; background: transparent; color: var(--lyp-fg); font: inherit; padding: 0; }
+/* the clear button: only while the field has text (the placeholder shows when it is empty) */
+.lyp-search-clear {
+    display: flex; align-items: center; justify-content: center; flex: none; width: 22px; height: 22px; margin-right: -5px; padding: 0;
+    border: 0; border-radius: 4px; background: transparent; color: var(--lyp-dim); cursor: pointer;
+}
+.lyp-search-clear:hover { color: var(--lyp-fg); background: var(--lyp-hover); }
+.lyp-search-input:placeholder-shown + .lyp-search-clear { display: none; }
 .lyp-list { flex: 1; min-height: 0; overflow: auto; outline: none; position: relative; padding-bottom: 8px; overscroll-behavior: contain; scrollbar-width: thin; }
 .lyp-spacer { position: relative; }
 .lyp-empty { color: var(--lyp-dim); padding: 12px; }
@@ -63,10 +70,8 @@
 .lyp-thumb { width: 16px; height: 16px; border-radius: 3px; object-fit: cover; display: block; }
 .lyp-meta { color: var(--lyp-dim); white-space: nowrap; padding: 0 6px; flex: none; }
 .lyp-meta:empty { display: none; }
-/* the rows of the scene and of the default camera (LayersPanelPlugin.sceneRows): not in the model, so dimmer, with a
-   line below the last one */
+/* the rows of the scene and of the default camera (LayersPanelPlugin.sceneRows): not in the model, so dimmer */
 .lyp-row.lyp-pinned .lyp-name, .lyp-row.lyp-pinned .lyp-kind { color: var(--lyp-dim); }
-.lyp-row.lyp-pinned-end { box-shadow: inset 0 -1px var(--lyp-line); }
 /* the "… N more" row of an open row (LayersPanelPlugin.maxChildren): a click shows all the children */
 .lyp-row.lyp-more { cursor: pointer; }
 .lyp-row.lyp-more .lyp-name { color: var(--tp-label-foreground-color, #8a8f98); }

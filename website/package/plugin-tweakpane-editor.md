@@ -197,9 +197,9 @@ In the [Tweakpane Editor example](https://threepipe.org/examples/tweakpane-edito
 - The eye button hides or shows the object. The lock button locks or unlocks it. When the row is in the selection, the button changes all the selected objects. A hidden or locked parent dims the buttons of its children.
 - A double-click on a name (or F2) renames the object. Enter or a click outside keeps the name, Escape goes back.
 - With the focus in the list, Up and Down select the next row (Shift adds it). Right opens a row or goes to its first child. Left closes a row or goes to its parent.
-- The search field shows the objects whose name has the text, with the groups that hold them. Escape clears it.
+- The search field shows the objects whose name has the text, with the groups that hold them. Escape or the × button at its end clears it (the button shows while the field has text).
 - Lights and cameras have the icon and the colour of their kind (`widgetKinds` of threepipe), as in the viewport.
-- The Objects tab starts with the scene and the default camera (`sceneRows`, on), dimmer and with a line below them: they are not in the model, so they have no eye, lock or arrow, and a search hides them. A click selects them, so the UI of the editor shows their settings.
+- The Objects tab starts with the scene and the default camera (`sceneRows`, on), dimmer: they are not in the model, so they have no eye, lock or arrow. A search shows them when their name has the text (`camera` finds the default camera). A click selects them, so the UI of the editor shows their settings.
 - Meshes, lines, points, cameras and lights show no children (their helpers, targets or parts): `leafTypes` lists the kinds (set a new list to change it), and `showLeafChildren` (off, in the UI) shows the children of all kinds.
 - A double-click on a row selects it and moves the camera to it (`doubleClickFocus`, on; the scene row frames the whole model). A double-click on the name renames it. With `clickToUnselect` (off), a click on a selected row unselects it.
 - **Tabs**: Objects, Materials, Textures and Geometry, each turned on or off with `objectsTab`, `materialsTab`, `texturesTab` and `geometryTab` (all on by default, in the UI folder). With one tab on, there is no tab bar. `layers.tabs` lists the tabs that are on, `layers.tab` is the open one, `layers.setTab('materials')` opens one. The counts are in the tooltips of the tabs and in the header.
@@ -254,6 +254,49 @@ console.log(layers.listedObjects) // the objects in the list, from the top
 ```
 
 Not in the panel yet: drag and drop to move objects, and a context menu.
+
+## InspectorPlugin
+
+[Source Code](https://github.com/repalash/threepipe/blob/master/plugins/tweakpane-editor/src/InspectorPlugin.ts) &mdash;
+[API Reference](https://threepipe.org/plugins/tweakpane-editor/docs/classes/InspectorPlugin.html)
+
+`InspectorPlugin` shows the settings of the selection of the `PickingPlugin`, like the inspector of Unity or the properties panel of Blender. Try it in the [tweakpane editor example](https://threepipe.org/examples/#tweakpane-editor/) (`?inspector=swap|right|left`).
+
+- A head with the name of the selection (and `+N` for more selected objects), and tabs for its parts: Object, Material and Geometry, and Texture for a selected texture (`InspectorTab`, `tab`, `setTab`). One tab shows no tab bar. A pick of another object keeps the open tab when the new selection has it, so a click from mesh to mesh keeps the Material tab.
+- The open tab shows the uiConfig of that part, in a second Tweakpane renderer inside `element`, with the theme of the page. While the inspector is in the page and enabled, it turns off the selection UI of the `PickingPlugin` (`PickingPlugin.selectionUi`), since a uiConfig renders in one UI at a time; the Picker folder keeps the picking settings. Out of the page (the classic layout has no areas, or the app took it out), the Picker folder shows the selection again (checked at each change of the selection and at each viewer `update`). The actions that the Picker folder showed with the selection are in the inspector: Focus and Select Parent on the Object tab, Remove Material(s) and New … Material on the Material tab.
+- The Object tab has a card for each material of the selected mesh: a small preview (`InspectorPlugin.CardPreviewSize`, 64 px for a 32 px card), the name and the type (a material with no name shows its type). A click opens the Material tab on that material. The previews follow the changes of their material (an edit, an undo), the environment map and the tone mapping of the viewer.
+- The Material tab has a large live preview of the material, from the `MaterialPreviewPlugin` (`preview`, on by default; a click on its head, Preview, folds it, so a short place has room for the settings): a sphere, a cube or the selected mesh alone (`previewShape`, also the buttons under it). A drag on it turns it, the wheel zooms, and a double-click resets the view; a finger drag turns it on a phone (`touch-action: none`, so the panel does not scroll under it). A mesh with more than one material has a list of its materials. The preview is `InspectorPlugin.PreviewSize` px (256). It follows the changes of the material, of the environment map (its intensity and rotation) and the tone mapping of the viewer, and of the selected geometry when it changes in place (a geometry generator; the This mesh shape).
+- The selected object takes another material or geometry: the inspector shows the new one. A rename updates the head.
+- A search field above the settings shows only the settings whose name (or button title) has the text, and the folders whose title has it, with all their settings; the folders open while it has text, and the text stays for the next selection. Escape in the field, or the × button at its end, clears it (the next Escape clears the selection). The tab bar and the search field have the sizes and the font of the ones in the Layers panel.
+- A right-click on a setting (a long press on a touch screen, `InspectorPlugin.LongPressTime`) offers Reset to default when its value is not the default: the value in a new object of the same class (made once per class; a class that needs arguments has no default, nor a value that is an object with no `clone`). A disabled or read-only setting, like the uuid, has no reset. The reset goes through the renderer, so Ctrl+Z undoes it.
+- Escape (the PickingPlugin) clears the selection.
+- `hasSelection`, and the events `selectionChange` (`{hasSelection}`, on each change of the selection, not on a new material of the selected object) and `enabledChange` (`{enabled}`).
+
+**Where the panel goes.** The plugin does not depend on the editor: the app places the panel. In the page frame it is a panel, in any of the three places, and the person can move it with the menu of its entry in the mode bar:
+
+```ts
+const inspector = viewer.addPluginSync(InspectorPlugin)
+const editor = viewer.getPlugin(TweakpaneEditorPlugin)!
+
+// right: in the right sidebar, the top of the panel above the mode settings, with its entry in the mode bar
+editor.addPanel('inspector', inspector.element, {...InspectorPlugin.AreaEntry, area: 'right'})
+
+// swap: also in the right sidebar; while something is selected it takes the whole panel (the mode settings hide)
+inspector.addEventListener('selectionChange', e => {
+    const frame = editor.frame
+    if (!frame || frame.panelArea('inspector') !== 'right') return // the person moved it
+    frame.setPanelHidden('inspector', !e.hasSelection)
+    frame.setModeSettingsHidden(e.hasSelection)
+})
+
+// or under the layers panel, in the left sidebar (a stack, in the order the panels are added)
+editor.addPanel('layers', layers.element, {...LayersPanelPlugin.AreaEntry, area: 'left'})
+editor.addPanel('inspector', inspector.element, {...InspectorPlugin.AreaEntry, area: 'left'})
+```
+
+`InspectorPlugin.AreaEntry` has a name, an icon and a colour for its entry in the mode bar. On a phone, the right place and the mode settings share the part below the canvas, and swap shows one of them at a time; the left place shares the narrow left card with the layers. The classic layout has no frame and no panels. Without the editor: give an element to the constructor, `new InspectorPlugin(container)`, or place `inspector.element` yourself; give its parent a height. On `enabledChange`, take it out of its place or put it back (`editor.removePanel('inspector')`, `editor.addPanel(...)`). Its UI folder, `Inspector`, has Enabled, Material preview and Preview shape; they are not saved with the viewer config.
+
+Not in the inspector yet: pinch zoom on the preview, and the settings of more than one selected object at once.
 
 ## NotesPlugin and StickyNotesUiPlugin
 

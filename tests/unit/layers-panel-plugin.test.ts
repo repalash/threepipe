@@ -639,10 +639,12 @@ describe('LayersPanelPlugin', () => {
         search.fire('input')
         flush()
         expect(shown()).toHaveLength(12)
-        search.value = ''
-        search.fire('input')
+        // the clear button empties the field, shows all again and keeps the focus in the field
+        const clear = (layers.element as any as FakeElement).find('lyp-search-clear')[0]
+        expect([clear.getAttribute('aria-label'), clear.type]).toEqual(['Clear the search', 'button'])
+        clear.fire('click', {preventDefault: () => {}})
         flush()
-        expect(shown()).toHaveLength(5)
+        expect([search.value, shown().length, doc.activeElement === search]).toEqual(['', 5, true])
         // a selected child in the place of the "… N more" row shows all of them
         picking.select([parts.children[9]])
         flush()
@@ -935,12 +937,14 @@ describe('LayersPanelPlugin', () => {
         expect(frames).toHaveLength(0)
     })
 
-    test('the scene and the default camera are the first rows: dimmer, no buttons, a line below; a click selects them', () => {
+    test('the scene and the default camera are the first rows: dimmer, no buttons, no line below; a click selects them; a search finds them by name', () => {
         const {layers, list, picking, viewer, modelRoot, outline} = setup({sceneRows: true})
         const theScene = viewer.scene
         const camera = theScene.defaultCamera
         expect(names(list).slice(0, 3)).toEqual(['Scene', 'Default Camera', 'watch'])
-        expect([has(rows(list)[0], 'lyp-pinned'), has(rows(list)[0], 'lyp-pinned-end'), has(rows(list)[1], 'lyp-pinned-end')]).toEqual([true, false, true])
+        expect([has(rows(list)[0], 'lyp-pinned'), has(rows(list)[1], 'lyp-pinned'), has(rows(list)[2], 'lyp-pinned')]).toEqual([true, true, false])
+        // no line between them and the model
+        expect(rows(list).some(r => r.className.includes('lyp-pinned-end'))).toBe(false)
         expect([part(rows(list)[0], 'lyp-eye').style.visibility, part(rows(list)[1], 'lyp-lock').style.visibility]).toEqual(['hidden', 'hidden'])
         // not in the model: not in the listed objects
         expect(layers.listedObjects.map(o => o.name)).not.toContain('Default Camera')
@@ -956,12 +960,25 @@ describe('LayersPanelPlugin', () => {
         expect(picking.focusObject).toHaveBeenLastCalledWith(modelRoot)
         row(list, 'Default Camera').fire('click')
         expect(picking.selected).toEqual([camera])
-        // a search hides them; the setting turns them off
+        // a search shows them when their name has the text; the setting turns them off
         const search = (layers.element as any as FakeElement).find('lyp-search-input')[0]
         search.value = 'watch'
         search.fire('input')
         flush()
         expect(names(list)).not.toContain('Scene')
+        expect(names(list)).not.toContain('Default Camera')
+        search.value = 'CAMERA'
+        search.fire('input')
+        flush()
+        expect(names(list)[0]).toBe('Default Camera')
+        expect(has(rows(list)[0], 'lyp-pinned')).toBe(true)
+        expect(names(list)).not.toContain('Scene')
+        // still not in the listed objects of the model
+        expect(layers.listedObjects).not.toContain(camera)
+        search.value = 'scene'
+        search.fire('input')
+        flush()
+        expect(names(list)[0]).toBe('Scene')
         search.value = ''
         search.fire('input')
         layers.sceneRows = false

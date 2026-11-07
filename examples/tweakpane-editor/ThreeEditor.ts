@@ -65,7 +65,7 @@ import {
     VirtualCamerasPlugin,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
-import {EditorCameraPlugin, LayersPanelPlugin, NotesPlugin, SelectionOutlinePlugin, StickyNotesUiPlugin, TweakpaneEditorPlugin} from '@threepipe/plugin-tweakpane-editor'
+import {EditorCameraPlugin, InspectorPlugin, LayersPanelPlugin, NotesPlugin, SelectionOutlinePlugin, StickyNotesUiPlugin, TweakpaneEditorPlugin} from '@threepipe/plugin-tweakpane-editor'
 import {BlendLoadPlugin} from '@threepipe/plugin-blend-importer'
 import {extraImportPlugins} from '@threepipe/plugins-extra-importers'
 import {FontLibrary, GeometryGeneratorExtrasPlugin} from '@threepipe/plugin-geometry-generator'
@@ -153,8 +153,8 @@ export class ThreeEditor extends ThreeViewer {
         new SSGIPlugin(UnsignedByteType, 1, false),
         KTX2LoadPlugin, KTXLoadPlugin, PLYLoadPlugin, Rhino3dmLoadPlugin, STLLoadPlugin, USDZLoadPlugin,
         BlendLoadPlugin,
-        // the layers, placed in the left sidebar of the page frame in init()
-        LayersPanelPlugin,
+        // the layers, placed in the left sidebar of the page frame in init(), and the inspector of the selection
+        LayersPanelPlugin, InspectorPlugin,
         new Object3DWidgetsPlugin(false),
         Object3DGeneratorPlugin,
         GeometryGeneratorPlugin,
@@ -188,7 +188,7 @@ export class ThreeEditor extends ThreeViewer {
 
     editorModes: Record<string, Class<IViewerPlugin<any>>[]> = {
         ['Viewer']: [ViewerUiConfigPlugin, EditorCameraPlugin, DropzonePlugin, BaseGroundPlugin, ContactShadowGroundPlugin, TweakpaneUiPlugin, TweakpaneEditorPlugin, InteractionPromptPlugin, ThreeGpuPathTracerPlugin, FullScreenPlugin],
-        ['Interaction']: [LayersPanelPlugin, TransformControlsPlugin, PivotControlsPlugin, PivotEditPlugin, PickingPlugin, OutlinePlugin, SelectionOutlinePlugin, AnnotationsPlugin, Object3DGeneratorPlugin, GeometryGeneratorPlugin, EditorViewWidgetPlugin, ObjectConstraintsPlugin, Object3DWidgetsPlugin, MeshOptSimplifyModifierPlugin],
+        ['Interaction']: [LayersPanelPlugin, InspectorPlugin, TransformControlsPlugin, PivotControlsPlugin, PivotEditPlugin, PickingPlugin, OutlinePlugin, SelectionOutlinePlugin, AnnotationsPlugin, Object3DGeneratorPlugin, GeometryGeneratorPlugin, EditorViewWidgetPlugin, ObjectConstraintsPlugin, Object3DWidgetsPlugin, MeshOptSimplifyModifierPlugin],
         ['Buffers']: [GBufferPlugin, DepthBufferPlugin, NormalBufferPlugin, CascadedShadowsPlugin],
         ['Post-processing']: [TonemapPlugin, ProgressivePlugin, SSAAPlugin, SSAOPlugin, SSReflectionPlugin, BloomPlugin, DepthOfFieldPlugin, SSGIPlugin, FrameFadePlugin, VignettePlugin, ChromaticAberrationPlugin, FilmicGrainPlugin, TemporalAAPlugin, VelocityBufferPlugin, SSContactShadowsPlugin],
         ['Export']: [AssetExporterPlugin, CanvasSnapshotPlugin, AWSClientPlugin, TransfrSharePlugin, AssimpJsPlugin, LoadingScreenPlugin],
@@ -241,9 +241,24 @@ export class ThreeEditor extends ThreeViewer {
 
         editor.loadPlugins(this.editorModes)
 
-        // the layers as a panel of the page frame, in the left sidebar (?layers=bottom: in the bottom strip; the person
-        // moves it with the menu of its entry in the mode bar); out of the frame while the panel is off
+        // the layers and the inspector of the selection are panels of the page frame, each with an entry in the mode bar;
+        // the person moves a panel with the menu of its entry. A panel is out of the frame while its plugin is off.
+        // The layers: in the left sidebar (?layers=bottom: in the bottom strip). The inspector: ?inspector=swap (the
+        // default), in the right sidebar, and while something is selected it takes the whole panel (the settings of the
+        // mode hide; a click on a mode shows them); ?inspector=right, in the right sidebar above the mode settings;
+        // ?inspector=left, under the layers.
         const layers = this.getPlugin(LayersPanelPlugin)
+        const inspector = this.getPlugin(InspectorPlugin)
+        const inspectorParam = getUrlQueryParam('inspector')
+        const inspectorPlace = inspectorParam === 'right' || inspectorParam === 'left' ? inspectorParam : 'swap'
+        // swap: only while the inspector is in the right sidebar (the person can move it elsewhere)
+        const swap = () => {
+            const frame = editor.frame
+            if (inspectorPlace !== 'swap' || !frame || frame.panelArea('inspector') !== 'right') return
+            const selected = !!inspector?.hasSelection
+            frame.setPanelHidden('inspector', !selected)
+            frame.setModeSettingsHidden(selected)
+        }
         if (layers) {
             const area = getUrlQueryParam('layers') === 'bottom' ? 'bottom' : 'left'
             const placeLayers = () => layers.isDisabled() ? editor.removePanel('layers') :
@@ -251,6 +266,19 @@ export class ThreeEditor extends ThreeViewer {
             placeLayers()
             layers.addEventListener('enabledChange', placeLayers)
         }
+        if (inspector) {
+            const area = inspectorPlace === 'left' ? 'left' : 'right'
+            const placeInspector = () => {
+                if (inspector.isDisabled()) editor.removePanel('inspector')
+                else editor.addPanel('inspector', inspector.element, {...InspectorPlugin.AreaEntry, area})
+                swap()
+            }
+            placeInspector()
+            inspector.addEventListener('enabledChange', placeInspector)
+            inspector.addEventListener('selectionChange', swap)
+        }
+        // a new frame (a change of the layout, like classic and back) starts with the mode settings shown
+        editor.addEventListener('frameChange', swap)
 
         // the name in the page frame: the first loaded model or viewer config file (not a texture or an environment
         // map) names the document, and a click on the name renames it; the files dropped after it do not change it. The
