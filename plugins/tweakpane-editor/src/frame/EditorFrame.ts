@@ -434,7 +434,8 @@ export class EditorFrame {
         const panel: FramePanel = {id, element, options, area, hidden: pick?.hidden ?? false, section, entry}
         this._panels.set(id, panel)
         this._layoutArea(area)
-        if (old && old.area !== area) this._layoutArea(old.area)
+        if (old && old.area !== area) this._settleArea(old.area, false)
+        this._settleArea(area, false)
         this._fitAreas()
     }
 
@@ -444,6 +445,7 @@ export class EditorFrame {
         if (!p) return
         this._dropPanel(p)
         this._layoutArea(p.area)
+        this._settleArea(p.area, false)
         this._fitAreas()
     }
 
@@ -456,7 +458,8 @@ export class EditorFrame {
 
     /**
      * Moves a panel to another place (`left`, `bottom` or `right`), at the end of its stack, and shows it (the place
-     * opens when it was collapsed). The Move menu of its entry does this.
+     * opens when it was collapsed; in a narrow window, the place shows in the place of the panel). The Move menu of its
+     * entry does this.
      * @param keep - keep it in `localStorage` ({@link AreaStorageKey}), as the person's pick
      */
     movePanel(id: string, area: EditorFrameArea, keep = false) {
@@ -473,9 +476,30 @@ export class EditorFrame {
         if (keep) this._picks[id] = {...this._picks[id], area, hidden: false}
         if (this._collapsed[area]) this._setCollapsed(area, false, keep)
         this._layoutArea(from)
-        if (from !== area) this._layoutArea(area)
+        if (from !== area) {
+            this._layoutArea(area)
+            this._settleArea(from, keep)
+        }
+        // a narrow window shows one place at a time: the new one
+        if (this._isSingle()) this.setStackedArea(area, keep)
         this._fitAreas()
         if (keep) this._storeAreas()
+    }
+
+    /**
+     * A place whose panels are all hidden (its last shown panel moved away or was removed) collapses, and its panels show
+     * in it, for when it opens: as hiding the last shown panel of a place does ({@link setPanelHidden}). Else the place
+     * would take room with nothing in it.
+     */
+    private _settleArea(area: EditorFrameArea, keep: boolean) {
+        const list = this._areaPanels(area)
+        if (!list.length || list.some(p => !p.hidden)) return
+        for (const p of list) {
+            p.hidden = false
+            if (keep) this._picks[p.id] = {...this._picks[p.id], hidden: false}
+        }
+        this._applySections(area)
+        this._setCollapsed(area, true, keep)
     }
 
     /**
@@ -916,9 +940,17 @@ export class EditorFrame {
         if (!p) return
         const area = p.area
         if (area === 'right') {
-            // in the panel: a narrow window with a left or bottom place in its place shows the panel again
+            // in the panel: a narrow window with a left or bottom place in its place, or the panel that the mode bar hid,
+            // shows the panel again, with this panel in it (not a toggle of a panel that could not be seen)
+            const covered = !!this._stackedShown() || !this.modeBar.open
             if (this._stackedShown()) this.setStackedArea('right', true)
             if (!this.modeBar.open) this.modeBar.setOpen(true)
+            if (covered) {
+                if (this._collapsed.right) this._setCollapsed('right', false, true)
+                if (p.hidden) this.setPanelHidden(id, false, true)
+                this._refreshEntries()
+                return
+            }
         }
         if (!this._isSingle() || area === 'right') {
             if (this._collapsed[area]) {
