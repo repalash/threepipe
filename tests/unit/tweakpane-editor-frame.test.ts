@@ -1127,22 +1127,22 @@ describe('TweakpaneEditorPlugin.layout', () => {
         return p
     }
 
-    test('preventInputZoom: on iOS, maximum-scale=1 in the viewport tag while the plugin is added and the setting is on', () => {
+    test('preventIosInputZoom: on iOS, maximum-scale=1 in the viewport tag while the plugin is added and the setting is on', () => {
         const meta = Object.assign(new FakeElement('meta'), {name: 'viewport', content: 'width=device-width, initial-scale=1'})
         doc.querySelector = (sel: string) => sel === 'meta[name="viewport"]' ? meta : null
         vi.stubGlobal('navigator', {userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)', maxTouchPoints: 5})
         const p = new TweakpaneEditorPlugin()
-        expect(p.preventInputZoom).toBe(true)
+        expect(p.preventIosInputZoom).toBe(true)
         // not added: nothing yet
-        p.preventInputZoom = true
+        p.preventIosInputZoom = true
         expect(meta.content).toBe('width=device-width, initial-scale=1')
         ;(p as any)._viewer = {getPlugin: () => undefined}
-        p.preventInputZoom = true
+        p.preventIosInputZoom = true
         expect(meta.content).toBe('width=device-width, initial-scale=1, maximum-scale=1')
         // set again: no second maximum-scale
-        p.preventInputZoom = true
+        p.preventIosInputZoom = true
         expect(meta.content).toBe('width=device-width, initial-scale=1, maximum-scale=1')
-        p.preventInputZoom = false
+        p.preventIosInputZoom = false
         expect(meta.content).toBe('width=device-width, initial-scale=1')
     })
 
