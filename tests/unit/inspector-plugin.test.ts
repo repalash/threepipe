@@ -492,12 +492,16 @@ describe('InspectorPlugin', () => {
         viewer.scene.environmentIntensity = 2
         viewer.dispatchEvent({type: 'update'})
         expect(requests.length).toBe(n + 1)
-        // not on the Object tab: no preview to refresh
+        // the Object tab: no large preview to refresh, but the material cards ask again, once per change
         el.find('isp-tab')[0].click()
         const m = requests.length
-        viewer.scene.environmentRotation.y = 1
         viewer.dispatchEvent({type: 'update'})
         expect(requests.length).toBe(m)
+        viewer.scene.environmentRotation.y = 1
+        viewer.dispatchEvent({type: 'update'})
+        expect(requests.slice(m).map(r => r.options.size)).toEqual([InspectorPlugin.CardPreviewSize])
+        viewer.dispatchEvent({type: 'update'})
+        expect(requests.length).toBe(m + 1)
     })
 
     test('a change of the selected geometry in place drops the cached previews of its materials and asks again', () => {

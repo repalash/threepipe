@@ -170,6 +170,8 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
     private _cardsEl: HTMLDivElement
     /** The previews of the material cards, cancelled when the cards are made again or hide */
     private _cardHandles: MaterialPreviewHandle[] = []
+    /** The viewer settings of the last previews of the cards ({@link _cardsKey}) */
+    private _cardSettings = ''
     private _materialList: HTMLSelectElement
     private _previewEl: HTMLDivElement
     private _previewHead: HTMLButtonElement
@@ -537,6 +539,7 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
         if (!shown) return
         const previews = !this.isDisabled() ? this._viewer?.getPlugin(MaterialPreviewPlugin) : undefined
         const size = InspectorPlugin.CardPreviewSize
+        if (previews) this._cardSettings = this._cardsKey()
         this._materials.forEach((mat, i) => {
             const card = this._cardsEl.appendChild(el('button', 'isp-card'))
             card.type = 'button'
@@ -637,8 +640,17 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
      */
     private _onViewerUpdate = () => {
         this._updateInPage()
-        if (!this._handle || !this._viewer) return
-        if (materialPreviewSettingsKey(materialPreviewOptionsFromViewer(this._viewer, this._material)) !== this._settings) this._requestPreview()
+        const viewer = this._viewer
+        if (!viewer) return
+        if (this._handle && materialPreviewSettingsKey(materialPreviewOptionsFromViewer(viewer, this._material)) !== this._settings) this._requestPreview()
+        // the material cards of the Object tab, the same way
+        if (this._cardHandles.length && this._cardsKey() !== this._cardSettings) this._renderCards()
+    }
+
+    /** The viewer settings that change the previews of the material cards, one key for all of them */
+    private _cardsKey() {
+        const viewer = this._viewer
+        return viewer ? this._materials.map(m => materialPreviewSettingsKey(materialPreviewOptionsFromViewer(viewer, m))).join('|') : ''
     }
 
     private _unwatch() {
