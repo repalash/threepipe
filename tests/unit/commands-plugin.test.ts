@@ -405,6 +405,36 @@ describe('CommandsPlugin', () => {
         }
     })
 
+    test('two viewers in one element: the canvas tells the viewer; nested containers: the innermost one', () => {
+        const a = setup(), b = setup()
+        const kids = new Set<any>()
+        const shared = {isConnected: true, contains: (t: any) => t === shared || kids.has(t)}
+        const canvasA = {tagName: 'CANVAS', nodeType: 1}, canvasB = {tagName: 'CANVAS', nodeType: 1}
+        kids.add(canvasA)
+        kids.add(canvasB)
+        Object.assign(a.viewer, {container: shared, canvas: canvasA})
+        Object.assign(b.viewer, {container: shared, canvas: canvasB})
+        const undoA = action('undo', {shortcut: 'Mod+Z'}), undoB = action('undo', {shortcut: 'Mod+Z'})
+        a.commands.register(undoA)
+        b.commands.register(undoB)
+        try {
+            pressIn(canvasB, 'z', 'KeyZ', {ctrlKey: true})
+            pressIn(canvasA, 'z', 'KeyZ', {ctrlKey: true})
+            expect([undoA.run.mock.calls.length, undoB.run.mock.calls.length]).toEqual([1, 1])
+            // b in a container inside the container of a: a card of b is for b
+            const card = {tagName: 'DIV', nodeType: 1}
+            const inner = {isConnected: true, contains: (t: any) => t === inner || t === card || t === canvasB}
+            kids.add(inner)
+            kids.add(card)
+            b.viewer.container = inner
+            pressIn(card, 'z', 'KeyZ', {ctrlKey: true})
+            expect([undoA.run.mock.calls.length, undoB.run.mock.calls.length]).toEqual([1, 2])
+        } finally {
+            a.viewer.remove(a.commands)
+            b.viewer.remove(b.commands)
+        }
+    })
+
     test('the keys are off while the plugin is disabled, and after it is removed; run still runs', async() => {
         const {viewer, commands} = setup()
         const undo = action('undo', {shortcut: 'Mod+Z'})
