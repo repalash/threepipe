@@ -815,6 +815,27 @@ describe('EditorFrame area sizes', () => {
         expect([f.isPanelHidden('e'), !!(f as any)._collapsed.right]).toEqual([false, true])
     })
 
+    test('addPanel with the id of a panel in another place lays out the old place again', () => {
+        const f = new EditorFrame(host(), {layout: 'titlebar'})
+        f.addPanel('a', new FakeElement('div') as any, {area: 'left'})
+        f.addPanel('a', new FakeElement('div') as any, {area: 'bottom'})
+        expect([body().classList.contains('lay-has-left'), body().find('lay-area-left')[0].children.length, f.panelArea('a')]).toEqual([false, 0, 'bottom'])
+        // one of more: no split left behind
+        f.addPanel('b', new FakeElement('div') as any, {area: 'left'})
+        f.addPanel('c', new FakeElement('div') as any, {area: 'left'})
+        f.addPanel('b', new FakeElement('div') as any, {area: 'right'})
+        expect(body().find('lay-area-left')[0].find('lay-split')).toHaveLength(0)
+        expect(body().find('lay-area-left')[0].find('lay-section')).toHaveLength(1)
+    })
+
+    test('a restore keeps a hidden panel that the app adds before the shown ones, and the place open', () => {
+        storage.set('tpEditorFrameAreas', JSON.stringify({panels: {notes: {hidden: true}}}))
+        const f = new EditorFrame(host(), {layout: 'titlebar'})
+        f.addPanel('notes', new FakeElement('div') as any, {area: 'left'})
+        f.addPanel('second', new FakeElement('div') as any, {area: 'left'})
+        expect([f.isPanelHidden('notes'), f.isPanelHidden('second'), f.isAreaCollapsed('left')]).toEqual([true, false, false])
+    })
+
     test('a tap on the entry of a panel in the right place while the panel cannot be seen shows it, and does not hide it', () => {
         const f = new EditorFrame(host(), {layout: 'titlebar'})
         f.addPanel('insp', new FakeElement('div') as any, {area: 'right'})

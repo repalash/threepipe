@@ -434,8 +434,12 @@ export class EditorFrame {
         const panel: FramePanel = {id, element, options, area, hidden: pick?.hidden ?? false, section, entry}
         this._panels.set(id, panel)
         this._layoutArea(area)
-        if (old && old.area !== area) this._settleArea(old.area, false)
-        this._settleArea(area, false)
+        // the old place lost a panel; the new place is not settled: while the app adds its panels (a restore of the
+        // kept picks), a hidden panel can come before the shown ones
+        if (old && old.area !== area) {
+            this._layoutArea(old.area)
+            this._settleArea(old.area, false)
+        }
         this._fitAreas()
     }
 
