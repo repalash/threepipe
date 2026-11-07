@@ -71,6 +71,10 @@ class FakeElement {
         return {clearRect: () => {}, drawImage: () => {}}
     }
     setPointerCapture() {}
+    focused = false
+    focus() {
+        this.focused = true
+    }
     all(): FakeElement[] {
         return this.children.flatMap(c => [c, ...c.all()])
     }
@@ -434,6 +438,12 @@ describe('InspectorPlugin', () => {
         // a new selection keeps the search
         picking.select(mesh(new PhysicalMaterial()))
         expect(missing()).toBe(7)
+        // the clear button empties it and keeps the focus in the field
+        const clear = el.find('isp-search-clear')[0]
+        expect([clear.getAttribute('aria-label'), clear.type]).toEqual(['Clear the search', 'button'])
+        clear.fire('click')
+        expect([search.value, missing(), body.classList.contains('isp-searching'), search.focused]).toEqual(['', 0, false, true])
+        type('nothing like it')
         // Escape clears it, and does not reach the PickingPlugin (which clears the selection)
         const stopPropagation = vi.fn()
         search.fire('keydown', {key: 'Escape', stopPropagation})
@@ -587,10 +597,10 @@ describe('InspectorPlugin.css', () => {
         // the declarations of a rule, without the colours (each panel takes them from its own variables)
         const sizes = (css: string, sel: string) => {
             // the rule of the selector alone, at the start of a line (not a longer selector that ends with it)
-            const body = css.match(new RegExp('(?:^|\\n)' + sel.replace(/[.]/g, '\\.') + '\\s*\\{([^}]*)\\}'))?.[1] ?? ''
+            const body = css.match(new RegExp('(?:^|\\n)' + sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*\\{([^}]*)\\}'))?.[1] ?? ''
             return body.replace(/\/\*[\s\S]*?\*\//g, '').split(';').map(d => d.trim().replace(/\s+/g, ' ')).filter(d => d && !/^(color|background|box-shadow)\s*:/.test(d)).sort()
         }
-        for (const part of ['-tabs', '-tab', '-tab.$-on', '-search', '-search-icon', '-search-input']) {
+        for (const part of ['-tabs', '-tab', '-tab.$-on', '-search', '-search-icon', '-search-input', '-search-clear']) {
             const [a, b] = ['isp', 'lyp'].map(p => '.' + p + part.replace('$', p))
             expect(sizes(isp, a), a).toEqual(sizes(lyp, b))
             expect(sizes(isp, a).length, a).toBeGreaterThan(0)
@@ -599,6 +609,8 @@ describe('InspectorPlugin.css', () => {
         expect(font(isp, '.isp-root')).toBe(font(lyp, '.lyp-root'))
         // no larger text in the search field on a touch screen: the same height as the Layers search
         expect(isp).not.toMatch(/pointer:\s*coarse/)
+        // the clear button shows only while the field has text, in both
+        for (const [css, p] of [[isp, 'isp'], [lyp, 'lyp']]) expect(sizes(css, `.${p}-search-input:placeholder-shown + .${p}-search-clear`)).toEqual(['display: none'])
     })
 
     test('while the search has text, the rows that do not match hide and the closed folders open', async() => {

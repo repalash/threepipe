@@ -96,6 +96,7 @@ const ICONS = {
     lock: svg('<rect x="3.5" y="7" width="9" height="6.5" rx="1"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/>'),
     unlock: svg('<rect x="3.5" y="7" width="9" height="6.5" rx="1"/><path d="M5.5 7V5a2.5 2.5 0 0 1 4.9-.7"/>'),
     search: svg('<circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/>'),
+    clear: svg('<path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/>', 12),
     closed: svg('<path d="M6 4l4 4-4 4"/>', 10),
     open: svg('<path d="M4 6l4 4 4-4"/>', 10),
     scene: svg('<path d="M8 2.5l5.5 2.75L8 8 2.5 5.25z"/><path d="M2.5 8L8 10.75 13.5 8M2.5 10.75L8 13.5l5.5-2.75"/>'),
@@ -125,7 +126,8 @@ const ICONS = {
  * - A double-click on a name (or F2) renames the object: Enter or a click outside keeps the name, Escape goes back.
  * - With the focus in the list: Up and Down select the next row (Shift adds it), Right opens a row or goes to its first
  *   child, Left closes a row or goes to its parent.
- * - The search field shows only the objects whose name has the text, with the groups that hold them.
+ * - The search field shows only the objects whose name has the text, with the groups that hold them; Escape or its ×
+ *   button clears it.
  * - Tabs for the materials, the textures and the geometries that the objects use ({@link tabs}, each turned on or off by
  *   {@link materialsTab} and the others; one tab shows no tab bar). An asset row has a swatch, a picture or an icon, the
  *   name, a short text (the size of a texture, the vertices of a geometry, the users), and an arrow that lists its users.
@@ -348,6 +350,18 @@ export class LayersPanelPlugin extends AViewerPluginSync<LayersPanelPluginEventM
         this._search = search.appendChild(el('input', 'lyp-search-input'))
         this._search.placeholder = 'Search'
         this._search.setAttribute('aria-label', 'Search the layers')
+        // shown while the field has text (CSS, :placeholder-shown): empties it and keeps the focus in it
+        const clear = search.appendChild(el('button', 'lyp-search-clear'))
+        clear.type = 'button'
+        clear.innerHTML = ICONS.clear
+        clear.title = 'Clear the search'
+        clear.setAttribute('aria-label', 'Clear the search')
+        clear.addEventListener('click', e => {
+            e.preventDefault() // not a click on the label
+            this._search.value = ''
+            this._setFilter('')
+            this._search.focus()
+        })
         this._list = this.element.appendChild(el('div', 'lyp-list'))
         this._list.tabIndex = 0
         this._list.setAttribute('role', 'tree')

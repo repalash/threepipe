@@ -639,10 +639,12 @@ describe('LayersPanelPlugin', () => {
         search.fire('input')
         flush()
         expect(shown()).toHaveLength(12)
-        search.value = ''
-        search.fire('input')
+        // the clear button empties the field, shows all again and keeps the focus in the field
+        const clear = (layers.element as any as FakeElement).find('lyp-search-clear')[0]
+        expect([clear.getAttribute('aria-label'), clear.type]).toEqual(['Clear the search', 'button'])
+        clear.fire('click', {preventDefault: () => {}})
         flush()
-        expect(shown()).toHaveLength(5)
+        expect([search.value, shown().length, doc.activeElement === search]).toEqual(['', 5, true])
         // a selected child in the place of the "… N more" row shows all of them
         picking.select([parts.children[9]])
         flush()

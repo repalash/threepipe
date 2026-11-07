@@ -34,6 +34,13 @@
 }
 .lyp-search-icon { display: flex; }
 .lyp-search-input { flex: 1; min-width: 0; border: 0; outline: none; background: transparent; color: var(--lyp-fg); font: inherit; padding: 0; }
+/* the clear button: only while the field has text (the placeholder shows when it is empty) */
+.lyp-search-clear {
+    display: flex; align-items: center; justify-content: center; flex: none; width: 22px; height: 22px; margin-right: -5px; padding: 0;
+    border: 0; border-radius: 4px; background: transparent; color: var(--lyp-dim); cursor: pointer;
+}
+.lyp-search-clear:hover { color: var(--lyp-fg); background: var(--lyp-hover); }
+.lyp-search-input:placeholder-shown + .lyp-search-clear { display: none; }
 .lyp-list { flex: 1; min-height: 0; overflow: auto; outline: none; position: relative; padding-bottom: 8px; overscroll-behavior: contain; scrollbar-width: thin; }
 .lyp-spacer { position: relative; }
 .lyp-empty { color: var(--lyp-dim); padding: 12px; }

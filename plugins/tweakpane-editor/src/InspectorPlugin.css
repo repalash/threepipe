@@ -74,6 +74,14 @@
 }
 .isp-search-icon { display: flex; }
 .isp-search-input { flex: 1; min-width: 0; border: 0; outline: none; background: transparent; color: var(--tp-container-foreground-color, #1e1e1e); font: inherit; padding: 0; }
+/* the clear button of the Layers search; the field is type=search (a search key on a phone keyboard): no native one too */
+.isp-search-clear {
+    display: flex; align-items: center; justify-content: center; flex: none; width: 22px; height: 22px; margin-right: -5px; padding: 0;
+    border: 0; border-radius: 4px; background: transparent; color: var(--tp-label-foreground-color, #8a8f98); cursor: pointer;
+}
+.isp-search-clear:hover { color: var(--tp-container-foreground-color, #1e1e1e); background: var(--tp-button-background-color-hover, rgba(0, 0, 0, .05)); }
+.isp-search-input:placeholder-shown + .isp-search-clear { display: none; }
+.isp-search-input::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; display: none; }
 .isp-searching .isp-miss { display: none !important; }
 .isp-searching .tp-fldv_c { display: block !important; height: auto !important; opacity: 1 !important; overflow: visible !important; }
 .isp-empty { padding: 4px 12px 14px; opacity: .6; }

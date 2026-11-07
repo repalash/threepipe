@@ -59,7 +59,8 @@ const SHAPES: [MaterialPreviewShape, string][] = [['sphere', 'Sphere'], ['cube',
 /** The entry of the inspector in the mode bar of the editor frame: 16 px, the line icons of the frame */
 const AREA_ICON = '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="1.5"/><path d="M5 6h6M5 8.5h6M5 11h3.5"/></svg>'
 
-/** The search icon of the Layers panel (14 px, the line icons of the frame) */
+/** The search and the clear icons of the Layers panel (the line icons of the frame) */
+const CLEAR_ICON = '<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/></svg>'
 const SEARCH_ICON = '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>'
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className: string) {
@@ -98,7 +99,7 @@ class InspectorUiRenderer extends TweakpaneUiPlugin {
  *   ({@link PickingPlugin.selectionUi}), since a uiConfig renders in one UI at a time; out of the page (the classic
  *   layout of the editor) the PickingPlugin shows the selection again, from the next change of the selection.
  * - A search field above the settings shows only the settings whose name has the text, and the folders whose title has
- *   it (with all their settings); the folders open while it has text. Escape in it clears it.
+ *   it (with all their settings); the folders open while it has text. Escape in it, or its × button, clears it.
  * - A right-click on a setting (a long press on a touch screen) offers Reset to default, when its value is not the default
  *   of its class (the value of a new object of the same class), with undo; not on a disabled or read-only setting.
  * - Escape (the PickingPlugin) clears the selection.
@@ -264,6 +265,18 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
         this._search.type = 'search'
         this._search.placeholder = 'Search settings'
         this._search.setAttribute('aria-label', 'Search the settings of the selection')
+        // as in the Layers panel: shown while the field has text (CSS, :placeholder-shown), empties it and keeps the focus
+        const clear = search.appendChild(el('button', 'isp-search-clear'))
+        clear.type = 'button'
+        clear.innerHTML = CLEAR_ICON
+        clear.title = 'Clear the search'
+        clear.setAttribute('aria-label', 'Clear the search')
+        clear.addEventListener('click', (e: MouseEvent) => {
+            e.preventDefault() // not a click on the label
+            this._search.value = ''
+            this._applySearch()
+            this._search.focus()
+        })
         this._search.addEventListener('input', () => this._applySearch())
         this._search.addEventListener('keydown', (e: KeyboardEvent) => {
             // Escape clears the text first; the next one clears the selection (the PickingPlugin)
