@@ -321,7 +321,7 @@ describe('InspectorPlugin', () => {
             r.appendChild(new FakeElement('div')).className = 'tp-lblv_l'
             return r
         }
-        const roughRow = row(), colorRow = row(), nestedRow = row(), otherRow = row()
+        const roughRow = row(), colorRow = row(), nestedRow = row(), listRow = row(), otherRow = row()
         const rough = {type: 'slider', property: [mat, 'roughness'], uiRef: {controller_: {view: {element: roughRow}}}}
         const color = {type: 'color', property: () => [mat, 'color'], uiRef: {controller_: {view: {element: colorRow}}}}
         class NeedsArgs {
@@ -333,7 +333,12 @@ describe('InspectorPlugin', () => {
         }
         const odd = new NeedsArgs(3)
         const nested = {type: 'number', property: [odd, 'size'], uiRef: {controller_: {view: {element: nestedRow}}}}
-        ;(mat as any).uiConfig = {type: 'folder', label: 'Material', children: [rough, color, () => ({type: 'folder', children: [nested]})]}
+        class WithList {
+            list = [1]
+        }
+        const listed = Object.assign(new WithList(), {list: [2]})
+        const list = {type: 'input', property: [listed, 'list'], uiRef: {controller_: {view: {element: listRow}}}}
+        ;(mat as any).uiConfig = {type: 'folder', label: 'Material', children: [rough, color, () => ({type: 'folder', children: [nested, list]})]}
         picking.select(mesh(mat))
         el.find('isp-tab')[1].click()
         const body = el.find('isp-body')[0]
@@ -370,8 +375,10 @@ describe('InspectorPlugin', () => {
         expect(rightClick(roughRow)).toBe(false)
         delete (rough as any).readOnly
         mat.roughness = 1
-        // a class that needs arguments has no default; a row that is not a setting has no menu
+        // a class that needs arguments has no default, nor an object value that has no clone (the reset would put the
+        // object of the cached default into the target); a row that is not a setting has no menu
         expect(rightClick(nestedRow)).toBe(false)
+        expect(rightClick(listRow)).toBe(false)
         expect(rightClick(otherRow)).toBe(false)
         expect(menus).toHaveLength(2)
         // a long press on a touch screen, not a drag
@@ -395,7 +402,7 @@ describe('InspectorPlugin', () => {
     })
 
     test('the search shows the settings whose name has the text, and the folders whose title has it; Escape clears it', () => {
-        const {el} = setup()
+        const {el, inspector} = setup()
         picking.select(mesh(new PhysicalMaterial()))
         // the rows that the renderer builds in the body: settings (a label, or a button title) and folders (a title)
         const node = (cls: string, text = '', ...children: FakeElement[]) => {
@@ -454,6 +461,12 @@ describe('InspectorPlugin', () => {
         // with no text, Escape goes on to the PickingPlugin
         search.fire('keydown', {key: 'Escape', stopPropagation})
         expect(stopPropagation).toHaveBeenCalledTimes(1)
+        // no search: a change of the rows (the observer of the body, a slider that renders) does not walk them
+        let reads = 0
+        const rows = body.children
+        Object.defineProperty(body, 'children', {get: () => (reads++, rows)})
+        ;(inspector as any)._applySearch()
+        expect(reads).toBe(0)
     })
 
     test('the material preview is asked for on the Material tab only, with the shape and the view', () => {
@@ -546,8 +559,16 @@ describe('InspectorPlugin', () => {
         const {inspector, viewer, ui} = setup()
         expect(picking.selectionUi).toBe(false)
         expect(ui.added).toBe(true)
+        picking.select(mesh(new PhysicalMaterial()))
+        // a uiConfig renders in one UI at a time: the inspector lets go of the settings before the PickingPlugin shows them
+        let shownThen: any[] = []
+        let on = picking.selectionUi
+        Object.defineProperty(picking, 'selectionUi', {get: () => on, set: v => {
+            on = v
+            shownThen = [...ui.shown]
+        }})
         inspector.onRemove(viewer as any)
-        expect(picking.selectionUi).toBe(true)
+        expect([picking.selectionUi, shownThen]).toEqual([true, []])
         expect(ui.disposed).toBe(true)
     })
 

@@ -380,6 +380,8 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
         if (picking === this._picking) return
         if (this._picking) {
             this._picking.removeEventListener('selectedObjectChanged', this._onSelection)
+            // a uiConfig renders in one UI at a time: let go of the settings before the PickingPlugin shows them
+            this._show(undefined)
             this._picking.selectionUi = this._pickingSelectionUi
         }
         this._picking = picking
@@ -540,6 +542,8 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
     private _applySearch() {
         if (!this._search) return // the first set of the settings, before the constructor makes the elements
         const q = this._search.value.trim().toLowerCase()
+        // no search before and now: no row is marked, nothing to walk
+        if (!q && !this._body.classList.contains('isp-searching')) return
         this._body.classList.toggle('isp-searching', !!q)
         const any = filterRows(this._body, q, !q)
         this._noMatch.style.display = q && !any && this._tabs().length ? '' : 'none'
@@ -810,12 +814,14 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
         }
         if (!defaults || !(key in defaults)) return undefined
         const value = defaults[key]
-        return typeof value === 'function' ? undefined : value
+        // an object that has no clone would go into the target as the object of the cached default
+        if (typeof value === 'function' || value && typeof value === 'object' && typeof (value as {clone?: unknown}).clone !== 'function') return undefined
+        return value
     }
 
     /** Sets the default value through the renderer, with undo; a copy for an object value (a vector, a colour) */
     private async _resetField(config: UiObjectConfig, def: unknown) {
-        const value = (def as {clone?: () => unknown})?.clone ? (def as {clone: () => unknown}).clone() : def
+        const value = def && typeof def === 'object' ? (def as {clone: () => unknown}).clone() : def
         await this._ui?.methods.setValue(config, value as any, {last: true}, true, true)
         config.uiRefresh?.(true, 'postFrame')
     }
