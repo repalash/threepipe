@@ -60,6 +60,9 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- `BVHPlugin`: adopting a `geometry.boundsTree` set from outside that is not a `MeshBVH` (a `SkinnedMeshBVH`, `PointsBVH` or `LineSegmentsBVH` of three-mesh-bvh 0.9) threw, since only a `MeshBVH` has `resolveTriangleIndex`. Such a tree is now treated as not covering the drawn triangles, so the meshes keep the raycast of three.js. The plugin's types also accept three-mesh-bvh's `GeometryBVH` type of `boundsTree`, which failed to type-check in plugins that import three-mesh-bvh
+- `IAssetImporter` declares `resolveURL(url)`, which `AssetImporter` has (`@threepipe/plugin-blend-importer` calls it)
+- The workspace lockfile has no copies of upstream `three` under `plugins/r3f` and `plugins/troika-text` any more, so their examples use the same three.js as threepipe
 - tweakpane-editor page frame: the panel scrolls up and down only. On a phone in Safari it also scrolled sideways, and the labels went out at the left
 - `StickyNotesUiPlugin` (tweakpane-editor): the minimised notes bar is as wide as its icon and number again on a phone. Its icon was 100% of a button as wide as its content, and Safari stretched it, and the bar, to the free width of the canvas
 - `TweakpaneUiPlugin`: a new default colour mode reaches people who opened a page before. Every visit kept the colour mode in `localStorage`, also the default, so the old default stayed (for example `blue`, `dark` or `light` in place of `clean`). The default at the time of the write is now kept too (`tpThemeDefault`), and a kept value that was the default follows the default of now; a colour mode that the person picked stays. It is written only when it changes

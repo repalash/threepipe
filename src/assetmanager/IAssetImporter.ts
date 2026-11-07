@@ -290,5 +290,11 @@ export interface IAssetImporter<TE extends IAssetImporterEventMap = IAssetImport
     addURLModifier(modifier: (url: string) => string): void
     removeURLModifier(modifier: (url: string) => string): void
 
+    /**
+     * Resolves a url with the loading manager of the importer: its URL modifiers, the root url of the current import, and the files registered with {@link registerFile}.
+     * @param url
+     */
+    resolveURL(url: string): string
+
 }
 

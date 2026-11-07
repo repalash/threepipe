@@ -140,8 +140,9 @@ export function gltfAnimationExt(manager: TimelineManager): TMExtension {
                     if (!action.clipData) {
                         manager.viewer.console.warn('gltfAnimationExt: Action has no clipData, make sure to only use GLTFAnimationPlugin to create animations', action)
                     }
-                    const sgn = Math.sign(clipData.timeScale)
-                    const duration = sgn * clip.duration / clipData.timeScale
+                    const timeScale = clipData.timeScale ?? action.timeScale // clipData.timeScale is optional
+                    const sgn = Math.sign(timeScale)
+                    const duration = sgn * clip.duration / timeScale
                     // if (action._startTime === undefined) {
                     //     console.error('gltfAnimationExt: Minified three.js used')
                     // }

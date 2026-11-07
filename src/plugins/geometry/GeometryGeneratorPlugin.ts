@@ -50,6 +50,8 @@ export class GeometryGeneratorPlugin extends AViewerPluginSync {
     enabled = true
     toJSON: any = undefined
 
+    // the built-in generators. Plugins add theirs here and declare them in IGeometryGeneratorMap with module augmentation
+    // (like `text` from @threepipe/plugin-geometry-generator), so the map is typed with those too.
     generators: IGeometryGeneratorMap = {
         plane: new PlaneGeometryGenerator('plane'),
         sphere: new SphereGeometryGenerator('sphere'),
@@ -61,7 +63,7 @@ export class GeometryGeneratorPlugin extends AViewerPluginSync {
         shape: new ShapeGeometryGenerator('shape'),
         tubeShape: new TubeShapeGeometryGenerator('tubeShape'),
         line: new LineGeometryGenerator('line'),
-    }
+    } as IGeometryGeneratorMap
 
     defaultMeshClass: Class<IObject3D> = Mesh2
     defaultMaterialClass: Class<IMaterial> = PhysicalMaterial
