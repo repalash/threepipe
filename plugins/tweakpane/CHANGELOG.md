@@ -4,6 +4,10 @@ All notable changes to this plugin will be documented in this file.
 
 [//]: # (The format is based on [Keep a Changelog]&#40;https://keepachangelog.com/en/1.1.0/&#41;, and this project adheres to [Semantic Versioning]&#40;https://semver.org/spec/v2.0.0.html&#41;.)
 
+## [0.11.0-r177.1] - 2026-11-07
+
+Release candidate of the three.js r177 upgrade lane, under the npm dist-tag `three-r177`, for threepipe 0.7.0-r177.1: the changes listed under [Unreleased] below.
+
 ## [Unreleased]
 
 ### Added
@@ -12,12 +16,14 @@ All notable changes to this plugin will be documented in this file.
 
 ### Changed
 
+- `download image` on render target textures awaits `RenderManager.exportRenderTarget()`, which is async since threepipe 0.7.0 (three.js r169 made `EXRExporter.parse()` async)
 - The context menu of a panel's ⋮ button (download/upload preset, reset defaults; `CustomContextMenu` of threepipe core) and of the image input use the colours and font of the color mode, and the panel menu opens below the button inside the panel. Before, it was always dark with a monospace font, and it opened past the right edge of the panel.
 - The default color mode, when none is stored, is `clean` (`clean-dark` when the system prefers dark), in every app with `TweakpaneUiPlugin`. Before, it was `light` (or `dark`). An app sets another one with `colorMode` (or the constructor argument).
 - Use [@threepipe/tweakpane-image-plugin](https://www.npmjs.com/package/@threepipe/tweakpane-image-plugin) 1.1.406 from npm in `devDependencies`, replacing the `tweakpane-image-plugin` 1.1.404 release tarball. A dropped file that is not an image (like `.hdr`, `.cube`) is now passed on as a `File` and loaded by the asset importer, instead of being set as a broken image texture.
 
 ### Fixed
 
+- `download image` on a Float/HalfFloat `DataTexture` always threw `EXRExporter.parse: Unsupported first parameter` (the texture was passed as the second argument)
 - A dropped `File` was ignored when the current value of the image input was a texture whose image has no `src`, like an `.hdr` environment map.
 
 ## [0.10.1] - 2025-10-27

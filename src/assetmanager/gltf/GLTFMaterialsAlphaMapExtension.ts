@@ -79,7 +79,7 @@ class GLTFMaterialsAlphaMapExtensionExport {
 
     }
 
-    writeMaterial(material: MeshStandardMaterial, materialDef: any) {
+    async writeMaterialAsync(material: MeshStandardMaterial, materialDef: any) {
 
         if (!material.isMeshStandardMaterial || !material.alphaMap) return
 
@@ -90,7 +90,7 @@ class GLTFMaterialsAlphaMapExtensionExport {
 
         if (material.alphaMap && writer.checkEmptyMap(material.alphaMap)) {
 
-            const alphaMapDef = {index: writer.processTexture(material.alphaMap)}
+            const alphaMapDef = {index: await writer.processTextureAsync(material.alphaMap)}
             writer.applyTextureTransform(alphaMapDef, material.alphaMap)
             extensionDef.alphaTexture = alphaMapDef
 

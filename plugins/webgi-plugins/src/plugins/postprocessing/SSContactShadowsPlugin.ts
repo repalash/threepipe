@@ -362,7 +362,7 @@ export class SSContactShadowsPlugin extends AViewerPluginSync {
 // }
 //
 // const glTFMaterialsSSContactShadowsExtensionExport = (w: GLTFWriter2)=> ({
-//     writeMaterial: (material: any, materialDef: any) => {
+//     writeMaterialAsync: async(material: any, materialDef: any) => {
 //         if (!material.isMeshStandardMaterial || !material.userData._clearcoatTint?.enableTint) return
 //         materialDef.extensions = materialDef.extensions || {}
 //

@@ -8,6 +8,7 @@ import {
     ILoader,
     ImportAddOptions,
     Importer,
+    LoadingManager,
     Mesh,
     Object3D,
     PhysicalMaterial,
@@ -25,9 +26,9 @@ import {BVH, BVHLoader} from 'three/examples/jsm/loaders/BVHLoader.js'
 import {Chunk, VOXLoader, VOXMesh} from 'three/examples/jsm/loaders/VOXLoader.js'
 import {MDD, MDDLoader} from 'three/examples/jsm/loaders/MDDLoader.js'
 import {PCDLoader} from 'three/examples/jsm/loaders/PCDLoader.js'
-import {TiltLoader} from 'three/examples/jsm/loaders/TiltLoader.js'
 import {VRMLLoader} from 'three/examples/jsm/loaders/VRMLLoader.js'
 import {LDrawLoader} from 'three/examples/jsm/loaders/LDrawLoader.js'
+import {LDrawConditionalLineMaterial} from 'three/examples/jsm/materials/LDrawConditionalLineMaterial.js'
 import {VTKLoader} from 'three/examples/jsm/loaders/VTKLoader.js'
 import {XYZLoader} from 'three/examples/jsm/loaders/XYZLoader.js'
 
@@ -160,15 +161,6 @@ export class PCDLoadPlugin extends BaseImporterPlugin {
     }, ['pcd'], ['application/pcd'], false)
 }
 
-// tilt
-/**
- * Adds support for loading Tilt brush `.tilt`, `application/tilt` files and data uris
- */
-export class TiltLoadPlugin extends BaseImporterPlugin {
-    public static readonly PluginType = 'TiltLoadPlugin'
-    protected _importer = new Importer(TiltLoader, ['tilt'], ['application/tilt'], false)
-}
-
 // vrml
 /**
  * Adds support for loading VRML `.wrl`, `model/vrml` files and data uris
@@ -185,6 +177,11 @@ export class VRMLLoadPlugin extends BaseImporterPlugin {
 export class LDrawLoadPlugin extends BaseImporterPlugin {
     public static readonly PluginType = 'LDrawLoadPlugin'
     protected _importer = new Importer(class extends LDrawLoader implements ILoader {
+        constructor(manager?: LoadingManager) {
+            super(manager)
+            // since three.js r171 the loader throws on conditional (edge) lines unless the material type is set
+            this.setConditionalLineMaterial(LDrawConditionalLineMaterial)
+        }
         transform(res: Group, _: AnyOptions): any {
             // Convert from LDraw coordinates: rotate 180 degrees around OX
             res.rotation.x = Math.PI
@@ -239,7 +236,6 @@ export const extraImportPlugins = [
     VOXLoadPlugin,
     MDDLoadPlugin,
     PCDLoadPlugin,
-    TiltLoadPlugin,
     VRMLLoadPlugin,
     LDrawLoadPlugin,
     VTKLoadPlugin,
