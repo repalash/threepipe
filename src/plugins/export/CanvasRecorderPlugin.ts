@@ -1,5 +1,5 @@
 import {Spherical} from 'three'
-import {getOrCall, onChange, PartialRecord, serialize, timeout} from 'ts-browser-helpers'
+import {getOrCall, onChange, serialize, timeout} from 'ts-browser-helpers'
 import {generateUiConfig, UiObjectConfig} from 'uiconfig.js'
 import {AViewerPluginEventMap, AViewerPluginSync, type ThreeViewer} from '../../viewer'
 import type {IConvergedCanvasRecorder, ProgressivePlugin} from '../pipeline/ProgressivePlugin'
@@ -9,7 +9,7 @@ import type {AnimationResult, PopmotionPlugin} from '../animation/PopmotionPlugi
 import type {AnimationObjectPlugin} from '../animation/AnimationObjectPlugin'
 import type {FileTransferPlugin} from './FileTransferPlugin'
 import {type Easing, EasingFunctions} from '../../utils/animation'
-import type {ICanvasRecorder} from '../../utils/canvas-recorder/ACanvasRecorder'
+import type {CanvasFrameSink, CanvasRecorderOptions, ICanvasRecorder} from '../../utils/canvas-recorder/ACanvasRecorder'
 import {ImageSequenceRecorder} from '../../utils/canvas-recorder/ImageSequenceRecorder'
 import {CanvasMediaRecorder} from '../../utils/canvas-recorder/CanvasMediaRecorder'
 import {FFMPEGRecorder} from '../../utils/canvas-recorder/FFMPEGRecorder'
@@ -17,6 +17,9 @@ import {RemovalWaits} from '../../utils/canvas-recorder/RemovalWaits'
 
 /** A listener of {@link CanvasRecorderPlugin} on one of its recorders: the event type and the listener */
 type RecorderListener = [string, (e: any) => void]
+
+/** Makes a recorder for {@link CanvasRecorderPlugin.registerRecorder} */
+export type CanvasRecorderFactory = (canvas: HTMLCanvasElement, options: Partial<CanvasRecorderOptions>) => ICanvasRecorder
 
 export interface CanvasRecorderPluginEventMap extends AViewerPluginEventMap {
     start: object
@@ -70,7 +73,17 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
     @serialize()
         videoFrameRate = 30
 
-    private _recorders: PartialRecord<'ffmpeg.js' | 'canvas-media' | 'image', ICanvasRecorder> = {}
+    /**
+     * Where the frames of an image sequence go, instead of a folder from the browser's picker. Set a function to send
+     * them to a server, a zip or memory, which also works where the browser has no folder picker (Safari, Firefox).
+     * In converge mode the next frame waits for the promise it returns. A failure is reported when the recording stops.
+     * Not saved with the plugin's settings.
+     */
+    @onChange(CanvasRecorderPlugin.prototype.refreshRecorderOptions)
+        frameSink: CanvasFrameSink | undefined = undefined
+
+    private _recorders: Record<string, ICanvasRecorder> = {}
+    private _registeredRecorders = new Map<string, {factory: CanvasRecorderFactory, match: (mimeType: string) => boolean}>()
     /** The listeners of the plugin on each recorder that it made ({@link _getRecorder}) */
     private _recorderListeners = new Map<ICanvasRecorder, RecorderListener[]>()
     private _recorder?: ICanvasRecorder
@@ -165,8 +178,12 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
             return
         }
         this._optionsPending = false
-        let recorderType: 'ffmpeg.js' | 'canvas-media' | 'image' = 'image'
-        if (this.mimeType === 'video/mp4') {
+        // the last one registered for this format, else the built-in one
+        const registered = [...this._registeredRecorders].reverse().find(([, r]) => r.match(this.mimeType))?.[0]
+        let recorderType = 'image'
+        if (registered) {
+            recorderType = registered
+        } else if (this.mimeType === 'video/mp4') {
             recorderType = 'ffmpeg.js'
         } else if (this.mimeType === 'auto') {
             recorderType = 'canvas-media'
@@ -179,8 +196,58 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
             frameRate: this.videoFrameRate,
             mimeType: this.mimeType,
             stepMode: this.convergeMode,
+            frameSink: this.frameSink,
         })
         this.uiConfig.uiRefresh?.(true, 'postFrame')
+    }
+
+    /**
+     * Adds a recorder, for a new output with no change to this plugin. It's used when {@link mimeType} matches, and over
+     * the built-in ones. The last one registered for a format wins. Not while a recording runs.
+     * @param name - unique; registering a name again replaces that recorder
+     * @param factory - makes the recorder from the viewer's canvas, once, when it's first needed
+     * @param match - which values of {@link mimeType} it records. Default: the one equal to `name`
+     * @returns false when a recording runs, and nothing changed
+     */
+    registerRecorder(name: string, factory: CanvasRecorderFactory, match: (mimeType: string) => boolean = m => m === name): boolean {
+        if (!this._releaseRecorderNamed(name)) return false
+        this._registeredRecorders.set(name, {factory, match})
+        this.refreshRecorderOptions()
+        return true
+    }
+
+    /**
+     * Removes a recorder added with {@link registerRecorder}. Not while a recording runs.
+     * @returns false when a recording runs, or nothing has that name
+     */
+    unregisterRecorder(name: string): boolean {
+        if (!this._registeredRecorders.has(name) || !this._releaseRecorderNamed(name)) return false
+        this._registeredRecorders.delete(name)
+        this.refreshRecorderOptions()
+        return true
+    }
+
+    /** Disposes the recorder made under this name, if any. False when a recording runs. */
+    private _releaseRecorderNamed(name: string): boolean {
+        if (this._recorderBusy()) {
+            this._viewer?.console.warn('CanvasRecorderPlugin: recorders cannot change during a recording')
+            return false
+        }
+        const recorder = this._recorders[name]
+        if (!recorder) return true
+        this._releaseRecorder(recorder)
+        delete this._recorders[name]
+        if (this._recorder === recorder) this._recorder = undefined
+        return true
+    }
+
+    /** Disposes a recorder and takes the plugin's listeners off it */
+    private _releaseRecorder(recorder: ICanvasRecorder) {
+        recorder.dispose()
+        // after the dispose, whose own events still come here: an event that the disposed recorder sends later
+        // (e.g. the native stop of a MediaRecorder) does not reach a recording after an add again
+        this._recorderListeners.get(recorder)?.forEach(([event, listener]) => recorder.removeEventListener(event, listener))
+        this._recorderListeners.delete(recorder)
     }
 
     onAdded(viewer: ThreeViewer): void {
@@ -341,11 +408,7 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
         this._removalWaits.endAll()
         // each recorder once (the current one is one of them, unless a subclass made it)
         new Set([this._recorder, ...Object.values(this._recorders)]).forEach(r => {
-            if (!r) return
-            r.dispose()
-            // after the dispose, whose own events still come here: an event that the disposed recorder sends later
-            // (e.g. the native stop of a MediaRecorder) does not reach a recording after an add again
-            this._recorderListeners.get(r)?.forEach(([event, listener]) => r.removeEventListener(event, listener))
+            if (r) this._releaseRecorder(r)
         })
         this._recorderListeners.clear()
         // a disposed recorder (an ended MP4 worker) is not used again: an add makes new ones
@@ -881,11 +944,18 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
         if (this._recordIndicator) this._recordIndicator.style.visibility = visible ? 'visible' : 'hidden'
     }
 
-    protected _getRecorder(type: 'ffmpeg.js' | 'canvas-media' | 'image') {
+    protected _getRecorder(type: string) {
         if (!this._viewer) throw new Error('No viewer')
         if (this._recorders[type]) return this._recorders[type]
         let recorder: ICanvasRecorder
-        if (type === 'canvas-media')
+        const registered = this._registeredRecorders.get(type)
+        if (registered)
+            recorder = registered.factory(this._viewer.canvas, {
+                frameRate: this.videoFrameRate,
+                mimeType: this.mimeType,
+                stepMode: this.convergeMode,
+            })
+        else if (type === 'canvas-media')
             recorder = new CanvasMediaRecorder(this._viewer.canvas, {
                 frameRate: this.videoFrameRate,
                 mimeType: this.mimeType,

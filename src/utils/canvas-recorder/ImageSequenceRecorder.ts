@@ -1,4 +1,4 @@
-import {ACanvasRecorder} from './ACanvasRecorder'
+import {ACanvasRecorder, type CanvasFrameSink} from './ACanvasRecorder'
 import {writeFile} from 'ts-browser-helpers'
 
 export class ImageSequenceRecorder extends ACanvasRecorder {
@@ -7,6 +7,10 @@ export class ImageSequenceRecorder extends ACanvasRecorder {
     private _pending = new Set<Promise<void>>()
     /** The first failed write of this recording, reported when it stops */
     private _writeError?: unknown
+    /** The sink of this recording; a change of the option applies to the next one */
+    private _sink?: CanvasFrameSink
+    /** Frames reach the sink one at a time and in order, however the captures end */
+    private _sinkQueue: Promise<void> = Promise.resolve()
 
     private _track(p: Promise<void>) {
         // a failed write is kept and reported by stop(), not as an unhandled rejection here. The tracked promise does
@@ -37,8 +41,14 @@ export class ImageSequenceRecorder extends ACanvasRecorder {
         this._currentImages = []
         this._frameCount = 0
         this._writeError = undefined
+        this._sink = this.options.frameSink
+        this._sinkQueue = Promise.resolve()
 
         this.setState('starting')
+        if (this._sink) {
+            this.setState('recording')
+            return
+        }
         const startId = ++this._startId
         if (typeof window !== 'undefined' && (window as any).showDirectoryPicker) {
             (window as any)
@@ -62,6 +72,24 @@ export class ImageSequenceRecorder extends ACanvasRecorder {
 
     private _imgDirectory?: FileSystemDirectoryHandle
 
+    /** A frame sink makes the next converged frame wait (it may be slow, and frames would pile up in memory) */
+    isBusy() {
+        return !!this._sink && this._pending.size > 0
+    }
+
+    private _sendFrame(sink: CanvasFrameSink, name: string, mimeType: string) {
+        const index = this._frameCount - 1
+        const capture = new Promise<Blob>((resolve, reject) => this._canvas.toBlob(
+            blob => blob ? resolve(blob) : reject(new Error('ImageSequenceRecorder: no image for ' + name)),
+            mimeType,
+            90,
+        ))
+        capture.catch(() => undefined) // reported through the queue below, which may reach it later
+        // after a failure the queue stays rejected: no later frame is sent, and the stop reports the first error
+        this._sinkQueue = this._sinkQueue.then(async() => capture).then(async blob => sink({blob, index, name, mimeType}))
+        this._track(this._sinkQueue)
+    }
+
     /** The start that waits for the folder; a dispose cancels it */
     private _startId = 0
 
@@ -79,6 +107,11 @@ export class ImageSequenceRecorder extends ACanvasRecorder {
         const mime = this.options.mimeType
         // the name now: toBlob calls back later, after more frames may have been requested
         const name = 'frame_' + String(this._frameCount).padStart(5, '0') + (mime.includes('png') ? '.png' : mime.includes('webp') ? '.webp' : '.jpg')
+
+        if (this._sink) {
+            this._sendFrame(this._sink, name, mime)
+            return true
+        }
 
         // const dataUrl = this._canvas.toDataURL(mime, 90);
         this._track(new Promise<void>((resolve, reject) => this._canvas.toBlob(

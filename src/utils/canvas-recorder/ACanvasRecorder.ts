@@ -14,15 +14,30 @@ export interface ICanvasRecorder<T extends string=any>
     options: CanvasRecorderOptions;
     start: () => void;
     pause: () => void;
-    /** Calls back with the recording; an image sequence (written to a folder) has none */
+    /** Calls back with the recording; an image sequence (written to a folder or a frame sink) has none */
     stop: (recordingCallback: (b?: Blob) => void) => void;
 }
+
+/** One frame of an image sequence, given to {@link CanvasRecorderOptions.frameSink}. */
+export interface CanvasRecorderFrame {
+    blob: Blob;
+    /** Starts at 0; frames come in order */
+    index: number;
+    /** The file name it would have in a folder: `frame_00001.png` */
+    name: string;
+    mimeType: string;
+}
+
+/** Takes each frame of an image sequence. A returned promise makes the next frame wait, in converge mode. */
+export type CanvasFrameSink = (frame: CanvasRecorderFrame) => void | Promise<void>
 
 export interface CanvasRecorderOptions {
     frameRate: number;
     mimeType: string;
     videoBitsPerSecond?: number;
     stepMode: boolean;
+    /** Image sequences: frames go here instead of a folder from the browser's picker. A failure is reported when the recording stops. */
+    frameSink?: CanvasFrameSink;
 }
 
 /**
