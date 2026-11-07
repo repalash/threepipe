@@ -104,7 +104,7 @@ import {AnnotationsPlugin} from '@threepipe/plugin-annotations'
 export class ThreeEditor extends ThreeViewer {
 
     editorPlugins: (IViewerPlugin | Class<IViewerPlugin>)[] = [
-        // the actions and keys of the editor (frame, editor camera); the editor shows their errors in toasts
+        // the actions and keys of the plugins (selection, undo, gizmos, frame, editor camera), and their errors in toasts
         CommandsPlugin,
         UndoManagerPlugin,
         LoadingScreenPlugin,

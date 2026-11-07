@@ -68,6 +68,8 @@ picking.setSelectedObject(someObject)
 | **Shift** (hold) | Snap to grid while dragging |
 | **Alt/Option** (hold) | Uniform scale while dragging a scale sphere |
 
+The keys are actions (`pivotControls.toggleSpace`, … in `PivotControls.actions`, bound by the plugin): a [CommandsPlugin](./CommandsPlugin) lists them, and the app changes or removes their keys there (`setShortcut`). Mod is Cmd on a Mac and Ctrl on other platforms. The held keys stay keys of the gizmo.
+
 Transforms applied to duplicated objects are automatically tracked by [PickingPlugin](./PickingPlugin)'s smart duplicate system — the next Ctrl+D applies the same offset.
 
 ## Configuration

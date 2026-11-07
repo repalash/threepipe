@@ -3,11 +3,14 @@ import {
     AnimationResult,
     AViewerPluginEventMap,
     AViewerPluginSync,
+    bindActions,
+    type CommandAction,
     createStyles,
     EasingFunctions,
     ICamera,
     ICameraView,
     Intersection,
+    isTextTarget,
     IObject3D,
     ISerializedConfig,
     MathUtils,
@@ -387,6 +390,7 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         this._buildCard(layer)
         AnnotationsPlugin._added.add(this)
         window.addEventListener('keydown', this._onKeyDown, {capture: true})
+        this._unbindActions = bindActions(viewer, this.actions)
         window.addEventListener('pointerdown', this._onWindowDown, {capture: true})
         window.addEventListener('pointerup', this._onWindowUp, {capture: true})
         window.addEventListener('pointermove', this._onWindowMove, {capture: true})
@@ -404,6 +408,8 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         this._stopAnim()
         this.cancelAdding()
         window.removeEventListener('keydown', this._onKeyDown, {capture: true})
+        this._unbindActions?.()
+        this._unbindActions = undefined
         window.removeEventListener('pointerdown', this._onWindowDown, {capture: true})
         window.removeEventListener('pointerup', this._onWindowUp, {capture: true})
         window.removeEventListener('pointermove', this._onWindowMove, {capture: true})
@@ -615,6 +621,17 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
     }
 
     /** Open the next annotation (after the last: the first) */
+    /**
+     * The keys of the plugin, as actions (`bindActions`: a `CommandsPlugin` of the viewer lists them): → and ← open the
+     * next and the previous annotation while a card is open. With more viewers on the page, the viewer with the focus,
+     * or the one used last, takes the key. Escape (close the card) stays a key of the card.
+     */
+    readonly actions: CommandAction[] = [
+        {id: 'annotations.next', label: 'Next annotation', group: 'Annotations', shortcut: 'ArrowRight', enabled: () => !this.isDisabled() && !!this._openId, run: () => this.next()},
+        {id: 'annotations.prev', label: 'Previous annotation', group: 'Annotations', shortcut: 'ArrowLeft', enabled: () => !this.isDisabled() && !!this._openId, run: () => this.prev()},
+    ]
+    private _unbindActions?: () => void
+
     next() {
         this._step(1, true)
     }
@@ -1416,10 +1433,11 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
 
     // region keys and clicks
 
+    /** Escape closes the open card or ends the adding (a popup key, so not an action); any key stops the tour */
     private _onKeyDown = (e: KeyboardEvent) => {
         if (this.isDisabled() || !this._layer) return
         const t = e.target as HTMLElement | null
-        if (t && (t.isContentEditable || t.closest?.('input, textarea, select'))) return
+        if (isTextTarget(t)) return
         this.stopTour()
         // only when the focus is in this viewer (its canvas, the card, the placing overlay) or on the page, not in another
         // viewer or panel. On the page, with more viewers, the one used last takes the key
@@ -1430,14 +1448,7 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
             e.stopImmediatePropagation()
             if (this._place) this.cancelAdding()
             else this.close()
-            return
         }
-        if (!this._openId || e.ctrlKey || e.metaKey || e.altKey) return
-        if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
-        e.preventDefault()
-        e.stopImmediatePropagation()
-        if (e.key === 'ArrowLeft') this.prev()
-        else this.next()
     }
 
     /**

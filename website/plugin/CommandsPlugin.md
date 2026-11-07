@@ -76,10 +76,21 @@ One `keydown` listener on the window runs the shortcuts of all the actions:
 
 - It leaves a key typed in a text field (an input that takes text, a text area, a select, an editable element; not a checkbox, a radio button, a button, a colour or a file input, which keep the focus after a click) and a key that another handler used (`defaultPrevented`).
 - It runs an action only when `enabled()` is not `false`, and calls `preventDefault` only when an action runs.
-- When two enabled actions have the same key, the one registered last runs.
+- An action can have more keys: `shortcut: ['Delete', 'Backspace']`.
+- When two enabled actions have the same key, the one with the higher `priority` runs (default `0`), then the one registered last. An action that ends a mode (Escape that ends the pivot edit, `priority: 1`) is above one that acts on the selection (Escape that clears it).
 - While the plugin is disabled (`enabled = false` or `disable(key)`), the keys do nothing. `run(id)` still runs an action.
+- With more viewers on the page, a key is for the viewer that has the focus (the target is its canvas or in its container). When the focus is in no viewer (the page, a side panel), the viewer with the last pointer press takes it. A viewer that left the page takes no key while another one is on it (`viewerTakesKey(viewer, event)`).
 
-The helpers `parseShortcut`, `matchShortcut`, `formatShortcut` and `isTextTarget` are exported for other UIs.
+**The app sets the keys in one place.** `setShortcut(id, keys)` changes the key of an action (also of one that is registered later or again): another key, more keys, or `null` for none; `undefined` gives the action its own key again. `shortcutOf(id)` is the key now. `enabled = false` turns all the keys off, for an app with its own keymap.
+
+```typescript
+commands.setShortcut('picking.delete', 'Delete') // not Backspace too
+commands.setShortcut('transformControls.toggleEnabled', null) // Space does nothing
+```
+
+**Toasts.** The `error` and the `warn` of each run show in a toast of the viewer dialog (`viewer.dialog.toast`, in the viewer container), while `toastResults` is on (default). The UI plugins (`TweakpaneUiPlugin`, `BlueprintJsUiPlugin`) use the HTML dialog of `ts-browser-helpers`, which shows a small chip at the top centre; without one, the message goes to the console.
+
+The helpers `parseShortcut`, `matchShortcut`, `formatShortcut`, `isTextTarget`, `shortcutsOf` and `viewerTakesKey` are exported for other UIs.
 
 ## Plugins that work with and without it
 
@@ -106,6 +117,19 @@ class MyPlugin extends AViewerPluginSync {
 }
 ```
 
-In [`@threepipe/plugin-tweakpane-editor`](../package/plugin-tweakpane-editor), the page frame (`editorFrame.toggleTheme`, Shift+T; `editorFrame.cycleModeBar`, Ctrl+\\ or Cmd+\\) and the `EditorCameraPlugin` (`editorCamera.toggleEditing`, C) bind their keys this way. The `TweakpaneEditorPlugin` shows the `error` and `warn` of each `actionRun` in a toast (`EditorToasts`).
+These plugins bind their keys this way (the ids, for `setShortcut`):
+
+| Plugin | Actions | Keys |
+|---|---|---|
+| `PickingPlugin` | `picking.selectAll`, `duplicate`, `duplicateOther`, `copy`, `cut`, `paste`, `clearSelection`, `delete`, `toggleVisibility`, `unhideAll`, `focus`, `resetPosition`, `resetRotation`, `resetScale` | Mod+A, Mod+D, Mod+Shift+D, Mod+C, Mod+X, Mod+V, Escape, Delete or Backspace, H, Shift+H, F, Alt+G, Alt+R, Alt+S |
+| `UndoManagerPlugin` | `undo`, `redo` | Mod+Z; Mod+Shift+Z or Mod+Y |
+| `TransformControlsPlugin` (`TransformControls2.actions`) | `transformControls.translate`, `rotate`, `scale`, `toggleSpace`, `larger`, `smaller`, `toggleX`, `toggleY`, `toggleZ`, `toggleEnabled` | W, E, R, Q, + or =, -, X, Y, Z, Space |
+| `PivotControlsPlugin` (`PivotControls.actions`) | `pivotControls.toggleSpace`, `larger`, `smaller`, `toggleX`, `toggleY`, `toggleZ`, `toggleEnabled` | Q, + or =, -, X, Y, Z, Space |
+| `PivotEditPlugin` | `pivotEdit.toggle`, `pivotEdit.end` | P, Escape |
+| `AnnotationsPlugin` | `annotations.next`, `annotations.prev` | →, ← (while a card is open) |
+| `EditorFrame` (tweakpane editor) | `editorFrame.toggleTheme`, `editorFrame.cycleModeBar` | Shift+T, Mod+\\ |
+| `EditorCameraPlugin` (tweakpane editor) | `editorCamera.toggleEditing` | C |
+
+The keys of a gizmo work while it is enabled and attached; the keys of the selection need a selection, except select all, paste, show all and focus (F frames everything with no selection). Keys that belong to an open popup (Escape that closes a card or a menu) and held keys (Shift that snaps a gizmo) stay with their element.
 
 The plugin is not saved with the viewer config (`serializeWithViewer` is `false`).

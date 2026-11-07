@@ -136,6 +136,10 @@ describe('matchShortcut', () => {
         expect(matchShortcut(keyEvent('\\', 'IntlBackslash', {ctrlKey: true}), 'Mod+\\')).toBe(true)
         expect(matchShortcut(keyEvent('#', 'Backslash', {metaKey: true}), 'Mod+\\', true)).toBe(true)
         expect(matchShortcut(keyEvent('1', 'Digit1'), '1')).toBe(true)
+        // an event without a code (made by a script) matches by its key only: Escape is not ArrowLeft
+        expect(matchShortcut(keyEvent('Escape', undefined as any), 'ArrowLeft')).toBe(false)
+        expect(matchShortcut(keyEvent('Escape', ''), 'ArrowLeft')).toBe(false)
+        expect(matchShortcut(keyEvent('Escape', undefined as any), 'Escape')).toBe(true)
         expect(matchShortcut(keyEvent('!', 'Digit1', {shiftKey: true}), 'Shift+1')).toBe(true)
     })
 

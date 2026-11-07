@@ -26,6 +26,7 @@ import {DropzonePlugin, DropzonePluginEventMap} from './DropzonePlugin'
 import {AssetImporter} from '../../assetmanager'
 import {BoxSelectionWidget, SelectionWidget} from '../../three/widgets'
 import {DuplicateTracker, type DuplicateMode} from './DuplicateTracker'
+import {bindActions, type CommandAction} from './CommandsPlugin'
 import {ObjectClipboard} from './ObjectClipboard'
 
 export interface PickingPluginEventMap extends AViewerPluginEventMap, ObjectPickerEventMap{
@@ -249,54 +250,49 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
     }
 
     /**
-     * Handle the keyboard shortcuts (Ctrl+A/C/X/V/D, Delete, H, F, Alt+G/R/S, Esc) here. On by default so
-     * the plugin works on its own; an app that owns the viewport keymap (the modelling editor's
-     * `@threepipe/plugin-editor-engine`) turns it off and runs the same actions through its own keymap.
+     * The keys of {@link actions}. Off: the actions have no keys (a UI still lists and runs them).
+     * @deprecated set the keys in a `CommandsPlugin`: `setShortcut(id, null)` for one action, or `enabled = false` for
+     * all the keys (an app with its own keymap)
      */
     keyboardShortcuts = true
 
-    private _onKeyDown = (event: KeyboardEvent) => {
-        if (this.isDisabled() || !this.keyboardShortcuts) return
-        // a key another handler already used (a menu, a dialog, an editor overlay), or one typed into a field
-        if (event.defaultPrevented) return
-        const target = event.target as HTMLElement | null
-        if (target?.tagName === 'TEXTAREA' || target?.tagName === 'INPUT' || target?.tagName === 'SELECT' || target?.isContentEditable) return
-        const ctrl = event.ctrlKey || event.metaKey
-
-        if (ctrl && event.code === 'KeyA') {
-            event.preventDefault()
-            this.selectAll()
-        } else if (ctrl && event.code === 'KeyD') {
-            event.preventDefault()
-            this.duplicateSelected(event.shiftKey ? this.duplicateMode === 'simple' ? 'compound' : 'simple' : undefined)
-        } else if (ctrl && event.code === 'KeyC') {
-            event.preventDefault()
-            this.copySelected()
-        } else if (ctrl && event.code === 'KeyX') {
-            event.preventDefault()
-            this.cutSelected()
-        } else if (ctrl && event.code === 'KeyV') {
-            event.preventDefault()
-            this.pasteFromClipboard()
-        } else if (event.code === 'Escape') {
-            this.clearSelection()
-        } else if (event.code === 'Delete' || event.code === 'Backspace') {
-            event.preventDefault()
-            this.deleteSelected()
-        } else if (event.code === 'KeyH' && !ctrl) {
-            event.preventDefault()
-            if (event.shiftKey) this.unhideAll()
-            else this.toggleVisibilitySelected()
-        } else if (event.code === 'KeyF' && !ctrl) {
-            event.preventDefault()
-            // nothing selected: everything
-            if (this.getSelectedObject()) this.focusSelected()
-            else this._viewer?.fitToView()
-        } else if (event.altKey && !ctrl && (event.code === 'KeyG' || event.code === 'KeyR' || event.code === 'KeyS')) {
-            event.preventDefault()
-            this.resetTransform(event.code === 'KeyG' ? 'position' : event.code === 'KeyR' ? 'rotation' : 'scale')
+    /** An action of the selection; with no selection, a key of an action that needs one is left to other handlers */
+    private _action(id: string, label: string, keys: string | string[], run: () => void, needsSelection = true): CommandAction {
+        const keysOn = () => this.keyboardShortcuts
+        return {
+            id: 'picking.' + id, label, group: 'Selection',
+            get shortcut() {
+                return keysOn() ? keys : undefined
+            },
+            enabled: () => !this.isDisabled() && (!needsSelection || !!this.getSelectedObject()),
+            run,
         }
     }
+
+    /**
+     * The actions of the selection (`bindActions`): registered with the `CommandsPlugin` of the viewer when it has one
+     * (a UI lists them, the app changes their keys there), else the plugin runs their keys itself. The keys are places
+     * on the keyboard (`KeyboardEvent.code`); Mod is Cmd on a Mac and Ctrl on other platforms.
+     */
+    readonly actions: CommandAction[] = [
+        this._action('selectAll', 'Select all', 'Mod+KeyA', () => this.selectAll(), false),
+        this._action('duplicate', 'Duplicate', 'Mod+KeyD', () => this.duplicateSelected()),
+        this._action('duplicateOther', 'Duplicate (the other mode)', 'Mod+Shift+KeyD', () => this.duplicateSelected(this.duplicateMode === 'simple' ? 'compound' : 'simple')),
+        this._action('copy', 'Copy', 'Mod+KeyC', () => this.copySelected()),
+        this._action('cut', 'Cut', 'Mod+KeyX', () => this.cutSelected()),
+        this._action('paste', 'Paste', 'Mod+KeyV', () => this.pasteFromClipboard(), false),
+        this._action('clearSelection', 'Clear the selection', 'Escape', () => this.clearSelection()),
+        this._action('delete', 'Delete', ['Delete', 'Backspace'], () => this.deleteSelected()),
+        this._action('toggleVisibility', 'Hide or show', 'KeyH', () => this.toggleVisibilitySelected()),
+        this._action('unhideAll', 'Show all', 'Shift+KeyH', () => this.unhideAll(), false),
+        // nothing selected: everything
+        this._action('focus', 'Focus', 'KeyF', () => this.getSelectedObject() ? this.focusSelected() : this._viewer?.fitToView(), false),
+        this._action('resetPosition', 'Reset the position', 'Alt+KeyG', () => this.resetTransform('position')),
+        this._action('resetRotation', 'Reset the rotation', 'Alt+KeyR', () => this.resetTransform('rotation')),
+        this._action('resetScale', 'Reset the scale', 'Alt+KeyS', () => this.resetTransform('scale')),
+    ]
+
+    private _unbindActions?: () => void
 
     /** Helper to setSelected from an array without recording undo */
     private _setSelectedFromArray(objects: IObject3D[] | null): void {
@@ -591,7 +587,7 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         this._picker.addEventListener('selectionModeChanged', this._selectionModeChanged)
         this._picker.addEventListener('multiSelectChanged', this._multiSelectChanged)
 
-        window.addEventListener('keydown', this._onKeyDown)
+        this._unbindActions = bindActions(viewer, this.actions)
 
         viewer.scene.addEventListener('select', this._onObjectSelectEvent)
         viewer.scene.addEventListener('materialChanged', this._objCompChange)
@@ -618,7 +614,8 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
     }
 
     onRemove(viewer: ThreeViewer) {
-        window.removeEventListener('keydown', this._onKeyDown)
+        this._unbindActions?.()
+        this._unbindActions = undefined
         viewer.scene.removeEventListener('select', this._onObjectSelectEvent)
         viewer.scene.removeEventListener('materialChanged', this._objCompChange)
         viewer.scene.removeEventListener('geometryChanged', this._objCompChange)

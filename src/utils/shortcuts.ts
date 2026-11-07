@@ -71,7 +71,8 @@ export function matchShortcut(event: KeyboardEvent, shortcut: string | ParsedSho
     const mod = mac ? event.metaKey : event.ctrlKey
     const other = mac ? event.ctrlKey : event.metaKey
     if (other || !!event.shiftKey !== s.shift || !!event.altKey !== s.alt || !!mod !== s.mod) return false
-    return event.key?.toLowerCase() === s.key.toLowerCase() || event.code === s.key || event.code === codeOf(s.key)
+    // an event without a code (made by a script) matches by its key only
+    return event.key?.toLowerCase() === s.key.toLowerCase() || !!event.code && (event.code === s.key || event.code === codeOf(s.key))
 }
 
 /**

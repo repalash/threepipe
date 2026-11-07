@@ -11,6 +11,7 @@ import {
     setValueUndoCommand,
     SetValueUndoCommandProps,
 } from 'ts-browser-helpers'
+import {bindActions, type CommandAction} from './CommandsPlugin'
 
 /**
  * UndoManagerPlugin is a plugin for ThreeViewer that provides undo/redo functionality.
@@ -35,6 +36,18 @@ export class UndoManagerPlugin extends AViewerPluginSync {
         this.limit = limit
     }
 
+    /**
+     * Undo and Redo as actions (`bindActions`: a `CommandsPlugin` of the viewer lists them, and the app changes their keys
+     * there): Mod+Z undoes, Mod+Shift+Z and Mod+Y redo (Mod: Cmd on a Mac, Ctrl on other platforms). A held key repeats
+     * them. A key typed in a text field is left to the field, for its own text undo; a checkbox or a button has no text,
+     * so the key undoes there.
+     */
+    readonly actions: CommandAction[] = [
+        {id: 'undo', label: 'Undo', group: 'Edit', shortcut: 'Mod+KeyZ', repeat: true, enabled: () => this.enabled && !!this.undoManager, run: () => this.undo()},
+        {id: 'redo', label: 'Redo', group: 'Edit', shortcut: ['Mod+Shift+KeyZ', 'Mod+KeyY'], repeat: true, enabled: () => this.enabled && !!this.undoManager, run: () => this.redo()},
+    ]
+    private _unbindActions?: () => void
+
     undo() {
         this.undoManager?.undo()
     }
@@ -55,11 +68,15 @@ export class UndoManagerPlugin extends AViewerPluginSync {
 
     onAdded(viewer: ThreeViewer) {
         super.onAdded(viewer)
-        this.undoManager = new JSUndoManager({bindHotKeys: true, limit: this.limit, debug: viewer.debug || getUrlQueryParam('debugUndo') !== null, hotKeyRoot: document as any})
+        // the keys are the actions: the hot keys of JSUndoManager would also act in a text field
+        this.undoManager = new JSUndoManager({bindHotKeys: false, limit: this.limit, debug: viewer.debug || getUrlQueryParam('debugUndo') !== null})
         this._refresh()
+        this._unbindActions = bindActions(viewer, this.actions)
     }
 
     onRemove(viewer: ThreeViewer) {
+        this._unbindActions?.()
+        this._unbindActions = undefined
         this.undoManager?.dispose()
         this.undoManager = undefined
         super.onRemove(viewer)

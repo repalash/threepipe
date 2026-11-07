@@ -14,6 +14,7 @@ import {
 } from '../../core'
 import {Euler, Object3D, Vector3} from 'three'
 import {MultiSelectHelper} from './MultiSelectHelper'
+import {bindActions} from './CommandsPlugin'
 import type {UndoManagerPlugin} from './UndoManagerPlugin'
 
 /**
@@ -92,11 +93,14 @@ export class PivotControlsPlugin extends AViewerPluginSync {
     selectionFilterTest: ((obj: IObject3D) => IObject3D | null) | undefined = undefined
 
     private _multi = new MultiSelectHelper()
+    /** Removes the actions of the gizmo from the viewer */
+    private _unbindActions?: () => void
 
     onAdded(viewer: ThreeViewer) {
         super.onAdded(viewer)
         this.setDirty()
         this.pivotControls = new PivotControls2(viewer.scene.mainCamera, viewer.canvas)
+        this._unbindActions = bindActions(viewer, this.pivotControls.actions)
         this._mainCameraChange = this._mainCameraChange.bind(this)
         viewer.scene.addEventListener('mainCameraChange', this._mainCameraChange)
 
@@ -200,6 +204,8 @@ export class PivotControlsPlugin extends AViewerPluginSync {
     onRemove(viewer: ThreeViewer) {
         viewer.scene.removeEventListener('mainCameraChange', this._mainCameraChange)
         this._multi.clear(viewer)
+        this._unbindActions?.()
+        this._unbindActions = undefined
         if (this.pivotControls) {
             this.pivotControls.detach()
             viewer.scene.remove(this.pivotControls as any)

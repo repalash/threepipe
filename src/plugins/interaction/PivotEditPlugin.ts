@@ -8,6 +8,7 @@ import {Mesh, MeshBasicMaterial, Object3D, SphereGeometry, Vector3} from 'three'
 import type {UndoManagerPlugin} from './UndoManagerPlugin'
 import type {TransformControlsPlugin} from './TransformControlsPlugin'
 import type {PivotControlsPlugin} from './PivotControlsPlugin'
+import {bindActions, type CommandAction} from './CommandsPlugin'
 import {Box3B} from '../../three/math/Box3B'
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -68,7 +69,27 @@ export class PivotEditPlugin extends AViewerPluginSync {
         preFrame: () => this._updateMarker(),
     }
 
-    private _onKeyDown: ((e: KeyboardEvent) => void) | null = null
+    private _unbindActions?: () => void
+
+    /**
+     * The keys of the plugin, as actions (`bindActions`: a `CommandsPlugin` of the viewer lists them): P turns the pivot
+     * edit on or off, Escape ends it. The Escape of the pivot edit is above the one that clears the selection
+     * (`priority`), so the selection stays.
+     */
+    readonly actions: CommandAction[] = [{
+        id: 'pivotEdit.toggle', label: 'Edit the pivot', group: 'Pivot', shortcut: 'KeyP',
+        enabled: () => !this.isDisabled(),
+        run: () => this._setEditPivot(!this.editPivot),
+    }, {
+        id: 'pivotEdit.end', label: 'End the pivot edit', group: 'Pivot', shortcut: 'Escape', priority: 1,
+        enabled: () => !this.isDisabled() && this.editPivot,
+        run: () => this._setEditPivot(false),
+    }]
+
+    private _setEditPivot(on: boolean) {
+        this.editPivot = on
+        this._onEditPivotChange()
+    }
 
     onAdded(viewer: ThreeViewer) {
         super.onAdded(viewer)
@@ -104,19 +125,7 @@ export class PivotEditPlugin extends AViewerPluginSync {
             this.undoManager = um.undoManager
         }, () => this.undoManager = undefined, this)
 
-        this._onKeyDown = (event: KeyboardEvent) => {
-            if (this.isDisabled()) return
-            if (event.metaKey || event.ctrlKey) return
-            if ((event.target as any)?.tagName === 'TEXTAREA' || (event.target as any)?.tagName === 'INPUT') return
-            if (event.code === 'KeyP') {
-                this.editPivot = !this.editPivot
-                this._onEditPivotChange()
-            } else if (event.code === 'Escape' && this.editPivot) {
-                this.editPivot = false
-                this._onEditPivotChange()
-            }
-        }
-        window.addEventListener('keydown', this._onKeyDown)
+        this._unbindActions = bindActions(viewer, this.actions)
 
         // Create pivot marker as a widget handle, pickable via PickingPlugin.
         // Structure: _markerRoot (Group2, assetType='model', isWidgetRoot)
@@ -154,10 +163,8 @@ export class PivotEditPlugin extends AViewerPluginSync {
     }
 
     onRemove(viewer: ThreeViewer) {
-        if (this._onKeyDown) {
-            window.removeEventListener('keydown', this._onKeyDown)
-            this._onKeyDown = null
-        }
+        this._unbindActions?.()
+        this._unbindActions = undefined
         this._destroyGizmo(viewer)
         if (this._markerRoot) {
             viewer.scene.remove(this._markerRoot)

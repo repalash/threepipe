@@ -89,10 +89,17 @@ function shortcutAction(event: KeyboardEvent, actions: readonly CommandAction[],
 const keyViewers = new Map<ThreeViewer, number>()
 let lastViewer: ThreeViewer | undefined
 
-const isNode = (t: unknown): t is Node => typeof (t as Node | null)?.nodeType === 'number'
 /** The viewers with actions that are on the page: a viewer that was dropped without a dispose takes no key */
 const liveViewers = () => [...keyViewers.keys()].filter(v => v.container?.isConnected)
-const viewerOf = (t: EventTarget | null) => isNode(t) ? liveViewers().find(v => v.container.contains(t)) : undefined
+/** The viewer of the target of an event: its canvas, or an element in its container (the window is in none) */
+const inViewer = (v: ThreeViewer, t: EventTarget) => {
+    try {
+        return v.canvas === t || v.container.contains(t as Node)
+    } catch {
+        return false
+    }
+}
+const viewerOf = (t: EventTarget | null) => t ? liveViewers().find(v => inViewer(v, t)) : undefined
 const onViewerPointerDown = (e: PointerEvent) => {
     lastViewer = viewerOf(e.target) ?? lastViewer
 }
@@ -111,7 +118,7 @@ function trackViewer(viewer: ThreeViewer | undefined): () => void {
         if (n > 0) return keyViewers.set(viewer, n)
         keyViewers.delete(viewer)
         if (lastViewer === viewer) lastViewer = undefined
-        if (!keyViewers.size) window.removeEventListener('pointerdown', onViewerPointerDown, true)
+        if (!liveViewers().length) window.removeEventListener('pointerdown', onViewerPointerDown, true)
     }
 }
 

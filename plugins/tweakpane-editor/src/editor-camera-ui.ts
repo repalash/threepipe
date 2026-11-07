@@ -108,8 +108,11 @@ export function setupEditorCameraUi(viewer: ThreeViewer, camera: EditorCameraPlu
         if (!root.contains(e.target as Node)) setOpen(false)
     }
     document.addEventListener('pointerdown', onOutside, true)
+    // the Escape that closes the card is used: it does not also clear the selection (an action of a CommandsPlugin)
     const onKey = (e: KeyboardEvent) => {
-        if (e.key === 'Escape' && root.classList.contains('ecu-open')) setOpen(false)
+        if (e.key !== 'Escape' || !root.classList.contains('ecu-open')) return
+        e.preventDefault()
+        setOpen(false)
     }
     document.addEventListener('keydown', onKey)
 

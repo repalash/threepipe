@@ -215,6 +215,9 @@ function setup(editable = true, popmotion?: any) {
         addEventListener: noop,
         removeEventListener: noop,
         getPlugin: (c: any) => c === UndoManagerPlugin ? {undoManager: {record: (cmd: any) => undo.push(cmd)}} : c === PopmotionPlugin ? popmotion : undefined,
+        // the plugin binds its actions (bindActions): no CommandsPlugin here
+        addPluginListener: () => {},
+        removePluginListener: () => {},
         console,
     } as any
     plugin.onAdded(viewer)
@@ -1069,10 +1072,18 @@ describe('AnnotationsPlugin', () => {
             windowListeners.get('keydown')!(e)
             return e
         }
-        /** Two viewers, each with two annotations; the first card of each is open (b opened last) */
+        let added: ReturnType<typeof setup>[] = []
+        afterEach(() => {
+            for (const s of added) s.plugin.onRemove(s.viewer)
+            added = []
+        })
+        /** Two viewers on the page, each with two annotations; the first card of each is open (b opened last) */
         const two = () => {
             const a = setup()
             const b = setup()
+            added = [a, b]
+            // on the page: with more viewers, the one with the focus or the one used last takes a key (viewerTakesKey)
+            for (const s of added) s.viewer.container.isConnected = true
             for (const s of [a, b]) {
                 s.plugin.add(s.box as any, front, normal, null)
                 s.plugin.add(s.box as any, front, normal, null)
@@ -1112,6 +1123,9 @@ describe('AnnotationsPlugin', () => {
 
         test('the focus on the page: the viewer used last handles the key, the next Esc closes the other card', () => {
             const {a, b} = two()
+            // the arrows are actions: the viewer with the last pointer press (a drag in the second one) takes them
+            windowListeners.get('pointerdown')!({target: b.canvas, clientX: 10, clientY: 10})
+            windowListeners.get('pointerup')!({target: b.canvas, clientX: 40, clientY: 10})
             key('ArrowRight', doc.body)
             expect(b.plugin.openId).toBe(b.plugin.get(1)!.id)
             expect(a.plugin.openId).toBe(a.plugin.get(0)!.id)

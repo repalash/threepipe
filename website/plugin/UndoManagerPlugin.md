@@ -24,6 +24,8 @@ It uses the [`JSUndoManager`](https://github.com/repalash/ts-browser-helpers/blo
 The plugin is used automatically by `TweakpaneUiPlugin`, `BlueprintJsUiPlugin`, `PickingPlugin`, `TransformControlsPlugin`, and other plugins that support undo/redo operations.
 It is not _required_ to be added to the viewer explicitly when using any of the UI plugins, but can be added if you want to use it directly.
 
+**Keys.** Mod+Z undoes, Mod+Shift+Z and Mod+Y redo (Mod: Cmd on a Mac, Ctrl on other platforms); a held key repeats them. They are actions (`undo`, `redo` in `UndoManagerPlugin.actions`): a [CommandsPlugin](./CommandsPlugin) lists them, and the app changes or removes their keys there (`setShortcut`). A key typed in a text field is left to the field, for its own text undo; a checkbox or a button has no text, so the key undoes there.
+
 ```typescript
 viewer.addPlugin(UndoManagerPlugin)
 

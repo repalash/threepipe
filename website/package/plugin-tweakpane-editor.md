@@ -193,7 +193,7 @@ The keys of the editor are actions of the [CommandsPlugin](../plugin/CommandsPlu
 | `editorFrame.cycleModeBar` | Ctrl+\ (Cmd+\ on a Mac) | `EditorFrame.actions` |
 | `editorCamera.toggleEditing` | C (`EditorCameraPlugin.hotkey`) | `EditorCameraPlugin.actions` |
 
-`TweakpaneEditorPlugin.toasts` (`EditorToasts`) shows short messages at the top centre of the canvas, under the camera pill. The editor shows the `error` and the `warn` of each action that the `CommandsPlugin` runs (its `actionRun` event) there. Other UIs show their messages with `toasts.show(message, kind)` (`kind`: `'info'`, `'warn'` or `'error'`). A toast goes after `EditorToasts.Duration` ms (an error after twice that time) or on a click; at most `EditorToasts.MaxToasts` show at a time.
+Toasts: the `CommandsPlugin` shows the `error` and the `warn` of each run in a toast of the viewer dialog (`viewer.dialog.toast`). In the editor, a toast is a small chip at the top centre of the canvas, under the camera pill; the editor sets its place and its dark-theme colour with the CSS variables of the dialog (`--dialog-toast-top`, `--dialog-toast-bg`). Other UIs show their messages the same way: `viewer.dialog.toast?.(message, {kind, container: viewer.container})` (`kind`: `'info'`, `'warn'` or `'error'`). The Escape that closes the camera card or the layout menu does not also clear the selection.
 
 ```typescript
 import {CommandsPlugin} from 'threepipe'
@@ -201,7 +201,7 @@ import {CommandsPlugin} from 'threepipe'
 const commands = viewer.addPluginSync(CommandsPlugin)
 commands.list('Editor') // the actions of the frame
 commands.register({id: 'save', label: 'Save', shortcut: 'Mod+S', run: async() => (await save()) ? undefined : {error: 'Not saved'}})
-editor.toasts?.show('Saved')
+viewer.dialog.toast?.('Saved', {container: viewer.container})
 ```
 
 ## LayersPanelPlugin

@@ -1592,7 +1592,10 @@ export class EditorFrame {
         if (!this._menu?.contains(t) && !this._menuAnchor?.contains(t)) this._closeMenu()
     }
 
+    // the Escape that closes the menu is used: it does not also clear the selection (an action of a CommandsPlugin)
     private _onMenuKeyDown = (e: KeyboardEvent) => {
-        if (e.key === 'Escape') this._closeMenu()
+        if (e.key !== 'Escape' || !this._menu) return
+        e.preventDefault()
+        this._closeMenu()
     }
 }

@@ -1,45 +1,42 @@
-/**
- * Shared keyboard handler for transform gizmo controls.
- * Handles common shortcuts: Q (space), +/- (size), X/Y/Z (axis), Space (enable).
- * Returns true if the key was handled (caller should mark dirty / dispatch change).
- */
-export function handleGizmoKeyDown(
-    event: KeyboardEvent,
-    callbacks: {
-        toggleSpace: () => void
-        adjustSize: (delta: number) => void
-        toggleAxis: (axis: 0 | 1 | 2) => void
-        toggleEnabled: () => void
-    },
-): boolean {
-    if (event.metaKey || event.ctrlKey) return false
-    if ((event.target as any)?.tagName === 'TEXTAREA' || (event.target as any)?.tagName === 'INPUT') return false
+import type {CommandAction} from '../../plugins/interaction/CommandsPlugin'
 
-    switch (event.code) {
-    case 'KeyQ':
-        callbacks.toggleSpace()
-        return true
-    case 'Equal':
-    case 'NumpadAdd':
-        callbacks.adjustSize(0.1)
-        return true
-    case 'Minus':
-    case 'NumpadSubtract':
-        callbacks.adjustSize(-0.1)
-        return true
-    case 'KeyX':
-        callbacks.toggleAxis(0)
-        return true
-    case 'KeyY':
-        callbacks.toggleAxis(1)
-        return true
-    case 'KeyZ':
-        callbacks.toggleAxis(2)
-        return true
-    case 'Space':
-        callbacks.toggleEnabled()
-        return true
-    default:
-        return false
-    }
+/** What the shared gizmo actions ({@link gizmoActions}) change on a transform gizmo */
+export interface GizmoActionTarget {
+    /** The gizmo takes its keys now: enabled and attached to an object */
+    active(): boolean
+    toggleSpace(): void
+    adjustSize(delta: number): void
+    toggleAxis(axis: 0 | 1 | 2): void
+    toggleEnabled(): void
+    /** Called after each action, to render the change */
+    changed(): void
+}
+
+/**
+ * The shared actions of the transform gizmos (`TransformControls2`, `PivotControls`): Q (local or world space), + and -
+ * (the size), X, Y, Z (an axis) and Space (on or off). The keys are places on the keyboard (`KeyboardEvent.code`). The
+ * owner of the gizmo binds them with `bindActions` (its plugin does that).
+ * @param prefix - the start of the ids, like `'transformControls'`
+ * @param group - the group of the actions in a UI
+ * @param target - the gizmo
+ */
+export function gizmoActions(prefix: string, group: string, target: GizmoActionTarget): CommandAction[] {
+    const action = (id: string, label: string, shortcut: string | string[], run: () => void): CommandAction => ({
+        id: prefix + '.' + id, label, group, shortcut,
+        enabled: () => target.active(),
+        run: () => {
+            run()
+            target.changed()
+        },
+    })
+    return [
+        action('toggleSpace', 'Local or world space', 'KeyQ', () => target.toggleSpace()),
+        // + is Shift and the = key on a US keyboard
+        action('larger', 'Larger gizmo', ['Equal', 'Shift+Equal', 'NumpadAdd'], () => target.adjustSize(0.1)),
+        action('smaller', 'Smaller gizmo', ['Minus', 'NumpadSubtract'], () => target.adjustSize(-0.1)),
+        action('toggleX', 'Show or hide the X axis', 'KeyX', () => target.toggleAxis(0)),
+        action('toggleY', 'Show or hide the Y axis', 'KeyY', () => target.toggleAxis(1)),
+        action('toggleZ', 'Show or hide the Z axis', 'KeyZ', () => target.toggleAxis(2)),
+        action('toggleEnabled', 'Turn the gizmo on or off', 'Space', () => target.toggleEnabled()),
+    ]
 }
