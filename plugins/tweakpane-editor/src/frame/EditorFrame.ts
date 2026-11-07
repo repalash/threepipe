@@ -1015,6 +1015,8 @@ export class EditorFrame {
             if (open) e.stopImmediatePropagation()
             return
         }
+        // the mode bar hid the panel: a mode opens it with its settings (the mode bar opens it after this)
+        if (!this.modeBar.open) return this.setModeSettingsHidden(false)
         // with the right area in the panel: the open mode hides or shows its settings, not the panel; another mode
         // shows its settings
         if (!this._rightShown()) return
