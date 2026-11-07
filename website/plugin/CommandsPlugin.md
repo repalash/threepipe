@@ -77,6 +77,7 @@ One `keydown` listener on the window runs the shortcuts of all the actions:
 - It leaves a key typed in a text field (an input that takes text, a text area, a select, an editable element; not a checkbox, a radio button, a button, a colour or a file input, which keep the focus after a click) and a key that another handler used (`defaultPrevented`).
 - It runs an action only when `enabled()` is not `false`, and calls `preventDefault` only when an action runs.
 - An action can have more keys: `shortcut: ['Delete', 'Backspace']`.
+- A focused element (a list, a field) has its keys first. An action with `capture: true` runs before it, in the capture phase on the window, and the key stops there: the arrows of an open annotation win over the arrow keys of the camera controls on the canvas.
 - When two enabled actions have the same key, the one with the higher `priority` runs (default `0`), then the one registered last. An action that ends a mode (Escape that ends the pivot edit, `priority: 1`) is above one that acts on the selection (Escape that clears it).
 - While the plugin is disabled (`enabled = false` or `disable(key)`), the keys do nothing. `run(id)` still runs an action.
 - With more viewers on the page, a key is for the viewer that has the focus (the target is its canvas or in its container). When the focus is in no viewer (the page, a side panel), the viewer with the last pointer press takes it. A viewer that left the page takes no key while another one is on it (`viewerTakesKey(viewer, event)`).
@@ -94,7 +95,7 @@ The helpers `parseShortcut`, `matchShortcut`, `formatShortcut`, `isTextTarget`, 
 
 ## Plugins that work with and without it
 
-`bindActions(viewer, actions)` binds the actions of a plugin or a UI: while the viewer has a `CommandsPlugin` (also one added or removed later), the actions are registered there; else a key listener of their own runs their shortcuts, with the same rules. So each key has one implementation, and the behaviour without the plugin stays the same.
+`bindActions(viewer, actions)` binds the actions of a plugin or a UI: while the viewer has a `CommandsPlugin` (also one added or removed later), the actions are registered there; else one key listener on the window, for all the actions bound this way, runs their shortcuts with the same rules (the priority works across the bindings of a viewer). So each key has one implementation, and the result is the same with and without the plugin.
 
 ```typescript
 import {bindActions, CommandAction} from 'threepipe'

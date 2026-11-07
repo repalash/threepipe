@@ -29,6 +29,12 @@ const viewerConfig = {assetType: 'config', type: 'ThreeViewer', scene: {defaultC
  * with `orbit` both have orbit controls on the viewer canvas, as the default camera of a viewer. `syncStartView` is off
  * unless `sync` (the tests of the preview need it off; its default is on).
  */
+/** The plugins that setup added: each test removes them at its end, so their key bindings do not stay */
+const added: {plugin: EditorCameraPlugin, viewer: any}[] = []
+afterEach(() => {
+    for (const {plugin, viewer} of added.splice(0)) if ((plugin as any)._viewer) plugin.onRemove(viewer)
+})
+
 function setup({undo = true, orbit = false, ortho = false, sync = false} = {}) {
     const canvas = makeCanvas()
     const scene = new EventDispatcher<any>() as any
@@ -65,6 +71,7 @@ function setup({undo = true, orbit = false, ortho = false, sync = false} = {}) {
     plugin.syncStartView = sync
     plugin.camera.activateMain = activate(plugin.camera) as any
     plugin.onAdded(viewer)
+    added.push({plugin, viewer})
     const preview = plugin.previewCamera as PerspectiveCamera2
     preview.activateMain = activate(preview) as any
     if (!orbit) Object.defineProperty(preview, 'controls', {value: Object.assign(new EventDispatcher<any>(), {stopDamping: vi.fn()}), writable: true, configurable: true})

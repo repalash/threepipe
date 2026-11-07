@@ -477,6 +477,35 @@ describe('CommandsPlugin', () => {
 })
 
 describe('bindActions', () => {
+    test('without a CommandsPlugin, the priority works across the bindings of a viewer, as with the plugin', () => {
+        // the PickingPlugin binds before the PivotEditPlugin: the Escape that ends the pivot edit still wins
+        const clear = action('picking.clearSelection', {shortcut: 'Escape'})
+        const end = action('pivotEdit.end', {shortcut: 'Escape', priority: 1})
+        const unbindA = bindActions(undefined, [clear])
+        const unbindB = bindActions(undefined, [end])
+        press('Escape', 'Escape')
+        expect([clear.run.mock.calls.length, end.run.mock.calls.length]).toEqual([0, 1])
+        unbindB()
+        press('Escape', 'Escape')
+        expect([clear.run.mock.calls.length, end.run.mock.calls.length]).toEqual([1, 1])
+        unbindA()
+        expect(press('Escape', 'Escape').defaultPrevented).toBe(false)
+    })
+
+    test('a capture action runs in the capture phase and stops the key (before the arrow keys of the camera controls)', () => {
+        const next = action('annotations.next', {shortcut: 'ArrowRight', capture: true})
+        const other = action('other', {shortcut: 'KeyQ'})
+        const unbind = bindActions(undefined, [next, other])
+        const e = keyEvent('ArrowRight', 'ArrowRight')
+        const stop = vi.spyOn(e, 'stopPropagation')
+        window.dispatchEvent(e)
+        const q = keyEvent('q', 'KeyQ')
+        const stopQ = vi.spyOn(q, 'stopPropagation')
+        window.dispatchEvent(q)
+        expect([next.run.mock.calls.length, stop.mock.calls.length, other.run.mock.calls.length, stopQ.mock.calls.length]).toEqual([1, 1, 1, 0])
+        unbind()
+    })
+
     test('without a viewer: an own key listener runs the shortcuts, with the same rules, until unbind', () => {
         const toggle = action('toggle', {shortcut: 'KeyC'})
         const unbind = bindActions(undefined, [toggle])

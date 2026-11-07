@@ -35,6 +35,12 @@ export interface CommandAction {
      * (Escape that clears it).
      */
     priority?: number
+    /**
+     * The key runs before the handlers of the element with the focus (in the capture phase on the window), and the key
+     * stops there. For a key of an open card that must win over a key of the canvas: the arrows of an open annotation
+     * over the arrow keys of the camera controls. Default: `false`, a focused element (a list, a field) has its keys first.
+     */
+    capture?: boolean
     /** The action can run now. Default: always. A key of a disabled action is left to other handlers. */
     enabled?(): boolean
     /** Runs the action. It can return (or resolve to) an error or a warning for the person. */
@@ -69,16 +75,16 @@ export function shortcutsOf(shortcut: string | string[] | null | undefined): str
 type Keys = (action: CommandAction) => string | string[] | null | undefined
 
 /**
- * The action of a key press: of the enabled actions with the key, the one with the highest
+ * The action of a key press, of the actions of that phase ({@link CommandAction.capture}): of the enabled actions with the key, the one with the highest
  * {@link CommandAction.priority}, then the one last in `actions`. A key that another handler used (`defaultPrevented`),
  * or that is typed in a text field ({@link isTextTarget}), has no action. A held key (`repeat`) has only an action with
  * {@link CommandAction.repeat}.
  */
-function shortcutAction(event: KeyboardEvent, actions: readonly CommandAction[], keys: Keys = a => a.shortcut): CommandAction | undefined {
+function shortcutAction(event: KeyboardEvent, actions: readonly CommandAction[], capture: boolean, keys: Keys = a => a.shortcut): CommandAction | undefined {
     if (event.defaultPrevented || isTextTarget(event.target)) return undefined
     let found: CommandAction | undefined
     for (const a of actions) {
-        if (event.repeat && !a.repeat || !shortcutsOf(keys(a)).some(k => matchShortcut(event, k))) continue
+        if (!!a.capture !== capture || event.repeat && !a.repeat || !shortcutsOf(keys(a)).some(k => matchShortcut(event, k))) continue
         if (a.enabled && !a.enabled()) continue
         if (!found || (a.priority ?? 0) >= (found.priority ?? 0)) found = a
     }
@@ -216,10 +222,12 @@ export class CommandsPlugin extends AViewerPluginSync<CommandsPluginEventMap> {
         super.onAdded(viewer)
         this._untrack = trackViewer(viewer)
         window.addEventListener('keydown', this._onKeyDown)
+        window.addEventListener('keydown', this._onKeyDownCapture, true)
     }
 
     onRemove(viewer: ThreeViewer) {
         window.removeEventListener('keydown', this._onKeyDown)
+        window.removeEventListener('keydown', this._onKeyDownCapture, true)
         this._untrack?.()
         this._untrack = undefined
         super.onRemove(viewer)
@@ -311,21 +319,60 @@ export class CommandsPlugin extends AViewerPluginSync<CommandsPluginEventMap> {
         this.uiConfig.uiRefresh?.(true)
     }
 
-    private _onKeyDown = (e: KeyboardEvent) => {
+    private _onKey(e: KeyboardEvent, capture: boolean) {
         if (this.isDisabled() || !viewerTakesKey(this._viewer, e)) return
-        const action = shortcutAction(e, this._actions, a => this.shortcutOf(a.id))
+        const action = shortcutAction(e, this._actions, capture, a => this.shortcutOf(a.id))
         if (!action) return
         e.preventDefault()
+        if (capture) e.stopPropagation()
         this._run(action)
+    }
+
+    private _onKeyDown = (e: KeyboardEvent) => this._onKey(e, false)
+    private _onKeyDownCapture = (e: KeyboardEvent) => this._onKey(e, true)
+}
+
+/**
+ * The actions bound without a `CommandsPlugin` ({@link bindActions}), by viewer: one listener for each phase picks
+ * among all of them, so the priority and the order of the bindings work as in a `CommandsPlugin`
+ */
+const looseActions = new Map<ThreeViewer | undefined, CommandAction[][]>()
+
+function onLooseKey(e: KeyboardEvent, capture: boolean) {
+    // the actions of the viewers that take the key (normally one), in the order they were bound
+    const actions = [...looseActions].filter(([viewer]) => viewerTakesKey(viewer, e)).flatMap(([, lists]) => lists.flat())
+    const action = shortcutAction(e, actions, capture)
+    if (!action) return
+    e.preventDefault()
+    if (capture) e.stopPropagation()
+    runAction(action)
+}
+const onLooseKeyDown = (e: KeyboardEvent) => onLooseKey(e, false)
+const onLooseKeyDownCapture = (e: KeyboardEvent) => onLooseKey(e, true)
+
+/** Adds actions to {@link looseActions}. @returns a function that takes them out */
+function listenLoose(viewer: ThreeViewer | undefined, actions: CommandAction[]): () => void {
+    // the browser adds one listener once
+    window.addEventListener('keydown', onLooseKeyDown)
+    window.addEventListener('keydown', onLooseKeyDownCapture, true)
+    looseActions.set(viewer, [...looseActions.get(viewer) ?? [], actions])
+    return () => {
+        const rest = (looseActions.get(viewer) ?? []).filter(l => l !== actions)
+        if (rest.length) looseActions.set(viewer, rest)
+        else looseActions.delete(viewer)
+        if (looseActions.size) return
+        window.removeEventListener('keydown', onLooseKeyDown)
+        window.removeEventListener('keydown', onLooseKeyDownCapture, true)
     }
 }
 
 /**
  * Binds the actions of a plugin or a UI to a viewer, for the code that works with and without a {@link CommandsPlugin}.
  * While the viewer has a `CommandsPlugin` (also one added or removed later), the actions are registered there: a UI
- * lists them, its key listener runs them and sends `actionRun`. Else a key listener on the window runs their shortcuts,
- * with the same rules (text fields, `defaultPrevented`, `enabled()`, `repeat`, `priority`, the viewer that takes the
- * key, `preventDefault` only when an action runs). So each key has one implementation.
+ * lists them, its key listener runs them and sends `actionRun`. Else one key listener on the window, for all the actions
+ * bound this way, runs their shortcuts with the same rules (text fields, `defaultPrevented`, `enabled()`, `repeat`,
+ * `priority` across all the bindings of the viewer, `capture`, the viewer that takes the key, `preventDefault` only when
+ * an action runs). So each key has one implementation, and the result is the same with and without the plugin.
  * @param viewer - the viewer, or `undefined` for the own key listener only
  * @param actions - the actions. To change a shortcut, unbind and bind again: a `CommandsPlugin` then sends
  * `actionsChange` for its UIs.
@@ -334,17 +381,7 @@ export class CommandsPlugin extends AViewerPluginSync<CommandsPluginEventMap> {
 export function bindActions(viewer: ThreeViewer | undefined, actions: CommandAction[]): () => void {
     let unbind: (() => void) | undefined
     const untrack = trackViewer(viewer)
-    const listen = () => {
-        const onKeyDown = (e: KeyboardEvent) => {
-            if (!viewerTakesKey(viewer, e)) return
-            const action = shortcutAction(e, actions)
-            if (!action) return
-            e.preventDefault()
-            runAction(action)
-        }
-        window.addEventListener('keydown', onKeyDown)
-        return () => window.removeEventListener('keydown', onKeyDown)
-    }
+    const listen = () => listenLoose(viewer, actions)
     // by its type name: code that only binds actions does not keep the class in a bundle
     const type = 'CommandsPlugin'
     const attach = () => {

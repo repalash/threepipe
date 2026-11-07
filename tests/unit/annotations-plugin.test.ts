@@ -143,6 +143,8 @@ beforeEach(() => {
         }
     }
     vi.stubGlobal('addEventListener', (type: string, f: any) => {
+        // as a browser: the same listener once
+        if (lists.get(type)?.includes(f)) return
         lists.set(type, [...lists.get(type) ?? [], f])
         windowListeners.set(type, dispatch(type))
     })
@@ -185,6 +187,12 @@ afterEach(() => {
  * A box of size 1 at the origin in a fake viewer, the camera at z = 5 looking at it; the canvas is 800x600.
  * `popmotion`: the PopmotionPlugin of the viewer (none: camera moves end at once)
  */
+/** The plugins that setup added: each test removes them at its end, so their key bindings do not stay */
+const added: {plugin: AnnotationsPlugin, viewer: any}[] = []
+afterEach(() => {
+    for (const {plugin, viewer} of added.splice(0)) if ((plugin as any)._viewer) plugin.onRemove(viewer)
+})
+
 function setup(editable = true, popmotion?: any) {
     const plugin = new AnnotationsPlugin({editable})
     const box = new Mesh(new BoxGeometry(1, 1, 1), new MeshBasicMaterial())
@@ -221,6 +229,7 @@ function setup(editable = true, popmotion?: any) {
         console,
     } as any
     plugin.onAdded(viewer)
+    added.push({plugin, viewer})
     const layer = viewer.container.children[0] as FakeElement
     return {plugin, viewer, layer, box, group, camera, undo, canvas}
 }
@@ -1050,7 +1059,7 @@ describe('AnnotationsPlugin', () => {
         plugin.add(box as any, front, normal, null)
         plugin.add(box as any, front, normal, null)
         const key = (k: string, target: any = doc.body) => {
-            const e = {key: k, target, preventDefault: vi.fn(), stopImmediatePropagation: vi.fn()}
+            const e = {key: k, target, preventDefault: vi.fn(), stopPropagation: vi.fn(), stopImmediatePropagation: vi.fn()}
             windowListeners.get('keydown')!(e)
             return e
         }
@@ -1068,22 +1077,16 @@ describe('AnnotationsPlugin', () => {
 
     describe('keys with two viewers on the page', () => {
         const key = (k: string, target: any) => {
-            const e = {key: k, target, preventDefault: vi.fn(), stopImmediatePropagation: vi.fn()}
+            const e = {key: k, target, preventDefault: vi.fn(), stopPropagation: vi.fn(), stopImmediatePropagation: vi.fn()}
             windowListeners.get('keydown')!(e)
             return e
         }
-        let added: ReturnType<typeof setup>[] = []
-        afterEach(() => {
-            for (const s of added) s.plugin.onRemove(s.viewer)
-            added = []
-        })
         /** Two viewers on the page, each with two annotations; the first card of each is open (b opened last) */
         const two = () => {
             const a = setup()
             const b = setup()
-            added = [a, b]
             // on the page: with more viewers, the one with the focus or the one used last takes a key (viewerTakesKey)
-            for (const s of added) s.viewer.container.isConnected = true
+            for (const s of [a, b]) s.viewer.container.isConnected = true
             for (const s of [a, b]) {
                 s.plugin.add(s.box as any, front, normal, null)
                 s.plugin.add(s.box as any, front, normal, null)
