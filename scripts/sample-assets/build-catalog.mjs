@@ -430,9 +430,12 @@ for (const [set, list] of Object.entries(sets)) {
                 m.changes = fields.changes = `compressed to fit the upload limit, ${(was / 1e6).toFixed(0)} to ${(fs.statSync(dest).size / 1e6).toFixed(0)} MB: ${steps.join(', ')}`
             }
             // a glTF is several files: all of them; a linked one is measured as the same model in one file
-            const size = several ? fs.readdirSync(path.dirname(dest), {recursive: true, withFileTypes: true}).filter(f => f.isFile()).reduce((n, f) => n + fs.statSync(path.join(f.parentPath, f.name)).size, 0) :
+            const sizes = several ? fs.readdirSync(path.dirname(dest), {recursive: true, withFileTypes: true}).filter(f => f.isFile()).map(f => fs.statSync(path.join(f.parentPath, f.name)).size) : []
+            const size = several ? sizes.reduce((n, v) => n + v, 0) :
                 !linked ? fs.statSync(dest).size : file.endsWith('.gltf') ? (await io.writeBinary(doc)).byteLength :
                     parseInt((await fetch(file, {method: 'HEAD'})).headers.get('content-length'))
+            // the upload limit is per file, and a linked model isn't uploaded
+            const overLimit = !linked && (several ? Math.max(...sizes) : size) > MAX_BYTES
             const screenshots = images.map(({file: image, label}) => {
                 const name = slugOf(path.basename(image))
                 fs.mkdirSync(path.join(args.out, previews), {recursive: true})
@@ -443,7 +446,7 @@ for (const [set, list] of Object.entries(sets)) {
             rows.push({...fields, metadata: JSON.stringify({views: viewsOf(root, m.name, saved), ...animationsOf(root)}), screenshots: JSON.stringify(screenshots), tags: JSON.stringify(tagsOf(m.tags, root)), links: JSON.stringify(m.links), variants: JSON.stringify(m.variants ?? []), kind: 'model', url, previews, linked, size, triangles,
                 vertices: root.listMeshes().reduce((n, mesh) => n + mesh.listPrimitives().reduce((v, p) => v + (p.getAttribute('POSITION')?.getCount() ?? 0), 0), 0), meshes: root.listMeshes().length, materials: root.listMaterials().length,
                 textures: root.listTextures().length, animations: root.listAnimations().length,
-                extensions: JSON.stringify(root.listExtensionsUsed().map(e => e.extensionName)), poly: polyClass(triangles), over_limit: size > MAX_BYTES})
+                extensions: JSON.stringify(root.listExtensionsUsed().map(e => e.extensionName)), poly: polyClass(triangles), over_limit: overLimit})
             rows.push(...await addTextures(root, {...m, url}, textures, links))
         } catch (e) {
             failed.push({set: m.set_name, name: m.name, error: String(e.message ?? e).slice(0, 160)})
