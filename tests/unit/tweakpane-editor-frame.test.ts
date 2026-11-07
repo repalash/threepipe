@@ -511,6 +511,15 @@ describe('EditorFrame areas', () => {
         expect(bar.find('lay-mode-actions')).toHaveLength(0)
     })
 
+    test('each bar shows the logo and the app name: the title bar, the status bar and the floating head', () => {
+        const f = new EditorFrame(host(), {layout: 'statusbar', title: 'My app'})
+        const app = (cls: string) => body().children.find(c => c.classList.contains(cls))!.find('lay-app')[0]
+        for (const [layout, cls] of [['statusbar', 'lay-bottom'], ['titlebar', 'lay-top'], ['floating', 'lay-head']] as const) {
+            f.setLayout(layout)
+            expect(app(cls).children.filter(c => c.tagName === 'b').map(c => c.textContent), layout).toEqual(['My app'])
+        }
+    })
+
     test('the areas keep their elements when the layout changes, and go with the frame', () => {
         const f = new EditorFrame(host(), {layout: 'titlebar'})
         const left = new FakeElement('div'), bottom = new FakeElement('div')

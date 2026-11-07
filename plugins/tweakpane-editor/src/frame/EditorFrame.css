@@ -163,6 +163,8 @@ body.lay-moving, body.lay-moving * { cursor: grabbing !important; user-select: n
 .lay-bottom { bottom: 0; height: 26px; border-top: 1px solid var(--tp-container-border-color, #e6e6e6); font-size: calc(var(--lay-font-size, 13px) - 1px); padding-left: 10px; }
 .lay-app { display: flex; align-items: center; gap: 6px; }
 .lay-app b { font-weight: 600; }
+/* the status bar is slimmer: a smaller logo */
+.lay-bottom .lay-app svg { width: 13px; height: 13px; }
 .lay-dim { color: var(--tp-label-foreground-color, #757575); }
 .lay-sep { width: 1px; height: 14px; background: var(--tp-container-border-color, #e6e6e6); margin: 0 8px; }
 .lay-file { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40vw; }

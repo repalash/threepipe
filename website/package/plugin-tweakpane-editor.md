@@ -60,7 +60,7 @@ editor.loadPlugins({
 `TweakpaneEditorPlugin.layout` sets the layout of the page. The first three layouts put the editor in a page frame (`EditorFrame`). In a frame, the modes are coloured icons on the right (`EditorModeBar`) instead of the tabs at the bottom.
 
 - `'titlebar'` (the default): a slim bar on top with the app name and the file name. The canvas and the panel are edge to edge below it.
-- `'statusbar'`: the same bar at the bottom, like a code editor.
+- `'statusbar'`: the same bar at the bottom (the logo, the app name and the file name, a bit smaller), like a code editor.
 - `'floating'`: the canvas fills the window. The panel and the mode bar float over it as one card (side by side, with a line between them), with the same gap to the window on every side (no gap on a phone in portrait, where the room is small). It has no bar, so it does not show the file name.
 - `'classic'`: no frame. The page has the mode tabs at the bottom, as before.
 
