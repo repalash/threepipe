@@ -462,7 +462,8 @@ export class EditorFrame {
 
     /**
      * Moves a panel to another place (`left`, `bottom` or `right`), at the end of its stack, and shows it (the place
-     * opens when it was collapsed; in a narrow window, the place shows in the place of the panel). The Move menu of its
+     * opens when it was collapsed, the panel when the mode bar hid it for the right place; in a narrow window, the place
+     * shows in the place of the panel). The Move menu of its
      * entry does this.
      * @param keep - keep it in `localStorage` ({@link AreaStorageKey}), as the person's pick
      */
@@ -484,8 +485,10 @@ export class EditorFrame {
             this._layoutArea(area)
             this._settleArea(from, keep)
         }
-        // a narrow window shows one place at a time: the new one
+        // a narrow window shows one place at a time: the new one; the right place is in the panel, which the mode bar
+        // can have hidden
         if (this._isSingle()) this.setStackedArea(area, keep)
+        else if (area === 'right' && !this.modeBar.open) this.modeBar.setOpen(true)
         this._fitAreas()
         if (keep) this._storeAreas()
     }
