@@ -2,6 +2,7 @@
    the side bar, the sign-in card, dialogs instead of prompt/confirm, toasts, "Report a problem", and the light / dark switch. Every API string goes through
    esc(); events are bound by data attributes, never with an API string in a handler. */
 'use strict'
+// oxlint-disable-next-line no-unused-vars -- the global the other page scripts use
 const UI = (() => {
     const THEME_KEY = 'tp-cloud-theme'
     const THEMES = ['auto', 'light', 'dark']
@@ -225,14 +226,14 @@ const UI = (() => {
             result: (d, finish) => {
                 const text = d.querySelector('[data-text]').value.trim(), withErrors = d.querySelector('[data-errors]')?.checked
                 if (!text) { d.querySelector('[data-err]').textContent = 'Write what happened first.'; return }
-                const send = d.querySelector('button.primary'); send.disabled = true
+                const button = d.querySelector('button.primary'); button.disabled = true
                 fetch('/api/v1/projects/' + encodeURIComponent(me.feedback) + '/reports', {method: 'POST', credentials: 'same-origin',
                     headers: {'content-type': 'application/json', 'Idempotency-Key': key},
                     body: JSON.stringify({type, surface: 'cloud-' + page, text, route: location.pathname, log: withErrors ? errors.slice() : [],
                         environment: {userAgent: navigator.userAgent, language: navigator.language, viewport: innerWidth + 'x' + innerHeight, theme: current}})})
                     .then(async r => { const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || j.message || 'HTTP ' + r.status); return j })
                     .then(j => { finish(true); toast('Sent: report ' + j.id + '. Thank you.') },
-                        e => { send.disabled = false; d.querySelector('[data-err]').textContent = 'Could not send: ' + e.message })
+                        e => { button.disabled = false; d.querySelector('[data-err]').textContent = 'Could not send: ' + e.message })
             }})
     }
 

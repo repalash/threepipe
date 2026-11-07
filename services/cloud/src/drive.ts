@@ -183,7 +183,7 @@ export async function createFolder(c: Context<CloudEnv>, ownerId: string, parent
 
 /** The bytes of the user's drive files (the account page). */
 export async function driveUsage(c: Context<CloudEnv>, userId: string): Promise<{used: number}> {
-    const r = await c.env.PRIMARY_DB.prepare(`SELECT COALESCE(SUM(size), 0) AS used FROM files WHERE owner_id = ? AND prefix = 'd' AND deleted_at IS NULL`)
+    const r = await c.env.PRIMARY_DB.prepare('SELECT COALESCE(SUM(size), 0) AS used FROM files WHERE owner_id = ? AND prefix = \'d\' AND deleted_at IS NULL')
         .bind(userId).first<{used: number}>()
     return {used: r?.used ?? 0}
 }
@@ -357,7 +357,7 @@ export async function verifySigned(env: CloudflareBindings, token: string, key: 
 const folderOut = (f: Folder) => ({id: f.id, name: f.name, parent: f.parent_id})
 
 export function driveRoutes(app: Hono<CloudEnv>) {
-    app.get('/api/v1/drive', async (c) => {
+    app.get('/api/v1/drive', async(c) => {
         const user = await requireUser(c)
         const start = await startFolder(c, user)
         const id = c.req.query('folder') ?? start
@@ -375,7 +375,7 @@ export function driveRoutes(app: Hono<CloudEnv>) {
     })
 
     // Outside an app key's folder it answers 404, like a path that does not exist: an app learns nothing of the rest.
-    app.get('/api/v1/drive/resolve', async (c) => {
+    app.get('/api/v1/drive/resolve', async(c) => {
         const user = await requireUser(c)
         try {
             return await resolvePath(c, user)
@@ -384,7 +384,7 @@ export function driveRoutes(app: Hono<CloudEnv>) {
             throw e
         }
     })
-    const resolvePath = async (c: Context<CloudEnv>, user: CloudUser) => {
+    const resolvePath = async(c: Context<CloudEnv>, user: CloudUser) => {
         const parts = (c.req.query('path') || '').normalize('NFC').split('/').filter(Boolean)
         if (!parts.length) return c.json({folder: {id: ROOT, name: '', parent: null}})
         // down the folders by name, as far as they go: one query
@@ -404,7 +404,7 @@ export function driveRoutes(app: Hono<CloudEnv>) {
         throw new HTTPException(404, {message: 'not found'})
     }
 
-    app.post('/api/v1/drive/folders', async (c) => {
+    app.post('/api/v1/drive/folders', async(c) => {
         const user = await requireUser(c)
         const body = await jsonBody<{name?: string, parent?: string}>(c)
         const start = await startFolder(c, user)
@@ -415,7 +415,7 @@ export function driveRoutes(app: Hono<CloudEnv>) {
         return c.json(folderOut(await createFolder(c, user.id, parent, name)), 201)
     })
 
-    app.patch('/api/v1/drive/folders/:id', async (c) => {
+    app.patch('/api/v1/drive/folders/:id', async(c) => {
         const user = await requireUser(c)
         const f = await folderOf(c, user, c.req.param('id'))
         await scopedChain(c, user, f.id)
@@ -439,7 +439,7 @@ export function driveRoutes(app: Hono<CloudEnv>) {
         return c.json(folderOut({id: f.id, name, parent_id: parent}))
     })
 
-    app.delete('/api/v1/drive/folders/:id', async (c) => {
+    app.delete('/api/v1/drive/folders/:id', async(c) => {
         const user = await requireUser(c)
         const f = await folderOf(c, user, c.req.param('id'))
         await scopedChain(c, user, f.id)
@@ -453,7 +453,7 @@ export function driveRoutes(app: Hono<CloudEnv>) {
     })
 
     // A new item with one file: the usual save. The name is the label; the stored file name is the same, made safe.
-    app.put('/api/v1/drive/files', async (c) => {
+    app.put('/api/v1/drive/files', async(c) => {
         const user = await requireUser(c)
         const start = await startFolder(c, user)
         const folder = c.req.query('folder') ?? start
@@ -477,7 +477,7 @@ export function driveRoutes(app: Hono<CloudEnv>) {
         return c.json(itemOut(c, user, await itemOf(c, user, item.id)), 201)
     })
 
-    app.post('/api/v1/drive/items', async (c) => {
+    app.post('/api/v1/drive/items', async(c) => {
         const user = await requireUser(c)
         const body = await jsonBody<{name?: string, folder?: string, entry?: string, visibility?: Visibility}>(c)
         const visibility = newVisibility(body.visibility)
@@ -496,20 +496,20 @@ export function driveRoutes(app: Hono<CloudEnv>) {
         return c.json(itemOut(c, user, await itemOf(c, user, id)), 201)
     })
 
-    app.put('/api/v1/drive/items/:id/:path{.+}', async (c) => {
+    app.put('/api/v1/drive/items/:id/:path{.+}', async(c) => {
         const user = await requireUser(c)
         const item = await itemOf(c, user, c.req.param('id'))
         return c.json(await writeFile(c, user, item, c.req.param('path')))
     })
 
-    app.get('/api/v1/drive/items/:id', async (c) => {
+    app.get('/api/v1/drive/items/:id', async(c) => {
         const user = await requireUser(c)
         const item = await itemOf(c, user, c.req.param('id'))
         const base = itemBase(user, item.id)
         return c.json({...itemOut(c, user, item), files: (await itemFiles(c, item)).map(f => ({...f, path: f.path.slice(base.length)}))})
     })
 
-    app.get('/api/v1/drive/items/:id/:path{.+}', async (c) => {
+    app.get('/api/v1/drive/items/:id/:path{.+}', async(c) => {
         const user = await requireUser(c)
         const item = await itemOf(c, user, c.req.param('id'))
         const segs = cleanSegments(c.req.param('path'))
@@ -525,7 +525,7 @@ export function driveRoutes(app: Hono<CloudEnv>) {
         return new Response(obj.body, {headers})
     })
 
-    app.patch('/api/v1/drive/items/:id', async (c) => {
+    app.patch('/api/v1/drive/items/:id', async(c) => {
         const user = await requireUser(c)
         const item = await itemOf(c, user, c.req.param('id'))
         const body = await jsonBody<{name?: string, folder?: string, visibility?: Visibility, entry?: string}>(c)
@@ -556,9 +556,9 @@ export function driveRoutes(app: Hono<CloudEnv>) {
         // a rename or move: only into a folder that still exists, under a name no folder there has (parentExists, nameFreeOf)
         const renames = body.name !== undefined || body.folder !== undefined
         if (set.length) {
-            const n = set.length, [id, at, owner, label] = [n + 1, n + 2, n + 3, n + 4].map(i => '?' + i)
+            const n = set.length, [id, at, owner, nameArg] = [n + 1, n + 2, n + 3, n + 4].map(i => '?' + i)
             const r = await naming(name, c.env.PRIMARY_DB.prepare(`UPDATE drive_items SET ${set.map(([k], i) => `${k} = ?${i + 1}`).join(', ')} WHERE id = ${id}
-                    ${renames ? `AND ${parentExists(at, owner)} AND ${nameFreeOf('folders', at, label, owner)}` : ''}`)
+                    ${renames ? `AND ${parentExists(at, owner)} AND ${nameFreeOf('folders', at, nameArg, owner)}` : ''}`)
                 .bind(...set.map(([, v]) => v), item.id, ...renames ? [folder, user.id, name] : []).run())
             if (renames) placed(r, name)
         }
@@ -589,7 +589,7 @@ export function driveRoutes(app: Hono<CloudEnv>) {
                 // The item says `link` either way, never private while a file of it is public: an unshare cut short
                 // goes back to `link`, a share cut short stays `link`. Sending the visibility again finishes the files left.
                 logError('drive visibility: cut short', {item: item.id, visibility: want, done, files: files.length, error: String(e)})
-                if (want === 'private') await c.env.PRIMARY_DB.prepare(`UPDATE drive_items SET visibility = 'link' WHERE id = ? AND visibility = 'private'`)
+                if (want === 'private') await c.env.PRIMARY_DB.prepare('UPDATE drive_items SET visibility = \'link\' WHERE id = ? AND visibility = \'private\'')
                     .bind(item.id).run()
                 throw new HTTPException(503, {message: want === 'private'
                     ? `It is still shared: ${files.length - done} of ${files.length} file(s) could not be made private. Try again.`
@@ -601,7 +601,7 @@ export function driveRoutes(app: Hono<CloudEnv>) {
 
     // A new id for the item: its files are copied under the new id and the old ones deleted, so every URL of the item
     // given out before (links, signed URLs) stops working. Name, folder and visibility stay.
-    app.post('/api/v1/drive/items/:id/new-id', async (c) => {
+    app.post('/api/v1/drive/items/:id/new-id', async(c) => {
         const user = await requireUser(c)
         const item = await itemOf(c, user, c.req.param('id'))
         const oldBase = itemBase(user, item.id), id = randomCode(16), newBase = itemBase(user, id)
@@ -624,7 +624,7 @@ export function driveRoutes(app: Hono<CloudEnv>) {
         // cleans up after itself (writeFile) and gets a 409. (No row has `deleted_at` now: step 0.)
         const [, moved] = await db.batch([
             db.prepare('UPDATE drive_items SET id = ? WHERE id = ?').bind(id, item.id),
-            db.prepare(`UPDATE files SET item_id = ?1, path = ?2 || substr(path, ?3) WHERE item_id = ?4 RETURNING path`).bind(id, newBase, oldBase.length + 1, item.id),
+            db.prepare('UPDATE files SET item_id = ?1, path = ?2 || substr(path, ?3) WHERE item_id = ?4 RETURNING path').bind(id, newBase, oldBase.length + 1, item.id),
         ]) as D1Result<{path: string}>[]
         // 3. A file an upload replaced or added while 1 ran (it registered before 2) is copied again: its old object is newer.
         const rels = moved.results.map(r => r.path.slice(newBase.length))
@@ -659,7 +659,7 @@ export function driveRoutes(app: Hono<CloudEnv>) {
         return c.json(itemOut(c, user, await itemOf(c, user, id)))
     })
 
-    app.delete('/api/v1/drive/items/:id', async (c) => {
+    app.delete('/api/v1/drive/items/:id', async(c) => {
         const user = await requireUser(c)
         const item = await itemOf(c, user, c.req.param('id'))
         const db = c.env.PRIMARY_DB
@@ -678,7 +678,7 @@ export function driveRoutes(app: Hono<CloudEnv>) {
         return c.json({deleted: item.id})
     })
 
-    app.post('/api/v1/drive/items/:id/sign', async (c) => {
+    app.post('/api/v1/drive/items/:id/sign', async(c) => {
         const user = await requireUser(c)
         const item = await itemOf(c, user, c.req.param('id'))
         const ttl = (await jsonBody<{ttl?: number}>(c)).ttl ?? SIGN_DEFAULT_SECONDS

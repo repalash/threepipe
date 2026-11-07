@@ -144,7 +144,7 @@ async function inParallel<T, R>(items: T[], n: number, fn: (item: T) => Promise<
  * s/ objects are removed by the bucket's expiry rule (init-infra.sh); b/ builds stay until cleaned up.
  */
 export function uploadRoutes(app: Hono<CloudEnv>) {
-    app.put('/api/v1/uploads/:prefix/:path{.+}', async (c) => {
+    app.put('/api/v1/uploads/:prefix/:path{.+}', async(c) => {
         const {prefix, segs} = requestKey(c)
         const t = target(prefix, segs, c)
         const {user, scopeRow} = await requireUserAndScope(c, t.scope)
@@ -181,7 +181,7 @@ export function uploadRoutes(app: Hono<CloudEnv>) {
 
     // Many files in one request, like ij-share's folder upload: multipart/form-data, each part a file whose field name
     // is its path under the URL's folder. The key and the scope are checked once for all of them.
-    app.post('/api/v1/uploads/:prefix/:path{.+}', async (c) => {
+    app.post('/api/v1/uploads/:prefix/:path{.+}', async(c) => {
         const prefix = c.req.param('prefix') as Prefix
         if (!PREFIXES.includes(prefix) || prefix === 'a') throw new HTTPException(400, {message: 'many files go to s/, b/ or p/ (a/ is one PUT per file)'})
         // the URL names the scope, so it is checked with the user before the body is read
@@ -219,7 +219,7 @@ export function uploadRoutes(app: Hono<CloudEnv>) {
         return c.json({files: stored.map(f => ({url: fileUrl(c, f.key), path: f.key, size: f.size, sha256: f.sha256, expires_at: f.expiresAt}))})
     })
 
-    app.delete('/api/v1/uploads/:prefix/:path{.+}', async (c) => {
+    app.delete('/api/v1/uploads/:prefix/:path{.+}', async(c) => {
         const {prefix, segs, key} = requestKey(c)
         const scope = scopeOf(prefix, segs)
         const {user, scopeRow} = await requireUserAndScope(c, scope)
