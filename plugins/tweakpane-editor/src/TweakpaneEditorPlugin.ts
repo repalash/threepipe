@@ -19,6 +19,7 @@ import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 import {UiObjectConfig} from 'uiconfig.js'
 import {EDITOR_PAGE_LAYOUTS, EditorFrame, EditorFrameArea, EditorFrameAreaOptions, EditorFrameLayout, EditorFrameOptions, EditorPageLayout} from './frame/EditorFrame'
 import {readStored, writeStored} from './dom-utils'
+import {preventIosInputZoom} from './input-zoom'
 
 export interface TweakpaneEditorPluginEventMap extends AViewerPluginEventMap {
     /** {@link TweakpaneEditorPlugin.documentName} changed: set by the app, or renamed in the bar of the frame */
@@ -55,6 +56,7 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
         this._addEditorCameraUi()
         viewer.addPluginListener('add', this._addEditorCameraUi, 'EditorCameraPlugin')
         viewer.addPluginListener('remove', this._removeEditorCameraUi, 'EditorCameraPlugin')
+        this._applyInputZoom()
     }
 
     onRemove(viewer: ThreeViewer) {
@@ -62,7 +64,30 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
         viewer.removePluginListener('remove', this._removeEditorCameraUi)
         this._removeEditorCameraUi()
         this._removeFrame()
+        this._undoInputZoom?.()
+        this._undoInputZoom = undefined
         super.onRemove(viewer)
+    }
+
+    private _preventInputZoom = true
+    private _undoInputZoom?: () => void
+    /**
+     * iOS and iPadOS zoom the page into a focused text field with text under 16 px (the search fields, the Tweakpane text
+     * fields) and do not zoom back out. On (the default), the plugin stops that zoom while it is added, on iOS only: it
+     * adds `maximum-scale=1` to the viewport meta tag of the page, and puts the tag back when it is removed or this is
+     * turned off. A pinch zoom still works (iOS ignores the tag for it). See {@link preventIosInputZoom}.
+     */
+    get preventInputZoom() {
+        return this._preventInputZoom
+    }
+    set preventInputZoom(prevent: boolean) {
+        this._preventInputZoom = prevent
+        this._applyInputZoom()
+    }
+
+    private _applyInputZoom() {
+        this._undoInputZoom?.()
+        this._undoInputZoom = this._viewer && this._preventInputZoom ? preventIosInputZoom() : undefined
     }
 
     private _addEditorCameraUi = () => {
