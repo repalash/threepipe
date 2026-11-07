@@ -19,7 +19,7 @@ export interface CommandAction {
     label: string
     /** An icon for a UI: an SVG string, or the name of an icon of the UI */
     icon?: string
-    /** The key, like `'Mod+Z'` (Mod: Ctrl or Cmd), `'Shift+D'` or `'Delete'`. See {@link parseShortcut} and {@link matchShortcut}. */
+    /** The key, like `'Mod+Z'` (Mod: Cmd on a Mac, Ctrl on other platforms), `'Shift+D'` or `'Delete'`. See {@link parseShortcut} and {@link matchShortcut}. */
     shortcut?: string
     /** A group for a UI, like `'Edit'` or `'Camera'` ({@link CommandsPlugin.list}) */
     group?: string

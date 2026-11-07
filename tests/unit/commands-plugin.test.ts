@@ -92,13 +92,18 @@ describe('parseShortcut', () => {
 })
 
 describe('matchShortcut', () => {
-    test('Mod is Ctrl or Cmd, on every platform, and the modifiers are exact', () => {
-        expect(matchShortcut(keyEvent('z', 'KeyZ', {ctrlKey: true}), 'Mod+Z')).toBe(true)
-        expect(matchShortcut(keyEvent('z', 'KeyZ', {metaKey: true}), 'Mod+Z')).toBe(true)
-        expect(matchShortcut(keyEvent('z', 'KeyZ'), 'Mod+Z')).toBe(false)
-        expect(matchShortcut(keyEvent('Z', 'KeyZ', {ctrlKey: true, shiftKey: true}), 'Mod+Z')).toBe(false)
-        expect(matchShortcut(keyEvent('Z', 'KeyZ', {metaKey: true, shiftKey: true}), 'Mod+Shift+Z')).toBe(true)
-        expect(matchShortcut(keyEvent('z', 'KeyZ', {altKey: true, ctrlKey: true}), 'Mod+Z')).toBe(false)
+    test('Mod is Cmd on a Mac and Ctrl on other platforms; the other one matches no shortcut; the modifiers are exact', () => {
+        expect(matchShortcut(keyEvent('z', 'KeyZ', {ctrlKey: true}), 'Mod+Z', false)).toBe(true)
+        expect(matchShortcut(keyEvent('z', 'KeyZ', {metaKey: true}), 'Mod+Z', false)).toBe(false)
+        expect(matchShortcut(keyEvent('z', 'KeyZ', {metaKey: true}), 'Mod+Z', true)).toBe(true)
+        expect(matchShortcut(keyEvent('z', 'KeyZ', {ctrlKey: true}), 'Mod+Z', true)).toBe(false)
+        // Ctrl on a Mac (the Win key elsewhere) is not a modifier of a shortcut: no match without Mod either
+        expect(matchShortcut(keyEvent('d', 'KeyD', {ctrlKey: true}), 'D', true)).toBe(false)
+        expect(matchShortcut(keyEvent('d', 'KeyD', {metaKey: true}), 'D', false)).toBe(false)
+        expect(matchShortcut(keyEvent('z', 'KeyZ'), 'Mod+Z', false)).toBe(false)
+        expect(matchShortcut(keyEvent('Z', 'KeyZ', {ctrlKey: true, shiftKey: true}), 'Mod+Z', false)).toBe(false)
+        expect(matchShortcut(keyEvent('Z', 'KeyZ', {metaKey: true, shiftKey: true}), 'Mod+Shift+Z', true)).toBe(true)
+        expect(matchShortcut(keyEvent('z', 'KeyZ', {altKey: true, ctrlKey: true}), 'Mod+Z', false)).toBe(false)
     })
 
     test('Shift and Alt', () => {
@@ -128,7 +133,7 @@ describe('matchShortcut', () => {
         expect(matchShortcut(keyEvent('c', 'KeyV'), 'KeyC')).toBe(false)
         expect(matchShortcut(keyEvent('x', 'KeyC'), 'KeyC')).toBe(true)
         expect(matchShortcut(keyEvent('\\', 'IntlBackslash', {ctrlKey: true}), 'Mod+\\')).toBe(true)
-        expect(matchShortcut(keyEvent('#', 'Backslash', {metaKey: true}), 'Mod+\\')).toBe(true)
+        expect(matchShortcut(keyEvent('#', 'Backslash', {metaKey: true}), 'Mod+\\', true)).toBe(true)
         expect(matchShortcut(keyEvent('1', 'Digit1'), '1')).toBe(true)
         expect(matchShortcut(keyEvent('!', 'Digit1', {shiftKey: true}), 'Shift+1')).toBe(true)
     })
@@ -171,6 +176,15 @@ describe('isTextTarget', () => {
         expect(isTextTarget({tagName: 'DIV', closest: () => null} as any)).toBe(false)
         expect(isTextTarget(new EventTarget())).toBe(false)
         expect(isTextTarget(null)).toBe(false)
+    })
+
+    test('an input that takes no text (a Tweakpane checkbox keeps the focus after a click) is not a text field', () => {
+        const input = (type: string) => {
+            const el = {tagName: 'INPUT', type, closest: (s: string) => s === 'input' ? el : null}
+            return el as any
+        }
+        for (const type of ['text', 'search', 'number', 'email', 'password']) expect(isTextTarget(input(type))).toBe(true)
+        for (const type of ['checkbox', 'radio', 'button', 'submit', 'color', 'file']) expect(isTextTarget(input(type))).toBe(false)
     })
 })
 
@@ -233,7 +247,15 @@ describe('CommandsPlugin', () => {
         const undo = action('undo', {shortcut: 'Mod+Z'})
         commands.register(undo)
         expect(press('z', 'KeyZ', {ctrlKey: true}).defaultPrevented).toBe(true)
-        expect(press('z', 'KeyZ', {metaKey: true}).defaultPrevented).toBe(true)
+        // the platform of the test is not a Mac: Cmd (the Win key) is not Mod
+        expect(press('z', 'KeyZ', {metaKey: true}).defaultPrevented).toBe(false)
+        vi.stubGlobal('navigator', {userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)'})
+        try {
+            expect(press('z', 'KeyZ', {metaKey: true}).defaultPrevented).toBe(true)
+            expect(press('z', 'KeyZ', {ctrlKey: true}).defaultPrevented).toBe(false)
+        } finally {
+            vi.unstubAllGlobals()
+        }
         expect(undo.run).toHaveBeenCalledTimes(2)
         expect(press('z', 'KeyZ').defaultPrevented).toBe(false)
         expect(press('y', 'KeyY', {ctrlKey: true}).defaultPrevented).toBe(false)

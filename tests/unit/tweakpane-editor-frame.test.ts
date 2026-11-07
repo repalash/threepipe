@@ -387,11 +387,15 @@ describe('EditorFrame', () => {
         expect(fold).toHaveBeenCalledTimes(1) // open already
     })
 
-    test('Ctrl+\\ and Cmd+\\ step the mode bar, by the key or by the key code', () => {
+    test('Ctrl+\\ (Cmd+\\ on a Mac) steps the mode bar, by the key or by the key code', () => {
         const f = frame('titlebar', true)
         keydown('\\', 'Backslash', {ctrlKey: true})
         expect(f.modeBar.expanded).toBe(false)
-        // a keyboard layout where the key is not at the Backslash position
+        // not a Mac: Cmd (the Win key) is not Mod
+        keydown('\\', 'Backslash', {metaKey: true})
+        expect(f.modeBar.open).toBe(true)
+        // a Mac, and a keyboard layout where the key is not at the Backslash position
+        vi.stubGlobal('navigator', {userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)'})
         keydown('\\', 'IntlBackslash', {metaKey: true})
         expect(f.modeBar.open).toBe(false)
         keydown('\\', 'Backslash')
@@ -1581,7 +1585,7 @@ describe('TweakpaneEditorPlugin.layout', () => {
         // not added: nothing yet
         p.preventIosInputZoom = true
         expect(meta.content).toBe('width=device-width, initial-scale=1')
-        ;(p as any)._viewer = {getPlugin: () => undefined}
+        ;(p as any)._viewer = {getPlugin: () => undefined, addPluginListener: () => {}, removePluginListener: () => {}}
         p.preventIosInputZoom = true
         expect(meta.content).toBe('width=device-width, initial-scale=1, maximum-scale=1')
         // set again: no second maximum-scale
@@ -1758,7 +1762,7 @@ describe('EditorFrame right area', () => {
         panel.appendChild(new FakeElement('div')).className = 'tp-rotv'
         doc.getElementById = (id: string) => id === 'tweakpaneUiContainer' ? panel : null
         const p = new TweakpaneEditorPlugin()
-        ;(p as any)._viewer = {getPlugin: () => undefined}
+        ;(p as any)._viewer = {getPlugin: () => undefined, addPluginListener: () => {}, removePluginListener: () => {}}
         p.modeKeys = ['Viewer', 'Export']
         p.layout = 'titlebar'
         const inspector = new FakeElement('div')
@@ -1774,7 +1778,7 @@ describe('EditorFrame right area', () => {
 
     test('the TweakpaneEditorPlugin sends frameChange when it makes or removes the frame, so an app sets the frame state again', () => {
         const p = new TweakpaneEditorPlugin()
-        ;(p as any)._viewer = {getPlugin: () => undefined}
+        ;(p as any)._viewer = {getPlugin: () => undefined, addPluginListener: () => {}, removePluginListener: () => {}}
         p.modeKeys = ['Viewer', 'Export']
         const frames: unknown[] = []
         p.addEventListener('frameChange', e => frames.push(e.frame))

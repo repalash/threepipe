@@ -66,7 +66,7 @@ unregister() // removes the actions of that register call
 
 A shortcut is modifiers and a key, joined with `+`: `Mod+Z`, `Shift+D`, `Alt+Shift+T`, `Delete`, `Escape`, `Mod++`.
 
-- `Mod` is Ctrl or Cmd, on every platform. The other modifiers are `Shift` and `Alt`. A key press must have the same modifiers: `Mod+Z` does not run on Ctrl+Shift+Z.
+- `Mod` is Cmd on a Mac (also an iPhone or an iPad with a keyboard) and Ctrl on other platforms. The other one of the two matches no shortcut: Ctrl+Z on a Mac is not `Mod+Z`. The other modifiers are `Shift` and `Alt`. A key press must have the same modifiers: `Mod+Z` does not run on Ctrl+Shift+Z.
 - The key is a key name (`Z`, `Delete`, `Escape`, `\`) or a [`KeyboardEvent.code`](https://developer.mozilla.org/docs/Web/API/KeyboardEvent/code) (`KeyC`, `Digit1`, `Backslash`).
 - A key name matches the character of the key in any case, or, for a letter, a digit or a sign, the place of that key on a US keyboard. So `Mod+Z` also works on a keyboard with other letters (Cyrillic, Greek), and `Alt+T` works on a Mac, where Alt changes the character.
 - A code matches only that place on the keyboard: `KeyC` is the key at the place of C, whatever it types.
@@ -74,7 +74,7 @@ A shortcut is modifiers and a key, joined with `+`: `Mod+Z`, `Shift+D`, `Alt+Shi
 
 One `keydown` listener on the window runs the shortcuts of all the actions:
 
-- It leaves a key typed in a text field (an input, a text area, a select, an editable element) and a key that another handler used (`defaultPrevented`).
+- It leaves a key typed in a text field (an input that takes text, a text area, a select, an editable element; not a checkbox, a radio button, a button, a colour or a file input, which keep the focus after a click) and a key that another handler used (`defaultPrevented`).
 - It runs an action only when `enabled()` is not `false`, and calls `preventDefault` only when an action runs.
 - When two enabled actions have the same key, the one registered last runs.
 - While the plugin is disabled (`enabled = false` or `disable(key)`), the keys do nothing. `run(id)` still runs an action.

@@ -4,7 +4,7 @@
 export interface ParsedShortcut {
     /** The key: a key name (`'Z'`, `'Delete'`, `'\\'`) or a `KeyboardEvent.code` (`'KeyC'`, `'Backslash'`) */
     key: string
-    /** Ctrl or Cmd (either one, on every platform) */
+    /** Cmd on a Mac, an iPhone or an iPad; Ctrl on other platforms */
     mod: boolean
     shift: boolean
     alt: boolean
@@ -31,8 +31,8 @@ function codeOf(key: string): string | undefined {
 }
 
 /**
- * Parses a shortcut string: modifiers and a key, joined with `+`. The modifiers are `Mod` (Ctrl or Cmd), `Shift`
- * and `Alt`, in any order and case. The key is a key name (`Z`, `Delete`, `Escape`, `\`, `+`) or a
+ * Parses a shortcut string: modifiers and a key, joined with `+`. The modifiers are `Mod` (Cmd on a Mac, Ctrl on other
+ * platforms), `Shift` and `Alt`, in any order and case. The key is a key name (`Z`, `Delete`, `Escape`, `\`, `+`) or a
  * `KeyboardEvent.code` (`KeyC`, `Digit1`, `Backslash`). See {@link matchShortcut} for how a key matches.
  * @returns the parsed shortcut, or `undefined` for a string without a key or with another modifier (`Ctrl+Z`)
  */
@@ -56,17 +56,21 @@ export function parseShortcut(shortcut: string): ParsedShortcut | undefined {
 
 /**
  * The key press is the shortcut ({@link parseShortcut}): the same modifiers (no more, no less) and the same key.
- * - `Mod` is Ctrl or Cmd, on every platform.
+ * - `Mod` is Cmd on a Mac (also an iPhone or an iPad with a keyboard) and Ctrl on other platforms. The other one of the
+ *   two is not a modifier of a shortcut: a key press with it matches no shortcut (Ctrl+Z on a Mac is not `Mod+Z`).
  * - A key name matches the character of the key (`KeyboardEvent.key`, in any case), or, for a letter, a digit or a
  *   sign, the place of that key on a US keyboard (`KeyboardEvent.code`). So `Mod+Z` also works on a keyboard with
  *   other letters (Cyrillic, Greek), and `Alt+T` works on a Mac, where Alt changes the character.
  * - A `KeyboardEvent.code` (`KeyC`) matches only that place on the keyboard.
  * - A shortcut with a sign that needs Shift names Shift too: `Shift+/` for `?`.
+ * @param mac - `Mod` is Cmd (a Mac). Default: the platform of the browser.
  */
-export function matchShortcut(event: KeyboardEvent, shortcut: string | ParsedShortcut): boolean {
+export function matchShortcut(event: KeyboardEvent, shortcut: string | ParsedShortcut, mac = isMacPlatform()): boolean {
     const s = typeof shortcut === 'string' ? parseShortcut(shortcut) : shortcut
     if (!s) return false
-    if (!!event.shiftKey !== s.shift || !!event.altKey !== s.alt || !!(event.ctrlKey || event.metaKey) !== s.mod) return false
+    const mod = mac ? event.metaKey : event.ctrlKey
+    const other = mac ? event.ctrlKey : event.metaKey
+    if (other || !!event.shiftKey !== s.shift || !!event.altKey !== s.alt || !!mod !== s.mod) return false
     return event.key?.toLowerCase() === s.key.toLowerCase() || event.code === s.key || event.code === codeOf(s.key)
 }
 
@@ -86,16 +90,23 @@ export function formatShortcut(shortcut: string, mac = isMacPlatform()): string 
     return [s.mod && 'Ctrl', s.alt && 'Alt', s.shift && 'Shift', key].filter(Boolean).join('+')
 }
 
-/** The browser runs on a Mac, an iPhone or an iPad (for the labels of {@link formatShortcut}) */
+/** The browser runs on a Mac, an iPhone or an iPad: `Mod` is Cmd ({@link matchShortcut}, {@link formatShortcut}) */
 function isMacPlatform() {
     return typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.userAgent)
 }
 
+/** The types of `input` that take no typed text: a checkbox (a Tweakpane checkbox too), a button, a colour or a file picker */
+const NO_TEXT_INPUTS = new Set(['checkbox', 'radio', 'button', 'submit', 'reset', 'image', 'color', 'file'])
+
 /**
- * The target of a key event is a text field: an input, a text area, a select, or an editable element (or inside one).
- * Keyboard shortcuts leave such a key to the field.
+ * The target of a key event is a text field: an input that takes text, a text area, a select, or an editable element
+ * (or inside one). Keyboard shortcuts leave such a key to the field. A checkbox, a radio button, a button, a colour or a
+ * file input keeps the focus after a click, but takes no text: the shortcuts work there.
  */
 export function isTextTarget(target: EventTarget | null): boolean {
     const t = target as HTMLElement | null
-    return !!t && (!!t.isContentEditable || !!t.closest?.('input, textarea, select'))
+    if (!t) return false
+    if (t.isContentEditable || t.closest?.('textarea, select')) return true
+    const input = t.closest?.('input') as HTMLInputElement | null | undefined
+    return !!input && !NO_TEXT_INPUTS.has(input.type)
 }
