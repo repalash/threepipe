@@ -937,7 +937,7 @@ describe('LayersPanelPlugin', () => {
         expect(frames).toHaveLength(0)
     })
 
-    test('the scene and the default camera are the first rows: dimmer, no buttons, no line below; a click selects them', () => {
+    test('the scene and the default camera are the first rows: dimmer, no buttons, no line below; a click selects them; a search finds them by name', () => {
         const {layers, list, picking, viewer, modelRoot, outline} = setup({sceneRows: true})
         const theScene = viewer.scene
         const camera = theScene.defaultCamera
@@ -960,12 +960,25 @@ describe('LayersPanelPlugin', () => {
         expect(picking.focusObject).toHaveBeenLastCalledWith(modelRoot)
         row(list, 'Default Camera').fire('click')
         expect(picking.selected).toEqual([camera])
-        // a search hides them; the setting turns them off
+        // a search shows them when their name has the text; the setting turns them off
         const search = (layers.element as any as FakeElement).find('lyp-search-input')[0]
         search.value = 'watch'
         search.fire('input')
         flush()
         expect(names(list)).not.toContain('Scene')
+        expect(names(list)).not.toContain('Default Camera')
+        search.value = 'CAMERA'
+        search.fire('input')
+        flush()
+        expect(names(list)[0]).toBe('Default Camera')
+        expect(has(rows(list)[0], 'lyp-pinned')).toBe(true)
+        expect(names(list)).not.toContain('Scene')
+        // still not in the listed objects of the model
+        expect(layers.listedObjects).not.toContain(camera)
+        search.value = 'scene'
+        search.fire('input')
+        flush()
+        expect(names(list)[0]).toBe('Scene')
         search.value = ''
         search.fire('input')
         layers.sceneRows = false

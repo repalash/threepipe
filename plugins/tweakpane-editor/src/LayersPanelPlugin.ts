@@ -216,7 +216,7 @@ export class LayersPanelPlugin extends AViewerPluginSync<LayersPanelPluginEventM
     /**
      * The scene and the default camera as the first two rows of the Objects tab, above the model, dimmer.
      * A click selects them (the UI of the editor shows their settings). They are not in the model: they have no eye, lock
-     * or arrow, and a search hides them.
+     * or arrow. A search shows them when their name has the text (`camera` finds the default camera).
      */
     @onChange(LayersPanelPlugin.prototype._structureChanged)
     @uiToggle('Scene and camera rows')
@@ -1026,11 +1026,11 @@ export class LayersPanelPlugin extends AViewerPluginSync<LayersPanelPluginEventM
         const root = this._viewer?.scene.modelRoot as IObject3D | undefined
         if (!root) return
         const filter = this._filter
-        // the scene and the default camera, above the model; not in a search
+        // the scene and the default camera, above the model; in a search, when their name has the text
         const scene = this._viewer!.scene
-        if (this.sceneRows && !filter) {
+        if (this.sceneRows) {
             for (const o of [scene, scene.defaultCamera] as (IObject3D | undefined)[]) {
-                if (!o) continue
+                if (!o || filter && !this._pinnedName(o).toLowerCase().includes(filter)) continue
                 this._index.set(o, this._flat.length)
                 this._flat.push({object: o, depth: 0, kids: 0, open: false, pinned: true})
             }
@@ -1293,6 +1293,11 @@ export class LayersPanelPlugin extends AViewerPluginSync<LayersPanelPluginEventM
         setIfChanged(p.meta, 'textContent', this._assetMeta(r))
     }
 
+    /** The name in the row of the scene or of the default camera, also for the search */
+    private _pinnedName(o: IObject3D) {
+        return o === this._viewer?.scene ? 'Scene' : o.name || 'Default camera'
+    }
+
     /** Fills the row of the scene or of the default camera: a grey icon, a dimmer name, no buttons */
     private _fillPinned(p: RowElements, o: IObject3D, isSel: boolean) {
         setIfChanged(p.row, 'className', 'lyp-row lyp-pinned' + (isSel ? ' lyp-sel' : ''))
@@ -1306,7 +1311,7 @@ export class LayersPanelPlugin extends AViewerPluginSync<LayersPanelPluginEventM
             p.kind.style.color = ''
             p.kind.innerHTML = isScene ? ICONS.scene : svg(`<path d="${widgetKinds[getWidgetKind(o) ?? 'perspectiveCamera'].icon}"/>`)
         }
-        const name = isScene ? 'Scene' : o.name || 'Default camera'
+        const name = this._pinnedName(o)
         setIfChanged(p.name, 'textContent', name)
         setIfChanged(p.name, 'title', name)
         setIfChanged(p.meta, 'textContent', '')
