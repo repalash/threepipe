@@ -53,10 +53,10 @@ describe('preventIosInputZoom', () => {
         expect(head.children[0].content).toBe('width=device-width, initial-scale=1, maximum-scale=5')
     })
 
-    test('a page without a viewport tag gets one, removed again', () => {
+    test('a page without a viewport tag gets one with only maximum-scale=1 (its layout width stays), removed again', () => {
         const {doc, head} = page()
         const undo = preventIosInputZoom(doc, nav(MAC, 5))
-        expect(head.children.map(m => [m.name, m.content])).toEqual([['viewport', 'width=device-width, initial-scale=1, maximum-scale=1']])
+        expect(head.children.map(m => [m.name, m.content])).toEqual([['viewport', 'maximum-scale=1']])
         undo()
         expect(head.children).toHaveLength(0)
     })

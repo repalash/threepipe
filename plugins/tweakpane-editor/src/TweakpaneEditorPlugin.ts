@@ -75,7 +75,9 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
      * iOS and iPadOS zoom the page into a focused text field with text under 16 px (the search fields, the Tweakpane text
      * fields) and do not zoom back out. On (the default), the plugin stops that zoom while it is added, on iOS only: it
      * adds `maximum-scale=1` to the viewport meta tag of the page, and puts the tag back when it is removed or this is
-     * turned off. A pinch zoom still works (iOS ignores the tag for it). The exported function `preventIosInputZoom` does it.
+     * turned off. A pinch zoom still works in Safari, which ignores the tag for it; an in-app browser (WKWebView) or a web
+     * app on the home screen follows the tag and blocks it: turn this off there. The exported function
+     * `preventIosInputZoom` does it.
      */
     get preventIosInputZoom() {
         return this._preventIosInputZoom
