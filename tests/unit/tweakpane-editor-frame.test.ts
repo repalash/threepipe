@@ -860,6 +860,16 @@ describe('EditorFrame area sizes', () => {
         expect([f.stackedArea, f.isPanelHidden('insp'), !!(f as any)._collapsed.right, marked(entry('insp'))]).toEqual(['right', false, false, true])
     })
 
+    test('a panel moved to the right place shows when the mode bar hid the panel', () => {
+        const f = new EditorFrame(host(), {layout: 'titlebar'})
+        f.addPanel('a', new FakeElement('div') as any, {area: 'left'})
+        f.modeBar.setOpen(false)
+        f.movePanel('a', 'left') // the same place: the panel stays hidden
+        expect(f.modeBar.open).toBe(false)
+        f.movePanel('a', 'right', true)
+        expect([f.modeBar.open, f.isPanelHidden('a'), f.panelArea('a')]).toEqual([true, false, 'right'])
+    })
+
     test('a narrow window: a moved panel shows in its new place, which takes the place of the panel', () => {
         vi.stubGlobal('innerWidth', 600)
         vi.stubGlobal('innerHeight', 900)
