@@ -97,7 +97,7 @@ class InspectorUiRenderer extends TweakpaneUiPlugin {
  * - A search field above the settings shows only the settings whose name has the text, and the folders whose title has
  *   it (with all their settings); the folders open while it has text. Escape in it clears it.
  * - A right-click on a setting (a long press on a touch screen) offers Reset to default, when its value is not the default
- *   of its class (the value of a new object of the same class), with undo.
+ *   of its class (the value of a new object of the same class), with undo; not on a disabled or read-only setting.
  * - Escape (the PickingPlugin) clears the selection.
  *
  * Where the panel goes: in the `container` given to the constructor, else the app puts {@link element} in the page.
@@ -724,7 +724,7 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
         CustomContextMenu.Create(items, x, y)
     }
 
-    /** The setting (a uiConfig with a property) whose row in the renderer holds `target` */
+    /** The setting (a uiConfig with a property) whose row in the renderer holds `target`; not a disabled or read-only one (like the uuid) */
     private _fieldAt(target: Element) {
         const row = target?.closest?.('.tp-lblv')
         if (!row) return undefined
@@ -734,7 +734,8 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
             const ref = c.uiRef as {controller_?: {view?: {element?: Element}}, element?: Element} | undefined
             if (ref && (ref.controller_?.view?.element ?? ref.element) === row) {
                 const [obj, key] = getOrCall(c.property) ?? []
-                if (obj && typeof obj === 'object' && key !== undefined) found = {config: c, target: obj, key: String(key)}
+                const locked = getOrCall(c.disabled) || getOrCall(c.readOnly)
+                if (!locked && obj && typeof obj === 'object' && key !== undefined) found = {config: c, target: obj, key: String(key)}
                 return
             }
             const children = getOrCall(c.children as any) as (UiObjectConfig | (() => UiObjectConfig))[] | undefined

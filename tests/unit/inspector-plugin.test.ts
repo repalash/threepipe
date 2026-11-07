@@ -349,6 +349,15 @@ describe('InspectorPlugin', () => {
         await Promise.resolve()
         expect(mat.color.getHex()).toBe(0xffffff)
         expect(ui.methods.setValue.mock.lastCall![1]).not.toBe((InspectorPlugin as any)._defaults.get(PhysicalMaterial).color)
+        // a disabled or read-only setting (the uuid) has no menu, though its value differs from a new object's
+        ;(rough as any).disabled = () => true
+        mat.roughness = 0.4
+        expect(rightClick(roughRow)).toBe(false)
+        delete (rough as any).disabled
+        ;(rough as any).readOnly = true
+        expect(rightClick(roughRow)).toBe(false)
+        delete (rough as any).readOnly
+        mat.roughness = 1
         // a class that needs arguments has no default; a row that is not a setting has no menu
         expect(rightClick(nestedRow)).toBe(false)
         expect(rightClick(otherRow)).toBe(false)
