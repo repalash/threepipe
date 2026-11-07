@@ -33,6 +33,7 @@
 - Do not merge PRs without asking unless user asked explicitly.
 - Use judgement to see which changes should go to which branch and which PR. 
 - Read CONTRIBUTING.md when contributing or making PRs
+- Every PR that changes or adds an example has a preview link to that example's page in its description (see threepipe cloud below)
 
 ## threepipe cloud
 

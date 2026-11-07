@@ -228,6 +228,15 @@ export class EditorModeBar {
         this._tipGroup.setInstances(this._tips)
     }
 
+    /** Removes the tooltip of a button that {@link addTooltip} added, when the button leaves the bar */
+    removeTooltip(button: HTMLElement) {
+        const tip = this._tips.find(t => t.reference === button)
+        if (!tip) return
+        this._tips = this._tips.filter(t => t !== tip)
+        this._tipGroup.setInstances(this._tips)
+        tip.destroy()
+    }
+
     dispose() {
         if (!this._open) this.setOpen(true)
         this._tipGroup.destroy()
