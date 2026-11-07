@@ -40,6 +40,20 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
         pickingMode: PickingModeType = 'auto'
 
     /**
+     * Clicking an object that is already selected cycles to the next object behind it under the cursor.
+     * With `cycleWrap` the cycle wraps round to the front object instead of ending in an empty
+     * selection, so clicking the only object under the cursor keeps it selected - Blender's behaviour.
+     * Off by default: past the last object, the click clears the selection.
+     */
+    cycleWrap = false
+
+    /**
+     * Clicking an object that is already selected cycles through the other objects under the cursor (see
+     * {@link cycleWrap}). Set to `false` to always pick the front object. Same flag as in webgi's ObjectPicker.
+     */
+    cycleThroughHits = true
+
+    /**
      * Time threshold for a pointer click event
      */
     static PointerClickMaxTime = 200
@@ -146,15 +160,16 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
     }
 
     setSelected(object: SelectionObject, record = true, intersects?: HitIntersects) {
-        // Auto-switch selection mode based on object type
-        if (object) {
-            if ((object as IObject3D)?.isObject3D && this.selectionMode !== 'object') {
+        // Auto-switch selection mode based on object type (of the first item of a list)
+        const first = Array.isArray(object) ? object[0] : object
+        if (first) {
+            if ((first as IObject3D)?.isObject3D && this.selectionMode !== 'object') {
                 this.selectionMode = 'object'
-            } else if ((object as IMaterial)?.isMaterial && this.selectionMode !== 'material') {
+            } else if ((first as IMaterial)?.isMaterial && this.selectionMode !== 'material') {
                 this.selectionMode = 'material'
-            } else if ((object as ITexture)?.isTexture && this.selectionMode !== 'texture') {
+            } else if ((first as ITexture)?.isTexture && this.selectionMode !== 'texture') {
                 this.selectionMode = 'texture'
-            } else if ((object as IGeometry)?.isBufferGeometry && this.selectionMode !== 'geometry') {
+            } else if ((first as IGeometry)?.isBufferGeometry && this.selectionMode !== 'geometry') {
                 this.selectionMode = 'geometry'
             }
         }
@@ -164,11 +179,16 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
         if (Array.isArray(object)) {
             if (this._selected.length === object.length && this._selected.every((o, i) => o === (object as any)[i])) return
         } else {
-            if (!this._selected.length && !object || this._selected.length === 1 && this._selected[0] === object
-                && currentIntersects?.selectedObject === intersects?.selectedObject
+            if (!this._selected.length && !object) return
+            if (this._selected.length === 1 && this._selected[0] === object
                 && currentIntersects?.selectedWidget === intersects?.selectedWidget
                 && currentIntersects?.selectedHandle === intersects?.selectedHandle
-            ) return
+            ) {
+                // The same object hit again (a click that cycles round to it, or a click on an object that was
+                // selected from code, so with no stored hit): not a selection change, keep the latest hit only.
+                if (intersects) this._selectedIntersects = intersects
+                return
+            }
         }
         const current = [...this._selected]
         this._selected = object ? Array.isArray(object) ? [...object] : [object] : []
@@ -244,11 +264,19 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
         if (event.isPrimary === false) return
         this.updateMouseFromEvent(event)
 
-        if (this.hoverEnabled) {
-            const {obj, intersects} = this._hitObject()
-            this.setHoverObject(obj, true, intersects || undefined)
-        }
+        if (this.hoverEnabled) this.hoverHit(this.checkIntersection())
 
+    }
+
+    /**
+     * Sets the hover object from a hit as a pointer move on the canvas does, when {@link hoverEnabled}: sends
+     * `hitObject`, applies the picking mode and sets the result as the hover object. `hit` null hovers nothing.
+     * Used by the pointer moves of the canvas and by the DOM icons of `Object3DWidgetsPlugin`.
+     */
+    hoverHit(hit: HitIntersects | null) {
+        if (!this.hoverEnabled) return
+        const {obj, intersects} = this._hitObject(hit)
+        this.setHoverObject(obj, true, intersects || undefined)
     }
 
     private _onPointerLeave = (event: PointerEvent) => {
@@ -303,11 +331,22 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
     private _onPointerClick = (event: PointerEvent) => {
         if (event.isPrimary === false) return
         this.updateMouseFromEvent(event)
-        const {obj, intersects} = this._hitObject()
+        this.selectHit(this.checkIntersection(), event)
+    }
+
+    /**
+     * Selects a hit as a click on the canvas does: sends `hitObject` (a listener can change the hit, or consume it to
+     * keep the selection), applies the picking mode (object, material, texture, geometry), and selects the result, or
+     * toggles it with shift, ctrl or cmd when multi-select is on. `hit` null is a click on nothing.
+     * Used by the pointer clicks of the canvas and by other ways to pick, like the DOM icons of `Object3DWidgetsPlugin`
+     * (with a hit made by {@link selectableFor}), so all of them behave the same.
+     */
+    selectHit(hit: HitIntersects | null, event?: {shiftKey?: boolean, ctrlKey?: boolean, metaKey?: boolean}) {
+        const {obj, intersects} = this._hitObject(hit)
 
         if (intersects?.consumed) return
 
-        if (this.multiSelectEnabled && (event.shiftKey || event.ctrlKey || event.metaKey) && obj && this.selectionMode === 'object') {
+        if (this.multiSelectEnabled && (event?.shiftKey || event?.ctrlKey || event?.metaKey) && obj && this.selectionMode === 'object') {
             // Multi-select toggle: add if not selected, remove if selected. Last clicked is primary (index 0).
             const current = [...this._selected] as IObject3D[]
             const idx = current.indexOf(obj as IObject3D)
@@ -324,8 +363,7 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
         }
     }
 
-    private _hitObject() {
-        const intersects = this.checkIntersection()
+    private _hitObject(intersects: HitIntersects | null = this.checkIntersection()) {
         if (intersects) this.dispatchEvent({type: 'hitObject', time: this.time, intersects})
         else this.dispatchEvent({
             type: 'hitObject',
@@ -367,6 +405,23 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
         return {obj, intersects}
     }
 
+    /**
+     * The object that a pick on `object` gives: `object` or its nearest parent that is visible and meets
+     * {@link selectionCondition}, or null. Each ray hit of {@link checkIntersection} goes through it, and so do other
+     * ways to pick, like the DOM icons of `Object3DWidgetsPlugin` (on their widget), so all of them follow the same rules.
+     *
+     * A hit on a part of a widget that is not picked (hidden, or with `userSelectable` false) does not go up to the
+     * widget: a widget is picked through the parts that are picked, or as `object` itself.
+     */
+    selectableFor(object: IObject3D | null): IObject3D | null {
+        let o = object
+        while (o != null && (!o.visible || !this.selectionCondition(o))) {
+            o = o.parent as IObject3D | null
+            if (o?.isWidget || o?.assetType === 'widget') return null
+        }
+        return o
+    }
+
     checkIntersection(): HitIntersects | null {
         const camera = this._camera
 
@@ -396,11 +451,8 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
 
         const intersects2 = []
         for (const intersect1 of intersects) {
-            selectedObject = intersect1.object
+            selectedObject = this.selectableFor(intersect1.object)
             intersect = intersect1
-            while (selectedObject != null && (!selectedObject.visible || !this.selectionCondition(selectedObject))) {
-                selectedObject = selectedObject.parent
-            }
             if (selectedObject != null) {
                 intersect1.object = selectedObject
                 intersects2.push(intersect1)
@@ -412,12 +464,12 @@ export class ObjectPicker extends EventDispatcher<ObjectPickerEventMap> {
             selectedObject = intersects[0].object
             intersect = intersects[0]
 
-            if (this._firstHit && selectedObject.id !== this._firstHit.id) {
+            if (!this.cycleThroughHits || this._firstHit && selectedObject.id !== this._firstHit.id) {
                 selectedObject = intersect.object
             } else {
                 for (let i = 0; i < intersects.length; i++) {
                     if (this.selectedObject && this.selectedObject.id === intersects[i].object.id) {
-                        const n = i + 1 // Use ( i + 1 ) % intersects.length for looping through objects
+                        const n = this.cycleWrap ? (i + 1) % intersects.length : i + 1
                         if (n < intersects.length) {
                             intersect = intersects[n]
                             selectedObject = intersect.object

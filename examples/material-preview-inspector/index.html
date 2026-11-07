@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Material Preview Inspector</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- Import maps polyfill -->
+    <!-- Remove this when import maps will be widely supported -->
+    <script async src="https://unpkg.com/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+
+    <script type="importmap">
+    {
+        "imports": {
+          "threepipe": "./../../dist/index.mjs",
+          "@threepipe/plugin-tweakpane": "./../../plugins/tweakpane/dist/index.mjs"
+        }
+    }
+
+    </script>
+    <style id="example-style">
+        html, body, #canvas-container, #mcanvas {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+        }
+        #preview-panel {
+            position: absolute;
+            top: 12px;
+            left: 12px; /* the Tweakpane UI (the plugin settings and the selected material) is on the right */
+            width: 300px;
+            max-height: calc(100% - 24px);
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+            padding: 12px;
+            border-radius: 10px;
+            background: rgba(22, 22, 26, 0.9);
+            color: #eee;
+            font: 12px/1.4 system-ui, sans-serif;
+            z-index: 200;
+        }
+        #preview-panel h3 { margin: 0 0 8px; font-size: 13px; font-weight: 600; }
+        #preview-panel h3 span { color: #888; font-weight: 400; }
+        .checker { background: repeating-conic-gradient(#3a3a3a 0 25%, #2c2c2c 0 50%) 0 0 / 16px 16px; }
+        #large { width: 100%; aspect-ratio: 1; border-radius: 8px; display: block; cursor: grab; touch-action: none; }
+        #large:active { cursor: grabbing; }
+        .hint { color: #777; font-size: 10px; margin: -4px 0 8px; }
+        .large-info { display: flex; justify-content: space-between; margin: 6px 0 8px; }
+        .large-info b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .large-info span { color: #9a9; flex: none; padding-left: 8px; }
+        .row { display: flex; gap: 4px; margin-bottom: 8px; }
+        .row button { flex: 1; padding: 5px 4px; border: 1px solid #444; border-radius: 5px; background: #2e2e33; color: #eee; cursor: pointer; font: inherit; }
+        .row button.on { background: #4a6cf7; border-color: #4a6cf7; }
+        #stats { color: #9a9; font-size: 11px; margin-bottom: 8px; }
+        #materials { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; overflow-y: auto; min-height: 0; padding: 2px; }
+        .card { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 4px; border: 1px solid transparent; border-radius: 6px; background: #26262b; color: #ccc; cursor: pointer; font: 10px/1.2 system-ui, sans-serif; min-width: 0; }
+        .card:hover { background: #303036; }
+        .card.on { border-color: #4a6cf7; background: #2b3150; color: #fff; }
+        .card canvas { width: 100%; aspect-ratio: 1; border-radius: 4px; background: repeating-conic-gradient(#3a3a3a 0 25%, #2c2c2c 0 50%) 0 0 / 12px 12px; }
+        .card span { width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: center; }
+        @media (max-width: 600px) {
+            #preview-panel { top: auto; bottom: 12px; left: 12px; right: 12px; width: auto; max-height: 50%; }
+            #large { width: 120px; }
+            #materials { grid-template-columns: repeat(5, 1fr); }
+        }
+    </style>
+    <script type="module" src="../examples-utils/global-loading.mjs"></script>
+    <script id="example-script" type="module" src="./script.js" data-scripts="./script.ts;./script.js"></script>
+</head>
+<body>
+<div id="canvas-container">
+    <canvas id="mcanvas"></canvas>
+</div>
+<div id="preview-panel">
+    <h3>Materials <span id="count"></span></h3>
+    <canvas id="large" class="checker" width="256" height="256"></canvas>
+    <div class="large-info"><b id="large-name"></b><span id="large-time"></span></div>
+    <div class="hint">Drag to turn · wheel to zoom · double-click to reset · drop a model on the page</div>
+    <div class="row shapes">
+        <button data-shape="sphere" class="on">Sphere</button>
+        <button data-shape="cube">Cube</button>
+        <button data-shape="mesh">This mesh</button>
+    </div>
+    <div class="row">
+        <button id="animate" title="Shift the hue of the selected material in each frame, as an animation does">Animate colour</button>
+    </div>
+    <div id="stats"></div>
+    <div id="materials"></div>
+</div>
+
+</body>

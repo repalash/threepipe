@@ -21,6 +21,20 @@ export class GBufferRenderPass<TP extends IPassID=IPassID, T extends WebGLRender
         super(undefined, undefined, material, clearColor, clearAlpha)
     }
 
+    /**
+     * Draw the flags of the materials that have `userData.renderToFlags` set to `true` and are not drawn into the target
+     * (like the helper widgets): only the flags output of `GBufferMaterial`, no depth and no normal, after all the
+     * other objects. See `IMaterialUserData.renderToFlags`. GBufferPlugin sets it when its target has the flags
+     * texture (multiple render targets). The other passes leave it `false`.
+     */
+    renderFlagsOnly = false
+
+    /**
+     * The materials whose objects write only their flags in the current render. {@link preprocessMaterial} fills it when
+     * {@link renderFlagsOnly} is set, the `GBufferMaterial` reads it for each draw, and it is cleared after the render.
+     */
+    readonly flagsOnlyMaterials = new Set<IMaterial>()
+
     private _transparentMats = new Set<IMaterial>()
     private _transmissiveMats = new Set<[IMaterial, number]>()
 
@@ -29,7 +43,7 @@ export class GBufferRenderPass<TP extends IPassID=IPassID, T extends WebGLRender
         renderToGBuffer = renderToGBuffer ?? material.userData.renderToGBuffer
         if (material.userData.pluginsDisabled) renderToGBuffer = false
         if (
-            material.transparent && (renderToGBuffer || material.opacity > 0.99 && !material.map && !material.alphaMap) || // transparent and render to gbuffer
+            material.transparent && (renderToGBuffer || renderToGBuffer !== false && material.opacity > 0.99 && !material.map && !material.alphaMap) || // transparent and render to gbuffer (or draws as opaque, when not set)
             !material.transparent && !material.transmission && renderToGBuffer === false // opaque and dont render to gbuffer
         ) {
             this._transparentMats.add(material)
@@ -44,15 +58,58 @@ export class GBufferRenderPass<TP extends IPassID=IPassID, T extends WebGLRender
             material.transmission = 0
             // material.needsUpdate = true
         }
+        // left out of the target, but writes its flags: drawn in the transparent pass of the render, see render. Not when
+        // it is fully transparent: it adds no colour, so its pixels keep the flags of the scene behind
+        if (this.renderFlagsOnly && material.userData.renderToFlags === true && !material.userData.pluginsDisabled && material.opacity > 0 &&
+            (material.transparent || Math.abs(material.transmission || 0) > 0) && this._drawsWithGBufferMaterial(material)) {
+            const transmission = material.transmission || 0
+            if (Math.abs(transmission) > 0) {
+                this._transmissiveMats.add([material, transmission])
+                material.transmission = 0
+            }
+            if (!material.transparent) {
+                this._transparentMats.add(material)
+                material.transparent = true
+            }
+            this.flagsOnlyMaterials.add(material)
+        }
+    }
+
+    /**
+     * Whether a `GBufferMaterial` draws the material: the override material of the pass, or its own (like the
+     * `customGBufferMaterial` of fat lines). Any other shader would write its color into the depth and normal.
+     */
+    private _drawsWithGBufferMaterial(material: IMaterial) {
+        const m = material.allowOverride === true && this.overrideMaterial ? this.overrideMaterial as IMaterial : material
+        return !!m.isGBufferMaterial
+    }
+
+    private _savedForcedMaterials = new Map<IObject3D, IObject3D['forcedOverrideMaterial']>()
+
+    /**
+     * Sets `object.forcedOverrideMaterial` for the render of this pass, and saves the one that the object had: a plugin
+     * can set one for the whole frame, as ViewOverridesPlugin does for fat lines. {@link restoreObjectMaterial} puts it back.
+     */
+    forceObjectMaterial(object: IObject3D, material: Material) {
+        if (!this._savedForcedMaterials.has(object)) this._savedForcedMaterials.set(object, object.forcedOverrideMaterial)
+        object.forcedOverrideMaterial = material
+    }
+
+    /** Puts back the `forcedOverrideMaterial` that the object had before {@link forceObjectMaterial} */
+    restoreObjectMaterial(object: IObject3D) {
+        if (!this._savedForcedMaterials.has(object)) return
+        const saved = this._savedForcedMaterials.get(object)
+        this._savedForcedMaterials.delete(object)
+        if (saved === undefined) delete object.forcedOverrideMaterial
+        else object.forcedOverrideMaterial = saved
     }
 
     preprocessObject = (object: IObject3D) => {
         if (object.customDepthMaterial) {
             const mat = object.customDepthMaterial
             mat.allowOverride = false
-            // todo save the current forcedOverrideMaterial to restore it later?
             const current = object.material
-            object.forcedOverrideMaterial = mat
+            this.forceObjectMaterial(object, mat)
             const current0 = Array.isArray(current) ? current[0] : current
             if (current0) {
                 mat.userData.renderToGBuffer = current0.userData.renderToGBuffer
@@ -67,9 +124,7 @@ export class GBufferRenderPass<TP extends IPassID=IPassID, T extends WebGLRender
     }
 
     postprocessObject = (object: IObject3D) => {
-        if (object.customDepthMaterial) {
-            delete object.forcedOverrideMaterial
-        }
+        this.restoreObjectMaterial(object)
     }
 
     /**
@@ -88,13 +143,32 @@ export class GBufferRenderPass<TP extends IPassID=IPassID, T extends WebGLRender
         const activeMipLevel = renderer.getActiveMipmapLevel()
 
         const objects = new Set<IObject3D>()
+        const materials = new Set<IMaterial>()
+        // once for each material: the first call changes it (transparent, transmission), a second one on a material shared
+        // by two objects would see the changed material and could undo the change
+        const preprocessMaterial = (m: IMaterial) => {
+            if (materials.has(m)) return
+            materials.add(m)
+            this.preprocessMaterial(m)
+        }
         this.scene.traverse((object) => {
             if (!object.visible) return
             objects.add(object)
             const material = this.preprocessObject(object)
             if (!material) return
-            if (Array.isArray(material)) material.forEach((m)=>this.preprocessMaterial(m))
-            else this.preprocessMaterial(material)
+            if (Array.isArray(material)) material.forEach(preprocessMaterial)
+            else preprocessMaterial(material)
+        })
+
+        // The flags-only materials are drawn in the transparent pass, after all the opaque objects, so they are tested
+        // against the full depth and later objects do not write over their flags. The other materials that are left out
+        // of the target are transparent too, and are hidden for this render.
+        const flagsOnly = this.flagsOnlyMaterials.size > 0
+        const hidden: IMaterial[] = []
+        if (flagsOnly) materials.forEach(m => {
+            if (!m.transparent || !m.visible || this.flagsOnlyMaterials.has(m)) return
+            m.visible = false
+            hidden.push(m)
         })
 
         // todo; copy double sided, check with post processing
@@ -103,10 +177,13 @@ export class GBufferRenderPass<TP extends IPassID=IPassID, T extends WebGLRender
             shadowMapRender: false,
             backgroundRender: false,
             opaqueRender: true,
-            transparentRender: false,
+            transparentRender: flagsOnly,
             transmissionRender: false,
             mainRenderPass: false,
         }, ()=> super.render(renderer, null, getOrCall(this.target), deltaTime as any, maskActive as any)) // here this.target is the write-buffer, variable writeBuffer is ignored
+
+        hidden.forEach(m => m.visible = true)
+        this.flagsOnlyMaterials.clear()
 
         this._transparentMats.forEach(m => m.transparent = !m.transparent)
         this._transparentMats.clear()

@@ -66,6 +66,9 @@ export class EditorModeBar {
     /** Called when the names are shown or hidden, with the new state (the toggle button, or {@link setExpanded}) */
     onExpandedChange?: (expanded: boolean) => void
 
+    /** Called when the panel or the names show or hide, so the room next to the mode bar changes (for the frame) */
+    onLayoutChange?: () => void
+
     readonly element: HTMLDivElement
     private _buttons: HTMLButtonElement[]
     /** The tooltips of the buttons; one at a time, moving between the buttons */
@@ -161,6 +164,7 @@ export class EditorModeBar {
         document.documentElement.style.setProperty('--mb-width', (expanded ? EditorModeBar.Widths.wide : EditorModeBar.Widths.narrow) + 'px')
         if (keep && this.storageKey) writeStored(this.storageKey, expanded ? '1' : '0')
         this.onExpandedChange?.(expanded)
+        this.onLayoutChange?.()
     }
 
     /** Marks a mode as selected, when it changes elsewhere (the editor's setSelectedMode) */
@@ -180,6 +184,7 @@ export class EditorModeBar {
         document.body.classList.toggle('mb-panel-hidden', !open)
         this.select(this._selected)
         this._refreshToggle()
+        this.onLayoutChange?.()
     }
 
     /** Opens a mode's panel (and shows the panel if it was hidden), like a click on its button */
@@ -221,6 +226,15 @@ export class EditorModeBar {
     addTooltip(button: HTMLElement, content: string) {
         this._tips.push(tippy(button, {content}))
         this._tipGroup.setInstances(this._tips)
+    }
+
+    /** Removes the tooltip of a button that {@link addTooltip} added, when the button leaves the bar */
+    removeTooltip(button: HTMLElement) {
+        const tip = this._tips.find(t => t.reference === button)
+        if (!tip) return
+        this._tips = this._tips.filter(t => t !== tip)
+        this._tipGroup.setInstances(this._tips)
+        tip.destroy()
     }
 
     dispose() {

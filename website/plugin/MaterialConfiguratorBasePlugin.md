@@ -130,8 +130,10 @@ configurator.getPreview(material, 'map')          // Diffuse texture preview
 configurator.getPreview(material, 'emissive')     // Emissive texture preview
 ```
 
+The generated previews (`generate:...`) render into a small offscreen target of `configurator.previewSize` pixels (default 256, `Preview size` in the plugin UI), with the environment map and the tone mapping of the viewer, so their colours match the viewport. The canvas is not changed. See [Material Previews](../notes/material-previews).
+
 ::: tip
-`getPreview` should ideally be called during the `preFrame` event for best performance.
+`getPreview` should be called during the `preFrame` (or `postFrame`) event, not during a render.
 :::
 
 ## Timeline Integration

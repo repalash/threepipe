@@ -11,6 +11,16 @@ import {
 } from 'threepipe'
 import {UiObjectConfig} from 'uiconfig.js'
 
+/**
+ * Hierarchy UI Plugin
+ *
+ * The objects of the scene as a tree (treejs) in the Tweakpane UI, with a checkbox for the visibility of each.
+ *
+ * @deprecated Use {@link LayersPanelPlugin}: a virtual list with the selection, the hover, hide and lock, rename and
+ * the arrow keys. This plugin stays for apps that use it, and is not changed any more.
+ *
+ * @category Plugins
+ */
 export class HierarchyUiPlugin extends AViewerPluginSync {
     enabled = true
     public static readonly PluginType = 'HierarchyUiPlugin'

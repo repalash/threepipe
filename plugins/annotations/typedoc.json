@@ -1,0 +1,10 @@
+{
+    "extends": [
+        "../../typedoc.json"
+    ],
+    "entryPoints": [
+        "src/index.ts"
+    ],
+    "name": "Annotations Plugin for ThreePipe",
+    "readme": "none"
+}

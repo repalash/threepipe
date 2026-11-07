@@ -13,7 +13,7 @@ import {
     Vector4,
     WebGLRenderer,
 } from 'three'
-import {glsl, onChange, serialize} from 'ts-browser-helpers'
+import {getOrCall, glsl, onChange, serialize} from 'ts-browser-helpers'
 import {IMaterial} from '../../core'
 import {updateBit} from '../../utils'
 import {uniform} from '../../three'
@@ -141,9 +141,38 @@ export class TonemapPlugin extends AScreenPassExtensionPlugin {
         return super.fromJSON(data, meta)
     }
 
+    /**
+     * Whether the material asks for tone mapping: `false` when `userData.gBufferData.tonemapEnabled`
+     * (or the legacy `userData.postTonemap`) is `false`, else when the material's own `toneMapped` is `false`.
+     * This is the bit written to the GBuffer flags.
+     * @param material
+     */
+    static MaterialTonemapEnabled(material: IMaterial): boolean {
+        return (material?.userData.gBufferData?.tonemapEnabled ?? material?.userData.postTonemap ?? material?.toneMapped) !== false
+    }
+
+    /**
+     * Whether the screen pass tone maps the pixels of the material, as `TonemapPlugin.patch.glsl` decides it:
+     * `false` when the plugin is disabled, or when the material opts out ({@link MaterialTonemapEnabled})
+     * and the screen pass reads the GBuffer flags (`HAS_GBUFFER` and `GBUFFER_HAS_FLAGS` of the primary GBuffer).
+     * Without the GBuffer flags, every pixel is tone mapped.
+     * Used by the material previews ({@link materialPreviewOptionsFromViewer}).
+     * @param material
+     */
+    isMaterialTonemapped(material: IMaterial): boolean {
+        if (this.isDisabled()) return false
+        if (TonemapPlugin.MaterialTonemapEnabled(material)) return true
+        const defines = this._viewer?.renderManager.gbufferUnpackExtension?.extraDefines
+        return !(defines && getOrCall(defines.HAS_GBUFFER) && getOrCall(defines.GBUFFER_HAS_FLAGS))
+    }
+
     // TODO: add gBufferData or just tonemapEnabled to the scene material UI with an extension like bloom
+    /**
+     * The tonemap bit of the GBuffer flags of a material: off when `userData.gBufferData.tonemapEnabled` (or the legacy
+     * `userData.postTonemap`) is false, else when the material's own `toneMapped` is false, so the three.js flag works too.
+     */
     updateGBufferFlags(data: Vector4, c: GBufferUpdaterContext): void {
-        const x = (c.material.userData.gBufferData?.tonemapEnabled ?? c.material?.userData.postTonemap) === false ? 0 : 1
+        const x = TonemapPlugin.MaterialTonemapEnabled(c.material) ? 1 : 0
         data.w = updateBit(data.w, 1, x) // 2nd Bit
         super.updateGBufferFlags(data, c)
     }

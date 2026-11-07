@@ -150,16 +150,19 @@ function renderWithModes(this: IWebGLRenderer, ud: TThreeRendererModeUserData, r
     if (ud.transmissionRender !== undefined) rud.transmissionRender = ud.transmissionRender
     if (ud.screenSpaceRendering !== undefined) rud.screenSpaceRendering = ud.screenSpaceRendering
 
-    render()
-
-    rud.backgroundRender = backgroundRender
-    rud.transparentRender = transparentRender
-    rud.shadowMapRender = shadowMapRender
-    rud.mainRenderPass = mainRenderPass
-    rud.opaqueRender = opaqueRender
-    rud.sceneRender = sceneRender
-    rud.transmissionRender = transmissionRender
-    rud.screenSpaceRendering = screenSpaceRendering
+    try {
+        render()
+    } finally {
+        // also when the render throws, so that the next renders get the flags of the caller
+        rud.backgroundRender = backgroundRender
+        rud.transparentRender = transparentRender
+        rud.shadowMapRender = shadowMapRender
+        rud.mainRenderPass = mainRenderPass
+        rud.opaqueRender = opaqueRender
+        rud.sceneRender = sceneRender
+        rud.transmissionRender = transmissionRender
+        rud.screenSpaceRendering = screenSpaceRendering
+    }
 
 }
 

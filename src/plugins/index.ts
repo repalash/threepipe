@@ -81,10 +81,13 @@ export {NoiseBumpMaterialPlugin, noiseBumpMaterialGLTFExtension} from './materia
 export {CustomBumpMapPlugin, customBumpMapGLTFExtension} from './material/CustomBumpMapPlugin'
 export {ParallaxMappingPlugin} from './material/ParallaxMappingPlugin'
 export {FragmentClippingExtensionPlugin, FragmentClippingMode, fragmentClippingGLTFExtension} from './material/FragmentClippingExtensionPlugin'
+export {MaterialPreviewPlugin, materialPreviewSettingsKey} from './material/MaterialPreviewPlugin'
+export type {MaterialChangeEvent, MaterialPreview, MaterialPreviewCallback, MaterialPreviewHandle, MaterialPreviewRequestOptions} from './material/MaterialPreviewPlugin'
 
 // rendering
 export {VirtualCamerasPlugin, type VirtualCamera, type VirtualCamerasPluginEventMap} from './rendering/VirtualCamerasPlugin'
 export {CascadedShadowsPlugin, type CSMLightData, type FrustumVertices, type FrustumParams, CSMFrustum} from './rendering/CascadedShadowsPlugin'
+export {ViewOverridesPlugin, type ViewOverrideMaterialType, type ViewOverrideMaterialItem, type ViewOverrideLightingPreset, type ViewOverridesPluginEventMap} from './rendering/ViewOverridesPlugin'
 
 // configurator
 export {MaterialConfiguratorBasePlugin, type MaterialVariations} from './configurator/MaterialConfiguratorBasePlugin'
@@ -118,6 +121,7 @@ export {GLTFKHRMaterialVariantsPlugin} from './extras/GLTFKHRMaterialVariantsPlu
 export {TailwindCSSCDNPlugin} from './extras/TailwindCSSCDNPlugin'
 export {DynamicImportPlugin, sampleThreepipeViteHmrPlugin} from './extras/DynamicImportPlugin'
 export {ObjectConstraintsPlugin, ObjectConstraint, type ObjectConstraintsPluginEventMap} from './extras/ObjectConstraintsPlugin'
+export {BVHPlugin, type BVHMode, type BVHPluginEventMap, type BVHPluginOptions, type IMeshBVH, type ThreeMeshBVH} from './extras/BVHPlugin'
 export {basicObjectConstraints, type ConstraintPropsTypes, type TConstraintPropsType, type ConstraintPropsType} from './extras/helpers/BasicObjectConstraints'
 
 // ecs

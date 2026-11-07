@@ -42,3 +42,9 @@ plugin.appendChild(viewer.uiConfig)
 // Add UI for some plugins
 plugin.setupPlugins(TonemapPlugin, DropzonePlugin)
 ```
+
+## Color mode
+
+`colorMode` sets the theme of the panel: `clean` and `clean-dark` (the default, from the system setting), `light`, `dark`, `black`, `white` and `blue`. It is in the plugin UI (Color Mode), and the fourth argument of the constructor sets it for the app.
+
+The colour mode is kept in `localStorage` (`tpTheme`), with the default at the time it was written (`tpThemeDefault`). A kept colour mode that was the default then follows the default of now, so a new default (or a change of the system setting) reaches everyone who did not pick another colour mode. A colour mode that the person picked stays. The colour mode is written only when it changes, so opening the page does not mark a pick as a default while the system setting matches it. A value of an earlier version, kept without the default, counts as a default when it is one of the earlier defaults (`blue`, `dark`, `light`).

@@ -525,6 +525,7 @@ Many features will be added but the core API will not change significantly in fu
   - [CanvasSnapshotPlugin](https://threepipe.org/plugin/CanvasSnapshotPlugin.html) - Add support for taking snapshots of the canvas with anti-aliasing and other options
   - [CanvasRecorderPlugin](https://threepipe.org/plugin/CanvasRecorderPlugin.html) - Record the canvas to an MP4 or WebM video or an image sequence, in real time or frame by frame after the progressive render converges
   - [PickingPlugin](https://threepipe.org/plugin/PickingPlugin.html) - Adds support for selecting and multi-selecting objects in the viewer with user interactions and selection widgets
+  - [BVHPlugin](https://threepipe.org/plugin/BVHPlugin.html) - Fast raycasts (picking, hover) on big meshes with a bounding volume hierarchy from three-mesh-bvh, loaded on demand
   - [GPUPickingPlugin](https://threepipe.org/plugin/GPUPickingPlugin.html) - Finds the front-most mesh under a point of the canvas by rendering object ids on the GPU, for hover on big scenes
   - [AssetExporterPlugin](https://threepipe.org/plugin/AssetExporterPlugin.html) - Provides options and methods to export the scene/object GLB or Viewer Configuration JSON
   - [LoadingScreenPlugin](https://threepipe.org/plugin/LoadingScreenPlugin.html) - Shows a configurable loading screen overlay over the canvas
@@ -544,6 +545,7 @@ Many features will be added but the core API will not change significantly in fu
   - [PerfPanelPlugin](https://threepipe.org/plugin/PerfPanelPlugin.html) - FPS pill and performance card over the canvas: frame times, render time, draw calls, and warnings for a capped frame rate, CPU/GPU bound, battery and software rendering
   - [TailwindCSSCDNPlugin](https://threepipe.org/plugin/TailwindCSSCDNPlugin.html) - Dynamically loads Tailwind CSS from a CDN to enable rapid UI development with utility classes
   - [FrameFadePlugin](https://threepipe.org/plugin/FrameFadePlugin.html) - Post-render pass to smoothly fade to a new rendered frame over time
+  - [ViewOverridesPlugin](https://threepipe.org/plugin/ViewOverridesPlugin.html) - Show the scene with a debug material (unlit, depth, normals, material ID, UV) or with preset lights or another environment map, without changing the scene
   - [VignettePlugin](https://threepipe.org/plugin/VignettePlugin.html) - Add Vignette effect  by patching the final screen pass
   - [ChromaticAberrationPlugin](https://threepipe.org/plugin/ChromaticAberrationPlugin.html) - Add [Chromatic Aberration](https://en.wikipedia.org/wiki/Chromatic_aberration) effect  by patching the final screen pass
   - [FilmicGrainPlugin](https://threepipe.org/plugin/FilmicGrainPlugin.html) - Add [Filmic Grain](https://en.wikipedia.org/wiki/Film_grain) effect  by patching the final screen pass
@@ -595,6 +597,7 @@ Many features will be added but the core API will not change significantly in fu
   - [@threepipe/plugin-timeline-ui](https://threepipe.org/package/plugin-timeline-ui.html) - A timeline UI component and plugin to manage global viewer timeline and animations
   - [@threepipe/plugin-r3f](https://threepipe.org/package/plugin-r3f.html) - React Three Fiber integration. Provides React components for declarative 3D experiences with ThreePipe viewer context
   - [@threepipe/plugin-troika-text](https://threepipe.org/package/plugin-troika-text.html) - [troika-three-text](https://protectwise.github.io/troika/troika-three-text/) integration plugin that provides high performance SDF Text
+  - [@threepipe/plugin-annotations](https://threepipe.org/package/plugin-annotations.html) - 3D annotations (hotspots): numbered markers on objects with a title, a text and a camera view, saved in the scene
 
 ## Documentation
 
