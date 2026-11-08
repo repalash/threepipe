@@ -718,11 +718,9 @@ describe('InspectorPlugin.css', () => {
         }
         const font = (css: string, sel: string) => sizes(css, sel).find(d => d.startsWith('font:'))
         expect(font(isp, '.isp-root')).toBe(font(lyp, '.lyp-root'))
-        // no larger text in the search field on a touch screen: the same height as the Layers search (the touch rule is
-        // for the action buttons of the head)
-        const touch = [...isp.matchAll(/@media \(pointer:\s*coarse\)\s*\{([^@]*?\})\s*\}/g)].map(m => m[1])
-        expect(touch.length).toBeGreaterThan(0)
-        for (const rules of touch) expect(rules).not.toMatch(/search/)
+        // no larger text in the search field or larger action buttons on a touch screen: the sizes of the Layers search
+        // and of the buttons of the bar over the canvas
+        expect(isp).not.toMatch(/pointer:\s*coarse/)
         // the clear button shows only while the field has text, in both
         for (const [css, p] of [[isp, 'isp'], [lyp, 'lyp']]) expect(sizes(css, `.${p}-search-input:placeholder-shown + .${p}-search-clear`)).toEqual(['display: none'])
     })
