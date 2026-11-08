@@ -353,6 +353,36 @@ await viewer.fitToView(myObject, 1.5, 0)
 await viewer.fitToView([obj1, obj2], 1.5, 1000, 'easeInOutSine')
 ```
 
+### Dialogs and toasts
+
+[`viewer.dialog`](https://threepipe.org/docs/classes/ThreeViewer.html#dialog) shows messages and asks questions for the viewer and its plugins: `alert`, `confirm`, `prompt`, `choose` and `toast`. It is [`ThreeViewer.Dialog`](https://threepipe.org/docs/classes/ThreeViewer.html#Dialog), one for all the viewers on the page. The default (`windowDialogWrapper` of `ts-browser-helpers`) uses the dialogs of the browser and writes a toast to the console. The UI plugins (`TweakpaneUiPlugin`, `BlueprintJsUiPlugin`) set `htmlDialogWrapper`, which shows HTML dialogs and toasts. An app can set its own dialog, for example one made with its UI library.
+
+```typescript
+import {htmlDialogWrapper, ThreeViewer} from 'threepipe'
+
+ThreeViewer.Dialog = htmlDialogWrapper // done by the UI plugins
+
+if (await viewer.dialog.confirm('Delete the model?')) viewer.scene.clearSceneModels()
+
+// a short message in a chip that goes after some seconds; toast is optional in a custom dialog, so call it with ?.
+viewer.dialog.toast?.('Link copied', {container: viewer.container})
+viewer.dialog.toast?.('Export failed: no write access', {kind: 'error', container: viewer.container})
+viewer.dialog.toast?.('Click to close', {duration: 0}) // on the page, until a click
+```
+
+The options of `toast`:
+- `kind`: `'info'` (default), `'warn'` (an amber dot) or `'error'` (a red dot, and `role="alert"` for screen readers).
+- `duration`: the time on the screen, in ms. Default: 4000, an error 8000. `0` keeps the toast until a click.
+- `container`: the element to show it in, like `viewer.container` (at the top centre of the element). Default: the page (fixed at the top centre of the window).
+
+With `htmlDialogWrapper`, a click on a toast closes it, and a container shows three toasts at most (a new one takes out the oldest). The place and the look are CSS: the variables `--dialog-toast-top` (the offset from the top, 12px), `--dialog-toast-bg`, `--dialog-toast-shadow` and `--dialog-toast-z`, set on the container or the page. Other places need a CSS rule over the classes `.dialog-toasts` (the element of the toasts) and `.dialog-toast` (each toast). For example, at the bottom:
+
+```css
+.dialog-toasts { top: auto; bottom: 12px; }
+```
+
+The [`CommandsPlugin`](../plugin/CommandsPlugin) shows the `error` and the `warn` of each action in a toast of the viewer. The [Dialog Toasts example](https://threepipe.org/examples/#dialog-toasts/) shows all of this.
+
 ## RenderManager
 
 Source Code: [src/viewer/ViewerRenderManager.ts](https://github.com/repalash/threepipe/blob/master/src/viewer/ViewerRenderManager.ts), [src/rendering/RenderManager.ts](https://github.com/repalash/threepipe/blob/master/src/rendering/RenderManager.ts), [src/rendering/RenderTargetManager.ts](.https://github.com/repalash/threepipe/blob/master/src/rendering/RenderTargetManager.ts)
