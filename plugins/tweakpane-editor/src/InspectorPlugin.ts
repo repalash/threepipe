@@ -118,7 +118,7 @@ class InspectorUiRenderer extends TweakpaneUiPlugin {
  *   and keys, then the buttons of the open tab that have the `context-menu` tag (`UiTags.ContextMenu`: Auto Center,
  *   Set View...), sorted by their uiconfig `order`. Those buttons leave the settings; one with the `inline` tag
  *   (`UiTags.Inline`) stays there and is not in the menu. A button linked to an action (`setUiConfigAction`, like Duplicate
- *   Object) is not in the menu: the action is. The actions run through the `CommandsPlugin` of the viewer when it has
+ *   Object) is not in the menu while its action is in {@link InspectorPlugin.BarActions}: the action is. The actions run through the `CommandsPlugin` of the viewer when it has
  *   one (its keys, the toasts of the results), else on their own.
  * - Escape (the PickingPlugin) clears the selection.
  *
@@ -337,8 +337,10 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
         })
         this._body = this.element.appendChild(el('div', 'isp-body'))
         // the renderer builds and rebuilds its rows (a refresh, a dynamic folder): the search applies to the new ones too
-        if (typeof MutationObserver !== 'undefined') new MutationObserver(() => {
-            this._markMenuButtons()
+        if (typeof MutationObserver !== 'undefined') new MutationObserver((records) => {
+            // new rows (a dynamic folder, like the constraints of an object): find the menu buttons again; a changed
+            // text (a monitor) adds no element and costs no walk of the uiConfig
+            if (records.some(r => Array.from(r.addedNodes).some(n => n.nodeType === 1))) this._refreshMenuButtons()
             this._applySearch()
         }).observe(this._body, {childList: true, subtree: true})
         this._noMatch = this.element.appendChild(el('div', 'isp-empty'))
@@ -639,6 +641,15 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
                 this._renderBar() // Select the parent: enabled or not for the new selection
             })
         }
+        this._refreshMenuButtons()
+    }
+
+    /**
+     * Finds the `context-menu` buttons of the open tab again ({@link _taggedButtons}), hides their rows, and shows the ⋯
+     * button while the menu has items: at each render, and when the renderer adds rows (a dynamic folder)
+     */
+    private _refreshMenuButtons() {
+        if (!this._more) return
         const config = this._inPage ? this._shown[this._shown.length - 1] : undefined
         const order = (c: UiObjectConfig) => Number(getOrCall(c.order)) || 0
         this._taggedButtons = !config ? [] : findTaggedUiConfigs(config, UiTags.ContextMenu).map(t => t.config)
@@ -650,12 +661,13 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
 
     /**
      * The buttons of the open tab that have the `context-menu` tag, for the ⋯ menu: not hidden, and not linked to an
-     * action that exists (`setUiConfigAction`), since the menu has the action
+     * action that the bar and the menu show (`setUiConfigAction`, an action of {@link BarActions} that exists)
      */
     private _menuButtons(): UiObjectConfig[] {
+        const shown = new Set(this._barActions().map(a => a.id))
         return this._taggedButtons.filter(c => {
             const action = getUiConfigAction(c)
-            return !getOrCall(c.hidden) && !(action && this._actionOf(action))
+            return !getOrCall(c.hidden) && !(action && shown.has(action))
         })
     }
 
@@ -937,11 +949,14 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
 
     /**
      * Opens a menu at a point of the window (`clientX`, `clientY`). It is fixed, so a scrolled page (a phone) does not
-     * move it, and it stays inside the window.
+     * move it, and it stays inside the window; a menu taller than the window scrolls.
      */
     protected _showMenu(items: Record<string, () => void>, x: number, y: number): HTMLElement | undefined {
         const m = CustomContextMenu.Create(items, 0, 0)
         m.style.position = 'fixed'
+        // a long menu (many buttons, a landscape phone) scrolls inside the window
+        m.style.maxHeight = (window.innerHeight - 16) + 'px'
+        m.style.overflowY = 'auto'
         const w = m.offsetWidth, h = m.offsetHeight
         m.style.left = Math.max(8, Math.min(x, window.innerWidth - w - 8)) + 'px'
         m.style.top = Math.max(8, Math.min(y, window.innerHeight - h - 8)) + 'px'

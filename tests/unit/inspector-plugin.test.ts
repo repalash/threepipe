@@ -330,6 +330,77 @@ describe('InspectorPlugin', () => {
         expect(picking.runs).toEqual(['focus'])
     })
 
+    test('a constraint added or removed while the tab is open: the menu finds the buttons again when the renderer adds rows', async() => {
+        const {UiTags} = await import('threepipe')
+        let observed: ((records: any[]) => void) | undefined
+        vi.stubGlobal('MutationObserver', class {
+            constructor(f: (records: any[]) => void) {
+                observed = f
+            }
+            observe() {}
+        })
+        try {
+            const {el, inspector} = setup()
+            const menus: Record<string, () => void>[] = []
+            vi.spyOn(inspector as any, '_showMenu').mockImplementation((items: any) => void menus.push(items))
+            const remove = (n: number) => ({type: 'button', label: 'Remove Constraint ' + n, tags: [UiTags.ContextMenu], value: vi.fn(), uiRef: {element: new FakeElement('div')}})
+            let constraints = [remove(1)]
+            const a = mesh(new PhysicalMaterial())
+            a.uiConfig = {type: 'folder', label: 'Box', children: [() => constraints]} as any
+            picking.select(a)
+            constraints = [remove(2)]
+            // a changed text (a monitor) does not walk the uiConfig; new rows do
+            observed!([{addedNodes: [{nodeType: 3}]}])
+            el.find('isp-more')[0].click()
+            expect(Object.keys(menus[0])).toContain('Remove Constraint 1')
+            observed!([{addedNodes: [{nodeType: 1}]}])
+            el.find('isp-more')[0].click()
+            expect(Object.keys(menus[1])).toContain('Remove Constraint 2')
+            expect(Object.keys(menus[1])).not.toContain('Remove Constraint 1')
+            expect(constraints[0].uiRef.element.classList.contains('isp-in-menu')).toBe(true)
+        } finally {
+            vi.unstubAllGlobals()
+        }
+    })
+
+    test('a button linked to an action that the bar does not show stays in the menu (an app removed it from BarActions)', async() => {
+        const {setUiConfigAction, UiTags} = await import('threepipe')
+        const barActions = InspectorPlugin.BarActions
+        InspectorPlugin.BarActions = barActions.filter(id => id !== 'picking.duplicate')
+        try {
+            const {el, inspector} = setup()
+            const menus: Record<string, () => void>[] = []
+            vi.spyOn(inspector as any, '_showMenu').mockImplementation((items: any) => void menus.push(items))
+            const dup = setUiConfigAction({type: 'button', label: 'Duplicate Object', tags: [UiTags.ContextMenu], value: vi.fn()}, 'picking.duplicate')
+            const del = setUiConfigAction({type: 'button', label: 'Delete Object', tags: [UiTags.ContextMenu], value: vi.fn()}, 'picking.delete')
+            const a = mesh(new PhysicalMaterial())
+            a.uiConfig = {type: 'folder', label: 'Box', children: [dup, del]} as any
+            picking.select(a)
+            el.find('isp-more')[0].click()
+            const items = Object.keys(menus[0]).map(k => k.replace(/\(.*\)/, '').trim())
+            expect(items).toContain('Duplicate Object')
+            expect(items).not.toContain('Delete Object')
+            expect(items).not.toContain('Duplicate')
+        } finally {
+            InspectorPlugin.BarActions = barActions
+        }
+    })
+
+    test('a menu taller than the window scrolls inside it, and stays inside the window', async() => {
+        const {CustomContextMenu} = await import('threepipe')
+        const {inspector} = setup()
+        const menu = Object.assign(new FakeElement('div'), {offsetWidth: 180, offsetHeight: 300})
+        vi.spyOn(CustomContextMenu, 'Create').mockImplementation(() => menu as any)
+        vi.stubGlobal('innerWidth', 400)
+        vi.stubGlobal('innerHeight', 200)
+        try {
+            ;(inspector as any)._showMenu({'A': () => {}}, 350, 150)
+            expect(menu.style).toMatchObject({position: 'fixed', maxHeight: '184px', overflowY: 'auto', left: '212px', top: '8px'})
+        } finally {
+            vi.unstubAllGlobals()
+        }
+    })
+
     test('with a CommandsPlugin, the bar runs its actions there (its toasts) and shows the keys that the app set', async() => {
         const {CommandsPlugin} = await import('threepipe')
         const {el, viewer} = setup()
