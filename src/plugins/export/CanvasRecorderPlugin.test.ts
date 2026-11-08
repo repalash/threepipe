@@ -1356,6 +1356,26 @@ describe('converge mode stop', () => {
         expect(captured).toEqual([4])
     })
 
+    test('the last pose waits for a slow frame sink, longer than the wait for a browser recorder', async() => {
+        const {plugin, captured} = converging(4)
+        const rec = plugin._recorder
+        // the sink still writes the frame of the pose before (an upload) for 300 ms: far past maxFrameCount + 2 loops
+        // and two frame times of the video (67 ms at 30 fps)
+        const writesUntil = performance.now() + 300
+        const writing = () => performance.now() < writesUntil
+        Object.assign(rec, {isBusy: writing, isWriting: writing})
+        plugin.endPaddingMs = 0
+        const doOnce = plugin._viewer.doOnce
+        plugin._viewer.doOnce = async() => {
+            await doOnce()
+            await new Promise(r => setTimeout(r, 5))
+            plugin._postFrame()
+            plugin._pendingCapture?.()
+        }
+        await plugin.stopRecording()
+        expect(captured).toEqual([4]) // the final pose, once the sink is done
+    })
+
     test('a last pose that converges while the browser recorder still records a frame is captured once it is ready', async() => {
         const {plugin, captured} = converging(4)
         const rec = plugin._recorder
