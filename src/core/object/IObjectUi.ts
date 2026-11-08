@@ -7,7 +7,7 @@ import {generateUUID} from '../../three'
 import {getOrCall} from 'ts-browser-helpers'
 import {iCameraCommons} from './iCameraCommons'
 import {iObjectCommons} from './iObjectCommons'
-import {setUiConfigAction, UiTags} from '../../ui/uiconfig'
+import {UiTags} from '../../ui/uiconfig'
 
 declare module '../IObject' {
     interface IObject3D {
@@ -345,22 +345,21 @@ export function incrementObjectCloneName(obj: IObject3D, clone: IObject3D, name?
     }
 }
 
-// linked to the actions of the PickingPlugin: a UI that shows those leaves these out
 export function objectActionsUiConfig(this: IObject3D): UiObjectConfig[] {
-    return [setUiConfigAction({
+    return [{
         type: 'button',
         label: 'Duplicate Object',
         tags: [UiTags.ContextMenu],
         value: async(e?: any)=>{
             return iObjectCommons.duplicateObject(this, e)
         },
-    }, 'picking.duplicate'),
-    setUiConfigAction({
+    },
+    {
         type: 'button',
         label: 'Delete Object',
         tags: [UiTags.ContextMenu],
         value: async(e?: any)=>{
             return iObjectCommons.deleteObject(this, e)
         },
-    }, 'picking.delete')]
+    }]
 }

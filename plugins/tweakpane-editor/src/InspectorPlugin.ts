@@ -6,7 +6,6 @@ import {
     CustomContextMenu,
     formatShortcut,
     getOrCall,
-    getUiConfigAction,
     hasUiTag,
     IEvent,
     IGeometry,
@@ -115,11 +114,10 @@ class InspectorUiRenderer extends TweakpaneUiPlugin {
  * - The head has a bar of the actions of the selected object ({@link InspectorPlugin.BarActions}: Focus, Hide or show,
  *   Duplicate, Delete, Select the parent), as icons, with their label and key in the tooltip. A narrow panel shows the
  *   icons that fit (the others wrap to a hidden line); the ⋯ button opens a menu of all the actions, with their labels
- *   and keys, then the buttons at the top of the open tab that have the `context-menu` tag (one inside a folder stays there) (`UiTags.ContextMenu`: Auto Center,
- *   Set View...), sorted by their uiconfig `order`. Those buttons leave the settings; one with the `inline` tag
- *   (`UiTags.Inline`) stays there and is not in the menu. A button linked to an action (`setUiConfigAction`, like Duplicate
- *   Object) is not in the menu while its action is in {@link InspectorPlugin.BarActions}: the action is. The actions run through the `CommandsPlugin` of the viewer when it has
- *   one (its keys, the toasts of the results), else on their own.
+ *   and keys, then the buttons at the top of the open tab that have the `context-menu` tag (`UiTags.ContextMenu`: Auto
+ *   Center, Set View...; one inside a folder stays there), sorted by their uiconfig `order`. Those buttons leave the
+ *   settings; one with the `inline` tag (`UiTags.Inline`) stays there and is not in the menu. The actions run through the
+ *   `CommandsPlugin` of the viewer when it has one (its keys, the toasts of the results), else on their own.
  * - Escape (the PickingPlugin) clears the selection.
  *
  * Where the panel goes: in the `container` given to the constructor, else the app puts {@link element} in the page.
@@ -661,16 +659,9 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
         this._markMenuButtons()
     }
 
-    /**
-     * The buttons of the open tab that have the `context-menu` tag, for the ⋯ menu: not hidden, and not linked to an
-     * action that the bar and the menu show (`setUiConfigAction`, an action of {@link BarActions} that exists)
-     */
+    /** The `context-menu` buttons of the open tab that are not hidden, for the ⋯ menu */
     private _menuButtons(): UiObjectConfig[] {
-        const shown = new Set(this._barActions().map(a => a.id))
-        return this._taggedButtons.filter(c => {
-            const action = getUiConfigAction(c)
-            return !getOrCall(c.hidden) && !(action && shown.has(action))
-        })
+        return this._taggedButtons.filter(c => !getOrCall(c.hidden))
     }
 
     /** The items of the ⋯ menu: the actions of the selected object (enabled), then the `context-menu` buttons of the open tab */

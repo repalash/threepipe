@@ -298,13 +298,13 @@ describe('InspectorPlugin', () => {
         expect(inspector.hasSelection).toBe(true)
     })
 
-    test('the ⋯ menu: all the actions, then the context-menu buttons of the open tab, which leave the settings; a button linked to an action is left out', async() => {
-        const {setUiConfigAction, UiTags} = await import('threepipe')
+    test('the ⋯ menu: all the actions, then the context-menu buttons at the top of the open tab, which leave the settings', async() => {
+        const {UiTags} = await import('threepipe')
         const {el, inspector, ui} = setup()
         const row = () => new FakeElement('div')
         const center = {type: 'button', label: 'Auto Center', tags: [UiTags.ContextMenu], value: vi.fn(), uiRef: {element: row()}}
         const off = {type: 'button', label: 'Set View', tags: [UiTags.ContextMenu], hidden: () => true, value: vi.fn(), uiRef: {element: row()}}
-        const dup = setUiConfigAction({type: 'button', label: 'Duplicate Object', tags: [UiTags.ContextMenu], value: vi.fn(), uiRef: {element: row()}}, 'picking.duplicate')
+        const dup = {type: 'button', label: 'Duplicate Object', tags: [UiTags.ContextMenu], value: vi.fn(), uiRef: {element: row()}}
         const plain = {type: 'button', label: 'Rotate', value: vi.fn(), uiRef: {element: row()}}
         const kept = {type: 'button', label: 'Reset Pivot', tags: [UiTags.ContextMenu, UiTags.Inline], value: vi.fn(), uiRef: {element: row()}}
         const first = {type: 'button', label: 'Export', tags: [UiTags.ContextMenu], order: -1, value: vi.fn(), uiRef: {element: row()}}
@@ -322,10 +322,10 @@ describe('InspectorPlugin', () => {
         expect(more.style.display).toBe('')
         more.click()
         // the buttons by their uiconfig order (Export: -1), else in the tree order; not the inline one
-        expect(Object.keys(menus[0]).map(k => k.replace(/\(.*\)/, '').trim())).toEqual(['Focus', 'Hide or show', 'Duplicate', 'Delete', 'Export', 'Auto Center'])
+        expect(Object.keys(menus[0]).map(k => k.replace(/\(.*\)/, '').trim())).toEqual(['Focus', 'Hide or show', 'Duplicate', 'Delete', 'Export', 'Auto Center', 'Duplicate Object'])
         menus[0]['Auto Center']()
         expect(ui.methods.clickButton).toHaveBeenCalledWith(center)
-        // the tagged buttons hide from the settings (also the hidden and the linked ones), the others stay
+        // the tagged buttons hide from the settings (also the hidden one), the others stay
         expect([center, off, dup, plain, kept, nested].map(c => c.uiRef.element.classList.contains('isp-in-menu'))).toEqual([true, true, true, false, false, false])
         // an action runs from the menu too
         Object.values(menus[0])[0]()
@@ -362,29 +362,6 @@ describe('InspectorPlugin', () => {
             expect(constraints[0].uiRef.element.classList.contains('isp-in-menu')).toBe(true)
         } finally {
             vi.unstubAllGlobals()
-        }
-    })
-
-    test('a button linked to an action that the bar does not show stays in the menu (an app removed it from BarActions)', async() => {
-        const {setUiConfigAction, UiTags} = await import('threepipe')
-        const barActions = InspectorPlugin.BarActions
-        InspectorPlugin.BarActions = barActions.filter(id => id !== 'picking.duplicate')
-        try {
-            const {el, inspector} = setup()
-            const menus: Record<string, () => void>[] = []
-            vi.spyOn(inspector as any, '_showMenu').mockImplementation((items: any) => void menus.push(items))
-            const dup = setUiConfigAction({type: 'button', label: 'Duplicate Object', tags: [UiTags.ContextMenu], value: vi.fn()}, 'picking.duplicate')
-            const del = setUiConfigAction({type: 'button', label: 'Delete Object', tags: [UiTags.ContextMenu], value: vi.fn()}, 'picking.delete')
-            const a = mesh(new PhysicalMaterial())
-            a.uiConfig = {type: 'folder', label: 'Box', children: [dup, del]} as any
-            picking.select(a)
-            el.find('isp-more')[0].click()
-            const items = Object.keys(menus[0]).map(k => k.replace(/\(.*\)/, '').trim())
-            expect(items).toContain('Duplicate Object')
-            expect(items).not.toContain('Delete Object')
-            expect(items).not.toContain('Duplicate')
-        } finally {
-            InspectorPlugin.BarActions = barActions
         }
     })
 

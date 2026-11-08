@@ -101,27 +101,6 @@ export enum UiTags {
     Constraint = 'constraint'
 }
 
-/** The action of each linked button ({@link setUiConfigAction}) */
-const uiConfigActions = new WeakMap<UiObjectConfig, string>()
-
-/**
- * Links a uiConfig button to the action of a `CommandsPlugin` that does the same job, like the Duplicate Object button
- * of an object and the action `picking.duplicate`. A UI that shows the action (the inspector of the tweakpane editor)
- * leaves the button out, so the job is in it once; other renderers still show the button.
- * @param config - the button
- * @param actionId - the id of the action
- * @returns the button
- */
-export function setUiConfigAction<T extends UiObjectConfig>(config: T, actionId: string): T {
-    uiConfigActions.set(config, actionId)
-    return config
-}
-
-/** The id of the action that a uiConfig button is linked to ({@link setUiConfigAction}) */
-export function getUiConfigAction(config: UiObjectConfig): string | undefined {
-    return uiConfigActions.get(config)
-}
-
 /**
  * Returns true when the `tags` of the config contain the tag. `tags` can be a string or an array of strings.
  * @param config - uiConfig to check

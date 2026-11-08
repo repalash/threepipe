@@ -111,14 +111,3 @@ describe('the core configs keep their tag strings', () => {
         helper.dispose()
     })
 })
-
-describe('setUiConfigAction', () => {
-    test('links a button to an action; the Duplicate Object and Delete Object buttons of an object are linked to the picking actions', () => {
-        const button: UiObjectConfig = {type: 'button', label: 'Save'}
-        expect(tp.getUiConfigAction(button)).toBeUndefined()
-        expect(tp.setUiConfigAction(button, 'app.save')).toBe(button)
-        expect(tp.getUiConfigAction(button)).toBe('app.save')
-        const buttons = tp.objectActionsUiConfig.call(new tp.Mesh() as any)
-        expect(buttons.map(b => [b.label, tp.getUiConfigAction(b)])).toEqual([['Duplicate Object', 'picking.duplicate'], ['Delete Object', 'picking.delete']])
-    })
-})
