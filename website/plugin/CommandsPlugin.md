@@ -89,7 +89,7 @@ commands.setShortcut('picking.delete', 'Delete') // not Backspace too
 commands.setShortcut('transformControls.toggleEnabled', null) // Space does nothing
 ```
 
-**Toasts.** The `error` and the `warn` of each run show in a toast of the viewer dialog (`viewer.dialog.toast`, in the viewer container), while `toastResults` is on (default). The UI plugins (`TweakpaneUiPlugin`, `BlueprintJsUiPlugin`) use the HTML dialog of `ts-browser-helpers`, which shows a small chip at the top centre; without one, the message goes to the console.
+**Toasts.** The `error` and the `warn` of each run show in a toast of the viewer dialog (`viewer.dialog.toast`, in the viewer container), while `toastResults` is on (default). The UI plugins (`TweakpaneUiPlugin`, `BlueprintJsUiPlugin`) use the HTML dialog of `ts-browser-helpers`, which shows a small chip at the top centre; without one, the message goes to the console. The [Dialog Toasts example](https://threepipe.org/examples/#dialog-toasts/) shows the kinds, the times and the CSS variables of the place and the colours (`--dialog-toast-top`, `--dialog-toast-bg`, `--dialog-toast-shadow`, `--dialog-toast-z`).
 
 The helpers `parseShortcut`, `matchShortcut`, `formatShortcut`, `isTextTarget`, `isTargetKey`, `shortcutsOf` and `viewerTakesKey` are exported for other UIs.
 
