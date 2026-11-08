@@ -1,3 +1,4 @@
+import {HiddenPageClock} from './HiddenPageClock'
 import {
     AddEquation,
     Color,
@@ -155,9 +156,30 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
         this.dispatchEvent({type: 'animationLoop', deltaTime, time, renderer: this._renderer, xrFrame: frame})
     }
 
+    /** Frames while the page is hidden, for {@link keepRenderingWhenHidden} */
+    private _hiddenClock: HiddenPageClock
+
+    /**
+     * Keeps rendering while the page is hidden, where the browser stops `requestAnimationFrame`: a clock in a worker drives
+     * the frames at about 60 a second until the page is visible again. For a task that must not pause, like a recording;
+     * it uses the CPU and GPU in the background. Each key holds it until {@link stopRenderingWhenHidden} with that key.
+     * Not in WebXR, whose session drives its own frames. See {@link HiddenPageClock}.
+     */
+    keepRenderingWhenHidden(key: string): void {
+        this._hiddenClock.hold(key)
+    }
+
+    /** Stops what {@link keepRenderingWhenHidden} started for this key */
+    stopRenderingWhenHidden(key: string): void {
+        this._hiddenClock.release(key)
+    }
+
     constructor({canvas, alpha = true, renderScale = 1, powerPreference, targetOptions}:IRenderManagerOptions) {
         super()
         this.animationLoop = this.animationLoop.bind(this)
+        this._hiddenClock = new HiddenPageClock(time => {
+            if (!this._renderer.xr.isPresenting) this.animationLoop(time)
+        })
         // this._xrPreAnimationLoop = this._xrPreAnimationLoop.bind(this)
         this._renderSize = new Vector2(canvas.clientWidth, canvas.clientHeight)
         this._renderScale = renderScale
@@ -322,6 +344,7 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
     }
 
     dispose(clear = true): void {
+        this._hiddenClock.dispose()
         super.dispose(clear)
         this._renderer.dispose()
     }

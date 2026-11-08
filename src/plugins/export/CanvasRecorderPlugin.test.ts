@@ -2338,3 +2338,22 @@ describe('CanvasRecorderPlugin recorders', () => {
         expect(plugin._recorder.options.frameSink).toBeUndefined()
     })
 })
+
+describe('CanvasRecorderPlugin in a hidden tab', () => {
+    test('a recording keeps rendering while the tab is hidden, until it stops', async() => {
+        const {plugin} = setup()
+        const keep = vi.fn(), stop = vi.fn()
+        plugin._viewer.renderManager = Object.assign(plugin._viewer.renderManager ?? {}, {keepRenderingWhenHidden: keep, stopRenderingWhenHidden: stop})
+        plugin.mimeType = 'image/png' // a real recorder, with the plugin's listeners on it
+        const rec = plugin._recorder
+        rec._console = {error: () => undefined, warn: () => undefined, log: () => undefined}
+        rec.setState('recording')
+        expect(keep).toHaveBeenCalledWith('CanvasRecorder')
+        rec.setState('stopped')
+        expect(stop).toHaveBeenCalledWith('CanvasRecorder')
+        rec.setState('recording')
+        rec.setState('error')
+        expect(stop).toHaveBeenCalledTimes(2)
+    })
+})
+

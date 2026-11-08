@@ -424,6 +424,7 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
     }
 
     onRemove(viewer: ThreeViewer): void {
+        viewer.renderManager.stopRenderingWhenHidden?.(CanvasRecorderPlugin.PluginType)
         viewer.renderManager.removeEventListener('preRender', this._preRender)
         viewer.removeEventListener('postRender', this._postRender)
         viewer.removeEventListener('postFrame', this._postFrame)
@@ -1019,12 +1020,15 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
         const listeners: RecorderListener[] = [
             ['starting', () => this._stateChange(false)],
             ['recording', () => {
+                // a hidden tab doesn't pause the recording
+                this._viewer?.renderManager?.keepRenderingWhenHidden?.(CanvasRecorderPlugin.PluginType)
                 this._showIndicator(true)
                 this.dispatchEvent({type: 'start'})
                 this._stateChange(!this._convergeNow)
             }],
             // an error ends the recording too: the indicator hides and the viewer stops rendering every frame for it
             ['error', () => {
+                this._viewer?.renderManager?.stopRenderingWhenHidden?.(CanvasRecorderPlugin.PluginType)
                 this._active = undefined
                 if (this._optionsPending) this.refreshRecorderOptions()
                 this._showIndicator(false)
@@ -1034,6 +1038,7 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
             ['paused', () => this._stateChange(false)],
             // ['resume', () => this._stateChange(!this.convergeMode)],
             ['stopped', () => {
+                this._viewer?.renderManager?.stopRenderingWhenHidden?.(CanvasRecorderPlugin.PluginType)
                 this._active = undefined
                 if (this._optionsPending) this.refreshRecorderOptions()
                 this._showIndicator(false)
