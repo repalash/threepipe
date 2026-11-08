@@ -4,7 +4,6 @@ import {
     CommandsPlugin,
     createStyles,
     CustomContextMenu,
-    findTaggedUiConfigs,
     formatShortcut,
     getOrCall,
     getUiConfigAction,
@@ -28,6 +27,7 @@ import {
     uiDropdown,
     uiFolderContainer,
     uiToggle,
+    UiConfigMethods,
     UiObjectConfig,
     UiTags,
     Vector3,
@@ -654,8 +654,8 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
         const order = (c: UiObjectConfig) => Number(getOrCall(c.order)) || 0
         // only the buttons at the top of the tab: one inside a folder (Remove Constraint in each constraint) stays there,
         // so its folder still tells what it acts on
-        this._taggedButtons = !config ? [] : findTaggedUiConfigs(config, UiTags.ContextMenu).filter(t => t.parents.length <= 1).map(t => t.config)
-            .filter(c => c.type === 'button' && !hasUiTag(c, UiTags.Inline))
+        this._taggedButtons = !config ? [] : UiConfigMethods.GetChildren(config)
+            .filter(c => c.type === 'button' && hasUiTag(c, UiTags.ContextMenu) && !hasUiTag(c, UiTags.Inline))
             .sort((a, b) => order(a) - order(b)) // a stable sort: the tree order among equal ones
         this._more.style.display = this._menuItems().length ? '' : 'none'
         this._markMenuButtons()
