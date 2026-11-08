@@ -44,6 +44,19 @@ function getRootIfWidget(selected: IObject3D) {
     return selected
 }
 
+/** The line icons of the selection actions (16 px, the stroke in the current colour), for a UI that shows the actions */
+const actionIcon = (d: string) => `<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`
+const ACTION_ICONS = {
+    focus: actionIcon('<path d="M2.5 5.5v-3h3M10.5 2.5h3v3M13.5 10.5v3h-3M5.5 13.5h-3v-3"/><circle cx="8" cy="8" r="2"/>'),
+    toggleVisibility: actionIcon('<path d="M1.5 8s2.4-4.5 6.5-4.5S14.5 8 14.5 8 12.1 12.5 8 12.5 1.5 8 1.5 8z"/><circle cx="8" cy="8" r="2"/>'),
+    duplicate: actionIcon('<rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 3.5V3a.5.5 0 0 0-.5-.5H3a.5.5 0 0 0-.5.5v7a.5.5 0 0 0 .5.5h.5"/>'),
+    delete: actionIcon('<path d="M2.5 4.5h11M6 4.5V3h4v1.5M4 4.5l.7 8.6a1 1 0 0 0 1 .9h4.6a1 1 0 0 0 1-.9l.7-8.6"/>'),
+    selectParent: actionIcon('<path d="M6.5 6L9.5 3l3 3M9.5 3v6.5a3 3 0 0 1-3 3h-3"/>'),
+}
+
+/** The parent of a selected object; none for a material, a geometry or a texture */
+const parentOf = (o: SelectionObject | undefined) => (o as IObject3D | undefined)?.isObject3D ? (o as IObject3D).parent : undefined
+
 /**
  * Whether the {@link PickingPlugin} can select `obj` (the selection condition of its {@link ObjectPicker}): an object
  * with a material (or with `userData.userSelectable` set to true, or a widget), in a model or a light, and neither it
@@ -256,15 +269,18 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
      */
     keyboardShortcuts = true
 
-    /** An action of the selection; with no selection, a key of an action that needs one is left to other handlers */
-    private _action(id: string, label: string, keys: string | string[], run: () => void, needsSelection = true): CommandAction {
+    /**
+     * An action of the selection; with no selection, a key of an action that needs one is left to other handlers
+     * @param enabled - also needed to run, with a selection (Select the parent: the selected object has a parent)
+     */
+    private _action(id: string, label: string, keys: string | string[], run: () => void, needsSelection = true, icon?: string, enabled?: () => boolean): CommandAction {
         const keysOn = () => this.keyboardShortcuts
         return {
-            id: 'picking.' + id, label, group: 'Selection',
+            id: 'picking.' + id, label, group: 'Selection', icon,
             get shortcut() {
                 return keysOn() ? keys : undefined
             },
-            enabled: () => !this.isDisabled() && (!needsSelection || !!this.getSelectedObject()),
+            enabled: () => !this.isDisabled() && (!needsSelection || !!this.getSelectedObject()) && (!enabled || enabled()),
             run,
         }
     }
@@ -276,17 +292,18 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
      */
     readonly actions: CommandAction[] = [
         this._action('selectAll', 'Select all', 'Mod+KeyA', () => this.selectAll(), false),
-        this._action('duplicate', 'Duplicate', 'Mod+KeyD', () => this.duplicateSelected()),
+        this._action('duplicate', 'Duplicate', 'Mod+KeyD', () => this.duplicateSelected(), true, ACTION_ICONS.duplicate),
         this._action('duplicateOther', 'Duplicate (the other mode)', 'Mod+Shift+KeyD', () => this.duplicateSelected(this.duplicateMode === 'simple' ? 'compound' : 'simple')),
         this._action('copy', 'Copy', 'Mod+KeyC', () => this.copySelected()),
         this._action('cut', 'Cut', 'Mod+KeyX', () => this.cutSelected()),
         this._action('paste', 'Paste', 'Mod+KeyV', () => this.pasteFromClipboard(), false),
         this._action('clearSelection', 'Clear the selection', 'Escape', () => this.clearSelection()),
-        this._action('delete', 'Delete', ['Delete', 'Backspace'], () => this.deleteSelected()),
-        this._action('toggleVisibility', 'Hide or show', 'KeyH', () => this.toggleVisibilitySelected()),
+        this._action('delete', 'Delete', ['Delete', 'Backspace'], () => this.deleteSelected(), true, ACTION_ICONS.delete),
+        this._action('toggleVisibility', 'Hide or show', 'KeyH', () => this.toggleVisibilitySelected(), true, ACTION_ICONS.toggleVisibility),
         this._action('unhideAll', 'Show all', 'Shift+KeyH', () => this.unhideAll(), false),
         // nothing selected: everything
-        this._action('focus', 'Focus', 'KeyF', () => this.getSelectedObject() ? this.focusSelected() : this._viewer?.fitToView(), false),
+        this._action('focus', 'Focus', 'KeyF', () => this.getSelectedObject() ? this.focusSelected() : this._viewer?.fitToView(), false, ACTION_ICONS.focus),
+        this._action('selectParent', 'Select the parent', [], () => this.selectParent(), true, ACTION_ICONS.selectParent, () => !!parentOf(this.getSelectedObject())),
         this._action('resetPosition', 'Reset the position', 'Alt+KeyG', () => this.resetTransform('position')),
         this._action('resetRotation', 'Reset the rotation', 'Alt+KeyR', () => this.resetTransform('rotation')),
         this._action('resetScale', 'Reset the scale', 'Alt+KeyS', () => this.resetTransform('scale')),
@@ -946,23 +963,27 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
                 type: 'button',
                 label: 'Select Parent',
                 hidden: () => !obj.parent,
-                value: () => {
-                    if (!obj.isObject3D) return
-                    const parent = obj.parent
-                    if (parent) {
-                        if (parent.assetType && parent.parentRoot) // todo also check if acceptChildEvents is set on some parent?
-                            parent.dispatchEvent({
-                                type: 'select',
-                                ui: true,
-                                bubbleToParent: true,
-                                object: parent,
-                            })
-                        else
-                            this.setSelectedObject(parent, false)
-                    }
-                },
+                value: () => this.selectParent(obj),
             },
         ]
+    }
+
+    /**
+     * Selects the parent of an object (the action `picking.selectParent`, and the Select Parent button of the selection UI)
+     * @param obj - the object; default: the selected object
+     */
+    selectParent(obj: SelectionObject | undefined = this.getSelectedObject()): void {
+        const parent = parentOf(obj)
+        if (!parent) return
+        if (parent.assetType && parent.parentRoot) // todo also check if acceptChildEvents is set on some parent?
+            parent.dispatchEvent({
+                type: 'select',
+                ui: true,
+                bubbleToParent: true,
+                object: parent,
+            })
+        else
+            this.setSelectedObject(parent, false)
     }
 
     objectMaterialManageUiConfig(obj: IObject3D): UiObjectConfig[] {

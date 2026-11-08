@@ -27,6 +27,7 @@ class FakeElement {
             const rest = this.className.split(' ').filter(x => x && x !== c)
             this.className = (on ? [...rest, c] : rest).join(' ')
         },
+        add: (c: string) => this.classList.toggle(c, true),
     }
     private _listeners = new Map<string, ((e: any) => void)[]>()
     constructor(readonly tagName: string) {}
@@ -71,6 +72,11 @@ class FakeElement {
         return {clearRect: () => {}, drawImage: () => {}}
     }
     setPointerCapture() {}
+    getBoundingClientRect() {
+        return {left: 100, right: 128, top: 10, bottom: 38, width: 28, height: 28}
+    }
+    disabled = false
+    innerHTML = ''
     focused = false
     focus() {
         this.focused = true
@@ -92,7 +98,7 @@ class FakeRenderer {
         const [o, k] = typeof c.property === 'function' ? c.property() : c.property
         o[k] = v
         return true
-    })}
+    }), clickButton: vi.fn(async(c: any) => c.value?.())}
     added = false
     disposed = false
     constructor(..._args: any[]) {
@@ -149,6 +155,15 @@ class FakePicking extends EventDispatcher<any> {
     objectSelectionUiConfig(o: any) {
         return [{type: 'button', label: 'Focus', object: o}]
     }
+    runs: string[] = []
+    /** The actions of the bar (InspectorPlugin.BarActions), as PickingPlugin.actions has them */
+    actions = [
+        {id: 'picking.focus', label: 'Focus', icon: '<svg/>', shortcut: 'KeyF', run: () => this.runs.push('focus')},
+        {id: 'picking.toggleVisibility', label: 'Hide or show', icon: '<svg/>', shortcut: 'KeyH', run: () => this.runs.push('hide')},
+        {id: 'picking.duplicate', label: 'Duplicate', icon: '<svg/>', shortcut: 'Mod+KeyD', run: () => this.runs.push('duplicate')},
+        {id: 'picking.delete', label: 'Delete', icon: '<svg/>', shortcut: ['Delete', 'Backspace'], run: () => this.runs.push('delete')},
+        {id: 'picking.selectParent', label: 'Select the parent', icon: '<svg/>', enabled: () => !!this.selected?.parent, run: () => this.runs.push('parent')},
+    ]
     objectMaterialManageUiConfig(o: any) {
         return [{type: 'button', label: 'Remove Material(s)', object: o}]
     }
@@ -247,16 +262,88 @@ describe('InspectorPlugin', () => {
         expect(ui.shown.at(-1)).toBe(m.uiConfig)
     })
 
-    test('shows the actions of the PickingPlugin for the object: Focus on the Object tab, the material actions on the Material tab', () => {
+    test('shows the material actions of the PickingPlugin on the Material tab; Focus is in the bar, not in the settings', () => {
         const {el, ui} = setup()
         const a = mesh(new PhysicalMaterial())
         picking.select(a)
-        expect(labels(ui)).toEqual(['Focus', 'Box'])
-        expect(ui.shown[0].object).toBe(a)
+        expect(labels(ui)).toEqual(['Box'])
         el.find('isp-tab')[1].click()
         expect(labels(ui)).toEqual(['Remove Material(s)', (a.material as any).uiConfig.label])
         el.find('isp-tab')[2].click()
         expect(ui.shown).toEqual([a.geometry.uiConfig].filter(Boolean))
+    })
+
+    test('the head has a bar of the actions of the selected object: icons, the key in the tooltip, disabled when they cannot run', () => {
+        const {el, inspector} = setup()
+        const bar = () => el.find('isp-action')
+        expect(bar()).toEqual([])
+        expect(el.find('isp-more')[0].style.display).toBe('none')
+        const a = mesh(new PhysicalMaterial())
+        picking.select(a)
+        expect(bar().map(b => b.dataset.action)).toEqual(InspectorPlugin.BarActions)
+        expect(bar().map(b => b.getAttribute('aria-label'))).toEqual(['Focus', 'Hide or show', 'Duplicate', 'Delete', 'Select the parent'])
+        // the mesh has no parent: Select the parent cannot run
+        expect(bar().map(b => b.disabled)).toEqual([false, false, false, false, true])
+        bar()[2].fire('pointerenter')
+        expect(bar()[2].title).toMatch(/^Duplicate \((Ctrl\+D|⌘D)\)$/)
+        bar()[0].click()
+        bar()[4].click()
+        expect(picking.runs).toEqual(['focus'])
+        // also on the Material tab: the selection is the object
+        el.find('isp-tab')[1].click()
+        expect(bar()).toHaveLength(5)
+        // a material alone: no object, no bar
+        picking.select(a.material)
+        expect(bar()).toEqual([])
+        expect(inspector.hasSelection).toBe(true)
+    })
+
+    test('the ⋯ menu: all the actions, then the context-menu buttons of the open tab, which leave the settings; a button linked to an action is left out', async() => {
+        const {setUiConfigAction, UiTags} = await import('threepipe')
+        const {el, inspector, ui} = setup()
+        const row = () => new FakeElement('div')
+        const center = {type: 'button', label: 'Auto Center', tags: [UiTags.ContextMenu], value: vi.fn(), uiRef: {element: row()}}
+        const off = {type: 'button', label: 'Set View', tags: [UiTags.ContextMenu], hidden: () => true, value: vi.fn(), uiRef: {element: row()}}
+        const dup = setUiConfigAction({type: 'button', label: 'Duplicate Object', tags: [UiTags.ContextMenu], value: vi.fn(), uiRef: {element: row()}}, 'picking.duplicate')
+        const plain = {type: 'button', label: 'Rotate', value: vi.fn(), uiRef: {element: row()}}
+        const a = mesh(new PhysicalMaterial())
+        a.uiConfig = {type: 'folder', label: 'Box', children: [plain, {type: 'folder', label: 'Transform', children: [center, off]}, dup]} as any
+        const menus: Record<string, () => void>[] = []
+        vi.spyOn(inspector as any, '_showMenu').mockImplementation((items: any) => {
+            menus.push(items)
+            return undefined
+        })
+        picking.select(a)
+        const more = el.find('isp-more')[0]
+        expect(more.style.display).toBe('')
+        more.click()
+        expect(Object.keys(menus[0]).map(k => k.replace(/\(.*\)/, '').trim())).toEqual(['Focus', 'Hide or show', 'Duplicate', 'Delete', 'Auto Center'])
+        menus[0]['Auto Center']()
+        expect(ui.methods.clickButton).toHaveBeenCalledWith(center)
+        // the tagged buttons hide from the settings (also the hidden and the linked ones), the others stay
+        expect([center, off, dup, plain].map(c => c.uiRef.element.classList.contains('isp-in-menu'))).toEqual([true, true, true, false])
+        // an action runs from the menu too
+        Object.values(menus[0])[0]()
+        expect(picking.runs).toEqual(['focus'])
+    })
+
+    test('with a CommandsPlugin, the bar runs its actions there (its toasts) and shows the keys that the app set', async() => {
+        const {CommandsPlugin} = await import('threepipe')
+        const {el, viewer} = setup()
+        const commands = new CommandsPlugin()
+        commands.register(picking.actions as any)
+        commands.setShortcut('picking.focus', 'Shift+KeyF')
+        const run = vi.spyOn(commands, 'run')
+        const getPlugin = viewer.getPlugin
+        viewer.getPlugin = (p: any) => p === CommandsPlugin ? commands : getPlugin(p)
+        picking.select(mesh(new PhysicalMaterial()))
+        const focus = el.find('isp-action')[0]
+        focus.fire('pointerenter')
+        expect(focus.title).toBe('Focus (Shift+F)')
+        focus.click()
+        await Promise.resolve()
+        expect(run).toHaveBeenCalledWith('picking.focus')
+        expect(picking.runs).toEqual(['focus'])
     })
 
     test('a mesh with more materials has a list of them', () => {
@@ -628,8 +715,11 @@ describe('InspectorPlugin.css', () => {
         }
         const font = (css: string, sel: string) => sizes(css, sel).find(d => d.startsWith('font:'))
         expect(font(isp, '.isp-root')).toBe(font(lyp, '.lyp-root'))
-        // no larger text in the search field on a touch screen: the same height as the Layers search
-        expect(isp).not.toMatch(/pointer:\s*coarse/)
+        // no larger text in the search field on a touch screen: the same height as the Layers search (the touch rule is
+        // for the action buttons of the head)
+        const touch = [...isp.matchAll(/@media \(pointer:\s*coarse\)\s*\{([^@]*?\})\s*\}/g)].map(m => m[1])
+        expect(touch.length).toBeGreaterThan(0)
+        for (const rules of touch) expect(rules).not.toMatch(/search/)
         // the clear button shows only while the field has text, in both
         for (const [css, p] of [[isp, 'isp'], [lyp, 'lyp']]) expect(sizes(css, `.${p}-search-input:placeholder-shown + .${p}-search-clear`)).toEqual(['display: none'])
     })
