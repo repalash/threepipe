@@ -57,6 +57,12 @@ export enum UiTags {
      */
     Interaction = 'interaction',
     /**
+     * A {@link UiTags.ContextMenu} button that stays in its folder in a UI that moves the menu buttons out of the
+     * settings (the inspector of the tweakpane editor and its ⋯ menu). Menus that list the buttons (the blueprint
+     * renderer and editor) still list it.
+     */
+    Inline = 'inline',
+    /**
      * A field for expert users (uuid, shadow map type, render passes, geometry groups). A simple view can hide it.
      * Metadata only.
      */

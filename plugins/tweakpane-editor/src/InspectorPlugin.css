@@ -8,8 +8,23 @@
     -webkit-font-smoothing: antialiased;
 }
 .isp-root button, .isp-root select { font: inherit; color: inherit; }
-.isp-title { font-weight: 600; padding: 10px 12px 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: none; }
+/* the head: the name, the icons of the actions of the selection, and the ⋯ menu; the icons have the size and the gap of the
+   buttons of the bar over the canvas (util-button: 28 px, 2 px apart), also on a touch screen */
+.isp-head { display: flex; align-items: center; gap: 2px; padding: 6px 6px 4px 12px; flex: none; --isp-action-size: 28px; }
+.isp-title { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1 1 auto; min-width: 48px; padding: 4px 4px 4px 0; }
 .isp-root:not(.isp-has-selection) .isp-title { opacity: .6; font-weight: 500; }
+/* the icons that fit: the row may wrap, but only its first line shows, so a narrow panel hides the last icons whole (they
+   are also in the ⋯ menu); no script measures them */
+.isp-bar { display: flex; flex-wrap: wrap; justify-content: flex-end; column-gap: 2px; flex: 0 1 auto; min-width: 0; height: var(--isp-action-size); overflow: hidden; }
+.isp-action, .isp-more {
+    display: inline-flex; align-items: center; justify-content: center; flex: none; width: var(--isp-action-size); height: var(--isp-action-size);
+    padding: 0; border: 0; border-radius: 5px; background: transparent; color: var(--tp-label-foreground-color, #8a8f98); cursor: pointer;
+}
+.isp-action:hover:not(:disabled), .isp-more:hover { color: var(--tp-container-foreground-color, #1e1e1e); background: var(--tp-button-background-color-hover, rgba(0, 0, 0, .05)); }
+.isp-action:disabled { opacity: .35; cursor: default; }
+.isp-action:focus-visible, .isp-more:focus-visible { outline: 2px solid var(--tp-label-foreground-color, #0d99ff); outline-offset: -2px; }
+/* the buttons with the context-menu tag are in the ⋯ menu, not in the settings */
+.isp-body .isp-in-menu { display: none !important; }
 /* the tab bar and the search field are the ones of the Layers panel (.lyp-tabs, .lyp-tab, .lyp-search in
    LayersPanelPlugin.css): the same sizes, with the colours of the Tweakpane theme */
 .isp-tabs { display: flex; margin: 0 8px 6px; padding: 2px; border-radius: 6px; background: var(--tp-input-background-color, rgba(0, 0, 0, .05)); flex: none; }

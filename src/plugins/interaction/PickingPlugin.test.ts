@@ -70,6 +70,20 @@ describe('PickingPlugin actions', () => {
         expect(clear).not.toHaveBeenCalled()
     })
 
+    it('Select the parent: enabled when the selected object has a parent; the bar actions have icons', () => {
+        const parent = {isObject3D: true}
+        const plugin = setup({isObject3D: true, parent})
+        const select = vi.spyOn(plugin, 'setSelectedObject').mockImplementation(() => {})
+        const action = plugin.actions.find(a => a.id === 'picking.selectParent')!
+        expect(action.shortcut).toEqual([])
+        expect(action.enabled!()).toBe(true)
+        action.run()
+        expect(select).toHaveBeenCalledWith(parent, false)
+        vi.spyOn(plugin, 'getSelectedObject').mockImplementation(() => ({isObject3D: true, parent: null}) as any)
+        expect(action.enabled!()).toBe(false)
+        for (const id of ['focus', 'toggleVisibility', 'duplicate', 'delete', 'selectParent']) expect(plugin.actions.find(a => a.id === 'picking.' + id)!.icon, id).toMatch(/^<svg /)
+    })
+
     it('keyboardShortcuts (deprecated) off: the actions have no keys, and still run from a UI', () => {
         const plugin = setup()
         const hide = vi.spyOn(plugin, 'toggleVisibilitySelected').mockImplementation(() => {})

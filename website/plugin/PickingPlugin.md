@@ -111,6 +111,8 @@ pickingPlugin.multiSelectEnabled = false // disable Shift+Click multi-selection
 
 The keys are actions (`picking.selectAll`, `picking.delete`, … in `PickingPlugin.actions`): a [CommandsPlugin](./CommandsPlugin) lists them, and the app changes or removes their keys there (`setShortcut`). Mod is Cmd on a Mac and Ctrl on other platforms. A key that needs a selection is left to other handlers when nothing is selected. `keyboardShortcuts = false` (deprecated) still takes the keys off the actions.
 
+`picking.selectParent` (Select the parent, also `selectParent(obj?)`) has no key. The actions Focus, Hide or show, Duplicate, Delete and Select the parent have an `icon` (a line SVG, in the current colour), for a UI that shows them as buttons, like the action bar of the inspector of the tweakpane editor.
+
 ### Smart Duplicate
 
 Duplicating with **Ctrl/Cmd+D** supports offset chaining with two modes (configurable via `duplicateMode` property or the UI dropdown):
