@@ -55,6 +55,11 @@ async function init() {
     top.oninput = () => container.style.setProperty('--dialog-toast-top', top.value + 'px')
     label.appendChild(top)
     panel.appendChild(label)
+    // At the bottom: a CSS rule of the page (see index.html) moves the toasts to the bottom centre
+    button('At the bottom (on or off)', () => {
+        document.body.classList.toggle('toasts-bottom')
+        viewer.dialog.toast?.(document.body.classList.contains('toasts-bottom') ? 'The toasts are at the bottom' : 'The toasts are at the top', {container})
+    })
     button('Dark blue toasts', () => container.style.setProperty('--dialog-toast-bg', '#1d3b8b'))
 }
 

@@ -190,7 +190,7 @@ export class ThreeEditor extends ThreeViewer {
     ]
 
     editorModes: Record<string, Class<IViewerPlugin<any>>[]> = {
-        ['Viewer']: [ViewerUiConfigPlugin, EditorCameraPlugin, CommandsPlugin, DropzonePlugin, BaseGroundPlugin, ContactShadowGroundPlugin, TweakpaneUiPlugin, TweakpaneEditorPlugin, InteractionPromptPlugin, ThreeGpuPathTracerPlugin, FullScreenPlugin],
+        ['Viewer']: [ViewerUiConfigPlugin, EditorCameraPlugin, DropzonePlugin, BaseGroundPlugin, ContactShadowGroundPlugin, TweakpaneUiPlugin, TweakpaneEditorPlugin, InteractionPromptPlugin, ThreeGpuPathTracerPlugin, FullScreenPlugin],
         ['Interaction']: [LayersPanelPlugin, InspectorPlugin, TransformControlsPlugin, PivotControlsPlugin, PivotEditPlugin, PickingPlugin, OutlinePlugin, SelectionOutlinePlugin, AnnotationsPlugin, Object3DGeneratorPlugin, GeometryGeneratorPlugin, EditorViewWidgetPlugin, ObjectConstraintsPlugin, Object3DWidgetsPlugin, MeshOptSimplifyModifierPlugin],
         ['Buffers']: [GBufferPlugin, DepthBufferPlugin, NormalBufferPlugin, CascadedShadowsPlugin],
         ['Post-processing']: [TonemapPlugin, ProgressivePlugin, SSAAPlugin, SSAOPlugin, SSReflectionPlugin, BloomPlugin, DepthOfFieldPlugin, SSGIPlugin, FrameFadePlugin, VignettePlugin, ChromaticAberrationPlugin, FilmicGrainPlugin, TemporalAAPlugin, VelocityBufferPlugin, SSContactShadowsPlugin],
@@ -198,7 +198,7 @@ export class ThreeEditor extends ThreeViewer {
         ['Configurator']: [MaterialConfiguratorPlugin, SwitchNodePlugin, GLTFKHRMaterialVariantsPlugin],
         ['Animation']: [TimelineUiPlugin, AnimationObjectPlugin, GLTFAnimationPlugin, CameraViewPlugin],
         ['Extras']: [HDRiGroundPlugin, Rhino3dmLoadPlugin, ClearcoatTintPlugin, FragmentClippingExtensionPlugin, NoiseBumpMaterialPlugin, AnisotropyPlugin, CustomBumpMapPlugin, VirtualCamerasPlugin, TilesRendererPlugin, EntityComponentPlugin, StickyNotesUiPlugin, NotesPlugin],
-        ['Debug']: [RenderTargetPreviewPlugin, PerfPanelPlugin, DynamicImportPlugin],
+        ['Debug']: [RenderTargetPreviewPlugin, PerfPanelPlugin, DynamicImportPlugin, CommandsPlugin],
     }
 
     async init() {
