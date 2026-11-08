@@ -927,11 +927,16 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
         return true
     }
 
-    /** Opens a menu at a point; it stays inside the window */
+    /**
+     * Opens a menu at a point of the window (`clientX`, `clientY`). It is fixed, so a scrolled page (a phone) does not
+     * move it, and it stays inside the window.
+     */
     protected _showMenu(items: Record<string, () => void>, x: number, y: number): HTMLElement | undefined {
-        const m = CustomContextMenu.Create(items, x, y)
-        const w = m.offsetWidth
-        if (w && x + w > window.innerWidth - 8) m.style.left = Math.max(8, window.innerWidth - w - 8) + 'px'
+        const m = CustomContextMenu.Create(items, 0, 0)
+        m.style.position = 'fixed'
+        const w = m.offsetWidth, h = m.offsetHeight
+        m.style.left = Math.max(8, Math.min(x, window.innerWidth - w - 8)) + 'px'
+        m.style.top = Math.max(8, Math.min(y, window.innerHeight - h - 8)) + 'px'
         return m
     }
 
