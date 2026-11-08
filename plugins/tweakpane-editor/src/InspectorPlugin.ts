@@ -8,6 +8,7 @@ import {
     formatShortcut,
     getOrCall,
     getUiConfigAction,
+    hasUiTag,
     IEvent,
     IGeometry,
     IMaterial,
@@ -115,7 +116,8 @@ class InspectorUiRenderer extends TweakpaneUiPlugin {
  *   Duplicate, Delete, Select the parent), as icons, with their label and key in the tooltip. A narrow panel shows the
  *   icons that fit (the others wrap to a hidden line); the ⋯ button opens a menu of all the actions, with their labels
  *   and keys, then the buttons of the open tab that have the `context-menu` tag (`UiTags.ContextMenu`: Auto Center,
- *   Set View...). Those buttons leave the settings. A button linked to an action (`setUiConfigAction`, like Duplicate
+ *   Set View...), sorted by their uiconfig `order`. Those buttons leave the settings; one with the `inline` tag
+ *   (`UiTags.Inline`) stays there and is not in the menu. A button linked to an action (`setUiConfigAction`, like Duplicate
  *   Object) is not in the menu: the action is. The actions run through the `CommandsPlugin` of the viewer when it has
  *   one (its keys, the toasts of the results), else on their own.
  * - Escape (the PickingPlugin) clears the selection.
@@ -197,7 +199,10 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
     private _more: HTMLButtonElement
     /** The ⋯ menu was open at the press on its button: the click closes it, it does not open it again */
     private _moreWasOpen = false
-    /** The buttons with the `context-menu` tag in the uiConfig of the open tab, found at each render ({@link _renderBar}) */
+    /**
+     * The buttons with the `context-menu` tag (and not `inline`) in the uiConfig of the open tab, found at each render
+     * ({@link _renderBar}), in the order of the menu: by their uiconfig `order` (0 when not set, like CSS), else as in the tree
+     */
     private _taggedButtons: UiObjectConfig[] = []
     private _tabsEl: HTMLDivElement
     private _cardsEl: HTMLDivElement
@@ -635,7 +640,10 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
             })
         }
         const config = this._inPage ? this._shown[this._shown.length - 1] : undefined
-        this._taggedButtons = config ? findTaggedUiConfigs(config, UiTags.ContextMenu).map(t => t.config).filter(c => c.type === 'button') : []
+        const order = (c: UiObjectConfig) => Number(getOrCall(c.order)) || 0
+        this._taggedButtons = !config ? [] : findTaggedUiConfigs(config, UiTags.ContextMenu).map(t => t.config)
+            .filter(c => c.type === 'button' && !hasUiTag(c, UiTags.Inline))
+            .sort((a, b) => order(a) - order(b)) // a stable sort: the tree order among equal ones
         this._more.style.display = this._menuItems().length ? '' : 'none'
         this._markMenuButtons()
     }

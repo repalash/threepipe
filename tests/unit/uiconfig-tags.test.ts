@@ -36,6 +36,7 @@ describe('UiTags', () => {
             ContextMenu: 'context-menu',
             HeaderAction: 'header-action',
             Interaction: 'interaction',
+            Inline: 'inline',
             Advanced: 'advanced',
             Performance: 'performance',
             Debug: 'debug',

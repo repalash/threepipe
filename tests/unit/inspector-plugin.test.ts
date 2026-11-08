@@ -306,8 +306,10 @@ describe('InspectorPlugin', () => {
         const off = {type: 'button', label: 'Set View', tags: [UiTags.ContextMenu], hidden: () => true, value: vi.fn(), uiRef: {element: row()}}
         const dup = setUiConfigAction({type: 'button', label: 'Duplicate Object', tags: [UiTags.ContextMenu], value: vi.fn(), uiRef: {element: row()}}, 'picking.duplicate')
         const plain = {type: 'button', label: 'Rotate', value: vi.fn(), uiRef: {element: row()}}
+        const kept = {type: 'button', label: 'Reset Pivot', tags: [UiTags.ContextMenu, UiTags.Inline], value: vi.fn(), uiRef: {element: row()}}
+        const first = {type: 'button', label: 'Export', tags: [UiTags.ContextMenu], order: -1, value: vi.fn(), uiRef: {element: row()}}
         const a = mesh(new PhysicalMaterial())
-        a.uiConfig = {type: 'folder', label: 'Box', children: [plain, {type: 'folder', label: 'Transform', children: [center, off]}, dup]} as any
+        a.uiConfig = {type: 'folder', label: 'Box', children: [plain, {type: 'folder', label: 'Transform', children: [center, off, kept]}, dup, first]} as any
         const menus: Record<string, () => void>[] = []
         vi.spyOn(inspector as any, '_showMenu').mockImplementation((items: any) => {
             menus.push(items)
@@ -317,11 +319,12 @@ describe('InspectorPlugin', () => {
         const more = el.find('isp-more')[0]
         expect(more.style.display).toBe('')
         more.click()
-        expect(Object.keys(menus[0]).map(k => k.replace(/\(.*\)/, '').trim())).toEqual(['Focus', 'Hide or show', 'Duplicate', 'Delete', 'Auto Center'])
+        // the buttons by their uiconfig order (Export: -1), else in the tree order; not the inline one
+        expect(Object.keys(menus[0]).map(k => k.replace(/\(.*\)/, '').trim())).toEqual(['Focus', 'Hide or show', 'Duplicate', 'Delete', 'Export', 'Auto Center'])
         menus[0]['Auto Center']()
         expect(ui.methods.clickButton).toHaveBeenCalledWith(center)
         // the tagged buttons hide from the settings (also the hidden and the linked ones), the others stay
-        expect([center, off, dup, plain].map(c => c.uiRef.element.classList.contains('isp-in-menu'))).toEqual([true, true, true, false])
+        expect([center, off, dup, plain, kept].map(c => c.uiRef.element.classList.contains('isp-in-menu'))).toEqual([true, true, true, false, false])
         // an action runs from the menu too
         Object.values(menus[0])[0]()
         expect(picking.runs).toEqual(['focus'])

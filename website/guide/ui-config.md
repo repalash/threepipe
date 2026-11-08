@@ -192,6 +192,7 @@ const config: UiObjectConfig = {
 | `Basic` | `basic` | The few fields that a simple view shows (see [Basic fields](#basic-fields)) | `findTaggedUiConfigs` |
 | `ContextMenu` | `context-menu` | A button for a menu: an action on the object (duplicate, delete, set view, center geometry) | the blueprint renderer (menu of the folder), the blueprint editor (right-click menu of the hierarchy), the inspector of the tweakpane editor (its ⋯ menu) |
 | `HeaderAction` | `header-action` | A button for the header of its folder, like Add Constraint. Set with `context-menu` | none yet (metadata) |
+| `Inline` | `inline` | A `context-menu` button that stays in its folder in a UI that moves the menu buttons out of the settings | the inspector of the tweakpane editor (not in its ⋯ menu) |
 | `Interaction` | `interaction` | A menu action that changes the object in the scene (scale to radius, auto center, pivot to center). Set with `context-menu` | none (metadata) |
 | `Advanced` | `advanced` | A field for expert users (uuid, shadow map type, render passes, geometry groups) | none (metadata) |
 | `Performance` | `performance` | A field that trades quality for speed, like a sample, ray or step count | none (metadata) |
