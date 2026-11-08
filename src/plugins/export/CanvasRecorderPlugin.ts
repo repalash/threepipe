@@ -77,10 +77,10 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
         videoFrameRate = 30
 
     /**
-     * Where the frames of an image sequence go, instead of a folder from the browser's picker. Set a function to send
-     * them to a server, a zip or memory, which also works where the browser has no folder picker (Safari, Firefox).
-     * In converge mode the next frame waits for the promise it returns. A failure is reported when the recording stops.
-     * Not saved with the plugin's settings.
+     * Where the frames of an image sequence go. Default: a folder the user picks ({@link DirectoryFrameSink}, Chromium
+     * browsers only). A {@link ZipFrameSink} downloads one zip and works in every browser; a function or your own
+     * {@link ICanvasFrameSink} can send them to a server or memory. In converge mode the next frame waits for the sink.
+     * A failure is reported when the recording stops. Not saved with the plugin's settings.
      */
     @onChange(CanvasRecorderPlugin.prototype.refreshRecorderOptions)
         frameSink: CanvasFrameSink | undefined = undefined

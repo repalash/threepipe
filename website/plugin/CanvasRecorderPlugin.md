@@ -67,18 +67,29 @@ The MP4 recorder loads ffmpeg.js from [FFMPEGRecorder.LIBRARY_PATH](https://thre
 
 ## Where the frames go
 
-An image sequence writes to a folder from the browser's folder picker by default. Set `frameSink` to send the frames anywhere else, such as a server, a zip or memory. It also works without a picker, in Safari and Firefox, and with no user gesture, in an automated render.
+An image sequence gives its frames to a sink, set with `frameSink`:
+
+| Sink | Where the frames go | Browsers |
+|---|---|---|
+| [DirectoryFrameSink](https://threepipe.org/docs/classes/DirectoryFrameSink.html) (default) | A new folder inside one the user picks, one file per frame | Chromium browsers (needs `showDirectoryPicker` and a click to start) |
+| [ZipFrameSink](https://threepipe.org/docs/classes/ZipFrameSink.html) | One zip, downloaded (or given to a callback) when the recording stops | All; keeps every frame in memory until then |
+| A function, or an object with `start`, `write`, `finish` and `dispose` ([ICanvasFrameSink](https://threepipe.org/docs/interfaces/ICanvasFrameSink.html)) | Anywhere: a server, memory | All |
 
 ```typescript
+import {ZipFrameSink} from 'threepipe'
+
 const recorder = viewer.getPlugin(CanvasRecorderPlugin)!
 recorder.mimeType = 'image/png'
+recorder.frameSink = new ZipFrameSink('turntable') // downloads turntable.zip when the recording stops
+await recorder.recordCamera360(3)
+
+// or send each frame somewhere yourself
 recorder.frameSink = async({blob, index, name, mimeType}) => {
     await fetch('/frames/' + name, {method: 'PUT', body: blob})
 }
-await recorder.recordCamera360(3)
 ```
 
-Frames arrive one at a time and in order. In converge mode the next frame waits for the promise, so a slow sink doesn't fill the memory. If it fails, no more frames are sent and the recorder reports an `error` when it stops.
+Frames arrive one at a time and in order. In converge mode the next frame waits for the sink, so a slow one doesn't fill the memory. If a write fails, no more frames are sent, the sink isn't finished, and the recorder reports an `error` when it stops.
 
 ## Adding a recorder
 

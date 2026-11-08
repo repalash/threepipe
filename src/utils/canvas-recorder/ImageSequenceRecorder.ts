@@ -1,20 +1,24 @@
-import {ACanvasRecorder, type CanvasFrameSink} from './ACanvasRecorder'
-import {writeFile} from 'ts-browser-helpers'
+import {ACanvasRecorder, type ICanvasFrameSink} from './ACanvasRecorder'
+import {DirectoryFrameSink} from './DirectoryFrameSink'
 
+/**
+ * Records the canvas as an image sequence: one PNG, JPEG or WebP per frame. It captures the frames and gives them in
+ * order to a sink ({@link CanvasRecorderOptions.frameSink}): a folder the user picks by default ({@link DirectoryFrameSink}),
+ * a zip ({@link ZipFrameSink}), or your own. The next converged frame waits for the sink.
+ */
 export class ImageSequenceRecorder extends ACanvasRecorder {
-    private _currentImages: [string, Blob][] = [] // filename, dataurl
-    /** Captures (toBlob) and writes not done yet; stop waits for them */
+    /** Captures and writes not done yet; stop waits for them */
     private _pending = new Set<Promise<void>>()
-    /** The first failed write of this recording, reported when it stops */
+    /** The first failure of this recording, reported when it stops */
     private _writeError?: unknown
     /** The sink of this recording; a change of the option applies to the next one */
-    private _sink?: CanvasFrameSink
+    private _sink?: ICanvasFrameSink
     /** Frames reach the sink one at a time and in order, however the captures end */
     private _sinkQueue: Promise<void> = Promise.resolve()
 
     private _track(p: Promise<void>) {
-        // a failed write is kept and reported by stop(), not as an unhandled rejection here. The tracked promise does
-        // not reject, so stop() waits for every capture and write, also after a failed one.
+        // a failure is kept and reported by stop(), not as an unhandled rejection here. The tracked promise does not
+        // reject, so stop() waits for every capture and write, also after a failed one.
         const tracked = p.then(() => undefined, (e) => {
             this._writeError = this._writeError ?? e
         })
@@ -38,65 +42,65 @@ export class ImageSequenceRecorder extends ACanvasRecorder {
         }
 
         this._currentRecording = []
-        this._currentImages = []
         this._frameCount = 0
         this._writeError = undefined
-        this._sink = this.options.frameSink
         this._sinkQueue = Promise.resolve()
+        const option = this.options.frameSink
+        const sink: ICanvasFrameSink = !option ? new DirectoryFrameSink() : typeof option === 'function' ? {write: option} : option
+        this._sink = sink
 
         this.setState('starting')
-        if (this._sink) {
+        const startId = ++this._startId
+        let started: void | Promise<void>
+        try {
+            started = sink.start?.()
+        } catch (e) {
+            this._onerror({detail: e})
+            return
+        }
+        // a sink that needs nothing starts at once; one that waits (a folder picker) starts when it is ready
+        if (!started) {
             this.setState('recording')
             return
         }
-        const startId = ++this._startId
-        if (typeof window !== 'undefined' && (window as any).showDirectoryPicker) {
-            (window as any)
-                .showDirectoryPicker()
-                .then(async(dir: FileSystemDirectoryHandle) => {
-                    const imgDir = await dir?.getDirectoryHandle('i-' + Math.floor(Date.now()), {create: true})
-                    // disposed while the folder was picked: the recording does not start
-                    if (startId !== this._startId) return
-                    this._imgDirectory = imgDir
-                    this._frameCount = 0
-                    this.setState('recording')
-                })
-                .catch((e: any) => {
-                    if (startId === this._startId) this._onerror({detail: e} as any)
-                })
-        } else {
-            // no folder to write to (the File System Access API is not in this browser)
-            this._onerror({detail: new Error('ImageSequenceRecorder: showDirectoryPicker is not supported in this browser')} as any)
-        }
+        started.then(() => {
+            // disposed while the sink started: the recording does not start
+            if (startId !== this._startId) return
+            this._frameCount = 0
+            this.setState('recording')
+        }, (e: unknown) => {
+            if (startId === this._startId) this._onerror({detail: e})
+        })
     }
 
-    private _imgDirectory?: FileSystemDirectoryHandle
-
-    /** A frame sink makes the next converged frame wait (it may be slow, and frames would pile up in memory) */
+    /** The next converged frame waits for the sink (it may be slow, and frames would pile up in memory) */
     isBusy() {
-        return !!this._sink && this._pending.size > 0
+        return this._pending.size > 0
     }
 
-    private _sendFrame(sink: CanvasFrameSink, name: string, mimeType: string) {
+    private _sendFrame(sink: ICanvasFrameSink, name: string, mimeType: string) {
         const index = this._frameCount - 1
         const capture = new Promise<Blob>((resolve, reject) => this._canvas.toBlob(
+            // no image (e.g. a canvas of size 0): the frame is missing, the stop reports it
             blob => blob ? resolve(blob) : reject(new Error('ImageSequenceRecorder: no image for ' + name)),
             mimeType,
             90,
         ))
         capture.catch(() => undefined) // reported through the queue below, which may reach it later
+        this._track(capture.then(() => undefined)) // the stop waits for every capture, also after a failed write
         // after a failure the queue stays rejected: no later frame is sent, and the stop reports the first error
-        this._sinkQueue = this._sinkQueue.then(async() => capture).then(async blob => sink({blob, index, name, mimeType}))
+        this._sinkQueue = this._sinkQueue.then(async() => capture).then(async() => sink.write({blob: await capture, index, name, mimeType}))
         this._track(this._sinkQueue)
     }
 
-    /** The start that waits for the folder; a dispose cancels it */
+    /** The start that waits for the sink; a dispose cancels it */
     private _startId = 0
 
     dispose() {
-        // a start that waits for the folder does not start: it ends in the error state (a record() waiting for it settles)
+        // a start that waits for the sink does not start: it ends in the error state (a record() waiting for it settles)
         if (this.state === 'starting') {
             this._startId++
+            this._sink?.dispose?.()
             this.setState('error', {error: new Error('ImageSequenceRecorder: disposed while starting')})
         }
         super.dispose()
@@ -107,32 +111,7 @@ export class ImageSequenceRecorder extends ACanvasRecorder {
         const mime = this.options.mimeType
         // the name now: toBlob calls back later, after more frames may have been requested
         const name = 'frame_' + String(this._frameCount).padStart(5, '0') + (mime.includes('png') ? '.png' : mime.includes('webp') ? '.webp' : '.jpg')
-
-        if (this._sink) {
-            this._sendFrame(this._sink, name, mime)
-            return true
-        }
-
-        // const dataUrl = this._canvas.toDataURL(mime, 90);
-        this._track(new Promise<void>((resolve, reject) => this._canvas.toBlob(
-            (blob) => {
-                // no image (e.g. a canvas of size 0): the frame is missing, the stop reports it
-                if (!blob) return reject(new Error('ImageSequenceRecorder: no image for ' + name))
-                this._currentImages.push([name, blob])
-                resolve()
-            },
-            mime,
-            90,
-        )))
-        // this._currentImages.push([
-        //   "frame_" + String(this._frameCount).padStart(5, "0") + (mime.includes("png") ? ".png" : ".jpg"),
-        //   dataUrl,
-        // ]);
-
-        if (this._currentImages.length > 60) {
-            this._track(this._writeImages([...this._currentImages]))
-            this._currentImages = []
-        }
+        if (this._sink) this._sendFrame(this._sink, name, mime)
         return true
     }
 
@@ -143,8 +122,8 @@ export class ImageSequenceRecorder extends ACanvasRecorder {
     }
 
     /**
-     * Writes the frames that are left, after the captures still running, then calls back. An image sequence has no
-     * blob: the callback gets undefined.
+     * Waits for the captures and writes still running and for the sink to finish, then calls back. An image sequence has
+     * no blob: the callback gets undefined.
      */
     public stop(recordingCallback: (b?: Blob) => void) {
         if (this.state === 'stopped') return
@@ -165,32 +144,11 @@ export class ImageSequenceRecorder extends ACanvasRecorder {
         })
     }
 
-    private async _writeImages(images: [string, Blob][]) {
-        if (!this._imgDirectory) return
-
-        // const imageBlobs = await Promise.all(
-        //   images.map(async ([name, dataUrl]) => {
-        //     return await (await fetch(dataUrl)).blob();
-        //   })
-        // );
-        const writes = []
-        for (const item of images) {
-            const file = await this._imgDirectory.getFileHandle(item[0], {create: true})
-            // console.log('writing image', image[0])
-            writes.push(writeFile(file, item[1]))
-        }
-        await Promise.all(writes)
-    }
-
     private async _finish() {
         while (this._pending.size) await Promise.all([...this._pending])
-        if (this._currentImages.length > 0) {
-            const images = [...this._currentImages]
-            this._currentImages = []
-            await this._writeImages(images)
-        }
-        // a batch write that failed during the recording: frames are missing
+        // a write that failed during the recording: frames are missing, and the sink is not finished
         if (this._writeError) throw this._writeError
+        await this._sink?.finish?.()
     }
 
     private _onerror: (event: any) => void = (event) => {
@@ -198,4 +156,3 @@ export class ImageSequenceRecorder extends ACanvasRecorder {
         this._console.error(event)
     }
 }
-

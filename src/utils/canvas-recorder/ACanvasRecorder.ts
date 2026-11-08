@@ -28,15 +28,29 @@ export interface CanvasRecorderFrame {
     mimeType: string;
 }
 
-/** Takes each frame of an image sequence. A returned promise makes the next frame wait, in converge mode. */
-export type CanvasFrameSink = (frame: CanvasRecorderFrame) => void | Promise<void>
+/**
+ * Where the frames of an image sequence go: {@link DirectoryFrameSink} (the default), {@link ZipFrameSink}, or your own.
+ * Frames come one at a time and in order; a promise from `write` makes the next frame wait, in converge mode.
+ */
+export interface ICanvasFrameSink {
+    /** Before the first frame. A promise delays the recording (a folder picker); an error ends the start in the error state */
+    start?(): void | Promise<void>
+    write(frame: CanvasRecorderFrame): void | Promise<void>
+    /** After the last frame is written, before the recording stops: flush, or make the file. An error is reported */
+    finish?(): void | Promise<void>
+    /** The recording ended before it stopped (a dispose): let go of what it holds */
+    dispose?(): void
+}
+
+/** A sink, or just its `write` */
+export type CanvasFrameSink = ICanvasFrameSink | ((frame: CanvasRecorderFrame) => void | Promise<void>)
 
 export interface CanvasRecorderOptions {
     frameRate: number;
     mimeType: string;
     videoBitsPerSecond?: number;
     stepMode: boolean;
-    /** Image sequences: frames go here instead of a folder from the browser's picker. A failure is reported when the recording stops. */
+    /** Image sequences: where the frames go. Default: a {@link DirectoryFrameSink}. A failure is reported when the recording stops. */
     frameSink?: CanvasFrameSink;
 }
 

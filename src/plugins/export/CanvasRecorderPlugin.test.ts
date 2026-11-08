@@ -2,6 +2,9 @@ import {describe, expect, test, vi} from 'vitest'
 import {EventDispatcher, Vector3} from 'three'
 import {CanvasRecorderPlugin} from './CanvasRecorderPlugin'
 import {ImageSequenceRecorder} from '../../utils/canvas-recorder/ImageSequenceRecorder'
+import {DirectoryFrameSink} from '../../utils/canvas-recorder/DirectoryFrameSink'
+import {ZipFrameSink} from '../../utils/canvas-recorder/ZipFrameSink'
+import {unzipSync} from 'three/examples/jsm/libs/fflate.module.js'
 import {FFMPEGRecorder} from '../../utils/canvas-recorder/FFMPEGRecorder'
 import {CanvasMediaRecorder} from '../../utils/canvas-recorder/CanvasMediaRecorder'
 import {CameraViewPlugin} from '../animation/CameraViewPlugin'
@@ -269,29 +272,32 @@ describe('CanvasRecorderPlugin', () => {
     })
 })
 
+/** An image sequence recorder that sends its frames to a list, for the tests */
+function sequence(mimeType = 'image/png', toBlob?: any, sink: any = {}) {
+    const names: string[] = []
+    const canvas = {toBlob: toBlob ?? ((cb: (b: Blob) => void) => cb(new Blob(['x'])))} as any
+    const rec = new ImageSequenceRecorder(canvas, {mimeType, frameSink: {write: ({name}: any) => void names.push(name), ...sink}}) as any
+    rec._console = {log: () => undefined, error: () => undefined, warn: () => undefined}
+    rec.start()
+    return {rec, names}
+}
+
 describe('ImageSequenceRecorder', () => {
-    test('overlapping captures get their own frame names', () => {
+    test('overlapping captures get their own frame names', async() => {
         const callbacks: (() => void)[] = []
-        const canvas = {toBlob: (cb: (b: Blob) => void) => callbacks.push(() => cb(new Blob([])))} as any
-        const rec = new ImageSequenceRecorder(canvas, {mimeType: 'image/png'}) as any
-        rec.setState('recording')
+        const {rec, names} = sequence('image/png', (cb: (b: Blob) => void) => callbacks.push(() => cb(new Blob([]))))
         rec.requestFrame()
         rec.requestFrame() // before the first toBlob calls back
         callbacks.forEach(c => c())
-        expect(rec._currentImages.map((i: [string, Blob]) => i[0])).toEqual(['frame_00001.png', 'frame_00002.png'])
+        await new Promise(resolve => rec.stop(resolve))
+        expect(names).toEqual(['frame_00001.png', 'frame_00002.png'])
     })
 })
 
 describe('ImageSequenceRecorder stop', () => {
     test('waits for a capture still running, writes it, then calls back without a blob', async() => {
         const callbacks: (() => void)[] = []
-        const canvas = {toBlob: (cb: (b: Blob) => void) => callbacks.push(() => cb(new Blob([])))} as any
-        const rec = new ImageSequenceRecorder(canvas, {mimeType: 'image/png'}) as any
-        const written: string[] = []
-        rec._writeImages = async(images: [string, Blob][]) => {
-            written.push(...images.map(i => i[0]))
-        }
-        rec.setState('recording')
+        const {rec, names} = sequence('image/png', (cb: (b: Blob) => void) => callbacks.push(() => cb(new Blob([]))))
         rec.requestFrame()
         rec.requestFrame()
         callbacks[0]() // the second capture is still running at stop
@@ -302,8 +308,16 @@ describe('ImageSequenceRecorder stop', () => {
         expect(settled).toBe(false) // it waits for the second capture
         callbacks[1]()
         expect(await done).toBeUndefined()
-        expect(written).toEqual(['frame_00001.png', 'frame_00002.png'])
+        expect(names).toEqual(['frame_00001.png', 'frame_00002.png'])
         expect(rec.state).toBe('stopped')
+    })
+
+    test('the sink finishes after the last frame, before the stop calls back', async() => {
+        const order: string[] = []
+        const {rec} = sequence('image/png', undefined, {write: ({name}: any) => void order.push(name), finish: () => void order.push('finish')})
+        rec.requestFrame()
+        await new Promise(resolve => rec.stop(() => resolve(order.push('stopped'))))
+        expect(order).toEqual(['frame_00001.png', 'finish', 'stopped'])
     })
 })
 
@@ -343,14 +357,10 @@ describe('converge mode without ProgressivePlugin', () => {
 })
 
 describe('ImageSequenceRecorder failures and names', () => {
-    test('a failed write at stop still calls back, and the recorder ends in the error state', async() => {
-        const canvas = {toBlob: (cb: (b: Blob) => void) => cb(new Blob([]))} as any
-        const rec = new ImageSequenceRecorder(canvas, {mimeType: 'image/png'}) as any
-        rec._console = {error: () => undefined, warn: () => undefined}
-        rec._writeImages = async() => {
+    test('a failed finish still calls back, and the recorder ends in the error state', async() => {
+        const {rec} = sequence('image/png', undefined, {finish: async() => {
             throw new Error('disk full')
-        }
-        rec.setState('recording')
+        }})
         rec.requestFrame()
         const done = await Promise.race([
             new Promise(resolve => rec.stop(() => resolve('called back'))),
@@ -360,63 +370,43 @@ describe('ImageSequenceRecorder failures and names', () => {
         expect(rec.state).toBe('error')
     })
 
-    test('a batch write that failed during the recording is reported at stop', async() => {
-        const canvas = {toBlob: (cb: (b: Blob) => void) => cb(new Blob([]))} as any
-        const rec = new ImageSequenceRecorder(canvas, {mimeType: 'image/png'}) as any
-        rec._console = {error: () => undefined, warn: () => undefined}
-        let writes = 0
-        rec._writeImages = async() => {
-            if (writes++ === 0) throw new Error('disk full') // the first batch of 60 frames
-        }
-        rec.setState('recording')
-        for (let i = 0; i < 62; i++) rec.requestFrame() // a batch write starts after 60 frames
-        await new Promise(r => setTimeout(r, 0))
-        await new Promise(resolve => rec.stop(resolve))
-        expect(rec.state).toBe('error')
-    })
-
-    test('a failed batch write: stop still waits for the captures that run', async() => {
+    test('a failed write: stop still waits for the captures that run, and the sink does not finish', async() => {
         const callbacks: (() => void)[] = []
-        const canvas = {toBlob: (cb: (b: Blob) => void) => callbacks.push(() => cb(new Blob([])))} as any
-        const rec = new ImageSequenceRecorder(canvas, {mimeType: 'image/png'}) as any
-        rec._console = {error: () => undefined, warn: () => undefined}
-        let fail!: (e: Error) => void
-        rec._track(new Promise<void>((_, reject) => fail = reject)) // a batch write that fails during the stop
-        rec.setState('recording')
+        const finish = vi.fn()
+        const {rec} = sequence('image/png', (cb: (b: Blob) => void) => callbacks.push(() => cb(new Blob([]))), {write: async() => {
+            throw new Error('disk full')
+        }, finish})
         rec.requestFrame()
+        rec.requestFrame()
+        callbacks[0]()
         const done = new Promise(resolve => rec.stop(resolve))
         let settled = false
         void done.then(() => settled = true)
-        fail(new Error('disk full'))
         await new Promise(r => setTimeout(r, 0))
-        expect(settled).toBe(false) // the capture still runs
-        callbacks[0]()
+        expect(settled).toBe(false) // the second capture still runs
+        callbacks[1]()
         await done
         expect(rec.state).toBe('error')
+        expect(finish).not.toHaveBeenCalled()
     })
 
     test('a capture without an image (a canvas of size 0) makes the stop end in the error state', async() => {
-        const canvas = {toBlob: (cb: (b: Blob | null) => void) => cb(null)} as any
-        const rec = new ImageSequenceRecorder(canvas, {mimeType: 'image/png'}) as any
-        rec._console = {error: () => undefined, warn: () => undefined}
-        rec._writeImages = async() => undefined
-        rec.setState('recording')
+        const {rec} = sequence('image/png', (cb: (b: Blob | null) => void) => cb(null))
         rec.requestFrame()
         await new Promise(resolve => rec.stop(resolve))
         expect(rec.state).toBe('error')
     })
 
-    test('WebP frames get the .webp extension', () => {
-        const canvas = {toBlob: (cb: (b: Blob) => void) => cb(new Blob([]))} as any
-        const rec = new ImageSequenceRecorder(canvas, {mimeType: 'image/webp'}) as any
-        rec.setState('recording')
+    test('WebP frames get the .webp extension', async() => {
+        const {rec, names} = sequence('image/webp')
         rec.requestFrame()
-        expect(rec._currentImages[0][0]).toBe('frame_00001.webp')
+        await new Promise(resolve => rec.stop(resolve))
+        expect(names).toEqual(['frame_00001.webp'])
     })
 })
 
 describe('ImageSequenceRecorder start', () => {
-    test('without showDirectoryPicker, the start ends in the error state', () => {
+    test('without showDirectoryPicker, the default folder sink fails the start at once', () => {
         const rec = new ImageSequenceRecorder({} as any, {mimeType: 'image/png'}) as any
         rec._console = {error: () => undefined, warn: () => undefined}
         const states: string[] = []
@@ -444,6 +434,59 @@ describe('ImageSequenceRecorder start', () => {
         } finally {
             vi.unstubAllGlobals()
         }
+    })
+
+    test('a sink whose start fails ends the start in the error state', async() => {
+        const {rec} = sequence('image/png', undefined, {start: async() => {
+            throw new Error('cancelled')
+        }})
+        expect(rec.state).toBe('starting')
+        await new Promise(r => setTimeout(r, 0))
+        expect(rec.state).toBe('error')
+    })
+})
+
+describe('DirectoryFrameSink', () => {
+    test('writes each frame to a new folder inside the picked one', async() => {
+        const files: Record<string, Blob> = {}
+        const folder = {getFileHandle: async(name: string) => ({createWritable: async() => ({write: async(b: Blob) => void (files[name] = b), close: async() => undefined})})}
+        let made = ''
+        vi.stubGlobal('window', {showDirectoryPicker: async() => ({getDirectoryHandle: async(name: string) => (made = name, folder)})})
+        try {
+            const sink = new DirectoryFrameSink()
+            await sink.start()
+            const blob = new Blob(['x'])
+            await sink.write({blob, index: 0, name: 'frame_00001.png', mimeType: 'image/png'})
+            expect(made).toMatch(/^i-\d+$/)
+            expect(Object.keys(files)).toEqual(['frame_00001.png'])
+        } finally {
+            vi.unstubAllGlobals()
+        }
+    })
+})
+
+describe('ZipFrameSink', () => {
+    test('one zip of the frames, given to onZip', async() => {
+        let zip!: File
+        const sink = new ZipFrameSink('turntable', z => void (zip = z))
+        sink.start()
+        await sink.write({blob: new Blob(['a']), index: 0, name: 'frame_00001.png', mimeType: 'image/png'})
+        await sink.write({blob: new Blob(['bb']), index: 1, name: 'frame_00002.png', mimeType: 'image/png'})
+        await sink.finish()
+        expect(zip.name).toBe('turntable.zip')
+        const files = unzipSync(new Uint8Array(await zip.arrayBuffer()))
+        expect(Object.keys(files)).toEqual(['frame_00001.png', 'frame_00002.png'])
+        expect(new TextDecoder().decode(files['frame_00002.png'])).toBe('bb')
+    })
+
+    test('a new recording starts an empty zip', async() => {
+        let zip!: File
+        const sink = new ZipFrameSink('a', z => void (zip = z))
+        sink.start()
+        await sink.write({blob: new Blob(['a']), index: 0, name: 'frame_00001.png', mimeType: 'image/png'})
+        sink.start()
+        await sink.finish()
+        expect(Object.keys(unzipSync(new Uint8Array(await zip.arrayBuffer())))).toEqual([])
     })
 })
 
