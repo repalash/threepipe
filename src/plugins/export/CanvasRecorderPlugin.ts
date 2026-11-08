@@ -11,6 +11,7 @@ import type {FileTransferPlugin} from './FileTransferPlugin'
 import {type Easing, EasingFunctions} from '../../utils/animation'
 import type {CanvasFrameSink, CanvasRecorderOptions, ICanvasRecorder} from '../../utils/canvas-recorder/ACanvasRecorder'
 import {ImageSequenceRecorder} from '../../utils/canvas-recorder/ImageSequenceRecorder'
+import {ZipFrameSink} from '../../utils/canvas-recorder/ZipFrameSink'
 import {CanvasMediaRecorder} from '../../utils/canvas-recorder/CanvasMediaRecorder'
 import {FFMPEGRecorder} from '../../utils/canvas-recorder/FFMPEGRecorder'
 import {RemovalWaits} from '../../utils/canvas-recorder/RemovalWaits'
@@ -215,6 +216,8 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
      */
     registerRecorder(name: string, factory: CanvasRecorderFactory, match: (mimeType: string) => boolean = m => m === name, ui?: {label: string, mimeType: string}): boolean {
         if (!this._releaseRecorderNamed(name)) return false
+        // to the end of the order, so it wins over the ones registered before (a Map keeps the place of a key it has)
+        this._registeredRecorders.delete(name)
         this._registeredRecorders.set(name, {factory, match, ui})
         this.refreshRecorderOptions()
         this._refreshUi()
@@ -610,11 +613,16 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
                     noStep = 0
                     busyUntil = 0
                 } else if (!this.canRecordFrame()) {
-                    // the browser recorder records a frame for a frame time of the video, which fast loops pass in more
-                    // than maxFrameCount frames: the scene is converged
-                    const t = performance.now()
-                    if (!busyUntil) busyUntil = t + 2000 / fps
-                    else if (t > busyUntil) noStep++
+                    if (this._recorder?.isWriting?.()) {
+                        // a frame sink still writes (an upload): no frame is taken until it is done, however long
+                        busyUntil = 0
+                    } else {
+                        // the browser recorder records a frame for a frame time of the video, which fast loops pass in
+                        // more than maxFrameCount frames: the scene is converged
+                        const t = performance.now()
+                        if (!busyUntil) busyUntil = t + 2000 / fps
+                        else if (t > busyUntil) noStep++
+                    }
                 } else {
                     busyUntil = 0
                     noStep++
@@ -753,6 +761,22 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
                 label: 'Mime type',
                 property: [this, 'mimeType'],
                 children: [() => this._formatOptions()],
+            },
+            {
+                // an image sequence: a folder needs a browser with a folder picker (Chromium); a zip works in all
+                type: 'dropdown',
+                label: 'Save frames to',
+                hidden: () => !this.mimeType.startsWith('image/'),
+                getValue: () => this.frameSink instanceof ZipFrameSink ? 'zip' : this.frameSink ? 'custom' : 'folder',
+                setValue: (v: string) => {
+                    if (v === 'zip') this.frameSink = new ZipFrameSink()
+                    else if (v === 'folder') this.frameSink = undefined
+                },
+                children: [() => [
+                    {label: 'Folder', value: 'folder'},
+                    {label: 'Zip download', value: 'zip'},
+                    ...this.frameSink && !(this.frameSink instanceof ZipFrameSink) ? [{label: 'Custom', value: 'custom'}] : [],
+                ]],
             },
             {
                 type: 'folder',

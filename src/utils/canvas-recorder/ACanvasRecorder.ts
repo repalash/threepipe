@@ -10,6 +10,8 @@ export interface ICanvasRecorder<T extends string=any>
     requestFrame: () => boolean;
     /** A frame still records, so the next frame would wait (a step-mode browser recorder) */
     isBusy?: () => boolean;
+    /** Frames are still being written (a frame sink): the next frame waits for them, however long that takes */
+    isWriting?: () => boolean;
     dispose: () => void;
     options: CanvasRecorderOptions;
     start: () => void;

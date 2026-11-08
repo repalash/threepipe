@@ -78,6 +78,11 @@ export class ImageSequenceRecorder extends ACanvasRecorder {
         return this._pending.size > 0
     }
 
+    /** Same as {@link isBusy}: the wait is for the sink, not a frame time, so it can be long */
+    isWriting() {
+        return this._pending.size > 0
+    }
+
     private _sendFrame(sink: ICanvasFrameSink, name: string, mimeType: string) {
         const index = this._frameCount - 1
         const capture = new Promise<Blob>((resolve, reject) => this._canvas.toBlob(
@@ -102,6 +107,10 @@ export class ImageSequenceRecorder extends ACanvasRecorder {
             this._startId++
             this._sink?.dispose?.()
             this.setState('error', {error: new Error('ImageSequenceRecorder: disposed while starting')})
+        } else if (this.state === 'error' || this.state === 'stopped') {
+            // after a failed or ended recording: an upload session or the frames of a zip are let go too
+            this._sink?.dispose?.()
+            this._sink = undefined
         }
         super.dispose()
     }

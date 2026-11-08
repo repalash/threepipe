@@ -446,6 +446,29 @@ describe('ImageSequenceRecorder start', () => {
     })
 })
 
+describe('ImageSequenceRecorder dispose', () => {
+    test('a dispose after a failed recording lets the sink go', async() => {
+        const dispose = vi.fn()
+        const {rec} = sequence('image/png', undefined, {write: async() => {
+            throw new Error('upload failed')
+        }, dispose})
+        rec.requestFrame()
+        await new Promise(resolve => rec.stop(resolve))
+        expect(rec.state).toBe('error')
+        rec.dispose()
+        expect(dispose).toHaveBeenCalledTimes(1)
+    })
+
+    test('a dispose after a recording that ended lets the sink go', async() => {
+        const dispose = vi.fn()
+        const {rec} = sequence('image/png', undefined, {dispose})
+        rec.requestFrame()
+        await new Promise(resolve => rec.stop(resolve))
+        rec.dispose()
+        expect(dispose).toHaveBeenCalledTimes(1)
+    })
+})
+
 describe('DirectoryFrameSink', () => {
     test('writes each frame to a new folder inside the picked one', async() => {
         const files: Record<string, Blob> = {}
@@ -1177,6 +1200,25 @@ describe('recording time', () => {
         stillFrame()
         await wait
         expect(done).toBe(true)
+    })
+
+    test('a slow frame sink does not count as a scene that does not converge', async() => {
+        const {plugin, progressive} = setup()
+        const viewer = Object.assign(new EventDispatcher(), plugin._viewer)
+        plugin._viewer = viewer
+        progressive.maxFrameCount = 4
+        let writing = true // an upload of the frame before
+        Object.assign(plugin._recorder, {isBusy: () => writing, isWriting: () => writing})
+        Object.assign(progressive, {postFrameConvergedRecordingDelta: () => plugin.canRecordFrame() ? 1 / 30 : 0})
+        plugin._recorder.start()
+        let done = false
+        const wait = plugin.waitRecordingTime(100).then(() => done = true) // 3 frames at 30 fps
+        for (let i = 0; i < 12; i++) viewer.dispatchEvent({type: 'postFrame'}) // more than maxFrameCount + 2 while it writes
+        writing = false
+        for (let i = 0; i < 3; i++) viewer.dispatchEvent({type: 'postFrame'}) // the 3 steps
+        await new Promise(r => setTimeout(r, 5))
+        expect(done).toBe(true) // ended by its steps: no wait on the wall clock (100 ms)
+        await wait
     })
 
     test('a scene that does not converge waits the rest of the time on the wall clock', async() => {
@@ -2141,6 +2183,17 @@ describe('CanvasRecorderPlugin recorders', () => {
         expect(plugin._recorder).toBe(b)
     })
 
+    test('registering a name again makes it the last registered, so it wins', () => {
+        const {plugin} = setup()
+        plugin.mimeType = 'image/png'
+        const a = fake(), b = fake(), a2 = fake()
+        plugin.registerRecorder('a', () => a, (m: string) => m === 'image/png')
+        plugin.registerRecorder('b', () => b, (m: string) => m === 'image/png')
+        expect(plugin._recorder).toBe(b)
+        plugin.registerRecorder('a', () => a2, (m: string) => m === 'image/png')
+        expect(plugin._recorder).toBe(a2)
+    })
+
     test('registering a name again disposes the recorder it made', () => {
         const {plugin} = setup()
         plugin.mimeType = 'image/png' // a built-in recorder that needs no worker here
@@ -2203,6 +2256,24 @@ describe('CanvasRecorderPlugin recorders', () => {
         expect(options()).not.toContain('video/quiet')
         plugin.mimeType = 'video/quiet'
         expect(options()).toContain('video/quiet') // the current value always shows
+    })
+
+    test('the UI picks a folder or a zip for an image sequence, and shows a sink set from code', () => {
+        const {plugin} = setup()
+        plugin.mimeType = 'image/png'
+        const item = plugin.uiConfig.children.find((c: any) => c?.label === 'Save frames to')
+        expect(item.getValue()).toBe('folder')
+        item.setValue('zip')
+        expect(plugin.frameSink).toBeInstanceOf(ZipFrameSink)
+        expect(plugin._recorder.options.frameSink).toBe(plugin.frameSink)
+        item.setValue('folder')
+        expect(plugin.frameSink).toBeUndefined()
+        plugin.frameSink = () => undefined
+        expect(item.getValue()).toBe('custom')
+        expect(item.children[0]().map((o: any) => o.value)).toEqual(['folder', 'zip', 'custom'])
+        plugin.mimeType = 'video/x' // not an image sequence (a format with no worker here)
+        expect(item.hidden()).toBe(true)
+        plugin.frameSink = undefined
     })
 
     test('the frame sink reaches the recorder, and clearing it does too', () => {
