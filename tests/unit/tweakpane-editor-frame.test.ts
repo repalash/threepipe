@@ -417,7 +417,7 @@ describe('EditorFrame', () => {
         commands.addEventListener('actionRun', ({action}) => runs.push(action.id))
         storage.set('tpEditorModeBarExpanded', '1')
         const f = new EditorFrame(host(), {layout: 'titlebar', viewer})
-        expect(commands.list('Editor').map(a => [a.id, a.shortcut])).toEqual([['editorFrame.toggleTheme', 'Shift+KeyT'], ['editorFrame.cycleModeBar', 'Mod+\\']])
+        expect(commands.list('Editor').map(a => [a.id, a.shortcut])).toEqual([['editorFrame.toggleTheme', 'Shift+KeyT'], ['editorFrame.cycleModeBar', 'Mod+\\'], ['editorFrame.shortcuts', 'Shift+?']])
 
         // one step per press: the frame has no own listener now
         expect(keydown('\\', 'Backslash', {ctrlKey: true}).defaultPrevented).toBe(true)
@@ -426,6 +426,14 @@ describe('EditorFrame', () => {
         await Promise.resolve()
         expect(runs).toEqual(['editorFrame.cycleModeBar'])
         expect(keydown('T', 'KeyT', {shiftKey: true, ctrlKey: true}).defaultPrevented).toBe(false)
+
+        // ? (Shift and the key of ?, on each layout) and the button of the mode bar open the sheet of the shortcuts
+        const sheet = vi.spyOn(f, 'toggleShortcuts').mockImplementation(() => {})
+        expect(keydown('?', 'Slash', {shiftKey: true}).defaultPrevented).toBe(true)
+        expect(keydown('?', 'Minus', {shiftKey: true}).defaultPrevented).toBe(true)
+        const button = f.modeBar.element.find('lay-mode-btn').find((b: any) => b.find('mb-label')[0]?.textContent === 'Shortcuts')
+        button.click()
+        expect(sheet).toHaveBeenCalledTimes(3)
 
         f.dispose()
         expect(commands.list()).toEqual([])

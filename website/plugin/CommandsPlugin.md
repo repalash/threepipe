@@ -15,7 +15,7 @@ next:
 [Source Code](https://github.com/repalash/threepipe/blob/master/src/plugins/interaction/CommandsPlugin.ts) &mdash;
 [API Reference](https://threepipe.org/docs/classes/CommandsPlugin.html)
 
-CommandsPlugin is a registry of actions: the commands that a person runs from a key, a toolbar, a context menu or a command palette. Plugins register their actions and keys once, and any UI lists and runs them. The plugin has no UI of its own (only a `Commands` folder in its `uiConfig`), so a plain viewer gets the shortcuts too.
+CommandsPlugin is a registry of actions: the commands that a person runs from a key, a toolbar, a context menu or a command palette. Plugins register their actions and keys once, and any UI lists and runs them. The plugin has no UI of its own (only a `Commands` folder in its `uiConfig`), so a plain viewer gets the shortcuts too. The tweakpane editor has a sheet of all the shortcuts (`ShortcutsSheet` of [`@threepipe/plugin-tweakpane-editor`](../package/plugin-tweakpane-editor), `?` in the editor).
 
 An action (`CommandAction`) has:
 

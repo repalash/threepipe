@@ -2,6 +2,7 @@ import {bindActions, createDiv, createStyles} from 'threepipe'
 import type {CommandAction, ThreeViewer} from 'threepipe'
 import {EditorModeBar, EditorModeBarHost} from './EditorModeBar'
 import {readStored, writeStored} from '../dom-utils'
+import {ShortcutsSheet} from '../ShortcutsSheet'
 import styles from './EditorFrame.css?inline'
 
 /**
@@ -130,6 +131,7 @@ const ICONS = {
     app: svg('<path d="M8 1.5l5.6 3.2v6.6L8 14.5l-5.6-3.2V4.7z"/><path d="M8 8l5.6-3.3M8 8v6.5M8 8L2.4 4.7"/>'),
     theme: svg('<path d="M13 9.5A5.5 5.5 0 0 1 6.5 3a5.5 5.5 0 1 0 6.5 6.5z"/>'),
     layout: svg('<rect x="2" y="2.5" width="12" height="11" rx="1.5"/><path d="M2 5.5h12M10 5.5v8"/>'),
+    keys: svg('<rect x="1.5" y="4" width="13" height="8.5" rx="1.5"/><path d="M4 6.8h.01M6.5 6.8h.01M9 6.8h.01M11.5 6.8h.01M4.5 9.7h7"/>'),
     left: svg('<rect x="2" y="2.5" width="12" height="11" rx="1.5"/><path d="M6 2.5v11"/>'),
     right: svg('<rect x="2" y="2.5" width="12" height="11" rx="1.5"/><path d="M10 2.5v11"/>'),
     bottom: svg('<rect x="2" y="2.5" width="12" height="11" rx="1.5"/><path d="M2 10h12"/>'),
@@ -277,16 +279,20 @@ export class EditorFrame {
     private _themePairs: [string, string][]
     private _styles?: HTMLStyleElement
     private _unbindActions: () => void
+    /** The sheet of the keyboard shortcuts, made when it opens first ({@link toggleShortcuts}) */
+    private _sheet?: ShortcutsSheet
 
     /**
      * The keys of the frame, as actions (`bindActions` of threepipe: a `CommandsPlugin` of
      * {@link EditorFrameOptions.viewer} lists and runs them, else the frame does): Shift+T switches between the light and
-     * the dark theme, Ctrl+\ (Cmd+\ on a Mac) steps through the collapse states of the mode bar and the panel. The
-     * place of the T key, and the \ key or its place (a layout where it types another character).
+     * the dark theme, Ctrl+\ (Cmd+\ on a Mac) steps through the collapse states of the mode bar and the panel, `?` opens
+     * or closes the sheet of the keyboard shortcuts ({@link toggleShortcuts}). The place of the T key, the \ key or its
+     * place (a layout where it types another character), and the ? character (on each layout).
      */
     readonly actions: CommandAction[] = [
         {id: 'editorFrame.toggleTheme', label: 'Light or dark theme', group: 'Editor', shortcut: 'Shift+KeyT', run: () => this.toggleTheme()},
         {id: 'editorFrame.cycleModeBar', label: 'Collapse or expand the mode bar', group: 'Editor', shortcut: 'Mod+\\', run: () => this.modeBar.cycle()},
+        {id: 'editorFrame.shortcuts', label: 'Keyboard shortcuts', group: 'Editor', shortcut: 'Shift+?', run: () => this.toggleShortcuts()},
     ]
 
     /**
@@ -873,8 +879,19 @@ export class EditorFrame {
         if (next) cm.set(next)
     }
 
+    /**
+     * Opens or closes the sheet of the keyboard shortcuts: the actions of the `CommandsPlugin` of
+     * {@link EditorFrameOptions.viewer} that have a key ({@link ShortcutsSheet}). The button of the mode bar and `?` do this.
+     */
+    toggleShortcuts() {
+        this._sheet ??= new ShortcutsSheet(this.options.viewer)
+        this._sheet.toggle()
+    }
+
     dispose() {
         this._unbindActions()
+        this._sheet?.dispose()
+        this._sheet = undefined
         window.removeEventListener('resize', this._fitAreas)
         this.modeBar.onLayoutChange = undefined
         this.modeBar.element.removeEventListener('click', this._expandPanel)
@@ -1506,11 +1523,12 @@ export class EditorFrame {
         this._fitAreas()
     }
 
-    /** The light or dark button and the layout button, in the mode bar */
+    /** The light or dark button, the layout button and, with a viewer, the shortcuts button, in the mode bar */
     private _actions() {
         const buttons: HTMLButtonElement[] = []
         if (this.options.colorMode) buttons.push(this._button(ICONS.theme, 'Light or dark (Shift T)', 'Light / dark', () => this.toggleTheme()))
         buttons.push(this._button(ICONS.layout, 'Layout of the page', 'Layout', b => this._toggleMenu(b, () => this._layoutItems())))
+        if (this.options.viewer) buttons.push(this._button(ICONS.keys, 'Keyboard shortcuts (?)', 'Shortcuts', () => this.toggleShortcuts()))
         return buttons
     }
 
