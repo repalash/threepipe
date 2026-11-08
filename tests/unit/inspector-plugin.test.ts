@@ -309,7 +309,9 @@ describe('InspectorPlugin', () => {
         const kept = {type: 'button', label: 'Reset Pivot', tags: [UiTags.ContextMenu, UiTags.Inline], value: vi.fn(), uiRef: {element: row()}}
         const first = {type: 'button', label: 'Export', tags: [UiTags.ContextMenu], order: -1, value: vi.fn(), uiRef: {element: row()}}
         const a = mesh(new PhysicalMaterial())
-        a.uiConfig = {type: 'folder', label: 'Box', children: [plain, {type: 'folder', label: 'Transform', children: [center, off, kept]}, dup, first]} as any
+        // a button inside a folder (one Remove Constraint for each constraint) stays there: the folder tells what it removes
+        const nested = {type: 'button', label: 'Remove Constraint', tags: [UiTags.ContextMenu], value: vi.fn(), uiRef: {element: row()}}
+        a.uiConfig = {type: 'folder', label: 'Box', children: [plain, center, off, kept, {type: 'folder', label: 'Look At', children: [nested]}, dup, first]} as any
         const menus: Record<string, () => void>[] = []
         vi.spyOn(inspector as any, '_showMenu').mockImplementation((items: any) => {
             menus.push(items)
@@ -324,7 +326,7 @@ describe('InspectorPlugin', () => {
         menus[0]['Auto Center']()
         expect(ui.methods.clickButton).toHaveBeenCalledWith(center)
         // the tagged buttons hide from the settings (also the hidden and the linked ones), the others stay
-        expect([center, off, dup, plain, kept].map(c => c.uiRef.element.classList.contains('isp-in-menu'))).toEqual([true, true, true, false, false])
+        expect([center, off, dup, plain, kept, nested].map(c => c.uiRef.element.classList.contains('isp-in-menu'))).toEqual([true, true, true, false, false, false])
         // an action runs from the menu too
         Object.values(menus[0])[0]()
         expect(picking.runs).toEqual(['focus'])

@@ -115,7 +115,7 @@ class InspectorUiRenderer extends TweakpaneUiPlugin {
  * - The head has a bar of the actions of the selected object ({@link InspectorPlugin.BarActions}: Focus, Hide or show,
  *   Duplicate, Delete, Select the parent), as icons, with their label and key in the tooltip. A narrow panel shows the
  *   icons that fit (the others wrap to a hidden line); the ⋯ button opens a menu of all the actions, with their labels
- *   and keys, then the buttons of the open tab that have the `context-menu` tag (`UiTags.ContextMenu`: Auto Center,
+ *   and keys, then the buttons at the top of the open tab that have the `context-menu` tag (one inside a folder stays there) (`UiTags.ContextMenu`: Auto Center,
  *   Set View...), sorted by their uiconfig `order`. Those buttons leave the settings; one with the `inline` tag
  *   (`UiTags.Inline`) stays there and is not in the menu. A button linked to an action (`setUiConfigAction`, like Duplicate
  *   Object) is not in the menu while its action is in {@link InspectorPlugin.BarActions}: the action is. The actions run through the `CommandsPlugin` of the viewer when it has
@@ -645,14 +645,16 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
     }
 
     /**
-     * Finds the `context-menu` buttons of the open tab again ({@link _taggedButtons}), hides their rows, and shows the ⋯
+     * Finds the `context-menu` buttons at the top of the open tab again ({@link _taggedButtons}), hides their rows, and shows the ⋯
      * button while the menu has items: at each render, and when the renderer adds rows (a dynamic folder)
      */
     private _refreshMenuButtons() {
         if (!this._more) return
         const config = this._inPage ? this._shown[this._shown.length - 1] : undefined
         const order = (c: UiObjectConfig) => Number(getOrCall(c.order)) || 0
-        this._taggedButtons = !config ? [] : findTaggedUiConfigs(config, UiTags.ContextMenu).map(t => t.config)
+        // only the buttons at the top of the tab: one inside a folder (Remove Constraint in each constraint) stays there,
+        // so its folder still tells what it acts on
+        this._taggedButtons = !config ? [] : findTaggedUiConfigs(config, UiTags.ContextMenu).filter(t => t.parents.length <= 1).map(t => t.config)
             .filter(c => c.type === 'button' && !hasUiTag(c, UiTags.Inline))
             .sort((a, b) => order(a) - order(b)) // a stable sort: the tree order among equal ones
         this._more.style.display = this._menuItems().length ? '' : 'none'
