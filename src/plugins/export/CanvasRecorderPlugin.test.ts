@@ -2354,6 +2354,11 @@ describe('CanvasRecorderPlugin in a hidden tab', () => {
         rec.setState('recording')
         rec.setState('error')
         expect(stop).toHaveBeenCalledTimes(2)
+        rec.setState('recording')
+        rec.setState('paused') // takes no frames: lets go of the clock
+        expect(stop).toHaveBeenCalledTimes(3)
+        rec.setState('recording') // resumed: holds it again
+        expect(keep).toHaveBeenCalledTimes(4)
     })
 })
 

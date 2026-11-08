@@ -1035,7 +1035,11 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
                 this.dispatchEvent({type: 'error'})
                 this._stateChange(false)
             }],
-            ['paused', () => this._stateChange(false)],
+            // a paused recording takes no frames: no rendering in a hidden tab for it (a resume holds it again)
+            ['paused', () => {
+                this._viewer?.renderManager?.stopRenderingWhenHidden?.(CanvasRecorderPlugin.PluginType)
+                this._stateChange(false)
+            }],
             // ['resume', () => this._stateChange(!this.convergeMode)],
             ['stopped', () => {
                 this._viewer?.renderManager?.stopRenderingWhenHidden?.(CanvasRecorderPlugin.PluginType)
