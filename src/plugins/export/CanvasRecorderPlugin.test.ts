@@ -2130,6 +2130,38 @@ describe('CanvasRecorderPlugin recorders', () => {
         plugin._recorder.setState('stopped')
     })
 
+    test('a registered name like a built-in one does not replace the built-in recorder', () => {
+        const {plugin} = setup()
+        plugin.mimeType = 'image/png' // a built-in recorder that needs no worker here
+        const builtIn = plugin._recorder
+        builtIn.dispose = vi.fn()
+        const rec = fake()
+        const factory = vi.fn(() => rec)
+        plugin.registerRecorder('image', factory, (m: string) => m === 'video/x')
+        expect(builtIn.dispose).not.toHaveBeenCalled()
+        plugin.mimeType = 'image/jpeg'
+        expect(plugin._recorder).toBe(builtIn)
+        expect(factory).not.toHaveBeenCalled()
+        plugin.mimeType = 'video/x'
+        expect(plugin._recorder).toBe(rec)
+        plugin.unregisterRecorder('image')
+        expect(builtIn.dispose).not.toHaveBeenCalled()
+        expect(rec.dispose).toHaveBeenCalledTimes(1)
+    })
+
+    test('the UI lists a registered format with a label, and a format set from code', () => {
+        const {plugin} = setup()
+        plugin.mimeType = 'image/png'
+        const options = () => plugin.uiConfig.children.find((c: any) => c?.label === 'Mime type').children[0]().map((o: any) => o.value)
+        expect(options()).toEqual(['auto', 'image/png', 'image/jpeg', 'image/webp', 'video/mp4'])
+        plugin.registerRecorder('webm', fake, (m: string) => m === 'video/webm', {label: 'WebM', mimeType: 'video/webm'})
+        expect(options()).toContain('video/webm')
+        plugin.registerRecorder('quiet', fake, (m: string) => m === 'video/quiet') // no label: not listed
+        expect(options()).not.toContain('video/quiet')
+        plugin.mimeType = 'video/quiet'
+        expect(options()).toContain('video/quiet') // the current value always shows
+    })
+
     test('the frame sink reaches the recorder, and clearing it does too', () => {
         const {plugin} = setup()
         plugin.mimeType = 'image/png' // a built-in recorder that needs no worker here

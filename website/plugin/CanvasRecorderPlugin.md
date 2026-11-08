@@ -87,9 +87,12 @@ Frames arrive one at a time and in order. In converge mode the next frame waits 
 ```typescript
 recorder.registerRecorder('webcodecs',
     (canvas, options) => new MyWebCodecsRecorder(canvas, options),
-    mimeType => mimeType === 'video/webm')
+    mimeType => mimeType === 'video/webm',
+    {label: 'WebM (WebCodecs)', mimeType: 'video/webm'}) // optional: an entry in the plugin UI's format list
 recorder.mimeType = 'video/webm'
 ```
+
+Registered recorders have their own names: one called `image` doesn't replace the built-in image recorder.
 
 `registerRecorder` and `unregisterRecorder` return `false` and change nothing during a recording.
 

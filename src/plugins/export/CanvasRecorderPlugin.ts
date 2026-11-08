@@ -18,6 +18,9 @@ import {RemovalWaits} from '../../utils/canvas-recorder/RemovalWaits'
 /** A listener of {@link CanvasRecorderPlugin} on one of its recorders: the event type and the listener */
 type RecorderListener = [string, (e: any) => void]
 
+/** The keys of registered recorders, apart from the built-in ones */
+const REGISTERED = 'registered:'
+
 /** Makes a recorder for {@link CanvasRecorderPlugin.registerRecorder} */
 export type CanvasRecorderFactory = (canvas: HTMLCanvasElement, options: Partial<CanvasRecorderOptions>) => ICanvasRecorder
 
@@ -83,7 +86,7 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
         frameSink: CanvasFrameSink | undefined = undefined
 
     private _recorders: Record<string, ICanvasRecorder> = {}
-    private _registeredRecorders = new Map<string, {factory: CanvasRecorderFactory, match: (mimeType: string) => boolean}>()
+    private _registeredRecorders = new Map<string, {factory: CanvasRecorderFactory, match: (mimeType: string) => boolean, ui?: {label: string, mimeType: string}}>()
     /** The listeners of the plugin on each recorder that it made ({@link _getRecorder}) */
     private _recorderListeners = new Map<ICanvasRecorder, RecorderListener[]>()
     private _recorder?: ICanvasRecorder
@@ -182,7 +185,7 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
         const registered = [...this._registeredRecorders].reverse().find(([, r]) => r.match(this.mimeType))?.[0]
         let recorderType = 'image'
         if (registered) {
-            recorderType = registered
+            recorderType = REGISTERED + registered
         } else if (this.mimeType === 'video/mp4') {
             recorderType = 'ffmpeg.js'
         } else if (this.mimeType === 'auto') {
@@ -207,12 +210,14 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
      * @param name - unique; registering a name again replaces that recorder
      * @param factory - makes the recorder from the viewer's canvas, once, when it's first needed
      * @param match - which values of {@link mimeType} it records. Default: the one equal to `name`
+     * @param ui - an entry in the format list of the plugin's UI: its label and the {@link mimeType} it sets
      * @returns false when a recording runs, and nothing changed
      */
-    registerRecorder(name: string, factory: CanvasRecorderFactory, match: (mimeType: string) => boolean = m => m === name): boolean {
+    registerRecorder(name: string, factory: CanvasRecorderFactory, match: (mimeType: string) => boolean = m => m === name, ui?: {label: string, mimeType: string}): boolean {
         if (!this._releaseRecorderNamed(name)) return false
-        this._registeredRecorders.set(name, {factory, match})
+        this._registeredRecorders.set(name, {factory, match, ui})
         this.refreshRecorderOptions()
+        this._refreshUi()
         return true
     }
 
@@ -224,7 +229,24 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
         if (!this._registeredRecorders.has(name) || !this._releaseRecorderNamed(name)) return false
         this._registeredRecorders.delete(name)
         this.refreshRecorderOptions()
+        this._refreshUi()
         return true
+    }
+
+    /** The formats of the UI: the built-in ones, the registered ones with a label, and a value set from code */
+    private _formatOptions() {
+        const options: {label: string, value: string}[] = [
+            {label: 'Auto Video (x264)', value: 'auto'},
+            {label: 'PNG sequence', value: 'image/png'},
+            {label: 'JPEG sequence', value: 'image/jpeg'},
+            {label: 'WEBP sequence', value: 'image/webp'},
+            {label: 'MP4 Video (ffmpeg)', value: 'video/mp4'},
+        ]
+        for (const {ui} of this._registeredRecorders.values()) {
+            if (ui && !options.some(o => o.value === ui.mimeType)) options.push({label: ui.label, value: ui.mimeType})
+        }
+        if (!options.some(o => o.value === this.mimeType)) options.push({label: this.mimeType, value: this.mimeType})
+        return options
     }
 
     /** Disposes the recorder made under this name, if any. False when a recording runs. */
@@ -233,10 +255,10 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
             this._viewer?.console.warn('CanvasRecorderPlugin: recorders cannot change during a recording')
             return false
         }
-        const recorder = this._recorders[name]
+        const recorder = this._recorders[REGISTERED + name]
         if (!recorder) return true
         this._releaseRecorder(recorder)
-        delete this._recorders[name]
+        delete this._recorders[REGISTERED + name]
         if (this._recorder === recorder) this._recorder = undefined
         return true
     }
@@ -730,16 +752,7 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
                 type: 'dropdown',
                 label: 'Mime type',
                 property: [this, 'mimeType'],
-                children: ([
-                    ['Auto Video (x264)', 'auto'],
-                    ['PNG sequence', 'image/png'],
-                    ['JPEG sequence', 'image/jpeg'],
-                    ['WEBP sequence', 'image/webp'],
-                    ['MP4 Video (ffmpeg)', 'video/mp4'],
-                ] as [string, string][]).map(value => ({
-                    label: value[0],
-                    value: value[1],
-                })),
+                children: [() => this._formatOptions()],
             },
             {
                 type: 'folder',
@@ -948,7 +961,8 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
         if (!this._viewer) throw new Error('No viewer')
         if (this._recorders[type]) return this._recorders[type]
         let recorder: ICanvasRecorder
-        const registered = this._registeredRecorders.get(type)
+        // a registered recorder has its own names: one called `image` doesn't replace the built-in image recorder
+        const registered = type.startsWith(REGISTERED) ? this._registeredRecorders.get(type.slice(REGISTERED.length)) : undefined
         if (registered)
             recorder = registered.factory(this._viewer.canvas, {
                 frameRate: this.videoFrameRate,
