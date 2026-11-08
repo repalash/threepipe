@@ -39,7 +39,7 @@
 
 - https://cloud.threepipe.org: the portal (/drive, /reports, /account) and the API; files are served on https://files.threepipe.org. Code: services/cloud (a teenybase worker, see its README.md and AGENTS.md); the client is `@threepipe/plugin-cloud` (plugins/cloud: feedback dialog, Sign in with threepipe, drive, share).
 - Access: threepipe cloud user makes an access link at /account → Apps & keys and gives you its URL. Read its agents.md, which gives the key url, save the key as `TP_CLOUD_KEY=…` in `~/.config/threepipe-cloud/.env` (chmod 600). The URL and the key act as the user: never print, commit or paste them anywhere.
-- Sharing: an upload is public on the web. Upload only what the task needs (PR previews, demo videos and screenshots), and ask first for anything else.
+- Sharing: an upload is public on the web. Upload what the task needs without asking: PR previews, test and demo pages, videos and screenshots. Ask first for anything with project data or private files, or a large upload to the samples bucket.
   - PR preview of the examples: build, then `npm run cloud:upload-preview -- pr-<n>` → `https://files.threepipe.org/b/threepipe/pr-<n>/examples/index.html`.
   - A video or screenshot for a PR: `npm run cloud:upload -- demo.mp4 b/threepipe/pr-<n>/demo.mp4` (kept until cleaned up); `a/<name>` is permanent (needs `x-content-sha256`). Put the links in the PR description; GitHub shows them as links, not inline players.
   - Max 90 MB per file. `p/<name>/…` for permanent pages, `s/<slug>/…` for short shares (7 days).
