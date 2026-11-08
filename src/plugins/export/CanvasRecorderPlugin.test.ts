@@ -459,6 +459,20 @@ describe('ImageSequenceRecorder dispose', () => {
         expect(dispose).toHaveBeenCalledTimes(1)
     })
 
+    test('a dispose during a recording whose write then fails lets the sink go once the stop ends', async() => {
+        const dispose = vi.fn()
+        let fail!: (e: Error) => void
+        const {rec} = sequence('image/png', undefined, {write: async() => new Promise((_, reject) => fail = reject), dispose})
+        rec.requestFrame()
+        await new Promise(r => setTimeout(r, 0))
+        rec.dispose() // e.g. the plugin is removed while a write is pending
+        expect(dispose).not.toHaveBeenCalled()
+        fail(new Error('upload failed'))
+        await new Promise(r => setTimeout(r, 5))
+        expect(rec.state).toBe('error')
+        expect(dispose).toHaveBeenCalledTimes(1)
+    })
+
     test('a dispose after a recording that ended lets the sink go', async() => {
         const dispose = vi.fn()
         const {rec} = sequence('image/png', undefined, {dispose})
