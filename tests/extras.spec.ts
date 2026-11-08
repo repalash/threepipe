@@ -68,6 +68,7 @@ test('clear-reimport-test-2', async({page}) => expect(page).toHaveTitle('Clear +
 test('clearcoat-tint-plugin', async({page}) => expect(page).toHaveTitle('Clearcoat Tint Plugin'))
 test('cmpt-load', async({page}) => expect(page).toHaveTitle('CMPT (Composite 3D Model, OGC Tiles) Load'))
 test('commands-plugin', async({page}) => expect(page).toHaveTitle('Commands Plugin'))
+test('dialog-toasts', async({page}) => expect(page).toHaveTitle('Dialog Toasts'))
 test('contact-shadow-ground-plugin', async({page}) => expect(page).toHaveTitle('Contact Shadow Ground Plugin'))
 test('custom-bump-map-plugin', async({page}) => expect(page).toHaveTitle('Custom Bump Map Plugin'))
 test('depthoffield-plugin', async({page}) => expect(page).toHaveTitle('DepthOfField Plugin'))
