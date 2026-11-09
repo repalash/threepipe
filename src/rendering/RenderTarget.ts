@@ -1,11 +1,11 @@
 import {
-    ColorSpace,
     DepthFormat,
     DepthStencilFormat,
     DepthTexture,
     FloatType,
     MagnificationTextureFilter,
     MinificationTextureFilter,
+    PixelFormat,
     RenderTarget,
     Texture,
     TextureDataType,
@@ -76,9 +76,12 @@ export interface CreateRenderTargetOptions {
     samples?: number,
     minFilter?: MinificationTextureFilter
     magFilter?: MagnificationTextureFilter
-    colorSpace?: ColorSpace
+    /**
+     * Any color space registered with `ColorManagement` (three.js r170+ types `Texture.colorSpace` as `string`)
+     */
+    colorSpace?: string
     type?: TextureDataType
-    format?: number
+    format?: PixelFormat
     /**
      * @default true
      */

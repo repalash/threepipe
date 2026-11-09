@@ -1,4 +1,5 @@
 import {GLTFExporter, GLTFExporterPlugin} from 'three/examples/jsm/exporters/GLTFExporter.js'
+import {decompress} from 'three/examples/jsm/utils/WebGLTextureUtils.js'
 import {IExportWriter} from '../IExporter'
 import {GLTFWriter2} from './GLTFWriter2'
 import {AnimationClip, Object3D} from 'three'
@@ -13,7 +14,6 @@ import {
     GLTFObject3DExtrasExtension,
     GLTFViewerConfigExtension,
 } from '../gltf'
-import {GLTF} from 'three/examples/jsm/loaders/GLTFLoader.js'
 import {metaToResources, SerializationMetaType} from '../../utils'
 import {GLTFLoader2} from '../import'
 
@@ -126,6 +126,9 @@ export class GLTFExporter2 extends GLTFExporter implements IExportWriter {
 
     constructor() {
         super()
+        // since three.js r170 a compressed texture that cannot be serialized as is (KTX2 without its source buffer,
+        // see KTX2LoadPlugin.SAVE_SOURCE_BLOBS) is decompressed for export only with texture utils, else the export throws
+        this.setTextureUtils({decompress})
         this.processors.push(glbEncryptionProcessor)
     }
 
@@ -135,6 +138,8 @@ export class GLTFExporter2 extends GLTFExporter implements IExportWriter {
 
     processors: ((obj: ArrayBuffer|any|Blob, options: GLTFExporter2Options) => Promise<ArrayBuffer|any|Blob>)[] = []
 
+    // three's GLTFExporter.parseAsync resolves with the raw glTF (ArrayBuffer or json); threepipe exporters (IExportWriter)
+    // resolve with a Blob after the processors ran (the three-modded types keep the base result as `{[key: string]: any}` for this).
     async parseAsync(obj: ArrayBuffer|any, options: GLTFExporter2Options): Promise<Blob> {
         if (!obj) throw new Error('No object to export')
         let gltf = !obj.__isGLTFOutput && (Array.isArray(obj) || obj.isObject3D) ? await new Promise((resolve, reject) => this.parse(obj, resolve, reject, options)) : obj
@@ -179,7 +184,7 @@ export class GLTFExporter2 extends GLTFExporter implements IExportWriter {
             gltfOptions.binary = true
         }
 
-        const onDone1 = (o: GLTF)=> {
+        const onDone1 = (o: ArrayBuffer | {[key: string]: unknown})=> {
 
             // eslint-disable-next-line @typescript-eslint/naming-convention
             onDone(Object.assign(o, {__isGLTFOutput: true}))
