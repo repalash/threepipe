@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 [//]: # (The format is based on [Keep a Changelog]&#40;https://keepachangelog.com/en/1.1.0/&#41;, and this project adheres to [Semantic Versioning]&#40;https://semver.org/spec/v2.0.0.html&#41;.)
 
+## [0.7.0-r172.1] - 2026-11-05
+
+Release candidate of the three.js r172 upgrade lane, under the npm dist-tag `three-r172`, with `three-modded` and `three-types-modded` 0.172.10001-rc.2: the changes listed under [Unreleased] below, the r172 upgrade among them.
+
+An app that installs the release candidate pins `three` and `@types/three` to the same versions with `overrides`, since other packages' ranges (such as `uiconfig-tweakpane`'s peer `@types/three`) do not match prerelease versions:
+
+```json
+"dependencies": {
+    "threepipe": "0.7.0-r172.1",
+    "three": "npm:three-modded@0.172.10001-rc.2",
+    "@types/three": "npm:three-types-modded@0.172.10001-rc.2"
+},
+"overrides": {
+    "three": "$three",
+    "@types/three": "$@types/three"
+}
+```
+
 ## [Unreleased]
 
 ### Added
@@ -41,6 +59,17 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- Upgrade `three` from v0.168.10008 to v0.172.10001 (three.js r172)
+  - **Breaking** `RenderManager.exportRenderTarget()` is async and returns `Promise<BlobExt>` (three.js r169 made `EXRExporter.parse()` async); `RenderTargetPreviewPlugin.downloadTarget()` returns a promise too
+  - **Breaking** glTF export is async (three.js r170): `GLTFWriter2.processObjects/processMaterial/processTexture` are now `processObjectsAsync/processMaterialAsync/processTextureAsync`, and glTF exporter plugins must implement `writeMaterialAsync` instead of `writeMaterial` — the old hook is silently ignored by three, so material extensions would be dropped from exports. All built-in extensions are updated. The `writeMesh`, `writeNode`, `beforeParse` and `afterParse` hooks may return a promise (three-modded awaits them)
+  - `DisplayP3ColorSpace` moved out of three.js core (r170). threepipe registers Display P3 from `three/examples/jsm/math/ColorSpaces.js`, so the `ColorSpace` ui mapping keeps working
+  - `colorSpace` in `CreateRenderTargetOptions`, `getTexelDecoding` and `textureDataToImageData` accepts any registered color space (`string`), like `Texture.colorSpace` in three.js
+  - `LineMaterial2` ui properties are accessor overrides, as three.js types `LineMaterial`'s properties as accessors
+  - `TiltLoadPlugin` removed from `@threepipe/plugins-extra-importers` (three.js r169 removed `TiltLoader`)
+  - glTF export of non-PBR materials (e.g. OBJ/MTL Phong materials) writes `roughnessFactor: 1, metallicFactor: 0` instead of `0.5, 0.5` (three.js r170, #29692); such materials look less glossy after an export/import round trip
+  - glTF export of a compressed texture that cannot be written as is (a KTX2 texture without its source, `KTX2LoadPlugin.SAVE_SOURCE_BLOBS` off) decompresses it as before: three.js r170 does that only with texture utils, which `GLTFExporter2` now sets (`setTextureUtils({decompress})`); without them the export threw
+  - **Breaking** threepipe exports `USDLoader` in place of `USDZLoader`, as `three/addons` does in three-modded 0.172.10001-rc.2 (three.js r179). `three/examples/jsm/loaders/USDZLoader.js` is still there as a deprecated `USDLoader`
+  - `USDZLoadPlugin` loads with three.js `USDLoader` (from r187 in three-modded): also `.usdc` and `.usd` files, and USDZ files with a binary (USDC) layer, which failed with "usdc files are not supported"
 - `ObjectPicker.setSelected` of a list switches the selection mode as its first item does (a list of objects after a material: object mode again), as a single item does
 - `EditorViewWidgetPlugin`: the container of the widget has the class `editor-view-widget`, so a page can place it (the floating layout of the tweakpane editor frame keeps it out of its cards).
 - `Object3DWidgetsPlugin` depends on `GBufferPlugin` and adds it to the viewer: the widgets have `toneMapped: false`, which works through the GBuffer flags. Without them, the tone mapping changed the colours of the helper lines and of the `'sprite'` icons
@@ -62,6 +91,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- `tweakpane` image input: downloading a Float/HalfFloat `DataTexture` as EXR threw `EXRExporter.parse: Unsupported first parameter`
 - tweakpane-editor page frame: the panel scrolls up and down only. On a phone in Safari it also scrolled sideways, and the labels went out at the left
 - `StickyNotesUiPlugin` (tweakpane-editor): the minimised notes bar is as wide as its icon and number again on a phone. Its icon was 100% of a button as wide as its content, and Safari stretched it, and the bar, to the free width of the canvas
 - `TweakpaneUiPlugin`: a new default colour mode reaches people who opened a page before. Every visit kept the colour mode in `localStorage`, also the default, so the old default stayed (for example `blue`, `dark` or `light` in place of `clean`). The default at the time of the write is now kept too (`tpThemeDefault`), and a kept value that was the default follows the default of now; a colour mode that the person picked stays. It is written only when it changes
