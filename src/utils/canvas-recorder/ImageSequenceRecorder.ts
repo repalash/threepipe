@@ -33,6 +33,9 @@ export class ImageSequenceRecorder extends ACanvasRecorder {
         }
         if (this.state === 'error') {
             this._console.warn('Resetting from error state.')
+            // the failed recording's sink was never finished: let it go before the next sink takes its place. Nothing
+            // writes to it any more: a recording ends in error only after a failed start, or once a failed stop has waited
+            this._releaseSink()
         }
 
         if (this.state === 'paused') {
@@ -114,7 +117,7 @@ export class ImageSequenceRecorder extends ACanvasRecorder {
         // a start that waits for the sink does not start: it ends in the error state (a record() waiting for it settles)
         if (this.state === 'starting') {
             this._startId++
-            this._sink?.dispose?.()
+            this._releaseSink()
             this.setState('error', {error: new Error('ImageSequenceRecorder: disposed while starting')})
         } else if (this.state === 'error' || this.state === 'stopped') {
             // after a failed or ended recording: an upload session or the frames of a zip are let go too

@@ -473,6 +473,24 @@ describe('ImageSequenceRecorder dispose', () => {
         expect(dispose).toHaveBeenCalledTimes(1)
     })
 
+    test('a start after a failed recording lets the failed sink go before the next sink', async() => {
+        const dispose = vi.fn()
+        const {rec} = sequence('image/png', undefined, {write: async() => {
+            throw new Error('upload failed')
+        }, dispose})
+        rec.requestFrame()
+        await new Promise(resolve => rec.stop(resolve))
+        expect(rec.state).toBe('error')
+        const nextDispose = vi.fn()
+        rec.options.frameSink = {write: () => undefined, dispose: nextDispose} // the user picks another sink
+        rec.start()
+        expect(dispose).toHaveBeenCalledTimes(1)
+        expect(rec.state).toBe('recording')
+        rec.dispose()
+        expect(dispose).toHaveBeenCalledTimes(1)
+        expect(nextDispose).not.toHaveBeenCalled() // still recording: let go once its stop ends
+    })
+
     test('a dispose after a recording that ended lets the sink go', async() => {
         const dispose = vi.fn()
         const {rec} = sequence('image/png', undefined, {dispose})
