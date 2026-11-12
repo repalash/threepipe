@@ -405,6 +405,10 @@ console.log(renderManager.frameCount)
 // Force reset shadows when some object is moved
 renderManager.resetShadows()
 
+// Keep rendering while the browser tab is hidden (until stopRenderingWhenHidden with the same key)
+renderManager.keepRenderingWhenHidden('my-task')
+renderManager.stopRenderingWhenHidden('my-task')
+
 // Render Target Management
 
 // Get the main composer target
@@ -477,6 +481,8 @@ const buffer = renderManager.renderTargetToBuffer(renderTarget)
 [`renderManager.renderScale`](https://threepipe.org/docs/classes/RenderManager.html#renderscale) - Sets the render scale. All targets are scaled by this factor. This is equivalent to calling `EffectComposer.setPixelRatio` and `WebGLRenderer.setPixelRatio` in three.js.
 
 [`renderManager.resetShadows`](https://threepipe.org/docs/classes/RenderManager.html#resetshadows) - Resets all shadow maps in the scene. This is useful when some object is moved and the shadows need to be updated. This is automatically called when `scene.setDirty` or any `object.setDirty` is called, and during animation with plugins.
+
+[`renderManager.keepRenderingWhenHidden`](https://threepipe.org/docs/classes/RenderManager.html#keeprenderingwhenhidden) - Keeps the viewer rendering while its browser tab is hidden. A browser stops `requestAnimationFrame` in a hidden tab, so the viewer normally stops there. While a key holds it, a clock in a worker brings the frames instead, about 60 a second, until the tab is visible again ([HiddenPageClock](https://threepipe.org/docs/classes/HiddenPageClock.html)). [`stopRenderingWhenHidden`](https://threepipe.org/docs/classes/RenderManager.html#stoprenderingwhenhidden) with the same key lets go; it stops when the last key does. Use it for a task that has to finish in the background: it uses the CPU and GPU while hidden. [CanvasRecorderPlugin](../plugin/CanvasRecorderPlugin) holds it during a recording. It does nothing in WebXR or in Node.js. Measured in Chrome; Safari, Firefox and phones may still pause a hidden tab, and Chrome can freeze a tab hidden for long (Energy Saver). [Example](https://threepipe.org/examples/#hidden-tab-rendering/)
 
 ### Rendering Pipeline
 
