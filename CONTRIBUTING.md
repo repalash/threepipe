@@ -89,6 +89,25 @@ Every pull request that changes or adds an example has a preview link to that ex
 Step 2 needs a threepipe cloud key (`TP_CLOUD_KEY`): sign in at https://cloud.threepipe.org with GitHub, create an access
 link, and follow it. See `services/cloud/README.md`.
 
+### The dev site and old versions
+
+https://dev.threepipe.org is the site, examples and docs of the `dev` branch, on Cloudflare Pages. Every merge into `dev`
+deploys it (`npm run build-site`). Use it to try what is about to be released, or to compare it with a pull request's
+preview above. https://threepipe.org is `master`.
+
+Cloudflare keeps each deployment at its own address, `https://<hash>.threepipe.pages.dev`, so you can open an old version
+to find when something changed. The hash is random, not the commit's. Find it on the commit's `Cloudflare Pages` check on
+GitHub, or in the project's deployments on the Cloudflare dashboard, or with:
+
+```bash
+gh api repos/repalash/threepipe/commits/<commit>/check-runs -q '.check_runs[] | select(.name == "Cloudflare Pages") | .output.summary' | grep -o 'https://[a-z0-9]*\.threepipe\.pages\.dev'
+```
+
+- Only `dev` is deployed: branches and pull requests have no Cloudflare address (their builds are skipped), so use the
+  preview above for those.
+- A commit whose build failed has no address (for example `dev` from 2026-10-30 to 2026-11-05).
+- All of these are public, and marked `noindex` so that search engines skip them.
+
 ## Building
 
 Builds run through [Turborepo](https://turborepo.com): packages build in parallel in dependency order, and a package whose inputs did not change is restored from the cache in `.turbo/` instead of being built again.
