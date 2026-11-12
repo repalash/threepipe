@@ -106,6 +106,8 @@ cookies, storage or history.
   folder id, or `*` with `access: 'drive'`). Sign-in works for apps on files.threepipe.org (`s/`, `p/`, `b/`, `d/`), on
   `*.threepipe.org`, and on `localhost` / `*.localhost` while developing; other domains are not supported yet. Pages on
   files.threepipe.org run sandboxed without storage: call `signIn()` on load there; once approved it comes straight back.
+  Such a page cannot check that it started the sign-in, so it asks the person before it takes the key, naming the
+  account the key was issued to; `confirmUnverified(account)` replaces that dialog with the app's own (return `true` to sign in).
 - `cloud.drive`: `save(name, blob, {folder?})`, `saveFolder(name, files, {folder?, entry?})`, `list(folder?)`, `resolve(path)`,
   `item(id)`, `read(id, path?)`, `rename`, `move`, `remove`, `share` / `unshare`, `newId` (every old URL stops working),
   `fileUrl(id, path?, ttl?)`, `newFolder(name, parent?)`. Each upload is an item with a fixed URL; names and folders are labels.
