@@ -349,34 +349,42 @@ export class UiConfigForm {
         // a label can be a function too (Play or Pause): drawn again when it changes
         let text = label
         const isButton = el.tagName.toLowerCase() === 'button'
-        if (!shown && !labelSpan) {
+        // an icon that is a function can come and go: such a config always gets the icon and the label elements
+        if (!shown && !labelSpan && typeof c.icon !== 'function') {
             el.textContent = label
             return () => {
                 const now = labelOf(c)
                 if (now !== text) el.textContent = text = now
             }
         }
-        let i: HTMLElement | undefined
-        if (shown) {
-            el.classList.add('ucf-has-icon')
-            // the name stays the label also when the label is hidden (a bar on a narrow screen shows the icon only)
-            if (isButton) el.setAttribute('aria-label', label)
-            i = document.createElement('span')
-            i.className = 'ucf-icon'
-            setIcon(i, shown)
-            el.appendChild(i)
-        }
+        // the name stays the label also when the label is hidden (a bar on a narrow screen shows the icon only)
+        if (isButton) el.setAttribute('aria-label', label)
+        const i = document.createElement('span')
+        i.className = 'ucf-icon'
         const l = document.createElement('span')
         l.className = 'ucf-label'
         l.textContent = label
         el.appendChild(l)
+        let iconIn = false
+        const showIcon = () => {
+            setIcon(i, shown)
+            if (shown && !iconIn) el.insertBefore(i, l)
+            else if (!shown && iconIn) i.remove()
+            iconIn = !!shown
+            if (shown) el.classList.add('ucf-has-icon')
+            else el.classList.remove('ucf-has-icon')
+        }
+        showIcon()
         return () => {
             const now = icon()
-            if (i && now !== shown) setIcon(i, shown = now)
+            if (now !== shown) {
+                shown = now
+                showIcon()
+            }
             const t = labelOf(c)
             if (t === text) return
             l.textContent = text = t
-            if (isButton && el.getAttribute('aria-label') !== null) el.setAttribute('aria-label', t)
+            if (isButton) el.setAttribute('aria-label', t)
         }
     }
 
@@ -533,6 +541,8 @@ export class UiConfigForm {
         }
         const onKey = (e: KeyboardEvent) => {
             if (e.key !== 'Escape') return
+            // the key closes the popover only: not also a key of the viewer (Escape that clears the selection)
+            e.preventDefault()
             close(false)
         }
         b.addEventListener('click', () => {

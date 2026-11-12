@@ -36,6 +36,11 @@ class FakeElement {
     getAttribute(name: string) {
         return this.attributes[name] ?? null
     }
+    insertBefore(c: FakeElement, ref: FakeElement) {
+        c.parent = this
+        this.children.splice(this.children.indexOf(ref), 0, c)
+        return c
+    }
     get lastChild() {
         return this.children[this.children.length - 1] ?? null
     }
@@ -782,6 +787,24 @@ describe('UiConfigForm bar and stack layouts', () => {
         form.refresh()
         expect(b.children.map(c => [c.className, c.textContent])).toEqual([['ucf-label', 'Size cm'], ['ucf-value', '0.5']])
         expect(b.getAttribute('aria-label')).toBe('Size cm')
+    })
+
+    test('an icon that is a function can come and go: the icon element and ucf-has-icon follow it', () => {
+        const state = {icon: ''}
+        const form = new UiConfigForm([{type: 'button', label: 'Go', icon: () => state.icon, value: () => {}}], {layout: 'bar'})
+        const b = find(form, 'ucf-button', 'Go')
+        expect(b.children.map(c => c.className)).toEqual(['ucf-label'])
+        expect(b.className).not.toContain('ucf-has-icon')
+        state.icon = 'play'
+        form.refresh()
+        expect(b.children.map(c => c.className)).toEqual(['ucf-icon', 'ucf-label'])
+        expect(b.className).toContain('ucf-has-icon')
+        expect(b.children[0].innerHTML).toContain('<svg')
+        state.icon = ''
+        form.refresh()
+        expect(b.children.map(c => c.className)).toEqual(['ucf-label'])
+        expect(b.className).not.toContain('ucf-has-icon')
+        expect(b.getAttribute('aria-label')).toBe('Go')
     })
 
     test('a checkbox in a bar is a toggle button: a click flips the binding, aria-pressed follows, also after a change elsewhere', () => {
