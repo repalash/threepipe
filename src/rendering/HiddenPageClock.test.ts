@@ -82,3 +82,17 @@ describe('HiddenPageClock', () => {
         clock.release('a')
     })
 })
+
+describe('RenderManager.animationLoop with two clocks', () => {
+    test('a frame time older than the last frame (a late requestAnimationFrame after a worker tick) does not step back', async() => {
+        const {RenderManager} = await import('../index') // through the package, as the circular imports need
+        const deltas: number[] = []
+        const manager = {_lastTime: 0, frameWaitTime: 0, _renderer: {}, dispatchEvent: (e: any) => deltas.push(e.deltaTime)}
+        const loop = (time: number) => RenderManager.prototype.animationLoop.call(manager as any, time)
+        loop(1000) // a worker tick, performance.now()
+        loop(995) // requestAnimationFrame: its frame began before that tick
+        loop(1016)
+        expect(deltas).toEqual([1000, 0, 16])
+        expect(manager._lastTime).toBe(1016)
+    })
+})

@@ -148,8 +148,10 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
     }
 
     animationLoop(time: number, frame?:XRFrame) {
-        const deltaTime = time - this._lastTime
-        this._lastTime = time
+        // while the page is hidden two clocks can bring frames (the worker of keepRenderingWhenHidden, and a late
+        // requestAnimationFrame, whose time is when its frame began): a time older than the last frame does not step back
+        const deltaTime = Math.max(0, time - this._lastTime)
+        this._lastTime = Math.max(time, this._lastTime)
         this.frameWaitTime -= deltaTime
         if (this.frameWaitTime > 0) return
         this.frameWaitTime = 0
