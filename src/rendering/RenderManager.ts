@@ -165,7 +165,8 @@ export class RenderManager<TE extends IRenderManagerEventMap = IRenderManagerEve
      * Keeps rendering while the page is hidden, where the browser stops `requestAnimationFrame`: a clock in a worker drives
      * the frames at about 60 a second until the page is visible again. For a task that must not pause, like a recording;
      * it uses the CPU and GPU in the background. Each key holds it until {@link stopRenderingWhenHidden} with that key.
-     * Not in WebXR, whose session drives its own frames. Works in Chromium browsers; Safari pauses a hidden tab anyway.
+     * Not in WebXR, whose session drives its own frames. As of November 2026, works in Chromium browsers;
+     * Safari pauses a hidden tab anyway.
      * See {@link HiddenPageClock}.
      */
     keepRenderingWhenHidden(key: string): void {
