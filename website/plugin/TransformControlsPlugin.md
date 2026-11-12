@@ -49,7 +49,7 @@ console.log(transfromControlsPlugin.transformControls)
 | **+/-** | Increase/decrease gizmo size |
 | **Space** | Toggle controls enabled/disabled |
 
-The keys are actions (`transformControls.translate`, … in `TransformControls2.actions`, bound by the plugin): a [CommandsPlugin](./CommandsPlugin) lists them, and the app changes or removes their keys there (`setShortcut`). Mod is Cmd on a Mac and Ctrl on other platforms. They work while the gizmo is enabled and attached. Shift, held down, stays a key of the gizmo.
+The keys are actions (`transformControls.translate`, … in `TransformControls2.actions`), registered by the plugin in [`viewer.actions`](../guide/viewer-api#actions-and-shortcuts): a UI lists them, and the app changes or removes their keys there (`setShortcut`). Mod is Cmd on a Mac and Ctrl on other platforms. They work while the gizmo is enabled and attached. Shift, held down, stays a key of the gizmo.
 
 Transforms applied to duplicated objects are automatically tracked by [PickingPlugin](./PickingPlugin)'s smart duplicate system — the next Ctrl+D applies the same offset.
 

@@ -8,7 +8,7 @@ import {Mesh, MeshBasicMaterial, Object3D, SphereGeometry, Vector3} from 'three'
 import type {UndoManagerPlugin} from './UndoManagerPlugin'
 import type {TransformControlsPlugin} from './TransformControlsPlugin'
 import type {PivotControlsPlugin} from './PivotControlsPlugin'
-import {bindActions, type CommandAction} from './CommandsPlugin'
+import type {ViewerAction} from '../../viewer/ViewerActions'
 import {Box3B} from '../../three/math/Box3B'
 
 // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -69,14 +69,14 @@ export class PivotEditPlugin extends AViewerPluginSync {
         preFrame: () => this._updateMarker(),
     }
 
-    private _unbindActions?: () => void
+    private _unregisterActions?: () => void
 
     /**
-     * The keys of the plugin, as actions (`bindActions`: a `CommandsPlugin` of the viewer lists them): P turns the pivot
+     * The keys of the plugin, as actions (registered in `viewer.actions`, where a UI lists them): P turns the pivot
      * edit on or off, Escape ends it. The Escape of the pivot edit is above the one that clears the selection
      * (`priority`), so the selection stays.
      */
-    readonly actions: CommandAction[] = [{
+    readonly actions: ViewerAction[] = [{
         id: 'pivotEdit.toggle', label: 'Edit the pivot', group: 'Pivot', shortcut: 'KeyP',
         enabled: () => !this.isDisabled(),
         run: () => this._setEditPivot(!this.editPivot),
@@ -125,7 +125,7 @@ export class PivotEditPlugin extends AViewerPluginSync {
             this.undoManager = um.undoManager
         }, () => this.undoManager = undefined, this)
 
-        this._unbindActions = bindActions(viewer, this.actions)
+        this._unregisterActions = viewer.actions.register(this.actions)
 
         // Create pivot marker as a widget handle, pickable via PickingPlugin.
         // Structure: _markerRoot (Group2, assetType='model', isWidgetRoot)
@@ -163,8 +163,8 @@ export class PivotEditPlugin extends AViewerPluginSync {
     }
 
     onRemove(viewer: ThreeViewer) {
-        this._unbindActions?.()
-        this._unbindActions = undefined
+        this._unregisterActions?.()
+        this._unregisterActions = undefined
         this._destroyGizmo(viewer)
         if (this._markerRoot) {
             viewer.scene.remove(this._markerRoot)

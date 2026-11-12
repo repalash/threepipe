@@ -262,7 +262,7 @@ afterEach(() => {
 const {EditorModeBar} = await import('../../plugins/tweakpane-editor/src/frame/EditorModeBar')
 const {EditorFrame} = await import('../../plugins/tweakpane-editor/src/frame/EditorFrame')
 const {TweakpaneEditorPlugin} = await import('../../plugins/tweakpane-editor/src/TweakpaneEditorPlugin')
-const {CommandsPlugin, EventDispatcher, ThreeViewer} = await import('threepipe')
+const {ViewerActions} = await import('threepipe')
 
 const host = () => ({modeKeys: ['Viewer', 'Export'], setSelectedMode: vi.fn()})
 /**
@@ -404,22 +404,16 @@ describe('EditorFrame', () => {
         expect(f.modeBar.open).toBe(false)
     })
 
-    test('with a CommandsPlugin in the viewer, the keys of the frame are its actions, until the frame is disposed', async() => {
-        const commands = new CommandsPlugin()
-        const viewer = Object.assign(new EventDispatcher<any>(), {
-            _pluginListeners: {add: [], remove: []},
-            addPluginListener: ThreeViewer.prototype.addPluginListener,
-            removePluginListener: ThreeViewer.prototype.removePluginListener,
-            getPlugin: (t: any) => t === 'CommandsPlugin' ? commands : undefined,
-        }) as any
-        commands.onAdded(viewer)
+    test('with a viewer, the keys of the frame are actions in viewer.actions, until the frame is disposed', async() => {
+        const viewer = {dialog: {}} as any
+        const actions = viewer.actions = new ViewerActions(viewer)
         const runs: string[] = []
-        commands.addEventListener('actionRun', ({action}) => runs.push(action.id))
+        actions.addEventListener('actionRun', ({action}) => runs.push(action.id))
         storage.set('tpEditorModeBarExpanded', '1')
         const f = new EditorFrame(host(), {layout: 'titlebar', viewer})
-        expect(commands.list('Editor').map(a => [a.id, a.shortcut])).toEqual([['editorFrame.toggleTheme', 'Shift+KeyT'], ['editorFrame.cycleModeBar', 'Mod+\\']])
+        expect(actions.list('Editor').map(a => [a.id, a.shortcut])).toEqual([['editorFrame.toggleTheme', 'Shift+KeyT'], ['editorFrame.cycleModeBar', 'Mod+\\']])
 
-        // one step per press: the frame has no own listener now
+        // one step per press
         expect(keydown('\\', 'Backslash', {ctrlKey: true}).defaultPrevented).toBe(true)
         expect([f.modeBar.expanded, f.modeBar.open]).toEqual([false, true])
         await Promise.resolve()
@@ -428,9 +422,8 @@ describe('EditorFrame', () => {
         expect(keydown('T', 'KeyT', {shiftKey: true, ctrlKey: true}).defaultPrevented).toBe(false)
 
         f.dispose()
-        expect(commands.list()).toEqual([])
+        expect(actions.list()).toEqual([])
         expect(keydown('\\', 'Backslash', {ctrlKey: true}).defaultPrevented).toBe(false)
-        expect(viewer._pluginListeners.add).toHaveLength(0)
     })
 
     test('a click on the name renames it: Enter keeps it, Escape goes back, not while an IME composes', () => {
@@ -1643,7 +1636,9 @@ describe('TweakpaneEditorPlugin.layout', () => {
     test('the light or dark toggle sets the color mode of the Tweakpane UI, and its Color Mode dropdown follows', () => {
         const p = plugin()
         const ui = {colorMode: 'clean', uiConfig: {uiRefresh: vi.fn()}}
-        ;(p as any)._viewer = {getPlugin: (t: any) => t === 'CommandsPlugin' ? undefined : ui, addPluginListener: () => {}, removePluginListener: () => {}}
+        const viewer: any = {getPlugin: () => ui, addPluginListener: () => {}, removePluginListener: () => {}}
+        viewer.actions = new ViewerActions(viewer)
+        ;(p as any)._viewer = viewer
         p.layout = 'titlebar'
         win.fire('keydown', {key: 'T', code: 'KeyT', shiftKey: true, target: body()})
         expect(ui.colorMode).toBe('clean-dark')
