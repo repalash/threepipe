@@ -118,9 +118,12 @@ Two branches publish prereleases through the same workflow, with the same checks
 | `next` | `0.7.0-next.0`, `0.7.0-next.1`, ... | `next` | `npm i threepipe@next` |
 | `lane/rNNN` (a three.js upgrade) | `0.7.0-r172.1`, ... | `three-r172` | `npm i threepipe@three-r172` |
 
-- A prerelease of `dev`: merge `dev` into `next`, set the prerelease version and `"publishConfig": {"tag": "next"}` in each package to publish, add its `## [<version>]` entry to the `CHANGELOG.md`, and push `next`.
+- A prerelease of `dev`: merge `dev` into `next`, set the prerelease version and `"publishConfig": {"tag": "next"}` in each package to publish, add a `## [<version>]` section to that package's own `CHANGELOG.md` (the root one for the core, `plugins/<name>/CHANGELOG.md` for a plugin; the workflow checks it), and push `next`.
 - Every package whose version is not on npm yet must fit the branch, or the run stops before the build: a prerelease with the branch's tag on `next` and `lane/rNNN`, a release version without `publishConfig.tag` on `master`. So `next` and the lanes are never merged back: their version bumps and tags would stop the next release from `master`.
+- A merge of `dev` brings along every version bump of `dev` that `master` has not released yet. Each such package has to become a prerelease with the branch's tag in the same push (or be `private`), else the run stops.
 - Any other branch (a manual run on `dev`) publishes nothing.
+- npm never counts a prerelease as matching a range like `>=0.6.0`, and every plugin has such a peer range on `threepipe`. A project that installs `threepipe@next` (or a lane) with a plugin needs `"overrides": {"threepipe": "$threepipe"}` in its `package.json`, else `npm install` fails with `ERESOLVE` (pnpm and yarn install it as is). See [Getting started, Prereleases](https://threepipe.org/guide/getting-started.html#prereleases).
+- After a release from `master`, the dist-tag `next` still points at the last prerelease, which is now older than `latest`. Publish the next prerelease (`0.8.0-next.0`) or move the tag: `npm dist-tag add threepipe@0.7.0 next` (and for each plugin that has a `next`).
 
 ## Creating a Core Plugin
 
