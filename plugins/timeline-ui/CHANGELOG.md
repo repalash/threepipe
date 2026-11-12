@@ -10,6 +10,10 @@ All notable changes to this plugin will be documented in this file.
 
 - NA
 
+### Fixed
+
+- The glTF animation track uses the action's `timeScale` when its `clipData` has none, instead of a `NaN` duration
+
 ## [0.1.5] - 2025-10-27
 
 ### Changed

@@ -200,7 +200,7 @@ export class ThreeSVGRendererPlugin extends AViewerPluginSync {
 
     protected _onMeshDispose(ev: any) {
         if (!ev.target) return
-        const mesh = ev.target as Mesh
+        const mesh = ev.target as IObject3D
         const svgMesh = this._meshes.get(mesh.uuid)
         if (!svgMesh) return
         svgMesh.dispose()
@@ -210,7 +210,7 @@ export class ThreeSVGRendererPlugin extends AViewerPluginSync {
     }
     protected _onMeshUpdate(ev: any) {
         if (!ev.target) return
-        const mesh = ev.target as Mesh
+        const mesh = ev.target as IObject3D
         const svgMesh = this._meshes.get(mesh.uuid)
         if (!svgMesh) return
         svgMesh.updateObject()
