@@ -13,6 +13,12 @@ export interface ExampleCardOptions {
      * dropdowns, sliders or numbers (in a popover), monitors (a live value). A folder is a group.
      */
     actions?: UiObjectConfig[]
+    /**
+     * The example's own elements (a list of results, a table of stats, a legend), shown under the controls as they are.
+     * The card does not change them: the example keeps updating them, and styles them in its page. An element already
+     * on the page moves into the card.
+     */
+    content?: HTMLElement | HTMLElement[]
 }
 
 /** The actions of {@link exampleAction}, by their button */
@@ -22,10 +28,10 @@ const PHONE = '(max-width: 640px)'
 let styled = false
 
 /**
- * The card of an example, at the top left of the canvas: its title, what it shows, its controls and a link to its
- * source. The controls are uiconfig configs drawn by {@link UiConfigForm} (`stack` layout). The card reads their values
- * again after each frame, so a toggle follows a change in the Tweakpane panel too. The header collapses it; on a phone
- * it is at the bottom and starts collapsed.
+ * The card of an example, at the top left of the canvas: its title, what it shows, its controls, its own elements
+ * (`content`, e.g. a list of results) and a link to its source. The controls are uiconfig configs drawn by
+ * {@link UiConfigForm} (`stack` layout). The card reads their values again after each frame, so a toggle follows a
+ * change in the Tweakpane panel too. The header collapses it; on a phone it is at the bottom and starts collapsed.
  *
  * ```ts
  * createExampleCard(viewer, {
@@ -98,6 +104,13 @@ export function createExampleCard(viewer: ThreeViewer, options: ExampleCardOptio
         const f = form
         viewer.addEventListener('postFrame', () => f.refresh())
     }
+    const content = options.content ? Array.isArray(options.content) ? options.content : [options.content] : []
+    if (content.length) {
+        const wrap = document.createElement('div')
+        wrap.className = 'example-card-content'
+        wrap.append(...content)
+        body.appendChild(wrap)
+    }
     card.appendChild(body)
 
     // collapsed: only the header shows; kept for the next example
@@ -131,7 +144,8 @@ export function createExampleCard(viewer: ThreeViewer, options: ExampleCardOptio
     })
 
     viewer.container.appendChild(card)
-    return {element: card, form}
+    /** `body`: the scrolling part of the card, to add more of the example's own elements later */
+    return {element: card, body, form}
 }
 
 /**
@@ -193,6 +207,9 @@ function addStyles() {
 .example-card-body { overflow-y: auto; padding: 0 6px 6px; }
 .example-card-collapsed .example-card-body { display: none; }
 .example-card p { margin: 0 6px 6px; color: var(--ec-dim); }
+/* the example's own elements, under the controls */
+.example-card-content { margin: 6px 6px 0; padding-top: 6px; border-top: 1px solid var(--ec-line); }
+.example-card-content:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
 /* the controls: the stack of UiConfigForm, flat in the card */
 .example-card .ucf-stack { background: none; box-shadow: none; padding: 0; max-height: none; overflow: visible; }
 /* a phone: at the bottom, as wide as the page */
