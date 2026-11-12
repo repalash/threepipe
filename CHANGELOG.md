@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 [//]: # (The format is based on [Keep a Changelog]&#40;https://keepachangelog.com/en/1.1.0/&#41;, and this project adheres to [Semantic Versioning]&#40;https://semver.org/spec/v2.0.0.html&#41;.)
 
+## [0.7.0-next.0] - 2026-11-12
+
+Prerelease of `dev` at `8bda3284` under the npm dist-tag `next` (`npm i threepipe@next`; with plugins, see the [FAQ](https://threepipe.org/guide/faq.html#prereleases)). It has every change under [Unreleased] below up to that commit. The main ones:
+
+- New plugins: [`BVHPlugin`](https://threepipe.org/plugin/BVHPlugin.html) (fast raycasts on big meshes), [`GPUPickingPlugin`](https://threepipe.org/plugin/GPUPickingPlugin.html), [`CanvasRecorderPlugin`](https://threepipe.org/plugin/CanvasRecorderPlugin.html) (MP4 and `MediaRecorder`), [`PerfPanelPlugin`](https://threepipe.org/plugin/PerfPanelPlugin.html), [`ViewOverridesPlugin`](https://threepipe.org/plugin/ViewOverridesPlugin.html) and [`MaterialPreviewPlugin`](https://threepipe.org/notes/material-previews.html), and the new package `@threepipe/plugin-annotations`
+- `Object3DWidgetsPlugin`: icons for lights and cameras (`iconMode` `'dom'` or `'sprite'`) and helper lines in the colours of `widgetKinds`
+- Picking: `ObjectPicker.cycleWrap`, `cycleThroughHits`, `selectHit`, `hoverHit` and `selectableFor`; `PickingPlugin.selectionUi` and `keyboardShortcuts`
+- `ThreeViewer.nextFrame()` and the `viewerEnabled` / `viewerDisabled` events; screenshots no longer wait forever on a viewer that renders no frame
+- Fixes in the GBuffer (alpha of `map` and `alphaMap`, `toneMapped: false`, `renderToFlags`), runtime `userData` keys that are no longer saved, a loaded camera that no longer becomes the main camera, and glTF export that writes the same file for the same input
+- The repository is one npm workspace built with Turborepo, Vite 8 and TypeScript 7
+
 ## [Unreleased]
 
 ### Added

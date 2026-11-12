@@ -1,5 +1,9 @@
 # @threepipe/plugin-cloud Changelog
 
+## [0.1.0-next.0] - 2026-11-12
+
+Prerelease of 0.1.0 under the npm dist-tag `next`, with `threepipe@0.7.0-next.0` (see the [FAQ](https://threepipe.org/guide/faq.html#prereleases)): the package as in 0.1.0 below, with the fixes under [Unreleased].
+
 ## [Unreleased]
 
 ### Fixed

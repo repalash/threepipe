@@ -4,6 +4,10 @@ All notable changes to this plugin will be documented in this file.
 
 [//]: # (The format is based on [Keep a Changelog]&#40;https://keepachangelog.com/en/1.1.0/&#41;, and this project adheres to [Semantic Versioning]&#40;https://semver.org/spec/v2.0.0.html&#41;.)
 
+## [0.1.0-next.0] - 2026-11-12
+
+Prerelease of the first version under the npm dist-tag `next`, with `threepipe@0.7.0-next.0` (see the [FAQ](https://threepipe.org/guide/faq.html#prereleases)): everything under [Unreleased] below.
+
 ## [Unreleased]
 
 ### Added
