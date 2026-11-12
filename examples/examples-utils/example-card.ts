@@ -86,13 +86,30 @@ export function createExampleCard(viewer: ThreeViewer, options: ExampleCardOptio
     }
     let form: UiConfigForm | undefined
     if (options.actions?.length) {
+        // the key of each action button, formatted once: looked up again when the actions or their keys change
+        const keys = new Map<UiObjectConfig, string | undefined>()
+        const clearKeys = () => keys.clear()
+        let watched: CommandsPlugin | undefined
+        const watch = (commands?: CommandsPlugin) => {
+            watched?.removeEventListener('actionsChange', clearKeys)
+            watched = commands
+            watched?.addEventListener('actionsChange', clearKeys)
+            clearKeys()
+        }
+        watch(viewer.getPlugin(CommandsPlugin))
+        viewer.addPluginListener('add', () => watch(viewer.getPlugin(CommandsPlugin)), CommandsPlugin.PluginType)
+        // the plugin is still in the viewer during its remove event
+        viewer.addPluginListener('remove', () => watch(undefined), CommandsPlugin.PluginType)
         form = new UiConfigForm(options.actions, {
             layout: 'stack',
             shortcutOf: (c) => {
+                if (keys.has(c)) return keys.get(c)
                 const action = actionOf.get(c)
-                if (!action) return undefined
-                const key = shortcutsOf(viewer.getPlugin(CommandsPlugin)?.shortcutOf(action.id) ?? action.shortcut)[0]
-                return key ? formatShortcut(key) : undefined
+                // with a CommandsPlugin, its keys (none after setShortcut(id, null)); else the action's own
+                const key = action ? shortcutsOf(watched ? watched.shortcutOf(action.id) : action.shortcut)[0] : undefined
+                const text = key ? formatShortcut(key) : undefined
+                keys.set(c, text)
+                return text
             },
             // a control that throws: a toast on the viewer, like the actions of a CommandsPlugin
             onError: (e) => {
@@ -162,9 +179,14 @@ export function exampleAction(viewer: ThreeViewer, action: CommandAction): UiObj
         disabled: () => !!action.enabled && !action.enabled(),
         value: async() => {
             const commands = viewer.getPlugin(CommandsPlugin)
-            const result = commands ? await commands.run(action.id) : await action.run()
-            // the CommandsPlugin shows the error in a toast itself
-            if (result?.error && !commands) throw new Error(result.error)
+            // with a CommandsPlugin, it shows the result (its toastResults setting decides)
+            if (commands) {
+                await commands.run(action.id)
+                return
+            }
+            const result = await action.run()
+            if (result?.error) throw new Error(result.error) // a toast, from onError of the card
+            if (result?.warn) viewer.dialog.toast?.(result.warn, {kind: 'warn', container: viewer.container})
         },
     }
     actionOf.set(config, action)

@@ -746,9 +746,64 @@ describe('UiConfigForm bar and stack layouts', () => {
         const img = find(form, 'ucf-button', 'B').children[0].children[0]
         expect(img.tagName).toBe('img')
         expect((img as any).src).toBe('https://example.com/i.png')
-        const c = find(form, 'ucf-button', 'C').children[0]
-        expect(c.innerHTML).toBe('')
+        // an unknown name is no icon: the label shows, without the icon layout (a phone bar would show a blank button)
+        const c = find(form, 'ucf-button', 'C')
         expect(c.children).toEqual([])
+        expect(c.className).not.toContain('ucf-has-icon')
+    })
+
+    test('markup that does not start with <svg (an XML prolog, a comment) is drawn inline, not as an image', () => {
+        const form = new UiConfigForm([
+            {type: 'button', label: 'X', icon: '<?xml version="1.0"?><svg viewBox="0 0 1 1"></svg>', value: () => {}},
+            {type: 'button', label: 'Y', icon: '<!-- icon --><svg viewBox="0 0 1 1"></svg>', value: () => {}},
+        ], {layout: 'bar'})
+        for (const l of ['X', 'Y']) {
+            const icon = find(form, 'ucf-button', l).children[0]
+            expect(icon.innerHTML).toContain('<svg')
+            expect(icon.children).toEqual([])
+        }
+    })
+
+    test('a synchronous button is never disabled (it keeps the focus); a failed run sends no change events', async() => {
+        const sets: boolean[] = []
+        const onChange = vi.fn()
+        const onStructureChange = vi.fn()
+        const fail: UiObjectConfig = {type: 'button', label: 'Fail', onChange, value: async() => {
+            throw new Error('nope')
+        }}
+        const form = new UiConfigForm([
+            {type: 'button', label: 'Sync', value: () => {}},
+            fail,
+        ], {layout: 'bar', onStructureChange, onError: () => {}})
+        const b = find(form, 'ucf-button', 'Sync')
+        let disabled = false
+        Object.defineProperty(b, 'disabled', {get: () => disabled, set: (v: boolean) => {
+            sets.push(v)
+            disabled = v
+        }})
+        b.fire('click')
+        await new Promise(r => setTimeout(r, 0))
+        expect(sets).not.toContain(true)
+        expect(onStructureChange).toHaveBeenCalledTimes(1) // the sync button ran fine
+        find(form, 'ucf-button', 'Fail').fire('click')
+        await new Promise(r => setTimeout(r, 0))
+        expect(onChange).not.toHaveBeenCalled()
+        expect(onStructureChange).toHaveBeenCalledTimes(1)
+    })
+
+    test('a monitor shows whole numbers as they are, fractions short, and a three.js colour as its hex code', () => {
+        const s = {big: 1234567, frac: 0.123456, mid: 1234.567, color: new Color('#ff8800')}
+        const form = new UiConfigForm([
+            {type: 'monitor', label: 'Big', property: [s, 'big']},
+            {type: 'monitor', label: 'Frac', property: [s, 'frac']},
+            {type: 'monitor', label: 'Mid', property: [s, 'mid']},
+            {type: 'monitor', label: 'Color', property: [s, 'color']},
+        ], {layout: 'stack'})
+        const v = (l: string) => find(form, 'ucf-readout', l).children.find(c => c.className === 'ucf-value')!.textContent
+        expect(v('Big')).toBe('1234567')
+        expect(v('Frac')).toBe('0.1235')
+        expect(v('Mid')).toBe('1235')
+        expect(v('Color')).toBe('#ff8800')
     })
 
     test('an icon that is a function is drawn again on refresh when it changes', () => {
