@@ -18,13 +18,14 @@ export interface ExampleCardOptions {
 /** The actions of {@link exampleAction}, by their button */
 const actionOf = new WeakMap<UiObjectConfig, CommandAction>()
 const COLLAPSED_KEY = 'threepipe-example-card-collapsed'
+const PHONE = '(max-width: 640px)'
 let styled = false
 
 /**
  * The card of an example, at the top left of the canvas: its title, what it shows, its controls and a link to its
  * source. The controls are uiconfig configs drawn by {@link UiConfigForm} (`stack` layout). The card reads their values
  * again after each frame, so a toggle follows a change in the Tweakpane panel too. The header collapses it; on a phone
- * it is at the bottom.
+ * it is at the bottom and starts collapsed.
  *
  * ```ts
  * createExampleCard(viewer, {
@@ -106,16 +107,22 @@ export function createExampleCard(viewer: ThreeViewer, options: ExampleCardOptio
         toggle.setAttribute('aria-label', collapsed ? 'Show the example card' : 'Hide the example card')
         toggle.title = collapsed ? 'Show' : 'Hide'
     }
-    let collapsed = false
-    try {
-        collapsed = localStorage.getItem(COLLAPSED_KEY) === '1'
-    } catch {
-        // no storage (a sandboxed page)
+    // a phone starts with the header only, so the canvas is clear; a desktop opens it as it was left last time
+    const phone = window.matchMedia(PHONE).matches
+    let collapsed = phone
+    if (!phone) {
+        try {
+            collapsed = localStorage.getItem(COLLAPSED_KEY) === '1'
+        } catch {
+            // no storage (a sandboxed page)
+        }
     }
     setCollapsed(collapsed)
     toggle.addEventListener('click', () => {
         collapsed = !collapsed
         setCollapsed(collapsed)
+        // what is picked on a phone is not kept: a phone always starts collapsed
+        if (window.matchMedia(PHONE).matches) return
         try {
             localStorage.setItem(COLLAPSED_KEY, collapsed ? '1' : '0')
         } catch {
