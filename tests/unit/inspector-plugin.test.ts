@@ -93,6 +93,9 @@ class FakeElement {
 const renderers: FakeRenderer[] = []
 class FakeRenderer {
     shown: any[] = []
+    title = 'Configuration'
+    /** The bars of folder actions drawn with mountFolderActions (uiconfig-tweakpane) */
+    mounted: {config: any, element: any, removed: boolean, refresh: () => void, remove: () => void}[] = []
     /** setValue of uiconfig.js: sets the property of the config */
     methods = {setValue: vi.fn(async(c: any, v: any) => {
         const [o, k] = typeof c.property === 'function' ? c.property() : c.property
@@ -109,6 +112,11 @@ class FakeRenderer {
     }
     appendChild(c: any) {
         this.shown.push(c)
+    }
+    mountFolderActions(config: any, element: any) {
+        const m = {config, element, removed: false, refresh: vi.fn(), remove: () => void (m.removed = true)}
+        this.mounted.push(m)
+        return m
     }
     removeChild(c: any) {
         this.shown = this.shown.filter(x => x !== c)
@@ -273,96 +281,48 @@ describe('InspectorPlugin', () => {
         expect(ui.shown).toEqual([a.geometry.uiConfig].filter(Boolean))
     })
 
-    test('the head has a bar of the actions of the selected object: icons, the key in the tooltip, disabled when they cannot run', () => {
+    test('the head has the actions of the selected object as icons: the key in the tooltip, disabled when they cannot run', () => {
         const {el, inspector} = setup()
         const bar = () => el.find('isp-action')
         expect(bar()).toEqual([])
-        expect(el.find('isp-more')[0].style.display).toBe('none')
         const a = mesh(new PhysicalMaterial())
         picking.select(a)
         expect(bar().map(b => b.dataset.action)).toEqual(InspectorPlugin.BarActions)
-        expect(bar().map(b => b.getAttribute('aria-label'))).toEqual(['Focus', 'Hide or show', 'Duplicate', 'Delete', 'Select the parent'])
+        expect(bar().map(b => b.getAttribute('aria-label'))).toEqual(['Focus', 'Hide or show', 'Select the parent'])
         // the mesh has no parent: Select the parent cannot run
-        expect(bar().map(b => b.disabled)).toEqual([false, false, false, false, true])
-        bar()[2].fire('pointerenter')
-        expect(bar()[2].title).toMatch(/^Duplicate \((Ctrl\+D|⌘D)\)$/)
+        expect(bar().map(b => b.disabled)).toEqual([false, false, true])
+        bar()[1].fire('pointerenter')
+        expect(bar()[1].title).toBe('Hide or show (H)')
         bar()[0].click()
-        bar()[4].click()
+        bar()[2].click()
         expect(picking.runs).toEqual(['focus'])
         // also on the Material tab: the selection is the object
         el.find('isp-tab')[1].click()
-        expect(bar()).toHaveLength(5)
+        expect(bar()).toHaveLength(3)
         // a material alone: no object, no bar
         picking.select(a.material)
         expect(bar()).toEqual([])
         expect(inspector.hasSelection).toBe(true)
     })
 
-    test('the ⋯ menu: all the actions, then the context-menu buttons at the top of the open tab, which leave the settings', async() => {
-        const {UiTags} = await import('threepipe')
-        const {el, inspector, ui} = setup()
-        const row = () => new FakeElement('div')
-        const center = {type: 'button', label: 'Auto Center', tags: [UiTags.ContextMenu], value: vi.fn(), uiRef: {element: row()}}
-        const off = {type: 'button', label: 'Set View', tags: [UiTags.ContextMenu], hidden: () => true, value: vi.fn(), uiRef: {element: row()}}
-        const dup = {type: 'button', label: 'Duplicate Object', tags: [UiTags.ContextMenu], value: vi.fn(), uiRef: {element: row()}}
-        const plain = {type: 'button', label: 'Rotate', value: vi.fn(), uiRef: {element: row()}}
-        const kept = {type: 'button', label: 'Reset Pivot', tags: [UiTags.ContextMenu, UiTags.Inline], value: vi.fn(), uiRef: {element: row()}}
-        const first = {type: 'button', label: 'Export', tags: [UiTags.ContextMenu], order: -1, value: vi.fn(), uiRef: {element: row()}}
+    test('the head draws the actions of the open tab (its context-menu buttons) with mountFolderActions; no Configuration header', () => {
+        const {el, ui} = setup()
+        expect(ui.title).toBe('')
+        const head = el.find('isp-tab-actions')[0]
         const a = mesh(new PhysicalMaterial())
-        // a button inside a folder (one Remove Constraint for each constraint) stays there: the folder tells what it removes
-        const nested = {type: 'button', label: 'Remove Constraint', tags: [UiTags.ContextMenu], value: vi.fn(), uiRef: {element: row()}}
-        a.uiConfig = {type: 'folder', label: 'Box', children: [plain, center, off, kept, {type: 'folder', label: 'Look At', children: [nested]}, dup, first]} as any
-        const menus: Record<string, () => void>[] = []
-        vi.spyOn(inspector as any, '_showMenu').mockImplementation((items: any) => {
-            menus.push(items)
-            return undefined
-        })
         picking.select(a)
-        const more = el.find('isp-more')[0]
-        expect(more.style.display).toBe('')
-        more.click()
-        // the buttons by their uiconfig order (Export: -1), else in the tree order; not the inline one
-        expect(Object.keys(menus[0]).map(k => k.replace(/\(.*\)/, '').trim())).toEqual(['Focus', 'Hide or show', 'Duplicate', 'Delete', 'Export', 'Auto Center', 'Duplicate Object'])
-        menus[0]['Auto Center']()
-        expect(ui.methods.clickButton).toHaveBeenCalledWith(center)
-        // the tagged buttons hide from the settings (also the hidden one), the others stay
-        expect([center, off, dup, plain, kept, nested].map(c => c.uiRef.element.classList.contains('isp-in-menu'))).toEqual([true, true, true, false, false, false])
-        // an action runs from the menu too
-        Object.values(menus[0])[0]()
-        expect(picking.runs).toEqual(['focus'])
-    })
-
-    test('a constraint added or removed while the tab is open: the menu finds the buttons again when the renderer adds rows', async() => {
-        const {UiTags} = await import('threepipe')
-        let observed: ((records: any[]) => void) | undefined
-        vi.stubGlobal('MutationObserver', class {
-            constructor(f: (records: any[]) => void) {
-                observed = f
-            }
-            observe() {}
-        })
-        try {
-            const {el, inspector} = setup()
-            const menus: Record<string, () => void>[] = []
-            vi.spyOn(inspector as any, '_showMenu').mockImplementation((items: any) => void menus.push(items))
-            const remove = (n: number) => ({type: 'button', label: 'Remove Constraint ' + n, tags: [UiTags.ContextMenu], value: vi.fn(), uiRef: {element: new FakeElement('div')}})
-            let constraints = [remove(1)]
-            const a = mesh(new PhysicalMaterial())
-            a.uiConfig = {type: 'folder', label: 'Box', children: [() => constraints]} as any
-            picking.select(a)
-            constraints = [remove(2)]
-            // a changed text (a monitor) does not walk the uiConfig; new rows do
-            observed!([{addedNodes: [{nodeType: 3}]}])
-            el.find('isp-more')[0].click()
-            expect(Object.keys(menus[0])).toContain('Remove Constraint 1')
-            observed!([{addedNodes: [{nodeType: 1}]}])
-            el.find('isp-more')[0].click()
-            expect(Object.keys(menus[1])).toContain('Remove Constraint 2')
-            expect(Object.keys(menus[1])).not.toContain('Remove Constraint 1')
-            expect(constraints[0].uiRef.element.classList.contains('isp-in-menu')).toBe(true)
-        } finally {
-            vi.unstubAllGlobals()
-        }
+        expect(ui.mounted.map(m => [m.config, m.element, m.removed])).toEqual([[a.uiConfig, head, false]])
+        // a render for the same tab keeps the bar (it follows the renders of the folder itself)
+        a.name = 'Renamed'
+        picking.select(a)
+        expect(ui.mounted).toHaveLength(1)
+        // another tab: the bar of its uiConfig
+        el.find('isp-tab')[1].click()
+        const mat = (a.material as any).uiConfig
+        expect(ui.mounted.map(m => [m.config, m.removed])).toEqual([[a.uiConfig, true], [mat, false]])
+        // no selection: no bar
+        picking.select(undefined)
+        expect(ui.mounted.map(m => m.removed)).toEqual([true, true])
     })
 
     test('a menu taller than the window scrolls inside it, and stays inside the window', async() => {

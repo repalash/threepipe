@@ -6,7 +6,6 @@ import {
     CustomContextMenu,
     formatShortcut,
     getOrCall,
-    hasUiTag,
     IEvent,
     IGeometry,
     IMaterial,
@@ -26,9 +25,7 @@ import {
     uiDropdown,
     uiFolderContainer,
     uiToggle,
-    UiConfigMethods,
     UiObjectConfig,
-    UiTags,
     Vector3,
 } from 'threepipe'
 import type {CommandAction} from 'threepipe'
@@ -68,8 +65,6 @@ const AREA_ICON = '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" s
 
 /** The search and the clear icons of the Layers panel (the line icons of the frame) */
 const CLEAR_ICON = '<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/></svg>'
-/** The button of the menu of more actions, in the head of the inspector */
-const MORE_ICON = '<svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><circle cx="3.5" cy="8" r="1.2"/><circle cx="8" cy="8" r="1.2"/><circle cx="12.5" cy="8" r="1.2"/></svg>'
 const SEARCH_ICON = '<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg>'
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className: string) {
@@ -111,13 +106,12 @@ class InspectorUiRenderer extends TweakpaneUiPlugin {
  *   it (with all their settings); the folders open while it has text. Escape in it, or its × button, clears it.
  * - A right-click on a setting (a long press on a touch screen) offers Reset to default, when its value is not the default
  *   of its class (the value of a new object of the same class), with undo; not on a disabled or read-only setting.
- * - The head has a bar of the actions of the selected object ({@link InspectorPlugin.BarActions}: Focus, Hide or show,
- *   Duplicate, Delete, Select the parent), as icons, with their label and key in the tooltip. A narrow panel shows the
- *   icons that fit (the others wrap to a hidden line); the ⋯ button opens a menu of all the actions, with their labels
- *   and keys, then the buttons at the top of the open tab that have the `context-menu` tag (`UiTags.ContextMenu`: Auto
- *   Center, Set View...; one inside a folder stays there), sorted by their uiconfig `order`. Those buttons leave the
- *   settings; one with the `inline` tag (`UiTags.Inline`) stays there and is not in the menu. The actions run through the
- *   `CommandsPlugin` of the viewer when it has one (its keys, the toasts of the results), else on their own.
+ * - The head has the name of the selection, the actions of the selected object ({@link InspectorPlugin.BarActions}: Focus,
+ *   Hide or show, Select the parent) as icons with their label and key in the tooltip, and then the actions of the open
+ *   tab: the buttons of its uiConfig with the `context-menu` tag (`UiTags.ContextMenu`: Duplicate Object, Delete Object,
+ *   Auto Center...), as in a folder header: buttons while they fit, the rest in a ⋮ menu (uiconfig-tweakpane
+ *   `mountFolderActions`). One with the `inline` tag (`UiTags.Inline`) stays in the settings. The actions of the icons run
+ *   through the `CommandsPlugin` of the viewer when it has one (its keys, the toasts of the results), else on their own.
  * - Escape (the PickingPlugin) clears the selection.
  *
  * Where the panel goes: in the `container` given to the constructor, else the app puts {@link element} in the page.
@@ -162,11 +156,12 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
     /** The entry of the panel in the mode bar of the editor frame, for `TweakpaneEditorPlugin.addPanel` */
     static AreaEntry: EditorFrameAreaOptions = {name: 'Inspector', icon: AREA_ICON, color: '#0ea5e9'}
     /**
-     * The ids of the actions in the bar of the head, in order, while an object is selected: actions of the
-     * `CommandsPlugin` of the viewer, or of the PickingPlugin (`PickingPlugin.actions`). An action without an icon is in
-     * the ⋯ menu only. Read at each change of the selection.
+     * The ids of the actions shown as icons in the head, in order, while an object is selected: actions of the
+     * `CommandsPlugin` of the viewer, or of the PickingPlugin (`PickingPlugin.actions`), with an icon. Duplicate and Delete
+     * are not here: the object's uiConfig has them as buttons, which the head shows with the other actions of the tab.
+     * Read at each render.
      */
-    static BarActions = ['picking.focus', 'picking.toggleVisibility', 'picking.duplicate', 'picking.delete', 'picking.selectParent']
+    static BarActions = ['picking.focus', 'picking.toggleVisibility', 'picking.selectParent']
 
     // the settings of the panel are not part of the scene: nothing to save
     toJSON: any = undefined
@@ -192,16 +187,12 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
     readonly container?: HTMLElement
 
     private _title: HTMLDivElement
-    /** The icons of the actions ({@link BarActions}) and the ⋯ button, in the head */
+    /** The icons of the actions ({@link BarActions}), in the head */
     private _bar: HTMLDivElement
-    private _more: HTMLButtonElement
-    /** The ⋯ menu was open at the press on its button: the click closes it, it does not open it again */
-    private _moreWasOpen = false
-    /**
-     * The buttons with the `context-menu` tag (and not `inline`) in the uiConfig of the open tab, found at each render
-     * ({@link _renderBar}), in the order of the menu: by their uiconfig `order` (0 when not set, like CSS), else as in the tree
-     */
-    private _taggedButtons: UiObjectConfig[] = []
+    /** The element in the head for the actions of the open tab (`mountFolderActions`) */
+    private _tabActionsEl: HTMLDivElement
+    /** The actions of the open tab drawn in {@link _tabActionsEl}, and the uiConfig they are for */
+    private _tabActions?: {config: UiObjectConfig, mounted: ReturnType<TweakpaneUiPlugin['mountFolderActions']>}
     private _tabsEl: HTMLDivElement
     private _cardsEl: HTMLDivElement
     /** The previews of the material cards, cancelled when the cards are made again or hide */
@@ -257,24 +248,13 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
         this.container = container
         if (InspectorPlugin.InjectStyles && !InspectorPlugin._styles?.isConnected) InspectorPlugin._styles = createStyles(styles)
         this.element = el('div', 'isp-root')
-        // the head: the name, the icons of the actions, the ⋯ menu
+        // the head: the name, the icons of the actions, the actions of the open tab (buttons and ⋮)
         const head = this.element.appendChild(el('div', 'isp-head'))
         this._title = head.appendChild(el('div', 'isp-title'))
         this._bar = head.appendChild(el('div', 'isp-bar'))
         this._bar.setAttribute('role', 'toolbar')
         this._bar.setAttribute('aria-label', 'Actions of the selection')
-        this._more = head.appendChild(el('button', 'isp-more'))
-        this._more.type = 'button'
-        this._more.innerHTML = MORE_ICON
-        this._more.title = 'More actions'
-        this._more.setAttribute('aria-label', 'More actions')
-        this._more.addEventListener('pointerdown', () => {
-            this._moreWasOpen = this._moreMenuOpen()
-        })
-        this._more.addEventListener('click', () => {
-            if (this._moreWasOpen) this._moreWasOpen = false
-            else this._openMoreMenu()
-        })
+        this._tabActionsEl = head.appendChild(el('div', 'isp-tab-actions'))
         this._tabsEl = this.element.appendChild(el('div', 'isp-tabs'))
         this._tabsEl.setAttribute('role', 'tablist')
         this._cardsEl = this.element.appendChild(el('div', 'isp-cards'))
@@ -335,12 +315,7 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
         })
         this._body = this.element.appendChild(el('div', 'isp-body'))
         // the renderer builds and rebuilds its rows (a refresh, a dynamic folder): the search applies to the new ones too
-        if (typeof MutationObserver !== 'undefined') new MutationObserver((records) => {
-            // new rows (a dynamic folder, like the constraints of an object): find the menu buttons again; a changed
-            // text (a monitor) adds no element and costs no walk of the uiConfig
-            if (records.some(r => Array.from(r.addedNodes).some(n => n.nodeType === 1))) this._refreshMenuButtons()
-            this._applySearch()
-        }).observe(this._body, {childList: true, subtree: true})
+        if (typeof MutationObserver !== 'undefined') new MutationObserver(() => this._applySearch()).observe(this._body, {childList: true, subtree: true})
         this._noMatch = this.element.appendChild(el('div', 'isp-empty'))
         this._noMatch.textContent = 'No settings match the search'
         this._noMatch.style.display = 'none'
@@ -373,6 +348,7 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
         super.onAdded(viewer)
         // a second Tweakpane renderer, for the inspector only (the main one shows the modes), with the theme of the page
         this._ui = new InspectorUiRenderer(true, false, this._body, viewer.getPlugin(TweakpaneUiPlugin)?.colorMode)
+        this._ui.title = '' // no "Configuration" header: the head of the inspector names the selection
         this._ui.onAdded(viewer)
         viewer.scene.addEventListener('materialChanged', this._onPartsChanged)
         viewer.scene.addEventListener('geometryChanged', this._onPartsChanged)
@@ -398,6 +374,7 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
         this._show(undefined, true)
         this._unwatch()
         this._cancelCards()
+        this._mountTabActions(undefined)
         // put the undo manager of the viewer back before dispose, which disposes the one it has
         this._ui?.onRemove(viewer)
         this._ui?.dispose()
@@ -586,6 +563,7 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
         }
         this._empty.style.display = tabs.length ? 'none' : ''
         this._renderBar()
+        this._mountTabActions(this._inPage ? config : undefined)
         this._requestPreview()
         this._renderCards()
         this._applySearch()
@@ -616,7 +594,7 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
         else a.run()
     }
 
-    /** The icons of the actions of the selected object, and the ⋯ button while its menu has items */
+    /** The icons of the actions of the selected object ({@link BarActions}) */
     private _renderBar() {
         if (!this._bar) return // the first set of enabled, before the constructor makes the elements
         this._bar.replaceChildren()
@@ -639,76 +617,17 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
                 this._renderBar() // Select the parent: enabled or not for the new selection
             })
         }
-        this._refreshMenuButtons()
     }
 
     /**
-     * Finds the `context-menu` buttons at the top of the open tab again ({@link _taggedButtons}), hides their rows, and shows the ⋯
-     * button while the menu has items: at each render, and when the renderer adds rows (a dynamic folder)
+     * Draws the actions of a uiConfig (its `context-menu` buttons) in the head, as in its folder header, whose title row
+     * the inspector hides: buttons while they fit, the rest in a ⋮ menu. The bar follows the renders of the uiConfig; it
+     * is made again only for another uiConfig. `undefined` removes it.
      */
-    private _refreshMenuButtons() {
-        if (!this._more) return
-        const config = this._inPage ? this._shown[this._shown.length - 1] : undefined
-        const order = (c: UiObjectConfig) => Number(getOrCall(c.order)) || 0
-        // only the buttons at the top of the tab: one inside a folder (Remove Constraint in each constraint) stays there,
-        // so its folder still tells what it acts on
-        this._taggedButtons = !config ? [] : UiConfigMethods.GetChildren(config)
-            .filter(c => c.type === 'button' && hasUiTag(c, UiTags.ContextMenu) && !hasUiTag(c, UiTags.Inline))
-            .sort((a, b) => order(a) - order(b)) // a stable sort: the tree order among equal ones
-        this._more.style.display = this._menuItems().length ? '' : 'none'
-        this._markMenuButtons()
-    }
-
-    /** The `context-menu` buttons of the open tab that are not hidden, for the ⋯ menu */
-    private _menuButtons(): UiObjectConfig[] {
-        return this._taggedButtons.filter(c => !getOrCall(c.hidden))
-    }
-
-    /** The items of the ⋯ menu: the actions of the selected object (enabled), then the `context-menu` buttons of the open tab */
-    private _menuItems(): [string, () => void][] {
-        const items: [string, () => void][] = this._barActions().filter(a => !a.enabled || a.enabled())
-            .map(a => [this._labelWithKey(a), () => this._runAction(a)])
-        for (const c of this._menuButtons()) {
-            if (getOrCall(c.disabled)) continue
-            const label = getOrCall(c.label) || 'Action'
-            items.push([label, () => this._ui?.methods.clickButton(c)])
-        }
-        return items
-    }
-
-    private _moreMenuOpen() {
-        return !!CustomContextMenu.Element?.isConnected && CustomContextMenu.Element.dataset.owner === 'isp-more'
-    }
-
-    private _openMoreMenu() {
-        const items = this._menuItems()
-        if (!items.length) return
-        const r = this._more.getBoundingClientRect()
-        // two items with one label (two buttons named alike) both stay
-        const menu: Record<string, () => void> = {}
-        for (const [label, run] of items) {
-            let key = label
-            for (let i = 2; key in menu; i++) key = `${label} ${i}`
-            menu[key] = run
-        }
-        const m = this._showMenu(menu, r.left, r.bottom + 4)
-        if (m) {
-            m.dataset.owner = 'isp-more'
-            m.setAttribute('role', 'menu')
-        }
-    }
-
-    /**
-     * The rows of the `context-menu` buttons of the open tab hide from the settings (the class `isp-in-menu`): they are
-     * in the ⋯ menu. Again after the renderer builds its rows (a refresh); the buttons are the ones of the last render.
-     */
-    private _markMenuButtons() {
-        if (!this._body) return
-        for (const c of this._taggedButtons) {
-            const ref = c.uiRef as {controller_?: {view?: {element?: Element}}, element?: Element} | undefined
-            const row = ref?.controller_?.view?.element ?? ref?.element
-            row?.classList.add('isp-in-menu')
-        }
+    private _mountTabActions(config: UiObjectConfig | undefined) {
+        if (this._tabActions?.config === config) return
+        this._tabActions?.mounted.remove()
+        this._tabActions = config && this._ui ? {config, mounted: this._ui.mountFolderActions(config, this._tabActionsEl)} : undefined
     }
 
     /** Shows the settings that match the text of the search field (all of them when it is empty) */
