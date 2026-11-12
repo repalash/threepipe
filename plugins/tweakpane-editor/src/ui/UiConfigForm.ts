@@ -310,10 +310,17 @@ export class UiConfigForm {
                 h.textContent = label
                 f.appendChild(h)
             } else {
-                // a group of buttons in a bar, with a line between groups
+                // a group of buttons in a bar, with a line between groups; a stack also shows its name
                 f.className = 'ucf-group'
                 f.setAttribute('role', 'group')
                 f.setAttribute('aria-label', label)
+                if (label) {
+                    const h = document.createElement('div')
+                    h.className = 'ucf-group-head'
+                    h.setAttribute('aria-hidden', 'true')
+                    h.textContent = label
+                    f.appendChild(h)
+                }
             }
             host.appendChild(f)
             for (const ch of this._children(c)) this._render(ch, f, path)

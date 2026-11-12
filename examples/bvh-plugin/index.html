@@ -14,7 +14,8 @@
           "three": "./../../dist/index.mjs",
           "threepipe": "./../../dist/index.mjs",
           "three-mesh-bvh": "https://esm.sh/three-mesh-bvh@0.9.18?external=three",
-          "@threepipe/plugin-tweakpane": "./../../plugins/tweakpane/dist/index.mjs"
+          "@threepipe/plugin-tweakpane": "./../../plugins/tweakpane/dist/index.mjs",
+          "@threepipe/plugin-tweakpane-editor": "./../../plugins/tweakpane-editor/dist/index.mjs"
         }
     }
 
@@ -26,100 +27,6 @@
             margin: 0;
             overflow: hidden;
         }
-        #bvh-panel {
-            position: absolute;
-            left: 16px;
-            top: 16px;
-            width: 264px;
-            max-width: calc(100% - 32px);
-            box-sizing: border-box;
-            padding: 14px 16px 12px;
-            border-radius: 12px;
-            background: rgba(22, 24, 30, 0.78);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            color: #eef0f4;
-            font: 12.5px/1.45 system-ui, -apple-system, sans-serif;
-            box-shadow: 0 6px 24px rgba(0, 0, 0, 0.25);
-            z-index: 100;
-        }
-        #bvh-panel h1 {
-            margin: 0 0 10px;
-            font-size: 14px;
-            font-weight: 600;
-            letter-spacing: 0.01em;
-        }
-        #bvh-panel label.switch {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            cursor: pointer;
-            user-select: none;
-        }
-        #bvh-panel label.switch input {
-            appearance: none;
-            -webkit-appearance: none;
-            margin: 0;
-            width: 34px;
-            height: 20px;
-            border-radius: 10px;
-            background: #4a4e58;
-            position: relative;
-            cursor: pointer;
-            transition: background 0.15s;
-            flex: none;
-        }
-        #bvh-panel label.switch input::after {
-            content: '';
-            position: absolute;
-            left: 3px;
-            top: 3px;
-            width: 14px;
-            height: 14px;
-            border-radius: 50%;
-            background: #fff;
-            transition: transform 0.15s;
-        }
-        #bvh-panel label.switch input:checked { background: #3d8bfd; }
-        #bvh-panel label.switch input:checked::after { transform: translateX(14px); }
-        #bvh-state { font-size: 11.5px; color: #b8bdc8; }
-        #bvh-state[data-state="on"] { color: #7ee2a8; }
-        #bvh-state[data-state="pending"] { color: #f3c969; }
-        #bvh-panel dl {
-            display: grid;
-            grid-template-columns: auto auto;
-            gap: 3px 12px;
-            margin: 12px 0 0;
-        }
-        #bvh-panel dt { color: #a3a9b6; }
-        #bvh-panel dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
-        #bvh-panel dd.ray { font-weight: 600; }
-        #stat-speedup { margin-top: 6px; color: #7ee2a8; min-height: 1.45em; }
-        #bvh-panel .hint {
-            margin-top: 8px;
-            padding-top: 8px;
-            border-top: 1px solid rgba(255, 255, 255, 0.12);
-            color: #a3a9b6;
-            font-size: 11.5px;
-        }
-        #stat-hover { color: #eef0f4; }
-        /* phones: the Configuration panel is at the top, so the card goes to the bottom, with the stats in two columns */
-        @media (max-width: 600px) {
-            #bvh-panel {
-                top: auto;
-                left: 12px;
-                bottom: 12px;
-                width: auto;
-                max-width: none;
-                right: 12px;
-                padding: 10px 12px 8px;
-                font-size: 11.5px;
-            }
-            #bvh-panel h1 { display: none; }
-            #bvh-panel dl { grid-template-columns: auto auto auto auto; gap: 2px 8px; margin-top: 8px; }
-            #stat-speedup { margin-top: 4px; }
-            #bvh-panel .hint { margin-top: 4px; padding-top: 4px; font-size: 11px; }
-        }
     </style>
     <script type="module" src="../examples-utils/global-loading.mjs"></script>
     <script id="example-script" type="module" src="./script.js" data-scripts="./script.ts;./script.js"></script>
@@ -127,20 +34,6 @@
 <body>
 <div id="canvas-container">
     <canvas id="mcanvas"></canvas>
-</div>
-<div id="bvh-panel">
-    <h1>BVH Plugin</h1>
-    <label class="switch"><input id="bvh-toggle" type="checkbox" checked> <span><b>BVH</b><br/><span id="bvh-state">Loading three-mesh-bvh…</span></span></label>
-    <dl>
-        <dt>Objects</dt><dd id="stat-objects">–</dd>
-        <dt>Triangles</dt><dd id="stat-triangles">–</dd>
-        <dt>Trees · memory</dt><dd id="stat-trees">–</dd>
-        <dt>Tree build time</dt><dd id="stat-build">–</dd>
-        <dt>Raycast with BVH</dt><dd class="ray" id="stat-ray-bvh">–</dd>
-        <dt>Raycast without</dt><dd class="ray" id="stat-ray-plain">–</dd>
-    </dl>
-    <div id="stat-speedup"></div>
-    <div class="hint">Hover: <span id="stat-hover">–</span><br/>Raycast times: average of the last 30. Click to select.</div>
 </div>
 
 </body>
