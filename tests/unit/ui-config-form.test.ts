@@ -946,6 +946,37 @@ describe('UiConfigForm bar and stack layouts', () => {
         }
     })
 
+    test('a button shows the key of shortcutOf at the end of its row, and follows a change', () => {
+        let key = 'S'
+        const snap: UiObjectConfig = {type: 'button', label: 'Snapshot', icon: 'camera', value: () => {}}
+        const form = new UiConfigForm([snap, {type: 'button', label: 'Other', value: () => {}}], {
+            layout: 'stack', shortcutOf: c => c === snap ? key : undefined,
+        })
+        const b = find(form, 'ucf-button', 'Snapshot')
+        expect(b.children.map(c => c.className)).toEqual(['ucf-icon', 'ucf-label', 'ucf-key'])
+        expect(b.children[2].textContent).toBe('S')
+        expect(b.children[2].getAttribute('aria-hidden')).toBe('true')
+        expect(find(form, 'ucf-button', 'Other').children.map(c => c.className)).toEqual(['ucf-label'])
+        key = 'Shift+S'
+        form.refresh()
+        expect(b.children[2].textContent).toBe('Shift+S')
+        key = ''
+        form.refresh()
+        expect(b.children.map(c => c.className)).toEqual(['ucf-icon', 'ucf-label'])
+    })
+
+    test('a monitor in a stack is a read-only row with the value, updated on refresh', () => {
+        const stats = {triangles: 1200}
+        const form = new UiConfigForm([{type: 'monitor', label: 'Triangles', property: [stats, 'triangles']}], {layout: 'stack'})
+        const r = find(form, 'ucf-readout', 'Triangles')
+        expect(r.tagName).toBe('div')
+        const value = r.children.find(c => c.className === 'ucf-value')!
+        expect(value.textContent).toBe('1200')
+        stats.triangles = 46000
+        form.refresh()
+        expect(value.textContent).toBe('46000')
+    })
+
     test('layout: bar to stack keeps the elements; to form draws rows', () => {
         const target = {on: true}
         const form = new UiConfigForm([{type: 'checkbox', label: 'On', property: [target, 'on']}], {layout: 'bar'})

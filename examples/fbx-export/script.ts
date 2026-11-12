@@ -8,7 +8,7 @@ import {
     ThreeViewer,
 } from 'threepipe'
 import {AssimpJsPlugin} from '@threepipe/plugin-assimpjs'
-import {createExampleBar} from '../examples-utils/example-bar.js'
+import {createExampleCard} from '../examples-utils/example-card.js'
 
 const viewer = new ThreeViewer({
     renderScale: 'auto',
@@ -70,13 +70,16 @@ async function init() {
         return fbxBlob
     }
 
-    createExampleBar(viewer, [
-        {type: 'button', label: 'Convert to fbx', icon: 'refresh-cw', value: async() => exportFbx()},
-        {type: 'button', label: 'Download as .fbx', icon: 'download', value: async() => {
-            await exportFbx()
-            if (fbxBlob) downloadBlob(fbxBlob, 'file.fbx')
-        }},
-    ])
+    createExampleCard(viewer, {
+        description: 'Exports the model to FBX in the browser: to GLB first, then to FBX with assimp (AssimpJsPlugin). The converted file is shown next to the original.',
+        actions: [
+            {type: 'button', label: 'Convert to fbx', icon: 'refresh-cw', value: async() => exportFbx()},
+            {type: 'button', label: 'Download as .fbx', icon: 'download', value: async() => {
+                await exportFbx()
+                if (fbxBlob) downloadBlob(fbxBlob, 'file.fbx')
+            }},
+        ],
+    })
 
 }
 

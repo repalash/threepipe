@@ -14,7 +14,7 @@ import {
     Vector3,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
-import {createExampleBar} from '../examples-utils/example-bar.js'
+import {createExampleCard} from '../examples-utils/example-card.js'
 
 async function init() {
 
@@ -51,30 +51,33 @@ async function init() {
         },
     })
 
-    createExampleBar(viewer, [
-        {type: 'button', label: 'Record turntable (MP4, converge mode)', icon: 'rotate-3d', value: async() => {
-            recorder.mimeType = 'video/mp4'
-            recorder.convergeMode = true
-            await recorder.download360Recording(2) // 2 seconds, prompts for the file name
-        }},
-        {type: 'button', label: 'Record animation (MP4, converge mode)', icon: 'film', value: async() => {
-            recorder.mimeType = 'video/mp4'
-            recorder.convergeMode = true
-            const blob = await recorder.record(async() => spin(2000))
-            if (blob) await viewer.exportBlob(blob, 'animation.mp4')
-        }},
-        {type: 'button', label: 'Record animation (auto video, real time)', icon: 'video', value: async() => {
-            recorder.mimeType = 'auto' // MediaRecorder, the browser picks the format
-            recorder.convergeMode = false
-            const blob = await recorder.record(async() => spin(2000))
-            if (blob) await viewer.exportBlob(blob, 'animation.' + (blob.type.split(';')[0].split('/').pop() || 'webm'))
-        }},
-        {type: 'button', label: 'Record camera views (MP4, converge mode)', icon: 'clapperboard', value: async() => {
-            recorder.mimeType = 'video/mp4'
-            recorder.convergeMode = true
-            await cameraViews.recordAllViews() // prompts for the file name
-        }},
-    ], {layout: 'stack'})
+    createExampleCard(viewer, {
+        description: 'Records the canvas to a video (CanvasRecorderPlugin): MP4 frame by frame after the render converges, or the browser\'s real-time recorder. The file downloads when the recording ends.',
+        actions: [
+            {type: 'button', label: 'Record turntable (MP4, converge mode)', icon: 'rotate-3d', value: async() => {
+                recorder.mimeType = 'video/mp4'
+                recorder.convergeMode = true
+                await recorder.download360Recording(2) // 2 seconds, prompts for the file name
+            }},
+            {type: 'button', label: 'Record animation (MP4, converge mode)', icon: 'film', value: async() => {
+                recorder.mimeType = 'video/mp4'
+                recorder.convergeMode = true
+                const blob = await recorder.record(async() => spin(2000))
+                if (blob) await viewer.exportBlob(blob, 'animation.mp4')
+            }},
+            {type: 'button', label: 'Record animation (auto video, real time)', icon: 'video', value: async() => {
+                recorder.mimeType = 'auto' // MediaRecorder, the browser picks the format
+                recorder.convergeMode = false
+                const blob = await recorder.record(async() => spin(2000))
+                if (blob) await viewer.exportBlob(blob, 'animation.' + (blob.type.split(';')[0].split('/').pop() || 'webm'))
+            }},
+            {type: 'button', label: 'Record camera views (MP4, converge mode)', icon: 'clapperboard', value: async() => {
+                recorder.mimeType = 'video/mp4'
+                recorder.convergeMode = true
+                await cameraViews.recordAllViews() // prompts for the file name
+            }},
+        ],
+    })
 
     const ui = viewer.addPluginSync(TweakpaneUiPlugin, true)
     ui.setupPluginUi(CanvasRecorderPlugin, {expanded: true})

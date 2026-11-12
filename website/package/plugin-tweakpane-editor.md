@@ -559,4 +559,6 @@ viewer.container.appendChild(bar.element) // the page places it, e.g. at the bot
 viewer.addEventListener('postFrame', () => bar.refresh())
 ```
 
-The examples use it through `createExampleBar` (in `examples/examples-utils/example-bar.ts`), which places the bar over the canvas (`bar` at the bottom centre, `stack` at the bottom right, a bar on a phone) and gives a button a key with a `CommandsPlugin` action (`exampleAction`).
+A monitor is a read-only row with its value (a live readout). In a stack, a button shows its key (`shortcutOf`) at the end of its row; in a bar the key is in the tooltip.
+
+The examples use the stack in their card (`createExampleCard` in `examples/examples-utils/example-card.ts`): a card at the top left of the canvas with the title of the example, what it shows, its controls and a link to its source, collapsible, at the bottom on a phone. `exampleAction` makes a button that is also a `CommandsPlugin` action, with its key.

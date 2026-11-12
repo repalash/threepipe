@@ -7,7 +7,7 @@ import {
     Rhino3dmLoadPlugin,
     ThreeViewer,
 } from 'threepipe'
-import {createExampleBar} from '../examples-utils/example-bar.js'
+import {createExampleCard} from '../examples-utils/example-card.js'
 
 const viewer = new ThreeViewer({
     renderScale: 'auto',
@@ -49,9 +49,12 @@ async function init() {
         file: blob,
     })
 
-    createExampleBar(viewer, [
-        {type: 'button', label: 'Download .glb', icon: 'download', value: () => downloadBlob(blob, 'file.glb')},
-    ])
+    createExampleCard(viewer, {
+        description: 'Loads a Rhino .3dm file (Rhino3dmLoadPlugin), converts it to GLB in the browser and shows the GLB. Download the converted file.',
+        actions: [
+            {type: 'button', label: 'Download .glb', icon: 'download', value: () => downloadBlob(blob, 'file.glb')},
+        ],
+    })
 
 }
 

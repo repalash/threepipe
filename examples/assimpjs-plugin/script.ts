@@ -7,7 +7,7 @@ import {
     ThreeViewer,
 } from 'threepipe'
 import {AssimpJsPlugin} from '@threepipe/plugin-assimpjs'
-import {createExampleBar} from '../examples-utils/example-bar.js'
+import {createExampleCard} from '../examples-utils/example-card.js'
 
 const viewer = new ThreeViewer({
     renderScale: 'auto',
@@ -47,9 +47,12 @@ async function init() {
     })
     viewer.scene.addObject(new HemisphereLight(0xffffff, 0x444444, 2))
 
-    createExampleBar(viewer, [
-        {type: 'button', label: 'Download .fbx', icon: 'download', value: () => downloadBlob(fbx, 'file.fbx')},
-    ])
+    createExampleCard(viewer, {
+        description: 'Converts an OBJ file to FBX in the browser with assimp compiled to WebAssembly (AssimpJsPlugin), then loads the FBX. Download the converted file.',
+        actions: [
+            {type: 'button', label: 'Download .fbx', icon: 'download', value: () => downloadBlob(fbx, 'file.fbx')},
+        ],
+    })
 
 }
 

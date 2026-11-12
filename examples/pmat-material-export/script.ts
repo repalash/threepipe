@@ -8,7 +8,7 @@ import {
     SphereGeometry,
     ThreeViewer,
 } from 'threepipe'
-import {createExampleBar} from '../examples-utils/example-bar.js'
+import {createExampleCard} from '../examples-utils/example-card.js'
 
 const viewer = new ThreeViewer({renderScale: 'auto', canvas: document.getElementById('mcanvas') as HTMLCanvasElement, msaa: true,
     plugins: [LoadingScreenPlugin],
@@ -47,16 +47,19 @@ async function init() {
     sphere2.position.setX(0)
     await viewer.addSceneObject(sphere2)
 
-    createExampleBar(viewer, [
-        {type: 'button', label: 'Download PMAT', icon: 'palette', value: async() => {
-            const blob = await viewer.export(material)
-            if (!blob) {
-                alert('Unable to export material')
-                return
-            }
-            downloadBlob(blob, 'material.' + blob.ext)
-        }},
-    ])
+    createExampleCard(viewer, {
+        description: 'Exports a material to a .pmat file (the material as JSON, with its textures) and loads it back onto the model.',
+        actions: [
+            {type: 'button', label: 'Download PMAT', icon: 'palette', value: async() => {
+                const blob = await viewer.export(material)
+                if (!blob) {
+                    alert('Unable to export material')
+                    return
+                }
+                downloadBlob(blob, 'material.' + blob.ext)
+            }},
+        ],
+    })
 
 }
 

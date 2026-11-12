@@ -9,7 +9,7 @@ import {
     ThreeViewer,
     Vector3,
 } from 'threepipe'
-import {createExampleBar} from '../examples-utils/example-bar.js'
+import {createExampleCard} from '../examples-utils/example-card.js'
 
 async function init() {
 
@@ -29,38 +29,41 @@ async function init() {
 
     let isMovedUp = false
 
-    createExampleBar(viewer, [
-        {type: 'button', label: 'Move Up/Down', icon: 'move-vertical', value: async() => {
-            await popmotion.animateTargetAsync(cube, 'position', {
-                to: cube.position.clone().add(new Vector3(0, isMovedUp ? -1 : 1, 0)),
-                duration: 500, // ms
-                onComplete: () => isMovedUp = !isMovedUp,
-                onUpdate: () => cube.setDirty?.(),
-            })
-        }},
-        {type: 'button', label: 'Rotate +90deg', icon: 'rotate-cw', value: async() => {
-            await popmotion.animateAsync({
-                from: cube.rotation.y,
-                to: cube.rotation.y + Math.PI / 2,
-                duration: 500,
-                onUpdate: (v) => {
-                    cube.rotation.y = v
-                    cube.setDirty?.()
-                },
-            })
-        }},
-        {type: 'button', label: 'Change Color', icon: 'palette', value: async()=>{
-            await popmotion.animateAsync({
-                from: '#' + cube.material.color.getHexString(),
-                to: '#' + new Color().setHSL(Math.random(), 1, 0.5).getHexString(),
-                duration: 500,
-                onUpdate: (v) => {
-                    cube.material.color.set(v)
-                    cube.material.setDirty()
-                },
-            })
-        }},
-    ])
+    createExampleCard(viewer, {
+        description: 'Animates a position, a rotation and a colour with the PopmotionPlugin. Each button waits for its animation.',
+        actions: [
+            {type: 'button', label: 'Move Up/Down', icon: 'move-vertical', value: async() => {
+                await popmotion.animateTargetAsync(cube, 'position', {
+                    to: cube.position.clone().add(new Vector3(0, isMovedUp ? -1 : 1, 0)),
+                    duration: 500, // ms
+                    onComplete: () => isMovedUp = !isMovedUp,
+                    onUpdate: () => cube.setDirty?.(),
+                })
+            }},
+            {type: 'button', label: 'Rotate +90deg', icon: 'rotate-cw', value: async() => {
+                await popmotion.animateAsync({
+                    from: cube.rotation.y,
+                    to: cube.rotation.y + Math.PI / 2,
+                    duration: 500,
+                    onUpdate: (v) => {
+                        cube.rotation.y = v
+                        cube.setDirty?.()
+                    },
+                })
+            }},
+            {type: 'button', label: 'Change Color', icon: 'palette', value: async()=>{
+                await popmotion.animateAsync({
+                    from: '#' + cube.material.color.getHexString(),
+                    to: '#' + new Color().setHSL(Math.random(), 1, 0.5).getHexString(),
+                    duration: 500,
+                    onUpdate: (v) => {
+                        cube.material.color.set(v)
+                        cube.material.setDirty()
+                    },
+                })
+            }},
+        ],
+    })
 
 }
 

@@ -1,5 +1,5 @@
 import {_testFinish, _testStart, downloadBlob, IAsset, ITexture, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
-import {createExampleBar} from '../examples-utils/example-bar.js'
+import {createExampleCard} from '../examples-utils/example-card.js'
 
 const viewer = new ThreeViewer({renderScale: 'auto', canvas: document.getElementById('mcanvas') as HTMLCanvasElement})
 
@@ -31,9 +31,12 @@ async function init() {
     }
     viewer.scene.background = map
 
-    createExampleBar(viewer, [
-        {type: 'button', label: 'Download .exr', icon: 'download', value: () => downloadBlob(blob, 'file.exr')},
-    ])
+    createExampleCard(viewer, {
+        description: 'Loads an HDR environment map, converts it to EXR in the browser and shows the EXR as the environment and background. Download the converted file.',
+        actions: [
+            {type: 'button', label: 'Download .exr', icon: 'download', value: () => downloadBlob(blob, 'file.exr')},
+        ],
+    })
 
 }
 

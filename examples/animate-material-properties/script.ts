@@ -13,7 +13,7 @@ import {
     timeout,
     Vector2,
 } from 'threepipe'
-import {createExampleBar} from '../examples-utils/example-bar.js'
+import {createExampleCard} from '../examples-utils/example-card.js'
 
 async function init() {
 
@@ -84,10 +84,13 @@ async function init() {
     await timeout(500)
     await animate()
 
-    createExampleBar(viewer, [
-        // disabled while the animation runs
-        {type: 'button', label: 'Animate', icon: 'play', value: async() => animate()},
-    ])
+    createExampleCard(viewer, {
+        description: 'Animates the properties of a material (colour, maps, metalness, roughness, normal scale) to another set of values with the PopmotionPlugin. Animate switches between the two.',
+        actions: [
+            // disabled while the animation runs
+            {type: 'button', label: 'Animate', icon: 'play', value: async() => animate()},
+        ],
+    })
 
     viewer.renderManager.addEventListener('resize', () => {
         refreshFov()

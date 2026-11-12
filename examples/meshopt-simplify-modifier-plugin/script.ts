@@ -7,7 +7,7 @@ import {
     ThreeViewer,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
-import {createExampleBar} from '../examples-utils/example-bar.js'
+import {createExampleCard} from '../examples-utils/example-card.js'
 
 async function init() {
 
@@ -39,11 +39,14 @@ async function init() {
         obj.materials?.map(m=>m.wireframe = true)
     })
 
-    createExampleBar(viewer, [
-        {type: 'button', label: 'Simplify', icon: 'triangle', value: async() => {
-            await simplify.simplifyAll(result, {factor: 0.5})
-        }},
-    ])
+    createExampleCard(viewer, {
+        description: 'Reduces the triangles of the model with meshoptimizer (MeshOptSimplifyModifierPlugin). Each Simplify halves them; the panel on the right has the settings.',
+        actions: [
+            {type: 'button', label: 'Simplify', icon: 'triangle', value: async() => {
+                await simplify.simplifyAll(result, {factor: 0.5})
+            }},
+        ],
+    })
 
     ui.setupPluginUi(MeshOptSimplifyModifierPlugin)
     ui.setupPluginUi(PickingPlugin)

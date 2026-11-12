@@ -9,7 +9,7 @@ import {
     Vector3,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
-import {createExampleBar, exampleAction} from '../examples-utils/example-bar.js'
+import {createExampleCard, exampleAction} from '../examples-utils/example-card.js'
 
 async function init() {
 
@@ -51,39 +51,42 @@ async function init() {
 
     const animateTo = async(view: CameraView) => cameraViewPlugin.animateToView(view, 1000, EasingFunctions.easeInOutSine)
 
-    // The buttons at the bottom: uiconfig configs, the same format as the Tweakpane panel on the right.
+    // The card at the top left: its controls are uiconfig configs, the same format as the Tweakpane panel on the right.
     // exampleAction also gives a button a key (shown in its tooltip).
-    createExampleBar(viewer, [{
-        type: 'folder', label: 'Views', children: [
-            exampleAction(viewer, {id: 'example.topView', label: 'Top View', icon: 'arrow-up', shortcut: '1', run: async() => animateTo(topView)}),
-            exampleAction(viewer, {id: 'example.leftView', label: 'Left View', icon: 'arrow-left', shortcut: '2', run: async() => animateTo(leftView)}),
-            exampleAction(viewer, {id: 'example.rightView', label: 'Right View', icon: 'arrow-right', shortcut: '3', run: async() => animateTo(rightView)}),
-            exampleAction(viewer, {id: 'example.resetView', label: 'Reset', icon: 'house', shortcut: '0', run: async() => animateTo(initialView)}),
-        ],
-    }, {
-        type: 'folder', label: 'Move', children: [
-            // an async button is disabled while its promise runs
-            {type: 'button', label: 'Pan right/left', icon: 'move-horizontal', value: async() => {
-                const currentView = cameraViewPlugin.getView()
-                await animateTo(new CameraView('view', currentView.position, new Vector3(4, 0, 0).sub(currentView.target)))
-            }},
-            {type: 'button', label: 'Move up/down', icon: 'move-vertical', value: async() => {
-                const currentView = cameraViewPlugin.getView()
-                await animateTo(new CameraView(
-                    'view',
-                    new Vector3(currentView.position.x, 5 - currentView.position.y, currentView.position.z),
-                    currentView.target,
-                ))
-            }},
-        ],
-    }, {
-        // Fit to object examples
-        type: 'folder', label: 'Fit', children: [
-            {type: 'button', label: 'Fit (animated)', icon: 'scan', value: async() => cameraViewPlugin.animateToFitObject(model, 1.5, 1000, EasingFunctions.easeInOutSine)},
-            {type: 'button', label: 'Fit (instant)', icon: 'focus', value: () => viewer.fitToView(model, 1.5, 0)},
-            {type: 'button', label: 'camera.fitObject', value: () => viewer.scene.mainCamera.fitObject(model!)},
-        ],
-    }])
+    createExampleCard(viewer, {
+        description: 'Animates the camera between saved views (CameraViewPlugin), pans or moves it from the current view, and fits it to the model. Press 1, 2, 3 or 0 for the views.',
+        actions: [{
+            type: 'folder', label: 'Views', children: [
+                exampleAction(viewer, {id: 'example.topView', label: 'Top View', icon: 'arrow-up', shortcut: '1', run: async() => animateTo(topView)}),
+                exampleAction(viewer, {id: 'example.leftView', label: 'Left View', icon: 'arrow-left', shortcut: '2', run: async() => animateTo(leftView)}),
+                exampleAction(viewer, {id: 'example.rightView', label: 'Right View', icon: 'arrow-right', shortcut: '3', run: async() => animateTo(rightView)}),
+                exampleAction(viewer, {id: 'example.resetView', label: 'Reset', icon: 'house', shortcut: '0', run: async() => animateTo(initialView)}),
+            ],
+        }, {
+            type: 'folder', label: 'Move', children: [
+                // an async button is disabled while its promise runs
+                {type: 'button', label: 'Pan right/left', icon: 'move-horizontal', value: async() => {
+                    const currentView = cameraViewPlugin.getView()
+                    await animateTo(new CameraView('view', currentView.position, new Vector3(4, 0, 0).sub(currentView.target)))
+                }},
+                {type: 'button', label: 'Move up/down', icon: 'move-vertical', value: async() => {
+                    const currentView = cameraViewPlugin.getView()
+                    await animateTo(new CameraView(
+                        'view',
+                        new Vector3(currentView.position.x, 5 - currentView.position.y, currentView.position.z),
+                        currentView.target,
+                    ))
+                }},
+            ],
+        }, {
+            // Fit to object examples
+            type: 'folder', label: 'Fit', children: [
+                {type: 'button', label: 'Fit (animated)', icon: 'scan', value: async() => cameraViewPlugin.animateToFitObject(model, 1.5, 1000, EasingFunctions.easeInOutSine)},
+                {type: 'button', label: 'Fit (instant)', icon: 'focus', value: () => viewer.fitToView(model, 1.5, 0)},
+                {type: 'button', label: 'camera.fitObject', value: () => viewer.scene.mainCamera.fitObject(model!)},
+            ],
+        }],
+    })
 
     const ui = viewer.addPluginSync(TweakpaneUiPlugin, true)
     ui.appendChild(viewer.scene.mainCamera.uiConfig)

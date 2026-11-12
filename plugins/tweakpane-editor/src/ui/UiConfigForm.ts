@@ -324,6 +324,7 @@ export class UiConfigForm {
         const kind = this._kind(c, type)
         if (kind === 'checkbox' || kind === 'toggle') return this._toggle(c, host, parents, label, isDisabled)
         if (kind === 'dropdown') return this._selectChip(c, host, parents, label, isDisabled)
+        if (kind === 'monitor') return this._readout(c, host, label)
         return this._popoverChip(c, host, parents, type, label, isDisabled)
     }
 
@@ -403,7 +404,8 @@ export class UiConfigForm {
                 const key = this._options.shortcutOf?.(c)
                 const labelEl = el.querySelector<HTMLElement>('.ucf-label')
                 const labelHidden = !!labelEl && labelEl.offsetParent === null
-                if (!labelHidden && !key) return false
+                // a stack shows the key at the end of the row: the tooltip is for a hidden label or the key in a bar
+                if (!labelHidden && !(key && this._layout === 'bar')) return false
                 const content = document.createElement('span')
                 content.textContent = labelOf(c)
                 if (key) {
@@ -422,7 +424,8 @@ export class UiConfigForm {
         const b = document.createElement('button')
         b.type = 'button'
         b.className = 'ucf-button'
-        const updateIcon = this._content(b, c, label)
+        // with keys, the label is in its own element: the key is next to it
+        const updateIcon = this._content(b, c, label, !!this._options.shortcutOf)
         b.disabled = isDisabled()
         // while the function of the button runs (a promise): disabled, with a spinner
         let busy = false
@@ -446,12 +449,34 @@ export class UiConfigForm {
             this._dispatch(c, parents, true)
             this._structureChange()
         })
+        // the key, at the end of the row in a stack (in a bar it is in the tooltip only)
+        let key: HTMLElement | undefined
+        let keyText: string | undefined
+        const updateKey = () => {
+            const k = this._options.shortcutOf?.(c) || ''
+            if (k === keyText) return
+            keyText = k
+            if (!k) {
+                key?.remove()
+                key = undefined
+                return
+            }
+            if (!key) {
+                key = document.createElement('kbd')
+                key.className = 'ucf-key'
+                key.setAttribute('aria-hidden', 'true')
+                b.appendChild(key)
+            }
+            key.textContent = k
+        }
+        updateKey()
         host.appendChild(b)
         this._tooltip(b, c)
         this._rows.push({config: c, update: () => {
             const d = busy || isDisabled()
             if (b.disabled !== d) b.disabled = d
             updateIcon()
+            updateKey()
         }})
     }
 
@@ -490,6 +515,25 @@ export class UiConfigForm {
             update()
             const d = isDisabled()
             if (sel.disabled !== d) sel.disabled = d
+            updateIcon()
+        }})
+        this._rows[this._rows.length - 1].update()
+    }
+
+    /** A monitor in a bar or a stack: its label (or icon) and the value, read only */
+    private _readout(c: UiObjectConfig, host: HTMLElement, label: string) {
+        const el = document.createElement('div')
+        el.className = 'ucf-chip ucf-readout'
+        const updateIcon = this._content(el, c, label, true)
+        const val = document.createElement('span')
+        val.className = 'ucf-value'
+        el.appendChild(val)
+        host.appendChild(el)
+        this._tooltip(el, c)
+        let shown: string | undefined
+        this._rows.push({config: c, update: () => {
+            const v = valueText(UiConfigMethods.GetRawValue(c))
+            if (v !== shown) val.textContent = shown = v
             updateIcon()
         }})
         this._rows[this._rows.length - 1].update()

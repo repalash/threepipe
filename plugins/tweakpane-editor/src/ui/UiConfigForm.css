@@ -82,12 +82,19 @@
 .ucf-swatch::before { content: ''; display: inline-block; width: 10px; height: 10px; margin-right: 4px; vertical-align: -1px; border-radius: 2px;
     background: var(--ucf-swatch); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .15); }
 .ucf-value { color: var(--ucf-dim); font-variant-numeric: tabular-nums; }
+/* a monitor: the value at the end of the row, no hover (it is not a control) */
+.ucf-readout { cursor: default; }
+.ucf-readout:hover { background: transparent; }
+.ucf-stack .ucf-readout .ucf-value { margin-left: auto; }
 .ucf-more[aria-expanded='true'] { background: var(--ucf-hover); }
 .ucf-chip select { font: inherit; color: var(--ucf-fg); background: var(--ucf-input); border: 0; border-radius: 4px; padding: 3px 4px; outline: none; max-width: 140px; }
 .ucf-chip select:disabled { opacity: .5; }
 /* the field of a button in a bar, in a popover */
 .ucf-popover { position: fixed; z-index: 10001; min-width: 220px; padding: 4px 0; background: var(--ucf-bg); border-radius: 8px;
     box-shadow: 0 0 0 1px var(--ucf-line), 0 4px 16px var(--ucf-shadow); }
+/* the key of a button at the end of its row in a stack; a bar shows it in the tooltip */
+.ucf-key { display: none; margin-left: auto; padding-left: 8px; font: inherit; color: var(--ucf-dim); }
+.ucf-stack .ucf-key { display: inline; }
 /* the key in a tooltip */
 .ucf-kbd { margin-left: 8px; font: inherit; opacity: .7; }
 /* a bar on a narrow screen: the buttons with an icon show the icon only (the label is in the tooltip) */

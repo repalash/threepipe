@@ -9,7 +9,7 @@ import {
     SRGBColorSpace,
     ThreeViewer,
 } from 'threepipe'
-import {createExampleBar} from '../examples-utils/example-bar.js'
+import {createExampleCard} from '../examples-utils/example-card.js'
 
 const viewer = new ThreeViewer({
     renderScale: 'auto',
@@ -39,19 +39,22 @@ async function init() {
     const targetPreview = viewer.addPluginSync(RenderTargetPreviewPlugin)
     targetPreview.addTarget(()=>normalTarget, 'normal')
 
-    createExampleBar(viewer, [
-        {type: 'button', label: 'Toggle Normal rendering', icon: 'layers', value: () => {
-            const state = !!viewer.renderManager.screenPass.overrideReadBuffer
-            viewer.renderManager.screenPass.overrideReadBuffer = state ? null : normalTarget
-            viewer.renderManager.screenPass.outputColorSpace = state ? SRGBColorSpace : NoColorSpace
-            viewer.setDirty()
-        }},
-        {type: 'button', label: 'Download snapshot', icon: 'camera', value: async() => {
-            const blob = await viewer.getScreenshotBlob({mimeType: 'image/png'})
-            if (blob) downloadBlob(blob, 'file.png')
-            else console.error('Unable to get screenshot')
-        }},
-    ])
+    createExampleCard(viewer, {
+        description: 'Renders the normals of the scene into a target (NormalBufferPlugin), drawn on the canvas and in the preview at the bottom. Toggle back to the render.',
+        actions: [
+            {type: 'button', label: 'Toggle Normal rendering', icon: 'layers', value: () => {
+                const state = !!viewer.renderManager.screenPass.overrideReadBuffer
+                viewer.renderManager.screenPass.overrideReadBuffer = state ? null : normalTarget
+                viewer.renderManager.screenPass.outputColorSpace = state ? SRGBColorSpace : NoColorSpace
+                viewer.setDirty()
+            }},
+            {type: 'button', label: 'Download snapshot', icon: 'camera', value: async() => {
+                const blob = await viewer.getScreenshotBlob({mimeType: 'image/png'})
+                if (blob) downloadBlob(blob, 'file.png')
+                else console.error('Unable to get screenshot')
+            }},
+        ],
+    })
 
 }
 

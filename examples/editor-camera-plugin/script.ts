@@ -1,7 +1,7 @@
 import {_testFinish, _testStart, ContactShadowGroundPlugin, LoadingScreenPlugin, OrbitControls3, ThreeViewer, UndoManagerPlugin} from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 import {EditorCameraPlugin} from '@threepipe/plugin-tweakpane-editor'
-import {createExampleBar} from '../examples-utils/example-bar.js'
+import {createExampleCard} from '../examples-utils/example-card.js'
 
 async function init() {
 
@@ -34,15 +34,18 @@ async function init() {
     const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
     ui.setupPluginUi(EditorCameraPlugin, {expanded: true})
 
-    // a checkbox is a toggle button in the bar, pressed while the value is true
-    createExampleBar(viewer, [
-        {type: 'checkbox', label: 'Edit / View (C)', icon: 'square-pen', property: [editorCamera, 'editing']},
-        {type: 'folder', label: 'Start view', children: [
-            {type: 'button', label: 'Set start view to this view', icon: 'house', value: () => editorCamera.setStartViewFromEditor()},
-            {type: 'button', label: 'Save start view (in View)', icon: 'save', value: () => editorCamera.saveStartView()},
-            {type: 'checkbox', label: 'Sync start view on / off', icon: 'link', property: [editorCamera, 'syncStartView']},
-        ]},
-    ])
+    // a checkbox is a toggle button in the card, pressed while the value is true
+    createExampleCard(viewer, {
+        description: 'Edit with a free editor camera, or View through the start view that a visitor gets. With sync on, a move in View changes the start view. C switches, Ctrl+Z undoes.',
+        actions: [
+            {type: 'checkbox', label: 'Edit / View (C)', icon: 'square-pen', property: [editorCamera, 'editing']},
+            {type: 'folder', label: 'Start view', children: [
+                {type: 'button', label: 'Set start view to this view', icon: 'house', value: () => editorCamera.setStartViewFromEditor()},
+                {type: 'button', label: 'Save start view (in View)', icon: 'save', value: () => editorCamera.saveStartView()},
+                {type: 'checkbox', label: 'Sync start view on / off', icon: 'link', property: [editorCamera, 'syncStartView']},
+            ]},
+        ],
+    })
 }
 
 _testStart()

@@ -1,5 +1,5 @@
 import {_testFinish, _testStart, downloadBlob, isWebpExportSupported, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
-import {createExampleBar} from '../examples-utils/example-bar.js'
+import {createExampleCard} from '../examples-utils/example-card.js'
 
 const viewer = new ThreeViewer({
     renderScale: 'auto',
@@ -27,21 +27,24 @@ async function init() {
         else alert('Unable to get screenshot')
     }
 
-    createExampleBar(viewer, [
-        {type: 'button', label: 'Download snapshot (PNG)', icon: 'image', value: async() => {
-            await downloadSnapshot()
-        }},
-        {type: 'button', label: 'Download snapshot (JPEG)', icon: 'image', value: async() => {
-            await downloadSnapshot('jpeg')
-        }},
-        {type: 'button', label: 'Download snapshot (WEBP)', icon: 'image', value: async() => {
-            if (!isWebpExportSupported()) {
-                alert('WebP export is not supported in this browser, try the latest version of chrome, firefox or edge.')
-                return
-            }
-            await downloadSnapshot('webp')
-        }},
-    ])
+    createExampleCard(viewer, {
+        description: 'Saves the canvas as an image with viewer.getScreenshotBlob: PNG, JPEG or WebP. See the Canvas Snapshot Plugin for sizes, crops and tiles.',
+        actions: [
+            {type: 'button', label: 'Download snapshot (PNG)', icon: 'image', value: async() => {
+                await downloadSnapshot()
+            }},
+            {type: 'button', label: 'Download snapshot (JPEG)', icon: 'image', value: async() => {
+                await downloadSnapshot('jpeg')
+            }},
+            {type: 'button', label: 'Download snapshot (WEBP)', icon: 'image', value: async() => {
+                if (!isWebpExportSupported()) {
+                    alert('WebP export is not supported in this browser, try the latest version of chrome, firefox or edge.')
+                    return
+                }
+                await downloadSnapshot('webp')
+            }},
+        ],
+    })
 
 }
 

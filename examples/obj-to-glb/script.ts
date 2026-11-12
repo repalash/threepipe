@@ -1,5 +1,5 @@
 import {_testFinish, _testStart, downloadBlob, IObject3D, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
-import {createExampleBar} from '../examples-utils/example-bar.js'
+import {createExampleCard} from '../examples-utils/example-card.js'
 
 const viewer = new ThreeViewer({renderScale: 'auto', canvas: document.getElementById('mcanvas') as HTMLCanvasElement, msaa: true,
     plugins: [LoadingScreenPlugin],
@@ -32,9 +32,12 @@ async function init() {
         file: blob,
     })
 
-    createExampleBar(viewer, [
-        {type: 'button', label: 'Download .glb', icon: 'download', value: () => downloadBlob(blob, 'file.glb')},
-    ])
+    createExampleCard(viewer, {
+        description: 'Loads an OBJ file with its MTL materials, converts it to GLB in the browser and shows the GLB. Download the converted file.',
+        actions: [
+            {type: 'button', label: 'Download .glb', icon: 'download', value: () => downloadBlob(blob, 'file.glb')},
+        ],
+    })
 
 }
 
