@@ -65,4 +65,46 @@ With converge mode off (or without the `ProgressivePlugin`, where the animations
 
 The MP4 recorder loads ffmpeg.js from [FFMPEGRecorder.LIBRARY_PATH](https://threepipe.org/docs/classes/FFMPEGRecorder.html#library_path) (jsdelivr by default) when it is created. Set it before the plugin is added to host the files yourself. All such URLs are listed in [Dynamically loaded files](../notes/dynamically-loaded-files).
 
+## Where the frames go
+
+An image sequence gives its frames to a sink, set with `frameSink`:
+
+| Sink | Where the frames go | Browsers |
+|---|---|---|
+| [DirectoryFrameSink](https://threepipe.org/docs/classes/DirectoryFrameSink.html) (default) | A new folder inside one the user picks, one file per frame | Chromium browsers (needs `showDirectoryPicker` and a click to start) |
+| [ZipFrameSink](https://threepipe.org/docs/classes/ZipFrameSink.html) | One zip, downloaded (or given to a callback) when the recording stops | All; keeps every frame in memory until then |
+| A function, or an object with `start`, `write`, `finish` and `dispose` ([ICanvasFrameSink](https://threepipe.org/docs/interfaces/ICanvasFrameSink.html)) | Anywhere: a server, memory | All |
+
+```typescript
+import {ZipFrameSink} from 'threepipe'
+
+const recorder = viewer.getPlugin(CanvasRecorderPlugin)!
+recorder.mimeType = 'image/png'
+recorder.frameSink = new ZipFrameSink('turntable') // downloads turntable.zip when the recording stops
+await recorder.recordCamera360(3)
+
+// or send each frame somewhere yourself
+recorder.frameSink = async({blob, index, name, mimeType}) => {
+    await fetch('/frames/' + name, {method: 'PUT', body: blob})
+}
+```
+
+Frames arrive one at a time and in order. In converge mode the next frame waits for the sink, so a slow one doesn't fill the memory. If a write fails, no more frames are sent, the sink isn't finished, and the recorder reports an `error` when it stops.
+
+## Adding a recorder
+
+`registerRecorder` adds a new output with no change to the plugin, for example one built on WebCodecs. It's used when `mimeType` matches, ahead of the built-in recorders. The recorder implements [ICanvasRecorder](https://threepipe.org/docs/interfaces/ICanvasRecorder.html); extending [ACanvasRecorder](https://threepipe.org/docs/classes/ACanvasRecorder.html) is the shortest way.
+
+```typescript
+recorder.registerRecorder('webcodecs',
+    (canvas, options) => new MyWebCodecsRecorder(canvas, options),
+    mimeType => mimeType === 'video/webm',
+    {label: 'WebM (WebCodecs)', mimeType: 'video/webm'}) // optional: an entry in the plugin UI's format list
+recorder.mimeType = 'video/webm'
+```
+
+Registered recorders have their own names: one called `image` doesn't replace the built-in image recorder.
+
+`registerRecorder` and `unregisterRecorder` return `false` and change nothing during a recording.
+
 The plugin UI has the recorder options, buttons to record the camera turntable and the glTF animations, and the ffmpeg options of the MP4 recorder.
