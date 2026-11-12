@@ -58,7 +58,7 @@ export {GLTFMeshOptDecodePlugin} from './import/GLTFMeshOptDecodePlugin'
 export {AssetExporterPlugin, type ExportAssetOptions} from './export/AssetExporterPlugin'
 export {CanvasSnapshotPlugin, CanvasSnipperPlugin, type CanvasSnapshotPluginOptions} from './export/CanvasSnapshotPlugin'
 export {FileTransferPlugin} from './export/FileTransferPlugin'
-export {CanvasRecorderPlugin, type CanvasRecorderPluginEventMap} from './export/CanvasRecorderPlugin'
+export {CanvasRecorderPlugin, type CanvasRecorderPluginEventMap, type CanvasRecorderFactory} from './export/CanvasRecorderPlugin'
 
 // postprocessing
 export {AScreenPassExtensionPlugin} from './postprocessing/AScreenPassExtensionPlugin'
