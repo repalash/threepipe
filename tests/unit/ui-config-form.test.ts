@@ -22,7 +22,7 @@ class FakeElement {
     innerHTML = ''
     attributes: Record<string, string> = {}
     classList = {
-        add: (...c: string[]) => this.className = [...this.className.split(' ').filter(Boolean), ...c].join(' '),
+        add: (...c: string[]) => this.className = [...new Set([...this.className.split(' ').filter(Boolean), ...c])].join(' '),
         remove: (...c: string[]) => this.className = this.className.split(' ').filter(x => x && !c.includes(x)).join(' '),
         contains: (c: string) => this.className.split(' ').includes(c),
     }
@@ -1051,6 +1051,18 @@ describe('UiConfigForm bar and stack layouts', () => {
         state.mode = 'normal'
         form.refresh()
         expect(uv.style.display).toBe('none')
+    })
+
+    test('layout: a class that the page added stays when the layout changes (also through form)', () => {
+        const form = new UiConfigForm([{type: 'button', label: 'A', value: () => {}}], {layout: 'bar'})
+        const el = form.element as any as FakeElement
+        el.classList.add('my-toolbar')
+        form.layout = 'stack'
+        expect(el.className.split(' ').sort()).toEqual(['my-toolbar', 'ucf', 'ucf-stack'])
+        form.layout = 'form'
+        expect(el.className.split(' ').sort()).toEqual(['my-toolbar', 'ucf'])
+        form.layout = 'bar'
+        expect(el.className.split(' ').sort()).toEqual(['my-toolbar', 'ucf', 'ucf-bar'])
     })
 
     test('layout: bar to stack keeps the elements; to form draws rows', () => {
