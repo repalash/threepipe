@@ -6,6 +6,7 @@
  *
  * Measured in Chrome 156 (macOS, 8.5 minutes hidden): about 62 ticks a second the whole time; `setTimeout` gave 1.6, then
  * 0 from the third minute. A browser can still freeze a tab hidden for long (Chrome's Energy and Memory Saver).
+ * Safari pauses a hidden tab anyway (tried with a recording, 2026-11); Firefox and phones are not tested yet.
  * Rendering in the background uses the CPU and GPU, so hold it only for a task that needs it, like a recording.
  *
  * Does nothing where there is no `document` or `Worker` (Node.js).
