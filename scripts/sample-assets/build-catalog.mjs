@@ -170,7 +170,7 @@ function viewsOf(root, name, saved) {
 function animationsOf(root) {
     const moved = new Set(), play = []
     const animations = root.listAnimations().map((animation, index) => {
-        const name = animation.getName() || `animation ${index}`
+        const name = animation.getName() || `animation_${index}` // the name three.js GLTFLoader gives an unnamed clip
         const targets = animation.listChannels().map(c => `${root.listNodes().indexOf(c.getTargetNode())}|${c.getTargetPath()}`)
         if (!targets.some(t => moved.has(t))) {
             play.push(name)

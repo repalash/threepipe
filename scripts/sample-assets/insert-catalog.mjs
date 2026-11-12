@@ -42,7 +42,7 @@ for (const row of catalog.rows) {
     if (!/^[A-Za-z0-9._-]+$/.test(row.name)) problems.push(`${asset}: the name is not a slug`)
     // a model already in the bucket is not in --out, nor is the model a texture of it points to
     const inBucket = row.linked || (row.kind === 'texture' && !catalog.rows.some(r => r.kind === 'model' && !r.linked && r.url === row.url))
-    const urls = [inBucket ? undefined : row.url, row.thumb_url, row.video_url, ...(JSON.parse(row.metadata ?? '{}').screenshots ?? []).map(s => s.url)].filter(Boolean)
+    const urls = [inBucket ? undefined : row.url, row.thumb_url, row.video_url, ...['screenshots', 'videos', 'thumbnails'].flatMap(k => JSON.parse(row.metadata ?? '{}')[k] ?? []).map(s => s.url)].filter(Boolean)
     for (const url of urls) {
         const file = localOf(url)
         if (file && !fs.existsSync(file)) problems.push(`${asset}: no file for ${url}`)

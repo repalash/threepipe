@@ -32,7 +32,9 @@ const videoSeconds = parseFloat(query.get('video') ?? '3') // 0: no video
 const ENVIRONMENT = 'https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/brown_photostudio_02_1k.hdr' // CC0, Poly Haven
 const INSIDE_ARC = 8 // degrees
 const FIT = 1.5 // distance to the model, as in render3d-cli
-const VIDEO_BACKGROUND = 0x77777c // H.264 has no alpha: a video of a model with no background of its own gets this
+// renders with more pixels than the files have: scripts/sample-assets/render-catalog.mjs shrinks them
+const STILL_SCALE = parseFloat(query.get('stillScale') ?? '4')
+const VIDEO_SCALE = parseFloat(query.get('videoScale') ?? '2')
 
 interface View {position: number[], target: number[], yfov: number, aspect?: number, inside?: boolean, saved?: boolean}
 
@@ -57,7 +59,8 @@ async function render() {
     const canvas = document.getElementById('mcanvas') as HTMLCanvasElement
     canvas.style.width = canvas.style.height = size + 'px'
     const viewer = new ThreeViewer({
-        canvas, msaa: false, rgbm: true, renderScale: 1,
+        // half-float: RGBM uses the alpha channel, and glass is lost on a transparent background
+        canvas, msaa: false, rgbm: false, renderScale: STILL_SCALE,
         plugins: [GLTFMeshOptDecodePlugin, KTX2LoadPlugin, ProgressivePlugin, PopmotionPlugin, GBufferPlugin, SSAOPlugin, SSAAPlugin, VelocityBufferPlugin, TemporalAAPlugin,
             SSReflectionPlugin, SSGIPlugin, SSContactShadowsPlugin, DepthOfFieldPlugin, BloomPlugin, ChromaticAberrationPlugin, VignettePlugin, FilmicGrainPlugin,
             AnisotropyPlugin, ClearcoatTintPlugin, CustomBumpMapPlugin, NoiseBumpMaterialPlugin, ParallaxMappingPlugin, FragmentClippingExtensionPlugin],
@@ -124,13 +127,22 @@ async function render() {
     const progressive = viewer.getPlugin(ProgressivePlugin)!
     progressive.maxFrameCount = 64
     await frames(viewer, 72) // the samples converge, textures are uploaded
-    const thumb = await viewer.getScreenshotBlob({mimeType: 'image/webp', quality: 85})
-    if (!thumb) throw new Error('no screenshot')
+    const still = await viewer.getScreenshotBlob({mimeType: 'image/png'})
+    if (!still) throw new Error('no screenshot')
+    const hasBackground = !!(viewer.scene.background || viewer.scene.backgroundColor)
 
-    let video: Blob | undefined
+    // the frames go to the script that opened this page, which encodes them; with no script there is no video
+    const sendFrame = (window as any).__frame as undefined | ((name: string, data: string) => Promise<void>)
+    let frameCount = 0
     const animated = animation.animationDuration > 0
-    if (videoSeconds > 0) {
-        if (viewer.scene.backgroundColor === null && !viewer.scene.background) viewer.scene.backgroundColor = VIDEO_BACKGROUND as any
+    if (videoSeconds > 0 && sendFrame) {
+        viewer.renderManager.renderScale = VIDEO_SCALE
+        recorder.mimeType = 'image/png'
+        recorder.endPaddingMs = 0 // the video loops
+        recorder.frameSink = async({blob, name}) => {
+            frameCount++
+            await sendFrame(name, await toDataUrl(blob))
+        }
         recorder.videoFrameRate = 24
         recorder.convergeMode = true
         progressive.maxFrameCount = 8
@@ -139,9 +151,12 @@ async function render() {
         const clipSeconds = parseFloat(query.get('playSeconds') ?? '') || animation.animationDuration / 1000
         const seconds = animated ? Math.min(8, Math.max(videoSeconds, clipSeconds)) : videoSeconds
         // a full turn, or a small one inside a room, where a full turn would go through the walls
-        video = await recorder.recordCamera360(seconds, false, view?.inside ? INSIDE_ARC : 360, undefined, animated ? () => void (clips ? animation.playClips(clips) : animation.playAnimation()) : undefined)
+        await recorder.recordCamera360(seconds, false, view?.inside ? INSIDE_ARC : 360, undefined, animated ? () => void (clips ? animation.playClips(clips) : animation.playAnimation()) : undefined)
     }
-    return {thumb: await toDataUrl(thumb), video: video && await toDataUrl(video), hasView: !!view, animated}
+    const gl = viewer.renderManager.webglRenderer.getContext()
+    const info = gl.getExtension('WEBGL_debug_renderer_info')
+    const renderer = info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)
+    return {still: await toDataUrl(still), frames: frameCount, hasBackground, hasView: !!view, animated, renderer}
 }
 
 (window as any).__render = render().catch(e => ({error: String(e?.stack ?? e)}))
