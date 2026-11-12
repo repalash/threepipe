@@ -12,7 +12,8 @@
     {
         "imports": {
           "threepipe": "./../../dist/index.mjs",
-          "@threepipe/plugin-tweakpane": "./../../plugins/tweakpane/dist/index.mjs"
+          "@threepipe/plugin-tweakpane": "./../../plugins/tweakpane/dist/index.mjs",
+          "@threepipe/plugin-tweakpane-editor": "./../../plugins/tweakpane-editor/dist/index.mjs"
         }
     }
 
@@ -24,19 +25,6 @@
             margin: 0;
             overflow: hidden;
         }
-        #pick-info {
-            position: absolute;
-            left: 16px;
-            bottom: 16px;
-            padding: 6px 10px;
-            border-radius: 6px;
-            background: rgba(0, 0, 0, 0.6);
-            color: #fff;
-            font: 13px/1.4 system-ui, sans-serif;
-            pointer-events: none;
-            white-space: pre-line;
-            z-index: 100;
-        }
     </style>
     <script type="module" src="../examples-utils/global-loading.mjs"></script>
     <script id="example-script" type="module" src="./script.js" data-scripts="./script.ts;./script.js"></script>
@@ -45,6 +33,5 @@
 <div id="canvas-container">
     <canvas id="mcanvas"></canvas>
 </div>
-<div id="pick-info"></div>
 
 </body>
