@@ -134,17 +134,20 @@ export class UiConfigForm {
         const redraw = layout === 'form' || this._layout === 'form'
         this._layout = layout
         if (redraw) this._build()
-        else this.element.className = this._className()
+        else this._layoutClasses()
     }
 
-    private _className() {
-        return this._layout === 'form' ? 'ucf' : 'ucf ucf-' + this._layout
+    /** The classes of the layout on the element; classes that the page added stay (e.g. one that places a toolbar) */
+    private _layoutClasses() {
+        this.element.classList.remove('ucf-bar', 'ucf-stack')
+        this.element.classList.add('ucf')
+        if (this._layout !== 'form') this.element.classList.add('ucf-' + this._layout)
     }
 
     /** Draws the configs (again) */
     private _build() {
         this._clear()
-        this.element.className = this._className()
+        this._layoutClasses()
         if (this._layout !== 'form') this.element.setAttribute('role', 'toolbar')
         else this.element.removeAttribute('role')
         for (const c of this._configs) this._render(c, this.element, [])
