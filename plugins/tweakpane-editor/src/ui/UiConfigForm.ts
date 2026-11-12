@@ -512,7 +512,15 @@ export class UiConfigForm {
         pop.setAttribute('role', 'dialog')
         pop.setAttribute('aria-label', label)
         this._row(c, pop, parents, type, label, isDisabled)
-        const close = () => {
+        /** @param commit - the focused field takes what is typed in it (its change on blur) first; Escape cancels */
+        const close = (commit = true) => {
+            const focused = document.activeElement as HTMLElement | null
+            if (focused && pop.contains(focused)) {
+                if (commit) focused.blur()
+                // cancel: the field shows the value of the binding again, so the blur below changes nothing
+                else this._live.refresh(true)
+                b.focus()
+            }
             pop.remove()
             b.setAttribute('aria-expanded', 'false')
             document.removeEventListener('pointerdown', onDown, true)
@@ -525,8 +533,7 @@ export class UiConfigForm {
         }
         const onKey = (e: KeyboardEvent) => {
             if (e.key !== 'Escape') return
-            close()
-            b.focus()
+            close(false)
         }
         b.addEventListener('click', () => {
             if (pop.isConnected) return close()
