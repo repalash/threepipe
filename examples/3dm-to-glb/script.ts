@@ -7,6 +7,7 @@ import {
     Rhino3dmLoadPlugin,
     ThreeViewer,
 } from 'threepipe'
+import {createExampleBar} from '../examples-utils/example-bar.js'
 
 const viewer = new ThreeViewer({
     renderScale: 'auto',
@@ -48,15 +49,9 @@ async function init() {
         file: blob,
     })
 
-    // add download button
-    const downloadButton = document.createElement('button')
-    downloadButton.innerText = 'Download .glb'
-    downloadButton.style.position = 'absolute'
-    downloadButton.style.bottom = '3rem'
-    downloadButton.style.right = '3rem'
-    downloadButton.style.zIndex = '10000'
-    downloadButton.onclick = () => downloadBlob(blob, 'file.glb')
-    document.body.appendChild(downloadButton)
+    createExampleBar(viewer, [
+        {type: 'button', label: 'Download .glb', icon: 'download', value: () => downloadBlob(blob, 'file.glb')},
+    ])
 
 }
 

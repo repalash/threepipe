@@ -7,7 +7,7 @@ import {
     ThreeViewer,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
-import {createSimpleButtons} from '../examples-utils/simple-bottom-buttons.js'
+import {createExampleBar} from '../examples-utils/example-bar.js'
 
 async function init() {
 
@@ -39,11 +39,11 @@ async function init() {
         obj.materials?.map(m=>m.wireframe = true)
     })
 
-    createSimpleButtons({
-        ['Simplify']: async(_: HTMLButtonElement) => {
+    createExampleBar(viewer, [
+        {type: 'button', label: 'Simplify', icon: 'triangle', value: async() => {
             await simplify.simplifyAll(result, {factor: 0.5})
-        },
-    })
+        }},
+    ])
 
     ui.setupPluginUi(MeshOptSimplifyModifierPlugin)
     ui.setupPluginUi(PickingPlugin)

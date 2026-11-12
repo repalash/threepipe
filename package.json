@@ -166,7 +166,7 @@
     "@types/wicg-file-system-access": "^2020.9.5",
     "stats.js": "^0.17.0",
     "ts-browser-helpers": ">=0.22.0",
-    "uiconfig.js": ">=0.4.1"
+    "uiconfig.js": ">=0.4.2"
   },
   "peerDependencies": {
     "three": "npm:three-modded@0.168.10008",

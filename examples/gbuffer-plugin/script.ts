@@ -9,7 +9,7 @@ import {
     RenderTargetPreviewPlugin,
     ThreeViewer,
 } from 'threepipe'
-import {createSimpleButtons} from '../examples-utils/simple-bottom-buttons.js'
+import {createExampleBar} from '../examples-utils/example-bar.js'
 
 const viewer = new ThreeViewer({
     renderScale: 'auto',
@@ -64,30 +64,30 @@ async function init() {
 
     const screenPass = viewer.renderManager.screenPass
 
-    createSimpleButtons({
-        ['Toggle Normal+Depth']: () => {
-            const rt = gbufferPlugin.normalDepthTexture
-            screenPass.overrideReadBuffer = screenPass.overrideReadBuffer?.texture === rt ? null : {texture: rt}
-            viewer.setDirty()
-        },
-        ['Toggle Gbuffer Flags']: () => {
-            const rt = gbufferPlugin.flagsTexture
-            screenPass.overrideReadBuffer = screenPass.overrideReadBuffer?.texture === rt ? null : {texture: rt}
-            viewer.setDirty()
-        },
-        ['Toggle Depth Texture']: () => {
-            const rt = gbufferPlugin.depthTexture
-            screenPass.overrideReadBuffer = screenPass.overrideReadBuffer?.texture === rt ? null : {texture: rt}
-            viewer.setDirty()
-        },
-        ['Download snapshot']: async(btn: HTMLButtonElement) => {
-            btn.disabled = true
+    createExampleBar(viewer, [
+        {type: 'folder', label: 'Show', children: [
+            {type: 'button', label: 'Toggle Normal+Depth', icon: 'layers', value: () => {
+                const rt = gbufferPlugin.normalDepthTexture
+                screenPass.overrideReadBuffer = screenPass.overrideReadBuffer?.texture === rt ? null : {texture: rt}
+                viewer.setDirty()
+            }},
+            {type: 'button', label: 'Toggle Gbuffer Flags', icon: 'layers-2', value: () => {
+                const rt = gbufferPlugin.flagsTexture
+                screenPass.overrideReadBuffer = screenPass.overrideReadBuffer?.texture === rt ? null : {texture: rt}
+                viewer.setDirty()
+            }},
+            {type: 'button', label: 'Toggle Depth Texture', icon: 'layers', value: () => {
+                const rt = gbufferPlugin.depthTexture
+                screenPass.overrideReadBuffer = screenPass.overrideReadBuffer?.texture === rt ? null : {texture: rt}
+                viewer.setDirty()
+            }},
+        ]},
+        {type: 'button', label: 'Download snapshot', icon: 'camera', value: async() => {
             const blob = await viewer.getScreenshotBlob({mimeType: 'image/png'})
             if (blob) downloadBlob(blob, 'file.png')
             else console.error('Unable to get screenshot')
-            btn.disabled = false
-        },
-    })
+        }},
+    ])
 
 }
 

@@ -9,7 +9,22 @@ import {
     UiConfigMethods,
     UiObjectConfig,
 } from 'threepipe'
+import tippy, {Instance} from 'tippy.js'
 import styles from './UiConfigForm.css?inline'
+import {lucideIcon} from './lucideIcons'
+import {addTooltipStyles, EDITOR_TOOLTIP_PROPS, tooltipParent} from '../tooltips'
+
+/**
+ * How {@link UiConfigForm} draws its configs:
+ * - `form`: a row for each field, with its name (the default)
+ * - `bar`: a toolbar, one row of buttons: buttons, checkboxes as toggle buttons, dropdowns as selects, and the other
+ *   fields as buttons that open the field in a small popover. A folder is a group, with a line between groups.
+ * - `stack`: the same buttons in a column
+ *
+ * A config with an `icon` shows it in front of its label. In a bar on a narrow screen (640 px), a button with an icon
+ * shows the icon only, with the label in its tooltip.
+ */
+export type UiConfigFormLayout = 'form' | 'bar' | 'stack'
 
 export interface UiConfigFormOptions {
     /** One undo step per edit; quick edits of the same field (scrub, typing, the slider) merge into one */
@@ -27,6 +42,14 @@ export interface UiConfigFormOptions {
      * or a name of a count ({@link isIntegerName}).
      */
     isInteger?: (config: UiObjectConfig, label: string) => boolean
+    /** How the form draws the configs, see {@link UiConfigFormLayout}. Default: `form`. Changes with {@link UiConfigForm.layout}. */
+    layout?: UiConfigFormLayout
+    /**
+     * Called when the function of a button throws or rejects. The button is enabled again. Default: `console.error`.
+     */
+    onError?: (error: unknown, config: UiObjectConfig) => void
+    /** The key of a config, like `⌘S` or `Shift+R`, shown in its tooltip (`bar` and `stack`) */
+    shortcutOf?: (config: UiObjectConfig) => string | undefined
 }
 
 /**
@@ -44,17 +67,32 @@ export interface UiConfigFormOptions {
  * - A config that is `hidden` when the form is made is not drawn. Make the form again when the fields change
  *   ({@link UiConfigFormOptions.onStructureChange}).
  *
+ * - A button whose function returns a promise is disabled, and shows a spinner, until the promise settles. An error is
+ *   given to {@link UiConfigFormOptions.onError}.
+ * - An `icon` of a config (uiconfig.js `icon`): SVG markup, an image URL, or the name of one of the Lucide icons in
+ *   {@link lucideIcons} (like `'camera'` or `'download'`).
+ * - The `bar` and `stack` layouts ({@link UiConfigFormLayout}) draw the configs as a toolbar, e.g. the buttons over a
+ *   canvas. The colours follow the Tweakpane theme of the page.
+ *
  * The form does not watch the values: call {@link refresh} after a change from elsewhere (code, another panel). Its own
- * undo and redo steps refresh it.
+ * undo and redo steps refresh it. A refresh is cheap (the DOM changes only when a value does), so it can run each frame.
  *
  * ```ts
  * const form = new UiConfigForm(UiConfigMethods.GetChildren(object.uiConfig), {undoManager})
  * popup.appendChild(form.element)
+ *
+ * // a toolbar
+ * const bar = new UiConfigForm([
+ *     {type: 'button', label: 'Snapshot', icon: 'camera', value: async() => snapshot.downloadSnapshot()},
+ *     {type: 'checkbox', label: 'Auto rotate', icon: 'rotate-3d', property: [controls, 'autoRotate']},
+ * ], {layout: 'bar'})
  * ```
  */
 export class UiConfigForm {
     /** Adds the stylesheet of the form to the page when the first form is made. Off: the page styles the `ucf-` classes. */
     static InjectStyles = true
+    /** The buttons of a `bar` or a `stack` have tooltips (tippy.js, the editor look). Off: no tooltips. */
+    static Tooltips = true
     private static _styles?: HTMLStyleElement
 
     readonly element: HTMLDivElement
@@ -68,18 +106,57 @@ export class UiConfigForm {
     private _next?: UiConfigForm
     /** The form whose `onStructureChange` runs: a form made in it is its {@link _next} */
     private static _replacing?: UiConfigForm
+    private _layout: UiConfigFormLayout
+    /** The tooltips of the buttons (`bar` and `stack`) */
+    private _tooltips: Instance[] = []
+    /** Closes the open popover of a field (`bar` and `stack`) */
+    private _closePopover?: () => void
 
     /**
-     * @param configs - the configs to draw, e.g. the children of an object's `uiConfig`
-     * @param options - undo, change callbacks
+     * @param _configs - the configs to draw, e.g. the children of an object's `uiConfig`
+     * @param _options - layout, undo, change callbacks
      */
-    constructor(configs: UiObjectConfig[], private _options: UiConfigFormOptions = {}) {
+    constructor(private _configs: UiObjectConfig[], private _options: UiConfigFormOptions = {}) {
         const replaced = UiConfigForm._replacing
         if (replaced && !replaced._next) replaced._next = this
         if (UiConfigForm.InjectStyles && !UiConfigForm._styles?.isConnected) UiConfigForm._styles = createStyles(styles)
+        this._layout = _options.layout ?? 'form'
         this.element = document.createElement('div')
-        this.element.className = 'ucf'
-        for (const c of configs) this._render(c, this.element, [])
+        this._build()
+    }
+
+    /** How the form draws the configs. A change between `bar` and `stack` keeps the elements; `form` draws them again. */
+    get layout(): UiConfigFormLayout {
+        return this._layout
+    }
+    set layout(layout: UiConfigFormLayout) {
+        if (layout === this._layout) return
+        const redraw = layout === 'form' || this._layout === 'form'
+        this._layout = layout
+        if (redraw) this._build()
+        else this.element.className = this._className()
+    }
+
+    private _className() {
+        return this._layout === 'form' ? 'ucf' : 'ucf ucf-' + this._layout
+    }
+
+    /** Draws the configs (again) */
+    private _build() {
+        this._clear()
+        this.element.className = this._className()
+        if (this._layout !== 'form') this.element.setAttribute('role', 'toolbar')
+        else this.element.removeAttribute('role')
+        for (const c of this._configs) this._render(c, this.element, [])
+    }
+
+    private _clear() {
+        this._closePopover?.()
+        for (const t of this._tooltips) t.destroy()
+        this._tooltips = []
+        this._rows = []
+        this._drawn.clear()
+        while (this.element.lastChild) this.element.lastChild.remove()
     }
 
     /**
@@ -92,9 +169,8 @@ export class UiConfigForm {
 
     /** Removes the form from the page */
     dispose() {
+        this._clear()
         this.element.remove()
-        this._rows = []
-        this._drawn.clear()
         this._undo = undefined
     }
 
@@ -221,41 +297,284 @@ export class UiConfigForm {
         // a config with getValue / setValue gets its property binding here, as in the Tweakpane renderer
         UiConfigMethods.InitUiConfig(c)
         const type = String(getOrCall(c.type))
-        const label = UiConfigMethods.GetLabel(c).replace(/([a-z])([A-Z])/g, '$1 $2')
+        const label = labelOf(c)
         // disabled and readOnly can change (a callback): refresh() applies them again
         const isDisabled = () => !!(getOrCall(c.disabled) || getOrCall(c.readOnly))
         if (type === 'folder' || type === 'panel') {
             const f = document.createElement('div')
-            f.className = 'ucf-folder'
-            const h = document.createElement('div')
-            h.className = 'ucf-folder-head'
-            h.textContent = label
-            f.appendChild(h)
-            host.appendChild(f)
             const path = [...parents, c]
+            if (this._layout === 'form') {
+                f.className = 'ucf-folder'
+                const h = document.createElement('div')
+                h.className = 'ucf-folder-head'
+                h.textContent = label
+                f.appendChild(h)
+            } else {
+                // a group of buttons in a bar, with a line between groups
+                f.className = 'ucf-group'
+                f.setAttribute('role', 'group')
+                f.setAttribute('aria-label', label)
+            }
+            host.appendChild(f)
             for (const ch of this._children(c)) this._render(ch, f, path)
             return
         }
-        if (type === 'button') {
-            const b = document.createElement('button')
-            b.className = 'ucf-button'
-            b.textContent = label
-            b.disabled = isDisabled()
-            b.addEventListener('click', async() => {
+        if (type === 'button') return this._button(c, host, parents, label, isDisabled)
+        if (this._layout === 'form') return this._row(c, host, parents, type, label, isDisabled)
+        const kind = this._kind(c, type)
+        if (kind === 'checkbox' || kind === 'toggle') return this._toggle(c, host, parents, label, isDisabled)
+        if (kind === 'dropdown') return this._selectChip(c, host, parents, label, isDisabled)
+        return this._popoverChip(c, host, parents, type, label, isDisabled)
+    }
+
+    /** The kind of field of a config: its type, or for an input (or a type the form does not know) the type of its value */
+    private _kind(c: UiObjectConfig, type: string) {
+        if (FIELD_TYPES.has(type)) return type
+        const v = UiConfigMethods.GetRawValue(c)
+        return typeof v === 'boolean' ? 'checkbox' : typeof v === 'number' ? 'number' : 'text'
+    }
+
+    private _error(e: unknown, c: UiObjectConfig) {
+        if (this._options.onError) this._options.onError(e, c)
+        else console.error(e)
+    }
+
+    /**
+     * The icon and the label of a button. Without an icon, the label is the text of the button (as before the icons).
+     * @returns a function that draws the icon again when it changes (an `icon` can be a function, e.g. play or pause)
+     */
+    private _content(el: HTMLElement, c: UiObjectConfig, label: string, labelSpan = false): () => void {
+        const icon = () => getOrCall(c.icon) || ''
+        let shown = icon()
+        // a label can be a function too (Play or Pause): drawn again when it changes
+        let text = label
+        const isButton = el.tagName.toLowerCase() === 'button'
+        if (!shown && !labelSpan) {
+            el.textContent = label
+            return () => {
+                const now = labelOf(c)
+                if (now !== text) el.textContent = text = now
+            }
+        }
+        let i: HTMLElement | undefined
+        if (shown) {
+            el.classList.add('ucf-has-icon')
+            // the name stays the label also when the label is hidden (a bar on a narrow screen shows the icon only)
+            if (isButton) el.setAttribute('aria-label', label)
+            i = document.createElement('span')
+            i.className = 'ucf-icon'
+            setIcon(i, shown)
+            el.appendChild(i)
+        }
+        const l = document.createElement('span')
+        l.className = 'ucf-label'
+        l.textContent = label
+        el.appendChild(l)
+        return () => {
+            const now = icon()
+            if (i && now !== shown) setIcon(i, shown = now)
+            const t = labelOf(c)
+            if (t === text) return
+            l.textContent = text = t
+            if (isButton && el.getAttribute('aria-label') !== null) el.setAttribute('aria-label', t)
+        }
+    }
+
+    /**
+     * The tooltip of a button in a bar or a stack: its label when the label is not shown (an icon only), and its key
+     * ({@link UiConfigFormOptions.shortcutOf})
+     */
+    private _tooltip(el: HTMLElement, c: UiObjectConfig) {
+        if (this._layout === 'form' || !UiConfigForm.Tooltips) return
+        addTooltipStyles()
+        this._tooltips.push(tippy(el, {
+            ...EDITOR_TOOLTIP_PROPS,
+            appendTo: tooltipParent,
+            placement: 'top',
+            onShow: (t) => {
+                const key = this._options.shortcutOf?.(c)
+                const labelEl = el.querySelector<HTMLElement>('.ucf-label')
+                const labelHidden = !!labelEl && labelEl.offsetParent === null
+                if (!labelHidden && !key) return false
+                const content = document.createElement('span')
+                content.textContent = labelOf(c)
+                if (key) {
+                    const k = document.createElement('kbd')
+                    k.className = 'ucf-kbd'
+                    k.textContent = key
+                    content.appendChild(k)
+                }
+                t.setContent(content)
+                return undefined
+            },
+        }))
+    }
+
+    private _button(c: UiObjectConfig, host: HTMLElement, parents: UiObjectConfig[], label: string, isDisabled: () => boolean) {
+        const b = document.createElement('button')
+        b.type = 'button'
+        b.className = 'ucf-button'
+        const updateIcon = this._content(b, c, label)
+        b.disabled = isDisabled()
+        // while the function of the button runs (a promise): disabled, with a spinner
+        let busy = false
+        b.addEventListener('click', async() => {
+            if (busy) return
+            busy = true
+            b.disabled = true
+            b.classList.add('ucf-busy')
+            try {
                 const [obj, key] = UiConfigMethods.GetBinding(c, false)
                 const fn = obj ? obj[key] ?? obj.value : undefined
                 if (typeof fn === 'function') await this._action(c, parents, () => fn.call(obj))
                 if (typeof c.onClick === 'function') await this._action(c, parents, () => (c.onClick as any)())
-                this._dispatch(c, parents, true)
-                this._structureChange()
-            })
-            host.appendChild(b)
-            this._rows.push({config: c, update: () => {
-                const d = isDisabled()
-                if (b.disabled !== d) b.disabled = d
-            }})
-            return
+            } catch (e) {
+                this._error(e, c)
+            } finally {
+                busy = false
+                b.classList.remove('ucf-busy')
+                b.disabled = isDisabled()
+            }
+            this._dispatch(c, parents, true)
+            this._structureChange()
+        })
+        host.appendChild(b)
+        this._tooltip(b, c)
+        this._rows.push({config: c, update: () => {
+            const d = busy || isDisabled()
+            if (b.disabled !== d) b.disabled = d
+            updateIcon()
+        }})
+    }
+
+    /** A checkbox in a bar or a stack: a toggle button, pressed while the value is true */
+    private _toggle(c: UiObjectConfig, host: HTMLElement, parents: UiObjectConfig[], label: string, isDisabled: () => boolean) {
+        const b = document.createElement('button')
+        b.type = 'button'
+        b.className = 'ucf-button ucf-toggle'
+        const updateIcon = this._content(b, c, label)
+        b.addEventListener('click', () => this._set(c, parents, !UiConfigMethods.GetRawValue(c)))
+        host.appendChild(b)
+        this._tooltip(b, c)
+        let pressed: string | undefined
+        this._rows.push({config: c, update: () => {
+            const p = String(!!UiConfigMethods.GetRawValue(c))
+            if (p !== pressed) b.setAttribute('aria-pressed', pressed = p)
+            const d = isDisabled()
+            if (b.disabled !== d) b.disabled = d
+            updateIcon()
+        }})
+        this._rows[this._rows.length - 1].update()
+    }
+
+    /** A dropdown in a bar or a stack: its label (or icon) and a select */
+    private _selectChip(c: UiObjectConfig, host: HTMLElement, parents: UiObjectConfig[], label: string, isDisabled: () => boolean) {
+        const wrap = document.createElement('label')
+        wrap.className = 'ucf-chip'
+        const updateIcon = this._content(wrap, c, label)
+        const {sel, update} = this._select(c, parents)
+        sel.setAttribute('aria-label', label)
+        wrap.appendChild(sel)
+        host.appendChild(wrap)
+        this._tooltip(wrap, c)
+        this._rows.push({config: c, update: () => {
+            update()
+            const d = isDisabled()
+            if (sel.disabled !== d) sel.disabled = d
+            updateIcon()
+        }})
+        this._rows[this._rows.length - 1].update()
+    }
+
+    /**
+     * Any other field in a bar or a stack (a slider, a number, a colour...): a button with the label and the value, that
+     * opens the field (the row of the `form` layout) in a popover
+     */
+    private _popoverChip(c: UiObjectConfig, host: HTMLElement, parents: UiObjectConfig[], type: string, label: string, isDisabled: () => boolean) {
+        const b = document.createElement('button')
+        b.type = 'button'
+        b.className = 'ucf-button ucf-more'
+        // the name is the label: the value on the button changes
+        b.setAttribute('aria-label', label)
+        b.setAttribute('aria-haspopup', 'dialog')
+        b.setAttribute('aria-expanded', 'false')
+        // the label in its own element: the value is next to it
+        const updateIcon = this._content(b, c, label, true)
+        const val = document.createElement('span')
+        val.className = 'ucf-value'
+        b.appendChild(val)
+        host.appendChild(b)
+        this._tooltip(b, c)
+        // the field, drawn once; it is on the page while the popover is open
+        const pop = document.createElement('div')
+        pop.className = 'ucf ucf-popover'
+        pop.setAttribute('role', 'dialog')
+        pop.setAttribute('aria-label', label)
+        this._row(c, pop, parents, type, label, isDisabled)
+        const close = () => {
+            pop.remove()
+            b.setAttribute('aria-expanded', 'false')
+            document.removeEventListener('pointerdown', onDown, true)
+            document.removeEventListener('keydown', onKey, true)
+            if (this._closePopover === close) this._closePopover = undefined
         }
+        const onDown = (e: Event) => {
+            const t = e.target as Node
+            if (!pop.contains(t) && !b.contains(t)) close()
+        }
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key !== 'Escape') return
+            close()
+            b.focus()
+        }
+        b.addEventListener('click', () => {
+            if (pop.isConnected) return close()
+            this._closePopover?.()
+            this._closePopover = close
+            tooltipParent().appendChild(pop)
+            b.setAttribute('aria-expanded', 'true')
+            placePopover(pop, b, this._layout === 'stack' ? 'left' : 'top')
+            document.addEventListener('pointerdown', onDown, true)
+            document.addEventListener('keydown', onKey, true)
+            pop.querySelector<HTMLElement>('input, select')?.focus()
+        })
+        const isColor = this._kind(c, type) === 'color'
+        let shown: string | undefined
+        this._rows.push({config: c, update: () => {
+            const raw = UiConfigMethods.GetRawValue(c)
+            // a colour: its hex code, with a swatch in front
+            const color = isColor || (raw as any)?.isColor ? colorHex(raw) : undefined
+            const v = color ?? valueText(raw)
+            if (v !== shown) {
+                val.textContent = shown = v
+                if (color) {
+                    val.classList.add('ucf-swatch')
+                    val.style.setProperty('--ucf-swatch', color)
+                }
+            }
+            const d = isDisabled()
+            if (b.disabled !== d) b.disabled = d
+            updateIcon()
+        }})
+        this._rows[this._rows.length - 1].update()
+    }
+
+    /** A select of the options of a dropdown config */
+    private _select(c: UiObjectConfig, parents: UiObjectConfig[]) {
+        const value = () => UiConfigMethods.GetRawValue(c)
+        const sel = document.createElement('select')
+        const opts = this._children(c).map(o => ({label: UiConfigMethods.GetLabel(o), value: (o as any).value ?? UiConfigMethods.GetLabel(o)}))
+        opts.forEach((o, i) => sel.appendChild(Object.assign(document.createElement('option'), {value: String(i), textContent: o.label})))
+        sel.addEventListener('change', () => this._set(c, parents, opts[+sel.value].value, true, true))
+        return {sel, update: () => {
+            const v = value()
+            const i = opts.findIndex(o => o.value === v || equalsPrimitive(o.value, v))
+            if (i >= 0) writeValue(sel, String(i))
+        }}
+    }
+
+    /** A field of the `form` layout: a row with the name and the input(s) */
+    private _row(c: UiObjectConfig, host: HTMLElement, parents: UiObjectConfig[], type: string, label: string, isDisabled: () => boolean) {
         const row = document.createElement('label')
         row.className = 'ucf-row'
         const name = document.createElement('span')
@@ -266,11 +585,7 @@ export class UiConfigForm {
         const value = () => UiConfigMethods.GetRawValue(c)
         const firstRow = this._rows.length
         // an input (or a type the form does not know) bound to a boolean or a number gets a checkbox or a number field
-        let kind = type
-        if (!FIELD_TYPES.has(type)) {
-            const v = value()
-            kind = typeof v === 'boolean' ? 'checkbox' : typeof v === 'number' ? 'number' : 'text'
-        }
+        const kind = this._kind(c, type)
 
         if (kind === 'checkbox' || kind === 'toggle') {
             const input = document.createElement('input')
@@ -282,16 +597,9 @@ export class UiConfigForm {
                 if (input.checked !== v) input.checked = v
             }})
         } else if (kind === 'dropdown') {
-            const sel = document.createElement('select')
-            const opts = this._children(c).map(o => ({label: UiConfigMethods.GetLabel(o), value: (o as any).value ?? UiConfigMethods.GetLabel(o)}))
-            opts.forEach((o, i) => sel.appendChild(Object.assign(document.createElement('option'), {value: String(i), textContent: o.label})))
-            sel.addEventListener('change', () => this._set(c, parents, opts[+sel.value].value, true, true))
+            const {sel, update} = this._select(c, parents)
             row.appendChild(sel)
-            this._rows.push({config: c, update: () => {
-                const v = value()
-                const i = opts.findIndex(o => o.value === v || equalsPrimitive(o.value, v))
-                if (i >= 0) writeValue(sel, String(i))
-            }})
+            this._rows.push({config: c, update})
         } else if (kind === 'color') {
             const input = document.createElement('input')
             input.type = 'color'
@@ -445,6 +753,68 @@ export class UiConfigForm {
 
 /** The field types that the form draws as they are; any other type is drawn by the type of its value */
 const FIELD_TYPES = new Set(['checkbox', 'toggle', 'dropdown', 'color', 'vec', 'vec2', 'vec3', 'vec4', 'number', 'slider', 'monitor'])
+
+/** The label of a config: a label from the key of the property gets spaces (roughnessMap: roughness Map); a given label stays as it is */
+function labelOf(c: UiObjectConfig) {
+    const label = UiConfigMethods.GetLabel(c)
+    return getOrCall(c.label) ? label : label.replace(/([a-z])([A-Z])/g, '$1 $2')
+}
+
+/**
+ * Draws an icon into an element: SVG markup (drawn inline, in the text colour), an image URL, or the name of a Lucide
+ * icon ({@link lucideIcon}). An unknown name draws nothing.
+ */
+function setIcon(el: HTMLElement, icon: string) {
+    while (el.lastChild) el.lastChild.remove()
+    if (!icon) return
+    if (icon.trimStart().startsWith('<svg')) {
+        el.innerHTML = icon
+        return
+    }
+    if (/^(https?:|data:|blob:)/.test(icon) || /[/.]/.test(icon)) {
+        const img = document.createElement('img')
+        img.alt = ''
+        img.src = icon
+        el.appendChild(img)
+        return
+    }
+    const svg = lucideIcon(icon)
+    if (svg) el.innerHTML = svg
+}
+
+/** A colour value as a CSS hex code: a three.js colour, a number (0xff8800) or a CSS colour string */
+function colorHex(v: any): string {
+    if (v?.isColor) return '#' + v.getHexString()
+    if (typeof v === 'number') return '#' + v.toString(16).padStart(6, '0')
+    return String(v ?? '')
+}
+
+/** The value of a field on its button in a bar: a number, a vector, a text */
+function valueText(v: any): string {
+    if (v === undefined || v === null) return ''
+    if (typeof v === 'number') return String(+v.toPrecision(4))
+    if (typeof v === 'object') {
+        const parts = Array.isArray(v) ? v : ['x', 'y', 'z', 'w'].filter(a => typeof v[a] === 'number').map(a => v[a])
+        return parts.map((n: any) => typeof n === 'number' ? String(+n.toPrecision(3)) : String(n)).join(', ')
+    }
+    return String(v)
+}
+
+/** Places a popover next to its button, inside the window: above it (a bar) or on its left (a stack) */
+function placePopover(pop: HTMLElement, anchor: HTMLElement, side: 'top' | 'left') {
+    const a = anchor.getBoundingClientRect()
+    const p = pop.getBoundingClientRect()
+    const gap = 8
+    let x = side === 'top' ? a.left + a.width / 2 - p.width / 2 : a.left - p.width - gap
+    let y = side === 'top' ? a.top - p.height - gap : a.top + a.height / 2 - p.height / 2
+    // no room above or on the left: below or on the right
+    if (side === 'top' && y < gap) y = a.bottom + gap
+    if (side === 'left' && x < gap) x = a.right + gap
+    x = Math.max(gap, Math.min(x, window.innerWidth - p.width - gap))
+    y = Math.max(gap, Math.min(y, window.innerHeight - p.height - gap))
+    pop.style.left = x + 'px'
+    pop.style.top = y + 'px'
+}
 
 /** `onChange` of a config, a function or a list of functions, without its `parentOnChange` */
 function callOnChange(config: UiObjectConfig, ev: ChangeEvent) {

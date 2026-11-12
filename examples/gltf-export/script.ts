@@ -1,5 +1,5 @@
 import {_testFinish, _testStart, downloadBlob, IObject3D, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
-import {createSimpleButtons} from '../examples-utils/simple-bottom-buttons.js'
+import {createExampleBar} from '../examples-utils/example-bar.js'
 
 const viewer = new ThreeViewer({renderScale: 'auto', canvas: document.getElementById('mcanvas') as HTMLCanvasElement, msaa: true})
 
@@ -19,8 +19,8 @@ async function init() {
     }
     const mesh = helmet.getObjectByName('node_damagedHelmet_-6514')!
 
-    createSimpleButtons({
-        ['Download Helmet Object GLTF']: async() => {
+    createExampleBar(viewer, [
+        {type: 'button', label: 'Download Helmet Object GLTF', icon: 'file-code', value: async() => {
             const blob = await viewer.export(mesh, {
                 exportExt: 'gltf',
                 embedUrlImages: true, // embed images in glb even when url is available.
@@ -34,8 +34,8 @@ async function init() {
             const gltfJSON = await blob.text()
             console.log(JSON.parse(gltfJSON))
             console.log('JSON Size', gltfJSON.length)
-        },
-        ['Download GLTF (RootPath Reference)']: async() => {
+        }},
+        {type: 'button', label: 'Download GLTF (RootPath Reference)', icon: 'file-code', value: async() => {
             helmet._sChildren = [] // set the serializable children to empty, so only the root object is exported, along with url that can be used to reload the object.
             helmet.userData.rootPathRefresh = true
             const blob = await viewer.export(helmet, { // note that we are using the `helmet` (parent) object here, and not the `mesh`.
@@ -50,8 +50,8 @@ async function init() {
             const gltfJSON = await blob.text()
             console.log(JSON.parse(gltfJSON))
             console.log('JSON Size', gltfJSON.length)
-        },
-    })
+        }},
+    ])
 
 }
 

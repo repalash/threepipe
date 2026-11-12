@@ -7,7 +7,7 @@ import {
     PhysicalMaterial,
     ThreeViewer,
 } from 'threepipe'
-import {createSimpleButtons} from '../examples-utils/simple-bottom-buttons.js'
+import {createExampleBar} from '../examples-utils/example-bar.js'
 
 async function init() {
 
@@ -25,20 +25,20 @@ async function init() {
         new PhysicalMaterial({color: 0xff0000})
     ))
 
-    createSimpleButtons({
-        ['Change Color']: ()=>{
+    createExampleBar(viewer, [
+        {type: 'button', label: 'Change Color', icon: 'palette', value: ()=>{
             cube.material.color.setHSL(Math.random(), 1, 0.5)
             cube.material.setDirty() // this will trigger frame fade
-        },
-        ['Change Size']: ()=>{
+        }},
+        {type: 'button', label: 'Change Size', icon: 'scaling', value: ()=>{
             cube.scale.setScalar(Math.random() * 1.5 + 0.5)
             cube.setDirty && cube.setDirty({fadeDuration: 1000}) // duration can be controlled by an option like this.
-        },
-        ['Change Color (no fade)']: ()=>{
+        }},
+        {type: 'button', label: 'Change Color (no fade)', icon: 'paintbrush', value: ()=>{
             cube.material.color.setHSL(Math.random(), 1, 0.5)
             cube.material.setDirty({frameFade: false}) // disable frame fade for this update but re-render the scene.
-        },
-    })
+        }},
+    ])
 
 }
 

@@ -62,6 +62,39 @@ async function init() {
     card.className = 'form-card'
     card.appendChild(form.element)
     viewer.container.appendChild(card)
+
+    // The same kind of configs as a toolbar: layout 'bar' (a row) or 'stack' (a column). An `icon` is SVG markup, an
+    // image URL or a Lucide icon name. A checkbox is a toggle button, a dropdown a select, and a slider, a number or a
+    // colour opens its field in a popover. An async button is disabled, with a spinner, until it is done.
+    const bar = new UiConfigForm([
+        {type: 'folder', label: 'Object', children: [
+            {type: 'checkbox', label: 'Visible', icon: 'eye', property: [mesh, 'visible'], onChange: () => mesh.setDirty?.()},
+            {type: 'checkbox', label: 'Wireframe', icon: 'grid-3x3', property: [material, 'wireframe'], onChange: () => material.setDirty()},
+        ]},
+        {type: 'folder', label: 'Material', onChange: () => material.setDirty(), children: [
+            {type: 'color', label: 'Color', icon: 'palette', property: [material, 'color']},
+            {type: 'slider', label: 'Roughness', icon: 'contrast', property: [material, 'roughness'], bounds: [0, 1], stepSize: 0.01},
+            {type: 'dropdown', label: 'Side', icon: 'layers', property: [material, 'side'], children: [
+                {label: 'Front', value: FrontSide},
+                {label: 'Back', value: BackSide},
+                {label: 'Double', value: DoubleSide},
+            ]},
+        ]},
+        {type: 'button', label: 'Random color', icon: 'sparkles', value: async() => {
+            await new Promise(r => setTimeout(r, 400)) // something that takes a while
+            material.color.setHSL(Math.random(), 0.6, 0.5)
+            material.setDirty()
+        }},
+    ], {layout: 'bar', undoManager: undo.undoManager})
+    bar.element.classList.add('bar')
+    viewer.container.appendChild(bar.element)
+
+    // the forms do not watch the values: a refresh after each frame shows the changes of the other one (it is cheap,
+    // the DOM changes only when a value does)
+    viewer.addEventListener('postFrame', () => {
+        form.refresh()
+        bar.refresh()
+    })
 }
 
 _testStart()

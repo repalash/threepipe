@@ -9,7 +9,7 @@ import {
     ThreeViewer,
     Vector3,
 } from 'threepipe'
-import {createSimpleButtons} from '../examples-utils/simple-bottom-buttons.js'
+import {createExampleBar} from '../examples-utils/example-bar.js'
 
 async function init() {
 
@@ -29,19 +29,16 @@ async function init() {
 
     let isMovedUp = false
 
-    createSimpleButtons({
-        ['Move Up/Down']: async(btn) => {
-            btn.disabled = true
+    createExampleBar(viewer, [
+        {type: 'button', label: 'Move Up/Down', icon: 'move-vertical', value: async() => {
             await popmotion.animateTargetAsync(cube, 'position', {
                 to: cube.position.clone().add(new Vector3(0, isMovedUp ? -1 : 1, 0)),
                 duration: 500, // ms
                 onComplete: () => isMovedUp = !isMovedUp,
                 onUpdate: () => cube.setDirty?.(),
             })
-            btn.disabled = false
-        },
-        ['Rotate +90deg']: async(btn) => {
-            btn.disabled = true
+        }},
+        {type: 'button', label: 'Rotate +90deg', icon: 'rotate-cw', value: async() => {
             await popmotion.animateAsync({
                 from: cube.rotation.y,
                 to: cube.rotation.y + Math.PI / 2,
@@ -51,10 +48,8 @@ async function init() {
                     cube.setDirty?.()
                 },
             })
-            btn.disabled = false
-        },
-        ['Change Color']: async(btn)=>{
-            btn.disabled = true
+        }},
+        {type: 'button', label: 'Change Color', icon: 'palette', value: async()=>{
             await popmotion.animateAsync({
                 from: '#' + cube.material.color.getHexString(),
                 to: '#' + new Color().setHSL(Math.random(), 1, 0.5).getHexString(),
@@ -64,9 +59,8 @@ async function init() {
                     cube.material.setDirty()
                 },
             })
-            btn.disabled = false
-        },
-    })
+        }},
+    ])
 
 }
 

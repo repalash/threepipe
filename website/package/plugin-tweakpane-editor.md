@@ -533,4 +533,30 @@ popup.appendChild(form.element)
 form.refresh()
 ```
 
-The form does not watch the values: call `refresh()` after a change from elsewhere (code, another panel). Its own undo and redo steps refresh it. A form made in `onStructureChange` takes the place of the old one: the undo and redo of edits made in the old form refresh the new one. A config that is `hidden` when the form is made is not drawn.
+The form does not watch the values: call `refresh()` after a change from elsewhere (code, another panel). Its own undo and redo steps refresh it. A form made in `onStructureChange` takes the place of the old one: the undo and redo of edits made in the old form refresh the new one. A config that is `hidden` when the form is made is not drawn. A refresh changes the DOM only when a value changes, so it can run after each frame (`viewer.addEventListener('postFrame', () => form.refresh())`).
+
+### Toolbar layouts: bar and stack
+
+The `layout` option draws the same configs as a toolbar, e.g. the buttons over a canvas: `bar` is a row, `stack` a column (`form`, the rows above, is the default). `form.layout` changes it later; between `bar` and `stack` the elements stay.
+
+- A button is a button, a checkbox a toggle button (pressed while the value is true, `aria-pressed`), a dropdown a select, and any other field (a slider, a number, a colour, a vector, a text) a button with its value that opens the field in a small popover. A folder is a group, with a line between groups.
+- `icon` (uiconfig.js 0.4.2): SVG markup (drawn in the text colour), an image URL, or the name of an icon of the set of the form, a part of [Lucide](https://lucide.dev) (`lucideIcons`, like `'camera'`, `'download'`, `'rotate-3d'`). The icon is in front of the label. In a bar on a narrow screen (640 px), a button with an icon shows the icon only, and the label in its tooltip. An `icon` and a `label` can be functions (play or pause): a refresh draws them again.
+- An async button (its function returns a promise) is disabled, with a spinner, until the promise settles; an error goes to `onError` (default `console.error`) and enables the button again. This is in all the layouts.
+- The tooltips (the editor look) show the label when only the icon shows, and the key that `shortcutOf(config)` gives (e.g. the key of a `CommandsPlugin` action). `UiConfigForm.Tooltips = false` turns them off.
+- The bar takes the panel colour of the Tweakpane theme of the page (`clean`, `clean-dark`, ...), else light, or dark when the system prefers it. The accessible name of each button is its label.
+
+```typescript
+const bar = new UiConfigForm([
+    {type: 'folder', label: 'Views', children: [
+        {type: 'button', label: 'Top', icon: 'arrow-up', value: async() => views.animateToView(top)},
+        {type: 'button', label: 'Reset', icon: 'house', value: async() => views.animateToView(start)},
+    ]},
+    {type: 'checkbox', label: 'Auto rotate', icon: 'rotate-3d', property: [controls, 'autoRotate']},
+    {type: 'slider', label: 'Exposure', icon: 'sun', property: [tonemap, 'exposure'], bounds: [0, 4]},
+    {type: 'button', label: 'Snapshot', icon: 'camera', value: async() => snapshot.downloadSnapshot('a.png')},
+], {layout: 'bar'})
+viewer.container.appendChild(bar.element) // the page places it, e.g. at the bottom centre
+viewer.addEventListener('postFrame', () => bar.refresh())
+```
+
+The examples use it through `createExampleBar` (in `examples/examples-utils/example-bar.ts`), which places the bar over the canvas (`bar` at the bottom centre, `stack` at the bottom right, a bar on a phone) and gives a button a key with a `CommandsPlugin` action (`exampleAction`).

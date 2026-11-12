@@ -7,7 +7,7 @@ import {
     RenderTargetPreviewPlugin,
     ThreeViewer,
 } from 'threepipe'
-import {createSimpleButtons} from '../examples-utils/simple-bottom-buttons.js'
+import {createExampleBar} from '../examples-utils/example-bar.js'
 
 const viewer = new ThreeViewer({
     canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
@@ -35,27 +35,27 @@ async function init() {
     targetPreview.addTarget(()=>depth.target, 'depth', false, true)
     targetPreview.addTarget(()=>viewer.renderManager.composerTarget, 'composer-1', false, false)
 
-    createSimpleButtons({
-        ['depth']: () => {
-            viewer.renderManager.pipeline = ['depth']
-        },
-        ['render']: () => {
-            viewer.renderManager.pipeline = ['render']
-        },
-        ['render, screen']: () => {
-            viewer.renderManager.pipeline = ['render', 'screen']
-        },
-        ['depth, render, screen']: () => {
-            viewer.renderManager.pipeline = ['depth', 'render', 'screen']
-        },
-        ['Download snapshot']: async(btn: HTMLButtonElement) => {
-            btn.disabled = true
+    createExampleBar(viewer, [
+        {type: 'folder', label: 'Pipeline', children: [
+            {type: 'button', label: 'depth', value: () => {
+                viewer.renderManager.pipeline = ['depth']
+            }},
+            {type: 'button', label: 'render', value: () => {
+                viewer.renderManager.pipeline = ['render']
+            }},
+            {type: 'button', label: 'render, screen', value: () => {
+                viewer.renderManager.pipeline = ['render', 'screen']
+            }},
+            {type: 'button', label: 'depth, render, screen', value: () => {
+                viewer.renderManager.pipeline = ['depth', 'render', 'screen']
+            }},
+        ]},
+        {type: 'button', label: 'Download snapshot', icon: 'camera', value: async() => {
             const blob = await viewer.getScreenshotBlob({mimeType: 'image/png'})
             if (blob) downloadBlob(blob, 'file.png')
             else console.error('Unable to get screenshot')
-            btn.disabled = false
-        },
-    })
+        }},
+    ])
 
 }
 

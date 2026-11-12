@@ -7,6 +7,7 @@ import {
     ThreeViewer,
 } from 'threepipe'
 import {AssimpJsPlugin} from '@threepipe/plugin-assimpjs'
+import {createExampleBar} from '../examples-utils/example-bar.js'
 
 const viewer = new ThreeViewer({
     renderScale: 'auto',
@@ -46,15 +47,9 @@ async function init() {
     })
     viewer.scene.addObject(new HemisphereLight(0xffffff, 0x444444, 2))
 
-    // add download button
-    const downloadButton = document.createElement('button')
-    downloadButton.innerText = 'Download .fbx'
-    downloadButton.style.position = 'absolute'
-    downloadButton.style.bottom = '3rem'
-    downloadButton.style.right = '3rem'
-    downloadButton.style.zIndex = '10000'
-    downloadButton.onclick = () => downloadBlob(fbx, 'file.fbx')
-    document.body.appendChild(downloadButton)
+    createExampleBar(viewer, [
+        {type: 'button', label: 'Download .fbx', icon: 'download', value: () => downloadBlob(fbx, 'file.fbx')},
+    ])
 
 }
 

@@ -7,7 +7,7 @@ import {
     LoadingScreenPlugin,
     ThreeViewer,
 } from 'threepipe'
-import {createSimpleButtons} from '../examples-utils/simple-bottom-buttons.js'
+import {createExampleBar} from '../examples-utils/example-bar.js'
 
 const viewer = new ThreeViewer({renderScale: 'auto', canvas: document.getElementById('mcanvas') as HTMLCanvasElement, msaa: true})
 
@@ -32,8 +32,8 @@ async function init() {
     }
     console.log(helmet)
 
-    createSimpleButtons({
-        ['Download Helmet Object GLTF']: async() => {
+    createExampleBar(viewer, [
+        {type: 'button', label: 'Download Helmet Object GLTF', icon: 'file-code', value: async() => {
             const blob = await viewer.export(helmet, {
                 exportExt: 'gltf',
                 _basePath: basePath,
@@ -57,8 +57,8 @@ async function init() {
             if (json.extras?.resourcePath !== basePath) {
                 console.error('[TEST] - Resource path is incorrect', json.extras?.resourcePath)
             }
-        },
-        ['Download GLTF (RootPath Reference)']: async() => {
+        }},
+        {type: 'button', label: 'Download GLTF (RootPath Reference)', icon: 'file-code', value: async() => {
             helmet._sChildren = [] // set the serializable children to empty, so only the root object is exported, along with url that can be used to reload the object.
             helmet.userData.rootPathRefresh = true
             const blob = await viewer.export(helmet, { // note that we are using the `helmet` (parent) object here, and not the `mesh`.
@@ -82,9 +82,8 @@ async function init() {
             if (json.extras?.resourcePath !== basePath) {
                 console.error('[TEST] - Resource path is incorrect', json.extras?.resourcePath)
             }
-        },
-
-    })
+        }},
+    ])
 
 }
 

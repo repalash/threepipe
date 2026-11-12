@@ -8,7 +8,7 @@ import {
     SphereGeometry,
     ThreeViewer,
 } from 'threepipe'
-import {createSimpleButtons} from '../examples-utils/simple-bottom-buttons.js'
+import {createExampleBar} from '../examples-utils/example-bar.js'
 
 const viewer = new ThreeViewer({renderScale: 'auto', canvas: document.getElementById('mcanvas') as HTMLCanvasElement, msaa: true,
     plugins: [LoadingScreenPlugin],
@@ -47,16 +47,16 @@ async function init() {
     sphere2.position.setX(0)
     await viewer.addSceneObject(sphere2)
 
-    createSimpleButtons({
-        ['Download PMAT']: async() => {
+    createExampleBar(viewer, [
+        {type: 'button', label: 'Download PMAT', icon: 'palette', value: async() => {
             const blob = await viewer.export(material)
             if (!blob) {
                 alert('Unable to export material')
                 return
             }
             downloadBlob(blob, 'material.' + blob.ext)
-        },
-    })
+        }},
+    ])
 
 }
 

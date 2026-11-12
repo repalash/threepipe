@@ -8,6 +8,8 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- uiconfig.js 0.4.2: the `icon` of a config (`UiObjectConfig.icon`)
+- Examples: the buttons of the examples are a toolbar over the canvas made from uiconfig configs (`createExampleBar` in `examples/examples-utils/example-bar.ts`, with `UiConfigForm` of `@threepipe/plugin-tweakpane-editor`), with icons, groups, toggle buttons and a spinner while an action runs; a button can be a `CommandsPlugin` action with a key (`exampleAction`). It replaces `createSimpleButtons`, and the download buttons of the converter examples
 - `ObjectPicker.cycleWrap` (default `false`): clicking an already-selected object cycles to the next one under the cursor and wraps round to the front instead of clearing the selection, so clicking the only object under the cursor keeps it selected (Blender's behaviour)
 - `ObjectPicker.cycleThroughHits` (default `true`, as in webgi): set it to `false` to always pick the front object under the cursor instead of cycling through the objects behind it
 - `materialPreviewSettingsKey(options)`: the key of the viewer settings that change a material preview (environment map, intensity, rotation, tone mapping, output colour space), from `materialPreviewOptionsFromViewer`; the cache of `MaterialPreviewPlugin` uses it, and a caller that shows a preview can ask again when it changes

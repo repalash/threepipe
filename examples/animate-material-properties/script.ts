@@ -13,7 +13,7 @@ import {
     timeout,
     Vector2,
 } from 'threepipe'
-import {createSimpleButtons} from '../examples-utils/simple-bottom-buttons.js'
+import {createExampleBar} from '../examples-utils/example-bar.js'
 
 async function init() {
 
@@ -84,13 +84,10 @@ async function init() {
     await timeout(500)
     await animate()
 
-    createSimpleButtons({
-        ['Animate']: async(btn) => {
-            btn.disabled = true
-            animate()
-            btn.disabled = false
-        },
-    })
+    createExampleBar(viewer, [
+        // disabled while the animation runs
+        {type: 'button', label: 'Animate', icon: 'play', value: async() => animate()},
+    ])
 
     viewer.renderManager.addEventListener('resize', () => {
         refreshFov()

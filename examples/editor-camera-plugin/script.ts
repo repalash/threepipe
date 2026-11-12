@@ -1,7 +1,7 @@
 import {_testFinish, _testStart, ContactShadowGroundPlugin, LoadingScreenPlugin, OrbitControls3, ThreeViewer, UndoManagerPlugin} from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 import {EditorCameraPlugin} from '@threepipe/plugin-tweakpane-editor'
-import {createSimpleButtons} from '../examples-utils/simple-bottom-buttons.js'
+import {createExampleBar} from '../examples-utils/example-bar.js'
 
 async function init() {
 
@@ -34,20 +34,15 @@ async function init() {
     const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
     ui.setupPluginUi(EditorCameraPlugin, {expanded: true})
 
-    createSimpleButtons({
-        ['Edit / View (C)']: () => {
-            editorCamera.editing = !editorCamera.editing
-        },
-        ['Set start view to this view']: () => {
-            editorCamera.setStartViewFromEditor()
-        },
-        ['Save start view (in View)']: () => {
-            editorCamera.saveStartView()
-        },
-        ['Sync start view on / off']: () => {
-            editorCamera.syncStartView = !editorCamera.syncStartView
-        },
-    })
+    // a checkbox is a toggle button in the bar, pressed while the value is true
+    createExampleBar(viewer, [
+        {type: 'checkbox', label: 'Edit / View (C)', icon: 'square-pen', property: [editorCamera, 'editing']},
+        {type: 'folder', label: 'Start view', children: [
+            {type: 'button', label: 'Set start view to this view', icon: 'house', value: () => editorCamera.setStartViewFromEditor()},
+            {type: 'button', label: 'Save start view (in View)', icon: 'save', value: () => editorCamera.saveStartView()},
+            {type: 'checkbox', label: 'Sync start view on / off', icon: 'link', property: [editorCamera, 'syncStartView']},
+        ]},
+    ])
 }
 
 _testStart()
