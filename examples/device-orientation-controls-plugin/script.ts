@@ -7,6 +7,7 @@ import {
     ThreeViewer,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
+import {createExampleCard} from '../examples-utils/example-card.js'
 
 async function init() {
 
@@ -28,9 +29,18 @@ async function init() {
     })
 
     const overlayEl = document.getElementById('deviceOrientationOverlay') as HTMLDivElement
-    overlayEl.addEventListener('click', () => {
-        viewer.scene.mainCamera.controlsMode = 'deviceOrientation'
-        overlayEl.style.display = 'none'
+    const camera = viewer.scene.mainCamera
+    const setDeviceOrientation = (on: boolean) => {
+        camera.controlsMode = on ? 'deviceOrientation' : 'orbit'
+        overlayEl.style.display = on ? 'none' : 'flex'
+    }
+    overlayEl.addEventListener('click', () => setDeviceOrientation(true))
+
+    createExampleCard(viewer, {
+        description: 'DeviceOrientationControlsPlugin: the camera turns with the phone or tablet (its gyroscope). Tap the canvas to start (the browser may ask for motion access); switch back to orbit controls here.',
+        actions: [
+            {type: 'checkbox', label: 'Device orientation controls', icon: 'rotate-3d', getValue: () => camera.controlsMode === 'deviceOrientation', setValue: setDeviceOrientation},
+        ],
     })
 
 }
