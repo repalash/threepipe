@@ -73,7 +73,7 @@ async function init() {
                     screenPass.overrideReadBuffer = screenPass.overrideReadBuffer?.texture === rt ? null : {texture: rt}
                     viewer.setDirty()
                 }},
-                {type: 'button', label: 'Toggle Gbuffer Flags', icon: 'layers-2', value: () => {
+                {type: 'button', label: 'Toggle Gbuffer Flags', icon: 'blend', value: () => {
                     const rt = gbufferPlugin.flagsTexture
                     screenPass.overrideReadBuffer = screenPass.overrideReadBuffer?.texture === rt ? null : {texture: rt}
                     viewer.setDirty()

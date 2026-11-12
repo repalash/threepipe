@@ -238,8 +238,13 @@ export class UiConfigForm {
      * Runs the function of a button. As in uiconfig.js, it can return an undo function (redo runs the function again), or
      * an object with `undo` and `redo` and an optional `action` that is run now. With an undo manager, that is one step.
      */
-    private async _action(c: UiObjectConfig, parents: UiObjectConfig[], run: () => any) {
-        const res = await run()
+    private async _action(c: UiObjectConfig, parents: UiObjectConfig[], run: () => any, onPending?: () => void) {
+        let res = run()
+        // a promise: the button shows that it runs (a synchronous function keeps the button, and its focus, as it is)
+        if (typeof res?.then === 'function') {
+            onPending?.()
+            res = await res
+        }
         if (typeof res === 'object' && typeof res?.action === 'function') await res.action()
         const um = this._options.undoManager
         if (!um || typeof res !== 'function' && typeof res?.undo !== 'function') return
@@ -345,7 +350,11 @@ export class UiConfigForm {
      * @returns a function that draws the icon again when it changes (an `icon` can be a function, e.g. play or pause)
      */
     private _content(el: HTMLElement, c: UiObjectConfig, label: string, labelSpan = false): () => void {
-        const icon = () => getOrCall(c.icon) || ''
+        // an icon that the form cannot draw (an unknown name) is no icon: the label stays
+        const icon = () => {
+            const v = getOrCall(c.icon) || ''
+            return v && canDrawIcon(v) ? v : ''
+        }
         let shown = icon()
         // a label can be a function too (Play or Pause): drawn again when it changes
         let text = label
@@ -429,22 +438,29 @@ export class UiConfigForm {
         b.disabled = isDisabled()
         // while the function of the button runs (a promise): disabled, with a spinner
         let busy = false
-        b.addEventListener('click', async() => {
+        const pending = () => {
             if (busy) return
             busy = true
             b.disabled = true
             b.classList.add('ucf-busy')
+        }
+        b.addEventListener('click', async() => {
+            if (busy) return
             try {
                 const [obj, key] = UiConfigMethods.GetBinding(c, false)
                 const fn = obj ? obj[key] ?? obj.value : undefined
-                if (typeof fn === 'function') await this._action(c, parents, () => fn.call(obj))
-                if (typeof c.onClick === 'function') await this._action(c, parents, () => (c.onClick as any)())
+                if (typeof fn === 'function') await this._action(c, parents, () => fn.call(obj), pending)
+                if (typeof c.onClick === 'function') await this._action(c, parents, () => (c.onClick as any)(), pending)
             } catch (e) {
+                // a failed run changed nothing to report: no change events, no structure change
                 this._error(e, c)
+                return
             } finally {
-                busy = false
-                b.classList.remove('ucf-busy')
-                b.disabled = isDisabled()
+                if (busy) {
+                    busy = false
+                    b.classList.remove('ucf-busy')
+                    b.disabled = isDisabled()
+                }
             }
             this._dispatch(c, parents, true)
             this._structureChange()
@@ -822,18 +838,30 @@ function labelOf(c: UiObjectConfig) {
     return getOrCall(c.label) ? label : label.replace(/([a-z])([A-Z])/g, '$1 $2')
 }
 
+const isIconUrl = (icon: string) => /^(https?:|data:|blob:)/.test(icon) || /[/.]/.test(icon)
+const warnedIcons = new Set<string>()
+/** The form can draw the icon: markup, an image URL or a name of {@link lucideIcons}. An unknown name warns once. */
+function canDrawIcon(icon: string) {
+    if (icon.trimStart().startsWith('<') || isIconUrl(icon) || lucideIcon(icon)) return true
+    if (!warnedIcons.has(icon)) {
+        warnedIcons.add(icon)
+        console.warn(`UiConfigForm: no icon named "${icon}" (see lucideIcons); the label is shown`)
+    }
+    return false
+}
+
 /**
- * Draws an icon into an element: SVG markup (drawn inline, in the text colour), an image URL, or the name of a Lucide
- * icon ({@link lucideIcon}). An unknown name draws nothing.
+ * Draws an icon into an element: markup (starts with `<`, SVG drawn inline in the text colour), an image URL, or the
+ * name of a Lucide icon ({@link lucideIcon}). An unknown name draws nothing.
  */
 function setIcon(el: HTMLElement, icon: string) {
     while (el.lastChild) el.lastChild.remove()
     if (!icon) return
-    if (icon.trimStart().startsWith('<svg')) {
+    if (icon.trimStart().startsWith('<')) {
         el.innerHTML = icon
         return
     }
-    if (/^(https?:|data:|blob:)/.test(icon) || /[/.]/.test(icon)) {
+    if (isIconUrl(icon)) {
         const img = document.createElement('img')
         img.alt = ''
         img.src = icon
@@ -851,13 +879,19 @@ function colorHex(v: any): string {
     return String(v ?? '')
 }
 
-/** The value of a field on its button in a bar: a number, a vector, a text */
+/** A number on a button or a row: whole numbers as they are, others with 4 significant digits (whole from 1000) */
+function numberText(n: number) {
+    return Number.isInteger(n) ? String(n) : Math.abs(n) >= 1000 ? String(Math.round(n)) : String(+n.toPrecision(4))
+}
+
+/** The value of a field on its button in a bar, or of a monitor: a number, a colour, a vector, a text */
 function valueText(v: any): string {
     if (v === undefined || v === null) return ''
-    if (typeof v === 'number') return String(+v.toPrecision(4))
+    if (typeof v === 'number') return numberText(v)
+    if (v?.isColor) return colorHex(v)
     if (typeof v === 'object') {
         const parts = Array.isArray(v) ? v : ['x', 'y', 'z', 'w'].filter(a => typeof v[a] === 'number').map(a => v[a])
-        return parts.map((n: any) => typeof n === 'number' ? String(+n.toPrecision(3)) : String(n)).join(', ')
+        return parts.map((n: any) => typeof n === 'number' ? numberText(n) : String(n)).join(', ')
     }
     return String(v)
 }
