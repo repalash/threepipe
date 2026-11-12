@@ -10,9 +10,13 @@ All notable changes to this plugin will be documented in this file.
 
 - NA
 
+### Changed
+
+- With uiconfig-blueprint `0.1.0-dev.19`, the buttons with the tag `context-menu` (`UiTags.ContextMenu`: duplicate, delete, center geometry and the other object actions) are in the header of their folder: as buttons while they fit, and the rest in the ⋯ menu; before, all of them were in the ⋯ menu. A `context-menu` button that also has the tag `inline` stays in the folder body, and the menu uses the text size of the panel.
+
 ### Fixed
 
-- Update [uiconfig-blueprint](https://www.npmjs.com/package/uiconfig-blueprint) in `devDependencies` and `peerDependencies` to `0.1.0-dev.18` (was `0.1.0-dev.12`). The UI panel now renders in sandboxed documents (an opaque origin, like a page in an `<iframe sandbox>` or served with `CSP: sandbox`), where any access to `localStorage` throws. Before, the panel stopped with a `SecurityError` on such pages. The dark mode and the theme then use the defaults, and a choice lasts until reload.
+- Update [uiconfig-blueprint](https://www.npmjs.com/package/uiconfig-blueprint) in `devDependencies` and `peerDependencies` to `0.1.0-dev.19` (was `0.1.0-dev.12`). The UI panel now renders in sandboxed documents (an opaque origin, like a page in an `<iframe sandbox>` or served with `CSP: sandbox`), where any access to `localStorage` throws. Before, the panel stopped with a `SecurityError` on such pages. The dark mode and the theme then use the defaults, and a choice lasts until reload.
 
 ## [0.6.0] - 2025-10-27
 
