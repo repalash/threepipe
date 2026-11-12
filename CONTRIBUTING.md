@@ -109,6 +109,19 @@ For core and for each package -
 - Merge to `master` on github. The "Publish packages to npm" workflow ([repalash/release-tools](https://github.com/repalash/release-tools)) builds and checks every package whose version is not on npm, posts to Discord with the approval link and a Claude review, waits for the `npm-publish` environment approval, publishes with npm trusted publishing, and pushes the release tags (`v0.0.1` for core, `@threepipe/plugin-name-0.0.1` for a plugin).
 - Each package builds with its docs (`npm run build && npm run docs`), in dependency order. A package whose build fails is left out of that release, with the packages that depend on it; the notice lists them and the others are published. `npm run test:types` must pass for any release (it checks the core with plugin-tweakpane); the examples' type check only warns.
 
+### Prereleases
+
+Two branches publish prereleases through the same workflow, with the same checks and approval, under their own npm dist-tag. `latest` does not change, and a range like `^0.6.0` never picks a prerelease.
+
+| Branch | Version | `publishConfig.tag` | Install |
+| --- | --- | --- | --- |
+| `next` | `0.7.0-next.0`, `0.7.0-next.1`, ... | `next` | `npm i threepipe@next` |
+| `lane/rNNN` (a three.js upgrade) | `0.7.0-r172.1`, ... | `three-r172` | `npm i threepipe@three-r172` |
+
+- A prerelease of `dev`: merge `dev` into `next`, set the prerelease version and `"publishConfig": {"tag": "next"}` in each package to publish, add its `## [<version>]` entry to the `CHANGELOG.md`, and push `next`.
+- Every package whose version is not on npm yet must fit the branch, or the run stops before the build: a prerelease with the branch's tag on `next` and `lane/rNNN`, a release version without `publishConfig.tag` on `master`. So `next` and the lanes are never merged back: their version bumps and tags would stop the next release from `master`.
+- Any other branch (a manual run on `dev`) publishes nothing.
+
 ## Creating a Core Plugin
 
 Checklist 
