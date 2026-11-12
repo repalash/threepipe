@@ -125,6 +125,8 @@ Two branches publish prereleases through the same workflow, with the same checks
 - npm never counts a prerelease as matching a range like `>=0.6.0`, and every plugin has such a peer range on `threepipe`. A project that installs `threepipe@next` (or a lane) with a plugin needs `"overrides": {"threepipe": "$threepipe"}` in its `package.json`, else `npm install` fails with `ERESOLVE` (pnpm and yarn install it as is). See the [FAQ](https://threepipe.org/guide/faq.html#prereleases).
 - After a release from `master`, the dist-tag `next` still points at the last prerelease, which is now older than `latest`. Publish the next prerelease (`0.8.0-next.0`) or move the tag: `npm dist-tag add threepipe@0.7.0 next` (and for each plugin that has a `next`).
 
+See [the Publishing guide](./website/guide/publishing.md) ([live](https://threepipe.org/guide/publishing.html)) for what the workflow does, trusted publishing and common pitfalls.
+
 ## Creating a Core Plugin
 
 Checklist 
