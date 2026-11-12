@@ -65,7 +65,8 @@ export interface UiConfigFormOptions {
  *   of each parent folder, as the Tweakpane renderer does.
  * - With an `undoManager`, each edit is one undo step. Quick edits of the same field merge into one step.
  * - A config that is `hidden` when the form is made is not drawn. Make the form again when the fields change
- *   ({@link UiConfigFormOptions.onStructureChange}).
+ *   ({@link UiConfigFormOptions.onStructureChange}). In a `bar` or a `stack`, every config is drawn and a refresh
+ *   shows or hides it as its `hidden` changes.
  *
  * - A button whose function returns a promise is disabled, and shows a spinner, until the promise settles. An error is
  *   given to {@link UiConfigFormOptions.onError}.
@@ -292,7 +293,29 @@ export class UiConfigForm {
     }
 
     private _render(c: UiObjectConfig, host: HTMLElement, parents: UiObjectConfig[]) {
-        if (!c || getOrCall(c.hidden) || this._drawn.has(c)) return
+        if (!c || this._drawn.has(c)) return
+        // a form draws what is visible when it is made (make it again when the fields change); a bar or a stack draws
+        // every config and shows or hides it on refresh, as `hidden` changes (a field that shows for one mode)
+        if (this._layout === 'form') {
+            if (getOrCall(c.hidden)) return
+            return this._renderConfig(c, host, parents)
+        }
+        const before = host.lastChild
+        this._renderConfig(c, host, parents)
+        const el = host.lastChild as HTMLElement | null
+        if (!el || el === before) return
+        let hidden: boolean | undefined
+        const update = () => {
+            const h = !!getOrCall(c.hidden)
+            if (h === hidden) return
+            hidden = h
+            el.style.display = h ? 'none' : ''
+        }
+        update()
+        this._rows.push({config: c, update})
+    }
+
+    private _renderConfig(c: UiObjectConfig, host: HTMLElement, parents: UiObjectConfig[]) {
         this._drawn.add(c)
         // a config with getValue / setValue gets its property binding here, as in the Tweakpane renderer
         UiConfigMethods.InitUiConfig(c)
