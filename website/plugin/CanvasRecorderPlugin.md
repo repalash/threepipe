@@ -71,9 +71,13 @@ An image sequence gives its frames to a sink, set with `frameSink`:
 
 | Sink | Where the frames go | Browsers |
 |---|---|---|
-| [DirectoryFrameSink](https://threepipe.org/docs/classes/DirectoryFrameSink.html) (default) | A new folder inside one the user picks, one file per frame | Chromium browsers (needs `showDirectoryPicker` and a click to start) |
-| [ZipFrameSink](https://threepipe.org/docs/classes/ZipFrameSink.html) | One zip, downloaded (or given to a callback) when the recording stops | All; keeps every frame in memory until then |
+| [DirectoryFrameSink](https://threepipe.org/docs/classes/DirectoryFrameSink.html) (default in Chromium browsers) | A new folder inside one the user picks, one file per frame | Chromium browsers (needs `showDirectoryPicker` and a click to start) |
+| [ZipFrameSink](https://threepipe.org/docs/classes/ZipFrameSink.html) (default in Safari and Firefox) | One zip, downloaded (or given to a callback) when the recording stops | All; keeps every frame in memory until then |
 | A function, or an object with `start`, `write`, `finish` and `dispose` ([ICanvasFrameSink](https://threepipe.org/docs/interfaces/ICanvasFrameSink.html)) | Anywhere: a server, memory | All |
+
+With no `frameSink`, the default is the folder where the browser can pick one, and a zip elsewhere. The "Save frames to" setting lists only what the browser can do.
+
+A failed recording shows why in a toast, where the viewer's dialog has toasts (the editor's does), like a write that failed. Cancelling the folder picker shows nothing. Turn it off with `recorder.toastErrors = false`; the `error` event and a rejected `record()` report it either way.
 
 ```typescript
 import {ZipFrameSink} from 'threepipe'
