@@ -64,6 +64,7 @@ function setup(plugins: Record<string, any> = {}) {
         },
         setDirty: () => undefined,
         scene: {mainCamera: camera},
+        dialog: {}, // a viewer always has one; its toast is optional
         console,
     })
     plugin._recorder = fakeRecorder(plugin)
@@ -406,14 +407,35 @@ describe('ImageSequenceRecorder failures and names', () => {
 })
 
 describe('ImageSequenceRecorder start', () => {
-    test('without showDirectoryPicker, the default folder sink fails the start at once', () => {
+    test('without showDirectoryPicker (Safari, Firefox), the default sink is a zip and the recording starts', () => {
         const rec = new ImageSequenceRecorder({} as any, {mimeType: 'image/png'}) as any
         rec._console = {error: () => undefined, warn: () => undefined}
-        const states: string[] = []
-        rec.addEventListener('error', () => states.push('error'))
+        rec.start()
+        expect(rec.state).toBe('recording')
+        expect(rec._sink).toBeInstanceOf(ZipFrameSink)
+    })
+
+    test('with showDirectoryPicker, the default sink is a folder', () => {
+        vi.stubGlobal('window', {showDirectoryPicker: async() => new Promise(() => undefined)})
+        try {
+            const rec = new ImageSequenceRecorder({} as any, {mimeType: 'image/png'}) as any
+            rec.start()
+            expect(rec.state).toBe('starting') // the picker is open
+            expect(rec._sink).toBeInstanceOf(DirectoryFrameSink)
+        } finally {
+            vi.unstubAllGlobals()
+        }
+    })
+
+    test('a folder sink without showDirectoryPicker fails the start at once and says why', () => {
+        const rec = new ImageSequenceRecorder({} as any, {mimeType: 'image/png', frameSink: new DirectoryFrameSink()}) as any
+        rec._console = {error: () => undefined, warn: () => undefined}
+        const errors: any[] = []
+        rec.addEventListener('error', (e: any) => errors.push(e.error))
         rec.start()
         expect(rec.state).toBe('error')
-        expect(states).toEqual(['error'])
+        expect(errors).toHaveLength(1)
+        expect(errors[0].message).toContain('can\'t save to a folder')
     })
 
     test('a dispose while the folder is picked ends the start in the error state; the recording does not start', async() => {
@@ -977,6 +999,45 @@ describe('recorder failure', () => {
         rec.setState('error', {error: new Error('the encoder failed')})
         expect(plugin.dirty).toBe(false)
         expect(plugin._recordIndicator.style.visibility).toBe('hidden')
+    })
+
+    function toasting() {
+        const {plugin} = setup()
+        const toast = vi.fn()
+        plugin._viewer.canvas = {}
+        plugin._viewer.container = {}
+        plugin._viewer.dialog = {toast}
+        const rec = plugin._getRecorder('image')
+        rec._console = {error: () => undefined, warn: () => undefined}
+        return {plugin, rec, toast}
+    }
+
+    test('a failed recording shows why in a toast', () => {
+        const {plugin, rec, toast} = toasting()
+        rec.options.frameSink = new DirectoryFrameSink() // no showDirectoryPicker here, as in Safari
+        rec.start()
+        expect(rec.state).toBe('error')
+        expect(toast).toHaveBeenCalledTimes(1)
+        expect(toast.mock.calls[0][0]).toContain('can\'t save to a folder')
+        expect(toast.mock.calls[0][1]).toEqual({kind: 'error', container: plugin._viewer.container})
+    })
+
+    test('the error of a MediaRecorder event shows its message', () => {
+        const {rec, toast} = toasting()
+        rec.setState('error', {error: {error: new Error('the encoder failed')}}) // an ErrorEvent holds the error
+        expect(toast.mock.calls[0][0]).toBe('Canvas Recorder: the encoder failed')
+    })
+
+    test('no toast: a cancelled folder picker, a recorder let go, or toastErrors off', () => {
+        const {plugin, rec, toast} = toasting()
+        rec.setState('error', {error: new DOMException('The user aborted a request.', 'AbortError')})
+        plugin.toastErrors = false
+        rec.setState('error', {error: new Error('upload failed')})
+        plugin.toastErrors = true
+        rec.setState('starting')
+        plugin._releaseRecorder(rec) // a removal: the dispose ends the start with an error
+        expect(rec.state).toBe('error')
+        expect(toast).not.toHaveBeenCalled()
     })
 })
 
@@ -2186,10 +2247,11 @@ describe('ImageSequenceRecorder frame sink', () => {
         expect([a, b]).toEqual([[0], []])
     })
 
-    test('without a sink, the start still needs the folder picker', () => {
+    test('without a sink, the default sink is used: a zip where there is no folder picker', () => {
         const rec = make(undefined)
         rec.start()
-        expect(rec.state).toBe('error')
+        expect(rec.state).toBe('recording')
+        expect(rec._sink).toBeInstanceOf(ZipFrameSink)
     })
 })
 
@@ -2310,7 +2372,24 @@ describe('CanvasRecorderPlugin recorders', () => {
         expect(options()).toContain('video/quiet') // the current value always shows
     })
 
+    test('without a folder picker (Safari, Firefox), the UI offers only a zip and shows it as the default', () => {
+        const {plugin} = setup()
+        plugin.mimeType = 'image/png'
+        const item = plugin.uiConfig.children.find((c: any) => c?.label === 'Save frames to')
+        expect(item.getValue()).toBe('zip')
+        expect(item.children[0]().map((o: any) => o.value)).toEqual(['zip'])
+    })
+
     test('the UI picks a folder or a zip for an image sequence, and shows a sink set from code', () => {
+        vi.stubGlobal('window', {showDirectoryPicker: async() => undefined})
+        try {
+            folderOrZip()
+        } finally {
+            vi.unstubAllGlobals()
+        }
+    })
+
+    function folderOrZip() {
         const {plugin} = setup()
         plugin.mimeType = 'image/png'
         const item = plugin.uiConfig.children.find((c: any) => c?.label === 'Save frames to')
@@ -2326,7 +2405,7 @@ describe('CanvasRecorderPlugin recorders', () => {
         plugin.mimeType = 'video/x' // not an image sequence (a format with no worker here)
         expect(item.hidden()).toBe(true)
         plugin.frameSink = undefined
-    })
+    }
 
     test('the frame sink reaches the recorder, and clearing it does too', () => {
         const {plugin} = setup()
