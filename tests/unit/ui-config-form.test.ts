@@ -871,6 +871,22 @@ describe('UiConfigForm bar and stack layouts', () => {
         expect(target.side).toBe(1)
     })
 
+    test('a dropdown without an icon keeps its select when its label changes', () => {
+        const state = {side: 0, n: 1}
+        const form = new UiConfigForm([{type: 'dropdown', label: () => 'Side ' + state.n, property: [state, 'side'], children: [
+            {label: 'Front', value: 0}, {label: 'Back', value: 1},
+        ]}], {layout: 'bar'})
+        const chip = find(form, 'ucf-chip', 'Side 1')
+        state.n = 2
+        form.refresh()
+        expect(chip.children.map(c => c.tagName)).toEqual(['span', 'select'])
+        expect(chip.children[0].textContent).toBe('Side 2')
+        const sel = chip.children[1]
+        sel.value = '1'
+        sel.fire('change')
+        expect(state.side).toBe(1)
+    })
+
     test('a slider in a bar is a button with its value; the field is drawn for the popover', () => {
         const target = {roughness: 0.25}
         const form = new UiConfigForm([{type: 'slider', label: 'Roughness', property: [target, 'roughness'], bounds: [0, 1]}], {layout: 'bar'})

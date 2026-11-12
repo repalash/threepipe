@@ -471,7 +471,8 @@ export class UiConfigForm {
     private _selectChip(c: UiObjectConfig, host: HTMLElement, parents: UiObjectConfig[], label: string, isDisabled: () => boolean) {
         const wrap = document.createElement('label')
         wrap.className = 'ucf-chip'
-        const updateIcon = this._content(wrap, c, label)
+        // the label in its own element: the select is next to it
+        const updateIcon = this._content(wrap, c, label, true)
         const {sel, update} = this._select(c, parents)
         sel.setAttribute('aria-label', label)
         wrap.appendChild(sel)
