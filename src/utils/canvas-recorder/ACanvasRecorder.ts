@@ -31,7 +31,8 @@ export interface CanvasRecorderFrame {
 }
 
 /**
- * Where the frames of an image sequence go: {@link DirectoryFrameSink} (the default), {@link ZipFrameSink}, or your own.
+ * Where the frames of an image sequence go: {@link DirectoryFrameSink} (the default where the browser can pick a folder),
+ * {@link ZipFrameSink} (the default elsewhere), or your own.
  * Frames come one at a time and in order; a promise from `write` makes the next frame wait, in converge mode.
  */
 export interface ICanvasFrameSink {
@@ -52,7 +53,7 @@ export interface CanvasRecorderOptions {
     mimeType: string;
     videoBitsPerSecond?: number;
     stepMode: boolean;
-    /** Image sequences: where the frames go. Default: a {@link DirectoryFrameSink}. A failure is reported when the recording stops. */
+    /** Image sequences: where the frames go. Default: a {@link DirectoryFrameSink}, or a {@link ZipFrameSink} where the browser can't pick a folder. A failure is reported when the recording stops. */
     frameSink?: CanvasFrameSink;
 }
 

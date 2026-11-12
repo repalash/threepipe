@@ -12,6 +12,7 @@ import {type Easing, EasingFunctions} from '../../utils/animation'
 import type {CanvasFrameSink, CanvasRecorderOptions, ICanvasRecorder} from '../../utils/canvas-recorder/ACanvasRecorder'
 import {ImageSequenceRecorder} from '../../utils/canvas-recorder/ImageSequenceRecorder'
 import {ZipFrameSink} from '../../utils/canvas-recorder/ZipFrameSink'
+import {DirectoryFrameSink} from '../../utils/canvas-recorder/DirectoryFrameSink'
 import {CanvasMediaRecorder} from '../../utils/canvas-recorder/CanvasMediaRecorder'
 import {FFMPEGRecorder} from '../../utils/canvas-recorder/FFMPEGRecorder'
 import {RemovalWaits} from '../../utils/canvas-recorder/RemovalWaits'
@@ -78,13 +79,21 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
         videoFrameRate = 30
 
     /**
-     * Where the frames of an image sequence go. Default: a folder the user picks ({@link DirectoryFrameSink}, Chromium
-     * browsers only). A {@link ZipFrameSink} downloads one zip and works in every browser; a function or your own
+     * Where the frames of an image sequence go. Default: a folder the user picks ({@link DirectoryFrameSink}) in a browser
+     * that can (Chromium), and one zip download ({@link ZipFrameSink}) in the others (Safari, Firefox). A zip works in every
+     * browser, and holds the frames in memory until the end; a function or your own
      * {@link ICanvasFrameSink} can send them to a server or memory. In converge mode the next frame waits for the sink.
      * A failure is reported when the recording stops. Not saved with the plugin's settings.
      */
     @onChange(CanvasRecorderPlugin.prototype.refreshRecorderOptions)
         frameSink: CanvasFrameSink | undefined = undefined
+
+    /**
+     * A failed recording shows why in a toast (`viewer.dialog.toast`, where the viewer's dialog has toasts), like a
+     * browser that can't save to a folder or a write that failed. Cancelling the folder picker shows none. The `error`
+     * event and a rejected {@link record} report it in code either way.
+     */
+    toastErrors = true
 
     private _recorders: Record<string, ICanvasRecorder> = {}
     private _registeredRecorders = new Map<string, {factory: CanvasRecorderFactory, match: (mimeType: string) => boolean, ui?: {label: string, mimeType: string}}>()
@@ -267,8 +276,16 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
     }
 
     /** Disposes a recorder and takes the plugin's listeners off it */
+    /** A recorder is being let go: the error that ends its start is not a failure to show */
+    private _releasing = false
+
     private _releaseRecorder(recorder: ICanvasRecorder) {
-        recorder.dispose()
+        this._releasing = true
+        try {
+            recorder.dispose()
+        } finally {
+            this._releasing = false
+        }
         // after the dispose, whose own events still come here: an event that the disposed recorder sends later
         // (e.g. the native stop of a MediaRecorder) does not reach a recording after an add again
         this._recorderListeners.get(recorder)?.forEach(([event, listener]) => recorder.removeEventListener(event, listener))
@@ -773,13 +790,14 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
                 type: 'dropdown',
                 label: 'Save frames to',
                 hidden: () => !this.mimeType.startsWith('image/'),
-                getValue: () => this.frameSink instanceof ZipFrameSink ? 'zip' : this.frameSink ? 'custom' : 'folder',
+                // no sink set: the default, a folder where the browser can pick one, else a zip
+                getValue: () => this.frameSink instanceof ZipFrameSink ? 'zip' : this.frameSink ? 'custom' : DirectoryFrameSink.supported ? 'folder' : 'zip',
                 setValue: (v: string) => {
                     if (v === 'zip') this.frameSink = new ZipFrameSink()
                     else if (v === 'folder') this.frameSink = undefined
                 },
                 children: [() => [
-                    {label: 'Folder', value: 'folder'},
+                    ...DirectoryFrameSink.supported ? [{label: 'Folder', value: 'folder'}] : [],
                     {label: 'Zip download', value: 'zip'},
                     ...this.frameSink && !(this.frameSink instanceof ZipFrameSink) ? [{label: 'Custom', value: 'custom'}] : [],
                 ]],
@@ -983,6 +1001,16 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
     }
 
     /** A recorder event can come after a removal (a recording that a dispose stops): there is no indicator then */
+    /** A failed recording shows why, see {@link toastErrors} */
+    private _toastError(error: unknown) {
+        const viewer = this._viewer
+        if (!this.toastErrors || this._releasing || !viewer) return
+        // a MediaRecorder's error event holds its error
+        const e: any = (error as any)?.error ?? error
+        if (e?.name === 'AbortError') return // the folder picker was cancelled
+        viewer.dialog.toast?.('Canvas Recorder: ' + (e?.message || String(e ?? 'the recording failed')), {kind: 'error', container: viewer.container})
+    }
+
     private _showIndicator(visible: boolean) {
         if (this._recordIndicator) this._recordIndicator.style.visibility = visible ? 'visible' : 'hidden'
     }
@@ -1024,7 +1052,8 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
                 this._stateChange(!this._convergeNow)
             }],
             // an error ends the recording too: the indicator hides and the viewer stops rendering every frame for it
-            ['error', () => {
+            ['error', (e) => {
+                this._toastError(e.error)
                 this._active = undefined
                 if (this._optionsPending) this.refreshRecorderOptions()
                 this._showIndicator(false)
