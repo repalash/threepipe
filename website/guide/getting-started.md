@@ -152,26 +152,6 @@ A reference to "three" is also added to be same as threepipe, this way any libra
 npm install threepipe
 ```
 
-#### Prereleases
-
-Versions that are not released yet are published under their own npm dist-tag: `next` for the upcoming release (`npm install threepipe@next`), `three-rNNN` for a three.js upgrade (`npm install threepipe@three-r172`). The `latest` version does not change.
-
-npm does not count a prerelease (`0.7.0-next.0`) as matching a plugin's peer range on `threepipe` (`>=0.6.0`), so `npm install` with any `@threepipe/` plugin fails with `ERESOLVE`. Add an override to your `package.json`, so the plugins use the `threepipe` your project installs:
-
-```json
-{
-  "dependencies": {
-    "threepipe": "^0.7.0-next.0",
-    "@threepipe/plugin-tweakpane": "^0.10.1"
-  },
-  "overrides": {
-    "threepipe": "$threepipe"
-  }
-}
-```
-
-pnpm and yarn install a prerelease with the plugins without the override.
-
 #### TypeScript
 
 The type declarations are checked before every release in a consumer project with TypeScript 5.0 and newer, `strict`, and `moduleResolution` set to `bundler`, `node16`, `nodenext` or `node`. Recommended `tsconfig.json` settings:
