@@ -63,6 +63,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- Camera UI: one Controls Mode dropdown. `PerspectiveCamera2` and `OrthographicCamera2` also had a second one, from a `@uiDropdown` on `controlsMode` that listed the modes once, when the camera was made (only `orbit`). Setting a mode that a plugin adds (`deviceOrientation`, `threeFirstPerson`, `pointerLock`…) while the UI showed the camera then set it back to none, so the overlay of the `device-orientation-controls-plugin` example left the camera with no controls on its first tap. The dropdown of `makeICameraCommonUiConfig` stays: it lists the modes again when a plugin adds one, and no longer lists `orbit` twice
 - tweakpane-editor page frame: the panel scrolls up and down only. On a phone in Safari it also scrolled sideways, and the labels went out at the left
 - `StickyNotesUiPlugin` (tweakpane-editor): the minimised notes bar is as wide as its icon and number again on a phone. Its icon was 100% of a button as wide as its content, and Safari stretched it, and the bar, to the free width of the canvas
 - `TweakpaneUiPlugin`: a new default colour mode reaches people who opened a page before. Every visit kept the colour mode in `localStorage`, also the default, so the old default stayed (for example `blue`, `dark` or `light` in place of `clean`). The default at the time of the write is now kept too (`tpThemeDefault`), and a kept value that was the default follows the default of now; a colour mode that the person picked stays. It is written only when it changes
