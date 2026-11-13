@@ -67,6 +67,9 @@
 .ucf-group { display: flex; gap: 2px; }
 .ucf-bar .ucf-group { flex-direction: row; align-items: center; }
 .ucf-stack .ucf-group { flex-direction: column; align-items: stretch; }
+/* the name of a group: a small heading in a stack, none in a bar (the group's accessible name has it) */
+.ucf-group-head { padding: 4px 8px 2px; color: var(--ucf-dim); font-size: 11px; font-weight: 500; user-select: none; }
+.ucf-bar .ucf-group-head { display: none; }
 /* a line between a group and what is next to it */
 .ucf-bar > .ucf-group + *, .ucf-bar > * + .ucf-group { border-left: 1px solid var(--ucf-line); padding-left: 4px; margin-left: 2px; }
 .ucf-stack > .ucf-group + *, .ucf-stack > * + .ucf-group { border-top: 1px solid var(--ucf-line); padding-top: 4px; margin-top: 2px; }
