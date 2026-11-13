@@ -639,6 +639,23 @@ describe('ViewerActions without a viewer', () => {
         unbind()
     })
 
+    test('a focused widget that uses the arrow keys (a tree) keeps them, also from a capture action when the viewer container is the body', () => {
+        const viewer = fakeViewer()
+        viewer.container = {isConnected: true, contains: () => true} // the body: every element is in it
+        viewer.canvas = {}
+        const actions = new ViewerActions(viewer)
+        const next = action('next', {shortcut: 'ArrowRight', capture: true})
+        actions.register(next)
+        const inTree: any = {nodeType: 1, tagName: 'DIV', closest: (sel: string) => sel.includes('[role="tree"]') ? {} : null}
+        const inCard: any = {nodeType: 1, tagName: 'BUTTON', closest: () => null}
+        expect(pressIn(inTree, 'ArrowRight', 'ArrowRight').defaultPrevented).toBe(false)
+        expect(pressIn(inTree, 'Home', 'Home').defaultPrevented).toBe(false)
+        // a button of the annotation card: the arrows navigate
+        expect(pressIn(inCard, 'ArrowRight', 'ArrowRight').defaultPrevented).toBe(true)
+        expect(next.run).toHaveBeenCalledTimes(1)
+        actions.dispose()
+    })
+
     test('a capture action runs in the capture phase and stops the key (before the arrow keys of the camera controls)', () => {
         const next = action('annotations.next', {shortcut: 'ArrowRight', capture: true})
         const other = action('other', {shortcut: 'KeyQ'})

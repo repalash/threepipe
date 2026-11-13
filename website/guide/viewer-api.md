@@ -449,7 +449,7 @@ A shortcut is modifiers and a key, joined with `+`: `Mod+Z`, `Shift+D`, `Alt+Shi
 
 A `keydown` listener on the window runs the shortcuts of the actions, while the viewer has actions:
 
-- It leaves a key typed in a text field (an input that takes text, a text area, a select, an editable element) and a key that another handler used (`defaultPrevented`). A checkbox, a radio button or a button keeps the focus after a click: it keeps Space and Enter (they press it), and the other keys (Delete, a letter) run the shortcuts (`isTargetKey`).
+- It leaves a key typed in a text field (an input that takes text, a text area, a select, an editable element) and a key that another handler used (`defaultPrevented`). A checkbox, a radio button or a button keeps the focus after a click: it keeps Space and Enter (they press it), and the other keys (Delete, a letter) run the shortcuts. A focused widget that moves with the arrow keys (a range input, or an element with an ARIA role like `tree`, `listbox`, `menu`, `tablist` or `toolbar`) keeps the arrows, Home, End, PageUp and PageDown, also from a capture action (`isTargetKey`).
 - It runs an action only when `enabled()` is not `false`, and calls `preventDefault` only when an action runs.
 - An action can have more keys: `shortcut: ['Delete', 'Backspace']`.
 - A focused element (a list, a field) has its keys first. An action with `capture: true` runs before it, in the capture phase on the window, and the key stops there: the arrows of an open annotation win over the arrow keys of the camera controls on the canvas. It runs only while the focus is in its viewer (the canvas, a card) or on the page, so a focused panel keeps its keys.
