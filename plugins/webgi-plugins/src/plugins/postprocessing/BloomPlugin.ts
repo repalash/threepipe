@@ -207,11 +207,11 @@ export class BloomPluginPass<Tid extends IPassID> extends ExtendedShaderPass imp
     @serialize() softThreshold = 0.5
 
     @uiSlider('Intensity', [0, 3])
-    @serialize() @uniform() intensity = 0.2
+    @serialize() @uniform({onChange: BloomPluginPass.prototype.setDirty}) intensity = 0.2
 
     @uiToggle('Background Bloom')
     @serialize()
-    @matDefineBool('BACKGROUND_BLOOM')
+    @matDefineBool('BACKGROUND_BLOOM', undefined, undefined, BloomPluginPass.prototype.setDirty)
         backgroundBloom = false
 
     @uiSlider('Iterations', [2, 7], 1)
@@ -233,9 +233,12 @@ export class BloomPluginPass<Tid extends IPassID> extends ExtendedShaderPass imp
         this.prefilter.y = this.softThreshold
         this.prefilter.z = 2 * this.prefilter.x * this.prefilter.y
         this.prefilter.w = this.uniforms?.prefilter ? .125 / (this.uniforms.prefilter.value.z + 0.00001) : 0
+        // the prefilter vector changes in place, so its uniform setter does not run: render again
+        this.setDirty()
     }
 
     @uiToggle('Debug')
+    @onChange2(BloomPluginPass.prototype.setDirty)
         bloomDebug = false
 
     private _weights: any = []

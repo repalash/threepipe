@@ -1,5 +1,5 @@
 import {Camera, Euler, Object3D, OrthographicCamera, Quaternion, Vector3} from 'three'
-import {generateUiConfig, uiDropdown, uiInput, uiNumber, UiObjectConfig, uiToggle, uiVector} from 'uiconfig.js'
+import {generateUiConfig, uiInput, uiNumber, UiObjectConfig, uiToggle, uiVector} from 'uiconfig.js'
 import {onChange, onChange2, onChange3, serialize} from 'ts-browser-helpers'
 import type {ICamera, ICameraEventMap, ICameraUserData, TCameraControlsMode} from '../ICamera'
 import {ICameraSetDirtyOptions} from '../ICamera'
@@ -27,9 +27,7 @@ export class OrthographicCamera2<TE extends ICameraEventMap = ICameraEventMap> e
     private _currentControlsMode: TCameraControlsMode = '';
     ['_canvas']?: HTMLCanvasElement
 
-    @uiDropdown('Controls Mode', undefined, (t: OrthographicCamera2)=>({
-        children: ['none', ...t.controlsCtors.keys()].map(k=>({label: k, value: k === 'none' ? '' : k})),
-    }))
+    // its dropdown is in makeICameraCommonUiConfig: it lists the modes again when a plugin adds one
     @serialize()
     @onChange2(OrthographicCamera2.prototype.refreshCameraControls)
         controlsMode: TCameraControlsMode

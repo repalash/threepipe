@@ -73,7 +73,7 @@ export function makeICameraCommonUiConfig(this: ICamera): UiObjectConfig[] {
             type: 'dropdown',
             label: 'Controls Mode',
             property: [this, 'controlsMode'],
-            children: ['', 'orbit', ...this.controlsCtors.keys()].map(v=>({label: v === '' ? 'none' : v, value:v})),
+            children: [...new Set(['', 'orbit', ...this.controlsCtors.keys()])].map(v=>({label: v === '' ? 'none' : v, value:v})),
             onChange: () => this.refreshCameraControls(),
         }),
         {
