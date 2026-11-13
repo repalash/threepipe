@@ -19,6 +19,8 @@ const CHAR_CODES = new Map([
 const CODE_CHARS = new Map([...CHAR_CODES].map(([c, code]) => [code, c]))
 /** Short labels of some keys. `Mod`, `Shift` and `Alt` are in {@link formatShortcut}. */
 const KEY_LABELS = new Map([['Escape', 'Esc'], ['ArrowUp', '↑'], ['ArrowDown', '↓'], ['ArrowLeft', '←'], ['ArrowRight', '→']])
+/** The signs that a US keyboard types with Shift: their label has no Shift, the sign tells it (`?`, not `Shift+?`) */
+const SHIFT_SIGNS = new Set('~!@#$%^&*()_+{}|:"<>?')
 
 /**
  * The place on the keyboard (`KeyboardEvent.code`) of a key name with one character: `'z'` is `KeyZ`, `'1'` is
@@ -84,7 +86,8 @@ export function matchShortcut(event: KeyboardEvent, shortcut: string | ParsedSho
 
 /**
  * A label of a shortcut ({@link parseShortcut}) for a UI: `⇧⌘Z` on a Mac, `Ctrl+Shift+Z` on other platforms.
- * A `KeyboardEvent.code` shows as its key: `KeyC` is `C`, `Digit1` is `1`, `Backslash` is `\`.
+ * A `KeyboardEvent.code` shows as its key: `KeyC` is `C`, `Digit1` is `1`, `Backslash` is `\`. A sign that needs Shift
+ * shows without it: `Shift+?` is `?`.
  * @param shortcut - the shortcut string. A string that does not parse is returned as it is.
  * @param mac - Mac labels (⌘, ⌥, ⇧). Default: the platform of the browser.
  */
@@ -94,6 +97,7 @@ export function formatShortcut(shortcut: string, mac = isMacPlatform()): string 
     const k = s.key
     const code = /^(Key|Digit)(.)$/.exec(k)
     const key = code ? code[2] : CODE_CHARS.get(k) ?? KEY_LABELS.get(k) ?? (k.length === 1 ? k.toUpperCase() : k)
+    if (SHIFT_SIGNS.has(k)) s.shift = false
     if (mac) return (s.alt ? '⌥' : '') + (s.shift ? '⇧' : '') + (s.mod ? '⌘' : '') + key
     return [s.mod && 'Ctrl', s.alt && 'Alt', s.shift && 'Shift', key].filter(Boolean).join('+')
 }

@@ -139,6 +139,15 @@ describe('formatShortcut', () => {
         expect(formatShortcut('Mod++', false)).toBe('Ctrl++')
     })
 
+    test('a sign that needs Shift shows without Shift: the sign tells it (? not Shift+?)', () => {
+        expect(formatShortcut('Shift+?', false)).toBe('?')
+        expect(formatShortcut('Shift+?', true)).toBe('?')
+        expect(formatShortcut('Mod+Shift+!', false)).toBe('Ctrl+!')
+        // a key that does not need Shift keeps it
+        expect(formatShortcut('Shift+/', false)).toBe('Shift+/')
+        expect(formatShortcut('Shift+Equal', true)).toBe('⇧=')
+    })
+
     test('a code shows as its key', () => {
         expect(formatShortcut('KeyC', false)).toBe('C')
         expect(formatShortcut('Shift+KeyT', true)).toBe('⇧T')
