@@ -302,7 +302,7 @@ body.tpTheme-black{
 body.tpTheme-clean{
     background-color: #f0f0f0;
 }
-/* the toasts of the viewer dialog (viewer.dialog.toast, like the results of the actions of a CommandsPlugin): under the
+/* the toasts of the viewer dialog (viewer.dialog.toast, like the results of the actions in viewer.actions): under the
    camera pill, in the layer of the viewer UI (CONTRIBUTING, UI layers: 130); in a dark theme, a lighter chip with a line */
 body {
     --dialog-toast-top: 40px;
