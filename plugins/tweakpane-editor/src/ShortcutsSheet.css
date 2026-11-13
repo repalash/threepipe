@@ -1,0 +1,42 @@
+/* The sheet of the keyboard shortcuts (ShortcutsSheet): a modal dialog in the colours of the Tweakpane theme */
+.sks-root {
+    width: min(880px, calc(100vw - 32px)); max-width: none; max-height: min(640px, calc(100vh - 32px)); padding: 0; border: 0; border-radius: 10px;
+    background: var(--tp-base-background-color, #fff); color: var(--tp-container-foreground-color, #1e1e1e);
+    /* dvh: the height without the bars of a phone browser (Safari on iOS); vh before it for older browsers */
+    max-height: min(640px, calc(100dvh - 32px));
+    box-shadow: 0 0 0 1px rgba(0,0,0,.08), 0 12px 40px rgba(0,0,0,.22);
+    font: 400 12px/1.4 var(--tp-font-family, Inter, ui-sans-serif, system-ui, sans-serif); -webkit-font-smoothing: antialiased;
+}
+.sks-root::backdrop { background: rgba(0,0,0,.28); }
+.sks-card { display: flex; flex-direction: column; max-height: inherit; }
+.sks-head { display: flex; align-items: center; gap: 10px; padding: 12px 12px 12px 16px; border-bottom: 1px solid var(--tp-container-border-color, #e6e6e6); }
+.sks-head h2 { flex: 1; margin: 0; font-size: 13px; font-weight: 600; }
+.sks-head input {
+    width: 200px; min-width: 0; padding: 5px 8px; border: 0; border-radius: 5px; outline: none;
+    background: var(--tp-input-background-color, #f3f4f6); color: inherit; font: inherit;
+}
+.sks-head input:focus-visible { box-shadow: 0 0 0 1px #0d99ff; }
+.sks-close {
+    width: 28px; height: 28px; padding: 0; border: 0; border-radius: 5px; background: transparent; color: var(--tp-label-foreground-color, #8a8f98);
+    font: 400 18px/1 sans-serif; cursor: pointer;
+}
+.sks-close:hover { background: var(--tp-button-background-color-hover, #f2f3f5); color: inherit; }
+/* the groups in columns, each one whole in a column; the body scrolls down */
+.sks-body { padding: 4px 16px 16px; overflow-y: auto; overscroll-behavior: contain; outline: none; }
+.sks-columns { columns: 250px; column-gap: 28px; }
+.sks-body section { break-inside: avoid; padding-top: 12px; }
+.sks-body h3 { margin: 0 0 4px; font-size: 11px; font-weight: 600; color: var(--tp-label-foreground-color, #8a8f98); }
+.sks-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0; padding: 4px 0; }
+.sks-row > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+/* many keys (a gizmo key and its Shift form) wrap inside the column, at its right */
+.sks-keys { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 4px; flex: 0 1 auto; min-width: 0; }
+.sks-keys i { font-style: normal; color: var(--tp-label-foreground-color, #8a8f98); }
+.sks-root kbd {
+    font: 500 11px/1 var(--tp-font-family, Inter, ui-sans-serif, system-ui, sans-serif); white-space: nowrap; padding: 3px 6px; border-radius: 4px;
+    background: var(--tp-input-background-color, #f3f4f6); border: 1px solid var(--tp-container-border-color, #e3e4e8); border-bottom-width: 2px;
+}
+.sks-empty { margin: 12px 0 0; color: var(--tp-label-foreground-color, #8a8f98); }
+@media (max-width: 520px) {
+    .sks-head { flex-wrap: wrap; }
+    .sks-head input { order: 3; flex: 1 0 100%; }
+}
