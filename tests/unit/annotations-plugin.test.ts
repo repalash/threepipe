@@ -1059,8 +1059,8 @@ describe('AnnotationsPlugin', () => {
         const {plugin, box} = setup()
         plugin.add(box as any, front, normal, null)
         plugin.add(box as any, front, normal, null)
-        const key = (k: string, target: any = doc.body) => {
-            const e = {key: k, target, preventDefault: vi.fn(), stopPropagation: vi.fn(), stopImmediatePropagation: vi.fn()}
+        const key = (k: string, target: any = doc.body, repeat = false) => {
+            const e = {key: k, target, repeat, preventDefault: vi.fn(), stopPropagation: vi.fn(), stopImmediatePropagation: vi.fn()}
             windowListeners.get('keydown')!(e)
             return e
         }
@@ -1068,6 +1068,10 @@ describe('AnnotationsPlugin', () => {
         plugin.goTo(0, {fly: false})
         key('ArrowRight')
         expect(plugin.openId).toBe(plugin.get(1)!.id)
+        // a held arrow goes on (and the camera controls do not get the key)
+        expect(key('ArrowRight', doc.body, true).preventDefault).toHaveBeenCalled()
+        expect(plugin.openId).toBe(plugin.get(0)!.id)
+        key('ArrowRight')
         key('ArrowLeft', new FakeElement('input'))
         expect(plugin.openId).toBe(plugin.get(1)!.id)
         key('ArrowLeft')
