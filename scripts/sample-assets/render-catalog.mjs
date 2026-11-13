@@ -3,6 +3,7 @@
 //   aibox browser                                  on the Mac: the GPU browser (its URL is in ~/.aibox/host/browser.url)
 //   npm run dev -- --host 0.0.0.0 --port 8805      here: serves examples/_render-model
 //   npm run assets:render -- --out /tmp/models-out --page <dev server URL> --models <URL of --out, with CORS> [--only A,B] [--force]
+//   (without a GPU: --browser launch --chromium <path> --video 0, for the stills only)
 //
 //   ffmpeg                                         here: encodes the frames
 //
@@ -33,6 +34,9 @@ const {values: args} = parseArgs({options: {
     'video-sizes': {type: 'string', default: '512'}, // `512,1024` is the long render
     'hevc-host': {type: 'string'}, // adds video-<size>-alpha.mov, for Safari: `local` on a Mac, or a Mac on the iJewel relay
     browser: {type: 'string', default: 'connect'}, // `launch`: a Chromium here (on a Mac, with Metal), `connect`: the aibox GPU browser
+    // `launch` elsewhere: the Chromium at this path (e.g. /opt/pw-browsers/chromium in a cloud session), with SwiftShader on the
+    // CPU: slow, so for the stills (`--video 0`) only
+    chromium: {type: 'string'},
     ffmpeg: {type: 'string', default: 'ffmpeg'}, // one with libx264 and libvpx
     timeout: {type: 'string', default: '600'},
     pw: {type: 'string', default: '/tmp/pw'}, // Playwright of the server's version: npm i --prefix /tmp/pw playwright@<version>
@@ -201,9 +205,10 @@ let done = 0
 const size = parseInt(args.size)
 // One tab for all models: closing a page restarts the server, so it stays open and goes to the next model.
 if (args['hevc-host']) await prepareMac()
-const browser = args.browser === 'launch' ?
+const browser = args.browser !== 'launch' ? await connect() :
     // Metal: without it Chromium on a Mac renders with SwiftShader, on the CPU
-    await chromium.launch({channel: 'chromium', args: ['--use-angle=metal']}) : await connect()
+    process.platform === 'darwin' ? await chromium.launch({channel: 'chromium', args: ['--use-angle=metal']}) :
+        await chromium.launch({executablePath: args.chromium, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader']})
 const context = await browser.newContext({viewport: {width: size, height: size}})
 const page = await context.newPage()
 let current = ''

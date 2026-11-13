@@ -13,6 +13,7 @@
 //   khronos                https://github.com/KhronosGroup/glTF-Sample-Assets (licenses in its REUSE.toml)
 //   gltf-research-scenes   https://github.com/ErfanMo77/gltf-research-scenes (licenses in each conversion.yaml)
 //   bucket                 the models already in the samples bucket (set: their top folder); the rows link to them where they are
+//   poly-haven             models picked from https://polyhaven.com (CC0): the 2k glTF packed to one GLB, textures as WebP
 import {execFileSync} from 'node:child_process'
 import crypto from 'node:crypto'
 import fs from 'node:fs'
@@ -306,6 +307,50 @@ function* bucket() {
     }
 }
 
+/**
+ * Models picked from Poly Haven for the examples (CC0, https://polyhaven.com/license), by their Poly Haven id. Each is its 2k
+ * glTF packed to one GLB with WebP textures (quality 85): about a quarter of the size, with no visible change in threepipe.
+ */
+const POLY_HAVEN = ['marble_bust_01', 'horse_statue_01', 'mid_century_lounge_chair', 'Camera_01', 'rubber_duck_toy']
+const POLY_HAVEN_RES = '2k'
+
+function* polyHaven() {
+    const api = id => JSON.parse(run('curl', '-sSLf', `https://api.polyhaven.com/${id}`))
+    for (const id of POLY_HAVEN) {
+        const dir = path.join(args.src, 'poly-haven', id)
+        const info = api(`info/${id}`)
+        const gltfs = api(`files/${id}`).gltf
+        const chosen = gltfs[POLY_HAVEN_RES].gltf
+        const file = path.join(dir, path.basename(new URL(chosen.url).pathname))
+        if (!fs.existsSync(file)) {
+            fs.mkdirSync(dir, {recursive: true})
+            run('curl', '-sSLf', '-o', file, chosen.url)
+            for (const [rel, {url}] of Object.entries(chosen.include ?? {})) {
+                const dest = path.join(dir, rel)
+                if (!path.resolve(dest).startsWith(path.resolve(dir) + path.sep)) throw new Error(`${id}: ${rel} is outside the model folder`)
+                fs.mkdirSync(path.dirname(dest), {recursive: true})
+                run('curl', '-sSLf', '-o', dest, url)
+            }
+        }
+        const thumb = path.join(dir, 'thumbnail.png')
+        if (!fs.existsSync(thumb)) {
+            try {
+                run('curl', '-sSLf', '-o', thumb, `https://cdn.polyhaven.com/asset_img/thumbs/${id}.png?width=1024&height=1024`)
+            } catch { /* no thumbnail: the row goes without the source's image */ }
+        }
+        yield {
+            set_name: 'poly-haven', name: id, label: info.name ?? id, tags: (info.categories ?? []).filter(c => !c.startsWith('collection:')),
+            license: 'CC0-1.0',
+            // {name: role}: "Rico Cilliers (All)"
+            authors: Object.entries(info.authors ?? {}).map(([name, role]) => `${name} (${role})`).join('; ') || undefined,
+            source_url: `https://polyhaven.com/a/${id}`, links: [], file, pack: true,
+            changes: `packed to one GLB from the ${POLY_HAVEN_RES} glTF, textures to WebP (quality 85)`,
+            images: fs.existsSync(thumb) && fs.statSync(thumb).size > 1024 ? [{file: thumb, label: 'thumbnail'}] : [],
+            variants: Object.entries(gltfs).map(([res, v]) => ({name: `${res} glTF (original)`, url: v.gltf.url})),
+        }
+    }
+}
+
 /** A research scene's image is in Git LFS, so the shallow clone has only a pointer to it. */
 function researchThumbnail(id) {
     const dir = path.join(args.src, 'gltf-research-thumbnails')
@@ -386,7 +431,7 @@ const io = new NodeIO(fetch).setAllowNetwork(true).registerExtensions([...ALL_EX
 fs.mkdirSync(args.out, {recursive: true})
 const rows = [], failed = []
 const textures = new Map(), links = new Set(), names = new Map(), paths = new Map()
-const sets = {khronos, 'gltf-research-scenes': research, bucket}
+const sets = {khronos, 'gltf-research-scenes': research, bucket, 'poly-haven': polyHaven}
 for (const [set, list] of Object.entries(sets)) {
     if (args.set && args.set !== set) continue
     for (const {file, ...m} of list()) {
@@ -396,7 +441,7 @@ for (const [set, list] of Object.entries(sets)) {
         const unique = `${m.set_name}/${m.name.toLowerCase()}`
         if (names.has(unique)) throw new Error(`${m.set_name}/${m.name}: this name is already used by ${names.get(unique)}`)
         names.set(unique, m.label)
-        const {images = [], linked, read, ...fields} = m
+        const {images = [], linked, read, pack, ...fields} = m
         try {
             const doc = await io.read(read ?? file)
             // a file saved from the viewer has its settings and camera, and maybe the credit of where it came from (Sketchfab)
@@ -409,7 +454,7 @@ for (const [set, list] of Object.entries(sets)) {
             if (credit?.source) fields.source_url = m.source_url = credit.source
             const root = doc.getRoot()
             // a GLB directly under its set; the files of a glTF stay together, as in the source
-            const several = !linked && file.endsWith('.gltf')
+            const several = !linked && !pack && file.endsWith('.gltf')
             const modelPath = linked ? file.slice(SAMPLES.length + 1) : several ?
                 `${m.set_name}/${m.name}/${path.basename(path.dirname(file))}/${path.basename(file)}` : `${m.set_name}/${slugOf(path.parse(file).name)}.glb`
             const usedPath = modelPath.toLowerCase() // a case-only difference is one file on a Mac disk
@@ -419,7 +464,11 @@ for (const [set, list] of Object.entries(sets)) {
             const previews = `p/samples/${modelPath.replace(/(\.glb)?\.[^./]+$/, '').split('/').map(slugOf).join('/')}`
             const dest = path.join(args.out, 'samples', modelPath)
             if (several) fs.cpSync(path.dirname(file), path.dirname(dest), {recursive: true})
-            else if (!linked) {
+            else if (pack) { // one GLB with WebP textures, from a glTF of several files
+                fs.mkdirSync(path.dirname(dest), {recursive: true})
+                await doc.transform(dedup(), prune(), textureCompress({encoder: sharp, targetFormat: 'webp', quality: 85}))
+                fs.writeFileSync(dest, await io.writeBinary(doc))
+            } else if (!linked) {
                 fs.mkdirSync(path.dirname(dest), {recursive: true})
                 fs.copyFileSync(file, dest)
             }
