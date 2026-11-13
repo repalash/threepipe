@@ -7,7 +7,7 @@ import {
     TransformAnimationPlugin,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
-import {createSimpleButtons} from '../examples-utils/simple-bottom-buttons.js'
+import {createExampleCard} from '../examples-utils/example-card.js'
 
 async function init() {
 
@@ -51,11 +51,14 @@ async function init() {
     // reset
     transformAnimPlugin.setTransform(model, 'front')
 
-    createSimpleButtons({
-        ['Reset']: async() => transformAnimPlugin.animateTransform(model, 'front', 1000),
-        ['Left']: async() => transformAnimPlugin.animateTransform(model, 'left', 1000),
-        ['Top']: async() => transformAnimPlugin.animateTransform(model, 'top', 1000),
-        ['Up']: async() => transformAnimPlugin.animateTransform(model, 'up', 1000),
+    createExampleCard(viewer, {
+        description: 'Animates the model between saved transforms (TransformAnimationPlugin): its rotation and position for front, left, top and up.',
+        actions: [
+            {type: 'button', label: 'Reset', icon: 'house', value: async() => transformAnimPlugin.animateTransform(model, 'front', 1000)},
+            {type: 'button', label: 'Left', icon: 'arrow-left', value: async() => transformAnimPlugin.animateTransform(model, 'left', 1000)},
+            {type: 'button', label: 'Top', icon: 'arrow-up', value: async() => transformAnimPlugin.animateTransform(model, 'top', 1000)},
+            {type: 'button', label: 'Up', icon: 'move-vertical', value: async() => transformAnimPlugin.animateTransform(model, 'up', 1000)},
+        ],
     })
 
     const ui = viewer.addPluginSync(TweakpaneUiPlugin, true)

@@ -8,7 +8,7 @@ class FakeElement {
     children: FakeElement[] = []
     parent?: FakeElement
     className = ''
-    style: Record<string, string> = {}
+    style: Record<string, any> = {setProperty: (k: string, v: string) => this.style[k] = v}
     textContent = ''
     value = ''
     checked = false
@@ -19,8 +19,31 @@ class FakeElement {
     max = ''
     step = ''
     private _listeners = new Map<string, ((e: any) => void)[]>()
-    classList = {add: (...c: string[]) => this.className = [...this.className.split(' ').filter(Boolean), ...c].join(' ')}
+    innerHTML = ''
+    attributes: Record<string, string> = {}
+    classList = {
+        add: (...c: string[]) => this.className = [...new Set([...this.className.split(' ').filter(Boolean), ...c])].join(' '),
+        remove: (...c: string[]) => this.className = this.className.split(' ').filter(x => x && !c.includes(x)).join(' '),
+        contains: (c: string) => this.className.split(' ').includes(c),
+    }
     constructor(readonly tagName: string) {}
+    setAttribute(name: string, value: string) {
+        this.attributes[name] = String(value)
+    }
+    removeAttribute(name: string) {
+        delete this.attributes[name]
+    }
+    getAttribute(name: string) {
+        return this.attributes[name] ?? null
+    }
+    insertBefore(c: FakeElement, ref: FakeElement) {
+        c.parent = this
+        this.children.splice(this.children.indexOf(ref), 0, c)
+        return c
+    }
+    get lastChild() {
+        return this.children[this.children.length - 1] ?? null
+    }
     appendChild(c: FakeElement) {
         c.parent = this
         this.children.push(c)
@@ -56,12 +79,14 @@ const doc = globalThis.document as any
 const createElement = doc.createElement
 beforeAll(() => {
     UiConfigForm.InjectStyles = false
+    UiConfigForm.Tooltips = false
     doc.createElement = (tag: string) => new FakeElement(tag)
     doc.activeElement = null
 })
 afterAll(() => {
     doc.createElement = createElement
     UiConfigForm.InjectStyles = true
+    UiConfigForm.Tooltips = true
 })
 
 /** The row of a label, and its inputs */
@@ -681,5 +706,355 @@ describe('UiConfigForm', () => {
         host.appendChild(form.element as any)
         form.dispose()
         expect(host.children).toEqual([])
+    })
+})
+
+/** The element below the form with a class, and a text (the label) when given */
+function find(form: UiConfigForm, cls: string, label?: string) {
+    const root = form.element as any as FakeElement
+    const el = root.all().find(e => e.className.split(' ').includes(cls) &&
+        (label === undefined || e.textContent === label || e.children.some(c => c.className === 'ucf-label' && c.textContent === label)))
+    if (!el) throw new Error(`no .${cls} ${label ?? ''}`)
+    return el
+}
+
+describe('UiConfigForm bar and stack layouts', () => {
+    test('a bar is a toolbar; a button with an icon has the icon and the label, one without an icon the label as text', () => {
+        const form = new UiConfigForm([
+            {type: 'button', label: 'Snapshot', icon: 'camera', value: () => {}},
+            {type: 'button', label: 'Plain', value: () => {}},
+        ], {layout: 'bar'})
+        const root = form.element as any as FakeElement
+        expect(root.className).toBe('ucf ucf-bar')
+        expect(root.getAttribute('role')).toBe('toolbar')
+        const snap = find(form, 'ucf-button', 'Snapshot')
+        expect(snap.className).toContain('ucf-has-icon')
+        expect(snap.children.map(c => c.className)).toEqual(['ucf-icon', 'ucf-label'])
+        expect(snap.children[0].innerHTML).toMatch(/^<svg[^>]*viewBox="0 0 24 24".*aria-hidden="true"/)
+        // the accessible name is the label also when only the icon shows
+        expect(snap.getAttribute('aria-label')).toBe('Snapshot')
+        expect(find(form, 'ucf-button', 'Plain').children).toEqual([])
+    })
+
+    test('an icon: SVG markup is drawn inline, a URL as an image, an unknown name draws nothing', () => {
+        const form = new UiConfigForm([
+            {type: 'button', label: 'A', icon: '<svg viewBox="0 0 1 1"></svg>', value: () => {}},
+            {type: 'button', label: 'B', icon: 'https://example.com/i.png', value: () => {}},
+            {type: 'button', label: 'C', icon: 'no-such-icon', value: () => {}},
+        ], {layout: 'bar'})
+        expect(find(form, 'ucf-button', 'A').children[0].innerHTML).toBe('<svg viewBox="0 0 1 1"></svg>')
+        const img = find(form, 'ucf-button', 'B').children[0].children[0]
+        expect(img.tagName).toBe('img')
+        expect((img as any).src).toBe('https://example.com/i.png')
+        // an unknown name is no icon: the label shows, without the icon layout (a phone bar would show a blank button)
+        const c = find(form, 'ucf-button', 'C')
+        expect(c.children).toEqual([])
+        expect(c.className).not.toContain('ucf-has-icon')
+    })
+
+    test('markup that does not start with <svg (an XML prolog, a comment) is drawn inline, not as an image', () => {
+        const form = new UiConfigForm([
+            {type: 'button', label: 'X', icon: '<?xml version="1.0"?><svg viewBox="0 0 1 1"></svg>', value: () => {}},
+            {type: 'button', label: 'Y', icon: '<!-- icon --><svg viewBox="0 0 1 1"></svg>', value: () => {}},
+        ], {layout: 'bar'})
+        for (const l of ['X', 'Y']) {
+            const icon = find(form, 'ucf-button', l).children[0]
+            expect(icon.innerHTML).toContain('<svg')
+            expect(icon.children).toEqual([])
+        }
+    })
+
+    test('a synchronous button is never disabled (it keeps the focus); a failed run sends no change events', async() => {
+        const sets: boolean[] = []
+        const onChange = vi.fn()
+        const onStructureChange = vi.fn()
+        const fail: UiObjectConfig = {type: 'button', label: 'Fail', onChange, value: async() => {
+            throw new Error('nope')
+        }}
+        const form = new UiConfigForm([
+            {type: 'button', label: 'Sync', value: () => {}},
+            fail,
+        ], {layout: 'bar', onStructureChange, onError: () => {}})
+        const b = find(form, 'ucf-button', 'Sync')
+        let disabled = false
+        Object.defineProperty(b, 'disabled', {get: () => disabled, set: (v: boolean) => {
+            sets.push(v)
+            disabled = v
+        }})
+        b.fire('click')
+        await new Promise(r => setTimeout(r, 0))
+        expect(sets).not.toContain(true)
+        expect(onStructureChange).toHaveBeenCalledTimes(1) // the sync button ran fine
+        find(form, 'ucf-button', 'Fail').fire('click')
+        await new Promise(r => setTimeout(r, 0))
+        expect(onChange).not.toHaveBeenCalled()
+        expect(onStructureChange).toHaveBeenCalledTimes(1)
+    })
+
+    test('a monitor shows whole numbers as they are, fractions short, and a three.js colour as its hex code', () => {
+        const s = {big: 1234567, frac: 0.123456, mid: 1234.567, color: new Color('#ff8800')}
+        const form = new UiConfigForm([
+            {type: 'monitor', label: 'Big', property: [s, 'big']},
+            {type: 'monitor', label: 'Frac', property: [s, 'frac']},
+            {type: 'monitor', label: 'Mid', property: [s, 'mid']},
+            {type: 'monitor', label: 'Color', property: [s, 'color']},
+        ], {layout: 'stack'})
+        const v = (l: string) => find(form, 'ucf-readout', l).children.find(c => c.className === 'ucf-value')!.textContent
+        expect(v('Big')).toBe('1234567')
+        expect(v('Frac')).toBe('0.1235')
+        expect(v('Mid')).toBe('1235')
+        expect(v('Color')).toBe('#ff8800')
+    })
+
+    test('an icon that is a function is drawn again on refresh when it changes', () => {
+        const state = {playing: false}
+        const form = new UiConfigForm([
+            {type: 'button', label: 'Play', icon: () => state.playing ? 'pause' : 'play', value: () => {}},
+        ], {layout: 'bar'})
+        const icon = find(form, 'ucf-icon')
+        const before = icon.innerHTML
+        state.playing = true
+        form.refresh()
+        expect(icon.innerHTML).not.toBe(before)
+        expect(icon.innerHTML).toContain('<svg')
+    })
+
+    test('a label that is a function is drawn again on refresh, also the accessible name', () => {
+        const state = {running: false}
+        const form = new UiConfigForm([
+            {type: 'button', label: () => state.running ? 'Pause' : 'Play', icon: () => state.running ? 'pause' : 'play', value: () => {}},
+            {type: 'button', label: () => state.running ? 'Stop' : 'Go', value: () => {}},
+        ], {layout: 'bar'})
+        const b = find(form, 'ucf-button', 'Play')
+        const plain = find(form, 'ucf-button', 'Go')
+        state.running = true
+        form.refresh()
+        expect(b.children[1].textContent).toBe('Pause')
+        expect(b.getAttribute('aria-label')).toBe('Pause')
+        expect(plain.textContent).toBe('Stop')
+    })
+
+    test('a field button without an icon keeps its value when its label changes', () => {
+        const state = {r: 0.5, unit: 'm'}
+        const form = new UiConfigForm([{type: 'number', label: () => 'Size ' + state.unit, property: [state, 'r']}], {layout: 'bar'})
+        const b = find(form, 'ucf-more', 'Size m')
+        state.unit = 'cm'
+        form.refresh()
+        expect(b.children.map(c => [c.className, c.textContent])).toEqual([['ucf-label', 'Size cm'], ['ucf-value', '0.5']])
+        expect(b.getAttribute('aria-label')).toBe('Size cm')
+    })
+
+    test('an icon that is a function can come and go: the icon element and ucf-has-icon follow it', () => {
+        const state = {icon: ''}
+        const form = new UiConfigForm([{type: 'button', label: 'Go', icon: () => state.icon, value: () => {}}], {layout: 'bar'})
+        const b = find(form, 'ucf-button', 'Go')
+        expect(b.children.map(c => c.className)).toEqual(['ucf-label'])
+        expect(b.className).not.toContain('ucf-has-icon')
+        state.icon = 'play'
+        form.refresh()
+        expect(b.children.map(c => c.className)).toEqual(['ucf-icon', 'ucf-label'])
+        expect(b.className).toContain('ucf-has-icon')
+        expect(b.children[0].innerHTML).toContain('<svg')
+        state.icon = ''
+        form.refresh()
+        expect(b.children.map(c => c.className)).toEqual(['ucf-label'])
+        expect(b.className).not.toContain('ucf-has-icon')
+        expect(b.getAttribute('aria-label')).toBe('Go')
+    })
+
+    test('a checkbox in a bar is a toggle button: a click flips the binding, aria-pressed follows, also after a change elsewhere', () => {
+        const target = {autoRotate: false}
+        const onChange = vi.fn()
+        const form = new UiConfigForm([
+            {type: 'checkbox', label: 'Auto rotate', icon: 'rotate-3d', property: [target, 'autoRotate'], onChange},
+        ], {layout: 'bar'})
+        const b = find(form, 'ucf-toggle', 'Auto rotate')
+        expect(b.tagName).toBe('button')
+        expect(b.getAttribute('aria-pressed')).toBe('false')
+        b.fire('click')
+        expect(target.autoRotate).toBe(true)
+        expect(onChange).toHaveBeenCalledTimes(1)
+        expect(b.getAttribute('aria-pressed')).toBe('true')
+        target.autoRotate = false
+        form.refresh()
+        expect(b.getAttribute('aria-pressed')).toBe('false')
+    })
+
+    test('an async button is disabled and busy until its promise settles; a rejection goes to onError and enables it again', async() => {
+        let resolve!: () => void
+        const onError = vi.fn()
+        const fail: UiObjectConfig = {type: 'button', label: 'Fail', value: async() => {
+            throw new Error('nope')
+        }}
+        const form = new UiConfigForm([
+            {type: 'button', label: 'Export', value: () => new Promise<void>(r => resolve = r)},
+            fail,
+        ], {layout: 'bar', onError})
+        const b = find(form, 'ucf-button', 'Export')
+        b.fire('click')
+        await Promise.resolve()
+        expect(b.disabled).toBe(true)
+        expect(b.className).toContain('ucf-busy')
+        // a refresh while it runs keeps it disabled
+        form.refresh()
+        expect(b.disabled).toBe(true)
+        resolve()
+        await new Promise(r => setTimeout(r, 0))
+        expect(b.disabled).toBe(false)
+        expect(b.className).not.toContain('ucf-busy')
+
+        const f = find(form, 'ucf-button', 'Fail')
+        f.fire('click')
+        await new Promise(r => setTimeout(r, 0))
+        expect(onError).toHaveBeenCalledTimes(1)
+        expect(onError.mock.calls[0][0]).toBeInstanceOf(Error)
+        expect(onError.mock.calls[0][1]).toBe(fail)
+        expect(f.disabled).toBe(false)
+    })
+
+    test('the form layout: a button that throws also goes to onError (no unhandled rejection)', async() => {
+        const onError = vi.fn()
+        const form = new UiConfigForm([{type: 'button', label: 'Fail', value: () => {
+            throw new Error('nope')
+        }}], {onError})
+        const b = find(form, 'ucf-button', 'Fail')
+        b.fire('click')
+        await new Promise(r => setTimeout(r, 0))
+        expect(onError).toHaveBeenCalledTimes(1)
+        expect(b.disabled).toBe(false)
+    })
+
+    test('a folder in a bar is a group with its label as the accessible name', () => {
+        const form = new UiConfigForm([{type: 'folder', label: 'Views', children: [
+            {type: 'button', label: 'Top', value: () => {}},
+            {type: 'button', label: 'Left', value: () => {}},
+        ]}], {layout: 'bar'})
+        const g = find(form, 'ucf-group')
+        expect(g.getAttribute('role')).toBe('group')
+        expect(g.getAttribute('aria-label')).toBe('Views')
+        expect(g.children.map(c => c.textContent)).toEqual(['Top', 'Left'])
+    })
+
+    test('a dropdown in a bar is a select with the label as its name; a change sets the binding', () => {
+        const target = {side: 0}
+        const form = new UiConfigForm([{type: 'dropdown', label: 'Side', icon: 'layers', property: [target, 'side'], children: [
+            {label: 'Front', value: 0}, {label: 'Back', value: 1},
+        ]}], {layout: 'bar'})
+        const chip = find(form, 'ucf-chip', 'Side')
+        const sel = chip.all().find(e => e.tagName === 'select')!
+        expect(sel.getAttribute('aria-label')).toBe('Side')
+        expect(sel.value).toBe('0')
+        sel.value = '1'
+        sel.fire('change')
+        expect(target.side).toBe(1)
+    })
+
+    test('a dropdown without an icon keeps its select when its label changes', () => {
+        const state = {side: 0, n: 1}
+        const form = new UiConfigForm([{type: 'dropdown', label: () => 'Side ' + state.n, property: [state, 'side'], children: [
+            {label: 'Front', value: 0}, {label: 'Back', value: 1},
+        ]}], {layout: 'bar'})
+        const chip = find(form, 'ucf-chip', 'Side 1')
+        state.n = 2
+        form.refresh()
+        expect(chip.children.map(c => c.tagName)).toEqual(['span', 'select'])
+        expect(chip.children[0].textContent).toBe('Side 2')
+        const sel = chip.children[1]
+        sel.value = '1'
+        sel.fire('change')
+        expect(state.side).toBe(1)
+    })
+
+    test('a slider in a bar is a button with its value; the field is drawn for the popover', () => {
+        const target = {roughness: 0.25}
+        const form = new UiConfigForm([{type: 'slider', label: 'Roughness', property: [target, 'roughness'], bounds: [0, 1]}], {layout: 'bar'})
+        const b = find(form, 'ucf-more', 'Roughness')
+        expect(b.getAttribute('aria-expanded')).toBe('false')
+        const value = b.children.find(c => c.className === 'ucf-value')!
+        expect(value.textContent).toBe('0.25')
+        target.roughness = 0.5
+        form.refresh()
+        expect(value.textContent).toBe('0.5')
+    })
+
+    test('a given label stays as it is; a label from the key of the property gets spaces', () => {
+        const target = {roughnessMap: 1}
+        const form = new UiConfigForm([
+            {type: 'button', label: 'camera.fitObject', value: () => {}},
+            {type: 'number', property: [target, 'roughnessMap']},
+        ], {layout: 'bar'})
+        expect(find(form, 'ucf-button', 'camera.fitObject')).toBeTruthy()
+        expect(find(form, 'ucf-more', 'roughness Map')).toBeTruthy()
+    })
+
+    test('a colour in a bar shows its hex code and a swatch: a three.js colour or a number', () => {
+        const target = {c: new Color('#ff8800'), n: 0x00ff00}
+        const form = new UiConfigForm([
+            {type: 'color', label: 'C', property: [target, 'c']},
+            {type: 'color', label: 'N', property: [target, 'n']},
+        ], {layout: 'bar'})
+        for (const [label, hex] of [['C', '#ff8800'], ['N', '#00ff00']]) {
+            const value = find(form, 'ucf-more', label).children.find(c => c.className.includes('ucf-value'))!
+            expect(value.textContent).toBe(hex)
+            expect(value.className).toContain('ucf-swatch')
+            expect(value.style['--ucf-swatch']).toBe(hex)
+        }
+    })
+
+    test('a button shows the key of shortcutOf at the end of its row, and follows a change', () => {
+        let key = 'S'
+        const snap: UiObjectConfig = {type: 'button', label: 'Snapshot', icon: 'camera', value: () => {}}
+        const form = new UiConfigForm([snap, {type: 'button', label: 'Other', value: () => {}}], {
+            layout: 'stack', shortcutOf: c => c === snap ? key : undefined,
+        })
+        const b = find(form, 'ucf-button', 'Snapshot')
+        expect(b.children.map(c => c.className)).toEqual(['ucf-icon', 'ucf-label', 'ucf-key'])
+        expect(b.children[2].textContent).toBe('S')
+        expect(b.children[2].getAttribute('aria-hidden')).toBe('true')
+        expect(find(form, 'ucf-button', 'Other').children.map(c => c.className)).toEqual(['ucf-label'])
+        key = 'Shift+S'
+        form.refresh()
+        expect(b.children[2].textContent).toBe('Shift+S')
+        key = ''
+        form.refresh()
+        expect(b.children.map(c => c.className)).toEqual(['ucf-icon', 'ucf-label'])
+    })
+
+    test('a monitor in a stack is a read-only row with the value, updated on refresh', () => {
+        const stats = {triangles: 1200}
+        const form = new UiConfigForm([{type: 'monitor', label: 'Triangles', property: [stats, 'triangles']}], {layout: 'stack'})
+        const r = find(form, 'ucf-readout', 'Triangles')
+        expect(r.tagName).toBe('div')
+        const value = r.children.find(c => c.className === 'ucf-value')!
+        expect(value.textContent).toBe('1200')
+        stats.triangles = 46000
+        form.refresh()
+        expect(value.textContent).toBe('46000')
+    })
+
+    test('layout: a class that the page added stays when the layout changes (also through form)', () => {
+        const form = new UiConfigForm([{type: 'button', label: 'A', value: () => {}}], {layout: 'bar'})
+        const el = form.element as any as FakeElement
+        el.classList.add('my-toolbar')
+        form.layout = 'stack'
+        expect(el.className.split(' ').sort()).toEqual(['my-toolbar', 'ucf', 'ucf-stack'])
+        form.layout = 'form'
+        expect(el.className.split(' ').sort()).toEqual(['my-toolbar', 'ucf'])
+        form.layout = 'bar'
+        expect(el.className.split(' ').sort()).toEqual(['my-toolbar', 'ucf', 'ucf-bar'])
+    })
+
+    test('layout: bar to stack keeps the elements; to form draws rows', () => {
+        const target = {on: true}
+        const form = new UiConfigForm([{type: 'checkbox', label: 'On', property: [target, 'on']}], {layout: 'bar'})
+        const b = find(form, 'ucf-toggle', 'On')
+        form.layout = 'stack'
+        expect((form.element as any).className).toBe('ucf ucf-stack')
+        expect(find(form, 'ucf-toggle', 'On')).toBe(b)
+        form.layout = 'form'
+        expect((form.element as any).className).toBe('ucf')
+        expect((form.element as any).getAttribute('role')).toBe(null)
+        expect(row(form, 'On').inputs[0].type).toBe('checkbox')
+        expect(() => find(form, 'ucf-toggle')).toThrow()
     })
 })

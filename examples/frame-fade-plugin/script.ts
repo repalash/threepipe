@@ -7,7 +7,7 @@ import {
     PhysicalMaterial,
     ThreeViewer,
 } from 'threepipe'
-import {createSimpleButtons} from '../examples-utils/simple-bottom-buttons.js'
+import {createExampleCard} from '../examples-utils/example-card.js'
 
 async function init() {
 
@@ -25,19 +25,22 @@ async function init() {
         new PhysicalMaterial({color: 0xff0000})
     ))
 
-    createSimpleButtons({
-        ['Change Color']: ()=>{
-            cube.material.color.setHSL(Math.random(), 1, 0.5)
-            cube.material.setDirty() // this will trigger frame fade
-        },
-        ['Change Size']: ()=>{
-            cube.scale.setScalar(Math.random() * 1.5 + 0.5)
-            cube.setDirty && cube.setDirty({fadeDuration: 1000}) // duration can be controlled by an option like this.
-        },
-        ['Change Color (no fade)']: ()=>{
-            cube.material.color.setHSL(Math.random(), 1, 0.5)
-            cube.material.setDirty({frameFade: false}) // disable frame fade for this update but re-render the scene.
-        },
+    createExampleCard(viewer, {
+        description: 'Cross-fades the frame when the scene changes instead of a hard cut (FrameFadePlugin). Change the colour or size of the cube; the last button changes it without the fade.',
+        actions: [
+            {type: 'button', label: 'Change Color', icon: 'palette', value: ()=>{
+                cube.material.color.setHSL(Math.random(), 1, 0.5)
+                cube.material.setDirty() // this will trigger frame fade
+            }},
+            {type: 'button', label: 'Change Size', icon: 'scaling', value: ()=>{
+                cube.scale.setScalar(Math.random() * 1.5 + 0.5)
+                cube.setDirty && cube.setDirty({fadeDuration: 1000}) // duration can be controlled by an option like this.
+            }},
+            {type: 'button', label: 'Change Color (no fade)', icon: 'paintbrush', value: ()=>{
+                cube.material.color.setHSL(Math.random(), 1, 0.5)
+                cube.material.setDirty({frameFade: false}) // disable frame fade for this update but re-render the scene.
+            }},
+        ],
     })
 
 }

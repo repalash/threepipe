@@ -7,7 +7,7 @@ import {
     LoadingScreenPlugin,
     ThreeViewer,
 } from 'threepipe'
-import {createSimpleButtons} from '../examples-utils/simple-bottom-buttons.js'
+import {createExampleCard} from '../examples-utils/example-card.js'
 import {GLTFDracoExportPlugin} from '@threepipe/plugin-gltf-transform'
 
 const viewer = new ThreeViewer({
@@ -45,35 +45,38 @@ async function init() {
     // const blob = await viewer.exportScene({viewerConfig: false}) // export scene without viewer config
     // const blob = await viewer.exportScene() // export scene with viewer config and default settings.
 
-    createSimpleButtons({
-        ['Download Helmet Object GLB + DRACO']: async() => {
-            const blob = await viewer.export(mesh, {
-                exportExt: 'glb',
-                embedUrlImages: true, // embed images in glb even when url is available.
-                compress: true,
-            })
-            if (!blob) {
-                alert('Unable to export helmet object')
-                return
-            }
-            downloadBlob(blob, 'helmet.' + blob.ext)
-        },
-        ['Download Scene GLB (Without Viewer Config) + DRACO']: async() => {
-            const blob = await viewer.exportScene({viewerConfig: false, compress: true})
-            if (!blob || blob.ext !== 'glb') {
-                alert('Unable to export scene')
-                return
-            }
-            downloadBlob(blob, 'scene.glb')
-        },
-        ['Download Scene GLB (With Viewer Config) + DRACO']: async() => {
-            const blob = await viewer.exportScene({viewerConfig: true, compress: true})
-            if (!blob || blob.ext !== 'glb') {
-                alert('Unable to export scene')
-                return
-            }
-            downloadBlob(blob, 'scene_with_config.glb')
-        },
+    createExampleCard(viewer, {
+        description: 'Exports an object, or the whole scene with or without the viewer settings, to GLB with Draco mesh compression (GLTFDracoExportPlugin).',
+        actions: [
+            {type: 'button', label: 'Download Helmet Object GLB + DRACO', icon: 'box', value: async() => {
+                const blob = await viewer.export(mesh, {
+                    exportExt: 'glb',
+                    embedUrlImages: true, // embed images in glb even when url is available.
+                    compress: true,
+                })
+                if (!blob) {
+                    alert('Unable to export helmet object')
+                    return
+                }
+                downloadBlob(blob, 'helmet.' + blob.ext)
+            }},
+            {type: 'button', label: 'Download Scene GLB (Without Viewer Config) + DRACO', icon: 'package', value: async() => {
+                const blob = await viewer.exportScene({viewerConfig: false, compress: true})
+                if (!blob || blob.ext !== 'glb') {
+                    alert('Unable to export scene')
+                    return
+                }
+                downloadBlob(blob, 'scene.glb')
+            }},
+            {type: 'button', label: 'Download Scene GLB (With Viewer Config) + DRACO', icon: 'package', value: async() => {
+                const blob = await viewer.exportScene({viewerConfig: true, compress: true})
+                if (!blob || blob.ext !== 'glb') {
+                    alert('Unable to export scene')
+                    return
+                }
+                downloadBlob(blob, 'scene_with_config.glb')
+            }},
+        ],
     })
 
 }

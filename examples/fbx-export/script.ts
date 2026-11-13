@@ -8,6 +8,7 @@ import {
     ThreeViewer,
 } from 'threepipe'
 import {AssimpJsPlugin} from '@threepipe/plugin-assimpjs'
+import {createExampleCard} from '../examples-utils/example-card.js'
 
 const viewer = new ThreeViewer({
     renderScale: 'auto',
@@ -69,29 +70,16 @@ async function init() {
         return fbxBlob
     }
 
-    // add download button
-    const convertButton = document.createElement('button')
-    convertButton.innerText = 'Convert to fbx'
-    convertButton.style.position = 'absolute'
-    convertButton.style.bottom = '6rem'
-    convertButton.style.right = '3rem'
-    convertButton.style.zIndex = '10000'
-    convertButton.onclick = async() => {
-        await exportFbx()
-    }
-    document.body.appendChild(convertButton)
-
-    const downloadButton = document.createElement('button')
-    downloadButton.innerText = 'Download as .fbx'
-    downloadButton.style.position = 'absolute'
-    downloadButton.style.bottom = '3rem'
-    downloadButton.style.right = '3rem'
-    downloadButton.style.zIndex = '10000'
-    downloadButton.onclick = async() => {
-        await exportFbx()
-        if (fbxBlob) downloadBlob(fbxBlob, 'file.fbx')
-    }
-    document.body.appendChild(downloadButton)
+    createExampleCard(viewer, {
+        description: 'Exports the model to FBX in the browser: to GLB first, then to FBX with assimp (AssimpJsPlugin). The converted file is shown next to the original.',
+        actions: [
+            {type: 'button', label: 'Convert to fbx', icon: 'refresh-cw', value: async() => exportFbx()},
+            {type: 'button', label: 'Download as .fbx', icon: 'download', value: async() => {
+                await exportFbx()
+                if (fbxBlob) downloadBlob(fbxBlob, 'file.fbx')
+            }},
+        ],
+    })
 
 }
 

@@ -7,7 +7,7 @@ import {
     LoadingScreenPlugin,
     ThreeViewer,
 } from 'threepipe'
-import {createSimpleButtons} from '../examples-utils/simple-bottom-buttons.js'
+import {createExampleCard} from '../examples-utils/example-card.js'
 
 const viewer = new ThreeViewer({renderScale: 'auto', canvas: document.getElementById('mcanvas') as HTMLCanvasElement, msaa: true})
 
@@ -32,58 +32,60 @@ async function init() {
     }
     console.log(helmet)
 
-    createSimpleButtons({
-        ['Download Helmet Object GLTF']: async() => {
-            const blob = await viewer.export(helmet, {
-                exportExt: 'gltf',
-                _basePath: basePath,
-            })
-            if (!blob) {
-                alert('Unable to export helmet object')
-                return
-            }
-            downloadBlob(blob, 'helmet.' + blob.ext)
+    createExampleCard(viewer, {
+        description: 'Exports a glTF model loaded from a URL with the resource paths kept relative to its base path, or only the root object with the URL of its file.',
+        actions: [
+            {type: 'button', label: 'Download Helmet Object GLTF', icon: 'file-code', value: async() => {
+                const blob = await viewer.export(helmet, {
+                    exportExt: 'gltf',
+                    _basePath: basePath,
+                })
+                if (!blob) {
+                    alert('Unable to export helmet object')
+                    return
+                }
+                downloadBlob(blob, 'helmet.' + blob.ext)
 
-            const gltfJSON = await blob.text()
-            const json = JSON.parse(gltfJSON)
-            console.log(json)
-            console.log('JSON Size', gltfJSON.length) // ~734KB
-            for (const image of json.images) {
-                console.log(image.uri)
-                if (!image.uri || !image.uri.startsWith('Default_')) {
+                const gltfJSON = await blob.text()
+                const json = JSON.parse(gltfJSON)
+                console.log(json)
+                console.log('JSON Size', gltfJSON.length) // ~734KB
+                for (const image of json.images) {
+                    console.log(image.uri)
+                    if (!image.uri || !image.uri.startsWith('Default_')) {
+                        console.error('[TEST] - Something went wrong')
+                    }
+                }
+                if (json.extras?.resourcePath !== basePath) {
+                    console.error('[TEST] - Resource path is incorrect', json.extras?.resourcePath)
+                }
+            }},
+            {type: 'button', label: 'Download GLTF (RootPath Reference)', icon: 'file-code', value: async() => {
+                helmet._sChildren = [] // set the serializable children to empty, so only the root object is exported, along with url that can be used to reload the object.
+                helmet.userData.rootPathRefresh = true
+                const blob = await viewer.export(helmet, { // note that we are using the `helmet` (parent) object here, and not the `mesh`.
+                    exportExt: 'gltf',
+                    _basePath: basePath,
+                })
+                delete helmet._sChildren
+                if (!blob) {
+                    alert('Unable to export helmet object')
+                    return
+                }
+                downloadBlob(blob, 'helmet.' + blob.ext)
+                const gltfJSON = await blob.text()
+                const json = JSON.parse(gltfJSON)
+                console.log(json)
+                console.log('JSON Size', gltfJSON.length) // ~380 Bytes
+
+                if (json.images) { // there shouldnt be any assets in this
                     console.error('[TEST] - Something went wrong')
                 }
-            }
-            if (json.extras?.resourcePath !== basePath) {
-                console.error('[TEST] - Resource path is incorrect', json.extras?.resourcePath)
-            }
-        },
-        ['Download GLTF (RootPath Reference)']: async() => {
-            helmet._sChildren = [] // set the serializable children to empty, so only the root object is exported, along with url that can be used to reload the object.
-            helmet.userData.rootPathRefresh = true
-            const blob = await viewer.export(helmet, { // note that we are using the `helmet` (parent) object here, and not the `mesh`.
-                exportExt: 'gltf',
-                _basePath: basePath,
-            })
-            delete helmet._sChildren
-            if (!blob) {
-                alert('Unable to export helmet object')
-                return
-            }
-            downloadBlob(blob, 'helmet.' + blob.ext)
-            const gltfJSON = await blob.text()
-            const json = JSON.parse(gltfJSON)
-            console.log(json)
-            console.log('JSON Size', gltfJSON.length) // ~380 Bytes
-
-            if (json.images) { // there shouldnt be any assets in this
-                console.error('[TEST] - Something went wrong')
-            }
-            if (json.extras?.resourcePath !== basePath) {
-                console.error('[TEST] - Resource path is incorrect', json.extras?.resourcePath)
-            }
-        },
-
+                if (json.extras?.resourcePath !== basePath) {
+                    console.error('[TEST] - Resource path is incorrect', json.extras?.resourcePath)
+                }
+            }},
+        ],
     })
 
 }
