@@ -2,6 +2,11 @@ import {
     BufferGeometry,
     Camera,
     Color,
+    DataTexture,
+    FloatType,
+    InstancedMesh,
+    NearestFilter,
+    RGBAFormat,
     DoubleSide,
     GBufferRenderPass,
     ICamera,
@@ -216,21 +221,88 @@ export class SSVelocityMaterial extends ShaderMaterial {
 
     extraUniformsToUpload: Record<string, IUniform> = {
         modelMatrixPrevious: {value: new Matrix4().identity()},
+        // instanced meshes: the previous frame's instance matrices, 4 texels (columns) per instance, 1024 per row
+        instanceMatrixPrevious: {value: null},
+        hasInstanceMatrixPrevious: {value: false},
     }
 
-    private _previousWorldMatrices: Record<string, Matrix4> = {}
+    /**
+     * The world matrix of each object in the last and in this frame's velocity render. Advanced once per render
+     * (`frame`): an object with several material groups is drawn (and gets onBeforeRender) once per group, and
+     * copying the matrix at each draw left every group after the first with no motion.
+     */
+    private _previousWorldMatrices: Record<string, {previous: Matrix4, current: Matrix4, frame: number}> = {}
+    /**
+     * Previous instance matrices per instanced mesh: two float textures, the one written last frame is read by this
+     * frame's draw while this frame's matrices go into the other (once per render, for all of the mesh's groups).
+     * Without them every instance got the mesh's motion only (camera motion for a static mesh), so TAA and the
+     * SSGI/SSR history smeared moving instances.
+     */
+    private _previousInstanceMatrices: Record<string, {textures: [DataTexture, DataTexture], data: [Float32Array, Float32Array], read: 0 | 1, valid: boolean, capacity: number, frame: number, readNow: DataTexture | null}> = {}
+
+    private _instancePrevious(object: InstancedMesh, frame: number) {
+        const capacity = object.instanceMatrix.count
+        let e = this._previousInstanceMatrices[object.uuid]
+        if (!e || e.capacity !== capacity) {
+            if (e) e.textures.forEach(t => t.dispose())
+            else (object as any as IObject3D).addEventListener?.('dispose', () => {
+                const d = this._previousInstanceMatrices[object.uuid]
+                if (d) d.textures.forEach(t => t.dispose())
+                delete this._previousInstanceMatrices[object.uuid]
+                delete this._previousWorldMatrices[object.uuid]
+            })
+            // the texture's layout is the instanceMatrix array's: instance i's 16 floats at i * 16
+            const width = 4 * Math.min(capacity, 1024), height = Math.ceil(capacity / 1024)
+            const data = [new Float32Array(width * height * 4), new Float32Array(width * height * 4)] as const
+            const make = (i: 0 | 1) => {
+                const t = new DataTexture(data[i], width, height, RGBAFormat, FloatType)
+                t.minFilter = t.magFilter = NearestFilter
+                t.generateMipmaps = false
+                t.name = 'instanceMatrixPrevious'
+                return t
+            }
+            e = this._previousInstanceMatrices[object.uuid] = {textures: [make(0), make(1)], data: [data[0], data[1]], read: 0, valid: false, capacity, frame: -1, readNow: null}
+        }
+        if (e.frame !== frame) {
+            e.frame = frame
+            e.readNow = e.valid ? e.textures[e.read] : null
+            // this frame's matrices, for the next frame
+            const w = 1 - e.read as 0 | 1
+            e.data[w].set(object.instanceMatrix.array)
+            e.textures[w].needsUpdate = true
+            e.read = 1 - e.read as 0 | 1
+            e.valid = true
+        }
+        const u = this.extraUniformsToUpload
+        u.instanceMatrixPrevious.value = e.readNow
+        u.hasInstanceMatrixPrevious.value = !!e.readNow
+    }
+
+    dispose() {
+        for (const e of Object.values(this._previousInstanceMatrices)) e.textures.forEach(t => t.dispose())
+        this._previousInstanceMatrices = {}
+        this._previousWorldMatrices = {}
+        super.dispose()
+    }
 
     // this gets called for each object.
     onBeforeRender(_r: WebGLRenderer, _s: Scene, _c: Camera, _geometry: BufferGeometry, object: IObject3D, group: Group) {
         super.onBeforeRender(_r, _s, _c, _geometry, object, group)
-        const prevMatrix = this._previousWorldMatrices[object.uuid]
-        this.extraUniformsToUpload.modelMatrixPrevious.value.copy(prevMatrix ?? object.matrixWorld)
+        // one velocity render is one renderer.render call: its frame counter tells a new frame from another group's draw
+        const frame = _r.info.render.frame
+        let world = this._previousWorldMatrices[object.uuid]
+        if (!world) world = this._previousWorldMatrices[object.uuid] = {previous: object.matrixWorld.clone(), current: object.matrixWorld.clone(), frame}
+        else if (world.frame !== frame) {
+            world.previous.copy(world.current)
+            world.current.copy(object.matrixWorld)
+            world.frame = frame
+        }
+        this.extraUniformsToUpload.modelMatrixPrevious.value.copy(world.previous)
 
-        // todo: make sure all objects are only rendered once.
-        if (prevMatrix) {
-            prevMatrix.copy(object.matrixWorld)
-        } else {
-            this._previousWorldMatrices[object.uuid] = object.matrixWorld.clone()
+        if ((object as any).isInstancedMesh) this._instancePrevious(object as any as InstancedMesh, frame)
+        else {
+            this.extraUniformsToUpload.instanceMatrixPrevious.value = null
+            this.extraUniformsToUpload.hasInstanceMatrixPrevious.value = false
         }
 
         // todo: add support for all this in the shaders.
