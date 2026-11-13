@@ -38,6 +38,18 @@ describe('shortcutsSheetGroups', () => {
         expect(ids('export')).toEqual([])
     })
 
+    test('the Shift form of a key is not listed when the plain key is (gizmo keys work with Shift held)', () => {
+        const gizmo: ViewerAction[] = [
+            {id: 'space', label: 'Local or world space', shortcut: ['KeyQ', 'Shift+KeyQ'], group: 'Pivot', run: () => {}},
+            {id: 'larger', label: 'Larger gizmo', shortcut: ['Equal', 'Shift+Equal', 'NumpadAdd', 'Shift+NumpadAdd'], group: 'Pivot', run: () => {}},
+            {id: 'redo', label: 'Redo', shortcut: ['Mod+Shift+KeyZ', 'Mod+KeyY'], group: 'Edit', run: () => {}},
+        ]
+        const keys = shortcutsSheetGroups(gizmo, id => gizmo.find(a => a.id === id)!.shortcut, '', 'Other', false).flatMap(g => g.rows.map(r => r.keys))
+        expect(keys).toEqual([['Q'], ['=', 'Num +'], ['Ctrl+Shift+Z', 'Ctrl+Y']])
+        // the search does not find a hidden Shift form
+        expect(shortcutsSheetGroups(gizmo, id => gizmo.find(a => a.id === id)!.shortcut, 'shift+q', 'Other', false)).toEqual([])
+    })
+
     test('the search finds the keys by their names also where the labels are symbols (a Mac)', () => {
         const ids = (q: string) => shortcutsSheetGroups(actions, own, q, 'Other', true).flatMap(g => g.rows.map(r => r.id))
         expect(ids('cmd+z')).toEqual(['undo'])

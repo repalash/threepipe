@@ -1,4 +1,4 @@
-import {createStyles, formatShortcut, shortcutsOf} from 'threepipe'
+import {createStyles, formatShortcut, parseShortcut, shortcutsOf} from 'threepipe'
 import type {ViewerAction, ViewerActions} from 'threepipe'
 import styles from './ShortcutsSheet.css?inline'
 
@@ -17,7 +17,7 @@ export interface ShortcutsSheetGroup {
 
 /**
  * The rows of the {@link ShortcutsSheet}: the actions that have a key, in groups (in the order of the first action of
- * each group), with the labels of their keys.
+ * each group), with the labels of their keys. The Shift form of a key is left out when the key is there too.
  * @param actions - the actions (`viewer.actions.list()`)
  * @param shortcutOf - the key or keys of an action now (`viewer.actions.shortcutOf`: the key that the app set, else its own)
  * @param query - only the rows whose label, key or group has this text (any case); empty: all the rows
@@ -28,7 +28,7 @@ export function shortcutsSheetGroups(actions: ViewerAction[], shortcutOf: (id: s
     const q = query.trim().toLowerCase()
     const groups = new Map<string, ShortcutsSheetRow[]>()
     for (const a of actions) {
-        const shortcuts = shortcutsOf(shortcutOf(a.id))
+        const shortcuts = withoutShiftForms(shortcutsOf(shortcutOf(a.id)))
         const keys = shortcuts.map(k => formatShortcut(k, mac))
         if (!keys.length) continue
         const name = a.group || otherGroup
@@ -39,6 +39,18 @@ export function shortcutsSheetGroups(actions: ViewerAction[], shortcutOf: (id: s
         groups.get(name)!.push({id: a.id, label: a.label, keys})
     }
     return [...groups].map(([name, rows]) => ({name, rows}))
+}
+
+/**
+ * The keys without the Shift form of a key that is in the list too: the gizmo keys work with Shift held (to snap), and
+ * the sheet shows `Q`, not `Q or Shift+Q`. The keys still work.
+ */
+function withoutShiftForms(shortcuts: string[]) {
+    const parsed = shortcuts.map(parseShortcut)
+    return shortcuts.filter((_, i) => {
+        const s = parsed[i]
+        return !s?.shift || !parsed.some(o => o && !o.shift && o.key === s.key && o.mod === s.mod && o.alt === s.alt)
+    })
 }
 
 /** Options of a {@link ShortcutsSheet} */
