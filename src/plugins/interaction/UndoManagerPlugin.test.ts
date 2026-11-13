@@ -1,7 +1,7 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 import {JSUndoManager} from 'ts-browser-helpers'
 import {UndoManagerPlugin} from './UndoManagerPlugin'
-import {bindActions} from './CommandsPlugin'
+import {ViewerActions} from '../../viewer/ViewerActions'
 
 /** A key press on the window of the node setup (globalThis, with a new event target for each test) */
 function press(code: string, target: unknown = null, fields: Partial<KeyboardEvent> = {}) {
@@ -27,13 +27,13 @@ afterEach(() => {
     unbind = undefined
 })
 
-/** The plugin with an undo manager, its actions bound without a viewer (the same rules as with a CommandsPlugin) */
+/** The plugin with an undo manager, its actions bound without a viewer (a ViewerActions without a viewer: the same rules as in a viewer) */
 function setup() {
     const plugin = new UndoManagerPlugin()
     plugin.undoManager = new JSUndoManager({bindHotKeys: false, limit: 10, debug: false})
     const undo = vi.spyOn(plugin, 'undo').mockImplementation(() => undefined)
     const redo = vi.spyOn(plugin, 'redo').mockImplementation(() => undefined)
-    unbind = bindActions(undefined, plugin.actions)
+    unbind = new ViewerActions().register(plugin.actions)
     return {plugin, undo, redo}
 }
 

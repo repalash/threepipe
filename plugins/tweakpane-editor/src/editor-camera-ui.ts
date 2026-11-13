@@ -108,7 +108,7 @@ export function setupEditorCameraUi(viewer: ThreeViewer, camera: EditorCameraPlu
         if (!root.contains(e.target as Node)) setOpen(false)
     }
     document.addEventListener('pointerdown', onOutside, true)
-    // the Escape that closes the card is used: it does not also clear the selection (an action of a CommandsPlugin)
+    // the Escape that closes the card is used: it does not also clear the selection (an action in viewer.actions)
     const onKey = (e: KeyboardEvent) => {
         if (e.key !== 'Escape' || !root.classList.contains('ecu-open')) return
         e.preventDefault()
@@ -176,7 +176,7 @@ export function setupEditorCameraUi(viewer: ThreeViewer, camera: EditorCameraPlu
         const editing = camera.editing
         const sync = camera.syncStartView
         const moved = camera.startViewMoved
-        // the key now: the one that a CommandsPlugin sets, else the hotkey
+        // the key now: the one that the app sets in viewer.actions, else the hotkey
         const key = camera.shortcut ? formatShortcut(camera.shortcut) : ''
         // disabled: the default camera is the main camera, neither the editor camera nor the start view
         root.style.display = camera.isDisabled() ? 'none' : ''

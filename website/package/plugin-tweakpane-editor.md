@@ -185,7 +185,7 @@ In the [Tweakpane Editor example](https://threepipe.org/examples/tweakpane-edito
 
 ## Actions, keys and toasts
 
-The keys of the editor are actions of the [CommandsPlugin](../plugin/CommandsPlugin) of threepipe. When the viewer has a `CommandsPlugin` (added before or after the editor), the editor registers them there, so a toolbar, a menu or a command palette lists and runs them. Without it, the editor runs the same keys itself (`bindActions`), as before.
+The keys of the editor are actions in [`viewer.actions`](../guide/viewer-api#actions-and-shortcuts) of threepipe, so a toolbar, a menu or a command palette lists and runs them, and the app changes their keys there (`setShortcut`). The settings of the editor (`TweakpaneEditorPlugin.uiConfig`) show the `Actions` folder of `viewer.actions`: the keys on or off, and a button for each action with its key.
 
 | Action | Key | Where |
 |---|---|---|
@@ -193,14 +193,11 @@ The keys of the editor are actions of the [CommandsPlugin](../plugin/CommandsPlu
 | `editorFrame.cycleModeBar` | Ctrl+\ (Cmd+\ on a Mac) | `EditorFrame.actions` |
 | `editorCamera.toggleEditing` | C (`EditorCameraPlugin.hotkey`) | `EditorCameraPlugin.actions` |
 
-Toasts: the `CommandsPlugin` shows the `error` and the `warn` of each run in a toast of the viewer dialog (`viewer.dialog.toast`). In the editor, a toast is a small chip at the top centre of the canvas, under the camera pill; the editor sets its place and its dark-theme colour with the CSS variables of the dialog (`--dialog-toast-top`, `--dialog-toast-bg`). Other UIs show their messages the same way: `viewer.dialog.toast?.(message, {kind, container: viewer.container})` (`kind`: `'info'`, `'warn'` or `'error'`). The Escape that closes the camera card or the layout menu does not also clear the selection.
+Toasts: `viewer.actions` shows the `error` and the `warn` of each run in a toast of the viewer dialog (`viewer.dialog.toast`). In the editor, a toast is a small chip at the top centre of the canvas, under the camera pill; the editor sets its place and its dark-theme colour with the CSS variables of the dialog (`--dialog-toast-top`, `--dialog-toast-bg`). Other UIs show their messages the same way: `viewer.dialog.toast?.(message, {kind, container: viewer.container})` (`kind`: `'info'`, `'warn'` or `'error'`). The Escape that closes the camera card or the layout menu does not also clear the selection.
 
 ```typescript
-import {CommandsPlugin} from 'threepipe'
-
-const commands = viewer.addPluginSync(CommandsPlugin)
-commands.list('Editor') // the actions of the frame
-commands.register({id: 'save', label: 'Save', shortcut: 'Mod+S', run: async() => (await save()) ? undefined : {error: 'Not saved'}})
+viewer.actions.list('Editor') // the actions of the frame
+viewer.actions.register({id: 'save', label: 'Save', shortcut: 'Mod+S', run: async() => (await save()) ? undefined : {error: 'Not saved'}})
 viewer.dialog.toast?.('Saved', {container: viewer.container})
 ```
 
@@ -432,7 +429,7 @@ editorCamera.copyStartView()
 editorCamera.addEventListener('editingChange', ({editing}) => {
     button.classList.toggle('on', editing)
 })
-// another key than C (the action editorCamera.toggleEditing of a CommandsPlugin takes it too)
+// another key than C (the action editorCamera.toggleEditing in viewer.actions takes it too)
 editorCamera.hotkey = 'KeyK'
 ```
 
@@ -542,7 +539,7 @@ The `layout` option draws the same configs as a toolbar, e.g. the buttons over a
 - A button is a button, a checkbox a toggle button (pressed while the value is true, `aria-pressed`), a dropdown a select, and any other field (a slider, a number, a colour, a vector, a text) a button with its value that opens the field in a small popover. A folder is a group, with a line between groups.
 - `icon` (uiconfig.js 0.4.2): SVG markup (drawn in the text colour), an image URL, or the name of an icon of the set of the form, a part of [Lucide](https://lucide.dev) (`lucideIcons`, like `'camera'`, `'download'`, `'rotate-3d'`). The icon is in front of the label. In a bar on a narrow screen (640 px), a button with an icon shows the icon only, and the label in its tooltip. An `icon` and a `label` can be functions (play or pause): a refresh draws them again.
 - An async button (its function returns a promise) is disabled, with a spinner, until the promise settles; an error goes to `onError` (default `console.error`) and enables the button again. This is in all the layouts.
-- The tooltips (the editor look) show the label when only the icon shows, and the key that `shortcutOf(config)` gives (e.g. the key of a `CommandsPlugin` action). `UiConfigForm.Tooltips = false` turns them off.
+- The tooltips (the editor look) show the label when only the icon shows, and the key that `shortcutOf(config)` gives (e.g. the key of an action in `viewer.actions`). `UiConfigForm.Tooltips = false` turns them off.
 - The bar takes the panel colour of the Tweakpane theme of the page (`clean`, `clean-dark`, ...), else light, or dark when the system prefers it. The accessible name of each button is its label.
 
 ```typescript
@@ -561,4 +558,4 @@ viewer.addEventListener('postFrame', () => bar.refresh())
 
 A monitor is a read-only row with its value (a live readout). In a stack, a button shows its key (`shortcutOf`) at the end of its row; in a bar the key is in the tooltip.
 
-The examples use the stack in their card (`createExampleCard` in `examples/examples-utils/example-card.ts`): a card at the top left of the canvas with the title of the example, what it shows, its controls, its own elements (`content`: a list of results, a table of stats) and a link to its source, collapsible, at the bottom on a phone (collapsed at first). `exampleAction` makes a button that is also a `CommandsPlugin` action, with its key.
+The examples use the stack in their card (`createExampleCard` in `examples/examples-utils/example-card.ts`): a card at the top left of the canvas with the title of the example, what it shows, its controls, its own elements (`content`: a list of results, a table of stats) and a link to its source, collapsible, at the bottom on a phone (collapsed at first). `exampleAction` makes a button that is also an action in `viewer.actions`, with its key.

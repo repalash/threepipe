@@ -44,7 +44,6 @@ export {DeviceOrientationControlsPlugin} from './interaction/DeviceOrientationCo
 export {PointerLockControlsPlugin} from './interaction/PointerLockControlsPlugin'
 export {ThreeFirstPersonControlsPlugin} from './interaction/ThreeFirstPersonControlsPlugin'
 export {UndoManagerPlugin, createBindingsProxy} from './interaction/UndoManagerPlugin'
-export {CommandsPlugin, bindActions, shortcutsOf, viewerTakesKey, type CommandAction, type CommandResult, type CommandsPluginEventMap} from './interaction/CommandsPlugin'
 
 // import
 export {Rhino3dmLoadPlugin} from './import/Rhino3dmLoadPlugin'
@@ -59,7 +58,7 @@ export {GLTFMeshOptDecodePlugin} from './import/GLTFMeshOptDecodePlugin'
 export {AssetExporterPlugin, type ExportAssetOptions} from './export/AssetExporterPlugin'
 export {CanvasSnapshotPlugin, CanvasSnipperPlugin, type CanvasSnapshotPluginOptions} from './export/CanvasSnapshotPlugin'
 export {FileTransferPlugin} from './export/FileTransferPlugin'
-export {CanvasRecorderPlugin, type CanvasRecorderPluginEventMap} from './export/CanvasRecorderPlugin'
+export {CanvasRecorderPlugin, type CanvasRecorderPluginEventMap, type CanvasRecorderFactory} from './export/CanvasRecorderPlugin'
 
 // postprocessing
 export {AScreenPassExtensionPlugin} from './postprocessing/AScreenPassExtensionPlugin'

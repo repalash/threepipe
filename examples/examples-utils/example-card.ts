@@ -1,4 +1,4 @@
-import {bindActions, CommandAction, CommandsPlugin, formatShortcut, shortcutsOf, ThreeViewer, UiObjectConfig} from 'threepipe'
+import {formatShortcut, shortcutsOf, ThreeViewer, UiObjectConfig, ViewerAction} from 'threepipe'
 import {lucideIcon, UiConfigForm} from '@threepipe/plugin-tweakpane-editor'
 
 // TODO: move the bar and stack layouts of UiConfigForm to uiconfig.js (uiconfig-dom, repalash/uiconfig.js#15)
@@ -22,7 +22,7 @@ export interface ExampleCardOptions {
 }
 
 /** The actions of {@link exampleAction}, by their button */
-const actionOf = new WeakMap<UiObjectConfig, CommandAction>()
+const actionOf = new WeakMap<UiObjectConfig, ViewerAction>()
 const COLLAPSED_KEY = 'threepipe-example-card-collapsed'
 const PHONE = '(max-width: 640px)'
 let styled = false
@@ -88,30 +88,19 @@ export function createExampleCard(viewer: ThreeViewer, options: ExampleCardOptio
     if (options.actions?.length) {
         // the key of each action button, formatted once: looked up again when the actions or their keys change
         const keys = new Map<UiObjectConfig, string | undefined>()
-        const clearKeys = () => keys.clear()
-        let watched: CommandsPlugin | undefined
-        const watch = (commands?: CommandsPlugin) => {
-            watched?.removeEventListener('actionsChange', clearKeys)
-            watched = commands
-            watched?.addEventListener('actionsChange', clearKeys)
-            clearKeys()
-        }
-        watch(viewer.getPlugin(CommandsPlugin))
-        viewer.addPluginListener('add', () => watch(viewer.getPlugin(CommandsPlugin)), CommandsPlugin.PluginType)
-        // the plugin is still in the viewer during its remove event
-        viewer.addPluginListener('remove', () => watch(undefined), CommandsPlugin.PluginType)
+        viewer.actions.addEventListener('actionsChange', () => keys.clear())
         form = new UiConfigForm(options.actions, {
             layout: 'stack',
             shortcutOf: (c) => {
                 if (keys.has(c)) return keys.get(c)
                 const action = actionOf.get(c)
-                // with a CommandsPlugin, its keys (none after setShortcut(id, null)); else the action's own
-                const key = action ? shortcutsOf(watched ? watched.shortcutOf(action.id) : action.shortcut)[0] : undefined
+                // the key in viewer.actions now (none after setShortcut(id, null))
+                const key = action ? shortcutsOf(viewer.actions.shortcutOf(action.id))[0] : undefined
                 const text = key ? formatShortcut(key) : undefined
                 keys.set(c, text)
                 return text
             },
-            // a control that throws: a toast on the viewer, like the actions of a CommandsPlugin
+            // a control that throws: a toast on the viewer, like an action in viewer.actions
             onError: (e) => {
                 console.error(e)
                 viewer.dialog.toast?.(e instanceof Error ? e.message : String(e), {kind: 'error', container: viewer.container})
@@ -166,28 +155,19 @@ export function createExampleCard(viewer: ThreeViewer, options: ExampleCardOptio
 }
 
 /**
- * A button of the example card that is also an action ({@link CommandAction}): its key works (with the
- * `CommandsPlugin` of the viewer when it has one, see {@link bindActions}), the tooltip shows the key, and it runs
- * through the `CommandsPlugin`, which shows an error in a toast.
+ * A button of the example card that is also an action of the viewer ({@link ViewerAction} in `viewer.actions`): its
+ * key works, the tooltip shows the key, and it runs through `viewer.actions`, which shows an error or a warning in a
+ * toast.
  */
-export function exampleAction(viewer: ThreeViewer, action: CommandAction): UiObjectConfig {
-    bindActions(viewer, [action])
+export function exampleAction(viewer: ThreeViewer, action: ViewerAction): UiObjectConfig {
+    viewer.actions.register(action)
     const config: UiObjectConfig = {
         type: 'button',
         label: action.label,
         icon: action.icon,
         disabled: () => !!action.enabled && !action.enabled(),
-        value: async() => {
-            const commands = viewer.getPlugin(CommandsPlugin)
-            // with a CommandsPlugin, it shows the result (its toastResults setting decides)
-            if (commands) {
-                await commands.run(action.id)
-                return
-            }
-            const result = await action.run()
-            if (result?.error) throw new Error(result.error) // a toast, from onError of the card
-            if (result?.warn) viewer.dialog.toast?.(result.warn, {kind: 'warn', container: viewer.container})
-        },
+        // viewer.actions shows the result in a toast (its toastResults setting decides)
+        value: async() => viewer.actions.run(action.id),
     }
     actionOf.set(config, action)
     return config
