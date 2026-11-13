@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- Examples: a small button on each example page, with a link to its source and a prompt to copy for an agent (it replaces the code preview panel)
 - `ObjectPicker.cycleWrap` (default `false`): clicking an already-selected object cycles to the next one under the cursor and wraps round to the front instead of clearing the selection, so clicking the only object under the cursor keeps it selected (Blender's behaviour)
 - `ObjectPicker.cycleThroughHits` (default `true`, as in webgi): set it to `false` to always pick the front object under the cursor instead of cycling through the objects behind it
 - `materialPreviewSettingsKey(options)`: the key of the viewer settings that change a material preview (environment map, intensity, rotation, tone mapping, output colour space), from `materialPreviewOptionsFromViewer`; the cache of `MaterialPreviewPlugin` uses it, and a caller that shows a preview can ask again when it changes
@@ -68,6 +69,8 @@ All notable changes to this project will be documented in this file.
 - tsconfigs for TypeScript 7: `moduleResolution: bundler` (was `node`), no `baseUrl`, `strict: false` and `types: ["*"]` stated explicitly (the new defaults are `true` and `[]`). The `three` → `threepipe` path in three plugins is removed, it never resolved. Remove the unused `typescript-plugin-css-modules`
 
 ### Fixed
+
+- `BVHPlugin`: the default loader's `import('three-mesh-bvh')` is no longer a literal in the built `lib` and `dist` (the build folded the variable holding the specifier), so the bundler of an app that does not install three-mesh-bvh no longer fails to resolve it (Vite: `Failed to resolve import "three-mesh-bvh"`, which stopped the dev server with 0.7.0-next.0). The specifier is `BVHPlugin.LIBRARY_MODULE`, a static property like the other runtime-loaded libraries (see [dynamically loaded files](https://threepipe.org/notes/dynamically-loaded-files.html))
 
 - tweakpane-editor page frame: the panel scrolls up and down only. On a phone in Safari it also scrolled sideways, and the labels went out at the left
 - `StickyNotesUiPlugin` (tweakpane-editor): the minimised notes bar is as wide as its icon and number again on a phone. Its icon was 100% of a button as wide as its content, and Safari stretched it, and the bar, to the free width of the canvas

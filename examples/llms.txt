@@ -1,0 +1,38 @@
+# threepipe examples
+
+> threepipe is a 3D web framework built on three.js. Load a model, add plugins, render. It covers rendering, materials,
+> post-processing, importers and exporters, UI and editors. Each folder here is a small working example of one feature.
+
+## Use threepipe
+
+`npm install threepipe`, or start a project with `npm create threepipe@latest`, or load it from a CDN:
+
+```html
+<canvas id="canvas" style="width: 800px; height: 600px"></canvas>
+<script type="module">
+  import {ThreeViewer} from 'https://unpkg.com/threepipe@latest/dist/index.mjs'
+  const viewer = new ThreeViewer({canvas: document.getElementById('canvas')})
+  viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
+  viewer.load('https://threejs.org/examples/models/gltf/DamagedHelmet/glTF/DamagedHelmet.gltf', {autoCenter: true, autoScale: true})
+</script>
+```
+
+## Get the source
+
+Pages are at `https://threepipe.org/examples/<name>/`; use `dev` for `master` below for the latest, unreleased version.
+
+- One example: `https://raw.githubusercontent.com/repalash/threepipe/master/examples/<name>/index.html`, and `script.ts` next
+  to it (or the file its `data-scripts` attribute names). The import map in `index.html` lists the packages it uses.
+- List all examples: `https://api.github.com/repos/repalash/threepipe/contents/examples?ref=master`
+- All of threepipe: `git clone --depth 1 https://github.com/repalash/threepipe`, or `npm install threepipe`, which also has `src/`.
+
+## Read more
+
+- Guide: https://threepipe.org/guide/getting-started.html
+- A plugin: `https://threepipe.org/plugin/<PluginName>.html`; a package: `https://threepipe.org/package/<name>.html`
+- API reference: https://threepipe.org/docs/
+
+## What you can do
+
+Read an example, then use the same plugins and APIs in your own project rather than writing them again in plain three.js.
+threepipe is Apache-2.0. Models and textures that examples load may have their own licenses.
