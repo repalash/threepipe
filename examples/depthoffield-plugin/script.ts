@@ -10,6 +10,7 @@ import {
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 import {BloomPlugin, DepthOfFieldPlugin} from '@threepipe/webgi-plugins'
+import {createExampleCard} from '../examples-utils/example-card.js'
 
 async function init() {
 
@@ -47,6 +48,16 @@ async function init() {
     viewer.scene.mainCamera.target.copy(target)
     viewer.scene.mainCamera.position.set(0, 0, -5)
     viewer.scene.mainCamera.setDirty()
+
+    createExampleCard(viewer, {
+        description: 'DepthOfFieldPlugin (webgi-plugins) blurs what is nearer or farther than the focal point, like a camera lens. With Click to focus on, click an object to move the focus to it. Turn the effect off to compare.',
+        actions: [
+            {type: 'checkbox', label: 'Depth of field', icon: 'focus', property: [dofPlugin, 'enabled']},
+            {type: 'checkbox', label: 'Click to focus', icon: 'circle-dot', property: [dofPlugin, 'enableEdit']},
+            {type: 'slider', label: 'Near blur', bounds: [0, 1], stepSize: 0.01, property: [dofPlugin.pass!, 'nearBlurScale']},
+            {type: 'slider', label: 'Far blur', bounds: [0, 1], stepSize: 0.01, property: [dofPlugin.pass!, 'farBlurScale']},
+        ],
+    })
 }
 
 _testStart()
