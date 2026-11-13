@@ -377,7 +377,7 @@ createStyles(css`
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
-        z-index: 10001; /* above the example card */
+        z-index: 1000; /* floating tools layer (CONTRIBUTING.md, UI layers): above the example card (300) */
         background-color: rgba(0, 0, 0, 0.6);
         backdrop-filter: blur(10px);
         border-radius: 10px;

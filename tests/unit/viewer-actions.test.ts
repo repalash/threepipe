@@ -139,6 +139,15 @@ describe('formatShortcut', () => {
         expect(formatShortcut('Mod++', false)).toBe('Ctrl++')
     })
 
+    test('a sign that needs Shift shows without Shift: the sign tells it (? not Shift+?)', () => {
+        expect(formatShortcut('Shift+?', false)).toBe('?')
+        expect(formatShortcut('Shift+?', true)).toBe('?')
+        expect(formatShortcut('Mod+Shift+!', false)).toBe('Ctrl+!')
+        // a key that does not need Shift keeps it
+        expect(formatShortcut('Shift+/', false)).toBe('Shift+/')
+        expect(formatShortcut('Shift+Equal', true)).toBe('⇧=')
+    })
+
     test('a code shows as its key', () => {
         expect(formatShortcut('KeyC', false)).toBe('C')
         expect(formatShortcut('Shift+KeyT', true)).toBe('⇧T')
@@ -146,6 +155,13 @@ describe('formatShortcut', () => {
         expect(formatShortcut('Mod+Backslash', true)).toBe('⌘\\')
         expect(formatShortcut('F2', false)).toBe('F2')
         expect(formatShortcut('Space', false)).toBe('Space')
+    })
+
+    test('a numpad code shows as Num and its key', () => {
+        expect(formatShortcut('NumpadAdd', false)).toBe('Num +')
+        expect(formatShortcut('Shift+NumpadSubtract', true)).toBe('⇧Num -')
+        expect(formatShortcut('Numpad7', false)).toBe('Num 7')
+        expect(formatShortcut('NumpadEnter', false)).toBe('Num Enter')
     })
 
     test('a string that does not parse stays as it is', () => {
@@ -381,6 +397,37 @@ describe('ViewerActions', () => {
         }
     })
 
+    test('two viewers in the body: a key with the focus on the page is for the viewer used last, not the first one', () => {
+        const a = setup(), b = setup()
+        const body = {tagName: 'BODY', nodeType: 1, isConnected: true, contains: (t: any) => t === body || t === canvasA || t === canvasB}
+        const canvasA = {tagName: 'CANVAS', nodeType: 1}, canvasB = {tagName: 'CANVAS', nodeType: 1}
+        Object.assign(a.viewer, {container: body, canvas: canvasA})
+        Object.assign(b.viewer, {container: body, canvas: canvasB})
+        const oldDocument = (globalThis as any).document
+        ;(globalThis as any).document = {body, documentElement: {}}
+        const undoA = action('undo', {shortcut: 'Mod+Z'}), undoB = action('undo', {shortcut: 'Mod+Z'})
+        a.actions.register(undoA)
+        b.actions.register(undoB)
+        try {
+            // a press on the canvas of b, then a key on the page (the body): for b
+            const down = new Event('pointerdown')
+            Object.defineProperty(down, 'target', {value: canvasB})
+            dispatchEvent(down)
+            pressIn(body, 'z', 'KeyZ', {ctrlKey: true})
+            expect([undoA.run.mock.calls.length, undoB.run.mock.calls.length]).toEqual([0, 1])
+            // a press on the body (not on a canvas) keeps b as the viewer used last
+            const onBody = new Event('pointerdown')
+            Object.defineProperty(onBody, 'target', {value: body})
+            dispatchEvent(onBody)
+            pressIn(body, 'z', 'KeyZ', {ctrlKey: true})
+            expect([undoA.run.mock.calls.length, undoB.run.mock.calls.length]).toEqual([0, 2])
+        } finally {
+            ;(globalThis as any).document = oldDocument
+            a.actions.dispose()
+            b.actions.dispose()
+        }
+    })
+
     test('two viewers in one element: the canvas tells the viewer; nested containers: the innermost one', () => {
         const a = setup(), b = setup()
         const kids = new Set<any>()
@@ -411,6 +458,48 @@ describe('ViewerActions', () => {
         }
     })
 
+    test('suspend and resume: no key runs an action while suspended (a count of the calls); run still runs', async() => {
+        const {actions} = setup()
+        const undo = action('undo', {shortcut: 'Mod+Z'})
+        actions.register(undo)
+        actions.suspend()
+        actions.suspend()
+        expect(actions.suspended).toBe(true)
+        expect(press('z', 'KeyZ', {ctrlKey: true}).defaultPrevented).toBe(false)
+        actions.resume()
+        expect(press('z', 'KeyZ', {ctrlKey: true}).defaultPrevented).toBe(false)
+        await actions.run('undo')
+        expect(undo.run).toHaveBeenCalledTimes(1)
+        actions.resume()
+        actions.resume() // one too many: no negative count
+        expect(actions.suspended).toBe(false)
+        expect(press('z', 'KeyZ', {ctrlKey: true}).defaultPrevented).toBe(true)
+        expect(undo.run).toHaveBeenCalledTimes(2)
+    })
+
+    test('no key runs an action while the page has an open modal dialog (also a capture action), unless the dialog holds the viewer', () => {
+        const {viewer, actions} = setup()
+        viewer.container = {}
+        const undo = action('undo', {shortcut: 'Mod+Z'})
+        const next = action('next', {shortcut: 'ArrowRight', capture: true})
+        actions.register([undo, next])
+        const oldDocument = (globalThis as any).document
+        let modals: any[] = [{contains: () => false}]
+        ;(globalThis as any).document = {querySelectorAll: (s: string) => s === 'dialog:modal' ? modals : []}
+        try {
+            expect(press('z', 'KeyZ', {ctrlKey: true}).defaultPrevented).toBe(false)
+            expect(press('ArrowRight', 'ArrowRight').defaultPrevented).toBe(false)
+            expect(actions.suspended).toBe(true)
+            modals = [{contains: (n: any) => n === viewer.container}] // the viewer is in the dialog
+            expect(actions.suspended).toBe(false)
+            modals = []
+            expect(press('z', 'KeyZ', {ctrlKey: true}).defaultPrevented).toBe(true)
+            expect([undo.run.mock.calls.length, next.run.mock.calls.length]).toEqual([1, 0])
+        } finally {
+            ;(globalThis as any).document = oldDocument
+        }
+    })
+
     test('the keys are off while enabled is false, and after dispose; run still runs', async() => {
         const {actions} = setup()
         const undo = action('undo', {shortcut: 'Mod+Z'})
@@ -430,15 +519,16 @@ describe('ViewerActions', () => {
 
     test('with no actions left, a viewer takes no key (two viewers: the other one gets the keys of the page)', () => {
         const a = setup(), b = setup()
+        const inB = {tagName: 'CANVAS', nodeType: 1}
         a.viewer.container = {isConnected: true, contains: () => false}
-        b.viewer.container = {isConnected: true, contains: (t: any) => t === b.viewer.container}
+        b.viewer.container = {isConnected: true, contains: (t: any) => t === inB}
         const undoA = action('undo', {shortcut: 'Mod+Z'})
         a.actions.register(undoA)
         const unregisterB = b.actions.register(action('undo', {shortcut: 'Mod+Z'}))
         try {
             // b had the last pointer press: the key of the page is for b
             const down = new Event('pointerdown')
-            Object.defineProperty(down, 'target', {value: b.viewer.container})
+            Object.defineProperty(down, 'target', {value: inB})
             dispatchEvent(down)
             press('z', 'KeyZ', {ctrlKey: true})
             expect(undoA.run).toHaveBeenCalledTimes(0)
@@ -547,6 +637,23 @@ describe('ViewerActions without a viewer', () => {
         expect(press('ArrowRight', 'ArrowRight').defaultPrevented).toBe(true)
         expect([toggle.run.mock.calls.length, del.run.mock.calls.length, next.run.mock.calls.length]).toEqual([0, 1, 1])
         unbind()
+    })
+
+    test('a focused widget that uses the arrow keys (a tree) keeps them, also from a capture action when the viewer container is the body', () => {
+        const viewer = fakeViewer()
+        viewer.container = {isConnected: true, contains: () => true} // the body: every element is in it
+        viewer.canvas = {}
+        const actions = new ViewerActions(viewer)
+        const next = action('next', {shortcut: 'ArrowRight', capture: true})
+        actions.register(next)
+        const inTree: any = {nodeType: 1, tagName: 'DIV', closest: (sel: string) => sel.includes('[role="tree"]') ? {} : null}
+        const inCard: any = {nodeType: 1, tagName: 'BUTTON', closest: () => null}
+        expect(pressIn(inTree, 'ArrowRight', 'ArrowRight').defaultPrevented).toBe(false)
+        expect(pressIn(inTree, 'Home', 'Home').defaultPrevented).toBe(false)
+        // a button of the annotation card: the arrows navigate
+        expect(pressIn(inCard, 'ArrowRight', 'ArrowRight').defaultPrevented).toBe(true)
+        expect(next.run).toHaveBeenCalledTimes(1)
+        actions.dispose()
     })
 
     test('a capture action runs in the capture phase and stops the key (before the arrow keys of the camera controls)', () => {
