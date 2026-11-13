@@ -635,6 +635,8 @@ scene.refreshActiveNearFar()
 
 [`scene.backgroundIntensity`](https://threepipe.org/docs/classes/RootScene.html#backgroundintensity) - The background intensity of the scene. This is the same as `scene.backgroundIntensity` in three.js.
 
+[`scene.backgroundBlurriness`](https://threepipe.org/docs/classes/RootScene.html#backgroundblurriness) - Blurs a background texture or environment map (0 to 1), as in three.js. The environment light does not change.
+
 [`scene.environment`](https://threepipe.org/docs/classes/RootScene.html#environment) - The environment map of the scene. This is the same as `scene.environment` in three.js.
 
 `scene.environment.rotation` - The rotation of the environment map around the y-axis(number).

@@ -115,6 +115,24 @@ viewer.scene.backgroundIntensity = 0.5; // Set background intensity to 50%
 viewer.scene.backgroundIntensity = 5; // Set background intensity to 500%
 ```
 
+## Background Blurriness
+
+`backgroundBlurriness` blurs a background texture or environment map, from `0` (sharp) to `1` (most blurred), as in three.js. The environment light on the materials does not change, so a model keeps its sharp reflections in front of a soft background. It is saved with the scene and shows in the scene UI.
+
+```javascript
+viewer.scene.background = 'environment'
+viewer.scene.backgroundBlurriness = 0.5
+```
+
+## Background Tone Mapping
+
+The `TonemapPlugin` tone maps the whole image, the background too, so a white background comes out light grey with the default ACES mode. Set `viewer.scene.backgroundTonemap = false` to keep the background colour as it is. The screen pass finds the background pixels from the depth, so this needs a `GBufferPlugin` or `DepthBufferPlugin` in the viewer; without one the background stays tone mapped and the `TonemapPlugin` logs a warning.
+
+```javascript
+viewer.addPluginSync(new DepthBufferPlugin(UnsignedByteType, true))
+viewer.scene.backgroundTonemap = false
+```
+
 ## Pan/Scale Background
 
 To adjust the position or scale of the background texture, you can modify the `offset`, `center`, `repeat`, `rotation` properties of the texture. This allows you to pan or scale the background texture as needed.

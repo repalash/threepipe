@@ -45,7 +45,7 @@ export class TonemapPlugin extends AScreenPassExtensionPlugin {
     } as const
 
     readonly extraDefines = {
-        ['TONEMAP_BACKGROUND']: ()=>this.tonemapBackground === false || this._viewer?.scene.backgroundTonemap === false ? '0' : '1',
+        ['TONEMAP_BACKGROUND']: ()=>this._tonemapBackgroundDefine(),
     } as const
 
     @serialize()
@@ -175,6 +175,22 @@ export class TonemapPlugin extends AScreenPassExtensionPlugin {
         const x = TonemapPlugin.MaterialTonemapEnabled(c.material) ? 1 : 0
         data.w = updateBit(data.w, 1, x) // 2nd Bit
         super.updateGBufferFlags(data, c)
+    }
+
+    private _noGBufferWarned = false
+
+    /**
+     * `'0'` when the background is not tone mapped ({@link tonemapBackground} or `scene.backgroundTonemap` is false).
+     * The screen pass finds the background pixels from the depth of the primary GBuffer, so without a GBufferPlugin or
+     * DepthBufferPlugin the background stays tone mapped: warns once then.
+     */
+    private _tonemapBackgroundDefine() {
+        const off = this.tonemapBackground === false || this._viewer?.scene.backgroundTonemap === false
+        if (off && !this._noGBufferWarned && this._viewer && !getOrCall(this._viewer.renderManager.gbufferUnpackExtension?.extraDefines?.HAS_GBUFFER)) {
+            this._noGBufferWarned = true
+            console.warn('TonemapPlugin: the background is still tone mapped. Turning its tone mapping off (scene.backgroundTonemap or tonemapBackground) needs a GBufferPlugin or DepthBufferPlugin in the viewer, to find the background pixels.')
+        }
+        return off ? '0' : '1'
     }
 
     static {
