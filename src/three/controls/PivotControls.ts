@@ -23,7 +23,7 @@ import {
     Vector3,
 } from 'three'
 import {gizmoActions} from './gizmoKeyboardHandler'
-import type {CommandAction} from '../../plugins/interaction/CommandsPlugin'
+import type {ViewerAction} from '../../viewer/ViewerActions'
 
 // ============================================================================
 // Math helpers (ported from drei)
@@ -203,10 +203,10 @@ export class PivotControls extends Group<PivotControlsEventMap & Object3DEventMa
 
     /**
      * The keys of the gizmo, as actions: Q (local or world space), + and - (the size), X, Y, Z (an axis) and Space (on or
-     * off), while it is enabled and attached. The `PivotControlsPlugin` binds them to its viewer (`bindActions`: a
-     * `CommandsPlugin` lists them); without the plugin, bind them yourself.
+     * off), while it is enabled and attached. The `PivotControlsPlugin` registers them in `viewer.actions`; without the
+     * plugin, register them yourself (`viewer.actions.register(controls.actions)`).
      */
-    readonly actions: CommandAction[] = gizmoActions('pivotControls', 'Pivot', {
+    readonly actions: ViewerAction[] = gizmoActions('pivotControls', 'Pivot', {
         active: () => this.enabled && !!this.object,
         attached: () => !!this.object,
         toggleSpace: () => { this.space = this.space === 'local' ? 'world' : 'local' },

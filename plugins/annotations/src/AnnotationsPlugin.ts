@@ -3,8 +3,6 @@ import {
     AnimationResult,
     AViewerPluginEventMap,
     AViewerPluginSync,
-    bindActions,
-    type CommandAction,
     createStyles,
     EasingFunctions,
     ICamera,
@@ -26,6 +24,7 @@ import {
     UndoManagerPlugin,
     Vector2,
     Vector3,
+    type ViewerAction,
 } from 'threepipe'
 import styles from './AnnotationsPlugin.css?inline'
 import {renderAnnotationText} from './render-text'
@@ -390,7 +389,7 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         this._buildCard(layer)
         AnnotationsPlugin._added.add(this)
         window.addEventListener('keydown', this._onKeyDown, {capture: true})
-        this._unbindActions = bindActions(viewer, this.actions)
+        this._unregisterActions = viewer.actions.register(this.actions)
         window.addEventListener('pointerdown', this._onWindowDown, {capture: true})
         window.addEventListener('pointerup', this._onWindowUp, {capture: true})
         window.addEventListener('pointermove', this._onWindowMove, {capture: true})
@@ -408,8 +407,8 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         this._stopAnim()
         this.cancelAdding()
         window.removeEventListener('keydown', this._onKeyDown, {capture: true})
-        this._unbindActions?.()
-        this._unbindActions = undefined
+        this._unregisterActions?.()
+        this._unregisterActions = undefined
         window.removeEventListener('pointerdown', this._onWindowDown, {capture: true})
         window.removeEventListener('pointerup', this._onWindowUp, {capture: true})
         window.removeEventListener('pointermove', this._onWindowMove, {capture: true})
@@ -621,16 +620,16 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
     }
 
     /**
-     * The keys of the plugin, as actions (`bindActions`: a `CommandsPlugin` of the viewer lists them): → and ← open the
+     * The keys of the plugin, as actions (registered in `viewer.actions`, where a UI lists them): → and ← open the
      * next and the previous annotation while a card is open, before the arrow keys of the camera controls on the canvas
      * (`capture`). With more viewers on the page, the viewer with the focus, or the one used last, takes the key. Escape
      * (close the card) stays a key of the card.
      */
-    readonly actions: CommandAction[] = [
+    readonly actions: ViewerAction[] = [
         {id: 'annotations.next', label: 'Next annotation', group: 'Annotations', shortcut: 'ArrowRight', capture: true, enabled: () => !this.isDisabled() && !!this._openId, run: () => this.next()},
         {id: 'annotations.prev', label: 'Previous annotation', group: 'Annotations', shortcut: 'ArrowLeft', capture: true, enabled: () => !this.isDisabled() && !!this._openId, run: () => this.prev()},
     ]
-    private _unbindActions?: () => void
+    private _unregisterActions?: () => void
 
     /** Open the next annotation (after the last: the first) */
     next() {

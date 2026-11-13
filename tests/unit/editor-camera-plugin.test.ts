@@ -1,6 +1,6 @@
 import {afterEach, beforeEach, describe, expect, test, vi} from 'vitest'
 import {EventDispatcher, Object3D, PerspectiveCamera, Vector3} from 'three'
-import {CommandsPlugin, FirstPersonControls2, OrbitControls3, OrthographicCamera2, PerspectiveCamera2, ThreeViewer} from 'threepipe'
+import {FirstPersonControls2, OrbitControls3, OrthographicCamera2, PerspectiveCamera2, ThreeViewer, ViewerActions} from 'threepipe'
 import {EditorCameraPlugin} from '../../plugins/tweakpane-editor/src/EditorCameraPlugin'
 import {setupEditorCameraUi} from '../../plugins/tweakpane-editor/src/editor-camera-ui'
 import {TweakpaneEditorPlugin} from '../../plugins/tweakpane-editor/src/TweakpaneEditorPlugin'
@@ -61,11 +61,8 @@ function setup({undo = true, orbit = false, ortho = false, sync = false} = {}) {
         canvas,
         assetManager: new EventDispatcher<any>(),
         getPlugin: (p: any) => undo && (p === 'UndoManagerPlugin' || p?.PluginType === 'UndoManagerPlugin') ? undoPlugin : undefined,
-        // for bindActions of the key: the viewer has no CommandsPlugin
-        _pluginListeners: {add: [], remove: []},
-        addPluginListener: ThreeViewer.prototype.addPluginListener,
-        removePluginListener: ThreeViewer.prototype.removePluginListener,
     }) as any
+    viewer.actions = new ViewerActions(viewer) // the plugin registers its action there
 
     const plugin = new EditorCameraPlugin()
     plugin.syncStartView = sync
@@ -177,60 +174,50 @@ describe('EditorCameraPlugin', () => {
         expect(plugin.editing).toBe(true)
     })
 
-    test('shortcut: the key that a CommandsPlugin sets for the switch, else hotkey; a change of the actions sends hotkeyChange', () => {
+    test('shortcut: the key that viewer.actions sets for the switch, else hotkey; a change of the actions sends hotkeyChange', () => {
         const {plugin, viewer} = setup()
-        const commands = new CommandsPlugin()
-        const getPlugin = viewer.getPlugin
-        viewer.getPlugin = (p: any) => p === 'CommandsPlugin' ? commands : getPlugin(p)
-        commands.onAdded(viewer)
-        viewer._pluginListeners.add.forEach((l: any) => l.l({type: 'addPlugin', plugin: commands}))
         const changes: string[] = []
         plugin.addEventListener('hotkeyChange', ({hotkey}) => changes.push(hotkey))
         expect(plugin.shortcut).toBe('KeyC')
-        commands.setShortcut('editorCamera.toggleEditing', 'KeyV')
+        viewer.actions.setShortcut('editorCamera.toggleEditing', 'KeyV')
         expect([plugin.shortcut, changes.length > 0]).toEqual(['KeyV', true])
-        commands.setShortcut('editorCamera.toggleEditing', null)
+        viewer.actions.setShortcut('editorCamera.toggleEditing', null)
         expect(plugin.shortcut).toBeUndefined()
-        commands.onRemove(viewer)
+        viewer.actions.setShortcut('editorCamera.toggleEditing', undefined)
     })
 
-    test('with a CommandsPlugin (added later), the key is its action editorCamera.toggleEditing, with the new key of hotkey', async() => {
+    test('the key is the action editorCamera.toggleEditing in viewer.actions, with the new key of hotkey', async() => {
         const {plugin, viewer} = setup()
-        // the CommandsPlugin added after the camera plugin, as ThreeViewer.addPluginSync does it
-        const commands = new CommandsPlugin()
-        const getPlugin = viewer.getPlugin
-        viewer.getPlugin = (p: any) => p === 'CommandsPlugin' ? commands : getPlugin(p)
-        commands.onAdded(viewer)
-        viewer._pluginListeners.add.forEach((l: any) => l.l({type: 'addPlugin', plugin: commands}))
+        const actions: ViewerActions = viewer.actions
         const runs: string[] = []
-        commands.addEventListener('actionRun', ({action}) => runs.push(action.id))
+        actions.addEventListener('actionRun', ({action}) => runs.push(action.id))
 
-        expect(commands.list('Camera').map(a => [a.id, a.shortcut])).toEqual([['editorCamera.toggleEditing', 'KeyC']])
+        expect(actions.list('Camera').map(a => [a.id, a.shortcut])).toEqual([['editorCamera.toggleEditing', 'KeyC']])
         expect(key('KeyC').defaultPrevented).toBe(true)
-        expect(plugin.editing).toBe(false) // one switch: the plugin has no own listener now
+        expect(plugin.editing).toBe(false)
         await Promise.resolve()
         await Promise.resolve()
         expect(runs).toEqual(['editorCamera.toggleEditing'])
 
         const changes = vi.fn()
-        commands.addEventListener('actionsChange', changes)
+        actions.addEventListener('actionsChange', changes)
         plugin.hotkey = 'KeyK'
         expect(changes).toHaveBeenCalled()
-        expect(commands.get('editorCamera.toggleEditing')?.shortcut).toBe('KeyK')
+        expect(actions.get('editorCamera.toggleEditing')?.shortcut).toBe('KeyK')
         expect(key('KeyC').defaultPrevented).toBe(false)
         key('KeyK')
         expect(plugin.editing).toBe(true)
 
         // a UI runs it too; not while the plugin is disabled
-        await commands.run('editorCamera.toggleEditing')
+        await actions.run('editorCamera.toggleEditing')
         expect(plugin.editing).toBe(false)
         plugin.enabled = false
-        expect(await commands.run('editorCamera.toggleEditing')).toBeUndefined()
+        expect(await actions.run('editorCamera.toggleEditing')).toBeUndefined()
         expect(key('KeyK').defaultPrevented).toBe(false)
         plugin.enabled = true
 
         plugin.onRemove(viewer)
-        expect(commands.list()).toEqual([])
+        expect(actions.list()).toEqual([])
     })
 
     test('editingChange tells when the view changes between Edit and View (the toggle, the key, disable, remove)', () => {
@@ -1350,6 +1337,7 @@ function uiViewer() {
             delete plugins[p.constructor.PluginType]
         },
     })
+    viewer.actions = new ViewerActions(viewer)
     return viewer
 }
 
