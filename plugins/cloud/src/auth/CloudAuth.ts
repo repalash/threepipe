@@ -17,10 +17,27 @@ const STATE_KEY = 'threepipeCloudState'
  *
  * `signIn()` keeps a random `state` in sessionStorage and the cloud sends it back with the key; `handleRedirect()` takes
  * only a key that brings it back, so a link with someone else's key in its fragment does not sign the page in. A page
- * without storage (sandboxed) cannot keep it and takes the key as it comes.
+ * without storage (sandboxed) cannot keep the state, so it asks the person before it takes a key
+ * ({@link confirmUnverified}), naming the account the key belongs to.
  */
 export class CloudAuth {
     private _s: Session | null = null
+
+    /**
+     * Asked when a page without storage (sandboxed) gets a key in its URL: such a page cannot tell a sign-in it started
+     * from a link with someone else's key, which would put the person's saves, shares and reports in that account.
+     * `account` is the email the key was issued to, read from the key itself (a link can change `tp_cloud_user`, not
+     * that), or `''` when the key names none. Return `true` to sign in. Default: the browser's `confirm()`; `false`
+     * where it is not available (a sandbox without `allow-modals`). Set it to show the app's own dialog.
+     */
+    confirmUnverified: (account: string) => boolean = account => {
+        try {
+            return typeof confirm === 'function' && confirm(`Sign in to threepipe cloud as ${account || 'an account this page cannot name'}?\n\n` +
+                'This page cannot check that you started this sign-in. Press Cancel unless you just signed in.')
+        } catch {
+            return false
+        }
+    }
 
     constructor(private _endpoint: () => string) {
         try {
@@ -98,17 +115,37 @@ export class CloudAuth {
             console.warn('CloudAuth: ignored a key from another endpoint', from)
             return null
         }
+        if (expected === undefined && !this.confirmUnverified(accountOf(key))) {
+            console.warn('CloudAuth: ignored a sign-in this page could not check, which was not confirmed')
+            return null
+        }
         this._s = {key, user: p.get('tp_cloud_user') || '', folder: p.get('tp_cloud_folder') || '', api, exp: expiry(key)}
         try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(this._s)) } catch { /* no storage */ }
         return 'signed-in'
     }
 }
 
+/** The claims of a JWT (not verified: the cloud checks the signature of every request), or `{}`. */
+function claims(jwt: string): Record<string, unknown> {
+    try {
+        const c = JSON.parse(atob(jwt.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')))
+        return c && typeof c === 'object' ? c : {}
+    } catch {
+        return {} // not a JWT
+    }
+}
+
 /** The `exp` of a JWT, in seconds; now + 1 h when it cannot be read. */
 function expiry(jwt: string): number {
-    try {
-        const exp = JSON.parse(atob(jwt.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).exp
-        if (typeof exp === 'number') return exp
-    } catch { /* not a JWT */ }
-    return Math.floor(Date.now() / 1000) + 3600
+    const exp = claims(jwt).exp
+    return typeof exp === 'number' ? exp : Math.floor(Date.now() / 1000) + 3600
+}
+
+/**
+ * The account a key was issued to: its `sub`, the account's email (services/cloud mintKey). A changed claim breaks the
+ * signature, so the key would not work for it.
+ */
+function accountOf(jwt: string): string {
+    const sub = claims(jwt).sub
+    return typeof sub === 'string' ? sub : ''
 }
