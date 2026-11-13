@@ -10,6 +10,7 @@ All notable changes to this project will be documented in this file.
 
 - `RootScene.backgroundBlurriness` is saved with the scene, shows in its UI (Background Blurriness) and renders the change: it blurs a background texture or environment map (0 to 1) as in three.js, while the environment light stays sharp
 - `TonemapPlugin` warns once when the background tone mapping is turned off (`scene.backgroundTonemap` or `tonemapBackground`) and the viewer has no GBufferPlugin or DepthBufferPlugin: the screen pass finds the background pixels from the depth, so the background stayed tone mapped with no message
+- Examples: a small button on each example page, with a link to its source and a prompt to copy for an agent (it replaces the code preview panel)
 - `ObjectPicker.cycleWrap` (default `false`): clicking an already-selected object cycles to the next one under the cursor and wraps round to the front instead of clearing the selection, so clicking the only object under the cursor keeps it selected (Blender's behaviour)
 - `ObjectPicker.cycleThroughHits` (default `true`, as in webgi): set it to `false` to always pick the front object under the cursor instead of cycling through the objects behind it
 - `materialPreviewSettingsKey(options)`: the key of the viewer settings that change a material preview (environment map, intensity, rotation, tone mapping, output colour space), from `materialPreviewOptionsFromViewer`; the cache of `MaterialPreviewPlugin` uses it, and a caller that shows a preview can ask again when it changes
