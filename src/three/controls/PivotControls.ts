@@ -22,7 +22,7 @@ import {
     Vector2,
     Vector3,
 } from 'three'
-import {gizmoActions} from './gizmoKeyboardHandler'
+import {gizmoActions, type GizmoActionTarget} from './gizmoKeyboardHandler'
 import type {ViewerAction} from '../../viewer/ViewerActions'
 
 // ============================================================================
@@ -203,10 +203,13 @@ export class PivotControls extends Group<PivotControlsEventMap & Object3DEventMa
 
     /**
      * The keys of the gizmo, as actions: Q (local or world space), + and - (the size), X, Y, Z (an axis) and Space (on or
-     * off), while it is enabled and attached. The `PivotControlsPlugin` registers them in `viewer.actions`; without the
-     * plugin, register them yourself (`viewer.actions.register(controls.actions)`).
+     * off), while it is enabled and attached; also with Shift held down. With a transform gizmo on too, the gizmo pressed
+     * last takes the keys they share (else the transform gizmo). The `PivotControlsPlugin` registers them in
+     * `viewer.actions`; without the plugin, register them yourself (`viewer.actions.register(controls.actions)`).
      */
     readonly actions: ViewerAction[] = gizmoActions('pivotControls', 'Pivot', {
+        // a press on a handle makes it the gizmo of the keys it shares with a transform gizmo
+        events: this as unknown as GizmoActionTarget['events'],
         active: () => this.enabled && !!this.object,
         attached: () => !!this.object,
         toggleSpace: () => { this.space = this.space === 'local' ? 'world' : 'local' },

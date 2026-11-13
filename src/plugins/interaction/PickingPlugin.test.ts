@@ -30,6 +30,32 @@ function setup(selected: unknown = {}) {
 }
 
 describe('PickingPlugin actions', () => {
+    it('the edit keys follow the printed letter: on a French keyboard Ctrl+A (at the place of Q) selects all', () => {
+        const plugin = setup()
+        const all = vi.spyOn(plugin, 'selectAll').mockImplementation(() => {})
+        const copy = vi.spyOn(plugin, 'copySelected').mockImplementation(() => {})
+        press('KeyQ', {key: 'a', ctrlKey: true})
+        expect(all).toHaveBeenCalledTimes(1)
+        // the key at the place of A types q there: not select all
+        press('KeyA', {key: 'q', ctrlKey: true})
+        expect(all).toHaveBeenCalledTimes(1)
+        press('KeyC', {key: 'c', ctrlKey: true})
+        expect(copy).toHaveBeenCalledTimes(1)
+    })
+
+    it('a change of keyboardShortcuts is a change of the actions (a list of the keys updates)', () => {
+        const plugin = setup()
+        const actions = new ViewerActions()
+        const changes = vi.fn()
+        ;(plugin as any)._viewer = {actions}
+        ;(plugin as any)._unregisterActions = actions.register(plugin.actions)
+        actions.addEventListener('actionsChange', changes)
+        plugin.keyboardShortcuts = false
+        expect(changes).toHaveBeenCalled()
+        expect(actions.shortcutOf('picking.delete')).toBeUndefined()
+        ;(plugin as any)._unregisterActions()
+    })
+
     it('the keys of the selection are actions: Escape, Delete or Backspace, H, Shift+H, Mod+D, Alt+G', () => {
         const plugin = setup()
         const clear = vi.spyOn(plugin, 'clearSelection').mockImplementation(() => {})

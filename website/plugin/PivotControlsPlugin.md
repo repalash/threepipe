@@ -68,7 +68,7 @@ picking.setSelectedObject(someObject)
 | **Shift** (hold) | Snap to grid while dragging |
 | **Alt/Option** (hold) | Uniform scale while dragging a scale sphere |
 
-The keys are actions (`pivotControls.toggleSpace`, … in `PivotControls.actions`), registered by the plugin in [`viewer.actions`](../guide/viewer-api#actions-and-shortcuts): a UI lists them, and the app changes or removes their keys there (`setShortcut`). Mod is Cmd on a Mac and Ctrl on other platforms. The held keys stay keys of the gizmo.
+The keys are actions (`pivotControls.toggleSpace`, … in `PivotControls.actions`), registered by the plugin in [`viewer.actions`](../guide/viewer-api#actions-and-shortcuts): a UI lists them, and the app changes or removes their keys there (`setShortcut`). Mod is Cmd on a Mac and Ctrl on other platforms. They also work while Shift is held down; the held keys stay keys of the gizmo. With the transform gizmo on too, the gizmo whose handle was pressed last takes the keys they share, else the transform gizmo.
 
 Transforms applied to duplicated objects are automatically tracked by [PickingPlugin](./PickingPlugin)'s smart duplicate system — the next Ctrl+D applies the same offset.
 

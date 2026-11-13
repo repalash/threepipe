@@ -355,7 +355,11 @@ export class ViewerActions extends EventDispatcher<ViewerActionsEventMap> {
 
     private _onKey(e: KeyboardEvent, capture: boolean) {
         if (!this.enabled || !viewerTakesKey(this.viewer, e) || capture && !focusForCapture(this.viewer, e)) return
-        const action = shortcutAction(e, this._actions, capture, a => this.shortcutOf(a.id))
+        // the key of each action now: the one that the app set, else its own (no search by id for each action)
+        const action = shortcutAction(e, this._actions, capture, a => {
+            const set = this._shortcuts.get(a.id)
+            return set === null ? undefined : set ?? a.shortcut
+        })
         if (!action) return
         e.preventDefault()
         if (capture) e.stopPropagation()

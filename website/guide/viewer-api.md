@@ -508,7 +508,7 @@ These plugins register their keys this way (the ids, for `setShortcut`):
 | `EditorFrame` (tweakpane editor) | `editorFrame.toggleTheme`, `editorFrame.cycleModeBar` | Shift+T, Mod+\\ |
 | `EditorCameraPlugin` (tweakpane editor) | `editorCamera.toggleEditing` | C |
 
-The keys of a gizmo work while it is enabled and attached; the keys of the selection need a selection, except select all, paste, show all and focus (F frames everything with no selection). Keys that belong to an open popup (Escape that closes a card or a menu) and held keys (Shift that snaps a gizmo) stay with their element. A gizmo made without its plugin (`TransformControls2`, `PivotControls`) has its `actions` too: register them yourself (`viewer.actions.register(controls.actions)`).
+The edit keys (undo, redo, select all, copy, cut, paste, duplicate) are letters, as in other apps; the other keys are places on the keyboard. The keys of a gizmo work while it is enabled and attached, also while Shift is held down (to snap); with both gizmos on, the one whose handle was pressed last takes the keys they share, else the transform gizmo. The keys of the selection need a selection, except select all, paste, show all and focus (F frames everything with no selection). Keys that belong to an open popup (Escape that closes a card or a menu) and held keys (Shift that snaps a gizmo) stay with their element. A gizmo made without its plugin (`TransformControls2`, `PivotControls`) has its `actions` too: register them yourself (`viewer.actions.register(controls.actions)`).
 
 ## RenderManager
 
