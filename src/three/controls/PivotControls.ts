@@ -210,6 +210,7 @@ export class PivotControls extends Group<PivotControlsEventMap & Object3DEventMa
     readonly actions: ViewerAction[] = gizmoActions('pivotControls', 'Pivot', {
         // a press on a handle makes it the gizmo of the keys it shares with a transform gizmo
         events: this as unknown as GizmoActionTarget['events'],
+        scope: () => this.domElement,
         active: () => this.enabled && !!this.object,
         attached: () => !!this.object,
         toggleSpace: () => { this.space = this.space === 'local' ? 'world' : 'local' },

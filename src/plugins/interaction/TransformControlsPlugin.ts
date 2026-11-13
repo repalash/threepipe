@@ -239,6 +239,7 @@ export class TransformControls2 extends TransformControls implements IWidget, IO
         ...gizmoActions('transformControls', 'Transform', {
             // a press on a handle makes it the gizmo of the shared keys; before one, it is the transform gizmo
             events: this as unknown as GizmoActionTarget['events'],
+            scope: () => this.domElement,
             preferred: true,
             active: () => this.enabled && !!this.object,
             attached: () => !!this.object,
