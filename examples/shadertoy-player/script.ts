@@ -7,12 +7,11 @@ import {
     GLSL3,
     LoadingScreenPlugin, MaterialExtension,
     ThreeViewer,
-    UiObjectConfig,
     Vector2,
     Vector3,
     Vector4,
 } from 'threepipe'
-import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
+import {createExampleCard} from '../examples-utils/example-card.js'
 // import {BlueprintJsUiPlugin} from '@threepipe/plugin-blueprintjs'
 
 // Checkout the code breakup and explanation here - https://threepipe.org/notes/shadertoy-player.html
@@ -96,7 +95,6 @@ async function init() {
         // }
         material.uniformsNeedUpdate = true
         viewer.setDirty()
-        ui.uiRefresh?.(true)
         params.stepFrame = false
     })
 
@@ -107,80 +105,6 @@ async function init() {
         toyExtension.computeCacheKey = Math.random().toString()
         material.setDirty()
         viewer.setDirty()
-        ui.uiRefresh?.(true)
-    }
-
-    const ui: UiObjectConfig = {
-        label: 'Edit Properties',
-        type: 'folder',
-        expanded: true,
-        value: params,
-        children: [{
-            type: 'vec',
-            path: 'resolution',
-            label: 'Resolution',
-            bounds: [10, 4096],
-            stepSize: 1,
-            onChange: ()=>{
-                viewer.setRenderSize(params.resolution, 'contain', 1)
-            },
-        }, {
-            type: 'number',
-            path: 'time',
-            label: 'Time',
-            readOnly: true,
-        }, {
-            type: 'number',
-            path: 'frame',
-            label: 'Frame',
-            readOnly: true,
-        }, {
-            type: 'button',
-            baseWidth: '100%',
-            label: ()=> 'Step',
-            disabled: ()=> params.running,
-            onClick: ()=>{
-                params.stepFrame = true
-                ui.uiRefresh?.(true)
-            },
-        }, {
-            type: 'button',
-            baseWidth: '100%',
-            label: ()=> params.running ? 'Pause' : 'Play',
-            onClick: ()=>{
-                params.running = !params.running
-                ui.uiRefresh?.(true)
-            },
-        }, {
-            type: 'button',
-            baseWidth: '100%',
-            label: ()=> 'Reset',
-            onClick: ()=>{
-                params.frame = 0
-                params.time = 0
-                params.stepFrame = true
-                ui.uiRefresh?.(true)
-            },
-        }, {
-            type: 'button',
-            baseWidth: '100%',
-            label: ()=> 'Edit Shader',
-            onClick: ()=>setupShaderEditor(toyExtension.parsFragmentSnippet as string, setShader),
-        }, {
-            type: 'button',
-            label: 'Download png',
-            baseWidth: '100%',
-            onClick: async()=>{
-                const running = params.running
-                params.running = false
-                await viewer.getPlugin(CanvasSnapshotPlugin)?.downloadSnapshot('snapshot.png', {
-                    waitForProgressive: false,
-                    displayPixelRatio: undefined,
-                })
-                params.running = running
-                ui.uiRefresh?.(true)
-            },
-        }],
     }
 
     const shaderFile = 'https://samples.threepipe.org/shaders/tunnel-cylinders.glsl'
@@ -188,10 +112,40 @@ async function init() {
     const shaderText = await response.text()
     setShader(shaderText)
 
-    const uiPlugin = viewer.addPluginSync(new TweakpaneUiPlugin(true))
-    // const uiPlugin = viewer.addPluginSync(new BlueprintJsUiPlugin())
-    uiPlugin.appendChild(ui)
-    // uiPlugin.setupPluginUi(CanvasSnapshotPlugin, {expanded: true})
+    // the controls of the player in the example card (uiconfig configs; the card reads them again each frame)
+    createExampleCard(viewer, {
+        description: 'Plays a Shadertoy shader as the screen shader of the viewer: an ExtendedShaderMaterial with the uniforms of Shadertoy (iTime, iFrame, iResolution, iMouse, iDate). Drag on the canvas for iMouse; Edit Shader changes the code live.',
+        actions: [
+            {type: 'folder', label: 'Playback', children: [
+                {type: 'button', label: () => params.running ? 'Pause' : 'Play', icon: () => params.running ? 'pause' : 'play', value: () => {
+                    params.running = !params.running
+                }},
+                {type: 'button', label: 'Step', icon: 'arrow-right', disabled: () => params.running, value: () => {
+                    params.stepFrame = true
+                }},
+                {type: 'button', label: 'Reset', icon: 'rotate-ccw', value: () => {
+                    params.frame = 0
+                    params.time = 0
+                    params.stepFrame = true
+                }},
+                {type: 'monitor', label: 'Time', getValue: () => params.time.toFixed(2) + ' s'},
+                {type: 'monitor', label: 'Frame', getValue: () => params.frame},
+            ]},
+            {type: 'vec', label: 'Resolution', icon: 'scaling', property: [params, 'resolution'], bounds: [10, 4096], stepSize: 1, onChange: () => {
+                viewer.setRenderSize(params.resolution, 'contain', 1)
+            }},
+            {type: 'button', label: 'Edit Shader', icon: 'code', value: () => setupShaderEditor(toyExtension.parsFragmentSnippet as string, setShader)},
+            {type: 'button', label: 'Download png', icon: 'camera', value: async() => {
+                const running = params.running
+                params.running = false
+                await viewer.getPlugin(CanvasSnapshotPlugin)?.downloadSnapshot('snapshot.png', {
+                    waitForProgressive: false,
+                    displayPixelRatio: undefined,
+                })
+                params.running = running
+            }},
+        ],
+    })
 
 }
 
@@ -423,7 +377,7 @@ createStyles(css`
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
-        z-index: 1000;
+        z-index: 1000; /* floating tools layer (CONTRIBUTING.md, UI layers): above the example card (300) */
         background-color: rgba(0, 0, 0, 0.6);
         backdrop-filter: blur(10px);
         border-radius: 10px;
