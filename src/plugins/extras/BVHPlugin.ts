@@ -104,6 +104,13 @@ const buildOptions = {indirect: true, setBoundingBox: false}
 export class BVHPlugin extends AViewerPluginSync<BVHPluginEventMap> {
     public static readonly PluginType = 'BVHPlugin'
 
+    /**
+     * The module specifier of the default loader's native `import()`, resolved by the browser (an import map entry, or
+     * a full URL here). A property, so the build cannot fold it into a literal `import('three-mesh-bvh')`, which
+     * bundlers of apps that use threepipe would then try to resolve (and fail without three-mesh-bvh installed).
+     */
+    static LIBRARY_MODULE = 'three-mesh-bvh'
+
     @uiToggle('Enabled')
     @serialize()
     @onChange(BVHPlugin.prototype.refreshAll)
@@ -614,10 +621,9 @@ function triangleCount(g: BufferGeometry) {
 }
 
 /**
- * The default loader: a native `import('three-mesh-bvh')`. The specifier is in a variable, so bundlers leave the import as
- * it is and do not need three-mesh-bvh installed. The browser resolves it with an import map.
+ * The default loader: a native `import()` of {@link BVHPlugin.LIBRARY_MODULE}. The specifier is not a literal, so bundlers
+ * leave the import as it is and do not need three-mesh-bvh installed. The browser resolves it with an import map.
  */
 async function loadThreeMeshBVH(): Promise<ThreeMeshBVH> {
-    const id = 'three-mesh-bvh'
-    return import(/* @vite-ignore */ /* webpackIgnore: true */ id)
+    return import(/* @vite-ignore */ /* webpackIgnore: true */ BVHPlugin.LIBRARY_MODULE)
 }
