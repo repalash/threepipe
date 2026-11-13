@@ -41,9 +41,10 @@ export enum UiTags {
      */
     Basic = 'basic',
     /**
-     * A button for a menu: an action on the object (duplicate, delete, set view, center geometry). The blueprint
-     * renderer (`uiconfig-blueprint`) shows these buttons in the menu of their folder, and the blueprint editor in the
-     * right-click menu of its scene hierarchy.
+     * A button for a menu: an action on the object (duplicate, delete, set view, center geometry). The Tweakpane
+     * renderer (`uiconfig-tweakpane` 2.1+) and the blueprint renderer (`uiconfig-blueprint` 0.1.0-dev.19+) show these
+     * buttons in the header of their folder: as buttons while they fit, and the rest in a menu. With an `icon`, a button
+     * shows the icon only. The blueprint editor also lists them in the right-click menu of its scene hierarchy.
      */
     ContextMenu = 'context-menu',
     /**
