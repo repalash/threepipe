@@ -132,6 +132,22 @@ const onViewerPointerDown = (e: PointerEvent) => {
     lastViewer = viewerOf(e.target) ?? lastViewer
 }
 
+/**
+ * The page has an open modal dialog (`<dialog>` opened with `showModal()`) that does not hold the container of this
+ * viewer: the rest of the page is inert then, so its keys must not run the actions behind the dialog.
+ */
+function modalDialogOver(viewer: ThreeViewer | undefined): boolean {
+    if (typeof document === 'undefined' || typeof document.querySelectorAll !== 'function') return false
+    let modals: ArrayLike<Element>
+    try {
+        modals = document.querySelectorAll('dialog:modal')
+    } catch { // no :modal (Safari before 15.6): no check, suspend() still works
+        return false
+    }
+    const container = viewer?.container
+    return Array.from(modals).some(d => !container || !d.contains(container))
+}
+
 /** Adds a viewer to {@link keyViewers}, for {@link viewerTakesKey}. @returns a function that takes it out */
 function trackViewer(viewer: ThreeViewer): () => void {
     // the browser adds one listener once
@@ -182,6 +198,8 @@ function warnInvalid(id: string, shortcut: string | string[] | null | undefined)
  *   ({@link viewerTakesKey}).
  * - `actionRun` tells the result of each run ({@link ViewerActionResult}), and `actionsChange` tells that the list or a
  *   key changed. The `error` and the `warn` of a result show in a toast ({@link toastResults}, `viewer.dialog.toast`).
+ * - {@link suspend} and {@link resume} turn the keys off for a while (an app's own modal UI); while the page has an
+ *   open modal `<dialog>` the keys are also off, without code ({@link suspended}).
  * - Without a viewer (`new ViewerActions()`), for a UI that is not part of one: it takes every key and shows no toast.
  *
  * @example
@@ -216,6 +234,7 @@ export class ViewerActions extends EventDispatcher<ViewerActionsEventMap> {
     private _listening = false
     private _untrack?: () => void
     private _disposed = false
+    private _suspends = 0
 
     /** For a settings panel: the keys on or off, the toasts on or off, and a button for each action with its key */
     readonly uiConfig: UiObjectConfig = {
@@ -305,6 +324,27 @@ export class ViewerActions extends EventDispatcher<ViewerActionsEventMap> {
         return this._run(action)
     }
 
+    /**
+     * Turns the keys off until {@link resume} (for a modal UI that is not a `<dialog>`). The calls are counted: the keys
+     * run again after one `resume` for each `suspend`. {@link run} still runs an action.
+     */
+    suspend() {
+        this._suspends++
+    }
+
+    /** Ends one {@link suspend} */
+    resume() {
+        if (this._suspends > 0) this._suspends--
+    }
+
+    /**
+     * No key runs an action now: a {@link suspend} is not resumed, or the page has an open modal `<dialog>` (one opened
+     * with `showModal()`) that does not hold the container of the viewer. Not {@link enabled}, which the app sets.
+     */
+    get suspended(): boolean {
+        return this._suspends > 0 || modalDialogOver(this.viewer)
+    }
+
     /** Removes the key listeners. Called by the viewer when it is disposed. */
     dispose() {
         this._disposed = true
@@ -354,7 +394,7 @@ export class ViewerActions extends EventDispatcher<ViewerActionsEventMap> {
     }
 
     private _onKey(e: KeyboardEvent, capture: boolean) {
-        if (!this.enabled || !viewerTakesKey(this.viewer, e) || capture && !focusForCapture(this.viewer, e)) return
+        if (!this.enabled || this.suspended || !viewerTakesKey(this.viewer, e) || capture && !focusForCapture(this.viewer, e)) return
         // the key of each action now: the one that the app set, else its own (no search by id for each action)
         const action = shortcutAction(e, this._actions, capture, a => {
             const set = this._shortcuts.get(a.id)

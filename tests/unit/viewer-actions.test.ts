@@ -442,6 +442,48 @@ describe('ViewerActions', () => {
         }
     })
 
+    test('suspend and resume: no key runs an action while suspended (a count of the calls); run still runs', async() => {
+        const {actions} = setup()
+        const undo = action('undo', {shortcut: 'Mod+Z'})
+        actions.register(undo)
+        actions.suspend()
+        actions.suspend()
+        expect(actions.suspended).toBe(true)
+        expect(press('z', 'KeyZ', {ctrlKey: true}).defaultPrevented).toBe(false)
+        actions.resume()
+        expect(press('z', 'KeyZ', {ctrlKey: true}).defaultPrevented).toBe(false)
+        await actions.run('undo')
+        expect(undo.run).toHaveBeenCalledTimes(1)
+        actions.resume()
+        actions.resume() // one too many: no negative count
+        expect(actions.suspended).toBe(false)
+        expect(press('z', 'KeyZ', {ctrlKey: true}).defaultPrevented).toBe(true)
+        expect(undo.run).toHaveBeenCalledTimes(2)
+    })
+
+    test('no key runs an action while the page has an open modal dialog (also a capture action), unless the dialog holds the viewer', () => {
+        const {viewer, actions} = setup()
+        viewer.container = {}
+        const undo = action('undo', {shortcut: 'Mod+Z'})
+        const next = action('next', {shortcut: 'ArrowRight', capture: true})
+        actions.register([undo, next])
+        const oldDocument = (globalThis as any).document
+        let modals: any[] = [{contains: () => false}]
+        ;(globalThis as any).document = {querySelectorAll: (s: string) => s === 'dialog:modal' ? modals : []}
+        try {
+            expect(press('z', 'KeyZ', {ctrlKey: true}).defaultPrevented).toBe(false)
+            expect(press('ArrowRight', 'ArrowRight').defaultPrevented).toBe(false)
+            expect(actions.suspended).toBe(true)
+            modals = [{contains: (n: any) => n === viewer.container}] // the viewer is in the dialog
+            expect(actions.suspended).toBe(false)
+            modals = []
+            expect(press('z', 'KeyZ', {ctrlKey: true}).defaultPrevented).toBe(true)
+            expect([undo.run.mock.calls.length, next.run.mock.calls.length]).toEqual([1, 0])
+        } finally {
+            ;(globalThis as any).document = oldDocument
+        }
+    })
+
     test('the keys are off while enabled is false, and after dispose; run still runs', async() => {
         const {actions} = setup()
         const undo = action('undo', {shortcut: 'Mod+Z'})

@@ -464,6 +464,13 @@ viewer.actions.setShortcut('transformControls.toggleEnabled', null) // Space doe
 viewer.actions.enabled = false // no key runs an action
 ```
 
+**Modals.** While the page has an open modal `<dialog>` (opened with `showModal()`), no key runs an action of a viewer behind it, so a key in the dialog does not edit the scene; a viewer inside the dialog keeps its keys. A modal UI that is not a `<dialog>` turns the keys off with `suspend()` and back on with `resume()` (the calls are counted). `suspended` tells if the keys are off now. In Safari before 15.6 (no `:modal`), only `suspend()` works.
+
+```typescript
+viewer.actions.suspend() // my modal opens
+viewer.actions.resume() // it closes
+```
+
 **Toasts.** The `error` and the `warn` of each run show in a toast of the viewer dialog (`viewer.dialog.toast`, in the viewer container), while `toastResults` is on (default). See [Dialogs and toasts](#dialogs-and-toasts).
 
 **A settings folder.** `viewer.actions.uiConfig` is an `Actions` folder: the keys on or off, the toasts on or off, and a button for each action with its key. It shows only where a UI adds it: the Tweakpane editor (`TweakpaneEditorPlugin`) shows it in its settings, and an app can add it to any panel (`ui.appendChild(viewer.actions.uiConfig)`).
