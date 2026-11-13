@@ -109,7 +109,7 @@ pickingPlugin.multiSelectEnabled = false // disable Shift+Click multi-selection
 | **Alt+R** | Reset rotation to identity |
 | **Alt+S** | Reset scale to (1, 1, 1) |
 
-The keys are actions (`picking.selectAll`, `picking.delete`, … in `PickingPlugin.actions`): a [CommandsPlugin](./CommandsPlugin) lists them, and the app changes or removes their keys there (`setShortcut`). Mod is Cmd on a Mac and Ctrl on other platforms. A key that needs a selection is left to other handlers when nothing is selected. `keyboardShortcuts = false` (deprecated) still takes the keys off the actions.
+The keys are actions (`picking.selectAll`, `picking.delete`, … in `PickingPlugin.actions`), registered in [`viewer.actions`](../guide/viewer-api#actions-and-shortcuts): a UI lists them, and the app changes or removes their keys there (`setShortcut`). Mod is Cmd on a Mac and Ctrl on other platforms. A key that needs a selection is left to other handlers when nothing is selected. `keyboardShortcuts = false` (deprecated) still takes the keys off the actions.
 
 ### Smart Duplicate
 

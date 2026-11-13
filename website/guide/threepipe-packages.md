@@ -4,8 +4,8 @@ prev:
     link: './core-plugins'
 
 next:
-    text: '3D Assets'
-    link: './3d-assets'
+    text: 'FAQ'
+    link: './faq'
 aside: false
 ---
 

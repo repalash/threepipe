@@ -1,6 +1,6 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 import {PickingPlugin} from './PickingPlugin'
-import {bindActions} from './CommandsPlugin'
+import {ViewerActions} from '../../viewer/ViewerActions'
 
 /** A key press on the window of the node setup (globalThis, with a new event target for each test) */
 function press(code: string, fields: Partial<KeyboardEvent> = {}, target: unknown = null) {
@@ -21,11 +21,11 @@ afterEach(() => {
     vi.restoreAllMocks()
 })
 
-/** The plugin, its keys bound without a viewer (the same rules as with a CommandsPlugin), and a selection */
+/** The plugin, its keys bound without a viewer (a ViewerActions without a viewer: the same rules as in a viewer), and a selection */
 function setup(selected: unknown = {}) {
     const plugin = new PickingPlugin(undefined, false)
     vi.spyOn(plugin, 'getSelectedObject').mockImplementation(() => selected as any)
-    unbind = bindActions(undefined, plugin.actions)
+    unbind = new ViewerActions().register(plugin.actions)
     return plugin
 }
 

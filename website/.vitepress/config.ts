@@ -30,6 +30,7 @@ export default defineConfig({
           {text: 'Viewer API', link: 'guide/viewer-api'},
           {text: 'Core Plugins', link: 'guide/core-plugins'},
           {text: '@threepipe Packages', link: 'guide/threepipe-packages'},
+          {text: 'FAQ', link: 'guide/faq'},
         ]
       },
       {
@@ -135,7 +136,6 @@ export default defineConfig({
               {text: 'PivotEditPlugin', link: 'plugin/PivotEditPlugin'},
               {text: 'ObjectConstraintsPlugin', link: 'plugin/ObjectConstraintsPlugin'},
               {text: 'UndoManagerPlugin', link: 'plugin/UndoManagerPlugin'},
-              {text: 'CommandsPlugin', link: 'plugin/CommandsPlugin'},
               {text: 'EditorViewWidgetPlugin', link: 'plugin/EditorViewWidgetPlugin'},
               {text: 'DeviceOrientationControlsPlugin', link: 'plugin/DeviceOrientationControlsPlugin'},
               {text: 'PointerLockControlsPlugin', link: 'plugin/PointerLockControlsPlugin'},

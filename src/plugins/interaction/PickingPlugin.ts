@@ -26,7 +26,7 @@ import {DropzonePlugin, DropzonePluginEventMap} from './DropzonePlugin'
 import {AssetImporter} from '../../assetmanager'
 import {BoxSelectionWidget, SelectionWidget} from '../../three/widgets'
 import {DuplicateTracker, type DuplicateMode} from './DuplicateTracker'
-import {bindActions, type CommandAction} from './CommandsPlugin'
+import type {ViewerAction} from '../../viewer/ViewerActions'
 import {ObjectClipboard} from './ObjectClipboard'
 
 export interface PickingPluginEventMap extends AViewerPluginEventMap, ObjectPickerEventMap{
@@ -251,13 +251,13 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
 
     /**
      * The keys of {@link actions}. Off: the actions have no keys (a UI still lists and runs them).
-     * @deprecated set the keys in a `CommandsPlugin`: `setShortcut(id, null)` for one action, or `enabled = false` for
-     * all the keys (an app with its own keymap)
+     * @deprecated set the keys in `viewer.actions`: `setShortcut(id, null)` for one action, or `enabled = false` for all
+     * the keys (an app with its own keymap)
      */
     keyboardShortcuts = true
 
     /** An action of the selection; with no selection, a key of an action that needs one is left to other handlers */
-    private _action(id: string, label: string, keys: string | string[], run: () => void, needsSelection = true): CommandAction {
+    private _action(id: string, label: string, keys: string | string[], run: () => void, needsSelection = true): ViewerAction {
         const keysOn = () => this.keyboardShortcuts
         return {
             id: 'picking.' + id, label, group: 'Selection',
@@ -270,11 +270,11 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
     }
 
     /**
-     * The actions of the selection (`bindActions`): registered with the `CommandsPlugin` of the viewer when it has one
-     * (a UI lists them, the app changes their keys there), else the plugin runs their keys itself. The keys are places
-     * on the keyboard (`KeyboardEvent.code`); Mod is Cmd on a Mac and Ctrl on other platforms.
+     * The actions of the selection, registered in `viewer.actions` while the plugin is added (a UI lists them, the app
+     * changes their keys there). The keys are places on the keyboard (`KeyboardEvent.code`); Mod is Cmd on a Mac and
+     * Ctrl on other platforms.
      */
-    readonly actions: CommandAction[] = [
+    readonly actions: ViewerAction[] = [
         this._action('selectAll', 'Select all', 'Mod+KeyA', () => this.selectAll(), false),
         this._action('duplicate', 'Duplicate', 'Mod+KeyD', () => this.duplicateSelected()),
         this._action('duplicateOther', 'Duplicate (the other mode)', 'Mod+Shift+KeyD', () => this.duplicateSelected(this.duplicateMode === 'simple' ? 'compound' : 'simple')),
@@ -292,7 +292,7 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         this._action('resetScale', 'Reset the scale', 'Alt+KeyS', () => this.resetTransform('scale')),
     ]
 
-    private _unbindActions?: () => void
+    private _unregisterActions?: () => void
 
     /** Helper to setSelected from an array without recording undo */
     private _setSelectedFromArray(objects: IObject3D[] | null): void {
@@ -587,7 +587,7 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
         this._picker.addEventListener('selectionModeChanged', this._selectionModeChanged)
         this._picker.addEventListener('multiSelectChanged', this._multiSelectChanged)
 
-        this._unbindActions = bindActions(viewer, this.actions)
+        this._unregisterActions = viewer.actions.register(this.actions)
 
         viewer.scene.addEventListener('select', this._onObjectSelectEvent)
         viewer.scene.addEventListener('materialChanged', this._objCompChange)
@@ -614,8 +614,8 @@ export class PickingPlugin extends AViewerPluginSync<PickingPluginEventMap> {
     }
 
     onRemove(viewer: ThreeViewer) {
-        this._unbindActions?.()
-        this._unbindActions = undefined
+        this._unregisterActions?.()
+        this._unregisterActions = undefined
         viewer.scene.removeEventListener('select', this._onObjectSelectEvent)
         viewer.scene.removeEventListener('materialChanged', this._objCompChange)
         viewer.scene.removeEventListener('geometryChanged', this._objCompChange)
