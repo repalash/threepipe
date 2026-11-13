@@ -83,10 +83,12 @@ export class ShortcutsSheet {
         this.actions.addEventListener('actionsChange', this._render)
         this._search!.value = ''
         this._render()
+        // the first focus, set before showModal, which focuses the element with autofocus (else the first field): the
+        // search field takes the keys at once with a mouse; on a touch screen it would open the keyboard, so the list
+        const fine = !!window.matchMedia?.('(pointer: fine)').matches
+        this._search!.toggleAttribute('autofocus', fine)
+        this._body!.toggleAttribute('autofocus', !fine)
         d.showModal()
-        // the search field takes the keys at once with a mouse; on a touch screen it would open the keyboard
-        if (window.matchMedia?.('(pointer: fine)').matches) this._search!.focus()
-        else this._body!.focus()
     }
 
     close() {
