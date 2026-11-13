@@ -52,8 +52,8 @@ export interface ShortcutsSheetOptions {
  * are now, so a plugin that adds actions, or an app that changes keys, needs no change here. It changes when the
  * actions change while it is open.
  *
- * It is a modal dialog: Escape, the close button, a click outside it or `?` closes it. While it is open, the keys go to
- * the sheet, not to the shortcuts of the viewer. It uses the colours of the Tweakpane theme. `EditorFrame` opens it
+ * It is a modal dialog: Escape, the close button, a click outside it or `?` closes it. While it is open, no key runs a
+ * shortcut of the viewer (`viewer.actions` takes no key behind an open modal dialog), and its keys do not reach the page. It uses the colours of the Tweakpane theme. `EditorFrame` opens it
  * from a button of the mode bar and with `?` (the action `editorFrame.shortcuts`); an app without the frame makes one:
  *
  * ```ts
@@ -132,7 +132,8 @@ export class ShortcutsSheet {
     }
 
     private _onKeyDown = (e: KeyboardEvent) => {
-        // the keys stay in the sheet: the shortcuts of the viewer (on the window) do not run while it is open
+        // the keys of the sheet do not reach the page (other key listeners); the shortcuts of the viewer are off while a
+        // modal dialog is open (viewer.actions), also for a key with the focus on the body
         e.stopPropagation()
         const typing = e.target === this._search
         if (e.key === 'Escape' || e.key === '?' && !typing) {
