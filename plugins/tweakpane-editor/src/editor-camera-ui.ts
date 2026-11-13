@@ -1,4 +1,4 @@
-import {createStyles} from 'threepipe'
+import {createStyles, formatShortcut} from 'threepipe'
 import type {ThreeViewer} from 'threepipe'
 import tippy from 'tippy.js'
 import {addTooltipStyles, EDITOR_TOOLTIP_PROPS} from './tooltips'
@@ -15,11 +15,6 @@ const SHOT_WIDTH = 448
 const HOVER_DELAY = 150
 /** While the picture is out of date: the shortest time between two pictures, in ms (the last one waits for the render to end) */
 const SHOT_INTERVAL = 200
-
-/** The label of a key from its `KeyboardEvent.code`: `KeyC` is C, `Digit1` is 1, other codes (`F2`, `Space`) as they are */
-function keyLabel(code: string) {
-    return code.replace(/^(Key|Digit)(.)$/, '$2')
-}
 
 /**
  * The start view UI of the {@link EditorCameraPlugin}: a pill at the top centre of the canvas, in the style of the
@@ -113,8 +108,11 @@ export function setupEditorCameraUi(viewer: ThreeViewer, camera: EditorCameraPlu
         if (!root.contains(e.target as Node)) setOpen(false)
     }
     document.addEventListener('pointerdown', onOutside, true)
+    // the Escape that closes the card is used: it does not also clear the selection (an action in viewer.actions)
     const onKey = (e: KeyboardEvent) => {
-        if (e.key === 'Escape' && root.classList.contains('ecu-open')) setOpen(false)
+        if (e.key !== 'Escape' || !root.classList.contains('ecu-open')) return
+        e.preventDefault()
+        setOpen(false)
     }
     document.addEventListener('keydown', onKey)
 
@@ -178,7 +176,8 @@ export function setupEditorCameraUi(viewer: ThreeViewer, camera: EditorCameraPlu
         const editing = camera.editing
         const sync = camera.syncStartView
         const moved = camera.startViewMoved
-        const key = camera.hotkey ? keyLabel(camera.hotkey) : ''
+        // the key now: the one that the app sets in viewer.actions, else the hotkey
+        const key = camera.shortcut ? formatShortcut(camera.shortcut) : ''
         // disabled: the default camera is the main camera, neither the editor camera nor the start view
         root.style.display = camera.isDisabled() ? 'none' : ''
         root.classList.toggle('ecu-view', !editing)

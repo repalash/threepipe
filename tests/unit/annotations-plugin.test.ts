@@ -1,6 +1,6 @@
 import {afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi} from 'vitest'
 import {BoxGeometry, InstancedMesh, Matrix4, Mesh, MeshBasicMaterial, Object3D, PerspectiveCamera, Quaternion, Vector3} from 'three'
-import {PopmotionPlugin, UndoManagerPlugin} from 'threepipe'
+import {PopmotionPlugin, UndoManagerPlugin, ViewerActions} from 'threepipe'
 import {AnnotationsPlugin} from '../../plugins/annotations/src/AnnotationsPlugin'
 import {escapeHtml, renderAnnotationText} from '../../plugins/annotations/src/render-text'
 import {JSUndoManager} from 'ts-browser-helpers'
@@ -10,6 +10,7 @@ const noop = () => undefined
 
 // the node setup has no DOM: a small element with what the markers and the card use
 class FakeElement {
+    nodeType = 1 // an element, as in the DOM (the page is not the target of a viewer)
     children: FakeElement[] = []
     parent?: FakeElement
     className = ''
@@ -143,6 +144,8 @@ beforeEach(() => {
         }
     }
     vi.stubGlobal('addEventListener', (type: string, f: any) => {
+        // as a browser: the same listener once
+        if (lists.get(type)?.includes(f)) return
         lists.set(type, [...lists.get(type) ?? [], f])
         windowListeners.set(type, dispatch(type))
     })
@@ -185,6 +188,12 @@ afterEach(() => {
  * A box of size 1 at the origin in a fake viewer, the camera at z = 5 looking at it; the canvas is 800x600.
  * `popmotion`: the PopmotionPlugin of the viewer (none: camera moves end at once)
  */
+/** The plugins that setup added: each test removes them at its end, so their key bindings do not stay */
+const added: {plugin: AnnotationsPlugin, viewer: any}[] = []
+afterEach(() => {
+    for (const {plugin, viewer} of added.splice(0)) if ((plugin as any)._viewer) plugin.onRemove(viewer)
+})
+
 function setup(editable = true, popmotion?: any) {
     const plugin = new AnnotationsPlugin({editable})
     const box = new Mesh(new BoxGeometry(1, 1, 1), new MeshBasicMaterial())
@@ -215,9 +224,13 @@ function setup(editable = true, popmotion?: any) {
         addEventListener: noop,
         removeEventListener: noop,
         getPlugin: (c: any) => c === UndoManagerPlugin ? {undoManager: {record: (cmd: any) => undo.push(cmd)}} : c === PopmotionPlugin ? popmotion : undefined,
+        addPluginListener: () => {},
+        removePluginListener: () => {},
         console,
     } as any
+    viewer.actions = new ViewerActions(viewer) // the plugin registers its actions there
     plugin.onAdded(viewer)
+    added.push({plugin, viewer})
     const layer = viewer.container.children[0] as FakeElement
     return {plugin, viewer, layer, box, group, camera, undo, canvas}
 }
@@ -1046,8 +1059,8 @@ describe('AnnotationsPlugin', () => {
         const {plugin, box} = setup()
         plugin.add(box as any, front, normal, null)
         plugin.add(box as any, front, normal, null)
-        const key = (k: string, target: any = doc.body) => {
-            const e = {key: k, target, preventDefault: vi.fn(), stopImmediatePropagation: vi.fn()}
+        const key = (k: string, target: any = doc.body, repeat = false) => {
+            const e = {key: k, target, repeat, preventDefault: vi.fn(), stopPropagation: vi.fn(), stopImmediatePropagation: vi.fn()}
             windowListeners.get('keydown')!(e)
             return e
         }
@@ -1055,6 +1068,10 @@ describe('AnnotationsPlugin', () => {
         plugin.goTo(0, {fly: false})
         key('ArrowRight')
         expect(plugin.openId).toBe(plugin.get(1)!.id)
+        // a held arrow goes on (and the camera controls do not get the key)
+        expect(key('ArrowRight', doc.body, true).preventDefault).toHaveBeenCalled()
+        expect(plugin.openId).toBe(plugin.get(0)!.id)
+        key('ArrowRight')
         key('ArrowLeft', new FakeElement('input'))
         expect(plugin.openId).toBe(plugin.get(1)!.id)
         key('ArrowLeft')
@@ -1065,14 +1082,16 @@ describe('AnnotationsPlugin', () => {
 
     describe('keys with two viewers on the page', () => {
         const key = (k: string, target: any) => {
-            const e = {key: k, target, preventDefault: vi.fn(), stopImmediatePropagation: vi.fn()}
+            const e = {key: k, target, preventDefault: vi.fn(), stopPropagation: vi.fn(), stopImmediatePropagation: vi.fn()}
             windowListeners.get('keydown')!(e)
             return e
         }
-        /** Two viewers, each with two annotations; the first card of each is open (b opened last) */
+        /** Two viewers on the page, each with two annotations; the first card of each is open (b opened last) */
         const two = () => {
             const a = setup()
             const b = setup()
+            // on the page: with more viewers, the one with the focus or the one used last takes a key (viewerTakesKey)
+            for (const s of [a, b]) s.viewer.container.isConnected = true
             for (const s of [a, b]) {
                 s.plugin.add(s.box as any, front, normal, null)
                 s.plugin.add(s.box as any, front, normal, null)
@@ -1112,6 +1131,9 @@ describe('AnnotationsPlugin', () => {
 
         test('the focus on the page: the viewer used last handles the key, the next Esc closes the other card', () => {
             const {a, b} = two()
+            // the arrows are actions: the viewer with the last pointer press (a drag in the second one) takes them
+            windowListeners.get('pointerdown')!({target: b.canvas, clientX: 10, clientY: 10})
+            windowListeners.get('pointerup')!({target: b.canvas, clientX: 40, clientY: 10})
             key('ArrowRight', doc.body)
             expect(b.plugin.openId).toBe(b.plugin.get(1)!.id)
             expect(a.plugin.openId).toBe(a.plugin.get(0)!.id)

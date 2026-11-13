@@ -92,11 +92,14 @@ export class PivotControlsPlugin extends AViewerPluginSync {
     selectionFilterTest: ((obj: IObject3D) => IObject3D | null) | undefined = undefined
 
     private _multi = new MultiSelectHelper()
+    /** Removes the actions of the gizmo from the viewer */
+    private _unregisterActions?: () => void
 
     onAdded(viewer: ThreeViewer) {
         super.onAdded(viewer)
         this.setDirty()
         this.pivotControls = new PivotControls2(viewer.scene.mainCamera, viewer.canvas)
+        this._unregisterActions = viewer.actions.register(this.pivotControls.actions)
         this._mainCameraChange = this._mainCameraChange.bind(this)
         viewer.scene.addEventListener('mainCameraChange', this._mainCameraChange)
 
@@ -200,6 +203,8 @@ export class PivotControlsPlugin extends AViewerPluginSync {
     onRemove(viewer: ThreeViewer) {
         viewer.scene.removeEventListener('mainCameraChange', this._mainCameraChange)
         this._multi.clear(viewer)
+        this._unregisterActions?.()
+        this._unregisterActions = undefined
         if (this.pivotControls) {
             this.pivotControls.detach()
             viewer.scene.remove(this.pivotControls as any)

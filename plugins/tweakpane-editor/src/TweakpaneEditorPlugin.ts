@@ -124,9 +124,9 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
 
     /**
      * Options of the page frame (the app name, the theme pairs), used when the frame is made. The plugin sets the layout,
-     * the pick in the layout menu ({@link layout}) and the rename ({@link documentName}).
+     * the pick in the layout menu ({@link layout}), the rename ({@link documentName}) and the viewer.
      */
-    frameOptions: Omit<EditorFrameOptions, 'layout' | 'onPickLayout' | 'onRename'> = {}
+    frameOptions: Omit<EditorFrameOptions, 'layout' | 'onPickLayout' | 'onRename' | 'viewer'> = {}
 
     private _documentName = ''
     /**
@@ -226,6 +226,8 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
                 setValue: (names: boolean) => this.frame?.modeBar.setExpanded(names, true),
                 hidden: () => !this.frame,
             },
+            // the actions of the viewer and their keys (viewer.actions): the keys on or off, and a button for each action
+            () => this._viewer ? [this._viewer.actions.uiConfig] : [],
         ],
     }
 
@@ -251,6 +253,8 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
             } : undefined,
             // the container of the Tweakpane UI (uiconfig-tweakpane gives it this id; the plugin has no getter for it)
             panel: () => document.getElementById('tweakpaneUiContainer'),
+            // the keys of the frame are actions in viewer.actions
+            viewer: this._viewer,
             ...this.frameOptions,
             layout,
             onPickLayout: (l) => this._pickLayout(l),

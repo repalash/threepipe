@@ -8,6 +8,7 @@ import {
     ICamera,
     ICameraView,
     Intersection,
+    isTextTarget,
     IObject3D,
     ISerializedConfig,
     MathUtils,
@@ -23,6 +24,7 @@ import {
     UndoManagerPlugin,
     Vector2,
     Vector3,
+    type ViewerAction,
 } from 'threepipe'
 import styles from './AnnotationsPlugin.css?inline'
 import {renderAnnotationText} from './render-text'
@@ -387,6 +389,7 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         this._buildCard(layer)
         AnnotationsPlugin._added.add(this)
         window.addEventListener('keydown', this._onKeyDown, {capture: true})
+        this._unregisterActions = viewer.actions.register(this.actions)
         window.addEventListener('pointerdown', this._onWindowDown, {capture: true})
         window.addEventListener('pointerup', this._onWindowUp, {capture: true})
         window.addEventListener('pointermove', this._onWindowMove, {capture: true})
@@ -404,6 +407,8 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         this._stopAnim()
         this.cancelAdding()
         window.removeEventListener('keydown', this._onKeyDown, {capture: true})
+        this._unregisterActions?.()
+        this._unregisterActions = undefined
         window.removeEventListener('pointerdown', this._onWindowDown, {capture: true})
         window.removeEventListener('pointerup', this._onWindowUp, {capture: true})
         window.removeEventListener('pointermove', this._onWindowMove, {capture: true})
@@ -613,6 +618,18 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
         const a = this.get(indexOrId)
         if (a) this._select(a.id, options, true)
     }
+
+    /**
+     * The keys of the plugin, as actions (registered in `viewer.actions`, where a UI lists them): → and ← open the
+     * next and the previous annotation while a card is open, before the arrow keys of the camera controls on the canvas
+     * (`capture`); a held arrow goes on through them. With more viewers on the page, the viewer with the focus, or the one used last, takes the key. Escape
+     * (close the card) stays a key of the card.
+     */
+    readonly actions: ViewerAction[] = [
+        {id: 'annotations.next', label: 'Next annotation', group: 'Annotations', shortcut: 'ArrowRight', capture: true, repeat: true, enabled: () => !this.isDisabled() && !!this._openId, run: () => this.next()},
+        {id: 'annotations.prev', label: 'Previous annotation', group: 'Annotations', shortcut: 'ArrowLeft', capture: true, repeat: true, enabled: () => !this.isDisabled() && !!this._openId, run: () => this.prev()},
+    ]
+    private _unregisterActions?: () => void
 
     /** Open the next annotation (after the last: the first) */
     next() {
@@ -1416,10 +1433,11 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
 
     // region keys and clicks
 
+    /** Escape closes the open card or ends the adding (a popup key, so not an action); any key stops the tour */
     private _onKeyDown = (e: KeyboardEvent) => {
         if (this.isDisabled() || !this._layer) return
         const t = e.target as HTMLElement | null
-        if (t && (t.isContentEditable || t.closest?.('input, textarea, select'))) return
+        if (isTextTarget(t)) return
         this.stopTour()
         // only when the focus is in this viewer (its canvas, the card, the placing overlay) or on the page, not in another
         // viewer or panel. On the page, with more viewers, the one used last takes the key
@@ -1430,14 +1448,7 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
             e.stopImmediatePropagation()
             if (this._place) this.cancelAdding()
             else this.close()
-            return
         }
-        if (!this._openId || e.ctrlKey || e.metaKey || e.altKey) return
-        if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
-        e.preventDefault()
-        e.stopImmediatePropagation()
-        if (e.key === 'ArrowLeft') this.prev()
-        else this.next()
     }
 
     /**
