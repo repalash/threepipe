@@ -93,7 +93,8 @@
 .ucf-chip select { font: inherit; color: var(--ucf-fg); background: var(--ucf-input); border: 0; border-radius: 4px; padding: 3px 4px; outline: none; max-width: 140px; }
 .ucf-chip select:disabled { opacity: .5; }
 /* the field of a button in a bar, in a popover */
-.ucf-popover { position: fixed; z-index: 10001; min-width: 220px; padding: 4px 0; background: var(--ucf-bg); border-radius: 8px;
+/* z-index: the popups layer (CONTRIBUTING.md, UI layers) */
+.ucf-popover { position: fixed; z-index: 2000; min-width: 220px; padding: 4px 0; background: var(--ucf-bg); border-radius: 8px;
     box-shadow: 0 0 0 1px var(--ucf-line), 0 4px 16px var(--ucf-shadow); }
 /* the key of a button at the end of its row in a stack; a bar shows it in the tooltip */
 .ucf-key { display: none; margin-left: auto; padding-left: 8px; font: inherit; color: var(--ucf-dim); }
