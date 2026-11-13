@@ -1526,7 +1526,7 @@ export class EditorFrame {
         this._fitAreas()
     }
 
-    /** The light or dark button, the layout button and, with a viewer, the shortcuts button, in the mode bar */
+    /** The light or dark button, the layout button and the shortcuts button, in the mode bar */
     private _actions() {
         const buttons: HTMLButtonElement[] = []
         if (this.options.colorMode) buttons.push(this._button(ICONS.theme, 'Light or dark (Shift T)', 'Light / dark', () => this.toggleTheme()))

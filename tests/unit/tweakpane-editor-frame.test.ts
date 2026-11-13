@@ -539,7 +539,7 @@ describe('EditorFrame areas', () => {
             expect(bar.find('lay-mode-actions'), layout).toEqual([actions])
             // above the names toggle, the last child
             expect(bar.children.indexOf(actions), layout).toBe(bar.children.length - 2)
-            expect(actions.children.map(b => b.getAttribute('aria-label')), layout).toEqual(['Light or dark (Shift T)', 'Layout of the page'])
+            expect(actions.children.map(b => b.getAttribute('aria-label')), layout).toEqual(['Light or dark (Shift T)', 'Layout of the page', 'Keyboard shortcuts (?)'])
             for (const b of body().children.filter(c => c.classList.contains('lay-bar'))) expect(b.all().filter(e => e.tagName.toLowerCase() === 'button'), layout).toHaveLength(0)
         }
         f.dispose()
