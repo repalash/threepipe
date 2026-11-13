@@ -63,6 +63,8 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- `BVHPlugin`: the default loader's `import('three-mesh-bvh')` is no longer a literal in the built `lib` and `dist` (the build folded the variable holding the specifier), so the bundler of an app that does not install three-mesh-bvh no longer fails to resolve it (Vite: `Failed to resolve import "three-mesh-bvh"`, which stopped the dev server with 0.7.0-next.0). The specifier is `BVHPlugin.LIBRARY_MODULE`, a static property like the other runtime-loaded libraries (see [dynamically loaded files](https://threepipe.org/notes/dynamically-loaded-files.html))
+
 - tweakpane-editor page frame: the panel scrolls up and down only. On a phone in Safari it also scrolled sideways, and the labels went out at the left
 - `StickyNotesUiPlugin` (tweakpane-editor): the minimised notes bar is as wide as its icon and number again on a phone. Its icon was 100% of a button as wide as its content, and Safari stretched it, and the bar, to the free width of the canvas
 - `TweakpaneUiPlugin`: a new default colour mode reaches people who opened a page before. Every visit kept the colour mode in `localStorage`, also the default, so the old default stayed (for example `blue`, `dark` or `light` in place of `clean`). The default at the time of the write is now kept too (`tpThemeDefault`), and a kept value that was the default follows the default of now; a colour mode that the person picked stays. It is written only when it changes
