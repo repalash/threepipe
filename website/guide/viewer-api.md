@@ -449,7 +449,7 @@ A shortcut is modifiers and a key, joined with `+`: `Mod+Z`, `Shift+D`, `Alt+Shi
 
 A `keydown` listener on the window runs the shortcuts of the actions, while the viewer has actions:
 
-- It leaves a key typed in a text field (an input that takes text, a text area, a select, an editable element) and a key that another handler used (`defaultPrevented`). A checkbox, a radio button or a button keeps the focus after a click: it keeps Space and Enter (they press it), and the other keys (Delete, a letter) run the shortcuts (`isTargetKey`).
+- It leaves a key typed in a text field (an input that takes text, a text area, a select, an editable element) and a key that another handler used (`defaultPrevented`). A checkbox, a radio button or a button keeps the focus after a click: it keeps Space and Enter (they press it), and the other keys (Delete, a letter) run the shortcuts. A focused widget that moves with the arrow keys (a range input, or an element with an ARIA role like `tree`, `listbox`, `menu`, `tablist` or `toolbar`) keeps the arrows, Home, End, PageUp and PageDown, also from a capture action (`isTargetKey`).
 - It runs an action only when `enabled()` is not `false`, and calls `preventDefault` only when an action runs.
 - An action can have more keys: `shortcut: ['Delete', 'Backspace']`.
 - A focused element (a list, a field) has its keys first. An action with `capture: true` runs before it, in the capture phase on the window, and the key stops there: the arrows of an open annotation win over the arrow keys of the camera controls on the canvas. It runs only while the focus is in its viewer (the canvas, a card) or on the page, so a focused panel keeps its keys.
@@ -462,6 +462,13 @@ A `keydown` listener on the window runs the shortcuts of the actions, while the 
 viewer.actions.setShortcut('picking.delete', 'Delete') // not Backspace too
 viewer.actions.setShortcut('transformControls.toggleEnabled', null) // Space does nothing
 viewer.actions.enabled = false // no key runs an action
+```
+
+**Modals.** While the page has an open modal `<dialog>` (opened with `showModal()`), no key runs an action of a viewer behind it, so a key in the dialog does not edit the scene; a viewer inside the dialog keeps its keys. A modal UI that is not a `<dialog>` turns the keys off with `suspend()` and back on with `resume()` (the calls are counted). `suspended` tells if the keys are off now. In Safari before 15.6 (no `:modal`), only `suspend()` works.
+
+```typescript
+viewer.actions.suspend() // my modal opens
+viewer.actions.resume() // it closes
 ```
 
 **Toasts.** The `error` and the `warn` of each run show in a toast of the viewer dialog (`viewer.dialog.toast`, in the viewer container), while `toastResults` is on (default). See [Dialogs and toasts](#dialogs-and-toasts).
@@ -508,7 +515,7 @@ These plugins register their keys this way (the ids, for `setShortcut`):
 | `EditorFrame` (tweakpane editor) | `editorFrame.toggleTheme`, `editorFrame.cycleModeBar` | Shift+T, Mod+\\ |
 | `EditorCameraPlugin` (tweakpane editor) | `editorCamera.toggleEditing` | C |
 
-The keys of a gizmo work while it is enabled and attached; the keys of the selection need a selection, except select all, paste, show all and focus (F frames everything with no selection). Keys that belong to an open popup (Escape that closes a card or a menu) and held keys (Shift that snaps a gizmo) stay with their element. A gizmo made without its plugin (`TransformControls2`, `PivotControls`) has its `actions` too: register them yourself (`viewer.actions.register(controls.actions)`).
+The edit keys (undo, redo, select all, copy, cut, paste, duplicate) are letters, as in other apps; the other keys are places on the keyboard. The keys of a gizmo work while it is enabled and attached, also while Shift is held down (to snap); with both gizmos on, the one whose handle was pressed last takes the keys they share, else the transform gizmo. The keys of the selection need a selection, except select all, paste, show all and focus (F frames everything with no selection). Keys that belong to an open popup (Escape that closes a card or a menu) and held keys (Shift that snaps a gizmo) stay with their element. A gizmo made without its plugin (`TransformControls2`, `PivotControls`) has its `actions` too: register them yourself (`viewer.actions.register(controls.actions)`).
 
 ## RenderManager
 
@@ -561,6 +568,10 @@ console.log(renderManager.frameCount)
 
 // Force reset shadows when some object is moved
 renderManager.resetShadows()
+
+// Keep rendering while the browser tab is hidden (until stopRenderingWhenHidden with the same key)
+renderManager.keepRenderingWhenHidden('my-task')
+renderManager.stopRenderingWhenHidden('my-task')
 
 // Render Target Management
 
@@ -634,6 +645,8 @@ const buffer = renderManager.renderTargetToBuffer(renderTarget)
 [`renderManager.renderScale`](https://threepipe.org/docs/classes/RenderManager.html#renderscale) - Sets the render scale. All targets are scaled by this factor. This is equivalent to calling `EffectComposer.setPixelRatio` and `WebGLRenderer.setPixelRatio` in three.js.
 
 [`renderManager.resetShadows`](https://threepipe.org/docs/classes/RenderManager.html#resetshadows) - Resets all shadow maps in the scene. This is useful when some object is moved and the shadows need to be updated. This is automatically called when `scene.setDirty` or any `object.setDirty` is called, and during animation with plugins.
+
+[`renderManager.keepRenderingWhenHidden`](https://threepipe.org/docs/classes/RenderManager.html#keeprenderingwhenhidden) - Keeps the viewer rendering while its browser tab is hidden. A browser stops `requestAnimationFrame` in a hidden tab, so the viewer normally stops there. While a key holds it, a clock in a worker brings the frames instead, about 60 a second, until the tab is visible again ([HiddenPageClock](https://threepipe.org/docs/classes/HiddenPageClock.html)). [`stopRenderingWhenHidden`](https://threepipe.org/docs/classes/RenderManager.html#stoprenderingwhenhidden) with the same key lets go; it stops when the last key does. Use it for a task that has to finish in the background: it uses the CPU and GPU while hidden. [CanvasRecorderPlugin](../plugin/CanvasRecorderPlugin) holds it during a recording. It does nothing in WebXR or in Node.js. Browsers (as of November 2026): works in Chrome and other Chromium browsers. Safari still pauses a hidden tab (a recording waits until the tab is visible again). Firefox and phones are not tested yet. Chrome can still freeze a tab hidden for long (Energy Saver). [Example](https://threepipe.org/examples/#hidden-tab-rendering/)
 
 ### Rendering Pipeline
 

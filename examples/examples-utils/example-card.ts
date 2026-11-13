@@ -186,7 +186,8 @@ function addStyles() {
     --ec-dim: var(--tp-label-foreground-color, var(--ec-dim-0));
     --ec-line: var(--tp-container-border-color, var(--ec-line-0));
     --ec-shadow: var(--tp-base-shadow-color, var(--ec-shadow-0));
-    position: absolute; z-index: 10000; top: 16px; left: 16px; width: 280px; max-height: calc(100% - 32px);
+    /* z-index: the panels and bars layer (CONTRIBUTING.md, UI layers), under popups and context menus */
+    position: absolute; z-index: 300; top: 16px; left: 16px; width: 280px; max-height: calc(100% - 32px);
     display: flex; flex-direction: column; box-sizing: border-box; overflow: hidden;
     background: var(--ec-bg); color: var(--ec-fg); border-radius: 10px;
     box-shadow: 0 0 0 1px var(--ec-line), 0 6px 20px var(--ec-shadow);

@@ -1,3 +1,5 @@
+import './example-info.mjs'
+
 function run () {
     if (document.body.classList.contains('_testStarted')) return
     const div = document.createElement('div');
