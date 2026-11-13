@@ -106,22 +106,27 @@ const inViewer = (v: ThreeViewer, t: EventTarget) => {
         return false
     }
 }
+/** The page: no element (the window, the document), the body or the root element. It belongs to no viewer, also when
+ * a viewer has the body as its container. */
+const isPageTarget = (t: EventTarget | null) => {
+    const n = t as Node | null
+    return !n || typeof n.nodeType !== 'number' || n.nodeType === 9 ||
+        typeof document !== 'undefined' && (n === document.body || n === document.documentElement)
+}
 const viewerOf = (t: EventTarget | null) => {
-    if (!t) return undefined
+    if (isPageTarget(t)) return undefined
     const live = liveViewers()
     // its canvas first: viewers can share a container (two canvases in one element)
     const own = live.find(v => v.canvas === t)
     if (own) return own
     // else the innermost container that has the target, for nested containers
-    const found = live.filter(v => inViewer(v, t))
+    const found = live.filter(v => inViewer(v, t!))
     return found.find(v => found.every(o => o.container === v.container || !v.container.contains(o.container)))
 }
 /** The focus is in the viewer or on the page (the body, or no target): a capture action can take the key */
 const focusForCapture = (viewer: ThreeViewer | undefined, e: KeyboardEvent) => {
-    const t = e.target as Node | null
-    // the page: no element (the window, the document) or the body
-    if (!t || typeof t.nodeType !== 'number' || t.nodeType === 9 || typeof document !== 'undefined' && t === document.body) return true
-    return !!viewer && inViewer(viewer, t)
+    if (isPageTarget(e.target)) return true
+    return !!viewer && inViewer(viewer, e.target!)
 }
 const onViewerPointerDown = (e: PointerEvent) => {
     lastViewer = viewerOf(e.target) ?? lastViewer

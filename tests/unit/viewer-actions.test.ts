@@ -381,6 +381,37 @@ describe('ViewerActions', () => {
         }
     })
 
+    test('two viewers in the body: a key with the focus on the page is for the viewer used last, not the first one', () => {
+        const a = setup(), b = setup()
+        const body = {tagName: 'BODY', nodeType: 1, isConnected: true, contains: (t: any) => t === body || t === canvasA || t === canvasB}
+        const canvasA = {tagName: 'CANVAS', nodeType: 1}, canvasB = {tagName: 'CANVAS', nodeType: 1}
+        Object.assign(a.viewer, {container: body, canvas: canvasA})
+        Object.assign(b.viewer, {container: body, canvas: canvasB})
+        const oldDocument = (globalThis as any).document
+        ;(globalThis as any).document = {body, documentElement: {}}
+        const undoA = action('undo', {shortcut: 'Mod+Z'}), undoB = action('undo', {shortcut: 'Mod+Z'})
+        a.actions.register(undoA)
+        b.actions.register(undoB)
+        try {
+            // a press on the canvas of b, then a key on the page (the body): for b
+            const down = new Event('pointerdown')
+            Object.defineProperty(down, 'target', {value: canvasB})
+            dispatchEvent(down)
+            pressIn(body, 'z', 'KeyZ', {ctrlKey: true})
+            expect([undoA.run.mock.calls.length, undoB.run.mock.calls.length]).toEqual([0, 1])
+            // a press on the body (not on a canvas) keeps b as the viewer used last
+            const onBody = new Event('pointerdown')
+            Object.defineProperty(onBody, 'target', {value: body})
+            dispatchEvent(onBody)
+            pressIn(body, 'z', 'KeyZ', {ctrlKey: true})
+            expect([undoA.run.mock.calls.length, undoB.run.mock.calls.length]).toEqual([0, 2])
+        } finally {
+            ;(globalThis as any).document = oldDocument
+            a.actions.dispose()
+            b.actions.dispose()
+        }
+    })
+
     test('two viewers in one element: the canvas tells the viewer; nested containers: the innermost one', () => {
         const a = setup(), b = setup()
         const kids = new Set<any>()
@@ -430,15 +461,16 @@ describe('ViewerActions', () => {
 
     test('with no actions left, a viewer takes no key (two viewers: the other one gets the keys of the page)', () => {
         const a = setup(), b = setup()
+        const inB = {tagName: 'CANVAS', nodeType: 1}
         a.viewer.container = {isConnected: true, contains: () => false}
-        b.viewer.container = {isConnected: true, contains: (t: any) => t === b.viewer.container}
+        b.viewer.container = {isConnected: true, contains: (t: any) => t === inB}
         const undoA = action('undo', {shortcut: 'Mod+Z'})
         a.actions.register(undoA)
         const unregisterB = b.actions.register(action('undo', {shortcut: 'Mod+Z'}))
         try {
             // b had the last pointer press: the key of the page is for b
             const down = new Event('pointerdown')
-            Object.defineProperty(down, 'target', {value: b.viewer.container})
+            Object.defineProperty(down, 'target', {value: inB})
             dispatchEvent(down)
             press('z', 'KeyZ', {ctrlKey: true})
             expect(undoA.run).toHaveBeenCalledTimes(0)

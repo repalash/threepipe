@@ -10,6 +10,7 @@ const noop = () => undefined
 
 // the node setup has no DOM: a small element with what the markers and the card use
 class FakeElement {
+    nodeType = 1 // an element, as in the DOM (the page is not the target of a viewer)
     children: FakeElement[] = []
     parent?: FakeElement
     className = ''
