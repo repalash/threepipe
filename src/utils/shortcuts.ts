@@ -126,13 +126,23 @@ export function isTextTarget(target: EventTarget | null): boolean {
     return !!input && !NO_TEXT_INPUTS.has(input.type)
 }
 
+/** The keys that move in a widget (a tree, a list, a menu, tabs, a slider) */
+const MOVE_KEYS = new Set(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown'])
+/** The widgets that move with {@link MOVE_KEYS}: a select, a range input, and the ARIA roles that use the arrow keys */
+const MOVE_WIDGETS = 'select, input[type="range"], ' + ['tree', 'treegrid', 'grid', 'listbox', 'menu', 'menubar', 'radiogroup', 'slider', 'spinbutton', 'tablist', 'toolbar']
+    .map(r => `[role="${r}"]`).join(', ')
+
 /**
- * The key belongs to the element with the focus: any key typed in a text field ({@link isTextTarget}), and Space or
- * Enter on a button, a checkbox, a radio button or another input (they press it). Keyboard shortcuts leave such a key
- * to the element; other keys (Delete, a letter) on a focused checkbox still run the shortcuts.
+ * The key belongs to the element with the focus: any key typed in a text field ({@link isTextTarget}), Space or Enter
+ * on a button, a checkbox, a radio button or another input (they press it), and the arrow keys, Home, End, PageUp and
+ * PageDown in a widget that moves with them (a select, a range input, a tree, a list box, a menu, tabs, a toolbar…).
+ * Keyboard shortcuts leave such a key to the element; other keys (Delete, a letter) on a focused checkbox still run
+ * the shortcuts.
  */
 export function isTargetKey(event: KeyboardEvent): boolean {
     if (isTextTarget(event.target)) return true
+    const target = event.target as HTMLElement | null
+    if (MOVE_KEYS.has(event.key)) return !!target?.closest?.(MOVE_WIDGETS)
     if (event.key !== ' ' && event.key !== 'Enter') return false
-    return !!(event.target as HTMLElement | null)?.closest?.('button, input, summary, [role="button"], [role="checkbox"]')
+    return !!target?.closest?.('button, input, summary, [role="button"], [role="checkbox"]')
 }
