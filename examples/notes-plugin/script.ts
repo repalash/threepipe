@@ -22,7 +22,7 @@ async function init() {
     viewer.addPluginSync(new StickyNotesUiPlugin('threepipe-example-sticky-notes', false))
 
     // the settings of the notes and of the post-its
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
     ui.setupPluginUi(StickyNotesUiPlugin, {expanded: true})
     ui.setupPluginUi(NotesPlugin, {expanded: true})
     ui.setupPluginUi(PickingPlugin)

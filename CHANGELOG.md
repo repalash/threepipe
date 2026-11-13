@@ -64,6 +64,8 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- Examples: the gallery deletes the custom example that was clicked (it read the id from the wrong place and removed the last one); the `gltf-spec-gloss-import` link has its trailing slash, so its deep link and its page work; `ogc-tiles-mars` is in the gallery (the docs link to it); the Loading text before an example starts is dark, like the spinner (it was light grey on the white page); the titles of 11 examples that were copied from another one (e.g. vue-sfc-sample was "React/TSX Sample") name their example, with their e2e checks; the Tweakpane panel of the examples starts collapsed on phones (124 examples forced it open, over most of the canvas), and the featured plugin's folder starts open in bloom, material configurator, glTF animation and the HDRi and advanced ground examples
+- Examples info tab: another control can open its panel with the `tp-example-info-toggle` event (`TOGGLE_EVENT`), for the example card
 - `BVHPlugin`: the default loader's `import('three-mesh-bvh')` is no longer a literal in the built `lib` and `dist` (the build folded the variable holding the specifier), so the bundler of an app that does not install three-mesh-bvh no longer fails to resolve it (Vite: `Failed to resolve import "three-mesh-bvh"`, which stopped the dev server with 0.7.0-next.0). The specifier is `BVHPlugin.LIBRARY_MODULE`, a static property like the other runtime-loaded libraries (see [dynamically loaded files](https://threepipe.org/notes/dynamically-loaded-files.html))
 
 - tweakpane-editor page frame: the panel scrolls up and down only. On a phone in Safari it also scrolled sideways, and the labels went out at the left

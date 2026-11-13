@@ -83,7 +83,7 @@ async function init() {
         ['camera.fitObject']: () => viewer.scene.mainCamera.fitObject(model!),
     })
 
-    const ui = viewer.addPluginSync(TweakpaneUiPlugin, true)
+    const ui = viewer.addPluginSync(TweakpaneUiPlugin)
     ui.appendChild(viewer.scene.mainCamera.uiConfig)
 
     ui.setupPluginUi(CameraViewPlugin, {expanded: true})

@@ -34,7 +34,7 @@ async function init() {
     const ssgi = viewer.addPluginSync(new SSGIPlugin())
     viewer.addPluginSync(new BaseGroundPlugin())
 
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
     await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/empty_warehouse_01_1k.hdr', {
         setBackground: true,
     })

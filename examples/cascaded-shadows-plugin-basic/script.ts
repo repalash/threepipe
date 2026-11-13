@@ -126,7 +126,7 @@ async function init() {
         if (csmHelper.visible) csmHelper.update()
     })
 
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
     ui.appendChild(light.uiConfig)
     ui.setupPluginUi(CascadedShadowsPlugin)
     ui.setupPluginUi(PickingPlugin)

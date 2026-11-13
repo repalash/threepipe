@@ -53,7 +53,7 @@ async function init() {
     // open the model's row: its parts show below it
     if (model) layers.setExpanded(model, true)
 
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
     ui.setupPluginUi(LayersPanelPlugin, {expanded: true})
     ui.setupPluginUi(SelectionOutlinePlugin)
     ui.setupPluginUi(PickingPlugin)

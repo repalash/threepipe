@@ -34,7 +34,7 @@ async function init() {
     const ground = viewer.addPluginSync(BaseGroundPlugin)
     viewer.addPluginSync(PickingPlugin)
 
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
 
     ui.setupPluginUi(ssrefl, {expanded: true})
     ui.setupPluginUi(BaseGroundPlugin)

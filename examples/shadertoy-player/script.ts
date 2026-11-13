@@ -188,7 +188,7 @@ async function init() {
     const shaderText = await response.text()
     setShader(shaderText)
 
-    const uiPlugin = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const uiPlugin = viewer.addPluginSync(new TweakpaneUiPlugin())
     // const uiPlugin = viewer.addPluginSync(new BlueprintJsUiPlugin())
     uiPlugin.appendChild(ui)
     // uiPlugin.setupPluginUi(CanvasSnapshotPlugin, {expanded: true})

@@ -42,7 +42,7 @@ async function init() {
     // select the watch: the lines inside are its parts. Click to select another object, hover to see its outline.
     if (watch) picking.setSelectedObject(watch)
 
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
     ui.setupPluginUi(SelectionOutlinePlugin, {expanded: true})
     ui.setupPluginUi(PickingPlugin)
 }

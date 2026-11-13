@@ -39,7 +39,7 @@ async function init() {
         promptDiv.style.display = 'none'
     })
 
-    const ui = viewer.addPluginSync(TweakpaneUiPlugin, true)
+    const ui = viewer.addPluginSync(TweakpaneUiPlugin)
     // ui.appendChild(dropzone.uiConfig)
     ui.setupPluginUi(DropzonePlugin)
     ui.setupPluginUi(PickingPlugin)

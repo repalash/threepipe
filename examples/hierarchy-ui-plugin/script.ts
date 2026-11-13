@@ -11,7 +11,7 @@ async function init() {
         plugins: [LoadingScreenPlugin, HierarchyUiPlugin, PickingPlugin],
     })
 
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
     ui.setupPluginUi(HierarchyUiPlugin, {expanded: true})
     ui.setupPluginUi(PickingPlugin)
 

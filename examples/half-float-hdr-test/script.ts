@@ -41,7 +41,7 @@ async function init() {
         console.log(mat.emissiveIntensity)
     }
 
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
     ui.setupPluginUi(TonemapPlugin)
     ui.appendChild(viewer.renderManager.screenPass.uiConfig)
 

@@ -75,7 +75,7 @@ async function init() {
     light.shadowFrustum = 7
     light.castShadow = true
 
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
     ui.appendChild(light.uiConfig)
     ui.setupPluginUi(PickingPlugin)
 

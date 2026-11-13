@@ -14,7 +14,7 @@ async function init() {
     viewer.scene.mainCamera.fov = 70
     viewer.timeline.endTime = 2
 
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
     ui.appendChild(viewer.timeline.uiConfig, {expanded: true})
     ui.setupPluginUi(TimelineUiPlugin, {expanded: true})
 

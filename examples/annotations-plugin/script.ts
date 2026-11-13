@@ -56,7 +56,7 @@ async function init() {
         <div style="margin-top:4px">${renderAnnotationText(a.text)}</div>
         <div style="margin-top:8px;font-weight:600">$${escapeHtml(String(a.data.price))}</div>`
 
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
     // the UI folder also has Compact card (a title-and-text card and a tour bar at the bottom: try it with Play tour),
     // Close button and Close on canvas interaction
     ui.setupPluginUi(AnnotationsPlugin, {expanded: true})

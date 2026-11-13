@@ -19,7 +19,7 @@ async function init() {
         autoScale: true,
     })
 
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
     ui.setupPluginUi(PerfPanelPlugin, {expanded: true})
     // The viewer renders only when something changes: auto rotate makes it render every frame
     ui.appendChild({

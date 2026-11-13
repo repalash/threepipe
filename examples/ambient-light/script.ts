@@ -47,7 +47,7 @@ async function init() {
 
     const light = viewer.scene.addObject(new AmbientLight2(0x00ff00, 5))
 
-    const ui = viewer.addPluginSync(TweakpaneUiPlugin, true)
+    const ui = viewer.addPluginSync(TweakpaneUiPlugin)
     ui.appendChild(light.uiConfig, {expanded: true})
 }
 

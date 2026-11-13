@@ -28,7 +28,7 @@ async function init() {
     })
 
     const bloom = viewer.addPluginSync(BloomPlugin)
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
 
     await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr', {
         setBackground: true,
@@ -40,7 +40,7 @@ async function init() {
     const model = result?.getObjectByName('node_damagedHelmet_-6514')
     const materials = (model?.materials || []) as PhysicalMaterial[]
 
-    ui.setupPluginUi(bloom)
+    ui.setupPluginUi(bloom, {expanded: true})
 
     for (const material of materials) {
         ui.appendChild(material.uiConfig)

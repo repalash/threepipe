@@ -32,7 +32,7 @@ async function init() {
     ground.material!.metalness = 0.1
     ground.material!.setDirty()
 
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
     ui.setupPluginUi(BaseGroundPlugin, {expanded: true})
 
 }

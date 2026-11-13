@@ -18,7 +18,7 @@ async function init() {
         plugins: [PointerLockControlsPlugin, LoadingScreenPlugin],
     })
 
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
 
     ui.appendChild(viewer.scene.mainCamera.uiConfig)
 

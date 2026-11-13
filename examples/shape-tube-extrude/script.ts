@@ -135,7 +135,7 @@ async function init() {
     viewer.renderManager.addEventListener('resize', refreshFov)
 
     // ── UI ──
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
     ui.setupPluginUi(GeometryGeneratorPlugin)
     ui.setupPluginUi(ShapeTubeExtrudePlugin)
     ui.setupPluginUi(PickingPlugin)
