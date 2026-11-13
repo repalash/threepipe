@@ -15,6 +15,17 @@ varying vec3 vWorldPositionPrevious;
 
 uniform mat4 modelMatrixPrevious;
 
+#ifdef USE_INSTANCING
+// the previous frame's instance matrices (VelocityBufferPlugin): 4 texels (columns) per instance, 1024 instances a row
+uniform sampler2D instanceMatrixPrevious;
+uniform bool hasInstanceMatrixPrevious;
+mat4 getInstanceMatrixPrevious() {
+    int x = (gl_InstanceID % 1024) * 4, y = gl_InstanceID / 1024;
+    return mat4(texelFetch(instanceMatrixPrevious, ivec2(x, y), 0), texelFetch(instanceMatrixPrevious, ivec2(x + 1, y), 0),
+        texelFetch(instanceMatrixPrevious, ivec2(x + 2, y), 0), texelFetch(instanceMatrixPrevious, ivec2(x + 3, y), 0));
+}
+#endif
+
 void main() {
 
     #include <uv_vertex>
@@ -29,15 +40,17 @@ void main() {
     // project_vertex
 
     vec4 mvPosition = vec4( transformed, 1.0 );
+    vec4 previousPosition = mvPosition;
 
     #ifdef USE_INSTANCING
 
+    previousPosition = hasInstanceMatrixPrevious ? getInstanceMatrixPrevious() * mvPosition : instanceMatrix * mvPosition;
     mvPosition = instanceMatrix * mvPosition;
 
     #endif
 
     vWorldPosition = (modelMatrix * mvPosition).xyz;
-    vWorldPositionPrevious = (modelMatrixPrevious * mvPosition).xyz;
+    vWorldPositionPrevious = (modelMatrixPrevious * previousPosition).xyz;
 
     mvPosition = modelViewMatrix * mvPosition;
 

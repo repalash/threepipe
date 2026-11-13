@@ -10,6 +10,15 @@ All notable changes to this plugin will be documented in this file.
 
 - NA
 
+### Fixed
+
+- `VelocityBufferPlugin`: instanced meshes get per-instance motion. The previous model matrix was kept per object, so
+  every instance moved with the mesh only (the camera's motion for a static mesh) and TAA and the SSGI/SSR history
+  smeared moving instances. The previous instance matrices are kept in a float texture per instanced mesh and read
+  in the vertex shader with `texelFetch(gl_InstanceID)`.
+- `VelocityBufferPlugin`: an object with several material groups had no motion in every group after the first (the
+  previous matrix was copied at each group's draw); previous matrices now advance once per velocity render.
+
 ## [0.7.0] - 2026-10-24
 
 ### Changed
