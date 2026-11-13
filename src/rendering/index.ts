@@ -1,4 +1,5 @@
 export {RenderManager} from './RenderManager'
+export {HiddenPageClock} from './HiddenPageClock'
 export {RenderTargetManager} from './RenderTargetManager'
 export {createRenderTargetKey} from './RenderTarget'
 export type {IRenderTarget, CreateRenderTargetOptions} from './RenderTarget'

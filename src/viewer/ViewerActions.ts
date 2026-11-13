@@ -106,25 +106,46 @@ const inViewer = (v: ThreeViewer, t: EventTarget) => {
         return false
     }
 }
+/** The page: no element (the window, the document), the body or the root element. It belongs to no viewer, also when
+ * a viewer has the body as its container. */
+const isPageTarget = (t: EventTarget | null) => {
+    const n = t as Node | null
+    return !n || typeof n.nodeType !== 'number' || n.nodeType === 9 ||
+        typeof document !== 'undefined' && (n === document.body || n === document.documentElement)
+}
 const viewerOf = (t: EventTarget | null) => {
-    if (!t) return undefined
+    if (isPageTarget(t)) return undefined
     const live = liveViewers()
     // its canvas first: viewers can share a container (two canvases in one element)
     const own = live.find(v => v.canvas === t)
     if (own) return own
     // else the innermost container that has the target, for nested containers
-    const found = live.filter(v => inViewer(v, t))
+    const found = live.filter(v => inViewer(v, t!))
     return found.find(v => found.every(o => o.container === v.container || !v.container.contains(o.container)))
 }
 /** The focus is in the viewer or on the page (the body, or no target): a capture action can take the key */
 const focusForCapture = (viewer: ThreeViewer | undefined, e: KeyboardEvent) => {
-    const t = e.target as Node | null
-    // the page: no element (the window, the document) or the body
-    if (!t || typeof t.nodeType !== 'number' || t.nodeType === 9 || typeof document !== 'undefined' && t === document.body) return true
-    return !!viewer && inViewer(viewer, t)
+    if (isPageTarget(e.target)) return true
+    return !!viewer && inViewer(viewer, e.target!)
 }
 const onViewerPointerDown = (e: PointerEvent) => {
     lastViewer = viewerOf(e.target) ?? lastViewer
+}
+
+/**
+ * The page has an open modal dialog (`<dialog>` opened with `showModal()`) that does not hold the container of this
+ * viewer: the rest of the page is inert then, so its keys must not run the actions behind the dialog.
+ */
+function modalDialogOver(viewer: ThreeViewer | undefined): boolean {
+    if (typeof document === 'undefined' || typeof document.querySelectorAll !== 'function') return false
+    let modals: ArrayLike<Element>
+    try {
+        modals = document.querySelectorAll('dialog:modal')
+    } catch { // no :modal (Safari before 15.6): no check, suspend() still works
+        return false
+    }
+    const container = viewer?.container
+    return Array.from(modals).some(d => !container || !d.contains(container))
 }
 
 /** Adds a viewer to {@link keyViewers}, for {@link viewerTakesKey}. @returns a function that takes it out */
@@ -177,6 +198,8 @@ function warnInvalid(id: string, shortcut: string | string[] | null | undefined)
  *   ({@link viewerTakesKey}).
  * - `actionRun` tells the result of each run ({@link ViewerActionResult}), and `actionsChange` tells that the list or a
  *   key changed. The `error` and the `warn` of a result show in a toast ({@link toastResults}, `viewer.dialog.toast`).
+ * - {@link suspend} and {@link resume} turn the keys off for a while (an app's own modal UI); while the page has an
+ *   open modal `<dialog>` the keys are also off, without code ({@link suspended}).
  * - Without a viewer (`new ViewerActions()`), for a UI that is not part of one: it takes every key and shows no toast.
  *
  * @example
@@ -211,6 +234,7 @@ export class ViewerActions extends EventDispatcher<ViewerActionsEventMap> {
     private _listening = false
     private _untrack?: () => void
     private _disposed = false
+    private _suspends = 0
 
     /** For a settings panel: the keys on or off, the toasts on or off, and a button for each action with its key */
     readonly uiConfig: UiObjectConfig = {
@@ -300,6 +324,27 @@ export class ViewerActions extends EventDispatcher<ViewerActionsEventMap> {
         return this._run(action)
     }
 
+    /**
+     * Turns the keys off until {@link resume} (for a modal UI that is not a `<dialog>`). The calls are counted: the keys
+     * run again after one `resume` for each `suspend`. {@link run} still runs an action.
+     */
+    suspend() {
+        this._suspends++
+    }
+
+    /** Ends one {@link suspend} */
+    resume() {
+        if (this._suspends > 0) this._suspends--
+    }
+
+    /**
+     * No key runs an action now: a {@link suspend} is not resumed, or the page has an open modal `<dialog>` (one opened
+     * with `showModal()`) that does not hold the container of the viewer. Not {@link enabled}, which the app sets.
+     */
+    get suspended(): boolean {
+        return this._suspends > 0 || modalDialogOver(this.viewer)
+    }
+
     /** Removes the key listeners. Called by the viewer when it is disposed. */
     dispose() {
         this._disposed = true
@@ -350,8 +395,13 @@ export class ViewerActions extends EventDispatcher<ViewerActionsEventMap> {
 
     private _onKey(e: KeyboardEvent, capture: boolean) {
         if (!this.enabled || !viewerTakesKey(this.viewer, e) || capture && !focusForCapture(this.viewer, e)) return
-        const action = shortcutAction(e, this._actions, capture, a => this.shortcutOf(a.id))
-        if (!action) return
+        // the key of each action now: the one that the app set, else its own (no search by id for each action)
+        const action = shortcutAction(e, this._actions, capture, a => {
+            const set = this._shortcuts.get(a.id)
+            return set === null ? undefined : set ?? a.shortcut
+        })
+        // the modal check last: a query of the page, only for a key of an action
+        if (!action || this.suspended) return
         e.preventDefault()
         if (capture) e.stopPropagation()
         this._run(action)
