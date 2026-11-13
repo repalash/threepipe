@@ -19,10 +19,18 @@ export interface GizmoActionTarget {
     events?: {addEventListener(type: 'mouseDown', listener: () => void): void}
     /** Of two gizmos that share a key, this one takes it while none was pressed yet (the transform gizmo) */
     preferred?: boolean
+    /**
+     * The element of the viewer of the gizmo (its canvas): the gizmo pressed last is kept for each one, so a press in
+     * another viewer does not change which gizmo takes a key here. Without it, the gizmos share one.
+     */
+    scope?(): object | undefined
 }
 
-/** The gizmo whose handle was pressed last: it takes the keys that two gizmos share */
-let lastPressed: GizmoActionTarget | undefined
+/** For each viewer (the element of {@link GizmoActionTarget.scope}): the gizmo whose handle was pressed last there */
+const lastPressed = new WeakMap<object, GizmoActionTarget>()
+/** The scope of the gizmos without one */
+const noScope = {}
+const scopeOf = (target: GizmoActionTarget) => target.scope?.() ?? noScope
 
 /** A key, and the same key with Shift: Shift, held down, snaps a gizmo, and its keys still work then */
 export const withShift = (keys: string[]) => keys.flatMap(k => [k, 'Shift+' + k])
@@ -40,7 +48,7 @@ export const withShift = (keys: string[]) => keys.flatMap(k => [k, 'Shift+' + k]
  */
 export function gizmoActions(prefix: string, group: string, target: GizmoActionTarget): ViewerAction[] {
     target.events?.addEventListener('mouseDown', () => {
-        lastPressed = target
+        lastPressed.set(scopeOf(target), target)
     })
     const action = (id: string, label: string, keys: string[], run: () => void, enabled = () => target.active()): ViewerAction => ({
         id: prefix + '.' + id, label, group, shortcut: withShift(keys), enabled,
@@ -66,7 +74,7 @@ export function gizmoActions(prefix: string, group: string, target: GizmoActionT
     ]
 }
 
-/** The `priority` of the keys of a gizmo: 2 for the gizmo pressed last, 1 for the preferred one, else 0 */
+/** The `priority` of the keys of a gizmo: 2 for the gizmo pressed last in its viewer, 1 for the preferred one, else 0 */
 export function gizmoPriority(target: GizmoActionTarget): number {
-    return lastPressed === target ? 2 : target.preferred ? 1 : 0
+    return lastPressed.get(scopeOf(target)) === target ? 2 : target.preferred ? 1 : 0
 }

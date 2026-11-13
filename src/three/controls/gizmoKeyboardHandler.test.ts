@@ -73,4 +73,16 @@ describe('gizmoActions', () => {
         expect([transform.toggleEnabled.mock.calls.length, pivot.toggleEnabled.mock.calls.length]).toEqual([1, 0])
         unregister.forEach(f => f())
     }))
+
+    it('the gizmo pressed last is kept for each viewer (its canvas): a press in another viewer does not change it', () => {
+        const canvasA = {}, canvasB = {}
+        const inA = (t: ReturnType<typeof gizmoTarget>) => Object.assign(t, {scope: () => canvasA})
+        const inB = (t: ReturnType<typeof gizmoTarget>) => Object.assign(t, {scope: () => canvasB})
+        const transformA = inA(gizmoTarget(true)), pivotA = inA(gizmoTarget())
+        const transformB = inB(gizmoTarget(true)), pivotB = inB(gizmoTarget())
+        const [ta, pa, tb, pb] = [transformA, pivotA, transformB, pivotB].map(t => gizmoActions('g', 'G', t)[0])
+        pivotA.events.dispatchEvent({type: 'mouseDown'})
+        transformB.events.dispatchEvent({type: 'mouseDown'})
+        expect([ta.priority, pa.priority, tb.priority, pb.priority]).toEqual([1, 2, 2, 0])
+    })
 })
