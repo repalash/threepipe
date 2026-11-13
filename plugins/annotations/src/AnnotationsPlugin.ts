@@ -622,12 +622,12 @@ export class AnnotationsPlugin extends AViewerPluginSync<AnnotationsPluginEventM
     /**
      * The keys of the plugin, as actions (registered in `viewer.actions`, where a UI lists them): → and ← open the
      * next and the previous annotation while a card is open, before the arrow keys of the camera controls on the canvas
-     * (`capture`). With more viewers on the page, the viewer with the focus, or the one used last, takes the key. Escape
+     * (`capture`); a held arrow goes on through them. With more viewers on the page, the viewer with the focus, or the one used last, takes the key. Escape
      * (close the card) stays a key of the card.
      */
     readonly actions: ViewerAction[] = [
-        {id: 'annotations.next', label: 'Next annotation', group: 'Annotations', shortcut: 'ArrowRight', capture: true, enabled: () => !this.isDisabled() && !!this._openId, run: () => this.next()},
-        {id: 'annotations.prev', label: 'Previous annotation', group: 'Annotations', shortcut: 'ArrowLeft', capture: true, enabled: () => !this.isDisabled() && !!this._openId, run: () => this.prev()},
+        {id: 'annotations.next', label: 'Next annotation', group: 'Annotations', shortcut: 'ArrowRight', capture: true, repeat: true, enabled: () => !this.isDisabled() && !!this._openId, run: () => this.next()},
+        {id: 'annotations.prev', label: 'Previous annotation', group: 'Annotations', shortcut: 'ArrowLeft', capture: true, repeat: true, enabled: () => !this.isDisabled() && !!this._openId, run: () => this.prev()},
     ]
     private _unregisterActions?: () => void
 
