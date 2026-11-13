@@ -18,6 +18,7 @@ import {
     Vector3,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
+import {createExampleCard} from '../examples-utils/example-card.js'
 
 async function init() {
 
@@ -112,16 +113,25 @@ async function init() {
         showScene()
     }
     const state = {huge: false}
-
-    const info = document.getElementById('pick-info') as HTMLDivElement
-    const lines = {scene: '', hover: 'Move the pointer over the objects', click: 'Click to compare with a Raycaster (no BVH) at the same point'}
-    const showLines = () => info.textContent = `${lines.scene}\n${lines.hover}\n${lines.click}`
+    // what the card shows: the scene, the last hover and the last click
+    const info = {meshes: '', triangles: '', object: '–', distance: '–', normal: '–', pickMs: '–', clickGpu: 'Click to compare', clickRay: '–'}
     const showScene = () => {
-        lines.scene = `${huge.length + 3} meshes, ${(countTriangles() / 1e6).toFixed(1)}M triangles`
-        showLines()
+        info.meshes = String(huge.length + 3)
+        info.triangles = (countTriangles() / 1e6).toFixed(1) + ' M'
     }
     showScene()
-
+    const row = (label: string, key: keyof typeof info) => ({type: 'monitor', label, getValue: () => info[key]})
+    createExampleCard(viewer, {
+        description: 'GPUPickingPlugin finds the front mesh under the pointer by rendering ids and depth into a 1×1 target: one small draw, no triangle tests and no tree. Hover for the hit point and its normal (the arrow); click to compare with a Raycaster without a BVH.',
+        actions: [
+            {type: 'checkbox', label: 'Huge scene (20M triangles)', icon: 'shapes', property: [state, 'huge'], onChange: () => setHuge(state.huge)},
+            {type: 'folder', label: 'Scene', children: [row('Meshes', 'meshes'), row('Triangles', 'triangles')]},
+            {type: 'folder', label: 'Hover', children: [
+                row('Object', 'object'), row('Distance', 'distance'), row('Normal', 'normal'), row('GPU pick', 'pickMs'),
+            ]},
+            {type: 'folder', label: 'Click (the same pixel)', children: [row('GPU pick', 'clickGpu'), row('Raycaster', 'clickRay')]},
+        ],
+    })
     // CSS pixels from the top-left corner of the canvas
     const canvasPoint = (ev: MouseEvent) => {
         const rect = viewer.canvas.getBoundingClientRect()
@@ -137,10 +147,10 @@ async function init() {
             arrow.quaternion.setFromUnitVectors(up, hit.normal)
         }
         viewer.setDirty()
-        lines.hover = hit ?
-            `${hit.object.name}, distance ${hit.distance.toFixed(2)}, normal (${hit.normal.toArray().map(v => v.toFixed(2)).join(', ')}), GPU pick ${gpuPicking.lastPickMs} ms` :
-            `Nothing, GPU pick ${gpuPicking.lastPickMs} ms`
-        showLines()
+        info.object = hit ? hit.object.name : 'Nothing'
+        info.distance = hit ? hit.distance.toFixed(2) : '–'
+        info.normal = hit ? hit.normal.toArray().map(v => v.toFixed(2)).join(', ') : '–'
+        info.pickMs = gpuPicking.lastPickMs + ' ms'
     })
 
     // on a click (not a drag of the camera): the GPU pick and a Raycaster at the same point. The Raycaster runs only on a
@@ -158,18 +168,12 @@ async function init() {
         raycaster.setFromCamera(new Vector2(cx / viewer.canvas.clientWidth * 2 - 1, -(cy / viewer.canvas.clientHeight) * 2 + 1), viewer.scene.mainCamera)
         const ref = raycaster.intersectObject(viewer.scene.modelRoot, true)[0]
         const rayMs = performance.now() - t0
-        lines.click = `Click: GPU pick ${gpuPicking.lastPickMs} ms (${hit?.object.name ?? 'nothing'}), Raycaster ${rayMs.toFixed(1)} ms (${ref?.object.name ?? 'nothing'})`
-        showLines()
+        info.clickGpu = `${gpuPicking.lastPickMs} ms · ${hit?.object.name ?? 'nothing'}`
+        info.clickRay = `${rayMs.toFixed(1)} ms · ${ref?.object.name ?? 'nothing'}`
     })
 
     const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
     ui.setupPluginUi(GPUPickingPlugin, {expanded: true})
-    ui.appendChild({
-        type: 'checkbox',
-        label: 'Huge scene (20M triangles)',
-        property: [state, 'huge'],
-        onChange: () => setHuge(state.huge),
-    })
 
 }
 
