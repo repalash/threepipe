@@ -57,6 +57,8 @@ const turntable = await recorder.recordCamera360(5)
 
 A recording needs rendered frames. `startRecording()` (and so `record()`) does not start on a disabled viewer (`viewer.enabled` false, also while the WebGL context is lost) or with rendering paused (`renderEnabled` false). When rendering stops during a recording (also after a render error), no frame is captured and the animations of a converge-mode recording do not step. `record()` then stops waiting for its action and resolves with the frames recorded so far, and `stopRecording()` does not wait for frames.
 
+A recording keeps going when its browser tab is hidden. A browser stops `requestAnimationFrame` there, so the plugin holds [`renderManager.keepRenderingWhenHidden`](https://threepipe.org/docs/classes/RenderManager.html#keeprenderingwhenhidden) from the start of a recording until it ends, fails or pauses: a clock in a worker brings the frames while the tab is hidden. Browsers (as of November 2026): works in Chrome and other Chromium browsers. Safari still pauses a hidden tab (a recording waits until the tab is visible again). Firefox and phones are not tested yet. See the [hidden tab example](https://threepipe.org/examples/#hidden-tab-rendering/).
+
 Use `startRecording()` and `stopRecording()` to start and stop a recording yourself. The plugin dispatches the `start`, `stop`, `error` and `encode-progress` events.
 
 With converge mode off (or without the `ProgressivePlugin`, where the animations run on the wall clock), the frames follow `videoFrameRate`, not the render rate: a faster render captures fewer frames, a slower one repeats the last image, so the video keeps the speed of the animation. A recording keeps the format, the frame rate and the converge mode that it started with (`recordingSettings`). A change of `mimeType`, `videoFrameRate` or `convergeMode` during a recording applies to the next one. A new recording cannot start while the last one still stops (an MP4 encodes while it stops). When the MP4 encode fails, `stopRecording()` resolves with no blob and the recorder is in the `error` state. In a browser without `MediaRecorder`, a recording with `mimeType: 'auto'` does not start (the `error` state); use an image sequence there.
@@ -64,5 +66,47 @@ With converge mode off (or without the `ProgressivePlugin`, where the animations
 [CameraViewPlugin.recordAllViews](https://threepipe.org/docs/classes/CameraViewPlugin.html#recordallviews) uses this plugin to record the animation through all the camera views.
 
 The MP4 recorder loads ffmpeg.js from [FFMPEGRecorder.LIBRARY_PATH](https://threepipe.org/docs/classes/FFMPEGRecorder.html#library_path) (jsdelivr by default) when it is created. Set it before the plugin is added to host the files yourself. All such URLs are listed in [Dynamically loaded files](../notes/dynamically-loaded-files).
+
+## Where the frames go
+
+An image sequence gives its frames to a sink, set with `frameSink`:
+
+| Sink | Where the frames go | Browsers |
+|---|---|---|
+| [DirectoryFrameSink](https://threepipe.org/docs/classes/DirectoryFrameSink.html) (default) | A new folder inside one the user picks, one file per frame | Chromium browsers (needs `showDirectoryPicker` and a click to start) |
+| [ZipFrameSink](https://threepipe.org/docs/classes/ZipFrameSink.html) | One zip, downloaded (or given to a callback) when the recording stops | All; keeps every frame in memory until then |
+| A function, or an object with `start`, `write`, `finish` and `dispose` ([ICanvasFrameSink](https://threepipe.org/docs/interfaces/ICanvasFrameSink.html)) | Anywhere: a server, memory | All |
+
+```typescript
+import {ZipFrameSink} from 'threepipe'
+
+const recorder = viewer.getPlugin(CanvasRecorderPlugin)!
+recorder.mimeType = 'image/png'
+recorder.frameSink = new ZipFrameSink('turntable') // downloads turntable.zip when the recording stops
+await recorder.recordCamera360(3)
+
+// or send each frame somewhere yourself
+recorder.frameSink = async({blob, index, name, mimeType}) => {
+    await fetch('/frames/' + name, {method: 'PUT', body: blob})
+}
+```
+
+Frames arrive one at a time and in order. In converge mode the next frame waits for the sink, so a slow one doesn't fill the memory. If a write fails, no more frames are sent, the sink isn't finished, and the recorder reports an `error` when it stops.
+
+## Adding a recorder
+
+`registerRecorder` adds a new output with no change to the plugin, for example one built on WebCodecs. It's used when `mimeType` matches, ahead of the built-in recorders. The recorder implements [ICanvasRecorder](https://threepipe.org/docs/interfaces/ICanvasRecorder.html); extending [ACanvasRecorder](https://threepipe.org/docs/classes/ACanvasRecorder.html) is the shortest way.
+
+```typescript
+recorder.registerRecorder('webcodecs',
+    (canvas, options) => new MyWebCodecsRecorder(canvas, options),
+    mimeType => mimeType === 'video/webm',
+    {label: 'WebM (WebCodecs)', mimeType: 'video/webm'}) // optional: an entry in the plugin UI's format list
+recorder.mimeType = 'video/webm'
+```
+
+Registered recorders have their own names: one called `image` doesn't replace the built-in image recorder.
+
+`registerRecorder` and `unregisterRecorder` return `false` and change nothing during a recording.
 
 The plugin UI has the recorder options, buttons to record the camera turntable and the glTF animations, and the ffmpeg options of the MP4 recorder.

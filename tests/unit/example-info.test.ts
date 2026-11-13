@@ -1,5 +1,5 @@
 import {describe, expect, test} from 'vitest'
-import {readdirSync, readFileSync} from 'node:fs'
+import {existsSync, readdirSync, readFileSync} from 'node:fs'
 import {exampleInfo} from '../../examples/examples-utils/example-info.mjs'
 
 const page = {pathname: '/examples/ssao-plugin/', hostname: 'threepipe.org', title: 'SSAO Plugin', scripts: './script.ts;./script.js', imports: ['threepipe', '@threepipe/plugin-tweakpane']}
@@ -60,8 +60,9 @@ describe('exampleInfo', () => {
 describe('example pages', () => {
     // an agent that fetches a page gets no script: the head and the noscript are what point it to llms.txt
     test('each page links the instructions for agents', () => {
+        // a folder without index.html is not a page (a build can leave a compiled script.js behind)
         const pages = readdirSync('examples', {withFileTypes: true}).filter(d => d.isDirectory() && !d.name.startsWith('_') && d.name !== 'examples-utils')
-            .map(d => `examples/${d.name}/index.html`)
+            .map(d => `examples/${d.name}/index.html`).filter(p => existsSync(p))
         expect(pages.length).toBeGreaterThan(200)
         const missing = pages.filter(p => {
             const html = readFileSync(p, 'utf8')

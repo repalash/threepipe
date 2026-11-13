@@ -12,19 +12,61 @@ name: Publish packages to npm
 
 on:
   push:
-    branches: ["master"]
+    # next: prereleases of dev under the dist-tag `next`; lane/rNNN: a three.js upgrade lane under its own dist-tag
+    # (channel-guard below)
+    branches: ["master", "next", "lane/r*"]
   workflow_dispatch:
 
 permissions:
   contents: read
 
-# Runs queue: a newer push waits until the one before is approved, rejected or cancelled.
+# Runs queue per branch: a newer push waits until the one before is approved, rejected or cancelled.
 concurrency:
-  group: publish
+  group: publish-${{ github.ref_name }}
   cancel-in-progress: false
 
 jobs:
+  # Each branch publishes to one npm dist-tag. Every package version that is not on npm yet must fit it:
+  # - master: a release version, and no publishConfig.tag other than `latest` (a prerelease or the tag of `next`
+  #   or a lane that was merged by mistake stops here)
+  # - next: a prerelease with publishConfig.tag `next`
+  # - lane/rNNN: a prerelease with publishConfig.tag `three-rNNN`
+  # Any other branch (a manual run on dev) publishes nothing.
+  channel-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Versions and dist-tags of the branch's channel only
+        env:
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          node --input-type=module -e "
+          import {readFileSync, readdirSync, existsSync} from 'node:fs'
+          import {execFileSync} from 'node:child_process'
+          const branch = process.env.BRANCH
+          const lane = /^lane\/(r[0-9]+)$/.exec(branch)
+          const tag = branch === 'master' ? 'latest' : branch === 'next' ? 'next' : lane ? 'three-' + lane[1] : null
+          if (!tag) { console.log('::error::' + branch + ' publishes nothing: only master, next and lane/rNNN do'); process.exit(1) }
+          const dirs = ['.', ...readdirSync('plugins').filter(d => !d.startsWith('plugin-template-')).map(d => 'plugins/' + d)]
+          let bad = 0
+          for (const dir of dirs) {
+            if (!existsSync(dir + '/package.json')) continue
+            const p = JSON.parse(readFileSync(dir + '/package.json', 'utf8'))
+            if (p.private) continue
+            let published = false
+            try { published = execFileSync('npm', ['view', p.name + '@' + p.version, 'version'], {encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore']}).trim() === p.version } catch {}
+            if (published) continue
+            const prerelease = /^[^+]*-/.test(p.version)
+            const pkgTag = p.publishConfig?.tag ?? 'latest'
+            const wrong = []
+            if (prerelease !== (tag !== 'latest')) wrong.push(prerelease ? 'a release version on ' + branch : 'a prerelease version on ' + branch)
+            if (pkgTag !== tag) wrong.push('publishConfig.tag ' + (tag === 'latest' ? 'removed' : tag) + ' (has ' + pkgTag + ')')
+            if (wrong.length) { console.log('::error::' + p.name + '@' + p.version + ' needs ' + wrong.join(' and ')); bad++ }
+          }
+          process.exit(bad ? 1 : 0)"
+
   release:
+    needs: channel-guard
     permissions:
       contents: write # tags
       id-token: write # npm trusted publishing

@@ -1,6 +1,5 @@
-import {DatabaseSettings, TableAuthExtensionData, TableRulesExtensionData} from 'teenybase'
+import {DatabaseSettings, sqlValue, TableAuthExtensionData, TableRulesExtensionData} from 'teenybase'
 import {baseFields, authFields, createdTrigger, updatedTrigger} from 'teenybase/scaffolds/fields'
-import {sqlValue} from 'teenybase'
 
 // The username is the handle: the user's drive is `d/<username>/`, so it is picked once and never changes.
 // `handle_set`: when it was picked (src/handle.ts). GitHub gives its login and a password sign-up names it; a Google

@@ -79,11 +79,12 @@ To add a dependency to a plugin, run `npm install <package> -w plugins/<plugin-n
 No workflow runs on pull requests. Before a pull request, run `test:unit`, and for build or dependency changes
 `build:all`, `check-bundles` and `test:types`.
 
-For a pull request that changes the examples or rendering, add a link to a preview of it. Two separate steps:
+Every pull request that changes or adds an example has a preview link to that example's page in its description. So does one that changes rendering. Two separate steps:
 
 1. `npm run build:all`: builds the core, the plugins and the examples (nothing is uploaded).
 2. `npm run cloud:upload-preview -- pr-<number>`: uploads what step 1 built (`dist/`, `examples/`, `plugins/*/dist/`)
-   to threepipe cloud and prints the link; put it in the pull request. The preview stays until cleaned up.
+   to threepipe cloud and prints the link; put the link to the example in the pull request
+   (`https://files.threepipe.org/b/threepipe/pr-<number>/examples/<example>/index.html`). The preview stays until cleaned up.
 
 Step 2 needs a threepipe cloud key (`TP_CLOUD_KEY`): sign in at https://cloud.threepipe.org with GitHub, create an access
 link, and follow it. See `services/cloud/README.md`.
@@ -107,6 +108,22 @@ For core and for each package -
 - Update the package version in `package.json` and add a `## [<version>]` entry to its `CHANGELOG.md`.
 - Merge to `master` on github. The "Publish packages to npm" workflow ([repalash/release-tools](https://github.com/repalash/release-tools)) builds and checks every package whose version is not on npm, posts to Discord with the approval link and a Claude review, waits for the `npm-publish` environment approval, publishes with npm trusted publishing, and pushes the release tags (`v0.0.1` for core, `@threepipe/plugin-name-0.0.1` for a plugin).
 - Each package builds with its docs (`npm run build && npm run docs`), in dependency order. A package whose build fails is left out of that release, with the packages that depend on it; the notice lists them and the others are published. `npm run test:types` must pass for any release (it checks the core with plugin-tweakpane); the examples' type check only warns.
+
+### Prereleases
+
+Two branches publish prereleases through the same workflow, with the same checks and approval, under their own npm dist-tag. `latest` does not change, and a range like `^0.6.0` never picks a prerelease.
+
+| Branch | Version | `publishConfig.tag` | Install |
+| --- | --- | --- | --- |
+| `next` | `0.7.0-next.0`, `0.7.0-next.1`, ... | `next` | `npm i threepipe@next` |
+| `lane/rNNN` (a three.js upgrade) | `0.7.0-r172.1`, ... | `three-r172` | `npm i threepipe@three-r172` |
+
+- A prerelease of `dev`: merge `dev` into `next`, set the prerelease version and `"publishConfig": {"tag": "next"}` in each package to publish, add a `## [<version>]` section to that package's own `CHANGELOG.md` (the root one for the core, `plugins/<name>/CHANGELOG.md` for a plugin; the workflow checks it), and push `next`.
+- Every package whose version is not on npm yet must fit the branch, or the run stops before the build: a prerelease with the branch's tag on `next` and `lane/rNNN`, a release version without `publishConfig.tag` on `master`. So `next` and the lanes are never merged back: their version bumps and tags would stop the next release from `master`.
+- A merge of `dev` brings along every version bump of `dev` that `master` has not released yet. Each such package has to become a prerelease with the branch's tag in the same push (or be `private`), else the run stops.
+- Any other branch (a manual run on `dev`) publishes nothing.
+- npm never counts a prerelease as matching a range like `>=0.6.0`, and every plugin has such a peer range on `threepipe`. A project that installs `threepipe@next` (or a lane) with a plugin needs `"overrides": {"threepipe": "$threepipe"}` in its `package.json`, else `npm install` fails with `ERESOLVE` (pnpm and yarn install it as is). See the [FAQ](https://threepipe.org/guide/faq.html#prereleases).
+- After a release from `master`, the dist-tag `next` still points at the last prerelease, which is now older than `latest`. Publish the next prerelease (`0.8.0-next.0`) or move the tag: `npm dist-tag add threepipe@0.7.0 next` (and for each plugin that has a `next`).
 
 ## Creating a Core Plugin
 

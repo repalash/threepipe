@@ -106,6 +106,9 @@ fs.writeFileSync(path.join(work, 'package.json'), JSON.stringify({
         'uiconfig-tweakpane': pluginPkg.peerDependencies['uiconfig-tweakpane'],
         ...Object.fromEntries(tsVersions.map(v => [tsAlias(v), `npm:typescript@${v}`])),
     },
+    // a prerelease core (next, lane/rNNN) never matches the plugin's peer range (`threepipe: >=0.4.0`), and npm then
+    // stops with ERESOLVE; a consumer installs it with the same override (website/guide/faq.md)
+    overrides: {threepipe: '$threepipe'},
 }, null, 2))
 fs.copyFileSync(path.join(root, 'tests/consumer-types/consumer.ts'), path.join(work, 'consumer.ts'))
 execSync('npm install --silent --no-audit --no-fund --ignore-scripts', {cwd: work, stdio: 'inherit'})

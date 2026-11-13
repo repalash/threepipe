@@ -14,15 +14,21 @@ import {setupEditorCameraUi} from './editor-camera-ui'
 import type {EditorCameraPlugin} from './EditorCameraPlugin'
 import styles from './TweakpaneEditorPlugin.css?inline'
 import tippy from 'tippy.js'
-import {addTooltipStyles, EDITOR_TOOLTIP_PROPS} from './tooltips'
+import {addTooltipStyles, EDITOR_TOOLTIP_PROPS, tooltipParent} from './tooltips'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 import {UiObjectConfig} from 'uiconfig.js'
-import {EDITOR_PAGE_LAYOUTS, EditorFrame, EditorFrameLayout, EditorFrameOptions, EditorPageLayout} from './frame/EditorFrame'
+import {EDITOR_PAGE_LAYOUTS, EditorFrame, EditorFrameLayout, EditorFrameOptions, EditorFramePanelOptions, EditorPageLayout} from './frame/EditorFrame'
 import {readStored, writeStored} from './dom-utils'
+import {preventIosInputZoom as preventZoom} from './input-zoom'
 
 export interface TweakpaneEditorPluginEventMap extends AViewerPluginEventMap {
     /** {@link TweakpaneEditorPlugin.documentName} changed: set by the app, or renamed in the bar of the frame */
     documentNameChange: {name: string}
+    /**
+     * The page frame was made ({@link TweakpaneEditorPlugin.frame}, with the areas again) or removed (`undefined`, the
+     * classic layout). A new frame has its own state (`modeSettingsHidden`), so an app sets it again here.
+     */
+    frameChange: {frame?: EditorFrame}
 }
 
 export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPluginEventMap> {
@@ -45,7 +51,7 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
             ...EDITOR_TOOLTIP_PROPS,
             duration: 200, // a short fade: tooltips and popovers take 160 to 220 ms
             arrow: true,
-            appendTo: () => viewer.container, // for fullscreen
+            appendTo: tooltipParent, // above the frame; in the viewer container in full screen
         })
 
         setupFullscreenButton(viewer)
@@ -55,6 +61,7 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
         this._addEditorCameraUi()
         viewer.addPluginListener('add', this._addEditorCameraUi, 'EditorCameraPlugin')
         viewer.addPluginListener('remove', this._removeEditorCameraUi, 'EditorCameraPlugin')
+        this._applyInputZoom()
     }
 
     onRemove(viewer: ThreeViewer) {
@@ -62,7 +69,32 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
         viewer.removePluginListener('remove', this._removeEditorCameraUi)
         this._removeEditorCameraUi()
         this._removeFrame()
+        this._undoInputZoom?.()
+        this._undoInputZoom = undefined
         super.onRemove(viewer)
+    }
+
+    private _preventIosInputZoom = true
+    private _undoInputZoom?: () => void
+    /**
+     * iOS and iPadOS zoom the page into a focused text field with text under 16 px (the search fields, the Tweakpane text
+     * fields) and do not zoom back out. On (the default), the plugin stops that zoom while it is added, on iOS only: it
+     * adds `maximum-scale=1` to the viewport meta tag of the page, and puts the tag back when it is removed or this is
+     * turned off. A pinch zoom still works in Safari, which ignores the tag for it; an in-app browser (WKWebView) or a web
+     * app on the home screen follows the tag and blocks it: turn this off there. The exported function
+     * `preventIosInputZoom` does it.
+     */
+    get preventIosInputZoom() {
+        return this._preventIosInputZoom
+    }
+    set preventIosInputZoom(prevent: boolean) {
+        this._preventIosInputZoom = prevent
+        this._applyInputZoom()
+    }
+
+    private _applyInputZoom() {
+        this._undoInputZoom?.()
+        this._undoInputZoom = this._viewer && this._preventIosInputZoom ? preventZoom() : undefined
     }
 
     private _addEditorCameraUi = () => {
@@ -111,6 +143,26 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
         this._documentName = name
         if (this.frame) this.frame.documentName = name
         this.dispatchEvent({type: 'documentNameChange', name})
+    }
+
+    private _panels = new Map<string, [HTMLElement, EditorFramePanelOptions]>()
+    /**
+     * Adds a panel to the page frame ({@link EditorFrame.addPanel}): an element in a place (`left`, the sidebar left of
+     * the canvas; `bottom`, the strip below it; `right`, the top of the panel above the settings of the mode), with an
+     * entry in the mode bar (`options`: its name, icon and colour, and the place where it starts). The person shows or
+     * hides it with its entry, and moves it to another place with the menu of its entry (a right-click, or a long press).
+     * The plugin keeps the panel and adds it again when it makes the frame again (at {@link loadPlugins}, and after the
+     * classic layout, which has no frame). Move or hide it from code with `frame.movePanel` and `frame.setPanelHidden`.
+     */
+    addPanel(id: string, element: HTMLElement, options: EditorFramePanelOptions = {}) {
+        this._panels.set(id, [element, options])
+        this.frame?.addPanel(id, element, options)
+    }
+
+    /** Takes a panel out of the page frame ({@link addPanel}) */
+    removePanel(id: string) {
+        this._panels.delete(id)
+        this.frame?.removePanel(id)
     }
 
     private _layout: EditorPageLayout = readStoredLayout() ?? TweakpaneEditorPlugin.DefaultLayout
@@ -206,13 +258,17 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
         })
         this.frame.modeBar.select(this._selectedMode)
         this.frame.documentName = this._documentName
+        for (const [id, [element, options]] of this._panels) this.frame.addPanel(id, element, options)
         // the mode bar keeps the names shown or hidden (its toggle button, the stored state): the checkbox follows it
         this.frame.modeBar.onExpandedChange = () => this.uiConfig.uiRefresh?.(true)
+        this.dispatchEvent({type: 'frameChange', frame: this.frame})
     }
 
     private _removeFrame() {
-        this.frame?.dispose()
+        if (!this.frame) return
+        this.frame.dispose()
         this.frame = undefined
+        this.dispatchEvent({type: 'frameChange', frame: undefined})
     }
 
     private _selectedMode = 0
@@ -264,6 +320,8 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
 
     setSelectedMode(mode: number) {
         this._selectedMode = mode
+        // a mode is picked: show its settings (also when the right area is in their place)
+        this.frame?.setModeSettingsHidden(false)
 
         // if (picking) picking.enabled = true
 

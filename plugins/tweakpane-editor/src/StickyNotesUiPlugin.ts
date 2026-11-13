@@ -2,7 +2,7 @@ import {AViewerPluginSync, createStyles, onChange, raiseOnPress, ThreeViewer} fr
 import {UiObjectConfig} from 'uiconfig.js'
 import {delegate, DelegateInstance} from 'tippy.js'
 import {NoteItem, NotesPlugin} from './NotesPlugin'
-import {addTooltipStyles, EDITOR_TOOLTIP_PROPS} from './tooltips'
+import {addTooltipStyles, EDITOR_TOOLTIP_PROPS, tooltipParent} from './tooltips'
 import {readStored, writeStored} from './dom-utils'
 import styles from './StickyNotesUiPlugin.css?inline'
 
@@ -299,10 +299,10 @@ export class StickyNotesUiPlugin extends AViewerPluginSync {
         // a press on a post-it or the dock brings the notes above other panels (the open perf card)
         this._unraise = raiseOnPress(this.element)
         // one tooltip for each button with a data-tip, read when it shows (the layout and store buttons change it);
-        // in the viewer container, so it shows in full screen too, and inside it (the buttons of a post-it at the top
-        // of the canvas show theirs below, not under the bars of the page)
+        // above the areas of the page frame, in full screen too (tooltipParent), and flipped to stay inside the canvas
+        // (the buttons of a post-it at the top of the canvas show theirs below)
         this._tips = delegate(this.element, {
-            ...EDITOR_TOOLTIP_PROPS, target: '[data-tip]', appendTo: () => viewer.container,
+            ...EDITOR_TOOLTIP_PROPS, target: '[data-tip]', appendTo: tooltipParent,
             popperOptions: {modifiers: [{name: 'flip', options: {boundary: viewer.container}}]},
             onShow: tip => {
                 const text = (tip.reference as HTMLElement).dataset.tip
