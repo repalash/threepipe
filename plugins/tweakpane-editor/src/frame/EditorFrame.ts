@@ -1,5 +1,5 @@
-import {bindActions, createDiv, createStyles} from 'threepipe'
-import type {CommandAction, ThreeViewer} from 'threepipe'
+import {createDiv, createStyles, ViewerActions} from 'threepipe'
+import type {ThreeViewer, ViewerAction} from 'threepipe'
 import {EditorModeBar, EditorModeBarHost} from './EditorModeBar'
 import {readStored, writeStored} from '../dom-utils'
 import styles from './EditorFrame.css?inline'
@@ -118,9 +118,8 @@ export interface EditorFrameOptions {
      */
     panel?: () => HTMLElement | null
     /**
-     * The viewer: while it has a `CommandsPlugin`, the keys of the frame are registered there as actions
-     * ({@link EditorFrame.actions}). Without it (or without the plugin), the frame runs its keys itself.
-     * `TweakpaneEditorPlugin` passes its viewer.
+     * The viewer: the keys of the frame are registered in its `viewer.actions` ({@link EditorFrame.actions}). Without a
+     * viewer, the frame has its own `ViewerActions` for them. `TweakpaneEditorPlugin` passes its viewer.
      */
     viewer?: ThreeViewer
 }
@@ -276,15 +275,17 @@ export class EditorFrame {
     /** The tooltips of the buttons in the bars */
     private _themePairs: [string, string][]
     private _styles?: HTMLStyleElement
-    private _unbindActions: () => void
+    private _unregisterActions: () => void
+    /** The actions of the frame when it has no viewer */
+    private _ownActions?: ViewerActions
 
     /**
-     * The keys of the frame, as actions (`bindActions` of threepipe: a `CommandsPlugin` of
-     * {@link EditorFrameOptions.viewer} lists and runs them, else the frame does): Shift+T switches between the light and
+     * The keys of the frame, as actions (registered in `viewer.actions` of {@link EditorFrameOptions.viewer}, where a UI
+     * lists and runs them, else in an own `ViewerActions`): Shift+T switches between the light and
      * the dark theme, Ctrl+\ (Cmd+\ on a Mac) steps through the collapse states of the mode bar and the panel. The
      * place of the T key, and the \ key or its place (a layout where it types another character).
      */
-    readonly actions: CommandAction[] = [
+    readonly actions: ViewerAction[] = [
         {id: 'editorFrame.toggleTheme', label: 'Light or dark theme', group: 'Editor', shortcut: 'Shift+KeyT', run: () => this.toggleTheme()},
         {id: 'editorFrame.cycleModeBar', label: 'Collapse or expand the mode bar', group: 'Editor', shortcut: 'Mod+\\', run: () => this.modeBar.cycle()},
     ]
@@ -328,7 +329,7 @@ export class EditorFrame {
         this.modeBar.onLayoutChange = this._fitAreas
         this._restoreAreas()
 
-        this._unbindActions = bindActions(options.viewer, this.actions)
+        this._unregisterActions = (options.viewer?.actions ?? (this._ownActions = new ViewerActions())).register(this.actions)
         window.addEventListener('resize', this._fitAreas)
         this.modeBar.element.addEventListener('click', this._expandPanel)
         // before the click of a mode, which would hide the panel when its mode is the open one
@@ -874,7 +875,8 @@ export class EditorFrame {
     }
 
     dispose() {
-        this._unbindActions()
+        this._unregisterActions()
+        this._ownActions?.dispose()
         window.removeEventListener('resize', this._fitAreas)
         this.modeBar.onLayoutChange = undefined
         this.modeBar.element.removeEventListener('click', this._expandPanel)
@@ -1592,7 +1594,7 @@ export class EditorFrame {
         if (!this._menu?.contains(t) && !this._menuAnchor?.contains(t)) this._closeMenu()
     }
 
-    // the Escape that closes the menu is used: it does not also clear the selection (an action of a CommandsPlugin)
+    // the Escape that closes the menu is used: it does not also clear the selection (an action in viewer.actions)
     private _onMenuKeyDown = (e: KeyboardEvent) => {
         if (e.key !== 'Escape' || !this._menu) return
         e.preventDefault()
