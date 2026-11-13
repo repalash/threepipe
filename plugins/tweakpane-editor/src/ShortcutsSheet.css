@@ -27,7 +27,9 @@
 .sks-body section { break-inside: avoid; padding-top: 12px; }
 .sks-body h3 { margin: 0 0 4px; font-size: 11px; font-weight: 600; color: var(--tp-label-foreground-color, #8a8f98); }
 .sks-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0; padding: 4px 0; }
-.sks-keys { display: flex; align-items: center; gap: 4px; flex: none; }
+.sks-row > span:first-child { min-width: 0; overflow-wrap: anywhere; }
+/* many keys (a gizmo key and its Shift form) wrap inside the column, at its right */
+.sks-keys { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 4px; flex: 0 1 auto; min-width: 0; }
 .sks-keys i { font-style: normal; color: var(--tp-label-foreground-color, #8a8f98); }
 .sks-root kbd {
     font: 500 11px/1 var(--tp-font-family, Inter, ui-sans-serif, system-ui, sans-serif); white-space: nowrap; padding: 3px 6px; border-radius: 4px;
