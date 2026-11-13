@@ -13,6 +13,7 @@ import {
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 import {LayersPanelPlugin, SelectionOutlinePlugin} from '@threepipe/plugin-tweakpane-editor'
+import {createExampleCard} from '../examples-utils/example-card.js'
 
 async function init() {
 
@@ -57,6 +58,10 @@ async function init() {
     ui.setupPluginUi(LayersPanelPlugin, {expanded: true})
     ui.setupPluginUi(SelectionOutlinePlugin)
     ui.setupPluginUi(PickingPlugin)
+
+    createExampleCard(viewer, {
+        description: 'LayersPanelPlugin: the objects of the scene in a list. Click a row to select its object, double-click a row to move the camera to it, or double-click its name to rename it. The eye hides an object, the lock stops picking it in the viewport. The tabs list the materials, textures and geometries.',
+    })
 }
 
 _testStart()

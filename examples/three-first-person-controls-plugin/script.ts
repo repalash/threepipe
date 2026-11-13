@@ -7,6 +7,7 @@ import {
     ThreeViewer,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
+import {createExampleCard} from '../examples-utils/example-card.js'
 
 async function init() {
 
@@ -28,9 +29,18 @@ async function init() {
     })
 
     const overlayEl = document.getElementById('firstPersonControlsOverlay') as HTMLDivElement
-    overlayEl.addEventListener('click', () => {
-        viewer.scene.mainCamera.controlsMode = 'threeFirstPerson'
-        overlayEl.style.display = 'none'
+    const camera = viewer.scene.mainCamera
+    const setFirstPerson = (on: boolean) => {
+        camera.controlsMode = on ? 'threeFirstPerson' : 'orbit'
+        overlayEl.style.display = on ? 'none' : 'flex'
+    }
+    overlayEl.addEventListener('click', () => setFirstPerson(true))
+
+    createExampleCard(viewer, {
+        description: 'ThreeFirstPersonControlsPlugin (FirstPersonControls of three.js): the camera looks where the pointer is; hold the left button to move forward, the right one to move back. Click the canvas to start; switch back to orbit controls here.',
+        actions: [
+            {type: 'checkbox', label: 'First person controls', icon: 'eye', getValue: () => camera.controlsMode === 'threeFirstPerson', setValue: setFirstPerson},
+        ],
     })
 
 }
