@@ -15,8 +15,8 @@ import {
 import {Euler, MathUtils, Object3D, Vector3} from 'three'
 import type {UndoManagerPlugin} from './UndoManagerPlugin'
 import {MultiSelectHelper} from './MultiSelectHelper'
-import {gizmoActions} from '../../three/controls/gizmoKeyboardHandler'
-import {bindActions, type CommandAction} from './CommandsPlugin'
+import {gizmoActions, type GizmoActionTarget, withShift} from '../../three/controls/gizmoKeyboardHandler'
+import type {ViewerAction} from '../../viewer/ViewerActions'
 import {isTextTarget} from '../../utils/shortcuts'
 
 @uiFolderContainer('Transform Controls')
@@ -85,13 +85,13 @@ export class TransformControlsPlugin extends AViewerPluginSync {
 
     private _multi = new MultiSelectHelper()
     /** Removes the actions of the gizmo from the viewer */
-    private _unbindActions?: () => void
+    private _unregisterActions?: () => void
 
     onAdded(viewer: ThreeViewer) {
         super.onAdded(viewer)
         this.setDirty()
         this.transformControls = new TransformControls2(viewer.scene.mainCamera, viewer.canvas)
-        this._unbindActions = bindActions(viewer, this.transformControls.actions)
+        this._unregisterActions = viewer.actions.register(this.transformControls.actions)
         this._mainCameraChange = this._mainCameraChange.bind(this)
         viewer.scene.addEventListener('mainCameraChange', this._mainCameraChange)
         this.transformControls.addEventListener('dragging-changed', (event) => {
@@ -195,8 +195,8 @@ export class TransformControlsPlugin extends AViewerPluginSync {
     onRemove(viewer: ThreeViewer) {
         viewer.scene.removeEventListener('mainCameraChange', this._mainCameraChange)
         this._multi.clear(viewer)
-        this._unbindActions?.()
-        this._unbindActions = undefined
+        this._unregisterActions?.()
+        this._unregisterActions = undefined
         if (this.transformControls) {
             this.transformControls.detach()
             viewer.scene.remove(this.transformControls)
@@ -230,12 +230,16 @@ export class TransformControls2 extends TransformControls implements IWidget, IO
 
     /**
      * The keys of the gizmo, as actions: Q (local or world space), + and - (the size), X, Y, Z (an axis), Space (on or
-     * off), and W, E, R (move, rotate, scale), while it is enabled and attached. The `TransformControlsPlugin` binds them
-     * to its viewer (`bindActions`: a `CommandsPlugin` lists them); without the plugin, bind them yourself. Shift, held
-     * down, snaps the values (a key listener of the gizmo).
+     * off), and W, E, R (move, rotate, scale), while it is enabled and attached; also with Shift held down, which snaps
+     * the values (a key listener of the gizmo). With a pivot gizmo on too, the gizmo pressed last takes the keys they share
+     * (else this one). The `TransformControlsPlugin` registers them in `viewer.actions`; without the plugin, register them
+     * yourself (`viewer.actions.register(controls.actions)`).
      */
-    readonly actions: CommandAction[] = [
+    readonly actions: ViewerAction[] = [
         ...gizmoActions('transformControls', 'Transform', {
+            // a press on a handle makes it the gizmo of the shared keys; before one, it is the transform gizmo
+            events: this as unknown as GizmoActionTarget['events'],
+            preferred: true,
             active: () => this.enabled && !!this.object,
             attached: () => !!this.object,
             toggleSpace: () => { this.space = this.space === 'local' ? 'world' : 'local' },
@@ -248,8 +252,8 @@ export class TransformControls2 extends TransformControls implements IWidget, IO
             toggleEnabled: () => { this.enabled = !this.enabled },
             changed: () => this.setDirty({refreshScene: true, frameFade: true}),
         }),
-        ...(['translate', 'rotate', 'scale'] as const).map((mode, i): CommandAction => ({
-            id: 'transformControls.' + mode, label: ['Move', 'Rotate', 'Scale'][i], group: 'Transform', shortcut: ['KeyW', 'KeyE', 'KeyR'][i],
+        ...(['translate', 'rotate', 'scale'] as const).map((mode, i): ViewerAction => ({
+            id: 'transformControls.' + mode, label: ['Move', 'Rotate', 'Scale'][i], group: 'Transform', shortcut: withShift([['KeyW', 'KeyE', 'KeyR'][i]]),
             enabled: () => this.enabled && !!this.object,
             run: () => {
                 this.mode = mode

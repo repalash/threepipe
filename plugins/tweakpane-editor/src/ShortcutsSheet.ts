@@ -1,5 +1,5 @@
-import {CommandsPlugin, createStyles, formatShortcut, shortcutsOf} from 'threepipe'
-import type {CommandAction, ThreeViewer} from 'threepipe'
+import {createStyles, formatShortcut, shortcutsOf} from 'threepipe'
+import type {ViewerAction, ViewerActions} from 'threepipe'
 import styles from './ShortcutsSheet.css?inline'
 
 /** A row of the {@link ShortcutsSheet}: an action and the labels of its keys (`⌘Z`, `Ctrl+Z`) */
@@ -18,13 +18,13 @@ export interface ShortcutsSheetGroup {
 /**
  * The rows of the {@link ShortcutsSheet}: the actions that have a key, in groups (in the order of the first action of
  * each group), with the labels of their keys.
- * @param actions - the actions (`CommandsPlugin.list()`)
- * @param shortcutOf - the key or keys of an action now (`CommandsPlugin.shortcutOf`: the key that the app set, else its own)
+ * @param actions - the actions (`viewer.actions.list()`)
+ * @param shortcutOf - the key or keys of an action now (`viewer.actions.shortcutOf`: the key that the app set, else its own)
  * @param query - only the rows whose label, key or group has this text (any case); empty: all the rows
  * @param otherGroup - the name of the group of the actions without one
  * @param mac - Mac labels of the keys (⌘, ⌥, ⇧). Default: the platform of the browser.
  */
-export function shortcutsSheetGroups(actions: CommandAction[], shortcutOf: (id: string) => string | string[] | undefined, query = '', otherGroup = 'Other', mac?: boolean): ShortcutsSheetGroup[] {
+export function shortcutsSheetGroups(actions: ViewerAction[], shortcutOf: (id: string) => string | string[] | undefined, query = '', otherGroup = 'Other', mac?: boolean): ShortcutsSheetGroup[] {
     const q = query.trim().toLowerCase()
     const groups = new Map<string, ShortcutsSheetRow[]>()
     for (const a of actions) {
@@ -47,7 +47,7 @@ export interface ShortcutsSheetOptions {
 }
 
 /**
- * A sheet of all the keyboard shortcuts of a viewer: the actions of its `CommandsPlugin` that have a key, in their
+ * A sheet of all the keyboard shortcuts of a viewer: the actions in its `viewer.actions` that have a key, in their
  * groups, with the keys that the app set (`setShortcut`), and a search field. It shows the keys of each action as they
  * are now, so a plugin that adds actions, or an app that changes keys, needs no change here. It changes when the
  * actions change while it is open.
@@ -57,7 +57,7 @@ export interface ShortcutsSheetOptions {
  * from a button of the mode bar and with `?` (the action `editorFrame.shortcuts`); an app without the frame makes one:
  *
  * ```ts
- * const sheet = new ShortcutsSheet(viewer)
+ * const sheet = new ShortcutsSheet(viewer.actions)
  * sheet.open()
  * ```
  */
@@ -66,13 +66,12 @@ export class ShortcutsSheet {
     private _search?: HTMLInputElement
     private _body?: HTMLDivElement
     private _styles?: HTMLStyleElement
-    private _commands?: CommandsPlugin
 
     /**
-     * @param viewer - the viewer whose `CommandsPlugin` has the actions (read when the sheet opens)
+     * @param actions - the actions to list: `viewer.actions` (or the own `ViewerActions` of a UI without a viewer)
      * @param options - the title, the name of the group of the actions without one
      */
-    constructor(readonly viewer: ThreeViewer | undefined, readonly options: ShortcutsSheetOptions = {}) {}
+    constructor(readonly actions: ViewerActions, readonly options: ShortcutsSheetOptions = {}) {}
 
     get isOpen() {
         return !!this._dialog?.open
@@ -81,8 +80,7 @@ export class ShortcutsSheet {
     open() {
         if (this.isOpen) return
         const d = this._dialog ?? this._create()
-        this._commands = this.viewer?.getPlugin(CommandsPlugin)
-        this._commands?.addEventListener('actionsChange', this._render)
+        this.actions.addEventListener('actionsChange', this._render)
         this._search!.value = ''
         this._render()
         d.showModal()
@@ -92,8 +90,7 @@ export class ShortcutsSheet {
     }
 
     close() {
-        this._commands?.removeEventListener('actionsChange', this._render)
-        this._commands = undefined
+        this.actions.removeEventListener('actionsChange', this._render)
         if (this._dialog?.open) this._dialog.close()
     }
 
@@ -147,13 +144,13 @@ export class ShortcutsSheet {
     private _render = () => {
         const body = this._body
         if (!body) return
-        const c = this._commands
-        const groups = c ? shortcutsSheetGroups(c.list(), id => c.shortcutOf(id), this._search?.value, this.options.otherGroup) : []
+        const a = this.actions
+        const groups = shortcutsSheetGroups(a.list(), id => a.shortcutOf(id), this._search?.value, this.options.otherGroup)
         body.replaceChildren()
         if (!groups.length) {
             const p = document.createElement('p')
             p.className = 'sks-empty'
-            p.textContent = !c ? 'No shortcuts: the viewer has no CommandsPlugin' : this._search?.value ? 'No shortcut matches the search' : 'No shortcuts'
+            p.textContent = this._search?.value ? 'No shortcut matches the search' : 'No shortcuts'
             body.appendChild(p)
             return
         }

@@ -1,4 +1,4 @@
-import type {CommandAction} from '../../plugins/interaction/CommandsPlugin'
+import type {ViewerAction} from '../../viewer/ViewerActions'
 
 /** What the shared gizmo actions ({@link gizmoActions}) change on a transform gizmo */
 export interface GizmoActionTarget {
@@ -12,33 +12,61 @@ export interface GizmoActionTarget {
     toggleEnabled(): void
     /** Called after each action, to render the change */
     changed(): void
+    /**
+     * The gizmo sends `mouseDown` when the person presses one of its handles: of two gizmos that share a key, the one
+     * pressed last takes it ({@link gizmoActions})
+     */
+    events?: {addEventListener(type: 'mouseDown', listener: () => void): void}
+    /** Of two gizmos that share a key, this one takes it while none was pressed yet (the transform gizmo) */
+    preferred?: boolean
 }
+
+/** The gizmo whose handle was pressed last: it takes the keys that two gizmos share */
+let lastPressed: GizmoActionTarget | undefined
+
+/** A key, and the same key with Shift: Shift, held down, snaps a gizmo, and its keys still work then */
+export const withShift = (keys: string[]) => keys.flatMap(k => [k, 'Shift+' + k])
 
 /**
  * The shared actions of the transform gizmos (`TransformControls2`, `PivotControls`): Q (local or world space), + and -
- * (the size), X, Y, Z (an axis) and Space (on or off). The keys are places on the keyboard (`KeyboardEvent.code`). The
- * owner of the gizmo binds them with `bindActions` (its plugin does that).
+ * (the size), X, Y, Z (an axis) and Space (on or off). The keys are places on the keyboard (`KeyboardEvent.code`), and
+ * they work with Shift held down too (Shift snaps the gizmo). When two gizmos with these keys are active (the transform
+ * gizmo and the pivot gizmo), one takes a key: the one whose handle was pressed last, else the preferred one
+ * ({@link GizmoActionTarget.preferred}); the actions have a higher `priority` then. The owner of the gizmo registers them
+ * in `viewer.actions` (its plugin does that).
  * @param prefix - the start of the ids, like `'transformControls'`
  * @param group - the group of the actions in a UI
  * @param target - the gizmo
  */
-export function gizmoActions(prefix: string, group: string, target: GizmoActionTarget): CommandAction[] {
-    const action = (id: string, label: string, shortcut: string | string[], run: () => void, enabled = () => target.active()): CommandAction => ({
-        id: prefix + '.' + id, label, group, shortcut, enabled,
+export function gizmoActions(prefix: string, group: string, target: GizmoActionTarget): ViewerAction[] {
+    target.events?.addEventListener('mouseDown', () => {
+        lastPressed = target
+    })
+    const action = (id: string, label: string, keys: string[], run: () => void, enabled = () => target.active()): ViewerAction => ({
+        id: prefix + '.' + id, label, group, shortcut: withShift(keys), enabled,
+        // of two gizmos with the key: the one pressed last, else the preferred one
+        get priority() {
+            return gizmoPriority(target)
+        },
         run: () => {
             run()
             target.changed()
         },
     })
     return [
-        action('toggleSpace', 'Local or world space', 'KeyQ', () => target.toggleSpace()),
-        // + is Shift and the = key on a US keyboard
-        action('larger', 'Larger gizmo', ['Equal', 'Shift+Equal', 'NumpadAdd'], () => target.adjustSize(0.1)),
+        action('toggleSpace', 'Local or world space', ['KeyQ'], () => target.toggleSpace()),
+        // + is Shift and the = key on a US keyboard (Shift+Equal, from withShift)
+        action('larger', 'Larger gizmo', ['Equal', 'NumpadAdd'], () => target.adjustSize(0.1)),
         action('smaller', 'Smaller gizmo', ['Minus', 'NumpadSubtract'], () => target.adjustSize(-0.1)),
-        action('toggleX', 'Show or hide the X axis', 'KeyX', () => target.toggleAxis(0)),
-        action('toggleY', 'Show or hide the Y axis', 'KeyY', () => target.toggleAxis(1)),
-        action('toggleZ', 'Show or hide the Z axis', 'KeyZ', () => target.toggleAxis(2)),
+        action('toggleX', 'Show or hide the X axis', ['KeyX'], () => target.toggleAxis(0)),
+        action('toggleY', 'Show or hide the Y axis', ['KeyY'], () => target.toggleAxis(1)),
+        action('toggleZ', 'Show or hide the Z axis', ['KeyZ'], () => target.toggleAxis(2)),
         // also while it is off, to turn it on again
-        action('toggleEnabled', 'Turn the gizmo on or off', 'Space', () => target.toggleEnabled(), () => target.attached()),
+        action('toggleEnabled', 'Turn the gizmo on or off', ['Space'], () => target.toggleEnabled(), () => target.attached()),
     ]
+}
+
+/** The `priority` of the keys of a gizmo: 2 for the gizmo pressed last, 1 for the preferred one, else 0 */
+export function gizmoPriority(target: GizmoActionTarget): number {
+    return lastPressed === target ? 2 : target.preferred ? 1 : 0
 }

@@ -185,7 +185,7 @@ In the [Tweakpane Editor example](https://threepipe.org/examples/tweakpane-edito
 
 ## Actions, keys and toasts
 
-The keys of the editor are actions of the [CommandsPlugin](../plugin/CommandsPlugin) of threepipe. When the viewer has a `CommandsPlugin` (added before or after the editor), the editor registers them there, so a toolbar, a menu or a command palette lists and runs them. Without it, the editor runs the same keys itself (`bindActions`), as before.
+The keys of the editor are actions in [`viewer.actions`](../guide/viewer-api#actions-and-shortcuts) of threepipe, so a toolbar, a menu or a command palette lists and runs them, and the app changes their keys there (`setShortcut`). The settings of the editor (`TweakpaneEditorPlugin.uiConfig`) show the `Actions` folder of `viewer.actions`: the keys on or off, and a button for each action with its key.
 
 | Action | Key | Where |
 |---|---|---|
@@ -194,23 +194,20 @@ The keys of the editor are actions of the [CommandsPlugin](../plugin/CommandsPlu
 | `editorFrame.shortcuts` | ? | `EditorFrame.actions` |
 | `editorCamera.toggleEditing` | C (`EditorCameraPlugin.hotkey`) | `EditorCameraPlugin.actions` |
 
-Shortcuts sheet: `?`, or the Shortcuts button of the mode bar, opens a sheet of all the keyboard shortcuts of the viewer (`EditorFrame.toggleShortcuts`). It lists the actions of the `CommandsPlugin` that have a key, in their groups, with the keys as they are now (also the keys that the app set with `setShortcut`), and has a search field (a label, a key or a group). Escape, `?`, the close button or a click outside closes it; while it is open, the keys go to the sheet, not to the shortcuts of the viewer. An app without the frame uses the same sheet:
+Shortcuts sheet: `?`, or the Shortcuts button of the mode bar, opens a sheet of all the keyboard shortcuts of the viewer (`EditorFrame.toggleShortcuts`). It lists the actions in `viewer.actions` that have a key, in their groups, with the keys as they are now (also the keys that the app set with `setShortcut`), and has a search field (a label, a key or a group). Escape, `?`, the close button or a click outside closes it; while it is open, the keys go to the sheet, not to the shortcuts of the viewer. An app without the frame uses the same sheet:
 
 ```typescript
 import {ShortcutsSheet} from '@threepipe/plugin-tweakpane-editor'
 
-const sheet = new ShortcutsSheet(viewer) // reads viewer.getPlugin(CommandsPlugin) when it opens
+const sheet = new ShortcutsSheet(viewer.actions)
 sheet.open()
 ```
 
-Toasts: the `CommandsPlugin` shows the `error` and the `warn` of each run in a toast of the viewer dialog (`viewer.dialog.toast`). In the editor, a toast is a small chip at the top centre of the canvas, under the camera pill; the editor sets its place and its dark-theme colour with the CSS variables of the dialog (`--dialog-toast-top`, `--dialog-toast-bg`). Other UIs show their messages the same way: `viewer.dialog.toast?.(message, {kind, container: viewer.container})` (`kind`: `'info'`, `'warn'` or `'error'`). The Escape that closes the camera card or the layout menu does not also clear the selection.
+Toasts: `viewer.actions` shows the `error` and the `warn` of each run in a toast of the viewer dialog (`viewer.dialog.toast`). In the editor, a toast is a small chip at the top centre of the canvas, under the camera pill; the editor sets its place and its dark-theme colour with the CSS variables of the dialog (`--dialog-toast-top`, `--dialog-toast-bg`). Other UIs show their messages the same way: `viewer.dialog.toast?.(message, {kind, container: viewer.container})` (`kind`: `'info'`, `'warn'` or `'error'`). The Escape that closes the camera card or the layout menu does not also clear the selection.
 
 ```typescript
-import {CommandsPlugin} from 'threepipe'
-
-const commands = viewer.addPluginSync(CommandsPlugin)
-commands.list('Editor') // the actions of the frame
-commands.register({id: 'save', label: 'Save', shortcut: 'Mod+S', run: async() => (await save()) ? undefined : {error: 'Not saved'}})
+viewer.actions.list('Editor') // the actions of the frame
+viewer.actions.register({id: 'save', label: 'Save', shortcut: 'Mod+S', run: async() => (await save()) ? undefined : {error: 'Not saved'}})
 viewer.dialog.toast?.('Saved', {container: viewer.container})
 ```
 
@@ -442,7 +439,7 @@ editorCamera.copyStartView()
 editorCamera.addEventListener('editingChange', ({editing}) => {
     button.classList.toggle('on', editing)
 })
-// another key than C (the action editorCamera.toggleEditing of a CommandsPlugin takes it too)
+// another key than C (the action editorCamera.toggleEditing in viewer.actions takes it too)
 editorCamera.hotkey = 'KeyK'
 ```
 

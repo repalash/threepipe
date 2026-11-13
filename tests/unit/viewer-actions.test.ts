@@ -1,14 +1,11 @@
 import {afterEach, beforeEach, describe, expect, test, vi} from 'vitest'
 import {
-    bindActions,
-    CommandAction,
-    CommandsPlugin,
-    EventDispatcher,
     formatShortcut,
     isTextTarget,
     matchShortcut,
     parseShortcut,
-    ThreeViewer,
+    ViewerAction,
+    ViewerActions,
 } from 'threepipe'
 
 // a key press, with the fields that the shortcuts read
@@ -31,33 +28,12 @@ function pressIn(target: any, key: string, code: string, fields: Record<string, 
     return e
 }
 
-/** A viewer with the plugin list and the plugin listeners of ThreeViewer, in the order of addPluginSync and removePluginSync */
+/** A viewer with what the actions read: the dialog (toasts), the container and the canvas (set by a test) */
 function fakeViewer() {
-    const plugins: Record<string, any> = {}
-    const listeners = (type: 'add' | 'remove', p: any) => viewer._pluginListeners[type]
-        .filter((l: any) => !l.p.length || l.p.includes(p.constructor.PluginType)).forEach((l: any) => l.l({type, plugin: p}))
-    const viewer: any = Object.assign(new EventDispatcher<any>(), {
-        _pluginListeners: {add: [], remove: []},
-        dialog: {toast: vi.fn()},
-        getPlugin: (t: any) => plugins[typeof t === 'string' ? t : t.PluginType],
-        addPluginListener: ThreeViewer.prototype.addPluginListener,
-        removePluginListener: ThreeViewer.prototype.removePluginListener,
-        add<T>(p: T & any): T {
-            plugins[p.constructor.PluginType] = p
-            p.onAdded(viewer)
-            listeners('add', p)
-            return p
-        },
-        remove(p: any) {
-            p.onRemove(viewer)
-            listeners('remove', p)
-            delete plugins[p.constructor.PluginType]
-        },
-    })
-    return viewer
+    return {dialog: {toast: vi.fn()}} as any
 }
 
-function action(id: string, fields: Partial<CommandAction> = {}): CommandAction & {run: ReturnType<typeof vi.fn>} {
+function action(id: string, fields: Partial<ViewerAction> = {}): ViewerAction & {run: ReturnType<typeof vi.fn>} {
     return {id, label: id, run: vi.fn(), ...fields} as any
 }
 
@@ -197,64 +173,64 @@ describe('isTextTarget', () => {
     })
 })
 
-describe('CommandsPlugin', () => {
+describe('ViewerActions', () => {
     function setup() {
         const viewer = fakeViewer()
-        const commands = viewer.add(new CommandsPlugin()) as CommandsPlugin
+        const actions = new ViewerActions(viewer)
         const changes = vi.fn()
-        commands.addEventListener('actionsChange', changes)
-        return {viewer, commands, changes}
+        actions.addEventListener('actionsChange', changes)
+        return {viewer, actions, changes}
     }
 
     test('register, get, list, unregister; actionsChange on each change', () => {
-        const {commands, changes} = setup()
+        const {actions, changes} = setup()
         const undo = action('undo', {group: 'Edit', shortcut: 'Mod+Z'})
         const focus = action('focus', {group: 'View', shortcut: 'F'})
-        const unregister = commands.register([undo, focus])
+        const unregister = actions.register([undo, focus])
         expect(changes).toHaveBeenCalledTimes(1)
-        expect(commands.get('undo')).toBe(undo)
-        expect(commands.list()).toEqual([undo, focus])
-        expect(commands.list('View')).toEqual([focus])
-        expect(commands.list('Other')).toEqual([])
+        expect(actions.get('undo')).toBe(undo)
+        expect(actions.list()).toEqual([undo, focus])
+        expect(actions.list('View')).toEqual([focus])
+        expect(actions.list('Other')).toEqual([])
 
-        commands.unregister('undo')
-        expect(commands.get('undo')).toBeUndefined()
+        actions.unregister('undo')
+        expect(actions.get('undo')).toBeUndefined()
         expect(changes).toHaveBeenCalledTimes(2)
-        commands.unregister('undo') // not there: no change
+        actions.unregister('undo') // not there: no change
         expect(changes).toHaveBeenCalledTimes(2)
         unregister()
-        expect(commands.list()).toEqual([])
+        expect(actions.list()).toEqual([])
         expect(changes).toHaveBeenCalledTimes(3)
         unregister()
         expect(changes).toHaveBeenCalledTimes(3)
     })
 
     test('an action with the id of a registered one replaces it; the old unregister does not remove the new one', () => {
-        const {commands} = setup()
+        const {actions} = setup()
         const a = action('a')
-        const unregisterOld = commands.register(a)
-        commands.register(action('b'))
+        const unregisterOld = actions.register(a)
+        actions.register(action('b'))
         const b = action('a')
-        commands.register(b)
-        expect(commands.list().map(x => x.id)).toEqual(['b', 'a'])
-        expect(commands.get('a')).toBe(b)
+        actions.register(b)
+        expect(actions.list().map(x => x.id)).toEqual(['b', 'a'])
+        expect(actions.get('a')).toBe(b)
         unregisterOld()
-        expect(commands.get('a')).toBe(b)
+        expect(actions.get('a')).toBe(b)
     })
 
     test('a shortcut that does not parse is a warning', () => {
-        const {commands} = setup()
+        const {actions} = setup()
         const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
-        commands.register(action('save', {shortcut: 'Ctrl+S'}))
+        actions.register(action('save', {shortcut: 'Ctrl+S'}))
         expect(warn).toHaveBeenCalledTimes(1)
-        commands.register(action('open', {shortcut: 'Mod+O'}))
+        actions.register(action('open', {shortcut: 'Mod+O'}))
         expect(warn).toHaveBeenCalledTimes(1)
     })
 
     test('the key of an action runs it, with preventDefault; another key is left alone', () => {
-        const {commands} = setup()
+        const {actions} = setup()
         const undo = action('undo', {shortcut: 'Mod+Z'})
-        commands.register(undo)
+        actions.register(undo)
         expect(press('z', 'KeyZ', {ctrlKey: true}).defaultPrevented).toBe(true)
         // the platform of the test is not a Mac: Cmd (the Win key) is not Mod
         expect(press('z', 'KeyZ', {metaKey: true}).defaultPrevented).toBe(false)
@@ -272,9 +248,9 @@ describe('CommandsPlugin', () => {
     })
 
     test('keys in a text field, keys that another handler used, and held keys are left alone', () => {
-        const {commands} = setup()
+        const {actions} = setup()
         const del = action('delete', {shortcut: 'Delete'})
-        commands.register(del)
+        actions.register(del)
         const field = {tagName: 'INPUT', closest: (s: string) => s.includes('input') ? {} : null}
         expect(pressIn(field, 'Delete', 'Delete').defaultPrevented).toBe(false)
         expect(pressIn({tagName: 'DIV', isContentEditable: true}, 'Delete', 'Delete').defaultPrevented).toBe(false)
@@ -286,19 +262,19 @@ describe('CommandsPlugin', () => {
 
         // an action with repeat runs on each repeat of a held key
         const zoom = action('zoom', {shortcut: '=', repeat: true})
-        commands.register(zoom)
+        actions.register(zoom)
         press('=', 'Equal', {repeat: true})
         press('=', 'Equal', {repeat: true})
         expect(zoom.run).toHaveBeenCalledTimes(2)
     })
 
     test('a disabled action does not run; its key is left to other handlers', async() => {
-        const {commands} = setup()
+        const {actions} = setup()
         let on = false
         const paste = action('paste', {shortcut: 'Mod+V', enabled: () => on})
-        commands.register(paste)
+        actions.register(paste)
         expect(press('v', 'KeyV', {ctrlKey: true}).defaultPrevented).toBe(false)
-        expect(await commands.run('paste')).toBeUndefined()
+        expect(await actions.run('paste')).toBeUndefined()
         expect(paste.run).not.toHaveBeenCalled()
         on = true
         expect(press('v', 'KeyV', {ctrlKey: true}).defaultPrevented).toBe(true)
@@ -306,11 +282,11 @@ describe('CommandsPlugin', () => {
     })
 
     test('two actions with one key: the enabled one registered last runs', () => {
-        const {commands} = setup()
+        const {actions} = setup()
         let lastOn = true
         const first = action('first', {shortcut: 'Escape'})
         const last = action('last', {shortcut: 'Escape', enabled: () => lastOn})
-        commands.register([first, last])
+        actions.register([first, last])
         press('Escape', 'Escape')
         expect(last.run).toHaveBeenCalledTimes(1)
         expect(first.run).not.toHaveBeenCalled()
@@ -320,11 +296,11 @@ describe('CommandsPlugin', () => {
     })
 
     test('an action with more keys runs on each; a higher priority wins over the one registered last', () => {
-        const {commands} = setup()
+        const {actions} = setup()
         const del = action('delete', {shortcut: ['Delete', 'Backspace']})
         const endMode = action('endMode', {shortcut: 'Escape', priority: 1})
         const clear = action('clear', {shortcut: 'Escape'})
-        commands.register([del, endMode, clear])
+        actions.register([del, endMode, clear])
         press('Delete', 'Delete')
         press('Backspace', 'Backspace')
         expect(del.run).toHaveBeenCalledTimes(2)
@@ -333,37 +309,37 @@ describe('CommandsPlugin', () => {
     })
 
     test('setShortcut: the app sets another key, more keys or none, also for an action registered later', () => {
-        const {commands} = setup()
+        const {actions} = setup()
         const undo = action('undo', {shortcut: 'Mod+Z'})
-        commands.register(undo)
-        commands.setShortcut('undo', ['Mod+U', 'Alt+Z'])
+        actions.register(undo)
+        actions.setShortcut('undo', ['Mod+U', 'Alt+Z'])
         expect(press('z', 'KeyZ', {ctrlKey: true}).defaultPrevented).toBe(false)
         expect(press('z', 'KeyZ', {altKey: true}).defaultPrevented).toBe(true)
-        expect(commands.shortcutOf('undo')).toEqual(['Mod+U', 'Alt+Z'])
-        commands.setShortcut('undo', null)
+        expect(actions.shortcutOf('undo')).toEqual(['Mod+U', 'Alt+Z'])
+        actions.setShortcut('undo', null)
         expect(press('z', 'KeyZ', {altKey: true}).defaultPrevented).toBe(false)
-        expect(commands.shortcutOf('undo')).toBeUndefined()
-        commands.setShortcut('undo', undefined)
+        expect(actions.shortcutOf('undo')).toBeUndefined()
+        actions.setShortcut('undo', undefined)
         expect(press('z', 'KeyZ', {ctrlKey: true}).defaultPrevented).toBe(true)
         // set before the action is there
-        commands.setShortcut('later', 'Shift+L')
+        actions.setShortcut('later', 'Shift+L')
         const later = action('later', {shortcut: 'L'})
-        commands.register(later)
+        actions.register(later)
         press('L', 'KeyL', {shiftKey: true})
         press('l', 'KeyL')
         expect([undo.run.mock.calls.length, later.run.mock.calls.length]).toEqual([2, 1])
     })
 
     test('the error and the warning of a run show in a toast of the viewer dialog, in its container, unless toastResults is off', async() => {
-        const {viewer, commands} = setup()
-        commands.register(action('upload', {run: () => ({error: 'Upload failed', warn: 'The file is large'})}))
-        await commands.run('upload')
+        const {viewer, actions} = setup()
+        actions.register(action('upload', {run: () => ({error: 'Upload failed', warn: 'The file is large'})}))
+        await actions.run('upload')
         expect(viewer.dialog.toast.mock.calls).toEqual([
             ['Upload failed', {kind: 'error', container: viewer.container}],
             ['The file is large', {kind: 'warn', container: viewer.container}],
         ])
-        commands.toastResults = false
-        await commands.run('upload')
+        actions.toastResults = false
+        await actions.run('upload')
         expect(viewer.dialog.toast).toHaveBeenCalledTimes(2)
     })
 
@@ -379,8 +355,8 @@ describe('CommandsPlugin', () => {
         a.viewer.container.kids.add(inA)
         b.viewer.container.kids.add(inB)
         const undoA = action('undo', {shortcut: 'Mod+Z'}), undoB = action('undo', {shortcut: 'Mod+Z'})
-        a.commands.register(undoA)
-        b.commands.register(undoB)
+        a.actions.register(undoA)
+        b.actions.register(undoB)
         const runs = () => [undoA.run.mock.calls.length, undoB.run.mock.calls.length]
         try {
             pressIn(Object.assign(inB, {nodeType: 1}), 'z', 'KeyZ', {ctrlKey: true})
@@ -400,8 +376,39 @@ describe('CommandsPlugin', () => {
             pressIn(inB, 'z', 'KeyZ', {ctrlKey: true})
             expect(runs()).toEqual([3, 2])
         } finally {
-            a.viewer.remove(a.commands)
-            b.viewer.remove(b.commands)
+            a.actions.dispose()
+            b.actions.dispose()
+        }
+    })
+
+    test('two viewers in the body: a key with the focus on the page is for the viewer used last, not the first one', () => {
+        const a = setup(), b = setup()
+        const body = {tagName: 'BODY', nodeType: 1, isConnected: true, contains: (t: any) => t === body || t === canvasA || t === canvasB}
+        const canvasA = {tagName: 'CANVAS', nodeType: 1}, canvasB = {tagName: 'CANVAS', nodeType: 1}
+        Object.assign(a.viewer, {container: body, canvas: canvasA})
+        Object.assign(b.viewer, {container: body, canvas: canvasB})
+        const oldDocument = (globalThis as any).document
+        ;(globalThis as any).document = {body, documentElement: {}}
+        const undoA = action('undo', {shortcut: 'Mod+Z'}), undoB = action('undo', {shortcut: 'Mod+Z'})
+        a.actions.register(undoA)
+        b.actions.register(undoB)
+        try {
+            // a press on the canvas of b, then a key on the page (the body): for b
+            const down = new Event('pointerdown')
+            Object.defineProperty(down, 'target', {value: canvasB})
+            dispatchEvent(down)
+            pressIn(body, 'z', 'KeyZ', {ctrlKey: true})
+            expect([undoA.run.mock.calls.length, undoB.run.mock.calls.length]).toEqual([0, 1])
+            // a press on the body (not on a canvas) keeps b as the viewer used last
+            const onBody = new Event('pointerdown')
+            Object.defineProperty(onBody, 'target', {value: body})
+            dispatchEvent(onBody)
+            pressIn(body, 'z', 'KeyZ', {ctrlKey: true})
+            expect([undoA.run.mock.calls.length, undoB.run.mock.calls.length]).toEqual([0, 2])
+        } finally {
+            ;(globalThis as any).document = oldDocument
+            a.actions.dispose()
+            b.actions.dispose()
         }
     })
 
@@ -415,8 +422,8 @@ describe('CommandsPlugin', () => {
         Object.assign(a.viewer, {container: shared, canvas: canvasA})
         Object.assign(b.viewer, {container: shared, canvas: canvasB})
         const undoA = action('undo', {shortcut: 'Mod+Z'}), undoB = action('undo', {shortcut: 'Mod+Z'})
-        a.commands.register(undoA)
-        b.commands.register(undoB)
+        a.actions.register(undoA)
+        b.actions.register(undoB)
         try {
             pressIn(canvasB, 'z', 'KeyZ', {ctrlKey: true})
             pressIn(canvasA, 'z', 'KeyZ', {ctrlKey: true})
@@ -430,34 +437,65 @@ describe('CommandsPlugin', () => {
             pressIn(card, 'z', 'KeyZ', {ctrlKey: true})
             expect([undoA.run.mock.calls.length, undoB.run.mock.calls.length]).toEqual([1, 2])
         } finally {
-            a.viewer.remove(a.commands)
-            b.viewer.remove(b.commands)
+            a.actions.dispose()
+            b.actions.dispose()
         }
     })
 
-    test('the keys are off while the plugin is disabled, and after it is removed; run still runs', async() => {
-        const {viewer, commands} = setup()
+    test('the keys are off while enabled is false, and after dispose; run still runs', async() => {
+        const {actions} = setup()
         const undo = action('undo', {shortcut: 'Mod+Z'})
-        commands.register(undo)
-        commands.enabled = false
+        actions.register(undo)
+        actions.enabled = false
         expect(press('z', 'KeyZ', {ctrlKey: true}).defaultPrevented).toBe(false)
-        await commands.run('undo')
+        await actions.run('undo')
         expect(undo.run).toHaveBeenCalledTimes(1)
-        commands.enabled = true
-        commands.disable('test')
+        actions.enabled = true
+        actions.dispose()
         expect(press('z', 'KeyZ', {ctrlKey: true}).defaultPrevented).toBe(false)
-        commands.enable('test')
-        viewer.remove(commands)
-        expect(press('z', 'KeyZ', {ctrlKey: true}).defaultPrevented).toBe(false)
+        // a register after dispose adds no listener
+        actions.register(action('redo', {shortcut: 'Mod+Y'}))
+        expect(press('y', 'KeyY', {ctrlKey: true}).defaultPrevented).toBe(false)
         expect(undo.run).toHaveBeenCalledTimes(1)
     })
 
+    test('with no actions left, a viewer takes no key (two viewers: the other one gets the keys of the page)', () => {
+        const a = setup(), b = setup()
+        const inB = {tagName: 'CANVAS', nodeType: 1}
+        a.viewer.container = {isConnected: true, contains: () => false}
+        b.viewer.container = {isConnected: true, contains: (t: any) => t === inB}
+        const undoA = action('undo', {shortcut: 'Mod+Z'})
+        a.actions.register(undoA)
+        const unregisterB = b.actions.register(action('undo', {shortcut: 'Mod+Z'}))
+        try {
+            // b had the last pointer press: the key of the page is for b
+            const down = new Event('pointerdown')
+            Object.defineProperty(down, 'target', {value: inB})
+            dispatchEvent(down)
+            press('z', 'KeyZ', {ctrlKey: true})
+            expect(undoA.run).toHaveBeenCalledTimes(0)
+            // b has no actions now: a takes the key
+            unregisterB()
+            press('z', 'KeyZ', {ctrlKey: true})
+            expect(undoA.run).toHaveBeenCalledTimes(1)
+            // a register again: b listens again, and takes the keys of the page after a press on it
+            const other = action('other', {shortcut: 'KeyQ'})
+            b.actions.register(other)
+            dispatchEvent(down)
+            press('q', 'KeyQ')
+            expect(other.run).toHaveBeenCalledTimes(1)
+        } finally {
+            a.actions.dispose()
+            b.actions.dispose()
+        }
+    })
+
     test('run returns the result and sends actionRun; an error that run throws is its result', async() => {
-        const {commands} = setup()
+        const {actions} = setup()
         const events: any[] = []
-        commands.addEventListener('actionRun', e => events.push({id: e.action.id, result: e.result}))
+        actions.addEventListener('actionRun', e => events.push({id: e.action.id, result: e.result}))
         vi.spyOn(console, 'error').mockImplementation(() => {})
-        commands.register([
+        actions.register([
             action('plain'),
             action('warn', {run: () => ({warn: 'Nothing selected'})}),
             action('async', {run: async() => ({error: 'Upload failed'})}),
@@ -465,11 +503,11 @@ describe('CommandsPlugin', () => {
                 throw new Error('Broken')
             }}),
         ])
-        expect(await commands.run('plain')).toEqual({})
-        expect(await commands.run('warn')).toEqual({warn: 'Nothing selected'})
-        expect(await commands.run('async')).toEqual({error: 'Upload failed'})
-        expect(await commands.run('throws')).toEqual({error: 'Broken'})
-        expect(await commands.run('missing')).toBeUndefined()
+        expect(await actions.run('plain')).toEqual({})
+        expect(await actions.run('warn')).toEqual({warn: 'Nothing selected'})
+        expect(await actions.run('async')).toEqual({error: 'Upload failed'})
+        expect(await actions.run('throws')).toEqual({error: 'Broken'})
+        expect(await actions.run('missing')).toBeUndefined()
         expect(events).toEqual([
             {id: 'plain', result: {}},
             {id: 'warn', result: {warn: 'Nothing selected'}},
@@ -479,11 +517,11 @@ describe('CommandsPlugin', () => {
     })
 
     test('a key runs the action at once, and actionRun tells its result', async() => {
-        const {commands} = setup()
+        const {actions} = setup()
         const runs = vi.fn()
-        commands.addEventListener('actionRun', ({result}) => runs(result))
+        actions.addEventListener('actionRun', ({result}) => runs(result))
         const dup = action('duplicate', {shortcut: 'Shift+D', run: vi.fn(() => ({warn: 'Select an object first'}))})
-        commands.register(dup)
+        actions.register(dup)
         press('D', 'KeyD', {shiftKey: true})
         expect(dup.run).toHaveBeenCalledTimes(1)
         await Promise.resolve()
@@ -492,31 +530,28 @@ describe('CommandsPlugin', () => {
     })
 
     test('the UI lists the actions with their keys, and a click runs one', () => {
-        const {commands} = setup()
+        const {actions} = setup()
         const undo = action('undo', {label: 'Undo', shortcut: 'Mod+Z'})
-        commands.register([undo, action('reset', {label: 'Reset', enabled: () => false})])
-        const children = commands.uiConfig.children as any[]
-        expect(children[0].property).toEqual([commands, 'enabled'])
-        expect(children[1].property).toEqual([commands, 'toastResults'])
+        actions.register([undo, action('reset', {label: 'Reset', enabled: () => false})])
+        const children = actions.uiConfig.children as any[]
+        expect(children[0].property).toEqual([actions, 'enabled'])
+        expect(children[1].property).toEqual([actions, 'toastResults'])
         const buttons = children[2]()
         expect(buttons.map((b: any) => b.label)).toEqual([`Undo (${formatShortcut('Mod+Z')})`, 'Reset'])
         expect(buttons.map((b: any) => b.disabled())).toEqual([false, true])
         buttons[0].value()
         expect(undo.run).toHaveBeenCalledTimes(1)
     })
-
-    test('it is not saved with the viewer config', () => {
-        expect(new CommandsPlugin().serializeWithViewer).toBe(false)
-    })
 })
 
-describe('bindActions', () => {
-    test('without a CommandsPlugin, the priority works across the bindings of a viewer, as with the plugin', () => {
-        // the PickingPlugin binds before the PivotEditPlugin: the Escape that ends the pivot edit still wins
+describe('ViewerActions without a viewer', () => {
+    test('the priority works across registers: an action registered first with a higher priority wins', () => {
+        // the PickingPlugin registers before the PivotEditPlugin: the Escape that ends the pivot edit still wins
         const clear = action('picking.clearSelection', {shortcut: 'Escape'})
         const end = action('pivotEdit.end', {shortcut: 'Escape', priority: 1})
-        const unbindA = bindActions(undefined, [clear])
-        const unbindB = bindActions(undefined, [end])
+        const actions = new ViewerActions()
+        const unbindA = actions.register([clear])
+        const unbindB = actions.register([end])
         press('Escape', 'Escape')
         expect([clear.run.mock.calls.length, end.run.mock.calls.length]).toEqual([0, 1])
         unbindB()
@@ -530,7 +565,7 @@ describe('bindActions', () => {
         const toggle = action('toggle', {shortcut: 'Space'})
         const del = action('delete', {shortcut: 'Delete'})
         const next = action('next', {shortcut: 'ArrowRight', capture: true})
-        const unbind = bindActions(undefined, [toggle, del, next])
+        const unbind = new ViewerActions().register([toggle, del, next])
         const control = (tag: string) => {
             const el: any = {tagName: tag.toUpperCase(), nodeType: 1, type: 'checkbox'}
             el.closest = (sel: string) => sel.split(', ').includes(tag) ? el : null
@@ -549,7 +584,7 @@ describe('bindActions', () => {
     test('a capture action runs in the capture phase and stops the key (before the arrow keys of the camera controls)', () => {
         const next = action('annotations.next', {shortcut: 'ArrowRight', capture: true})
         const other = action('other', {shortcut: 'KeyQ'})
-        const unbind = bindActions(undefined, [next, other])
+        const unbind = new ViewerActions().register([next, other])
         const e = keyEvent('ArrowRight', 'ArrowRight')
         const stop = vi.spyOn(e, 'stopPropagation')
         window.dispatchEvent(e)
@@ -560,9 +595,9 @@ describe('bindActions', () => {
         unbind()
     })
 
-    test('without a viewer: an own key listener runs the shortcuts, with the same rules, until unbind', () => {
+    test('it takes every key, with the same rules, until the actions are removed', () => {
         const toggle = action('toggle', {shortcut: 'KeyC'})
-        const unbind = bindActions(undefined, [toggle])
+        const unbind = new ViewerActions().register([toggle])
         expect(press('c', 'KeyC').defaultPrevented).toBe(true)
         expect(press('c', 'KeyC', {shiftKey: true}).defaultPrevented).toBe(false)
         expect(press('c', 'KeyC', {repeat: true}).defaultPrevented).toBe(false)
@@ -573,52 +608,10 @@ describe('bindActions', () => {
         expect(toggle.run).toHaveBeenCalledTimes(1)
     })
 
-    test('a disabled action of an own listener does not run, and its key is left alone', () => {
+    test('a disabled action does not run, and its key is left alone', () => {
         const toggle = action('toggle', {shortcut: 'KeyC', enabled: () => false})
-        bindActions(undefined, [toggle])
+        new ViewerActions().register([toggle])
         expect(press('c', 'KeyC').defaultPrevented).toBe(false)
         expect(toggle.run).not.toHaveBeenCalled()
-    })
-
-    test('the actions go to the CommandsPlugin of the viewer while it has one, also one added or removed later', () => {
-        const viewer = fakeViewer()
-        const toggle = action('toggle', {shortcut: 'KeyC'})
-        const unbind = bindActions(viewer, [toggle])
-        press('c', 'KeyC')
-        expect(toggle.run).toHaveBeenCalledTimes(1)
-
-        // added later: registered there, and the key runs once (no own listener now)
-        const commands = viewer.add(new CommandsPlugin()) as CommandsPlugin
-        expect(commands.list()).toEqual([toggle])
-        press('c', 'KeyC')
-        expect(toggle.run).toHaveBeenCalledTimes(2)
-
-        // removed: the own listener again
-        viewer.remove(commands)
-        expect(commands.list()).toEqual([])
-        press('c', 'KeyC')
-        expect(toggle.run).toHaveBeenCalledTimes(3)
-
-        // added again, then unbind: nothing left
-        const again = viewer.add(new CommandsPlugin()) as CommandsPlugin
-        expect(again.list()).toEqual([toggle])
-        unbind()
-        expect(again.list()).toEqual([])
-        press('c', 'KeyC')
-        expect(toggle.run).toHaveBeenCalledTimes(3)
-        expect(viewer._pluginListeners.add).toHaveLength(0)
-        expect(viewer._pluginListeners.remove).toHaveLength(0)
-    })
-
-    test('with a CommandsPlugin from the start, the plugin runs the keys and sends actionRun', async() => {
-        const viewer = fakeViewer()
-        const commands = viewer.add(new CommandsPlugin()) as CommandsPlugin
-        const runs = vi.fn()
-        commands.addEventListener('actionRun', ({action: a}) => runs(a.id))
-        bindActions(viewer, [action('toggle', {shortcut: 'KeyC'})])
-        press('c', 'KeyC')
-        await Promise.resolve()
-        await Promise.resolve()
-        expect(runs).toHaveBeenCalledWith('toggle')
     })
 })

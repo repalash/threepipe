@@ -1,10 +1,10 @@
 import {describe, expect, test} from 'vitest'
-import type {CommandAction} from 'threepipe'
+import type {ViewerAction} from 'threepipe'
 import {shortcutsSheetGroups} from '../../plugins/tweakpane-editor/src/ShortcutsSheet'
 
 // The rows of the shortcuts sheet of the tweakpane editor: the actions with keys, in groups, and the search
 
-const actions: CommandAction[] = [
+const actions: ViewerAction[] = [
     {id: 'undo', label: 'Undo', shortcut: 'Mod+KeyZ', group: 'Edit', run: () => {}},
     {id: 'picking.delete', label: 'Delete the selection', shortcut: ['Delete', 'Backspace'], group: 'Selection', run: () => {}},
     {id: 'redo', label: 'Redo', shortcut: ['Mod+Shift+KeyZ', 'Mod+KeyY'], group: 'Edit', run: () => {}},

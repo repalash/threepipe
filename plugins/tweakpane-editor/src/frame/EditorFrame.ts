@@ -1,5 +1,5 @@
-import {bindActions, createDiv, createStyles} from 'threepipe'
-import type {CommandAction, ThreeViewer} from 'threepipe'
+import {createDiv, createStyles, ViewerActions} from 'threepipe'
+import type {ThreeViewer, ViewerAction} from 'threepipe'
 import {EditorModeBar, EditorModeBarHost} from './EditorModeBar'
 import {readStored, writeStored} from '../dom-utils'
 import {ShortcutsSheet} from '../ShortcutsSheet'
@@ -119,9 +119,8 @@ export interface EditorFrameOptions {
      */
     panel?: () => HTMLElement | null
     /**
-     * The viewer: while it has a `CommandsPlugin`, the keys of the frame are registered there as actions
-     * ({@link EditorFrame.actions}). Without it (or without the plugin), the frame runs its keys itself.
-     * `TweakpaneEditorPlugin` passes its viewer.
+     * The viewer: the keys of the frame are registered in its `viewer.actions` ({@link EditorFrame.actions}). Without a
+     * viewer, the frame has its own `ViewerActions` for them. `TweakpaneEditorPlugin` passes its viewer.
      */
     viewer?: ThreeViewer
 }
@@ -278,18 +277,20 @@ export class EditorFrame {
     /** The tooltips of the buttons in the bars */
     private _themePairs: [string, string][]
     private _styles?: HTMLStyleElement
-    private _unbindActions: () => void
+    private _unregisterActions: () => void
+    /** The actions of the frame when it has no viewer */
+    private _ownActions?: ViewerActions
     /** The sheet of the keyboard shortcuts, made when it opens first ({@link toggleShortcuts}) */
     private _sheet?: ShortcutsSheet
 
     /**
-     * The keys of the frame, as actions (`bindActions` of threepipe: a `CommandsPlugin` of
-     * {@link EditorFrameOptions.viewer} lists and runs them, else the frame does): Shift+T switches between the light and
-     * the dark theme, Ctrl+\ (Cmd+\ on a Mac) steps through the collapse states of the mode bar and the panel, `?` opens
-     * or closes the sheet of the keyboard shortcuts ({@link toggleShortcuts}). The place of the T key, the \ key or its
-     * place (a layout where it types another character), and the ? character (on each layout).
+     * The keys of the frame, as actions (registered in `viewer.actions` of {@link EditorFrameOptions.viewer}, where a UI
+     * lists and runs them, else in an own `ViewerActions`): Shift+T switches between the light and the dark theme,
+     * Ctrl+\ (Cmd+\ on a Mac) steps through the collapse states of the mode bar and the panel, `?` opens or closes the
+     * sheet of the keyboard shortcuts ({@link toggleShortcuts}). The place of the T key, the \ key or its place (a layout
+     * where it types another character), and the ? character (on each layout).
      */
-    readonly actions: CommandAction[] = [
+    readonly actions: ViewerAction[] = [
         {id: 'editorFrame.toggleTheme', label: 'Light or dark theme', group: 'Editor', shortcut: 'Shift+KeyT', run: () => this.toggleTheme()},
         {id: 'editorFrame.cycleModeBar', label: 'Collapse or expand the mode bar', group: 'Editor', shortcut: 'Mod+\\', run: () => this.modeBar.cycle()},
         {id: 'editorFrame.shortcuts', label: 'Keyboard shortcuts', group: 'Editor', shortcut: 'Shift+?', run: () => this.toggleShortcuts()},
@@ -334,7 +335,7 @@ export class EditorFrame {
         this.modeBar.onLayoutChange = this._fitAreas
         this._restoreAreas()
 
-        this._unbindActions = bindActions(options.viewer, this.actions)
+        this._unregisterActions = (options.viewer?.actions ?? (this._ownActions = new ViewerActions())).register(this.actions)
         window.addEventListener('resize', this._fitAreas)
         this.modeBar.element.addEventListener('click', this._expandPanel)
         // before the click of a mode, which would hide the panel when its mode is the open one
@@ -880,16 +881,18 @@ export class EditorFrame {
     }
 
     /**
-     * Opens or closes the sheet of the keyboard shortcuts: the actions of the `CommandsPlugin` of
-     * {@link EditorFrameOptions.viewer} that have a key ({@link ShortcutsSheet}). The button of the mode bar and `?` do this.
+     * Opens or closes the sheet of the keyboard shortcuts: the actions in `viewer.actions` of
+     * {@link EditorFrameOptions.viewer} that have a key, or the actions of the frame without a viewer ({@link ShortcutsSheet}).
+     * The button of the mode bar and `?` do this.
      */
     toggleShortcuts() {
-        this._sheet ??= new ShortcutsSheet(this.options.viewer)
+        this._sheet ??= new ShortcutsSheet(this.options.viewer?.actions ?? this._ownActions!)
         this._sheet.toggle()
     }
 
     dispose() {
-        this._unbindActions()
+        this._unregisterActions()
+        this._ownActions?.dispose()
         this._sheet?.dispose()
         this._sheet = undefined
         window.removeEventListener('resize', this._fitAreas)
@@ -1528,7 +1531,7 @@ export class EditorFrame {
         const buttons: HTMLButtonElement[] = []
         if (this.options.colorMode) buttons.push(this._button(ICONS.theme, 'Light or dark (Shift T)', 'Light / dark', () => this.toggleTheme()))
         buttons.push(this._button(ICONS.layout, 'Layout of the page', 'Layout', b => this._toggleMenu(b, () => this._layoutItems())))
-        if (this.options.viewer) buttons.push(this._button(ICONS.keys, 'Keyboard shortcuts (?)', 'Shortcuts', () => this.toggleShortcuts()))
+        buttons.push(this._button(ICONS.keys, 'Keyboard shortcuts (?)', 'Shortcuts', () => this.toggleShortcuts()))
         return buttons
     }
 
@@ -1610,7 +1613,7 @@ export class EditorFrame {
         if (!this._menu?.contains(t) && !this._menuAnchor?.contains(t)) this._closeMenu()
     }
 
-    // the Escape that closes the menu is used: it does not also clear the selection (an action of a CommandsPlugin)
+    // the Escape that closes the menu is used: it does not also clear the selection (an action in viewer.actions)
     private _onMenuKeyDown = (e: KeyboardEvent) => {
         if (e.key !== 'Escape' || !this._menu) return
         e.preventDefault()
