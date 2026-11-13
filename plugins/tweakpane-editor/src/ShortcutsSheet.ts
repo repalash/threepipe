@@ -28,10 +28,13 @@ export function shortcutsSheetGroups(actions: ViewerAction[], shortcutOf: (id: s
     const q = query.trim().toLowerCase()
     const groups = new Map<string, ShortcutsSheetRow[]>()
     for (const a of actions) {
-        const keys = shortcutsOf(shortcutOf(a.id)).map(k => formatShortcut(k, mac))
+        const shortcuts = shortcutsOf(shortcutOf(a.id))
+        const keys = shortcuts.map(k => formatShortcut(k, mac))
         if (!keys.length) continue
         const name = a.group || otherGroup
-        if (q && ![a.label, name, ...keys].some(t => t.toLowerCase().includes(q))) continue
+        // the search also takes the names of the keys, where the labels are symbols (a Mac): Ctrl or Cmd, Alt or Option
+        const words = shortcuts.map(k => formatShortcut(k, false)).flatMap(w => [w, w.replace(/\bCtrl\b/, 'Cmd').replace(/\bAlt\b/, 'Option')])
+        if (q && ![a.label, name, ...keys, ...words].some(t => t.toLowerCase().includes(q))) continue
         if (!groups.has(name)) groups.set(name, [])
         groups.get(name)!.push({id: a.id, label: a.label, keys})
     }
@@ -61,6 +64,9 @@ export interface ShortcutsSheetOptions {
  * sheet.open()
  * ```
  */
+/** The number of sheets made, for an id of each title */
+let sheetCount = 0
+
 export class ShortcutsSheet {
     private _dialog?: HTMLDialogElement
     private _search?: HTMLInputElement
@@ -113,15 +119,21 @@ export class ShortcutsSheet {
         this._styles = createStyles(styles)
         const d = document.createElement('dialog')
         d.className = 'sks-root'
-        d.setAttribute('aria-labelledby', 'sks-title')
-        d.innerHTML = '<div class="sks-card"><div class="sks-head"><h2 id="sks-title"></h2><input type="search" placeholder="Search" aria-label="Search the shortcuts"><button type="button" class="sks-close" aria-label="Close">×</button></div><div class="sks-body" tabindex="-1"></div></div>'
-        d.querySelector('h2')!.textContent = this.options.title ?? 'Keyboard shortcuts'
+        const titleId = 'sks-title-' + ++sheetCount
+        d.setAttribute('aria-labelledby', titleId)
+        d.innerHTML = '<div class="sks-card"><div class="sks-head"><h2></h2><input type="search" placeholder="Search" aria-label="Search the shortcuts"><button type="button" class="sks-close" aria-label="Close">×</button></div><div class="sks-body" tabindex="-1"></div></div>'
+        const h2 = d.querySelector('h2')!
+        h2.id = titleId
+        h2.textContent = this.options.title ?? 'Keyboard shortcuts'
         this._search = d.querySelector('input')!
         this._body = d.querySelector('.sks-body')!
         this._search.addEventListener('input', this._render)
         d.querySelector('.sks-close')!.addEventListener('click', () => this.close())
-        // the backdrop: a click on the dialog element itself, not on the card in it
-        d.addEventListener('click', e => e.target === d && this.close())
+        // the backdrop: a click on the dialog element itself, not on the card in it; the press must start there too, so
+        // a drag from the card (a text selection in the search field) that ends outside does not close it
+        let downOnBackdrop = false
+        d.addEventListener('pointerdown', e => downOnBackdrop = e.target === d)
+        d.addEventListener('click', e => e.target === d && downOnBackdrop && this.close())
         d.addEventListener('keydown', this._onKeyDown)
         // Escape of the browser (also the back gesture on Android): the sheet closes itself, so its listeners go
         d.addEventListener('cancel', e => {
@@ -157,6 +169,10 @@ export class ShortcutsSheet {
             body.appendChild(p)
             return
         }
+        // the columns in a box of their own height: the body scrolls down, the columns do not overflow to the side
+        const columns = document.createElement('div')
+        columns.className = 'sks-columns'
+        body.appendChild(columns)
         for (const g of groups) {
             const section = document.createElement('section')
             const h = document.createElement('h3')
@@ -176,7 +192,7 @@ export class ShortcutsSheet {
                 row.append(label, keys)
                 section.appendChild(row)
             }
-            body.appendChild(section)
+            columns.appendChild(section)
         }
     }
 }

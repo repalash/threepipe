@@ -37,4 +37,11 @@ describe('shortcutsSheetGroups', () => {
         expect(ids('backspace')).toEqual(['picking.delete'])
         expect(ids('export')).toEqual([])
     })
+
+    test('the search finds the keys by their names also where the labels are symbols (a Mac)', () => {
+        const ids = (q: string) => shortcutsSheetGroups(actions, own, q, 'Other', true).flatMap(g => g.rows.map(r => r.id))
+        expect(ids('cmd+z')).toEqual(['undo'])
+        expect(ids('shift')).toEqual(['redo', 'upload'])
+        expect(ids('ctrl+y')).toEqual(['redo'])
+    })
 })

@@ -1,4 +1,4 @@
-import {createDiv, createStyles, ViewerActions} from 'threepipe'
+import {createDiv, createStyles, formatShortcut, shortcutsOf, ViewerActions} from 'threepipe'
 import type {ThreeViewer, ViewerAction} from 'threepipe'
 import {EditorModeBar, EditorModeBarHost} from './EditorModeBar'
 import {readStored, writeStored} from '../dom-utils'
@@ -280,6 +280,8 @@ export class EditorFrame {
     private _unregisterActions: () => void
     /** The actions of the frame when it has no viewer */
     private _ownActions?: ViewerActions
+    /** The buttons of the mode bar that run an action: their tooltip shows its key as it is now */
+    private _keyButtons: [button: HTMLButtonElement, label: string, action: string][] = []
     /** The sheet of the keyboard shortcuts, made when it opens first ({@link toggleShortcuts}) */
     private _sheet?: ShortcutsSheet
 
@@ -335,7 +337,9 @@ export class EditorFrame {
         this.modeBar.onLayoutChange = this._fitAreas
         this._restoreAreas()
 
-        this._unregisterActions = (options.viewer?.actions ?? (this._ownActions = new ViewerActions())).register(this.actions)
+        this._unregisterActions = this._registry.register(this.actions)
+        this._registry.addEventListener('actionsChange', this._refreshKeyTips)
+        this._refreshKeyTips()
         window.addEventListener('resize', this._fitAreas)
         this.modeBar.element.addEventListener('click', this._expandPanel)
         // before the click of a mode, which would hide the panel when its mode is the open one
@@ -886,11 +890,12 @@ export class EditorFrame {
      * The button of the mode bar and `?` do this.
      */
     toggleShortcuts() {
-        this._sheet ??= new ShortcutsSheet(this.options.viewer?.actions ?? this._ownActions!)
+        this._sheet ??= new ShortcutsSheet(this._registry)
         this._sheet.toggle()
     }
 
     dispose() {
+        this._registry.removeEventListener('actionsChange', this._refreshKeyTips)
         this._unregisterActions()
         this._ownActions?.dispose()
         this._sheet?.dispose()
@@ -1529,10 +1534,32 @@ export class EditorFrame {
     /** The light or dark button, the layout button and the shortcuts button, in the mode bar */
     private _actions() {
         const buttons: HTMLButtonElement[] = []
-        if (this.options.colorMode) buttons.push(this._button(ICONS.theme, 'Light or dark (Shift T)', 'Light / dark', () => this.toggleTheme()))
+        if (this.options.colorMode) buttons.push(this._keyButton(ICONS.theme, 'Light or dark', 'Light / dark', 'editorFrame.toggleTheme', () => this.toggleTheme()))
         buttons.push(this._button(ICONS.layout, 'Layout of the page', 'Layout', b => this._toggleMenu(b, () => this._layoutItems())))
-        buttons.push(this._button(ICONS.keys, 'Keyboard shortcuts (?)', 'Shortcuts', () => this.toggleShortcuts()))
+        buttons.push(this._keyButton(ICONS.keys, 'Keyboard shortcuts', 'Shortcuts', 'editorFrame.shortcuts', () => this.toggleShortcuts()))
         return buttons
+    }
+
+    /** The actions of the frame: `viewer.actions` of {@link EditorFrameOptions.viewer}, else its own */
+    private get _registry(): ViewerActions {
+        return this.options.viewer?.actions ?? (this._ownActions ??= new ViewerActions())
+    }
+
+    /** A button of the mode bar that runs an action: its tooltip has the key of the action ({@link _refreshKeyTips}) */
+    private _keyButton(icon: string, tip: string, name: string, action: string, onClick: (b: HTMLButtonElement) => void) {
+        const b = this._button(icon, tip, name, onClick)
+        this._keyButtons.push([b, tip, action])
+        return b
+    }
+
+    /** The tooltips of the buttons with the keys as they are now: the key that the app set, or none */
+    private _refreshKeyTips = () => {
+        for (const [b, label, id] of this._keyButtons) {
+            const key = shortcutsOf(this._registry.shortcutOf(id))[0]
+            const tip = key ? `${label} (${formatShortcut(key)})` : label
+            this.modeBar.setTooltip(b, tip)
+            b.setAttribute('aria-label', tip)
+        }
     }
 
     /** A button in the mode bar, with a name that the wide mode bar shows and the tooltip of the mode bar */
