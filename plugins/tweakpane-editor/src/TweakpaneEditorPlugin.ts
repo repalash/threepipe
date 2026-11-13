@@ -226,6 +226,8 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
                 setValue: (names: boolean) => this.frame?.modeBar.setExpanded(names, true),
                 hidden: () => !this.frame,
             },
+            // the actions of the viewer and their keys (viewer.actions): the keys on or off, and a button for each action
+            () => this._viewer ? [this._viewer.actions.uiConfig] : [],
         ],
     }
 
@@ -251,7 +253,7 @@ export class TweakpaneEditorPlugin extends AViewerPluginSync<TweakpaneEditorPlug
             } : undefined,
             // the container of the Tweakpane UI (uiconfig-tweakpane gives it this id; the plugin has no getter for it)
             panel: () => document.getElementById('tweakpaneUiContainer'),
-            // the keys of the frame are actions of a CommandsPlugin of the viewer
+            // the keys of the frame are actions in viewer.actions
             viewer: this._viewer,
             ...this.frameOptions,
             layout,

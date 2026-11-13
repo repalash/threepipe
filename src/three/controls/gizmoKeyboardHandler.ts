@@ -1,4 +1,4 @@
-import type {CommandAction} from '../../plugins/interaction/CommandsPlugin'
+import type {ViewerAction} from '../../viewer/ViewerActions'
 
 /** What the shared gizmo actions ({@link gizmoActions}) change on a transform gizmo */
 export interface GizmoActionTarget {
@@ -17,13 +17,13 @@ export interface GizmoActionTarget {
 /**
  * The shared actions of the transform gizmos (`TransformControls2`, `PivotControls`): Q (local or world space), + and -
  * (the size), X, Y, Z (an axis) and Space (on or off). The keys are places on the keyboard (`KeyboardEvent.code`). The
- * owner of the gizmo binds them with `bindActions` (its plugin does that).
+ * owner of the gizmo registers them in `viewer.actions` (its plugin does that).
  * @param prefix - the start of the ids, like `'transformControls'`
  * @param group - the group of the actions in a UI
  * @param target - the gizmo
  */
-export function gizmoActions(prefix: string, group: string, target: GizmoActionTarget): CommandAction[] {
-    const action = (id: string, label: string, shortcut: string | string[], run: () => void, enabled = () => target.active()): CommandAction => ({
+export function gizmoActions(prefix: string, group: string, target: GizmoActionTarget): ViewerAction[] {
+    const action = (id: string, label: string, shortcut: string | string[], run: () => void, enabled = () => target.active()): ViewerAction => ({
         id: prefix + '.' + id, label, group, shortcut, enabled,
         run: () => {
             run()
