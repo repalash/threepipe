@@ -394,13 +394,14 @@ export class ViewerActions extends EventDispatcher<ViewerActionsEventMap> {
     }
 
     private _onKey(e: KeyboardEvent, capture: boolean) {
-        if (!this.enabled || this.suspended || !viewerTakesKey(this.viewer, e) || capture && !focusForCapture(this.viewer, e)) return
+        if (!this.enabled || !viewerTakesKey(this.viewer, e) || capture && !focusForCapture(this.viewer, e)) return
         // the key of each action now: the one that the app set, else its own (no search by id for each action)
         const action = shortcutAction(e, this._actions, capture, a => {
             const set = this._shortcuts.get(a.id)
             return set === null ? undefined : set ?? a.shortcut
         })
-        if (!action) return
+        // the modal check last: a query of the page, only for a key of an action
+        if (!action || this.suspended) return
         e.preventDefault()
         if (capture) e.stopPropagation()
         this._run(action)
