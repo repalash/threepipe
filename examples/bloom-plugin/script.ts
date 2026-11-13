@@ -9,6 +9,7 @@ import {
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 import {BloomPlugin, TemporalAAPlugin} from '@threepipe/webgi-plugins'
+import {createExampleCard} from '../examples-utils/example-card.js'
 
 async function init() {
     const viewer = new ThreeViewer({
@@ -47,6 +48,15 @@ async function init() {
     }
 
     bloom.pass!.intensity = 3
+
+    createExampleCard(viewer, {
+        description: 'BloomPlugin (webgi-plugins) makes the brightest parts of the HDR render glow: here the lamps, the eyes and the visor ring of the helmet. Turn it off to compare; Threshold sets how bright a pixel must be to glow. The material panels set how strongly the helmet emits light.',
+        actions: [
+            {type: 'checkbox', label: 'Bloom', icon: 'sparkles', property: [bloom, 'enabled']},
+            {type: 'slider', label: 'Intensity', bounds: [0, 3], stepSize: 0.01, property: [bloom.pass!, 'intensity']},
+            {type: 'slider', label: 'Threshold', bounds: [0, 2], stepSize: 0.01, property: [bloom.pass!, 'threshold']},
+        ],
+    })
     bloom.pass!.threshold = 1
 
     // viewer.scene.background = null

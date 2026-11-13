@@ -8,6 +8,7 @@ import {
     UnsignedByteType,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
+import {createExampleCard} from '../examples-utils/example-card.js'
 
 const viewer = new ThreeViewer({
     renderScale: 'auto',
@@ -34,13 +35,18 @@ async function init() {
         throw new Error('ssaoPlugin.target returned undefined')
     }
 
-    // set a custom pipeline to see SSAO. (Note that packing is set to 2 in SSAOPlugin constructor view the target with alpha=1)
-    viewer.renderManager.autoBuildPipeline = false
-    viewer.renderManager.pipeline = ['gbuffer', 'ssao', 'progressive', 'screen']
-    ssaoPlugin.pass!.copyToWriteBuffer = true // so that screen pass can access ssao result
-
-    // or to render ssao buffer to screen, uncomment this line:
-    // viewer.renderManager.screenPass.overrideReadBuffer = ssaoTarget
+    // Show the occlusion itself: a custom pipeline without the render pass, where the SSAO pass writes its result for the
+    // screen pass (packing is 2 in the SSAOPlugin constructor, view the target with alpha = 1). Off: the automatic pipeline,
+    // the final render with the occlusion applied.
+    // To show the SSAO target on the screen instead: viewer.renderManager.screenPass.overrideReadBuffer = ssaoTarget
+    const renderManager = viewer.renderManager
+    let aoOnly = false
+    const showAoOnly = (on: boolean) => {
+        aoOnly = on
+        ssaoPlugin.pass!.copyToWriteBuffer = on // so that the screen pass gets the SSAO result
+        renderManager.autoBuildPipeline = !on
+        if (on) renderManager.pipeline = ['gbuffer', 'ssao', 'progressive', 'screen']
+    }
 
     const targetPreview = viewer.addPluginSync(RenderTargetPreviewPlugin)
     targetPreview.addTarget(()=>ssaoTarget, 'ssao', false, true, true, (s)=>`${s} = vec4(${s}.r);`)
@@ -48,7 +54,17 @@ async function init() {
 
     const ui = viewer.addPluginSync(TweakpaneUiPlugin, true)
     ui.setupPluginUi(SSAOPlugin, {expanded: true})
+
     ui.setupPluginUi(ProgressivePlugin)
+
+    createExampleCard(viewer, {
+        description: 'SSAOPlugin computes ambient occlusion from the depth and normals of the gbuffer: the soft shadow in corners and creases. Show AO only draws the occlusion itself on the canvas; the previews at the bottom show the SSAO and progressive targets.',
+        actions: [
+            {type: 'checkbox', label: 'Show AO only', icon: 'contrast', getValue: () => aoOnly, setValue: showAoOnly},
+            {type: 'slider', label: 'Intensity', bounds: [0, 4], stepSize: 0.001, property: [ssaoPlugin.pass!, 'intensity']},
+            {type: 'slider', label: 'Radius', bounds: [0.1, 8], stepSize: 0.01, property: [ssaoPlugin.pass!, 'occlusionWorldRadius']},
+        ],
+    })
 }
 
 _testStart()
