@@ -157,6 +157,13 @@ describe('formatShortcut', () => {
         expect(formatShortcut('Space', false)).toBe('Space')
     })
 
+    test('a numpad code shows as Num and its key', () => {
+        expect(formatShortcut('NumpadAdd', false)).toBe('Num +')
+        expect(formatShortcut('Shift+NumpadSubtract', true)).toBe('⇧Num -')
+        expect(formatShortcut('Numpad7', false)).toBe('Num 7')
+        expect(formatShortcut('NumpadEnter', false)).toBe('Num Enter')
+    })
+
     test('a string that does not parse stays as it is', () => {
         expect(formatShortcut('Ctrl+Z', false)).toBe('Ctrl+Z')
     })
