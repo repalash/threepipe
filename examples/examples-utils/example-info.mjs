@@ -10,6 +10,13 @@ const API = 'https://threepipe.org/docs/'
 const FOR_AGENTS = new URL('../llms.txt', import.meta.url).href
 
 /**
+ * Another control on the page (the example card) opens or closes the panel with this event on `document`:
+ * `document.dispatchEvent(new CustomEvent('tp-example-info-toggle'))`, or `{detail: {open: true}}` to only open it.
+ * Give that control the attribute `data-tp-example-info-toggle`, so its own press does not count as a press outside.
+ */
+export const TOGGLE_EVENT = 'tp-example-info-toggle'
+
+/**
  * What the panel shows, from the page. The site of `master` links to `master`; anywhere else (the dev site, previews,
  * local) links to `dev`, where a new example already exists.
  * @param {{pathname: string, hostname: string, title?: string, scripts?: string, imports?: string[]}} page
@@ -118,8 +125,15 @@ function mount(info) {
     open.addEventListener('click', () => toggle(panel.hidden))
     // capture: a viewer's canvas may stop the events it handles
     document.addEventListener('pointerdown', e => {
-        if (!panel.hidden && !e.composedPath().includes(host)) toggle(false)
+        const path = e.composedPath()
+        const fromToggle = path.some(el => el instanceof Element && el.hasAttribute('data-tp-example-info-toggle'))
+        if (!panel.hidden && !path.includes(host) && !fromToggle) toggle(false)
     }, true)
+    document.addEventListener(TOGGLE_EVENT, e => {
+        const show = e.detail?.open ?? panel.hidden
+        toggle(show)
+        if (show) panel.querySelector('a, button')?.focus()
+    })
     host.addEventListener('keydown', e => {
         if (e.key === 'Escape' && !panel.hidden) {
             toggle(false)

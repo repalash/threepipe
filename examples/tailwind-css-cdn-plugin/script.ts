@@ -37,7 +37,7 @@ async function init() {
     viewer.container.appendChild(panel)
 
     // Add Tweakpane UI for plugin settings
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
     ui.setupPluginUi(TailwindCSSCDNPlugin)
 
 }

@@ -28,7 +28,7 @@ async function init() {
     })
 
     const anisotropy = viewer.addPluginSync(AnisotropyPlugin)
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
 
     await viewer.setEnvironmentMap('https://dist.pixotronics.com/webgi/assets/hdr/gem_2.hdr', {
         setBackground: false,

@@ -20,7 +20,7 @@ async function init() {
     // after the viewer is made: it shows viewer.uiConfig
     viewer.addPluginSync(ViewerUiConfigPlugin)
 
-    viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    viewer.addPluginSync(new TweakpaneUiPlugin())
     const editor = viewer.addPluginSync(new TweakpaneEditorPlugin())
     editor.loadPlugins({
         ['Viewer']: [ViewerUiConfigPlugin],

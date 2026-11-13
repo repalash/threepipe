@@ -26,7 +26,7 @@ async function init() {
     }, viewer.container)
 
 
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
     ui.setupPluginUi(FullScreenPlugin)
 
 }

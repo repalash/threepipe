@@ -47,7 +47,7 @@ async function init() {
 
     const light = viewer.scene.addObject(new HemisphereLight2(0x0000ff, 0xff0000, 20))
 
-    const ui = viewer.addPluginSync(TweakpaneUiPlugin, true)
+    const ui = viewer.addPluginSync(TweakpaneUiPlugin)
     ui.appendChild(light.uiConfig, {expanded: true})
 }
 

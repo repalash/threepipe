@@ -236,7 +236,7 @@ export class ThreeEditor extends ThreeViewer {
             normal && rt.addTarget(this.getPlugin(NormalBufferPlugin)?.target, 'normal', false, true, false)
         }
 
-        this.addPluginSync(new TweakpaneUiPlugin(true))
+        this.addPluginSync(new TweakpaneUiPlugin())
         const editor = this.addPluginSync(new TweakpaneEditorPlugin())
 
         editor.loadPlugins(this.editorModes)

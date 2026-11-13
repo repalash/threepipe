@@ -34,7 +34,7 @@ async function init() {
     // // make it invisible.
     viewer.canvas.style.opacity = '0'
 
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
     ui.setupPlugins(BasicSVGRendererPlugin)
     ui.appendChild(l.uiConfig)
 }

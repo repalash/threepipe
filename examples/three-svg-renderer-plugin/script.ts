@@ -86,7 +86,7 @@ async function init() {
     // make canvas transparent to hide it. We still need pointer events so dont set display to none
     // viewer.canvas.style.opacity = '0'
 
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
     ui.setupPlugins(ThreeSVGRendererPlugin)
     ui.setupPlugins(GLTFAnimationPlugin, PickingPlugin, DropzonePlugin)
 }

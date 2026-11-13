@@ -33,7 +33,7 @@ async function init() {
     const sscs = viewer.addPluginSync(SSContactShadowsPlugin)
     viewer.addPluginSync(PickingPlugin)
     console.log(sscs)
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
 
     // await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr', {
     //     setBackground: true,

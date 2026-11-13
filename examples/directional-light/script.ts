@@ -63,7 +63,7 @@ async function init() {
     const rt = viewer.addPluginSync(RenderTargetPreviewPlugin)
     rt.addTarget(()=>light.shadow.map || undefined, 'shadow', true, true, true)
 
-    const ui = viewer.addPluginSync(TweakpaneUiPlugin, true)
+    const ui = viewer.addPluginSync(TweakpaneUiPlugin)
     ui.appendChild(light.uiConfig, {expanded: true})
 }
 

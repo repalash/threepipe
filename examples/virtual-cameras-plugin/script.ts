@@ -41,7 +41,7 @@ async function init() {
 
     const rt = viewer.addPluginSync(RenderTargetPreviewPlugin)
 
-    const ui = viewer.addPluginSync(TweakpaneUiPlugin, true)
+    const ui = viewer.addPluginSync(TweakpaneUiPlugin)
     ui.appendChild(viewer.scene.mainCamera.uiConfig)
 
     for (const [view, name] of views) {

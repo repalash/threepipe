@@ -21,7 +21,7 @@ async function init() {
     viewer.timeline.endTime = 5 // 5 secs
 
     // Setup a basic UI for development
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
     ui.appendChild(viewer.timeline.uiConfig, {expanded: true})
     ui.setupPluginUi(TimelineUiPlugin, {expanded: false})
 
