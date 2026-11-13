@@ -63,6 +63,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- `ChromaticAberrationPlugin`: the Intensity slider goes to 1 (was 0.3), so the panel shows the default of 0.5 (it showed 0.300 while the effect used 0.5)
 - Camera UI: one Controls Mode dropdown. `PerspectiveCamera2` and `OrthographicCamera2` also had a second one, from a `@uiDropdown` on `controlsMode` that listed the modes once, when the camera was made (only `orbit`). Setting a mode that a plugin adds (seen with `deviceOrientation`) while the UI showed the camera could set it back to none, so the overlay of the `device-orientation-controls-plugin` example left the camera with no controls on its first tap. The dropdown of `makeICameraCommonUiConfig` stays: it lists the modes again when a plugin adds one, and no longer lists `orbit` twice
 - `BVHPlugin`: the default loader's `import('three-mesh-bvh')` is no longer a literal in the built `lib` and `dist` (the build folded the variable holding the specifier), so the bundler of an app that does not install three-mesh-bvh no longer fails to resolve it (Vite: `Failed to resolve import "three-mesh-bvh"`, which stopped the dev server with 0.7.0-next.0). The specifier is `BVHPlugin.LIBRARY_MODULE`, a static property like the other runtime-loaded libraries (see [dynamically loaded files](https://threepipe.org/notes/dynamically-loaded-files.html))
 - tweakpane-editor page frame: the panel scrolls up and down only. On a phone in Safari it also scrolled sideways, and the labels went out at the left
