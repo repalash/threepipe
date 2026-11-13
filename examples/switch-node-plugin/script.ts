@@ -8,7 +8,8 @@ import {
     ThreeViewer,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
-import {SwitchNodePlugin} from '@threepipe/plugin-configurator'
+import {GridItemListPlugin, SwitchNodePlugin} from '@threepipe/plugin-configurator'
+import {createExampleCard} from '../examples-utils/example-card.js'
 
 async function init() {
 
@@ -44,6 +45,13 @@ async function init() {
     ui.setupPluginUi(SwitchNodePlugin)
     ui.setupPluginUi(PickingPlugin)
 
+    // the options of the switch nodes go in the card (by default they are a column over the top left of the canvas)
+    const options = document.createElement('div')
+    createExampleCard(viewer, {
+        description: 'SwitchNodePlugin: an object with children is a switch node, and only one of its children shows at a time. The product in this file has switch nodes set up in the editor: click an option to show that part. Right-click to edit them.',
+        content: options,
+    })
+    viewer.getPlugin(GridItemListPlugin)!.container = options
 }
 
 _testStart()

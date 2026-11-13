@@ -6,7 +6,9 @@ All notable changes to this plugin will be documented in this file.
 
 ## [Unreleased]
 
-- NA
+### Added
+
+- `GridItemListPlugin.container`: an element of the page to put the grids of the `MaterialConfiguratorPlugin` and the `SwitchNodePlugin` in, laid out in that element (a panel, the card of an example), instead of a column over the top left of the canvas. `GridItemList.RebuildUi(parent, inFlow)` does it
 
 ## [0.2.4]
 
