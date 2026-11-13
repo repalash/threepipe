@@ -12,6 +12,7 @@ import {
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 import {SelectionOutlinePlugin} from '@threepipe/plugin-tweakpane-editor'
+import {createExampleCard} from '../examples-utils/example-card.js'
 
 async function init() {
 
@@ -45,6 +46,17 @@ async function init() {
     const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
     ui.setupPluginUi(SelectionOutlinePlugin, {expanded: true})
     ui.setupPluginUi(PickingPlugin)
+
+    createExampleCard(viewer, {
+        description: 'SelectionOutlinePlugin (the outline of the tweakpane editor) follows the selection and the hover of the PickingPlugin. The watch is selected: the lines inside are its parts, and behind the box the outline is dashed (x-ray). Hover or click another object.',
+        actions: [
+            {type: 'checkbox', label: 'X-ray', icon: 'eye', property: [outline, 'xray']},
+            {type: 'checkbox', label: 'Parts', icon: 'shapes', property: [outline, 'parts']},
+            {type: 'checkbox', label: 'Fill', icon: 'paintbrush', property: [outline, 'fill']},
+            {type: 'checkbox', label: 'Dim others', icon: 'moon', property: [outline, 'dimOthers']},
+            {type: 'slider', label: 'Width', bounds: [0.5, 6], stepSize: 0.5, property: [outline, 'width']},
+        ],
+    })
 }
 
 _testStart()

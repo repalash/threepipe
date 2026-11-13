@@ -7,6 +7,7 @@ import {
     ThreeViewer,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
+import {createExampleCard} from '../examples-utils/example-card.js'
 
 async function init() {
 
@@ -31,7 +32,14 @@ async function init() {
     ui.setupPluginUi(GLTFKHRMaterialVariantsPlugin, {expanded: true})
     ui.appendChild(result?.getObjectByName('Shoe')?.uiConfig)
 
-
+    // the variants that the file defines (KHR_materials_variants)
+    const variants = viewer.getPlugin(GLTFKHRMaterialVariantsPlugin)!
+    createExampleCard(viewer, {
+        description: 'GLTFKHRMaterialVariantsPlugin reads the material variants of a glTF file (KHR_materials_variants) and switches between them. This shoe has three colourways; it can also export them again.',
+        actions: [
+            {type: 'dropdown', label: 'Variant', icon: 'palette', property: [variants, 'selectedVariant'], children: Object.keys(variants.variants).map(label => ({label}))},
+        ],
+    })
 }
 
 _testStart()

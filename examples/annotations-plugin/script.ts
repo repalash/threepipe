@@ -12,6 +12,7 @@ import {
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 import {AnnotationsPlugin, AnnotationView, escapeHtml, renderAnnotationText} from '@threepipe/plugin-annotations'
+import {createExampleCard} from '../examples-utils/example-card.js'
 
 async function init() {
 
@@ -61,6 +62,15 @@ async function init() {
     // Close button and Close on canvas interaction
     ui.setupPluginUi(AnnotationsPlugin, {expanded: true})
 
+    createExampleCard(viewer, {
+        description: 'AnnotationsPlugin: numbered markers with a title, a text and a camera view, like Sketchfab. Click a number, or go through them here (← → while a card is open). With Editable on, add one from the panel, drag a marker, or edit a card; Ctrl+Z undoes.',
+        actions: [
+            {type: 'button', label: 'Previous', icon: 'arrow-left', value: () => annotations.prev()},
+            {type: 'button', label: 'Next', icon: 'arrow-right', value: () => annotations.next()},
+            {type: 'button', label: 'Play tour', icon: 'play', value: () => annotations.playTour()},
+            {type: 'checkbox', label: 'Editable', icon: 'square-pen', property: [annotations, 'editable']},
+        ],
+    })
 }
 
 _testStart()
