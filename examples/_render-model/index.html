@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Render a model for the catalog</title>
+    <!-- Not an example: scripts/sample-assets/render-catalog.mjs opens this with ?m=<model URL> and reads window.__render. -->
+    <script type="importmap">
+    {
+        "imports": {
+          "@threepipe/webgi-plugins": "./../../plugins/webgi-plugins/dist/index.mjs",
+          "threepipe": "./../../dist/index.mjs"
+        }
+    }
+    </script>
+    <style>
+        html, body { margin: 0; background: transparent; }
+        #mcanvas { display: block; }
+    </style>
+    <script id="example-script" type="module" src="./script.js" data-scripts="./script.ts;./script.js"></script>
+</head>
+<body>
+<canvas id="mcanvas"></canvas>
+</body>
+</html>
