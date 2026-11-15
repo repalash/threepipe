@@ -35,8 +35,9 @@
 
         const viewer = new ThreeViewer({
             canvas: document.getElementById('mcanvas'),
-            // drop a file on the page (or Open file in the card) to load it in place of this one
-            dropzone: {allowedExtensions: ['fbx'], addOptions: {disposeSceneObjects: true, autoCenter: true, autoScale: true}},
+            // drop a file on the page (or Open file in the card) to load it in place of this one, with its textures
+            // when they are separate files (the drop zone only keeps the files of these types)
+            dropzone: {allowedExtensions: ['fbx', 'png', 'jpg', 'jpeg', 'webp'], addOptions: {disposeSceneObjects: true, autoCenter: true, autoScale: true}},
         })
 
         async function init() {

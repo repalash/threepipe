@@ -219,8 +219,9 @@ async function init() {
         actions: [
             {type: 'button', label: 'Open file…', icon: 'file-code', value: () => dropzone.promptForFile()},
             {type: 'button', label: 'Open URL…', icon: 'link', value: () => dropzone.promptForUrl()},
-            {type: 'dropdown', label: 'Sample', icon: 'box', children: SAMPLES.map((m, i) => ({label: m.label, value: i})),
-                getValue: () => sample, setValue: (i: number) => loadSample(i)},
+            // "Your file" shows after a model is dropped or opened (or came from ?m=)
+            {type: 'dropdown', label: 'Sample', icon: 'box', children: [...SAMPLES.map((m, i) => ({label: m.label, value: i})), {label: 'Your file', value: -1}],
+                getValue: () => sample, setValue: (i: number) => i >= 0 && loadSample(i)},
             {type: 'monitor', label: 'Meshes', getValue: () => stats.meshes.toLocaleString()},
             {type: 'monitor', label: 'Triangles', getValue: () => stats.triangles.toLocaleString()},
         ],
@@ -233,6 +234,8 @@ async function init() {
         if (!e.assets?.length) return // no assets imported
         console.log('Dropped Event:', e)
         promptDiv.style.display = 'none'
+        // a model replaces the sample; an HDR or an image only changes the environment or the background
+        if (!e.assets.some((a: any) => a?.isObject3D)) return
         sample = -1 // not a sample now
         credit.textContent = ''
     })
