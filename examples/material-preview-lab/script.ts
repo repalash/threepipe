@@ -30,7 +30,7 @@ const viewer = new ThreeViewer({
 })
 
 const previews = viewer.getPlugin(MaterialPreviewPlugin)!
-const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
 
 type Animate = (m: PhysicalMaterial, t: number) => void
 const palette: [PhysicalMaterial, Animate?][] = [

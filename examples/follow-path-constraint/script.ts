@@ -104,7 +104,7 @@ async function init() {
     objConstraint.influence = 0.2 // like damping, so the animation is not jerky
 
     // Set up UI
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
 
     // Constraint controls
     ui.appendChild(objConstraint.uiConfig, {expanded: true})

@@ -33,7 +33,7 @@ async function init() {
     wh.secondOffset = 38
     wh.analog = true
 
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
     ui.setupPluginUi(WatchHandsPlugin, {expanded: true})
     ui.setupPluginUi(PickingPlugin)
     ui.appendChild(viewer.uiConfig)

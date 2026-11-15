@@ -70,7 +70,7 @@ async function init() {
     })
 
     // Its Actions folder lists the actions too (the editor shows it in its settings)
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
     ui.appendChild(actions.uiConfig, {expanded: true})
 }
 
