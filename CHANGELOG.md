@@ -64,6 +64,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 
+- Progressive rendering converges at a fractional render scale (for example a device pixel ratio of 1.25 or 1.5, or a render scale fitted to a frame budget): the jitter of `SSAAPlugin` calls `setViewOffset` with the render size times the render scale, and three sets the camera's aspect to that ratio, which can differ from the canvas ratio in the last bit. `PerspectiveCamera2` with `autoAspect` reset it and marked itself dirty on every jittered frame, so the frame count never passed 2 or 3, and converge-mode recordings of `CanvasRecorderPlugin` never stepped. With `autoAspect`, an aspect equal to the canvas ratio within float rounding is no longer a change
 - `BVHPlugin`: the default loader's `import('three-mesh-bvh')` is no longer a literal in the built `lib` and `dist` (the build folded the variable holding the specifier), so the bundler of an app that does not install three-mesh-bvh no longer fails to resolve it (Vite: `Failed to resolve import "three-mesh-bvh"`, which stopped the dev server with 0.7.0-next.0). The specifier is `BVHPlugin.LIBRARY_MODULE`, a static property like the other runtime-loaded libraries (see [dynamically loaded files](https://threepipe.org/notes/dynamically-loaded-files.html))
 
 - tweakpane-editor page frame: the panel scrolls up and down only. On a phone in Safari it also scrolled sideways, and the labels went out at the left
