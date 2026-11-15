@@ -40,6 +40,13 @@ for (const row of catalog.rows) {
     seen.add(asset)
     if (row.over_limit) problems.push(`${asset}: over the upload limit`)
     if (!/^[A-Za-z0-9._-]+$/.test(row.name)) problems.push(`${asset}: the name is not a slug`)
+    // json columns: JSON text, tags and authors an array, metadata an object
+    for (const [column, shape] of [['tags', 'array'], ['authors', 'array'], ['metadata', 'object']]) {
+        if (row[column] === null || row[column] === undefined) continue
+        let value
+        try { value = JSON.parse(row[column]) } catch { problems.push(`${asset}: ${column} is not JSON`); continue }
+        if (shape === 'array' ? !Array.isArray(value) : typeof value !== 'object' || Array.isArray(value) || !value) problems.push(`${asset}: ${column} is not a JSON ${shape}`)
+    }
     // a model already in the bucket is not in --out, nor is the model a texture of it points to
     const inBucket = row.linked || (row.kind === 'texture' && !catalog.rows.some(r => r.kind === 'model' && !r.linked && r.url === row.url))
     const urls = [inBucket ? undefined : row.url, row.thumb_url, row.video_url, ...['screenshots', 'videos', 'thumbnails'].flatMap(k => JSON.parse(row.metadata ?? '{}')[k] ?? []).map(s => s.url)].filter(Boolean)

@@ -105,7 +105,7 @@ async function addTextures(root, model, seen, links) {
         const row = {
             kind: 'texture', set_name: model.set_name, name, label: texture.getName() || texture.getURI() || `${model.label} texture`,
             tags: JSON.stringify(['embedded', ...slot].sort()), license: model.license, authors: model.authors, source_url: model.source_url,
-            links: '[]', variants: '[]', changes: `taken from the model ${model.name}`, url: model.url,
+            links: '[]', changes: `taken from the model ${model.name}`, url: model.url,
             thumb_url: thumb, size: image.byteLength, width, height,
         }
         seen.set(asset, row)
@@ -205,6 +205,18 @@ function tagsOf(tags, root) {
     return [...out].sort()
 }
 
+/** The format of a Khronos sample variant: `glTF-Draco` is `draco`, `glTF-Binary` is `glb`. */
+function khronosFormat(variant) {
+    return {'glTF-Binary': 'glb', glTF: 'gltf', 'glTF-Embedded': 'gltf-embedded', 'glTF-KTX-BasisU': 'ktx2'}[variant] ?? variant.replace(/^glTF-/, '').toLowerCase()
+}
+
+/** Tags for what lists filter on in the files of an asset: compressed formats and levels of detail */
+function fileTags(files) {
+    const out = files.map(f => f.format).filter(f => ['draco', 'ktx2', 'meshopt', 'quantized'].includes(f))
+    if (files.some(f => f.lod > 0)) out.push('lods')
+    return out
+}
+
 const run = (cmd, ...a) => execFileSync(cmd, a, {stdio: ['ignore', 'pipe', 'inherit'], encoding: 'utf8', maxBuffer: 1 << 28}).trim()
 
 function fetchRepo(url, dir, ref) {
@@ -220,7 +232,7 @@ function parseReuse(text) {
         if (!name) continue
         const license = /SPDX-License-Identifier"?\s*=\s*"([^"]+)"/.exec(block)?.[1]
         const copy = /SPDX-FileCopyrightText"?\s*=\s*(\[[^\]]*\]|"[^"]*")/s.exec(block)?.[1]
-        out[name] = {license, authors: copy ? [...copy.matchAll(/"([^"]+)"/g)].map(m => m[1]).join('; ') : undefined}
+        out[name] = {license, authors: copy ? [...copy.matchAll(/"([^"]+)"/g)].map(m => m[1]) : undefined}
     }
     return out
 }
@@ -229,7 +241,8 @@ function parseReuse(text) {
 function parseSceneReadme(text) {
     const section = /## Source\n([\s\S]*?)(?:\n## |$)/.exec(text)?.[1] ?? ''
     const links = [...section.matchAll(/^- ([^:\n]+): \[[^\]]*\]\((https?:[^)]+)\)/gm)].map(m => ({label: m[1], url: m[2]}))
-    return {links, authors: /^- Original author: (.+)$/m.exec(section)?.[1]}
+    const author = /^- Original author: (.+)$/m.exec(section)?.[1]
+    return {links, authors: author ? [author] : undefined}
 }
 
 /**
@@ -264,13 +277,21 @@ function* khronos() {
             source_url: `https://github.com/KhronosGroup/glTF-Sample-Assets/tree/${sha}/Models/${m.name}`, links: [],
             file: path.join(dir, 'Models', m.name, variant, m.variants[variant]),
             changes: null,
-            // the other versions Khronos has (Draco, KTX, ...), read from its repository
             images: imagesIn(path.join(dir, 'Models', m.name, 'screenshot'), f => f.replace(IMAGE, '').replace(/^screenshot-?/, '') || 'screenshot'),
-            variants: Object.entries(m.variants).filter(([v]) => v !== variant).map(([v, f]) => ({
-                name: v, url: `https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/${sha}/Models/${m.name}/${v}/${f}`,
+            // the other versions Khronos has (Draco, KTX, ...), read from its repository
+            files: Object.entries(m.variants).filter(([v]) => v !== variant).map(([v, f]) => ({
+                format: khronosFormat(v), label: v, url: `https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/${sha}/Models/${m.name}/${v}/${f}`,
             })),
         }
     }
+}
+
+/**
+ * Models that don't load or render right, by their path in the samples bucket: tagged `broken`, the reason in
+ * metadata.broken. Fixed later or hidden from lists (`!json_contains(tags, 'broken')`).
+ */
+const BROKEN = {
+    'demos/classic-watch.glb': 'a dead texture in its data throws on load (issues/open/import-meta-missing-texture-throws-2026-11-06.md)',
 }
 
 /**
@@ -342,11 +363,11 @@ function* polyHaven() {
             set_name: 'poly-haven', name: id, label: info.name ?? id, tags: (info.categories ?? []).filter(c => !c.startsWith('collection:')),
             license: 'CC0-1.0',
             // {name: role}: "Rico Cilliers (All)"
-            authors: Object.entries(info.authors ?? {}).map(([name, role]) => `${name} (${role})`).join('; ') || undefined,
+            authors: Object.entries(info.authors ?? {}).map(([name, role]) => `${name} (${role})`),
             source_url: `https://polyhaven.com/a/${id}`, links: [], file, pack: true,
             changes: `packed to one GLB from the ${POLY_HAVEN_RES} glTF, textures to WebP (quality 85)`,
             images: fs.existsSync(thumb) && fs.statSync(thumb).size > 1024 ? [{file: thumb, label: 'thumbnail'}] : [],
-            variants: Object.entries(gltfs).map(([res, v]) => ({name: `${res} glTF (original)`, url: v.gltf.url})),
+            files: Object.entries(gltfs).map(([res, v]) => ({format: 'gltf', resolution: res, label: `${res} glTF (original)`, url: v.gltf.url})),
         }
     }
 }
@@ -442,6 +463,7 @@ for (const [set, list] of Object.entries(sets)) {
         if (names.has(unique)) throw new Error(`${m.set_name}/${m.name}: this name is already used by ${names.get(unique)}`)
         names.set(unique, m.label)
         const {images = [], linked, read, pack, ...fields} = m
+        delete fields.files // a row's files go into metadata, with its default file first
         try {
             const doc = await io.read(read ?? file)
             // a file saved from the viewer has its settings and camera, and maybe the credit of where it came from (Sketchfab)
@@ -450,7 +472,7 @@ for (const [set, list] of Object.entries(sets)) {
             const saved = firstScene?.extensions?.WEBGI_viewer?.scene?.defaultCamera
             const credit = raw?.nodes?.[firstScene?.nodes?.[0]]?.extras?.gltfAsset?.extras
             if (credit?.license) fields.license = m.license = credit.license.split(' ')[0]
-            if (credit?.author) fields.authors = m.authors = credit.author
+            if (credit?.author) fields.authors = m.authors = [credit.author]
             if (credit?.source) fields.source_url = m.source_url = credit.source
             const root = doc.getRoot()
             // a GLB directly under its set; the files of a glTF stay together, as in the source
@@ -492,7 +514,11 @@ for (const [set, list] of Object.entries(sets)) {
                 return {label, url: `${FILES}/${previews}/${name}`, size: fs.statSync(image).size}
             })
             const triangles = sceneTriangles(root)
-            rows.push({...fields, metadata: JSON.stringify({views: viewsOf(root, m.name, saved), ...animationsOf(root)}), screenshots: JSON.stringify(screenshots), tags: JSON.stringify(tagsOf(m.tags, root)), links: JSON.stringify(m.links), variants: JSON.stringify(m.variants ?? []), kind: 'model', url, previews, linked, size, triangles,
+            // every file of the asset, the default one first; other versions, levels of detail and formats add entries
+            const files = [{default: true, format: file.endsWith('.gltf') && !pack ? 'gltf' : 'glb', url, size, triangles}, ...m.files ?? []]
+            const broken = BROKEN[modelPath]
+            const tags = [...new Set([...tagsOf(m.tags, root), ...fileTags(files), ...broken ? ['broken'] : []])].sort()
+            rows.push({...fields, metadata: JSON.stringify({views: viewsOf(root, m.name, saved), ...animationsOf(root), ...broken ? {broken} : {}}), screenshots: JSON.stringify(screenshots), tags: JSON.stringify(tags), links: JSON.stringify(m.links), files: JSON.stringify(files), kind: 'model', url, previews, linked, size, triangles,
                 vertices: root.listMeshes().reduce((n, mesh) => n + mesh.listPrimitives().reduce((v, p) => v + (p.getAttribute('POSITION')?.getCount() ?? 0), 0), 0), meshes: root.listMeshes().length, materials: root.listMaterials().length,
                 textures: root.listTextures().length, animations: root.listAnimations().length,
                 extensions: JSON.stringify(root.listExtensionsUsed().map(e => e.extensionName)), poly: polyClass(triangles), over_limit: overLimit})
@@ -507,8 +533,8 @@ const linkRows = [...links].map(l => {
     return {from_asset, relation, to_asset}
 })
 // what isn't a column goes into `metadata`; `animations` there is the list of clips, so its count stays out
-const IN_METADATA = ['links', 'changes', 'screenshots', 'variants', 'vertices', 'meshes', 'materials', 'textures', 'extensions', 'width', 'height']
-const JSON_VALUES = new Set(['links', 'screenshots', 'variants', 'extensions'])
+const IN_METADATA = ['links', 'changes', 'screenshots', 'files', 'vertices', 'meshes', 'materials', 'textures', 'extensions', 'width', 'height']
+const JSON_VALUES = new Set(['links', 'screenshots', 'files', 'extensions'])
 const written = rows.map(({animations: _count, ...row}) => {
     const metadata = JSON.parse(row.metadata ?? '{}')
     for (const key of IN_METADATA) {
@@ -516,7 +542,8 @@ const written = rows.map(({animations: _count, ...row}) => {
         delete row[key]
         if (value !== undefined && value !== null && value !== '' && !(Array.isArray(value) && !value.length)) metadata[key] = value
     }
-    return {...row, metadata: JSON.stringify(metadata)}
+    // json columns take JSON text (teenybase 0.1.1 refuses arrays and objects as values)
+    return {...row, authors: row.authors?.length ? JSON.stringify(row.authors) : null, metadata: JSON.stringify(metadata)}
 })
 fs.writeFileSync(path.join(args.out, 'catalog.json'), JSON.stringify({rows: written, links: linkRows, failed}, null, 2))
 
