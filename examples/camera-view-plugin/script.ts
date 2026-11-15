@@ -88,7 +88,7 @@ async function init() {
         }],
     })
 
-    const ui = viewer.addPluginSync(TweakpaneUiPlugin, true)
+    const ui = viewer.addPluginSync(TweakpaneUiPlugin)
     ui.appendChild(viewer.scene.mainCamera.uiConfig)
 
     ui.setupPluginUi(CameraViewPlugin, {expanded: true})

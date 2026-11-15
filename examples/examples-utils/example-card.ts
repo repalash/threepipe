@@ -56,17 +56,33 @@ export function createExampleCard(viewer: ThreeViewer, options: ExampleCardOptio
     const h = document.createElement('h1')
     h.textContent = title
     head.appendChild(h)
+    // the panel of example-info.mjs (loaded by global-loading.mjs before the example's script): its links and the
+    // prompt for an agent, and the link to the source (the right file and branch: an example may be only an index.html)
+    const infoPanel = document.getElementById('tp-example-info')
     const name = location.pathname.match(/examples\/([^/]+)\//)?.[1]
-    if (name) {
+    const source = infoPanel?.dataset.source ?? (name ? `https://github.com/repalash/threepipe/tree/dev/examples/${name}` : undefined)
+    if (source) {
         const src = document.createElement('a')
         src.className = 'example-card-icon'
-        src.href = `https://github.com/repalash/threepipe/blob/master/examples/${name}/script.ts`
+        src.href = source
         src.target = '_blank'
         src.rel = 'noopener'
         src.title = 'Source code'
         src.setAttribute('aria-label', 'Source code')
         src.innerHTML = lucideIcon('code') ?? '</>'
         head.appendChild(src)
+    }
+    if (infoPanel) {
+        const info = document.createElement('button')
+        info.type = 'button'
+        info.className = 'example-card-icon'
+        info.title = 'About this example'
+        info.setAttribute('aria-label', 'About this example')
+        // the panel ignores a press on this button as a press outside it, so the click below can close it
+        info.setAttribute('data-tp-example-info-toggle', '')
+        info.innerHTML = lucideIcon('info') ?? 'i'
+        info.addEventListener('click', () => document.dispatchEvent(new CustomEvent('tp-example-info-toggle')))
+        head.appendChild(info)
     }
     const toggle = document.createElement('button')
     toggle.type = 'button'
