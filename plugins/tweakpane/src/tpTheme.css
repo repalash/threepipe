@@ -215,6 +215,31 @@
 }
 
 /*
+ * The dialogs of viewer.dialog (htmlDialogWrapper of ts-browser-helpers: alert, confirm, prompt, choose) in the colours of
+ * the theme. The theme class is on the body, and the dialogs are in the body, so they get these values. The second
+ * buttons and the field have the colour of a Tweakpane field. The fallbacks are the colours of Tweakpane without a theme.
+ * Dark is the default (the black theme); the light themes change the scheme, the link and the backdrop.
+ */
+:root body {
+    --dialog-bg: var(--tp-base-background-color, #28292e);
+    --dialog-fg: var(--tp-container-foreground-color, #bbbcc4);
+    --dialog-muted: var(--tp-label-foreground-color, rgba(187, 188, 196, 0.7));
+    --dialog-border: var(--tp-container-border-color, rgba(187, 188, 196, 0.1));
+    --dialog-secondary: var(--tp-input-background-color, rgba(187, 188, 196, 0.1));
+    --dialog-hover: var(--tp-input-background-color-hover, rgba(187, 188, 196, 0.15));
+    --dialog-primary: var(--tpf-accent, #0d99ff);
+    --dialog-ring: var(--tpf-accent, #0d99ff);
+    --dialog-link: #4db5ff;
+    --dialog-backdrop: rgba(0, 0, 0, 0.5);
+    --dialog-color-scheme: dark;
+}
+:root .tpTheme-white, :root .tpTheme-light, :root .tpTheme-clean {
+    --dialog-link: #007be5;
+    --dialog-backdrop: rgba(0, 0, 0, 0.25);
+    --dialog-color-scheme: light;
+}
+
+/*
  * Like the property panel of a design tool: 24px fields on a light grey fill, 11px Inter, grey labels, flat sections split by thin lines,
  * small square checkboxes, outlined buttons. Scoped to the two clean modes.
  */
