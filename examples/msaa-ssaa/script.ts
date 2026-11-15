@@ -49,7 +49,7 @@ async function init() {
     viewer.scene.mainCamera.position.set(0, 0, 3.5)
 
 
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
     ui.appendChild({
         type: 'toggle',
         label: 'Auto Rotate',

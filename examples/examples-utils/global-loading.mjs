@@ -3,14 +3,13 @@ import './example-info.mjs'
 function run () {
     if (document.body.classList.contains('_testStarted')) return
     const div = document.createElement('div');
-    const colorScheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     Object.assign(div.style, {
         position: 'fixed', top: 0, left: 0, bottom: 0, right: 0, width: 'auto', height: 'max-content',
         display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column',
         background: 'transparent', pointerEvents: 'none',
         zIndex: '49', // loading screen is 50
         transition: 'opacity 0.5s ease',
-        color: colorScheme !== 'dark' ? '#eee' : '#222',
+        color: '#222', // the page is white before the viewer draws, also with a dark system theme (like the spinner)
         fontSize: '1.25rem',
         margin: 'auto',
     });

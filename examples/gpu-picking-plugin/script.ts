@@ -162,7 +162,7 @@ async function init() {
         showLines()
     })
 
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
     ui.setupPluginUi(GPUPickingPlugin, {expanded: true})
     ui.appendChild({
         type: 'checkbox',
