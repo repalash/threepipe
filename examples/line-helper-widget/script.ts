@@ -47,7 +47,7 @@ async function init() {
     material.linewidth = 2
 
     // Set up UI
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
 
     ui.appendChild(lineObject.geometry?.uiConfig, {expanded: true, label: 'Line'})
 

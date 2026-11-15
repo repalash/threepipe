@@ -25,7 +25,7 @@ async function init() {
         },
     })
 
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
     const configurator = viewer.addPluginSync(new SwitchNodePlugin())
     configurator.enableEditContextMenus = true
 
