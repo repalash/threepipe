@@ -10,6 +10,14 @@ const API = 'https://threepipe.org/docs/'
 const FOR_AGENTS = new URL('../llms.txt', import.meta.url).href
 
 /**
+ * Another control on the page (the example card) opens or closes the panel with this event on `document`:
+ * `document.dispatchEvent(new CustomEvent('tp-example-info-toggle'))`, or `{detail: {open: true}}` to only open it.
+ * Give that control the attribute `data-tp-example-info-toggle`, so its own press does not count as a press outside.
+ * The panel's element (`#tp-example-info`) has the link to the example's source in `data-source`.
+ */
+export const TOGGLE_EVENT = 'tp-example-info-toggle'
+
+/**
  * What the panel shows, from the page. The site of `master` links to `master`; anywhere else (the dev site, previews,
  * local) links to `dev`, where a new example already exists.
  * @param {{pathname: string, hostname: string, title?: string, scripts?: string, imports?: string[]}} page
@@ -83,6 +91,8 @@ async function copy(text) {
 function mount(info) {
     const host = document.createElement('div')
     host.id = 'tp-example-info'
+    // for the source button of the example card (example-card.ts)
+    host.dataset.source = info.sourceUrl
     const root = host.attachShadow({mode: 'open'})
     root.innerHTML = `<style>${STYLE}</style><div class="panel" id="panel" hidden></div>
         <button class="open" type="button" aria-label="About this example" title="About this example" aria-expanded="false" aria-controls="panel">${ICON}</button>`
@@ -118,8 +128,15 @@ function mount(info) {
     open.addEventListener('click', () => toggle(panel.hidden))
     // capture: a viewer's canvas may stop the events it handles
     document.addEventListener('pointerdown', e => {
-        if (!panel.hidden && !e.composedPath().includes(host)) toggle(false)
+        const path = e.composedPath()
+        const fromToggle = path.some(el => el instanceof Element && el.hasAttribute('data-tp-example-info-toggle'))
+        if (!panel.hidden && !path.includes(host) && !fromToggle) toggle(false)
     }, true)
+    document.addEventListener(TOGGLE_EVENT, e => {
+        const show = e.detail?.open ?? panel.hidden
+        toggle(show)
+        if (show) panel.querySelector('a, button')?.focus()
+    })
     host.addEventListener('keydown', e => {
         if (e.key === 'Escape' && !panel.hidden) {
             toggle(false)

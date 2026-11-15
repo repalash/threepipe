@@ -25,12 +25,12 @@ async function init() {
         },
     })
 
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
     const materialConfigurator = viewer.addPluginSync(new MaterialConfiguratorPlugin())
     materialConfigurator.enableEditContextMenus = true
     materialConfigurator.animateApply = true
     materialConfigurator.animateApplyDuration = 1000
-    ui.setupPluginUi(MaterialConfiguratorPlugin)
+    ui.setupPluginUi(MaterialConfiguratorPlugin, {expanded: true})
     ui.setupPluginUi(PickingPlugin)
     ui.appendChild(viewer.uiConfig)
 
