@@ -334,7 +334,7 @@ export function setupTestHooks() {
             gltfAnim && gltfAnim.setTime(0)
         })
 
-        await page.addStyleTag({content: '#stats-js {display: none !important;}'})
+        await page.addStyleTag({content: '#stats-js, #tp-example-info {display: none !important;}'})
 
         if (timedOut) {
             const screenshotPath = resolve(snapDir + 'timeout-state.png')

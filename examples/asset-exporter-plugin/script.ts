@@ -18,7 +18,7 @@ async function init() {
         plugins: [LoadingScreenPlugin, AssetExporterPlugin, SceneUiConfigPlugin, GLTFDracoExportPlugin],
     })
 
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
 
     await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr', {
         setBackground: true,

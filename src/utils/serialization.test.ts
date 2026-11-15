@@ -177,3 +177,21 @@ describe('copyPublicUserData', () => {
         expect(dest).toEqual({_a: 1, nested: {_c: 1}})
     })
 })
+
+describe('MetaImporter.ImportMeta', () => {
+    test('a texture whose rootPath fails to load does not stop the import', async() => {
+        const {MetaImporter} = await import('./serialization')
+        const {LoadingManager} = await import('three')
+        const uuid = 'tex-1'
+        const json: any = {
+            textures: {[uuid]: {uuid, name: 'missing', mapping: 300, wrap: [1001, 1001], userData: {rootPath: 'https://example.invalid/missing.png'}}},
+            images: {},
+            _context: {assetImporter: {loadingManager: new LoadingManager(), importSingle: async() => undefined, processRawSingle: async(r: any) => r}},
+        }
+        const resources = await MetaImporter.ImportMeta(json)
+        const tex = resources.textures[uuid] as any
+        expect(tex).toBeTruthy()
+        expect(tex.source).toBeTruthy()
+        expect(tex.source.data).toBeNull()
+    })
+})

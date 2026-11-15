@@ -769,6 +769,9 @@ export class MetaImporter {
         for (const key1 of Object.keys(resources.textures)) {
             let tex: Texture|undefined = resources.textures[key1]
             if (!tex) continue
+            // its image did not load (a rootPath that failed, a missing image): an empty source, so the rest of the
+            // file still loads (reading tex.source.__texCtor threw and nothing in the file loaded)
+            if (!tex.source) tex.source = new Source(null)
             // __texCtor is set in MetaImporter.LoadRootPathTextures
             if (tex.source.__texCtor) {
                 const newTex: Texture = new tex.source.__texCtor(tex.source.data)
@@ -778,7 +781,7 @@ export class MetaImporter {
                 resources.textures[key1] = newTex
                 tex = newTex
             }
-            if (tex.source.data instanceof HTMLCanvasElement && !(tex as CanvasTexture).isCanvasTexture) {
+            if (typeof HTMLCanvasElement !== 'undefined' && tex.source.data instanceof HTMLCanvasElement && !(tex as CanvasTexture).isCanvasTexture) { // no DOM in Node.js
                 const newTex = new CanvasTexture(tex.source.data).copy(tex)
                 resources.textures[key1] = newTex
                 tex = newTex
