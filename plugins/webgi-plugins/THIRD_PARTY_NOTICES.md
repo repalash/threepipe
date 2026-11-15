@@ -1,6 +1,6 @@
 # Third-party notices for @threepipe/webgi-plugins
 
-This package is licensed under a modified GNU GPL-3.0-only license (see LICENSE). It contains or
+This package is licensed under the webgi Free Forever License (see LICENSE). It contains or
 adapts code from the following projects, which keep their own licenses and notices. The full
 license texts are at the end of this file.
 
