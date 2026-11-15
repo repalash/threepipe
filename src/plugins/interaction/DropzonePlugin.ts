@@ -179,6 +179,8 @@ export class DropzonePlugin extends AViewerPluginSync<DropzonePluginEventMap> {
         super.onAdded(viewer)
         this._inputEl = document.createElement('input')!
         this._inputEl.type = 'file'
+        // several files at once, like a drop: a model with the files it uses (an .obj with its .mtl and textures, a .gltf with its .bin)
+        this._inputEl.multiple = true
         if (!this._domElement) this._domElement = viewer.canvas
         this._dropzone = new Dropzone(this._domElement, this._inputEl, {
             drop: this._onFileDrop.bind(this),
