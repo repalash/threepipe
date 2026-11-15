@@ -6,24 +6,57 @@ prev:
 next: false
 
 aside: false
+pageClass: miniature-worlds-page
+
+description: How we built 14 miniature world tiles in code with a coding agent on threepipe and the webgi plugins, and how to build your own with the miniature-worlds starter.
+head:
+  - - meta
+    - property: og:type
+      content: article
+  - - meta
+    - property: og:title
+      content: Build miniature worlds with a coding agent
+  - - meta
+    - property: og:description
+      content: How we built 14 miniature world tiles in code with a coding agent on threepipe and the webgi plugins, and how to build your own with the miniature-worlds starter.
+  - - meta
+    - property: og:image
+      content: https://files.threepipe.org/p/miniature-worlds/img/og.jpg
+  - - meta
+    - property: og:image:alt
+      content: Nine miniature world tiles on a dark backdrop
+  - - meta
+    - name: twitter:card
+      content: summary_large_image
+  - - meta
+    - name: twitter:image
+      content: https://files.threepipe.org/p/miniature-worlds/img/og.jpg
 ---
 
 # Build miniature worlds with a coding agent
 
-This guide shows how we built 14 miniature world tiles with Claude Opus 5.5 on threepipe and the WebGI plugins, and
+This guide shows how we built 14 miniature world tiles with Claude Opus 5.5 on threepipe and the *webgi* plugins, and
 how you can build your own with the same kit. Everything runs in the browser: the land is generated at load time,
 and the light is computed in real time.
 
-- The 14 tiles: https://files.threepipe.org/p/webgi-worlds/
+<figure class="mw-video">
+  <video autoplay muted loop playsinline preload="metadata" poster="https://files.threepipe.org/p/miniature-worlds/img/poster.jpg" aria-label="Video: the miniature world tiles turning on a dark backdrop">
+    <source src="https://files.threepipe.org/p/miniature-worlds/video/miniature-worlds-1600.mp4" type="video/mp4">
+  </video>
+  <figcaption>The tiles, recorded live in the browser (17 s).</figcaption>
+</figure>
+
+- The tiles, each with a still, its GI effect and a live link: [files.threepipe.org/p/miniature-worlds](https://files.threepipe.org/p/miniature-worlds/)
 - The live demo (pick a tile in the menu): https://files.threepipe.org/p/ssgi-worlds/demo/
-- The starter: [repalash/miniature-worlds](https://github.com/repalash/miniature-worlds) (Apache-2.0)
+- The starter: [repalash/miniature-worlds](https://github.com/repalash/miniature-worlds) (Apache-2.0), and
+  [its build, live](https://files.threepipe.org/p/miniature-worlds/starter/)
 
 ## The stack
 
 | Part | What it does | Licence |
 |---|---|---|
 | [threepipe](https://threepipe.org) | A three.js framework: viewer, materials, plugins, loaders, serialization | Apache-2.0 |
-| [WebGI plugins](https://webgi.dev) (`@threepipe/webgi-plugins`) | SSGI (screen-space global illumination), SSR, TAA, bloom, depth of field, velocity buffer | GPL-3.0 with additional terms: free for personal and commercial use |
+| [*webgi* plugins](https://webgi.dev) (`@threepipe/webgi-plugins`) | SSGI (screen-space global illumination), SSR, TAA, bloom, depth of field, velocity buffer | GPL-3.0 with additional terms: free for personal and commercial use |
 | The world kit (in the starter) | Terrain, erosion, cut-away sides, scatter, trees, grass, water, procedural materials, the look | Apache-2.0 (a few files MIT) |
 | Your coding agent | Writes a tile as TypeScript, renders stills, fixes what it sees | |
 
@@ -34,6 +67,25 @@ and a renderer, so what it renders in its stills is what the page shows.
 
 A tile is a square of land, about 40 m across, with cut-away sides that show its rock and soil layers. It sits on a
 studio backdrop in the overview, and has eye-level views where the sky and the land round it take over.
+
+<div class="mw-grid">
+  <figure>
+    <img src="../public/images/miniature-worlds-alpine.webp" width="800" height="421" loading="lazy" alt="The Alpine Pass tile: a gravel road crosses a gorge on a granite arch and climbs to a saddle under a snow peak">
+    <figcaption>Alpine Pass, the example tile in the starter.</figcaption>
+  </figure>
+  <figure>
+    <img src="../public/images/miniature-worlds-volcano.webp" width="800" height="421" loading="lazy" alt="The Volcano Rim tile: lava runs from a crater down a channel under a steel bridge">
+    <figcaption>Volcano Rim: the lava is the main light.</figcaption>
+  </figure>
+  <figure>
+    <img src="../public/images/miniature-worlds-glacier.webp" width="800" height="421" loading="lazy" alt="The Glacier Crevasse tile: snow, a crevasse, seracs and a frozen lake, with blue ice in the cut faces">
+    <figcaption>Glacier Crevasse: the cut faces show the ice.</figcaption>
+  </figure>
+  <figure>
+    <img src="../public/images/miniature-worlds-harbour.webp" width="800" height="421" loading="lazy" alt="The Harbour Cove tile: pastel houses above a stone quay and boats in a clear cove">
+    <figcaption>Harbour Cove, a later tile built from the prop library.</figcaption>
+  </figure>
+</div>
 
 In code a tile is one object:
 
@@ -166,6 +218,11 @@ The first prompt gets a tile. The follow-ups make it good. What worked for us:
    one strong sun, a low sky fill (0.05 to 0.15), a large sunlit surface next to shaded surfaces that receive its
    light (screen-space GI sees only the screen), covered spaces next to sunlit floors, walls with thickness. In the
    page, the "Compare split" slider shows the left half without GI.
+
+   <figure>
+     <img src="../public/images/miniature-worlds-gi-mesa.webp" width="1400" height="364" loading="lazy" alt="The slot canyon in the Desert Mesa tile, GI off on the left and GI on on the right: with GI the shaded lower wall glows orange">
+     <figcaption>Desert Mesa, the slot canyon. The sun lights only the upper wall; with GI its orange light reaches the lower walls and the floor.</figcaption>
+   </figure>
 3. **Frame time.** In your GPU tab, press "Measure frame time" (or run `await miniWorld.measureFrameTime()`). It
    orbits the camera a little, so every frame does its full work, and reports the median and p90 GPU time.
 4. **Budgets.** Our budget is 33 ms per frame (30 fps) at 2016x1010 with GI on, for every view, on an Apple M4 Pro.
@@ -244,7 +301,7 @@ agents shared the GPU):
 - The Poly Haven files load from a copy on threepipe cloud, as the Poly Haven API terms ask applications to host
   their own copy. Use your own host for a product (`src/kit/assets.ts`).
 - Code: the starter is Apache-2.0; its GLSL noise library is MIT ("Golden Temple" by Leon Lin), and the erosion
-  loop follows Sebastian Lague's MIT implementation. The WebGI plugins package is GPL-3.0 with additional terms that
+  loop follows Sebastian Lague's MIT implementation. The *webgi* plugins package is GPL-3.0 with additional terms that
   allow free personal and commercial use of the free plugins. The starter's `THIRD_PARTY_NOTICES.md` lists all of it.
 
 ## Share yours
