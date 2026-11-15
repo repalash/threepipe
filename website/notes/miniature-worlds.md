@@ -56,7 +56,7 @@ and the light is computed in real time.
 | Part | What it does | Licence |
 |---|---|---|
 | [threepipe](https://threepipe.org) | A three.js framework: viewer, materials, plugins, loaders, serialization | Apache-2.0 |
-| [*webgi* plugins](https://webgi.dev) (`@threepipe/webgi-plugins`) | SSGI (screen-space global illumination), SSR, TAA, bloom, depth of field, velocity buffer | GPL-3.0 with additional terms: free for personal and commercial use |
+| [*webgi* plugins](https://webgi.dev) (`@threepipe/webgi-plugins`) | SSGI (screen-space global illumination), SSR, TAA, bloom, depth of field, velocity buffer | See the package |
 | The world kit (in the starter) | Terrain, erosion, cut-away sides, scatter, trees, grass, water, procedural materials, the look | Apache-2.0 (a few files MIT) |
 | Your coding agent | Writes a tile as TypeScript, renders stills, fixes what it sees | |
 
@@ -315,8 +315,7 @@ agents shared the GPU):
 - The Poly Haven files load from a copy on threepipe cloud, as the Poly Haven API terms ask applications to host
   their own copy. Use your own host for a product (`src/kit/assets.ts`).
 - Code: the starter is Apache-2.0; its GLSL noise library is MIT ("Golden Temple" by Leon Lin), and the erosion
-  loop follows Sebastian Lague's MIT implementation. The *webgi* plugins package is GPL-3.0 with additional terms that
-  allow free personal and commercial use of the free plugins. The starter's `THIRD_PARTY_NOTICES.md` lists all of it.
+  loop follows Sebastian Lague's MIT implementation. The starter's `THIRD_PARTY_NOTICES.md` lists all of it.
 
 ## Share yours
 
