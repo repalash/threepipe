@@ -27,7 +27,7 @@ async function init() {
     // scene); the frustum of shadow cameras is off by default
     widgets.showShadowFrustum = true
 
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
     ui.setupPluginUi(Object3DWidgetsPlugin)
     ui.setupPluginUi(PickingPlugin)
 

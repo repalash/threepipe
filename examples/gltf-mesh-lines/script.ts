@@ -45,7 +45,7 @@ async function init() {
         useMeshLines: false,
     })
 
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
 
     const mats: IMaterial[] = []
     const o1: IObject3D[] = []

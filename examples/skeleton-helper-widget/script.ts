@@ -30,7 +30,7 @@ async function init() {
         createUniqueNames: true, // because animations are set as such
     })
     // Set up UI
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
 
     ui.setupPluginUi(Object3DWidgetsPlugin)
 
