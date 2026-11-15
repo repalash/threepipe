@@ -1,7 +1,6 @@
 import {Camera, Euler, Object3D, PerspectiveCamera, Quaternion, Vector3} from 'three'
 import {
     generateUiConfig,
-    uiDropdown,
     uiInput,
     uiNumber,
     UiObjectConfig,
@@ -38,9 +37,7 @@ export class PerspectiveCamera2<TE extends ICameraEventMap = ICameraEventMap> ex
     private _currentControlsMode: TCameraControlsMode = '';
     ['_canvas']?: HTMLCanvasElement
 
-    @uiDropdown('Controls Mode', undefined, (t: PerspectiveCamera2)=>({
-        children: ['none', ...t.controlsCtors.keys()].map(k=>({label: k, value: k === 'none' ? '' : k})),
-    }))
+    // its dropdown is in makeICameraCommonUiConfig: it lists the modes again when a plugin adds one
     @serialize()
     @onChange2(PerspectiveCamera2.prototype.refreshCameraControls)
         controlsMode: TCameraControlsMode
