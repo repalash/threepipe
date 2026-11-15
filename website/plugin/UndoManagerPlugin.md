@@ -43,14 +43,14 @@ undoManager.record({
 
 ## Undo and Redo
 
-`undo()` and `redo()` step through the shared history. The plugin also binds hot keys on the `document`: **Ctrl/Cmd+Z** to undo, **Ctrl/Cmd+Shift+Z** or **Ctrl+Y** to redo.
+`undo()` and `redo()` step through the shared history. The keys are the actions `undo` and `redo` in `viewer.actions` (see **Keys** above): **Mod+Z** to undo, **Mod+Shift+Z** or **Mod+Y** to redo. The hot keys of `JSUndoManager` are off (`bindHotKeys: false`), so a key typed in a text field stays with the field.
 
 ```typescript
 const undoPlugin = viewer.getPlugin(UndoManagerPlugin)!
 undoPlugin.undo()
 undoPlugin.redo()
 
-undoPlugin.enabled = false // stop recording and ignore undo/redo and the hot keys
+undoPlugin.enabled = false // stop recording and ignore undo/redo and their keys
 undoPlugin.limit = 200 // maximum number of steps kept in the history, default 1000
 ```
 
