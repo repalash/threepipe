@@ -132,25 +132,39 @@ The kit is the part an agent reuses for every tile. Each file starts with a comm
 
 ## Set up
 
+You don't need to set anything up by hand. Start your coding agent (Claude Code, Codex, Cursor or another) in an
+empty folder, or in a web session, and send the prompt below: it names the starter, and the agent clones it,
+installs it and reads its instructions first. Attach your reference images to the message, or put them in `ref/`
+once the agent has cloned the starter.
+
+The starter's `AGENTS.md` (read by Claude Code through `CLAUDE.md`) gives the agent the tile contract, the
+conventions, the staging rules, the commands to check its frames, and the frame budget. Keep a browser tab with a GPU
+on the dev server it starts: you judge the look there.
+
+::: details Set up by hand (for developers)
 ```bash
 git clone https://github.com/repalash/miniature-worlds
 cd miniature-worlds
 npm install
 npm run dev     # http://localhost:5173/?tile=alpine
 ```
-
-Open the folder in your agent (`claude` for Claude Code). The starter's `AGENTS.md` (read by Claude Code through
-`CLAUDE.md`) gives the agent the tile contract, the conventions, the staging rules, the commands to check its
-frames, and the frame budget. Keep a browser tab with a GPU on the dev server: you judge the look there.
+Then start your agent in that folder and send the prompt. The first line of the prompt sees the starter is already
+there and skips the clone.
+:::
 
 ## The prompt
 
-Put one or more reference images in `ref/` (a photo you took, a CC0 photo, or a concept image), fill in the angle
-brackets, and send this as the first message:
+Fill in the angle brackets and send this as the first message, with one or more reference images (a photo you took,
+a CC0 photo, or a concept image):
 
 ```text
-Build a miniature world tile in this project: <theme, e.g. a desert mesa with a slot canyon and a timber water
-tower>, after the reference images in ref/ (look at them first).
+Build a miniature world tile with the starter https://github.com/repalash/miniature-worlds (threepipe and the webgi
+plugins): <theme, e.g. a desert mesa with a slot canyon and a timber water tower>, after my reference images (look
+at them first).
+
+Setup: if this folder isn't the starter yet, clone it (git clone https://github.com/repalash/miniature-worlds, then
+work inside miniature-worlds/), run npm install, and start npm run dev; tell me its URL so I can watch the tile in my
+browser. Save my reference images in ref/.
 
 Read AGENTS.md, README.md, src/types.ts and the example tile (src/tiles/alpine.ts and src/tiles/alpine/) end to end
 before you write code.
