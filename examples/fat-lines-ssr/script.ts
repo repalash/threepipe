@@ -85,7 +85,7 @@ async function init() {
         },
     })
 
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
     ui.setupPluginUi(PickingPlugin)
     ui.setupPluginUi(BaseGroundPlugin)
     ui.setupPluginUi(SSReflectionPlugin)
