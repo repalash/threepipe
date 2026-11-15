@@ -38,13 +38,14 @@ export class UndoManagerPlugin extends AViewerPluginSync {
 
     /**
      * Undo and Redo as actions (registered in `viewer.actions`, where a UI lists them and the app changes their keys):
-     * Mod+Z undoes, Mod+Shift+Z and Mod+Y redo (Mod: Cmd on a Mac, Ctrl on other platforms). A held key repeats
-     * them. A key typed in a text field is left to the field, for its own text undo; a checkbox or a button has no text,
-     * so the key undoes there.
+     * Mod+Z undoes, Mod+Shift+Z and Mod+Y redo (Mod: Cmd on a Mac, Ctrl on other platforms). The keys are letters, as
+     * in other apps: they follow the printed key on any layout (the Z key of a German keyboard is at the place of Y). A
+     * held key repeats them. A key typed in a text field is left to the field, for its own text undo; a checkbox or a
+     * button has no text, so the key undoes there. The keys do nothing while the plugin is disabled.
      */
     readonly actions: ViewerAction[] = [
-        {id: 'undo', label: 'Undo', group: 'Edit', shortcut: 'Mod+KeyZ', repeat: true, enabled: () => this.enabled && !!this.undoManager, run: () => this.undo()},
-        {id: 'redo', label: 'Redo', group: 'Edit', shortcut: ['Mod+Shift+KeyZ', 'Mod+KeyY'], repeat: true, enabled: () => this.enabled && !!this.undoManager, run: () => this.redo()},
+        {id: 'undo', label: 'Undo', group: 'Edit', shortcut: 'Mod+Z', repeat: true, enabled: () => !this.isDisabled() && !!this.undoManager, run: () => this.undo()},
+        {id: 'redo', label: 'Redo', group: 'Edit', shortcut: ['Mod+Shift+Z', 'Mod+Y'], repeat: true, enabled: () => !this.isDisabled() && !!this.undoManager, run: () => this.redo()},
     ]
     private _unregisterActions?: () => void
 

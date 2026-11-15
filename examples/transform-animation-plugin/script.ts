@@ -61,7 +61,7 @@ async function init() {
         ],
     })
 
-    const ui = viewer.addPluginSync(TweakpaneUiPlugin, true)
+    const ui = viewer.addPluginSync(TweakpaneUiPlugin)
     ui.appendChild(model.uiConfig)
 
     ui.setupPluginUi(TransformAnimationPlugin, {expanded: true})

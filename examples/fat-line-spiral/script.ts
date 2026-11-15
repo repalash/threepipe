@@ -51,7 +51,7 @@ async function init() {
 
     viewer.scene.addObject(line)
 
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
     ui.setupPluginUi(PickingPlugin)
     ui.appendChild({
         type: 'folder',

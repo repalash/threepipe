@@ -10,7 +10,7 @@ async function init() {
         plugins: [LoadingScreenPlugin],
     })
 
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
     ui.appendChild(viewer.uiConfig)
     ui.setupPluginUi(TonemapPlugin)
     ui.setupPluginUi(TweakpaneUiPlugin) // to change the color scheme
