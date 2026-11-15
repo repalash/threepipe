@@ -9,10 +9,10 @@
 //
 // Writes to the row's folder in <out>/p/samples/, and adds the URLs to catalog.json; rerun to continue:
 //   thumb-512.webp, thumb-1024.webp
-//   video-<size>-black.mp4, video-<size>-white.mp4, video-<size>-alpha.webm    a model with no background of its own
+//   video-<size>-dark.mp4 (#000000), video-<size>-light.mp4 (#ffffff), video-<size>-alpha.webm    a model with no background of its own
 //   video-<size>-alpha.mov                                                     the same, for Safari, with --hevc-host
 //   video-<size>.mp4                                                           a model with its own background
-// `video_url` is video-512-black.mp4 or video-512.mp4; for the light version replace `-black` with `-white`. All are in
+// `video_url` is video-512-dark.mp4 or video-512.mp4; for the light version replace `-dark` with `-light`. All are in
 // `metadata.videos` and `metadata.thumbnails`. Frames come as PNG from a render with twice the pixels of the largest video.
 // The driver uses one tab: closing a page restarts the server.
 import fs from 'node:fs'
@@ -65,6 +65,8 @@ async function connect() {
 
 const ffmpeg = (...a) => execFileSync(args.ffmpeg, ['-v', 'error', '-y', ...a], {stdio: ['ignore', 'ignore', 'inherit']})
 const FRAMES = ['-framerate', String(FRAME_RATE), '-start_number', '1', '-i']
+// the solid backgrounds of the turntables without alpha: the name in the file name, and the colour
+const BACKGROUNDS = [['dark', '000000'], ['light', 'ffffff']]
 // a keyframe every second and the index first: a browser can seek without the whole file
 const MP4 = ['-c:v', 'libx264', '-crf', '18', '-preset', 'veryslow', '-g', String(FRAME_RATE), '-pix_fmt', 'yuv420p', '-movflags', '+faststart']
 
@@ -77,7 +79,7 @@ function encodeVideos(frames, dir, sizes, hasBackground) {
             ffmpeg(...FRAMES, input, '-vf', scale, ...MP4, path.join(dir, `video-${s}.mp4`))
             continue
         }
-        for (const [name, color] of [['black', '000000'], ['white', 'ffffff']]) {
+        for (const [name, color] of BACKGROUNDS) {
             ffmpeg(...FRAMES, input, '-filter_complex', `color=0x${color}:s=${s}x${s}:r=${FRAME_RATE}[b];[0]${scale}[f];[b][f]overlay=shortest=1`, ...MP4, path.join(dir, `video-${s}-${name}.mp4`))
         }
         ffmpeg(...FRAMES, input, '-vf', scale, '-pix_fmt', 'yuva420p', '-c:v', 'libvpx-vp9', '-crf', '28', '-b:v', '0', '-auto-alt-ref', '0', '-row-mt', '1', '-cpu-used', '1', '-g', String(FRAME_RATE), path.join(dir, `video-${s}-alpha.webm`))
@@ -171,10 +173,10 @@ function setUrls(row, dir) {
     const url = name => `${FILES}/${row.previews}/${name}`
     const names = fs.existsSync(dir) ? fs.readdirSync(dir) : []
     const videos = names.flatMap(name => {
-        const m = /^video-(\d+)(?:-(black|white|alpha))?\.(mp4|webm|mov)$/.exec(name)
+        const m = /^video-(\d+)(?:-(dark|light|alpha))?\.(mp4|webm|mov)$/.exec(name)
         if (!m) return []
         const width = parseInt(m[1])
-        return [{url: url(name), width, height: width, size: fs.statSync(path.join(dir, name)).size, codec: CODECS[m[3]], alpha: m[2] === 'alpha', ...['black', 'white'].includes(m[2]) ? {background: m[2]} : {}}]
+        return [{url: url(name), width, height: width, size: fs.statSync(path.join(dir, name)).size, codec: CODECS[m[3]], alpha: m[2] === 'alpha', ...m[2] && m[2] !== 'alpha' ? {background: m[2], color: '#' + Object.fromEntries(BACKGROUNDS)[m[2]]} : {}}]
     })
     const thumbnails = names.flatMap(name => {
         const m = /^thumb-(\d+)\.webp$/.exec(name)
@@ -186,7 +188,7 @@ function setUrls(row, dir) {
     row.metadata = JSON.stringify(metadata)
     const named = list => list.find(n => names.includes(n))
     // thumb.webp and preview.mp4: an older render, until this model is rendered again
-    const thumb = named(['thumb-512.webp', 'thumb.webp']), video = named(['video-512-black.mp4', 'video-512.mp4', 'preview.mp4'])
+    const thumb = named(['thumb-512.webp', 'thumb.webp']), video = named(['video-512-dark.mp4', 'video-512.mp4', 'preview.mp4'])
     row.thumb_url = thumb ? url(thumb) : null
     row.video_url = video ? url(video) : null
     // every file of the last render is there: it wrote the marker last (a dotfile: cloud:upload leaves it out)
