@@ -61,7 +61,7 @@ async function init() {
 
     // the plugin settings (drag interval, max per frame, size, cache size), and the materials: a change of a material in
     // the UI sends materialUpdate events with `last` (false while a slider moves), and its preview follows
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
     ui.setupPluginUi(MaterialPreviewPlugin)
     for (const mesh of meshes) ui.appendChild((mesh.material as PhysicalMaterial).uiConfig)
 }

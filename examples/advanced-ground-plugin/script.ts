@@ -33,7 +33,7 @@ async function init() {
     ground.shadowBaker.maxFrameNumber = window.TESTING ? 20 : ground.shadowBaker.maxFrameNumber
     ground.material!.roughness = 0.2
 
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
 
     await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr', {
         setBackground: false,
@@ -43,7 +43,7 @@ async function init() {
         autoScale: true,
     })
 
-    ui.setupPluginUi(AdvancedGroundPlugin)
+    ui.setupPluginUi(AdvancedGroundPlugin, {expanded: true})
 
     viewer.renderManager.renderer.shadowMap.type = PCFSoftShadowMap
 

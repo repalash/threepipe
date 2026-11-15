@@ -28,7 +28,7 @@ async function init() {
     const parallaxMapping = viewer.addPluginSync(ParallaxMappingPlugin)
     console.log(parallaxMapping)
 
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
 
     ui.setupPluginUi(ParallaxMappingPlugin, {expanded: true})
 

@@ -56,17 +56,33 @@ export function createExampleCard(viewer: ThreeViewer, options: ExampleCardOptio
     const h = document.createElement('h1')
     h.textContent = title
     head.appendChild(h)
+    // the panel of example-info.mjs (loaded by global-loading.mjs before the example's script): its links and the
+    // prompt for an agent, and the link to the source (the right file and branch: an example may be only an index.html)
+    const infoPanel = document.getElementById('tp-example-info')
     const name = location.pathname.match(/examples\/([^/]+)\//)?.[1]
-    if (name) {
+    const source = infoPanel?.dataset.source ?? (name ? `https://github.com/repalash/threepipe/tree/dev/examples/${name}` : undefined)
+    if (source) {
         const src = document.createElement('a')
         src.className = 'example-card-icon'
-        src.href = `https://github.com/repalash/threepipe/blob/master/examples/${name}/script.ts`
+        src.href = source
         src.target = '_blank'
         src.rel = 'noopener'
         src.title = 'Source code'
         src.setAttribute('aria-label', 'Source code')
         src.innerHTML = lucideIcon('code') ?? '</>'
         head.appendChild(src)
+    }
+    if (infoPanel) {
+        const info = document.createElement('button')
+        info.type = 'button'
+        info.className = 'example-card-icon'
+        info.title = 'About this example'
+        info.setAttribute('aria-label', 'About this example')
+        // the panel ignores a press on this button as a press outside it, so the click below can close it
+        info.setAttribute('data-tp-example-info-toggle', '')
+        info.innerHTML = lucideIcon('info') ?? 'i'
+        info.addEventListener('click', () => document.dispatchEvent(new CustomEvent('tp-example-info-toggle')))
+        head.appendChild(info)
     }
     const toggle = document.createElement('button')
     toggle.type = 'button'
@@ -186,7 +202,8 @@ function addStyles() {
     --ec-dim: var(--tp-label-foreground-color, var(--ec-dim-0));
     --ec-line: var(--tp-container-border-color, var(--ec-line-0));
     --ec-shadow: var(--tp-base-shadow-color, var(--ec-shadow-0));
-    position: absolute; z-index: 10000; top: 16px; left: 16px; width: 280px; max-height: calc(100% - 32px);
+    /* z-index: the panels and bars layer (CONTRIBUTING.md, UI layers), under popups and context menus */
+    position: absolute; z-index: 300; top: 16px; left: 16px; width: 280px; max-height: calc(100% - 32px);
     display: flex; flex-direction: column; box-sizing: border-box; overflow: hidden;
     background: var(--ec-bg); color: var(--ec-fg); border-radius: 10px;
     box-shadow: 0 0 0 1px var(--ec-line), 0 6px 20px var(--ec-shadow);

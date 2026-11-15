@@ -80,7 +80,7 @@ async function init() {
         actions: UiConfigMethods.GetChildren(overrides.uiConfig) as UiObjectConfig[],
     })
 
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
     ui.setupPluginUi(TransformControlsPlugin, {expanded: true})
 }
 
