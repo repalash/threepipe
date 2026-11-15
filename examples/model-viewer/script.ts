@@ -200,11 +200,28 @@ async function init() {
     const credit = document.createElement('p')
     credit.style.margin = '0'
     const swatches = document.createElement('div')
+    // a sample is loading: the Sample dropdown is disabled, so an earlier sample cannot finish last and replace the one picked
+    let loadingSample = false
     const loadSample = async(i: number) => {
+        if (loadingSample) return
+        loadingSample = true
         sample = i
         credit.textContent = SAMPLES[i].credit ?? ''
-        await dropzone.load(SAMPLES[i].url)
+        try {
+            await dropzone.load(SAMPLES[i].url)
+        } finally {
+            loadingSample = false
+        }
         promptDiv.style.display = 'none'
+    }
+    // after a drop or Open file/URL: a model replaces the sample; an HDR or an image only changes the environment or the
+    // background, so the sample and its credit stay
+    const onLoaded = (assets?: any[]) => {
+        if (!assets?.length) return // nothing imported
+        promptDiv.style.display = 'none'
+        if (!assets.some(a => a?.isObject3D)) return
+        sample = -1 // not a sample now
+        credit.textContent = ''
     }
     if (query && query !== 'none') {
         const ext = getUrlQueryParam('ext') || getUrlQueryParam('model-extension') || undefined
@@ -218,10 +235,11 @@ async function init() {
         description: 'A viewer with most of the plugins. Drop any 3D file on the page (glTF, FBX, OBJ, STL, PLY, USDZ, 3DM, Blend, splats, 3D tiles, a zip) or an HDR/EXR for the environment, or open one here. URL: ?m=<model url>, ?env=<hdr url>.',
         actions: [
             {type: 'button', label: 'Open file…', icon: 'file-code', value: () => dropzone.promptForFile()},
-            {type: 'button', label: 'Open URL…', icon: 'link', value: () => dropzone.promptForUrl()},
+            // promptForUrl does not send a drop event: its result is the loaded assets
+            {type: 'button', label: 'Open URL…', icon: 'link', value: async() => onLoaded(await dropzone.promptForUrl())},
             // "Your file" shows after a model is dropped or opened (or came from ?m=)
             {type: 'dropdown', label: 'Sample', icon: 'box', children: [...SAMPLES.map((m, i) => ({label: m.label, value: i})), {label: 'Your file', value: -1}],
-                getValue: () => sample, setValue: (i: number) => i >= 0 && loadSample(i)},
+                getValue: () => sample, setValue: (i: number) => i >= 0 && loadSample(i), disabled: () => loadingSample},
             {type: 'monitor', label: 'Meshes', getValue: () => stats.meshes.toLocaleString()},
             {type: 'monitor', label: 'Triangles', getValue: () => stats.triangles.toLocaleString()},
         ],
@@ -230,14 +248,10 @@ async function init() {
     // the swatches of a model with material variations or switch nodes (the watch) go in the card too
     viewer.getPlugin(GridItemListPlugin)!.container = swatches
 
-    dropzone.addEventListener('drop', (e: any) => {
-        if (!e.assets?.length) return // no assets imported
+    // a drop, and Open file (the file input of the drop zone)
+    dropzone.addEventListener('drop', (e) => {
         console.log('Dropped Event:', e)
-        promptDiv.style.display = 'none'
-        // a model replaces the sample; an HDR or an image only changes the environment or the background
-        if (!e.assets.some((a: any) => a?.isObject3D)) return
-        sample = -1 // not a sample now
-        credit.textContent = ''
+        onLoaded(e.assets)
     })
 
 }

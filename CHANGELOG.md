@@ -50,6 +50,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- `DropzonePlugin.promptForUrl()` returns what `load()` returns (the loaded assets), since it sends no `drop` event; it returned nothing
 - `TransformControls2` and `PivotControls` do not listen to keys themselves now: their plugins register the keys (`actions`) in `viewer.actions`. An app that makes a gizmo without its plugin registers them: `viewer.actions.register(controls.actions)`
 - `ObjectPicker.setSelected` of a list switches the selection mode as its first item does (a list of objects after a material: object mode again), as a single item does
 - `EditorViewWidgetPlugin`: the container of the widget has the class `editor-view-widget`, so a page can place it (the floating layout of the tweakpane editor frame keeps it out of its cards).
