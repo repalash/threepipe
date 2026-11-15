@@ -12,7 +12,9 @@
     <script type="importmap">
     {
         "imports": {
-          "threepipe": "./../../dist/index.mjs"
+          "threepipe": "./../../dist/index.mjs",
+          "@threepipe/plugin-tweakpane": "./../../plugins/tweakpane/dist/index.mjs",
+          "@threepipe/plugin-tweakpane-editor": "./../../plugins/tweakpane-editor/dist/index.mjs"
         }
     }
 
@@ -27,19 +29,39 @@
     </style>
     <script type="module" src="../examples-utils/global-loading.mjs"></script>
     <script id="example-script" type="module">
-        import {_testFinish, _testStart, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
+        import {_testFinish, _testStart, DropzonePlugin, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
+        import {createExampleCard} from '../examples-utils/example-card.js'
+        import {modelStats} from '../examples-utils/model-stats.js'
 
-        const viewer = new ThreeViewer({canvas: document.getElementById('mcanvas')})
+        const viewer = new ThreeViewer({
+            canvas: document.getElementById('mcanvas'),
+            // drop a file on the page (or Open file in the card) to load it in place of this one
+            dropzone: {allowedExtensions: ['drc'], addOptions: {disposeSceneObjects: true, autoCenter: true, autoScale: true}},
+        })
         viewer.addPluginSync(LoadingScreenPlugin)
 
         async function init() {
 
             await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
+            const loadStart = performance.now()
             const result = await viewer.load('https://threejs.org/examples/models/draco/bunny.drc', {
                 autoCenter: true,
                 autoScale: true,
             })
+            const loadMs = Math.round(performance.now() - loadStart)
             console.log(result)
+
+            const stats = modelStats(viewer)
+            createExampleCard(viewer, {
+                description: 'Loads a Draco-compressed mesh (.drc) with the Draco decoder: the Stanford bunny. glTF files compressed with Draco load the same way. Drop or open another .drc.',
+                actions: [
+                    {type: 'button', label: 'Open file…', icon: 'file-code', value: () => viewer.getPlugin(DropzonePlugin)?.promptForFile()},
+                    {type: 'monitor', label: 'Meshes', getValue: () => stats.meshes.toLocaleString()},
+                    {type: 'monitor', label: 'Triangles', getValue: () => stats.triangles.toLocaleString()},
+                    {type: 'monitor', label: 'Load time', getValue: () => `${loadMs} ms`},
+                ],
+            })
+
         }
 
         _testStart()

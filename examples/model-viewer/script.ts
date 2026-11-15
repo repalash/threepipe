@@ -50,7 +50,7 @@ import {
     VirtualCamerasPlugin,
 } from 'threepipe'
 import {GaussianSplattingPlugin} from '@threepipe/plugin-gaussian-splatting'
-import {MaterialConfiguratorPlugin, SwitchNodePlugin} from '@threepipe/plugin-configurator'
+import {GridItemListPlugin, MaterialConfiguratorPlugin, SwitchNodePlugin} from '@threepipe/plugin-configurator'
 import {BlendLoadPlugin} from '@threepipe/plugin-blend-importer'
 import {extraImportPlugins} from '@threepipe/plugins-extra-importers'
 import {AWSClientPlugin} from '@threepipe/plugin-network'
@@ -72,6 +72,19 @@ import {
     TemporalAAPlugin,
     VelocityBufferPlugin,
 } from '@threepipe/webgi-plugins'
+import {createExampleCard} from '../examples-utils/example-card.js'
+import {modelStats} from '../examples-utils/model-stats.js'
+
+// Models to try, on samples.threepipe.org. A CC BY model shows its credit in the card.
+const SAMPLES: {label: string, url: string, credit?: string}[] = [
+    {label: 'Classic watch', url: 'https://samples.threepipe.org/demos/webgi/classic-watch.glb'},
+    {label: 'Lounge chair', url: 'https://samples.threepipe.org/poly-haven/mid_century_lounge_chair_2k.glb', credit: 'Mid Century Lounge Chair by Kuutti Siitonen, Poly Haven (CC0)'},
+    {label: 'Marble bust', url: 'https://samples.threepipe.org/poly-haven/marble_bust_01_2k.glb', credit: 'Marble Bust 01 by Rico Cilliers, Poly Haven (CC0)'},
+    {label: 'Camera', url: 'https://samples.threepipe.org/poly-haven/Camera_01_2k.glb', credit: 'Camera 01 by Rajil Jose Macatangay, Poly Haven (CC0)'},
+    {label: 'Velvet sofa', url: 'https://samples.threepipe.org/khronos/GlamVelvetSofa.glb', credit: 'Glam Velvet Sofa by Eric Chadwick, © Wayfair LLC, CC BY 4.0, via Khronos glTF Sample Assets'},
+    {label: 'Sunglasses', url: 'https://samples.threepipe.org/khronos/SunglassesKhronos.glb', credit: 'Sunglasses Khronos by Eric Chadwick (Darmstadt Graphics Group), CC BY 4.0. The Khronos logo is a trademark'},
+    {label: 'Damaged helmet', url: 'https://samples.threepipe.org/minimal/DamagedHelmet/glTF/DamagedHelmet.gltf', credit: 'Battle Damaged Sci-fi Helmet by theblueturtle_, glTF by ctxwing, via Khronos glTF Sample Assets'},
+]
 
 function checkQuery(key: string, def = true) {
     return !['false', 'no', 'f'].includes(getUrlQueryParam(key, def ? 'yes' : 'no')!.toLowerCase())
@@ -121,7 +134,7 @@ async function init() {
         PickingPlugin,
         new TransformControlsPlugin(false),
         // OutlinePlugin,
-        EditorViewWidgetPlugin,
+        new EditorViewWidgetPlugin('top-right'), // the example card is at the top left
         ViewerUiConfigPlugin,
         ClearcoatTintPlugin,
         FragmentClippingExtensionPlugin,
@@ -178,22 +191,50 @@ async function init() {
 
     await viewer.setEnvironmentMap(getUrlQueryParam('env') ?? 'https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
 
-    const model = getUrlQueryParam('m') || getUrlQueryParam('model')
-    if (model) {
-        const ext = getUrlQueryParam('ext') || getUrlQueryParam('model-extension') || undefined
-        const loader = viewer.getPlugin(DropzonePlugin) ?? viewer
-        const obj = await loader.load(model, {fileExtension: ext})
-        console.log(obj)
-        const promptDiv = document.getElementById('prompt-div')!
+    const dropzone = viewer.getPlugin(DropzonePlugin)!
+    const promptDiv = document.getElementById('prompt-div')!
+
+    // the model in ?m= (or ?model=), else the first sample; ?m=none starts empty
+    const query = getUrlQueryParam('m') || getUrlQueryParam('model')
+    let sample = query ? -1 : 0
+    const credit = document.createElement('p')
+    credit.style.margin = '0'
+    const swatches = document.createElement('div')
+    const loadSample = async(i: number) => {
+        sample = i
+        credit.textContent = SAMPLES[i].credit ?? ''
+        await dropzone.load(SAMPLES[i].url)
         promptDiv.style.display = 'none'
     }
+    if (query && query !== 'none') {
+        const ext = getUrlQueryParam('ext') || getUrlQueryParam('model-extension') || undefined
+        const obj = await dropzone.load(query, {fileExtension: ext})
+        console.log(obj)
+        promptDiv.style.display = 'none'
+    } else if (!query) await loadSample(0)
 
-    const dropzone = viewer.getPlugin(DropzonePlugin)!
+    const stats = modelStats(viewer)
+    createExampleCard(viewer, {
+        description: 'A viewer with most of the plugins. Drop any 3D file on the page (glTF, FBX, OBJ, STL, PLY, USDZ, 3DM, Blend, splats, 3D tiles, a zip) or an HDR/EXR for the environment, or open one here. URL: ?m=<model url>, ?env=<hdr url>.',
+        actions: [
+            {type: 'button', label: 'Open file…', icon: 'file-code', value: () => dropzone.promptForFile()},
+            {type: 'button', label: 'Open URL…', icon: 'link', value: () => dropzone.promptForUrl()},
+            {type: 'dropdown', label: 'Sample', icon: 'box', children: SAMPLES.map((m, i) => ({label: m.label, value: i})),
+                getValue: () => sample, setValue: (i: number) => loadSample(i)},
+            {type: 'monitor', label: 'Meshes', getValue: () => stats.meshes.toLocaleString()},
+            {type: 'monitor', label: 'Triangles', getValue: () => stats.triangles.toLocaleString()},
+        ],
+        content: [credit, swatches],
+    })
+    // the swatches of a model with material variations or switch nodes (the watch) go in the card too
+    viewer.getPlugin(GridItemListPlugin)!.container = swatches
+
     dropzone.addEventListener('drop', (e: any) => {
         if (!e.assets?.length) return // no assets imported
         console.log('Dropped Event:', e)
-        const promptDiv = document.getElementById('prompt-div')!
         promptDiv.style.display = 'none'
+        sample = -1 // not a sample now
+        credit.textContent = ''
     })
 
 }
