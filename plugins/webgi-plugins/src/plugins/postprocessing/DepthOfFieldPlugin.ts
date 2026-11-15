@@ -324,15 +324,15 @@ export class DepthOfFieldPluginPass<Tid extends IPassID> extends ExtendedShaderP
     public dofBlurMaterial: ExtendedShaderMaterial = dofBlurMaterialPoisson
     // public dofBlurMaterialBox: ShaderMaterialEncodingSupport = dofBlurMaterialBox
 
-    @bindToValue({obj: 'focalDepthRange', key: 'y'})
+    @bindToValue({obj: 'focalDepthRange', key: 'y', onChange: 'setDirty'})
     @uiSlider('Depth Range', [0.25, 3])
         depthRange: number
 
-    @bindToValue({obj: 'nearFarBlurScale', key: 'x'})
+    @bindToValue({obj: 'nearFarBlurScale', key: 'x', onChange: 'setDirty'})
     @uiSlider('Near Blur Scale', [0, 1])
         nearBlurScale: number
 
-    @bindToValue({obj: 'nearFarBlurScale', key: 'y'})
+    @bindToValue({obj: 'nearFarBlurScale', key: 'y', onChange: 'setDirty'})
     @uiSlider('Far Blur Scale', [0, 1])
         farBlurScale: number
 
