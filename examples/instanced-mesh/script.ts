@@ -61,7 +61,7 @@ async function init() {
 
     viewer.scene.backgroundColor?.set(0x222222)
 
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
     // ui.appendChild(obj.uiConfig)
     ui.setupPluginUi(PickingPlugin)
 

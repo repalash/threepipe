@@ -83,7 +83,7 @@ async function init() {
     // waiting because we need to render pipeline once to autoscale
     await viewer.doOnce('postFrame')
 
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
     ui.setupPlugins(ThreeSVGRendererPlugin)
     ui.setupPlugins(GeometryGeneratorPlugin)
     ui.setupPlugins(PickingPlugin)

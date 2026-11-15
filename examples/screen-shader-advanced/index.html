@@ -65,7 +65,7 @@
             })])
 
             // Add the color to the UI
-            const ui = viewer.addPluginSync(TweakpaneUiPlugin, true)
+            const ui = viewer.addPluginSync(TweakpaneUiPlugin)
             ui.appendChild({
                 type: 'color',
                 property: [viewer.renderManager.screenPass.material.uniforms.tintColor, 'value'],
