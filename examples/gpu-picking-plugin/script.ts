@@ -172,7 +172,7 @@ async function init() {
         info.clickRay = `${rayMs.toFixed(1)} ms · ${ref?.object.name ?? 'nothing'}`
     })
 
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
     ui.setupPluginUi(GPUPickingPlugin, {expanded: true})
 
 }

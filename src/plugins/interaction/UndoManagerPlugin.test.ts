@@ -38,6 +38,23 @@ function setup() {
 }
 
 describe('UndoManagerPlugin actions', () => {
+    it('the keys follow the printed letter: on a German keyboard the Z key (at the place of Y) undoes, and the Y key redoes', () => {
+        const {undo, redo} = setup()
+        press('KeyY', null, {key: 'z'})
+        expect([undo.mock.calls.length, redo.mock.calls.length]).toEqual([1, 0])
+        press('KeyZ', null, {key: 'y'})
+        expect([undo.mock.calls.length, redo.mock.calls.length]).toEqual([1, 1])
+    })
+
+    it('the keys do nothing while the plugin is disabled (disable(key)), as the other actions', () => {
+        const {plugin, undo} = setup()
+        plugin.disable('test')
+        expect(press('KeyZ').defaultPrevented).toBe(false)
+        plugin.enable('test')
+        press('KeyZ')
+        expect(undo).toHaveBeenCalledTimes(1)
+    })
+
     it('Mod+Z undoes; Mod+Shift+Z and Mod+Y redo; a held key repeats', () => {
         const {undo, redo} = setup()
         press('KeyZ')
