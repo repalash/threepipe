@@ -6,9 +6,11 @@ All notable changes to this plugin will be documented in this file.
 
 ## [Unreleased]
 
-### Added
+## [0.10.2] - 2026-11-15
 
-- NA
+### Fixed
+
+- `TweakpaneUiPlugin` works in sandboxed documents (an opaque origin, like a page served with `CSP: sandbox` without `allow-same-origin`): the panel keeps its light or dark colour mode in `localStorage`, and any read of `localStorage` throws a SecurityError there, so the plugin stopped at startup. The colour mode now falls back to the system setting and is not remembered on such pages
 
 ## [0.10.1] - 2025-10-27
 
