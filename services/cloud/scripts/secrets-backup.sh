@@ -24,7 +24,10 @@ backup)
         echo "$API refuses the ADMIN_SERVICE_TOKEN of $FILE ($code): an old copy? FORCE=1 backs it up anyway"; exit 1
     fi
     if ! gcloud secrets describe "$SECRET" --project "$PROJECT" > /dev/null 2>&1; then
-        gcloud services enable secretmanager.googleapis.com --project "$PROJECT"
+        # turning the API on needs serviceusage.services.enable (Owner or Service Usage Admin); skipped when it is on
+        if [ -z "$(gcloud services list --enabled --project "$PROJECT" --filter 'config.name=secretmanager.googleapis.com' --format 'value(config.name)')" ]; then
+            gcloud services enable secretmanager.googleapis.com --project "$PROJECT"
+        fi
         gcloud secrets create "$SECRET" --project "$PROJECT" --replication-policy automatic --labels app=threepipe-cloud > /dev/null
         echo "created the secret $SECRET in $PROJECT"
     fi
