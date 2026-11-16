@@ -39,6 +39,14 @@ npm run deploy                   # the first one creates the D1 database: commit
   `routes` in `wrangler.jsonc`, sent by `npm run deploy` (CI leaves them out, below). Locally (`teeny dev`) the Worker sees `http://localhost:8787`, and
   `FILES_HOST=` in `.dev.vars` serves files under `/_files/`. The samples bucket is served by R2 on `samples.threepipe.org` and `asset-samples.threepipe.org`,
   the e2e bucket on `e2e-snapshots.threepipe.org` (R2 custom domains, set in the dashboard).
+- `.prod.vars` is the only copy of these values (Cloudflare and GitHub keep them write-only). Back it up after every
+  change: `npm run secrets-backup` adds a version of the secret `cloud-prod-vars` in Google Secret Manager (GCP project
+  `threepipe`; `gcloud auth login` first), and only if the live Worker accepts its `ADMIN_SERVICE_TOKEN`.
+  `npm run secrets-restore` writes the latest version back to `.prod.vars`. With no backup, make new values: the
+  database and files don't depend on them, but `JWT_SECRET`, `JWT_SECRET_USERS` and `ADMIN_JWT_SECRET` sign everyone out
+  (agents fetch a new key from their access link), a new `ADMIN_SERVICE_TOKEN` also goes in the `cloud-deploy`
+  environment on GitHub, a new `FILES_URL_SECRET` ends the signed drive URLs already given out, and the Turnstile, GitHub
+  and Google values are copied or rotated in their dashboards. Then `npm run secrets-upload`.
 - After the first deploy, migrations go through the Worker (`teeny deploy` calls its admin API with
   `ADMIN_SERVICE_TOKEN`), so later deploys need a token for this Worker only, no D1 access.
 - CI (`.github/workflows/deploy-cloud.yml`, release-tools' `deploy.yml`): prod deploys when the `cloud` branch moves
