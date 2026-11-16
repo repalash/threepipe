@@ -168,6 +168,23 @@ async function encodeHevc(frames, dir, sizes) {
 const DONE = '.rendered'
 const CODECS = {mp4: 'h264', webm: 'vp9', mov: 'hevc'}
 
+/**
+ * The preview files in a folder that a render did not write, by name (file times can lag the clock, or come from the
+ * Mac that encoded the HEVC): the stills, and the videos if it made videos. `made`: the names it wrote.
+ */
+function staleFiles(dir, made, madeVideos) {
+    const preview = name => /^thumb(-\d+)?\.webp$/.test(name) || madeVideos && /^(video-\d+(-(dark|light|alpha))?\.(mp4|webm|mov)|preview\.mp4)$/.test(name)
+    return fs.readdirSync(dir).filter(name => preview(name) && !made.has(name))
+}
+
+/** The names a render writes: the stills, and with frames the videos (one MP4 on its own background, or dark, light and alpha) */
+function renderedNames(sizes, frames, hasBackground, hevc) {
+    const names = THUMBS.map(t => `thumb-${t}.webp`)
+    if (frames) for (const s of sizes) names.push(...hasBackground ? [`video-${s}.mp4`] :
+        [...BACKGROUNDS.map(([name]) => `video-${s}-${name}.mp4`), `video-${s}-alpha.webm`, ...hevc ? [`video-${s}-alpha.mov`] : []])
+    return new Set(names)
+}
+
 /** The URLs of a row from the files in its folder, so a rebuilt catalog.json keeps what is rendered. */
 function setUrls(row, dir) {
     const url = name => `${FILES}/${row.previews}/${name}`
@@ -255,6 +272,11 @@ for (const row of catalog.rows) {
             console.log(`  WebGL: ${result.renderer}`)
         }
         fs.rmSync(frames, {recursive: true, force: true})
+        // this render replaces the files of an earlier one: what it didn't write again goes (a model that has its own
+        // background now keeps no -dark, -light or alpha videos, which setUrls would publish). Videos only when it made
+        // videos: a stills-only run (--video 0) keeps them.
+        const made = renderedNames(sizes, result.frames, result.hasBackground, !!args['hevc-host'])
+        for (const name of staleFiles(dir, made, !!result.frames)) fs.rmSync(path.join(dir, name))
         fs.writeFileSync(path.join(dir, DONE), JSON.stringify({sizes, hevc: !!args['hevc-host'], at: new Date().toISOString()}))
         setUrls(row, dir)
         console.log(`${row.name}: render ${((renderedAt - start) / 1000).toFixed(1)} s, encode ${((Date.now() - renderedAt) / 1000).toFixed(1)} s, ${result.frames} frames${result.hasBackground ? ', own background' : ''}${result.hasView ? ', a set view' : ''}`)
