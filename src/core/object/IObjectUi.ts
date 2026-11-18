@@ -8,6 +8,7 @@ import {getOrCall} from 'ts-browser-helpers'
 import {iCameraCommons} from './iCameraCommons'
 import {iObjectCommons} from './iObjectCommons'
 import {UiTags} from '../../ui/uiconfig'
+import {ACTION_ICONS} from '../../ui/action-icons'
 
 declare module '../IObject' {
     interface IObject3D {
@@ -349,6 +350,7 @@ export function objectActionsUiConfig(this: IObject3D): UiObjectConfig[] {
     return [{
         type: 'button',
         label: 'Duplicate Object',
+        icon: ACTION_ICONS.duplicate,
         tags: [UiTags.ContextMenu],
         value: async(e?: any)=>{
             return iObjectCommons.duplicateObject(this, e)
@@ -357,6 +359,7 @@ export function objectActionsUiConfig(this: IObject3D): UiObjectConfig[] {
     {
         type: 'button',
         label: 'Delete Object',
+        icon: ACTION_ICONS.delete,
         tags: [UiTags.ContextMenu],
         value: async(e?: any)=>{
             return iObjectCommons.deleteObject(this, e)

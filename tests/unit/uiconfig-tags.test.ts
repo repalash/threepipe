@@ -60,6 +60,14 @@ describe('the core configs keep their tag strings', () => {
         const uuid = allConfigs(root).find(c => Array.isArray(c.property) && c.property[1] === 'uuid')!
         expect(uuid.tags).toEqual(['advanced'])
     })
+    test('object: Duplicate Object and Delete Object have the icons of the PickingPlugin actions, so a UI shows them as icons', () => {
+        const root = new tp.Mesh2(new tp.BufferGeometry2(), new tp.PhysicalMaterial()).uiConfig!
+        const picking = new tp.PickingPlugin()
+        const iconOf = (id: string) => picking.actions.find(a => a.id === id)!.icon
+        expect(iconOf('picking.duplicate')).toMatch(/^<svg/)
+        expect(allConfigs(root).find(c => c.label === 'Duplicate Object')!.icon).toBe(iconOf('picking.duplicate'))
+        expect(allConfigs(root).find(c => c.label === 'Delete Object')!.icon).toBe(iconOf('picking.delete'))
+    })
 
     test('geometry: menu actions and the uuid', () => {
         const root = new tp.BufferGeometry2().uiConfig!
