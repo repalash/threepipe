@@ -19,7 +19,9 @@ backup)
     [ -s "$FILE" ] || { echo "no $FILE in $(pwd)"; exit 1; }
     # a stale copy (an old token) is not worth keeping: the live Worker must accept its admin token
     token=$(grep '^ADMIN_SERVICE_TOKEN=' "$FILE" | cut -d= -f2- || true)
-    code=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $token" "$API/api/v1/migrations")
+    # an unreachable Worker (network, DNS, TLS) is 000, so FORCE=1 still backs up during an outage
+    code=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $token" "$API/api/v1/migrations" || true)
+    code=${code:-000}
     if [ "$code" != 200 ] && [ "${FORCE:-}" != 1 ]; then
         echo "$API refuses the ADMIN_SERVICE_TOKEN of $FILE ($code): an old copy? FORCE=1 backs it up anyway"; exit 1
     fi
