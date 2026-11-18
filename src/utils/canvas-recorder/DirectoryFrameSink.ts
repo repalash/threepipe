@@ -7,9 +7,9 @@ import type {CanvasRecorderFrame, ICanvasFrameSink} from './ACanvasRecorder'
  * Firefox), and the start has to come from a user gesture, like a click.
  */
 export class DirectoryFrameSink implements ICanvasFrameSink {
-    /** This browser can pick a folder */
+    /** This browser can pick a folder here: it has `showDirectoryPicker`, and the page is not sandboxed (an opaque origin, `null`, is not allowed to) */
     static get supported(): boolean {
-        return typeof window !== 'undefined' && !!(window as any).showDirectoryPicker
+        return typeof window !== 'undefined' && !!(window as any).showDirectoryPicker && window.origin !== 'null'
     }
 
     private _directory?: FileSystemDirectoryHandle

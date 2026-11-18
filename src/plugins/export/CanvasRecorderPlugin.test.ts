@@ -201,6 +201,12 @@ describe('CanvasRecorderPlugin', () => {
         expect(plugin.recordingSettings).toBeUndefined()
     })
 
+    test('record() rejects with the error of a failed recording', async() => {
+        const {plugin} = setup()
+        plugin._recorder.start = () => plugin.dispatchEvent({type: 'error', error: new Error('no folder')})
+        await expect(plugin.record(async() => undefined)).rejects.toThrow('no folder')
+    })
+
     test('Record GLTF Anim: a recording that fails to start turns the animation loop back on', async() => {
         const animPlugin = {loopAnimations: true, animations: [{}], playAnimation: vi.fn()}
         const {plugin} = setup({GLTFAnimation: animPlugin})
@@ -422,6 +428,19 @@ describe('ImageSequenceRecorder start', () => {
             rec.start()
             expect(rec.state).toBe('starting') // the picker is open
             expect(rec._sink).toBeInstanceOf(DirectoryFrameSink)
+        } finally {
+            vi.unstubAllGlobals()
+        }
+    })
+
+    test('a sandboxed page (an opaque origin) cannot pick a folder: the default sink is a zip', () => {
+        vi.stubGlobal('window', {showDirectoryPicker: async() => undefined, origin: 'null'})
+        try {
+            expect(DirectoryFrameSink.supported).toBe(false)
+            const rec = new ImageSequenceRecorder({} as any, {mimeType: 'image/png'}) as any
+            rec._console = {error: () => undefined, warn: () => undefined}
+            rec.start()
+            expect(rec._sink).toBeInstanceOf(ZipFrameSink)
         } finally {
             vi.unstubAllGlobals()
         }
@@ -1020,6 +1039,15 @@ describe('recorder failure', () => {
         expect(toast).toHaveBeenCalledTimes(1)
         expect(toast.mock.calls[0][0]).toContain('can\'t save to a folder')
         expect(toast.mock.calls[0][1]).toEqual({kind: 'error', container: plugin._viewer.container})
+    })
+
+    test('the plugin\'s error event carries the error', () => {
+        const {plugin, rec} = toasting()
+        const errors: unknown[] = []
+        plugin.addEventListener('error', (e: any) => errors.push(e.error))
+        const error = new Error('upload failed')
+        rec.setState('error', {error})
+        expect(errors).toEqual([error])
     })
 
     test('the error of a MediaRecorder event shows its message', () => {

@@ -29,7 +29,8 @@ export type CanvasRecorderFactory = (canvas: HTMLCanvasElement, options: Partial
 export interface CanvasRecorderPluginEventMap extends AViewerPluginEventMap {
     start: object
     stop: object
-    error: object
+    /** A recording failed; `error` is why (an Error, or the recorder's error event), when the recorder says */
+    error: {error?: unknown}
     // eslint-disable-next-line @typescript-eslint/naming-convention
     'encode-progress': {progress: number, frame: number, totalFrames: number}
 }
@@ -516,9 +517,10 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
                         reject(e)
                     }
                 }
-                const listenerError = async() => {
+                // a failed recording rejects with its error; a removal before the start with nothing
+                const listenerError = async(e?: {error?: unknown}) => {
                     listener2()
-                    reject()
+                    reject(e?.error)
                 }
                 this.addEventListener('start', listenerStart)
                 this.addEventListener('stop', listener2)
@@ -1061,7 +1063,7 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
                 this._active = undefined
                 if (this._optionsPending) this.refreshRecorderOptions()
                 this._showIndicator(false)
-                this.dispatchEvent({type: 'error'})
+                this.dispatchEvent({type: 'error', error: e.error})
                 this._stateChange(false)
             }],
             // a paused recording takes no frames: no rendering in a hidden tab for it (a resume holds it again)
