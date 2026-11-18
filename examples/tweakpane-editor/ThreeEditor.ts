@@ -8,7 +8,6 @@ import {
     ChromaticAberrationPlugin,
     Class,
     ClearcoatTintPlugin,
-    CommandsPlugin,
     ContactShadowGroundPlugin,
     CustomBumpMapPlugin,
     DepthBufferPlugin,
@@ -104,8 +103,6 @@ import {AnnotationsPlugin} from '@threepipe/plugin-annotations'
 export class ThreeEditor extends ThreeViewer {
 
     editorPlugins: (IViewerPlugin | Class<IViewerPlugin>)[] = [
-        // the actions and keys of the plugins (selection, undo, gizmos, frame, editor camera), and their errors in toasts
-        CommandsPlugin,
         UndoManagerPlugin,
         LoadingScreenPlugin,
         AssetExporterPlugin,
@@ -198,7 +195,7 @@ export class ThreeEditor extends ThreeViewer {
         ['Configurator']: [MaterialConfiguratorPlugin, SwitchNodePlugin, GLTFKHRMaterialVariantsPlugin],
         ['Animation']: [TimelineUiPlugin, AnimationObjectPlugin, GLTFAnimationPlugin, CameraViewPlugin],
         ['Extras']: [HDRiGroundPlugin, Rhino3dmLoadPlugin, ClearcoatTintPlugin, FragmentClippingExtensionPlugin, NoiseBumpMaterialPlugin, AnisotropyPlugin, CustomBumpMapPlugin, VirtualCamerasPlugin, TilesRendererPlugin, EntityComponentPlugin, StickyNotesUiPlugin, NotesPlugin],
-        ['Debug']: [RenderTargetPreviewPlugin, PerfPanelPlugin, DynamicImportPlugin, CommandsPlugin],
+        ['Debug']: [RenderTargetPreviewPlugin, PerfPanelPlugin, DynamicImportPlugin],
     }
 
     async init() {
@@ -239,7 +236,7 @@ export class ThreeEditor extends ThreeViewer {
             normal && rt.addTarget(this.getPlugin(NormalBufferPlugin)?.target, 'normal', false, true, false)
         }
 
-        this.addPluginSync(new TweakpaneUiPlugin(true))
+        this.addPluginSync(new TweakpaneUiPlugin())
         const editor = this.addPluginSync(new TweakpaneEditorPlugin())
 
         editor.loadPlugins(this.editorModes)

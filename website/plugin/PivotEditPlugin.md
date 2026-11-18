@@ -61,4 +61,4 @@ pivotEdit.markerColor = 0xffff00   // yellow (default)
 | **P** | Toggle pivot edit mode |
 | **Escape** | Exit pivot edit mode |
 
-The keys are actions (`pivotEdit.toggle`, `pivotEdit.end`): a [CommandsPlugin](./CommandsPlugin) lists them, and the app changes or removes their keys there (`setShortcut`). Mod is Cmd on a Mac and Ctrl on other platforms. The Escape of the pivot edit is above the Escape that clears the selection (`priority`), so the selection stays.
+The keys are actions (`pivotEdit.toggle`, `pivotEdit.end`), registered in [`viewer.actions`](../guide/viewer-api#actions-and-shortcuts): a UI lists them, and the app changes or removes their keys there (`setShortcut`). Mod is Cmd on a Mac and Ctrl on other platforms. The Escape of the pivot edit is above the Escape that clears the selection (`priority`), so the selection stays.

@@ -1,7 +1,7 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest'
 import {JSUndoManager} from 'ts-browser-helpers'
 import {UndoManagerPlugin} from './UndoManagerPlugin'
-import {bindActions} from './CommandsPlugin'
+import {ViewerActions} from '../../viewer/ViewerActions'
 
 /** A key press on the window of the node setup (globalThis, with a new event target for each test) */
 function press(code: string, target: unknown = null, fields: Partial<KeyboardEvent> = {}) {
@@ -27,17 +27,34 @@ afterEach(() => {
     unbind = undefined
 })
 
-/** The plugin with an undo manager, its actions bound without a viewer (the same rules as with a CommandsPlugin) */
+/** The plugin with an undo manager, its actions bound without a viewer (a ViewerActions without a viewer: the same rules as in a viewer) */
 function setup() {
     const plugin = new UndoManagerPlugin()
     plugin.undoManager = new JSUndoManager({bindHotKeys: false, limit: 10, debug: false})
     const undo = vi.spyOn(plugin, 'undo').mockImplementation(() => undefined)
     const redo = vi.spyOn(plugin, 'redo').mockImplementation(() => undefined)
-    unbind = bindActions(undefined, plugin.actions)
+    unbind = new ViewerActions().register(plugin.actions)
     return {plugin, undo, redo}
 }
 
 describe('UndoManagerPlugin actions', () => {
+    it('the keys follow the printed letter: on a German keyboard the Z key (at the place of Y) undoes, and the Y key redoes', () => {
+        const {undo, redo} = setup()
+        press('KeyY', null, {key: 'z'})
+        expect([undo.mock.calls.length, redo.mock.calls.length]).toEqual([1, 0])
+        press('KeyZ', null, {key: 'y'})
+        expect([undo.mock.calls.length, redo.mock.calls.length]).toEqual([1, 1])
+    })
+
+    it('the keys do nothing while the plugin is disabled (disable(key)), as the other actions', () => {
+        const {plugin, undo} = setup()
+        plugin.disable('test')
+        expect(press('KeyZ').defaultPrevented).toBe(false)
+        plugin.enable('test')
+        press('KeyZ')
+        expect(undo).toHaveBeenCalledTimes(1)
+    })
+
     it('Mod+Z undoes; Mod+Shift+Z and Mod+Y redo; a held key repeats', () => {
         const {undo, redo} = setup()
         press('KeyZ')

@@ -1,6 +1,6 @@
 import {afterAll, afterEach, beforeAll, beforeEach, describe, expect, test, vi} from 'vitest'
 import {BoxGeometry, InstancedMesh, Matrix4, Mesh, MeshBasicMaterial, Object3D, PerspectiveCamera, Quaternion, Vector3} from 'three'
-import {PopmotionPlugin, UndoManagerPlugin} from 'threepipe'
+import {PopmotionPlugin, UndoManagerPlugin, ViewerActions} from 'threepipe'
 import {AnnotationsPlugin} from '../../plugins/annotations/src/AnnotationsPlugin'
 import {escapeHtml, renderAnnotationText} from '../../plugins/annotations/src/render-text'
 import {JSUndoManager} from 'ts-browser-helpers'
@@ -10,6 +10,7 @@ const noop = () => undefined
 
 // the node setup has no DOM: a small element with what the markers and the card use
 class FakeElement {
+    nodeType = 1 // an element, as in the DOM (the page is not the target of a viewer)
     children: FakeElement[] = []
     parent?: FakeElement
     className = ''
@@ -223,11 +224,11 @@ function setup(editable = true, popmotion?: any) {
         addEventListener: noop,
         removeEventListener: noop,
         getPlugin: (c: any) => c === UndoManagerPlugin ? {undoManager: {record: (cmd: any) => undo.push(cmd)}} : c === PopmotionPlugin ? popmotion : undefined,
-        // the plugin binds its actions (bindActions): no CommandsPlugin here
         addPluginListener: () => {},
         removePluginListener: () => {},
         console,
     } as any
+    viewer.actions = new ViewerActions(viewer) // the plugin registers its actions there
     plugin.onAdded(viewer)
     added.push({plugin, viewer})
     const layer = viewer.container.children[0] as FakeElement
@@ -1058,8 +1059,8 @@ describe('AnnotationsPlugin', () => {
         const {plugin, box} = setup()
         plugin.add(box as any, front, normal, null)
         plugin.add(box as any, front, normal, null)
-        const key = (k: string, target: any = doc.body) => {
-            const e = {key: k, target, preventDefault: vi.fn(), stopPropagation: vi.fn(), stopImmediatePropagation: vi.fn()}
+        const key = (k: string, target: any = doc.body, repeat = false) => {
+            const e = {key: k, target, repeat, preventDefault: vi.fn(), stopPropagation: vi.fn(), stopImmediatePropagation: vi.fn()}
             windowListeners.get('keydown')!(e)
             return e
         }
@@ -1067,6 +1068,10 @@ describe('AnnotationsPlugin', () => {
         plugin.goTo(0, {fly: false})
         key('ArrowRight')
         expect(plugin.openId).toBe(plugin.get(1)!.id)
+        // a held arrow goes on (and the camera controls do not get the key)
+        expect(key('ArrowRight', doc.body, true).preventDefault).toHaveBeenCalled()
+        expect(plugin.openId).toBe(plugin.get(0)!.id)
+        key('ArrowRight')
         key('ArrowLeft', new FakeElement('input'))
         expect(plugin.openId).toBe(plugin.get(1)!.id)
         key('ArrowLeft')

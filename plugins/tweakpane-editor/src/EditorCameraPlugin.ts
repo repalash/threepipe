@@ -1,7 +1,6 @@
 import {
     AViewerPluginEventMap,
     AViewerPluginSync,
-    bindActions,
     shortcutsOf,
     ICamera,
     onChange,
@@ -15,7 +14,7 @@ import {
     Quaternion,
     Vector3,
 } from 'threepipe'
-import type {CommandAction, CommandsPlugin, UndoManagerPlugin} from 'threepipe'
+import type {UndoManagerPlugin, ViewerAction} from 'threepipe'
 
 /**
  * A pose of the start view. The rotation is kept too: a camera without controls can look away from its target. The zoom
@@ -112,7 +111,7 @@ export interface EditorCameraPluginEventMap extends AViewerPluginEventMap {
     startViewChange: {camera: ICamera}
     /** {@link EditorCameraPlugin.syncStartView} changed (in the code, a panel, a UI) */
     syncStartViewChange: {sync: boolean}
-    /** The key of the switch changed ({@link EditorCameraPlugin.hotkey}, or the actions of a `CommandsPlugin`): a UI that shows the key ({@link EditorCameraPlugin.shortcut}) updates it */
+    /** The key of the switch changed ({@link EditorCameraPlugin.hotkey}, or its key in `viewer.actions`): a UI that shows the key ({@link EditorCameraPlugin.shortcut}) updates it */
     hotkeyChange: {hotkey: string}
 }
 
@@ -132,8 +131,8 @@ export interface EditorCameraPluginEventMap extends AViewerPluginEventMap {
  * The editor camera and the preview camera are added to the scene outside the model root: they are not saved in a file
  * or exported.
  *
- * The C key ({@link hotkey}) switches between Edit and View (the action `editorCamera.toggleEditing` of {@link actions}:
- * a `CommandsPlugin` lists and runs it when the viewer has one), and the `editingChange` event tells a UI (like the
+ * The C key ({@link hotkey}) switches between Edit and View (the action `editorCamera.toggleEditing` of {@link actions},
+ * registered in `viewer.actions`, where a UI lists and runs it), and the `editingChange` event tells a UI (like the
  * start view card of the `TweakpaneEditorPlugin`) when the view changes. `startViewChange` tells it when the saved start view
  * changes, and `startViewMovedChange` when the view in View moves away from it.
  *
@@ -231,12 +230,11 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
         hotkey = 'KeyC'
 
     /**
-     * The actions of the plugin (`bindActions` of threepipe): `editorCamera.toggleEditing` switches between Edit and View,
-     * while the plugin is not disabled. Its shortcut is {@link hotkey}, set when the plugin binds the actions (on add,
-     * and on a change of the key). While the plugin is added, they are registered with the `CommandsPlugin` of the viewer
-     * when it has one; else the plugin runs the key itself.
+     * The actions of the plugin, registered in `viewer.actions` while the plugin is added: `editorCamera.toggleEditing`
+     * switches between Edit and View, while the plugin is not disabled. Its shortcut is {@link hotkey}, set when the
+     * plugin registers the actions (on add, and on a change of the key).
      */
-    readonly actions: CommandAction[] = [{
+    readonly actions: ViewerAction[] = [{
         id: 'editorCamera.toggleEditing',
         label: 'Switch Edit and View',
         group: 'Camera',
@@ -270,7 +268,7 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
     private _gestureChangeTime = 0
     private _gestureQuietFrames = 0
     /** Removes the {@link actions} from the viewer (while the plugin is added) */
-    private _unbindActions?: () => void
+    private _unregisterActions?: () => void
     /** The time of the last end event of the controls of the preview camera (`Date.now()`) */
     private _dragEndTime = 0
     /** The pointer is down on the preview (between the start and end events of its controls) */
@@ -351,11 +349,9 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
         viewer.addEventListener('postFrame', this._onPostFrame)
         start.addEventListener('cameraUpdate', this._onStartUpdate)
         preview.addEventListener('cameraUpdate', this._onPreviewUpdate)
-        this._bindActions()
-        // the key that a CommandsPlugin sets (setShortcut) is the key of the switch: its changes reach the UI
-        this._watchCommands()
-        viewer.addPluginListener('add', this._watchCommands, 'CommandsPlugin')
-        viewer.addPluginListener('remove', this._unwatchCommands, 'CommandsPlugin')
+        this._registerActions()
+        // the key that the app sets in viewer.actions (setShortcut) is the key of the switch: its changes reach the UI
+        viewer.actions.addEventListener('actionsChange', this._onKeyChange)
         this._lastStart = poseOf(start)
         this.copyStartView()
         this._refreshEditing()
@@ -374,11 +370,9 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
         viewer.removeEventListener('postFrame', this._onPostFrame)
         viewer.scene.defaultCamera.removeEventListener('cameraUpdate', this._onStartUpdate)
         this._preview?.removeEventListener('cameraUpdate', this._onPreviewUpdate)
-        this._unbindActions?.()
-        this._unbindActions = undefined
-        viewer.removePluginListener('add', this._watchCommands)
-        viewer.removePluginListener('remove', this._unwatchCommands)
-        this._unwatchCommands()
+        this._unregisterActions?.()
+        this._unregisterActions = undefined
+        viewer.actions.removeEventListener('actionsChange', this._onKeyChange)
         this._watchPreviewControls(undefined)
         if (wasOn) this.dispatchEvent({type: 'editingChange', editing: false})
         this._checkMoved()
@@ -651,39 +645,25 @@ export class EditorCameraPlugin extends AViewerPluginSync<EditorCameraPluginEven
     }
 
     private _hotkeyChanged() {
-        // bound again: a CommandsPlugin lists the new key
-        if (this._unbindActions) this._bindActions()
+        // registered again: viewer.actions lists the new key
+        if (this._unregisterActions) this._registerActions()
         this.dispatchEvent({type: 'hotkeyChange', hotkey: this.hotkey})
     }
 
-    /** The key of the Edit/View switch now: the one of the action in a `CommandsPlugin` (`setShortcut`), else {@link hotkey} */
+    /** The key of the Edit/View switch now: the one of the action in `viewer.actions` (`setShortcut`), else {@link hotkey} */
     get shortcut(): string | undefined {
         const id = this.actions[0].id
-        return shortcutsOf(this._commands?.get(id) ? this._commands.shortcutOf(id) : this.hotkey)[0]
-    }
-
-    /** The CommandsPlugin of the viewer, whose changes of the actions are changes of the key */
-    private _commands?: CommandsPlugin
-
-    private _watchCommands = () => {
-        this._unwatchCommands()
-        this._commands = this._viewer?.getPlugin<CommandsPlugin>('CommandsPlugin')
-        this._commands?.addEventListener('actionsChange', this._onKeyChange)
-    }
-
-    // the plugin is still in the viewer during its remove event
-    private _unwatchCommands = () => {
-        this._commands?.removeEventListener('actionsChange', this._onKeyChange)
-        this._commands = undefined
+        const actions = this._viewer?.actions
+        return shortcutsOf(actions?.get(id) ? actions.shortcutOf(id) : this.hotkey)[0]
     }
 
     private _onKeyChange = () => this.dispatchEvent({type: 'hotkeyChange', hotkey: this.hotkey})
 
-    /** Binds the {@link actions} to the viewer, with the key {@link hotkey} */
-    private _bindActions() {
-        this._unbindActions?.()
+    /** Registers the {@link actions} in `viewer.actions`, with the key {@link hotkey} */
+    private _registerActions() {
+        this._unregisterActions?.()
         this.actions[0].shortcut = this.hotkey || undefined
-        this._unbindActions = bindActions(this._viewer, this.actions)
+        this._unregisterActions = this._viewer?.actions.register(this.actions)
     }
 
     /** In View: the view goes back to the saved start view (a move that was not saved is dropped) */

@@ -70,7 +70,7 @@ async function init() {
     viewer.addPluginSync(TransformControlsPlugin)
     picking.setSelectedObject(added[1])
 
-    const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
+    const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
     ui.setupPluginUi(overrides, {expanded: true})
     ui.setupPluginUi(TransformControlsPlugin, {expanded: true})
 }

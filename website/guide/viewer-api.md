@@ -381,7 +381,141 @@ With `htmlDialogWrapper`, a click on a toast closes it, and a container shows th
 .dialog-toasts { top: auto; bottom: 12px; }
 ```
 
-The [`CommandsPlugin`](../plugin/CommandsPlugin) shows the `error` and the `warn` of each action in a toast of the viewer. The [Dialog Toasts example](https://threepipe.org/examples/#dialog-toasts/) shows all of this.
+[`viewer.actions`](#actions-and-shortcuts) shows the `error` and the `warn` of each action in a toast of the viewer. The [Dialog Toasts example](https://threepipe.org/examples/#dialog-toasts/) shows all of this.
+
+### Actions and shortcuts
+
+[Example](https://threepipe.org/examples/#viewer-actions/) &mdash;
+[Source Code](https://github.com/repalash/threepipe/blob/master/src/viewer/ViewerActions.ts) &mdash;
+[API Reference](https://threepipe.org/docs/classes/ViewerActions.html)
+
+`viewer.actions` (`ViewerActions`) holds the actions of the viewer and its plugins: the commands that a person runs from a key, a toolbar, a context menu or a command palette. Plugins register their actions and keys once, and any UI lists and runs them. Each viewer has one; it adds no element to the page, so a plain viewer gets the shortcuts too. The tweakpane editor has a sheet of all the shortcuts (`ShortcutsSheet` of [`@threepipe/plugin-tweakpane-editor`](../package/plugin-tweakpane-editor), `?` in the editor).
+
+An action (`ViewerAction`) has:
+
+| Field | What it is |
+|---|---|
+| `id` | A unique id, like `'undo'`. A new action with the same id replaces the old one. |
+| `label` | The name in a menu or a tooltip |
+| `icon` | Optional. An SVG string or an icon name, for a UI |
+| `shortcut` | Optional. The key, like `'Mod+Z'`, `'Shift+D'` or `'Delete'`, or a list of keys (see below) |
+| `group` | Optional. A group for a UI, like `'Edit'` or `'Camera'` |
+| `repeat` | Optional. A held key runs the action again on each repeat. Default: once per press |
+| `priority` | Optional. When two enabled actions have the same key, the higher one runs. Default: `0` |
+| `capture` | Optional. The key runs before the handlers of the element with the focus (see below) |
+| `enabled()` | Optional. The action can run now. Default: always |
+| `run()` | Runs the action. It can return (or resolve to) `{error?: string, warn?: string}` for the person |
+
+```typescript
+import {ThreeViewer, formatShortcut, shortcutsOf} from 'threepipe'
+
+const viewer = new ThreeViewer({...})
+
+const unregister = viewer.actions.register([{
+    id: 'autoRotate', label: 'Auto rotate', group: 'View', shortcut: 'Shift+R',
+    run: () => {
+        const controls = viewer.scene.mainCamera.controls
+        if (!controls) return {warn: 'The camera has no controls'}
+        controls.autoRotate = !controls.autoRotate
+    },
+}, {
+    id: 'upload', label: 'Upload', group: 'File', shortcut: 'Shift+U',
+    run: async() => (await upload()) ? undefined : {error: 'The upload failed'},
+}])
+
+viewer.actions.list('View') // the actions of a group, in the order they were registered
+viewer.actions.get('upload') // one action
+await viewer.actions.run('upload') // runs it, resolves to its result ({} when it told nothing)
+shortcutsOf(viewer.actions.shortcutOf('upload')).map(k => formatShortcut(k)) // ['⇧U'] on a Mac, ['Shift+U'] on other platforms
+
+viewer.actions.addEventListener('actionRun', ({action, result}) => {
+    if (result.error) showError(result.error)
+})
+viewer.actions.addEventListener('actionsChange', () => rebuildMenus())
+
+viewer.actions.unregister('upload')
+unregister() // removes the actions of that register call
+```
+
+#### Shortcuts
+
+A shortcut is modifiers and a key, joined with `+`: `Mod+Z`, `Shift+D`, `Alt+Shift+T`, `Delete`, `Escape`, `Mod++`.
+
+- `Mod` is Cmd on a Mac (also an iPhone or an iPad with a keyboard) and Ctrl on other platforms. The other one of the two matches no shortcut: Ctrl+Z on a Mac is not `Mod+Z`. The other modifiers are `Shift` and `Alt`. A key press must have the same modifiers: `Mod+Z` does not run on Ctrl+Shift+Z.
+- The key is a key name (`Z`, `Delete`, `Escape`, `\`) or a [`KeyboardEvent.code`](https://developer.mozilla.org/docs/Web/API/KeyboardEvent/code) (`KeyC`, `Digit1`, `Backslash`).
+- A key name matches the character of the key in any case, or the place of that key on a US keyboard: for a digit or a sign always, for a letter only when the key types no Latin letter. So `Mod+Z` also works on a keyboard with other letters (Cyrillic, Greek), `Alt+T` works on a Mac, where Alt changes the character, and on a QWERTZ keyboard the Z key is `Z`, not `Y`.
+- A code matches only that place on the keyboard: `KeyC` is the key at the place of C, whatever it types.
+- A sign that needs Shift names Shift: `Shift+/` for `?`.
+
+A `keydown` listener on the window runs the shortcuts of the actions, while the viewer has actions:
+
+- It leaves a key typed in a text field (an input that takes text, a text area, a select, an editable element) and a key that another handler used (`defaultPrevented`). A checkbox, a radio button or a button keeps the focus after a click: it keeps Space and Enter (they press it), and the other keys (Delete, a letter) run the shortcuts. A focused widget that moves with the arrow keys (a range input, or an element with an ARIA role like `tree`, `listbox`, `menu`, `tablist` or `toolbar`) keeps the arrows, Home, End, PageUp and PageDown, also from a capture action (`isTargetKey`).
+- It runs an action only when `enabled()` is not `false`, and calls `preventDefault` only when an action runs.
+- An action can have more keys: `shortcut: ['Delete', 'Backspace']`.
+- A focused element (a list, a field) has its keys first. An action with `capture: true` runs before it, in the capture phase on the window, and the key stops there: the arrows of an open annotation win over the arrow keys of the camera controls on the canvas. It runs only while the focus is in its viewer (the canvas, a card) or on the page, so a focused panel keeps its keys.
+- When two enabled actions have the same key, the one with the higher `priority` runs (default `0`), then the one registered last. An action that ends a mode (Escape that ends the pivot edit, `priority: 1`) is above one that acts on the selection (Escape that clears it).
+- With more viewers on the page, a key is for the viewer that has the focus (the target is its canvas or in its container). When the focus is in no viewer (the page, a side panel), the viewer with the last pointer press takes it. A viewer that left the page, or that has no actions, takes no key while another one is on it (`viewerTakesKey(viewer, event)`).
+
+**The app sets the keys in one place.** `setShortcut(id, keys)` changes the key of an action (also of one that is registered later or again): another key, more keys, or `null` for none; `undefined` gives the action its own key again. `shortcutOf(id)` is the key now. `enabled = false` turns all the keys off, for an app with its own keymap; `run(id)` still runs an action.
+
+```typescript
+viewer.actions.setShortcut('picking.delete', 'Delete') // not Backspace too
+viewer.actions.setShortcut('transformControls.toggleEnabled', null) // Space does nothing
+viewer.actions.enabled = false // no key runs an action
+```
+
+**Modals.** While the page has an open modal `<dialog>` (opened with `showModal()`), no key runs an action of a viewer behind it, so a key in the dialog does not edit the scene; a viewer inside the dialog keeps its keys. A modal UI that is not a `<dialog>` turns the keys off with `suspend()` and back on with `resume()` (the calls are counted). `suspended` tells if the keys are off now. In Safari before 15.6 (no `:modal`), only `suspend()` works.
+
+```typescript
+viewer.actions.suspend() // my modal opens
+viewer.actions.resume() // it closes
+```
+
+**Toasts.** The `error` and the `warn` of each run show in a toast of the viewer dialog (`viewer.dialog.toast`, in the viewer container), while `toastResults` is on (default). See [Dialogs and toasts](#dialogs-and-toasts).
+
+**A settings folder.** `viewer.actions.uiConfig` is an `Actions` folder: the keys on or off, the toasts on or off, and a button for each action with its key. It shows only where a UI adds it: the Tweakpane editor (`TweakpaneEditorPlugin`) shows it in its settings, and an app can add it to any panel (`ui.appendChild(viewer.actions.uiConfig)`).
+
+The helpers `parseShortcut`, `matchShortcut`, `formatShortcut`, `isTextTarget`, `isTargetKey`, `shortcutsOf` and `viewerTakesKey` are exported for other UIs. `new ViewerActions()` without a viewer is a registry for a UI that is not part of one: it takes every key and shows no toast.
+
+#### The actions of a plugin
+
+A plugin registers its actions in `onAdded`, and removes them in `onRemove`:
+
+```typescript
+import {AViewerPluginSync, ThreeViewer, ViewerAction} from 'threepipe'
+
+class MyPlugin extends AViewerPluginSync {
+    static readonly PluginType = 'MyPlugin'
+    enabled = true
+    readonly actions: ViewerAction[] = [
+        {id: 'my.toggle', label: 'Toggle', shortcut: 'KeyT', enabled: () => !this.isDisabled(), run: () => this.toggle()},
+    ]
+    private _unregister?: () => void
+    onAdded(viewer: ThreeViewer) {
+        super.onAdded(viewer)
+        this._unregister = viewer.actions.register(this.actions)
+    }
+    onRemove(viewer: ThreeViewer) {
+        this._unregister?.()
+        super.onRemove(viewer)
+    }
+}
+```
+
+These plugins register their keys this way (the ids, for `setShortcut`):
+
+| Plugin | Actions | Keys |
+|---|---|---|
+| `PickingPlugin` | `picking.selectAll`, `duplicate`, `duplicateOther`, `copy`, `cut`, `paste`, `clearSelection`, `delete`, `toggleVisibility`, `unhideAll`, `focus`, `resetPosition`, `resetRotation`, `resetScale` | Mod+A, Mod+D, Mod+Shift+D, Mod+C, Mod+X, Mod+V, Escape, Delete or Backspace, H, Shift+H, F, Alt+G, Alt+R, Alt+S |
+| `UndoManagerPlugin` | `undo`, `redo` | Mod+Z; Mod+Shift+Z or Mod+Y |
+| `TransformControlsPlugin` (`TransformControls2.actions`) | `transformControls.translate`, `rotate`, `scale`, `toggleSpace`, `larger`, `smaller`, `toggleX`, `toggleY`, `toggleZ`, `toggleEnabled` | W, E, R, Q, + or =, -, X, Y, Z, Space |
+| `PivotControlsPlugin` (`PivotControls.actions`) | `pivotControls.toggleSpace`, `larger`, `smaller`, `toggleX`, `toggleY`, `toggleZ`, `toggleEnabled` | Q, + or =, -, X, Y, Z, Space |
+| `PivotEditPlugin` | `pivotEdit.toggle`, `pivotEdit.end` | P, Escape |
+| `AnnotationsPlugin` | `annotations.next`, `annotations.prev` | →, ← (while a card is open) |
+| `EditorFrame` (tweakpane editor) | `editorFrame.toggleTheme`, `editorFrame.cycleModeBar` | Shift+T, Mod+\\ |
+| `EditorCameraPlugin` (tweakpane editor) | `editorCamera.toggleEditing` | C |
+
+The edit keys (undo, redo, select all, copy, cut, paste, duplicate) are letters, as in other apps; the other keys are places on the keyboard. The keys of a gizmo work while it is enabled and attached, also while Shift is held down (to snap); with both gizmos on, the one whose handle was pressed last takes the keys they share, else the transform gizmo. The keys of the selection need a selection, except select all, paste, show all and focus (F frames everything with no selection). Keys that belong to an open popup (Escape that closes a card or a menu) and held keys (Shift that snaps a gizmo) stay with their element. A gizmo made without its plugin (`TransformControls2`, `PivotControls`) has its `actions` too: register them yourself (`viewer.actions.register(controls.actions)`).
 
 ## RenderManager
 
@@ -434,6 +568,10 @@ console.log(renderManager.frameCount)
 
 // Force reset shadows when some object is moved
 renderManager.resetShadows()
+
+// Keep rendering while the browser tab is hidden (until stopRenderingWhenHidden with the same key)
+renderManager.keepRenderingWhenHidden('my-task')
+renderManager.stopRenderingWhenHidden('my-task')
 
 // Render Target Management
 
@@ -507,6 +645,8 @@ const buffer = renderManager.renderTargetToBuffer(renderTarget)
 [`renderManager.renderScale`](https://threepipe.org/docs/classes/RenderManager.html#renderscale) - Sets the render scale. All targets are scaled by this factor. This is equivalent to calling `EffectComposer.setPixelRatio` and `WebGLRenderer.setPixelRatio` in three.js.
 
 [`renderManager.resetShadows`](https://threepipe.org/docs/classes/RenderManager.html#resetshadows) - Resets all shadow maps in the scene. This is useful when some object is moved and the shadows need to be updated. This is automatically called when `scene.setDirty` or any `object.setDirty` is called, and during animation with plugins.
+
+[`renderManager.keepRenderingWhenHidden`](https://threepipe.org/docs/classes/RenderManager.html#keeprenderingwhenhidden) - Keeps the viewer rendering while its browser tab is hidden. A browser stops `requestAnimationFrame` in a hidden tab, so the viewer normally stops there. While a key holds it, a clock in a worker brings the frames instead, about 60 a second, until the tab is visible again ([HiddenPageClock](https://threepipe.org/docs/classes/HiddenPageClock.html)). [`stopRenderingWhenHidden`](https://threepipe.org/docs/classes/RenderManager.html#stoprenderingwhenhidden) with the same key lets go; it stops when the last key does. Use it for a task that has to finish in the background: it uses the CPU and GPU while hidden. [CanvasRecorderPlugin](../plugin/CanvasRecorderPlugin) holds it during a recording. It does nothing in WebXR or in Node.js. Browsers (as of November 2026): works in Chrome and other Chromium browsers. Safari still pauses a hidden tab (a recording waits until the tab is visible again). Firefox and phones are not tested yet. Chrome can still freeze a tab hidden for long (Energy Saver). [Example](https://threepipe.org/examples/#hidden-tab-rendering/)
 
 ### Rendering Pipeline
 
@@ -658,6 +798,8 @@ scene.refreshActiveNearFar()
 [`scene.setBackgroundColor`](https://threepipe.org/docs/classes/RootScene.html#setbackgroundcolor) - Set the background color from a string, number or color. Same as setting `backgroundColor` to a new color value.
 
 [`scene.backgroundIntensity`](https://threepipe.org/docs/classes/RootScene.html#backgroundintensity) - The background intensity of the scene. This is the same as `scene.backgroundIntensity` in three.js.
+
+[`scene.backgroundBlurriness`](https://threepipe.org/docs/classes/RootScene.html#backgroundblurriness) - Blurs a background texture or environment map (0 to 1), as in three.js. The environment light does not change.
 
 [`scene.environment`](https://threepipe.org/docs/classes/RootScene.html#environment) - The environment map of the scene. This is the same as `scene.environment` in three.js.
 

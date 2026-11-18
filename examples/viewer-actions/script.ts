@@ -1,4 +1,4 @@
-import {_testFinish, _testStart, CommandsPlugin, formatShortcut, IObject3D, LoadingScreenPlugin, shortcutsOf, ThreeViewer} from 'threepipe'
+import {_testFinish, _testStart, formatShortcut, IObject3D, LoadingScreenPlugin, shortcutsOf, ThreeViewer} from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 
 const viewer = new ThreeViewer({
@@ -8,8 +8,8 @@ const viewer = new ThreeViewer({
 })
 
 async function init() {
-    // The registry of actions: one key listener for all their shortcuts. It has no UI of its own.
-    const commands = viewer.addPluginSync(CommandsPlugin)
+    // The actions of the viewer: one key listener for all their shortcuts. It has no UI of its own.
+    const actions = viewer.actions
 
     await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
     const model = await viewer.load<IObject3D>('https://samples.threepipe.org/minimal/DamagedHelmet/glTF/DamagedHelmet.gltf', {
@@ -18,7 +18,7 @@ async function init() {
     })
 
     const camera = viewer.scene.mainCamera
-    commands.register([{
+    actions.register([{
         id: 'autoRotate', label: 'Auto rotate', group: 'View', shortcut: 'Shift+R',
         run: () => {
             if (!camera.controls) return {warn: 'The camera has no controls'}
@@ -49,23 +49,23 @@ async function init() {
     // Any UI renders the actions: here a list with the keys (⌘ on a Mac), and the result of each run
     const list = document.getElementById('list')!
     const result = document.getElementById('result')!
-    for (const action of commands.list()) {
+    for (const action of actions.list()) {
         const button = document.createElement('button')
         // the keys now: the ones that the app set with setShortcut, else the action's own
-        button.innerHTML = `<span></span><kbd>${shortcutsOf(commands.shortcutOf(action.id)).map(k => formatShortcut(k)).join(', ')}</kbd>`
+        button.innerHTML = `<span></span><kbd>${shortcutsOf(actions.shortcutOf(action.id)).map(k => formatShortcut(k)).join(', ')}</kbd>`
         button.firstElementChild!.textContent = action.label
         button.onclick = () => {
-            commands.run(action.id)
+            actions.run(action.id)
         }
         list.appendChild(button)
     }
-    commands.addEventListener('actionRun', ({action, result: r}) => {
+    actions.addEventListener('actionRun', ({action, result: r}) => {
         result.textContent = `${action.label}: ${r.error ?? r.warn ?? 'done'}`
     })
 
-    // The Commands folder of the plugin lists the actions too
+    // Its Actions folder lists the actions too (the editor shows it in its settings)
     const ui = viewer.addPluginSync(new TweakpaneUiPlugin(true))
-    ui.setupPluginUi(CommandsPlugin, {expanded: true})
+    ui.appendChild(actions.uiConfig, {expanded: true})
 }
 
 _testStart()

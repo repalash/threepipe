@@ -1,4 +1,4 @@
-import {_testFinish, _testStart, CommandsPlugin, htmlDialogWrapper, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
+import {_testFinish, _testStart, htmlDialogWrapper, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
 
 const viewer = new ThreeViewer({
     canvas: document.getElementById('mcanvas') as HTMLCanvasElement,
@@ -36,13 +36,12 @@ async function init() {
     // without a container: fixed at the top centre of the page
     button('On the page', () => viewer.dialog.toast?.('A toast on the page'))
 
-    // The CommandsPlugin shows the error and the warning of an action in a toast of the viewer (toastResults)
-    const commands = viewer.addPluginSync(CommandsPlugin)
-    commands.register({
+    // viewer.actions shows the error and the warning of an action in a toast of the viewer (toastResults)
+    viewer.actions.register({
         id: 'upload', label: 'Upload', shortcut: 'Shift+U',
         run: async() => ({error: 'Upload failed: no server in this example'}),
     })
-    button('An action that fails (Shift+U)', () => commands.run('upload'))
+    button('An action that fails (Shift+U)', () => viewer.actions.run('upload'))
 
     // The place and the look: CSS variables of the dialog on the container (or the page)
     const label = document.createElement('label')

@@ -576,7 +576,6 @@ Many features will be added but the core API will not change significantly in fu
   - [SimplifyModifierPlugin](https://threepipe.org/plugin/SimplifyModifierPlugin.html) - Boilerplate for plugin to simplify geometries
   - [MeshOptSimplifyModifierPlugin](https://threepipe.org/plugin/MeshOptSimplifyModifierPlugin.html) - Simplify geometries using [meshoptimizer](https://github.com/zeux/meshoptimizer) library
   - [UndoManagerPlugin](https://threepipe.org/plugin/UndoManagerPlugin.html) - Adds support for undo/redo operations in the viewer. Used by other plugins to manage undo history.
-  - [CommandsPlugin](https://threepipe.org/plugin/CommandsPlugin.html) - A registry of actions with one key listener for all their shortcuts. Plugins register their actions once; toolbars, menus and command palettes list and run them.
   - [ObjectConstraintsPlugin](https://threepipe.org/plugin/ObjectConstraintsPlugin.html) - Add support for constraints between objects like follow path, look at, position/rotation/scale locking, etc.
 - [Packages](https://threepipe.org/guide/threepipe-packages.html)
   - [@threepipe/webgi-plugins](https://threepipe.org/package/webgi-plugins.html) - Web [Global Illumination](https://en.wikipedia.org/wiki/Global_illumination) - Realistic rendering plugin pack (SSR, SSRTAO, HDR Bloom, TAA, Depth of Field, SSGI, etc.)
