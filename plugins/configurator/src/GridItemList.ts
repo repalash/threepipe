@@ -82,16 +82,27 @@ export class GridItemList {
         }
     }
 
-    public static RebuildUi(parent?: HTMLElement): void {
+    /**
+     * Puts the grids in `parent`.
+     * @param parent - default: a new element on the page
+     * @param inFlow - the grids follow each other in the layout of `parent` (an element of the page, like a panel),
+     * instead of a column over the top left of the canvas
+     */
+    public static RebuildUi(parent?: HTMLElement, inFlow = false): void {
         if (GridItemList.Elements.length === 0) return
         if (!parent) parent = createDiv({addToBody: true, classList: ['customContextGridParent']})
         for (const element of GridItemList.Elements) element.remove()
         GridItemList._container.innerHTML = ''
         GridItemList._initializeStyles()
+        if (inFlow) Object.assign(GridItemList._container.style, {position: 'relative', top: '', left: '', width: 'auto', height: 'auto', overflowY: '', zIndex: ''})
         let y = 20
         parent.appendChild(GridItemList._container)
         for (const element of GridItemList.Elements) {
-            element.style.top = y + 'px'
+            // the position of the stylesheet (absolute) again, after a layout in flow
+            if (inFlow) {
+                element.dataset.left ??= element.style.left // the x it was created with
+                Object.assign(element.style, {position: 'relative', top: '', left: '', margin: '0 0 8px 0'})
+            } else Object.assign(element.style, {position: '', margin: '', top: y + 'px', left: element.dataset.left ?? element.style.left})
             GridItemList._container.appendChild(element)
             y += element.clientHeight + 20
         }

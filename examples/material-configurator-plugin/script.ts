@@ -8,7 +8,8 @@ import {
     ThreeViewer,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
-import {MaterialConfiguratorPlugin} from '@threepipe/plugin-configurator'
+import {GridItemListPlugin, MaterialConfiguratorPlugin} from '@threepipe/plugin-configurator'
+import {createExampleCard} from '../examples-utils/example-card.js'
 import {WatchHandsPlugin, SSReflectionPlugin, TemporalAAPlugin} from '@threepipe/webgi-plugins'
 
 async function init() {
@@ -57,6 +58,14 @@ async function init() {
     wh.minuteOffset = 7
     wh.secondOffset = 38
     wh.analog = false
+
+    // the swatches of the variations go in the card (by default they are a column over the top left of the canvas)
+    const swatches = document.createElement('div')
+    createExampleCard(viewer, {
+        description: 'MaterialConfiguratorPlugin: variations of the materials of the watch (dial, strap, metal), set up in the editor and saved in the file. Click a swatch to apply it; the change animates. Right-click a swatch or a section to edit them.',
+        content: swatches,
+    })
+    viewer.getPlugin(GridItemListPlugin)!.container = swatches
 }
 
 _testStart()
