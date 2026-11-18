@@ -16,7 +16,7 @@ export {CanvasSnapshot, type CanvasSnapshotOptions, type CanvasSnapshotRect} fro
 export {ACanvasRecorder, type ICanvasRecorder, type CanvasRecorderOptions, type CanvasRecorderFrame, type CanvasFrameSink, type ICanvasFrameSink, type TRecorderStates} from './canvas-recorder/ACanvasRecorder'
 export {FFMPEGRecorder, type FFMPEGOptions} from './canvas-recorder/FFMPEGRecorder'
 export {CanvasMediaRecorder} from './canvas-recorder/CanvasMediaRecorder'
-export {ImageSequenceRecorder} from './canvas-recorder/ImageSequenceRecorder'
+export {ImageSequenceRecorder, defaultFrameSink} from './canvas-recorder/ImageSequenceRecorder'
 export {DirectoryFrameSink} from './canvas-recorder/DirectoryFrameSink'
 export {ZipFrameSink} from './canvas-recorder/ZipFrameSink'
 export type {Easing, KeyframeOptions, AnimationOptions, EasingFunctionType, AnimateResult} from './animation'
