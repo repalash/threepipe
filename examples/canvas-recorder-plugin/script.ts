@@ -106,6 +106,14 @@ async function init() {
     ui.setupPluginUi(CanvasRecorderPlugin, {expanded: true})
     ui.setupPluginUi(CameraViewPlugin)
 
+    // An app can change any plugin's toast in one place, by wrapping the viewer's dialog (after the UI plugin, which
+    // sets its own). Here a recorder error keeps its message and gets a Report button (ts-browser-helpers 0.24).
+    const dialog = ThreeViewer.Dialog
+    ThreeViewer.Dialog = {...dialog, toast: (message, options) => dialog.toast?.(message, options?.source !== CanvasRecorderPlugin.PluginType ? options : {
+        ...options,
+        action: {label: 'Report', onClick: () => void dialog.alert('Report: an app would open its feedback form here, with the error: ' + String((options.error as Error | undefined)?.message ?? options.error))},
+    })}
+
 }
 
 _testStart()

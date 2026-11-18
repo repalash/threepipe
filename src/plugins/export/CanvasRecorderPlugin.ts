@@ -1011,7 +1011,8 @@ export class CanvasRecorderPlugin extends AViewerPluginSync<CanvasRecorderPlugin
         // a MediaRecorder's error event holds its error
         const e: any = (error as any)?.error ?? error
         if (e?.name === 'AbortError') return // the folder picker was cancelled
-        viewer.dialog.toast?.('Canvas Recorder: ' + (e?.message || String(e ?? 'the recording failed')), {kind: 'error', container: viewer.container})
+        // source and error: an app that wraps viewer.dialog.toast can change this message, add an action, or drop it
+        viewer.dialog.toast?.('Canvas Recorder: ' + (e?.message || String(e ?? 'the recording failed')), {kind: 'error', container: viewer.container, source: CanvasRecorderPlugin.PluginType, error})
     }
 
     private _showIndicator(visible: boolean) {
