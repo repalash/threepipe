@@ -13,7 +13,9 @@
     {
         "imports": {
           "threepipe": "./../../dist/index.mjs",
-          "@threepipe/plugin-gaussian-splatting": "./../../plugins/gaussian-splatting/dist/index.mjs"
+          "@threepipe/plugin-gaussian-splatting": "./../../plugins/gaussian-splatting/dist/index.mjs",
+          "@threepipe/plugin-tweakpane": "./../../plugins/tweakpane/dist/index.mjs",
+          "@threepipe/plugin-tweakpane-editor": "./../../plugins/tweakpane-editor/dist/index.mjs"
         }
     }
     </script>
@@ -27,11 +29,15 @@
     </style>
     <script type="module" src="../examples-utils/global-loading.mjs"></script>
     <script id="example-script" type="module">
-        import {_testFinish, _testStart, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
+        import {_testFinish, _testStart, DropzonePlugin, LoadingScreenPlugin, ThreeViewer} from 'threepipe'
+        import {createExampleCard} from '../examples-utils/example-card.js'
         import {GaussianSplattingPlugin} from '@threepipe/plugin-gaussian-splatting'
 
 
-        const viewer = new ThreeViewer({canvas: document.getElementById('mcanvas'),
+        const viewer = new ThreeViewer({
+            canvas: document.getElementById('mcanvas'),
+            // drop a file on the page (or Open file in the card) to load it in place of this one
+            dropzone: {allowedExtensions: ['splat'], addOptions: {disposeSceneObjects: true, autoCenter: true, autoScale: true}},
             plugins: [LoadingScreenPlugin],
         })
         viewer.addPluginsSync([GaussianSplattingPlugin])
@@ -39,11 +45,22 @@
         async function init() {
 
             await viewer.setEnvironmentMap('https://samples.threepipe.org/minimal/venice_sunset_1k.hdr')
+            const loadStart = performance.now()
             const result = await viewer.load('https://samples.threepipe.org/splat/bonsai.splat', {
                 autoCenter: true,
                 autoScale: true,
             })
+            const loadMs = Math.round(performance.now() - loadStart)
             console.log(result)
+
+            createExampleCard(viewer, {
+                description: 'GaussianSplattingPlugin loads Gaussian splats (.splat) and renders them: a bonsai captured from photos. A splat is a cloud of soft coloured blobs, not triangles. Drop or open another .splat.',
+                actions: [
+                    {type: 'button', label: 'Open file…', icon: 'file-code', value: () => viewer.getPlugin(DropzonePlugin)?.promptForFile()},
+                    {type: 'monitor', label: 'Load time', getValue: () => `${loadMs} ms`},
+                ],
+            })
+
         }
 
         _testStart()
