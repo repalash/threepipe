@@ -8,6 +8,7 @@ import {
     ThreeViewer,
 } from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
+import {createExampleCard} from '../examples-utils/example-card.js'
 
 async function init() {
 
@@ -31,8 +32,22 @@ async function init() {
 
     const overlayEl = document.getElementById('pointerLockOverlay') as HTMLDivElement
     const controls = viewer.scene.mainCamera.controls as PointerLockControls2 | undefined
-    controls?.addEventListener('lock', ()=> overlayEl.style.display = 'none')
-    controls?.addEventListener('unlock', ()=> overlayEl.style.display = 'flex')
+    let locked = false
+    controls?.addEventListener('lock', ()=> {
+        locked = true
+        overlayEl.style.display = 'none'
+    })
+    controls?.addEventListener('unlock', ()=> {
+        locked = false
+        overlayEl.style.display = 'flex'
+    })
+
+    createExampleCard(viewer, {
+        description: 'PointerLockControlsPlugin: click the canvas to lock the pointer, then move the mouse to look around, like a first-person game. Esc unlocks the pointer.',
+        actions: [
+            {type: 'monitor', label: 'Pointer', getValue: () => locked ? 'Locked: move the mouse to look' : 'Free: click the canvas'},
+        ],
+    })
 
 }
 
