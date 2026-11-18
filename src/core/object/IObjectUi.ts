@@ -8,6 +8,7 @@ import {getOrCall} from 'ts-browser-helpers'
 import {iCameraCommons} from './iCameraCommons'
 import {iObjectCommons} from './iObjectCommons'
 import {UiTags} from '../../ui/uiconfig'
+import {ACTION_ICONS} from '../../ui/action-icons'
 
 declare module '../IObject' {
     interface IObject3D {
@@ -196,6 +197,9 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
                 label: 'Render Order',
                 property: [this, 'renderOrder'],
             },
+            // Duplicate and Delete (icons) first among the menu buttons: a bar that shows the buttons that fit in its
+            // width, then a ⋮ menu (a folder header, the inspector head), shows them before the text buttons
+            ...objectActionsUiConfig.call(this),
             {
                 type: 'button',
                 label: 'Scale to Radius',
@@ -239,7 +243,6 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
                     return this.pivotToBoundsCenter?.(true) // return value is the undo function
                 },
             },
-            ...objectActionsUiConfig.call(this),
             {
                 type: 'folder',
                 label: 'Rotate model',
@@ -349,6 +352,7 @@ export function objectActionsUiConfig(this: IObject3D): UiObjectConfig[] {
     return [{
         type: 'button',
         label: 'Duplicate Object',
+        icon: ACTION_ICONS.duplicate,
         tags: [UiTags.ContextMenu],
         value: async(e?: any)=>{
             return iObjectCommons.duplicateObject(this, e)
@@ -357,6 +361,7 @@ export function objectActionsUiConfig(this: IObject3D): UiObjectConfig[] {
     {
         type: 'button',
         label: 'Delete Object',
+        icon: ACTION_ICONS.delete,
         tags: [UiTags.ContextMenu],
         value: async(e?: any)=>{
             return iObjectCommons.deleteObject(this, e)

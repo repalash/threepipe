@@ -36,6 +36,7 @@ describe('UiTags', () => {
             ContextMenu: 'context-menu',
             HeaderAction: 'header-action',
             Interaction: 'interaction',
+            Inline: 'inline',
             Advanced: 'advanced',
             Performance: 'performance',
             Debug: 'debug',
@@ -58,6 +59,17 @@ describe('the core configs keep their tag strings', () => {
         expect(tagsOf(root, 'Pivot to Node Center')).toEqual(['context-menu', 'interaction'])
         const uuid = allConfigs(root).find(c => Array.isArray(c.property) && c.property[1] === 'uuid')!
         expect(uuid.tags).toEqual(['advanced'])
+    })
+    test('object: Duplicate Object and Delete Object have the icons of the PickingPlugin actions, so a UI shows them as icons', () => {
+        const root = new tp.Mesh2(new tp.BufferGeometry2(), new tp.PhysicalMaterial()).uiConfig!
+        const picking = new tp.PickingPlugin()
+        const iconOf = (id: string) => picking.actions.find(a => a.id === id)!.icon
+        expect(iconOf('picking.duplicate')).toMatch(/^<svg/)
+        expect(allConfigs(root).find(c => c.label === 'Duplicate Object')!.icon).toBe(iconOf('picking.duplicate'))
+        expect(allConfigs(root).find(c => c.label === 'Delete Object')!.icon).toBe(iconOf('picking.delete'))
+        // first among the menu buttons: a bar that shows the buttons that fit in its width shows these before the text ones
+        const menu = allConfigs(root).filter(c => c.type === 'button' && (c.tags as string[] | undefined)?.includes('context-menu')).map(label)
+        expect(menu.slice(0, 2)).toEqual(['Duplicate Object', 'Delete Object'])
     })
 
     test('geometry: menu actions and the uuid', () => {

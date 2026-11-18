@@ -1,6 +1,6 @@
 import {afterAll, beforeAll, beforeEach, describe, expect, test, vi} from 'vitest'
 import {BoxGeometry, Euler, EventDispatcher} from 'three'
-import {Mesh, PhysicalMaterial, PickingPlugin, UnlitMaterial} from 'threepipe'
+import {Mesh, PhysicalMaterial, PickingPlugin, UnlitMaterial, ViewerActions} from 'threepipe'
 
 // The inspector of the tweakpane editor (plugins/tweakpane-editor/src/InspectorPlugin.ts), and the selectionUi option of
 // the PickingPlugin that it uses. The node setup has no DOM: a small element with what the inspector uses, a fake
@@ -27,6 +27,7 @@ class FakeElement {
             const rest = this.className.split(' ').filter(x => x && x !== c)
             this.className = (on ? [...rest, c] : rest).join(' ')
         },
+        add: (c: string) => this.classList.toggle(c, true),
     }
     private _listeners = new Map<string, ((e: any) => void)[]>()
     constructor(readonly tagName: string) {}
@@ -71,6 +72,11 @@ class FakeElement {
         return {clearRect: () => {}, drawImage: () => {}}
     }
     setPointerCapture() {}
+    getBoundingClientRect() {
+        return {left: 100, right: 128, top: 10, bottom: 38, width: 28, height: 28}
+    }
+    disabled = false
+    innerHTML = ''
     focused = false
     focus() {
         this.focused = true
@@ -87,12 +93,15 @@ class FakeElement {
 const renderers: FakeRenderer[] = []
 class FakeRenderer {
     shown: any[] = []
+    title = 'Configuration'
+    /** The bars of folder actions drawn with mountFolderActions (uiconfig-tweakpane) */
+    mounted: {config: any, element: any, removed: boolean, refresh: () => void, remove: () => void}[] = []
     /** setValue of uiconfig.js: sets the property of the config */
     methods = {setValue: vi.fn(async(c: any, v: any) => {
         const [o, k] = typeof c.property === 'function' ? c.property() : c.property
         o[k] = v
         return true
-    })}
+    }), clickButton: vi.fn(async(c: any) => c.value?.())}
     added = false
     disposed = false
     constructor(..._args: any[]) {
@@ -103,6 +112,11 @@ class FakeRenderer {
     }
     appendChild(c: any) {
         this.shown.push(c)
+    }
+    mountFolderActions(config: any, element: any) {
+        const m = {config, element, removed: false, refresh: vi.fn(), remove: () => void (m.removed = true)}
+        this.mounted.push(m)
+        return m
     }
     removeChild(c: any) {
         this.shown = this.shown.filter(x => x !== c)
@@ -149,6 +163,15 @@ class FakePicking extends EventDispatcher<any> {
     objectSelectionUiConfig(o: any) {
         return [{type: 'button', label: 'Focus', object: o}]
     }
+    runs: string[] = []
+    /** The actions of the bar (InspectorPlugin.BarActions), as PickingPlugin.actions has them */
+    actions = [
+        {id: 'picking.focus', label: 'Focus', icon: '<svg/>', shortcut: 'KeyF', run: () => this.runs.push('focus')},
+        {id: 'picking.toggleVisibility', label: 'Hide or show', icon: '<svg/>', shortcut: 'KeyH', run: () => this.runs.push('hide')},
+        {id: 'picking.duplicate', label: 'Duplicate', icon: '<svg/>', shortcut: 'Mod+D', run: () => this.runs.push('duplicate')},
+        {id: 'picking.delete', label: 'Delete', icon: '<svg/>', shortcut: ['Delete', 'Backspace'], run: () => this.runs.push('delete')},
+        {id: 'picking.selectParent', label: 'Select the parent', icon: '<svg/>', enabled: () => !!this.selected?.parent, run: () => this.runs.push('parent')},
+    ]
     objectMaterialManageUiConfig(o: any) {
         return [{type: 'button', label: 'Remove Material(s)', object: o}]
     }
@@ -174,6 +197,8 @@ const setup = () => {
         addPluginListener: () => {},
         removePluginListener: () => {},
         console,
+        // every viewer has one; the fake PickingPlugin does not register its actions there
+        actions: new ViewerActions(),
     })
     const inspector = new InspectorPlugin()
     inspector.onAdded(viewer as any)
@@ -247,16 +272,102 @@ describe('InspectorPlugin', () => {
         expect(ui.shown.at(-1)).toBe(m.uiConfig)
     })
 
-    test('shows the actions of the PickingPlugin for the object: Focus on the Object tab, the material actions on the Material tab', () => {
+    test('shows the material actions of the PickingPlugin on the Material tab; Focus is in the bar, not in the settings', () => {
         const {el, ui} = setup()
         const a = mesh(new PhysicalMaterial())
         picking.select(a)
-        expect(labels(ui)).toEqual(['Focus', 'Box'])
-        expect(ui.shown[0].object).toBe(a)
+        expect(labels(ui)).toEqual(['Box'])
         el.find('isp-tab')[1].click()
         expect(labels(ui)).toEqual(['Remove Material(s)', (a.material as any).uiConfig.label])
         el.find('isp-tab')[2].click()
         expect(ui.shown).toEqual([a.geometry.uiConfig].filter(Boolean))
+    })
+
+    test('the head has the actions of the selected object as icons: the key in the tooltip, disabled when they cannot run', () => {
+        const {el, inspector} = setup()
+        const bar = () => el.find('isp-action')
+        expect(bar()).toEqual([])
+        const a = mesh(new PhysicalMaterial())
+        picking.select(a)
+        expect(bar().map(b => b.dataset.action)).toEqual(InspectorPlugin.BarActions)
+        expect(bar().map(b => b.getAttribute('aria-label'))).toEqual(['Focus', 'Hide or show', 'Select the parent'])
+        // the mesh has no parent: Select the parent cannot run
+        expect(bar().map(b => b.disabled)).toEqual([false, false, true])
+        bar()[1].fire('pointerenter')
+        expect(bar()[1].title).toBe('Hide or show (H)')
+        bar()[0].click()
+        bar()[2].click()
+        expect(picking.runs).toEqual(['focus'])
+        // also on the Material tab: the selection is the object
+        el.find('isp-tab')[1].click()
+        expect(bar()).toHaveLength(3)
+        // a material alone: no object, no bar
+        picking.select(a.material)
+        expect(bar()).toEqual([])
+        expect(inspector.hasSelection).toBe(true)
+    })
+
+    test('the head draws the actions of the open tab (its context-menu buttons) with mountFolderActions; no Configuration header', () => {
+        const {el, ui} = setup()
+        expect(ui.title).toBe('')
+        const head = el.find('isp-tab-actions')[0]
+        const a = mesh(new PhysicalMaterial())
+        picking.select(a)
+        expect(ui.mounted.map(m => [m.config, m.element, m.removed])).toEqual([[a.uiConfig, head, false]])
+        // a render for the same tab keeps the bar (it follows the renders of the folder itself)
+        a.name = 'Renamed'
+        picking.select(a)
+        expect(ui.mounted).toHaveLength(1)
+        // another tab: the bar of its uiConfig
+        el.find('isp-tab')[1].click()
+        const mat = (a.material as any).uiConfig
+        expect(ui.mounted.map(m => [m.config, m.removed])).toEqual([[a.uiConfig, true], [mat, false]])
+        // no selection: no bar
+        picking.select(undefined)
+        expect(ui.mounted.map(m => m.removed)).toEqual([true, true])
+    })
+
+    test('a menu taller than the window scrolls inside it, and stays inside the window', async() => {
+        const {CustomContextMenu} = await import('threepipe')
+        const {inspector} = setup()
+        const menu = Object.assign(new FakeElement('div'), {offsetWidth: 180, offsetHeight: 300})
+        vi.spyOn(CustomContextMenu, 'Create').mockImplementation(() => menu as any)
+        vi.stubGlobal('innerWidth', 400)
+        vi.stubGlobal('innerHeight', 200)
+        try {
+            ;(inspector as any)._showMenu({'A': () => {}}, 350, 150)
+            expect(menu.style).toMatchObject({position: 'fixed', maxHeight: '184px', overflowY: 'auto', left: '212px', top: '8px'})
+        } finally {
+            vi.unstubAllGlobals()
+        }
+    })
+
+    test('the bar runs the actions of viewer.actions there (its toasts) and shows the keys that the app set', async() => {
+        // the key listener of viewer.actions goes on the window (globalThis in this setup)
+        const win = new EventTarget()
+        vi.stubGlobal('addEventListener', win.addEventListener.bind(win))
+        vi.stubGlobal('removeEventListener', win.removeEventListener.bind(win))
+        const {el, viewer} = setup()
+        const unregister = viewer.actions.register(picking.actions as any)
+        try {
+            viewer.actions.setShortcut('picking.focus', 'Shift+KeyF')
+            const run = vi.spyOn(viewer.actions, 'run')
+            picking.select(mesh(new PhysicalMaterial()))
+            const focus = el.find('isp-action')[0]
+            focus.fire('pointerenter')
+            expect(focus.title).toBe('Focus (Shift+F)')
+            // a key that the app removed is not shown (not the action's own key)
+            viewer.actions.setShortcut('picking.focus', null)
+            focus.fire('pointerenter')
+            expect(focus.title).toBe('Focus')
+            focus.click()
+            await Promise.resolve()
+            expect(run).toHaveBeenCalledWith('picking.focus')
+            expect(picking.runs).toEqual(['focus'])
+        } finally {
+            unregister()
+            vi.unstubAllGlobals()
+        }
     })
 
     test('a mesh with more materials has a list of them', () => {
@@ -628,7 +739,8 @@ describe('InspectorPlugin.css', () => {
         }
         const font = (css: string, sel: string) => sizes(css, sel).find(d => d.startsWith('font:'))
         expect(font(isp, '.isp-root')).toBe(font(lyp, '.lyp-root'))
-        // no larger text in the search field on a touch screen: the same height as the Layers search
+        // no larger text in the search field or larger action buttons on a touch screen: the sizes of the Layers search
+        // and of the buttons of the bar over the canvas
         expect(isp).not.toMatch(/pointer:\s*coarse/)
         // the clear button shows only while the field has text, in both
         for (const [css, p] of [[isp, 'isp'], [lyp, 'lyp']]) expect(sizes(css, `.${p}-search-input:placeholder-shown + .${p}-search-clear`)).toEqual(['display: none'])
