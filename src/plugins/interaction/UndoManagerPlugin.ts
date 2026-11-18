@@ -89,7 +89,7 @@ export class UndoManagerPlugin extends AViewerPluginSync {
         }
         if (typeof undo === 'function') {
             this.recordUndo({
-                type: 'UiConfigMethods_action',
+                type: this.undoCommandTypes.action,
                 uid: uid,
                 target: targ,
                 undo: undo,
