@@ -24,6 +24,8 @@ It uses the [`JSUndoManager`](https://github.com/repalash/ts-browser-helpers/blo
 The plugin is used automatically by `TweakpaneUiPlugin`, `BlueprintJsUiPlugin`, `PickingPlugin`, `TransformControlsPlugin`, and other plugins that support undo/redo operations.
 It is not _required_ to be added to the viewer explicitly when using any of the UI plugins, but can be added if you want to use it directly.
 
+**Keys.** Mod+Z undoes, Mod+Shift+Z and Mod+Y redo (Mod: Cmd on a Mac, Ctrl on other platforms); a held key repeats them. The keys are letters, so they follow the printed key on any layout, and they do nothing while the plugin is disabled. They are actions (`undo`, `redo` in `UndoManagerPlugin.actions`), registered in [`viewer.actions`](../guide/viewer-api#actions-and-shortcuts): a UI lists them, and the app changes or removes their keys there (`setShortcut`). A key typed in a text field is left to the field, for its own text undo; a checkbox or a button has no text, so the key undoes there.
+
 ```typescript
 viewer.addPlugin(UndoManagerPlugin)
 
@@ -41,14 +43,14 @@ undoManager.record({
 
 ## Undo and Redo
 
-`undo()` and `redo()` step through the shared history. The plugin also binds hot keys on the `document`: **Ctrl/Cmd+Z** to undo, **Ctrl/Cmd+Shift+Z** or **Ctrl+Y** to redo.
+`undo()` and `redo()` step through the shared history. The keys are the actions `undo` and `redo` in `viewer.actions` (see **Keys** above): **Mod+Z** to undo, **Mod+Shift+Z** or **Mod+Y** to redo. The hot keys of `JSUndoManager` are off (`bindHotKeys: false`), so a key typed in a text field stays with the field.
 
 ```typescript
 const undoPlugin = viewer.getPlugin(UndoManagerPlugin)!
 undoPlugin.undo()
 undoPlugin.redo()
 
-undoPlugin.enabled = false // stop recording and ignore undo/redo and the hot keys
+undoPlugin.enabled = false // stop recording and ignore undo/redo and their keys
 undoPlugin.limit = 200 // maximum number of steps kept in the history, default 1000
 ```
 

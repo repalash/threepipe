@@ -262,6 +262,7 @@ afterEach(() => {
 const {EditorModeBar} = await import('../../plugins/tweakpane-editor/src/frame/EditorModeBar')
 const {EditorFrame} = await import('../../plugins/tweakpane-editor/src/frame/EditorFrame')
 const {TweakpaneEditorPlugin} = await import('../../plugins/tweakpane-editor/src/TweakpaneEditorPlugin')
+const {ViewerActions} = await import('threepipe')
 
 const host = () => ({modeKeys: ['Viewer', 'Export'], setSelectedMode: vi.fn()})
 /**
@@ -386,17 +387,43 @@ describe('EditorFrame', () => {
         expect(fold).toHaveBeenCalledTimes(1) // open already
     })
 
-    test('Ctrl+\\ and Cmd+\\ step the mode bar, by the key or by the key code', () => {
+    test('Ctrl+\\ (Cmd+\\ on a Mac) steps the mode bar, by the key or by the key code', () => {
         const f = frame('titlebar', true)
         keydown('\\', 'Backslash', {ctrlKey: true})
         expect(f.modeBar.expanded).toBe(false)
-        // a keyboard layout where the key is not at the Backslash position
+        // not a Mac: Cmd (the Win key) is not Mod
+        keydown('\\', 'Backslash', {metaKey: true})
+        expect(f.modeBar.open).toBe(true)
+        // a Mac, and a keyboard layout where the key is not at the Backslash position
+        vi.stubGlobal('navigator', {userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)'})
         keydown('\\', 'IntlBackslash', {metaKey: true})
         expect(f.modeBar.open).toBe(false)
         keydown('\\', 'Backslash')
         expect(f.modeBar.open).toBe(false)
         keydown('T', 'KeyT', {shiftKey: true, ctrlKey: true})
         expect(f.modeBar.open).toBe(false)
+    })
+
+    test('with a viewer, the keys of the frame are actions in viewer.actions, until the frame is disposed', async() => {
+        const viewer = {dialog: {}} as any
+        const actions = viewer.actions = new ViewerActions(viewer)
+        const runs: string[] = []
+        actions.addEventListener('actionRun', ({action}) => runs.push(action.id))
+        storage.set('tpEditorModeBarExpanded', '1')
+        const f = new EditorFrame(host(), {layout: 'titlebar', viewer})
+        expect(actions.list('Editor').map(a => [a.id, a.shortcut])).toEqual([['editorFrame.toggleTheme', 'Shift+KeyT'], ['editorFrame.cycleModeBar', 'Mod+\\']])
+
+        // one step per press
+        expect(keydown('\\', 'Backslash', {ctrlKey: true}).defaultPrevented).toBe(true)
+        expect([f.modeBar.expanded, f.modeBar.open]).toEqual([false, true])
+        await Promise.resolve()
+        await Promise.resolve()
+        expect(runs).toEqual(['editorFrame.cycleModeBar'])
+        expect(keydown('T', 'KeyT', {shiftKey: true, ctrlKey: true}).defaultPrevented).toBe(false)
+
+        f.dispose()
+        expect(actions.list()).toEqual([])
+        expect(keydown('\\', 'Backslash', {ctrlKey: true}).defaultPrevented).toBe(false)
     })
 
     test('a click on the name renames it: Enter keeps it, Escape goes back, not while an IME composes', () => {
@@ -1537,7 +1564,7 @@ describe('TweakpaneEditorPlugin.layout', () => {
     /** The plugin with modes in a fake viewer, so a layout makes the frame */
     const plugin = () => {
         const p = new TweakpaneEditorPlugin()
-        ;(p as any)._viewer = {getPlugin: () => undefined}
+        ;(p as any)._viewer = {getPlugin: () => undefined, addPluginListener: () => {}, removePluginListener: () => {}}
         p.modeKeys = ['Viewer', 'Export']
         return p
     }
@@ -1551,7 +1578,7 @@ describe('TweakpaneEditorPlugin.layout', () => {
         // not added: nothing yet
         p.preventIosInputZoom = true
         expect(meta.content).toBe('width=device-width, initial-scale=1')
-        ;(p as any)._viewer = {getPlugin: () => undefined}
+        ;(p as any)._viewer = {getPlugin: () => undefined, addPluginListener: () => {}, removePluginListener: () => {}}
         p.preventIosInputZoom = true
         expect(meta.content).toBe('width=device-width, initial-scale=1, maximum-scale=1')
         // set again: no second maximum-scale
@@ -1609,7 +1636,9 @@ describe('TweakpaneEditorPlugin.layout', () => {
     test('the light or dark toggle sets the color mode of the Tweakpane UI, and its Color Mode dropdown follows', () => {
         const p = plugin()
         const ui = {colorMode: 'clean', uiConfig: {uiRefresh: vi.fn()}}
-        ;(p as any)._viewer = {getPlugin: () => ui}
+        const viewer: any = {getPlugin: () => ui, addPluginListener: () => {}, removePluginListener: () => {}}
+        viewer.actions = new ViewerActions(viewer)
+        ;(p as any)._viewer = viewer
         p.layout = 'titlebar'
         win.fire('keydown', {key: 'T', code: 'KeyT', shiftKey: true, target: body()})
         expect(ui.colorMode).toBe('clean-dark')
@@ -1728,7 +1757,7 @@ describe('EditorFrame right area', () => {
         panel.appendChild(new FakeElement('div')).className = 'tp-rotv'
         doc.getElementById = (id: string) => id === 'tweakpaneUiContainer' ? panel : null
         const p = new TweakpaneEditorPlugin()
-        ;(p as any)._viewer = {getPlugin: () => undefined}
+        ;(p as any)._viewer = {getPlugin: () => undefined, addPluginListener: () => {}, removePluginListener: () => {}}
         p.modeKeys = ['Viewer', 'Export']
         p.layout = 'titlebar'
         const inspector = new FakeElement('div')
@@ -1744,7 +1773,7 @@ describe('EditorFrame right area', () => {
 
     test('the TweakpaneEditorPlugin sends frameChange when it makes or removes the frame, so an app sets the frame state again', () => {
         const p = new TweakpaneEditorPlugin()
-        ;(p as any)._viewer = {getPlugin: () => undefined}
+        ;(p as any)._viewer = {getPlugin: () => undefined, addPluginListener: () => {}, removePluginListener: () => {}}
         p.modeKeys = ['Viewer', 'Export']
         const frames: unknown[] = []
         p.addEventListener('frameChange', e => frames.push(e.frame))

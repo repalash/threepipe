@@ -183,6 +183,24 @@ editor.layout = 'classic'
 
 In the [Tweakpane Editor example](https://threepipe.org/examples/tweakpane-editor/), add `?layout=titlebar`, `?layout=statusbar`, `?layout=floating` or `?layout=classic` to the URL.
 
+## Actions, keys and toasts
+
+The keys of the editor are actions in [`viewer.actions`](../guide/viewer-api#actions-and-shortcuts) of threepipe, so a toolbar, a menu or a command palette lists and runs them, and the app changes their keys there (`setShortcut`). The settings of the editor (`TweakpaneEditorPlugin.uiConfig`) show the `Actions` folder of `viewer.actions`: the keys on or off, and a button for each action with its key.
+
+| Action | Key | Where |
+|---|---|---|
+| `editorFrame.toggleTheme` | Shift+T (the place of the T key) | `EditorFrame.actions` |
+| `editorFrame.cycleModeBar` | Ctrl+\ (Cmd+\ on a Mac) | `EditorFrame.actions` |
+| `editorCamera.toggleEditing` | C (`EditorCameraPlugin.hotkey`) | `EditorCameraPlugin.actions` |
+
+Toasts: `viewer.actions` shows the `error` and the `warn` of each run in a toast of the viewer dialog (`viewer.dialog.toast`). In the editor, a toast is a small chip at the top centre of the canvas, under the camera pill; the editor sets its place and its dark-theme colour with the CSS variables of the dialog (`--dialog-toast-top`, `--dialog-toast-bg`). Other UIs show their messages the same way: `viewer.dialog.toast?.(message, {kind, container: viewer.container})` (`kind`: `'info'`, `'warn'` or `'error'`). The Escape that closes the camera card or the layout menu does not also clear the selection.
+
+```typescript
+viewer.actions.list('Editor') // the actions of the frame
+viewer.actions.register({id: 'save', label: 'Save', shortcut: 'Mod+S', run: async() => (await save()) ? undefined : {error: 'Not saved'}})
+viewer.dialog.toast?.('Saved', {container: viewer.container})
+```
+
 ## LayersPanelPlugin
 
 [Example](https://threepipe.org/examples/#layers-panel-plugin/) &mdash;
@@ -411,7 +429,7 @@ editorCamera.copyStartView()
 editorCamera.addEventListener('editingChange', ({editing}) => {
     button.classList.toggle('on', editing)
 })
-// another key than C
+// another key than C (the action editorCamera.toggleEditing in viewer.actions takes it too)
 editorCamera.hotkey = 'KeyK'
 ```
 

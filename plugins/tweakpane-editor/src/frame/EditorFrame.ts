@@ -1,6 +1,7 @@
-import {createDiv, createStyles} from 'threepipe'
+import {createDiv, createStyles, ViewerActions} from 'threepipe'
+import type {ThreeViewer, ViewerAction} from 'threepipe'
 import {EditorModeBar, EditorModeBarHost} from './EditorModeBar'
-import {isTextTarget, readStored, writeStored} from '../dom-utils'
+import {readStored, writeStored} from '../dom-utils'
 import styles from './EditorFrame.css?inline'
 
 /**
@@ -116,6 +117,11 @@ export interface EditorFrameOptions {
      * `TweakpaneEditorPlugin` passes the container of the Tweakpane UI. Without it, the mode bar hides no panel.
      */
     panel?: () => HTMLElement | null
+    /**
+     * The viewer: the keys of the frame are registered in its `viewer.actions` ({@link EditorFrame.actions}). Without a
+     * viewer, the frame has its own `ViewerActions` for them. `TweakpaneEditorPlugin` passes its viewer.
+     */
+    viewer?: ThreeViewer
 }
 
 const svg = (d: string) => `<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`
@@ -269,6 +275,20 @@ export class EditorFrame {
     /** The tooltips of the buttons in the bars */
     private _themePairs: [string, string][]
     private _styles?: HTMLStyleElement
+    private _unregisterActions: () => void
+    /** The actions of the frame when it has no viewer */
+    private _ownActions?: ViewerActions
+
+    /**
+     * The keys of the frame, as actions (registered in `viewer.actions` of {@link EditorFrameOptions.viewer}, where a UI
+     * lists and runs them, else in an own `ViewerActions`): Shift+T switches between the light and
+     * the dark theme, Ctrl+\ (Cmd+\ on a Mac) steps through the collapse states of the mode bar and the panel. The
+     * place of the T key, and the \ key or its place (a layout where it types another character).
+     */
+    readonly actions: ViewerAction[] = [
+        {id: 'editorFrame.toggleTheme', label: 'Light or dark theme', group: 'Editor', shortcut: 'Shift+KeyT', run: () => this.toggleTheme()},
+        {id: 'editorFrame.cycleModeBar', label: 'Collapse or expand the mode bar', group: 'Editor', shortcut: 'Mod+\\', run: () => this.modeBar.cycle()},
+    ]
 
     /**
      * @param editor - the editor with the modes, for the mode bar (`TweakpaneEditorPlugin`)
@@ -309,7 +329,7 @@ export class EditorFrame {
         this.modeBar.onLayoutChange = this._fitAreas
         this._restoreAreas()
 
-        window.addEventListener('keydown', this._onKeyDown)
+        this._unregisterActions = (options.viewer?.actions ?? (this._ownActions = new ViewerActions())).register(this.actions)
         window.addEventListener('resize', this._fitAreas)
         this.modeBar.element.addEventListener('click', this._expandPanel)
         // before the click of a mode, which would hide the panel when its mode is the open one
@@ -855,7 +875,8 @@ export class EditorFrame {
     }
 
     dispose() {
-        window.removeEventListener('keydown', this._onKeyDown)
+        this._unregisterActions()
+        this._ownActions?.dispose()
         window.removeEventListener('resize', this._fitAreas)
         this.modeBar.onLayoutChange = undefined
         this.modeBar.element.removeEventListener('click', this._expandPanel)
@@ -1053,20 +1074,6 @@ export class EditorFrame {
         if (!open) return this.setModeSettingsHidden(false)
         e.stopImmediatePropagation()
         this.setModeSettingsHidden(!this._modeHidden)
-    }
-
-    /** Shift+T: the light or dark theme. Ctrl+\ (Cmd+\ on a Mac): the next collapse state of the mode bar and the panel. */
-    private _onKeyDown = (e: KeyboardEvent) => {
-        if (e.altKey || e.repeat || e.defaultPrevented) return
-        const mod = e.ctrlKey || e.metaKey
-        const theme = e.code === 'KeyT' && e.shiftKey && !mod
-        // the key (a layout with \ elsewhere), or its place (a layout where it types another character)
-        const names = (e.key === '\\' || e.code === 'Backslash') && mod && !e.shiftKey
-        if (!theme && !names) return
-        if (isTextTarget(e.target)) return
-        e.preventDefault()
-        if (theme) this.toggleTheme()
-        else this.modeBar.cycle()
     }
 
     private _bar(cls: string) {
@@ -1587,7 +1594,10 @@ export class EditorFrame {
         if (!this._menu?.contains(t) && !this._menuAnchor?.contains(t)) this._closeMenu()
     }
 
+    // the Escape that closes the menu is used: it does not also clear the selection (an action in viewer.actions)
     private _onMenuKeyDown = (e: KeyboardEvent) => {
-        if (e.key === 'Escape') this._closeMenu()
+        if (e.key !== 'Escape' || !this._menu) return
+        e.preventDefault()
+        this._closeMenu()
     }
 }
