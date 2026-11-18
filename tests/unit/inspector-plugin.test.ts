@@ -1,6 +1,6 @@
 import {afterAll, beforeAll, beforeEach, describe, expect, test, vi} from 'vitest'
 import {BoxGeometry, Euler, EventDispatcher} from 'three'
-import {Mesh, PhysicalMaterial, PickingPlugin, UnlitMaterial} from 'threepipe'
+import {Mesh, PhysicalMaterial, PickingPlugin, UnlitMaterial, ViewerActions} from 'threepipe'
 
 // The inspector of the tweakpane editor (plugins/tweakpane-editor/src/InspectorPlugin.ts), and the selectionUi option of
 // the PickingPlugin that it uses. The node setup has no DOM: a small element with what the inspector uses, a fake
@@ -168,7 +168,7 @@ class FakePicking extends EventDispatcher<any> {
     actions = [
         {id: 'picking.focus', label: 'Focus', icon: '<svg/>', shortcut: 'KeyF', run: () => this.runs.push('focus')},
         {id: 'picking.toggleVisibility', label: 'Hide or show', icon: '<svg/>', shortcut: 'KeyH', run: () => this.runs.push('hide')},
-        {id: 'picking.duplicate', label: 'Duplicate', icon: '<svg/>', shortcut: 'Mod+KeyD', run: () => this.runs.push('duplicate')},
+        {id: 'picking.duplicate', label: 'Duplicate', icon: '<svg/>', shortcut: 'Mod+D', run: () => this.runs.push('duplicate')},
         {id: 'picking.delete', label: 'Delete', icon: '<svg/>', shortcut: ['Delete', 'Backspace'], run: () => this.runs.push('delete')},
         {id: 'picking.selectParent', label: 'Select the parent', icon: '<svg/>', enabled: () => !!this.selected?.parent, run: () => this.runs.push('parent')},
     ]
@@ -197,6 +197,8 @@ const setup = () => {
         addPluginListener: () => {},
         removePluginListener: () => {},
         console,
+        // every viewer has one; the fake PickingPlugin does not register its actions there
+        actions: new ViewerActions(),
     })
     const inspector = new InspectorPlugin()
     inspector.onAdded(viewer as any)
@@ -340,23 +342,32 @@ describe('InspectorPlugin', () => {
         }
     })
 
-    test('with a CommandsPlugin, the bar runs its actions there (its toasts) and shows the keys that the app set', async() => {
-        const {CommandsPlugin} = await import('threepipe')
+    test('the bar runs the actions of viewer.actions there (its toasts) and shows the keys that the app set', async() => {
+        // the key listener of viewer.actions goes on the window (globalThis in this setup)
+        const win = new EventTarget()
+        vi.stubGlobal('addEventListener', win.addEventListener.bind(win))
+        vi.stubGlobal('removeEventListener', win.removeEventListener.bind(win))
         const {el, viewer} = setup()
-        const commands = new CommandsPlugin()
-        commands.register(picking.actions as any)
-        commands.setShortcut('picking.focus', 'Shift+KeyF')
-        const run = vi.spyOn(commands, 'run')
-        const getPlugin = viewer.getPlugin
-        viewer.getPlugin = (p: any) => p === CommandsPlugin ? commands : getPlugin(p)
-        picking.select(mesh(new PhysicalMaterial()))
-        const focus = el.find('isp-action')[0]
-        focus.fire('pointerenter')
-        expect(focus.title).toBe('Focus (Shift+F)')
-        focus.click()
-        await Promise.resolve()
-        expect(run).toHaveBeenCalledWith('picking.focus')
-        expect(picking.runs).toEqual(['focus'])
+        const unregister = viewer.actions.register(picking.actions as any)
+        try {
+            viewer.actions.setShortcut('picking.focus', 'Shift+KeyF')
+            const run = vi.spyOn(viewer.actions, 'run')
+            picking.select(mesh(new PhysicalMaterial()))
+            const focus = el.find('isp-action')[0]
+            focus.fire('pointerenter')
+            expect(focus.title).toBe('Focus (Shift+F)')
+            // a key that the app removed is not shown (not the action's own key)
+            viewer.actions.setShortcut('picking.focus', null)
+            focus.fire('pointerenter')
+            expect(focus.title).toBe('Focus')
+            focus.click()
+            await Promise.resolve()
+            expect(run).toHaveBeenCalledWith('picking.focus')
+            expect(picking.runs).toEqual(['focus'])
+        } finally {
+            unregister()
+            vi.unstubAllGlobals()
+        }
     })
 
     test('a mesh with more materials has a list of them', () => {

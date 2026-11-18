@@ -1,7 +1,6 @@
 import {
     AViewerPluginEventMap,
     AViewerPluginSync,
-    CommandsPlugin,
     createStyles,
     CustomContextMenu,
     formatShortcut,
@@ -28,7 +27,7 @@ import {
     UiObjectConfig,
     Vector3,
 } from 'threepipe'
-import type {CommandAction} from 'threepipe'
+import type {ViewerAction} from 'threepipe'
 import {TweakpaneUiPlugin} from '@threepipe/plugin-tweakpane'
 import type {EditorFrameAreaOptions} from './frame/EditorFrame'
 import styles from './InspectorPlugin.css?inline'
@@ -111,7 +110,7 @@ class InspectorUiRenderer extends TweakpaneUiPlugin {
  *   tab: the buttons of its uiConfig with the `context-menu` tag (`UiTags.ContextMenu`: Duplicate Object, Delete Object,
  *   Auto Center...), as in a folder header: buttons while they fit, the rest in a ⋮ menu (uiconfig-tweakpane
  *   `mountFolderActions`). One with the `inline` tag (`UiTags.Inline`) stays in the settings. The actions of the icons run
- *   through the `CommandsPlugin` of the viewer when it has one (its keys, the toasts of the results), else on their own.
+ *   through `viewer.actions` (their keys as the app set them, the toasts of the results).
  * - Escape (the PickingPlugin) clears the selection.
  *
  * Where the panel goes: in the `container` given to the constructor, else the app puts {@link element} in the page.
@@ -157,7 +156,7 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
     static AreaEntry: EditorFrameAreaOptions = {name: 'Inspector', icon: AREA_ICON, color: '#0ea5e9'}
     /**
      * The ids of the actions shown as icons in the head, in order, while an object is selected: actions of the
-     * `CommandsPlugin` of the viewer, or of the PickingPlugin (`PickingPlugin.actions`), with an icon. Duplicate and Delete
+     * `viewer.actions` (the PickingPlugin registers `PickingPlugin.actions` there), with an icon. Duplicate and Delete
      * are not here: the object's uiConfig has them as buttons, which the head shows with the other actions of the tab.
      * Read at each render.
      */
@@ -569,28 +568,32 @@ export class InspectorPlugin extends AViewerPluginSync<InspectorPluginEventMap> 
         this._applySearch()
     }
 
-    /** An action by its id: of the `CommandsPlugin` of the viewer, else of the PickingPlugin */
-    private _actionOf(id: string): CommandAction | undefined {
-        return this._viewer?.getPlugin(CommandsPlugin)?.get(id) ?? this._picking?.actions.find(a => a.id === id)
+    /** An action by its id: of `viewer.actions`, else of the PickingPlugin (one that is not registered) */
+    private _actionOf(id: string): ViewerAction | undefined {
+        return this._viewer?.actions.get(id) ?? this._picking?.actions.find(a => a.id === id)
     }
 
     /** The actions of {@link BarActions} that exist, while an object is selected */
-    private _barActions(): CommandAction[] {
+    private _barActions(): ViewerAction[] {
         if (!this._object) return []
-        return InspectorPlugin.BarActions.map(id => this._actionOf(id)).filter((a): a is CommandAction => !!a)
+        return InspectorPlugin.BarActions.map(id => this._actionOf(id)).filter((a): a is ViewerAction => !!a)
     }
 
-    /** A label with the key of the action now (the one that the app set in the `CommandsPlugin`, else its own) */
-    private _labelWithKey(a: CommandAction) {
-        const key = shortcutsOf(this._viewer?.getPlugin(CommandsPlugin)?.shortcutOf(a.id) ?? a.shortcut)[0]
+    /**
+     * A label with the key of the action now: for an action of `viewer.actions`, the key there (the one that the app set,
+     * none after `setShortcut(id, null)`), else its own
+     */
+    private _labelWithKey(a: ViewerAction) {
+        const actions = this._viewer?.actions
+        const key = shortcutsOf(actions?.get(a.id) === a ? actions.shortcutOf(a.id) : a.shortcut)[0]
         return key ? `${a.label} (${formatShortcut(key)})` : a.label
     }
 
-    /** Runs an action: through the `CommandsPlugin` when it has it (the toasts of the result), else on its own */
-    private _runAction(a: CommandAction) {
+    /** Runs an action: through `viewer.actions` when it is registered there (the toasts of the result), else on its own */
+    private _runAction(a: ViewerAction) {
         if (a.enabled && !a.enabled()) return
-        const commands = this._viewer?.getPlugin(CommandsPlugin)
-        if (commands?.get(a.id) === a) commands.run(a.id)
+        const actions = this._viewer?.actions
+        if (actions?.get(a.id) === a) actions.run(a.id)
         else a.run()
     }
 
