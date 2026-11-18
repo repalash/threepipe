@@ -932,7 +932,10 @@ describe('UiConfigForm bar and stack layouts', () => {
         const g = find(form, 'ucf-group')
         expect(g.getAttribute('role')).toBe('group')
         expect(g.getAttribute('aria-label')).toBe('Views')
-        expect(g.children.map(c => c.textContent)).toEqual(['Top', 'Left'])
+        expect(g.children.map(c => c.textContent)).toEqual(['Views', 'Top', 'Left'])
+        // the name as a heading (shown in a stack by the CSS), hidden from screen readers: the group's name has it
+        expect(g.children[0].className).toBe('ucf-group-head')
+        expect(g.children[0].getAttribute('aria-hidden')).toBe('true')
     })
 
     test('a dropdown in a bar is a select with the label as its name; a change sets the binding', () => {

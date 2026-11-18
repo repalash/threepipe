@@ -70,6 +70,7 @@ export const lucideIcons: Record<string, string> = {
     'sliders-horizontal': '<path d="M10 5H3"/><path d="M12 19H3"/><path d="M14 3v4"/><path d="M16 17v4"/><path d="M21 12h-9"/><path d="M21 19h-5"/><path d="M21 5h-7"/><path d="M8 10v4"/><path d="M8 12H3"/>',
     'timer': '<line x1="10" x2="14" y1="2" y2="2"/><line x1="12" x2="15" y1="14" y2="11"/><circle cx="12" cy="14" r="8"/>',
     'loader-circle': '<path d="M21 12a9 9 0 1 1-6.219-8.56"/>',
+    'zap': '<path d="M15.914 4a1.5 1.5 0 00-2.474-1.561l-9 9A1.5 1.5 0 005.5 14h4.002a.5.5 0 01.471.666L8.086 20a1.5 1.5 0 002.475 1.56l9-9A1.5 1.5 0 0018.5 10h-3.997a.5.5 0 01-.472-.667z"/>',
     'code': '<path d="m16 18 6-6-6-6"/><path d="m8 6-6 6 6 6"/>',
     'chevron-down': '<path d="m6 9 6 6 6-6"/>',
 }
