@@ -228,6 +228,11 @@ export class EditorModeBar {
         this._tipGroup.setInstances(this._tips)
     }
 
+    /** Changes the text of the tooltip of a button that {@link addTooltip} added */
+    setTooltip(button: HTMLElement, content: string) {
+        this._tips.find(t => t.reference === button)?.setContent(content)
+    }
+
     /** Removes the tooltip of a button that {@link addTooltip} added, when the button leaves the bar */
     removeTooltip(button: HTMLElement) {
         const tip = this._tips.find(t => t.reference === button)
