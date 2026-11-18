@@ -24,6 +24,12 @@
 .isp-action:hover:not(:disabled) { color: var(--tp-container-foreground-color, #1e1e1e); background: var(--tp-button-background-color-hover, rgba(0, 0, 0, .05)); }
 .isp-action:disabled { opacity: .35; cursor: default; }
 .isp-action:focus-visible { outline: 2px solid var(--tp-label-foreground-color, #0d99ff); outline-offset: -2px; }
+/* the icon buttons of the open tab (Duplicate, Delete; uiconfig-tweakpane mountFolderActions) look like the icons of the bar */
+.isp-tab-actions .tpfm-action.tpfm-icon-only {
+    width: var(--isp-action-size); height: var(--isp-action-size); border-radius: 5px; background: transparent; color: var(--tp-label-foreground-color, #8a8f98);
+}
+.isp-tab-actions .tpfm-action.tpfm-icon-only:hover:not(:disabled) { color: var(--tp-container-foreground-color, #1e1e1e); background: var(--tp-button-background-color-hover, rgba(0, 0, 0, .05)); }
+.isp-tab-actions .tpfm-icon-only .tpfm-icon, .isp-tab-actions .tpfm-icon-only .tpfm-icon > svg { width: 16px; height: 16px; }
 /* the tab bar and the search field are the ones of the Layers panel (.lyp-tabs, .lyp-tab, .lyp-search in
    LayersPanelPlugin.css): the same sizes, with the colours of the Tweakpane theme */
 .isp-tabs { display: flex; margin: 0 8px 6px; padding: 2px; border-radius: 6px; background: var(--tp-input-background-color, rgba(0, 0, 0, .05)); flex: none; }
