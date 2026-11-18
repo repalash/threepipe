@@ -197,6 +197,9 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
                 label: 'Render Order',
                 property: [this, 'renderOrder'],
             },
+            // Duplicate and Delete (icons) first among the menu buttons: a bar that shows the buttons that fit in its
+            // width, then a ⋮ menu (a folder header, the inspector head), shows them before the text buttons
+            ...objectActionsUiConfig.call(this),
             {
                 type: 'button',
                 label: 'Scale to Radius',
@@ -240,7 +243,6 @@ export function makeIObject3DUiConfig(this: IObject3D, isMesh?:boolean): UiObjec
                     return this.pivotToBoundsCenter?.(true) // return value is the undo function
                 },
             },
-            ...objectActionsUiConfig.call(this),
             {
                 type: 'folder',
                 label: 'Rotate model',

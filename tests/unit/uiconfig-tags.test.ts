@@ -67,6 +67,9 @@ describe('the core configs keep their tag strings', () => {
         expect(iconOf('picking.duplicate')).toMatch(/^<svg/)
         expect(allConfigs(root).find(c => c.label === 'Duplicate Object')!.icon).toBe(iconOf('picking.duplicate'))
         expect(allConfigs(root).find(c => c.label === 'Delete Object')!.icon).toBe(iconOf('picking.delete'))
+        // first among the menu buttons: a bar that shows the buttons that fit in its width shows these before the text ones
+        const menu = allConfigs(root).filter(c => c.type === 'button' && (c.tags as string[] | undefined)?.includes('context-menu')).map(label)
+        expect(menu.slice(0, 2)).toEqual(['Duplicate Object', 'Delete Object'])
     })
 
     test('geometry: menu actions and the uuid', () => {
