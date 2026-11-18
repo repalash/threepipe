@@ -32,7 +32,8 @@ async function init() {
     const camera = viewer.scene.mainCamera
     const setFirstPerson = (on: boolean) => {
         camera.controlsMode = on ? 'threeFirstPerson' : 'orbit'
-        overlayEl.style.display = on ? 'none' : 'flex'
+        // the overlay only starts it: back in orbit it stays hidden, so the canvas can be dragged (the card turns it on again)
+        if (on) overlayEl.style.display = 'none'
     }
     overlayEl.addEventListener('click', () => setFirstPerson(true))
 
