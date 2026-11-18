@@ -119,6 +119,12 @@ All notable changes to this project will be documented in this file.
 - svg-renderer: remove a `BufferGeometry.boundsTree` declaration that conflicted with three-mesh-bvh's
 - glTF/glb export writes the same file for the same input. The images are encoded asynchronously and three.js gave each one the next bufferView when it finished, so the image order in the file changed between exports. `GLTFWriter2` now writes the image bufferViews in the order of the images, once all the pending work is done (also work that pending extension work starts). The e2e tests had a test-only patch for this, which the production build removed, so the `glb-export` test failed on every run; the patch is removed
 
+## [0.6.1] - 2026-11-15
+
+### Fixed
+
+- `AssetImporter` works in sandboxed documents (an opaque origin, like a page served with `CSP: sandbox` without `allow-same-origin`, or a sandboxed iframe): any read of `window.caches` throws a SecurityError there, and the viewer stopped before it started. The importer now skips Cache Storage when the page can't use it
+
 
 ## [0.6.0] - 2026-10-23
 
