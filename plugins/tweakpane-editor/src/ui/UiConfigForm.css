@@ -28,3 +28,81 @@
 .ucf-button { display: block; margin: 4px 12px; width: calc(100% - 24px); border: 0; border-radius: 4px; padding: 6px; background: var(--ucf-input); color: var(--ucf-fg); font: inherit; cursor: pointer; }
 .ucf-button:hover { filter: brightness(.96); }
 .ucf-monitor { color: var(--ucf-dim); }
+
+/*
+ * Without a Tweakpane theme on the page: light, or dark when the system prefers it. Only for the bar, the stack and the
+ * popover, which draw their own background (a form takes the background of the page or card that holds it).
+ */
+.ucf { --ucf-bg-0: #ffffff; --ucf-shadow-0: rgba(0, 0, 0, 0.08); --ucf-hover-0: #f5f5f5; }
+@media (prefers-color-scheme: dark) {
+    body:not([class*='tpTheme-']) :is(.ucf-bar, .ucf-stack, .ucf-popover) {
+        --ucf-bg-0: #2c2c2c; --ucf-shadow-0: rgba(0, 0, 0, 0.3); --ucf-hover-0: #383838;
+        --ucf-fg: #ffffff; --ucf-dim: #b3b3b3; --ucf-input: #383838; --ucf-line: #444444;
+    }
+}
+.ucf {
+    --ucf-bg: var(--tp-base-background-color, var(--ucf-bg-0));
+    --ucf-shadow: var(--tp-base-shadow-color, var(--ucf-shadow-0));
+    --ucf-hover: var(--tp-button-background-color-hover, var(--ucf-hover-0));
+}
+
+/* An icon in front of a label (all layouts) */
+.ucf-has-icon { display: inline-flex; align-items: center; gap: 6px; }
+.ucf-button.ucf-has-icon { justify-content: center; }
+.ucf-icon { display: inline-flex; width: 16px; height: 16px; flex-shrink: 0; }
+.ucf-icon svg, .ucf-icon img { width: 100%; height: 100%; }
+/* a button whose function runs: a spinner in place of the icon */
+.ucf-busy::before { content: ''; display: inline-block; vertical-align: middle; width: 10px; height: 10px; margin-right: 6px; flex-shrink: 0;
+    border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: ucf-spin .7s linear infinite; }
+.ucf-busy.ucf-has-icon::before { margin: 1px; }
+.ucf-busy .ucf-icon { display: none; }
+@keyframes ucf-spin { to { transform: rotate(360deg); } }
+
+/* bar and stack: a toolbar on the panel colour of the Tweakpane theme */
+.ucf-bar, .ucf-stack { display: flex; gap: 2px; padding: 4px; box-sizing: border-box; background: var(--ucf-bg); border-radius: 8px;
+    box-shadow: 0 0 0 1px var(--ucf-line), 0 4px 16px var(--ucf-shadow); scrollbar-width: none; }
+.ucf-bar::-webkit-scrollbar, .ucf-stack::-webkit-scrollbar { display: none; }
+.ucf-bar { flex-direction: row; align-items: center; overflow-x: auto; max-width: 100%; }
+.ucf-stack { flex-direction: column; align-items: stretch; overflow-y: auto; max-height: 100%; }
+.ucf-group { display: flex; gap: 2px; }
+.ucf-bar .ucf-group { flex-direction: row; align-items: center; }
+.ucf-stack .ucf-group { flex-direction: column; align-items: stretch; }
+/* a line between a group and what is next to it */
+.ucf-bar > .ucf-group + *, .ucf-bar > * + .ucf-group { border-left: 1px solid var(--ucf-line); padding-left: 4px; margin-left: 2px; }
+.ucf-stack > .ucf-group + *, .ucf-stack > * + .ucf-group { border-top: 1px solid var(--ucf-line); padding-top: 4px; margin-top: 2px; }
+.ucf-bar .ucf-button, .ucf-stack .ucf-button, .ucf-chip { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; width: auto; height: 28px;
+    margin: 0; padding: 0 8px; box-sizing: border-box; border-radius: 5px; background: transparent; white-space: nowrap; }
+.ucf-stack .ucf-button, .ucf-stack .ucf-chip { justify-content: flex-start; }
+/* a long label wraps in a stack (a card is narrow), the row grows */
+.ucf-stack .ucf-button, .ucf-stack .ucf-chip { height: auto; min-height: 28px; padding-top: 5px; padding-bottom: 5px; white-space: normal; text-align: left; line-height: 1.3; }
+.ucf-stack .ucf-readout .ucf-value { text-align: right; }
+.ucf-bar .ucf-button:hover:not(:disabled), .ucf-stack .ucf-button:hover:not(:disabled), .ucf-chip:hover { background: var(--ucf-hover); filter: none; }
+.ucf-button:focus-visible, .ucf-chip:focus-within { outline: 2px solid var(--ucf-accent); outline-offset: -2px; }
+.ucf-button:disabled { cursor: default; }
+/* a pressed toggle: the accent colour on a light tint of it */
+.ucf-toggle[aria-pressed='true'], .ucf-bar .ucf-toggle[aria-pressed='true']:hover:not(:disabled), .ucf-stack .ucf-toggle[aria-pressed='true']:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--ucf-accent) 16%, transparent); color: var(--ucf-accent); }
+.ucf-swatch::before { content: ''; display: inline-block; width: 10px; height: 10px; margin-right: 4px; vertical-align: -1px; border-radius: 2px;
+    background: var(--ucf-swatch); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .15); }
+.ucf-value { color: var(--ucf-dim); font-variant-numeric: tabular-nums; }
+/* a monitor: the value at the end of the row, no hover (it is not a control) */
+.ucf-readout { cursor: default; }
+.ucf-readout:hover { background: transparent; }
+.ucf-stack .ucf-readout .ucf-value { margin-left: auto; }
+.ucf-more[aria-expanded='true'] { background: var(--ucf-hover); }
+.ucf-chip select { font: inherit; color: var(--ucf-fg); background: var(--ucf-input); border: 0; border-radius: 4px; padding: 3px 4px; outline: none; max-width: 140px; }
+.ucf-chip select:disabled { opacity: .5; }
+/* the field of a button in a bar, in a popover */
+/* z-index: the popups layer (CONTRIBUTING.md, UI layers) */
+.ucf-popover { position: fixed; z-index: 2000; min-width: 220px; padding: 4px 0; background: var(--ucf-bg); border-radius: 8px;
+    box-shadow: 0 0 0 1px var(--ucf-line), 0 4px 16px var(--ucf-shadow); }
+/* the key of a button at the end of its row in a stack; a bar shows it in the tooltip */
+.ucf-key { display: none; margin-left: auto; padding-left: 8px; font: inherit; color: var(--ucf-dim); }
+.ucf-stack .ucf-key { display: inline; }
+/* the key in a tooltip */
+.ucf-kbd { margin-left: 8px; font: inherit; opacity: .7; }
+/* a bar on a narrow screen: the buttons with an icon show the icon only (the label is in the tooltip) */
+@media (max-width: 640px) {
+    .ucf-bar .ucf-button.ucf-has-icon .ucf-label, .ucf-bar .ucf-chip.ucf-has-icon .ucf-label { display: none; }
+    .ucf-bar .ucf-button.ucf-has-icon:not(.ucf-more) { width: 32px; padding: 0; }
+}
