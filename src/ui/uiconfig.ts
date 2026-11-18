@@ -59,8 +59,8 @@ export enum UiTags {
     Interaction = 'interaction',
     /**
      * A {@link UiTags.ContextMenu} button that stays in its folder in a UI that moves the menu buttons out of the
-     * settings (the inspector of the tweakpane editor and its ⋯ menu). Menus that list the buttons (the blueprint
-     * renderer and editor) still list it.
+     * settings (the folder headers of the Tweakpane renderer, so also the head of the inspector of the tweakpane
+     * editor). Menus that list the buttons (the blueprint renderer and editor) still list it.
      */
     Inline = 'inline',
     /**
