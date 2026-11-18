@@ -1032,6 +1032,27 @@ describe('UiConfigForm bar and stack layouts', () => {
         expect(value.textContent).toBe('46000')
     })
 
+    test('in a stack, a hidden config is drawn and shown or hidden on refresh as hidden changes', () => {
+        const state = {mode: 'normal', uv: 0}
+        const form = new UiConfigForm([
+            {type: 'button', label: 'Always', value: () => {}},
+            {type: 'number', label: 'UV Set', property: [state, 'uv'], hidden: () => state.mode !== 'uv'},
+            {type: 'folder', label: 'Extra', hidden: () => state.mode !== 'uv', children: [{type: 'button', label: 'In extra', value: () => {}}]},
+        ], {layout: 'stack'})
+        const uv = find(form, 'ucf-more', 'UV Set')
+        const extra = find(form, 'ucf-group')
+        expect(uv.style.display).toBe('none')
+        expect(extra.style.display).toBe('none')
+        expect(find(form, 'ucf-button', 'Always').style.display).toBe('')
+        state.mode = 'uv'
+        form.refresh()
+        expect(uv.style.display).toBe('')
+        expect(extra.style.display).toBe('')
+        state.mode = 'normal'
+        form.refresh()
+        expect(uv.style.display).toBe('none')
+    })
+
     test('layout: a class that the page added stays when the layout changes (also through form)', () => {
         const form = new UiConfigForm([{type: 'button', label: 'A', value: () => {}}], {layout: 'bar'})
         const el = form.element as any as FakeElement
