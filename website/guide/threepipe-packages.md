@@ -26,6 +26,7 @@ Checkout the [model-viewer](https://threepipe.org/examples/#model-viewer) or [tw
 - [@threepipe/plugin-configurator](../package/plugin-configurator) - Provides `MaterialConfiguratorPlugin` and `SwitchNodePlugin` to allow users to select variations
 - [@threepipe/plugin-geometry-generator](../package/plugin-geometry-generator) - Text geometry generator and FontLibrary. All other generators are now in core `threepipe`.
 - [@threepipe/plugin-gltf-transform](../package/plugin-gltf-transform) - Plugin to transform gltf models like adding draco compression while exporting gltf files.
+- [@threepipe/plugin-draco-js](../package/plugin-draco-js) - Decode Draco meshes with the pure-JS [draco.js](https://github.com/mrdoob/draco.js) decoder (no wasm/worker, smaller, Node-safe) with automatic WASM fallback.
 - [@threepipe/plugins-extra-importers](../package/plugins-extra-importers) - Plugin for loading more file types supported by various types of loaders in three.js.
 - [@threepipe/plugin-network](../package/plugin-network) - Network/Cloud related plugin implementations for Threepipe - `AWSClientPlugin` and `TransfrSharePlugin`.
 - [@threepipe/plugin-blend-importer](../package/plugin-blend-importer) - Add support for loading .blend file. (Partial/WIP) ([Blender](https://www.blender.org/))

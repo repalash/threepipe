@@ -1,7 +1,7 @@
 ---
 prev: 
-    text: '@threepipe/plugin-gltf-transform'
-    link: './plugin-gltf-transform'
+    text: '@threepipe/plugin-draco-js'
+    link: './plugin-draco-js'
 
 next: 
     text: '@threepipe/plugin-network'
