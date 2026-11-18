@@ -17,7 +17,9 @@ export class DirectoryFrameSink implements ICanvasFrameSink {
     start(): Promise<void> {
         this._directory = undefined
         // no folder to write to: the start fails at once
-        if (!DirectoryFrameSink.supported) throw new Error('this browser can\'t save to a folder (no showDirectoryPicker). Save the frames to a zip (ZipFrameSink) instead')
+        if (!DirectoryFrameSink.supported) throw new Error(typeof window !== 'undefined' && (window as any).showDirectoryPicker ?
+            'this page is sandboxed, so it can\'t open a folder picker. Save the frames to a zip (ZipFrameSink) instead' :
+            'this browser can\'t save to a folder (no showDirectoryPicker). Save the frames to a zip (ZipFrameSink) instead')
         return (async() => {
             const parent: FileSystemDirectoryHandle = await (window as any).showDirectoryPicker()
             this._directory = await parent.getDirectoryHandle('i-' + Math.floor(Date.now()), {create: true})

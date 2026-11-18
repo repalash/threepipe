@@ -441,6 +441,8 @@ describe('ImageSequenceRecorder start', () => {
             rec._console = {error: () => undefined, warn: () => undefined}
             rec.start()
             expect(rec._sink).toBeInstanceOf(ZipFrameSink)
+            // a folder sink set from code fails there, and says the page is sandboxed
+            expect(() => new DirectoryFrameSink().start()).toThrow('sandboxed')
         } finally {
             vi.unstubAllGlobals()
         }
