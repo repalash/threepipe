@@ -50,6 +50,7 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 
+- `RootScene` recomputes the scene bounds and the camera's near/far once per frame, before rendering, instead of on every `refreshScene`: each object added or removed called it (twice for an add), and each call walked the whole scene twice, so spawning N objects in a frame cost 4N scene walks (measured: 9-42 ms in a frame that adds 6-19 debris meshes). `sceneUpdate` still fires for every change as before. `flushSceneBounds()` recomputes on demand: call it to read fresh near/far right after changing the scene outside the render loop (`updateShaderProperties` calls it)
 - `TransformControls2` and `PivotControls` do not listen to keys themselves now: their plugins register the keys (`actions`) in `viewer.actions`. An app that makes a gizmo without its plugin registers them: `viewer.actions.register(controls.actions)`
 - Uses ts-browser-helpers 0.23.0 (was 0.20.0). The dialogs of `viewer.dialog` with a UI plugin (`htmlDialogWrapper`: alert, confirm, prompt, choose) are modal `<dialog>` elements: the page behind an open dialog takes no click and no focus, and a close by the browser (Escape, the Android back gesture) resolves the dialog as its Escape does. They have the look of a Figma-like UI, a dark mode and CSS variables (`--dialog-*`) for an app's theme.
 - `ObjectPicker.setSelected` of a list switches the selection mode as its first item does (a list of objects after a material: object mode again), as a single item does

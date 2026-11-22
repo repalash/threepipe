@@ -904,6 +904,9 @@ export class ThreeViewer extends EventDispatcher<Record<IViewerEventTypes, IView
 
             if (this.renderEnabled) {
 
+                // the scene bounds and the camera near/far, once for all the scene changes since the last frame
+                this._scene.flushSceneBounds()
+
                 const dirtyPlugins = Object.entries(this.plugins).filter(([key, plugin]) => plugin.dirty && key !== plugin.constructor.OldPluginType)
                 if (dirtyPlugins.length > 0) {
                     // console.log('dirty plugins', dirtyPlugins)

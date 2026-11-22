@@ -500,19 +500,20 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
         }
     }
 
-    // cached values
+    // cached values, recomputed by flushSceneBounds when refreshScene marked them stale
     private _sceneBounds: Box3B = new Box3B
     private _sceneBoundingRadius = 0
+    private _sceneBoundsDirty = true
 
     refreshScene(event?: Partial<(ISceneEventMap['objectUpdate']|ISceneEventMap['geometryUpdate']|ISceneEventMap['geometryChanged'])> & ISceneSetDirtyOptions & {type?: keyof ISceneEventMap}): this {
         const fromSelf = event && event.type === 'objectUpdate' && (event.object === this || (event as any).target === this)
         // todo test the isCamera here. this is for animation object plugin
         if (event?.sceneUpdate === false || event?.refreshScene === false || event?.object?.isCamera) return fromSelf ? this : this.setDirty(event) // so that it doesn't trigger frame fade, shadow refresh etc
         // console.warn(event)
-        this.refreshActiveCameraNearFar()
-        // this.dollyActiveCameraFov()
-        this._sceneBounds = this.getBounds(false, true)
-        this._sceneBoundingRadius = this._sceneBounds.getSize(new Vector3()).length() / 2.
+        // the bounds and the camera's near/far are recomputed once, in flushSceneBounds (before the next render), not
+        // here: every object added or removed calls this (twice for an add), and each recompute walks the whole scene
+        // twice, so N objects spawned in a frame cost 4N scene walks instead of one
+        this._sceneBoundsDirty = true
         this.dispatchEvent({...event, type: 'sceneUpdate', hierarchyChanged: ['addedToParent', 'removedFromParent'].includes(event?.change || '')})
         if (!fromSelf) iObjectCommons.setDirty.call(this, {...event, scene: this})
         return this
@@ -697,7 +698,23 @@ export class RootScene<TE extends ISceneEventMap = ISceneEventMap> extends Scene
         return true
     }
 
+    /**
+     * Recomputes the cached scene bounds and the main camera's near/far if {@link refreshScene} marked them stale since
+     * the last call. The viewer calls it once per frame before rendering; call it to read fresh values right after
+     * changing the scene outside the render loop. Returns true if it recomputed.
+     */
+    flushSceneBounds(): boolean {
+        if (!this._sceneBoundsDirty) return false
+        this._sceneBoundsDirty = false
+        this.refreshActiveCameraNearFar()
+        // this.dollyActiveCameraFov()
+        this._sceneBounds = this.getBounds(false, true)
+        this._sceneBoundingRadius = this._sceneBounds.getSize(new Vector3()).length() / 2.
+        return true
+    }
+
     updateShaderProperties(material: {defines: Record<string, string|number|undefined>, uniforms: {[name: string]: IUniform}}): this {
+        this.flushSceneBounds()
         if (material.uniforms.sceneBoundingRadius) material.uniforms.sceneBoundingRadius.value = this._sceneBoundingRadius
         else console.warn('RootScene: no uniform: sceneBoundingRadius')
         return this
