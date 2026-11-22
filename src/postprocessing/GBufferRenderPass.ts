@@ -90,7 +90,7 @@ export class GBufferRenderPass<TP extends IPassID=IPassID, T extends WebGLRender
      * Sets `object.forcedOverrideMaterial` for the render of this pass, and saves the one that the object had: a plugin
      * can set one for the whole frame, as ViewOverridesPlugin does for fat lines. {@link restoreObjectMaterial} puts it back.
      */
-    forceObjectMaterial(object: IObject3D, material: Material) {
+    forceObjectMaterial(object: IObject3D, material: Material | Material[]) {
         if (!this._savedForcedMaterials.has(object)) this._savedForcedMaterials.set(object, object.forcedOverrideMaterial)
         object.forcedOverrideMaterial = material
     }

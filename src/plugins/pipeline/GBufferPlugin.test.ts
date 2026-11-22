@@ -77,7 +77,8 @@ describe('GBufferPlugin.materialVariants', {timeout}, () => {
             mesh(opaque({}, {pluginsDisabled: true})),
             mesh(opaque({}, {renderToGBuffer: false})),
             mesh(opaque({}, {renderToDepth: false})),
-            mesh([opaque(), opaque()]),
+            // an array with a transparent material: the shared material for all of it
+            mesh([opaque(), opaque({transparent: true, opacity: 0.5})]),
             // not upgraded: a plain three.js mesh does not draw a forced material
             new tp.Mesh(new tp.BoxGeometry(1, 1, 1), opaque()),
         ]
@@ -91,6 +92,42 @@ describe('GBufferPlugin.materialVariants', {timeout}, () => {
         forced.forcedOverrideMaterial = other
         expect(pass.preprocessObject(forced)).toBe(other)
         expect(forced.forcedOverrideMaterial).toBe(other)
+    })
+
+    test('a material array gets an array of variants, the same array every frame', () => {
+        const {pass} = plugin()
+        const plain = opaque(), mapped = opaque({normalMap: new tp.Texture()})
+        const o = mesh([plain, mapped])
+        o.geometry.addGroup(0, 18, 0); o.geometry.addGroup(18, 18, 1)
+        const vs = pass.preprocessObject(o)
+        expect(Array.isArray(vs)).toBe(true)
+        expect(vs.length).toBe(2)
+        expect(vs[0].stableSource && vs[1].stableSource).toBe(true)
+        expect(vs[0]).not.toBe(vs[1])
+        expect(o.forcedOverrideMaterial).toBe(vs)
+        pass.postprocessObject(o)
+        expect(o.material).toEqual([plain, mapped])
+        // next frame: the same array
+        expect(pass.preprocessObject(o)).toBe(vs)
+        pass.postprocessObject(o)
+        // a group draw reads its own source material
+        pass.preprocessObject(o)
+        const renderer = {materials: {refreshTransformUniform: () => undefined}, resetCurrentMaterial: () => undefined, getRenderTarget: () => null}
+        vs[1].onBeforeRender(renderer, new tp.Scene(), new tp.PerspectiveCamera2(), o.geometry, o, o.geometry.groups[1])
+        expect(vs[1].uniforms.normalMap.value).toBe(mapped.normalMap)
+        pass.postprocessObject(o)
+        // a material changed (version): a new array
+        mapped.needsUpdate = true
+        expect(pass.preprocessObject(o)).not.toBe(vs)
+    })
+
+    test('the key of a material is cached until its version changes', () => {
+        const {p} = plugin()
+        const m = opaque()
+        const k1 = p._variantKey(m)
+        expect(p._variantKey(m)).toBe(k1)
+        m.normalMap = new tp.Texture(); m.needsUpdate = true
+        expect(p._variantKey(m)).not.toBe(k1)
     })
 
     test('off: every object uses the shared material, as before', () => {
