@@ -124,9 +124,10 @@ export function updateMaterialDefines(defines: MaterialExtension['extraDefines']
         material.defines = {}
     }
     let flag = false
-    const entries = Object.entries(defines)
-    for (const [key, valF] of entries) {
-        const val = getOrCall(valF)
+    // for...in, not Object.entries: this runs before every draw of an extended material (no array per call)
+    for (const key in defines) {
+        if (!Object.prototype.hasOwnProperty.call(defines, key)) continue
+        const val = getOrCall(defines[key])
         if (val === undefined) {
             if (material.defines[key] !== undefined) {
                 delete material.defines[key]

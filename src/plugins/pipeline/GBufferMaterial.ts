@@ -79,6 +79,17 @@ export class GBufferMaterial extends ShaderMaterial2 {
     normalMapType: NormalMapTypes = TangentSpaceNormalMap
     flatShading = false
 
+    /**
+     * Set by GBufferPlugin on its per-material variants ({@link GBufferPlugin.materialVariants}): the material is forced
+     * on the objects of one kind of source material (`forcedOverrideMaterial`), and draws them from the object's own
+     * material (`currentMaterial`) with the full setup (normal, bump and displacement maps, side). The extensions are
+     * registered once when the variant is made, and `needsUpdate` is set only when its defines change, so three.js keeps
+     * its program between draws and frames. The shared material (`false`) registers the extensions of each draw's
+     * material and sets `needsUpdate` on every draw, which makes three.js rebuild the program parameters and cache key
+     * of every draw.
+     */
+    stableSource = false
+
     onBeforeRender(renderer: WebGLRenderer, scene: Scene, camera: Camera, geometry: BufferGeometry, object: Object3D, group: Group) {
         super.onBeforeRender(renderer, scene, camera, geometry, object, group)
 
@@ -87,7 +98,9 @@ export class GBufferMaterial extends ShaderMaterial2 {
         let material = this._sourceMaterial((object as any).material, group)
         if (material === this as any) {
             material = this._sourceMaterial((object as IObject3D).currentMaterial, group)
-            isOverridden = true
+            // a variant of GBufferPlugin draws the object's own material; another GBuffer material set on the object
+            // (customGBufferMaterial) is the object's look and only takes the alpha from it
+            isOverridden = !this.stableSource
         }
         if (!material) return
 
@@ -177,12 +190,16 @@ export class GBufferMaterial extends ShaderMaterial2 {
         // todo: do the same in DepthBufferPlugin and NormalBufferPlugin
         // what about the material extension settings in the userData of the source materials?
         // wont this be very expensive? todo we should expect devs to expose their own gbuffer material instance if they want to use some extension
-        if (material.materialExtensions?.length) {
-            this.registerMaterialExtensions(material.materialExtensions)
-        }
+        // a variant registered them when it was made, and its defines change only with its key (updateMaterialDefines
+        // above sets needsUpdate then)
+        if (!this.stableSource) {
+            if (material.materialExtensions?.length) {
+                this.registerMaterialExtensions(material.materialExtensions)
+            }
 
-        // this.transparent = true
-        this.needsUpdate = true
+            // this.transparent = true
+            this.needsUpdate = true
+        }
         // @ts-expect-error todo add to type
         renderer.resetCurrentMaterial && renderer.resetCurrentMaterial()
 
