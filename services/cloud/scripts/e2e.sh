@@ -64,6 +64,11 @@ VPAGE=$(curl -s -H 'sec-fetch-dest: document' "$VURL")
 echo "$VPAGE" | grep -q '<video controls playsinline preload="metadata" src="clip.mp4?raw=1">' && curl -sI -H 'sec-fetch-dest: document' "$VURL" | grep -qi "media-src 'self'" \
   && [ "$(curl -s -H 'sec-fetch-dest: document' "$VURL?raw=1" | wc -c | tr -d ' ')" = "4000" ] && [ "$(code -H 'sec-fetch-dest: video' -H 'Range: bytes=0-99' "$VURL")" = "206" ] \
   && ok "video: a player page for a browser, the bytes (with ranges) for <video> and ?raw=1" || bad "video page: $(head -c 300 <<< "$VPAGE")"
+# the bytes vary on what asks, so a cache never hands them to a navigation; If-Range of another version gets the whole file
+VH=$(curl -sI "$VURL" | tr -d '\r'); VET=$(echo "$VH" | grep -i '^etag:' | cut -d' ' -f2-)
+echo "$VH" | grep -qi '^vary: accept, sec-fetch-dest, user-agent' && [ "$(code -H 'Range: bytes=0-99' -H "If-Range: $VET" "$VURL")" = "206" ] \
+  && [ "$(code -H 'Range: bytes=0-99' -H 'If-Range: "an-old-version"' "$VURL")" = "200" ] && [ "$(curl -s -H 'Range: bytes=0-99' -H 'If-Range: "an-old-version"' "$VURL" | wc -c | tr -d ' ')" = "4000" ] \
+  && ok "video bytes: Vary, and If-Range (206 for the current version, the whole file for another)" || bad "vary / if-range: $VH"
 # a video in a .md file plays: image syntax with a video link, or a raw <video>, and the page allows media
 printf '# Clip\n\n![The clip](clip.mp4)\n' > $TMP/clip.md
 CMURL=$(curl -s -X PUT -H "$H" --data-binary @$TMP/clip.md "$A/api/v1/uploads/s/$U-video/clip.md" | j "['url']")

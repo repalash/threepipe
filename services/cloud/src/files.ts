@@ -67,8 +67,10 @@ export async function filesHost(c: Context<CloudEnv>, next: Next) {
     const player = !render && isVideoPath(key) && wantsRenderedMarkdown(c.req.raw, url)
     // A Range is checked against the size before any byte is read: R2 answers a range past the end, several ranges or a
     // malformed one with the whole object, and a 206 that carries the whole object corrupts resumed downloads.
-    const rangeHeader = render || player ? undefined : c.req.header('range')
-    const head = rangeHeader || player ? await c.env.CLOUD_BUCKET.head(key) : null
+    const head = (!render && c.req.header('range')) || player ? await c.env.CLOUD_BUCKET.head(key) : null
+    // A file can be replaced: an If-Range that is not its current ETag gets the whole file
+    const ifRange = c.req.header('if-range')
+    const rangeHeader = render || player || (head && ifRange !== undefined && ifRange !== head.httpEtag) ? undefined : c.req.header('range')
     const range = rangeHeader && head ? parseRange(rangeHeader, head.size) : null
     // declared wide: a head (no body) and a get (a body, or none when a precondition matched) both land here
     let obj = (player || (rangeHeader && !range) ? head
@@ -94,7 +96,8 @@ export async function filesHost(c: Context<CloudEnv>, next: Next) {
     let tooBigRange: {offset: number, length: number} | null = null
     if (render && obj.size > MARKDOWN_RENDER_BYTES) {
         if ('body' in obj) await obj.body.cancel()
-        const header = c.req.header('range')
+        const ifRange = c.req.header('if-range')
+        const header = ifRange === undefined || ifRange === obj.httpEtag ? c.req.header('range') : undefined
         tooBigRange = header ? parseRange(header, obj.size) : null
         if (header && !tooBigRange) return unsatisfiable(obj.size)
         obj = await c.env.CLOUD_BUCKET.get(key, {onlyIf: c.req.raw.headers, ...(tooBigRange ? {range: tooBigRange} : {})})
@@ -112,6 +115,8 @@ export async function filesHost(c: Context<CloudEnv>, next: Next) {
     headers.set('accept-ranges', 'bytes')
     headers.set('access-control-allow-origin', '*')
     headers.set('x-content-type-options', 'nosniff')
+    // a browser opening the file gets a page instead (markdown, video): a cache must not hand these bytes to it
+    if (isMarkdownPath(key) || isVideoPath(key)) headers.set('vary', 'accept, sec-fetch-dest, user-agent')
     headers.set('cache-control', key.startsWith('a/') ? 'public, max-age=31536000, immutable' :
         key.startsWith('d/') ? 'private, max-age=60' : 'public, max-age=60, must-revalidate')
     if (key.startsWith('d/')) headers.set('referrer-policy', 'no-referrer') // the item id and the signature are the secret part of the URL
