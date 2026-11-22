@@ -73,8 +73,7 @@ async function init() {
     viewer.addPluginSync(TransformControlsPlugin)
     picking.setSelectedObject(added[1])
 
-    // the controls of the plugin (its own uiConfig: material view, lighting preset, ...) are the point of the example,
-    // so they are in the example card; the Tweakpane panel keeps the gizmo settings
+    // the plugin's own controls are the point of the example, so they go in the card; the panel keeps the gizmo settings
     createExampleCard(viewer, {
         description: 'ViewOverridesPlugin shows the scene with debug materials (unlit, depth, normals, material ID, UV) or lighting presets, only while rendering: the materials and lights do not change. Click an object to move it with the gizmo. The orange ring is a fat line and stays a line in every view.',
         actions: UiConfigMethods.GetChildren(overrides.uiConfig) as UiObjectConfig[],
