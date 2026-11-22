@@ -20,7 +20,6 @@ async function init() {
     const ui = viewer.addPluginSync(new TweakpaneUiPlugin())
     ui.setupPluginUi(PickingPlugin)
 
-    // the events of the picking, shown in the card
     let hovered = '', selected = '', lastHit = ''
     const nameOf = (o?: {name?: string, uuid?: string} | null) => o ? o.name || o.uuid?.slice(0, 8) || '' : ''
     picking.addEventListener('hitObject', (e)=>{
