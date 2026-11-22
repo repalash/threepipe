@@ -51,8 +51,7 @@ async function init() {
 
     const animateTo = async(view: CameraView) => cameraViewPlugin.animateToView(view, 1000, EasingFunctions.easeInOutSine)
 
-    // The card at the top left: its controls are uiconfig configs, the same format as the Tweakpane panel on the right.
-    // exampleAction also gives a button a key (shown in its tooltip).
+    // The card's controls are uiconfig configs, as in the Tweakpane panel. exampleAction also gives a button a key.
     createExampleCard(viewer, {
         description: 'Animates the camera between saved views (CameraViewPlugin), pans or moves it from the current view, and fits it to the model. Press 1, 2, 3 or 0 for the views.',
         actions: [{
@@ -64,7 +63,6 @@ async function init() {
             ],
         }, {
             type: 'folder', label: 'Move', children: [
-                // an async button is disabled while its promise runs
                 {type: 'button', label: 'Pan right/left', icon: 'move-horizontal', value: async() => {
                     const currentView = cameraViewPlugin.getView()
                     await animateTo(new CameraView('view', currentView.position, new Vector3(4, 0, 0).sub(currentView.target)))
