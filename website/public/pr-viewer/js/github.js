@@ -304,6 +304,11 @@ export async function searchMyPullRequests() {
 
 /** A repository's pull requests (search API: has comment counts and drafts). state: open | closed | merged | all. */
 export async function listPullRequests(owner, repo, {state = 'open', text = ''} = {}) {
+    if (SNAP && text.trim()) {
+        // a snapshot has the lists, not every search: filter one by the words
+        const words = text.toLowerCase().split(/\s+/).filter(Boolean)
+        return (await listPullRequests(owner, repo, {state})).filter((p) => words.every((w) => `${p.title} #${p.number} ${p.user}`.toLowerCase().includes(w)))
+    }
     const parts = [`repo:${owner}/${repo}`, 'is:pr']
     if (state === 'open') parts.push('is:open')
     else if (state === 'closed') parts.push('is:closed', 'is:unmerged')

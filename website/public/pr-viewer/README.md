@@ -10,7 +10,8 @@ Open `?pr=owner/repo/123`, or paste a PR / commit / compare URL on the start pag
   full-file side-by-side diff: two editors that are not padded to line up, line numbers of both sides in the middle,
   curved connectors between matching changes, synced scrolling (`js/sbs.js`). F7 / Shift+F7 move between
   differences (on to the next file at the end), Alt+→ / Alt+← between files, Ctrl/⌘ + = / − / 0 the editor font.
-- **Settings** (gear), as in the IDE: Align Changes In Side-by-Side Diff (Monaco's padded side-by-side), Synchronize
+- **Settings**: the titlebar gear holds the app's settings (theme, editor font, GitHub token, open another PR); the
+  diff toolbar's gear holds the diff's own, as in the IDE: Align Changes In Side-by-Side Diff (Monaco's padded side-by-side), Synchronize
   Scrolling, Ignore Differences (none / trim / all whitespace), Highlighting Differences (lines / words / none),
   collapse unchanged fragments and soft-wrap (unified and aligned), font size.
 - **PR view** (as in the IDE's Pull Requests tool window): the PR title and "Changes from N commits ▾" (searchable)
@@ -27,8 +28,9 @@ Open `?pr=owner/repo/123`, or paste a PR / commit / compare URL on the start pag
   with Undo). Needs a token with *Contents: write*. Edits are kept for the tab's session.
 - **Timeline** ("View Timeline" in the PR header): the description as GitHub renders it, comments, reviews with their
   inline comment threads, and the commits, in time order.
-- **Markdown preview**: `.md` files show rendered in the diff (old | new with the changed blocks marked, or the new
-  side on a phone; F7 steps through them); the `</>` button shows the code. Commit message bodies in the Log are
+- **Markdown preview**: `.md` files show rendered in the diff, with the changed words highlighted: old | new with
+  connectors between the changes and scrolling that keeps them side by side, or on a phone one page with the
+  removed words and blocks struck through. F7 steps through the changes; *Preview | Code* in the toolbar switches. Commit message bodies in the Log are
   rendered as Markdown too.
 - **Unified viewer**: Monaco's inline diff editor (the default on narrow screens).
 - **Log**: the PR's commits with a graph line and a text/hash filter; select a commit, or shift-select a range, to see

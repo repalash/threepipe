@@ -22,9 +22,10 @@ export function formatWhen(iso) {
 }
 
 export class LogView {
-    constructor(el, {onOpen}) {
+    constructor(el, {onOpen, onSelect = null}) {
         this.el = el
         this.onOpen = onOpen
+        this.onSelect = onSelect // (summary html) for the status bar
         this.commits = []
         this.sel = null // {anchor, a, b} display indices (newest first)
         this.filter = ''
@@ -139,7 +140,7 @@ export class LogView {
             details.innerHTML = `<div class="log-msg"><div class="log-subject">${esc(subject)}</div>${body ? `<pre class="log-body">${esc(body)}</pre>` : ''}${trailers ? `<div class="log-trailers">${trailers}</div>` : ''}</div>
                 <div><span class="log-sha">${newer.sha.slice(0, 8)}</span> ${esc(c.author?.name || '')}${newer.author?.login ? ` <span class="dim">@${esc(newer.author.login)}</span>` : ''}
                 on ${esc(new Date(c.author?.date).toLocaleString())}</div>${committer}
-                <div><a href="${esc(newer.html_url)}" target="_blank" rel="noopener">Open on GitHub</a></div>`
+                <div><a href="${esc(newer.html_url)}" target="_blank" rel="noopener">Open Commit on GitHub</a></div>`
         } else {
             details.innerHTML = `<div>${this.sel.b - this.sel.a + 1} commits selected</div><div class="dim">${older.sha.slice(0, 8)} … ${newer.sha.slice(0, 8)}</div>`
         }
@@ -152,6 +153,9 @@ export class LogView {
             art.innerHTML = html
             bodyEl.replaceWith(art)
         }).catch(() => {})
+        this.onSelect?.(newer === older
+            ? `${esc(newer.sha.slice(0, 8))} · ${esc(newer.commit.author?.name || '')} · ${esc(newer.commit.message.split('\n')[0])}`
+            : `${this.sel.b - this.sel.a + 1} commits · ${esc(older.sha.slice(0, 8))} … ${esc(newer.sha.slice(0, 8))}`)
         this.el.querySelector('#log-files-count').textContent = ''
         this.el.querySelector('#log-tree').innerHTML = '<div class="tree-msg dim">Loading…</div>'
         try {

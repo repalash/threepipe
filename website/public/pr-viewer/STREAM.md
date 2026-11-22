@@ -32,25 +32,46 @@ each list. Status: ✅ done (commit), 🔨 in progress, 📋 planned, 💤 parke
 12. ✅ Markdown in commit messages: the Log's commit details render the body as Markdown, trailers
     (Co-Authored-By …) one per line. The PR description is GitHub's own rendering (item 10).
 
+13. ✅ Settings split: the titlebar gear has the app's settings (theme, editor font, token, open another PR), the
+    diff gear only the diff's (align, sync, ignore, highlighting, collapse, soft wrap, Markdown preview, open on
+    GitHub).
+14. ✅ Markdown rich diff: changed words highlighted inside the rendered text (inserted green, removed struck
+    through); old | new with connectors between the changes and change-aligned scrolling; one page on phones with the
+    removed words and blocks put back; a legend; no side bar on changed blocks (it read as a quote).
+15. ✅ *Preview | Code* toggle in the toolbar for Markdown files (also in the diff gear and Search Everywhere).
+16. ✅ "Open on GitHub" says what it opens: *Open PR on GitHub*; the file button offers the new version (head), the
+    old version (base), or the file's diff on GitHub.
+17. ✅ The project chip is a menu (this repo's PRs, open another PR in a dialog, recent PRs, start page); the folder
+    button left the strip.
+18. ✅ A × next to "Changes from: commit …" goes back to all commits.
+19. ✅ PR search in a snapshot filters the recorded list (a snapshot has no search API).
+20. ✅ Inline icons in messages no longer break the line.
+21. ✅ Tabs close with × (Log, Timeline); Show Log from the commits menu or Search Everywhere brings the Log back.
+22. ✅ The Changes strip button works from the Commit panel.
+23. ✅ Tooltips show after 0.3 s (custom; the browser's take over a second).
+24. ✅ The status bar follows the tab in front: the file (language, +/−, difference) in the diff, the commit count and
+    selection in the Log, the PR and its comment counts in the Timeline.
+25. ✅ Double-click a file in the tree brings the diff tab to the front (a tap does on a phone).
+
 ## In progress
 
 (none)
 
 ## Planned
 
-13. 📋 Git operations from the Log's context menu, first batch (no merge needed): Copy Revision Number, View in
+26. 📋 Git operations from the Log's context menu, first batch (no merge needed): Copy Revision Number, View in
     browser, Create Patch, Go to Parent / Child, New Branch / Tag, Compare with PR head, Edit Commit Message (F2),
     Squash / Fixup into the previous commit, Undo Commit (head), Reset Current Branch to Here. All rewrites check the
     branch first and offer Undo.
-14. 📋 GitHub-style URLs, as github.dev does: replace `github.com` in a PR / commit / compare link with the viewer's
+27. 📋 GitHub-style URLs, as github.dev does: replace `github.com` in a PR / commit / compare link with the viewer's
     address, e.g. `…/pr-viewer/<owner>/<repo>/pull/<n>/files`. Needs the host to serve the page for any path under
     `/pr-viewer/` (a 404 fallback that forwards the path to `?pr=` works on static hosts).
 
 ## Parked
 
-15. 💤 Open the viewer in the chat app's side panel through the iJewel MCP `open`: the app shows it inline and the
+28. 💤 Open the viewer in the chat app's side panel through the iJewel MCP `open`: the app shows it inline and the
     frame stays blank (an outside site in its frame); needs the page served as an MCP App by the server.
-16. 💤 Merge-based Git operations (Drop, Cherry-Pick, Revert in general, reorder): possible with GitHub's merge API
+29. 💤 Merge-based Git operations (Drop, Cherry-Pick, Revert in general, reorder): possible with GitHub's merge API
     but fail on conflicts with no way to resolve them here.
 
 ## Notes

@@ -51,9 +51,11 @@ const esc = (s) => s.replace(/[&<>"]/g, (c) => ({'&': '&amp;', '<': '&lt;', '>':
 const STATUS_LABEL = {added: 'Added', removed: 'Deleted', modified: 'Modified', renamed: 'Renamed', copied: 'Copied', changed: 'Changed'}
 
 export class FileTree {
-    constructor(el, {onSelect, onToggleViewed = null, checks = false, rootLabel = ''}) {
+    constructor(el, {onSelect, onOpen = null, onToggleViewed = null, checks = false, rootLabel = ''}) {
         this.el = el
         this.onSelect = onSelect
+        this.onOpen = onOpen // double-click on a file
+
         this.onToggleViewed = onToggleViewed // set: a Viewed slot on each file (blue dot: not viewed yet)
         this.checks = checks // the slot is a checkbox instead (the Commit panel: files to include); `viewed` = checked
         this.rootLabel = rootLabel
@@ -73,7 +75,12 @@ export class FileTree {
                 this.collapsed.has(p) ? this.collapsed.delete(p) : this.collapsed.add(p)
                 this.render()
             } else if (row.dataset.file) {
-                this.onSelect(row.dataset.file)
+                // a double-click by hand: a click re-renders the rows, so the browser's dblclick never fires
+                const now = performance.now(), path = row.dataset.file
+                const dbl = this.lastClick && this.lastClick.path === path && now - this.lastClick.t < 450
+                this.lastClick = dbl ? null : {path, t: now}
+                if (dbl && this.onOpen) this.onOpen(path)
+                else this.onSelect(path)
             }
         })
     }

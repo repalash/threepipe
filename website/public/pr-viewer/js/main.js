@@ -4,14 +4,15 @@ import {
 } from './github.js'
 import {
     applyTheme, applyThemeCss, DEFAULT_THEME, ensureLanguage, fullWidthSelection, languageForPath, languageName, loadMonaco,
-    MONACO_THEME, themeById, THEMES,
+    MONACO_THEME, themeById, THEMES, DIFF_COLORS,
 } from './editor.js'
 import {SideBySideViewer} from './sbs.js'
 import {FileTree} from './tree.js'
 import {fileIcon, icons, isImagePath} from './icons.js'
 import {formatWhen, LogView} from './log.js'
 import {onDoubleShift, Palette} from './palette.js'
-import {highlightBlocks, renderMarkdown, repoResolvers, sanitize} from './markdown.js'
+import {installTooltips} from './tooltip.js'
+import {highlightBlocks, renderMarkdown, repoResolvers, richSource, sanitize} from './markdown.js'
 
 const $ = (s, el = document) => el.querySelector(s)
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'})[c])
@@ -326,15 +327,14 @@ function buildShell() {
             <span class="state-pill" id="state-pill"></span>
             <span class="spacer"></span>
             <button class="tb-btn" id="btn-search" title="Search Everywhere (Double Shift)">${icons.search}</button>
-            <a class="tb-btn" id="btn-github" target="_blank" rel="noopener" title="Open on GitHub">${icons.github}</a>
-            <button class="tb-btn" id="btn-token" title="GitHub token">${icons.lock}</button>
+            <a class="tb-btn" id="btn-github" target="_blank" rel="noopener" title="Open the pull request on GitHub">${icons.github}</a>
+            <button class="tb-btn" id="btn-app" title="Settings: theme, editor font, GitHub token">${icons.gear}</button>
         </header>
         <div class="main">
             <nav class="strip hide-mobile">
                 <button class="strip-btn" id="strip-commit" title="Commit (edits made here)">${icons.commit}<i class="strip-badge" id="strip-badge" hidden></i></button>
                 <button class="strip-btn active" id="strip-changes" title="Changes">${icons.changes}</button>
                 <button class="strip-btn" id="strip-prs" title="Pull requests of the repository">${icons.pr}</button>
-                <button class="strip-btn" id="strip-home" title="Open another pull request">${icons.folder}</button>
             </nav>
             <aside class="side" id="side">
                 <div class="side-head">
@@ -343,9 +343,9 @@ function buildShell() {
                 </div>
                 <div class="pr-head" id="pr-head" hidden>
                     <div class="pr-title" id="pr-title"></div>
-                    <div class="pr-links"><button class="pr-link" id="pr-timeline">View Timeline</button><a class="pr-link" id="pr-link" target="_blank" rel="noopener">View on GitHub</a></div>
+                    <div class="pr-links"><button class="pr-link" id="pr-timeline">View Timeline</button><a class="pr-link" id="pr-link" target="_blank" rel="noopener">Open PR on GitHub</a></div>
                     <div class="pr-from"><span>Changes from</span>
-                        <button class="pr-commits" id="pr-commits"></button>
+                        <button class="pr-commits" id="pr-commits"></button><button class="pr-clear" id="pr-clear" title="Show all commits" hidden>${icons.close}</button>
                         <span class="pr-branch" id="pr-branch"></span>
                     </div>
                 </div>
@@ -389,16 +389,16 @@ function buildShell() {
             <div class="scrim only-mobile" id="scrim"></div>
             <section class="content">
                 <div class="tabs">
-                    <button class="tab" id="tab-log" title="Commits">${icons.log}<span>Log</span></button>
+                    <button class="tab" id="tab-log" title="Commits">${icons.log}<span>Log</span><i class="tab-x" data-close="log" title="Close">${icons.close}</i></button>
                     <button class="tab active" id="tab-changes">${icons.changes}<span id="tab-label">Changes</span></button>
-                    <button class="tab" id="tab-timeline" hidden>${icons.comment}<span>Timeline</span></button>
+                    <button class="tab" id="tab-timeline" hidden>${icons.comment}<span>Timeline</span><i class="tab-x" data-close="timeline" title="Close">${icons.close}</i></button>
                 </div>
                 <div class="log-host" id="log-host" hidden></div>
                 <div class="timeline-host" id="timeline-host" hidden></div>
                 <div class="toolbar" id="toolbar">
                     <button class="tb-btn" id="btn-prev-diff" title="Previous Difference (Shift+F7)">${icons.up}</button>
                     <button class="tb-btn" id="btn-next-diff" title="Next Difference (F7)">${icons.down}</button>
-                    <a class="tb-btn hide-mobile" id="btn-open-file" target="_blank" rel="noopener" title="Open the file on GitHub">${icons.external}</a>
+                    <button class="tb-btn hide-mobile" id="btn-open-file" title="Open the file on GitHub: the new or the old version, or its diff">${icons.external}</button>
                     <button class="tb-btn" id="btn-prev-file" title="Previous File (Alt+←)">${icons.left}</button>
                     <span class="file-pos" id="file-pos"></span>
                     <button class="tb-btn" id="btn-next-file" title="Next File (Alt+→)">${icons.right}</button>
@@ -407,12 +407,15 @@ function buildShell() {
                     <button class="tb-btn" id="btn-edit" title="Edit the pull request's files (then commit to its branch)" hidden>${icons.pencil}</button>
                     <label class="viewed-toggle" title="Mark the file as viewed (V)"><input type="checkbox" id="chk-viewed"><span>Viewed</span></label>
                     <span class="diff-count" id="diff-count"></span>
-                    <button class="tb-btn" id="btn-md" title="Markdown: show the preview or the code" hidden></button>
+                    <div class="seg seg-md" id="seg-md" hidden>
+                        <button class="tb-btn tb-text" id="btn-md-preview" title="Show the Markdown rendered">${icons.eye}<span>Preview</span></button>
+                        <button class="tb-btn tb-text" id="btn-md-code" title="Show the Markdown code">${icons.code}<span>Code</span></button>
+                    </div>
                     <div class="seg">
                         <button class="tb-btn" id="btn-sbs" title="Side-by-side viewer">${icons.sideBySide}</button>
                         <button class="tb-btn" id="btn-unified" title="Unified viewer">${icons.unified}</button>
                     </div>
-                    <button class="tb-btn" id="btn-settings" title="Settings">${icons.gear}</button>
+                    <button class="tb-btn" id="btn-settings" title="Diff settings">${icons.gear}</button>
                 </div>
                 <div class="viewer" id="viewer" data-hl="${settings.highlight}">
                     <div class="view" id="view-sbs"></div>
@@ -427,14 +430,19 @@ function buildShell() {
             </section>
         </div>
         <footer class="statusbar hide-mobile">
-            <span id="st-lang"></span><span class="spacer"></span><span id="st-stat"></span><span id="st-pos"></span>
+            <span class="st-group" data-tab="changes"><span id="st-lang" class="st-item"></span><span class="spacer"></span><span id="st-stat"></span><span id="st-pos"></span></span>
+            <span class="st-group" data-tab="log" hidden><span class="st-item" id="st-log-n"></span><span class="spacer"></span><span class="st-item" id="st-log-sel"></span></span>
+            <span class="st-group" data-tab="timeline" hidden><span class="st-item" id="st-tl"></span><span class="spacer"></span><span class="st-item" id="st-tl-n"></span></span>
         </footer>`
 
     state.tree = new FileTree($('#tree'), {
-        onSelect: (path) => { selectFile(path); closeDrawer() },
+        // a click shows the file; on a phone (the drawer closes) or with a double-click, the diff tab comes to the front
+        onSelect: (path) => { selectFile(path); if (mobileQuery.matches) { setTab('changes'); closeDrawer() } },
+        onOpen: () => setTab('changes'),
         onToggleViewed: (path) => { const f = state.order.find((x) => x.path === path); if (f) toggleViewed(f, !state.viewed.has(path)) },
     })
     $('#pr-commits').onclick = (e) => commitMenu(e.currentTarget)
+    $('#pr-clear').onclick = () => { const t = state.target; navigate({...t, commit: undefined}, state.order[state.index]?.path) }
     $('#strip-prs').onclick = () => setSidePanel(state.sidePanel === 'prs' ? 'changes' : 'prs')
     $('#strip-commit').onclick = () => setSidePanel(state.sidePanel === 'commit' ? 'changes' : 'commit')
     state.cmtTree = new FileTree($('#cmt-tree'), {
@@ -471,15 +479,16 @@ function buildShell() {
     $('#btn-sbs').onclick = () => setView('sbs')
     $('#btn-unified').onclick = () => setView('unified')
     $('#btn-settings').onclick = (e) => settingsMenu(e.currentTarget)
-    $('#btn-token').onclick = tokenDialog
+    $('#btn-open-file').onclick = (e) => openMenu(e.currentTarget, openOnGitHubItems())
+    $('#btn-app').onclick = (e) => appMenu(e.currentTarget)
     $('#btn-expand').onclick = () => state.tree.collapseAll(false)
     $('#btn-collapse').onclick = () => state.tree.collapseAll(true)
     $('#btn-reload').onclick = () => reloadTarget()
     $('#btn-edit').onclick = () => setEditing(!state.editing)
     $('#btn-commit').onclick = () => openCommitPanel()
-    $('#tab-log').onclick = () => setTab('log')
+    $('#tab-log').onclick = (e) => e.target.closest('.tab-x') ? closeTab('log') : setTab('log')
     $('#tab-changes').onclick = () => setTab('changes')
-    $('#tab-timeline').onclick = () => setTab('timeline')
+    $('#tab-timeline').onclick = (e) => e.target.closest('.tab-x') ? closeTab('timeline') : setTab('timeline')
     $('#pr-timeline').onclick = () => openTimeline()
     $('#timeline-host').onclick = (e) => {
         const li = e.target.closest('.tl-commits li[data-sha]')
@@ -487,19 +496,19 @@ function buildShell() {
         const p = e.target.closest('.tl-path')
         if (p) { setTab('changes'); selectFile(p.dataset.path) }
     }
-    $('#btn-md').onclick = () => toggleMdPreview()
+    $('#btn-md-preview').onclick = () => !settings.mdPreview && toggleMdPreview()
+    $('#btn-md-code').onclick = () => settings.mdPreview && toggleMdPreview()
     $('#side-title').onclick = (e) => state.sidePanel !== 'prs' && commitMenu(e.currentTarget)
     $('#chk-viewed').onchange = (e) => toggleViewed(state.order[state.index], e.target.checked)
     $('#btn-drawer').onclick = openDrawer
     $('#btn-drawer-close').onclick = closeDrawer
     $('#scrim').onclick = closeDrawer
     $('#strip-changes').onclick = () => {
-        if (state.sidePanel === 'prs') return setSidePanel('changes')
+        if (state.sidePanel && state.sidePanel !== 'changes') return setSidePanel('changes')
         document.body.classList.toggle('side-hidden')
     }
-    $('#strip-home').onclick = () => { history.pushState(null, '', './'); route() }
     // the project chip opens the repository's pull requests, as the IDE's Pull Requests tool window
-    $('#proj').onclick = (e) => { e.preventDefault(); setSidePanel('prs'); openDrawer() }
+    $('#proj').onclick = (e) => { e.preventDefault(); projectMenu(e.currentTarget) }
     setupSplitter()
     setupPalette()
     window.addEventListener('keydown', onKey, true)
@@ -582,7 +591,7 @@ function renderHeader() {
     const initials = target.repo.replace(/[^a-zA-Z0-9]+/g, ' ').trim().split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase() || 'R'
     $('#proj-badge').textContent = initials
     $('#proj-name').textContent = target.repo
-    $('#proj').title = `${target.owner}/${target.repo}: open another pull request`
+    $('#proj').title = `${target.owner}/${target.repo}: recent and other pull requests`
     const pr = cs.pr
     $('#branch').innerHTML = pr ? `${icons.branch}<span>${esc(pr.head.ref)}</span>` : ''
     $('#branch').title = pr ? `${pr.head.label} → ${pr.base.label}` : ''
@@ -596,9 +605,10 @@ function renderHeader() {
     } else pill.className = 'state-pill hidden'
     $('#btn-github').href = cs.htmlUrl + (pr && !cs.commit ? '/files' : '')
     const what = cs.range ? `Commits ${short(cs.range[0])}..${short(cs.range[1])}` : cs.commit ? `Commit ${short(cs.headSha)}` : `Changes Between ${short(cs.baseSha) || '∅'} and ${short(cs.headSha)}`
-    $('#tab-log').hidden = !cs.commits?.length
+    $('#tab-log').hidden = !cs.commits?.length || !!state.closedTabs?.has('log')
     if (cs.commits?.length) {
-        state.log ??= new LogView($('#log-host'), {onOpen: openCommitSpec})
+        state.log ??= new LogView($('#log-host'), {onOpen: openCommitSpec, onSelect: (html) => { $('#st-log-sel').innerHTML = html }})
+        $('#st-log-n').innerHTML = `${icons.log}${cs.commits.length} commit${cs.commits.length === 1 ? '' : 's'}${pr ? ` on ${esc(pr.head.ref)}` : ''}`
         state.log.setCommits(cs.commits, {owner: target.owner, repo: target.repo, selected: target.commit || (target.type === 'commit' ? target.sha : null), headRef: pr?.head.ref})
     }
     state.sideTitle = what
@@ -620,6 +630,7 @@ function renderHeader() {
         const n = cs.commits?.length || 0
         $('#pr-commits').innerHTML = (cs.range ? `${short(cs.range[0])}..${short(cs.range[1])}`
             : cs.commit ? `commit ${short(cs.headSha)}` : `${n} commit${n === 1 ? '' : 's'}`) + icons.chevronDown
+        $('#pr-clear').hidden = !(cs.commit || cs.range)
         $('#pr-branch').innerHTML = `${icons.tag}<span>${esc(pr.head.ref)}</span>`
         $('#pr-branch').title = `${pr.head.label} → ${pr.base.label}`
     }
@@ -629,12 +640,52 @@ function sideTitle() {
     return state.sideTitle || 'Changes'
 }
 
+/** The project chip, as the IDE's project switcher: recent pull requests, this repository's PRs, open another. */
+function projectMenu(anchor) {
+    const cur = state.target ? targetToParams(state.target).toString() : ''
+    const rec = recents().filter((r) => r.key !== cur).slice(0, 8)
+    openMenu(anchor, [
+        {label: `${icons.pr} Pull Requests of ${esc(state.target.repo)}`, action: () => { setSidePanel('prs'); openDrawer() }},
+        {label: `${icons.folder} Open Another Pull Request…`, action: openPrDialog},
+        ...(rec.length ? ['-', {html: 'Recent'}] : []),
+        ...rec.map((r) => ({label: `${esc(r.title || r.label)}<div class="menu-sub">${esc(r.label)}</div>`, action: () => { history.pushState(null, '', '?' + r.key); route() }})),
+        '-',
+        {label: 'Start Page', action: () => { history.pushState(null, '', './'); route() }},
+    ])
+}
+
+/** A pull request, commit or compare URL (or owner/repo#n), opened without leaving the current view first. */
+function openPrDialog() {
+    const dlg = $('#dialog')
+    dlg.innerHTML = `
+        <form class="dlg" method="dialog">
+            <h2>Open a pull request</h2>
+            <p class="dim">A GitHub pull request, commit or compare URL, or <code>owner/repo#123</code>.</p>
+            <input id="op-url" placeholder="https://github.com/owner/repo/pull/123" autocomplete="off" spellcheck="false">
+            <div class="dlg-err" id="op-err" hidden></div>
+            <div class="dlg-actions"><span class="spacer"></span>
+                <button type="button" id="op-cancel" class="btn btn-ghost">Cancel</button>
+                <button type="submit" class="btn btn-primary">Open</button></div>
+        </form>`
+    dlg.showModal()
+    $('#op-url', dlg).focus()
+    $('#op-cancel', dlg).onclick = () => dlg.close()
+    $('form', dlg).onsubmit = (e) => {
+        e.preventDefault()
+        const t = parseTarget($('#op-url', dlg).value)
+        if (!t) { $('#op-err', dlg).textContent = 'Not a pull request, commit or compare link'; $('#op-err', dlg).hidden = false; return }
+        dlg.close()
+        navigate(t)
+    }
+}
+
 function commitMenu(anchor) {
     const {cs, target} = state
     if (!cs?.commits?.length) return
     const items = []
     if (target.type === 'pr') {
         items.push({label: `All commits (${cs.commits.length})`, checked: !target.commit, action: () => navigate({...target, commit: undefined})})
+        items.push({label: `${icons.log} Show Log`, action: showLog})
         items.push('-')
     }
     for (const c of cs.commits) {
@@ -655,7 +706,6 @@ function settingsMenu(anchor) {
     openMenu(anchor, [
         {label: 'Align Changes In Side-by-Side Diff', checked: settings.align, action: () => { set('align', !settings.align); applyView() }},
         {label: 'Synchronize Scrolling', checked: settings.syncScroll, disabled: renderer() !== 'sbs', action: () => { set('syncScroll', !settings.syncScroll); state.sbs?.setOptions({syncScroll: settings.syncScroll}) }},
-        {label: `${icons.external} Show Diff on GitHub`, action: () => window.open($('#btn-github').href, '_blank', 'noopener')},
         '-',
         {html: 'Ignore Differences'},
         ignore('none'), ignore('trim'), ignore('all'),
@@ -663,16 +713,49 @@ function settingsMenu(anchor) {
         {html: 'Highlighting Differences'},
         hl('lines'), hl('words'), hl('none'),
         '-',
-        {label: `Theme: ${esc(themeById(settings.theme).name)} ▸`, keepOpen: true, action: () => themeMenu(anchor)},
         {label: 'Collapse Unchanged Fragments', checked: settings.collapseUnchanged, disabled: renderer() !== 'monaco', action: () => { set('collapseUnchanged', !settings.collapseUnchanged); applyMonacoOptions() }},
         {label: 'Soft-Wrap', checked: settings.wordWrap, disabled: renderer() !== 'monaco', action: () => { set('wordWrap', !settings.wordWrap); applyMonacoOptions() }},
-        {label: `Increase Font Size <span class="dim">(${fontSize()}px)</span>`, hint: `${MOD}=`, action: () => changeFont(1)},
-        {label: 'Decrease Font Size', hint: `${MOD}−`, action: () => changeFont(-1)},
+        {label: 'Markdown Files as Preview', checked: settings.mdPreview, action: () => toggleMdPreview()},
+        '-',
+        ...openOnGitHubItems(),
+    ], {align: 'right'})
+}
+
+/** The app's settings (titlebar gear): theme, editor font, token, shortcuts. The diff's own settings are in its gear. */
+function appMenu(anchor) {
+    openMenu(anchor, [
+        {html: 'Appearance'},
+        {label: `Theme: ${esc(themeById(settings.theme).name)} ▸`, keepOpen: true, action: () => themeMenu(anchor)},
+        '-',
+        {html: `Editor font <span class="dim">(${fontSize()}px, code only)</span>`},
+        {label: 'Increase Font Size', hint: `${MOD}=`, keepOpen: true, action: () => { changeFont(1); appMenu(anchor) }},
+        {label: 'Decrease Font Size', hint: `${MOD}−`, keepOpen: true, action: () => { changeFont(-1); appMenu(anchor) }},
         {label: 'Reset Font Size', hint: `${MOD}0`, action: () => changeFont(0)},
         '-',
-        {label: 'GitHub Token…', action: tokenDialog},
-        {label: `F7 / ⇧F7 differences · Alt+→ / Alt+← files · V viewed · ${MOD}= / ${MOD}− / ${MOD}0 editor font`, disabled: true},
+        {html: 'GitHub'},
+        {label: `${icons.lock} ${getToken() ? 'Token saved: change or remove…' : 'Add a Token…'}`, action: tokenDialog},
+        {label: `${icons.folder} Open Another Pull Request…`, action: openPrDialog},
+        '-',
+        {label: `Double Shift: Search Everywhere · F7 / ⇧F7: differences · Alt+→ / Alt+←: files · V: viewed`, disabled: true},
     ], {align: 'right'})
+}
+
+/** The current file on GitHub: the new version (PR head), the old one (base), or the file in the PR's diff. */
+function openOnGitHubItems() {
+    const f = state.order[state.index], cs = state.cs, t = state.target
+    if (!f || !cs) return []
+    const blob = (sha, path) => `https://github.com/${t.owner}/${t.repo}/blob/${sha}/${path}`
+    const items = []
+    if (f.status !== 'removed') items.push({label: `${icons.external} Open New Version on GitHub <span class="dim">${short(cs.headSha)}</span>`, action: () => window.open(blob(cs.headSha, f.path), '_blank', 'noopener')})
+    if (f.status !== 'added' && cs.baseSha) items.push({label: `${icons.external} Open Old Version on GitHub <span class="dim">${short(cs.baseSha)}</span>`, action: () => window.open(blob(cs.baseSha, f.prevPath || f.path), '_blank', 'noopener')})
+    items.push({label: `${icons.external} Show This File's Diff on GitHub`, action: async () => {
+        const w = window.open('about:blank', '_blank')
+        // GitHub's anchor for a file in a diff is the SHA-256 of its path
+        const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(f.path)))].map((b) => b.toString(16).padStart(2, '0')).join('')
+        const base = cs.pr && !cs.commit && !cs.range ? `${cs.htmlUrl}/files` : cs.htmlUrl
+        if (w) w.location = `${base}#diff-${hash}`
+    }})
+    return items
 }
 
 const MOD = /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl+'
@@ -713,6 +796,20 @@ function applyHighlight() {
     state.sbs?.setOptions({highlight: settings.highlight})
 }
 
+function closeTab(tab) {
+    state.closedTabs ??= new Set()
+    state.closedTabs.add(tab)
+    $('#tab-' + tab).hidden = true
+    if (state.tab === tab) setTab('changes')
+}
+
+function showLog() {
+    state.closedTabs?.delete('log')
+    $('#tab-log').hidden = false
+    setTab('log')
+    closeDrawer()
+}
+
 function setTab(tab) {
     state.tab = tab
     for (const k of ['log', 'changes', 'timeline']) $('#tab-' + k).classList.toggle('active', k === tab)
@@ -720,6 +817,8 @@ function setTab(tab) {
     $('#timeline-host').hidden = tab !== 'timeline'
     $('#toolbar').hidden = tab !== 'changes'
     $('#viewer').hidden = tab !== 'changes'
+    // the status bar tells about the tab in front
+    for (const g of document.querySelectorAll('.statusbar .st-group')) g.hidden = g.dataset.tab !== tab
 }
 
 /** Opens a commit (or 'a..b' range) of the PR picked in the Log, optionally at a file. */
@@ -818,9 +917,7 @@ async function openFileAt(i, push = true, keepScroll = false) {
     $('#file-pos').textContent = `${i + 1}/${state.order.length} files`
     $('#st-lang').innerHTML = `${fileIcon(f.path)}<span>${esc(languageName(languageForPath(f.path)))}</span>`
     $('#st-stat').innerHTML = `<span class="add">+${f.additions}</span> <span class="del">−${f.deletions}</span>`
-    $('#btn-open-file').href = f.status === 'removed'
-        ? `https://github.com/${state.target.owner}/${state.target.repo}/blob/${state.cs.baseSha}/${f.path}`
-        : `https://github.com/${state.target.owner}/${state.target.repo}/blob/${state.cs.headSha}/${f.path}`
+
     renderViewed()
     state.editableFile = false
     applyEditable()
@@ -865,9 +962,9 @@ async function openFileAt(i, push = true, keepScroll = false) {
     // tokenize up front: deleted lines in the unified view otherwise can render before their colors exist
     for (const m of state.models) if (m.getLineCount() < 20000) m.tokenization.forceTokenization(m.getLineCount())
 
-    $('#btn-md').hidden = !isMarkdown(f.path)
-    $('#btn-md').innerHTML = settings.mdPreview ? icons.code : icons.eye
-    $('#btn-md').title = settings.mdPreview ? 'Show the Markdown code' : 'Show the Markdown preview'
+    $('#seg-md').hidden = !isMarkdown(f.path)
+    $('#btn-md-preview').classList.toggle('on', mdPreviewOn(f))
+    $('#btn-md-code').classList.toggle('on', !mdPreviewOn(f))
     try {
         if (mdPreviewOn(f)) {
             const changes = f.status === 'added' ? [wholeInsert(modified)]
@@ -940,18 +1037,33 @@ function changedLines(lineChanges) {
 async function showMarkdownPreview(f, oldText, newText, lineChanges, labels, id, keepScroll) {
     const {cs, target: t} = state
     const L = changedLines(lineChanges)
-    const classify = (mod, other, cls) => (a, b) => {
+    // blocks are marked by the change of their source lines; `map` gives the source line of each rendered line
+    const classify = (mod, other, cls, map) => (a, b) => {
         let r = ''
-        for (let l = a + 1; l <= b; l++) { if (mod.has(l)) return 'md-mod'; if (other.has(l)) r = cls }
+        for (let i = a; i < b; i++) {
+            const l = map[i]
+            if (!l) continue
+            if (mod.has(l)) return 'md-mod'
+            if (other.has(l)) r = cls
+        }
         return r
     }
     const sides = f.status === 'removed' ? ['old'] : f.status !== 'added' && viewMode() === 'sbs' ? ['old', 'new'] : ['new']
+    const unified = sides.length === 1 && f.status === 'modified'
     const scroll = keepScroll ? $('#view-md .mdp-pane:last-child .mdp-body')?.scrollTop : 0
     let html
     try {
-        html = await Promise.all(sides.map((s) => s === 'old'
-            ? renderMarkdown(oldText, {classify: f.status === 'removed' ? null : classify(L.modOld, L.del, 'md-del'), ...repoResolvers(t.owner, t.repo, cs.baseSha, f.prevPath || f.path)})
-            : renderMarkdown(newText, {classify: f.status === 'added' ? null : classify(L.mod, L.ins, 'md-ins'), ...repoResolvers(t.owner, t.repo, cs.headSha, f.path)})))
+        html = await Promise.all(sides.map((s) => {
+            const old = s === 'old'
+            const whole = old ? f.status === 'removed' : f.status === 'added'
+            const src = whole ? {text: old ? oldText : newText, map: null} : richSource(oldText, newText, lineChanges, s, unified)
+            return renderMarkdown(src.text, {
+                marks: !whole,
+                map: src.map,
+                classify: whole ? null : old ? classify(L.modOld, L.del, 'md-del', src.map) : classify(L.mod, L.ins, 'md-ins', src.map),
+                ...(old ? repoResolvers(t.owner, t.repo, cs.baseSha, f.prevPath || f.path) : repoResolvers(t.owner, t.repo, cs.headSha, f.path)),
+            })
+        }))
     } catch (e) {
         console.error(e)
         toast(`The Markdown preview could not load (${e.message}); showing the code`, 'error')
@@ -961,8 +1073,12 @@ async function showMarkdownPreview(f, oldText, newText, lineChanges, labels, id,
     }
     if (id !== state.fileLoadId) return false
     const view = $('#view-md')
+    const legend = f.status !== 'modified' ? `<span class="mdp-legend">${f.status === 'added' ? 'New file' : 'Deleted file'}</span>`
+        : `<span class="mdp-legend" title="Blocks: a bar and tint on the left. Words: highlighted inside the text.">${sides.length > 1
+            ? '<i class="lg-ins"></i>added <i class="lg-mod"></i>changed <i class="lg-del"></i>removed'
+            : '<i class="lg-ins"></i>added <i class="lg-mod"></i>changed <i class="lg-del"></i>removed (struck through)'}</span>`
     view.innerHTML = `<div class="mdp${sides.length > 1 ? ' two' : ''}">${sides.map((s, i) => `
-        <div class="mdp-pane mdp-${s}"><div class="mdp-head">${s === 'old' ? labels.left : labels.right}</div>
+        ${i ? '<canvas class="mdp-div"></canvas>' : ''}<div class="mdp-pane mdp-${s}"><div class="mdp-head">${s === 'old' ? labels.left : labels.right}${i === sides.length - 1 ? legend : ''}</div>
             <div class="mdp-body"><article class="md">${html[i]}</article></div></div>`).join('')}</div>`
     showView('md')
     const main = $('.mdp-pane:last-child .mdp-body', view)
@@ -970,21 +1086,103 @@ async function showMarkdownPreview(f, oldText, newText, lineChanges, labels, id,
     state.mdCur = -1
     if (scroll) main.scrollTop = scroll
     else if (state.mdMarks.length && f.status === 'modified') markCurrent(0, false)
-    // the two sides scroll together, by proportion
     const bodies = [...view.querySelectorAll('.mdp-body')]
-    if (bodies.length === 2) {
-        let lock = null
-        bodies.forEach((b, i) => b.addEventListener('scroll', () => {
-            if (!settings.syncScroll || (lock && lock !== b)) return
-            lock = b
-            const o = bodies[1 - i]
-            o.scrollTop = b.scrollTop / Math.max(1, b.scrollHeight - b.clientHeight) * (o.scrollHeight - o.clientHeight)
-            requestAnimationFrame(() => { lock = null })
-        }, {passive: true}))
-    }
+    if (bodies.length === 2) linkMarkdownPanes(view, bodies, lineChanges)
     for (const b of bodies) b.addEventListener('scroll', () => updateToolbar(), {passive: true})
-    highlightBlocks(view)
+    highlightBlocks(view).then(() => state.mdRefresh?.())
     return true
+}
+
+/**
+ * Old | new Markdown: connectors between the blocks of each change in the middle (as the code diff's curves), and
+ * scrolling that keeps matching changes side by side (piecewise linear between the changes).
+ */
+function linkMarkdownPanes(view, [ob, nb], lineChanges) {
+    const cv = $('.mdp-div', view)
+    const ctx = cv.getContext('2d')
+    const blocks = (body) => [...body.querySelectorAll('[data-sl]')].map((e) => ({e, sl: +e.dataset.sl, el: +e.dataset.el}))
+    const OB = blocks(ob), NB = blocks(nb)
+    // a change's extent on one side, in the side's content coordinates: [top, bottom], or a point after line `at`
+    const extent = (B, body, from, to, point) => {
+        const base = body.getBoundingClientRect().top - body.scrollTop
+        if (!point) {
+            const hit = B.filter((b) => b.el >= from && b.sl <= to)
+            if (!hit.length) return null
+            return [Math.min(...hit.map((b) => b.e.getBoundingClientRect().top)) - base, Math.max(...hit.map((b) => b.e.getBoundingClientRect().bottom)) - base]
+        }
+        const prev = B.filter((b) => b.el <= from).pop(), next = B.find((b) => b.sl > from)
+        const y = prev && next ? (prev.e.getBoundingClientRect().bottom + next.e.getBoundingClientRect().top) / 2 - base
+            : prev ? prev.e.getBoundingClientRect().bottom - base : next ? next.e.getBoundingClientRect().top - base : 0
+        return [y - 1, y + 1]
+    }
+    let links = []
+    const measure = () => {
+        links = []
+        for (const c of lineChanges) {
+            const hasO = c.originalEndLineNumber > 0, hasM = c.modifiedEndLineNumber > 0
+            const o = extent(OB, ob, c.originalStartLineNumber, c.originalEndLineNumber, !hasO)
+            const n = extent(NB, nb, c.modifiedStartLineNumber, c.modifiedEndLineNumber, !hasM)
+            if (o && n) links.push({o, n, type: hasO && hasM ? 'modified' : hasM ? 'inserted' : 'deleted'})
+        }
+    }
+    const draw = () => {
+        const dpr = devicePixelRatio || 1
+        const w = cv.clientWidth, h = cv.clientHeight
+        if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr) }
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+        ctx.clearRect(0, 0, w, h)
+        const top = cv.getBoundingClientRect().top
+        const oy = ob.getBoundingClientRect().top - top - ob.scrollTop, ny = nb.getBoundingClientRect().top - top - nb.scrollTop
+        for (const l of links) {
+            const a0 = l.o[0] + oy, a1 = l.o[1] + oy, b0 = l.n[0] + ny, b1 = l.n[1] + ny
+            if (Math.max(a1, b1) < 0 || Math.min(a0, b0) > h) continue
+            ctx.fillStyle = DIFF_COLORS[l.type]
+            ctx.beginPath()
+            ctx.moveTo(0, a0)
+            ctx.bezierCurveTo(w / 2, a0, w / 2, b0, w, b0)
+            ctx.lineTo(w, b1)
+            ctx.bezierCurveTo(w / 2, b1, w / 2, a1, 0, a1)
+            ctx.closePath()
+            ctx.fill()
+        }
+    }
+    // scroll sync: the line a third down one side maps through the change extents onto the other side
+    const pairs = () => {
+        const p = [[0, 0]]
+        for (const l of links) { p.push([l.o[0], l.n[0]], [l.o[1], l.n[1]]) }
+        p.push([ob.scrollHeight, nb.scrollHeight])
+        return p.sort((x, y) => x[0] - y[0])
+    }
+    const mapY = (y, from) => {
+        const p = pairs().map((q) => (from === 0 ? q : [q[1], q[0]])).sort((x, z) => x[0] - z[0])
+        for (let i = 1; i < p.length; i++) {
+            if (y <= p[i][0]) {
+                const [x0, y0] = p[i - 1], [x1, y1] = p[i]
+                return x1 > x0 ? y0 + (y - x0) / (x1 - x0) * (y1 - y0) : y1
+            }
+        }
+        return y
+    }
+    let lock = null, raf = 0
+    const sides = [ob, nb]
+    sides.forEach((b, i) => b.addEventListener('scroll', () => {
+        if (settings.syncScroll && (!lock || lock === b)) {
+            lock = b
+            const o = sides[1 - i], ref = b.clientHeight / 3
+            o.scrollTop = mapY(b.scrollTop + ref, i) - ref
+            clearTimeout(lock.t)
+            lock.t = setTimeout(() => { lock = null }, 80)
+        }
+        cancelAnimationFrame(raf)
+        raf = requestAnimationFrame(draw)
+    }, {passive: true}))
+    const refresh = () => { measure(); draw() }
+    new ResizeObserver(refresh).observe(cv)
+    // images and highlighted code change the heights after rendering
+    view.addEventListener('load', refresh, true)
+    setTimeout(refresh, 400)
+    refresh()
+    state.mdRefresh = refresh
 }
 
 function markCurrent(i, smooth = true) {
@@ -1015,6 +1213,10 @@ async function openTimeline() {
         if (state.timelineKey !== key) return
         host.innerHTML = await timelineHtml(cs, data, desc)
         host.scrollTop = 0
+        const pr = cs.pr, st = pr.merged_at ? 'merged' : pr.draft ? 'draft' : pr.state
+        $('#st-tl').innerHTML = `${icons.pr}#${pr.number} · ${st} · ${esc(pr.user?.login || '')} → ${esc(pr.base.ref)}`
+        const nr = data.reviews.filter((r) => r.state !== 'PENDING').length
+        $('#st-tl-n').textContent = `${data.comments.length} comment${data.comments.length === 1 ? '' : 's'} · ${nr} review${nr === 1 ? '' : 's'} · ${data.inline.length} inline`
     } catch (e) {
         if (state.timelineKey === key) host.innerHTML = `<div class="tl-loading dim">Could not load the conversation: ${esc(e.message)}</div>`
         state.timelineKey = null
@@ -1084,7 +1286,7 @@ async function timelineHtml(cs, {comments, reviews, inline}, desc) {
         <div class="tl-item tl-card tl-desc"><div class="tl-meta">${who(pr.user)} <span class="dim">opened this pull request</span> ${when(pr.created_at)}</div>
             <article class="md tl-body">${desc || '<p class="dim">No description provided.</p>'}</article></div>
         ${out}
-        <div class="tl-end dim">${comments.length} comment${comments.length === 1 ? '' : 's'} · ${reviews.filter((r) => r.state !== 'PENDING').length} review${reviews.length === 1 ? '' : 's'} · <a href="${esc(pr.html_url)}" target="_blank" rel="noopener">Open on GitHub</a></div>
+        <div class="tl-end dim">${comments.length} comment${comments.length === 1 ? '' : 's'} · ${reviews.filter((r) => r.state !== 'PENDING').length} review${reviews.length === 1 ? '' : 's'} · <a href="${esc(pr.html_url)}" target="_blank" rel="noopener">Open PR on GitHub</a></div>
     </div>`
 }
 
@@ -1591,6 +1793,8 @@ function actionItems() {
         A('Collapse Unchanged Fragments', () => { setSetting('collapseUnchanged', !s.collapseUnchanged); applyMonacoOptions() }, {toggle: s.collapseUnchanged}),
         A('Soft-Wrap', () => { setSetting('wordWrap', !s.wordWrap); applyMonacoOptions() }, {toggle: s.wordWrap}),
         A('Markdown Preview', () => toggleMdPreview(), {toggle: s.mdPreview, ic: icons.eye}),
+        state.cs?.commits?.length && A('Show Log', () => showLog(), {ic: icons.log}),
+        A('Open Another Pull Request…', () => openPrDialog(), {ic: icons.folder}),
         state.cs?.pr && A('View Timeline', () => openTimeline(), {ic: icons.comment}),
         state.edits.size && A('Commit…', () => openCommitPanel(), {ic: icons.commit}),
         state.editableFile && A(state.editing ? 'Stop Editing' : 'Edit File', () => setEditing(!state.editing), {ic: icons.pencil}),
@@ -1603,8 +1807,8 @@ function actionItems() {
         A('Show Diff', () => setTab('changes'), {ic: icons.changes}),
         A('Pull Requests', () => { setSidePanel('prs'); openDrawer() }, {sub: `${t.owner}/${t.repo}`, ic: icons.pr}),
         A('Changed Files', () => { setSidePanel('changes'); openDrawer() }, {ic: icons.commit}),
-        A('Open on GitHub', () => window.open($('#btn-github').href, '_blank', 'noopener'), {ic: icons.github}),
-        f && A('Open File on GitHub', () => window.open($('#btn-open-file').href, '_blank', 'noopener'), {ic: icons.external}),
+        A(state.cs?.pr ? 'Open PR on GitHub' : 'Open on GitHub', () => window.open($('#btn-github').href, '_blank', 'noopener'), {ic: icons.github}),
+        ...openOnGitHubItems().map((it) => A(it.label.replace(/<[^>]+>/g, '').replace(/^\s+/, ''), it.action, {ic: icons.external})),
         A('Reload', () => reloadTarget(), {ic: icons.refresh}),
         ...THEMES.map((th) => A(`Theme: ${th.name}`, () => setThemeId(th.id), {toggle: settings.theme === th.id, sub: th.dark ? 'dark' : 'light'})),
         A('GitHub Token…', tokenDialog, {ic: icons.lock}),
@@ -1650,5 +1854,6 @@ function setupPalette() {
 
 applyThemeCss(themeById(settings.theme))
 restoreEdits()
+installTooltips()
 window.addEventListener('popstate', () => route())
 route()
