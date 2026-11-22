@@ -19,7 +19,43 @@ export class GitHubError extends Error {
     }
 }
 
+// --- snapshots: `?snap=<name>` answers from recorded API responses (`snap/<name>/`, written by
+// tools/record-snapshot.cjs), to try the page with no token or network to GitHub. Kept for the tab's session.
+
+const SNAP = (() => {
+    try {
+        const s = new URLSearchParams(location.search).get('snap')
+        if (s !== null) s ? sessionStorage.setItem('prv.snap', s) : sessionStorage.removeItem('prv.snap')
+        return sessionStorage.getItem('prv.snap') || ''
+    } catch { return '' }
+})()
+export const snapshotName = () => SNAP
+
+/** The snapshot key of an API request: its path and query, and the method when it is not GET. */
+export function snapKey(url, method = 'GET') {
+    const u = new URL(url, API)
+    return (method === 'GET' ? '' : method + ' ') + u.pathname + u.search
+}
+
+let snapIndex
+async function snapRequest(url, method) {
+    snapIndex ??= fetch(new URL(`../snap/${encodeURIComponent(SNAP)}/index.json`, import.meta.url)).then((r) => {
+        if (!r.ok) throw new GitHubError(`Snapshot "${SNAP}" not found`, r.status)
+        return r.json()
+    })
+    const index = await snapIndex
+    const e = index[snapKey(url, method)]
+    if (!e) throw new GitHubError('Not in this snapshot (it has only what was recorded)', 404)
+    const res = await fetch(new URL(`../snap/${encodeURIComponent(SNAP)}/${e.file}`, import.meta.url))
+    return new Response(await res.arrayBuffer(), {status: e.status, headers: {'Content-Type': e.type}})
+}
+
 async function request(path, {accept = 'application/vnd.github+json', method = 'GET', body} = {}) {
+    if (SNAP) {
+        const res = await snapRequest(path.startsWith('http') ? path : API + path, method)
+        if (!res.ok) throw new GitHubError(`HTTP ${res.status}`, res.status)
+        return res
+    }
     const headers = {Accept: accept}
     const token = getToken()
     if (token) headers.Authorization = `Bearer ${token}`

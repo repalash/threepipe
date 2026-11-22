@@ -52,6 +52,18 @@ limit, add a token (the lock button): a fine-grained token with *Contents: read*
 (write is only for Viewed), or a classic token with `repo`. It is stored in this browser's `localStorage` and sent
 only to `api.github.com`. File contents at a commit never change, so they are cached in Cache Storage.
 
+## Snapshots
+
+To try the page without a token (e.g. on a phone), record a PR's API responses and open it with `&snap=<name>`:
+
+```sh
+node tools/record-snapshot.cjs http://localhost:8000/pr-viewer/ owner/repo/123 demo   # GITHUB_TOKEN for private repos
+```
+
+then `http://localhost:8000/pr-viewer/?snap=demo&pr=owner/repo/123`. It holds the PR, each of its commits with their
+file contents, and the PR lists; anything else answers "Not in this snapshot". `snap/` is git-ignored: a snapshot of a
+private repository contains its code. `?snap=` (empty) leaves snapshot mode.
+
 ## Develop
 
 Serve the folder with any static server, e.g. `python3 -m http.server` in `website/public`, and open
