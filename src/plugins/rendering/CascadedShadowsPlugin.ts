@@ -292,6 +292,7 @@ export class CascadedShadowsPlugin extends AViewerPluginSync {
                 }
                 this.extendedBreaks.length = 0
                 this._sversion++
+                this._lastDefinesKey = ''
                 this.materialExtension.setDirty && this.materialExtension.setDirty()
                 this._viewer?.setDirty()
             }
@@ -602,6 +603,9 @@ export class CascadedShadowsPlugin extends AViewerPluginSync {
     }
 
     private _sversion = 0
+    /** The values the material extension's defines depend on (see materialExtension.extraDefines). */
+    private _definesKey() { return this.cascades + (this.light && !this.isDisabled() ? 'y' : 'n') + (this.fade ? 'f' : '') }
+    private _lastDefinesKey = ''
     protected _updateFrustums = () => {
         if (!this.light) return
 
@@ -621,8 +625,16 @@ export class CascadedShadowsPlugin extends AViewerPluginSync {
         }
 
         // this.updateUniforms()
+        // the new breaks, near and far reach the shaders as uniforms (onObjectRender, by _sversion); the materials
+        // need a program update only when the defines change (the cascade count, on/off, fade). Marking them dirty on
+        // every camera move made three.js rebuild every draw's program parameters and cache key each frame: ~2.6 MB
+        // of garbage a frame with ~1200 draws (measured in a game with a chase camera)
         this._sversion++
-        this.materialExtension.setDirty && this.materialExtension.setDirty()
+        const definesKey = this._definesKey()
+        if (definesKey !== this._lastDefinesKey) {
+            this._lastDefinesKey = definesKey
+            this.materialExtension.setDirty && this.materialExtension.setDirty()
+        }
         this._cameraUpdated = false
         this.setDirty()
     }
