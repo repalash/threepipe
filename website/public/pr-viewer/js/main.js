@@ -1,5 +1,5 @@
 import {
-    commitFiles, getFileContent, getPullHead, getTimeline, moveBranch, getToken, getViewedStates, GitHubError, loadChangeSet, paramsToTarget, parseTarget,
+    commitFiles, getFileContent, getPullHead, getTimeline, getViewer, moveBranch, getToken, getViewedStates, GitHubError, loadChangeSet, paramsToTarget, parseTarget,
     listPullRequests, searchMyPullRequests, setFileViewed, setToken, targetToParams,
 } from './github.js'
 import {
@@ -377,10 +377,12 @@ function buildShell() {
                             <span class="spacer"></span><span class="cmt-count" id="cmt-count"></span>
                         </div>
                         <textarea id="cmt-msg" placeholder="Commit Message" spellcheck="true"></textarea>
+                        <button class="cmt-who" id="cmt-who" title="Commit Options: author and committer"></button>
                         <div class="cmt-err" id="cmt-err" hidden></div>
                         <div class="cmt-actions">
                             <button class="btn btn-primary" id="cmt-go">Commit and Push</button>
                             <span class="cmt-to dim" id="cmt-to"></span>
+                            <button class="tb-btn cmt-gear" id="cmt-options" title="Commit Options: author and committer">${icons.gear}</button>
                         </div>
                     </div>
                 </div>
@@ -458,6 +460,8 @@ function buildShell() {
     $('#cmt-msg').oninput = () => renderCommitPanel(false)
     $('#cmt-msg').onkeydown = (e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); doCommit() } }
     $('#cmt-go').onclick = () => doCommit()
+    $('#cmt-options').onclick = () => commitOptionsDialog()
+    $('#cmt-who').onclick = () => commitOptionsDialog()
     $('#prl-state').onclick = (e) => openMenu(e.currentTarget, ['open', 'closed', 'merged', 'all'].map((v) => ({
         label: v[0].toUpperCase() + v.slice(1), checked: state.prlState === v, action: () => { state.prlState = v; loadPrList() },
     })))
@@ -906,6 +910,7 @@ async function openFileAt(i, push = true, keepScroll = false) {
     const id = ++state.fileLoadId
     state.index = i
     state.tree.select(f.path)
+    if (state.cmtTree?.root) state.cmtTree.select(f.path)
     if (push) {
         const p = targetToParams(state.target)
         p.set('file', f.path)
@@ -1428,9 +1433,71 @@ function renderCommitPanel(tree = true) {
     $('#cmt-count').textContent = files.length ? `${included.length} modified` : ''
     const pr = state.cs?.pr
     $('#cmt-to').innerHTML = pr ? `to ${icons.branch}<span>${esc(pr.head.ref)}</span>` : ''
+    const id = identity()
+    $('#cmt-who').innerHTML = id.author
+        ? `Author: <b>${esc(id.author.name)}</b> &lt;${esc(id.author.email)}&gt;${id.committer ? ` · committer: <b>${esc(id.committer.name)}</b>` : ''}`
+        : `Author: <b>your GitHub account</b>${amend ? ' (Amend keeps the commit\'s author)' : ''}`
     const msg = $('#cmt-msg').value.trim()
     $('#cmt-go').disabled = state.committing || !canEditPr() || !msg || (!included.length && !(amend && msg !== headCommitMessage().trim()))
     $('#cmt-go').textContent = state.committing ? 'Pushing…' : amend ? 'Amend and Push' : 'Commit and Push'
+}
+
+/** Who commits: {author, committer} ({name, email} or null: the token's GitHub account). Kept in this browser. */
+function identity() {
+    const v = store.get('identity', null)
+    const ok = (p) => p && p.name && p.email ? {name: p.name, email: p.email} : null
+    return {author: ok(v?.author), committer: ok(v?.committer)}
+}
+
+async function commitOptionsDialog() {
+    const id = identity()
+    const dlg = $('#dialog')
+    const v = (p, k) => esc(p?.[k] || '')
+    dlg.innerHTML = `
+        <form class="dlg" method="dialog">
+            <h2>Commit Options</h2>
+            <p class="dim">Who the commits made here are by. Left empty, GitHub uses the account of your token.
+            GitHub links a commit to a profile by its email.</p>
+            <label class="dlg-label">Author</label>
+            <div class="dlg-row"><input id="co-an" placeholder="Name" value="${v(id.author, 'name')}" autocomplete="name"><input id="co-ae" placeholder="Email" value="${v(id.author, 'email')}" autocomplete="email" type="email"></div>
+            <label class="cmt-amend"><input type="checkbox" id="co-same" ${id.committer ? '' : 'checked'}><span>Committer is the author</span></label>
+            <div class="dlg-row" id="co-crow" ${id.committer ? '' : 'hidden'}><input id="co-cn" placeholder="Committer name" value="${v(id.committer, 'name')}"><input id="co-ce" placeholder="Committer email" value="${v(id.committer, 'email')}" type="email"></div>
+            <div class="dlg-err" id="co-err" hidden></div>
+            <div class="dlg-actions">
+                <button type="button" id="co-me" class="btn btn-ghost" title="Fill in the name and email of your token's account">Use my account</button>
+                <button type="button" id="co-clear" class="btn btn-ghost">Clear</button>
+                <span class="spacer"></span>
+                <button type="button" id="co-cancel" class="btn btn-ghost">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save</button>
+            </div>
+        </form>`
+    dlg.showModal()
+    $('#co-an', dlg).focus()
+    $('#co-same', dlg).onchange = (e) => { $('#co-crow', dlg).hidden = e.target.checked }
+    $('#co-cancel', dlg).onclick = () => dlg.close()
+    $('#co-clear', dlg).onclick = () => { for (const k of ['an', 'ae', 'cn', 'ce']) $('#co-' + k, dlg).value = ''; $('#co-same', dlg).checked = true; $('#co-crow', dlg).hidden = true }
+    $('#co-me', dlg).onclick = async () => {
+        try {
+            const me = await getViewer()
+            $('#co-an', dlg).value = me.name || me.login
+            // a private email: GitHub's noreply address still links the commit to the profile
+            $('#co-ae', dlg).value = me.email || `${me.id}+${me.login}@users.noreply.github.com`
+        } catch (e) {
+            $('#co-err', dlg).textContent = getToken() ? e.message : 'Add a GitHub token first'
+            $('#co-err', dlg).hidden = false
+        }
+    }
+    $('form', dlg).onsubmit = (e) => {
+        e.preventDefault()
+        const get = (k) => $('#co-' + k, dlg).value.trim()
+        const author = get('an') || get('ae') ? {name: get('an'), email: get('ae')} : null
+        const committer = !$('#co-same', dlg).checked && (get('cn') || get('ce')) ? {name: get('cn'), email: get('ce')} : null
+        const bad = [author, committer].find((p) => p && (!p.name || !/^[^@\s]+@[^@\s]+$/.test(p.email)))
+        if (bad) { $('#co-err', dlg).textContent = 'A name and a valid email are both needed'; $('#co-err', dlg).hidden = false; return }
+        store.set('identity', {author, committer})
+        dlg.close()
+        renderCommitPanel(false)
+    }
 }
 
 function canEditPr() {
@@ -1460,7 +1527,8 @@ async function doCommit() {
     $('#cmt-err').hidden = true
     renderCommitPanel(false)
     try {
-        const {sha, previous} = await commitFiles({...where, expectedHead: headSha, message, amend,
+        const id = identity()
+        const {sha, previous} = await commitFiles({...where, expectedHead: headSha, message, amend, author: id.author, committer: id.committer,
             files: paths.map((path) => ({path, text: state.edits.get(path)}))})
         // the unchecked files keep their edits on the new head
         const rest = new Map([...state.edits].filter(([p]) => !paths.includes(p)))

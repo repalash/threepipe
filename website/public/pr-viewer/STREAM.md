@@ -53,25 +53,30 @@ each list. Status: ✅ done (commit), 🔨 in progress, 📋 planned, 💤 parke
     selection in the Log, the PR and its comment counts in the Timeline.
 25. ✅ Double-click a file in the tree brings the diff tab to the front (a tap does on a phone).
 
+26. ✅ Commit Options (gear in the Commit panel): author and committer name and email, kept in this browser; "Use my
+    account" fills in the token's account (its noreply email when the email is private). Unset, GitHub uses the
+    token's account; Amend keeps the commit's author unless one is set.
+27. ✅ The Commit panel's tree highlights the file that is open.
+
 ## In progress
 
 (none)
 
 ## Planned
 
-26. 📋 Git operations from the Log's context menu, first batch (no merge needed): Copy Revision Number, View in
+28. 📋 Git operations from the Log's context menu, first batch (no merge needed): Copy Revision Number, View in
     browser, Create Patch, Go to Parent / Child, New Branch / Tag, Compare with PR head, Edit Commit Message (F2),
     Squash / Fixup into the previous commit, Undo Commit (head), Reset Current Branch to Here. All rewrites check the
     branch first and offer Undo.
-27. 📋 GitHub-style URLs, as github.dev does: replace `github.com` in a PR / commit / compare link with the viewer's
+29. 📋 GitHub-style URLs, as github.dev does: replace `github.com` in a PR / commit / compare link with the viewer's
     address, e.g. `…/pr-viewer/<owner>/<repo>/pull/<n>/files`. Needs the host to serve the page for any path under
     `/pr-viewer/` (a 404 fallback that forwards the path to `?pr=` works on static hosts).
 
 ## Parked
 
-28. 💤 Open the viewer in the chat app's side panel through the iJewel MCP `open`: the app shows it inline and the
+30. 💤 Open the viewer in the chat app's side panel through the iJewel MCP `open`: the app shows it inline and the
     frame stays blank (an outside site in its frame); needs the page served as an MCP App by the server.
-29. 💤 Merge-based Git operations (Drop, Cherry-Pick, Revert in general, reorder): possible with GitHub's merge API
+31. 💤 Merge-based Git operations (Drop, Cherry-Pick, Revert in general, reorder): possible with GitHub's merge API
     but fail on conflicts with no way to resolve them here.
 
 ## Notes

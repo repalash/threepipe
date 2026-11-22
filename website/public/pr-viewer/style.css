@@ -665,3 +665,13 @@ button.pr-link { border: 0; background: none; padding: 0; font: inherit; cursor:
 .md .md-ins::before, .md .md-mod::before, .md .md-del::before, .md .md-delblock::before { display: none; }
 .md .md-cur { outline: 1px solid color-mix(in srgb, var(--mk) 55%, transparent); outline-offset: 2px; }
 @media (max-width: 760px) { .viewed-toggle span { display: none; } .viewed-toggle { padding: 0 6px; } }
+.cmt-who { border: 0; background: none; padding: 0; text-align: left; color: var(--fg-dim); font: inherit; font-size: 12px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cmt-who b { color: var(--fg); font-weight: 500; }
+.cmt-who:hover { color: var(--fg); }
+.cmt-gear { margin-left: auto; }
+.dlg-label { font-size: 12px; color: var(--fg-dim); margin-bottom: -4px; }
+.dlg-row { display: flex; gap: 8px; }
+.dlg-row[hidden] { display: none; }
+.dlg-row input { flex: 1; min-width: 0; }
+.dlg-err { color: #ff8a80; font-size: 12.5px; }
+.dlg input[type="checkbox"] { width: auto; padding: 0; margin: 0; }

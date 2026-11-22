@@ -379,7 +379,7 @@ async function leasedHead(owner, repo, branch, expected) {
  * the branch has moved since). With `amend`, replaces the head commit instead (same parents and author, a force
  * update). Returns {sha, previous}.
  */
-export async function commitFiles({owner, repo, branch, expectedHead, files, message, amend = false}) {
+export async function commitFiles({owner, repo, branch, expectedHead, files, message, amend = false, author = null, committer = null}) {
     canWrite()
     const R = `/repos/${owner}/${repo}/git`
     const head = await leasedHead(owner, repo, branch, expectedHead)
@@ -397,9 +397,11 @@ export async function commitFiles({owner, repo, branch, expectedHead, files, mes
             tree: files.map((f) => ({path: f.path, mode: modes.get(f.path) || '100644', type: 'blob', content: f.text})),
         }})).sha
     }
+    // author / committer ({name, email}): unset, GitHub uses the token's account; Amend keeps the commit's author
     const body = amend
-        ? {message, tree: treeSha, parents: headCommit.parents.map((p) => p.sha), author: headCommit.author}
-        : {message, tree: treeSha, parents: [head]}
+        ? {message, tree: treeSha, parents: headCommit.parents.map((p) => p.sha), author: author || headCommit.author}
+        : {message, tree: treeSha, parents: [head], ...(author && {author})}
+    if (committer) body.committer = committer
     const commit = await json(`${R}/commits`, {method: 'POST', body})
     await json(`${R}/refs/${refPath(branch)}`, {method: 'PATCH', body: {sha: commit.sha, force: amend}})
     return {sha: commit.sha, previous: head}
