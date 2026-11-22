@@ -8,6 +8,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- `GeometryGeneratorPlugin`: an `archWall` generator (`ArchWallGeometryGenerator`), a wall with a row of round-arched openings like an arcade. Its parameters (width, height, thickness, number of arches, opening width and height, curve segments) are editable like the other generated geometries. It stands on y = 0, with smooth normals along the arches and sharp corners
 - `RootScene.backgroundBlurriness` is saved with the scene, shows in its UI (Background Blurriness) and renders the change: it blurs a background texture or environment map (0 to 1) as in three.js, while the environment light stays sharp
 - `TonemapPlugin` warns once when the background tone mapping is turned off (`scene.backgroundTonemap` or `tonemapBackground`) and the viewer has no GBufferPlugin or DepthBufferPlugin: the screen pass finds the background pixels from the depth, so the background stayed tone mapped with no message
 - Examples: a small button on each example page, with a link to its source and a prompt to copy for an agent (it replaces the code preview panel)
