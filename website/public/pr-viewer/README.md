@@ -59,7 +59,7 @@ node tools/material-themes.mjs /tmp/mtui
 ## GitHub access
 
 Public repositories work without a token (60 API requests an hour per IP). For private repositories and a higher
-limit, add a token (the lock button): a fine-grained token with *Contents: read* and *Pull requests: read and write*
+limit, add a token (the titlebar gear → GitHub token): a fine-grained token with *Contents: read* and *Pull requests: read and write*
 (write is only for Viewed), plus *Contents: read and write* to commit edits, or a classic token with `repo`. It is stored in this browser's `localStorage` and sent
 only to `api.github.com`. File contents at a commit never change, so they are cached in Cache Storage.
 

@@ -58,25 +58,38 @@ each list. Status: ✅ done (commit), 🔨 in progress, 📋 planned, 💤 parke
     token's account; Amend keeps the commit's author unless one is set.
 27. ✅ The Commit panel's tree highlights the file that is open.
 
+28. ✅ QA pass by a separate agent (13 findings), all fixed:
+    - edits are kept per PR with the head they were made on: opening another PR and coming back keeps them; after
+      the head moves (a commit here, its undo, a push elsewhere) the edits of unchanged files carry over, others are
+      dropped with a message naming them; Undo puts the committed edits back (as the IDE's Undo Commit);
+    - on a single commit or range the edits are hidden (kept), and the Commit panel says how to get back to them;
+    - phone: the diff toolbar fits (the viewer switch is in the diff gear), Commit Options fits;
+    - Markdown: marks never enter a link address; changed code in a fence shows its old lines as a struck block after
+      it (one page) instead of running text together; differences counted per change (same as the code view), a new
+      file counts as one; a failed preview can be retried; listeners no longer pile up;
+    - no duplicate actions in Search Everywhere; "Difference n of m" only for the view in front and kept across a font
+      change; `uas` ranks UseAutosave first; picking a commit keeps the open file; README token text; per-PR UI state
+      (unchecked files, closed tabs) resets on another PR.
+
 ## In progress
 
 (none)
 
 ## Planned
 
-28. 📋 Git operations from the Log's context menu, first batch (no merge needed): Copy Revision Number, View in
+29. 📋 Git operations from the Log's context menu, first batch (no merge needed): Copy Revision Number, View in
     browser, Create Patch, Go to Parent / Child, New Branch / Tag, Compare with PR head, Edit Commit Message (F2),
     Squash / Fixup into the previous commit, Undo Commit (head), Reset Current Branch to Here. All rewrites check the
     branch first and offer Undo.
-29. 📋 GitHub-style URLs, as github.dev does: replace `github.com` in a PR / commit / compare link with the viewer's
+30. 📋 GitHub-style URLs, as github.dev does: replace `github.com` in a PR / commit / compare link with the viewer's
     address, e.g. `…/pr-viewer/<owner>/<repo>/pull/<n>/files`. Needs the host to serve the page for any path under
     `/pr-viewer/` (a 404 fallback that forwards the path to `?pr=` works on static hosts).
 
 ## Parked
 
-30. 💤 Open the viewer in the chat app's side panel through the iJewel MCP `open`: the app shows it inline and the
+31. 💤 Open the viewer in the chat app's side panel through the iJewel MCP `open`: the app shows it inline and the
     frame stays blank (an outside site in its frame); needs the page served as an MCP App by the server.
-31. 💤 Merge-based Git operations (Drop, Cherry-Pick, Revert in general, reorder): possible with GitHub's merge API
+32. 💤 Merge-based Git operations (Drop, Cherry-Pick, Revert in general, reorder): possible with GitHub's merge API
     but fail on conflicts with no way to resolve them here.
 
 ## Notes

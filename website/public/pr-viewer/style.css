@@ -675,3 +675,15 @@ button.pr-link { border: 0; background: none; padding: 0; font: inherit; cursor:
 .dlg-row input { flex: 1; min-width: 0; }
 .dlg-err { color: #ff8a80; font-size: 12.5px; }
 .dlg input[type="checkbox"] { width: auto; padding: 0; margin: 0; }
+/* phones: the diff toolbar fits the screen (the viewer switch moves to the diff gear; it scrolls rather than widening the page) */
+.toolbar { min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.toolbar::-webkit-scrollbar { display: none; }
+.dlg-actions { flex-wrap: wrap; row-gap: 6px; }
+@media (max-width: 760px) {
+    .toolbar .seg:not(.seg-md), #diff-count { display: none; }
+    .btn-commit span { display: none; }
+    .btn-commit { padding: 0 8px; }
+    .dlg-row { flex-direction: column; }
+    .dlg-actions .btn { padding: 0 10px; }
+}
+.dlg-tools { display: flex; gap: 4px; margin: -4px 0 0 -10px; }

@@ -11,6 +11,11 @@ let libs
 export function loadMarkdown() {
     libs ??= Promise.all([import(MD_IT), import(PURIFY)]).then(([m, p]) => {
         const md = new m.default({html: true, linkify: true})
+        // the rich diff's marks must not end up inside a link address (encoded or punycoded); they stay in the text
+        const normalize = md.normalizeLink.bind(md)
+        md.normalizeLink = (url) => normalize(url.replace(/[\uE000-\uE003]/g, ''))
+        const validate = md.validateLink.bind(md)
+        md.validateLink = (url) => validate(url.replace(/[\uE000-\uE003]/g, ''))
         const purify = p.default
         purify.addHook('afterSanitizeAttributes', (node) => {
             const href = node.tagName === 'A' && node.getAttribute('href')
@@ -124,10 +129,15 @@ const SYNTAX = /^\s*(?:>\s?)*(?:(?:[-*+]|\d+[.)])\s+(?:\[[ xX]\]\s+)?|#{1,6}\s+)
 const NO_MARKS = /^\s*(?:```|~~~|\|?\s*:?-{3,}:?\s*(\||$))/
 
 /** Inserts [col, text] pairs into a line (0-based columns), keeping the block syntax at its start intact. */
+// link addresses, autolinks, bare URLs and HTML tags: a mark inside one would change the address, so it moves past it
+const PROTECTED = /\]\([^)\s]*(?:\s+"[^"]*")?\)|<[a-z][a-z0-9+.-]*:[^>\s]*>|https?:\/\/[^\s<>()\]]+|<\/?[a-z][^>]*>/gi
+
 function insertAt(line, inserts) {
     if (!inserts.length || NO_MARKS.test(line)) return line
     const min = line.match(SYNTAX)[0].length
-    const at = inserts.map(([c, t], i) => [Math.max(min, Math.min(line.length, c)), t, i]).sort((a, b) => b[0] - a[0] || b[2] - a[2])
+    const guard = [...line.matchAll(PROTECTED)].map((m) => [m.index + (m[0].startsWith('](') ? 2 : 0), m.index + m[0].length])
+    const place = (c) => { for (const [a, b] of guard) if (c > a && c < b) return b; return c }
+    const at = inserts.map(([c, t], i) => [place(Math.max(min, Math.min(line.length, c))), t, i]).sort((a, b) => b[0] - a[0] || b[2] - a[2])
     for (const [c, t] of at) line = line.slice(0, c) + t + line.slice(c)
     return line
 }
@@ -149,16 +159,48 @@ const escapeMd = (s) => s.replace(/[\\`*_{}[\]()#+\-.!|<>~]/g, '\\$&')
  * words and blocks put back) or 'old' (removed words). Returns {text, map}: map[i] is the source line (1-based) of
  * line i of `text`, or 0 for a line put back from the old side.
  */
+/** For each line inside a fenced code block, the fence's opening line and closing line numbers (1-based). */
+function fences(lines) {
+    const out = new Map()
+    let open = 0, marker = ''
+    lines.forEach((line, i) => {
+        const m = line.match(/^\s*(`{3,}|~{3,})/)
+        if (!open && m) { open = i + 1; marker = m[1][0] }
+        else if (open && m && m[1][0] === marker) {
+            for (let l = open; l <= i + 1; l++) out.set(l, {open, close: i + 1})
+            open = 0
+        }
+    })
+    if (open) for (let l = open; l <= lines.length; l++) out.set(l, {open, close: lines.length})
+    return out
+}
+
 export function richSource(oldText, newText, lineChanges, side, unified = false) {
     const oldLines = oldText.split('\n'), newLines = newText.split('\n')
     const lines = side === 'old' ? oldLines : newLines
+    const fenceOf = fences(lines)
+    const oldFences = fences(oldLines)
     const ins = new Map() // line -> [[col, text]]
     const add = (l, c, t) => { if (!ins.has(l)) ins.set(l, []); ins.get(l).push([c, t]) }
     const before = new Map(), after = new Map() // line -> lines put back (unified)
     const putBack = (m, l, block) => { if (!m.has(l)) m.set(l, []); m.get(l).push(...block) }
     const delBlock = (from, to) => ['', '<div class="md-delblock">', '', ...oldLines.slice(from - 1, to), '', '</div>', '']
+    const fenced = new Map() // fence close line -> old lines to put back after it (one page)
     for (const c of lineChanges) {
         const hasO = c.originalEndLineNumber > 0, hasM = c.modifiedEndLineNumber > 0
+        // code in a fence gets no word marks (they would show as text); on one page its old lines follow the block
+        const inFence = side === 'old'
+            ? hasO && oldFences.has(c.originalStartLineNumber)
+            : hasM ? fenceOf.has(c.modifiedStartLineNumber) : fenceOf.has(c.modifiedStartLineNumber) && fenceOf.get(c.modifiedStartLineNumber).close !== c.modifiedStartLineNumber
+        if (inFence) {
+            if (unified && side === 'new' && hasO) {
+                const f = fenceOf.get(c.modifiedStartLineNumber)
+                const old = oldLines.slice(c.originalStartLineNumber - 1, c.originalEndLineNumber)
+                if (!fenced.has(f.close)) fenced.set(f.close, {open: lines[f.open - 1].trim(), lines: []})
+                fenced.get(f.close).lines.push(...old)
+            }
+            continue
+        }
         if (c.charChanges?.length && hasO && hasM) {
             for (const cc of c.charChanges) {
                 if (side === 'old') {
@@ -169,7 +211,10 @@ export function richSource(oldText, newText, lineChanges, side, unified = false)
                     // the removed words, at the position of the change on the new side
                     const del = segments(oldLines, cc.originalStartLineNumber, cc.originalStartColumn, cc.originalEndLineNumber, cc.originalEndColumn)
                         .map(([l, a, b]) => oldLines[l - 1].slice(a, b)).join(' ')
-                    if (del.trim()) add(cc.modifiedStartLineNumber, cc.modifiedStartColumn - 1, DEL_S + escapeMd(del) + DEL_E)
+                    // escaped as text, except inside an inline code span (where a backslash would show)
+                    const line = newLines[cc.modifiedStartLineNumber - 1] || ''
+                    const inCode = ((line.slice(0, cc.modifiedStartColumn - 1).match(/`/g) || []).length % 2) === 1
+                    if (del.trim()) add(cc.modifiedStartLineNumber, cc.modifiedStartColumn - 1, DEL_S + (inCode ? del : escapeMd(del)) + DEL_E)
                 }
                 for (const [l, a, b] of segments(newLines, cc.modifiedStartLineNumber, cc.modifiedStartColumn, cc.modifiedEndLineNumber, cc.modifiedEndColumn)) { add(l, a, INS_S); add(l, b, INS_E) }
             }
@@ -178,6 +223,10 @@ export function richSource(oldText, newText, lineChanges, side, unified = false)
             if (hasM) putBack(before, c.modifiedStartLineNumber, delBlock(c.originalStartLineNumber, c.originalEndLineNumber))
             else putBack(after, c.modifiedStartLineNumber, delBlock(c.originalStartLineNumber, c.originalEndLineNumber))
         }
+    }
+    for (const [close, {open, lines: old}] of fenced) {
+        const fence = open.match(/^(`{3,}|~{3,})/)?.[1] || '```'
+        putBack(after, close, ['', '<div class="md-delblock">', '', open, ...old, fence, '', '</div>', ''])
     }
     const text = [], map = []
     if (after.has(0)) for (const x of after.get(0)) { text.push(x); map.push(0) }

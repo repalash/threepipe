@@ -44,6 +44,8 @@ export function fuzzy(query, text) {
             ti = i + 1
         }
     }
+    // ties go to the match that starts earlier ("uas": UseAutosave before FlowNavBarUtilActions)
+    if (hits.length) score -= Math.min(...hits) * 0.05
     return {score, hits}
 }
 

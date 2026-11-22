@@ -215,9 +215,9 @@ const state = {
     loadId: 0,
     fileLoadId: 0,
     tree: null,
-    edits: new Map(), // path -> edited text of the PR head (state.editKey), not committed yet
-    editKey: null,
-    carryEdits: null, // edits not in the last commit, kept for the new head
+    edits: new Map(), // path -> edited text of the open PR's head, not committed yet (empty off the PR's full changes)
+    editKey: null, // the PR the edits belong to ('owner/repo#n'), null when not on a PR's full changes
+    editHead: null, // the head commit the edits were made on
     cmtExcluded: new Set(), // edited files unchecked in the Commit panel
     editing: false, // edit mode: the right side (the PR head) is editable
     editableFile: false,
@@ -274,19 +274,15 @@ async function openTarget(target, file) {
     }
     if (id !== state.loadId) return
     state.cs = cs
-    const hk = headKey()
-    if (hk && hk !== state.editKey) {
-        if (state.carryEdits && state.carryKey === `${target.owner}/${target.repo}#${target.number}`) {
-            // the files not in the last commit are the same at the new head
-            state.edits = state.carryEdits
-        } else if (state.edits.size) {
-            toast(`Discarded ${state.edits.size} uncommitted edit${state.edits.size === 1 ? '' : 's'}: the pull request has a new head`, 'error', 6000)
-            state.edits = new Map()
-        }
-        state.carryEdits = null
-        state.editKey = hk
-        saveEdits()
+    const pk = `${target.owner}/${target.repo}#${target.number}`
+    if (state.lastPr !== pk) {
+        // per-PR UI state starts fresh on another PR
+        state.lastPr = pk
+        state.cmtExcluded = new Set()
+        state.closedTabs = new Set()
     }
+    await attachEdits(cs)
+    if (id !== state.loadId) return
     renderEdits()
     addRecent(target, cs.title)
     document.title = `${cs.title} · ${labelForTarget(target)}`
@@ -500,7 +496,10 @@ function buildShell() {
         const p = e.target.closest('.tl-path')
         if (p) { setTab('changes'); selectFile(p.dataset.path) }
     }
-    $('#btn-md-preview').onclick = () => !settings.mdPreview && toggleMdPreview()
+    $('#btn-md-preview').onclick = () => {
+        if (state.mdFailed) { state.mdFailed = false; if (settings.mdPreview) return reopenFile(true) }
+        if (!settings.mdPreview) toggleMdPreview()
+    }
     $('#btn-md-code').onclick = () => settings.mdPreview && toggleMdPreview()
     $('#side-title').onclick = (e) => state.sidePanel !== 'prs' && commitMenu(e.currentTarget)
     $('#chk-viewed').onchange = (e) => toggleViewed(state.order[state.index], e.target.checked)
@@ -688,7 +687,7 @@ function commitMenu(anchor) {
     if (!cs?.commits?.length) return
     const items = []
     if (target.type === 'pr') {
-        items.push({label: `All commits (${cs.commits.length})`, checked: !target.commit, action: () => navigate({...target, commit: undefined})})
+        items.push({label: `All commits (${cs.commits.length})`, checked: !target.commit, action: () => navigate({...target, commit: undefined}, state.order[state.index]?.path)})
         items.push({label: `${icons.log} Show Log`, action: showLog})
         items.push('-')
     }
@@ -697,7 +696,7 @@ function commitMenu(anchor) {
         items.push({
             label: `${esc(msg)}<div class="menu-sub">${esc(c.author?.login || c.commit.author?.name || '')}, ${esc(formatWhen(c.commit.author?.date || c.commit.committer?.date))} · <code>${short(c.sha)}</code></div>`,
             checked: !!(target.commit || (target.type === 'commit' && target.sha)) && c.sha.startsWith(target.commit || target.sha),
-            action: () => target.type === 'pr' ? navigate({...target, commit: c.sha}) : navigate({type: 'commit', owner: target.owner, repo: target.repo, sha: c.sha}),
+            action: () => target.type === 'pr' ? navigate({...target, commit: c.sha}, state.order[state.index]?.path) : navigate({type: 'commit', owner: target.owner, repo: target.repo, sha: c.sha}, state.order[state.index]?.path),
         })
     }
     openMenu(anchor, items, {search: 'Search commits'})
@@ -708,6 +707,9 @@ function settingsMenu(anchor) {
     const ignore = (v) => ({label: {none: 'None', trim: 'Trim whitespaces', all: 'Ignore whitespaces'}[v], checked: settings.ignore === v, action: () => { set('ignore', v); reopenFile(true) }})
     const hl = (v) => ({label: {lines: 'Lines', words: 'Words', none: 'None'}[v], checked: settings.highlight === v, action: () => { set('highlight', v); applyHighlight() }})
     openMenu(anchor, [
+        {label: 'Side-by-Side Viewer', checked: viewMode() === 'sbs', action: () => setView('sbs')},
+        {label: 'Unified Viewer', checked: viewMode() === 'unified', action: () => setView('unified')},
+        '-',
         {label: 'Align Changes In Side-by-Side Diff', checked: settings.align, action: () => { set('align', !settings.align); applyView() }},
         {label: 'Synchronize Scrolling', checked: settings.syncScroll, disabled: renderer() !== 'sbs', action: () => { set('syncScroll', !settings.syncScroll); state.sbs?.setOptions({syncScroll: settings.syncScroll}) }},
         '-',
@@ -1087,11 +1089,13 @@ async function showMarkdownPreview(f, oldText, newText, lineChanges, labels, id,
             <div class="mdp-body"><article class="md">${html[i]}</article></div></div>`).join('')}</div>`
     showView('md')
     const main = $('.mdp-pane:last-child .mdp-body', view)
-    state.mdMarks = [...main.querySelectorAll('.md-ins, .md-mod, .md-del')].filter((e) => !e.parentElement.closest('.md-ins, .md-mod, .md-del'))
+    state.mdMarks = mdStops(main, lineChanges, f)
     state.mdCur = -1
     if (scroll) main.scrollTop = scroll
     else if (state.mdMarks.length && f.status === 'modified') markCurrent(0, false)
     const bodies = [...view.querySelectorAll('.mdp-body')]
+    state.mdRefresh = null
+    state.mdObserver?.disconnect()
     if (bodies.length === 2) linkMarkdownPanes(view, bodies, lineChanges)
     for (const b of bodies) b.addEventListener('scroll', () => updateToolbar(), {passive: true})
     highlightBlocks(view).then(() => state.mdRefresh?.())
@@ -1181,13 +1185,32 @@ function linkMarkdownPanes(view, [ob, nb], lineChanges) {
         cancelAnimationFrame(raf)
         raf = requestAnimationFrame(draw)
     }, {passive: true}))
-    const refresh = () => { measure(); draw() }
-    new ResizeObserver(refresh).observe(cv)
+    const refresh = () => { if (cv.isConnected) { measure(); draw() } }
+    state.mdObserver?.disconnect()
+    state.mdObserver = new ResizeObserver(refresh)
+    state.mdObserver.observe(cv)
     // images and highlighted code change the heights after rendering
+    if (state.mdOnLoad) view.removeEventListener('load', state.mdOnLoad, true)
+    state.mdOnLoad = refresh
     view.addEventListener('load', refresh, true)
     setTimeout(refresh, 400)
     refresh()
     state.mdRefresh = refresh
+}
+
+/** One stop per change (as the code view counts differences): the first block of the change, or the block after a removal. */
+function mdStops(main, lineChanges, f) {
+    if (f.status === 'added' || f.status === 'removed') return [...main.querySelectorAll('.md > *')].slice(0, 1)
+    const B = [...main.querySelectorAll('[data-sl]')].map((e) => ({e, sl: +e.dataset.sl, el: +e.dataset.el}))
+    const stops = []
+    for (const c of lineChanges) {
+        const hasM = c.modifiedEndLineNumber > 0
+        const b = hasM ? B.find((x) => x.el >= c.modifiedStartLineNumber && x.sl <= c.modifiedEndLineNumber)
+            : B.find((x) => x.sl > c.modifiedStartLineNumber)
+        const el = !hasM && b?.e.previousElementSibling?.classList.contains('md-delblock') ? b.e.previousElementSibling : b?.e
+        if (el && !stops.includes(el)) stops.push(el)
+    }
+    return stops
 }
 
 function markCurrent(i, smooth = true) {
@@ -1284,6 +1307,7 @@ async function timelineHtml(cs, {comments, reviews, inline}, desc) {
     }
     const s = pr.merged_at ? 'merged' : pr.draft ? 'draft' : pr.state
     const n = cs.commits?.length || 0
+    const nReviews = reviews.filter((r) => r.state !== 'PENDING').length
     return `<div class="tl">
         <header class="tl-head"><h1>${esc(pr.title)} <span class="dim">#${pr.number}</span></h1>
             <div class="tl-sub"><span class="state-pill st-${s}">${s[0].toUpperCase() + s.slice(1)}</span>
@@ -1291,7 +1315,7 @@ async function timelineHtml(cs, {comments, reviews, inline}, desc) {
         <div class="tl-item tl-card tl-desc"><div class="tl-meta">${who(pr.user)} <span class="dim">opened this pull request</span> ${when(pr.created_at)}</div>
             <article class="md tl-body">${desc || '<p class="dim">No description provided.</p>'}</article></div>
         ${out}
-        <div class="tl-end dim">${comments.length} comment${comments.length === 1 ? '' : 's'} · ${reviews.filter((r) => r.state !== 'PENDING').length} review${reviews.length === 1 ? '' : 's'} · <a href="${esc(pr.html_url)}" target="_blank" rel="noopener">Open PR on GitHub</a></div>
+        <div class="tl-end dim">${comments.length} comment${comments.length === 1 ? '' : 's'} · ${nReviews} review${nReviews === 1 ? '' : 's'} · <a href="${esc(pr.html_url)}" target="_blank" rel="noopener">Open PR on GitHub</a></div>
     </div>`
 }
 
@@ -1360,22 +1384,68 @@ function renderEdits() {
     saveEdits()
 }
 
-// edits survive a reload of the tab (sessionStorage), for the same PR head
+// Edits are kept per PR, with the head they were made on, for the tab's session (sessionStorage): opening another PR
+// and coming back, or reloading, keeps them.
+const EDITS_KEY = 'prv.edits2'
+function editStore() {
+    try { return JSON.parse(sessionStorage.getItem(EDITS_KEY) || '{}') || {} } catch { return {} }
+}
+function writeEditStore(all) {
+    try { sessionStorage.setItem(EDITS_KEY, JSON.stringify(all)) } catch { /* too large or no storage */ }
+}
 let saveTimer
 function saveEdits() {
     clearTimeout(saveTimer)
+    const key = state.editKey, head = state.editHead, files = Object.fromEntries(state.edits)
+    if (!key) return
     saveTimer = setTimeout(() => {
-        try {
-            if (state.edits.size) sessionStorage.setItem('prv.edits', JSON.stringify({key: state.editKey, files: Object.fromEntries(state.edits)}))
-            else sessionStorage.removeItem('prv.edits')
-        } catch { /* too large or no storage */ }
-    }, 300)
+        const all = editStore()
+        if (Object.keys(files).length) all[key] = {head, files}
+        else delete all[key]
+        writeEditStore(all)
+    }, 200)
 }
-function restoreEdits() {
-    try {
-        const v = JSON.parse(sessionStorage.getItem('prv.edits') || 'null')
-        if (v?.key && v.files) { state.editKey = v.key; state.edits = new Map(Object.entries(v.files)) }
-    } catch { /* none */ }
+function flushEdits() {
+    if (!state.editKey) return
+    clearTimeout(saveTimer)
+    const all = editStore()
+    if (state.edits.size) all[state.editKey] = {head: state.editHead, files: Object.fromEntries(state.edits)}
+    else delete all[state.editKey]
+    writeEditStore(all)
+}
+function setStoredEdits(key, head, files) {
+    const all = editStore()
+    if (Object.keys(files).length) all[key] = {head, files}
+    else delete all[key]
+    writeEditStore(all)
+}
+
+/**
+ * The edits of the loaded PR. Off its full changes (a commit or a range) none show; they stay stored. When the head
+ * moved since they were made (a commit here, its undo, or a push elsewhere), the edits of files that did not change
+ * between the two heads are kept, the others dropped (with a message).
+ */
+async function attachEdits(cs) {
+    flushEdits()
+    const t = state.target
+    if (!headKey()) { state.editKey = null; state.editHead = null; state.edits = new Map(); return }
+    const key = `${t.owner}/${t.repo}#${t.number}`
+    state.editKey = key
+    state.editHead = cs.headSha
+    const e = editStore()[key]
+    if (!e || !e.files) { state.edits = new Map(); return }
+    if (e.head === cs.headSha) { state.edits = new Map(Object.entries(e.files)); return }
+    const kept = new Map(), dropped = []
+    await Promise.all(Object.entries(e.files).map(async ([path, text]) => {
+        try {
+            const [a, b] = await Promise.all([getFileContent(t.owner, t.repo, e.head, path), getFileContent(t.owner, t.repo, cs.headSha, path)])
+            if (!a.binary && !b.binary && a.text === b.text) kept.set(path, text)
+            else dropped.push(path)
+        } catch { dropped.push(path) }
+    }))
+    state.edits = kept
+    setStoredEdits(key, cs.headSha, Object.fromEntries(kept))
+    if (dropped.length) toast(`Dropped your edits of ${dropped.length === 1 ? dropped[0] : dropped.length + ' files'}: changed on GitHub since`, 'error', 8000)
 }
 
 function discardEdits(paths) {
@@ -1424,7 +1494,8 @@ function renderCommitPanel(tree = true) {
         } else {
             state.cmtTree.files = null
             state.cmtTree.root = null
-            $('#cmt-tree').innerHTML = `<div class="tree-msg dim">${canEditPr()
+            const stored = !headKey() && state.target?.type === 'pr' && Object.keys(editStore()[`${state.target.owner}/${state.target.repo}#${state.target.number}`]?.files || {}).length
+            $('#cmt-tree').innerHTML = `<div class="tree-msg dim">${stored ? `Your ${stored} edited file${stored === 1 ? ' is' : 's are'} kept on the pull request's head: choose <b>All commits</b> to see and commit ${stored === 1 ? 'it' : 'them'}.` : canEditPr()
                 ? `No changes. Turn on editing with the pencil (${icons.pencil}) over the diff, edit the right side, and commit here to <b>${esc(state.cs.pr.head.ref)}</b>.`
                 : 'Only the full changes of an open pull request can be edited and committed.'}</div>`
         }
@@ -1462,10 +1533,12 @@ async function commitOptionsDialog() {
             <div class="dlg-row"><input id="co-an" placeholder="Name" value="${v(id.author, 'name')}" autocomplete="name"><input id="co-ae" placeholder="Email" value="${v(id.author, 'email')}" autocomplete="email" type="email"></div>
             <label class="cmt-amend"><input type="checkbox" id="co-same" ${id.committer ? '' : 'checked'}><span>Committer is the author</span></label>
             <div class="dlg-row" id="co-crow" ${id.committer ? '' : 'hidden'}><input id="co-cn" placeholder="Committer name" value="${v(id.committer, 'name')}"><input id="co-ce" placeholder="Committer email" value="${v(id.committer, 'email')}" type="email"></div>
+            <div class="dlg-tools">
+                <button type="button" id="co-me" class="btn btn-small btn-ghost" title="Fill in the name and email of your token's account">Use my account</button>
+                <button type="button" id="co-clear" class="btn btn-small btn-ghost">Clear</button>
+            </div>
             <div class="dlg-err" id="co-err" hidden></div>
             <div class="dlg-actions">
-                <button type="button" id="co-me" class="btn btn-ghost" title="Fill in the name and email of your token's account">Use my account</button>
-                <button type="button" id="co-clear" class="btn btn-ghost">Clear</button>
                 <span class="spacer"></span>
                 <button type="button" id="co-cancel" class="btn btn-ghost">Cancel</button>
                 <button type="submit" class="btn btn-primary">Save</button>
@@ -1530,19 +1603,19 @@ async function doCommit() {
         const id = identity()
         const {sha, previous} = await commitFiles({...where, expectedHead: headSha, message, amend, author: id.author, committer: id.committer,
             files: paths.map((path) => ({path, text: state.edits.get(path)}))})
-        // the unchecked files keep their edits on the new head
+        // the unchecked files keep their edits (on the old head: unchanged by this commit, they carry over on reload)
+        const committed = Object.fromEntries(paths.map((p) => [p, state.edits.get(p)]))
         const rest = new Map([...state.edits].filter(([p]) => !paths.includes(p)))
-        const t = state.target
-        state.carryEdits = rest
-        state.carryKey = `${t.owner}/${t.repo}#${t.number}`
         state.edits = rest
+        flushEdits()
+        const key = state.editKey
         state.cmtExcluded.clear()
         $('#cmt-msg').value = ''
         $('#cmt-amend').checked = false
         state.cmtTyped = ''
         renderEdits()
         toast(`${amend ? 'Amended' : 'Committed'} ${sha.slice(0, 7)} and pushed to ${pr.head.ref}`, 'info', 10000, {
-            label: 'Undo', run: () => undoCommit(where, previous, sha),
+            label: 'Undo', run: () => undoCommit(where, previous, sha, key, committed),
         })
         await waitForHead(sha)
         reloadTarget()
@@ -1566,9 +1639,15 @@ async function waitForHead(sha) {
     }
 }
 
-async function undoCommit(where, previous, sha) {
+/** Moves the branch back and puts the committed edits back, as the IDE's Undo Commit does. */
+async function undoCommit(where, previous, sha, key, committed) {
     try {
         await moveBranch({...where, sha: previous, expected: sha})
+        // the edits now open (made on the commit) win over the committed ones; all are edits of `previous`
+        const now = state.editKey === key ? Object.fromEntries(state.edits) : (editStore()[key]?.files || {})
+        if (state.editKey === key) state.edits = new Map(Object.entries({...committed, ...now}))
+        setStoredEdits(key, previous, {...committed, ...now})
+        if (state.editKey === key) state.editHead = previous
         toast(`${where.branch} is back at ${previous.slice(0, 7)}`)
         await waitForHead(previous)
         reloadTarget()
@@ -1791,8 +1870,9 @@ function updateToolbar() {
     $('#btn-next-diff').disabled = !d.next && state.index >= state.order.length - 1
     $('#btn-prev-file').disabled = state.index <= 0
     $('#btn-next-file').disabled = state.index >= state.order.length - 1
-    const cur = renderer() === 'sbs' ? state.sbs?.currentIndex() ?? -1 : -1
-    $('#st-pos').textContent = cur >= 0 ? `Difference ${cur + 1} of ${d.count}` : ''
+    const md = $('#view-md').classList.contains('active')
+    const cur = md ? state.mdCur ?? -1 : renderer() === 'sbs' && $('#view-sbs').classList.contains('active') ? state.sbs?.currentIndex() ?? -1 : -1
+    $('#st-pos').textContent = cur >= 0 && d.count ? `Difference ${cur + 1} of ${d.count}` : ''
 }
 
 function setLoading(on) {
@@ -1871,7 +1951,6 @@ function actionItems() {
         A('Reset Font Size', () => changeFont(0), {hint: `${MOD}0`}),
         A('Expand All', () => state.tree.collapseAll(false), {ic: icons.expand}),
         A('Collapse All', () => state.tree.collapseAll(true), {ic: icons.collapse}),
-        state.cs?.commits?.length && A('Show Log', () => setTab('log'), {ic: icons.log}),
         A('Show Diff', () => setTab('changes'), {ic: icons.changes}),
         A('Pull Requests', () => { setSidePanel('prs'); openDrawer() }, {sub: `${t.owner}/${t.repo}`, ic: icons.pr}),
         A('Changed Files', () => { setSidePanel('changes'); openDrawer() }, {ic: icons.commit}),
@@ -1880,7 +1959,7 @@ function actionItems() {
         A('Reload', () => reloadTarget(), {ic: icons.refresh}),
         ...THEMES.map((th) => A(`Theme: ${th.name}`, () => setThemeId(th.id), {toggle: settings.theme === th.id, sub: th.dark ? 'dark' : 'light'})),
         A('GitHub Token…', tokenDialog, {ic: icons.lock}),
-        A('Open Another Pull Request', () => { history.pushState(null, '', location.pathname); route() }, {ic: icons.folder}),
+        A('Start Page', () => { history.pushState(null, '', location.pathname); route() }, {ic: icons.folder}),
     ].filter(Boolean)
 }
 
@@ -1921,7 +2000,6 @@ function setupPalette() {
 }
 
 applyThemeCss(themeById(settings.theme))
-restoreEdits()
 installTooltips()
 window.addEventListener('popstate', () => route())
 route()

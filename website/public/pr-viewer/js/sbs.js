@@ -390,6 +390,9 @@ export class SideBySideViewer {
     }
 
     setFont(fontSize, lineHeight) {
+        // the relayout scrolls; a difference that was current stays current
+        const keep = !this.userScrolled && this.cur >= 0 ? this.cur : -1
+        if (keep >= 0) requestAnimationFrame(() => this.goTo(keep))
         this.fontSize = fontSize
         this.lineHeight = lineHeight
         this.root.style.setProperty('--prv-lh', lineHeight + 'px')
