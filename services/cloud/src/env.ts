@@ -73,5 +73,8 @@ export function prefixRange(prefix: string): [string, string] {
  * logpush bucket (wrangler.jsonc). Search for `[cloud]` to see what broke since the last look.
  */
 export function logError(what: string, data: Record<string, unknown> = {}) {
-    console.error(JSON.stringify({alert: `[cloud] ${what}`, ...data}))
+    console.error(redactLog(JSON.stringify({alert: `[cloud] ${what}`, ...data})))
 }
+
+/** An access code in a URL is a credential (src/access.ts): logs show it as `…`. */
+export const redactLog = (line: string) => line.replace(/(\/api\/v1\/access\/)[^/\s"]+/g, '$1…')
